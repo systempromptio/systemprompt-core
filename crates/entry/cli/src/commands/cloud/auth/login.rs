@@ -76,7 +76,11 @@ pub async fn complete_login(
     let response = client.get_user().await?;
     spinner.finish_and_clear();
 
-    let creds = CloudCredentials::new(token, api_url.to_owned(), response.user.email.clone());
+    let creds = CloudCredentials::new(
+        systemprompt_identifiers::CloudAuthToken::new(token),
+        api_url.to_owned(),
+        systemprompt_identifiers::Email::new(response.user.email.clone()),
+    );
 
     let save_path = cloud_paths.resolve(CloudPath::Credentials);
     creds.save_to_path(&save_path)?;

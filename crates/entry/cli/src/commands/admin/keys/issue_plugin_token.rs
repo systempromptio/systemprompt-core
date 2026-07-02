@@ -125,5 +125,5 @@ async fn resolve_email() -> Result<String> {
              cloud auth login` first."
         )
     })?;
-    Ok(creds.user_email.clone())
+    Ok(creds.user_email.as_str().to_owned())
 }

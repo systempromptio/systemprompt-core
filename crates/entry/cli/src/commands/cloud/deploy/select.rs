@@ -40,7 +40,7 @@ fn to_deployable_profile(
 
     let cloud = discovered.profile.cloud.as_ref()?;
     let tenant_id = cloud.tenant_id.as_ref()?;
-    let tenant = tenant_store.find_tenant(tenant_id.as_str());
+    let tenant = tenant_store.find_tenant(tenant_id);
 
     Some(DeployableProfile {
         name: discovered.name,

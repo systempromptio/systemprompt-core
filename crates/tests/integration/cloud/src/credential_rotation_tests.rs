@@ -51,8 +51,12 @@ async fn rotating_credentials_overwrites_previous_token_on_disk() {
     save_credentials(&fx.credentials_path, &v2, "user@example.com");
 
     let loaded = CloudCredentials::load_from_path(&fx.credentials_path).expect("load");
-    assert_eq!(loaded.api_token, v2);
-    assert_ne!(loaded.api_token, v1, "v1 must not remain after overwrite");
+    assert_eq!(loaded.api_token.as_str(), v2);
+    assert_ne!(
+        loaded.api_token.as_str(),
+        v1,
+        "v1 must not remain after overwrite"
+    );
 }
 
 #[tokio::test]

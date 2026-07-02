@@ -11,6 +11,7 @@ use systemprompt_cli::cloud::tenant::{
 };
 use systemprompt_cli::interactive::ScriptedPrompter;
 use systemprompt_cloud::{StoredTenant, TenantStore, TenantType};
+use systemprompt_identifiers::TenantId;
 
 fn scripted(answers: &[&str]) -> ScriptedPrompter {
     ScriptedPrompter::new(answers.iter().map(|s| (*s).to_owned()))
@@ -18,14 +19,14 @@ fn scripted(answers: &[&str]) -> ScriptedPrompter {
 
 fn local_tenant(id: &str, name: &str) -> StoredTenant {
     StoredTenant::new_local(
-        id.to_owned(),
+        TenantId::new(id),
         name.to_owned(),
         "postgres://localhost/db".to_owned(),
     )
 }
 
 fn cloud_tenant(id: &str, name: &str) -> StoredTenant {
-    let mut tenant = StoredTenant::new(id.to_owned(), name.to_owned());
+    let mut tenant = StoredTenant::new(TenantId::new(id), name.to_owned());
     tenant.tenant_type = TenantType::Cloud;
     tenant
 }

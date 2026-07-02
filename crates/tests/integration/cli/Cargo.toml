@@ -20,6 +20,7 @@ systemprompt-database = { workspace = true }
 systemprompt-users = { workspace = true }
 systemprompt-security = { workspace = true }
 systemprompt-cloud = { workspace = true }
+systemprompt-identifiers = { workspace = true }
 systemprompt-config = { workspace = true }
 systemprompt-test-fixtures = { workspace = true }
 tempfile = { workspace = true }

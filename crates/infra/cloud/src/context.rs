@@ -1,4 +1,5 @@
 use systemprompt_config::ProfileBootstrap;
+use systemprompt_identifiers::TenantId;
 use systemprompt_models::Profile;
 
 use crate::api_client::CloudApiClient;
@@ -9,7 +10,7 @@ use crate::tenants::{StoredTenant, TenantStore};
 
 #[derive(Debug, Clone)]
 pub struct ResolvedTenant {
-    pub id: String,
+    pub id: TenantId,
     pub name: String,
     pub app_id: Option<String>,
     pub hostname: Option<String>,
@@ -43,7 +44,7 @@ impl CloudContext {
         let credentials = CloudCredentials::load_and_validate_from_path(&creds_path)
             .map_err(|_e| CloudError::NotAuthenticated)?;
 
-        let api_client = CloudApiClient::new(&credentials.api_url, &credentials.api_token)
+        let api_client = CloudApiClient::new(&credentials.api_url, credentials.api_token.as_str())
             .map_err(CloudError::Network)?;
 
         Ok(Self {
@@ -70,9 +71,7 @@ impl CloudContext {
         Ok(self)
     }
 
-    fn resolve_tenant(
-        tenant_id: &systemprompt_identifiers::TenantId,
-    ) -> CloudResult<Option<ResolvedTenant>> {
+    fn resolve_tenant(tenant_id: &TenantId) -> CloudResult<Option<ResolvedTenant>> {
         let cloud_paths = get_cloud_paths();
         let tenants_path = cloud_paths.resolve(CloudPath::Tenants);
 
@@ -83,7 +82,7 @@ impl CloudContext {
         let store = TenantStore::load_from_path(&tenants_path)
             .map_err(|_e| CloudError::TenantsNotSynced)?;
 
-        store.find_tenant(tenant_id.as_str()).map_or_else(
+        store.find_tenant(tenant_id).map_or_else(
             || {
                 Err(CloudError::TenantNotFound {
                     tenant_id: tenant_id.clone(),

@@ -4,6 +4,7 @@
 //! `get_local_database_url`, and `new_local_shared`.
 
 use systemprompt_cloud::{StoredTenant, TenantInfo, TenantType};
+use systemprompt_identifiers::TenantId;
 
 fn make_tenant_info(id: &str, db_url: &str) -> TenantInfo {
     TenantInfo {
@@ -24,13 +25,13 @@ fn make_tenant_info(id: &str, db_url: &str) -> TenantInfo {
 #[test]
 fn new_local_shared_sets_correct_fields() {
     let tenant = StoredTenant::new_local_shared(
-        "local-sh".to_string(),
+        TenantId::new("local-sh"),
         "Shared Tenant".to_string(),
         "postgres://localhost/shared".to_string(),
         "systemprompt-postgres-local".to_string(),
     );
 
-    assert_eq!(tenant.id, "local-sh");
+    assert_eq!(tenant.id.as_str(), "local-sh");
     assert_eq!(tenant.name, "Shared Tenant");
     assert_eq!(
         tenant.database_url,
@@ -48,7 +49,7 @@ fn new_local_shared_sets_correct_fields() {
 #[test]
 fn uses_shared_container_true_when_set() {
     let tenant = StoredTenant::new_local_shared(
-        "id".to_string(),
+        TenantId::new("id"),
         "name".to_string(),
         "postgres://x".to_string(),
         "container".to_string(),
@@ -59,7 +60,7 @@ fn uses_shared_container_true_when_set() {
 #[test]
 fn uses_shared_container_false_when_none() {
     let tenant = StoredTenant::new_local(
-        "id".to_string(),
+        TenantId::new("id"),
         "name".to_string(),
         "postgres://x".to_string(),
     );
@@ -68,14 +69,14 @@ fn uses_shared_container_false_when_none() {
 
 #[test]
 fn uses_shared_container_false_for_cloud_tenant() {
-    let tenant = StoredTenant::new("id".to_string(), "name".to_string());
+    let tenant = StoredTenant::new(TenantId::new("id"), "name".to_string());
     assert!(!tenant.uses_shared_container());
 }
 
 #[test]
 fn get_local_database_url_returns_database_url_when_set() {
     let tenant = StoredTenant::new_local(
-        "id".to_string(),
+        TenantId::new("id"),
         "name".to_string(),
         "postgres://primary".to_string(),
     );
@@ -85,7 +86,7 @@ fn get_local_database_url_returns_database_url_when_set() {
 
 #[test]
 fn get_local_database_url_falls_back_to_internal() {
-    let mut tenant = StoredTenant::new("id".to_string(), "name".to_string());
+    let mut tenant = StoredTenant::new(TenantId::new("id"), "name".to_string());
     tenant.internal_database_url = Some("postgres://internal".to_string());
     let url = tenant.get_local_database_url();
     assert_eq!(url, Some(&"postgres://internal".to_string()));
@@ -93,14 +94,14 @@ fn get_local_database_url_falls_back_to_internal() {
 
 #[test]
 fn get_local_database_url_returns_none_when_both_absent() {
-    let tenant = StoredTenant::new("id".to_string(), "name".to_string());
+    let tenant = StoredTenant::new(TenantId::new("id"), "name".to_string());
     assert!(tenant.get_local_database_url().is_none());
 }
 
 #[test]
 fn get_local_database_url_prefers_database_url_over_internal() {
     let mut tenant = StoredTenant::new_local(
-        "id".to_string(),
+        TenantId::new("id"),
         "name".to_string(),
         "postgres://primary".to_string(),
     );
@@ -111,7 +112,7 @@ fn get_local_database_url_prefers_database_url_over_internal() {
 
 #[test]
 fn update_from_tenant_info_updates_name() {
-    let mut tenant = StoredTenant::new("t-1".to_string(), "Old Name".to_string());
+    let mut tenant = StoredTenant::new(TenantId::new("t-1"), "Old Name".to_string());
     let info = make_tenant_info("t-1", "postgres://new-db");
     tenant.update_from_tenant_info(&TenantInfo {
         name: "New Name".to_string(),
@@ -122,7 +123,7 @@ fn update_from_tenant_info_updates_name() {
 
 #[test]
 fn update_from_tenant_info_updates_app_id() {
-    let mut tenant = StoredTenant::new("t-1".to_string(), "Name".to_string());
+    let mut tenant = StoredTenant::new(TenantId::new("t-1"), "Name".to_string());
     let info = TenantInfo {
         id: "t-1".to_string(),
         name: "Name".to_string(),
@@ -142,7 +143,7 @@ fn update_from_tenant_info_updates_app_id() {
 
 #[test]
 fn update_from_tenant_info_updates_hostname() {
-    let mut tenant = StoredTenant::new("t-1".to_string(), "Name".to_string());
+    let mut tenant = StoredTenant::new(TenantId::new("t-1"), "Name".to_string());
     let info = TenantInfo {
         id: "t-1".to_string(),
         name: "Name".to_string(),
@@ -162,7 +163,7 @@ fn update_from_tenant_info_updates_hostname() {
 
 #[test]
 fn update_from_tenant_info_updates_region() {
-    let mut tenant = StoredTenant::new("t-1".to_string(), "Name".to_string());
+    let mut tenant = StoredTenant::new(TenantId::new("t-1"), "Name".to_string());
     let info = TenantInfo {
         id: "t-1".to_string(),
         name: "Name".to_string(),
@@ -182,7 +183,7 @@ fn update_from_tenant_info_updates_region() {
 
 #[test]
 fn update_from_tenant_info_updates_external_db_access() {
-    let mut tenant = StoredTenant::new("t-1".to_string(), "Name".to_string());
+    let mut tenant = StoredTenant::new(TenantId::new("t-1"), "Name".to_string());
     let info = TenantInfo {
         id: "t-1".to_string(),
         name: "Name".to_string(),
@@ -202,7 +203,7 @@ fn update_from_tenant_info_updates_external_db_access() {
 
 #[test]
 fn update_from_tenant_info_sets_internal_database_url_when_not_masked() {
-    let mut tenant = StoredTenant::new("t-1".to_string(), "Name".to_string());
+    let mut tenant = StoredTenant::new(TenantId::new("t-1"), "Name".to_string());
     let info = make_tenant_info("t-1", "postgres://user:realpass@host/db");
     tenant.update_from_tenant_info(&info);
     assert_eq!(
@@ -213,7 +214,7 @@ fn update_from_tenant_info_sets_internal_database_url_when_not_masked() {
 
 #[test]
 fn update_from_tenant_info_skips_internal_url_when_masked_with_stars() {
-    let mut tenant = StoredTenant::new("t-1".to_string(), "Name".to_string());
+    let mut tenant = StoredTenant::new(TenantId::new("t-1"), "Name".to_string());
     tenant.internal_database_url = Some("postgres://user:realpass@host/db".to_string());
     let info = make_tenant_info("t-1", "postgres://user:***@host/db");
     tenant.update_from_tenant_info(&info);
@@ -225,7 +226,7 @@ fn update_from_tenant_info_skips_internal_url_when_masked_with_stars() {
 
 #[test]
 fn update_from_tenant_info_updates_internal_url_when_masked_only_by_many_stars() {
-    let mut tenant = StoredTenant::new("t-1".to_string(), "Name".to_string());
+    let mut tenant = StoredTenant::new(TenantId::new("t-1"), "Name".to_string());
     tenant.internal_database_url = Some("postgres://user:secret@host/db".to_string());
     let info = make_tenant_info("t-1", "postgres://user:********@host/db");
     tenant.update_from_tenant_info(&info);
@@ -237,34 +238,34 @@ fn update_from_tenant_info_updates_internal_url_when_masked_only_by_many_stars()
 
 #[test]
 fn is_database_url_masked_true_for_three_star_mask() {
-    let mut tenant = StoredTenant::new("t-1".to_string(), "Name".to_string());
+    let mut tenant = StoredTenant::new(TenantId::new("t-1"), "Name".to_string());
     tenant.internal_database_url = Some("postgres://user:***@host/db".to_string());
     assert!(tenant.is_database_url_masked());
 }
 
 #[test]
 fn is_database_url_masked_true_for_eight_star_mask() {
-    let mut tenant = StoredTenant::new("t-1".to_string(), "Name".to_string());
+    let mut tenant = StoredTenant::new(TenantId::new("t-1"), "Name".to_string());
     tenant.internal_database_url = Some("postgres://user:********@host/db".to_string());
     assert!(tenant.is_database_url_masked());
 }
 
 #[test]
 fn is_database_url_masked_false_for_real_password() {
-    let mut tenant = StoredTenant::new("t-1".to_string(), "Name".to_string());
+    let mut tenant = StoredTenant::new(TenantId::new("t-1"), "Name".to_string());
     tenant.internal_database_url = Some("postgres://user:realpass@host/db".to_string());
     assert!(!tenant.is_database_url_masked());
 }
 
 #[test]
 fn is_database_url_masked_false_when_no_internal_url() {
-    let tenant = StoredTenant::new("t-1".to_string(), "Name".to_string());
+    let tenant = StoredTenant::new(TenantId::new("t-1"), "Name".to_string());
     assert!(!tenant.is_database_url_masked());
 }
 
 #[test]
 fn has_missing_credentials_true_for_cloud_tenant_with_masked_url() {
-    let mut tenant = StoredTenant::new("t-1".to_string(), "Name".to_string());
+    let mut tenant = StoredTenant::new(TenantId::new("t-1"), "Name".to_string());
     tenant.tenant_type = TenantType::Cloud;
     tenant.internal_database_url = Some("postgres://user:***@host/db".to_string());
     assert!(tenant.has_missing_credentials());
@@ -272,7 +273,7 @@ fn has_missing_credentials_true_for_cloud_tenant_with_masked_url() {
 
 #[test]
 fn has_missing_credentials_false_for_cloud_tenant_with_real_url() {
-    let mut tenant = StoredTenant::new("t-1".to_string(), "Name".to_string());
+    let mut tenant = StoredTenant::new(TenantId::new("t-1"), "Name".to_string());
     tenant.tenant_type = TenantType::Cloud;
     tenant.internal_database_url = Some("postgres://user:realpass@host/db".to_string());
     assert!(!tenant.has_missing_credentials());
@@ -280,7 +281,7 @@ fn has_missing_credentials_false_for_cloud_tenant_with_real_url() {
 
 #[test]
 fn has_missing_credentials_false_for_local_tenant_even_with_masked_url() {
-    let mut tenant = StoredTenant::new("t-1".to_string(), "Name".to_string());
+    let mut tenant = StoredTenant::new(TenantId::new("t-1"), "Name".to_string());
     tenant.tenant_type = TenantType::Local;
     tenant.internal_database_url = Some("postgres://user:***@host/db".to_string());
     assert!(!tenant.has_missing_credentials());
@@ -288,14 +289,14 @@ fn has_missing_credentials_false_for_local_tenant_even_with_masked_url() {
 
 #[test]
 fn has_missing_credentials_false_when_no_internal_url() {
-    let mut tenant = StoredTenant::new("t-1".to_string(), "Name".to_string());
+    let mut tenant = StoredTenant::new(TenantId::new("t-1"), "Name".to_string());
     tenant.tenant_type = TenantType::Cloud;
     assert!(!tenant.has_missing_credentials());
 }
 
 #[test]
 fn is_cloud_true_for_cloud_tenant() {
-    let mut tenant = StoredTenant::new("t-1".to_string(), "Name".to_string());
+    let mut tenant = StoredTenant::new(TenantId::new("t-1"), "Name".to_string());
     tenant.tenant_type = TenantType::Cloud;
     assert!(tenant.is_cloud());
     assert!(!tenant.is_local());
@@ -304,7 +305,7 @@ fn is_cloud_true_for_cloud_tenant() {
 #[test]
 fn is_local_true_for_local_tenant() {
     let tenant = StoredTenant::new_local(
-        "t-1".to_string(),
+        TenantId::new("t-1"),
         "Name".to_string(),
         "postgres://x".to_string(),
     );
@@ -314,7 +315,7 @@ fn is_local_true_for_local_tenant() {
 
 #[test]
 fn has_database_url_cloud_true_when_internal_url_set() {
-    let mut tenant = StoredTenant::new("t-1".to_string(), "Name".to_string());
+    let mut tenant = StoredTenant::new(TenantId::new("t-1"), "Name".to_string());
     tenant.tenant_type = TenantType::Cloud;
     tenant.internal_database_url = Some("postgres://internal".to_string());
     assert!(tenant.has_database_url());
@@ -322,7 +323,7 @@ fn has_database_url_cloud_true_when_internal_url_set() {
 
 #[test]
 fn has_database_url_cloud_false_when_internal_url_empty_string() {
-    let mut tenant = StoredTenant::new("t-1".to_string(), "Name".to_string());
+    let mut tenant = StoredTenant::new(TenantId::new("t-1"), "Name".to_string());
     tenant.tenant_type = TenantType::Cloud;
     tenant.internal_database_url = Some(String::new());
     assert!(!tenant.has_database_url());

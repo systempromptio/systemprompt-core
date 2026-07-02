@@ -51,7 +51,7 @@ pub(super) async fn sync_secrets(config: &CliConfig) -> Result<CommandOutput> {
     }
 
     let creds = get_credentials()?;
-    let client = CloudApiClient::new(&creds.api_url, &creds.api_token)?;
+    let client = CloudApiClient::new(&creds.api_url, creds.api_token.as_str())?;
 
     let keys = if config.is_json_output() {
         client.set_secrets(&tenant_id, env_secrets).await?
@@ -122,7 +122,7 @@ pub(super) async fn set_secrets(
     }
 
     let creds = get_credentials()?;
-    let client = CloudApiClient::new(&creds.api_url, &creds.api_token)?;
+    let client = CloudApiClient::new(&creds.api_url, creds.api_token.as_str())?;
 
     let keys = if config.is_json_output() {
         client.set_secrets(&tenant_id, secrets).await?
@@ -170,7 +170,7 @@ pub(super) async fn unset_secrets(keys: Vec<String>, config: &CliConfig) -> Resu
     let uppercase_keys: Vec<String> = keys.iter().map(|k| k.to_uppercase()).collect();
 
     let creds = get_credentials()?;
-    let client = CloudApiClient::new(&creds.api_url, &creds.api_token)?;
+    let client = CloudApiClient::new(&creds.api_url, creds.api_token.as_str())?;
 
     let mut removed = Vec::new();
     let mut errors = Vec::new();
@@ -230,7 +230,7 @@ pub(super) async fn cleanup_secrets(config: &CliConfig) -> Result<CommandOutput>
 
     let tenant_id = get_tenant_id()?;
     let creds = get_credentials()?;
-    let client = CloudApiClient::new(&creds.api_url, &creds.api_token)?;
+    let client = CloudApiClient::new(&creds.api_url, creds.api_token.as_str())?;
 
     let keys_to_remove = ["SYSTEMPROMPT_API_URL"];
     let mut removed = Vec::new();

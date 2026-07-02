@@ -97,7 +97,7 @@ pub(super) async fn create_session_for_tenant(
         .validate()
         .with_context(|| format!("Failed to validate profile: {}", profile_ctx.name))?;
 
-    let user_email = session_email_hint.unwrap_or(&creds.user_email);
+    let user_email = session_email_hint.unwrap_or(creds.user_email.as_str());
     let secrets = load_secrets().context("Failed to load secrets")?;
 
     if config.is_interactive() {

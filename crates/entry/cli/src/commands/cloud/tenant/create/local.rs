@@ -8,7 +8,6 @@
 use anyhow::{Context, Result, anyhow, bail};
 use std::fs;
 use systemprompt_cloud::{DockerCli, ProjectContext, StoredTenant};
-use systemprompt_identifiers::TenantId;
 use systemprompt_logging::CliService;
 
 use crate::cloud::init::ensure_project_scaffolding;
@@ -77,7 +76,7 @@ pub async fn create_local_tenant(prompter: &dyn Prompter) -> Result<StoredTenant
         StoredTenant::new_local_shared(id, name.clone(), database_url.clone(), db_name.clone());
 
     let mut updated_config = config;
-    updated_config.add_tenant(TenantId::new(tenant.id.clone()), db_name);
+    updated_config.add_tenant(tenant.id.clone(), db_name);
     save_shared_config(&updated_config)?;
 
     setup_local_profile(&tenant, &name, &database_url, prompter).await?;

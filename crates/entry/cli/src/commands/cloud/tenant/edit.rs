@@ -28,7 +28,7 @@ pub fn edit_tenant(
     });
 
     let tenant_id = if let Some(id) = id {
-        id
+        systemprompt_identifiers::TenantId::new(id)
     } else {
         if store.tenants.is_empty() {
             bail!("No tenants configured.");
@@ -60,7 +60,7 @@ pub fn edit_tenant(
     }
 
     let output = TenantDetailOutput {
-        id: tenant.id.clone(),
+        id: tenant.id.as_str().to_owned(),
         name: tenant.name.clone(),
         tenant_type: format!("{:?}", tenant.tenant_type).to_lowercase(),
         app_id: tenant.app_id.clone(),

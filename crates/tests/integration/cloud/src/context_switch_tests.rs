@@ -5,6 +5,7 @@
 use systemprompt_cloud::tenants::TenantStore;
 
 use crate::support::{TenantFixture, seeded_session_store};
+use systemprompt_identifiers::TenantId;
 
 #[tokio::test]
 async fn switching_active_key_changes_resolved_session() {
@@ -49,8 +50,8 @@ async fn resolved_tenant_record_matches_active_key() {
     let fx = TenantFixture::new();
     let store = TenantStore::load_from_path(&fx.tenants_path).expect("tenant store");
 
-    let a = store.find_tenant("tenant-a").expect("A");
-    let b = store.find_tenant("tenant-b").expect("B");
+    let a = store.find_tenant(&TenantId::new("tenant-a")).expect("A");
+    let b = store.find_tenant(&TenantId::new("tenant-b")).expect("B");
 
     assert_eq!(a.hostname.as_deref(), Some("a.systemprompt.test"));
     assert_eq!(b.hostname.as_deref(), Some("b.systemprompt.test"));

@@ -7290,6 +7290,7 @@ dependencies = [
  "systemprompt-cloud",
  "systemprompt-config",
  "systemprompt-database",
+ "systemprompt-identifiers",
  "systemprompt-security",
  "systemprompt-test-fixtures",
  "systemprompt-traits",

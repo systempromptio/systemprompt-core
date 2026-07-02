@@ -38,7 +38,7 @@ pub async fn cancel_subscription(
     if confirmation != tenant.name {
         CliService::info("Cancellation aborted. Tenant name did not match.");
         let output = CancelSubscriptionOutput {
-            tenant: tenant.id.clone(),
+            tenant: tenant.id.as_str().to_owned(),
             tenant_name: tenant.name.clone(),
             message: "Cancellation aborted. Tenant name did not match.".to_owned(),
         };
@@ -46,18 +46,16 @@ pub async fn cancel_subscription(
     }
 
     let creds = get_credentials()?;
-    let client = CloudApiClient::new(&creds.api_url, &creds.api_token)?;
+    let client = CloudApiClient::new(&creds.api_url, creds.api_token.as_str())?;
 
     let spinner = CliService::spinner("Cancelling subscription...");
-    client
-        .cancel_subscription(&systemprompt_identifiers::TenantId::new(&tenant.id))
-        .await?;
+    client.cancel_subscription(&tenant.id).await?;
     spinner.finish_and_clear();
 
     render_cancellation_complete();
 
     let output = CancelSubscriptionOutput {
-        tenant: tenant.id.clone(),
+        tenant: tenant.id.as_str().to_owned(),
         tenant_name: tenant.name.clone(),
         message: "Subscription cancelled. Your tenant will be suspended and all data will be \
                   destroyed."
@@ -86,7 +84,7 @@ fn select_cancellation_target<'a>(
         store
             .tenants
             .iter()
-            .find(|t| t.id == *id && t.tenant_type == TenantType::Cloud)
+            .find(|t| t.id.as_str() == id.as_str() && t.tenant_type == TenantType::Cloud)
             .ok_or_else(|| anyhow!("Cloud tenant not found: {}", id))
     } else {
         let options: Vec<String> = cloud_tenants
@@ -114,7 +112,7 @@ fn render_cancellation_warning(tenant: &StoredTenant) {
     CliService::info("");
 
     CliService::key_value("Tenant", &tenant.name);
-    CliService::key_value("ID", &tenant.id);
+    CliService::key_value("ID", tenant.id.as_str());
     if let Some(ref hostname) = tenant.hostname {
         CliService::key_value("URL", &format!("https://{}", hostname));
     }

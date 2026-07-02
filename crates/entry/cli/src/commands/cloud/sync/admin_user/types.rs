@@ -51,7 +51,7 @@ impl CloudUser {
         let creds = CloudCredentials::load_from_path(&creds_path)?;
 
         Ok(Some(Self {
-            email: creds.user_email,
+            email: creds.user_email.as_str().to_owned(),
             name: None,
         }))
     }

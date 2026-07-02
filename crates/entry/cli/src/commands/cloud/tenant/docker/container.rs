@@ -222,6 +222,6 @@ pub(in crate::commands::cloud) fn nanoid() -> String {
 // the gateway's bridge-profile handler) is a valid UUID for downstream
 // tenant-attribution consumers (e.g. Codex CLI's `x-tenant` header).
 #[must_use]
-pub(in crate::commands::cloud) fn new_local_tenant_id() -> String {
-    format!("local_{}", uuid::Uuid::new_v4())
+pub(in crate::commands::cloud) fn new_local_tenant_id() -> systemprompt_identifiers::TenantId {
+    systemprompt_identifiers::TenantId::new(format!("local_{}", uuid::Uuid::new_v4()))
 }

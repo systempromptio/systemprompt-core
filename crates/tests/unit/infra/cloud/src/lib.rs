@@ -56,3 +56,5 @@ mod tenant_provisioning;
 mod tenant_token_retry;
 #[cfg(test)]
 mod tenants;
+#[cfg(test)]
+mod wire_format;

@@ -21,6 +21,7 @@ use systemprompt_cloud::tenants::TenantStore;
 use systemprompt_models::api::cloud::CloudTenantSecrets;
 
 use crate::support::TenantFixture;
+use systemprompt_identifiers::TenantId;
 
 fn secrets_for(tag: &str) -> CloudTenantSecrets {
     CloudTenantSecrets {
@@ -72,8 +73,8 @@ async fn stored_tenant_database_urls_remain_isolated_through_disk_round_trip() {
     let fx = TenantFixture::new();
     let store = TenantStore::load_from_path(&fx.tenants_path).expect("load");
 
-    let a = store.find_tenant("tenant-a").unwrap();
-    let b = store.find_tenant("tenant-b").unwrap();
+    let a = store.find_tenant(&TenantId::new("tenant-a")).unwrap();
+    let b = store.find_tenant(&TenantId::new("tenant-b")).unwrap();
 
     assert_ne!(a.internal_database_url, b.internal_database_url);
     assert_ne!(a.database_url, b.database_url);

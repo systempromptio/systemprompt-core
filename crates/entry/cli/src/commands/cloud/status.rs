@@ -88,10 +88,10 @@ async fn load_credentials_and_tenants(
     };
 
     credentials_info.authenticated = true;
-    credentials_info.user_email = Some(creds.user_email.clone());
+    credentials_info.user_email = Some(creds.user_email.as_str().to_owned());
     credentials_info.token_expired = creds.is_token_expired();
 
-    let api_client = CloudApiClient::new(&creds.api_url, &creds.api_token)?;
+    let api_client = CloudApiClient::new(&creds.api_url, creds.api_token.as_str())?;
     let spinner = (!config.is_json_output()).then(|| CliService::spinner("Fetching tenants..."));
     let json_mode = config.is_json_output();
     let tenants_result = api_client.list_tenants().await;

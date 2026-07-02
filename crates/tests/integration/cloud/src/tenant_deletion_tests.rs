@@ -6,6 +6,7 @@ use systemprompt_cloud::cli_session::SessionStore;
 use systemprompt_cloud::tenants::TenantStore;
 
 use crate::support::{TenantFixture, seeded_session_store};
+use systemprompt_identifiers::TenantId;
 
 #[tokio::test]
 async fn removing_session_for_b_does_not_touch_a() {
@@ -69,6 +70,6 @@ async fn removing_tenant_record_from_tenant_store() {
 
     let reloaded = TenantStore::load_from_path(&fx.tenants_path).expect("reload");
     assert_eq!(reloaded.len(), 1);
-    assert!(reloaded.find_tenant("tenant-a").is_none());
-    assert!(reloaded.find_tenant("tenant-b").is_some());
+    assert!(reloaded.find_tenant(&TenantId::new("tenant-a")).is_none());
+    assert!(reloaded.find_tenant(&TenantId::new("tenant-b")).is_some());
 }

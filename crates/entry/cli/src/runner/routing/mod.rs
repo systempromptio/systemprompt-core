@@ -52,7 +52,7 @@ pub(super) fn determine_execution_target() -> Result<ExecutionTarget> {
         "Profile has tenant_id, resolving remote execution target"
     );
 
-    let tenant = resolve_tenant(tenant_id.as_str())?;
+    let tenant = resolve_tenant(tenant_id)?;
     let hostname = tenant
         .hostname
         .as_ref()
@@ -75,7 +75,7 @@ pub(super) fn determine_execution_target() -> Result<ExecutionTarget> {
     })
 }
 
-fn resolve_tenant(tenant: &str) -> Result<StoredTenant> {
+fn resolve_tenant(tenant: &systemprompt_identifiers::TenantId) -> Result<StoredTenant> {
     let tenants_path = ResolvedPaths::discover().tenants_path();
 
     let store = TenantStore::load_from_path(&tenants_path)

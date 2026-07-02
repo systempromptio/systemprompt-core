@@ -54,7 +54,7 @@ pub(super) async fn execute(
     }
 
     let creds = CloudCredentials::load_from_path(&creds_path)?;
-    let client = CloudApiClient::new(&creds.api_url, &creds.api_token)?;
+    let client = CloudApiClient::new(&creds.api_url, creds.api_token.as_str())?;
 
     std::fs::remove_file(&creds_path)?;
 
@@ -71,7 +71,7 @@ pub(super) async fn execute(
         CliService::success("Logged out of systemprompt.io Cloud");
     }
 
-    let activity_user_id = systemprompt_identifiers::UserId::new(creds.user_email.clone());
+    let activity_user_id = systemprompt_identifiers::UserId::new(creds.user_email.as_str());
     if let Err(e) = client
         .report_activity(ApiPaths::ACTIVITY_EVENT_LOGOUT, &activity_user_id)
         .await

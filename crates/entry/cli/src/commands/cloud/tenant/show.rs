@@ -24,7 +24,7 @@ pub fn show_tenant(
 
     let tenant = match id {
         Some(id) => store
-            .find_tenant(id)
+            .find_tenant(&systemprompt_identifiers::TenantId::new(id))
             .ok_or_else(|| anyhow!("Tenant not found: {}", id))?,
         None if config.is_interactive() => {
             if store.tenants.is_empty() {
@@ -36,7 +36,7 @@ pub fn show_tenant(
     };
 
     let output = TenantDetailOutput {
-        id: tenant.id.clone(),
+        id: tenant.id.as_str().to_owned(),
         name: tenant.name.clone(),
         tenant_type: format!("{:?}", tenant.tenant_type).to_lowercase(),
         app_id: tenant.app_id.clone(),
@@ -47,7 +47,7 @@ pub fn show_tenant(
 
     if !config.is_json_output() {
         CliService::section(&format!("Tenant: {}", tenant.name));
-        CliService::key_value("ID", &tenant.id);
+        CliService::key_value("ID", tenant.id.as_str());
         CliService::key_value("Type", &format!("{:?}", tenant.tenant_type));
 
         if let Some(ref app_id) = tenant.app_id {

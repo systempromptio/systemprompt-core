@@ -12,7 +12,7 @@ use flate2::Compression;
 use flate2::write::GzEncoder;
 use serde_json::json;
 use systemprompt_cloud::{CloudCredentials, CommandRunner, CommandSpec, DockerCli, ProjectContext};
-use systemprompt_identifiers::TenantId;
+use systemprompt_identifiers::{CloudAuthToken, Email, TenantId};
 use systemprompt_sync::deploy::{
     DeployEvent, DeployOptions, DeployOrchestrator, DeployOutcome, DeployProgress, DeployPrompt,
     DeployRequest, PreSyncOptions,
@@ -129,9 +129,9 @@ fn request(server_uri: &str, root: &Path, options: DeployOptions) -> DeployReque
         profile_name: "prod".to_owned(),
         project_root: root.to_path_buf(),
         credentials: CloudCredentials::new(
-            "tok".to_owned(),
+            CloudAuthToken::new("tok".to_owned()),
             server_uri.to_owned(),
-            "dev@example.com".to_owned(),
+            Email::new("dev@example.com".to_owned()),
         ),
         hostname: Some("demo.fly.dev".to_owned()),
         secrets_path: root.join("no-secrets.json"),

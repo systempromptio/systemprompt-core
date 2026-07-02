@@ -8,7 +8,9 @@ use systemprompt_cloud::cli_session::{
     CliSession, CliSessionBuilder, SessionIdentity, SessionKey, SessionStore,
 };
 use systemprompt_cloud::tenants::{NewCloudTenantParams, StoredTenant, TenantStore};
-use systemprompt_identifiers::{ContextId, Email, ProfileName, SessionId, SessionToken, TenantId};
+use systemprompt_identifiers::{
+    CloudAuthToken, ContextId, Email, ProfileName, SessionId, SessionToken, TenantId,
+};
 use systemprompt_models::auth::UserType;
 use systemprompt_test_fixtures::fixture_user_id;
 use tempfile::TempDir;
@@ -38,7 +40,7 @@ impl TenantFixture {
 
         let store = TenantStore::new(vec![
             StoredTenant::new_cloud(NewCloudTenantParams {
-                id: tenant_a.as_str().to_string(),
+                id: tenant_a.clone(),
                 name: "Tenant A".to_string(),
                 app_id: Some("app-a".to_string()),
                 hostname: Some("a.systemprompt.test".to_string()),
@@ -48,7 +50,7 @@ impl TenantFixture {
                 external_db_access: false,
             }),
             StoredTenant::new_cloud(NewCloudTenantParams {
-                id: tenant_b.as_str().to_string(),
+                id: tenant_b.clone(),
                 name: "Tenant B".to_string(),
                 app_id: Some("app-b".to_string()),
                 hostname: Some("b.systemprompt.test".to_string()),
@@ -120,9 +122,9 @@ pub fn jwt_token(exp_offset_secs: i64) -> String {
 
 pub fn save_credentials(path: &std::path::Path, token: &str, email: &str) {
     let creds = CloudCredentials::new(
-        token.to_string(),
+        CloudAuthToken::new(token.to_string()),
         "https://api.systemprompt.test".to_string(),
-        email.to_string(),
+        Email::new(email.to_string()),
     );
     creds.save_to_path(path).expect("save credentials");
 }

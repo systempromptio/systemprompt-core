@@ -3,10 +3,11 @@
 
 use systemprompt_cloud::context::{CloudContext, ResolvedTenant};
 use systemprompt_cloud::{StoredTenant, TenantType};
+use systemprompt_identifiers::{CloudAuthToken, Email, TenantId};
 
 fn make_resolved(id: &str, name: &str) -> ResolvedTenant {
     ResolvedTenant {
-        id: id.to_string(),
+        id: TenantId::new(id),
         name: name.to_string(),
         app_id: None,
         hostname: None,
@@ -22,7 +23,7 @@ fn make_resolved_full(
     region: &str,
 ) -> ResolvedTenant {
     ResolvedTenant {
-        id: id.to_string(),
+        id: TenantId::new(id),
         name: name.to_string(),
         app_id: Some(app_id.to_string()),
         hostname: Some(hostname.to_string()),
@@ -52,7 +53,7 @@ fn resolved_tenant_clone_equals_original() {
 #[test]
 fn resolved_tenant_from_stored_tenant_maps_fields() {
     let stored = StoredTenant {
-        id: "stored-1".to_string(),
+        id: TenantId::new("stored-1"),
         name: "Stored Name".to_string(),
         app_id: Some("app-stored".to_string()),
         hostname: Some("stored.example.com".to_string()),
@@ -66,7 +67,7 @@ fn resolved_tenant_from_stored_tenant_maps_fields() {
 
     let resolved = ResolvedTenant::from(stored);
 
-    assert_eq!(resolved.id, "stored-1");
+    assert_eq!(resolved.id.as_str(), "stored-1");
     assert_eq!(resolved.name, "Stored Name");
     assert_eq!(resolved.app_id, Some("app-stored".to_string()));
     assert_eq!(resolved.hostname, Some("stored.example.com".to_string()));
@@ -76,7 +77,7 @@ fn resolved_tenant_from_stored_tenant_maps_fields() {
 #[test]
 fn resolved_tenant_from_stored_tenant_preserves_none_optionals() {
     let stored = StoredTenant {
-        id: "bare-id".to_string(),
+        id: TenantId::new("bare-id"),
         name: "Bare Name".to_string(),
         app_id: None,
         hostname: None,
@@ -90,7 +91,7 @@ fn resolved_tenant_from_stored_tenant_preserves_none_optionals() {
 
     let resolved = ResolvedTenant::from(stored);
 
-    assert_eq!(resolved.id, "bare-id");
+    assert_eq!(resolved.id.as_str(), "bare-id");
     assert!(resolved.app_id.is_none());
     assert!(resolved.hostname.is_none());
     assert!(resolved.region.is_none());
@@ -183,9 +184,9 @@ fn cloud_context_profile_err_when_not_loaded() {
 
 fn make_context_with_tenant(tenant: Option<ResolvedTenant>) -> CloudContext {
     let creds = systemprompt_cloud::CloudCredentials::new(
-        "dummy-token".to_string(),
+        CloudAuthToken::new("dummy-token".to_string()),
         "https://api.systemprompt.io".to_string(),
-        "test@example.com".to_string(),
+        Email::new("test@example.com".to_string()),
     );
     let api_client =
         systemprompt_cloud::CloudApiClient::new("https://api.systemprompt.io", "dummy-token")

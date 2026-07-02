@@ -130,7 +130,7 @@ async fn execute_cloud_sync(direction: SyncDirection, args: SyncArgs) -> Result<
         CliService::warning(&format!("Failed to load tenant store: {}", e));
         TenantStore::default()
     });
-    let tenant = store.find_tenant(tenant_id.as_str());
+    let tenant = store.find_tenant(tenant_id);
 
     if let Some(t) = tenant
         && t.is_local()
@@ -155,7 +155,7 @@ async fn execute_cloud_sync(direction: SyncDirection, args: SyncArgs) -> Result<
         verbose: args.verbose,
         tenant_id: tenant_id.clone(),
         api_url: creds.api_url.clone(),
-        api_token: creds.api_token.clone(),
+        api_token: creds.api_token.as_str().to_owned(),
         services_path,
         hostname: Some(hostname),
         local_database_url: None,

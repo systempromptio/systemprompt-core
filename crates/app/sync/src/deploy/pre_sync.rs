@@ -49,7 +49,7 @@ pub(super) async fn run(
     let sync_config = SyncConfigBuilder::new(
         request.tenant_id.clone(),
         &request.credentials.api_url,
-        &request.credentials.api_token,
+        request.credentials.api_token.as_str(),
         services_path.to_string_lossy(),
     )
     .with_direction(SyncDirection::Pull)
@@ -74,10 +74,11 @@ fn resolve_client(
     if let Some(client) = sync_client {
         return Ok(client);
     }
-    Ok(
-        SyncApiClient::new(&request.credentials.api_url, &request.credentials.api_token)?
-            .with_direct_sync(Some(hostname)),
-    )
+    Ok(SyncApiClient::new(
+        &request.credentials.api_url,
+        request.credentials.api_token.as_str(),
+    )?
+    .with_direct_sync(Some(hostname)))
 }
 
 async fn run_dry_run(

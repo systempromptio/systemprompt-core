@@ -3,6 +3,7 @@
 use chrono::{TimeDelta, Utc};
 use systemprompt_cloud::tenants::NewCloudTenantParams;
 use systemprompt_cloud::{StoredTenant, TenantInfo, TenantStore, TenantType};
+use systemprompt_identifiers::TenantId;
 
 #[test]
 fn test_tenant_type_default_is_local() {
@@ -31,9 +32,9 @@ fn test_tenant_type_serialization() {
 
 #[test]
 fn test_stored_tenant_new() {
-    let tenant = StoredTenant::new("tenant-123".to_string(), "My Tenant".to_string());
+    let tenant = StoredTenant::new(TenantId::new("tenant-123"), "My Tenant".to_string());
 
-    assert_eq!(tenant.id, "tenant-123");
+    assert_eq!(tenant.id.as_str(), "tenant-123");
     assert_eq!(tenant.name, "My Tenant");
     assert!(tenant.app_id.is_none());
     assert!(tenant.hostname.is_none());
@@ -44,25 +45,25 @@ fn test_stored_tenant_new() {
 
 #[test]
 fn test_stored_tenant_new_with_empty_id() {
-    let tenant = StoredTenant::new("".to_string(), "Name".to_string());
-    assert_eq!(tenant.id, "");
+    let tenant = StoredTenant::new(TenantId::new(""), "Name".to_string());
+    assert_eq!(tenant.id.as_str(), "");
 }
 
 #[test]
 fn test_stored_tenant_new_with_empty_name() {
-    let tenant = StoredTenant::new("id".to_string(), "".to_string());
+    let tenant = StoredTenant::new(TenantId::new("id"), "".to_string());
     assert_eq!(tenant.name, "");
 }
 
 #[test]
 fn test_stored_tenant_new_local() {
     let tenant = StoredTenant::new_local(
-        "local-123".to_string(),
+        TenantId::new("local-123"),
         "Local Dev".to_string(),
         "postgres://localhost/dev".to_string(),
     );
 
-    assert_eq!(tenant.id, "local-123");
+    assert_eq!(tenant.id.as_str(), "local-123");
     assert_eq!(tenant.name, "Local Dev");
     assert_eq!(
         tenant.database_url,
@@ -75,7 +76,7 @@ fn test_stored_tenant_new_local() {
 #[test]
 fn test_stored_tenant_new_cloud() {
     let params = NewCloudTenantParams {
-        id: "cloud-123".to_string(),
+        id: TenantId::new("cloud-123"),
         name: "Production".to_string(),
         app_id: Some("app-456".to_string()),
         hostname: Some("prod.systemprompt.io".to_string()),
@@ -87,7 +88,7 @@ fn test_stored_tenant_new_cloud() {
 
     let tenant = StoredTenant::new_cloud(params);
 
-    assert_eq!(tenant.id, "cloud-123");
+    assert_eq!(tenant.id.as_str(), "cloud-123");
     assert_eq!(tenant.name, "Production");
     assert_eq!(tenant.app_id, Some("app-456".to_string()));
     assert_eq!(tenant.hostname, Some("prod.systemprompt.io".to_string()));
@@ -98,7 +99,7 @@ fn test_stored_tenant_new_cloud() {
 #[test]
 fn test_stored_tenant_new_cloud_minimal() {
     let params = NewCloudTenantParams {
-        id: "cloud-minimal".to_string(),
+        id: TenantId::new("cloud-minimal"),
         name: "Minimal".to_string(),
         app_id: None,
         hostname: None,
@@ -134,7 +135,7 @@ fn test_stored_tenant_from_tenant_info() {
 
     let tenant = StoredTenant::from_tenant_info(&info);
 
-    assert_eq!(tenant.id, "info-123");
+    assert_eq!(tenant.id.as_str(), "info-123");
     assert_eq!(tenant.name, "From Info");
     assert_eq!(tenant.app_id, Some("app-789".to_string()));
     assert_eq!(tenant.hostname, Some("info.systemprompt.io".to_string()));
@@ -160,7 +161,7 @@ fn test_stored_tenant_from_tenant_info_minimal() {
 
     let tenant = StoredTenant::from_tenant_info(&info);
 
-    assert_eq!(tenant.id, "minimal");
+    assert_eq!(tenant.id.as_str(), "minimal");
     assert!(tenant.app_id.is_none());
     assert!(tenant.hostname.is_none());
     assert!(tenant.region.is_none());
@@ -169,7 +170,7 @@ fn test_stored_tenant_from_tenant_info_minimal() {
 #[test]
 fn test_stored_tenant_has_database_url_true() {
     let tenant = StoredTenant::new_local(
-        "id".to_string(),
+        TenantId::new("id"),
         "name".to_string(),
         "postgres://localhost".to_string(),
     );
@@ -178,20 +179,20 @@ fn test_stored_tenant_has_database_url_true() {
 
 #[test]
 fn test_stored_tenant_has_database_url_false_none() {
-    let tenant = StoredTenant::new("id".to_string(), "name".to_string());
+    let tenant = StoredTenant::new(TenantId::new("id"), "name".to_string());
     assert!(!tenant.has_database_url());
 }
 
 #[test]
 fn test_stored_tenant_has_database_url_false_empty() {
-    let mut tenant = StoredTenant::new("id".to_string(), "name".to_string());
+    let mut tenant = StoredTenant::new(TenantId::new("id"), "name".to_string());
     tenant.database_url = Some("".to_string());
     assert!(!tenant.has_database_url());
 }
 
 #[test]
 fn test_stored_tenant_serialization() {
-    let tenant = StoredTenant::new("ser-123".to_string(), "Serialize Me".to_string());
+    let tenant = StoredTenant::new(TenantId::new("ser-123"), "Serialize Me".to_string());
 
     let json = serde_json::to_string(&tenant).unwrap();
     assert!(json.contains("\"id\":\"ser-123\""));
@@ -201,7 +202,7 @@ fn test_stored_tenant_serialization() {
 
 #[test]
 fn test_stored_tenant_serialization_skips_none() {
-    let tenant = StoredTenant::new("id".to_string(), "name".to_string());
+    let tenant = StoredTenant::new(TenantId::new("id"), "name".to_string());
 
     let json = serde_json::to_string(&tenant).unwrap();
     assert!(!json.contains("\"app_id\""));
@@ -213,8 +214,8 @@ fn test_stored_tenant_serialization_skips_none() {
 #[test]
 fn test_tenant_store_new() {
     let tenants = vec![
-        StoredTenant::new("t1".to_string(), "Tenant 1".to_string()),
-        StoredTenant::new("t2".to_string(), "Tenant 2".to_string()),
+        StoredTenant::new(TenantId::new("t1"), "Tenant 1".to_string()),
+        StoredTenant::new(TenantId::new("t2"), "Tenant 2".to_string()),
     ];
 
     let store = TenantStore::new(tenants);
@@ -276,22 +277,22 @@ fn test_tenant_store_from_tenant_infos() {
 
     assert_eq!(store.len(), 2);
     store
-        .find_tenant("i1")
+        .find_tenant(&TenantId::new("i1"))
         .expect("store.find_tenant(\"i1\") should be present");
     store
-        .find_tenant("i2")
+        .find_tenant(&TenantId::new("i2"))
         .expect("store.find_tenant(\"i2\") should be present");
 }
 
 #[test]
 fn test_tenant_store_find_tenant_found() {
     let tenants = vec![
-        StoredTenant::new("find-me".to_string(), "Find Me".to_string()),
-        StoredTenant::new("other".to_string(), "Other".to_string()),
+        StoredTenant::new(TenantId::new("find-me"), "Find Me".to_string()),
+        StoredTenant::new(TenantId::new("other"), "Other".to_string()),
     ];
     let store = TenantStore::new(tenants);
 
-    let found = store.find_tenant("find-me");
+    let found = store.find_tenant(&TenantId::new("find-me"));
     found.as_ref().expect("found should be present");
     assert_eq!(found.unwrap().name, "Find Me");
 }
@@ -299,12 +300,12 @@ fn test_tenant_store_find_tenant_found() {
 #[test]
 fn test_tenant_store_find_tenant_not_found() {
     let tenants = vec![StoredTenant::new(
-        "exists".to_string(),
+        TenantId::new("exists"),
         "Exists".to_string(),
     )];
     let store = TenantStore::new(tenants);
 
-    let found = store.find_tenant("does-not-exist");
+    let found = store.find_tenant(&TenantId::new("does-not-exist"));
     assert!(found.is_none());
 }
 
@@ -312,7 +313,7 @@ fn test_tenant_store_find_tenant_not_found() {
 fn test_tenant_store_find_tenant_empty_store() {
     let store = TenantStore::new(vec![]);
 
-    let found = store.find_tenant("any");
+    let found = store.find_tenant(&TenantId::new("any"));
     assert!(found.is_none());
 }
 
@@ -355,7 +356,10 @@ fn test_tenant_store_default() {
 
 #[test]
 fn test_tenant_store_serialization() {
-    let tenants = vec![StoredTenant::new("t1".to_string(), "Tenant 1".to_string())];
+    let tenants = vec![StoredTenant::new(
+        TenantId::new("t1"),
+        "Tenant 1".to_string(),
+    )];
     let store = TenantStore::new(tenants);
 
     let json = serde_json::to_string(&store).unwrap();

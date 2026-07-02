@@ -119,7 +119,7 @@ fn confirm_delete(
 
 async fn delete_cloud_tenant(tenant_id: &TenantId, config: &CliConfig) -> Result<()> {
     let creds = get_credentials()?;
-    let client = CloudApiClient::new(&creds.api_url, &creds.api_token)?;
+    let client = CloudApiClient::new(&creds.api_url, creds.api_token.as_str())?;
 
     if config.is_json_output() {
         client.delete_tenant(tenant_id).await?;

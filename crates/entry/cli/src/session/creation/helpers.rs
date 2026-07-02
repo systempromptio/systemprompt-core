@@ -169,7 +169,7 @@ pub(super) async fn resolve_local_user_email(
              login' to authenticate."
         )
     })?;
-    Ok(creds.user_email.clone())
+    Ok(creds.user_email.as_str().to_owned())
 }
 
 pub(super) async fn resolve_admin_with_fallback(
@@ -190,9 +190,9 @@ pub(super) async fn resolve_admin_with_fallback(
                 tracing::debug!(error = %init_err, "Credentials init failed during fallback");
             }
             if let Ok(creds) = CredentialsBootstrap::require()
-                && creds.user_email != user_email
+                && creds.user_email.as_str() != user_email
             {
-                return get_or_create_admin(db_pool, &creds.user_email, context_type).await;
+                return get_or_create_admin(db_pool, creds.user_email.as_str(), context_type).await;
             }
             Err(e)
         },
@@ -208,13 +208,13 @@ pub(super) async fn resolve_tenant_admin_with_fallback(
 ) -> Result<systemprompt_users::User> {
     match get_or_create_admin(db_pool, user_email, "tenant").await {
         Ok(user) => Ok(user),
-        Err(e) if session_email_hint.is_some() && creds.user_email != user_email => {
+        Err(e) if session_email_hint.is_some() && creds.user_email.as_str() != user_email => {
             tracing::warn!(
                 email = %user_email,
                 error = %e,
                 "Session user lookup failed, falling back to cloud credentials"
             );
-            get_or_create_admin(db_pool, &creds.user_email, "tenant").await
+            get_or_create_admin(db_pool, creds.user_email.as_str(), "tenant").await
         },
         Err(e) => Err(e),
     }

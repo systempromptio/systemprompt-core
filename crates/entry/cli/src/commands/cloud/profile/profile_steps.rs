@@ -132,12 +132,12 @@ fn build_tenant_profile(
         TenantType::Local => {
             let services_path = get_services_path()?;
             LocalProfileBuilder::new(name, "./secrets.json", &services_path)
-                .with_tenant_id(TenantId::new(&tenant.id))
+                .with_tenant_id(tenant.id.clone())
                 .build()
         },
         TenantType::Cloud => {
             let mut builder = CloudProfileBuilder::new(name)
-                .with_tenant_id(TenantId::new(&tenant.id))
+                .with_tenant_id(tenant.id.clone())
                 .with_external_db_access(tenant.external_db_access)
                 .with_secrets_path("./secrets.json");
             if let Some(hostname) = &tenant.hostname {
@@ -148,7 +148,7 @@ fn build_tenant_profile(
                 builder = builder.with_trusted_issuer(TrustedIssuer {
                     issuer: trimmed.clone(),
                     jwks_uri: format!("{}/.well-known/jwks.json", trimmed),
-                    audience: tenant.id.clone(),
+                    audience: tenant.id.as_str().to_owned(),
                     typ_allowlist: Vec::new(),
                     allowed_client_ids: Vec::new(),
                     can_issue_id_jag: false,
@@ -197,7 +197,7 @@ pub(super) fn resolve_tenant_from_args(
         )
     })?;
 
-    let tenant = store.find_tenant(tenant_id).ok_or_else(|| {
+    let tenant = store.find_tenant(&TenantId::new(tenant_id)).ok_or_else(|| {
         anyhow::anyhow!(
             "Tenant '{}' not found.\nList available tenants with: systemprompt cloud tenant list",
             tenant_id
@@ -263,7 +263,7 @@ pub(super) async fn ensure_unmasked_credentials(
 
     CliService::info("Fetching database credentials...");
     let creds = get_credentials()?;
-    let client = CloudApiClient::new(&creds.api_url, &creds.api_token)?;
+    let client = CloudApiClient::new(&creds.api_url, creds.api_token.as_str())?;
 
     match refresh_tenant_credentials(&client, &TenantId::new(&tenant.id)).await {
         Ok(creds) => {

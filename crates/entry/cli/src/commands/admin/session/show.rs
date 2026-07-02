@@ -154,6 +154,6 @@ fn collect_routing_info(paths: &ResolvedPaths) -> Option<RoutingInfo> {
 fn resolve_remote_hostname(paths: &ResolvedPaths, tenant: &str) -> Option<String> {
     let tenants_path = paths.tenants_path();
     let store = TenantStore::load_from_path(&tenants_path).ok()?;
-    let tenant = store.find_tenant(tenant)?;
+    let tenant = store.find_tenant(&systemprompt_identifiers::TenantId::new(tenant))?;
     tenant.hostname.clone()
 }

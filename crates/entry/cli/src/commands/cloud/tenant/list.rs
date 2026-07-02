@@ -27,7 +27,7 @@ pub async fn list_tenants(prompter: &dyn Prompter, config: &CliConfig) -> Result
         .tenants
         .iter()
         .map(|t| TenantSummary {
-            id: t.id.clone(),
+            id: t.id.as_str().to_owned(),
             name: t.name.clone(),
             tenant_type: format!("{:?}", t.tenant_type).to_lowercase(),
             has_database: t.has_database_url(),
@@ -122,7 +122,7 @@ fn render_tenant_lines(store: &TenantStore) {
 
 fn display_tenant_details(tenant: &StoredTenant) {
     CliService::section(&format!("Tenant: {}", tenant.name));
-    CliService::key_value("ID", &tenant.id);
+    CliService::key_value("ID", tenant.id.as_str());
     CliService::key_value("Type", &format!("{:?}", tenant.tenant_type));
 
     if let Some(ref app_id) = tenant.app_id {
@@ -155,7 +155,7 @@ async fn sync_and_load_tenants(tenants_path: &std::path::Path) -> TenantStore {
         return local_store;
     };
 
-    let Ok(client) = CloudApiClient::new(&creds.api_url, &creds.api_token) else {
+    let Ok(client) = CloudApiClient::new(&creds.api_url, creds.api_token.as_str()) else {
         return local_store;
     };
 
@@ -171,7 +171,7 @@ async fn sync_and_load_tenants(tenants_path: &std::path::Path) -> TenantStore {
         if let Some(existing) = local_store
             .tenants
             .iter_mut()
-            .find(|t| t.id == cloud_info.id)
+            .find(|t| t.id.as_str() == cloud_info.id)
         {
             existing.update_from_tenant_info(cloud_info);
         } else {

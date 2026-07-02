@@ -74,8 +74,10 @@ impl DeployOrchestrator {
             &services_config,
         )?;
 
-        let api_client =
-            CloudApiClient::new(&request.credentials.api_url, &request.credentials.api_token)?;
+        let api_client = CloudApiClient::new(
+            &request.credentials.api_url,
+            request.credentials.api_token.as_str(),
+        )?;
 
         let image = self
             .build_and_push(&api_client, request, &artifacts, progress)
@@ -189,10 +191,13 @@ async fn provision_secrets(
 
 fn credentials_env(creds: &CloudCredentials) -> HashMap<String, String> {
     HashMap::from([
-        ("SYSTEMPROMPT_API_TOKEN".to_owned(), creds.api_token.clone()),
+        (
+            "SYSTEMPROMPT_API_TOKEN".to_owned(),
+            creds.api_token.as_str().to_owned(),
+        ),
         (
             "SYSTEMPROMPT_USER_EMAIL".to_owned(),
-            creds.user_email.clone(),
+            creds.user_email.as_str().to_owned(),
         ),
         ("SYSTEMPROMPT_CLI_REMOTE".to_owned(), "true".to_owned()),
     ])

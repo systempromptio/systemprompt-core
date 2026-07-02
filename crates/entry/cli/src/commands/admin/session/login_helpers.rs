@@ -132,7 +132,7 @@ async fn cloud_credentials_email() -> Result<String> {
             "No credentials found. Run 'systemprompt cloud auth login' first to authenticate."
         )
     })?;
-    Ok(creds.user_email.clone())
+    Ok(creds.user_email.as_str().to_owned())
 }
 
 pub(super) struct SessionStoreParams<'a> {

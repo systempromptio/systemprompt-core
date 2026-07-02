@@ -126,14 +126,12 @@ fn resolve_deploy_target(profile: &systemprompt_models::Profile) -> Result<Deplo
     let tenant_store = TenantStore::load_from_path(&tenants_path)
         .context("Tenants not synced. Run 'systemprompt cloud login'")?;
 
-    let tenant = tenant_store
-        .find_tenant(tenant_id.as_str())
-        .ok_or_else(|| {
-            anyhow!(
-                "Tenant {} not found. Run 'systemprompt cloud login'",
-                tenant_id
-            )
-        })?;
+    let tenant = tenant_store.find_tenant(&tenant_id).ok_or_else(|| {
+        anyhow!(
+            "Tenant {} not found. Run 'systemprompt cloud login'",
+            tenant_id
+        )
+    })?;
 
     Ok(DeployTarget {
         tenant_id,

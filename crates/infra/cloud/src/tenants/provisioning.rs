@@ -134,7 +134,7 @@ impl<'a> TenantProvisioningService<'a> {
             .ok_or_else(|| CloudError::other("New tenant not found after checkout"))?;
 
         Ok(StoredTenant::new_cloud(NewCloudTenantParams {
-            id: info.id.clone(),
+            id: TenantId::new(info.id.clone()),
             name: info.name.clone(),
             app_id: info.app_id.clone(),
             hostname: info.hostname.clone(),

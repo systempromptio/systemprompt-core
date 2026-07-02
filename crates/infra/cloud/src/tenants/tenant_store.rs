@@ -5,6 +5,7 @@ use std::path::Path;
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use systemprompt_identifiers::TenantId;
 use validator::Validate;
 
 use super::StoredTenant;
@@ -83,8 +84,8 @@ impl TenantStore {
     }
 
     #[must_use]
-    pub fn find_tenant(&self, id: &str) -> Option<&StoredTenant> {
-        self.tenants.iter().find(|t| t.id == id)
+    pub fn find_tenant(&self, id: &TenantId) -> Option<&StoredTenant> {
+        self.tenants.iter().find(|t| t.id == *id)
     }
 
     #[must_use]

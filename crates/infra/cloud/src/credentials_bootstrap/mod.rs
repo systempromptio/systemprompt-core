@@ -6,6 +6,7 @@ use std::path::Path;
 use std::sync::OnceLock;
 
 use chrono::{Duration, Utc};
+use systemprompt_identifiers::{CloudAuthToken, Email};
 use systemprompt_models::read_env_optional;
 
 pub use error::CredentialsBootstrapError;
@@ -81,7 +82,7 @@ impl CredentialsBootstrap {
     }
 
     async fn validate_with_api(creds: &CloudCredentials) -> CloudResult<()> {
-        let client = CloudApiClient::new(&creds.api_url, &creds.api_token)?;
+        let client = CloudApiClient::new(&creds.api_url, creds.api_token.as_str())?;
         client.get_user().await?;
         tracing::debug!("Cloud credentials validated with API");
         Ok(())
@@ -108,8 +109,8 @@ impl CredentialsBootstrap {
     }
 
     fn load_from_env() -> Option<CloudCredentials> {
-        let api_token = read_env_optional("SYSTEMPROMPT_API_TOKEN")?;
-        let user_email = read_env_optional("SYSTEMPROMPT_USER_EMAIL")?;
+        let api_token = CloudAuthToken::new(read_env_optional("SYSTEMPROMPT_API_TOKEN")?);
+        let user_email = Email::new(read_env_optional("SYSTEMPROMPT_USER_EMAIL")?);
 
         tracing::debug!("Loading cloud credentials from environment variables");
 

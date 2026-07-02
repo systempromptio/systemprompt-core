@@ -5,7 +5,7 @@ use std::path::Path;
 
 use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
-use systemprompt_identifiers::CloudAuthToken;
+use systemprompt_identifiers::{CloudAuthToken, Email};
 use systemprompt_logging::CliService;
 use systemprompt_models::net::{HTTP_AUTH_VERIFY_TIMEOUT, HTTP_CONNECT_TIMEOUT};
 use validator::Validate;
@@ -15,16 +15,14 @@ use crate::error::{CloudError, CloudResult};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Validate)]
 pub struct CloudCredentials {
-    #[validate(length(min = 1, message = "API token cannot be empty"))]
-    pub api_token: String,
+    pub api_token: CloudAuthToken,
 
     #[validate(url(message = "API URL must be a valid URL"))]
     pub api_url: String,
 
     pub authenticated_at: DateTime<Utc>,
 
-    #[validate(email(message = "User email must be a valid email address"))]
-    pub user_email: String,
+    pub user_email: Email,
 
     #[serde(default)]
     pub last_validated_at: Option<DateTime<Utc>>,
@@ -32,7 +30,7 @@ pub struct CloudCredentials {
 
 impl CloudCredentials {
     #[must_use]
-    pub fn new(api_token: String, api_url: String, user_email: String) -> Self {
+    pub fn new(api_token: CloudAuthToken, api_url: String, user_email: Email) -> Self {
         let now = Utc::now();
         Self {
             api_token,
@@ -44,18 +42,18 @@ impl CloudCredentials {
     }
 
     #[must_use]
-    pub fn token(&self) -> CloudAuthToken {
-        CloudAuthToken::new(&self.api_token)
+    pub const fn token(&self) -> &CloudAuthToken {
+        &self.api_token
     }
 
     #[must_use]
     pub fn is_token_expired(&self) -> bool {
-        auth::is_expired(&self.token())
+        auth::is_expired(self.token())
     }
 
     #[must_use]
     pub fn expires_within(&self, duration: Duration) -> bool {
-        auth::expires_within(&self.token(), duration)
+        auth::expires_within(self.token(), duration)
     }
 
     pub fn load_and_validate_from_path(path: &Path) -> CloudResult<Self> {
@@ -92,7 +90,10 @@ impl CloudCredentials {
 
         let response = client
             .get(format!("{}/api/v1/auth/me", self.api_url))
-            .header("Authorization", format!("Bearer {}", self.api_token))
+            .header(
+                "Authorization",
+                format!("Bearer {}", self.api_token.as_str()),
+            )
             .send()
             .await?;
 

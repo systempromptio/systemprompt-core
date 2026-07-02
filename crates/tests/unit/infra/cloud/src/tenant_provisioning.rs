@@ -109,7 +109,7 @@ async fn finalize_tenant_polls_to_ready_and_builds_record() {
         .await
         .expect("finalize");
 
-    assert_eq!(tenant.id, "t-prov");
+    assert_eq!(tenant.id.as_str(), "t-prov");
     assert_eq!(tenant.name, "demo");
     assert_eq!(tenant.app_id.as_deref(), Some("app-1"));
     assert_eq!(tenant.hostname.as_deref(), Some("demo.fly.dev"));

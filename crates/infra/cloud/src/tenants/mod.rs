@@ -10,6 +10,7 @@ mod provisioning;
 mod tenant_store;
 
 use serde::{Deserialize, Serialize};
+use systemprompt_identifiers::TenantId;
 use validator::Validate;
 
 use crate::api_client::TenantInfo;
@@ -22,7 +23,7 @@ pub use tenant_store::TenantStore;
 
 #[derive(Debug)]
 pub struct NewCloudTenantParams {
-    pub id: String,
+    pub id: TenantId,
     pub name: String,
     pub app_id: Option<String>,
     pub hostname: Option<String>,
@@ -42,8 +43,7 @@ pub enum TenantType {
 
 #[derive(Debug, Clone, Serialize, Deserialize, Validate)]
 pub struct StoredTenant {
-    #[validate(length(min = 1, message = "Tenant ID cannot be empty"))]
-    pub id: String,
+    pub id: TenantId,
 
     #[validate(length(min = 1, message = "Tenant name cannot be empty"))]
     pub name: String,
@@ -75,7 +75,7 @@ pub struct StoredTenant {
 
 impl StoredTenant {
     #[must_use]
-    pub fn new(id: String, name: String) -> Self {
+    pub fn new(id: TenantId, name: String) -> Self {
         Self {
             id,
             name,
@@ -91,7 +91,7 @@ impl StoredTenant {
     }
 
     #[must_use]
-    pub const fn new_local(id: String, name: String, database_url: String) -> Self {
+    pub const fn new_local(id: TenantId, name: String, database_url: String) -> Self {
         Self {
             id,
             name,
@@ -108,7 +108,7 @@ impl StoredTenant {
 
     #[must_use]
     pub const fn new_local_shared(
-        id: String,
+        id: TenantId,
         name: String,
         database_url: String,
         shared_container_db: String,
@@ -146,7 +146,7 @@ impl StoredTenant {
     #[must_use]
     pub fn from_tenant_info(info: &TenantInfo) -> Self {
         Self {
-            id: info.id.clone(),
+            id: TenantId::new(info.id.clone()),
             name: info.name.clone(),
             app_id: info.app_id.clone(),
             hostname: info.hostname.clone(),

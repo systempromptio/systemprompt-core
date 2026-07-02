@@ -25,6 +25,7 @@ use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
 use systemprompt_cloud::tenants::{NewCloudTenantParams, StoredTenant, TenantStore};
 use systemprompt_cloud::{CloudPath, CredentialsBootstrap, get_cloud_paths};
 use systemprompt_config::ProfileBootstrap;
+use systemprompt_identifiers::TenantId;
 use tempfile::TempDir;
 use tokio::sync::{Mutex, MutexGuard, OnceCell};
 use wiremock::matchers::{method, path};
@@ -139,7 +140,7 @@ fn write_credentials(root: &Path, api_url: &str) {
 
 fn seed_tenants(root: &Path) {
     let cloud = StoredTenant::new_cloud(NewCloudTenantParams {
-        id: TENANT_ID.to_owned(),
+        id: TenantId::new(TENANT_ID),
         name: "Harness Prod".to_owned(),
         app_id: Some("app-harness".to_owned()),
         hostname: Some("harness.example.com".to_owned()),
@@ -149,7 +150,7 @@ fn seed_tenants(root: &Path) {
         external_db_access: true,
     });
     let local = StoredTenant::new_local(
-        OTHER_TENANT_ID.to_owned(),
+        TenantId::new(OTHER_TENANT_ID),
         "Harness Local".to_owned(),
         "postgres://local/db".to_owned(),
     );
@@ -391,7 +392,7 @@ async fn status_output_shape_is_authenticated() {
         .expect("status command table");
 
     let creds = CredentialsBootstrap::get().expect("creds").expect("some");
-    assert_eq!(creds.user_email, USER_EMAIL);
+    assert_eq!(creds.user_email.as_str(), USER_EMAIL);
     assert!(!creds.is_token_expired());
 }
 
@@ -805,7 +806,7 @@ async fn sync_pull_rejects_local_profile_tenant() {
     let env = enter().await;
     let _ = env;
     let local_only = TenantStore::new(vec![StoredTenant::new_local(
-        TENANT_ID.to_owned(),
+        TenantId::new(TENANT_ID),
         "Harness Prod".to_owned(),
         "postgres://local/db".to_owned(),
     )]);
@@ -835,7 +836,7 @@ async fn sync_push_requires_hostname() {
     let env = enter().await;
     let _ = env;
     let no_hostname = TenantStore::new(vec![StoredTenant::new_cloud(NewCloudTenantParams {
-        id: TENANT_ID.to_owned(),
+        id: TenantId::new(TENANT_ID),
         name: "Harness Prod".to_owned(),
         app_id: None,
         hostname: None,

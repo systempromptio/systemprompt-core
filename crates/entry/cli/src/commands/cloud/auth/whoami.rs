@@ -46,7 +46,7 @@ pub(super) async fn execute(config: &CliConfig) -> Result<CommandOutput> {
     let local_count = count_local_profiles();
 
     let output = WhoamiOutput {
-        user_email: creds.user_email.clone(),
+        user_email: creds.user_email.as_str().to_owned(),
         api_url: creds.api_url.clone(),
         token_status: token_status.clone(),
         authenticated_at: creds.authenticated_at,
@@ -56,7 +56,7 @@ pub(super) async fn execute(config: &CliConfig) -> Result<CommandOutput> {
 
     if !config.is_json_output() {
         CliService::section("systemprompt.io Cloud Identity");
-        CliService::key_value("User", &creds.user_email);
+        CliService::key_value("User", creds.user_email.as_str());
         CliService::key_value("API URL", &creds.api_url);
 
         if creds.is_token_expired() {
@@ -89,7 +89,7 @@ async fn fetch_cloud_tenant_count(creds: &CloudCredentials) -> usize {
         return 0;
     }
 
-    let Ok(client) = CloudApiClient::new(&creds.api_url, &creds.api_token) else {
+    let Ok(client) = CloudApiClient::new(&creds.api_url, creds.api_token.as_str()) else {
         return 0;
     };
     client
