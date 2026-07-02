@@ -4,7 +4,7 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use systemprompt_cli::web::content_types::builder::{
-    build_sitemap_from_flags, build_source_config, ensure_category_exists,
+    SourceSpec, build_flag_sitemap, build_source_config, ensure_category_exists,
 };
 use systemprompt_cli::web::content_types::edit::{
     EditArgs, apply_basic_flags, apply_set_value_changes, apply_sitemap_flags,
@@ -59,19 +59,16 @@ fn ensure_category_exists_accepts_known_category() {
 #[test]
 fn ensure_category_exists_rejects_unknown_and_lists_available() {
     let config = config_with_categories(&["blog"]);
-    let err = ensure_category_exists(&config, "news").unwrap_err().to_string();
+    let err = ensure_category_exists(&config, "news")
+        .unwrap_err()
+        .to_string();
     assert!(err.contains("news"));
     assert!(err.contains("blog"));
 }
 
 #[test]
-fn build_sitemap_from_flags_returns_none_without_pattern() {
-    assert!(build_sitemap_from_flags(None, 0.5, "weekly").is_none());
-}
-
-#[test]
-fn build_sitemap_from_flags_populates_database_entry() {
-    let sitemap = build_sitemap_from_flags(Some("/blog/{slug}".to_owned()), 0.8, "daily").unwrap();
+fn build_flag_sitemap_populates_database_entry() {
+    let sitemap = build_flag_sitemap("/blog/{slug}".to_owned(), 0.8, "daily");
     assert!(sitemap.enabled);
     assert_eq!(sitemap.url_pattern, "/blog/{slug}");
     assert_eq!(sitemap.priority, 0.8);
@@ -82,14 +79,14 @@ fn build_sitemap_from_flags_populates_database_entry() {
 
 #[test]
 fn build_source_config_applies_article_defaults() {
-    let source = build_source_config(
-        "content/news".to_owned(),
-        "news",
-        "blog",
-        true,
-        "the news".to_owned(),
-        None,
-    );
+    let source = build_source_config(SourceSpec {
+        path: "content/news".to_owned(),
+        source_id: "news".to_owned(),
+        category_id: "blog".to_owned(),
+        enabled: true,
+        description: "the news".to_owned(),
+        sitemap: None,
+    });
     assert_eq!(source.path, "content/news");
     assert_eq!(source.source_id.as_str(), "news");
     assert_eq!(source.category_id.as_str(), "blog");
@@ -233,8 +230,12 @@ fn set_values_reject_bad_boolean_and_float() {
         apply_set_value_changes(&mut src, &["enabled=maybe".to_owned()], &mut changes).is_err()
     );
     assert!(
-        apply_set_value_changes(&mut src, &["sitemap.priority=high".to_owned()], &mut changes)
-            .is_err()
+        apply_set_value_changes(
+            &mut src,
+            &["sitemap.priority=high".to_owned()],
+            &mut changes
+        )
+        .is_err()
     );
 }
 

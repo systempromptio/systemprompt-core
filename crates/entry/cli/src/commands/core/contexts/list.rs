@@ -7,8 +7,8 @@ use systemprompt_logging::CliService;
 use super::types::{ContextListOutput, ContextSummary};
 use crate::cli_settings::CliConfig;
 use crate::context::CommandContext;
-use crate::session::get_or_create_session;
 use crate::presentation::tables::context_list_table;
+use crate::session::get_or_create_session;
 use crate::shared::CommandOutput;
 
 #[derive(Debug, Clone, Copy, Args)]

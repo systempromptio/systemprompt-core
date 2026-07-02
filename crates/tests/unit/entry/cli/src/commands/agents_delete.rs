@@ -63,5 +63,8 @@ fn success_message_singular_and_plural() {
         delete_success_message(&names(&["a", "b"])),
         "2 agent(s) deleted successfully"
     );
-    assert_eq!(delete_success_message(&[]), "0 agent(s) deleted successfully");
+    assert_eq!(
+        delete_success_message(&[]),
+        "0 agent(s) deleted successfully"
+    );
 }

@@ -23,47 +23,46 @@ pub fn ensure_category_exists(config: &ContentConfigRaw, category_id: &str) -> R
     ))
 }
 
-/// Builds the database-fed sitemap entry used for flag-driven creation;
-/// `None` when no URL pattern was supplied.
+/// Builds the database-fed sitemap entry used for flag-driven creation.
 #[must_use]
-pub fn build_sitemap_from_flags(
-    url_pattern: Option<String>,
-    priority: f32,
-    changefreq: &str,
-) -> Option<SitemapConfig> {
-    url_pattern.map(|url_pattern| SitemapConfig {
+pub fn build_flag_sitemap(url_pattern: String, priority: f32, changefreq: &str) -> SitemapConfig {
+    SitemapConfig {
         enabled: true,
         url_pattern,
         priority,
         changefreq: changefreq.to_owned(),
         fetch_from: "database".to_owned(),
         parent_route: None,
-    })
+    }
+}
+
+/// Resolved inputs for a new content source entry.
+#[derive(Debug)]
+pub struct SourceSpec {
+    pub path: String,
+    pub source_id: String,
+    pub category_id: String,
+    pub enabled: bool,
+    pub description: String,
+    pub sitemap: Option<SitemapConfig>,
 }
 
 /// Assembles a new article content source with the default indexing policy.
 #[must_use]
-pub fn build_source_config(
-    path: String,
-    source_id: &str,
-    category_id: &str,
-    enabled: bool,
-    description: String,
-    sitemap: Option<SitemapConfig>,
-) -> ContentSourceConfigRaw {
+pub fn build_source_config(spec: SourceSpec) -> ContentSourceConfigRaw {
     ContentSourceConfigRaw {
-        path,
-        source_id: SourceId::new(source_id),
-        category_id: CategoryId::new(category_id),
-        enabled,
-        description,
+        path: spec.path,
+        source_id: SourceId::new(&spec.source_id),
+        category_id: CategoryId::new(&spec.category_id),
+        enabled: spec.enabled,
+        description: spec.description,
         allowed_content_types: vec!["article".to_owned()],
         indexing: Some(IndexingConfig {
             clear_before: false,
             recursive: true,
             override_existing: false,
         }),
-        sitemap,
+        sitemap: spec.sitemap,
         branding: None,
     }
 }

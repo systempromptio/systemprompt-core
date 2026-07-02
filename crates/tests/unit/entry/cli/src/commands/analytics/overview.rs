@@ -5,8 +5,8 @@
 
 use chrono::{TimeZone, Utc};
 use systemprompt_cli::analytics::overview::{
-    AgentMetrics, ConversationMetrics, CostMetrics, OverviewOutput, RequestMetrics,
-    SessionMetrics, ToolMetrics, calculate_change, export_overview_csv, format_period,
+    AgentMetrics, ConversationMetrics, CostMetrics, OverviewOutput, RequestMetrics, SessionMetrics,
+    ToolMetrics, calculate_change, export_overview_csv, format_period,
 };
 use tempfile::TempDir;
 
@@ -81,5 +81,8 @@ fn export_overview_csv_writes_headers_and_row() {
     assert!(row.contains("25.50"));
     assert!(row.contains("97.50"));
     assert!(row.contains("1500000"));
-    assert!(row.ends_with(','), "empty cost change renders as empty cell");
+    assert!(
+        row.ends_with(','),
+        "empty cost change renders as empty cell"
+    );
 }

@@ -4,15 +4,14 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use chrono::{TimeZone, Utc};
-use systemprompt_cli::presentation::tables::{
-    ai_requests_table, artifact_list_table, context_list_table, db_tables_table,
-    execution_steps_table, extract_latency_from_metadata, format_metadata_value,
-    mcp_tool_calls_table, task_artifacts_table, task_info_table, trace_events_table,
-    truncate_cell,
-};
 use systemprompt_cli::core::artifacts::ArtifactSummary;
 use systemprompt_cli::core::contexts::ContextSummary;
 use systemprompt_cli::infrastructure::db::TableInfo;
+use systemprompt_cli::presentation::tables::{
+    ai_requests_table, artifact_list_table, context_list_table, db_tables_table,
+    execution_steps_table, extract_latency_from_metadata, format_metadata_value,
+    mcp_tool_calls_table, task_artifacts_table, task_info_table, trace_events_table, truncate_cell,
+};
 use systemprompt_identifiers::{
     AiRequestId, ArtifactId, ContextId, ExecutionStepId, McpExecutionId, TaskId,
 };
@@ -347,10 +346,7 @@ fn format_metadata_value_applies_unit_formatting() {
         "30ms"
     );
     assert_eq!(format_metadata_value("tokens_used", &json!(99)), "99");
-    assert_eq!(
-        format_metadata_value("other_key", &json!("plain")),
-        "plain"
-    );
+    assert_eq!(format_metadata_value("other_key", &json!("plain")), "plain");
     assert_eq!(
         format_metadata_value("latency_ms", &json!("weird")),
         "weird"

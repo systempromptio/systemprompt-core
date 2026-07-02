@@ -8,8 +8,8 @@ use systemprompt_logging::CliService;
 use super::types::{ArtifactListOutput, ArtifactSummary};
 use crate::cli_settings::CliConfig;
 use crate::context::CommandContext;
-use crate::session::get_or_create_session;
 use crate::presentation::tables::artifact_list_table;
+use crate::session::get_or_create_session;
 use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]

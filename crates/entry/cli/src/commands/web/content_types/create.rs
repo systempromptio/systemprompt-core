@@ -11,7 +11,7 @@ use systemprompt_config::ProfileBootstrap;
 use systemprompt_logging::CliService;
 use systemprompt_models::content_config::{ContentConfigRaw, SitemapConfig};
 
-use super::builder::{build_sitemap_from_flags, build_source_config, ensure_category_exists};
+use super::builder::{SourceSpec, build_flag_sitemap, build_source_config, ensure_category_exists};
 
 use super::super::types::ContentTypeCreateOutput;
 
@@ -80,16 +80,20 @@ pub(super) fn execute(args: CreateArgs, config: &CliConfig) -> Result<CommandOut
         }
     });
 
-    let sitemap = if args.url_pattern.is_some() {
-        build_sitemap_from_flags(args.url_pattern, args.priority, &args.changefreq)
-    } else if config.is_interactive() {
-        prompt_sitemap_config()?
-    } else {
-        None
+    let sitemap = match args.url_pattern {
+        Some(pattern) => Some(build_flag_sitemap(pattern, args.priority, &args.changefreq)),
+        None if config.is_interactive() => prompt_sitemap_config()?,
+        None => None,
     };
 
-    let source_config =
-        build_source_config(path, &source_id, &category_id, args.enabled, description, sitemap);
+    let source_config = build_source_config(SourceSpec {
+        path,
+        source_id,
+        category_id,
+        enabled: args.enabled,
+        description,
+        sitemap,
+    });
 
     content_config
         .content_sources

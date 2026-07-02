@@ -268,10 +268,7 @@ pub fn task_artifacts_table(artifacts: &[TaskArtifact]) -> String {
         .map(|a| TaskArtifactRow {
             artifact: truncate_cell(a.artifact_id.as_str(), 12),
             artifact_type: a.artifact_type.clone(),
-            name: a
-                .name
-                .as_ref()
-                .map_or_else(dash, |s| truncate_cell(s, 30)),
+            name: a.name.as_ref().map_or_else(dash, |s| truncate_cell(s, 30)),
             source: a.source.clone().unwrap_or_else(dash),
             tool_name: a.tool_name.clone().unwrap_or_else(dash),
         })
@@ -307,7 +304,9 @@ pub fn format_metadata_value(key: &str, value: &serde_json::Value) -> String {
             let dollars = microdollars as f64 / 1_000_000.0;
             format!("${dollars:.6}")
         }),
-        "latency_ms" | "execution_time_ms" => value.as_i64().map_or_else(raw, |ms| format!("{ms}ms")),
+        "latency_ms" | "execution_time_ms" => {
+            value.as_i64().map_or_else(raw, |ms| format!("{ms}ms"))
+        },
         "tokens_used" => value.as_i64().map_or_else(raw, |tokens| tokens.to_string()),
         _ => raw(),
     }
