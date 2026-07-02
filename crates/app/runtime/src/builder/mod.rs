@@ -10,7 +10,6 @@ mod core_layer;
 
 use std::sync::{Arc, OnceLock};
 
-use systemprompt_analytics::{AnalyticsService, FingerprintRepository};
 use systemprompt_database::MigrationConfig;
 use systemprompt_extension::ExtensionRegistry;
 use systemprompt_marketplace::MarketplaceFilter;
@@ -138,25 +137,18 @@ impl AppContextBuilder {
         )
         .await?;
 
-        let geoip_reader = AppContext::load_geoip_database(&config, self.show_startup_warnings);
-        let content_config = AppContext::load_content_config(&config, &app_paths);
-        let content_routing = assembly::content_routing_from(content_config.as_ref());
-        let route_classifier = Arc::new(systemprompt_models::RouteClassifier::new(
-            content_routing.clone(),
-        ));
-        let analytics_service = Arc::new(AnalyticsService::new(
+        let assembly::ContentAnalytics {
+            geoip_reader,
+            content_config,
+            route_classifier,
+            analytics_service,
+            fingerprint_repo,
+        } = assembly::assemble_content_analytics(
+            &config,
+            &app_paths,
             &database,
-            geoip_reader.clone(),
-            content_routing,
-        )?);
-
-        let fingerprint_repo = match FingerprintRepository::new(&database) {
-            Ok(repo) => Some(Arc::new(repo)),
-            Err(e) => {
-                tracing::warn!(error = %e, "Failed to initialize fingerprint repository");
-                None
-            },
-        };
+            self.show_startup_warnings,
+        )?;
 
         // UserService is a mandatory dependency: the system admin cannot be
         // resolved without it, so a construction failure is fatal here rather

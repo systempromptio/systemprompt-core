@@ -4,14 +4,59 @@
 
 use std::sync::Arc;
 
-use systemprompt_database::DbPool;
+use systemprompt_analytics::{AnalyticsService, FingerprintRepository, GeoIpReader};
+use systemprompt_database::{Database, DbPool};
 use systemprompt_marketplace::{AllowAllFilter, MarketplaceFilter, discover_filters};
 use systemprompt_models::auth::UserRole;
 use systemprompt_models::services::{SystemAdmin, SystemAdminConfig};
-use systemprompt_models::{Config, ContentConfigRaw, ContentRouting};
+use systemprompt_models::{AppPaths, Config, ContentConfigRaw, ContentRouting};
 use systemprompt_users::UserService;
 
+use crate::context::AppContext;
 use crate::error::{RuntimeError, RuntimeResult};
+
+pub(super) struct ContentAnalytics {
+    pub(super) geoip_reader: Option<GeoIpReader>,
+    pub(super) content_config: Option<Arc<ContentConfigRaw>>,
+    pub(super) route_classifier: Arc<systemprompt_models::RouteClassifier>,
+    pub(super) analytics_service: Arc<AnalyticsService>,
+    pub(super) fingerprint_repo: Option<Arc<FingerprintRepository>>,
+}
+
+pub(super) fn assemble_content_analytics(
+    config: &Config,
+    app_paths: &AppPaths,
+    database: &Arc<Database>,
+    show_startup_warnings: bool,
+) -> RuntimeResult<ContentAnalytics> {
+    let geoip_reader = AppContext::load_geoip_database(config, show_startup_warnings);
+    let content_config = AppContext::load_content_config(config, app_paths);
+    let content_routing = content_routing_from(content_config.as_ref());
+    let route_classifier = Arc::new(systemprompt_models::RouteClassifier::new(
+        content_routing.clone(),
+    ));
+    let analytics_service = Arc::new(AnalyticsService::new(
+        database,
+        geoip_reader.clone(),
+        content_routing,
+    )?);
+
+    let fingerprint_repo = match FingerprintRepository::new(database) {
+        Ok(repo) => Some(Arc::new(repo)),
+        Err(e) => {
+            tracing::warn!(error = %e, "Failed to initialize fingerprint repository");
+            None
+        },
+    };
+
+    Ok(ContentAnalytics {
+        geoip_reader,
+        content_config,
+        route_classifier,
+        analytics_service,
+        fingerprint_repo,
+    })
+}
 
 pub(super) async fn resolve_and_install_system_admin(
     config: &Config,

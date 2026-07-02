@@ -50,6 +50,9 @@ pub(super) async fn init_core(
         .await?,
     );
 
+    // Why: the audit pool is optional — without a write pool the authz hook
+    // still boots (with a non-persistent audit sink) rather than failing the
+    // whole context build, so a degraded boot proceeds without audit persistence.
     let authz_audit_pool = database.write_pool_arc().ok();
     let authz_hook = systemprompt_security::authz::build_authz_hook(
         profile.governance.as_ref(),
