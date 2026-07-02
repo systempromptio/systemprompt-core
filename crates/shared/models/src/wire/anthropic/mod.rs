@@ -62,18 +62,7 @@ pub fn build_request_body(
     if let Some(sys) = &request.system {
         obj.insert("system".into(), Value::String(sys.clone()));
     }
-    if let Some(t) = request.temperature {
-        obj.insert("temperature".into(), json!(t));
-    }
-    if let Some(p) = request.top_p {
-        obj.insert("top_p".into(), json!(p));
-    }
-    if let Some(k) = request.top_k {
-        obj.insert("top_k".into(), json!(k));
-    }
-    if !request.stop_sequences.is_empty() {
-        obj.insert("stop_sequences".into(), json!(request.stop_sequences));
-    }
+    insert_sampling_params(&mut obj, request);
     let mut tools: Vec<Value> = request.tools.iter().map(tool_to_anthropic).collect();
     let forced_tool: Option<&str> =
         if let Some(ResponseFormat::JsonSchema { name, schema, .. }) = &request.response_format {
@@ -116,6 +105,21 @@ pub fn build_request_body(
         obj.insert("metadata".into(), meta.clone());
     }
     Value::Object(obj)
+}
+
+fn insert_sampling_params(obj: &mut Map<String, Value>, request: &CanonicalRequest) {
+    if let Some(t) = request.temperature {
+        obj.insert("temperature".into(), json!(t));
+    }
+    if let Some(p) = request.top_p {
+        obj.insert("top_p".into(), json!(p));
+    }
+    if let Some(k) = request.top_k {
+        obj.insert("top_k".into(), json!(k));
+    }
+    if !request.stop_sequences.is_empty() {
+        obj.insert("stop_sequences".into(), json!(request.stop_sequences));
+    }
 }
 
 fn insert_thinking(
