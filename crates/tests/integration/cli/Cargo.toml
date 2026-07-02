@@ -21,8 +21,6 @@ systemprompt-users = { workspace = true }
 systemprompt-security = { workspace = true }
 systemprompt-cloud = { workspace = true }
 systemprompt-config = { workspace = true }
-systemprompt-identifiers = { workspace = true }
-systemprompt-models = { workspace = true }
 systemprompt-test-fixtures = { workspace = true }
 tempfile = { workspace = true }
 serde_json = { workspace = true }

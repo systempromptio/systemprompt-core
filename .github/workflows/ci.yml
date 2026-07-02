@@ -95,6 +95,11 @@ jobs:
         run: |
           echo "cores: $(nproc)"; free -h; df -h /
 
+      - name: Install system dependencies
+        # bridge test crates link keyring's linux-native-sync-persistent
+        # backend, which needs libdbus at build time.
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq libdbus-1-dev pkg-config
+
       - name: Strip [unstable] and [profile.dev] from cargo configs
         run: |
           python3 - <<'PY'
