@@ -11,6 +11,7 @@ mod message_validation;
 mod multiturn_task;
 mod persistence_service;
 mod push_notification_config;
+mod request_dispatch;
 mod request_validation;
 mod server;
 mod task_builder;
