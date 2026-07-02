@@ -1,7 +1,6 @@
 //! Proxy-verified-identity short-circuit for trusted upstream gateways.
 
-use rmcp::service::RequestContext as McpContext;
-use rmcp::{ErrorData as McpError, RoleServer};
+use rmcp::ErrorData as McpError;
 use systemprompt_identifiers::{Actor, UserId};
 use systemprompt_models::RequestContext;
 use systemprompt_models::auth::AuthenticatedUser;
@@ -9,18 +8,15 @@ use systemprompt_models::auth::AuthenticatedUser;
 use super::jwt::validate_scopes_for_permissions;
 use super::{AuthResult, AuthenticatedRequestContext};
 
-pub(super) fn try_proxy_verified_auth(
-    mcp_context: &McpContext<RoleServer>,
+pub fn try_proxy_verified_auth(
+    parts: Option<&http::request::Parts>,
     request_context: RequestContext,
     oauth_config: &crate::OAuthRequirement,
     server_name: &str,
 ) -> Result<Option<AuthResult>, McpError> {
-    let parts = mcp_context
-        .extensions
-        .get::<http::request::Parts>()
-        .ok_or_else(|| {
-            McpError::invalid_request("No HTTP parts in MCP context".to_owned(), None)
-        })?;
+    let parts = parts.ok_or_else(|| {
+        McpError::invalid_request("No HTTP parts in MCP context".to_owned(), None)
+    })?;
 
     let proxy_verified = parts
         .headers

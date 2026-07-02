@@ -25,7 +25,7 @@ mod jwt;
 mod proxy;
 
 use jwt::{validate_and_extract_claims, validate_audience, validate_scopes_for_permissions};
-use proxy::try_proxy_verified_auth;
+pub use proxy::try_proxy_verified_auth;
 
 #[derive(Debug, Clone)]
 pub struct AuthenticatedRequestContext {
@@ -127,7 +127,7 @@ pub async fn enforce_rbac_from_registry(
     }
 
     if let Some(auth_result) = try_proxy_verified_auth(
-        mcp_context,
+        mcp_context.extensions.get::<http::request::Parts>(),
         request_context.clone(),
         oauth_config,
         server_name,
