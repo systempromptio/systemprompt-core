@@ -1,4 +1,4 @@
-#![allow(
+#![expect(
     clippy::print_stdout,
     clippy::print_stderr,
     reason = "single user-facing display sink for the bridge CLI; analogue of \

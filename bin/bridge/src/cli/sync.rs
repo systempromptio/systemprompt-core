@@ -33,7 +33,7 @@ fn run_once_print(allow_unsigned: bool, force_replay: bool, allow_tofu: bool) ->
         match crate::proxy::block_on(sync::run_once(allow_unsigned, force_replay, allow_tofu)) {
             Ok(r) => r,
             Err(e) => {
-                tracing::error!("runtime init failed: {e}");
+                tracing::error!(error = %e, "runtime init failed");
                 return ExitCode::from(70);
             },
         };
@@ -44,7 +44,7 @@ fn run_once_print(allow_unsigned: bool, force_replay: bool, allow_tofu: bool) ->
         },
         Err(err) => {
             let exit = err.exit_code();
-            tracing::error!("{err}");
+            tracing::error!(error = %err, "sync failed");
             exit
         },
     }

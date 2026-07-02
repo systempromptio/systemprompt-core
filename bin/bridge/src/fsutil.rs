@@ -42,6 +42,7 @@ pub fn atomic_write_0600(path: &Path, bytes: &[u8]) -> io::Result<()> {
     match fs::rename(&tmp, path) {
         Ok(()) => Ok(()),
         Err(e) => {
+            // Why: best-effort temp cleanup; the rename error is the failure to report.
             _ = fs::remove_file(&tmp);
             Err(e)
         },
@@ -104,6 +105,7 @@ pub fn create_dir_all_mode_0700(path: &Path) -> io::Result<()> {
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
+        // Why: best-effort tightening; the directory exists either way.
         _ = fs::set_permissions(path, fs::Permissions::from_mode(0o700));
     }
     Ok(())
