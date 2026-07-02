@@ -91,10 +91,10 @@ pub async fn fetch_external_bearer(
     }
 }
 
-pub fn outbound_headers(
+pub fn outbound_headers<S: std::hash::BuildHasher>(
     ext: &ExternalAuth,
     bearer: &str,
-    static_headers: &HashMap<String, String>,
+    static_headers: &HashMap<String, String, S>,
     server: &str,
 ) -> McpDomainResult<HashMap<HeaderName, HeaderValue>> {
     let mut out = static_outbound_headers(static_headers, server)?;
@@ -102,8 +102,8 @@ pub fn outbound_headers(
     Ok(out)
 }
 
-pub fn static_outbound_headers(
-    static_headers: &HashMap<String, String>,
+pub fn static_outbound_headers<S: std::hash::BuildHasher>(
+    static_headers: &HashMap<String, String, S>,
     server: &str,
 ) -> McpDomainResult<HashMap<HeaderName, HeaderValue>> {
     let mut out = HashMap::with_capacity(static_headers.len());
