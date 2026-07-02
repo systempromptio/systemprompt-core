@@ -15,6 +15,8 @@
 #![allow(clippy::all)]
 
 #[cfg(test)]
+mod agents_shared_prompt;
+#[cfg(test)]
 mod cli_settings;
 #[cfg(test)]
 mod commands;

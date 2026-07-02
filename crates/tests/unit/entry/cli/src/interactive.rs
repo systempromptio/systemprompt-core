@@ -216,64 +216,58 @@ fn scripted_prompter_answers_shared_across_methods() {
 }
 
 #[test]
-fn require_confirmation_interactive_yes_succeeds() {
+fn require_confirmation_flag_alone_does_not_enable_prompting_without_tty() {
     let cfg = interactive();
     let prompter = ScriptedPrompter::new(["y"]);
-    require_confirmation(&prompter, "delete?", false, &cfg).expect("confirmed");
-}
-
-#[test]
-fn require_confirmation_interactive_no_is_cancelled() {
-    let cfg = interactive();
-    let prompter = ScriptedPrompter::new(["n"]);
     let err = require_confirmation(&prompter, "delete?", false, &cfg).unwrap_err();
-    assert!(err.to_string().contains("cancelled"));
+    assert!(err.to_string().contains("non-interactive"));
 }
 
 #[test]
-fn require_confirmation_default_yes_interactive_accepts() {
+fn require_confirmation_default_yes_flag_alone_does_not_prompt_without_tty() {
     let cfg = interactive();
     let prompter = ScriptedPrompter::new(["yes"]);
-    require_confirmation_default_yes(&prompter, "proceed?", false, &cfg).expect("confirmed");
+    let err = require_confirmation_default_yes(&prompter, "proceed?", false, &cfg).unwrap_err();
+    assert!(err.to_string().contains("non-interactive"));
 }
 
 #[test]
-fn select_from_list_interactive_returns_selected_item() {
+fn select_from_list_without_tty_requires_flag() {
     let cfg = interactive();
     let prompter = ScriptedPrompter::new(["1"]);
     let items = vec!["one".to_string(), "two".to_string()];
-    let got = select_from_list(&prompter, "pick", &items, "thing", &cfg).expect("selected");
-    assert_eq!(got, "two");
+    let err = select_from_list(&prompter, "pick", &items, "thing", &cfg).unwrap_err();
+    assert!(err.to_string().contains("--thing"));
 }
 
 #[test]
-fn select_index_interactive_returns_index() {
+fn select_index_without_tty_returns_none() {
     let cfg = interactive();
     let prompter = ScriptedPrompter::new(["2"]);
     let items = ["a", "b", "c"];
     let got = select_index(&prompter, "pick", &items, &cfg).expect("selected");
-    assert_eq!(got, Some(2));
+    assert_eq!(got, None);
 }
 
 #[test]
-fn prompt_input_interactive_returns_answer() {
+fn prompt_input_without_tty_requires_flag() {
     let cfg = interactive();
     let prompter = ScriptedPrompter::new(["ed"]);
-    let got = prompt_input(&prompter, "name?", "name", &cfg).expect("answered");
-    assert_eq!(got, "ed");
+    let err = prompt_input(&prompter, "name?", "name", &cfg).unwrap_err();
+    assert!(err.to_string().contains("--name"));
 }
 
 #[test]
-fn prompt_input_with_default_interactive_prefers_answer() {
+fn prompt_input_with_default_without_tty_returns_default() {
     let cfg = interactive();
     let prompter = ScriptedPrompter::new(["given"]);
     let got = prompt_input_with_default(&prompter, "name?", "anon", &cfg).expect("answered");
-    assert_eq!(got, "given");
+    assert_eq!(got, "anon");
 }
 
 #[test]
-fn confirm_optional_interactive_uses_prompter() {
+fn confirm_optional_without_tty_returns_default() {
     let cfg = interactive();
     let prompter = ScriptedPrompter::new(["yes"]);
-    assert!(confirm_optional(&prompter, "ok?", false, &cfg).expect("answered"));
+    assert!(!confirm_optional(&prompter, "ok?", false, &cfg).expect("answered"));
 }

@@ -7323,6 +7323,8 @@ dependencies = [
  "serde_json",
  "serde_yaml_ng",
  "systemprompt-cli",
+ "systemprompt-cloud",
+ "systemprompt-identifiers",
  "systemprompt-models",
  "tempfile",
  "thiserror 2.0.18",
