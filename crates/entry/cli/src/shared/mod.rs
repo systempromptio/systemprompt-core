@@ -7,6 +7,7 @@
 //! generate pooled execution entry points.
 
 pub mod command_result;
+pub mod disk_logs;
 pub mod parsers;
 pub mod paths;
 pub mod profile;
