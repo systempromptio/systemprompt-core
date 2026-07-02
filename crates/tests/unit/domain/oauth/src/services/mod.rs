@@ -8,6 +8,7 @@ mod jwt;
 mod plugin_token;
 mod providers;
 mod session;
+mod session_lookup;
 mod templating;
 mod validation;
 mod webauthn;
