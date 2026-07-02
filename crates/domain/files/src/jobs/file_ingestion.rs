@@ -226,7 +226,9 @@ fn build_file_record(file_path: &str, public_url: &str, extension: &str, path: &
         mime_type: mime_from_extension(extension),
         size_bytes: std::fs::metadata(path)
             .map(|m| m.len() as i64)
-            .inspect_err(|e| tracing::debug!(error = %e, path = %path.display(), "Failed to get file size"))
+            .inspect_err(
+                |e| tracing::debug!(error = %e, path = %path.display(), "Failed to get file size"),
+            )
             .ok(),
         ai_content: path.to_string_lossy().contains(storage::GENERATED),
         metadata,
