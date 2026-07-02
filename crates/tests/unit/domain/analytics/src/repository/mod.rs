@@ -2,7 +2,13 @@
 
 mod types;
 
+mod core_stats;
+mod engagement_events;
+mod fingerprint_reputation;
 mod funnel_mutations;
+mod funnel_queries;
+mod query_repository;
 mod session_behavioral_queries;
 mod session_mutations;
 mod session_support;
+mod tools_queries;
