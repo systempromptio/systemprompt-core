@@ -23,7 +23,7 @@ use tracing::{debug, error, info, warn};
 
 use super::repository::EventOutboxRepository;
 use super::routing::{EventRouter, OUTBOX_CHANNEL, OutboxChannel};
-use systemprompt_identifiers::UserId;
+use systemprompt_identifiers::{EventOutboxId, UserId};
 use systemprompt_models::{A2AEvent, AgUiEvent, AnalyticsEvent, SystemEvent};
 
 const OUTBOX_RETENTION: Duration = Duration::from_secs(3600);
@@ -92,7 +92,8 @@ impl PostgresEventBridge {
 
     async fn deliver(&self, row_id: &str) {
         let repo = EventOutboxRepository::new(self.pool.clone());
-        let row = match repo.find(row_id).await {
+        let id = EventOutboxId::new(row_id);
+        let row = match repo.find(&id).await {
             Ok(Some(row)) => row,
             Ok(None) => {
                 debug!(row_id, "event bridge: outbox row already pruned; skipping");

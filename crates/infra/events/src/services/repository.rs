@@ -61,11 +61,11 @@ impl EventOutboxRepository {
             .map(|_| ())
     }
 
-    pub(super) async fn find(&self, id: &str) -> Result<Option<OutboxRow>, sqlx::Error> {
+    pub(super) async fn find(&self, id: &EventOutboxId) -> Result<Option<OutboxRow>, sqlx::Error> {
         sqlx::query_as!(
             OutboxRow,
             r#"SELECT channel, user_id as "user_id!: UserId", payload FROM event_outbox WHERE id = $1"#,
-            id,
+            id.as_str(),
         )
         .fetch_optional(&self.pool)
         .await
