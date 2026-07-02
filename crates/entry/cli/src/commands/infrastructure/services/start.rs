@@ -13,6 +13,7 @@ use systemprompt_traits::{Phase, StartupEvent, StartupEventExt, startup_channel}
 
 use super::lifecycle;
 
+#[derive(Debug, Clone, Copy)]
 pub struct ServiceTarget {
     pub api: bool,
     pub agents: bool,
@@ -54,6 +55,7 @@ impl ServiceTarget {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
 pub struct StartupOptions {
     pub skip_migrate: bool,
     pub kill_port_process: bool,

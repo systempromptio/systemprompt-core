@@ -1,6 +1,6 @@
 //! Generation of Claude Code plugin output from `config.yaml` definitions.
 //!
-//! [`execute`] reads one or all plugin configs under the profile's plugins
+//! `execute` reads one or all plugin configs under the profile's plugins
 //! path and materialises skill, agent, MCP, script, and marketplace artifacts
 //! into the plugins storage directory. The per-component generators live in the
 //! `agents`, `mcp`, `skills`, and `marketplace` submodules.
@@ -31,6 +31,7 @@ pub struct GenerateArgs {
     pub output_dir: Option<String>,
 }
 
+#[derive(Debug, Clone, Copy)]
 pub struct PluginGenerateContext<'a> {
     pub plugins_path: &'a Path,
     pub skills_path: &'a Path,
