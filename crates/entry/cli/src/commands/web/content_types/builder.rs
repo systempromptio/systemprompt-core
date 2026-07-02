@@ -40,8 +40,8 @@ pub fn build_flag_sitemap(url_pattern: String, priority: f32, changefreq: &str) 
 #[derive(Debug)]
 pub struct SourceSpec {
     pub path: String,
-    pub source_id: String,
-    pub category_id: String,
+    pub source_id: SourceId,
+    pub category_id: CategoryId,
     pub enabled: bool,
     pub description: String,
     pub sitemap: Option<SitemapConfig>,
@@ -52,8 +52,8 @@ pub struct SourceSpec {
 pub fn build_source_config(spec: SourceSpec) -> ContentSourceConfigRaw {
     ContentSourceConfigRaw {
         path: spec.path,
-        source_id: SourceId::new(&spec.source_id),
-        category_id: CategoryId::new(&spec.category_id),
+        source_id: spec.source_id,
+        category_id: spec.category_id,
         enabled: spec.enabled,
         description: spec.description,
         allowed_content_types: vec!["article".to_owned()],

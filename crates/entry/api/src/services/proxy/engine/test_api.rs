@@ -3,7 +3,7 @@
 use std::collections::HashMap;
 
 use axum::http::{HeaderMap, HeaderName, HeaderValue};
-use systemprompt_identifiers::JwtToken;
+use systemprompt_identifiers::{JwtToken, SessionId};
 use systemprompt_mcp::McpDomainError;
 use systemprompt_models::RequestContext;
 use systemprompt_models::auth::{AuthenticatedUser, Permission, UserType};
@@ -17,13 +17,13 @@ pub struct TestSessionCache(SessionCache);
 impl TestSessionCache {
     pub async fn seed(
         &self,
-        session_id: &str,
+        session_id: &SessionId,
         user: Uuid,
         permissions: Vec<Permission>,
         token: &str,
     ) {
         self.0.write().await.insert(
-            session_id.to_owned(),
+            session_id.as_str().to_owned(),
             ProxySessionIdentity {
                 user,
                 user_type: UserType::User,
@@ -33,8 +33,8 @@ impl TestSessionCache {
         );
     }
 
-    pub async fn cached_user(&self, session_id: &str) -> Option<Uuid> {
-        self.0.read().await.get(session_id).map(|i| i.user)
+    pub async fn cached_user(&self, session_id: &SessionId) -> Option<Uuid> {
+        self.0.read().await.get(session_id.as_str()).map(|i| i.user)
     }
 }
 

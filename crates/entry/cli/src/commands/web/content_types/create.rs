@@ -1,6 +1,7 @@
 use anyhow::{Context, Result, anyhow};
 use clap::Args;
 use std::fs;
+use systemprompt_identifiers::{CategoryId, SourceId};
 
 use crate::CliConfig;
 use crate::interactive::{Prompter, resolve_required};
@@ -117,8 +118,8 @@ pub(super) fn execute(
 
     let source_config = build_source_config(SourceSpec {
         path,
-        source_id,
-        category_id,
+        source_id: SourceId::new(&source_id),
+        category_id: CategoryId::new(&category_id),
         enabled: args.enabled,
         description,
         sitemap,
