@@ -105,7 +105,7 @@ impl AgentOrchestrator {
         self.process_orphaned_pids(&pids_str).await
     }
 
-    async fn process_orphaned_pids(&self, pids_str: &str) -> OrchestrationResult<()> {
+    pub async fn process_orphaned_pids(&self, pids_str: &str) -> OrchestrationResult<()> {
         let mut registered = 0;
         let mut failed = 0;
 

@@ -7,7 +7,7 @@
 //!   identity-gated forms `terminate_gracefully_verified` /
 //!   `kill_process_verified` that refuse to signal a recycled PID.
 
-mod command;
+pub mod command;
 mod signals;
 
 use std::fs;
