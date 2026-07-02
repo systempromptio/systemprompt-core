@@ -5,15 +5,23 @@
               diagnostics"
 )]
 
-fn main() {
-    if let Err(e) = vergen::EmitBuilder::builder()
-        .build_timestamp()
-        .git_sha(true)
-        .git_commit_date()
-        .git_branch()
+fn emit_vergen() -> Result<(), Box<dyn std::error::Error>> {
+    let build = vergen_gitcl::Build::builder().build_timestamp(true).build();
+    let gitcl = vergen_gitcl::Gitcl::builder()
+        .sha(true)
+        .commit_date(true)
+        .branch(true)
+        .build();
+    vergen_gitcl::Emitter::default()
         .fail_on_error()
-        .emit()
-    {
+        .add_instructions(&build)?
+        .add_instructions(&gitcl)?
+        .emit()?;
+    Ok(())
+}
+
+fn main() {
+    if let Err(e) = emit_vergen() {
         eprintln!("cargo:warning=vergen failed ({e}); falling back to placeholders");
         println!("cargo:rustc-env=VERGEN_GIT_SHA=unknown");
         println!("cargo:rustc-env=VERGEN_GIT_COMMIT_DATE=unknown");

@@ -4,7 +4,7 @@ use std::sync::OnceLock;
 
 use base64::Engine as _;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
-use rand::RngCore as _;
+use rand::Rng as _;
 
 use crate::ids::{LoopbackSecret, ProxySecret};
 
@@ -51,7 +51,7 @@ fn mint(path: &std::path::Path) -> std::io::Result<LoopbackSecret> {
         fs::create_dir_all(parent)?;
     }
     let mut buf = [0u8; 32];
-    rand::rngs::OsRng.fill_bytes(&mut buf);
+    rand::rng().fill_bytes(&mut buf);
     let secret = URL_SAFE_NO_PAD.encode(buf);
     fs::write(path, secret.as_bytes())?;
     #[cfg(unix)]

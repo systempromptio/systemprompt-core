@@ -12,4 +12,4 @@ workspace = true
 
 [dependencies]
 systemprompt-bridge = { workspace = true, features = ["ts-export"] }
-ts-rs = "10"
+ts-rs = "12"

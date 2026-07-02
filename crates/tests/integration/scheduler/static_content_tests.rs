@@ -149,7 +149,7 @@ mod sitemap_tests {
 }
 
 mod markdown_tests {
-    use comrak::{ComrakOptions, markdown_to_html};
+    use comrak::{Options, markdown_to_html};
 
     fn strip_first_h1(content: &str) -> String {
         let lines: Vec<&str> = content.lines().collect();
@@ -169,7 +169,7 @@ mod markdown_tests {
     }
 
     fn render_markdown(content: &str) -> anyhow::Result<String> {
-        let mut options = ComrakOptions::default();
+        let mut options = Options::default();
 
         options.extension.strikethrough = true;
         options.extension.table = true;

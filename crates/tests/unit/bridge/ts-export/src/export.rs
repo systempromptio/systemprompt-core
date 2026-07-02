@@ -6,7 +6,7 @@ use systemprompt_bridge::gui::ipc::{
 use systemprompt_bridge::ipc_types::{
     BridgeError, ErrorCode, ErrorScope, IpcReplyPayload, IpcRequest,
 };
-use ts_rs::TS;
+use ts_rs::{Config, TS};
 
 #[test]
 #[ignore]
@@ -17,9 +17,10 @@ fn export_bindings() {
          TS_RS_EXPORT_DIR=. cargo test -p systemprompt-bridge-ts-export-tests export_bindings -- \
          --ignored"
     );
-    BridgeError::export_all().expect("export BridgeError");
-    ErrorScope::export_all().expect("export ErrorScope");
-    ErrorCode::export_all().expect("export ErrorCode");
-    IpcRequest::export_all().expect("export IpcRequest");
-    IpcReplyPayload::export_all().expect("export IpcReplyPayload");
+    let cfg = Config::from_env();
+    BridgeError::export_all(&cfg).expect("export BridgeError");
+    ErrorScope::export_all(&cfg).expect("export ErrorScope");
+    ErrorCode::export_all(&cfg).expect("export ErrorCode");
+    IpcRequest::export_all(&cfg).expect("export IpcRequest");
+    IpcReplyPayload::export_all(&cfg).expect("export IpcReplyPayload");
 }

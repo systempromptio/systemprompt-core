@@ -28,7 +28,7 @@ serde_json = { workspace = true }
 serde_yaml = { workspace = true }
 sqlx = { workspace = true }
 uuid = { workspace = true }
-comrak = "0.29"
+comrak = { version = "0.53", default-features = false }
 
 [dev-dependencies]
 tokio = { workspace = true }

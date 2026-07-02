@@ -17,7 +17,7 @@ path = "src/lib.rs"
 
 [build-dependencies]
 winresource = "0.1"
-vergen = { version = "8", features = ["build", "git", "gitcl"] }
+vergen-gitcl = { version = "10", features = ["build"] }
 
 [[bin]]
 name = "systemprompt-bridge"
@@ -26,20 +26,20 @@ path = "src/main.rs"
 [dependencies]
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order", "raw_value"] }
-toml = "0.8"
+toml = "0.9"
 time = { version = "0.3", features = ["serde", "formatting", "parsing"] }
 chrono = { version = "0.4", default-features = false, features = ["clock", "std", "serde"] }
-dirs = "5"
-sha2 = "0.10"
+dirs = "6"
+sha2 = "0.11"
 ed25519-dalek = { version = "2", default-features = false, features = ["std", "pkcs8"] }
 base64 = "0.22"
-serde_jcs = "0.1"
+serde_jcs = "0.2"
 thiserror = "2"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "env-filter", "json"] }
 tracing-appender = "0.2"
 backtrace = "0.3"
-opener = { version = "0.7", features = ["reveal"] }
+opener = { version = "0.8", features = ["reveal"] }
 zip = { version = "8", default-features = false, features = ["deflate"] }
 uuid = { version = "1", features = ["v4"] }
 zeroize = { version = "1", features = ["zeroize_derive"] }
@@ -58,11 +58,11 @@ arc-swap = "1"
 async-trait = "0.1"
 ctrlc = "3"
 is-terminal = "0.4"
-rand = "0.8"
+rand = "0.10"
 systemprompt-identifiers = { path = "../../crates/shared/identifiers", version = "0.19.0", default-features = false }
 systemprompt-models = { path = "../../crates/shared/models", version = "0.19.0", default-features = false }
 hostname = "0.4"
-ts-rs = { version = "10", optional = true }
+ts-rs = { version = "12", optional = true }
 # Why: OAuth client_secret moves off disk into the OS keystore. v3 needs explicit
 # native-backend feature flags per platform; `linux-native-sync-persistent` uses
 # Secret Service synchronously (matches our blocking store/load API). Distros
@@ -83,20 +83,20 @@ libc = "0.2"
 security-framework = "3"
 core-foundation = "0.10"
 core-foundation-sys = "0.8"
-tray-icon = "0.19"
-muda = "0.15"
+tray-icon = "0.24"
+muda = "0.19"
 winit = "0.30"
 wry = { version = "0.55", default-features = false, features = ["os-webview", "protocol", "devtools"] }
 image = { version = "0.25", default-features = false, features = ["png"] }
 
 [target.'cfg(target_os = "windows")'.dependencies]
-tray-icon = "0.19"
-muda = "0.15"
+tray-icon = "0.24"
+muda = "0.19"
 winit = "0.30"
 wry = { version = "0.55", default-features = false, features = ["os-webview", "protocol", "devtools"] }
 image = { version = "0.25", default-features = false, features = ["png"] }
 raw-window-handle = "0.6"
-windows-sys = { version = "0.59", features = [
+windows-sys = { version = "0.61", features = [
     "Win32_Foundation",
     "Win32_Security",
     "Win32_Security_Cryptography",
