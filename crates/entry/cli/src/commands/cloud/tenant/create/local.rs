@@ -116,7 +116,7 @@ pub async fn create_external_tenant(prompter: &dyn Prompter) -> Result<StoredTen
     Ok(tenant)
 }
 
-fn resolve_container_state(
+pub fn resolve_container_state(
     docker: &DockerCli,
     shared_config: Option<SharedContainerConfig>,
     container_running: bool,
@@ -163,7 +163,7 @@ fn resolve_container_state(
     }
 }
 
-fn handle_orphaned_volume(docker: &DockerCli, prompter: &dyn Prompter) -> Result<()> {
+pub fn handle_orphaned_volume(docker: &DockerCli, prompter: &dyn Prompter) -> Result<()> {
     if !check_volume_exists(docker) {
         return Ok(());
     }

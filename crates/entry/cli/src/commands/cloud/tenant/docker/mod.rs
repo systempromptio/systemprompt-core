@@ -9,9 +9,9 @@ mod config;
 pub mod container;
 pub mod database;
 
+pub use config::SharedContainerConfig;
 pub(super) use config::{
-    SHARED_ADMIN_USER, SHARED_PORT, SHARED_VOLUME_NAME, SharedContainerConfig, load_shared_config,
-    save_shared_config,
+    SHARED_ADMIN_USER, SHARED_PORT, SHARED_VOLUME_NAME, load_shared_config, save_shared_config,
 };
 pub(in crate::commands::cloud) use container::wait_for_postgres_healthy;
 pub(super) use container::{

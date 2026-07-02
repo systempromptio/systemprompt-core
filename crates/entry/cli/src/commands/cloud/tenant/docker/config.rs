@@ -13,7 +13,7 @@ pub(in crate::commands::cloud) const SHARED_VOLUME_NAME: &str = "systemprompt-po
 pub(in crate::commands::cloud) const SHARED_PORT: u16 = 5432;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub(in crate::commands::cloud) struct SharedContainerConfig {
+pub struct SharedContainerConfig {
     pub admin_password: String,
     pub port: u16,
     pub created_at: DateTime<Utc>,
@@ -21,13 +21,13 @@ pub(in crate::commands::cloud) struct SharedContainerConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub(in crate::commands::cloud::tenant) struct TenantDatabaseMapping {
+pub struct TenantDatabaseMapping {
     pub tenant_id: TenantId,
     pub database_name: String,
 }
 
 impl SharedContainerConfig {
-    pub(in crate::commands::cloud::tenant) fn new(admin_password: String, port: u16) -> Self {
+    pub fn new(admin_password: String, port: u16) -> Self {
         Self {
             admin_password,
             port,
