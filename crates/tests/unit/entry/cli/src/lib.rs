@@ -30,3 +30,15 @@ mod interactive;
 mod paths;
 #[cfg(test)]
 mod shared;
+#[cfg(test)]
+mod cloud_deploy_progress;
+#[cfg(test)]
+mod cloud_init_templates;
+#[cfg(test)]
+mod cloud_profile_api_keys;
+#[cfg(test)]
+mod cloud_profile_show_types;
+#[cfg(test)]
+mod cloud_tenant_validate_ai;
+#[cfg(test)]
+mod cloud_tenant_docker;
