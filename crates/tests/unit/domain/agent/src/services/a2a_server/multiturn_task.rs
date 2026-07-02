@@ -3,7 +3,7 @@
 //! Target: crates/domain/agent/src/services/a2a_server/processing/task_builder/
 //! builders.rs
 
-use rmcp::model::{CallToolResult, Content};
+use rmcp::model::{CallToolResult, ContentBlock};
 use systemprompt_agent::models::a2a::{Message, MessageRole, Part, TaskState, TextPart};
 use systemprompt_agent::services::a2a_server::processing::task_builder::{
     BuildMultiturnTaskParams, build_multiturn_task,
@@ -35,7 +35,7 @@ fn call(name: &str) -> ToolCall {
 }
 
 fn success_result(text: &str) -> CallToolResult {
-    let mut r = CallToolResult::success(vec![Content::text(text.to_string())]);
+    let mut r = CallToolResult::success(vec![ContentBlock::text(text.to_string())]);
     r.structured_content = Some(serde_json::json!({"out": text}));
     r
 }
@@ -43,7 +43,7 @@ fn success_result(text: &str) -> CallToolResult {
 // A result whose structured_content is a valid A2A tool-response envelope, so
 // build_artifacts produces an actual artifact (is_error = Some(false)).
 fn artifact_result(artifact_id: &str, exec_id: &str) -> CallToolResult {
-    let mut r = CallToolResult::success(vec![Content::text("tool output".to_string())]);
+    let mut r = CallToolResult::success(vec![ContentBlock::text("tool output".to_string())]);
     r.structured_content = Some(serde_json::json!({
         "artifact_id": artifact_id,
         "mcp_execution_id": exec_id,
@@ -54,7 +54,7 @@ fn artifact_result(artifact_id: &str, exec_id: &str) -> CallToolResult {
 }
 
 fn error_artifact_result(artifact_id: &str, exec_id: &str) -> CallToolResult {
-    let mut r = CallToolResult::error(vec![Content::text("tool failed".to_string())]);
+    let mut r = CallToolResult::error(vec![ContentBlock::text("tool failed".to_string())]);
     r.structured_content = Some(serde_json::json!({
         "artifact_id": artifact_id,
         "mcp_execution_id": exec_id,
@@ -122,7 +122,7 @@ fn build_multiturn_skips_artifact_for_invalid_envelope() {
     let tid = TaskId::generate();
     // structured_content present (is_error Some) but NOT a valid envelope, so
     // parse_tool_response fails and the artifact is skipped.
-    let mut bad = CallToolResult::success(vec![Content::text("x".to_string())]);
+    let mut bad = CallToolResult::success(vec![ContentBlock::text("x".to_string())]);
     bad.structured_content = Some(serde_json::json!({"not": "an envelope"}));
     let task = build_multiturn_task(BuildMultiturnTaskParams {
         context_id: ctx.clone(),
@@ -246,7 +246,7 @@ fn build_multiturn_records_iteration_metadata() {
 fn build_multiturn_no_artifacts_when_no_structured_content() {
     let ctx = ContextId::generate();
     let tid = TaskId::generate();
-    let mut result_no_struct = CallToolResult::success(vec![Content::text("plain")]);
+    let mut result_no_struct = CallToolResult::success(vec![ContentBlock::text("plain")]);
     result_no_struct.structured_content = None;
     let task = build_multiturn_task(BuildMultiturnTaskParams {
         context_id: ctx.clone(),

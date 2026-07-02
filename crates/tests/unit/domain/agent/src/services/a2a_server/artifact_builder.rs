@@ -3,7 +3,7 @@
 //! Target: crates/domain/agent/src/services/a2a_server/processing/artifact/mod.
 //! rs
 
-use rmcp::model::{CallToolResult, Content};
+use rmcp::model::{CallToolResult, ContentBlock};
 use systemprompt_agent::services::a2a_server::processing::ArtifactBuilder;
 use systemprompt_identifiers::{AiToolCallId, ContextId, McpServerId, TaskId};
 use systemprompt_models::{McpTool, ToolCall};
@@ -17,24 +17,24 @@ fn call(name: &str) -> ToolCall {
 }
 
 fn result_no_struct() -> CallToolResult {
-    CallToolResult::success(vec![Content::text("plain".to_string())])
+    CallToolResult::success(vec![ContentBlock::text("plain".to_string())])
 }
 
 fn result_null_struct() -> CallToolResult {
-    let mut r = CallToolResult::success(vec![Content::text("text".to_string())]);
+    let mut r = CallToolResult::success(vec![ContentBlock::text("text".to_string())]);
     r.structured_content = Some(serde_json::Value::Null);
     r
 }
 
 fn result_invalid_struct() -> CallToolResult {
-    let mut r = CallToolResult::success(vec![Content::text("text".to_string())]);
+    let mut r = CallToolResult::success(vec![ContentBlock::text("text".to_string())]);
     // Missing artifact_id / artifact / _metadata — parse_tool_response will fail.
     r.structured_content = Some(serde_json::json!({"unrelated": "field"}));
     r
 }
 
 fn empty_struct() -> CallToolResult {
-    let mut r = CallToolResult::success(vec![Content::text("text".to_string())]);
+    let mut r = CallToolResult::success(vec![ContentBlock::text("text".to_string())]);
     r.structured_content = Some(serde_json::json!({}));
     r
 }
