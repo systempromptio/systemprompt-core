@@ -8,11 +8,10 @@ use crate::shared::CommandOutput;
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::{Confirm, Input};
 use systemprompt_config::ProfileBootstrap;
-use systemprompt_identifiers::{CategoryId, SourceId};
 use systemprompt_logging::CliService;
-use systemprompt_models::content_config::{
-    ContentConfigRaw, ContentSourceConfigRaw, IndexingConfig, SitemapConfig,
-};
+use systemprompt_models::content_config::{ContentConfigRaw, SitemapConfig};
+
+use super::builder::{build_sitemap_from_flags, build_source_config, ensure_category_exists};
 
 use super::super::types::ContentTypeCreateOutput;
 
@@ -68,14 +67,7 @@ pub(super) fn execute(args: CreateArgs, config: &CliConfig) -> Result<CommandOut
         prompt_category_id(&content_config)
     })?;
 
-    if !content_config.categories.contains_key(&category_id) {
-        let available: Vec<&String> = content_config.categories.keys().collect();
-        return Err(anyhow!(
-            "Category '{}' not found. Available categories: {:?}",
-            category_id,
-            available
-        ));
-    }
+    ensure_category_exists(&content_config, &category_id)?;
 
     let description = args.description.unwrap_or_else(|| {
         if config.is_interactive() {
@@ -88,36 +80,16 @@ pub(super) fn execute(args: CreateArgs, config: &CliConfig) -> Result<CommandOut
         }
     });
 
-    let sitemap = if let Some(url_pattern) = args.url_pattern {
-        Some(SitemapConfig {
-            enabled: true,
-            url_pattern,
-            priority: args.priority,
-            changefreq: args.changefreq.clone(),
-            fetch_from: "database".to_owned(),
-            parent_route: None,
-        })
+    let sitemap = if args.url_pattern.is_some() {
+        build_sitemap_from_flags(args.url_pattern, args.priority, &args.changefreq)
     } else if config.is_interactive() {
         prompt_sitemap_config()?
     } else {
         None
     };
 
-    let source_config = ContentSourceConfigRaw {
-        path,
-        source_id: SourceId::new(&source_id),
-        category_id: CategoryId::new(&category_id),
-        enabled: args.enabled,
-        description,
-        allowed_content_types: vec!["article".to_owned()],
-        indexing: Some(IndexingConfig {
-            clear_before: false,
-            recursive: true,
-            override_existing: false,
-        }),
-        sitemap,
-        branding: None,
-    };
+    let source_config =
+        build_source_config(path, &source_id, &category_id, args.enabled, description, sitemap);
 
     content_config
         .content_sources

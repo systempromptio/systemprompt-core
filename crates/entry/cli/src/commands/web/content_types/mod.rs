@@ -4,9 +4,10 @@
 //! list, show, create, edit, and delete the content sources that drive
 //! indexing and sitemap generation.
 
+pub mod builder;
 mod create;
 mod delete;
-mod edit;
+pub mod edit;
 mod list;
 mod selection;
 mod show;

@@ -101,7 +101,7 @@ pub(super) fn execute(args: &EditArgs, config: &CliConfig) -> Result<CommandOutp
     ))
 }
 
-fn apply_basic_flags(
+pub fn apply_basic_flags(
     source: &mut systemprompt_models::content_config::ContentSourceConfigRaw,
     args: &EditArgs,
     changes: &mut Vec<String>,
@@ -124,7 +124,7 @@ fn apply_basic_flags(
     }
 }
 
-fn apply_sitemap_flags(
+pub fn apply_sitemap_flags(
     source: &mut systemprompt_models::content_config::ContentSourceConfigRaw,
     args: &EditArgs,
     changes: &mut Vec<String>,
@@ -157,7 +157,7 @@ fn apply_sitemap_flags(
     Ok(())
 }
 
-pub(super) fn apply_set_value_changes(
+pub fn apply_set_value_changes(
     source: &mut systemprompt_models::content_config::ContentSourceConfigRaw,
     set_values: &[String],
     changes: &mut Vec<String>,
