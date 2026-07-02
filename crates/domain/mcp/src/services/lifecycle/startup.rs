@@ -53,7 +53,7 @@ pub async fn start_server(
     Ok(())
 }
 
-async fn wait_for_startup(
+pub async fn wait_for_startup(
     config: &McpServerConfig,
     expected_pid: u32,
     events: Option<&StartupEventSender>,
@@ -109,7 +109,7 @@ pub fn calculate_delay(attempt: u32, base_delay: Duration) -> Duration {
     }
 }
 
-async fn check_health_status(
+pub async fn check_health_status(
     config: &McpServerConfig,
     attempt: u32,
     max_attempts: u32,
