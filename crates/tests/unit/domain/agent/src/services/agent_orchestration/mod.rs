@@ -4,6 +4,7 @@ mod database;
 mod event_bus;
 mod events;
 mod events_extended;
+mod lifecycle;
 mod monitor_functions;
 mod monitor_types;
 mod orchestrator;
