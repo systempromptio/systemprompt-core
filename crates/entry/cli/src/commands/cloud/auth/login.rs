@@ -61,6 +61,16 @@ pub(super) async fn execute(environment: Environment, config: &CliConfig) -> Res
     };
     let token = run_oauth_flow(api_url, provider, templates).await?;
 
+    complete_login(api_url, token, config).await
+}
+
+pub async fn complete_login(
+    api_url: &str,
+    token: String,
+    config: &CliConfig,
+) -> Result<CommandOutput> {
+    let cloud_paths = get_cloud_paths();
+
     let spinner = CliService::spinner("Verifying token...");
     let client = CloudApiClient::new(api_url, &token)?;
     let response = client.get_user().await?;

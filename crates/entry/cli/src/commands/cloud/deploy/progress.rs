@@ -18,6 +18,7 @@ use systemprompt_sync::{
 use crate::cli_settings::CliConfig;
 use crate::interactive::confirm_optional;
 
+#[derive(Debug)]
 pub struct CliDeployProgress<'a> {
     config: Option<&'a CliConfig>,
     spinner: Mutex<Option<ProgressBar>>,

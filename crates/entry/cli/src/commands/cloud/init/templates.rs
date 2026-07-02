@@ -1,7 +1,7 @@
 //! Default file contents used when scaffolding a new project.
 //!
 //! Each function returns the body of one generated service config, web
-//! template, or starter content file written by [`super::scaffolding`].
+//! template, or starter content file written by `super::scaffolding`.
 
 pub fn root_config() -> String {
     r#"# systemprompt.io Services Configuration

@@ -22,9 +22,9 @@ pub mod templates;
 
 pub use api_keys::{ApiKeys, collect_api_keys};
 pub use args::{CreateArgs, DeleteArgs, EditArgs, ProfileCommands, ShowFilter, TenantTypeArg};
-pub use show_types::redact_database_url;
 pub use create::{CreatedProfile, create_profile_for_tenant};
 pub use create_setup::{get_cloud_user, handle_local_tenant_setup};
+pub use show_types::redact_database_url;
 
 use crate::context::CommandContext;
 use crate::shared::render_result;
