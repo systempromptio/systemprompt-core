@@ -3,10 +3,8 @@ use clap::Args;
 use std::fs;
 
 use crate::CliConfig;
-use crate::interactive::resolve_required;
+use crate::interactive::{Prompter, resolve_required};
 use crate::shared::CommandOutput;
-use dialoguer::theme::ColorfulTheme;
-use dialoguer::{Confirm, Input};
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_identifiers::{CategoryId, SourceId};
 use systemprompt_logging::CliService;
@@ -46,7 +44,51 @@ pub struct CreateArgs {
     pub changefreq: String,
 }
 
-pub(super) fn execute(args: CreateArgs, config: &CliConfig) -> Result<CommandOutput> {
+fn resolve_description(
+    description: Option<String>,
+    prompter: &dyn Prompter,
+    config: &CliConfig,
+) -> String {
+    description.unwrap_or_else(|| {
+        if config.is_interactive() {
+            prompt_description(prompter).unwrap_or_else(|e| {
+                tracing::warn!(error = %e, "Failed to prompt for description");
+                String::new()
+            })
+        } else {
+            String::new()
+        }
+    })
+}
+
+fn resolve_sitemap(
+    url_pattern: Option<String>,
+    priority: f32,
+    changefreq: String,
+    prompter: &dyn Prompter,
+    config: &CliConfig,
+) -> Result<Option<SitemapConfig>> {
+    if let Some(url_pattern) = url_pattern {
+        return Ok(Some(SitemapConfig {
+            enabled: true,
+            url_pattern,
+            priority,
+            changefreq,
+            fetch_from: "database".to_owned(),
+            parent_route: None,
+        }));
+    }
+    if config.is_interactive() {
+        return prompt_sitemap_config(prompter);
+    }
+    Ok(None)
+}
+
+pub(super) fn execute(
+    args: CreateArgs,
+    prompter: &dyn Prompter,
+    config: &CliConfig,
+) -> Result<CommandOutput> {
     let profile = ProfileBootstrap::get().context("Failed to get profile")?;
     let content_config_path = profile.paths.content_config();
 
@@ -56,16 +98,18 @@ pub(super) fn execute(args: CreateArgs, config: &CliConfig) -> Result<CommandOut
     let mut content_config: ContentConfigRaw = serde_yaml::from_str(&content)
         .with_context(|| format!("Failed to parse content config at {}", content_config_path))?;
 
-    let name = resolve_required(args.name, "name", config, prompt_name)?;
+    let name = resolve_required(args.name, "name", config, || prompt_name(prompter))?;
 
     if content_config.content_sources.contains_key(&name) {
         return Err(anyhow!("Content type '{}' already exists", name));
     }
 
-    let path = resolve_required(args.path, "path", config, || prompt_path(&name))?;
-    let source_id = resolve_required(args.source, "source-id", config, || prompt_source_id(&name))?;
+    let path = resolve_required(args.path, "path", config, || prompt_path(prompter, &name))?;
+    let source_id = resolve_required(args.source, "source-id", config, || {
+        prompt_source_id(prompter, &name)
+    })?;
     let category_id = resolve_required(args.category_id, "category-id", config, || {
-        prompt_category_id(&content_config)
+        prompt_category_id(prompter, &content_config)
     })?;
 
     if !content_config.categories.contains_key(&category_id) {
@@ -77,31 +121,14 @@ pub(super) fn execute(args: CreateArgs, config: &CliConfig) -> Result<CommandOut
         ));
     }
 
-    let description = args.description.unwrap_or_else(|| {
-        if config.is_interactive() {
-            prompt_description().unwrap_or_else(|e| {
-                tracing::warn!(error = %e, "Failed to prompt for description");
-                String::new()
-            })
-        } else {
-            String::new()
-        }
-    });
-
-    let sitemap = if let Some(url_pattern) = args.url_pattern {
-        Some(SitemapConfig {
-            enabled: true,
-            url_pattern,
-            priority: args.priority,
-            changefreq: args.changefreq.clone(),
-            fetch_from: "database".to_owned(),
-            parent_route: None,
-        })
-    } else if config.is_interactive() {
-        prompt_sitemap_config()?
-    } else {
-        None
-    };
+    let sitemap = resolve_sitemap(
+        args.url_pattern,
+        args.priority,
+        args.changefreq.clone(),
+        prompter,
+        config,
+    )?;
+    let description = resolve_description(args.description, prompter, config);
 
     let source_config = ContentSourceConfigRaw {
         path,
@@ -137,104 +164,74 @@ pub(super) fn execute(args: CreateArgs, config: &CliConfig) -> Result<CommandOut
     Ok(CommandOutput::card_value("Content Type Created", &output))
 }
 
-fn prompt_name() -> Result<String> {
-    Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("Content type name")
-        .validate_with(|input: &String| -> Result<(), &str> {
-            if input.len() < 2 {
-                return Err("Name must be at least 2 characters");
-            }
-            if !input
-                .chars()
-                .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
-            {
-                return Err("Name must be lowercase alphanumeric with hyphens only");
-            }
-            Ok(())
-        })
-        .interact_text()
-        .context("Failed to get name")
+fn validate_type_name(input: &str) -> Result<(), &'static str> {
+    if input.len() < 2 {
+        return Err("Name must be at least 2 characters");
+    }
+    if !input
+        .chars()
+        .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
+    {
+        return Err("Name must be lowercase alphanumeric with hyphens only");
+    }
+    Ok(())
 }
 
-fn prompt_path(name: &str) -> Result<String> {
-    Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("Content path")
-        .default(format!("content/{}", name))
-        .interact_text()
-        .context("Failed to get path")
+pub fn prompt_name(prompter: &dyn Prompter) -> Result<String> {
+    loop {
+        let input = prompter.input("Content type name")?;
+        let trimmed = input.trim();
+        match validate_type_name(trimmed) {
+            Ok(()) => return Ok(trimmed.to_owned()),
+            Err(message) => CliService::warning(message),
+        }
+    }
 }
 
-fn prompt_source_id(name: &str) -> Result<String> {
-    Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("Source ID")
-        .default(name.to_owned())
-        .interact_text()
-        .context("Failed to get source ID")
+pub fn prompt_path(prompter: &dyn Prompter, name: &str) -> Result<String> {
+    prompter.input_with_default("Content path", &format!("content/{}", name))
 }
 
-fn prompt_category_id(content_config: &ContentConfigRaw) -> Result<String> {
-    let mut categories: Vec<&String> = content_config.categories.keys().collect();
+pub fn prompt_source_id(prompter: &dyn Prompter, name: &str) -> Result<String> {
+    prompter.input_with_default("Source ID", name)
+}
+
+pub fn prompt_category_id(
+    prompter: &dyn Prompter,
+    content_config: &ContentConfigRaw,
+) -> Result<String> {
+    let mut categories: Vec<String> = content_config.categories.keys().cloned().collect();
     categories.sort();
 
     if categories.is_empty() {
-        return Input::with_theme(&ColorfulTheme::default())
-            .with_prompt("Category ID")
-            .default("blog".to_owned())
-            .interact_text()
-            .context("Failed to get category ID");
+        return prompter.input_with_default("Category ID", "blog");
     }
 
-    let selection = dialoguer::Select::with_theme(&ColorfulTheme::default())
-        .with_prompt("Select category")
-        .items(&categories)
-        .default(0)
-        .interact()
-        .context("Failed to get category selection")?;
-
+    let selection = prompter.select("Select category", &categories)?;
     Ok(categories[selection].clone())
 }
 
-fn prompt_description() -> Result<String> {
-    Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("Description")
-        .allow_empty(true)
-        .interact_text()
-        .context("Failed to get description")
+pub fn prompt_description(prompter: &dyn Prompter) -> Result<String> {
+    prompter.input("Description")
 }
 
-fn prompt_sitemap_config() -> Result<Option<SitemapConfig>> {
-    let enable_sitemap = Confirm::with_theme(&ColorfulTheme::default())
-        .with_prompt("Enable sitemap?")
-        .default(true)
-        .interact()
-        .context("Failed to get sitemap preference")?;
-
-    if !enable_sitemap {
+pub fn prompt_sitemap_config(prompter: &dyn Prompter) -> Result<Option<SitemapConfig>> {
+    if !prompter.confirm("Enable sitemap?", true)? {
         return Ok(None);
     }
 
-    let url_pattern: String = Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("URL pattern (e.g., /blog/{slug})")
-        .interact_text()
-        .context("Failed to get URL pattern")?;
+    let url_pattern = prompter.input("URL pattern (e.g., /blog/{slug})")?;
 
-    let priority: f32 = Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("Priority (0.0-1.0)")
-        .default(0.5)
-        .validate_with(|input: &f32| -> Result<(), &str> {
-            if *input < 0.0 || *input > 1.0 {
-                return Err("Priority must be between 0.0 and 1.0");
-            }
-            Ok(())
-        })
-        .interact()
-        .context("Failed to get priority")?;
+    let priority = loop {
+        let raw = prompter.input_with_default("Priority (0.0-1.0)", "0.5")?;
+        match raw.trim().parse::<f32>() {
+            Ok(value) if (0.0..=1.0).contains(&value) => break value,
+            Ok(_) => CliService::warning("Priority must be between 0.0 and 1.0"),
+            Err(e) => CliService::warning(&format!("Priority must be a number: {}", e)),
+        }
+    };
 
-    let changefreq: String = Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("Change frequency")
-        .default("weekly".to_owned())
-        .interact_text()
-        .context("Failed to get change frequency")?;
+    let changefreq = prompter.input_with_default("Change frequency", "weekly")?;
 
     Ok(Some(SitemapConfig {
         enabled: true,

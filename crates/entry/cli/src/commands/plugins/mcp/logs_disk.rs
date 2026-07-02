@@ -2,18 +2,17 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use anyhow::{Context, Result, anyhow};
-use dialoguer::Select;
-use dialoguer::theme::ColorfulTheme;
 
 use super::logs::{LogLevel, LogsArgs};
 use super::types::McpLogsOutput;
 use crate::CliConfig;
-use crate::interactive::resolve_required;
+use crate::interactive::{Prompter, resolve_required};
 use crate::shared::CommandOutput;
 use systemprompt_models::artifacts::ListItem;
 
 pub(super) fn execute_disk_mode(
     args: &LogsArgs,
+    prompter: &dyn Prompter,
     config: &CliConfig,
     logs_path: &Path,
 ) -> Result<CommandOutput> {
@@ -34,7 +33,7 @@ pub(super) fn execute_disk_mode(
     }
 
     let service = resolve_required(args.server.clone(), "server", config, || {
-        prompt_log_selection(logs_path)
+        prompt_log_selection(prompter, logs_path)
     })?;
 
     let log_file = find_log_file(logs_path, &service)?;
@@ -59,6 +58,7 @@ pub(super) fn execute_disk_mode(
 
 pub(super) fn execute_follow_mode(
     args: &LogsArgs,
+    prompter: &dyn Prompter,
     config: &CliConfig,
     logs_path: &Path,
 ) -> Result<CommandOutput> {
@@ -70,7 +70,7 @@ pub(super) fn execute_follow_mode(
     }
 
     let service = resolve_required(args.server.clone(), "server", config, || {
-        prompt_log_selection(logs_path)
+        prompt_log_selection(prompter, logs_path)
     })?;
 
     let log_file = find_log_file(logs_path, &service)?;
@@ -167,7 +167,7 @@ fn read_log_lines(log_file: &Path, lines: usize, level: Option<LogLevel>) -> Res
     Ok(filtered_lines[start..].to_vec())
 }
 
-fn prompt_log_selection(logs_dir: &Path) -> Result<String> {
+fn prompt_log_selection(prompter: &dyn Prompter, logs_dir: &Path) -> Result<String> {
     let log_files = list_mcp_log_files(logs_dir)?;
 
     if log_files.is_empty() {
@@ -185,12 +185,6 @@ fn prompt_log_selection(logs_dir: &Path) -> Result<String> {
         })
         .collect();
 
-    let selection = Select::with_theme(&ColorfulTheme::default())
-        .with_prompt("Select MCP server logs to view")
-        .items(&services)
-        .default(0)
-        .interact()
-        .context("Failed to get log selection")?;
-
+    let selection = prompter.select("Select MCP server logs to view", &services)?;
     Ok(services[selection].clone())
 }

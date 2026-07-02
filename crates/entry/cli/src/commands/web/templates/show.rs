@@ -6,7 +6,7 @@ use std::fs;
 use std::io::{BufRead, BufReader};
 
 use crate::CliConfig;
-use crate::interactive::resolve_required;
+use crate::interactive::{Prompter, resolve_required};
 use crate::shared::CommandOutput;
 
 use super::super::paths::WebPaths;
@@ -22,7 +22,11 @@ pub struct ShowArgs {
     pub preview_lines: usize,
 }
 
-pub(super) fn execute(args: ShowArgs, config: &CliConfig) -> Result<CommandOutput> {
+pub(super) fn execute(
+    args: ShowArgs,
+    prompter: &dyn Prompter,
+    config: &CliConfig,
+) -> Result<CommandOutput> {
     let web_paths = WebPaths::resolve()?;
     let templates_dir = &web_paths.templates;
     let templates_yaml_path = templates_dir.join("templates.yaml");
@@ -42,7 +46,7 @@ pub(super) fn execute(args: ShowArgs, config: &CliConfig) -> Result<CommandOutpu
     })?;
 
     let name = resolve_required(args.name, "name", config, || {
-        prompt_template_selection(&templates_config, "Select template")
+        prompt_template_selection(prompter, &templates_config, "Select template")
     })?;
 
     let entry = templates_config

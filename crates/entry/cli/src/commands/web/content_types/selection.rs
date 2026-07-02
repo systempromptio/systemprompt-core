@@ -1,25 +1,20 @@
-use anyhow::{Context, Result, anyhow};
-use dialoguer::Select;
-use dialoguer::theme::ColorfulTheme;
+use anyhow::{Result, anyhow};
 use systemprompt_models::content_config::ContentConfigRaw;
 
-pub(super) fn prompt_content_type_selection(
+use crate::interactive::Prompter;
+
+pub fn prompt_content_type_selection(
+    prompter: &dyn Prompter,
     config: &ContentConfigRaw,
     prompt: &str,
 ) -> Result<String> {
-    let mut names: Vec<&String> = config.content_sources.keys().collect();
+    let mut names: Vec<String> = config.content_sources.keys().cloned().collect();
     names.sort();
 
     if names.is_empty() {
         return Err(anyhow!("No content types configured"));
     }
 
-    let selection = Select::with_theme(&ColorfulTheme::default())
-        .with_prompt(prompt)
-        .items(&names)
-        .default(0)
-        .interact()
-        .context("Failed to get content type selection")?;
-
+    let selection = prompter.select(prompt, &names)?;
     Ok(names[selection].clone())
 }

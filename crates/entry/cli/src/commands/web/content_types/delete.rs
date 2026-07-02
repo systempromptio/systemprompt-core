@@ -36,7 +36,7 @@ pub(super) fn execute(
         .with_context(|| format!("Failed to parse content config at {}", content_config_path))?;
 
     let name = resolve_required(args.name, "name", config, || {
-        prompt_content_type_selection(&content_config, "Select content type to delete")
+        prompt_content_type_selection(prompter, &content_config, "Select content type to delete")
     })?;
 
     if !content_config.content_sources.contains_key(&name) {

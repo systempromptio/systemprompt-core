@@ -1,13 +1,11 @@
 use anyhow::{Context, Result, anyhow};
 use clap::Args;
-use dialoguer::Select;
-use dialoguer::theme::ColorfulTheme;
 use std::sync::Arc;
 use std::time::Duration;
 
 use super::types::{McpBatchValidateOutput, McpServerInfo, McpValidateOutput, McpValidateSummary};
 use crate::CliConfig;
-use crate::interactive::resolve_required;
+use crate::interactive::{Prompter, resolve_required};
 use crate::shared::CommandOutput;
 use systemprompt_loader::ConfigLoader;
 use systemprompt_mcp::services::client::{McpConnectionResult, validate_connection_with_auth};
@@ -34,7 +32,11 @@ pub struct ValidateArgs {
     pub timeout: u64,
 }
 
-pub(super) async fn execute(args: ValidateArgs, config: &CliConfig) -> Result<CommandOutput> {
+pub(super) async fn execute(
+    args: ValidateArgs,
+    prompter: &dyn Prompter,
+    config: &CliConfig,
+) -> Result<CommandOutput> {
     let services_config = ConfigLoader::load().context("Failed to load services configuration")?;
 
     let ctx = AppContext::new()
@@ -54,7 +56,7 @@ pub(super) async fn execute(args: ValidateArgs, config: &CliConfig) -> Result<Co
             services_config.mcp_servers.keys().cloned().collect()
         } else {
             let service = resolve_required(server_arg, "server", config, || {
-                prompt_server_selection(&services_config)
+                prompt_server_selection(prompter, &services_config)
             })?;
 
             if !services_config.mcp_servers.contains_key(&service) {
@@ -254,20 +256,17 @@ fn success_output(service_name: &str, validation_result: McpConnectionResult) ->
     }
 }
 
-fn prompt_server_selection(config: &systemprompt_models::ServicesConfig) -> Result<String> {
-    let mut servers: Vec<&String> = config.mcp_servers.keys().collect();
+pub fn prompt_server_selection(
+    prompter: &dyn Prompter,
+    config: &systemprompt_models::ServicesConfig,
+) -> Result<String> {
+    let mut servers: Vec<String> = config.mcp_servers.keys().cloned().collect();
     servers.sort();
 
     if servers.is_empty() {
         return Err(anyhow!("No MCP servers configured"));
     }
 
-    let selection = Select::with_theme(&ColorfulTheme::default())
-        .with_prompt("Select MCP server to validate")
-        .items(&servers)
-        .default(0)
-        .interact()
-        .context("Failed to get server selection")?;
-
+    let selection = prompter.select("Select MCP server to validate", &servers)?;
     Ok(servers[selection].clone())
 }

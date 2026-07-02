@@ -3,11 +3,11 @@
 //! Dispatches the `web templates` subcommands ([`TemplatesCommands`]) to list,
 //! show, create, edit, and delete templates in the web templates config.
 
-mod create;
+pub mod create;
 mod delete;
 mod edit;
 mod list;
-mod selection;
+pub mod selection;
 mod show;
 
 use anyhow::{Context, Result};
@@ -47,17 +47,20 @@ pub fn execute(
             Ok(())
         },
         TemplatesCommands::Show(args) => {
-            let result = show::execute(args, config).context("Failed to show template")?;
+            let result =
+                show::execute(args, prompter, config).context("Failed to show template")?;
             render_result(&result, config);
             Ok(())
         },
         TemplatesCommands::Create(args) => {
-            let result = create::execute(args, config).context("Failed to create template")?;
+            let result =
+                create::execute(args, prompter, config).context("Failed to create template")?;
             render_result(&result, config);
             Ok(())
         },
         TemplatesCommands::Edit(args) => {
-            let result = edit::execute(args, config).context("Failed to edit template")?;
+            let result =
+                edit::execute(args, prompter, config).context("Failed to edit template")?;
             render_result(&result, config);
             Ok(())
         },

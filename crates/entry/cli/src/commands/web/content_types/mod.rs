@@ -4,11 +4,11 @@
 //! list, show, create, edit, and delete the content sources that drive
 //! indexing and sitemap generation.
 
-mod create;
+pub mod create;
 mod delete;
 mod edit;
 mod list;
-mod selection;
+pub mod selection;
 mod show;
 
 use anyhow::{Context, Result};
@@ -48,17 +48,20 @@ pub fn execute(
             Ok(())
         },
         ContentTypesCommands::Show(args) => {
-            let result = show::execute(args, config).context("Failed to show content type")?;
+            let result =
+                show::execute(args, prompter, config).context("Failed to show content type")?;
             render_result(&result, config);
             Ok(())
         },
         ContentTypesCommands::Create(args) => {
-            let result = create::execute(args, config).context("Failed to create content type")?;
+            let result =
+                create::execute(args, prompter, config).context("Failed to create content type")?;
             render_result(&result, config);
             Ok(())
         },
         ContentTypesCommands::Edit(args) => {
-            let result = edit::execute(&args, config).context("Failed to edit content type")?;
+            let result =
+                edit::execute(&args, prompter, config).context("Failed to edit content type")?;
             render_result(&result, config);
             Ok(())
         },

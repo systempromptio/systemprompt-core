@@ -48,7 +48,7 @@ pub(super) fn execute(
         })?;
 
     let name = resolve_required(args.name, "name", config, || {
-        prompt_template_selection(&templates_config, "Select template to delete")
+        prompt_template_selection(prompter, &templates_config, "Select template to delete")
     })?;
 
     if !templates_config.templates.contains_key(&name) {
