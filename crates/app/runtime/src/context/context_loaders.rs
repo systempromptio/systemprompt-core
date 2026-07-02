@@ -52,7 +52,12 @@ pub(super) fn load_geoip_database(config: &Config, show_warnings: bool) -> Optio
 }
 
 #[cfg(not(feature = "geolocation"))]
-pub(super) const fn load_geoip_database(
+#[expect(
+    clippy::missing_const_for_fn,
+    reason = "mirrors the geolocation loader signature; const would propagate a \
+              feature-forked constness to callers"
+)]
+pub(super) fn load_geoip_database(
     _config: &Config,
     _show_warnings: bool,
 ) -> Option<systemprompt_analytics::GeoIpReader> {
