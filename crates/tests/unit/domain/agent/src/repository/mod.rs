@@ -8,6 +8,7 @@
 mod agent_service;
 mod aggregate;
 mod artifact;
+mod batch_builders;
 mod context;
 mod execution;
 mod message;
