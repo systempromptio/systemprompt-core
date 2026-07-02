@@ -57,14 +57,19 @@ fn session_from_profile_flag_creates_store() {
 
     let store = store_json(home.path());
     assert!(store["active_key"].is_string());
-    assert_eq!(store["sessions"].as_object().map(serde_json::Map::len), Some(1));
+    assert_eq!(
+        store["sessions"].as_object().map(serde_json::Map::len),
+        Some(1)
+    );
 }
 
 #[test]
 fn session_from_env_profile_resolves() {
     let Some(home) = isolated_home() else { return };
     let profile_path = fixture().expect("fixture present").profile_path.clone();
-    let Some(mut cmd) = command_bare() else { return };
+    let Some(mut cmd) = command_bare() else {
+        return;
+    };
     cmd.env("HOME", home.path());
     cmd.env("SYSTEMPROMPT_PROFILE", &profile_path);
     cmd.current_dir(home.path());
@@ -87,7 +92,9 @@ fn session_from_stored_active_key_resolves() {
     first.args(session_probe_args());
     first.assert().failure();
 
-    let Some(mut second) = command_bare() else { return };
+    let Some(mut second) = command_bare() else {
+        return;
+    };
     second.env("HOME", home.path());
     second.current_dir(home.path());
     second.args(session_probe_args());
@@ -120,7 +127,9 @@ fn cached_session_is_reused_on_second_invocation() {
 #[test]
 fn no_profile_anywhere_reports_profile_required() {
     let Some(home) = isolated_home() else { return };
-    let Some(mut cmd) = command_bare() else { return };
+    let Some(mut cmd) = command_bare() else {
+        return;
+    };
     cmd.env("HOME", home.path());
     cmd.current_dir(home.path());
     cmd.args(session_probe_args());
@@ -144,7 +153,9 @@ fn tenant_profile_without_credentials_fails_closed() {
     )
     .expect("write tenant profile");
 
-    let Some(mut cmd) = command_bare() else { return };
+    let Some(mut cmd) = command_bare() else {
+        return;
+    };
     cmd.env("HOME", home.path());
     cmd.current_dir(home.path());
     cmd.arg("--profile").arg(&tenant_profile);

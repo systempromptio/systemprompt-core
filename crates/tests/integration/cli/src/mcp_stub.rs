@@ -10,9 +10,7 @@ use std::sync::OnceLock;
 use wiremock::matchers::{body_partial_json, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
-use crate::full_bootstrap::{
-    FIXTURE_MCP_SERVER, database_url, fixture, rewrite_services_config,
-};
+use crate::full_bootstrap::{FIXTURE_MCP_SERVER, database_url, fixture, rewrite_services_config};
 
 static STUB: OnceLock<Option<u16>> = OnceLock::new();
 

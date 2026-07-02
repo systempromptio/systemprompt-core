@@ -73,8 +73,18 @@ async fn seed(pool: &sqlx::PgPool) -> SeededTrace {
     .expect("seed agent_tasks");
 
     for (message_id, role, seq, text) in [
-        (format!("covmsguser{suffix}"), "user", 0, "What files changed?"),
-        (format!("covmsgagent{suffix}"), "agent", 1, "Two files changed in the last commit."),
+        (
+            format!("covmsguser{suffix}"),
+            "user",
+            0,
+            "What files changed?",
+        ),
+        (
+            format!("covmsgagent{suffix}"),
+            "agent",
+            1,
+            "Two files changed in the last commit.",
+        ),
     ] {
         sqlx::query(
             "INSERT INTO task_messages (task_id, message_id, role, context_id, user_id, sequence_number)
@@ -103,8 +113,20 @@ async fn seed(pool: &sqlx::PgPool) -> SeededTrace {
     }
 
     for (step, step_type, title, status, error) in [
-        ("a", "planning", "Plan the lookup", "completed", None::<&str>),
-        ("b", "tool_call", "Run git diff", "failed", Some("tool timed out")),
+        (
+            "a",
+            "planning",
+            "Plan the lookup",
+            "completed",
+            None::<&str>,
+        ),
+        (
+            "b",
+            "tool_call",
+            "Run git diff",
+            "failed",
+            Some("tool timed out"),
+        ),
         ("c", "response", "Summarise findings", "pending", None),
     ] {
         sqlx::query(
@@ -196,8 +218,22 @@ async fn seed(pool: &sqlx::PgPool) -> SeededTrace {
     }
 
     for (artifact, artifact_type, name, source, tool, mcp_link) in [
-        ("one", "document", "diff-summary.md", "agent", None::<&str>, None),
-        ("two", "data", "raw-diff.json", "tool", Some("git_diff"), Some(&mcp_ok)),
+        (
+            "one",
+            "document",
+            "diff-summary.md",
+            "agent",
+            None::<&str>,
+            None,
+        ),
+        (
+            "two",
+            "data",
+            "raw-diff.json",
+            "tool",
+            Some("git_diff"),
+            Some(&mcp_ok),
+        ),
     ] {
         sqlx::query(
             "INSERT INTO task_artifacts (task_id, context_id, artifact_id, name, artifact_type,
