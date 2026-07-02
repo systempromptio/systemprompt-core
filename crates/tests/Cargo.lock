@@ -7956,6 +7956,8 @@ dependencies = [
  "async-trait",
  "axum",
  "chrono",
+ "futures",
+ "http",
  "rmcp",
  "schemars",
  "serde",
@@ -7969,9 +7971,11 @@ dependencies = [
  "systemprompt-security",
  "systemprompt-test-fixtures",
  "systemprompt-traits",
+ "tempfile",
  "tokio",
  "tower",
  "uuid",
+ "wiremock",
 ]
 
 [[package]]
