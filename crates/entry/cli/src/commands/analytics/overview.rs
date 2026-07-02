@@ -192,11 +192,15 @@ async fn fetch_overview_data(
     })
 }
 
-fn calculate_change(current: i64, previous: i64) -> Option<f64> {
+/// Percentage change from `previous` to `current`; `None` when the previous
+/// period had no data.
+#[must_use]
+pub fn calculate_change(current: i64, previous: i64) -> Option<f64> {
     (previous != 0).then(|| ((current - previous) as f64 / previous as f64) * 100.0)
 }
 
-fn format_period(start: DateTime<Utc>, end: DateTime<Utc>) -> String {
+#[must_use]
+pub fn format_period(start: DateTime<Utc>, end: DateTime<Utc>) -> String {
     format!(
         "{} to {}",
         start.format("%Y-%m-%d %H:%M"),
@@ -204,7 +208,7 @@ fn format_period(start: DateTime<Utc>, end: DateTime<Utc>) -> String {
     )
 }
 
-fn export_overview_csv(output: &OverviewOutput, path: &std::path::Path) -> Result<()> {
+pub fn export_overview_csv(output: &OverviewOutput, path: &std::path::Path) -> Result<()> {
     let mut csv = CsvBuilder::new().headers(vec![
         "period",
         "conversations_total",
