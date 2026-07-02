@@ -38,7 +38,7 @@ impl AuthorizationService {
             return Err(StatusCode::UNAUTHORIZED);
         };
 
-        if !audience::validate_service_access(&claims.aud, service_name) {
+        if !audience::validate_service_access(&claims.aud) {
             tracing::warn!(
                 service = %service_name,
                 audiences = ?claims.aud,

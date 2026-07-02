@@ -8,45 +8,37 @@ use systemprompt_oauth::services::{
 #[test]
 fn test_validate_service_access_with_api() {
     let audiences = vec![JwtAudience::Api];
-    assert!(validate_service_access(&audiences, "any_service"));
+    assert!(validate_service_access(&audiences));
 }
 
 #[test]
 fn test_validate_service_access_with_mcp() {
     let audiences = vec![JwtAudience::Mcp];
-    assert!(validate_service_access(&audiences, "any_service"));
+    assert!(validate_service_access(&audiences));
 }
 
 #[test]
 fn test_validate_service_access_with_a2a() {
     let audiences = vec![JwtAudience::A2a];
-    assert!(validate_service_access(&audiences, "any_service"));
+    assert!(validate_service_access(&audiences));
 }
 
 #[test]
 fn test_validate_service_access_with_web() {
     let audiences = vec![JwtAudience::Web];
-    assert!(validate_service_access(&audiences, "any_service"));
+    assert!(validate_service_access(&audiences));
 }
 
 #[test]
 fn test_validate_service_access_with_multiple() {
     let audiences = vec![JwtAudience::Api, JwtAudience::Web];
-    assert!(validate_service_access(&audiences, "any_service"));
+    assert!(validate_service_access(&audiences));
 }
 
 #[test]
 fn test_validate_service_access_empty() {
     let audiences: Vec<JwtAudience> = vec![];
-    assert!(!validate_service_access(&audiences, "any_service"));
-}
-
-#[test]
-fn test_validate_service_access_different_service_names() {
-    let audiences = vec![JwtAudience::Api];
-    assert!(validate_service_access(&audiences, "service1"));
-    assert!(validate_service_access(&audiences, "service2"));
-    assert!(validate_service_access(&audiences, "any_name"));
+    assert!(!validate_service_access(&audiences));
 }
 
 #[test]
