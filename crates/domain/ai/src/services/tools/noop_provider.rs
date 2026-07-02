@@ -5,6 +5,7 @@
 
 use async_trait::async_trait;
 use std::collections::HashMap;
+use systemprompt_identifiers::McpServerId;
 use systemprompt_traits::{
     ToolCallRequest, ToolCallResult, ToolContext, ToolDefinition, ToolProvider, ToolProviderError,
     ToolProviderResult,
@@ -32,7 +33,7 @@ impl ToolProvider for NoopToolProvider {
     async fn call_tool(
         &self,
         request: &ToolCallRequest,
-        _service_id: &str,
+        _service_id: &McpServerId,
         _context: &ToolContext,
     ) -> ToolProviderResult<ToolCallResult> {
         Err(ToolProviderError::ServiceNotFound(format!(

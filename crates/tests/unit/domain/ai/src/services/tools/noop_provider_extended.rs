@@ -1,6 +1,7 @@
 use serde_json::json;
 use systemprompt_ai::services::tools::NoopToolProvider;
 use systemprompt_test_fixtures::fixture_actor;
+use systemprompt_identifiers::McpServerId;
 use systemprompt_traits::{ToolCallRequest, ToolContext, ToolProvider, ToolProviderError};
 
 mod noop_default_tests {
@@ -49,7 +50,7 @@ mod noop_error_details_tests {
         };
 
         let err = provider
-            .call_tool(&request, "svc", &context)
+            .call_tool(&request, &McpServerId::new("svc"), &context)
             .await
             .unwrap_err();
 
@@ -67,7 +68,7 @@ mod noop_error_details_tests {
         };
 
         let err = provider
-            .call_tool(&request, "svc", &context)
+            .call_tool(&request, &McpServerId::new("svc"), &context)
             .await
             .unwrap_err();
 
@@ -91,11 +92,11 @@ mod noop_error_details_tests {
         };
 
         let err1 = provider
-            .call_tool(&request, "service-a", &context)
+            .call_tool(&request, &McpServerId::new("service-a"), &context)
             .await
             .unwrap_err();
         let err2 = provider
-            .call_tool(&request, "service-b", &context)
+            .call_tool(&request, &McpServerId::new("service-b"), &context)
             .await
             .unwrap_err();
 

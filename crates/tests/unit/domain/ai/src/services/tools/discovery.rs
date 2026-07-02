@@ -3,7 +3,7 @@ use serde_json::json;
 use std::collections::HashMap;
 use std::sync::Arc;
 use systemprompt_ai::services::tools::ToolDiscovery;
-use systemprompt_identifiers::AgentName;
+use systemprompt_identifiers::{AgentName, McpServerId};
 use systemprompt_test_fixtures::fixture_actor;
 use systemprompt_traits::{
     ToolCallRequest, ToolCallResult, ToolContext, ToolDefinition, ToolProvider, ToolProviderResult,
@@ -41,7 +41,7 @@ impl ToolProvider for MockToolProvider {
     async fn call_tool(
         &self,
         _request: &ToolCallRequest,
-        _service_id: &str,
+        _service_id: &McpServerId,
         _context: &ToolContext,
     ) -> ToolProviderResult<ToolCallResult> {
         Ok(ToolCallResult {

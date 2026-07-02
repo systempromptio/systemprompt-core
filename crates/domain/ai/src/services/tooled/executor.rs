@@ -13,6 +13,7 @@ use crate::models::tools::{CallToolResult, McpTool, ToolCall};
 use crate::services::tools::{
     request_context_to_tool_context, tool_call_to_request, trait_result_to_rmcp_result,
 };
+use systemprompt_identifiers::McpServerId;
 use systemprompt_models::ai::ToolModelOverrides;
 use systemprompt_traits::{ToolCallResult as TraitToolCallResult, ToolContent, ToolProvider};
 
@@ -114,7 +115,11 @@ impl TooledExecutor {
 
                 match self
                     .tool_provider
-                    .call_tool(&request, tool.service_id.as_str(), &tool_context)
+                    .call_tool(
+                        &request,
+                        &McpServerId::new(tool.service_id.as_str()),
+                        &tool_context,
+                    )
                     .await
                 {
                     Ok(result) => {
