@@ -93,7 +93,7 @@ mod service_management_behaviour_db {
             .expect("stop_service must succeed for a pid-less service");
 
         let row = repo
-            .get_service_by_name(&name)
+            .find_service_by_name(&name)
             .await
             .expect("read back")
             .expect("row must still exist");
@@ -122,7 +122,7 @@ mod service_management_behaviour_db {
             .expect("stop_service must succeed even with force and a dead pid");
 
         let row = repo
-            .get_service_by_name(&name)
+            .find_service_by_name(&name)
             .await
             .expect("read back")
             .expect("row exists");
@@ -151,7 +151,7 @@ mod service_management_behaviour_db {
             .expect("stop_service must succeed for an unknown module type");
 
         let row = repo
-            .get_service_by_name(&name)
+            .find_service_by_name(&name)
             .await
             .expect("read back")
             .expect("row exists");
@@ -197,7 +197,7 @@ mod service_management_behaviour_db {
             "a stored-but-dead PID is a stale orphan and must be reported cleaned"
         );
         let row = repo
-            .get_service_by_name(&name)
+            .find_service_by_name(&name)
             .await
             .expect("read back")
             .expect("row exists");
@@ -235,7 +235,7 @@ mod service_management_behaviour_db {
         assert_eq!(outcome.pid, DEAD_PID);
 
         let row = repo
-            .get_service_by_name(&name)
+            .find_service_by_name(&name)
             .await
             .expect("read back")
             .expect("row exists");

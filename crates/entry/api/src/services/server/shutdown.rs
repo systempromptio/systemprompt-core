@@ -100,7 +100,7 @@ async fn terminate_children(ctx: &AppContext) {
 async fn terminate_agent_children(repo: &systemprompt_database::ServiceRepository) {
     use systemprompt_models::subprocess::AGENT_NAME_ENV;
 
-    let names = match repo.get_all_agent_service_names().await {
+    let names = match repo.list_all_agent_service_names().await {
         Ok(names) => names,
         Err(e) => {
             tracing::warn!(error = %e, "Failed to list agent services for shutdown");
@@ -109,7 +109,7 @@ async fn terminate_agent_children(repo: &systemprompt_database::ServiceRepositor
     };
 
     futures_util::future::join_all(names.into_iter().map(|name| async move {
-        if let Ok(Some(service)) = repo.get_service_by_name(&name).await {
+        if let Ok(Some(service)) = repo.find_service_by_name(&name).await {
             terminate_service_child(repo, &name, service.pid, AGENT_NAME_ENV).await;
         }
     }))
@@ -119,7 +119,7 @@ async fn terminate_agent_children(repo: &systemprompt_database::ServiceRepositor
 async fn terminate_mcp_children(repo: &systemprompt_database::ServiceRepository) {
     use systemprompt_models::subprocess::MCP_SERVICE_ID_ENV;
 
-    let services = match repo.get_mcp_services().await {
+    let services = match repo.list_mcp_services().await {
         Ok(services) => services,
         Err(e) => {
             tracing::warn!(error = %e, "Failed to list MCP services for shutdown");

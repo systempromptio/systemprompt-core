@@ -25,7 +25,7 @@ impl DatabaseInfoRepository {
         Ok(info.tables)
     }
 
-    pub async fn get_table_info(&self, table_name: &str) -> DatabaseResult<Option<TableInfo>> {
+    pub async fn find_table_info(&self, table_name: &str) -> DatabaseResult<Option<TableInfo>> {
         let info = self.db.get_info().await?;
         Ok(info.tables.into_iter().find(|t| t.name == table_name))
     }

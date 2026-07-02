@@ -21,7 +21,7 @@ impl ServiceRepository {
         Ok(Self { pool, write_pool })
     }
 
-    pub async fn get_service_by_name(&self, name: &str) -> DatabaseResult<Option<ServiceConfig>> {
+    pub async fn find_service_by_name(&self, name: &str) -> DatabaseResult<Option<ServiceConfig>> {
         let row = sqlx::query!(
             r#"
             SELECT name, module_name, status, pid, port, binary_mtime,
@@ -46,14 +46,14 @@ impl ServiceRepository {
         }))
     }
 
-    pub async fn get_all_agent_service_names(&self) -> DatabaseResult<Vec<String>> {
+    pub async fn list_all_agent_service_names(&self) -> DatabaseResult<Vec<String>> {
         let rows = sqlx::query!(r#"SELECT name FROM services WHERE module_name = 'agent'"#)
             .fetch_all(&*self.pool)
             .await?;
         Ok(rows.into_iter().map(|r| r.name).collect())
     }
 
-    pub async fn get_mcp_services(&self) -> DatabaseResult<Vec<ServiceConfig>> {
+    pub async fn list_mcp_services(&self) -> DatabaseResult<Vec<ServiceConfig>> {
         let rows = sqlx::query!(
             r#"
             SELECT name, module_name, status, pid, port, binary_mtime,
@@ -147,7 +147,7 @@ impl ServiceRepository {
         Ok(())
     }
 
-    pub async fn get_all_running_services(&self) -> DatabaseResult<Vec<ServiceConfig>> {
+    pub async fn list_all_running_services(&self) -> DatabaseResult<Vec<ServiceConfig>> {
         let rows = sqlx::query!(
             r#"
             SELECT name, module_name, status, pid, port, binary_mtime,
@@ -204,11 +204,11 @@ impl ServiceRepository {
         Ok(())
     }
 
-    pub async fn get_running_services_with_pid(&self) -> DatabaseResult<Vec<ServiceConfig>> {
-        self.get_all_running_services().await
+    pub async fn list_running_services_with_pid(&self) -> DatabaseResult<Vec<ServiceConfig>> {
+        self.list_all_running_services().await
     }
 
-    pub async fn get_services_by_type(
+    pub async fn list_services_by_type(
         &self,
         module_name: &str,
     ) -> DatabaseResult<Vec<ServiceConfig>> {

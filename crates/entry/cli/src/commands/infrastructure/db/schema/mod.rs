@@ -108,7 +108,7 @@ pub(super) async fn execute_describe(
     })?;
 
     let indexes = admin
-        .get_table_indexes(&table_id)
+        .list_table_indexes(&table_id)
         .await
         .unwrap_or_else(|e| {
             tracing::warn!(table = %table_name, error = %e, "Failed to get table indexes");

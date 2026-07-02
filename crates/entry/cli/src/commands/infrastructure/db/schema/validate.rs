@@ -17,7 +17,7 @@ pub(in crate::commands::infrastructure::db) async fn execute_validate(
         .await
         .context("Failed to get database info")?;
 
-    let expected_tables: Vec<&str> = DatabaseAdminService::get_expected_tables();
+    let expected_tables: Vec<&str> = DatabaseAdminService::list_expected_tables();
     let table_names: Vec<String> = info.tables.iter().map(|t| t.name.clone()).collect();
     let actual_tables: HashSet<&str> = table_names.iter().map(String::as_str).collect();
 

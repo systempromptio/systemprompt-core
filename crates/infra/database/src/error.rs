@@ -32,6 +32,9 @@ pub enum RepositoryError {
 
     #[error("Internal error: {0}")]
     Internal(String),
+
+    #[error("Failed to execute query")]
+    QueryExecution(#[source] Box<Self>),
 }
 
 pub type DatabaseResult<T> = Result<T, RepositoryError>;

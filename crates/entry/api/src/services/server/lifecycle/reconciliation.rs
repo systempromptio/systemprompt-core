@@ -142,7 +142,7 @@ async fn verify_database_registration(
     let mut verification_failed = Vec::new();
 
     for server in required_servers {
-        match service_repo.get_service_by_name(&server.name).await {
+        match service_repo.find_service_by_name(&server.name).await {
             Ok(Some(service)) if service.status == "running" => {
                 events.mcp_ready(
                     server.name.clone(),
@@ -197,7 +197,7 @@ async fn cleanup_stale_service_entries(
     let repo = ServiceRepository::new(ctx.db_pool())?;
     let mut deleted_count = 0u64;
 
-    let mcp_services = repo.get_mcp_services().await?;
+    let mcp_services = repo.list_mcp_services().await?;
     for service in mcp_services {
         if !service_row_is_stale(
             service.status.as_str(),
@@ -219,9 +219,9 @@ async fn cleanup_stale_service_entries(
         }
     }
 
-    let agent_service_names = repo.get_all_agent_service_names().await?;
+    let agent_service_names = repo.list_all_agent_service_names().await?;
     for service_name in agent_service_names {
-        if let Ok(Some(service)) = repo.get_service_by_name(&service_name).await {
+        if let Ok(Some(service)) = repo.find_service_by_name(&service_name).await {
             if !service_row_is_stale(
                 service.status.as_str(),
                 service.pid,

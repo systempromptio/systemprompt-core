@@ -233,7 +233,7 @@ impl SqlExecutor {
     pub async fn execute_query(db: &Database, query: &str) -> DatabaseResult<QueryResult> {
         db.query_raw(&query)
             .await
-            .map_err(|e| RepositoryError::Internal(format!("Failed to execute query: {e}")))
+            .map_err(|e| RepositoryError::QueryExecution(Box::new(e)))
     }
 
     pub async fn execute_file(db: &Database, file_path: &str) -> DatabaseResult<()> {

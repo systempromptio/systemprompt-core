@@ -19,7 +19,7 @@ impl ServiceResolver {
                 source: e,
             })?;
 
-        let service = match service_repo.get_service_by_name(service_name).await {
+        let service = match service_repo.find_service_by_name(service_name).await {
             Ok(svc) => svc,
             Err(e) => {
                 tracing::error!(service = %service_name, error = %e, "Database error when looking up service");

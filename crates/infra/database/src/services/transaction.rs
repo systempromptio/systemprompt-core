@@ -90,6 +90,7 @@ fn is_retriable_error(error: &RepositoryError) -> bool {
         | RepositoryError::Serialization(_)
         | RepositoryError::InvalidArgument(_)
         | RepositoryError::InvalidState(_)
-        | RepositoryError::Internal(_) => false,
+        | RepositoryError::Internal(_)
+        | RepositoryError::QueryExecution(_) => false,
     }
 }

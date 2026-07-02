@@ -16,7 +16,7 @@ impl ProxyHealthCheck {
     }
 
     pub async fn can_route_traffic(&self, service_name: &str, port: u16) -> McpDomainResult<bool> {
-        let Some(service) = self.service_repo.get_service_by_name(service_name).await? else {
+        let Some(service) = self.service_repo.find_service_by_name(service_name).await? else {
             return Ok(false);
         };
 
@@ -64,7 +64,7 @@ impl ProxyHealthCheck {
     }
 
     pub async fn get_routable_services(&self) -> McpDomainResult<Vec<RoutableService>> {
-        let running_services = self.service_repo.get_all_running_services().await?;
+        let running_services = self.service_repo.list_all_running_services().await?;
 
         let mut routable = Vec::new();
 

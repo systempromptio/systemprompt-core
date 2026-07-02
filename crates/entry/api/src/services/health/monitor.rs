@@ -83,7 +83,7 @@ impl ProcessMonitor {
 
     async fn perform_monitoring_cycle(db_pool: &DbPool) -> Result<()> {
         let repository = ServiceRepository::new(db_pool)?;
-        let services = repository.get_running_services_with_pid().await?;
+        let services = repository.list_running_services_with_pid().await?;
 
         if services.is_empty() {
             return Ok(());
@@ -133,7 +133,7 @@ impl ProcessMonitor {
         info!("Running health check on all services");
 
         let repository = ServiceRepository::new(&self.db_pool)?;
-        let services = repository.get_running_services_with_pid().await?;
+        let services = repository.list_running_services_with_pid().await?;
 
         let mut summary = HealthSummary::default();
 

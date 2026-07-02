@@ -56,7 +56,7 @@ async fn build_agent_cards(
     let mut agent_cards = Vec::new();
 
     for agent_config in agents {
-        let runtime_status = match service_repo.get_service_by_name(&agent_config.name).await {
+        let runtime_status = match service_repo.find_service_by_name(&agent_config.name).await {
             Ok(Some(service)) => Some((
                 service.status,
                 Some(agent_config.port),

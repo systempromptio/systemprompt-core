@@ -31,7 +31,7 @@ pub(super) async fn execute_indexes(
                 continue;
             },
         };
-        match admin.get_table_indexes(&table_id).await {
+        match admin.list_table_indexes(&table_id).await {
             Ok(indexes) => {
                 for idx in indexes {
                     all_indexes.push(TableIndexInfo {

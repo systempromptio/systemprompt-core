@@ -37,7 +37,7 @@ pub async fn cleanup_stale_services(
     db_pool: &systemprompt_database::DbPool,
 ) -> McpDomainResult<()> {
     let repository = ServiceRepository::new(db_pool)?;
-    let services = repository.get_mcp_services().await?;
+    let services = repository.list_mcp_services().await?;
 
     for service in services {
         if service.status == RUNNING {
@@ -57,7 +57,7 @@ pub async fn delete_crashed_services(
     db_pool: &systemprompt_database::DbPool,
 ) -> McpDomainResult<()> {
     let repository = ServiceRepository::new(db_pool)?;
-    let services = repository.get_mcp_services().await?;
+    let services = repository.list_mcp_services().await?;
 
     for service in services {
         if service.status == ERROR {
@@ -75,7 +75,7 @@ pub async fn sync_database_state(
     let repository = ServiceRepository::new(db_pool)?;
 
     for server in servers {
-        if let Some(service) = repository.get_service_by_name(&server.name).await? {
+        if let Some(service) = repository.find_service_by_name(&server.name).await? {
             let port = service.port as u16;
             let pid = service.pid;
 
@@ -94,7 +94,7 @@ pub async fn reconcile_running_processes(
     let repository = ServiceRepository::new(db_pool)?;
     let mut discrepancies = Vec::new();
 
-    let running_services = repository.get_mcp_services().await?;
+    let running_services = repository.list_mcp_services().await?;
 
     for service in running_services {
         if service.status == RUNNING {
@@ -122,7 +122,7 @@ pub async fn repair_database_inconsistencies(
 ) -> McpDomainResult<()> {
     let repository = ServiceRepository::new(db_pool)?;
 
-    let services = repository.get_mcp_services().await?;
+    let services = repository.list_mcp_services().await?;
     for service in services {
         if service.status == RUNNING && service.pid.is_none() {
             repository
@@ -131,7 +131,7 @@ pub async fn repair_database_inconsistencies(
         }
     }
 
-    let all_services = repository.get_mcp_services().await?;
+    let all_services = repository.list_mcp_services().await?;
     let mut seen_names = std::collections::HashSet::new();
     for service in all_services {
         if !seen_names.insert(service.name.clone()) {
@@ -150,7 +150,7 @@ pub async fn delete_disabled_services(
     let enabled_names: std::collections::HashSet<&str> =
         enabled_servers.iter().map(|s| s.name.as_str()).collect();
 
-    let all_services = repository.get_mcp_services().await?;
+    let all_services = repository.list_mcp_services().await?;
     let mut deleted_count = 0;
 
     for service in all_services {

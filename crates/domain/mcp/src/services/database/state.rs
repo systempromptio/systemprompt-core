@@ -76,7 +76,7 @@ pub async fn get_service_by_name(
     name: &str,
 ) -> McpDomainResult<Option<ServiceInfo>> {
     let repo = ServiceRepository::new(db_pool)?;
-    let result = repo.get_service_by_name(name).await?;
+    let result = repo.find_service_by_name(name).await?;
 
     Ok(result.map(|r| ServiceInfo {
         name: r.name,
@@ -92,7 +92,7 @@ pub async fn get_running_servers(
     registry: &crate::services::registry::RegistryService,
 ) -> McpDomainResult<Vec<McpServerConfig>> {
     let repo = ServiceRepository::new(db_pool)?;
-    let all_services = repo.get_mcp_services().await?;
+    let all_services = repo.list_mcp_services().await?;
 
     registry.validate()?;
     let mut running_configs = Vec::new();

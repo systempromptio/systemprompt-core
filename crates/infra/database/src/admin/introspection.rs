@@ -117,7 +117,7 @@ impl DatabaseAdminService {
         Ok((columns, row_count))
     }
 
-    pub async fn get_table_indexes(
+    pub async fn list_table_indexes(
         &self,
         table_name: &SafeIdentifier,
     ) -> DatabaseResult<Vec<IndexInfo>> {
@@ -190,7 +190,7 @@ impl DatabaseAdminService {
         })
     }
 
-    pub fn get_expected_tables() -> Vec<&'static str> {
+    pub fn list_expected_tables() -> Vec<&'static str> {
         vec![
             "users",
             "user_sessions",

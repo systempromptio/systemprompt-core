@@ -66,14 +66,14 @@ impl ServiceManagementService {
         module_name: &str,
     ) -> SchedulerResult<Vec<ServiceConfig>> {
         self.service_repo
-            .get_services_by_type(module_name)
+            .list_services_by_type(module_name)
             .await
             .map_err(SchedulerError::from)
     }
 
     pub async fn get_running_services_with_pid(&self) -> SchedulerResult<Vec<ServiceConfig>> {
         self.service_repo
-            .get_running_services_with_pid()
+            .list_running_services_with_pid()
             .await
             .map_err(SchedulerError::from)
     }
