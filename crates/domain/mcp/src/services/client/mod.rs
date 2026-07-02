@@ -17,7 +17,7 @@ use systemprompt_models::ai::tools::McpTool;
 use systemprompt_models::net::{HTTP_STREAM_CONNECT_TIMEOUT, MCP_TOOL_EXECUTION_TIMEOUT};
 use tokio::time::timeout;
 
-mod external_auth;
+pub mod external_auth;
 mod external_proxy;
 mod http_client_with_context;
 mod types;

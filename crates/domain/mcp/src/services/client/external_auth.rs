@@ -35,12 +35,27 @@ pub(super) async fn resolve_external_bearer(
     }
 
     let base = Config::get()?.api_external_url.clone();
-    let accessor = format!("{}{}", base.trim_end_matches('/'), ext.token_endpoint);
-    let accessor = rewrite_url_for_internal_use(&accessor);
+    let accessor = accessor_url(&base, &ext.token_endpoint);
+    fetch_external_bearer(&accessor, jwt.as_str(), server).await
+}
 
+pub fn accessor_url(api_external_url: &str, token_endpoint: &str) -> String {
+    let accessor = format!(
+        "{}{}",
+        api_external_url.trim_end_matches('/'),
+        token_endpoint
+    );
+    rewrite_url_for_internal_use(&accessor)
+}
+
+pub async fn fetch_external_bearer(
+    accessor: &str,
+    jwt: &str,
+    server: &str,
+) -> McpDomainResult<String> {
     let response = reqwest::Client::new()
-        .get(&accessor)
-        .header("Authorization", format!("Bearer {}", jwt.as_str()))
+        .get(accessor)
+        .header("Authorization", format!("Bearer {jwt}"))
         .send()
         .await
         .map_err(|e| {
@@ -76,7 +91,7 @@ pub(super) async fn resolve_external_bearer(
     }
 }
 
-pub(super) fn outbound_headers(
+pub fn outbound_headers(
     ext: &ExternalAuth,
     bearer: &str,
     static_headers: &HashMap<String, String>,
@@ -87,7 +102,7 @@ pub(super) fn outbound_headers(
     Ok(out)
 }
 
-pub(super) fn static_outbound_headers(
+pub fn static_outbound_headers(
     static_headers: &HashMap<String, String>,
     server: &str,
 ) -> McpDomainResult<HashMap<HeaderName, HeaderValue>> {
