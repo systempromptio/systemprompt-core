@@ -85,6 +85,20 @@ fn build_cli_binary() -> PathBuf {
         .clone()
 }
 
+pub fn command_bare() -> Option<Command> {
+    fixture()?;
+    let mut c = Command::new(systemprompt_bin());
+    c.env_remove("RUST_LOG");
+    c.env_remove("SYSTEMPROMPT_PROFILE");
+    c.env("OAUTH_AT_REST_PEPPER", TEST_OAUTH_AT_REST_PEPPER);
+    c.env("MANIFEST_SIGNING_SECRET_SEED", TEST_MANIFEST_SIGNING_SEED);
+    c.env("SYSTEMPROMPT_SUBPROCESS", "1");
+    c.arg("--non-interactive");
+    c.arg("--no-color");
+    c.timeout(std::time::Duration::from_secs(120));
+    Some(c)
+}
+
 pub fn command() -> Option<Command> {
     let fixture = fixture()?;
     let mut c = Command::new(systemprompt_bin());
