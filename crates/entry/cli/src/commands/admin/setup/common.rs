@@ -7,7 +7,7 @@ use std::time::Duration;
 use systemprompt_logging::CliService;
 
 #[derive(Debug, Clone)]
-pub(super) struct PostgresConfig {
+pub struct PostgresConfig {
     pub host: String,
     pub port: u16,
     pub user: String,
@@ -16,7 +16,7 @@ pub(super) struct PostgresConfig {
 }
 
 impl PostgresConfig {
-    pub(super) fn database_url(&self) -> String {
+    pub fn database_url(&self) -> String {
         format!(
             "postgres://{}:{}@{}:{}/{}",
             self.user, self.password, self.host, self.port, self.database
@@ -24,7 +24,7 @@ impl PostgresConfig {
     }
 }
 
-pub(super) fn generate_password() -> String {
+pub fn generate_password() -> String {
     let mut rng = rng();
     (0..16)
         .map(|_| rng.sample(Alphanumeric))
@@ -32,7 +32,7 @@ pub(super) fn generate_password() -> String {
         .collect()
 }
 
-pub(super) fn detect_postgresql(host: &str, port: u16) -> bool {
+pub fn detect_postgresql(host: &str, port: u16) -> bool {
     let addr = format!("{}:{}", host, port);
     let socket_addrs = match addr.to_socket_addrs() {
         Ok(addrs) => addrs.collect::<Vec<_>>(),
@@ -51,7 +51,7 @@ pub(super) fn detect_postgresql(host: &str, port: u16) -> bool {
     false
 }
 
-pub(super) async fn test_connection(config: &PostgresConfig) -> bool {
+pub async fn test_connection(config: &PostgresConfig) -> bool {
     let Ok(pool) = PgPoolOptions::new()
         .max_connections(1)
         .acquire_timeout(Duration::from_secs(5))
@@ -69,7 +69,7 @@ pub(super) async fn test_connection(config: &PostgresConfig) -> bool {
     result
 }
 
-pub(super) async fn enable_extensions(config: &PostgresConfig) -> Result<()> {
+pub async fn enable_extensions(config: &PostgresConfig) -> Result<()> {
     let pool = match PgPoolOptions::new()
         .max_connections(1)
         .acquire_timeout(Duration::from_secs(5))

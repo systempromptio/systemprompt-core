@@ -13,5 +13,6 @@ mod mcp_prompts;
 mod setup_ai_config;
 mod setup_catalog;
 mod setup_ddl;
+mod setup_postgres;
 mod web_content_types;
 mod web_prompts;

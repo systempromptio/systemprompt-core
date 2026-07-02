@@ -18,7 +18,7 @@ use super::common::{
 use crate::CliConfig;
 use crate::interactive::Prompter;
 
-pub(super) async fn setup_non_interactive(
+pub async fn setup_non_interactive(
     args: &SetupArgs,
     env_name: &str,
     cli_config: &CliConfig,
@@ -77,7 +77,7 @@ pub(super) async fn setup_non_interactive(
     Ok(config)
 }
 
-pub(super) async fn setup_interactive(
+pub async fn setup_interactive(
     args: &SetupArgs,
     prompter: &dyn Prompter,
     env_name: &str,
