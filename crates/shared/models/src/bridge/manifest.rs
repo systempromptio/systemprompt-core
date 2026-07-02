@@ -19,7 +19,8 @@ use serde::{Deserialize, Serialize};
 
 pub use crate::bridge::ids::ManifestSignature;
 use crate::bridge::ids::{
-    ManagedMcpServerName, PluginId, Sha256Digest, SkillId, SkillName, ToolName, ToolPolicy,
+    LibraryArtifactId, ManagedMcpServerName, PluginId, Sha256Digest, SkillId, SkillName, ToolName,
+    ToolPolicy,
 };
 use crate::bridge::manifest_version::ManifestVersion;
 use crate::services::hooks::{HookCategory, HookEvent};
@@ -52,6 +53,10 @@ pub struct SignedManifest {
     /// the host on its default.
     #[serde(default)]
     pub host_model_protocols: BTreeMap<String, Vec<String>>,
+    /// Cowork global-library HTML documents — distinct from the in-chat MCP
+    /// artifacts in [`crate::artifacts`].
+    #[serde(default)]
+    pub artifacts: Vec<ArtifactEntry>,
     /// Detached ed25519 signature of the canonicalised payload (every
     /// field above this one). Always present on the wire even for
     /// unsigned manifests, where it is the empty string.
@@ -82,6 +87,21 @@ pub struct PluginFile {
     pub path: String,
     pub sha256: Sha256Digest,
     pub size: u64,
+}
+
+/// A Cowork-native library document (raw HTML in the desktop app's Artifacts
+/// library) — not one of the in-chat MCP artifacts in [`crate::artifacts`].
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ArtifactEntry {
+    pub id: LibraryArtifactId,
+    pub name: String,
+    pub description: String,
+    pub version: String,
+    pub plugin_id: PluginId,
+    pub mcp_tools: Vec<String>,
+    pub content: String,
+    pub starred: bool,
+    pub sha256: Sha256Digest,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

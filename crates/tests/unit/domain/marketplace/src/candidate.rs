@@ -1,6 +1,8 @@
 use systemprompt_identifiers::MarketplaceId;
 use systemprompt_marketplace::{MarketplaceCandidate, MarketplaceError, MarketplaceFilterError};
-use systemprompt_models::bridge::manifest::{AgentEntry, HookEntry, ManagedMcpServer, SkillEntry};
+use systemprompt_models::bridge::manifest::{
+    AgentEntry, ArtifactEntry, HookEntry, ManagedMcpServer, SkillEntry,
+};
 use systemprompt_models::services::MarketplaceAccess;
 
 use crate::plugin;
@@ -64,6 +66,24 @@ fn hook(id: &str) -> HookEntry {
     }
 }
 
+fn artifact(id: &str) -> ArtifactEntry {
+    use systemprompt_models::bridge::ids::{LibraryArtifactId, PluginId, Sha256Digest};
+    ArtifactEntry {
+        id: LibraryArtifactId::try_new(id).expect("valid artifact id"),
+        name: id.to_owned(),
+        description: String::new(),
+        version: "1".into(),
+        plugin_id: PluginId::try_new("owner-plugin").expect("valid plugin id"),
+        mcp_tools: vec!["mcp__x__y".to_owned()],
+        content: "<table></table>".into(),
+        starred: true,
+        sha256: Sha256Digest::try_new(
+            "0000000000000000000000000000000000000000000000000000000000000000",
+        )
+        .expect("valid zero digest"),
+    }
+}
+
 fn mcp_server(name: &str) -> ManagedMcpServer {
     use systemprompt_identifiers::ValidatedUrl;
     use systemprompt_models::bridge::ids::ManagedMcpServerName;
@@ -85,31 +105,49 @@ fn default_candidate_is_empty() {
 
 #[test]
 fn candidate_with_only_skills_is_not_empty() {
-    let c = MarketplaceCandidate::new(vec![], vec![skill("my-skill")], vec![], vec![], vec![]);
+    let c =
+        MarketplaceCandidate::new(vec![], vec![skill("my-skill")], vec![], vec![], vec![], vec![]);
     assert!(!c.is_empty());
 }
 
 #[test]
 fn candidate_with_only_agents_is_not_empty() {
-    let c = MarketplaceCandidate::new(vec![], vec![], vec![agent("my-agent")], vec![], vec![]);
+    let c =
+        MarketplaceCandidate::new(vec![], vec![], vec![agent("my-agent")], vec![], vec![], vec![]);
     assert!(!c.is_empty());
 }
 
 #[test]
 fn candidate_with_only_hooks_is_not_empty() {
-    let c = MarketplaceCandidate::new(vec![], vec![], vec![], vec![hook("my-hook")], vec![]);
+    let c =
+        MarketplaceCandidate::new(vec![], vec![], vec![], vec![hook("my-hook")], vec![], vec![]);
     assert!(!c.is_empty());
 }
 
 #[test]
 fn candidate_with_only_mcp_is_not_empty() {
-    let c = MarketplaceCandidate::new(vec![], vec![], vec![], vec![], vec![mcp_server("my-mcp")]);
+    let c =
+        MarketplaceCandidate::new(vec![], vec![], vec![], vec![], vec![mcp_server("my-mcp")], vec![]);
     assert!(!c.is_empty());
 }
 
 #[test]
 fn candidate_with_only_plugins_is_not_empty() {
-    let c = MarketplaceCandidate::new(vec![plugin("my-plugin")], vec![], vec![], vec![], vec![]);
+    let c =
+        MarketplaceCandidate::new(vec![plugin("my-plugin")], vec![], vec![], vec![], vec![], vec![]);
+    assert!(!c.is_empty());
+}
+
+#[test]
+fn candidate_with_only_artifacts_is_not_empty() {
+    let c = MarketplaceCandidate::new(
+        vec![],
+        vec![],
+        vec![],
+        vec![],
+        vec![],
+        vec![artifact("pipeline")],
+    );
     assert!(!c.is_empty());
 }
 
@@ -146,7 +184,7 @@ fn with_marketplace_none_access_is_allowed() {
 
 #[test]
 fn new_leaves_marketplace_fields_unset() {
-    let c = MarketplaceCandidate::new(vec![plugin("p")], vec![], vec![], vec![], vec![]);
+    let c = MarketplaceCandidate::new(vec![plugin("p")], vec![], vec![], vec![], vec![], vec![]);
     assert!(c.marketplace_id.is_none());
     assert!(c.access.is_none());
     assert!(!c.is_empty());

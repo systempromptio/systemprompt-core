@@ -10,7 +10,7 @@ use serde::Serialize;
 use systemprompt_identifiers::{TenantId, UserId};
 use systemprompt_models::bridge::ids::ManifestSignature;
 use systemprompt_models::bridge::manifest::{
-    AgentEntry, HookEntry, ManagedMcpServer, PluginEntry, SkillEntry, UserInfo,
+    AgentEntry, ArtifactEntry, HookEntry, ManagedMcpServer, PluginEntry, SkillEntry, UserInfo,
 };
 use systemprompt_models::bridge::manifest_version::ManifestVersion;
 use systemprompt_models::services::ServicesConfig;
@@ -41,6 +41,7 @@ pub struct CanonicalView<'a> {
     pub revocations: &'a [String],
     pub enabled_hosts: &'a [String],
     pub host_model_protocols: &'a std::collections::BTreeMap<String, Vec<String>>,
+    pub artifacts: &'a [ArtifactEntry],
 }
 
 #[derive(Debug, Default, Clone, Copy)]
@@ -57,22 +58,31 @@ impl ManifestService {
         let catalog = CatalogContent::load(services, services_root, api_external_url)?;
         let hooks = load_hooks(services_root)?;
         let plugins = load_plugins(services, &catalog.as_content())?;
-        let (skills, agents, managed_mcp_servers) = catalog.into_parts();
+        let (skills, agents, managed_mcp_servers, artifacts) = catalog.into_parts();
 
         let active = active_marketplace(services);
-        let (skills, agents, managed_mcp_servers) = match active {
+        let (skills, agents, managed_mcp_servers, artifacts) = match active {
             Some(mp) => (
                 scope_to_marketplace(skills, &mp.skills.include, |s| s.id.as_str()),
                 scope_to_marketplace(agents, &mp.agents.include, |a| a.id.as_str()),
                 scope_to_marketplace(managed_mcp_servers, &mp.mcp_servers.include, |m| {
                     m.name.as_str()
                 }),
+                scope_to_marketplace(artifacts, &mp.artifacts.include, |a| a.id.as_str()),
             ),
-            None => (skills, agents, managed_mcp_servers),
+            None => (skills, agents, managed_mcp_servers, artifacts),
         };
 
-        let mut candidate =
-            MarketplaceCandidate::new(plugins, skills, agents, hooks, managed_mcp_servers);
+        let artifacts = gate_artifacts_by_plugin(artifacts, &plugins);
+
+        let mut candidate = MarketplaceCandidate::new(
+            plugins,
+            skills,
+            agents,
+            hooks,
+            managed_mcp_servers,
+            artifacts,
+        );
         if let Some(mp) = active {
             candidate = candidate.with_marketplace(mp.id.clone(), Some(mp.access.clone()));
         }
@@ -84,4 +94,26 @@ impl ManifestService {
             .map_err(|e| MarketplaceError::Signing(e.to_string()))?;
         Ok(ManifestSignature::new(signature))
     }
+}
+
+fn gate_artifacts_by_plugin(
+    artifacts: Vec<ArtifactEntry>,
+    plugins: &[PluginEntry],
+) -> Vec<ArtifactEntry> {
+    let plugin_ids: std::collections::HashSet<&str> =
+        plugins.iter().map(|p| p.id.as_str()).collect();
+    artifacts
+        .into_iter()
+        .filter(|a| {
+            let kept = plugin_ids.contains(a.plugin_id.as_str());
+            if !kept {
+                tracing::warn!(
+                    artifact_id = %a.id.as_str(),
+                    plugin_id = %a.plugin_id.as_str(),
+                    "marketplace: artifact's owning plugin is not enabled/selected; skipping"
+                );
+            }
+            kept
+        })
+        .collect()
 }

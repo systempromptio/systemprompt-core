@@ -26,6 +26,7 @@ fn marketplace(id: &str, refs: PluginComponentRef) -> MarketplaceConfig {
         skills: PluginComponentRef::default(),
         mcp_servers: PluginComponentRef::default(),
         agents: PluginComponentRef::default(),
+        artifacts: PluginComponentRef::default(),
         access: Default::default(),
     }
 }

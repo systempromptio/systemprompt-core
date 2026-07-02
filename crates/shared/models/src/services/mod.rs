@@ -2,6 +2,7 @@
 
 pub mod agent_config;
 pub mod ai;
+pub mod artifacts;
 pub mod external_agent;
 pub mod frontmatter;
 pub mod hooks;
@@ -29,6 +30,7 @@ pub use ai::{
     AiConfig, AiProviderConfig, HistoryConfig, McpConfig, ModelCapabilities, ModelDefinition,
     ModelLimits, ModelPricing, ResilienceSettings, SamplingConfig,
 };
+pub use artifacts::{ARTIFACT_CONFIG_FILENAME, DEFAULT_ARTIFACT_CONTENT_FILE, DiskArtifactConfig};
 pub use external_agent::{ExternalAgentConfig, ExternalAgentKind};
 pub use frontmatter::{Frontmatter, split_frontmatter, strip_frontmatter};
 pub use hooks::{

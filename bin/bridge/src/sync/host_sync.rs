@@ -37,6 +37,7 @@ static REGISTRY: LazyLock<Vec<&'static dyn HostSync>> = LazyLock::new(|| {
     v.push(&crate::sync::apply::synthetic_plugin::ClaudeCodePluginSync);
     v.extend_from_slice(DESKTOP_EMITTERS);
     v.push(&crate::integration::cowork_plugins::CoworkSync);
+    v.push(&crate::integration::cowork_artifacts::CoworkArtifactsSync);
     v.push(&crate::integration::codex_cli::CodexCliSync);
     v.push(&crate::integration::claude_code_cli::ClaudeCodeCliSync);
     v

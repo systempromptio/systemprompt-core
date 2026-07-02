@@ -90,6 +90,41 @@ async fn assemble_candidate_unscoped_without_marketplace() {
     assert!(candidate.access.is_none());
 }
 
+fn write_artifact_on_disk(root: &std::path::Path, id: &str, plugin_id: &str) {
+    let dir = root.join("artifacts").join(id);
+    std::fs::create_dir_all(&dir).expect("create artifact dir");
+    std::fs::write(
+        dir.join("config.yaml"),
+        format!(
+            "id: {id}\nname: {id}\ndescription: d\nplugin_id: {plugin_id}\nmcp_tools:\n  - mcp__x__y\n"
+        ),
+    )
+    .expect("write config");
+    std::fs::write(dir.join("content.html"), "<table></table>").expect("write html");
+}
+
+#[tokio::test]
+async fn assemble_candidate_gates_artifacts_by_plugin_enablement() {
+    let dir = tempfile::tempdir().expect("temp services root");
+    write_artifact_on_disk(dir.path(), "pipeline", "absent-plugin");
+    let config = config_with(vec![]);
+
+    let candidate = ManifestService::assemble_candidate(
+        &config,
+        dir.path(),
+        "https://api.example.com",
+        &AllowAllFilter,
+        &fixture_user_id(),
+    )
+    .await
+    .expect("assemble candidate");
+
+    assert!(
+        candidate.artifacts.is_empty(),
+        "an artifact whose owning plugin is not enabled/selected is gated out",
+    );
+}
+
 fn sample_view<'a>(
     version: &'a ManifestVersion,
     user_id: &'a systemprompt_identifiers::UserId,
@@ -109,6 +144,7 @@ fn sample_view<'a>(
         revocations: &[],
         enabled_hosts: &[],
         host_model_protocols: &EMPTY_HOST_MODEL_PROTOCOLS,
+        artifacts: &[],
     }
 }
 

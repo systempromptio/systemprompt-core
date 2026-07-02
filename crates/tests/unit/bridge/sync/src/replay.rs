@@ -50,6 +50,7 @@ fn canonical_payload_includes_not_before_in_position() {
         revocations: vec![],
         enabled_hosts: vec![],
         host_model_protocols: Default::default(),
+        artifacts: vec![],
         signature: ManifestSignature::new("ignored"),
     };
     let p = canonical_payload(&m).unwrap();

@@ -123,6 +123,7 @@ shared_non_empty_id!(SkillId);
 shared_non_empty_id!(SkillName);
 shared_non_empty_id!(ManagedMcpServerName);
 shared_non_empty_id!(ToolName);
+shared_non_empty_id!(LibraryArtifactId);
 
 /// Detached ed25519 signature of the canonicalised manifest body.
 ///

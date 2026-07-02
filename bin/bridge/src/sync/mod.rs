@@ -1,6 +1,6 @@
 pub(crate) mod apply;
 mod error;
-mod hash;
+pub(crate) mod hash;
 pub mod host_sync;
 mod manifest;
 mod replay;

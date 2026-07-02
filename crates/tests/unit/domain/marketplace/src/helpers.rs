@@ -23,6 +23,7 @@ pub fn marketplace(id: &str) -> MarketplaceConfig {
         skills: Default::default(),
         mcp_servers: Default::default(),
         agents: Default::default(),
+        artifacts: Default::default(),
         access: Default::default(),
     }
 }

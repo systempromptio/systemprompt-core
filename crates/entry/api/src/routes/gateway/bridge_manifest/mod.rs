@@ -48,6 +48,7 @@ pub async fn manifest(
         agents,
         hooks,
         managed_mcp_servers,
+        artifacts,
         // Why: marketplace_id/access are filter context, deliberately excluded
         // from CanonicalView so the signed payload stays byte-identical.
         ..
@@ -75,6 +76,7 @@ pub async fn manifest(
         revocations: &revocations,
         enabled_hosts: &enabled_hosts,
         host_model_protocols: &host_model_protocols,
+        artifacts: &artifacts,
     };
 
     let signature = sign_canonical(&canonical)?;
@@ -94,6 +96,7 @@ pub async fn manifest(
         revocations,
         enabled_hosts,
         host_model_protocols,
+        artifacts,
         signature,
     }))
 }

@@ -2,7 +2,7 @@
 
 use systemprompt_identifiers::MarketplaceId;
 use systemprompt_models::bridge::manifest::{
-    AgentEntry, HookEntry, ManagedMcpServer, PluginEntry, SkillEntry,
+    AgentEntry, ArtifactEntry, HookEntry, ManagedMcpServer, PluginEntry, SkillEntry,
 };
 use systemprompt_models::services::MarketplaceAccess;
 
@@ -16,18 +16,25 @@ pub struct MarketplaceCandidate {
     pub agents: Vec<AgentEntry>,
     pub hooks: Vec<HookEntry>,
     pub managed_mcp_servers: Vec<ManagedMcpServer>,
+    pub artifacts: Vec<ArtifactEntry>,
     pub marketplace_id: Option<MarketplaceId>,
     pub access: Option<MarketplaceAccess>,
 }
 
 impl MarketplaceCandidate {
     #[must_use]
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "one parameter per parallel manifest content section; a wrapper struct would \
+                  only relocate the same fan-in"
+    )]
     pub const fn new(
         plugins: Vec<PluginEntry>,
         skills: Vec<SkillEntry>,
         agents: Vec<AgentEntry>,
         hooks: Vec<HookEntry>,
         managed_mcp_servers: Vec<ManagedMcpServer>,
+        artifacts: Vec<ArtifactEntry>,
     ) -> Self {
         Self {
             plugins,
@@ -35,6 +42,7 @@ impl MarketplaceCandidate {
             agents,
             hooks,
             managed_mcp_servers,
+            artifacts,
             marketplace_id: None,
             access: None,
         }
@@ -58,5 +66,6 @@ impl MarketplaceCandidate {
             && self.agents.is_empty()
             && self.hooks.is_empty()
             && self.managed_mcp_servers.is_empty()
+            && self.artifacts.is_empty()
     }
 }

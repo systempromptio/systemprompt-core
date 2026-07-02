@@ -2,8 +2,8 @@ use std::collections::HashMap;
 use std::fs;
 
 use systemprompt_marketplace::catalog::{
-    disabled_mcp_server_names, load_agents, load_hooks, load_managed_mcp_servers, load_plugins,
-    load_skills,
+    disabled_mcp_server_names, load_agents, load_artifacts, load_hooks, load_managed_mcp_servers,
+    load_plugins, load_skills,
 };
 use systemprompt_marketplace::{BundleContent, CatalogContent};
 use systemprompt_models::auth::JwtAudience;
@@ -527,4 +527,81 @@ fn disabled_mcp_server_names_returns_only_disabled() {
         "an enabled server is not reported as disabled",
     );
     assert_eq!(disabled.len(), 1, "only disabled servers are reported");
+}
+
+fn write_artifact(root: &std::path::Path, id: &str, config: &str, content: Option<&str>) {
+    let dir = root.join("artifacts").join(id);
+    fs::create_dir_all(&dir).expect("create artifact dir");
+    fs::write(dir.join("config.yaml"), config).expect("write config");
+    if let Some(html) = content {
+        fs::write(dir.join("content.html"), html).expect("write content");
+    }
+}
+
+#[test]
+fn load_artifacts_no_dir_returns_empty() {
+    let dir = tempfile::tempdir().expect("temp dir");
+    let result = load_artifacts(dir.path()).expect("no error when artifacts dir absent");
+    assert!(result.is_empty());
+}
+
+#[test]
+fn load_artifacts_reads_valid_artifact_with_default_content_file() {
+    let dir = tempfile::tempdir().expect("temp dir");
+    write_artifact(
+        dir.path(),
+        "pipeline",
+        "id: pipeline\nname: Pipeline\ndescription: opps\nversion: \"3\"\nplugin_id: sfdc\nstarred: true\nmcp_tools:\n  - mcp__salesforce__query_opportunities\n",
+        Some("<table><tr><td>data</td></tr></table>"),
+    );
+
+    let artifacts = load_artifacts(dir.path()).expect("load artifacts");
+    assert_eq!(artifacts.len(), 1);
+    let a = &artifacts[0];
+    assert_eq!(a.id.as_str(), "pipeline");
+    assert_eq!(a.plugin_id.as_str(), "sfdc");
+    assert_eq!(a.version, "3");
+    assert!(a.starred);
+    assert_eq!(a.mcp_tools, vec!["mcp__salesforce__query_opportunities".to_owned()]);
+    assert!(a.content.contains("<table>"));
+    assert_eq!(a.sha256.as_str().len(), 64, "digest is 64 hex chars");
+}
+
+#[test]
+fn load_artifacts_drops_artifact_with_missing_content() {
+    let dir = tempfile::tempdir().expect("temp dir");
+    write_artifact(
+        dir.path(),
+        "empty",
+        "id: empty\nname: Empty\ndescription: x\nplugin_id: sfdc\nmcp_tools:\n  - mcp__x__y\n",
+        None,
+    );
+    let artifacts = load_artifacts(dir.path()).expect("load artifacts");
+    assert!(artifacts.is_empty(), "artifact with no HTML content is dropped");
+}
+
+#[test]
+fn load_artifacts_drops_artifact_with_no_mcp_tools() {
+    let dir = tempfile::tempdir().expect("temp dir");
+    write_artifact(
+        dir.path(),
+        "toolless",
+        "id: toolless\nname: Toolless\ndescription: x\nplugin_id: sfdc\n",
+        Some("<table></table>"),
+    );
+    let artifacts = load_artifacts(dir.path()).expect("load artifacts");
+    assert!(artifacts.is_empty(), "artifact with no mcp_tools is dropped");
+}
+
+#[test]
+fn load_artifacts_skips_disabled() {
+    let dir = tempfile::tempdir().expect("temp dir");
+    write_artifact(
+        dir.path(),
+        "off",
+        "id: off\nname: Off\ndescription: x\nplugin_id: sfdc\nenabled: false\nmcp_tools:\n  - mcp__x__y\n",
+        Some("<table></table>"),
+    );
+    let artifacts = load_artifacts(dir.path()).expect("load artifacts");
+    assert!(artifacts.is_empty(), "disabled artifact is not loaded");
 }

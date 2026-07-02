@@ -67,6 +67,8 @@ pub struct MarketplaceConfig {
     pub mcp_servers: PluginComponentRef,
     #[serde(default)]
     pub agents: PluginComponentRef,
+    #[serde(default)]
+    pub artifacts: PluginComponentRef,
 
     #[serde(default)]
     pub access: MarketplaceAccess,

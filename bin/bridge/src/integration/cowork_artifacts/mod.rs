@@ -1,0 +1,46 @@
+//! Cowork desktop artifacts integration: materialises the manifest's
+//! `artifacts` section into the Cowork global Artifacts-library store.
+//!
+//! Unlike [`super::cowork_plugins`] (a settings toggle), this emitter writes
+//! content, so it follows the synthetic-plugin writer's shape: a content-hashed
+//! `version.json` written last as the idempotency/completion marker, and a
+//! remove-on-empty clear. The write mechanism itself is pluggable (see
+//! [`sink`]) because the live Cowork library store shape is not yet confirmed:
+//! it may be directly file-writable ([`sink::FileSink`]) or `create_artifact`
+//! seed-only ([`sink::SeedStaging`]). [`emit::active_sink`] selects the
+//! default.
+//!
+//! The emitter reuses the `"cowork"` host id, so it fires whenever Cowork is in
+//! the manifest's `enabled_hosts` — the same gate as the plugin emitter.
+
+pub mod emit;
+pub mod sink;
+
+use async_trait::async_trait;
+
+use crate::sync::apply::ApplyError;
+use crate::sync::host_sync::{HostSync, HostSyncCtx};
+
+#[derive(Clone, Copy, Debug)]
+pub struct CoworkArtifactsSync;
+
+#[async_trait]
+impl HostSync for CoworkArtifactsSync {
+    fn host_id(&self) -> &'static str {
+        "cowork"
+    }
+
+    async fn apply(&self, ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError> {
+        let Some(dir) = emit::resolve_artifacts_dir() else {
+            return Ok(());
+        };
+        emit::write_artifacts(&dir, emit::active_sink(), &ctx.manifest.artifacts)
+    }
+
+    fn clear(&self) -> Result<(), ApplyError> {
+        let Some(dir) = emit::resolve_artifacts_dir() else {
+            return Ok(());
+        };
+        emit::remove_dir(&dir)
+    }
+}

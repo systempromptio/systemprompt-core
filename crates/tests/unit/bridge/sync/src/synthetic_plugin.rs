@@ -50,6 +50,7 @@ fn manifest_with(
         revocations: vec![],
         enabled_hosts: vec![],
         host_model_protocols: Default::default(),
+        artifacts: vec![],
         signature: ManifestSignature::new("ignored"),
     }
 }

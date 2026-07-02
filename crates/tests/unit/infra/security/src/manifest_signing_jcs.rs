@@ -1,12 +1,14 @@
 use std::sync::Once;
 
 use systemprompt_bridge::gateway::manifest::{
-    AgentEntry, AgentId, AgentName, ManagedMcpServer, PluginEntry, PluginFile, SignedManifest,
-    SignedManifestVerify, SkillEntry, TenantId, UserInfo, ValidatedUrl, canonical_payload,
+    AgentEntry, AgentId, AgentName, ArtifactEntry, ManagedMcpServer, PluginEntry, PluginFile,
+    SignedManifest, SignedManifestVerify, SkillEntry, TenantId, UserInfo, ValidatedUrl,
+    canonical_payload,
 };
 use systemprompt_bridge::gateway::manifest_version::ManifestVersion;
 use systemprompt_bridge::ids::{
-    ManagedMcpServerName, ManifestSignature, PluginId, Sha256Digest, SkillId, SkillName,
+    LibraryArtifactId, ManagedMcpServerName, ManifestSignature, PluginId, Sha256Digest, SkillId,
+    SkillName,
 };
 
 const FAKE_SHA_A: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
@@ -108,6 +110,17 @@ fn sample_manifest() -> SignedManifest {
         revocations: vec!["revoked_one".into()],
         enabled_hosts: vec![],
         host_model_protocols: Default::default(),
+        artifacts: vec![ArtifactEntry {
+            id: LibraryArtifactId::try_new("opportunities").unwrap(),
+            name: "Opportunities".into(),
+            description: "pipeline table".into(),
+            version: "2".into(),
+            plugin_id: PluginId::try_new("salesforce").unwrap(),
+            mcp_tools: vec!["mcp__salesforce__query_opportunities".into()],
+            content: "<table></table>".into(),
+            starred: true,
+            sha256: Sha256Digest::try_new(FAKE_SHA_A).unwrap(),
+        }],
         signature: ManifestSignature::new(""),
     }
 }
@@ -128,6 +141,7 @@ fn signing_view(m: &SignedManifest) -> serde_json::Value {
         "revocations": m.revocations,
         "enabled_hosts": m.enabled_hosts,
         "host_model_protocols": m.host_model_protocols,
+        "artifacts": m.artifacts,
     })
 }
 

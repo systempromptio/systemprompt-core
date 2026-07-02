@@ -67,6 +67,7 @@ fn marketplace(id: &MarketplaceId, access: MarketplaceAccess) -> MarketplaceConf
         skills: PluginComponentRef::default(),
         mcp_servers: PluginComponentRef::default(),
         agents: PluginComponentRef::default(),
+        artifacts: PluginComponentRef::default(),
         access,
     }
 }

@@ -8,6 +8,7 @@
 //! [`MarketplaceError::Catalog`](crate::error::MarketplaceError).
 
 mod agents;
+mod artifacts;
 mod content;
 mod fingerprint;
 mod hooks;
@@ -16,6 +17,7 @@ mod plugins;
 mod skills;
 
 pub use agents::load_agents;
+pub use artifacts::load_artifacts;
 pub use content::CatalogContent;
 pub use hooks::load_hooks;
 pub use mcp::{disabled_mcp_server_names, load_managed_mcp_servers};

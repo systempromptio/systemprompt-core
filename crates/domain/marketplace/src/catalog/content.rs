@@ -11,13 +11,15 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, OnceLock, RwLock};
 
 use sha2::{Digest, Sha256};
-use systemprompt_models::bridge::manifest::{AgentEntry, ManagedMcpServer, SkillEntry};
+use systemprompt_models::bridge::manifest::{
+    AgentEntry, ArtifactEntry, ManagedMcpServer, SkillEntry,
+};
 use systemprompt_models::services::ServicesConfig;
 
 use crate::bundle::BundleContent;
 use crate::catalog::fingerprint::hash_dir_metadata;
 use crate::catalog::{
-    disabled_mcp_server_names, load_agents, load_managed_mcp_servers, load_skills,
+    disabled_mcp_server_names, load_agents, load_artifacts, load_managed_mcp_servers, load_skills,
 };
 use crate::error::MarketplaceError;
 
@@ -27,6 +29,7 @@ pub struct CatalogContent {
     agents: Vec<AgentEntry>,
     managed_mcp_servers: Vec<ManagedMcpServer>,
     disabled_mcp_servers: BTreeSet<String>,
+    artifacts: Vec<ArtifactEntry>,
     plugins_root: PathBuf,
 }
 
@@ -41,6 +44,7 @@ impl CatalogContent {
             agents: load_agents(services, api_external_url),
             managed_mcp_servers: load_managed_mcp_servers(services, api_external_url)?,
             disabled_mcp_servers: disabled_mcp_server_names(services),
+            artifacts: load_artifacts(services_root)?,
             plugins_root: services_root.join("plugins"),
         })
     }
@@ -91,8 +95,20 @@ impl CatalogContent {
     }
 
     #[must_use]
-    pub fn into_parts(self) -> (Vec<SkillEntry>, Vec<AgentEntry>, Vec<ManagedMcpServer>) {
-        (self.skills, self.agents, self.managed_mcp_servers)
+    pub fn into_parts(
+        self,
+    ) -> (
+        Vec<SkillEntry>,
+        Vec<AgentEntry>,
+        Vec<ManagedMcpServer>,
+        Vec<ArtifactEntry>,
+    ) {
+        (
+            self.skills,
+            self.agents,
+            self.managed_mcp_servers,
+            self.artifacts,
+        )
     }
 }
 
@@ -115,5 +131,6 @@ fn catalog_fingerprint(
     hasher.update(api_external_url.as_bytes());
     hasher.update(b"\0");
     hash_dir_metadata(&mut hasher, &services_root.join("skills"));
+    hash_dir_metadata(&mut hasher, &services_root.join("artifacts"));
     Ok(hasher.finalize().into())
 }

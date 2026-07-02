@@ -3,8 +3,8 @@ use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 use serde::Serialize;
 
 pub use systemprompt_models::bridge::manifest::{
-    AgentEntry, HookEntry, ManagedMcpServer, PluginEntry, PluginFile, SignedManifest, SkillEntry,
-    UserInfo,
+    AgentEntry, ArtifactEntry, HookEntry, ManagedMcpServer, PluginEntry, PluginFile,
+    SignedManifest, SkillEntry, UserInfo,
 };
 pub use systemprompt_models::bridge::manifest_version::ManifestVersion;
 pub use systemprompt_models::services::PluginComponentRef;
@@ -89,6 +89,7 @@ pub struct SignedManifestBuilder {
     revocations: Vec<String>,
     enabled_hosts: Vec<String>,
     host_model_protocols: std::collections::BTreeMap<String, Vec<String>>,
+    artifacts: Vec<ArtifactEntry>,
 }
 
 impl SignedManifestBuilder {
@@ -116,6 +117,7 @@ impl SignedManifestBuilder {
             revocations: Vec::new(),
             enabled_hosts: Vec::new(),
             host_model_protocols: std::collections::BTreeMap::new(),
+            artifacts: Vec::new(),
         }
     }
 
@@ -183,6 +185,12 @@ impl SignedManifestBuilder {
     }
 
     #[must_use]
+    pub fn with_artifacts(mut self, artifacts: Vec<ArtifactEntry>) -> Self {
+        self.artifacts = artifacts;
+        self
+    }
+
+    #[must_use]
     pub fn build(self) -> SignedManifest {
         SignedManifest {
             manifest_version: self.manifest_version,
@@ -199,6 +207,7 @@ impl SignedManifestBuilder {
             revocations: self.revocations,
             enabled_hosts: self.enabled_hosts,
             host_model_protocols: self.host_model_protocols,
+            artifacts: self.artifacts,
             signature: self.signature,
         }
     }
@@ -220,6 +229,7 @@ struct CanonicalView<'a> {
     revocations: &'a [String],
     enabled_hosts: &'a [String],
     host_model_protocols: &'a std::collections::BTreeMap<String, Vec<String>>,
+    artifacts: &'a [ArtifactEntry],
 }
 
 pub fn canonical_payload(m: &SignedManifest) -> Result<String, ManifestError> {
@@ -238,6 +248,7 @@ pub fn canonical_payload(m: &SignedManifest) -> Result<String, ManifestError> {
         revocations: &m.revocations,
         enabled_hosts: &m.enabled_hosts,
         host_model_protocols: &m.host_model_protocols,
+        artifacts: &m.artifacts,
     };
     serde_jcs::to_string(&view).map_err(ManifestError::CanonicalSerialize)
 }

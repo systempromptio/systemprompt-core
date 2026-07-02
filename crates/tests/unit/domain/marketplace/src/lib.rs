@@ -55,6 +55,7 @@ fn sample_candidate() -> MarketplaceCandidate {
         vec![],
         vec![],
         vec![],
+        vec![],
     )
 }
 

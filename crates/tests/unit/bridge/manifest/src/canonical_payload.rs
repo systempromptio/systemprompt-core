@@ -29,6 +29,7 @@ fn canonical_payload_excludes_signature() {
         revocations: vec![],
         enabled_hosts: vec![],
         host_model_protocols: Default::default(),
+        artifacts: vec![],
         signature: ManifestSignature::new("SHOULD-NOT-APPEAR"),
     };
     let payload = canonical_payload(&m).unwrap();
@@ -89,6 +90,7 @@ fn canonical_payload_includes_user_skills_agents() {
         revocations: vec![],
         enabled_hosts: vec![],
         host_model_protocols: Default::default(),
+        artifacts: vec![],
         signature: ManifestSignature::new("x"),
     };
     let payload = canonical_payload(&m).unwrap();
@@ -114,6 +116,7 @@ fn canonical_payload_includes_not_before() {
         revocations: vec![],
         enabled_hosts: vec![],
         host_model_protocols: Default::default(),
+        artifacts: vec![],
         signature: ManifestSignature::new(""),
     };
     let payload = canonical_payload(&m).unwrap();

@@ -162,6 +162,7 @@ fn synthetic_manifest(
         revocations: vec![],
         enabled_hosts: vec![],
         host_model_protocols: Default::default(),
+        artifacts: vec![],
         signature: ManifestSignature::new("ignored"),
     }
 }
@@ -368,6 +369,7 @@ fn run_once_applies_full_manifest_end_to_end() {
             revocations: vec![],
             enabled_hosts: vec!["claude-code".into()],
             host_model_protocols: Default::default(),
+            artifacts: vec![],
             signature: ManifestSignature::new("unused-when-allow-unsigned"),
         };
 
@@ -470,6 +472,7 @@ fn run_once_empty_manifest_writes_no_synthetic_plugin() {
             revocations: vec![],
             enabled_hosts: vec!["claude-code".into()],
             host_model_protocols: Default::default(),
+            artifacts: vec![],
             signature: ManifestSignature::new(""),
         };
 
@@ -522,6 +525,7 @@ fn run_once_surfaces_plugin_file_404_as_apply_failure() {
             revocations: vec![],
             enabled_hosts: vec![],
             host_model_protocols: Default::default(),
+            artifacts: vec![],
             signature: ManifestSignature::new(""),
         };
 

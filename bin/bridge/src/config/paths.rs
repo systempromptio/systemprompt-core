@@ -173,6 +173,8 @@ pub fn cowork3p_sessions_root() -> Option<PathBuf> {
 
 pub const COWORK_PLUGINS_SUBDIR: &str = "cowork_plugins";
 
+pub const COWORK_ARTIFACTS_SUBDIR: &str = "cowork_artifacts";
+
 // Always user-writable, unlike the admin-only org-plugins root on Windows.
 #[cfg(target_os = "windows")]
 #[must_use]
