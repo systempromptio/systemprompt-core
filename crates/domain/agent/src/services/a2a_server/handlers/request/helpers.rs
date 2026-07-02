@@ -11,7 +11,7 @@ use super::streaming::handle_streaming_request;
 use crate::models::a2a::A2aRequestParams;
 use crate::services::a2a_server::errors::JsonRpcErrorBuilder;
 
-pub(super) async fn parse_a2a_request(
+pub async fn parse_a2a_request(
     jsonrpc_request: &crate::models::a2a::A2aJsonRpcRequest,
     request_id: &crate::models::a2a::jsonrpc::NumberOrString,
 ) -> Result<A2aRequestParams, axum::response::Response> {

@@ -4,10 +4,10 @@
 //! envelope, enforces OAuth when required, derives the request context, and
 //! routes to the streaming, push-notification, or non-streaming handlers.
 
-mod helpers;
+pub mod helpers;
 mod non_streaming;
 mod streaming;
-mod validation;
+pub mod validation;
 
 use axum::body::Body;
 use axum::extract::{Json, Request, State};

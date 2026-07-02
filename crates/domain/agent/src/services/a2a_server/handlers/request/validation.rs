@@ -1,7 +1,7 @@
 use crate::services::a2a_server::handlers::state::AgentHandlerState;
 use systemprompt_identifiers::UserId;
 
-pub(super) async fn validate_message_context(
+pub async fn validate_message_context(
     message: &crate::models::a2a::Message,
     user_id: Option<&UserId>,
     db_pool: &systemprompt_database::DbPool,
@@ -30,7 +30,7 @@ pub(super) async fn validate_message_context(
     Ok(())
 }
 
-pub(super) async fn should_require_oauth(state: &AgentHandlerState) -> bool {
+pub async fn should_require_oauth(state: &AgentHandlerState) -> bool {
     let config = state.config.read().await;
     config.oauth.required
 }
