@@ -46,6 +46,7 @@ pub fn decode_seed(
 pub fn persist_seed(path: &Path, seed: &[u8; MANIFEST_SIGNING_SEED_BYTES]) -> ConfigResult<()> {
     let encoded = base64::engine::general_purpose::STANDARD.encode(seed);
     let content = std::fs::read_to_string(path)?;
+    // JSON: opaque secrets doc — must preserve unknown keys
     let mut value: serde_json::Value = serde_json::from_str(&content)?;
     let object = value.as_object_mut().ok_or_else(|| {
         ConfigError::other(format!(
