@@ -7297,12 +7297,17 @@ name = "systemprompt-cli-integration-tests"
 version = "0.0.11"
 dependencies = [
  "assert_cmd",
+ "chrono",
  "predicates",
  "serde_json",
  "serde_yaml_ng",
  "sqlx",
  "systemprompt-cli",
+ "systemprompt-cloud",
+ "systemprompt-config",
  "systemprompt-database",
+ "systemprompt-identifiers",
+ "systemprompt-models",
  "systemprompt-security",
  "systemprompt-test-fixtures",
  "systemprompt-traits",
@@ -7310,6 +7315,7 @@ dependencies = [
  "tempfile",
  "tokio",
  "uuid",
+ "wiremock",
 ]
 
 [[package]]
@@ -7323,7 +7329,9 @@ dependencies = [
  "serde_json",
  "serde_yaml_ng",
  "systemprompt-cli",
+ "systemprompt-cloud",
  "systemprompt-models",
+ "systemprompt-sync",
  "tempfile",
  "thiserror 2.0.18",
  "tokio",
