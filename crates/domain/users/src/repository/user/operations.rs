@@ -75,7 +75,7 @@ impl UserRepository {
             return Ok(existing);
         }
 
-        // Miss: insert. ON CONFLICT covers a concurrent first request.
+        // ON CONFLICT covers a concurrent first request racing this insert.
         let user_id = uuid::Uuid::new_v4();
         let id = UserId::new(user_id.to_string());
         let name = format!("anonymous_{}", &user_id.to_string()[..8]);

@@ -96,7 +96,7 @@ impl UserRepository {
 
     pub async fn search(&self, query: &str, limit: i64) -> Result<Vec<User>> {
         let safe_limit = limit.min(MAX_PAGE_SIZE);
-        let pattern = format!("%{}%", query);
+        let pattern = format!("%{query}%");
         let deleted_status = UserStatus::Deleted.as_str();
         let rows = sqlx::query_as!(
             User,

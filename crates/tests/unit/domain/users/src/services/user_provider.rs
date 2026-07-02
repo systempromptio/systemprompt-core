@@ -1,4 +1,4 @@
-//! Unit tests for UserProviderImpl and related conversions.
+//! Unit tests for the User→AuthUser conversion.
 //!
 //! Tests cover:
 //! - From<User> for AuthUser conversion

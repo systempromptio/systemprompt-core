@@ -105,10 +105,9 @@ src/
 │   ├── api_key_service.rs              # ApiKeyService, IssueApiKeyParams,
 │   │                                   # API_KEY_PREFIX
 │   ├── device_cert_service.rs          # DeviceCertService, EnrollDeviceCertServiceParams
-│   ├── user_provider.rs                # UserProviderImpl wrapper for trait-based access
 │   └── user/
 │       ├── mod.rs                      # UserService — primary service
-│       └── provider.rs                 # UserProvider / RoleProvider impls
+│       └── provider.rs                 # UserProvider / RoleProvider impls, User→AuthUser
 └── jobs/
     ├── mod.rs                          # Job exports
     └── cleanup_anonymous_users.rs      # CleanupAnonymousUsersJob (retention window)
@@ -140,7 +139,6 @@ src/
 - `UserAdminService` — Admin operations (promote, demote)
 - `ApiKeyService` — Issue, hash, and verify API keys
 - `DeviceCertService` — Enroll and rotate device certificates
-- `UserProviderImpl` — Wrapper for trait-based dependency injection
 
 ### Repositories
 

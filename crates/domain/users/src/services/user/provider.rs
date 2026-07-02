@@ -9,26 +9,39 @@ use systemprompt_traits::auth::{
 use super::UserService;
 use crate::models::{User, UserRole};
 
+impl From<User> for AuthUser {
+    fn from(user: User) -> Self {
+        let is_active = user.is_active();
+        Self {
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            roles: user.roles,
+            is_active,
+        }
+    }
+}
+
 #[async_trait]
 impl UserProvider for UserService {
     async fn find_by_id(&self, id: &UserId) -> AuthResult<Option<AuthUser>> {
         self.find_by_id(id)
             .await
-            .map(|opt| opt.map(|u| user_to_auth_user(&u)))
+            .map(|opt| opt.map(AuthUser::from))
             .map_err(|e| AuthProviderError::Internal(e.to_string()))
     }
 
     async fn find_by_email(&self, email: &str) -> AuthResult<Option<AuthUser>> {
         Self::find_by_email(self, email)
             .await
-            .map(|opt| opt.map(|u| user_to_auth_user(&u)))
+            .map(|opt| opt.map(AuthUser::from))
             .map_err(|e| AuthProviderError::Internal(e.to_string()))
     }
 
     async fn find_by_name(&self, name: &str) -> AuthResult<Option<AuthUser>> {
         Self::find_by_name(self, name)
             .await
-            .map(|opt| opt.map(|u| user_to_auth_user(&u)))
+            .map(|opt| opt.map(AuthUser::from))
             .map_err(|e| AuthProviderError::Internal(e.to_string()))
     }
 
@@ -40,14 +53,14 @@ impl UserProvider for UserService {
     ) -> AuthResult<AuthUser> {
         Self::create(self, name, email, full_name, full_name)
             .await
-            .map(|u| user_to_auth_user(&u))
+            .map(AuthUser::from)
             .map_err(|e| AuthProviderError::Internal(e.to_string()))
     }
 
     async fn create_anonymous(&self, fingerprint: &str) -> AuthResult<AuthUser> {
         Self::create_anonymous(self, fingerprint)
             .await
-            .map(|u| user_to_auth_user(&u))
+            .map(AuthUser::from)
             .map_err(|e| AuthProviderError::Internal(e.to_string()))
     }
 
@@ -68,16 +81,6 @@ impl UserProvider for UserService {
             .await
             .map(|u| u.id)
             .map_err(|e| AuthProviderError::Internal(e.to_string()))
-    }
-}
-
-fn user_to_auth_user(user: &User) -> AuthUser {
-    AuthUser {
-        id: user.id.clone(),
-        name: user.name.clone(),
-        email: user.email.clone(),
-        roles: user.roles.clone(),
-        is_active: user.is_active(),
     }
 }
 
@@ -132,7 +135,7 @@ impl RoleProvider for UserService {
 
         Self::find_by_role(self, user_role)
             .await
-            .map(|users| users.iter().map(user_to_auth_user).collect())
+            .map(|users| users.into_iter().map(AuthUser::from).collect())
             .map_err(|e| AuthProviderError::Internal(e.to_string()))
     }
 }

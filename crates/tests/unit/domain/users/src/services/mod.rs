@@ -2,7 +2,7 @@
 //!
 //! Tests cover:
 //! - UserAdminService (PromoteResult, DemoteResult enums)
-//! - UserProviderImpl conversions
+//! - User→AuthUser conversion
 //! - UpdateUserParams
 //! - ApiKeyService pure logic (prefix, name validation)
 //! - DeviceCertService pure logic (fingerprint validation)

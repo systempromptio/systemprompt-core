@@ -26,7 +26,7 @@ use systemprompt_security::{
     CookieExtractor, HeaderExtractor, TokenExtractor, extract_user_context,
 };
 use systemprompt_traits::AnalyticsProvider;
-use systemprompt_users::{UserProviderImpl, UserService};
+use systemprompt_users::UserService;
 use uuid::Uuid;
 
 #[derive(Clone, Debug)]
@@ -42,7 +42,7 @@ impl SessionMiddleware {
         let analytics: Arc<dyn AnalyticsProvider> = concrete;
         let session_creation_service = Arc::new(SessionCreationService::new(
             analytics,
-            Arc::new(UserProviderImpl::new(user_service)),
+            Arc::new(user_service),
         ));
 
         Ok(Self {

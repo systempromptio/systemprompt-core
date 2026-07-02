@@ -6,7 +6,7 @@ use systemprompt_identifiers::{ClientId, SessionId, SessionSource, UserId};
 use systemprompt_oauth::{CreateAnonymousSessionInput, SessionCreationService, validate_jwt_token};
 use systemprompt_runtime::AppContext;
 use systemprompt_security::TokenExtractor;
-use systemprompt_users::{UserProviderImpl, UserService};
+use systemprompt_users::UserService;
 
 #[derive(Debug, Clone)]
 pub struct SessionInfo {
@@ -38,8 +38,7 @@ pub async fn ensure_session(
     let user_service = UserService::new(ctx.db_pool())?;
     let concrete = Arc::clone(ctx.analytics_service());
     let analytics: Arc<dyn systemprompt_traits::AnalyticsProvider> = concrete;
-    let session_service =
-        SessionCreationService::new(analytics, Arc::new(UserProviderImpl::new(user_service)));
+    let session_service = SessionCreationService::new(analytics, Arc::new(user_service));
 
     let client_id = ClientId::new("sp_web");
     let session_info = session_service

@@ -1,9 +1,8 @@
-//! Unit tests for UserProviderImpl struct construction and From<User> for
-//! AuthUser.
+//! Unit tests for the `From<User> for AuthUser` conversion.
 //!
-//! `UserProviderImpl` wraps `UserService` (which requires a live DB pool) so
-//! async trait methods are an untestable seam here.  We cover the `From<User>`
-//! conversion and the struct's exported debug/clone surface.
+//! The async `UserProvider` methods on `UserService` require a live DB pool and
+//! are an untestable seam here. We cover the `From<User>` conversion that backs
+//! them and the resulting `AuthUser`'s exported debug/clone surface.
 
 use chrono::Utc;
 use systemprompt_identifiers::UserId;
