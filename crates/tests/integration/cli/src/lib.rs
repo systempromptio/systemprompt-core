@@ -19,6 +19,7 @@ pub(crate) mod env_lock {
 }
 
 pub mod full_bootstrap;
+pub mod mcp_stub;
 
 #[cfg(test)]
 mod cloud_harness;

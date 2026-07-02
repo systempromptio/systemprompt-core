@@ -140,15 +140,19 @@ fn build() -> FullBootstrap {
         std::fs::create_dir_all(root.join(dir)).expect("mkdir profile path");
     }
 
-    std::fs::write(services_dir.join("config/config.yaml"), SERVICES_CONFIG)
-        .expect("write services config");
+    std::fs::write(
+        services_dir.join("config/config.yaml"),
+        render_services_config(59999),
+    )
+    .expect("write services config");
     std::fs::write(services_dir.join("content/config.yaml"), "{}\n").expect("write content stub");
     std::fs::write(services_dir.join("web/config.yaml"), WEB_CONFIG).expect("write web config");
     std::fs::write(services_dir.join("web/metadata.yaml"), "{}\n").expect("write metadata stub");
 
     write_signing_key(&system_dir.join("signing_key.pem"));
 
-    let profile_path = root.join("profile.yaml");
+    std::fs::create_dir_all(root.join("covfix")).expect("mkdir profile dir");
+    let profile_path = root.join("covfix/profile.yaml");
     std::fs::write(&profile_path, render_profile(&root)).expect("write profile.yaml");
 
     let fixture = FullBootstrap {
@@ -184,7 +188,19 @@ fn bootstrap_system_admin(fixture: &FullBootstrap) {
     let _ = c.assert();
 }
 
-const SERVICES_CONFIG: &str = r#"agents:
+pub fn rewrite_services_config(fixture: &FullBootstrap, mcp_port: u16) {
+    std::fs::write(
+        fixture.services_dir.join("config/config.yaml"),
+        render_services_config(mcp_port),
+    )
+    .expect("rewrite services config");
+}
+
+fn render_services_config(mcp_port: u16) -> String {
+    SERVICES_CONFIG_TEMPLATE.replace("@MCP_PORT@", &mcp_port.to_string())
+}
+
+const SERVICES_CONFIG_TEMPLATE: &str = r#"agents:
   covagent:
     name: covagent
     port: 4777
@@ -227,9 +243,9 @@ mcp_servers:
   fixture_mcp:
     type: external
     binary: ""
-    remote_endpoint: http://127.0.0.1:59999/mcp
+    remote_endpoint: http://127.0.0.1:@MCP_PORT@/mcp
     package: fixture
-    port: 5100
+    port: @MCP_PORT@
     enabled: true
     display_in_web: true
     oauth:
