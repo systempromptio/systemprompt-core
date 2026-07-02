@@ -11,7 +11,7 @@ pub struct ValidateArgs {
     pub verbose: bool,
 }
 
-pub(super) fn execute(args: &ValidateArgs, _config: &CliConfig) -> (CommandOutput, bool) {
+pub fn execute(args: &ValidateArgs, _config: &CliConfig) -> (CommandOutput, bool) {
     let registry = discover_registry();
     let mut errors = Vec::new();
     let mut warnings = Vec::new();

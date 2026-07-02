@@ -11,7 +11,7 @@ pub struct TemplatesArgs {
     pub extension: Option<String>,
 }
 
-pub(super) fn execute(args: &TemplatesArgs, _config: &CliConfig) -> CommandOutput {
+pub fn execute(args: &TemplatesArgs, _config: &CliConfig) -> CommandOutput {
     let registry = discover_registry();
 
     let templates: Vec<TemplateWithExtension> = registry

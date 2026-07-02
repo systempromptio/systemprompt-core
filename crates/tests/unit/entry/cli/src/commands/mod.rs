@@ -14,6 +14,7 @@ mod core_content_edit_apply;
 mod core_plugins_fs;
 mod infrastructure;
 mod mcp_prompts;
+mod plugins_registry;
 mod setup_ai_config;
 mod setup_catalog;
 mod setup_ddl;

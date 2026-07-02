@@ -19,7 +19,7 @@ pub struct ListArgs {
     pub r#type: String,
 }
 
-pub(super) fn execute(args: &ListArgs, _config: &CliConfig) -> CommandOutput {
+pub fn execute(args: &ListArgs, _config: &CliConfig) -> CommandOutput {
     let mut extensions: Vec<ExtensionSummary> = Vec::new();
 
     if matches!(args.r#type.as_str(), "all" | "compiled") {

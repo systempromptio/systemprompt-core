@@ -13,6 +13,7 @@ workspace = true
 [dependencies]
 systemprompt-cli = { workspace = true }
 systemprompt-cloud = { workspace = true }
+systemprompt-extension = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 systemprompt-logging = { workspace = true }
 systemprompt-models = { workspace = true }

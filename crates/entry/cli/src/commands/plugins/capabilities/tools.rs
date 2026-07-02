@@ -11,7 +11,7 @@ pub struct ToolsArgs {
     pub extension: Option<String>,
 }
 
-pub(super) fn execute(args: &ToolsArgs, _config: &CliConfig) -> CommandOutput {
+pub fn execute(args: &ToolsArgs, _config: &CliConfig) -> CommandOutput {
     let registry = discover_registry();
 
     let tools: Vec<ToolWithExtension> = registry

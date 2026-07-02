@@ -11,7 +11,7 @@ pub struct LlmProvidersArgs {
     pub extension: Option<String>,
 }
 
-pub(super) fn execute(args: &LlmProvidersArgs, _config: &CliConfig) -> CommandOutput {
+pub fn execute(args: &LlmProvidersArgs, _config: &CliConfig) -> CommandOutput {
     let registry = discover_registry();
 
     let providers: Vec<LlmProviderWithExtension> = registry

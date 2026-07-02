@@ -12,7 +12,7 @@ pub struct ConfigArgs {
     pub id: Option<String>,
 }
 
-pub(super) fn execute(args: &ConfigArgs, _config: &CliConfig) -> Result<CommandOutput> {
+pub fn execute(args: &ConfigArgs, _config: &CliConfig) -> Result<CommandOutput> {
     let registry = ExtensionRegistry::discover()?;
 
     if let Some(id) = &args.id {
