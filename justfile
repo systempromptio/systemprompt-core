@@ -403,7 +403,8 @@ coverage:
     LLVM_COV=$(rustc --print sysroot)/lib/rustlib/x86_64-unknown-linux-gnu/bin/llvm-cov
 
     echo "==> Merging profile data"
-    "$LLVM_PROFDATA" merge -sparse "$PROFDIR"/*.profraw -o "$ROOT/coverage-report/tests.profdata"
+    find "$PROFDIR" -name '*.profraw' > "$ROOT/coverage-report/profraw-list.txt"
+    "$LLVM_PROFDATA" merge -sparse -f "$ROOT/coverage-report/profraw-list.txt" -o "$ROOT/coverage-report/tests.profdata"
 
     # Test binaries land in deps/; the `systemprompt` cli bin lands one level
     # up in debug/ (cargo writes named binaries there, not under deps/).
