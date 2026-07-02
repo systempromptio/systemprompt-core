@@ -4,6 +4,7 @@
 use systemprompt_cli::cloud::tenant::TenantCommands;
 use systemprompt_cli::cloud::{self, CloudCommands};
 use systemprompt_cloud::TenantStore;
+use systemprompt_identifiers::TenantId;
 
 use super::{OTHER_TENANT_ID, TENANT_ID, enter, interactive_ctx, json_ctx};
 use crate::full_bootstrap::database_url;
@@ -43,7 +44,9 @@ async fn tenant_edit_local_renames_and_edits_database() {
 
     let store = TenantStore::load_from_path(&env.root().join(".systemprompt/tenants.json"))
         .expect("reload tenants");
-    let tenant = store.find_tenant(OTHER_TENANT_ID).expect("tenant");
+    let tenant = store
+        .find_tenant(&TenantId::new(OTHER_TENANT_ID))
+        .expect("tenant");
     assert_eq!(tenant.name, "renamed-local");
     assert_eq!(
         tenant.database_url.as_deref(),
@@ -406,7 +409,7 @@ async fn tenant_delete_interactive_confirm_local() {
     .expect("delete local tenant");
     let store = TenantStore::load_from_path(&env.root().join(".systemprompt/tenants.json"))
         .expect("reload tenants");
-    assert!(store.find_tenant(OTHER_TENANT_ID).is_none());
+    assert!(store.find_tenant(&TenantId::new(OTHER_TENANT_ID)).is_none());
 }
 
 #[tokio::test]

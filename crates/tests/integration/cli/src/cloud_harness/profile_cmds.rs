@@ -2,6 +2,7 @@
 //! delete, edit, create) through `cloud::execute` with scripted prompts.
 
 use std::path::{Path, PathBuf};
+use systemprompt_identifiers::TenantId;
 
 use serde_json::json;
 use systemprompt_cli::ScriptedPrompter;
@@ -417,7 +418,7 @@ async fn mount_masked_refresh(server: &MockServer) {
 
 fn seed_masked_cloud_tenant(env: &Env) -> PathBuf {
     let tenant = StoredTenant::new_cloud(NewCloudTenantParams {
-        id: TENANT_ID.to_owned(),
+        id: TenantId::new(TENANT_ID),
         name: "Masked Prod".to_owned(),
         app_id: Some("app-masked".to_owned()),
         hostname: Some("masked.example.com".to_owned()),
@@ -452,7 +453,9 @@ async fn create_cloud_tenant_refreshes_masked_credentials() {
     .expect("create cloud profile with refresh");
 
     let store = TenantStore::load_from_path(&tenants_path).expect("reload tenants");
-    let tenant = store.find_tenant(TENANT_ID).expect("tenant present");
+    let tenant = store
+        .find_tenant(&TenantId::new(TENANT_ID))
+        .expect("tenant present");
     assert_eq!(
         tenant.internal_database_url.as_deref(),
         Some("postgres://u:realpass@int.example.com:5432/db")
@@ -521,7 +524,10 @@ async fn create_profile_for_tenant_handles_name_collision_and_issuer() {
 
     let store = TenantStore::load_from_path(&env.root().join(".systemprompt/tenants.json"))
         .expect("load tenants");
-    let tenant = store.find_tenant(TENANT_ID).expect("cloud tenant").clone();
+    let tenant = store
+        .find_tenant(&TenantId::new(TENANT_ID))
+        .expect("cloud tenant")
+        .clone();
 
     let prompter = ScriptedPrompter::new(["collide-renamed"]);
     let api_keys =
