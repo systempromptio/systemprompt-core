@@ -73,8 +73,8 @@ pub fn build_authz_hook(
     match (authz.hook.mode, extension) {
         (AuthzMode::Extension, Some(hook)) => {
             tracing::info!(
-                "governance.authz.hook.mode = extension — composing RuleBasedHook + {:?}",
-                hook
+                hook = ?hook,
+                "governance.authz.hook.mode = extension — composing RuleBasedHook with extension hook"
             );
             Ok(compose_rule_based(pool, sink, vec![hook]))
         },
