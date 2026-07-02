@@ -18,6 +18,8 @@ mod client_addr;
 mod content_negotiation;
 mod context_flavours;
 mod cors_config;
+mod header_source;
+mod jwt_params;
 mod rate_limit_config;
 mod security_headers;
 mod security_trace_served_by;

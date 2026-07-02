@@ -4,7 +4,15 @@ use systemprompt_models::auth::UserType;
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_security::{HeaderExtractor, JwtUserContext, TokenExtractor};
 
-pub(super) struct BuildContextParams {
+#[cfg_attr(
+    not(feature = "test-api"),
+    expect(
+        unreachable_pub,
+        reason = "items are re-exported via `test_api` only when the feature is on"
+    )
+)]
+#[derive(Debug)]
+pub struct BuildContextParams {
     pub jwt_context: JwtUserContext,
     pub session_id: SessionId,
     pub user_id: UserId,
@@ -16,7 +24,14 @@ pub(super) struct BuildContextParams {
     pub user_type: UserType,
 }
 
-pub(super) fn build_context(params: BuildContextParams) -> RequestContext {
+#[cfg_attr(
+    not(feature = "test-api"),
+    expect(
+        unreachable_pub,
+        reason = "items are re-exported via `test_api` only when the feature is on"
+    )
+)]
+pub fn build_context(params: BuildContextParams) -> RequestContext {
     let BuildContextParams {
         jwt_context,
         session_id,
@@ -47,7 +62,14 @@ pub(super) fn build_context(params: BuildContextParams) -> RequestContext {
     ctx
 }
 
-pub(super) fn extract_common_headers(
+#[cfg_attr(
+    not(feature = "test-api"),
+    expect(
+        unreachable_pub,
+        reason = "items are re-exported via `test_api` only when the feature is on"
+    )
+)]
+pub fn extract_common_headers(
     token_extractor: &TokenExtractor,
     headers: &HeaderMap,
 ) -> (TraceId, Option<TaskId>, Option<String>, AgentName) {
