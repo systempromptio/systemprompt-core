@@ -140,7 +140,9 @@ fn registry_error_paths() {
     ]);
     cmd.assert().failure();
 
-    let Some(mut unreachable) = command() else { return };
+    let Some(mut unreachable) = command() else {
+        return;
+    };
     unreachable.args(["admin", "agents", "registry", "--url", "http://127.0.0.1:9"]);
     unreachable.assert().failure();
 }
@@ -245,10 +247,8 @@ fn message_error_and_missing_agent() {
     };
     missing.assert().failure();
 
-    let Some(mut no_text) = home_cmd(
-        home.path(),
-        &["admin", "agents", "message", FIXTURE_AGENT],
-    ) else {
+    let Some(mut no_text) = home_cmd(home.path(), &["admin", "agents", "message", FIXTURE_AGENT])
+    else {
         return;
     };
     no_text.assert().failure();
@@ -370,10 +370,8 @@ fn task_get_roundtrip() {
     };
     cmd.assert().success();
 
-    let Some(mut missing_task) = home_cmd(
-        home.path(),
-        &["admin", "agents", "task", FIXTURE_AGENT],
-    ) else {
+    let Some(mut missing_task) = home_cmd(home.path(), &["admin", "agents", "task", FIXTURE_AGENT])
+    else {
         return;
     };
     missing_task.assert().failure();
@@ -385,8 +383,7 @@ fn tools_lists_stub_mcp_tools() {
         return;
     }
     let home = tempfile::tempdir().expect("home");
-    let Some(mut cmd) = home_cmd(home.path(), &["admin", "agents", "tools", FIXTURE_AGENT])
-    else {
+    let Some(mut cmd) = home_cmd(home.path(), &["admin", "agents", "tools", FIXTURE_AGENT]) else {
         return;
     };
     cmd.assert().success();
@@ -493,7 +490,9 @@ fn edit_apply_covers_field_groups() {
     delete.args(["admin", "agents", "delete", FIXTURE_EDIT_AGENT, "--yes"]);
     delete.assert().success();
 
-    let Some(mut delete_missing) = command() else { return };
+    let Some(mut delete_missing) = command() else {
+        return;
+    };
     delete_missing.args(["admin", "agents", "delete", FIXTURE_EDIT_AGENT, "--yes"]);
     delete_missing.assert().failure();
 }
@@ -530,7 +529,9 @@ fn delete_all_and_validate() {
         "4782",
     ]);
     dup.assert().failure();
-    let Some(mut validate) = command() else { return };
+    let Some(mut validate) = command() else {
+        return;
+    };
     validate.args(["admin", "agents", "validate"]);
     let _ = validate.assert();
 

@@ -354,8 +354,7 @@ fn compose_files_are_rendered() {
     assert!(compose.contains("container_name: cov_pg"));
     assert!(compose.contains("\"5544:5432\""));
     let init =
-        std::fs::read_to_string(dir.path().join("init-scripts").join("01-extensions.sql"))
-            .unwrap();
+        std::fs::read_to_string(dir.path().join("init-scripts").join("01-extensions.sql")).unwrap();
     assert!(init.contains("uuid-ossp"));
 }
 

@@ -74,8 +74,7 @@ fn login_with_formats() {
         return;
     };
     for format in ["--json", "--yaml"] {
-        let Some(mut cmd) = session_cmd(home.path(), &[format, "admin", "session", "login"])
-        else {
+        let Some(mut cmd) = session_cmd(home.path(), &[format, "admin", "session", "login"]) else {
             return;
         };
         cmd.assert().success();
@@ -134,10 +133,9 @@ fn logout_single_and_all() {
     };
     relogin.assert().success();
 
-    let Some(mut logout_all) = session_cmd(
-        home.path(),
-        &["admin", "session", "logout", "--all", "-y"],
-    ) else {
+    let Some(mut logout_all) =
+        session_cmd(home.path(), &["admin", "session", "logout", "--all", "-y"])
+    else {
         return;
     };
     let _ = logout_all.assert();

@@ -2,9 +2,7 @@
 //! profile and AI policy files: provider, catalog, gateway, runtime, server,
 //! security, paths, governance, and secret.
 
-use systemprompt_cli_integration_tests::full_bootstrap::{
-    command, fixture, run, run_with_formats,
-};
+use systemprompt_cli_integration_tests::full_bootstrap::{command, fixture, run, run_with_formats};
 
 fn run_ok(args: &[&str]) {
     let Some(mut cmd) = command() else { return };

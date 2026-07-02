@@ -72,7 +72,9 @@ fn user_create_update_show_delete_cycle() {
         &email,
         "--if-not-exists",
     ]);
-    run_err(&["admin", "users", "create", "--name", &name, "--email", &email]);
+    run_err(&[
+        "admin", "users", "create", "--name", &name, "--email", &email,
+    ]);
 
     let Some(id) = user_id_by_name(&name) else {
         return;
