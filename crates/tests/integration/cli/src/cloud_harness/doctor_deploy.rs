@@ -238,3 +238,57 @@ async fn doctor_check_functions_cover_pass_and_fail() {
     let providers = check_provider_secrets(&profile, &secrets);
     let _ = format!("{providers:?}");
 }
+
+fn write_cloud_profile_with_hook(env: &Env, name: &str, hook_url: &str) {
+    let dir = env.root().join(".systemprompt/profiles").join(name);
+    write_cloud_profile(env, name);
+    std::fs::copy(
+        env.root().join("system/signing_key.pem"),
+        dir.join("signing_key.pem"),
+    )
+    .expect("copy signing key");
+    std::fs::write(
+        dir.join("secrets.json"),
+        r#"{"oauth_at_rest_pepper":"test_oauth_at_rest_pepper_0123456789abcdef","database_url":"postgres://u:p@127.0.0.1:5432/x"}"#,
+    )
+    .expect("write secrets");
+    let profile_path = dir.join("profile.yaml");
+    let base = std::fs::read_to_string(&profile_path).expect("read profile");
+    let with_hook = base.replace(
+        "      mode: unrestricted",
+        &format!("      mode: unrestricted\n      url: {hook_url}"),
+    );
+    std::fs::write(&profile_path, with_hook).expect("write hooked profile");
+}
+
+async fn run_doctor(name: &str) {
+    cloud::execute(
+        CloudCommands::Doctor {
+            profile: Some(name.to_owned()),
+        },
+        &json_ctx(),
+    )
+    .await
+    .expect("doctor run");
+}
+
+#[tokio::test]
+async fn doctor_hook_url_variants_warn_but_pass() {
+    let env = enter().await;
+
+    write_cloud_profile_with_hook(&env, "hook-loop", "http://127.0.0.1:9999/hook");
+    run_doctor("hook-loop").await;
+    remove_profile(&env, "hook-loop");
+
+    write_cloud_profile_with_hook(&env, "hook-other", "https://elsewhere.example.net/hook");
+    run_doctor("hook-other").await;
+    remove_profile(&env, "hook-other");
+
+    write_cloud_profile_with_hook(&env, "hook-match", "http://127.0.0.1/hook");
+    run_doctor("hook-match").await;
+    remove_profile(&env, "hook-match");
+
+    write_cloud_profile_with_hook(&env, "hook-bad", "not a url");
+    run_doctor("hook-bad").await;
+    remove_profile(&env, "hook-bad");
+}

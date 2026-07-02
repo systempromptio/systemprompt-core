@@ -264,6 +264,7 @@ mod doctor_deploy;
 mod domain_cmds;
 mod init_cmds;
 mod profile_cmds;
+mod secrets_cmds;
 mod sync_cmds;
 mod tenant_flows;
 
