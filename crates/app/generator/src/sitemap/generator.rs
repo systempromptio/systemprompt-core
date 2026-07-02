@@ -34,19 +34,23 @@ pub async fn generate_sitemap(db_pool: DbPool, paths: &AppPaths) -> Result<()> {
 }
 
 async fn load_sitemap_context(db_pool: DbPool, paths: &AppPaths) -> Result<SitemapContext> {
-    let global_config = Config::get().map_err(PublishError::other)?;
+    let global_config = Config::get()?;
     let config_path = paths.system().content_config();
 
-    let yaml_content = fs::read_to_string(&config_path)
-        .await
-        .map_err(|e| PublishError::other(format!("Failed to read content config: {e}")))?;
+    let yaml_content = fs::read_to_string(&config_path).await.map_err(|source| {
+        PublishError::ContentConfigRead {
+            path: config_path.to_path_buf(),
+            source,
+        }
+    })?;
 
-    let config: ContentConfigRaw = serde_yaml::from_str(&yaml_content)
-        .map_err(|e| PublishError::other(format!("Failed to parse content config: {e}")))?;
+    let config: ContentConfigRaw =
+        serde_yaml::from_str(&yaml_content).map_err(|source| PublishError::ContentConfigParse {
+            path: config_path.to_path_buf(),
+            source,
+        })?;
 
-    let web_config = load_web_config(paths)
-        .await
-        .map_err(|e| PublishError::other(format!("Failed to load web config: {e}")))?;
+    let web_config = load_web_config(paths).await?;
 
     let web_dir = paths.web().dist().to_path_buf();
     let base_url = global_config.api_external_url.clone();
@@ -235,13 +239,13 @@ struct FetchParams<'a> {
 
 async fn fetch_urls_from_database(params: FetchParams<'_>) -> Result<Vec<SitemapUrl>> {
     let repo = ContentRepository::new(params.db_pool)
-        .map_err(|e| PublishError::other(format!("Failed to create content repository: {e}")))?;
+        .map_err(|e| PublishError::content("Failed to create content repository", e))?;
 
     let source_id = SourceId::new(params.source_id);
     let pairs = repo
         .list_slugs_with_locales_by_source(&source_id)
         .await
-        .map_err(|e| PublishError::other(format!("Failed to fetch content for sitemap: {e}")))?;
+        .map_err(|e| PublishError::content("Failed to fetch content for sitemap", e))?;
 
     let mut by_slug: HashMap<String, Vec<LocaleCode>> = HashMap::new();
     for (slug, locale) in pairs {

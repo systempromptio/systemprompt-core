@@ -60,14 +60,51 @@ pub enum PublishError {
     #[error("I/O error: {0}")]
     Io(#[from] std::io::Error),
 
+    #[error("{context}: {source}")]
+    IoContext {
+        context: String,
+        #[source]
+        source: std::io::Error,
+    },
+
     #[error("YAML error: {0}")]
     Yaml(#[from] serde_yaml::Error),
 
     #[error("JSON error: {0}")]
     Json(#[from] serde_json::Error),
 
-    #[error("{0}")]
-    Other(String),
+    #[error("Failed to read content config {}: {source}", path.display())]
+    ContentConfigRead {
+        path: PathBuf,
+        #[source]
+        source: std::io::Error,
+    },
+
+    #[error("Failed to parse content config {}: {source}", path.display())]
+    ContentConfigParse {
+        path: PathBuf,
+        #[source]
+        source: serde_yaml::Error,
+    },
+
+    #[error("Failed to load web config: {0}")]
+    WebConfig(#[from] systemprompt_models::WebConfigError),
+
+    #[error("Failed to load global config: {0}")]
+    GlobalConfig(#[from] systemprompt_models::errors::ConfigError),
+
+    #[error("{context}: {source}")]
+    Content {
+        context: String,
+        #[source]
+        source: systemprompt_content::ContentError,
+    },
+
+    #[error("Template registry error: {0}")]
+    Template(#[from] systemprompt_templates::TemplateError),
+
+    #[error("Extension discovery failed: {0}")]
+    ExtensionDiscovery(#[from] systemprompt_extension::LoaderError),
 }
 
 pub type GeneratorResult<T> = Result<T, PublishError>;
@@ -150,8 +187,21 @@ impl PublishError {
         }
     }
 
-    pub fn other(cause: impl std::fmt::Display) -> Self {
-        Self::Other(cause.to_string())
+    pub fn io_context(context: impl Into<String>, source: std::io::Error) -> Self {
+        Self::IoContext {
+            context: context.into(),
+            source,
+        }
+    }
+
+    pub fn content(
+        context: impl Into<String>,
+        source: impl Into<systemprompt_content::ContentError>,
+    ) -> Self {
+        Self::Content {
+            context: context.into(),
+            source: source.into(),
+        }
     }
 
     pub fn location(&self) -> Option<String> {

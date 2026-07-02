@@ -44,15 +44,19 @@ pub(super) async fn load_prerender_context(
 ) -> GeneratorResult<PrerenderContext> {
     let config_path = paths.system().content_config();
 
-    let yaml_content = fs::read_to_string(&config_path)
-        .await
-        .map_err(|e| PublishError::other(format!("Failed to read content config: {e}")))?;
-    let config: ContentConfigRaw = serde_yaml::from_str(&yaml_content)
-        .map_err(|e| PublishError::other(format!("Failed to parse content config: {e}")))?;
+    let yaml_content = fs::read_to_string(&config_path).await.map_err(|source| {
+        PublishError::ContentConfigRead {
+            path: config_path.to_path_buf(),
+            source,
+        }
+    })?;
+    let config: ContentConfigRaw =
+        serde_yaml::from_str(&yaml_content).map_err(|source| PublishError::ContentConfigParse {
+            path: config_path.to_path_buf(),
+            source,
+        })?;
 
-    let web_config = load_web_config(paths)
-        .await
-        .map_err(|e| PublishError::other(format!("Failed to load web config: {e}")))?;
+    let web_config = load_web_config(paths).await?;
 
     tracing::debug!(config_path = %config_path.display(), "Loaded config");
 
@@ -70,10 +74,7 @@ pub(super) async fn load_prerender_context(
 
     content_data_providers.sort_by_key(|p| p.priority());
 
-    let template_registry = registry_builder
-        .build_and_init()
-        .await
-        .map_err(|e| PublishError::other(format!("Failed to initialize template registry: {e}")))?;
+    let template_registry = registry_builder.build_and_init().await?;
 
     let dist_dir = paths.web().dist().to_path_buf();
 
@@ -94,8 +95,7 @@ async fn base_registry_builder(
         extension_template_path,
         CoreTemplateProvider::EXTENSION_PRIORITY,
     )
-    .await
-    .map_err(|e| PublishError::other(format!("Failed to discover extension templates: {e}")))?;
+    .await?;
 
     let extension_provider: DynTemplateProvider = Arc::new(extension_provider);
     let embedded_defaults: DynTemplateProvider = Arc::new(EmbeddedDefaultsProvider);
@@ -110,7 +110,7 @@ async fn base_registry_builder(
 fn register_extensions(
     mut registry_builder: TemplateRegistryBuilder,
 ) -> GeneratorResult<(TemplateRegistryBuilder, Vec<Arc<dyn ContentDataProvider>>)> {
-    let extensions = ExtensionRegistry::discover().map_err(PublishError::other)?;
+    let extensions = ExtensionRegistry::discover()?;
     tracing::debug!(
         extension_count = extensions.extensions().len(),
         "Discovered extensions for prerender context"

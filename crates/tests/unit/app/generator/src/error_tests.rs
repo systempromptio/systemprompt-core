@@ -164,9 +164,10 @@ fn page_prerenderer_failed_helper() {
 }
 
 #[test]
-fn other_from_display() {
-    let err = PublishError::other(42);
-    assert_eq!(err.to_string(), "42");
+fn io_context_helper() {
+    let io_err = std::io::Error::new(std::io::ErrorKind::NotFound, "gone");
+    let err = PublishError::io_context("Failed to copy style.css", io_err);
+    assert_eq!(err.to_string(), "Failed to copy style.css: gone");
 }
 
 #[test]

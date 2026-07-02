@@ -43,7 +43,7 @@ pub async fn generate_feed(db_pool: DbPool, paths: &AppPaths) -> Result<()> {
 pub async fn generate_feed_with_providers(
     providers: &[Arc<dyn RssFeedProvider>],
 ) -> Result<Vec<GeneratedFeed>> {
-    let global_config = Config::get().map_err(PublishError::other)?;
+    let global_config = Config::get()?;
     let base_url = &global_config.api_external_url;
 
     let mut feeds = Vec::new();

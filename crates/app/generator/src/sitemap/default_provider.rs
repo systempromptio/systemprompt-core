@@ -33,12 +33,17 @@ impl DefaultSitemapProvider {
 pub(super) async fn load_content_config(paths: &AppPaths) -> GeneratorResult<ContentConfigRaw> {
     let config_path = paths.system().content_config();
 
-    let yaml_content = fs::read_to_string(&config_path)
-        .await
-        .map_err(|e| PublishError::other(format!("Failed to read content config: {e}")))?;
+    let yaml_content = fs::read_to_string(&config_path).await.map_err(|source| {
+        PublishError::ContentConfigRead {
+            path: config_path.to_path_buf(),
+            source,
+        }
+    })?;
 
-    serde_yaml::from_str(&yaml_content)
-        .map_err(|e| PublishError::other(format!("Failed to parse content config: {e}")))
+    serde_yaml::from_str(&yaml_content).map_err(|source| PublishError::ContentConfigParse {
+        path: config_path.to_path_buf(),
+        source,
+    })
 }
 
 #[async_trait]

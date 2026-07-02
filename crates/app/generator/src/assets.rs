@@ -17,7 +17,7 @@ async fn organize_assets_by_extension(dist_dir: &Path, ext: &str) -> GeneratorRe
     let target_dir = dist_dir.join(ext);
     fs::create_dir_all(&target_dir)
         .await
-        .map_err(|e| PublishError::other(format!("Failed to create {ext} directory: {e}")))?;
+        .map_err(|e| PublishError::io_context(format!("Failed to create {ext} directory"), e))?;
     copy_files_by_extension(dist_dir, &target_dir, ext).await
 }
 
@@ -29,12 +29,12 @@ async fn copy_files_by_extension(
     let mut copied = 0;
     let mut entries = fs::read_dir(source_dir)
         .await
-        .map_err(|e| PublishError::other(format!("Failed to read source directory: {e}")))?;
+        .map_err(|e| PublishError::io_context("Failed to read source directory", e))?;
 
     while let Some(entry) = entries
         .next_entry()
         .await
-        .map_err(|e| PublishError::other(format!("Failed to read entry: {e}")))?
+        .map_err(|e| PublishError::io_context("Failed to read entry", e))?
     {
         let path = entry.path();
         let matches_ext = path.extension().is_some_and(|e| e == ext);
@@ -42,7 +42,7 @@ async fn copy_files_by_extension(
         if matches_ext && let Some(file_name) = path.file_name() {
             let dest = dest_dir.join(file_name);
             fs::copy(&path, &dest).await.map_err(|e| {
-                PublishError::other(format!("Failed to copy {}: {e}", file_name.display()))
+                PublishError::io_context(format!("Failed to copy {}", file_name.display()), e)
             })?;
             copied += 1;
         }

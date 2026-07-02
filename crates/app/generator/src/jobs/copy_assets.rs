@@ -14,7 +14,7 @@ pub async fn execute_copy_extension_assets(paths: &AppPaths) -> Result<JobResult
 
     tracing::info!("Copy extension assets job started");
 
-    let registry = ExtensionRegistry::discover().map_err(PublishError::other)?;
+    let registry = ExtensionRegistry::discover()?;
     let assets = registry.all_required_assets(paths);
 
     if assets.is_empty() {
@@ -67,21 +67,24 @@ async fn copy_asset(dist_dir: &Path, ext_id: &str, asset: &AssetDefinition) -> R
 
     if let Some(parent) = dest_path.parent() {
         tokio::fs::create_dir_all(parent).await.map_err(|e| {
-            PublishError::other(format!(
-                "Failed to create directory {}: {e}",
-                parent.display()
-            ))
+            PublishError::io_context(
+                format!("Failed to create directory {}", parent.display()),
+                e,
+            )
         })?;
     }
 
     tokio::fs::copy(asset.source(), &dest_path)
         .await
         .map_err(|e| {
-            PublishError::other(format!(
-                "Failed to copy asset from {} to {}: {e}",
-                asset.source().display(),
-                dest_path.display()
-            ))
+            PublishError::io_context(
+                format!(
+                    "Failed to copy asset from {} to {}",
+                    asset.source().display(),
+                    dest_path.display()
+                ),
+                e,
+            )
         })?;
 
     tracing::debug!(

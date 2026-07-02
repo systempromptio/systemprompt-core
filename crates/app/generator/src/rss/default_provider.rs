@@ -37,9 +37,7 @@ impl std::fmt::Debug for DefaultRssFeedProvider {
 impl DefaultRssFeedProvider {
     pub async fn new(db_pool: DbPool, paths: &AppPaths) -> GeneratorResult<Self> {
         let content_config = load_content_config(paths).await?;
-        let web_config = load_web_config(paths)
-            .await
-            .map_err(|e| PublishError::other(format!("Failed to load web config: {e}")))?;
+        let web_config = load_web_config(paths).await?;
 
         Ok(Self {
             db_pool,
@@ -77,12 +75,17 @@ impl DefaultRssFeedProvider {
 pub(super) async fn load_content_config(paths: &AppPaths) -> GeneratorResult<ContentConfigRaw> {
     let config_path = paths.system().content_config();
 
-    let yaml_content = fs::read_to_string(&config_path)
-        .await
-        .map_err(|e| PublishError::other(format!("Failed to read content config: {e}")))?;
+    let yaml_content = fs::read_to_string(&config_path).await.map_err(|source| {
+        PublishError::ContentConfigRead {
+            path: config_path.to_path_buf(),
+            source,
+        }
+    })?;
 
-    serde_yaml::from_str(&yaml_content)
-        .map_err(|e| PublishError::other(format!("Failed to parse content config: {e}")))
+    serde_yaml::from_str(&yaml_content).map_err(|source| PublishError::ContentConfigParse {
+        path: config_path.to_path_buf(),
+        source,
+    })
 }
 
 #[async_trait]

@@ -120,15 +120,18 @@ fn config_error_location_is_none_by_default() {
 }
 
 #[test]
-fn io_yaml_json_other_have_no_extra_metadata() {
+fn io_yaml_json_have_no_extra_metadata() {
     let io: PublishError = std::io::Error::new(std::io::ErrorKind::NotFound, "x").into();
     assert!(io.location().is_none());
     assert!(io.suggestion_string().is_none());
     assert!(io.cause_string().is_none());
 
-    let other = PublishError::other("misc");
-    assert_eq!(other.to_string(), "misc");
-    assert!(other.cause_string().is_none());
+    let io_ctx = PublishError::io_context(
+        "misc",
+        std::io::Error::new(std::io::ErrorKind::NotFound, "x"),
+    );
+    assert_eq!(io_ctx.to_string(), "misc: x");
+    assert!(io_ctx.cause_string().is_none());
 
     let yaml_err: Result<serde_yaml::Value, _> = serde_yaml::from_str("a:\n  - b\n - c");
     let yaml: PublishError = yaml_err.unwrap_err().into();
