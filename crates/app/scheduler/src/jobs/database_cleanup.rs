@@ -57,31 +57,8 @@ impl Job for DatabaseCleanupJob {
             .map_err(|e| ProviderError::from(SchedulerError::from(e)))?;
         total_deleted += old_logs;
 
-        let oauth_codes = cleanup_repo
-            .delete_expired_oauth_codes()
-            .await
-            .map_err(|e| ProviderError::from(SchedulerError::from(e)))?;
-        let oauth_tokens = cleanup_repo
-            .delete_expired_oauth_tokens()
-            .await
-            .map_err(|e| ProviderError::from(SchedulerError::from(e)))?;
-        let oauth_state_bindings = cleanup_repo
-            .delete_expired_oauth_state_bindings()
-            .await
-            .map_err(|e| ProviderError::from(SchedulerError::from(e)))?;
-        let oauth_jti_revocations = cleanup_repo
-            .delete_expired_oauth_jti_revocations()
-            .await
-            .map_err(|e| ProviderError::from(SchedulerError::from(e)))?;
-        let id_jag_replays = cleanup_repo
-            .delete_expired_id_jag_replays()
-            .await
-            .map_err(|e| ProviderError::from(SchedulerError::from(e)))?;
-        total_deleted += oauth_codes
-            + oauth_tokens
-            + oauth_state_bindings
-            + oauth_jti_revocations
-            + id_jag_replays;
+        let oauth = Self::delete_expired_oauth(&cleanup_repo).await?;
+        total_deleted += oauth.total();
 
         let duration_ms = start_time.elapsed().as_millis() as u64;
 
@@ -90,11 +67,11 @@ impl Job for DatabaseCleanupJob {
             orphaned_logs = orphaned_logs,
             orphaned_mcp = orphaned_mcp,
             old_logs = old_logs,
-            oauth_codes = oauth_codes,
-            oauth_tokens = oauth_tokens,
-            oauth_state_bindings = oauth_state_bindings,
-            oauth_jti_revocations = oauth_jti_revocations,
-            id_jag_replays = id_jag_replays,
+            oauth_codes = oauth.codes,
+            oauth_tokens = oauth.tokens,
+            oauth_state_bindings = oauth.state_bindings,
+            oauth_jti_revocations = oauth.jti_revocations,
+            id_jag_replays = oauth.id_jag_replays,
             duration_ms = duration_ms,
             "Job completed"
         );
@@ -102,6 +79,55 @@ impl Job for DatabaseCleanupJob {
         Ok(JobResult::success()
             .with_stats(total_deleted, 0)
             .with_duration(duration_ms))
+    }
+}
+
+struct OauthCleanupCounts {
+    codes: u64,
+    tokens: u64,
+    state_bindings: u64,
+    jti_revocations: u64,
+    id_jag_replays: u64,
+}
+
+impl OauthCleanupCounts {
+    fn total(&self) -> u64 {
+        self.codes + self.tokens + self.state_bindings + self.jti_revocations + self.id_jag_replays
+    }
+}
+
+impl DatabaseCleanupJob {
+    async fn delete_expired_oauth(
+        cleanup_repo: &CleanupRepository,
+    ) -> ProviderResult<OauthCleanupCounts> {
+        let codes = cleanup_repo
+            .delete_expired_oauth_codes()
+            .await
+            .map_err(|e| ProviderError::from(SchedulerError::from(e)))?;
+        let tokens = cleanup_repo
+            .delete_expired_oauth_tokens()
+            .await
+            .map_err(|e| ProviderError::from(SchedulerError::from(e)))?;
+        let state_bindings = cleanup_repo
+            .delete_expired_oauth_state_bindings()
+            .await
+            .map_err(|e| ProviderError::from(SchedulerError::from(e)))?;
+        let jti_revocations = cleanup_repo
+            .delete_expired_oauth_jti_revocations()
+            .await
+            .map_err(|e| ProviderError::from(SchedulerError::from(e)))?;
+        let id_jag_replays = cleanup_repo
+            .delete_expired_id_jag_replays()
+            .await
+            .map_err(|e| ProviderError::from(SchedulerError::from(e)))?;
+
+        Ok(OauthCleanupCounts {
+            codes,
+            tokens,
+            state_bindings,
+            jti_revocations,
+            id_jag_replays,
+        })
     }
 }
 
