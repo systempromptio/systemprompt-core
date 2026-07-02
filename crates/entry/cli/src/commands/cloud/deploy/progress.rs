@@ -18,20 +18,20 @@ use systemprompt_sync::{
 use crate::cli_settings::CliConfig;
 use crate::interactive::confirm_optional;
 
-pub(in crate::commands::cloud) struct CliDeployProgress<'a> {
+pub struct CliDeployProgress<'a> {
     config: Option<&'a CliConfig>,
     spinner: Mutex<Option<ProgressBar>>,
 }
 
 impl<'a> CliDeployProgress<'a> {
-    pub(in crate::commands::cloud) const fn new(config: &'a CliConfig) -> Self {
+    pub const fn new(config: &'a CliConfig) -> Self {
         Self {
             config: Some(config),
             spinner: Mutex::new(None),
         }
     }
 
-    pub(in crate::commands::cloud) const fn non_interactive() -> Self {
+    pub const fn non_interactive() -> Self {
         Self {
             config: None,
             spinner: Mutex::new(None),
@@ -82,7 +82,7 @@ impl DeployProgress for CliDeployProgress<'_> {
     }
 }
 
-const fn spinner_message(event: &DeployEvent<'_>) -> Option<&'static str> {
+pub const fn spinner_message(event: &DeployEvent<'_>) -> Option<&'static str> {
     match event {
         DeployEvent::SyncDryRunStarted => Some("Syncing files from cloud..."),
         DeployEvent::SyncDownloadStarted => Some("Downloading files from cloud..."),

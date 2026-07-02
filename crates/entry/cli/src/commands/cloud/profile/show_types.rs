@@ -215,7 +215,7 @@ pub(in crate::commands::cloud) fn build_env_config(
     }
 }
 
-fn redact_database_url(url: &str) -> String {
+pub fn redact_database_url(url: &str) -> String {
     let Some(at_pos) = url.find('@') else {
         return url.to_owned();
     };

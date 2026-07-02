@@ -9,7 +9,7 @@ use systemprompt_logging::CliService;
 
 use super::config::{SHARED_ADMIN_USER, SHARED_CONTAINER_NAME};
 
-fn sanitize_database_name(name: &str) -> String {
+pub fn sanitize_database_name(name: &str) -> String {
     name.chars()
         .map(|c| {
             if c.is_ascii_alphanumeric() || c == '_' {
@@ -21,7 +21,8 @@ fn sanitize_database_name(name: &str) -> String {
         .collect()
 }
 
-pub(in crate::commands::cloud::tenant) fn create_database_for_tenant(
+pub fn create_database_for_tenant(
+    docker: &DockerCli,
     admin_password: &str,
     port: u16,
     db_name: &str,
@@ -37,7 +38,7 @@ pub(in crate::commands::cloud::tenant) fn create_database_for_tenant(
         "SELECT 1 FROM pg_database WHERE datname = '{}'",
         safe_db_name
     );
-    let check_output = DockerCli::new()
+    let check_output = docker
         .output(&[
             "exec",
             SHARED_CONTAINER_NAME,
@@ -63,7 +64,7 @@ pub(in crate::commands::cloud::tenant) fn create_database_for_tenant(
     }
 
     let create_query = format!("CREATE DATABASE \"{}\"", safe_db_name);
-    let status = DockerCli::new()
+    let status = docker
         .status(&[
             "exec",
             SHARED_CONTAINER_NAME,
@@ -86,7 +87,8 @@ pub(in crate::commands::cloud::tenant) fn create_database_for_tenant(
     Ok(())
 }
 
-pub(in crate::commands::cloud::tenant) fn drop_database_for_tenant(
+pub fn drop_database_for_tenant(
+    docker: &DockerCli,
     admin_password: &str,
     port: u16,
     db_name: &str,
@@ -103,7 +105,7 @@ pub(in crate::commands::cloud::tenant) fn drop_database_for_tenant(
          pg_backend_pid()",
         safe_db_name
     );
-    if let Err(e) = DockerCli::new().status(&[
+    if let Err(e) = docker.status(&[
         "exec",
         SHARED_CONTAINER_NAME,
         "psql",
@@ -119,7 +121,7 @@ pub(in crate::commands::cloud::tenant) fn drop_database_for_tenant(
     }
 
     let drop_query = format!("DROP DATABASE IF EXISTS \"{}\"", safe_db_name);
-    let status = DockerCli::new()
+    let status = docker
         .status(&[
             "exec",
             SHARED_CONTAINER_NAME,
@@ -142,12 +144,13 @@ pub(in crate::commands::cloud::tenant) fn drop_database_for_tenant(
     Ok(())
 }
 
-pub(in crate::commands::cloud::tenant) fn ensure_admin_role(admin_password: &str) -> Result<()> {
+pub fn ensure_admin_role(docker: &DockerCli, admin_password: &str) -> Result<()> {
     let role_check_query = format!(
         "SELECT 1 FROM pg_roles WHERE rolname = '{}'",
         SHARED_ADMIN_USER
     );
-    let role_exists = !admin_psql_capture(&role_check_query, "checking admin role")?.is_empty();
+    let role_exists =
+        !admin_psql_capture(docker, &role_check_query, "checking admin role")?.is_empty();
 
     if role_exists {
         let alter_password_sql = format!(
@@ -155,7 +158,7 @@ pub(in crate::commands::cloud::tenant) fn ensure_admin_role(admin_password: &str
             SHARED_ADMIN_USER,
             admin_password.replace('\'', "''")
         );
-        if !admin_psql_execute(&alter_password_sql, "updating admin role password")? {
+        if !admin_psql_execute(docker, &alter_password_sql, "updating admin role password")? {
             bail!("Failed to update password for role '{}'", SHARED_ADMIN_USER);
         }
 
@@ -167,7 +170,7 @@ pub(in crate::commands::cloud::tenant) fn ensure_admin_role(admin_password: &str
         SHARED_ADMIN_USER,
         admin_password.replace('\'', "''")
     );
-    if !admin_psql_execute(&create_role_sql, "creating admin role")? {
+    if !admin_psql_execute(docker, &create_role_sql, "creating admin role")? {
         bail!("Failed to create role '{}'", SHARED_ADMIN_USER);
     }
 
@@ -175,8 +178,8 @@ pub(in crate::commands::cloud::tenant) fn ensure_admin_role(admin_password: &str
     Ok(())
 }
 
-fn admin_psql_capture(sql: &str, action: &str) -> Result<String> {
-    let output = DockerCli::new()
+fn admin_psql_capture(docker: &DockerCli, sql: &str, action: &str) -> Result<String> {
+    let output = docker
         .output(&[
             "exec",
             SHARED_CONTAINER_NAME,
@@ -195,8 +198,8 @@ fn admin_psql_capture(sql: &str, action: &str) -> Result<String> {
     Ok(String::from_utf8_lossy(&output.stdout).trim().to_owned())
 }
 
-fn admin_psql_execute(sql: &str, action: &str) -> Result<bool> {
-    let status = DockerCli::new()
+fn admin_psql_execute(docker: &DockerCli, sql: &str, action: &str) -> Result<bool> {
+    let status = docker
         .status(&[
             "exec",
             SHARED_CONTAINER_NAME,

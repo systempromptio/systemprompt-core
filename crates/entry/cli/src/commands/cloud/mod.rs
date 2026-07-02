@@ -6,13 +6,13 @@
 
 pub mod auth;
 pub mod db;
-mod deploy;
+pub mod deploy;
 pub mod doctor;
 mod domain;
-mod init;
+pub mod init;
 pub mod profile;
 mod restart;
-mod secrets;
+pub mod secrets;
 mod status;
 pub mod sync;
 pub mod templates;

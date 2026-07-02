@@ -3,7 +3,7 @@
 //! Each function returns the body of one generated service config, web
 //! template, or starter content file written by [`super::scaffolding`].
 
-pub(super) fn root_config() -> String {
+pub fn root_config() -> String {
     r#"# systemprompt.io Services Configuration
 settings:
   agent_port_range: [3100, 3199]
@@ -15,7 +15,7 @@ settings:
     .to_owned()
 }
 
-pub(super) fn agent_config(project_name: &str) -> String {
+pub fn agent_config(project_name: &str) -> String {
     format!(
         r#"# Assistant Agent Configuration
 endpoint: assistant
@@ -40,7 +40,7 @@ prompt:
     )
 }
 
-pub(super) fn admin_agent_config() -> String {
+pub fn admin_agent_config() -> String {
     r#"# Admin Agent Configuration
 endpoint: admin
 port: 3101
@@ -64,7 +64,7 @@ prompt:
     .to_owned()
 }
 
-pub(super) fn admin_mcp_config() -> String {
+pub fn admin_mcp_config() -> String {
     r#"# systemprompt.io Admin MCP Server
 endpoint: systemprompt-admin
 port: 3200
@@ -80,7 +80,7 @@ oauth:
     .to_owned()
 }
 
-pub(in crate::commands::cloud) fn ai_config(default_provider: &str) -> String {
+pub fn ai_config(default_provider: &str) -> String {
     let seed = systemprompt_models::profile::ProviderRegistry::default_seed().ok();
     let default_model = |provider: &str| -> String {
         seed.as_ref()
@@ -113,7 +113,7 @@ providers:
     )
 }
 
-pub(super) fn content_config() -> String {
+pub fn content_config() -> String {
     r#"# Content Configuration
 # Define content sources for your project
 # Example:
@@ -130,14 +130,14 @@ content_sources: {}
     .to_owned()
 }
 
-pub(super) fn web_config(project_name: &str) -> String {
+pub fn web_config(project_name: &str) -> String {
     format!(
         "# Web Configuration\nbranding:\n  site_name: \"{}\"\n  primary_color: \"#3b82f6\"\n",
         project_name
     )
 }
 
-pub(super) fn web_metadata(project_name: &str) -> String {
+pub fn web_metadata(project_name: &str) -> String {
     format!(
         r#"# Web Metadata
 site:
@@ -148,7 +148,7 @@ site:
     )
 }
 
-pub(super) fn scheduler_config() -> String {
+pub fn scheduler_config() -> String {
     r"# Scheduler Configuration
 enabled: false
 jobs: []
@@ -156,7 +156,7 @@ jobs: []
     .to_owned()
 }
 
-pub(super) fn page_template() -> String {
+pub fn page_template() -> String {
     r"<!DOCTYPE html>
 <html>
 <head>
@@ -170,7 +170,7 @@ pub(super) fn page_template() -> String {
     .to_owned()
 }
 
-pub(super) fn blog_post_template() -> String {
+pub fn blog_post_template() -> String {
     r"<!DOCTYPE html>
 <html>
 <head>
@@ -188,7 +188,7 @@ pub(super) fn blog_post_template() -> String {
     .to_owned()
 }
 
-pub(super) fn blog_list_template() -> String {
+pub fn blog_list_template() -> String {
     r#"<!DOCTYPE html>
 <html>
 <head>
@@ -207,7 +207,7 @@ pub(super) fn blog_list_template() -> String {
     .to_owned()
 }
 
-pub(super) fn page_list_template() -> String {
+pub fn page_list_template() -> String {
     r#"<!DOCTYPE html>
 <html>
 <head>
@@ -226,7 +226,7 @@ pub(super) fn page_list_template() -> String {
     .to_owned()
 }
 
-pub(super) fn welcome_blog_post(project_name: &str) -> String {
+pub fn welcome_blog_post(project_name: &str) -> String {
     format!(
         r"---
 title: Welcome to {}
@@ -242,7 +242,7 @@ This is your first blog post. Edit or delete this file to get started.
     )
 }
 
-pub(super) fn privacy_policy(project_name: &str) -> String {
+pub fn privacy_policy(project_name: &str) -> String {
     format!(
         r"---
 title: Privacy Policy
@@ -256,7 +256,7 @@ This is a placeholder privacy policy for {}.
     )
 }
 
-pub(super) fn cookie_policy(project_name: &str) -> String {
+pub fn cookie_policy(project_name: &str) -> String {
     format!(
         r"---
 title: Cookie Policy

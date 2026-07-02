@@ -51,7 +51,7 @@ pub(super) fn validate_build_ready() -> Result<BuildValidationResult> {
     Ok(BuildValidationResult { required_secrets })
 }
 
-fn validate_ai_config(services_config: &ServicesConfig) -> Result<Vec<String>> {
+pub fn validate_ai_config(services_config: &ServicesConfig) -> Result<Vec<String>> {
     let ai = &services_config.ai;
     let mut required_secrets = vec![];
 
