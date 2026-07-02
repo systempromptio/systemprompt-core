@@ -30,12 +30,12 @@ use tokio::sync::{Mutex, MutexGuard, OnceCell};
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
-const FAR_FUTURE_JWT: &str = "e30.eyJleHAiOjk5OTk5OTk5OTl9.sig";
-const TENANT_ID: &str = "t-harness";
-const OTHER_TENANT_ID: &str = "t-other";
-const USER_EMAIL: &str = "harness@example.com";
+pub(super) const FAR_FUTURE_JWT: &str = "e30.eyJleHAiOjk5OTk5OTk5OTl9.sig";
+pub(super) const TENANT_ID: &str = "t-harness";
+pub(super) const OTHER_TENANT_ID: &str = "t-other";
+pub(super) const USER_EMAIL: &str = "harness@example.com";
 
-struct Harness {
+pub(super) struct Harness {
     _tmp: TempDir,
     root: PathBuf,
     server: MockServer,
@@ -137,7 +137,7 @@ fn write_credentials(root: &Path, api_url: &str) {
     .expect("write credentials.json");
 }
 
-fn seed_tenants(root: &Path) {
+pub(super) fn seed_tenants(root: &Path) {
     let cloud = StoredTenant::new_cloud(NewCloudTenantParams {
         id: TENANT_ID.to_owned(),
         name: "Harness Prod".to_owned(),
@@ -259,19 +259,33 @@ governance:
     )
 }
 
-struct Env {
+mod db_cmds;
+mod doctor_deploy;
+mod domain_cmds;
+mod init_cmds;
+mod profile_cmds;
+mod sync_cmds;
+mod tenant_flows;
+
+pub(super) struct Env {
     _guard: MutexGuard<'static, ()>,
     prev_cwd: Option<PathBuf>,
     harness: &'static Harness,
 }
 
 impl Env {
-    fn server(&self) -> &'static MockServer {
+    pub(super) fn server(&self) -> &'static MockServer {
         &self.harness.server
     }
 
-    fn profile_ready(&self) -> bool {
+    pub(super) fn profile_ready(&self) -> bool {
         self.harness.profile_ready
+    }
+}
+
+impl Env {
+    pub(super) fn root(&self) -> &Path {
+        &self.harness.root
     }
 }
 
@@ -283,7 +297,7 @@ impl Drop for Env {
     }
 }
 
-async fn enter() -> Env {
+pub(super) async fn enter() -> Env {
     let guard = LOCK.lock().await;
     let harness = harness().await;
     let prev_cwd = std::env::current_dir().ok();
@@ -332,7 +346,7 @@ async fn mount_token_exchange(server: &MockServer) {
         .await;
 }
 
-async fn mount_list_tenants(server: &MockServer) {
+pub(super) async fn mount_list_tenants(server: &MockServer) {
     Mock::given(method("GET"))
         .and(path("/api/v1/tenants"))
         .respond_with(ResponseTemplate::new(200).set_body_json(json!({
@@ -342,18 +356,29 @@ async fn mount_list_tenants(server: &MockServer) {
         .await;
 }
 
-fn ctx(format: OutputFormat) -> CommandContext {
+pub(super) fn ctx(format: OutputFormat) -> CommandContext {
     let cli = CliConfig::default()
         .with_output_format(format)
         .with_interactive(false);
     CommandContext::new(cli, EnvOverrides::default())
 }
 
-fn json_ctx() -> CommandContext {
+pub(super) fn json_ctx() -> CommandContext {
     ctx(OutputFormat::Json)
 }
 
-fn table_ctx() -> CommandContext {
+pub(super) fn interactive_ctx(
+    answers: impl IntoIterator<Item = impl Into<String>>,
+) -> CommandContext {
+    let cli = CliConfig::default()
+        .with_output_format(OutputFormat::Table)
+        .with_interactive(true)
+        .with_assume_terminal(true);
+    CommandContext::new(cli, EnvOverrides::default())
+        .with_prompter(Box::new(systemprompt_cli::ScriptedPrompter::new(answers)))
+}
+
+pub(super) fn table_ctx() -> CommandContext {
     ctx(OutputFormat::Table)
 }
 

@@ -21,6 +21,7 @@ systemprompt-users = { workspace = true }
 systemprompt-security = { workspace = true }
 systemprompt-cloud = { workspace = true }
 systemprompt-config = { workspace = true }
+systemprompt-loader = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 systemprompt-models = { workspace = true }
 systemprompt-test-fixtures = { workspace = true }

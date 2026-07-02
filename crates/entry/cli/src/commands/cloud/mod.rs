@@ -8,7 +8,7 @@ pub mod auth;
 pub mod db;
 pub mod deploy;
 pub mod doctor;
-mod domain;
+pub mod domain;
 pub mod init;
 pub mod profile;
 mod restart;

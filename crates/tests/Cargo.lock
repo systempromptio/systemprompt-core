@@ -7281,6 +7281,7 @@ dependencies = [
  "systemprompt-config",
  "systemprompt-database",
  "systemprompt-identifiers",
+ "systemprompt-loader",
  "systemprompt-models",
  "systemprompt-security",
  "systemprompt-test-fixtures",

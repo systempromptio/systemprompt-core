@@ -51,6 +51,7 @@ pub struct CliConfig {
     pub verbosity: VerbosityLevel,
     pub color_mode: ColorMode,
     pub interactive: bool,
+    pub assume_terminal: bool,
     pub profile_override: Option<String>,
 }
 
@@ -61,6 +62,7 @@ impl Default for CliConfig {
             verbosity: VerbosityLevel::Normal,
             color_mode: ColorMode::Auto,
             interactive: true,
+            assume_terminal: false,
             profile_override: None,
         }
     }
@@ -96,6 +98,17 @@ impl CliConfig {
 
     pub const fn with_interactive(mut self, interactive: bool) -> Self {
         self.interactive = interactive;
+        self
+    }
+
+    /// Treat the session as terminal-attached even when stdio is piped.
+    ///
+    /// Interactive flows are driven through the
+    /// [`crate::interactive::Prompter`] seam in tests, where no TTY exists;
+    /// this bypasses the terminal probe so a scripted prompter can reach
+    /// them.
+    pub const fn with_assume_terminal(mut self, assume: bool) -> Self {
+        self.assume_terminal = assume;
         self
     }
 
@@ -150,7 +163,9 @@ impl CliConfig {
     }
 
     pub fn is_interactive(&self) -> bool {
-        self.interactive && std::io::stdin().is_terminal() && std::io::stdout().is_terminal()
+        self.interactive
+            && (self.assume_terminal
+                || (std::io::stdin().is_terminal() && std::io::stdout().is_terminal()))
     }
 
     pub const fn output_format(&self) -> OutputFormat {
