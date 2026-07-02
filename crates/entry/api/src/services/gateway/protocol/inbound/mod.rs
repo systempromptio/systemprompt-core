@@ -43,6 +43,8 @@ pub trait InboundAdapter: Send + Sync + std::fmt::Debug {
         snapshot: &CanonicalResponse,
         model: &str,
     ) -> Option<Bytes> {
+        // Why: default impl ignores args; wires that need terminal finalization
+        // override this.
         let _ = (event, snapshot, model);
         None
     }

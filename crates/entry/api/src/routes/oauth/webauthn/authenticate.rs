@@ -34,9 +34,8 @@ pub async fn start_auth(
 ) -> Result<Response, OAuthHttpError> {
     let user_provider = Arc::clone(state.user_provider());
 
-    let webauthn_service = WebAuthnRegistry::get_or_create_service(oauth_repo, user_provider)
-        .await
-        .map_err(|e| OAuthHttpError::server_error(format!("Failed to initialize WebAuthn: {e}")))?;
+    let webauthn_service =
+        WebAuthnRegistry::get_or_create_service(oauth_repo, user_provider).await?;
 
     let (challenge, challenge_id) = webauthn_service
         .start_authentication(&params.email, params.oauth_state)
@@ -94,9 +93,8 @@ pub async fn finish_auth(
 ) -> Result<Response, OAuthHttpError> {
     let user_provider = Arc::clone(state.user_provider());
 
-    let webauthn_service = WebAuthnRegistry::get_or_create_service(oauth_repo, user_provider)
-        .await
-        .map_err(|e| OAuthHttpError::server_error(format!("Failed to initialize WebAuthn: {e}")))?;
+    let webauthn_service =
+        WebAuthnRegistry::get_or_create_service(oauth_repo, user_provider).await?;
 
     let (user_id, oauth_state) = webauthn_service
         .finish_authentication(request.challenge_id.as_str(), &request.credential)

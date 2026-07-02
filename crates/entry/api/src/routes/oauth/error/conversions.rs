@@ -2,10 +2,17 @@
 //! variant-to-RFC-code mapping in one place so handlers use `?`.
 
 use systemprompt_config::SecretsBootstrapError;
+use systemprompt_models::errors::ConfigError;
 use systemprompt_oauth::OauthError;
 use systemprompt_traits::auth::AuthProviderError;
 
 use super::{OAuthErrorCode, OAuthHttpError};
+
+impl From<ConfigError> for OAuthHttpError {
+    fn from(err: ConfigError) -> Self {
+        Self::server_error(err.to_string())
+    }
+}
 
 impl From<OauthError> for OAuthHttpError {
     fn from(err: OauthError) -> Self {

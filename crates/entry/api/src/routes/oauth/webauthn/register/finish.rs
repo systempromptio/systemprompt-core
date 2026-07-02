@@ -76,9 +76,8 @@ pub async fn finish_register(
 
     let user_provider = Arc::clone(state.user_provider());
 
-    let webauthn_service = WebAuthnRegistry::get_or_create_service(oauth_repo, user_provider)
-        .await
-        .map_err(|e| OAuthHttpError::server_error(format!("Failed to initialize WebAuthn: {e}")))?;
+    let webauthn_service =
+        WebAuthnRegistry::get_or_create_service(oauth_repo, user_provider).await?;
 
     let mut builder = FinishRegistrationParams::builder(
         request.challenge_id.as_str(),

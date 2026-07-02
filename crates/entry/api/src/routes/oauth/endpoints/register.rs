@@ -35,10 +35,7 @@ pub async fn register_client(
     let client_secret = generate_opaque_token(32);
     let registration_access_token = format!("reg_{}", generate_opaque_token(32));
 
-    let base_url = Config::get()
-        .map_err(|e| OAuthHttpError::server_error(format!("Configuration unavailable: {e}")))?
-        .api_server_url
-        .clone();
+    let base_url = Config::get()?.api_server_url.clone();
     let registration_client_uri = format!("{base_url}/api/v1/core/oauth/register/{client_id}");
 
     let client_secret_hash = hash(&client_secret, 12)
