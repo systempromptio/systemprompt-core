@@ -197,11 +197,34 @@ fn bootstrap_system_admin(fixture: &FullBootstrap) {
     c.arg("--non-interactive");
     c.arg("--no-color");
     c.arg("--profile").arg(&fixture.profile_path);
-    c.args(["admin", "bootstrap"]);
+    c.args(["admin", "bootstrap", "--email", "testadmin@example.com"]);
     c.timeout(std::time::Duration::from_secs(120));
     // A concurrent test process may have created the admin already; either
     // exit status leaves the row in place, which is all the boot path needs.
     let _ = c.assert();
+    normalize_admin_email();
+}
+
+/// A pre-existing `testadmin` row keeps its original email through bootstrap;
+/// session-token generation rejects dot-less domains, so repair it in place.
+fn normalize_admin_email() {
+    let Some(url) = database_url() else { return };
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .expect("build email-normalize runtime");
+    runtime.block_on(async {
+        let pool = sqlx::PgPool::connect(&url)
+            .await
+            .expect("connect to test database");
+        sqlx::query(
+            "UPDATE users SET email = 'testadmin@example.com'
+             WHERE name = 'testadmin' AND email NOT LIKE '%.%'",
+        )
+        .execute(&pool)
+        .await
+        .expect("normalize admin email");
+    });
 }
 
 pub fn rewrite_services_config(fixture: &FullBootstrap, mcp_port: u16) {
