@@ -91,7 +91,7 @@ struct OauthCleanupCounts {
 }
 
 impl OauthCleanupCounts {
-    fn total(&self) -> u64 {
+    const fn total(&self) -> u64 {
         self.codes + self.tokens + self.state_bindings + self.jti_revocations + self.id_jag_replays
     }
 }
