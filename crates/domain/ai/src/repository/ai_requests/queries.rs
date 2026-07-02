@@ -37,7 +37,7 @@ impl AiRequestRepository {
         .map_err(RepositoryError::from)
     }
 
-    pub async fn get_provider_usage(
+    pub async fn list_provider_usage(
         &self,
         days: i32,
     ) -> Result<Vec<ProviderUsage>, RepositoryError> {

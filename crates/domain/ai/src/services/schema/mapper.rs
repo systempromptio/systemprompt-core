@@ -1,3 +1,10 @@
+//! Maps transformed tool schemas back onto their original identities.
+//!
+//! When a schema is rewritten for a provider (renaming or splitting tools into
+//! variants), this module records the original-name to variant-name mapping so
+//! tool calls returned by the model can be resolved back to the caller's
+//! declared tool.
+
 use super::transformer::TransformedTool;
 use serde_json::Value;
 use std::collections::HashMap;
@@ -54,7 +61,7 @@ impl ToolNameMapper {
         }
     }
 
-    pub fn get_variants(&self, original_name: &str) -> Option<&Vec<String>> {
+    pub fn find_variants(&self, original_name: &str) -> Option<&Vec<String>> {
         self.reverse_map.get(original_name)
     }
 

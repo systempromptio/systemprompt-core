@@ -8,10 +8,9 @@ use crate::services::storage::{ImageStorage, StorageConfig};
 use std::collections::HashMap;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::UserId;
+use systemprompt_identifiers::{TraceId, UserId};
 use systemprompt_traits::{AiGeneratedFile, DynAiFilePersistenceProvider};
 use tracing::error;
-use uuid::Uuid;
 
 use super::image_persistence;
 
@@ -81,7 +80,7 @@ impl ImageService {
         self.default_provider = Some(provider_name);
     }
 
-    pub fn get_provider(&self, name: &str) -> Option<&BoxedImageProvider> {
+    pub fn find_provider(&self, name: &str) -> Option<&BoxedImageProvider> {
         self.providers.get(name)
     }
 
@@ -93,14 +92,14 @@ impl ImageService {
         self.default_provider.as_deref()
     }
 
-    pub fn get_default_provider(&self) -> Option<&BoxedImageProvider> {
+    pub fn find_default_provider(&self) -> Option<&BoxedImageProvider> {
         self.default_provider
             .as_ref()
             .and_then(|name| self.providers.get(name))
     }
 
     pub fn default_provider_capabilities(&self) -> Option<ImageProviderCapabilities> {
-        self.get_default_provider().map(|p| p.capabilities())
+        self.find_default_provider().map(|p| p.capabilities())
     }
 
     pub async fn generate_image(
@@ -126,7 +125,7 @@ impl ImageService {
                 })?;
 
         if request.trace_id.is_none() {
-            request.trace_id = Some(Uuid::new_v4().to_string());
+            request.trace_id = Some(TraceId::generate());
         }
 
         let generation_result = provider.generate_image(&request).await;
@@ -194,8 +193,8 @@ impl ImageService {
         Ok(responses)
     }
 
-    pub async fn get_generated_image(&self, uuid: &str) -> Result<Option<AiGeneratedFile>> {
-        image_persistence::get_generated_image(self.file_provider.as_ref(), uuid).await
+    pub async fn find_generated_image(&self, uuid: &str) -> Result<Option<AiGeneratedFile>> {
+        image_persistence::find_generated_image(self.file_provider.as_ref(), uuid).await
     }
 
     pub async fn list_user_images(

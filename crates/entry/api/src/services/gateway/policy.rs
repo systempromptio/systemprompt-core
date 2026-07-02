@@ -57,7 +57,7 @@ impl PolicyResolver {
             return entry.spec.clone();
         }
 
-        let rows = match self.repo.find_for_global().await {
+        let rows = match self.repo.list_for_global().await {
             Ok(r) => r,
             Err(e) => {
                 tracing::warn!(error = %e, "policy resolve DB error — falling back to permissive");

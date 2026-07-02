@@ -4,7 +4,7 @@ use systemprompt_ai::models::image_generation::{
     AspectRatio, GeneratedImageRecord, ImageGenerationRequest, ImageGenerationResponse,
     ImageResolution, NewImageGenerationResponse, ReferenceImage,
 };
-use systemprompt_identifiers::SessionId;
+use systemprompt_identifiers::{AiRequestId, SessionId, TraceId};
 use systemprompt_test_fixtures::fixture_user_id;
 
 mod image_resolution_tests {
@@ -115,7 +115,7 @@ mod image_generation_request_tests {
             enable_search_grounding: true,
             user_id: fixture_user_id(),
             session_id: Some(SessionId::new("session-456")),
-            trace_id: Some("trace-789".to_string()),
+            trace_id: Some(TraceId::new("trace-789")),
             mcp_execution_id: None,
         };
 
@@ -250,7 +250,7 @@ mod generated_image_record_tests {
     fn create_generated_image_record() {
         let record = GeneratedImageRecord {
             uuid: "uuid-123".to_string(),
-            request_id: "req-456".to_string(),
+            request_id: AiRequestId::new("req-456"),
             prompt: "Test prompt".to_string(),
             model: "test-model".to_string(),
             provider: "test-provider".to_string(),
@@ -271,7 +271,7 @@ mod generated_image_record_tests {
         };
 
         assert_eq!(record.uuid, "uuid-123");
-        assert_eq!(record.request_id, "req-456");
+        assert_eq!(record.request_id.as_str(), "req-456");
         assert_eq!(record.prompt, "Test prompt");
         assert_eq!(record.file_size_bytes, Some(1024));
     }
@@ -283,7 +283,7 @@ mod generated_image_record_tests {
 
         let record = GeneratedImageRecord {
             uuid: "uuid".to_string(),
-            request_id: "req".to_string(),
+            request_id: AiRequestId::new("req"),
             prompt: "prompt".to_string(),
             model: "model".to_string(),
             provider: "provider".to_string(),

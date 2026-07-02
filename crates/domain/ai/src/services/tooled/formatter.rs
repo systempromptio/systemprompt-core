@@ -1,3 +1,9 @@
+//! Formats executed tool-call results into the text fed back to the model.
+//!
+//! Renders MCP [`rmcp::model::CallToolResult`] content into the follow-up
+//! prompt turn, truncating oversized payloads so a single tool result cannot
+//! blow the context budget.
+
 use rmcp::model::{CallToolResult, RawContent};
 use systemprompt_models::ToolCall;
 use systemprompt_models::text::truncate_with_ellipsis;

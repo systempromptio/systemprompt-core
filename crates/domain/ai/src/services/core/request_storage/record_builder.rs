@@ -1,7 +1,7 @@
 use crate::models::ai::{AiRequest, AiResponse, MessageRole};
 use crate::models::{AiRequestRecord, AiRequestRecordBuilder, AiRequestRecordError, RequestStatus};
 use systemprompt_identifiers::{
-    AiRequestId, ContextId, McpExecutionId, SessionId, TaskId, TraceId, UserId,
+    AiRequestId, AiToolCallId, ContextId, McpExecutionId, SessionId, TaskId, TraceId, UserId,
 };
 use systemprompt_models::RequestContext;
 
@@ -12,7 +12,7 @@ pub(super) struct MessageData {
 }
 
 pub(super) struct ToolCallData {
-    pub ai_tool_call_id: String,
+    pub ai_tool_call_id: AiToolCallId,
     pub tool_name: String,
     pub tool_input: String,
     pub sequence: i32,
@@ -139,10 +139,16 @@ pub(super) fn extract_tool_calls(response: &AiResponse) -> Vec<ToolCallData> {
         .iter()
         .enumerate()
         .map(|(i, tool_call)| ToolCallData {
-            ai_tool_call_id: tool_call.ai_tool_call_id.to_string(),
+            ai_tool_call_id: tool_call.ai_tool_call_id.clone(),
             tool_name: tool_call.name.clone(),
-            tool_input: serde_json::to_string(&tool_call.arguments)
-                .unwrap_or_else(|_| "{}".to_owned()),
+            tool_input: serde_json::to_string(&tool_call.arguments).unwrap_or_else(|e| {
+                tracing::warn!(
+                    error = %e,
+                    tool_name = %tool_call.name,
+                    "Failed to serialize tool call arguments; storing empty object"
+                );
+                "{}".to_owned()
+            }),
             sequence: i as i32,
         })
         .collect()

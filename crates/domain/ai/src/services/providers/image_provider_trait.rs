@@ -1,3 +1,13 @@
+//! Image-provider abstraction: the [`ImageProvider`] trait, its declared
+//! [`ImageProviderCapabilities`], and the boxed handle the [`crate::services`]
+//! image service dispatches over.
+//!
+//! Providers are held as `Box<dyn ImageProvider>` so heterogeneous backends
+//! (Gemini, `OpenAI`) can share one registry; the trait is therefore
+//! `#[async_trait]` for `dyn` compatibility. Batch generation has a default
+//! implementation that fans single-image calls out sequentially, which each
+//! provider may override with a native batch endpoint.
+
 use crate::error::Result;
 use crate::models::image_generation::{
     AspectRatio, ImageGenerationRequest, ImageGenerationResponse, ImageResolution,

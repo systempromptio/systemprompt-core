@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use systemprompt_identifiers::{AiRequestId, SessionId, UserId};
+use systemprompt_identifiers::{AiRequestId, McpExecutionId, SessionId, TraceId, UserId};
 use uuid::Uuid;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -69,9 +69,9 @@ pub struct ImageGenerationRequest {
     #[serde(default)]
     pub session_id: Option<SessionId>,
     #[serde(default)]
-    pub trace_id: Option<String>,
+    pub trace_id: Option<TraceId>,
     #[serde(default)]
-    pub mcp_execution_id: Option<String>,
+    pub mcp_execution_id: Option<McpExecutionId>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -133,8 +133,9 @@ impl ImageGenerationResponse {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GeneratedImageRecord {
+    // Why: storage-row primary key, not a domain entity id
     pub uuid: String,
-    pub request_id: String,
+    pub request_id: AiRequestId,
     pub prompt: String,
     pub model: String,
     pub provider: String,
@@ -148,7 +149,7 @@ pub struct GeneratedImageRecord {
     pub cost_estimate: Option<f32>,
     pub user_id: Option<UserId>,
     pub session_id: Option<SessionId>,
-    pub trace_id: Option<String>,
+    pub trace_id: Option<TraceId>,
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub expires_at: Option<chrono::DateTime<chrono::Utc>>,
     pub deleted_at: Option<chrono::DateTime<chrono::Utc>>,

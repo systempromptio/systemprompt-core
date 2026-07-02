@@ -4,7 +4,7 @@
 // decoded bytes to a temp-dir-backed `ImageStorage`, persists an `ai_requests`
 // audit row to the migrated test DB, and records the file via a
 // `AiFilePersistenceProvider`. We use an in-memory file provider so we can
-// assert the persisted rows are queryable through `get_generated_image`,
+// assert the persisted rows are queryable through `find_generated_image`,
 // `list_user_images`, and `delete_image`. The success path needs the real DB
 // (for the audit FK), so each test skips cleanly when DATABASE_URL is unset.
 
@@ -260,7 +260,7 @@ async fn generate_image_persists_file_and_audit_row() {
     assert!(response.cost_estimate.is_some());
 
     let fetched = service
-        .get_generated_image(response.id.as_str())
+        .find_generated_image(response.id.as_str())
         .await
         .expect("fetch ok")
         .expect("present");
@@ -400,7 +400,7 @@ async fn list_and_delete_user_images_round_trip() {
     assert_eq!(after.len(), 1);
     assert!(
         service
-            .get_generated_image(first.id.as_str())
+            .find_generated_image(first.id.as_str())
             .await
             .expect("fetch deleted")
             .is_none()
@@ -463,7 +463,7 @@ async fn provider_registry_accessors_report_state() {
 
     assert!(service.list_providers().is_empty());
     assert!(service.default_provider_name().is_none());
-    assert!(service.get_default_provider().is_none());
+    assert!(service.find_default_provider().is_none());
     assert!(service.default_provider_capabilities().is_none());
 
     service.register_provider(provider);
@@ -471,9 +471,9 @@ async fn provider_registry_accessors_report_state() {
 
     assert_eq!(service.list_providers(), vec!["stub".to_owned()]);
     assert_eq!(service.default_provider_name(), Some("stub"));
-    assert!(service.get_provider("stub").is_some());
-    assert!(service.get_provider("missing").is_none());
-    assert!(service.get_default_provider().is_some());
+    assert!(service.find_provider("stub").is_some());
+    assert!(service.find_provider("missing").is_none());
+    assert!(service.find_default_provider().is_some());
     let caps = service
         .default_provider_capabilities()
         .expect("caps present");

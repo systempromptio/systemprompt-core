@@ -117,10 +117,7 @@ impl OpenAiImageProvider {
             .json(dalle_request)
             .send()
             .await
-            .map_err(|e| AiError::ProviderError {
-                provider: self.name().to_owned(),
-                message: format!("HTTP request failed: {e}"),
-            })?;
+            .map_err(AiError::Http)?;
 
         if !response.status().is_success() {
             let status = response.status();
@@ -134,11 +131,7 @@ impl OpenAiImageProvider {
             });
         }
 
-        let dalle_response: DalleResponse =
-            response.json().await.map_err(|e| AiError::ProviderError {
-                provider: self.name().to_owned(),
-                message: format!("Failed to parse response: {e}"),
-            })?;
+        let dalle_response: DalleResponse = response.json().await.map_err(AiError::Http)?;
 
         dalle_response
             .data

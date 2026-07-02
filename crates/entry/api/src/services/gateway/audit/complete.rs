@@ -5,6 +5,7 @@ use anyhow::Result;
 use bytes::Bytes;
 use systemprompt_ai::repository::ai_requests::UpdateCompletionParams;
 use systemprompt_ai::repository::{InsertToolCallParams, UpsertPayloadParams};
+use systemprompt_identifiers::AiToolCallId;
 
 use super::GatewayAudit;
 use super::payload::{slice_payload, truncate_for_tool_input};
@@ -116,11 +117,12 @@ impl GatewayAudit {
         for (idx, tool) in tool_calls.iter().enumerate() {
             let seq = idx as i32 + 1;
             let trimmed = truncate_for_tool_input(&tool.tool_input);
+            let ai_tool_call_id = AiToolCallId::new(tool.ai_tool_call_id.clone());
             if let Err(e) = self
                 .requests
                 .insert_tool_call(InsertToolCallParams {
                     request_id: &self.ctx.ai_request_id,
-                    ai_tool_call_id: tool.ai_tool_call_id.as_str(),
+                    ai_tool_call_id: &ai_tool_call_id,
                     tool_name: &tool.tool_name,
                     tool_input: &trimmed,
                     sequence_number: seq,

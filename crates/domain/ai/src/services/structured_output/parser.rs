@@ -1,3 +1,9 @@
+//! Extracts structured JSON payloads from free-form model responses.
+//!
+//! Model output may wrap the requested JSON in prose or fenced code blocks;
+//! this parser locates and decodes the embedded object so structured-output
+//! requests can validate it against the caller's schema.
+
 use crate::error::Result;
 use regex::Regex;
 use serde_json::Value as JsonValue;

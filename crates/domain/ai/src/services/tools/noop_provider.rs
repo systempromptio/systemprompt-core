@@ -1,3 +1,8 @@
+//! A [`systemprompt_traits::ToolProvider`] that exposes no tools.
+//!
+//! Used as the default provider when a request has no tool backend wired up, so
+//! call sites can rely on an always-present provider rather than an `Option`.
+
 use async_trait::async_trait;
 use std::collections::HashMap;
 use systemprompt_traits::{

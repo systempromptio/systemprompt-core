@@ -2,7 +2,7 @@ use crate::error::{AiError, Result};
 use crate::models::AiRequestRecordBuilder;
 use crate::models::image_generation::{ImageGenerationRequest, ImageGenerationResponse};
 use crate::repository::AiRequestRepository;
-use systemprompt_identifiers::{FileId, McpExecutionId, TraceId, UserId};
+use systemprompt_identifiers::{FileId, UserId};
 use systemprompt_traits::{
     AiFilePersistenceProvider, AiGeneratedFile, ImageGenerationInfo, ImageMetadata,
     InsertAiFileParams,
@@ -50,11 +50,11 @@ async fn persist_ai_request(
     }
 
     if let Some(trace_id) = &request.trace_id {
-        builder = builder.trace_id(TraceId::new(trace_id));
+        builder = builder.trace_id(trace_id.clone());
     }
 
     if let Some(mcp_execution_id) = &request.mcp_execution_id {
-        builder = builder.mcp_execution_id(McpExecutionId::new(mcp_execution_id));
+        builder = builder.mcp_execution_id(mcp_execution_id.clone());
     }
 
     let record = builder
@@ -104,7 +104,7 @@ async fn persist_file_record(
         metadata,
         user_id: Some(request.user_id.clone()),
         session_id: request.session_id.clone(),
-        trace_id: request.trace_id.as_ref().map(TraceId::new),
+        trace_id: request.trace_id.clone(),
         context_id: None,
     };
 
@@ -116,7 +116,7 @@ async fn persist_file_record(
         })
 }
 
-pub(super) async fn get_generated_image(
+pub(super) async fn find_generated_image(
     file_provider: &dyn AiFilePersistenceProvider,
     uuid: &str,
 ) -> Result<Option<AiGeneratedFile>> {

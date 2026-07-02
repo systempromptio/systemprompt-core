@@ -31,7 +31,7 @@ impl AiGatewayPolicyRepository {
         Ok(Self { pool, write_pool })
     }
 
-    pub async fn find_for_global(&self) -> Result<Vec<GatewayPolicyRow>, RepositoryError> {
+    pub async fn list_for_global(&self) -> Result<Vec<GatewayPolicyRow>, RepositoryError> {
         let rows = sqlx::query!(
             r#"
             SELECT id as "id!: AiGatewayPolicyId", name, spec, enabled

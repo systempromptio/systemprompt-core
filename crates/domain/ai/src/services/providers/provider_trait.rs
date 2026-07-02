@@ -107,6 +107,7 @@ impl<'a> ToolResultsParams<'a> {
 #[derive(Debug, Clone)]
 pub struct SchemaGenerationParams<'a> {
     pub base: GenerationParams<'a>,
+    // JSON: arbitrary caller-supplied JSON Schema
     pub response_schema: serde_json::Value,
 }
 
@@ -138,6 +139,7 @@ impl<'a> StructuredGenerationParams<'a> {
 pub struct SearchGenerationParams<'a> {
     pub base: GenerationParams<'a>,
     pub urls: Option<Vec<String>>,
+    // JSON: arbitrary caller-supplied JSON Schema
     pub response_schema: Option<serde_json::Value>,
 }
 

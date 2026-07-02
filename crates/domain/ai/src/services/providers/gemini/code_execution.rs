@@ -6,7 +6,6 @@ use std::time::Instant;
 
 use serde_json::Value;
 use systemprompt_models::wire::gemini;
-use uuid::Uuid;
 
 use crate::error::Result;
 use crate::models::ai::{AiMessage, SamplingParams};
@@ -25,7 +24,6 @@ pub async fn generate_with_code_execution(
     model: &str,
 ) -> Result<CodeExecutionResponse> {
     let start = Instant::now();
-    let _request_id = Uuid::new_v4();
     let canonical = CanonicalBuild::new(BridgeProvider::Gemini, messages, model, max_output_tokens)
         .with_sampling(sampling)
         .with_code_execution(true)

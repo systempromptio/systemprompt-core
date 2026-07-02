@@ -188,7 +188,7 @@ mod get_variants_tests {
         mapper.register_transformation(&tool2, Some("action".to_string()));
         mapper.register_transformation(&tool3, Some("action".to_string()));
 
-        let variants = mapper.get_variants("action_tool").unwrap();
+        let variants = mapper.find_variants("action_tool").unwrap();
 
         assert_eq!(variants.len(), 3);
         assert!(variants.contains(&"action_tool_create".to_string()));
@@ -199,7 +199,7 @@ mod get_variants_tests {
     #[test]
     fn returns_none_for_unknown_original() {
         let mapper = ToolNameMapper::new();
-        assert!(mapper.get_variants("unknown").is_none());
+        assert!(mapper.find_variants("unknown").is_none());
     }
 
     #[test]
@@ -209,7 +209,7 @@ mod get_variants_tests {
 
         mapper.register_transformation(&tool, None);
 
-        let variants = mapper.get_variants("original").unwrap();
+        let variants = mapper.find_variants("original").unwrap();
         assert_eq!(variants.len(), 1);
         assert_eq!(variants[0], "only_variant");
     }
@@ -262,10 +262,10 @@ mod multiple_tools_tests {
         mapper.register_transformation(&tool3, Some("command".to_string()));
         mapper.register_transformation(&tool4, Some("command".to_string()));
 
-        let search_variants = mapper.get_variants("search").unwrap();
+        let search_variants = mapper.find_variants("search").unwrap();
         assert_eq!(search_variants.len(), 2);
 
-        let action_variants = mapper.get_variants("action").unwrap();
+        let action_variants = mapper.find_variants("action").unwrap();
         assert_eq!(action_variants.len(), 2);
 
         let (name, params) = mapper.resolve_tool_call("search_web", json!({"query": "test"}));

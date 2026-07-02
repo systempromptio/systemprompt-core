@@ -113,10 +113,7 @@ impl GeminiImageProvider {
             .json(body)
             .send()
             .await
-            .map_err(|e| AiError::ProviderError {
-                provider: self.name().to_owned(),
-                message: format!("HTTP request failed: {e}"),
-            })?;
+            .map_err(AiError::Http)?;
 
         if !response.status().is_success() {
             let status = response.status();
@@ -130,10 +127,7 @@ impl GeminiImageProvider {
             });
         }
 
-        response.json().await.map_err(|e| AiError::ProviderError {
-            provider: self.name().to_owned(),
-            message: format!("Failed to parse response: {e}"),
-        })
+        response.json().await.map_err(AiError::Http)
     }
 }
 

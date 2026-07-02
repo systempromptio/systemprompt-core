@@ -8,7 +8,7 @@ use super::repository::AiRequestRepository;
 #[derive(Debug)]
 pub struct InsertToolCallParams<'a> {
     pub request_id: &'a AiRequestId,
-    pub ai_tool_call_id: &'a str,
+    pub ai_tool_call_id: &'a AiToolCallId,
     pub tool_name: &'a str,
     pub tool_input: &'a str,
     pub sequence_number: i32,
@@ -43,7 +43,7 @@ impl AiRequestRepository {
         .map_err(RepositoryError::from)
     }
 
-    pub async fn get_messages(
+    pub async fn list_messages(
         &self,
         request_id: &AiRequestId,
     ) -> Result<Vec<AiRequestMessage>, RepositoryError> {
@@ -92,7 +92,7 @@ impl AiRequestRepository {
             "#,
             id,
             request_id_str,
-            params.ai_tool_call_id,
+            params.ai_tool_call_id.as_str(),
             params.tool_name,
             params.tool_input,
             params.sequence_number
@@ -102,7 +102,7 @@ impl AiRequestRepository {
         .map_err(RepositoryError::from)
     }
 
-    pub async fn get_tool_calls(
+    pub async fn list_tool_calls(
         &self,
         request_id: &AiRequestId,
     ) -> Result<Vec<AiRequestToolCall>, RepositoryError> {
@@ -150,11 +150,16 @@ impl AiRequestRepository {
 
     pub async fn link_tool_calls_to_recent_executions(
         &self,
-        ai_tool_call_ids: &[String],
+        ai_tool_call_ids: &[AiToolCallId],
     ) -> Result<u64, RepositoryError> {
         if ai_tool_call_ids.is_empty() {
             return Ok(0);
         }
+
+        let ai_tool_call_ids: Vec<String> = ai_tool_call_ids
+            .iter()
+            .map(|id| id.as_str().to_owned())
+            .collect();
 
         let result = sqlx::query!(
             r#"
@@ -165,7 +170,7 @@ impl AiRequestRepository {
               AND tc.ai_tool_call_id = ANY($1)
               AND tc.mcp_execution_id IS NULL
             "#,
-            ai_tool_call_ids
+            &ai_tool_call_ids
         )
         .execute(self.write_pool())
         .await?;

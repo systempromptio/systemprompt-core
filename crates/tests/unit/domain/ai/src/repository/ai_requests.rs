@@ -3,7 +3,7 @@
 
 use systemprompt_ai::repository::ai_requests::UpdateCompletionParams;
 use systemprompt_ai::repository::{AiRequestRepository, InsertToolCallParams};
-use systemprompt_identifiers::AiRequestId;
+use systemprompt_identifiers::{AiRequestId, AiToolCallId};
 use uuid::Uuid;
 
 use super::{completed_record, pool, seed_request, user};
@@ -166,7 +166,7 @@ async fn get_provider_usage_groups_by_provider_model() {
         .expect("seed");
     repo.insert(&completed_record(&uid)).await.expect("insert");
 
-    let usage = repo.get_provider_usage(30).await.expect("provider usage");
+    let usage = repo.list_provider_usage(30).await.expect("provider usage");
     // The aggregate spans the whole shard DB; our row must appear among them.
     assert!(
         usage
@@ -194,7 +194,7 @@ async fn insert_and_get_messages_in_sequence_order() {
     assert_eq!(m1.content, "hi there");
     assert_eq!(m1.sequence_number, 1);
 
-    let messages = repo.get_messages(&id).await.expect("messages");
+    let messages = repo.list_messages(&id).await.expect("messages");
     assert_eq!(messages.len(), 2);
     assert_eq!(messages[0].sequence_number, 0);
     assert_eq!(messages[1].sequence_number, 1);
@@ -227,7 +227,7 @@ async fn add_response_message_appends_after_max() {
         .await
         .expect("append");
 
-    let messages = repo.get_messages(&id).await.expect("messages");
+    let messages = repo.list_messages(&id).await.expect("messages");
     assert_eq!(messages.len(), 2);
     let last = messages.last().expect("last");
     assert_eq!(last.role, "assistant");
@@ -242,7 +242,7 @@ async fn insert_and_get_tool_calls() {
     };
     let uid = user();
     let id = seed_request(&pool, &uid).await;
-    let call_id = Uuid::new_v4().to_string();
+    let call_id = AiToolCallId::new(Uuid::new_v4().to_string());
 
     let inserted = repo
         .insert_tool_call(InsertToolCallParams {
@@ -257,7 +257,7 @@ async fn insert_and_get_tool_calls() {
     assert_eq!(inserted.tool_name, "search");
     assert_eq!(inserted.sequence_number, 0);
 
-    let calls = repo.get_tool_calls(&id).await.expect("tool calls");
+    let calls = repo.list_tool_calls(&id).await.expect("tool calls");
     assert_eq!(calls.len(), 1);
     assert_eq!(calls[0].tool_name, "search");
     assert_eq!(calls[0].tool_input, r#"{"q":"rust"}"#);
@@ -283,7 +283,7 @@ async fn link_tool_calls_no_matching_executions_affects_zero() {
     };
     let uid = user();
     let id = seed_request(&pool, &uid).await;
-    let call_id = Uuid::new_v4().to_string();
+    let call_id = AiToolCallId::new(Uuid::new_v4().to_string());
     repo.insert_tool_call(InsertToolCallParams {
         request_id: &id,
         ai_tool_call_id: &call_id,

@@ -1,3 +1,9 @@
+//! Static analysis of JSON Schemas ahead of provider-specific rewriting.
+//!
+//! Detects discriminated unions and other structural shapes that individual
+//! model providers cannot express natively, producing the metadata the mapper
+//! and transformer consume when flattening schemas into a provider's dialect.
+
 use serde_json::Value;
 use std::collections::HashMap;
 

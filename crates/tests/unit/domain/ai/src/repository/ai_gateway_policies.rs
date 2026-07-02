@@ -44,7 +44,7 @@ async fn find_for_global_returns_only_enabled() {
         .await
         .expect("disabled");
 
-    let rows = repo.find_for_global().await.expect("find");
+    let rows = repo.list_for_global().await.expect("find");
     assert!(rows.iter().any(|r| r.name == enabled && r.enabled));
     assert!(!rows.iter().any(|r| r.name == disabled));
 }
