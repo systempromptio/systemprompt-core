@@ -47,6 +47,7 @@ scheduler-jobs-db = { max-threads = 1 }
 oauth-clients-db = { max-threads = 1 }
 users-db = { max-threads = 1 }
 generator-config-db = { max-threads = 1 }
+api-health-monitor-db = { max-threads = 1 }
 
 [[profile.default.overrides]]
 filter = 'package(systemprompt-api-integration-tests) and test(/(messaging_dispatch|routes_slack|routes_teams)::/)'
@@ -110,3 +111,11 @@ final-status-level = "slow"
 
 [profile.ci.junit]
 path = "junit.xml"
+
+[[profile.default.overrides]]
+filter = 'package(systemprompt-api-integration-tests) and test(/health_monitor::/)'
+test-group = 'api-health-monitor-db'
+
+[[profile.ci.overrides]]
+filter = 'package(systemprompt-api-integration-tests) and test(/health_monitor::/)'
+test-group = 'api-health-monitor-db'
