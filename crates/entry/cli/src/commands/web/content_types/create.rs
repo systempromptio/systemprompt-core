@@ -63,12 +63,12 @@ fn resolve_description(
 fn resolve_sitemap(
     url_pattern: Option<String>,
     priority: f32,
-    changefreq: String,
+    changefreq: &str,
     prompter: &dyn Prompter,
     config: &CliConfig,
 ) -> Result<Option<SitemapConfig>> {
     if let Some(url_pattern) = url_pattern {
-        return Ok(Some(build_flag_sitemap(url_pattern, priority, &changefreq)));
+        return Ok(Some(build_flag_sitemap(url_pattern, priority, changefreq)));
     }
     if config.is_interactive() {
         return prompt_sitemap_config(prompter);
@@ -109,7 +109,7 @@ pub(super) fn execute(
     let sitemap = resolve_sitemap(
         args.url_pattern,
         args.priority,
-        args.changefreq.clone(),
+        &args.changefreq,
         prompter,
         config,
     )?;

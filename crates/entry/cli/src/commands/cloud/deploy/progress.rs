@@ -23,6 +23,14 @@ pub struct CliDeployProgress<'a> {
     spinner: Mutex<Option<ProgressBar>>,
 }
 
+impl std::fmt::Debug for CliDeployProgress<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("CliDeployProgress")
+            .field("interactive", &self.config.is_some())
+            .finish_non_exhaustive()
+    }
+}
+
 impl<'a> CliDeployProgress<'a> {
     pub const fn new(prompter: &'a dyn Prompter, config: &'a CliConfig) -> Self {
         Self {

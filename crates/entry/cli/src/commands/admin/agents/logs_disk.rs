@@ -115,7 +115,7 @@ pub fn select_agent_from_log_files(
         ));
     }
 
-    let agents = display_names(&log_files, "agent-");
+    let agents = display_names(log_files, "agent-");
 
     let selection = prompter
         .select("Select agent logs to view", &agents)
