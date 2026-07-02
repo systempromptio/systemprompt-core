@@ -8,7 +8,7 @@ use crate::services::agent_orchestration::{
 };
 
 impl AgentLifecycle {
-    pub async fn validate_prerequisites(&self, port: u16) -> OrchestrationResult<()> {
+    pub(super) async fn validate_prerequisites(&self, port: u16) -> OrchestrationResult<()> {
         use super::super::port_service::PortService;
 
         let port_service = PortService::new();
@@ -36,7 +36,11 @@ impl AgentLifecycle {
         process::spawn_detached(&self.app_paths, agent_name, port)
     }
 
-    pub async fn verify_startup(&self, agent_name: &str, port: u16) -> OrchestrationResult<()> {
+    pub(super) async fn verify_startup(
+        &self,
+        agent_name: &str,
+        port: u16,
+    ) -> OrchestrationResult<()> {
         const MAX_ATTEMPTS: u32 = 5;
         const SLEEP_MS: u64 = 1000;
 
@@ -101,7 +105,7 @@ impl AgentLifecycle {
         }
     }
 
-    pub async fn log_startup_failure(&self, agent_name: &str, port: u16) {
+    pub(super) async fn log_startup_failure(&self, agent_name: &str, port: u16) {
         let log_path = match systemprompt_models::Config::get() {
             Ok(config) => format!("{}/agent-{}.log", config.logs_path(), agent_name),
             Err(e) => {

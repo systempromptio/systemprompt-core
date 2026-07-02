@@ -27,16 +27,9 @@ pub struct AgentRegistry {
 impl AgentRegistry {
     pub fn new() -> AgentResult<Self> {
         let config = ConfigLoader::load()?;
-        Ok(Self::from_config(config))
-    }
-
-    /// Build a registry over an explicit config snapshot instead of the
-    /// process-wide loader.
-    #[must_use]
-    pub fn from_config(config: ServicesConfig) -> Self {
-        Self {
+        Ok(Self {
             config: Arc::new(config),
-        }
+        })
     }
 
     // The lookup methods below are `async` to match the `AgentRegistryProvider`

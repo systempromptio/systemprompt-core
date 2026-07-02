@@ -11,7 +11,7 @@ use crate::services::agent_orchestration::{OrchestrationError, OrchestrationResu
 
 const MAX_LOG_SIZE: u64 = 10 * 1024 * 1024;
 
-pub fn rotate_log_if_needed(log_path: &Path) -> Result<()> {
+pub(super) fn rotate_log_if_needed(log_path: &Path) -> Result<()> {
     if let Ok(metadata) = fs::metadata(log_path)
         && metadata.len() > MAX_LOG_SIZE
     {
@@ -21,7 +21,10 @@ pub fn rotate_log_if_needed(log_path: &Path) -> Result<()> {
     Ok(())
 }
 
-pub fn prepare_agent_log_file(agent_name: &str, log_dir: &Path) -> OrchestrationResult<File> {
+pub(super) fn prepare_agent_log_file(
+    agent_name: &str,
+    log_dir: &Path,
+) -> OrchestrationResult<File> {
     if let Err(e) = fs::create_dir_all(log_dir) {
         tracing::error!(
             error = %e,
@@ -52,8 +55,7 @@ pub fn prepare_agent_log_file(agent_name: &str, log_dir: &Path) -> Orchestration
         })
 }
 
-#[derive(Debug)]
-pub struct BuildAgentCommandParams<'a> {
+pub(super) struct BuildAgentCommandParams<'a> {
     pub binary_path: &'a PathBuf,
     pub agent_name: &'a str,
     pub port: u16,
@@ -63,7 +65,7 @@ pub struct BuildAgentCommandParams<'a> {
     pub log_file: File,
 }
 
-pub fn build_agent_command(params: BuildAgentCommandParams<'_>) -> Command {
+pub(super) fn build_agent_command(params: BuildAgentCommandParams<'_>) -> Command {
     let BuildAgentCommandParams {
         binary_path,
         agent_name,
