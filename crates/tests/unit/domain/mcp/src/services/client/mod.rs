@@ -5,5 +5,6 @@ mod external_auth;
 mod external_proxy;
 mod handler;
 mod http_context;
+mod live_client;
 mod types;
 mod validation;

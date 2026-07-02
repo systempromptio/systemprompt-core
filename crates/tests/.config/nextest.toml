@@ -119,3 +119,17 @@ test-group = 'api-health-monitor-db'
 [[profile.ci.overrides]]
 filter = 'package(systemprompt-api-integration-tests) and test(/health_monitor::/)'
 test-group = 'api-health-monitor-db'
+
+# The MCP loader tests register uniquely-named `services` rows and assert on
+# their status while the MCP orchestrator/database tests run sweeps
+# (`sync_database_state`, `reconcile`) that unregister every row absent from
+# their own (empty) registry config, and the proxy-health tests mark every
+# running row with an unresponsive port as stopped. Serialise them into the
+# shared services-table slot so no sweep runs mid-assertion.
+[[profile.default.overrides]]
+filter = 'package(systemprompt-mcp-tests) and test(/(loader_live|orchestrator_extended|orchestrator_smoke|database_state|database_state_extended|database_sync|database_service|lifecycle_deep|lifecycle_smoke|proxy_health)::/)'
+test-group = 'scheduler-services-db'
+
+[[profile.ci.overrides]]
+filter = 'package(systemprompt-mcp-tests) and test(/(loader_live|orchestrator_extended|orchestrator_smoke|database_state|database_state_extended|database_sync|database_service|lifecycle_deep|lifecycle_smoke|proxy_health)::/)'
+test-group = 'scheduler-services-db'

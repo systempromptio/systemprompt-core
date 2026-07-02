@@ -68,7 +68,7 @@ pub fn agent_block(agent: &str, servers: &[&str]) -> String {
       description: Agent used by MCP harness tests.
       version: "1.0.0"
     metadata:
-      mcp_servers:
+      mcpServers:
         include:
 {include}    oauth:
       required: false

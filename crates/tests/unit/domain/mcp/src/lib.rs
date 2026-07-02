@@ -49,6 +49,8 @@ mod response;
 #[cfg(test)]
 mod response_extended;
 #[cfg(test)]
+mod router;
+#[cfg(test)]
 mod schema;
 #[cfg(test)]
 mod schema_cli;

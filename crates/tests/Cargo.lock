@@ -7967,6 +7967,7 @@ dependencies = [
  "schemars",
  "serde",
  "serde_json",
+ "serde_yaml_ng",
  "sqlx",
  "systemprompt-database",
  "systemprompt-extension",
