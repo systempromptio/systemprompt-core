@@ -181,7 +181,7 @@ fn test_capitalize_first_with_underscore() {
 #[test]
 fn test_jwt_secret_generation_expected_length() {
     use rand::distr::Alphanumeric;
-    use rand::{Rng, rng};
+    use rand::{RngExt, rng};
 
     let secret: String = rng()
         .sample_iter(&Alphanumeric)
@@ -195,7 +195,7 @@ fn test_jwt_secret_generation_expected_length() {
 #[test]
 fn test_jwt_secret_generation_alphanumeric() {
     use rand::distr::Alphanumeric;
-    use rand::{Rng, rng};
+    use rand::{RngExt, rng};
 
     let secret: String = rng()
         .sample_iter(&Alphanumeric)
@@ -209,7 +209,7 @@ fn test_jwt_secret_generation_alphanumeric() {
 #[test]
 fn test_jwt_secret_generation_uniqueness() {
     use rand::distr::Alphanumeric;
-    use rand::{Rng, rng};
+    use rand::{RngExt, rng};
     use std::collections::HashSet;
 
     let secrets: HashSet<String> = (0..100)
