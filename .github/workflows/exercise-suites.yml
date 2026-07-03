@@ -1,0 +1,76 @@
+name: Exercise Suites
+
+# Weekly bit-rot detection for the test trees CI never touches: the fuzz,
+# bench, and loadtest workspaces are standalone (own lockfiles, outside both
+# cargo workspaces), so nothing else compiles them. The goal is "still builds
+# and smoke-runs", not bug-hunting — fuzz targets get 60s each, benches are
+# compile-checked only (criterion timings on shared runners are noise), and
+# the loadtest binary must build and answer --help.
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "23 4 * * 0"
+
+concurrency:
+  group: exercise-suites-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTC_WRAPPER: ""
+  SQLX_OFFLINE: "true"
+
+jobs:
+  fuzz-smoke:
+    name: Fuzz build + 60s per target
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      # cargo-fuzz needs nightly; rust-toolchain.toml pins the workspace
+      # nightly, so the plain toolchain action resolves the same channel.
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly-2026-06-03
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: crates/tests/fuzz
+      - uses: taiki-e/install-action@cargo-fuzz
+      - name: Build all fuzz targets
+        run: cargo fuzz build --fuzz-dir crates/tests/fuzz
+      - name: Run each target for 60s
+        run: |
+          for target in $(cargo fuzz list --fuzz-dir crates/tests/fuzz); do
+            echo "::group::$target"
+            cargo fuzz run --fuzz-dir crates/tests/fuzz "$target" -- -max_total_time=60
+            echo "::endgroup::"
+          done
+
+  bench-check:
+    name: Bench compile check
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: crates/tests/bench
+      - run: cargo check --manifest-path crates/tests/bench/Cargo.toml --benches
+
+  loadtest-smoke:
+    name: Loadtest build + --help
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: crates/tests/loadtest
+      - run: cargo build --manifest-path crates/tests/loadtest/Cargo.toml
+      - run: cargo run --manifest-path crates/tests/loadtest/Cargo.toml -- --help
