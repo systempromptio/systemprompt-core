@@ -34,6 +34,7 @@ chrono = { workspace = true }
 systemprompt-agent = { workspace = true }
 systemprompt-content = { workspace = true }
 systemprompt-database = { workspace = true }
+systemprompt-files = { workspace = true }
 systemprompt-runtime = { workspace = true }
 systemprompt-scheduler = { workspace = true }
 systemprompt-users = { workspace = true }
