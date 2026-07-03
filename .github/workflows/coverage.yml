@@ -33,7 +33,7 @@ jobs:
   coverage:
     name: Line coverage (cargo-llvm-cov)
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 240
     services:
       postgres:
         image: postgres:16
@@ -98,12 +98,25 @@ jobs:
             -p systemprompt-test-migrate \
             --release
 
+      - name: Build instrumented systemprompt binary
+        env:
+          LLVM_PROFILE_FILE: ${{ github.workspace }}/coverage-profraw/%p-%m.profraw
+          RUSTFLAGS: "-C instrument-coverage"
+        run: |
+          mkdir -p "${{ github.workspace }}/coverage-profraw"
+          # The crates/tests workspace does not include entry/cli, so the test
+          # run's --bins would not produce this binary; subprocess tests invoke
+          # it via SYSTEMPROMPT_BIN and its counters land in the shared profraw
+          # directory.
+          cargo build -p systemprompt-cli --bin systemprompt
+
       - name: Run instrumented tests (RUSTFLAGS so path deps get instrumented)
         env:
           DATABASE_URL: postgres://test:test@localhost:5432/test
           LLVM_PROFILE_FILE: ${{ github.workspace }}/coverage-profraw/%p-%m.profraw
           RUSTFLAGS: "-C instrument-coverage"
           SQLX_OFFLINE: "false"
+          SYSTEMPROMPT_BIN: ${{ github.workspace }}/target/debug/systemprompt
         run: |
           mkdir -p "${{ github.workspace }}/coverage-profraw"
           # nextest runs each test in its own process, so the per-test timeout
@@ -111,7 +124,7 @@ jobs:
           # profraw files distinct across those processes.
           cargo nextest run --profile ci \
             --manifest-path crates/tests/Cargo.toml \
-            --workspace --lib
+            --workspace --lib --bins --tests --no-fail-fast
           echo "profraw count: $(find ${{ github.workspace }}/coverage-profraw -name '*.profraw' | wc -l)"
 
       - name: Merge profdata and render
@@ -127,6 +140,8 @@ jobs:
           BINS=$(find crates/tests/target/debug/deps -maxdepth 1 -executable -type f -name 'systemprompt_*' ! -name '*.d' -printf '%T@ %p\n' \
             | sort -rn \
             | awk '{ base=$2; sub(".*/", "", base); sub(/-[0-9a-f]+$/, "", base); if (!seen[base]++) print $2 }')
+          SP_BIN="${{ github.workspace }}/target/debug/systemprompt"
+          [ -x "$SP_BIN" ] && BINS="$BINS $SP_BIN"
           OBJ_ARGS=""
           for b in $BINS; do OBJ_ARGS="$OBJ_ARGS --object $b"; done
 
