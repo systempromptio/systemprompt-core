@@ -29,13 +29,15 @@ env:
   # RAM and the hosted runner loses communication mid-build.
   CARGO_PROFILE_DEV_DEBUG: "line-tables-only"
   CARGO_INCREMENTAL: "0"
-  CARGO_BUILD_JOBS: "1"
+  # 2 jobs fits the 16GB runner with line-tables-only debuginfo; 1 job made
+  # the --bins --tests instrumented build overrun the job timeout.
+  CARGO_BUILD_JOBS: "2"
 
 jobs:
   coverage:
     name: Line coverage (cargo-llvm-cov)
     runs-on: ubuntu-latest
-    timeout-minutes: 240
+    timeout-minutes: 350
     services:
       postgres:
         image: postgres:16
