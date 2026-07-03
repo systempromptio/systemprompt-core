@@ -232,7 +232,6 @@ async fn enforce_authz_allows_under_allow_all_hook() {
         &principal,
         &route,
         "claude-test",
-        &ContextId::new("44444444-4444-4444-8444-444444444444"),
         &hook,
     )
     .await
@@ -248,7 +247,6 @@ async fn enforce_authz_denies_under_deny_all_hook() {
         &principal,
         &route,
         "claude-test",
-        &ContextId::new("44444444-4444-4444-8444-444444444444"),
         &hook,
     )
     .await
