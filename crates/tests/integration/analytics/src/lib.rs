@@ -11,3 +11,6 @@ mod repositories;
 
 #[cfg(test)]
 mod repositories_extended;
+
+#[cfg(test)]
+mod session_pipeline;
