@@ -4,8 +4,8 @@
 //! flagged as AI-generated content.
 
 mod count;
-mod list;
-mod show;
+pub mod list;
+pub mod show;
 
 use anyhow::{Context, Result};
 use clap::Subcommand;

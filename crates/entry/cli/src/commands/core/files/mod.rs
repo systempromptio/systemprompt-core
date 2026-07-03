@@ -8,7 +8,7 @@
 pub mod types;
 
 mod config;
-pub(crate) mod delete;
+pub mod delete;
 mod list;
 mod search;
 mod show;

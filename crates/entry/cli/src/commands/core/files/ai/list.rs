@@ -1,5 +1,6 @@
 use anyhow::Result;
 use clap::Args;
+use systemprompt_database::DbPool;
 use systemprompt_files::FileRepository;
 use systemprompt_identifiers::{FileId, UserId};
 use systemprompt_runtime::AppContext;
@@ -20,9 +21,17 @@ pub struct ListArgs {
     pub user: Option<String>,
 }
 
-pub(super) async fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandOutput> {
+pub(super) async fn execute(args: ListArgs, config: &CliConfig) -> Result<CommandOutput> {
     let ctx = AppContext::new().await?;
-    let service = FileRepository::new(ctx.db_pool())?;
+    execute_with_pool(args, ctx.db_pool(), config).await
+}
+
+pub async fn execute_with_pool(
+    args: ListArgs,
+    pool: &DbPool,
+    _config: &CliConfig,
+) -> Result<CommandOutput> {
+    let service = FileRepository::new(pool)?;
 
     let files = match &args.user {
         Some(user_id) => {

@@ -4,10 +4,10 @@
 //! featured) that manage the content-to-file relationships and the featured
 //! image for a content item.
 
-mod featured;
-mod link;
-mod list;
-mod unlink;
+pub mod featured;
+pub mod link;
+pub mod list;
+pub mod unlink;
 
 use anyhow::{Context, Result};
 use clap::Subcommand;
