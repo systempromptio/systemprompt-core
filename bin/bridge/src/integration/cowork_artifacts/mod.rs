@@ -5,10 +5,10 @@
 //! content, so it follows the synthetic-plugin writer's shape: a content-hashed
 //! `version.json` written last as the idempotency/completion marker, and a
 //! remove-on-empty clear. The write mechanism itself is pluggable (see
-//! [`sink`]) because the live Cowork library store shape is not yet confirmed:
-//! it may be directly file-writable ([`sink::FileSink`]) or `create_artifact`
-//! seed-only ([`sink::SeedStaging`]). [`emit::active_sink`] selects the
-//! default.
+//! [`sink`]): the live Cowork library ingests artifacts only via its native
+//! `create_artifact` tool, so [`emit::active_sinks`] writes through both
+//! [`sink::SeedStaging`] (input for the first-run seed skill) and
+//! [`sink::FileSink`] (GUI listing + future directly-writable library).
 //!
 //! The emitter reuses the `"cowork"` host id, so it fires whenever Cowork is in
 //! the manifest's `enabled_hosts` — the same gate as the plugin emitter.
@@ -34,7 +34,7 @@ impl HostSync for CoworkArtifactsSync {
         let Some(dir) = emit::resolve_artifacts_dir() else {
             return Ok(());
         };
-        emit::write_artifacts(&dir, emit::active_sink(), &ctx.manifest.artifacts)
+        emit::write_artifacts(&dir, emit::active_sinks(), &ctx.manifest.artifacts)
     }
 
     fn clear(&self) -> Result<(), ApplyError> {

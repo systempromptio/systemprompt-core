@@ -55,6 +55,7 @@ pub struct MarketplaceListing {
     hooks: Vec<MarketplaceItem>,
     mcp: Vec<MarketplaceItem>,
     agents: Vec<MarketplaceItem>,
+    artifacts: Vec<MarketplaceItem>,
     plugins_dir: Option<String>,
     last_sync_diff: MarketplaceDiff,
 }
@@ -131,9 +132,41 @@ pub fn build_listing(mcp_auth: &[McpServerAuth]) -> MarketplaceListing {
         hooks,
         mcp,
         agents,
+        artifacts: list_artifacts(),
         plugins_dir,
         last_sync_diff,
     }
+}
+
+fn list_artifacts() -> Vec<MarketplaceItem> {
+    use crate::integration::cowork_artifacts::{emit, sink};
+
+    let Some(dir) = emit::resolve_artifacts_dir() else {
+        return Vec::new();
+    };
+    let store_path = dir.join(sink::LIBRARY_STORE_FILE).display().to_string();
+    let mut out: Vec<MarketplaceItem> = sink::read_library_store(&dir)
+        .into_iter()
+        .map(|(id, record)| {
+            let name = if record.name.is_empty() {
+                id.clone()
+            } else {
+                record.name
+            };
+            MarketplaceItem {
+                id,
+                name,
+                source: "tenant",
+                path: store_path.clone(),
+                summary: record.description,
+                readme: None,
+                change: None,
+                extra: MarketplaceExtra::None,
+            }
+        })
+        .collect();
+    out.sort_by(|a, b| a.name.cmp(&b.name));
+    out
 }
 
 fn annotate_plugins_with_diff(

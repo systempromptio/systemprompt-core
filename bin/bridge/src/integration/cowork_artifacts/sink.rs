@@ -1,35 +1,33 @@
 //! Pluggable write targets for Cowork library artifacts.
 //!
-//! The Cowork global Artifacts-library store shape is not yet confirmed on a
-//! live build (see the module head in [`super`]), so the write mechanism is
-//! kept behind [`ArtifactSink`] with two implementations selected at compile
-//! time by [`super::emit::active_sink`]:
+//! The live Cowork library ingests artifacts only via its native
+//! `create_artifact` tool, so [`super::emit::active_sinks`] writes through
+//! both implementations of [`ArtifactSink`]:
 //!
-//! - [`FileSink`] writes/merges an on-disk store keyed by artifact id (used if
-//!   the library is directly file-writable).
-//! - [`SeedStaging`] drops one record per artifact into a staging dir for a
-//!   first-run `create_artifact` seed skill to consume (used if the library is
-//!   `create_artifact`-only).
+//! - [`FileSink`] writes/merges an on-disk store keyed by artifact id (read by
+//!   the bridge GUI's Artifacts listing; usable directly if the library ever
+//!   becomes file-writable).
+//! - [`SeedStaging`] drops one record per artifact into a staging dir for the
+//!   first-run `create_artifact` seed skill to consume.
 //!
-//! Only the record field names and store path are expected to change once the
-//! live schema is confirmed — they are the [`LIBRARY_STORE_FILE`] /
-//! [`STAGING_SUBDIR`] / `LibraryArtifactRecord` constants below.
+//! The record shape mirrors Cowork's `create_artifact` input. Store paths and
+//! field names live only here — writers use `LibraryArtifactRecord`, readers
+//! (the GUI listing) use [`StoredArtifactSummary`] via [`read_library_store`].
 
+use std::collections::BTreeMap;
 use std::path::Path;
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use crate::gateway::manifest::ArtifactEntry;
 use crate::sync::apply::ApplyError;
 use crate::sync::hash::safe_id_segment;
 
-/// Best-guess pending the live-Cowork schema.
 pub const LIBRARY_STORE_FILE: &str = "library.json";
 
 pub const STAGING_SUBDIR: &str = "staging";
 
-/// Field names track Cowork's native library-entry shape; reconcile against a
-/// live entry before shipping.
+/// Field names track Cowork's native library-entry shape.
 #[derive(Debug, Serialize)]
 struct LibraryArtifactRecord<'a> {
     id: &'a str,
@@ -55,6 +53,37 @@ impl<'a> From<&'a ArtifactEntry> for LibraryArtifactRecord<'a> {
             mcp_tools: &a.mcp_tools,
         }
     }
+}
+
+/// Read-side view of a store entry; field names shared with
+/// `LibraryArtifactRecord`.
+#[derive(Debug, Deserialize)]
+pub struct StoredArtifactSummary {
+    pub name: String,
+    #[serde(default)]
+    pub description: Option<String>,
+}
+
+/// Missing or unreadable store yields an empty map; foreign entries (preserved
+/// verbatim on write) that don't match the record shape are skipped.
+#[must_use]
+pub fn read_library_store(target_dir: &Path) -> BTreeMap<String, StoredArtifactSummary> {
+    let Some(store) = std::fs::read(target_dir.join(LIBRARY_STORE_FILE))
+        .ok()
+        .and_then(|bytes| {
+            serde_json::from_slice::<BTreeMap<String, serde_json::Value>>(&bytes).ok()
+        })
+    else {
+        return BTreeMap::new();
+    };
+    store
+        .into_iter()
+        .filter_map(|(id, value)| {
+            serde_json::from_value::<StoredArtifactSummary>(value)
+                .ok()
+                .map(|summary| (id, summary))
+        })
+        .collect()
 }
 
 pub trait ArtifactSink: Send + Sync {

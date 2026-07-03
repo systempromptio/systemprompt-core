@@ -53,7 +53,7 @@ fn file_sink_writes_store_and_version_marker() {
     let store = dir.join("cowork_artifacts");
     let artifacts = vec![artifact("pipeline", "1"), artifact("accounts", "1")];
 
-    write_artifacts(&store, &FileSink, &artifacts).expect("write artifacts");
+    write_artifacts(&store, &[&FileSink], &artifacts).expect("write artifacts");
 
     let library: serde_json::Value =
         serde_json::from_slice(&fs::read(store.join(LIBRARY_STORE_FILE)).unwrap()).unwrap();
@@ -76,11 +76,11 @@ fn file_sink_second_run_is_noop_when_unchanged() {
     let store = dir.join("cowork_artifacts");
     let artifacts = vec![artifact("pipeline", "1")];
 
-    write_artifacts(&store, &FileSink, &artifacts).expect("first write");
+    write_artifacts(&store, &[&FileSink], &artifacts).expect("first write");
     let marker = store.join(LIBRARY_STORE_FILE);
     let mtime1 = fs::metadata(&marker).unwrap().modified().unwrap();
 
-    write_artifacts(&store, &FileSink, &artifacts).expect("second write");
+    write_artifacts(&store, &[&FileSink], &artifacts).expect("second write");
     let mtime2 = fs::metadata(&marker).unwrap().modified().unwrap();
 
     assert_eq!(mtime1, mtime2, "unchanged set must not rewrite the store");
@@ -91,10 +91,10 @@ fn file_sink_upserts_on_version_bump() {
     let dir = tempdir();
     let store = dir.join("cowork_artifacts");
 
-    write_artifacts(&store, &FileSink, &[artifact("pipeline", "1")]).expect("v1");
+    write_artifacts(&store, &[&FileSink], &[artifact("pipeline", "1")]).expect("v1");
     let v1 = version_marker(&store);
 
-    write_artifacts(&store, &FileSink, &[artifact("pipeline", "2")]).expect("v2");
+    write_artifacts(&store, &[&FileSink], &[artifact("pipeline", "2")]).expect("v2");
     let v2 = version_marker(&store);
 
     assert_ne!(v1, v2, "version bump changes the marker");
@@ -114,7 +114,7 @@ fn file_sink_preserves_foreign_entries() {
     )
     .unwrap();
 
-    write_artifacts(&store, &FileSink, &[artifact("pipeline", "1")]).expect("write");
+    write_artifacts(&store, &[&FileSink], &[artifact("pipeline", "1")]).expect("write");
 
     let library: serde_json::Value =
         serde_json::from_slice(&fs::read(store.join(LIBRARY_STORE_FILE)).unwrap()).unwrap();
@@ -131,7 +131,7 @@ fn seed_staging_writes_one_record_per_artifact() {
     let store = dir.join("cowork_artifacts");
     let artifacts = vec![artifact("pipeline", "1"), artifact("accounts", "1")];
 
-    write_artifacts(&store, &SeedStaging, &artifacts).expect("write artifacts");
+    write_artifacts(&store, &[&SeedStaging], &artifacts).expect("write artifacts");
 
     let staging = store.join(STAGING_SUBDIR);
     assert!(staging.join("pipeline.json").is_file());
@@ -140,13 +140,33 @@ fn seed_staging_writes_one_record_per_artifact() {
 }
 
 #[test]
+fn dual_sink_materializes_both_stores_and_second_run_is_noop() {
+    let dir = tempdir();
+    let store = dir.join("cowork_artifacts");
+    let artifacts = vec![artifact("pipeline", "1")];
+    let sinks: &[&dyn ArtifactSink] = &[&FileSink, &SeedStaging];
+
+    write_artifacts(&store, sinks, &artifacts).expect("first write");
+    assert!(store.join(LIBRARY_STORE_FILE).is_file());
+    assert!(store.join(STAGING_SUBDIR).join("pipeline.json").is_file());
+    assert!(FileSink.is_materialized(&store));
+    assert!(SeedStaging.is_materialized(&store));
+
+    let marker = store.join(LIBRARY_STORE_FILE);
+    let mtime1 = fs::metadata(&marker).unwrap().modified().unwrap();
+    write_artifacts(&store, sinks, &artifacts).expect("second write");
+    let mtime2 = fs::metadata(&marker).unwrap().modified().unwrap();
+    assert_eq!(mtime1, mtime2, "unchanged dual-sink set must not rewrite");
+}
+
+#[test]
 fn empty_set_removes_the_store() {
     let dir = tempdir();
     let store = dir.join("cowork_artifacts");
-    write_artifacts(&store, &FileSink, &[artifact("pipeline", "1")]).expect("write");
+    write_artifacts(&store, &[&FileSink], &[artifact("pipeline", "1")]).expect("write");
     assert!(store.exists());
 
-    write_artifacts(&store, &FileSink, &[]).expect("empty write");
+    write_artifacts(&store, &[&FileSink], &[]).expect("empty write");
     assert!(!store.exists(), "empty artifact set removes the store dir");
 }
 
@@ -155,7 +175,7 @@ fn remove_dir_is_idempotent() {
     let dir = tempdir();
     let store = dir.join("cowork_artifacts");
     remove_dir(&store).expect("remove missing dir is a no-op");
-    write_artifacts(&store, &FileSink, &[artifact("pipeline", "1")]).expect("write");
+    write_artifacts(&store, &[&FileSink], &[artifact("pipeline", "1")]).expect("write");
     remove_dir(&store).expect("remove existing dir");
     assert!(!store.exists());
 }

@@ -1,6 +1,6 @@
 import { bridge } from "/assets/js/bridge.js";
 
-export const MKT_KINDS = ["plugins", "skills", "hooks", "mcp", "agents"];
+export const MKT_KINDS = ["plugins", "skills", "hooks", "mcp", "agents", "artifacts"];
 
 export function broadcastCount(listing) {
   if (!listing) { return; }

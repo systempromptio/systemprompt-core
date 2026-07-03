@@ -1,10 +1,10 @@
 use std::fmt::Write as _;
 
-use rand::RngCore as _;
+use rand::Rng as _;
 
 pub(crate) fn mint_csrf_token() -> String {
     let mut bytes = [0u8; 32];
-    rand::rngs::OsRng.fill_bytes(&mut bytes);
+    rand::rng().fill_bytes(&mut bytes);
     let mut out = String::with_capacity(bytes.len() * 2);
     for b in &bytes {
         _ = write!(out, "{b:02x}");

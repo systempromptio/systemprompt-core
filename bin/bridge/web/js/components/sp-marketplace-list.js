@@ -6,6 +6,7 @@ const KIND_EMPTY_TITLE = {
   hooks: "No hooks yet",
   mcp: "No MCP servers yet",
   agents: "No agents yet",
+  artifacts: "No artifacts yet",
 };
 
 const CHANGE_LABEL = {

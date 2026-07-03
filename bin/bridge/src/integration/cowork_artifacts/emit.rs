@@ -14,15 +14,13 @@ use crate::integration::cowork_plugins::resolve_target;
 use crate::sync::apply::ApplyError;
 use crate::sync::hash::sha256_hex;
 
-use super::sink::{ArtifactSink, FileSink};
+use super::sink::{ArtifactSink, FileSink, SeedStaging};
 
 const VERSION_FILE: &str = "version.json";
 
-/// Swap to [`super::sink::SeedStaging`] once the live-Cowork write mechanism
-/// is confirmed (see the module head in [`super`]).
 #[must_use]
-pub fn active_sink() -> &'static dyn ArtifactSink {
-    &FileSink
+pub fn active_sinks() -> &'static [&'static dyn ArtifactSink] {
+    &[&FileSink, &SeedStaging]
 }
 
 /// `None` means no Cowork install detected; callers treat it as a no-op.
@@ -74,16 +72,24 @@ fn write_version_json(dir: &Path, version: &str) -> Result<(), ApplyError> {
 
 pub fn write_artifacts(
     dir: &Path,
-    sink: &dyn ArtifactSink,
+    sinks: &[&dyn ArtifactSink],
     artifacts: &[ArtifactEntry],
 ) -> Result<(), ApplyError> {
     if artifacts.is_empty() {
+        tracing::info!(target_dir = %dir.display(), "cowork artifacts: empty set, clearing store");
         return remove_dir(dir);
     }
 
     let version = artifacts_version(artifacts);
-    if read_existing_version(dir).as_deref() == Some(version.as_str()) && sink.is_materialized(dir)
+    if read_existing_version(dir).as_deref() == Some(version.as_str())
+        && sinks.iter().all(|s| s.is_materialized(dir))
     {
+        tracing::info!(
+            count = artifacts.len(),
+            target_dir = %dir.display(),
+            artifacts_version = %version,
+            "cowork artifacts: up to date, skipping"
+        );
         return Ok(());
     }
 
@@ -92,8 +98,16 @@ pub fn write_artifacts(
         source: e,
     })?;
 
-    sink.write(dir, artifacts)?;
+    for sink in sinks {
+        sink.write(dir, artifacts)?;
+    }
     write_version_json(dir, &version)?;
+    tracing::info!(
+        count = artifacts.len(),
+        target_dir = %dir.display(),
+        artifacts_version = %version,
+        "cowork artifacts: store written"
+    );
     Ok(())
 }
 
