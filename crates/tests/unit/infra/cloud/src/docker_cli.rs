@@ -6,7 +6,7 @@ use std::path::Path;
 use std::process::{ExitStatus, Output};
 use std::sync::{Arc, Mutex};
 
-use systemprompt_cloud::{CommandRunner, CommandSpec, DockerCli};
+use systemprompt_cloud::{CommandRunner, CommandSpec, DockerCli, SystemCommandRunner};
 
 #[derive(Debug, Clone)]
 enum Call {
@@ -179,6 +179,105 @@ fn test_push_spawn_failure_message() {
 
     let err = docker.push("img:1").unwrap_err();
     assert_eq!(err.to_string(), "failed to spawn `docker push img:1`");
+}
+
+#[test]
+fn test_build_image_success_returns_ok() {
+    let (runner, calls) = StubRunner::new(0);
+    let docker = DockerCli::with_runner(Box::new(runner));
+
+    docker
+        .build_image(Path::new("/proj"), Path::new("/proj/Dockerfile"), "img:ok")
+        .expect("build succeeds on exit 0");
+
+    assert_eq!(calls.lock().unwrap().len(), 1);
+}
+
+#[test]
+fn test_login_success_returns_ok() {
+    let (runner, _calls) = StubRunner::new(0);
+    let docker = DockerCli::with_runner(Box::new(runner));
+
+    docker
+        .login("registry.fly.io", "user", "tok")
+        .expect("login succeeds on exit 0");
+}
+
+#[test]
+fn test_push_success_returns_ok() {
+    let (runner, calls) = StubRunner::new(0);
+    let docker = DockerCli::with_runner(Box::new(runner));
+
+    docker.push("img:pushok").expect("push succeeds on exit 0");
+
+    let calls = calls.lock().unwrap();
+    let Call::Status(spec) = &calls[0] else {
+        panic!("expected a status call");
+    };
+    assert_eq!(spec.args, vec!["push", "img:pushok"]);
+}
+
+#[test]
+fn test_command_spec_rendered_joins_program_and_args() {
+    let spec = CommandSpec::docker(["ps", "-a"]);
+    assert_eq!(spec.rendered(), "docker ps -a");
+}
+
+fn true_spec() -> CommandSpec {
+    CommandSpec {
+        program: "true".to_owned(),
+        args: Vec::new(),
+        current_dir: None,
+    }
+}
+
+#[test]
+fn test_system_runner_status_runs_real_process() {
+    let runner = SystemCommandRunner;
+    let status = runner
+        .status(&true_spec())
+        .expect("`true` spawns and exits");
+    assert!(status.success());
+}
+
+#[test]
+fn test_system_runner_output_captures_stdout() {
+    let runner = SystemCommandRunner;
+    let spec = CommandSpec {
+        program: "printf".to_owned(),
+        args: vec!["cov-marker".to_owned()],
+        current_dir: None,
+    };
+    let output = runner.output(&spec).expect("`printf` spawns");
+    assert!(output.status.success());
+    assert_eq!(output.stdout, b"cov-marker");
+}
+
+#[test]
+fn test_system_runner_status_honours_current_dir() {
+    let temp = tempfile::TempDir::new().unwrap();
+    let runner = SystemCommandRunner;
+    let spec = CommandSpec {
+        program: "true".to_owned(),
+        args: Vec::new(),
+        current_dir: Some(temp.path().to_path_buf()),
+    };
+    let status = runner.status(&spec).expect("`true` spawns in cwd");
+    assert!(status.success());
+}
+
+#[test]
+fn test_system_runner_status_with_stdin_pipes_bytes() {
+    let runner = SystemCommandRunner;
+    let spec = CommandSpec {
+        program: "cat".to_owned(),
+        args: Vec::new(),
+        current_dir: None,
+    };
+    let status = runner
+        .status_with_stdin(&spec, b"piped-bytes")
+        .expect("`cat` consumes stdin");
+    assert!(status.success());
 }
 
 #[test]

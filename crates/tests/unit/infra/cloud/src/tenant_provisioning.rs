@@ -132,6 +132,79 @@ async fn finalize_tenant_polls_to_ready_and_builds_record() {
 }
 
 #[tokio::test]
+async fn finalize_tenant_errors_when_secrets_url_missing() {
+    let server = MockServer::start().await;
+    token_mock(&server).await;
+    Mock::given(method("GET"))
+        .and(path("/api/v1/tenants/t-nosecret/events"))
+        .respond_with(ResponseTemplate::new(404))
+        .mount(&server)
+        .await;
+    Mock::given(method("GET"))
+        .and(path("/api/v1/tenants/t-nosecret/status"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "data": { "status": "ready" }
+        })))
+        .mount(&server)
+        .await;
+
+    let client = CloudApiClient::new(&server.uri(), "operator").unwrap();
+    let progress = RecordingProgress::new();
+    let err = TenantProvisioningService::new(&client)
+        .finalize_tenant(&TenantId::new("t-nosecret"), false, &progress)
+        .await
+        .expect_err("missing secrets url must fail");
+    assert!(err.to_string().contains("secrets URL is missing"));
+}
+
+#[tokio::test]
+async fn finalize_tenant_errors_when_tenant_absent_from_user() {
+    let server = MockServer::start().await;
+    let db_url = "postgres://u:p@internal.systemprompt.io:5432/demo";
+    token_mock(&server).await;
+    Mock::given(method("GET"))
+        .and(path("/api/v1/tenants/t-ghost/events"))
+        .respond_with(ResponseTemplate::new(404))
+        .mount(&server)
+        .await;
+    Mock::given(method("GET"))
+        .and(path("/api/v1/tenants/t-ghost/status"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "data": {
+                "status": "ready",
+                "secrets_url": format!("{}/api/v1/tenants/t-ghost/secrets-bundle", server.uri())
+            }
+        })))
+        .mount(&server)
+        .await;
+    Mock::given(method("GET"))
+        .and(path("/api/v1/tenants/t-ghost/secrets-bundle"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "database_url": db_url,
+            "internal_database_url": db_url,
+            "app_url": "https://demo.fly.dev"
+        })))
+        .mount(&server)
+        .await;
+    Mock::given(method("GET"))
+        .and(path("/api/v1/auth/me"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "user": { "id": "user-1", "email": "dev@example.com" },
+            "tenants": []
+        })))
+        .mount(&server)
+        .await;
+
+    let client = CloudApiClient::new(&server.uri(), "operator").unwrap();
+    let progress = RecordingProgress::new();
+    let err = TenantProvisioningService::new(&client)
+        .finalize_tenant(&TenantId::new("t-ghost"), false, &progress)
+        .await
+        .expect_err("absent tenant must fail");
+    assert!(err.to_string().contains("New tenant not found"));
+}
+
+#[tokio::test]
 async fn finalize_tenant_enables_external_access_and_swaps_host() {
     let server = MockServer::start().await;
     let db_url = "postgres://u:p@internal.sandbox.systemprompt.io:5432/demo?sslmode=disable";
