@@ -205,6 +205,10 @@ use systemprompt_cloud::{CommandRunner, CommandSpec, DockerCli};
 enum Resp {
     Out(i32, &'static str),
     Status(i32),
+    #[expect(
+        dead_code,
+        reason = "io-failure stub arm consumed by the runner matches; kept for error-path tests"
+    )]
     Io,
 }
 
