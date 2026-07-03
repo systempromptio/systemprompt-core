@@ -93,48 +93,50 @@ The test and coverage investment is largely behind the `crates/tests/` separate 
 
 - The `crates/tests/` workspace declares **52 workspace members** across eight categories: `unit/`, `integration/`, `contract/`, `concurrency/`, `property/` (proptest), `fuzz/` (four targets: `a2a_request`, `config_loading`, `identifier_validation`, `jsonrpc_parse`), `loadtest/`, `bench/`, plus shared test-utility crates. Re-run `cargo test --manifest-path crates/tests/Cargo.toml --workspace` to capture the current passing-test total before citing a headline figure.
 - **Coverage tooling is operational.** A dedicated `crates/tests/.cargo/config.toml` overrides the root cranelift / sccache settings with the LLVM backend, which `cargo-llvm-cov` and `-Cinstrument-coverage` require. `just coverage`, `just coverage-html`, and `just coverage-clean` are the supported entry points.
-- **CI integration is live.** `.github/workflows/coverage.yml` runs on every push to `main` plus a weekly cron. It applies all extension schemas to a CI Postgres service, runs the full test workspace with `RUSTFLAGS='-C instrument-coverage'`, merges profdata, and emits text, JSON, and LCOV artefacts. A per-run GitHub step summary makes the number visible without downloading anything.
+- **CI integration is live.** `.github/workflows/coverage.yml` runs on a nightly cron plus manual dispatch (the instrumented build is too heavy for every push). It applies all extension schemas to a CI Postgres service, runs the full test workspace with `RUSTFLAGS='-C instrument-coverage'`, merges profdata, emits text/JSON/LCOV artefacts, uploads to Codecov, and enforces a ratchet that fails on any >0.5pt aggregate line-coverage drop. A per-run GitHub step summary makes the number visible without downloading anything.
 
 ### Per-crate coverage (dated snapshot — re-measure before citing)
 
-> The figures below are a **dated snapshot from 2026-05-27** and have not been re-measured for this audit. Coverage requires an LLVM-backend instrumented run; re-run `just coverage` and refresh this table before citing it in a live RFI. The codebase has grown since the snapshot, so absolute percentages and line counts will have drifted.
+> The figures below are the **2026-07-03 instrumented measurement** produced by the `Coverage` CI workflow (`.github/workflows/coverage.yml`, run against `main`) and mirrored locally by `just coverage`. `bin/bridge` (the desktop helper binary) is excluded from this denominator; it carries its own coverage workflow. Re-run the workflow to refresh before citing in a live RFI.
 
-At the time of the snapshot, the headline figure was approximately **50% line coverage** across the production crates, with **29 of 30 crates at or above 50%**. `entry/cli` is the only documented residual (≈18%), reflecting its CLI / e2e-test footprint rather than an integration-test gap. Security-critical surfaces remain highest:
+The headline figure is approximately **79.5% line coverage** across the production crates (128,881 lines), with **every production crate at or above 70%**. Security-critical surfaces sit highest:
 
 | Crate | Lines | Coverage | Relevance |
 |-------|------:|---------:|-----------|
-| `infra/events` | 121 | 100.0% | audit / event pipeline |
-| `infra/security` | 557 | 92.3% | JWT validation, auth extraction, manifest signing |
-| `shared/identifiers` | 932 | 86.9% | typed IDs (UserId, TaskId, etc.) |
-| `infra/config` | 510 | 86.7% | secrets / profile bootstrap |
-| `domain/templates` | 434 | 84.3% | |
-| `infra/loader` | 667 | 75.4% | file / module discovery |
-| `shared/client` | 262 | 74.0% | HTTP client |
-| `shared/extension` | 1,007 | 64.2% | extension framework |
-| `shared/traits` | 665 | 51.3% | |
-| `shared/provider-contracts` | 680 | 45.0% | |
-| `domain/oauth` | 3,309 | 41.0% | OAuth2 / OIDC / PKCE |
-| `domain/ai` | 6,552 | 35.1% | provider adapters |
-| `shared/models` | 9,339 | 34.8% | mostly serde-typed models where line coverage is a poor proxy |
-| `domain/files` | 1,472 | 31.9% | |
-| `infra/cloud` | 2,051 | 29.9% | |
-| `domain/mcp` | 6,553 | 25.9% | |
-| `domain/analytics` | 3,202 | 24.9% | |
-| `domain/content` | 2,326 | 21.9% | |
-| `app/scheduler` | 1,245 | 14.9% | |
-| `domain/users` | 1,199 | 14.9% | |
-| `domain/agent` | 12,256 | 11.2% | A2A protocol (largest uncovered crate in the hot path) |
-| `app/runtime` | 961 | 10.2% | AppContext wiring |
-| `app/generator` | 1,873 | 10.2% | static site builder |
-| `infra/logging` | 3,731 | 9.3% | structured logging wrappers |
-| `infra/database` | 1,893 | 7.0% | sqlx wrapper (thin, mostly typed delegates) |
-| `app/sync` | 1,777 | 6.6% | cloud sync |
-| `entry/api` | 11,809 | 6.2% | HTTP handlers — integration-test territory |
-| `entry/cli` | 31,882 | 0.5% | CLI commands — e2e-test territory |
+| `domain/teams` | 334 | 99.7% | Teams messaging adapter |
+| `shared/traits` | 790 | 99.5% | core interfaces |
+| `shared/client` | 344 | 98.8% | HTTP client |
+| `domain/slack` | 153 | 96.7% | Slack messaging adapter |
+| `shared/provider-contracts` | 717 | 94.6% | provider trait definitions |
+| `domain/analytics` | 3,464 | 94.1% | metrics / behavioural detection |
+| `domain/templates` | 457 | 93.4% | template registry |
+| `shared/extension` | 1,151 | 93.0% | extension framework |
+| `shared/identifiers` | 1,145 | 92.5% | typed IDs (UserId, TaskId, etc.) |
+| `infra/security` | 2,199 | 91.8% | JWT validation, auth extraction, manifest signing |
+| `domain/marketplace` | 1,134 | 91.6% | marketplace / ABAC floor |
+| `domain/content` | 2,395 | 90.7% | content management |
+| `domain/users` | 1,279 | 90.2% | user management |
+| `infra/logging` | 3,851 | 90.0% | structured logging |
+| `infra/loader` | 822 | 86.6% | file / module discovery |
+| `shared/template-provider` | 86 | 86.0% | template traits |
+| `domain/files` | 1,347 | 85.7% | file storage |
+| `app/scheduler` | 2,071 | 85.7% | job scheduling |
+| `shared/models` | 12,159 | 85.4% | core data types |
+| `domain/ai` | 5,968 | 84.7% | provider adapters |
+| `infra/events` | 403 | 83.9% | audit / event pipeline |
+| `domain/oauth` | 4,118 | 83.3% | OAuth2 / OIDC / PKCE |
+| `infra/config` | 1,470 | 82.4% | secrets / profile bootstrap |
+| `infra/database` | 3,466 | 80.6% | sqlx wrapper |
+| `entry/api` | 16,891 | 80.2% | HTTP handlers |
+| `infra/cloud` | 3,059 | 77.2% | cloud API / tenants |
+| `domain/mcp` | 7,390 | 76.3% | MCP servers |
+| `app/runtime` | 1,275 | 76.2% | AppContext wiring |
+| `domain/agent` | 12,567 | 75.2% | A2A protocol (largest crate in the hot path) |
+| `app/sync` | 1,924 | 74.0% | cloud sync |
+| `app/generator` | 2,145 | 71.4% | static site builder |
+| `entry/cli` | 32,133 | 70.4% | CLI commands (largest crate; e2e / subprocess surface) |
 
-At the snapshot date, security-critical surfaces (`infra/events`, `infra/security`, `infra/config`, `shared/identifiers`) sat at 87–100%. The headline percentage is a denominator-of-everything number; the residual gap is concentrated in `entry/cli`, which is a CLI / e2e-test surface rather than a unit-test surface.
-
-> The numerical table above retains the 2026-04-23 figures as a historical reference. The newer 2026-05-27 measurement (29 of 30 crates ≥50%, `entry/cli` ≈18%) is summarised in the prose above; re-run `just coverage` and rewrite the table outright before citing it in a live RFI.
+Security-critical surfaces (`infra/security`, `shared/identifiers`, `infra/config`, `infra/events`) sit at 82–92%. The two largest crates — `entry/cli` (32k lines) and `domain/agent` / `entry/api` — which historically dominated the uncovered surface, now sit at 70–80% following the mid-2026 coverage campaign. CI enforces a ratchet that fails the run on any >0.5pt aggregate line-coverage regression.
 
 ## 5. Pre-answered Enterprise Security Questionnaire
 

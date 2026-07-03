@@ -12,6 +12,8 @@ A self-hosted platform for running AI agents and MCP servers under one governed 
 
 [![Crates.io](https://img.shields.io/crates/v/systemprompt.svg?style=flat-square)](https://crates.io/crates/systemprompt)
 [![Docs.rs](https://img.shields.io/docsrs/systemprompt?style=flat-square)](https://docs.rs/systemprompt)
+[![CI](https://img.shields.io/github/actions/workflow/status/systempromptio/systemprompt-core/ci.yml?branch=main&style=flat-square&label=CI)](https://github.com/systempromptio/systemprompt-core/actions/workflows/ci.yml)
+[![codecov](https://img.shields.io/codecov/c/github/systempromptio/systemprompt-core/main?style=flat-square&logo=codecov)](https://codecov.io/gh/systempromptio/systemprompt-core)
 [![License: BSL-1.1](https://img.shields.io/badge/license-BSL--1.1-2b6cb0?style=flat-square)](LICENSE)
 [![Rust 1.85+](https://img.shields.io/badge/rust-1.85+-f97316?style=flat-square&logo=rust&logoColor=white)](https://www.rust-lang.org/)
 [![PostgreSQL 18+](https://img.shields.io/badge/postgres-18+-336791?style=flat-square&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
