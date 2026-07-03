@@ -115,6 +115,7 @@ scripts/*
 # the `just lint-*` recipes.
 !scripts/lint-schema.sh
 !scripts/lint-extensions.sh
+!scripts/lint-raw-ids.sh
 !scripts/check-sqlx.sh
 !scripts/check-http-errors.sh
 
