@@ -46,6 +46,8 @@ pub fn build_gateway_authz_request(input: GatewayAuthzRequestInput) -> AuthzRequ
         session_id,
         context: AuthzContext::gateway_invocation(&model),
         act_chain,
+        context_id: None,
+        task_id: None,
     }
 }
 
