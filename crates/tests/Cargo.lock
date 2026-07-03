@@ -6978,13 +6978,17 @@ dependencies = [
 name = "systemprompt-bridge-activity-tests"
 version = "0.0.11"
 dependencies = [
+ "serde_json",
  "systemprompt-bridge",
+ "temp-env",
+ "tempfile",
 ]
 
 [[package]]
 name = "systemprompt-bridge-auth-e2e-tests"
 version = "0.0.11"
 dependencies = [
+ "keyring",
  "serde_json",
  "systemprompt-bridge",
  "systemprompt-identifiers",
@@ -7018,6 +7022,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "systemprompt-bridge-cli-subprocess-tests"
+version = "0.0.11"
+dependencies = [
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "wiremock",
+]
+
+[[package]]
 name = "systemprompt-bridge-cli-tests"
 version = "0.0.11"
 dependencies = [
@@ -7042,6 +7056,7 @@ version = "0.0.11"
 dependencies = [
  "serde_json",
  "systemprompt-bridge",
+ "temp-env",
  "tempfile",
 ]
 
@@ -7101,7 +7116,9 @@ dependencies = [
 name = "systemprompt-bridge-integration-tests"
 version = "0.0.11"
 dependencies = [
+ "keyring",
  "serde_json",
+ "sha2 0.11.0",
  "systemprompt-bridge",
  "systemprompt-identifiers",
  "temp-env",
@@ -7140,6 +7157,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "systemprompt-bridge-obs-tests"
+version = "0.0.11"
+dependencies = [
+ "systemprompt-bridge",
+ "temp-env",
+ "tempfile",
+ "tracing",
+]
+
+[[package]]
 name = "systemprompt-bridge-paths-tests"
 version = "0.0.11"
 dependencies = [
@@ -7155,8 +7182,11 @@ dependencies = [
  "hyper",
  "hyper-util",
  "reqwest",
+ "serde_json",
  "systemprompt-bridge",
  "systemprompt-identifiers",
+ "temp-env",
+ "tempfile",
  "tokio",
  "wiremock",
 ]
@@ -7184,6 +7214,8 @@ dependencies = [
 name = "systemprompt-bridge-sync-e2e-tests"
 version = "0.0.11"
 dependencies = [
+ "base64 0.22.1",
+ "ed25519-dalek",
  "hex",
  "serde_json",
  "sha2 0.11.0",

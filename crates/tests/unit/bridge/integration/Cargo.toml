@@ -20,3 +20,5 @@ tempfile = "3"
 temp-env = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 wiremock = { workspace = true }
+sha2 = { workspace = true }
+keyring = { workspace = true }
