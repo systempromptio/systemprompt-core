@@ -1,3 +1,4 @@
+mod mcp_manifest_seam;
 mod reports_and_errors;
 mod validate_invocation;
 mod validator_and_patterns;

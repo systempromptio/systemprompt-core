@@ -31,6 +31,7 @@ use mcp_validator::validate_mcp_manifests;
 pub use display::{display_validation_report, display_validation_warnings};
 pub use extension_validator::{ExtensionConfigOutcome, validate_extension_configs};
 pub use files_validator::FilesConfigValidator;
+pub use mcp_validator::{collect_manifest_errors, merge_mcp_errors};
 
 #[derive(Debug)]
 pub struct StartupValidator {
