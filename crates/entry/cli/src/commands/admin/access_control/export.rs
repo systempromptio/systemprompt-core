@@ -18,7 +18,7 @@ pub(super) async fn run(_args: ExportYamlArgs, _config: &CliConfig) -> Result<Co
     ))
 }
 
-async fn render_yaml_snapshot(pool: &DbPool) -> Result<String> {
+pub async fn render_yaml_snapshot(pool: &DbPool) -> Result<String> {
     let grouped = load_grouped_rules(pool).await?;
 
     let mut out = String::new();

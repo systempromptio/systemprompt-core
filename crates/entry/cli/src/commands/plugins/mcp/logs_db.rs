@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use anyhow::{Context, Result, anyhow};
+use systemprompt_database::DbPool;
 use systemprompt_loader::ConfigLoader;
 use systemprompt_logging::LoggingRepository;
 use systemprompt_runtime::AppContext;
@@ -10,13 +11,21 @@ use super::types::McpLogsOutput;
 use crate::CliConfig;
 use crate::shared::CommandOutput;
 
-pub(super) async fn execute_db_mode(args: &LogsArgs, _config: &CliConfig) -> Result<CommandOutput> {
+pub(super) async fn execute_db_mode(args: &LogsArgs, config: &CliConfig) -> Result<CommandOutput> {
     let ctx = Arc::new(
         AppContext::new()
             .await
             .context("Failed to initialize app context")?,
     );
-    let repo = LoggingRepository::new(ctx.db_pool())?;
+    execute_db_mode_with_pool(args, ctx.db_pool(), config).await
+}
+
+pub async fn execute_db_mode_with_pool(
+    args: &LogsArgs,
+    pool: &DbPool,
+    _config: &CliConfig,
+) -> Result<CommandOutput> {
+    let repo = LoggingRepository::new(pool)?;
 
     let patterns = match &args.server {
         Some(service) => build_service_patterns(service),

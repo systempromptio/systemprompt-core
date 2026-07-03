@@ -1,7 +1,7 @@
 use anyhow::Result;
 use clap::Args;
 use std::sync::Arc;
-use systemprompt_database::CleanupRepository;
+use systemprompt_database::{CleanupRepository, DbPool};
 use systemprompt_runtime::AppContext;
 
 use super::types::LogCleanupOutput;
@@ -18,7 +18,11 @@ pub struct LogCleanupArgs {
 
 pub(super) async fn execute(args: LogCleanupArgs) -> Result<CommandOutput> {
     let ctx = Arc::new(AppContext::new().await?);
-    let write_pool = ctx.db_pool().write_pool_arc()?;
+    execute_with_pool(args, ctx.db_pool()).await
+}
+
+pub async fn execute_with_pool(args: LogCleanupArgs, pool: &DbPool) -> Result<CommandOutput> {
+    let write_pool = pool.write_pool_arc()?;
     let repo = CleanupRepository::new_with_write_pool((*write_pool).clone());
 
     if args.dry_run {

@@ -2,6 +2,7 @@ use anyhow::Result;
 use clap::Args;
 use std::sync::Arc;
 use systemprompt_analytics::{SessionCleanupService, SessionRepository};
+use systemprompt_database::DbPool;
 use systemprompt_runtime::AppContext;
 
 use super::types::SessionCleanupOutput;
@@ -22,9 +23,12 @@ pub struct CleanupSessionsArgs {
 
 pub(super) async fn execute(args: CleanupSessionsArgs) -> Result<CommandOutput> {
     let ctx = Arc::new(AppContext::new().await?);
+    execute_with_pool(args, ctx.db_pool()).await
+}
 
+pub async fn execute_with_pool(args: CleanupSessionsArgs, pool: &DbPool) -> Result<CommandOutput> {
     if args.dry_run {
-        let repo = SessionRepository::new(ctx.db_pool())?;
+        let repo = SessionRepository::new(pool)?;
         let count = repo.count_inactive(args.hours).await?;
 
         let output = SessionCleanupOutput {
@@ -43,7 +47,7 @@ pub(super) async fn execute(args: CleanupSessionsArgs) -> Result<CommandOutput> 
         ));
     }
 
-    let cleanup_service = SessionCleanupService::new(ctx.db_pool())?;
+    let cleanup_service = SessionCleanupService::new(pool)?;
     let closed_count = cleanup_service
         .cleanup_inactive_sessions(args.hours)
         .await?;

@@ -1,6 +1,7 @@
 use anyhow::Result;
 use clap::Args;
 use std::sync::Arc;
+use systemprompt_database::DbPool;
 use systemprompt_runtime::AppContext;
 use systemprompt_scheduler::JobRepository;
 
@@ -26,7 +27,11 @@ pub struct HistoryArgs {
 
 pub(super) async fn execute(args: HistoryArgs) -> Result<CommandOutput> {
     let ctx = Arc::new(AppContext::new().await?);
-    let repo = JobRepository::new(ctx.db_pool())?;
+    execute_with_pool(args, ctx.db_pool()).await
+}
+
+pub async fn execute_with_pool(args: HistoryArgs, pool: &DbPool) -> Result<CommandOutput> {
+    let repo = JobRepository::new(pool)?;
 
     let entries: Vec<JobHistoryEntry> = if let Some(ref job_name) = args.job {
         match repo.find_job(job_name).await? {

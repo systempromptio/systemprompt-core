@@ -6,12 +6,12 @@
 
 pub mod types;
 
-mod cleanup_logs;
-mod cleanup_sessions;
+pub mod cleanup_logs;
+pub mod cleanup_sessions;
 mod disable;
 mod enable;
 mod helpers;
-mod history;
+pub mod history;
 mod list;
 mod run;
 mod show;

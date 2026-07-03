@@ -4,7 +4,7 @@
 //! committable YAML baseline and linting the live access-control tables for
 //! unknown entities or unreachable rules.
 
-mod export;
+pub mod export;
 mod lint;
 
 use anyhow::Result;
