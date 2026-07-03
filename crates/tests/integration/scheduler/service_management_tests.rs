@@ -5,8 +5,8 @@
 
 use systemprompt_database::{CreateServiceInput, DbPool, ServiceRepository};
 use systemprompt_scheduler::{
-    DesiredStatus, RuntimeStatus, ServiceConfig, ServiceManagementService, ServiceStateVerifier,
-    ServiceType,
+    DesiredStatus, RuntimeStatus, ServiceAction, ServiceConfig, ServiceManagementService,
+    ServiceStateVerifier, ServiceType,
 };
 use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
 
@@ -147,9 +147,18 @@ async fn state_verifier_get_services_needing_action_filters() {
         .get_services_needing_action(&configs)
         .await
         .expect("query");
+    let ours = actions
+        .iter()
+        .find(|s| s.name == configs[0].name)
+        .expect("disabled service must surface as needing action (DB cleanup)");
+    assert_eq!(
+        ours.desired_status,
+        DesiredStatus::Disabled,
+        "a disabled config must be classified as desired-disabled"
+    );
     assert!(
-        actions.iter().all(|s| s.name == configs[0].name),
-        "get_services_needing_action must only return states for the supplied configs"
+        ours.needs_action != ServiceAction::None,
+        "a surfaced needing-action state must carry a non-None action"
     );
 }
 
