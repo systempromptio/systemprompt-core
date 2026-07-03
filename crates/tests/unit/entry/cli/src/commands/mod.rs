@@ -1,5 +1,6 @@
 //! Tests touching public surfaces under the `commands` re-exports.
 
+mod admin_config;
 mod admin_prompts;
 mod admin_users_session_end_db;
 mod admin_users_write_db;
