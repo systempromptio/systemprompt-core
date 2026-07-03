@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.19.0] - 2026-07-03
+
+### Breaking
+
+- `PublishError::Other` and the `PublishError::other(..)` constructor are removed. Every former call site now surfaces a typed variant: `IoContext { context, source }`, `ContentConfigRead`/`ContentConfigParse { path, source }`, `WebConfig`, `GlobalConfig`, `Content { context, source }`, `Template`, and `ExtensionDiscovery`. Match on the typed variants instead of the string bucket; display strings preserve the previous context.
+
 ## [0.16.1] - 2026-06-22
 
 ### Fixed

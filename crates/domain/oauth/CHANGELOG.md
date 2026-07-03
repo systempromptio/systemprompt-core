@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.19.0] - 2026-07-03
+
+### Breaking
+
+- `OauthError` gains `CimdFetch`, `InvalidClientMetadata`, and `WebAuthnConfig` variants, replacing `Internal(..)` at the CIMD validator/fetcher and WebAuthn-config sites; exhaustive matches must add arms.
+
+### Fixed
+
+- Client-fault CIMD errors (malformed client_id URL, unregistered redirect_uri, metadata failing validation) are classified `InvalidClientMetadata` and map to `invalid_client` (400-class) per RFC semantics instead of a 500 `server_error`. Upstream metadata fetch/parse failures (`CimdFetch`) and server WebAuthn configuration errors (`WebAuthnConfig`) remain `server_error`.
+
+### Changed
+
+- The load-bearing passkey transport re-casing (stored lowercase transports vs `webauthn_rs`'s case-sensitive `AuthenticatorTransport` deserialization) is isolated into documented helpers (`normalize_transport_casing`) with the exact casing map pinned by unit tests. No behavioural change.
+
 ## [0.16.1] - 2026-06-22
 
 ### Added

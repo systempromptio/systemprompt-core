@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.19.0] - 2026-07-03
+
+### Breaking
+
+- `StoredTenant.id`, `NewCloudTenantParams.id`, and `ResolvedTenant.id` are `TenantId` (were `String`), and `TenantStore::find_tenant` takes `&TenantId`.
+- `CloudCredentials.user_email` is `Email` and `api_token` is `CloudAuthToken`; `CloudCredentials::token()` returns `&CloudAuthToken`.
+- The on-disk JSON wire format is unchanged — typed IDs serialize as plain strings, proven by byte-identity round-trip tests.
+
 ## [0.16.1] - 2026-06-22
 
 ### Changed

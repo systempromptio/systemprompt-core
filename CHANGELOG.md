@@ -8,6 +8,14 @@
 - rmcp is upgraded to 2.x (MCP 2025-11-25 specification alignment, including the upstream OAuth resource-spoofing, OAuth metadata SSRF, and streamable-HTTP session-leak fixes). Crates that re-export rmcp types in public signatures (`systemprompt-models`, `systemprompt-mcp`) now use `ContentBlock` in place of the removed `Content`/`RawContent` pair; migrate matches on `content.raw` to match the `ContentBlock` enum directly and construct wire types through their builders (`ContentBlock::text(..)`, `Resource::new(..)`). The JSON wire format is unchanged.
 - SQLx is upgraded to 0.9. Crates that expose SQLx types (`systemprompt-database`) now build against sqlx 0.9; downstream consumers must upgrade in lockstep.
 - `MarketplaceCandidate::new` takes an additional `artifacts: Vec<ArtifactEntry>` argument, and `CatalogContent::into_parts` returns a 4-tuple including the artifact set. Migrate by passing `Vec::new()` / destructuring the extra element where artifacts are not used.
+- `PublishError::Other` and the `PublishError::other(..)` constructor are removed (`systemprompt-generator`); every former call site now surfaces a typed variant (`IoContext`, `ContentConfigRead`/`ContentConfigParse`, `WebConfig`, `GlobalConfig`, `Content`, `Template`, `ExtensionDiscovery`). Match on the typed variants instead of the string bucket.
+- `systemprompt-files`: `File.metadata` is `sqlx::types::Json<FileMetadata>` (was `serde_json::Value`) and `ContentFile.role` is `FileRole` (was `String`); the fallible `File::metadata()` and `ContentFile::parsed_role()` accessors are removed — use the typed fields directly. `FileRole` serde casing is now `snake_case`, so the OG-image role serializes as `"og_image"` (previously `"ogimage"`, which never matched the DB representation).
+- `systemprompt-cloud`: `StoredTenant.id`, `NewCloudTenantParams.id`, and `ResolvedTenant.id` are `TenantId`; `CloudCredentials.user_email` is `Email` and `api_token` is `CloudAuthToken`; `TenantStore::find_tenant` takes `&TenantId`. The on-disk JSON wire format is unchanged (typed IDs serialize as plain strings; covered by round-trip tests).
+- `OauthError` gains `CimdFetch`, `InvalidClientMetadata`, and `WebAuthnConfig` variants replacing `Internal(..)` at the CIMD and WebAuthn-config sites; exhaustive matches on the enum must add arms.
+
+### Fixed
+
+- OAuth client-fault CIMD errors (malformed client_id URL, unregistered redirect_uri, metadata failing validation) return `invalid_client` (400-class) per RFC semantics instead of `server_error` (500). Upstream metadata fetch/parse failures and server WebAuthn configuration errors remain `server_error`.
 
 ### Added
 
