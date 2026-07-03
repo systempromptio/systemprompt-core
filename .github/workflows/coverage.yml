@@ -57,6 +57,14 @@ jobs:
         run: |
           echo "cores: $(nproc)"; free -h; df -h /
 
+      - name: Free runner disk (instrumented --bins --tests build overflows the default ~14GB)
+        run: |
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc \
+            /usr/local/.ghcup /usr/local/share/boost /usr/local/share/powershell \
+            /usr/local/lib/node_modules "$AGENT_TOOLSDIRECTORY"
+          sudo docker image prune --all --force >/dev/null 2>&1 || true
+          df -h /
+
       - name: Install libdbus (bridge test bins link keyring -> dbus)
         run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config
 
