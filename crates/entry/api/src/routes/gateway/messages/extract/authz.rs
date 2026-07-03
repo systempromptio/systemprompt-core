@@ -6,7 +6,7 @@
 
 use axum::http::StatusCode;
 use std::collections::BTreeMap;
-use systemprompt_identifiers::{Actor, ContextId, ModelId, RouteId, SessionId, TraceId, UserId};
+use systemprompt_identifiers::{Actor, ModelId, RouteId, SessionId, TraceId, UserId};
 use systemprompt_security::authz::{
     AuthzContext, AuthzDecision, AuthzRequest, EntityRef, SharedAuthzHook,
 };
@@ -23,7 +23,6 @@ pub struct GatewayAuthzRequestInput {
     pub route_id: RouteId,
     pub model: ModelId,
     pub session_id: Option<SessionId>,
-    pub context_id: ContextId,
 }
 
 #[must_use]
@@ -37,7 +36,6 @@ pub fn build_gateway_authz_request(input: GatewayAuthzRequestInput) -> AuthzRequ
         route_id,
         model,
         session_id,
-        context_id,
     } = input;
     AuthzRequest {
         entity: EntityRef::GatewayRoute(route_id),
@@ -47,8 +45,6 @@ pub fn build_gateway_authz_request(input: GatewayAuthzRequestInput) -> AuthzRequ
         trace_id,
         session_id,
         context: AuthzContext::gateway_invocation(&model),
-        context_id: Some(context_id),
-        task_id: None,
         act_chain,
     }
 }
@@ -64,7 +60,6 @@ pub async fn enforce_authz_pre_dispatch(
     principal: &AuthedPrincipal,
     route: &systemprompt_models::profile::GatewayRoute,
     model: &str,
-    context_id: &ContextId,
     hook: &SharedAuthzHook,
 ) -> Result<(), (StatusCode, String)> {
     let route_id = if route.id.as_str().trim().is_empty() {
@@ -85,7 +80,6 @@ pub async fn enforce_authz_pre_dispatch(
         route_id,
         model: ModelId::new(model),
         session_id: principal.attested_session().cloned(),
-        context_id: context_id.clone(),
     });
     match hook.evaluate(req).await {
         AuthzDecision::Allow => Ok(()),
