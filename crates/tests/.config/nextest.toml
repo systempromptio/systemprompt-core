@@ -67,6 +67,14 @@ filter = 'package(systemprompt-scheduler-tests) and test(/(state_verifier_seeded
 test-group = 'scheduler-services-db'
 
 [[profile.default.overrides]]
+filter = 'package(systemprompt-scheduler-integration-tests) and test(/service_management_tests::/)'
+test-group = 'scheduler-services-db'
+
+[[profile.ci.overrides]]
+filter = 'package(systemprompt-scheduler-integration-tests) and test(/service_management_tests::/)'
+test-group = 'scheduler-services-db'
+
+[[profile.default.overrides]]
 filter = 'package(systemprompt-agent-integration-tests) and test(/agent_service_repo_e2e::/)'
 test-group = 'scheduler-services-db'
 
@@ -156,3 +164,15 @@ test-group = 'cli-cloud-harness'
 [[profile.ci.overrides]]
 filter = 'package(systemprompt-cli-integration-tests) and test(/cloud_harness::/)'
 test-group = 'cli-cloud-harness'
+
+# The CLI subprocess suite spawns full `systemprompt` boots (validation, DB,
+# migrations); under a loaded shard a single boot can legitimately exceed the
+# workspace-wide 60s slow period, so give the whole package a wider band before
+# nextest terminates it.
+[[profile.default.overrides]]
+filter = 'package(systemprompt-cli-integration-tests)'
+slow-timeout = { period = "120s", terminate-after = 3 }
+
+[[profile.ci.overrides]]
+filter = 'package(systemprompt-cli-integration-tests)'
+slow-timeout = { period = "120s", terminate-after = 3 }

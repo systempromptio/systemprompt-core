@@ -70,7 +70,28 @@ async fn test_duration_seconds_calculated_after_activity() -> Result<()> {
 
     ctx.make_request("/").await?;
 
-    tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
+    let deadline = tokio::time::Instant::now() + tokio::time::Duration::from_secs(45);
+    loop {
+        let rows = ctx
+            .db
+            .fetch_all(
+                &"SELECT session_id FROM user_sessions WHERE fingerprint_hash = $1",
+                &[&fingerprint],
+            )
+            .await?;
+        if !rows.is_empty() {
+            break;
+        }
+        assert!(
+            tokio::time::Instant::now() < deadline,
+            "first request was never ingested within 45s"
+        );
+        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+    }
+
+    // The measured duration is last_activity_at - started_at in whole seconds,
+    // so the second request must land after a real wall-clock gap.
+    tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
 
     ctx.make_request("/").await?;
 
@@ -100,7 +121,7 @@ async fn test_duration_seconds_calculated_after_activity() -> Result<()> {
             "CRITICAL BUG: duration_seconds is {} when session had activity spanning {} seconds. \
              This causes 'Avg Session Duration: 0.0s' in production.",
             duration,
-            3
+            2
         );
     } else {
         let started_at = session.get("started_at").and_then(|v| v.as_str());
@@ -109,7 +130,7 @@ async fn test_duration_seconds_calculated_after_activity() -> Result<()> {
         if let (Some(started), Some(last_activity)) = (started_at, last_activity_at) {
             assert_ne!(
                 started, last_activity,
-                "WARNING: started_at and last_activity_at are the same despite 3 second delay. \
+                "WARNING: started_at and last_activity_at are the same despite 2 second delay. \
                  Session tracking may not be updating properly."
             );
 

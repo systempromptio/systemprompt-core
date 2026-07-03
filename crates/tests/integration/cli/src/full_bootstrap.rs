@@ -63,28 +63,10 @@ pub fn systemprompt_bin() -> PathBuf {
             }
         }
     }
-    build_cli_binary()
-}
-
-fn build_cli_binary() -> PathBuf {
-    static BUILT: OnceLock<PathBuf> = OnceLock::new();
-    BUILT
-        .get_or_init(|| {
-            let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-            let repo_root = manifest_dir
-                .ancestors()
-                .find(|p| p.join("crates/entry/cli/Cargo.toml").exists())
-                .expect("repo root with crates/entry/cli")
-                .to_path_buf();
-            let status = std::process::Command::new("cargo")
-                .args(["build", "-p", "systemprompt-cli", "--bin", "systemprompt"])
-                .current_dir(&repo_root)
-                .status()
-                .expect("spawn cargo build for systemprompt binary");
-            assert!(status.success(), "cargo build -p systemprompt-cli failed");
-            repo_root.join("target/debug/systemprompt")
-        })
-        .clone()
+    panic!(
+        "systemprompt binary not found; prebuild it with `cargo build -p systemprompt-cli --bin \
+         systemprompt` from the repo root, or point SYSTEMPROMPT_BIN at an existing binary"
+    );
 }
 
 pub fn command_bare() -> Option<Command> {

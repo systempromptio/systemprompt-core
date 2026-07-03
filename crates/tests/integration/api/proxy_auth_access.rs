@@ -50,15 +50,16 @@ async fn missing_credentials_returns_challenge_without_error_attr() -> anyhow::R
     let (_pool, ctx) = setup_ctx().await?;
     let rc = request_context("proxy-access-anon");
     let headers = HeaderMap::new();
-    let err = validate_with_requirement(
+    let result = validate_with_requirement(
         &headers,
         "svc-mcp",
         &requirement(true, &[], ""),
         &ctx,
         Some(&rc),
-    )
-    .err()
-    .expect("must be challenged");
+    );
+    let Err(err) = result else {
+        panic!("must be challenged")
+    };
     assert_eq!(err.status(), axum::http::StatusCode::UNAUTHORIZED);
     let www = err
         .headers()
@@ -82,10 +83,11 @@ async fn invalid_bearer_returns_invalid_token_challenge() -> anyhow::Result<()> 
         header::AUTHORIZATION,
         HeaderValue::from_static("Bearer not-a-jwt"),
     );
-    let err =
-        validate_with_requirement(&headers, "svc-mcp", &requirement(true, &[], ""), &ctx, None)
-            .err()
-            .expect("must be challenged");
+    let result =
+        validate_with_requirement(&headers, "svc-mcp", &requirement(true, &[], ""), &ctx, None);
+    let Err(err) = result else {
+        panic!("must be challenged")
+    };
     assert_eq!(err.status(), axum::http::StatusCode::UNAUTHORIZED);
     let www = err
         .headers()
@@ -119,10 +121,11 @@ async fn mcp_session_with_stale_bearer_is_still_challenged() -> anyhow::Result<(
         header::AUTHORIZATION,
         HeaderValue::from_static("Bearer expired-token"),
     );
-    let err =
-        validate_with_requirement(&headers, "svc-mcp", &requirement(true, &[], ""), &ctx, None)
-            .err()
-            .expect("stale bearer must trigger a refresh challenge");
+    let result =
+        validate_with_requirement(&headers, "svc-mcp", &requirement(true, &[], ""), &ctx, None);
+    let Err(err) = result else {
+        panic!("stale bearer must trigger a refresh challenge")
+    };
     assert_eq!(err.status(), axum::http::StatusCode::UNAUTHORIZED);
     Ok(())
 }
@@ -133,9 +136,10 @@ async fn agent_module_challenge_advertises_agent_resource() -> anyhow::Result<()
     let headers = HeaderMap::new();
     let mut req = requirement(true, &[], "");
     req.module = "agent".to_owned();
-    let err = validate_with_requirement(&headers, "my-agent", &req, &ctx, None)
-        .err()
-        .expect("must be challenged");
+    let result = validate_with_requirement(&headers, "my-agent", &req, &ctx, None);
+    let Err(err) = result else {
+        panic!("must be challenged")
+    };
     let www = err
         .headers()
         .get("www-authenticate")
@@ -193,7 +197,9 @@ async fn valid_bearer_missing_scope_is_forbidden() -> anyhow::Result<()> {
         &ctx,
         None,
     );
-    let err = result.err().expect("missing scope must be rejected");
+    let Err(err) = result else {
+        panic!("missing scope must be rejected")
+    };
     assert!(
         err.status() == axum::http::StatusCode::FORBIDDEN
             || err.status() == axum::http::StatusCode::UNAUTHORIZED,
@@ -214,9 +220,9 @@ async fn required_audience_not_carried_by_token_is_rejected() -> anyhow::Result<
         &ctx,
         None,
     );
-    let err = result
-        .err()
-        .expect("token without the hook audience must be rejected");
+    let Err(err) = result else {
+        panic!("token without the hook audience must be rejected")
+    };
     assert!(err.status().is_client_error(), "got {}", err.status());
     Ok(())
 }

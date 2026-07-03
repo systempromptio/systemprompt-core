@@ -1,8 +1,28 @@
 use crate::common::*;
 use anyhow::Result;
 use futures::future::join_all;
+use std::future::Future;
 use std::sync::Arc;
 use tokio::time::{Duration, Instant};
+
+async fn poll_count<F, Fut>(mut fetch: F, min: i64, what: &str) -> Result<i64>
+where
+    F: FnMut() -> Fut,
+    Fut: Future<Output = Result<i64>>,
+{
+    let deadline = Instant::now() + Duration::from_secs(45);
+    loop {
+        let count = fetch().await?;
+        if count >= min {
+            return Ok(count);
+        }
+        assert!(
+            Instant::now() < deadline,
+            "{what}: ingestion never reached {min} session(s) within 45s (last count {count})"
+        );
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
+}
 
 #[tokio::test]
 async fn test_no_duplicates_on_parallel_requests() -> Result<()> {
@@ -36,18 +56,17 @@ async fn test_no_duplicates_on_parallel_requests() -> Result<()> {
 
     println!("  ✓ 10 parallel requests completed in {:?}", duration);
 
-    tokio::time::sleep(Duration::from_millis(3000)).await;
-
     let count_query = "SELECT COUNT(DISTINCT session_id) as count FROM user_sessions WHERE \
                        user_agent = 'Mozilla/5.0 (Testing) ParallelTest/1.0' AND is_bot = false";
-    let result = db.fetch_one(&count_query, &[]).await?;
-    let session_count: i64 = result.get("count").and_then(|v| v.as_i64()).unwrap_or(0);
-
-    assert!(
-        session_count >= 1,
-        "Expected at least 1 session for 10 parallel requests, but found {}",
-        session_count
-    );
+    let session_count = poll_count(
+        || async {
+            let result = db.fetch_one(&count_query, &[]).await?;
+            Ok(result.get("count").and_then(|v| v.as_i64()).unwrap_or(0))
+        },
+        1,
+        "10 parallel requests",
+    )
+    .await?;
 
     println!(
         "✓ Parallel requests created sessions (count: {})",
@@ -73,12 +92,17 @@ async fn test_rapid_sequential_requests_single_session() -> Result<()> {
     let duration = start.elapsed();
     println!("  ✓ 10 sequential requests completed in {:?}", duration);
 
-    tokio::time::sleep(Duration::from_millis(3000)).await;
-
     let count_query = "SELECT COUNT(DISTINCT session_id) as count FROM user_sessions WHERE \
                        user_agent = 'Mozilla/5.0 (Testing) SequentialTest/1.0' AND is_bot = false";
-    let result = db.fetch_one(&count_query, &[]).await?;
-    let session_count: i64 = result.get("count").and_then(|v| v.as_i64()).unwrap_or(0);
+    let session_count = poll_count(
+        || async {
+            let result = db.fetch_one(&count_query, &[]).await?;
+            Ok(result.get("count").and_then(|v| v.as_i64()).unwrap_or(0))
+        },
+        1,
+        "10 sequential requests",
+    )
+    .await?;
 
     assert!(
         session_count <= 3,
@@ -161,18 +185,17 @@ async fn test_fingerprint_lookup_timeout_adequate() -> Result<()> {
         duration
     );
 
-    tokio::time::sleep(Duration::from_millis(5000)).await;
-
     let count_query = "SELECT COUNT(DISTINCT session_id) as count FROM user_sessions WHERE \
                        user_agent = 'Mozilla/5.0 (Testing) FingerprintTest/1.0'";
-    let result = db.fetch_one(&count_query, &[]).await?;
-    let session_count: i64 = result.get("count").and_then(|v| v.as_i64()).unwrap_or(0);
-
-    assert!(
-        session_count >= 1,
-        "Expected at least 1 session for 50 parallel requests, but found {}",
-        session_count
-    );
+    let session_count = poll_count(
+        || async {
+            let result = db.fetch_one(&count_query, &[]).await?;
+            Ok(result.get("count").and_then(|v| v.as_i64()).unwrap_or(0))
+        },
+        1,
+        "50 parallel requests",
+    )
+    .await?;
 
     println!(
         "✓ Fingerprint lookup handling 50 parallel requests (created {} sessions)",
@@ -202,12 +225,17 @@ async fn test_cookie_enables_session_reuse() -> Result<()> {
     let response3 = ctx.make_request_with_ua("/", test_ua).await?;
     assert!(response3.status().is_success());
 
-    tokio::time::sleep(Duration::from_millis(3000)).await;
-
     let count_query = "SELECT COUNT(DISTINCT session_id) as count FROM user_sessions WHERE \
                        user_agent = 'Mozilla/5.0 (Testing) CookieTest/1.0'";
-    let result = db.fetch_one(&count_query, &[]).await?;
-    let session_count: i64 = result.get("count").and_then(|v| v.as_i64()).unwrap_or(0);
+    let session_count = poll_count(
+        || async {
+            let result = db.fetch_one(&count_query, &[]).await?;
+            Ok(result.get("count").and_then(|v| v.as_i64()).unwrap_or(0))
+        },
+        1,
+        "3 same-user-agent requests",
+    )
+    .await?;
 
     assert!(
         session_count <= 3,
@@ -298,16 +326,16 @@ async fn test_homepage_creates_session() -> Result<()> {
     let response = ctx.make_request("/").await?;
     assert!(response.status().is_success(), "Homepage request failed");
 
-    tokio::time::sleep(Duration::from_millis(3000)).await;
-
     let count_query = "SELECT COUNT(*) as count FROM user_sessions WHERE is_bot = false";
-    let result = db.fetch_one(&count_query, &[]).await?;
-    let session_count: i64 = result.get("count").and_then(|v| v.as_i64()).unwrap_or(0);
-
-    assert!(
-        session_count >= 1,
-        "Expected at least 1 session for homepage"
-    );
+    poll_count(
+        || async {
+            let result = db.fetch_one(&count_query, &[]).await?;
+            Ok(result.get("count").and_then(|v| v.as_i64()).unwrap_or(0))
+        },
+        1,
+        "homepage request",
+    )
+    .await?;
 
     println!("✓ Homepage creates tracked session");
     Ok(())

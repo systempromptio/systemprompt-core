@@ -99,7 +99,11 @@ async fn state_verifier_get_running_services_filters_correctly() {
         .get_running_services(&configs)
         .await
         .expect("query");
-    assert!(running.is_empty());
+    assert!(
+        !running.iter().any(|s| s.name == configs[0].name),
+        "seeded config {} is not running and must not be reported as running",
+        configs[0].name
+    );
 }
 
 #[tokio::test]

@@ -51,7 +51,12 @@ async fn enrich_with_cached_session_adopts_cached_identity() {
     let cache = TestSessionCache::default();
     let user = Uuid::new_v4();
     cache
-        .seed(&SessionId::new("sess-hit"), user, vec![Permission::User], "cached-token")
+        .seed(
+            &SessionId::new("sess-hit"),
+            user,
+            vec![Permission::User],
+            "cached-token",
+        )
         .await;
     let mut headers = HeaderMap::new();
     headers.insert("mcp-session-id", HeaderValue::from_static("sess-hit"));
@@ -85,7 +90,10 @@ async fn successful_response_with_session_header_caches_identity() {
         method_str: "POST",
     })
     .await;
-    assert_eq!(cache.cached_user(&SessionId::new("sess-new")).await, Some(user_uuid));
+    assert_eq!(
+        cache.cached_user(&SessionId::new("sess-new")).await,
+        Some(user_uuid)
+    );
 }
 
 #[tokio::test]
@@ -113,7 +121,12 @@ async fn delete_request_evicts_cached_session() {
     let cache = TestSessionCache::default();
     let user = Uuid::new_v4();
     cache
-        .seed(&SessionId::new("sess-del"), user, vec![Permission::User], "tok")
+        .seed(
+            &SessionId::new("sess-del"),
+            user,
+            vec![Permission::User],
+            "tok",
+        )
         .await;
     let response = backend_response(ResponseTemplate::new(200)).await;
     let mut request_headers = HeaderMap::new();
@@ -137,7 +150,12 @@ async fn stale_session_404_on_get_evicts_cache_entry() {
     let cache = TestSessionCache::default();
     let user = Uuid::new_v4();
     cache
-        .seed(&SessionId::new("sess-stale"), user, vec![Permission::User], "tok")
+        .seed(
+            &SessionId::new("sess-stale"),
+            user,
+            vec![Permission::User],
+            "tok",
+        )
         .await;
     let response = backend_response(ResponseTemplate::new(404)).await;
     let mut request_headers = HeaderMap::new();
@@ -161,7 +179,12 @@ async fn error_response_on_post_keeps_cache_entry() {
     let cache = TestSessionCache::default();
     let user = Uuid::new_v4();
     cache
-        .seed(&SessionId::new("sess-keep"), user, vec![Permission::User], "tok")
+        .seed(
+            &SessionId::new("sess-keep"),
+            user,
+            vec![Permission::User],
+            "tok",
+        )
         .await;
     let response = backend_response(ResponseTemplate::new(500)).await;
     let mut request_headers = HeaderMap::new();
@@ -177,7 +200,10 @@ async fn error_response_on_post_keeps_cache_entry() {
         method_str: "POST",
     })
     .await;
-    assert_eq!(cache.cached_user(&SessionId::new("sess-keep")).await, Some(user));
+    assert_eq!(
+        cache.cached_user(&SessionId::new("sess-keep")).await,
+        Some(user)
+    );
 }
 
 #[test]

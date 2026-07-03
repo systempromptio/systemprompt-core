@@ -7,7 +7,6 @@ use std::time::Duration;
 
 use systemprompt_mcp::services::LifecycleOrchestrator;
 use systemprompt_mcp::services::lifecycle::startup::{check_health_status, wait_for_startup};
-use systemprompt_models::AppPaths;
 use systemprompt_models::mcp::McpServerConfig;
 use systemprompt_test_fixtures::{
     ensure_test_bootstrap, fixture_database_url, fixture_db_pool, fixture_user_id,
