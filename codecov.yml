@@ -1,0 +1,20 @@
+# Coverage is uploaded by the nightly Coverage workflow (lcov via OIDC), not
+# per-push, and all work lands directly on main — so the project status is the
+# regression signal and patch status is advisory only.
+coverage:
+  status:
+    project:
+      default:
+        target: auto
+        threshold: 0.5%
+    patch:
+      default:
+        informational: true
+
+ignore:
+  - "crates/tests/**"
+  # bin/bridge has its own coverage workflow (coverage-bridge.yml); keep the
+  # core number disjoint from it.
+  - "bin/bridge/**"
+
+comment: false

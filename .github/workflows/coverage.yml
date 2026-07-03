@@ -16,6 +16,8 @@ permissions:
   contents: read
   pull-requests: write
   id-token: write
+  # The ratchet step downloads the previous successful run's coverage artifact.
+  actions: read
 
 env:
   CARGO_TERM_COLOR: always
@@ -147,17 +149,17 @@ jobs:
 
           # Unfiltered first so we can see raw paths llvm-cov emits.
           "$LLVM_COV" report --instr-profile=coverage-merged.profdata $OBJ_ARGS \
-            --ignore-filename-regex='(\.cargo|rustc|crates/tests|/home/runner/\.cargo)' \
+            --ignore-filename-regex='(\.cargo|rustc|crates/tests|bin/bridge|/home/runner/\.cargo)' \
             --summary-only \
             | tee coverage-summary.txt
 
           "$LLVM_COV" export --instr-profile=coverage-merged.profdata $OBJ_ARGS \
-            --ignore-filename-regex='(\.cargo|rustc|crates/tests|/home/runner/\.cargo)' \
+            --ignore-filename-regex='(\.cargo|rustc|crates/tests|bin/bridge|/home/runner/\.cargo)' \
             --format=text --summary-only \
             > coverage-summary.json
 
           "$LLVM_COV" export --instr-profile=coverage-merged.profdata $OBJ_ARGS \
-            --ignore-filename-regex='(\.cargo|rustc|crates/tests|/home/runner/\.cargo)' \
+            --ignore-filename-regex='(\.cargo|rustc|crates/tests|bin/bridge|/home/runner/\.cargo)' \
             --format=lcov \
             > lcov.info
 
@@ -170,6 +172,33 @@ jobs:
             coverage-summary.txt
             coverage-summary.json
             lcov.info
+
+      - name: Coverage ratchet (fail on >0.5pt drop vs previous run)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          PREV_ID=$(gh run list --workflow coverage.yml --status success \
+            --branch main --limit 1 --json databaseId --jq '.[0].databaseId' \
+            -R "${{ github.repository }}")
+          if [ -z "$PREV_ID" ] || [ "$PREV_ID" = "null" ]; then
+            echo "no previous successful run; skipping ratchet"
+            exit 0
+          fi
+          if ! gh run download "$PREV_ID" -n coverage -D prev-coverage \
+               -R "${{ github.repository }}"; then
+            echo "previous run $PREV_ID has no coverage artifact (expired?); skipping ratchet"
+            exit 0
+          fi
+          python3 - <<'PY'
+          import json, sys
+          def pct(path):
+              with open(path) as f:
+                  return json.load(f)["data"][0]["totals"]["lines"]["percent"]
+          prev, cur = pct("prev-coverage/coverage-summary.json"), pct("coverage-summary.json")
+          print(f"previous: {prev:.2f}%  current: {cur:.2f}%  delta: {cur - prev:+.2f}pt")
+          if cur < prev - 0.5:
+              sys.exit(f"line coverage dropped more than 0.5pt ({prev:.2f}% -> {cur:.2f}%)")
+          PY
 
       - name: Upload coverage to Codecov
         if: always()
