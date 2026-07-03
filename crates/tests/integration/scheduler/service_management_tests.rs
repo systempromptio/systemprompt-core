@@ -55,15 +55,15 @@ async fn get_services_by_type_surfaces_seeded_service() {
 }
 
 #[tokio::test]
-async fn get_running_services_with_pid_all_carry_a_pid() {
+async fn get_running_services_with_pid_returns_only_running() {
     let Some(pool) = try_pool().await else {
         return;
     };
     let svc = ServiceManagementService::new(&pool).expect("svc");
     let services = svc.get_running_services_with_pid().await.expect("query");
     assert!(
-        services.iter().all(|s| s.pid.is_some()),
-        "get_running_services_with_pid must only return rows that carry a pid"
+        services.iter().all(|s| s.status == "running"),
+        "get_running_services_with_pid must only return running services"
     );
 }
 
