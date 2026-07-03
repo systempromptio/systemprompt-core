@@ -27,6 +27,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # keyring → dbus-secret-service → libdbus-sys builds from pkg-config;
+      # ubuntu-latest no longer ships libdbus-1-dev.
+      - run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config
       - uses: dtolnay/rust-toolchain@nightly
         with:
           components: rustfmt
@@ -61,6 +64,9 @@ jobs:
             asset: systemprompt-bridge-x86_64-pc-windows-msvc.exe
     steps:
       - uses: actions/checkout@v4
+      - name: Install libdbus (linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
