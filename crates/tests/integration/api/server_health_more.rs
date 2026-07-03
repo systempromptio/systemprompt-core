@@ -55,6 +55,27 @@ async fn seed_mcp_service(
     Ok(())
 }
 
+async fn seed_agent_service(
+    ctx: &AppContext,
+    name: &str,
+    status: &str,
+    pid: Option<i32>,
+) -> anyhow::Result<()> {
+    let repo = ServiceRepository::new(ctx.db_pool())?;
+    repo.create_service(CreateServiceInput {
+        name,
+        module_name: "agent",
+        status,
+        port: 0,
+        binary_mtime: None,
+    })
+    .await?;
+    if let Some(pid) = pid {
+        repo.update_service_pid(name, pid).await?;
+    }
+    Ok(())
+}
+
 #[test]
 fn human_bytes_scales_units() {
     assert_eq!(human_bytes(0), "0.0 B");
@@ -146,6 +167,29 @@ async fn shutdown_drain_clears_dead_and_recycled_children() -> anyhow::Result<()
     );
 
     shutdown_test_api::drain(&ctx).await;
+    Ok(())
+}
+
+#[tokio::test]
+async fn cleanup_sweeps_stale_agent_row_and_keeps_non_stale_mcp() -> anyhow::Result<()> {
+    let (_pool, ctx) = setup_ctx().await?;
+    let stale_agent = format!("stale-agent-{}", Uuid::new_v4().simple());
+    let live_mcp = format!("live-mcp-{}", Uuid::new_v4().simple());
+    seed_agent_service(&ctx, &stale_agent, "error", None).await?;
+    seed_mcp_service(&ctx, &live_mcp, "unknown", None).await?;
+
+    let deleted = cleanup_stale_service_entries(&ctx).await?;
+    assert!(deleted >= 1, "the stale agent row must be swept");
+
+    let repo = ServiceRepository::new(ctx.db_pool())?;
+    assert!(
+        repo.find_service_by_name(&stale_agent).await?.is_none(),
+        "stale agent row is gone"
+    );
+    assert!(
+        repo.find_service_by_name(&live_mcp).await?.is_some(),
+        "non-stale (unknown-status) mcp row is retained"
+    );
     Ok(())
 }
 
