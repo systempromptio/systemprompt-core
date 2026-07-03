@@ -40,6 +40,24 @@ pub(super) fn spawn_behavioral_detection_task(
     });
 }
 
+#[cfg(feature = "test-api")]
+pub(super) async fn collect_analysis_input_for_test(
+    session_repo: &SessionRepository,
+    session_id: SessionId,
+    fingerprint_hash: Option<String>,
+    user_agent: Option<String>,
+    request_count: i64,
+) -> BehavioralAnalysisInput {
+    collect_analysis_input(
+        session_repo,
+        session_id,
+        fingerprint_hash,
+        user_agent,
+        request_count,
+    )
+    .await
+}
+
 async fn collect_analysis_input(
     session_repo: &SessionRepository,
     session_id: SessionId,
