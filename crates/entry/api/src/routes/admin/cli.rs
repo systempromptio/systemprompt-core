@@ -278,9 +278,9 @@ fn create_cli_stream(
 
 /// Test-only seam: build the CLI gateway router pointed at an arbitrary binary.
 ///
-/// Pointing it at (e.g.) `/bin/sh` wrapping a fixture script lets the subprocess
-/// forward, timeout, and exit-code paths be exercised without the deployed
-/// binary.
+/// Pointing it at (e.g.) `/bin/sh` wrapping a fixture script lets the
+/// subprocess forward, timeout, and exit-code paths be exercised without the
+/// deployed binary.
 #[cfg(feature = "test-api")]
 pub mod test_api {
     use super::{CliBinaryPath, router_with_binary};

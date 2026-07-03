@@ -121,6 +121,7 @@ pub(super) async fn extract_request_context(
         &principal,
         route.as_ref(),
         &gateway_request.model,
+        &context_id,
         rc.ctx.authz_hook(),
     )
     .await?;

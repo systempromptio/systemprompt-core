@@ -58,9 +58,9 @@ impl UserCache {
 
     pub fn get_fresh(&self, user_id: &UserId) -> Option<AuthUser> {
         let guard = self.entries.lock().ok()?;
-        let fresh = guard.get(user_id).and_then(|(user, fetched_at)| {
-            (fetched_at.elapsed() < self.ttl).then(|| user.clone())
-        });
+        let fresh = guard
+            .get(user_id)
+            .and_then(|(user, fetched_at)| (fetched_at.elapsed() < self.ttl).then(|| user.clone()));
         drop(guard);
         fresh
     }

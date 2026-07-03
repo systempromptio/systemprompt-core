@@ -36,14 +36,18 @@ fn parse_response_frame_matches_id_and_extracts_structured_output() {
 fn parse_response_frame_reports_tool_error() {
     let data = r#"{"jsonrpc":"2.0","id":7,"result":{"content":[{"type":"text","text":"boom"}],"isError":true}}"#;
     let (_, error) = parse_response_frame(data, &json!(7)).expect("result parses");
-    assert!(error.is_some(), "isError must surface as an error_message");
+    assert_eq!(error.as_deref(), Some("MCP tool call returned isError"));
 }
 
 #[test]
 fn parse_response_frame_surfaces_jsonrpc_error() {
     let data = r#"{"jsonrpc":"2.0","id":7,"error":{"code":-32000,"message":"denied"}}"#;
     let (_, error) = parse_response_frame(data, &json!(7)).expect("error frame parses");
-    assert!(error.is_some());
+    let error = error.expect("jsonrpc error surfaces as error_message");
+    assert!(
+        error.contains("denied"),
+        "error should surface upstream message, got {error}"
+    );
 }
 
 #[test]

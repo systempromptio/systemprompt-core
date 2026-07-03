@@ -10,6 +10,7 @@ use serde_json::json;
 use systemprompt_api::services::gateway::protocol::canonical::{
     CanonicalContent, CanonicalMessage, CanonicalRequest, CanonicalTool, CanonicalToolChoice, Role,
 };
+use systemprompt_api::services::gateway::protocol::canonical_response::CanonicalStopReason;
 use systemprompt_api::services::gateway::protocol::outbound::anthropic::AnthropicOutbound;
 use systemprompt_api::services::gateway::protocol::outbound::openai_chat::OpenAiChatOutbound;
 use systemprompt_api::services::gateway::protocol::outbound::openai_responses::OpenAiResponsesOutbound;
@@ -423,7 +424,15 @@ async fn openai_chat_outbound_buffered_covers_tool_choice_variants() {
             upstream_model: "upstream-1",
             model_limits: None,
         };
-        let _ = adapter.send(ctx).await.expect("ok");
+        let outcome = adapter.send(ctx).await.expect("ok");
+        let OutboundOutcome::Buffered(r) = outcome else {
+            panic!("expected buffered");
+        };
+        assert_eq!(r.id, "x");
+        assert_eq!(r.model, "upstream-1");
+        assert_eq!(r.stop_reason, Some(CanonicalStopReason::EndTurn));
+        assert_eq!(r.usage.total_tokens, 3);
+        assert!(matches!(r.content.first(), Some(CanonicalContent::Text(t)) if t == "hi"));
     }
 }
 
@@ -452,7 +461,16 @@ async fn anthropic_outbound_buffered_covers_tool_choice_variants() {
             upstream_model: "upstream-1",
             model_limits: None,
         };
-        let _ = adapter.send(ctx).await.expect("ok");
+        let outcome = adapter.send(ctx).await.expect("ok");
+        let OutboundOutcome::Buffered(r) = outcome else {
+            panic!("expected buffered");
+        };
+        assert_eq!(r.id, "m");
+        assert_eq!(r.model, "upstream-1");
+        assert_eq!(r.stop_reason, Some(CanonicalStopReason::EndTurn));
+        assert_eq!(r.usage.input_tokens, 1);
+        assert_eq!(r.usage.output_tokens, 2);
+        assert!(matches!(r.content.first(), Some(CanonicalContent::Text(t)) if t == "ok"));
     }
 }
 

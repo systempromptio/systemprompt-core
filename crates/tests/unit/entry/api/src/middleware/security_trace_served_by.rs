@@ -159,5 +159,5 @@ async fn served_by_injects_instance_id_when_config_present() {
         .headers()
         .get("x-served-by")
         .and_then(|h| h.to_str().ok());
-    assert!(val.is_some());
+    assert_eq!(val, Some("unit-test-instance"));
 }

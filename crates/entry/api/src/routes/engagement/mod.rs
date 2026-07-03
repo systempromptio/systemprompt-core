@@ -34,8 +34,9 @@ fn routes() -> Router<EngagementState> {
 
 /// Test-only seam: mount the engagement routes with a caller-supplied router.
 ///
-/// The supplied `ContentRouting` lets the slug-resolution and conversion-marking
-/// branches be driven with a stub that maps a page URL to a seeded content slug.
+/// The supplied `ContentRouting` lets the slug-resolution and
+/// conversion-marking branches be driven with a stub that maps a page URL to a
+/// seeded content slug.
 #[cfg(feature = "test-api")]
 pub mod test_api {
     use super::{
