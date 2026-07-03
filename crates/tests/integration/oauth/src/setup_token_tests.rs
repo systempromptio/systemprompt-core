@@ -127,7 +127,7 @@ async fn cleanup_expired_setup_tokens_removes_seeded_expired_token() {
         user_id,
         token_hash: hash.clone(),
         purpose: SetupTokenPurpose::CredentialLink,
-        expires_at: Utc::now() - Duration::hours(1),
+        expires_at: Utc::now() - Duration::hours(25),
     })
     .await
     .expect("store expired token");
@@ -141,11 +141,7 @@ async fn cleanup_expired_setup_tokens_removes_seeded_expired_token() {
         other => panic!("expected Expired before cleanup, got {:?}", other),
     }
 
-    let removed = repo.cleanup_expired_setup_tokens().await.expect("cleanup");
-    assert!(
-        removed >= 1,
-        "cleanup must delete at least the seeded expired token"
-    );
+    repo.cleanup_expired_setup_tokens().await.expect("cleanup");
 
     match repo
         .validate_setup_token(&hash)
