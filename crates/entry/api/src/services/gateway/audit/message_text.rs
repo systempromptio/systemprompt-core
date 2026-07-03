@@ -3,7 +3,14 @@
 
 use super::super::protocol::canonical::CanonicalContent;
 
-pub(super) fn flatten_message_content(parts: &[CanonicalContent]) -> String {
+#[cfg_attr(
+    not(feature = "test-api"),
+    expect(
+        unreachable_pub,
+        reason = "re-exported via `test_api` only when the feature is on"
+    )
+)]
+pub fn flatten_message_content(parts: &[CanonicalContent]) -> String {
     let mut out = String::new();
     for part in parts {
         match part {

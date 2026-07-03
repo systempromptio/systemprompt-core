@@ -11,6 +11,7 @@ use axum::routing::post;
 use axum::{Json, Router};
 use futures_util::stream::Stream;
 use std::convert::Infallible;
+use std::sync::Arc;
 use std::time::Duration;
 use systemprompt_events::ToSse;
 use systemprompt_models::RequestContext;
@@ -26,8 +27,31 @@ fn cli_event_to_sse(event: &CliOutputEvent) -> Event {
 }
 
 const MAX_TIMEOUT_SECS: u64 = 600;
-const CLI_BINARY_PATH: &str = "/app/bin/systemprompt";
+const DEFAULT_CLI_BINARY_PATH: &str = "/app/bin/systemprompt";
 const MAX_CLI_ARGS: usize = 32;
+
+/// Resolved path to the `systemprompt` CLI binary the gateway forwards argv to.
+///
+/// Injected as a router extension so deployments (and tests) can point the
+/// gateway at a specific binary instead of the baked-in default.
+#[derive(Clone)]
+pub(crate) struct CliBinaryPath(Arc<str>);
+
+impl CliBinaryPath {
+    pub(crate) fn new(path: impl AsRef<str>) -> Self {
+        Self(Arc::from(path.as_ref()))
+    }
+
+    fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl Default for CliBinaryPath {
+    fn default() -> Self {
+        Self::new(DEFAULT_CLI_BINARY_PATH)
+    }
+}
 const MAX_CLI_ARG_LEN: usize = 256;
 
 // The CLI subprocess is spawned without a shell, so this is defence-in-depth
@@ -73,11 +97,18 @@ fn validate_cli_args(args: &[String]) -> Result<(), Box<ApiError>> {
 }
 
 pub(super) fn router() -> Router<AppContext> {
-    Router::new().route("/", post(execute_cli))
+    router_with_binary(CliBinaryPath::default())
+}
+
+fn router_with_binary(binary: CliBinaryPath) -> Router<AppContext> {
+    Router::new()
+        .route("/", post(execute_cli))
+        .layer(Extension(binary))
 }
 
 async fn execute_cli(
     Extension(req_ctx): Extension<RequestContext>,
+    Extension(binary): Extension<CliBinaryPath>,
     Json(request): Json<CliExecuteRequest>,
 ) -> Result<impl IntoResponse, ApiError> {
     let args = request.args;
@@ -105,7 +136,7 @@ async fn execute_cli(
         },
     };
 
-    let stream = create_cli_stream(args, timeout, session_env);
+    let stream = create_cli_stream(binary, args, timeout, session_env);
 
     Ok(Sse::new(stream).keep_alive(KeepAlive::default()))
 }
@@ -117,8 +148,8 @@ struct SessionEnv {
     auth_token: Option<String>,
 }
 
-fn build_cli_command(args: &[String], session_env: &SessionEnv) -> Command {
-    let mut cmd = Command::new(CLI_BINARY_PATH);
+fn build_cli_command(binary: &CliBinaryPath, args: &[String], session_env: &SessionEnv) -> Command {
+    let mut cmd = Command::new(binary.as_str());
     cmd.args(args)
         .env("SYSTEMPROMPT_CLI_REMOTE", "1")
         .env("SYSTEMPROMPT_SESSION_ID", &session_env.session)
@@ -189,12 +220,13 @@ async fn wait_exit_events(mut child: tokio::process::Child) -> Vec<CliOutputEven
 }
 
 fn create_cli_stream(
+    binary: CliBinaryPath,
     args: Vec<String>,
     timeout: Duration,
     session_env: SessionEnv,
 ) -> impl Stream<Item = Result<Event, Infallible>> {
     async_stream::stream! {
-        let mut child = match build_cli_command(&args, &session_env).spawn() {
+        let mut child = match build_cli_command(&binary, &args, &session_env).spawn() {
             Ok(c) => c,
             Err(e) => {
                 tracing::error!(error = %e, "Failed to spawn CLI process");
@@ -241,5 +273,21 @@ fn create_cli_stream(
         for event in wait_exit_events(child).await {
             yield Ok(cli_event_to_sse(&event));
         }
+    }
+}
+
+/// Test-only seam: build the CLI gateway router pointed at an arbitrary binary.
+///
+/// Pointing it at (e.g.) `/bin/sh` wrapping a fixture script lets the subprocess
+/// forward, timeout, and exit-code paths be exercised without the deployed
+/// binary.
+#[cfg(feature = "test-api")]
+pub mod test_api {
+    use super::{CliBinaryPath, router_with_binary};
+    use axum::Router;
+    use systemprompt_runtime::AppContext;
+
+    pub fn cli_router_with_binary(path: &str) -> Router<AppContext> {
+        router_with_binary(CliBinaryPath::new(path))
     }
 }

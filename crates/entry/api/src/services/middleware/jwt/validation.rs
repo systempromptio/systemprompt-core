@@ -10,42 +10,76 @@ use systemprompt_traits::{AnalyticsProvider, AuthUser, UserProvider};
 
 const USER_CACHE_TTL: Duration = Duration::from_secs(30);
 
-pub(super) struct ValidatedUser {
+#[cfg_attr(
+    not(feature = "test-api"),
+    expect(
+        unreachable_pub,
+        reason = "re-exported via `test_api` only when the feature is on"
+    )
+)]
+#[derive(Debug)]
+pub struct ValidatedUser {
     pub user: AuthUser,
 }
 
 // Why mutex (not RwLock): writes happen on every fetch (TTL refresh), so a
 // reader-writer split would barely help; the contention window is the
 // negligible HashMap lookup. No `.await` is held across the guard.
-#[derive(Default)]
-pub(super) struct UserCache {
+#[cfg_attr(
+    not(feature = "test-api"),
+    expect(
+        unreachable_pub,
+        reason = "re-exported via `test_api` only when the feature is on"
+    )
+)]
+#[derive(Debug)]
+pub struct UserCache {
     entries: Mutex<HashMap<UserId, (AuthUser, Instant)>>,
+    ttl: Duration,
+}
+
+impl Default for UserCache {
+    fn default() -> Self {
+        Self::with_ttl(USER_CACHE_TTL)
+    }
 }
 
 impl UserCache {
-    pub(super) fn new() -> Arc<Self> {
-        Arc::new(Self {
-            entries: Mutex::new(HashMap::new()),
-        })
+    pub fn new() -> Arc<Self> {
+        Arc::new(Self::default())
     }
 
-    fn get_fresh(&self, user_id: &UserId) -> Option<AuthUser> {
+    pub fn with_ttl(ttl: Duration) -> Self {
+        Self {
+            entries: Mutex::new(HashMap::new()),
+            ttl,
+        }
+    }
+
+    pub fn get_fresh(&self, user_id: &UserId) -> Option<AuthUser> {
         let guard = self.entries.lock().ok()?;
         let fresh = guard.get(user_id).and_then(|(user, fetched_at)| {
-            (fetched_at.elapsed() < USER_CACHE_TTL).then(|| user.clone())
+            (fetched_at.elapsed() < self.ttl).then(|| user.clone())
         });
         drop(guard);
         fresh
     }
 
-    pub(super) fn put(&self, user_id: UserId, user: AuthUser) {
+    pub fn put(&self, user_id: UserId, user: AuthUser) {
         if let Ok(mut guard) = self.entries.lock() {
             guard.insert(user_id, (user, Instant::now()));
         }
     }
 }
 
-pub(super) async fn validate_user_exists(
+#[cfg_attr(
+    not(feature = "test-api"),
+    expect(
+        unreachable_pub,
+        reason = "re-exported via `test_api` only when the feature is on"
+    )
+)]
+pub async fn validate_user_exists(
     user_provider: &Arc<dyn UserProvider>,
     cache: &Arc<UserCache>,
     jwt_context: &JwtUserContext,
@@ -98,7 +132,14 @@ fn require_active(
     Ok(ValidatedUser { user })
 }
 
-pub(super) fn user_is_admin(user: &AuthUser) -> bool {
+#[cfg_attr(
+    not(feature = "test-api"),
+    expect(
+        unreachable_pub,
+        reason = "re-exported via `test_api` only when the feature is on"
+    )
+)]
+pub fn user_is_admin(user: &AuthUser) -> bool {
     user.roles
         .iter()
         .any(|r| r.as_str() == UserRole::Admin.as_str())

@@ -12,11 +12,25 @@ use super::RejectionPartial;
 use crate::services::gateway::protocol::canonical::CanonicalRequest;
 use crate::services::gateway::protocol::inbound::InboundAdapter;
 
-pub(super) fn require_session_id(headers: &HeaderMap) -> Result<SessionId, (StatusCode, String)> {
+#[cfg_attr(
+    not(feature = "test-api"),
+    expect(
+        unreachable_pub,
+        reason = "re-exported via `test_api` only when the feature is on"
+    )
+)]
+pub fn require_session_id(headers: &HeaderMap) -> Result<SessionId, (StatusCode, String)> {
     require_typed_header(headers, SESSION_ID, SessionId::new)
 }
 
-pub(super) fn optional_gateway_conversation_id(
+#[cfg_attr(
+    not(feature = "test-api"),
+    expect(
+        unreachable_pub,
+        reason = "re-exported via `test_api` only when the feature is on"
+    )
+)]
+pub fn optional_gateway_conversation_id(
     headers: &HeaderMap,
 ) -> Result<Option<GatewayConversationId>, (StatusCode, String)> {
     let Some(raw) = headers.get(GATEWAY_CONVERSATION_ID) else {
@@ -69,7 +83,14 @@ fn require_typed_header<T>(
     Ok(ctor(trimmed.to_owned()))
 }
 
-pub(super) async fn read_gateway_body(
+#[cfg_attr(
+    not(feature = "test-api"),
+    expect(
+        unreachable_pub,
+        reason = "re-exported via `test_api` only when the feature is on"
+    )
+)]
+pub async fn read_gateway_body(
     inbound: &Arc<dyn InboundAdapter>,
     request: Request<Body>,
     partial: &mut RejectionPartial,

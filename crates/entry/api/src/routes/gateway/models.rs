@@ -68,12 +68,13 @@ pub async fn list(headers: HeaderMap) -> Result<Json<ModelsResponse>, (StatusCod
     }))
 }
 
-/// Resolve the `x-inference-protocol` selection header into API surfaces. An
-/// absent or empty header yields the full catalog (empty slice); an
+/// Resolve the `x-inference-protocol` selection header into API surfaces.
+///
+/// An absent or empty header yields the full catalog (empty slice); an
 /// unrecognised tag, or `backend` (never a client surface), is a
 /// misconfiguration and fails with `400` rather than silently widening or
 /// leaking the advertised set.
-fn surfaces_from_header(headers: &HeaderMap) -> Result<Vec<ApiSurface>, (StatusCode, String)> {
+pub fn surfaces_from_header(headers: &HeaderMap) -> Result<Vec<ApiSurface>, (StatusCode, String)> {
     let Some(raw) = headers
         .get(INFERENCE_PROTOCOL)
         .and_then(|v| v.to_str().ok())
@@ -111,7 +112,7 @@ pub fn model_entries(registry: &ProviderRegistry, surfaces: &[ApiSurface]) -> Ve
     by_id.into_values().collect()
 }
 
-fn humanize_model_id(id: &str) -> String {
+pub fn humanize_model_id(id: &str) -> String {
     id.split('-')
         .map(|part| {
             let mut chars = part.chars();

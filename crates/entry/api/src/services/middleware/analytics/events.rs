@@ -79,7 +79,7 @@ pub(super) fn spawn_analytics_event_task(
     });
 }
 
-fn sanitize_uri(uri: &http::Uri) -> String {
+pub(super) fn sanitize_uri(uri: &http::Uri) -> String {
     let path = uri.path();
 
     uri.query().map_or_else(
@@ -107,7 +107,7 @@ fn sanitize_uri(uri: &http::Uri) -> String {
     )
 }
 
-fn is_sensitive_key(key: &str) -> bool {
+pub(super) fn is_sensitive_key(key: &str) -> bool {
     matches!(
         key,
         "token" | "password" | "api_key" | "apikey" | "secret" | "authorization" | "auth"

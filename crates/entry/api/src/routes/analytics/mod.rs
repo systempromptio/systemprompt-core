@@ -24,9 +24,40 @@ pub fn router(ctx: &AppContext) -> Result<Router> {
         content_routing: ctx.content_routing(),
     };
 
-    Ok(Router::new()
+    Ok(routes().with_state(state))
+}
+
+fn routes() -> Router<AnalyticsState> {
+    Router::new()
         .route("/events", post(events::record_event))
         .route("/events/batch", post(events::record_events_batch))
         .route("/stream", get(stream::analytics_stream))
-        .with_state(state))
+}
+
+/// Test-only seam: mount the analytics routes with a caller-supplied
+/// `ContentRouting`, so the slug-resolution branch can be driven with a stub
+/// that maps a page URL to a seeded content slug.
+#[cfg(feature = "test-api")]
+pub mod test_api {
+    use super::{
+        AnalyticsEventsRepository, AnalyticsState, ContentRepository, EngagementRepository, Router,
+        routes,
+    };
+    use anyhow::Result;
+    use std::sync::Arc;
+    use systemprompt_models::ContentRouting;
+    use systemprompt_runtime::AppContext;
+
+    pub fn router_with_routing(
+        ctx: &AppContext,
+        content_routing: Option<Arc<dyn ContentRouting>>,
+    ) -> Result<Router> {
+        let state = AnalyticsState {
+            events: Arc::new(AnalyticsEventsRepository::new(ctx.db_pool())?),
+            content: Arc::new(ContentRepository::new(ctx.db_pool())?),
+            engagement: Arc::new(EngagementRepository::new(ctx.db_pool())?),
+            content_routing,
+        };
+        Ok(routes().with_state(state))
+    }
 }

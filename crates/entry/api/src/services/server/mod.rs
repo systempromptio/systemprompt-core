@@ -15,6 +15,7 @@ pub mod test_api {
     #[cfg(target_os = "linux")]
     pub use super::health::parse_proc_status_kb;
     pub use super::health::{audit_log_stats, database_stats, human_bytes, table_stats};
+    pub use super::health_detail::handle_health_detail;
 }
 mod health_detail;
 mod lifecycle;
@@ -24,6 +25,11 @@ mod routes;
 pub mod runner;
 pub mod scheduler_health;
 mod shutdown;
+
+#[cfg(feature = "test-api")]
+pub use lifecycle::reconciliation_test_api;
+#[cfg(feature = "test-api")]
+pub use shutdown::test_api as shutdown_test_api;
 
 pub use builder::*;
 pub use readiness::{

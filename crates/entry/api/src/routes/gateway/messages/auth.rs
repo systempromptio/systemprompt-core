@@ -113,7 +113,14 @@ impl JwtPrincipal {
     }
 }
 
-pub(super) async fn authenticate(
+#[cfg_attr(
+    not(feature = "test-api"),
+    expect(
+        unreachable_pub,
+        reason = "re-exported via `test_api` only when the feature is on"
+    )
+)]
+pub async fn authenticate(
     credential: &str,
     jwt_extractor: &JwtContextExtractor,
     ctx: &AppContext,

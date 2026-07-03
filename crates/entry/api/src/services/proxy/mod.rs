@@ -20,3 +20,7 @@ pub use audit::test_api;
 pub use auth::test_api as auth_test_api;
 #[cfg(feature = "test-api")]
 pub use engine::test_api as engine_test_api;
+#[cfg(feature = "test-api")]
+pub use errors::ProxyError;
+#[cfg(feature = "test-api")]
+pub use resolver::test_api as resolver_test_api;

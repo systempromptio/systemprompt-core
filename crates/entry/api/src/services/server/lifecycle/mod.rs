@@ -13,3 +13,6 @@ pub(super) use agents::reconcile_agents;
 pub(super) use event_bridge::start_event_bridge;
 pub(super) use reconciliation::reconcile_system_services;
 pub(super) use scheduler::initialize_scheduler;
+
+#[cfg(feature = "test-api")]
+pub use reconciliation::test_api as reconciliation_test_api;

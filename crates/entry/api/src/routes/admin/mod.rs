@@ -9,6 +9,9 @@ mod keys;
 use axum::Router;
 use systemprompt_runtime::AppContext;
 
+#[cfg(feature = "test-api")]
+pub use cli::test_api as cli_test_api;
+
 pub fn router() -> Router<AppContext> {
     Router::new()
         .nest("/cli", cli::router())

@@ -14,7 +14,15 @@ use crate::services::gateway::service::{
 use super::RequestContext;
 use super::extract::PreparedRequest;
 
-pub(super) struct RejectionError {
+#[cfg_attr(
+    not(feature = "test-api"),
+    expect(
+        unreachable_pub,
+        reason = "re-exported via `test_api` only when the feature is on"
+    )
+)]
+#[derive(Debug)]
+pub struct RejectionError {
     pub status: StatusCode,
     pub message: String,
     pub persist: bool,
@@ -83,7 +91,14 @@ pub(super) async fn dispatch_to_provider(
     }
 }
 
-fn map_dispatch_error(e: DispatchError) -> Result<Response<Body>, RejectionError> {
+#[cfg_attr(
+    not(feature = "test-api"),
+    expect(
+        unreachable_pub,
+        reason = "re-exported via `test_api` only when the feature is on"
+    )
+)]
+pub fn map_dispatch_error(e: DispatchError) -> Result<Response<Body>, RejectionError> {
     let (persist, inner) = match e {
         DispatchError::PreAudit(inner) => (true, inner),
         DispatchError::Recorded(inner) => (false, inner),
@@ -103,7 +118,14 @@ fn map_dispatch_error(e: DispatchError) -> Result<Response<Body>, RejectionError
     })
 }
 
-fn classify_dispatch_error(e: &anyhow::Error) -> (StatusCode, String) {
+#[cfg_attr(
+    not(feature = "test-api"),
+    expect(
+        unreachable_pub,
+        reason = "re-exported via `test_api` only when the feature is on"
+    )
+)]
+pub fn classify_dispatch_error(e: &anyhow::Error) -> (StatusCode, String) {
     if let Some(denied) = e.downcast_ref::<PolicyDenied>() {
         return (StatusCode::FORBIDDEN, denied.to_string());
     }
@@ -144,7 +166,14 @@ pub fn map_upstream_error(e: &UpstreamError) -> (StatusCode, String) {
     }
 }
 
-pub(super) fn build_error_response(status: StatusCode, message: &str) -> Response<Body> {
+#[cfg_attr(
+    not(feature = "test-api"),
+    expect(
+        unreachable_pub,
+        reason = "re-exported via `test_api` only when the feature is on"
+    )
+)]
+pub fn build_error_response(status: StatusCode, message: &str) -> Response<Body> {
     let escaped = message.replace('\\', "\\\\").replace('"', "\\\"");
     let body = format!(
         "{{\"type\":\"error\",\"error\":{{\"type\":\"api_error\",\"message\":\"{escaped}\"}}}}"

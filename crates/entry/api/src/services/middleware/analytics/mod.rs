@@ -23,6 +23,19 @@ use systemprompt_security::ScannerDetector;
 
 pub use events::AnalyticsEventParams;
 
+#[cfg(feature = "test-api")]
+pub mod test_api {
+    #[must_use]
+    pub fn sanitize_uri(uri: &http::Uri) -> String {
+        super::events::sanitize_uri(uri)
+    }
+
+    #[must_use]
+    pub fn is_sensitive_key(key: &str) -> bool {
+        super::events::is_sensitive_key(key)
+    }
+}
+
 struct TrackingParams<'a> {
     req_ctx: &'a RequestContext,
     uri: &'a http::Uri,

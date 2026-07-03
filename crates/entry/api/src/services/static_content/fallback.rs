@@ -33,6 +33,19 @@ pub async fn smart_fallback_handler(
         .into_response()
 }
 
+#[cfg(feature = "test-api")]
+pub mod test_api {
+    #[must_use]
+    pub fn is_api_path(path: &str) -> bool {
+        super::is_api_path(path)
+    }
+
+    #[must_use]
+    pub fn get_api_suggestions(path: &str) -> Vec<String> {
+        super::get_api_suggestions(path)
+    }
+}
+
 fn is_api_path(path: &str) -> bool {
     path.starts_with(ApiPaths::API_BASE)
         || path.starts_with(ApiPaths::WELLKNOWN_BASE)

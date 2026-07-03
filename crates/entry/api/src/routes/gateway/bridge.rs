@@ -195,10 +195,12 @@ pub async fn profile() -> Result<Json<BridgeProfileResponse>, (StatusCode, Strin
     Ok(Json(response))
 }
 
+/// Normalise a tenant id to a canonical RFC-4122 UUID for the outbound header.
+///
 /// Codex CLI threads this into the outbound `x-tenant` header, where downstream
 /// tenant attribution expects a canonical RFC-4122 UUID, not the internal
 /// `local_`-prefixed form. Only this bridge-facing handler peels the prefix.
-fn canonicalize_org_uuid(tenant_id: &TenantId) -> String {
+pub fn canonicalize_org_uuid(tenant_id: &TenantId) -> String {
     let raw = tenant_id.as_str();
     let suffix = raw.strip_prefix("local_").unwrap_or(raw);
     if let Ok(parsed) = Uuid::parse_str(suffix) {

@@ -30,6 +30,9 @@ systemprompt-mcp = { workspace = true }
 systemprompt-files = { workspace = true }
 systemprompt-users = { workspace = true }
 systemprompt-slack = { workspace = true }
+systemprompt-agent = { workspace = true }
+chrono = { workspace = true }
+ipnet = "2.10"
 
 axum = { workspace = true }
 jsonwebtoken = { workspace = true }
