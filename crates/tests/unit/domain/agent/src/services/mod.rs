@@ -23,4 +23,5 @@ mod skills;
 mod strategies;
 mod webhook_client;
 mod webhook_config;
+mod webhook_delivery;
 mod webhook_service;

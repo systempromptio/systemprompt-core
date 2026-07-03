@@ -10,4 +10,5 @@
 
 mod artifact_transformer;
 mod task_completion;
+mod tool_result_handler;
 mod transformer_full;

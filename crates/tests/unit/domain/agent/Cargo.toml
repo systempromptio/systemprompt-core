@@ -35,3 +35,4 @@ tempfile = { workspace = true }
 uuid = { workspace = true }
 anyhow = { workspace = true }
 base64 = { workspace = true }
+wiremock = { workspace = true }
