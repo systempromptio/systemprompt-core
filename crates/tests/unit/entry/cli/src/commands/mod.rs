@@ -1,6 +1,8 @@
 //! Tests touching public surfaces under the `commands` re-exports.
 
+mod admin_access_control_export_db;
 mod admin_config;
+mod agents_mcp_logs_db;
 mod admin_prompts;
 mod admin_users_session_end_db;
 mod admin_users_write_db;
