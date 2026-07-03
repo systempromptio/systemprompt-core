@@ -114,6 +114,95 @@ fn rate_limits_enable_disable_reset() {
 }
 
 #[test]
+fn rate_limits_reset_scoped_variants() {
+    run(&[
+        "admin",
+        "config",
+        "rate-limits",
+        "set",
+        "--endpoint",
+        "mcp",
+        "--rate",
+        "999",
+    ]);
+    run(&[
+        "admin",
+        "config",
+        "rate-limits",
+        "reset",
+        "--endpoint",
+        "mcp",
+        "--dry-run",
+    ]);
+    run_with_formats(&[
+        "admin",
+        "config",
+        "rate-limits",
+        "reset",
+        "--endpoint",
+        "mcp",
+        "--yes",
+    ]);
+    run(&[
+        "admin",
+        "config",
+        "rate-limits",
+        "reset",
+        "--endpoint",
+        "mcp",
+        "--yes",
+    ]);
+    run(&[
+        "admin",
+        "config",
+        "rate-limits",
+        "set",
+        "--tier",
+        "anon",
+        "--multiplier",
+        "7.5",
+    ]);
+    run(&[
+        "admin",
+        "config",
+        "rate-limits",
+        "reset",
+        "--tier",
+        "anon",
+        "--dry-run",
+    ]);
+    run(&[
+        "admin",
+        "config",
+        "rate-limits",
+        "reset",
+        "--tier",
+        "anon",
+        "--yes",
+    ]);
+    run(&["admin", "config", "rate-limits", "reset", "--dry-run"]);
+    run(&["admin", "config", "rate-limits", "reset", "--yes"]);
+    run(&[
+        "admin",
+        "config",
+        "rate-limits",
+        "reset",
+        "--endpoint",
+        "bogus_endpoint",
+        "--yes",
+    ]);
+    run(&[
+        "admin",
+        "config",
+        "rate-limits",
+        "reset",
+        "--tier",
+        "bogus_tier",
+        "--yes",
+    ]);
+}
+
+#[test]
 fn rate_limits_export_import_roundtrip() {
     let Some(fixture) = fixture() else { return };
     let path = fixture.system_dir.join("rate_limits_export.yaml");

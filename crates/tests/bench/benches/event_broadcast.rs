@@ -1,6 +1,6 @@
 use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
 use systemprompt_events::{Broadcaster, GenericBroadcaster};
-use systemprompt_identifiers::{ContextId, TaskId, UserId};
+use systemprompt_identifiers::{ConnectionId, ContextId, TaskId};
 use systemprompt_models::A2AEvent;
 use systemprompt_models::events::payloads::a2a::TaskStatusUpdatePayload;
 use tokio::runtime::Runtime;
@@ -34,8 +34,9 @@ fn bench_broadcast(c: &mut Criterion) {
 
                 rt.block_on(async {
                     for i in 0..count {
-                        let (tx, rx) = mpsc::unbounded_channel();
-                        broadcaster.register(&user, &format!("conn-{i}"), tx).await;
+                        let (tx, rx) = mpsc::channel(systemprompt_events::SSE_BUFFER);
+                        let conn = ConnectionId::new(format!("conn-{i}"));
+                        broadcaster.register(&user, &conn, tx).await;
                         receivers.push(rx);
                     }
                 });
@@ -61,9 +62,10 @@ fn bench_register_unregister(c: &mut Criterion) {
 
         b.iter(|| {
             rt.block_on(async {
-                let (tx, _rx) = mpsc::unbounded_channel();
-                broadcaster.register(&user, "bench-conn", tx).await;
-                broadcaster.unregister(&user, "bench-conn").await;
+                let (tx, _rx) = mpsc::channel(systemprompt_events::SSE_BUFFER);
+                let conn = ConnectionId::new("bench-conn");
+                broadcaster.register(&user, &conn, tx).await;
+                broadcaster.unregister(&user, &conn).await;
             })
         });
     });

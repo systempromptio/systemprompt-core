@@ -268,6 +268,17 @@ contract-test *ARGS:
 concurrency-test *ARGS:
     cargo test --manifest-path crates/tests/Cargo.toml -p systemprompt-concurrency-tests {{ARGS}}
 
+# Mutation-test one production crate against its test-workspace suite
+# (e.g. just mutants crates/infra/security systemprompt-security-tests).
+# Hours per crate; mutates the tree in-place (auto-reverted) — run it in a
+# spare checkout, and export DATABASE_URL at a fresh migrated DB first.
+mutants DIR TESTPKG *ARGS:
+    cd {{DIR}} && cargo mutants --in-place --baseline=skip \
+        --test-tool=nextest \
+        --test-package {{TESTPKG}} \
+        --cargo-test-arg --manifest-path={{justfile_directory()}}/crates/tests/Cargo.toml \
+        --timeout 300 {{ARGS}}
+
 # Run criterion benchmarks
 bench *ARGS:
     cargo bench --manifest-path crates/tests/bench/Cargo.toml {{ARGS}}

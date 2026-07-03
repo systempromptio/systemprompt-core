@@ -57,6 +57,9 @@ jobs:
         run: |
           echo "cores: $(nproc)"; free -h; df -h /
 
+      - name: Install libdbus (bridge test bins link keyring -> dbus)
+        run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config
+
       - name: Strip [unstable] and [profile.dev] from cargo configs
         run: |
           python3 - <<'PY'

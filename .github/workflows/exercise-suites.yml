@@ -72,7 +72,9 @@ jobs:
         env:
           DATABASE_URL: postgres://test:test@localhost:5432/test
           SQLX_OFFLINE: "false"
-        run: cargo fuzz build --fuzz-dir crates/tests/fuzz
+        # cargo-fuzz defaults to the musl target here, which the pinned
+        # nightly has no std for — pin the host triple explicitly.
+        run: cargo fuzz build --fuzz-dir crates/tests/fuzz --target x86_64-unknown-linux-gnu
       - name: Run each target for 60s
         env:
           DATABASE_URL: postgres://test:test@localhost:5432/test
@@ -80,7 +82,7 @@ jobs:
         run: |
           for target in $(cargo fuzz list --fuzz-dir crates/tests/fuzz); do
             echo "::group::$target"
-            cargo fuzz run --fuzz-dir crates/tests/fuzz "$target" -- -max_total_time=60
+            cargo fuzz run --fuzz-dir crates/tests/fuzz --target x86_64-unknown-linux-gnu "$target" -- -max_total_time=60
             echo "::endgroup::"
           done
 
