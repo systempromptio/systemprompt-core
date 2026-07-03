@@ -48,8 +48,7 @@ async fn repository_new_succeeds_against_real_pool() {
         eprintln!("Skipping (DATABASE_URL not set)");
         return;
     };
-    let repo = ContentRepository::new(&db);
-    assert!(repo.is_ok(), "ContentRepository::new should succeed");
+    drop(ContentRepository::new(&db).expect("ContentRepository::new should succeed"));
 }
 
 #[tokio::test]

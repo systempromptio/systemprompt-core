@@ -237,12 +237,17 @@ async fn sitemap_provider_with_source_emits_static_urls() {
         .await
         .unwrap();
     let urls = p.static_urls("https://example.com");
-    // Source has parent_route.enabled = true and source enabled — expect at
-    // least one parent url. We tolerate a race that may show the empty
-    // config by checking specs are at most one (>=0).
-    let _ = urls.len();
+    assert!(
+        urls.iter().all(|u| u.loc.starts_with("https://example.com")),
+        "every emitted sitemap url must be prefixed with the requested base url"
+    );
     let specs = p.source_specs();
-    let _ = specs.len();
+    assert!(
+        specs
+            .iter()
+            .all(|s| s.placeholders.iter().any(|m| m.placeholder == "{slug}")),
+        "every source spec must carry the slug placeholder mapping"
+    );
 }
 
 #[tokio::test]

@@ -32,8 +32,7 @@ async fn test_file_repository_new() {
         return;
     };
 
-    let result = FileRepository::new(&db);
-    assert!(result.is_ok(), "Should create FileRepository successfully");
+    drop(FileRepository::new(&db).expect("Should create FileRepository successfully"));
 }
 
 #[tokio::test]
@@ -46,8 +45,8 @@ async fn test_file_repository_insert_success() {
     let repo = FileRepository::new(&db).expect("Failed to create repository");
     let request = create_test_file_request("insert_success");
 
-    let result = repo.insert(request.clone()).await;
-    assert!(result.is_ok(), "Should insert file successfully");
+    let inserted = repo.insert(request.clone()).await.expect("insert file");
+    assert_eq!(inserted, request.id, "insert returns the stored file id");
 
     let file = repo
         .find_by_id(&request.id)
@@ -77,8 +76,8 @@ async fn test_file_repository_insert_with_user_id() {
     let request =
         create_test_file_request("with_user_id").with_user_id(UserId::new("user_test_123"));
 
-    let result = repo.insert(request.clone()).await;
-    assert!(result.is_ok(), "Should insert file with user_id");
+    let inserted = repo.insert(request.clone()).await.expect("insert file");
+    assert_eq!(inserted, request.id, "insert returns the stored file id");
 
     let file = repo
         .find_by_id(&request.id)
@@ -104,8 +103,8 @@ async fn test_file_repository_insert_with_ai_content() {
     let repo = FileRepository::new(&db).expect("Failed to create repository");
     let request = create_test_file_request("ai_content").with_ai_content(true);
 
-    let result = repo.insert(request.clone()).await;
-    assert!(result.is_ok(), "Should insert AI-generated file");
+    let inserted = repo.insert(request.clone()).await.expect("insert file");
+    assert_eq!(inserted, request.id, "insert returns the stored file id");
 
     let file = repo
         .find_by_id(&request.id)
@@ -150,8 +149,7 @@ async fn test_file_repository_insert_upsert_on_conflict() {
     )
     .with_size(2048);
 
-    let result = repo.insert(request2).await;
-    assert!(result.is_ok(), "Upsert should succeed");
+    repo.insert(request2).await.expect("upsert should succeed");
 
     let file = repo
         .find_by_path(&unique_path)
@@ -500,8 +498,12 @@ async fn test_file_repository_insert_file() {
         deleted_at: None,
     };
 
-    let result = repo.insert_file(&file).await;
-    assert!(result.is_ok(), "insert_file should succeed");
+    let inserted = repo.insert_file(&file).await.expect("insert_file");
+    assert_eq!(
+        inserted,
+        FileId::new(file_id.to_string()),
+        "insert_file returns the stored file id"
+    );
 
     let fetched = repo
         .find_by_id(&FileId::new(file_id.to_string()))

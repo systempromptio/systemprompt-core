@@ -188,7 +188,7 @@ mod gemini_image_provider_tests {
     #[test]
     fn default_model_is_set() {
         let provider = GeminiImageProvider::new("test-key".to_string());
-        assert!(!provider.default_model().is_empty());
+        assert_eq!(provider.default_model(), "gemini-2.5-flash-image");
     }
 
     #[test]
@@ -203,9 +203,9 @@ mod gemini_image_provider_tests {
         let provider = GeminiImageProvider::new("test-key".to_string());
         let caps = provider.capabilities();
 
-        assert!(!caps.supported_resolutions.is_empty());
-        assert!(!caps.supported_aspect_ratios.is_empty());
-        assert!(caps.max_prompt_length > 0);
+        assert_eq!(caps.supported_resolutions.len(), 3);
+        assert_eq!(caps.supported_aspect_ratios.len(), 6);
+        assert_eq!(caps.max_prompt_length, 8000);
     }
 
     #[test]
@@ -213,7 +213,7 @@ mod gemini_image_provider_tests {
         let provider = GeminiImageProvider::new("test-key".to_string());
         let models = provider.supported_models();
 
-        assert!(!models.is_empty());
+        assert_eq!(models, vec!["gemini-2.5-flash-image".to_string()]);
     }
 
     #[test]

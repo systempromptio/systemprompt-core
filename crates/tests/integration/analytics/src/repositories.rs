@@ -224,11 +224,11 @@ async fn traffic_repository_smoke() -> Result<()> {
         .get_bot_breakdown(fx.window_start, fx.window_end)
         .await?;
 
-    assert!(!sources.is_empty());
+    assert!(sources.iter().any(|s| s.source.as_deref() == Some("google")));
     let _ = sources_engaged;
-    assert!(!geo.is_empty());
+    assert!(geo.iter().any(|g| g.country.as_deref() == Some("US")));
     let _ = geo_engaged;
-    assert!(!dev.is_empty());
+    assert!(dev.iter().any(|d| d.device.as_deref() == Some("desktop")));
     let _ = dev_engaged;
     assert!(bot_totals.human >= 1);
     assert!(bot_totals.bot >= 1);

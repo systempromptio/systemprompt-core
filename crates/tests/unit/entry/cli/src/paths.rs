@@ -21,21 +21,21 @@ fn discover_returns_struct_with_callable_accessors() {
 fn sessions_dir_is_non_empty_path() {
     let paths = ResolvedPaths::discover();
     let sessions = paths.sessions_dir();
-    assert!(!sessions.as_os_str().is_empty());
+    assert!(sessions.ends_with("sessions"), "got: {}", sessions.display());
 }
 
 #[test]
 fn tenants_path_is_non_empty_path() {
     let paths = ResolvedPaths::discover();
     let tenants = paths.tenants_path();
-    assert!(!tenants.as_os_str().is_empty());
+    assert!(tenants.ends_with("tenants.json"), "got: {}", tenants.display());
 }
 
 #[test]
 fn profiles_dir_is_non_empty_path() {
     let paths = ResolvedPaths::discover();
     let profiles = paths.profiles_dir();
-    assert!(!profiles.as_os_str().is_empty());
+    assert!(profiles.ends_with("profiles"), "got: {}", profiles.display());
 }
 
 #[test]

@@ -198,7 +198,11 @@ async fn cli_session_repository_smoke() -> Result<()> {
     let active_since = repo.get_active_session_count(fx.window_start).await?;
     assert!(active_since >= 0);
     let live = repo.get_live_sessions(fx.window_start, 50).await?;
-    let _ = live.len();
+    assert!(
+        live.iter()
+            .any(|s| s.session_id.as_str() == format!("cli_s_{}_1", fx.tag)),
+        "seeded live session must surface within its window"
+    );
     let active_count = repo.get_active_count(fx.window_start).await?;
     assert!(active_count >= 0);
     let trends = repo
@@ -285,7 +289,10 @@ async fn tool_repository_smoke() -> Result<()> {
                 sort_order: order,
             })
             .await?;
-        let _ = listed.len();
+        assert!(
+            listed.iter().any(|r| r.tool_name == tool),
+            "seeded tool must surface in list_tools with sort order {order:?}"
+        );
     }
 
     let filtered = repo

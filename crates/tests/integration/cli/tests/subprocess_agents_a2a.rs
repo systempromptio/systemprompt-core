@@ -4,6 +4,7 @@
 
 use std::path::Path;
 
+use predicates::prelude::*;
 use serde_json::json;
 use systemprompt_cli_integration_tests::full_bootstrap::{
     FIXTURE_AGENT, FIXTURE_DELETE_AGENT, FIXTURE_EDIT_AGENT, command, fixture,
@@ -115,7 +116,9 @@ fn registry_parses_agent_cards() {
                 cmd.arg(flag);
             }
         }
-        cmd.assert().success();
+        cmd.assert()
+            .success()
+            .stdout(predicate::str::contains("covagent"));
     }
 }
 
@@ -181,7 +184,9 @@ fn message_non_streaming_roundtrip() {
     ) else {
         return;
     };
-    cmd.assert().success();
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("hello from fixture"));
 
     let Some(mut blocking) = home_cmd(
         home.path(),
@@ -200,7 +205,10 @@ fn message_non_streaming_roundtrip() {
     ) else {
         return;
     };
-    blocking.assert().success();
+    blocking
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("TASK_STATE_COMPLETED"));
 }
 
 #[test]
@@ -332,7 +340,9 @@ fn message_streaming_roundtrip() {
     ) else {
         return;
     };
-    cmd.assert().success();
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("chunk two"));
 }
 
 #[test]
@@ -368,7 +378,9 @@ fn task_get_roundtrip() {
     ) else {
         return;
     };
-    cmd.assert().success();
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("task-cov-1"));
 
     let Some(mut missing_task) = home_cmd(home.path(), &["admin", "agents", "task", FIXTURE_AGENT])
     else {
@@ -401,7 +413,10 @@ fn tools_lists_stub_mcp_tools() {
     ) else {
         return;
     };
-    detailed.assert().success();
+    detailed
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("echo"));
 
     let Some(mut missing) = home_cmd(home.path(), &["admin", "agents", "tools", "nope"]) else {
         return;

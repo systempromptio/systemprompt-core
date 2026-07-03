@@ -90,7 +90,10 @@ async fn list_agents_includes_registered() {
     // records, so a freshly db-registered name need not appear; assert the
     // call returns a well-formed list.
     let all = orchestrator.list_agents().await.expect("list");
-    let _ = all.len();
+    assert!(
+        all.iter().all(|(agent_name, _)| !agent_name.is_empty()),
+        "every listed agent must carry a non-empty name"
+    );
 
     db_service(&pool).remove_agent_service(&name).await.ok();
 }

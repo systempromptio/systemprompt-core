@@ -83,8 +83,11 @@ fn capability_context_has_database() {
 #[test]
 fn capability_context_has_event_bus() {
     let ctx = make_context();
-    let _bus = HasEventBus::event_bus(&ctx);
-    assert!(true);
+    let bus = HasEventBus::event_bus(&ctx);
+    assert!(
+        format!("{bus:?}").contains("TestEventBus"),
+        "event_bus accessor must return the installed publisher"
+    );
 }
 
 #[test]
@@ -104,7 +107,6 @@ fn capability_context_implements_full_context() {
     fn assert_full_context<T: FullContext>(_ctx: &T) {}
     let ctx = make_context();
     assert_full_context(&ctx);
-    assert!(true);
 }
 
 #[test]

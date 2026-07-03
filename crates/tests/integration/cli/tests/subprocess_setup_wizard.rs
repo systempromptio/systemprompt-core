@@ -3,6 +3,7 @@
 
 use std::path::Path;
 
+use predicates::prelude::*;
 use systemprompt_cli_integration_tests::full_bootstrap::{command_bare, database_url, fixture};
 
 struct DbParts {
@@ -153,5 +154,7 @@ fn setup_json_output_dry_run() {
     ) else {
         return;
     };
-    cmd.assert().success();
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("covsetup"));
 }

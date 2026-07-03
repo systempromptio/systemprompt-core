@@ -30,10 +30,7 @@ fn load_secrets_from_path_errors_when_file_missing() {
 
     let err = load_secrets_from_path(&path).unwrap_err();
     let msg = format!("{err}");
-    assert!(
-        msg.contains("nonexistent.json") || !msg.is_empty(),
-        "got: {msg}"
-    );
+    assert!(msg.contains("nonexistent.json"), "got: {msg}");
 }
 
 #[test]
@@ -44,7 +41,10 @@ fn load_secrets_from_path_errors_on_invalid_json() {
 
     let err = load_secrets_from_path(&path).unwrap_err();
     let msg = format!("{err}");
-    assert!(!msg.is_empty(), "error message should not be empty");
+    assert!(
+        msg.contains("Failed to parse secrets JSON"),
+        "got: {msg}"
+    );
 }
 
 #[test]
@@ -57,7 +57,10 @@ fn load_secrets_from_path_errors_on_short_pepper() {
 
     let err = load_secrets_from_path(&path).unwrap_err();
     let msg = format!("{err}");
-    assert!(!msg.is_empty(), "error message should not be empty");
+    assert!(
+        msg.contains("oauth_at_rest_pepper must be at least"),
+        "got: {msg}"
+    );
 }
 
 #[test]
@@ -72,7 +75,7 @@ fn load_secrets_from_path_errors_on_missing_required_fields() {
 
     let err = load_secrets_from_path(&path).unwrap_err();
     let msg = format!("{err}");
-    assert!(!msg.is_empty(), "error message should not be empty");
+    assert!(msg.contains("database_url"), "got: {msg}");
 }
 
 #[test]
@@ -133,5 +136,8 @@ fn load_secrets_from_path_errors_on_non_object_json() {
 
     let err = load_secrets_from_path(&path).unwrap_err();
     let msg = format!("{err}");
-    assert!(!msg.is_empty(), "error message should not be empty");
+    assert!(
+        msg.contains("Failed to deserialize secrets after null stripping"),
+        "got: {msg}"
+    );
 }

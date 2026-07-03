@@ -121,7 +121,7 @@ async fn create_tool_execution_message_works_without_pretty_args() -> Result<()>
     let task_id = fx.insert_task(TaskState::Working).await?;
     let ctx = request_context(&fx);
     let args = serde_json::json!(null);
-    let result = svc
+    let (mid, seq) = svc
         .create_tool_execution_message(CreateToolExecutionMessageParams {
             task_id: &task_id,
             context_id: &fx.context_id,
@@ -129,8 +129,9 @@ async fn create_tool_execution_message_works_without_pretty_args() -> Result<()>
             tool_args: &args,
             request_context: &ctx,
         })
-        .await;
-    assert!(result.is_ok());
+        .await?;
+    assert!(!mid.is_empty(), "null tool_args must still yield a message id");
+    assert!(seq >= 0);
     fx.cleanup().await?;
     Ok(())
 }

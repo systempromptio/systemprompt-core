@@ -220,7 +220,10 @@ async fn get_running_servers_empty_db_returns_empty_vec() {
         return;
     };
     let r = o.get_running_servers().await.unwrap();
-    let _ = r.len();
+    assert!(
+        r.is_empty(),
+        "empty registry cannot resolve any running server config, regardless of DB rows"
+    );
 }
 
 #[tokio::test]

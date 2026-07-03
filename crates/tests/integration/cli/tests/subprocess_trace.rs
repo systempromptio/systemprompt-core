@@ -325,7 +325,9 @@ fn trace_show_task_json() {
     let Some(mut cmd) = trace_show(&seeded.task_id, &["--json"]) else {
         return;
     };
-    cmd.assert().success();
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains(&seeded.task_id));
 }
 
 #[test]
@@ -386,8 +388,10 @@ fn trace_show_unknown_id_reports_empty() {
 
 #[test]
 fn trace_list_includes_seeded_traces() {
-    let Some(_seeded) = seeded() else { return };
+    let Some(seeded) = seeded() else { return };
     let Some(mut cmd) = command() else { return };
     cmd.args(["infra", "logs", "trace", "list", "--limit", "50"]);
-    cmd.assert().success();
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains(&seeded.log_trace_id));
 }

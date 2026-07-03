@@ -7,8 +7,6 @@
 
 use std::sync::Arc;
 
-use std::time::Duration;
-
 use anyhow::{Context, Result};
 use systemprompt_database::{Database, DbPool, PoolConfig};
 use tokio::sync::OnceCell;

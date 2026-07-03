@@ -3,7 +3,7 @@
 //! mutate live services (the mutation paths kill processes / bind ports, so
 //! they're not safe to drive from the test runner).
 
-use systemprompt_database::DbPool;
+use systemprompt_database::{CreateServiceInput, DbPool, ServiceRepository};
 use systemprompt_scheduler::{
     DesiredStatus, RuntimeStatus, ServiceConfig, ServiceManagementService, ServiceStateVerifier,
     ServiceType,
@@ -24,23 +24,47 @@ async fn service_management_service_new_succeeds() {
 }
 
 #[tokio::test]
-async fn get_services_by_type_returns_vec() {
+async fn get_services_by_type_surfaces_seeded_service() {
     let Some(pool) = try_pool().await else {
         return;
     };
+    let repo = ServiceRepository::new(&pool).expect("repo");
+    let name = format!("gsbt_mcp_{}", uuid::Uuid::new_v4().simple());
+    repo.create_service(CreateServiceInput {
+        name: &name,
+        module_name: "mcp",
+        status: "stopped",
+        port: 65515,
+        binary_mtime: None,
+    })
+    .await
+    .expect("seed service");
+
     let svc = ServiceManagementService::new(&pool).expect("svc");
     let services = svc.get_services_by_type("mcp").await.expect("query");
-    let _ = services.len();
+    assert!(
+        services.iter().any(|s| s.name == name),
+        "seeded mcp service {name} must surface in get_services_by_type(\"mcp\")"
+    );
+    assert!(
+        services.iter().all(|s| s.module_name == "mcp"),
+        "get_services_by_type(\"mcp\") must return only mcp services"
+    );
+
+    repo.delete_service(&name).await.expect("cleanup");
 }
 
 #[tokio::test]
-async fn get_running_services_with_pid_returns_vec() {
+async fn get_running_services_with_pid_all_carry_a_pid() {
     let Some(pool) = try_pool().await else {
         return;
     };
     let svc = ServiceManagementService::new(&pool).expect("svc");
     let services = svc.get_running_services_with_pid().await.expect("query");
-    let _ = services.len();
+    assert!(
+        services.iter().all(|s| s.pid.is_some()),
+        "get_running_services_with_pid must only return rows that carry a pid"
+    );
 }
 
 #[tokio::test]
@@ -123,7 +147,10 @@ async fn state_verifier_get_services_needing_action_filters() {
         .get_services_needing_action(&configs)
         .await
         .expect("query");
-    let _ = actions.len();
+    assert!(
+        actions.iter().all(|s| s.name == configs[0].name),
+        "get_services_needing_action must only return states for the supplied configs"
+    );
 }
 
 #[tokio::test]
