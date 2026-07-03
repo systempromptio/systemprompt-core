@@ -7372,6 +7372,7 @@ dependencies = [
  "systemprompt-scheduler",
  "systemprompt-sync",
  "systemprompt-test-fixtures",
+ "systemprompt-users",
  "tempfile",
  "thiserror 2.0.18",
  "tokio",

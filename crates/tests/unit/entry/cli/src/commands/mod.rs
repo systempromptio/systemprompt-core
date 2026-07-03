@@ -1,6 +1,8 @@
 //! Tests touching public surfaces under the `commands` re-exports.
 
 mod admin_prompts;
+mod admin_users_session_end_db;
+mod admin_users_write_db;
 mod agents_delete;
 mod analytics;
 mod build_mcp;
@@ -12,12 +14,14 @@ mod config_secret;
 mod core_artifacts_db;
 mod core_content_db;
 mod core_content_edit_apply;
+mod core_content_link_generate_db;
 mod core_dispatchers_db;
 mod core_files_show_db;
 mod core_plugins_fs;
 mod infrastructure;
 mod logs_disk_prompts;
 mod mcp_prompts;
+mod plugins_capability_types;
 mod plugins_registry;
 mod setup_ai_config;
 mod setup_catalog;

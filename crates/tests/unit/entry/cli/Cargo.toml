@@ -36,6 +36,7 @@ systemprompt-content = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-runtime = { workspace = true }
 systemprompt-scheduler = { workspace = true }
+systemprompt-users = { workspace = true }
 systemprompt-test-fixtures = { workspace = true }
 tokio = { workspace = true }
 uuid = { workspace = true }
