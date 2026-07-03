@@ -122,8 +122,10 @@ jobs:
 
       - name: Build instrumented systemprompt binary
         env:
-          LLVM_PROFILE_FILE: /mnt/profraw/%p-%m.profraw
-          RUSTFLAGS: "-C instrument-coverage"
+          # Continuous mode (%c) must be baked in at build time via the counter
+          # relocation flag; keep RUSTFLAGS identical to the test step so the
+          # CLI binary pools correctly when subprocess tests run it.
+          RUSTFLAGS: "-C instrument-coverage -C llvm-args=--runtime-counter-relocation"
         run: |
           mkdir -p "/mnt/profraw"
           # The crates/tests workspace does not include entry/cli, so the test
@@ -135,8 +137,13 @@ jobs:
       - name: Run instrumented tests (RUSTFLAGS so path deps get instrumented)
         env:
           DATABASE_URL: postgres://test:test@localhost:5432/test
-          LLVM_PROFILE_FILE: /mnt/profraw/%p-%m.profraw
-          RUSTFLAGS: "-C instrument-coverage"
+          # Continuous mode: %c makes every process for a given binary mmap and
+          # merge into ONE file keyed by %m (the binary signature), instead of
+          # %p writing a fresh full-counter dump per process. The prior %p-%m
+          # pattern produced 23k profraw files (~100GB) and filled the disk;
+          # %m%c collapses that to one file per instrumented binary.
+          LLVM_PROFILE_FILE: /mnt/profraw/%m%c.profraw
+          RUSTFLAGS: "-C instrument-coverage -C llvm-args=--runtime-counter-relocation"
           SQLX_OFFLINE: "false"
           SYSTEMPROMPT_BIN: /mnt/coverage-target/debug/systemprompt
           # Test tempdirs (generator sites, CLI subprocess fixtures) otherwise
@@ -162,7 +169,7 @@ jobs:
                   sudo du -xh -d4 / 2>/dev/null | sort -rh | head -40;
                   echo "--- docker ---";
                   sudo du -sh /var/lib/docker 2>/dev/null;
-                } > /mnt/watchdog.log 2>&1
+                } > /mnt/tmp/watchdog.log 2>&1
                 sudo pkill -9 -f "cargo|nextest|systemprompt" || true
                 break
               fi
@@ -171,9 +178,9 @@ jobs:
           WATCHDOG=$!
 
           set +e
-          # nextest runs each test in its own process, so the per-test timeout
-          # applies under instrumentation too; %p in LLVM_PROFILE_FILE keeps the
-          # profraw files distinct across those processes.
+          # nextest runs each test in its own process; continuous mode (%c)
+          # lets those processes share one mmap'd profile per binary instead of
+          # each dumping a full-counter file.
           cargo nextest run --profile ci \
             --manifest-path crates/tests/Cargo.toml \
             --workspace --lib --bins --tests --no-fail-fast
@@ -183,8 +190,8 @@ jobs:
 
           echo "profraw count: $(find /mnt/profraw -name '*.profraw' | wc -l)"
           df -h / /mnt
-          if [ -f /mnt/watchdog.log ]; then
-            echo "=== watchdog tripped ==="; cat /mnt/watchdog.log; exit 1
+          if [ -f /mnt/tmp/watchdog.log ]; then
+            echo "=== watchdog tripped ==="; cat /mnt/tmp/watchdog.log; exit 1
           fi
           exit $status
 
@@ -271,7 +278,7 @@ jobs:
         if: always()
         run: |
           df -h / /mnt
-          [ -f /mnt/watchdog.log ] && cat /mnt/watchdog.log || echo "watchdog never fired"
+          [ -f /mnt/tmp/watchdog.log ] && cat /mnt/tmp/watchdog.log || echo "watchdog never fired"
 
       - name: Job summary
         if: always()
