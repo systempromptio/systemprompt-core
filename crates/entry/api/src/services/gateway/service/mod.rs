@@ -8,6 +8,11 @@
 mod finalize;
 mod resolve;
 
+#[cfg(feature = "test-api")]
+pub mod test_api {
+    pub use super::finalize::{apply_system_prompt_override, attach_request_id};
+}
+
 use std::sync::Arc;
 
 use anyhow::{Result, anyhow};

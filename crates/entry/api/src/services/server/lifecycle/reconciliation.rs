@@ -246,6 +246,26 @@ async fn cleanup_stale_service_entries(
     Ok(deleted_count)
 }
 
+#[cfg(feature = "test-api")]
+pub mod test_api {
+    use anyhow::Result;
+    use systemprompt_runtime::AppContext;
+
+    #[must_use]
+    pub fn service_row_is_stale(
+        status: &str,
+        pid: Option<i32>,
+        name_key: &str,
+        name: &str,
+    ) -> bool {
+        super::service_row_is_stale(status, pid, name_key, name)
+    }
+
+    pub async fn cleanup_stale_service_entries(ctx: &AppContext) -> Result<u64> {
+        super::cleanup_stale_service_entries(ctx, None).await
+    }
+}
+
 /// A `running` row is stale unless its recorded PID is alive *and* still names
 /// our child — a recycled PID that now belongs to an unrelated process must be
 /// dropped, never adopted (and never signalled on the next reap). `error` /

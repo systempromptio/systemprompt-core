@@ -5,6 +5,19 @@ use systemprompt_scheduler::{ProcessCleanup, SchedulerHandle};
 const CHILD_SHUTDOWN_GRACE_MS: u64 = 5_000;
 const FORCED_SHUTDOWN_GRACE_MS: u64 = 10_000;
 
+#[cfg(feature = "test-api")]
+pub mod test_api {
+    use systemprompt_runtime::AppContext;
+
+    pub async fn drain(ctx: &AppContext) {
+        super::drain(ctx, None).await;
+    }
+
+    pub async fn terminate_children(ctx: &AppContext) {
+        super::terminate_children(ctx).await;
+    }
+}
+
 pub(super) async fn shutdown_signal() {
     wait_for_signal().await;
     super::readiness::signal_shutdown();

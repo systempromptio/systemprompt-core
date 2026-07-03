@@ -31,7 +31,7 @@ pub use context::{
 };
 pub use cors::*;
 pub use ip_ban::*;
-pub use jwt::*;
+pub use jwt::{JtiRevocationChecker, JwtContextExtractor, JwtUserContext};
 pub use negotiation::{
     AcceptedFormat, AcceptedMediaType, content_negotiation_middleware, parse_accept_header,
 };

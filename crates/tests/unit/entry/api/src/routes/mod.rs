@@ -12,6 +12,7 @@ mod gateway_authz_request;
 mod gateway_extract_credential;
 mod gateway_messages_auth;
 mod gateway_otel_convert;
+mod gateway_otel_ingest;
 mod gateway_upstream_status_mapping;
 mod oauth;
 mod proxy_mcp_metadata;

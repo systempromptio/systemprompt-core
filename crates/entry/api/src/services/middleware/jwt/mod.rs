@@ -12,6 +12,7 @@ mod validation;
 #[cfg(feature = "test-api")]
 pub mod test_api {
     pub use super::params::{BuildContextParams, build_context, extract_common_headers};
+    pub use super::validation::{UserCache, ValidatedUser, user_is_admin, validate_user_exists};
 }
 
 pub use context::JwtContextExtractor;

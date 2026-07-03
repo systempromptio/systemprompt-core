@@ -12,6 +12,11 @@ mod message_text;
 mod open;
 pub mod payload;
 
+#[cfg(feature = "test-api")]
+pub mod test_api {
+    pub use super::message_text::flatten_message_content;
+}
+
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 

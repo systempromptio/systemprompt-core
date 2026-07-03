@@ -23,8 +23,39 @@ pub fn router(ctx: &AppContext) -> Result<Router> {
         content_routing: ctx.content_routing(),
     };
 
-    Ok(Router::new()
+    Ok(routes().with_state(state))
+}
+
+fn routes() -> Router<EngagementState> {
+    Router::new()
         .route("/", post(handlers::record_engagement))
         .route("/batch", post(handlers::record_engagement_batch))
-        .with_state(state))
+}
+
+/// Test-only seam: mount the engagement routes with a caller-supplied router.
+///
+/// The supplied `ContentRouting` lets the slug-resolution and conversion-marking
+/// branches be driven with a stub that maps a page URL to a seeded content slug.
+#[cfg(feature = "test-api")]
+pub mod test_api {
+    use super::{
+        ContentRepository, EngagementRepository, EngagementState, Router, SessionRepository, routes,
+    };
+    use anyhow::Result;
+    use std::sync::Arc;
+    use systemprompt_models::ContentRouting;
+    use systemprompt_runtime::AppContext;
+
+    pub fn router_with_routing(
+        ctx: &AppContext,
+        content_routing: Option<Arc<dyn ContentRouting>>,
+    ) -> Result<Router> {
+        let state = EngagementState {
+            repo: Arc::new(EngagementRepository::new(ctx.db_pool())?),
+            session_repo: Arc::new(SessionRepository::new(ctx.db_pool())?),
+            content_repo: Arc::new(ContentRepository::new(ctx.db_pool())?),
+            content_routing,
+        };
+        Ok(routes().with_state(state))
+    }
 }

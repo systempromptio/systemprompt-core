@@ -30,6 +30,17 @@ mod error;
 mod flavours;
 mod support;
 
+#[cfg(feature = "test-api")]
+pub mod test_api {
+    use systemprompt_models::api::ApiError;
+    use systemprompt_models::execution::context::ContextExtractionError;
+
+    #[must_use]
+    pub fn extraction_error_to_api_error(error: &ContextExtractionError) -> ApiError {
+        super::error::extraction_error_to_api_error(error)
+    }
+}
+
 pub use flavours::{
     A2AContextMiddleware, McpContextMiddleware, PublicContextMiddleware, UserOnlyContextMiddleware,
 };

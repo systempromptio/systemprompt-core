@@ -9,7 +9,14 @@ use systemprompt_runtime::AppContext;
 
 use super::extract::RejectionPartial;
 
-pub(super) async fn persist_rejection(
+#[cfg_attr(
+    not(feature = "test-api"),
+    expect(
+        unreachable_pub,
+        reason = "re-exported via `test_api` only when the feature is on"
+    )
+)]
+pub async fn persist_rejection(
     ctx: &AppContext,
     ai_request_id: &AiRequestId,
     partial: &RejectionPartial,
@@ -34,7 +41,14 @@ pub(super) async fn persist_rejection(
     }
 }
 
-fn build_rejection_record(
+#[cfg_attr(
+    not(feature = "test-api"),
+    expect(
+        unreachable_pub,
+        reason = "re-exported via `test_api` only when the feature is on"
+    )
+)]
+pub fn build_rejection_record(
     ai_request_id: &AiRequestId,
     partial: &RejectionPartial,
 ) -> Option<AiRequestRecord> {

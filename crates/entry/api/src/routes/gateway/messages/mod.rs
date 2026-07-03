@@ -13,7 +13,15 @@ mod rejection;
 
 #[cfg(feature = "test-api")]
 pub mod test_api {
-    pub use super::auth::{ApiKeyPrincipal, AuthedPrincipal, JwtPrincipal};
+    pub use super::auth::{ApiKeyPrincipal, AuthedPrincipal, JwtPrincipal, authenticate};
+    pub use super::dispatch::{
+        RejectionError, build_error_response, classify_dispatch_error, map_dispatch_error,
+    };
+    pub use super::extract::test_api::{
+        RejectionPartial, derive_conversation, enforce_authz_pre_dispatch,
+        optional_gateway_conversation_id, read_gateway_body, require_session_id,
+    };
+    pub use super::rejection::{build_rejection_record, persist_rejection};
 }
 
 pub use dispatch::map_upstream_error;

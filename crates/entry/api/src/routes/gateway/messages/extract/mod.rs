@@ -26,8 +26,24 @@ use headers::{optional_gateway_conversation_id, read_gateway_body, require_sessi
 pub use authz::{GatewayAuthzRequestInput, build_gateway_authz_request};
 pub use headers::extract_credential;
 
-#[derive(Default)]
-pub(super) struct RejectionPartial {
+#[cfg(feature = "test-api")]
+pub(super) mod test_api {
+    pub use super::authz::enforce_authz_pre_dispatch;
+    pub use super::headers::{
+        optional_gateway_conversation_id, read_gateway_body, require_session_id,
+    };
+    pub use super::{RejectionPartial, derive_conversation};
+}
+
+#[cfg_attr(
+    not(feature = "test-api"),
+    expect(
+        unreachable_pub,
+        reason = "re-exported via `test_api` only when the feature is on"
+    )
+)]
+#[derive(Debug, Default)]
+pub struct RejectionPartial {
     pub user_id: Option<UserId>,
     pub session_id: Option<SessionId>,
     pub context_id: Option<ContextId>,
@@ -121,7 +137,14 @@ pub(super) async fn extract_request_context(
     })
 }
 
-fn derive_conversation(
+#[cfg_attr(
+    not(feature = "test-api"),
+    expect(
+        unreachable_pub,
+        reason = "re-exported via `test_api` only when the feature is on"
+    )
+)]
+pub fn derive_conversation(
     header_gateway_conversation: Option<GatewayConversationId>,
     gateway_request: &CanonicalRequest,
     partial: &mut RejectionPartial,

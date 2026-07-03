@@ -34,7 +34,14 @@ pub(super) struct FinalizeCtx {
     pub(super) request_model: String,
 }
 
-pub(super) async fn apply_system_prompt_override(
+#[cfg_attr(
+    not(feature = "test-api"),
+    expect(
+        unreachable_pub,
+        reason = "re-exported via `test_api` only when the feature is on"
+    )
+)]
+pub async fn apply_system_prompt_override(
     config: &GatewayConfig,
     provider: &ProviderId,
     upstream_model: &str,
@@ -182,7 +189,14 @@ async fn persist_findings(db: &DbPool, ai_request_id: &AiRequestId, findings: &[
     }
 }
 
-pub(super) fn attach_request_id(mut response: Response<Body>, id: &AiRequestId) -> Response<Body> {
+#[cfg_attr(
+    not(feature = "test-api"),
+    expect(
+        unreachable_pub,
+        reason = "re-exported via `test_api` only when the feature is on"
+    )
+)]
+pub fn attach_request_id(mut response: Response<Body>, id: &AiRequestId) -> Response<Body> {
     if let Ok(v) = HeaderValue::from_str(id.as_str()) {
         response.headers_mut().insert(REQUEST_ID_HEADER, v);
     }
