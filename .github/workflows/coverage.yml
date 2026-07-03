@@ -70,9 +70,23 @@ jobs:
             /usr/local/.ghcup /usr/local/share/boost /usr/local/share/powershell \
             /usr/local/lib/node_modules "$AGENT_TOOLSDIRECTORY"
           sudo docker image prune --all --force >/dev/null 2>&1 || true
-          sudo mkdir -p /mnt/coverage-target /mnt/profraw
-          sudo chmod 777 /mnt/coverage-target /mnt/profraw
+          sudo mkdir -p /mnt/coverage-target /mnt/profraw /mnt/tmp
+          sudo chmod 777 /mnt/coverage-target /mnt/profraw /mnt/tmp
           df -h / /mnt
+
+      # The runner agent dies (and uploads no logs) if the root disk actually
+      # reaches zero, so kill the build first and dump what consumed the space.
+      - name: Start root-disk watchdog
+        run: |
+          nohup bash -c 'while sleep 30; do
+            avail=$(df --output=avail -BM / | tail -1 | tr -dc 0-9)
+            if [ "$avail" -lt 2048 ]; then
+              { echo "ROOT DISK LOW: ${avail}M free"; df -h / /mnt;
+                sudo du -xh -d3 / 2>/dev/null | sort -rh | head -30; } > /mnt/watchdog.log 2>&1
+              sudo pkill -9 cargo || true; sudo pkill -9 nextest || true
+              break
+            fi
+          done' >/dev/null 2>&1 &
 
       - name: Install libdbus (bridge test bins link keyring -> dbus)
         run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config
@@ -139,6 +153,9 @@ jobs:
           RUSTFLAGS: "-C instrument-coverage"
           SQLX_OFFLINE: "false"
           SYSTEMPROMPT_BIN: /mnt/coverage-target/debug/systemprompt
+          # Test tempdirs (generator sites, CLI subprocess fixtures) otherwise
+          # accumulate on the root disk.
+          TMPDIR: /mnt/tmp
         run: |
           mkdir -p "/mnt/profraw"
           # nextest runs each test in its own process, so the per-test timeout
@@ -227,6 +244,12 @@ jobs:
           files: lcov.info
           fail_ci_if_error: false
           use_oidc: true
+
+      - name: Disk watchdog report
+        if: always()
+        run: |
+          df -h / /mnt
+          [ -f /mnt/watchdog.log ] && cat /mnt/watchdog.log || echo "watchdog never fired"
 
       - name: Job summary
         if: always()
