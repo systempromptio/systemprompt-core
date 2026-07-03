@@ -247,7 +247,7 @@ async fn session_velocity_returns_count_and_duration() {
 
     let (count, duration) = repo.get_session_velocity(&sid).await.expect("velocity");
     assert_eq!(count, Some(1));
-    assert!(duration.is_some());
+    assert!(duration.expect("duration") >= 0);
 
     // Missing session -> (None, None).
     let missing = unique_session_id();

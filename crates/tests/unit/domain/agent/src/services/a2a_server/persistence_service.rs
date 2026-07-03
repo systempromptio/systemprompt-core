@@ -68,7 +68,10 @@ fn build_initial_task_is_submitted_with_agent_metadata() {
     assert_eq!(task.status.state, TaskState::Submitted);
     assert!(task.history.is_none());
     assert!(task.artifacts.is_none());
-    assert!(task.metadata.is_some());
+    assert_eq!(
+        task.metadata.expect("metadata set").agent_name,
+        "init-agent"
+    );
     assert!(task.created_at.is_some());
 }
 

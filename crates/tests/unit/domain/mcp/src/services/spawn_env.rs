@@ -173,6 +173,5 @@ fn open_server_log_creates_log_directory_and_file() {
     let paths = Arc::new(AppPaths::from_profile(&paths_config).expect("paths"));
     let config = make_config("logtest", vec![]);
 
-    let file = open_server_log(&paths, &config);
-    assert!(file.is_ok(), "log file should open: {:?}", file.err());
+    open_server_log(&paths, &config).expect("log file should open");
 }

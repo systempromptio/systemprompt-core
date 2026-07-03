@@ -169,7 +169,11 @@ fn scheduler_config_with_system_admin_emits_core_cleanup_jobs() {
     for j in &s.jobs {
         assert!(j.owner.is_none());
         assert_eq!(j.extension.as_deref(), Some("core"));
-        assert!(j.schedule.is_some());
+        let schedule = j
+            .schedule
+            .as_deref()
+            .expect("core cleanup job has schedule");
+        assert!(!schedule.is_empty());
     }
     assert_eq!(s.bootstrap_jobs.len(), 2);
 }

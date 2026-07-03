@@ -36,7 +36,7 @@ async fn wait_for_startup_reports_ready_on_healthy_endpoint() {
     let startup_ms = wait_for_startup(&config, std::process::id(), Some(&tx))
         .await
         .expect("healthy endpoint ready");
-    assert!(startup_ms.is_some());
+    startup_ms.expect("healthy endpoint reports startup duration");
 }
 
 #[tokio::test]
@@ -71,7 +71,7 @@ async fn check_health_status_healthy_returns_elapsed() {
     let outcome = check_health_status(&config, 1, 15, start, Some(&tx))
         .await
         .expect("health check runs");
-    assert!(outcome.is_some());
+    outcome.expect("healthy endpoint yields elapsed");
 }
 
 #[tokio::test]
@@ -126,7 +126,7 @@ async fn check_health_status_accepts_degraded_near_exhaustion() {
     let late = check_health_status(&config, 14, 15, start, Some(&tx))
         .await
         .expect("slow endpoint near exhaustion");
-    assert!(late.is_some());
+    late.expect("degraded endpoint accepted near exhaustion");
 }
 
 #[tokio::test]

@@ -377,8 +377,14 @@ fn default_policy_all_fields_empty() {
 fn policy_serializes_to_json() {
     let policy = CspPolicy::strict();
     let json = serde_json::to_value(&policy).unwrap();
-    assert!(json.get("default_src").is_some());
-    assert!(json.get("script_src").is_some());
+    assert_eq!(
+        json.get("default_src"),
+        Some(&serde_json::json!(["'self'"]))
+    );
+    assert_eq!(
+        json.get("script_src"),
+        Some(&serde_json::json!(["'self'", "'unsafe-inline'"]))
+    );
 }
 
 #[test]

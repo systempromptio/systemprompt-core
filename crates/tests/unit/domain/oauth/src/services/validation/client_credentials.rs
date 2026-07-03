@@ -7,28 +7,23 @@ use systemprompt_oauth::services::verify_client_authentication;
 
 #[test]
 fn auth_method_none_returns_ok() {
-    let result = verify_client_authentication("none", None, None);
-
-    assert!(result.is_ok());
+    verify_client_authentication("none", None, None).expect("auth_method none passes");
 }
 
 #[test]
 fn auth_method_none_ignores_secret_and_hash() {
     let hash = bcrypt::hash("some_secret", 4).unwrap();
 
-    let result = verify_client_authentication("none", Some(&hash), Some("some_secret"));
-
-    assert!(result.is_ok());
+    verify_client_authentication("none", Some(&hash), Some("some_secret"))
+        .expect("auth_method none ignores secret and hash");
 }
 
 #[test]
 fn valid_secret_and_hash_returns_ok() {
     let hash = bcrypt::hash("test_secret", 4).unwrap();
 
-    let result =
-        verify_client_authentication("client_secret_post", Some(&hash), Some("test_secret"));
-
-    assert!(result.is_ok());
+    verify_client_authentication("client_secret_post", Some(&hash), Some("test_secret"))
+        .expect("valid secret and hash pass");
 }
 
 #[test]
@@ -36,9 +31,8 @@ fn client_secret_post_method_with_valid_creds() {
     let secret = "my_application_secret_value";
     let hash = bcrypt::hash(secret, 4).unwrap();
 
-    let result = verify_client_authentication("client_secret_post", Some(&hash), Some(secret));
-
-    assert!(result.is_ok());
+    verify_client_authentication("client_secret_post", Some(&hash), Some(secret))
+        .expect("client_secret_post with valid creds passes");
 }
 
 #[test]

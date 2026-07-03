@@ -263,8 +263,8 @@ fn metric_card_full_builder() {
         .with_status(MetricStatus::Warning);
     assert_eq!(card.title, "Errors");
     assert_eq!(card.value, "12");
-    assert!(card.subtitle.is_some());
-    assert!(card.icon.is_some());
+    assert_eq!(card.subtitle.as_deref(), Some("last 24 hours"));
+    assert_eq!(card.icon.as_deref(), Some("alert"));
     assert!(matches!(card.status, Some(MetricStatus::Warning)));
 }
 
@@ -467,7 +467,9 @@ fn status_section_data_basic() {
 #[test]
 fn status_section_data_with_database() {
     let data = StatusSectionData::new(vec![]).with_database(DatabaseStatus::new(100.0, "ok"));
-    assert!(data.database.is_some());
+    let db = data.database.expect("database set");
+    assert_eq!(db.size_mb, 100.0);
+    assert_eq!(db.status, "ok");
 }
 
 #[test]

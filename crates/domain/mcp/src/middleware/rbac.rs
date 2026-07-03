@@ -12,7 +12,7 @@ use systemprompt_loader::ConfigLoader;
 use systemprompt_marketplace::MarketplaceService;
 use systemprompt_models::RequestContext;
 use systemprompt_models::auth::{AuthenticatedUser, JwtClaims};
-use systemprompt_models::services::ServicesConfig;
+use systemprompt_models::execution::context::ExecutionContext;
 use systemprompt_security::authz::{
     AuthzContext, AuthzDecision, AuthzRequest, EntityKind, EntityRef, SharedAuthzHook,
 };
@@ -152,14 +152,16 @@ pub async fn enforce_rbac_from_registry(
 
     let act_chain = extract_act_chain(&claims);
 
-    enforce_authz_for_server(
+    let floor = MarketplaceService::new(&services_config)
+        .member_attribute_floor(EntityKind::McpServer, server_name);
+    let authz_request = build_mcp_authz_request(
         server_name,
         &claims,
         act_chain.clone(),
-        &services_config,
-        hook,
-    )
-    .await?;
+        &request_context.execution,
+        floor,
+    );
+    enforce_authz_for_server(server_name, authz_request, hook).await?;
 
     let authenticated_context =
         build_authenticated_context(request_context, &claims, token, act_chain)?;
@@ -181,6 +183,7 @@ pub fn build_mcp_authz_request(
     server_name: &str,
     claims: &JwtClaims,
     act_chain: Vec<Actor>,
+    execution: &ExecutionContext,
     floor: Option<&BTreeMap<String, serde_json::Value>>,
 ) -> AuthzRequest {
     let context = floor.map_or_else(AuthzContext::none, |floor| {
@@ -194,20 +197,17 @@ pub fn build_mcp_authz_request(
         trace_id: TraceId::generate(),
         session_id: None,
         context,
+        context_id: Some(execution.context_id.clone()),
+        task_id: execution.task_id.clone(),
         act_chain,
     }
 }
 
 async fn enforce_authz_for_server(
     server_name: &str,
-    claims: &JwtClaims,
-    act_chain: Vec<Actor>,
-    services_config: &ServicesConfig,
+    req: AuthzRequest,
     hook: &SharedAuthzHook,
 ) -> Result<(), McpError> {
-    let floor = MarketplaceService::new(services_config)
-        .member_attribute_floor(EntityKind::McpServer, server_name);
-    let req = build_mcp_authz_request(server_name, claims, act_chain, floor);
     match hook.evaluate(req).await {
         AuthzDecision::Allow => Ok(()),
         AuthzDecision::Deny { reason, policy } => {

@@ -17,15 +17,17 @@ async fn port_service_kill_unused_port_returns_false() {
 #[tokio::test]
 async fn port_service_wait_for_port_available_succeeds_when_free() {
     let svc = PortService::new();
-    let result = svc.wait_for_port_available(64758, 1).await;
-    assert!(result.is_ok());
+    svc.wait_for_port_available(64758, 1)
+        .await
+        .expect("free port must be reported available");
 }
 
 #[tokio::test]
 async fn port_service_cleanup_port_if_not_in_use_returns_ok() {
     let svc = PortService::new();
-    let result = svc.cleanup_port_if_needed(64769).await;
-    assert!(result.is_ok());
+    svc.cleanup_port_if_needed(64769)
+        .await
+        .expect("cleanup of a free port must succeed");
 }
 
 #[tokio::test]
@@ -47,14 +49,13 @@ async fn port_service_cleanup_agent_ports_with_unused_returns_zero_cleaned() {
 
 #[test]
 fn port_service_verify_all_ports_available_with_empty_list() {
-    let result = PortService::verify_all_ports_available(&[]);
-    assert!(result.is_ok());
+    PortService::verify_all_ports_available(&[]).expect("empty port list is trivially available");
 }
 
 #[test]
 fn port_service_verify_all_ports_available_with_free_ports() {
-    let result = PortService::verify_all_ports_available(&[64810, 64811, 64812]);
-    assert!(result.is_ok());
+    PortService::verify_all_ports_available(&[64810, 64811, 64812])
+        .expect("free ports must verify as available");
 }
 
 #[test]
@@ -96,15 +97,13 @@ fn is_agent_process_for_self_pid() {
 #[test]
 fn get_process_info_for_self_pid() {
     let me = std::process::id();
-    let res = get_process_info(me);
-    assert!(res.is_ok());
+    get_process_info(me).expect("self pid must be queryable");
 }
 
 #[test]
 fn get_process_info_for_invalid_pid() {
-    let res = get_process_info(u32::MAX);
-    // Should return Ok(None) for nonexistent pid.
-    assert!(res.is_ok());
+    let info = get_process_info(u32::MAX).expect("query must not error");
+    assert!(info.is_none());
 }
 
 #[tokio::test]
@@ -142,6 +141,5 @@ async fn port_service_cleanup_port_if_needed_for_free_port() {
 
 #[test]
 fn port_service_verify_all_ports_available_empty_list_ok() {
-    let result = PortService::verify_all_ports_available(&[]);
-    assert!(result.is_ok());
+    PortService::verify_all_ports_available(&[]).expect("empty port list is trivially available");
 }

@@ -229,7 +229,7 @@ mod content_hash_tests {
     #[test]
     fn empty_inputs_produce_hash() {
         let hash = compute_content_hash("", "");
-        assert!(!hash.is_empty());
+        assert_eq!(hash.len(), 64, "sha256 hex digest is 64 chars");
     }
 
     #[test]

@@ -43,7 +43,8 @@ async fn add_get_and_list_config() {
     assert_eq!(fetched.url, "https://example.invalid/hook");
     assert_eq!(fetched.endpoint, "/webhook/https://example.invalid/hook");
     assert_eq!(fetched.token.as_deref(), Some("secret-token"));
-    assert!(fetched.headers.is_some());
+    let headers = fetched.headers.expect("headers persisted");
+    assert_eq!(headers.get("X-Token").and_then(|v| v.as_str()), Some("abc"));
 
     let list = r
         .push_notification_configs

@@ -217,7 +217,10 @@ fn to_code_execution_reports_failure_outcome() {
     });
     let exec = to_code_execution(Instant::now(), &response);
     assert!(!exec.success);
-    assert!(exec.error.is_some());
+    assert_eq!(
+        exec.error.as_deref(),
+        Some("Code execution failed: OUTCOME_FAILED")
+    );
 }
 
 #[test]

@@ -31,14 +31,12 @@ fn health_status_unknown_as_str() {
 
 #[test]
 fn health_status_healthy_emoji() {
-    let emoji = HealthStatus::Healthy.emoji();
-    assert!(!emoji.is_empty());
+    assert_eq!(HealthStatus::Healthy.emoji(), "\u{2705}");
 }
 
 #[test]
 fn health_status_unhealthy_emoji() {
-    let emoji = HealthStatus::Unhealthy.emoji();
-    assert!(!emoji.is_empty());
+    assert_eq!(HealthStatus::Unhealthy.emoji(), "\u{274c}");
 }
 
 #[test]

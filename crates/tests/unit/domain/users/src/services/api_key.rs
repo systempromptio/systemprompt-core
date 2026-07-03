@@ -86,7 +86,7 @@ mod issue_api_key_params_tests {
             name: "expiring-key",
             expires_at: Some(expires),
         };
-        assert!(params.expires_at.is_some());
+        assert_eq!(params.expires_at, Some(expires));
         assert_eq!(params.name, "expiring-key");
     }
 

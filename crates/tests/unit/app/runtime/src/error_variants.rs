@@ -140,28 +140,46 @@ fn system_admin_not_found_debug_contains_variant() {
 
 #[test]
 fn all_plain_variants_format_without_panic() {
-    let variants: Vec<RuntimeError> = vec![
-        RuntimeError::EmptyDatabaseUrl,
-        RuntimeError::DatabaseNotFound {
-            path: "/p".to_string(),
-        },
-        RuntimeError::DatabaseNotFile {
-            path: "/d".to_string(),
-        },
-        RuntimeError::SystemAdminNotFound {
-            username: "u".to_string(),
-        },
-        RuntimeError::SystemAdminInactive {
-            username: "u".to_string(),
-        },
-        RuntimeError::SystemAdminMissingRole {
-            username: "u".to_string(),
-        },
-        RuntimeError::Internal("msg".to_string()),
+    let variants: Vec<(RuntimeError, &str)> = vec![
+        (RuntimeError::EmptyDatabaseUrl, "DATABASE_URL is empty"),
+        (
+            RuntimeError::DatabaseNotFound {
+                path: "/p".to_string(),
+            },
+            "/p",
+        ),
+        (
+            RuntimeError::DatabaseNotFile {
+                path: "/d".to_string(),
+            },
+            "/d",
+        ),
+        (
+            RuntimeError::SystemAdminNotFound {
+                username: "u".to_string(),
+            },
+            "was not found",
+        ),
+        (
+            RuntimeError::SystemAdminInactive {
+                username: "u".to_string(),
+            },
+            "not active",
+        ),
+        (
+            RuntimeError::SystemAdminMissingRole {
+                username: "u".to_string(),
+            },
+            "'admin' role",
+        ),
+        (RuntimeError::Internal("msg".to_string()), "internal: msg"),
     ];
 
-    for v in variants {
+    for (v, marker) in variants {
         let s = v.to_string();
-        assert!(!s.is_empty(), "empty Display for {v:?}");
+        assert!(
+            s.contains(marker),
+            "Display for {v:?} missing {marker:?}: {s}"
+        );
     }
 }

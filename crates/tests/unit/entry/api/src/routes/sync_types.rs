@@ -17,14 +17,17 @@ fn test_export_response_format_documented() {
         "record_counts",
     ];
 
-    assert!(!expected_fields.is_empty());
+    assert_eq!(expected_fields.len(), 5);
+    assert!(expected_fields.contains(&"record_counts"));
+    assert!(expected_fields.contains(&"exported_at"));
 }
 
 #[test]
 fn test_import_request_format_documented() {
     let expected_fields = vec!["services", "skills", "contexts", "merge_strategy"];
 
-    assert!(!expected_fields.is_empty());
+    assert_eq!(expected_fields.len(), 4);
+    assert!(expected_fields.contains(&"merge_strategy"));
 }
 
 #[test]
@@ -37,5 +40,5 @@ fn test_import_response_format_documented() {
 #[test]
 fn test_export_error_format_documented() {
     let error_field = "error";
-    assert!(!error_field.is_empty());
+    assert_eq!(error_field, "error");
 }

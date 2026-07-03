@@ -87,8 +87,8 @@ mod extract_json_edge_cases {
     fn custom_pattern_invalid_regex_falls_back() {
         let content = r#"{"key": "value"}"#;
         let pattern = r"[invalid(regex";
-        let result = JsonParser::extract_json(content, Some(pattern));
-        assert!(result.is_ok());
+        let result = JsonParser::extract_json(content, Some(pattern)).expect("falls back");
+        assert_eq!(result["key"], "value");
     }
 }
 

@@ -188,8 +188,7 @@ async fn test_create_agent_validate_ok_without_mcp() {
     request.card.supported_interfaces[0].url = "http://example.com".to_string();
     request.mcp_servers = None;
 
-    let result = request.validate().await;
-    assert!(result.is_ok(), "expected validate() ok, got {:?}", result);
+    request.validate().await.expect("validate() ok without mcp");
 }
 
 #[tokio::test]
@@ -198,8 +197,10 @@ async fn test_create_agent_validate_ok_empty_mcp_servers() {
     request.card.supported_interfaces[0].url = "https://example.com:443".to_string();
     request.mcp_servers = Some(Vec::new());
 
-    let result = request.validate().await;
-    assert!(result.is_ok(), "expected validate() ok, got {:?}", result);
+    request
+        .validate()
+        .await
+        .expect("validate() ok with empty mcp");
 }
 
 #[test]
@@ -423,8 +424,7 @@ async fn test_update_agent_validate_ok() {
     request.card.supported_interfaces[0].url = "https://example.com:8443/path".to_string();
     request.mcp_servers = None;
 
-    let result = request.validate().await;
-    assert!(result.is_ok(), "expected validate() ok, got {:?}", result);
+    request.validate().await.expect("update validate() ok");
 }
 
 #[test]

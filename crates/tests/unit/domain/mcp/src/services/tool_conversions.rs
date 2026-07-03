@@ -23,8 +23,14 @@ fn to_tool_definition_maps_all_fields() {
     assert_eq!(def.description.as_deref(), Some("creates a task"));
     assert_eq!(def.service_id, "tasks");
     assert!(def.terminal_on_success);
-    assert!(def.input_schema.is_some());
-    assert!(def.output_schema.is_some());
+    assert_eq!(
+        def.input_schema,
+        Some(serde_json::json!({"type": "object"}))
+    );
+    assert_eq!(
+        def.output_schema,
+        Some(serde_json::json!({"type": "string"}))
+    );
     assert!(def.model_config.is_none());
 }
 

@@ -37,11 +37,35 @@ async fn orchestrator_new_succeeds() {
 }
 
 #[tokio::test]
-async fn orchestrator_get_running_servers() {
+async fn orchestrator_get_running_servers_excludes_rows_absent_from_registry() {
+    use systemprompt_database::{CreateServiceInput, ServiceRepository};
     let Some(o) = make_orchestrator().await else {
         return;
     };
-    let _ = o.get_running_servers().await.unwrap();
+    let Some(url) = fixture_database_url().ok() else {
+        return;
+    };
+    let Some(db) = fixture_db_pool(&url).await.ok() else {
+        return;
+    };
+    let repo = ServiceRepository::new(&db).unwrap();
+    let name = format!("orch-run-{}", uuid::Uuid::new_v4().simple());
+    repo.create_service(CreateServiceInput {
+        name: &name,
+        module_name: "mcp",
+        status: "running",
+        port: 65509,
+        binary_mtime: None,
+    })
+    .await
+    .unwrap();
+
+    let running = o.get_running_servers().await.unwrap();
+    assert!(
+        !running.iter().any(|c| c.name == name),
+        "a running DB row with no matching registry config is excluded"
+    );
+    repo.delete_service(&name).await.unwrap();
 }
 
 #[tokio::test]

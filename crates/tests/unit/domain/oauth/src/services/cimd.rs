@@ -20,8 +20,8 @@ fn valid_cimd_metadata() -> CimdMetadata {
 
 #[test]
 fn test_cimd_fetcher_new_succeeds() {
-    let fetcher = CimdFetcher::new();
-    assert!(fetcher.is_ok());
+    let fetcher = CimdFetcher::new().expect("CimdFetcher::new succeeds");
+    drop(fetcher);
 }
 
 #[test]

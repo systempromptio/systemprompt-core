@@ -97,5 +97,7 @@ async fn update_counter_advances() {
         .expect("get");
     let found = creds.iter().find(|c| c.id == id).expect("present");
     assert_eq!(found.counter, 42);
-    assert!(found.last_used_at.is_some());
+    found
+        .last_used_at
+        .expect("last_used_at set after counter update");
 }

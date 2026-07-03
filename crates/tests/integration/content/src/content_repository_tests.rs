@@ -265,13 +265,21 @@ async fn find_sources_by_slug_returns_distinct_sources() {
     let b_locale = LocaleCode::new("fr");
     let mut row_b = row_b;
     row_b.locale = b_locale.clone();
-    let _ = repo.create(&row_b).await.expect("b in fr locale");
+    let created_b = repo.create(&row_b).await.expect("b in fr locale");
+    assert_eq!(
+        created_b.locale, b_locale,
+        "created row keeps the fr locale"
+    );
 
     let sources_en = repo
         .find_sources_by_slug(&slug, &LocaleCode::new("en"))
         .await
         .expect("find by slug en");
     assert!(sources_en.iter().any(|s| s == &source_a));
+    assert!(
+        !sources_en.iter().any(|s| s == &source_b),
+        "fr-only source must not surface under the en locale"
+    );
 
     let sources_fr = repo
         .find_sources_by_slug(&slug, &b_locale)

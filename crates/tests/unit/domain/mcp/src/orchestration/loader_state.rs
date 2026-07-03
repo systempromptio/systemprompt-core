@@ -14,13 +14,13 @@ async fn db() -> Option<systemprompt_database::DbPool> {
 async fn loader_new_succeeds() {
     let Some(db) = db().await else { return };
     let registry = RegistryService::new(fixture_user_id());
-    let _ = McpToolLoader::new(&db, registry).expect("ctor");
+    drop(McpToolLoader::new(&db, registry).expect("ctor"));
 }
 
 #[tokio::test]
 async fn state_service_new_succeeds() {
     let Some(db) = db().await else { return };
-    let _ = ServiceStateService::new(&db).expect("ctor");
+    drop(ServiceStateService::new(&db).expect("ctor"));
 }
 
 #[tokio::test]
@@ -35,9 +35,55 @@ async fn state_service_get_missing_service_returns_none() {
 }
 
 #[tokio::test]
-async fn state_service_list_returns_vec() {
+async fn state_service_list_surfaces_seeded_service_and_filters_by_status() {
+    use systemprompt_database::{CreateServiceInput, ServiceRepository};
     let Some(db) = db().await else { return };
     let s = ServiceStateService::new(&db).unwrap();
-    let _ = s.list_mcp_services().await.unwrap();
-    let _ = s.list_running_mcp_services().await.unwrap();
+    let repo = ServiceRepository::new(&db).unwrap();
+
+    let running = format!("ls-run-{}", uuid::Uuid::new_v4().simple());
+    let stopped = format!("ls-stop-{}", uuid::Uuid::new_v4().simple());
+    repo.create_service(CreateServiceInput {
+        name: &running,
+        module_name: "mcp",
+        status: "running",
+        port: 65517,
+        binary_mtime: None,
+    })
+    .await
+    .unwrap();
+    repo.create_service(CreateServiceInput {
+        name: &stopped,
+        module_name: "mcp",
+        status: "stopped",
+        port: 65516,
+        binary_mtime: None,
+    })
+    .await
+    .unwrap();
+
+    let all = s.list_mcp_services().await.unwrap();
+    let running_row = all
+        .iter()
+        .find(|r| r.name == running)
+        .expect("seeded running service surfaces in list_mcp_services");
+    assert_eq!(running_row.status, "running");
+    assert_eq!(running_row.port, 65517);
+    assert!(
+        all.iter().any(|r| r.name == stopped),
+        "stopped service also surfaces in the unfiltered list"
+    );
+
+    let running_only = s.list_running_mcp_services().await.unwrap();
+    assert!(
+        running_only.iter().any(|r| r.name == running),
+        "running service surfaces in list_running_mcp_services"
+    );
+    assert!(
+        !running_only.iter().any(|r| r.name == stopped),
+        "stopped service is filtered out of list_running_mcp_services"
+    );
+
+    repo.delete_service(&running).await.unwrap();
+    repo.delete_service(&stopped).await.unwrap();
 }

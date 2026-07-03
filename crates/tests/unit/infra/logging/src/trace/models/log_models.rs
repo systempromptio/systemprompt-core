@@ -81,9 +81,8 @@ fn log_time_range_both_present() {
         earliest: Some(now),
         latest: Some(later),
     };
-    assert!(tr.earliest.is_some());
-    assert!(tr.latest.is_some());
-    assert!(tr.latest.unwrap() > tr.earliest.unwrap());
+    assert_eq!(tr.earliest, Some(now));
+    assert_eq!(tr.latest, Some(later));
 }
 
 #[test]
@@ -122,7 +121,7 @@ fn log_search_item_construction() {
     };
     assert_eq!(item.level, "ERROR");
     assert_eq!(item.module, "auth");
-    assert!(item.metadata.is_some());
+    assert_eq!(item.metadata.as_deref(), Some(r#"{"ip":"1.2.3.4"}"#));
 }
 
 #[test]
@@ -190,8 +189,14 @@ fn audit_lookup_result_with_ids() {
         task_id: Some("task-abc".to_owned().into()),
         trace_id: Some(systemprompt_identifiers::TraceId::new("trace-def")),
     };
-    assert!(result.task_id.is_some());
-    assert!(result.trace_id.is_some());
+    assert_eq!(
+        result.task_id.as_ref().map(|t| t.as_str()),
+        Some("task-abc")
+    );
+    assert_eq!(
+        result.trace_id.as_ref().map(|t| t.as_str()),
+        Some("trace-def")
+    );
 }
 
 #[test]
@@ -286,7 +291,7 @@ fn tool_execution_item_construction() {
     };
     assert_eq!(item.tool_name, "bash");
     assert_eq!(item.status, "success");
-    assert!(item.server_name.is_some());
+    assert_eq!(item.server_name.as_deref(), Some("docker-mcp"));
 }
 
 #[test]

@@ -59,7 +59,7 @@ fn find_available_port_single_bound_port_range_fails() {
 async fn wait_for_port_release_free_port_ok() {
     // A high port with no listener returns immediately.
     let result = wait_for_port_release(59777).await;
-    assert!(result.is_ok());
+    result.expect("free port releases immediately");
 }
 
 #[tokio::test]
@@ -76,5 +76,5 @@ async fn wait_for_port_release_bound_port_times_out() {
 #[tokio::test]
 async fn wait_for_port_release_with_retry_free_port_ok() {
     let result = wait_for_port_release_with_retry(59778, 2).await;
-    assert!(result.is_ok());
+    result.expect("free port releases with retry");
 }

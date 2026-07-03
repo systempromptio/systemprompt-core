@@ -248,7 +248,7 @@ async fn generate_image_persists_file_and_audit_row() {
 
     assert_eq!(response.provider, "stub");
     assert_eq!(response.model, "stub-image-1");
-    assert!(response.file_path.is_some());
+    assert!(!response.file_path.as_deref().expect("file path").is_empty());
     assert!(
         response
             .public_url
@@ -257,7 +257,7 @@ async fn generate_image_persists_file_and_audit_row() {
             .starts_with("/media")
     );
     assert!(response.file_size_bytes.unwrap() > 0);
-    assert!(response.cost_estimate.is_some());
+    assert!(response.cost_estimate.expect("cost estimate") > 0.0);
 
     let fetched = service
         .find_generated_image(response.id.as_str())

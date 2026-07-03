@@ -136,8 +136,8 @@ fn content_to_json_text_has_correct_keys() {
     let content = vec![text_content("structured")];
     let result = content_to_json(&content);
     let item = &result[0];
-    assert!(item.get("type").is_some());
-    assert!(item.get("text").is_some());
+    assert_eq!(item["type"], "text");
+    assert_eq!(item["text"], "structured");
     assert!(item.get("data").is_none());
 }
 
@@ -164,7 +164,7 @@ fn content_to_json_resource_has_correct_keys() {
     let content = vec![resource_content("file:///r")];
     let result = content_to_json(&content);
     let item = &result[0];
-    assert!(item.get("type").is_some());
-    assert!(item.get("uri").is_some());
-    assert!(item.get("mimeType").is_some());
+    assert_eq!(item["type"], "resource");
+    assert_eq!(item["uri"], "file:///r");
+    assert_eq!(item["mimeType"], "application/json");
 }

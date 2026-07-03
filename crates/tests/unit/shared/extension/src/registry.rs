@@ -77,8 +77,9 @@ fn registry_default_is_empty() {
 #[test]
 fn registry_register_single() {
     let mut registry = ExtensionRegistry::new();
-    let result = registry.register(arc_ext("ext-a", "Extension A"));
-    assert!(result.is_ok());
+    registry
+        .register(arc_ext("ext-a", "Extension A"))
+        .expect("register single");
     assert_eq!(registry.len(), 1);
 }
 
@@ -170,8 +171,7 @@ fn registry_extensions_sorted_by_priority() {
 fn registry_merge_extensions() {
     let mut registry = ExtensionRegistry::new();
     let extensions = vec![arc_ext("merge-a", "Merge A"), arc_ext("merge-b", "Merge B")];
-    let result = registry.merge(extensions);
-    assert!(result.is_ok());
+    registry.merge(extensions).expect("merge extensions");
     assert_eq!(registry.len(), 2);
 }
 

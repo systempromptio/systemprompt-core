@@ -36,7 +36,10 @@ fn test_build_artifact_viewer_uri_format() {
         resource.description.as_deref(),
         Some("A demo artifact viewer")
     );
-    assert!(resource.mime_type.is_some());
+    assert_eq!(
+        resource.mime_type.as_deref(),
+        Some("text/html;profile=mcp-app")
+    );
 }
 
 #[test]

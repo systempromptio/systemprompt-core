@@ -15,8 +15,12 @@ fn load_secrets_from_path_succeeds_with_valid_file() {
     let path = tmp.path().join("secrets.json");
     std::fs::write(&path, valid_secrets_json()).unwrap();
 
-    let result = load_secrets_from_path(&path);
-    assert!(result.is_ok(), "expected Ok, got: {:?}", result.err());
+    let secrets = load_secrets_from_path(&path).expect("valid secrets should load");
+    assert_eq!(
+        secrets.oauth_at_rest_pepper,
+        "this_is_a_long_pepper_value_with_enough_chars_for_validation"
+    );
+    assert_eq!(secrets.database_url, "postgres://user:pass@localhost/db");
 }
 
 #[test]

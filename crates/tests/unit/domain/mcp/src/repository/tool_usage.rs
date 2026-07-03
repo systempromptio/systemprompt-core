@@ -16,7 +16,7 @@ async fn db() -> Option<systemprompt_database::DbPool> {
 #[tokio::test]
 async fn repository_new_succeeds() {
     let Some(db) = db().await else { return };
-    let _ = ToolUsageRepository::new(&db).expect("ctor");
+    drop(ToolUsageRepository::new(&db).expect("ctor"));
 }
 
 #[tokio::test]
@@ -47,11 +47,56 @@ async fn find_context_id_random_returns_none() {
 }
 
 #[tokio::test]
-async fn list_tool_stats_returns_vec() {
+async fn list_tool_stats_aggregates_a_seeded_execution() {
+    use chrono::Utc;
+    use serde_json::json;
+    use systemprompt_identifiers::{AgentName, SessionId, TraceId, UserId};
+    use systemprompt_mcp::models::{ExecutionStatus, ToolExecutionRequest, ToolExecutionResult};
+    use systemprompt_models::RequestContext;
+
     let Some(db) = db().await else { return };
     let repo = ToolUsageRepository::new(&db).unwrap();
-    let r = repo.list_tool_stats(10).await.unwrap();
-    let _ = r.len();
+
+    let tool_name = format!("stats-tool-{}", uuid::Uuid::new_v4().simple());
+    let server_name = format!("stats-srv-{}", uuid::Uuid::new_v4().simple());
+    let ctx = RequestContext::new(
+        SessionId::new("stats-s"),
+        TraceId::new("stats-t"),
+        ContextId::generate(),
+        AgentName::new("stats-agent"),
+    )
+    .with_actor(systemprompt_identifiers::Actor::user(UserId::new(
+        "stats-u",
+    )));
+
+    let started_at = Utc::now();
+    let request = ToolExecutionRequest {
+        tool_name: tool_name.clone(),
+        server_name: server_name.clone(),
+        input: json!({}),
+        started_at,
+        context: ctx,
+        request_method: Some("mcp".to_owned()),
+        request_source: Some(server_name.clone()),
+        ai_tool_call_id: None,
+    };
+    let result = ToolExecutionResult {
+        output: Some(json!({"ok": true})),
+        output_schema: None,
+        status: ExecutionStatus::Success.as_str().to_owned(),
+        error_message: None,
+        started_at,
+        completed_at: Utc::now(),
+    };
+    repo.log_execution_sync(&request, &result).await.unwrap();
+
+    let stats = repo.list_tool_stats(10_000).await.unwrap();
+    let row = stats
+        .iter()
+        .find(|s| s.tool_name == tool_name && s.server_name == server_name)
+        .expect("seeded tool execution surfaces in list_tool_stats");
+    assert!(row.total_executions >= 1);
+    assert!(row.success_count >= 1);
 }
 
 #[tokio::test]
@@ -96,8 +141,13 @@ async fn start_and_complete_execution_roundtrip() {
 
     let exec_id = repo.start_execution(&request).await.unwrap();
 
-    let fetched = repo.find_by_id(&exec_id).await.unwrap();
-    assert!(fetched.is_some());
+    let fetched = repo
+        .find_by_id(&exec_id)
+        .await
+        .unwrap()
+        .expect("started execution is retrievable");
+    assert_eq!(fetched.tool_name, "tool-x");
+    assert_eq!(fetched.server_name, "srv-x");
 
     let completed_at = Utc::now();
     let result = ToolExecutionResult {

@@ -307,7 +307,10 @@ fn message_send_params_with_configuration() {
     let de: MessageSendParams = serde_json::from_str(&json).unwrap();
     let cfg = de.configuration.unwrap();
     assert_eq!(cfg.history_length, Some(5));
-    assert!(cfg.push_notification_config.is_some());
+    let push = cfg
+        .push_notification_config
+        .expect("push config round-trips");
+    assert_eq!(push.url, "https://hook.example.com");
 }
 
 #[test]

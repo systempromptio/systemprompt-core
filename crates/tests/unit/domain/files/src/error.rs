@@ -21,7 +21,7 @@ fn files_error_json_variant_display() {
     let json_err = serde_json::from_str::<i32>("nope").unwrap_err();
     let err = FilesError::from(json_err);
     let s = format!("{err}");
-    assert!(!s.is_empty());
+    assert!(s.contains("json:"));
 }
 
 #[test]

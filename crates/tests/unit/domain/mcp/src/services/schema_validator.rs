@@ -187,7 +187,7 @@ fn schema_validation_mode_debug() {
     ];
     for m in modes {
         let s = format!("{m:?}");
-        assert!(!s.is_empty());
+        assert!(s.contains("Migrate") || s.contains("Strict") || s.contains("Skip"));
     }
 }
 

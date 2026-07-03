@@ -396,7 +396,11 @@ fn build_metadata_text_type_no_hints() {
         task_id: "task-1",
         tool_name: "summarize",
     });
-    assert!(result.is_ok());
+    let meta = result.expect("text metadata builds");
+    assert_eq!(meta.tool_name.as_deref(), Some("summarize"));
+    assert_eq!(meta.rendering_hints, None);
+    assert_eq!(meta.mcp_schema, None);
+    assert_eq!(meta.mcp_execution_id, None);
 }
 
 #[test]
@@ -412,7 +416,13 @@ fn build_metadata_table_with_schema_hints() {
         task_id: "task-2",
         tool_name: "list-users",
     });
-    assert!(result.is_ok());
+    let meta = result.expect("table metadata builds");
+    assert_eq!(meta.tool_name.as_deref(), Some("list-users"));
+    assert_eq!(meta.mcp_execution_id.as_deref(), Some("exec-1"));
+    assert_eq!(
+        meta.rendering_hints,
+        Some(json!({"columns": ["id", "name"], "sortable_columns": ["id"]}))
+    );
 }
 
 #[test]
@@ -434,7 +444,17 @@ fn build_metadata_table_infers_hints_from_items() {
         task_id: "task-3",
         tool_name: "query-table",
     });
-    assert!(result.is_ok());
+    let meta = result.expect("table metadata builds");
+    assert_eq!(meta.tool_name.as_deref(), Some("query-table"));
+    assert_eq!(
+        meta.rendering_hints,
+        Some(json!({
+            "columns": ["id", "name"],
+            "sortable_columns": ["id", "name"],
+            "filterable": true,
+            "page_size": 25,
+        }))
+    );
 }
 
 #[test]
@@ -450,7 +470,12 @@ fn build_metadata_form_with_schema_hints() {
         task_id: "task-4",
         tool_name: "create-form",
     });
-    assert!(result.is_ok());
+    let meta = result.expect("form metadata builds");
+    assert_eq!(meta.tool_name.as_deref(), Some("create-form"));
+    assert_eq!(
+        meta.rendering_hints,
+        Some(json!({"layout": "horizontal", "fields": []}))
+    );
 }
 
 #[test]
@@ -469,7 +494,11 @@ fn build_metadata_form_infers_fields_from_properties() {
         task_id: "task-5",
         tool_name: "edit-profile",
     });
-    assert!(result.is_ok());
+    let meta = result.expect("form metadata builds");
+    assert_eq!(meta.tool_name.as_deref(), Some("edit-profile"));
+    let hints = meta.rendering_hints.expect("form hints present");
+    assert_eq!(hints["layout"], "vertical");
+    assert_eq!(hints["fields"].as_array().map(|a| a.len()), Some(2));
 }
 
 #[test]
@@ -482,7 +511,9 @@ fn build_metadata_chart_default_hints() {
         task_id: "task-6",
         tool_name: "chart-tool",
     });
-    assert!(result.is_ok());
+    let meta = result.expect("chart metadata builds");
+    assert_eq!(meta.tool_name.as_deref(), Some("chart-tool"));
+    assert_eq!(meta.rendering_hints, Some(json!({"chart_type": "bar"})));
 }
 
 #[test]
@@ -495,7 +526,9 @@ fn build_metadata_presentation_card_default_hints() {
         task_id: "task-7",
         tool_name: "card-tool",
     });
-    assert!(result.is_ok());
+    let meta = result.expect("presentation card metadata builds");
+    assert_eq!(meta.tool_name.as_deref(), Some("card-tool"));
+    assert_eq!(meta.rendering_hints, Some(json!({"theme": "default"})));
 }
 
 #[test]
@@ -508,7 +541,9 @@ fn build_metadata_dashboard_default_hints() {
         task_id: "task-8",
         tool_name: "dashboard-tool",
     });
-    assert!(result.is_ok());
+    let meta = result.expect("dashboard metadata builds");
+    assert_eq!(meta.tool_name.as_deref(), Some("dashboard-tool"));
+    assert_eq!(meta.rendering_hints, Some(json!({"layout": "vertical"})));
 }
 
 #[test]
@@ -536,7 +571,13 @@ fn build_metadata_with_schema_attaches_mcp_schema() {
         task_id: "task-10",
         tool_name: "text-tool",
     });
-    assert!(result.is_ok());
+    let meta = result.expect("text metadata builds");
+    assert_eq!(meta.tool_name.as_deref(), Some("text-tool"));
+    assert_eq!(
+        meta.mcp_schema,
+        Some(json!({"x-artifact-type": "text", "description": "A text output"}))
+    );
+    assert_eq!(meta.rendering_hints, None);
 }
 
 #[test]
@@ -549,7 +590,9 @@ fn build_metadata_image_type_no_special_hints() {
         task_id: "task-11",
         tool_name: "gen-image",
     });
-    assert!(result.is_ok());
+    let meta = result.expect("image metadata builds");
+    assert_eq!(meta.tool_name.as_deref(), Some("gen-image"));
+    assert_eq!(meta.rendering_hints, None);
 }
 
 #[test]
@@ -563,7 +606,10 @@ fn build_metadata_custom_type() {
         task_id: "task-12",
         tool_name: "heatmap-tool",
     });
-    assert!(result.is_ok());
+    let meta = result.expect("custom metadata builds");
+    assert_eq!(meta.tool_name.as_deref(), Some("heatmap-tool"));
+    assert_eq!(meta.artifact_type, "heatmap");
+    assert_eq!(meta.rendering_hints, None);
 }
 
 #[test]

@@ -99,7 +99,9 @@ fn test_sampling_params_default() {
     let params = SamplingParams::default();
 
     let json = serde_json::to_string(&params).unwrap();
-    assert!(!json.is_empty());
+    let back: SamplingParams = serde_json::from_str(&json).unwrap();
+    assert!(back.temperature.is_none());
+    assert!(back.stop_sequences.is_none());
 }
 
 #[test]

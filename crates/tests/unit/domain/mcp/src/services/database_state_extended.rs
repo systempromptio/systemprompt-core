@@ -37,7 +37,7 @@ fn get_binary_mtime_for_service_with_created_file_returns_some() {
     let result = get_binary_mtime_for_service(&paths, svc_name);
     let _ = fs::remove_dir_all(&dir);
 
-    assert!(result.is_some(), "created binary file should have mtime");
+    result.expect("created binary file should have mtime");
 }
 
 #[test]

@@ -132,7 +132,8 @@ fn error_chain_timeout_large_ms() {
         after_ms: u64::MAX,
     };
     let s = e.to_string();
-    assert!(!s.is_empty());
+    assert!(s.contains("s"));
+    assert!(s.contains(&u64::MAX.to_string()));
 }
 
 #[test]

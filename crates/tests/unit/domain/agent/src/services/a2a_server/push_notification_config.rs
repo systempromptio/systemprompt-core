@@ -50,7 +50,9 @@ async fn set_then_list_then_delete_roundtrip() {
         },
     )
     .await;
-    assert!(set.is_ok(), "set should succeed for a real task");
+    let (set_status, set_body) = set.expect("set should succeed for a real task");
+    assert_eq!(set_status, axum::http::StatusCode::OK);
+    assert_eq!(set_body.0["result"]["success"], true);
 
     let list =
         handle_list_push_notification_configs(State(Arc::clone(&state)), task_id.clone()).await;
@@ -66,7 +68,17 @@ async fn set_then_list_then_delete_roundtrip() {
         },
     )
     .await;
-    assert!(get.is_ok());
+    let (get_status, get_body) = get.expect("get ok");
+    assert_eq!(get_status, axum::http::StatusCode::OK);
+    let configs = get_body.0["result"]["configs"]
+        .as_array()
+        .expect("configs array");
+    assert!(
+        configs
+            .iter()
+            .any(|c| c["url"] == "https://example.invalid/hook"),
+        "stored config must include the url we set, got {configs:?}"
+    );
 
     let del = handle_delete_push_notification_config(
         State(Arc::clone(&state)),

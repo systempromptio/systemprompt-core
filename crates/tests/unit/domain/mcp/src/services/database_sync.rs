@@ -4,6 +4,8 @@
 //! exist on the per-track DB, so the read-only branches drive line coverage
 //! without spawning real processes.
 
+use crate::harness::internal_mcp_config;
+use systemprompt_database::{CreateServiceInput, ServiceRepository};
 use systemprompt_mcp::services::database::sync::{
     cleanup_stale_services, delete_crashed_services, delete_disabled_services,
     reconcile_running_processes, repair_database_inconsistencies, sync_database_state,
@@ -34,9 +36,27 @@ async fn sync_database_state_empty_servers_returns_ok() {
 }
 
 #[tokio::test]
-async fn reconcile_running_processes_returns_vec() {
+async fn reconcile_running_processes_reports_a_pidless_running_service() {
     let Some(db) = db().await else { return };
-    let _ = reconcile_running_processes(&db).await.unwrap();
+    let repo = ServiceRepository::new(&db).unwrap();
+    let name = format!("sync-rec-{}", uuid::Uuid::new_v4().simple());
+    let port = 65515;
+    repo.create_service(CreateServiceInput {
+        name: &name,
+        module_name: "mcp",
+        status: "running",
+        port,
+        binary_mtime: None,
+    })
+    .await
+    .unwrap();
+
+    let discrepancies = reconcile_running_processes(&db).await.unwrap();
+    assert!(
+        discrepancies.iter().any(|d| d.contains(&name)),
+        "a running service with no live process is reported as a discrepancy"
+    );
+    repo.delete_service(&name).await.unwrap();
 }
 
 #[tokio::test]
@@ -46,7 +66,37 @@ async fn repair_database_inconsistencies_runs() {
 }
 
 #[tokio::test]
-async fn delete_disabled_services_empty_runs() {
+async fn delete_disabled_services_removes_only_the_disabled_service() {
     let Some(db) = db().await else { return };
-    let _ = delete_disabled_services(&db, &[]).await.unwrap();
+    let repo = ServiceRepository::new(&db).unwrap();
+    let keep = format!("sync-keep-{}", uuid::Uuid::new_v4().simple());
+    let drop_name = format!("sync-drop-{}", uuid::Uuid::new_v4().simple());
+    for (name, port) in [(&keep, 65514u16), (&drop_name, 65513u16)] {
+        repo.create_service(CreateServiceInput {
+            name,
+            module_name: "mcp",
+            status: "stopped",
+            port,
+            binary_mtime: None,
+        })
+        .await
+        .unwrap();
+    }
+
+    let enabled = [internal_mcp_config(&keep, 65514)];
+    let deleted = delete_disabled_services(&db, &enabled).await.unwrap();
+    assert!(deleted >= 1, "at least the disabled service is deleted");
+    assert!(
+        repo.find_service_by_name(&keep).await.unwrap().is_some(),
+        "the enabled service is preserved"
+    );
+    assert!(
+        repo.find_service_by_name(&drop_name)
+            .await
+            .unwrap()
+            .is_none(),
+        "the disabled service is removed"
+    );
+
+    repo.delete_service(&keep).await.unwrap();
 }

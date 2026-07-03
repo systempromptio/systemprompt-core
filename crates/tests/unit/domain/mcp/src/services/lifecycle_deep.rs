@@ -194,7 +194,11 @@ async fn reconcile_running_processes_reports_dead_ports() {
     .await
     .unwrap();
 
-    let _ = reconcile_running_processes(&db).await.unwrap();
+    let discrepancies = reconcile_running_processes(&db).await.unwrap();
+    assert!(
+        discrepancies.iter().any(|d| d.contains(&name)),
+        "a running service on a dead port is reported as a discrepancy"
+    );
     repo.delete_service(&name).await.unwrap();
 }
 

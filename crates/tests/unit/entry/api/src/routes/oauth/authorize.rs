@@ -173,7 +173,10 @@ fn test_authorize_query_field_access() {
     );
     assert_eq!(query.scope.as_deref(), Some("openid"));
     assert_eq!(query.state.as_deref(), Some("random_state_value"));
-    assert!(query.code_challenge.is_some());
+    assert_eq!(
+        query.code_challenge.as_deref(),
+        Some("dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk")
+    );
     assert_eq!(query.code_challenge_method.as_deref(), Some("S256"));
     assert!(query.response_mode.is_none());
     assert!(query.display.is_none());
@@ -335,9 +338,9 @@ fn test_query_and_request_share_common_fields() {
 fn test_request_has_form_specific_fields() {
     let request = create_valid_authorize_request();
 
-    assert!(request.user_consent.is_some());
-    assert!(request.username.is_some());
-    assert!(request.password.is_some());
+    assert_eq!(request.user_consent.as_deref(), Some("allow"));
+    assert_eq!(request.username.as_deref(), Some("testuser"));
+    assert_eq!(request.password.as_deref(), Some("testpass"));
 }
 
 #[test]

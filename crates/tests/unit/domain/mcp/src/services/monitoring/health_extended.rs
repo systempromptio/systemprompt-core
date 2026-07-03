@@ -108,7 +108,9 @@ fn health_check_result_connection_result_is_some_on_success() {
     let cfg = config("conn-some");
     let result = conn(true, 100, "mcp_validated", 1, None);
     let hc = HealthCheckResult::from_connection_result(result, &cfg);
-    assert!(hc.connection_result.is_some());
+    let cr = hc.connection_result.expect("connection result on success");
+    assert!(cr.success);
+    assert_eq!(cr.tools_count, 1);
 }
 
 #[test]

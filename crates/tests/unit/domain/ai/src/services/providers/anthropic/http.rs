@@ -1,7 +1,7 @@
 use crate::services::providers::mock_http;
 use futures::StreamExt;
 use serde_json::json;
-use systemprompt_ai::models::ai::{AiMessage, SamplingParams};
+use systemprompt_ai::models::ai::{AiMessage, SamplingParams, StreamChunk};
 use systemprompt_ai::models::tools::McpTool;
 use systemprompt_ai::services::providers::anthropic::{
     AnthropicProvider, search as anthropic_search,
@@ -119,14 +119,21 @@ async fn generate_stream_yields_text_chunks() {
     let params = GenerationParams::new(&messages, "claude-sonnet-4-6", 64);
     let mut stream = p.generate_stream(params).await.expect("ok");
     let mut count = 0_usize;
+    let mut text = String::new();
     while let Some(chunk) = stream.next().await {
-        let _ = chunk.expect("chunk ok");
+        if let StreamChunk::Text(t) = chunk.expect("chunk ok") {
+            text.push_str(&t);
+        }
         count += 1;
         if count > 10 {
             break;
         }
     }
     assert!(count >= 1);
+    assert!(
+        text.contains("hello"),
+        "streamed text missing delta content: {text}"
+    );
 }
 
 #[tokio::test]

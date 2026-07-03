@@ -114,6 +114,8 @@ fn candidate_with_only_skills_is_not_empty() {
         vec![],
     );
     assert!(!c.is_empty());
+    assert_eq!(c.skills.len(), 1);
+    assert!(c.skills.iter().any(|s| s.id.as_str() == "my-skill"));
 }
 
 #[test]
@@ -127,6 +129,8 @@ fn candidate_with_only_agents_is_not_empty() {
         vec![],
     );
     assert!(!c.is_empty());
+    assert_eq!(c.agents.len(), 1);
+    assert!(c.agents.iter().any(|a| a.id.as_str() == "my-agent"));
 }
 
 #[test]
@@ -140,6 +144,8 @@ fn candidate_with_only_hooks_is_not_empty() {
         vec![],
     );
     assert!(!c.is_empty());
+    assert_eq!(c.hooks.len(), 1);
+    assert!(c.hooks.iter().any(|h| h.id.as_str() == "my-hook"));
 }
 
 #[test]
@@ -153,6 +159,12 @@ fn candidate_with_only_mcp_is_not_empty() {
         vec![],
     );
     assert!(!c.is_empty());
+    assert_eq!(c.managed_mcp_servers.len(), 1);
+    assert!(
+        c.managed_mcp_servers
+            .iter()
+            .any(|s| s.name.as_str() == "my-mcp")
+    );
 }
 
 #[test]
@@ -166,6 +178,8 @@ fn candidate_with_only_plugins_is_not_empty() {
         vec![],
     );
     assert!(!c.is_empty());
+    assert_eq!(c.plugins.len(), 1);
+    assert!(c.plugins.iter().any(|p| p.id.as_str() == "my-plugin"));
 }
 
 #[test]
@@ -179,6 +193,8 @@ fn candidate_with_only_artifacts_is_not_empty() {
         vec![artifact("pipeline")],
     );
     assert!(!c.is_empty());
+    assert_eq!(c.artifacts.len(), 1);
+    assert!(c.artifacts.iter().any(|a| a.id.as_str() == "pipeline"));
 }
 
 #[test]

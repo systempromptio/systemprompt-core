@@ -87,7 +87,7 @@ fn three_servers_all_different_ports() {
         make_internal("b", 5001),
         make_internal("c", 5002),
     ]);
-    assert!(validate_registry(&cfg).is_ok());
+    validate_registry(&cfg).expect("three distinct ports validate");
 }
 
 #[test]
@@ -107,7 +107,7 @@ fn disabled_server_not_checked_for_binary() {
     srv.enabled = false;
     srv.binary = String::new();
     let cfg = registry(vec![srv]);
-    assert!(validate_registry(&cfg).is_ok());
+    validate_registry(&cfg).expect("disabled server skips binary check");
 }
 
 #[test]
@@ -116,7 +116,7 @@ fn disabled_server_missing_display_name_ok() {
     srv.enabled = false;
     srv.display_name = String::new();
     let cfg = registry(vec![srv]);
-    assert!(validate_registry(&cfg).is_ok());
+    validate_registry(&cfg).expect("disabled server skips display_name check");
 }
 
 #[test]
@@ -125,7 +125,7 @@ fn external_server_with_oauth_scopes_ok() {
     srv.oauth.required = true;
     srv.oauth.scopes = vec![Permission::User];
     let cfg = registry(vec![srv]);
-    assert!(validate_registry(&cfg).is_ok());
+    validate_registry(&cfg).expect("external server with oauth scopes validates");
 }
 
 #[test]
@@ -142,7 +142,7 @@ fn external_server_oauth_required_no_scopes_fails() {
 fn port_1024_boundary_ok() {
     let srv = make_internal("srv", 1024);
     let cfg = registry(vec![srv]);
-    assert!(validate_registry(&cfg).is_ok());
+    validate_registry(&cfg).expect("port 1024 boundary accepted");
 }
 
 #[test]
@@ -166,7 +166,7 @@ fn mixed_enabled_disabled_port_conflict_only_enabled_count() {
     disabled.enabled = false;
     let enabled = make_internal("enabled", 5000);
     let cfg = registry(vec![disabled, enabled]);
-    assert!(validate_registry(&cfg).is_ok());
+    validate_registry(&cfg).expect("disabled server not counted for port conflict");
 }
 
 #[test]
@@ -184,7 +184,7 @@ fn many_external_servers_no_port_conflict() {
         make_external("ext-2", "https://b.com/mcp"),
         make_external("ext-3", "https://c.com/mcp"),
     ]);
-    assert!(validate_registry(&cfg).is_ok());
+    validate_registry(&cfg).expect("many external servers have no port conflict");
 }
 
 #[test]

@@ -107,7 +107,8 @@ fn test_retention_config_default() {
 
     assert!(config.enabled);
     assert!(config.vacuum_after_cleanup);
-    assert!(!config.policies.is_empty());
+    assert_eq!(config.policies.len(), 4);
+    assert!(config.policies.iter().any(|p| p.name == "errors"));
 }
 
 #[test]

@@ -130,7 +130,7 @@ lint-extensions:
     ./scripts/lint-extensions.sh crates
 
 # Check without building
-check: lint-schema lint-extensions
+check: lint-schema lint-extensions lint-test-value
     cargo check --workspace
 
 # Check offline (uses cached .sqlx metadata, no database required)
@@ -165,6 +165,13 @@ lint-sqlx:
 # call sites propagate with bare `?` so the variant decides the status.
 lint-http-errors:
     ./scripts/check-http-errors.sh
+
+# Reject `let _ = <expr>.unwrap()/.expect()` in the test workspace.
+# A discarded fallible result runs the code for its panic side effect but
+# asserts nothing — bind the result and assert, or annotate a deliberate
+# side-effect call with `// lint-ok: no-assert <reason>`.
+lint-test-value:
+    ./scripts/check-test-value.sh
 
 # Reject UserId::admin() outside the sanctioned bootstrap call sites.
 # The sentinel is reserved for the actor model, the bootstrap CLI, the

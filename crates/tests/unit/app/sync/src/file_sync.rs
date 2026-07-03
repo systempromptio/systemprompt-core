@@ -198,8 +198,16 @@ mod apply_tarball {
         ]);
         let tmp = TempDir::new().expect("tmp");
         let only = ["agents/a.yaml".to_owned()];
-        let _ = FileSyncService::apply(&tarball, tmp.path(), Some(&only)).expect("apply");
+        let extracted = FileSyncService::apply(&tarball, tmp.path(), Some(&only)).expect("apply");
+        assert_eq!(
+            extracted, 1,
+            "only the single filtered path should be extracted"
+        );
         assert!(tmp.path().join("agents/a.yaml").exists());
+        assert_eq!(
+            std::fs::read(tmp.path().join("agents/a.yaml")).expect("read extracted file"),
+            b"agent: 1"
+        );
         assert!(!tmp.path().join("skills/s.md").exists());
         assert!(!tmp.path().join("content/c.md").exists());
     }

@@ -79,16 +79,19 @@ mod additional_variants {
     #[test]
     fn all_variants_are_debug() {
         let variants = [
-            SchedulerError::missing_context("ctx"),
-            SchedulerError::panic("boom"),
-            SchedulerError::DistributedLock("lock err".to_string()),
-            SchedulerError::Internal("internal".to_string()),
-            SchedulerError::AlreadyRunning,
-            SchedulerError::NotInitialized,
+            (SchedulerError::missing_context("ctx"), "MissingContext"),
+            (SchedulerError::panic("boom"), "Panic"),
+            (
+                SchedulerError::DistributedLock("lock err".to_string()),
+                "DistributedLock",
+            ),
+            (SchedulerError::Internal("internal".to_string()), "Internal"),
+            (SchedulerError::AlreadyRunning, "AlreadyRunning"),
+            (SchedulerError::NotInitialized, "NotInitialized"),
         ];
-        for err in variants {
+        for (err, marker) in variants {
             let debug = format!("{:?}", err);
-            assert!(!debug.is_empty());
+            assert!(debug.contains(marker), "got: {debug}");
         }
     }
 

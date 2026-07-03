@@ -163,5 +163,5 @@ fn full_builder_chain_all_optional_fields() {
     assert_eq!(params.kind, Some("tutorial".to_string()));
     assert_eq!(params.author, Some("Author".to_string()));
     assert_eq!(params.published_at, Some(date));
-    assert!(params.links.is_some());
+    assert_eq!(params.links, Some(serde_json::json!([])));
 }

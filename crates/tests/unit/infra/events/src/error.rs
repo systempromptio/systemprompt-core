@@ -30,7 +30,7 @@ fn event_error_debug() {
 #[test]
 fn event_result_ok_is_ok() {
     let result: EventResult<u32> = Ok(42);
-    assert!(result.is_ok());
+    assert_eq!(result.expect("ok variant should hold its value"), 42);
 }
 
 #[test]

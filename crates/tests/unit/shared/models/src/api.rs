@@ -89,8 +89,14 @@ fn pagination_info_with_base_url_generates_prev() {
 #[test]
 fn pagination_info_with_base_url_generates_both() {
     let info = PaginationInfo::new(30, 2, 10).with_base_url("/api/items");
-    assert!(info.next_url.is_some());
-    assert!(info.prev_url.is_some());
+    assert_eq!(
+        info.next_url.as_deref(),
+        Some("/api/items?page=3&per_page=10")
+    );
+    assert_eq!(
+        info.prev_url.as_deref(),
+        Some("/api/items?page=1&per_page=10")
+    );
 }
 
 #[test]
@@ -147,8 +153,8 @@ fn api_response_with_links() {
         docs: "/docs".to_string(),
     };
     let response = ApiResponse::new(42).with_links(links);
-    assert!(response.links.is_some());
-    assert_eq!(response.links.unwrap().self_link, "/api/test");
+    let links = response.links.expect("links set");
+    assert_eq!(links.self_link, "/api/test");
 }
 
 #[test]
@@ -183,7 +189,8 @@ fn single_response_with_links() {
         docs: "/docs".to_string(),
     };
     let response = SingleResponse::new(42).with_links(links);
-    assert!(response.links.is_some());
+    let links = response.links.expect("links set");
+    assert_eq!(links.self_link, "/api/item/1");
 }
 
 #[test]
@@ -254,8 +261,8 @@ fn response_meta_default() {
 fn response_meta_with_pagination() {
     let pagination = PaginationInfo::new(100, 1, 10);
     let meta = ResponseMeta::new().with_pagination(pagination);
-    assert!(meta.pagination.is_some());
-    assert_eq!(meta.pagination.unwrap().total, 100);
+    let pagination = meta.pagination.expect("pagination set");
+    assert_eq!(pagination.total, 100);
 }
 
 #[test]
@@ -477,5 +484,8 @@ fn validation_error_serde_roundtrip() {
     let json = serde_json::to_string(&error).unwrap();
     let deserialized: ValidationError = serde_json::from_str(&json).unwrap();
     assert_eq!(deserialized.field, "username");
-    assert!(deserialized.context.is_some());
+    assert_eq!(
+        deserialized.context.expect("context set"),
+        serde_json::json!({"min": 3})
+    );
 }

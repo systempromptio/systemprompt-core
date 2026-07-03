@@ -189,8 +189,8 @@ fn task_builder_full_chain() {
     assert_eq!(task.id, tid);
     assert_eq!(task.context_id, ctx);
     assert_eq!(task.status.state, TaskState::Completed);
-    assert!(task.history.is_some());
-    assert!(task.metadata.is_some());
+    assert_eq!(task.history.expect("history").len(), 2);
+    assert_eq!(task.metadata.expect("metadata").agent_name, "chained-agent");
 }
 
 #[test]
@@ -299,7 +299,7 @@ fn build_submitted_task_sets_state_and_metadata() {
     assert_eq!(history[0].role, MessageRole::User);
     assert!(task.created_at.is_some());
     assert!(task.last_modified.is_some());
-    assert!(task.metadata.is_some());
+    assert_eq!(task.metadata.expect("metadata").agent_name, "my-agent");
 }
 
 #[test]

@@ -100,7 +100,14 @@ async fn validate_agent_reports_missing_and_failed() {
         .validate_agent("__no_such_agent")
         .await
         .expect("report");
-    assert!(!missing.issues.is_empty());
+    assert!(
+        missing
+            .issues
+            .iter()
+            .any(|i| i.contains("not found in database")),
+        "got: {:?}",
+        missing.issues
+    );
 
     db_service(&pool)
         .register_agent(&name, DEAD_PID, 9451)

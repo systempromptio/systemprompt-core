@@ -12,7 +12,7 @@ async fn db() -> Option<systemprompt_database::DbPool> {
 #[tokio::test]
 async fn repository_new_succeeds() {
     let Some(db) = db().await else { return };
-    let _ = McpSessionRepository::new(&db).expect("ctor");
+    drop(McpSessionRepository::new(&db).expect("ctor"));
 }
 
 #[tokio::test]
@@ -42,11 +42,37 @@ async fn update_close_on_missing_session_no_panic() {
 }
 
 #[tokio::test]
-async fn cleanup_and_delete_stale_execute() {
+async fn cleanup_expired_then_delete_stale_removes_a_seeded_session() {
     let Some(db) = db().await else { return };
     let repo = McpSessionRepository::new(&db).unwrap();
-    let _ = repo.cleanup_expired().await.unwrap();
-    let _ = repo.delete_stale(365).await.unwrap();
+    let id = SessionId::new(format!("sess-{}", uuid::Uuid::new_v4().simple()));
+
+    repo.create(&id, None, None).await.unwrap();
+    let write = db.write_pool_arc().unwrap();
+    sqlx::query(
+        "UPDATE mcp_sessions SET expires_at = NOW() - INTERVAL '1 hour', \
+         last_activity_at = NOW() - INTERVAL '400 days' WHERE session_id = $1",
+    )
+    .bind(id.as_str())
+    .execute(write.as_ref())
+    .await
+    .unwrap();
+
+    let expired = repo.cleanup_expired().await.unwrap();
+    assert!(
+        expired >= 1,
+        "cleanup_expired flips at least the seeded past-due session to expired"
+    );
+
+    let deleted = repo.delete_stale(365).await.unwrap();
+    assert!(
+        deleted >= 1,
+        "delete_stale removes at least the seeded expired-and-stale session"
+    );
+    assert!(
+        !repo.exists(&id).await.unwrap(),
+        "the seeded session is gone after delete_stale"
+    );
 }
 
 #[tokio::test]

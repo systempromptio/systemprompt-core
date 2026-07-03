@@ -10,19 +10,57 @@
 //! handler bodies so they show up in the coverage report, not to assert
 //! business outcomes against a freshly-migrated test database.
 
-use systemprompt_cli_integration_tests::full_bootstrap::{run, run_with_formats};
+use predicates::str::contains;
+use systemprompt_cli_integration_tests::full_bootstrap::{command, run, run_with_formats};
+
+fn stdout_has(args: &[&str], needle: &str) {
+    let Some(mut cmd) = command() else { return };
+    cmd.args(args);
+    cmd.assert().success().stdout(contains(needle));
+}
+
+fn stderr_has(args: &[&str], needle: &str) {
+    let Some(mut cmd) = command() else { return };
+    cmd.args(args);
+    cmd.assert().success().stderr(contains(needle));
+}
+
+fn drive_formats(args: &[&str]) {
+    for fmt in ["--json", "--yaml"] {
+        let Some(mut cmd) = command() else { return };
+        cmd.arg(fmt);
+        cmd.args(args);
+        let _ = cmd.assert();
+    }
+}
+
+fn stdout_has_fmt(args: &[&str], needle: &str) {
+    stdout_has(args, needle);
+    drive_formats(args);
+}
+
+fn stderr_has_fmt(args: &[&str], needle: &str) {
+    stderr_has(args, needle);
+    drive_formats(args);
+}
+
+fn fails_with(args: &[&str], needle: &str) {
+    let Some(mut cmd) = command() else { return };
+    cmd.args(args);
+    cmd.assert().failure().stderr(contains(needle));
+}
 // ============================================================================
 // admin agents
 // ============================================================================
 
 #[test]
 fn admin_agents_list() {
-    run_with_formats(&["admin", "agents", "list"]);
+    stdout_has_fmt(&["admin", "agents", "list"], "covagent");
 }
 
 #[test]
 fn admin_agents_list_verbose() {
-    run(&["--verbose", "admin", "agents", "list"]);
+    stdout_has(&["--verbose", "admin", "agents", "list"], "covagent");
 }
 
 #[test]
@@ -32,27 +70,42 @@ fn admin_agents_list_with_filter() {
 
 #[test]
 fn admin_agents_show_missing() {
-    run(&["admin", "agents", "show", "no-such-agent"]);
+    fails_with(
+        &["admin", "agents", "show", "no-such-agent"],
+        "Failed to show agent",
+    );
 }
 
 #[test]
 fn admin_agents_status_missing() {
-    run(&["admin", "agents", "status", "no-such-agent"]);
+    fails_with(
+        &["admin", "agents", "status", "no-such-agent"],
+        "Failed to get agent status",
+    );
 }
 
 #[test]
 fn admin_agents_delete_missing() {
-    run(&["admin", "agents", "delete", "no-such-agent"]);
+    fails_with(
+        &["admin", "agents", "delete", "no-such-agent"],
+        "Failed to delete agent",
+    );
 }
 
 #[test]
 fn admin_agents_logs_missing() {
-    run(&["admin", "agents", "logs", "no-such-agent"]);
+    fails_with(
+        &["admin", "agents", "logs", "no-such-agent"],
+        "Failed to get agent logs",
+    );
 }
 
 #[test]
 fn admin_agents_tools_missing() {
-    run(&["admin", "agents", "tools", "no-such-agent"]);
+    fails_with(
+        &["admin", "agents", "tools", "no-such-agent"],
+        "Failed to list agent tools",
+    );
 }
 
 #[test]
@@ -67,7 +120,10 @@ fn admin_agents_registry_show_missing() {
 
 #[test]
 fn admin_agents_validate_missing() {
-    run(&["admin", "agents", "validate", "no-such-file.yaml"]);
+    fails_with(
+        &["admin", "agents", "validate", "no-such-file.yaml"],
+        "Failed to validate agents",
+    );
 }
 
 #[test]
@@ -86,17 +142,17 @@ fn admin_agents_task_show_missing() {
 
 #[test]
 fn admin_config_list() {
-    run_with_formats(&["admin", "config", "list"]);
+    stderr_has_fmt(&["admin", "config", "list"], "Configuration Files");
 }
 
 #[test]
 fn admin_config_show() {
-    run_with_formats(&["admin", "config", "show"]);
+    stdout_has_fmt(&["admin", "config", "show"], "subprocess_full");
 }
 
 #[test]
 fn admin_config_validate() {
-    run_with_formats(&["admin", "config", "validate"]);
+    stderr_has_fmt(&["admin", "config", "validate"], "Validation Passed");
 }
 
 #[test]
@@ -140,37 +196,43 @@ fn admin_config_rate_limits_validate() {
 
 #[test]
 fn admin_users_list_full() {
-    run_with_formats(&["admin", "users", "list"]);
+    stdout_has_fmt(&["admin", "users", "list"], "testadmin");
 }
 
 #[test]
 fn admin_users_count_full() {
-    run_with_formats(&["admin", "users", "count"]);
+    stderr_has_fmt(&["admin", "users", "count"], "User Count");
 }
 
 #[test]
 fn admin_users_stats_full() {
-    run_with_formats(&["admin", "users", "stats"]);
+    stderr_has_fmt(&["admin", "users", "stats"], "User Statistics");
 }
 
 #[test]
 fn admin_users_search_empty_full() {
-    run_with_formats(&["admin", "users", "search", "zzzzz"]);
+    stderr_has_fmt(
+        &["admin", "users", "search", "zzzzz"],
+        "User Search Results",
+    );
 }
 
 #[test]
 fn admin_users_show_missing_full() {
-    run(&["admin", "users", "show", "no-such-user"]);
+    fails_with(
+        &["admin", "users", "show", "no-such-user"],
+        "User not found",
+    );
 }
 
 #[test]
 fn admin_users_export_full() {
-    run(&["admin", "users", "export"]);
+    stderr_has(&["admin", "users", "export"], "User Export");
 }
 
 #[test]
 fn admin_users_ban_list_full() {
-    run_with_formats(&["admin", "users", "ban", "list"]);
+    stderr_has_fmt(&["admin", "users", "ban", "list"], "Banned IPs");
 }
 
 // ============================================================================
@@ -268,7 +330,7 @@ fn admin_session_list_full() {
 
 #[test]
 fn infra_services_status() {
-    run_with_formats(&["infra", "services", "status"]);
+    stderr_has_fmt(&["infra", "services", "status"], "Service Status");
 }
 
 #[test]
@@ -287,22 +349,22 @@ fn infra_services_cleanup() {
 
 #[test]
 fn infra_db_status_full() {
-    run_with_formats(&["infra", "db", "status"]);
+    stderr_has_fmt(&["infra", "db", "status"], "Database connection");
 }
 
 #[test]
 fn infra_db_info_full() {
-    run_with_formats(&["infra", "db", "info"]);
+    stderr_has_fmt(&["infra", "db", "info"], "Database: PostgreSQL");
 }
 
 #[test]
 fn infra_db_tables_full() {
-    run_with_formats(&["infra", "db", "tables"]);
+    stdout_has_fmt(&["infra", "db", "tables"], "users");
 }
 
 #[test]
 fn infra_db_validate_full() {
-    run_with_formats(&["infra", "db", "validate"]);
+    stderr_has_fmt(&["infra", "db", "validate"], "Schema Validation");
 }
 
 #[test]
@@ -312,42 +374,42 @@ fn infra_db_doctor_full() {
 
 #[test]
 fn infra_db_indexes_full() {
-    run_with_formats(&["infra", "db", "indexes"]);
+    stderr_has_fmt(&["infra", "db", "indexes"], "Indexes");
 }
 
 #[test]
 fn infra_db_size_full() {
-    run_with_formats(&["infra", "db", "size"]);
+    stderr_has_fmt(&["infra", "db", "size"], "Database Size");
 }
 
 #[test]
 fn infra_db_describe_users_full() {
-    run_with_formats(&["infra", "db", "describe", "users"]);
+    stdout_has_fmt(&["infra", "db", "describe", "users"], "email");
 }
 
 #[test]
 fn infra_db_count_users_full() {
-    run_with_formats(&["infra", "db", "count", "users"]);
+    stderr_has_fmt(&["infra", "db", "count", "users"], "users:");
 }
 
 #[test]
 fn infra_db_query_select_1_full() {
-    run_with_formats(&["infra", "db", "query", "SELECT 1 AS one"]);
+    stdout_has_fmt(&["infra", "db", "query", "SELECT 1 AS one"], "one");
 }
 
 #[test]
 fn infra_db_migrate_status_full() {
-    run_with_formats(&["infra", "db", "migrate-status"]);
+    stderr_has_fmt(&["infra", "db", "migrate-status"], "Applied:");
 }
 
 #[test]
 fn infra_db_migrate_plan_full() {
-    run_with_formats(&["infra", "db", "migrate-plan"]);
+    stderr_has_fmt(&["infra", "db", "migrate-plan"], "migrations");
 }
 
 #[test]
 fn infra_db_migrations_status_full() {
-    run_with_formats(&["infra", "db", "migrations", "status"]);
+    stderr_has_fmt(&["infra", "db", "migrations", "status"], "applied");
 }
 
 // ============================================================================
@@ -356,12 +418,12 @@ fn infra_db_migrations_status_full() {
 
 #[test]
 fn infra_jobs_list() {
-    run_with_formats(&["infra", "jobs", "list"]);
+    stdout_has_fmt(&["infra", "jobs", "list"], "cleanup_anonymous_users");
 }
 
 #[test]
 fn infra_jobs_show_missing() {
-    run(&["infra", "jobs", "show", "no-such-job"]);
+    fails_with(&["infra", "jobs", "show", "no-such-job"], "Unknown job");
 }
 
 #[test]
@@ -468,7 +530,7 @@ fn cloud_domain_list() {
 
 #[test]
 fn web_validate_full() {
-    run(&["web", "validate"]);
+    stderr_has(&["web", "validate"], "Web Configuration Validation");
 }
 
 #[test]
@@ -478,17 +540,17 @@ fn web_sitemap_generate_full() {
 
 #[test]
 fn web_templates_list() {
-    run(&["web", "templates", "list"]);
+    stderr_has(&["web", "templates", "list"], "Templates");
 }
 
 #[test]
 fn web_content_types_list() {
-    run(&["web", "content-types", "list"]);
+    stderr_has(&["web", "content-types", "list"], "Content Types");
 }
 
 #[test]
 fn web_assets_list() {
-    run(&["web", "assets", "list"]);
+    stderr_has(&["web", "assets", "list"], "Assets");
 }
 
 // ============================================================================
@@ -497,12 +559,15 @@ fn web_assets_list() {
 
 #[test]
 fn plugins_list_full() {
-    run_with_formats(&["plugins", "list"]);
+    stdout_has_fmt(&["plugins", "list"], "Database");
 }
 
 #[test]
 fn plugins_show_missing() {
-    run(&["plugins", "show", "no-such-plugin"]);
+    fails_with(
+        &["plugins", "show", "no-such-plugin"],
+        "Failed to show extension",
+    );
 }
 
 #[test]
@@ -517,17 +582,17 @@ fn plugins_config_show_missing() {
 
 #[test]
 fn plugins_capabilities_full() {
-    run(&["plugins", "capabilities"]);
+    stderr_has(&["plugins", "capabilities"], "Capabilities Summary");
 }
 
 #[test]
 fn plugins_mcp_list_full() {
-    run_with_formats(&["plugins", "mcp", "list"]);
+    stdout_has_fmt(&["plugins", "mcp", "list"], "fixture_mcp");
 }
 
 #[test]
 fn plugins_mcp_status_full() {
-    run(&["plugins", "mcp", "status"]);
+    stderr_has(&["plugins", "mcp", "status"], "MCP Server Status");
 }
 
 #[test]
@@ -541,27 +606,33 @@ fn plugins_mcp_validate_missing() {
 
 #[test]
 fn core_artifacts_list_full() {
-    run_with_formats(&["core", "artifacts", "list"]);
+    stderr_has_fmt(&["core", "artifacts", "list"], "Artifacts");
 }
 
 #[test]
 fn core_artifacts_show_missing() {
-    run(&["core", "artifacts", "show", "no-such-artifact"]);
+    fails_with(
+        &["core", "artifacts", "show", "no-such-artifact"],
+        "No artifact found",
+    );
 }
 
 #[test]
 fn core_contexts_list_full() {
-    run_with_formats(&["core", "contexts", "list"]);
+    stderr_has_fmt(&["core", "contexts", "list"], "Contexts");
 }
 
 #[test]
 fn core_contexts_show_missing() {
-    run(&["core", "contexts", "show", "no-such-context"]);
+    fails_with(
+        &["core", "contexts", "show", "no-such-context"],
+        "Context not found",
+    );
 }
 
 #[test]
 fn core_hooks_list_full() {
-    run_with_formats(&["core", "hooks", "list"]);
+    stderr_has_fmt(&["core", "hooks", "list"], "Hooks");
 }
 
 #[test]
@@ -571,27 +642,36 @@ fn core_hooks_show_missing() {
 
 #[test]
 fn core_skills_list_full() {
-    run_with_formats(&["core", "skills", "list"]);
+    stdout_has_fmt(&["core", "skills", "list"], "echo_skill");
 }
 
 #[test]
 fn core_skills_show_missing() {
-    run(&["core", "skills", "show", "no-such-skill"]);
+    fails_with(
+        &["core", "skills", "show", "no-such-skill"],
+        "Failed to show skill",
+    );
 }
 
 #[test]
 fn core_plugins_list_full() {
-    run_with_formats(&["core", "plugins", "list"]);
+    stderr_has_fmt(&["core", "plugins", "list"], "Plugins");
 }
 
 #[test]
 fn core_plugins_show_missing() {
-    run(&["core", "plugins", "show", "no-such-plugin"]);
+    fails_with(
+        &["core", "plugins", "show", "no-such-plugin"],
+        "Failed to show plugin",
+    );
 }
 
 #[test]
 fn core_plugins_validate_missing() {
-    run(&["core", "plugins", "validate", "no-such-plugin"]);
+    fails_with(
+        &["core", "plugins", "validate", "no-such-plugin"],
+        "Failed to validate plugins",
+    );
 }
 
 #[test]
@@ -601,12 +681,12 @@ fn core_plugins_generate_help() {
 
 #[test]
 fn core_content_list_full() {
-    run_with_formats(&["core", "content", "list"]);
+    stderr_has_fmt(&["core", "content", "list"], "Content");
 }
 
 #[test]
 fn core_content_search_full() {
-    run_with_formats(&["core", "content", "search", "anything"]);
+    stderr_has_fmt(&["core", "content", "search", "anything"], "Search Results");
 }
 
 #[test]
@@ -616,17 +696,20 @@ fn core_content_popular_full() {
 
 #[test]
 fn core_files_list_full() {
-    run_with_formats(&["core", "files", "list"]);
+    stderr_has_fmt(&["core", "files", "list"], "Files");
 }
 
 #[test]
 fn core_files_search_full() {
-    run_with_formats(&["core", "files", "search", "anything"]);
+    stderr_has_fmt(
+        &["core", "files", "search", "anything"],
+        "File Search Results",
+    );
 }
 
 #[test]
 fn core_files_stats_full() {
-    run_with_formats(&["core", "files", "stats"]);
+    stderr_has_fmt(&["core", "files", "stats"], "File Storage Statistics");
 }
 
 // ============================================================================
@@ -635,7 +718,7 @@ fn core_files_stats_full() {
 
 #[test]
 fn analytics_overview_full() {
-    run_with_formats(&["analytics", "overview"]);
+    stderr_has_fmt(&["analytics", "overview"], "Analytics Overview");
 }
 
 #[test]
@@ -645,17 +728,20 @@ fn analytics_overview_24h_full() {
 
 #[test]
 fn analytics_conversations_stats_full() {
-    run_with_formats(&["analytics", "conversations", "stats"]);
+    stderr_has_fmt(
+        &["analytics", "conversations", "stats"],
+        "Conversation Statistics",
+    );
 }
 
 #[test]
 fn analytics_conversations_list_full() {
-    run_with_formats(&["analytics", "conversations", "list"]);
+    stderr_has_fmt(&["analytics", "conversations", "list"], "Conversations");
 }
 
 #[test]
 fn analytics_agents_stats_full() {
-    run_with_formats(&["analytics", "agents", "stats"]);
+    stderr_has_fmt(&["analytics", "agents", "stats"], "Agent Statistics");
 }
 
 #[test]
@@ -665,7 +751,7 @@ fn analytics_agents_list_full() {
 
 #[test]
 fn analytics_tools_stats_full() {
-    run_with_formats(&["analytics", "tools", "stats"]);
+    stderr_has_fmt(&["analytics", "tools", "stats"], "Tool Statistics");
 }
 
 #[test]
@@ -675,7 +761,7 @@ fn analytics_tools_list_full() {
 
 #[test]
 fn analytics_requests_stats_full() {
-    run_with_formats(&["analytics", "requests", "stats"]);
+    stderr_has_fmt(&["analytics", "requests", "stats"], "AI Request Statistics");
 }
 
 #[test]
@@ -690,7 +776,7 @@ fn analytics_requests_models_full() {
 
 #[test]
 fn analytics_sessions_stats_full() {
-    run_with_formats(&["analytics", "sessions", "stats"]);
+    stderr_has_fmt(&["analytics", "sessions", "stats"], "Session Statistics");
 }
 
 #[test]
@@ -700,7 +786,7 @@ fn analytics_sessions_live_full() {
 
 #[test]
 fn analytics_content_stats_full() {
-    run_with_formats(&["analytics", "content", "stats"]);
+    stderr_has_fmt(&["analytics", "content", "stats"], "Content Statistics");
 }
 
 #[test]
@@ -710,27 +796,27 @@ fn analytics_content_top_full() {
 
 #[test]
 fn analytics_traffic_sources_full() {
-    run_with_formats(&["analytics", "traffic", "sources"]);
+    stderr_has_fmt(&["analytics", "traffic", "sources"], "Traffic Sources");
 }
 
 #[test]
 fn analytics_traffic_geo_full() {
-    run_with_formats(&["analytics", "traffic", "geo"]);
+    stderr_has_fmt(&["analytics", "traffic", "geo"], "Geographic Distribution");
 }
 
 #[test]
 fn analytics_traffic_devices_full() {
-    run_with_formats(&["analytics", "traffic", "devices"]);
+    stderr_has_fmt(&["analytics", "traffic", "devices"], "Device Breakdown");
 }
 
 #[test]
 fn analytics_traffic_bots_full() {
-    run_with_formats(&["analytics", "traffic", "bots"]);
+    stderr_has_fmt(&["analytics", "traffic", "bots"], "Bot Traffic Analysis");
 }
 
 #[test]
 fn analytics_costs_summary_full() {
-    run_with_formats(&["analytics", "costs", "summary"]);
+    stderr_has_fmt(&["analytics", "costs", "summary"], "Cost Summary");
 }
 
 #[test]
@@ -789,22 +875,31 @@ fn admin_unknown_subcommand_full() {
 
 #[test]
 fn cloud_tenant_show_missing() {
-    run(&["cloud", "tenant", "show", "no-such-tenant"]);
+    fails_with(
+        &["cloud", "tenant", "show", "no-such-tenant"],
+        "Tenant not found",
+    );
 }
 
 #[test]
 fn infra_db_describe_missing_full() {
-    run(&["infra", "db", "describe", "no_such_table_xyz"]);
+    fails_with(
+        &["infra", "db", "describe", "no_such_table_xyz"],
+        "not found",
+    );
 }
 
 #[test]
 fn infra_db_count_missing_full() {
-    run(&["infra", "db", "count", "no_such_table_xyz"]);
+    fails_with(&["infra", "db", "count", "no_such_table_xyz"], "not found");
 }
 
 #[test]
 fn infra_db_query_invalid_sql_full() {
-    run(&["infra", "db", "query", "SELECT not valid sql !!"]);
+    fails_with(
+        &["infra", "db", "query", "SELECT not valid sql !!"],
+        "syntax error",
+    );
 }
 
 #[test]
@@ -814,15 +909,24 @@ fn admin_agents_create_invalid() {
 
 #[test]
 fn web_templates_show_missing() {
-    run(&["web", "templates", "show", "no-such-template"]);
+    fails_with(
+        &["web", "templates", "show", "no-such-template"],
+        "Failed to show template",
+    );
 }
 
 #[test]
 fn web_content_types_show_missing() {
-    run(&["web", "content-types", "show", "no-such"]);
+    fails_with(
+        &["web", "content-types", "show", "no-such"],
+        "Failed to show content type",
+    );
 }
 
 #[test]
 fn web_assets_show_missing() {
-    run(&["web", "assets", "show", "no-such-asset"]);
+    fails_with(
+        &["web", "assets", "show", "no-such-asset"],
+        "Failed to show asset",
+    );
 }

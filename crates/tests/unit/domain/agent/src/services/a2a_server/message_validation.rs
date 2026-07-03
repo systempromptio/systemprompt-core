@@ -35,13 +35,13 @@ fn data_only_part() -> Part {
 #[test]
 fn validate_message_format_accepts_text_part() {
     let m = msg_with_parts(vec![text_part("hi")], None);
-    assert!(MessageValidationService::validate_message_format(&m).is_ok());
+    MessageValidationService::validate_message_format(&m).expect("text part validates");
 }
 
 #[test]
 fn validate_message_format_accepts_text_among_others() {
     let m = msg_with_parts(vec![data_only_part(), text_part("hi")], None);
-    assert!(MessageValidationService::validate_message_format(&m).is_ok());
+    MessageValidationService::validate_message_format(&m).expect("text among others validates");
 }
 
 #[test]

@@ -235,7 +235,10 @@ fn test_parse_roundtrip() {
     let environments = ["local", "docker", "docker-dev", "production", "prod"];
 
     for env_str in environments {
-        let parsed = DeployEnvironment::parse(env_str);
-        assert!(parsed.is_ok(), "Failed to parse: {}", env_str);
+        let parsed = DeployEnvironment::parse(env_str).expect("env should parse");
+        assert_eq!(
+            DeployEnvironment::parse(parsed.as_str()).expect("canonical form should parse"),
+            parsed
+        );
     }
 }

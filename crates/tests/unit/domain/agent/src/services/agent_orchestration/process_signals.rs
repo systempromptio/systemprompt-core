@@ -36,14 +36,16 @@ fn kill_process_verified_pid_zero_reports_gone() {
 #[tokio::test]
 async fn terminate_gracefully_verified_dead_pid_is_ok() {
     // Process does not exist => returns Ok immediately, no signal sent.
-    let result = process::terminate_gracefully_verified(DEAD_PID, "svc", 1).await;
-    assert!(result.is_ok());
+    process::terminate_gracefully_verified(DEAD_PID, "svc", 1)
+        .await
+        .expect("already-gone pid terminates without error");
 }
 
 #[tokio::test]
 async fn terminate_gracefully_dead_pid_is_ok() {
-    let result = process::terminate_gracefully(DEAD_PID, 1).await;
-    assert!(result.is_ok());
+    process::terminate_gracefully(DEAD_PID, 1)
+        .await
+        .expect("already-gone pid terminates without error");
 }
 
 #[test]

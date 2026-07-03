@@ -13,6 +13,8 @@ fn make_request(ctx: AuthzContext) -> AuthzRequest {
         trace_id: TraceId::new("t1"),
         session_id: None,
         context: ctx,
+        context_id: None,
+        task_id: None,
         act_chain: vec![],
     }
 }

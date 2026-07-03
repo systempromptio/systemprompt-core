@@ -41,15 +41,17 @@ fn typed_registry_validate_api_path_rejects_non_api_prefix() {
 #[test]
 fn typed_registry_validate_api_path_accepts_api_prefix() {
     let registry = TypedExtensionRegistry::new();
-    let result = registry.validate_api_path("test-ext", "/api/v2/custom");
-    assert!(result.is_ok());
+    registry
+        .validate_api_path("test-ext", "/api/v2/custom")
+        .expect("api prefix accepted");
 }
 
 #[test]
 fn typed_registry_validate_api_path_accepts_dot_prefix() {
     let registry = TypedExtensionRegistry::new();
-    let result = registry.validate_api_path("test-ext", "/.custom/path");
-    assert!(result.is_ok());
+    registry
+        .validate_api_path("test-ext", "/.custom/path")
+        .expect("dot prefix accepted");
 }
 
 #[test]

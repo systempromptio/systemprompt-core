@@ -118,7 +118,8 @@ async fn slack_interactivity_bad_payload_json_is_bad_request() -> anyhow::Result
 #[tokio::test]
 async fn slack_interactivity_unknown_workspace_is_acked() -> anyhow::Result<()> {
     let ctx = messaging_ctx().await?;
-    let payload = r#"{"type":"block_actions","user":{"id":"U_X"},"team":{"id":"T_UNKNOWN"},"actions":[]}"#;
+    let payload =
+        r#"{"type":"block_actions","user":{"id":"U_X"},"team":{"id":"T_UNKNOWN"},"actions":[]}"#;
     let body = format!("payload={}", urlencode(payload));
     let req = signed_slack_post("/interactivity", &body, "irrelevant");
     let resp = slack_router(&ctx).oneshot(req).await?;

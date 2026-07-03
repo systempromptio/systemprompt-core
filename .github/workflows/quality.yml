@@ -53,6 +53,7 @@ jobs:
       - run: just lint-extensions
       - run: just lint-sqlx
       - run: just lint-http-errors
+      - run: just lint-test-value
       - run: just lint-no-untyped-admin
       - run: just machete
 

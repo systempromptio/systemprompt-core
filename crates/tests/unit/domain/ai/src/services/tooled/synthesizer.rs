@@ -159,7 +159,9 @@ mod synthesis_prompt_builder_tests {
 
         let message = SynthesisPromptBuilder::build_guidance_message(&tool_calls, &tool_results);
 
-        assert!(!message.content.is_empty());
+        assert!(message.content.contains("search"));
+        assert!(message.content.contains("analyze"));
+        assert!(message.content.contains("SUCCESS"));
     }
 
     #[test]
@@ -169,6 +171,7 @@ mod synthesis_prompt_builder_tests {
 
         let message = SynthesisPromptBuilder::build_guidance_message(&tool_calls, &tool_results);
 
-        assert!(!message.content.is_empty());
+        assert!(message.content.contains("fetch"));
+        assert!(message.content.contains("FAILED"));
     }
 }

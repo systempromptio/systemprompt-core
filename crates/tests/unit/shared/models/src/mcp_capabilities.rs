@@ -108,7 +108,9 @@ fn mcp_resource_ui_meta_with_csp_opt_overrides() {
     let m = McpResourceUiMeta::new().with_csp_opt(None);
     assert!(m.csp.is_none());
     let m = McpResourceUiMeta::new().with_csp_opt(Some(McpCspDomains::empty()));
-    assert!(m.csp.is_some());
+    let csp = m.csp.expect("csp set");
+    assert!(csp.connect.is_empty());
+    assert!(csp.resources.is_empty());
 }
 
 #[test]

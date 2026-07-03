@@ -87,7 +87,10 @@ fn ui_metadata_for_tool_definition() {
 #[test]
 fn ui_metadata_with_csp() {
     let meta = UiMetadata::for_static_template("s").with_csp(CspPolicy::strict());
-    assert!(meta.csp.is_some());
+    assert_eq!(
+        meta.csp.as_ref().map(|c| c.to_header_value()),
+        Some(CspPolicy::strict().to_header_value())
+    );
 }
 
 #[test]
@@ -113,7 +116,7 @@ fn ui_metadata_to_json_contains_resource_uri() {
 fn ui_metadata_to_json_includes_csp_when_set() {
     let meta = UiMetadata::for_static_template("s").with_csp(CspPolicy::strict());
     let json = meta.to_json();
-    assert!(json.get("csp").is_some());
+    assert!(json.get("csp").expect("csp present when set").is_object());
 }
 
 #[test]

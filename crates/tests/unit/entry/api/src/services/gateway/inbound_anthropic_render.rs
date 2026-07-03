@@ -180,7 +180,11 @@ fn render_event_covers_all_variants() {
     ];
     for ev in events {
         let frame = inbound.render_event(&ev, "m").expect("frame");
-        assert!(!frame.is_empty());
+        let text = String::from_utf8_lossy(&frame);
+        assert!(
+            text.contains("data:"),
+            "every rendered SSE frame carries a data line, got {text:?}"
+        );
     }
 }
 

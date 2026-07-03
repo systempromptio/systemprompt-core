@@ -92,7 +92,8 @@ fn io_error_from_not_found_kind() {
     let io = std::io::Error::new(std::io::ErrorKind::NotFound, "file missing");
     let err = FileUploadError::from(io);
     let s = format!("{err}");
-    assert!(!s.is_empty());
+    assert!(s.contains("IO error"));
+    assert!(s.contains("file missing"));
 }
 
 #[test]

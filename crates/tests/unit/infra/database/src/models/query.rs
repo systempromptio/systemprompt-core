@@ -107,6 +107,8 @@ fn test_query_result_is_empty_false() {
     };
 
     assert!(!result.is_empty());
+    assert_eq!(result.rows.len(), 1);
+    assert_eq!(result.row_count, 1);
 }
 
 #[test]

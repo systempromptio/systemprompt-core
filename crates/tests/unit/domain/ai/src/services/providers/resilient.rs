@@ -87,8 +87,8 @@ async fn delegates_generate_with_tools() {
         GenerationParams::new(&messages, "claude-sonnet-4-6", 16),
         tools,
     );
-    let res = r.generate_with_tools(params).await;
-    assert!(res.is_ok());
+    let (resp, _calls) = r.generate_with_tools(params).await.expect("ok");
+    assert!(resp.content.contains("calling tool"));
 }
 
 #[tokio::test]
@@ -108,8 +108,8 @@ async fn delegates_generate_with_schema() {
         base,
         serde_json::json!({"type": "object", "properties": {"answer": {"type": "number"}}}),
     );
-    let res = r.generate_with_schema(params).await;
-    assert!(res.is_ok());
+    let resp = r.generate_with_schema(params).await.expect("ok");
+    assert!(resp.content.contains("42"));
 }
 
 #[tokio::test]
@@ -124,8 +124,8 @@ async fn delegates_generate_structured() {
     let base = GenerationParams::new(&messages, "claude-sonnet-4-6", 32);
     let fmt = ResponseFormat::json_object();
     let params = StructuredGenerationParams::new(base, &fmt);
-    let res = r.generate_structured(params).await;
-    assert!(res.is_ok());
+    let resp = r.generate_structured(params).await.expect("ok");
+    assert!(resp.content.contains("plain"));
 }
 
 #[tokio::test]
@@ -142,8 +142,8 @@ async fn delegates_generate_with_tool_results() {
     let calls: Vec<systemprompt_ai::models::tools::ToolCall> = Vec::new();
     let results: Vec<systemprompt_ai::models::tools::CallToolResult> = Vec::new();
     let params = ToolResultsParams::new(base, &calls, &results);
-    let res = r.generate_with_tool_results(params).await;
-    assert!(res.is_ok());
+    let resp = r.generate_with_tool_results(params).await.expect("ok");
+    assert!(resp.content.contains("after-tool"));
 }
 
 #[tokio::test]
@@ -159,8 +159,11 @@ async fn delegates_generate_with_tools_stream() {
     let base = GenerationParams::new(&messages, "claude-sonnet-4-6", 16);
     let tools = vec![McpTool::new("f", McpServerId::new("svc"))];
     let params = ToolGenerationParams::new(base, tools);
-    let stream_res = r.generate_with_tools_stream(params).await;
-    assert!(stream_res.is_ok());
+    drop(
+        r.generate_with_tools_stream(params)
+            .await
+            .expect("ok stream"),
+    );
 }
 
 #[tokio::test]
@@ -189,6 +192,5 @@ async fn stream_call_guards_path() {
     let r = ResilientProvider::new("anthropic", Arc::new(inner), &s);
     let messages = vec![AiMessage::user("hi")];
     let params = GenerationParams::new(&messages, "claude-sonnet-4-6", 16);
-    let stream_res = r.generate_stream(params).await;
-    assert!(stream_res.is_ok());
+    drop(r.generate_stream(params).await.expect("ok stream"));
 }

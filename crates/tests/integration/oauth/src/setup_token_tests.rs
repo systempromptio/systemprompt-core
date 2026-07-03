@@ -117,10 +117,44 @@ async fn revoke_user_setup_tokens_marks_unused_tokens_used() {
 }
 
 #[tokio::test]
-async fn cleanup_expired_setup_tokens_returns_count() {
+async fn cleanup_expired_setup_tokens_removes_seeded_expired_token() {
     let db = setup_test_db().await;
+    let user_id = create_test_user(&db).await;
     let repo = OAuthRepository::new(&db).expect("repo");
-    let _ = repo.cleanup_expired_setup_tokens().await.expect("cleanup");
+
+    let hash = unique_hash();
+    repo.store_setup_token(CreateSetupTokenParams {
+        user_id,
+        token_hash: hash.clone(),
+        purpose: SetupTokenPurpose::CredentialLink,
+        expires_at: Utc::now() - Duration::hours(1),
+    })
+    .await
+    .expect("store expired token");
+
+    match repo
+        .validate_setup_token(&hash)
+        .await
+        .expect("validate before")
+    {
+        TokenValidationResult::Expired => {},
+        other => panic!("expected Expired before cleanup, got {:?}", other),
+    }
+
+    let removed = repo.cleanup_expired_setup_tokens().await.expect("cleanup");
+    assert!(
+        removed >= 1,
+        "cleanup must delete at least the seeded expired token"
+    );
+
+    match repo
+        .validate_setup_token(&hash)
+        .await
+        .expect("validate after")
+    {
+        TokenValidationResult::NotFound => {},
+        other => panic!("expected NotFound after cleanup, got {:?}", other),
+    }
 }
 
 #[test]

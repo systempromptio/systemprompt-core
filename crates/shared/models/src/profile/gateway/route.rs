@@ -59,6 +59,10 @@ impl GatewayRoute {
                 .is_none_or(|w| w.matches_request(request))
     }
 
+    /// Returns the requested name verbatim when the route carries no
+    /// `upstream_model` rewrite. For the synthesized `*` default route this
+    /// passthrough is intentional — see
+    /// `GatewayConfig::synthesize_default_route`.
     pub fn effective_upstream_model<'a>(&'a self, requested: &'a str) -> &'a str {
         self.upstream_model.as_deref().unwrap_or(requested)
     }

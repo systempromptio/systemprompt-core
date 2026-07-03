@@ -17,6 +17,7 @@
 //! — not to assert business outcomes.
 
 use assert_cmd::Command;
+use predicates::str::contains;
 
 fn systemprompt_bin() -> std::path::PathBuf {
     if let Ok(path) = std::env::var("SYSTEMPROMPT_BIN") {
@@ -68,20 +69,53 @@ fn run_db(args: &[&str]) {
 
 fn run_db_with_format(args: &[&str]) {
     run_db(args);
+    drive_formats(args);
+}
+
+fn drive_formats(args: &[&str]) {
+    for fmt in ["--json", "--yaml"] {
+        let Some(mut cmd) = sp_db() else {
+            return;
+        };
+        let mut full: Vec<&str> = vec![fmt];
+        full.extend_from_slice(args);
+        cmd.args(&full);
+        let _ = cmd.assert();
+    }
+}
+
+fn db_stderr(args: &[&str], needle: &str) {
     let Some(mut cmd) = sp_db() else {
         return;
     };
-    let mut full: Vec<&str> = vec!["--json"];
-    full.extend_from_slice(args);
-    cmd.args(&full);
-    let _ = cmd.assert();
+    cmd.args(args);
+    cmd.assert().success().stderr(contains(needle));
+}
+
+fn db_stdout(args: &[&str], needle: &str) {
     let Some(mut cmd) = sp_db() else {
         return;
     };
-    let mut full: Vec<&str> = vec!["--yaml"];
-    full.extend_from_slice(args);
-    cmd.args(&full);
-    let _ = cmd.assert();
+    cmd.args(args);
+    cmd.assert().success().stdout(contains(needle));
+}
+
+fn db_stderr_fmt(args: &[&str], needle: &str) {
+    db_stderr(args, needle);
+    drive_formats(args);
+}
+
+fn db_stdout_fmt(args: &[&str], needle: &str) {
+    db_stdout(args, needle);
+    drive_formats(args);
+}
+
+fn db_fails(args: &[&str], needle: &str) {
+    let Some(mut cmd) = sp_db() else {
+        return;
+    };
+    cmd.args(args);
+    cmd.assert().failure().stderr(contains(needle));
 }
 
 // ============================================================================
@@ -90,67 +124,79 @@ fn run_db_with_format(args: &[&str]) {
 
 #[test]
 fn db_status() {
-    run_db_with_format(&["infra", "db", "status"]);
+    db_stderr_fmt(&["infra", "db", "status"], "Database connection");
 }
 
 #[test]
 fn db_info() {
-    run_db_with_format(&["infra", "db", "info"]);
+    db_stderr_fmt(&["infra", "db", "info"], "Database: PostgreSQL");
 }
 
 #[test]
 fn db_tables() {
-    run_db_with_format(&["infra", "db", "tables"]);
+    db_stdout_fmt(&["infra", "db", "tables"], "users");
 }
 
 #[test]
 fn db_tables_with_filter() {
-    run_db_with_format(&["infra", "db", "tables", "--filter", "user"]);
+    db_stdout_fmt(&["infra", "db", "tables", "--filter", "user"], "users");
 }
 
 #[test]
 fn db_tables_filter_nonmatching() {
-    run_db_with_format(&["infra", "db", "tables", "--filter", "zzz_no_match"]);
+    db_stderr_fmt(
+        &["infra", "db", "tables", "--filter", "zzz_no_match"],
+        "Tables",
+    );
 }
 
 #[test]
 fn db_validate() {
-    run_db_with_format(&["infra", "db", "validate"]);
+    db_stderr_fmt(&["infra", "db", "validate"], "Schema Validation");
 }
 
 #[test]
 fn db_size() {
-    run_db_with_format(&["infra", "db", "size"]);
+    db_stderr_fmt(&["infra", "db", "size"], "Database Size");
 }
 
 #[test]
 fn db_indexes() {
-    run_db_with_format(&["infra", "db", "indexes"]);
+    db_stderr_fmt(&["infra", "db", "indexes"], "Indexes");
 }
 
 #[test]
 fn db_indexes_with_table() {
-    run_db_with_format(&["infra", "db", "indexes", "--table", "users"]);
+    db_stderr_fmt(
+        &["infra", "db", "indexes", "--table", "users"],
+        "idx_users_email",
+    );
 }
 
 #[test]
 fn db_describe_users() {
-    run_db_with_format(&["infra", "db", "describe", "users"]);
+    db_stdout_fmt(&["infra", "db", "describe", "users"], "email");
 }
 
 #[test]
 fn db_describe_missing_table() {
-    run_db_with_format(&["infra", "db", "describe", "definitely_not_a_real_table"]);
+    db_fails(
+        &["infra", "db", "describe", "definitely_not_a_real_table"],
+        "not found",
+    );
 }
 
 #[test]
 fn db_count_users() {
-    run_db_with_format(&["infra", "db", "count", "users"]);
+    db_stderr_fmt(&["infra", "db", "count", "users"], "users:");
 }
 
 #[test]
 fn db_count_missing_table() {
-    run_db_with_format(&["infra", "db", "count", "definitely_not_a_real_table"]);
+    db_fails(
+        &["infra", "db", "count", "definitely_not_a_real_table"],
+        "not found",
+    );
 }
 
 #[test]
@@ -160,12 +206,12 @@ fn db_doctor() {
 
 #[test]
 fn db_migrations_status() {
-    run_db_with_format(&["infra", "db", "migrations", "status"]);
+    db_stderr_fmt(&["infra", "db", "migrations", "status"], "applied");
 }
 
 #[test]
 fn db_migrations_list_alias() {
-    run_db_with_format(&["infra", "db", "migrations", "list"]);
+    db_stderr_fmt(&["infra", "db", "migrations", "list"], "applied");
 }
 
 #[test]
@@ -175,7 +221,7 @@ fn db_migrations_history_missing_ext() {
 
 #[test]
 fn db_migrate_plan_all() {
-    run_db_with_format(&["infra", "db", "migrate-plan"]);
+    db_stderr_fmt(&["infra", "db", "migrate-plan"], "migrations");
 }
 
 #[test]
@@ -190,7 +236,7 @@ fn db_migrate_plan_specific_ext() {
 
 #[test]
 fn db_migrate_status_all() {
-    run_db_with_format(&["infra", "db", "migrate-status"]);
+    db_stderr_fmt(&["infra", "db", "migrate-status"], "Applied:");
 }
 
 #[test]
@@ -234,7 +280,7 @@ fn db_migrate_allow_drift() {
 
 #[test]
 fn db_query_select_users() {
-    run_db_with_format(&["infra", "db", "query", "SELECT 1 AS one"]);
+    db_stdout_fmt(&["infra", "db", "query", "SELECT 1 AS one"], "one");
 }
 
 #[test]
@@ -265,7 +311,10 @@ fn db_query_with_limit_and_offset() {
 
 #[test]
 fn db_query_invalid_sql() {
-    run_db(&["infra", "db", "query", "SELECT not valid sql syntax !!!"]);
+    db_fails(
+        &["infra", "db", "query", "SELECT not valid sql syntax !!!"],
+        "syntax error",
+    );
 }
 
 #[test]
@@ -275,17 +324,23 @@ fn db_query_empty_result() {
 
 #[test]
 fn db_query_information_schema() {
-    run_db_with_format(&[
-        "infra",
-        "db",
-        "query",
-        "SELECT table_schema, table_name FROM information_schema.tables LIMIT 3",
-    ]);
+    db_stdout_fmt(
+        &[
+            "infra",
+            "db",
+            "query",
+            "SELECT table_schema, table_name FROM information_schema.tables LIMIT 3",
+        ],
+        "table_name",
+    );
 }
 
 #[test]
 fn db_query_pg_catalog() {
-    run_db_with_format(&["infra", "db", "query", "SELECT current_database() AS db"]);
+    db_stdout_fmt(
+        &["infra", "db", "query", "SELECT current_database() AS db"],
+        "db",
+    );
 }
 
 #[test]
@@ -302,13 +357,15 @@ fn db_query_with_format_flag() {
 
 #[test]
 fn db_query_reject_write() {
-    // Query is read-only; INSERT should be rejected by the query path.
-    run_db(&[
-        "infra",
-        "db",
-        "query",
-        "INSERT INTO users (id) VALUES ('nope')",
-    ]);
+    db_fails(
+        &[
+            "infra",
+            "db",
+            "query",
+            "INSERT INTO users (id) VALUES ('nope')",
+        ],
+        "must begin with SELECT",
+    );
 }
 
 // ============================================================================
@@ -322,12 +379,15 @@ fn db_execute_noop() {
 
 #[test]
 fn db_execute_invalid_sql() {
-    run_db(&[
-        "infra",
-        "db",
-        "execute",
-        "DELETE FROM nonexistent_table_xyz",
-    ]);
+    db_fails(
+        &[
+            "infra",
+            "db",
+            "execute",
+            "DELETE FROM nonexistent_table_xyz",
+        ],
+        "does not exist",
+    );
 }
 
 #[test]
@@ -341,7 +401,7 @@ fn db_execute_with_format() {
 
 #[test]
 fn analytics_overview() {
-    run_db_with_format(&["analytics", "overview"]);
+    db_stderr_fmt(&["analytics", "overview"], "Analytics Overview");
 }
 
 #[test]
@@ -370,7 +430,10 @@ fn analytics_overview_invalid_since() {
 
 #[test]
 fn analytics_conversations_stats() {
-    run_db_with_format(&["analytics", "conversations", "stats"]);
+    db_stderr_fmt(
+        &["analytics", "conversations", "stats"],
+        "Conversation Statistics",
+    );
 }
 
 #[test]
@@ -390,7 +453,7 @@ fn analytics_conversations_trends_since() {
 
 #[test]
 fn analytics_conversations_list() {
-    run_db_with_format(&["analytics", "conversations", "list"]);
+    db_stderr_fmt(&["analytics", "conversations", "list"], "Conversations");
 }
 
 #[test]
@@ -404,7 +467,7 @@ fn analytics_conversations_list_with_limit() {
 
 #[test]
 fn analytics_agents_stats() {
-    run_db_with_format(&["analytics", "agents", "stats"]);
+    db_stderr_fmt(&["analytics", "agents", "stats"], "Agent Statistics");
 }
 
 #[test]
@@ -428,7 +491,7 @@ fn analytics_agents_show_missing() {
 
 #[test]
 fn analytics_tools_stats() {
-    run_db_with_format(&["analytics", "tools", "stats"]);
+    db_stderr_fmt(&["analytics", "tools", "stats"], "Tool Statistics");
 }
 
 #[test]
@@ -452,7 +515,7 @@ fn analytics_tools_show_missing() {
 
 #[test]
 fn analytics_requests_stats() {
-    run_db_with_format(&["analytics", "requests", "stats"]);
+    db_stderr_fmt(&["analytics", "requests", "stats"], "AI Request Statistics");
 }
 
 #[test]
@@ -481,7 +544,7 @@ fn analytics_requests_models() {
 
 #[test]
 fn analytics_sessions_stats() {
-    run_db_with_format(&["analytics", "sessions", "stats"]);
+    db_stderr_fmt(&["analytics", "sessions", "stats"], "Session Statistics");
 }
 
 #[test]
@@ -496,7 +559,7 @@ fn analytics_sessions_trends() {
 
 #[test]
 fn analytics_sessions_live() {
-    run_db_with_format(&["analytics", "sessions", "live"]);
+    db_stderr_fmt(&["analytics", "sessions", "live"], "Live Sessions");
 }
 
 // ============================================================================
@@ -505,7 +568,7 @@ fn analytics_sessions_live() {
 
 #[test]
 fn analytics_content_stats() {
-    run_db_with_format(&["analytics", "content", "stats"]);
+    db_stderr_fmt(&["analytics", "content", "stats"], "Content Statistics");
 }
 
 #[test]
@@ -534,7 +597,7 @@ fn analytics_content_popular_alias() {
 
 #[test]
 fn analytics_traffic_sources() {
-    run_db_with_format(&["analytics", "traffic", "sources"]);
+    db_stderr_fmt(&["analytics", "traffic", "sources"], "Traffic Sources");
 }
 
 #[test]
@@ -544,17 +607,17 @@ fn analytics_traffic_list_alias() {
 
 #[test]
 fn analytics_traffic_geo() {
-    run_db_with_format(&["analytics", "traffic", "geo"]);
+    db_stderr_fmt(&["analytics", "traffic", "geo"], "Geographic Distribution");
 }
 
 #[test]
 fn analytics_traffic_devices() {
-    run_db_with_format(&["analytics", "traffic", "devices"]);
+    db_stderr_fmt(&["analytics", "traffic", "devices"], "Device Breakdown");
 }
 
 #[test]
 fn analytics_traffic_bots() {
-    run_db_with_format(&["analytics", "traffic", "bots"]);
+    db_stderr_fmt(&["analytics", "traffic", "bots"], "Bot Traffic Analysis");
 }
 
 // ============================================================================
@@ -563,7 +626,7 @@ fn analytics_traffic_bots() {
 
 #[test]
 fn analytics_costs_summary() {
-    run_db_with_format(&["analytics", "costs", "summary"]);
+    db_stderr_fmt(&["analytics", "costs", "summary"], "Cost Summary");
 }
 
 #[test]
@@ -587,7 +650,7 @@ fn analytics_costs_breakdown() {
 
 #[test]
 fn admin_users_list() {
-    run_db_with_format(&["admin", "users", "list"]);
+    db_stderr_fmt(&["admin", "users", "list"], "Users");
 }
 
 #[test]
@@ -627,17 +690,20 @@ fn admin_users_list_status_suspended() {
 
 #[test]
 fn admin_users_count() {
-    run_db_with_format(&["admin", "users", "count"]);
+    db_stderr_fmt(&["admin", "users", "count"], "User Count");
 }
 
 #[test]
 fn admin_users_stats() {
-    run_db_with_format(&["admin", "users", "stats"]);
+    db_stderr_fmt(&["admin", "users", "stats"], "User Statistics");
 }
 
 #[test]
 fn admin_users_search_empty() {
-    run_db_with_format(&["admin", "users", "search", "zzz_nothing"]);
+    db_stderr_fmt(
+        &["admin", "users", "search", "zzz_nothing"],
+        "User Search Results",
+    );
 }
 
 #[test]
@@ -647,12 +713,15 @@ fn admin_users_search_term() {
 
 #[test]
 fn admin_users_show_missing() {
-    run_db(&["admin", "users", "show", "nonexistent-user-id"]);
+    db_fails(
+        &["admin", "users", "show", "nonexistent-user-id"],
+        "User not found",
+    );
 }
 
 #[test]
 fn admin_users_export() {
-    run_db(&["admin", "users", "export"]);
+    db_stderr(&["admin", "users", "export"], "User Export");
 }
 
 #[test]
@@ -662,7 +731,7 @@ fn admin_users_session_list_missing_user() {
 
 #[test]
 fn admin_users_ban_list() {
-    run_db_with_format(&["admin", "users", "ban", "list"]);
+    db_stderr_fmt(&["admin", "users", "ban", "list"], "Banned IPs");
 }
 
 // ============================================================================
@@ -856,7 +925,7 @@ fn infra_logs_cleanup() {
 
 #[test]
 fn core_content_list() {
-    run_db_with_format(&["core", "content", "list"]);
+    db_stderr_fmt(&["core", "content", "list"], "Content");
 }
 
 #[test]
@@ -866,12 +935,15 @@ fn core_content_list_with_limit() {
 
 #[test]
 fn core_content_show_missing() {
-    run_db(&["core", "content", "show", "nonexistent-slug"]);
+    db_fails(
+        &["core", "content", "show", "nonexistent-slug"],
+        "No content with slug",
+    );
 }
 
 #[test]
 fn core_content_search() {
-    run_db_with_format(&["core", "content", "search", "test"]);
+    db_stderr_fmt(&["core", "content", "search", "test"], "Search Results");
 }
 
 #[test]
@@ -901,7 +973,7 @@ fn core_content_analytics_journey_missing() {
 
 #[test]
 fn core_files_list() {
-    run_db_with_format(&["core", "files", "list"]);
+    db_stderr_fmt(&["core", "files", "list"], "Files");
 }
 
 #[test]
@@ -911,17 +983,20 @@ fn core_files_list_with_limit() {
 
 #[test]
 fn core_files_show_missing() {
-    run_db(&["core", "files", "show", "nonexistent-id"]);
+    db_fails(
+        &["core", "files", "show", "nonexistent-id"],
+        "Failed to show file",
+    );
 }
 
 #[test]
 fn core_files_search() {
-    run_db_with_format(&["core", "files", "search", "test"]);
+    db_stderr_fmt(&["core", "files", "search", "test"], "File Search Results");
 }
 
 #[test]
 fn core_files_stats() {
-    run_db_with_format(&["core", "files", "stats"]);
+    db_stderr_fmt(&["core", "files", "stats"], "File Storage Statistics");
 }
 
 // ============================================================================

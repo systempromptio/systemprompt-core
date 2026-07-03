@@ -17,7 +17,7 @@ fn new_sets_required_fields_and_defaults() {
     assert_eq!(m.artifact_type, "text");
     assert_eq!(m.context_id, ctx());
     assert_eq!(m.task_id, task());
-    assert!(!m.created_at.is_empty());
+    assert!(m.created_at.contains('T'));
     assert_eq!(m.source.as_deref(), Some("mcp_tool"));
     assert!(m.rendering_hints.is_none());
     assert!(m.mcp_execution_id.is_none());

@@ -37,6 +37,8 @@ pub struct GovernanceDecisionRecord<'a> {
     /// RFC 8693 delegation lineage in outermost-first order. Empty for
     /// direct (non-delegated) tokens.
     pub act_chain: &'a [Actor],
+    pub context_id: Option<&'a str>,
+    pub task_id: Option<&'a str>,
 }
 
 #[derive(Debug, Clone)]
@@ -72,7 +74,8 @@ pub async fn insert_governance_decision(
     let result = sqlx::query!(
         "INSERT INTO governance_decisions (id, user_id, session_id, tool_name, agent_id, \
          agent_scope, decision, policy, reason, evaluated_rules, plugin_id, actor_kind, actor_id, \
-         act_chain) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)",
+         act_chain, context_id, task_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, \
+         $12, $13, $14, $15, $16)",
         record.id,
         record.actor.user_id.as_str(),
         record.session_id,
@@ -87,6 +90,8 @@ pub async fn insert_governance_decision(
         actor_kind.as_str(),
         actor_id,
         act_chain,
+        record.context_id,
+        record.task_id,
     )
     .execute(pool)
     .await;

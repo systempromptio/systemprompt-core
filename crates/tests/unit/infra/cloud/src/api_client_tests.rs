@@ -64,7 +64,10 @@ async fn get_user_5xx_returns_http_status_or_api_error() {
     let client = CloudApiClient::new(&server.uri(), "t").unwrap();
     let err = client.get_user().await.expect_err("must error");
     let s = err.to_string();
-    assert!(!s.is_empty());
+    assert!(
+        s.contains("500") || s.contains("internal boom"),
+        "5xx error should surface the status or body: {s}"
+    );
 }
 
 #[tokio::test]
@@ -142,8 +145,10 @@ async fn report_activity_no_content_response() {
         .await;
 
     let client = CloudApiClient::new(&server.uri(), "t").unwrap();
-    let res = client.report_activity("login", &UserId::new("u1")).await;
-    assert!(res.is_ok());
+    client
+        .report_activity("login", &UserId::new("u1"))
+        .await
+        .expect("report_activity should succeed against the 204 mock");
 }
 
 #[tokio::test]
@@ -156,8 +161,10 @@ async fn report_activity_200_also_ok() {
         .await;
 
     let client = CloudApiClient::new(&server.uri(), "t").unwrap();
-    let res = client.report_activity("e", &UserId::new("u2")).await;
-    assert!(res.is_ok());
+    client
+        .report_activity("e", &UserId::new("u2"))
+        .await
+        .expect("report_activity should succeed against the 200 mock");
 }
 
 #[tokio::test]
@@ -208,7 +215,10 @@ async fn unparseable_error_body_yields_http_status_variant() {
     let client = CloudApiClient::new(&server.uri(), "t").unwrap();
     let err = client.get_user().await.expect_err("must error");
     let s = err.to_string();
-    assert!(!s.is_empty());
+    assert!(
+        s.contains("503"),
+        "unparseable body should yield the http status variant: {s}"
+    );
 }
 
 #[tokio::test]

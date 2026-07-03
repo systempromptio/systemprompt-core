@@ -272,7 +272,7 @@ fn test_session_creation_error_is_std_error() {
     let error = SessionCreationError::Internal("test".to_string());
     let std_error: &dyn std::error::Error = &error;
 
-    assert!(!std_error.to_string().is_empty());
+    assert!(std_error.to_string().contains("test"));
 }
 
 #[test]

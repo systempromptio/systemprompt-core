@@ -79,7 +79,9 @@ fn agent_info_skills_count_with_skills() {
     ];
     let info = AgentInfo::from_card(id, card, true).with_skills(skills);
     assert_eq!(info.skills_count(), 2);
-    assert!(info.skills.is_some());
+    let skills = info.skills.expect("skills set");
+    assert_eq!(skills[0].id, "s1");
+    assert_eq!(skills[1].id, "s2");
 }
 
 #[test]

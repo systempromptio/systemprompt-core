@@ -75,13 +75,13 @@ mod cleanup_anonymous_users_job_tests {
     fn job_description_is_static_str() {
         let job = CleanupAnonymousUsersJob;
         let desc: &'static str = job.description();
-        assert!(!desc.is_empty());
+        assert_eq!(desc, "Cleans up old anonymous users (30d)");
     }
 
     #[test]
     fn job_schedule_is_static_str() {
         let job = CleanupAnonymousUsersJob;
         let schedule: &'static str = job.schedule();
-        assert!(!schedule.is_empty());
+        assert_eq!(schedule, "0 0 * * * *");
     }
 }

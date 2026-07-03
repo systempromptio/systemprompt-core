@@ -19,15 +19,13 @@ use systemprompt_models::modules::ApiPaths;
 #[test]
 fn test_api_base_path_defined() {
     let api_base = ApiPaths::API_BASE;
-    assert!(!api_base.is_empty());
-    assert!(api_base.starts_with('/'));
+    assert_eq!(api_base, "/api");
 }
 
 #[test]
 fn test_wellknown_base_path_defined() {
     let wellknown = ApiPaths::WELLKNOWN_BASE;
-    assert!(!wellknown.is_empty());
-    assert!(wellknown.starts_with('/'));
+    assert_eq!(wellknown, "/.well-known");
 }
 
 #[test]

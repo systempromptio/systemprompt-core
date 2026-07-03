@@ -72,7 +72,7 @@ async fn create_then_find_and_reuse_identity() {
 
     assert_eq!(user.email, "verified@example.com");
     assert_eq!(user.display_name.as_deref(), Some("Federated Person"));
-    assert!(!user.roles.is_empty());
+    assert!(user.roles.iter().any(|r| r == "user"));
 
     let mapped = ctx
         .repo

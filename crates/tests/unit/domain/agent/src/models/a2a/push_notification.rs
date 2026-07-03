@@ -110,7 +110,8 @@ fn get_task_push_notification_config_round_trip() {
     };
     let json2 = serde_json::to_string(&resp).unwrap();
     let back2: GetTaskPushNotificationConfigResponse = serde_json::from_str(&json2).unwrap();
-    assert!(back2.config.is_some());
+    let cfg = back2.config.expect("config round-trips");
+    assert_eq!(cfg.url, "https://example.com/hook");
 
     let params = GetTaskPushNotificationConfigParams {
         id: TaskId::new("task-params"),

@@ -62,7 +62,7 @@ async fn get_ai_provider_usage_aggregates_by_provider_and_model() {
     assert_eq!(model_x.total_tokens, Some(200));
     assert_eq!(model_x.total_cost_microdollars, Some(5000));
     assert_eq!(model_x.unique_users, 1);
-    assert!(model_x.avg_latency_ms.is_some());
+    assert_eq!(model_x.avg_latency_ms, Some(40.0));
 
     cleanup(&pool, &provider).await;
 }

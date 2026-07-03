@@ -136,5 +136,7 @@ async fn gateway_audit_open_persists_derived_context_id() {
     // Sanity: the persisted ContextId is a parseable UUID v5.
     let parsed = uuid::Uuid::parse_str(stored_context.as_deref().unwrap()).expect("uuid");
     assert_eq!(parsed.get_version_num(), 5);
-    let _ = GatewayConversationId::try_new(stored_gateway.unwrap()).expect("valid gateway id");
+    let parsed_gateway =
+        GatewayConversationId::try_new(stored_gateway.unwrap()).expect("valid gateway id");
+    assert_eq!(parsed_gateway, gw_conv);
 }

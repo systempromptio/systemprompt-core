@@ -32,6 +32,8 @@ fn fixture_request(entity: EntityRef) -> AuthzRequest {
         trace_id: TraceId::new("trace-test"),
         session_id: None,
         context: AuthzContext::none(),
+        context_id: None,
+        task_id: None,
         act_chain: Vec::new(),
     }
 }

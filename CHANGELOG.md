@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.19.1] - 2026-07-03
+
+### Added
+
+- `governance_decisions` audit rows record the A2A `context_id` and `task_id` the enforcement site was acting within (additive migration `010_governance_context_task`, plus an index on `context_id`). `AuthzRequest` gains optional `context_id`/`task_id` fields, populated on all three enforcement paths: the gateway threads its derived conversation `ContextId` into the pre-dispatch check, MCP tool-call authz forwards the execution context's `context_id`/`task_id` (so internal A2A agent tool-calls reconstruct by key instead of user+time-window joins), and messaging dispatch derives its `ContextId` before the authz check. `GovernanceDecisionRecord` carries the two new columns through the single canonical INSERT.
+
+### Changed
+
+- The synthesized default gateway route's verbatim model passthrough (`upstream_model: None` on the `*` catch-all) is documented as intentional and locked by tests: exposure remains governed by the closed allowlist in `is_model_exposed`, `allow_unlisted_models` stays the explicit opt-out, and shipped profiles keep it off.
+
+### Tests
+
+- Converted the vanity-test tail across the suite to behavior-asserting tests: discarded-result smokes (`let _ = call.unwrap()`) now assert the zero-result contract or seeded-row shapes, `is_ok()`/`is_some()`-only checks bind and assert a domain field, and `!is_empty()`-only checks assert exact length or membership on uniquely-tagged seeded rows. The highest-risk CLI subprocess exit-code-only tests now assert seeded content in stdout. Added a `check-test-value` quality gate (`just lint-test-value`, wired into `check` and the `quality.yml` source-gates job) that hard-fails on unasserted discarded results, plus an observational zero-assertion-fn heuristic in the standards audit.
+
 ## [0.19.0] - 2026-07-02
 
 ### Breaking

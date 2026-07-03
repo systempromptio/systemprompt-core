@@ -44,7 +44,7 @@ async fn cleanup(provider: &FilesAiPersistenceProvider, id: &FileId) {
 #[tokio::test]
 async fn new_constructs_from_pool() {
     let Some(db) = db().await else { return };
-    let _ = FilesAiPersistenceProvider::new(&db).expect("new");
+    drop(FilesAiPersistenceProvider::new(&db).expect("new"));
 }
 
 #[tokio::test]

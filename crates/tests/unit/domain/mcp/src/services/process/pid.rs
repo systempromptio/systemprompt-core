@@ -11,8 +11,7 @@ fn find_pid_by_port_unused_port_returns_none() {
 
 #[test]
 fn find_pid_by_port_zero_returns_ok() {
-    let result = find_pid_by_port(0);
-    assert!(result.is_ok());
+    find_pid_by_port(0).expect("port 0 query succeeds");
 }
 
 #[test]
@@ -42,8 +41,7 @@ fn get_port_by_pid_nonexistent_returns_none() {
 #[test]
 fn get_port_by_pid_current_process() {
     let pid = std::process::id();
-    let result = get_port_by_pid(pid);
-    assert!(result.is_ok());
+    get_port_by_pid(pid).expect("port lookup for current process succeeds");
 }
 
 #[test]

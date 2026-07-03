@@ -138,7 +138,10 @@ fn flatten_message_content_covers_every_arm() {
     assert!(flat.contains("pondering"));
     assert!(flat.contains("[tool_use:search"));
     assert!(flat.contains("nested result"));
-    assert!(!flat.ends_with('\n'), "empty text does not append a blank line");
+    assert!(
+        !flat.ends_with('\n'),
+        "empty text does not append a blank line"
+    );
 }
 
 #[test]
@@ -182,7 +185,12 @@ fn gateway_ctx(id: &AiRequestId, user: &UserId, upstream_model: &str) -> Gateway
     }
 }
 
-async fn seed_ai_request(pool: &DbPool, id: &AiRequestId, user: &UserId, model: &str) -> Result<()> {
+async fn seed_ai_request(
+    pool: &DbPool,
+    id: &AiRequestId,
+    user: &UserId,
+    model: &str,
+) -> Result<()> {
     let pg = pool.pool_arc().map_err(|e| anyhow::anyhow!("pool: {e}"))?;
     sqlx::query(
         "INSERT INTO ai_requests (id, request_id, user_id, provider, model, cost_microdollars, \

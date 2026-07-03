@@ -120,10 +120,13 @@ mod noop_error_details_tests {
     async fn refresh_connections_ignores_agent_name() {
         let provider = NoopToolProvider::new();
 
-        let result_a = provider.refresh_connections("agent-x").await;
-        let result_b = provider.refresh_connections("agent-y").await;
-
-        assert!(result_a.is_ok());
-        assert!(result_b.is_ok());
+        provider
+            .refresh_connections("agent-x")
+            .await
+            .expect("refresh a");
+        provider
+            .refresh_connections("agent-y")
+            .await
+            .expect("refresh b");
     }
 }

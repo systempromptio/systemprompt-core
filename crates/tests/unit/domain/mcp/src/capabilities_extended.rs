@@ -16,7 +16,7 @@ fn website_url_contains_systemprompt() {
 #[test]
 fn mcp_apps_ui_extension_key_nonempty() {
     let (key, _) = mcp_apps_ui_extension();
-    assert!(!key.is_empty());
+    assert_eq!(key, "io.modelcontextprotocol/ui");
 }
 
 #[test]

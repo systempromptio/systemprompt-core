@@ -2,7 +2,9 @@ use std::borrow::Cow;
 use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
-use systemprompt_identifiers::{Actor, McpToolName, ModelId, SessionId, TraceId, UserId};
+use systemprompt_identifiers::{
+    Actor, ContextId, McpToolName, ModelId, SessionId, TaskId, TraceId, UserId,
+};
 
 use super::decision::DenyReason;
 use super::entity_ref::EntityRef;
@@ -159,6 +161,17 @@ pub struct AuthzRequest {
     pub session_id: Option<SessionId>,
     #[serde(default)]
     pub context: AuthzContext,
+    /// A2A conversation the enforcement site is acting within, when it has
+    /// one (gateway-derived conversation, MCP tool-call execution context,
+    /// messaging). Threaded into the audit row's `context_id` column so agent
+    /// conversations reconstruct by key instead of user+time-window joins.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub context_id: Option<ContextId>,
+    /// A2A task the enforcement site is acting within, when one exists
+    /// (internal agent tool-calls). Threaded into the audit row's `task_id`
+    /// column.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub task_id: Option<TaskId>,
     /// RFC 8693 delegation lineage forwarded from
     /// `RequestContext.auth.act_chain`. Empty when no token-exchange chain
     /// is present.

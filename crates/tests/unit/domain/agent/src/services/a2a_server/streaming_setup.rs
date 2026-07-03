@@ -92,7 +92,8 @@ async fn setup_with_valid_context_persists_task_and_reports_missing_agent() {
         .get_task(&task_id)
         .await
         .expect("get task");
-    assert!(stored.is_some(), "initial task must have been persisted");
+    let stored = stored.expect("initial task must have been persisted");
+    assert_eq!(stored.id, task_id);
 }
 
 #[tokio::test]

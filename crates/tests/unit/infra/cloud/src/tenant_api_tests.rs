@@ -105,8 +105,10 @@ async fn delete_tenant_returns_unit_on_204() {
         .await;
 
     let client = CloudApiClient::new(&server.uri(), "op").unwrap();
-    let res = client.delete_tenant(&TenantId::new("t-d")).await;
-    assert!(res.is_ok());
+    client
+        .delete_tenant(&TenantId::new("t-d"))
+        .await
+        .expect("delete_tenant should succeed against the 204 mock");
 }
 
 #[tokio::test]
@@ -171,8 +173,10 @@ async fn unset_secret_calls_delete_keyed_path() {
         .await;
 
     let client = CloudApiClient::new(&server.uri(), "op").unwrap();
-    let res = client.unset_secret(&TenantId::new("t-s"), "FOO").await;
-    assert!(res.is_ok());
+    client
+        .unset_secret(&TenantId::new("t-s"), "FOO")
+        .await
+        .expect("unset_secret should succeed against the 204 mock");
 }
 
 #[tokio::test]
@@ -278,8 +282,10 @@ async fn delete_custom_domain_returns_unit() {
         .await;
 
     let client = CloudApiClient::new(&server.uri(), "op").unwrap();
-    let res = client.delete_custom_domain(&TenantId::new("t-cd")).await;
-    assert!(res.is_ok());
+    client
+        .delete_custom_domain(&TenantId::new("t-cd"))
+        .await
+        .expect("delete_custom_domain should succeed against the 204 mock");
 }
 
 #[tokio::test]

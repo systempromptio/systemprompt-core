@@ -41,14 +41,24 @@ fn transform_from_json_builds_artifact() {
         artifact.metadata.mcp_execution_id.as_deref(),
         Some("exec-xform-1")
     );
-    assert!(artifact.metadata.fingerprint.is_some());
+    assert!(
+        artifact
+            .metadata
+            .fingerprint
+            .as_deref()
+            .is_some_and(|fp| fp.starts_with("writer-tool-"))
+    );
     assert_eq!(
         artifact.metadata.skill_id.as_ref().map(|s| s.as_str()),
         Some("skill-7")
     );
     assert_eq!(artifact.parts.len(), 1);
     assert!(matches!(artifact.parts[0], Part::Data(_)));
-    assert!(!artifact.extensions.is_empty());
+    assert_eq!(artifact.extensions.len(), 1);
+    assert_eq!(
+        artifact.extensions[0],
+        json!(systemprompt_models::a2a::ARTIFACT_RENDERING_URI)
+    );
 }
 
 #[test]

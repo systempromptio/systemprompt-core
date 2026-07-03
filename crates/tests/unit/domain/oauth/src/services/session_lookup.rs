@@ -238,7 +238,11 @@ async fn session_at_fingerprint_limit_is_reused() {
     assert!(!info.is_new);
     assert_eq!(info.session_id.as_str(), "sess_reusable");
     assert_eq!(info.user_id.as_str(), "user_existing");
-    assert!(!info.jwt_token.is_empty());
+    assert_eq!(
+        info.jwt_token.split('.').count(),
+        3,
+        "jwt is header.payload.signature"
+    );
     assert_eq!(analytics.created_sessions.load(Ordering::SeqCst), 0);
 }
 
@@ -301,7 +305,11 @@ async fn recent_session_without_user_falls_through_to_fresh_creation() {
     assert!(info.is_new);
     assert_eq!(info.user_id.as_str(), "user_anon_fresh");
     assert!(info.session_id.as_str().starts_with("sess_"));
-    assert!(!info.jwt_token.is_empty());
+    assert_eq!(
+        info.jwt_token.split('.').count(),
+        3,
+        "jwt is header.payload.signature"
+    );
     assert_eq!(analytics.created_sessions.load(Ordering::SeqCst), 1);
     assert!(!publisher.events.lock().unwrap().is_empty());
 }

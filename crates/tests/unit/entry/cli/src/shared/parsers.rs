@@ -93,7 +93,7 @@ fn test_parse_profile_name_error_message_is_string() {
     let result = parse_profile_name("");
     result.as_ref().expect_err("result should fail");
     let error = result.unwrap_err();
-    assert!(!error.is_empty());
+    assert!(error.contains("ProfileName"));
 }
 
 #[test]
@@ -195,7 +195,7 @@ fn test_parse_email_error_message_is_string() {
     let result = parse_email("invalid");
     result.as_ref().expect_err("result should fail");
     let error = result.unwrap_err();
-    assert!(!error.is_empty());
+    assert!(error.contains('@'));
 }
 
 #[test]

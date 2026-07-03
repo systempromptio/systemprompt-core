@@ -109,6 +109,9 @@ pub async fn dispatch_messaging(
     let user = resolve_or_link_user(ctx, &inbound.issuer, &inbound.external_user_id).await?;
     let authed = authenticated_user(&user)?;
 
+    let context_id =
+        ContextId::derived_from_messaging(inbound.platform, &inbound.org_id, &inbound.channel_id);
+
     let authz = AuthzRequest {
         entity: inbound.entity.clone(),
         user_id: user.id.clone(),
@@ -120,14 +123,14 @@ pub async fn dispatch_messaging(
             format!("{}.message", inbound.platform),
             json!({ "channel": inbound.channel_id }),
         ),
+        context_id: Some(context_id.clone()),
+        task_id: None,
         act_chain: Vec::new(),
     };
     if let AuthzDecision::Deny { reason, policy } = ctx.authz_hook().evaluate(authz).await {
         return Ok(DispatchOutcome::Denied(format!("{policy}: {reason}")));
     }
 
-    let context_id =
-        ContextId::derived_from_messaging(inbound.platform, &inbound.org_id, &inbound.channel_id);
     let session_id = SessionId::new(uuid::Uuid::new_v4().to_string());
     let token = mint_a2a_token(ctx, &authed, &session_id)?;
 

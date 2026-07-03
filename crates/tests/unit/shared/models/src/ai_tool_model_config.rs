@@ -54,6 +54,7 @@ mod tool_model_config_is_empty_tests {
             max_output_tokens: None,
         };
         assert!(!config.is_empty());
+        assert_eq!(config.provider.as_deref(), Some("anthropic"));
     }
 
     #[test]
@@ -64,6 +65,7 @@ mod tool_model_config_is_empty_tests {
             max_output_tokens: None,
         };
         assert!(!config.is_empty());
+        assert_eq!(config.model.as_deref(), Some("gpt-4"));
     }
 
     #[test]
@@ -74,12 +76,16 @@ mod tool_model_config_is_empty_tests {
             max_output_tokens: Some(1024),
         };
         assert!(!config.is_empty());
+        assert_eq!(config.max_output_tokens, Some(1024));
     }
 
     #[test]
     fn fully_populated_is_not_empty() {
         let config = ToolModelConfig::new("provider", "model").with_max_output_tokens(2048);
         assert!(!config.is_empty());
+        assert_eq!(config.provider.as_deref(), Some("provider"));
+        assert_eq!(config.model.as_deref(), Some("model"));
+        assert_eq!(config.max_output_tokens, Some(2048));
     }
 }
 

@@ -309,9 +309,15 @@ fn user_cache_ttl_expiry_and_admin_role() {
 
     let expired = UserCache::with_ttl(Duration::ZERO);
     expired.put(user.id.clone(), user.clone());
-    assert!(expired.get_fresh(&user.id).is_none(), "zero TTL entry must be stale");
+    assert!(
+        expired.get_fresh(&user.id).is_none(),
+        "zero TTL entry must be stale"
+    );
 
     assert!(user_is_admin(&user));
-    let plain = AuthUser { roles: vec!["member".to_owned()], ..user };
+    let plain = AuthUser {
+        roles: vec!["member".to_owned()],
+        ..user
+    };
     assert!(!user_is_admin(&plain));
 }

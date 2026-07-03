@@ -125,15 +125,26 @@ fn service_category_all_returns_four_variants() {
 #[test]
 fn service_category_base_path_not_empty() {
     for cat in ServiceCategory::all() {
-        let path = cat.base_path();
-        assert!(!path.is_empty(), "{cat:?} base_path is empty");
+        let expected = match cat {
+            ServiceCategory::Core => ApiPaths::CORE_BASE,
+            ServiceCategory::Agent => ApiPaths::AGENTS_BASE,
+            ServiceCategory::Mcp => ApiPaths::MCP_BASE,
+            ServiceCategory::Meta => "/",
+        };
+        assert_eq!(cat.base_path(), expected, "{cat:?} base_path");
     }
 }
 
 #[test]
 fn service_category_display_name_not_empty() {
     for cat in ServiceCategory::all() {
-        assert!(!cat.display_name().is_empty());
+        let expected = match cat {
+            ServiceCategory::Core => "Core",
+            ServiceCategory::Agent => "Agent",
+            ServiceCategory::Mcp => "MCP",
+            ServiceCategory::Meta => "Meta",
+        };
+        assert_eq!(cat.display_name(), expected);
     }
 }
 

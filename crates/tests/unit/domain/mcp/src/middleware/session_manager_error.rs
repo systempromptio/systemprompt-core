@@ -40,7 +40,8 @@ fn database_variant_source_is_some() {
     use std::error::Error;
     let inner = McpDomainError::Internal("src".to_owned());
     let e = DatabaseSessionManagerError::Database(inner);
-    assert!(e.source().is_some());
+    let src = e.source().expect("database variant has a source");
+    assert!(src.to_string().contains("src"));
 }
 
 #[test]
@@ -66,14 +67,26 @@ fn session_needs_reconnect_source_is_none() {
 
 #[test]
 fn debug_format_all_variants() {
-    let variants: Vec<DatabaseSessionManagerError> = vec![
-        DatabaseSessionManagerError::SessionNotFound("a".to_owned()),
-        DatabaseSessionManagerError::SessionExpired("b".to_owned()),
-        DatabaseSessionManagerError::SessionNeedsReconnect("c".to_owned()),
-        DatabaseSessionManagerError::Database(McpDomainError::Internal("d".to_owned())),
+    let variants: Vec<(DatabaseSessionManagerError, &str)> = vec![
+        (
+            DatabaseSessionManagerError::SessionNotFound("a".to_owned()),
+            "SessionNotFound",
+        ),
+        (
+            DatabaseSessionManagerError::SessionExpired("b".to_owned()),
+            "SessionExpired",
+        ),
+        (
+            DatabaseSessionManagerError::SessionNeedsReconnect("c".to_owned()),
+            "SessionNeedsReconnect",
+        ),
+        (
+            DatabaseSessionManagerError::Database(McpDomainError::Internal("d".to_owned())),
+            "Database",
+        ),
     ];
-    for v in variants {
+    for (v, name) in variants {
         let s = format!("{v:?}");
-        assert!(!s.is_empty());
+        assert!(s.contains(name), "got: {s}");
     }
 }

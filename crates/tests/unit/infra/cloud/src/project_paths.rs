@@ -316,6 +316,11 @@ fn unified_context_clone_debug() {
 fn discovered_project_discover_from_root() {
     let tmp = TempDir::new().unwrap();
     make_project(tmp.path());
-    let proj = DiscoveredProject::discover_from(tmp.path());
-    assert!(proj.is_some());
+    let proj = DiscoveredProject::discover_from(tmp.path()).expect("project should be discovered");
+    assert!(
+        proj.systemprompt_dir().ends_with(".systemprompt"),
+        "discovered systemprompt dir: {:?}",
+        proj.systemprompt_dir()
+    );
+    assert_eq!(proj.systemprompt_dir(), proj.root().join(".systemprompt"));
 }

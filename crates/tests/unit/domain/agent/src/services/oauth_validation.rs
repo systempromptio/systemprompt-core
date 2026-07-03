@@ -172,5 +172,6 @@ async fn validate_oauth_string_id_compatible() {
     let id = NumberOrString::String("req-abc".to_string());
     let provider = StubJwtProvider::ok(claims_admin());
     let result = validate_oauth_for_request(&headers, &id, &[], Some(&provider)).await;
-    assert!(result.is_ok());
+    let value = result.expect("ok").expect("Some");
+    assert_eq!(value.get("username"), Some(&serde_json::json!("admin")));
 }

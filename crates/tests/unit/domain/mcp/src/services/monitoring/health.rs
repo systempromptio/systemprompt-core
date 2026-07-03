@@ -59,13 +59,13 @@ fn test_health_status_all_variants_as_str() {
 #[test]
 fn test_health_status_all_variants_emoji_non_empty() {
     let variants = [
-        HealthStatus::Healthy,
-        HealthStatus::Degraded,
-        HealthStatus::Unhealthy,
-        HealthStatus::Unknown,
+        (HealthStatus::Healthy, "\u{2705}"),
+        (HealthStatus::Degraded, "\u{26a0}\u{fe0f}"),
+        (HealthStatus::Unhealthy, "\u{274c}"),
+        (HealthStatus::Unknown, "\u{2753}"),
     ];
 
-    for status in variants {
-        assert!(!status.emoji().is_empty());
+    for (status, expected) in variants {
+        assert_eq!(status.emoji(), expected);
     }
 }

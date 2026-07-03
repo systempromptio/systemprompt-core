@@ -25,7 +25,7 @@ fn step_id_display_matches_inner_value() {
 #[test]
 fn step_id_default_generates_uuid() {
     let id = StepId::default();
-    assert!(!id.as_str().is_empty());
+    assert_eq!(id.as_str().len(), 36);
 }
 
 #[test]
@@ -363,7 +363,7 @@ fn test_task_id() -> TaskId {
 fn execution_step_understanding_is_completed_immediately() {
     let step = ExecutionStep::understanding(test_task_id());
     assert_eq!(step.status, StepStatus::Completed);
-    assert!(step.completed_at.is_some());
+    assert!(step.completed_at.expect("completed_at set") >= step.started_at);
     assert_eq!(step.duration_ms, Some(0));
 }
 
@@ -410,7 +410,7 @@ fn execution_step_tool_execution_arguments() {
 fn execution_step_completion_is_completed_immediately() {
     let step = ExecutionStep::completion(test_task_id());
     assert_eq!(step.status, StepStatus::Completed);
-    assert!(step.completed_at.is_some());
+    assert!(step.completed_at.expect("completed_at set") >= step.started_at);
 }
 
 #[test]
@@ -449,8 +449,8 @@ fn execution_step_complete_sets_completed_status() {
     let mut step = ExecutionStep::tool_execution(test_task_id(), "tool", serde_json::json!({}));
     step.complete(None);
     assert_eq!(step.status, StepStatus::Completed);
-    assert!(step.completed_at.is_some());
-    assert!(step.duration_ms.is_some());
+    assert!(step.completed_at.expect("completed_at set") >= step.started_at);
+    assert!(step.duration_ms.expect("duration_ms set") >= 0);
 }
 
 #[test]
@@ -479,14 +479,14 @@ fn execution_step_fail_sets_failed_status() {
 fn execution_step_fail_sets_completed_at() {
     let mut step = ExecutionStep::tool_execution(test_task_id(), "tool", serde_json::json!({}));
     step.fail("error".to_string());
-    assert!(step.completed_at.is_some());
+    assert!(step.completed_at.expect("completed_at set") >= step.started_at);
 }
 
 #[test]
 fn execution_step_fail_sets_duration() {
     let mut step = ExecutionStep::tool_execution(test_task_id(), "tool", serde_json::json!({}));
     step.fail("error".to_string());
-    assert!(step.duration_ms.is_some());
+    assert!(step.duration_ms.expect("duration_ms set") >= 0);
 }
 
 #[test]

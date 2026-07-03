@@ -226,7 +226,7 @@ mod behavioral_bot_detector_tests {
 
         if result.is_suspicious {
             let reason = result.reason.unwrap();
-            assert!(!reason.is_empty());
+            assert!(reason.contains("high_request_count"));
         }
     }
 

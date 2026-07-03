@@ -59,8 +59,16 @@ fn test_cli_output_event() -> CliOutputEvent {
 #[test]
 fn test_agui_event_to_sse_succeeds() {
     let event = test_agui_event();
-    let result = event.to_sse();
-    let _ = result.expect("result should succeed");
+    let sse_event = event.to_sse().expect("agui event should serialize");
+    let debug_str = format!("{:?}", sse_event);
+    assert!(
+        debug_str.contains("test-task"),
+        "frame missing task id: {debug_str}"
+    );
+    assert!(
+        debug_str.contains(TEST_CONTEXT_ID_A),
+        "frame missing context id: {debug_str}"
+    );
 }
 
 #[test]
@@ -74,8 +82,16 @@ fn test_agui_event_to_sse_produces_valid_json() {
 #[test]
 fn test_a2a_event_to_sse_succeeds() {
     let event = test_a2a_event();
-    let result = event.to_sse();
-    let _ = result.expect("result should succeed");
+    let sse_event = event.to_sse().expect("a2a event should serialize");
+    let debug_str = format!("{:?}", sse_event);
+    assert!(
+        debug_str.contains("test message"),
+        "frame missing status message: {debug_str}"
+    );
+    assert!(
+        debug_str.contains("test-task"),
+        "frame missing task id: {debug_str}"
+    );
 }
 
 #[test]
@@ -89,8 +105,12 @@ fn test_a2a_event_to_sse_produces_valid_json() {
 #[test]
 fn test_system_event_to_sse_succeeds() {
     let event = test_system_event();
-    let result = event.to_sse();
-    let _ = result.expect("result should succeed");
+    let sse_event = event.to_sse().expect("system event should serialize");
+    let debug_str = format!("{:?}", sse_event);
+    assert!(
+        debug_str.contains("HEARTBEAT"),
+        "frame missing heartbeat marker: {debug_str}"
+    );
 }
 
 #[test]
@@ -104,22 +124,40 @@ fn test_system_event_to_sse_produces_valid_json() {
 #[test]
 fn test_context_event_agui_to_sse_succeeds() {
     let event = test_context_event_agui();
-    let result = event.to_sse();
-    let _ = result.expect("result should succeed");
+    let sse_event = event.to_sse().expect("context agui event should serialize");
+    let debug_str = format!("{:?}", sse_event);
+    assert!(
+        debug_str.contains("test-task"),
+        "frame missing task id: {debug_str}"
+    );
+    assert!(
+        debug_str.contains(TEST_CONTEXT_ID_A),
+        "frame missing context id: {debug_str}"
+    );
 }
 
 #[test]
 fn test_context_event_system_to_sse_succeeds() {
     let event = test_context_event_system();
-    let result = event.to_sse();
-    let _ = result.expect("result should succeed");
+    let sse_event = event
+        .to_sse()
+        .expect("context system event should serialize");
+    let debug_str = format!("{:?}", sse_event);
+    assert!(
+        debug_str.contains("HEARTBEAT"),
+        "frame missing heartbeat marker: {debug_str}"
+    );
 }
 
 #[test]
 fn test_analytics_event_to_sse_succeeds() {
     let event = test_analytics_event();
-    let result = event.to_sse();
-    let _ = result.expect("result should succeed");
+    let sse_event = event.to_sse().expect("analytics event should serialize");
+    let debug_str = format!("{:?}", sse_event);
+    assert!(
+        debug_str.contains("/test-page"),
+        "frame missing page path: {debug_str}"
+    );
 }
 
 #[test]
@@ -133,8 +171,16 @@ fn test_analytics_event_to_sse_produces_valid_json() {
 #[test]
 fn test_cli_output_event_to_sse_succeeds() {
     let event = test_cli_output_event();
-    let result = event.to_sse();
-    let _ = result.expect("result should succeed");
+    let sse_event = event.to_sse().expect("cli output event should serialize");
+    let debug_str = format!("{:?}", sse_event);
+    assert!(
+        debug_str.contains("cli"),
+        "frame missing cli event name: {debug_str}"
+    );
+    assert!(
+        debug_str.contains("test output"),
+        "frame missing stdout data: {debug_str}"
+    );
 }
 
 #[test]
@@ -150,22 +196,42 @@ fn test_cli_output_event_error_to_sse() {
     let event = CliOutputEvent::Stderr {
         data: "error message".to_string(),
     };
-    let result = event.to_sse();
-    let _ = result.expect("result should succeed");
+    let sse_event = event.to_sse().expect("cli stderr event should serialize");
+    let debug_str = format!("{:?}", sse_event);
+    assert!(
+        debug_str.contains("cli"),
+        "frame missing cli event name: {debug_str}"
+    );
+    assert!(
+        debug_str.contains("error message"),
+        "frame missing stderr data: {debug_str}"
+    );
 }
 
 #[test]
 fn test_cli_output_event_started_to_sse() {
     let event = CliOutputEvent::Started { pid: 12345 };
-    let result = event.to_sse();
-    let _ = result.expect("result should succeed");
+    let sse_event = event.to_sse().expect("cli started event should serialize");
+    let debug_str = format!("{:?}", sse_event);
+    assert!(
+        debug_str.contains("12345"),
+        "frame missing pid: {debug_str}"
+    );
 }
 
 #[test]
 fn test_cli_output_event_exit_code_to_sse() {
     let event = CliOutputEvent::ExitCode { code: 0 };
-    let result = event.to_sse();
-    let _ = result.expect("result should succeed");
+    let sse_event = event.to_sse().expect("cli exit event should serialize");
+    let debug_str = format!("{:?}", sse_event);
+    assert!(
+        debug_str.contains("cli"),
+        "frame missing cli event name: {debug_str}"
+    );
+    assert!(
+        debug_str.contains('0'),
+        "frame missing exit code: {debug_str}"
+    );
 }
 
 #[test]
@@ -173,16 +239,26 @@ fn test_cli_output_event_error_variant_to_sse() {
     let event = CliOutputEvent::Error {
         message: "Something went wrong".to_string(),
     };
-    let result = event.to_sse();
-    let _ = result.expect("result should succeed");
+    let sse_event = event.to_sse().expect("cli error event should serialize");
+    let debug_str = format!("{:?}", sse_event);
+    assert!(
+        debug_str.contains("Something went wrong"),
+        "frame missing error message: {debug_str}"
+    );
 }
 
 #[test]
 fn test_context_event_a2a_to_sse_succeeds() {
     let a2a_event = test_a2a_event();
     let context_event: ContextEvent = a2a_event.into();
-    let result = context_event.to_sse();
-    let _ = result.expect("result should succeed");
+    let sse_event = context_event
+        .to_sse()
+        .expect("context a2a event should serialize");
+    let debug_str = format!("{:?}", sse_event);
+    assert!(
+        debug_str.contains("test message"),
+        "frame missing status message: {debug_str}"
+    );
 }
 
 #[test]
@@ -219,16 +295,30 @@ fn test_system_event_heartbeat_serialization() {
 #[test]
 fn test_analytics_event_heartbeat() {
     let event = AnalyticsEventBuilder::heartbeat();
-    let result = event.to_sse();
-    let _ = result.expect("result should succeed");
+    let sse_event = event
+        .to_sse()
+        .expect("analytics heartbeat should serialize");
+    let debug_str = format!("{:?}", sse_event);
+    assert!(
+        debug_str.contains("HEARTBEAT"),
+        "frame missing heartbeat marker: {debug_str}"
+    );
 }
 
 #[test]
 fn test_analytics_event_session_ended() {
     let event =
         AnalyticsEventBuilder::session_ended("test-session".to_string().into(), 60000, 5, 10);
-    let result = event.to_sse();
-    let _ = result.expect("result should succeed");
+    let sse_event = event.to_sse().expect("session_ended should serialize");
+    let debug_str = format!("{:?}", sse_event);
+    assert!(
+        debug_str.contains("test-session"),
+        "frame missing session id: {debug_str}"
+    );
+    assert!(
+        debug_str.contains("60000"),
+        "frame missing duration: {debug_str}"
+    );
 }
 
 #[test]
@@ -240,13 +330,25 @@ fn test_analytics_event_engagement_update() {
         30000,
         3,
     );
-    let result = event.to_sse();
-    let _ = result.expect("result should succeed");
+    let sse_event = event.to_sse().expect("engagement_update should serialize");
+    let debug_str = format!("{:?}", sse_event);
+    assert!(
+        debug_str.contains("/test-page"),
+        "frame missing page path: {debug_str}"
+    );
+    assert!(
+        debug_str.contains("75"),
+        "frame missing engagement score: {debug_str}"
+    );
 }
 
 #[test]
 fn test_analytics_event_realtime_stats() {
     let event = AnalyticsEventBuilder::realtime_stats(100, 50, 200, 500, 10);
-    let result = event.to_sse();
-    let _ = result.expect("result should succeed");
+    let sse_event = event.to_sse().expect("realtime_stats should serialize");
+    let debug_str = format!("{:?}", sse_event);
+    assert!(
+        debug_str.contains("100"),
+        "frame missing active-user count: {debug_str}"
+    );
 }

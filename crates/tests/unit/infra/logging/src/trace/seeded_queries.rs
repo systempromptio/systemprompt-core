@@ -7,7 +7,9 @@
 //! mapped [`TraceEvent`]/[`McpToolExecution`]/[`TaskArtifact`] shapes, driving
 //! the detail/metadata formatting and the failed-status truncation branches.
 
+use chrono::{Duration as ChronoDuration, Utc};
 use systemprompt_identifiers::{ContextId, TaskId, TraceId};
+use systemprompt_logging::trace::{ToolExecutionFilter, TraceListFilter};
 use systemprompt_logging::{AiTraceService, TraceQueryService};
 use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
 
@@ -17,6 +19,8 @@ struct Seed {
     context_id: String,
     task_id: String,
     trace_id: String,
+    agent_name: String,
+    tool_name: String,
 }
 
 impl Seed {
@@ -30,6 +34,8 @@ impl Seed {
         let context_id = ContextId::generate().as_str().to_owned();
         let task_id = format!("seed_task_{tag}");
         let trace_id = format!("seed_trace_{tag}");
+        let agent_name = format!("seed_agent_{tag}");
+        let tool_name = format!("seed_tool_{tag}");
 
         sqlx::query("INSERT INTO users (id, name, email) VALUES ($1, $2, $3)")
             .bind(&user_id)
@@ -49,13 +55,14 @@ impl Seed {
 
         sqlx::query(
             "INSERT INTO agent_tasks (task_id, context_id, user_id, session_id, trace_id, \
-             agent_name) VALUES ($1, $2, $3, $4, $5, 'seed-agent')",
+             agent_name) VALUES ($1, $2, $3, $4, $5, $6)",
         )
         .bind(&task_id)
         .bind(&context_id)
         .bind(&user_id)
         .bind(format!("sess-{tag}"))
         .bind(&trace_id)
+        .bind(&agent_name)
         .execute(&pool)
         .await
         .ok()?;
@@ -66,6 +73,8 @@ impl Seed {
             context_id,
             task_id,
             trace_id,
+            agent_name,
+            tool_name,
         })
     }
 
@@ -75,7 +84,7 @@ impl Seed {
             "INSERT INTO mcp_tool_executions \
              (mcp_execution_id, tool_name, server_name, started_at, execution_time_ms, input, \
               output, status, error_message, user_id, session_id, task_id, context_id, trace_id) \
-             VALUES ($1, 'search', 'srv', now(), $2, '{}', 'out', $3, $4, $5, 'sess', $6, $7, $8)",
+             VALUES ($1, $9, 'srv', now(), $2, '{}', 'out', $3, $4, $5, 'sess', $6, $7, $8)",
         )
         .bind(&id)
         .bind(elapsed)
@@ -85,6 +94,7 @@ impl Seed {
         .bind(&self.task_id)
         .bind(&self.context_id)
         .bind(&self.trace_id)
+        .bind(&self.tool_name)
         .execute(&self.pool)
         .await
         .unwrap();
@@ -250,7 +260,10 @@ async fn step_queries_map_seeded_mcp_and_step_rows() {
         "long error message must be truncated: {}",
         failed.details
     );
-    assert!(failed.context_id.is_some());
+    assert_eq!(
+        failed.context_id.as_ref().map(|c| c.as_str()),
+        Some(seed.context_id.as_str())
+    );
 
     let step_summary = svc.get_execution_step_summary(&trace_id).await.unwrap();
     assert_eq!(step_summary.total, 6);
@@ -292,7 +305,7 @@ async fn mcp_trace_queries_map_seeded_rows() {
 
     let executions = svc.get_mcp_executions(&task_id, &ctx_id).await.unwrap();
     assert_eq!(executions.len(), 1);
-    assert_eq!(executions[0].tool_name, "search");
+    assert_eq!(executions[0].tool_name, seed.tool_name);
     assert_eq!(executions[0].server_name, "srv");
     assert_eq!(executions[0].status, "success");
     assert_eq!(executions[0].execution_time_ms, Some(11));
@@ -319,6 +332,85 @@ async fn mcp_trace_queries_map_seeded_rows() {
             .iter()
             .any(|l| l.message.contains("Tool executed"))
     );
+
+    seed.cleanup().await;
+}
+
+#[tokio::test]
+async fn filtered_lists_surface_seeded_rows() {
+    let Some(seed) = Seed::new().await else {
+        return;
+    };
+
+    seed.insert_mcp("success", None, 21).await;
+    seed.insert_tool_log().await;
+
+    let svc = TraceQueryService::new(std::sync::Arc::new(seed.pool.clone()));
+
+    let f = ToolExecutionFilter::new(10)
+        .with_name(seed.tool_name.clone())
+        .with_server("srv".to_owned())
+        .with_status("success".to_owned())
+        .with_since(Utc::now() - ChronoDuration::hours(1));
+    let executions = svc.list_tool_executions(&f).await.unwrap();
+    assert_eq!(
+        executions.len(),
+        1,
+        "unique tool name must match exactly once"
+    );
+    assert_eq!(executions[0].trace_id.as_str(), seed.trace_id);
+    assert_eq!(executions[0].tool_name, seed.tool_name);
+    assert_eq!(executions[0].server_name.as_deref(), Some("srv"));
+    assert_eq!(executions[0].status, "success");
+    assert_eq!(executions[0].execution_time_ms, Some(21));
+
+    let mismatched = ToolExecutionFilter::new(10)
+        .with_name(seed.tool_name.clone())
+        .with_status("failed".to_owned());
+    assert!(
+        svc.list_tool_executions(&mismatched)
+            .await
+            .unwrap()
+            .is_empty()
+    );
+
+    let searched = svc
+        .search_tool_executions(&seed.tool_name, None, 10)
+        .await
+        .unwrap();
+    assert_eq!(searched.len(), 1);
+    assert_eq!(searched[0].trace_id.as_str(), seed.trace_id);
+
+    let traces = svc
+        .list_traces(
+            &TraceListFilter::new(10)
+                .with_agent(seed.agent_name.clone())
+                .with_has_mcp(true),
+        )
+        .await
+        .unwrap();
+    let item = traces
+        .iter()
+        .find(|t| t.trace_id.as_str() == seed.trace_id)
+        .expect("seeded trace must surface through the agent filter");
+    assert_eq!(item.agent.as_deref(), Some(seed.agent_name.as_str()));
+    assert_eq!(item.mcp_calls, 1);
+
+    let by_tool = svc
+        .list_traces(&TraceListFilter::new(10).with_tool(seed.tool_name.clone()))
+        .await
+        .unwrap();
+    assert!(
+        by_tool.iter().any(|t| t.trace_id.as_str() == seed.trace_id),
+        "seeded trace must surface through the tool filter"
+    );
+
+    let logs = svc
+        .find_logs_by_trace_id(&TraceId::new(seed.trace_id.as_str()))
+        .await
+        .unwrap();
+    assert_eq!(logs.len(), 1);
+    assert_eq!(logs[0].module, "agent_tools");
 
     seed.cleanup().await;
 }

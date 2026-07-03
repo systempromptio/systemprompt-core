@@ -87,16 +87,18 @@ fn get_process_by_port_returns_none_for_unbound_port() {
 
 #[tokio::test]
 async fn wait_for_port_free_returns_ok_when_unbound() {
-    let result = ProcessCleanup::wait_for_port_free(UNLIKELY_PORT, 1, 1).await;
-    assert!(result.is_ok());
+    ProcessCleanup::wait_for_port_free(UNLIKELY_PORT, 1, 1)
+        .await
+        .expect("unbound port reported free");
 }
 
 #[tokio::test]
 async fn wait_for_port_free_returns_ok_for_protected_port() {
     // Protected ports are reported as "not occupied" by check_port, so the
     // wait loop exits with Ok on the first iteration.
-    let result = ProcessCleanup::wait_for_port_free(POSTGRES_PORT, 2, 1).await;
-    assert!(result.is_ok());
+    ProcessCleanup::wait_for_port_free(POSTGRES_PORT, 2, 1)
+        .await
+        .expect("protected port reported free");
 }
 
 #[tokio::test]

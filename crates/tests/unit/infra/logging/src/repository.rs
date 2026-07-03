@@ -49,7 +49,7 @@ fn make_entry(module: &str, msg: &str, actor: &(UserId, SessionId, TraceId)) -> 
 #[tokio::test]
 async fn repository_new_succeeds() {
     let Some(db) = pool().await else { return };
-    let _ = LoggingRepository::new(&db).expect("repo new");
+    drop(LoggingRepository::new(&db).expect("repo new"));
 }
 
 #[tokio::test]
@@ -122,7 +122,8 @@ async fn get_recent_logs_returns_inserted_rows() {
     let found = recent.iter().filter(|e| e.module == "recent-mod").count();
     assert!(found >= 3);
 
-    let _ = repo.delete_log_entries(&ids).await.unwrap();
+    let deleted = repo.delete_log_entries(&ids).await.unwrap();
+    assert_eq!(deleted, ids.len() as u64, "all seeded rows must be deleted");
 }
 
 #[tokio::test]
@@ -147,7 +148,12 @@ async fn get_logs_paginated_with_filter() {
         .with_module("paginated-mod");
     let (rows, total) = repo.get_logs_paginated(&filter).await.unwrap();
     assert!(total >= 2);
-    assert!(!rows.is_empty());
+    for id in &ids {
+        assert!(
+            rows.iter().any(|r| r.id == *id),
+            "seeded row {id} must appear on the filtered first page"
+        );
+    }
 
     repo.delete_log_entries(&ids).await.unwrap();
 }

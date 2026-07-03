@@ -7,6 +7,7 @@ use std::sync::Arc;
 use axum::http::StatusCode;
 use systemprompt_agent::models::a2a::A2aJsonRpcRequest;
 use systemprompt_agent::models::a2a::jsonrpc::RequestId;
+use systemprompt_agent::models::a2a::protocol::A2aRequestParams;
 use systemprompt_agent::services::a2a_server::handlers::request::helpers::parse_a2a_request;
 use systemprompt_agent::services::a2a_server::handlers::request::validation::{
     should_require_oauth, validate_message_context,
@@ -40,8 +41,16 @@ async fn parse_a2a_request_accepts_valid_send_message() {
     );
     let id = RequestId::Number(7);
 
-    let parsed = parse_a2a_request(&request, &id).await;
-    assert!(parsed.is_ok(), "valid message/send must parse");
+    let parsed = parse_a2a_request(&request, &id)
+        .await
+        .map_err(|_| ())
+        .expect("valid message/send must parse");
+    match parsed {
+        A2aRequestParams::SendMessage(params) => {
+            assert_eq!(params.message.context_id, ctx);
+        },
+        other => panic!("expected SendMessage variant, got {other:?}"),
+    }
 }
 
 #[tokio::test]
@@ -134,8 +143,9 @@ async fn validate_message_context_accepts_owned_context() {
     let (user, session) = seed_user_and_session(&pool).await;
     let (ctx, _) = seed_context_and_task(&repos, &user, &session).await;
 
-    let result = validate_message_context(&user_message(&ctx), Some(&user), &pool).await;
-    assert!(result.is_ok(), "owned context must validate: {result:?}");
+    validate_message_context(&user_message(&ctx), Some(&user), &pool)
+        .await
+        .expect("owned context must validate");
 }
 
 #[tokio::test]

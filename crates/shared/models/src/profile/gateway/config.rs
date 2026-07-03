@@ -165,8 +165,14 @@ impl GatewayConfig {
         ids
     }
 
-    /// `upstream_model` is left `None` so the requested model passes through
-    /// unchanged; per-model rewrites live in the registry, applied downstream.
+    /// `upstream_model` is left `None` **by design**: the `*` catch-all route
+    /// forwards the requested model name to `default_provider` verbatim.
+    /// Per-model rewrites live in the registry, applied downstream. Which
+    /// names may reach this route at all is governed by the closed allowlist
+    /// in [`Self::is_model_exposed`]; a profile that opts into
+    /// `allow_unlisted_models` accepts that unlisted names are not validated
+    /// at the gateway — the upstream provider's error is the rejection signal.
+    /// Shipped profiles keep the opt-in off.
     fn synthesize_default_route(&self, registry: &ProviderRegistry) -> Option<GatewayRoute> {
         let provider = self.default_provider.as_ref()?;
         registry.find_provider(provider.as_str())?;

@@ -113,7 +113,7 @@ fn connection_info_full() {
     };
     assert_eq!(info.name, "conn-srv");
     assert_eq!(info.port, 4321);
-    assert!(info.display_name.is_some());
+    assert_eq!(info.display_name.as_deref(), Some("Connection Server"));
 }
 
 #[test]

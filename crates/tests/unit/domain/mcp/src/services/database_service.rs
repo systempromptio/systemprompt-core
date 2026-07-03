@@ -61,11 +61,44 @@ async fn sync_state_empty_runs() {
 }
 
 #[tokio::test]
-async fn delete_disabled_services_empty_runs() {
+async fn delete_disabled_services_removes_only_the_disabled_service() {
+    use crate::harness::internal_mcp_config;
+    use systemprompt_database::{CreateServiceInput, ServiceRepository};
+
     let Some(svc) = make_db_service().await else {
         return;
     };
-    let _ = svc.delete_disabled_services(&[]).await.unwrap();
+    let repo = ServiceRepository::new(svc.db_pool()).unwrap();
+    let keep = format!("dbsvc-keep-{}", uuid::Uuid::new_v4().simple());
+    let drop_name = format!("dbsvc-drop-{}", uuid::Uuid::new_v4().simple());
+    for (name, port) in [(&keep, 65512u16), (&drop_name, 65511u16)] {
+        repo.create_service(CreateServiceInput {
+            name,
+            module_name: "mcp",
+            status: "stopped",
+            port,
+            binary_mtime: None,
+        })
+        .await
+        .unwrap();
+    }
+
+    let enabled = [internal_mcp_config(&keep, 65512)];
+    let deleted = svc.delete_disabled_services(&enabled).await.unwrap();
+    assert!(deleted >= 1, "at least the disabled service is deleted");
+    assert!(
+        repo.find_service_by_name(&keep).await.unwrap().is_some(),
+        "the enabled service is preserved"
+    );
+    assert!(
+        repo.find_service_by_name(&drop_name)
+            .await
+            .unwrap()
+            .is_none(),
+        "the disabled service is removed"
+    );
+
+    repo.delete_service(&keep).await.unwrap();
 }
 
 #[tokio::test]

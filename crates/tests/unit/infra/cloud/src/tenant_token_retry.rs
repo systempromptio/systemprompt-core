@@ -92,8 +92,10 @@ async fn tenant_delete_retries_once_after_401() {
         .await;
 
     let client = CloudApiClient::new(&server.uri(), "op").unwrap();
-    let res = client.delete_tenant(&TenantId::new("t-del")).await;
-    assert!(res.is_ok());
+    client
+        .delete_tenant(&TenantId::new("t-del"))
+        .await
+        .expect("delete_tenant should succeed against the 204 mock");
 }
 
 #[tokio::test]

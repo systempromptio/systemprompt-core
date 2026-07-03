@@ -434,5 +434,5 @@ fn applied_migration_fields() {
         applied_at: Some("2026-01-01T00:00:00Z".to_string()),
     };
     assert_eq!(m.version, 7);
-    assert!(m.applied_at.is_some());
+    assert_eq!(m.applied_at.as_deref(), Some("2026-01-01T00:00:00Z"));
 }

@@ -5,11 +5,12 @@
 use std::collections::BTreeMap;
 
 use chrono::{Duration, Utc};
-use systemprompt_identifiers::{Actor, ClientId, SessionId, UserId};
+use systemprompt_identifiers::{Actor, ClientId, ContextId, SessionId, TaskId, UserId};
 use systemprompt_mcp::middleware::rbac::build_mcp_authz_request;
 use systemprompt_models::auth::{
     JwtAudience, JwtClaims, Permission, RateLimitTier, TokenType, UserType,
 };
+use systemprompt_models::execution::context::ExecutionContext;
 use systemprompt_security::authz::{AuthzContext, EntityRef};
 
 fn claims_with(roles: Vec<String>, attributes: BTreeMap<String, serde_json::Value>) -> JwtClaims {
@@ -38,6 +39,14 @@ fn claims_with(roles: Vec<String>, attributes: BTreeMap<String, serde_json::Valu
     }
 }
 
+fn execution_with(context: &str, task: Option<&str>) -> ExecutionContext {
+    ExecutionContext {
+        context_id: ContextId::new(context),
+        task_id: task.map(TaskId::new),
+        ..ExecutionContext::default()
+    }
+}
+
 #[test]
 fn forwards_roles_and_attributes_from_claims() {
     let mut attrs = BTreeMap::new();
@@ -45,26 +54,66 @@ fn forwards_roles_and_attributes_from_claims() {
     let claims = claims_with(vec!["eng".to_owned(), "platform".to_owned()], attrs.clone());
     let act_chain: Vec<Actor> = vec![Actor::user(UserId::new("user_42"))];
 
-    let req = build_mcp_authz_request("server-x", &claims, act_chain.clone(), None);
+    let req = build_mcp_authz_request(
+        "server-x",
+        &claims,
+        act_chain.clone(),
+        &execution_with("22222222-2222-4222-8222-222222222222", Some("task-7")),
+        None,
+    );
 
     assert_eq!(req.user_id.as_str(), "user_42");
     assert_eq!(req.roles, vec!["eng".to_owned(), "platform".to_owned()]);
     assert_eq!(req.attributes, attrs);
     assert_eq!(req.act_chain.len(), act_chain.len());
     assert!(matches!(req.entity, EntityRef::McpServer(_)));
+    assert_eq!(
+        req.context_id,
+        Some(ContextId::new("22222222-2222-4222-8222-222222222222"))
+    );
+    assert_eq!(req.task_id, Some(TaskId::new("task-7")));
+}
+
+#[test]
+fn tool_call_without_task_forwards_context_only() {
+    let claims = claims_with(vec![], BTreeMap::new());
+    let req = build_mcp_authz_request(
+        "server-x",
+        &claims,
+        Vec::new(),
+        &execution_with("22222222-2222-4222-8222-222222222222", None),
+        None,
+    );
+    assert_eq!(
+        req.context_id,
+        Some(ContextId::new("22222222-2222-4222-8222-222222222222"))
+    );
+    assert!(req.task_id.is_none());
 }
 
 #[test]
 fn empty_attributes_round_trip() {
     let claims = claims_with(vec![], BTreeMap::new());
-    let req = build_mcp_authz_request("server-x", &claims, Vec::new(), None);
+    let req = build_mcp_authz_request(
+        "server-x",
+        &claims,
+        Vec::new(),
+        &execution_with("22222222-2222-4222-8222-222222222222", None),
+        None,
+    );
     assert!(req.attributes.is_empty());
 }
 
 #[test]
 fn no_floor_yields_plain_none_context() {
     let claims = claims_with(vec![], BTreeMap::new());
-    let req = build_mcp_authz_request("server-x", &claims, Vec::new(), None);
+    let req = build_mcp_authz_request(
+        "server-x",
+        &claims,
+        Vec::new(),
+        &execution_with("22222222-2222-4222-8222-222222222222", None),
+        None,
+    );
     assert!(req.context.is_none());
     assert!(req.context.marketplace_floor().is_none());
 }
@@ -78,7 +127,13 @@ fn carries_marketplace_floor_when_present() {
         serde_json::json!(["Internal", "CUI"]),
     );
 
-    let req = build_mcp_authz_request("server-x", &claims, Vec::new(), Some(&floor));
+    let req = build_mcp_authz_request(
+        "server-x",
+        &claims,
+        Vec::new(),
+        &execution_with("22222222-2222-4222-8222-222222222222", None),
+        Some(&floor),
+    );
 
     assert_eq!(req.context.kind, AuthzContext::NONE_KIND);
     assert_eq!(req.context.marketplace_floor(), Some(floor));

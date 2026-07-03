@@ -85,5 +85,6 @@ async fn check_a2a_agent_health_returns_false_for_no_listener() {
 #[tokio::test]
 async fn check_agent_health_handles_numeric_name() {
     let res = check_agent_health("agent42").await;
-    assert!(res.is_ok());
+    let r: HealthCheckResult = res.expect("numeric name must resolve to a health result");
+    assert!(!r.healthy);
 }

@@ -41,7 +41,10 @@ fn inner_wraps_caller_error() {
     let io_err = std::io::Error::from(std::io::ErrorKind::ConnectionRefused);
     let err = ResilienceError::Inner(io_err);
     let msg = err.to_string();
-    assert!(!msg.is_empty());
+    assert!(
+        msg.to_lowercase().contains("refused"),
+        "transparent display should surface the inner io error: {msg}"
+    );
 }
 
 #[test]

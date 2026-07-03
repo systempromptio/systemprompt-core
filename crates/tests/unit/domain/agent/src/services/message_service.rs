@@ -127,6 +127,7 @@ async fn create_tool_execution_message_persists_synthetic_user_message() {
 
     let read = r.tasks.get_messages_by_task(&tid).await.expect("messages");
     assert_eq!(read.len(), 1);
+    assert_eq!(read[0].message_id.as_str(), message_id);
     assert_eq!(read[0].role, MessageRole::User);
     let parts = &read[0].parts;
     match &parts[0] {

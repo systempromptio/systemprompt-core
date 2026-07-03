@@ -40,8 +40,7 @@ async fn new_constructs_against_pool() {
     systemprompt_test_fixtures::ensure_test_bootstrap();
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let provider = Arc::new(StubAiProvider::new());
-    let processor = MessageProcessor::new(&pool, provider);
-    assert!(processor.is_ok());
+    MessageProcessor::new(&pool, provider).expect("processor constructs");
 }
 
 #[tokio::test]

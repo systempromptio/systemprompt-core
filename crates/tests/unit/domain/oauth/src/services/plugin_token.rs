@@ -34,7 +34,8 @@ fn issue_mints_rs256_token_with_kid_header() {
 
     let header = decode_header(&issued.token).expect("decode header");
     assert_eq!(header.alg, Algorithm::RS256);
-    assert!(header.kid.is_some());
+    let kid = header.kid.expect("kid header present");
+    assert!(!kid.is_empty(), "kid identifies the signing key");
 }
 
 #[test]

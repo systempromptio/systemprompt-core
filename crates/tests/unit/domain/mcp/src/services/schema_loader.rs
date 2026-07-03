@@ -50,9 +50,10 @@ fn load_schema_file_with_leading_comment_ok() {
     let file = dir.join("commented.sql");
     fs::write(&file, "-- setup\nCREATE TABLE test_a (id INTEGER)").expect("write");
 
-    let result = SchemaLoader::load_schema_file(&dir, "commented.sql");
+    let content = SchemaLoader::load_schema_file(&dir, "commented.sql")
+        .expect("file with leading comment loads");
     cleanup(&dir);
-    assert!(result.is_ok());
+    assert!(content.contains("CREATE TABLE"));
 }
 
 #[test]
@@ -134,15 +135,13 @@ fn validate_table_naming_if_not_exists_variant() {
     // "MCP_SESSIONS".starts_with("mcp") = false → validation fails.
     // Use uppercase module name to match:
     let sql = "CREATE TABLE IF NOT EXISTS MCP_SESSIONS (id TEXT PRIMARY KEY)";
-    let result = SchemaLoader::validate_table_naming(sql, "MCP");
-    assert!(result.is_ok());
+    SchemaLoader::validate_table_naming(sql, "MCP").expect("if-not-exists table matches prefix");
 }
 
 #[test]
 fn validate_table_naming_multiple_tables_same_prefix() {
     let sql = "CREATE TABLE MCP_SESSIONS (id INTEGER);\nCREATE TABLE MCP_TOOLS (id INTEGER);";
-    let result = SchemaLoader::validate_table_naming(sql, "MCP");
-    assert!(result.is_ok());
+    SchemaLoader::validate_table_naming(sql, "MCP").expect("multiple tables share prefix");
 }
 
 #[test]
@@ -150,8 +149,8 @@ fn validate_table_naming_hyphen_converted_to_underscore() {
     // module_prefix = "MY_SVC"; SQL uppercased table = "MY_SVC_TABLE".
     // "MY_SVC_TABLE".starts_with("MY_SVC") → ok.
     let sql = "CREATE TABLE MY_SVC_TABLE (id INTEGER)";
-    let result = SchemaLoader::validate_table_naming(sql, "MY-SVC");
-    assert!(result.is_ok());
+    SchemaLoader::validate_table_naming(sql, "MY-SVC")
+        .expect("hyphen converts to underscore prefix");
 }
 
 #[test]
@@ -185,8 +184,7 @@ fn load_schema_file_preserves_content_exactly() {
 #[test]
 fn validate_schema_syntax_backtick_quoted_table() {
     let sql = "CREATE TABLE `my_table` (id INTEGER)";
-    let result = SchemaLoader::validate_schema_syntax(sql);
-    assert!(result.is_ok());
+    SchemaLoader::validate_schema_syntax(sql).expect("backtick-quoted table is valid");
 }
 
 #[test]
@@ -194,6 +192,6 @@ fn validate_schema_syntax_comment_with_create_table_inside_passes_because_string
     // The validator uses string search (contains), not SQL parsing.
     // A comment line containing "CREATE TABLE" satisfies the contains() check.
     let sql = "-- CREATE TABLE reference\nSELECT 1";
-    let result = SchemaLoader::validate_schema_syntax(sql);
-    assert!(result.is_ok());
+    SchemaLoader::validate_schema_syntax(sql)
+        .expect("string-match validator accepts commented create table");
 }

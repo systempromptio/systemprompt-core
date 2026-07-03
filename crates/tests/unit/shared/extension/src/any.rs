@@ -105,8 +105,7 @@ fn schema_extension_wrapper_id() {
 #[test]
 fn schema_extension_wrapper_as_schema_returns_some() {
     let wrapper = SchemaExtensionWrapper::new(SchemaExt);
-    let schema = wrapper.as_schema();
-    assert!(schema.is_some());
+    wrapper.as_schema().expect("wrapper exposes schema");
 }
 
 #[test]

@@ -21,6 +21,8 @@ fn fixture() -> AuthzRequest {
         trace_id: TraceId::new("trace-1"),
         session_id: None,
         context: AuthzContext::gateway_invocation(&ModelId::new("claude-3")),
+        context_id: None,
+        task_id: None,
         act_chain: Vec::new(),
     }
 }

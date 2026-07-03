@@ -99,13 +99,17 @@ fn test_base_role_display_name_field() {
 #[test]
 fn test_base_role_description_field() {
     let role = BaseRoles::anonymous();
-    assert!(!role.description.is_empty());
+    assert_eq!(
+        role.description,
+        "Unauthenticated user with minimal permissions"
+    );
 }
 
 #[test]
 fn test_base_role_permissions_field() {
     let role = BaseRoles::anonymous();
-    assert!(!role.permissions.is_empty());
+    assert_eq!(role.permissions.len(), 1);
+    assert!(role.permissions.contains("users.read"));
 }
 
 #[test]
@@ -173,7 +177,9 @@ fn test_different_roles_have_different_permissions() {
 #[test]
 fn test_available_roles_is_static() {
     let roles: &'static [&'static str] = BaseRoles::available_roles();
-    assert!(!roles.is_empty());
+    assert_eq!(roles.len(), 2);
+    assert!(roles.contains(&BaseRoles::USER));
+    assert!(roles.contains(&BaseRoles::ADMIN));
 }
 
 mod act_claim {

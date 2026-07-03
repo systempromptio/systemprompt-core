@@ -93,8 +93,8 @@ fn into_api_error_carries_details_for_not_found() {
     let e = InternalApiError::not_found("User", "u-1");
     let api: ApiError = e.into();
     assert!(matches!(api.code, ErrorCode::NotFound));
-    assert!(api.details.is_some());
-    assert!(api.details.unwrap().contains("u-1"));
+    let details = api.details.expect("not-found carries details");
+    assert!(details.contains("u-1"));
 }
 
 #[test]

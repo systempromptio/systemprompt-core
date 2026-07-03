@@ -28,7 +28,7 @@ fn session_timeouts_init_only() {
         init: Some(Duration::from_millis(500)),
         keep_alive: None,
     };
-    assert!(t.init.is_some());
+    assert_eq!(t.init, Some(Duration::from_millis(500)));
     assert!(t.keep_alive.is_none());
 }
 
@@ -39,7 +39,7 @@ fn session_timeouts_keep_alive_only() {
         keep_alive: Some(Duration::from_millis(200)),
     };
     assert!(t.init.is_none());
-    assert!(t.keep_alive.is_some());
+    assert_eq!(t.keep_alive, Some(Duration::from_millis(200)));
 }
 
 #[test]

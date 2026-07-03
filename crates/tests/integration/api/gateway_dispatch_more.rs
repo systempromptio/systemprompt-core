@@ -91,7 +91,10 @@ fn map_dispatch_error_pre_audit_marks_persist() {
 fn map_dispatch_error_recorded_skips_persist() {
     let err = DispatchError::Recorded(anyhow::Error::new(PolicyDenied("nope".to_owned())));
     let rejection = map_dispatch_error(err).expect_err("policy denial is a rejection");
-    assert!(!rejection.persist, "already-recorded errors do not re-persist");
+    assert!(
+        !rejection.persist,
+        "already-recorded errors do not re-persist"
+    );
 }
 
 #[test]
@@ -156,7 +159,8 @@ async fn apply_system_prompt_override_is_noop_without_overrides() {
     let mut request = canonical();
     let before = request.system.clone();
     let descriptor =
-        apply_system_prompt_override(&config, &provider, "claude-test-upstream", &mut request).await;
+        apply_system_prompt_override(&config, &provider, "claude-test-upstream", &mut request)
+            .await;
     assert!(descriptor.is_none(), "no overrides configured");
     assert_eq!(request.system, before, "system prompt is untouched");
 }

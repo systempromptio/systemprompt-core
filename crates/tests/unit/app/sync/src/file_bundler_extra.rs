@@ -88,8 +88,13 @@ fn apply_rejects_disallowed_top_level_dir() {
 fn apply_accepts_directory_entries_in_allowed_paths() {
     let tarball = build_tarball_dir(&[("agents/a.yaml", b"agent: 1")], &["agents/"]);
     let tmp = TempDir::new().expect("tmp");
-    let _ = FileSyncService::apply(&tarball, tmp.path(), None).expect("apply");
+    let extracted = FileSyncService::apply(&tarball, tmp.path(), None).expect("apply");
+    assert!(extracted >= 1, "the file entry should be extracted");
     assert!(tmp.path().join("agents/a.yaml").exists());
+    assert_eq!(
+        std::fs::read(tmp.path().join("agents/a.yaml")).expect("read extracted file"),
+        b"agent: 1"
+    );
 }
 
 #[test]

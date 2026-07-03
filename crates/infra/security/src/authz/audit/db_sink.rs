@@ -5,7 +5,7 @@
 //! a deny to an allow.
 
 use async_trait::async_trait;
-use systemprompt_identifiers::{Actor, SessionId};
+use systemprompt_identifiers::{Actor, ContextId, SessionId, TaskId};
 
 use super::repository::{GovernanceDecisionRecord, GovernanceDecisionRepository};
 use super::{AuthzAuditSink, AuthzSource};
@@ -61,6 +61,8 @@ impl AuthzAuditSink for DbAuditSink {
             evaluated_rules: &evaluated,
             plugin_id: None,
             act_chain: &req.act_chain,
+            context_id: req.context_id.as_ref().map(ContextId::as_str),
+            task_id: req.task_id.as_ref().map(TaskId::as_str),
         };
         if let Err(err) = self.repo.insert(&record).await {
             tracing::error!(

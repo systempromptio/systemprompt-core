@@ -158,8 +158,9 @@ fn test_permission_hierarchy_order() {
 fn test_permission_from_str_all_variants() {
     use std::str::FromStr;
     for variant_str in Permission::ALL_VARIANTS {
-        let result = Permission::from_str(variant_str);
-        assert!(result.is_ok(), "Failed to parse '{variant_str}'");
+        let perm = Permission::from_str(variant_str)
+            .unwrap_or_else(|_| panic!("failed to parse '{variant_str}'"));
+        assert_eq!(perm.as_str(), *variant_str);
     }
 }
 

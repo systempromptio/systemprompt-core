@@ -11,26 +11,24 @@ fn test_empty_path_returns_error() {
 
 #[test]
 fn test_postgresql_url_accepted() {
-    let result = validate_database_path("postgresql://localhost:5432/testdb");
-    assert!(result.is_ok());
+    validate_database_path("postgresql://localhost:5432/testdb").expect("postgresql url accepted");
 }
 
 #[test]
 fn test_postgres_url_accepted() {
-    let result = validate_database_path("postgres://localhost:5432/testdb");
-    assert!(result.is_ok());
+    validate_database_path("postgres://localhost:5432/testdb").expect("postgres url accepted");
 }
 
 #[test]
 fn test_postgresql_url_with_credentials() {
-    let result = validate_database_path("postgresql://user:pass@localhost:5432/testdb");
-    assert!(result.is_ok());
+    validate_database_path("postgresql://user:pass@localhost:5432/testdb")
+        .expect("postgresql url with credentials accepted");
 }
 
 #[test]
 fn test_postgres_url_with_ssl_options() {
-    let result = validate_database_path("postgres://localhost:5432/testdb?sslmode=require");
-    assert!(result.is_ok());
+    validate_database_path("postgres://localhost:5432/testdb?sslmode=require")
+        .expect("postgres url with ssl options accepted");
 }
 
 #[test]
@@ -55,8 +53,7 @@ fn test_directory_path_returns_not_a_file_error() {
 fn test_existing_file_path_accepted() {
     let temp_file = NamedTempFile::new().unwrap();
     let file_path = temp_file.path().to_str().unwrap();
-    let result = validate_database_path(file_path);
-    assert!(result.is_ok());
+    validate_database_path(file_path).expect("existing file path accepted");
 }
 
 #[test]
@@ -87,12 +84,11 @@ fn test_postgresql_prefix_case_sensitive() {
 
 #[test]
 fn test_postgres_url_no_port() {
-    let result = validate_database_path("postgres://localhost/db");
-    assert!(result.is_ok());
+    validate_database_path("postgres://localhost/db").expect("postgres url without port accepted");
 }
 
 #[test]
 fn test_postgres_url_with_at_sign_in_password() {
-    let result = validate_database_path("postgres://user:p%40ss@localhost:5432/db");
-    assert!(result.is_ok());
+    validate_database_path("postgres://user:p%40ss@localhost:5432/db")
+        .expect("postgres url with at-sign in password accepted");
 }

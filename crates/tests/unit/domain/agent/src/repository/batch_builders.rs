@@ -229,7 +229,10 @@ fn build_artifacts_assembles_metadata_and_parts() {
     assert_eq!(artifact.metadata.artifact_type, "document");
     assert_eq!(artifact.metadata.execution_index, Some(3));
     assert_eq!(artifact.metadata.is_internal, Some(false));
-    assert!(artifact.metadata.rendering_hints.is_some());
+    assert_eq!(
+        artifact.metadata.rendering_hints,
+        Some(serde_json::json!({"kind": "markdown"}))
+    );
     assert_eq!(artifact.parts.len(), 3);
     assert!(matches!(artifact.parts[0], Part::Text(_)));
     assert!(matches!(artifact.parts[1], Part::File(_)));

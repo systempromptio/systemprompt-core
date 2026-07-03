@@ -5,12 +5,14 @@ use systemprompt_database::resilience::bulkhead::Bulkhead;
 #[test]
 fn admits_up_to_the_limit() {
     let bulkhead = Bulkhead::new("dep", 2);
-    let first = bulkhead.try_acquire();
-    let second = bulkhead.try_acquire();
+    let _first = bulkhead.try_acquire().expect("first permit within limit");
+    let _second = bulkhead.try_acquire().expect("second permit within limit");
 
-    assert!(first.is_ok());
-    assert!(second.is_ok());
     assert_eq!(bulkhead.limit(), 2);
+    assert!(
+        bulkhead.try_acquire().is_err(),
+        "third acquire exceeds the limit"
+    );
 }
 
 #[test]

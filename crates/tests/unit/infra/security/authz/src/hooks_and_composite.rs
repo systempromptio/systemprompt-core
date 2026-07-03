@@ -16,6 +16,8 @@ fn make_req() -> AuthzRequest {
         trace_id: TraceId::new("trace-1"),
         session_id: None,
         context: AuthzContext::none(),
+        context_id: None,
+        task_id: None,
         act_chain: vec![],
     }
 }

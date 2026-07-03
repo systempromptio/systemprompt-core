@@ -6,22 +6,19 @@ use systemprompt_mcp::services::schema::{
 #[test]
 fn validate_schema_syntax_valid_create_table() {
     let sql = "CREATE TABLE my_table (id INTEGER PRIMARY KEY, name TEXT)";
-    let result = SchemaLoader::validate_schema_syntax(sql);
-    assert!(result.is_ok());
+    SchemaLoader::validate_schema_syntax(sql).expect("create table is valid syntax");
 }
 
 #[test]
 fn validate_schema_syntax_valid_create_table_if_not_exists() {
     let sql = "CREATE TABLE IF NOT EXISTS my_table (id INTEGER PRIMARY KEY)";
-    let result = SchemaLoader::validate_schema_syntax(sql);
-    assert!(result.is_ok());
+    SchemaLoader::validate_schema_syntax(sql).expect("create table if not exists is valid");
 }
 
 #[test]
 fn validate_schema_syntax_valid_comment_then_create() {
     let sql = "-- Migration script\nCREATE TABLE my_table (id INTEGER PRIMARY KEY)";
-    let result = SchemaLoader::validate_schema_syntax(sql);
-    assert!(result.is_ok());
+    SchemaLoader::validate_schema_syntax(sql).expect("comment then create table is valid");
 }
 
 #[test]
@@ -55,22 +52,19 @@ fn validate_schema_syntax_rejects_alter_table() {
 #[test]
 fn validate_schema_syntax_valid_with_leading_whitespace() {
     let sql = "  CREATE TABLE my_table (id INTEGER PRIMARY KEY)";
-    let result = SchemaLoader::validate_schema_syntax(sql);
-    assert!(result.is_ok());
+    SchemaLoader::validate_schema_syntax(sql).expect("leading whitespace is valid");
 }
 
 #[test]
 fn validate_schema_syntax_valid_lowercase() {
     let sql = "create table my_table (id integer primary key)";
-    let result = SchemaLoader::validate_schema_syntax(sql);
-    assert!(result.is_ok());
+    SchemaLoader::validate_schema_syntax(sql).expect("lowercase create table is valid");
 }
 
 #[test]
 fn validate_schema_syntax_valid_mixed_case() {
     let sql = "Create Table my_table (id INTEGER PRIMARY KEY)";
-    let result = SchemaLoader::validate_schema_syntax(sql);
-    assert!(result.is_ok());
+    SchemaLoader::validate_schema_syntax(sql).expect("mixed case create table is valid");
 }
 
 #[test]
@@ -99,15 +93,13 @@ fn validate_schema_syntax_comment_without_create_table_fails() {
 #[test]
 fn validate_schema_syntax_multiple_create_tables() {
     let sql = "CREATE TABLE t1 (id INTEGER);\nCREATE TABLE t2 (id INTEGER);";
-    let result = SchemaLoader::validate_schema_syntax(sql);
-    assert!(result.is_ok());
+    SchemaLoader::validate_schema_syntax(sql).expect("multiple create tables are valid");
 }
 
 #[test]
 fn validate_table_naming_valid_prefix_uppercase() {
     let sql = "CREATE TABLE MY_MODULE_USERS (id INTEGER PRIMARY KEY)";
-    let result = SchemaLoader::validate_table_naming(sql, "MY-MODULE");
-    assert!(result.is_ok());
+    SchemaLoader::validate_table_naming(sql, "MY-MODULE").expect("matching prefix validates");
 }
 
 #[test]
@@ -131,8 +123,7 @@ fn validate_table_naming_no_create_table_statements() {
 #[test]
 fn validate_table_naming_multiple_tables_all_valid() {
     let sql = "CREATE TABLE MCP_SERVERS (id INTEGER);\nCREATE TABLE MCP_SESSIONS (id INTEGER);";
-    let result = SchemaLoader::validate_table_naming(sql, "MCP");
-    assert!(result.is_ok());
+    SchemaLoader::validate_table_naming(sql, "MCP").expect("all tables share prefix");
 }
 
 #[test]
@@ -145,8 +136,8 @@ fn validate_table_naming_multiple_tables_one_invalid() {
 #[test]
 fn validate_table_naming_hyphen_to_underscore_conversion() {
     let sql = "CREATE TABLE MY_COOL_MODULE_TABLE (id INTEGER)";
-    let result = SchemaLoader::validate_table_naming(sql, "MY-COOL-MODULE");
-    assert!(result.is_ok());
+    SchemaLoader::validate_table_naming(sql, "MY-COOL-MODULE")
+        .expect("hyphenated module name converts to underscore prefix");
 }
 
 #[test]

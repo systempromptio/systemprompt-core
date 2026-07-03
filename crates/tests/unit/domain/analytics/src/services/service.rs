@@ -149,7 +149,7 @@ mod analytics_service_tests {
 
         let fingerprint = AnalyticsService::compute_fingerprint(&analytics);
 
-        assert!(!fingerprint.is_empty());
+        assert!(fingerprint.starts_with("fp_"));
     }
 
     #[test]

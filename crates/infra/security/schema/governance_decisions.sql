@@ -13,6 +13,8 @@ CREATE TABLE IF NOT EXISTS governance_decisions (
     actor_kind TEXT NOT NULL CHECK (actor_kind IN ('user', 'anonymous', 'system', 'job', 'mcp', 'agent')),
     actor_id TEXT NOT NULL CHECK (length(actor_id) > 0),
     act_chain JSONB NOT NULL DEFAULT '[]'::jsonb,
+    context_id TEXT,
+    task_id TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -24,3 +26,4 @@ CREATE INDEX IF NOT EXISTS idx_governance_decisions_decision ON governance_decis
 CREATE INDEX IF NOT EXISTS idx_governance_decisions_created ON governance_decisions(created_at);
 CREATE INDEX IF NOT EXISTS idx_governance_decisions_rate_limit ON governance_decisions(session_id, user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_governance_decisions_actor ON governance_decisions(actor_kind, actor_id);
+CREATE INDEX IF NOT EXISTS idx_governance_decisions_context ON governance_decisions(context_id);

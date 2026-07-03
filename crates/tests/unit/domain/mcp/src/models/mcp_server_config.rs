@@ -124,7 +124,7 @@ fn test_mcp_server_config_oauth_required() {
     config.oauth.scopes = vec![Permission::Admin];
 
     assert!(config.oauth.required);
-    assert!(!config.oauth.scopes.is_empty());
+    assert!(config.oauth.scopes.contains(&Permission::Admin));
 }
 
 #[test]

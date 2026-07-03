@@ -11,7 +11,7 @@ async fn db() -> Option<systemprompt_database::DbPool> {
 #[tokio::test]
 async fn proxy_health_new_succeeds() {
     let Some(db) = db().await else { return };
-    let _ = ProxyHealthCheck::new(&db).expect("ctor");
+    drop(ProxyHealthCheck::new(&db).expect("ctor"));
 }
 
 #[tokio::test]
@@ -26,11 +26,34 @@ async fn can_route_traffic_missing_service_returns_false() {
 }
 
 #[tokio::test]
-async fn list_routable_services_returns_vec() {
+async fn list_routable_services_excludes_service_with_unresponsive_port() {
+    use systemprompt_database::{CreateServiceInput, ServiceRepository};
     let Some(db) = db().await else { return };
     let p = ProxyHealthCheck::new(&db).unwrap();
-    let r = p.list_routable_services().await.unwrap();
-    let _ = r.len();
+    let repo = ServiceRepository::new(&db).unwrap();
+    let name = format!("ph-list-{}", uuid::Uuid::new_v4().simple());
+    let port = 65510;
+    repo.create_service(CreateServiceInput {
+        name: &name,
+        module_name: "mcp",
+        status: "running",
+        port,
+        binary_mtime: None,
+    })
+    .await
+    .unwrap();
+
+    let routable = p.list_routable_services().await.unwrap();
+    assert!(
+        !routable.iter().any(|s| s.name == name),
+        "a running service on an unresponsive port is not routable"
+    );
+    let after = repo.find_service_by_name(&name).await.unwrap().unwrap();
+    assert_eq!(
+        after.status, "stopped",
+        "an unroutable running service is marked stopped"
+    );
+    repo.delete_service(&name).await.unwrap();
 }
 
 #[tokio::test]

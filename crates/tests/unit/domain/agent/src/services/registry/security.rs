@@ -79,8 +79,11 @@ fn test_convert_json_security_both_valid() {
 
     let (schemes, reqs) = convert_json_security_to_struct(Some(&schemes_json), Some(&reqs_json));
 
-    assert!(schemes.is_some());
-    assert!(reqs.is_some());
+    let schemes = schemes.expect("schemes present");
+    assert!(schemes.contains_key("apiKey"));
+    let reqs = reqs.expect("reqs present");
+    assert_eq!(reqs.len(), 1);
+    assert!(reqs[0].contains_key("apiKey"));
 }
 
 #[test]

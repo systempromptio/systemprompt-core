@@ -111,7 +111,7 @@ fn default_server_icons_have_sizes() {
     let icons = default_server_icons();
     for icon in &icons {
         let sizes = icon.sizes.as_deref().expect("sizes");
-        assert!(!sizes.is_empty());
+        assert_eq!(sizes.len(), 1);
     }
 }
 

@@ -9,7 +9,7 @@
 use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
-use systemprompt_identifiers::{RouteId, TraceId};
+use systemprompt_identifiers::{ContextId, RouteId, TaskId, TraceId};
 use systemprompt_models::profile::{AuthzConfig, AuthzHookConfig, AuthzMode, GovernanceConfig};
 use systemprompt_security::authz::{
     AuthzAuditSink, AuthzContext, AuthzDecision, AuthzDecisionHook, AuthzRequest, AuthzSource,
@@ -39,6 +39,8 @@ fn request_with_trace(route: &str, trace: &str) -> AuthzRequest {
         trace_id: TraceId::new(trace),
         session_id: None,
         context: AuthzContext::none(),
+        context_id: Some(ContextId::new("55555555-5555-4555-8555-555555555555")),
+        task_id: Some(TaskId::new("task-55")),
         act_chain: Vec::new(),
     }
 }
@@ -122,4 +124,19 @@ async fn extension_hook_evaluated_and_audited() {
     .await
     .expect("query audit rows");
     assert_eq!(count, 1, "DbAuditSink should have written one audit row");
+
+    let (context_id, task_id): (Option<String>, Option<String>) = sqlx::query_as(
+        "SELECT context_id, task_id FROM governance_decisions WHERE tool_name = $1 AND policy = \
+         $2",
+    )
+    .bind(&route)
+    .bind(AuthzSource::ExtensionHook.policy())
+    .fetch_one(write_pool.as_ref())
+    .await
+    .expect("query audit row context/task");
+    assert_eq!(
+        context_id.as_deref(),
+        Some("55555555-5555-4555-8555-555555555555")
+    );
+    assert_eq!(task_id.as_deref(), Some("task-55"));
 }

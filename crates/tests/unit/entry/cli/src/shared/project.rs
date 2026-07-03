@@ -158,7 +158,11 @@ fn test_project_path_components() {
     let project_path = temp.path();
 
     let components: Vec<_> = project_path.components().collect();
-    assert!(!components.is_empty());
+    assert!(
+        components
+            .iter()
+            .any(|c| matches!(c, std::path::Component::RootDir))
+    );
 }
 
 #[test]
@@ -167,7 +171,7 @@ fn test_project_path_display() {
     let project_path = temp.path();
 
     let display = project_path.display().to_string();
-    assert!(!display.is_empty());
+    assert_eq!(display, project_path.to_str().expect("utf8 path"));
 }
 
 #[test]

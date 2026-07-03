@@ -12,6 +12,8 @@ fn request_with_chain(chain: Vec<Actor>) -> AuthzRequest {
         trace_id: TraceId::new("trace-1"),
         session_id: None,
         context: AuthzContext::none(),
+        context_id: None,
+        task_id: None,
         act_chain: chain,
     }
 }
@@ -57,4 +59,28 @@ fn act_chain_round_trips_through_request_context() {
 
     assert_eq!(ctx.act_chain().len(), 1);
     assert_eq!(ctx.act_chain()[0].user_id.as_str(), "delegate");
+}
+
+#[test]
+fn authz_request_carries_context_and_task_through_serde() {
+    use systemprompt_identifiers::{ContextId, TaskId};
+
+    let mut req = request_with_chain(Vec::new());
+    req.context_id = Some(ContextId::new("66666666-6666-4666-8666-666666666666"));
+    req.task_id = Some(TaskId::new("task-66"));
+    let wire = serde_json::to_string(&req).expect("serialize");
+    let parsed: AuthzRequest = serde_json::from_str(&wire).expect("deserialize");
+    assert_eq!(
+        parsed.context_id.expect("context_id").as_str(),
+        "66666666-6666-4666-8666-666666666666"
+    );
+    assert_eq!(parsed.task_id.expect("task_id").as_str(), "task-66");
+}
+
+#[test]
+fn absent_context_and_task_are_omitted_on_the_wire() {
+    let req = request_with_chain(Vec::new());
+    let wire = serde_json::to_value(&req).expect("serialize");
+    assert!(wire.get("context_id").is_none());
+    assert!(wire.get("task_id").is_none());
 }

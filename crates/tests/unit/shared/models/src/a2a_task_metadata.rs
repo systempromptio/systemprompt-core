@@ -26,7 +26,7 @@ fn new_mcp_execution_populates_required_fields() {
     assert_eq!(m.agent_name, "agent");
     assert_eq!(m.tool_name.as_deref(), Some("tool"));
     assert_eq!(m.mcp_server_name.as_deref(), Some("srv"));
-    assert!(!m.created_at.is_empty());
+    assert!(m.created_at.contains('T'));
     assert!(m.updated_at.is_none());
     assert!(m.execution_steps.is_none());
     assert!(m.extensions.is_empty());
@@ -38,7 +38,7 @@ fn new_agent_message_populates_required_fields() {
     assert_eq!(m.task_type, TaskType::AgentMessage);
     assert!(m.tool_name.is_none());
     assert!(m.mcp_server_name.is_none());
-    assert!(!m.created_at.is_empty());
+    assert!(m.created_at.contains('T'));
 }
 
 #[test]
@@ -53,9 +53,9 @@ fn builder_methods_compose() {
     assert_eq!(m.input_tokens, Some(11));
     assert_eq!(m.output_tokens, Some(22));
     assert_eq!(m.model.as_deref(), Some("gpt-x"));
-    assert!(m.updated_at.is_some());
+    assert!(m.updated_at.expect("updated_at set").contains('T'));
     assert_eq!(m.tool_name.as_deref(), Some("toolio"));
-    assert!(m.execution_steps.is_some());
+    assert!(m.execution_steps.expect("execution steps set").is_empty());
     let ext = &m.extensions;
     assert_eq!(ext.get("k"), Some(&json!(1)));
 }

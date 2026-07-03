@@ -21,7 +21,11 @@ fn test_database_extension_metadata_name() {
 fn test_database_extension_metadata_version() {
     let ext = DatabaseExtension;
     let metadata = ext.metadata();
-    assert!(!metadata.version.is_empty());
+    assert!(
+        metadata.version.contains('.'),
+        "version should be dotted semver: {}",
+        metadata.version
+    );
 }
 
 #[test]
@@ -35,7 +39,8 @@ fn test_database_extension_dependencies() {
 fn test_database_extension_schemas() {
     let ext = DatabaseExtension;
     let schemas = ext.schemas();
-    assert!(!schemas.is_empty());
+    assert_eq!(schemas.len(), 2);
+    assert!(schemas.iter().any(|s| s.table == "extension_migrations"));
 }
 
 #[test]

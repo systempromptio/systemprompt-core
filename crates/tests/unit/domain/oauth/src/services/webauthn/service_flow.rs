@@ -111,7 +111,7 @@ async fn start_registration_with_no_existing_credentials_succeeds() {
         .await
         .expect("start_registration");
     assert!(!challenge_id.is_empty());
-    let _ = ccr;
+    drop(ccr);
 }
 
 #[tokio::test]

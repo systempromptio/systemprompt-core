@@ -293,7 +293,7 @@ fn build_multiturn_uses_system_agent_name_in_metadata() {
         total_iterations: 1,
     });
     let metadata = task.metadata.unwrap();
-    assert!(!metadata.agent_name.is_empty());
+    assert_eq!(metadata.agent_name, "system");
 }
 
 #[test]

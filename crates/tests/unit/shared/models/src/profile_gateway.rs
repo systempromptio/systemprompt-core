@@ -137,7 +137,7 @@ fn ensure_id_backfills_empty_id() {
     let mut r = route("claude-*");
     assert!(r.id.as_str().is_empty());
     r.ensure_id();
-    assert!(!r.id.as_str().is_empty());
+    assert_eq!(r.id, synthesize_route_id("claude-*", "test"));
     let preserved = r.id.clone();
     r.ensure_id();
     assert_eq!(r.id, preserved, "ensure_id must be idempotent");
@@ -329,6 +329,10 @@ fn resolve_route_falls_back_to_default_provider() {
         .resolve_route(&registry, &req("some-unknown-model"))
         .expect("default provider must absorb unmatched model");
     assert_eq!(resolved.provider.as_str(), "gemini");
+    assert!(
+        resolved.upstream_model.is_none(),
+        "the synthesized default route must not carry an upstream_model rewrite"
+    );
     // The synthetic default route forwards the requested model verbatim;
     // per-model upstream rewrites are applied downstream from the registry.
     assert_eq!(
@@ -523,7 +527,7 @@ fn gpt_star_route_exposes_and_rewrites_codex_alias() {
 fn default_resource_audiences_cover_gateway_requirements() {
     let audiences = default_resource_audiences();
     assert!(audiences.contains(&"hook".to_owned()));
-    assert!(!audiences.is_empty());
+    assert_eq!(audiences.len(), 1);
 }
 
 #[test]

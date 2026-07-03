@@ -328,7 +328,11 @@ fn parsed_content_slug_and_title_from_frontmatter() {
     assert_eq!(content.description, "Learn Rust");
     assert_eq!(content.author, "Expert");
     assert_eq!(content.kind, "guide");
-    assert!(!content.body.is_empty());
+    assert!(
+        content
+            .body
+            .contains("Rust is a systems programming language.")
+    );
     assert!(!content.version_hash.is_empty());
 }
 

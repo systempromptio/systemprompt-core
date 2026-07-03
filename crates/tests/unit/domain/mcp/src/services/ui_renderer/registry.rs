@@ -92,8 +92,11 @@ async fn registry_renders_enveloped_table_artifact() {
             "data": [{"name": "Alice"}]
         }))],
     );
-    let result = registry.render(&artifact).await;
-    assert!(result.is_ok());
+    let resource = registry
+        .render(&artifact)
+        .await
+        .expect("enveloped table renders");
+    assert!(resource.html.contains("data-table"));
 }
 
 #[tokio::test]

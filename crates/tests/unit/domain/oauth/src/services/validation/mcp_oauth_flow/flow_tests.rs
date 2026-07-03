@@ -109,8 +109,8 @@ fn flow_new_client_no_scope_with_resource() {
 
     let requested = vec!["user".to_string(), "admin".to_string()];
     let resource = "user admin";
-    let auth = simulate_authorize_scope_check(&client_scopes, &requested, Some(resource));
-    assert!(auth.is_ok(), "Authorization passes");
+    simulate_authorize_scope_check(&client_scopes, &requested, Some(resource))
+        .expect("authorization passes");
 
     let admin_user = vec![Permission::Admin, Permission::User];
     let token = simulate_token_permission_resolution(
@@ -128,8 +128,8 @@ fn flow_legacy_client_user_only_with_resource() {
 
     let requested = vec!["user".to_string(), "admin".to_string()];
     let resource = "user admin";
-    let auth = simulate_authorize_scope_check(&client_scopes, &requested, Some(resource));
-    assert!(auth.is_ok(), "Authorization passes");
+    simulate_authorize_scope_check(&client_scopes, &requested, Some(resource))
+        .expect("authorization passes");
 
     let admin_user = vec![Permission::Admin, Permission::User];
     let resource_scopes = vec!["user".to_string(), "admin".to_string()];
@@ -159,8 +159,8 @@ fn flow_regular_user_cannot_get_admin_scope() {
     let client_scopes = simulate_determine_scopes(&reg);
     let requested = vec!["user".to_string(), "admin".to_string()];
 
-    let auth = simulate_authorize_scope_check(&client_scopes, &requested, None);
-    assert!(auth.is_ok(), "Authorization passes — scopes are valid");
+    simulate_authorize_scope_check(&client_scopes, &requested, None)
+        .expect("authorization passes — scopes are valid");
 
     let regular_user = vec![Permission::User];
     let token =

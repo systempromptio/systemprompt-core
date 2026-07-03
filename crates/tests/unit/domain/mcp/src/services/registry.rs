@@ -83,15 +83,13 @@ fn make_config(servers: Vec<McpServerConfig>) -> RegistryConfig {
 #[test]
 fn validate_registry_empty_servers() {
     let config = make_config(vec![]);
-    let result = validate_registry(&config);
-    assert!(result.is_ok());
+    validate_registry(&config).expect("empty registry validates");
 }
 
 #[test]
 fn validate_registry_single_valid_internal() {
     let config = make_config(vec![make_internal_server("test-server", 5000)]);
-    let result = validate_registry(&config);
-    assert!(result.is_ok());
+    validate_registry(&config).expect("single valid internal server validates");
 }
 
 #[test]
@@ -100,8 +98,7 @@ fn validate_registry_multiple_valid_no_port_conflict() {
         make_internal_server("server-a", 5000),
         make_internal_server("server-b", 5001),
     ]);
-    let result = validate_registry(&config);
-    assert!(result.is_ok());
+    validate_registry(&config).expect("distinct ports validate");
 }
 
 #[test]
@@ -123,8 +120,7 @@ fn validate_registry_disabled_servers_no_port_conflict() {
     server_a.enabled = false;
     server_b.enabled = false;
     let config = make_config(vec![server_a, server_b]);
-    let result = validate_registry(&config);
-    assert!(result.is_ok());
+    validate_registry(&config).expect("disabled servers skip port-conflict check");
 }
 
 #[test]
@@ -146,8 +142,7 @@ fn validate_registry_port_1023_rejected() {
 #[test]
 fn validate_registry_port_1024_accepted() {
     let config = make_config(vec![make_internal_server("server", 1024)]);
-    let result = validate_registry(&config);
-    assert!(result.is_ok());
+    validate_registry(&config).expect("port 1024 accepted");
 }
 
 #[test]
@@ -190,16 +185,14 @@ fn validate_registry_oauth_required_with_scopes_ok() {
     server.oauth.required = true;
     server.oauth.scopes = vec![Permission::User];
     let config = make_config(vec![server]);
-    let result = validate_registry(&config);
-    assert!(result.is_ok());
+    validate_registry(&config).expect("oauth with scopes validates");
 }
 
 #[test]
 fn validate_registry_oauth_not_required_empty_scopes_ok() {
     let server = make_internal_server("server", 5000);
     let config = make_config(vec![server]);
-    let result = validate_registry(&config);
-    assert!(result.is_ok());
+    validate_registry(&config).expect("oauth not required with empty scopes validates");
 }
 
 #[test]
@@ -216,8 +209,7 @@ fn validate_registry_internal_server_no_binary() {
 #[test]
 fn validate_registry_external_server_valid() {
     let config = make_config(vec![make_external_server("ext", "https://example.com/mcp")]);
-    let result = validate_registry(&config);
-    assert!(result.is_ok());
+    validate_registry(&config).expect("valid external server validates");
 }
 
 #[test]
@@ -247,8 +239,7 @@ fn validate_registry_disabled_server_skips_validation() {
     let mut server = make_internal_server("server", 80);
     server.enabled = false;
     let config = make_config(vec![server]);
-    let result = validate_registry(&config);
-    assert!(result.is_ok());
+    validate_registry(&config).expect("disabled server skips validation");
 }
 
 #[test]
@@ -257,8 +248,7 @@ fn validate_registry_mixed_internal_external() {
         make_internal_server("internal-svc", 5000),
         make_external_server("external-svc", "https://example.com/mcp"),
     ]);
-    let result = validate_registry(&config);
-    assert!(result.is_ok());
+    validate_registry(&config).expect("mixed internal and external validates");
 }
 
 #[test]
@@ -266,8 +256,7 @@ fn validate_registry_external_servers_no_port_conflict() {
     let ext1 = make_external_server("ext1", "https://a.com/mcp");
     let ext2 = make_external_server("ext2", "https://b.com/mcp");
     let config = make_config(vec![ext1, ext2]);
-    let result = validate_registry(&config);
-    assert!(result.is_ok());
+    validate_registry(&config).expect("external servers have no port conflict");
 }
 
 #[test]

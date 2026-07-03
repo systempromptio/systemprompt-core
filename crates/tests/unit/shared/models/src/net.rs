@@ -349,10 +349,12 @@ mod ssrf_adversarial_tests {
     fn rejects_url_with_embedded_control_chars() {
         // Whatwg URL parser strips tab/CR/LF; check both that a leading/inline
         // control char does not cause the guard to misread the host.
-        let with_tab = validate_outbound_url("https://exa\tmple.com/h");
-        assert!(with_tab.is_ok(), "tabs are stripped per WHATWG URL spec");
-        let with_lf = validate_outbound_url("https://exa\nmple.com/h");
-        assert!(with_lf.is_ok(), "LFs are stripped per WHATWG URL spec");
+        let with_tab = validate_outbound_url("https://exa\tmple.com/h").expect("tabs stripped");
+        assert_eq!(with_tab.host_str(), Some("example.com"));
+        assert!(!with_tab.as_str().contains('\t'));
+        let with_lf = validate_outbound_url("https://exa\nmple.com/h").expect("LFs stripped");
+        assert_eq!(with_lf.host_str(), Some("example.com"));
+        assert!(!with_lf.as_str().contains('\n'));
     }
 
     #[test]

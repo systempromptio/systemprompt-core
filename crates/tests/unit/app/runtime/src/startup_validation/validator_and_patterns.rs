@@ -13,31 +13,31 @@ fn test_startup_validator_debug() {
 #[test]
 fn test_expected_web_domain() {
     let domain = "web";
-    assert!(!domain.is_empty());
+    assert_eq!(domain, "web");
 }
 
 #[test]
 fn test_expected_content_domain() {
     let domain = "content";
-    assert!(!domain.is_empty());
+    assert_eq!(domain, "content");
 }
 
 #[test]
 fn test_expected_agents_domain() {
     let domain = "agents";
-    assert!(!domain.is_empty());
+    assert_eq!(domain, "agents");
 }
 
 #[test]
 fn test_expected_mcp_domain() {
     let domain = "mcp";
-    assert!(!domain.is_empty());
+    assert_eq!(domain, "mcp");
 }
 
 #[test]
 fn test_expected_ai_domain() {
     let domain = "ai";
-    assert!(!domain.is_empty());
+    assert_eq!(domain, "ai");
 }
 
 #[test]
@@ -103,13 +103,13 @@ fn test_validation_warning_pattern() {
 #[test]
 fn test_validation_error_has_field() {
     let field = "database_url";
-    assert!(!field.is_empty());
+    assert_eq!(field, "database_url");
 }
 
 #[test]
 fn test_validation_error_has_message() {
     let message = "Database connection failed";
-    assert!(!message.is_empty());
+    assert_eq!(message, "Database connection failed");
 }
 
 #[test]
@@ -132,7 +132,7 @@ fn test_domain_report_structure() {
     let error_count = 0;
     let warning_count = 1;
 
-    assert!(!domain_id.is_empty());
+    assert_eq!(domain_id, "web");
     assert!(!has_errors);
     assert!(has_warnings);
     assert_eq!(error_count, 0);

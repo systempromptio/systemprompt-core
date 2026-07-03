@@ -101,7 +101,10 @@ async fn flag_clear_and_score_adjustment_round_trip() {
         .expect("flag");
     let flagged = repo.get_by_hash(&fp).await.expect("get").expect("present");
     assert!(flagged.is_flagged);
-    assert!(flagged.flag_reason.is_some());
+    assert_eq!(
+        flagged.flag_reason.as_deref(),
+        Some("request_count_exceeded_100")
+    );
     assert!(flagged.flagged_at.is_some());
     assert_eq!(flagged.reputation_score, 10);
 

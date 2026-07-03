@@ -255,14 +255,21 @@ async fn generate_with_tools_stream_yields_chunks() {
         .await
         .expect("tool stream ok");
     let mut count = 0_usize;
+    let mut text = String::new();
     while let Some(chunk) = stream.next().await {
-        let _ = chunk.expect("chunk ok");
+        if let StreamChunk::Text(t) = chunk.expect("chunk ok") {
+            text.push_str(&t);
+        }
         count += 1;
         if count > 20 {
             break;
         }
     }
     assert!(count >= 1);
+    assert!(
+        text.contains("hello"),
+        "streamed text missing delta content: {text}"
+    );
 }
 
 #[tokio::test]
