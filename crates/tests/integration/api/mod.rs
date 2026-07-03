@@ -185,6 +185,10 @@ mod messaging_dispatch;
 mod routes_slack;
 
 #[cfg(test)]
+#[path = "routes_slack_more.rs"]
+mod routes_slack_more;
+
+#[cfg(test)]
 #[path = "routes_teams.rs"]
 mod routes_teams;
 
@@ -207,6 +211,10 @@ mod middleware_session_lifecycle;
 #[cfg(test)]
 #[path = "middleware_analytics_detection.rs"]
 mod middleware_analytics_detection;
+
+#[cfg(test)]
+#[path = "middleware_behavioral_detection.rs"]
+mod middleware_behavioral_detection;
 
 #[cfg(test)]
 #[path = "middleware_jwt_context.rs"]
@@ -339,6 +347,10 @@ mod routes_content_more;
 #[cfg(test)]
 #[path = "routes_analytics_more.rs"]
 mod routes_analytics_more;
+
+#[cfg(test)]
+#[path = "routes_analytics_events_success.rs"]
+mod routes_analytics_events_success;
 
 #[cfg(test)]
 #[path = "routes_admin_cli_subprocess.rs"]
