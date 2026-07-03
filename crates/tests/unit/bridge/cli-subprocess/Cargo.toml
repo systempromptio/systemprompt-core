@@ -1,19 +1,19 @@
 [package]
-name = "systemprompt-bridge-activity-tests"
+name = "systemprompt-bridge-cli-subprocess-tests"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
-description = "Unit tests for systemprompt-bridge in-memory activity log"
+description = "Black-box subprocess tests for the systemprompt-bridge binary CLI surface"
 publish = false
 
 [lints]
 workspace = true
 
 [dependencies]
-systemprompt-bridge = { workspace = true }
 serde_json = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }
-temp-env = { workspace = true }
+tokio = { workspace = true }
+wiremock = { workspace = true }

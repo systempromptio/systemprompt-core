@@ -1,10 +1,10 @@
 [package]
-name = "systemprompt-bridge-cowork-plugins-tests"
+name = "systemprompt-bridge-obs-tests"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
-description = "Unit tests for the Bridge → Cowork host adapter (per-session install state) and the canonical anthropic marketplace.json shape"
+description = "Unit tests for systemprompt-bridge observability (tracing init, format, panic hook)"
 publish = false
 
 [lints]
@@ -12,7 +12,7 @@ workspace = true
 
 [dependencies]
 systemprompt-bridge = { workspace = true }
-serde_json = { workspace = true }
+tracing = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }

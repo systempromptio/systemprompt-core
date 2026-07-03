@@ -86,6 +86,7 @@ members = [
     "unit/bridge/i18n",
     "unit/bridge/schedule",
     "unit/bridge/mcp-registry",
+    "unit/bridge/obs",
     "unit/bridge/fsutil",
     "unit/bridge/ids",
     "unit/bridge/activity",
@@ -93,6 +94,7 @@ members = [
     "unit/bridge/auth-e2e",
     "unit/bridge/cli",
     "unit/bridge/cli-commands",
+    "unit/bridge/cli-subprocess",
     # Common test utilities
     "common/mocks",
     "common/migrate",
@@ -190,12 +192,14 @@ rmcp = { version = "2.0", features = ["server", "client", "transport-io", "trans
 rand = "0.10"
 bcrypt = "0.19"
 base64 = "0.22"
+ed25519-dalek = "2"
 jsonwebtoken = { version = "10", features = ["rust_crypto"] }
 rsa = { version = "0.9", features = ["pem", "sha2"] }
 sha2 = "0.11"
 
 # Testing utilities
 wiremock = "0.6"
+keyring = { version = "3", features = ["linux-native"] }
 tar = "0.4"
 flate2 = "1.1"
 hex = "0.4"
