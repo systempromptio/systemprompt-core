@@ -3,13 +3,13 @@
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
-use systemprompt_identifiers::{CategoryId, SourceId};
 use systemprompt_cli::web::content_types::builder::{
     SourceSpec, build_flag_sitemap, build_source_config, ensure_category_exists,
 };
 use systemprompt_cli::web::content_types::edit::{
     EditArgs, apply_basic_flags, apply_set_value_changes, apply_sitemap_flags,
 };
+use systemprompt_identifiers::{CategoryId, SourceId};
 use systemprompt_models::content_config::{ContentConfigRaw, ContentSourceConfigRaw};
 
 fn config_with_categories(names: &[&str]) -> ContentConfigRaw {
