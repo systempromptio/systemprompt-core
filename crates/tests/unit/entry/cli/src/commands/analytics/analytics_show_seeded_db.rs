@@ -53,14 +53,16 @@ async fn seed_tool_execution(
 ) {
     sqlx::query(
         "INSERT INTO mcp_tool_executions (mcp_execution_id, tool_name, server_name, started_at, \
-         execution_time_ms, input, status, error_message, user_id, task_id, created_at) VALUES \
-         ($1, $2, 'stub-server', NOW(), 25, '{}', $3, $4, 'analytics-show-user', $5, NOW())",
+         execution_time_ms, input, status, error_message, user_id, task_id, trace_id, created_at) \
+         VALUES ($1, $2, 'stub-server', NOW(), 25, '{}', $3, $4, 'analytics-show-user', $5, $6, \
+         NOW())",
     )
     .bind(Uuid::new_v4().to_string())
     .bind(tool)
     .bind(status)
     .bind(error)
     .bind(task_id)
+    .bind(Uuid::new_v4().to_string())
     .execute(pool.pool_arc().unwrap().as_ref())
     .await
     .unwrap();
