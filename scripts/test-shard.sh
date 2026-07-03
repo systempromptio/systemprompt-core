@@ -36,6 +36,17 @@ PKGS=$(cargo metadata --no-deps --format-version 1 --manifest-path crates/tests/
 test -n "$PKGS" || { echo "no packages matched group $group" >&2; exit 1; }
 echo "shard $group: $PKGS"
 
+# The entry-cli and integration shards spawn the real `systemprompt` binary;
+# prebuild it once so subprocess fixtures never pay for (or time out on) a
+# cold `cargo build` inside a running test.
+case "$group" in
+  entry-cli|integration)
+    echo "==> Prebuilding systemprompt binary for subprocess tests"
+    cargo build -p systemprompt-cli --bin systemprompt
+    export SYSTEMPROMPT_BIN="$ROOT/target/debug/systemprompt"
+    ;;
+esac
+
 cargo nextest run --profile "${NEXTEST_PROFILE:-default}" \
   --manifest-path crates/tests/Cargo.toml \
   --lib $PKGS --test-threads "${TEST_THREADS:-4}" "$@"

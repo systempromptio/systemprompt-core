@@ -205,7 +205,6 @@ use systemprompt_cloud::{CommandRunner, CommandSpec, DockerCli};
 enum Resp {
     Out(i32, &'static str),
     Status(i32),
-    Io,
 }
 
 struct StubRunner {
@@ -241,14 +240,12 @@ impl CommandRunner for StubRunner {
                 stdout: Vec::new(),
                 stderr: Vec::new(),
             }),
-            Resp::Io => Err(io::Error::other("stubbed io failure")),
         }
     }
 
     fn status(&self, spec: &CommandSpec) -> io::Result<ExitStatus> {
         match self.next(spec) {
             Resp::Out(code, _) | Resp::Status(code) => Ok(ExitStatus::from_raw(code << 8)),
-            Resp::Io => Err(io::Error::other("stubbed io failure")),
         }
     }
 
