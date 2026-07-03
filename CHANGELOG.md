@@ -14,6 +14,11 @@
 
 - Converted the vanity-test tail across the suite to behavior-asserting tests: discarded-result smokes (`let _ = call.unwrap()`) now assert the zero-result contract or seeded-row shapes, `is_ok()`/`is_some()`-only checks bind and assert a domain field, and `!is_empty()`-only checks assert exact length or membership on uniquely-tagged seeded rows. The highest-risk CLI subprocess exit-code-only tests now assert seeded content in stdout. Added a `check-test-value` quality gate (`just lint-test-value`, wired into `check` and the `quality.yml` source-gates job) that hard-fails on unasserted discarded results, plus an observational zero-assertion-fn heuristic in the standards audit.
 
+### CI
+
+- The `coverage.yml` workflow now runs the full instrumented suite (`--bins --tests` plus an instrumented CLI for subprocess coverage) to completion on hosted runners: continuous-mode profiling (`%c`) collapses the per-process profraw explosion that previously exhausted the runner disk, and `bin/bridge` is excluded from the core denominator (it has its own coverage workflow). The run uploads LCOV to Codecov and enforces a ratchet that fails on any >0.5pt aggregate line-coverage drop. Headline line coverage is ~79.5%, every production crate ≥70%. Added `codecov.yml` and CI/coverage badges to the README, and refreshed the RFI readiness audit's coverage table to the measured figures.
+- Added `exercise-suites.yml`, a weekly heartbeat that builds and briefly runs the standalone `fuzz`/`bench`/`loadtest` workspaces (which no other job compiles) to catch API bit-rot; it immediately surfaced and fixed a drifted `event_broadcast` benchmark. Added a `just mutants DIR TESTPKG` recipe for scoped mutation testing against the separate test workspace.
+
 ## [0.19.0] - 2026-07-02
 
 ### Breaking
