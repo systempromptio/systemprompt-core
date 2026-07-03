@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.19.0] - 2026-07-02
+
+### Breaking
+
+- The minimum supported Rust version is 1.94.
+- SQLx is upgraded to 0.9.
+- The trace query surface exposes typed trace and AI-request identifiers, and the `LogService` implementation follows the renamed trait lookups: `list_recent` / `find_by_id` (were `get_recent` / `get_by_id`).
+
 ## [0.16.0] - 2026-06-22
 
 ### Breaking

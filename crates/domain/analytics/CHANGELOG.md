@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.19.0] - 2026-07-02
+
+### Breaking
+
+- The minimum supported Rust version is 1.94.
+- SQLx is upgraded to 0.9.
+
+### Changed
+
+- The provider-usage cost aggregate widens to `bigint` to avoid overflow on large totals, and the provider-usage query moves to compile-time-verified sqlx macros.
+
+### Removed
+
+- The feature-ambiguous geoip lookup wrapper is dropped.
+
 ## [0.16.0] - 2026-06-22
 
 ### Breaking

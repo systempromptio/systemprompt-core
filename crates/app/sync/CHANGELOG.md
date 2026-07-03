@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.19.0] - 2026-07-02
+
+### Breaking
+
+- The minimum supported Rust version is 1.94.
+- SQLx is upgraded to 0.9.
+
+### Changed
+
+- Deploy orchestration consumes the now-typed `systemprompt-cloud` tenant identifiers and credential fields (`TenantId`, `CloudAuthToken`, `Email`). The on-disk JSON wire format is unchanged.
+
 ## [0.16.0] - 2026-06-22
 
 ### Breaking

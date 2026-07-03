@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.19.0] - 2026-07-02
+
+### Breaking
+
+- The minimum supported Rust version is 1.94.
+- SQLx is upgraded to 0.9.
+- rmcp is upgraded to 2.x; tool content flows through `ContentBlock` in place of the removed `Content`/`RawContent` pair.
+
+### Changed
+
+- `ToolProvider` implementations take a typed `McpServerId` instead of a raw string, and HTTP failures preserve their underlying source instead of flattening to a string.
+
 ## [0.17.0] - 2026-06-24
 
 ### Added

@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.19.0] - 2026-07-02
+
+### Breaking
+
+- The minimum supported Rust version is 1.94.
+
+### Changed
+
+- The database-cleanup job's per-table deletion is extracted into a focused helper; no public API or behavioural change.
+
 ## [0.17.0] - 2026-06-24
 
 ### Breaking

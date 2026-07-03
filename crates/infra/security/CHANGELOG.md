@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.19.0] - 2026-07-02
+
+### Breaking
+
+- The minimum supported Rust version is 1.94.
+- SQLx is upgraded to 0.9.
+
+### Changed
+
+- Workspace version bump; internal tracing-field and comment cleanup in the authorization engine, no public API change.
+
 ## [0.17.0] - 2026-06-24
 
 ### Added

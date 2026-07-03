@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.19.0] - 2026-07-02
+
+### Breaking
+
+- The minimum supported Rust version is 1.94.
+- `ToolProvider::call_tool` takes a typed `McpServerId`; `ToolProviderError` configuration variants carry their source instead of flattening to a string; target/routable lookups adopt the `list_` prefix.
+
 ## [0.16.0] - 2026-06-22
 
 ### Breaking

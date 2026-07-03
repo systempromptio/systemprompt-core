@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.19.0] - 2026-07-02
+
+### Breaking
+
+- The minimum supported Rust version is 1.94.
+- SQLx is upgraded to 0.9.
+- rmcp is upgraded to 2.x.
+
+### Changed
+
+- Session, content-source, and tenant identifiers are typed through the command surface, and interactive cloud/web/MCP/admin flows are driven through a `Prompter` seam. No user-facing command behaviour changes.
+
 ## [0.17.1] - 2026-06-30
 
 ### Changed

@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.19.0] - 2026-07-02
+
+### Breaking
+
+- The minimum supported Rust version is 1.94.
+
+### Changed
+
+- Content-analytics assembly is extracted from `AppContextBuilder::build` into a focused helper; no public API or behavioural change.
+
 ## [0.16.0] - 2026-06-22
 
 ### Breaking

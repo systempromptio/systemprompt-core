@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.19.0] - 2026-07-02
+
+### Breaking
+
+- The minimum supported Rust version is 1.94.
+- SQLx is upgraded to 0.9.
+- The `ContentProvider` implementation follows the renamed trait methods: `find_content*` (was `get_content*`).
+
+### Changed
+
+- Connection-pool acquisition failures are classified as repository errors rather than surfacing as a generic failure.
+
 ## [0.16.0] - 2026-06-22
 
 ### Breaking

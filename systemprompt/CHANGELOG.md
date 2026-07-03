@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.19.0] - 2026-07-02
+
+### Added
+
+- The facade re-exports the 0.19.0 surface of every member crate. Notable through `systemprompt::api` and `systemprompt::mcp`: the signed bridge manifest carries an `artifacts` section of Cowork Artifacts-library HTML documents (`GET /v1/bridge/manifest`), scoped per marketplace and gated by owning-plugin enablement.
+
+### Breaking
+
+- The minimum supported Rust version is 1.94. rmcp is upgraded to 2.x (`ContentBlock` replaces the removed `Content`/`RawContent` pair in re-exported MCP signatures) and SQLx to 0.9. `MarketplaceCandidate::new` and `CatalogContent::into_parts` gain an artifact set, and typed identifiers replace raw strings across the cloud, files, and OAuth surfaces. See the root changelog for the full list.
+
 ## [0.18.0] - 2026-07-01
 
 ### Added

@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.19.0] - 2026-07-02
+
+### Breaking
+
+- The minimum supported Rust version is 1.94.
+- `ContentProvider::get_content`, `get_content_by_slug`, and `get_content_by_source_and_slug` are renamed to `find_content`, `find_content_by_slug`, and `find_content_by_source_and_slug`.
+- `LogService::get_recent` and `get_by_id` are renamed to `list_recent` and `find_by_id`.
+
 ## [0.16.0] - 2026-06-22
 
 ### Breaking
