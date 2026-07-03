@@ -3,6 +3,7 @@
 mod cleanup_decision;
 mod monitor;
 mod pid;
+mod pid_extended;
 mod process_service;
 mod utils;
 mod utils_extended;

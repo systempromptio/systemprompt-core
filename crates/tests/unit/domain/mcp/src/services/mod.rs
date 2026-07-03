@@ -25,6 +25,7 @@ mod proxy_health;
 mod registry;
 mod registry_extended;
 mod registry_service;
+mod registry_trait_impl;
 mod schema;
 mod schema_loader;
 mod schema_validator;
