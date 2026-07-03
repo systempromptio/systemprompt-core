@@ -5,7 +5,7 @@
 use systemprompt_bridge::gateway::manifest::ArtifactEntry;
 use systemprompt_bridge::ids::{LibraryArtifactId, PluginId, Sha256Digest};
 use systemprompt_bridge::integration::cowork_artifacts::emit::{
-    active_sink, artifacts_version, write_artifacts,
+    active_sinks, artifacts_version, write_artifacts,
 };
 use systemprompt_bridge::integration::cowork_artifacts::sink::{
     ArtifactSink, FileSink, LIBRARY_STORE_FILE, STAGING_SUBDIR, SeedStaging,
@@ -48,10 +48,10 @@ fn write_artifacts_rewrites_when_store_removed_externally() {
     let dir = temp.path().join("cowork_artifacts");
     let set = vec![artifact("doc-1", "1", "x")];
 
-    write_artifacts(&dir, active_sink(), &set).unwrap();
+    write_artifacts(&dir, active_sinks(), &set).unwrap();
     std::fs::remove_file(dir.join(LIBRARY_STORE_FILE)).unwrap();
 
-    write_artifacts(&dir, active_sink(), &set).unwrap();
+    write_artifacts(&dir, active_sinks(), &set).unwrap();
     assert!(dir.join(LIBRARY_STORE_FILE).is_file());
 }
 
