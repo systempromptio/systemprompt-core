@@ -32,6 +32,11 @@ env:
   # 2 jobs fits the 16GB runner with line-tables-only debuginfo; 1 job made
   # the --bins --tests instrumented build overrun the job timeout.
   CARGO_BUILD_JOBS: "2"
+  # The instrumented --bins --tests target tree does not fit the root disk
+  # even after the cleanup step; the runner's second disk at /mnt has ~65GB.
+  # One shared target dir also dedupes dependency builds between the main
+  # workspace (instrumented CLI) and the test workspace.
+  CARGO_TARGET_DIR: /mnt/coverage-target
 
 jobs:
   coverage:
@@ -65,7 +70,9 @@ jobs:
             /usr/local/.ghcup /usr/local/share/boost /usr/local/share/powershell \
             /usr/local/lib/node_modules "$AGENT_TOOLSDIRECTORY"
           sudo docker image prune --all --force >/dev/null 2>&1 || true
-          df -h /
+          sudo mkdir -p /mnt/coverage-target /mnt/profraw
+          sudo chmod 777 /mnt/coverage-target /mnt/profraw
+          df -h / /mnt
 
       - name: Install libdbus (bridge test bins link keyring -> dbus)
         run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config
@@ -115,10 +122,10 @@ jobs:
 
       - name: Build instrumented systemprompt binary
         env:
-          LLVM_PROFILE_FILE: ${{ github.workspace }}/coverage-profraw/%p-%m.profraw
+          LLVM_PROFILE_FILE: /mnt/profraw/%p-%m.profraw
           RUSTFLAGS: "-C instrument-coverage"
         run: |
-          mkdir -p "${{ github.workspace }}/coverage-profraw"
+          mkdir -p "/mnt/profraw"
           # The crates/tests workspace does not include entry/cli, so the test
           # run's --bins would not produce this binary; subprocess tests invoke
           # it via SYSTEMPROMPT_BIN and its counters land in the shared profraw
@@ -128,19 +135,19 @@ jobs:
       - name: Run instrumented tests (RUSTFLAGS so path deps get instrumented)
         env:
           DATABASE_URL: postgres://test:test@localhost:5432/test
-          LLVM_PROFILE_FILE: ${{ github.workspace }}/coverage-profraw/%p-%m.profraw
+          LLVM_PROFILE_FILE: /mnt/profraw/%p-%m.profraw
           RUSTFLAGS: "-C instrument-coverage"
           SQLX_OFFLINE: "false"
-          SYSTEMPROMPT_BIN: ${{ github.workspace }}/target/debug/systemprompt
+          SYSTEMPROMPT_BIN: /mnt/coverage-target/debug/systemprompt
         run: |
-          mkdir -p "${{ github.workspace }}/coverage-profraw"
+          mkdir -p "/mnt/profraw"
           # nextest runs each test in its own process, so the per-test timeout
           # applies under instrumentation too; %p in LLVM_PROFILE_FILE keeps the
           # profraw files distinct across those processes.
           cargo nextest run --profile ci \
             --manifest-path crates/tests/Cargo.toml \
             --workspace --lib --bins --tests --no-fail-fast
-          echo "profraw count: $(find ${{ github.workspace }}/coverage-profraw -name '*.profraw' | wc -l)"
+          echo "profraw count: $(find /mnt/profraw -name '*.profraw' | wc -l)"
 
       - name: Merge profdata and render
         if: always()
@@ -148,14 +155,14 @@ jobs:
           LLVM_PROFDATA=$(rustc --print sysroot)/lib/rustlib/x86_64-unknown-linux-gnu/bin/llvm-profdata
           LLVM_COV=$(rustc --print sysroot)/lib/rustlib/x86_64-unknown-linux-gnu/bin/llvm-cov
           "$LLVM_PROFDATA" merge -sparse \
-            "${{ github.workspace }}/coverage-profraw"/*.profraw \
+            "/mnt/profraw"/*.profraw \
             -o coverage-merged.profdata
 
           # Collect every test binary produced (strip dedup-by-cratename).
-          BINS=$(find crates/tests/target/debug/deps -maxdepth 1 -executable -type f -name 'systemprompt_*' ! -name '*.d' -printf '%T@ %p\n' \
+          BINS=$(find /mnt/coverage-target/debug/deps -maxdepth 1 -executable -type f -name 'systemprompt_*' ! -name '*.d' -printf '%T@ %p\n' \
             | sort -rn \
             | awk '{ base=$2; sub(".*/", "", base); sub(/-[0-9a-f]+$/, "", base); if (!seen[base]++) print $2 }')
-          SP_BIN="${{ github.workspace }}/target/debug/systemprompt"
+          SP_BIN="/mnt/coverage-target/debug/systemprompt"
           [ -x "$SP_BIN" ] && BINS="$BINS $SP_BIN"
           OBJ_ARGS=""
           for b in $BINS; do OBJ_ARGS="$OBJ_ARGS --object $b"; done
