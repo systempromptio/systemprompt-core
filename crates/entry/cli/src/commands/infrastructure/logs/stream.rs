@@ -25,6 +25,13 @@ pub struct StreamArgs {
 
     #[arg(long, help = "Clear screen between updates")]
     pub clear: bool,
+
+    #[arg(
+        long,
+        default_value = "0",
+        help = "Stop after this many polling iterations (0 = run until interrupted)"
+    )]
+    pub max_iterations: u64,
 }
 
 pub(super) async fn execute(args: StreamArgs, ctx: &CommandContext) -> Result<()> {
@@ -39,6 +46,7 @@ pub(super) async fn execute(args: StreamArgs, ctx: &CommandContext) -> Result<()
     CliService::section("Log Stream");
     display_filters(&args);
 
+    let mut iterations: u64 = 0;
     loop {
         if args.clear {
             CliService::clear_screen();
@@ -54,6 +62,11 @@ pub(super) async fn execute(args: StreamArgs, ctx: &CommandContext) -> Result<()
             last_timestamp = logs.iter().map(|log| log.timestamp).max();
         } else if last_timestamp.is_none() {
             CliService::warning("No logs found. Waiting for new entries...");
+        }
+
+        iterations += 1;
+        if args.max_iterations != 0 && iterations >= args.max_iterations {
+            return Ok(());
         }
 
         time::sleep(Duration::from_millis(args.interval)).await;
