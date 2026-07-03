@@ -44,6 +44,13 @@ impl Default for UserCache {
     }
 }
 
+#[cfg_attr(
+    not(feature = "test-api"),
+    expect(
+        unreachable_pub,
+        reason = "re-exported via `test_api` only when the feature is on"
+    )
+)]
 impl UserCache {
     pub fn new() -> Arc<Self> {
         Arc::new(Self::default())
