@@ -260,6 +260,12 @@ governance:
     )
 }
 
+mod batch3_auth;
+mod batch3_profile;
+mod batch3_restart;
+mod batch3_secrets;
+mod batch3_tenant;
+mod batch3_validation;
 mod db_cmds;
 mod doctor_deploy;
 mod domain_cmds;
