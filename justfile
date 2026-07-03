@@ -318,56 +318,41 @@ loadtest-distributed NODES *ARGS:
 # Generate line-coverage summary for the workspace.
 #
 # Mirrors .github/workflows/coverage.yml so local + CI numbers stay
-# comparable. Forces a clean instrumented rebuild of the test workspace
-# (~30-40 min cold) and works around three local-only sabotage points
-# the CI runner doesn't have:
+# comparable. Runs entirely in dedicated target dirs under
+# coverage-report/ (override with COVERAGE_TARGET_DIR) so concurrent
+# sessions sharing this checkout can neither clobber the instrumented
+# artifacts nor be broken by this run — never builds in the shared
+# crates/tests/target or ./target, and never mutates shared files.
+# Works around three local-only sabotage points the CI runner
+# doesn't have:
 #
-#   1. Cranelift backend on profile.dev (silently strips
-#      -C instrument-coverage) — neutralised by temporarily stripping
-#      [unstable] and [profile.dev] from both cargo configs.
-#   2. sccache via [build] rustc-wrapper in ~/.cargo/config.toml
+#   1. sccache via [build] rustc-wrapper in ~/.cargo/config.toml
 #      (returns uninstrumented cached rlibs) — neutralised by
 #      CARGO_BUILD_RUSTC_WRAPPER="" on the cargo invocation.
-#   3. The mold linker pinned by target.<triple>.rustflags — mold
+#   2. The mold linker pinned by target.<triple>.rustflags — mold
 #      drops the profile-runtime constructors and instrumented
 #      binaries skip the atexit registration, silently producing
-#      zero profraw files. Default ld is used instead, with --jobs 4
-#      to cap RAM use on the 2GB+ instrumented binaries.
+#      zero profraw files. Setting the RUSTFLAGS env replaces
+#      target rustflags entirely (cargo's flag-resolution order),
+#      so the default linker is used, with --jobs 4 to cap RAM use
+#      on the 2GB+ instrumented binaries.
+#   3. Historically, a Cranelift [unstable]/[profile.dev] section in
+#      the cargo configs (silently strips -C instrument-coverage).
+#      Those sections are gone; if a coverage run ever produces
+#      profraws but a 0% report again, check they haven't returned.
 coverage:
     #!/usr/bin/env bash
     set -euo pipefail
     ROOT="$(pwd)"
     PROFDIR="$ROOT/coverage-report/profraw"
+    TDIR="${COVERAGE_TARGET_DIR:-$ROOT/coverage-report/target}"
+    MAINTDIR="$TDIR-main"
     rm -rf "$PROFDIR" "$ROOT/coverage-report/tests.profdata"
     mkdir -p "$PROFDIR"
 
-    CONFIGS=("$ROOT/.cargo/config.toml" "$ROOT/crates/tests/.cargo/config.toml")
-    cleanup() {
-        for c in "${CONFIGS[@]}"; do
-            [ -f "$c.cov-bak" ] && mv "$c.cov-bak" "$c"
-        done
-    }
-    trap cleanup EXIT INT TERM
-
-    echo "==> Patching cargo configs (strip [unstable], [profile.dev], RUSTC_WRAPPER)"
-    for c in "${CONFIGS[@]}"; do
-        [ -f "$c" ] || continue
-        cp "$c" "$c.cov-bak"
-        awk '
-            /^\[unstable\]/      { skip=1; next }
-            /^\[profile\.dev\]/  { skip=1; next }
-            /^\[/                { skip=0 }
-            skip                 { next }
-            /^RUSTC_WRAPPER[[:space:]]*=/ { next }
-            { print }
-        ' "$c.cov-bak" > "$c"
-    done
-
-    echo "==> Cleaning crates/tests target (forces re-instrumented build of every dep)"
     cd crates/tests
-    cargo clean
 
-    echo "==> Running instrumented test suite"
+    echo "==> Running instrumented test suite (target dir: $TDIR)"
     # Setting RUSTFLAGS env replaces target.<triple>.rustflags entirely
     # (cargo's flag-resolution order), which is exactly what we want:
     # the parent config's `-C link-arg=-fuse-ld=mold` is dropped and
@@ -389,10 +374,11 @@ coverage:
     # `--bins` flag would not otherwise produce the binary.
     echo "==> Building instrumented systemprompt binary from main workspace"
     (cd "$ROOT" && CARGO_BUILD_RUSTC_WRAPPER="" RUSTC_WRAPPER="" \
+        CARGO_TARGET_DIR="$MAINTDIR" \
         LLVM_PROFILE_FILE="$PROFDIR/%p-%m.profraw" \
         RUSTFLAGS="-C instrument-coverage" \
         cargo build -p systemprompt-cli --bin systemprompt --jobs 4)
-    export SYSTEMPROMPT_BIN="$ROOT/target/debug/systemprompt"
+    export SYSTEMPROMPT_BIN="$MAINTDIR/debug/systemprompt"
 
     # DATABASE_URL is required by subprocess_full.rs and other tests that
     # invoke the systemprompt binary through full SecretsBootstrap; without
@@ -400,6 +386,7 @@ coverage:
     : "${DATABASE_URL:=postgres://systemprompt_admin:3e00fcdac26b5b731829e8737515db8f@localhost:5432/systemprompt-web}"
     CARGO_BUILD_RUSTC_WRAPPER="" \
         RUSTC_WRAPPER="" \
+        CARGO_TARGET_DIR="$TDIR" \
         LLVM_PROFILE_FILE="$PROFDIR/%p-%m.profraw" \
         RUSTFLAGS="-C instrument-coverage" \
         SYSTEMPROMPT_BIN="$SYSTEMPROMPT_BIN" \
@@ -419,11 +406,11 @@ coverage:
 
     # Test binaries land in deps/; the `systemprompt` cli bin lands one level
     # up in debug/ (cargo writes named binaries there, not under deps/).
-    BINS=$(find "$ROOT/crates/tests/target/debug/deps" -maxdepth 1 -executable -type f \
+    BINS=$(find "$TDIR/debug/deps" -maxdepth 1 -executable -type f \
         \( -name 'systemprompt_*' -o -name 'systemprompt-*' \) ! -name '*.d' -printf '%T@ %p\n' \
         | sort -rn \
         | awk '{ base=$2; sub(".*/", "", base); sub(/-[0-9a-f]+$/, "", base); if (!seen[base]++) print $2 }')
-    SP_BIN="$ROOT/target/debug/systemprompt"
+    SP_BIN="$MAINTDIR/debug/systemprompt"
     [ -x "$SP_BIN" ] && BINS="$BINS $SP_BIN"
     OBJ_ARGS=""
     for b in $BINS; do OBJ_ARGS="$OBJ_ARGS --object $b"; done
@@ -456,13 +443,15 @@ coverage-html:
         exit 1
     fi
     LLVM_COV=$(rustc --print sysroot)/lib/rustlib/x86_64-unknown-linux-gnu/bin/llvm-cov
+    TDIR="${COVERAGE_TARGET_DIR:-$ROOT/coverage-report/target}"
+    MAINTDIR="$TDIR-main"
     # Test binaries land in deps/; the `systemprompt` cli bin lands one level
     # up in debug/ (cargo writes named binaries there, not under deps/).
-    BINS=$(find "$ROOT/crates/tests/target/debug/deps" -maxdepth 1 -executable -type f \
+    BINS=$(find "$TDIR/debug/deps" -maxdepth 1 -executable -type f \
         \( -name 'systemprompt_*' -o -name 'systemprompt-*' \) ! -name '*.d' -printf '%T@ %p\n' \
         | sort -rn \
         | awk '{ base=$2; sub(".*/", "", base); sub(/-[0-9a-f]+$/, "", base); if (!seen[base]++) print $2 }')
-    SP_BIN="$ROOT/target/debug/systemprompt"
+    SP_BIN="$MAINTDIR/debug/systemprompt"
     [ -x "$SP_BIN" ] && BINS="$BINS $SP_BIN"
     OBJ_ARGS=""
     for b in $BINS; do OBJ_ARGS="$OBJ_ARGS --object $b"; done
