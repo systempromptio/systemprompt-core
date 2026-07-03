@@ -251,3 +251,95 @@ mod proxy_audit_tap;
 #[cfg(test)]
 #[path = "routes_oauth_token_grants_happy.rs"]
 mod routes_oauth_token_grants_happy;
+
+#[cfg(test)]
+#[path = "routes_oauth_clients.rs"]
+mod routes_oauth_clients;
+
+#[cfg(test)]
+#[path = "routes_oauth_introspect_revoke.rs"]
+mod routes_oauth_introspect_revoke;
+
+#[cfg(test)]
+#[path = "routes_oauth_userinfo.rs"]
+mod routes_oauth_userinfo;
+
+#[cfg(test)]
+#[path = "routes_oauth_callback_flow.rs"]
+mod routes_oauth_callback_flow;
+
+#[cfg(test)]
+#[path = "routes_oauth_webauthn.rs"]
+mod routes_oauth_webauthn;
+
+#[cfg(test)]
+#[path = "routes_oauth_token_exchange_oidc.rs"]
+mod routes_oauth_token_exchange_oidc;
+
+#[cfg(test)]
+#[path = "routes_agent_notifications.rs"]
+mod routes_agent_notifications;
+
+#[cfg(test)]
+#[path = "routes_agent_context_events.rs"]
+mod routes_agent_context_events;
+
+#[cfg(test)]
+#[path = "routes_agent_webhook_broadcast.rs"]
+mod routes_agent_webhook_broadcast;
+
+#[cfg(test)]
+#[path = "routes_agent_contexts_crud.rs"]
+mod routes_agent_contexts_crud;
+
+#[cfg(test)]
+#[path = "gateway_messages_more.rs"]
+mod gateway_messages_more;
+
+#[cfg(test)]
+#[path = "gateway_otel_ingest.rs"]
+mod gateway_otel_ingest;
+
+#[cfg(test)]
+#[path = "gateway_bridge_models_more.rs"]
+mod gateway_bridge_models_more;
+
+#[cfg(test)]
+#[path = "gateway_dispatch_more.rs"]
+mod gateway_dispatch_more;
+
+#[cfg(test)]
+#[path = "server_readiness_metrics.rs"]
+mod server_readiness_metrics;
+
+#[cfg(test)]
+#[path = "server_health_more.rs"]
+mod server_health_more;
+
+#[cfg(test)]
+#[path = "static_content_more.rs"]
+mod static_content_more;
+
+#[cfg(test)]
+#[path = "middleware_more.rs"]
+mod middleware_more;
+
+#[cfg(test)]
+#[path = "proxy_more.rs"]
+mod proxy_more;
+
+#[cfg(test)]
+#[path = "api_error_units.rs"]
+mod api_error_units;
+
+#[cfg(test)]
+#[path = "routes_content_more.rs"]
+mod routes_content_more;
+
+#[cfg(test)]
+#[path = "routes_analytics_more.rs"]
+mod routes_analytics_more;
+
+#[cfg(test)]
+#[path = "routes_admin_cli_subprocess.rs"]
+mod routes_admin_cli_subprocess;
