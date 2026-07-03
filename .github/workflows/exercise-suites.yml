@@ -29,6 +29,19 @@ jobs:
     name: Fuzz build + 60s per target
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: test
+          POSTGRES_USER: test
+          POSTGRES_DB: test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v4
       # cargo-fuzz needs nightly; rust-toolchain.toml pins the workspace
@@ -38,11 +51,32 @@ jobs:
           toolchain: nightly-2026-06-03
       - uses: Swatinem/rust-cache@v2
         with:
-          workspaces: crates/tests/fuzz
-      - uses: taiki-e/install-action@cargo-fuzz
+          workspaces: |
+            crates/tests
+            crates/tests/fuzz
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-fuzz
+      # The fuzz workspace path-depends on core crates whose sqlx query
+      # macros are not fully covered by the committed offline caches under
+      # every feature combination, so compile against a live migrated DB
+      # (same pattern as ci.yml).
+      - name: Migrate test database
+        env:
+          DATABASE_URL: postgres://test:test@localhost:5432/test
+        run: |
+          cargo run \
+            --manifest-path crates/tests/Cargo.toml \
+            -p systemprompt-test-migrate --release
       - name: Build all fuzz targets
+        env:
+          DATABASE_URL: postgres://test:test@localhost:5432/test
+          SQLX_OFFLINE: "false"
         run: cargo fuzz build --fuzz-dir crates/tests/fuzz
       - name: Run each target for 60s
+        env:
+          DATABASE_URL: postgres://test:test@localhost:5432/test
+          SQLX_OFFLINE: "false"
         run: |
           for target in $(cargo fuzz list --fuzz-dir crates/tests/fuzz); do
             echo "::group::$target"
@@ -53,14 +87,42 @@ jobs:
   bench-check:
     name: Bench compile check
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: test
+          POSTGRES_USER: test
+          POSTGRES_DB: test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with:
-          workspaces: crates/tests/bench
-      - run: cargo check --manifest-path crates/tests/bench/Cargo.toml --benches
+          workspaces: |
+            crates/tests
+            crates/tests/bench
+      # Same live-DB rationale as fuzz-smoke: bench path-deps hit sqlx
+      # queries missing from the offline caches.
+      - name: Migrate test database
+        env:
+          DATABASE_URL: postgres://test:test@localhost:5432/test
+        run: |
+          cargo run \
+            --manifest-path crates/tests/Cargo.toml \
+            -p systemprompt-test-migrate --release
+      - name: Compile benches
+        env:
+          DATABASE_URL: postgres://test:test@localhost:5432/test
+          SQLX_OFFLINE: "false"
+        run: cargo check --manifest-path crates/tests/bench/Cargo.toml --benches
 
   loadtest-smoke:
     name: Loadtest build + --help
