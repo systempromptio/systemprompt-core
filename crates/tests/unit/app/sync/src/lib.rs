@@ -32,6 +32,8 @@ mod database_sync_failure;
 #[cfg(test)]
 mod deploy_artifacts;
 #[cfg(test)]
+mod deploy_artifacts_extra;
+#[cfg(test)]
 mod deploy_orchestrator;
 #[cfg(test)]
 mod diff;
@@ -52,9 +54,15 @@ mod files;
 #[cfg(test)]
 mod generation;
 #[cfg(test)]
+mod jobs_access_control_db;
+#[cfg(test)]
 mod jobs_content_sync;
 #[cfg(test)]
+mod jobs_content_sync_db;
+#[cfg(test)]
 mod jobs_smoke;
+#[cfg(test)]
+mod lib_sync_all;
 #[cfg(test)]
 mod local_content_sync;
 #[cfg(test)]

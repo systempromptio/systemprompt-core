@@ -8599,6 +8599,7 @@ dependencies = [
  "systemprompt-content",
  "systemprompt-database",
  "systemprompt-identifiers",
+ "systemprompt-models",
  "systemprompt-sync",
  "systemprompt-test-fixtures",
  "systemprompt-traits",
