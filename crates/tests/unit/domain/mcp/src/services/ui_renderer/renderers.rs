@@ -116,7 +116,15 @@ fn ui_metadata_to_json_contains_resource_uri() {
 fn ui_metadata_to_json_includes_csp_when_set() {
     let meta = UiMetadata::for_static_template("s").with_csp(CspPolicy::strict());
     let json = meta.to_json();
-    assert!(json.get("csp").expect("csp present when set").is_object());
+    let csp = json.get("csp").expect("csp present when set");
+    assert_eq!(
+        csp.as_str(),
+        Some(CspPolicy::strict().to_header_value().as_str())
+    );
+    assert!(
+        csp.as_str().is_some_and(|s| s.contains("default-src")),
+        "serialized csp must carry the header directives: {csp}"
+    );
 }
 
 #[test]
