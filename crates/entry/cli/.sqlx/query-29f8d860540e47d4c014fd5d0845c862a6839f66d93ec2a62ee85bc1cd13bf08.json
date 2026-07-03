@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            INSERT INTO content_files (content_id, file_id, role, display_order, created_at)\n            VALUES ($1, $2, $3, $4, $5)\n            ON CONFLICT (content_id, file_id, role) DO UPDATE\n            SET display_order = $4\n            RETURNING id, content_id as \"content_id: ContentId\", file_id, role, display_order, created_at\n            ",
+  "query": "\n            SELECT id, content_id as \"content_id: ContentId\", file_id, role as \"role: FileRole\", display_order, created_at\n            FROM content_files\n            WHERE file_id = $1\n            ORDER BY created_at ASC\n            ",
   "describe": {
     "columns": [
       {
@@ -38,7 +38,7 @@
       },
       {
         "ordinal": 3,
-        "name": "role",
+        "name": "role: FileRole",
         "type_info": "Varchar",
         "origin": {
           "Table": {
@@ -72,11 +72,7 @@
     ],
     "parameters": {
       "Left": [
-        "Text",
-        "Uuid",
-        "Varchar",
-        "Int4",
-        "Timestamptz"
+        "Uuid"
       ]
     },
     "nullable": [
@@ -88,5 +84,5 @@
       false
     ]
   },
-  "hash": "d359b413276b20ed5d3870a95c9cdb870a27e9bff47ff332a2fb863914ebd34a"
+  "hash": "29f8d860540e47d4c014fd5d0845c862a6839f66d93ec2a62ee85bc1cd13bf08"
 }

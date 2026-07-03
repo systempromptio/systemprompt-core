@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT id, path, public_url, mime_type, size_bytes, ai_content, metadata, user_id as \"user_id: UserId\", session_id as \"session_id: SessionId\", trace_id as \"trace_id: TraceId\", context_id as \"context_id: ContextId\", created_at, updated_at, deleted_at\n            FROM files\n            WHERE id = $1 AND deleted_at IS NULL\n            ",
+  "query": "\n            SELECT id, path, public_url, mime_type, size_bytes, ai_content, metadata as \"metadata: sqlx::types::Json<FileMetadata>\", user_id as \"user_id: UserId\", session_id as \"session_id: SessionId\", trace_id as \"trace_id: TraceId\", context_id as \"context_id: ContextId\", created_at, updated_at, deleted_at\n            FROM files\n            WHERE id = $1 AND deleted_at IS NULL\n            ",
   "describe": {
     "columns": [
       {
@@ -71,7 +71,7 @@
       },
       {
         "ordinal": 6,
-        "name": "metadata",
+        "name": "metadata: sqlx::types::Json<FileMetadata>",
         "type_info": "Jsonb",
         "origin": {
           "Table": {
@@ -180,5 +180,5 @@
       true
     ]
   },
-  "hash": "13d103ca7b24d4f7a7f33c88067cecde21156d594243c0dfcdfd35e17272a6c3"
+  "hash": "f27de7cb600eb09fa0be06439a40fb313cf8cb8d1a003b5bf49f43c1645052f7"
 }
