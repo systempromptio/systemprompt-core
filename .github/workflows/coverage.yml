@@ -74,20 +74,6 @@ jobs:
           sudo chmod 777 /mnt/coverage-target /mnt/profraw /mnt/tmp
           df -h / /mnt
 
-      # The runner agent dies (and uploads no logs) if the root disk actually
-      # reaches zero, so kill the build first and dump what consumed the space.
-      - name: Start root-disk watchdog
-        run: |
-          nohup bash -c 'while sleep 30; do
-            avail=$(df --output=avail -BM / | tail -1 | tr -dc 0-9)
-            if [ "$avail" -lt 2048 ]; then
-              { echo "ROOT DISK LOW: ${avail}M free"; df -h / /mnt;
-                sudo du -xh -d3 / 2>/dev/null | sort -rh | head -30; } > /mnt/watchdog.log 2>&1
-              sudo pkill -9 cargo || true; sudo pkill -9 nextest || true
-              break
-            fi
-          done' >/dev/null 2>&1 &
-
       - name: Install libdbus (bridge test bins link keyring -> dbus)
         run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config
 
@@ -158,13 +144,49 @@ jobs:
           TMPDIR: /mnt/tmp
         run: |
           mkdir -p "/mnt/profraw"
+
+          # Inline root-disk watchdog. It MUST live in this step: a background
+          # process started in an earlier step is reaped when that step ends, so
+          # the previous standalone watchdog never actually ran. If root nears
+          # zero the runner agent itself dies and uploads no logs, so snapshot
+          # what is consuming the disk (to the surviving /mnt) and kill the run
+          # before the agent crashes.
+          bash -c '
+            while sleep 15; do
+              avail=$(df --output=avail -BM / | tail -1 | tr -dc 0-9)
+              echo "watchdog: root ${avail}M free"
+              if [ "${avail:-0}" -lt 3072 ]; then
+                { echo "ROOT DISK LOW: ${avail}M free"; date -u;
+                  df -h / /mnt;
+                  echo "--- top root consumers (excl /mnt) ---";
+                  sudo du -xh -d4 / 2>/dev/null | sort -rh | head -40;
+                  echo "--- docker ---";
+                  sudo du -sh /var/lib/docker 2>/dev/null;
+                } > /mnt/watchdog.log 2>&1
+                sudo pkill -9 -f "cargo|nextest|systemprompt" || true
+                break
+              fi
+            done
+          ' &
+          WATCHDOG=$!
+
+          set +e
           # nextest runs each test in its own process, so the per-test timeout
           # applies under instrumentation too; %p in LLVM_PROFILE_FILE keeps the
           # profraw files distinct across those processes.
           cargo nextest run --profile ci \
             --manifest-path crates/tests/Cargo.toml \
             --workspace --lib --bins --tests --no-fail-fast
+          status=$?
+          set -e
+          kill "$WATCHDOG" 2>/dev/null || true
+
           echo "profraw count: $(find /mnt/profraw -name '*.profraw' | wc -l)"
+          df -h / /mnt
+          if [ -f /mnt/watchdog.log ]; then
+            echo "=== watchdog tripped ==="; cat /mnt/watchdog.log; exit 1
+          fi
+          exit $status
 
       - name: Merge profdata and render
         if: always()
