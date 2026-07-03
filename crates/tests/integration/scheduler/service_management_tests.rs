@@ -5,7 +5,8 @@
 
 use systemprompt_database::DbPool;
 use systemprompt_scheduler::{
-    DesiredStatus, ServiceConfig, ServiceManagementService, ServiceStateVerifier, ServiceType,
+    DesiredStatus, RuntimeStatus, ServiceConfig, ServiceManagementService, ServiceStateVerifier,
+    ServiceType,
 };
 use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
 
@@ -136,7 +137,12 @@ async fn state_verifier_get_crashed_services_filters() {
         .get_crashed_services(&configs)
         .await
         .expect("query");
-    assert!(crashed.is_empty());
+    assert!(
+        crashed
+            .iter()
+            .all(|s| s.runtime_status == RuntimeStatus::Crashed),
+        "get_crashed_services must return only crashed states"
+    );
 }
 
 #[tokio::test]
