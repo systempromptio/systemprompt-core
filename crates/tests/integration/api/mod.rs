@@ -5,6 +5,18 @@
 mod routes_marketplace;
 
 #[cfg(test)]
+#[path = "routes_marketplace_success.rs"]
+mod routes_marketplace_success;
+
+#[cfg(test)]
+#[path = "routes_gateway_auth.rs"]
+mod routes_gateway_auth;
+
+#[cfg(test)]
+#[path = "routes_sync_archive_guards.rs"]
+mod routes_sync_archive_guards;
+
+#[cfg(test)]
 #[path = "routes_mcp_registry.rs"]
 mod routes_mcp_registry;
 

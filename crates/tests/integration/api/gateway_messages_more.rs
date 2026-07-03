@@ -24,7 +24,7 @@ use systemprompt_api::services::gateway::protocol::{
 };
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::headers::{GATEWAY_CONVERSATION_ID, SESSION_ID};
-use systemprompt_identifiers::{AiRequestId, ContextId, TraceId, UserId};
+use systemprompt_identifiers::{AiRequestId, TraceId, UserId};
 use systemprompt_security::authz::{AllowAllHook, DenyAllHook, SharedAuthzHook};
 use systemprompt_test_fixtures::{install_test_signing_key, seed_admin_credential};
 use systemprompt_users::{ApiKeyService, IssueApiKeyParams};
