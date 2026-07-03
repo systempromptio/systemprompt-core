@@ -6655,6 +6655,7 @@ dependencies = [
  "tempfile",
  "tokio",
  "uuid",
+ "wiremock",
 ]
 
 [[package]]
@@ -7872,6 +7873,7 @@ dependencies = [
  "serde_yaml_ng",
  "systemprompt-content",
  "systemprompt-database",
+ "systemprompt-extension",
  "systemprompt-generator",
  "systemprompt-identifiers",
  "systemprompt-models",

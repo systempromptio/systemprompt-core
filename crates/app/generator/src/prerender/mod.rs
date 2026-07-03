@@ -22,3 +22,5 @@ mod toc;
 mod utils;
 
 pub use engine::{PagePrerenderResult, prerender_content, prerender_pages};
+pub use toc::{TocResult, generate_toc};
+pub use utils::merge_json_data;

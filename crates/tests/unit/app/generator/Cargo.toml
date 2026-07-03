@@ -15,6 +15,7 @@ systemprompt-generator = { workspace = true }
 systemprompt-models = { workspace = true }
 systemprompt-content = { workspace = true }
 systemprompt-provider-contracts = { workspace = true }
+systemprompt-extension = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-test-fixtures = { workspace = true }

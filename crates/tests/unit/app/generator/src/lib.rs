@@ -31,6 +31,8 @@ mod error_tests;
 #[cfg(test)]
 mod markdown_extra_tests;
 #[cfg(test)]
+mod merge_json_tests;
+#[cfg(test)]
 mod markdown_tests;
 #[cfg(test)]
 mod orchestrator_validate;
@@ -54,5 +56,7 @@ mod sitemap_provider_tests;
 mod sitemap_tests;
 #[cfg(test)]
 pub(crate) mod templates;
+#[cfg(test)]
+mod toc_tests;
 #[cfg(test)]
 mod types_tests;

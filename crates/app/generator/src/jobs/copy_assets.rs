@@ -62,7 +62,7 @@ pub async fn execute_copy_extension_assets(paths: &AppPaths) -> Result<JobResult
         .with_duration(duration_ms))
 }
 
-async fn copy_asset(dist_dir: &Path, ext_id: &str, asset: &AssetDefinition) -> Result<()> {
+pub async fn copy_asset(dist_dir: &Path, ext_id: &str, asset: &AssetDefinition) -> Result<()> {
     let dest_path = dist_dir.join(asset.destination());
 
     if let Some(parent) = dest_path.parent() {

@@ -14,12 +14,12 @@ struct TocEntry {
 }
 
 #[derive(Debug)]
-pub(super) struct TocResult {
+pub struct TocResult {
     pub toc_html: String,
     pub content_html: String,
 }
 
-pub(super) fn generate_toc(markdown: &str, rendered_html: &str) -> TocResult {
+pub fn generate_toc(markdown: &str, rendered_html: &str) -> TocResult {
     let entries = extract_headings(markdown);
 
     if entries.is_empty() {

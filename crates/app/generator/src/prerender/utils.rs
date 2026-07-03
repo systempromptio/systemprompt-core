@@ -6,7 +6,7 @@ use std::collections::HashSet;
 use systemprompt_template_provider::{ComponentContext, RenderedComponent};
 use systemprompt_templates::TemplateRegistry;
 
-pub(super) fn merge_json_data(base: &mut serde_json::Value, extension: &serde_json::Value) {
+pub fn merge_json_data(base: &mut serde_json::Value, extension: &serde_json::Value) {
     match (base, extension) {
         (serde_json::Value::Object(base_obj), serde_json::Value::Object(ext_obj)) => {
             for (key, ext_value) in ext_obj {

@@ -39,7 +39,10 @@ pub use assets::organize_dist_assets;
 pub use build::{BuildError, BuildMode, BuildOrchestrator};
 pub use content::{extract_frontmatter, render_markdown};
 pub use error::{GeneratorResult, PublishError};
-pub use prerender::{PagePrerenderResult, prerender_content, prerender_pages};
+pub use prerender::{
+    PagePrerenderResult, TocResult, generate_toc, merge_json_data, prerender_content,
+    prerender_pages,
+};
 pub use rss::{
     DefaultRssFeedProvider, GeneratedFeed, RssChannel, RssItem, build_rss_xml, generate_feed,
     generate_feed_with_providers,
@@ -52,4 +55,4 @@ pub use systemprompt_models::{ContentConfigRaw, ContentSourceConfigRaw, SitemapC
 pub use systemprompt_templates::TemplateRegistry;
 pub use templates::{get_templates_path, load_web_config};
 
-pub use jobs::{ContentPrerenderJob, PagePrerenderJob, execute_copy_extension_assets};
+pub use jobs::{ContentPrerenderJob, PagePrerenderJob, copy_asset, execute_copy_extension_assets};
