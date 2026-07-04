@@ -13,9 +13,9 @@ use std::time::Duration;
 use systemprompt_database::DbPool;
 use systemprompt_events::{
     A2A_BROADCASTER, AGUI_BROADCASTER, ANALYTICS_BROADCASTER, Broadcaster, CONTEXT_BROADCASTER,
-    EventRouter, PostgresEventBridge,
+    EventRouter, OUTBOX_CHANNEL, PostgresEventBridge,
 };
-use systemprompt_identifiers::{ConnectionId, ContextId, TaskId, UserId};
+use systemprompt_identifiers::{ConnectionId, ContextId, EventOutboxId, TaskId, UserId};
 use systemprompt_models::a2a::TaskState;
 use systemprompt_models::{
     A2AEvent, A2AEventBuilder, AgUiEvent, AgUiEventBuilder, AnalyticsEvent, AnalyticsEventBuilder,
@@ -257,5 +257,168 @@ async fn route_persists_queryable_outbox_row() {
         channel_names.contains(&"analytics") && channel_names.contains(&"system"),
         "each route_* call must append a durable outbox row recording its channel, got \
          {channel_names:?}"
+    );
+}
+
+async fn insert_raw_outbox(pool: &sqlx::PgPool, id: &str, channel: &str, user: &UserId, payload: &str) {
+    sqlx::query(
+        "INSERT INTO event_outbox (id, channel, user_id, payload, actor_kind, actor_id) \
+         VALUES ($1, $2, $3, $4::jsonb, 'user', $5) ON CONFLICT (id) DO NOTHING",
+    )
+    .bind(id)
+    .bind(channel)
+    .bind(user.as_str())
+    .bind(payload)
+    .bind(user.as_str())
+    .execute(pool)
+    .await
+    .expect("insert raw outbox row must succeed");
+}
+
+async fn notify_outbox(pool: &sqlx::PgPool, id: &str) {
+    let _ = sqlx::query("SELECT pg_notify($1, $2)")
+        .bind(OUTBOX_CHANNEL)
+        .bind(id)
+        .execute(pool)
+        .await;
+}
+
+/// Repeatedly fire a "poison" notification (an outbox id the bridge cannot
+/// deliver) alongside a valid analytics route, asserting the bridge survives
+/// the poison branch and still delivers the good event. The valid delivery is
+/// the deterministic signal; the poison exercises `deliver`/`fan_in` error arms.
+async fn relay_survives_poison<Fp>(
+    poison: Fp,
+    user: &UserId,
+    rx: &mut tokio::sync::mpsc::Receiver<R>,
+) -> bool
+where
+    Fp: Fn() -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send>>,
+{
+    for _ in 0..20 {
+        poison().await;
+        EventRouter::route_analytics(user, analytics_event()).await;
+        if let Ok(Some(_)) = tokio::time::timeout(Duration::from_millis(500), rx.recv()).await {
+            return true;
+        }
+    }
+    false
+}
+
+#[tokio::test]
+async fn bridge_survives_missing_outbox_row_notification() {
+    let Some(pool) = pool().await else {
+        return;
+    };
+    let _guard = BRIDGE_LOCK.lock().await;
+    let user = unique_user_id("bridge-missing-row");
+    let conn = ConnectionId::new("bridge-missing-row-conn");
+
+    let handle = PostgresEventBridge::new(pool.clone()).start();
+    let (tx, mut rx) = tokio::sync::mpsc::channel::<R>(systemprompt_events::SSE_BUFFER);
+    ANALYTICS_BROADCASTER.register(&user, &conn, tx).await;
+
+    let poison_pool = pool.clone();
+    let delivered = relay_survives_poison(
+        move || {
+            let pool = poison_pool.clone();
+            Box::pin(async move {
+                notify_outbox(&pool, &EventOutboxId::generate().as_str().to_owned()).await;
+            })
+        },
+        &user,
+        &mut rx,
+    )
+    .await;
+
+    ANALYTICS_BROADCASTER.unregister(&user, &conn).await;
+    handle.abort();
+    cleanup(&pool, &user).await;
+
+    assert!(
+        delivered,
+        "a NOTIFY for a pruned/absent outbox id must be skipped without stalling the relay"
+    );
+}
+
+#[tokio::test]
+async fn bridge_survives_unknown_channel_row() {
+    let Some(pool) = pool().await else {
+        return;
+    };
+    let _guard = BRIDGE_LOCK.lock().await;
+    let user = unique_user_id("bridge-bad-channel");
+    let conn = ConnectionId::new("bridge-bad-channel-conn");
+
+    let bad_id = EventOutboxId::generate().as_str().to_owned();
+    insert_raw_outbox(&pool, &bad_id, "not-a-real-channel", &user, "{}").await;
+
+    let handle = PostgresEventBridge::new(pool.clone()).start();
+    let (tx, mut rx) = tokio::sync::mpsc::channel::<R>(systemprompt_events::SSE_BUFFER);
+    ANALYTICS_BROADCASTER.register(&user, &conn, tx).await;
+
+    let poison_pool = pool.clone();
+    let poison_id = bad_id.clone();
+    let delivered = relay_survives_poison(
+        move || {
+            let pool = poison_pool.clone();
+            let id = poison_id.clone();
+            Box::pin(async move {
+                notify_outbox(&pool, &id).await;
+            })
+        },
+        &user,
+        &mut rx,
+    )
+    .await;
+
+    ANALYTICS_BROADCASTER.unregister(&user, &conn).await;
+    handle.abort();
+    cleanup(&pool, &user).await;
+
+    assert!(
+        delivered,
+        "an outbox row with an unparseable channel must be logged and skipped, not stall the relay"
+    );
+}
+
+#[tokio::test]
+async fn bridge_survives_undecodable_payload() {
+    let Some(pool) = pool().await else {
+        return;
+    };
+    let _guard = BRIDGE_LOCK.lock().await;
+    let user = unique_user_id("bridge-bad-payload");
+    let conn = ConnectionId::new("bridge-bad-payload-conn");
+
+    let bad_id = EventOutboxId::generate().as_str().to_owned();
+    insert_raw_outbox(&pool, &bad_id, "agui", &user, r#"{"unexpected":"shape"}"#).await;
+
+    let handle = PostgresEventBridge::new(pool.clone()).start();
+    let (tx, mut rx) = tokio::sync::mpsc::channel::<R>(systemprompt_events::SSE_BUFFER);
+    ANALYTICS_BROADCASTER.register(&user, &conn, tx).await;
+
+    let poison_pool = pool.clone();
+    let poison_id = bad_id.clone();
+    let delivered = relay_survives_poison(
+        move || {
+            let pool = poison_pool.clone();
+            let id = poison_id.clone();
+            Box::pin(async move {
+                notify_outbox(&pool, &id).await;
+            })
+        },
+        &user,
+        &mut rx,
+    )
+    .await;
+
+    ANALYTICS_BROADCASTER.unregister(&user, &conn).await;
+    handle.abort();
+    cleanup(&pool, &user).await;
+
+    assert!(
+        delivered,
+        "a row whose payload fails to decode for its channel must be logged and skipped"
     );
 }
