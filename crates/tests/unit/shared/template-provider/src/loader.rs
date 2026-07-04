@@ -333,6 +333,42 @@ mod filesystem_loader_tests {
             .await;
         result.unwrap_err();
     }
+
+    #[tokio::test]
+    async fn load_absolute_nonexistent_file_surfaces_io_error() {
+        let dir = TempDir::new().unwrap();
+        let loader = FileSystemLoader::with_path(dir.path());
+        let absent = dir.path().join("never-written.html");
+        let source = TemplateSource::File(absent);
+        let result = loader.load(&source).await;
+        result.unwrap_err();
+    }
+
+    #[tokio::test]
+    async fn load_relative_path_pointing_at_directory_surfaces_io_error() {
+        let dir = TempDir::new().unwrap();
+        let inner = dir.path().join("a-directory");
+        fs::create_dir(&inner).await.unwrap();
+
+        let loader = FileSystemLoader::with_path(dir.path());
+        let source = TemplateSource::File(PathBuf::from("a-directory"));
+        let result = loader.load(&source).await;
+        result.unwrap_err();
+    }
+
+    #[tokio::test]
+    async fn load_directory_target_resolving_to_file_surfaces_io_error() {
+        let dir = TempDir::new().unwrap();
+        fs::write(dir.path().join("not-a-dir.dat"), "payload")
+            .await
+            .unwrap();
+
+        let loader = FileSystemLoader::with_path(dir.path());
+        let result = loader
+            .load_directory(PathBuf::from("not-a-dir.dat").as_path())
+            .await;
+        result.unwrap_err();
+    }
 }
 
 mod default_method_tests {
