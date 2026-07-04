@@ -222,3 +222,111 @@ system_admin:
 
     unsafe { std::env::remove_var("TEST_PROFILE_HOST") };
 }
+
+fn valid_by_name_profile(temp: &TempDir, name: &str, port: u16) -> String {
+    format!(
+        r#"
+name: {name}
+display_name: By Name {name}
+
+site:
+  name: By Name Site
+
+database:
+  type: postgres
+
+server:
+  host: localhost
+  port: {port}
+  api_server_url: http://localhost:8080
+  api_internal_url: http://localhost:8080
+  api_external_url: http://localhost:8080
+
+paths:
+  system: {system}
+  services: {services}
+  bin: {bin}
+
+security:
+  jwt_issuer: {name}
+  jwt_access_token_expiration: 2592000
+  jwt_refresh_token_expiration: 15552000
+  jwt_audiences:
+    - api
+  allowed_resource_audiences:
+    - hook
+
+rate_limits:
+  disabled: true
+  oauth_public_per_second: 10
+  oauth_auth_per_second: 5
+  contexts_per_second: 100
+  tasks_per_second: 100
+  artifacts_per_second: 100
+  agent_registry_per_second: 10
+  agents_per_second: 50
+  mcp_registry_per_second: 10
+  mcp_per_second: 100
+  stream_per_second: 50
+  content_per_second: 100
+  burst_multiplier: 2
+
+system_admin:
+  username: admin
+"#,
+        system = temp.path().join("system").display(),
+        services = temp.path().join("services").display(),
+        bin = temp.path().join("bin").display(),
+    )
+}
+
+fn prepare_dirs(temp: &TempDir) {
+    for sub in ["system", "services", "bin", "profiles"] {
+        std::fs::create_dir_all(temp.path().join(sub)).expect("create dir");
+    }
+}
+
+#[test]
+fn load_and_validate_by_name_valid() {
+    let temp = TempDir::new().expect("Failed to create temp dir");
+    prepare_dirs(&temp);
+
+    std::fs::write(
+        temp.path()
+            .join("profiles")
+            .join("byname.secrets.profile.yaml"),
+        valid_by_name_profile(&temp, "byname", 8080),
+    )
+    .expect("write profile");
+
+    let profile = ProfileLoader::load_and_validate(temp.path(), "byname")
+        .expect("valid named profile should load and validate");
+    assert_eq!(profile.name, "byname");
+}
+
+#[test]
+fn load_and_validate_by_name_invalid_port_errors() {
+    let temp = TempDir::new().expect("Failed to create temp dir");
+    prepare_dirs(&temp);
+
+    std::fs::write(
+        temp.path()
+            .join("profiles")
+            .join("badport.secrets.profile.yaml"),
+        valid_by_name_profile(&temp, "badport", 0),
+    )
+    .expect("write profile");
+
+    let err = ProfileLoader::load_and_validate(temp.path(), "badport")
+        .expect_err("port 0 must fail validation through the by-name path");
+    assert!(err.to_string().contains("port"));
+}
+
+#[test]
+fn load_and_validate_by_name_missing_errors() {
+    let temp = TempDir::new().expect("Failed to create temp dir");
+    prepare_dirs(&temp);
+
+    ProfileLoader::load_and_validate(temp.path(), "absent")
+        .expect_err("a missing named profile must error before validation");
+}

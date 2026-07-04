@@ -409,6 +409,72 @@ fn discover_multiple_plugins_and_skills() {
 }
 
 #[test]
+fn discover_skills_malformed_yaml_errors() {
+    let temp = TempDir::new().expect("tempdir");
+    let config_dir = temp.path().join("config");
+    std::fs::create_dir_all(&config_dir).expect("create config dir");
+    let config_path = config_dir.join("services.yaml");
+    std::fs::write(&config_path, base_config()).expect("write config");
+
+    let skill_dir = temp.path().join("skills").join("broken-skill");
+    std::fs::create_dir_all(&skill_dir).expect("create skill dir");
+    std::fs::write(skill_dir.join("config.yaml"), "id: : : not valid: yaml")
+        .expect("write malformed skill config");
+
+    let result = ConfigLoader::load_from_path(&config_path);
+    let err = result.expect_err("malformed skill config.yaml must surface a parse error");
+    let msg = format!("{err:#}");
+    assert!(
+        msg.contains("broken-skill") || msg.to_lowercase().contains("yaml"),
+        "expected a YAML parse error naming the offending file, got: {msg}"
+    );
+}
+
+#[test]
+fn discover_plugins_malformed_yaml_errors() {
+    let temp = TempDir::new().expect("tempdir");
+    let config_dir = temp.path().join("config");
+    std::fs::create_dir_all(&config_dir).expect("create config dir");
+    let config_path = config_dir.join("services.yaml");
+    std::fs::write(&config_path, base_config()).expect("write config");
+
+    let plugin_dir = temp.path().join("plugins").join("broken-plugin");
+    std::fs::create_dir_all(&plugin_dir).expect("create plugin dir");
+    std::fs::write(plugin_dir.join("config.yaml"), "plugin: : : bad: yaml")
+        .expect("write malformed plugin config");
+
+    let result = ConfigLoader::load_from_path(&config_path);
+    let err = result.expect_err("malformed plugin config.yaml must surface a parse error");
+    let msg = format!("{err:#}");
+    assert!(
+        msg.contains("broken-plugin") || msg.to_lowercase().contains("yaml"),
+        "expected a YAML parse error naming the offending file, got: {msg}"
+    );
+}
+
+#[test]
+fn discover_marketplaces_malformed_yaml_errors() {
+    let temp = TempDir::new().expect("tempdir");
+    let config_dir = temp.path().join("config");
+    std::fs::create_dir_all(&config_dir).expect("create config dir");
+    let config_path = config_dir.join("services.yaml");
+    std::fs::write(&config_path, base_config()).expect("write config");
+
+    let mkt_dir = temp.path().join("marketplaces").join("broken-market");
+    std::fs::create_dir_all(&mkt_dir).expect("create marketplace dir");
+    std::fs::write(mkt_dir.join("config.yaml"), "marketplace: : : bad: yaml")
+        .expect("write malformed marketplace config");
+
+    let result = ConfigLoader::load_from_path(&config_path);
+    let err = result.expect_err("malformed marketplace config.yaml must surface a parse error");
+    let msg = format!("{err:#}");
+    assert!(
+        msg.contains("broken-market") || msg.to_lowercase().contains("yaml"),
+        "expected a YAML parse error naming the offending file, got: {msg}"
+    );
+}
+
+#[test]
 fn discover_skips_missing_parent_no_panic() {
     let temp = TempDir::new().expect("tempdir");
     let config_path = temp.path().join("services.yaml");

@@ -168,3 +168,40 @@ fn delete_agent_without_config_file_errors() {
         .expect_err("missing config.yaml must error after file removal");
     assert!(!err.to_string().is_empty());
 }
+
+#[test]
+fn create_agent_errors_when_agents_path_is_a_file() {
+    let temp = TempDir::new().expect("tempdir");
+    std::fs::write(temp.path().join("agents"), "i am a file, not a directory")
+        .expect("write blocking file");
+
+    let agent = test_agent("blocked");
+    let err = ConfigWriter::create_agent(&agent, temp.path())
+        .expect_err("create_dir_all must fail when the agents path is an existing file");
+    assert!(
+        !err.to_string().is_empty(),
+        "the create_dir_all IO failure must be surfaced"
+    );
+}
+
+#[test]
+fn update_agent_writes_through_content_scan_when_filename_differs() {
+    let temp = TempDir::new().expect("tempdir");
+    let agents_dir = temp.path().join("agents");
+    std::fs::create_dir_all(&agents_dir).expect("agents dir");
+
+    let yaml = "agents:\n  scanned:\n    name: scanned\n    port: 4000\n    endpoint: http://localhost:4000/scanned\n    enabled: true\n    card:\n      protocolVersion: \"0.2.3\"\n      displayName: S\n      description: original description\n      version: 1.0.0\n      preferredTransport: JSONRPC\n      capabilities: {streaming: true, pushNotifications: false, stateTransitionHistory: false}\n      defaultInputModes: [text/plain]\n      defaultOutputModes: [text/plain]\n      skills: []\n      supportsAuthenticatedExtendedCard: false\n    metadata: {}\n";
+    let mismatched_file = agents_dir.join("zz-not-the-agent-name.yaml");
+    std::fs::write(&mismatched_file, yaml).expect("write mismatched-name agent file");
+
+    let mut updated = test_agent("scanned");
+    updated.card.description = "updated via scan".to_string();
+    ConfigWriter::update_agent("scanned", &updated, temp.path())
+        .expect("update must locate the file via the content scan and rewrite it");
+
+    let content = std::fs::read_to_string(&mismatched_file).expect("read rewritten file");
+    assert!(
+        content.contains("updated via scan"),
+        "the scanned file must be rewritten in place, got: {content}"
+    );
+}
