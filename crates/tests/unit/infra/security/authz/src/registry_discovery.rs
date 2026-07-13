@@ -67,7 +67,8 @@ fn fixture() -> AuthzRequest {
 
 #[tokio::test]
 async fn discovers_and_composes_registered_hooks() {
-    let discovered = discover_authz_hook(&context()).expect("two registrations must resolve a hook");
+    let discovered =
+        discover_authz_hook(&context()).expect("two registrations must resolve a hook");
     // The composite short-circuits on the first Deny, so the DenyHook's policy
     // must surface even though an AllowHook is also registered.
     match discovered.evaluate(fixture()).await {

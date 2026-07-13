@@ -102,6 +102,19 @@ async fn webhook_transport_failure_denies() {
 }
 
 #[tokio::test]
+async fn webhook_exposes_configured_url_and_timeout() {
+    let hook = WebhookHook::new(
+        "http://127.0.0.1:1/authz".to_string(),
+        Duration::from_millis(750),
+        Arc::new(NullAuditSink),
+    )
+    .expect("build webhook hook");
+
+    assert_eq!(hook.url(), "http://127.0.0.1:1/authz");
+    assert_eq!(hook.timeout(), Duration::from_millis(750));
+}
+
+#[tokio::test]
 async fn allow_all_hook_always_allows() {
     let hook = AllowAllHook::null();
     let decision = hook.evaluate(fixture()).await;

@@ -35,8 +35,19 @@ fn record<'a>(
     }
 }
 
+fn error_subscriber_guard() -> tracing::subscriber::DefaultGuard {
+    let subscriber = tracing_subscriber::fmt()
+        .with_max_level(tracing::Level::ERROR)
+        .with_test_writer()
+        .finish();
+    tracing::subscriber::set_default(subscriber)
+}
+
 #[tokio::test]
 async fn insert_through_closed_pool_propagates_sqlx_error() {
+    // An ERROR-level subscriber is active so the audit-drop log fields (actor
+    // id, session id, policy, decision) are evaluated on the failure path.
+    let _guard = error_subscriber_guard();
     let db = closed_db_pool().await;
     let pool = db
         .write_pool_arc()

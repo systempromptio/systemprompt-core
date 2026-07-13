@@ -261,6 +261,16 @@ mod gateway_and_provider_request_ids {
         let mut empty = HeaderMap::new();
         empty.insert(headers::PROVIDER_REQUEST_ID, HeaderValue::from_static(""));
         assert!(HeaderExtractor::extract_provider_request_id(&empty).is_none());
+
+        let mut oversized = HeaderMap::new();
+        oversized.insert(
+            headers::PROVIDER_REQUEST_ID,
+            HeaderValue::from_str(&"x".repeat(300)).unwrap(),
+        );
+        assert!(
+            HeaderExtractor::extract_provider_request_id(&oversized).is_none(),
+            "an id beyond the 256-char bound is ignored, not propagated"
+        );
     }
 
     #[test]

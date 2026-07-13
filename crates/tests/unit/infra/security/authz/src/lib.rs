@@ -31,16 +31,16 @@ mod hooks_and_composite;
 #[cfg(test)]
 mod ingestion_db;
 #[cfg(test)]
-mod registry_discovery;
-#[cfg(test)]
-mod rule_based_hook;
-#[cfg(test)]
 mod marketplace_floor;
 #[cfg(test)]
 mod profile_governance;
 #[cfg(test)]
+mod registry_discovery;
+#[cfg(test)]
 mod resolver;
 #[cfg(test)]
 mod resolver_parents;
+#[cfg(test)]
+mod rule_based_hook;
 #[cfg(test)]
 mod webhook_hook;
