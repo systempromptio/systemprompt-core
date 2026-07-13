@@ -614,3 +614,303 @@ fn load_artifacts_skips_disabled() {
     let artifacts = load_artifacts(dir.path()).expect("load artifacts");
     assert!(artifacts.is_empty(), "disabled artifact is not loaded");
 }
+
+#[test]
+fn load_agents_invalid_name_is_skipped_not_fatal() {
+    let mut config = ServicesConfig::default();
+    let good = make_agent_config("good");
+    let mut bad = make_agent_config("bad");
+    bad.name = String::new();
+    config.agents.insert("good".to_owned(), good);
+    config.agents.insert("bad".to_owned(), bad);
+
+    let agents = load_agents(&config, "https://api.example.com");
+    assert_eq!(
+        agents.iter().map(|a| a.id.as_str()).collect::<Vec<_>>(),
+        vec!["good"],
+        "an agent whose name fails validation is dropped while valid siblings survive",
+    );
+}
+
+#[test]
+fn load_agents_relative_endpoint_prefixed_with_base() {
+    let mut config = ServicesConfig::default();
+    let mut agent = make_agent_config("rel");
+    agent.endpoint = "/custom/a2a".into();
+    config.agents.insert("rel".to_owned(), agent);
+
+    let agents = load_agents(&config, "https://api.example.com/");
+    assert_eq!(
+        agents[0].endpoint, "https://api.example.com/custom/a2a",
+        "a relative endpoint is prefixed with the trimmed base url",
+    );
+}
+
+#[test]
+fn load_managed_mcp_servers_relative_endpoint_prefixed_with_base() {
+    let mut config = ServicesConfig::default();
+    config.mcp_servers.insert(
+        "rel-mcp".to_owned(),
+        make_deployment("rel-mcp", true, Some("/api/v1/mcp/rel-mcp/mcp")),
+    );
+    let servers =
+        load_managed_mcp_servers(&config, "https://api.example.com").expect("load mcp servers");
+    assert_eq!(
+        servers[0].url.as_str(),
+        "https://api.example.com/api/v1/mcp/rel-mcp/mcp",
+        "a relative endpoint is prefixed with the base rather than synthesised",
+    );
+}
+
+#[test]
+fn load_skills_stray_file_and_config_less_dir_are_ignored() {
+    let dir = tempfile::tempdir().expect("temp dir");
+    let skills_root = dir.path().join("skills");
+    fs::create_dir_all(skills_root.join("no-config")).expect("create config-less dir");
+    fs::create_dir_all(skills_root.join("real")).expect("create real dir");
+    fs::write(skills_root.join("loose.txt"), b"not a skill").expect("write stray file");
+    fs::write(
+        skills_root.join("real").join("config.yaml"),
+        "id: real\nname: Real\ndescription: d\nenabled: true\n",
+    )
+    .expect("write config");
+
+    let skills = load_skills(dir.path()).expect("load skills");
+    assert_eq!(
+        skills.iter().map(|s| s.id.as_str()).collect::<Vec<_>>(),
+        vec!["real"],
+        "a loose file and a config-less directory are both skipped",
+    );
+}
+
+#[test]
+fn load_skills_empty_id_derives_id_from_dir_name() {
+    let dir = tempfile::tempdir().expect("temp dir");
+    let skill_dir = dir.path().join("skills").join("derive-me");
+    fs::create_dir_all(&skill_dir).expect("create skill dir");
+    fs::write(
+        skill_dir.join("config.yaml"),
+        "id: \"\"\nname: Derive\ndescription: d\nenabled: true\n",
+    )
+    .expect("write config");
+
+    let skills = load_skills(dir.path()).expect("load skills");
+    assert_eq!(
+        skills[0].id.as_str(),
+        "derive_me",
+        "an empty id falls back to the dir name with dashes turned to underscores",
+    );
+}
+
+#[test]
+fn load_hooks_stray_file_and_config_less_dir_are_ignored() {
+    let dir = tempfile::tempdir().expect("temp dir");
+    let hooks_root = dir.path().join("hooks");
+    fs::create_dir_all(hooks_root.join("no-config")).expect("create config-less dir");
+    fs::create_dir_all(hooks_root.join("real")).expect("create real dir");
+    fs::write(hooks_root.join("loose.txt"), b"not a hook").expect("write stray file");
+    fs::write(
+        hooks_root.join("real").join("config.yaml"),
+        "event: PreToolUse\nenabled: true\ncommand: echo hi\n",
+    )
+    .expect("write config");
+
+    let hooks = load_hooks(dir.path()).expect("load hooks");
+    assert_eq!(hooks.len(), 1, "a loose file and a config-less directory are both skipped");
+}
+
+#[test]
+fn load_hooks_invalid_config_is_skipped_not_fatal() {
+    let dir = tempfile::tempdir().expect("temp dir");
+    let good = dir.path().join("hooks").join("good");
+    let bad = dir.path().join("hooks").join("bad");
+    fs::create_dir_all(&good).expect("create good");
+    fs::create_dir_all(&bad).expect("create bad");
+    fs::write(
+        good.join("config.yaml"),
+        "event: PreToolUse\nenabled: true\ncommand: echo hi\n",
+    )
+    .expect("write good config");
+    fs::write(bad.join("config.yaml"), "this: [is, not, valid").expect("write bad config");
+
+    let hooks = load_hooks(dir.path()).expect("an unparseable hook is skipped, not fatal");
+    assert_eq!(hooks.len(), 1, "the parseable hook still loads");
+}
+
+#[test]
+fn load_hooks_explicit_id_and_name_override_dir_derived_defaults() {
+    let dir = tempfile::tempdir().expect("temp dir");
+    let hook_dir = dir.path().join("hooks").join("dir-name-hook");
+    fs::create_dir_all(&hook_dir).expect("create hook dir");
+    fs::write(
+        hook_dir.join("config.yaml"),
+        "id: custom_hook_id\nname: Custom Hook Name\nevent: PreToolUse\nenabled: true\ncommand: echo hi\n",
+    )
+    .expect("write config");
+
+    let hooks = load_hooks(dir.path()).expect("load hooks");
+    assert_eq!(hooks.len(), 1);
+    assert_eq!(
+        hooks[0].id.as_str(),
+        "custom_hook_id",
+        "an explicit id is used verbatim instead of the dir-derived fallback",
+    );
+    assert_eq!(
+        hooks[0].name, "Custom Hook Name",
+        "an explicit name is used verbatim instead of the dir-derived fallback",
+    );
+}
+
+#[test]
+fn load_artifacts_stray_file_and_config_less_dir_are_ignored() {
+    let dir = tempfile::tempdir().expect("temp dir");
+    let artifacts_root = dir.path().join("artifacts");
+    fs::create_dir_all(artifacts_root.join("no-config")).expect("create config-less dir");
+    fs::write(artifacts_root.join("loose.txt"), b"not an artifact").expect("write stray file");
+    write_artifact(
+        dir.path(),
+        "real",
+        "id: real\nname: Real\ndescription: d\nplugin_id: sfdc\nmcp_tools:\n  - mcp__x__y\n",
+        Some("<table>data</table>"),
+    );
+
+    let artifacts = load_artifacts(dir.path()).expect("load artifacts");
+    assert_eq!(
+        artifacts.iter().map(|a| a.id.as_str()).collect::<Vec<_>>(),
+        vec!["real"],
+        "a loose file and a config-less directory are both skipped",
+    );
+}
+
+#[test]
+fn load_artifacts_unparseable_config_is_skipped_not_fatal() {
+    let dir = tempfile::tempdir().expect("temp dir");
+    write_artifact(
+        dir.path(),
+        "bad",
+        "this: [is, not, valid",
+        Some("<table></table>"),
+    );
+    write_artifact(
+        dir.path(),
+        "good",
+        "id: good\nname: Good\ndescription: d\nplugin_id: sfdc\nmcp_tools:\n  - mcp__x__y\n",
+        Some("<table>data</table>"),
+    );
+
+    let artifacts = load_artifacts(dir.path()).expect("an unparseable artifact is skipped, not fatal");
+    assert_eq!(
+        artifacts.iter().map(|a| a.id.as_str()).collect::<Vec<_>>(),
+        vec!["good"],
+        "the parseable artifact still loads alongside the dropped one",
+    );
+}
+
+#[cfg(unix)]
+fn non_utf8_dir(parent: &std::path::Path) -> std::path::PathBuf {
+    use std::os::unix::ffi::OsStrExt;
+    let name = std::ffi::OsStr::from_bytes(b"bad-\xff-name");
+    let path = parent.join(name);
+    fs::create_dir_all(&path).expect("create non-utf8 dir");
+    path
+}
+
+#[cfg(unix)]
+#[test]
+fn load_skills_non_utf8_dir_name_is_skipped() {
+    let dir = tempfile::tempdir().expect("temp dir");
+    let skills_root = dir.path().join("skills");
+    fs::create_dir_all(&skills_root).expect("create skills root");
+    let bad = non_utf8_dir(&skills_root);
+    fs::write(
+        bad.join("config.yaml"),
+        "id: bad\nname: Bad\ndescription: d\nenabled: true\n",
+    )
+    .expect("write config in non-utf8 dir");
+    let good = skills_root.join("good");
+    fs::create_dir_all(&good).expect("create good dir");
+    fs::write(
+        good.join("config.yaml"),
+        "id: good\nname: Good\ndescription: d\nenabled: true\n",
+    )
+    .expect("write good config");
+
+    let skills = load_skills(dir.path()).expect("load skills");
+    assert_eq!(
+        skills.iter().map(|s| s.id.as_str()).collect::<Vec<_>>(),
+        vec!["good"],
+        "a directory whose name is not valid UTF-8 is skipped, not fatal",
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn load_hooks_non_utf8_dir_name_is_skipped() {
+    let dir = tempfile::tempdir().expect("temp dir");
+    let hooks_root = dir.path().join("hooks");
+    fs::create_dir_all(&hooks_root).expect("create hooks root");
+    let bad = non_utf8_dir(&hooks_root);
+    fs::write(
+        bad.join("config.yaml"),
+        "event: PreToolUse\nenabled: true\ncommand: echo hi\n",
+    )
+    .expect("write config in non-utf8 dir");
+    let good = hooks_root.join("good");
+    fs::create_dir_all(&good).expect("create good dir");
+    fs::write(
+        good.join("config.yaml"),
+        "event: PreToolUse\nenabled: true\ncommand: echo hi\n",
+    )
+    .expect("write good config");
+
+    let hooks = load_hooks(dir.path()).expect("load hooks");
+    assert_eq!(
+        hooks.len(),
+        1,
+        "a directory whose name is not valid UTF-8 is skipped, not fatal",
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn load_artifacts_non_utf8_dir_name_is_skipped() {
+    let dir = tempfile::tempdir().expect("temp dir");
+    let artifacts_root = dir.path().join("artifacts");
+    fs::create_dir_all(&artifacts_root).expect("create artifacts root");
+    let bad = non_utf8_dir(&artifacts_root);
+    fs::write(
+        bad.join("config.yaml"),
+        "id: bad\nname: Bad\ndescription: d\nplugin_id: sfdc\nmcp_tools:\n  - mcp__x__y\n",
+    )
+    .expect("write config in non-utf8 dir");
+    fs::write(bad.join("content.html"), "<table>x</table>").expect("write content");
+    write_artifact(
+        dir.path(),
+        "good",
+        "id: good\nname: Good\ndescription: d\nplugin_id: sfdc\nmcp_tools:\n  - mcp__x__y\n",
+        Some("<table>data</table>"),
+    );
+
+    let artifacts = load_artifacts(dir.path()).expect("load artifacts");
+    assert_eq!(
+        artifacts.iter().map(|a| a.id.as_str()).collect::<Vec<_>>(),
+        vec!["good"],
+        "an artifact directory whose name is not valid UTF-8 is skipped, not fatal",
+    );
+}
+
+#[test]
+fn load_artifacts_drops_artifact_with_whitespace_only_content() {
+    let dir = tempfile::tempdir().expect("temp dir");
+    write_artifact(
+        dir.path(),
+        "blank",
+        "id: blank\nname: Blank\ndescription: x\nplugin_id: sfdc\nmcp_tools:\n  - mcp__x__y\n",
+        Some("   \n\t  \n"),
+    );
+    let artifacts = load_artifacts(dir.path()).expect("load artifacts");
+    assert!(
+        artifacts.is_empty(),
+        "a present-but-whitespace-only content file is treated as empty and dropped",
+    );
+}

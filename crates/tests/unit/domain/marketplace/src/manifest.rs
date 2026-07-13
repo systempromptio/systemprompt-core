@@ -125,6 +125,139 @@ async fn assemble_candidate_gates_artifacts_by_plugin_enablement() {
     );
 }
 
+fn enabled_deployment(endpoint: Option<&str>) -> systemprompt_models::mcp::Deployment {
+    use systemprompt_models::auth::JwtAudience;
+    use systemprompt_models::mcp::deployment::OAuthRequirement;
+    systemprompt_models::mcp::Deployment {
+        server_type: Default::default(),
+        binary: "server".into(),
+        package: None,
+        port: 3000,
+        endpoint: endpoint.map(ToOwned::to_owned),
+        enabled: true,
+        display_in_web: true,
+        dev_only: false,
+        schemas: vec![],
+        oauth: OAuthRequirement {
+            required: false,
+            scopes: vec![],
+            audience: JwtAudience::Mcp,
+            client_id: None,
+        },
+        tools: std::collections::HashMap::new(),
+        model_config: None,
+        env_vars: vec![],
+        external_auth: None,
+        headers: Default::default(),
+    }
+}
+
+#[tokio::test]
+async fn assemble_candidate_scopes_managed_mcp_servers_to_marketplace_include() {
+    let dir = tempfile::tempdir().expect("temp services root");
+    let mut mp = marketplace("market");
+    mp.mcp_servers = include(&["kept-mcp"]);
+    let mut config = config_with(vec![mp]);
+    config.mcp_servers.insert(
+        "kept-mcp".to_owned(),
+        enabled_deployment(Some("https://kept.example.com/mcp")),
+    );
+    config.mcp_servers.insert(
+        "dropped-mcp".to_owned(),
+        enabled_deployment(Some("https://dropped.example.com/mcp")),
+    );
+
+    let candidate = ManifestService::assemble_candidate(
+        &config,
+        dir.path(),
+        "https://api.example.com",
+        &AllowAllFilter,
+        &fixture_user_id(),
+    )
+    .await
+    .expect("assemble candidate");
+
+    assert_eq!(
+        candidate
+            .managed_mcp_servers
+            .iter()
+            .map(|m| m.name.as_str())
+            .collect::<Vec<_>>(),
+        vec!["kept-mcp"],
+        "only a server named in the active marketplace's include survives scoping",
+    );
+}
+
+#[tokio::test]
+async fn assemble_candidate_keeps_artifact_owned_by_enabled_plugin() {
+    use systemprompt_models::services::{
+        ComponentSource, PluginAuthor, PluginComponentRef, PluginConfig,
+    };
+    use systemprompt_identifiers::PluginId;
+
+    let dir = tempfile::tempdir().expect("temp services root");
+
+    // On-disk skill so the owning plugin resolves to real content.
+    let skill_dir = dir.path().join("skills").join("owned_skill");
+    std::fs::create_dir_all(&skill_dir).expect("create skill dir");
+    std::fs::write(
+        skill_dir.join("config.yaml"),
+        "id: owned_skill\nname: Owned\ndescription: d\nenabled: true\n",
+    )
+    .expect("write skill config");
+
+    write_artifact_on_disk(dir.path(), "kept-art", "owner-plugin");
+    write_artifact_on_disk(dir.path(), "dropped-art", "absent-plugin");
+
+    let mut config = config_with(vec![]);
+    config.plugins.insert(
+        "owner".to_owned(),
+        PluginConfig {
+            id: PluginId::new("owner-plugin"),
+            name: "owner".to_owned(),
+            description: "owner".to_owned(),
+            version: "1.0.0".to_owned(),
+            enabled: true,
+            author: PluginAuthor {
+                name: "t".to_owned(),
+                email: "t@example.com".to_owned(),
+            },
+            keywords: vec![],
+            license: "BSL-1.0".to_owned(),
+            category: "demo".to_owned(),
+            skills: PluginComponentRef {
+                source: ComponentSource::Explicit,
+                include: vec!["owned_skill".to_owned()],
+                ..Default::default()
+            },
+            agents: PluginComponentRef::default(),
+            mcp_servers: PluginComponentRef::default(),
+            content_sources: PluginComponentRef::default(),
+            scripts: vec![],
+        },
+    );
+
+    let candidate = ManifestService::assemble_candidate(
+        &config,
+        dir.path(),
+        "https://api.example.com",
+        &AllowAllFilter,
+        &fixture_user_id(),
+    )
+    .await
+    .expect("assemble candidate");
+
+    assert_eq!(
+        candidate
+            .artifacts
+            .iter()
+            .map(|a| a.id.as_str())
+            .collect::<Vec<_>>(),
+        vec!["kept-art"],
+        "an artifact owned by an enabled plugin is kept while an orphaned one is gated out",
+    );
+}
+
 fn sample_view<'a>(
     version: &'a ManifestVersion,
     user_id: &'a systemprompt_identifiers::UserId,

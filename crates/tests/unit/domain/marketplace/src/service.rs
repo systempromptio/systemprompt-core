@@ -186,6 +186,31 @@ fn member_attribute_floor_none_for_non_member() {
 }
 
 #[test]
+fn validate_referential_integrity_passes_for_consistent_config() {
+    let config = config_with(vec![marketplace("solo")]);
+    let service = MarketplaceService::new(&config);
+    service
+        .validate_referential_integrity()
+        .expect("a self-consistent services config validates");
+}
+
+#[test]
+fn validate_referential_integrity_flags_dangling_reference() {
+    let mut mp = marketplace("market");
+    mp.plugins = include(&["never-defined-plugin"]);
+    let config = config_with(vec![mp]);
+    let service = MarketplaceService::new(&config);
+
+    assert!(
+        matches!(
+            service.validate_referential_integrity(),
+            Err(MarketplaceError::Validation(_))
+        ),
+        "a marketplace referencing an undefined plugin fails referential-integrity validation",
+    );
+}
+
+#[test]
 fn member_attribute_floor_none_when_attributes_empty() {
     let mut mp = marketplace("market");
     mp.mcp_servers = include(&["sharepoint-sim"]);

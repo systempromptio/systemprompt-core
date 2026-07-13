@@ -734,6 +734,226 @@ fn mcp_file_absent_when_only_referenced_server_is_disabled() {
 }
 
 #[test]
+fn agent_md_carries_model_when_set() {
+    let mut agent = agent_entry("modelled", "an agent with a model", None);
+    agent.model = Some("claude-fable-5".to_owned());
+    let agents = vec![agent];
+    let content = BundleContent {
+        skills: &[],
+        agents: &agents,
+        mcp_servers: &[],
+        disabled_mcp_servers: &NO_DISABLED,
+        plugins_root: Path::new("/nonexistent"),
+    };
+    let config = plugin_config(
+        "p",
+        PluginComponentRef::default(),
+        explicit(&["modelled"]),
+    );
+
+    let bundle = build_plugin_bundle(&config, &content).expect("build");
+    let md =
+        String::from_utf8(bundle["agents/modelled.md"].bytes.clone()).expect("utf8 agent md");
+    assert!(
+        md.contains("model: \"claude-fable-5\"\n"),
+        "a non-empty model is emitted into the agent front matter: {md}",
+    );
+}
+
+#[test]
+fn agent_with_empty_model_omits_model_line() {
+    let mut agent = agent_entry("blank_model", "no model", None);
+    agent.model = Some(String::new());
+    let agents = vec![agent];
+    let content = BundleContent {
+        skills: &[],
+        agents: &agents,
+        mcp_servers: &[],
+        disabled_mcp_servers: &NO_DISABLED,
+        plugins_root: Path::new("/nonexistent"),
+    };
+    let config = plugin_config("p", PluginComponentRef::default(), explicit(&["blank_model"]));
+
+    let bundle = build_plugin_bundle(&config, &content).expect("build");
+    let md =
+        String::from_utf8(bundle["agents/blank_model.md"].bytes.clone()).expect("utf8 agent md");
+    assert!(
+        !md.contains("model:"),
+        "an empty model string is not emitted as a front-matter line: {md}",
+    );
+}
+
+#[test]
+fn skill_with_pathless_file_path_still_bundles_without_aux() {
+    let skills = vec![skill_entry_at("lone_skill", "d", "body", "")];
+    let content = BundleContent {
+        skills: &skills,
+        agents: &[],
+        mcp_servers: &[],
+        disabled_mcp_servers: &NO_DISABLED,
+        plugins_root: Path::new("/nonexistent"),
+    };
+    let config = plugin_config("p", explicit(&["lone_skill"]), PluginComponentRef::default());
+
+    let bundle = build_plugin_bundle(&config, &content).expect("build");
+    assert!(
+        bundle.contains_key("skills/lone-skill/SKILL.md"),
+        "the SKILL.md is still emitted even when the file path has no parent directory",
+    );
+    assert!(
+        !bundle.keys().any(|k| k.starts_with("skills/lone-skill/scripts")),
+        "a pathless skill yields no auxiliary files rather than panicking",
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn aux_collection_skips_unreadable_files_and_directories() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let dir = tempfile::tempdir().expect("temp dir");
+    let skill_dir = dir.path().join("skills").join("locked-skill");
+    let scripts_dir = skill_dir.join("scripts");
+    let locked_subdir = scripts_dir.join("locked-subdir");
+    std::fs::create_dir_all(&locked_subdir).expect("create dirs");
+    std::fs::write(scripts_dir.join("readable.txt"), b"visible").expect("write readable");
+    std::fs::write(scripts_dir.join("unreadable.txt"), b"secret").expect("write unreadable");
+    std::fs::write(locked_subdir.join("inside.txt"), b"buried").expect("write buried");
+    let skill_md_path = skill_dir.join("SKILL.md");
+    std::fs::write(&skill_md_path, b"body").expect("write skill md");
+
+    std::fs::set_permissions(
+        scripts_dir.join("unreadable.txt"),
+        std::fs::Permissions::from_mode(0o000),
+    )
+    .expect("lock file");
+    std::fs::set_permissions(&locked_subdir, std::fs::Permissions::from_mode(0o000))
+        .expect("lock subdir");
+
+    let skills = vec![skill_entry_at(
+        "locked_skill",
+        "d",
+        "body",
+        &skill_md_path.to_string_lossy(),
+    )];
+    let content = BundleContent {
+        skills: &skills,
+        agents: &[],
+        mcp_servers: &[],
+        disabled_mcp_servers: &NO_DISABLED,
+        plugins_root: Path::new("/nonexistent"),
+    };
+    let config = plugin_config("p", explicit(&["locked_skill"]), PluginComponentRef::default());
+
+    let bundle = build_plugin_bundle(&config, &content).expect("build");
+
+    // Restore perms so the tempdir can be cleaned up.
+    std::fs::set_permissions(&locked_subdir, std::fs::Permissions::from_mode(0o755))
+        .expect("unlock subdir");
+    std::fs::set_permissions(
+        scripts_dir.join("unreadable.txt"),
+        std::fs::Permissions::from_mode(0o644),
+    )
+    .expect("unlock file");
+
+    assert!(
+        bundle.contains_key("skills/locked-skill/scripts/readable.txt"),
+        "a readable aux file is collected",
+    );
+    assert!(
+        !bundle.contains_key("skills/locked-skill/scripts/unreadable.txt"),
+        "an unreadable aux file is skipped rather than aborting the bundle",
+    );
+    assert!(
+        !bundle
+            .keys()
+            .any(|k| k.contains("locked-subdir")),
+        "an unreadable subdirectory is skipped rather than aborting the bundle",
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn plugin_with_unreadable_script_is_skipped_while_siblings_survive() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let dir = tempfile::tempdir().expect("temp dir");
+    let broken_dir = dir.path().join("broken-plugin");
+    std::fs::create_dir_all(&broken_dir).expect("create broken plugin dir");
+    let locked = broken_dir.join("setup.sh");
+    std::fs::write(&locked, b"#!/bin/sh\necho hi\n").expect("write script");
+    std::fs::set_permissions(&locked, std::fs::Permissions::from_mode(0o000))
+        .expect("lock script");
+
+    let skills = vec![skill_entry("s", "d", "body")];
+    let content = BundleContent {
+        skills: &skills,
+        agents: &[],
+        mcp_servers: &[],
+        disabled_mcp_servers: &NO_DISABLED,
+        plugins_root: dir.path(),
+    };
+    let mut services = ServicesConfig::default();
+    let mut broken = plugin_config("broken-plugin", explicit(&["s"]), PluginComponentRef::default());
+    broken.scripts = vec![PluginScript {
+        name: "setup".to_owned(),
+        source: "setup.sh".to_owned(),
+    }];
+    services.plugins.insert("broken".to_owned(), broken);
+    services.plugins.insert(
+        "good".to_owned(),
+        plugin_config("good-plugin", explicit(&["s"]), PluginComponentRef::default()),
+    );
+
+    let bundles = plugin_bundles(&services, &content).expect("plugin bundles");
+
+    std::fs::set_permissions(&locked, std::fs::Permissions::from_mode(0o644)).expect("unlock");
+
+    let ids: Vec<&str> = bundles
+        .keys()
+        .map(systemprompt_models::bridge::ids::PluginId::as_str)
+        .collect();
+    assert_eq!(
+        ids,
+        vec!["good-plugin"],
+        "a plugin whose script cannot be read is skipped fail-closed while valid siblings survive",
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn fingerprint_tolerates_a_dangling_symlink_under_plugins_root() {
+    let dir = tempfile::tempdir().expect("temp dir");
+    std::os::unix::fs::symlink(
+        dir.path().join("does-not-exist"),
+        dir.path().join("dangling"),
+    )
+    .expect("create dangling symlink");
+
+    let skills = vec![skill_entry("s", "d", "body")];
+    let content = BundleContent {
+        skills: &skills,
+        agents: &[],
+        mcp_servers: &[],
+        disabled_mcp_servers: &NO_DISABLED,
+        plugins_root: dir.path(),
+    };
+    let mut services = ServicesConfig::default();
+    services.plugins.insert(
+        "demo".to_owned(),
+        plugin_config("demo-plugin", explicit(&["s"]), PluginComponentRef::default()),
+    );
+
+    let bundles =
+        plugin_bundles_cached(&services, &content).expect("fingerprint ignores a dangling symlink");
+    assert_eq!(
+        bundles.len(),
+        1,
+        "a dangling symlink in the plugins root is skipped when fingerprinting, not fatal",
+    );
+}
+
+#[test]
 fn script_files_are_collected_and_generated_tracking_skipped() {
     let dir = tempfile::tempdir().expect("temp dir");
     let plugin_dir = dir.path().join("scripted-plugin");
