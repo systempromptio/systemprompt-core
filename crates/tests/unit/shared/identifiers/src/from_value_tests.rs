@@ -164,3 +164,16 @@ fn round_trip_scalars_through_db_value() {
         dt
     );
 }
+
+#[test]
+fn f64_beyond_i64_range_is_out_of_range_not_wrapped() {
+    assert!(i64::from_db_value(&DbValue::Float(f64::MAX)).is_err());
+    assert!(i64::from_db_value(&DbValue::Float(f64::MIN)).is_err());
+}
+
+#[test]
+fn gateway_conversation_id_requires_the_ctx_prefix() {
+    use systemprompt_identifiers::GatewayConversationId;
+    let err = GatewayConversationId::try_new("bad-prefix").unwrap_err();
+    assert!(err.to_string().contains("ctx_"), "got: {err}");
+}

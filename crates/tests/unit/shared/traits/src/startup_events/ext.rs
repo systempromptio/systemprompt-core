@@ -504,3 +504,17 @@ mod startup_channel_tests {
         ));
     }
 }
+
+mod dropped_receiver_tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn events_after_receiver_drop_are_discarded_silently() {
+        let (tx, rx) = startup_channel();
+        drop(rx);
+
+        tx.phase_started(Phase::PreFlight);
+        tx.phase_failed(Phase::Database, "boom");
+        tx.scheduler_ready(0);
+    }
+}

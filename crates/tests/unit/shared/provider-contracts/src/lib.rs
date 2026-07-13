@@ -33,4 +33,6 @@ mod support;
 #[cfg(test)]
 mod tool;
 #[cfg(test)]
+mod trait_defaults;
+#[cfg(test)]
 mod web_config_and_component;

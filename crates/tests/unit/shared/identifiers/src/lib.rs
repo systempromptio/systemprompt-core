@@ -16,6 +16,8 @@ mod from_value_tests;
 mod macros_helpers_tests;
 
 #[cfg(test)]
+mod to_db_value_impls;
+#[cfg(test)]
 mod to_value_tests;
 
 #[cfg(test)]

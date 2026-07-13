@@ -244,3 +244,36 @@ async fn test_request_timeout() {
 
     result.unwrap_err();
 }
+
+#[tokio::test]
+async fn error_response_with_unreadable_body_still_reports_the_status() {
+    use tokio::io::AsyncWriteExt;
+
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    tokio::spawn(async move {
+        let (mut sock, _) = listener.accept().await.unwrap();
+        sock.write_all(b"HTTP/1.1 500 Internal Server Error\r\nContent-Length: 4096\r\n\r\ntrunc")
+            .await
+            .unwrap();
+        sock.shutdown().await.ok();
+    });
+
+    let client = SystempromptClient::new(&format!("http://{addr}")).unwrap();
+    let err = client
+        .list_agents()
+        .await
+        .expect_err("500 with a truncated body is an error");
+    match err {
+        systemprompt_client::ClientError::ApiError {
+            status, message, ..
+        } => {
+            assert_eq!(status, 500);
+            assert!(
+                message.contains("body unreadable"),
+                "message should flag the unreadable body, got: {message}"
+            );
+        },
+        other => panic!("expected ApiError, got {other:?}"),
+    }
+}

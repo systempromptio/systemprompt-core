@@ -261,4 +261,47 @@ mod job_context_tests {
         let debug = format!("{:?}", ctx);
         assert!(debug.contains("type-erased"));
     }
+
+    #[test]
+    fn actor_and_app_paths_arc_expose_the_constructed_values() {
+        let app_paths: Arc<dyn std::any::Any + Send + Sync> = Arc::new(7u8);
+        let ctx = JobContext::new(
+            test_actor(),
+            Arc::new(()) as Arc<dyn std::any::Any + Send + Sync>,
+            Arc::new(()) as Arc<dyn std::any::Any + Send + Sync>,
+            app_paths.clone(),
+        );
+
+        assert_eq!(ctx.actor().user_id, test_actor().user_id);
+        assert!(Arc::ptr_eq(&app_paths, &ctx.app_paths_arc()));
+    }
+}
+
+mod job_trait_default_tests {
+    use super::*;
+    use systemprompt_provider_contracts::{Job, ProviderResult};
+
+    struct MinimalJob;
+
+    #[async_trait::async_trait]
+    impl Job for MinimalJob {
+        fn name(&self) -> &'static str {
+            "minimal"
+        }
+
+        fn schedule(&self) -> &'static str {
+            "@daily"
+        }
+
+        async fn execute(&self, _ctx: &JobContext) -> ProviderResult<JobResult> {
+            Ok(JobResult::success())
+        }
+    }
+
+    #[test]
+    fn unoverridden_jobs_are_enabled_untagged_and_undescribed() {
+        assert!(MinimalJob.enabled());
+        assert!(MinimalJob.tags().is_empty());
+        assert_eq!(MinimalJob.description(), "");
+    }
 }
