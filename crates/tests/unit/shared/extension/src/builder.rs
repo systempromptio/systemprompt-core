@@ -1,4 +1,5 @@
 use systemprompt_extension::builder::ExtensionBuilder;
+use systemprompt_extension::typed::{SchemaDefinitionTyped, SchemaExtensionTyped};
 use systemprompt_extension::types::{ExtensionType, NoDependencies};
 
 #[derive(Debug, Default)]
@@ -24,6 +25,27 @@ impl ExtensionType for ExtB {
 }
 
 impl NoDependencies for ExtB {}
+
+#[derive(Debug, Default)]
+struct SchemaExtA;
+
+impl ExtensionType for SchemaExtA {
+    const ID: &'static str = "schema-ext-a";
+    const NAME: &'static str = "Schema Extension A";
+    const VERSION: &'static str = "1.0.0";
+    const PRIORITY: u32 = 15;
+}
+
+impl NoDependencies for SchemaExtA {}
+
+impl SchemaExtensionTyped for SchemaExtA {
+    fn schemas(&self) -> Vec<SchemaDefinitionTyped> {
+        vec![SchemaDefinitionTyped::new(
+            "widgets",
+            "CREATE TABLE widgets (id TEXT)",
+        )]
+    }
+}
 
 #[test]
 fn builder_new_creates_empty() {
@@ -82,6 +104,29 @@ fn builder_sorts_by_priority() {
     let all: Vec<_> = registry.all_extensions().collect();
     assert_eq!(all[0].id(), "ext-a");
     assert_eq!(all[1].id(), "ext-b");
+}
+
+#[test]
+fn builder_schema_extension_registers_and_exposes_schema() {
+    let registry = ExtensionBuilder::new()
+        .schema_extension(SchemaExtA)
+        .build()
+        .expect("build should succeed");
+
+    assert!(registry.has("schema-ext-a"));
+
+    let schema_exts: Vec<_> = registry.schema_extensions().collect();
+    assert_eq!(
+        schema_exts.len(),
+        1,
+        "schema extension must surface through the typed schema-extension view"
+    );
+    let tables: Vec<_> = schema_exts[0]
+        .schemas()
+        .into_iter()
+        .map(|s| s.table)
+        .collect();
+    assert_eq!(tables, vec!["widgets"]);
 }
 
 #[test]

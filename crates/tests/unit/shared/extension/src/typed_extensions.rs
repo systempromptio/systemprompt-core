@@ -1,6 +1,7 @@
 use systemprompt_extension::error::ConfigError;
 use systemprompt_extension::typed::{
-    ApiExtensionTyped, ConfigExtensionTyped, SchemaDefinitionTyped, SchemaExtensionTyped,
+    ApiExtensionTyped, ConfigExtensionTyped, ProviderExtensionTyped, SchemaDefinitionTyped,
+    SchemaExtensionTyped,
 };
 use systemprompt_extension::types::{ExtensionType, NoDependencies};
 
@@ -70,6 +71,30 @@ impl ApiExtensionTyped for TestApiExt {
     fn base_path(&self) -> &'static str {
         "/api/v2/widgets"
     }
+}
+
+#[derive(Debug, Default)]
+struct TestProviderExt;
+
+impl ExtensionType for TestProviderExt {
+    const ID: &'static str = "typed-provider";
+    const NAME: &'static str = "Typed Provider";
+    const VERSION: &'static str = "1.0.0";
+}
+
+impl ProviderExtensionTyped for TestProviderExt {}
+
+#[test]
+fn provider_extension_typed_defaults_contribute_no_providers() {
+    let ext = TestProviderExt;
+    assert!(
+        ext.llm_providers().is_empty(),
+        "a provider extension that overrides nothing contributes no LLM providers"
+    );
+    assert!(
+        ext.tool_providers().is_empty(),
+        "a provider extension that overrides nothing contributes no tool providers"
+    );
 }
 
 #[test]

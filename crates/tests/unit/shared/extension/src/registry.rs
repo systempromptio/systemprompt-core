@@ -274,6 +274,45 @@ fn registry_topo_sort_linear_chain() {
 }
 
 #[test]
+fn registry_topo_sort_diamond_orders_shared_dependency_first() {
+    // base <- {left, right} <- top. The shared `base` must be ordered before
+    // both mid-level nodes, and both before `top`, with `base` visited once.
+    let mut registry = ExtensionRegistry::new();
+    registry
+        .register(Arc::new(FakeExt::new("base", "Base").with_priority(10)))
+        .expect("register base");
+    registry
+        .register(Arc::new(
+            FakeExt::new("left", "Left")
+                .with_deps(vec!["base"])
+                .with_priority(20),
+        ))
+        .expect("register left");
+    registry
+        .register(Arc::new(
+            FakeExt::new("right", "Right")
+                .with_deps(vec!["base"])
+                .with_priority(30),
+        ))
+        .expect("register right");
+    registry
+        .register(Arc::new(
+            FakeExt::new("top", "Top")
+                .with_deps(vec!["left", "right"])
+                .with_priority(40),
+        ))
+        .expect("register top");
+
+    let ids: Vec<_> = registry.extensions().iter().map(|e| e.id()).collect();
+    let pos = |id: &str| ids.iter().position(|x| *x == id).expect("present");
+    assert_eq!(ids.iter().filter(|id| **id == "base").count(), 1);
+    assert!(pos("base") < pos("left"));
+    assert!(pos("base") < pos("right"));
+    assert!(pos("left") < pos("top"));
+    assert!(pos("right") < pos("top"));
+}
+
+#[test]
 fn registry_topo_sort_priority_breaks_ties() {
     let mut registry = ExtensionRegistry::new();
     registry

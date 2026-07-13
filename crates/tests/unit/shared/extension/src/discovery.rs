@@ -9,6 +9,9 @@
 
 use std::sync::Arc;
 
+use systemprompt_extension::runtime_config::{
+    InjectedExtensions, WebAssetsStrategy, set_injected_extensions,
+};
 use systemprompt_extension::{Extension, ExtensionMetadata, ExtensionRegistry};
 
 struct NamedExt {
@@ -31,6 +34,41 @@ fn discover_returns_ok() {
     // No inventory registrations in this binary, so discovery succeeds and the
     // registry is well-formed (validation over zero/declared extensions holds).
     registry.validate().expect("discovered registry validates");
+}
+
+#[test]
+fn discover_includes_process_injected_extensions_and_skips_duplicate_ids() {
+    // The process-global injected list is consulted by `discover()`. Injecting
+    // the same id twice must collapse to a single registry entry (the second is
+    // skipped as already-discovered), while a distinct id is also included.
+    // Under cargo-nextest each test runs in its own process, so this one-shot
+    // `set` cannot collide with the other tests in this binary.
+    let injected: Vec<Arc<dyn Extension>> = vec![
+        Arc::new(NamedExt { id: "inj-primary" }),
+        Arc::new(NamedExt { id: "inj-primary" }),
+        Arc::new(NamedExt {
+            id: "inj-secondary",
+        }),
+    ];
+    set_injected_extensions(InjectedExtensions {
+        extensions: injected,
+        web_assets: WebAssetsStrategy::Disabled,
+    })
+    .expect("injected extensions may be set exactly once per process");
+
+    let registry = ExtensionRegistry::discover().expect("discover should not error");
+
+    assert!(registry.has("inj-primary"), "injected id must be included");
+    assert!(
+        registry.has("inj-secondary"),
+        "second distinct injected id must be included"
+    );
+    assert!(!registry.is_empty());
+    assert_eq!(
+        registry.len(),
+        2,
+        "duplicate injected id must be skipped, not double-counted"
+    );
 }
 
 #[test]

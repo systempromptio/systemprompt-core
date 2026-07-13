@@ -297,6 +297,36 @@ fn extension_default_has_sitemap_providers_is_false() {
 }
 
 #[test]
+fn extension_default_router_config_is_none() {
+    let ext = MinimalExt;
+    assert!(ext.router_config().is_none());
+}
+
+#[test]
+fn extension_default_has_template_data_extenders_is_false() {
+    let ext = MinimalExt;
+    assert!(!ext.has_template_data_extenders());
+}
+
+#[test]
+fn extension_default_has_page_prerenderers_is_false() {
+    let ext = MinimalExt;
+    assert!(!ext.has_page_prerenderers());
+}
+
+#[test]
+fn extension_default_has_frontmatter_processors_is_false() {
+    let ext = MinimalExt;
+    assert!(!ext.has_frontmatter_processors());
+}
+
+#[test]
+fn extension_default_has_content_data_providers_is_false() {
+    let ext = MinimalExt;
+    assert!(!ext.has_content_data_providers());
+}
+
+#[test]
 fn extension_default_site_auth_is_none() {
     let ext = MinimalExt;
     assert!(ext.site_auth().is_none());
