@@ -180,6 +180,23 @@ mod page_provider_registration_tests {
     }
 
     #[test]
+    fn registration_debug_logging_records_each_registrar_without_altering_counts() {
+        let _guard = crate::mocks::debug_subscriber_guard();
+
+        let mut registry = TemplateRegistry::new();
+        registry.register_provider(provider(MockProvider::new("logged-provider")));
+        registry.register_extender(extender(MockExtender::new("logged-extender")));
+        registry.register_component(component(MockComponent::new("logged-comp", "logged_html")));
+        registry.register_page_provider(page_provider(MockPageProvider::new("logged-page")));
+
+        let stats = registry.stats();
+        assert_eq!(stats.providers, 1);
+        assert_eq!(stats.extenders, 1);
+        assert_eq!(stats.components, 1);
+        assert_eq!(stats.page_providers, 1);
+    }
+
+    #[test]
     fn register_multiple_page_providers() {
         let mut registry = TemplateRegistry::new();
 

@@ -202,6 +202,132 @@ mod partial_file_loading_tests {
     }
 }
 
+mod logged_lifecycle_tests {
+    use super::*;
+    use crate::mocks::debug_subscriber_guard;
+
+    #[tokio::test]
+    async fn duplicate_template_name_keeps_highest_priority_provider() {
+        let _guard = debug_subscriber_guard();
+
+        let first = TemplateDefinition::embedded("dup", "<p>first</p>").with_priority(50);
+        let second = TemplateDefinition::embedded("dup", "<p>second</p>").with_priority(100);
+
+        let mut registry = TemplateRegistry::new();
+        registry.register_provider(provider(MockProvider::with_templates_and_priority(
+            "low-num",
+            50,
+            vec![first],
+        )));
+        registry.register_provider(provider(MockProvider::with_templates_and_priority(
+            "high-num",
+            100,
+            vec![second],
+        )));
+        registry.register_loader(loader(MockLoader::new()));
+
+        registry.initialize().await.expect("should initialize");
+
+        let rendered = registry
+            .render("dup", &serde_json::json!({}))
+            .expect("duplicate template should render the retained definition");
+        assert!(
+            rendered.contains("first"),
+            "lower priority-number provider must win the name and its content is kept"
+        );
+        assert!(!rendered.contains("second"));
+    }
+
+    #[tokio::test]
+    async fn uncompilable_template_is_skipped_but_valid_sibling_still_renders() {
+        let _guard = debug_subscriber_guard();
+
+        let broken = TemplateDefinition::embedded("broken", "{{#each items}}unterminated");
+        let good = TemplateDefinition::embedded("good", "<p>{{value}}</p>");
+
+        let mut registry = TemplateRegistry::new();
+        registry.register_provider(provider(MockProvider::with_templates(
+            "p",
+            vec![broken, good],
+        )));
+        registry.register_loader(loader(MockLoader::new()));
+
+        registry
+            .initialize()
+            .await
+            .expect("init should succeed despite an uncompilable template");
+
+        assert!(
+            !registry.has_template("broken"),
+            "template that fails handlebars compilation must not be registered"
+        );
+        let rendered = registry
+            .render("good", &serde_json::json!({"value": "ok"}))
+            .expect("valid sibling template must still render");
+        assert!(rendered.contains("ok"));
+    }
+
+    #[tokio::test]
+    async fn missing_partial_file_warn_path_leaves_partial_unregistered() {
+        let _guard = debug_subscriber_guard();
+
+        let mut registry = TemplateRegistry::new();
+        registry.register_component(Arc::new(FilePartialComponent::new(
+            "broken-comp",
+            "broken_html",
+            "broken-partial",
+            "/nonexistent/dir/missing-partial.hbs",
+        )) as DynComponentRenderer);
+        registry.register_loader(loader(MockLoader::new()));
+
+        registry.initialize().await.expect("init should succeed");
+
+        assert!(!registry.has_partial("broken-partial"));
+    }
+
+    #[tokio::test]
+    async fn valid_file_partial_registration_debug_path_registers_partial() {
+        let _guard = debug_subscriber_guard();
+
+        let temp_dir = tempfile::tempdir().expect("failed to create temp dir");
+        let partial_path = temp_dir.path().join("nav.hbs");
+        fs::write(&partial_path, "<nav>{{title}}</nav>")
+            .await
+            .expect("failed to write partial file");
+
+        let mut registry = TemplateRegistry::new();
+        registry.register_component(Arc::new(FilePartialComponent::new(
+            "nav-comp",
+            "nav_html",
+            "file-nav",
+            &partial_path,
+        )) as DynComponentRenderer);
+        registry.register_loader(loader(MockLoader::new()));
+
+        registry.initialize().await.expect("should initialize");
+
+        assert!(registry.has_partial("file-nav"));
+    }
+
+    #[tokio::test]
+    async fn uncompilable_partial_warn_path_leaves_partial_unregistered() {
+        let _guard = debug_subscriber_guard();
+
+        let mut registry = TemplateRegistry::new();
+        registry.register_component(Arc::new(EmbeddedPartialComponent {
+            id: "bad-syntax",
+            variable_name: "bad_html",
+            partial_name: "bad-partial",
+            partial_content: "{{#each items}}unterminated",
+        }) as DynComponentRenderer);
+        registry.register_loader(loader(MockLoader::new()));
+
+        registry.initialize().await.expect("init should succeed");
+
+        assert!(!registry.has_partial("bad-partial"));
+    }
+}
+
 mod no_loader_tests {
     use super::*;
 

@@ -147,6 +147,51 @@ templates:
     }
 }
 
+mod logged_discovery_tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn malformed_manifest_warn_path_falls_back_to_inferred_types() {
+        let _guard = crate::mocks::debug_subscriber_guard();
+
+        let temp_dir = tempfile::tempdir().expect("failed to create temp dir");
+        fs::write(temp_dir.path().join("guide-post.html"), "<html></html>")
+            .await
+            .expect("failed to write");
+        fs::write(
+            temp_dir.path().join("templates.yaml"),
+            "templates: [not, a, map]",
+        )
+        .await
+        .expect("failed to write manifest");
+
+        let provider = CoreTemplateProvider::discover_from(temp_dir.path())
+            .await
+            .expect("discover should succeed despite malformed manifest");
+
+        let templates = provider.templates();
+        assert_eq!(templates.len(), 1);
+        assert_eq!(templates[0].content_types, vec!["guide"]);
+    }
+
+    #[tokio::test]
+    async fn discovery_debug_path_records_html_templates() {
+        let _guard = crate::mocks::debug_subscriber_guard();
+
+        let temp_dir = tempfile::tempdir().expect("failed to create temp dir");
+        fs::write(temp_dir.path().join("landing.html"), "<html></html>")
+            .await
+            .expect("failed to write");
+
+        let provider = CoreTemplateProvider::discover_from(temp_dir.path())
+            .await
+            .expect("failed to discover");
+
+        assert_eq!(provider.templates().len(), 1);
+        assert_eq!(provider.templates()[0].name, "landing");
+    }
+}
+
 mod edge_case_tests {
     use super::*;
 

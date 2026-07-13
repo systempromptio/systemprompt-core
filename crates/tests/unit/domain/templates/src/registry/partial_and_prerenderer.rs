@@ -269,6 +269,17 @@ mod page_prerenderer_tests {
     }
 
     #[test]
+    fn register_page_prerenderer_debug_logging_preserves_registration() {
+        let _guard = crate::mocks::debug_subscriber_guard();
+
+        let mut registry = TemplateRegistry::new();
+        registry.register_page_prerenderer(dyn_prerenderer(StubPrerenderer::new("logged-page")));
+
+        assert_eq!(registry.stats().page_prerenderers, 1);
+        assert_eq!(registry.page_prerenderers()[0].page_type(), "logged-page");
+    }
+
+    #[test]
     fn page_prerenderer_page_type_accessible_from_slice() {
         let mut registry = TemplateRegistry::new();
         registry.register_page_prerenderer(dyn_prerenderer(StubPrerenderer::new("article")));

@@ -9,6 +9,14 @@ use systemprompt_template_provider::{
     TemplateProvider, TemplateSource,
 };
 
+pub fn debug_subscriber_guard() -> tracing::subscriber::DefaultGuard {
+    let subscriber = tracing_subscriber::fmt()
+        .with_max_level(tracing::Level::DEBUG)
+        .with_test_writer()
+        .finish();
+    tracing::subscriber::set_default(subscriber)
+}
+
 pub fn provider(p: MockProvider) -> DynTemplateProvider {
     Arc::new(p)
 }
