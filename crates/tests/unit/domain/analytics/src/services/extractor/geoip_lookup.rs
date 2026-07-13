@@ -17,6 +17,19 @@ fn test_reader() -> GeoIpReader {
     Arc::new(maxminddb::Reader::open_readfile(path).expect("open MaxMind test database"))
 }
 
+fn reader_from(fixture: &str) -> GeoIpReader {
+    let path = format!("{}/fixtures/{fixture}", env!("CARGO_MANIFEST_DIR"));
+    Arc::new(maxminddb::Reader::open_readfile(&path).expect("open MaxMind test database"))
+}
+
+fn debug_subscriber_guard() -> tracing::subscriber::DefaultGuard {
+    let subscriber = tracing_subscriber::fmt()
+        .with_max_level(tracing::Level::DEBUG)
+        .with_test_writer()
+        .finish();
+    tracing::subscriber::set_default(subscriber)
+}
+
 fn headers_with_ip(ip: &str) -> HeaderMap {
     let mut headers = HeaderMap::new();
     headers.insert("x-forwarded-for", HeaderValue::from_str(ip).unwrap());
@@ -59,6 +72,34 @@ fn loopback_unspecified_private_and_link_local_addresses_are_never_looked_up() {
             SessionAnalytics::from_headers_with_geoip(&headers_with_ip(ip), Some(&reader));
         assert_eq!(analytics.country, None, "{ip} must not be geolocated");
     }
+}
+
+#[test]
+fn tree_traversal_error_from_a_corrupt_database_yields_no_geo() {
+    // A database with broken tree pointers makes `reader.lookup` fail during
+    // traversal; the enrichment must swallow the error and return no geo. A
+    // DEBUG subscriber is active so the failure-log fields are evaluated.
+    let _guard = debug_subscriber_guard();
+    let reader = reader_from("MaxMind-DB-test-broken-pointers-24.mmdb");
+    let analytics =
+        SessionAnalytics::from_headers_with_geoip(&headers_with_ip("1.1.1.32"), Some(&reader));
+    assert_eq!(analytics.country, None);
+    assert_eq!(analytics.region, None);
+    assert_eq!(analytics.city, None);
+}
+
+#[test]
+fn record_decode_error_from_a_corrupt_database_yields_no_geo() {
+    // This database resolves the record but its city payload carries a
+    // malformed double, so `.decode()` fails; enrichment must still degrade to
+    // no geo rather than propagate the error.
+    let _guard = debug_subscriber_guard();
+    let reader = reader_from("GeoIP2-City-Test-Broken-Double-Format.mmdb");
+    let analytics =
+        SessionAnalytics::from_headers_with_geoip(&headers_with_ip("89.160.20.128"), Some(&reader));
+    assert_eq!(analytics.country, None);
+    assert_eq!(analytics.region, None);
+    assert_eq!(analytics.city, None);
 }
 
 #[test]
