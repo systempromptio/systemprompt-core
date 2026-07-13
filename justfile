@@ -382,7 +382,7 @@ coverage:
     echo "==> Building instrumented systemprompt binary from main workspace"
     (cd "$ROOT" && CARGO_BUILD_RUSTC_WRAPPER="" RUSTC_WRAPPER="" \
         CARGO_TARGET_DIR="$MAINTDIR" \
-        LLVM_PROFILE_FILE="$PROFDIR/%p-%m.profraw" \
+        LLVM_PROFILE_FILE="$PROFDIR/%m%c.profraw" \
         RUSTFLAGS="-C instrument-coverage" \
         cargo build -p systemprompt-cli --bin systemprompt --jobs 4)
     export SYSTEMPROMPT_BIN="$MAINTDIR/debug/systemprompt"
@@ -390,11 +390,17 @@ coverage:
     # DATABASE_URL is required by subprocess_full.rs and other tests that
     # invoke the systemprompt binary through full SecretsBootstrap; without
     # it those tests early-return and produce no coverage.
+    #
+    # %m%c (continuous mode, no %p): with per-PID files, PID reuse across the
+    # ~18k nextest processes silently overwrites earlier profraws — tests
+    # covered only by a single low-frequency process read as uncovered. One
+    # mmap-shared file per module signature makes counter updates atomic and
+    # mirrors coverage.yml.
     : "${DATABASE_URL:=postgres://systemprompt_admin:3e00fcdac26b5b731829e8737515db8f@localhost:5432/systemprompt-web}"
     CARGO_BUILD_RUSTC_WRAPPER="" \
         RUSTC_WRAPPER="" \
         CARGO_TARGET_DIR="$TDIR" \
-        LLVM_PROFILE_FILE="$PROFDIR/%p-%m.profraw" \
+        LLVM_PROFILE_FILE="$PROFDIR/%m%c.profraw" \
         RUSTFLAGS="-C instrument-coverage" \
         SYSTEMPROMPT_BIN="$SYSTEMPROMPT_BIN" \
         DATABASE_URL="$DATABASE_URL" \
