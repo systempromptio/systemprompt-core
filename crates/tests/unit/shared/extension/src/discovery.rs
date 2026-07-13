@@ -1,11 +1,12 @@
 //! Tests for `ExtensionRegistry::discover` / `discover_and_merge` in
 //! `registry/discovery.rs`.
 //!
-//! The unit-test binary registers no extensions through `inventory`, so
-//! `discover()` exercises the empty-discovery (`warn!`) branch. `discover` also
-//! consults the process-global injected list; these tests assert only
-//! invariants that hold regardless of that global state, and use uniquely named
-//! extensions for the merge assertions.
+//! The unit-test binary registers exactly one extension through `inventory`
+//! (`InventoryExt`, below), so `discover()` exercises the inventory-iteration
+//! branch as well as the injected-extension path. `discover` also consults the
+//! process-global injected list; these tests use uniquely named extensions for
+//! the merge assertions and account for the single inventory registration in
+//! count assertions.
 
 use std::sync::Arc;
 
@@ -13,6 +14,16 @@ use systemprompt_extension::runtime_config::{
     InjectedExtensions, WebAssetsStrategy, set_injected_extensions,
 };
 use systemprompt_extension::{Extension, ExtensionMetadata, ExtensionRegistry};
+
+const INVENTORY_ID: &str = "inventory-registered-unit-ext";
+
+fn debug_subscriber_guard() -> tracing::subscriber::DefaultGuard {
+    let subscriber = tracing_subscriber::fmt()
+        .with_max_level(tracing::Level::DEBUG)
+        .with_test_writer()
+        .finish();
+    tracing::subscriber::set_default(subscriber)
+}
 
 struct NamedExt {
     id: &'static str,
@@ -26,6 +37,36 @@ impl Extension for NamedExt {
             version: "1.0.0",
         }
     }
+}
+
+#[derive(Default)]
+struct InventoryExt;
+
+impl Extension for InventoryExt {
+    fn metadata(&self) -> ExtensionMetadata {
+        ExtensionMetadata {
+            id: INVENTORY_ID,
+            name: "InventoryUnit",
+            version: "1.0.0",
+        }
+    }
+}
+
+systemprompt_extension::register_extension!(InventoryExt);
+
+#[test]
+fn discover_finds_the_inventory_registered_extension() {
+    // Compile-time inventory registration must surface through `discover()`.
+    // A DEBUG subscriber is active so the per-extension discovery log fields are
+    // evaluated (the inventory-iteration branch).
+    let _guard = debug_subscriber_guard();
+    let registry = ExtensionRegistry::discover().expect("discover should not error");
+    assert!(
+        registry.has(INVENTORY_ID),
+        "inventory-registered extension must be discovered"
+    );
+    let ext = registry.get(INVENTORY_ID).expect("present");
+    assert_eq!(ext.id(), INVENTORY_ID);
 }
 
 #[test]
@@ -42,7 +83,10 @@ fn discover_includes_process_injected_extensions_and_skips_duplicate_ids() {
     // the same id twice must collapse to a single registry entry (the second is
     // skipped as already-discovered), while a distinct id is also included.
     // Under cargo-nextest each test runs in its own process, so this one-shot
-    // `set` cannot collide with the other tests in this binary.
+    // `set` cannot collide with the other tests in this binary. A DEBUG
+    // subscriber is active so the injected-extension log fields (count, name,
+    // priority) and the completion-summary fields are evaluated.
+    let _guard = debug_subscriber_guard();
     let injected: Vec<Arc<dyn Extension>> = vec![
         Arc::new(NamedExt { id: "inj-primary" }),
         Arc::new(NamedExt { id: "inj-primary" }),
@@ -66,8 +110,9 @@ fn discover_includes_process_injected_extensions_and_skips_duplicate_ids() {
     assert!(!registry.is_empty());
     assert_eq!(
         registry.len(),
-        2,
-        "duplicate injected id must be skipped, not double-counted"
+        3,
+        "one inventory extension plus two distinct injected ids; the duplicate \
+         injected id must be skipped, not double-counted"
     );
 }
 
