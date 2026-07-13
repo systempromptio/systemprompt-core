@@ -21,7 +21,9 @@ use systemprompt_models::{
     A2AEvent, A2AEventBuilder, AgUiEvent, AgUiEventBuilder, AnalyticsEvent, AnalyticsEventBuilder,
     SystemEvent, SystemEventBuilder,
 };
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool, unique_user_id};
+use systemprompt_test_fixtures::{
+    closed_db_pool, fixture_database_url, fixture_db_pool, unique_user_id,
+};
 
 /// The bridge tests each `start()` a [`PostgresEventBridge`], whose
 /// `PgListener` holds a long-lived connection from the shared fixture pool.
@@ -260,7 +262,13 @@ async fn route_persists_queryable_outbox_row() {
     );
 }
 
-async fn insert_raw_outbox(pool: &sqlx::PgPool, id: &str, channel: &str, user: &UserId, payload: &str) {
+async fn insert_raw_outbox(
+    pool: &sqlx::PgPool,
+    id: &str,
+    channel: &str,
+    user: &UserId,
+    payload: &str,
+) {
     sqlx::query(
         "INSERT INTO event_outbox (id, channel, user_id, payload, actor_kind, actor_id) \
          VALUES ($1, $2, $3, $4::jsonb, 'user', $5) ON CONFLICT (id) DO NOTHING",
@@ -286,7 +294,8 @@ async fn notify_outbox(pool: &sqlx::PgPool, id: &str) {
 /// Repeatedly fire a "poison" notification (an outbox id the bridge cannot
 /// deliver) alongside a valid analytics route, asserting the bridge survives
 /// the poison branch and still delivers the good event. The valid delivery is
-/// the deterministic signal; the poison exercises `deliver`/`fan_in` error arms.
+/// the deterministic signal; the poison exercises `deliver`/`fan_in` error
+/// arms.
 async fn relay_survives_poison<Fp>(
     poison: Fp,
     user: &UserId,
@@ -420,5 +429,97 @@ async fn bridge_survives_undecodable_payload() {
     assert!(
         delivered,
         "a row whose payload fails to decode for its channel must be logged and skipped"
+    );
+}
+
+// Paused time makes the 5-second retry back-off instantaneous, so several
+// connect-fail/sleep iterations run without any wall-clock cost.
+#[tokio::test(start_paused = true)]
+async fn bridge_survives_listener_connect_failure_and_keeps_retrying() {
+    let db = closed_db_pool().await;
+    let pool = (*db
+        .pool_arc()
+        .expect("closed fixture pool must expose a pg pool"))
+    .clone();
+
+    let handle = PostgresEventBridge::new(pool).start();
+    tokio::time::sleep(Duration::from_secs(30)).await;
+
+    assert!(
+        !handle.is_finished(),
+        "the bridge must keep retrying when the listener cannot connect, not exit"
+    );
+    handle.abort();
+    let err = handle
+        .await
+        .expect_err("an aborted bridge task must resolve to a JoinError");
+    assert!(
+        err.is_cancelled(),
+        "the bridge task must be cancelled by abort, not have panicked"
+    );
+}
+
+async fn insert_outbox_with_age(pool: &sqlx::PgPool, id: &str, user: &UserId, age: &str) {
+    sqlx::query(
+        "INSERT INTO event_outbox (id, channel, user_id, payload, actor_kind, actor_id, \
+         created_at) VALUES ($1, 'system', $2, '{}'::jsonb, 'user', $2, now() - $3::interval)",
+    )
+    .bind(id)
+    .bind(user.as_str())
+    .bind(age)
+    .execute(pool)
+    .await
+    .expect("insert aged outbox row must succeed");
+}
+
+async fn outbox_row_exists(pool: &sqlx::PgPool, id: &str) -> bool {
+    let row: (i64,) = sqlx::query_as("SELECT count(*) FROM event_outbox WHERE id = $1")
+        .bind(id)
+        .fetch_one(pool)
+        .await
+        .expect("counting outbox rows must succeed");
+    row.0 > 0
+}
+
+/// The prune tick fires every 300 seconds, far beyond any test budget, so the
+/// clock is briefly paused and advanced past the interval on each attempt;
+/// the DELETE itself then runs in resumed real time.
+#[tokio::test]
+async fn bridge_prune_deletes_expired_rows_and_keeps_fresh_ones() {
+    let Some(pool) = pool().await else {
+        return;
+    };
+    let _guard = BRIDGE_LOCK.lock().await;
+    let user = unique_user_id("bridge-prune");
+    let old_id = EventOutboxId::generate().as_str().to_owned();
+    let fresh_id = EventOutboxId::generate().as_str().to_owned();
+    insert_outbox_with_age(&pool, &old_id, &user, "2 hours").await;
+    insert_outbox_with_age(&pool, &fresh_id, &user, "0 seconds").await;
+
+    let handle = PostgresEventBridge::new(pool.clone()).start();
+
+    let mut old_pruned = false;
+    for _ in 0..40 {
+        tokio::time::pause();
+        tokio::time::advance(Duration::from_secs(301)).await;
+        tokio::time::resume();
+        tokio::time::sleep(Duration::from_millis(100)).await;
+        if !outbox_row_exists(&pool, &old_id).await {
+            old_pruned = true;
+            break;
+        }
+    }
+    let fresh_survived = outbox_row_exists(&pool, &fresh_id).await;
+
+    handle.abort();
+    cleanup(&pool, &user).await;
+
+    assert!(
+        old_pruned,
+        "a prune tick must delete outbox rows older than the retention window"
+    );
+    assert!(
+        fresh_survived,
+        "prune must keep rows younger than the retention window"
     );
 }
