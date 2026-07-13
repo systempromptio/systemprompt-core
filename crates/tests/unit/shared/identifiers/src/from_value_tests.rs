@@ -172,8 +172,21 @@ fn f64_beyond_i64_range_is_out_of_range_not_wrapped() {
 }
 
 #[test]
-fn gateway_conversation_id_requires_the_ctx_prefix() {
+fn gateway_conversation_id_rejects_wrong_length_prefix_and_non_hex() {
     use systemprompt_identifiers::GatewayConversationId;
-    let err = GatewayConversationId::try_new("bad-prefix").unwrap_err();
-    assert!(err.to_string().contains("ctx_"), "got: {err}");
+
+    let short = GatewayConversationId::try_new("bad-prefix").unwrap_err();
+    assert!(short.to_string().contains("16 hex"), "got: {short}");
+
+    let wrong_prefix = GatewayConversationId::try_new("xtx_0123456789abcdef").unwrap_err();
+    assert!(
+        wrong_prefix.to_string().contains("missing 'ctx_' prefix"),
+        "got: {wrong_prefix}"
+    );
+
+    let upper_hex = GatewayConversationId::try_new("ctx_0123456789ABCDEF").unwrap_err();
+    assert!(
+        upper_hex.to_string().contains("lowercase hex"),
+        "got: {upper_hex}"
+    );
 }

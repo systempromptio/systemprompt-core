@@ -19,19 +19,26 @@ fn as_string(value: &DbValue) -> &str {
 
 #[test]
 fn reference_impls_agree_with_their_owned_counterparts() {
+    // UFCS pins the &T impl; method syntax would auto-deref to the owned one.
     let s = "hello".to_owned();
-    assert_eq!((&s).to_db_value(), s.to_db_value());
+    assert_eq!(<&String as ToDbValue>::to_db_value(&&s), s.to_db_value());
 
-    assert_eq!((&7i32).to_db_value(), 7i32.to_db_value());
-    assert_eq!((&7i64).to_db_value(), 7i64.to_db_value());
-    assert_eq!((&1.5f64).to_db_value(), 1.5f64.to_db_value());
-    assert_eq!((&true).to_db_value(), true.to_db_value());
+    assert_eq!(<&i32 as ToDbValue>::to_db_value(&&7i32), 7i32.to_db_value());
+    assert_eq!(<&i64 as ToDbValue>::to_db_value(&&7i64), 7i64.to_db_value());
+    assert_eq!(
+        <&f64 as ToDbValue>::to_db_value(&&1.5f64),
+        1.5f64.to_db_value()
+    );
+    assert_eq!(<&bool as ToDbValue>::to_db_value(&&true), true.to_db_value());
 
     let dt = Utc.with_ymd_and_hms(2026, 1, 2, 3, 4, 5).unwrap();
-    assert_eq!((&dt).to_db_value(), dt.to_db_value());
+    assert_eq!(
+        <&chrono::DateTime<Utc> as ToDbValue>::to_db_value(&&dt),
+        dt.to_db_value()
+    );
 
     let arr = vec!["a".to_owned(), "b".to_owned()];
-    assert_eq!((&arr).to_db_value(), arr.to_db_value());
+    assert_eq!(<&Vec<String> as ToDbValue>::to_db_value(&&arr), arr.to_db_value());
     assert_eq!(arr.as_slice().to_db_value(), arr.to_db_value());
 }
 
@@ -68,27 +75,45 @@ fn unsigned_and_f32_widen_into_their_sql_column_types() {
 fn validated_wrapper_types_bind_as_their_inner_string_by_ref_and_value() {
     let email = Email::try_new("a@b.com").unwrap();
     assert_eq!(as_string(&email.to_db_value()), "a@b.com");
-    assert_eq!((&email).to_db_value(), email.to_db_value());
+    assert_eq!(
+        <&Email as ToDbValue>::to_db_value(&&email),
+        email.to_db_value()
+    );
 
     let locale = LocaleCode::try_new("en-US").unwrap();
-    assert_eq!((&locale).to_db_value(), locale.to_db_value());
+    assert_eq!(
+        <&LocaleCode as ToDbValue>::to_db_value(&&locale),
+        locale.to_db_value()
+    );
 
     let path = ValidatedFilePath::try_new("a/b.txt").unwrap();
     assert_eq!(as_string(&path.to_db_value()), "a/b.txt");
-    assert_eq!((&path).to_db_value(), path.to_db_value());
+    assert_eq!(
+        <&ValidatedFilePath as ToDbValue>::to_db_value(&&path),
+        path.to_db_value()
+    );
 
     let profile = ProfileName::try_new("local").unwrap();
     assert_eq!(as_string(&profile.to_db_value()), "local");
-    assert_eq!((&profile).to_db_value(), profile.to_db_value());
+    assert_eq!(
+        <&ProfileName as ToDbValue>::to_db_value(&&profile),
+        profile.to_db_value()
+    );
 
     let url = ValidatedUrl::try_new("https://example.com").unwrap();
-    assert_eq!((&url).to_db_value(), url.to_db_value());
+    assert_eq!(
+        <&ValidatedUrl as ToDbValue>::to_db_value(&&url),
+        url.to_db_value()
+    );
 
     let id = UserId::new("user-1");
     assert_eq!(as_string(&id.to_db_value()), "user-1");
-    assert_eq!((&id).to_db_value(), id.to_db_value());
+    assert_eq!(<&UserId as ToDbValue>::to_db_value(&&id), id.to_db_value());
 
     let token = JwtToken::new("tok");
     assert_eq!(as_string(&token.to_db_value()), "tok");
-    assert_eq!((&token).to_db_value(), token.to_db_value());
+    assert_eq!(
+        <&JwtToken as ToDbValue>::to_db_value(&&token),
+        token.to_db_value()
+    );
 }
