@@ -13,7 +13,7 @@ use systemprompt_models::services::{
     AgentCardConfig, AgentConfig, AgentMetadataConfig, OAuthConfig, ServicesConfig,
 };
 
-use crate::helpers::config_with;
+use crate::helpers::{config_with, warn_subscriber_guard};
 
 fn make_agent_config(name: &str) -> AgentConfig {
     AgentConfig {
@@ -273,6 +273,7 @@ fn load_skills_missing_content_file_yields_empty_instructions() {
 
 #[test]
 fn load_skills_invalid_config_is_skipped_not_fatal() {
+    let _guard = warn_subscriber_guard();
     let dir = tempfile::tempdir().expect("temp dir");
     let good = dir.path().join("skills").join("good");
     let bad = dir.path().join("skills").join("bad");
@@ -510,6 +511,37 @@ fn load_cached_reuses_until_the_skills_tree_changes() {
 }
 
 #[test]
+#[cfg(unix)]
+fn load_cached_tolerates_a_dangling_symlink_in_the_skills_tree() {
+    let dir = tempfile::tempdir().expect("temp dir");
+    let skill_dir = dir.path().join("skills").join("my_skill");
+    fs::create_dir_all(&skill_dir).expect("skill dir");
+    fs::write(
+        skill_dir.join("config.yaml"),
+        "id: my_skill\nname: My Skill\ndescription: a test skill\n",
+    )
+    .expect("write config");
+    fs::write(skill_dir.join("index.md"), "body").expect("write content");
+    // A broken symlink makes `entry.metadata()` (which follows links) fail
+    // during fingerprinting; the walker must skip it rather than panic.
+    std::os::unix::fs::symlink(
+        dir.path().join("does-not-exist"),
+        skill_dir.join("dangling"),
+    )
+    .expect("create dangling symlink");
+
+    let services = ServicesConfig::default();
+    let url = "https://api.example.com";
+    let first = CatalogContent::load_cached(&services, dir.path(), url).expect("first load");
+    let second = CatalogContent::load_cached(&services, dir.path(), url).expect("second load");
+    assert!(
+        std::sync::Arc::ptr_eq(&first, &second),
+        "a stable tree (dangling link included) must reuse the cached catalogue"
+    );
+    assert_eq!(first.as_content().skills.len(), 1);
+}
+
+#[test]
 fn disabled_mcp_server_names_returns_only_disabled() {
     let mut config = ServicesConfig::default();
     config
@@ -572,6 +604,7 @@ fn load_artifacts_reads_valid_artifact_with_default_content_file() {
 
 #[test]
 fn load_artifacts_drops_artifact_with_missing_content() {
+    let _guard = warn_subscriber_guard();
     let dir = tempfile::tempdir().expect("temp dir");
     write_artifact(
         dir.path(),
@@ -716,7 +749,11 @@ fn load_hooks_stray_file_and_config_less_dir_are_ignored() {
     .expect("write config");
 
     let hooks = load_hooks(dir.path()).expect("load hooks");
-    assert_eq!(hooks.len(), 1, "a loose file and a config-less directory are both skipped");
+    assert_eq!(
+        hooks.len(),
+        1,
+        "a loose file and a config-less directory are both skipped"
+    );
 }
 
 #[test]
@@ -784,6 +821,7 @@ fn load_artifacts_stray_file_and_config_less_dir_are_ignored() {
 
 #[test]
 fn load_artifacts_unparseable_config_is_skipped_not_fatal() {
+    let _guard = warn_subscriber_guard();
     let dir = tempfile::tempdir().expect("temp dir");
     write_artifact(
         dir.path(),
@@ -798,7 +836,8 @@ fn load_artifacts_unparseable_config_is_skipped_not_fatal() {
         Some("<table>data</table>"),
     );
 
-    let artifacts = load_artifacts(dir.path()).expect("an unparseable artifact is skipped, not fatal");
+    let artifacts =
+        load_artifacts(dir.path()).expect("an unparseable artifact is skipped, not fatal");
     assert_eq!(
         artifacts.iter().map(|a| a.id.as_str()).collect::<Vec<_>>(),
         vec!["good"],

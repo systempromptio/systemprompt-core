@@ -46,6 +46,19 @@ pub fn access(default_included: bool, roles: &[&str]) -> MarketplaceAccess {
     }
 }
 
+/// Installs a WARN-level subscriber for the duration of the returned guard so
+/// the field expressions inside `tracing::warn!` skip/drop branches are
+/// evaluated (and therefore counted) rather than short-circuited by the
+/// no-subscriber fast path.
+#[must_use]
+pub fn warn_subscriber_guard() -> tracing::subscriber::DefaultGuard {
+    let subscriber = tracing_subscriber::fmt()
+        .with_max_level(tracing::Level::WARN)
+        .with_test_writer()
+        .finish();
+    tracing::subscriber::set_default(subscriber)
+}
+
 #[must_use]
 pub fn config_with(marketplaces: Vec<MarketplaceConfig>) -> ServicesConfig {
     let mut config = ServicesConfig::default();

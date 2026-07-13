@@ -745,15 +745,10 @@ fn agent_md_carries_model_when_set() {
         disabled_mcp_servers: &NO_DISABLED,
         plugins_root: Path::new("/nonexistent"),
     };
-    let config = plugin_config(
-        "p",
-        PluginComponentRef::default(),
-        explicit(&["modelled"]),
-    );
+    let config = plugin_config("p", PluginComponentRef::default(), explicit(&["modelled"]));
 
     let bundle = build_plugin_bundle(&config, &content).expect("build");
-    let md =
-        String::from_utf8(bundle["agents/modelled.md"].bytes.clone()).expect("utf8 agent md");
+    let md = String::from_utf8(bundle["agents/modelled.md"].bytes.clone()).expect("utf8 agent md");
     assert!(
         md.contains("model: \"claude-fable-5\"\n"),
         "a non-empty model is emitted into the agent front matter: {md}",
@@ -772,7 +767,11 @@ fn agent_with_empty_model_omits_model_line() {
         disabled_mcp_servers: &NO_DISABLED,
         plugins_root: Path::new("/nonexistent"),
     };
-    let config = plugin_config("p", PluginComponentRef::default(), explicit(&["blank_model"]));
+    let config = plugin_config(
+        "p",
+        PluginComponentRef::default(),
+        explicit(&["blank_model"]),
+    );
 
     let bundle = build_plugin_bundle(&config, &content).expect("build");
     let md =
@@ -793,7 +792,11 @@ fn skill_with_pathless_file_path_still_bundles_without_aux() {
         disabled_mcp_servers: &NO_DISABLED,
         plugins_root: Path::new("/nonexistent"),
     };
-    let config = plugin_config("p", explicit(&["lone_skill"]), PluginComponentRef::default());
+    let config = plugin_config(
+        "p",
+        explicit(&["lone_skill"]),
+        PluginComponentRef::default(),
+    );
 
     let bundle = build_plugin_bundle(&config, &content).expect("build");
     assert!(
@@ -801,7 +804,9 @@ fn skill_with_pathless_file_path_still_bundles_without_aux() {
         "the SKILL.md is still emitted even when the file path has no parent directory",
     );
     assert!(
-        !bundle.keys().any(|k| k.starts_with("skills/lone-skill/scripts")),
+        !bundle
+            .keys()
+            .any(|k| k.starts_with("skills/lone-skill/scripts")),
         "a pathless skill yields no auxiliary files rather than panicking",
     );
 }
@@ -843,7 +848,11 @@ fn aux_collection_skips_unreadable_files_and_directories() {
         disabled_mcp_servers: &NO_DISABLED,
         plugins_root: Path::new("/nonexistent"),
     };
-    let config = plugin_config("p", explicit(&["locked_skill"]), PluginComponentRef::default());
+    let config = plugin_config(
+        "p",
+        explicit(&["locked_skill"]),
+        PluginComponentRef::default(),
+    );
 
     let bundle = build_plugin_bundle(&config, &content).expect("build");
 
@@ -865,9 +874,7 @@ fn aux_collection_skips_unreadable_files_and_directories() {
         "an unreadable aux file is skipped rather than aborting the bundle",
     );
     assert!(
-        !bundle
-            .keys()
-            .any(|k| k.contains("locked-subdir")),
+        !bundle.keys().any(|k| k.contains("locked-subdir")),
         "an unreadable subdirectory is skipped rather than aborting the bundle",
     );
 }
@@ -882,8 +889,7 @@ fn plugin_with_unreadable_script_is_skipped_while_siblings_survive() {
     std::fs::create_dir_all(&broken_dir).expect("create broken plugin dir");
     let locked = broken_dir.join("setup.sh");
     std::fs::write(&locked, b"#!/bin/sh\necho hi\n").expect("write script");
-    std::fs::set_permissions(&locked, std::fs::Permissions::from_mode(0o000))
-        .expect("lock script");
+    std::fs::set_permissions(&locked, std::fs::Permissions::from_mode(0o000)).expect("lock script");
 
     let skills = vec![skill_entry("s", "d", "body")];
     let content = BundleContent {
@@ -894,7 +900,11 @@ fn plugin_with_unreadable_script_is_skipped_while_siblings_survive() {
         plugins_root: dir.path(),
     };
     let mut services = ServicesConfig::default();
-    let mut broken = plugin_config("broken-plugin", explicit(&["s"]), PluginComponentRef::default());
+    let mut broken = plugin_config(
+        "broken-plugin",
+        explicit(&["s"]),
+        PluginComponentRef::default(),
+    );
     broken.scripts = vec![PluginScript {
         name: "setup".to_owned(),
         source: "setup.sh".to_owned(),
@@ -902,7 +912,11 @@ fn plugin_with_unreadable_script_is_skipped_while_siblings_survive() {
     services.plugins.insert("broken".to_owned(), broken);
     services.plugins.insert(
         "good".to_owned(),
-        plugin_config("good-plugin", explicit(&["s"]), PluginComponentRef::default()),
+        plugin_config(
+            "good-plugin",
+            explicit(&["s"]),
+            PluginComponentRef::default(),
+        ),
     );
 
     let bundles = plugin_bundles(&services, &content).expect("plugin bundles");
@@ -941,7 +955,11 @@ fn fingerprint_tolerates_a_dangling_symlink_under_plugins_root() {
     let mut services = ServicesConfig::default();
     services.plugins.insert(
         "demo".to_owned(),
-        plugin_config("demo-plugin", explicit(&["s"]), PluginComponentRef::default()),
+        plugin_config(
+            "demo-plugin",
+            explicit(&["s"]),
+            PluginComponentRef::default(),
+        ),
     );
 
     let bundles =

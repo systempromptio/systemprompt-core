@@ -9,7 +9,7 @@ use systemprompt_models::bridge::manifest_version::ManifestVersion;
 use systemprompt_security::manifest_signing;
 use systemprompt_test_fixtures::fixture_user_id;
 
-use crate::helpers::{access, config_with, include, marketplace};
+use crate::helpers::{access, config_with, include, marketplace, warn_subscriber_guard};
 
 static INIT_SECRETS: Once = Once::new();
 static EMPTY_HOST_MODEL_PROTOCOLS: LazyLock<BTreeMap<String, Vec<String>>> =
@@ -105,6 +105,7 @@ fn write_artifact_on_disk(root: &std::path::Path, id: &str, plugin_id: &str) {
 
 #[tokio::test]
 async fn assemble_candidate_gates_artifacts_by_plugin_enablement() {
+    let _guard = warn_subscriber_guard();
     let dir = tempfile::tempdir().expect("temp services root");
     write_artifact_on_disk(dir.path(), "pipeline", "absent-plugin");
     let config = config_with(vec![]);
@@ -190,10 +191,10 @@ async fn assemble_candidate_scopes_managed_mcp_servers_to_marketplace_include() 
 
 #[tokio::test]
 async fn assemble_candidate_keeps_artifact_owned_by_enabled_plugin() {
+    use systemprompt_identifiers::PluginId;
     use systemprompt_models::services::{
         ComponentSource, PluginAuthor, PluginComponentRef, PluginConfig,
     };
-    use systemprompt_identifiers::PluginId;
 
     let dir = tempfile::tempdir().expect("temp services root");
 
