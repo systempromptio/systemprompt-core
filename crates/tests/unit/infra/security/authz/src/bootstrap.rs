@@ -226,6 +226,38 @@ mod extension_mode {
     }
 
     #[tokio::test]
+    async fn extension_hook_in_disabled_mode_errors() {
+        let cfg = governance_with(AuthzMode::Disabled, None, None);
+        let injected: SharedAuthzHook = Arc::new(AlwaysAllow);
+        let err = build_authz_hook(Some(&cfg), None, Some(injected))
+            .expect_err("extension hook supplied under disabled mode must fail bootstrap");
+        assert!(matches!(
+            err,
+            AuthzError::Bootstrap(AuthzBootstrapError::ExtensionHookButWrongMode {
+                mode: "disabled"
+            })
+        ));
+    }
+
+    #[tokio::test]
+    async fn extension_hook_in_unrestricted_mode_errors() {
+        let cfg = governance_with(
+            AuthzMode::Unrestricted,
+            None,
+            Some(UNRESTRICTED_ACKNOWLEDGEMENT),
+        );
+        let injected: SharedAuthzHook = Arc::new(AlwaysAllow);
+        let err = build_authz_hook(Some(&cfg), None, Some(injected))
+            .expect_err("extension hook supplied under unrestricted mode must fail bootstrap");
+        assert!(matches!(
+            err,
+            AuthzError::Bootstrap(AuthzBootstrapError::ExtensionHookButWrongMode {
+                mode: "unrestricted"
+            })
+        ));
+    }
+
+    #[tokio::test]
     async fn extension_hook_without_governance_errors() {
         let injected: SharedAuthzHook = Arc::new(AlwaysAllow);
         let err = build_authz_hook(None, None, Some(injected))

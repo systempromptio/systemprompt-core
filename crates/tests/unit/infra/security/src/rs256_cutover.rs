@@ -121,3 +121,45 @@ fn foreign_key_is_not_accepted_via_local_lookup() {
         "tokens signed under a foreign issuer's key cannot be verified by the local authority"
     );
 }
+
+#[test]
+fn active_decoding_key_verifies_locally_minted_token() {
+    let key = ensure_authority();
+    let decoding = authority::decoding_key().expect("decoding key available");
+
+    let token = encode(
+        &{
+            let mut h = Header::new(Algorithm::RS256);
+            h.kid = Some(key.kid().to_string());
+            h
+        },
+        &sample_claims("https://issuer.test"),
+        &{
+            let der = key.private_key().to_pkcs1_der().expect("der");
+            EncodingKey::from_rsa_der(der.as_bytes())
+        },
+    )
+    .expect("mint token");
+
+    let mut validation = jsonwebtoken::Validation::new(Algorithm::RS256);
+    validation.validate_aud = false;
+    let decoded = jsonwebtoken::decode::<JwtClaims>(&token, decoding, &validation)
+        .expect("active decoding key must verify a token minted by the active signing key");
+    assert_eq!(decoded.claims.sub, "user-1");
+}
+
+#[test]
+fn install_for_test_is_idempotent() {
+    let first = ensure_authority();
+    let kid_before = first.kid().to_string();
+
+    // A second install with a distinct key must be a no-op: the authority is
+    // set exactly once per process and never rebound.
+    authority::install_for_test(RsaSigningKey::generate_bits(2048).expect("second key"));
+
+    let kid_after = authority::signing_key().expect("still installed").kid();
+    assert_eq!(
+        kid_before, kid_after,
+        "install_for_test must not replace an already-installed authority"
+    );
+}

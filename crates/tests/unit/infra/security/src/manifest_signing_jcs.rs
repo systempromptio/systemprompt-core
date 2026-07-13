@@ -226,3 +226,20 @@ fn tamper_with_user_id_breaks_signature() {
     let result = manifest.verify(&pubkey);
     assert!(result.is_err(), "tampered manifest must fail verification");
 }
+
+#[test]
+fn signing_key_is_cached_across_calls() {
+    ensure_bootstrap();
+    let first = match manifest_signing::signing_key() {
+        Ok(k) => k,
+        Err(e) => {
+            eprintln!("skipping: secrets bootstrap unavailable in this env: {e}");
+            return;
+        },
+    };
+    let second = manifest_signing::signing_key().expect("second call reuses the cached key");
+    assert!(
+        std::ptr::eq(first, second),
+        "the OnceLock-cached signing key must be returned by reference, not re-derived"
+    );
+}

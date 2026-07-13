@@ -136,3 +136,28 @@ fn round_trips_through_serde() {
     reparsed.validate().expect("round-trip remains valid");
     assert_eq!(reparsed.rules.len(), cfg.rules.len());
 }
+
+#[test]
+fn entity_match_rule_serializes_back_as_entity_match() {
+    let yaml = r#"
+rules:
+  - entity_type: gateway_route
+    entity_match: "claude-*"
+    access: allow
+    roles: [developer]
+"#;
+    let cfg: AccessControlConfig = serde_yaml::from_str(yaml).expect("glob yaml parses");
+    let serialized = serde_yaml::to_string(&cfg).expect("serialize glob rule");
+    assert!(
+        serialized.contains("entity_match"),
+        "a Match target must serialize as `entity_match`, got: {serialized}"
+    );
+    assert!(
+        !serialized.contains("entity_id"),
+        "a Match target must not emit an `entity_id` key, got: {serialized}"
+    );
+
+    let reparsed: AccessControlConfig =
+        serde_yaml::from_str(&serialized).expect("glob rule round-trips");
+    assert_eq!(reparsed.rules.len(), 1);
+}

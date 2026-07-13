@@ -50,3 +50,30 @@ fn multibyte_candidate_does_not_panic() {
     assert!(glob_matches("*-☕-*", "a-☕-b"));
     assert!(!glob_matches("café-*", "tea-server"));
 }
+
+#[test]
+fn candidate_shorter_than_prefix_plus_suffix_never_matches() {
+    // Prefix and suffix each match, but the candidate is too short to hold
+    // both without them overlapping, so the pattern must still reject it.
+    assert!(!glob_matches("a*a", "a"));
+    assert!(!glob_matches("abc*abc", "abc"));
+    assert!(glob_matches("a*a", "aa"));
+}
+
+#[test]
+fn adjacent_wildcards_collapse_to_a_single_gap() {
+    // An empty interior segment (`**`) is a no-op: it must not force an extra
+    // character the way a real interior needle would.
+    assert!(glob_matches("a**b", "axb"));
+    assert!(glob_matches("a**b", "ab"));
+    assert!(glob_matches("pre**suf", "pre-middle-suf"));
+}
+
+#[test]
+fn interior_needle_absent_rejects() {
+    // Prefix and suffix line up but the required interior segment is missing
+    // from the gap between them.
+    assert!(!glob_matches("a*x*c", "ac"));
+    assert!(!glob_matches("a*x*b", "aQb"));
+    assert!(glob_matches("a*x*c", "aQxRc"));
+}

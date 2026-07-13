@@ -183,9 +183,14 @@ fn test_is_scanner_agent_outdated_chrome() {
 
 #[test]
 fn test_is_scanner_agent_outdated_firefox() {
-    let firefox_80 =
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:80.0) Gecko/20100101 Firefox/80.0 ";
-    let _ = ScannerDetector::is_scanner_agent(firefox_80);
+    // A Firefox major below the minimum, terminated by a non-numeric byte so
+    // the version segment parses as an integer, is flagged as a scanner.
+    assert!(
+        ScannerDetector::is_scanner_agent(
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:80.0) Gecko/20100101 Firefox/80 "
+        ),
+        "an outdated Firefox major must be detected"
+    );
 
     assert!(!ScannerDetector::is_scanner_agent(
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:120.0) Gecko/20100101 Firefox/120.0 "

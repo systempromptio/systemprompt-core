@@ -13,12 +13,16 @@ workspace = true
 [dependencies]
 systemprompt-test-fixtures = { workspace = true }
 systemprompt-security = { workspace = true }
+systemprompt-database = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 systemprompt-models = { workspace = true }
 
 [dev-dependencies]
 async-trait = { workspace = true }
+inventory = { workspace = true }
 serde_json = { workspace = true }
 serde_yaml = { workspace = true }
+sqlx = { workspace = true }
 tokio = { workspace = true }
+uuid = { workspace = true }
 wiremock = { workspace = true }

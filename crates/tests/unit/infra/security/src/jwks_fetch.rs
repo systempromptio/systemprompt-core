@@ -8,6 +8,11 @@
 //! [`JwksClientError::Decode`], `fetch_at` honours an explicit JWKS URI, and
 //! the host allowlist / scheme guard reject untrusted issuers.
 
+use std::time::Duration;
+
+use systemprompt_security::keys::jwks_client::{
+    MAX_CACHE_TTL, MIN_CACHE_TTL, clamp_ttl, parse_max_age,
+};
 use systemprompt_security::keys::{Jwk, Jwks, JwksClient, JwksClientError, RsaSigningKey};
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -191,4 +196,110 @@ async fn second_fetch_is_served_from_cache() {
         .await
         .expect("second fetch served from cache");
     // `expect(1)` on the mock asserts the upstream was hit exactly once.
+}
+
+#[tokio::test]
+async fn fetch_at_second_call_is_served_from_cache() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/custom/keys.json"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(Jwks {
+            keys: vec![test_jwk("cached")],
+        }))
+        .expect(1)
+        .mount(&server)
+        .await;
+
+    let client = JwksClient::new(vec![host_of(&server.uri())]);
+    let jwks_uri = format!("{}/custom/keys.json", server.uri());
+    client
+        .fetch_at("https://issuer.example", &jwks_uri, "cached")
+        .await
+        .expect("first fetch_at");
+    let resolved = client
+        .fetch_at("https://issuer.example", &jwks_uri, "cached")
+        .await
+        .expect("second fetch_at served from cache");
+    assert_eq!(resolved.kid, "cached");
+    // `expect(1)` proves the explicit-URI path also short-circuits on a cache
+    // hit rather than re-fetching.
+}
+
+#[tokio::test]
+async fn fetch_at_throttles_repeated_unknown_kid_lookups() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/custom/keys.json"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(Jwks {
+            keys: vec![test_jwk("present")],
+        }))
+        .expect(1)
+        .mount(&server)
+        .await;
+
+    let client = JwksClient::new(vec![host_of(&server.uri())]);
+    let jwks_uri = format!("{}/custom/keys.json", server.uri());
+
+    let first = client
+        .fetch_at("https://issuer.example", &jwks_uri, "absent")
+        .await
+        .expect_err("absent kid on first fetch_at");
+    assert!(matches!(first, JwksClientError::KeyNotFound { .. }));
+
+    let second = client
+        .fetch_at("https://issuer.example", &jwks_uri, "absent")
+        .await
+        .expect_err("absent kid within the refetch throttle window");
+    assert!(matches!(second, JwksClientError::KeyNotFound { .. }));
+    // `expect(1)` proves the second unknown-kid lookup was throttled: the
+    // upstream was not re-fetched inside the min-refresh interval.
+}
+
+#[tokio::test]
+async fn fetch_rejects_non_http_scheme() {
+    let client = JwksClient::new(vec!["trusted.example".to_owned()]);
+    let err = client
+        .fetch("ftp://trusted.example/keys", "kid")
+        .await
+        .expect_err("ftp scheme");
+    assert!(
+        matches!(err, JwksClientError::InsecureScheme(_)),
+        "expected InsecureScheme, got {err:?}"
+    );
+}
+
+#[test]
+fn debug_impl_lists_allowed_hosts_only() {
+    let client = JwksClient::new(vec!["trusted.example".to_owned()]);
+    let rendered = format!("{client:?}");
+    assert!(rendered.contains("JwksClient"));
+    assert!(rendered.contains("trusted.example"));
+}
+
+#[test]
+fn with_http_client_replaces_the_transport() {
+    let client = JwksClient::new(vec!["trusted.example".to_owned()])
+        .with_http_client(reqwest::Client::new());
+    let rendered = format!("{client:?}");
+    assert!(
+        rendered.contains("trusted.example"),
+        "swapping the transport preserves the allowlist"
+    );
+}
+
+#[test]
+fn parse_max_age_extracts_seconds_or_none() {
+    assert_eq!(
+        parse_max_age("public, max-age=60"),
+        Some(Duration::from_secs(60))
+    );
+    assert_eq!(parse_max_age("no-store, no-cache"), None);
+}
+
+#[test]
+fn clamp_ttl_bounds_to_the_configured_window() {
+    assert_eq!(clamp_ttl(Duration::from_secs(1)), MIN_CACHE_TTL);
+    assert_eq!(clamp_ttl(Duration::from_secs(100_000)), MAX_CACHE_TTL);
+    let mid = Duration::from_secs(120);
+    assert_eq!(clamp_ttl(mid), mid);
 }
