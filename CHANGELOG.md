@@ -10,8 +10,11 @@
 
 - The synthesized default gateway route's verbatim model passthrough (`upstream_model: None` on the `*` catch-all) is documented as intentional and locked by tests: exposure remains governed by the closed allowlist in `is_model_exposed`, `allow_unlisted_models` stays the explicit opt-out, and shipped profiles keep it off.
 
+- `DbValue` derives `PartialEq`, and two unreachable defensive branches are removed: the `FromDbValue for String` array-serialization fallback (a `Vec<String>` cannot fail to serialize) and the templates `json_helper` nested-error arm plus the dead `file_stem` guard in template discovery (an `.html` path always has a stem).
+
 ### Tests
 
+- Drove the twelve 90%+ crates to (or within documented-unreachable lines of) 100% line coverage with behavior-asserting tests only: error-propagation contracts through a new shared `closed_db_pool()` fixture, GeoIP enrichment against the canonical MaxMind test database, Slack `check_ok`/SSRF/transport edges, non-ASCII header and cookie-format extraction edges, hook-token scope/claim rejection, marketplace fail-closed catalog/bundle skips, template lifecycle skip/warn branches (log-field regions require a scoped subscriber to count), extension injected-discovery/typed-builder/path-collision contracts, and the `ToDbValue`/`FromDbValue` conversion matrix. The duplicated full-`WebConfig` YAML test fixture is centralized in `systemprompt-test-fixtures`.
 - Converted the vanity-test tail across the suite to behavior-asserting tests: discarded-result smokes (`let _ = call.unwrap()`) now assert the zero-result contract or seeded-row shapes, `is_ok()`/`is_some()`-only checks bind and assert a domain field, and `!is_empty()`-only checks assert exact length or membership on uniquely-tagged seeded rows. The highest-risk CLI subprocess exit-code-only tests now assert seeded content in stdout. Added a `check-test-value` quality gate (`just lint-test-value`, wired into `check` and the `quality.yml` source-gates job) that hard-fails on unasserted discarded results, plus an observational zero-assertion-fn heuristic in the standards audit.
 
 ### CI
