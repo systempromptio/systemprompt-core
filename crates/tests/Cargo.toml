@@ -228,6 +228,7 @@ systemprompt-users = { path = "../domain/users" }
 systemprompt-oauth = { path = "../domain/oauth" }
 systemprompt-files = { path = "../domain/files" }
 systemprompt-analytics = { path = "../domain/analytics" }
+maxminddb = "0.29"
 systemprompt-content = { path = "../domain/content" }
 systemprompt-mcp = { path = "../domain/mcp" }
 systemprompt-ai = { path = "../domain/ai" }

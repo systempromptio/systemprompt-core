@@ -8453,11 +8453,14 @@ dependencies = [
  "async-trait",
  "serde_json",
  "serde_yaml_ng",
+ "sqlx",
+ "systemprompt-database",
  "systemprompt-identifiers",
  "systemprompt-models",
  "systemprompt-security",
  "systemprompt-test-fixtures",
  "tokio",
+ "uuid",
  "wiremock",
 ]
 
@@ -8491,6 +8494,7 @@ dependencies = [
  "chrono",
  "ed25519-dalek",
  "jsonwebtoken",
+ "reqwest",
  "rsa",
  "serde",
  "serde_json",
