@@ -63,6 +63,7 @@ async fn upload_context_scoped_persists_file_and_row() {
     let cfg = files_config(b, None);
     let service = FileUploadService::new(&pool, cfg.clone()).expect("service");
     assert!(service.is_enabled());
+    assert!(service.validator().validate("image/png", 4).is_ok());
 
     let context_id = ContextId::generate();
     let request = FileUploadRequest::builder("image/png", encoded_content(), context_id.clone())
@@ -339,4 +340,24 @@ async fn provider_upload_generates_context_and_round_trips() {
     );
 
     repo.delete(&info.file_id).await.expect("cleanup");
+}
+
+#[tokio::test]
+async fn upload_io_error_when_uploads_path_is_blocked() {
+    let b = ensure_test_bootstrap();
+    let Some(pool) = live_pool(b).await else {
+        return;
+    };
+    let cfg = files_config(b, None);
+    // A regular file at the uploads root makes create_dir_all fail before the
+    // artefact is written.
+    std::fs::create_dir_all(cfg.files()).expect("mkdir files");
+    std::fs::write(cfg.uploads(), b"blocker").expect("blocker at uploads root");
+
+    let service = FileUploadService::new(&pool, cfg).expect("service");
+    let request =
+        FileUploadRequest::builder("image/png", encoded_content(), ContextId::generate()).build();
+
+    let err = service.upload_file(request).await.expect_err("io failure");
+    assert!(matches!(err, FileUploadError::Io(_)));
 }
