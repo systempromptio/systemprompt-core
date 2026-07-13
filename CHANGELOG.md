@@ -19,6 +19,7 @@
 
 ### CI
 
+- The local `just coverage` recipe now uses continuous-mode profiles (`%m%c` + `--runtime-counter-relocation`), matching `coverage.yml`: per-PID profraw names collided under PID reuse across the ~18k test processes and silently dropped single-process coverage, making covered lines read red.
 - The `coverage.yml` workflow now runs the full instrumented suite (`--bins --tests` plus an instrumented CLI for subprocess coverage) to completion on hosted runners: continuous-mode profiling (`%c`) collapses the per-process profraw explosion that previously exhausted the runner disk, and `bin/bridge` is excluded from the core denominator (it has its own coverage workflow). The run uploads LCOV to Codecov and enforces a ratchet that fails on any >0.5pt aggregate line-coverage drop. Headline line coverage is ~79.5%, every production crate ≥70%. Added `codecov.yml` and CI/coverage badges to the README, and refreshed the RFI readiness audit's coverage table to the measured figures.
 - Added `exercise-suites.yml`, a weekly heartbeat that builds and briefly runs the standalone `fuzz`/`bench`/`loadtest` workspaces (which no other job compiles) to catch API bit-rot; it immediately surfaced and fixed a drifted `event_broadcast` benchmark. Added a `just mutants DIR TESTPKG` recipe for scoped mutation testing against the separate test workspace.
 
