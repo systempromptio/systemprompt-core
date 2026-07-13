@@ -14,6 +14,7 @@ workspace = true
 systemprompt-slack = { workspace = true, features = ["test"] }
 systemprompt-models = { workspace = true }
 systemprompt-runtime = { workspace = true }
+systemprompt-extension = { workspace = true }
 
 [dev-dependencies]
 serde_json = { workspace = true }

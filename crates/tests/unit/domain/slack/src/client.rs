@@ -111,3 +111,73 @@ async fn respond_rejects_a_blocked_host_before_any_request() {
         "expected OutboundUrl, got {err:?}"
     );
 }
+
+#[tokio::test]
+async fn post_message_rejects_a_blocked_host_before_any_request() {
+    let client = SlackClient::with_base_url(
+        reqwest::Client::new(),
+        "xoxb-test",
+        "http://169.254.169.254/api/chat.postMessage",
+    );
+    let err = client
+        .post_message("C123", BLOCKS())
+        .await
+        .expect_err("SSRF guard blocks the link-local metadata host");
+    assert!(
+        matches!(err, SlackError::OutboundUrl(_)),
+        "expected OutboundUrl, got {err:?}"
+    );
+}
+
+#[tokio::test]
+async fn non_json_2xx_body_is_treated_as_transport_level_success() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/hook/plain"))
+        .respond_with(ResponseTemplate::new(200).set_body_string("ok"))
+        .mount(&server)
+        .await;
+
+    let client = SlackClient::new(reqwest::Client::new(), String::new());
+    client
+        .respond(&format!("{}/hook/plain", server.uri()), BLOCKS(), true)
+        .await
+        .expect("non-JSON 200 falls back to HTTP status success");
+}
+
+#[tokio::test]
+async fn non_json_5xx_body_surfaces_as_unknown_outbound_error() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/hook/broken"))
+        .respond_with(ResponseTemplate::new(500).set_body_string("<html>gateway error</html>"))
+        .mount(&server)
+        .await;
+
+    let client = SlackClient::new(reqwest::Client::new(), String::new());
+    let err = client
+        .respond(&format!("{}/hook/broken", server.uri()), BLOCKS(), true)
+        .await
+        .expect_err("non-JSON 5xx is an error");
+    assert!(
+        matches!(err, SlackError::Outbound(ref e) if e == "unknown"),
+        "expected Outbound(unknown), got {err:?}"
+    );
+}
+
+#[tokio::test]
+async fn unreachable_endpoint_surfaces_the_transport_error() {
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_millis(500))
+        .build()
+        .expect("client");
+    let slack = SlackClient::with_base_url(client, "xoxb-test", "http://127.0.0.1:9/api");
+    let err = slack
+        .post_message("C123", BLOCKS())
+        .await
+        .expect_err("connection to a closed port fails");
+    assert!(
+        matches!(err, SlackError::Http(_)),
+        "expected Http transport error, got {err:?}"
+    );
+}
