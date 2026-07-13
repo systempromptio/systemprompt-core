@@ -7798,15 +7798,19 @@ dependencies = [
 name = "systemprompt-files-tests"
 version = "0.0.11"
 dependencies = [
+ "base64 0.22.1",
  "chrono",
  "serde_json",
  "sqlx",
+ "systemprompt-config",
  "systemprompt-database",
  "systemprompt-extension",
  "systemprompt-files",
  "systemprompt-identifiers",
+ "systemprompt-models",
  "systemprompt-test-fixtures",
  "systemprompt-traits",
+ "tempfile",
  "tokio",
  "uuid",
 ]

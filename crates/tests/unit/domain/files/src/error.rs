@@ -51,3 +51,17 @@ fn files_error_debug_contains_variant_name() {
     let d = format!("{err:?}");
     assert!(d.contains("Storage"));
 }
+
+#[test]
+fn from_sqlx_error_wraps_repository_variant() {
+    let err = FilesError::from(sqlx::Error::RowNotFound);
+    match &err {
+        FilesError::Repository(inner) => {
+            assert!(
+                inner.to_string().contains("no rows returned"),
+                "unexpected repository error: {inner}"
+            );
+        },
+        other => panic!("expected Repository, got {other:?}"),
+    }
+}
