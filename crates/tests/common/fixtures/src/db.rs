@@ -29,6 +29,19 @@ static SHARED_POOL: OnceCell<DbPool> = OnceCell::const_new();
 /// each pool so 4 concurrent processes stay well under the server ceiling.
 const FIXTURE_POOL_MAX_CONNECTIONS: u32 = 12;
 
+/// A `DbPool` whose every acquire fails deterministically.
+///
+/// The sqlx pool is created lazily (no connection is ever established) and
+/// closed immediately, so any query through it returns `PoolClosed`. Error-
+/// propagation tests use this to drive a repository's `.map_err` arm without
+/// breaking a live connection.
+pub async fn closed_db_pool() -> DbPool {
+    let pool = sqlx::PgPool::connect_lazy("postgres://closed:closed@127.0.0.1:1/closed")
+        .expect("lazy pool construction is infallible for a well-formed URL");
+    pool.close().await;
+    Arc::new(Database::from_pools(Arc::new(pool), None))
+}
+
 pub async fn fixture_db_pool(url: &str) -> Result<DbPool> {
     let pool = SHARED_POOL
         .get_or_try_init(|| async {

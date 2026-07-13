@@ -6762,6 +6762,7 @@ version = "0.0.11"
 dependencies = [
  "axum",
  "chrono",
+ "maxminddb",
  "serde_json",
  "sqlx",
  "systemprompt-analytics",
@@ -6769,6 +6770,7 @@ dependencies = [
  "systemprompt-identifiers",
  "systemprompt-models",
  "systemprompt-test-fixtures",
+ "systemprompt-traits",
  "tokio",
  "uuid",
 ]
@@ -8271,6 +8273,7 @@ dependencies = [
  "systemprompt-identifiers",
  "systemprompt-provider-contracts",
  "systemprompt-test-fixtures",
+ "tempfile",
  "tokio",
 ]
 
@@ -8530,6 +8533,7 @@ dependencies = [
  "reqwest",
  "serde_json",
  "serde_yaml_ng",
+ "systemprompt-extension",
  "systemprompt-models",
  "systemprompt-runtime",
  "systemprompt-slack",
@@ -8694,6 +8698,8 @@ dependencies = [
  "systemprompt-templates",
  "tempfile",
  "tokio",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]
@@ -8706,6 +8712,7 @@ dependencies = [
  "dotenvy",
  "jsonwebtoken",
  "serde_json",
+ "serde_yaml_ng",
  "sha2 0.11.0",
  "sqlx",
  "systemprompt-analytics",
@@ -8718,6 +8725,7 @@ dependencies = [
  "systemprompt-mcp",
  "systemprompt-models",
  "systemprompt-oauth",
+ "systemprompt-provider-contracts",
  "systemprompt-runtime",
  "systemprompt-security",
  "systemprompt-users",
@@ -8802,6 +8810,7 @@ dependencies = [
  "systemprompt-traits",
  "thiserror 2.0.18",
  "tokio",
+ "uuid",
 ]
 
 [[package]]

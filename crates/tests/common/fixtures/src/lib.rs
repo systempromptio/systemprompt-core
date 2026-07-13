@@ -9,6 +9,7 @@ pub mod messaging;
 pub mod oauth;
 pub mod secrets;
 pub mod user;
+pub mod web_config;
 
 pub use app_context::{
     fixture_app_context, fixture_app_context_with, fixture_app_context_with_hook, fixture_config,
@@ -21,7 +22,7 @@ pub use bootstrap::{
 pub use credential::{
     seed_admin_credential, seed_bridge_credential, seed_user_row, seed_user_session, AuthedFixture,
 };
-pub use db::{fixture_database_url, fixture_db_pool};
+pub use db::{closed_db_pool, fixture_database_url, fixture_db_pool};
 pub use jwt::{install_test_signing_key, mint_admin_jwt, mint_bridge_jwt};
 pub use messaging::{agent_error_response_json, agent_reply_response_json, seed_agent_backend};
 pub use oauth::{
@@ -30,3 +31,4 @@ pub use oauth::{
 };
 pub use secrets::ensure_test_secrets_bootstrap;
 pub use user::{fixture_actor, fixture_system_admin, fixture_user_id, unique_user_id};
+pub use web_config::{web_config, WEB_CONFIG_YAML};
