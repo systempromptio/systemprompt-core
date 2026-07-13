@@ -84,7 +84,7 @@ fn registry_parses_agent_cards() {
                     "capabilities": {
                         "streaming": true,
                         "extensions": [
-                            {"uri": "urn:x-cov:running", "params": {"running": true}}
+                            {"uri": "systemprompt:service-status", "params": {"status": "running"}}
                         ]
                     },
                     "skills": [{"name": "echo"}]
@@ -116,9 +116,13 @@ fn registry_parses_agent_cards() {
                 cmd.arg(flag);
             }
         }
-        cmd.assert()
+        let assert = cmd
+            .assert()
             .success()
             .stdout(predicate::str::contains("covagent"));
+        if extra.contains(&"--running") {
+            assert.stdout(predicate::str::contains("idleagent").not());
+        }
     }
 }
 

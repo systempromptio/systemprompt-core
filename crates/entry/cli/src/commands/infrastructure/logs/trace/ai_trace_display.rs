@@ -65,6 +65,12 @@ pub(super) async fn execute_ai_trace(
 
     let output = build_trace_output(task_id, &task_info, &ai_requests, &mcp_executions, &steps);
 
+    if args.json {
+        let content =
+            serde_json::to_string_pretty(&output).unwrap_or_else(|_| format!("{output:?}"));
+        return Ok(CommandOutput::copy_paste_titled("Trace JSON", content));
+    }
+
     Ok(CommandOutput::card_value("AI Trace Details", &output).with_skip_render())
 }
 
