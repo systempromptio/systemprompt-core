@@ -127,12 +127,7 @@ fn json_helper(
     let param = h
         .param(0)
         .ok_or_else(|| RenderError::from(RenderErrorReason::ParamNotFoundForIndex("json", 0)))?;
-    let serialized = serde_json::to_string(param.value()).map_err(|e| {
-        RenderError::from(RenderErrorReason::NestedError(Box::new(
-            std::io::Error::other(e.to_string()),
-        )))
-    })?;
-    out.write(&serialized)?;
+    out.write(&param.value().to_string())?;
     Ok(())
 }
 

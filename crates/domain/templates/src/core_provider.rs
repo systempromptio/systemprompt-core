@@ -123,10 +123,9 @@ async fn discover_templates(dir: &Path, priority: u32) -> TemplateResult<Vec<Tem
     while let Some(entry) = entries.next_entry().await? {
         let path = entry.path();
 
-        if path.extension().is_some_and(|ext| ext == "html") {
-            let Some(file_stem) = path.file_stem() else {
-                continue;
-            };
+        if path.extension().is_some_and(|ext| ext == "html")
+            && let Some(file_stem) = path.file_stem()
+        {
             let template_name = file_stem.to_string_lossy().to_string();
 
             debug!(
