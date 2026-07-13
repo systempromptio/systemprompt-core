@@ -205,6 +205,66 @@ fn test_content_journey_node_creation() {
     assert_eq!(node.click_count, 42);
 }
 
+fn campaign_link(target_url: &str, utm_params: Option<String>) -> systemprompt_content::models::CampaignLink {
+    use systemprompt_identifiers::LinkId;
+    systemprompt_content::models::CampaignLink {
+        id: LinkId::new("lnk"),
+        short_code: "abc".to_string(),
+        target_url: target_url.to_string(),
+        link_type: "utm".to_string(),
+        campaign_id: None,
+        campaign_name: None,
+        source_content_id: None,
+        source_page: None,
+        utm_params,
+        link_text: None,
+        link_position: None,
+        destination_type: None,
+        click_count: None,
+        unique_click_count: None,
+        conversion_count: None,
+        is_active: None,
+        expires_at: None,
+        created_at: None,
+        updated_at: None,
+    }
+}
+
+#[test]
+fn test_get_full_url_appends_query_with_question_mark_separator() {
+    let utm = r#"{"source":"newsletter","medium":null,"campaign":null,"term":null,"content":null}"#;
+    let link = campaign_link("https://example.com/landing", Some(utm.to_string()));
+
+    assert_eq!(
+        link.get_full_url(),
+        "https://example.com/landing?utm_source=newsletter"
+    );
+}
+
+#[test]
+fn test_get_full_url_uses_ampersand_when_target_already_has_query() {
+    let utm = r#"{"source":"newsletter","medium":null,"campaign":null,"term":null,"content":null}"#;
+    let link = campaign_link("https://example.com/landing?ref=x", Some(utm.to_string()));
+
+    assert_eq!(
+        link.get_full_url(),
+        "https://example.com/landing?ref=x&utm_source=newsletter"
+    );
+}
+
+#[test]
+fn test_get_full_url_returns_target_when_no_utm_params() {
+    let link = campaign_link("https://example.com/plain", None);
+    assert_eq!(link.get_full_url(), "https://example.com/plain");
+}
+
+#[test]
+fn test_get_full_url_returns_target_when_utm_params_empty() {
+    let utm = r#"{"source":null,"medium":null,"campaign":null,"term":null,"content":null}"#;
+    let link = campaign_link("https://example.com/plain", Some(utm.to_string()));
+    assert_eq!(link.get_full_url(), "https://example.com/plain");
+}
+
 #[test]
 fn test_content_journey_node_serialization() {
     use systemprompt_content::models::ContentJourneyNode;

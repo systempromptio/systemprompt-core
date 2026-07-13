@@ -33,3 +33,12 @@ mod lib_smoke;
 
 #[cfg(test)]
 mod extension;
+
+#[cfg(test)]
+mod list_items_renderer;
+
+#[cfg(test)]
+mod providers;
+
+#[cfg(test)]
+mod repository;

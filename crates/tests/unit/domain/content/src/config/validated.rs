@@ -240,3 +240,118 @@ fn test_metadata_and_base_path_accessors() {
     assert_eq!(validated.base_path(), &tmp.path().to_path_buf());
     let _ = validated.metadata();
 }
+
+fn raw_with_source(
+    categories: HashMap<String, Category>,
+    source: ContentSourceConfigRaw,
+) -> ContentConfigRaw {
+    let mut sources = HashMap::new();
+    sources.insert("blog".to_string(), source);
+    ContentConfigRaw {
+        content_sources: sources,
+        metadata: Metadata::default(),
+        categories,
+    }
+}
+
+fn tech_categories() -> HashMap<String, Category> {
+    let mut categories = HashMap::new();
+    categories.insert(
+        "tech".to_string(),
+        Category {
+            name: "Technology".to_string(),
+            description: String::new(),
+        },
+    );
+    categories
+}
+
+fn source(path: &str, source_id: &str, category_id: &str) -> ContentSourceConfigRaw {
+    ContentSourceConfigRaw {
+        path: path.to_string(),
+        source_id: SourceId::new(source_id),
+        category_id: CategoryId::new(category_id),
+        enabled: true,
+        description: String::new(),
+        allowed_content_types: vec![],
+        indexing: None,
+        sitemap: None,
+        branding: None,
+    }
+}
+
+#[test]
+fn test_empty_category_name_is_dropped_and_fails_validation() {
+    let mut categories = HashMap::new();
+    categories.insert(
+        "tech".to_string(),
+        Category {
+            name: String::new(),
+            description: String::new(),
+        },
+    );
+    let tmp = TempDir::new().unwrap();
+    let dir = tmp.path().join("content");
+    std::fs::create_dir_all(&dir).unwrap();
+    let raw = raw_with_source(
+        categories,
+        source(&dir.to_string_lossy(), "blog", "tech"),
+    );
+
+    let err = ContentConfigValidated::from_raw(raw, tmp.path().to_path_buf()).unwrap_err();
+    assert!(
+        err.to_string().contains("categories.tech.name"),
+        "error must name the empty-name category: {err}"
+    );
+}
+
+#[test]
+fn test_empty_source_id_is_rejected() {
+    let tmp = TempDir::new().unwrap();
+    let dir = tmp.path().join("content");
+    std::fs::create_dir_all(&dir).unwrap();
+    let raw = raw_with_source(
+        tech_categories(),
+        source(&dir.to_string_lossy(), "", "tech"),
+    );
+
+    let err = ContentConfigValidated::from_raw(raw, tmp.path().to_path_buf()).unwrap_err();
+    assert!(
+        err.to_string().contains("source_id"),
+        "error must name source_id: {err}"
+    );
+}
+
+#[test]
+fn test_empty_category_id_is_rejected() {
+    let tmp = TempDir::new().unwrap();
+    let dir = tmp.path().join("content");
+    std::fs::create_dir_all(&dir).unwrap();
+    let raw = raw_with_source(
+        tech_categories(),
+        source(&dir.to_string_lossy(), "blog", ""),
+    );
+
+    let err = ContentConfigValidated::from_raw(raw, tmp.path().to_path_buf()).unwrap_err();
+    assert!(
+        err.to_string().contains("category_id"),
+        "error must name category_id: {err}"
+    );
+}
+
+#[test]
+fn test_nonexistent_source_directory_is_rejected() {
+    let tmp = TempDir::new().unwrap();
+    let missing = tmp.path().join("does-not-exist");
+    let raw = raw_with_source(
+        tech_categories(),
+        source(&missing.to_string_lossy(), "blog", "tech"),
+    );
+
+    let err = ContentConfigValidated::from_raw(raw, tmp.path().to_path_buf()).unwrap_err();
+    assert!(
+        err.to_string().contains("does not exist")
+            || err.to_string().contains("content_sources.blog.path"),
+        "error must flag the missing directory: {err}"
+    );
+}

@@ -3,4 +3,5 @@
 mod content_provider;
 mod ingestion;
 mod link;
+mod search;
 mod validation;

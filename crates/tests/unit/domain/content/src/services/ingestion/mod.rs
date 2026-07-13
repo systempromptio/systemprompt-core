@@ -6,6 +6,7 @@
 //! - IngestionReport structure
 
 mod scanner_compat;
+mod service_db;
 
 use systemprompt_content::{IngestionOptions, IngestionReport};
 

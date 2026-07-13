@@ -563,3 +563,28 @@ fn parsed_content_file_path_is_absolute() {
     assert!(content.file_path.is_absolute());
     assert!(content.file_path.exists());
 }
+
+#[test]
+fn from_validated_recursive_loads_nested_and_counts_nested_errors() {
+    let tmp = TempDir::new().unwrap();
+    let config = build_config(&tmp, "blog", true, true);
+    let content_dir = tmp.path().join("content");
+    let nested = content_dir.join("2024");
+    std::fs::create_dir_all(&nested).unwrap();
+
+    write_markdown(
+        &nested,
+        "nested-post.md",
+        &valid_frontmatter("nested-post", "Nested Post"),
+        "Nested body.",
+    );
+    std::fs::write(nested.join("broken.md"), "no frontmatter at all").unwrap();
+
+    let ready = ContentReady::from_validated(config);
+
+    assert_eq!(ready.content_count(), 1);
+    assert_eq!(ready.stats().files_found, 2);
+    assert_eq!(ready.stats().files_loaded, 1);
+    assert_eq!(ready.stats().files_with_errors, 1);
+    assert!(ready.get_by_slug("nested-post").is_some());
+}
