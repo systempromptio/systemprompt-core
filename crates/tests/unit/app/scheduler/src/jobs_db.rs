@@ -188,3 +188,64 @@ mod database_cleanup_db {
         );
     }
 }
+
+mod closed_pool_error_propagation {
+    use super::*;
+
+    async fn make_closed_ctx(url: &str) -> JobContext {
+        use systemprompt_identifiers::{Actor, UserId};
+        use systemprompt_test_fixtures::closed_db_pool;
+
+        let real_pool = fixture_db_pool(url).await.expect("fixture pool");
+        let app_ctx = fixture_app_context(&real_pool, url)
+            .expect("fixture AppContext must build against a migrated DB");
+        let closed = closed_db_pool().await;
+
+        let app_paths_any: Arc<dyn std::any::Any + Send + Sync> =
+            Arc::new(Arc::clone(app_ctx.app_paths_arc()));
+        let db_pool_any: Arc<dyn std::any::Any + Send + Sync> = Arc::new(closed);
+        let app_context_any: Arc<dyn std::any::Any + Send + Sync> = Arc::new(app_ctx);
+
+        let actor = Actor::job(UserId::new("job-test-admin"), "test".to_string());
+        JobContext::new(actor, db_pool_any, app_context_any, app_paths_any)
+    }
+
+    #[tokio::test]
+    async fn database_cleanup_propagates_a_dead_pool_error() {
+        let Ok(url) = fixture_database_url() else {
+            return;
+        };
+        let ctx = make_closed_ctx(&url).await;
+
+        DatabaseCleanupJob
+            .execute(&ctx)
+            .await
+            .expect_err("a dead pool must surface as an execute error, not success");
+    }
+
+    #[tokio::test]
+    async fn behavioral_analysis_propagates_a_dead_pool_error() {
+        let Ok(url) = fixture_database_url() else {
+            return;
+        };
+        let ctx = make_closed_ctx(&url).await;
+
+        BehavioralAnalysisJob
+            .execute(&ctx)
+            .await
+            .expect_err("a dead pool must surface as an execute error, not success");
+    }
+
+    #[tokio::test]
+    async fn malicious_ip_blacklist_propagates_a_dead_pool_error() {
+        let Ok(url) = fixture_database_url() else {
+            return;
+        };
+        let ctx = make_closed_ctx(&url).await;
+
+        MaliciousIpBlacklistJob
+            .execute(&ctx)
+            .await
+            .expect_err("a dead pool must surface as an execute error, not success");
+    }
+}

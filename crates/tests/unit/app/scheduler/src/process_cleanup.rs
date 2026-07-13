@@ -149,3 +149,97 @@ mod provider_adapter {
         assert!(p.wait_for_port_free(UNLIKELY_PORT, 1, 1).await.is_ok());
     }
 }
+
+#[cfg(unix)]
+mod kill_port_ownership {
+    use super::*;
+    use std::io::{BufRead, BufReader};
+    use std::net::TcpListener;
+    use std::process::{Command, Stdio};
+    use std::time::{Duration, Instant};
+
+    #[test]
+    fn port_held_by_a_foreign_process_is_left_untouched() {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("bind listener");
+        let port = listener.local_addr().expect("local addr").port();
+
+        // The holder is this test process; the claimed owner (PID 1) is
+        // neither the holder nor its process group, so nothing is killed.
+        let killed = ProcessCleanup::kill_port(port, 1);
+        assert!(killed.is_empty(), "a mismatched owner must never be killed");
+        assert_eq!(
+            ProcessCleanup::check_port(port),
+            Some(std::process::id()),
+            "the listener must still be alive and holding the port"
+        );
+    }
+
+    #[test]
+    fn port_held_by_the_owning_pid_is_killed() {
+        let mut child = Command::new("python3")
+            .args([
+                "-c",
+                "import socket,sys,time\ns=socket.socket()\ns.bind(('127.0.0.1',0))\nprint(s.getsockname()[1],flush=True)\ns.listen(1)\ntime.sleep(60)",
+            ])
+            .stdout(Stdio::piped())
+            .spawn()
+            .expect("spawn python3 port holder");
+        let stdout = child.stdout.take().expect("holder stdout");
+        let mut line = String::new();
+        BufReader::new(stdout)
+            .read_line(&mut line)
+            .expect("read holder port");
+        let port = line.trim().parse::<u16>().expect("holder port number");
+        let pid = child.id();
+
+        let killed = ProcessCleanup::kill_port(port, pid);
+        assert_eq!(killed, vec![pid], "the owning holder must be killed");
+
+        // A killed child is a zombie until reaped, so death is observed via
+        // try_wait rather than process_exists.
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while child.try_wait().expect("try_wait").is_none() {
+            assert!(Instant::now() < deadline, "killed holder must die");
+            std::thread::sleep(Duration::from_millis(25));
+        }
+    }
+}
+
+#[cfg(unix)]
+mod wait_for_port_free_occupied {
+    use super::*;
+    use std::net::TcpListener;
+
+    #[tokio::test]
+    async fn occupied_port_errors_naming_the_holder() {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("bind listener");
+        let port = listener.local_addr().expect("local addr").port();
+
+        let err = ProcessCleanup::wait_for_port_free(port, 2, 10)
+            .await
+            .expect_err("an occupied port must not be reported free");
+        let msg = err.to_string();
+        assert!(
+            msg.contains(&format!("Port {port} still occupied by PID")),
+            "the error must name the port and holding PID, got: {msg}"
+        );
+    }
+
+    #[tokio::test]
+    async fn provider_maps_occupied_port_to_port_timeout() {
+        use systemprompt_traits::{ProcessCleanupProvider, ProcessProviderError};
+
+        let listener = TcpListener::bind("127.0.0.1:0").expect("bind listener");
+        let port = listener.local_addr().expect("local addr").port();
+
+        let provider: &dyn ProcessCleanupProvider = &ProcessCleanup;
+        let err = provider
+            .wait_for_port_free(port, 2, 10)
+            .await
+            .expect_err("the provider must propagate the occupied port");
+        assert!(
+            matches!(err, ProcessProviderError::PortTimeout(p) if p == port),
+            "expected PortTimeout({port}), got {err:?}"
+        );
+    }
+}

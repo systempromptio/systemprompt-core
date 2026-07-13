@@ -659,3 +659,215 @@ mod verifier_query_methods_seeded {
         delete_service(&pg, &name).await;
     }
 }
+
+// Live-process variants: the PID is a `sleep` child spawned by the test and
+// the port is a listener the test itself holds, so runtime probing sees a
+// genuinely live process without signalling anything.
+#[cfg(unix)]
+mod state_verifier_live {
+    use super::*;
+
+    use std::net::TcpListener;
+    use std::process::{Child, Command};
+
+    use systemprompt_models::RuntimeStatus;
+
+    fn spawn_sleep() -> Child {
+        Command::new("sleep")
+            .arg("30")
+            .spawn()
+            .expect("spawn sleep child")
+    }
+
+    fn reserved_free_port() -> u16 {
+        TcpListener::bind("127.0.0.1:0")
+            .expect("bind probe listener")
+            .local_addr()
+            .expect("local addr")
+            .port()
+    }
+
+    #[tokio::test]
+    async fn running_row_with_live_pid_and_responsive_port_is_running() {
+        let pool = pool_or_skip!();
+        let pg = pool.write_pool_arc().expect("write pool");
+        let name = unique_name("sv_live_running");
+
+        let listener = TcpListener::bind("127.0.0.1:0").expect("bind listener");
+        let port = listener.local_addr().expect("local addr").port();
+        let mut child = spawn_sleep();
+        let pid = child.id() as i32;
+
+        insert_service(&pg, &name, "mcp", "running", Some(pid), i32::from(port)).await;
+
+        let verifier = ServiceStateVerifier::new(Arc::clone(&pool));
+        let configs = [ServiceConfig {
+            name: name.clone(),
+            service_type: ServiceType::Mcp,
+            port,
+            enabled: true,
+        }];
+        let states = verifier
+            .get_verified_states(&configs)
+            .await
+            .expect("get_verified_states");
+        let state = states.iter().find(|s| s.name == name).expect("state");
+
+        assert_eq!(state.runtime_status, RuntimeStatus::Running);
+        assert_eq!(state.pid, Some(child.id()));
+        assert_eq!(
+            state.needs_action,
+            ServiceAction::None,
+            "Enabled + Running needs no action"
+        );
+
+        child.kill().ok();
+        let _ = child.wait();
+        delete_service(&pg, &name).await;
+    }
+
+    #[tokio::test]
+    async fn disabled_running_row_with_live_pid_needs_stop() {
+        let pool = pool_or_skip!();
+        let pg = pool.write_pool_arc().expect("write pool");
+        let name = unique_name("sv_live_disabled_running");
+
+        let listener = TcpListener::bind("127.0.0.1:0").expect("bind listener");
+        let port = listener.local_addr().expect("local addr").port();
+        let mut child = spawn_sleep();
+        let pid = child.id() as i32;
+
+        insert_service(&pg, &name, "mcp", "running", Some(pid), i32::from(port)).await;
+
+        let verifier = ServiceStateVerifier::new(Arc::clone(&pool));
+        let configs = [ServiceConfig {
+            name: name.clone(),
+            service_type: ServiceType::Mcp,
+            port,
+            enabled: false,
+        }];
+        let states = verifier
+            .get_verified_states(&configs)
+            .await
+            .expect("get_verified_states");
+        let state = states.iter().find(|s| s.name == name).expect("state");
+
+        assert_eq!(state.runtime_status, RuntimeStatus::Running);
+        assert_eq!(
+            state.needs_action,
+            ServiceAction::Stop,
+            "Disabled + Running must require Stop"
+        );
+
+        child.kill().ok();
+        let _ = child.wait();
+        delete_service(&pg, &name).await;
+    }
+
+    #[tokio::test]
+    async fn running_row_with_live_pid_and_unresponsive_port_is_starting() {
+        let pool = pool_or_skip!();
+        let pg = pool.write_pool_arc().expect("write pool");
+        let name = unique_name("sv_live_starting");
+
+        let port = reserved_free_port();
+        let mut child = spawn_sleep();
+        let pid = child.id() as i32;
+
+        insert_service(&pg, &name, "mcp", "running", Some(pid), i32::from(port)).await;
+
+        let verifier = ServiceStateVerifier::new(Arc::clone(&pool));
+        let configs = [ServiceConfig {
+            name: name.clone(),
+            service_type: ServiceType::Mcp,
+            port,
+            enabled: true,
+        }];
+        let states = verifier
+            .get_verified_states(&configs)
+            .await
+            .expect("get_verified_states");
+        let state = states.iter().find(|s| s.name == name).expect("state");
+
+        assert_eq!(
+            state.runtime_status,
+            RuntimeStatus::Starting,
+            "live PID with an unresponsive port is Starting, not Running"
+        );
+        assert_eq!(
+            state.needs_action,
+            ServiceAction::None,
+            "Enabled + Starting needs no action"
+        );
+
+        child.kill().ok();
+        let _ = child.wait();
+        delete_service(&pg, &name).await;
+    }
+
+    #[tokio::test]
+    async fn starting_row_with_live_pid_stays_starting() {
+        let pool = pool_or_skip!();
+        let pg = pool.write_pool_arc().expect("write pool");
+        let name = unique_name("sv_live_starting_row");
+
+        let port = reserved_free_port();
+        let mut child = spawn_sleep();
+        let pid = child.id() as i32;
+
+        insert_service(&pg, &name, "agent", "starting", Some(pid), i32::from(port)).await;
+
+        let verifier = ServiceStateVerifier::new(Arc::clone(&pool));
+        let configs = [ServiceConfig {
+            name: name.clone(),
+            service_type: ServiceType::Agent,
+            port,
+            enabled: true,
+        }];
+        let states = verifier
+            .get_verified_states(&configs)
+            .await
+            .expect("get_verified_states");
+        let state = states.iter().find(|s| s.name == name).expect("state");
+
+        assert_eq!(state.runtime_status, RuntimeStatus::Starting);
+        assert_eq!(state.pid, Some(child.id()));
+
+        child.kill().ok();
+        let _ = child.wait();
+        delete_service(&pg, &name).await;
+    }
+
+    #[tokio::test]
+    async fn no_row_with_occupied_port_is_orphaned() {
+        let pool = pool_or_skip!();
+        let name = unique_name("sv_live_orphaned");
+
+        let listener = TcpListener::bind("127.0.0.1:0").expect("bind listener");
+        let port = listener.local_addr().expect("local addr").port();
+
+        let verifier = ServiceStateVerifier::new(Arc::clone(&pool));
+        let configs = [ServiceConfig {
+            name: name.clone(),
+            service_type: ServiceType::Mcp,
+            port,
+            enabled: true,
+        }];
+        let states = verifier
+            .get_verified_states(&configs)
+            .await
+            .expect("get_verified_states");
+        let state = states.iter().find(|s| s.name == name).expect("state");
+
+        assert_eq!(
+            state.runtime_status,
+            RuntimeStatus::Orphaned,
+            "no DB row but an occupied port must resolve as Orphaned"
+        );
+        assert_eq!(
+            state.needs_action,
+            ServiceAction::Restart,
+            "Enabled + Orphaned must require Restart"
+        );
+    }
+}

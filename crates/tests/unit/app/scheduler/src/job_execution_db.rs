@@ -187,3 +187,91 @@ mod execution {
         assert!(row.run_count >= 1);
     }
 }
+
+mod manual_run_recording_arms {
+    use super::*;
+    use crate::test_jobs::FAILING_JOB;
+    use systemprompt_scheduler::JobStatus;
+
+    #[tokio::test]
+    async fn debug_output_names_the_service() {
+        let (service, _pool) = service_or_skip!();
+        assert!(format!("{service:?}").contains("JobExecutionService"));
+    }
+
+    #[tokio::test]
+    async fn failed_manual_run_records_failed_status_and_message() {
+        let (service, pool) = service_or_skip!();
+
+        let repo = JobRepository::new(&pool).expect("construct JobRepository");
+        repo.upsert_job(FAILING_JOB, "", true)
+            .await
+            .expect("seed scheduled_jobs row");
+
+        let report = service.run_job(FAILING_JOB, &HashMap::new()).await;
+        assert!(!report.success);
+        assert_eq!(report.message.as_deref(), Some("deliberate test failure"));
+
+        let row = repo
+            .find_job(FAILING_JOB)
+            .await
+            .expect("find_job")
+            .expect("seeded row must exist");
+        assert_eq!(row.last_status.as_deref(), Some(JobStatus::Failed.as_str()));
+        assert_eq!(row.last_error.as_deref(), Some("deliberate test failure"));
+    }
+
+    #[tokio::test]
+    async fn manual_run_without_scheduled_jobs_row_is_not_recorded() {
+        let (service, pool) = service_or_skip!();
+
+        let pg = pool.write_pool_arc().expect("write pool");
+        sqlx::query!(
+            "DELETE FROM scheduled_jobs WHERE job_name = $1",
+            FAILING_JOB
+        )
+        .execute(&*pg)
+        .await
+        .expect("clear test-job row");
+
+        let report = service.run_job(FAILING_JOB, &HashMap::new()).await;
+        assert!(!report.success, "the job itself still runs and fails");
+
+        let repo = JobRepository::new(&pool).expect("construct JobRepository");
+        assert!(
+            repo.find_job(FAILING_JOB)
+                .await
+                .expect("find_job")
+                .is_none(),
+            "run recording must not create a scheduled_jobs row"
+        );
+    }
+}
+
+mod dead_pool_recording {
+    use super::*;
+    use crate::test_jobs::FAILING_JOB;
+    use systemprompt_test_fixtures::closed_db_pool;
+
+    #[tokio::test]
+    async fn run_survives_an_unreachable_database() {
+        let Ok(url) = fixture_database_url() else {
+            return;
+        };
+        let Ok(real_pool) = fixture_db_pool(&url).await else {
+            return;
+        };
+        let _ = real_pool;
+        let closed = closed_db_pool().await;
+        let Ok(app_ctx) = fixture_app_context(&closed, &url) else {
+            return;
+        };
+        let service = JobExecutionService::new(app_ctx, ExtensionRegistry::new());
+
+        // The job body and every recording query hit the closed pool; the run
+        // still yields a report instead of propagating the DB failure.
+        let report = service.run_job(FAILING_JOB, &HashMap::new()).await;
+        assert!(!report.success);
+        assert_eq!(report.message.as_deref(), Some("deliberate test failure"));
+    }
+}

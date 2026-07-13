@@ -269,3 +269,287 @@ mod service_management_behaviour_db {
         );
     }
 }
+
+// Live-child tests: every signalled PID is a `sleep`/`python3` child this test
+// spawned itself, so the PID-identity guard is exercised against real spawn
+// markers without ever touching an unrelated process.
+#[cfg(unix)]
+mod live_child_stop_paths {
+    use super::*;
+
+    use std::process::{Child, Command, Stdio};
+    use std::time::{Duration, Instant};
+
+    use systemprompt_scheduler::ProcessCleanup;
+
+    fn spawn_marked_sleep(service_name: &str) -> Child {
+        Command::new("sleep")
+            .arg("30")
+            .env("SYSTEMPROMPT_SUBPROCESS", "1")
+            .env("AGENT_NAME", service_name)
+            .spawn()
+            .expect("spawn marked sleep child")
+    }
+
+    fn spawn_unmarked_sleep() -> Child {
+        Command::new("sleep")
+            .arg("30")
+            .spawn()
+            .expect("spawn unmarked sleep child")
+    }
+
+    // A killed child is a zombie until reaped (kill(pid, 0) still succeeds),
+    // so death is observed via try_wait, never process_exists.
+    async fn wait_until_dead(child: &mut Child) {
+        let deadline = Instant::now() + Duration::from_secs(5);
+        loop {
+            if child.try_wait().expect("try_wait").is_some() {
+                return;
+            }
+            assert!(
+                Instant::now() < deadline,
+                "child was not terminated within the deadline"
+            );
+            tokio::time::sleep(Duration::from_millis(25)).await;
+        }
+    }
+
+    #[tokio::test]
+    async fn stop_service_gracefully_terminates_a_marked_live_child() {
+        let pool = pool_or_skip!();
+        let svc = ServiceManagementService::new(&pool).expect("service");
+        let repo = ServiceRepository::new(&pool).expect("repo");
+
+        let name = unique_name("smb-live-graceful");
+        let mut child = spawn_marked_sleep(&name);
+        let pid = child.id() as i32;
+        seed_running_row(&repo, &name, "agent", 27201, Some(pid)).await;
+
+        svc.stop_service(&config_with_pid(&name, "agent", 27201, Some(pid)), false)
+            .await
+            .expect("stop_service");
+
+        wait_until_dead(&mut child).await;
+
+        let row = repo
+            .find_service_by_name(&name)
+            .await
+            .expect("find service")
+            .expect("row present");
+        assert_eq!(row.status, "stopped");
+
+        repo.delete_service(&name).await.expect("cleanup row");
+    }
+
+    #[tokio::test]
+    async fn stop_service_force_kills_a_marked_live_child() {
+        let pool = pool_or_skip!();
+        let svc = ServiceManagementService::new(&pool).expect("service");
+        let repo = ServiceRepository::new(&pool).expect("repo");
+
+        let name = unique_name("smb-live-force");
+        let mut child = spawn_marked_sleep(&name);
+        let pid = child.id() as i32;
+        seed_running_row(&repo, &name, "agent", 27202, Some(pid)).await;
+
+        svc.stop_service(&config_with_pid(&name, "agent", 27202, Some(pid)), true)
+            .await
+            .expect("stop_service force");
+
+        wait_until_dead(&mut child).await;
+
+        let row = repo
+            .find_service_by_name(&name)
+            .await
+            .expect("find service")
+            .expect("row present");
+        assert_eq!(row.status, "stopped");
+
+        repo.delete_service(&name).await.expect("cleanup row");
+    }
+
+    #[tokio::test]
+    async fn stop_service_refuses_to_signal_a_live_pid_without_spawn_markers() {
+        let pool = pool_or_skip!();
+        let svc = ServiceManagementService::new(&pool).expect("service");
+        let repo = ServiceRepository::new(&pool).expect("repo");
+
+        let name = unique_name("smb-live-unmarked");
+        let mut child = spawn_unmarked_sleep();
+        let pid = child.id() as i32;
+        seed_running_row(&repo, &name, "agent", 27203, Some(pid)).await;
+
+        svc.stop_service(&config_with_pid(&name, "agent", 27203, Some(pid)), false)
+            .await
+            .expect("stop_service");
+
+        assert!(
+            ProcessCleanup::process_exists(pid as u32),
+            "a live PID without our spawn markers must never be signalled"
+        );
+        let row = repo
+            .find_service_by_name(&name)
+            .await
+            .expect("find service")
+            .expect("row present");
+        assert_eq!(row.status, "stopped", "the row is still marked stopped");
+
+        child.kill().ok();
+        let _ = child.wait();
+        repo.delete_service(&name).await.expect("cleanup row");
+    }
+
+    #[tokio::test]
+    async fn cleanup_orphaned_service_terminates_a_marked_live_child() {
+        let pool = pool_or_skip!();
+        let svc = ServiceManagementService::new(&pool).expect("service");
+        let repo = ServiceRepository::new(&pool).expect("repo");
+
+        let name = unique_name("smb-live-orphan");
+        let mut child = spawn_marked_sleep(&name);
+        let pid = child.id() as i32;
+        seed_running_row(&repo, &name, "agent", 27204, Some(pid)).await;
+
+        let acted = svc
+            .cleanup_orphaned_service(&config_with_pid(&name, "agent", 27204, Some(pid)))
+            .await
+            .expect("cleanup_orphaned_service");
+        assert!(acted, "a live orphan must be reported as acted upon");
+
+        wait_until_dead(&mut child).await;
+
+        let row = repo
+            .find_service_by_name(&name)
+            .await
+            .expect("find service")
+            .expect("row present");
+        assert_eq!(row.status, "stopped");
+
+        repo.delete_service(&name).await.expect("cleanup row");
+    }
+
+    #[tokio::test]
+    async fn cleanup_all_orphans_stops_a_row_with_a_live_marked_pid() {
+        let pool = pool_or_skip!();
+        let svc = ServiceManagementService::new(&pool).expect("service");
+        let repo = ServiceRepository::new(&pool).expect("repo");
+
+        let name = unique_name("smb-live-sweep");
+        let mut child = spawn_marked_sleep(&name);
+        let pid = child.id() as i32;
+        seed_running_row(&repo, &name, "agent", 27205, Some(pid)).await;
+
+        let report = svc
+            .cleanup_all_orphans(27206)
+            .await
+            .expect("cleanup_all_orphans");
+
+        let outcome = report
+            .outcomes
+            .iter()
+            .find(|o| o.name == name)
+            .expect("the live-pid row must appear in the report");
+        assert_eq!(
+            outcome.disposition,
+            OrphanDisposition::Stopped,
+            "a row whose PID is a live verified child is Stopped, not StaleEntry"
+        );
+
+        wait_until_dead(&mut child).await;
+        repo.delete_service(&name).await.expect("cleanup row");
+    }
+
+    fn spawn_port_holder() -> (Child, u16) {
+        let mut child = Command::new("python3")
+            .args([
+                "-c",
+                "import socket,sys,time\ns=socket.socket()\ns.bind(('127.0.0.1',0))\nprint(s.getsockname()[1],flush=True)\ns.listen(1)\ntime.sleep(60)",
+            ])
+            .stdout(Stdio::piped())
+            .spawn()
+            .expect("spawn python3 port holder");
+        let stdout = child.stdout.take().expect("holder stdout");
+        let port = {
+            use std::io::{BufRead, BufReader};
+            let mut line = String::new();
+            BufReader::new(stdout)
+                .read_line(&mut line)
+                .expect("read holder port");
+            line.trim().parse::<u16>().expect("holder port number")
+        };
+        (child, port)
+    }
+
+    #[tokio::test]
+    async fn stop_api_by_port_terminates_the_listener_gracefully() {
+        let pool = pool_or_skip!();
+        let _ = pool;
+
+        let (mut child, port) = spawn_port_holder();
+        let pid = child.id();
+
+        let stopped = ServiceManagementService::stop_api_by_port(port, false)
+            .await
+            .expect("stop_api_by_port must free the port");
+        assert_eq!(stopped, Some(pid), "the listener PID must be reported");
+
+        wait_until_dead(&mut child).await;
+    }
+
+    #[tokio::test]
+    async fn stop_api_by_port_force_kills_the_listener() {
+        let pool = pool_or_skip!();
+        let _ = pool;
+
+        let (mut child, port) = spawn_port_holder();
+        let pid = child.id();
+
+        let stopped = ServiceManagementService::stop_api_by_port(port, true)
+            .await
+            .expect("forced stop_api_by_port must free the port");
+        assert_eq!(stopped, Some(pid));
+
+        wait_until_dead(&mut child).await;
+    }
+}
+
+mod dead_pool_degradation {
+    use super::*;
+    use systemprompt_test_fixtures::closed_db_pool;
+
+    #[tokio::test]
+    async fn stop_service_still_succeeds_when_the_row_update_fails() {
+        let Ok(_url) = fixture_database_url() else {
+            return;
+        };
+        let closed = closed_db_pool().await;
+        let svc = ServiceManagementService::new(&closed).expect("service");
+
+        svc.stop_service(
+            &config_with_pid("smb-dead-pool-stop", "agent", 27301, None),
+            false,
+        )
+        .await
+        .expect("a failed stopped-mark is logged, not propagated");
+    }
+
+    #[tokio::test]
+    async fn cleanup_orphaned_service_reports_action_when_the_row_update_fails() {
+        let Ok(_url) = fixture_database_url() else {
+            return;
+        };
+        let closed = closed_db_pool().await;
+        let svc = ServiceManagementService::new(&closed).expect("service");
+
+        let acted = svc
+            .cleanup_orphaned_service(&config_with_pid(
+                "smb-dead-pool-orphan",
+                "agent",
+                27302,
+                Some(DEAD_PID),
+            ))
+            .await
+            .expect("a failed stopped-mark is logged, not propagated");
+        assert!(acted, "a dead-PID orphan still counts as acted upon");
+    }
+}

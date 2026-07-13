@@ -110,3 +110,172 @@ mod start_owner_resolution_db {
         }
     }
 }
+
+mod start_lifecycle_db {
+    use super::*;
+    use systemprompt_scheduler::SchedulerRepository;
+
+    #[tokio::test]
+    async fn disabled_scheduler_returns_no_handle() {
+        let (pool, url) = pool_or_skip!();
+        let app_ctx = fixture_app_context(&pool, &url).expect("fixture AppContext");
+
+        let config = SchedulerConfig {
+            enabled: false,
+            jobs: vec![JobConfig::new("cleanup_inactive_sessions")],
+            bootstrap_jobs: Vec::new(),
+            distributed_lock: false,
+        };
+        let svc = SchedulerService::new(config, Arc::clone(&pool), app_ctx)
+            .expect("SchedulerService::new");
+
+        let startup = svc
+            .start()
+            .await
+            .expect("a disabled scheduler must not error");
+        assert!(
+            startup.handle.is_none(),
+            "disabled scheduler must yield no handle"
+        );
+        assert!(startup.degraded.is_empty());
+    }
+
+    #[tokio::test]
+    async fn unknown_configured_job_fails_start_loud() {
+        let (pool, url) = pool_or_skip!();
+        let app_ctx = fixture_app_context(&pool, &url).expect("fixture AppContext");
+
+        let config = SchedulerConfig {
+            enabled: true,
+            jobs: vec![JobConfig::new("sp_no_such_job_qqq").with_schedule("0 0 4 * * *")],
+            bootstrap_jobs: Vec::new(),
+            distributed_lock: false,
+        };
+        let svc = SchedulerService::new(config, Arc::clone(&pool), app_ctx)
+            .expect("SchedulerService::new");
+
+        let err = svc
+            .start()
+            .await
+            .expect_err("a configured job absent from the inventory must fail start");
+        assert!(
+            err.to_string().contains("sp_no_such_job_qqq"),
+            "the error must name the unknown job, got: {err}"
+        );
+    }
+
+    #[tokio::test]
+    async fn disabled_job_config_is_not_registered_or_upserted() {
+        let (pool, url) = pool_or_skip!();
+        let app_ctx = fixture_app_context(&pool, &url).expect("fixture AppContext");
+        let pg = pool.write_pool_arc().expect("write pool");
+
+        let job_name = crate::test_jobs::EMPTY_SCHEDULE_JOB;
+        sqlx::query!("DELETE FROM scheduled_jobs WHERE job_name = $1", job_name)
+            .execute(&*pg)
+            .await
+            .expect("clear test-job row");
+
+        let config = SchedulerConfig {
+            enabled: true,
+            jobs: vec![
+                JobConfig::new(job_name)
+                    .with_schedule("0 0 4 * * *")
+                    .disabled(),
+            ],
+            bootstrap_jobs: Vec::new(),
+            distributed_lock: false,
+        };
+        let svc = SchedulerService::new(config, Arc::clone(&pool), app_ctx)
+            .expect("SchedulerService::new");
+
+        let startup = svc.start().await.expect("start must succeed");
+        let repo = SchedulerRepository::new(&pool).expect("repo");
+        assert!(
+            repo.find_job(job_name).await.expect("find_job").is_none(),
+            "a disabled job config must not be upserted into scheduled_jobs"
+        );
+
+        if let Some(handle) = startup.handle {
+            assert!(format!("{handle:?}").contains("SchedulerHandle"));
+            handle.shutdown().await.expect("shutdown");
+        }
+    }
+
+    #[tokio::test]
+    async fn empty_schedule_job_is_bootstrap_only_and_not_upserted() {
+        let (pool, url) = pool_or_skip!();
+        let app_ctx = fixture_app_context(&pool, &url).expect("fixture AppContext");
+        let pg = pool.write_pool_arc().expect("write pool");
+
+        let job_name = crate::test_jobs::EMPTY_SCHEDULE_JOB;
+        sqlx::query!("DELETE FROM scheduled_jobs WHERE job_name = $1", job_name)
+            .execute(&*pg)
+            .await
+            .expect("clear test-job row");
+
+        // No config schedule and an empty trait schedule: the job is
+        // bootstrap/manual-only and start() must not cron-register or upsert it.
+        let config = SchedulerConfig {
+            enabled: true,
+            jobs: vec![JobConfig::new(job_name)],
+            bootstrap_jobs: Vec::new(),
+            distributed_lock: false,
+        };
+        let svc = SchedulerService::new(config, Arc::clone(&pool), app_ctx)
+            .expect("SchedulerService::new");
+
+        let startup = svc.start().await.expect("start must succeed");
+        let repo = SchedulerRepository::new(&pool).expect("repo");
+        assert!(
+            repo.find_job(job_name).await.expect("find_job").is_none(),
+            "an empty-schedule job must not gain a scheduled_jobs row from start()"
+        );
+
+        if let Some(handle) = startup.handle {
+            handle.shutdown().await.expect("shutdown");
+        }
+    }
+
+    #[tokio::test]
+    async fn overlapping_cron_ticks_skip_while_job_is_running() {
+        let (pool, url) = pool_or_skip!();
+        let app_ctx = fixture_app_context(&pool, &url).expect("fixture AppContext");
+
+        use std::sync::atomic::Ordering;
+        use std::time::{Duration, Instant};
+
+        use crate::test_jobs::{SLOW_JOB, SLOW_JOB_STARTS};
+
+        let config = SchedulerConfig {
+            enabled: true,
+            jobs: vec![JobConfig::new(SLOW_JOB).with_schedule("* * * * * *")],
+            bootstrap_jobs: Vec::new(),
+            distributed_lock: false,
+        };
+        let svc = SchedulerService::new(config, Arc::clone(&pool), app_ctx)
+            .expect("SchedulerService::new");
+
+        let startup = svc.start().await.expect("start must succeed");
+        let handle = startup
+            .handle
+            .expect("enabled scheduler must yield a handle");
+
+        // Wait for the first tick to start the 4s job, then let two more 1s
+        // ticks fire while it is still running: the in-process RunningJobs
+        // guard must skip them.
+        let deadline = Instant::now() + Duration::from_secs(10);
+        while SLOW_JOB_STARTS.load(Ordering::SeqCst) == 0 {
+            assert!(Instant::now() < deadline, "first cron tick never fired");
+            tokio::time::sleep(Duration::from_millis(50)).await;
+        }
+        tokio::time::sleep(Duration::from_millis(2200)).await;
+        assert_eq!(
+            SLOW_JOB_STARTS.load(Ordering::SeqCst),
+            1,
+            "ticks landing while the job is still running must be skipped"
+        );
+
+        handle.shutdown().await.expect("shutdown");
+    }
+}

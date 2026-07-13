@@ -190,3 +190,132 @@ mod kill_by_pattern_safe_inputs {
         assert_eq!(ProcessCleanup::kill_by_pattern("foo bar"), 0);
     }
 }
+
+#[cfg(unix)]
+mod single_pid_termination {
+    use super::*;
+    use std::process::Command;
+    use std::time::Duration;
+
+    #[tokio::test]
+    async fn sigterm_terminates_a_cooperative_child() {
+        let mut child = Command::new("sleep")
+            .arg("30")
+            .spawn()
+            .expect("spawn sleep");
+        let pid = child.id();
+
+        let terminated = ProcessCleanup::terminate_gracefully(pid, 5_000).await;
+
+        let _ = child.wait();
+        assert!(
+            terminated,
+            "a sleep child dies on SIGTERM within the grace window"
+        );
+        assert!(!ProcessCleanup::process_exists(pid));
+    }
+
+    #[tokio::test]
+    async fn sigkill_fallback_when_child_ignores_sigterm() {
+        let mut child = Command::new("sh")
+            .args(["-c", "trap '' TERM; while :; do sleep 0.2; done"])
+            .spawn()
+            .expect("spawn trap child");
+        let pid = child.id();
+
+        tokio::time::sleep(Duration::from_millis(300)).await;
+
+        let terminated = ProcessCleanup::terminate_gracefully(pid, 300).await;
+
+        let _ = child.wait();
+        assert!(
+            terminated,
+            "a SIGTERM-ignoring child must be SIGKILLed after the grace period"
+        );
+    }
+
+    #[tokio::test]
+    async fn group_termination_of_a_non_leader_falls_back_to_single_pid() {
+        // A plain spawned child shares the test's process group, so it is not
+        // its own group leader: terminate_group_gracefully must refuse the
+        // group broadcast and fall back to single-PID termination.
+        let mut child = Command::new("sleep")
+            .arg("30")
+            .spawn()
+            .expect("spawn sleep");
+        let pid = child.id();
+
+        let terminated = ProcessCleanup::terminate_group_gracefully(pid, 5_000).await;
+
+        let _ = child.wait();
+        assert!(terminated);
+        assert!(!ProcessCleanup::process_exists(pid));
+    }
+}
+
+#[cfg(unix)]
+mod port_introspection_live {
+    use super::*;
+    use std::net::TcpListener;
+
+    #[test]
+    fn check_port_reports_the_holding_pid() {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("bind listener");
+        let port = listener.local_addr().expect("local addr").port();
+
+        assert_eq!(
+            ProcessCleanup::check_port(port),
+            Some(std::process::id()),
+            "check_port must report this test process as the port holder"
+        );
+    }
+
+    #[test]
+    fn get_process_by_port_reports_pid_and_command_name() {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("bind listener");
+        let port = listener.local_addr().expect("local addr").port();
+
+        let info = ProcessCleanup::get_process_by_port(port)
+            .expect("a held port must resolve to a ProcessInfo");
+        assert_eq!(info.pid, std::process::id());
+        assert_eq!(info.port, port);
+        assert!(!info.name.is_empty(), "ps must report a command name");
+    }
+}
+
+#[cfg(unix)]
+mod kill_by_pattern_live {
+    use super::*;
+    use std::process::Command;
+    use std::time::{Duration, Instant};
+
+    #[test]
+    fn kills_a_child_matched_by_a_unique_pattern() {
+        // pkill -f matches the full command line; a symlinked binary with a
+        // unique name guarantees the pattern can only ever match our child.
+        let dir = std::env::temp_dir().join(format!("sp-kbp-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).expect("create symlink dir");
+        let unique = format!("sp-test-kbp-target-{}", std::process::id());
+        let link = dir.join(&unique);
+        let _ = std::fs::remove_file(&link);
+        std::os::unix::fs::symlink("/usr/bin/sleep", &link).expect("symlink sleep");
+
+        let mut child = Command::new(&link)
+            .arg("30")
+            .spawn()
+            .expect("spawn symlinked sleep");
+
+        let killed = ProcessCleanup::kill_by_pattern(&unique);
+        assert_eq!(killed, 1, "pkill must report a successful match");
+
+        // A killed child is a zombie until reaped, so death is observed via
+        // try_wait rather than process_exists.
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while child.try_wait().expect("try_wait").is_none() {
+            assert!(Instant::now() < deadline, "matched child must die");
+            std::thread::sleep(Duration::from_millis(25));
+        }
+        let _ = std::fs::remove_file(&link);
+        let _ = std::fs::remove_dir(&dir);
+    }
+}

@@ -403,3 +403,329 @@ mod state_verifier_db {
         }
     }
 }
+
+// Seeded action-arm tests: rows are driven into each ServiceAction and the
+// reconciler's handling (restart, orphan sweep, process cleanup, stop) is
+// asserted on the DB row and the returned buckets. PIDs signalled are always
+// children this test spawned.
+#[cfg(unix)]
+mod reconciler_action_arms {
+    use super::*;
+
+    use std::io::{BufRead, BufReader};
+    use std::process::{Child, Command, Stdio};
+    use std::time::{Duration, Instant};
+
+
+    fn unique_name(prefix: &str) -> String {
+        use std::sync::atomic::{AtomicU64, Ordering};
+        static SEQ: AtomicU64 = AtomicU64::new(0);
+        let n = SEQ.fetch_add(1, Ordering::Relaxed);
+        format!("{prefix}-{}-{}", std::process::id(), n)
+    }
+
+    async fn insert_service(
+        pg: &sqlx::PgPool,
+        name: &str,
+        status: &str,
+        pid: Option<i32>,
+        port: i32,
+    ) {
+        sqlx::query!(
+            r#"
+            INSERT INTO services (name, module_name, status, pid, port)
+            VALUES ($1, 'mcp', $2, $3, $4)
+            ON CONFLICT (name) DO UPDATE SET
+                status = EXCLUDED.status, pid = EXCLUDED.pid, port = EXCLUDED.port
+            "#,
+            name,
+            status,
+            pid,
+            port,
+        )
+        .execute(pg)
+        .await
+        .expect("seed services row");
+    }
+
+    async fn fetch_row(pg: &sqlx::PgPool, name: &str) -> Option<(String, Option<i32>)> {
+        sqlx::query!("SELECT status, pid FROM services WHERE name = $1", name)
+            .fetch_optional(pg)
+            .await
+            .expect("fetch services row")
+            .map(|r| (r.status, r.pid))
+    }
+
+    fn spawn_port_holder() -> (Child, u16) {
+        let mut child = Command::new("python3")
+            .args([
+                "-c",
+                "import socket,sys,time\ns=socket.socket()\ns.bind(('127.0.0.1',0))\nprint(s.getsockname()[1],flush=True)\ns.listen(1)\ntime.sleep(60)",
+            ])
+            .stdout(Stdio::piped())
+            .spawn()
+            .expect("spawn python3 port holder");
+        let stdout = child.stdout.take().expect("holder stdout");
+        let mut line = String::new();
+        BufReader::new(stdout)
+            .read_line(&mut line)
+            .expect("read holder port");
+        let port = line.trim().parse::<u16>().expect("holder port number");
+        (child, port)
+    }
+
+    // A killed child is a zombie until reaped (kill(pid, 0) still succeeds),
+    // so death is observed via try_wait, never process_exists.
+    async fn wait_until_dead(child: &mut Child) {
+        let deadline = Instant::now() + Duration::from_secs(5);
+        loop {
+            if child.try_wait().expect("try_wait").is_some() {
+                return;
+            }
+            assert!(
+                Instant::now() < deadline,
+                "child was not terminated within the deadline"
+            );
+            tokio::time::sleep(Duration::from_millis(25)).await;
+        }
+    }
+
+    #[tokio::test]
+    async fn crashed_enabled_service_is_restarted() {
+        let pool = pool_or_skip!();
+        let pg = pool.write_pool_arc().expect("write pool");
+        let reconciler = ServiceReconciler::new(Arc::clone(&pool));
+
+        let name = unique_name("rec-restart-ok");
+        insert_service(&pg, &name, "running", Some(i32::MAX), 27401).await;
+
+        let configs = [ServiceConfig {
+            name: name.clone(),
+            service_type: ServiceType::Mcp,
+            port: 27401,
+            enabled: true,
+        }];
+        let result = reconciler
+            .reconcile(&configs, |_n: String, _p: u16| async { Ok(()) })
+            .await
+            .expect("reconcile");
+
+        assert!(
+            result.restarted.contains(&name),
+            "Enabled + Crashed must be restarted, got {result:?}"
+        );
+        let (status, pid) = fetch_row(&pg, &name).await.expect("row present");
+        assert_eq!(status, "stopped", "restart first marks the row stopped");
+        assert_eq!(pid, None, "restart clears the stale PID");
+
+        sqlx::query!("DELETE FROM services WHERE name = $1", name)
+            .execute(&*pg)
+            .await
+            .ok();
+    }
+
+    #[tokio::test]
+    async fn restart_records_failure_when_start_callback_errors() {
+        let pool = pool_or_skip!();
+        let pg = pool.write_pool_arc().expect("write pool");
+        let reconciler = ServiceReconciler::new(Arc::clone(&pool));
+
+        let name = unique_name("rec-restart-fail");
+        insert_service(&pg, &name, "running", Some(i32::MAX), 27402).await;
+
+        let configs = [ServiceConfig {
+            name: name.clone(),
+            service_type: ServiceType::Mcp,
+            port: 27402,
+            enabled: true,
+        }];
+        let result = reconciler
+            .reconcile(&configs, |_n: String, _p: u16| async {
+                Err(Box::new(std::io::Error::other("boot refused"))
+                    as Box<dyn std::error::Error + Send + Sync>)
+            })
+            .await
+            .expect("reconcile");
+
+        let (failed_name, failed_err) = result
+            .failed
+            .iter()
+            .find(|(n, _)| n == &name)
+            .expect("the failed restart must be recorded");
+        assert_eq!(failed_name, &name);
+        assert!(
+            failed_err.contains("boot refused"),
+            "the callback error must be captured, got: {failed_err}"
+        );
+
+        sqlx::query!("DELETE FROM services WHERE name = $1", name)
+            .execute(&*pg)
+            .await
+            .ok();
+    }
+
+    #[tokio::test]
+    async fn stopped_orphan_row_is_swept_from_the_db() {
+        let pool = pool_or_skip!();
+        let pg = pool.write_pool_arc().expect("write pool");
+        let reconciler = ServiceReconciler::new(Arc::clone(&pool));
+
+        let name = unique_name("rec-orphan-db");
+        insert_service(&pg, &name, "stopped", None, 27403).await;
+
+        let result = reconciler
+            .reconcile(&[], |_n: String, _p: u16| async { Ok(()) })
+            .await
+            .expect("reconcile");
+
+        assert!(
+            result.cleaned_up.contains(&name),
+            "a stopped row absent from the config must be swept, got {result:?}"
+        );
+        assert!(
+            fetch_row(&pg, &name).await.is_none(),
+            "the orphan row must be deleted"
+        );
+    }
+
+    #[tokio::test]
+    async fn orphaned_process_is_terminated_and_row_swept() {
+        let pool = pool_or_skip!();
+        let pg = pool.write_pool_arc().expect("write pool");
+        let reconciler = ServiceReconciler::new(Arc::clone(&pool));
+
+        let (mut child, port) = spawn_port_holder();
+        let name = unique_name("rec-orphan-proc");
+        insert_service(&pg, &name, "stopped", None, i32::from(port)).await;
+
+        let result = reconciler
+            .reconcile(&[], |_n: String, _p: u16| async { Ok(()) })
+            .await
+            .expect("reconcile");
+
+        assert!(
+            result.cleaned_up.contains(&name),
+            "an orphan with a live port holder must be cleaned up, got {result:?}"
+        );
+        assert!(
+            fetch_row(&pg, &name).await.is_none(),
+            "the orphan row must be deleted"
+        );
+        wait_until_dead(&mut child).await;
+    }
+
+    #[tokio::test]
+    async fn disabled_running_service_is_stopped() {
+        let pool = pool_or_skip!();
+        let pg = pool.write_pool_arc().expect("write pool");
+        let reconciler = ServiceReconciler::new(Arc::clone(&pool));
+
+        let (mut child, port) = spawn_port_holder();
+        let name = unique_name("rec-stop");
+        insert_service(
+            &pg,
+            &name,
+            "running",
+            Some(child.id() as i32),
+            i32::from(port),
+        )
+        .await;
+
+        let configs = [ServiceConfig {
+            name: name.clone(),
+            service_type: ServiceType::Mcp,
+            port,
+            enabled: false,
+        }];
+        let result = reconciler
+            .reconcile(&configs, |_n: String, _p: u16| async { Ok(()) })
+            .await
+            .expect("reconcile");
+
+        assert!(
+            result.stopped.contains(&name),
+            "Disabled + Running must be stopped, got {result:?}"
+        );
+        let (status, _) = fetch_row(&pg, &name).await.expect("row present");
+        assert_eq!(status, "stopped");
+        wait_until_dead(&mut child).await;
+
+        sqlx::query!("DELETE FROM services WHERE name = $1", name)
+            .execute(&*pg)
+            .await
+            .ok();
+    }
+}
+
+#[cfg(unix)]
+mod reconciler_noop_arm {
+    use super::*;
+
+    use std::io::{BufRead, BufReader};
+    use std::process::{Command, Stdio};
+
+    #[tokio::test]
+    async fn healthy_running_service_needs_no_action() {
+        let pool = pool_or_skip!();
+        let pg = pool.write_pool_arc().expect("write pool");
+        let reconciler = ServiceReconciler::new(Arc::clone(&pool));
+
+        let mut child = Command::new("python3")
+            .args([
+                "-c",
+                "import socket,sys,time\ns=socket.socket()\ns.bind(('127.0.0.1',0))\nprint(s.getsockname()[1],flush=True)\ns.listen(1)\ntime.sleep(60)",
+            ])
+            .stdout(Stdio::piped())
+            .spawn()
+            .expect("spawn python3 port holder");
+        let stdout = child.stdout.take().expect("holder stdout");
+        let mut line = String::new();
+        BufReader::new(stdout)
+            .read_line(&mut line)
+            .expect("read holder port");
+        let port = line.trim().parse::<u16>().expect("holder port number");
+
+        let name = format!("rec-noop-{}", std::process::id());
+        sqlx::query!(
+            r#"
+            INSERT INTO services (name, module_name, status, pid, port)
+            VALUES ($1, 'mcp', 'running', $2, $3)
+            ON CONFLICT (name) DO UPDATE SET
+                status = EXCLUDED.status, pid = EXCLUDED.pid, port = EXCLUDED.port
+            "#,
+            name,
+            child.id() as i32,
+            i32::from(port),
+        )
+        .execute(&*pg)
+        .await
+        .expect("seed services row");
+
+        let configs = [ServiceConfig {
+            name: name.clone(),
+            service_type: ServiceType::Mcp,
+            port,
+            enabled: true,
+        }];
+        let result = reconciler
+            .reconcile(&configs, |_n: String, _p: u16| async { Ok(()) })
+            .await
+            .expect("reconcile");
+
+        assert!(result.is_success());
+        assert!(
+            !result.started.contains(&name)
+                && !result.stopped.contains(&name)
+                && !result.restarted.contains(&name)
+                && !result.cleaned_up.contains(&name),
+            "Enabled + Running must take no action, got {result:?}"
+        );
+
+        child.kill().ok();
+        let _ = child.wait();
+        sqlx::query!("DELETE FROM services WHERE name = $1", name)
+            .execute(&*pg)
+            .await
+            .ok();
+    }
+}
