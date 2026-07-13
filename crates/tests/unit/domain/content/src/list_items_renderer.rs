@@ -71,7 +71,10 @@ async fn unparseable_published_at_is_discarded_rather_than_rendered_raw() {
     })])
     .await;
 
-    assert!(html.contains(r#"<time class="card-date"></time>"#), "got: {html}");
+    assert!(
+        html.contains(r#"<time class="card-date"></time>"#),
+        "got: {html}"
+    );
     assert!(!html.contains("not-a-date"));
 }
 

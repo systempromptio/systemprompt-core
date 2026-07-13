@@ -241,6 +241,44 @@ fn test_metadata_and_base_path_accessors() {
     let _ = validated.metadata();
 }
 
+#[test]
+fn test_content_routing_trait_object_delegates_to_inherent_methods() {
+    use systemprompt_models::ContentRouting;
+
+    let tmp = TempDir::new().unwrap();
+    let raw = build_raw(&tmp, "blog", "/blog/{slug}", true);
+    let validated = ContentConfigValidated::from_raw(raw, tmp.path().to_path_buf()).unwrap();
+
+    let routing: &dyn ContentRouting = &validated;
+    assert!(routing.is_html_page("/blog/hello-world"));
+    assert!(!routing.is_html_page("/api/users"));
+    assert_eq!(routing.determine_source("/blog/hello"), "blog");
+    assert_eq!(routing.determine_source("/"), "web");
+    assert_eq!(
+        routing.resolve_slug("/blog/my-post"),
+        Some("my-post".to_string())
+    );
+    assert!(routing.resolve_slug("/no-such/route").is_none());
+}
+
+#[test]
+fn test_relative_source_path_is_resolved_against_base_path() {
+    let tmp = TempDir::new().unwrap();
+    // A relative source path exercises the `base_path.join(..)` branch: the
+    // directory lives under the base path but is referenced by its bare name.
+    std::fs::create_dir_all(tmp.path().join("guides")).unwrap();
+    let raw = raw_with_source(tech_categories(), source("guides", "blog", "tech"));
+
+    let validated =
+        ContentConfigValidated::from_raw(raw, tmp.path().to_path_buf()).expect("valid config");
+    let resolved = &validated.content_sources()["blog"].path;
+    assert!(
+        resolved.is_absolute(),
+        "relative path must resolve to an absolute one"
+    );
+    assert!(resolved.ends_with("guides"));
+}
+
 fn raw_with_source(
     categories: HashMap<String, Category>,
     source: ContentSourceConfigRaw,
@@ -293,10 +331,7 @@ fn test_empty_category_name_is_dropped_and_fails_validation() {
     let tmp = TempDir::new().unwrap();
     let dir = tmp.path().join("content");
     std::fs::create_dir_all(&dir).unwrap();
-    let raw = raw_with_source(
-        categories,
-        source(&dir.to_string_lossy(), "blog", "tech"),
-    );
+    let raw = raw_with_source(categories, source(&dir.to_string_lossy(), "blog", "tech"));
 
     let err = ContentConfigValidated::from_raw(raw, tmp.path().to_path_buf()).unwrap_err();
     assert!(

@@ -23,7 +23,9 @@ async fn cleanup(pool: &DbPool, source: &SourceId) {
 
 #[tokio::test]
 async fn update_sets_category_and_preserves_unspecified_kind() {
-    let Ok(url) = fixture_database_url() else { return };
+    let Ok(url) = fixture_database_url() else {
+        return;
+    };
     ensure_test_bootstrap();
     let pool = fixture_db_pool(&url).await.expect("pool");
     let repo = ContentRepository::new(&pool).expect("repo");
@@ -61,11 +63,41 @@ async fn update_sets_category_and_preserves_unspecified_kind() {
         .expect("update");
 
     assert_eq!(updated.title, "Updated Title");
-    assert_eq!(updated.category_id.as_ref().map(CategoryId::as_str), Some("new-cat"));
+    assert_eq!(
+        updated.category_id.as_ref().map(CategoryId::as_str),
+        Some("new-cat")
+    );
     // kind was not specified on the update, so the current row's value stands.
     assert_eq!(updated.kind, "guide");
 
     cleanup(&pool, &source).await;
+}
+
+#[tokio::test]
+async fn update_missing_row_resolves_defaults_then_reports_not_found() {
+    let Ok(url) = fixture_database_url() else {
+        return;
+    };
+    ensure_test_bootstrap();
+    let pool = fixture_db_pool(&url).await.expect("pool");
+    let repo = ContentRepository::new(&pool).expect("repo");
+
+    // No row exists for this id, so `ResolvedUpdate::resolve` sees `current =
+    // None`; with `kind` also unspecified it must fall back to the
+    // `ContentKind::Article` default before the UPDATE finds no row to return.
+    let result = repo
+        .update(&UpdateContentParams::new(
+            systemprompt_identifiers::ContentId::new(format!("absent-{}", Uuid::new_v4())),
+            "t".to_owned(),
+            "d".to_owned(),
+            "b".to_owned(),
+        ))
+        .await;
+
+    assert!(
+        result.is_err(),
+        "updating a non-existent row must not return a phantom content record"
+    );
 }
 
 #[tokio::test]
@@ -74,14 +106,12 @@ async fn update_on_closed_pool_propagates_error() {
     let repo = ContentRepository::new(&pool).expect("repo");
 
     let result = repo
-        .update(
-            &UpdateContentParams::new(
-                systemprompt_identifiers::ContentId::new("nope"),
-                "t".to_owned(),
-                "d".to_owned(),
-                "b".to_owned(),
-            ),
-        )
+        .update(&UpdateContentParams::new(
+            systemprompt_identifiers::ContentId::new("nope"),
+            "t".to_owned(),
+            "d".to_owned(),
+            "b".to_owned(),
+        ))
         .await;
 
     assert!(result.is_err(), "closed pool must fail the update");

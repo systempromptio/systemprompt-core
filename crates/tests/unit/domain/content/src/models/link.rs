@@ -205,7 +205,10 @@ fn test_content_journey_node_creation() {
     assert_eq!(node.click_count, 42);
 }
 
-fn campaign_link(target_url: &str, utm_params: Option<String>) -> systemprompt_content::models::CampaignLink {
+fn campaign_link(
+    target_url: &str,
+    utm_params: Option<String>,
+) -> systemprompt_content::models::CampaignLink {
     use systemprompt_identifiers::LinkId;
     systemprompt_content::models::CampaignLink {
         id: LinkId::new("lnk"),

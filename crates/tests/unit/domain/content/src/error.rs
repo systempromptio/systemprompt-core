@@ -7,6 +7,15 @@
 use systemprompt_content::ContentError;
 
 #[test]
+fn test_content_error_from_sqlx_error_maps_to_repository() {
+    let error = ContentError::from(sqlx::Error::RowNotFound);
+    assert!(
+        matches!(error, ContentError::Repository(_)),
+        "sqlx errors must be wrapped as a repository error, got: {error:?}"
+    );
+}
+
+#[test]
 fn test_content_error_database_not_postgres() {
     let error = ContentError::DatabaseNotPostgres;
     assert_eq!(error.to_string(), "database must be PostgreSQL");

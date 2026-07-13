@@ -40,7 +40,9 @@ impl Ctx {
 
     async fn cleanup(&self) {
         let repo = ContentRepository::new(&self.pool).expect("repo");
-        repo.delete_by_source(&self.source_id).await.expect("cleanup");
+        repo.delete_by_source(&self.source_id)
+            .await
+            .expect("cleanup");
     }
 }
 
@@ -193,7 +195,11 @@ async fn scanner_skips_non_markdown_and_nested_dirs_and_warns() {
 
     // Recursive mode reaches the nested file.
     let report = ctx
-        .service_ingest(IngestionOptions::default().with_recursive(true).with_override(true))
+        .service_ingest(
+            IngestionOptions::default()
+                .with_recursive(true)
+                .with_override(true),
+        )
         .await;
     assert_eq!(report.files_processed, 1, "{report:?}");
 
@@ -201,7 +207,10 @@ async fn scanner_skips_non_markdown_and_nested_dirs_and_warns() {
 }
 
 impl Ctx {
-    async fn service_ingest(&self, options: IngestionOptions) -> systemprompt_content::IngestionReport {
+    async fn service_ingest(
+        &self,
+        options: IngestionOptions,
+    ) -> systemprompt_content::IngestionReport {
         let service = IngestionService::new(&self.pool).expect("service");
         service
             .ingest_directory(self.dir.path(), &self.source(), options)

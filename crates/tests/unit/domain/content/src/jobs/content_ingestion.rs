@@ -19,15 +19,26 @@ use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_database_url, fi
 use uuid::Uuid;
 
 fn app_paths() -> AppPaths {
+    app_paths_rooted("/tmp")
+}
+
+fn app_paths_rooted(root: &str) -> AppPaths {
     let paths = PathsConfig {
-        system: "/tmp".to_owned(),
-        services: "/tmp".to_owned(),
-        bin: "/tmp".to_owned(),
-        web_path: Some("/tmp".to_owned()),
-        storage: Some("/tmp".to_owned()),
+        system: root.to_owned(),
+        services: root.to_owned(),
+        bin: root.to_owned(),
+        web_path: Some(root.to_owned()),
+        storage: Some(root.to_owned()),
         geoip_database: None,
     };
     AppPaths::from_profile(&paths).expect("paths")
+}
+
+fn write_bad_date_markdown(dir: &std::path::Path, slug: &str) {
+    let body = format!(
+        "---\ntitle: \"Bad\"\nslug: \"{slug}\"\nauthor: \"A\"\npublished_at: \"2024-13-40\"\nkind: \"article\"\ndescription: \"d\"\n---\n\nbody\n"
+    );
+    std::fs::write(dir.join(format!("{slug}.md")), body).expect("write bad md");
 }
 
 fn source_config(
@@ -102,6 +113,60 @@ async fn ingests_enabled_source_into_content_store() {
     assert_eq!(stored.title, "Job Ingested Post");
     assert_eq!(stored.author, "Test Author");
     assert_eq!(stored.source_id, source_id);
+
+    repo.delete_by_source(&source_id).await.expect("cleanup");
+}
+
+#[tokio::test]
+async fn relative_source_path_resolves_and_per_file_errors_are_logged() {
+    let Ok(url) = fixture_database_url() else {
+        return;
+    };
+    ensure_test_bootstrap();
+    let pool: DbPool = fixture_db_pool(&url).await.expect("pool");
+
+    // The source path is relative, so the job resolves it against
+    // `paths.system().services()` (the tempdir root here) rather than treating
+    // it as absolute.
+    let root = tempfile::tempdir().expect("tempdir");
+    let rel = "reldocs";
+    let content_dir = root.path().join(rel);
+    std::fs::create_dir_all(&content_dir).expect("content dir");
+
+    let good_slug = format!("good-{}", Uuid::new_v4().simple());
+    write_markdown(&content_dir, &good_slug, "Good Post");
+    let bad_slug = format!("bad-{}", Uuid::new_v4().simple());
+    write_bad_date_markdown(&content_dir, &bad_slug);
+
+    let source_id = SourceId::new(format!("rel-src-{}", Uuid::new_v4()));
+    let category = CategoryId::new("docs");
+    let mut sources = HashMap::new();
+    sources.insert("docs".to_owned(), source_config(rel, &source_id, &category));
+    let config = ContentConfigRaw {
+        content_sources: sources,
+        ..Default::default()
+    };
+
+    let paths = app_paths_rooted(root.path().to_str().expect("utf8 root"));
+    let result = execute_content_ingestion(&pool, &config, &paths)
+        .await
+        .expect("job");
+
+    // One file ingested, one per-file error aggregated; the job still succeeds.
+    assert!(
+        result.success,
+        "job should succeed despite a per-file error: {result:?}"
+    );
+
+    let repo = ContentRepository::new(&pool).expect("repo");
+    let stored = repo
+        .get_by_source_and_slug(&source_id, &good_slug, &LocaleCode::new("en"))
+        .await
+        .expect("query");
+    assert!(
+        stored.is_some(),
+        "the valid file must be ingested via the relative path"
+    );
 
     repo.delete_by_source(&source_id).await.expect("cleanup");
 }

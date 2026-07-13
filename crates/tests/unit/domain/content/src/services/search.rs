@@ -4,9 +4,9 @@
 //! `search`: category-filtered, filter-present-without-category (empty), and
 //! the unfiltered recency listing, plus the direct `search_by_category` entry.
 
+use systemprompt_content::SearchService;
 use systemprompt_content::models::{CreateContentParams, SearchFilters, SearchRequest};
 use systemprompt_content::repository::ContentRepository;
-use systemprompt_content::SearchService;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{CategoryId, SourceId};
 use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_database_url, fixture_db_pool};
@@ -35,13 +35,21 @@ async fn cleanup(pool: &DbPool, source: &SourceId) {
 
 #[tokio::test]
 async fn search_without_filters_lists_recent_content() {
-    let Ok(url) = fixture_database_url() else { return };
+    let Ok(url) = fixture_database_url() else {
+        return;
+    };
     ensure_test_bootstrap();
     let pool = fixture_db_pool(&url).await.expect("pool");
     let repo = ContentRepository::new(&pool).expect("repo");
     let source = SourceId::new(format!("srch-{}", Uuid::new_v4()));
     let category = CategoryId::new(format!("cat-{}", Uuid::new_v4()));
-    seed(&repo, &source, &category, &format!("s-{}", Uuid::new_v4().simple())).await;
+    seed(
+        &repo,
+        &source,
+        &category,
+        &format!("s-{}", Uuid::new_v4().simple()),
+    )
+    .await;
 
     let service = SearchService::new(&pool).expect("service");
     let response = service
@@ -61,7 +69,9 @@ async fn search_without_filters_lists_recent_content() {
 
 #[tokio::test]
 async fn search_with_filter_but_no_category_returns_empty() {
-    let Ok(url) = fixture_database_url() else { return };
+    let Ok(url) = fixture_database_url() else {
+        return;
+    };
     ensure_test_bootstrap();
     let pool = fixture_db_pool(&url).await.expect("pool");
 
@@ -81,7 +91,9 @@ async fn search_with_filter_but_no_category_returns_empty() {
 
 #[tokio::test]
 async fn search_by_category_returns_only_matching_rows() {
-    let Ok(url) = fixture_database_url() else { return };
+    let Ok(url) = fixture_database_url() else {
+        return;
+    };
     ensure_test_bootstrap();
     let pool = fixture_db_pool(&url).await.expect("pool");
     let repo = ContentRepository::new(&pool).expect("repo");
@@ -103,7 +115,10 @@ async fn search_by_category_returns_only_matching_rows() {
         })
         .await
         .expect("search");
-    assert!(response.results.iter().any(|r| r.slug == slug), "{response:?}");
+    assert!(
+        response.results.iter().any(|r| r.slug == slug),
+        "{response:?}"
+    );
 
     // Through the direct method.
     let direct = service

@@ -5,6 +5,7 @@
 //! - IngestionOptions builder pattern
 //! - IngestionReport structure
 
+mod processors_db;
 mod scanner_compat;
 mod service_db;
 
