@@ -181,7 +181,7 @@ mod page_provider_registration_tests {
 
     #[test]
     fn registration_debug_logging_records_each_registrar_without_altering_counts() {
-        let _guard = crate::mocks::debug_subscriber_guard();
+        crate::mocks::init_debug_logging();
 
         let mut registry = TemplateRegistry::new();
         registry.register_provider(provider(MockProvider::new("logged-provider")));

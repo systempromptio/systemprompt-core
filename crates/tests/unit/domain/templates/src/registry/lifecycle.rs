@@ -204,11 +204,11 @@ mod partial_file_loading_tests {
 
 mod logged_lifecycle_tests {
     use super::*;
-    use crate::mocks::debug_subscriber_guard;
+    use crate::mocks::init_debug_logging;
 
     #[tokio::test]
     async fn duplicate_template_name_keeps_highest_priority_provider() {
-        let _guard = debug_subscriber_guard();
+        init_debug_logging();
 
         let first = TemplateDefinition::embedded("dup", "<p>first</p>").with_priority(50);
         let second = TemplateDefinition::embedded("dup", "<p>second</p>").with_priority(100);
@@ -240,7 +240,7 @@ mod logged_lifecycle_tests {
 
     #[tokio::test]
     async fn uncompilable_template_is_skipped_but_valid_sibling_still_renders() {
-        let _guard = debug_subscriber_guard();
+        init_debug_logging();
 
         let broken = TemplateDefinition::embedded("broken", "{{#each items}}unterminated");
         let good = TemplateDefinition::embedded("good", "<p>{{value}}</p>");
@@ -269,7 +269,7 @@ mod logged_lifecycle_tests {
 
     #[tokio::test]
     async fn missing_partial_file_warn_path_leaves_partial_unregistered() {
-        let _guard = debug_subscriber_guard();
+        init_debug_logging();
 
         let mut registry = TemplateRegistry::new();
         registry.register_component(Arc::new(FilePartialComponent::new(
@@ -287,7 +287,7 @@ mod logged_lifecycle_tests {
 
     #[tokio::test]
     async fn valid_file_partial_registration_debug_path_registers_partial() {
-        let _guard = debug_subscriber_guard();
+        init_debug_logging();
 
         let temp_dir = tempfile::tempdir().expect("failed to create temp dir");
         let partial_path = temp_dir.path().join("nav.hbs");
@@ -311,7 +311,7 @@ mod logged_lifecycle_tests {
 
     #[tokio::test]
     async fn uncompilable_partial_warn_path_leaves_partial_unregistered() {
-        let _guard = debug_subscriber_guard();
+        init_debug_logging();
 
         let mut registry = TemplateRegistry::new();
         registry.register_component(Arc::new(EmbeddedPartialComponent {

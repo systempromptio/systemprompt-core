@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use std::sync::LazyLock;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use async_trait::async_trait;
@@ -9,31 +10,48 @@ use systemprompt_template_provider::{
     TemplateProvider, TemplateSource,
 };
 
-pub fn debug_subscriber_guard() -> tracing::subscriber::DefaultGuard {
+// A DEBUG-level subscriber installed *globally* (not thread-locally): the
+// registry/lifecycle/discovery `debug!`/`warn!` field expressions are only
+// evaluated when a subscriber enables the callsite, and several of those
+// callsites fire from tokio worker threads where a thread-local `set_default`
+// subscriber would not apply. A global default also survives tracing's
+// per-callsite interest cache across every test in the process, so the field
+// arguments are exercised on every registration rather than the handful of
+// tests that opt in.
+static DEBUG_LOGGING: LazyLock<()> = LazyLock::new(|| {
     let subscriber = tracing_subscriber::fmt()
         .with_max_level(tracing::Level::DEBUG)
         .with_test_writer()
         .finish();
-    tracing::subscriber::set_default(subscriber)
+    let _ = tracing::subscriber::set_global_default(subscriber);
+});
+
+pub fn init_debug_logging() {
+    LazyLock::force(&DEBUG_LOGGING);
 }
 
 pub fn provider(p: MockProvider) -> DynTemplateProvider {
+    init_debug_logging();
     Arc::new(p)
 }
 
 pub fn loader(l: MockLoader) -> DynTemplateLoader {
+    init_debug_logging();
     Arc::new(l)
 }
 
 pub fn extender(e: MockExtender) -> DynTemplateDataExtender {
+    init_debug_logging();
     Arc::new(e)
 }
 
 pub fn component(c: MockComponent) -> DynComponentRenderer {
+    init_debug_logging();
     Arc::new(c)
 }
 
 pub fn page_provider(p: MockPageProvider) -> DynPageDataProvider {
+    init_debug_logging();
     Arc::new(p)
 }
 

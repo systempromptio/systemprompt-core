@@ -270,7 +270,7 @@ mod page_prerenderer_tests {
 
     #[test]
     fn register_page_prerenderer_debug_logging_preserves_registration() {
-        let _guard = crate::mocks::debug_subscriber_guard();
+        crate::mocks::init_debug_logging();
 
         let mut registry = TemplateRegistry::new();
         registry.register_page_prerenderer(dyn_prerenderer(StubPrerenderer::new("logged-page")));

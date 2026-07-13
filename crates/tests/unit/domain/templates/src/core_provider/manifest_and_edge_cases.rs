@@ -152,7 +152,7 @@ mod logged_discovery_tests {
 
     #[tokio::test]
     async fn malformed_manifest_warn_path_falls_back_to_inferred_types() {
-        let _guard = crate::mocks::debug_subscriber_guard();
+        crate::mocks::init_debug_logging();
 
         let temp_dir = tempfile::tempdir().expect("failed to create temp dir");
         fs::write(temp_dir.path().join("guide-post.html"), "<html></html>")
@@ -176,7 +176,7 @@ mod logged_discovery_tests {
 
     #[tokio::test]
     async fn discovery_debug_path_records_html_templates() {
-        let _guard = crate::mocks::debug_subscriber_guard();
+        crate::mocks::init_debug_logging();
 
         let temp_dir = tempfile::tempdir().expect("failed to create temp dir");
         fs::write(temp_dir.path().join("landing.html"), "<html></html>")
