@@ -62,6 +62,7 @@ mod embedded_loader_tests {
 
 mod filesystem_loader_tests {
     use super::*;
+    use systemprompt_template_provider::TemplateLoaderError;
     use tempfile::TempDir;
     use tokio::fs;
 
@@ -368,6 +369,197 @@ mod filesystem_loader_tests {
             .load_directory(PathBuf::from("not-a-dir.dat").as_path())
             .await;
         result.unwrap_err();
+    }
+
+    #[tokio::test]
+    async fn load_absolute_file_with_unresolvable_base_surfaces_base_io_error() {
+        let dir = TempDir::new().unwrap();
+        let file_path = dir.path().join("t.html");
+        fs::write(&file_path, "content").await.unwrap();
+        let blocker = dir.path().join("blocker.txt");
+        fs::write(&blocker, "not a dir").await.unwrap();
+        let bad_base = blocker.join("nested");
+
+        let loader = FileSystemLoader::with_path(&bad_base);
+        let canonical = fs::canonicalize(&file_path).await.unwrap();
+        let err = loader
+            .load(&TemplateSource::File(canonical))
+            .await
+            .unwrap_err();
+        assert!(
+            matches!(err, TemplateLoaderError::Io { ref path, .. } if *path == bad_base),
+            "{err:?}"
+        );
+    }
+
+    // chdir is safe here: nextest runs each test in its own process.
+    #[tokio::test]
+    async fn load_relative_file_with_empty_base_surfaces_base_io_error() {
+        let dir = TempDir::new().unwrap();
+        fs::write(dir.path().join("t.html"), "content").await.unwrap();
+        std::env::set_current_dir(dir.path()).unwrap();
+
+        let loader = FileSystemLoader::with_path(PathBuf::new());
+        let err = loader
+            .load(&TemplateSource::File(PathBuf::from("t.html")))
+            .await
+            .unwrap_err();
+        assert!(
+            matches!(err, TemplateLoaderError::Io { ref path, .. } if *path == PathBuf::new()),
+            "{err:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn load_relative_file_through_escaping_symlink_fails_outside_base() {
+        let base = TempDir::new().unwrap();
+        let outside = TempDir::new().unwrap();
+        let target = outside.path().join("t.html");
+        fs::write(&target, "outside").await.unwrap();
+        let link = base.path().join("esc.html");
+        std::os::unix::fs::symlink(&target, &link).unwrap();
+
+        let loader = FileSystemLoader::with_path(base.path());
+        let err = loader
+            .load(&TemplateSource::File(PathBuf::from("esc.html")))
+            .await
+            .unwrap_err();
+        assert!(
+            matches!(err, TemplateLoaderError::OutsideBasePath(ref p) if *p == link),
+            "{err:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn load_relative_file_through_file_component_surfaces_io_error() {
+        let dir = TempDir::new().unwrap();
+        fs::write(dir.path().join("blocker.txt"), "file").await.unwrap();
+
+        let loader = FileSystemLoader::with_path(dir.path());
+        let expected = dir.path().join("blocker.txt/t.html");
+        let err = loader
+            .load(&TemplateSource::File(PathBuf::from("blocker.txt/t.html")))
+            .await
+            .unwrap_err();
+        assert!(
+            matches!(err, TemplateLoaderError::Io { ref path, .. } if *path == expected),
+            "{err:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn load_absolute_directory_as_file_surfaces_read_io_error() {
+        let dir = TempDir::new().unwrap();
+        let sub = dir.path().join("sub");
+        fs::create_dir(&sub).await.unwrap();
+
+        let loader = FileSystemLoader::with_path(dir.path());
+        let canonical = fs::canonicalize(&sub).await.unwrap();
+        let err = loader
+            .load(&TemplateSource::File(canonical.clone()))
+            .await
+            .unwrap_err();
+        assert!(
+            matches!(err, TemplateLoaderError::Io { ref path, .. } if *path == canonical),
+            "{err:?}"
+        );
+    }
+
+    // chdir is safe here: nextest runs each test in its own process.
+    #[tokio::test]
+    async fn load_directory_with_empty_base_surfaces_base_io_error() {
+        let dir = TempDir::new().unwrap();
+        fs::create_dir(dir.path().join("sub")).await.unwrap();
+        std::env::set_current_dir(dir.path()).unwrap();
+
+        let loader = FileSystemLoader::with_path(PathBuf::new());
+        let err = loader
+            .load_directory(PathBuf::from("sub").as_path())
+            .await
+            .unwrap_err();
+        assert!(
+            matches!(err, TemplateLoaderError::Io { ref path, .. } if *path == PathBuf::new()),
+            "{err:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn load_directory_through_escaping_symlink_fails_outside_base() {
+        let base = TempDir::new().unwrap();
+        let outside = TempDir::new().unwrap();
+        let link = base.path().join("tpls");
+        std::os::unix::fs::symlink(outside.path(), &link).unwrap();
+
+        let loader = FileSystemLoader::with_path(base.path());
+        let err = loader
+            .load_directory(PathBuf::from("tpls").as_path())
+            .await
+            .unwrap_err();
+        assert!(
+            matches!(err, TemplateLoaderError::OutsideBasePath(ref p) if *p == link),
+            "{err:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn load_directory_candidate_through_file_component_surfaces_io_error() {
+        let dir = TempDir::new().unwrap();
+        fs::write(dir.path().join("blocker.txt"), "file").await.unwrap();
+
+        let loader = FileSystemLoader::with_path(dir.path());
+        let expected = dir.path().join("blocker.txt/sub");
+        let err = loader
+            .load_directory(PathBuf::from("blocker.txt/sub").as_path())
+            .await
+            .unwrap_err();
+        assert!(
+            matches!(err, TemplateLoaderError::Io { ref path, .. } if *path == expected),
+            "{err:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn load_directory_non_utf8_stem_fails_invalid_encoding() {
+        use std::ffi::OsStr;
+        use std::os::unix::ffi::OsStrExt;
+
+        let dir = TempDir::new().unwrap();
+        let sub = dir.path().join("templates");
+        fs::create_dir(&sub).await.unwrap();
+        let bad_name = sub.join(OsStr::from_bytes(b"\xff\xfe.html"));
+        fs::write(&bad_name, "<p>bad</p>").await.unwrap();
+
+        let loader = FileSystemLoader::with_path(dir.path());
+        let err = loader
+            .load_directory(PathBuf::from("templates").as_path())
+            .await
+            .unwrap_err();
+        assert!(
+            matches!(err, TemplateLoaderError::InvalidEncoding(ref p) if *p == bad_name),
+            "{err:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn load_directory_unreadable_html_surfaces_io_error() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let dir = TempDir::new().unwrap();
+        let sub = dir.path().join("templates");
+        fs::create_dir(&sub).await.unwrap();
+        let locked = sub.join("locked.html");
+        fs::write(&locked, "<p>secret</p>").await.unwrap();
+        std::fs::set_permissions(&locked, std::fs::Permissions::from_mode(0)).unwrap();
+
+        let loader = FileSystemLoader::with_path(dir.path());
+        let err = loader
+            .load_directory(PathBuf::from("templates").as_path())
+            .await
+            .unwrap_err();
+        assert!(
+            matches!(err, TemplateLoaderError::Io { ref path, .. } if *path == locked),
+            "{err:?}"
+        );
     }
 }
 
