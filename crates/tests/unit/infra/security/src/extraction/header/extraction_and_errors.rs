@@ -209,3 +209,88 @@ fn test_header_injection_error_clone() {
     let cloned = error;
     assert_eq!(format!("{}", error), format!("{}", cloned));
 }
+
+mod gateway_and_provider_request_ids {
+    use super::*;
+    use systemprompt_identifiers::{GatewayConversationId, ProviderRequestId, headers};
+    use systemprompt_security::HeaderInjector;
+
+    #[test]
+    fn valid_gateway_conversation_id_is_extracted() {
+        let mut headers_map = HeaderMap::new();
+        headers_map.insert(
+            headers::GATEWAY_CONVERSATION_ID,
+            HeaderValue::from_static("ctx_0123456789abcdef"),
+        );
+
+        let id = HeaderExtractor::extract_gateway_conversation_id(&headers_map)
+            .expect("well-formed id extracts");
+        assert_eq!(id.as_str(), "ctx_0123456789abcdef");
+    }
+
+    #[test]
+    fn malformed_or_empty_gateway_conversation_id_is_ignored() {
+        let mut malformed = HeaderMap::new();
+        malformed.insert(
+            headers::GATEWAY_CONVERSATION_ID,
+            HeaderValue::from_static("not-a-ctx-id"),
+        );
+        assert!(HeaderExtractor::extract_gateway_conversation_id(&malformed).is_none());
+
+        let mut empty = HeaderMap::new();
+        empty.insert(
+            headers::GATEWAY_CONVERSATION_ID,
+            HeaderValue::from_static(""),
+        );
+        assert!(HeaderExtractor::extract_gateway_conversation_id(&empty).is_none());
+
+        assert!(HeaderExtractor::extract_gateway_conversation_id(&HeaderMap::new()).is_none());
+    }
+
+    #[test]
+    fn provider_request_id_extraction_accepts_valid_and_ignores_empty() {
+        let mut headers_map = HeaderMap::new();
+        headers_map.insert(
+            headers::PROVIDER_REQUEST_ID,
+            HeaderValue::from_static("req-123"),
+        );
+        let id = HeaderExtractor::extract_provider_request_id(&headers_map)
+            .expect("well-formed id extracts");
+        assert_eq!(id.as_str(), "req-123");
+
+        let mut empty = HeaderMap::new();
+        empty.insert(headers::PROVIDER_REQUEST_ID, HeaderValue::from_static(""));
+        assert!(HeaderExtractor::extract_provider_request_id(&empty).is_none());
+    }
+
+    #[test]
+    fn non_ascii_header_values_are_ignored_not_propagated() {
+        let mut headers_map = HeaderMap::new();
+        headers_map.insert(
+            headers::GATEWAY_CONVERSATION_ID,
+            HeaderValue::from_bytes(b"ctx_\xff\xfe").expect("opaque bytes are a legal value"),
+        );
+        assert!(HeaderExtractor::extract_gateway_conversation_id(&headers_map).is_none());
+    }
+
+    #[test]
+    fn ids_round_trip_through_their_injectors() {
+        let mut headers_map = HeaderMap::new();
+
+        let gcid = GatewayConversationId::try_new("ctx_0123456789abcdef").unwrap();
+        HeaderInjector::inject_gateway_conversation_id(&mut headers_map, &gcid)
+            .expect("inject succeeds");
+        assert_eq!(
+            HeaderExtractor::extract_gateway_conversation_id(&headers_map),
+            Some(gcid)
+        );
+
+        let prid = ProviderRequestId::try_new("req-9").unwrap();
+        HeaderInjector::inject_provider_request_id(&mut headers_map, &prid)
+            .expect("inject succeeds");
+        assert_eq!(
+            HeaderExtractor::extract_provider_request_id(&headers_map),
+            Some(prid)
+        );
+    }
+}

@@ -253,3 +253,17 @@ fn test_token_extraction_error_is_std_error() {
     let error: Box<dyn std::error::Error> = Box::new(TokenExtractionError::NoTokenFound);
     assert!(error.to_string().contains("No token found"));
 }
+
+#[test]
+fn test_extract_from_cookie_non_ascii_header_is_invalid_format() {
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        "cookie",
+        HeaderValue::from_bytes(b"session=\xff\xfe").expect("opaque bytes are a legal value"),
+    );
+
+    let err = TokenExtractor::standard()
+        .extract_from_cookie(&headers)
+        .expect_err("unreadable cookie header cannot authenticate");
+    assert_eq!(err, TokenExtractionError::InvalidCookieFormat);
+}

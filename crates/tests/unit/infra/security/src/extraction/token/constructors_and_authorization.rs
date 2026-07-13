@@ -183,3 +183,36 @@ fn test_extract_from_authorization_multiple_headers_skip_invalid() {
         .expect("Should skip invalid and extract valid token");
     assert_eq!(token, "valid_token");
 }
+
+#[test]
+fn test_extract_from_authorization_skips_non_ascii_header_and_uses_next() {
+    let mut headers = HeaderMap::new();
+    headers.append(
+        "authorization",
+        HeaderValue::from_bytes(b"Bearer t\xc3\xa9\xff").expect("opaque bytes are a legal value"),
+    );
+    headers.append(
+        "authorization",
+        HeaderValue::from_static("Bearer valid_token"),
+    );
+
+    let token = TokenExtractor::extract_from_authorization(&headers)
+        .expect("non-ASCII header is skipped, valid sibling wins");
+    assert_eq!(token, "valid_token");
+}
+
+#[test]
+fn test_extract_from_authorization_only_non_ascii_header_is_invalid_format() {
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        "authorization",
+        HeaderValue::from_bytes(b"Bearer \xff\xfe").expect("opaque bytes are a legal value"),
+    );
+
+    let err = TokenExtractor::extract_from_authorization(&headers)
+        .expect_err("a lone unreadable header cannot authenticate");
+    assert!(matches!(
+        err,
+        TokenExtractionError::InvalidAuthorizationFormat
+    ));
+}

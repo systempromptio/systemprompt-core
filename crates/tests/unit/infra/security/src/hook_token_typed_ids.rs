@@ -94,3 +94,41 @@ fn plugin_id_mismatch_is_rejected() {
         "token issued for plugin-a must not drive plugin-b"
     );
 }
+
+#[test]
+fn validate_track_accepts_a_track_scoped_token() {
+    let _ = ensure_authority();
+    let token = mint(&hook_claims("plugin-x", "user-9"));
+
+    let validator = HookTokenValidator::new(ISSUER.to_string());
+    let claims = validator
+        .validate_track(&token, Some("plugin-x"))
+        .expect("track-scoped hook token validates");
+    assert!(claims.scopes.contains(&Permission::HookTrack));
+}
+
+#[test]
+fn token_without_the_required_scope_is_rejected_by_name() {
+    let _ = ensure_authority();
+    let mut claims = hook_claims("plugin-x", "user-9");
+    claims.scope = vec![Permission::HookGovern];
+    let token = mint(&claims);
+
+    let validator = HookTokenValidator::new(ISSUER.to_string());
+    let err = validator
+        .validate_track(&token, Some("plugin-x"))
+        .expect_err("govern-only token cannot track");
+    assert!(err.to_string().contains("hook:track"), "got: {err}");
+}
+
+#[test]
+fn token_without_a_plugin_id_claim_is_rejected() {
+    let _ = ensure_authority();
+    let mut claims = hook_claims("plugin-x", "user-9");
+    claims.plugin_id = None;
+    let token = mint(&claims);
+
+    let validator = HookTokenValidator::new(ISSUER.to_string());
+    let result = validator.validate_govern(&token, None);
+    assert!(result.is_err(), "plugin_id claim is mandatory");
+}
