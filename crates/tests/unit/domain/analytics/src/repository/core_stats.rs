@@ -69,3 +69,44 @@ async fn user_metrics_with_trends_are_consistent() {
 
     delete_session(&pool, &sid).await;
 }
+
+#[tokio::test]
+async fn recent_conversations_respects_limit_and_decodes_rows() {
+    let Ok(url) = fixture_database_url() else {
+        return;
+    };
+    ensure_test_bootstrap();
+    let pool = fixture_db_pool(&url).await.expect("pool");
+    let repo = CoreStatsRepository::new(&pool).expect("repo");
+
+    let rows = repo.get_recent_conversations(5).await.expect("recent");
+    assert!(rows.len() <= 5, "LIMIT must bound the result set");
+    for row in &rows {
+        // COALESCEd columns are never null; message_count is a non-negative count.
+        assert!(!row.agent_name.is_empty());
+        assert!(!row.user_name.is_empty());
+        assert!(!row.status.is_empty());
+        assert!(row.message_count >= 0);
+    }
+}
+
+#[tokio::test]
+async fn content_stats_windows_are_monotonic() {
+    let Ok(url) = fixture_database_url() else {
+        return;
+    };
+    ensure_test_bootstrap();
+    let pool = fixture_db_pool(&url).await.expect("pool");
+    let repo = CoreStatsRepository::new(&pool).expect("repo");
+
+    let stats = repo.get_content_stats(10).await.expect("content stats");
+    assert!(stats.len() <= 10, "LIMIT must bound the result set");
+    for stat in &stats {
+        // Nested view windows are cumulative: each wider window counts at
+        // least as many views as the narrower one it contains.
+        assert!(stat.views_5m <= stat.views_1h);
+        assert!(stat.views_1h <= stat.views_1d);
+        assert!(stat.views_1d <= stat.views_7d);
+        assert!(stat.views_7d <= stat.views_30d);
+    }
+}

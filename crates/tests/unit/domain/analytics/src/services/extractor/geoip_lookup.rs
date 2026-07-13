@@ -10,7 +10,10 @@ use axum::http::{HeaderMap, HeaderValue};
 use systemprompt_analytics::{GeoIpReader, SessionAnalytics};
 
 fn test_reader() -> GeoIpReader {
-    let path = concat!(env!("CARGO_MANIFEST_DIR"), "/fixtures/GeoIP2-City-Test.mmdb");
+    let path = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/fixtures/GeoIP2-City-Test.mmdb"
+    );
     Arc::new(maxminddb::Reader::open_readfile(path).expect("open MaxMind test database"))
 }
 
@@ -45,7 +48,13 @@ fn ip_absent_from_the_database_leaves_geo_fields_empty() {
 #[test]
 fn loopback_unspecified_private_and_link_local_addresses_are_never_looked_up() {
     let reader = test_reader();
-    for ip in ["127.0.0.1", "0.0.0.0", "10.1.2.3", "192.168.1.1", "169.254.10.10"] {
+    for ip in [
+        "127.0.0.1",
+        "0.0.0.0",
+        "10.1.2.3",
+        "192.168.1.1",
+        "169.254.10.10",
+    ] {
         let analytics =
             SessionAnalytics::from_headers_with_geoip(&headers_with_ip(ip), Some(&reader));
         assert_eq!(analytics.country, None, "{ip} must not be geolocated");

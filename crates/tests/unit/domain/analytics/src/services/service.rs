@@ -4,6 +4,56 @@ use axum::http::{HeaderMap, HeaderValue};
 use systemprompt_analytics::{AnalyticsService, SessionAnalytics};
 use systemprompt_test_fixtures::fixture_user_id;
 
+mod analytics_service_instance_tests {
+    use axum::body::Body;
+    use axum::extract::Request;
+    use axum::http::HeaderValue;
+    use systemprompt_analytics::AnalyticsService;
+    use systemprompt_test_fixtures::{
+        ensure_test_bootstrap, fixture_database_url, fixture_db_pool,
+    };
+
+    #[tokio::test]
+    async fn debug_reports_type_erased_fields() {
+        let Ok(url) = fixture_database_url() else {
+            return;
+        };
+        ensure_test_bootstrap();
+        let pool = fixture_db_pool(&url).await.expect("pool");
+        let service = AnalyticsService::new(&pool, None, None).expect("service");
+
+        let debug = format!("{:?}", service);
+        assert!(debug.contains("AnalyticsService"));
+        // geoip_reader is rendered as its presence flag, not the reader itself.
+        assert!(debug.contains("geoip_reader: false"));
+        assert!(debug.contains("content_routing: false"));
+        assert!(debug.contains("SessionRepository"));
+    }
+
+    #[tokio::test]
+    async fn extract_from_request_reads_headers_and_uri() {
+        let Ok(url) = fixture_database_url() else {
+            return;
+        };
+        ensure_test_bootstrap();
+        let pool = fixture_db_pool(&url).await.expect("pool");
+        let service = AnalyticsService::new(&pool, None, None).expect("service");
+
+        let mut request = Request::builder()
+            .uri("https://example.com/page?utm_source=abc")
+            .body(Body::empty())
+            .expect("request");
+        request.headers_mut().insert(
+            "user-agent",
+            HeaderValue::from_static("Mozilla/5.0 Chrome/120.0"),
+        );
+
+        let analytics = service.extract_from_request(&request);
+        assert_eq!(analytics.utm_source.as_deref(), Some("abc"));
+        assert!(analytics.user_agent.as_deref().unwrap().contains("Chrome"));
+    }
+}
+
 mod analytics_service_tests {
     use super::*;
 

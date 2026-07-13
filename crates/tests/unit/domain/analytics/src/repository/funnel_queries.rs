@@ -167,6 +167,66 @@ async fn get_stats_for_unknown_funnel_is_an_error() {
     assert!(err.to_string().contains(missing.as_str()));
 }
 
+#[tokio::test]
+async fn get_stats_with_no_entries_yields_zero_conversion_and_unentered_steps() {
+    let Ok(url) = fixture_database_url() else {
+        return;
+    };
+    ensure_test_bootstrap();
+    let pool = fixture_db_pool(&url).await.expect("pool");
+    let repo = FunnelRepository::new(&pool).expect("repo");
+
+    let name = format!("funnel-{}", Uuid::new_v4());
+    let created = repo
+        .create_funnel(&two_step_input(&name))
+        .await
+        .expect("create");
+    let id = created.funnel.id.clone();
+
+    // No progress recorded: overall and per-step conversion both take the
+    // zero-denominator branch.
+    let stats = repo
+        .get_stats(&id, Utc::now() - Duration::hours(1))
+        .await
+        .expect("stats");
+    assert_eq!(stats.total_entries, 0);
+    assert!((stats.overall_conversion_rate - 0.0).abs() < f64::EPSILON);
+    assert_eq!(stats.step_stats.len(), 2);
+    for step in &stats.step_stats {
+        assert_eq!(step.entered_count, 0);
+        assert!((step.conversion_rate - 0.0).abs() < f64::EPSILON);
+    }
+
+    repo.delete(&id).await.expect("cleanup");
+}
+
+#[tokio::test]
+async fn get_stats_for_stepless_funnel_has_empty_step_stats() {
+    let Ok(url) = fixture_database_url() else {
+        return;
+    };
+    ensure_test_bootstrap();
+    let pool = fixture_db_pool(&url).await.expect("pool");
+    let repo = FunnelRepository::new(&pool).expect("repo");
+
+    let name = format!("funnel-{}", Uuid::new_v4());
+    let input = CreateFunnelInput {
+        name: name.clone(),
+        description: None,
+        steps: vec![],
+    };
+    let created = repo.create_funnel(&input).await.expect("create");
+    let id = created.funnel.id.clone();
+
+    let stats = repo
+        .get_stats(&id, Utc::now() - Duration::hours(1))
+        .await
+        .expect("stats");
+    assert!(stats.step_stats.is_empty());
+
+    repo.delete(&id).await.expect("cleanup");
+}
+
 #[test]
 fn funnel_match_type_string_round_trip() {
     let variants = [

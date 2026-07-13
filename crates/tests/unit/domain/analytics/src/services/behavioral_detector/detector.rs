@@ -445,4 +445,84 @@ mod behavioral_bot_detector_tests {
                 .any(|s| s.signal_type == SignalType::HomeTabWatcher)
         );
     }
+
+    #[test]
+    fn new_constructs_usable_detector() {
+        let detector = BehavioralBotDetector::new();
+        // The unit struct carries no state; a default instance is equivalent.
+        assert_eq!(
+            format!("{:?}", detector),
+            format!("{:?}", BehavioralBotDetector)
+        );
+    }
+
+    #[test]
+    fn analyze_identical_session_starts_skip_periodic_cadence() {
+        let now = Utc::now();
+        // Zero-variance intervals make the mean gap zero, so the coefficient
+        // of variation is undefined and the cadence check must bail out.
+        let starts = vec![now; 6];
+        let mut input = create_input(2, vec!["/other".to_string()], 100, 6, 10);
+        input.fingerprint_session_starts = starts;
+        let result = BehavioralBotDetector::analyze(&input);
+
+        assert!(
+            !result
+                .signals
+                .iter()
+                .any(|s| s.signal_type == SignalType::PeriodicCadence)
+        );
+    }
+
+    #[test]
+    fn analyze_home_tab_skipped_with_multiple_endpoints() {
+        let now = Utc::now();
+        let starts: Vec<chrono::DateTime<Utc>> = (0..6)
+            .map(|i| now - Duration::hours(24 * (6 - i)))
+            .collect();
+        let mut input = create_input(2, vec!["/".to_string(), "/other".to_string()], 100, 6, 1);
+        input.fingerprint_session_starts = starts;
+        let result = BehavioralBotDetector::analyze(&input);
+
+        assert!(
+            !result
+                .signals
+                .iter()
+                .any(|s| s.signal_type == SignalType::HomeTabWatcher)
+        );
+    }
+
+    #[test]
+    fn analyze_home_tab_skipped_when_single_endpoint_is_not_root() {
+        let now = Utc::now();
+        let starts: Vec<chrono::DateTime<Utc>> = (0..6)
+            .map(|i| now - Duration::hours(24 * (6 - i)))
+            .collect();
+        let mut input = create_input(2, vec!["/dashboard".to_string()], 100, 6, 1);
+        input.fingerprint_session_starts = starts;
+        let result = BehavioralBotDetector::analyze(&input);
+
+        assert!(
+            !result
+                .signals
+                .iter()
+                .any(|s| s.signal_type == SignalType::HomeTabWatcher)
+        );
+    }
+
+    #[test]
+    fn analyze_outdated_firefox_with_trailing_tokens_flags() {
+        // Firefox version followed by a space-delimited token exercises the
+        // truncate-at-first-non-numeric parse path in `is_outdated_browser`.
+        let input =
+            create_input_with_user_agent(Some("Mozilla/5.0 Firefox/80 Gecko/20100101".to_string()));
+        let result = BehavioralBotDetector::analyze(&input);
+
+        assert!(
+            result
+                .signals
+                .iter()
+                .any(|s| s.signal_type == SignalType::OutdatedBrowser)
+        );
+    }
 }

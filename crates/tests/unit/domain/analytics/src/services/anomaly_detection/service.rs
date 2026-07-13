@@ -230,4 +230,24 @@ mod anomaly_detection_service_tests {
         let events = service.get_recent_events("concurrent_metric").await;
         assert_eq!(events.len(), 10);
     }
+
+    #[tokio::test]
+    async fn check_trend_anomaly_returns_none_when_window_excludes_all_events() {
+        let service = AnomalyDetectionService::new();
+        service.record_event("windowed_metric", 10.0).await;
+        service.record_event("windowed_metric", 20.0).await;
+
+        // A zero-minute window puts the cutoff at `now`, so every just-recorded
+        // event falls outside it and the trend check has nothing to compare.
+        let result = service.check_trend_anomaly("windowed_metric", 0).await;
+        assert!(result.is_none());
+    }
+
+    #[tokio::test]
+    async fn default_matches_new() {
+        let service = AnomalyDetectionService::default();
+        // The default instance carries the same seeded thresholds as `new`.
+        let result = service.check_anomaly("requests_per_minute", 30.0).await;
+        assert_eq!(result.level, AnomalyLevel::Critical);
+    }
 }

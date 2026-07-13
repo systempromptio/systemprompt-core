@@ -150,6 +150,15 @@ mod matches_bot_pattern_tests {
     }
 
     #[test]
+    fn compatible_without_browser_or_bot_keyword_matches() {
+        // "MSIE" carries no bot keyword and no known-browser marker, so the
+        // sole trigger is the bare `compatible` heuristic branch.
+        assert!(matches_bot_pattern(
+            "Mozilla/5.0 (compatible; MSIE 10.0; Windows NT 6.1)"
+        ));
+    }
+
+    #[test]
     fn compatible_with_chrome_is_not_bot() {
         assert!(!matches_bot_pattern(
             "Mozilla/5.0 (compatible; MSIE 10.0; Windows NT 6.1; Chrome/120.0)"

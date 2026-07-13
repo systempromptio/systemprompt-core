@@ -122,6 +122,31 @@ mod signal_type_tests {
         let json = serde_json::to_string(&signal).unwrap();
         assert!(json.contains("HighRequestCount"));
     }
+
+    #[test]
+    fn signal_type_display_remaining_variants() {
+        assert_eq!(
+            format!("{}", SignalType::NoJavaScriptEvents),
+            "no_javascript_events"
+        );
+        assert_eq!(format!("{}", SignalType::GhostSession), "ghost_session");
+        assert_eq!(
+            format!("{}", SignalType::ResidentialProxyRotation),
+            "residential_proxy_rotation"
+        );
+        assert_eq!(
+            format!("{}", SignalType::NoEngagementAcrossSessions),
+            "no_js_engagement"
+        );
+        assert_eq!(
+            format!("{}", SignalType::PeriodicCadence),
+            "periodic_cadence"
+        );
+        assert_eq!(
+            format!("{}", SignalType::HomeTabWatcher),
+            "home_tab_watcher"
+        );
+    }
 }
 
 mod behavioral_signal_tests {
