@@ -23,7 +23,7 @@ pub fn parse_database_datetime(value: &serde_json::Value) -> Option<DateTime<Utc
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum DbValue {
     String(String),
     Int(i64),

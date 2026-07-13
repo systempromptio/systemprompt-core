@@ -15,9 +15,7 @@ impl FromDbValue for String {
             DbValue::Float(f) => Ok(f.to_string()),
             DbValue::Bool(b) => Ok(b.to_string()),
             DbValue::Timestamp(dt) => Ok(dt.to_rfc3339()),
-            DbValue::StringArray(arr) => {
-                Ok(serde_json::to_string(arr).unwrap_or_else(|_e| "[]".to_owned()))
-            },
+            DbValue::StringArray(arr) => Ok(serde_json::Value::from(arr.clone()).to_string()),
             DbValue::NullString
             | DbValue::NullInt
             | DbValue::NullFloat
