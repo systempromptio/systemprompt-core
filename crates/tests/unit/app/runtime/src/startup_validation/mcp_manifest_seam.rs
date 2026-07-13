@@ -5,14 +5,19 @@
 
 use std::collections::HashMap;
 
+use systemprompt_models::ServicesConfig;
 use systemprompt_models::auth::JwtAudience;
 use systemprompt_models::mcp::{Deployment, McpServerType, OAuthRequirement};
-use systemprompt_models::ServicesConfig;
 use systemprompt_runtime::{collect_manifest_errors, merge_mcp_errors};
 use systemprompt_traits::validation_report::ValidationError;
 use systemprompt_traits::{StartupValidationReport, ValidationReport};
 
-fn deployment(server_type: McpServerType, enabled: bool, dev_only: bool, binary: &str) -> Deployment {
+fn deployment(
+    server_type: McpServerType,
+    enabled: bool,
+    dev_only: bool,
+    binary: &str,
+) -> Deployment {
     Deployment {
         server_type,
         binary: binary.to_owned(),
@@ -61,7 +66,10 @@ fn internal_missing_manifest_yields_error() {
         "message names the binary: {}",
         errors[0].message
     );
-    assert!(errors[0].suggestion.is_some(), "carries a manifest-path hint");
+    assert!(
+        errors[0].suggestion.is_some(),
+        "carries a manifest-path hint"
+    );
 }
 
 #[test]
@@ -79,9 +87,18 @@ fn internal_present_manifest_yields_no_error() {
 #[test]
 fn disabled_external_and_cloud_devonly_are_skipped() {
     let cfg = services_with(vec![
-        ("disabled", deployment(McpServerType::Internal, false, false, "bin_d")),
-        ("external", deployment(McpServerType::External, true, false, "")),
-        ("dev", deployment(McpServerType::Internal, true, true, "bin_dev")),
+        (
+            "disabled",
+            deployment(McpServerType::Internal, false, false, "bin_d"),
+        ),
+        (
+            "external",
+            deployment(McpServerType::External, true, false, ""),
+        ),
+        (
+            "dev",
+            deployment(McpServerType::Internal, true, true, "bin_dev"),
+        ),
     ]);
 
     let cloud_errors = collect_manifest_errors(&cfg, true, |_| Err("nope".to_owned()));
@@ -127,9 +144,17 @@ fn merge_appends_to_existing_mcp_domain() {
         vec![ValidationError::new("mcp_servers.y.binary", "missing")],
     );
 
-    let mcp_domains: Vec<_> = report.domains.iter().filter(|d| d.domain == "mcp").collect();
+    let mcp_domains: Vec<_> = report
+        .domains
+        .iter()
+        .filter(|d| d.domain == "mcp")
+        .collect();
     assert_eq!(mcp_domains.len(), 1, "must not create a second mcp domain");
-    assert_eq!(mcp_domains[0].errors.len(), 2, "appended to the existing domain");
+    assert_eq!(
+        mcp_domains[0].errors.len(),
+        2,
+        "appended to the existing domain"
+    );
 }
 
 #[test]

@@ -15,11 +15,19 @@
 #[cfg(test)]
 mod app_context_parts;
 #[cfg(test)]
+mod boot;
+#[cfg(test)]
+mod builder_build_live;
+#[cfg(test)]
 mod builder_extra;
 #[cfg(test)]
 mod context;
 #[cfg(test)]
 mod context_loaders_extra;
+#[cfg(test)]
+mod context_loaders_paths;
+#[cfg(test)]
+mod context_planes;
 #[cfg(test)]
 mod database_context;
 #[cfg(test)]
@@ -29,7 +37,11 @@ mod display_tests;
 #[cfg(test)]
 mod error_variants;
 #[cfg(test)]
+mod ext_fixtures;
+#[cfg(test)]
 mod files_validator_load;
+#[cfg(test)]
+mod files_validator_storage_errors;
 #[cfg(test)]
 mod files_validator_tests;
 #[cfg(test)]

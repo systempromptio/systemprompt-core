@@ -11,13 +11,19 @@ publish = false
 workspace = true
 
 [dependencies]
-systemprompt-runtime = { workspace = true }
+systemprompt-runtime = { workspace = true, features = ["geolocation"] }
 systemprompt-models = { workspace = true }
 systemprompt-traits = { workspace = true }
 systemprompt-extension = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 systemprompt-marketplace = { workspace = true }
 systemprompt-security = { workspace = true }
+systemprompt-config = { workspace = true }
+systemprompt-logging = { workspace = true }
+systemprompt-files = { workspace = true }
+systemprompt-analytics = { workspace = true }
+systemprompt-mcp = { workspace = true }
+systemprompt-test-fixtures = { workspace = true }
 axum = { workspace = true }
 inventory = { workspace = true }
 
@@ -25,6 +31,8 @@ inventory = { workspace = true }
 tokio = { workspace = true }
 tempfile = { workspace = true }
 serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+sqlx = { workspace = true }
 
 [package.metadata.cargo-machete]
 ignored = ["inventory"]
