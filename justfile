@@ -383,7 +383,7 @@ coverage:
     (cd "$ROOT" && CARGO_BUILD_RUSTC_WRAPPER="" RUSTC_WRAPPER="" \
         CARGO_TARGET_DIR="$MAINTDIR" \
         LLVM_PROFILE_FILE="$PROFDIR/%m%c.profraw" \
-        RUSTFLAGS="-C instrument-coverage" \
+        RUSTFLAGS="-C instrument-coverage -C llvm-args=--runtime-counter-relocation" \
         cargo build -p systemprompt-cli --bin systemprompt --jobs 4)
     export SYSTEMPROMPT_BIN="$MAINTDIR/debug/systemprompt"
 
@@ -401,7 +401,7 @@ coverage:
         RUSTC_WRAPPER="" \
         CARGO_TARGET_DIR="$TDIR" \
         LLVM_PROFILE_FILE="$PROFDIR/%m%c.profraw" \
-        RUSTFLAGS="-C instrument-coverage" \
+        RUSTFLAGS="-C instrument-coverage -C llvm-args=--runtime-counter-relocation" \
         SYSTEMPROMPT_BIN="$SYSTEMPROMPT_BIN" \
         DATABASE_URL="$DATABASE_URL" \
         cargo nextest run --workspace --lib --bins --tests --build-jobs 4 --no-fail-fast \
