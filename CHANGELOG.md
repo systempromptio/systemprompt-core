@@ -12,8 +12,13 @@
 
 - `DbValue` derives `PartialEq`, and two unreachable defensive branches are removed: the `FromDbValue for String` array-serialization fallback (a `Vec<String>` cannot fail to serialize) and the templates `json_helper` nested-error arm plus the dead `file_stem` guard in template discovery (an `.html` path always has a stem).
 
+### Fixed
+
+- `infra logs trace show <task-id> --json` emitted nothing for AI-task traces (every section is JSON-suppressed and the card result skipped rendering, leaving only the generic completion message); it now emits the serialized trace view as the Trace JSON artifact, matching the log-event-trace path.
+
 ### Tests
 
+- `systemprompt-template-provider` to 98.8% line coverage (only the kernel-fault `read_dir` iteration error remains): `FileSystemLoader` canonicalize/IO error propagation, symlink escapes surfacing `OutsideBasePath`, and non-UTF-8 template stems surfacing `InvalidEncoding`, each asserting the exact error variant and path.
 - Drove the twelve 90%+ crates to (or within documented-unreachable lines of) 100% line coverage with behavior-asserting tests only: error-propagation contracts through a new shared `closed_db_pool()` fixture, GeoIP enrichment against the canonical MaxMind test database, Slack `check_ok`/SSRF/transport edges, non-ASCII header and cookie-format extraction edges, hook-token scope/claim rejection, marketplace fail-closed catalog/bundle skips, template lifecycle skip/warn branches (log-field regions require a scoped subscriber to count), extension injected-discovery/typed-builder/path-collision contracts, and the `ToDbValue`/`FromDbValue` conversion matrix. The duplicated full-`WebConfig` YAML test fixture is centralized in `systemprompt-test-fixtures`.
 - Converted the vanity-test tail across the suite to behavior-asserting tests: discarded-result smokes (`let _ = call.unwrap()`) now assert the zero-result contract or seeded-row shapes, `is_ok()`/`is_some()`-only checks bind and assert a domain field, and `!is_empty()`-only checks assert exact length or membership on uniquely-tagged seeded rows. The highest-risk CLI subprocess exit-code-only tests now assert seeded content in stdout. Added a `check-test-value` quality gate (`just lint-test-value`, wired into `check` and the `quality.yml` source-gates job) that hard-fails on unasserted discarded results, plus an observational zero-assertion-fn heuristic in the standards audit.
 
