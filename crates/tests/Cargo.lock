@@ -8451,6 +8451,7 @@ name = "systemprompt-security-authz-tests"
 version = "0.0.11"
 dependencies = [
  "async-trait",
+ "inventory",
  "serde_json",
  "serde_yaml_ng",
  "sqlx",
