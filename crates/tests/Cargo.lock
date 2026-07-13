@@ -1208,9 +1208,9 @@ dependencies = [
 
 [[package]]
 name = "crossbeam-epoch"
-version = "0.9.18"
+version = "0.9.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5b82ac4a3c2ca9c3460964f020e1402edd5753411d7737aa39c3714ad1b5420e"
+checksum = "2d6914041f254d6e9176c01941b21115dcfb7089e55135a35411081bd106ef3f"
 dependencies = [
  "crossbeam-utils",
 ]
@@ -6772,6 +6772,8 @@ dependencies = [
  "systemprompt-test-fixtures",
  "systemprompt-traits",
  "tokio",
+ "tracing",
+ "tracing-subscriber",
  "uuid",
 ]
 
@@ -7569,9 +7571,11 @@ dependencies = [
 name = "systemprompt-content-tests"
 version = "0.0.11"
 dependencies = [
+ "async-trait",
  "chrono",
  "serde_json",
  "serde_yaml_ng",
+ "sqlx",
  "systemprompt-content",
  "systemprompt-database",
  "systemprompt-extension",
@@ -7732,11 +7736,14 @@ version = "0.0.11"
 dependencies = [
  "async-trait",
  "axum",
+ "inventory",
  "serde_json",
  "systemprompt-extension",
  "systemprompt-provider-contracts",
  "systemprompt-traits",
  "tempfile",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]
@@ -8017,6 +8024,8 @@ dependencies = [
  "systemprompt-test-fixtures",
  "tempfile",
  "tokio",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]
@@ -8461,6 +8470,8 @@ dependencies = [
  "systemprompt-security",
  "systemprompt-test-fixtures",
  "tokio",
+ "tracing",
+ "tracing-subscriber",
  "uuid",
  "wiremock",
 ]
