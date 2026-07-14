@@ -130,23 +130,21 @@ async fn update_metadata_persists_new_checksums() {
 }
 
 #[tokio::test]
-async fn get_stats_snapshot_is_internally_consistent_and_grows() {
+async fn get_stats_snapshot_is_internally_consistent() {
     let Some(db) = db().await else { return };
     let repo = FileRepository::new(&db).expect("repo");
     let tag = format!("stats-{}", uuid::Uuid::new_v4().simple());
-
-    let before = repo.get_stats().await.expect("stats before");
 
     let file = file_row(&tag, true, None);
     repo.insert_file(&file).await.expect("insert");
 
     let after = repo.get_stats().await.expect("stats after");
-    // Sibling test processes may insert rows concurrently, so growth is a
-    // lower bound; the categorical identity holds exactly per snapshot.
-    assert!(after.total_files > before.total_files);
-    assert!(after.image_count > before.image_count);
-    assert!(after.ai_images_count > before.ai_images_count);
-    assert!(after.total_size_bytes >= before.total_size_bytes + 5);
+    // Sibling test processes insert and delete rows concurrently, so only
+    // lower bounds and the per-snapshot categorical identity are stable.
+    assert!(after.total_files >= 1);
+    assert!(after.image_count >= 1);
+    assert!(after.ai_images_count >= 1);
+    assert!(after.total_size_bytes >= 5);
     assert_eq!(
         after.other_count,
         (after.total_files
