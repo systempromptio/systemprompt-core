@@ -1,7 +1,6 @@
 //! Tests for the `systemprompt_traits` provider bridges implemented in
 //! `services/providers.rs`: `AnalyticsProvider for AnalyticsService`,
-//! `FingerprintProvider for FingerprintRepository`, and
-//! `SessionAnalyticsProvider for SessionRepository`. Happy paths run against
+//! and `FingerprintProvider for FingerprintRepository`. Happy paths run against
 //! the migrated DB and assert the translated return values; every error arm
 //! is driven through a closed pool to exercise the `Internal(e.to_string())`
 //! mapping.
@@ -17,8 +16,7 @@ use systemprompt_test_fixtures::{
 };
 use systemprompt_traits::{
     AnalyticsProvider, AnalyticsProviderError, CreateSessionInput, FingerprintProvider,
-    SessionAnalytics as TraitSessionAnalytics, SessionAnalyticsProvider,
-    SessionAnalyticsProviderError,
+    SessionAnalytics as TraitSessionAnalytics,
 };
 use uuid::Uuid;
 
@@ -287,48 +285,3 @@ mod fingerprint_provider {
     }
 }
 
-mod session_analytics_provider {
-    use super::*;
-
-    #[tokio::test]
-    async fn increment_counters_through_trait() {
-        let Ok(url) = fixture_database_url() else {
-            return;
-        };
-        ensure_test_bootstrap();
-        let pool = fixture_db_pool(&url).await.expect("pool");
-        let repo = SessionRepository::new(&pool).expect("repo");
-
-        let sid = unique_session_id();
-        seed(&pool, &sid, &format!("fp-{}", Uuid::new_v4())).await;
-
-        SessionAnalyticsProvider::increment_task_count(&repo, &sid)
-            .await
-            .expect("task");
-        SessionAnalyticsProvider::increment_message_count(&repo, &sid)
-            .await
-            .expect("msg");
-
-        let s = repo.find_by_id(&sid).await.expect("find").expect("present");
-        assert_eq!(s.task_count, Some(1));
-        assert_eq!(s.message_count, Some(1));
-
-        cleanup(&pool, &sid).await;
-    }
-
-    #[tokio::test]
-    async fn increment_error_arms_map_to_internal() {
-        let pool = closed_db_pool().await;
-        let repo = SessionRepository::new(&pool).expect("repo");
-        let sid = unique_session_id();
-
-        assert!(matches!(
-            SessionAnalyticsProvider::increment_task_count(&repo, &sid).await,
-            Err(SessionAnalyticsProviderError::Internal(_))
-        ));
-        assert!(matches!(
-            SessionAnalyticsProvider::increment_message_count(&repo, &sid).await,
-            Err(SessionAnalyticsProviderError::Internal(_))
-        ));
-    }
-}

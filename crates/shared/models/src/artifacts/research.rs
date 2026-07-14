@@ -13,8 +13,6 @@ pub struct ResearchArtifact {
 }
 
 impl ResearchArtifact {
-    pub const ARTIFACT_TYPE: &'static str = "presentation_card";
-
     pub fn new(
         topic: impl Into<String>,
         card: PresentationCardResponse,

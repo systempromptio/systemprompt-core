@@ -228,14 +228,9 @@ async fn enforce_authz_allows_under_allow_all_hook() {
     let hook: SharedAuthzHook = Arc::new(AllowAllHook::null());
     let route = gateway_route();
     let principal = api_key_principal("authz-allow-user");
-    enforce_authz_pre_dispatch(
-        &principal,
-        &route,
-        "claude-test",
-        &hook,
-    )
-    .await
-    .expect("allow hook permits");
+    enforce_authz_pre_dispatch(&principal, &route, "claude-test", &hook)
+        .await
+        .expect("allow hook permits");
 }
 
 #[tokio::test]
@@ -243,14 +238,9 @@ async fn enforce_authz_denies_under_deny_all_hook() {
     let hook: SharedAuthzHook = Arc::new(DenyAllHook::null());
     let route = gateway_route();
     let principal = api_key_principal("authz-deny-user");
-    let (status, msg) = enforce_authz_pre_dispatch(
-        &principal,
-        &route,
-        "claude-test",
-        &hook,
-    )
-    .await
-    .expect_err("deny hook rejects");
+    let (status, msg) = enforce_authz_pre_dispatch(&principal, &route, "claude-test", &hook)
+        .await
+        .expect_err("deny hook rejects");
     assert_eq!(status, StatusCode::FORBIDDEN);
     assert!(msg.contains("authz denied"), "{msg}");
 }

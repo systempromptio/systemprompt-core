@@ -72,27 +72,7 @@ impl SystemPaths {
         self.root.join(Self::LOGS_DIR)
     }
 
-    pub fn resolve_skill(&self, name: &str) -> PathBuf {
-        self.skills.join(name)
-    }
-
-    pub fn resolve_service(&self, name: &str) -> PathBuf {
-        self.services.join(name)
-    }
-
     pub fn defaults(&self) -> &Path {
         &self.defaults
-    }
-
-    pub fn default_templates(&self) -> PathBuf {
-        self.defaults.join("templates")
-    }
-
-    pub fn default_assets(&self) -> PathBuf {
-        self.defaults.join("assets")
-    }
-
-    pub fn default_web(&self) -> PathBuf {
-        self.defaults.join("web")
     }
 }

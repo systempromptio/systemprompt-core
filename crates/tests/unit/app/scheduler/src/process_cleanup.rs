@@ -1,11 +1,9 @@
-//! Tests for ProcessCleanup primitives and its ProcessCleanupProvider adapter.
+//! Tests for ProcessCleanup primitives.
 //!
-//! Focuses on safety guards (protected ports/processes), pure return-value
-//! paths (lookups against PIDs/ports that do not exist), and the provider
-//! trait adapter that exposes the same primitives behind a stable contract.
+//! Focuses on safety guards (protected ports/processes) and pure return-value
+//! paths (lookups against PIDs/ports that do not exist).
 
 use systemprompt_scheduler::ProcessCleanup;
-use systemprompt_traits::ProcessCleanupProvider;
 
 const NONEXISTENT_PID: u32 = i32::MAX as u32;
 const POSTGRES_PORT: u16 = 5432;
@@ -106,50 +104,6 @@ async fn terminate_gracefully_false_for_nonexistent_pid() {
     assert!(!ProcessCleanup::terminate_gracefully(NONEXISTENT_PID, 1).await);
 }
 
-mod provider_adapter {
-    use super::{
-        NONEXISTENT_PID, POSTGRES_PORT, ProcessCleanup, ProcessCleanupProvider, UNLIKELY_PORT,
-    };
-
-    fn provider() -> Arc<dyn ProcessCleanupProvider> {
-        Arc::new(ProcessCleanup)
-    }
-
-    use std::sync::Arc;
-
-    #[test]
-    fn provider_process_exists_matches_inherent() {
-        let p = provider();
-        assert!(!p.process_exists(NONEXISTENT_PID));
-        assert!(p.process_exists(std::process::id()));
-    }
-
-    #[test]
-    fn provider_check_port_matches_inherent() {
-        let p = provider();
-        assert!(p.check_port(POSTGRES_PORT).is_none());
-        assert!(p.check_port(UNLIKELY_PORT).is_none());
-    }
-
-    #[test]
-    fn provider_kill_process_false_for_nonexistent_pid() {
-        let p = provider();
-        assert!(!p.kill_process(NONEXISTENT_PID));
-    }
-
-    #[tokio::test]
-    async fn provider_terminate_gracefully_false_for_nonexistent_pid() {
-        let p = provider();
-        assert!(!p.terminate_gracefully(NONEXISTENT_PID, 1).await);
-    }
-
-    #[tokio::test]
-    async fn provider_wait_for_port_free_returns_ok_when_unbound() {
-        let p = provider();
-        assert!(p.wait_for_port_free(UNLIKELY_PORT, 1, 1).await.is_ok());
-    }
-}
-
 #[cfg(unix)]
 mod kill_port_ownership {
     use super::*;
@@ -225,21 +179,4 @@ mod wait_for_port_free_occupied {
         );
     }
 
-    #[tokio::test]
-    async fn provider_maps_occupied_port_to_port_timeout() {
-        use systemprompt_traits::{ProcessCleanupProvider, ProcessProviderError};
-
-        let listener = TcpListener::bind("127.0.0.1:0").expect("bind listener");
-        let port = listener.local_addr().expect("local addr").port();
-
-        let provider: &dyn ProcessCleanupProvider = &ProcessCleanup;
-        let err = provider
-            .wait_for_port_free(port, 2, 10)
-            .await
-            .expect_err("the provider must propagate the occupied port");
-        assert!(
-            matches!(err, ProcessProviderError::PortTimeout(p) if p == port),
-            "expected PortTimeout({port}), got {err:?}"
-        );
-    }
 }

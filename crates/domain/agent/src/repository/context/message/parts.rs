@@ -1,30 +1,9 @@
 use sqlx::PgPool;
 use std::sync::Arc;
-use systemprompt_identifiers::{ContextId, MessageId, SessionId, TaskId, TraceId, UserId};
-use systemprompt_traits::{DynFileUploadProvider, FileUploadInput, RepositoryError};
+use systemprompt_identifiers::{MessageId, TaskId};
+use systemprompt_traits::RepositoryError;
 
 use crate::models::a2a::Part;
-
-#[derive(Clone)]
-pub struct FileUploadContext<'a> {
-    pub upload_provider: &'a DynFileUploadProvider,
-    pub context_id: &'a ContextId,
-    pub user_id: Option<&'a UserId>,
-    pub session_id: Option<&'a SessionId>,
-    pub trace_id: Option<&'a TraceId>,
-}
-
-impl std::fmt::Debug for FileUploadContext<'_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("FileUploadContext")
-            .field("upload_provider", &"<DynFileUploadProvider>")
-            .field("context_id", &self.context_id)
-            .field("user_id", &self.user_id)
-            .field("session_id", &self.session_id)
-            .field("trace_id", &self.trace_id)
-            .finish()
-    }
-}
 
 pub async fn get_message_parts(
     pool: &Arc<PgPool>,
@@ -105,7 +84,6 @@ pub struct PersistPartSqlxParams<'a> {
     pub message_id: &'a MessageId,
     pub task_id: &'a TaskId,
     pub sequence_number: i32,
-    pub upload_ctx: Option<&'a FileUploadContext<'a>>,
 }
 
 pub(super) async fn persist_part_sqlx(
@@ -117,7 +95,6 @@ pub(super) async fn persist_part_sqlx(
         message_id,
         task_id,
         sequence_number,
-        upload_ctx,
     } = params;
     match part {
         Part::Text(text_part) => {
@@ -134,12 +111,8 @@ pub(super) async fn persist_part_sqlx(
             .map_err(RepositoryError::database)?;
         },
         Part::File(file_part) => {
-            let upload_result = try_upload_file(file_part, upload_ctx).await;
-
-            let (file_id, file_uri) = match upload_result {
-                Some((id, uri)) => (Some(id), Some(uri)),
-                None => (None, None),
-            };
+            let file_id: Option<uuid::Uuid> = None;
+            let file_uri: Option<String> = None;
 
             sqlx::query!(
                 r#"INSERT INTO message_parts (message_id, task_id, part_kind, sequence_number, file_name, file_mime_type, file_uri, file_bytes, file_id)
@@ -175,58 +148,6 @@ pub(super) async fn persist_part_sqlx(
     }
 
     Ok(())
-}
-
-async fn try_upload_file(
-    file_part: &crate::models::a2a::FilePart,
-    upload_ctx: Option<&FileUploadContext<'_>>,
-) -> Option<(uuid::Uuid, String)> {
-    let ctx = upload_ctx?;
-
-    if !ctx.upload_provider.is_enabled() {
-        return None;
-    }
-
-    let mime_type = file_part
-        .file
-        .mime_type
-        .as_deref()
-        .unwrap_or("application/octet-stream");
-
-    let bytes = file_part.file.bytes.as_deref()?;
-    let mut input = FileUploadInput::new(mime_type, bytes, Some(ctx.context_id.clone()));
-
-    if let Some(name) = &file_part.file.name {
-        input = input.with_name(name);
-    }
-
-    if let Some(user_id) = ctx.user_id {
-        input = input.with_user_id(user_id.clone());
-    }
-
-    if let Some(session_id) = ctx.session_id {
-        input = input.with_session_id(session_id.clone());
-    }
-
-    if let Some(trace_id) = ctx.trace_id {
-        input = input.with_trace_id(trace_id.clone());
-    }
-
-    match ctx.upload_provider.upload_file(input).await {
-        Ok(uploaded) => {
-            let file_uuid = uuid::Uuid::parse_str(uploaded.file_id.as_str())
-                .map_err(|e| {
-                    tracing::warn!(file_id = %uploaded.file_id, error = %e, "Invalid UUID from file service");
-                    e
-                })
-                .ok()?;
-            Some((file_uuid, uploaded.public_url))
-        },
-        Err(e) => {
-            tracing::warn!(error = %e, "File upload failed, continuing with base64 only");
-            None
-        },
-    }
 }
 
 pub(super) async fn persist_part_with_tx(

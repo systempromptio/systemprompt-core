@@ -83,8 +83,7 @@ pub use lifecycle::{
     validate_table_exists,
 };
 pub use repository::{
-    CleanupRepository, CreateServiceInput, DatabaseInfoRepository, PgDbPool, ServiceConfig,
-    ServiceRepository,
+    CleanupRepository, CreateServiceInput, PgDbPool, ServiceConfig, ServiceRepository,
 };
 pub use squash_baseline::{SquashBaselineError, SquashBaselineService};
 

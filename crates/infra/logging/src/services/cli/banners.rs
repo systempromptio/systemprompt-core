@@ -15,7 +15,7 @@ use super::startup::{
     render_phase_header, render_phase_info, render_phase_success, render_phase_warning,
     render_startup_banner,
 };
-use super::table::{ServiceTableEntry, render_service_table, render_startup_complete};
+use super::table::render_startup_complete;
 use super::theme::{EmphasisType, Theme};
 
 impl CliService {
@@ -58,10 +58,6 @@ impl CliService {
         pb.set_message(msg);
         pb.enable_steady_tick(Duration::from_millis(80));
         pb
-    }
-
-    pub fn service_table(title: &str, services: &[ServiceTableEntry]) {
-        render_service_table(title, services);
     }
 
     pub fn startup_complete(duration: Duration, api_url: &str) {

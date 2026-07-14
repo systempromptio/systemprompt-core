@@ -177,12 +177,4 @@ impl WebAuthnService {
 
         Ok(state.user_id)
     }
-
-    pub async fn cleanup_expired_link_states(link_states: &LinkStates) {
-        let now = Instant::now();
-        let expiry = Duration::from_secs(CHALLENGE_EXPIRY_SECONDS);
-
-        let mut states = link_states.lock().await;
-        states.retain(|_id, state| now.duration_since(state.timestamp) < expiry);
-    }
 }

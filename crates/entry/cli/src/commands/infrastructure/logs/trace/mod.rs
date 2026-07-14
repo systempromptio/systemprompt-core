@@ -25,7 +25,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{AiRequestId, TraceId};
 
-use super::types::{MessageRow, ToolCallRow};
+use super::types::ToolCallRow;
 use crate::context::CommandContext;
 use crate::shared::render_result;
 
@@ -176,19 +176,6 @@ pub struct AiTraceOutput {
     pub artifacts: Vec<ArtifactRow>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub agent_response: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct AiLookupOutput {
-    pub request_id: AiRequestId,
-    pub provider: String,
-    pub model: String,
-    pub input_tokens: i32,
-    pub output_tokens: i32,
-    pub cost_dollars: f64,
-    pub latency_ms: i64,
-    pub messages: Vec<MessageRow>,
-    pub linked_mcp_calls: Vec<ToolCallRow>,
 }
 
 pub async fn execute(command: TraceCommands, ctx: &CommandContext) -> Result<()> {

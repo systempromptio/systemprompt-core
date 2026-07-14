@@ -2,8 +2,7 @@
 //!
 //! [`Server`] loads an agent's configuration, wires OAuth state and the AI
 //! provider, and builds the axum [`Router`] exposing the agent card and the A2A
-//! request endpoint. It runs the listener with optional graceful shutdown and
-//! supports live configuration reloads.
+//! request endpoint, then runs the listener.
 
 use axum::routing::{get, post};
 use axum::{Router, middleware};
@@ -83,9 +82,6 @@ impl Server {
         );
 
         oauth_state = oauth_state.with_jwt_provider(Arc::clone(agent_state.jwt_provider()));
-        if let Some(user_provider) = agent_state.user_provider().cloned() {
-            oauth_state = oauth_state.with_user_provider(user_provider);
-        }
 
         Ok(Self {
             db_pool,
@@ -96,27 +92,6 @@ impl Server {
             stream_semaphore: Arc::new(Semaphore::new(global_config.max_concurrent_streams)),
             port,
         })
-    }
-
-    pub async fn reload_config(&self) -> Result<(), crate::error::AgentError> {
-        use crate::services::registry::AgentRegistry;
-
-        let agent_name = {
-            let config = self.config.read().await;
-            config.name.clone()
-        };
-
-        let registry =
-            AgentRegistry::new().map_err(|e| crate::error::AgentError::Server(e.to_string()))?;
-        let mut new_config = registry
-            .get_agent(&agent_name)
-            .await
-            .map_err(|e| crate::error::AgentError::Server(e.to_string()))?;
-        new_config.extract_oauth_scopes_from_card();
-        *self.config.write().await = new_config;
-
-        tracing::info!(agent_name = %agent_name, "Configuration reloaded");
-        Ok(())
     }
 
     pub fn create_router(&self) -> Router {
@@ -157,14 +132,6 @@ impl Server {
     pub async fn run(self) -> Result<(), crate::error::AgentError> {
         Self::log_server_configuration();
         self.start_server(None).await
-    }
-
-    pub async fn run_with_shutdown(
-        self,
-        shutdown_signal: impl Future<Output = ()> + Send + 'static,
-    ) -> Result<(), crate::error::AgentError> {
-        Self::log_server_configuration();
-        self.start_server(Some(Box::pin(shutdown_signal))).await
     }
 
     const fn log_server_configuration() {}

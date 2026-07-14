@@ -75,7 +75,12 @@ async fn event_callback_bot_echo_is_acked() -> anyhow::Result<()> {
         "message",
         serde_json::json!({ "bot_id": "B1", "channel": "C1", "user": "U1", "text": "hi" }),
     );
-    let req = signed_post("/events", &body, TEST_SLACK_SIGNING_SECRET, "application/json");
+    let req = signed_post(
+        "/events",
+        &body,
+        TEST_SLACK_SIGNING_SECRET,
+        "application/json",
+    );
     let resp = router(&ctx).oneshot(req).await?;
     assert_eq!(resp.status(), StatusCode::OK);
     Ok(())
@@ -88,7 +93,12 @@ async fn event_callback_non_message_kind_is_acked() -> anyhow::Result<()> {
         "reaction_added",
         serde_json::json!({ "channel": "C1", "user": "U1" }),
     );
-    let req = signed_post("/events", &body, TEST_SLACK_SIGNING_SECRET, "application/json");
+    let req = signed_post(
+        "/events",
+        &body,
+        TEST_SLACK_SIGNING_SECRET,
+        "application/json",
+    );
     let resp = router(&ctx).oneshot(req).await?;
     assert_eq!(resp.status(), StatusCode::OK);
     Ok(())
@@ -98,7 +108,12 @@ async fn event_callback_non_message_kind_is_acked() -> anyhow::Result<()> {
 async fn event_callback_missing_channel_is_acked() -> anyhow::Result<()> {
     let (_pool, ctx) = messaging_ctx().await?;
     let body = event_body("message", serde_json::json!({ "user": "U1", "text": "hi" }));
-    let req = signed_post("/events", &body, TEST_SLACK_SIGNING_SECRET, "application/json");
+    let req = signed_post(
+        "/events",
+        &body,
+        TEST_SLACK_SIGNING_SECRET,
+        "application/json",
+    );
     let resp = router(&ctx).oneshot(req).await?;
     assert_eq!(resp.status(), StatusCode::OK);
     Ok(())
@@ -139,9 +154,18 @@ async fn event_callback_message_dispatches_and_acks() -> anyhow::Result<()> {
         "message",
         serde_json::json!({ "channel": "C1", "user": "U1", "text": "hi there" }),
     );
-    let req = signed_post("/events", &body, TEST_SLACK_SIGNING_SECRET, "application/json");
+    let req = signed_post(
+        "/events",
+        &body,
+        TEST_SLACK_SIGNING_SECRET,
+        "application/json",
+    );
     let resp = router(&ctx).oneshot(req).await?;
-    assert_eq!(resp.status(), StatusCode::OK, "route acks within Slack's window");
+    assert_eq!(
+        resp.status(),
+        StatusCode::OK,
+        "route acks within Slack's window"
+    );
     Ok(())
 }
 

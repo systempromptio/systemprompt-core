@@ -62,10 +62,6 @@ pub enum LoggingError {
 
     #[error("No task found matching: {partial_id}")]
     TaskNotFound { partial_id: String },
-
-    #[error("Interactive prompt failed")]
-    #[cfg(feature = "cli")]
-    Prompt(#[from] dialoguer::Error),
 }
 
 impl LoggingError {

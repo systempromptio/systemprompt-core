@@ -67,7 +67,6 @@ fn test_credentials_not_initialized() {
     assert_eq!(err.user_message(), "Credentials bootstrap not initialised");
     assert!(err.recovery_hint().contains("Restart the process"));
     assert!(!err.requires_login());
-    assert!(!err.requires_setup());
 }
 
 #[test]
@@ -185,7 +184,6 @@ fn test_json_from_conversion() {
 
 #[test]
 fn test_requires_login_false_for_misc() {
-    assert!(!CloudError::AppNotConfigured.requires_login());
     assert!(!CloudError::CredentialsAlreadyInitialized.requires_login());
     assert!(
         !CloudError::HttpStatus {
@@ -193,17 +191,6 @@ fn test_requires_login_false_for_misc() {
             body: String::new()
         }
         .requires_login()
-    );
-}
-
-#[test]
-fn test_requires_setup_false_for_misc() {
-    assert!(!CloudError::Unauthorized.requires_setup());
-    assert!(
-        !CloudError::OAuthFlow {
-            message: "x".to_string()
-        }
-        .requires_setup()
     );
 }
 
@@ -223,8 +210,6 @@ fn test_all_variants_have_user_message() {
     let variants = vec![
         CloudError::NotAuthenticated,
         CloudError::TokenExpired,
-        CloudError::TenantNotConfigured,
-        CloudError::AppNotConfigured,
         CloudError::JwtDecode,
         CloudError::TenantsNotSynced,
         CloudError::CredentialsNotInitialized,

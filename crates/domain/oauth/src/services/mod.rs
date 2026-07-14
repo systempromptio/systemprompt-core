@@ -28,10 +28,9 @@ pub use templating::TemplateEngine;
 pub use webauthn::{JwtTokenValidator, UserCreationService, WebAuthnConfig, WebAuthnService};
 
 pub use generation::{
-    JwtConfig, JwtSigningParams, generate_access_token_jti, generate_admin_jwt,
-    generate_admin_jwt_with_expiry, generate_anonymous_jwt, generate_anonymous_jwt_with_expiry,
-    generate_client_secret, generate_jwt, generate_jwt_with_act, generate_secure_token,
-    hash_client_secret, verify_client_secret,
+    JwtConfig, JwtSigningParams, generate_access_token_jti, generate_anonymous_jwt,
+    generate_anonymous_jwt_with_expiry, generate_client_secret, generate_jwt,
+    generate_jwt_with_act, generate_secure_token, hash_client_secret, verify_client_secret,
 };
 
 pub use validation::{

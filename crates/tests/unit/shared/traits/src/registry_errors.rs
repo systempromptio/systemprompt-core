@@ -1,16 +1,8 @@
-//! Tests for registry.rs, scheduler.rs, process.rs, and session_analytics error
-//! types.
+//! Tests for registry.rs and scheduler.rs error types.
 
 use systemprompt_traits::ai_providers::AiProviderError;
-use systemprompt_traits::mcp_service::{
-    McpServerMetadata, McpServiceProviderError, McpServiceResult,
-};
-use systemprompt_traits::process::{ProcessProviderError, ProcessResult};
 use systemprompt_traits::registry::{AgentInfo, McpServerInfo, RegistryError, ServiceOAuthConfig};
 use systemprompt_traits::scheduler::{JobInfo, JobStatus, SchedulerError};
-use systemprompt_traits::session_analytics::{
-    SessionAnalyticsProviderError, SessionAnalyticsResult,
-};
 
 // --- RegistryError display ---
 
@@ -209,110 +201,6 @@ fn job_info_clone() {
     };
     let j2 = j.clone();
     assert_eq!(j2.last_error.as_deref(), Some("err msg"));
-}
-
-// --- ProcessProviderError display ---
-
-#[test]
-fn process_not_found_display_contains_pid() {
-    let e = ProcessProviderError::NotFound(12345);
-    assert!(format!("{e}").contains("12345"));
-}
-
-#[test]
-fn process_operation_failed_display() {
-    let e = ProcessProviderError::OperationFailed("kill failed".to_owned());
-    assert!(format!("{e}").contains("kill failed"));
-}
-
-#[test]
-fn process_port_timeout_display_contains_port() {
-    let e = ProcessProviderError::PortTimeout(8080);
-    assert!(format!("{e}").contains("8080"));
-}
-
-#[test]
-fn process_internal_display() {
-    let e = ProcessProviderError::Internal("io error".to_owned());
-    assert!(format!("{e}").contains("io error"));
-}
-
-#[test]
-fn process_result_alias_roundtrip() {
-    let r: ProcessResult<u32> = Ok(99);
-    assert_eq!(r.unwrap(), 99);
-    let r: ProcessResult<()> = Err(ProcessProviderError::Internal("x".into()));
-    assert!(r.is_err());
-}
-
-// --- SessionAnalyticsProviderError ---
-
-#[test]
-fn session_analytics_not_found_display() {
-    let e = SessionAnalyticsProviderError::SessionNotFound;
-    let s = format!("{e}");
-    assert!(!s.is_empty());
-}
-
-#[test]
-fn session_analytics_internal_display() {
-    let e = SessionAnalyticsProviderError::Internal("db gone".to_owned());
-    assert!(format!("{e}").contains("db gone"));
-}
-
-#[test]
-fn session_analytics_result_ok() {
-    let r: SessionAnalyticsResult<i32> = Ok(1);
-    assert_eq!(r.unwrap(), 1);
-}
-
-// --- McpServiceProviderError display ---
-
-#[test]
-fn mcp_service_server_not_found_display() {
-    let e = McpServiceProviderError::ServerNotFound("tools-server".to_owned());
-    assert!(format!("{e}").contains("tools-server"));
-}
-
-#[test]
-fn mcp_service_registry_unavailable_display() {
-    let e = McpServiceProviderError::RegistryUnavailable;
-    let s = format!("{e}");
-    assert!(!s.is_empty());
-}
-
-#[test]
-fn mcp_service_internal_display() {
-    let e = McpServiceProviderError::Internal("timeout".to_owned());
-    assert!(format!("{e}").contains("timeout"));
-}
-
-#[test]
-fn mcp_service_result_alias() {
-    let r: McpServiceResult<()> = Ok(());
-    assert!(r.is_ok());
-}
-
-// --- McpServerMetadata ---
-
-#[test]
-fn mcp_server_metadata_fields() {
-    let m = McpServerMetadata {
-        name: "myserver".to_owned(),
-        endpoint: "http://localhost:3000".to_owned(),
-    };
-    assert_eq!(m.name, "myserver");
-    assert_eq!(m.endpoint, "http://localhost:3000");
-}
-
-#[test]
-fn mcp_server_metadata_clone() {
-    let m = McpServerMetadata {
-        name: "a".to_owned(),
-        endpoint: "b".to_owned(),
-    };
-    let m2 = m.clone();
-    assert_eq!(m2.name, "a");
 }
 
 // --- AiProviderError display ---

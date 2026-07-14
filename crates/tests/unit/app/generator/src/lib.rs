@@ -31,9 +31,9 @@ mod error_tests;
 #[cfg(test)]
 mod markdown_extra_tests;
 #[cfg(test)]
-mod merge_json_tests;
-#[cfg(test)]
 mod markdown_tests;
+#[cfg(test)]
+mod merge_json_tests;
 #[cfg(test)]
 mod orchestrator_validate;
 #[cfg(test)]

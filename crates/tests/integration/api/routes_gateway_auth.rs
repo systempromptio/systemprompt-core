@@ -198,7 +198,9 @@ async fn provision_oauth_client_without_bearer_is_unauthorized() -> Result<()> {
     Ok(())
 }
 
-fn jwt_extractor(ctx: &systemprompt_runtime::AppContext) -> anyhow::Result<Arc<JwtContextExtractor>> {
+fn jwt_extractor(
+    ctx: &systemprompt_runtime::AppContext,
+) -> anyhow::Result<Arc<JwtContextExtractor>> {
     Ok(Arc::new(JwtContextExtractor::new(
         ctx.analytics_provider().expect("analytics provider"),
         ctx.user_provider().expect("user provider"),
@@ -262,10 +264,9 @@ async fn session_with_valid_code_issues_bridge_access() -> Result<()> {
 async fn manifest_without_credential_is_unauthorized() -> Result<()> {
     let (_db, ctx) = setup_ctx().await?;
     let extractor = jwt_extractor(&ctx)?;
-    let (status, _msg) =
-        bridge_manifest::manifest(extractor, (*ctx).clone(), HeaderMap::new())
-            .await
-            .expect_err("missing credential must error");
+    let (status, _msg) = bridge_manifest::manifest(extractor, (*ctx).clone(), HeaderMap::new())
+        .await
+        .expect_err("missing credential must error");
     assert_eq!(status, StatusCode::UNAUTHORIZED);
     Ok(())
 }

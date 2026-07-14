@@ -29,9 +29,7 @@ async fn local_tenant_setup_warns_when_unreachable_and_no_compose() {
     let env = enter().await;
     let user = get_cloud_user().expect("cloud user");
     let prompter = ScriptedPrompter::new(Vec::<String>::new());
-    let profile_path = env
-        .root()
-        .join(".systemprompt/profiles/local/profile.yaml");
+    let profile_path = env.root().join(".systemprompt/profiles/local/profile.yaml");
 
     handle_local_tenant_setup(
         &prompter,

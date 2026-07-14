@@ -2,10 +2,9 @@
 //!
 //! [`TaskRepository`] is the repository facade over the `agent_tasks` table and
 //! its satellites (`task_messages`, `message_parts`, `task_execution_steps`).
-//! It splits reads and writes across separate pools, optionally drives session
-//! analytics and file-upload providers, and delegates aggregate reassembly to
-//! [`TaskConstructor`]. Query, mutation, and state-transition helpers live in
-//! the sibling submodules and are re-exported here.
+//! It splits reads and writes across separate pools and delegates aggregate
+//! reassembly to [`TaskConstructor`]. Query, mutation, and state-transition
+//! helpers live in the sibling submodules and are re-exported here.
 
 pub mod constructor;
 mod mutations;
@@ -29,7 +28,7 @@ use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{SessionId, TraceId, UserId};
-use systemprompt_traits::{DynFileUploadProvider, DynSessionAnalyticsProvider, RepositoryError};
+use systemprompt_traits::RepositoryError;
 
 #[expect(
     missing_debug_implementations,
@@ -48,8 +47,6 @@ pub struct TaskRepository {
     pool: Arc<PgPool>,
     write_pool: Arc<PgPool>,
     db_pool: DbPool,
-    pub(crate) session_analytics_provider: Option<DynSessionAnalyticsProvider>,
-    pub(crate) file_upload_provider: Option<DynFileUploadProvider>,
 }
 
 impl std::fmt::Debug for TaskRepository {
@@ -58,11 +55,6 @@ impl std::fmt::Debug for TaskRepository {
             .field("pool", &"<PgPool>")
             .field("write_pool", &"<PgPool>")
             .field("db_pool", &"<DbPool>")
-            .field(
-                "session_analytics_provider",
-                &self.session_analytics_provider.is_some(),
-            )
-            .field("file_upload_provider", &self.file_upload_provider.is_some())
             .finish()
     }
 }
@@ -79,24 +71,7 @@ impl TaskRepository {
             pool,
             write_pool,
             db_pool: Arc::clone(db),
-            session_analytics_provider: None,
-            file_upload_provider: None,
         })
-    }
-
-    #[must_use]
-    pub fn with_session_analytics_provider(
-        mut self,
-        provider: DynSessionAnalyticsProvider,
-    ) -> Self {
-        self.session_analytics_provider = Some(provider);
-        self
-    }
-
-    #[must_use]
-    pub fn with_file_upload_provider(mut self, provider: DynFileUploadProvider) -> Self {
-        self.file_upload_provider = Some(provider);
-        self
     }
 
     pub(crate) const fn db_pool(&self) -> &DbPool {
@@ -116,12 +91,6 @@ impl TaskRepository {
             agent_name: params.agent_name,
         })
         .await?;
-
-        if let Some(ref provider) = self.session_analytics_provider
-            && let Err(e) = provider.increment_task_count(params.session_id).await
-        {
-            tracing::warn!(error = %e, "Failed to increment analytics task count");
-        }
 
         Ok(result)
     }

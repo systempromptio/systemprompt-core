@@ -160,27 +160,6 @@ impl AgentOrchestrator {
         self.monitor.comprehensive_health_check(agent_name).await
     }
 
-    pub async fn start_all(
-        &self,
-        events: Option<&StartupEventSender>,
-    ) -> OrchestrationResult<Vec<String>> {
-        let agents = self.db_service.list_all_agents().await?;
-        let mut service_ids = Vec::new();
-
-        for (agent_id, status) in agents {
-            if matches!(status, AgentStatus::Failed { .. }) {
-                match self.start_agent(&agent_id, events).await {
-                    Ok(service_id) => service_ids.push(service_id),
-                    Err(e) => {
-                        tracing::error!(agent_id = %agent_id, error = %e, "Failed to start agent");
-                    },
-                }
-            }
-        }
-
-        Ok(service_ids)
-    }
-
     pub async fn disable_all(&self) -> OrchestrationResult<()> {
         let agents = self.db_service.list_all_agents().await?;
 

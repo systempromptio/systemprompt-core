@@ -215,17 +215,6 @@ impl SqlExecutor {
         Ok(())
     }
 
-    /// Split a Postgres SQL script into individual statements while preserving
-    /// the original source text. Splits on top-level `;`; ignores
-    /// semicolons inside single quotes, dollar-quoted bodies (`$$ … $$` and
-    /// `$tag$ … $tag$`), `--` line comments, and `/* … */` block comments
-    /// (nested). Unterminated quotes or comments return
-    /// `RepositoryError::Internal`; grammar errors are left for Postgres to
-    /// surface at execute time. Preserving the original text is the
-    /// reason this is hand-rolled rather than `sqlparser`: round-tripping
-    /// through `Statement::Display` drops syntactic detail such as the
-    /// empty parameter list on `CREATE FUNCTION foo()`, which Postgres then
-    /// rejects.
     pub fn parse_sql_statements(sql: &str) -> DatabaseResult<Vec<String>> {
         Splitter::new(sql).run()
     }
@@ -241,16 +230,6 @@ impl SqlExecutor {
             RepositoryError::Internal(format!("Failed to read SQL file: {file_path}: {e}"))
         })?;
         Self::execute_statements(db, &sql).await
-    }
-
-    pub async fn execute_file_parsed(
-        db: &dyn DatabaseProvider,
-        file_path: &str,
-    ) -> DatabaseResult<()> {
-        let sql = std::fs::read_to_string(file_path).map_err(|e| {
-            RepositoryError::Internal(format!("Failed to read SQL file: {file_path}: {e}"))
-        })?;
-        Self::execute_statements_parsed(db, &sql).await
     }
 
     pub async fn table_exists(db: &Database, table_name: &str) -> DatabaseResult<bool> {

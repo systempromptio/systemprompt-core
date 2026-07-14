@@ -1,6 +1,6 @@
-//! Tests for AgentExtension, AgentSkill, Task, TaskStatus, and TaskState.
+//! Tests for AgentExtension, Task, TaskStatus, and TaskState.
 
-use systemprompt_models::{AgentExtension, AgentSkill, Task, TaskState, TaskStatus};
+use systemprompt_models::{AgentExtension, Task, TaskState, TaskStatus};
 
 #[test]
 fn test_agent_extension_mcp_tools() {
@@ -10,35 +10,6 @@ fn test_agent_extension_mcp_tools() {
     ext.description.as_ref().expect("description should be set");
     assert_eq!(ext.required, Some(false));
     ext.params.as_ref().expect("params should be set");
-}
-
-#[test]
-fn test_agent_extension_mcp_tools_with_servers() {
-    let servers = vec![serde_json::json!({"name": "test-server"})];
-    let ext = AgentExtension::mcp_tools_extension_with_servers(&servers);
-
-    assert_eq!(ext.uri, "systemprompt:mcp-tools");
-    let params = ext.params.expect("params should be set");
-    params.get("servers").expect("servers param should be set");
-}
-
-#[test]
-fn test_agent_extension_opencode_integration() {
-    let ext = AgentExtension::opencode_integration_extension();
-
-    assert_eq!(ext.uri, "systemprompt:opencode-integration");
-    ext.description.as_ref().expect("description should be set");
-}
-
-#[test]
-fn test_agent_extension_artifact_rendering() {
-    let ext = AgentExtension::artifact_rendering_extension();
-
-    assert!(ext.uri.contains("artifact-rendering"));
-    let params = ext.params.expect("params should be set");
-    params
-        .get("supported_types")
-        .expect("supported_types param should be set");
 }
 
 #[test]
@@ -95,37 +66,6 @@ fn test_agent_extension_service_status_without_optional() {
     let params = ext.params.unwrap();
     assert!(params.get("port").is_none());
     assert!(params.get("pid").is_none());
-}
-
-#[test]
-fn test_agent_skill_from_mcp_server() {
-    let skill = AgentSkill::from_mcp_server(
-        "my-server".to_string(),
-        "My Server".to_string(),
-        "A test server".to_string(),
-        vec!["tag1".to_string(), "tag2".to_string()],
-    );
-
-    assert_eq!(skill.id, "my-server");
-    assert_eq!(skill.name, "My Server");
-    assert_eq!(skill.description, "A test server");
-    assert_eq!(skill.tags.len(), 2);
-    assert!(skill.examples.is_none());
-    assert!(skill.input_modes.is_none());
-    assert!(skill.output_modes.is_none());
-    assert!(skill.security.is_none());
-}
-
-#[test]
-fn test_agent_skill_mcp_server_name() {
-    let skill = AgentSkill::from_mcp_server(
-        "test-server".to_string(),
-        "Test".to_string(),
-        "Desc".to_string(),
-        vec![],
-    );
-
-    assert_eq!(skill.mcp_server_name(), "test-server");
 }
 
 #[test]

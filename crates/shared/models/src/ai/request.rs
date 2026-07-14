@@ -87,18 +87,6 @@ impl AiMessage {
             parts: Vec::new(),
         }
     }
-
-    pub fn user_with_parts(content: impl Into<String>, parts: Vec<AiContentPart>) -> Self {
-        Self {
-            role: MessageRole::User,
-            content: content.into(),
-            parts,
-        }
-    }
-
-    pub fn has_media(&self) -> bool {
-        self.parts.iter().any(AiContentPart::is_media)
-    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -190,11 +178,6 @@ impl AiRequestBuilder {
 
     pub fn with_structured_output(mut self, options: StructuredOutputOptions) -> Self {
         self.structured_output = Some(options);
-        self
-    }
-
-    pub fn with_system_prompt(mut self, prompt: impl Into<String>) -> Self {
-        self.system_prompt = Some(prompt.into());
         self
     }
 

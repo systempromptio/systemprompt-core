@@ -25,7 +25,7 @@ mod validation;
 
 pub use external_proxy::ExternalProxyTarget;
 pub use http_client_with_context::HttpClientWithContext;
-pub use types::{McpConnectionResult, McpProtocolInfo, ToolExecutionWithId, ValidationResult};
+pub use types::{McpConnectionResult, McpProtocolInfo, ValidationResult};
 pub use validation::{
     rewrite_url_for_internal_use, validate_connection, validate_connection_by_url,
     validate_connection_with_auth,

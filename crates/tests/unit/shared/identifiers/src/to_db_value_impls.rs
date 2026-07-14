@@ -29,7 +29,10 @@ fn reference_impls_agree_with_their_owned_counterparts() {
         <&f64 as ToDbValue>::to_db_value(&&1.5f64),
         1.5f64.to_db_value()
     );
-    assert_eq!(<&bool as ToDbValue>::to_db_value(&&true), true.to_db_value());
+    assert_eq!(
+        <&bool as ToDbValue>::to_db_value(&&true),
+        true.to_db_value()
+    );
 
     let dt = Utc.with_ymd_and_hms(2026, 1, 2, 3, 4, 5).unwrap();
     assert_eq!(
@@ -38,7 +41,10 @@ fn reference_impls_agree_with_their_owned_counterparts() {
     );
 
     let arr = vec!["a".to_owned(), "b".to_owned()];
-    assert_eq!(<&Vec<String> as ToDbValue>::to_db_value(&&arr), arr.to_db_value());
+    assert_eq!(
+        <&Vec<String> as ToDbValue>::to_db_value(&&arr),
+        arr.to_db_value()
+    );
     assert_eq!(arr.as_slice().to_db_value(), arr.to_db_value());
 }
 

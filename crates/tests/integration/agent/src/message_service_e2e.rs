@@ -130,7 +130,10 @@ async fn create_tool_execution_message_works_without_pretty_args() -> Result<()>
             request_context: &ctx,
         })
         .await?;
-    assert!(!mid.is_empty(), "null tool_args must still yield a message id");
+    assert!(
+        !mid.is_empty(),
+        "null tool_args must still yield a message id"
+    );
     assert!(seq >= 0);
     fx.cleanup().await?;
     Ok(())

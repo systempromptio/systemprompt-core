@@ -972,19 +972,15 @@ The web CLI works alongside the content CLI and jobs for full content management
 
 | Command | Return Type | Artifact Type | Metadata |
 |---------|-------------|---------------|----------|
-| `content-types list` | `ContentTypeListOutput` | `Table` | columns |
 | `content-types show` | `ContentTypeDetailOutput` | `Card` | title |
 | `content-types create` | `ContentTypeCreateOutput` | `Text` | title |
 | `content-types edit` | `ContentTypeEditOutput` | `Text` | title |
 | `content-types delete` | `ContentTypeDeleteOutput` | `Text` | title |
-| `templates list` | `TemplateListOutput` | `Table` | columns |
 | `templates show` | `TemplateDetailOutput` | `Card` | title |
 | `templates create` | `TemplateCreateOutput` | `Text` | title |
 | `templates edit` | `TemplateEditOutput` | `Text` | title |
 | `templates delete` | `TemplateDeleteOutput` | `Text` | title |
-| `assets list` | `AssetListOutput` | `Table` | columns |
 | `assets show` | `AssetDetailOutput` | `Card` | title |
-| `sitemap show` | `SitemapShowOutput` | `Table` | columns |
 | `sitemap generate` | `SitemapGenerateOutput` | `Text` | title |
 | `validate` | `ValidationOutput` | `Table` | - |
 

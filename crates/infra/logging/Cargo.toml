@@ -39,7 +39,6 @@ uuid = { workspace = true }
 
 # CLI formatting and display (optional, enabled by "cli" feature)
 console = { workspace = true, optional = true }
-dialoguer = { workspace = true, optional = true }
 indicatif = { workspace = true, optional = true }
 
 # Core libs
@@ -60,7 +59,7 @@ inventory = { workspace = true }
 
 [features]
 default = []
-cli = ["dep:console", "dep:dialoguer", "dep:indicatif"]
+cli = ["dep:console", "dep:indicatif"]
 
 [package.metadata.docs.rs]
 all-features = true

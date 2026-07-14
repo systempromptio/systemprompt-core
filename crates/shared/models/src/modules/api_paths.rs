@@ -24,33 +24,23 @@ impl ApiPaths {
     pub const CORE_CONTEXTS: &'static str = "/api/v1/core/contexts";
     pub const CORE_TASKS: &'static str = "/api/v1/core/tasks";
     pub const CORE_ARTIFACTS: &'static str = "/api/v1/core/artifacts";
-    pub const CONTEXTS_WEBHOOK: &'static str = "/api/v1/core/contexts/webhook";
 
     pub const AGENTS_REGISTRY: &'static str = "/api/v1/agents/registry";
 
     pub const MCP_REGISTRY: &'static str = "/api/v1/mcp/registry";
 
     pub const STREAM_CONTEXTS: &'static str = "/api/v1/stream/contexts";
-    pub const STREAM_AGUI: &'static str = "/api/v1/stream/agui";
-    pub const STREAM_A2A: &'static str = "/api/v1/stream/a2a";
 
     pub const AUTH_ME: &'static str = "/api/v1/auth/me";
 
     pub const OAUTH_BASE: &'static str = "/api/v1/core/oauth";
-    pub const OAUTH_SESSION: &'static str = "/api/v1/core/oauth/session";
-    pub const OAUTH_REGISTER: &'static str = "/api/v1/core/oauth/register";
     pub const OAUTH_AUTHORIZE: &'static str = "/api/v1/core/oauth/authorize";
     pub const OAUTH_TOKEN: &'static str = "/api/v1/core/oauth/token";
-    pub const OAUTH_CALLBACK: &'static str = "/api/v1/core/oauth/callback";
-    pub const OAUTH_CONSENT: &'static str = "/api/v1/core/oauth/consent";
-    pub const OAUTH_WEBAUTHN_COMPLETE: &'static str = "/api/v1/core/oauth/webauthn/complete";
     pub const OAUTH_CLIENTS: &'static str = "/api/v1/core/oauth/clients";
 
     pub const CORE_USERS: &'static str = "/api/v1/core/users";
 
     pub const WEBHOOK: &'static str = "/api/v1/webhook";
-    pub const WEBHOOK_AGUI: &'static str = "/api/v1/webhook/agui";
-    pub const WEBHOOK_A2A: &'static str = "/api/v1/webhook/a2a";
 
     pub const HEALTH: &'static str = "/api/v1/health";
     pub const DISCOVERY: &'static str = "/api/v1";
@@ -82,7 +72,6 @@ impl ApiPaths {
     pub const ADMIN_LOGS: &'static str = "/api/v1/admin/logs";
     pub const ADMIN_USERS: &'static str = "/api/v1/admin/users";
     pub const ADMIN_ANALYTICS: &'static str = "/api/v1/admin/analytics";
-    pub const ADMIN_SESSIONS: &'static str = "/api/v1/admin/sessions";
 
     pub const MARKETPLACE_BASE: &'static str = "/api/v1/marketplace";
 

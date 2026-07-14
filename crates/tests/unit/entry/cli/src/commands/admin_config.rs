@@ -6,11 +6,11 @@
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
+use systemprompt_cli::CliConfig;
 use systemprompt_cli::admin::config::config_section::{
     ConfigSection, read_yaml_file, write_yaml_file,
 };
 use systemprompt_cli::admin::config::validate::{ValidateArgs, execute};
-use systemprompt_cli::CliConfig;
 use systemprompt_models::auth::JwtAudience;
 use systemprompt_models::services::SystemAdminConfig;
 use systemprompt_models::{
@@ -241,7 +241,10 @@ fn validate_reports_missing_file_and_detects_section_from_path() {
         let json = serde_json::to_value(output.artifact()).unwrap();
         let files = json["items"].as_array().expect("items array in artifact");
         assert_eq!(files.len(), 1, "one file entry for {target}");
-        assert_eq!(files[0]["section"], expected_section, "section for {target}");
+        assert_eq!(
+            files[0]["section"], expected_section,
+            "section for {target}"
+        );
         assert_eq!(files[0]["exists"], false);
         assert_eq!(files[0]["error"], "File not found");
     }

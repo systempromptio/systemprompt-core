@@ -201,30 +201,6 @@ async fn delete_all_agents_empty_registry_is_zero() {
 }
 
 #[tokio::test]
-async fn process_orphaned_pids_skips_tracked_and_flags_unknown() {
-    let Some(pool) = try_pool().await else {
-        return;
-    };
-    let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
-    let name = unique_name("orchreg_orphan");
-    let orchestrator = make_orchestrator(&pool, &[(&name, 9456)]).await;
-
-    let own_pid = std::process::id();
-    db_service(&pool)
-        .register_agent(&name, own_pid, 9456)
-        .await
-        .expect("register");
-
-    let pids = format!("{own_pid}\n4000000001\nnot-a-pid\n\n");
-    orchestrator
-        .process_orphaned_pids(&pids)
-        .await
-        .expect("orphan processing");
-
-    db_service(&pool).remove_agent_service(&name).await.ok();
-}
-
-#[tokio::test]
 async fn start_agent_already_running_is_rejected() {
     let Some(pool) = try_pool().await else {
         return;

@@ -3,8 +3,7 @@
 //! [`MessageRepository`] reads message history by task or context and writes
 //! messages within a transaction. The submodules split the work: `queries`
 //! handles reads and sequence-number allocation, `persistence` writes the
-//! message row, and `parts` handles the typed text/file/data parts (including
-//! optional file-upload offloading via [`FileUploadContext`]).
+//! message row, and `parts` handles the typed text/file/data parts.
 
 mod parts;
 mod persistence;
@@ -18,7 +17,7 @@ use systemprompt_traits::RepositoryError;
 
 use crate::models::a2a::Message;
 
-pub use parts::{FileUploadContext, PersistPartSqlxParams, get_message_parts};
+pub use parts::{PersistPartSqlxParams, get_message_parts};
 pub use persistence::{
     PersistMessageSqlxParams, PersistMessageWithTxParams, persist_message_sqlx,
     persist_message_with_tx,

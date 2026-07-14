@@ -1,28 +1,7 @@
 //! Wire-format string constants for event and protocol names.
 //!
-//! Grouped by protocol surface: [`agui`] (AG-UI streaming events), [`a2a`]
-//! (agent-to-agent events), [`system`] (context/connection events),
-//! [`jsonrpc`] (A2A JSON-RPC method names), and [`protocol`] (protocol
-//! discriminators).
-
-pub mod agui {
-    pub const RUN_STARTED: &str = "RUN_STARTED";
-    pub const RUN_FINISHED: &str = "RUN_FINISHED";
-    pub const RUN_ERROR: &str = "RUN_ERROR";
-    pub const STEP_STARTED: &str = "STEP_STARTED";
-    pub const STEP_FINISHED: &str = "STEP_FINISHED";
-    pub const TEXT_MESSAGE_START: &str = "TEXT_MESSAGE_START";
-    pub const TEXT_MESSAGE_CONTENT: &str = "TEXT_MESSAGE_CONTENT";
-    pub const TEXT_MESSAGE_END: &str = "TEXT_MESSAGE_END";
-    pub const TOOL_CALL_START: &str = "TOOL_CALL_START";
-    pub const TOOL_CALL_ARGS: &str = "TOOL_CALL_ARGS";
-    pub const TOOL_CALL_END: &str = "TOOL_CALL_END";
-    pub const TOOL_CALL_RESULT: &str = "TOOL_CALL_RESULT";
-    pub const STATE_SNAPSHOT: &str = "STATE_SNAPSHOT";
-    pub const STATE_DELTA: &str = "STATE_DELTA";
-    pub const MESSAGES_SNAPSHOT: &str = "MESSAGES_SNAPSHOT";
-    pub const CUSTOM: &str = "CUSTOM";
-}
+//! Grouped by protocol surface: [`a2a`] (agent-to-agent events) and
+//! [`system`] (context/connection events).
 
 pub mod a2a {
     pub const TASK_SUBMITTED: &str = "TASK_SUBMITTED";
@@ -43,23 +22,4 @@ pub mod system {
     pub const CONTEXTS_SNAPSHOT: &str = "CONTEXTS_SNAPSHOT";
     pub const CONNECTED: &str = "CONNECTED";
     pub const HEARTBEAT: &str = "HEARTBEAT";
-}
-
-pub mod jsonrpc {
-    pub const MESSAGE_SEND: &str = "SendMessage";
-    pub const MESSAGE_STREAM: &str = "SendStreamingMessage";
-    pub const TASKS_GET: &str = "GetTask";
-    pub const TASKS_CANCEL: &str = "CancelTask";
-    pub const TASKS_RESUBSCRIBE: &str = "SubscribeToTask";
-    pub const AGENT_GET_CARD: &str = "GetExtendedAgentCard";
-    pub const PUSH_CONFIG_SET: &str = "CreateTaskPushNotificationConfig";
-    pub const PUSH_CONFIG_GET: &str = "GetTaskPushNotificationConfig";
-    pub const PUSH_CONFIG_LIST: &str = "ListTaskPushNotificationConfigs";
-    pub const PUSH_CONFIG_DELETE: &str = "DeleteTaskPushNotificationConfig";
-}
-
-pub mod protocol {
-    pub const AGUI: &str = "agui";
-    pub const A2A: &str = "a2a";
-    pub const SYSTEM: &str = "system";
 }

@@ -10,14 +10,6 @@
 use serde::Deserialize;
 use systemprompt_identifiers::{SlackChannelId, SlackUserId, SlackWorkspaceId};
 
-/// The inbound surface a request arrived on.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum SlackSurface {
-    Event,
-    Command,
-    Interaction,
-}
-
 /// Outer envelope for the Events API (`application/json`).
 #[derive(Debug, Clone, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
@@ -102,7 +94,6 @@ pub struct InteractionAction {
 /// A surface-agnostic inbound request ready for dispatch.
 #[derive(Debug, Clone)]
 pub struct NormalizedInbound {
-    pub surface: SlackSurface,
     pub workspace_id: SlackWorkspaceId,
     pub channel_id: SlackChannelId,
     pub slack_user_id: SlackUserId,
@@ -119,7 +110,6 @@ impl SlashCommand {
     #[must_use]
     pub fn normalize(self) -> NormalizedInbound {
         NormalizedInbound {
-            surface: SlackSurface::Command,
             workspace_id: self.team_id,
             channel_id: self.channel_id,
             slack_user_id: self.user_id,

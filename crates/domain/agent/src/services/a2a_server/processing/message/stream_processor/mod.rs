@@ -8,7 +8,6 @@
 mod helpers;
 mod processing;
 
-use crate::services::shared::{AgentServiceError, Result};
 use base64::Engine;
 use std::sync::Arc;
 
@@ -32,17 +31,6 @@ pub struct StreamProcessor {
 }
 
 impl StreamProcessor {
-    pub fn extract_message_text(message: &Message) -> Result<String> {
-        for part in &message.parts {
-            if let Part::Text(text_part) = part {
-                return Ok(text_part.text.clone());
-            }
-        }
-        Err(AgentServiceError::Internal(
-            "No text content found in message".to_owned(),
-        ))
-    }
-
     pub fn extract_message_content(message: &Message) -> (String, Vec<AiContentPart>) {
         let mut text_content = String::new();
         let mut content_parts = Vec::new();

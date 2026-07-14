@@ -238,7 +238,8 @@ async fn sitemap_provider_with_source_emits_static_urls() {
         .unwrap();
     let urls = p.static_urls("https://example.com");
     assert!(
-        urls.iter().all(|u| u.loc.starts_with("https://example.com")),
+        urls.iter()
+            .all(|u| u.loc.starts_with("https://example.com")),
         "every emitted sitemap url must be prefixed with the requested base url"
     );
     let specs = p.source_specs();

@@ -84,28 +84,4 @@ impl AiRequestRepository {
         .await
         .map_err(RepositoryError::from)
     }
-
-    pub async fn get_session_usage(
-        &self,
-        session_id: &SessionId,
-    ) -> Result<UserAiUsage, RepositoryError> {
-        sqlx::query_as!(
-            UserAiUsage,
-            r#"
-            SELECT
-                user_id as "user_id!: UserId",
-                COUNT(*)::bigint as "request_count!",
-                COALESCE(SUM(tokens_used), 0)::bigint as "total_tokens!",
-                COALESCE(SUM(cost_microdollars), 0)::float8 / 1000000.0 as "total_cost!",
-                AVG(tokens_used)::float8 as "avg_tokens_per_request"
-            FROM ai_requests
-            WHERE session_id = $1
-            GROUP BY user_id
-            "#,
-            session_id.as_str()
-        )
-        .fetch_one(self.pool())
-        .await
-        .map_err(RepositoryError::from)
-    }
 }

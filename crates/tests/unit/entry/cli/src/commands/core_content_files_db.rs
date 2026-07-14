@@ -5,12 +5,12 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use serde_json::Value;
+use systemprompt_cli::CliConfig;
 use systemprompt_cli::core::content::files::{featured, link, list, unlink};
 use systemprompt_cli::interactive::ScriptedPrompter;
 use systemprompt_cli::shared::CommandOutput;
-use systemprompt_cli::CliConfig;
-use systemprompt_content::models::CreateContentParams;
 use systemprompt_content::ContentRepository;
+use systemprompt_content::models::CreateContentParams;
 use systemprompt_database::DbPool;
 use systemprompt_files::{FileRepository, FileRole};
 use systemprompt_identifiers::{ContentId, FileId, SourceId};
@@ -290,7 +290,9 @@ async fn unlink_interactive_confirm_no_preserves_link() {
         unlink_args(&file, &content, false, false),
         &ScriptedPrompter::new(vec!["n"]),
         &pool,
-        &CliConfig::new().with_interactive(true).with_assume_terminal(true),
+        &CliConfig::new()
+            .with_interactive(true)
+            .with_assume_terminal(true),
     )
     .await
     .unwrap_err();

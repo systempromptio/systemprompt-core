@@ -10,7 +10,7 @@
 //! | Feature   | Description                                                               |
 //! |-----------|---------------------------------------------------------------------------|
 //! | (default) | Database layer, repositories, trace queries, retention scheduler          |
-//! | `cli`     | CLI display helpers (`CliService`, prompts, tables, banners) — pulls in `console`, `dialoguer`, `indicatif` |
+//! | `cli`     | CLI display helpers (`CliService`, tables, banners) — pulls in `console`, `indicatif` |
 //!
 //! ## Top-level entry points
 //!

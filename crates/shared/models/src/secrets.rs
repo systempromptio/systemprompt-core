@@ -168,22 +168,6 @@ impl Secrets {
         }
     }
 
-    pub fn log_configured_providers(&self) {
-        let configured: Vec<&str> = [
-            self.gemini.as_ref().map(|_| "gemini"),
-            self.anthropic.as_ref().map(|_| "anthropic"),
-            self.openai.as_ref().map(|_| "openai"),
-            self.github.as_ref().map(|_| "github"),
-            self.moonshot.as_ref().map(|_| "moonshot"),
-            self.qwen.as_ref().map(|_| "qwen"),
-        ]
-        .into_iter()
-        .flatten()
-        .collect();
-
-        tracing::info!(providers = ?configured, "Configured API providers");
-    }
-
     pub fn to_subprocess_env(&self) -> Vec<(String, String)> {
         let mut pairs: Vec<(String, String)> = Vec::new();
 

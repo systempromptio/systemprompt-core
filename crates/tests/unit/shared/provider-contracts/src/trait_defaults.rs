@@ -9,9 +9,8 @@ use std::collections::HashMap;
 use async_trait::async_trait;
 use serde_json::Value;
 use systemprompt_provider_contracts::{
-    ContentDataContext, ContentDataProvider, FrontmatterContext, FrontmatterProcessor,
-    PathsConfig, ProviderResult, RssFeedContext, RssFeedItem, RssFeedMetadata, RssFeedProvider,
-    RssFeedSpec,
+    ContentDataContext, ContentDataProvider, FrontmatterContext, FrontmatterProcessor, PathsConfig,
+    ProviderResult, RssFeedContext, RssFeedItem, RssFeedMetadata, RssFeedProvider, RssFeedSpec,
     TemplateDefinition, TemplateProvider, ToolContext, ToolDefinition, ToolProvider,
     ToolProviderResult,
 };

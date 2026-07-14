@@ -2,8 +2,6 @@ use axum::Router;
 use axum::extract::Request;
 use axum::http::StatusCode;
 use axum::routing::any;
-use std::sync::Arc;
-use std::sync::atomic::{AtomicUsize, Ordering};
 
 pub fn create_proxy_router(target_host: &str, target_port: u16) -> Router {
     let target_url = format!("http://{target_host}:{target_port}");
@@ -57,23 +55,4 @@ async fn forward_request(
         .map_err(|_e| StatusCode::BAD_GATEWAY)?;
 
     Ok((status, body))
-}
-
-pub fn create_load_balanced_proxy(targets: &[(String, u16)]) -> Router {
-    let target_urls: Vec<String> = targets
-        .iter()
-        .map(|(host, port)| format!("http://{host}:{port}"))
-        .collect();
-
-    let counter = Arc::new(AtomicUsize::new(0));
-
-    Router::new().fallback(any(move |req: Request| {
-        let urls = target_urls.clone();
-        let cnt = Arc::clone(&counter);
-        async move {
-            let index = cnt.fetch_add(1, Ordering::Relaxed) % urls.len();
-            let url = urls[index].clone();
-            forward_request(req, url).await
-        }
-    }))
 }

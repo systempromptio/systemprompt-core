@@ -27,11 +27,6 @@ impl UiRendererRegistry {
         self.renderers.insert(artifact_type, Arc::new(renderer));
     }
 
-    pub fn register_arc(&mut self, renderer: Arc<dyn UiRenderer>) {
-        let artifact_type = renderer.artifact_type().to_string();
-        self.renderers.insert(artifact_type, renderer);
-    }
-
     pub fn get(&self, artifact_type: &str) -> Option<Arc<dyn UiRenderer>> {
         self.renderers.get(artifact_type).cloned()
     }

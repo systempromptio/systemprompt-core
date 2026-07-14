@@ -19,7 +19,6 @@ pub mod file_names {
     pub const CREDENTIALS: &str = "credentials.json";
     pub const TENANTS: &str = "tenants.json";
     pub const SESSION: &str = "session.json";
-    pub const SESSIONS_INDEX: &str = "index.json";
     pub const DOCKERFILE: &str = "Dockerfile";
     pub const ENTRYPOINT: &str = "entrypoint.sh";
     pub const DOCKERIGNORE: &str = "Dockerfile.dockerignore";

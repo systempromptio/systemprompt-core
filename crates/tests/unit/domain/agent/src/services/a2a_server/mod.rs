@@ -7,7 +7,6 @@ mod errors_jsonrpc;
 mod event_loop;
 mod message_handler;
 mod message_processor;
-mod message_validation;
 mod multiturn_task;
 mod persistence_service;
 mod push_notification_config;

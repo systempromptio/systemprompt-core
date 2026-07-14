@@ -1,26 +1,20 @@
 //! The [`CliService`] facade over CLI output.
 //!
-//! Aggregates the display, prompt, table, and progress helpers into a single
-//! entry point for command code: levelled messages (which also publish a log
-//! event), structured output (`json`/`yaml`), spinners and progress bars, and
-//! module install/update prompts. Output is the sanctioned stderr/stdout sink,
-//! not `tracing`.
+//! Aggregates the display, table, and progress helpers into a single entry
+//! point for command code: levelled messages (which also publish a log event),
+//! structured output (`json`/`yaml`), and spinners and progress bars. Output is
+//! the sanctioned stderr/stdout sink, not `tracing`.
 
 use std::io::Write;
 use std::time::Duration;
 
-use crate::models::LoggingError;
-pub(super) type Result<T> = std::result::Result<T, LoggingError>;
 use indicatif::{ProgressBar, ProgressStyle};
 use serde::Serialize;
 use systemprompt_traits::LogEventLevel;
 
-use super::display::{CollectionDisplay, Display, DisplayUtils};
-use super::module::{BatchModuleOperations, ModuleDisplay, ModuleInstall, ModuleUpdate};
+use super::display::DisplayUtils;
 use super::output::{mark_structured_emitted, publish_log};
-use super::prompts::{PromptBuilder, Prompts};
-use super::summary::{OperationResult, ProgressSummary, ValidationSummary};
-use super::theme::{EmphasisType, ItemStatus, MessageLevel, ModuleType, Theme};
+use super::theme::{EmphasisType, ItemStatus, MessageLevel, Theme};
 
 #[derive(Copy, Clone, Debug)]
 pub struct CliService;
@@ -172,83 +166,6 @@ impl CliService {
                 .progress_chars("#>-"),
         );
         pb
-    }
-
-    pub fn timed<F, R>(label: &str, f: F) -> R
-    where
-        F: FnOnce() -> R,
-    {
-        let start = std::time::Instant::now();
-        let result = f();
-        let duration = start.elapsed();
-        let duration_secs = duration.as_secs_f64();
-        let info_msg = format!("{label} completed in {duration_secs:.2}s");
-        Self::info(&info_msg);
-        result
-    }
-
-    pub fn prompt_schemas(module_name: &str, schemas: &[(String, String)]) -> Result<bool> {
-        ModuleDisplay::prompt_apply_schemas(module_name, schemas)
-    }
-
-    pub fn prompt_seeds(module_name: &str, seeds: &[(String, String)]) -> Result<bool> {
-        ModuleDisplay::prompt_apply_seeds(module_name, seeds)
-    }
-
-    pub fn prompt_install(modules: &[String]) -> Result<bool> {
-        Prompts::confirm_install(modules)
-    }
-
-    pub fn prompt_update(updates: &[(String, String, String)]) -> Result<bool> {
-        Prompts::confirm_update(updates)
-    }
-
-    pub fn confirm(question: &str) -> Result<bool> {
-        Prompts::confirm(question, false)
-    }
-
-    pub fn confirm_default_yes(question: &str) -> Result<bool> {
-        Prompts::confirm(question, true)
-    }
-
-    pub fn display_validation_summary(summary: &ValidationSummary) {
-        summary.display();
-    }
-
-    pub fn display_result(result: &OperationResult) {
-        result.display();
-    }
-
-    pub fn display_progress(progress: &ProgressSummary) {
-        progress.display();
-    }
-
-    pub fn prompt_builder(message: &str) -> PromptBuilder {
-        PromptBuilder::new(message)
-    }
-
-    pub fn collection<T: Display>(title: &str, items: Vec<T>) -> CollectionDisplay<T> {
-        CollectionDisplay::new(title, items)
-    }
-
-    pub fn module_status(module_name: &str, message: &str) {
-        DisplayUtils::module_status(module_name, message);
-    }
-
-    pub fn relationship(from: &str, to: &str, status: ItemStatus, module_type: ModuleType) {
-        DisplayUtils::relationship(module_type, from, to, status);
-    }
-
-    pub fn item(status: ItemStatus, name: &str, detail: Option<&str>) {
-        DisplayUtils::item(status, name, detail);
-    }
-
-    pub fn batch_install(modules: &[ModuleInstall]) -> Result<bool> {
-        BatchModuleOperations::prompt_install_multiple(modules)
-    }
-
-    pub fn batch_update(updates: &[ModuleUpdate]) -> Result<bool> {
-        BatchModuleOperations::prompt_update_multiple(updates)
     }
 
     pub fn table(headers: &[&str], rows: &[Vec<String>]) {

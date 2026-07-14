@@ -5,10 +5,10 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use serde_json::Value;
+use systemprompt_cli::CliConfig;
 use systemprompt_cli::core::files::{ai, delete};
 use systemprompt_cli::interactive::ScriptedPrompter;
 use systemprompt_cli::shared::CommandOutput;
-use systemprompt_cli::CliConfig;
 use systemprompt_database::DbPool;
 use systemprompt_files::FileRepository;
 use systemprompt_identifiers::FileId;
@@ -231,7 +231,9 @@ async fn delete_interactive_confirm_yes_removes_file() {
         delete_args(&id, false, false),
         &ScriptedPrompter::new(vec!["y"]),
         &pool,
-        &CliConfig::new().with_interactive(true).with_assume_terminal(true),
+        &CliConfig::new()
+            .with_interactive(true)
+            .with_assume_terminal(true),
     )
     .await
     .unwrap();
@@ -249,7 +251,9 @@ async fn delete_interactive_confirm_no_preserves_file() {
         delete_args(&id, false, false),
         &ScriptedPrompter::new(vec!["n"]),
         &pool,
-        &CliConfig::new().with_interactive(true).with_assume_terminal(true),
+        &CliConfig::new()
+            .with_interactive(true)
+            .with_assume_terminal(true),
     )
     .await
     .unwrap_err();

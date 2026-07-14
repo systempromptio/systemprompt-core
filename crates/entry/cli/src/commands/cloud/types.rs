@@ -128,18 +128,6 @@ pub struct TenantDetailOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct TenantCreateOutput {
-    pub id: String,
-    pub name: String,
-    pub tenant_type: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub database_url: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub profile_name: Option<String>,
-    pub message: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct RotateCredentialsOutput {
     #[serde(rename = "tenant_id")]
     pub tenant: String,
@@ -164,59 +152,6 @@ pub struct ProfileListOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct DeployOutput {
-    pub tenant_name: String,
-    pub image: String,
-    pub status: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub url: Option<String>,
-    pub secrets_synced: usize,
-    pub cloud_credentials_synced: usize,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct SyncOutput {
-    pub direction: String,
-    pub dry_run: bool,
-    pub operations: Vec<SyncOperationOutput>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct SyncOperationOutput {
-    pub operation: String,
-    pub success: bool,
-    pub items_synced: usize,
-    pub errors: Vec<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct AdminUserSyncResultOutput {
-    pub profile: String,
-    pub success: bool,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub message: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub error: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct AdminUserSyncOutput {
-    pub cloud_user_email: String,
-    pub results: Vec<AdminUserSyncResultOutput>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct SkillsSyncOutput {
-    pub direction: String,
-    pub dry_run: bool,
-    pub synced: usize,
-    pub created: usize,
-    pub updated: usize,
-    pub deleted: usize,
-    pub errors: Vec<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct SecretsOutput {
     pub operation: String,
     pub keys: Vec<String>,
@@ -231,23 +166,8 @@ pub struct RestartOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct DomainOutput {
-    pub tenant_name: String,
-    pub domain: String,
-    pub status: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub certificate_status: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct DockerfileOutput {
     pub content: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct InitOutput {
-    pub message: String,
-    pub created_paths: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]

@@ -110,16 +110,6 @@ impl ExecutionTrackingService {
         self.track(task_id, StepContent::understanding()).await
     }
 
-    pub async fn track_planning(
-        &self,
-        task_id: TaskId,
-        reasoning: Option<String>,
-        planned_tools: Option<Vec<PlannedTool>>,
-    ) -> Result<ExecutionStep> {
-        self.track(task_id, StepContent::planning(reasoning, planned_tools))
-            .await
-    }
-
     pub async fn track_planning_async(
         &self,
         task_id: TaskId,

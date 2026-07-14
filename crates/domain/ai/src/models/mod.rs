@@ -108,27 +108,3 @@ pub struct UserAiUsage {
     pub total_cost: f64,
     pub avg_tokens_per_request: Option<f64>,
 }
-
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
-pub struct CostSummary {
-    pub period: String,
-    pub total_cost: f64,
-    pub request_count: i64,
-    pub avg_cost_per_request: f64,
-}
-
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, FromRow)]
-pub struct LatencyPercentiles {
-    #[sqlx(rename = "p50_ms")]
-    #[serde(rename = "p50_ms")]
-    pub p50: i64,
-    #[sqlx(rename = "p90_ms")]
-    #[serde(rename = "p90_ms")]
-    pub p90: i64,
-    #[sqlx(rename = "p95_ms")]
-    #[serde(rename = "p95_ms")]
-    pub p95: i64,
-    #[sqlx(rename = "p99_ms")]
-    #[serde(rename = "p99_ms")]
-    pub p99: i64,
-}

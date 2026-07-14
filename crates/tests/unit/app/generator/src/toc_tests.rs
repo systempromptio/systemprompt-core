@@ -37,7 +37,11 @@ fn heading_ids_injected_into_rendered_html() {
     let rendered = "<h2>Alpha Section</h2>";
     let result = generate_toc(md, rendered);
     assert!(result.content_html.contains("id=\"alpha-section\""));
-    assert!(result.content_html.contains("<h2 id=\"alpha-section\">Alpha Section</h2>"));
+    assert!(
+        result
+            .content_html
+            .contains("<h2 id=\"alpha-section\">Alpha Section</h2>")
+    );
 }
 
 #[test]
@@ -112,10 +116,7 @@ fn multiple_h1_only_first_is_skipped() {
 #[test]
 fn deep_nesting_across_multiple_levels() {
     let md = "# Title\n\n## L2\n\n### L3\n\n#### L4\n\n## Back2";
-    let result = generate_toc(
-        md,
-        "<h2>L2</h2><h3>L3</h3><h4>L4</h4><h2>Back2</h2>",
-    );
+    let result = generate_toc(md, "<h2>L2</h2><h3>L3</h3><h4>L4</h4><h2>Back2</h2>");
     assert!(result.toc_html.contains("toc-level-4"));
     let opens = result.toc_html.matches("<ul").count();
     let closes = result.toc_html.matches("</ul>").count();

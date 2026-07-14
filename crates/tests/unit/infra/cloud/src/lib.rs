@@ -9,7 +9,6 @@ mod constants;
 #[cfg(test)]
 mod constants_extra;
 #[cfg(test)]
-mod context;
 #[cfg(test)]
 mod credentials;
 #[cfg(test)]

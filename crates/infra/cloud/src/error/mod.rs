@@ -9,7 +9,6 @@
 //! Upstream errors are composed via `#[from]` (`reqwest`, `std::io`,
 //! `serde_json`) so callers can use `?` transparently.
 
-use systemprompt_identifiers::TenantId;
 use thiserror::Error;
 
 mod messages;
@@ -24,21 +23,6 @@ pub enum CloudError {
 
     #[error("Token expired.\n\nRun: systemprompt cloud login")]
     TokenExpired,
-
-    #[error("No tenant configured.\n\nRun: systemprompt cloud setup")]
-    TenantNotConfigured,
-
-    #[error("No app configured.\n\nRun: systemprompt cloud setup")]
-    AppNotConfigured,
-
-    #[error(
-        "Profile required: {message}\n\nSet SYSTEMPROMPT_PROFILE or run 'systemprompt cloud \
-         config'"
-    )]
-    ProfileRequired { message: String },
-
-    #[error("Missing profile field: {field}\n\nAdd to your profile:\n{example}")]
-    MissingProfileField { field: String, example: String },
 
     #[error("JWT decode error")]
     JwtDecode,
@@ -60,9 +44,6 @@ pub enum CloudError {
 
     #[error("Tenants store invalid: {message}")]
     TenantsStoreInvalid { message: String },
-
-    #[error("Tenant '{}' not found.\n\nRun: systemprompt cloud config", tenant_id.as_str())]
-    TenantNotFound { tenant_id: TenantId },
 
     #[error("API error: {message}")]
     ApiError { message: String },

@@ -18,9 +18,9 @@ mod client;
 #[cfg(test)]
 mod config;
 #[cfg(test)]
-mod extension;
-#[cfg(test)]
 mod events;
+#[cfg(test)]
+mod extension;
 #[cfg(test)]
 mod extension_config_preflight;
 #[cfg(test)]

@@ -46,7 +46,6 @@ pub mod auth;
 pub mod checkout;
 pub mod cli_session;
 pub mod constants;
-pub mod context;
 pub mod credentials;
 pub mod credentials_bootstrap;
 pub mod deploy;
@@ -68,7 +67,6 @@ pub use checkout::{
 };
 pub use cli_session::{CliSession, LOCAL_SESSION_KEY, SessionIdentity, SessionKey, SessionStore};
 pub use constants::api::{PRODUCTION_URL, SANDBOX_URL};
-pub use context::{CloudContext, ResolvedTenant};
 pub use credentials::CloudCredentials;
 pub use credentials_bootstrap::{CredentialsBootstrap, CredentialsBootstrapError};
 pub use deploy::DockerfileBuilder;

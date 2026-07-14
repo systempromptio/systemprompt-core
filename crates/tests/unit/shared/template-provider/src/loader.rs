@@ -396,7 +396,9 @@ mod filesystem_loader_tests {
     #[tokio::test]
     async fn load_relative_file_with_empty_base_surfaces_base_io_error() {
         let dir = TempDir::new().unwrap();
-        fs::write(dir.path().join("t.html"), "content").await.unwrap();
+        fs::write(dir.path().join("t.html"), "content")
+            .await
+            .unwrap();
         std::env::set_current_dir(dir.path()).unwrap();
 
         let loader = FileSystemLoader::with_path(PathBuf::new());
@@ -433,7 +435,9 @@ mod filesystem_loader_tests {
     #[tokio::test]
     async fn load_relative_file_through_file_component_surfaces_io_error() {
         let dir = TempDir::new().unwrap();
-        fs::write(dir.path().join("blocker.txt"), "file").await.unwrap();
+        fs::write(dir.path().join("blocker.txt"), "file")
+            .await
+            .unwrap();
 
         let loader = FileSystemLoader::with_path(dir.path());
         let expected = dir.path().join("blocker.txt/t.html");
@@ -504,7 +508,9 @@ mod filesystem_loader_tests {
     #[tokio::test]
     async fn load_directory_candidate_through_file_component_surfaces_io_error() {
         let dir = TempDir::new().unwrap();
-        fs::write(dir.path().join("blocker.txt"), "file").await.unwrap();
+        fs::write(dir.path().join("blocker.txt"), "file")
+            .await
+            .unwrap();
 
         let loader = FileSystemLoader::with_path(dir.path());
         let expected = dir.path().join("blocker.txt/sub");

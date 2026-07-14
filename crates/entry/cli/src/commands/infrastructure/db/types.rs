@@ -64,14 +64,6 @@ pub struct IndexInfo {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DbQueryOutput {
-    pub columns: Vec<String>,
-    pub rows: Vec<serde_json::Value>,
-    pub row_count: usize,
-    pub execution_time_ms: u64,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DbExecuteOutput {
     pub rows_affected: u64,
     pub execution_time_ms: u64,

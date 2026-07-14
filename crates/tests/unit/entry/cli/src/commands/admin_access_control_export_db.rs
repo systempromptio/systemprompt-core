@@ -48,7 +48,10 @@ async fn snapshot_includes_seeded_role_rule() {
     let yaml = render_yaml_snapshot(&pool).await.unwrap();
 
     assert!(yaml.contains("rules:"));
-    assert!(yaml.contains(&entity_id), "entity_id must appear in snapshot");
+    assert!(
+        yaml.contains(&entity_id),
+        "entity_id must appear in snapshot"
+    );
     assert!(yaml.contains(&role), "role must appear in snapshot");
     assert!(yaml.contains("granted for coverage"));
     assert!(yaml.contains("entity_type: agent"));

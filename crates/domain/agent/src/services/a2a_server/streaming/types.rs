@@ -58,15 +58,3 @@ pub struct StreamContext {
     pub state: Arc<AgentHandlerState>,
     pub processor: Arc<MessageProcessor>,
 }
-
-impl StreamContext {
-    pub fn send_event(&self, event: Event) -> bool {
-        self.tx.try_send(event).is_ok()
-    }
-
-    pub fn send_json(&self, json: &serde_json::Value) -> bool {
-        self.tx
-            .try_send(Event::default().data(json.to_string()))
-            .is_ok()
-    }
-}

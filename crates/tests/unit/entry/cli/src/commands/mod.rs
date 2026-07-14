@@ -2,11 +2,11 @@
 
 mod admin_access_control_export_db;
 mod admin_config;
-mod agents_mcp_logs_db;
 mod admin_prompts;
 mod admin_users_session_end_db;
 mod admin_users_write_db;
 mod agents_delete;
+mod agents_mcp_logs_db;
 mod analytics;
 mod build_mcp;
 mod cloud_doctor;
@@ -16,8 +16,8 @@ mod cloud_prompts;
 mod config_secret;
 mod core_artifacts_db;
 mod core_content_db;
-mod core_content_files_db;
 mod core_content_edit_apply;
+mod core_content_files_db;
 mod core_content_link_generate_db;
 mod core_dispatchers_db;
 mod core_files_ai_delete_db;

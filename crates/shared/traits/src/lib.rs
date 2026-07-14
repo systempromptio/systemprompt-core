@@ -4,8 +4,8 @@
 //!
 //! This crate defines the abstractions every other layer (infra, domain,
 //! app, entry) implements or consumes: configuration, database handle,
-//! analytics, authentication, JWT, file storage, MCP services, repositories,
-//! schedulers, and the cross-cutting [`ExtensionError`] contract.
+//! analytics, authentication, JWT, file storage, repositories, schedulers,
+//! and the cross-cutting [`ExtensionError`] contract.
 //!
 //! ## Layering
 //!
@@ -47,17 +47,13 @@ pub mod context_provider;
 pub mod domain_config;
 pub mod events;
 pub mod extension_error;
-pub mod file_upload;
 pub mod jwt;
 pub mod log_service;
-pub mod mcp_service;
 pub mod module;
-pub mod process;
 pub mod registry;
 pub mod repository;
 pub mod scheduler;
 pub mod service;
-pub mod session_analytics;
 pub mod storage;
 pub mod validation;
 pub mod validation_report;
@@ -135,28 +131,9 @@ pub use validation_report::{
     StartupValidationError, StartupValidationReport, ValidationReport, ValidationWarning,
 };
 
-pub use file_upload::{
-    DynFileUploadProvider, FileUploadInput, FileUploadProvider, FileUploadProviderError,
-    FileUploadResult, UploadedFileInfo,
-};
-
 pub use jwt::{
     AgentJwtClaims, DynJwtValidationProvider, GenerateTokenParams, JwtProviderError, JwtResult,
     JwtValidationProvider,
-};
-
-pub use mcp_service::{
-    DynMcpServiceProvider, McpServerMetadata, McpServiceProvider, McpServiceProviderError,
-    McpServiceResult,
-};
-
-pub use process::{
-    DynProcessCleanupProvider, ProcessCleanupProvider, ProcessProviderError, ProcessResult,
-};
-
-pub use session_analytics::{
-    DynSessionAnalyticsProvider, SessionAnalyticsProvider, SessionAnalyticsProviderError,
-    SessionAnalyticsResult,
 };
 
 pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;

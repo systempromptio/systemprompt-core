@@ -150,13 +150,6 @@ impl A2AEventBuilder {
         }
     }
 
-    pub fn artifact_updated(payload: ArtifactUpdatedPayload) -> A2AEvent {
-        A2AEvent::ArtifactUpdated {
-            timestamp: Utc::now(),
-            payload,
-        }
-    }
-
     pub fn agent_message(
         task_id: TaskId,
         context_id: ContextId,
@@ -200,23 +193,6 @@ impl A2AEventBuilder {
         A2AEvent::JsonRpcResponse {
             timestamp: Utc::now(),
             payload: JsonRpcResponsePayload { id, result },
-        }
-    }
-
-    pub fn json_rpc_error(
-        id: serde_json::Value,
-        code: i32,
-        message: String,
-        data: Option<serde_json::Value>,
-    ) -> A2AEvent {
-        A2AEvent::JsonRpcError {
-            timestamp: Utc::now(),
-            payload: JsonRpcErrorPayload {
-                id,
-                code,
-                message,
-                data,
-            },
         }
     }
 }

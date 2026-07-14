@@ -238,7 +238,6 @@ async fn message_repository_persists_all_part_kinds_and_reads_back() -> Result<(
             user_id: Some(&fx.user_id),
             session_id: &fx.session_id,
             trace_id: &fx.trace_id,
-            upload_ctx: None,
         })
         .await?;
     tx.commit().await?;
@@ -541,7 +540,6 @@ async fn task_constructor_assembles_task_with_messages_and_artifacts() -> Result
             user_id: Some(&fx.user_id),
             session_id: &fx.session_id,
             trace_id: &fx.trace_id,
-            upload_ctx: None,
         })
         .await?;
     tx.commit().await?;

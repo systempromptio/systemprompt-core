@@ -53,10 +53,12 @@ impl Disposable {
 
     async fn untrack_logging_v3(&self) {
         let pool = sqlx::PgPool::connect(&self.url).await.unwrap();
-        sqlx::query("DELETE FROM extension_migrations WHERE extension_id = 'logging' AND version = 3")
-            .execute(&pool)
-            .await
-            .unwrap();
+        sqlx::query(
+            "DELETE FROM extension_migrations WHERE extension_id = 'logging' AND version = 3",
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
         pool.close().await;
     }
 
@@ -99,9 +101,12 @@ async fn fresh_database_migrates_and_reports_status() {
     db::execute(parse(&["migrate-repair"]), &disp.ctx(false).await)
         .await
         .unwrap();
-    db::execute(parse(&["migrate-repair", "--apply", "--json"]), &disp.ctx(true).await)
-        .await
-        .unwrap();
+    db::execute(
+        parse(&["migrate-repair", "--apply", "--json"]),
+        &disp.ctx(true).await,
+    )
+    .await
+    .unwrap();
 
     disp.drop().await;
 }
@@ -159,7 +164,11 @@ async fn fresh_database_mark_applied_and_down() {
         "re-marking an already-tracked migration must error"
     );
 
-    let down = db::execute(parse(&["migrate-down", "logging", "1"]), &disp.ctx(false).await).await;
+    let down = db::execute(
+        parse(&["migrate-down", "logging", "1"]),
+        &disp.ctx(false).await,
+    )
+    .await;
     assert!(
         down.is_err(),
         "logging migrations declare no down SQL, so revert must error"

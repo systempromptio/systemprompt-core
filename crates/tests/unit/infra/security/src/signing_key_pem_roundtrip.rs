@@ -34,7 +34,10 @@ fn debug_shows_kid_but_not_private_material() {
     let key = RsaSigningKey::generate().expect("generate key");
     let rendered = format!("{key:?}");
     assert!(rendered.contains("RsaSigningKey"));
-    assert!(rendered.contains(key.kid()), "debug output surfaces the kid");
+    assert!(
+        rendered.contains(key.kid()),
+        "debug output surfaces the kid"
+    );
     assert!(
         !rendered.contains("PRIVATE KEY"),
         "debug output must not leak PEM private key material"
@@ -67,7 +70,9 @@ fn load_from_missing_file_is_an_io_error() {
 fn write_to_a_nonexistent_directory_is_an_io_error() {
     let key = RsaSigningKey::generate().expect("generate key");
     let path = PathBuf::from("/nonexistent-sp-dir-xyz").join("key.pem");
-    let err = key.write_pem_file(&path).expect_err("write into a missing dir must fail");
+    let err = key
+        .write_pem_file(&path)
+        .expect_err("write into a missing dir must fail");
     assert!(
         matches!(err, KeyError::Io { .. }),
         "writing under a missing directory must surface as an Io error, got {err:?}"

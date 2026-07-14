@@ -5,7 +5,6 @@
 //! persists AI-generated files through the provider framework.
 
 mod ai_provider;
-mod providers;
 mod upload;
 
 pub use ai_provider::FilesAiPersistenceProvider;

@@ -138,9 +138,12 @@ async fn cleanup_dry_run_reports_cutoff() {
 async fn cleanup_keep_last_days_deletes_with_confirmation() {
     let pool = pool().await;
     let ctx = app_ctx(&pool);
-    logs::execute(parse(&["cleanup", "--keep-last-days", "3650", "--yes"]), &ctx)
-        .await
-        .unwrap();
+    logs::execute(
+        parse(&["cleanup", "--keep-last-days", "3650", "--yes"]),
+        &ctx,
+    )
+    .await
+    .unwrap();
 }
 
 #[tokio::test]

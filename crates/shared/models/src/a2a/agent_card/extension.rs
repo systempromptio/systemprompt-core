@@ -69,47 +69,6 @@ impl AgentExtension {
     }
 
     #[must_use]
-    pub fn mcp_tools_extension_with_servers(servers: &[serde_json::Value]) -> Self {
-        Self {
-            uri: "systemprompt:mcp-tools".to_owned(),
-            description: Some("MCP tool execution capabilities with server endpoints".to_owned()),
-            required: Some(false),
-            params: Some(serde_json::json!({
-                "supported_protocols": ["mcp-1.0"],
-                "servers": servers
-            })),
-        }
-    }
-
-    #[must_use]
-    pub fn opencode_integration_extension() -> Self {
-        Self {
-            uri: "systemprompt:opencode-integration".to_owned(),
-            description: Some("OpenCode AI reasoning integration".to_owned()),
-            required: Some(false),
-            params: Some(serde_json::json!({
-                "reasoning_model": "claude-3-5-sonnet",
-                "execution_mode": "structured_planning"
-            })),
-        }
-    }
-
-    #[must_use]
-    pub fn artifact_rendering_extension() -> Self {
-        Self {
-            uri: ARTIFACT_RENDERING_URI.to_owned(),
-            description: Some(
-                "MCP tool results rendered as typed artifacts with UI hints".to_owned(),
-            ),
-            required: Some(false),
-            params: Some(serde_json::json!({
-                "supported_types": ["table", "form", "chart", "tree", "code", "json", "markdown"],
-                "version": "1.0.0"
-            })),
-        }
-    }
-
-    #[must_use]
     pub fn agent_identity(agent_name: &str) -> Self {
         Self {
             uri: "systemprompt:agent-identity".to_owned(),

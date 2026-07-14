@@ -7,16 +7,11 @@ impl CloudError {
         match self {
             Self::NotAuthenticated => "Not logged in to systemprompt.io Cloud",
             Self::TokenExpired => "Your session has expired",
-            Self::TenantNotConfigured => "No project linked to this environment",
-            Self::AppNotConfigured => "No deployment target configured",
-            Self::ProfileRequired { .. } => "Profile configuration required",
-            Self::MissingProfileField { .. } => "Missing required profile field",
             Self::JwtDecode => "Failed to decode authentication token",
             Self::CredentialsCorrupted { .. } => "Credentials file is corrupted",
             Self::TenantsNotSynced => "Tenants not synced locally",
             Self::TenantsStoreCorrupted { .. } => "Tenants store is corrupted",
             Self::TenantsStoreInvalid { .. } => "Tenants store is invalid",
-            Self::TenantNotFound { .. } => "Tenant not found",
             Self::ApiError { .. } => "API request failed",
             Self::Network(_) => "Network error communicating with cloud",
             Self::Io(_) => "File system error",
@@ -45,22 +40,12 @@ impl CloudError {
             Self::NotAuthenticated | Self::TokenExpired | Self::Unauthorized => {
                 "Run 'systemprompt cloud login' to authenticate"
             },
-            Self::TenantNotConfigured | Self::AppNotConfigured => {
-                "Run 'systemprompt cloud setup' to configure your project"
-            },
-            Self::ProfileRequired { .. } => {
-                "Set SYSTEMPROMPT_PROFILE or run 'systemprompt cloud config'"
-            },
-            Self::MissingProfileField { .. } => "Add the missing field to your profile YAML",
             Self::JwtDecode | Self::CredentialsCorrupted { .. } => {
                 "Run 'systemprompt cloud login' to re-authenticate"
             },
             Self::TenantsNotSynced
             | Self::TenantsStoreCorrupted { .. }
             | Self::TenantsStoreInvalid { .. } => "Run 'systemprompt cloud login' to sync tenants",
-            Self::TenantNotFound { .. } => {
-                "Run 'systemprompt cloud config' to select a valid tenant"
-            },
             Self::ApiError { .. } | Self::HttpStatus { .. } | Self::ApiValidationFailed { .. } => {
                 "Check the error message and try again"
             },
@@ -94,9 +79,5 @@ impl CloudError {
                 | Self::CredentialsCorrupted { .. }
                 | Self::Unauthorized
         )
-    }
-
-    pub const fn requires_setup(&self) -> bool {
-        matches!(self, Self::TenantNotConfigured | Self::AppNotConfigured)
     }
 }

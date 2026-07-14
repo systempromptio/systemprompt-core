@@ -6,7 +6,6 @@
 
 mod a2a_server;
 mod agent_orchestration;
-mod agent_token_user_provider;
 mod agent_token_validation;
 mod artifact_publishing;
 mod auth_validation;

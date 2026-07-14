@@ -1,8 +1,7 @@
 use super::{TaskRepository, task_state_to_db_string};
 use crate::models::a2a::{Message, Task, TaskState};
 use crate::repository::context::message::{
-    FileUploadContext, PersistMessageSqlxParams, get_next_sequence_number_sqlx,
-    persist_message_sqlx,
+    PersistMessageSqlxParams, get_next_sequence_number_sqlx, persist_message_sqlx,
 };
 use systemprompt_traits::RepositoryError;
 
@@ -41,16 +40,6 @@ impl TaskRepository {
         update_task_row(&mut tx, task).await?;
 
         let context_id_ref = &task.context_id;
-        let upload_ctx = self
-            .file_upload_provider
-            .as_ref()
-            .map(|svc| FileUploadContext {
-                upload_provider: svc,
-                context_id: context_id_ref,
-                user_id,
-                session_id: Some(session_id),
-                trace_id: Some(trace_id),
-            });
 
         for message in [user_message, agent_message] {
             let sequence_number = get_next_sequence_number_sqlx(&mut tx, &task.id).await?;
@@ -63,20 +52,11 @@ impl TaskRepository {
                 user_id,
                 session_id,
                 trace_id,
-                upload_ctx: upload_ctx.as_ref(),
             })
             .await?;
         }
 
         tx.commit().await.map_err(RepositoryError::database)?;
-
-        if let Some(ref analytics_provider) = self.session_analytics_provider {
-            for _ in 0..2 {
-                if let Err(e) = analytics_provider.increment_message_count(session_id).await {
-                    tracing::warn!(error = %e, "Failed to increment analytics message count");
-                }
-            }
-        }
 
         let updated_task = self.get_task(&task.id).await?.ok_or_else(|| {
             RepositoryError::NotFound(format!("Task not found after update: {}", task.id))

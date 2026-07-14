@@ -1,6 +1,5 @@
-//! End-to-end tests for `FileUploadService::upload_file` and its
-//! `FileUploadProvider` trait impl: persistence modes, size/decode rejection,
-//! path-traversal rejection, and DB-failure cleanup. Each test runs in its
+//! End-to-end tests for `FileUploadService::upload_file`: persistence modes,
+//! size/decode rejection, path-traversal rejection, and DB-failure cleanup. Each test runs in its
 //! own nextest process and writes its own `files.yaml` before building the
 //! service's `FilesConfig`.
 
@@ -14,7 +13,6 @@ use systemprompt_files::{
 };
 use systemprompt_identifiers::{ContextId, SessionId, TraceId, UserId};
 use systemprompt_test_fixtures::{TestBootstrap, ensure_test_bootstrap, fixture_db_pool};
-use systemprompt_traits::{FileUploadInput, FileUploadProvider, FileUploadProviderError};
 
 const CONTENT: &[u8] = b"hello upload bytes";
 const CONTENT_SHA256: &str = "3cd6a1084a7842942497e88607bde216d55fa542bb5d1dea4fda4aca73f7f4c3";
@@ -125,23 +123,11 @@ async fn upload_rejected_when_persistence_disabled() {
     let service = FileUploadService::new(&pool, cfg).expect("service");
 
     assert!(!FileUploadService::is_enabled(&service));
-    assert!(!FileUploadProvider::is_enabled(&service));
 
     let request =
         FileUploadRequest::builder("image/png", encoded_content(), ContextId::generate()).build();
     let err = service.upload_file(request).await.expect_err("disabled");
     assert!(matches!(err, FileUploadError::PersistenceDisabled));
-
-    let input = FileUploadInput::new("image/png", encoded_content(), None);
-    let provider_err = FileUploadProvider::upload_file(&service, input)
-        .await
-        .expect_err("disabled via provider");
-    match provider_err {
-        FileUploadProviderError::StorageError { message } => {
-            assert_eq!(message, "File persistence is disabled");
-        },
-        other => panic!("expected StorageError, got {other:?}"),
-    }
 }
 
 #[tokio::test]
@@ -296,51 +282,6 @@ async fn upload_db_failure_removes_stored_file() {
     );
 }
 
-#[tokio::test]
-async fn provider_upload_generates_context_and_round_trips() {
-    let b = ensure_test_bootstrap();
-    let Some(pool) = live_pool(b).await else {
-        return;
-    };
-    let service = FileUploadService::new(&pool, files_config(b, None)).expect("service");
-
-    let mut input = FileUploadInput::new("image/png", encoded_content(), None);
-    input.name = Some("holiday.png".to_owned());
-    input.user_id = Some(UserId::new("provider-upload-user"));
-    input.session_id = Some(SessionId::new("sess-provider-upload"));
-    input.trace_id = Some(TraceId::new("trace-provider-upload"));
-
-    let info = FileUploadProvider::upload_file(&service, input)
-        .await
-        .expect("provider upload");
-    assert_eq!(info.size_bytes, Some(CONTENT.len() as i64));
-
-    let repo = FileRepository::new(&pool).expect("repo");
-    let row = repo
-        .find_by_id(&info.file_id)
-        .await
-        .expect("find")
-        .expect("row present");
-    assert_eq!(row.public_url, info.public_url);
-    assert!(
-        row.context_id.is_some(),
-        "provider generates a context id when none is supplied"
-    );
-    assert_eq!(
-        row.user_id.as_ref().map(UserId::as_str),
-        Some("provider-upload-user")
-    );
-    assert_eq!(
-        row.session_id.as_ref().map(SessionId::as_str),
-        Some("sess-provider-upload")
-    );
-    assert_eq!(
-        row.trace_id.as_ref().map(TraceId::as_str),
-        Some("trace-provider-upload")
-    );
-
-    repo.delete(&info.file_id).await.expect("cleanup");
-}
 
 #[tokio::test]
 async fn upload_io_error_when_uploads_path_is_blocked() {

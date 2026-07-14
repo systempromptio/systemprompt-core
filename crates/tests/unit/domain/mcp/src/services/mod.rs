@@ -20,7 +20,6 @@ mod orchestrator_smoke;
 mod process;
 mod process_spawn_live;
 mod process_spawner;
-mod providers;
 mod proxy_health;
 mod registry;
 mod registry_extended;

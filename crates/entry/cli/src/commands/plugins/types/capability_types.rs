@@ -132,20 +132,6 @@ pub struct SchemasListOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct RouteWithExtension {
-    pub extension_id: PluginId,
-    pub extension_name: String,
-    pub base_path: String,
-    pub requires_auth: bool,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct RoutesListOutput {
-    pub routes: Vec<RouteWithExtension>,
-    pub total: usize,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ToolWithExtension {
     pub extension_id: PluginId,
     pub extension_name: String,

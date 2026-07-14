@@ -11,11 +11,6 @@ use systemprompt_identifiers::CategoryId;
 pub use crate::commands::shared::{ValidationIssue, ValidationOutput};
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct ContentTypeListOutput {
-    pub content_types: Vec<ContentTypeSummary>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ContentTypeSummary {
     pub name: String,
     #[serde(rename = "source_id")]
@@ -94,11 +89,6 @@ pub struct ContentTypeDeleteOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct TemplateListOutput {
-    pub templates: Vec<TemplateSummary>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct TemplateSummary {
     pub name: String,
     pub content_types: Vec<String>,
@@ -135,11 +125,6 @@ pub struct TemplateDeleteOutput {
     pub deleted: String,
     pub file_deleted: bool,
     pub message: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct AssetListOutput {
-    pub assets: Vec<AssetSummary>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -182,12 +167,6 @@ pub struct AssetDetailOutput {
     pub size_bytes: u64,
     pub modified: String,
     pub referenced_in: Vec<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct SitemapShowOutput {
-    pub routes: Vec<SitemapRoute>,
-    pub total_routes: usize,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]

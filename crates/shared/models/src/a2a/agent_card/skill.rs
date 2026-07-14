@@ -37,32 +37,6 @@ pub struct AgentSkill {
     pub security: Option<Vec<HashMap<String, Vec<String>>>>,
 }
 
-impl AgentSkill {
-    #[must_use]
-    pub const fn from_mcp_server(
-        server_name: String,
-        display_name: String,
-        description: String,
-        tags: Vec<String>,
-    ) -> Self {
-        Self {
-            id: server_name,
-            name: display_name,
-            description,
-            tags,
-            examples: None,
-            input_modes: None,
-            output_modes: None,
-            security: None,
-        }
-    }
-
-    #[must_use]
-    pub fn mcp_server_name(&self) -> &str {
-        &self.id
-    }
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct AgentCardSignature {
     pub protected: String,

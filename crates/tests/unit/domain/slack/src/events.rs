@@ -1,6 +1,4 @@
-use systemprompt_slack::events::{
-    EventsApiEnvelope, InteractionPayload, SlackSurface, SlashCommand,
-};
+use systemprompt_slack::events::{EventsApiEnvelope, InteractionPayload, SlashCommand};
 
 #[test]
 fn url_verification_deserializes() {
@@ -38,7 +36,6 @@ fn slash_command_normalizes_with_response_url() {
     )
     .unwrap();
     let n = cmd.normalize();
-    assert_eq!(n.surface, SlackSurface::Command);
     assert_eq!(n.routing_key, "/ask");
     assert_eq!(n.text, "hello there");
     assert_eq!(n.workspace_id.as_str(), "T1");

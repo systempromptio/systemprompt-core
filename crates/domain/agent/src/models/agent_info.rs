@@ -3,7 +3,6 @@
 use crate::models::a2a::{AgentCard, AgentSkill};
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::AgentId;
-use systemprompt_models::Config;
 use systemprompt_models::services::PluginComponentRef;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -46,19 +45,6 @@ impl AgentInfo {
 
     pub fn endpoint(&self) -> &str {
         self.card.url().unwrap_or("")
-    }
-
-    pub fn full_endpoint(&self) -> String {
-        let endpoint = self.card.url().unwrap_or("");
-        if endpoint.starts_with('/') {
-            let base_url = Config::get().map_or_else(
-                |_| "http://localhost:3000".to_owned(),
-                |c| c.api_external_url.clone(),
-            );
-            format!("{}{}", base_url, endpoint)
-        } else {
-            endpoint.to_owned()
-        }
     }
 
     pub fn version(&self) -> &str {

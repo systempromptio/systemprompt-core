@@ -31,17 +31,6 @@ async fn make_state() -> AgentState {
 }
 
 #[tokio::test]
-async fn agent_state_new_optional_fields_are_none() {
-    let state = make_state().await;
-    assert!(state.user_provider().is_none());
-    assert!(state.analytics_provider().is_none());
-    assert!(state.session_analytics_provider().is_none());
-    assert!(state.file_upload_provider().is_none());
-    assert!(state.mcp_service_provider().is_none());
-    assert!(state.process_cleanup_provider().is_none());
-}
-
-#[tokio::test]
 async fn agent_state_config_accessor() {
     let state = make_state().await;
     let _ = state.config();
@@ -64,12 +53,11 @@ async fn agent_state_debug_format() {
     let state = make_state().await;
     let debug_str = format!("{:?}", state);
     assert!(debug_str.contains("AgentState"));
-    assert!(debug_str.contains("false"));
 }
 
 #[tokio::test]
 async fn agent_state_clone() {
     let state = make_state().await;
     let cloned = state.clone();
-    assert!(cloned.user_provider().is_none());
+    let _ = cloned.db_pool();
 }

@@ -1,6 +1,5 @@
-use std::sync::Arc;
-use std::sync::LazyLock;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{Arc, LazyLock};
 
 use async_trait::async_trait;
 use systemprompt_template_provider::{

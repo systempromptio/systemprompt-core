@@ -13,7 +13,6 @@ use uuid::Uuid;
 
 use crate::models::a2a::Message;
 use crate::models::a2a::jsonrpc::NumberOrString;
-use crate::services::a2a_server::handlers::AgentHandlerState;
 use crate::services::a2a_server::processing::message::MessageProcessor;
 
 use super::agent_loader::load_agent_runtime;
@@ -36,38 +35,8 @@ pub(super) fn create_jsonrpc_error_event(
     Event::default().data(error_event.to_string())
 }
 
-pub(super) fn detect_mcp_server_and_update_context(
-    agent_name: &str,
-    context: &mut RequestContext,
-    state: &Arc<AgentHandlerState>,
-) {
-    let is_mcp_server = state
-        .agent_state
-        .mcp_service_provider()
-        .is_some_and(|provider| {
-            provider
-                .validate_registry()
-                .ok()
-                .and_then(|()| {
-                    provider
-                        .find_server(agent_name)
-                        .map_err(|e| {
-                            tracing::trace!(agent_name = %agent_name, error = %e, "MCP server lookup failed");
-                            e
-                        })
-                        .ok()
-                        .flatten()
-                })
-                .is_some()
-        });
-
-    if is_mcp_server && context.agent_name().as_str() != agent_name {
-        tracing::info!(
-            agent_name = %agent_name,
-            context_agent = %context.agent_name().as_str(),
-            "MCP server handling request from agent"
-        );
-    } else if !is_mcp_server && context.agent_name().as_str() != agent_name {
+pub(super) fn align_context_agent_name(agent_name: &str, context: &mut RequestContext) {
+    if context.agent_name().as_str() != agent_name {
         tracing::warn!(
             context_agent = %context.agent_name().as_str(),
             service_agent = %agent_name,
@@ -98,7 +67,7 @@ pub(super) async fn setup_stream(
         callback_config,
     } = input;
 
-    detect_mcp_server_and_update_context(&agent_name, &mut context, &state);
+    align_context_agent_name(&agent_name, &mut context);
 
     let task_id = resolve_task_id(&message);
     let context_id = message.context_id.clone();

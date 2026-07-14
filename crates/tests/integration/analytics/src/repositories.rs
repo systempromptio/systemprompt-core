@@ -224,7 +224,11 @@ async fn traffic_repository_smoke() -> Result<()> {
         .get_bot_breakdown(fx.window_start, fx.window_end)
         .await?;
 
-    assert!(sources.iter().any(|s| s.source.as_deref() == Some("google")));
+    assert!(
+        sources
+            .iter()
+            .any(|s| s.source.as_deref() == Some("google"))
+    );
     let _ = sources_engaged;
     assert!(geo.iter().any(|g| g.country.as_deref() == Some("US")));
     let _ = geo_engaged;

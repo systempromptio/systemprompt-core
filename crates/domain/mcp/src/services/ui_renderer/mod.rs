@@ -81,11 +81,6 @@ impl UiMetadata {
         self
     }
 
-    pub fn with_visibility(mut self, visibility: Vec<ToolVisibility>) -> Self {
-        self.visibility = visibility;
-        self
-    }
-
     pub fn model_only(mut self) -> Self {
         self.visibility = vec![ToolVisibility::Model];
         self

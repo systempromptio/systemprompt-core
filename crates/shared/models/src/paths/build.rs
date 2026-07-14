@@ -89,10 +89,6 @@ impl BuildPaths {
         }
     }
 
-    pub fn binary_exists(&self, name: &str) -> bool {
-        self.resolve_binary(name).is_ok()
-    }
-
     pub fn bin(&self) -> &Path {
         &self.bin
     }

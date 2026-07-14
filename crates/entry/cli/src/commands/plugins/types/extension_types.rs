@@ -4,27 +4,6 @@ use systemprompt_identifiers::PluginId;
 
 use super::capability_types::CapabilitySummary;
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct CliExtensionInfo {
-    pub name: String,
-    pub binary: String,
-    pub description: String,
-    pub commands: Vec<CliCommandInfo>,
-    pub enabled: bool,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct CliCommandInfo {
-    pub name: String,
-    pub description: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct CliExtListOutput {
-    pub extensions: Vec<CliExtensionInfo>,
-    pub total: usize,
-}
-
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum ExtensionSource {

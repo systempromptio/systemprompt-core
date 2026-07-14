@@ -10,7 +10,6 @@
 pub mod command;
 mod signals;
 
-use std::fs;
 use systemprompt_config::{ProfileBootstrap, SecretsBootstrap};
 use systemprompt_models::paths::BuildPaths;
 use systemprompt_models::{AppPaths, Config};
@@ -77,32 +76,4 @@ pub fn spawn_detached(paths: &AppPaths, agent_name: &str, port: u16) -> Orchestr
 pub fn is_port_in_use(port: u16) -> bool {
     use std::net::TcpListener;
     TcpListener::bind(format!("127.0.0.1:{port}")).is_err()
-}
-
-pub fn validate_agent_binary() -> crate::error::AgentResult<()> {
-    let binary_path = BuildPaths::resolve_self()
-        .map_err(|e| crate::error::AgentError::Validation(e.to_string()))?;
-
-    let metadata = fs::metadata(&binary_path).map_err(crate::error::AgentError::Io)?;
-
-    if !metadata.is_file() {
-        return Err(crate::error::AgentError::Validation(format!(
-            "Agent binary is not a file: {}",
-            binary_path.display()
-        )));
-    }
-
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        let permissions = metadata.permissions();
-        if permissions.mode() & 0o111 == 0 {
-            return Err(crate::error::AgentError::Validation(format!(
-                "Agent binary is not executable: {}",
-                binary_path.display()
-            )));
-        }
-    }
-
-    Ok(())
 }

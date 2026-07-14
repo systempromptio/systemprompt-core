@@ -55,11 +55,6 @@ impl CopyPasteTextArtifact {
         self
     }
 
-    pub fn with_language(mut self, language: impl Into<String>) -> Self {
-        self.language = Some(language.into());
-        self
-    }
-
     pub fn with_execution_id(mut self, id: impl Into<String>) -> Self {
         self.metadata.execution_id = Some(id.into());
         self

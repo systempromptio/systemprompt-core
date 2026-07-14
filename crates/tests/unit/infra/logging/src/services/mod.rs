@@ -12,4 +12,3 @@ mod retention_scheduler;
 mod spans;
 mod startup_banners;
 mod structured_output;
-mod summary_smoke;

@@ -219,7 +219,8 @@ impl Seed {
 
         self.insert_ai_request(&self.request_id.clone(), None).await;
         let linked_req = format!("{}_linked", self.request_id);
-        self.insert_ai_request(&linked_req, Some(&mcp_success)).await;
+        self.insert_ai_request(&linked_req, Some(&mcp_success))
+            .await;
 
         self.insert_message(0, "system", &"s".repeat(150)).await;
         self.insert_message(1, "user", "user question").await;
@@ -282,13 +283,7 @@ async fn request_show_renders_messages_and_linked_tools() {
     let human = ctx(&seed.pool, false);
 
     logs::execute(
-        parse(&[
-            "request",
-            "show",
-            &seed.request_id,
-            "--messages",
-            "--tools",
-        ]),
+        parse(&["request", "show", &seed.request_id, "--messages", "--tools"]),
         &human,
     )
     .await
@@ -327,12 +322,9 @@ async fn trace_show_by_task_renders_ai_and_mcp_sections() {
     let seed = Seed::new().await;
     let ctx = ctx(&seed.pool, false);
 
-    logs::execute(
-        parse(&["trace", "show", &seed.task_id, "--all"]),
-        &ctx,
-    )
-    .await
-    .unwrap();
+    logs::execute(parse(&["trace", "show", &seed.task_id, "--all"]), &ctx)
+        .await
+        .unwrap();
     logs::execute(
         parse(&["trace", "show", &seed.task_id, "--ai", "--mcp", "--verbose"]),
         &ctx,

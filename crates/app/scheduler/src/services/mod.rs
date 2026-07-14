@@ -5,14 +5,11 @@
 //! [`orchestration`] holds the service-lifecycle reconciler and process/port
 //! primitives, `service_management` wraps service-record start/stop
 //! bookkeeping, and `plans` computes pure start/restart plans for composition
-//! roots. `providers` adapts [`ProcessCleanup`] to the `systemprompt-traits`
-//! provider contract so other crates can depend on the trait rather than this
-//! crate directly.
+//! roots.
 
 mod job_execution;
 pub mod orchestration;
 mod plans;
-mod providers;
 pub mod scheduling;
 mod service_management;
 

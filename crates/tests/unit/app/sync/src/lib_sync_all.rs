@@ -44,7 +44,10 @@ async fn sync_all_records_not_started_database_when_local_url_missing() {
     assert!(!database.success, "database step should be marked failed");
     assert_eq!(database.state, SyncOpState::NotStarted);
     assert!(
-        database.errors.iter().any(|e| e.contains("local_database_url")),
+        database
+            .errors
+            .iter()
+            .any(|e| e.contains("local_database_url")),
         "database error should name the missing config: {:?}",
         database.errors
     );

@@ -10,7 +10,7 @@ pub use skill::{AgentCardSignature, AgentInterface, AgentProvider, AgentSkill};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-use super::security::{OAuth2Flow, OAuth2Flows, SecurityScheme};
+use super::security::SecurityScheme;
 use super::transport::ProtocolBinding;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
@@ -111,26 +111,6 @@ impl AgentCardBuilder {
     }
 
     #[must_use]
-    pub fn with_mcp_skills(
-        mut self,
-        mcp_servers: Vec<(String, String, String, Vec<String>)>,
-    ) -> Self {
-        for (server_name, display_name, description, tags) in mcp_servers {
-            let skill = AgentSkill::from_mcp_server(server_name, display_name, description, tags);
-            self.agent_card.skills.push(skill);
-        }
-
-        let mcp_extension = AgentExtension::mcp_tools_extension();
-        let opencode_extension = AgentExtension::opencode_integration_extension();
-        let artifact_rendering = AgentExtension::artifact_rendering_extension();
-
-        self.agent_card.capabilities.extensions =
-            Some(vec![mcp_extension, opencode_extension, artifact_rendering]);
-
-        self
-    }
-
-    #[must_use]
     pub const fn with_streaming(mut self) -> Self {
         self.agent_card.capabilities.streaming = Some(true);
         self
@@ -145,49 +125,6 @@ impl AgentCardBuilder {
     #[must_use]
     pub fn with_provider(mut self, organization: String, url: String) -> Self {
         self.agent_card.provider = Some(AgentProvider { organization, url });
-        self
-    }
-
-    #[must_use]
-    pub fn with_oauth2_security(
-        mut self,
-        authorization_url: String,
-        token_url: String,
-        scopes: HashMap<String, String>,
-    ) -> Self {
-        let oauth2_flows = OAuth2Flows {
-            authorization_code: Some(OAuth2Flow {
-                authorization_url: Some(authorization_url),
-                token_url: Some(token_url),
-                refresh_url: None,
-                scopes,
-            }),
-            implicit: None,
-            password: None,
-            client_credentials: None,
-        };
-
-        let oauth2_scheme = SecurityScheme::OAuth2 {
-            flows: Box::new(oauth2_flows),
-            description: Some("OAuth 2.0 authorization code flow for secure access".to_owned()),
-        };
-
-        self.agent_card
-            .security_schemes
-            .get_or_insert_with(HashMap::new)
-            .insert("oauth2".to_owned(), oauth2_scheme);
-
-        let mut authentication_requirement = HashMap::new();
-        authentication_requirement.insert(
-            "oauth2".to_owned(),
-            vec!["admin".to_owned(), "user".to_owned()],
-        );
-
-        self.agent_card
-            .security
-            .get_or_insert_with(Vec::new)
-            .push(authentication_requirement);
-
         self
     }
 

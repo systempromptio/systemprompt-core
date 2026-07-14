@@ -1,5 +1,4 @@
 use serde::{Deserialize, Serialize};
-use systemprompt_identifiers::McpExecutionId;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct McpConnectionResult {
@@ -25,12 +24,6 @@ pub struct ValidationResult {
     pub error_message: Option<String>,
     pub tools_count: usize,
     pub validation_type: String,
-}
-
-#[derive(Debug, Clone)]
-pub struct ToolExecutionWithId {
-    pub result: rmcp::model::CallToolResult,
-    pub mcp_execution_id: McpExecutionId,
 }
 
 impl McpConnectionResult {

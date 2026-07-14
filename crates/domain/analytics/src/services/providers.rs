@@ -1,9 +1,8 @@
 //! Bridges this crate's analytics services to the `systemprompt_traits`
 //! provider contracts.
 //!
-//! Implements [`AnalyticsProvider`] for `AnalyticsService`,
-//! [`FingerprintProvider`] for `FingerprintRepository`, and
-//! [`SessionAnalyticsProvider`] for `SessionRepository`, translating between
+//! Implements [`AnalyticsProvider`] for `AnalyticsService` and
+//! [`FingerprintProvider`] for `FingerprintRepository`, translating between
 //! the crate-local types and the trait-level types and mapping every error
 //! into the providers' error enums. `#[async_trait]` is required because
 //! these provider traits are consumed as `dyn`.
@@ -15,12 +14,11 @@ use systemprompt_identifiers::{SessionId, UserId};
 use systemprompt_traits::{
     ActiveSession, AnalyticsProvider, AnalyticsProviderError, AnalyticsResult, AnalyticsSession,
     CreateSessionInput, FingerprintProvider, SessionAnalytics as TraitSessionAnalytics,
-    SessionAnalyticsProvider, SessionAnalyticsProviderError, SessionAnalyticsResult,
 };
 
 use super::SessionAnalytics;
 use super::service::AnalyticsService;
-use crate::repository::{FingerprintRepository, SessionRepository};
+use crate::repository::FingerprintRepository;
 
 #[async_trait]
 impl AnalyticsProvider for AnalyticsService {
@@ -212,20 +210,5 @@ impl FingerprintProvider for FingerprintRepository {
             .await
             .map(|_| ())
             .map_err(|e| AnalyticsProviderError::Internal(e.to_string()))
-    }
-}
-
-#[async_trait]
-impl SessionAnalyticsProvider for SessionRepository {
-    async fn increment_task_count(&self, session_id: &SessionId) -> SessionAnalyticsResult<()> {
-        Self::increment_task_count(self, session_id)
-            .await
-            .map_err(|e| SessionAnalyticsProviderError::Internal(e.to_string()))
-    }
-
-    async fn increment_message_count(&self, session_id: &SessionId) -> SessionAnalyticsResult<()> {
-        Self::increment_message_count(self, session_id)
-            .await
-            .map_err(|e| SessionAnalyticsProviderError::Internal(e.to_string()))
     }
 }

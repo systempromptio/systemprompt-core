@@ -3,9 +3,7 @@ use systemprompt_traits::RepositoryError;
 
 use crate::models::a2a::{Message, MessageRole};
 
-use super::parts::{
-    FileUploadContext, PersistPartSqlxParams, persist_part_sqlx, persist_part_with_tx,
-};
+use super::parts::{PersistPartSqlxParams, persist_part_sqlx, persist_part_with_tx};
 
 const fn role_to_str(role: &MessageRole) -> &'static str {
     match role {
@@ -27,7 +25,6 @@ pub struct PersistMessageSqlxParams<'a> {
     pub user_id: Option<&'a UserId>,
     pub session_id: &'a SessionId,
     pub trace_id: &'a TraceId,
-    pub upload_ctx: Option<&'a FileUploadContext<'a>>,
 }
 
 pub async fn persist_message_sqlx(
@@ -42,7 +39,6 @@ pub async fn persist_message_sqlx(
         user_id,
         session_id,
         trace_id,
-        upload_ctx,
     } = params;
     let metadata_json =
         serde_json::to_value(&message.metadata).map_err(RepositoryError::Serialization)?;
@@ -101,7 +97,6 @@ pub async fn persist_message_sqlx(
             message_id: &message.message_id,
             task_id,
             sequence_number: idx as i32,
-            upload_ctx,
         })
         .await?;
     }
