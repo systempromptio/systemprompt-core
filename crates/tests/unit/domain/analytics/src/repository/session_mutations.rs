@@ -72,13 +72,11 @@ async fn increment_counters_accumulate() {
     repo.increment_request_count(&sid).await.expect("req");
     repo.increment_task_count(&sid).await.expect("task");
     repo.increment_message_count(&sid).await.expect("msg");
-    repo.increment_ai_request_count(&sid).await.expect("ai");
 
     let s = repo.find_by_id(&sid).await.expect("find").expect("present");
     assert_eq!(s.request_count, Some(2));
     assert_eq!(s.task_count, Some(1));
     assert_eq!(s.message_count, Some(1));
-    assert_eq!(s.ai_request_count, Some(1));
 
     delete_session(&pool, &sid).await;
 }

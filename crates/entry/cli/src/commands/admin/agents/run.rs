@@ -5,6 +5,7 @@ use std::sync::Arc;
 use systemprompt_agent::AgentState;
 use systemprompt_agent::services::a2a_server::run_standalone;
 use systemprompt_ai::AiService;
+use systemprompt_analytics::AnalyticsAiSessionProvider;
 use systemprompt_loader::ConfigLoader;
 use systemprompt_mcp::McpToolProvider;
 use systemprompt_oauth::JwtValidationProviderImpl;
@@ -44,13 +45,17 @@ pub(super) async fn execute(args: RunArgs) -> Result<()> {
         ctx.mcp_registry().clone(),
         &services_config.ai.mcp.resilience,
     ));
+    let session_provider = Arc::new(
+        AnalyticsAiSessionProvider::new(&db_pool)
+            .context("Failed to create analytics session provider")?,
+    );
     let ai_service = Arc::new(
         AiService::new(
             &db_pool,
             &profile.providers,
             &services_config.ai,
             tool_provider,
-            None,
+            Some(session_provider),
         )
         .context("Failed to create AI service")?,
     );

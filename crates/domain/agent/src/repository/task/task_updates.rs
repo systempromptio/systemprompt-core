@@ -58,6 +58,12 @@ impl TaskRepository {
 
         tx.commit().await.map_err(RepositoryError::database)?;
 
+        for _ in 0..2 {
+            if let Err(e) = self.sessions.increment_message_count(session_id).await {
+                tracing::warn!(error = %e, session_id = %session_id, "Failed to increment session message count");
+            }
+        }
+
         let updated_task = self.get_task(&task.id).await?.ok_or_else(|| {
             RepositoryError::NotFound(format!("Task not found after update: {}", task.id))
         })?;

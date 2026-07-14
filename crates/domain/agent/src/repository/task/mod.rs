@@ -2,9 +2,11 @@
 //!
 //! [`TaskRepository`] is the repository facade over the `agent_tasks` table and
 //! its satellites (`task_messages`, `message_parts`, `task_execution_steps`).
-//! It splits reads and writes across separate pools and delegates aggregate
-//! reassembly to [`TaskConstructor`]. Query, mutation, and state-transition
-//! helpers live in the sibling submodules and are re-exported here.
+//! It splits reads and writes across separate pools, keeps the per-session
+//! task/message counters on `user_sessions` current as it writes, and
+//! delegates aggregate reassembly to [`TaskConstructor`]. Query, mutation, and
+//! state-transition helpers live in the sibling submodules and are re-exported
+//! here.
 
 pub mod constructor;
 mod mutations;
@@ -26,6 +28,7 @@ pub use task_updates::UpdateTaskAndSaveMessagesParams;
 use crate::models::a2a::{Task, TaskState};
 use sqlx::PgPool;
 use std::sync::Arc;
+use systemprompt_analytics::SessionRepository;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{SessionId, TraceId, UserId};
 use systemprompt_traits::RepositoryError;
@@ -47,6 +50,7 @@ pub struct TaskRepository {
     pool: Arc<PgPool>,
     write_pool: Arc<PgPool>,
     db_pool: DbPool,
+    pub(crate) sessions: SessionRepository,
 }
 
 impl std::fmt::Debug for TaskRepository {
@@ -67,10 +71,13 @@ impl TaskRepository {
         let write_pool = db
             .write_pool_arc()
             .map_err(|e| crate::error::AgentError::Init(e.to_string()))?;
+        let sessions = SessionRepository::new(db)
+            .map_err(|e| crate::error::AgentError::Init(e.to_string()))?;
         Ok(Self {
             pool,
             write_pool,
             db_pool: Arc::clone(db),
+            sessions,
         })
     }
 
@@ -91,6 +98,10 @@ impl TaskRepository {
             agent_name: params.agent_name,
         })
         .await?;
+
+        if let Err(e) = self.sessions.increment_task_count(params.session_id).await {
+            tracing::warn!(error = %e, session_id = %params.session_id, "Failed to increment session task count");
+        }
 
         Ok(result)
     }

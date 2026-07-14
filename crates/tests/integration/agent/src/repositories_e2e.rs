@@ -651,3 +651,59 @@ async fn task_repository_update_task_and_save_messages_and_delete() -> Result<()
     fx.cleanup().await?;
     Ok(())
 }
+
+#[tokio::test]
+async fn task_and_message_writes_increment_session_counters() -> Result<()> {
+    let fx = E2EFixture::new().await?;
+    let repos = A2ARepositories::new(&fx.db)?;
+
+    sqlx::query("INSERT INTO user_sessions (session_id, user_id) VALUES ($1, $2)")
+        .bind(fx.session_id.as_str())
+        .bind(fx.user_id.as_str())
+        .execute(&fx.pool)
+        .await?;
+
+    let task_id = fx.insert_task(&repos.tasks, TaskState::Working).await?;
+
+    let make_message = |role: MessageRole, text: &str| Message {
+        role,
+        parts: vec![Part::Text(TextPart { text: text.into() })],
+        message_id: MessageId::new(format!("cnt_msg_{}", Uuid::new_v4().simple())),
+        task_id: Some(task_id.clone()),
+        context_id: fx.context_id.clone(),
+        metadata: None,
+        extensions: None,
+        reference_task_ids: None,
+    };
+    let task = repos.tasks.get_task(&task_id).await?.expect("task present");
+    repos
+        .tasks
+        .update_task_and_save_messages(UpdateTaskAndSaveMessagesParams {
+            task: &task,
+            user_message: &make_message(MessageRole::User, "hi"),
+            agent_message: &make_message(MessageRole::Agent, "hello"),
+            user_id: Some(&fx.user_id),
+            session_id: &fx.session_id,
+            trace_id: &fx.trace_id,
+        })
+        .await?;
+
+    let (task_count, message_count): (i32, i32) = sqlx::query_as(
+        "SELECT task_count, message_count FROM user_sessions WHERE session_id = $1",
+    )
+    .bind(fx.session_id.as_str())
+    .fetch_one(&fx.pool)
+    .await?;
+    assert_eq!(task_count, 1, "create_task must increment task_count");
+    assert_eq!(
+        message_count, 2,
+        "update_task_and_save_messages must count both messages"
+    );
+
+    sqlx::query("DELETE FROM user_sessions WHERE session_id = $1")
+        .bind(fx.session_id.as_str())
+        .execute(&fx.pool)
+        .await?;
+    fx.cleanup().await?;
+    Ok(())
+}

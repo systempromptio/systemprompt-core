@@ -80,10 +80,6 @@ impl SessionRepository {
         mutations::increment_task_count(&self.write_pool, session_id).await
     }
 
-    pub async fn increment_ai_request_count(&self, session_id: &SessionId) -> Result<()> {
-        mutations::increment_ai_request_count(&self.write_pool, session_id).await
-    }
-
     pub async fn increment_message_count(&self, session_id: &SessionId) -> Result<()> {
         mutations::increment_message_count(&self.write_pool, session_id).await
     }
