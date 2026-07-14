@@ -103,3 +103,64 @@ fn route(id: &str) -> systemprompt_models::profile::GatewayRoute {
         when: None,
     }
 }
+
+#[test]
+fn load_profile_with_catalog_resolves_gateway_section() {
+    let fx = crate::fixture::write_tree(crate::fixture::FILE_SECRETS, None);
+    std::fs::write(
+        fx.tmp.path().join("override_prompt.txt"),
+        "terse gateway prompt",
+    )
+    .unwrap();
+    let gateway_yaml = r#"providers:
+  - name: anthropic
+    wire: anthropic
+    surface: anthropic
+    endpoint: https://api.anthropic.com/v1
+    api_key_secret: anthropic
+    models:
+      - id: claude-sonnet-4-5
+gateway:
+  enabled: true
+  default_provider: anthropic
+  routes:
+    - model_pattern: 'claude-*'
+      provider: anthropic
+  system_prompt_overrides:
+    - action: replace
+      prompt: '!include override_prompt.txt'
+"#;
+    let mut yaml = std::fs::read_to_string(&fx.profile_path).unwrap();
+    yaml.push_str(gateway_yaml);
+    std::fs::write(&fx.profile_path, yaml).unwrap();
+
+    let profile = systemprompt_config::load_profile_with_catalog(&fx.profile_path).unwrap();
+
+    let gateway = profile.gateway.as_ref().unwrap().resolved().unwrap();
+    assert!(gateway.enabled);
+    assert_eq!(gateway.routes.len(), 1);
+    assert!(!gateway.routes[0].id.as_str().trim().is_empty());
+    assert_eq!(gateway.routes[0].provider.as_str(), "anthropic");
+    assert_eq!(
+        gateway.system_prompt_overrides[0].prompt.as_deref(),
+        Some("terse gateway prompt")
+    );
+}
+
+#[test]
+fn load_profile_without_gateway_returns_profile_unchanged() {
+    let fx = crate::fixture::write_tree(crate::fixture::FILE_SECRETS, None);
+
+    let profile = systemprompt_config::load_profile_with_catalog(&fx.profile_path).unwrap();
+
+    assert!(profile.gateway.is_none());
+    assert_eq!(profile.name, "config_fixture");
+}
+
+#[test]
+fn load_profile_with_catalog_missing_file_errors() {
+    let err =
+        systemprompt_config::load_profile_with_catalog(std::path::Path::new("/absent/p.yaml"))
+            .unwrap_err();
+    assert!(matches!(err, ProfileError::ReadFile { .. }));
+}
