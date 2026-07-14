@@ -101,7 +101,6 @@ async fn count_ai_images_reflects_inserted_rows() {
     let repo = FileRepository::new(&db).expect("repo");
     let user = UserId::new(format!("u-{}", uuid::Uuid::new_v4().simple()));
 
-    let before_global = repo.count_ai_images().await.expect("count before");
     assert_eq!(
         repo.count_ai_images_by_user(&user).await.expect("per-user"),
         0
@@ -116,13 +115,10 @@ async fn count_ai_images_reflects_inserted_rows() {
         .await
         .expect("insert b");
 
-    // Sibling test processes may insert AI rows concurrently, so the global
-    // counter is asserted as a lower bound; the per-user count is exact.
+    // Sibling test processes insert and delete AI rows concurrently, so the
+    // global counter only supports a lower bound; the per-user count is exact.
     let after_global = repo.count_ai_images().await.expect("count after");
-    assert!(
-        after_global >= before_global + 2,
-        "global count grew from {before_global} to {after_global}"
-    );
+    assert!(after_global >= 2, "global count was {after_global}");
     assert_eq!(
         repo.count_ai_images_by_user(&user).await.expect("per-user"),
         2
