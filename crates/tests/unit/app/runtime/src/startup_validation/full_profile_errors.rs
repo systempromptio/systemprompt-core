@@ -1,5 +1,7 @@
-//! Failure arm of the profile-backed validation pipeline: an enabled
-//! internal MCP server whose extension manifest cannot be resolved.
+//! Failure arms of the profile-backed validation pipeline: an enabled
+//! internal MCP server whose extension manifest cannot be resolved, and a
+//! skill entry missing its content file, printed through the verbose
+//! domain-error branch.
 
 use systemprompt_models::Config;
 use systemprompt_runtime::StartupValidator;
@@ -56,4 +58,79 @@ fn missing_internal_mcp_manifest_stops_validation_with_mcp_error() {
             .map(|e| &e.domain)
             .collect::<Vec<_>>()
     );
+}
+
+#[test]
+fn skill_missing_content_file_errors_in_verbose_mode() {
+    let Some(_fixture) = boot(&BootOptions::default()) else {
+        return;
+    };
+    systemprompt_config::try_init_config().expect("init config from profile");
+    let config = Config::get().expect("config installed").clone();
+    systemprompt_logging::set_startup_mode(true);
+
+    std::fs::remove_file(
+        std::path::Path::new(&config.services_path).join("skills/echo_skill/index.md"),
+    )
+    .expect("remove skill content file");
+
+    let mut validator = StartupValidator::new();
+    let report = validator.validate(&config);
+
+    let skills = report
+        .domains
+        .iter()
+        .find(|d| d.domain == "skills")
+        .expect("skills domain must be present");
+    let err = skills
+        .errors
+        .iter()
+        .find(|e| e.field == "skills.echo_skill.file")
+        .expect("missing content file must be reported");
+    assert!(
+        err.message.contains("'index.md' not found"),
+        "got: {}",
+        err.message
+    );
+}
+
+#[test]
+fn quiet_mode_validate_reports_the_same_extension_failures() {
+    let Some(_fixture) = boot(&BootOptions::default()) else {
+        return;
+    };
+    systemprompt_config::try_init_config().expect("init config from profile");
+    let config = Config::get().expect("config installed").clone();
+
+    let mut config = config;
+    let bad = std::path::Path::new(&config.services_path).join("bad.yaml");
+    std::fs::write(&bad, ": : not yaml [").expect("write malformed yaml");
+    let bad = bad.display().to_string();
+    config.content_config_path.clone_from(&bad);
+    config.web_config_path.clone_from(&bad);
+    config.web_metadata_path.clone_from(&bad);
+
+    let mut validator = StartupValidator::new();
+    let report = validator.validate(&config);
+
+    assert!(
+        report
+            .extensions
+            .iter()
+            .any(|e| e.domain == "ext:covextbad"),
+        "quiet mode must reach extension validation; got {:?}",
+        report
+            .extensions
+            .iter()
+            .map(|e| &e.domain)
+            .collect::<Vec<_>>()
+    );
+    for domain in &report.domains {
+        assert!(
+            !domain.has_errors(),
+            "domain {} unexpectedly errored: {:?}",
+            domain.domain,
+            domain.errors
+        );
+    }
 }

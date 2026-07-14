@@ -24,6 +24,7 @@ systemprompt-files = { workspace = true }
 systemprompt-analytics = { workspace = true }
 systemprompt-mcp = { workspace = true }
 systemprompt-test-fixtures = { workspace = true }
+systemprompt-database = { workspace = true }
 axum = { workspace = true }
 inventory = { workspace = true }
 
@@ -33,6 +34,7 @@ tempfile = { workspace = true }
 serde_json = { workspace = true }
 serde_yaml = { workspace = true }
 sqlx = { workspace = true }
+async-trait = { workspace = true }
 
 [package.metadata.cargo-machete]
 ignored = ["inventory"]

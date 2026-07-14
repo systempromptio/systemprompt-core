@@ -109,6 +109,38 @@ fn load_content_config_returns_none_when_path_is_unreadable() {
 }
 
 #[test]
+fn load_content_config_returns_none_when_file_is_missing() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let app_paths = app_paths_for(tmp.path());
+    let cfg = fixture_config(None);
+
+    let loaded = AppContext::load_content_config(&cfg, &app_paths);
+    assert!(
+        loaded.is_none(),
+        "a missing content config degrades to None"
+    );
+}
+
+#[test]
+fn load_content_config_returns_none_for_malformed_yaml() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    std::fs::create_dir_all(tmp.path().join("services/content")).expect("mkdir content dir");
+    std::fs::write(
+        tmp.path().join("services/content/config.yaml"),
+        ": : not yaml [",
+    )
+    .expect("write malformed content config");
+    let app_paths = app_paths_for(tmp.path());
+    let cfg = fixture_config(None);
+
+    let loaded = AppContext::load_content_config(&cfg, &app_paths);
+    assert!(
+        loaded.is_none(),
+        "a malformed content config degrades to None"
+    );
+}
+
+#[test]
 fn load_content_config_rewrites_organization_urls() {
     let tmp = tempfile::tempdir().expect("tempdir");
     std::fs::create_dir_all(tmp.path().join("services/content")).expect("mkdir content dir");

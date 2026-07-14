@@ -77,8 +77,8 @@ async fn build_assembles_full_context_with_pool_and_write_url() {
     assert!(ctx.geoip_reader().is_none());
     assert_eq!(ctx.extension_registry().ids().len(), 0);
     assert!(
-        format!("{:?}", ctx.marketplace_filter()).contains("AllowAllFilter"),
-        "no inventory filter factory is registered, so the allow-all fallback applies; got {:?}",
+        format!("{:?}", ctx.marketplace_filter()).contains("CovMarketplaceFilter"),
+        "the highest-priority factory fails, so the next registered factory must win; got {:?}",
         ctx.marketplace_filter()
     );
 

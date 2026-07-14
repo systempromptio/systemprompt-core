@@ -8,8 +8,13 @@
 //! Registration is per-binary (inventory), so every test in this crate that
 //! reaches extension discovery sees all four; assertions account for that.
 
+use std::sync::Arc;
+
 use systemprompt_extension::{
     AssetDefinition, AssetPaths, ConfigError, Extension, ExtensionMetadata, register_extension,
+};
+use systemprompt_marketplace::{
+    MarketplaceCandidate, MarketplaceFilter, MarketplaceFilterError, register_marketplace_filter,
 };
 
 #[derive(Default)]
@@ -100,6 +105,37 @@ impl Extension for CovAssetsOk {
         )]
     }
 }
+
+#[derive(Debug)]
+pub struct CovMarketplaceFilter;
+
+#[async_trait::async_trait]
+impl MarketplaceFilter for CovMarketplaceFilter {
+    async fn filter(
+        &self,
+        _user_id: &systemprompt_identifiers::UserId,
+        candidate: MarketplaceCandidate,
+    ) -> Result<MarketplaceCandidate, MarketplaceFilterError> {
+        Ok(candidate)
+    }
+}
+
+fn failing_filter_factory(
+    _pool: &systemprompt_database::DbPool,
+) -> Result<Arc<dyn MarketplaceFilter>, MarketplaceFilterError> {
+    Err(MarketplaceFilterError::Backend(
+        "fixture factory always fails".to_owned(),
+    ))
+}
+
+fn cov_filter_factory(
+    _pool: &systemprompt_database::DbPool,
+) -> Result<Arc<dyn MarketplaceFilter>, MarketplaceFilterError> {
+    Ok(Arc::new(CovMarketplaceFilter))
+}
+
+register_marketplace_filter!(failing_filter_factory, priority = 100);
+register_marketplace_filter!(cov_filter_factory, priority = 10);
 
 register_extension!(CovExtOk);
 register_extension!(CovExtBad);
