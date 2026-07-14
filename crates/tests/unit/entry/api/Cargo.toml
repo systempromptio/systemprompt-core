@@ -13,6 +13,7 @@ workspace = true
 [dependencies]
 systemprompt-api = { workspace = true, features = ["test-api"] }
 systemprompt-ai = { workspace = true }
+systemprompt-extension = { workspace = true }
 inventory = { workspace = true }
 systemprompt-oauth = { workspace = true }
 systemprompt-security = { workspace = true }

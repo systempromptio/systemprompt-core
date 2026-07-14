@@ -64,6 +64,7 @@ pub mod builder;
 pub mod capabilities;
 pub mod context;
 pub mod error;
+pub mod frame_options;
 pub mod hlist;
 pub mod metadata;
 pub mod migration;
@@ -79,6 +80,7 @@ pub mod types;
 pub use asset::{AssetDefinition, AssetDefinitionBuilder, AssetPaths, AssetType};
 pub use context::{DynExtensionContext, ExtensionContext};
 pub use error::{ConfigError, LoaderError};
+pub use frame_options::{FrameOptions, FrameOptionsOverride, stamp_frame_options};
 pub use metadata::{ExtensionMetadata, ExtensionRole, SchemaDefinition};
 pub use migration::Migration;
 pub use registry::{ExtensionRegistration, ExtensionRegistry};
@@ -107,8 +109,9 @@ pub mod prelude {
     pub use crate::registry::ExtensionRegistry;
     pub use crate::seed::Seed;
     pub use crate::{
-        Extension, ExtensionMetadata, ExtensionRole, ExtensionRouter, Migration, SchemaDefinition,
-        SiteAuthConfig, extension_migrations, register_extension,
+        Extension, ExtensionMetadata, ExtensionRole, ExtensionRouter, FrameOptions, Migration,
+        SchemaDefinition, SiteAuthConfig, extension_migrations, register_extension,
+        stamp_frame_options,
     };
 
     pub use crate::any::AnyExtension;

@@ -46,13 +46,25 @@ pub(super) fn mount_extension_routes(
         let base_path = ext_router_config.base_path;
         let requires_auth = ext_router_config.requires_auth;
 
-        let ext_router = if requires_auth {
+        let mut ext_router = if requires_auth {
             ext_router_config
                 .router
                 .with_auth(user_middleware.clone(), AuthzPolicy::user())
         } else {
             ext_router_config.router
         };
+
+        if let Some(frame_options) = ext_router_config.frame_options {
+            tracing::debug!(
+                extension = ext_id,
+                base_path,
+                ?frame_options,
+                "Applying frame-options override"
+            );
+            ext_router = ext_router.layer(axum::middleware::from_fn(move |request, next| {
+                systemprompt_extension::stamp_frame_options(frame_options, request, next)
+            }));
+        }
 
         if let Some(tx) = events
             && tx

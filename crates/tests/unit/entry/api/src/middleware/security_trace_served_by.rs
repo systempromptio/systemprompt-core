@@ -108,6 +108,102 @@ async fn security_headers_skip_csp_when_none() {
     assert!(!resp.headers().contains_key("content-security-policy"));
 }
 
+fn security_app_with_frame_override(
+    frame_options: systemprompt_extension::FrameOptions,
+    cfg: SecurityHeadersConfig,
+) -> Router {
+    Router::new()
+        .route("/", get(|| async { "ok" }))
+        .layer(from_fn(move |req, next| {
+            systemprompt_extension::stamp_frame_options(frame_options, req, next)
+        }))
+        .layer(from_fn(move |req, next| {
+            let cfg = cfg.clone();
+            async move { inject_security_headers(cfg, req, next).await }
+        }))
+}
+
+#[tokio::test]
+async fn frame_override_allow_all_removes_xfo_and_sets_frame_ancestors() {
+    let app = security_app_with_frame_override(
+        systemprompt_extension::FrameOptions::AllowAll,
+        SecurityHeadersConfig::default(),
+    );
+    let resp = app
+        .oneshot(Request::builder().uri("/").body(Body::empty()).unwrap())
+        .await
+        .unwrap();
+    let h = resp.headers();
+    assert!(!h.contains_key("x-frame-options"));
+    assert_eq!(
+        h.get("content-security-policy").and_then(|v| v.to_str().ok()),
+        Some("frame-ancestors *")
+    );
+}
+
+#[tokio::test]
+async fn frame_override_same_origin_sets_xfo_and_frame_ancestors() {
+    let app = security_app_with_frame_override(
+        systemprompt_extension::FrameOptions::SameOrigin,
+        SecurityHeadersConfig::default(),
+    );
+    let resp = app
+        .oneshot(Request::builder().uri("/").body(Body::empty()).unwrap())
+        .await
+        .unwrap();
+    let h = resp.headers();
+    assert_eq!(
+        h.get("x-frame-options").and_then(|v| v.to_str().ok()),
+        Some("SAMEORIGIN")
+    );
+    assert_eq!(
+        h.get("content-security-policy").and_then(|v| v.to_str().ok()),
+        Some("frame-ancestors 'self'")
+    );
+}
+
+#[tokio::test]
+async fn frame_override_replaces_global_csp() {
+    let mut cfg = SecurityHeadersConfig::default();
+    cfg.content_security_policy = Some("default-src 'self'".into());
+    let app =
+        security_app_with_frame_override(systemprompt_extension::FrameOptions::AllowAll, cfg);
+    let resp = app
+        .oneshot(Request::builder().uri("/").body(Body::empty()).unwrap())
+        .await
+        .unwrap();
+    assert_eq!(
+        resp.headers()
+            .get("content-security-policy")
+            .and_then(|v| v.to_str().ok()),
+        Some("frame-ancestors *")
+    );
+}
+
+#[tokio::test]
+async fn raw_xfo_header_without_marker_is_clobbered_to_profile_value() {
+    let cfg = SecurityHeadersConfig::default();
+    let app = Router::new()
+        .route(
+            "/",
+            get(|| async { ([("x-frame-options", "ALLOWALL")], "ok") }),
+        )
+        .layer(from_fn(move |req, next| {
+            let cfg = cfg.clone();
+            async move { inject_security_headers(cfg, req, next).await }
+        }));
+    let resp = app
+        .oneshot(Request::builder().uri("/").body(Body::empty()).unwrap())
+        .await
+        .unwrap();
+    assert_eq!(
+        resp.headers()
+            .get("x-frame-options")
+            .and_then(|v| v.to_str().ok()),
+        Some("DENY")
+    );
+}
+
 #[tokio::test]
 async fn trace_header_present_when_context_attached() {
     use systemprompt_identifiers::{AgentName, ContextId, SessionId, TraceId};

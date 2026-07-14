@@ -1,9 +1,12 @@
 //! Router and site-auth configuration value types.
 
+use crate::frame_options::FrameOptions;
+
 #[derive(Debug, Clone, Copy)]
 pub struct ExtensionRouterConfig {
     pub base_path: &'static str,
     pub requires_auth: bool,
+    pub frame_options: Option<FrameOptions>,
 }
 
 impl ExtensionRouterConfig {
@@ -12,6 +15,7 @@ impl ExtensionRouterConfig {
         Self {
             base_path,
             requires_auth: true,
+            frame_options: None,
         }
     }
 
@@ -20,6 +24,7 @@ impl ExtensionRouterConfig {
         Self {
             base_path,
             requires_auth: false,
+            frame_options: None,
         }
     }
 }
@@ -37,6 +42,7 @@ pub struct ExtensionRouter {
     pub router: axum::Router,
     pub base_path: &'static str,
     pub requires_auth: bool,
+    pub frame_options: Option<FrameOptions>,
 }
 
 impl ExtensionRouter {
@@ -46,6 +52,7 @@ impl ExtensionRouter {
             router,
             base_path,
             requires_auth: true,
+            frame_options: None,
         }
     }
 
@@ -55,7 +62,14 @@ impl ExtensionRouter {
             router,
             base_path,
             requires_auth: false,
+            frame_options: None,
         }
+    }
+
+    #[must_use]
+    pub const fn with_frame_options(mut self, frame_options: FrameOptions) -> Self {
+        self.frame_options = Some(frame_options);
+        self
     }
 
     #[must_use]
@@ -63,6 +77,7 @@ impl ExtensionRouter {
         ExtensionRouterConfig {
             base_path: self.base_path,
             requires_auth: self.requires_auth,
+            frame_options: self.frame_options,
         }
     }
 }

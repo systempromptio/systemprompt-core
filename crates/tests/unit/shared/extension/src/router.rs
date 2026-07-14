@@ -44,6 +44,23 @@ fn extension_router_config_derives_from_public_router() {
 }
 
 #[test]
+fn extension_router_frame_options_default_to_none() {
+    let router = ExtensionRouter::public(axum::Router::new(), "/tools");
+    assert!(router.frame_options.is_none());
+    assert!(router.config().frame_options.is_none());
+}
+
+#[test]
+fn extension_router_with_frame_options_projects_into_config() {
+    let router = ExtensionRouter::public(axum::Router::new(), "/tools")
+        .with_frame_options(systemprompt_extension::FrameOptions::AllowAll);
+    assert_eq!(
+        router.config().frame_options,
+        Some(systemprompt_extension::FrameOptions::AllowAll)
+    );
+}
+
+#[test]
 fn site_auth_config_fields() {
     let auth = SiteAuthConfig {
         login_path: "/login",

@@ -15,6 +15,8 @@ mod error;
 #[cfg(test)]
 mod extension_trait;
 #[cfg(test)]
+mod frame_options;
+#[cfg(test)]
 mod hlist;
 #[cfg(test)]
 mod injected;
