@@ -1,24 +1,48 @@
 //! End-to-end "build crate, push docker image, deploy" flow used by
 //! `systemprompt cloud deploy` for the rust-side container image.
+//!
+//! All process execution flows through the
+//! [`CommandRunner`] seam so tests can
+//! substitute a stub instead of spawning real `cargo`/`git`/`docker`.
 
 use std::env;
-use std::io::Write;
-use std::path::PathBuf;
-use std::process::Command;
+use std::path::{Path, PathBuf};
+
+use systemprompt_cloud::{CommandRunner, CommandSpec, SystemCommandRunner};
 
 use crate::api_client::SyncApiClient;
 use crate::error::{SyncError, SyncResult};
 use crate::{SyncConfig, SyncOperationResult};
 
-#[derive(Debug)]
 pub struct CrateDeployService {
     config: SyncConfig,
     api_client: SyncApiClient,
+    runner: Box<dyn CommandRunner>,
+}
+
+impl std::fmt::Debug for CrateDeployService {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("CrateDeployService")
+            .field("config", &self.config)
+            .field("api_client", &self.api_client)
+            .finish_non_exhaustive()
+    }
 }
 
 impl CrateDeployService {
-    pub const fn new(config: SyncConfig, api_client: SyncApiClient) -> Self {
-        Self { config, api_client }
+    #[must_use]
+    pub fn new(config: SyncConfig, api_client: SyncApiClient) -> Self {
+        Self {
+            config,
+            api_client,
+            runner: Box::new(SystemCommandRunner),
+        }
+    }
+
+    #[must_use]
+    pub fn with_runner(mut self, runner: Box<dyn CommandRunner>) -> Self {
+        self.runner = runner;
+        self
     }
 
     pub async fn deploy(
@@ -33,24 +57,24 @@ impl CrateDeployService {
             t
         } else {
             let timestamp = chrono::Utc::now().timestamp();
-            let git_sha = Self::get_git_sha()?;
+            let git_sha = self.get_git_sha()?;
             format!("deploy-{timestamp}-{git_sha}")
         };
 
         let image = format!("registry.fly.io/{app_id}:{tag}");
 
         if !skip_build {
-            Self::build_release(&project_root)?;
+            self.build_release(&project_root)?;
         }
 
-        Self::build_docker(&project_root, &image)?;
+        self.build_docker(&project_root, &image)?;
 
         let token = self
             .api_client
             .get_registry_token(&self.config.tenant_id)
             .await?;
-        Self::docker_login(&token.registry, &token.username, &token.token)?;
-        Self::docker_push(&image)?;
+        self.docker_login(&token.registry, &token.username, &token.token)?;
+        self.docker_push(&image)?;
 
         let response = self
             .api_client
@@ -81,12 +105,21 @@ impl CrateDeployService {
             .await
     }
 
-    fn get_git_sha() -> SyncResult<String> {
-        let output = Command::new("git")
-            .args(["rev-parse", "--short", "HEAD"])
-            .output()
+    fn get_git_sha(&self) -> SyncResult<String> {
+        let spec = CommandSpec {
+            program: "git".to_owned(),
+            args: vec![
+                "rev-parse".to_owned(),
+                "--short".to_owned(),
+                "HEAD".to_owned(),
+            ],
+            current_dir: None,
+        };
+        let output = self
+            .runner
+            .output(&spec)
             .map_err(|source| SyncError::CommandSpawnFailed {
-                command: "git rev-parse --short HEAD".into(),
+                command: spec.rendered(),
                 source,
             })?;
 
@@ -95,8 +128,8 @@ impl CrateDeployService {
             .map_err(|_e| SyncError::GitShaUnavailable)
     }
 
-    fn build_release(project_root: &PathBuf) -> SyncResult<()> {
-        Self::run_command(
+    fn build_release(&self, project_root: &Path) -> SyncResult<()> {
+        self.run_command(
             "cargo",
             &[
                 "build",
@@ -109,8 +142,8 @@ impl CrateDeployService {
         )
     }
 
-    fn build_docker(project_root: &PathBuf, image: &str) -> SyncResult<()> {
-        Self::run_command(
+    fn build_docker(&self, project_root: &Path, image: &str) -> SyncResult<()> {
+        self.run_command(
             "docker",
             &[
                 "build",
@@ -124,38 +157,46 @@ impl CrateDeployService {
         )
     }
 
-    fn docker_login(registry: &str, username: &str, token: &str) -> SyncResult<()> {
-        let mut command = Command::new("docker");
-        command.args(["login", registry, "-u", username, "--password-stdin"]);
-        command.stdin(std::process::Stdio::piped());
-
-        let mut child = command
-            .spawn()
+    fn docker_login(&self, registry: &str, username: &str, token: &str) -> SyncResult<()> {
+        let spec = CommandSpec {
+            program: "docker".to_owned(),
+            args: vec![
+                "login".to_owned(),
+                registry.to_owned(),
+                "-u".to_owned(),
+                username.to_owned(),
+                "--password-stdin".to_owned(),
+            ],
+            current_dir: None,
+        };
+        let status = self
+            .runner
+            .status_with_stdin(&spec, token.as_bytes())
             .map_err(|source| SyncError::CommandSpawnFailed {
                 command: format!("docker login {registry}"),
                 source,
             })?;
-        if let Some(mut stdin) = child.stdin.take() {
-            stdin.write_all(token.as_bytes())?;
-        }
 
-        let status = child.wait()?;
         if !status.success() {
             return Err(SyncError::DockerLoginFailed);
         }
         Ok(())
     }
 
-    fn docker_push(image: &str) -> SyncResult<()> {
-        Self::run_command("docker", &["push", image], &env::current_dir()?)
+    fn docker_push(&self, image: &str) -> SyncResult<()> {
+        self.run_command("docker", &["push", image], &env::current_dir()?)
     }
 
-    fn run_command(cmd: &str, args: &[&str], dir: &PathBuf) -> SyncResult<()> {
-        let command_str = format!("{cmd} {}", args.join(" "));
-        let status = Command::new(cmd)
-            .args(args)
-            .current_dir(dir)
-            .status()
+    fn run_command(&self, cmd: &str, args: &[&str], dir: &Path) -> SyncResult<()> {
+        let spec = CommandSpec {
+            program: cmd.to_owned(),
+            args: args.iter().map(|a| (*a).to_owned()).collect(),
+            current_dir: Some(dir.to_path_buf()),
+        };
+        let command_str = spec.rendered();
+        let status = self
+            .runner
+            .status(&spec)
             .map_err(|source| SyncError::CommandSpawnFailed {
                 command: command_str.clone(),
                 source,
