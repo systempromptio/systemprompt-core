@@ -228,3 +228,55 @@ name: test
     );
     assert_eq!(config.variables.get("REGEX"), Some(&"^[a-z]+$".to_string()));
 }
+
+#[test]
+fn test_generate_config_unresolvable_cycle_errors() {
+    let base_yaml = "a: ${A}x\n";
+    let env_yaml = "name: test\n";
+
+    let temp_dir = create_test_environment(base_yaml, env_yaml, DeployEnvironment::Local);
+    let manager = ConfigService::new(temp_dir.path().to_path_buf());
+
+    let err = manager
+        .generate_config(DeployEnvironment::Local)
+        .unwrap_err();
+    let msg = err.to_string();
+    assert!(
+        msg.contains("Failed to resolve variables after 5 passes"),
+        "{msg}"
+    );
+    assert!(msg.contains("A = "), "{msg}");
+}
+
+#[test]
+fn test_generate_config_skips_yaml_sequences() {
+    let base_yaml = "listy:\n  - one\n  - two\nkeep: yes_value\n";
+    let env_yaml = "name: test\n";
+
+    let temp_dir = create_test_environment(base_yaml, env_yaml, DeployEnvironment::Local);
+    let manager = ConfigService::new(temp_dir.path().to_path_buf());
+
+    let config = manager
+        .generate_config(DeployEnvironment::Local)
+        .expect("sequences are skipped, not fatal");
+
+    assert!(!config.variables.contains_key("LISTY"));
+    assert_eq!(config.variables.get("KEEP"), Some(&"yes_value".to_string()));
+}
+
+#[test]
+fn test_generate_config_flattens_float_values() {
+    let base_yaml = "ratio: 2.5\nflag: true\ncount: 7\n";
+    let env_yaml = "name: test\n";
+
+    let temp_dir = create_test_environment(base_yaml, env_yaml, DeployEnvironment::Local);
+    let manager = ConfigService::new(temp_dir.path().to_path_buf());
+
+    let config = manager
+        .generate_config(DeployEnvironment::Local)
+        .expect("Should generate config");
+
+    assert_eq!(config.variables.get("RATIO"), Some(&"2.5".to_string()));
+    assert_eq!(config.variables.get("FLAG"), Some(&"true".to_string()));
+    assert_eq!(config.variables.get("COUNT"), Some(&"7".to_string()));
+}

@@ -209,3 +209,34 @@ fn test_write_env_file_creates_parent_directories() {
 
     assert!(output_path.exists());
 }
+
+#[test]
+fn test_write_web_env_file_replaces_existing_env_symlink_target() {
+    let temp_dir = TempDir::new().expect("Failed to create temp dir");
+    let env_dir = temp_dir.path().join("infrastructure/environments/local");
+    fs::create_dir_all(&env_dir).expect("Failed to create env dir");
+    fs::create_dir_all(temp_dir.path().join("web")).expect("Failed to create web dir");
+    fs::write(
+        temp_dir
+            .path()
+            .join("infrastructure/environments/base.yaml"),
+        "vite_api_url: http://localhost:8080\n",
+    )
+    .expect("Failed to write base.yaml");
+    fs::write(env_dir.join("config.yaml"), "name: test\n").expect("Failed to write config.yaml");
+    fs::write(temp_dir.path().join("web/.env"), "STALE=1\n").expect("Failed to write stale .env");
+
+    let manager = ConfigService::new(temp_dir.path().to_path_buf());
+    let config = manager
+        .generate_config(DeployEnvironment::Local)
+        .expect("Should generate config");
+    manager
+        .write_web_env_file(&config)
+        .expect("Should write web env file");
+
+    let env_link = temp_dir.path().join("web/.env");
+    let link_target = fs::read_link(&env_link).expect(".env should be a symlink now");
+    assert_eq!(link_target, PathBuf::from(".env.local"));
+    let content = fs::read_to_string(&env_link).expect("symlink should resolve");
+    assert!(content.contains("VITE_API_URL=http://localhost:8080"));
+}

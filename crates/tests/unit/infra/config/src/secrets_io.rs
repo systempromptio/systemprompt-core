@@ -41,10 +41,7 @@ fn load_secrets_from_path_errors_on_invalid_json() {
 
     let err = load_secrets_from_path(&path).unwrap_err();
     let msg = format!("{err}");
-    assert!(
-        msg.contains("Failed to parse secrets JSON"),
-        "got: {msg}"
-    );
+    assert!(msg.contains("Failed to parse secrets JSON"), "got: {msg}");
 }
 
 #[test]

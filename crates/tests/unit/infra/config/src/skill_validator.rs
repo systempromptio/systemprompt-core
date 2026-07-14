@@ -255,3 +255,31 @@ fn validate_mixed_valid_and_invalid_skills() {
 
     assert!(report.has_errors(), "expected errors from bad-skill");
 }
+
+#[cfg(unix)]
+#[test]
+fn validate_skill_dir_unreadable_config_yaml_reports_read_error() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let temp = tempfile::tempdir().unwrap();
+    let skill_dir = temp.path().join("locked_skill");
+    std::fs::create_dir_all(&skill_dir).unwrap();
+    let config_path = skill_dir.join("config.yaml");
+    std::fs::write(&config_path, "id: locked\n").unwrap();
+    std::fs::set_permissions(&config_path, std::fs::Permissions::from_mode(0o000)).unwrap();
+
+    let mut validator = systemprompt_config::SkillConfigValidator::new();
+    validator
+        .load(&config_with_path(temp.path().to_str().unwrap()))
+        .unwrap();
+    let report = validator.validate().unwrap();
+
+    std::fs::set_permissions(&config_path, std::fs::Permissions::from_mode(0o644)).unwrap();
+    assert_eq!(report.errors.len(), 1);
+    assert_eq!(report.errors[0].field, "skills.locked_skill");
+    assert!(
+        report.errors[0].message.contains("Cannot read config.yaml"),
+        "{}",
+        report.errors[0].message
+    );
+}

@@ -68,3 +68,38 @@ fn inline_prompt_and_strip_rule_pass_through() {
     );
     assert_eq!(spec.system_prompt_overrides[1].prompt, None);
 }
+
+#[test]
+fn backfill_route_ids_fills_only_blank_ids() {
+    let mut spec = GatewayConfigSpec::default();
+    spec.routes = vec![route("  "), route("keep-me")];
+
+    let mutated = systemprompt_config::profile_gateway::backfill_route_ids(&mut spec);
+
+    assert!(mutated);
+    assert!(!spec.routes[0].id.as_str().trim().is_empty());
+    assert_eq!(spec.routes[1].id.as_str(), "keep-me");
+}
+
+#[test]
+fn backfill_route_ids_no_op_when_all_ids_present() {
+    let mut spec = GatewayConfigSpec::default();
+    spec.routes = vec![route("route-a")];
+
+    assert!(!systemprompt_config::profile_gateway::backfill_route_ids(
+        &mut spec
+    ));
+    assert_eq!(spec.routes[0].id.as_str(), "route-a");
+}
+
+fn route(id: &str) -> systemprompt_models::profile::GatewayRoute {
+    systemprompt_models::profile::GatewayRoute {
+        id: systemprompt_identifiers::RouteId::new(id),
+        model_pattern: "claude-*".to_owned(),
+        provider: ProviderId::new("cerebras"),
+        upstream_model: None,
+        extra_headers: std::collections::HashMap::new(),
+        pricing: None,
+        when: None,
+    }
+}

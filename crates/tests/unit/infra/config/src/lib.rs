@@ -15,6 +15,21 @@
 //! - SecurityConfigService security-section mutations
 
 #[cfg(test)]
+mod fixture;
+
+#[cfg(test)]
+mod bootstrap_profile;
+
+#[cfg(test)]
+mod bootstrap_secrets;
+
+#[cfg(test)]
+mod bootstrap_secrets_env;
+
+#[cfg(test)]
+mod config_loader_build;
+
+#[cfg(test)]
 mod services;
 
 #[cfg(test)]

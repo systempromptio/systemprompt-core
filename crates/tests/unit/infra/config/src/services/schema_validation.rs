@@ -348,3 +348,51 @@ fn test_validate_yaml_str_tilde_null() {
     result.as_ref().expect("result should succeed");
     assert!(result.unwrap().optional_field.is_none());
 }
+
+#[test]
+fn validate_config_reads_and_parses_yaml_file() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("config.yaml");
+    std::fs::write(&path, "name: fromfile\nport: 9001\n").unwrap();
+
+    let config: SimpleConfig = systemprompt_config::validate_config(&path).unwrap();
+
+    assert_eq!(config.name, "fromfile");
+    assert_eq!(config.port, 9001);
+}
+
+#[test]
+fn validate_config_missing_file_is_read_error() {
+    let dir = tempfile::tempdir().unwrap();
+    let err = systemprompt_config::validate_config::<SimpleConfig>(dir.path().join("absent.yaml"))
+        .unwrap_err();
+    assert!(matches!(err, ConfigValidationError::Read(_)));
+}
+
+#[test]
+fn validate_config_invalid_yaml_is_parse_error() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("config.yaml");
+    std::fs::write(&path, "name: [unterminated\n").unwrap();
+
+    let err = systemprompt_config::validate_config::<SimpleConfig>(&path).unwrap_err();
+    assert!(matches!(err, ConfigValidationError::Parse(_)));
+}
+
+#[test]
+fn validate_yaml_file_returns_raw_value() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("raw.yaml");
+    std::fs::write(&path, "top:\n  inner: 3\n").unwrap();
+
+    let value = systemprompt_config::validate_yaml_file(&path).unwrap();
+
+    assert_eq!(value["top"]["inner"].as_i64(), Some(3));
+}
+
+#[test]
+fn validate_yaml_file_missing_file_is_read_error() {
+    let dir = tempfile::tempdir().unwrap();
+    let err = systemprompt_config::validate_yaml_file(dir.path().join("absent.yaml")).unwrap_err();
+    assert!(matches!(err, ConfigValidationError::Read(_)));
+}
