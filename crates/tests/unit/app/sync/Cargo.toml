@@ -23,6 +23,7 @@ chrono = { workspace = true }
 serde_json = { workspace = true }
 tempfile = { workspace = true }
 uuid = { workspace = true }
+sqlx = { workspace = true }
 flate2 = "1.1"
 tar = "0.4"
 zip = { version = "8", default-features = false, features = ["deflate"] }

@@ -1,7 +1,6 @@
-//! Tests for `CrateDeployService` — covers the construction surface and
-//! the Debug rendering. Full deploy flow integration requires git, docker,
-//! and a project root with `infrastructure/` so it cannot be exercised
-//! here.
+//! Tests for `CrateDeployService` construction and Debug rendering. The
+//! full deploy flow is exercised through the `CommandRunner` seam in
+//! `crate_deploy_flow`.
 
 use systemprompt_identifiers::TenantId;
 use systemprompt_sync::crate_deploy::CrateDeployService;

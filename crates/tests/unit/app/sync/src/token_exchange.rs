@@ -83,3 +83,16 @@ async fn response_access_token_is_extracted() {
 fn exchange_subject_token_is_callable() {
     let _ = exchange_subject_token;
 }
+
+#[tokio::test]
+async fn exchange_subject_token_builds_https_origin_from_hostname() {
+    let client = reqwest::Client::new();
+    let err = systemprompt_sync::api_client::exchange_subject_token(
+        &client,
+        "127.0.0.1:1",
+        "operator-token",
+    )
+    .await
+    .expect_err("unreachable host must error");
+    assert!(matches!(err, systemprompt_sync::SyncError::Http(_)));
+}

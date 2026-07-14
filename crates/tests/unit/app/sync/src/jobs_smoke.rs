@@ -25,6 +25,10 @@ fn content_sync_job_name_and_description() {
     assert_eq!(job.name(), "content_sync");
     assert!(!job.description().is_empty());
     assert_eq!(job.schedule(), "");
+    let tags = job.tags();
+    assert!(tags.contains(&"content"));
+    assert!(tags.contains(&"sync"));
+    assert!(!job.enabled());
     let dbg = format!("{job:?}");
     assert!(dbg.contains("ContentSyncJob"));
 }
