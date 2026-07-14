@@ -66,6 +66,52 @@ async fn get_authenticated_user_resolves_permissions() {
 }
 
 #[tokio::test]
+async fn get_authenticated_user_skips_unparseable_roles() {
+    let Some((repo, pool)) = repo().await else {
+        return;
+    };
+    let user_id = UserId::new(Uuid::new_v4().to_string());
+    let email = format!("{}@ou.invalid", user_id.as_str());
+    systemprompt_test_fixtures::seed_user_row_with_roles(
+        &pool,
+        &user_id,
+        &email,
+        &["user".to_owned(), "not-a-real-role".to_owned()],
+    )
+    .await
+    .expect("seed");
+
+    let authed = repo
+        .get_authenticated_user(&user_id)
+        .await
+        .expect("valid role survives the bogus one");
+    assert_eq!(authed.email, email);
+}
+
+#[tokio::test]
+async fn get_authenticated_user_rejects_user_with_only_invalid_roles() {
+    let Some((repo, pool)) = repo().await else {
+        return;
+    };
+    let user_id = UserId::new(Uuid::new_v4().to_string());
+    let email = format!("{}@ou.invalid", user_id.as_str());
+    systemprompt_test_fixtures::seed_user_row_with_roles(
+        &pool,
+        &user_id,
+        &email,
+        &["bogus-role".to_owned()],
+    )
+    .await
+    .expect("seed");
+
+    let err = repo
+        .get_authenticated_user(&user_id)
+        .await
+        .expect_err("no valid permissions must be rejected");
+    assert!(err.to_string().contains("no valid permissions"));
+}
+
+#[tokio::test]
 async fn get_authenticated_user_missing_errors() {
     let Some((repo, _pool)) = repo().await else {
         return;

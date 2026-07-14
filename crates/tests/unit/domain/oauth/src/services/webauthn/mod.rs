@@ -1,6 +1,9 @@
 mod config;
+mod jwt_validator;
+mod registry;
 mod service_flow;
 mod service_types;
+mod softtoken_e2e;
 mod token;
 mod transport_casing;
 mod user_service;

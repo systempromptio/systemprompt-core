@@ -238,6 +238,24 @@ async fn revoke_refresh_token_family_removes_all() {
 }
 
 #[tokio::test]
+async fn consume_expired_unconsumed_token_reports_expired() {
+    let Some(ctx) = setup().await else { return };
+    let token = RefreshTokenId::new(format!("rt-{}", Uuid::new_v4()));
+    let past = (Utc::now() - Duration::hours(2)).timestamp();
+    store(&ctx, &token, past).await;
+
+    let err = ctx
+        .repo
+        .consume_refresh_token(&token, &ctx.client_id)
+        .await
+        .expect_err("expired token cannot be consumed");
+    assert!(
+        err.to_string().contains("expired"),
+        "expected expiry error, got {err}"
+    );
+}
+
+#[tokio::test]
 async fn cleanup_expired_refresh_tokens_removes_past() {
     let Some(ctx) = setup().await else { return };
     let token = RefreshTokenId::new(format!("rt-{}", Uuid::new_v4()));

@@ -158,6 +158,13 @@ fn test_load_webauthn_oauth_template() {
 }
 
 #[test]
+fn test_load_link_passkey_template() {
+    let template = TemplateEngine::load_link_passkey_template();
+    assert!(!template.is_empty());
+    assert!(template.contains("<!DOCTYPE html>") || template.contains("<html"));
+}
+
+#[test]
 fn test_template_engine_debug() {
     let engine = TemplateEngine;
     let debug_str = format!("{:?}", engine);

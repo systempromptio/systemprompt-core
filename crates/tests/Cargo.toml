@@ -199,6 +199,8 @@ sha2 = "0.11"
 
 # Testing utilities
 wiremock = "0.6"
+webauthn-rs = { version = "0.5", features = ["danger-allow-state-serialisation"] }
+webauthn-authenticator-rs = { version = "0.5", default-features = false, features = ["softtoken"] }
 keyring = { version = "3", features = ["linux-native"] }
 tar = "0.4"
 flate2 = "1.1"

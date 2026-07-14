@@ -179,6 +179,78 @@ fn oauth_error_implements_std_error() {
 }
 
 #[test]
+fn security_auth_error_maps_algorithm_and_kid_variants() {
+    use systemprompt_security::AuthError;
+
+    let err: OauthError = AuthError::UnsupportedAlgorithm {
+        got: "HS256".to_string(),
+    }
+    .into();
+    assert!(
+        matches!(&err, OauthError::TokenAlgMismatch { got, expected } if got == "HS256" && expected == "RS256")
+    );
+
+    let err: OauthError = AuthError::MissingKid.into();
+    assert!(matches!(err, OauthError::TokenMissingKid));
+
+    let err: OauthError = AuthError::UnknownKid("kid-9".to_string()).into();
+    assert!(matches!(&err, OauthError::TokenUnknownKid { kid } if kid == "kid-9"));
+}
+
+#[test]
+fn security_auth_error_expired_signature_maps_to_expired() {
+    use systemprompt_security::AuthError;
+
+    let expired =
+        jsonwebtoken::errors::Error::from(jsonwebtoken::errors::ErrorKind::ExpiredSignature);
+    let err: OauthError = AuthError::InvalidToken(expired).into();
+    assert!(matches!(err, OauthError::Expired(_)));
+
+    let invalid =
+        jsonwebtoken::errors::Error::from(jsonwebtoken::errors::ErrorKind::InvalidSignature);
+    let err: OauthError = AuthError::InvalidToken(invalid).into();
+    assert!(matches!(err, OauthError::TokenInvalid(_)));
+
+    let err: OauthError = AuthError::MissingAuthorization.into();
+    assert!(matches!(err, OauthError::TokenInvalid(_)));
+}
+
+#[test]
+fn webauthn_error_converts_into_verification_failed() {
+    let err: OauthError =
+        webauthn_rs_via_service_error().expect_err("challenge mismatch is an error");
+    assert!(matches!(err, OauthError::WebAuthnVerificationFailed(_)));
+}
+
+fn webauthn_rs_via_service_error() -> Result<(), OauthError> {
+    Err(webauthn_rs::prelude::WebauthnError::UserNotVerified.into())
+}
+
+#[test]
+fn config_error_converts_into_config_variant() {
+    let err: OauthError = systemprompt_models::errors::ConfigError::NotInitialized.into();
+    assert!(matches!(err, OauthError::Config(_)));
+    assert!(err.to_string().contains("Config not initialized"));
+}
+
+#[test]
+fn secrets_bootstrap_error_converts_into_config_variant() {
+    let err: OauthError = systemprompt_config::SecretsBootstrapError::NotInitialized.into();
+    assert!(matches!(err, OauthError::Config(_)));
+    assert!(err.to_string().contains("Secrets not initialized"));
+}
+
+#[test]
+fn setup_token_purpose_parse_error_converts_into_validation() {
+    let parse_err = "bogus"
+        .parse::<systemprompt_oauth::repository::SetupTokenPurpose>()
+        .expect_err("unknown purpose");
+    let err: OauthError = parse_err.into();
+    assert!(matches!(err, OauthError::Validation(_)));
+    assert!(err.to_string().contains("bogus"));
+}
+
+#[test]
 fn oauth_error_debug_includes_variant_name() {
     let err = OauthError::TokenNotFound("tok".to_string());
     let debug = format!("{:?}", err);

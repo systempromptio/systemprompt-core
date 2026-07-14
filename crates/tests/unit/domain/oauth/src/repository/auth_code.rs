@@ -276,6 +276,111 @@ async fn validate_pkce_missing_verifier_errors() {
 }
 
 #[tokio::test]
+async fn replayed_code_with_linked_refresh_token_revokes_the_family() {
+    let Some(ctx) = setup().await else { return };
+    let code = AuthorizationCode::new(format!("code-{}", Uuid::new_v4()));
+    ctx.repo
+        .store_authorization_code(AuthCodeParams {
+            code: &code,
+            client_id: &ctx.client_id,
+            user_id: &ctx.user_id,
+            redirect_uri: &ctx.redirect_uri,
+            scope: "openid",
+            code_challenge: None,
+            code_challenge_method: None,
+            resource: None,
+        })
+        .await
+        .expect("store");
+
+    ctx.repo
+        .validate_authorization_code(&code, &ctx.client_id, None, None)
+        .await
+        .expect("first use");
+
+    let rt = systemprompt_identifiers::RefreshTokenId::new(format!("rt-{}", Uuid::new_v4()));
+    ctx.repo
+        .store_refresh_token(systemprompt_oauth::repository::RefreshTokenParams {
+            token_id: &rt,
+            client_id: &ctx.client_id,
+            user_id: &ctx.user_id,
+            scope: "openid",
+            expires_at: (chrono::Utc::now() + chrono::Duration::hours(1)).timestamp(),
+            family_id: None,
+        })
+        .await
+        .expect("store refresh token");
+    ctx.repo
+        .link_auth_code_to_refresh_token(&code, rt.as_str())
+        .await
+        .expect("link");
+
+    let err = ctx
+        .repo
+        .validate_authorization_code(&code, &ctx.client_id, None, None)
+        .await
+        .expect_err("replay must be rejected");
+    assert!(err.to_string().contains("Invalid authorization code"));
+
+    let err = ctx
+        .repo
+        .validate_refresh_token(&rt, &ctx.client_id)
+        .await
+        .expect_err("family must be revoked after replay");
+    assert!(
+        err.to_string().contains("Invalid refresh token") || err.to_string().contains("token"),
+        "unexpected: {err}"
+    );
+}
+
+#[tokio::test]
+async fn validate_pkce_rejects_unsupported_challenge_method() {
+    let Some(ctx) = setup().await else { return };
+    let code = AuthorizationCode::new(format!("code-{}", Uuid::new_v4()));
+    ctx.repo
+        .store_authorization_code(AuthCodeParams {
+            code: &code,
+            client_id: &ctx.client_id,
+            user_id: &ctx.user_id,
+            redirect_uri: &ctx.redirect_uri,
+            scope: "openid",
+            code_challenge: Some("stored-plain-challenge"),
+            code_challenge_method: Some("plain"),
+            resource: None,
+        })
+        .await
+        .expect("store");
+
+    let err = ctx
+        .repo
+        .validate_authorization_code(&code, &ctx.client_id, None, Some("stored-plain-challenge"))
+        .await
+        .expect_err("plain method is not supported");
+    assert!(err.to_string().contains("Invalid authorization code"));
+}
+
+#[test]
+fn auth_code_params_builder_sets_pkce_and_resource() {
+    let code = AuthorizationCode::new("code-builder");
+    let client = ClientId::new("client_builder");
+    let user = UserId::new("user-builder");
+    let params = systemprompt_oauth::repository::AuthCodeParams::builder(
+        &code,
+        &client,
+        &user,
+        "http://127.0.0.1/cb",
+        "openid",
+    )
+    .with_pkce("challenge-value", "S256")
+    .with_resource("https://rs.example")
+    .build();
+
+    assert_eq!(params.code_challenge, Some("challenge-value"));
+    assert_eq!(params.code_challenge_method, Some("S256"));
+    assert_eq!(params.resource, Some("https://rs.example"));
+}
+
+#[tokio::test]
 async fn link_auth_code_to_dangling_refresh_token_errors() {
     let Some(ctx) = setup().await else { return };
     let code = AuthorizationCode::new(format!("code-{}", Uuid::new_v4()));

@@ -132,3 +132,21 @@ async fn cleanup_expired_jti_revocations_removes_past_rows() {
         .expect("cleanup");
     assert!(removed >= 1);
 }
+
+#[test]
+fn cache_with_zero_capacity_is_clamped_and_usable() {
+    use systemprompt_oauth::repository::JtiRevocationCache;
+
+    let cache = JtiRevocationCache::with_capacity(0);
+    cache.record("jti-a", true);
+    assert_eq!(cache.peek("jti-a"), Some(true));
+
+    cache.record("jti-b", false);
+    assert_eq!(cache.peek("jti-b"), Some(false));
+    assert_eq!(
+        cache.peek("jti-a"),
+        None,
+        "clamped single-slot cache evicts the older entry"
+    );
+    assert!(format!("{cache:?}").contains("JtiRevocationCache"));
+}

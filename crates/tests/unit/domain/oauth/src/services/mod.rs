@@ -2,6 +2,7 @@
 
 mod bridge;
 mod cimd;
+mod cimd_validator;
 mod generation;
 mod http;
 mod jwt;

@@ -91,6 +91,17 @@ fn test_is_browser_request_xml() {
 }
 
 #[test]
+fn test_is_browser_request_non_utf8_accept_header_is_not_browser() {
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        "accept",
+        http::HeaderValue::from_bytes(b"text/html\xFF").expect("opaque bytes"),
+    );
+
+    assert!(!is_browser_request(&headers));
+}
+
+#[test]
 fn test_is_browser_request_html_with_charset() {
     let mut headers = HeaderMap::new();
     headers.insert("accept", "text/html; charset=utf-8".parse().unwrap());

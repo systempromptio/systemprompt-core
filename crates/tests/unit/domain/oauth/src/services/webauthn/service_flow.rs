@@ -199,6 +199,54 @@ async fn consume_verified_authentication_unknown_token_errors() {
 }
 
 #[tokio::test]
+async fn service_debug_redacts_runtime_state() {
+    let Some(ctx) = setup().await else { return };
+    let debug = format!("{:?}", ctx.service);
+    assert!(debug.contains("WebAuthnService"));
+    assert!(debug.contains("localhost"));
+    assert!(
+        !debug.contains("reg_states"),
+        "state maps stay out of Debug"
+    );
+}
+
+#[tokio::test]
+async fn cleanup_caps_pending_verified_authentications_by_age() {
+    let Some(ctx) = setup().await else { return };
+    let oldest = "vtok-oldest".to_owned();
+    ctx.service
+        .store_verified_authentication(oldest.clone(), ctx.user_id.clone())
+        .await;
+    for i in 0..WebAuthnService::MAX_PENDING_CHALLENGES {
+        ctx.service
+            .store_verified_authentication(format!("vtok-cap-{i}"), ctx.user_id.clone())
+            .await;
+    }
+
+    ctx.service
+        .cleanup_expired_states()
+        .await
+        .expect("cleanup with over-cap state");
+
+    let err = ctx
+        .service
+        .consume_verified_authentication(&oldest)
+        .await
+        .expect_err("oldest token must be evicted by the cap");
+    assert!(matches!(
+        err,
+        systemprompt_oauth::error::OauthError::Internal(_)
+    ));
+    let newest = format!("vtok-cap-{}", WebAuthnService::MAX_PENDING_CHALLENGES - 1);
+    let consumed = ctx
+        .service
+        .consume_verified_authentication(&newest)
+        .await
+        .expect("newest token must survive the cap");
+    assert_eq!(consumed, ctx.user_id);
+}
+
+#[tokio::test]
 async fn cleanup_expired_states_is_idempotent_when_empty() {
     let Some(ctx) = setup().await else { return };
     ctx.service

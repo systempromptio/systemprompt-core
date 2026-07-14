@@ -20,7 +20,8 @@ pub use bootstrap::{
     TEST_TEAMS_APP_PASSWORD, TEST_TEAMS_TENANT_ID,
 };
 pub use credential::{
-    seed_admin_credential, seed_bridge_credential, seed_user_row, seed_user_session, AuthedFixture,
+    seed_admin_credential, seed_bridge_credential, seed_user_row, seed_user_row_with_roles,
+    seed_user_session, AuthedFixture,
 };
 pub use db::{closed_db_pool, fixture_database_url, fixture_db_pool};
 pub use jwt::{install_test_signing_key, mint_admin_jwt, mint_bridge_jwt};

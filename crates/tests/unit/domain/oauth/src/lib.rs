@@ -18,6 +18,9 @@ mod constants;
 mod error;
 
 #[cfg(test)]
+mod extension;
+
+#[cfg(test)]
 mod models;
 
 #[cfg(test)]
@@ -31,3 +34,6 @@ mod repository;
 
 #[cfg(test)]
 mod services;
+
+#[cfg(test)]
+mod state;

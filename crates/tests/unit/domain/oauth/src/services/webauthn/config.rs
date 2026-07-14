@@ -96,6 +96,19 @@ fn test_webauthn_config_challenge_expiry_chrono_large_value() {
 }
 
 #[test]
+fn test_webauthn_config_new_derives_rp_from_configured_external_url() {
+    systemprompt_test_fixtures::ensure_test_bootstrap();
+
+    let config = WebAuthnConfig::new().expect("config from bootstrap profile");
+    assert_eq!(config.rp_id, "127.0.0.1");
+    assert_eq!(config.rp_origin.as_str(), "http://127.0.0.1/");
+    assert!(config.rp_name.ends_with(" OAuth"));
+    assert_eq!(config.challenge_expiry.as_secs(), 300);
+    assert!(config.allow_any_port);
+    assert!(config.allow_subdomains);
+}
+
+#[test]
 fn test_webauthn_config_debug() {
     let config = create_test_config();
     let debug_output = format!("{config:?}");

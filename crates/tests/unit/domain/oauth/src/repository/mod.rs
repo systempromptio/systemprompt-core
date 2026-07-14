@@ -12,6 +12,7 @@ mod client_cleanup;
 mod client_crud;
 mod client_relations;
 mod exchange_code;
+mod id_jag_replay;
 mod jti_revocation;
 mod oauth_facade;
 mod refresh_token;

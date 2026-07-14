@@ -47,6 +47,29 @@ pub async fn seed_user_row(pool: &DbPool, user_id: &UserId, email: &str) -> Resu
     Ok(())
 }
 
+pub async fn seed_user_row_with_roles(
+    pool: &DbPool,
+    user_id: &UserId,
+    email: &str,
+    roles: &[String],
+) -> Result<()> {
+    let p = pool
+        .pool_arc()
+        .map_err(|e| anyhow::anyhow!("read pool: {e}"))?;
+    let uid = user_id.as_str();
+    sqlx::query!(
+        "INSERT INTO users (id, name, email, roles) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING",
+        uid,
+        uid,
+        email,
+        roles,
+    )
+    .execute(p.as_ref())
+    .await
+    .map_err(|e| anyhow::anyhow!("seed user with roles: {e}"))?;
+    Ok(())
+}
+
 pub async fn seed_user_session(
     pool: &DbPool,
     user_id: &UserId,

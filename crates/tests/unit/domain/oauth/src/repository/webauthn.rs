@@ -101,3 +101,30 @@ async fn update_counter_advances() {
         .last_used_at
         .expect("last_used_at set after counter update");
 }
+
+#[tokio::test]
+async fn store_rejects_counter_exceeding_i32() {
+    let Some(ctx) = setup().await else { return };
+    let id = Uuid::new_v4().to_string();
+    let credential_id = Uuid::new_v4().into_bytes().to_vec();
+    let err = ctx
+        .repo
+        .store_webauthn_credential(
+            WebAuthnCredentialParams::builder(&id, &ctx.user_id, &credential_id, &[1u8], u32::MAX)
+                .build(),
+        )
+        .await
+        .expect_err("counter beyond i32 must be rejected");
+    assert!(err.to_string().contains("Counter exceeds i32::MAX"));
+}
+
+#[tokio::test]
+async fn update_counter_rejects_value_exceeding_i32() {
+    let Some(ctx) = setup().await else { return };
+    let err = ctx
+        .repo
+        .update_webauthn_credential_counter(&[1u8, 2, 3], u32::MAX)
+        .await
+        .expect_err("counter beyond i32 must be rejected");
+    assert!(err.to_string().contains("Counter exceeds i32::MAX"));
+}

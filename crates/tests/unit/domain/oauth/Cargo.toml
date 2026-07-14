@@ -16,6 +16,8 @@ systemprompt-oauth = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 systemprompt-models = { workspace = true }
 systemprompt-traits = { workspace = true }
+systemprompt-extension = { workspace = true }
+systemprompt-config = { workspace = true }
 
 [dev-dependencies]
 systemprompt-database = { workspace = true }
@@ -31,3 +33,6 @@ async-trait = { workspace = true }
 url = { workspace = true }
 bcrypt = { workspace = true }
 base64 = { workspace = true }
+systemprompt-security = { workspace = true }
+webauthn-authenticator-rs = { workspace = true }
+webauthn-rs = { workspace = true }

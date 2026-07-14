@@ -49,6 +49,38 @@ fn create_params(
 }
 
 #[tokio::test]
+async fn create_with_empty_relation_lists_persists_bare_client() {
+    let Some(ctx) = setup().await else { return };
+    let client_id = ClientId::new(format!("c-{}", Uuid::new_v4().simple()));
+    let params = CreateClientParams {
+        redirect_uris: vec![],
+        grant_types: Some(vec![]),
+        response_types: Some(vec![]),
+        scopes: vec![],
+        contacts: Some(vec![]),
+        ..create_params(&client_id, &ctx.owner)
+    };
+
+    let created = ctx.repo.create(params).await.expect("create bare client");
+    assert_eq!(created.client_id, client_id);
+    assert!(created.redirect_uris.is_empty());
+    assert!(created.scopes.is_empty());
+}
+
+#[tokio::test]
+async fn create_without_contacts_omits_contact_rows() {
+    let Some(ctx) = setup().await else { return };
+    let client_id = ClientId::new(format!("c-{}", Uuid::new_v4().simple()));
+    let params = CreateClientParams {
+        contacts: None,
+        ..create_params(&client_id, &ctx.owner)
+    };
+
+    let created = ctx.repo.create(params).await.expect("create");
+    assert_eq!(created.client_id, client_id);
+}
+
+#[tokio::test]
 async fn create_then_get_by_client_id_loads_relations() {
     let Some(ctx) = setup().await else { return };
     let client_id = ClientId::new(format!("c-{}", Uuid::new_v4().simple()));

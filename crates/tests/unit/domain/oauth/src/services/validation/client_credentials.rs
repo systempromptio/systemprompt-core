@@ -5,6 +5,95 @@
 
 use systemprompt_oauth::services::verify_client_authentication;
 
+mod db_backed {
+    use systemprompt_identifiers::ClientId;
+    use systemprompt_oauth::repository::{ClientRepository, CreateClientParams, OAuthRepository};
+    use systemprompt_oauth::services::hash_client_secret;
+    use systemprompt_oauth::services::validation::validate_client_credentials;
+    use systemprompt_test_fixtures::{
+        ensure_test_bootstrap, fixture_database_url, fixture_db_pool, seed_user_row, unique_user_id,
+    };
+    use uuid::Uuid;
+
+    const SECRET: &str = "client-credentials-secret-32-chars!!";
+
+    async fn seeded_client() -> Option<(OAuthRepository, ClientId)> {
+        let url = fixture_database_url().ok()?;
+        ensure_test_bootstrap();
+        let pool = fixture_db_pool(&url).await.expect("pool");
+        let owner = unique_user_id("cc");
+        seed_user_row(&pool, &owner, &format!("{}@cc.invalid", owner.as_str()))
+            .await
+            .expect("seed owner");
+        let client_id = ClientId::new(format!("client_{}", Uuid::new_v4().simple()));
+        ClientRepository::new(&pool)
+            .expect("client repo")
+            .create(CreateClientParams {
+                client_id: client_id.clone(),
+                owner_user_id: owner,
+                client_secret_hash: hash_client_secret(SECRET).expect("hash"),
+                client_name: "cc-test".to_owned(),
+                redirect_uris: vec!["http://127.0.0.1/cb".to_owned()],
+                grant_types: Some(vec!["client_credentials".to_owned()]),
+                response_types: Some(vec!["code".to_owned()]),
+                scopes: vec!["openid".to_owned()],
+                token_endpoint_auth_method: Some("client_secret_basic".to_owned()),
+                application_type: "web".to_owned(),
+                client_uri: None,
+                logo_uri: None,
+                contacts: None,
+            })
+            .await
+            .expect("create client");
+        let repo = OAuthRepository::new(&pool).expect("repo");
+        Some((repo, client_id))
+    }
+
+    #[tokio::test]
+    async fn correct_secret_authenticates_registered_client() {
+        let Some((repo, client_id)) = seeded_client().await else {
+            return;
+        };
+        validate_client_credentials(&repo, &client_id, Some(SECRET))
+            .await
+            .expect("correct secret authenticates");
+    }
+
+    #[tokio::test]
+    async fn wrong_secret_is_rejected() {
+        let Some((repo, client_id)) = seeded_client().await else {
+            return;
+        };
+        let err = validate_client_credentials(&repo, &client_id, Some("wrong-secret"))
+            .await
+            .expect_err("wrong secret");
+        assert!(err.to_string().contains("Invalid client secret"));
+    }
+
+    #[tokio::test]
+    async fn missing_secret_is_rejected() {
+        let Some((repo, client_id)) = seeded_client().await else {
+            return;
+        };
+        let err = validate_client_credentials(&repo, &client_id, None)
+            .await
+            .expect_err("missing secret");
+        assert!(err.to_string().contains("Client secret required"));
+    }
+
+    #[tokio::test]
+    async fn unknown_client_is_rejected() {
+        let Some((repo, _client_id)) = seeded_client().await else {
+            return;
+        };
+        let missing = ClientId::new(format!("client_{}", Uuid::new_v4().simple()));
+        let err = validate_client_credentials(&repo, &missing, Some(SECRET))
+            .await
+            .expect_err("unknown client");
+        assert!(err.to_string().contains("Client not found"));
+    }
+}
+
 #[test]
 fn auth_method_none_returns_ok() {
     verify_client_authentication("none", None, None).expect("auth_method none passes");

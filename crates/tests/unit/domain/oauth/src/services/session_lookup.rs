@@ -358,6 +358,340 @@ async fn create_authenticated_session_rejects_unknown_user() {
     ));
 }
 
+struct FailingAnalyticsProvider {
+    created_sessions: AtomicUsize,
+}
+
+#[async_trait]
+impl AnalyticsProvider for FailingAnalyticsProvider {
+    fn extract_analytics(
+        &self,
+        _headers: &HeaderMap,
+        _uri: Option<&http::Uri>,
+    ) -> SessionAnalytics {
+        SessionAnalytics::default()
+    }
+    async fn create_session(&self, _input: CreateSessionInput<'_>) -> AnalyticsResult<()> {
+        self.created_sessions.fetch_add(1, Ordering::SeqCst);
+        Ok(())
+    }
+    async fn find_recent_session_by_fingerprint(
+        &self,
+        _fingerprint: &str,
+        _max_age_seconds: i64,
+    ) -> AnalyticsResult<Option<AnalyticsSession>> {
+        Err(systemprompt_traits::AnalyticsProviderError::Internal(
+            "lookup exploded".to_owned(),
+        ))
+    }
+    async fn find_session_by_id(
+        &self,
+        _session_id: &SessionId,
+    ) -> AnalyticsResult<Option<AnalyticsSession>> {
+        Ok(None)
+    }
+    async fn find_active_session_by_id(
+        &self,
+        _session_id: &SessionId,
+    ) -> AnalyticsResult<Option<systemprompt_traits::ActiveSession>> {
+        Ok(None)
+    }
+    async fn revoke_session(&self, _session_id: &SessionId) -> AnalyticsResult<()> {
+        Ok(())
+    }
+    async fn revoke_all_sessions_for_user(&self, _user_id: &UserId) -> AnalyticsResult<u64> {
+        Ok(0)
+    }
+    async fn migrate_user_sessions(
+        &self,
+        _from_user_id: &UserId,
+        _to_user_id: &UserId,
+    ) -> AnalyticsResult<u64> {
+        Ok(0)
+    }
+    async fn mark_session_converted(&self, _session_id: &SessionId) -> AnalyticsResult<()> {
+        Ok(())
+    }
+}
+
+struct SlowAnalyticsProvider {
+    inner: StubAnalyticsProvider,
+}
+
+#[async_trait]
+impl AnalyticsProvider for SlowAnalyticsProvider {
+    fn extract_analytics(
+        &self,
+        _headers: &HeaderMap,
+        _uri: Option<&http::Uri>,
+    ) -> SessionAnalytics {
+        SessionAnalytics::default()
+    }
+    async fn create_session(&self, input: CreateSessionInput<'_>) -> AnalyticsResult<()> {
+        self.inner.create_session(input).await
+    }
+    async fn find_recent_session_by_fingerprint(
+        &self,
+        fingerprint: &str,
+        max_age_seconds: i64,
+    ) -> AnalyticsResult<Option<AnalyticsSession>> {
+        tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
+        self.inner
+            .find_recent_session_by_fingerprint(fingerprint, max_age_seconds)
+            .await
+    }
+    async fn find_session_by_id(
+        &self,
+        _session_id: &SessionId,
+    ) -> AnalyticsResult<Option<AnalyticsSession>> {
+        Ok(None)
+    }
+    async fn find_active_session_by_id(
+        &self,
+        _session_id: &SessionId,
+    ) -> AnalyticsResult<Option<systemprompt_traits::ActiveSession>> {
+        Ok(None)
+    }
+    async fn revoke_session(&self, _session_id: &SessionId) -> AnalyticsResult<()> {
+        Ok(())
+    }
+    async fn revoke_all_sessions_for_user(&self, _user_id: &UserId) -> AnalyticsResult<u64> {
+        Ok(0)
+    }
+    async fn migrate_user_sessions(
+        &self,
+        _from_user_id: &UserId,
+        _to_user_id: &UserId,
+    ) -> AnalyticsResult<u64> {
+        Ok(0)
+    }
+    async fn mark_session_converted(&self, _session_id: &SessionId) -> AnalyticsResult<()> {
+        Ok(())
+    }
+}
+
+struct FailingFingerprintProvider;
+
+#[async_trait]
+impl FingerprintProvider for FailingFingerprintProvider {
+    async fn count_active_sessions(&self, _fingerprint: &str) -> AnalyticsResult<i64> {
+        Err(systemprompt_traits::AnalyticsProviderError::Internal(
+            "count exploded".to_owned(),
+        ))
+    }
+    async fn find_reusable_session(&self, _fingerprint: &str) -> AnalyticsResult<Option<String>> {
+        Err(systemprompt_traits::AnalyticsProviderError::Internal(
+            "reusable exploded".to_owned(),
+        ))
+    }
+    async fn upsert_fingerprint(
+        &self,
+        _fingerprint: &str,
+        _ip_address: Option<&str>,
+        _user_agent: Option<&str>,
+        _screen_info: Option<&str>,
+    ) -> AnalyticsResult<()> {
+        Ok(())
+    }
+}
+
+struct ReusableLookupFailsProvider;
+
+#[async_trait]
+impl FingerprintProvider for ReusableLookupFailsProvider {
+    async fn count_active_sessions(&self, _fingerprint: &str) -> AnalyticsResult<i64> {
+        Ok(9)
+    }
+    async fn find_reusable_session(&self, _fingerprint: &str) -> AnalyticsResult<Option<String>> {
+        Err(systemprompt_traits::AnalyticsProviderError::Internal(
+            "reusable exploded".to_owned(),
+        ))
+    }
+    async fn upsert_fingerprint(
+        &self,
+        _fingerprint: &str,
+        _ip_address: Option<&str>,
+        _user_agent: Option<&str>,
+        _screen_info: Option<&str>,
+    ) -> AnalyticsResult<()> {
+        Ok(())
+    }
+}
+
+#[tokio::test]
+async fn failing_reusable_session_lookup_falls_through_to_fresh_session() {
+    ensure_test_bootstrap();
+    install_test_signing_key();
+
+    let analytics = Arc::new(StubAnalyticsProvider::new(None));
+    let service = SessionCreationService::new(
+        Arc::clone(&analytics) as Arc<dyn AnalyticsProvider>,
+        Arc::new(StubUserProvider { known_user: None }),
+    )
+    .with_fingerprint_provider(Arc::new(ReusableLookupFailsProvider));
+
+    let headers = HeaderMap::new();
+    let client = client_id();
+    let info = service
+        .create_anonymous_session(anonymous_input(&headers, &client))
+        .await
+        .expect("session despite reusable-lookup failure");
+
+    assert!(info.is_new);
+}
+
+#[tokio::test]
+async fn at_limit_failing_recent_lookup_falls_through_to_fresh_session() {
+    ensure_test_bootstrap();
+    install_test_signing_key();
+
+    let analytics = Arc::new(FailingAnalyticsProvider {
+        created_sessions: AtomicUsize::new(0),
+    });
+    let service = SessionCreationService::new(
+        Arc::clone(&analytics) as Arc<dyn AnalyticsProvider>,
+        Arc::new(StubUserProvider { known_user: None }),
+    )
+    .with_fingerprint_provider(Arc::new(StubFingerprintProvider {
+        active_sessions: 9,
+        reusable_session: Some("sess_reusable".to_owned()),
+    }));
+
+    let headers = HeaderMap::new();
+    let client = client_id();
+    let info = service
+        .create_anonymous_session(anonymous_input(&headers, &client))
+        .await
+        .expect("session despite recent-lookup failure at limit");
+
+    assert!(info.is_new);
+    assert_eq!(analytics.created_sessions.load(Ordering::SeqCst), 1);
+}
+
+#[tokio::test]
+async fn failing_fingerprint_count_falls_through_to_fresh_session() {
+    ensure_test_bootstrap();
+    install_test_signing_key();
+
+    let analytics = Arc::new(StubAnalyticsProvider::new(None));
+    let service = SessionCreationService::new(
+        Arc::clone(&analytics) as Arc<dyn AnalyticsProvider>,
+        Arc::new(StubUserProvider { known_user: None }),
+    )
+    .with_fingerprint_provider(Arc::new(FailingFingerprintProvider));
+
+    let headers = HeaderMap::new();
+    let client = client_id();
+    let info = service
+        .create_anonymous_session(anonymous_input(&headers, &client))
+        .await
+        .expect("session despite fingerprint failure");
+
+    assert!(info.is_new);
+    assert_eq!(analytics.created_sessions.load(Ordering::SeqCst), 1);
+}
+
+#[tokio::test]
+async fn at_limit_without_reusable_session_creates_fresh_session() {
+    ensure_test_bootstrap();
+    install_test_signing_key();
+
+    let analytics = Arc::new(StubAnalyticsProvider::new(None));
+    let service = SessionCreationService::new(
+        Arc::clone(&analytics) as Arc<dyn AnalyticsProvider>,
+        Arc::new(StubUserProvider { known_user: None }),
+    )
+    .with_fingerprint_provider(Arc::new(StubFingerprintProvider {
+        active_sessions: 5,
+        reusable_session: None,
+    }));
+
+    let headers = HeaderMap::new();
+    let client = client_id();
+    let info = service
+        .create_anonymous_session(anonymous_input(&headers, &client))
+        .await
+        .expect("session");
+
+    assert!(info.is_new);
+    assert_eq!(info.user_id.as_str(), "user_anon_fresh");
+}
+
+#[tokio::test]
+async fn at_limit_with_recent_session_lacking_user_creates_fresh_session() {
+    ensure_test_bootstrap();
+    install_test_signing_key();
+
+    let analytics = Arc::new(StubAnalyticsProvider::new(Some(recent_session(
+        "sess_orphan",
+        None,
+    ))));
+    let service = SessionCreationService::new(
+        Arc::clone(&analytics) as Arc<dyn AnalyticsProvider>,
+        Arc::new(StubUserProvider { known_user: None }),
+    )
+    .with_fingerprint_provider(Arc::new(StubFingerprintProvider {
+        active_sessions: 9,
+        reusable_session: Some("sess_reusable".to_owned()),
+    }));
+
+    let headers = HeaderMap::new();
+    let client = client_id();
+    let info = service
+        .create_anonymous_session(anonymous_input(&headers, &client))
+        .await
+        .expect("session");
+
+    assert!(info.is_new, "orphan recent session must not be reused");
+}
+
+#[tokio::test]
+async fn failing_analytics_lookup_falls_through_to_fresh_session() {
+    ensure_test_bootstrap();
+    install_test_signing_key();
+
+    let analytics = Arc::new(FailingAnalyticsProvider {
+        created_sessions: AtomicUsize::new(0),
+    });
+    let service = SessionCreationService::new(
+        Arc::clone(&analytics) as Arc<dyn AnalyticsProvider>,
+        Arc::new(StubUserProvider { known_user: None }),
+    );
+
+    let headers = HeaderMap::new();
+    let client = client_id();
+    let info = service
+        .create_anonymous_session(anonymous_input(&headers, &client))
+        .await
+        .expect("session despite analytics failure");
+
+    assert!(info.is_new);
+    assert_eq!(analytics.created_sessions.load(Ordering::SeqCst), 1);
+}
+
+#[tokio::test(start_paused = true)]
+async fn slow_session_lookup_times_out_and_creates_fresh_session() {
+    ensure_test_bootstrap();
+    install_test_signing_key();
+
+    let service = SessionCreationService::new(
+        Arc::new(SlowAnalyticsProvider {
+            inner: StubAnalyticsProvider::new(Some(recent_session("sess_slow", Some("user_slow")))),
+        }) as Arc<dyn AnalyticsProvider>,
+        Arc::new(StubUserProvider { known_user: None }),
+    );
+
+    let headers = HeaderMap::new();
+    let client = client_id();
+    let info = service
+        .create_anonymous_session(anonymous_input(&headers, &client))
+        .await
+        .expect("session despite lookup timeout");
+
+    assert!(info.is_new, "timed-out lookup must not reuse the session");
+    assert_ne!(info.session_id.as_str(), "sess_slow");
+}
+
 #[tokio::test]
 async fn ensure_anonymous_user_resolves_user_and_fingerprint() {
     ensure_test_bootstrap();
