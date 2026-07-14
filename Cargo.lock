@@ -4703,7 +4703,6 @@ dependencies = [
  "reqwest-eventsource",
  "serde",
  "serde_json",
- "systemprompt-config",
  "systemprompt-extension",
  "systemprompt-identifiers",
  "systemprompt-loader",
