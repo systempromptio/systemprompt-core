@@ -122,3 +122,12 @@ fn deep_nesting_across_multiple_levels() {
     let closes = result.toc_html.matches("</ul>").count();
     assert_eq!(opens, closes);
 }
+
+#[test]
+fn heading_absent_from_html_leaves_content_unchanged() {
+    let md = "# Title\n\n## Only In Markdown";
+    let html = "<h2>Totally Different</h2>";
+    let result = generate_toc(md, html);
+    assert_eq!(result.content_html, html);
+    assert!(result.toc_html.contains("only-in-markdown"));
+}

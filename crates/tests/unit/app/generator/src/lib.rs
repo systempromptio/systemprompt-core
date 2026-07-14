@@ -19,7 +19,11 @@ mod asset_tests;
 #[cfg(test)]
 pub(crate) mod build;
 #[cfg(test)]
+mod build_steps_error_tests;
+#[cfg(test)]
 mod build_tests;
+#[cfg(test)]
+pub(crate) mod config_error_db;
 #[cfg(test)]
 mod content;
 #[cfg(test)]
@@ -28,6 +32,8 @@ mod copy_assets_tests;
 mod css_steps_tests;
 #[cfg(test)]
 mod error_tests;
+#[cfg(test)]
+mod jobs_tests;
 #[cfg(test)]
 mod markdown_extra_tests;
 #[cfg(test)]
@@ -43,13 +49,19 @@ mod pipeline_smoke;
 #[cfg(test)]
 mod prerender_public_db;
 #[cfg(test)]
+mod prerender_render_db;
+#[cfg(test)]
 mod rss_extra_tests;
+#[cfg(test)]
+mod rss_generator_db;
 #[cfg(test)]
 mod sitemap;
 #[cfg(test)]
 mod sitemap_alternates_tests;
 #[cfg(test)]
 mod sitemap_generator_db;
+#[cfg(test)]
+mod sitemap_generator_extra_db;
 #[cfg(test)]
 mod sitemap_provider_tests;
 #[cfg(test)]
