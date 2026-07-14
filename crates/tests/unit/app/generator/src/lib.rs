@@ -33,6 +33,10 @@ mod css_steps_tests;
 #[cfg(test)]
 mod error_tests;
 #[cfg(test)]
+pub(crate) mod ext_fixtures;
+#[cfg(test)]
+mod ext_pipeline_db;
+#[cfg(test)]
 mod jobs_tests;
 #[cfg(test)]
 mod markdown_extra_tests;

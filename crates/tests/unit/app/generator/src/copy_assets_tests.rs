@@ -27,6 +27,16 @@ async fn execute_copy_extension_assets_returns_success() {
     let tmp = TempDir::new().unwrap();
     std::fs::create_dir_all(tmp.path().join("dist")).unwrap();
     let paths = make_app_paths(&tmp);
+    // The inventory fixtures in crate::ext_fixtures declare a required asset;
+    // create its source so the job's required-copy arm succeeds.
+    let src = {
+        use systemprompt_extension::AssetPaths;
+        paths
+            .storage_files()
+            .join(crate::ext_fixtures::GEN_REQUIRED_ASSET_SOURCE)
+    };
+    std::fs::create_dir_all(src.parent().unwrap()).unwrap();
+    std::fs::write(&src, "x").unwrap();
     let res = execute_copy_extension_assets(&paths).await;
     assert!(res.is_ok(), "must succeed: {res:?}");
     let job = res.unwrap();

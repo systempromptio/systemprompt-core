@@ -337,3 +337,107 @@ async fn generate_feed_with_providers_propagates_fetch_failure() {
         "unexpected error: {err:?}"
     );
 }
+
+fn tempdir_paths(tmp: &tempfile::TempDir) -> systemprompt_models::AppPaths {
+    let p = tmp.path().to_string_lossy().to_string();
+    systemprompt_models::AppPaths::from_profile(&systemprompt_models::profile::PathsConfig {
+        system: p.clone(),
+        services: p.clone(),
+        bin: p.clone(),
+        web_path: Some(p.clone()),
+        storage: Some(p),
+        geoip_database: None,
+    })
+    .expect("paths")
+}
+
+#[tokio::test]
+async fn rss_provider_missing_content_config_is_read_error() {
+    let _boot = ensure_test_bootstrap();
+    let Some(db) = maybe_db().await else { return };
+    let tmp = tempfile::TempDir::new().unwrap();
+    let err = DefaultRssFeedProvider::new(db, &tempdir_paths(&tmp))
+        .await
+        .expect_err("missing content config");
+    assert!(
+        matches!(err, PublishError::ContentConfigRead { .. }),
+        "unexpected error: {err:?}"
+    );
+}
+
+#[tokio::test]
+async fn rss_provider_malformed_content_config_is_parse_error() {
+    let _boot = ensure_test_bootstrap();
+    let Some(db) = maybe_db().await else { return };
+    let tmp = tempfile::TempDir::new().unwrap();
+    let paths = tempdir_paths(&tmp);
+    let cfg = paths.system().content_config().to_path_buf();
+    fs::create_dir_all(cfg.parent().unwrap()).unwrap();
+    fs::write(&cfg, "content_sources: [broken").unwrap();
+    let err = DefaultRssFeedProvider::new(db, &paths)
+        .await
+        .expect_err("malformed content config");
+    assert!(
+        matches!(err, PublishError::ContentConfigParse { .. }),
+        "unexpected error: {err:?}"
+    );
+}
+
+#[tokio::test]
+async fn rss_provider_fetch_items_with_closed_pool_is_render_failed() {
+    let _guard = SERIALIZE.lock().unwrap_or_else(|e| e.into_inner());
+    let boot = ensure_test_bootstrap();
+    if fixture_database_url().is_err() {
+        return;
+    }
+
+    install_web_config(boot);
+    install_content_config(boot, "blog", "rssclosedsrc", "");
+
+    let p = DefaultRssFeedProvider::new(
+        systemprompt_test_fixtures::closed_db_pool().await,
+        &boot.app_paths,
+    )
+    .await
+    .expect("provider construction only reads config files");
+    let ctx = RssFeedContext {
+        base_url: "https://example.com",
+        source_name: "rssclosedsrc",
+    };
+    let err = p.fetch_items(&ctx, 5).await.expect_err("closed pool");
+    assert!(
+        matches!(err, ProviderError::RenderFailed(ref m) if m.contains("Failed to fetch content")),
+        "unexpected error: {err:?}"
+    );
+}
+
+#[tokio::test]
+async fn rss_provider_fetch_items_defaults_url_pattern_without_sitemap() {
+    let _guard = SERIALIZE.lock().unwrap_or_else(|e| e.into_inner());
+    let boot = ensure_test_bootstrap();
+    let Some(db) = maybe_db().await else { return };
+
+    let source_id = SourceId::new("rssnositemap-off");
+    cleanup(&db, &source_id).await;
+    seed_post(&db, &source_id, "plain-slug-post").await;
+
+    install_web_config(boot);
+    install_content_config(boot, "blog", "rssnositemap", "");
+
+    let p = DefaultRssFeedProvider::new(db.clone(), &boot.app_paths)
+        .await
+        .expect("provider");
+    let ctx = RssFeedContext {
+        base_url: "https://example.com",
+        source_name: "rssnositemap-off",
+    };
+    let items = p.fetch_items(&ctx, 5).await.expect("items");
+
+    cleanup(&db, &source_id).await;
+
+    assert_eq!(items.len(), 1);
+    assert_eq!(
+        items[0].link, "https://example.com/plain-slug-post",
+        "source without sitemap must use the default slug pattern"
+    );
+}
