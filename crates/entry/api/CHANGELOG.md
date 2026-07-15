@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.20.0] - 2026-07-15
+
+### Changed
+
+- `POST /v1/agent/contexts` creates contexts with `ContextKind::User`; CLI bookkeeping rows no longer appear in context listings backed by conversation analytics.
+
 ## [0.19.0] - 2026-07-02
 
 ### Added

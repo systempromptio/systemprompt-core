@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.20.0] - 2026-07-15
+
+### Removed
+
+- The interactive prompt/summary display stack (`Prompts`, `PromptBuilder`, `QuickPrompts`, `ModuleDisplay`, `BatchModuleOperations`, `ValidationSummary`/`OperationResult`/`ProgressSummary`) and the `dialoguer` dependency; nothing in this repo or any downstream consumer used them.
+
 ## [0.19.0] - 2026-07-02
 
 ### Breaking

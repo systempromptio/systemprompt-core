@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.20.0] - 2026-07-15
+
+### Changed
+
+- `cleanup_empty_contexts` spares session-bound `cli_session` contexts and collects session-orphaned ones, keyed on the new `user_contexts.kind` column instead of the display-name prefix.
+
 ## [0.19.0] - 2026-07-02
 
 ### Breaking

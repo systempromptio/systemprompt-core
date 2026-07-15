@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.20.0] - 2026-07-15
+
+### Changed
+
+- Conversation analytics (context counts, listings, activity trends, platform totals) exclude `kind = 'cli_session'` bookkeeping rows, so dashboards count only real conversations.
+
 ## [0.19.0] - 2026-07-02
 
 ### Breaking

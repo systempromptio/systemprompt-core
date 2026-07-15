@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.20.0] - 2026-07-15
+
+### Changed
+
+- Dropped the unused `systemprompt-config` dependency.
+
 ## [0.19.0] - 2026-07-02
 
 ### Breaking

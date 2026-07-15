@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.20.0] - 2026-07-15
+
+### Added
+
+- Extensions can override the framing policy for their routes: `ExtensionRouter::with_frame_options(FrameOptions)` (or `stamp_frame_options` on a route subtree) records a typed `FrameOptionsOverride` response extension honoured by the global security-headers middleware — `SAMEORIGIN`/`DENY`, or header removal for `FrameOptions::AllowAll`, always paired with the matching `frame-ancestors` CSP directive. The profile default still applies everywhere else.
+
 ## [0.19.0] - 2026-07-02
 
 ### Breaking

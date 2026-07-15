@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.20.0] - 2026-07-15
+
+### Fixed
+
+- Every CLI invocation with a stale persisted session minted a new `CLI Session - {profile}` row in `user_contexts` with no GC path. The three CLI session paths now reuse one stable row per user/profile via `ContextRepository::get_or_create_cli_context`.
+- `infra logs trace show <task-id> --json` emitted nothing for AI-task traces; it now emits the serialized trace view as the Trace JSON artifact, matching the log-event-trace path.
+
 ## [0.19.0] - 2026-07-02
 
 ### Breaking

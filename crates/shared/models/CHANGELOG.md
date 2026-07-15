@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.20.0] - 2026-07-15
+
+### Breaking
+
+- `UserContext` and `UserContextWithStats` gain a `kind: ContextKind` field; struct-literal constructions and exhaustive destructurings must add it. `ContextKind` (`User` | `CliSession`) is the new discriminator for `user_contexts` rows.
+
+### Added
+
+- Optional `sqlx` feature deriving `sqlx::Type` for DB-persisted enums (`ContextKind`), so compile-time-verified queries decode them directly.
+
 ## [0.19.0] - 2026-07-02
 
 ### Breaking

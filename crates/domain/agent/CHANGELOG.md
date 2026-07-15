@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.20.0] - 2026-07-15
+
+### Breaking
+
+- `ContextRepository::create_context` and `ContextProvider::create_context` take an additional `ContextKind` argument; pass `ContextKind::User` for ordinary conversation contexts.
+
+### Added
+
+- `ContextRepository::get_or_create_cli_context` returns one stable `cli_session` context per user/profile, re-pointing it at the caller's current session instead of minting a new row per invocation.
+- Migration `008_add_user_contexts_kind` adds the `kind` column (backfilling existing `CLI Session - ` rows as `cli_session`).
+
+### Fixed
+
+- The per-session usage counters on `user_sessions` are now written: `TaskRepository` increments `task_count` on task creation and `message_count` for messages persisted by `update_task_and_save_messages`. The redundant, never-called `increment_ai_request_count` mutation is removed.
+
 ## [0.19.0] - 2026-07-02
 
 ### Breaking

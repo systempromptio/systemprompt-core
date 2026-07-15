@@ -1,6 +1,11 @@
 # Changelog
 
-## [0.19.1] - 2026-07-03
+## [0.20.0] - 2026-07-15
+
+### Breaking
+
+- `ContextRepository::create_context` and `ContextProvider::create_context` take an additional `ContextKind` argument; pass `ContextKind::User` for ordinary conversation contexts.
+- `UserContext` and `UserContextWithStats` gain a `kind: ContextKind` field; struct-literal constructions and exhaustive destructurings must add it.
 
 ### Added
 

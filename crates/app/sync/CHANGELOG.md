@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.20.0] - 2026-07-15
+
+### Changed
+
+- Cloud sync export/import carries the new `user_contexts.kind` column.
+- Crate-deploy process execution is routed through the `CommandRunner`/`CommandSpec` seam from `systemprompt-cloud` instead of constructing `std::process::Command` inline; identical commands and error mapping, and tests can substitute a stub runner.
+
 ## [0.19.0] - 2026-07-02
 
 ### Breaking
