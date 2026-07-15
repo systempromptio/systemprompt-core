@@ -8,6 +8,7 @@ use systemprompt_identifiers::{ContextId, SessionId, UserId};
 use systemprompt_traits::{ContextProvider, ContextProviderError, ContextWithStats};
 
 use crate::error::AgentError;
+use crate::models::context::ContextKind;
 use crate::repository::ContextRepository;
 
 #[derive(Debug, Clone)]
@@ -98,7 +99,7 @@ impl ContextProvider for ContextProviderService {
         name: &str,
     ) -> Result<ContextId, ContextProviderError> {
         self.repo
-            .create_context(user_id, session_id, name)
+            .create_context(user_id, session_id, name, ContextKind::User)
             .await
             .map_err(|e| ContextProviderError::Database(e.to_string()))
     }

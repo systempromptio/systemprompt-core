@@ -335,6 +335,74 @@ mod analytics_repository {
                 .expect("cleanup query should execute for any window");
         }
     }
+
+    #[tokio::test]
+    async fn cleanup_collects_orphaned_cli_contexts_but_spares_session_bound_ones() {
+        let pool = pool_or_skip!();
+        let repo = AnalyticsRepository::new(&pool).expect("repo");
+        let raw = pool.pool_arc().expect("raw pool");
+
+        let user_id = systemprompt_test_fixtures::unique_user_id("schedgc");
+        let session_id = systemprompt_identifiers::SessionId::generate();
+        systemprompt_test_fixtures::seed_user_row(
+            &pool,
+            &user_id,
+            &format!("{}@schedgc.invalid", user_id.as_str()),
+        )
+        .await
+        .expect("seed user");
+        systemprompt_test_fixtures::seed_user_session(&pool, &user_id, &session_id)
+            .await
+            .expect("seed session");
+
+        let live_ctx = format!("schedgc_live_{}", session_id.as_str());
+        let orphan_ctx = format!("schedgc_orphan_{}", session_id.as_str());
+        let old = chrono::Utc::now() - chrono::Duration::hours(48);
+        for (ctx, sess) in [(&live_ctx, Some(session_id.as_str())), (&orphan_ctx, None)] {
+            sqlx::query(
+                "INSERT INTO user_contexts (context_id, user_id, session_id, name, kind, \
+                 created_at, updated_at) VALUES ($1, $2, $3, $4, 'cli_session', $5, $5)",
+            )
+            .bind(ctx)
+            .bind(user_id.as_str())
+            .bind(sess)
+            .bind("CLI Session - schedgc")
+            .bind(old)
+            .execute(raw.as_ref())
+            .await
+            .expect("seed context");
+        }
+
+        repo.cleanup_empty_contexts(1).await.expect("cleanup runs");
+
+        let survivors: Vec<String> =
+            sqlx::query_scalar("SELECT context_id FROM user_contexts WHERE user_id = $1")
+                .bind(user_id.as_str())
+                .fetch_all(raw.as_ref())
+                .await
+                .expect("list survivors");
+        assert!(
+            survivors.contains(&live_ctx),
+            "empty CLI context bound to a live session must survive"
+        );
+        assert!(
+            !survivors.contains(&orphan_ctx),
+            "session-orphaned CLI context must be collected"
+        );
+
+        let _ = sqlx::query("DELETE FROM user_contexts WHERE user_id = $1")
+            .bind(user_id.as_str())
+            .execute(raw.as_ref())
+            .await;
+        let _ = sqlx::query("DELETE FROM user_sessions WHERE user_id = $1")
+            .bind(user_id.as_str())
+            .execute(raw.as_ref())
+            .await;
+        let _ = sqlx::query("DELETE FROM users WHERE id = $1")
+            .bind(user_id.as_str())
+            .execute(raw.as_ref())
+            .await;
+    }
 }
 
 mod security_repository {

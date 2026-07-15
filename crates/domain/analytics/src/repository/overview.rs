@@ -9,6 +9,7 @@ use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
+use systemprompt_models::ContextKind;
 
 use crate::models::cli::{OverviewAgentRow, OverviewCostRow, OverviewRequestRow, OverviewToolRow};
 
@@ -29,9 +30,10 @@ impl OverviewAnalyticsRepository {
         end: DateTime<Utc>,
     ) -> Result<i64> {
         let count = sqlx::query_scalar!(
-            r#"SELECT COUNT(*)::bigint as "count!" FROM user_contexts WHERE created_at >= $1 AND created_at < $2"#,
+            r#"SELECT COUNT(*)::bigint as "count!" FROM user_contexts WHERE created_at >= $1 AND created_at < $2 AND kind = $3"#,
             start,
-            end
+            end,
+            ContextKind::User.as_str()
         )
         .fetch_one(&*self.pool)
         .await?;

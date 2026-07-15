@@ -42,6 +42,7 @@
 //! | ------- | ------ |
 //! | _default_ | All public DTOs and traits, no axum integration. |
 //! | `web` | Adds `axum::IntoResponse` impls for the API envelopes. |
+//! | `sqlx` | Derives `sqlx::Type` on DB-persisted enums (e.g. [`ContextKind`]). |
 //!
 //! Public functions return `thiserror`-derived enums from [`errors`];
 //! `anyhow::Error` is never used in a public signature.
@@ -118,12 +119,12 @@ pub use api::{
     CheckoutResponse, CloudApiError, CloudApiErrorDetail, CloudApiResponse, CloudCustomerInfo,
     CloudListResponse, CloudLogEntry, CloudLogsResponse, CloudPlan, CloudPlanInfo,
     CloudStatusResponse, CloudTenant, CloudTenantInfo, CloudTenantSecrets, CloudTenantStatus,
-    CloudTenantStatusResponse, CloudUserInfo, CollectionResponse, CreateContextRequest,
-    CreatedResponse, DeployResponse, DiscoveryResponse, ErrorCode, ErrorResponse,
-    ExternalDbAccessResponse, Link, ModuleInfo, PaginationInfo, PaginationParams,
-    ProvisioningEvent, ProvisioningEventType, RegistryToken, ResponseLinks, ResponseMeta,
-    SearchQuery, SetExternalDbAccessRequest, SetSecretsRequest, SingleResponse, SortOrder,
-    SortParams, SubscriptionStatus, SuccessResponse, UpdateContextRequest, UserContext,
+    CloudTenantStatusResponse, CloudUserInfo, CollectionResponse, ContextKind,
+    CreateContextRequest, CreatedResponse, DeployResponse, DiscoveryResponse, ErrorCode,
+    ErrorResponse, ExternalDbAccessResponse, Link, ModuleInfo, PaginationInfo, PaginationParams,
+    ParseContextKindError, ProvisioningEvent, ProvisioningEventType, RegistryToken, ResponseLinks,
+    ResponseMeta, SearchQuery, SetExternalDbAccessRequest, SetSecretsRequest, SingleResponse,
+    SortOrder, SortParams, SubscriptionStatus, SuccessResponse, UpdateContextRequest, UserContext,
     UserContextWithStats, UserMeResponse, ValidationError,
 };
 pub use artifacts::{

@@ -4,6 +4,7 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use clap::Parser;
+use systemprompt_agent::models::context::ContextKind;
 use systemprompt_agent::repository::ContextRepository;
 use systemprompt_cli::analytics::{self, AnalyticsCommands};
 use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
@@ -78,7 +79,12 @@ async fn seed_context(pool: &DbPool) -> String {
         .unwrap();
     ContextRepository::new(pool)
         .unwrap()
-        .create_context(&user_id, Some(&session_id), "cli-analytics-show")
+        .create_context(
+            &user_id,
+            Some(&session_id),
+            "cli-analytics-show",
+            ContextKind::User,
+        )
         .await
         .unwrap()
         .to_string()

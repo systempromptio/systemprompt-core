@@ -18,6 +18,7 @@
 use chrono::Utc;
 use std::time::Duration;
 use systemprompt_identifiers::{ContextId, SessionId, TenantId, UserId};
+use systemprompt_models::ContextKind;
 use systemprompt_sync::api_client::RetryConfig;
 use systemprompt_sync::database::{ContextExport, DatabaseExport, ImportResult, UserExport};
 use systemprompt_sync::{
@@ -223,6 +224,7 @@ mod database_types {
             user_id: UserId::new("usr-01"),
             session_id: Some(SessionId::new("sess-01")),
             name: "My context".to_owned(),
+            kind: ContextKind::User,
             created_at: Utc::now(),
             updated_at: Utc::now(),
         }

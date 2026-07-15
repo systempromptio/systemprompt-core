@@ -419,6 +419,33 @@ async fn conversation_repository_smoke() -> Result<()> {
         .get_context_count(fx.window_start, fx.window_end)
         .await?;
     assert!(ctx_ct >= 1);
+
+    sqlx::query(
+        "INSERT INTO user_contexts (context_id, user_id, name, kind, created_at, updated_at) \
+         VALUES ($1, $2, $3, 'cli_session', $4, $4)",
+    )
+    .bind(format!("repo_cli_{}", fx.tag))
+    .bind(&fx.user_id)
+    .bind(format!("CLI Session - {}", fx.tag))
+    .bind(fx.window_start + Duration::minutes(1))
+    .execute(&fx.pool)
+    .await?;
+    let ctx_ct_after = repo
+        .get_context_count(fx.window_start, fx.window_end)
+        .await?;
+    assert_eq!(
+        ctx_ct_after, ctx_ct,
+        "cli_session contexts must be excluded from conversation counts"
+    );
+    let agent_after = repo
+        .list_agent_contexts(fx.window_start, fx.window_end, 50)
+        .await?;
+    assert!(
+        agent_after
+            .iter()
+            .all(|c| c.context_id.as_str() != format!("repo_cli_{}", fx.tag)),
+        "cli_session contexts must be excluded from conversation listings"
+    );
     let _tasks = repo.get_task_stats(fx.window_start, fx.window_end).await?;
     let msg = repo
         .get_message_count(fx.window_start, fx.window_end)

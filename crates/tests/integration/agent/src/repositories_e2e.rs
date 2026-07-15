@@ -5,6 +5,7 @@ use systemprompt_agent::models::a2a::{
     Artifact, ArtifactMetadata, DataPart, FileContent, FilePart, Message, MessageRole, Part,
     TextPart,
 };
+use systemprompt_agent::models::context::ContextKind;
 use systemprompt_agent::repository::A2ARepositories;
 use systemprompt_agent::repository::content::artifact::ArtifactRepository;
 use systemprompt_agent::repository::context::message::{
@@ -407,7 +408,7 @@ async fn context_repository_crud_and_listing() -> Result<()> {
     let ctx_repo = ContextRepository::new(&fx.db)?;
 
     let new_ctx = ctx_repo
-        .create_context(&fx.user_id, None, "secondary-ctx")
+        .create_context(&fx.user_id, None, "secondary-ctx", ContextKind::User)
         .await?;
 
     ctx_repo
@@ -688,12 +689,11 @@ async fn task_and_message_writes_increment_session_counters() -> Result<()> {
         })
         .await?;
 
-    let (task_count, message_count): (i32, i32) = sqlx::query_as(
-        "SELECT task_count, message_count FROM user_sessions WHERE session_id = $1",
-    )
-    .bind(fx.session_id.as_str())
-    .fetch_one(&fx.pool)
-    .await?;
+    let (task_count, message_count): (i32, i32) =
+        sqlx::query_as("SELECT task_count, message_count FROM user_sessions WHERE session_id = $1")
+            .bind(fx.session_id.as_str())
+            .fetch_one(&fx.pool)
+            .await?;
     assert_eq!(task_count, 1, "create_task must increment task_count");
     assert_eq!(
         message_count, 2,

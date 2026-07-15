@@ -149,6 +149,7 @@ async fn test_post_request_success() {
             "context_id": "00000000-0000-4000-8000-000000000001",
             "user_id": "user-456",
             "name": "Auto-generated",
+            "kind": "user",
             "created_at": "2024-01-01T00:00:00Z",
             "updated_at": "2024-01-01T00:00:00Z"
         },
@@ -181,6 +182,7 @@ async fn test_post_request_with_body() {
             "context_id": "00000000-0000-4000-8000-000000000001",
             "user_id": "user-456",
             "name": "My Context",
+            "kind": "user",
             "created_at": "2024-01-01T00:00:00Z",
             "updated_at": "2024-01-01T00:00:00Z"
         },
@@ -213,6 +215,7 @@ async fn test_post_request_content_type_json() {
                 "context_id": "00000000-0000-4000-8000-000000000002",
                 "user_id": "user-456",
                 "name": "Test",
+                "kind": "user",
                 "created_at": "2024-01-01T00:00:00Z",
                 "updated_at": "2024-01-01T00:00:00Z"
             },

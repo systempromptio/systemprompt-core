@@ -201,16 +201,16 @@ pub(super) async fn try_validate_context(
         return None;
     }
 
-    CliService::warning("Session context is stale, creating new context...");
+    CliService::warning("Session context is stale, recovering session context...");
 
     let new_context_id = context_repo
-        .create_context(
+        .get_or_create_cli_context(
             &session.user_id,
-            Some(&session.session_id),
+            &session.session_id,
             &format!("CLI Session - {}", profile_name),
         )
         .await
-        .map_err(|e| tracing::warn!(error = %e, "Failed to create replacement session context"))
+        .map_err(|e| tracing::warn!(error = %e, "Failed to recover session context"))
         .ok()?;
 
     session.set_context_id(new_context_id);

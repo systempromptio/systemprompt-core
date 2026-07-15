@@ -49,7 +49,7 @@ systemprompt-content = { workspace = true }
 systemprompt-extension = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-identifiers = { workspace = true, features = ["sqlx"] }
-systemprompt-models = { workspace = true }
+systemprompt-models = { workspace = true, features = ["sqlx"] }
 systemprompt-traits = { workspace = true }
 systemprompt-provider-contracts = { workspace = true }
 systemprompt-security = { workspace = true }

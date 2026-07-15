@@ -3,6 +3,7 @@
 use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
+use systemprompt_models::ContextKind;
 
 use crate::error::SchedulerResult;
 
@@ -18,6 +19,10 @@ impl AnalyticsRepository {
     }
 
     pub async fn cleanup_empty_contexts(&self, hours_old: i64) -> SchedulerResult<u64> {
+        // Why: a CLI-session context bound to a live session must survive even
+        // when empty — deleting it would force the CLI to re-mint a context on
+        // its next run. It becomes collectable once its session is gone
+        // (the FK sets session_id NULL on session deletion).
         let result = sqlx::query!(
             r#"
             DELETE FROM user_contexts
@@ -27,9 +32,11 @@ impl AnalyticsRepository {
                 LEFT JOIN task_messages tm ON uc.context_id = tm.context_id
                 WHERE tm.id IS NULL
                 AND uc.created_at < NOW() - ($1 || ' hours')::interval
+                AND (uc.kind != $2 OR uc.session_id IS NULL)
             )
             "#,
-            hours_old.to_string()
+            hours_old.to_string(),
+            ContextKind::CliSession.as_str()
         )
         .execute(&*self.write_pool)
         .await?;

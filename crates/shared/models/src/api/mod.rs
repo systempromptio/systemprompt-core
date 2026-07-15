@@ -19,7 +19,10 @@ pub use cloud::{
     RegistryToken, SetExternalDbAccessRequest, SetSecretsRequest, SubscriptionStatus,
     UserMeResponse,
 };
-pub use contexts::{CreateContextRequest, UpdateContextRequest, UserContext, UserContextWithStats};
+pub use contexts::{
+    ContextKind, CreateContextRequest, ParseContextKindError, UpdateContextRequest, UserContext,
+    UserContextWithStats,
+};
 pub use errors::{ApiError, ErrorCode, ErrorResponse, ValidationError};
 pub use ext::ApiErrorExt;
 pub use modules::ModuleInfo;

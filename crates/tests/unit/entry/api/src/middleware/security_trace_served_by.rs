@@ -136,7 +136,8 @@ async fn frame_override_allow_all_removes_xfo_and_sets_frame_ancestors() {
     let h = resp.headers();
     assert!(!h.contains_key("x-frame-options"));
     assert_eq!(
-        h.get("content-security-policy").and_then(|v| v.to_str().ok()),
+        h.get("content-security-policy")
+            .and_then(|v| v.to_str().ok()),
         Some("frame-ancestors *")
     );
 }
@@ -157,7 +158,8 @@ async fn frame_override_same_origin_sets_xfo_and_frame_ancestors() {
         Some("SAMEORIGIN")
     );
     assert_eq!(
-        h.get("content-security-policy").and_then(|v| v.to_str().ok()),
+        h.get("content-security-policy")
+            .and_then(|v| v.to_str().ok()),
         Some("frame-ancestors 'self'")
     );
 }
@@ -166,8 +168,7 @@ async fn frame_override_same_origin_sets_xfo_and_frame_ancestors() {
 async fn frame_override_replaces_global_csp() {
     let mut cfg = SecurityHeadersConfig::default();
     cfg.content_security_policy = Some("default-src 'self'".into());
-    let app =
-        security_app_with_frame_override(systemprompt_extension::FrameOptions::AllowAll, cfg);
+    let app = security_app_with_frame_override(systemprompt_extension::FrameOptions::AllowAll, cfg);
     let resp = app
         .oneshot(Request::builder().uri("/").body(Body::empty()).unwrap())
         .await

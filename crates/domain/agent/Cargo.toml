@@ -28,7 +28,7 @@ systemprompt-extension = { workspace = true }
 # Core traits for interface definitions (no circular dependencies)
 systemprompt-extension = { workspace = true }
 systemprompt-identifiers = { workspace = true, features = ["sqlx"] }
-systemprompt-models = { workspace = true, features = ["web"] }
+systemprompt-models = { workspace = true, features = ["web", "sqlx"] }
 systemprompt-config = { workspace = true }
 systemprompt-traits = { workspace = true }
 inventory = { workspace = true }

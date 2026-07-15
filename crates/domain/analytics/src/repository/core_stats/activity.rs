@@ -1,5 +1,6 @@
 use crate::Result;
 use chrono::{Duration, Utc};
+use systemprompt_models::ContextKind;
 
 use super::CoreStatsRepository;
 use crate::models::{ActivityTrend, ContentStat, RecentConversation};
@@ -25,7 +26,7 @@ impl CoreStatsRepository {
             ) s ON s.day = date_trunc('day', gs.date)
             LEFT JOIN (
                 SELECT date_trunc('day', created_at) as day, COUNT(*) as contexts
-                FROM user_contexts WHERE created_at > $1
+                FROM user_contexts WHERE created_at > $1 AND kind = $2
                 GROUP BY 1
             ) c ON c.day = date_trunc('day', gs.date)
             LEFT JOIN (
@@ -45,7 +46,8 @@ impl CoreStatsRepository {
             ) e ON e.day = date_trunc('day', gs.date)
             ORDER BY date ASC
             "#,
-            cutoff
+            cutoff,
+            ContextKind::User.as_str()
         )
         .fetch_all(&*self.pool)
         .await
@@ -71,10 +73,12 @@ impl CoreStatsRepository {
             FROM user_contexts uc
             LEFT JOIN agent_tasks at ON at.context_id = uc.context_id
             LEFT JOIN users u ON u.id = uc.user_id
+            WHERE uc.kind = $2
             ORDER BY uc.created_at DESC
             LIMIT $1
             "#,
-            limit
+            limit,
+            ContextKind::User.as_str()
         )
         .fetch_all(&*self.pool)
         .await

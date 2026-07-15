@@ -35,7 +35,6 @@ mod jwt;
 mod events;
 
 #[cfg(test)]
-
 #[cfg(test)]
 mod domain_config;
 

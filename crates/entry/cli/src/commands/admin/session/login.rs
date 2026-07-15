@@ -160,9 +160,9 @@ async fn create_cli_context(
 
     let context_repo = ContextRepository::new(db_pool)?;
     context_repo
-        .create_context(
+        .get_or_create_cli_context(
             user_id,
-            Some(session_id),
+            session_id,
             &format!("CLI Session - {}", profile_name),
         )
         .await

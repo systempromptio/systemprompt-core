@@ -155,6 +155,7 @@ async fn test_get_context_builds_correct_url() {
                 "context_id": "00000000-0000-4000-8000-000000000abc",
                 "user_id": "user-1",
                 "name": "Test",
+                "kind": "user",
                 "created_at": "2024-01-01T00:00:00Z",
                 "updated_at": "2024-01-01T00:00:00Z"
             },

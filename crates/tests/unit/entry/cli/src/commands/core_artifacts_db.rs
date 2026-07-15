@@ -6,6 +6,7 @@ use systemprompt_agent::models::a2a::{
     Artifact, ArtifactMetadata, DataPart, FileContent, FilePart, Part, Task, TaskState, TaskStatus,
     TextPart,
 };
+use systemprompt_agent::models::context::ContextKind;
 use systemprompt_agent::repository::content::ArtifactRepository;
 use systemprompt_agent::repository::{A2ARepositories, ContextRepository};
 use systemprompt_cli::core::artifacts::{list, show};
@@ -40,7 +41,12 @@ async fn seed_task(pool: &DbPool) -> (UserId, ContextId, TaskId) {
     let repos = A2ARepositories::new(pool).unwrap();
     let ctx_repo = ContextRepository::new(pool).unwrap();
     let context_id = ctx_repo
-        .create_context(&user_id, Some(&session_id), "cli-artifact-context")
+        .create_context(
+            &user_id,
+            Some(&session_id),
+            "cli-artifact-context",
+            ContextKind::User,
+        )
         .await
         .unwrap();
 

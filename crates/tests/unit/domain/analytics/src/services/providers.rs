@@ -284,4 +284,3 @@ mod fingerprint_provider {
         ));
     }
 }
-

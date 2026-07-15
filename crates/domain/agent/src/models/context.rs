@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{ContextId, McpExecutionId, MessageId, SkillId, TaskId};
 
 pub use systemprompt_models::{
-    CreateContextRequest, UpdateContextRequest, UserContext, UserContextWithStats,
+    ContextKind, CreateContextRequest, UpdateContextRequest, UserContext, UserContextWithStats,
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

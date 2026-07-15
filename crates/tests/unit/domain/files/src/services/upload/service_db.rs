@@ -1,7 +1,7 @@
 //! End-to-end tests for `FileUploadService::upload_file`: persistence modes,
-//! size/decode rejection, path-traversal rejection, and DB-failure cleanup. Each test runs in its
-//! own nextest process and writes its own `files.yaml` before building the
-//! service's `FilesConfig`.
+//! size/decode rejection, path-traversal rejection, and DB-failure cleanup.
+//! Each test runs in its own nextest process and writes its own `files.yaml`
+//! before building the service's `FilesConfig`.
 
 use std::sync::Arc;
 

@@ -5007,6 +5007,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_yaml_ng",
+ "sqlx",
  "systemprompt-extension",
  "systemprompt-identifiers",
  "systemprompt-provider-contracts",

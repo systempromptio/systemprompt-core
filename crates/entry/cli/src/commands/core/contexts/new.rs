@@ -1,6 +1,7 @@
 use anyhow::{Context, Result};
 use chrono::Utc;
 use clap::Args;
+use systemprompt_agent::models::context::ContextKind;
 use systemprompt_agent::repository::context::ContextRepository;
 use systemprompt_cloud::{SessionKey, SessionStore};
 use systemprompt_logging::CliService;
@@ -32,6 +33,7 @@ pub(super) async fn execute(args: NewArgs, ctx: &CommandContext) -> Result<Comma
             &session_ctx.session.user_id,
             Some(&session_ctx.session.session_id),
             &name,
+            ContextKind::User,
         )
         .await
         .context("Failed to create context")?;

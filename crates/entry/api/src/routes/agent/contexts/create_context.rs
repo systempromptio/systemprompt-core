@@ -5,7 +5,7 @@ use axum::extract::{Extension, State};
 use axum::response::Response;
 
 use super::super::responses::{api_error_response, single_response_created};
-use systemprompt_agent::models::context::CreateContextRequest;
+use systemprompt_agent::models::context::{ContextKind, CreateContextRequest};
 use systemprompt_agent::repository::context::ContextRepository;
 use systemprompt_events::EventRouter;
 use systemprompt_models::{ApiError, ApiErrorExt, SystemEventBuilder};
@@ -37,7 +37,12 @@ pub async fn create_context(
     };
 
     match context_repo
-        .create_context(user_id, Some(&req_ctx.request.session_id), &context_name)
+        .create_context(
+            user_id,
+            Some(&req_ctx.request.session_id),
+            &context_name,
+            ContextKind::User,
+        )
         .await
     {
         Ok(context_id) => {

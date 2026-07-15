@@ -109,17 +109,19 @@ pub(super) async fn upsert_context(
     };
 
     let result = sqlx::query!(
-        r#"INSERT INTO user_contexts (context_id, user_id, session_id, name, created_at, updated_at)
-           VALUES ($1, $2, $3, $4, $5, $6)
+        r#"INSERT INTO user_contexts (context_id, user_id, session_id, name, kind, created_at, updated_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)
            ON CONFLICT (context_id) DO UPDATE SET
              user_id = EXCLUDED.user_id,
              session_id = EXCLUDED.session_id,
              name = EXCLUDED.name,
+             kind = EXCLUDED.kind,
              updated_at = EXCLUDED.updated_at"#,
         context.context_id.as_str(),
         context.user_id.as_str(),
         resolved_session,
         context.name,
+        context.kind.as_str(),
         context.created_at,
         context.updated_at
     )

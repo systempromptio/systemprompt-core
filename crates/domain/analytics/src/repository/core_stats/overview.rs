@@ -1,5 +1,6 @@
 use crate::Result;
 use chrono::{Duration, Utc};
+use systemprompt_models::ContextKind;
 
 use super::CoreStatsRepository;
 use crate::models::{CostOverview, PlatformOverview, UserMetricsWithTrends};
@@ -18,12 +19,13 @@ impl CoreStatsRepository {
                 (SELECT COUNT(DISTINCT user_id) FROM user_sessions WHERE last_activity_at > $2 AND is_bot = false AND is_behavioral_bot = false AND is_scanner = false) as "active_users_7d!",
                 (SELECT COUNT(*) FROM user_sessions WHERE is_bot = false AND is_behavioral_bot = false AND is_scanner = false) as "total_sessions!",
                 (SELECT COUNT(*) FROM user_sessions WHERE ended_at IS NULL AND is_bot = false AND is_behavioral_bot = false AND is_scanner = false) as "active_sessions!",
-                (SELECT COUNT(*) FROM user_contexts) as "total_contexts!",
+                (SELECT COUNT(*) FROM user_contexts WHERE kind = $3) as "total_contexts!",
                 (SELECT COUNT(*) FROM agent_tasks) as "total_tasks!",
                 (SELECT COUNT(*) FROM ai_requests) as "total_ai_requests!"
             "#,
             cutoff_24h,
-            cutoff_7d
+            cutoff_7d,
+            ContextKind::User.as_str()
         )
         .fetch_one(&*self.pool)
         .await

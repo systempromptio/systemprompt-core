@@ -2,6 +2,7 @@
 
 use chrono::{TimeZone, Utc};
 use systemprompt_identifiers::ContextId;
+use systemprompt_models::ContextKind;
 use systemprompt_sync::{ContextExport, DatabaseExport};
 use systemprompt_test_fixtures::fixture_user_id;
 
@@ -15,6 +16,7 @@ fn full_export() {
             user_id: fixture_user_id(),
             session_id: None,
             name: "Context".to_string(),
+            kind: ContextKind::User,
             created_at: now,
             updated_at: now,
         }],

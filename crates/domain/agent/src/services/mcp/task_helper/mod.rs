@@ -8,6 +8,7 @@ pub use completion::complete_task;
 pub use messages::{SaveMessagesForToolExecutionParams, save_messages_for_tool_execution};
 
 use crate::models::a2a::{Task, TaskState, TaskStatus};
+use crate::models::context::ContextKind;
 use crate::repository::context::ContextRepository;
 use crate::repository::task::TaskRepository;
 use rmcp::ErrorData as McpError;
@@ -85,6 +86,7 @@ async fn find_or_create_session_context(
             request_context.user_id(),
             Some(request_context.session_id()),
             &format!("MCP Session: {}", request_context.session_id()),
+            ContextKind::User,
         )
         .await
         .map_err(|e| {
@@ -123,6 +125,7 @@ async fn validate_or_replace_context(
                     request_context.user_id(),
                     Some(request_context.session_id()),
                     &format!("MCP Session: {}", request_context.session_id()),
+                    ContextKind::User,
                 )
                 .await
                 .map_err(|e| {

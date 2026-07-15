@@ -1,5 +1,6 @@
 use super::{make_task, repos, seed_context_and_task, seed_user_and_session, try_pool};
 use systemprompt_agent::models::a2a::{Message, MessageRole, Part, TaskState, TextPart};
+use systemprompt_agent::models::context::ContextKind;
 use systemprompt_agent::repository::task::{
     RepoCreateTaskParams, UpdateTaskAndSaveMessagesParams, task_state_to_db_string,
 };
@@ -482,7 +483,7 @@ async fn create_task_returns_id_string() {
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let ctx_repo = systemprompt_agent::repository::ContextRepository::new(r.db_pool()).unwrap();
     let context_id = ctx_repo
-        .create_context(&user_id, Some(&session_id), "c")
+        .create_context(&user_id, Some(&session_id), "c", ContextKind::User)
         .await
         .unwrap();
     let task_id = TaskId::generate();

@@ -1,6 +1,6 @@
 use chrono::Utc;
 use systemprompt_agent::models::a2a::{Artifact, ArtifactMetadata, Part, TextPart};
-use systemprompt_agent::models::context::ContextStateEvent;
+use systemprompt_agent::models::context::{ContextKind, ContextStateEvent};
 use systemprompt_identifiers::{
     AgentName, ArtifactId, ContextId, McpExecutionId, SessionId, SkillId, TaskId, TraceId,
 };
@@ -130,6 +130,7 @@ fn context_state_event_context_created_serialize() {
         context: UserContext {
             context_id: ContextId::new(CONTEXT_ID_1),
             name: "My Context".to_string(),
+            kind: ContextKind::User,
             created_at: Utc::now(),
             updated_at: Utc::now(),
             user_id: fixture_user_id(),

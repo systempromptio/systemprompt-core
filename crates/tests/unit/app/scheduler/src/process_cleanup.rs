@@ -178,5 +178,4 @@ mod wait_for_port_free_occupied {
             "the error must name the port and holding PID, got: {msg}"
         );
     }
-
 }

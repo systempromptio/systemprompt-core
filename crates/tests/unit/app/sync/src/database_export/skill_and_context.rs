@@ -2,6 +2,7 @@
 
 use chrono::Utc;
 use systemprompt_identifiers::{ContextId, SessionId};
+use systemprompt_models::ContextKind;
 use systemprompt_sync::ContextExport;
 use systemprompt_test_fixtures::fixture_user_id;
 
@@ -17,6 +18,7 @@ mod context_export_tests {
             user_id: fixture_user_id(),
             session_id: Some(SessionId::generate()),
             name: "Test Context".to_string(),
+            kind: ContextKind::User,
             created_at: now,
             updated_at: now,
         };
@@ -34,6 +36,7 @@ mod context_export_tests {
             user_id: fixture_user_id(),
             session_id: None,
             name: "No Session Context".to_string(),
+            kind: ContextKind::CliSession,
             created_at: now,
             updated_at: now,
         };

@@ -43,6 +43,9 @@ http = { workspace = true }
 # URL parsing for outbound-endpoint (SSRF) validation
 url = { workspace = true }
 
+# Optional: sqlx::Type derives for DB-persisted enums (feature `sqlx`)
+sqlx = { workspace = true, optional = true }
+
 # Validation
 
 # JSON Schema generation
@@ -75,6 +78,7 @@ rmcp = { workspace = true }
 [features]
 default = []
 web = ["dep:axum"]
+sqlx = ["dep:sqlx"]
 
 [package.metadata.docs.rs]
 all-features = true

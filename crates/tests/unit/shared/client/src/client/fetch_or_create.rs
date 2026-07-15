@@ -18,6 +18,7 @@ fn make_context(id: &str, name: &str) -> serde_json::Value {
         "context_id": id,
         "user_id": "user-1",
         "name": name,
+        "kind": "user",
         "created_at": "2024-01-01T00:00:00Z",
         "updated_at": "2024-01-01T00:00:00Z"
     })
@@ -28,6 +29,7 @@ fn make_context_with_stats(id: &str, name: &str) -> serde_json::Value {
         "context_id": id,
         "user_id": "user-1",
         "name": name,
+        "kind": "user",
         "created_at": "2024-01-01T00:00:00Z",
         "updated_at": "2024-01-01T00:00:00Z",
         "task_count": 0,

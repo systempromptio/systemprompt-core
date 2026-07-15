@@ -15,6 +15,7 @@ mod message;
 mod push_notification;
 mod task;
 
+use systemprompt_agent::models::context::ContextKind;
 use systemprompt_agent::repository::A2ARepositories;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ContextId, SessionId, TaskId, TraceId, UserId};
@@ -53,7 +54,7 @@ pub(crate) async fn seed_context_and_task(
     let ctx_repo = systemprompt_agent::repository::ContextRepository::new(repos.db_pool())
         .expect("context repo");
     let context_id = ctx_repo
-        .create_context(user_id, Some(session_id), "seed-context")
+        .create_context(user_id, Some(session_id), "seed-context", ContextKind::User)
         .await
         .expect("create context");
 

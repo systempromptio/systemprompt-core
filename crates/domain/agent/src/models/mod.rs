@@ -28,8 +28,8 @@ pub use agent_info::AgentInfo;
 pub use runtime::AgentRuntimeInfo;
 
 pub use context::{
-    ContextDetail, ContextMessage, CreateContextRequest, UpdateContextRequest, UserContext,
-    UserContextWithStats,
+    ContextDetail, ContextKind, ContextMessage, CreateContextRequest, UpdateContextRequest,
+    UserContext, UserContextWithStats,
 };
 
 pub use systemprompt_models::{

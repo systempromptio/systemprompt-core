@@ -1,4 +1,5 @@
 use super::{seed_user_and_session, try_pool};
+use systemprompt_agent::models::context::ContextKind;
 use systemprompt_agent::repository::ContextRepository;
 use systemprompt_identifiers::{ContextId, SessionId, UserId};
 
@@ -15,7 +16,7 @@ async fn create_get_and_validate_ownership() {
     let repo = ctx_repo(&pool).await;
 
     let context_id = repo
-        .create_context(&user_id, Some(&session_id), "my-context")
+        .create_context(&user_id, Some(&session_id), "my-context", ContextKind::User)
         .await
         .expect("create");
 
@@ -38,7 +39,7 @@ async fn create_without_session() {
     let repo = ctx_repo(&pool).await;
 
     let context_id = repo
-        .create_context(&user_id, None, "no-session")
+        .create_context(&user_id, None, "no-session", ContextKind::User)
         .await
         .expect("create");
     let found = repo.get_context(&context_id, &user_id).await.expect("get");
@@ -53,7 +54,7 @@ async fn get_context_wrong_user_is_not_found() {
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let repo = ctx_repo(&pool).await;
     let context_id = repo
-        .create_context(&user_id, Some(&session_id), "ctx")
+        .create_context(&user_id, Some(&session_id), "ctx", ContextKind::User)
         .await
         .expect("create");
 
@@ -82,7 +83,7 @@ async fn find_user_id_for_context() {
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let repo = ctx_repo(&pool).await;
     let context_id = repo
-        .create_context(&user_id, Some(&session_id), "ctx")
+        .create_context(&user_id, Some(&session_id), "ctx", ContextKind::User)
         .await
         .expect("create");
 
@@ -106,7 +107,7 @@ async fn find_by_session_id_returns_latest() {
     };
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let repo = ctx_repo(&pool).await;
-    repo.create_context(&user_id, Some(&session_id), "by-session")
+    repo.create_context(&user_id, Some(&session_id), "by-session", ContextKind::User)
         .await
         .expect("create");
 
@@ -132,7 +133,7 @@ async fn update_context_name() {
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let repo = ctx_repo(&pool).await;
     let context_id = repo
-        .create_context(&user_id, Some(&session_id), "before")
+        .create_context(&user_id, Some(&session_id), "before", ContextKind::User)
         .await
         .expect("create");
 
@@ -168,7 +169,7 @@ async fn delete_context() {
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let repo = ctx_repo(&pool).await;
     let context_id = repo
-        .create_context(&user_id, Some(&session_id), "doomed")
+        .create_context(&user_id, Some(&session_id), "doomed", ContextKind::User)
         .await
         .expect("create");
 
@@ -195,11 +196,11 @@ async fn list_contexts_basic_and_with_stats() {
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let repo = ctx_repo(&pool).await;
     let c1 = repo
-        .create_context(&user_id, Some(&session_id), "one")
+        .create_context(&user_id, Some(&session_id), "one", ContextKind::User)
         .await
         .expect("create");
     let c2 = repo
-        .create_context(&user_id, Some(&session_id), "two")
+        .create_context(&user_id, Some(&session_id), "two", ContextKind::User)
         .await
         .expect("create");
 
@@ -227,7 +228,7 @@ async fn get_context_events_since_empty() {
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let repo = ctx_repo(&pool).await;
     let context_id = repo
-        .create_context(&user_id, Some(&session_id), "events")
+        .create_context(&user_id, Some(&session_id), "events", ContextKind::User)
         .await
         .expect("create");
 
@@ -238,4 +239,91 @@ async fn get_context_events_since_empty() {
         .await
         .expect("events");
     assert!(events.is_empty());
+}
+
+#[tokio::test]
+async fn kind_round_trips_through_reads() {
+    let Some(pool) = try_pool().await else {
+        return;
+    };
+    let (user_id, session_id) = seed_user_and_session(&pool).await;
+    let repo = ctx_repo(&pool).await;
+
+    let context_id = repo
+        .create_context(
+            &user_id,
+            Some(&session_id),
+            "CLI Session - test",
+            ContextKind::CliSession,
+        )
+        .await
+        .expect("create");
+
+    let fetched = repo.get_context(&context_id, &user_id).await.expect("get");
+    assert_eq!(fetched.kind, ContextKind::CliSession);
+
+    let by_session = repo
+        .find_by_session_id(&session_id)
+        .await
+        .expect("find by session")
+        .expect("row present");
+    assert_eq!(by_session.kind, ContextKind::CliSession);
+
+    let listed = repo.list_contexts_basic(&user_id).await.expect("list");
+    assert!(
+        listed
+            .iter()
+            .all(|c| c.context_id != context_id || c.kind == ContextKind::CliSession)
+    );
+}
+
+#[tokio::test]
+async fn get_or_create_cli_context_reuses_row_across_sessions() {
+    let Some(pool) = try_pool().await else {
+        return;
+    };
+    let (user_id, first_session) = seed_user_and_session(&pool).await;
+    let repo = ctx_repo(&pool).await;
+
+    let second_session = SessionId::generate();
+    systemprompt_test_fixtures::seed_user_session(&pool, &user_id, &second_session)
+        .await
+        .expect("seed second session");
+
+    let first = repo
+        .get_or_create_cli_context(&user_id, &first_session, "CLI Session - local")
+        .await
+        .expect("first call");
+    let second = repo
+        .get_or_create_cli_context(&user_id, &second_session, "CLI Session - local")
+        .await
+        .expect("second call");
+    assert_eq!(first, second, "same user+profile must reuse one row");
+
+    let adopted = repo
+        .find_by_session_id(&second_session)
+        .await
+        .expect("find by session")
+        .expect("row re-pointed at the new session");
+    assert_eq!(adopted.context_id, first);
+    assert_eq!(adopted.kind, ContextKind::CliSession);
+}
+
+#[tokio::test]
+async fn get_or_create_cli_context_keeps_profiles_separate() {
+    let Some(pool) = try_pool().await else {
+        return;
+    };
+    let (user_id, session_id) = seed_user_and_session(&pool).await;
+    let repo = ctx_repo(&pool).await;
+
+    let a = repo
+        .get_or_create_cli_context(&user_id, &session_id, "CLI Session - a")
+        .await
+        .expect("profile a");
+    let b = repo
+        .get_or_create_cli_context(&user_id, &session_id, "CLI Session - b")
+        .await
+        .expect("profile b");
+    assert_ne!(a, b, "different profiles must not share a context row");
 }

@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use sqlx::prelude::FromRow;
 use systemprompt_identifiers::{ContextId, SessionId, UserId};
+use systemprompt_models::ContextKind;
 
 use crate::error::SyncResult;
 use crate::{SyncDirection, SyncOperationResult};
@@ -45,6 +46,7 @@ pub struct ContextExport {
     pub user_id: UserId,
     pub session_id: Option<SessionId>,
     pub name: String,
+    pub kind: ContextKind,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -142,7 +144,7 @@ async fn export_from_database(database_url: &str) -> SyncResult<DatabaseExport> 
         r#"SELECT context_id as "context_id!: ContextId",
                   user_id as "user_id!: UserId",
                   session_id as "session_id: SessionId",
-                  name, created_at, updated_at
+                  name, kind as "kind: ContextKind", created_at, updated_at
            FROM user_contexts"#
     )
     .fetch_all(&pool)

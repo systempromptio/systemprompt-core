@@ -7,7 +7,9 @@
 
 use chrono::Utc;
 use systemprompt_agent::models::a2a::{Part, TextPart};
-use systemprompt_agent::models::context::{ContextDetail, ContextMessage, ContextStateEvent};
+use systemprompt_agent::models::context::{
+    ContextDetail, ContextKind, ContextMessage, ContextStateEvent,
+};
 use systemprompt_identifiers::{ContextId, McpExecutionId, MessageId};
 use systemprompt_models::UserContext;
 use systemprompt_test_fixtures::fixture_user_id;
@@ -94,6 +96,7 @@ fn test_context_detail_serialize() {
         context: UserContext {
             context_id: ContextId::new(TEST_CONTEXT_ID_A),
             name: "Test Context".to_string(),
+            kind: ContextKind::User,
             created_at: Utc::now(),
             updated_at: Utc::now(),
             user_id: fixture_user_id(),
@@ -112,6 +115,7 @@ fn test_context_detail_with_messages() {
         context: UserContext {
             context_id: ContextId::new(TEST_CONTEXT_ID_B),
             name: "Conversation".to_string(),
+            kind: ContextKind::User,
             created_at: Utc::now(),
             updated_at: Utc::now(),
             user_id: fixture_user_id(),
@@ -177,6 +181,7 @@ fn test_context_state_event_context_created() {
         context: UserContext {
             context_id: ContextId::new(TEST_CONTEXT_ID_E),
             name: "New Context".to_string(),
+            kind: ContextKind::User,
             created_at: Utc::now(),
             updated_at: Utc::now(),
             user_id: fixture_user_id(),

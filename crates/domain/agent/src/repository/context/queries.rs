@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 
 use super::ContextRepository;
-use crate::models::context::{ContextStateEvent, UserContext, UserContextWithStats};
+use crate::models::context::{ContextKind, ContextStateEvent, UserContext, UserContextWithStats};
 use crate::repository::task::constructor::TaskConstructor;
 use systemprompt_identifiers::{ContextId, SessionId, TaskId, UserId};
 use systemprompt_traits::RepositoryError;
@@ -31,6 +31,7 @@ impl ContextRepository {
                 context_id as "context_id!",
                 user_id as "user_id!",
                 name as "name!",
+                kind as "kind!: ContextKind",
                 created_at as "created_at!",
                 updated_at as "updated_at!"
             FROM user_contexts WHERE context_id = $1 AND user_id = $2"#,
@@ -51,6 +52,7 @@ impl ContextRepository {
             context_id: ContextId::new(row.context_id),
             user_id: UserId::new(row.user_id),
             name: row.name,
+            kind: row.kind,
             created_at: row.created_at,
             updated_at: row.updated_at,
         })
@@ -65,6 +67,7 @@ impl ContextRepository {
                 context_id as "context_id!",
                 user_id as "user_id!",
                 name as "name!",
+                kind as "kind!: ContextKind",
                 created_at as "created_at!",
                 updated_at as "updated_at!"
             FROM user_contexts WHERE user_id = $1 ORDER BY updated_at DESC"#,
@@ -80,6 +83,7 @@ impl ContextRepository {
                 context_id: ContextId::new(r.context_id),
                 user_id: UserId::new(r.user_id),
                 name: r.name,
+                kind: r.kind,
                 created_at: r.created_at,
                 updated_at: r.updated_at,
             })
@@ -95,6 +99,7 @@ impl ContextRepository {
                 c.context_id as "context_id!",
                 c.user_id as "user_id!",
                 c.name as "name!",
+                c.kind as "kind!: ContextKind",
                 c.created_at as "created_at!",
                 c.updated_at as "updated_at!",
                 COALESCE(COUNT(DISTINCT t.task_id), 0)::bigint as "task_count!",
@@ -118,6 +123,7 @@ impl ContextRepository {
                 context_id: ContextId::new(r.context_id),
                 user_id: UserId::new(r.user_id),
                 name: r.name,
+                kind: r.kind,
                 created_at: r.created_at,
                 updated_at: r.updated_at,
                 task_count: r.task_count,
@@ -136,6 +142,7 @@ impl ContextRepository {
                 context_id as "context_id!",
                 user_id as "user_id!",
                 name as "name!",
+                kind as "kind!: ContextKind",
                 created_at as "created_at!",
                 updated_at as "updated_at!"
             FROM user_contexts WHERE session_id = $1
@@ -150,6 +157,7 @@ impl ContextRepository {
             context_id: ContextId::new(r.context_id),
             user_id: UserId::new(r.user_id),
             name: r.name,
+            kind: r.kind,
             created_at: r.created_at,
             updated_at: r.updated_at,
         }))
