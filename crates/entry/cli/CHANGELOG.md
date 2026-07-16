@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.21.0] - 2026-07-16
+
+### Breaking
+
+- `serve::execute_with_events` takes a `ServeOptions` struct (`foreground`, `kill_port_process`, `run_migrations`) in place of discrete flags.
+
+### Fixed
+
+- `infra services start` installed extension schemas twice — once during its own bootstrap and again when the API-serve phase built its context; the serve phase now skips the redundant migration run.
+
 ## [0.20.0] - 2026-07-15
 
 ### Fixed

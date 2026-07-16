@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.21.0] - 2026-07-16
+
+### Added
+
+- `none_if_blank` normalizes optional env- or flag-sourced values, treating blank and whitespace-only strings as absent.
+
+### Fixed
+
+- `Secrets::parse` drops empty and whitespace-only string entries alongside nulls, so blank provider keys no longer count as configured.
+
 ## [0.20.0] - 2026-07-15
 
 ### Breaking

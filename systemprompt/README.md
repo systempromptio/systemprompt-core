@@ -44,7 +44,7 @@ systemprompt-core compiles to a single Rust binary that you run on your own infr
 
 ```toml
 [dependencies]
-systemprompt = { version = "0.19.0", features = ["full"] }
+systemprompt = { version = "0.21.0", features = ["full"] }
 ```
 
 ```rust

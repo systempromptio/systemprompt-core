@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.21.0] - 2026-07-16
+
+### Breaking
+
+- `ApiServer` and `ServerConfig` are removed; `setup_api_server` returns the composed `axum::Router` and `run_server` takes the pre-bound listener. Migrate by calling `services::server::bind_and_serve(addr, events)` before context construction and passing the returned `EarlyServer` to `run_server`.
+
+### Changed
+
+- The server binds its TCP listener before bootstrap: `/api/v1/health` and `/health` return `200 {"status":"starting"}` (all other routes `503`) while migrations, content publish, and agent reconciliation run, then the full router is swapped onto the same listener. Platform health checks no longer fail during slow first boots; a bootstrap failure still exits non-zero with the listener closed. `is_ready`/`wait_for_ready` signal when the full router activates.
+
 ## [0.20.0] - 2026-07-15
 
 ### Changed

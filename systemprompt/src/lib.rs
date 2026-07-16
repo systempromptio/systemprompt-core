@@ -26,7 +26,7 @@
 //! | `full` | All of the above plus all domain crates (`agent`, `ai`, `mcp`, `oauth`, `users`, `content`, `analytics`, `scheduler`, `generator`, `files`) | Building a product binary. |
 //!
 //! ```toml
-//! systemprompt = { version = "0.19.0", features = ["full"] }
+//! systemprompt = { version = "0.21.0", features = ["full"] }
 //! ```
 
 /// Core trait surface from `systemprompt-traits`.
