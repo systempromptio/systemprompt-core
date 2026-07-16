@@ -2,7 +2,7 @@
 
 What systemprompt-core is, what it does, and when to deploy it.
 
-systemprompt-core is a self-hosted platform for running AI agents and MCP servers under a single governed boundary. It compiles to one Rust binary that you run on infrastructure you control, backed by a PostgreSQL database you own. Every request that reaches an AI provider, an agent, or a tool passes through one authenticated, authorized, audited path.
+systemprompt-core is a self-hosted system for running AI agents and MCP servers under a single governed boundary. It compiles to one Rust binary that you run on infrastructure you control, backed by a PostgreSQL database you own. Every request that reaches an AI provider, an agent, or a tool passes through one authenticated, authorized, audited path.
 
 It is built for organizations that need to put AI agents in front of internal systems without surrendering control of identity, secrets, or the audit record. The binary does not phone home, and the only durable state is your database.
 
@@ -12,7 +12,7 @@ systemprompt-core provides five capabilities behind one HTTP surface:
 
 - **A2A (agent-to-agent) protocol.** A standalone agent server speaks the A2A JSON-RPC protocol with server-sent-event streaming and `.well-known` discovery. Agents are described as configuration and registered in a central registry.
 - **MCP (Model Context Protocol) servers.** MCP servers are hosted natively over streamable HTTP, not proxied to a separate process. Each server has its own scoped tool exposure, OAuth2, and access log, discoverable through a central registry.
-- **OAuth2 / OIDC authorization server.** A built-in authorization server issues and validates tokens for the platform's own surfaces. It supports OIDC discovery, PKCE (S256), and WebAuthn. The JWT plane is RS256.
+- **OAuth2 / OIDC authorization server.** A built-in authorization server issues and validates tokens for the system's own surfaces. It supports OIDC discovery, PKCE (S256), and WebAuthn. The JWT plane is RS256.
 - **Provider gateway.** A provider-facing proxy exposes a stable `/v1` surface (`POST /v1/messages`, `GET /v1/models`) and routes each model pattern to a configured upstream provider. The upstream is selected in configuration, not in code.
 - **Compile-time extensions.** Functionality is extended in Rust through the `Extension` trait, registered at compile time with the `inventory` crate. There is no runtime plugin loader and no `dlopen`; extension code compiles into your binary.
 
@@ -60,7 +60,7 @@ The binary requires no outbound network access for governance operation. In an a
 
 ## How to read the rest of this documentation
 
-- New to the platform — start with [getting-started.md](getting-started.md), a single path from a clean machine to a running server.
+- New to the system — start with [getting-started.md](getting-started.md), a single path from a clean machine to a running server.
 - Running it in production — see [guides/deploy-production.md](guides/deploy-production.md) for high availability, backup, key rotation, and monitoring.
 - Evaluating it for security or procurement — the security and reference material at the top level of this directory covers the threat model, compliance mappings, and stability guarantees.
 
@@ -72,7 +72,7 @@ The binary requires no outbound network access for governance operation. In an a
 | **extension** | A compile-time `Extension` implementation registered through the `inventory` crate. Distinct from the user-facing "plugin" CLI and marketplace surface. |
 | **the gateway** | The provider-facing proxy on the `/v1` base that routes model patterns to upstream inference providers. |
 | **authorization hook / authz hook** | The fail-closed (default-deny) check evaluated in the request path before an action is allowed. |
-| **audit log / governance decisions** | The append-only record of authorization decisions and platform events, written to PostgreSQL and correlated by `trace_id`. |
+| **audit log / governance decisions** | The append-only record of authorization decisions and system events, written to PostgreSQL and correlated by `trace_id`. |
 | **A2A** | Agent-to-agent protocol: JSON-RPC with SSE streaming and `.well-known` discovery. |
-| **MCP** | Model Context Protocol: the tool/resource protocol the platform hosts over streamable HTTP. |
+| **MCP** | Model Context Protocol: the tool/resource protocol the system hosts over streamable HTTP. |
 | **trace_id** | The correlation identifier that links every log line, execution step, and artifact for one request. |
