@@ -152,3 +152,46 @@ jobs:
             dist/SHA256SUMS.pem
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  bump-scoop:
+    name: Bump Scoop bucket (bridge)
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve tag
+        id: tag
+        run: |
+          tag="${{ github.event.inputs.bridge_tag || github.ref_name }}"
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+          echo "version=${tag#bridge-v}" >> "$GITHUB_OUTPUT"
+
+      - name: Update bucket/bridge.json
+        env:
+          BUCKET_TOKEN: ${{ secrets.SCOOP_BUCKET_TOKEN }}
+        run: |
+          if [ -z "$BUCKET_TOKEN" ]; then
+            echo "::warning::SCOOP_BUCKET_TOKEN not set — skipping Scoop bump"
+            exit 0
+          fi
+          tag="${{ steps.tag.outputs.tag }}"
+          version="${{ steps.tag.outputs.version }}"
+          url="https://github.com/systempromptio/systemprompt-core/releases/download/${tag}/systemprompt-bridge-x86_64-pc-windows-msvc.exe"
+          curl -fsSL "$url" -o bridge.exe
+          hash=$(sha256sum bridge.exe | cut -d' ' -f1)
+          git clone "https://x-access-token:${BUCKET_TOKEN}@github.com/systempromptio/scoop-bucket.git" bucket
+          python3 - "$version" "$url" "$hash" <<'EOF'
+          import json, sys
+          version, url, hash_ = sys.argv[1:4]
+          p = 'bucket/bucket/bridge.json'
+          m = json.load(open(p))
+          m['version'] = version
+          m['architecture']['64bit']['url'] = url + '#/systemprompt-bridge.exe'
+          m['architecture']['64bit']['hash'] = hash_
+          json.dump(m, open(p, 'w'), indent=2)
+          open(p, 'a').write('\n')
+          EOF
+          cd bucket
+          git config user.name "systemprompt-bot"
+          git config user.email "bot@systemprompt.io"
+          git add bucket/bridge.json
+          git diff --cached --quiet || { git commit -m "bridge: update to ${version}"; git push; }
