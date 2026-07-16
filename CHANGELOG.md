@@ -11,9 +11,15 @@
 
 - The API server binds its TCP listener before bootstrap: `/api/v1/health` and `/health` return `200 {"status":"starting"}` (all other routes `503`) while migrations, content publish, and agent reconciliation run, then the full router is swapped onto the same listener — platform health checks no longer fail during slow first boots, and a bootstrap failure still exits non-zero with the listener closed. The readiness flag (`is_ready`/`wait_for_ready`) is now signalled when the full router activates.
 
+### Added
+
+- `systemprompt_models::none_if_blank` normalizes optional env- or flag-sourced values, treating blank and whitespace-only strings as absent.
+
 ### Fixed
 
 - `infra services start` installed extension schemas twice — once during its own bootstrap and again when the API-serve phase built its context; the serve phase now skips the redundant migration run.
+
+- Blank provider keys no longer count as configured: `Secrets::parse` drops empty and whitespace-only string entries alongside nulls, and `admin setup` / `cloud profile create` normalize their key arguments — clap `env =` args materialize as `Some("")` when a container platform exports an unfilled template variable, which previously enabled providers with empty credentials.
 
 ## [0.20.0] - 2026-07-15
 
