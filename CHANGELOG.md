@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.21.0] - 2026-07-16
+
+### Breaking
+
+- **Breaking:** `systemprompt-api` removes `ApiServer` and `ServerConfig`; `setup_api_server` returns the composed `axum::Router` and `run_server` takes the pre-bound listener. Migrate by calling `services::server::bind_and_serve(addr, events)` before context construction and passing the returned `EarlyServer` to `run_server`.
+- **Breaking:** `systemprompt-cli`'s `serve::execute_with_events` takes a `ServeOptions` struct (`foreground`, `kill_port_process`, `run_migrations`) in place of discrete flags.
+
+### Changed
+
+- The API server binds its TCP listener before bootstrap: `/api/v1/health` and `/health` return `200 {"status":"starting"}` (all other routes `503`) while migrations, content publish, and agent reconciliation run, then the full router is swapped onto the same listener — platform health checks no longer fail during slow first boots, and a bootstrap failure still exits non-zero with the listener closed. The readiness flag (`is_ready`/`wait_for_ready`) is now signalled when the full router activates.
+
+### Fixed
+
+- `infra services start` installed extension schemas twice — once during its own bootstrap and again when the API-serve phase built its context; the serve phase now skips the redundant migration run.
+
 ## [0.20.0] - 2026-07-15
 
 ### Breaking
