@@ -1,6 +1,7 @@
 //! Clap argument and command types for `cloud profile`.
 
 use clap::{Args, Subcommand, ValueEnum};
+use systemprompt_models::none_if_blank;
 
 #[derive(Debug, Subcommand)]
 pub enum ProfileCommands {
@@ -73,6 +74,15 @@ pub struct CreateArgs {
 impl CreateArgs {
     pub const fn has_api_key(&self) -> bool {
         self.anthropic_key.is_some() || self.openai_key.is_some() || self.gemini_key.is_some()
+    }
+
+    #[must_use]
+    pub fn normalized(mut self) -> Self {
+        self.anthropic_key = none_if_blank(self.anthropic_key);
+        self.openai_key = none_if_blank(self.openai_key);
+        self.gemini_key = none_if_blank(self.gemini_key);
+        self.github_token = none_if_blank(self.github_token);
+        self
     }
 }
 

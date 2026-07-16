@@ -53,9 +53,11 @@ pub async fn execute(cmd: Option<ProfileCommands>, ctx: &CommandContext) -> Resu
 
 async fn execute_command(cmd: ProfileCommands, ctx: &CommandContext) -> Result<bool> {
     match cmd {
-        ProfileCommands::Create(args) => create::execute(&args, ctx.prompter(), &ctx.cli)
-            .await
-            .map(|()| true),
+        ProfileCommands::Create(args) => {
+            create::execute(&args.normalized(), ctx.prompter(), &ctx.cli)
+                .await
+                .map(|()| true)
+        },
         ProfileCommands::List => {
             let result = list::execute(ctx)?;
             render_result(&result, &ctx.cli);

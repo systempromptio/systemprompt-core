@@ -101,8 +101,11 @@ impl Secrets {
                 context: "Failed to parse secrets JSON",
                 source,
             })?;
+        // Null and blank entries are both "absent": setup wizards and container
+        // platforms have historically persisted "" for unset provider keys, and
+        // a blank key must not enable a provider.
         if let Some(obj) = value.as_object_mut() {
-            obj.retain(|_, v| !v.is_null());
+            obj.retain(|_, v| !v.is_null() && v.as_str().is_none_or(|s| !s.trim().is_empty()));
         }
         let secrets: Self =
             serde_json::from_value(value).map_err(|source| SecretsError::Parse {

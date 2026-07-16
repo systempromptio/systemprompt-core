@@ -32,6 +32,16 @@ pub fn read_env_optional(name: &str) -> Option<String> {
     }
 }
 
+/// Normalizes an optional env- or flag-sourced value, treating blank as absent.
+///
+/// clap `env =` args materialize as `Some("")` when the variable is exported
+/// empty — container platforms export blank defaults for unfilled template
+/// variables — so presence checks must not read that as a configured value.
+#[must_use]
+pub fn none_if_blank(value: Option<String>) -> Option<String> {
+    value.filter(|v| !v.trim().is_empty())
+}
+
 /// Reports whether `input` still contains a `${VAR}` / `${VAR:-default}`
 /// placeholder. Used by multi-pass resolvers to detect non-convergence.
 #[must_use]

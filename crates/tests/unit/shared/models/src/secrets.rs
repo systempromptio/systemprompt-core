@@ -101,3 +101,33 @@ fn to_subprocess_env_emits_custom_index_and_upper_case_keys() {
     assert_eq!(env.get("INTERCOM").unwrap(), "ic_value");
     assert_eq!(env.get("intercom").unwrap(), "ic_value");
 }
+
+#[test]
+fn parse_treats_blank_provider_keys_as_absent() {
+    let json = format!(
+        r#"{{
+            "oauth_at_rest_pepper": "{}",
+            "database_url": "postgres://primary",
+            "gemini": "g",
+            "anthropic": "",
+            "openai": "   ",
+            "github": null
+        }}"#,
+        "p".repeat(32)
+    );
+    let secrets = Secrets::parse(&json).unwrap();
+    assert_eq!(secrets.gemini.as_deref(), Some("g"));
+    assert_eq!(secrets.anthropic, None);
+    assert_eq!(secrets.openai, None);
+    assert_eq!(secrets.github, None);
+    assert!(secrets.has_ai_provider());
+}
+
+#[test]
+fn none_if_blank_filters_empty_and_whitespace() {
+    use systemprompt_models::none_if_blank;
+    assert_eq!(none_if_blank(None), None);
+    assert_eq!(none_if_blank(Some(String::new())), None);
+    assert_eq!(none_if_blank(Some("  ".to_owned())), None);
+    assert_eq!(none_if_blank(Some("key".to_owned())).as_deref(), Some("key"));
+}

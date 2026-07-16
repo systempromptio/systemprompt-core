@@ -24,6 +24,7 @@ mod wizard_prompts;
 use crate::shared::CommandOutput;
 use anyhow::Result;
 use clap::Args;
+use systemprompt_models::none_if_blank;
 
 pub use secrets::SecretsData;
 pub use types::*;
@@ -143,11 +144,21 @@ impl SetupArgs {
     pub const fn has_ai_provider(&self) -> bool {
         self.gemini_key.is_some() || self.anthropic_key.is_some() || self.openai_key.is_some()
     }
+
+    #[must_use]
+    fn normalized(mut self) -> Self {
+        self.gemini_key = none_if_blank(self.gemini_key);
+        self.anthropic_key = none_if_blank(self.anthropic_key);
+        self.openai_key = none_if_blank(self.openai_key);
+        self.github_token = none_if_blank(self.github_token);
+        self.default_provider = none_if_blank(self.default_provider);
+        self
+    }
 }
 
 pub async fn execute(
     args: SetupArgs,
     ctx: &crate::context::CommandContext,
 ) -> Result<CommandOutput> {
-    wizard::execute(args, ctx.prompter(), &ctx.cli).await
+    wizard::execute(args.normalized(), ctx.prompter(), &ctx.cli).await
 }
