@@ -7,7 +7,11 @@ use super::lifecycle::{
     initialize_scheduler, reconcile_agents, reconcile_system_services, start_event_bridge,
 };
 
-pub async fn run_server(ctx: AppContext, events: Option<StartupEventSender>) -> Result<()> {
+pub async fn run_server(
+    ctx: AppContext,
+    events: Option<StartupEventSender>,
+    early: super::startup::EarlyServer,
+) -> Result<()> {
     let start_time = std::time::Instant::now();
 
     let mcp_orchestrator = create_mcp_orchestrator(&ctx)?;
@@ -71,8 +75,11 @@ pub async fn run_server(ctx: AppContext, events: Option<StartupEventSender>) -> 
     if let Some(ref tx) = events {
         tx.phase_started(Phase::ApiServer);
     }
-    let api_server = crate::services::server::setup_api_server(&ctx, events.clone())?;
+    let router = crate::services::server::setup_api_server(&ctx, events.as_ref())?;
     let addr = ctx.server_address();
+
+    early.activate(router);
+    super::readiness::signal_ready();
 
     if let Some(ref tx) = events {
         tx.phase_completed(Phase::ApiServer);
@@ -84,9 +91,7 @@ pub async fn run_server(ctx: AppContext, events: Option<StartupEventSender>) -> 
 
     systemprompt_logging::set_startup_mode(false);
 
-    let serve_result = api_server
-        .serve(&addr, super::shutdown::shutdown_signal())
-        .await;
+    let serve_result = early.join().await;
 
     super::shutdown::drain(&ctx, scheduler_handle).await;
 

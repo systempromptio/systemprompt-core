@@ -82,9 +82,9 @@ async fn boot_full_router() -> anyhow::Result<axum::Router> {
             geoip_reader: None,
         },
     ));
-    let server = setup_api_server(&ctx, None)
+    let router = setup_api_server(&ctx, None)
         .map_err(|e| anyhow::anyhow!("setup_api_server failed: {e}"))?;
-    Ok(server.into_router())
+    Ok(router)
 }
 
 async fn body_text(resp: axum::http::Response<Body>) -> (StatusCode, String) {

@@ -135,8 +135,11 @@ async fn run_startup(
     if plan.start_api {
         let api_url = super::serve::execute_with_events(
             ctx.prompter(),
-            true,
-            options.kill_port_process,
+            super::serve::ServeOptions {
+                foreground: true,
+                kill_port_process: options.kill_port_process,
+                run_migrations: false,
+            },
             &ctx.cli,
             Some(events),
         )

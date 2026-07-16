@@ -48,9 +48,7 @@ The Entry layer turns an `AppContext` into a running Axum server. Responsibiliti
 
 ```
 src/
-├── lib.rs                          # Re-exports: ApiServer, HealthChecker, ContextMiddleware, ServerConfig
-├── models/
-│   └── mod.rs                      # ServerConfig
+├── lib.rs                          # Re-exports: HealthChecker, ContextMiddleware
 ├── routes/
 │   ├── mod.rs
 │   ├── wellknown.rs                # /.well-known/* (agent cards, OAuth metadata)

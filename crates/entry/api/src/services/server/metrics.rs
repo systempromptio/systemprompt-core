@@ -19,7 +19,7 @@ const SSE_CONNECTIONS: &str = "sse_active_connections";
 
 // The Prometheus recorder is a process global: `install_recorder` errors in
 // `metrics::set_global_recorder` if called twice. Cache our handle so repeat
-// callers (test binaries that boot multiple `ApiServer`s, or any future
+// callers (test binaries that build multiple API routers, or any future
 // hot-reload path) get a clone of the original instead of a hard error.
 static RECORDER: OnceLock<PrometheusHandle> = OnceLock::new();
 // Serialises concurrent installers so the first writer wins the global recorder

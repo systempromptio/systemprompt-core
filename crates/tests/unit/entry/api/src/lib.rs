@@ -1,7 +1,7 @@
 //! Unit tests for systemprompt-core-api crate
 //!
 //! Tests cover:
-//! - ServerConfig model defaults and construction
+//! - Startup router swap and starting health responses
 //! - JWT token extraction from headers and cookies
 //! - Bot detection from user agents
 //! - Scanner request detection
@@ -17,10 +17,10 @@ mod messaging_helpers;
 #[cfg(test)]
 mod middleware;
 #[cfg(test)]
-mod models;
-#[cfg(test)]
 mod routes;
 #[cfg(test)]
 mod services;
+#[cfg(test)]
+mod startup;
 #[cfg(test)]
 mod static_content;

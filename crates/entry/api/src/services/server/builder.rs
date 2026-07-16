@@ -1,19 +1,19 @@
-//! API server construction and the global middleware stack.
+//! Full API router construction and the global middleware stack.
 //!
 //! [`setup_api_server`] composes the route tree and applies the global layers
 //! (body limit, analytics, context, session, CORS, trailing-slash, trace and
 //! served-by headers, content negotiation, security headers) in the order they
-//! must run, producing an [`ApiServer`] that binds and serves with graceful
-//! shutdown.
+//! must run. Binding and serving live in [`super::startup`], which binds the
+//! listener before this router exists and swaps it in once bootstrap
+//! completes.
 
 use anyhow::Result;
 use axum::Router;
 use axum::extract::DefaultBodyLimit;
 use systemprompt_runtime::AppContext;
-use systemprompt_traits::{StartupEvent, StartupEventExt, StartupEventSender};
+use systemprompt_traits::{StartupEventExt, StartupEventSender};
 
 use super::routes::configure_routes;
-use crate::models::ServerConfig;
 use crate::services::middleware::{
     AnalyticsMiddleware, CorsMiddleware, PublicContextMiddleware, SessionMiddleware,
     inject_security_headers, inject_served_by, inject_trace_header, remove_trailing_slash,
@@ -22,84 +22,17 @@ use crate::services::middleware::{
 pub use super::discovery::*;
 pub use super::health::handle_health;
 
-#[derive(Debug)]
-pub struct ApiServer {
-    router: Router,
-    _config: ServerConfig,
-    events: Option<StartupEventSender>,
-}
-
-impl ApiServer {
-    pub fn new(router: Router, events: Option<StartupEventSender>) -> Self {
-        Self::with_config(router, ServerConfig::default(), events)
-    }
-
-    pub const fn with_config(
-        router: Router,
-        config: ServerConfig,
-        events: Option<StartupEventSender>,
-    ) -> Self {
-        Self {
-            router,
-            _config: config,
-            events,
-        }
-    }
-
-    pub fn into_router(self) -> Router {
-        self.router
-    }
-
-    pub async fn serve<F>(self, addr: &str, shutdown: F) -> Result<()>
-    where
-        F: Future<Output = ()> + Send + 'static,
-    {
-        if let Some(ref tx) = self.events
-            && tx
-                .unbounded_send(StartupEvent::ServerBinding {
-                    address: addr.to_owned(),
-                })
-                .is_err()
-        {
-            tracing::debug!("Startup event receiver dropped");
-        }
-
-        let listener = self.create_listener(addr).await?;
-
-        if let Some(ref tx) = self.events {
-            tx.server_listening(addr, std::process::id());
-        }
-
-        axum::serve(
-            listener,
-            self.router
-                .into_make_service_with_connect_info::<std::net::SocketAddr>(),
-        )
-        .with_graceful_shutdown(shutdown)
-        .await?;
-        Ok(())
-    }
-
-    async fn create_listener(&self, addr: &str) -> Result<tokio::net::TcpListener> {
-        tokio::net::TcpListener::bind(addr)
-            .await
-            .map_err(|e| anyhow::anyhow!("Failed to bind to {addr}: {e}"))
-    }
-}
-
-pub fn setup_api_server(ctx: &AppContext, events: Option<StartupEventSender>) -> Result<ApiServer> {
+pub fn setup_api_server(ctx: &AppContext, events: Option<&StartupEventSender>) -> Result<Router> {
     let rate_config = &ctx.config().rate_limits;
 
     if rate_config.disabled
-        && let Some(ref tx) = events
+        && let Some(tx) = events
     {
         tx.warning("Rate limiting disabled - development mode only");
     }
 
-    let router = configure_routes(ctx, events.as_ref())?;
-    let router = apply_global_middleware(router, ctx)?;
-
-    Ok(ApiServer::new(router, events))
+    let router = configure_routes(ctx, events)?;
+    apply_global_middleware(router, ctx)
 }
 
 fn apply_global_middleware(router: Router, ctx: &AppContext) -> Result<Router> {

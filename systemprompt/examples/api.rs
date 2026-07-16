@@ -1,20 +1,25 @@
-//! Stub showing how to construct an `ApiServer` from a bare `axum::Router`.
+//! Stub showing the early-bind API listener from `systemprompt-api`.
 //!
 //! Run with: `cargo run -p systemprompt --example api --features api`
 //!
-//! In a real deployment you would build the router via the runtime's
-//! `AppContext` plumbing: extensions return an `ExtensionRouter` from
-//! `Extension::router(&ctx)` and the runtime mounts them onto the server (see
-//! the `systemprompt-template` web extension). `ApiServer::new` shown here is
-//! the low-level surface those higher layers build on.
+//! `bind_and_serve` binds the listener immediately and answers health probes
+//! with `{"status":"starting"}`. In a real deployment the runtime builds the
+//! full router from `AppContext` (extensions return an `ExtensionRouter` from
+//! `Extension::router(&ctx)`) and swaps it in via `EarlyServer::activate`.
 
-use systemprompt::api::ApiServer;
+use systemprompt::api::services::server::bind_and_serve;
 use systemprompt::prelude::Router;
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() {
     tracing_subscriber::fmt::init();
-    let router: Router = Router::new();
-    let server = ApiServer::new(router, None);
-    tracing::info!(?server, "constructed ApiServer");
+    match bind_and_serve("127.0.0.1:0", None).await {
+        Ok(early) => {
+            tracing::info!(addr = %early.local_addr(), "listener bound, probes report starting");
+            early.activate(Router::new());
+        },
+        Err(err) => {
+            tracing::error!(error = %err, "bind failed");
+        },
+    }
 }

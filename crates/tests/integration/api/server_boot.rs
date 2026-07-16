@@ -6,7 +6,7 @@
 //! authenticated-discovery / wellknown / static routers.
 //!
 //! The prometheus recorder is process-global, so this entire file builds a
-//! single ApiServer.
+//! single API router.
 
 use std::sync::{Arc, OnceLock};
 
@@ -73,8 +73,8 @@ async fn setup_api_server_assembles_full_router() -> anyhow::Result<()> {
         },
     ));
 
-    let server = setup_api_server(&ctx, None)
+    let router = setup_api_server(&ctx, None)
         .map_err(|e| anyhow::anyhow!("setup_api_server failed: {e}"))?;
-    drop(server);
+    drop(router);
     Ok(())
 }

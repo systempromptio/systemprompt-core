@@ -1,10 +1,12 @@
 //! API server assembly, lifecycle, and readiness.
 //!
-//! Builds the axum router and global middleware stack ([`builder`]), runs the
-//! startup reconciliation and serving loop ([`runner`]), and exposes the
-//! readiness signalling surface ([`is_ready`], [`signal_ready`],
-//! [`wait_for_ready`]) used by external health probes. Discovery, health,
-//! metrics, and route configuration live in the private submodules.
+//! [`startup`] binds the TCP listener before bootstrap and serves a starting
+//! health probe; [`builder`] composes the full axum router and global
+//! middleware stack; [`runner`] runs the startup reconciliation, swaps the
+//! full router onto the listener, and awaits shutdown. The readiness
+//! signalling surface ([`is_ready`], [`signal_ready`], [`wait_for_ready`]) is
+//! used by external health probes. Discovery, health, metrics, and route
+//! configuration live in the private submodules.
 
 pub mod builder;
 mod discovery;
@@ -25,6 +27,7 @@ mod routes;
 pub mod runner;
 pub mod scheduler_health;
 mod shutdown;
+pub mod startup;
 
 #[cfg(feature = "test-api")]
 pub use lifecycle::reconciliation_test_api;
@@ -37,3 +40,4 @@ pub use readiness::{
     signal_shutdown, wait_for_ready,
 };
 pub use runner::*;
+pub use startup::{EarlyServer, bind_and_serve, starting_router};

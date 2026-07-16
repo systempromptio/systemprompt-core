@@ -7,45 +7,42 @@ use systemprompt_runtime::{AppContext, ServiceCategory, validate_system};
 use systemprompt_scheduler::ProcessCleanup;
 use systemprompt_traits::{ModuleInfo, Phase, StartupEvent, StartupEventExt, StartupEventSender};
 
-use super::get_api_port;
+use super::{get_api_addr, get_api_port};
+
+#[derive(Debug, Clone, Copy)]
+pub struct ServeOptions {
+    pub foreground: bool,
+    pub kill_port_process: bool,
+    pub run_migrations: bool,
+}
 
 pub async fn execute_with_events(
     prompter: &dyn Prompter,
-    foreground: bool,
-    kill_port_process: bool,
+    options: ServeOptions,
     config: &CliConfig,
     events: Option<&StartupEventSender>,
 ) -> Result<String> {
+    let ServeOptions {
+        foreground,
+        kill_port_process,
+        run_migrations,
+    } = options;
     let port = get_api_port();
 
     if events.is_none() {
         CliService::startup_banner(Some("Starting services..."));
     }
 
-    if let Some(pid) = check_port_available(port) {
-        if let Some(tx) = events
-            && let Err(e) = tx.unbounded_send(StartupEvent::PortConflict { port, pid })
-        {
-            tracing::debug!(error = %e, "startup event channel closed: PortConflict");
-        }
-        handle_port_conflict(prompter, port, pid, kill_port_process, config, events).await?;
-        if let Some(tx) = events
-            && let Err(e) = tx.unbounded_send(StartupEvent::PortConflictResolved { port })
-        {
-            tracing::debug!(error = %e, "startup event channel closed: PortConflictResolved");
-        }
-    } else if let Some(tx) = events {
-        tx.port_available(port);
-    } else {
-        CliService::phase_success(&format!("Port {} available", port), None);
-    }
+    ensure_port_free(prompter, port, kill_port_process, config, events).await?;
 
     register_modules(events);
+
+    let early = bind_early(foreground, events).await?;
 
     let ctx = Arc::new(
         AppContext::builder()
             .with_startup_warnings(true)
-            .with_migrations(true)
+            .with_migrations(run_migrations)
             .build()
             .await
             .context("Failed to initialize application context")?,
@@ -86,9 +83,13 @@ pub async fn execute_with_events(
         }
     }
 
-    if foreground {
-        systemprompt_api::services::server::run_server(Arc::unwrap_or_clone(ctx), events.cloned())
-            .await?;
+    if let Some(early) = early {
+        systemprompt_api::services::server::run_server(
+            Arc::unwrap_or_clone(ctx),
+            events.cloned(),
+            early,
+        )
+        .await?;
     }
 
     Ok(format!("http://127.0.0.1:{}", port))
@@ -100,9 +101,59 @@ pub async fn execute(
     kill_port_process: bool,
     config: &CliConfig,
 ) -> Result<()> {
-    execute_with_events(prompter, foreground, kill_port_process, config, None)
+    execute_with_events(
+        prompter,
+        ServeOptions {
+            foreground,
+            kill_port_process,
+            run_migrations: true,
+        },
+        config,
+        None,
+    )
+    .await
+    .map(|_| ())
+}
+
+async fn ensure_port_free(
+    prompter: &dyn Prompter,
+    port: u16,
+    kill_port_process: bool,
+    config: &CliConfig,
+    events: Option<&StartupEventSender>,
+) -> Result<()> {
+    if let Some(pid) = check_port_available(port) {
+        if let Some(tx) = events
+            && let Err(e) = tx.unbounded_send(StartupEvent::PortConflict { port, pid })
+        {
+            tracing::debug!(error = %e, "startup event channel closed: PortConflict");
+        }
+        handle_port_conflict(prompter, port, pid, kill_port_process, config, events).await?;
+        if let Some(tx) = events
+            && let Err(e) = tx.unbounded_send(StartupEvent::PortConflictResolved { port })
+        {
+            tracing::debug!(error = %e, "startup event channel closed: PortConflictResolved");
+        }
+    } else if let Some(tx) = events {
+        tx.port_available(port);
+    } else {
+        CliService::phase_success(&format!("Port {} available", port), None);
+    }
+    Ok(())
+}
+
+async fn bind_early(
+    foreground: bool,
+    events: Option<&StartupEventSender>,
+) -> Result<Option<systemprompt_api::services::server::EarlyServer>> {
+    if !foreground {
+        return Ok(None);
+    }
+    let addr = get_api_addr().context("Profile not initialized; cannot determine bind address")?;
+    let early = systemprompt_api::services::server::bind_and_serve(&addr, events.cloned())
         .await
-        .map(|_| ())
+        .context("Failed to bind API listener")?;
+    Ok(Some(early))
 }
 
 fn check_port_available(port: u16) -> Option<u32> {
