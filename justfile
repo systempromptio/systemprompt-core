@@ -214,9 +214,13 @@ machete:
 hack:
     cargo hack --workspace --feature-powerset --depth 2 check
 
-# Flag source files exceeding 300 lines (excludes target/ and tests/)
+# Flag source files exceeding 300 lines (excludes target/, tests/, and `//!` doc heads)
 file-size:
-    @find crates -name '*.rs' -not -path '*/target/*' -not -path '*/tests/*' -exec wc -l {} + | awk '$1>300 && $2!="total"'
+    @find crates -name '*.rs' -not -path '*/target/*' -not -path '*/tests/*' | xargs -r awk '!/^\/\/!/ {n[FILENAME]++} END {for (f in n) if (n[f]>300) print n[f], f}'
+
+# Verify every production file has a doc head + BSL-1.1 license reference
+check-headers:
+    ./scripts/check-file-headers.sh
 
 # Run custom style validators
 validate:
