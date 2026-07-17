@@ -1,3 +1,5 @@
+//! Loads task/artifact/message events referenced by webhook broadcasts.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

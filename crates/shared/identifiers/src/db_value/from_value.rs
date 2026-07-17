@@ -1,3 +1,5 @@
+//! `FromDbValue`: fallible decoding of `DbValue`s into typed values.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

@@ -1,3 +1,5 @@
+//! RFC 8707 resource-indicator validation with the OAuth-strict SSRF gate.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

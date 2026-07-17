@@ -1,3 +1,5 @@
+//! Console formatter that filters system fields and renders structured values.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

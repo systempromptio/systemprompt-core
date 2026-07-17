@@ -1,3 +1,6 @@
+//! Lightweight structural email-address validation used for request-input
+//! checks.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

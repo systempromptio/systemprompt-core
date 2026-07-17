@@ -1,3 +1,5 @@
+//! AI request/response logging into the audit tables.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

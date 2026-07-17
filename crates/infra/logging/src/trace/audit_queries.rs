@@ -1,3 +1,5 @@
+//! Audit-view queries joining messages, tool calls, and linked MCP rows.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

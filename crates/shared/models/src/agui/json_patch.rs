@@ -1,3 +1,5 @@
+//! JSON Patch operations and the state-delta builder for AG-UI events.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

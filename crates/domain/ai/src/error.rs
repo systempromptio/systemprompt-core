@@ -190,7 +190,6 @@ impl AiError {
     }
 }
 
-/// Parse a `Retry-After` header expressed as an integer number of seconds.
 fn parse_retry_after(headers: &reqwest::header::HeaderMap) -> Option<Duration> {
     headers
         .get(reqwest::header::RETRY_AFTER)?

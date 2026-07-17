@@ -26,10 +26,8 @@ const REDACT_SUBSTRINGS: &[&str] = &[
     "bearer",
 ];
 
-/// Suffixes that mark a field as carrying credential material.
 const REDACT_SUFFIXES: &[&str] = &["_cert", "_pem"];
 
-/// Field names redacted on an exact (case-insensitive) match.
 const REDACT_EXACT: &[&str] = &["auth", "cert", "pem"];
 
 pub(crate) fn is_redacted(field_name: &str) -> bool {

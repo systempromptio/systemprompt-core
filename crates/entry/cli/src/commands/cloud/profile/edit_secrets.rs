@@ -1,3 +1,5 @@
+//! `cloud profile edit-secrets` command editing keys in place.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

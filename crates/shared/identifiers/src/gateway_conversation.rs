@@ -41,10 +41,6 @@ fn validate(value: &str) -> Result<(), IdValidationError> {
 crate::define_id!(GatewayConversationId, validated, schema, validate);
 
 impl GatewayConversationId {
-    /// Mint a deterministic id from a 64-bit prefix hash.
-    ///
-    /// The hash itself is computed by `systemprompt_models::gateway_hash`
-    /// helpers; see `conversation_prefix_hash`.
     #[must_use]
     pub fn from_prefix_hash(hash: u64) -> Self {
         Self::new(format!("{PREFIX}{hash:016x}"))

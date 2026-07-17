@@ -1,3 +1,5 @@
+//! Native window construction: dimensions, decorations, platform quirks.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

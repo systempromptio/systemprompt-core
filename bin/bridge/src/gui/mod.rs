@@ -1,3 +1,5 @@
+//! Desktop GUI: tray, menu, webview IPC, and event dispatch.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

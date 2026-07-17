@@ -1,3 +1,6 @@
+//! The core `Extension` trait defining metadata, schemas, routers, and
+//! providers an extension contributes.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

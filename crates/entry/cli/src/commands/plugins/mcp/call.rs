@@ -1,3 +1,5 @@
+//! `plugins mcp call` command invoking one tool on a running server.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

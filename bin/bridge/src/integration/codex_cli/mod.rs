@@ -1,3 +1,5 @@
+//! Codex CLI host integration: config, install, managed resources, probing.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

@@ -1,3 +1,6 @@
+//! `admin bridge enroll-cert` command registering a device-certificate
+//! fingerprint.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

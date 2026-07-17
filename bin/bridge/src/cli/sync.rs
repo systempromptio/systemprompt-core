@@ -1,3 +1,5 @@
+//! `sync` command: one-shot manifest sync with signing/replay/TOFU flags.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

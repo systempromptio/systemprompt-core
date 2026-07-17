@@ -1,3 +1,5 @@
+//! Tool-call execution loop with optional synthesis pass.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

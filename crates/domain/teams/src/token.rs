@@ -30,9 +30,6 @@ pub struct CachedToken {
 }
 
 impl CachedToken {
-    /// Build a cache entry from a token response, applying the refresh skew so
-    /// the token is treated as expired `REFRESH_SKEW_SECS` before its reported
-    /// lifetime ends.
     #[must_use]
     pub const fn new(access_token: String, now_unix: i64, expires_in: i64) -> Self {
         Self {
@@ -56,7 +53,6 @@ struct TokenResponse {
     expires_in: i64,
 }
 
-/// Mints and caches Bot Connector access tokens for one app registration.
 #[derive(Debug)]
 pub struct TokenProvider {
     http: reqwest::Client,
@@ -82,8 +78,6 @@ impl TokenProvider {
         }
     }
 
-    /// Build a provider whose token endpoint is overridden, so a test can
-    /// intercept the client-credentials request with a loopback mock server.
     #[cfg(feature = "test")]
     #[must_use]
     pub fn with_token_url(

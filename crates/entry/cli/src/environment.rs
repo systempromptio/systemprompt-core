@@ -1,3 +1,5 @@
+//! Detection of the CLI's execution environment (TTY, CI, subprocess).
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

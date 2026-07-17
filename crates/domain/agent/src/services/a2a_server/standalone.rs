@@ -1,3 +1,5 @@
+//! Standalone A2A server binary entry helpers.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

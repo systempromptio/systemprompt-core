@@ -1,3 +1,5 @@
+//! Argument parsing helpers, including the GUI-by-default heuristic.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

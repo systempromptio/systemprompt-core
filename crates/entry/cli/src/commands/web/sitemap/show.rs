@@ -1,3 +1,5 @@
+//! `web sitemap show` command with XML preview.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

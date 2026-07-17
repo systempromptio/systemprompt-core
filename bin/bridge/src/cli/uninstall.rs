@@ -1,3 +1,5 @@
+//! `uninstall` command: removes the bridge install and scheduled task.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

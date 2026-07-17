@@ -1,3 +1,5 @@
+//! Loopback HTTP server capturing the browser OAuth redirect during login.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

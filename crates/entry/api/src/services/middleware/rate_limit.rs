@@ -31,13 +31,6 @@ use systemprompt_models::config::RateLimitConfig;
 use tower_governor::key_extractor::SmartIpKeyExtractor;
 use tracing::warn;
 
-/// Builds a [`systemprompt_models::RequestContext`] for a route group.
-///
-/// Implemented by each of the four sibling context middlewares
-/// ([`PublicContextMiddleware`], [`UserOnlyContextMiddleware`],
-/// [`A2AContextMiddleware`], [`McpContextMiddleware`]). Sealed to those four —
-/// third parties cannot stand up a new flavour outside this crate, which keeps
-/// the route-mount surface auditable.
 pub trait ContextLayer: Clone + Send + Sync + 'static {
     fn handle(self, req: Request, next: Next) -> impl Future<Output = Response> + Send;
 }

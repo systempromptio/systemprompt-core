@@ -1,3 +1,5 @@
+//! `web templates edit` command applying content-type binding edits.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

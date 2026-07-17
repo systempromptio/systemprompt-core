@@ -1,3 +1,5 @@
+//! `admin bootstrap` command: ensures the system-admin user row exists.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

@@ -1,3 +1,5 @@
+//! Scheduled job pruning anonymous users past the retention window.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

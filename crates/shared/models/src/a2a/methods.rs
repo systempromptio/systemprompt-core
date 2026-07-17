@@ -1,3 +1,5 @@
+//! A2A JSON-RPC method name constants.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

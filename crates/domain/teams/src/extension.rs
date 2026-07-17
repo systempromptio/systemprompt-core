@@ -1,3 +1,6 @@
+//! `Extension` registration for the Teams integration: config prefix and
+//! schema.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -7,7 +10,6 @@ use serde_json::Value as JsonValue;
 use systemprompt_extension::prelude::*;
 use systemprompt_models::services::TeamsAppConfig;
 
-/// `Extension` registration entry-point for the Microsoft Teams integration.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct TeamsExtension;
 

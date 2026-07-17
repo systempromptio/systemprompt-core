@@ -1,3 +1,5 @@
+//! `infra db query` command executing ad-hoc SQL.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

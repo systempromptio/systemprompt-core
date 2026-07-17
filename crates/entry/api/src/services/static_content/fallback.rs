@@ -1,3 +1,6 @@
+//! Fallback handler returning JSON 404s for unmatched API paths and static
+//! content otherwise.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

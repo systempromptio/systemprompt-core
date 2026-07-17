@@ -1,3 +1,5 @@
+//! Terminal rendering of profile sections for `cloud profile show`.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

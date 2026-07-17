@@ -1,3 +1,5 @@
+//! Application-state snapshot: auth, sync, proxy, and host status for the GUI.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

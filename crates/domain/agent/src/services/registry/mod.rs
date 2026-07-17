@@ -33,8 +33,6 @@ impl AgentRegistry {
         Ok(Self::from_config(config))
     }
 
-    /// Build a registry over an explicit config snapshot instead of the
-    /// process-wide loader.
     #[must_use]
     pub fn from_config(config: ServicesConfig) -> Self {
         Self {

@@ -66,9 +66,6 @@ impl PublicContextMiddleware {
     }
 }
 
-/// Authenticated-headers flavour. Requires a real user from request headers
-/// and rejects the request on extraction failure. Use this for any route
-/// whose handler may not run anonymously.
 #[derive(Clone)]
 pub struct UserOnlyContextMiddleware {
     extractor: DynExtractor,

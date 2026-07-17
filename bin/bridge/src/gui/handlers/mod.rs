@@ -1,3 +1,5 @@
+//! GUI IPC command handlers, one module per command family.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

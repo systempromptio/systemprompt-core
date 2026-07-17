@@ -1,3 +1,5 @@
+//! Row-to-model converters for artifacts and their metadata.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

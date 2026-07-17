@@ -16,7 +16,6 @@ use systemprompt_models::net::validate_outbound_url;
 use crate::error::{TeamsError, TeamsResult};
 use crate::token::TokenProvider;
 
-/// A client bound to one app registration's outbound credentials.
 #[derive(Debug)]
 pub struct TeamsClient {
     http: reqwest::Client,
@@ -34,9 +33,6 @@ impl TeamsClient {
         Self { http, tokens }
     }
 
-    /// Build a client whose outbound token endpoint is overridden, so a test
-    /// can mint tokens against a loopback mock server. The Bot Connector reply
-    /// target is the activity's `serviceUrl`, supplied per call.
     #[cfg(feature = "test")]
     #[must_use]
     pub fn with_endpoints(
@@ -49,8 +45,6 @@ impl TeamsClient {
         Self { http, tokens }
     }
 
-    /// Post a reply (a rendered Adaptive Card `attachments` array) into a
-    /// conversation. `now_unix` is forwarded to the token cache.
     pub async fn reply(
         &self,
         service_url: &str,
@@ -78,7 +72,6 @@ impl TeamsClient {
     }
 }
 
-/// Build the Bot Connector reply endpoint for a conversation.
 #[must_use]
 pub fn reply_url(service_url: &str, conversation_id: &TeamsConversationId) -> String {
     format!(

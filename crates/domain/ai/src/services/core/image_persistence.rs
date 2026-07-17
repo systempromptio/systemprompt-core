@@ -1,3 +1,5 @@
+//! Persists image-generation requests and produced file records.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

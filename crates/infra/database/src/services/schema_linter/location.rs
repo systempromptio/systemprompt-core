@@ -3,8 +3,6 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-/// Statement position and source label, threaded through the per-node checks
-/// so they stay under the argument-count limit.
 pub(super) struct StmtLoc<'a> {
     pub line: u32,
     pub col: u32,

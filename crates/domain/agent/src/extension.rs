@@ -1,3 +1,6 @@
+//! `Extension` registration for the agent domain: schemas, migrations,
+//! dependencies.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

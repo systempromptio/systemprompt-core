@@ -1,3 +1,5 @@
+//! `core files show` command with id-or-name lookup.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

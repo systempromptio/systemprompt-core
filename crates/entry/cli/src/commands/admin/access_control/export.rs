@@ -1,3 +1,5 @@
+//! `admin access-control export` command emitting grouped rules as YAML.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

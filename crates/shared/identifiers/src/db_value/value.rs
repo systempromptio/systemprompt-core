@@ -1,3 +1,6 @@
+//! `DbValue`: the database-agnostic value enum bridged by the conversion
+//! traits.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

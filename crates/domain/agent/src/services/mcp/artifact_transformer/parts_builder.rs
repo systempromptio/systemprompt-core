@@ -1,3 +1,5 @@
+//! Builds artifact parts from transformed tool results.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

@@ -1,3 +1,5 @@
+//! Event bus dispatching MCP orchestration events to registered handlers.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

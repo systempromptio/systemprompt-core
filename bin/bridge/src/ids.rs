@@ -1,3 +1,5 @@
+//! Bridge-local typed identifier re-exports and the `bridge_define_id!` newtype-`String` macro.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

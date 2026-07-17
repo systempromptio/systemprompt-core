@@ -1,3 +1,6 @@
+//! Prerender context wiring extensions and providers into the template
+//! registry.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

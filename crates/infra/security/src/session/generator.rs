@@ -1,3 +1,5 @@
+//! Session id and JWT minting for authenticated sessions.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

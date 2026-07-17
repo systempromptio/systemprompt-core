@@ -1,3 +1,5 @@
+//! Renders canonical events as Anthropic Messages SSE frames.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

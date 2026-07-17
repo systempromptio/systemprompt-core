@@ -1,3 +1,6 @@
+//! Extension discovery that builds the `ExtensionRegistry` from `inventory`
+//! submissions and injected extensions.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

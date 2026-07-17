@@ -1,3 +1,5 @@
+//! Claude Desktop host integration, split per OS with an elevation helper.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

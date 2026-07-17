@@ -1,3 +1,5 @@
+//! `admin users list` command with role/status filters.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

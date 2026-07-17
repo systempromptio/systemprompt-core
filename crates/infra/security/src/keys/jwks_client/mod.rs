@@ -119,9 +119,6 @@ impl JwksClient {
         self
     }
 
-    /// Lets tests use short values to exercise expiry without sleeping;
-    /// production keeps the [`MIN_CACHE_TTL`] / [`MAX_CACHE_TTL`] /
-    /// [`DEFAULT_CACHE_TTL`] defaults.
     #[must_use]
     pub const fn with_cache_ttl(mut self, min: Duration, max: Duration, default: Duration) -> Self {
         self.min_cache_ttl = min;

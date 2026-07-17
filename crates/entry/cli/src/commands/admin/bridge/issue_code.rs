@@ -1,3 +1,5 @@
+//! `admin bridge issue-code` command minting a device-link code.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

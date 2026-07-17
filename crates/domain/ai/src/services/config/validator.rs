@@ -1,3 +1,5 @@
+//! AI-config validation: provider credentials and sampling ranges.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

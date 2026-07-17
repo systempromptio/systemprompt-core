@@ -1,3 +1,5 @@
+//! Validation for web-facing agent inputs.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

@@ -1,3 +1,5 @@
+//! Applies a verified manifest to disk: plugins, hooks, MCP fragments.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

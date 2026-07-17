@@ -1,3 +1,5 @@
+//! Execution context threading for the MCP tool provider.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

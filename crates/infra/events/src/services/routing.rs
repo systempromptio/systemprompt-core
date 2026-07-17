@@ -45,8 +45,6 @@ pub static ANALYTICS_BROADCASTER: LazyLock<AnalyticsBroadcaster> =
 
 static OUTBOX_REPO: OnceLock<EventOutboxRepository> = OnceLock::new();
 
-/// The event kind carried by an `event_outbox` row, used to pick the
-/// correct deserialization target on the consuming replica.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OutboxChannel {
     AgUi,

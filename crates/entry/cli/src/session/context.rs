@@ -1,3 +1,5 @@
+//! `CliSessionContext` binding a CLI invocation to a persisted session row.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

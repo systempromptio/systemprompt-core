@@ -1,3 +1,5 @@
+//! Process-table row helpers shared by admin repositories.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

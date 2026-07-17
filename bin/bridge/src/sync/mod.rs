@@ -1,3 +1,5 @@
+//! Plugin/MCP sync pipeline: fetch, verify, hash-compare, and apply.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

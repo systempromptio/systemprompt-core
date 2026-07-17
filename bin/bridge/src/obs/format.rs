@@ -1,3 +1,5 @@
+//! Tee log writer duplicating tracing output to console and file.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

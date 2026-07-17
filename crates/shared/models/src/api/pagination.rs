@@ -1,3 +1,5 @@
+//! Pagination parameters and page-info responses for list endpoints.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

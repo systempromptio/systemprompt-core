@@ -68,8 +68,6 @@ type BundleCache = OnceLock<RwLock<Option<([u8; 32], Arc<BundleMap>)>>>;
 
 static BUNDLE_CACHE: BundleCache = OnceLock::new();
 
-/// Memoized [`plugin_bundles`]: returns the cached map when the fingerprint of
-/// `services` and `content` is unchanged, otherwise reassembles and caches it.
 pub fn plugin_bundles_cached(
     services: &ServicesConfig,
     content: &BundleContent<'_>,

@@ -1,3 +1,5 @@
+//! Compile-time registry of available desktop host integrations.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

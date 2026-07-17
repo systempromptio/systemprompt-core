@@ -106,11 +106,6 @@ impl AppContextBuilder {
         self
     }
 
-    /// Variant of [`Self::with_authz_hook`] for callers that already hold an
-    /// `Arc<dyn AuthzDecisionHook>` (e.g. a pre-built [`CompositeAuthzHook`]
-    /// shared across consumers).
-    ///
-    /// [`CompositeAuthzHook`]: systemprompt_security::authz::CompositeAuthzHook
     #[must_use]
     pub fn with_shared_authz_hook(mut self, hook: SharedAuthzHook) -> Self {
         self.authz_hook = Some(hook);

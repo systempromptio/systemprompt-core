@@ -1,3 +1,5 @@
+//! `admin agents validate` command checking card, provider, and MCP references.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

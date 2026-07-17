@@ -1,3 +1,5 @@
+//! `core content show` command with slug/id resolution.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

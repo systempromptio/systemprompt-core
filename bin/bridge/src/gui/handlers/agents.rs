@@ -1,3 +1,5 @@
+//! GUI handlers for host-app install/uninstall/open actions.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

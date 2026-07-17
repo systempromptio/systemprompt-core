@@ -1,3 +1,5 @@
+//! A2A request handler helpers, including the stream `Retry-After` hint.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

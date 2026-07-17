@@ -1,3 +1,5 @@
+//! Session-pinned Postgres advisory lock serialising concurrent bootstraps.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

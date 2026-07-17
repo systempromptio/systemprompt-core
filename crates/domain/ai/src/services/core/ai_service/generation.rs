@@ -1,3 +1,5 @@
+//! Non-streaming generation execution and response finalisation.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

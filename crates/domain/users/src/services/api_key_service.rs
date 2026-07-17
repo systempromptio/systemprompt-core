@@ -1,3 +1,5 @@
+//! API-key minting: prefixed secrets with stored hashes.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

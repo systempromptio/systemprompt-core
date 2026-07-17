@@ -1,3 +1,5 @@
+//! `web templates create` command registering a template in templates.yaml.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

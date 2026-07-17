@@ -1,3 +1,6 @@
+//! `A2A` security scheme definitions (API key, HTTP, `OAuth2`) for agent card
+//! auth.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

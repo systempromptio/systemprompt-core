@@ -1,3 +1,5 @@
+//! Renders the per-OS schedule templates with install-time values.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

@@ -1,3 +1,5 @@
+//! Banned-IP row types and ban durations.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

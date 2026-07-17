@@ -13,7 +13,6 @@ use systemprompt_models::services::PluginConfig;
 use super::{BundleFile, PluginBundle};
 use crate::error::MarketplaceError;
 
-/// How a plugin's `mcp_servers.include` entry resolves against the catalogue.
 enum McpReference<'a> {
     /// Defined and `enabled: true` — projected into `.mcp.json`.
     Enabled(&'a ManagedMcpServer),

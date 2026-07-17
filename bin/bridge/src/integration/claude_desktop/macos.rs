@@ -1,3 +1,5 @@
+//! Claude Desktop managed-preferences install/probe on macOS.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

@@ -31,7 +31,6 @@ pub struct GatewayPolicyConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct GatewayPolicyEntry {
-    /// Upsert key for `ai_gateway_policies`.
     pub name: String,
     /// Disabled policies are still upserted, so they can be re-enabled without
     /// losing their `spec`.

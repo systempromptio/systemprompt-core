@@ -1,3 +1,5 @@
+//! Managed MCP server definitions in services config.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

@@ -1,3 +1,5 @@
+//! Signal-safety helpers for MCP process management.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

@@ -1,3 +1,6 @@
+//! `StaticContentMatcher` that maps request paths to content-source slugs via
+//! sitemap URL patterns.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

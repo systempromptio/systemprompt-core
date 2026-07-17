@@ -1,3 +1,5 @@
+//! In-memory ring-buffer activity log with persistent file rotation and emit hooks for the GUI.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

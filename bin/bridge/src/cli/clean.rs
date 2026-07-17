@@ -1,3 +1,5 @@
+//! `clean` command: removes cached sync state and materialized plugins.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

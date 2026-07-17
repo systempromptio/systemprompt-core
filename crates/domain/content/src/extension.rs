@@ -1,3 +1,5 @@
+//! `Extension` registration for the content domain: schemas and dependencies.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

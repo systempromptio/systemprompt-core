@@ -1,3 +1,5 @@
+//! Process-wide readiness flag and readiness-event broadcast.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

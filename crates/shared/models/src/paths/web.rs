@@ -1,3 +1,5 @@
+//! Web-asset path layout under the system root.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

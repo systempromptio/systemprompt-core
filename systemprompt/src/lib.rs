@@ -1,6 +1,3 @@
-//! Copyright (c) systemprompt.io — Business Source License 1.1.
-//! See <https://systemprompt.io> for licensing details.
-
 #![expect(
     clippy::doc_markdown,
     reason = "README contains brand names and acronyms that doc_markdown would over-flag"
@@ -31,6 +28,9 @@
 //! ```toml
 //! systemprompt = { version = "0.21.0", features = ["full"] }
 //! ```
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 /// Core trait surface from `systemprompt-traits`.
 ///

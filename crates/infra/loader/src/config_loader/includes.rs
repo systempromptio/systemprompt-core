@@ -1,3 +1,5 @@
+//! Include-file loading with root-only `settings:` enforcement.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

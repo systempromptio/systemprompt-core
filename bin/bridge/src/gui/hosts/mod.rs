@@ -1,3 +1,5 @@
+//! Host-app status tracking for the GUI: events, probing, dispatch.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

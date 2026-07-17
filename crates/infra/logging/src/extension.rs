@@ -1,3 +1,6 @@
+//! `Extension` registration for the logging subsystem: schema, priority,
+//! required flag.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

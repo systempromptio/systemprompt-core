@@ -1,3 +1,5 @@
+//! Quota-window alignment and bucket accounting for gateway policies.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

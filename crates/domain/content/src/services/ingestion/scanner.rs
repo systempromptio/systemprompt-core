@@ -1,3 +1,5 @@
+//! Markdown source scanning and validation for content ingestion.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

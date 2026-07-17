@@ -18,7 +18,6 @@ use crate::commands::core::contexts::ContextSummary;
 use crate::commands::infrastructure::db::TableInfo;
 use crate::shared::truncate_with_ellipsis;
 
-/// Flattens newlines and truncates to `max_len`, appending `...` when cut.
 #[must_use]
 pub fn truncate_cell(s: &str, max_len: usize) -> String {
     let s = s.replace('\n', " ").replace('\r', "");
@@ -261,7 +260,6 @@ struct TaskArtifactRow {
     tool_name: String,
 }
 
-/// Renders one row per distinct artifact id, keeping first-seen order.
 #[must_use]
 pub fn task_artifacts_table(artifacts: &[TaskArtifact]) -> String {
     let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
@@ -293,8 +291,6 @@ struct TraceRow {
     latency: String,
 }
 
-/// Formats a trace metadata value for display, giving cost/latency/token keys
-/// their unit-aware form.
 #[must_use]
 pub fn format_metadata_value(key: &str, value: &serde_json::Value) -> String {
     let raw = || format!("{value}").trim_matches('"').to_owned();
@@ -315,7 +311,6 @@ pub fn format_metadata_value(key: &str, value: &serde_json::Value) -> String {
     }
 }
 
-/// Pulls the event-type-appropriate latency field out of raw JSON metadata.
 #[must_use]
 pub fn extract_latency_from_metadata(metadata: Option<&str>, event_type: &str) -> String {
     if let Some(meta) = metadata
@@ -335,8 +330,6 @@ pub fn extract_latency_from_metadata(metadata: Option<&str>, event_type: &str) -
     dash()
 }
 
-/// Renders trace events with inter-event deltas; empty input yields an empty
-/// string.
 #[must_use]
 pub fn trace_events_table(events: &[TraceEvent]) -> String {
     let mut prev_timestamp: Option<chrono::DateTime<chrono::Utc>> = None;

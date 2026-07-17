@@ -1,3 +1,5 @@
+//! Request storage facade persisting AI requests and messages.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

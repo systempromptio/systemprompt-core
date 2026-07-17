@@ -39,9 +39,6 @@ pub struct UpsertRuleParams<'a> {
     pub rule_type: RuleType,
     pub rule_value: &'a str,
     pub access: Access,
-    /// Operator-supplied note explaining *why* this rule exists. Surfaced in
-    /// the matrix tooltip and in the audit row's `evaluated_rules` JSON when
-    /// the rule decides. `None` means the operator declined to give a reason.
     pub justification: Option<&'a str>,
 }
 

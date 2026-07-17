@@ -1,6 +1,9 @@
 # Changelog
 
-## [Unreleased]
+## [0.21.1] - 2026-07-17
+
+### Changed
+- Source files now carry a Business Source License 1.1 header referencing <https://systemprompt.io>.
 
 ### Fixed
 - Multi-statement seed bodies now apply correctly; each parsed statement executes individually within the seed's transaction instead of failing as a single multi-command prepared statement.

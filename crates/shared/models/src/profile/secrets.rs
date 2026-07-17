@@ -1,3 +1,5 @@
+//! Profile `secrets:` block naming the secret source and file path.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

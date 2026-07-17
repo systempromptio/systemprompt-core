@@ -36,7 +36,6 @@ use crate::routes::messaging::{
     DispatchOutcome, MessagingInbound, ReplyTarget, dispatch_messaging, http_client,
 };
 
-/// The Teams (Azure AD / Entra) token issuer namespacing federated user ids.
 const ISSUER: &str = "https://api.botframework.com";
 
 /// Router for the Teams inbound surface, mounted under `ApiPaths::TEAMS_BASE`
@@ -111,7 +110,6 @@ async fn handle_messages(
     StatusCode::OK.into_response()
 }
 
-/// Outbound-reply credentials and target captured for the spawned task.
 struct TeamsReply {
     service_url: String,
     conversation_id: TeamsConversationId,

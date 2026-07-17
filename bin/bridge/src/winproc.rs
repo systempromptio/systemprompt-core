@@ -1,3 +1,5 @@
+//! Windows Win32 FFI for elevated relaunch, detached subprocess spawning, and console attach.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

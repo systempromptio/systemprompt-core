@@ -1,3 +1,5 @@
+//! Message-row persistence keyed by context.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

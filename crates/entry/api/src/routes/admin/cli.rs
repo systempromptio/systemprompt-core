@@ -33,10 +33,6 @@ const MAX_TIMEOUT_SECS: u64 = 600;
 const DEFAULT_CLI_BINARY_PATH: &str = "/app/bin/systemprompt";
 const MAX_CLI_ARGS: usize = 32;
 
-/// Resolved path to the `systemprompt` CLI binary the gateway forwards argv to.
-///
-/// Injected as a router extension so deployments (and tests) can point the
-/// gateway at a specific binary instead of the baked-in default.
 #[derive(Clone)]
 pub(crate) struct CliBinaryPath(Arc<str>);
 
@@ -279,11 +275,6 @@ fn create_cli_stream(
     }
 }
 
-/// Test-only seam: build the CLI gateway router pointed at an arbitrary binary.
-///
-/// Pointing it at (e.g.) `/bin/sh` wrapping a fixture script lets the
-/// subprocess forward, timeout, and exit-code paths be exercised without the
-/// deployed binary.
 #[cfg(feature = "test-api")]
 pub mod test_api {
     use super::{CliBinaryPath, router_with_binary};

@@ -1,3 +1,5 @@
+//! Profile discovery for cross-profile admin-user sync.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

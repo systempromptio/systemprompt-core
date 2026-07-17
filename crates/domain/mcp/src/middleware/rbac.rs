@@ -179,8 +179,6 @@ fn extract_act_chain(claims: &JwtClaims) -> Vec<Actor> {
         .unwrap_or_default()
 }
 
-/// Public so unit tests can lock in JWT-claims → [`AuthzRequest`] forwarding
-/// without spinning up a hook or RBAC stack.
 #[must_use]
 pub fn build_mcp_authz_request(
     server_name: &str,

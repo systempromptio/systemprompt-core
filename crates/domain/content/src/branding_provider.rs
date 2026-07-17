@@ -1,3 +1,5 @@
+//! Page-data provider supplying site branding values to content pages.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

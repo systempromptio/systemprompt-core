@@ -1,3 +1,5 @@
+//! `plugins run` command locating and spawning a CLI extension binary.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

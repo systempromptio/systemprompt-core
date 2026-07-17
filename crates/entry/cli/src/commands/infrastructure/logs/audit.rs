@@ -1,3 +1,5 @@
+//! `infra logs audit` command rendering the audit trail.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

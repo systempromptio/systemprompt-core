@@ -1,3 +1,5 @@
+//! `infra db migrate` command installing schemas and migrations.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

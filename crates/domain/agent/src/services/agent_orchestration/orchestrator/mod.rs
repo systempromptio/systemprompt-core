@@ -108,9 +108,6 @@ impl AgentOrchestrator {
         self.event_bus.subscribe()
     }
 
-    /// Replace the registry snapshot used by the orchestrator and its owned
-    /// lifecycle, so callers can supervise agents from an explicit config
-    /// instead of the process-wide loader.
     pub fn set_registry(&mut self, registry: crate::services::registry::AgentRegistry) {
         self.db_service.registry = registry.clone();
         self.lifecycle.db_service.registry = registry;

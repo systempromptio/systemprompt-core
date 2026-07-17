@@ -1,3 +1,5 @@
+//! `admin users ban add` command with parsed durations.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

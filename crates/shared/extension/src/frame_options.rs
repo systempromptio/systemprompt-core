@@ -34,8 +34,6 @@ impl FrameOptions {
         }
     }
 
-    /// Source list for the equivalent `Content-Security-Policy:
-    /// frame-ancestors` directive.
     #[must_use]
     pub const fn frame_ancestors(self) -> &'static str {
         match self {

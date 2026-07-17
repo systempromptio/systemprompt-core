@@ -1,3 +1,5 @@
+//! `/v1/models` catalog endpoint filtered by inference-protocol surface.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

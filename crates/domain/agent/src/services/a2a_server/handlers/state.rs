@@ -1,3 +1,5 @@
+//! Shared A2A handler state, including the stream-concurrency semaphore.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

@@ -1,3 +1,5 @@
+//! GUI handlers for log-directory access and diagnostic-bundle export.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

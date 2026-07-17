@@ -1,3 +1,5 @@
+//! `analytics content top` command listing top content by views.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

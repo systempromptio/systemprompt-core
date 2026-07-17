@@ -55,8 +55,6 @@ impl SkillService {
         })
     }
 
-    /// Inject the execution-step repository so per-task `track_skill_usage`
-    /// can run without round-tripping the database from the disk-only loader.
     pub fn with_execution_step_repo(mut self, repo: Arc<ExecutionStepRepository>) -> Self {
         self.execution_step_repo = Some(repo);
         self

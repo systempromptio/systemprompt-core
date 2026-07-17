@@ -1,3 +1,5 @@
+//! Service resolution for the MCP proxy, with restart-on-dead-backend.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

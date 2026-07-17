@@ -18,9 +18,6 @@ pub(super) struct PreparedSchema {
     pub(super) owned_tables: Vec<String>,
 }
 
-/// `(schema, table, columns)` — the `required_columns` of one
-/// [`systemprompt_extension::SchemaDefinition`], qualified by its Postgres
-/// schema so validation does not assume `public`.
 pub(super) struct ColumnsToValidate {
     pub(super) schema: String,
     pub(super) table: String,
@@ -100,17 +97,10 @@ pub(super) fn prepare_extension_schema(ext: &dyn Extension) -> Result<PreparedSc
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum StatementPhase {
-    /// Phase 1 — creates a schema, table, type, sequence, or extension; an
-    /// object a Phase 2 migration may depend on.
     Structural,
-    /// Phase 3 — indexes, views, triggers, functions, grants, comments and
-    /// any ALTER; may reference a migration-added column.
     Dependent,
 }
 
-/// Every `pg_query` DDL node type is matched **explicitly**: an unrecognised
-/// node is a hard error, not a silent mis-phase, so a new Postgres node type
-/// surfaces as a visible boot failure that forces an explicit phase decision.
 fn classify_statement(statement: &str) -> Result<StatementPhase, String> {
     use pg_query::NodeEnum;
 

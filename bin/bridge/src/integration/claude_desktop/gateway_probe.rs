@@ -1,3 +1,5 @@
+//! Gateway reachability probe used by the Claude Desktop integration.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

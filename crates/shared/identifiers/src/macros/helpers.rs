@@ -1,3 +1,6 @@
+//! Shared trait impls emitted for every typed identifier (`Display`, `AsRef`,
+//! db conversions).
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

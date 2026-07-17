@@ -1,3 +1,5 @@
+//! SHA-256 hex digests and id-segment safety checks for sync paths.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

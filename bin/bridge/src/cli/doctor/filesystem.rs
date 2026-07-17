@@ -1,3 +1,5 @@
+//! Doctor checks for filesystem layout and permissions.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

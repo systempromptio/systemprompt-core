@@ -1,3 +1,5 @@
+//! Cached gateway JWT with background refresh ahead of expiry.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

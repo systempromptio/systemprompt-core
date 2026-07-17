@@ -1,3 +1,5 @@
+//! Content insert/update mutations with field-level resolution.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

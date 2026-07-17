@@ -1,3 +1,5 @@
+//! Outbound GUI event and reply emission to the webview channel.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

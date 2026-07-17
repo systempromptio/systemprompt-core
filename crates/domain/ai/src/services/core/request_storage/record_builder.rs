@@ -1,3 +1,5 @@
+//! Builds persisted request records from canonical requests.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

@@ -1,3 +1,5 @@
+//! `status` command: prints auth, install, and sync state.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

@@ -1,3 +1,5 @@
+//! Maps `UiEvent`s to their kind tags for GUI event routing.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

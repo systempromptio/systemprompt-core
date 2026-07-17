@@ -1,3 +1,5 @@
+//! Agent-card request handler for the A2A server.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

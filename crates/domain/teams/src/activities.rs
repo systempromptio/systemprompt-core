@@ -16,7 +16,6 @@ use systemprompt_identifiers::{TeamsConversationId, TeamsTenantId, TeamsUserId};
 
 use crate::error::{TeamsError, TeamsResult};
 
-/// The inbound surface an activity arrived on.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TeamsSurface {
     Message,
@@ -68,7 +67,6 @@ pub struct ChannelDataTenant {
     pub id: TeamsTenantId,
 }
 
-/// A surface-agnostic inbound activity ready for dispatch.
 #[derive(Debug, Clone)]
 pub struct NormalizedInbound {
     pub surface: TeamsSurface,
@@ -80,14 +78,11 @@ pub struct NormalizedInbound {
     /// `/command` token when the message is a command, otherwise the
     /// conversation id.
     pub routing_key: String,
-    /// The channel's Bot Connector base URL — where the reply is posted.
     pub service_url: String,
-    /// The originating activity id, used to thread the reply as a reply-to.
     pub activity_id: Option<String>,
 }
 
 impl Activity {
-    /// The surface this activity represents, if it is one we dispatch.
     #[must_use]
     pub fn surface(&self) -> Option<TeamsSurface> {
         match self.kind.as_str() {
@@ -136,7 +131,6 @@ impl Activity {
     }
 }
 
-/// The leading `/command` token of a message, if the text is a slash command.
 fn command_token(text: &str) -> Option<&str> {
     let trimmed = text.trim_start();
     if !trimmed.starts_with('/') {

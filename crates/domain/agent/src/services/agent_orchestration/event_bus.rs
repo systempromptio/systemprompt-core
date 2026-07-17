@@ -1,3 +1,5 @@
+//! Event bus for agent orchestration lifecycle events.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

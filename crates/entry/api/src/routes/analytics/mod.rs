@@ -37,9 +37,6 @@ fn routes() -> Router<AnalyticsState> {
         .route("/stream", get(stream::analytics_stream))
 }
 
-/// Test-only seam: mount the analytics routes with a caller-supplied
-/// `ContentRouting`, so the slug-resolution branch can be driven with a stub
-/// that maps a page URL to a seeded content slug.
 #[cfg(feature = "test-api")]
 pub mod test_api {
     use super::{

@@ -1,3 +1,5 @@
+//! `infra services cleanup` command clearing stale service state.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

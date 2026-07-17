@@ -1,3 +1,5 @@
+//! `infra jobs show` command for one job's metadata and schedule.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

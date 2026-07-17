@@ -1,3 +1,5 @@
+//! Authentication: keystore, PAT setup, OAuth, and credential types.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

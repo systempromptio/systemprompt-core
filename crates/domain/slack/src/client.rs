@@ -16,7 +16,6 @@ use crate::error::{SlackError, SlackResult};
 
 const CHAT_POST_MESSAGE_URL: &str = "https://slack.com/api/chat.postMessage";
 
-/// A thin authenticated client bound to one app's bot token.
 #[derive(Debug, Clone)]
 pub struct SlackClient {
     http: reqwest::Client,
@@ -34,8 +33,6 @@ impl SlackClient {
         }
     }
 
-    /// Build a client whose `chat.postMessage` endpoint is overridden, so a
-    /// test can intercept the outbound call with a loopback mock server.
     #[cfg(feature = "test")]
     #[must_use]
     pub fn with_base_url(
@@ -50,7 +47,6 @@ impl SlackClient {
         }
     }
 
-    /// Post a message into a channel via `chat.postMessage`.
     pub async fn post_message(&self, channel: &str, blocks: Value) -> SlackResult<()> {
         validate_outbound_url(&self.post_message_url)
             .map_err(|e| SlackError::OutboundUrl(e.to_string()))?;
@@ -65,7 +61,6 @@ impl SlackClient {
         Self::check_ok(resp).await
     }
 
-    /// Reply to a captured `response_url` (slash command / interactivity).
     pub async fn respond(
         &self,
         response_url: &str,

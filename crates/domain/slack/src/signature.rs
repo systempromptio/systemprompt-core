@@ -16,7 +16,6 @@ use crate::error::{SlackError, SlackResult};
 
 type HmacSha256 = Hmac<Sha256>;
 
-/// Maximum accepted drift between the request timestamp and local time.
 pub const MAX_TIMESTAMP_SKEW_SECS: i64 = 60 * 5;
 
 /// Verify a Slack signature against the raw request body.

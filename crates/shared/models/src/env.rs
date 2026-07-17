@@ -45,8 +45,6 @@ pub fn none_if_blank(value: Option<String>) -> Option<String> {
     value.filter(|v| !v.trim().is_empty())
 }
 
-/// Reports whether `input` still contains a `${VAR}` / `${VAR:-default}`
-/// placeholder. Used by multi-pass resolvers to detect non-convergence.
 #[must_use]
 pub fn contains_placeholder(input: &str) -> bool {
     INTERPOLATION_REGEX.is_match(input)

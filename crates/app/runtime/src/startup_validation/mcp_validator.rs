@@ -1,3 +1,5 @@
+//! MCP deployment manifest validation folded into the startup report.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

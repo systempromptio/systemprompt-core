@@ -1,3 +1,5 @@
+//! HTTP transport for the API client: auth application and error extraction.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

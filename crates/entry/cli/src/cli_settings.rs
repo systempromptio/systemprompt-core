@@ -104,12 +104,6 @@ impl CliConfig {
         self
     }
 
-    /// Treat the session as terminal-attached even when stdio is piped.
-    ///
-    /// Interactive flows are driven through the
-    /// [`crate::interactive::Prompter`] seam in tests, where no TTY exists;
-    /// this bypasses the terminal probe so a scripted prompter can reach
-    /// them.
     pub const fn with_assume_terminal(mut self, assume: bool) -> Self {
         self.assume_terminal = assume;
         self

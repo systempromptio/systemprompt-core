@@ -1,3 +1,5 @@
+//! `admin agents message` command sending an A2A message.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

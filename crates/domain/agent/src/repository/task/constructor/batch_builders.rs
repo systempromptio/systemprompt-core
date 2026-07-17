@@ -1,3 +1,5 @@
+//! Part/artifact assembly for batch task construction.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

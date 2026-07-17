@@ -1,3 +1,5 @@
+//! Request-context extraction from A2A JSON-RPC bodies.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

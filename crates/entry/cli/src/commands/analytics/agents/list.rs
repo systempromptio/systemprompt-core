@@ -1,3 +1,5 @@
+//! `analytics agents list` command with sort options.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

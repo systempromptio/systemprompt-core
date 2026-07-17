@@ -1,3 +1,6 @@
+//! `infra db migrate mark-applied` command recording a migration without
+//! running it.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

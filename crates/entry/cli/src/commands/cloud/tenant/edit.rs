@@ -1,3 +1,5 @@
+//! `cloud tenant edit` command for local tenant database settings.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

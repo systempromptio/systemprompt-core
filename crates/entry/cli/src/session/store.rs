@@ -1,3 +1,5 @@
+//! On-disk store for CLI session records, keyed by profile.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

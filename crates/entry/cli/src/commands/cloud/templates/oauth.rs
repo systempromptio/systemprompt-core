@@ -1,3 +1,5 @@
+//! HTML template for the cloud OAuth completion page.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

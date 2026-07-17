@@ -120,8 +120,6 @@ impl CommandOutput {
         Self::new(CliArtifact::table(TableArtifact::new(cols).with_rows(rows)))
     }
 
-    /// Build a table by serializing each row item to a JSON object. `columns`
-    /// names the fields to display; the renderer reads them off each object.
     #[must_use]
     pub fn table_of<T: Serialize>(columns: Vec<impl Into<String>>, items: &[T]) -> Self {
         let rows: Vec<JsonValue> = items
@@ -146,9 +144,6 @@ impl CommandOutput {
         Self::new(CliArtifact::presentation_card(card))
     }
 
-    /// Build a presentation card whose sections are the top-level fields of a
-    /// serializable value (one `CardSection` per field). Deterministic
-    /// producer-side mapping — the wire carries a concrete card.
     #[must_use]
     pub fn card_value(title: impl Into<String>, value: &impl Serialize) -> Self {
         let sections = sections_from_value(&serde_json::to_value(value).unwrap_or(JsonValue::Null));

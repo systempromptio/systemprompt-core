@@ -1,3 +1,5 @@
+//! Loopback inference proxy: server, forwarding, token cache, MCP probe.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

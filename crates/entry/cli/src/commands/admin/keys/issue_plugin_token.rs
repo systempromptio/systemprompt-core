@@ -1,3 +1,5 @@
+//! `admin keys issue-plugin-token` command minting a hook-scoped credential.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

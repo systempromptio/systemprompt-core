@@ -1,3 +1,5 @@
+//! `cloud db restore` command applying a backup to the tenant database.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

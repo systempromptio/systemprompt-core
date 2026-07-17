@@ -1,3 +1,5 @@
+//! Claim shape of cloud control-plane tokens.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

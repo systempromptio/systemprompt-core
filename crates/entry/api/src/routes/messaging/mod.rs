@@ -40,13 +40,9 @@ pub fn http_client() -> reqwest::Client {
     CLIENT.clone()
 }
 
-/// Where a rendered reply is posted back to.
 #[derive(Debug, Clone)]
 pub enum ReplyTarget {
-    /// Post into a channel/conversation by id (Slack `chat.postMessage`, Teams
-    /// Bot Connector).
     Channel { id: String },
-    /// Reply to a captured callback URL (Slack `response_url`).
     Url { url: String },
 }
 
@@ -58,25 +54,18 @@ pub struct MessagingInbound {
     /// Stable platform tag (`"slack"` / `"teams"`), used in the derived
     /// `ContextId` and the authz context kind.
     pub platform: &'static str,
-    /// The federated issuer that namespaces `external_user_id`.
     pub issuer: String,
-    /// Workspace/tenant id — the org the conversation belongs to.
     pub org_id: String,
-    /// Channel/conversation id within the org.
     pub channel_id: String,
-    /// The platform's user id (already verified by the route).
     pub external_user_id: String,
     pub text: String,
-    /// The agent resolved from app config for this conversation.
     pub agent_name: AgentName,
     /// The authz target — the workspace/tenant entity, config-seedable from
     /// `allowed_roles`.
     pub entity: EntityRef,
-    /// Where the rendered reply is posted (owned by the route).
     pub reply: ReplyTarget,
 }
 
-/// The result of a dispatch, rendered back into the platform by the route.
 #[derive(Debug, Clone)]
 pub enum DispatchOutcome {
     /// Authorized; the agent's reply text (may be empty if the agent produced
@@ -142,8 +131,6 @@ pub async fn dispatch_messaging(
     Ok(DispatchOutcome::Replied(reply))
 }
 
-/// Test-only re-export of the agent-reply extraction, so it can be unit-tested
-/// without driving the full dispatch pipeline.
 #[cfg(feature = "test-api")]
 pub mod test_api {
     use systemprompt_agent::models::a2a::Task;

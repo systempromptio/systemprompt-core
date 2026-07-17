@@ -1,3 +1,5 @@
+//! `web sitemap generate` command collecting URLs into sitemap.xml.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

@@ -1,3 +1,5 @@
+//! Provider API-key collection during profile creation.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

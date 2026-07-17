@@ -1,3 +1,5 @@
+//! IPC message and reply payload types exchanged between the GUI webview and the bridge.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

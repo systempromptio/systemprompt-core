@@ -1,3 +1,5 @@
+//! Maps context-extraction failures to API errors.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

@@ -26,7 +26,6 @@ pub fn ensure_category_exists(config: &ContentConfigRaw, category_id: &str) -> R
     ))
 }
 
-/// Builds the database-fed sitemap entry used for flag-driven creation.
 #[must_use]
 pub fn build_flag_sitemap(url_pattern: String, priority: f32, changefreq: &str) -> SitemapConfig {
     SitemapConfig {
@@ -39,7 +38,6 @@ pub fn build_flag_sitemap(url_pattern: String, priority: f32, changefreq: &str) 
     }
 }
 
-/// Resolved inputs for a new content source entry.
 #[derive(Debug)]
 pub struct SourceSpec {
     pub path: String,
@@ -50,7 +48,6 @@ pub struct SourceSpec {
     pub sitemap: Option<SitemapConfig>,
 }
 
-/// Assembles a new article content source with the default indexing policy.
 #[must_use]
 pub fn build_source_config(spec: SourceSpec) -> ContentSourceConfigRaw {
     ContentSourceConfigRaw {

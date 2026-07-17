@@ -1,3 +1,5 @@
+//! Builder assembling the template registry from prioritised providers.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

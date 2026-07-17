@@ -1,3 +1,5 @@
+//! Run-once bootstrap job execution at scheduler start.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

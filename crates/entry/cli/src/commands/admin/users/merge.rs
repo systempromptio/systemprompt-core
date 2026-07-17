@@ -1,3 +1,5 @@
+//! `admin users merge` command merging anonymous rows into an identified user.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

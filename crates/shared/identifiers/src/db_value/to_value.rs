@@ -1,3 +1,5 @@
+//! `ToDbValue`: conversion of typed values into database-bindable `DbValue`s.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

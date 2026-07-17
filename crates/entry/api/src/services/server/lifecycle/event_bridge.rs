@@ -1,3 +1,5 @@
+//! Bridges database outbox events into the in-process event bus.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

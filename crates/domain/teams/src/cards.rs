@@ -17,7 +17,6 @@ const TEXT_BLOCK_LIMIT: usize = 3000;
 
 const ADAPTIVE_CARD_CONTENT_TYPE: &str = "application/vnd.microsoft.card.adaptive";
 
-/// Render agent text into the `attachments` array of one Adaptive Card.
 #[must_use]
 pub fn render_card(text: &str) -> Value {
     let body: Vec<Value> = chunk_text(text, TEXT_BLOCK_LIMIT)

@@ -1,3 +1,5 @@
+//! Install/uninstall orchestration for the bridge and its scheduled sync task.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

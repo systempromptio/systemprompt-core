@@ -1,3 +1,6 @@
+//! `ContextEvent`: the per-context event envelope unifying AG-UI and A2A
+//! events.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

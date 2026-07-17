@@ -1,3 +1,5 @@
+//! `core content popular` command over a parsed duration window.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

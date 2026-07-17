@@ -1,3 +1,5 @@
+//! `plugins list` command over compiled and manifest-discovered extensions.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

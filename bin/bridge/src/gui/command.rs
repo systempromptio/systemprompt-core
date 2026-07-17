@@ -1,3 +1,5 @@
+//! GUI command argument types and their handlers.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

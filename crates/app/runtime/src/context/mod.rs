@@ -153,9 +153,6 @@ impl std::fmt::Debug for Subsystems {
 }
 
 impl AppContext {
-    /// Builds a context with default settings: schema installation off,
-    /// extensions discovered via inventory, and the inventory-registered
-    /// marketplace filter. Equivalent to `Self::builder().build().await`.
     pub async fn new() -> RuntimeResult<Self> {
         Self::builder().build().await
     }

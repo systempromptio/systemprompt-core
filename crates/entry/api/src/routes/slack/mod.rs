@@ -259,9 +259,6 @@ fn slash_command_from_form<S: std::hash::BuildHasher>(
     serde_json::from_value(json).ok()
 }
 
-/// Test-only re-exports of the pure form-parsing helpers, forwarded to their
-/// private definitions above. Compiled only under `test-api`; the
-/// router-driven handlers stay black-boxed in production builds.
 #[cfg(feature = "test-api")]
 pub mod test_api {
     use std::collections::HashMap;

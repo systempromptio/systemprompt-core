@@ -1,3 +1,5 @@
+//! `install` command: installs the bridge binary and scheduled sync task.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

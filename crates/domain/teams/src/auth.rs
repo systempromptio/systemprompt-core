@@ -27,13 +27,10 @@ use crate::error::{TeamsError, TeamsResult};
 const OPENID_CONFIG_URL: &str = "https://login.botframework.com/v1/.well-known/openidconfiguration";
 const ISSUER: &str = "https://api.botframework.com";
 
-/// Accepted expiry drift, mirroring the Slack signature skew window.
 pub const MAX_TIMESTAMP_SKEW_SECS: u64 = 60 * 5;
 
-/// How long a fetched key set is trusted before a refresh is forced.
 const JWKS_TTL_SECS: i64 = 24 * 60 * 60;
 
-/// Claims extracted after signature/issuer/audience/expiry are validated.
 #[derive(Debug, Clone, Deserialize)]
 pub struct ActivityClaims {
     /// The Bot Connector service URL the token is bound to.
@@ -64,7 +61,6 @@ struct KeyCache {
     refreshed_at_unix: i64,
 }
 
-/// Validates inbound activity tokens for one app registration.
 #[derive(Debug)]
 pub struct ActivityTokenVerifier {
     http: reqwest::Client,
@@ -84,8 +80,6 @@ impl ActivityTokenVerifier {
         }
     }
 
-    /// Build a verifier whose `OpenID` metadata endpoint is overridden, so a
-    /// test can serve the config + JWKS from a loopback mock server.
     #[cfg(feature = "test")]
     #[must_use]
     pub fn with_openid_url(

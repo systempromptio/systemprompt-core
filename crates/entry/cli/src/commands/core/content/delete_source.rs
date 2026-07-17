@@ -1,3 +1,5 @@
+//! `core content delete-source` command removing a source's content.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

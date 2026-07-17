@@ -1,3 +1,5 @@
+//! `core content edit` command with interactive selection.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

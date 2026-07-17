@@ -1,3 +1,5 @@
+//! Lowest-priority template provider serving the compiled-in default templates.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

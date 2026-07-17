@@ -1,3 +1,5 @@
+//! Log-row lookup by trace/context with typed row mapping.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

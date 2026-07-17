@@ -13,8 +13,6 @@ use systemprompt_models::text::chunk_text;
 /// Slack's hard limit on a single section block's text length.
 const SECTION_TEXT_LIMIT: usize = 3000;
 
-/// Render agent text into a Block Kit `blocks` array of `section`/`mrkdwn`
-/// blocks.
 #[must_use]
 pub fn render_blocks(text: &str) -> Value {
     let mut blocks = Vec::new();

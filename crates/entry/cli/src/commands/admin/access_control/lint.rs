@@ -1,3 +1,6 @@
+//! `admin access-control lint` command: reports unknown and unreachable rule
+//! entities.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -25,8 +28,6 @@ const ALL_KINDS: &[EntityKind] = &[
     EntityKind::TeamsConversation,
 ];
 
-/// Iterate every `EntityKind` and report:
-///
 /// * **Unknown entities** — rows in `access_control_rules` whose `(entity_type,
 ///   entity_id)` has no matching catalog row. The FK added in migration 007
 ///   makes this impossible going forward, but the check is cheap and catches

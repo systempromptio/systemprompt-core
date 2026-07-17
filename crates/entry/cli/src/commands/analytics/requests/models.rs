@@ -1,3 +1,5 @@
+//! `analytics requests models` command aggregating per-model usage.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

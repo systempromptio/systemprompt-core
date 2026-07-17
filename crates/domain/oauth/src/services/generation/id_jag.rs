@@ -20,8 +20,6 @@ pub struct IdJagGrant<'a> {
     pub issuer: &'a str,
 }
 
-/// # Errors
-/// Fails if the signing key is unavailable or JWT encoding fails.
 pub fn mint_id_jag(grant: &IdJagGrant<'_>) -> Result<String> {
     let now = Utc::now().timestamp();
     let claims = IdJagClaims {

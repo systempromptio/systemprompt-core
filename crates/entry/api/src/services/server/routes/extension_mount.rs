@@ -1,3 +1,5 @@
+//! Mounts extension-provided routers onto the server router.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

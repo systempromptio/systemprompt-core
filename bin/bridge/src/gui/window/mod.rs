@@ -1,3 +1,5 @@
+//! Webview window management and external-target opening.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

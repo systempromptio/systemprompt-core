@@ -1,3 +1,5 @@
+//! Credential-helper output and auth response types, with header-map serde.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

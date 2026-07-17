@@ -1,3 +1,5 @@
+//! Webhook event-load error to HTTP mapping.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

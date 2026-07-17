@@ -1,3 +1,5 @@
+//! RFC 7009 token revocation endpoint.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

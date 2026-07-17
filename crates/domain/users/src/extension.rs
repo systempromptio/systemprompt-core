@@ -1,3 +1,5 @@
+//! `Extension` registration for the users domain: schema and required flag.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

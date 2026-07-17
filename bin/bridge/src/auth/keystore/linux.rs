@@ -1,3 +1,5 @@
+//! Linux file-based device-certificate source with PEM/DER handling.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

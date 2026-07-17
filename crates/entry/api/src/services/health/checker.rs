@@ -1,3 +1,6 @@
+//! `HealthChecker` that polls a server URL with bounded retries until it
+//! reports healthy.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

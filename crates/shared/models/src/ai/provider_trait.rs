@@ -1,3 +1,5 @@
+//! `AiProvider` trait: the dyn-dispatched inference provider contract.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

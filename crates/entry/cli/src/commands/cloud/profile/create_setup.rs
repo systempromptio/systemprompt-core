@@ -1,3 +1,5 @@
+//! Post-create profile setup, including the Postgres compose container.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

@@ -1,3 +1,5 @@
+//! GUI handlers probing gateway reachability and auth state.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

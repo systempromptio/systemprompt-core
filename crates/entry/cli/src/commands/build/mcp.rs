@@ -1,3 +1,5 @@
+//! Builds MCP server crates (workspace or submodule) locating their manifests.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

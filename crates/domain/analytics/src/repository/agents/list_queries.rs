@@ -1,3 +1,5 @@
+//! Agent analytics listings ordered by success rate, cost, or recency.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

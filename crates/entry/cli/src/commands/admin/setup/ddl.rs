@@ -7,13 +7,11 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-/// Escapes and double-quotes a `PostgreSQL` identifier (role or database name).
 #[must_use]
 pub fn quote_ident(ident: &str) -> String {
     format!("\"{}\"", ident.replace('"', "\"\""))
 }
 
-/// Escapes and single-quotes a `PostgreSQL` string literal.
 #[must_use]
 pub fn quote_literal(value: &str) -> String {
     format!("'{}'", value.replace('\'', "''"))

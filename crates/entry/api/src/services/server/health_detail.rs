@@ -1,3 +1,5 @@
+//! Detailed health probes: service counts and static-content presence.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

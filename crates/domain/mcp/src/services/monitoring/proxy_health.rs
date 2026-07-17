@@ -1,3 +1,5 @@
+//! Proxy-level health checks for MCP servers (port probe + MCP connect).
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

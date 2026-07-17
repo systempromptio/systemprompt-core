@@ -1,3 +1,5 @@
+//! Mutable render state consumed by the startup renderer.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

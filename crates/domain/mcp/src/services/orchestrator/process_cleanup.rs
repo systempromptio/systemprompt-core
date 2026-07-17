@@ -1,3 +1,5 @@
+//! Orphan and stale-binary cleanup for managed MCP processes.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

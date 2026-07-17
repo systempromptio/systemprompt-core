@@ -13,20 +13,18 @@
 use serde::Deserialize;
 use systemprompt_identifiers::{SlackChannelId, SlackUserId, SlackWorkspaceId};
 
-/// Outer envelope for the Events API (`application/json`).
 #[derive(Debug, Clone, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum EventsApiEnvelope {
-    /// One-time handshake when configuring the Request URL.
-    UrlVerification { challenge: String },
-    /// A subscribed workspace event.
+    UrlVerification {
+        challenge: String,
+    },
     EventCallback {
         team_id: SlackWorkspaceId,
         event: SlackEvent,
     },
 }
 
-/// The inner `event` object for message-like events.
 #[derive(Debug, Clone, Deserialize)]
 pub struct SlackEvent {
     #[serde(rename = "type")]
@@ -44,7 +42,6 @@ pub struct SlackEvent {
     pub bot_id: Option<String>,
 }
 
-/// A slash command (`application/x-www-form-urlencoded`).
 #[derive(Debug, Clone, Deserialize)]
 pub struct SlashCommand {
     pub command: String,
@@ -56,7 +53,6 @@ pub struct SlashCommand {
     pub response_url: String,
 }
 
-/// Interactivity payload (the JSON inside the `payload` form field).
 #[derive(Debug, Clone, Deserialize)]
 pub struct InteractionPayload {
     #[serde(rename = "type")]
@@ -94,7 +90,6 @@ pub struct InteractionAction {
     pub value: Option<String>,
 }
 
-/// A surface-agnostic inbound request ready for dispatch.
 #[derive(Debug, Clone)]
 pub struct NormalizedInbound {
     pub workspace_id: SlackWorkspaceId,

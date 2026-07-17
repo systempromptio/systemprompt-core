@@ -75,7 +75,6 @@ macro_rules! register_route_selector {
     };
 }
 
-/// The process-global set of registered [`RouteSelector`]s, resolved once.
 pub struct RouteSelectorEngine {
     selectors: Vec<Arc<dyn RouteSelector>>,
 }

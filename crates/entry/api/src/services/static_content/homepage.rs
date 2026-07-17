@@ -1,3 +1,6 @@
+//! Serves the prebuilt `index.html` homepage with `ETag`-based
+//! conditional-request handling.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

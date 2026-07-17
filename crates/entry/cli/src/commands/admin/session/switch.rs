@@ -1,3 +1,5 @@
+//! `admin session switch` command changing the active profile session.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

@@ -1,3 +1,5 @@
+//! Stream wrapper capturing usage and persisting the assembled response.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

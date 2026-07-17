@@ -1,3 +1,5 @@
+//! Image-generation request/response models: resolutions, aspect ratios.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
