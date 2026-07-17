@@ -1,4 +1,7 @@
 //! Dispatches parsed frontmatter to extension-provided frontmatter processors.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use super::scanner::ParsedFrontmatter;
 use systemprompt_database::DbPool;

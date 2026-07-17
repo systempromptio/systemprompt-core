@@ -1,4 +1,7 @@
 //! Form field types extracted from artifact rendering hints/data.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use super::html::html_escape;
 use serde_json::Value as JsonValue;

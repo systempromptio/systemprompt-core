@@ -1,4 +1,7 @@
 //! Per-kind step content payload and the [`PlannedTool`] descriptor.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::SkillId;

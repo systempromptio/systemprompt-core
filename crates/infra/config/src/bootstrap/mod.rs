@@ -5,6 +5,9 @@
 //! the entry-crate boot sequence — which interleaves credential and routing
 //! resolution between the two steps — rather than a type-state, so these
 //! initialisers are called directly by the CLI/API runners.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod manifest;
 mod profile;

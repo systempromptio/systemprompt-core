@@ -2,6 +2,9 @@
 //! and renders content pages, while `prerender_pages` runs registered
 //! page-prerenderer extensions to produce one-off pages (homepage, search,
 //! error pages, …).
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::collections::HashSet;
 use std::path::PathBuf;

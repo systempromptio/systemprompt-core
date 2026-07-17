@@ -4,6 +4,9 @@
 //! tools, records execution status (see [`recording`]), and synthesizes the
 //! final response; validation failures are funneled back through the model for
 //! a user-facing explanation.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod recording;
 

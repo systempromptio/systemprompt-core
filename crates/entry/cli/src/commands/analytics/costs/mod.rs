@@ -4,6 +4,9 @@
 //! Defines the [`CostsCommands`] subcommand tree and the typed output shapes
 //! ([`CostSummaryOutput`], [`CostTrendsOutput`], [`CostBreakdownOutput`])
 //! rendered by the `analytics costs` commands.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod breakdown;
 mod summary;

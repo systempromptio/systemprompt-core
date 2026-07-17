@@ -7,6 +7,9 @@
 //! parse side. The HTTP transport and SSE framing live in the gateway adapter;
 //! everything here operates on already-decoded values so it is shared by both
 //! the outbound adapter and the inbound renderer.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod parse;
 mod sse;

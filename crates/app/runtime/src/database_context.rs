@@ -2,6 +2,9 @@
 //!
 //! [`DatabaseContext`] is used by CLI / tooling paths that need a
 //! `DbPool` without spinning up the full [`crate::AppContext`].
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::error::RuntimeResult;
 use std::sync::Arc;

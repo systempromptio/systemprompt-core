@@ -3,6 +3,9 @@
 //! [`SkillsCommands`] enumerates the subcommands; [`execute`] dispatches each
 //! against the invocation's [`CommandContext`]. Output payload types live in
 //! [`types`].
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod types;
 

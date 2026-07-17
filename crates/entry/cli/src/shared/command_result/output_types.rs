@@ -4,6 +4,9 @@
 //! pass to a [`CommandOutput`](super::CommandOutput) constructor (typically
 //! `text`/`card_value`). They are plain serializable data, independent of the
 //! artifact wire format.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};

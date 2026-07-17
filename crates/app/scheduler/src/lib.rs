@@ -36,6 +36,9 @@
 //! always compiled. Conditional compilation is limited to platform-specific
 //! `#[cfg(unix)]` / `#[cfg(windows)]` shims inside
 //! [`services::orchestration::ProcessCleanup`].
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
 pub mod error;

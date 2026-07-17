@@ -4,6 +4,9 @@
 //! data payloads and structured logging; [`unauthorized_response`] and
 //! [`forbidden_response`] are the auth-failure shortcuts, and
 //! [`classify_database_error`] maps repository errors to user-facing messages.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::models::a2a::jsonrpc::NumberOrString;
 use axum::http::StatusCode;

@@ -7,6 +7,9 @@
 //! foreign key back to the entity catalog. Callers fetch the entity row
 //! first (a `None` result signals an entity unknown to access control), then
 //! list rules for it, and hand both to [`super::resolver::resolve`].
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod entities;
 mod rules;

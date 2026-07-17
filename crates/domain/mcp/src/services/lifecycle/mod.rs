@@ -2,6 +2,9 @@
 //!
 //! Start, stop, restart, and health-check flows, coordinating the process,
 //! network, database, and monitoring services behind a single handle.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod health;
 pub mod restart;

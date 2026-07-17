@@ -10,6 +10,9 @@
 //! transparently from `std::io`, `serde_json`, `serde_yaml`, and
 //! `regex` operations performed inside the bootstrap and validator
 //! pipelines.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::path::PathBuf;
 

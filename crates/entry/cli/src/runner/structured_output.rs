@@ -3,6 +3,9 @@
 //! When a command runs in structured-output mode but emits no artifact of its
 //! own, the levelled notices it logged are flushed as a single `message`
 //! artifact so stdout always carries exactly one parseable [`CliArtifact`].
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use anyhow::Result;
 

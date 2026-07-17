@@ -28,6 +28,9 @@
 //! database pool is created so the audit sink can write to
 //! `governance_decisions` and [`RuleBasedHook`] can query
 //! `access_control_rules`.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
 use std::time::Duration;

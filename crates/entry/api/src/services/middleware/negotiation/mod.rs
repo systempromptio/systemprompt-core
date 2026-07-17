@@ -4,6 +4,9 @@
 //! [`AcceptedMediaType`]) honouring `q=` quality weights, and stores it in the
 //! request extensions so handlers can serve JSON, Markdown, or HTML from a
 //! single route.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use axum::extract::Request;
 use axum::middleware::Next;

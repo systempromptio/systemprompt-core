@@ -4,6 +4,9 @@
 //! Adaptive Card attachment Teams expects, chunking long output across multiple
 //! `TextBlock` elements so it is not packed into one unbounded block —
 //! mirroring the Slack Block Kit renderer's chunking.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use serde_json::{Value, json};
 use systemprompt_models::text::chunk_text;

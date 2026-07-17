@@ -1,3 +1,6 @@
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
 pub mod args;
 pub mod clean;
 pub mod credential_helper;

@@ -23,6 +23,9 @@
 //! - `expose-internals` — exposes test-only entry points (notably
 //!   `ConfigLoader::load_from_content`) to dependent crates that exercise the
 //!   loader from outside `cfg(test)`. Off by default.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod config_loader;
 pub mod config_writer;

@@ -1,5 +1,8 @@
 //! [`ApiExtensionTyped`] — typed contract for extensions that mount an
 //! axum router.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use axum::Router;
 

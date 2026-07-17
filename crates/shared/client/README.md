@@ -26,81 +26,49 @@
 
 [![Crates.io](https://img.shields.io/crates/v/systemprompt-client.svg?style=flat-square)](https://crates.io/crates/systemprompt-client)
 [![Docs.rs](https://img.shields.io/docsrs/systemprompt-client?style=flat-square)](https://docs.rs/systemprompt-client)
+[![codecov](https://img.shields.io/codecov/c/github/systempromptio/systemprompt-core/main?style=flat-square&logo=codecov)](https://codecov.io/gh/systempromptio/systemprompt-core)
 [![License: BSL-1.1](https://img.shields.io/badge/license-BSL--1.1-2b6cb0?style=flat-square)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
 
-HTTP API client for systemprompt.io AI governance infrastructure. Typed requests for CLIs and external services talking to a systemprompt.io deployment. Communicates exclusively via HTTP — no direct access to repositories or services.
+The outside edge of a systemprompt.io deployment. Every CLI and external service reaches the server through one typed HTTP surface, never a repository or a database. What runs the deployment stays behind the API, and callers hold requests, not internals.
 
-**Layer**: Shared — foundational types/traits with no dependencies on other layers. Part of the [systemprompt-core](https://github.com/systempromptio/systemprompt-core) workspace.
+**Layer**: Shared, foundational types and traits with no dependencies on other layers. Part of the [systemprompt-core](https://github.com/systempromptio/systemprompt-core) workspace.
 
-## Overview
+## What it does
 
-This crate provides a type-safe, async HTTP client for interacting with the systemprompt.io API. It serves as the primary interface for external applications (CLI tools, third-party integrations) to communicate with the systemprompt.io server without depending on internal business logic.
+`SystempromptClient` wraps a pre-configured `reqwest::Client` and exposes typed methods for the routes declared in `systemprompt-models::ApiPaths`. External applications talk to a running deployment without linking against its business logic. Requests carry typed identifiers (`ContextId`, `JwtToken`), responses deserialize into shared models, and failures resolve to a single `ClientError` enum.
 
-### Design Principles
+`RemoteCliExecutor` streams remote CLI command output over server-sent events into a caller-supplied `OutputSink`, so a local shell can drive a command running on the deployment and see its output arrive line by line.
 
-- **Decoupled Architecture**: Communicates exclusively via HTTP, no direct access to repositories or services
-- **Type Safety**: Leverages `systemprompt-identifiers` for typed IDs (`ContextId`, `JwtToken`)
-- **Error Transparency**: Structured error types with `thiserror` for clear failure modes
-- **Async-First**: Built on `reqwest` and `tokio` for non-blocking I/O
+## Module map
 
-## Architecture
+| Module | Responsibility |
+|--------|----------------|
+| `client` | `SystempromptClient` and every typed API method; `client/http.rs` holds the internal GET/POST/PUT/DELETE helpers |
+| `error` | `ClientError` enum and the `ClientResult<T>` alias |
+| `remote_cli` | `RemoteCliExecutor`, `RemoteCliRequest`, and the `OutputSink` trait for SSE-streamed CLI output |
 
-```
-src/
-├── lib.rs        # Crate root - public API exports
-├── client.rs     # SystempromptClient struct and all API methods
-├── error.rs      # ClientError enum and ClientResult type alias
-└── http.rs       # Internal HTTP helper functions (get, post, put, delete)
-```
+### Error model
 
-### `lib.rs`
-Minimal public interface exposing only:
-- `SystempromptClient` — the main client struct
-- `ClientError` — error enum for all failure modes
-- `ClientResult<T>` — type alias for `Result<T, ClientError>`
-
-### `client.rs`
-The core client implementation containing:
-- **Construction**: `new()`, `with_timeout()`, `with_token()`
-- **Token Management**: `set_token()`, `token()`
-- **Agent Operations**: `list_agents()`, `get_agent_card()`
-- **Context Operations**: `list_contexts()`, `get_context()`, `create_context()`, `delete_context()`, `update_context_name()`, `fetch_or_create_context()`, `create_context_auto_name()`
-- **Task Operations**: `list_tasks()`, `delete_task()`
-- **Artifact Operations**: `list_artifacts()`, `list_all_artifacts()`
-- **Messaging**: `send_message()` (JSON-RPC format)
-- **Admin Operations**: `list_logs()`, `list_users()`, `get_analytics()`
-- **Health**: `check_health()`, `verify_token()`
-
-### `error.rs`
-Comprehensive error handling with variants:
-
-| Variant | Description |
-|---------|-------------|
-| `HttpError` | Network/transport failures (wraps `reqwest::Error`) |
-| `ApiError` | Server returned non-2xx response with status and body |
+| Variant | Meaning |
+|---------|---------|
+| `HttpError` | Network or transport failure (wraps `reqwest::Error`) |
+| `ApiError` | Server returned a non-2xx response, carrying `status`, `message`, `details` |
 | `JsonError` | Response body failed to deserialize |
-| `AuthError` | Authentication/authorization failures |
+| `AuthError` | Authentication or authorization failure |
 | `NotFound` | Requested resource does not exist |
-| `Timeout` | Request exceeded time limit |
+| `Timeout` | Request exceeded its time limit |
 | `ServerUnavailable` | Server unreachable |
 | `ConfigError` | Invalid client configuration |
+| `EventStreamSetup` | Failed to open a server-sent event stream |
+| `Io` | Local I/O failure (wraps `std::io::Error`) |
 
-Includes `is_retryable()` helper (`Timeout`, `ServerUnavailable`, `HttpError`) for retry logic.
-
-### `http.rs`
-Internal module providing low-level HTTP operations:
-- `get<T>()` — GET request with optional auth, returns deserialized response
-- `post<T, B>()` — POST with JSON body, returns deserialized response
-- `put<B>()` — PUT with JSON body, returns unit
-- `delete()` — DELETE request, returns unit
-
-All functions handle authorization headers and error response parsing uniformly.
+`is_retryable()` returns true for `Timeout`, `ServerUnavailable`, and `HttpError`.
 
 ## Usage
 
 ```toml
 [dependencies]
-systemprompt-client = "0.18.0"
+systemprompt-client = "0.21"
 ```
 
 ```rust
@@ -172,8 +140,8 @@ use systemprompt_client::{ClientError, ClientResult};
 async fn handle_errors(client: &SystempromptClient) -> ClientResult<()> {
     match client.list_agents().await {
         Ok(agents) => { /* success */ }
-        Err(ClientError::AuthError(msg)) => {
-            eprintln!("Authentication failed: {}", msg);
+        Err(ClientError::AuthError { message }) => {
+            eprintln!("Authentication failed: {}", message);
         }
         Err(ClientError::ApiError { status, message, .. }) => {
             eprintln!("API error {}: {}", status, message);
@@ -211,12 +179,12 @@ client.set_token(token);
 | Crate | Purpose |
 |-------|---------|
 | `reqwest` | HTTP client with async support |
-| `tokio` | Async runtime |
+| `reqwest-eventsource` | Server-sent event streams for remote CLI output |
+| `futures` | Async combinator utilities |
 | `serde` / `serde_json` | JSON serialization |
 | `chrono` | DateTime handling for auto-naming |
 | `thiserror` | Derive macro for error types |
 | `tracing` | Structured logging for error diagnostics |
-| `futures` | Async combinator utilities |
 | `systemprompt-models` | Shared API types (`AgentCard`, `Task`, etc.) |
 | `systemprompt-identifiers` | Typed identifiers (`ContextId`, `JwtToken`) |
 

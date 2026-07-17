@@ -3,6 +3,9 @@
 //! Re-exported here so that the extension framework, the schema
 //! collector, and [`crate::ConfigLoader`] are all reachable from a single
 //! re-export point in this crate.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod modules;
 

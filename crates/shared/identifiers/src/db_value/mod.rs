@@ -8,6 +8,9 @@
 //! - [`JsonRow`] is a `HashMap<String, serde_json::Value>` row container.
 //! - [`parse_database_datetime`] coerces driver-provided JSON values into
 //!   `DateTime<Utc>`.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod from_value;
 mod to_value;

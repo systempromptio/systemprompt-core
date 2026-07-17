@@ -1,4 +1,7 @@
 //! Strongly-typed OAuth request parameter validation.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_identifiers::UserId;
 use systemprompt_models::AuthError;

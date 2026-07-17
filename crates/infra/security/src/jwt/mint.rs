@@ -3,6 +3,9 @@
 //! Produces administrator-scoped RS256 tokens for the bridge management
 //! plane and CLI bootstrap flows. Session-scoped tokens are minted by
 //! [`crate::session::SessionGenerator`] instead.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use chrono::{Duration, Utc};
 use jsonwebtoken::{Algorithm, Header, encode};

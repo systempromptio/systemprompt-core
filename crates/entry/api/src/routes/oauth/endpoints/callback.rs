@@ -3,6 +3,9 @@
 //! Exchanges the returned authorization code for tokens, establishes an
 //! authenticated session, sets the access-token cookie, and redirects to the
 //! origin-validated `return_to` recovered from the consumed state binding.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use axum::extract::{Query, State};
 use axum::http::{HeaderMap, HeaderValue, StatusCode, header};

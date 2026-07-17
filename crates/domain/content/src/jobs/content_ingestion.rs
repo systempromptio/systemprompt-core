@@ -4,6 +4,9 @@
 //! each source path against [`systemprompt_models::AppPaths`], and drives the
 //! [`IngestionService`] over it, aggregating processed-file and error counts
 //! into a [`systemprompt_traits::JobResult`].
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::path::{Path, PathBuf};
 use systemprompt_database::DbPool;

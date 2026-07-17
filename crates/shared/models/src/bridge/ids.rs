@@ -13,6 +13,9 @@
 //! `/v1/bridge/*` payloads. They share the same shape as the broader
 //! identifier crate but a parallel definition keeps the bridge wire
 //! contract self-contained.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::fmt;
 

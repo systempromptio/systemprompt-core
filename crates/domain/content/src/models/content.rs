@@ -4,6 +4,9 @@
 //! frontmatter-parsed [`ContentMetadata`] and [`ContentLinkMetadata`], the
 //! [`ContentKind`] classifier, and the ingestion-side [`IngestionReport`],
 //! [`IngestionOptions`], and [`IngestionSource`] types.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};

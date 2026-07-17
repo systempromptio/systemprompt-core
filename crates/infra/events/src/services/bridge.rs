@@ -13,6 +13,9 @@
 //! The notification payload is only the row id (a UUID string) to stay
 //! well under Postgres' ~8 KB `NOTIFY` limit; the event body lives in the
 //! `jsonb` column.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::time::Duration;
 

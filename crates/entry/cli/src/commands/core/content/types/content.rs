@@ -2,6 +2,9 @@
 //!
 //! These structs are the JSON surface for `core content` reads and mutations:
 //! summaries and detail rows, ingest/delete results, and per-source health.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;

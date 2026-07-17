@@ -6,6 +6,9 @@
 //! [`execute_all_mcp`], [`execute_failed`]). Batch paths compute a
 //! [`systemprompt_scheduler::RestartPlan`] from the observed service state
 //! and drive the orchestrators composed in the parent module's `lifecycle`.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod batch;
 mod single;

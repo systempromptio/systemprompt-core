@@ -2,6 +2,9 @@
 //!
 //! Part of the documented sqlx allowlist: the SQL is supplied dynamically
 //! through [`QuerySelector`], so compile-time verification is impossible.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::error::DatabaseResult;
 

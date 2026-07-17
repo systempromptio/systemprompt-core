@@ -1,5 +1,8 @@
 //! Serialise a [`Content`] row into the disk layout expected by
 //! `ContentLocalSync` (one markdown file per item, with YAML frontmatter).
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use super::escape_yaml;
 use crate::error::SyncResult;

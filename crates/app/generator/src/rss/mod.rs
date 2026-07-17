@@ -1,6 +1,9 @@
 //! RSS 2.0 feed generation: pure XML serialisers, the default provider that
 //! drives them from `content.yaml` + the database, and the top-level
 //! `generate_feed` entry point.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod default_provider;
 mod generator;

@@ -1,5 +1,8 @@
 //! Trace-domain DTOs grouped by cohesion: trace listings + events, AI request
 //! analytics, MCP/tool executions, and log-search summaries.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod ai;
 mod log;

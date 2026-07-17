@@ -3,6 +3,9 @@
 //! Includes adapters between MCP and the trait-level tool representation,
 //! tool discovery for an agent, and the [`crate::NoopToolProvider`] used as a
 //! default when no MCP services are configured.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod adapter;
 pub mod discovery;

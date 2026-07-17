@@ -27,8 +27,9 @@
 [![Crates.io](https://img.shields.io/crates/v/systemprompt-content.svg?style=flat-square)](https://crates.io/crates/systemprompt-content)
 [![Docs.rs](https://img.shields.io/docsrs/systemprompt-content?style=flat-square)](https://docs.rs/systemprompt-content)
 [![License: BSL-1.1](https://img.shields.io/badge/license-BSL--1.1-2b6cb0?style=flat-square)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
+[![codecov](https://img.shields.io/codecov/c/github/systempromptio/systemprompt-core/main?style=flat-square&logo=codecov)](https://codecov.io/gh/systempromptio/systemprompt-core)
 
-Markdown content management, sources, and event tracking for systemprompt.io AI governance dashboards. Governed publishing pipeline for the MCP governance platform with content ingestion, full-text search, link tracking, and UTM analytics.
+Your content, ingested and served from your own binary. Markdown management with frontmatter, full-text search, campaign links, and UTM click analytics, all held in your PostgreSQL rather than a hosted CMS.
 
 **Layer**: Domain — business-logic modules that implement systemprompt.io features. Part of the [systemprompt-core](https://github.com/systempromptio/systemprompt-core) workspace.
 
@@ -48,7 +49,7 @@ This crate handles all content-related functionality:
 
 ```toml
 [dependencies]
-systemprompt-content = "0.18.0"
+systemprompt-content = "0.21"
 ```
 
 ```rust
@@ -87,60 +88,16 @@ use systemprompt_content::{
 };
 ```
 
-## File Structure
+## Module Layout
 
-```
-src/
-├── config/
-│   ├── mod.rs                      # Config exports
-│   ├── validated.rs                # ContentConfigValidated (validation logic)
-│   └── ready.rs                    # ContentReady (loaded content cache)
-├── jobs/
-│   ├── mod.rs                      # Job exports
-│   └── content_ingestion.rs        # execute_content_ingestion entrypoint
-├── models/
-│   ├── mod.rs                      # Model exports
-│   ├── builders/
-│   │   ├── mod.rs                  # Builder exports
-│   │   ├── content.rs              # CreateContentParams, UpdateContentParams
-│   │   └── link.rs                 # CreateLinkParams, RecordClickParams, TrackClickParams
-│   ├── content.rs                  # Content, ContentMetadata, IngestionReport, Tag
-│   ├── content_error.rs            # ContentValidationError
-│   ├── link.rs                     # CampaignLink, LinkClick, LinkPerformance, UtmParams
-│   └── search.rs                   # SearchRequest, SearchResponse, SearchResult
-├── repository/
-│   ├── mod.rs                      # Repository exports
-│   ├── content/
-│   │   ├── mod.rs                  # ContentRepository
-│   │   ├── queries.rs              # Read operations (get, list)
-│   │   └── mutations.rs            # Write operations (create, update, delete)
-│   ├── link/
-│   │   ├── mod.rs                  # LinkRepository
-│   │   └── analytics.rs            # LinkAnalyticsRepository
-│   └── search/
-│       └── mod.rs                  # SearchRepository
-├── services/
-│   ├── mod.rs                      # Service exports
-│   ├── content_provider.rs         # DefaultContentProvider (implements ContentProvider)
-│   ├── ingestion/
-│   │   ├── mod.rs                  # IngestionService
-│   │   └── scanner.rs              # Directory scanning, file validation
-│   ├── link/
-│   │   ├── mod.rs                  # Link service exports
-│   │   ├── analytics.rs            # LinkAnalyticsService
-│   │   └── generation.rs           # LinkGenerationService
-│   ├── search/
-│   │   └── mod.rs                  # SearchService
-│   └── validation/
-│       └── mod.rs                  # Content metadata validation
-├── branding_provider.rs            # DefaultBrandingProvider
-├── homepage_prerenderer.rs         # DefaultHomepagePrerenderer
-├── list_branding_provider.rs       # DefaultListBrandingProvider
-├── list_items_renderer.rs          # ListItemsCardRenderer
-├── extension.rs                    # ContentExtension (schema + job registration)
-├── error.rs                        # ContentError enum (thiserror)
-└── lib.rs                          # Crate root with public exports
-```
+| Module | Purpose |
+|--------|---------|
+| `models/` | `Content`, `ContentMetadata`, search request/response types, and campaign-link/UTM types, with builders. |
+| `repository/` | Compile-time-verified persistence for `content/`, `link/` (plus analytics), and full-text `search/`. |
+| `services/` | `IngestionService` (directory scan and ingest), `SearchService`, `LinkAnalyticsService`, `LinkGenerationService`, and `DefaultContentProvider`. |
+| `config/` | Validated content-source configuration (`ContentConfigValidated`, `ContentReady`). |
+| `jobs/` | `execute_content_ingestion` scheduled ingestion entrypoint. |
+| (crate root) | Branding, homepage prerender, and list-rendering default providers. |
 
 ## Modules
 

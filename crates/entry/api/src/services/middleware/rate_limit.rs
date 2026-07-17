@@ -3,6 +3,9 @@
 //! `RouterExt::with_auth` attaches authentication and authorization in one
 //! call: it requires an `AuthzPolicy`, so a route group cannot be mounted
 //! authenticated-but-unauthorized — omitting the policy is a compile error.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::services::middleware::authz::{AuthzPolicy, authz_gate};
 use crate::services::middleware::client_addr::resolve_client_ip;

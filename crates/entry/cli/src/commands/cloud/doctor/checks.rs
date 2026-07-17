@@ -5,6 +5,9 @@
 //! secrets, provider credentials) are `Fail`; reachability probes whose outcome
 //! depends on where the operator is running the CLI (database TCP, hook host)
 //! are `Warn` so they inform without blocking a legitimate deploy.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::collections::HashMap;
 use std::hash::BuildHasher;

@@ -6,6 +6,9 @@
 //! `set_injected_extensions` lets the application install a fallback
 //! list of [`crate::Extension`] values plus a `WebAssetsStrategy` that the
 //! runtime should honour.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::path::PathBuf;
 use std::sync::{Arc, OnceLock};

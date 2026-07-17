@@ -1,5 +1,8 @@
 //! Live MCP auth probe: an `initialize` → `tools/list` round-trip through the
 //! bridge's loopback proxy, exercising the full auth chain the host app uses.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::time::{Duration, Instant};
 

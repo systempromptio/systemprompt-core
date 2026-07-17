@@ -9,6 +9,9 @@
 //! analytics, user, and JTI-revocation providers; if any is missing it returns
 //! `None` and the gateway stays unmounted. `log_gateway_request` is the
 //! middleware that records every request to the logging repository.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod auth;
 pub mod bridge;

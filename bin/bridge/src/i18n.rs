@@ -2,6 +2,9 @@
 //!
 //! `id = value` lines and `{ $arg }` placeables; en-US embedded fallback,
 //! locale from `LANG`, overridable via `web/i18n/<locale>/bridge.ftl`.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::collections::HashMap;
 use std::sync::OnceLock;

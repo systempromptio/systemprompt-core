@@ -4,6 +4,9 @@
 //! context and task, the MCP tool or skill that produced it, and rendering
 //! hints — and carries the [`Validate`]/[`MetadataValidation`] contract that
 //! rejects artifacts missing their required identity fields.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use chrono::Utc;
 use serde::{Deserialize, Serialize};

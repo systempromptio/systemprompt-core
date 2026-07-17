@@ -27,16 +27,17 @@
 [![Crates.io](https://img.shields.io/crates/v/systemprompt-models.svg?style=flat-square)](https://crates.io/crates/systemprompt-models)
 [![Docs.rs](https://img.shields.io/docsrs/systemprompt-models?style=flat-square)](https://docs.rs/systemprompt-models)
 [![License: BSL-1.1](https://img.shields.io/badge/license-BSL--1.1-2b6cb0?style=flat-square)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
+[![codecov](https://img.shields.io/codecov/c/github/systempromptio/systemprompt-core/main?style=flat-square&logo=codecov)](https://codecov.io/gh/systempromptio/systemprompt-core)
 
-Foundation data models for systemprompt.io. Plain DTOs, on-disk configuration, protocol shapes (A2A, AG-UI, MCP), and the typed error enums every public function in the workspace returns. Consumed by every other layer (`infra`, `domain`, `app`, `entry`).
+Every request through the AI infrastructure you own crosses a shape defined here. This crate holds the DTOs, on-disk configuration, protocol types (A2A, AG-UI, MCP), and the typed error enums every public function in the workspace returns. One vocabulary, defined once, imported by every layer above it.
 
-**Layer**: Shared — no dependencies on other systemprompt layers. Part of the [systemprompt-core](https://github.com/systempromptio/systemprompt-core) workspace.
+The shared layer sits at the bottom of the workspace and depends on no other systemprompt layer. `infra`, `domain`, `app`, and `entry` all consume it. Part of the [systemprompt-core](https://github.com/systempromptio/systemprompt-core) workspace.
 
 ## Installation
 
 ```toml
 [dependencies]
-systemprompt-models = "0.18.0"
+systemprompt-models = "0.21"
 ```
 
 ## Module Map
@@ -53,10 +54,11 @@ systemprompt-models = "0.18.0"
 | `bridge` | Cowork desktop bridge manifest types. |
 | `config` | Global `Config` singleton assembled from profile + secrets. |
 | `content`, `content_config` | Published content metadata and on-disk content routing. |
+| `env` | Environment-variable reading and `${VAR}` / `${VAR:-default}` interpolation. |
 | `errors` | `thiserror`-derived `RepositoryError`, `ServiceError`, and the per-concern parse, secrets, validation, provider, metadata, and row enums. |
 | `events` | Analytics, A2A, context, and system event envelopes. |
 | `execution` | `RequestContext`, `ExecutionStep`, planned-tool bookkeeping. |
-| `extension` | Extension framework manifest and discovery types. |
+| `extension` | Extension manifest and discovery types. |
 | `gateway_hash` | Stable hashing helpers for gateway-derived identifiers. |
 | `macros` | Crate-internal repository helper macros. |
 | `mcp` | MCP server/registry config, deployment, auth state, provider traits. |
@@ -67,11 +69,14 @@ systemprompt-models = "0.18.0"
 | `profile` | On-disk profile, security, server, cloud, database, paths configuration. |
 | `repository` | `ServiceLifecycle` trait, `ServiceRecord`, `WhereClause` query builder. |
 | `routing` | Request routing classification (`RouteClassifier`, `ApiCategory`). |
+| `schema` | JSON-Schema capability matrices and sanitisation for the wire codecs. |
 | `secrets` | Secrets document model and parsing. |
 | `services` | Services manifest: agents, plugins, hooks, MCP, skills, scheduler, marketplace. |
+| `subprocess` | Environment-marker contract between the supervisor and its detached children. |
 | `text`, `time_format` | Small text and timestamp formatting helpers. |
 | `users` | Public user and session summaries. |
 | `validators` | Startup configuration validation passes. |
+| `wire` | Canonical AI wire types and per-protocol codecs shared by gateway and providers. |
 
 ## Error Model
 
@@ -94,21 +99,16 @@ let api_err: ApiError = svc_err.into();
 ## Request Context
 
 ```rust
-use systemprompt_models::{RequestContext, SessionId, TraceId, UserId, ContextId};
+use systemprompt_models::RequestContext;
+use systemprompt_identifiers::{AgentName, ContextId, SessionId, TraceId};
 
-let ctx = RequestContext {
-    session_id: SessionId::generate(),
-    trace_id: TraceId::generate(),
-    user_id: UserId::new("user-789"),
-    context_id: ContextId::generate(),
-    task_id: None,
-    ai_tool_call_id: None,
-    client_id: None,
-    auth_token: None,
-    user: None,
-    start_time: std::time::Instant::now(),
-    user_type: Default::default(),
-};
+let ctx = RequestContext::new(
+    SessionId::generate(),
+    TraceId::generate(),
+    ContextId::generate(),
+    AgentName::new("planner"),
+);
+
 ```
 
 ## Repository Helpers
@@ -116,9 +116,9 @@ let ctx = RequestContext {
 ```rust
 use systemprompt_models::WhereClause;
 
-let (clause, params) = WhereClause::new()
+let (clause, params) = WhereClause::default()
     .eq("status", "active")
-    .is_not_null("pid")
+    .not_null("pid")
     .build();
 ```
 
@@ -129,16 +129,21 @@ let (clause, params) = WhereClause::new()
 | Feature | Default | Description |
 |---------|---------|-------------|
 | `web` | off | `axum::IntoResponse` impls for the API envelopes. |
+| `sqlx` | off | `sqlx::Type` derives for DB-persisted enums. |
 
 ## Dependencies
 
-- `serde`, `serde_json`, `serde_yaml` — serialization
-- `thiserror` — error enums
-- `chrono`, `uuid` — common types
-- `schemars`, `validator`, `regex` — schema generation and validation
-- `rmcp` — MCP protocol types
-- `axum` — optional, with the `web` feature
-- `systemprompt-traits`, `systemprompt-identifiers`, `systemprompt-extension`, `systemprompt-provider-contracts` — shared layer siblings
+- `serde`, `serde_json`, `serde_yaml`: serialization
+- `thiserror`, `async-trait`: error enums and async traits
+- `chrono`, `uuid`, `indexmap`: common types
+- `schemars`, `regex`: schema generation and pattern validation
+- `zeroize`: wipe credential material on drop
+- `http`, `url`, `bytes`, `futures`, `futures-util`: HTTP types, SSRF URL validation, and wire/stream codecs
+- `tracing`: structured logging
+- `rmcp`: MCP protocol types
+- `sqlx`: optional, with the `sqlx` feature
+- `axum`: optional, with the `web` feature
+- `systemprompt-traits`, `systemprompt-identifiers`, `systemprompt-extension`, `systemprompt-provider-contracts`: shared layer siblings
 
 ## License
 

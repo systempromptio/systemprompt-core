@@ -1,6 +1,9 @@
 //! Per-step helpers used by [`super::initialization::setup_stream`]:
 //! context validation, initial task persistence, and push-notification config
 //! storage.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
 

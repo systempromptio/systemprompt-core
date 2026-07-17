@@ -1,5 +1,8 @@
 //! Install orchestration: directory bootstrap, optional config persistence,
 //! MDM step dispatch, and schedule template emission.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use super::{
     InstallError, InstallOptions, InstallSummary, MdmDisplay, bootstrap, mdm, schedule_emit,

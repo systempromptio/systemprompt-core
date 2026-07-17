@@ -13,6 +13,9 @@
 //!   the explicit `unrestricted` acknowledgement in the profile. Allows every
 //!   request; logs an `ERROR` line at boot and writes an audit row per call so
 //!   unrestricted operation is never silent.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
 use std::time::Duration;

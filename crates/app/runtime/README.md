@@ -27,154 +27,44 @@
 [![Crates.io](https://img.shields.io/crates/v/systemprompt-runtime.svg?style=flat-square)](https://crates.io/crates/systemprompt-runtime)
 [![Docs.rs](https://img.shields.io/docsrs/systemprompt-runtime?style=flat-square)](https://docs.rs/systemprompt-runtime)
 [![License: BSL-1.1](https://img.shields.io/badge/license-BSL--1.1-2b6cb0?style=flat-square)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
+[![codecov](https://img.shields.io/codecov/c/github/systempromptio/systemprompt-core/main?style=flat-square&logo=codecov)](https://codecov.io/gh/systempromptio/systemprompt-core)
 
-Application runtime for systemprompt.io AI governance infrastructure. Provides `AppContext`, lifecycle builder, extension registry, and module wiring for the MCP governance pipeline. Centralizes access to database connections, configuration, extension services, and startup validation.
+The one place every request passes through before it reaches an agent, a tool, or the gateway. `AppContext` holds the database pool, configuration, registries, and analytics that the governance pipeline reads from, and this crate builds it, validates it at startup, and wires modules into it at compile time.
 
-**Layer**: App — orchestrates domain modules. Part of the [systemprompt-core](https://github.com/systempromptio/systemprompt-core) workspace.
+**Layer**: App, orchestrates domain modules. Part of the [systemprompt-core](https://github.com/systempromptio/systemprompt-core) workspace.
 
 ## Overview
 
-Part of the App layer in the systemprompt.io architecture.
+This crate:
+
+- Builds and holds `AppContext`, the central runtime state container.
+- Registers module routes at compile time through `inventory` macros.
+- Validates system configuration and extensions before the server accepts traffic.
+- Coordinates domain services without implementing business logic.
+
 **Infrastructure** · [Self-Hosted Deployment](https://systemprompt.io/features/self-hosted-ai-platform)
 
-This crate is the application-layer orchestrator that:
+## Modules
 
-- Initializes and manages the `AppContext` - the central runtime state container
-- Provides compile-time module registration via `inventory` macros
-- Validates system configuration and extensions at startup
-- Coordinates domain services without implementing business logic
+| Module | Purpose |
+|--------|---------|
+| `context` | `AppContext` and its planes (`DataPlane`, `ConfigPlane`, `Plugins`, `Subsystems`), plus the GeoIP and content-config loaders |
+| `builder` | `AppContextBuilder` fluent construction (`with_extensions`, `with_marketplace_filter`) and plane assembly |
+| `registry` | Compile-time module registration and routing (`ModuleApiRegistry`, `ModuleApiRegistration`, `ModuleType`, `WellKnownRoute`) |
+| `startup_validation` | `StartupValidator` across files, rate limits, web/content config, agents, MCP servers, AI providers, and extensions |
+| `database_context` | `DatabaseContext`, a database-only context for CLI tools that do not need the full runtime |
+| `span` | `create_request_span`, builds a tracing span with user, session, trace, and context IDs |
+| `wellknown` | `.well-known` endpoint metadata registry (`WellKnownMetadata`, `get_wellknown_metadata`) |
+| `validation` | Runtime prerequisite checks (`validate_system`, `validate_database_path`) |
+| `error` | `RuntimeError` / `RuntimeResult`, the typed error model for construction and validation |
 
-## Architecture
-
-```
-src/
-├── lib.rs                    # Public exports and registration macros
-├── builder.rs                # AppContextBuilder fluent construction
-├── context.rs                # AppContext runtime state container
-├── context_loaders.rs        # GeoIP and content config loaders
-├── context_traits.rs         # Context-facing trait surfaces
-├── database_context.rs       # Standalone database context for CLI tools
-├── error.rs                  # RuntimeError / RuntimeResult
-├── registry.rs               # Module API registry and routing
-├── span.rs                   # Request tracing span construction
-├── startup_validation/       # Multi-domain configuration validation
-│   ├── mod.rs                # StartupValidator orchestration
-│   ├── config_loaders.rs     # Config file loading utilities
-│   ├── display.rs            # Validation report rendering
-│   ├── extension_validator.rs # Extension validation logic
-│   ├── files_validator.rs    # FilesConfig domain validator
-│   └── mcp_validator.rs      # MCP manifest validation
-├── validation.rs             # Runtime system checks
-└── wellknown.rs              # Well-known endpoint metadata registry
-```
-
-### `context.rs` / `builder.rs`
-
-**Purpose:** Central runtime state container providing access to all shared resources.
-
-| Export | Description |
-|--------|-------------|
-| `AppContext` | Holds database pool, config, registries, analytics, and GeoIP reader |
-| `AppContextParts` | Grouped construction parameters for `AppContext::from_parts` |
-| `AppContextBuilder` | Fluent builder, including `with_extensions` and `with_marketplace_filter` |
-
-Key behaviors:
-- Loads configuration via `ProfileBootstrap` and `Config::get()`
-- Initializes database connection from config
-- Discovers and validates extensions via `ExtensionRegistry`
-- Optionally loads GeoIP database and content configuration
-- Initializes tracing with database persistence
-
-### `context_loaders.rs`
-
-**Purpose:** Resource loaders consumed by `AppContextBuilder`.
-
-| Export | Description |
-|--------|-------------|
-| `load_geoip_database` | Loads the MaxMind GeoIP reader when `geolocation` is enabled |
-| `load_content_config` | Loads the optional content routing configuration |
-
-### `context_traits.rs`
-
-**Purpose:** Trait surfaces exposed by `AppContext` to consumers.
-
-### `error.rs`
-
-**Purpose:** Typed error model for runtime construction and validation.
-
-| Export | Description |
-|--------|-------------|
-| `RuntimeError` | `thiserror` enum covering bootstrap, validation, and IO failures |
-| `RuntimeResult` | Result alias bound to `RuntimeError` |
-
-### `database_context.rs`
-
-**Purpose:** Lightweight database-only context for CLI tools that don't need full runtime.
-
-| Export | Description |
-|--------|-------------|
-| `DatabaseContext` | Minimal context with just a database pool |
-
-### `registry.rs`
-
-**Purpose:** Compile-time module registration and runtime routing.
-
-| Export | Description |
-|--------|-------------|
-| `ModuleApiRegistry` | Collects all registered module routes at startup |
-| `ModuleApiRegistration` | Static registration struct submitted via `inventory` |
-| `ModuleRuntime` | Trait for modules to expose their routes |
-| `WellKnownRoute` | Registration for `.well-known` endpoints |
-
-### `span.rs`
-
-**Purpose:** Constructs tracing spans from request context.
-
-| Export | Description |
-|--------|-------------|
-| `create_request_span` | Builds a `RequestSpan` with user, session, trace, and context IDs |
-
-### `startup_validation/`
-
-**Purpose:** Multi-domain configuration validation at application startup.
-
-| Export | Description |
-|--------|-------------|
-| `StartupValidator` | Orchestrates validation across all domain config validators |
-| `display_validation_report` | Renders validation errors to console |
-| `display_validation_warnings` | Renders validation warnings to console |
-
-Submodules:
-- `config_loaders.rs` - YAML config loading with spinner feedback
-- `display.rs` - Console rendering for validation reports
-- `extension_validator.rs` - Extension config and asset validation
-- `files_validator.rs` - `FilesConfigValidator` domain implementation
-- `mcp_validator.rs` - MCP server manifest validation
-
-Validates: files, rate limits, web config, content config, agents, MCP servers, AI providers, and extensions.
-
-### `validation.rs`
-
-**Purpose:** Runtime system prerequisite checks.
-
-| Export | Description |
-|--------|-------------|
-| `validate_system` | Validates database connection and path |
-
-### `wellknown.rs`
-
-**Purpose:** Metadata registry for `.well-known` endpoints.
-
-| Export | Description |
-|--------|-------------|
-| `WellKnownMetadata` | Static metadata (path, name, description) for discovery |
-| `get_wellknown_metadata` | Retrieves metadata for a given path |
+`AppContext` is assembled either through `AppContextBuilder` (the bootstrap path: `ProfileBootstrap`, database init, extension discovery, optional GeoIP and content config, tracing with database persistence) or directly through `AppContext::from_parts(data, cfg, plugins, subsystems)` for tests and embedders that own plane construction.
 
 ## Usage
 
 ```toml
 [dependencies]
-systemprompt-runtime = "0.18.0"
+systemprompt-runtime = "0.21"
 ```
 
 ### Macros

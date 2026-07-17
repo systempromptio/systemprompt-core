@@ -21,6 +21,9 @@
 //!   framework.
 //! - [`LoggingRepository`], [`AnalyticsRepository`] — direct repository access.
 //! - [`TraceQueryService`], [`AiTraceService`] — typed audit/trace queries.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod attribution;
 pub mod extension;

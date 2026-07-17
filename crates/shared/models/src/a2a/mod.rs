@@ -1,6 +1,9 @@
 //! A2A protocol models — agent cards, messages, tasks, artifacts, and
 //! transport descriptors. Protocol types retain raw `String` fields to
 //! match the external JSON-RPC specification.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod agent_card;
 pub mod artifact;

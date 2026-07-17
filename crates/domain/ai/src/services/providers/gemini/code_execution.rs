@@ -1,6 +1,9 @@
 //! Gemini server-side code execution: builds a canonical request with the
 //! code-execution flag set, renders it with the shared codec (which adds the
 //! `codeExecution` tool), and maps the parsed reply back.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::time::Instant;
 

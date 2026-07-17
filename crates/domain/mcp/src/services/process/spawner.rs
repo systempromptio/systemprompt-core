@@ -5,6 +5,9 @@
 //! trust allowlist), redirecting output to a size-rotated log file and
 //! detaching the child so it outlives this call. Also covers binary
 //! verification and an on-demand debug build path.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::McpServerConfig;
 use crate::error::McpDomainResult;

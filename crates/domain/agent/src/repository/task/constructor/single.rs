@@ -1,3 +1,6 @@
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
 use crate::models::a2a::{Artifact, Message, MessageRole, Part, Task, TaskStatus};
 use crate::models::{MessagePart, TaskMessage, TaskRow};
 use crate::repository::execution::ExecutionStepRepository;

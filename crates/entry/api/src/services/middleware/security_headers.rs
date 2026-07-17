@@ -1,3 +1,6 @@
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
 use axum::extract::Request;
 use axum::http::HeaderValue;
 use axum::middleware::Next;

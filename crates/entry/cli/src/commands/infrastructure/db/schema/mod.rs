@@ -3,6 +3,9 @@
 //! Implements the `tables`, `describe`, `info`, and `count` subcommands over a
 //! [`DatabaseAdminService`], rendering JSON or formatted text. Schema
 //! validation lives in the `validate` submodule and is re-exported here.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod validate;
 

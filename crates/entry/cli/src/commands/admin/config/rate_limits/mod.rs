@@ -5,6 +5,9 @@
 //! endpoint rates and tier multipliers, validating the configuration, applying
 //! presets, and importing/exporting/diffing against files or defaults. The
 //! editing paths persist changes to the active profile YAML.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod diff;
 mod helpers;

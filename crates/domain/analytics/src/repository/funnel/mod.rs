@@ -4,6 +4,9 @@
 //! records `funnel_progress` as sessions advance, and computes drop-off
 //! statistics. Mutations live in `mutations`, reads in `finders` and `stats`,
 //! and shared row types in `types`.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod finders;
 mod mutations;

@@ -6,6 +6,9 @@
 //! `services/gateway/policies.yaml` is ingested into the DB at every server
 //! boot via [`load_from_yaml`]. Model exposure is owned by the profile
 //! catalog, not by this spec.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod config;
 mod ingestion;

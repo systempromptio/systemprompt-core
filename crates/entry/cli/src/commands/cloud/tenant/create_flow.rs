@@ -3,6 +3,9 @@
 //! Prompts for the tenant type and database source, creates the tenant via
 //! the matching constructor, persists it to the tenant store, and renders the
 //! result.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use anyhow::Result;
 use systemprompt_cloud::{CloudCredentials, CloudPath, StoredTenant, TenantStore, get_cloud_paths};

@@ -1,3 +1,6 @@
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
 use crate::error::ContentError;
 use crate::models::ContentMetadata;
 use crate::services::validation::validate_content_metadata;

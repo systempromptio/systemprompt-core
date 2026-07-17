@@ -2,6 +2,9 @@
 //!
 //! These structures back the list, detail, validation, and generation
 //! responses rendered by the plugin subcommands in both text and JSON modes.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};

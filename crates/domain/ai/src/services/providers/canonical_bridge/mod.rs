@@ -9,6 +9,9 @@
 //! `response` / `stream` submodules. Vendor wire translation lives in the
 //! shared codec only; this module owns the agent-side glue (auto-policy,
 //! canonical→agent type mapping) and nothing vendor-specific.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod request;
 mod response;

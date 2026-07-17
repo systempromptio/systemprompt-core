@@ -4,6 +4,9 @@
 //! agent response, execution steps, AI requests with their system prompt and
 //! conversation messages — and re-exports the MCP-execution query counterparts.
 //! `resolve_task_id` expands a partial task id to the most recent full match.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::models::LoggingError;
 pub(super) type Result<T> = std::result::Result<T, LoggingError>;

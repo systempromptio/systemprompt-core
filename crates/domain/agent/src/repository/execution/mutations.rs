@@ -1,5 +1,8 @@
 //! Write paths for the execution-step repository — step creation, completion,
 //! and failure transitions.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use chrono::{DateTime, Utc};
 use systemprompt_identifiers::TaskId;

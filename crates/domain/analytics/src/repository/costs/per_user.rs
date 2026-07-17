@@ -3,6 +3,9 @@
 //! Scopes spend, token, and conversation reads from `ai_requests` to a single
 //! [`UserId`], including model/agent breakdowns and recent-context summaries
 //! used for per-user billing and usage views.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use super::CostAnalyticsRepository;
 use crate::Result;

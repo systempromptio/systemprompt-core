@@ -3,6 +3,9 @@
 //! [`handle_agent_request`] is the single entry point: it parses the JSON-RPC
 //! envelope, enforces OAuth when required, derives the request context, and
 //! routes to the streaming, push-notification, or non-streaming handlers.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod helpers;
 mod non_streaming;

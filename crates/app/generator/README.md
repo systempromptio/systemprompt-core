@@ -27,91 +27,35 @@
 [![Crates.io](https://img.shields.io/crates/v/systemprompt-generator.svg?style=flat-square)](https://crates.io/crates/systemprompt-generator)
 [![Docs.rs](https://img.shields.io/docsrs/systemprompt-generator?style=flat-square)](https://docs.rs/systemprompt-generator)
 [![License: BSL-1.1](https://img.shields.io/badge/license-BSL--1.1-2b6cb0?style=flat-square)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
+[![codecov](https://img.shields.io/codecov/c/github/systempromptio/systemprompt-core/main?style=flat-square&logo=codecov)](https://codecov.io/gh/systempromptio/systemprompt-core)
 
-Static site generation, theme rendering, and asset bundling for systemprompt.io AI governance dashboards. Coordinates domain services to generate prerendered HTML pages, sitemaps, RSS feeds, and optimized assets via a Handlebars and Markdown pipeline.
+The static site your governance dashboards ship from, built on the same PostgreSQL you own. This crate turns content records into prerendered HTML, sitemaps, RSS feeds, and organised assets, all from a Markdown and template pipeline that runs inside your binary.
 
-**Layer**: App — orchestrates domain modules. Part of the [systemprompt-core](https://github.com/systempromptio/systemprompt-core) workspace.
+**Layer**: App, orchestrates domain modules. Part of the [systemprompt-core](https://github.com/systempromptio/systemprompt-core) workspace.
 
 ## Overview
 
-Part of the App layer in the systemprompt.io architecture.
+The content publishing pipeline runs in four stages:
+
+1. **Content fetch** reads sources and content records from the database.
+2. **Prerender** generates static HTML for every content page and registered page prerenderer.
+3. **Asset organisation** copies and arranges CSS, JS, fonts, and images into the dist tree.
+4. **Feed generation** writes sitemaps and RSS feeds for search discovery.
+
 **Integrations** · [Extensible Architecture](https://systemprompt.io/features/extensible-architecture)
 
-This application-layer crate orchestrates the full content publishing pipeline:
-
-1. **Content Ingestion** - Fetches and processes content from sources
-2. **Prerendering** - Generates static HTML for all content pages
-3. **Asset Organization** - Copies and organizes CSS, JS, fonts, and images
-4. **Feed Generation** - Creates sitemaps and RSS feeds for SEO
-
-## Architecture
-
-```
-src/
-├── lib.rs                    # Public API exports and crate-level docs
-├── api.rs                    # HTTP API content fetching
-├── assets.rs                 # Dist asset organisation (organize_dist_assets)
-│
-├── build/                    # Web build orchestration
-│   ├── mod.rs               # Module exports
-│   ├── orchestrator.rs      # BuildOrchestrator, BuildMode, BuildError
-│   ├── steps.rs             # CSS build steps
-│   └── validation.rs        # Sitemap URL validation
-│
-├── content/                  # Content processing
-│   ├── mod.rs               # Module exports
-│   ├── markdown.rs          # Markdown rendering, frontmatter extraction
-│   └── toc.rs               # Table of contents extraction and heading IDs
-│
-├── error/                    # Typed errors
-│   ├── mod.rs               # PublishError, GeneratorResult
-│   └── suggestions.rs       # Human-readable error-suggestion strings
-│
-├── jobs/                     # Scheduled job definitions
-│   ├── mod.rs               # Module exports
-│   ├── copy_assets.rs       # execute_copy_extension_assets entry point
-│   ├── content_prerender.rs # ContentPrerenderJob
-│   └── page_prerender.rs    # PagePrerenderJob
-│
-├── prerender/                # Static page generation
-│   ├── mod.rs               # Module exports
-│   ├── engine.rs            # prerender_content, prerender_pages entry points
-│   ├── context.rs           # PrerenderContext
-│   ├── content.rs           # Source processing, item rendering
-│   ├── fetch.rs             # Database content fetching with retries
-│   ├── list.rs              # Listing / index page rendering
-│   ├── render.rs            # Per-item render orchestration
-│   └── utils.rs             # Shared prerender helpers
-│
-├── rss/                      # RSS feed generation
-│   ├── mod.rs               # Module exports
-│   ├── generator.rs         # generate_feed / generate_feed_with_providers
-│   ├── default_provider.rs  # DefaultRssFeedProvider
-│   └── xml.rs               # RssChannel, RssItem, XML building
-│
-├── sitemap/                  # Sitemap generation
-│   ├── mod.rs               # Module exports
-│   ├── generator.rs         # generate_sitemap entry point
-│   ├── default_provider.rs  # DefaultSitemapProvider
-│   └── xml.rs               # SitemapUrl, build_sitemap_xml, build_sitemap_index
-│
-└── templates/                # Template configuration loading
-    ├── mod.rs               # Module exports
-    └── engine.rs            # load_web_config, get_templates_path
-```
-
-### Module Descriptions
+## Modules
 
 | Module | Purpose |
 |--------|---------|
-| `build` | Orchestrates the web build with progress reporting and CSS organisation |
-| `content` | Markdown rendering, frontmatter extraction, and TOC generation |
-| `error` | Typed `PublishError` and `GeneratorResult` returned across the public API |
-| `jobs` | Scheduled jobs registered with the systemprompt scheduler via `inventory` |
-| `prerender` | Static HTML generation for content sources and registered page prerenderers |
+| `build` | Orchestrates the web build with progress reporting and CSS organisation (`BuildOrchestrator`, `BuildMode`, `BuildError`) |
+| `content` | Markdown rendering and frontmatter extraction |
+| `prerender` | Static HTML generation for content sources and page prerenderers, plus table-of-contents extraction (`toc.rs`) and JSON data merging |
 | `rss` | RSS 2.0 feed generation with a default feed provider |
 | `sitemap` | XML sitemap generation with chunking and a default sitemap provider |
 | `templates` | Template-path resolution and `WebConfig` loading |
+| `jobs` | Scheduled jobs registered with the systemprompt scheduler via `inventory` |
+| `error` | Typed `PublishError` and `GeneratorResult` returned across the public API |
 
 ### Key Types
 
@@ -130,7 +74,7 @@ src/
 
 ```toml
 [dependencies]
-systemprompt-generator = "0.18.0"
+systemprompt-generator = "0.21"
 ```
 
 ### Public Exports
@@ -140,7 +84,10 @@ pub use assets::organize_dist_assets;
 pub use build::{BuildError, BuildMode, BuildOrchestrator};
 pub use content::{extract_frontmatter, render_markdown};
 pub use error::{GeneratorResult, PublishError};
-pub use prerender::{PagePrerenderResult, prerender_content, prerender_pages};
+pub use prerender::{
+    PagePrerenderResult, TocResult, generate_toc, merge_json_data, prerender_content,
+    prerender_pages,
+};
 pub use rss::{
     DefaultRssFeedProvider, GeneratedFeed, RssChannel, RssItem, build_rss_xml,
     generate_feed, generate_feed_with_providers,
@@ -149,8 +96,8 @@ pub use sitemap::{
     DefaultSitemapProvider, SitemapUrl, build_sitemap_index, build_sitemap_xml,
     escape_xml, generate_sitemap,
 };
-pub use templates::load_web_config;
-pub use jobs::{ContentPrerenderJob, PagePrerenderJob, execute_copy_extension_assets};
+pub use templates::{get_templates_path, load_web_config};
+pub use jobs::{ContentPrerenderJob, PagePrerenderJob, copy_asset, execute_copy_extension_assets};
 ```
 
 ## Dependencies
@@ -160,12 +107,12 @@ pub use jobs::{ContentPrerenderJob, PagePrerenderJob, execute_copy_extension_ass
 | `systemprompt-database` | Database connection pool |
 | `systemprompt-content` | Content repository and models |
 | `systemprompt-templates` | Template registry and rendering |
+| `systemprompt-template-provider` | Template provider traits |
+| `systemprompt-provider-contracts` | Provider-contract registration |
 | `systemprompt-models` | Configuration and domain types |
 | `systemprompt-identifiers` | Typed identifiers (SourceId, ContentId) |
 | `systemprompt-traits` | Job trait interface |
 | `systemprompt-extension` | Extension discovery and assets |
-| `systemprompt-files` | File storage configuration |
-| `handlebars` | Template engine |
 | `comrak` | Markdown to HTML |
 
 ## Architecture Notes

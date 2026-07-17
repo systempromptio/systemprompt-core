@@ -3,6 +3,9 @@
 //! Removes a tenant from the store, cancelling its cloud subscription via the
 //! API or dropping its shared-container database for local tenants, and tears
 //! down the shared `PostgreSQL` container once the last local tenant is gone.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use anyhow::{Result, anyhow, bail};
 use systemprompt_cloud::{

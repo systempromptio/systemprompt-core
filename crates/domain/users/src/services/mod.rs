@@ -5,6 +5,9 @@
 //! workflows, [`ApiKeyService`] for API-key issuance, and [`DeviceCertService`]
 //! for device-certificate enrollment. [`UserService`] itself implements the
 //! cross-crate `UserProvider` trait (see `user::provider`).
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod admin_service;
 mod api_key_service;

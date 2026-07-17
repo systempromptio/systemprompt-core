@@ -25,6 +25,9 @@
 //! `systemprompt-database`, `systemprompt-cloud`, `systemprompt-config`,
 //! `systemprompt-models`, `systemprompt-traits`, and
 //! `systemprompt-provider-contracts`.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub(crate) mod config;
 pub mod error;

@@ -1,5 +1,8 @@
 //! Axum handler adapters for the MCP and agent proxy routes, each delegating
 //! to [`ProxyEngine::proxy_request`].
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use axum::body::Body;
 use axum::extract::{Path, Request, State};

@@ -3,6 +3,9 @@
 //! Provisions an admin user, mints a session token, and records the session
 //! row plus context for both the local ([`create_local_session`]) and tenant
 //! ([`create_session_for_tenant`]) paths.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod helpers;
 

@@ -3,6 +3,9 @@
 //! [`FullConfig`] aggregates the per-section outputs; [`build_env_config`]
 //! projects the resolved [`systemprompt_models::Config`] into an
 //! [`EnvironmentConfig`] with secrets and credentials redacted.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

@@ -2,6 +2,9 @@
 //!
 //! Builds the router for event ingestion (single and batch) and the live
 //! analytics SSE stream, wiring the shared [`AnalyticsState`] repositories.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod events;
 mod stream;

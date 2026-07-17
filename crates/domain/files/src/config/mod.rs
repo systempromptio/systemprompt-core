@@ -1,4 +1,7 @@
 //! Profile-driven configuration for the files crate.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod types;
 mod validator;

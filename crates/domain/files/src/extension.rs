@@ -3,6 +3,9 @@
 //! Registers the `files`, `content_files`, and `ai_image_analytics` schemas
 //! with the platform extension framework and declares dependencies on the
 //! `users` and `content` extensions.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_extension::prelude::*;
 

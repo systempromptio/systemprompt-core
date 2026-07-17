@@ -2,6 +2,9 @@
 //!
 //! Health probes, proxy reachability checks, and aggregated per-service
 //! status snapshots.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod health;
 pub mod health_monitor;

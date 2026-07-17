@@ -5,6 +5,9 @@
 //! (request build, response parse, SSE-to-event mapping) to the shared
 //! [`systemprompt_models::wire::openai_chat`] codec. Also serves
 //! OpenAI-compatible providers exposing the same surface.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use anyhow::{Result, anyhow};
 use async_trait::async_trait;

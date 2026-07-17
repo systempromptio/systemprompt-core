@@ -6,7 +6,7 @@
   <img src="https://systemprompt.io/files/images/logo.svg" alt="systemprompt.io" width="180">
 </picture>
 
-### Production infrastructure for AI agents
+### One audited path for every agent and tool call
 
 [**Website**](https://systemprompt.io) · [**Documentation**](https://systemprompt.io/documentation/) · [**Guides**](https://systemprompt.io/guides) · [**Core**](https://github.com/systempromptio/systemprompt-core) · [**CLI Reference**](https://github.com/systempromptio/systemprompt-core/tree/main/crates/entry/cli) · [**Discord**](https://discord.gg/wkAbSuPWpr)
 
@@ -17,7 +17,7 @@
 
 # Logs CLI Commands
 
-This document provides complete documentation for AI agents to use the logs CLI commands. All commands support non-interactive mode for automation.
+The log store is the record of what your agents actually did. Every AI request, tool call, and execution trace lands in one PostgreSQL table you own, and these commands read it back. This document is the complete reference for driving the logs CLI, and every command supports non-interactive mode for automation.
 
 ---
 
@@ -44,11 +44,14 @@ alias sp="./target/debug/systemprompt --non-interactive"
 | `infra logs cleanup` | Clean up old log entries | `Card` | No (DB only) |
 | `infra logs delete` | Delete all log entries | `Card` | No (DB only) |
 | `infra logs summary` | Show logs summary statistics | `Card` | No (DB only) |
+| `infra logs show <id>` | Show a log entry, or all logs for a trace | `Card` / `Table` | No (DB only) |
 | `infra logs trace list` | List execution traces | `Table` | No (DB only) |
 | `infra logs trace show <id>` | View specific trace | `Card` | No (DB only) |
 | `infra logs request list` | List AI requests | `Table` | No (DB only) |
 | `infra logs request show <id>` | Show AI request details | `Card` | No (DB only) |
 | `infra logs request stats` | Show aggregate AI statistics | `Card` | No (DB only) |
+| `infra logs tools list` | List MCP tool executions | `Table` | No (DB only) |
+| `infra logs audit <id>` | Reconstruct the full chain for a request, task, or trace | `Card` | No (DB only) |
 
 ---
 
@@ -316,6 +319,49 @@ sp infra logs summary --since 24h
 
 ---
 
+### logs show
+
+Show details of a single log entry, or every log entry sharing a trace id. The id is resolved in order: exact log id, then trace id, then partial-id match.
+
+```bash
+sp infra logs show log_abc123
+sp infra logs show trace_def456
+sp infra logs show abc123 --json
+```
+
+**Required Arguments:**
+| Argument | Required | Description |
+|----------|----------|-------------|
+| `<id>` | Yes | Log entry ID or trace ID (can be partial) |
+
+**Optional Flags:**
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--json` | `false` | Output as JSON |
+
+**Output Structure (single log entry):**
+```json
+{
+  "id": "log_abc123",
+  "trace_id": "trace_def456",
+  "timestamp": "2024-01-15 10:30:00.123",
+  "level": "INFO",
+  "module": "agent",
+  "message": "Task completed successfully",
+  "metadata": {"task_id": "task_abc123"},
+  "user_id": "user_admin",
+  "session_id": "sess_xyz",
+  "task_id": "task_abc123",
+  "context_id": "ctx_123"
+}
+```
+
+When the id resolves to a trace, the output is a `Table` of that trace's log entries instead.
+
+**Artifact Type:** `Card` (single entry) or `Table` (trace)
+
+---
+
 ## Trace Commands
 
 ### logs trace list
@@ -577,6 +623,97 @@ sp infra logs request stats --since 7d
 
 ---
 
+## Tools Commands
+
+### logs tools list
+
+List and search MCP tool executions recorded across traces.
+
+```bash
+sp infra logs tools list
+sp --json infra logs tools list
+sp infra logs tools list --name research_blog
+sp infra logs tools list --server content-manager --since 1h
+sp infra logs tools list --status error -n 100
+```
+
+**Flags:**
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--name` | None | Filter by tool name (partial match) |
+| `--server` | None | Filter by server name (partial match) |
+| `--status` | None | Filter by status (`success`, `error`, `pending`) |
+| `--since` | None | Only show executions since this duration (e.g., `1h`, `7d`) |
+| `--limit`, `-n` | `50` | Maximum results |
+
+**Output Structure:**
+```json
+{
+  "executions": [
+    {
+      "timestamp": "2024-01-15 10:30:00",
+      "trace_id": "trace_abc123",
+      "tool_name": "search",
+      "server": "filesystem",
+      "status": "success",
+      "duration_ms": 45
+    }
+  ],
+  "total": 20
+}
+```
+
+**Artifact Type:** `Table`
+**Columns:** `timestamp`, `trace_id`, `tool_name`, `server`, `status`, `duration_ms`
+
+---
+
+## Audit Command
+
+### logs audit
+
+Reconstruct the full chain for one AI request, task, or trace id: identity, model served versus requested, prompt and response messages, tool calls, tokens, and cost. This is the single command that turns a task id into the complete audited record of what the model was sent and what it did.
+
+```bash
+sp infra logs audit abc123
+sp --json infra logs audit task-xyz
+sp infra logs audit trace_def456
+```
+
+**Required Arguments:**
+| Argument | Required | Description |
+|----------|----------|-------------|
+| `<id>` | Yes | AI request ID, task ID, or trace ID |
+
+**Output Structure:**
+```json
+{
+  "request_id": "req_abc123",
+  "provider": "anthropic",
+  "model": "claude-sonnet-4-6-20250610",
+  "requested_model": "claude-sonnet-4-6",
+  "input_tokens": 500,
+  "output_tokens": 200,
+  "cost_dollars": 0.0007,
+  "latency_ms": 850,
+  "task_id": "task_xyz789",
+  "trace_id": "trace_def456",
+  "messages": [
+    {"sequence": 0, "role": "system", "content": "You are..."},
+    {"sequence": 1, "role": "user", "content": "Hello"}
+  ],
+  "tool_calls": [
+    {"tool_name": "search", "tool_input": "{\"query\":\"...\"}", "sequence": 0}
+  ]
+}
+```
+
+When the id matches no AI request, the command returns a not-found `Card` rather than erroring.
+
+**Artifact Type:** `Card`
+
+---
+
 ## Tracing Agent Messages
 
 When you send a message to an agent via the A2A protocol, you can trace the full execution flow using the logs commands.
@@ -645,7 +782,7 @@ sp infra logs request show <request-id> --messages
 sp infra logs request stats --since 1h
 ```
 
-**Related Documentation:** See [agents/README.md](../agents/README.md) for details on sending messages to agents.
+**Related Documentation:** See [agents/README.md](../../admin/agents/README.md) for details on sending messages to agents.
 
 ---
 
@@ -670,13 +807,20 @@ sp infra logs export --format json --since 7d -o ./weekly-logs.json
 # Phase 6: Trace debugging
 sp --json infra logs trace list --since 1h
 sp infra logs trace show trace_abc123 --all
+sp infra logs show trace_abc123
 
 # Phase 7: AI request analysis
 sp --json infra logs request list --since 24h --provider anthropic
 sp --json infra logs request show req_abc123 --messages --tools
 sp --json infra logs request stats --since 24h
 
-# Phase 8: Cleanup old logs
+# Phase 8: MCP tool executions
+sp --json infra logs tools list --since 24h --status error
+
+# Phase 9: Full-chain audit of a single request or task
+sp --json infra logs audit task_xyz789
+
+# Phase 10: Cleanup old logs
 sp infra logs cleanup --older-than 30d --dry-run
 sp infra logs cleanup --older-than 30d --yes
 ```

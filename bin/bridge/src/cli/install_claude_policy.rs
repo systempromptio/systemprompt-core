@@ -5,6 +5,9 @@
 //! when a non-elevated install hits the ACL-protected
 //! `SOFTWARE\Policies\Claude` subtree, and reads the outcome from the result
 //! file argument.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::process::ExitCode;
 

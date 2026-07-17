@@ -1,5 +1,8 @@
 //! Opening a gateway audit record: insert the request row, its payload, and the
 //! canonical request messages.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use anyhow::Result;
 use bytes::Bytes;

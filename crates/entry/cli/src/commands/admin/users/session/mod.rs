@@ -3,6 +3,9 @@
 //! [`SessionCommands`] lists active sessions, ends a session, and cleans up old
 //! anonymous users. On a `--database-url` invocation only listing is served;
 //! the write operations require a full profile context.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod cleanup;
 mod end;

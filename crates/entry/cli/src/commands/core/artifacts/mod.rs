@@ -3,6 +3,9 @@
 //! Dispatches the [`ArtifactsCommands`] subcommands (list, show) against the
 //! invocation's [`CommandContext`], rendering each command's `CommandOutput`
 //! to the configured output sink.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod list;
 pub mod show;

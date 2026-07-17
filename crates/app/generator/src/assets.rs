@@ -1,6 +1,9 @@
 //! Reorganise the freshly-built `dist/` directory by moving CSS and JS files
 //! from the root into per-extension subdirectories so the generated site has
 //! a tidy `dist/css/*.css` and `dist/js/*.js` layout.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::path::Path;
 use tokio::fs;

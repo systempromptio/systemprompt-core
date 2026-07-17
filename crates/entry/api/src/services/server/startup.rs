@@ -6,6 +6,9 @@
 //! agent reconciliation run. Once bootstrap completes, the full router is
 //! swapped onto the same listener via [`EarlyServer::activate`]; the port is
 //! bound exactly once, so probes never hit an unbind/rebind window.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::convert::Infallible;
 use std::net::SocketAddr;

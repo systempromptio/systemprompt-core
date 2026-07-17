@@ -3,6 +3,9 @@
 //! [`ProcessMonitor`] spawns a polling loop that checks each running service's
 //! PID against the live process table, marks vanished processes as crashed, and
 //! reports aggregate state via [`HealthSummary`] and [`ModuleHealth`].
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use anyhow::Result;
 use std::time::Duration;

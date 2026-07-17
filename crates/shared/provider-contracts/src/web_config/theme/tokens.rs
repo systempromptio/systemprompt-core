@@ -1,4 +1,7 @@
 //! Cross-cutting design tokens: shadows, animation, z-index, touch targets.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use serde::{Deserialize, Serialize};
 

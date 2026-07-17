@@ -2,6 +2,9 @@
 //!
 //! Display helpers for rendering [`DateTime<Utc>`] values, date ranges,
 //! period labels, and millisecond durations in dashboards and logs.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use chrono::{DateTime, Utc};
 

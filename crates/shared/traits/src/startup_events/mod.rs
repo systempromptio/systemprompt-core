@@ -5,6 +5,9 @@
 //! - [`types`](self) — [`Phase`], [`ServiceInfo`], [`ModuleInfo`];
 //! - [`ext`](self) — extension traits ([`StartupEventExt`],
 //!   [`OptionalStartupEventExt`]) for emitting events ergonomically.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod events;
 mod ext;

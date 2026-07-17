@@ -13,6 +13,9 @@
 //! miss or missing/invalid header it falls back to `api_external_url` — the
 //! gateway never advertises a hostname an attacker fabricated via Host
 //! header injection.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use axum::extract::FromRequestParts;
 use http::request::Parts;

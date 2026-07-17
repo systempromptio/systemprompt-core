@@ -5,6 +5,9 @@
 //! their OAuth discovery handshake, deriving the advertised `resource_metadata`
 //! URL from the incoming request host. [`AuthValidator`] performs the bearer
 //! check and [`challenge_or_error`] maps a failed check onto a [`ProxyError`].
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use axum::body::Body;
 use axum::http::header::{AUTHORIZATION, HOST};

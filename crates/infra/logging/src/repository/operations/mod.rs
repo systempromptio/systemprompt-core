@@ -4,6 +4,9 @@
 //! `logs` table and re-exports the crate-internal entry points the repository
 //! facade composes (fetch, list, paginate, create, update, delete, retention
 //! cleanup).
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod mutations;
 mod queries;

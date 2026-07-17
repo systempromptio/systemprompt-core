@@ -4,6 +4,9 @@
 //! code), lookup by short code, id, campaign, or source content, and deletion.
 //! Click recording and analytics live in the [`analytics`] submodule via
 //! [`LinkAnalyticsRepository`].
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod analytics;
 

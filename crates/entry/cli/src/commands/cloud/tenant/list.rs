@@ -3,6 +3,9 @@
 //! Reconciles the local tenant store with the cloud account, then renders the
 //! merged set as a [`TenantListOutput`] table, with an interactive drill-down
 //! into per-tenant details when running interactively.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use anyhow::Result;
 use chrono::Utc;

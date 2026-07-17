@@ -1,3 +1,6 @@
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
 use axum::response::{IntoResponse, Response};
 use systemprompt_identifiers::TraceId;
 use systemprompt_models::api::ApiError;

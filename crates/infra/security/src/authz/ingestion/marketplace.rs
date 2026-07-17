@@ -1,6 +1,9 @@
 //! Projection of each marketplace's declarative `access` block into the
 //! marketplace-scoped authz rows, reusing the role-rule upsert path that
 //! [`super::AccessControlIngestionService::ingest_config`] uses for YAML rules.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::collections::HashMap;
 

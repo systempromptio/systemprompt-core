@@ -1,3 +1,6 @@
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
 use crate::error::TaskError;
 use crate::models::a2a::{DataPart, FileContent, FilePart, Part, TaskState, TextPart};
 use crate::models::{MessagePart, TaskRow};

@@ -4,6 +4,9 @@
 //! profile; [`GatewayConfig`] is its runtime projection. Routes carry no
 //! embedded provider catalog — every route resolves its provider against
 //! `profile.providers` ([`ProviderRegistry`]) at use time.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::borrow::Cow;
 use std::collections::HashMap;

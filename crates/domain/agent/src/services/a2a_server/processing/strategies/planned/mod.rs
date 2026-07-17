@@ -4,6 +4,9 @@
 //! AI to produce a [`PlanningResult`],
 //! then either returns a direct response or executes the planned tool calls and
 //! synthesizes a final answer, tracking each step as an execution step.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod direct_response;
 mod helpers;

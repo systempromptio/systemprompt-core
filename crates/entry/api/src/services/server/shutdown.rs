@@ -1,3 +1,6 @@
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
 use std::time::Duration;
 use systemprompt_runtime::AppContext;
 use systemprompt_scheduler::{ProcessCleanup, SchedulerHandle};

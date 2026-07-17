@@ -40,6 +40,9 @@
 //! `DbPool` handle passed to filter factories), and `systemprompt-security`
 //! (manifest signing). No HTTP and no database queries: loaders take a
 //! services-root path, never an `AppContext`.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod bundle;
 mod candidate;

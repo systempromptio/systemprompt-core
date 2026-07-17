@@ -1,5 +1,8 @@
 //! Descriptors for downstream integrations an agent can reach: registered MCP
 //! servers and webhook endpoints.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{AgentId, McpServerId, WebhookEndpointId};

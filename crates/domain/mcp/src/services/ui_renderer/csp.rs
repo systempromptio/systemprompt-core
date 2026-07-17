@@ -4,6 +4,9 @@
 //! header value, while [`CspBuilder`] assembles a policy fluently from a
 //! strict baseline. The strict baseline locks rendered artifacts down to
 //! `'self'` plus any explicitly added CDN or scheme sources.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use serde::{Deserialize, Serialize};
 

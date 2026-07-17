@@ -5,6 +5,9 @@
 //! tool-call deltas, state snapshots/deltas, and the [`CustomPayload`] envelope
 //! for application-defined events (artifacts, execution steps, loaded skills).
 //! Field casing follows the wire format via `rename_all = "camelCase"`.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;

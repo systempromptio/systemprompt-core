@@ -2,6 +2,9 @@
 //!
 //! Port allocation and release, the base Axum router with CORS, and
 //! reverse-proxy routers to upstream services.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod port;
 pub mod proxy;

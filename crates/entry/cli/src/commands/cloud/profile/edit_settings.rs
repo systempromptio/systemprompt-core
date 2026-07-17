@@ -1,3 +1,6 @@
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
 use anyhow::{Context, Result};
 use systemprompt_logging::CliService;
 use systemprompt_models::{Environment, LogLevel, Profile};

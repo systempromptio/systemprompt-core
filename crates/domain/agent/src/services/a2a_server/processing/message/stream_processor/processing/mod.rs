@@ -4,6 +4,9 @@
 //! task it spawns: it assembles AI messages, selects an execution strategy,
 //! runs it, builds artifacts, synthesizes a final response, and emits a
 //! `Complete` event.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod messages;
 

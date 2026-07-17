@@ -6,6 +6,9 @@
 //! the `OpenAI` streaming temperature default. Vendor wire rendering itself
 //! lives in [`systemprompt_models::wire`]; this module only assembles the
 //! canonical request the codec consumes.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use serde_json::json;
 use systemprompt_models::wire::canonical::{

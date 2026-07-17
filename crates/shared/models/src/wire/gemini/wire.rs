@@ -4,6 +4,9 @@
 //! defined locally so the wire codec does not depend on the agent-side provider
 //! crate; the canonical codec is the single conversion point between them and
 //! the provider-neutral model.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;

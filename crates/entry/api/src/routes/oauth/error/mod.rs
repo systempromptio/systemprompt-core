@@ -10,6 +10,9 @@
 //! `From` impls (in the `conversions` submodule) bridge the underlying domain
 //! errors (`OauthError`, `AuthProviderError`, `SecretsBootstrapError`) so
 //! handlers use `?` and the variant-to-RFC-code mapping lives in one place.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use axum::Json;
 use axum::http::{HeaderValue, StatusCode, header};

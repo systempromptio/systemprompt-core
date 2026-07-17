@@ -3,6 +3,9 @@
 //! Defines the [`Display`] trait and the [`DisplayUtils`] helpers (levelled
 //! messages, section headers). All output goes to stderr via this sanctioned
 //! display sink.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::io::Write;
 

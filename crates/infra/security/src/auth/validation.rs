@@ -1,3 +1,6 @@
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
 use axum::http::HeaderMap;
 use systemprompt_identifiers::{Actor, ContextId, SessionId, UserId};
 use systemprompt_models::auth::{JwtAudience, MAX_ACT_CHAIN_DEPTH, Permission, UserType};

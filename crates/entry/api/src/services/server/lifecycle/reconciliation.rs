@@ -4,6 +4,9 @@
 //! orchestrator to the required set of enabled servers, and verifies each is
 //! registered and running in the database — failing server startup loudly if
 //! any required MCP server is missing, since agents depend on their tools.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use anyhow::Result;
 use std::sync::Arc;

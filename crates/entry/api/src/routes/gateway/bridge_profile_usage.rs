@@ -3,6 +3,9 @@
 //! Returns rolling 24h / 7d / 30d windows of cost + tokens for the JWT
 //! subject, the top 5 models by token share, and a conversation summary
 //! grouped by model and by agent. Powers the bridge dashboard's profile tab.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
 

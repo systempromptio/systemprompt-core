@@ -7,6 +7,9 @@
 //! API for incremental construction. Unrecognised keys on stored rows are
 //! preserved verbatim in [`FileMetadata::extra`], so arbitrary historical
 //! shapes decode losslessly.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use serde::{Deserialize, Serialize};
 

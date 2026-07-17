@@ -1,5 +1,8 @@
 //! Auth-mutating gateway endpoints: mTLS attestation, session swap, PAT
 //! exchange, OAuth client provisioning, and per-plugin hook token minting.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::time::Instant;
 

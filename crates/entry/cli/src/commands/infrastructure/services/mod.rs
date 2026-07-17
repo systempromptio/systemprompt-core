@@ -4,6 +4,9 @@
 //! Defines the [`ServicesCommands`] clap subcommand tree and the individual
 //! target enums ([`StartTarget`], [`StopTarget`], [`RestartTarget`]); dispatch
 //! is delegated to the sibling implementation modules via [`execute`].
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod cleanup;
 mod dispatch;

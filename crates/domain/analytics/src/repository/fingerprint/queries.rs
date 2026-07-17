@@ -3,6 +3,9 @@
 //! Looks up a fingerprint by hash, counts and finds reusable active sessions,
 //! and lists recent or high-risk fingerprints for the abuse-analysis job. All
 //! reads go to the read pool.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::Result;
 

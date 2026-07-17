@@ -8,6 +8,9 @@
 //! (every route provider must exist in the registry). Operators reshape the
 //! result — adding custom providers like `minimax` — by editing
 //! `profile.providers` directly.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::collections::HashMap;
 

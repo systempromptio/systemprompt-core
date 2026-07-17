@@ -1,5 +1,8 @@
 //! Message/notice artifact: levelled notice lines a command emits as structured
 //! output so machine consumers never receive an empty response.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::artifacts::traits::Artifact;
 use crate::artifacts::types::ArtifactType;

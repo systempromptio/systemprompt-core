@@ -3,6 +3,9 @@
 //! [`event_from_sse`] turns one decoded SSE `data:` payload into a
 //! [`CanonicalEvent`]. The streaming side stays dynamic because each frame is a
 //! distinct, sparsely-populated event keyed on `type`.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 // JSON: protocol boundary — each Anthropic SSE frame is dynamic JSON keyed on
 // `type`.

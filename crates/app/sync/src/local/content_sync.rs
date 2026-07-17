@@ -1,5 +1,8 @@
 //! Two-way sync between content stored on disk (markdown + frontmatter) and
 //! the database via the `systemprompt-content` ingestion + repository layers.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::diff::ContentDiffCalculator;
 use crate::error::{SyncError, SyncResult};

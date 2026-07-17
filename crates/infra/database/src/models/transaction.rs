@@ -1,4 +1,7 @@
 //! Dyn-safe transaction trait used by the dynamic-SQL surface.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::error::DatabaseResult;
 use crate::models::{JsonRow, QuerySelector, ToDbValue};

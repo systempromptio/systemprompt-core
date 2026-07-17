@@ -6,6 +6,9 @@
 //! discovery and schema installation. The path/files/config inits are
 //! idempotent `OnceLock` guards, so a non-CLI entry (API, tests) can build a
 //! context self-sufficiently while a CLI that already ran them sees a no-op.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
 

@@ -3,6 +3,9 @@
 //! Each dispatcher consumes and executes the migration variants it owns,
 //! returning `Ok(None)` once handled or `Ok(Some(cmd))` to hand any other
 //! command back to the caller's match.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use anyhow::Result;
 use systemprompt_runtime::DatabaseContext;

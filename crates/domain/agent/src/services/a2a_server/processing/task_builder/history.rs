@@ -1,5 +1,8 @@
 //! Reconstruction of the multi-turn message history: one agent/user message
 //! pair per tool iteration, closed by the final synthesis message.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use serde_json::json;
 use systemprompt_identifiers::{ContextId, MessageId, TaskId};

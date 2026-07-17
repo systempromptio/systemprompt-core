@@ -6,6 +6,9 @@
 //! advertising custom ones via `CUSTOM_SECRETS`), and
 //! [`read_signing_key_pem`] base64-encodes the JWT signing key for transport
 //! as the `SIGNING_KEY_PEM` secret.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::collections::HashMap;
 use std::path::Path;

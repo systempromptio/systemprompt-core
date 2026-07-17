@@ -1,6 +1,9 @@
 //! In-memory index of discovered extensions used to resolve binary paths
 //! at runtime, with a separate code path for cloud deployments where
 //! every binary lives in a single configured directory.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};

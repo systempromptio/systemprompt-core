@@ -1,4 +1,7 @@
 //! `OpenAI` Responses SSE pipeline: upstream byte stream → canonical events.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use core::fmt::Display;
 

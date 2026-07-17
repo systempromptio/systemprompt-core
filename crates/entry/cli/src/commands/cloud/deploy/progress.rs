@@ -5,6 +5,9 @@
 //! sequencing lives in `systemprompt-sync`, presentation lives here. A single
 //! spinner slot is cleared at every event boundary so each long-running step
 //! replaces the previous indicator.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Mutex;
 

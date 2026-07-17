@@ -6,6 +6,9 @@
 //! [`AgentStatus`] while verifying that recorded PIDs still correspond to
 //! running processes. It is the single source of truth the lifecycle, monitor,
 //! and reconciler services query and mutate.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::repository::agent_service::AgentServiceRepository;
 use crate::services::agent_orchestration::{

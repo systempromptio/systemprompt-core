@@ -21,6 +21,9 @@
 //! Platform-specific concerns (auth'd hook injection, per-skill tracking
 //! tokens, download packaging) live with the *consumer*, never here. The
 //! assembler only emits the host-facing contract.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;

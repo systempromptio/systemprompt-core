@@ -6,6 +6,9 @@
 //! the crate-local types and the trait-level types and mapping every error
 //! into the providers' error enums. `#[async_trait]` is required because
 //! these provider traits are consumed as `dyn`.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use async_trait::async_trait;
 use chrono::Utc;

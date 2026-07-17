@@ -1,6 +1,9 @@
 //! Per-user filtering contract applied to the catalogue before the bridge
 //! manifest is signed. Implementations must be cheap to clone via `Arc` and
 //! safe to call from the axum worker pool.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use async_trait::async_trait;
 use systemprompt_identifiers::UserId;

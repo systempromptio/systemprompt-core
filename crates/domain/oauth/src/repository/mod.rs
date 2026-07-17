@@ -1,5 +1,8 @@
 //! Persistence repositories backing the OAuth domain (clients, codes, tokens,
 //! `WebAuthn` credentials).
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod bridge_host_prefs;
 pub mod bridge_session;

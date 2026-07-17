@@ -7,6 +7,9 @@
 //! signalling surface ([`is_ready`], [`signal_ready`], [`wait_for_ready`]) is
 //! used by external health probes. Discovery, health, metrics, and route
 //! configuration live in the private submodules.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod builder;
 mod discovery;

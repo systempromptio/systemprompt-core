@@ -1,5 +1,8 @@
 //! Post-build validation: confirms `dist/index.html` exists and that every
 //! URL in `sitemap.xml` resolves to a generated HTML file.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use quick_xml::de::from_str;
 use serde::Deserialize;

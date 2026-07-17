@@ -1,3 +1,6 @@
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
 // JSON: protocol boundary — body shape is owned by the models::wire Anthropic
 // codec.
 use serde_json::Value;

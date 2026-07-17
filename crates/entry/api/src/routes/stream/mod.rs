@@ -5,6 +5,9 @@
 //! `systemprompt_events`. [`create_sse_stream`] registers the connection (with
 //! a per-user cap), wraps the receiver in a [`StreamWithGuard`] so the
 //! [`ConnectionGuard`] deregisters it on drop, and emits keep-alive frames.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use axum::Router;
 use axum::extract::Extension;

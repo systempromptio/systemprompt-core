@@ -27,66 +27,36 @@
 [![Crates.io](https://img.shields.io/crates/v/systemprompt-scheduler.svg?style=flat-square)](https://crates.io/crates/systemprompt-scheduler)
 [![Docs.rs](https://img.shields.io/docsrs/systemprompt-scheduler?style=flat-square)](https://docs.rs/systemprompt-scheduler)
 [![License: BSL-1.1](https://img.shields.io/badge/license-BSL--1.1-2b6cb0?style=flat-square)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
+[![codecov](https://img.shields.io/codecov/c/github/systempromptio/systemprompt-core/main?style=flat-square&logo=codecov)](https://codecov.io/gh/systempromptio/systemprompt-core)
 
-Background jobs, cron tasks, and job-extension dispatch for systemprompt.io AI governance infrastructure. Tokio-backed scheduling discovers jobs via the `inventory` crate and executes them on configurable cron schedules.
+The maintenance and enforcement work that keeps a self-hosted deployment healthy runs here, inside your own binary. Session cleanup, orphaned-record reaping, and malicious-IP blacklisting run as background jobs on cron schedules, discovered at compile time through the `inventory` crate and dispatched with panic isolation on a Tokio runtime.
 
-**Layer**: App — orchestrates domain modules. Part of the [systemprompt-core](https://github.com/systempromptio/systemprompt-core) workspace.
+**Layer**: App, orchestrates domain modules. Part of the [systemprompt-core](https://github.com/systempromptio/systemprompt-core) workspace.
 
 ## Overview
 
-Part of the App layer in the systemprompt.io architecture.
+Jobs are discovered through `inventory` and executed on configurable cron schedules. Alongside job execution, the crate reconciles long-running service state: it compares the desired configuration against the observed runtime and takes the action that closes the gap.
+
 **Infrastructure** · [Self-Hosted Deployment](https://systemprompt.io/features/self-hosted-ai-platform)
 
-Background job scheduling and execution module. Discovers jobs via the `inventory` crate and executes them on configurable cron schedules.
+## Modules
 
-## Architecture
+| Module | Purpose |
+|--------|---------|
+| `jobs` | Background jobs implementing the `Job` trait, each registered via `inventory` |
+| `services/scheduling` | `SchedulerService` job discovery and execution, plus `dispatch`, `bootstrap`, distributed `lock`, and job `owners` resolution |
+| `services/job_execution` | Single-job execution path with status tracking |
+| `services/service_management` | `ServiceManagementService` lifecycle operations (query, stop, cleanup) |
+| `services/orchestration` | Service state reconciliation (`ServiceStateVerifier`, `ServiceReconciler`, `VerifiedServiceState`, cross-platform `process_cleanup`) |
+| `services/plans` | Declarative service plans consumed by the reconciler |
+| `models` | `JobConfig`, `JobStatus`, `ScheduledJob`, `SchedulerConfig` |
+| `repository` | `SchedulerRepository` facade over job, analytics, and security queries |
+| `error` | `SchedulerError`, `SchedulerResult` |
+| `extension` | `SchedulerExtension` (schemas, registered jobs) |
 
-```
-src/
-├── lib.rs                                    # Public exports and crate docs
-├── error.rs                                  # SchedulerError, SchedulerResult
-├── extension.rs                              # SchedulerExtension (schemas, jobs)
-├── jobs/
-│   ├── mod.rs                                # Job exports
-│   ├── behavioral_analysis.rs                # Analyses fingerprint behaviour patterns
-│   ├── cleanup_empty_contexts.rs             # Removes empty conversation contexts
-│   ├── cleanup_inactive_sessions.rs          # Closes inactive sessions
-│   ├── database_cleanup.rs                   # Orphaned logs, MCP, OAuth cleanup
-│   ├── ghost_session_cleanup.rs              # Reaps abandoned ghost sessions
-│   ├── malicious_ip_blacklist.rs             # Detects and blacklists malicious IPs
-│   └── no_js_cleanup.rs                      # Cleans no-JavaScript fingerprint rows
-├── models/
-│   └── mod.rs                                # JobConfig, JobStatus, ScheduledJob, SchedulerConfig
-├── repository/
-│   ├── mod.rs                                # SchedulerRepository facade
-│   ├── analytics/
-│   │   └── mod.rs                            # Analytics cleanup queries
-│   ├── jobs/
-│   │   └── mod.rs                            # Scheduled job CRUD operations
-│   └── security/
-│       └── mod.rs                            # IP session queries for malicious detection
-└── services/
-    ├── mod.rs                                # Service exports
-    ├── providers.rs                          # Provider-contract registration glue
-    ├── service_management.rs                 # ServiceManagementService
-    ├── scheduling/
-    │   ├── mod.rs                            # SchedulerService - job discovery and execution
-    │   └── dispatch.rs                       # Job dispatch and panic isolation
-    └── orchestration/
-        ├── mod.rs                            # Orchestration exports
-        ├── process_cleanup/
-        │   ├── mod.rs                        # Cross-platform process cleanup facade
-        │   ├── posix.rs                      # POSIX signal + /proc-based cleanup
-        │   └── winnt.rs                      # Windows process cleanup
-        ├── reconciler.rs                     # Service state reconciliation
-        ├── state_manager.rs                  # Service state verification
-        ├── state_types.rs                    # DesiredStatus, RuntimeStatus, ServiceAction
-        └── verified_state.rs                 # VerifiedServiceState with builder pattern
-```
+### Jobs
 
-### jobs/
-
-Background jobs that implement the `Job` trait from `systemprompt-traits`. Each job is registered via `inventory::submit!` for automatic discovery.
+Each job implements the `Job` trait from `systemprompt-traits` and is registered via `inventory` for automatic discovery.
 
 | Job | Schedule | Description |
 |-----|----------|-------------|
@@ -98,63 +68,21 @@ Background jobs that implement the `Job` trait from `systemprompt-traits`. Each 
 | `GhostSessionCleanupJob` | Periodic | Reaps abandoned ghost sessions left by disconnected clients |
 | `NoJsCleanupJob` | Periodic | Prunes no-JavaScript fingerprint rows past retention |
 
-### models/
+### Service reconciliation
 
-Domain types for the scheduler:
+`ServiceStateVerifier` (in `services/orchestration/state_verifier.rs`) compares observed runtime state against the database record; `ServiceReconciler` executes the action that reconciles desired versus actual state.
 
-- **JobStatus** - Enum: `Success`, `Failed`, `Running`
-- **JobConfig** - Per-job configuration
-- **SchedulerConfig** - Scheduler-wide configuration
-- **ScheduledJob** - Database model for job tracking
-
-`SchedulerError` and `SchedulerResult` live in `error.rs` at the crate root.
-
-### repository/
-
-Data access layer for scheduler operations:
-
-- **SchedulerRepository** - Facade combining job and analytics repositories
-- **JobRepository** - CRUD for `scheduled_jobs` table
-- **AnalyticsRepository** - Cleanup queries for `user_contexts`
-- **SecurityRepository** - IP session queries for malicious IP detection
-
-### services/
-
-#### scheduling/
-
-**SchedulerService** - Core scheduler that:
-- Discovers jobs via the `inventory` crate (`submit_job!`)
-- Registers jobs with `tokio-cron-scheduler`
-- Dispatches jobs through `scheduling/dispatch.rs` with panic isolation
-- Tracks job execution status
-- Uses `SystemSpan` for structured logging
-
-#### service_management.rs
-
-**ServiceManagementService** - Service lifecycle operations:
-- Query services by type
-- Stop services (graceful or forced)
-- Cleanup orphaned services
-
-#### orchestration/
-
-State machine for service reconciliation:
-
-- **ServiceStateManager** - Verifies actual runtime state vs database state
-- **ServiceReconciler** - Executes actions to reconcile desired vs actual state
-- **VerifiedServiceState** - Immutable state snapshot with builder pattern
-- **ProcessCleanup** - Low-level process management (kill, check port, etc.)
-
-State types:
-- **DesiredStatus** - `Enabled` | `Disabled`
-- **RuntimeStatus** - `Running` | `Starting` | `Stopped` | `Crashed` | `Orphaned`
-- **ServiceAction** - `None` | `Start` | `Stop` | `Restart` | `CleanupDb` | `CleanupProcess`
+| Type | Values |
+|------|--------|
+| `DesiredStatus` | `Enabled`, `Disabled` |
+| `RuntimeStatus` | `Running`, `Starting`, `Stopped`, `Crashed`, `Orphaned` |
+| `ServiceAction` | `None`, `Start`, `Stop`, `Restart`, `CleanupDb`, `CleanupProcess` |
 
 ## Usage
 
 ```toml
 [dependencies]
-systemprompt-scheduler = "0.18.0"
+systemprompt-scheduler = "0.21"
 ```
 
 ### Job Discovery
@@ -172,7 +100,7 @@ The scheduler discovers all registered jobs at startup and schedules them based 
 ```rust
 use systemprompt_scheduler::{SchedulerService, SchedulerConfig};
 
-let config = SchedulerConfig::with_system_admin(&system_admin);
+let config = SchedulerConfig::with_system_admin();
 let service = SchedulerService::new(config, db_pool, app_context)?;
 service.start().await?;
 ```

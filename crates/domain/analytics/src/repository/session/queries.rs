@@ -1,6 +1,9 @@
 //! Read queries for `user_sessions` — finders, existence checks, and global
 //! session-volume counters. Behavioural-detector queries live in
 //! [`super::behavioral_queries`].
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::Result;
 use chrono::{Duration, Utc};

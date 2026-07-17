@@ -1,4 +1,7 @@
 //! AI provider error type and result alias.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub type AiProviderResult<T> = Result<T, AiProviderError>;
 

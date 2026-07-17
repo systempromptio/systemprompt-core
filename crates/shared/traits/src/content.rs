@@ -2,6 +2,9 @@
 //!
 //! Dispatched as trait objects (`dyn _`), so they use `#[async_trait]`;
 //! native `async fn` in traits is not yet `dyn`-compatible.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};

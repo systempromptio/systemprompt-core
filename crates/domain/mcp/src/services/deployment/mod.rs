@@ -3,6 +3,9 @@
 //! [`DeploymentService`] resolves per-server deployment records (port, binary,
 //! enabled state) from the loaded `ServicesConfig`. All operations fail with
 //! [`McpDomainError`] when the named server is absent.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::Deployment;
 use crate::error::{McpDomainError, McpDomainResult};

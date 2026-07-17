@@ -1,3 +1,6 @@
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
 use axum::http::StatusCode;
 use std::collections::BTreeMap;
 use systemprompt_identifiers::{Actor, JwtToken, SessionId, TraceId, UserId};

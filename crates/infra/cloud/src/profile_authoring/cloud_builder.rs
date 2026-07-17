@@ -1,4 +1,7 @@
 //! Builder for the cloud-deployment [`Profile`].
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_identifiers::TenantId;
 use systemprompt_models::profile::{

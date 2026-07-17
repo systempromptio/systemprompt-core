@@ -15,6 +15,9 @@
 //!
 //! These types are defined ONCE here and re-exported by the gateway and the
 //! agent provider clients so both layers share a single wire vocabulary.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod canonical;
 

@@ -1,5 +1,8 @@
 //! Build `sitemap.xml` (and a sitemap index when the URL count exceeds the
 //! 50 000 URL limit) from configured content sources.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use chrono::Utc;
 use std::collections::HashMap;

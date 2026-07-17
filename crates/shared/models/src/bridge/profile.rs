@@ -11,6 +11,9 @@
 //! provider is therefore structurally absent from both `providers` and the
 //! flat `models` front door — the flat list is a projection of the same
 //! advertised set, so it can never disagree with `providers`.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use serde::{Deserialize, Serialize};
 

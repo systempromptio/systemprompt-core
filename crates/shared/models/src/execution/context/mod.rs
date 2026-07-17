@@ -1,4 +1,7 @@
 //! Request context for execution tracking.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod call_source;
 mod context_error;

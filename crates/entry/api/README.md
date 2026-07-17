@@ -26,9 +26,10 @@
 
 [![Crates.io](https://img.shields.io/crates/v/systemprompt-api.svg?style=flat-square)](https://crates.io/crates/systemprompt-api)
 [![Docs.rs](https://img.shields.io/docsrs/systemprompt-api?style=flat-square)](https://docs.rs/systemprompt-api)
+[![codecov](https://img.shields.io/codecov/c/github/systempromptio/systemprompt-core/main?style=flat-square&logo=codecov)](https://codecov.io/gh/systempromptio/systemprompt-core)
 [![License: BSL-1.1](https://img.shields.io/badge/license-BSL--1.1-2b6cb0?style=flat-square)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
 
-Axum-based HTTP server and API gateway for systemprompt.io AI governance infrastructure. Exposes governed agents, MCP, A2A, OAuth, the Claude gateway, marketplace, sync, analytics, and admin endpoints behind a unified middleware stack with authentication, rate limiting, RBAC, content negotiation, and security headers.
+One audited path for every agent call, tool invocation, and model request your organization makes. This is the Axum server that runs it: governed agents, MCP, A2A, OAuth, the Claude gateway, marketplace, sync, analytics, and admin endpoints, all composed behind a single middleware stack with authentication, rate limiting, RBAC, content negotiation, and security headers.
 
 **Layer**: Entry — application boundary. Part of the [systemprompt-core](https://github.com/systempromptio/systemprompt-core) workspace.
 
@@ -38,7 +39,7 @@ Axum-based HTTP server and API gateway for systemprompt.io AI governance infrast
 
 The Entry layer turns an `AppContext` into a running Axum server. Responsibilities:
 
-- **Route mounting** — every domain crate's router is composed under one tree by `services/server/routes.rs`.
+- **Route mounting** — every domain crate's router is composed under one tree by `services/server/routes/`.
 - **Middleware stack** — JWT, sessions, CORS, IP ban, rate limiting, throttling, bot detection, analytics emission, context extraction, content negotiation, security headers, and trailing-slash normalization.
 - **Gateway** — proxies Claude API traffic with quota enforcement, safety filtering, OTel ingest, audit, and pricing capture.
 - **Static content** — serves the prebuilt web frontend with ETag, SPA fallback, and per-route session handling.
@@ -46,58 +47,23 @@ The Entry layer turns an `AppContext` into a running Axum server. Responsibiliti
 
 ## Source layout
 
+Top-level modules. docs.rs carries the file-level detail.
+
 ```
 src/
-├── lib.rs                          # Re-exports: HealthChecker, ContextMiddleware
-├── routes/
-│   ├── mod.rs
-│   ├── wellknown.rs                # /.well-known/* (agent cards, OAuth metadata)
-│   ├── marketplace.rs              # Marketplace catalog endpoints
-│   ├── admin/                      # CLI gateway, keys
-│   ├── agent/                      # A2A: artifacts, contexts (+ events, notifications, webhook), registry, tasks, responses
-│   ├── analytics/                  # Event ingestion + SSE stream
-│   ├── content/                    # Blog, query, link tracking
-│   ├── engagement/                 # Engagement metrics
-│   ├── gateway/                    # Claude gateway: auth, bridge (data, heartbeat, manifest, profile usage, whoami), messages, OTel
-│   ├── mcp/                        # MCP server registry
-│   ├── oauth/                      # OAuth2/OIDC: discovery, endpoints, clients, webauthn, wellknown, health
-│   ├── proxy/                      # A2A and MCP request forwarding
-│   ├── stream/                     # SSE for context updates
-│   └── sync/                       # File and auth sync for offline-first clients
-└── services/
-    ├── mod.rs
-    ├── validation.rs               # Cross-route validation helpers
-    ├── gateway/                    # ClaudeGatewayService — audit, captures, parse, policy, pricing, protocol, quota, registry, safety, stream_tap
-    ├── health/                     # HealthChecker, ProcessMonitor
-    ├── middleware/
-    │   ├── analytics/              # Bot/scanner detection + event emission
-    │   ├── context/                # Context extraction with header/A2A extractors and header/payload sources
-    │   ├── jwt/                    # Token validation + JWT context
-    │   ├── negotiation/            # Accept-header content negotiation
-    │   ├── session/                # Lifecycle and skip rules
-    │   ├── auth.rs                 # Route-level auth gate
-    │   ├── bot_detector.rs         # Bot fingerprinting
-    │   ├── cors.rs
-    │   ├── ip_ban.rs
-    │   ├── rate_limit.rs
-    │   ├── security_headers.rs
-    │   ├── session.rs              # Session middleware entry
-    │   ├── site_auth.rs            # Site-wide auth gate
-    │   ├── throttle.rs
-    │   ├── trace.rs
-    │   └── trailing_slash.rs
-    ├── proxy/                      # ProxyEngine: auth, backend transform, client pool, resolver, MCP session
-    ├── server/
-    │   ├── builder.rs              # ApiServer construction
-    │   ├── discovery.rs            # Extension router discovery
-    │   ├── health.rs               # Health endpoint (incl. portable disk usage)
-    │   ├── health_detail.rs        # Detailed health payload
-    │   ├── readiness.rs            # Readiness probe state
-    │   ├── routes.rs / routes/     # Route tree, extension mount, protocol mount, static setup
-    │   ├── runner.rs               # Server entry point (run_server)
-    │   └── lifecycle/              # Agent reconciliation + scheduler bootstrap
-    └── static_content/             # SPA fallback, homepage, static files (cache + responses), session handling
+├── lib.rs        # Re-exports: HealthChecker, ContextMiddleware
+├── routes/       # Per-domain HTTP routers, one module per surface (see Route surface)
+└── services/     # Server lifecycle, middleware pipeline, gateway, proxy, static content (see Service surface)
 ```
+
+| Module | Purpose |
+|--------|---------|
+| `routes` | One router module per surface (agent, gateway, oauth, mcp, proxy, messaging, and the rest), composed into a single tree by `services/server/routes/`. |
+| `services/server` | `ApiServer` builder, route/extension/protocol/static mounting under `routes/`, readiness, lifecycle (agent reconciliation + scheduler), and the `run_server` entry point. |
+| `services/middleware` | Request pipeline: JWT, session, context extraction, analytics, CORS, IP ban, rate limiting, throttling, bot detection, content negotiation, security headers, trailing-slash normalization. |
+| `services/gateway` | `ClaudeGatewayService`: quota, audit, safety, pricing, protocol, stream tap, OTel capture. |
+| `services/proxy` | `ProxyEngine`: client pool, backend transform, resolver, MCP session handling for upstream A2A and MCP targets. |
+| `services/static_content` | SPA serving, homepage, static-file cache and response building, fallback routing. |
 
 ## Route surface
 
@@ -111,10 +77,14 @@ src/
 | `gateway` | Claude API gateway: bridge auth/data/heartbeat/manifest/profile-usage/whoami, message dispatch, OTLP ingest. |
 | `marketplace` | Marketplace catalog and asset endpoints. |
 | `mcp` | MCP server registry. |
+| `messaging` | Platform-agnostic inbound dispatch shared by chat platforms: identity, per-user A2A token minting, blocking `message/send` through the proxy, reply extraction. |
 | `oauth` | OAuth2/OIDC authorize, token, clients, WebAuthn, discovery, and `.well-known` metadata. |
 | `proxy` | Forwards requests to MCP servers and A2A agents through `ProxyEngine`. |
+| `slack` | Slack inbound surface (`/events`, `/commands`, `/interactivity`): signature verification, ack, spawned dispatch, Block Kit reply. |
 | `stream` | Server-Sent Events for live context updates. |
 | `sync` | File and auth sync for offline-first clients (tar+gzip payloads). |
+| `teams` | Microsoft Teams inbound surface (`/messages`): Bot Framework JWT validation, ack, spawned dispatch, Adaptive Card reply. |
+| `users` | Self-service `/me` endpoints scoped to the caller, including session revocation. |
 | `wellknown` | Standard discovery endpoints (agent cards, OAuth protected resource). |
 
 ## Service surface
@@ -132,7 +102,7 @@ src/
 
 ```toml
 [dependencies]
-systemprompt-api = "0.18.0"
+systemprompt-api = "0.21"
 ```
 
 ```rust
@@ -158,7 +128,7 @@ The API server is configured through `systemprompt-runtime::Config` and the acti
 ## Notes
 
 - Handlers extract request data and delegate to domain services; no direct repository access.
-- All routes are composed in `services/server/routes.rs`; extensions are discovered via `services/server/discovery.rs`.
+- All routes are composed in `services/server/routes/`; extensions are discovered via `services/server/discovery.rs`.
 - Middleware order is significant — see `services/server/builder.rs`.
 - The gateway path mints a UUID v5 `ContextId` from `GatewayConversationId`; it does not read upstream `x-context-id`.
 - Static content requires prebuilt web assets under the configured system path.

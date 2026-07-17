@@ -5,6 +5,9 @@
 //! [`Permission::implies`]) drives every route-level access check, and
 //! [`parse_permissions`] / [`permissions_to_string`] are the space-delimited
 //! wire codec.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use serde::{Deserialize, Serialize};
 use std::fmt;

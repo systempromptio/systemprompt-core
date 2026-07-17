@@ -1,4 +1,7 @@
 //! WebAuthn-issued JWT validator.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::TokenValidator;
 use systemprompt_models::auth::{AuthError, AuthenticatedUser, JwtAudience};

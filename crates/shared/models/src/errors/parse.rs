@@ -1,4 +1,7 @@
 //! Parsing-layer error types: enum tag dispatch and config bootstrap.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 #[derive(Debug, Clone, thiserror::Error, PartialEq, Eq)]
 #[error("invalid {kind}: {value}")]

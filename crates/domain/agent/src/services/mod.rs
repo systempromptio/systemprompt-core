@@ -4,6 +4,9 @@
 //! server, orchestration of agent processes, on-disk agent config authoring,
 //! MCP tool bridging, registry, disk-backed skills, message and context
 //! services, and shared helpers.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod a2a_server;
 pub mod agent_orchestration;

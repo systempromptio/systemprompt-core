@@ -19,6 +19,9 @@
 //! are operational state and never appear here — the loader rejects any rule
 //! with no `roles:` set. Per-tenant attribute rules live in extension-owned
 //! tables and are evaluated by an extension `AuthzDecisionHook`.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use serde::{Deserialize, Serialize, Serializer};
 

@@ -1,5 +1,8 @@
 //! Conversational context models: contexts, their messages, per-user views
 //! with aggregate statistics, and create/update request shapes.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};

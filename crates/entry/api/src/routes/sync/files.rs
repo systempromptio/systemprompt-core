@@ -4,6 +4,9 @@
 //! service directories as a gzipped tarball. The blocking filesystem and
 //! tar/gzip work lives in [`super::archive`] and runs under `spawn_blocking`
 //! so a large transfer never parks a Tokio worker.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use axum::Json;
 use axum::body::Body;

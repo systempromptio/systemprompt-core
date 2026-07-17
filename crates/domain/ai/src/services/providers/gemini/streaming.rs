@@ -1,6 +1,9 @@
 //! Gemini streaming: builds a canonical streaming request, posts it to
 //! `streamGenerateContent?alt=sse`, and maps the shared codec's canonical
 //! events into agent [`StreamChunk`]s.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::pin::Pin;
 

@@ -4,6 +4,9 @@
 //! `.systemprompt` profile layout, [`cloud_container`] for fixed in-container
 //! paths, [`storage`] for the file-storage tree, [`build`] for build outputs,
 //! and [`env_vars`] for sanctioned environment-variable names.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod dir_names {
     pub const SYSTEMPROMPT: &str = ".systemprompt";

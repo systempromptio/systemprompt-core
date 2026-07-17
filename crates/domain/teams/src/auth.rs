@@ -11,6 +11,9 @@
 //!
 //! Signing keys are fetched from the `OpenID` metadata and cached in-process,
 //! refreshed on a key-id miss (rotation) or after a TTL.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::collections::HashMap;
 use std::sync::RwLock;

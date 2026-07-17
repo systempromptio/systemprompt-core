@@ -1,5 +1,8 @@
 //! Persisting A2A conversation messages, including transactional writes and
 //! synthetic messages for MCP tool executions.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::services::shared::{AgentServiceError, Result};
 use serde_json::json;

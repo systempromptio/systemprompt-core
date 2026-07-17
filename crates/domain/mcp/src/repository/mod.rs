@@ -1,5 +1,8 @@
 //! Postgres persistence for MCP: tool-execution records and aggregate stats,
 //! session state, and tool-output artifacts.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod artifact;
 mod session;

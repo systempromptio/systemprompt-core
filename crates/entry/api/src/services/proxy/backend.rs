@@ -5,6 +5,9 @@
 //! [`RequestBuilder`] constructs the outbound `reqwest` request (filtering
 //! hop-by-hop and invalid auth headers), and [`ResponseHandler`] streams the
 //! response back, wrapping SSE bodies in a keep-alive stream.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use axum::body::{Body, to_bytes};
 use axum::http::{HeaderMap, StatusCode};

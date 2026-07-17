@@ -71,6 +71,12 @@ sp admin setup \
 
 # Minimal setup (uses defaults)
 sp admin setup --environment dev --no-migrate
+
+# Preview without writing anything
+sp admin setup --environment dev --dry-run
+
+# Interactive run, but skip the final confirmation prompt
+./target/debug/systemprompt admin setup --environment dev -y
 ```
 
 **Required Flags (non-interactive):**
@@ -101,6 +107,12 @@ sp admin setup --environment dev --no-migrate
 |------|---------|-------------|
 | `--migrate` | `false` | Run database migrations after setup |
 | `--no-migrate` | `false` | Skip migrations (default for non-interactive) |
+
+**Control Flags:**
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--dry-run` | `false` | Preview setup without creating files or making changes |
+| `--yes`, `-y` | `false` | Skip confirmation prompts (assumed in non-interactive mode) |
 
 **Validation Rules:**
 - Environment name: Required, used to generate default database credentials

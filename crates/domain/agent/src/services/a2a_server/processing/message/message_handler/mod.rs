@@ -4,6 +4,9 @@
 //! persists a submitted task, runs the stream pipeline to completion, builds
 //! the finished [`Task`](crate::models::a2a::Task), persists it, and broadcasts
 //! the completion and AG-UI lifecycle events.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod helpers;
 

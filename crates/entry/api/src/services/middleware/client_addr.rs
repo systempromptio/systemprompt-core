@@ -20,6 +20,9 @@
 //! `parse_trusted_proxies` drops invalid CIDR entries with a `tracing::warn!`
 //! rather than failing bootstrap: a single typo in a profile must not take
 //! the whole replica offline.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::net::{IpAddr, SocketAddr};
 

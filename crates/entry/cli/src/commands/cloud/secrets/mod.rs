@@ -3,6 +3,9 @@
 //! Exposes [`SecretsCommands`] (sync, set, unset, cleanup) and dispatches each
 //! to the corresponding action in the `commands` submodule, rejecting
 //! system-managed keys before they reach the cloud API.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod commands;
 mod helpers;

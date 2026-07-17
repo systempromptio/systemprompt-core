@@ -1,4 +1,7 @@
 //! Implementation of `AgentRegistryProvider` trait for the agent module.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use async_trait::async_trait;
 use systemprompt_traits::{AgentInfo, AgentRegistryProvider, RegistryError, ServiceOAuthConfig};

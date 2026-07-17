@@ -2,6 +2,9 @@
 //!
 //! Part of the documented sqlx allowlist — the SQL strings here come from
 //! runtime-supplied [`QuerySelector`] values.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::error::{DatabaseResult, RepositoryError};
 use async_trait::async_trait;

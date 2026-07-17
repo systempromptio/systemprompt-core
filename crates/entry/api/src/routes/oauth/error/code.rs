@@ -7,6 +7,9 @@
 //! authentication schemes — and so we do. `access_denied`, `invalid_token`,
 //! and `authentication_failed` retain 401 because they signal that the
 //! *caller* (not the request) was rejected (RFC 6750 §3.1).
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use axum::http::StatusCode;
 

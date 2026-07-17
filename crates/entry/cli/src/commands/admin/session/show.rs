@@ -1,3 +1,6 @@
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
 use systemprompt_cloud::{CliSession, LOCAL_SESSION_KEY, SessionKey, SessionStore, TenantStore};
 
 use super::types::{RoutingInfo, SessionInfo, SessionShowOutput};

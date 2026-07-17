@@ -3,6 +3,9 @@
 //! Polls [`perform_health_check`] on a fixed interval and logs degradation and
 //! recovery transitions, tracking consecutive failures and downtime between the
 //! last failure and recovery.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use chrono::{DateTime, Utc};
 use std::time::Duration;

@@ -1,4 +1,7 @@
 //! A circuit breaker that fast-fails calls to an unhealthy dependency.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::sync::{Mutex, MutexGuard, PoisonError};
 use std::time::Instant;

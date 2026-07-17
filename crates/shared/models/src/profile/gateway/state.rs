@@ -4,6 +4,9 @@
 //! profile loader projects it to [`GatewayState::Resolved`]. Runtime read
 //! paths must observe [`GatewayState::Resolved`] — they consult
 //! [`Self::resolved`] which logs and returns `None` if the loader has not run.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::borrow::Cow;
 

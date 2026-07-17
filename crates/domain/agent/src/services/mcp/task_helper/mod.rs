@@ -1,5 +1,8 @@
 //! Helpers used by the MCP bridge to ensure-or-create tasks, broadcast
 //! completion, and persist tool-execution messages.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod completion;
 mod messages;

@@ -3,6 +3,9 @@
 //! Responses streams reference each output item by `output_index`; this maps
 //! those upstream indices to the canonical block index emitted downstream,
 //! keyed by the kind of block the slot carries.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::wire::canonical::CanonicalStopReason;
 

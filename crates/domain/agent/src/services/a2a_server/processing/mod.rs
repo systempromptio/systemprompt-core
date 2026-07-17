@@ -6,6 +6,9 @@
 //! artifact construction, response synthesis, and persistence. The entry point
 //! is [`MessageProcessor`]; [`StreamProcessor`] drives the streaming variant
 //! and emits [`StreamEvent`]s.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod ai_executor;
 pub mod artifact;

@@ -4,6 +4,9 @@
 //! resolution, CORS and security headers, bot detection and IP banning, rate
 //! limiting, JWT and session context establishment, request-context flavours,
 //! content negotiation, authorization gating, analytics, and tracing.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod analytics;
 pub mod authz;

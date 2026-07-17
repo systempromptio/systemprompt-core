@@ -3,6 +3,9 @@
 //! Each calculator hashes the disk-side and database-side representations
 //! and emits a structured diff (`added`/`modified`/`removed`/`unchanged`)
 //! without mutating either side.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod content;
 

@@ -4,6 +4,9 @@
 //! [`SkillConfig`] is the in-profile definition and [`DiskSkillConfig`] the
 //! per-skill on-disk descriptor. [`SkillSummary`] and [`SkillDetail`] are the
 //! list- and detail-view projections.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};

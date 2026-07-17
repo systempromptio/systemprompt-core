@@ -4,6 +4,9 @@
 //! Dispatches the [`MigrationsCommands`] variants, summarising defined vs.
 //! applied vs. pending migrations across registered extensions. Provides both
 //! the full-context and standalone (`DatabaseContext`-only) entry points.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use anyhow::{Result, anyhow};
 use systemprompt_database::MigrationService;

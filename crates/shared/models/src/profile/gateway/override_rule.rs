@@ -7,6 +7,9 @@
 //! before it is forwarded upstream: `replace` substitutes a fixed `prompt`,
 //! `strip` removes the prompt entirely. Rules are pure data; resolution and
 //! application live in the gateway dispatch layer.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::ProviderId;

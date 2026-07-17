@@ -5,6 +5,9 @@
 //! `#[from]` adapters route `sqlx`, `std::io`, `url`, `serde_json`, and
 //! `webauthn`/`bcrypt`/`jsonwebtoken` errors into the appropriate variant
 //! so callers can match on a single `OauthError` enum.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use thiserror::Error;
 

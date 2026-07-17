@@ -1,6 +1,9 @@
 //! Render the "list" / index route for a content source — e.g. `/blog/` —
 //! which aggregates every entry contributed by the source plus an optional
 //! index content item.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::path::Path;
 

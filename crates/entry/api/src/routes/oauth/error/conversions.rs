@@ -1,5 +1,8 @@
 //! `From` impls mapping domain errors onto [`OAuthHttpError`], keeping the
 //! variant-to-RFC-code mapping in one place so handlers use `?`.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_config::SecretsBootstrapError;
 use systemprompt_models::errors::ConfigError;

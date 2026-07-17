@@ -2,6 +2,9 @@
 //!
 //! Defines the JSON surface for file listing, detail, upload, validation,
 //! configuration, statistics, and the content-link and AI-image views.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;

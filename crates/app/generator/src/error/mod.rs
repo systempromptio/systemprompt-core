@@ -8,6 +8,9 @@
 //!
 //! [`GeneratorResult`] is the canonical `Result` alias — prefer it over bare
 //! `Result<T, PublishError>` in new code.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::path::PathBuf;
 

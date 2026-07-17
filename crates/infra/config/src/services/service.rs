@@ -1,6 +1,9 @@
 //! `ConfigService` — generate environment-specific deployment configs
 //! by merging `infrastructure/environments/<env>/config.yaml` over a
 //! shared `base.yaml`.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::collections::HashMap;
 use std::fs;

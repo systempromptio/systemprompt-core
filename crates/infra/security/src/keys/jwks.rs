@@ -1,5 +1,8 @@
 //! JWKS document types per RFC 7517 / RFC 7518, scoped to the RS256 keys
 //! systemprompt.io publishes and consumes.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;

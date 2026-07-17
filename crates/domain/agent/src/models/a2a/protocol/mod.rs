@@ -1,5 +1,8 @@
 //! A2A protocol message types: streaming task-update events, push-notification
 //! configuration requests, and the JSON-RPC request/response set.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod events;
 mod push_notification;

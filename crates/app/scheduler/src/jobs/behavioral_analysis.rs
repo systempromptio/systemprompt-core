@@ -1,5 +1,8 @@
 //! Behavioural-analysis job: scans fingerprint reputation rows, flags
 //! suspicious patterns, and bans IPs that crossed the abuse threshold.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use async_trait::async_trait;
 use systemprompt_analytics::{

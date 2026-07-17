@@ -17,7 +17,7 @@
 
 # Database CLI Commands
 
-This document provides complete documentation for AI agents to use the database CLI commands. All commands support non-interactive mode for automation.
+Direct, auditable access to the PostgreSQL your organization owns. Every query, migration, and schema diff runs through one command surface, scriptable and non-interactive, so automation and human operators share the same audited path.
 
 ---
 
@@ -38,14 +38,26 @@ alias sp="./target/debug/systemprompt --non-interactive"
 | Command | Description | Artifact Type | Requires Services |
 |---------|-------------|---------------|-------------------|
 | `infra db query <sql>` | Execute SQL query (read-only) | `Table` | No (DB only) |
-| `infra db execute <sql>` | Execute write operation | `Table` | No (DB only) |
-| `infra db tables` | List all tables with sizes | `Table` | No (DB only) |
-| `infra db describe <table>` | Describe table schema with indexes | `Table` | No (DB only) |
-| `infra db info` | Database information | `Card` | No (DB only) |
+| `infra db execute <sql>` | Execute write operation (INSERT, UPDATE, DELETE) | `Table` | No (DB only) |
+| `infra db tables` | List all tables with row counts and sizes | `Table` | No (DB only) |
+| `infra db describe <table>` | Describe table schema with columns and indexes | `Table` | No (DB only) |
+| `infra db info` | Show database information | `Card` | No (DB only) |
 | `infra db migrate` | Run database migrations | `Text` | No (DB only) |
-| `infra db assign-admin <user>` | Assign admin role to user | `Text` | No (DB only) |
+| `infra db migrate-down <extension> <count>` | Revert the most recently applied migrations for an extension | `Text` | No (DB only) |
+| `infra db migrate-squash` | Squash an extension's migrations into a baseline at version 0 | `Text` | No (DB only) |
+| `infra db migrations status` | Show migration status | `Table` | No (DB only) |
+| `infra db migrations history <extension>` | Show migration history for an extension | `Table` | No (DB only) |
+| `infra db migrate-plan [extension]` | Show pending migrations (dry-run / plan) | `Text` | No (DB only) |
+| `infra db migrate-status [extension]` | Detailed introspectable migration status | `Table` | No (DB only) |
+| `infra db migrate-repair [extension]` | Repair migration checksum drift | `Text` | No (DB only) |
+| `infra db migrate-mark-applied` | Record a migration as already applied without running its SQL | `Text` | No (DB only) |
+| `infra db assign-admin <user>` | Assign admin role to a user | `Text` | No (DB only) |
 | `infra db status` | Show database connection status | `Card` | No (DB only) |
 | `infra db validate` | Validate schema against expected tables | `Text` | No (DB only) |
+| `infra db count <table>` | Get row count for a table | `Text` | No (DB only) |
+| `infra db indexes` | List all indexes | `Table` | No (DB only) |
+| `infra db size` | Show database and table sizes | `Table` | No (DB only) |
+| `infra db doctor` | Diff live schema against extension declarations | `Table` | No (DB only) |
 
 ---
 
@@ -57,7 +69,7 @@ Execute a read-only SQL query.
 
 ```bash
 sp infra db query "SELECT * FROM users LIMIT 10"
-sp --json db query "SELECT * FROM users LIMIT 10"
+sp --json infra db query "SELECT * FROM users LIMIT 10"
 sp infra db query "SELECT COUNT(*) FROM user_sessions" --format json
 sp infra db query "SELECT id, name FROM users WHERE status = 'active'"
 ```
@@ -70,6 +82,8 @@ sp infra db query "SELECT id, name FROM users WHERE status = 'active'"
 **Optional Flags:**
 | Flag | Default | Description |
 |------|---------|-------------|
+| `--limit` | | Maximum number of rows to return |
+| `--offset` | | Number of rows to skip |
 | `--format` | `table` | Output format: `table`, `json`, `yaml` |
 
 **Output Structure:**
@@ -100,7 +114,7 @@ Execute a write operation (INSERT, UPDATE, DELETE).
 ```bash
 sp infra db execute "UPDATE users SET status = 'active' WHERE id = 'user_abc'"
 sp infra db execute "DELETE FROM user_sessions WHERE ended_at < NOW() - INTERVAL '7 days'"
-sp --json db execute "INSERT INTO settings (key, value) VALUES ('feature_x', 'enabled')"
+sp --json infra db execute "INSERT INTO settings (key, value) VALUES ('feature_x', 'enabled')"
 ```
 
 **Required Arguments:**
@@ -132,8 +146,14 @@ List all tables in the database with row counts and sizes.
 
 ```bash
 sp infra db tables
-sp --json db tables
+sp --json infra db tables
+sp infra db tables --filter user
 ```
+
+**Optional Flags:**
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--filter` | | Filter tables by name substring |
 
 **Output Structure:**
 ```json
@@ -166,7 +186,7 @@ Describe table schema with columns and indexes.
 
 ```bash
 sp infra db describe <table-name>
-sp --json db describe users
+sp --json infra db describe users
 sp infra db describe user_sessions
 ```
 
@@ -220,7 +240,7 @@ Show database information.
 
 ```bash
 sp infra db info
-sp --json db info
+sp --json infra db info
 ```
 
 **Output Structure:**
@@ -244,8 +264,14 @@ Run database migrations.
 
 ```bash
 sp infra db migrate
-sp --json db migrate
+sp --json infra db migrate
+sp infra db migrate --allow-checksum-drift
 ```
+
+**Optional Flags:**
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--allow-checksum-drift` | `false` | Proceed even when applied migration checksums differ from disk |
 
 **Migration Process:**
 1. Loads all registered modules
@@ -265,14 +291,154 @@ sp --json db migrate
 
 ---
 
+### db migrate-down
+
+Revert the most recently applied migrations for an extension.
+
+```bash
+sp infra db migrate-down mcp 1
+sp --json infra db migrate-down users 2
+```
+
+**Required Arguments:**
+| Argument | Required | Description |
+|----------|----------|-------------|
+| `<extension>` | Yes | Extension whose migrations to revert |
+| `<count>` | Yes | Number of migrations to revert |
+
+**Artifact Type:** `Text`
+
+---
+
+### db migrate-squash
+
+Squash an extension's migrations `1..=N` into a single baseline at version 0. Dry-run by default; pass `--apply` to write.
+
+```bash
+sp infra db migrate-squash --extension mcp --through 12
+sp infra db migrate-squash --extension mcp --through 12 --apply
+```
+
+**Optional Flags:**
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--extension` | | Extension to squash |
+| `--through` | | Highest migration version to fold into the baseline |
+| `--apply` | `false` | Write the squash (omit for a dry-run) |
+
+**Artifact Type:** `Text`
+
+---
+
+### db migrations
+
+Show migration status and history.
+
+```bash
+sp infra db migrations status
+sp --json infra db migrations status
+sp infra db migrations history mcp
+```
+
+**Subcommands:**
+| Subcommand | Description |
+|------------|-------------|
+| `status` (alias `list`) | Show migration status |
+| `history <extension>` | Show migration history for an extension |
+
+**Artifact Type:** `Table`
+
+---
+
+### db migrate-plan
+
+Show pending migrations as a plan. Dry-run only, performs no database writes.
+
+```bash
+sp infra db migrate-plan
+sp infra db migrate-plan mcp
+sp --json infra db migrate-plan mcp
+```
+
+**Optional Arguments/Flags:**
+| Argument/Flag | Description |
+|---------------|-------------|
+| `[extension]` | Restrict the plan to one extension |
+| `--json` | Emit structured JSON |
+
+**Artifact Type:** `Text`
+
+---
+
+### db migrate-status
+
+Detailed, introspectable migration status: applied, pending, and drift.
+
+```bash
+sp infra db migrate-status
+sp infra db migrate-status mcp
+sp --json infra db migrate-status
+```
+
+**Optional Arguments/Flags:**
+| Argument/Flag | Description |
+|---------------|-------------|
+| `[extension]` | Restrict the report to one extension |
+| `--json` | Emit structured JSON |
+
+**Artifact Type:** `Table`
+
+---
+
+### db migrate-repair
+
+Repair migration checksum drift by re-applying edited migrations in place. Dry-run without `--apply`.
+
+```bash
+sp infra db migrate-repair
+sp infra db migrate-repair mcp --apply
+sp --json infra db migrate-repair mcp
+```
+
+**Optional Arguments/Flags:**
+| Argument/Flag | Description |
+|---------------|-------------|
+| `[extension]` | Restrict the repair to one extension |
+| `--apply` | Write the repair (omit for a dry-run) |
+| `--json` | Emit structured JSON |
+
+**Artifact Type:** `Text`
+
+---
+
+### db migrate-mark-applied
+
+Record a migration as already applied without running its SQL.
+
+```bash
+sp infra db migrate-mark-applied --extension mcp --version 7
+sp --json infra db migrate-mark-applied --extension mcp --version 7
+```
+
+**Required Flags:**
+| Flag | Description |
+|------|-------------|
+| `--extension` | Extension owning the migration |
+| `--version` | Migration version to mark applied |
+| `--json` | Emit structured JSON |
+
+**Artifact Type:** `Text`
+
+---
+
 ### db assign-admin
 
 Assign admin role to a user.
 
 ```bash
 sp infra db assign-admin <user>
-sp --json db assign-admin johndoe
-sp --json db assign-admin john@example.com
+sp --json infra db assign-admin johndoe
+sp --json infra db assign-admin john@example.com
 ```
 
 **Required Arguments:**
@@ -302,7 +468,7 @@ Show database connection status.
 
 ```bash
 sp infra db status
-sp --json db status
+sp --json infra db status
 ```
 
 **Output Structure:**
@@ -325,7 +491,7 @@ Validate database schema against expected tables.
 
 ```bash
 sp infra db validate
-sp --json db validate
+sp --json infra db validate
 ```
 
 **Output Structure:**
@@ -344,32 +510,97 @@ sp --json db validate
 
 ---
 
+### db count
+
+Get the row count for a single table.
+
+```bash
+sp infra db count users
+sp --json infra db count user_sessions
+```
+
+**Required Arguments:**
+| Argument | Required | Description |
+|----------|----------|-------------|
+| `<table>` | Yes | Table name to count |
+
+**Artifact Type:** `Text`
+
+---
+
+### db indexes
+
+List all indexes, optionally scoped to one table.
+
+```bash
+sp infra db indexes
+sp infra db indexes --table users
+sp --json infra db indexes
+```
+
+**Optional Flags:**
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--table` | | Restrict output to one table's indexes |
+
+**Artifact Type:** `Table`
+
+---
+
+### db size
+
+Show database and per-table sizes.
+
+```bash
+sp infra db size
+sp --json infra db size
+```
+
+**Artifact Type:** `Table`
+
+---
+
+### db doctor
+
+Diff the live schema against extension declarations.
+
+```bash
+sp infra db doctor
+sp --json infra db doctor
+```
+
+**Artifact Type:** `Table`
+
+---
+
 ## Complete Database Management Flow Example
 
 ```bash
 # Phase 1: Check connection status
-sp --json db status
+sp --json infra db status
 
 # Phase 2: View database info
-sp --json db info
+sp --json infra db info
 
 # Phase 3: List all tables
-sp --json db tables
+sp --json infra db tables
 
 # Phase 4: Describe specific table
-sp --json db describe users
+sp --json infra db describe users
 
 # Phase 5: Run a query
-sp --json db query "SELECT COUNT(*) as count FROM users"
+sp --json infra db query "SELECT COUNT(*) as count FROM users"
 
-# Phase 6: Run migrations
+# Phase 6: Review the migration plan, then run migrations
+sp --json infra db migrate-plan
 sp infra db migrate
 
-# Phase 7: Validate schema
-sp --json db validate
+# Phase 7: Validate schema and diff against declarations
+sp --json infra db validate
+sp --json infra db doctor
 
 # Phase 8: Assign admin role
-sp --json db assign-admin developer@example.com
+sp --json infra db assign-admin developer@example.com
 ```
 
 ---
@@ -437,19 +668,19 @@ sp infra db describe nonexistent
 
 ## JSON Output
 
-All commands support `--json` flag for structured output:
+All commands support the `--json` flag for structured output:
 
 ```bash
 # Verify JSON is valid
-sp --json db tables | jq .
+sp --json infra db tables | jq .
 
 # Extract specific fields
-sp --json db tables | jq '.tables[].name'
-sp --json db describe users | jq '.columns[].name'
-sp --json db info | jq '.table_count'
+sp --json infra db tables | jq '.tables[].name'
+sp --json infra db describe users | jq '.columns[].name'
+sp --json infra db info | jq '.table_count'
 
 # Query and process results
-sp --json db query "SELECT * FROM users LIMIT 5" | jq '.rows[].email'
+sp --json infra db query "SELECT * FROM users LIMIT 5" | jq '.rows[].email'
 ```
 
 ---

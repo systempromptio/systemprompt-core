@@ -1,4 +1,7 @@
 //! ID-JAG minting for the EMA issuer role.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use chrono::Utc;
 use systemprompt_identifiers::ClientId;

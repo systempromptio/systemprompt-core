@@ -1,5 +1,8 @@
 //! Streaming response tap: re-renders upstream canonical events to the inbound
 //! wire format while accumulating a full response snapshot for the audit sink.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod accumulator;
 

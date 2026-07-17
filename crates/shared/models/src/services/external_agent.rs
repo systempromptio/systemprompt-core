@@ -11,6 +11,9 @@
 //! is the catalog the admin UI lists and the operator's `enabled` flag.
 //! The `id` field MUST equal the bridge's `HostApp::id()` for the same host
 //! (e.g. `claude_desktop`, `codex_cli`).
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::ExternalAgentId;

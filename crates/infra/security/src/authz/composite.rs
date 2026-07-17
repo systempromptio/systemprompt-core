@@ -26,6 +26,9 @@
 //!
 //! If every hook must fire regardless of an earlier deny, do not use this
 //! type — write a custom composer.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use async_trait::async_trait;
 

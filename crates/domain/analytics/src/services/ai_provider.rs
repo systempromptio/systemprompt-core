@@ -1,3 +1,6 @@
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
 use async_trait::async_trait;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::SessionId;

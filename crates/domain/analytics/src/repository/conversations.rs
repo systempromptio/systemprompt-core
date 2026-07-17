@@ -3,6 +3,9 @@
 //! [`ConversationAnalyticsRepository`] lists agent-task contexts and
 //! task-less gateway AI sessions, and reports task, message, and timestamp
 //! counts used to build conversation activity trends.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::Result;
 use chrono::{DateTime, Utc};

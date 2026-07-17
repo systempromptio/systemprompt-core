@@ -4,6 +4,9 @@
 //! the rate-limit, server, runtime, security, paths, and provider sub-trees.
 //! Each sub-module owns its clap surface and renders results through
 //! [`crate::shared::render_result`].
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod catalog;
 pub mod config_section;

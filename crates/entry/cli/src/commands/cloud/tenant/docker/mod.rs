@@ -4,6 +4,9 @@
 //! creates, drops, and authorises per-tenant databases inside it via
 //! `docker exec psql`. Public surface: the shared-config types and the
 //! container/database lifecycle helpers consumed by the create/delete flows.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod config;
 pub mod container;

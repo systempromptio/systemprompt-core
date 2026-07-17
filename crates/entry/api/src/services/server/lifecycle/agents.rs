@@ -4,6 +4,9 @@
 //! retrying failed agents once after cleanup, and fails server startup if any
 //! required agent cannot be brought up — agents are a hard dependency of the
 //! API.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use anyhow::Result;
 use futures_util::future::join_all;

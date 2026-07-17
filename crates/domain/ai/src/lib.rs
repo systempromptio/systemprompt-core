@@ -45,6 +45,9 @@
 //! sibling crates that do.
 //!
 //! [`domain`]: https://github.com/systempromptio/systemprompt-core/blob/main/instructions/information/architecture.md
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod error;
 pub(crate) mod extension;

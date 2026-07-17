@@ -3,6 +3,9 @@
 //! `CimdMetadata` is the deserialised JSON document fetched from a
 //! federated client's well-known URL. `ClientValidation` enumerates the
 //! validation paths a client may take (DCR, CIMD, first-party, system).
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::error::{OauthError, OauthResult as Result};
 use serde::{Deserialize, Serialize};

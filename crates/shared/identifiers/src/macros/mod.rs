@@ -4,6 +4,9 @@
 //! `#[macro_export]`ed at the crate root. This module exists to keep their
 //! source files individually below the 300-line cohesion limit and to expose
 //! the supporting helper macros under stable paths.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod helpers;
 mod id;

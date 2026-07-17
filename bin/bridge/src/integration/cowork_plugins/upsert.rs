@@ -1,5 +1,8 @@
 //! Atomic upserts of `cowork_settings.json::enabledPlugins`, preserving every
 //! foreign key.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::path::Path;
 

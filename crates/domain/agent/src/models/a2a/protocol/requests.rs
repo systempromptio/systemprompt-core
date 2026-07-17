@@ -4,6 +4,9 @@
 //! [`A2aJsonRpcRequest`] wire envelope and its
 //! [`A2aJsonRpcRequest::parse_request`] dispatcher into [`A2aRequestParams`],
 //! the [`A2aResponse`] result variants, and the protocol error payloads.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use super::push_notification::{
     DeleteTaskPushNotificationConfigRequest, GetTaskPushNotificationConfigRequest,

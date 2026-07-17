@@ -1,6 +1,9 @@
 //! IO layer for the Cowork desktop integration: writes the org-provisioned
 //! enable key in `cowork_settings.json` and purges legacy session-marketplace
 //! state.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::path::PathBuf;
 use std::time::SystemTime;

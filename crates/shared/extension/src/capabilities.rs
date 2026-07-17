@@ -6,6 +6,9 @@
 //! satisfy each capability independently — for example, an extension that
 //! requires only configuration access does not need the host to wire up a
 //! database handle.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
 

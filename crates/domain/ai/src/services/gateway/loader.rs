@@ -5,6 +5,9 @@
 //! the version-controlled source of truth, ingested at every server boot.
 //! A missing file is a no-op (an instance simply runs with no policies, i.e.
 //! permissive).
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::path::Path;
 

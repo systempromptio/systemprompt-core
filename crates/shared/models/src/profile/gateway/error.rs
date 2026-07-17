@@ -1,6 +1,9 @@
 //! Failure modes emitted while validating the gateway's references into the
 //! provider registry: duplicate route ids, and a route or `default_provider`
 //! naming a provider absent from `profile.providers`.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use thiserror::Error;
 

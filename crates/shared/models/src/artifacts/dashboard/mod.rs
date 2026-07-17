@@ -4,6 +4,9 @@
 //! out per its [`DashboardHints`]. The submodules supply the section model
 //! ([`section`]), per-section data shapes ([`section_data`]), section/layout
 //! taxonomy ([`section_types`]), and layout hints ([`hints`]).
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod hints;
 pub mod section;

@@ -1,4 +1,7 @@
 //! Write-side OAuth client mutations.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use super::inserts::InsertRelatedData;
 use super::{ClientRepository, CreateClientParams, UpdateClientParams};

@@ -1,5 +1,8 @@
 //! Loading agent skill definitions from disk into A2A [`AgentSkill`] records,
 //! reading metadata from `SKILL.md` frontmatter and an optional `config.yaml`.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::services::shared::{AgentServiceError, Result};
 use std::fs;

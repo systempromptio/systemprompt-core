@@ -4,6 +4,9 @@
 //! [`run_standalone`] entry point), with submodules for authentication
 //! ([`auth`]), error envelopes ([`errors`]), request [`handlers`], and the
 //! streaming and processing pipelines.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod auth;
 pub mod errors;

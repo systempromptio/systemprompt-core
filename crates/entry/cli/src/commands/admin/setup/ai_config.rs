@@ -7,6 +7,9 @@
 //! providers whose keys were not supplied. Custom providers (e.g. `minimax`)
 //! and every other field are left untouched. An absent file is a no-op —
 //! minimal instances need not ship one.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::path::Path;
 

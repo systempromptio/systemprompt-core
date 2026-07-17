@@ -1,5 +1,8 @@
 //! Type-level identifiers, dependency lists, and the [`ExtensionMeta`]
 //! supertrait used by typed extension declarations.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::any::TypeId;
 

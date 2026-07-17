@@ -1,6 +1,9 @@
 //! Scheduled jobs registered with the systemprompt scheduler via the
 //! `inventory` crate: content prerender, page prerender, and copy-extension
 //! -assets.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod content_prerender;
 mod copy_assets;

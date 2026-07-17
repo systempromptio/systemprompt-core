@@ -4,6 +4,9 @@
 //! and prompt values, and the RFC 9728 `resource` self-origin carve-out
 //! ([`SelfOrigins`]). [`validate_authorize_request`] resolves and checks the
 //! effective scope against the registered client.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod entropy;
 mod resource;

@@ -4,6 +4,9 @@
 //! dynamic client management ([`client`], [`clients`]), [`discovery`] and
 //! [`wellknown`] metadata, [`webauthn`] passkey flows, and the shared
 //! [`OAuthHttpError`] response model ([`error`]).
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod client;
 pub mod clients;

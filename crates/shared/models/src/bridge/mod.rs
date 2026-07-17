@@ -26,6 +26,9 @@
 //! (builders) deliberately live in the bridge crate alongside the
 //! gateway client — they pull in `ed25519-dalek` and `serde_jcs` which
 //! are not appropriate dependencies for this foundation crate.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod ids;
 pub mod manifest;

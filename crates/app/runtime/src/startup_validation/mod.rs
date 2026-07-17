@@ -4,6 +4,9 @@
 //! [`DomainConfigRegistry`], aggregates results into a
 //! [`StartupValidationReport`], and is consumed by `systemprompt`'s
 //! boot sequence to gate startup on configuration health.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod config_loaders;
 mod display;

@@ -1,5 +1,8 @@
 //! `DomainConfig` implementation that validates the on-disk skill
 //! catalog referenced by `skills_path`.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::path::Path;
 

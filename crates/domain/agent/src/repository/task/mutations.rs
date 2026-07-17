@@ -2,6 +2,9 @@
 //!
 //! State transitions (with optimistic-concurrency guards) live in the
 //! sibling `state` submodule.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use sqlx::PgPool;
 use std::sync::Arc;

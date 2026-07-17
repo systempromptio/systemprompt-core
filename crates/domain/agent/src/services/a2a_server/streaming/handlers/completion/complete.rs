@@ -4,6 +4,9 @@
 //! [`Task`], persists it with its messages, and broadcasts the A2A, AG-UI, and
 //! webhook success events; failures along the way are recorded and reported as
 //! AG-UI `RUN_ERROR` events.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
 

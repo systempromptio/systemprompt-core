@@ -9,6 +9,9 @@
 //! context with [`CommandContext::with_app_context`] or
 //! [`CommandContext::with_database`] and a scripted prompter, so no handler
 //! needs process-global state.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
 

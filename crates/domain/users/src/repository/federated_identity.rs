@@ -1,5 +1,8 @@
 //! Repository for `federated_identities` — the `{issuer, external_sub} ->
 //! users.id` mapping used by RFC 8693 token-exchange first-touch.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use chrono::Utc;
 use sqlx::Acquire;

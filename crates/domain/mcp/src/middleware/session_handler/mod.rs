@@ -7,6 +7,9 @@
 //! [`DatabaseSessionManagerError`] models the local, database, and
 //! reconnect-signalling failure cases; database persistence is best-effort and
 //! never fails an in-memory operation.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod session_manager_impl;
 mod session_store;

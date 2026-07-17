@@ -1,3 +1,6 @@
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
 use super::html::{HtmlBuilder, base_styles, html_escape, mcp_app_bridge_script};
 use crate::error::McpDomainResult;
 use crate::services::ui_renderer::{CspPolicy, UiRenderer, UiResource};

@@ -1,6 +1,9 @@
 //! Asset declaration value types used by extensions that ship CSS, HTML
 //! fragments, fonts, images, or JavaScript that the host must copy into the
 //! web distribution.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::path::{Path, PathBuf};
 

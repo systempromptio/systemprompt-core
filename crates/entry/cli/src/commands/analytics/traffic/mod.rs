@@ -3,6 +3,9 @@
 //! Defines the [`TrafficCommands`] subcommand tree and the typed output shapes
 //! ([`TrafficSourcesOutput`], [`GeoOutput`], [`DevicesOutput`], [`BotsOutput`])
 //! rendered by the `analytics traffic` commands.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod bots;
 mod devices;

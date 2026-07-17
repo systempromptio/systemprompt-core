@@ -1,3 +1,6 @@
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
 pub const SEND_MESSAGE: &str = "SendMessage";
 pub const SEND_STREAMING_MESSAGE: &str = "SendStreamingMessage";
 pub const GET_TASK: &str = "GetTask";

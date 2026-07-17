@@ -1,5 +1,8 @@
 //! Compute the diff between content stored on disk (markdown + frontmatter)
 //! and in the database for one content source.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use super::compute_content_hash;
 use crate::error::{SyncError, SyncResult};

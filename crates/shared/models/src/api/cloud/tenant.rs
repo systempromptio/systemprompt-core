@@ -1,5 +1,8 @@
 //! Cloud tenant, plan, and subscription DTOs exchanged between the CLI and the
 //! cloud API.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};

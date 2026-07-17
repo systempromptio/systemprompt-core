@@ -3,6 +3,9 @@
 //! [`BanCommands`] covers listing, adding, removing, checking, and cleaning up
 //! IP bans. On a `--database-url` invocation only the read-only commands are
 //! served; write operations require a full profile context.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod add;
 mod check;

@@ -1,3 +1,6 @@
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
 use super::{AgentInfo, AgentOrchestrator};
 use crate::services::agent_orchestration::{
     AgentStatus, OrchestrationResult, ValidationReport, monitor,

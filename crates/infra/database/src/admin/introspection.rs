@@ -3,6 +3,9 @@
 //! Part of the documented sqlx allowlist — every query here is built
 //! dynamically because the table name is supplied at runtime as a
 //! [`SafeIdentifier`].
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
 

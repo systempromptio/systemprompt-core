@@ -1,6 +1,9 @@
 //! Skill component projection: selecting a plugin's skills from the resolved
 //! catalogue and laying them out as `skills/<kebab>/SKILL.md` plus auxiliary
 //! files (`scripts/`, `references/`, …).
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::collections::BTreeSet;
 use std::path::Path;

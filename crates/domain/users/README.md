@@ -27,8 +27,9 @@
 [![Crates.io](https://img.shields.io/crates/v/systemprompt-users.svg?style=flat-square)](https://crates.io/crates/systemprompt-users)
 [![Docs.rs](https://img.shields.io/docsrs/systemprompt-users?style=flat-square)](https://docs.rs/systemprompt-users)
 [![License: BSL-1.1](https://img.shields.io/badge/license-BSL--1.1-2b6cb0?style=flat-square)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
+[![codecov](https://img.shields.io/codecov/c/github/systempromptio/systemprompt-core/main?style=flat-square&logo=codecov)](https://codecov.io/gh/systempromptio/systemprompt-core)
 
-User management for systemprompt.io AI governance infrastructure. Role-based access control (`UserRole`: Admin, User, Anonymous), sessions, API keys, device certificates, and IP bans for the MCP governance pipeline. Provides user CRUD, session management, bulk operations, and anonymous user lifecycle management.
+Your users, your database, your access rules. Role-based access control (`UserRole`: Admin, User, Anonymous), sessions, API keys, device certificates, federated identities, and IP bans, all held in your PostgreSQL rather than a third-party directory.
 
 **Layer**: Domain — business-logic modules that implement systemprompt.io features. Part of the [systemprompt-core](https://github.com/systempromptio/systemprompt-core) workspace.
 
@@ -51,7 +52,7 @@ This crate provides user management functionality including:
 
 ```toml
 [dependencies]
-systemprompt-users = "0.18.0"
+systemprompt-users = "0.21"
 ```
 
 ```rust
@@ -67,51 +68,16 @@ let admins = user_service.find_by_role(UserRole::Admin).await?;
 let stats = user_service.get_stats().await?;
 ```
 
-## Directory Structure
+## Module Layout
 
-```
-src/
-├── lib.rs                              # Crate docs, public exports
-├── error.rs                            # UserError enum, Result / UserResult aliases
-├── extension.rs                        # UsersExtension (schema + job registration)
-├── models/
-│   └── mod.rs                          # User, UserSession, UserActivity, UserStats,
-│                                       # UserApiKey, UserDeviceCert, NewApiKey, UserExport
-├── repository/
-│   ├── mod.rs                          # UserRepository facade, MAX_PAGE_SIZE constant
-│   ├── api_key.rs                      # API key persistence and lookup
-│   ├── device_cert.rs                  # Device certificate persistence
-│   ├── banned_ip/
-│   │   ├── mod.rs                      # BannedIpRepository
-│   │   ├── types.rs                    # BannedIp, BanDuration, BanIpParams,
-│   │   │                               # BanIpWithMetadataParams
-│   │   ├── queries.rs                  # ban_ip, unban_ip, is_banned, get_ban,
-│   │   │                               # cleanup_expired
-│   │   └── listing.rs                  # list_active_bans, list_bans_by_source,
-│   │                                   # count_active_bans
-│   └── user/
-│       ├── mod.rs                      # Module exports
-│       ├── find.rs                     # find_by_id, find_by_email, find_by_name,
-│       │                               # find_by_role
-│       ├── list.rs                     # list, search, count, bulk operations
-│       ├── stats.rs                    # count_by_status, count_by_role, get_stats
-│       ├── operations.rs               # create, update_*, delete, cleanup_old_anonymous
-│       ├── merge.rs                    # merge_users, MergeResult
-│       └── session.rs                  # list_sessions, end_session, end_all_sessions,
-│                                       # session_exists
-├── services/
-│   ├── mod.rs                          # Service exports
-│   ├── admin_service.rs                # UserAdminService, PromoteResult, DemoteResult
-│   ├── api_key_service.rs              # ApiKeyService, IssueApiKeyParams,
-│   │                                   # API_KEY_PREFIX
-│   ├── device_cert_service.rs          # DeviceCertService, EnrollDeviceCertServiceParams
-│   └── user/
-│       ├── mod.rs                      # UserService — primary service
-│       └── provider.rs                 # UserProvider / RoleProvider impls, User→AuthUser
-└── jobs/
-    ├── mod.rs                          # Job exports
-    └── cleanup_anonymous_users.rs      # CleanupAnonymousUsersJob (retention window)
-```
+| Module | Purpose |
+|--------|---------|
+| `models/` | `User`, `UserSession`, `UserActivity`, `UserStats`, `UserApiKey`, `UserDeviceCert`, and related records. |
+| `repository/` | Compile-time-verified persistence: `user/` (find, list, stats, operations, merge, session), `api_key`, `device_cert`, `federated_identity`, and `banned_ip/`. |
+| `services/` | `UserService` (primary), `UserAdminService`, `ApiKeyService`, and `DeviceCertService`. |
+| `jobs/` | `CleanupAnonymousUsersJob` scheduled anonymous-user cleanup. |
+
+Schema DDL lives in `schema/*.sql` (`users`, `user_sessions`, `user_api_keys`, `user_device_certs`, `federated_identities`, `banned_ips`, and the analytics views) with migrations in `schema/migrations/`.
 
 ## Public Exports
 

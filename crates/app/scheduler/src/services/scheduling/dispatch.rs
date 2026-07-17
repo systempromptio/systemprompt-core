@@ -1,6 +1,9 @@
 //! Job dispatch and bookkeeping — runs a single inventory-registered job
 //! within a panic-isolating wrapper, records its result, and updates the
 //! `scheduled_jobs` row.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
 

@@ -3,6 +3,9 @@
 //!
 //! Read paths live here; write paths (create, complete, fail) live in the
 //! `mutations` submodule.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod mutations;
 mod parse;

@@ -26,9 +26,10 @@
 
 [![Crates.io](https://img.shields.io/crates/v/systemprompt-traits.svg?style=flat-square)](https://crates.io/crates/systemprompt-traits)
 [![Docs.rs](https://img.shields.io/docsrs/systemprompt-traits?style=flat-square)](https://docs.rs/systemprompt-traits)
+[![codecov](https://img.shields.io/codecov/c/github/systempromptio/systemprompt-core/main?style=flat-square&logo=codecov)](https://codecov.io/gh/systempromptio/systemprompt-core)
 [![License: BSL-1.1](https://img.shields.io/badge/license-BSL--1.1-2b6cb0?style=flat-square)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
 
-Trait-first interface contracts for the systemprompt.io platform. Defines the provider, repository, registry, and service abstractions that every other layer (infra, domain, app, entry) implements or consumes, plus the cross-cutting `ExtensionError` contract used to render domain errors over HTTP and MCP.
+The contract layer every other crate answers to. Nothing in infra, domain, app, or entry runs outside a trait defined here, so the seams between AI providers, repositories, and transports are one audited surface rather than scattered assumptions.
 
 **Layer**: Shared. Part of the [systemprompt-core](https://github.com/systempromptio/systemprompt-core) workspace. Depends only on [`systemprompt-identifiers`](https://crates.io/crates/systemprompt-identifiers) and [`systemprompt-provider-contracts`](https://crates.io/crates/systemprompt-provider-contracts).
 
@@ -36,14 +37,14 @@ Trait-first interface contracts for the systemprompt.io platform. Defines the pr
 
 ```toml
 [dependencies]
-systemprompt-traits = "0.18.0"
+systemprompt-traits = "0.21"
 ```
 
 Enable the `web` feature to pull in the `axum`-backed `ApiModule` trait:
 
 ```toml
 [dependencies]
-systemprompt-traits = { version = "0.18.0", features = ["web"] }
+systemprompt-traits = { version = "0.21", features = ["web"] }
 ```
 
 ## Example
@@ -69,25 +70,21 @@ impl Service for HealthPinger {
 |--------|----------|
 | `ai_providers` | `AiSessionProvider`, `AiFilePersistenceProvider`, image-generation metadata, and storage config. |
 | `analytics` | `AnalyticsProvider`, `FingerprintProvider`, session inputs, and `AnalyticsProviderError`. |
-| `auth` | `UserProvider`, `RoleProvider`, `AuthUser`, and `AuthProviderError`. |
-| `content` | Content provider traits, `ContentSummary`, and `ContentItem`. |
+| `auth` | `UserProvider`, `RoleProvider`, `AuthUser`, `FederatedIdentityClaims`, and `AuthProviderError`. |
+| `content` | `ContentProvider`, `ContentSummary`, `ContentItem`, and `ContentFilter`. |
 | `context` | `AppContext`, `ConfigProvider`, `DatabaseHandle`, `ModuleRegistry`, `Module`, `ContextPropagation`, and the optional `ApiModule` (`web` feature). |
 | `context_provider` | `ContextProvider` for conversation contexts and `ContextWithStats`. |
 | `domain_config` | `DomainConfig` and `DomainConfigRegistry` for per-domain config loading. |
 | `events` | Log, user, and analytics event publisher traits. |
 | `extension_error` | `ExtensionError` trait, `ApiError`, and `McpErrorData` wire types. |
-| `file_upload` | `FileUploadProvider`, `FileUploadInput`, and `UploadedFileInfo`. |
 | `jwt` | `JwtValidationProvider`, `AgentJwtClaims`, and `GenerateTokenParams`. |
 | `log_service` | Generic `LogService` persistence trait. |
-| `mcp_service` | `McpServiceProvider` and `McpServerMetadata`. |
 | `module` | `register_module!` macro for compile-time module registration via `inventory`. |
-| `process` | `ProcessCleanupProvider` for PID and port lifecycle. |
 | `registry` | `AgentRegistryProvider`, `McpRegistryProvider`, `AgentInfo`, and `McpServerInfo`. |
 | `repository` | `RepositoryError` enum shared by domain repositories. |
 | `scheduler` | `JobStatus` and scheduler error types. |
 | `service` | `Service` and `AsyncService` lifecycle traits. |
-| `session_analytics` | `SessionAnalyticsProvider` for session-scoped counters. |
-| `startup_events` | Startup event publisher traits and types. |
+| `startup_events` | Startup phase, service, and module event types plus publisher extensions. |
 | `storage` | `FileStorage`, `StoredFileId`, and `StoredFileMetadata`. |
 | `validation` | `Validate`, `MetadataValidation`, and the field-level `ValidationError`. |
 | `validation_report` | `ValidationReport`, `StartupValidationReport`, and warning types. |
@@ -96,7 +93,7 @@ Provider traits re-exported from [`systemprompt-provider-contracts`](https://cra
 
 ## Error model
 
-Each provider trait pairs with a `thiserror`-derived error enum (e.g. `AuthProviderError`, `JwtProviderError`, `FileStorageError`, `ProcessProviderError`). The cross-cutting `ExtensionError` trait is implemented by downstream errors so the API and MCP transports can render them uniformly into `ApiError` (HTTP) or `McpErrorData` (MCP).
+Each provider trait pairs with a `thiserror`-derived error enum (for example `AnalyticsProviderError`, `AuthProviderError`, `JwtProviderError`, `FileStorageError`, `ContextPropagationError`, `DomainConfigError`). The cross-cutting `ExtensionError` trait is implemented by downstream errors so the API and MCP transports render them uniformly into `ApiError` (HTTP) or `McpErrorData` (MCP).
 
 `RepositoryError` is the standard error type for repository implementations across domain crates and is `#[non_exhaustive]`.
 
@@ -112,10 +109,10 @@ Most provider traits are exposed as `Arc<dyn TraitName>` via the `Dyn*` aliases.
 
 ## Dependencies
 
-- `systemprompt-provider-contracts`, `systemprompt-identifiers` — sibling shared-layer crates.
-- `async-trait` — async methods on dyn-compatible traits.
-- `thiserror` — error enum derives.
-- `inventory` — compile-time module registration.
+- `systemprompt-provider-contracts`, `systemprompt-identifiers`: sibling shared-layer crates.
+- `async-trait`: async methods on dyn-compatible traits.
+- `thiserror`: error enum derives.
+- `inventory`: compile-time module registration.
 - `serde`, `serde_json`, `chrono`, `uuid`, `futures`, `http`, `tracing`, `xxhash-rust`.
 - `axum` (optional, `web` feature).
 

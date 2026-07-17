@@ -8,6 +8,9 @@
 //! may carry multibyte UTF-8 and slicing it on a non-boundary byte would panic.
 //! For ASCII ids — every id this matcher actually sees — byte and char matching
 //! are identical.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub fn glob_matches(pattern: &str, candidate: &str) -> bool {
     let pattern = pattern.as_bytes();

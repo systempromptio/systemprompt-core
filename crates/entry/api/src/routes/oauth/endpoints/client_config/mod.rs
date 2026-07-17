@@ -2,6 +2,9 @@
 //!
 //! Exposes the read, update, and delete operations a registered client uses to
 //! manage its own configuration via its registration access token.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub(crate) mod delete;
 pub(crate) mod get;

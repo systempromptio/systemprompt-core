@@ -4,6 +4,9 @@
 //! [`AiFilePersistenceProvider`] trait for storing AI-generated files, the
 //! [`AiSessionProvider`] trait for AI session lifecycle, and the
 //! [`ImageMetadata`] / [`ImageGenerationInfo`] value types.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod error;
 mod files;

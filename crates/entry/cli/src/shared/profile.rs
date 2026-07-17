@@ -5,6 +5,9 @@
 //! discovery, reporting failures via [`ProfileResolutionError`]. Also provides
 //! profile-authoring helpers ([`save_profile_yaml`], display-name and pepper
 //! generation) used by the profile-creation flows.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::path::{Path, PathBuf};
 

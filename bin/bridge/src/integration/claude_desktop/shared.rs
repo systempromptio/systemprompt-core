@@ -1,3 +1,6 @@
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 use std::collections::BTreeMap;
 #[cfg(any(target_os = "macos", target_os = "windows"))]

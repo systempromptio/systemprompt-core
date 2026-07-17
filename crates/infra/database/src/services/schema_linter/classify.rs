@@ -1,5 +1,8 @@
 //! Per-AST-node classification: which top-level statements are declarative-safe
 //! and which are rejected as imperative.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use pg_query::protobuf::node::Node;
 use pg_query::protobuf::{CreateStmt, DropStmt, ObjectType};

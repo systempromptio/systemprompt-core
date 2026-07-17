@@ -4,6 +4,9 @@
 //! validating dependencies and configuration, dumping config, summarising
 //! [`PluginsCommands::Capabilities`], and the [`mcp`] server-management
 //! subtree. [`types`] holds the shared serialisable output shapes.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod types;
 

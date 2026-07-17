@@ -1,4 +1,7 @@
 //! Tracing span construction for inbound requests.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_logging::{RequestSpan, RequestSpanBuilder};
 use systemprompt_models::RequestContext;

@@ -4,6 +4,9 @@
 //! `trace/log_lookup_queries.rs`; they do not go through this type. The struct
 //! is preserved because removing it would force a cross-cutting rewrite of the
 //! logging test surface; it must not be used in production code.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use chrono::{DateTime, Utc};
 use sqlx::FromRow;

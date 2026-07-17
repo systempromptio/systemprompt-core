@@ -5,6 +5,9 @@
 //! the streaming execution pipeline, reporting progress as [`StreamEvent`]s
 //! over an mpsc channel. Both the streaming and non-streaming entry points live
 //! in the submodules.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod message_handler;
 mod persistence;

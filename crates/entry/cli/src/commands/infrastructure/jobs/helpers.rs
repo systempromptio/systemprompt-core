@@ -1,3 +1,6 @@
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
 pub(super) fn parse_cron_human(schedule: &str) -> String {
     let parts: Vec<&str> = schedule.split_whitespace().collect();
     if parts.len() != 6 {

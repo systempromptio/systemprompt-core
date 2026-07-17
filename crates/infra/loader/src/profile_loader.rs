@@ -7,6 +7,9 @@
 //! - on-disk path conventions (`profiles/<name>.secrets.profile.yaml`),
 //! - serialization with a leading "do not commit secrets" header, and
 //! - directory enumeration for the `systemprompt cloud` CLI commands.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::path::Path;
 use systemprompt_config::load_profile_with_catalog;

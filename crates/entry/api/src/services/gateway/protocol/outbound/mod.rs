@@ -6,6 +6,9 @@
 //! [`OutboundAdapterRegistration`] (collected by `inventory`) so the upstream
 //! registry can resolve one by provider tag. Implementations cover Anthropic,
 //! `OpenAI` Chat Completions, and `OpenAI` Responses.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod anthropic;
 pub mod gemini;

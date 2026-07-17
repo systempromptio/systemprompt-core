@@ -4,6 +4,9 @@
 //! [`UiResource`] backed by Chart.js, mapping the artifact's rendering hints
 //! and dataset parts into a Chart.js configuration and emitting a CSP that
 //! permits the Chart.js CDN.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use super::html::{
     HtmlBuilder, base_styles, html_escape, json_to_js_literal, mcp_app_bridge_script,

@@ -5,6 +5,9 @@
 //! verified-authentication token for the [`webauthn_complete`] bridge.
 //!
 //! [`webauthn_complete`]: crate::routes::oauth::endpoints::webauthn_complete
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use axum::Json;
 use axum::extract::State;

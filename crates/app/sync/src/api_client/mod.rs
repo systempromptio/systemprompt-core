@@ -3,6 +3,9 @@
 //! Handles direct-sync vs. cloud-relay endpoint selection, bearer-token
 //! auth, retryable failures with exponential backoff, and typed JSON /
 //! binary response handling.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod response;
 mod retry;

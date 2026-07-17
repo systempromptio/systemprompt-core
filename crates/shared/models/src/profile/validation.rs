@@ -2,6 +2,9 @@
 //!
 //! This module contains all validation logic for Profile configurations,
 //! including path validation, security settings, CORS, and rate limits.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use super::governance::{AuthzMode, UNRESTRICTED_ACKNOWLEDGEMENT};
 use super::security::GATEWAY_REQUIRED_RESOURCE_AUDIENCES;

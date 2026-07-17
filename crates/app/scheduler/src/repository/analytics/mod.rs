@@ -1,4 +1,7 @@
 //! Analytics maintenance queries used by scheduled cleanup jobs.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use sqlx::PgPool;
 use std::sync::Arc;

@@ -8,6 +8,9 @@
 //! `models` (not the `teams` domain crate) so it can be embedded in
 //! [`super::ServicesConfig`] without a dependency cycle, mirroring
 //! `SlackAppConfig` and `McpServerSummary`.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::collections::BTreeMap;
 

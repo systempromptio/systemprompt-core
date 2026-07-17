@@ -2,6 +2,9 @@
 //!
 //! Re-exports the command functions that the `systemprompt` CLI invokes to
 //! start, stop, and inspect managed MCP servers.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod commands;
 

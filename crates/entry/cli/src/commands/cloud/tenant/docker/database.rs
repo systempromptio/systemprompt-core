@@ -2,6 +2,9 @@
 //!
 //! Creates, drops, and authorises tenant databases by running `psql` via
 //! `docker exec`, sanitising identifiers before they reach the SQL text.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use anyhow::{Context, Result, bail};
 use systemprompt_cloud::DockerCli;

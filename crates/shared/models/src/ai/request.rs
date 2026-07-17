@@ -5,6 +5,9 @@
 //! [`AiContentPart`]s), the provider/model config, sampling params, available
 //! tools, and structured-output options. Build via [`AiRequestBuilder`] for the
 //! optional fields.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use super::response_format::StructuredOutputOptions;
 use super::sampling::{ProviderConfig, SamplingParams};

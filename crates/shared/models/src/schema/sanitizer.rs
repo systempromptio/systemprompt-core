@@ -6,6 +6,9 @@
 //! (`allOf`/`anyOf`/`oneOf`/`not`, `$ref`, definitions) per the provider's
 //! [`ProviderCapabilities`], drops metadata and `x-` extension fields, and
 //! recurses through nested schemas.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use super::capabilities::ProviderCapabilities;
 use serde_json::{Map, Value, json};

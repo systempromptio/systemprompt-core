@@ -1,4 +1,7 @@
 //! Chat message and role primitives shared across LLM providers.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use serde::{Deserialize, Serialize};
 

@@ -5,6 +5,9 @@
 //! explicit guidance prompt built by [`SynthesisPromptBuilder`]. When both
 //! yield empty content or error, [`FallbackGenerator`] emits a deterministic
 //! summary so the caller always gets a reply.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::models::ai::{AiMessage, MessageRole, SamplingParams};
 use crate::models::tools::{CallToolResult, ToolCall};

@@ -1,5 +1,8 @@
 //! OS-process lifecycle for MCP servers: spawning, PID discovery,
 //! liveness monitoring, and graceful/forced termination.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod cleanup;
 pub mod monitor;

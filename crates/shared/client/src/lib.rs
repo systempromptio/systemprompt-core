@@ -22,6 +22,9 @@
 //! assert!(healthy);
 //! # Ok(()) }
 //! ```
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod client;
 mod error;

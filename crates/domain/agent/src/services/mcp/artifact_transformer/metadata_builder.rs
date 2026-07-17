@@ -5,6 +5,9 @@
 //! MCP tool result, deriving rendering hints (table columns, form fields, chart
 //! and dashboard layouts) from the tool's output schema and honouring any
 //! explicit `x-*-hints` overrides.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::error::ArtifactError;
 use serde_json::{Value as JsonValue, json};

@@ -5,6 +5,9 @@
 //! small set of re-exported third-party types when their feature is enabled).
 //! Anything specific to a single domain lives behind its module path
 //! (`systemprompt::agent::…`, `systemprompt::ai::…`, etc.).
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 /// Core extension framework — the `Extension` trait, typed metadata, the
 /// `register_extension!` macro, and registry/router types.

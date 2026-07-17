@@ -5,6 +5,9 @@
 //! is known but not prerendered. Re-exports the matcher
 //! ([`StaticContentMatcher`]), the serving state ([`StaticContentState`]), and
 //! the session helpers ([`SessionInfo`], [`ensure_session`]).
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod config;
 pub mod fallback;

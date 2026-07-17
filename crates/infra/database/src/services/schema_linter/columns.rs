@@ -1,5 +1,8 @@
 //! In-input table graph and `(table, column)` resolution for `CREATE INDEX`
 //! and `CREATE VIEW` statements.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use pg_query::protobuf::node::Node;
 use pg_query::protobuf::{ColumnDef, CreateStmt, IndexStmt, ViewStmt};

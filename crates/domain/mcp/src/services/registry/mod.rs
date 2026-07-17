@@ -9,6 +9,9 @@
 //! resolved system-admin id; callers obtain it via `AppContext::mcp_registry`.
 //!
 //! [uid]: systemprompt_identifiers::UserId
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod resolver;
 pub mod trait_impl;

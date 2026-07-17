@@ -2,6 +2,9 @@
 //!
 //! `client_secret` lives in the OS keystore (Keychain / Credential Manager /
 //! Secret Service); non-secret fields in a 0600 JSON file under the cache dir.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::gateway::{BridgeOAuthClientResponse, GatewayClient, GatewayError, HookTokenResponse};
 use serde::{Deserialize, Serialize};

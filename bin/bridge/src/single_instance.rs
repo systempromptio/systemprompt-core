@@ -2,6 +2,9 @@
 //!
 //! A second launch would race the proxy/loopback/GUI ports, so we hold a named
 //! OS lock; the loser pings the running instance to focus its window.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::fs;
 use std::io::Write as _;

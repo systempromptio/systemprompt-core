@@ -6,6 +6,9 @@
 //! user or mints one on first contact. The platform issuer
 //! (`https://slack.com` / the Teams Entra issuer) namespaces the external id so
 //! a Slack user and a Teams user with a colliding raw id never alias.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::FederatedIdentityClaims;

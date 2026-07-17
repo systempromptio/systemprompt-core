@@ -4,6 +4,9 @@
 //! mutate a typed field, write it back. `save_profile` revalidates before
 //! writing so a config edit can never persist a profile the loader would reject
 //! at boot — drift surfaces at the edit, not at the next service start.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::path::Path;
 

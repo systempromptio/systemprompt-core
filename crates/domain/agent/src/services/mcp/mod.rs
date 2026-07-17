@@ -3,6 +3,9 @@
 //! Covers transforming MCP tool results into A2A artifacts
 //! ([`artifact_transformer`]), task-construction helpers, and the
 //! [`ToolResultHandler`] that routes tool outputs into task state.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod artifact_transformer;
 pub mod task_helper;

@@ -4,6 +4,9 @@
 //! [`ContentFile`] and [`FileRole`], and the structured-metadata family
 //! ([`FileMetadata`], [`TypeSpecificMetadata`], and the per-kind detail
 //! structs).
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod content_file;
 mod file;

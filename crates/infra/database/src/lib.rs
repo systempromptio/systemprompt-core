@@ -47,6 +47,9 @@
 //!   introspection.
 //!
 //! Every other call site uses verified macros.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod admin;
 pub mod error;

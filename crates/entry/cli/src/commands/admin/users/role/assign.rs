@@ -1,3 +1,6 @@
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
 use anyhow::{Result, anyhow};
 use clap::Args;
 use systemprompt_users::{UserAdminService, UserService};

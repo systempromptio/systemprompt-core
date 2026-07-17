@@ -5,6 +5,9 @@
 //! versus bot traffic (including a user-agent-driven bot taxonomy). An
 //! `engaged_only` flag restricts the human-facing breakdowns to sessions with
 //! a landing page and at least one request.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::Result;
 use chrono::{DateTime, Utc};

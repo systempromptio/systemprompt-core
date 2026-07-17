@@ -1,5 +1,8 @@
 //! YAML profile loader: parses a profile and projects its gateway section to
 //! runtime form, validating the provider registry and gateway references.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::path::Path;
 

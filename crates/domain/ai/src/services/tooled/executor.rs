@@ -5,6 +5,9 @@
 //! each result (including structured error results for unknown or failing
 //! tools). [`ResponseStrategy`] then classifies the combined output into the
 //! text, artifact, or tools-only path the caller should follow.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use serde_json::json;
 use std::sync::Arc;

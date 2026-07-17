@@ -4,6 +4,9 @@
 //! [`token`], [`callback`], [`consent`], dynamic registration ([`register`],
 //! [`client_config`]), introspection and revocation, [`userinfo`], [`logout`],
 //! the [`anonymous`] grant, and the [`webauthn_complete`] step.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod anonymous;
 pub mod authorize;

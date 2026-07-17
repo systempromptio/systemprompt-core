@@ -1,5 +1,8 @@
 //! Projects on-disk hook definitions into the signed `HookEntry` records the
 //! manifest carries.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::path::Path;
 

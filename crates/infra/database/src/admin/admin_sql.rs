@@ -4,6 +4,9 @@
 //! - [`AdminSql::parse_readonly`] — only `SELECT`/`WITH`/`EXPLAIN`/`SHOW`/
 //!   `TABLE`/`VALUES` queries with no forbidden keywords.
 //! - [`AdminSql::parse_unrestricted`] — single statement, otherwise free-form.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use thiserror::Error;
 

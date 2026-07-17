@@ -3,6 +3,9 @@
 //! Creates the config, agent, MCP, content, web, and scheduler files from the
 //! [`super::templates`] strings and clones the bundled systemprompt-admin MCP
 //! server.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use anyhow::{Context, Result};
 use std::path::Path;

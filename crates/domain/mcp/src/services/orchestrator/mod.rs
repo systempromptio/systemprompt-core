@@ -2,6 +2,9 @@
 //!
 //! Coordinates the lifecycle, database, monitoring, network, and process layers
 //! and dispatches lifecycle events through an [`EventBus`].
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::error::McpDomainResult;
 use std::sync::Arc;

@@ -1,5 +1,8 @@
 //! Execution-result summarisation and tracking-status recording for the
 //! planned strategy's tool calls.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use serde_json::Value;
 use systemprompt_models::TrackedStep;

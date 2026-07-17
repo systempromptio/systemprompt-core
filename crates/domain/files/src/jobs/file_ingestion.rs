@@ -3,6 +3,9 @@
 //! Walks the configured storage directory on a schedule, registering any
 //! image file not already tracked in the `files` table and reporting found /
 //! inserted / skipped / error counts in the job result.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use async_trait::async_trait;
 use chrono::Utc;

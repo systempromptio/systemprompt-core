@@ -3,6 +3,9 @@
 //! Serves the scope-consent page (GET) and records the user's allow/deny
 //! decision (POST), validating requested scopes against the client's
 //! registered grant.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use axum::Json;
 use axum::extract::Query;

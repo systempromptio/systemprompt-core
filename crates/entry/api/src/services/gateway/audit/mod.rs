@@ -6,6 +6,9 @@
 //! calls, and the response payload (see the `complete` submodule) — or marks it
 //! failed. [`GatewayRequestContext`] carries the identifiers and routing
 //! metadata bound to a single request.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod complete;
 mod message_text;

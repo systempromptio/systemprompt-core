@@ -3,6 +3,9 @@
 //! Re-exports the extension-detail, capability-listing, and validation result
 //! shapes from their respective submodules so subcommands can name them from a
 //! single `super::types` path.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod capability_types;
 mod extension_types;

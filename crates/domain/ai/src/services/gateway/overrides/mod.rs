@@ -13,6 +13,9 @@
 //! [`register_system_prompt_override!`](crate::register_system_prompt_override)
 //! macro and collected via `inventory` — the same pattern used for
 //! [`SafetyScanner`](super::safety::SafetyScanner)s.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod engine;
 

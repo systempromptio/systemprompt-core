@@ -5,6 +5,9 @@
 //! [`AnomalyLevel::Normal`], `Warning`, or `Critical` and detecting trend
 //! spikes relative to the recent average. State is held in memory behind
 //! `RwLock`s, not persisted.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::collections::HashMap;
 use std::sync::Arc;

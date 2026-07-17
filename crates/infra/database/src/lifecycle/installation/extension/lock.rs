@@ -1,3 +1,6 @@
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
 use sqlx::Postgres;
 use sqlx::pool::PoolConnection;
 use systemprompt_extension::LoaderError;

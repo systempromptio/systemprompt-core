@@ -1,4 +1,7 @@
 //! Publicly re-exported submodule. See submodule rustdoc for details.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod auth;
 pub mod client;

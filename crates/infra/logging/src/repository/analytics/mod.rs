@@ -4,6 +4,9 @@
 //! `analytics_events` table on the database write pool, carrying typed actor,
 //! session, and task identifiers alongside the request-level metrics
 //! (endpoint, error code, response time) the platform aggregates downstream.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use chrono::Utc;
 use serde_json::Value;

@@ -2,6 +2,9 @@
 //!
 //! [`RoleCommands`] covers assigning arbitrary roles plus the built-in admin
 //! promote/demote shortcuts. All operations require a full profile context.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod assign;
 mod demote;

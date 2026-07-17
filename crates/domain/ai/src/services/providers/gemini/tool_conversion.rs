@@ -5,6 +5,9 @@
 //! resulting name rewrites are tracked in the per-provider [`ToolNameMapper`].
 //! On the way back, model-emitted function names are resolved to their original
 //! tool names. This is the agent-only concern the shared codec does not carry.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::collections::HashSet;
 

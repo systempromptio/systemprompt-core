@@ -7,6 +7,9 @@
 //! delegates aggregate reassembly to [`TaskConstructor`]. Query, mutation, and
 //! state-transition helpers live in the sibling submodules and are re-exported
 //! here.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod constructor;
 mod mutations;

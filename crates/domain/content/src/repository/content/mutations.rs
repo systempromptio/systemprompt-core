@@ -1,3 +1,6 @@
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
 use crate::models::builders::content::CategoryIdUpdate;
 use crate::models::{Content, ContentKind, CreateContentParams, UpdateContentParams};
 use chrono::Utc;

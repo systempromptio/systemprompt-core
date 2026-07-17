@@ -5,6 +5,9 @@
 //! a domain object parsed from disk is upserted into a typed repository, with
 //! explicit `override_existing` and `delete_orphans` knobs. Direction is fixed
 //! (YAML → DB).
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::collections::HashSet;
 

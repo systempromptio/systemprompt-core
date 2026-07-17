@@ -1,5 +1,8 @@
 //! [`ToolContext`] — per-call context forwarded to a
 //! [`crate::tool::ToolProvider`].
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::collections::HashMap;
 

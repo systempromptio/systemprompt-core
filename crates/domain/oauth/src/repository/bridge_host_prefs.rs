@@ -11,6 +11,9 @@
 //!   "all models"); absence means the host's built-in default applies. Kept in
 //!   a separate table precisely so a model-filter override never perturbs the
 //!   enable-state "no rows means all" heuristic above.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
 

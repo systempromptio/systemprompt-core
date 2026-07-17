@@ -4,6 +4,9 @@
 //! writes bytes to a traversal-checked storage path derived from the
 //! persistence mode, and records the file through [`FileRepository`], cleaning
 //! up the on-disk artefact if the database write fails.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD;

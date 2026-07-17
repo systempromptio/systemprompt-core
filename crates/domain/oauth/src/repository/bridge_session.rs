@@ -3,6 +3,9 @@
 //! Rows are upserted by the bridge on each heartbeat tick and consumed by
 //! product surfaces (CLI `admin bridge list`, dashboards) via
 //! [`BridgeSessionRepository::list_active`].
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
 use std::time::Duration;

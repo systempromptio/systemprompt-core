@@ -1,4 +1,7 @@
 //! Bounded exponential-backoff retry with full jitter.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::future::Future;
 use std::time::Duration;

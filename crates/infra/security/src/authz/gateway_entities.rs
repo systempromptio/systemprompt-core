@@ -14,6 +14,9 @@
 //! `default_included = false`: presence in the catalog never grants access on
 //! its own — an explicit, role-scoped grant in `access_control_rules` still
 //! has to allow the route.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use super::repository::AccessControlRepository;
 use super::types::EntityKind;

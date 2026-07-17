@@ -1,3 +1,6 @@
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
 #![allow(
     unsafe_code,
     reason = "Windows CryptoAPI / NCrypt FFI for machine-key device cert"

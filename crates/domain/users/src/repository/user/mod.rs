@@ -5,6 +5,9 @@
 //! (`operations`), session tracking (`session`), aggregate counts (`stats`),
 //! and account consolidation (`merge`). Re-exports the result and parameter
 //! types [`MergeResult`] and [`UpdateUserParams`].
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod find;
 mod list;

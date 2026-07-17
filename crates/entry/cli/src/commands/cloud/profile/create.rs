@@ -3,6 +3,9 @@
 //! Selects or resolves the tenant, collects API keys, writes the secrets,
 //! profile, and Docker artifacts, then validates the result and runs
 //! local-tenant setup where applicable.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::path::Path;
 

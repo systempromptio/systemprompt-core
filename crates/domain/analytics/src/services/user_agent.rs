@@ -1,3 +1,6 @@
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
 pub(super) fn parse_user_agent(ua: &str) -> (Option<String>, Option<String>, Option<String>) {
     let ua_lower = ua.to_lowercase();
 

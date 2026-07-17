@@ -5,6 +5,9 @@
 //! ([`CreateAgentRequest`], [`UpdateAgentRequest`]), the agent discovery
 //! responses ([`AgentDiscoveryResponse`]), list-query parameters, and the
 //! shared card-input parsing and validation helpers.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod card_input;
 mod create_agent;

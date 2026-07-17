@@ -10,6 +10,9 @@
 //! the connector survives even if the plugin/skills path fails. The source tree
 //! is content-hashed and left byte-stable when unchanged, so Codex never sees a
 //! spurious source change and re-installs.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::fs;
 use std::path::{Path, PathBuf};

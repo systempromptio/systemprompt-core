@@ -6,6 +6,9 @@
 //! external URL where endpoints must be resolved — never an `AppContext` or a
 //! database handle. Disk and parse failures surface as
 //! [`MarketplaceError::Catalog`](crate::error::MarketplaceError).
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod agents;
 mod artifacts;

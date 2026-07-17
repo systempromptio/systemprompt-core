@@ -1,5 +1,8 @@
 //! Default `RssFeedProvider` that emits a feed for every enabled content
 //! source, sourcing items directly from the content repository.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use async_trait::async_trait;
 use systemprompt_content::ContentRepository;

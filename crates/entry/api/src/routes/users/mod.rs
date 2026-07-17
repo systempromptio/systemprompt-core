@@ -1,6 +1,9 @@
 //! Self-service user account routes scoped to the authenticated caller.
 //!
 //! Hosts the `/me` endpoints, including session revocation in [`sessions`].
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod sessions;
 

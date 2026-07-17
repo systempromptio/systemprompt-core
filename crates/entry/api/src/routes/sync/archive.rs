@@ -6,6 +6,9 @@
 //! must be a regular file or directory, relative, rooted under an allowed
 //! directory, and resolve inside the canonical target — anything else aborts
 //! the unpack.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::fs;
 use std::path::{Path, PathBuf};

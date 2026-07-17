@@ -11,6 +11,9 @@
 //! panics on that same condition, so the fallback path only runs in a process
 //! that is already doomed; it logs the builder error first so the failure is
 //! diagnosable rather than silent.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::time::Duration;
 

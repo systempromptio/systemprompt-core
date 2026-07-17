@@ -3,6 +3,9 @@
 //! Domain crates implement [`ExtensionError`] on their own typed error
 //! enums so the API and MCP layers can render them into responses without
 //! introducing a dependency on each domain.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use http::StatusCode;
 

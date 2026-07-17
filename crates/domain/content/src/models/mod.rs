@@ -4,6 +4,9 @@
 //! types model campaign/destination links and their performance; the [`search`]
 //! types model query requests and results. Construction parameters live in
 //! [`builders`]; validation failures surface as [`ContentValidationError`].
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod builders;
 pub mod content;

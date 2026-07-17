@@ -7,6 +7,9 @@
 //! delegating to the owned lifecycle, monitor, and reconciler services. The
 //! `cleanup`, `daemon`, and `status` submodules carry orphan-process cleanup,
 //! the background monitoring loop, and status aggregation respectively.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod cleanup;
 mod daemon;

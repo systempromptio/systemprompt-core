@@ -4,6 +4,9 @@
 //! Exposes [`SyncCommands`] for push, pull, and admin-user sync, plus an
 //! interactive menu when no subcommand is supplied. Resolves the active tenant
 //! and credentials, then drives the `SyncService` for file synchronisation.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod admin_user;
 pub mod interactive;

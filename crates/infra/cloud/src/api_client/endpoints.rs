@@ -1,4 +1,7 @@
 //! Top-level API endpoints not specific to tenants.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use chrono::Utc;
 use systemprompt_identifiers::{PriceId, UserId};

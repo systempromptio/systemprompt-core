@@ -1,4 +1,7 @@
 //! Reverting applied migrations via their declared `down` SQL.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use super::exec::execute_statements_transactional;
 use super::{MigrationResult, MigrationService};

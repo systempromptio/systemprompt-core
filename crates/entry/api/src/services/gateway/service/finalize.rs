@@ -1,6 +1,9 @@
 //! Response finalization: turns an `OutboundOutcome` into an HTTP response,
 //! spawns the audit-completion task, runs safety scans, and stamps the
 //! request-id header.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
 

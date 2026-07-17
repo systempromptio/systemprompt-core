@@ -1,3 +1,6 @@
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
 use super::artifact_metadata::ArtifactMetadata;
 use super::message::Part;
 use serde::{Deserialize, Serialize};

@@ -4,6 +4,9 @@
 //! engagement, and real-time-stats events; each carries a typed payload
 //! struct. [`AnalyticsEventBuilder`] stamps each variant with the current
 //! time at construction.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};

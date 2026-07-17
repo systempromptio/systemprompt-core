@@ -1,3 +1,6 @@
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
 use crate::gui::GuiApp;
 use crate::gui::hosts::events::HostUiEvent;
 use crate::gui::hosts::handlers;

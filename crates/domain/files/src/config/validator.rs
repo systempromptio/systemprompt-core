@@ -1,3 +1,6 @@
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_models::AppPaths;
 use systemprompt_traits::validation_report::{

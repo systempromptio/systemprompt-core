@@ -12,6 +12,9 @@
 //! returning [`systemprompt_provider_contracts::ProviderResult`] — the
 //! `From<SchedulerError> for ProviderError` bridge below lets job bodies
 //! propagate `SchedulerError` through `?` without bespoke `map_err` chains.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use thiserror::Error;
 

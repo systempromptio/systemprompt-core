@@ -1,6 +1,9 @@
 //! Disk-backed skill service: resolving the skills root, loading skill
 //! definitions and metadata, broadcasting skill events, and recording skill
 //! usage as execution steps.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::repository::execution::ExecutionStepRepository;
 use crate::services::ExecutionTrackingService;

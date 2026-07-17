@@ -3,6 +3,9 @@
 //! [`RequestAnalyticsRepository`] reports token, cost, latency, and
 //! cache-hit stats, per-model usage breakdowns, trend series, and a request
 //! list, each optionally filtered by a model substring.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::Result;
 use chrono::{DateTime, Utc};

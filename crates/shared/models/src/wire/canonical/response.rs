@@ -4,6 +4,9 @@
 //! [`CanonicalResponse`] or map upstream SSE bytes to a stream of
 //! [`CanonicalEvent`]s. Stop reasons are normalised here, with per-dialect
 //! string mappings.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use super::request::CanonicalContent;
 

@@ -4,6 +4,9 @@
 //! Callers that load configuration from disk (e.g. `systemprompt-models` config
 //! structs in milliseconds) translate into these `Duration`-typed structs at
 //! construction.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::time::Duration;
 

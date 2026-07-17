@@ -3,6 +3,9 @@
 //! A [`CopyPasteTextArtifact`] presents a block of text intended for one-click
 //! copying, with an optional title and language hint for syntax highlighting.
 //! It implements [`Artifact`].
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::artifacts::metadata::ExecutionMetadata;
 use crate::artifacts::traits::Artifact;

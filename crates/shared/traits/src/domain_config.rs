@@ -4,6 +4,9 @@
 //! [`DomainConfigRegistry`]; the runtime walks the registry at startup,
 //! ordered by [`DomainConfig::priority`], to load and validate domain
 //! configuration.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::fmt::Debug;
 

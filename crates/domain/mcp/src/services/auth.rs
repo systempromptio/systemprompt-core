@@ -1,3 +1,6 @@
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
 use crate::error::{McpDomainError, McpDomainResult};
 use systemprompt_models::auth::{JwtAudience, JwtClaims};
 use systemprompt_security::jwt::{ValidationPolicy, decode_rs256_claims};

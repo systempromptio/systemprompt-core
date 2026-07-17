@@ -56,6 +56,8 @@ alias sp="./target/debug/systemprompt --non-interactive"
 | `cloud sync` | Sync between local and cloud | `Text` | Yes |
 | `cloud secrets` | Manage cloud secrets | `Text`/`Table` | No |
 | `cloud dockerfile` | Generate Dockerfile | `Text` | No |
+| `cloud db` | Operate the cloud database (migrate, query, backup) | `Text`/`Table` | Yes |
+| `cloud domain` | Manage custom domain and TLS | `Text`/`Card` | Yes |
 
 ---
 
@@ -707,6 +709,64 @@ Prints a suggested Dockerfile to stdout based on:
 - Extension configurations
 
 **Artifact Type:** `Text`
+
+---
+
+## Database Commands
+
+### cloud db
+
+Operate the remote database for a deployed tenant. Every subcommand targets a deploy profile via `--profile`. Queries run read-only; writes go through `execute`.
+
+```bash
+sp cloud db status --profile production
+sp cloud db migrate --profile production
+sp cloud db query --profile production "SELECT count(*) FROM users"
+sp cloud db execute --profile production "UPDATE users SET status = 'active' WHERE id = '...'"
+sp cloud db tables --profile production
+sp cloud db describe --profile production users
+sp cloud db count --profile production users
+sp cloud db backup --profile production
+sp cloud db restore --profile production ./backups/production-2024-01-15.dump
+```
+
+| Subcommand | Purpose |
+|------------|---------|
+| `migrate` | Run migrations on the cloud database |
+| `query <SQL>` | Execute a read-only query |
+| `execute <SQL>` | Execute a write operation |
+| `validate` | Validate the cloud database schema |
+| `status` | Show connection status |
+| `info` | Show database info |
+| `tables` | List tables (optional pattern filter) |
+| `describe <TABLE>` | Show a table's schema |
+| `count <TABLE>` | Row count for a table |
+| `indexes` | List indexes (optional `--table` filter) |
+| `size` | Show database and table sizes |
+| `backup` | Back up via `pg_dump` (`--format`: `custom`, `sql`, `directory`) |
+| `restore <FILE>` | Restore from a backup file |
+
+Every subcommand requires `--profile <name>`.
+
+---
+
+## Custom Domain Commands
+
+### cloud domain
+
+Attach a custom domain and TLS certificate to a tenant.
+
+```bash
+sp cloud domain set example.com
+sp cloud domain status
+sp cloud domain remove --yes
+```
+
+| Subcommand | Purpose |
+|------------|---------|
+| `set <DOMAIN>` | Set the custom domain for the tenant |
+| `status` | Check custom domain and certificate status |
+| `remove` | Remove the custom domain (`--yes` to skip confirmation) |
 
 ---
 

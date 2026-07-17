@@ -5,6 +5,9 @@
 //! accepts; [`SchemaSanitizer`] strips everything outside that set. A wire
 //! protocol resolves its matrix via
 //! [`crate::profile::WireProtocol::schema_capabilities`].
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod capabilities;
 pub mod sanitizer;

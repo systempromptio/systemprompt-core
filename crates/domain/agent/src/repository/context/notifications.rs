@@ -3,6 +3,9 @@
 //!
 //! One row is inserted per notification received. The `broadcasted` flag
 //! flips to `true` once the corresponding fan-out has completed.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
 

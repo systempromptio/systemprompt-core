@@ -3,6 +3,9 @@
 //! Dispatches the [`ContentFilesCommands`] subcommands (link, unlink, list,
 //! featured) that manage the content-to-file relationships and the featured
 //! image for a content item.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod featured;
 pub mod link;

@@ -1,4 +1,7 @@
 //! Validation of a profile's Dockerfile against the discovered MCP binaries.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::collections::HashSet;
 use std::path::Path;

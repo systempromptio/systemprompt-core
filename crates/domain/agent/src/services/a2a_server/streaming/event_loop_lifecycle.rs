@@ -2,6 +2,9 @@
 //! - emit the A2A `working` status update when streaming begins,
 //! - emit a status frame on the SSE channel,
 //! - record stream-creation failures.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::services::shared::AgentServiceError;
 use axum::response::sse::Event;

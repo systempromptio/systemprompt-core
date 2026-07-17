@@ -2,6 +2,9 @@
 //!
 //! Split out of `context.rs` so the core type definition stays under
 //! the 300-line public-API ceiling.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
 

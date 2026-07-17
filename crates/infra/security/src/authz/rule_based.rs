@@ -15,6 +15,9 @@
 //!
 //! Put `RuleBasedHook` first so a coarse-grained RBAC reject short-circuits
 //! the chain before any per-attribute lookup runs.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
 

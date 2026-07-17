@@ -5,6 +5,9 @@
 //! used to detect and ban abusive clients. Read queries live in `queries`,
 //! state changes in `mutations`; the threshold constants here define the
 //! abuse-detection policy.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod mutations;
 mod queries;

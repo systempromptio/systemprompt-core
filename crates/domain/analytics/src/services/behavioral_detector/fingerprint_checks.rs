@@ -1,5 +1,8 @@
 //! Cross-session / fingerprint-windowed behavioural-bot checks. Split from
 //! `checks.rs` to keep modules under 300 lines.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::collections::HashSet;
 

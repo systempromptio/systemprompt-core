@@ -1,4 +1,7 @@
 //! Linux `/proc` based PID/port lookups (avoids spawning `lsof`).
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 #![cfg(target_os = "linux")]
 
 use std::os::unix::fs::MetadataExt;

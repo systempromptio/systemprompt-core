@@ -7,6 +7,9 @@
 //! [`FrameOptionsOverride`] response extension, which the host middleware
 //! honours instead of the profile default. Setting the raw header without
 //! the marker has no effect — the global middleware overwrites it.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use axum::extract::Request;
 use axum::middleware::Next;

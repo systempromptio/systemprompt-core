@@ -7,6 +7,9 @@
 //! reusable payload shapes [`TextOutput`], [`SuccessOutput`],
 //! [`KeyValueOutput`], and [`TableOutput`] remain available as command-side
 //! data structs.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod output_types;
 mod render;

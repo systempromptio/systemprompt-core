@@ -2,6 +2,9 @@
 //!
 //! Registers and unregisters running servers, reconciles persisted state
 //! against the live registry, and prunes stale or disabled service records.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod state;
 pub mod sync;

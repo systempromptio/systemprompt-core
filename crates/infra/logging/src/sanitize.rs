@@ -3,6 +3,9 @@
 //! Both [`crate::services::FilterSystemFields`] (console) and the database
 //! field visitor route values through here so the two sinks cannot drift on
 //! what counts as a secret.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub(crate) const REDACTION_PLACEHOLDER: &str = "[REDACTED]";
 

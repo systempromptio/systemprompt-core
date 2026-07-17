@@ -4,6 +4,9 @@
 //! [`LinkType`] / [`DestinationType`] classifiers, [`UtmParams`] with its query
 //! serialisation, and the aggregate views [`LinkPerformance`],
 //! [`CampaignPerformance`], and [`ContentJourneyNode`].
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};

@@ -3,6 +3,9 @@
 //! Routes [`CloudCommands`] to the auth, init, tenant, profile, deploy,
 //! status, restart, sync, secrets, dockerfile, db, and domain subcommands, and
 //! declares each command's profile/secret requirements via [`DescribeCommand`].
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod auth;
 pub mod db;

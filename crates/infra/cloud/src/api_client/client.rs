@@ -1,5 +1,8 @@
 //! `CloudApiClient` constructor + accessors. Lower-level HTTP verbs
 //! live in `methods.rs`; high-level endpoints in `endpoints.rs`.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
 use std::time::Instant;

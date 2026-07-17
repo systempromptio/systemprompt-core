@@ -3,6 +3,9 @@
 //! Re-exports the checkout pages (waiting, success, error) and the OAuth
 //! login pages (success, error) rendered in the user's browser while the CLI
 //! waits on a redirect from the cloud backend.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod checkout;
 mod oauth;

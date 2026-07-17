@@ -1,5 +1,8 @@
 //! Wire types exchanged with the systemprompt gateway: provisioned OAuth client
 //! credentials, plugin hook tokens, and the `whoami` identity envelope.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;

@@ -24,6 +24,9 @@
 //! | `image-processing`  | Pulls in the `image` crate to enable WebP conversion in asset jobs.    |
 //!
 //! All features are off by default.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub(crate) mod assets;
 pub(crate) mod build;

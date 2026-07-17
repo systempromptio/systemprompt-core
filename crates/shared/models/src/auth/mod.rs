@@ -5,6 +5,9 @@
 //! OAuth/PKCE enums (`ResponseType`, `PkceMethod`). `GrantType` lives
 //! in `systemprompt_oauth` since it carries RFC 8693 token-exchange.
 //! Public functions return [`AuthError`].
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod claims;
 pub mod cloud_claims;

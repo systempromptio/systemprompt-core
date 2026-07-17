@@ -4,6 +4,9 @@
 //! against a bare connection. [`DbUrlRouting`] lets [`super::run`] decide the
 //! routing before any connection is dialed, so profile-establishing commands
 //! keep their wizard path and unsupported commands fail fast.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use super::args::Commands;
 use crate::commands::{admin, cloud, core, infrastructure};

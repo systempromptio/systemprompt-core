@@ -4,6 +4,9 @@
 //! `installed_plugins.json`, and the `settings.json` enablement entries. Every
 //! registry file is updated in place so the user's own marketplaces and plugins
 //! survive untouched.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::path::Path;
 

@@ -11,6 +11,9 @@
 //! (per-item HTML rendering), `list` (parent / index pages), `toc`
 //! (table-of-contents generation), and `utils` (JSON merge and component
 //! rendering).
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod content;
 mod context;

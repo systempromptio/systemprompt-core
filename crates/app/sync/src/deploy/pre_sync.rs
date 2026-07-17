@@ -5,6 +5,9 @@
 //! lost. This step downloads the tenant's `services/` tree, backs up the
 //! local copy, and applies the cloud changes before the image is built —
 //! unless the caller opts out or declines the confirmation prompt.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::api_client::SyncApiClient;
 use crate::error::{SyncError, SyncResult};

@@ -5,6 +5,9 @@
 //! Submodules cover environment classification, postgres-URL
 //! validation, rate-limit shapes, and verbosity levels.
 //! Accessors return [`crate::errors::ConfigError`] when not initialized.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::path::PathBuf;
 use std::sync::OnceLock;

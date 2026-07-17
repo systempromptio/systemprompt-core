@@ -3,6 +3,9 @@
 //! Includes request records, message and tool-call rows, status enums,
 //! image-generation parameters, and provider request/response shapes used
 //! internally by the [`crate::services`] module.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};

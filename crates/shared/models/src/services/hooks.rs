@@ -4,6 +4,9 @@
 //! [`HookEventsConfig`] groups the [`HookMatcher`]/[`HookAction`] bindings per
 //! event and validates them via [`HookEventsConfig::validate`].
 //! [`DiskHookConfig`] is the per-hook on-disk descriptor.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::fmt;
 use std::str::FromStr;

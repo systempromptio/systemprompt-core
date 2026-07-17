@@ -1,6 +1,9 @@
 //! Stream-setup orchestration: detect the agent kind, validate the context,
 //! persist the initial task, register a push-notification config, and assemble
 //! a [`StreamSetupResult`] for the streaming event loop.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
 

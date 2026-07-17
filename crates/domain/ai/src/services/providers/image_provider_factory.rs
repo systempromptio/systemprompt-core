@@ -4,6 +4,9 @@
 //! `providers` registry [`ProviderEntry`]; the per-provider AI policy supplies
 //! the image-model default. Only the `gemini` and `openai-chat`/`-responses`
 //! protocols generate images; other protocols fall back to one that can.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::collections::HashMap;
 use std::sync::Arc;

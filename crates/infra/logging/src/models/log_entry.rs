@@ -5,6 +5,9 @@
 //! [`LogActor::platform`] resolving the system owner for originator-less
 //! platform telemetry. Optional task/context/client identifiers are layered on
 //! via the builder methods.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};

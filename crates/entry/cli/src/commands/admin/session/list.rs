@@ -1,4 +1,7 @@
 //! List available profiles with session status.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_cloud::{ProfilePath, ProjectContext, SessionKey, SessionStore};
 use systemprompt_loader::ProfileLoader;

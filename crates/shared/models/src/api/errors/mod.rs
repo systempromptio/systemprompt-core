@@ -2,6 +2,9 @@
 //! [`ValidationError`], [`ErrorResponse`]) plus the internal
 //! `thiserror`-derived [`InternalApiError`] used by the application
 //! tier.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod internal;
 

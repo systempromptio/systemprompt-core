@@ -3,6 +3,9 @@
 //! Loads auth, version, tenant, and per-user context, then delegates catalogue
 //! assembly, marketplace scoping, per-user filtering, and signing to
 //! `systemprompt_marketplace`.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
 

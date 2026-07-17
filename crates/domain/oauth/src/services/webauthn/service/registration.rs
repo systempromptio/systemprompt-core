@@ -1,4 +1,7 @@
 //! `WebAuthn` passkey registration flow.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use super::WebAuthnService;
 use crate::error::OauthResult as Result;

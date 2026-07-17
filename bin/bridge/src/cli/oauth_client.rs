@@ -1,5 +1,8 @@
 //! `bridge oauth-client` subcommand: inspect or rotate the per-tenant OAuth
 //! client that mints plugin-scoped hook tokens.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::process::ExitCode;
 

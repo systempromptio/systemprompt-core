@@ -4,6 +4,9 @@
 //! [`CanonicalMessage`]s carrying [`CanonicalContent`] parts; outbound adapters
 //! render it back out and translate the upstream reply into a
 //! [`CanonicalResponse`] or a stream of [`CanonicalEvent`]s.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod request;
 mod response;

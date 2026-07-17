@@ -11,6 +11,9 @@
 //! row hashed under the old key. The schema reserves no `pepper_version`
 //! column today; a future migration would add one if graceful rotation is
 //! required.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use hmac::{Hmac, KeyInit, Mac};
 use sha2::Sha256;

@@ -8,6 +8,9 @@
 //! rendered as standalone `{role: "tool"}` messages emitted before any user
 //! text, since the API requires them to immediately follow the assistant's
 //! `tool_calls`.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 // JSON: protocol boundary — OpenAI Chat Completions wire format is dynamic
 // JSON.

@@ -1,5 +1,8 @@
 //! Pure ID-JAG claim validation, shared by the EMA issuer and resource-server
 //! paths. Signature, JWKS, and `jti` replay are the caller's job.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::ClientId;

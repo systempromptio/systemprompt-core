@@ -1,3 +1,6 @@
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
 use anyhow::{Context, Result};
 use systemprompt_cloud::{ProfilePath, SessionKey, SessionStore};
 use systemprompt_loader::ProfileLoader;

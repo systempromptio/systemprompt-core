@@ -3,6 +3,9 @@
 //! [`AgentReconciler`] detects drift — agents marked running whose process has
 //! died, and orphaned processes — produces a [`ConsistencyReport`], and repairs
 //! the discrepancies by marking affected agents failed.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_database::DbPool;
 

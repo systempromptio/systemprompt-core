@@ -4,6 +4,9 @@
 //! Defines the [`RequestsCommands`] subcommand tree and the typed output shapes
 //! ([`RequestStatsOutput`], [`RequestTrendsOutput`], [`ModelsOutput`]) rendered
 //! by the `analytics requests` commands.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod list;
 mod models;

@@ -1,5 +1,8 @@
 //! `infra logs summary`: high-level log statistics — per-level counts, busiest
 //! modules, time span covered, and total stored rows.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use anyhow::Result;
 use clap::Args;

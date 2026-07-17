@@ -5,6 +5,9 @@
 //! and [`BuildType`] discriminants, declared roles and CLI commands.
 //! [`DiscoveredExtension`] pairs a parsed manifest with its on-disk
 //! location after loader discovery.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

@@ -1,4 +1,7 @@
 //! Persist user / agent messages produced by an MCP tool execution.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::models::a2a::{Artifact, Message, MessageRole, Part, TextPart};
 use crate::services::MessageService;

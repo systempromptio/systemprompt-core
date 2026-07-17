@@ -30,6 +30,9 @@
 //! join errors) are composed via `#[from]` on the error enum. Third-party
 //! errors without a typed adapter are converted at the boundary with
 //! `.map_err(|e| McpDomainError::Internal(e.to_string()))`.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub(crate) mod capabilities;
 pub(crate) mod cli;

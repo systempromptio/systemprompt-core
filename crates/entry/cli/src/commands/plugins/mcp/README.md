@@ -17,7 +17,7 @@
 
 # MCP CLI Commands
 
-This document provides complete documentation for AI agents to use the MCP (Model Context Protocol) CLI commands. All commands support non-interactive mode for automation.
+Every MCP tool call goes through one audited path you own. These commands list, inspect, validate, and invoke the Model Context Protocol servers configured on your instance. All of them run non-interactively for automation.
 
 ---
 
@@ -37,12 +37,14 @@ alias sp="./target/debug/systemprompt --non-interactive"
 
 | Command | Description | Artifact Type | Requires Services |
 |---------|-------------|---------------|-------------------|
-| `plugins mcp list` | List MCP server configurations | `Table` | No |
-| `plugins mcp status` | Show running MCP server status | `Table` | No |
-| `plugins mcp validate <name>` | Validate MCP server connection | `Card` | Yes |
-| `plugins mcp validate --all` | Validate all MCP servers | `Card` | Yes |
-| `plugins mcp logs <name>` | View MCP server logs | `Text` | No |
-| `plugins mcp list-packages` | List package names for build | `List` | No |
+| `plugins mcp list` | List configured MCP servers | `Table` | No |
+| `plugins mcp status` | Show MCP server runtime status | `Table` | Yes |
+| `plugins mcp validate [name]` | Validate MCP server configurations | `Card` | Yes |
+| `plugins mcp validate --all` | Validate all configured servers | `Card` | Yes |
+| `plugins mcp logs [name]` | Tail logs for an MCP server | `Text` | No |
+| `plugins mcp list-packages` | List discovered MCP packages from the registry | `List` | Yes |
+| `plugins mcp tools` | List tools exposed by enabled MCP servers | `Table` | Yes |
+| `plugins mcp call <server> <tool>` | Invoke a tool on an MCP server | `Card` | Yes |
 
 ---
 
@@ -50,7 +52,7 @@ alias sp="./target/debug/systemprompt --non-interactive"
 
 ### mcp list
 
-List all configured MCP servers from the services configuration.
+List configured MCP servers from the services configuration, filterable by enabled or disabled state.
 
 ```bash
 sp plugins mcp list
@@ -71,13 +73,13 @@ sp plugins mcp list --disabled
   "servers": [
     {
       "name": "filesystem",
+      "display_name": "filesystem",
+      "server_type": "internal",
       "port": 9001,
       "enabled": true,
       "status": "ready",
-      "debug_binary": "/path/to/target/debug/mcp-filesystem",
-      "debug_created_at": "2024-01-15 10:30:00",
-      "release_binary": "/path/to/target/release/mcp-filesystem",
-      "release_created_at": "2024-01-15 10:00:00"
+      "binary_debug": "/path/to/target/debug/mcp-filesystem",
+      "binary_release": "/path/to/target/release/mcp-filesystem"
     }
   ]
 }
@@ -89,15 +91,17 @@ sp plugins mcp list --disabled
 - `release-only` - Only release binary exists
 - `not-built` - No binaries exist
 - `disabled` - Server is disabled in configuration
+- `remote` - External server, enabled
+- `disabled` - External server, disabled
 
 **Artifact Type:** `Table`
-**Columns:** `name`, `port`, `enabled`, `status`, `debug_binary`, `release_binary`
+**Columns:** `name`, `server_type`, `port`, `enabled`, `status`, `endpoint`, `binary_debug`, `binary_release`
 
 ---
 
 ### mcp status
 
-Show running MCP server status with binary information.
+Report health and running state of configured MCP servers via the orchestrator.
 
 ```bash
 sp plugins mcp status
@@ -109,8 +113,8 @@ sp plugins mcp status --server content-manager
 **Flags:**
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--detailed`, `-d` | `false` | Show full binary paths instead of "exists" |
-| `--server` | All | Filter to specific server by name |
+| `--detailed`, `-d` | `false` | Show detailed output including binary paths |
+| `--server` | All | Filter to a specific server by name |
 
 **Output Structure:**
 ```json
@@ -118,10 +122,12 @@ sp plugins mcp status --server content-manager
   "servers": [
     {
       "name": "filesystem",
+      "server_type": "internal",
+      "port": 9001,
       "enabled": true,
       "running": true,
+      "health": "healthy",
       "pid": 12345,
-      "port": 9001,
       "binary": "mcp-filesystem",
       "release_binary": "exists",
       "debug_binary": "exists"
@@ -136,13 +142,13 @@ sp plugins mcp status --server content-manager
 ```
 
 **Artifact Type:** `Table`
-**Columns:** `name`, `port`, `enabled`, `running`, `pid`, `release_binary`, `debug_binary`
+**Columns:** `name`, `server_type`, `port`, `enabled`, `running`, `health`, `pid`, `endpoint`, `release_binary`, `debug_binary`
 
 ---
 
 ### mcp validate
 
-Validate MCP server connection and capabilities. Returns rich validation data including tools count, latency, and server info.
+Validate connectivity to one or all configured MCP servers with an authenticated handshake. Returns tools count, latency, and server info.
 
 ```bash
 sp plugins mcp validate <server-name>
@@ -155,19 +161,20 @@ sp plugins mcp validate --all --timeout 5
 **Arguments:**
 | Argument | Required | Description |
 |----------|----------|-------------|
-| `<name>` | Yes* | MCP server name to validate (*not required if --all is used) |
+| `<server>` | Yes* | MCP server name (*not required with `--all`, or in non-interactive mode where all servers are validated) |
 
 **Flags:**
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--timeout` | `10` | Connection timeout in seconds |
+| `--service <name>` | None | Alias for the positional MCP server name (conflicts with the positional) |
 | `--all` | `false` | Validate all configured servers |
+| `--timeout` | `10` | Connection timeout in seconds |
 
 **Validation Checks:**
 - Service is running (checked via database)
 - Connection can be established
 - MCP protocol handshake succeeds
-- Tools are properly registered
+- Tools are registered
 - Latency measurement
 
 **Output Structure (Single Server):**
@@ -201,20 +208,19 @@ sp plugins mcp validate --all --timeout 5
 ```
 
 **Health Status Values:**
-- `healthy` - Connected with <1s latency
-- `slow` - Connected but >1s latency
+- `healthy` - Connected and responsive
 - `auth_required` - Port responding but OAuth needed
-- `unhealthy` - Connection failed or timeout
+- `unhealthy` - Connection failed or timed out
 - `stopped` - Service not running
 - `not_found` - Server not in configuration
 
 **Validation Type Values:**
 - `mcp_validated` - Full MCP handshake succeeded
-- `auth_required` - OAuth authentication needed
 - `not_running` - Service is not running
 - `timeout` - Connection timed out
 - `connection_error` - Failed to connect
 - `config_error` - Server not in configuration
+- `database_error` - Failed to read service status
 
 **Artifact Type:** `Card`
 
@@ -222,7 +228,7 @@ sp plugins mcp validate --all --timeout 5
 
 ### mcp logs
 
-View MCP server logs from database or disk files.
+Tail logs for an MCP server, read from the database by default and falling back to disk files.
 
 ```bash
 sp plugins mcp logs <server-name>
@@ -237,16 +243,16 @@ sp plugins mcp logs --logs-dir /custom/path
 **Arguments:**
 | Argument | Required | Description |
 |----------|----------|-------------|
-| `<name>` | No | MCP server name (shows all if not specified) |
+| `<server>` | No | MCP server name (shows all MCP logs if not specified) |
 
 **Flags:**
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--lines`, `-n` | `50` | Number of lines to show |
+| `--lines`, `-n`, `--tail` | `50` | Number of lines to show |
 | `--follow`, `-f` | `false` | Follow log output continuously (disk only) |
-| `--level` | All | Filter by log level: `debug`, `info`, `warn`, `error` |
 | `--disk` | `false` | Force reading from disk files instead of database |
 | `--logs-dir` | Profile path | Custom logs directory path |
+| `--level` | All | Filter by log level: `debug`, `info`, `warn`, `error` |
 
 **Log Level Filtering:**
 - `debug` - Show all log levels
@@ -273,7 +279,7 @@ sp plugins mcp logs --logs-dir /custom/path
 
 ### mcp list-packages
 
-List MCP package names for build commands.
+List discovered MCP package names from the registry, for use in build commands.
 
 ```bash
 sp plugins mcp list-packages
@@ -284,7 +290,7 @@ sp plugins mcp list-packages --raw
 **Flags:**
 | Flag | Description |
 |------|-------------|
-| `--raw` | Output as space-separated string with raw_packages field |
+| `--raw` | Output as a space-separated string in the `raw_packages` field |
 
 **Output Structure:**
 ```json
@@ -308,7 +314,94 @@ sp plugins mcp list-packages --raw
 }
 ```
 
-**Artifact Type:** `List` (or `CopyPasteText` with --raw)
+**Artifact Type:** `List` (or `CopyPasteText` with `--raw`)
+
+---
+
+### mcp tools
+
+List tools advertised by running MCP servers, optionally with full schemas.
+
+```bash
+sp plugins mcp tools
+sp --json plugins mcp tools
+sp plugins mcp tools --server filesystem
+sp plugins mcp tools --detailed
+sp plugins mcp tools --schema
+sp plugins mcp tools --timeout 60
+```
+
+**Flags:**
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--server`, `-s` | All running | Filter to a specific MCP server |
+| `--detailed` | `false` | Show full input/output schemas in JSON output |
+| `--schema` | `false` | Display parameter schemas in a readable format |
+| `--timeout` | `30` | Timeout in seconds |
+
+**Output Structure:**
+```json
+{
+  "tools": [
+    {
+      "name": "read_file",
+      "server": "filesystem",
+      "description": "Read the contents of a file",
+      "parameters_count": 1
+    }
+  ],
+  "summary": {
+    "total_tools": 5,
+    "servers_queried": 1
+  }
+}
+```
+
+**Artifact Type:** `Table`
+**Columns:** `name`, `server`, `description`, `parameters_count`
+
+---
+
+### mcp call
+
+Invoke a named tool on a running MCP server with JSON arguments and render the result.
+
+```bash
+sp plugins mcp call <server> <tool>
+sp plugins mcp call systemprompt systemprompt --args '{"command":"core skills list"}'
+sp plugins mcp call filesystem read_file -a '{"path":"/etc/hosts"}'
+sp plugins mcp call database query --args '{"sql":"SELECT 1"}' --timeout 60
+```
+
+**Arguments:**
+| Argument | Required | Description |
+|----------|----------|-------------|
+| `<server>` | Yes (non-interactive) | MCP server name |
+| `<tool>` | Yes (non-interactive) | Tool name to execute |
+
+**Flags:**
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--args`, `-a` | None | Tool arguments as a JSON string |
+| `--timeout` | `30` | Timeout in seconds |
+
+**Output Structure:**
+```json
+{
+  "server": "filesystem",
+  "tool": "read_file",
+  "success": true,
+  "content": [
+    {
+      "kind": "text",
+      "text": "file contents here"
+    }
+  ],
+  "execution_time_ms": 42
+}
+```
+
+**Artifact Type:** `Card`
 
 ---
 
@@ -328,16 +421,22 @@ sp build mcp --release
 sp --json plugins mcp status
 sp --json plugins mcp status --server filesystem
 
-# Phase 4: Validate specific server with timeout
+# Phase 4: Validate a specific server with timeout
 sp --json plugins mcp validate filesystem --timeout 30
 
 # Phase 5: Validate all servers
 sp --json plugins mcp validate --all
 
-# Phase 6: Check logs with level filtering
+# Phase 6: Inspect the tools a server exposes
+sp --json plugins mcp tools --server filesystem
+
+# Phase 7: Invoke a tool
+sp --json plugins mcp call filesystem read_file -a '{"path":"/etc/hosts"}'
+
+# Phase 8: Check logs with level filtering
 sp plugins mcp logs filesystem --lines 20 --level error
 
-# Phase 7: Follow logs in real-time
+# Phase 9: Follow logs in real-time
 sp plugins mcp logs filesystem --follow
 ```
 
@@ -381,9 +480,9 @@ mcp_servers:
 ### Server Not Starting
 
 ```bash
-# Check if binary exists
+# Check whether the binary exists
 sp --json plugins mcp status --server filesystem
-# Look for "binary_exists": false or no debug/release binary
+# Look for a null debug/release binary or a not-built status
 
 # Build the server
 sp build mcp --server filesystem
@@ -395,10 +494,10 @@ sp --json plugins mcp status --server filesystem
 ### Connection Issues
 
 ```bash
-# Validate connection with extended timeout
+# Validate connection with an extended timeout
 sp plugins mcp validate filesystem --timeout 30
 
-# Check validation type in response
+# Check the validation type in the response
 sp --json plugins mcp validate filesystem | jq '.results[0].validation_type'
 
 # Check logs for errors
@@ -408,11 +507,11 @@ sp plugins mcp logs filesystem --level error --lines 100
 ### Tool Registration Issues
 
 ```bash
-# Validate and check tools count
+# Validate and check the tools count
 sp --json plugins mcp validate filesystem | jq '.results[0].tools_count'
 
-# Check server info
-sp --json plugins mcp validate filesystem | jq '.results[0].server_info'
+# List the tools directly
+sp --json plugins mcp tools --server filesystem | jq '.tools[].name'
 ```
 
 ### Batch Validation
@@ -421,7 +520,7 @@ sp --json plugins mcp validate filesystem | jq '.results[0].server_info'
 # Validate all servers at once
 sp --json plugins mcp validate --all
 
-# Check summary
+# Check the summary
 sp --json plugins mcp validate --all | jq '.summary'
 
 # Find unhealthy servers
@@ -438,8 +537,8 @@ sp --json plugins mcp validate --all | jq '.results[] | select(.health_status !=
 sp plugins mcp validate nonexistent
 # Error: MCP server 'nonexistent' not found
 
-sp plugins mcp logs nonexistent
-# Error: Log file not found for service 'nonexistent'. Available: [...]
+sp plugins mcp call nonexistent sometool
+# Error: MCP server 'nonexistent' not found in configuration
 ```
 
 ### Service Not Running
@@ -447,6 +546,9 @@ sp plugins mcp logs nonexistent
 ```bash
 sp plugins mcp validate filesystem
 # Returns: health_status: "stopped", validation_type: "not_running"
+
+sp plugins mcp call filesystem read_file
+# Error: MCP server 'filesystem' is not running
 ```
 
 ### Connection Timeout
@@ -456,22 +558,21 @@ sp plugins mcp validate filesystem --timeout 5
 # Returns: health_status: "unhealthy", validation_type: "timeout"
 ```
 
-### Non-Interactive Mode Requirements
+### Non-Interactive Mode
 
 ```bash
-sp plugins mcp validate
-# Error: --service is required in non-interactive mode
+# validate with no server name validates all configured servers
+sp --non-interactive plugins mcp validate
 
-# Solution: Use --all flag or provide service name
-sp plugins mcp validate --all
-sp plugins mcp validate filesystem
+# call requires an explicit server and tool
+sp --non-interactive plugins mcp call filesystem read_file -a '{"path":"/etc/hosts"}'
 ```
 
 ---
 
 ## JSON Output
 
-All commands support `--json` flag for structured output:
+All commands support the `--json` flag for structured output:
 
 ```bash
 # Verify JSON is valid
@@ -482,12 +583,13 @@ sp --json plugins mcp list | jq '.servers[].name'
 sp --json plugins mcp status | jq '.servers[] | select(.running == true)'
 sp --json plugins mcp validate --all | jq '.results[] | select(.valid == false)'
 sp --json plugins mcp list-packages | jq '.packages[]'
+sp --json plugins mcp tools | jq '.tools[] | {name, server}'
 
-# Check all server health
+# Check summaries
 sp --json plugins mcp status | jq '.summary'
 sp --json plugins mcp validate --all | jq '.summary'
 
-# Get raw package list for shell scripts
+# Get the raw package list for shell scripts
 sp --json plugins mcp list-packages --raw | jq -r '.raw_packages'
 ```
 
@@ -507,25 +609,6 @@ sp infra services start --mcp
 # Stop MCP servers
 sp infra services stop --mcp
 ```
-
----
-
-## Compliance Checklist
-
-- [x] All `execute` functions accept `config: &CliConfig`
-- [x] All commands return `CommandResult<T>` with proper artifact type
-- [x] All output types derive `Serialize`, `Deserialize`, `JsonSchema`
-- [x] No `println!` / `eprintln!` - uses `render_result()`
-- [x] No `unwrap()` / `expect()` - uses `?` with `.context()`
-- [x] JSON output supported via `--json` flag
-- [x] Proper error messages for missing servers
-- [x] Interactive prompts have `--flag` equivalents
-- [x] All documented flags are implemented
-- [x] Log level filtering supported
-- [x] Batch validation with `--all` flag
-- [x] Configurable timeout for validation
-- [x] Logs path from profile config (not hardcoded)
-
 
 ---
 

@@ -4,6 +4,9 @@
 //! envelopes, the [`unauthorized_response`] / [`forbidden_response`] helpers
 //! for auth failures, and [`classify_database_error`] for mapping repository
 //! errors onto user-facing messages.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod jsonrpc;
 

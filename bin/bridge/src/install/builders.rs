@@ -1,3 +1,6 @@
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
 use super::{CredentialsOutcome, InstallOptions, ManagedProfileOutcome, UninstallSummary};
 use crate::ids::PinnedPubKey;
 use crate::schedule::Os;

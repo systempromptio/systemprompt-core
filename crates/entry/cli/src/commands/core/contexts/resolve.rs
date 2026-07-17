@@ -1,3 +1,6 @@
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
 use anyhow::{Context, Result, bail};
 use systemprompt_agent::repository::context::ContextRepository;
 use systemprompt_identifiers::{ContextId, UserId};

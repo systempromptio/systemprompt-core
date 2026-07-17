@@ -26,145 +26,40 @@
 
 [![Crates.io](https://img.shields.io/crates/v/systemprompt-database.svg?style=flat-square)](https://crates.io/crates/systemprompt-database)
 [![Docs.rs](https://img.shields.io/docsrs/systemprompt-database?style=flat-square)](https://docs.rs/systemprompt-database)
+[![codecov](https://img.shields.io/codecov/c/github/systempromptio/systemprompt-core/main?style=flat-square&logo=codecov)](https://codecov.io/gh/systempromptio/systemprompt-core)
 [![License: BSL-1.1](https://img.shields.io/badge/license-BSL--1.1-2b6cb0?style=flat-square)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
 
-PostgreSQL infrastructure for systemprompt.io AI governance. SQLx-backed pool, generic repository traits, and compile-time query verification. Provides database abstraction via SQLx with repository patterns, transaction helpers, and administrative utilities.
+One PostgreSQL holds every prompt, key, and audit record your deployment produces, on infrastructure you run. This crate is how the rest of the workspace reaches it: a pooled `SQLx` handle, generic repository traits, and compile-time-verified queries.
 
-**Layer**: Infra — infrastructure primitives (database, security, events, etc.) consumed by domain crates. Part of the [systemprompt-core](https://github.com/systempromptio/systemprompt-core) workspace.
+**Layer**: Infra. Infrastructure primitives consumed by the domain and application crates. Part of the [systemprompt-core](https://github.com/systempromptio/systemprompt-core) workspace.
 
-## Overview
+## What it does
 
-Provides database abstraction via SQLx with repository patterns, transaction helpers, and administrative utilities.
+Every service reaches the database through the same audited path. Static SQL goes through the compile-time-verified `sqlx::query!` / `query_as!` / `query_scalar!` macros; dynamic SQL is contained to two allowlisted surfaces (the admin CLI and the provider implementation) where dynamic SQL is the contract. Domain crates never write raw queries; they build on the repository traits.
 
-## Architecture
+The crate owns the pool, the transaction helpers, the extension migration runner, and the resilience primitives (circuit breaker, bulkhead, retry) that wrap its own connection and transaction attempts.
 
-```
-database/
-├── Cargo.toml
-├── CHANGELOG.md
-├── README.md
-├── schema/
-│   ├── extension_migrations.sql
-│   └── functions.sql
-└── src/
-    ├── lib.rs
-    ├── error.rs
-    ├── extension.rs
-    ├── admin/
-    │   ├── mod.rs
-    │   ├── admin_sql.rs
-    │   ├── identifier.rs
-    │   ├── introspection.rs
-    │   └── query_executor.rs
-    ├── lifecycle/
-    │   ├── mod.rs
-    │   ├── migrations.rs
-    │   ├── validation.rs
-    │   └── installation/
-    │       ├── mod.rs
-    │       └── extension.rs
-    ├── models/
-    │   ├── mod.rs
-    │   ├── info.rs
-    │   ├── query.rs
-    │   └── transaction.rs
-    ├── repository/
-    │   ├── mod.rs
-    │   ├── base.rs
-    │   ├── cleanup.rs
-    │   ├── info.rs
-    │   └── service/
-    │       ├── mod.rs
-    │       ├── model.rs
-    │       └── repo.rs
-    └── services/
-        ├── mod.rs
-        ├── database.rs
-        ├── display.rs
-        ├── executor.rs
-        ├── provider.rs
-        ├── schema_linter.rs
-        ├── transaction.rs
-        └── postgres/
-            ├── mod.rs
-            ├── conversion.rs
-            ├── ext.rs
-            ├── introspection.rs
-            └── transaction.rs
-```
+## Modules
 
-### `extension.rs`
-`DatabaseExtension` implementation that registers the crate's base schema (`functions.sql`, `extension_migrations.sql`) via the workspace extension framework.
+| Module | Purpose |
+|--------|---------|
+| `services` | The pool (`Database`, `DbPool`), the dyn-safe `DatabaseProvider` and its `PostgresProvider` implementation, the `SqlExecutor`, transaction helpers, CLI display, and the `schema_linter/` directory that rejects imperative DDL in `schema/*.sql` at boot. |
+| `repository` | Repository pattern building blocks: the `Repository` / `PaginatedRepository` traits and macros, `CleanupRepository`, and the `service/` process-registration repository. |
+| `lifecycle` | Schema installation (`installation/`), the migration runner (`migrations/` — apply, mark-applied, repair, squash, status), and connection/table/column validation. |
+| `models` | Query, transaction, and introspection data types (`DatabaseQuery`, `DatabaseTransaction`, `DatabaseInfo`, `TableInfo`, `ColumnInfo`, `IndexInfo`). |
+| `admin` | Constrained admin surfaces: `DatabaseAdminService` introspection, the read-only `QueryExecutor`, `AdminSql` builders, and `SafeIdentifier` validation. |
+| `resilience` | Domain-agnostic resilience primitives (`ResilienceGuard`, `CircuitBreaker`, `Bulkhead`, `retry_async`, classify, stream) that wrap outbound calls; the crate's own retries run on them. |
+| `squash_baseline` | `SquashBaselineService` locates an extension's source crate and writes squashed migration baselines; filesystem-only, with its own `SquashBaselineError`. |
+| `extension` | `DatabaseExtension` registers the crate's base schema (`functions.sql`, `extension_migrations.sql`) through the workspace extension framework. |
+| `error` | `RepositoryError` and `DatabaseResult<T>`. |
 
-### `admin/`
-Administrative database utilities for introspection and constrained query execution.
-
-| File | Purpose |
-|------|---------|
-| `admin_sql.rs` | `AdminSql` builders for vetted dynamic admin queries |
-| `identifier.rs` | `SafeIdentifier` validation for user-supplied SQL identifiers |
-| `introspection.rs` | `DatabaseAdminService` for listing tables, describing columns, and reading indexes |
-| `query_executor.rs` | `QueryExecutor` for SQL execution with read-only mode support |
-
-### `lifecycle/`
-Database setup, migration, and validation.
-
-| File | Purpose |
-|------|---------|
-| `installation/mod.rs` | `install_extension_schemas`, `install_extension_schemas_full`, `install_extension_schemas_with_config` entry points |
-| `installation/extension.rs` | Per-extension schema installation pipeline |
-| `migrations.rs` | `MigrationService`, `MigrationConfig`, `MigrationStatus`, `MigrationResult`, `AppliedMigration` |
-| `validation.rs` | `validate_database_connection`, `validate_table_exists`, `validate_column_exists` |
-
-### `models/`
-Data structures for database operations.
-
-| File | Purpose |
-|------|---------|
-| `info.rs` | `DatabaseInfo`, `TableInfo`, `ColumnInfo`, `IndexInfo` |
-| `query.rs` | `DatabaseQuery`, `QuerySelector`, `FromDatabaseRow`, `QueryResult`, `QueryRow` |
-| `transaction.rs` | `DatabaseTransaction` trait |
-
-### `repository/`
-Repository pattern building blocks.
-
-| File | Purpose |
-|------|---------|
-| `base.rs` | `Repository` trait, `PaginatedRepository`, `PgDbPool` alias, and repository macros (`impl_repository_new!`, `define_repository!`, `impl_repository_pool!`) |
-| `cleanup.rs` | `CleanupRepository` utilities for expired data |
-| `info.rs` | `DatabaseInfoRepository` for metadata queries |
-| `service/mod.rs` | `ServiceRepository` re-exports |
-| `service/model.rs` | `CreateServiceInput`, `ServiceConfig` models |
-| `service/repo.rs` | `ServiceRepository` for service process registration |
-
-### `services/`
-Core database services and providers.
-
-| File | Purpose |
-|------|---------|
-| `database.rs` | `Database` wrapper, `DbPool`, `DatabaseExt` |
-| `display.rs` | `DatabaseCliDisplay` trait for CLI output |
-| `executor.rs` | `SqlExecutor` for hand-rolled byte-state-machine statement splitting and execution |
-| `provider.rs` | `DatabaseProvider`, `DatabaseProviderExt` traits |
-| `schema_linter.rs` | Boot-time linter that rejects imperative DDL in `schema/*.sql` |
-| `transaction.rs` | `with_transaction`, `with_transaction_raw`, `with_transaction_retry`, `BoxFuture` |
-
-### `services/postgres/`
-PostgreSQL-specific implementation of the provider surface.
-
-| File | Purpose |
-|------|---------|
-| `mod.rs` | `PostgresProvider` implementation |
-| `conversion.rs` | Row-to-JSON conversion, parameter binding, result mapping |
-| `ext.rs` | `DatabaseProviderExt` implementation for `PostgresProvider` |
-| `introspection.rs` | `get_database_info` schema introspection |
-| `transaction.rs` | `PostgresTransaction` implementation |
+Schema DDL lives in `schema/` (`functions.sql`, `extension_migrations.sql`).
 
 ## Usage
 
 ```toml
 [dependencies]
-systemprompt-database = "0.18.0"
+systemprompt-database = "0.21"
 ```
 
 ```rust
@@ -216,11 +111,13 @@ async fn count_users(pool: &DbPool) -> DatabaseResult<i64> {
 | `QueryExecutor` | `admin/query_executor.rs` | Constrained admin query executor |
 | `AdminSql` | `admin/admin_sql.rs` | Vetted admin SQL builders |
 | `SafeIdentifier` | `admin/identifier.rs` | Validated SQL identifier wrapper |
-| `MigrationService` | `lifecycle/migrations.rs` | Extension migration runner |
-| `MigrationConfig` | `lifecycle/migrations.rs` | Migration runner configuration |
-| `MigrationStatus` | `lifecycle/migrations.rs` | Per-migration state |
-| `MigrationResult` | `lifecycle/migrations.rs` | Migration run outcome |
-| `AppliedMigration` | `lifecycle/migrations.rs` | Applied migration record |
+| `MigrationService` | `lifecycle/migrations/` | Extension migration runner |
+| `MigrationConfig` | `lifecycle/migrations/` | Migration runner configuration |
+| `MigrationStatus` | `lifecycle/migrations/` | Per-migration state |
+| `MigrationResult` | `lifecycle/migrations/` | Migration run outcome |
+| `AppliedMigration` | `lifecycle/migrations/` | Applied migration record |
+| `SquashBaselineService` | `squash_baseline.rs` | Locates an extension crate and writes squashed migration baselines |
+| `SquashBaselineError` | `squash_baseline.rs` | Filesystem error type for baseline squashing |
 | `DatabaseExtension` | `extension.rs` | Extension trait implementation for this crate |
 | `BoxFuture` | `services/transaction.rs` | Boxed future type for transactions |
 
@@ -260,6 +157,10 @@ async fn count_users(pool: &DbPool) -> DatabaseResult<i64> {
 | `impl_repository_new!` | `repository/base.rs` | Generate `new()` constructor for repositories |
 | `define_repository!` | `repository/base.rs` | Define repository struct with pool field |
 | `impl_repository_pool!` | `repository/base.rs` | Generate pool accessor methods |
+
+### Resilience
+
+The `resilience` module is publicly exported and domain-agnostic. `ResilienceGuard`, `CircuitBreaker`, `Bulkhead`, and `retry_async` wrap outbound calls; the crate's own connection and transaction retries run on them.
 
 ### Re-exports
 

@@ -1,3 +1,6 @@
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
 use super::TaskRepository;
 use crate::models::a2a::{Message, Part};
 use crate::repository::context::message::{

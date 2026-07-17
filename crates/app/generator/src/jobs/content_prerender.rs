@@ -1,4 +1,7 @@
 //! Scheduled job that runs the content prerender pipeline once a day.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use async_trait::async_trait;
 use std::sync::Arc;

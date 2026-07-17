@@ -1,6 +1,9 @@
 //! `infra logs search`: pattern-match log messages and (optionally) MCP tool
 //! executions, returning a combined result set filtered by level, module, and
 //! time.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use anyhow::Result;
 use clap::Args;

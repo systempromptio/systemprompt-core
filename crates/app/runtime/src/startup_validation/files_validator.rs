@@ -1,4 +1,7 @@
 //! Domain validator that enforces the `files` subsystem is initialised.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_files::FilesConfig;
 use systemprompt_traits::validation_report::ValidationError;

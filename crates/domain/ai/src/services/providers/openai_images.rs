@@ -3,6 +3,9 @@
 //! [`OpenAiImageProvider`] implements the `ImageProvider` trait against the
 //! `OpenAI` `images/generations` endpoint (gpt-image / DALL·E models), mapping
 //! the platform's aspect ratios onto the API's fixed size options.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::error::{AiError, Result};
 use crate::models::image_generation::{

@@ -5,6 +5,9 @@
 //! stream, sync, teams, users, wellknown) and exposes a `Router` builder. The
 //! re-exports here surface the router constructors the API assembler composes
 //! into the top-level service.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod admin;
 pub mod agent;

@@ -4,6 +4,9 @@
 //! Each module exposes a single zero-sized type implementing
 //! [`systemprompt_traits::Job`]; submission to the inventory registry happens
 //! at the bottom of each module.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod behavioral_analysis;
 mod cleanup_empty_contexts;

@@ -4,6 +4,9 @@
 //! before routing, attaching a [`BotMarker`] (with its [`BotType`]) to the
 //! request extensions so downstream layers can branch on known bots, scanners,
 //! and suspicious traffic without re-parsing headers.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use axum::extract::{ConnectInfo, Request};
 use axum::middleware::Next;

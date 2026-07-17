@@ -4,6 +4,9 @@
 //! subcommand tree, along with the mapping from each command to its bootstrap
 //! [`CommandDescriptor`] and the argument-reconstruction used when forwarding
 //! to a remote tenant.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use clap::{Parser, Subcommand};
 

@@ -5,6 +5,9 @@
 //! progress. The task-event broadcasts log and swallow transport failures;
 //! [`broadcast_artifact_created`] surfaces them as an
 //! [`AgentError`](crate::error::AgentError).
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use serde_json::json;
 use systemprompt_identifiers::{ContextId, TaskId, UserId};

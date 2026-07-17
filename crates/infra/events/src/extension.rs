@@ -3,6 +3,9 @@
 //! [`EventsExtension`] declares the schema for the `event_outbox` table —
 //! the durable relay channel that lets an event published on one replica
 //! reach SSE subscribers on every other replica via Postgres LISTEN/NOTIFY.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_extension::prelude::*;
 

@@ -27,8 +27,9 @@
 [![Crates.io](https://img.shields.io/crates/v/systemprompt-analytics.svg?style=flat-square)](https://crates.io/crates/systemprompt-analytics)
 [![Docs.rs](https://img.shields.io/docsrs/systemprompt-analytics?style=flat-square)](https://docs.rs/systemprompt-analytics)
 [![License: BSL-1.1](https://img.shields.io/badge/license-BSL--1.1-2b6cb0?style=flat-square)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
+[![codecov](https://img.shields.io/codecov/c/github/systempromptio/systemprompt-core/main?style=flat-square&logo=codecov)](https://codecov.io/gh/systempromptio/systemprompt-core)
 
-Analytics for systemprompt.io AI governance infrastructure. Session, agent, tool, and microdollar-precision cost attribution across the MCP governance pipeline. Comprehensive session tracking, behavioral bot detection, engagement metrics, funnel analytics, and anomaly detection.
+Prove what your agents did, down to the microdollar. Every session, agent, tool call, and cost is attributed and stored where you can query it, so the answer to "what happened" comes from your database, not a vendor's dashboard.
 
 **Layer**: Domain — business-logic modules that implement systemprompt.io features. Part of the [systemprompt-core](https://github.com/systempromptio/systemprompt-core) workspace.
 
@@ -36,7 +37,7 @@ Analytics for systemprompt.io AI governance infrastructure. Session, agent, tool
 
 **Capabilities** · [Analytics & Observability](https://systemprompt.io/features/analytics-and-observability)
 
-This crate provides comprehensive analytics capabilities including:
+This crate provides:
 
 - **Session Management** - Create, track, and manage user sessions with fingerprint-based identification
 - **Behavioral Bot Detection** - Server-side detection of automated traffic using 7-signal analysis
@@ -49,78 +50,28 @@ This crate provides comprehensive analytics capabilities including:
 
 ```toml
 [dependencies]
-systemprompt-analytics = "0.18.0"
+systemprompt-analytics = "0.21"
 ```
 
 Optional `geolocation` feature enables MaxMind GeoIP enrichment via `maxminddb`:
 
 ```toml
-systemprompt-analytics = { version = "0.18.0", features = ["geolocation"] }
+systemprompt-analytics = { version = "0.21", features = ["geolocation"] }
 ```
 
-## Directory Structure
+## Module Layout
 
-```
-src/
-├── lib.rs                          # Public exports and GeoIpReader type alias
-├── error.rs                        # AnalyticsError enum (thiserror)
-├── extension.rs                    # AnalyticsExtension schema registration
-├── models/
-│   ├── mod.rs                      # Core analytics models (sessions, stats, trends)
-│   ├── engagement.rs               # Engagement event models
-│   ├── events.rs                   # Analytics event types and payloads
-│   ├── fingerprint.rs              # Fingerprint reputation models
-│   ├── funnel.rs                   # Funnel tracking models
-│   └── cli/
-│       ├── mod.rs                  # CLI row-type re-exports
-│       ├── agent.rs                # Agent CLI row types
-│       ├── content.rs              # Content CLI row types
-│       ├── overview.rs             # Overview CLI row types
-│       ├── request.rs              # Request CLI row types
-│       ├── session.rs              # Session CLI row types
-│       └── tool.rs                 # Tool CLI row types
-├── repository/
-│   ├── mod.rs                      # Repository re-exports
-│   ├── cli_sessions.rs             # CLI session statistics
-│   ├── content_analytics.rs        # Content performance metrics
-│   ├── conversations.rs            # Conversation analytics
-│   ├── costs.rs                    # Cost breakdown queries
-│   ├── engagement.rs               # Engagement event CRUD
-│   ├── events.rs                   # Analytics event storage
-│   ├── overview.rs                 # Dashboard overview metrics
-│   ├── queries.rs                  # AI provider usage queries
-│   ├── requests.rs                 # AI request analytics
-│   ├── traffic.rs                  # Traffic source analysis
-│   ├── agents/                     # Agent analytics (list, detail, stats)
-│   ├── core_stats/                 # Platform stats (overview, activity, breakdowns, leaderboards)
-│   ├── fingerprint/                # Fingerprint reputation (queries, mutations)
-│   ├── funnel/                     # Funnel tracking (finders, mutations, stats, types)
-│   ├── session/                    # Session lifecycle (queries, mutations, behavioral, types)
-│   └── tools/                      # MCP tool execution analytics (list, detail)
-└── services/
-    ├── mod.rs                      # Service re-exports
-    ├── ai_crawler_keywords.rs      # AI crawler user-agent patterns
-    ├── ai_provider.rs              # AnalyticsAiSessionProvider
-    ├── anomaly_detection.rs        # Threshold and trend anomaly detection
-    ├── bot_keywords.rs             # matches_bot_pattern helper
-    ├── detection.rs                # Detection constants
-    ├── providers.rs                # Provider helpers
-    ├── service.rs                  # AnalyticsService for session lifecycle
-    ├── session_cleanup.rs          # Inactive session cleanup
-    ├── throttle.rs                 # Progressive rate limiting
-    ├── user_agent.rs               # User-agent parsing
-    ├── behavioral_detector/        # 7-signal bot detection (checks, fingerprint_checks, helpers, types)
-    └── extractor/                  # Request parsing and GeoIP enrichment
+| Module | Purpose |
+|--------|---------|
+| `models/` | Analytics models: sessions, events, engagement, fingerprints, funnels, plus CLI row types. |
+| `repository/` | Compile-time-verified queries for sessions, agents, tools, requests, costs, traffic, content, funnels, fingerprints, and aggregate stats. |
+| `services/` | `AnalyticsService` session lifecycle, `AnomalyDetectionService`, the `behavioral_detector/` 7-signal bot detection, session cleanup, and the request/GeoIP `extractor/`. |
 
-schema/
-├── anomaly_thresholds.sql
-├── engagement_events.sql
-├── fingerprint_reputation.sql
-├── funnels.sql
-├── funnel_progress.sql
-└── migrations/
-    └── 003_seed_anomaly_thresholds.sql
-```
+Schema DDL lives in `schema/*.sql` (`anomaly_thresholds`, `engagement_events`, `fingerprint_reputation`, `funnels`, `funnel_progress`) with migrations in `schema/migrations/`:
+
+- `001_add_engagement_event_type.sql`
+- `002_add_engagement_event_data.sql`
+- `003_seed_anomaly_thresholds.sql`
 
 ## Key Components
 
@@ -132,7 +83,6 @@ schema/
 | `AnomalyDetectionService` | Threshold-based and trend anomaly detection |
 | `BehavioralBotDetector` | 7-signal server-side bot detection |
 | `SessionCleanupService` | Cleanup of inactive sessions |
-| `ThrottleService` | Progressive rate limiting (Normal/Warning/Severe/Blocked) |
 
 ### Repositories
 
@@ -163,7 +113,6 @@ schema/
 | `EngagementEvent` | Client-side engagement metrics |
 | `FingerprintReputation` | Fingerprint tracking and flags |
 | `Funnel`, `FunnelStep`, `FunnelProgress` | Funnel tracking |
-| `ThrottleLevel`, `EscalationCriteria` | Rate limiting |
 | `AnomalyCheckResult`, `AnomalyLevel` | Anomaly detection |
 | `BehavioralAnalysisResult`, `BehavioralSignal` | Bot detection |
 
@@ -193,15 +142,6 @@ The `BehavioralBotDetector` analyzes sessions using 7 signals:
 | Outdated Browser | 10 | Chrome < 90 or Firefox < 88 |
 
 Sessions with score >= 50 are marked as behavioral bots.
-
-## Throttle Levels
-
-| Level | Rate Multiplier | Allows Requests |
-|-------|-----------------|-----------------|
-| Normal | 1.0x | Yes |
-| Warning | 0.5x | Yes |
-| Severe | 0.25x | Yes |
-| Blocked | 0.0x | No |
 
 ## License
 

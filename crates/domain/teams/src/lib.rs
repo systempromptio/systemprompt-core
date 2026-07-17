@@ -34,6 +34,9 @@
 //!
 //! All fallible APIs return [`error::TeamsResult`] over [`error::TeamsError`],
 //! a `thiserror` enum composed via the shared `domain_error!` macro.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod activities;
 pub mod auth;

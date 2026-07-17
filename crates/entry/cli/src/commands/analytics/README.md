@@ -50,6 +50,7 @@ alias sp="./target/debug/systemprompt --non-interactive"
 | `analytics tools trends` | Tool usage trends | `Table` | No (DB only) |
 | `analytics tools show <name>` | Deep dive into specific tool | `Card` | No (DB only) |
 | `analytics requests stats` | AI request statistics | `Card` | No (DB only) |
+| `analytics requests list` | List AI requests | `Table` | No (DB only) |
 | `analytics requests trends` | AI request trends | `Table` | No (DB only) |
 | `analytics requests models` | Model usage breakdown | `Table` | No (DB only) |
 | `analytics sessions stats` | Session statistics | `Card` | No (DB only) |
@@ -575,6 +576,31 @@ sp analytics requests stats --since 7d
 ```
 
 **Artifact Type:** `Card`
+
+---
+
+### analytics requests list
+
+List individual AI requests over a time range, with optional model filter and CSV export. For a quick operational list, use `infra logs request list`.
+
+```bash
+sp analytics requests list
+sp --json analytics requests list
+sp analytics requests list --since 24h --limit 100
+sp analytics requests list --model claude-sonnet-4-6-20250610
+sp analytics requests list --since 7d --export requests.csv
+```
+
+**Flags:**
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--since` | `24h` | Start of the time range |
+| `--until` (alias `--to`) | Now | End of the time range |
+| `--limit`, `-n` | `20` | Maximum number of rows |
+| `--model` | All | Filter by model name |
+| `--export` | None | Export results to a CSV file |
+
+**Artifact Type:** `Table`
 
 ---
 
@@ -1167,6 +1193,7 @@ sp analytics costs trends --since 30d --export monthly-costs.csv
 | `tools trends` | `ToolTrendsOutput` | `Table` | columns |
 | `tools show` | `ToolShowOutput` | `Card` | title |
 | `requests stats` | `RequestStatsOutput` | `Card` | title |
+| `requests list` | `RequestListOutput` | `Table` | columns |
 | `requests trends` | `RequestTrendsOutput` | `Table` | columns |
 | `requests models` | `ModelsOutput` | `Table` | columns |
 | `sessions stats` | `SessionStatsOutput` | `Card` | title |

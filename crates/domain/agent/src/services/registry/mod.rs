@@ -1,6 +1,9 @@
 //! Agent registry: a snapshot of configured agents loaded from services
 //! config, with lookups and [`AgentCard`] assembly (security schemes, skills,
 //! runtime extensions).
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod security;
 pub mod skills;

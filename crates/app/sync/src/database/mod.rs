@@ -1,6 +1,9 @@
 //! Database push / pull: serialise the user and context tables to
 //! JSON and round-trip them between a local Postgres and a cloud Postgres
 //! using compile-time-checked `sqlx` upserts.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod upsert;
 

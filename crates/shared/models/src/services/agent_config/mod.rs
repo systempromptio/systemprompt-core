@@ -1,5 +1,8 @@
 //! Agent configuration models — the on-disk YAML shape, the runtime
 //! shape, and the lightweight summary projection.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod card;
 mod disk;

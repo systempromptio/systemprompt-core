@@ -1,3 +1,6 @@
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
 use super::{TokenError, TokenResult};
 use anyhow::Result;
 use systemprompt_identifiers::{AuthorizationCode, ClientId};

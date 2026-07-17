@@ -4,6 +4,9 @@
 //! (HTML content, API endpoint, static asset, or not-found), drives
 //! analytics-tracking decisions, and yields the [`EventMetadata`] used
 //! to tag emitted events.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::ContentRouting;
 use crate::modules::ApiPaths;
@@ -175,6 +178,8 @@ impl RouteClassifier {
                     | "svg"
                     | "ico"
                     | "webp"
+                    | "mp4"
+                    | "webm"
             )
         ) || path == "/favicon.ico"
     }

@@ -8,6 +8,9 @@
 //! to discover configuration, the database handle, and the registered
 //! providers (analytics, fingerprint, user). [`ContextPropagation`] models
 //! how request-scoped state moves across HTTP boundaries.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use async_trait::async_trait;
 use std::sync::Arc;

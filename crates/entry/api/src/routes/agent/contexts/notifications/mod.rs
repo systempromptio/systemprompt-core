@@ -2,6 +2,9 @@
 //!
 //! Validates the JSON-RPC envelope, resolves the owning user, then persists,
 //! processes, and broadcasts the notification to the context's live streams.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod error;
 mod handlers;

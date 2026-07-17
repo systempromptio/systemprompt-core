@@ -26,70 +26,34 @@
 
 [![Crates.io](https://img.shields.io/crates/v/systemprompt-loader.svg?style=flat-square)](https://crates.io/crates/systemprompt-loader)
 [![Docs.rs](https://img.shields.io/docsrs/systemprompt-loader?style=flat-square)](https://docs.rs/systemprompt-loader)
+[![codecov](https://img.shields.io/codecov/c/github/systempromptio/systemprompt-core/main?style=flat-square&logo=codecov)](https://codecov.io/gh/systempromptio/systemprompt-core)
 [![License: BSL-1.1](https://img.shields.io/badge/license-BSL--1.1-2b6cb0?style=flat-square)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
 
-File and module discovery infrastructure for systemprompt.io AI governance — manifests, schemas, and extension loading. Separates I/O from shared models in the MCP governance pipeline. Provides pure I/O operations for loading configuration files, profiles, secrets, extensions, and module definitions without any domain logic.
+Your deployment's configuration lives in files you own. This crate reads them, so no other layer has to know how the disk is laid out. It loads services config, profiles, and extension manifests, and writes agent files back.
 
-**Layer**: Infra — infrastructure primitives (database, security, events, etc.) consumed by domain crates. Part of the [systemprompt-core](https://github.com/systempromptio/systemprompt-core) workspace.
+**Layer**: Infra. Infrastructure primitives consumed by the domain and application crates. Part of the [systemprompt-core](https://github.com/systempromptio/systemprompt-core) workspace.
 
-## Overview
+## What it does
 
-This crate provides pure I/O operations for loading configuration files, profiles, secrets, extensions, and module definitions without any domain logic.
+The loader isolates file I/O from the shared model types. It sits one level above `systemprompt-config` in the dependency graph, so domain crates read services config, profiles, and extensions without knowing the on-disk structure. That boundary keeps file operations testable and the loaders reusable across the API and CLI entry points.
 
-## Architecture
-
-The loader crate sits in the infrastructure layer and depends only on `systemprompt-models` (shared layer). It separates file I/O concerns from business logic, enabling:
-
-- Testable file operations with clear boundaries
-- Reusable loaders across different entry points (API, CLI)
-- Consistent configuration parsing and validation
-
-```
-src/
-├── lib.rs                       # Public API exports
-├── error.rs                     # ConfigLoad / ConfigWrite / ExtensionLoad / ProfileLoad error types
-├── config_loader/               # Services configuration loader
-│   ├── mod.rs                   # ConfigLoader entry point
-│   ├── includes.rs              # Recursive `includes:` resolution with cycle detection
-│   ├── merge.rs                 # Deep-merge logic for included fragments
-│   └── types.rs                 # Loader-internal types
-├── config_writer.rs             # Agent configuration file writer
-├── extension_loader/            # Extension manifest discovery and loading
-│   ├── mod.rs                   # ExtensionLoader entry point
-│   ├── manifest.rs              # manifest.yaml parsing
-│   └── result.rs                # ExtensionValidationResult
-├── extension_registry.rs        # Runtime extension binary registry
-├── module_loader.rs             # `inventory`-driven extension aggregator
-├── profile_loader.rs            # Profile YAML loader with validation
-└── modules/
-    └── mod.rs                   # Module collection aggregator
-```
-
-### Core Loaders
+## Modules
 
 | Module | Purpose |
 |--------|---------|
-| `ProfileLoader` | Loads and validates profile YAML files from the profiles directory |
-| `ConfigLoader` | Loads services configuration, merges includes, and validates strict schema |
-| `ModuleLoader` | Thin wrapper over the `inventory`-driven `ExtensionRegistry`; discovers compiled-in extensions and collects their schemas |
-
-### Extension Support
-
-| Module | Purpose |
-|--------|---------|
-| `ExtensionLoader` | Discovers on-disk extensions by scanning for `manifest.yaml` files |
-| `ExtensionRegistry` | Runtime registry mapping binary names to extension metadata |
-| `ConfigWriter` | Creates, updates, and deletes agent configuration files |
-
-### Module Aggregation
-
-The `modules` module re-exports the compile-time extension registry. `ModuleLoader::discover_extensions` returns every `inventory`-registered `Extension`, and `ModuleLoader::collect_extension_schemas` flattens their `SchemaDefinition`s for schema installation.
+| `config_loader` | `ConfigLoader` reads `services.yaml`, resolves `includes:` recursively with cycle detection (`discovery.rs`, `includes.rs`), deep-merges fragments (`merge.rs`), and validates against a strict schema. |
+| `config_writer` | `ConfigWriter` creates, edits, and deletes agent configuration files. |
+| `extension_loader` | `ExtensionLoader` discovers on-disk extensions by scanning for `manifest.yaml`, returning an `ExtensionValidationResult`. |
+| `extension_registry` | `ExtensionRegistry` maps binary names to extension metadata and resolves binary paths. |
+| `module_loader` | `ModuleLoader` wraps the `inventory`-driven registry: `discover_extensions` returns every compiled-in `Extension`, `collect_extension_schemas` flattens their `SchemaDefinition`s. |
+| `profile_loader` | `ProfileLoader` reads, validates, and writes profile YAML. |
+| `error` | `ConfigLoadError`, `ConfigWriteError`, `ExtensionLoadError`, `ProfileLoadError` and their result aliases. |
 
 ## Usage
 
 ```toml
 [dependencies]
-systemprompt-loader = "0.18.0"
+systemprompt-loader = "0.21"
 ```
 
 ### Features
@@ -119,12 +83,10 @@ let discovered = ExtensionLoader::discover(project_root);
 ## Dependencies
 
 - `thiserror` — typed error variants
-- `serde` / `serde_yaml` / `serde_json` — serialisation
-- `tokio` — async runtime
+- `serde` / `serde_yaml` — serialisation
 - `tracing` — structured logging
 - `systemprompt-config` — profile and config primitives
 - `systemprompt-extension` — extension trait registry
-- `systemprompt-identifiers` — typed IDs
 - `systemprompt-models` — shared model types
 
 ## License

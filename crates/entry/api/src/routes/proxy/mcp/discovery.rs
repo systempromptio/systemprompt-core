@@ -1,5 +1,8 @@
 //! RFC 9728 protected-resource and authorization-server metadata per MCP
 //! service, including the RFC 8693 token-type and EMA advertisements.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use axum::Json;
 use axum::extract::{Path, State};

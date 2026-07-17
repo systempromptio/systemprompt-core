@@ -3,6 +3,9 @@
 //! Owns argument parsing (`args`), profile/secrets bootstrap (`bootstrap`),
 //! and cloud routing (`routing`). The public surface is just [`run`]; every
 //! other symbol stays scoped to the runner subtree.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod args;
 mod bootstrap;

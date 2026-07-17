@@ -6,6 +6,9 @@
 //! document (after an optional UTF-8 BOM) and closes at the next line that
 //! is exactly `---`. A `---` anywhere else — mid-line, in a markdown table
 //! separator row, or as a horizontal rule — is body text, never a delimiter.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 #[derive(Debug, Clone, Copy)]
 pub struct Frontmatter<'a> {

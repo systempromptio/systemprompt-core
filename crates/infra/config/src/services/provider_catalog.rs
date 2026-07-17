@@ -6,6 +6,9 @@
 //! a provider upsert preserves the existing model catalog so connectivity can
 //! be re-declared without re-listing models. Callers revalidate and persist
 //! the profile after a successful mutation.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::collections::HashMap;
 

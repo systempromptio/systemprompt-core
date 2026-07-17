@@ -38,7 +38,6 @@ alias sp="./target/debug/systemprompt --non-interactive"
 | Command | Description | Artifact Type | Requires Services |
 |---------|-------------|---------------|-------------------|
 | `build core` | Build Rust workspace (systemprompt-core) | `Text` | No |
-| `build web` | Build web frontend | `Text` | No |
 | `build mcp` | Build MCP extensions | `Text` | No |
 
 ---
@@ -52,18 +51,14 @@ Build the Rust workspace (systemprompt-core).
 ```bash
 sp build core
 sp build core --release
-sp build core --package systemprompt-cli
-sp build core --features "feature1,feature2"
+sp build core --offline
 ```
 
 **Optional Flags:**
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--release` | `false` | Build in release mode |
-| `--package` | All | Build specific package only |
-| `--features` | None | Comma-separated features to enable |
-| `--all-features` | `false` | Enable all features |
-| `--no-default-features` | `false` | Disable default features |
+| `--release`, `-r` | `false` | Build in release mode (production) |
+| `--offline` | `false` | Build with `SQLX_OFFLINE=true` (no database required) |
 
 **Output Structure:**
 ```json
@@ -74,42 +69,6 @@ sp build core --features "feature1,feature2"
   "duration_seconds": 45,
   "output_path": "/var/www/html/systemprompt-core/target/debug",
   "message": "Build completed successfully"
-}
-```
-
-**Artifact Type:** `Text`
-
----
-
-### build web
-
-Build the web frontend.
-
-```bash
-sp build web
-sp build web --production
-sp build web --watch
-sp build web --minify
-```
-
-**Optional Flags:**
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--production` | `false` | Build for production (optimized) |
-| `--watch` | `false` | Watch for changes and rebuild |
-| `--minify` | `false` | Minify output (CSS/JS) |
-| `--no-sourcemaps` | `false` | Disable source maps |
-
-**Output Structure:**
-```json
-{
-  "success": true,
-  "mode": "development",
-  "output_path": "<your-project>/services/web/dist",
-  "files_generated": 15,
-  "total_size_bytes": 524288,
-  "duration_seconds": 12,
-  "message": "Web build completed successfully"
 }
 ```
 
@@ -158,12 +117,8 @@ sp build core --release
 # Phase 2: Build MCP extensions
 sp build mcp --release
 
-# Phase 3: Build web frontend
-sp build web --production --minify
-
-# Phase 4: Verify builds
+# Phase 3: Verify builds
 ls -la ./target/release/
-ls -la ./services/web/dist/
 ```
 
 ---
@@ -172,10 +127,10 @@ ls -la ./services/web/dist/
 
 ```bash
 # Fast debug build for development
-sp build core --package systemprompt-cli
+sp build core
 
-# Watch mode for web development
-sp build web --watch
+# Build without a database available
+sp build core --offline
 
 # Build all MCP extensions
 sp build mcp
@@ -189,7 +144,6 @@ sp build mcp
 # Full production build
 sp build core --release
 sp build mcp --release
-sp build web --production --minify --no-sourcemaps
 
 # Or use the services command for full startup
 sp infra services start --skip-migrate
@@ -205,9 +159,6 @@ sp infra services start --skip-migrate
 sp build core
 # Error: Compilation failed. See errors above.
 
-sp build web
-# Error: Web build failed. Node.js/npm not found.
-
 sp build mcp
 # Error: Extension 'example' has no binary defined
 ```
@@ -217,9 +168,6 @@ sp build mcp
 ```bash
 sp build core
 # Error: Missing toolchain. Install Rust via rustup.
-
-sp build web
-# Error: Missing npm dependencies. Run 'npm install' first.
 ```
 
 ---
@@ -234,7 +182,6 @@ sp --json build core | jq .
 
 # Extract specific fields
 sp --json build core | jq '.packages_built'
-sp --json build web | jq '.total_size_bytes'
 sp --json build mcp | jq '.servers_built[]'
 ```
 
@@ -248,8 +195,7 @@ The build commands integrate with the services workflow:
 # Manual build then start
 sp build core --release
 sp build mcp --release
-sp build web --production
-sp infra services start --skip-web
+sp infra services start
 
 # Or let services handle the build
 sp infra services start

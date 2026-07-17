@@ -1,4 +1,7 @@
 //! OAuth domain compile-time constants.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod pkce {
     pub const CODE_CHALLENGE_MIN_LENGTH: usize = 43;

@@ -4,6 +4,9 @@
 //! conflicts, per-server field requirements, OAuth scope coherence, and
 //! internal-vs-external type constraints — before any server is brought up,
 //! surfacing every failure together rather than aborting on the first.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::collections::HashSet;
 use systemprompt_models::mcp::{McpServerType, RegistryConfig};

@@ -6,6 +6,9 @@
 //! file (default `content.html`) referenced by [`DiskArtifactConfig::file`].
 //! These are Cowork-native library documents, not the in-chat MCP artifacts in
 //! [`crate::artifacts`].
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use serde::Deserialize;
 

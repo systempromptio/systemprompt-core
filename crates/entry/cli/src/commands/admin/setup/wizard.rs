@@ -4,6 +4,9 @@
 //! environment, provision `PostgreSQL`, collect secrets, write the profile, and
 //! optionally run migrations, returning a [`SetupOutput`]. The dry-run and
 //! cancellation paths short-circuit without touching the filesystem.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::path::{Path, PathBuf};
 

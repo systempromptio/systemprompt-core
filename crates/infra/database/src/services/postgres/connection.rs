@@ -6,6 +6,9 @@
 //! The retry loop intentionally targets a narrow set of error shapes so
 //! permanent failures (auth, missing database, bad URL) fail fast. The
 //! backoff itself runs on [`crate::resilience::retry::retry_async`].
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::future::Future;
 use std::time::Duration;

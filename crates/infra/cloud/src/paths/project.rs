@@ -4,6 +4,9 @@
 //! [`ProjectPath`] and [`ProfilePath`] enumerate the well-known files and
 //! directories so resolution stays a single source of truth; root discovery
 //! walks upward looking for a `.systemprompt` directory.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::path::{Path, PathBuf};
 

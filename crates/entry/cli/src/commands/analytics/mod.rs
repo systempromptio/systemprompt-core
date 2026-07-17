@@ -5,6 +5,9 @@
 //! Each variant dispatches to its module's `execute` against the invocation's
 //! [`CommandContext`]. The [`shared`] module holds the time-range and output
 //! formatting helpers used across all domains.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod agents;
 pub mod content;

@@ -3,6 +3,9 @@
 //! [`BulkCommands`] exposes filter-driven delete and status-update commands,
 //! dispatched by [`execute`]. Both are write operations requiring full profile
 //! context.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod delete;
 mod update;

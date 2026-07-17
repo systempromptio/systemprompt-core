@@ -17,7 +17,7 @@
 
 # Config CLI Commands
 
-This document provides complete documentation for AI agents to use the config CLI commands. All commands support non-interactive mode for automation.
+`admin config` reads and edits the active profile YAML, the single source of truth for how the instance runs. Every group below writes back to that profile. All commands support non-interactive mode for automation.
 
 ---
 
@@ -33,23 +33,221 @@ alias sp="./target/debug/systemprompt --non-interactive"
 
 ---
 
-## Command Reference
+## Command Groups
 
-| Command | Description | Artifact Type | Requires Services |
-|---------|-------------|---------------|-------------------|
-| `admin config rate-limits show` | Show rate limit configuration | `Card` | No |
-| `admin config rate-limits tier <TIER>` | Show effective limits for a tier | `Card` | No |
-| `admin config rate-limits docs` | Show rate limits documentation | `Table` | No |
-| `admin config rate-limits set` | Set a rate limit value | `Text` | No |
-| `admin config rate-limits enable` | Enable rate limiting | `Text` | No |
-| `admin config rate-limits disable` | Disable rate limiting | `Text` | No |
-| `admin config rate-limits validate` | Validate configuration | `Card` | No |
-| `admin config rate-limits compare` | Compare limits across tiers | `Table` | No |
-| `admin config rate-limits reset` | Reset to default values | `Table` | No |
+`admin config` has thirteen groups. `show`, `list`, and `validate` are top-level; the rest are subcommand groups.
+
+| Group | Purpose |
+|-------|---------|
+| `show` | Configuration overview for the active profile |
+| `list` | List all configuration files |
+| `validate` | Validate configuration files (exits non-zero on failure) |
+| `server` | Host, port, HTTPS, and CORS origins |
+| `runtime` | Environment, log level, output format |
+| `security` | JWT issuer, token expiry, trusted issuers |
+| `paths` | Show and validate configured filesystem paths |
+| `provider` | Enable/disable AI providers and set the default (policy) |
+| `gateway` | Gateway enable/disable, routes, default provider |
+| `governance` | Authorization hook (webhook/extension/disabled/unrestricted) |
+| `catalog` | Provider registry under `profile.providers` (providers, models) |
+| `secret` | Set a provider or custom secret in the secrets store |
+| `rate-limits` | Per-endpoint rates, tier multipliers, presets, import/export |
+
+---
+
+## show / list / validate
+
+```bash
+sp admin config show              # overview of the active profile
+sp admin config list              # configuration files on disk
+sp admin config validate          # validate; exits non-zero if invalid
+```
+
+`show` returns a `Card`, `list` and `validate` return a `Table`. `validate` bails with a non-zero exit code when the profile is invalid.
+
+---
+
+## server
+
+Host, port, HTTPS, and CORS origins.
+
+```bash
+sp admin config server show
+sp admin config server set --host 127.0.0.1 --port 8080 --use-https false
+sp admin config server cors list
+sp admin config server cors add https://app.example.com
+sp admin config server cors remove https://app.example.com
+```
+
+| Subcommand | Purpose |
+|------------|---------|
+| `show` | Show server configuration |
+| `set` | Set `--host`, `--port`, `--use-https` |
+| `cors list` / `cors add <ORIGIN>` / `cors remove <ORIGIN>` | Manage allowed CORS origins |
+
+---
+
+## runtime
+
+Environment, log level, and output format.
+
+```bash
+sp admin config runtime show
+sp admin config runtime set --environment production --log-level normal --output-format json
+```
+
+| Subcommand | Purpose |
+|------------|---------|
+| `show` (alias `list`) | Show runtime configuration |
+| `set` | Set `--environment`, `--log-level`, `--output-format` |
+
+---
+
+## security
+
+JWT issuer, token expiry, and trusted issuers for token exchange.
+
+```bash
+sp admin config security show
+sp admin config security set --jwt-issuer https://auth.example.com --access-expiry 3600 --refresh-expiry 2592000
+sp admin config security trusted-issuer add \
+  --issuer https://idp.example.com \
+  --jwks-uri https://idp.example.com/.well-known/jwks.json \
+  --audience systemprompt
+sp admin config security trusted-issuer remove --issuer https://idp.example.com
+```
+
+| Subcommand | Purpose |
+|------------|---------|
+| `show` (alias `list`) | Show security configuration |
+| `set` | Set `--jwt-issuer`, `--access-expiry`, `--refresh-expiry` |
+| `trusted-issuer add` / `remove` | Manage RFC 8693 token-exchange issuers |
+
+---
+
+## paths
+
+Show and validate the configured filesystem paths.
+
+```bash
+sp admin config paths show
+sp admin config paths validate
+```
+
+| Subcommand | Purpose |
+|------------|---------|
+| `show` (alias `list`) | Show configured paths |
+| `validate` | Verify every configured path exists |
+
+---
+
+## provider
+
+Enable, disable, and set the default AI provider. This is the policy layer over the catalog: it decides which declared providers are usable and which is the default.
+
+```bash
+sp admin config provider list
+sp admin config provider enable anthropic
+sp admin config provider disable openai
+sp admin config provider set anthropic
+```
+
+| Subcommand | Purpose |
+|------------|---------|
+| `list` | List AI providers |
+| `set <PROVIDER>` | Set the default provider |
+| `enable <PROVIDER>` / `disable <PROVIDER>` | Toggle a provider |
+
+---
+
+## gateway
+
+Gateway enable/disable, model routes, and default provider.
+
+```bash
+sp admin config gateway enable
+sp admin config gateway disable
+sp admin config gateway route list
+sp admin config gateway route add --model-pattern "claude-*" --provider anthropic
+sp admin config gateway route remove --model-pattern "claude-*"
+sp admin config gateway default-provider set anthropic
+sp admin config gateway default-provider clear
+```
+
+| Subcommand | Purpose |
+|------------|---------|
+| `enable` / `disable` | Toggle the gateway |
+| `route list` / `route add` / `route remove` | Manage routes (upsert by `--model-pattern`, targeting `--provider`) |
+| `default-provider set` / `clear` | Set or clear the gateway default provider |
+
+---
+
+## governance
+
+The authorization hook that every request is evaluated against.
+
+```bash
+sp admin config governance show
+sp admin config governance set --mode webhook --url https://authz.example.com/evaluate
+sp admin config governance set --mode extension
+sp admin config governance set --mode disabled
+```
+
+| Subcommand | Purpose |
+|------------|---------|
+| `show` | Show governance configuration |
+| `set` | Set `--mode` (`webhook`, `extension`, `disabled`, `unrestricted`); `--url` required for `webhook` |
+
+`unrestricted` requires an explicit acknowledgement; it disables authorization entirely.
+
+---
+
+## catalog
+
+The provider registry under `profile.providers`: which providers exist and which models they serve. Providers must be declared here before `provider` or `gateway` can reference them.
+
+```bash
+sp admin config catalog provider list
+sp admin config catalog provider add --name anthropic --wire anthropic
+sp admin config catalog provider remove anthropic
+sp admin config catalog model add --provider anthropic --id claude-sonnet-4-6-20250610 --alias sonnet
+sp admin config catalog model remove --provider anthropic --id claude-sonnet-4-6-20250610
+```
+
+| Subcommand | Purpose |
+|------------|---------|
+| `provider list` / `provider add` / `provider remove` | Manage declared providers (`--wire`: `anthropic`, `openai-chat`, `openai-responses`, `gemini`) |
+| `model add` / `model remove` | Manage models under a provider (repeatable `--alias`) |
+
+---
+
+## secret
+
+Set a provider or custom secret in the profile's secrets store.
+
+```bash
+sp admin config secret set anthropic "sk-ant-..."
+sp admin config secret set minimax "..."
+```
+
+| Subcommand | Purpose |
+|------------|---------|
+| `set <NAME> <VALUE>` | Write a secret to the profile's secrets file |
 
 ---
 
 ## Rate Limits Commands
+
+The `rate-limits` group is the richest. Alongside `show`, `tier`, `docs`, `set`, `enable`, `disable`, `validate`, `compare`, and `reset`, it also has `preset`, `export`, `import`, and `diff`:
+
+```bash
+sp admin config rate-limits preset list
+sp admin config rate-limits preset show <name>
+sp admin config rate-limits preset apply <name>
+sp admin config rate-limits export limits.json
+sp admin config rate-limits import limits.json
+sp admin config rate-limits diff --file limits.json
+```
 
 ### config rate-limits show
 
@@ -366,19 +564,23 @@ sp admin config rate-limits reset --tier admin --yes
 
 ## Endpoint Reference
 
+Default base rates (before the tier multiplier is applied). These are the built-in defaults from `RateLimitsConfig::default()`; a profile may override any of them, so `rate-limits show` reflects the loaded profile rather than these values. Effective admin limits are the base rate times the admin multiplier (10x), so `stream` defaults to 100/s base and 1000/s for admin.
+
 | Endpoint | Description | Default Rate |
 |----------|-------------|--------------|
-| `oauth_public` | Public OAuth endpoints | 2/s |
-| `oauth_auth` | Authenticated OAuth endpoints | 2/s |
-| `contexts` | Context operations | 50/s |
-| `tasks` | Task operations | 10/s |
-| `artifacts` | Artifact operations | 15/s |
-| `agent_registry` | Agent registry operations | 20/s |
-| `agents` | Agent operations | 3/s |
-| `mcp_registry` | MCP registry operations | 20/s |
-| `mcp` | MCP operations | 100/s |
-| `stream` | SSE streaming | 10/s |
-| `content` | Content operations | 20/s |
+| `oauth_public` | Public OAuth endpoints | 10/s |
+| `oauth_auth` | Authenticated OAuth endpoints | 10/s |
+| `contexts` | Context operations | 100/s |
+| `tasks` | Task operations | 50/s |
+| `artifacts` | Artifact operations | 50/s |
+| `agent_registry` | Agent registry operations | 50/s |
+| `agents` | Agent operations | 20/s |
+| `mcp_registry` | MCP registry operations | 50/s |
+| `mcp` | MCP operations | 200/s |
+| `stream` | SSE streaming | 100/s |
+| `content` | Content operations | 50/s |
+
+Default burst multiplier is 3. Default tier multipliers: admin 10, user 1, a2a 5, mcp 5, service 5, anon 0.5.
 
 ---
 

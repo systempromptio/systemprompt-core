@@ -3,6 +3,9 @@
 //! Handlers list artifacts by context, task, or user, fetch a single artifact,
 //! and render an artifact as MCP App UI. Every accessor enforces ownership
 //! against the authenticated [`RequestContext`] before returning data.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use axum::extract::{Path, Query, State};
 use axum::http::{StatusCode, header};

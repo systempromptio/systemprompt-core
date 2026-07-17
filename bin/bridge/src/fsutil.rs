@@ -1,4 +1,7 @@
 //! Bridge filesystem helpers: atomic 0600 writes and optional reads.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};

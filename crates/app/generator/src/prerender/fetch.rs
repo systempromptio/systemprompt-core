@@ -1,5 +1,8 @@
 //! Helpers for fetching `Content` rows from the database and enriching them
 //! with data contributed by `ContentDataProvider` extensions.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
 

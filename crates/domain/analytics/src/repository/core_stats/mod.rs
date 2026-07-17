@@ -3,6 +3,9 @@
 //! [`CoreStatsRepository`] backs the dashboard overview, activity trends,
 //! categorical breakdowns, and leaderboards, with the read queries split
 //! across the sibling submodules.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod activity;
 mod breakdowns;

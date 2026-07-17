@@ -7,6 +7,9 @@
 //! updates always re-seed from
 //! [`default_resource_audiences`], so the gateway-required audiences can never
 //! be removed. Callers revalidate and persist the profile afterwards.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_models::profile::{SecurityConfig, TrustedIssuer, default_resource_audiences};
 

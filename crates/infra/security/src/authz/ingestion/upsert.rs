@@ -6,6 +6,9 @@
 //! `access_control_rules` FK and carry the authoritative `default_included`
 //! flag; [`upsert_target`] performs the idempotent insert-or-update and reports
 //! the [`UpsertOutcome`].
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_identifiers::RuleId;
 

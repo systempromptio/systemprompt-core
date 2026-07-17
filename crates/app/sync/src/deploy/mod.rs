@@ -11,6 +11,9 @@
 //! Inputs arrive as a typed [`DeployRequest`]; the result is a
 //! [`DeployReport`] whose [`DeployOutcome`] distinguishes a dry run from a
 //! completed deploy.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod artifacts;
 mod orchestrator;

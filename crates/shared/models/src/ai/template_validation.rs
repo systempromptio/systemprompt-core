@@ -5,6 +5,9 @@
 //! output schemas, surfacing each problem as a [`PlanValidationError`] tagged
 //! with a [`ValidationErrorKind`] (bad syntax, self/forward reference,
 //! out-of-bounds index, or a field absent from the target schema).
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;

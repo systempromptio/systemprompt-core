@@ -1,6 +1,9 @@
 //! Plain-data structs returned by the local-sync diff calculators and the
 //! disk-side parsers. All fields are public so callers can render them
 //! directly into CLI tables or JSON responses.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use chrono::{DateTime, Utc};
 use serde::Serialize;

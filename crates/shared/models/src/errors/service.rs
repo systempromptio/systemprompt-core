@@ -1,5 +1,8 @@
 //! Application-layer service umbrella error and its conversions into
 //! the public [`crate::api::ApiError`] HTTP shape.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_traits::RepositoryError;
 

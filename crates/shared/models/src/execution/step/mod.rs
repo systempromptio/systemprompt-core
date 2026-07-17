@@ -1,5 +1,8 @@
 //! Execution step model — a single unit of an agent run with status,
 //! timing, and per-kind content payload.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod content;
 mod enums;

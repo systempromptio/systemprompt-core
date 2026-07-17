@@ -1,4 +1,7 @@
 //! OTLP protobuf value conversion into JSON and log levels.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use serde_json::{Value, json};
 use systemprompt_logging::LogLevel;

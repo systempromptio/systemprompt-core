@@ -1,3 +1,6 @@
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
 use std::time::Instant;
 use systemprompt_identifiers::AgentId;
 use systemprompt_traits::{StartupEventExt, StartupEventSender};

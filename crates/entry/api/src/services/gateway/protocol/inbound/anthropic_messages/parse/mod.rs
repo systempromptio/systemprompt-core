@@ -3,6 +3,9 @@
 //! [`parse`] reads the top-level request fields; message and content-block
 //! parsing lives in [`content`], and tool/tool-choice/thinking parsing in
 //! [`tools`].
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod content;
 mod tools;

@@ -16,6 +16,9 @@
 //! Federated subject-token verification (token-exchange) is deliberately *not*
 //! a caller: it resolves keys from an external issuer's JWKS rather than this
 //! deployment's signing authority, so it is a genuinely different operation.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use jsonwebtoken::{Algorithm, Validation, decode, decode_header};
 use systemprompt_models::auth::{JwtAudience, JwtClaims};

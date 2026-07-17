@@ -2,6 +2,9 @@
 //!
 //! Dispatches the `web assets` subcommands ([`AssetsCommands`]) to list the
 //! asset inventory or show details for a single asset.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod asset_type;
 pub mod list;

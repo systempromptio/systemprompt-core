@@ -5,6 +5,9 @@
 //! Splitting the loader trait out keeps the `tokio`-gated `FileSystemLoader`
 //! in the same crate as its trait, while the cross-crate provider contracts
 //! stay filesystem-agnostic.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod error;
 mod loader;

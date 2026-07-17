@@ -1,3 +1,6 @@
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
 use anyhow::{Context, Result, anyhow};
 use systemprompt_database::DatabaseAdminService;
 use systemprompt_logging::CliService;

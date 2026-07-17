@@ -3,6 +3,9 @@
 //! Contains the top-level [`crate::AiService`] and supporting modules for
 //! provider drivers, tool dispatch, structured-output validation, schema
 //! transformation, image storage, and config validation.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod config;
 pub mod core;

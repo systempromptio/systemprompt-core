@@ -1,4 +1,7 @@
 //! [`RssFeedProvider`] contract for emitting RSS feed metadata + items.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};

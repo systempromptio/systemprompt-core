@@ -7,6 +7,9 @@
 //! local process and are excluded from reconciliation entirely. Helpers here
 //! own the cleanup-and-notify steps that feed [`StartupEventSender`] progress
 //! events.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::error::McpDomainResult;
 use std::collections::HashSet;

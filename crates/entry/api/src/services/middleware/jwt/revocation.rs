@@ -6,6 +6,9 @@
 //! revoked (logout, admin revoke, refresh rotation)? A negative result is
 //! cached so the hot path costs one map lookup. Fails closed — a revocation
 //! store error rejects the request rather than admitting an unverifiable token.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
 use systemprompt_database::DbPool;

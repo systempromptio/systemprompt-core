@@ -7,6 +7,9 @@
 //! [`EventRouter`](super::routing::EventRouter) and
 //! [`PostgresEventBridge`](super::bridge::PostgresEventBridge) call it
 //! rather than running SQL themselves.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use sqlx::PgPool;
 use systemprompt_identifiers::{Actor, EventOutboxId, UserId};

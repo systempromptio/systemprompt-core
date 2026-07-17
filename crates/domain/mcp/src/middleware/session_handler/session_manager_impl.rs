@@ -1,6 +1,9 @@
 //! [`SessionManager`] implementation for [`DatabaseSessionHandler`], delegating
 //! to the in-memory `LocalSessionManager` and mirroring lifecycle to the
 //! database.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use futures::{Stream, StreamExt};
 use rmcp::model::{ClientJsonRpcMessage, ServerJsonRpcMessage};

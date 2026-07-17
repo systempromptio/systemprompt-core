@@ -1,5 +1,8 @@
 //! `infra logs request stats`: aggregate AI request counts, token usage, cost,
 //! and latency, broken down by provider and model.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use anyhow::Result;
 use clap::Args;

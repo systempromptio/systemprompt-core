@@ -1,6 +1,9 @@
 //! Anthropic streaming: builds a canonical streaming request, posts it, frames
 //! the SSE byte stream, and maps each decoded frame through the shared codec's
 //! [`anthropic::event_from_sse`] into agent [`StreamChunk`]s.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::pin::Pin;
 

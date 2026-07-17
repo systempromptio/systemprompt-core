@@ -3,6 +3,9 @@
 //! Thin async wrappers that delegate to [`McpOrchestrator`] for starting,
 //! stopping, and reporting on managed MCP servers from the `systemprompt`
 //! CLI surface.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::error::McpDomainResult;
 use crate::services::McpOrchestrator;

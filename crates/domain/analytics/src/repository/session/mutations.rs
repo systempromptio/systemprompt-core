@@ -4,6 +4,9 @@
 //! activity and counter increments, session end and cleanup, scanner and
 //! conversion marking, revocation, and user-id migration. Each takes an
 //! explicit pool so callers route writes to the write pool.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::Result;
 use chrono::{Duration, Utc};

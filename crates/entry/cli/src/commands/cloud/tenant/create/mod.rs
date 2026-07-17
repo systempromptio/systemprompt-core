@@ -3,6 +3,9 @@
 //! Routes to the cloud-subscription flow ([`create_cloud_tenant`]) or one of
 //! the local flows ([`create_local_tenant`] for a managed Docker container,
 //! [`create_external_tenant`] for a user-supplied database).
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod cloud;
 mod local;

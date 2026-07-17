@@ -7,6 +7,9 @@
 //! collision-resistant cache key that the bridge proxy and the gateway
 //! `InboundAdapter`s can compute independently and arrive at the same
 //! gateway conversation id for the same first turn of a conversation.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 const FNV_OFFSET: u64 = 0xcbf2_9ce4_8422_2325;
 const FNV_PRIME: u64 = 0x0000_0100_0000_01b3;

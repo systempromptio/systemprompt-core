@@ -1,3 +1,6 @@
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
 use super::WebhookService;
 use super::types::{WebhookConfig, WebhookDeliveryResult, WebhookStats, WebhookTestResult};
 use crate::models::external_integrations::{IntegrationError, IntegrationResult};

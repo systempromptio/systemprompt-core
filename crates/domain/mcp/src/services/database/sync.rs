@@ -4,6 +4,9 @@
 //! liveness and process existence, marking crashed services, pruning disabled
 //! or duplicate rows, and reporting discrepancies so the orchestrator can
 //! converge the database on reality at startup.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::error::McpDomainResult;
 use crate::services::process::utils;

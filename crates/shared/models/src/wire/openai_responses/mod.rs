@@ -10,6 +10,9 @@
 //! adapter that calls these. The `request` submodule owns the request build,
 //! `response` the buffered-reply parse, `streaming` the SSE-to-event pipeline,
 //! and `slot` the per-output-item slot state machine the streaming pass tracks.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod request;
 mod response;

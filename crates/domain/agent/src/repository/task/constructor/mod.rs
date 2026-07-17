@@ -4,6 +4,9 @@
 //! artifact, and execution-step tables and rebuilds the nested [`Task`] graph,
 //! offering both a single-task path and a batched path that amortises the
 //! per-table round trips across many task ids.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod batch;
 pub mod batch_builders;

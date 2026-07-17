@@ -1,6 +1,9 @@
 //! `POST /v1/bridge/heartbeat` — bridge processes report liveness here on a
 //! fixed cadence so the gateway can answer "which devices are online right
 //! now" without inferring liveness from inference traffic.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
 

@@ -1,5 +1,8 @@
 //! On-disk writers for the deployment `.env` files produced by the
 //! [`super::ConfigService`] pipeline.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::fs;
 use std::path::{Path, PathBuf};

@@ -22,6 +22,9 @@
 //! must fall through it to the data-embedded variant tag. Collapsing the two
 //! would either erase the union from the schema or mis-type every enveloped
 //! artifact, so both tags stay on the wire.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};

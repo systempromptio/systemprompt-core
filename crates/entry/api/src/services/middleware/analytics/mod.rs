@@ -4,6 +4,9 @@
 //! produced, spawning detached tasks for session activity, velocity-based
 //! scanner detection, behavioural bot scoring, and analytics-event capture so
 //! the request path is never blocked on persistence.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod detection;
 mod events;

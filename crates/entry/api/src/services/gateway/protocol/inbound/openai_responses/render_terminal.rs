@@ -7,6 +7,9 @@
 //! from the accumulated response snapshot the stream tap maintains. A consumer
 //! (e.g. Codex) finalizes and dispatches a tool call from these frames;
 //! emitting them incomplete strands the tool call and stops the turn.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use bytes::Bytes;
 // JSON: protocol boundary — OpenAI Responses wire format is dynamic JSON.

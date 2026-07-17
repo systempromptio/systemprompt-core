@@ -4,6 +4,9 @@
 //! injecting the active [`RequestContext`] headers and bearer token onto every
 //! GET/POST/ DELETE so authentication and trace context flow through to
 //! downstream MCP servers.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use futures::StreamExt;
 use futures::stream::BoxStream;

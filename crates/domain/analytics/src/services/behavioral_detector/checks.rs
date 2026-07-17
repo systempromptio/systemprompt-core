@@ -1,6 +1,9 @@
 //! Single-session behavioural-bot checks. Cross-session/fingerprint checks
 //! live in [`super::fingerprint_checks`]; pure helpers live in
 //! [`super::helpers`].
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::collections::HashSet;
 

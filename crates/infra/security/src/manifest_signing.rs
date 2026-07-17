@@ -6,6 +6,9 @@
 //! process. Manifests are canonicalised via JSON Canonicalization Scheme
 //! (RFC 8785) before signing so that semantically-equivalent payloads
 //! produce identical signatures.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use base64::Engine;
 use ed25519_dalek::{Signer, SigningKey, VerifyingKey};

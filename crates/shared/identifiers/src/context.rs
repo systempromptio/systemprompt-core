@@ -1,4 +1,7 @@
 //! Execution-context identifier — UUID v4 only.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::GatewayConversationId;
 use crate::error::IdValidationError;

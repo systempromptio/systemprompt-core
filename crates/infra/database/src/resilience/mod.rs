@@ -28,6 +28,9 @@
 //! Failures the guard itself produces (circuit open, bulkhead full, timeout)
 //! surface as [`error::ResilienceError`], which the caller maps back into its
 //! domain error.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod breaker;
 pub mod bulkhead;

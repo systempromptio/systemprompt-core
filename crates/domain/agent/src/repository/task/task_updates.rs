@@ -1,3 +1,6 @@
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
 use super::{TaskRepository, task_state_to_db_string};
 use crate::models::a2a::{Message, Task, TaskState};
 use crate::repository::context::message::{

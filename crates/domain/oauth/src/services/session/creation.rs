@@ -1,4 +1,7 @@
 //! Anonymous session creation: mints a new user, session row, and signed JWT.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use super::{AnonymousSessionInfo, SessionCreationParams, SessionCreationService};
 use crate::error::{OauthError, OauthResult};

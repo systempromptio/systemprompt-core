@@ -1,5 +1,8 @@
 //! Per-`grant_type` token issuance: authorization-code, refresh-token,
 //! client-credentials, and RFC 8693 token-exchange.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use axum::http::HeaderMap;
 use systemprompt_identifiers::{AuthorizationCode, ClientId, RefreshTokenId};

@@ -4,6 +4,9 @@
 //! builder, the [`FileValidator`] / [`FileCategory`] type-policy layer, the
 //! [`UploadedFile`] result, and the [`FileUploadError`] /
 //! [`FileValidationError`] error types.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod error;
 mod request;

@@ -2,6 +2,9 @@
 //!
 //! Prompts for push/pull direction and a source profile, then drives the
 //! `SyncService` to synchronise files for the profile's configured tenant.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use anyhow::{Context, Result, bail};
 use systemprompt_cloud::{ProfilePath, ProjectContext};

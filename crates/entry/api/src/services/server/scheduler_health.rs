@@ -7,6 +7,9 @@
 //! surfaces in monitoring instead of failing silently.
 //!
 //! [`handle_health`]: super::health::handle_health
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::sync::OnceLock;
 

@@ -3,6 +3,9 @@
 //! Reports applied, pending, and checksum-drifted migrations per extension,
 //! rendering either a JSON table or a formatted text summary. Provides both the
 //! full-context and standalone (`DatabaseContext`-only) entry points.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use anyhow::{Result, anyhow};
 use systemprompt_database::MigrationService;

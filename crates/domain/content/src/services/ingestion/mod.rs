@@ -1,5 +1,8 @@
 //! Markdown ingestion: scans content directories, parses frontmatter, and
 //! reconciles each file against the content repository.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod builder;
 mod processors;

@@ -5,6 +5,9 @@
 //! at runtime (extension-defined SQL, dynamic admin queries) or executes
 //! `SELECT 1` for connection probing. Static SQL goes through the verified
 //! macros elsewhere.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod connection;
 pub mod conversion;

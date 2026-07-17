@@ -4,6 +4,9 @@
 //! optionally sharding by capture date, and returns both the on-disk path and
 //! the public URL. [`StorageConfig`] holds the base path, URL prefix, size cap,
 //! and date-organisation flag and validates them before any write.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::error::AiError;
 use base64::Engine;

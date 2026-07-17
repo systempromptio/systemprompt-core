@@ -4,6 +4,9 @@
 //! point for command code: levelled messages (which also publish a log event),
 //! structured output (`json`/`yaml`), and spinners and progress bars. Output is
 //! the sanctioned stderr/stdout sink, not `tracing`.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::io::Write;
 use std::time::Duration;

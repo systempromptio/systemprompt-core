@@ -3,6 +3,9 @@
 //! Defines [`McpSessionRepository`] and the [`McpSessionRecord`] row model over
 //! the `mcp_sessions` table, tracking session lifecycle (active → expired →
 //! closed), activity timestamps, and last-event-id for SSE resumption.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::error::McpDomainResult;
 use chrono::{DateTime, Utc};

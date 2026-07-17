@@ -3,6 +3,9 @@
 //! Extraction is hardened against path-traversal: symlinks, absolute
 //! paths, `..` components, and entries outside the allowed top-level
 //! directories are all rejected before anything touches disk.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::collections::HashMap;
 use std::fs;

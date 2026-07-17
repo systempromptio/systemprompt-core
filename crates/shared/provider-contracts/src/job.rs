@@ -1,5 +1,8 @@
 //! [`Job`] contract for scheduled / on-startup background jobs registered
 //! via the `inventory` crate.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::collections::HashMap;
 use std::sync::Arc;

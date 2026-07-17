@@ -3,6 +3,9 @@
 //! Upserts a fingerprint on each session, updates velocity and session-count
 //! metrics, raises and clears abuse flags, and adjusts the reputation score.
 //! All writes go to the write pool.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::Result;
 use systemprompt_identifiers::UserId;

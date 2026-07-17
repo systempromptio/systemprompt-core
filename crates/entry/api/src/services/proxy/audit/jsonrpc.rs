@@ -5,6 +5,9 @@
 //! response, matching them by JSON-RPC id. The `arguments`, `result`, and
 //! `content` payloads are `serde_json::Value` because MCP defines them as
 //! open-shaped at the wire boundary.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use serde::Deserialize;
 use serde_json::Value;

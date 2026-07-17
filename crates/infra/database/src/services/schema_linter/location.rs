@@ -1,4 +1,7 @@
 //! Byte-offset → `(line, column)` mapping for schema-linter diagnostics.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 /// Statement position and source label, threaded through the per-node checks
 /// so they stay under the argument-count limit.

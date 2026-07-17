@@ -1,6 +1,6 @@
 # License audit tooling
 
-Configuration for the third-party license inventory used to support sale, redistribution, and compliance review.
+Configuration for the third-party license inventory. Ownership means proving what runs in your binary. This tooling records every dependency license for sale, redistribution, and compliance review.
 
 ## Files
 
@@ -21,7 +21,7 @@ cargo about generate \
   -o reports/legal/licenses.html
 ```
 
-Generated artefacts in `reports/legal/` are gitignored (`*.html`, `*.txt`) — only `README.md` is tracked. Regenerate before any release or data-room handover.
+Generated artefacts are written to `reports/legal/` and are not committed. Regenerate before any release or data-room handover.
 
 ## Installing the tools
 
@@ -29,3 +29,5 @@ Generated artefacts in `reports/legal/` are gitignored (`*.html`, `*.txt`) — o
 cargo install cargo-deny  --locked
 cargo install cargo-about --locked --features cli
 ```
+
+Part of [systemprompt.io](https://systemprompt.io), self-hosted AI governance infrastructure.

@@ -5,6 +5,9 @@
 //! applying the appropriate cache policy and `ETag` for each.
 //! [`StaticContentState`] carries the app context, matcher, and route
 //! classifier into the handler.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod cache;
 mod responses;

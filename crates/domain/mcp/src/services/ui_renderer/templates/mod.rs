@@ -1,6 +1,9 @@
 //! Concrete [`UiRenderer`](super::UiRenderer) implementations, one per
 //! artifact type (chart, dashboard, form, image, list, table, text).
 //! [`html`] provides the shared HTML-escaping and element helpers.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod chart;
 mod dashboard;

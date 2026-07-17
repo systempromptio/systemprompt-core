@@ -1,5 +1,8 @@
 //! Static metadata for `/.well-known/` routes registered with
 //! [`register_wellknown_route!`](crate::register_wellknown_route).
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 #[derive(Debug, Clone, Copy)]
 pub struct WellKnownMetadata {

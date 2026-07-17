@@ -4,6 +4,9 @@
 //! delegates execution to
 //! [`systemprompt_scheduler::JobExecutionService`], and renders the returned
 //! batch report.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use anyhow::Result;
 use clap::Args;

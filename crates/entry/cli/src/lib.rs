@@ -5,6 +5,9 @@
 //! [`plugins`], [`web`]), output formatting, interactive prompts, and session
 //! handling. [`run`] is the process entry point; [`CliConfig`] and the
 //! settings enums control verbosity, color, and output format.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod cli_settings;
 mod commands;

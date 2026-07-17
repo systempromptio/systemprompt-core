@@ -1,4 +1,7 @@
 //! Errors raised while loading or validating the on-disk secrets file.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 #[derive(Debug, thiserror::Error)]
 pub enum SecretsError {

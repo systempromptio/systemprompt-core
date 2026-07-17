@@ -10,6 +10,9 @@
 //! [`NullAuditSink`] is the bootstrap default — it exists so unit tests and
 //! pre-database bootstrap stages can install hooks without a `DbPool`.
 //! Production replaces it with [`DbAuditSink`] once the database is available.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod db_sink;
 mod repository;

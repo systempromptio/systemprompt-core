@@ -4,6 +4,9 @@
 //! its [`AgUiEventBuilder`], the [`AgUiEventType`] discriminant, JSON
 //! Patch state-delta operations, and the per-event payload structs
 //! (run lifecycle, text messages, tool calls, state snapshots).
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod event_type;
 mod events;

@@ -1,6 +1,9 @@
 //! Disk serialisation helpers used by the various `*_to_disk` operations.
 //! Each submodule emits the YAML config + Markdown body layout expected by
 //! the matching `*Local Sync`.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod content;
 

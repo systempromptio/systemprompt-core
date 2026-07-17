@@ -5,6 +5,9 @@
 //! errors back in the caller's protocol. Implementations cover the Anthropic
 //! Messages and `OpenAI` Responses surfaces; [`InboundParseError`] reports
 //! malformed or unsupported inputs.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod anthropic_messages;
 pub mod openai_responses;

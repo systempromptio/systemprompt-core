@@ -1,6 +1,9 @@
 //! `/oauth/token` endpoint: dispatches by `grant_type` to the per-grant
 //! handlers in [`grants`] and normalizes token-exchange errors back into the
 //! endpoint's `TokenError` wire type.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use axum::extract::{Extension, State};
 use axum::http::StatusCode;

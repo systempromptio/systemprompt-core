@@ -3,6 +3,9 @@
 //! Aggregates spend, tokens, and request counts across all users from
 //! `ai_requests`, with breakdowns by model, provider, and agent and a trend
 //! series for the platform cost dashboard.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use super::CostAnalyticsRepository;
 use crate::Result;

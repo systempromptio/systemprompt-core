@@ -1,4 +1,7 @@
 //! Inner `WebAuthn` service: registration, authentication, link, credentials.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod authentication;
 mod credentials;

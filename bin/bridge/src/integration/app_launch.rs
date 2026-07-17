@@ -1,5 +1,8 @@
 //! Cross-platform "open the installed desktop app" helper shared by the host
 //! integrations.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::io;
 use std::path::PathBuf;

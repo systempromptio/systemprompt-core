@@ -5,6 +5,9 @@
 //! [`McpToolExecutor`] runs a handler against a [`CallToolRequestParams`],
 //! recording execution start/completion in the tool-usage repository and
 //! building the [`CallToolResult`] (including any artifact) from the output.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::models::{ExecutionStatus, ToolExecutionRequest, ToolExecutionResult};
 use crate::repository::{McpArtifactRepository, ToolUsageRepository};

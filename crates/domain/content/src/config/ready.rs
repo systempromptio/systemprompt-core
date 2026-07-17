@@ -4,6 +4,9 @@
 //! markdown file's frontmatter into [`ParsedContent`], and indexes the results
 //! by slug and by [`SourceId`]. [`LoadStats`] records per-source scan and parse
 //! outcomes for diagnostics.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use chrono::{DateTime, Utc};
 use sha2::{Digest, Sha256};

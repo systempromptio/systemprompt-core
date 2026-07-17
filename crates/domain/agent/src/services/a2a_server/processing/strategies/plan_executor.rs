@@ -5,6 +5,9 @@
 //! planned batch (the latter resolving inter-tool argument templates), and the
 //! conversion helpers turn the resulting [`ExecutionState`] into A2A tool calls
 //! and results.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::services::shared::Result;
 use async_trait::async_trait;

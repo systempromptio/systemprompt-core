@@ -6,6 +6,9 @@
 //! `gemini` uses [`GeminiProvider`]. Connectivity (endpoint, resolved key)
 //! comes from the profile `providers` registry; the per-provider AI policy
 //! supplies resilience and the web-search toggle.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
 

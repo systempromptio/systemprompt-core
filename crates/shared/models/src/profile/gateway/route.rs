@@ -7,6 +7,9 @@
 //! route by a name that survives reordering. A model's connectivity is never
 //! embedded here — [`GatewayRoute::resolve`] looks the provider up in the
 //! registry at use time.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::collections::HashMap;
 

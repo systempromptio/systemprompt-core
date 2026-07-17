@@ -3,6 +3,9 @@
 //! Agent replies are plain text or markdown; this renders them into the Block
 //! Kit `blocks` array Slack expects, chunking past Slack's 3000-character
 //! per-section limit so long agent output is not silently truncated.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use serde_json::{Value, json};
 use systemprompt_models::text::chunk_text;

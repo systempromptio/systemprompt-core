@@ -17,7 +17,7 @@
 
 # Jobs CLI Commands
 
-This document provides complete documentation for AI agents to use the jobs CLI commands. All commands support non-interactive mode for automation.
+Scheduled work runs on infrastructure you own, on a schedule you set. List, run, enable, and audit every job through one path, non-interactively, so an agent can drive it without a hosted dashboard in the way.
 
 ---
 

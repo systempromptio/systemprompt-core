@@ -8,6 +8,9 @@
 //!
 //! All three implement `std::error::Error` and can be composed into larger
 //! `thiserror` enums via `#[from]`.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use thiserror::Error;
 

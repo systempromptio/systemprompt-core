@@ -1,5 +1,8 @@
 //! Static lookup tables and predicates for spam-referrer, datacenter-IP and
 //! high-risk-country detection used by the analytics ingestion pipeline.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub const SPAM_REFERRER_PATTERNS: &[&str] = &[
     "tyingshoelaces",

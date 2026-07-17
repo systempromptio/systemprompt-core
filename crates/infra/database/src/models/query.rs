@@ -1,4 +1,7 @@
 //! Query primitives: selectors, dynamic results, typed row decoding.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::error::DatabaseResult;
 use serde::{Deserialize, Serialize};

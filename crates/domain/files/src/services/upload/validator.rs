@@ -4,6 +4,9 @@
 //! executable/script MIME types, and maps allowed types to a [`FileCategory`]
 //! used for storage layout and extension resolution. [`FileValidationError`]
 //! reports each rejection reason.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::config::FileUploadConfig;
 use thiserror::Error;

@@ -6,6 +6,9 @@
 //! compiles them into a shared Handlebars instance. Registration lives here;
 //! initialization and rendering live in the `lifecycle` and `queries`
 //! submodules, with aggregate counts exposed via [`RegistryStats`].
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod lifecycle;
 mod queries;

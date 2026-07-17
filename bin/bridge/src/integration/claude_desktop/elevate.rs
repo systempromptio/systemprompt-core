@@ -1,6 +1,9 @@
 //! UAC elevation bridge for the Windows managed-policy write.
 //! `SOFTWARE\Policies\Claude` is ACL-protected in both hives, so the write must
 //! run in an elevated child (HKLM) that reports via a JSON result file.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::process::ExitCode;
 

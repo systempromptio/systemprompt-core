@@ -4,6 +4,9 @@
 //! concrete renderers live in [`templates`] and are dispatched through
 //! [`UiRendererRegistry`]. [`CspPolicy`] carries the content-security-policy
 //! constraints attached to rendered resources.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod csp;
 pub mod registry;

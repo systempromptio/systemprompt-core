@@ -1,6 +1,9 @@
 //! Gemini Google Search grounding: builds a canonical request carrying a
 //! [`SearchConfig`] (URLs trigger the url-context tool too), renders it with
 //! the shared codec, and maps the grounded reply back.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::time::Instant;
 

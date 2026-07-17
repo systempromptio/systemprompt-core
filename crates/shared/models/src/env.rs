@@ -6,6 +6,9 @@
 //! multi-pass loop over a secrets→env→vars source chain. Both reuse the one
 //! regex and the one unresolved-placeholder rule defined here, so the syntax
 //! never drifts between surfaces.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::sync::LazyLock;
 

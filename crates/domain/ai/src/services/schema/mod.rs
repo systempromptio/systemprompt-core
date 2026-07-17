@@ -5,6 +5,9 @@
 //! sanitiser ([`SchemaSanitizer`]) live in `systemprompt_models::schema` so the
 //! gateway wire codecs and the agent-flow provider clients share one authority;
 //! they are re-exported here for the agent-side call sites.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod analyzer;
 pub mod mapper;

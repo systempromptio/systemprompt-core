@@ -3,6 +3,9 @@
 //! Pure shaping and rendering: each function turns domain records into a
 //! rendered table string. Callers decide where the string is printed, so the
 //! row shaping stays testable without a terminal.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_logging::{
     AiRequestInfo, ExecutionStep, McpToolExecution, TaskArtifact, TaskInfo, TraceEvent,

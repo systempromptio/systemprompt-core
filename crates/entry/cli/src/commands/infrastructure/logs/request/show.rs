@@ -1,5 +1,8 @@
 //! `infra logs request show`: render one AI request with optional messages and
 //! linked MCP tool calls.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
 

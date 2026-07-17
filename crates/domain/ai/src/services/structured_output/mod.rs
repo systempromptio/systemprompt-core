@@ -1,5 +1,8 @@
 //! Structured-output validation: extract JSON from a model's free-text
 //! response, validate it against a schema, and retry on failure.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod parser;
 pub mod validator;

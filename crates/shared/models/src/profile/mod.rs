@@ -4,6 +4,9 @@
 //! Covers server, database, paths, secrets, security, rate limits,
 //! gateway, governance, and runtime sections, plus validation rules and
 //! environment-variable interpolation.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod cloud;
 mod database;

@@ -11,6 +11,9 @@
 //! A storage error reaches the caller in the same task that originated the
 //! request, which is the only design under which a broken trigger or a
 //! schema drift becomes visible in test and production alike.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod record_builder;
 mod storage;

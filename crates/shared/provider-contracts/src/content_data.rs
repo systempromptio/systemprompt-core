@@ -1,5 +1,8 @@
 //! [`ContentDataProvider`] contract for enriching content items with extra
 //! data joined from outside the source file (database lookups, etc.).
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use async_trait::async_trait;
 use serde_json::Value;

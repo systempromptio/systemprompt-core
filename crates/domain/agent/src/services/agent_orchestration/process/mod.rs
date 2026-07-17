@@ -6,6 +6,9 @@
 //!   `force_kill_process`, `terminate_gracefully`, `kill_process`, and their
 //!   identity-gated forms `terminate_gracefully_verified` /
 //!   `kill_process_verified` that refuse to signal a recycled PID.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod command;
 mod signals;

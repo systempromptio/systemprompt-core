@@ -2,6 +2,9 @@
 //!
 //! Exposes [`ToolsCommands`] and the [`ToolExecutionRow`] / [`ToolsListOutput`]
 //! shapes rendered for each execution record.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod list;
 

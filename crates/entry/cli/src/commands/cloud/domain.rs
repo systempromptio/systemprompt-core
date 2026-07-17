@@ -2,6 +2,9 @@
 //!
 //! Dispatches [`DomainCommands`] to set, inspect, or remove the custom domain
 //! via the cloud API, surfacing the DNS records the operator must configure.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use anyhow::{Result, bail};
 use clap::Subcommand;

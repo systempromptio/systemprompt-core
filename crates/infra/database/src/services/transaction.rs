@@ -1,5 +1,8 @@
 //! Generic transaction wrappers that work directly with [`PgPool`] /
 //! [`PgDbPool`] without going through the dyn-safe trait.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::error::RepositoryError;
 use crate::repository::PgDbPool;

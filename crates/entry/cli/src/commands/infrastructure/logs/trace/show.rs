@@ -3,6 +3,9 @@
 //! Defines the [`ShowArgs`] / [`TraceSections`] CLI surface, resolves the id to
 //! either an AI task trace or a log-event trace, and merges log, AI, MCP, and
 //! step events into a single time-ordered view.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use anyhow::Result;
 use chrono::{DateTime, Utc};

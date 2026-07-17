@@ -1,4 +1,7 @@
 //! System pre-flight validation: database URL shape and connectivity.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::AppContext;
 use crate::error::{RuntimeError, RuntimeResult};

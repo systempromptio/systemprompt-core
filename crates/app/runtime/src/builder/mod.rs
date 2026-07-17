@@ -4,6 +4,9 @@
 //! database -> logging -> extensions -> ancillary services. Failures at
 //! any step propagate as [`RuntimeError`](crate::error::RuntimeError).
 //! Subsystem resolution helpers live in [`assembly`].
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod assembly;
 mod core_layer;

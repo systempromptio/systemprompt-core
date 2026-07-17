@@ -1,5 +1,8 @@
 //! Persistence of decoded OTLP spans and log records; metrics are summarised
 //! only.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use serde_json::json;
 use systemprompt_identifiers::TraceId;

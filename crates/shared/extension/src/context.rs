@@ -1,4 +1,7 @@
 //! Runtime context handed to extensions during router resolution.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
 use systemprompt_traits::{ConfigProvider, DatabaseHandle};

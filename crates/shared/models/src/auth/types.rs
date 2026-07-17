@@ -3,6 +3,9 @@
 //! [`AuthenticatedUser`] is the resolved principal carried through a request;
 //! [`AuthError`] is the crate's authentication/OAuth error enum. [`PkceMethod`]
 //! and [`ResponseType`] model the OAuth authorization-request parameters.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;

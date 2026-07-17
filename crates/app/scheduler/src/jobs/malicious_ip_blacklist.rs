@@ -1,6 +1,9 @@
 //! Periodic job that classifies and bans malicious IPs based on
 //! request patterns, scanner activity, datacenter ranges, and high-risk
 //! country fan-out.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use async_trait::async_trait;
 use systemprompt_analytics::detection::{DATACENTER_IP_PREFIXES, HIGH_RISK_COUNTRIES};

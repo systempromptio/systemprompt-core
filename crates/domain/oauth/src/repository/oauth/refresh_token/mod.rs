@@ -4,6 +4,9 @@
 //! tombstones (`consumed_at IS NOT NULL`) so a replay can be distinguished
 //! from "token never existed" and trigger family-wide revocation per
 //! RFC 6819 §5.2.2.3.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod ops;
 

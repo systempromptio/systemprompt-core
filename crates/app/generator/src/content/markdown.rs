@@ -1,4 +1,7 @@
 //! Markdown rendering and YAML frontmatter extraction.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use comrak::{Options, markdown_to_html};
 use systemprompt_models::split_frontmatter;

@@ -1,5 +1,8 @@
 //! [`SchemaExtensionTyped`] — typed contract for schema-bearing
 //! extensions, plus the [`SchemaDefinitionTyped`] value type.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use serde::{Deserialize, Serialize};
 

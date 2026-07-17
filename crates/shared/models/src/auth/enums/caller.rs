@@ -4,6 +4,9 @@
 //! [`RateLimitTier`] is the throughput band it resolves to; [`TokenType`]
 //! is the bearer-scheme marker. [`UserType::from_permissions`] is the single
 //! source of truth for the permission → type mapping.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use serde::{Deserialize, Serialize};
 use std::fmt;

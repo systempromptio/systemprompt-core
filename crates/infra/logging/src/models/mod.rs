@@ -3,6 +3,9 @@
 //! [`LogEntry`] is the structured record written to every sink; [`LogLevel`]
 //! and [`LogActor`] classify it; [`LogFilter`] parameterizes paginated reads;
 //! [`LogRow`] is the database projection. Failures surface as [`LoggingError`].
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod log_entry;
 mod log_error;

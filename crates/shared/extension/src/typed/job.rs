@@ -4,6 +4,9 @@
 //! This is introspection only. The scheduler discovers and runs jobs from the
 //! `inventory` catalog (`submit_job!`); it never reads this trait. The manifest
 //! exists so CLI/plugin tooling can attribute a job to its owning extension.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
 

@@ -26,62 +26,29 @@
 
 [![Crates.io](https://img.shields.io/crates/v/systemprompt-events.svg?style=flat-square)](https://crates.io/crates/systemprompt-events)
 [![Docs.rs](https://img.shields.io/docsrs/systemprompt-events?style=flat-square)](https://docs.rs/systemprompt-events)
+[![codecov](https://img.shields.io/codecov/c/github/systempromptio/systemprompt-core/main?style=flat-square&logo=codecov)](https://codecov.io/gh/systempromptio/systemprompt-core)
 [![License: BSL-1.1](https://img.shields.io/badge/license-BSL--1.1-2b6cb0?style=flat-square)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
 
-Event bus, SSE broadcasters, and fan-out routing for systemprompt.io AI governance infrastructure. A2A, analytics, and context stream wiring for the MCP governance pipeline. Manages connection lifecycles, routes events to appropriate channels, and handles automatic cleanup of disconnected clients.
+Every A2A, AG-UI, analytics, and context event fans out through one bus, and a durable Postgres outbox carries it across replicas so nothing is lost to a restart. Any component holding a `UserId` can publish without touching the wire format.
 
-**Layer**: Infra — infrastructure primitives (database, security, events, etc.) consumed by domain crates. Part of the [systemprompt-core](https://github.com/systempromptio/systemprompt-core) workspace.
+**Layer**: Infra. Infrastructure primitives consumed by the domain and application crates. Part of the [systemprompt-core](https://github.com/systempromptio/systemprompt-core) workspace.
 
-## Overview
+## What it does
 
-This crate provides a type-safe, generic event broadcasting system for real-time communication with connected clients via SSE (Server-Sent Events). It manages connection lifecycles, routes events to appropriate channels, and handles automatic cleanup of disconnected clients.
+The in-process event bus fans typed events out to per-user SSE connections, managing connection lifecycles and cleaning up disconnected clients. It is not SSE-only: a durable Postgres outbox (`event_outbox` table, via LISTEN/NOTIFY) relays events across replicas so a multi-instance deployment stays consistent. The crate is shared between the HTTP API entry crate and the runtime layer.
 
-## Architecture
+## Modules
 
-```
-crates/infra/events/
-├── Cargo.toml
-├── README.md
-├── CHANGELOG.md
-└── src/
-    ├── lib.rs              # Broadcaster trait, EventSender alias, top-level re-exports
-    ├── error.rs            # EventError / EventResult (thiserror)
-    ├── sse.rs              # ToSse trait and impls for systemprompt-models event types
-    └── services/
-        ├── mod.rs          # Module re-exports
-        ├── broadcaster.rs  # GenericBroadcaster, ConnectionGuard, keep-alive utilities
-        └── routing.rs      # EventRouter and global LazyLock broadcasters
-```
+| Module | Purpose |
+|--------|---------|
+| `services` | The `GenericBroadcaster` implementation and per-event aliases, the static `EventRouter`, `ConnectionGuard`, keep-alive utilities, the `PostgresEventBridge` (LISTEN/NOTIFY relay), and the outbox repository. |
+| `sse` | The `ToSse` trait and `serde`-driven impls converting `systemprompt-models` event types into `axum` SSE records. |
+| `extension` | `EventsExtension` declares the `event_outbox` schema through the workspace extension framework. |
+| `error` | `EventError` / `EventResult`. |
 
-### `lib.rs`
-Entry point defining core abstractions:
-- `Broadcaster` trait — type-safe async broadcasting with connection management.
-- `EventSender` type alias — `tokio::sync::mpsc::Sender<Result<Event, Infallible>>`.
-- `SSE_BUFFER` constant — default per-connection channel capacity.
+Schema DDL lives in `schema/` (`event_outbox.sql` plus the `migrations/` directory).
 
-### `error.rs`
-Public error surface:
-- `EventError` — `Serialization` (`#[from] serde_json::Error`) and `ChannelFull { target }`.
-- `EventResult<T>` — `Result<T, EventError>` alias.
-
-### `sse.rs`
-SSE serialization:
-- `ToSse` trait — converts a typed event into an `axum::response::sse::Event`.
-- Implementations for `AgUiEvent`, `A2AEvent`, `ContextEvent`, `SystemEvent`, `AnalyticsEvent`, and `CliOutputEvent` (the last frames as `event: cli`).
-
-### `services/broadcaster.rs`
-Generic broadcaster implementation:
-- `GenericBroadcaster<E>` — thread-safe broadcaster backed by `Arc<RwLock<HashMap<UserId, HashMap<ConnId, Sender>>>>`.
-- `ConnectionGuard<E>` — RAII guard for automatic connection cleanup on drop.
-- Type aliases: `AgUiBroadcaster`, `A2ABroadcaster`, `ContextBroadcaster`, `AnalyticsBroadcaster`.
-- Keep-alive utilities: `standard_keep_alive()`, `HEARTBEAT_INTERVAL`, `HEARTBEAT_JSON`.
-
-### `services/routing.rs`
-Event routing and global state:
-- `EventRouter` — routes events to the appropriate broadcaster(s); AG-UI and A2A events also fan out to `CONTEXT_BROADCASTER`.
-- Global singletons: `AGUI_BROADCASTER`, `A2A_BROADCASTER`, `CONTEXT_BROADCASTER`, `ANALYTICS_BROADCASTER`.
-
-### Event Flow
+### Event flow
 
 ```
                     ┌─────────────────┐
@@ -91,21 +58,21 @@ Event routing and global state:
         ┌────────────────────┼────────────────────┐
         │                    │                    │
         ▼                    ▼                    ▼
-┌───────────────┐    ┌───────────────┐    ┌───────────────┐
+┌───────────────┐    ┌───────────────┐    ┌───────────────────┐
 │AGUI_BROADCASTER│    │A2A_BROADCASTER│    │CONTEXT_BROADCASTER│
-└───────┬───────┘    └───────┬───────┘    └───────┬───────┘
-        │                    │                    │
-        ▼                    ▼                    ▼
-   SSE Clients          SSE Clients          SSE Clients
+└───────┬───────┘    └───────┬───────┘    └─────────┬─────────┘
+        │                    │                      │
+        ▼                    ▼                      ▼
+   SSE Clients          SSE Clients            SSE Clients
 ```
 
-AgUI and A2A events are routed to both their primary broadcaster AND the context broadcaster for aggregation.
+AG-UI and A2A events route to both their primary broadcaster and the context broadcaster for aggregation. Across replicas, `PostgresEventBridge` relays outbox rows so an instance publishes locally and every other instance sees it.
 
 ## Usage
 
 ```toml
 [dependencies]
-systemprompt-events = "0.18.0"
+systemprompt-events = "0.21"
 ```
 
 ```rust
@@ -136,6 +103,9 @@ async fn active_listeners(user_id: &UserId) -> usize {
 | `AnalyticsBroadcaster` | `GenericBroadcaster<AnalyticsEvent>` |
 | `ConnectionGuard<E>` | RAII guard for automatic unregistration |
 | `EventRouter` | Routes events to appropriate broadcasters |
+| `PostgresEventBridge` | LISTEN/NOTIFY relay draining the `event_outbox` table across replicas |
+| `OutboxChannel` / `OUTBOX_CHANNEL` | Outbox notification channel type and name |
+| `EventsExtension` | Extension registering the `event_outbox` schema |
 
 ### Constants
 | Constant | Value | Purpose |
@@ -159,11 +129,15 @@ Tests are located in `crates/tests/unit/infra/events/` following the project con
 
 | Crate | Purpose |
 |-------|---------|
-| `systemprompt-models` | Event types (`AgUiEvent`, `A2AEvent`, `ContextEvent`, `SystemEvent`, `ToSse` trait) |
-| `systemprompt-identifiers` | `UserId` type |
+| `systemprompt-models` | Event types (`AgUiEvent`, `A2AEvent`, `ContextEvent`, `SystemEvent`, `AnalyticsEvent`) |
+| `systemprompt-identifiers` | `UserId` / `ConnectionId` types (`sqlx` feature) |
+| `systemprompt-extension` | Schema registration for the `event_outbox` table |
 | `tokio` | Async runtime, channels, synchronization |
 | `axum` | SSE `Event` and `KeepAlive` types |
-| `async-trait` | Async trait support |
+| `sqlx` | Durable outbox relay over Postgres LISTEN/NOTIFY |
+| `chrono` | Outbox row timestamps |
+| `inventory` | Compile-time extension registration |
+| `serde` / `serde_json` | Event serialization |
 | `tracing` | Structured logging |
 
 ## License

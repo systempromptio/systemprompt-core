@@ -4,6 +4,9 @@
 //! index: [`ContentConfigValidated`] verifies sources and categories against
 //! the filesystem, and [`ContentReady`] scans the validated sources to produce
 //! parsed content keyed by slug and source, alongside [`LoadStats`].
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod ready;
 mod validated;

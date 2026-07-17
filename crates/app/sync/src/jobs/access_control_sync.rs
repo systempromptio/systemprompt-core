@@ -5,6 +5,9 @@
 //! Mirrors [`super::ContentSyncJob`] but with a fixed direction
 //! (config → DB). Disabled by default; operators wire it in via
 //! `scheduler_config.bootstrap_jobs` so it runs once at startup.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::path::PathBuf;
 use std::sync::Arc;

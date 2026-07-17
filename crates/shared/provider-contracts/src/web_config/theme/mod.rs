@@ -1,6 +1,9 @@
 //! Design-token types: fonts, colours, typography, spacing, layout, etc.
 //!
 //! All types here are pure data containers serialized to / from YAML.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod card;
 mod colors;

@@ -1,4 +1,7 @@
 //! Router and site-auth configuration value types.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::frame_options::FrameOptions;
 

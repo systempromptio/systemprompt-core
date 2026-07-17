@@ -1,4 +1,7 @@
 //! JWT and client-secret generation primitives.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::error::OauthResult as Result;
 use chrono::{Duration, Utc};

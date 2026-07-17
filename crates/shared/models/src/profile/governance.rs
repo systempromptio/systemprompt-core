@@ -27,6 +27,9 @@
 //!       url: http://localhost:8080/api/public/govern/authz
 //!       timeout_ms: 500
 //! ```
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use serde::{Deserialize, Serialize};
 

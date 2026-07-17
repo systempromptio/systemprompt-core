@@ -7,6 +7,9 @@
 //! `#[async_trait]` for `dyn` compatibility. Batch generation has a default
 //! implementation that fans single-image calls out sequentially, which each
 //! provider may override with a native batch endpoint.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::error::Result;
 use crate::models::image_generation::{

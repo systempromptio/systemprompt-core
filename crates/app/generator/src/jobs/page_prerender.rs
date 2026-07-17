@@ -1,5 +1,8 @@
 //! Scheduled job that runs the registered page prerenderers (homepage,
 //! search, error pages, …) shortly after the content prerender finishes.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use async_trait::async_trait;
 use std::sync::Arc;

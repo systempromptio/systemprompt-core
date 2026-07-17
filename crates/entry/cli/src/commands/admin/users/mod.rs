@@ -4,6 +4,9 @@
 //! the `bulk`, `role`, `session`, `ban`, and `webauthn` subcommand trees. On a
 //! `--database-url` invocation only the read-only commands are served; write
 //! operations require a full profile context.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod ban;
 mod bulk;

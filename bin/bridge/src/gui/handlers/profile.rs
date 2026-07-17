@@ -1,5 +1,8 @@
 //! Composes the dashboard profile tab from cached identity, gateway profile,
 //! and usage.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
 

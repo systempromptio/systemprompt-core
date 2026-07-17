@@ -1,3 +1,6 @@
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
 #[derive(Debug, thiserror::Error)]
 pub enum LoggingError {
     #[error("Invalid log entry: {field} {reason}")]

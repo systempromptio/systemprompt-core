@@ -1,3 +1,6 @@
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
 use base64::prelude::*;
 use chrono::{Duration, Utc};
 use serde::Deserialize;

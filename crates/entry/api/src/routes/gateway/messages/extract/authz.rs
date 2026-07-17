@@ -3,6 +3,9 @@
 //! [`build_gateway_authz_request`] and [`GatewayAuthzRequestInput`] are public
 //! so the JWT-claims forwarding contract can be exercised directly from unit
 //! tests without standing up the full principal/route stack.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use axum::http::StatusCode;
 use std::collections::BTreeMap;

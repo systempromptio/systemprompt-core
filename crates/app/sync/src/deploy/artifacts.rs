@@ -4,6 +4,9 @@
 //! then asserts that required extension assets, storage, and template
 //! directories exist inside the Docker build context before a cloud deploy
 //! proceeds.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::path::{Path, PathBuf};
 

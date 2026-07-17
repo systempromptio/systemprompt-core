@@ -4,6 +4,9 @@
 //! stream for the JSON-RPC frame matching the request id; for a single JSON
 //! response it buffers, parses, and forwards. Either way it finalizes the
 //! [`McpAudit`] exactly once, on stream EOF or drop.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::io;
 use std::pin::Pin;

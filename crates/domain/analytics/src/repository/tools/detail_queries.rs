@@ -3,6 +3,9 @@
 //! Drills into a single MCP tool (matched by name substring): summary stats,
 //! status breakdown, top error messages, usage by agent, and the execution
 //! series for trend charts, all over `mcp_tool_executions`.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::Result;
 use chrono::{DateTime, Utc};

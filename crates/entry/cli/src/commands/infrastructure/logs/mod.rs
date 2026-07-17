@@ -6,6 +6,9 @@
 //! the serializable output rows shared across them. On a `--database-url`
 //! invocation only the read-only subcommands are served; stream, cleanup, and
 //! delete require a full profile context.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod audit;
 mod cleanup;

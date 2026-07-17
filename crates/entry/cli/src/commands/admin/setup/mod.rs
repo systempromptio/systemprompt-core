@@ -4,6 +4,9 @@
 //! optional migrations. [`SetupArgs`] captures the CLI flags and environment
 //! overrides; [`execute`] dispatches to the wizard, which writes a profile and
 //! secrets file under `.systemprompt/`.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod ai_config;
 pub mod catalog;

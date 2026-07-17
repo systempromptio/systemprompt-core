@@ -7,6 +7,9 @@
 //! the tool name and arguments. The `metadata_builder`, `parts_builder`, and
 //! `type_inference` submodules supply the metadata, part, and type-inference
 //! logic.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod metadata_builder;
 pub mod parts_builder;

@@ -1,4 +1,7 @@
 //! JWT-based authorisation policy checks.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::models::JwtClaims;
 use crate::services::validation::{audience, jwt as jwt_validation};

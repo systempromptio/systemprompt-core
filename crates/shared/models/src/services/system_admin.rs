@@ -9,6 +9,9 @@
 //! that needs the platform owner takes it as a constructor argument; the
 //! only exception is logging attribution, which parks the value in a
 //! cell scoped to `systemprompt_logging`.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::UserId;

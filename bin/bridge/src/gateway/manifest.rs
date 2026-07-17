@@ -1,3 +1,6 @@
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
 use base64::Engine;
 use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 use serde::Serialize;

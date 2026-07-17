@@ -11,6 +11,9 @@
 //! [`SafetyScannerRegistration`] through the
 //! [`register_safety_scanner!`](crate::register_safety_scanner) macro, which
 //! the consuming layer collects via `inventory::iter`.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod heuristic;
 mod null;

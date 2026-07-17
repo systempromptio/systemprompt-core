@@ -26,116 +26,37 @@
 
 [![Crates.io](https://img.shields.io/crates/v/systemprompt-logging.svg?style=flat-square)](https://crates.io/crates/systemprompt-logging)
 [![Docs.rs](https://img.shields.io/docsrs/systemprompt-logging?style=flat-square)](https://docs.rs/systemprompt-logging)
+[![codecov](https://img.shields.io/codecov/c/github/systempromptio/systemprompt-core/main?style=flat-square&logo=codecov)](https://codecov.io/gh/systempromptio/systemprompt-core)
 [![License: BSL-1.1](https://img.shields.io/badge/license-BSL--1.1-2b6cb0?style=flat-square)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
 
-Tracing and audit infrastructure for systemprompt.io AI governance. Structured events, five-point audit traces, and SIEM-ready JSON output — part of the MCP governance pipeline. Provides a dual-layer logging architecture combining console output with PostgreSQL persistence, async batch processing, automatic context propagation, and retention policies.
+Governance you can prove needs a record no one can quietly edit. This crate writes every request, AI call, and tool execution to a `tracing` pipeline that lands in your PostgreSQL as a queryable audit trail, then hands you typed queries over it.
 
-**Layer**: Infra — infrastructure primitives (database, security, events, etc.) consumed by domain crates. Part of the [systemprompt-core](https://github.com/systempromptio/systemprompt-core) workspace.
+**Layer**: Infra. Infrastructure primitives consumed by the domain and application crates. Part of the [systemprompt-core](https://github.com/systempromptio/systemprompt-core) workspace.
 
-## Overview
+## What it does
 
-This crate provides a dual-layer logging architecture combining console output with PostgreSQL persistence. It includes async batch processing, automatic context propagation, retention policies, and rich CLI output utilities.
+A `tracing` layer batches structured events into PostgreSQL asynchronously, propagating context (`user_id`, `session_id`, `task_id`, `trace_id`) onto every row so the audit trail reconstructs who did what. A cron scheduler applies per-level retention. On top of the stored trail sits a typed query surface over traces, AI requests, and MCP tool executions. The `cli` feature adds console formatting for the CLI.
 
-**Key Features:**
-- Dual-layer logging (console + database)
-- Async batch processing with configurable flush intervals
-- Automatic context propagation (user_id, session_id, task_id, trace_id)
-- Cron-based log retention with per-level policies
-- AI/MCP operation tracing and querying
-- Rich CLI output with themes and progress indicators
+## Modules
 
-## Architecture
+| Module | Purpose |
+|--------|---------|
+| `layer` | `DatabaseLayer` (async batch persistence) and `ProxyDatabaseLayer` (late-bound sink swap-in), plus field/span visitors. |
+| `models` | `LogEntry`, `LogLevel`, `LogFilter`, `LogActor`, the `LoggingError` type, and the `LogRow` SQLx mapping. |
+| `repository` | `LoggingRepository` (log CRUD) and `AnalyticsRepository` / `AnalyticsEvent`. |
+| `services` | `DatabaseLogService`, `LoggingMaintenanceService`, retention scheduling, request/system spans, startup-mode and log-publisher control, and the `cli/` display helpers (feature-gated). |
+| `trace` | `TraceQueryService` and `AiTraceService` with the typed rows for traces, AI requests, and MCP tool executions. |
+| `attribution` | Installs the process-wide system-actor attribution used to stamp platform-originated log rows (`install_log_attribution`, `platform_attribution`). |
+| `sanitize` | Internal helpers that scrub sensitive fields before rows are persisted. |
+| `extension` | `LoggingExtension` registers the `logs` and `analytics_events` schema through the workspace extension framework. |
 
-```
-src/
-├── lib.rs                              - Entry point: init_logging(), init_console_logging()
-│
-├── layer/
-│   ├── mod.rs                          - DatabaseLayer: async batch persistence to PostgreSQL
-│   ├── proxy.rs                        - ProxyDatabaseLayer: late-bound sink swap-in for ensure_subscriber
-│   └── visitor.rs                      - FieldVisitor, SpanVisitor for field extraction
-│
-├── models/
-│   ├── mod.rs                          - Re-exports
-│   ├── log_entry.rs                    - LogEntry struct with builder pattern
-│   ├── log_error.rs                    - LoggingError enum (thiserror)
-│   ├── log_filter.rs                   - LogFilter for paginated queries
-│   ├── log_level.rs                    - LogLevel enum (ERROR, WARN, INFO, DEBUG, TRACE)
-│   └── log_row.rs                      - LogRow for SQLx database mapping
-│
-├── repository/
-│   ├── mod.rs                          - LoggingRepository: CRUD with terminal/database output
-│   ├── analytics/
-│   │   └── mod.rs                      - AnalyticsRepository, AnalyticsEvent
-│   └── operations/
-│       ├── mod.rs                      - Re-exports
-│       ├── queries.rs                  - get_log, list_logs, list_logs_paginated, count_logs
-│       └── mutations.rs                - create_log, update_log, delete_log, cleanup_old_logs
-│
-├── services/
-│   ├── mod.rs                          - Re-exports
-│   ├── database_log.rs                 - DatabaseLogService: implements LogService trait
-│   ├── format.rs                       - FilterSystemFields: filters "system" from console output
-│   ├── maintenance.rs                  - LoggingMaintenanceService: cleanup operations
-│   │
-│   ├── cli/
-│   │   ├── mod.rs                      - Module declarations and re-exports
-│   │   ├── banners.rs                  - Startup, profile, and section banners
-│   │   ├── display.rs                  - Display traits, DisplayUtils, StatusDisplay, CollectionDisplay
-│   │   ├── macros.rs                   - cli_success!, cli_warning!, cli_error!, cli_info! macros
-│   │   ├── module.rs                   - ModuleDisplay, ModuleInstall, ModuleUpdate
-│   │   ├── prompts.rs                  - Prompts, PromptBuilder, QuickPrompts
-│   │   ├── service.rs                  - CliService: logging facade (success, warning, error, etc.)
-│   │   ├── startup.rs                  - Startup banner and phase rendering functions
-│   │   ├── summary.rs                  - ValidationSummary, OperationResult, ProgressSummary
-│   │   ├── table.rs                    - Table rendering, ServiceTableEntry, render_service_table
-│   │   ├── theme.rs                    - Theme, Icons, Colors, BrandColors, ServiceStatus
-│   │   └── types.rs                    - ItemStatus, ModuleType, MessageLevel, IconType, ColorType
-│   │
-│   ├── output/
-│   │   └── mod.rs                      - Startup mode: is_startup_mode(), set_startup_mode()
-│   │                                     Log publisher: publish_log(), set_log_publisher()
-│   │
-│   ├── retention/
-│   │   ├── mod.rs                      - Re-exports
-│   │   ├── policies.rs                 - RetentionPolicy, RetentionConfig (per-level retention)
-│   │   └── scheduler.rs                - RetentionScheduler: cron-based cleanup (daily 2AM)
-│   │
-│   └── spans/
-│       └── mod.rs                      - RequestSpan, SystemSpan, RequestSpanBuilder
-│
-├── trace/
-│   ├── mod.rs                          - Re-exports
-│   ├── models/
-│   │   ├── mod.rs                      - Re-exports
-│   │   ├── ai.rs                       - AiRequestInfo, AiRequestDetail, AiRequestSummary, model/provider stats
-│   │   ├── log.rs                      - LogSearchFilter, LogSearchItem, LogTimeRange, LevelCount
-│   │   ├── tool.rs                     - McpToolExecution, ToolExecutionFilter, ToolLogEntry, AuditToolCallRow
-│   │   └── trace.rs                    - TraceEvent, TaskInfo, ExecutionStep, ConversationMessage, TraceListItem
-│   ├── service.rs                      - TraceQueryService: generic trace querying
-│   ├── queries.rs                      - SQL queries for log events and AI request summaries
-│   ├── step_queries.rs                 - SQL queries for MCP executions and execution steps
-│   ├── ai_trace_service.rs             - AiTraceService: AI/MCP operation tracing
-│   ├── ai_trace_queries.rs             - SQL queries for tasks, AI requests, messages
-│   ├── audit_queries.rs                - SQL queries for audit lookup across logs and tool calls
-│   ├── list_queries.rs                 - SQL queries for paginated trace lists
-│   ├── log_lookup_queries.rs           - SQL queries for single-log retrieval and context
-│   ├── log_search_queries.rs           - SQL queries for filtered log search
-│   ├── log_summary_queries.rs          - SQL queries for log level counts and time ranges
-│   ├── mcp_trace_queries.rs            - SQL queries for MCP executions, tool logs, artifacts
-│   ├── request_queries.rs              - SQL queries for AI request detail and stats
-│   └── tool_queries.rs                 - SQL queries for tool execution lookup and filtering
-│
-schema/
-├── log.sql                             - logs table, indexes, analytical views
-└── analytics.sql                       - analytics_events table with GIN indexes
-```
+The `cli` submodule under `services/` provides `banners`, `display`, `macros`, `service` (`CliService`), `startup`, `table`, `theme`, and `types`. Schema DDL lives in `schema/` (`log.sql`, `analytics.sql`, and the `migrations/` directory).
 
 ## Usage
 
 ```toml
 [dependencies]
-systemprompt-logging = "0.18.0"
+systemprompt-logging = "0.21"
 ```
 
 ```rust
@@ -201,11 +122,14 @@ async fn recent_errors(pool: &DbPool) -> Result<(), LoggingError> {
 - `is_startup_mode()`, `set_startup_mode()` - Startup mode control
 - `publish_log()`, `set_log_publisher()` - Log event publishing
 
+### Attribution
+- `install_log_attribution()`, `platform_attribution()` - Process-wide system-actor stamping for platform-originated rows
+
 ## Feature Flags
 
 | Feature | Dependencies enabled |
 |---------|---------------------|
-| `cli` | `colored`, `console`, `dialoguer`, `indicatif` |
+| `cli` | `console`, `indicatif` |
 
 ## Dependencies
 
@@ -224,10 +148,8 @@ async fn recent_errors(pool: &DbPool) -> Result<(), LoggingError> {
 - `chrono` - Timestamp handling
 - `uuid` - Log entry identifiers
 - `tokio-cron-scheduler` - Retention job scheduling
-- `axum` - HTTP surface for log/trace endpoints
-- `validator` - Input validation
 - `async-trait`, `thiserror`, `inventory` - Trait, error, and registration utilities
-- `console`, `indicatif`, `dialoguer` - CLI utilities (`cli` feature)
+- `console`, `indicatif` - CLI utilities (`cli` feature)
 
 ## License
 

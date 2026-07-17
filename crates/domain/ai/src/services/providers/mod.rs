@@ -4,6 +4,9 @@
 //! along with image provider abstractions. The internal
 //! [`provider_trait::AiProvider`] trait is the dispatch surface
 //! used by [`crate::AiService`].
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod anthropic;
 pub mod canonical_bridge;

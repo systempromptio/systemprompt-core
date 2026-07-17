@@ -29,6 +29,9 @@
 //! `systemprompt-models`, `systemprompt-traits`,
 //! `systemprompt-provider-contracts`, `systemprompt-logging`, and
 //! `systemprompt-identifiers`.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 #![expect(
     clippy::use_self,

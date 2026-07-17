@@ -6,6 +6,9 @@
 //! Comparison is case-sensitive on the lowercase primary subtag; callers
 //! that need full BCP-47 canonicalisation should add the `language-tags`
 //! crate when the requirement arrives.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::error::IdValidationError;
 use crate::{DbValue, ToDbValue};

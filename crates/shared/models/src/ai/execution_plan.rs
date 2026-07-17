@@ -5,6 +5,9 @@
 //! [`ToolCallResult`]s and halts on the first failure. [`TemplateRef`] parses
 //! the `$N.output.field` references that let a later call consume an earlier
 //! call's output.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use regex::Regex;
 use serde::{Deserialize, Serialize};

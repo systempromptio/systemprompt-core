@@ -6,6 +6,9 @@
 //! non-[`OverrideAction::Passthrough`] result wins; an extension that errors is
 //! logged and treated as pass-through so a misconfigured override can never
 //! fail dispatch.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::sync::{Arc, OnceLock};
 

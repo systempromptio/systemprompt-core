@@ -4,6 +4,9 @@
 //! requests, MCP executions, and execution steps — from a trace id, while
 //! [`AiTraceService`] resolves per-task execution steps. The submodules are
 //! read-only query groups; result shapes are re-exported from `models`.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod ai_trace_queries;
 mod ai_trace_service;

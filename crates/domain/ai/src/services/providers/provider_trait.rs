@@ -8,6 +8,9 @@
 //! [`ToolResultsParams`]) keep large call signatures readable.
 //! [`systemprompt_models::services::ai::ModelPricing`] is re-exported here as
 //! the single pricing type for usage accounting.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::error::Result;
 use crate::models::ai::{

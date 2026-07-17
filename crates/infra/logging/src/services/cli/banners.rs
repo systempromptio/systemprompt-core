@@ -2,6 +2,9 @@
 //!
 //! These methods own the side-effect of writing branded headers and footers to
 //! stderr. They are co-located with [`CliService`] but split out for cohesion.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::io::Write;
 use std::time::Duration;

@@ -6,6 +6,9 @@
 //! callers are unaware of the resilience layer. Every trait method is delegated
 //! to the inner provider — none rely on the trait's default implementations,
 //! since a default would shadow a concrete provider's real override.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::future::Future;
 use std::pin::Pin;

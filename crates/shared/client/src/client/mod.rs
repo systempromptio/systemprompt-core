@@ -6,6 +6,9 @@
 //! artifact payloads cross the wire as raw JSON so this crate stays free of the
 //! agent-domain dependency; callers deserialize into the matching
 //! `systemprompt_models` types.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::error::{ClientError, ClientResult};
 

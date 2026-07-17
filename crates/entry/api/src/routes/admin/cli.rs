@@ -3,6 +3,9 @@
 //! Exposes a single authenticated endpoint that validates and forwards an argv
 //! to the CLI binary, propagating the caller's session/context/auth into the
 //! child's environment and relaying stdout/stderr as [`CliOutputEvent`] frames.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use axum::extract::Extension;
 use axum::response::IntoResponse;

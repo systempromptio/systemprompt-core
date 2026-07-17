@@ -1,6 +1,9 @@
 //! Web rendering configuration: paths, branding, theme, layout, and
 //! navigation. These types are serialized to / from YAML in the
 //! `webconfig.yaml` of each profile.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod branding;
 mod error;

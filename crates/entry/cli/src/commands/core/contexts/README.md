@@ -17,7 +17,7 @@
 
 # Contexts CLI Commands
 
-Manage CLI conversation contexts. Each context maintains separate conversation history and state.
+Every CLI conversation runs inside a context you own. Separate history, separate state, held in your own database, so what was said stays yours to inspect and prove later.
 
 ---
 

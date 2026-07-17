@@ -8,6 +8,9 @@
 //! `urn:ietf:params:oauth:grant-type:token-exchange` grant against the
 //! deployment's `/api/v1/core/oauth/token` endpoint, and caches the result
 //! for the run.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use serde::Deserialize;
 

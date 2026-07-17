@@ -5,6 +5,9 @@
 //! [`AppPaths`]. The free functions are thin entry points that build a
 //! lifecycle for one operation; the `operations` and `verification` submodules
 //! hold the spawn/teardown logic and startup health-check probing.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod operations;
 mod verification;

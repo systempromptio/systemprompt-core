@@ -1,4 +1,7 @@
 //! `admin config server cors` subcommands: manage the allowed-origins list.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use anyhow::Result;
 use clap::{Args, Subcommand};

@@ -3,6 +3,9 @@
 //! [`JobsCommands`] enumerates the subcommands; [`execute`] dispatches each to
 //! its submodule and renders the result. Includes manual job runs, history,
 //! enable/disable toggles, and the session/log cleanup helpers.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod types;
 

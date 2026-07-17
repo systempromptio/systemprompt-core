@@ -2,6 +2,9 @@
 //! token-exchange subject — `typ`, audience, client binding, and single-use
 //! `jti` replay. Signature is checked against the local authority for a
 //! self-issued ID-JAG, otherwise the trusted issuer's JWKS.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::str::FromStr;
 

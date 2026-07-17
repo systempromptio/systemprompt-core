@@ -1,5 +1,8 @@
 //! Convenience builder that stamps each [`super::AgUiEvent`] with the
 //! current timestamp and assembles its inner payload.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use chrono::Utc;
 use serde_json::Value;

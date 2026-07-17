@@ -3,6 +3,9 @@
 //! Routes [`InfraCommands`] to the per-domain subcommand modules. On a
 //! `--database-url` invocation only the db and logs subtrees are served; the
 //! rest require a full profile context.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod db;
 pub mod jobs;

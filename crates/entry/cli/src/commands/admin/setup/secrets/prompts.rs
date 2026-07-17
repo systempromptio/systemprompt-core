@@ -5,6 +5,9 @@
 //! default when the user picks a single provider, and `None` when they enter
 //! several keys (the default is then resolved by
 //! [`resolve_interactive_primary`]).
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use anyhow::{Result, anyhow};
 use systemprompt_identifiers::ProviderId;

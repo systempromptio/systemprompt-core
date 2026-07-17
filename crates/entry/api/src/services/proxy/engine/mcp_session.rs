@@ -7,6 +7,9 @@
 //! teardown or a stale-session backend response ([`handle_mcp_response`]). The
 //! cache is the trust anchor for session-based MCP auth — entries are only
 //! written for a verified [`AuthenticatedUser`].
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use axum::http::{HeaderMap, StatusCode};
 use std::collections::HashMap;

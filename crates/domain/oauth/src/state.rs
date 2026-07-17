@@ -1,4 +1,7 @@
 //! Shared OAuth runtime state.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::services::webauthn::{LinkStates, create_link_states};
 use std::sync::Arc;

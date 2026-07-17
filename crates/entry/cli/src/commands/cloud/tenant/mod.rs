@@ -3,6 +3,9 @@
 //! Exposes [`TenantCommands`] (create, list, show, delete, edit, rotate
 //! credentials, cancel) with an interactive operation menu when no subcommand
 //! is supplied. Persists tenant records through the cloud `TenantStore`.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod cancel;
 mod create;

@@ -1,5 +1,8 @@
 //! Extract a table of contents from a Markdown document and inject matching
 //! `id` attributes into the rendered HTML so anchor links Just Work.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::collections::HashMap;
 

@@ -5,6 +5,9 @@
 //! authenticates the principal, enforces session binding, parses the canonical
 //! body, resolves the gateway route, and runs the pre-dispatch authz check (see
 //! [`authz`]).
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod authz;
 mod headers;

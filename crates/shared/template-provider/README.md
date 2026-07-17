@@ -6,7 +6,7 @@
   <img src="https://systemprompt.io/files/images/logo.svg" alt="systemprompt.io" width="180">
 </picture>
 
-### Production infrastructure for AI agents
+### Config-as-code templates for AI governance you own
 
 [**Website**](https://systemprompt.io) · [**Documentation**](https://systemprompt.io/documentation/) · [**Guides**](https://systemprompt.io/guides) · [**Core**](https://github.com/systempromptio/systemprompt-core) · [**Template**](https://github.com/systempromptio/systemprompt-template) · [**Discord**](https://discord.gg/wkAbSuPWpr)
 
@@ -27,14 +27,15 @@
 [![Crates.io](https://img.shields.io/crates/v/systemprompt-template-provider.svg?style=flat-square)](https://crates.io/crates/systemprompt-template-provider)
 [![Docs.rs](https://img.shields.io/docsrs/systemprompt-template-provider?style=flat-square)](https://docs.rs/systemprompt-template-provider)
 [![License: BSL-1.1](https://img.shields.io/badge/license-BSL--1.1-2b6cb0?style=flat-square)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
+[![codecov](https://img.shields.io/codecov/c/github/systempromptio/systemprompt-core/main?style=flat-square&logo=codecov)](https://codecov.io/gh/systempromptio/systemprompt-core)
 
-Template provider traits for systemprompt.io AI governance infrastructure. Config-as-code foundation for the AI governance template registry. Includes an embedded loader for compile-time templates and a filesystem loader for runtime template discovery.
+Your templates are config, versioned in your own repository, not entries in someone else's dashboard. This crate defines the traits that load them. Templates compile into the binary or resolve from the filesystem at runtime, and every provider passes through one typed contract.
 
-**Layer**: Shared — foundational types/traits with no dependencies on other layers. Part of the [systemprompt-core](https://github.com/systempromptio/systemprompt-core) workspace.
+**Layer**: Shared. Foundational types and traits with no dependencies on other layers. Part of the [systemprompt-core](https://github.com/systempromptio/systemprompt-core) workspace.
 
 ## Overview
 
-Provides template loading abstractions and dynamic type aliases for template-related providers. Includes an embedded loader for compile-time templates and a filesystem loader for runtime template discovery. Re-exports provider contracts for template, component, and page data handling.
+The rendering pipeline talks to templates through traits, never through a concrete registry. An embedded loader serves compile-time templates. A filesystem loader discovers them at runtime, sandboxed to a base path. Provider contracts for template, component, and page data are re-exported so downstream crates depend on one surface.
 
 ## Architecture
 
@@ -60,7 +61,7 @@ Provides template loading abstractions and dynamic type aliases for template-rel
 
 ```toml
 [dependencies]
-systemprompt-template-provider = "0.18.0"
+systemprompt-template-provider = "0.21"
 ```
 
 ```rust
@@ -115,6 +116,6 @@ BSL-1.1 (Business Source License). Source-available for evaluation, testing, and
 
 **[systemprompt.io](https://systemprompt.io)** · **[Documentation](https://systemprompt.io/documentation/)** · **[Guides](https://systemprompt.io/guides)** · **[Live Demo](https://systemprompt.io/features/demo)** · **[Template](https://github.com/systempromptio/systemprompt-template)** · **[crates.io](https://crates.io/crates/systemprompt-template-provider)** · **[docs.rs](https://docs.rs/systemprompt-template-provider)** · **[Discord](https://discord.gg/wkAbSuPWpr)**
 
-<sub>Shared layer · Own how your organization uses AI.</sub>
+<sub>Shared layer · Own how your organization governs AI.</sub>
 
 </div>

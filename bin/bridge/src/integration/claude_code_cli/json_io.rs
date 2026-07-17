@@ -1,6 +1,9 @@
 //! Foreign-key-preserving JSON reads and atomic writes for the Claude CLI's
 //! registry files. Every write goes through `write_json` so a malformed or
 //! foreign file is never silently clobbered.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::fs;
 use std::path::Path;

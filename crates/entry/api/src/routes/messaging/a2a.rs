@@ -4,6 +4,9 @@
 //!
 //! This is the only part of dispatch that speaks the A2A wire protocol; the
 //! orchestration in [`super`] stays platform- and protocol-agnostic.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use axum::body::{Body, to_bytes};
 use axum::extract::Request;

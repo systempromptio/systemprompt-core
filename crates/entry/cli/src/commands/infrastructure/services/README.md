@@ -17,7 +17,7 @@
 
 # Services CLI Commands
 
-This document provides complete documentation for AI agents to use the services CLI commands. All commands support non-interactive mode for automation.
+One binary supervises every service you run. The API server, each agent, and each MCP server start, stop, and restart under a single process tree, with one PID registry and one health view. This document is the complete reference for driving that tree from the CLI. All commands support non-interactive mode for automation.
 
 ---
 
@@ -50,7 +50,7 @@ alias sp="./target/debug/systemprompt --non-interactive"
 
 ### services start
 
-Start API server, agents, and MCP servers.
+Start the API server, agents, and MCP servers. With no flags or target, all services start.
 
 ```bash
 sp infra services start
@@ -58,27 +58,33 @@ sp infra services start --all
 sp infra services start --api
 sp infra services start --agents
 sp infra services start --mcp
-sp infra services start --skip-web
 sp infra services start --skip-migrate
+sp infra services start agent primary
+sp infra services start mcp filesystem
 ```
+
+**Target Subcommands:**
+| Subcommand | Description |
+|------------|-------------|
+| `agent <name>` | Start a single agent by name |
+| `mcp <server_name>` | Start a single MCP server by name |
 
 **Optional Flags:**
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--all` | `true` | Start all services |
+| `--all` | `false` | Start all services |
 | `--api` | `false` | Start API server only |
 | `--agents` | `false` | Start agents only |
 | `--mcp` | `false` | Start MCP servers only |
-| `--foreground` | `true` | Run in foreground |
-| `--skip-web` | `false` | Skip web asset build |
+| `--foreground` | `false` | Run in foreground (default behaviour) |
 | `--skip-migrate` | `false` | Skip database migrations |
+| `--kill-port-process` | `false` | Kill process using the port if occupied |
 
 **Service Startup Order:**
 1. Database migrations (unless skipped)
-2. Web asset build (unless skipped)
-3. MCP servers
-4. Agent processes
-5. API server
+2. MCP servers
+3. Agent processes
+4. API server
 
 **Output Structure:**
 ```json
@@ -103,7 +109,7 @@ sp infra services start --skip-migrate
 
 ### services stop
 
-Stop running services gracefully.
+Stop running services gracefully. With no flags or target, all services stop.
 
 ```bash
 sp infra services stop
@@ -112,12 +118,20 @@ sp infra services stop --api
 sp infra services stop --agents
 sp infra services stop --mcp
 sp infra services stop --force
+sp infra services stop agent primary
+sp infra services stop mcp filesystem --force
 ```
+
+**Target Subcommands:**
+| Subcommand | Description |
+|------------|-------------|
+| `agent <name> [--force]` | Stop a single agent by name |
+| `mcp <server_name> [--force]` | Stop a single MCP server by name |
 
 **Optional Flags:**
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--all` | `true` | Stop all services |
+| `--all` | `false` | Stop all services |
 | `--api` | `false` | Stop API server only |
 | `--agents` | `false` | Stop agents only |
 | `--mcp` | `false` | Stop MCP servers only |
@@ -147,26 +161,31 @@ sp infra services stop --force
 
 ### services restart
 
-Restart services.
+Restart a specific target, or restart only the services that failed.
 
 ```bash
 sp infra services restart api
 sp infra services restart agent primary
 sp infra services restart mcp filesystem
+sp infra services restart mcp filesystem --build
 sp infra services restart --failed
+sp infra services restart --agents
+sp infra services restart --mcp
 ```
 
-**Subcommands:**
+**Target Subcommands:**
 | Subcommand | Description |
 |------------|-------------|
-| `api` | Restart API server |
-| `agent <name>` | Restart specific agent |
-| `plugins mcp <name>` | Restart specific MCP server |
+| `api` | Restart the API server |
+| `agent <agent>` | Restart a single agent by name |
+| `mcp <server_name> [--build]` | Restart a single MCP server; `--build` rebuilds the binary first |
 
 **Optional Flags:**
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--failed` | `false` | Restart only failed services |
+| `--agents` | `false` | Restart all agents |
+| `--mcp` | `false` | Restart all MCP servers |
 
 **Output Structure:**
 ```json
@@ -282,7 +301,7 @@ sp --json infra services cleanup --yes
 
 ### services serve
 
-Start API server with automatic agent and MCP startup.
+Start the API server, which automatically starts agents and MCP servers.
 
 ```bash
 sp infra services serve
@@ -342,11 +361,14 @@ sp infra services cleanup
 ## Development Workflow
 
 ```bash
-# Start with skip options for faster iteration
+# Start faster by skipping migrations
 sp infra services start --skip-migrate
 
-# Restart specific agent after code changes
+# Restart a specific agent after code changes
 sp infra services restart agent primary
+
+# Rebuild and restart an MCP server after code changes
+sp infra services restart mcp filesystem --build
 
 # Force restart if hanging
 sp infra services stop --force
@@ -358,7 +380,7 @@ sp infra services start
 ## Production Workflow
 
 ```bash
-# Full startup with migrations and build
+# Full startup with migrations
 sp infra services start
 
 # Health check

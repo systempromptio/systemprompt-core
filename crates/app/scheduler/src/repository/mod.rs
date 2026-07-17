@@ -7,6 +7,9 @@
 //!
 //! [`SecurityRepository`] / [`IpSessionRecord`] are exposed for direct use by
 //! the `crate::jobs::malicious_ip_blacklist` job.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod analytics;
 mod jobs;

@@ -3,6 +3,9 @@
 //! Each type is the structured payload a cloud subcommand returns (status,
 //! login, tenant list/detail/create, secrets, deploy, sync, and related), used
 //! for both human rendering and `--json` output.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;

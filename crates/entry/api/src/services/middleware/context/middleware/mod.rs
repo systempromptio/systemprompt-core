@@ -25,6 +25,9 @@
 //! All four share the same `Arc<dyn ContextExtractor>` and the same error
 //! mapping (`extraction_error_to_api_error`). Mounting a route under the
 //! wrong flavour is a type error, not a runtime branch.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod error;
 mod flavours;

@@ -2,6 +2,9 @@
 //!
 //! Dispatches the `web sitemap` subcommands ([`SitemapCommands`]) to show the
 //! configured routes or generate a `sitemap.xml`.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod generate;
 pub mod show;

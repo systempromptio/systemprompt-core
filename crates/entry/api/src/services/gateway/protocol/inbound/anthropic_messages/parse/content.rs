@@ -1,4 +1,7 @@
 //! Message and content-block parsing for the Anthropic Messages wire format.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 // JSON: protocol boundary — Anthropic Messages wire format is dynamic JSON.
 use serde_json::Value;

@@ -1,5 +1,8 @@
 //! Agent component projection: selecting a plugin's agents from the resolved
 //! catalogue and laying them out as `agents/<id>.md`.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_identifiers::AgentId;
 use systemprompt_models::bridge::manifest::AgentEntry;

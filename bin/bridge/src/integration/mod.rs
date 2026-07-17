@@ -1,3 +1,6 @@
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
 pub(crate) mod app_launch;
 pub mod claude_code_cli;
 pub mod claude_desktop;

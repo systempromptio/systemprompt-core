@@ -5,6 +5,9 @@
 //! validation modes) so callers only supply the tenant-specific fields.
 //! Construction is pure — no prompting and no filesystem writes; interactive
 //! collection of the inputs stays in the CLI.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod cloud_builder;
 mod local_builder;

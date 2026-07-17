@@ -7,6 +7,9 @@
 //! values must be re-cased via [`normalize_transport_casing`] before the blob
 //! is handed back to `webauthn_rs`. Changing this casing scheme breaks every
 //! previously stored passkey.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use super::WebAuthnService;
 use crate::error::OauthResult as Result;

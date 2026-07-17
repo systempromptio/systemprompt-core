@@ -8,6 +8,9 @@
 //! reach an unrelated session leader — so a row is only ever signalled once
 //! both the subprocess marker and the exact `name_key=service_name` pairing
 //! are found.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub const SUBPROCESS_MARKER_ENV: &str = "SYSTEMPROMPT_SUBPROCESS";
 pub const AGENT_NAME_ENV: &str = "AGENT_NAME";

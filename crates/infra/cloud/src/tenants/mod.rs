@@ -5,6 +5,9 @@
 //! `tenant_store.rs`) is the persistent map keyed by tenant id;
 //! [`TenantProvisioningService`] (in `provisioning.rs`) turns a
 //! [`TenantCreatePlan`] into a provisioned [`StoredTenant`].
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod provisioning;
 mod tenant_store;

@@ -1,5 +1,8 @@
 //! OAuth domain services: token generation, JWT, plugin-scoped token minting,
 //! session, `WebAuthn`, CIMD, validation, templating.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod bridge;
 pub mod cimd;

@@ -2,6 +2,9 @@
 //!
 //! [`AgentOAuthState`] bundles the auth config, validation service, database
 //! handle, and optional JWT provider carried through the auth middleware.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
 use systemprompt_database::Database;

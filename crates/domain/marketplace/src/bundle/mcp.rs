@@ -1,5 +1,8 @@
 //! MCP component projection: a plugin's referenced managed servers laid out as
 //! the host's `.mcp.json`.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::collections::{BTreeMap, BTreeSet};
 

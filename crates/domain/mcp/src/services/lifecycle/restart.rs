@@ -1,3 +1,6 @@
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
 use super::{LifecycleOrchestrator, shutdown, startup};
 use crate::McpServerConfig;
 use crate::error::McpDomainResult;

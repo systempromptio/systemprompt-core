@@ -3,6 +3,9 @@
 //! Resolves short-code redirects (tracking the click for non-bot sessions),
 //! generates redirect/UTM links, and serves link, campaign, and content-journey
 //! performance queries.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use super::types::{AnalyticsQuery, GenerateLinkRequest, GenerateLinkResponse, ListLinksQuery};
 use axum::extract::{Path, Query, State};

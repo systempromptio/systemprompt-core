@@ -4,6 +4,9 @@
 //! These functions are the bridge from the bootstrap layer (profile +
 //! secrets) into the runtime [`Config`] singleton consumed by the rest
 //! of the application.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::path::{Path, PathBuf};
 

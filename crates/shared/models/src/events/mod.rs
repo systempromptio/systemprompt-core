@@ -4,6 +4,9 @@
 //! [`AnalyticsEvent`] (page views, sessions, engagement), and
 //! [`SystemEvent`] (lifecycle/health). Re-exports the AG-UI event types
 //! for callers that consume all event streams from one import.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod a2a_event;
 mod a2a_event_type;

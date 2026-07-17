@@ -1,4 +1,7 @@
 //! JWT validation and audience/scope checks for MCP RBAC.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use rmcp::ErrorData as McpError;
 use systemprompt_models::auth::{JwtClaims, Permission};

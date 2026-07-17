@@ -1,4 +1,7 @@
 //! Generic repository error type used by domain crates.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]

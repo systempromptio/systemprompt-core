@@ -2,6 +2,9 @@
 //!
 //! [`RuntimeCommands`] reports and updates the environment, log level, output
 //! format, and colour settings, persisting changes to the active profile.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use anyhow::{Context, Result, bail};
 use clap::{Args, Subcommand};

@@ -1,5 +1,8 @@
 //! HTTP-facing middleware for the MCP server: RBAC enforcement, database-backed
 //! session management, and request-context/bearer-token extraction helpers.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod rbac;
 pub mod session_handler;

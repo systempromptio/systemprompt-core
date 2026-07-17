@@ -3,6 +3,9 @@
 //! Defines the list/detail response shapes and [`parse_skill_from_config`],
 //! which loads a skill's YAML config plus its frontmatter-stripped instruction
 //! body from disk.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use anyhow::{Context, Result};
 use schemars::JsonSchema;

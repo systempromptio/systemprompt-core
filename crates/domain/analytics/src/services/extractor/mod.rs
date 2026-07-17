@@ -6,6 +6,9 @@
 //! correct fallback — the corresponding session field stays `None` and
 //! downstream consumers treat the request as un-attributed for that
 //! dimension.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use http::{HeaderMap, Uri};
 use std::collections::HashMap;

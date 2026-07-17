@@ -3,6 +3,9 @@
 //! Orchestrators on top of the repository layer. Hosts the
 //! [`AnalyticsService`], anomaly/behavioural detectors, request extractors,
 //! and provider integrations consumed by the API and CLI.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod ai_crawler_keywords;
 mod ai_provider;

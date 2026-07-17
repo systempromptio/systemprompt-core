@@ -1,5 +1,8 @@
 //! Execution models — request context propagation, per-run execution
 //! steps, and the shared context carried through an agent run.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod context;
 pub mod shared_context;

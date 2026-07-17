@@ -4,6 +4,9 @@
 //! pepper, mirroring `auth_code` and refresh-token storage. `consume` is a
 //! single atomic UPDATE — re-use, expiry, and tamper attempts all surface as
 //! `None`.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use super::OAuthRepository;
 use super::at_rest::hash_at_rest;

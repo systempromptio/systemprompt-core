@@ -5,6 +5,9 @@
 //! [`resolve_profile_with_data`]), argument parsers, and text helpers. Also
 //! defines the `define_pool_command!` macro used by the log commands to
 //! generate pooled execution entry points.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod command_result;
 pub mod disk_logs;

@@ -1,6 +1,9 @@
 //! Scheduler core — owns the [`tokio_cron_scheduler::JobScheduler`],
 //! discovers inventory-registered jobs, and dispatches them under a typed
 //! error boundary.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod bootstrap;
 mod dispatch;

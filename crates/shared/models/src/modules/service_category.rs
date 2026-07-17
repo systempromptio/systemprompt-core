@@ -1,4 +1,7 @@
 //! Service category classification.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use super::api_paths::ApiPaths;
 use serde::{Deserialize, Serialize};

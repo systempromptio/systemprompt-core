@@ -3,6 +3,9 @@
 //! Scans the profiles directory, marks the active profile and secret
 //! presence, and either renders a table or drives an interactive
 //! profile-picker that drills into [`show`].
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use anyhow::Result;
 use std::path::{Path, PathBuf};

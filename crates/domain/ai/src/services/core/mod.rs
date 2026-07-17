@@ -1,6 +1,9 @@
 //! Core orchestration services — [`crate::AiService`] and
 //! [`crate::ImageService`] live here, along with request storage helpers
 //! and the request-logging surface used by the streaming wrappers.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod ai_service;
 mod image_persistence;

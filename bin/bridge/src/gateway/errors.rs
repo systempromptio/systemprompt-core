@@ -1,4 +1,7 @@
 //! Gateway client error taxonomy.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 #[derive(Debug, thiserror::Error)]
 pub enum GatewayError {

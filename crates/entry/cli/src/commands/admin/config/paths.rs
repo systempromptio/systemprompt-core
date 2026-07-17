@@ -4,6 +4,9 @@
 //! [`PathsCommands`] reports the system, services, bin, web, storage, and
 //! `GeoIP` paths from the active profile and checks whether each required path
 //! exists.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use anyhow::Result;
 use clap::Subcommand;

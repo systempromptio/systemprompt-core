@@ -2,6 +2,9 @@
 //!
 //! Resolves an agent's assigned servers, lists their tools, and routes tool
 //! calls through per-server resilience guards (circuit breaker and bulkhead).
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod context;
 pub mod conversions;

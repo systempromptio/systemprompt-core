@@ -1,3 +1,6 @@
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
 use systemprompt_identifiers::UserId;
 use systemprompt_loader::ConfigLoader;
 use systemprompt_models::bridge::manifest::UserInfo;

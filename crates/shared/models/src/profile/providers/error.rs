@@ -3,6 +3,9 @@
 //! provider names, empty or SSRF-blocked endpoints, and duplicate or
 //! empty model ids/aliases. Connectivity is the registry's authority, so these
 //! are the only errors emitted while checking it.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use thiserror::Error;
 

@@ -17,7 +17,9 @@
 
 # Files CLI Commands
 
-This document provides complete documentation for AI agents to use the files CLI commands. All commands support non-interactive mode for automation.
+Every file an agent uploads, generates, or serves passes through your own storage and your own database, on infrastructure you own. This document is the complete reference for the files CLI. Every command supports non-interactive mode for automation.
+
+Content-to-file linking (attaching a file to a content record, setting a featured image) lives under a separate command group, `core content files`, not here.
 
 ---
 
@@ -45,11 +47,8 @@ alias sp="./target/debug/systemprompt --non-interactive"
 | `core files config` | Show file upload configuration | `Card` | No |
 | `core files search <query>` | Search files by path pattern | `Table` | No (DB only) |
 | `core files stats` | Show file storage statistics | `Card` | No (DB only) |
-| `core files content list` | List content-file links | `Table` | No (DB only) |
-| `core files content link` | Link file to content | `Card` | No (DB only) |
-| `core files content unlink` | Unlink file from content | `Card` | No (DB only) |
-| `core files content featured` | Get/set featured image | `Card` | No (DB only) |
 | `core files ai list` | List AI-generated images | `Table` | No (DB only) |
+| `core files ai show <id>` | Show AI-generated image details | `Card` | No (DB only) |
 | `core files ai count` | Count AI-generated images | `Card` | No (DB only) |
 
 ---
@@ -390,187 +389,6 @@ sp --json core files stats
 
 ---
 
-## Content-File Link Commands
-
-### files content list
-
-List content-file links. Use `--content` to list files attached to content, or `--file` to list content linked to a file.
-
-```bash
-sp core files content list --content content_abc123
-sp core files content list --file b75940ac-c50f-4d46-9fdd-ebb4970b2a7d
-sp --json core files content list --content content_abc123
-```
-
-**Required Flags (one of):**
-| Flag | Description |
-|------|-------------|
-| `--content` | List files attached to this content ID |
-| `--file` | List content linked to this file ID (reverse lookup) |
-
-**Output Structure (with --content):**
-```json
-{
-  "content_id": "content_abc123",
-  "files": [
-    {
-      "file_id": "b75940ac-c50f-4d46-9fdd-ebb4970b2a7d",
-      "path": "/storage/files/uploads/.../image.png",
-      "mime_type": "image/png",
-      "role": "featured",
-      "display_order": 0
-    }
-  ]
-}
-```
-
-**Output Structure (with --file):**
-```json
-{
-  "file_id": "b75940ac-c50f-4d46-9fdd-ebb4970b2a7d",
-  "links": [
-    {
-      "content_id": "content_abc123",
-      "role": "featured",
-      "display_order": 0,
-      "created_at": "2024-01-15T10:30:00Z"
-    }
-  ]
-}
-```
-
-**Artifact Type:** `Table`
-
----
-
-### files content link
-
-Link a file to content with a specific role.
-
-```bash
-sp core files content link <file-id> --content <content-id> --role <role>
-sp core files content link b75940ac-c50f-4d46-9fdd-ebb4970b2a7d --content content_abc123 --role attachment
-sp core files content link b75940ac-c50f-4d46-9fdd-ebb4970b2a7d --content content_abc123 --role featured --order 0
-```
-
-**Required Arguments:**
-| Argument | Required | Description |
-|----------|----------|-------------|
-| `<file-id>` | Yes | File ID (UUID format) |
-| `--content` | Yes | Content ID |
-| `--role` | Yes | File role |
-
-**Optional Flags:**
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--order` | `0` | Display order |
-
-**Available Roles:**
-- `featured` - Featured/hero image
-- `attachment` - General attachment
-- `inline` - Inline content image
-- `og-image` - Open Graph image
-- `thumbnail` - Thumbnail image
-
-**Output Structure:**
-```json
-{
-  "file_id": "b75940ac-c50f-4d46-9fdd-ebb4970b2a7d",
-  "content_id": "content_abc123",
-  "role": "attachment",
-  "message": "File linked to content successfully"
-}
-```
-
-**Artifact Type:** `Card`
-
----
-
-### files content unlink
-
-Unlink a file from content.
-
-```bash
-sp core files content unlink <file-id> --content <content-id> --yes
-sp core files content unlink b75940ac-c50f-4d46-9fdd-ebb4970b2a7d --content content_abc123 --yes
-sp core files content unlink b75940ac-c50f-4d46-9fdd-ebb4970b2a7d --content content_abc123 --dry-run --yes
-```
-
-**Required Flags (non-interactive):**
-| Flag | Required | Description |
-|------|----------|-------------|
-| `<file-id>` | Yes | File ID (UUID format) |
-| `--content` | Yes | Content ID |
-| `--yes` / `-y` | Yes | Skip confirmation (REQUIRED in non-interactive mode) |
-
-**Optional Flags:**
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--dry-run` | `false` | Preview unlink without executing |
-
-**Output Structure:**
-```json
-{
-  "file_id": "b75940ac-c50f-4d46-9fdd-ebb4970b2a7d",
-  "content_id": "content_abc123",
-  "message": "File unlinked from content successfully"
-}
-```
-
-**Artifact Type:** `Card`
-
----
-
-### files content featured
-
-Get or set the featured image for content.
-
-```bash
-sp core files content featured <content-id>
-sp core files content featured content_abc123 --set b75940ac-c50f-4d46-9fdd-ebb4970b2a7d
-sp --json core files content featured content_abc123
-```
-
-**Required Arguments:**
-| Argument | Required | Description |
-|----------|----------|-------------|
-| `<content-id>` | Yes | Content ID |
-
-**Optional Flags:**
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--set` | None | File ID to set as featured image |
-
-**Output Structure (get):**
-```json
-{
-  "content_id": "content_abc123",
-  "file": {
-    "id": "b75940ac-c50f-4d46-9fdd-ebb4970b2a7d",
-    "path": "/storage/files/.../image.png",
-    "public_url": "/files/.../image.png",
-    "mime_type": "image/png",
-    "size_bytes": 156108,
-    "ai_content": false,
-    "created_at": "2024-01-15T10:30:00Z"
-  },
-  "message": "Featured image: /storage/files/.../image.png"
-}
-```
-
-**Output Structure (set):**
-```json
-{
-  "content_id": "content_abc123",
-  "file": null,
-  "message": "Featured image set successfully"
-}
-```
-
-**Artifact Type:** `Card`
-
----
-
 ## AI-Generated Images Commands
 
 ### files ai list
@@ -613,6 +431,41 @@ sp core files ai list --user user_abc123
 
 **Artifact Type:** `Table`
 **Columns:** `id`, `path`, `size_bytes`, `created_at`
+
+---
+
+### files ai show
+
+Show details for a specific AI-generated image.
+
+```bash
+sp core files ai show <id>
+sp --json core files ai show b75940ac-c50f-4d46-9fdd-ebb4970b2a7d
+```
+
+**Required Arguments:**
+| Argument | Required | Description |
+|----------|----------|-------------|
+| `<id>` | Yes | File ID (UUID format) |
+
+**Output Structure:**
+```json
+{
+  "id": "b75940ac-c50f-4d46-9fdd-ebb4970b2a7d",
+  "path": "/storage/files/ai-images/.../generated.png",
+  "public_url": "/files/ai-images/.../generated.png",
+  "mime_type": "image/png",
+  "size_bytes": 204800,
+  "user_id": "user_abc123",
+  "context_id": "ctx_xyz789",
+  "ai_content": true,
+  "metadata": {},
+  "created_at": "2024-01-15T10:30:00Z",
+  "updated_at": "2024-01-15T10:30:00Z"
+}
+```
+
+**Artifact Type:** `Card`
 
 ---
 
@@ -673,25 +526,13 @@ sp --json core files show b75940ac-c50f-4d46-9fdd-ebb4970b2a7d
 # Phase 5: Search for files
 sp --json core files search uploads
 
-# Phase 6: Link file to content
-sp core files content link b75940ac-c50f-4d46-9fdd-ebb4970b2a7d --content content_xyz --role attachment
-
-# Phase 7: List content-file links (both directions)
-sp --json core files content list --content content_xyz
-sp --json core files content list --file b75940ac-c50f-4d46-9fdd-ebb4970b2a7d
-
-# Phase 8: Set featured image
-sp core files content featured content_xyz --set b75940ac-c50f-4d46-9fdd-ebb4970b2a7d
-
-# Phase 9: Cleanup with dry-run preview
-sp core files content unlink b75940ac-c50f-4d46-9fdd-ebb4970b2a7d --content content_xyz --dry-run --yes
+# Phase 6: Cleanup with dry-run preview
 sp core files delete b75940ac-c50f-4d46-9fdd-ebb4970b2a7d --dry-run --yes
 
-# Phase 10: Actual cleanup
-sp core files content unlink b75940ac-c50f-4d46-9fdd-ebb4970b2a7d --content content_xyz --yes
+# Phase 7: Actual cleanup
 sp core files delete b75940ac-c50f-4d46-9fdd-ebb4970b2a7d --yes
 
-# Phase 11: Verify deletion
+# Phase 8: Verify deletion
 sp --json core files stats
 ```
 
@@ -729,12 +570,6 @@ sp core files upload ./image.png
 
 sp core files delete b75940ac-c50f-4d46-9fdd-ebb4970b2a7d
 # Error: --yes is required to delete files in non-interactive mode
-
-sp core files content unlink b75940ac-c50f-4d46-9fdd-ebb4970b2a7d --content content_abc
-# Error: --yes is required to unlink files in non-interactive mode
-
-sp core files content list
-# Error: Either --content or --file is required
 ```
 
 ### Invalid UUID Format
@@ -803,7 +638,6 @@ sp --json core files search uploads | jq '.data.files[] | select(.mime_type | st
 - [x] All `execute` functions accept `config: &CliConfig`
 - [x] All commands return `CommandOutput` with proper artifact type
 - [x] `delete` commands require `--yes` / `-y` flag in non-interactive mode
-- [x] `unlink` commands require `--yes` / `-y` flag in non-interactive mode
 - [x] `--dry-run` support for destructive operations
 - [x] All output types derive `Serialize`, `Deserialize`, `JsonSchema`
 - [x] No `println!` / `eprintln!` - uses `CliService`

@@ -1,5 +1,8 @@
 //! Top-level RSS feed generation: discovers feed providers, runs each, and
 //! writes the resulting XML files to the build output directory.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use super::xml::{RssChannel, RssItem, build_rss_xml};
 use std::path::Path;

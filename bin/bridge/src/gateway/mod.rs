@@ -1,4 +1,7 @@
 //! Gateway HTTP client (`GatewayClient`) and supporting wire types.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod auth;
 pub mod errors;

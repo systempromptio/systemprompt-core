@@ -1,4 +1,7 @@
 //! Response-shape types returned by [`crate::llm::LlmProvider::chat`].
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use serde::{Deserialize, Serialize};
 

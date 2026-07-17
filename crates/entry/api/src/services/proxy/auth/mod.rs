@@ -9,6 +9,9 @@
 //!   registries and enforcing the required scopes against the authenticated
 //!   user, with the session-cache fallback for already-established MCP
 //!   sessions.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod access;
 mod challenge;

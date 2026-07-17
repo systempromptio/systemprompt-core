@@ -10,6 +10,9 @@
 //! that hold deployment config ([`crate::AuthValidationService`]); this path
 //! instead binds the token to a live session and user row in the database
 //! after decode.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::collections::BTreeMap;
 use systemprompt_identifiers::{Actor, ClientId, SessionId, UserId};

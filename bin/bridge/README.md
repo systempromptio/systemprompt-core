@@ -1,12 +1,12 @@
 # systemprompt-bridge
 
-Credential helper, signed-manifest sync agent, and local inference proxy for Anthropic's Claude on the systemprompt.io gateway.
+The one process that keeps a desktop Claude install governed by your gateway without your credentials ever leaving the host. Credential helper, signed-manifest sync agent, and local inference proxy in a single binary.
 
-One binary, three roles:
+Three roles:
 
-1. **Credential helper.** Emits a JSON envelope matching Anthropic's `inferenceCredentialHelper` contract — `{ "token": "...", "ttl": 3600, "headers": {} }` to stdout.
-2. **Sync agent.** Pulls the user's signed plugin + skill + agent + MCP allowlist manifest from the gateway into Bridge's `org-plugins/` mount.
-3. **Local inference proxy.** Loopback HTTP/1.1 proxy on `127.0.0.1:48217`. Claude Desktop's profile pins it as `inferenceGatewayBaseUrl` with a long-lived loopback secret; bridge swaps the bearer to a fresh JWT before forwarding upstream. JWT rotation never leaves the host.
+1. **Credential helper.** Emits a JSON envelope matching Anthropic's `inferenceCredentialHelper` contract, `{ "token": "...", "ttl": 3600, "headers": {} }`, to stdout.
+2. **Sync agent.** Pulls the user's signed plugin, skill, agent, and MCP allowlist manifest from the gateway into the `org-plugins/` mount.
+3. **Local inference proxy.** Loopback HTTP/1.1 proxy on `127.0.0.1:48217`. The Claude Desktop profile pins it as `inferenceGatewayBaseUrl` with a long-lived loopback secret; the bridge swaps the bearer for a fresh JWT before forwarding upstream. JWT rotation never leaves the host.
 
 Diagnostics on stderr. `tracing` JSON via `SP_BRIDGE_LOG_FORMAT=json`. Exit 0 on success.
 
@@ -14,7 +14,7 @@ Diagnostics on stderr. `tracing` JSON via `SP_BRIDGE_LOG_FORMAT=json`. Exit 0 on
 
 ## Status
 
-Independent semver, separate from the systemprompt-core workspace. Latest release **0.5.0** — proxy correctness, chain-preserving GUI errors, and auth chain safety. See [`CHANGELOG.md`](CHANGELOG.md).
+Independent semver, separate from the systemprompt-core workspace. Latest release **0.16.0**: a Cowork artifacts emitter that materialises the manifest's `artifacts` section through two sinks, a staging directory consumed by the first-run `create_artifact` seed skill and an on-disk library store, with content-hashed idempotency and remove-on-empty cleanup. The GUI marketplace gains an Artifacts category listing entries in the local library store. See [`CHANGELOG.md`](CHANGELOG.md).
 
 Released artifacts: macOS (arm64, x86_64), Windows (x86_64), Linux (x86_64). Sigstore-signed; SBOM attached to every release.
 
@@ -22,15 +22,17 @@ Released artifacts: macOS (arm64, x86_64), Windows (x86_64), Linux (x86_64). Sig
 
 ## Architecture
 
-| Concern | File |
+| Module | Purpose |
 |---|---|
-| Provider chain (mTLS → session → PAT) | [`src/auth/mod.rs`](src/auth/mod.rs) · [`src/auth/providers/`](src/auth/providers/) |
-| Loopback inference proxy | [`src/proxy/server.rs`](src/proxy/server.rs) · [`src/proxy/forward.rs`](src/proxy/forward.rs) |
-| Single-flight token cache | [`src/proxy/token_cache.rs`](src/proxy/token_cache.rs) |
-| Manifest signature verification | [`src/gateway/manifest.rs`](src/gateway/manifest.rs) |
-| Replay protection (monotonic version + skew) | [`src/sync/replay.rs`](src/sync/replay.rs) |
-| Native GUI (winit + wry) | [`src/gui/`](src/gui/) |
-| Host integration registry (Claude Desktop, future hosts) | [`src/integration/`](src/integration/) |
+| [`auth/`](src/auth/) | Provider chain (mTLS → session → PAT), single credential contract |
+| [`proxy/`](src/proxy/) | Loopback inference proxy, forwarding, single-flight token cache |
+| [`gateway/`](src/gateway/) | Gateway client, manifest fetch and signature verification |
+| [`sync/`](src/sync/) | Manifest apply, replay protection (monotonic version + skew) |
+| [`gui/`](src/gui/) | Native settings window (winit + wry), Windows + macOS only |
+| [`integration/`](src/integration/) | Host integration registry (Claude Desktop and future hosts) |
+| [`install/`](src/install/) | Install and uninstall, pubkey pinning, MDM snippet emission |
+| [`mcp_registry.rs`](src/mcp_registry.rs) | On-disk MCP snapshot, rehydrated at startup |
+| [`schedule/`](src/schedule/) | OS scheduler templates for periodic sync |
 
 ---
 
@@ -38,16 +40,21 @@ Released artifacts: macOS (arm64, x86_64), Windows (x86_64), Linux (x86_64). Sig
 
 | Command | Purpose |
 |---|---|
-| _(no args)_ | Emit credential-helper JSON envelope |
+| `run` _(default)_ | Acquire a bearer via the auth chain and emit the JWT envelope to stdout |
+| `proxy` | Run the local inference proxy headlessly (Linux/server equivalent of the desktop GUI) |
 | `gui` | Launch the native settings window (Windows + macOS) |
-| `login <sp-live-…> [--gateway <url>]` | Store a PAT securely |
-| `logout` | Remove the stored PAT |
+| `login <sp-live-…> [--gateway <url>]` | Store a PAT securely and wire up config |
+| `logout` | Remove the stored PAT and its config section |
 | `clean` | Wipe local bridge state (config + PAT + token cache) |
-| `status` | Show config paths, cache state, last sync |
+| `status` | Show config paths and what is currently set up |
 | `whoami` | Print authenticated identity from the gateway |
-| `install [--apply] [--pubkey <base64>]` | Bootstrap integration; pin manifest signing pubkey |
-| `sync [--watch] [--allow-tofu] [--force-replay]` | Pull plugins + MCP allowlist into `org-plugins/` |
+| `install [--apply] [--pubkey <base64>] …` | Bootstrap integration; pin manifest signing pubkey |
+| `sync [--watch] [--allow-tofu] [--force-replay] …` | Pull plugins + MCP allowlist into `org-plugins/` |
+| `oauth-client {status\|rotate}` | Manage the per-tenant OAuth client that mints plugin-scoped hook tokens |
 | `validate` | End-to-end self-check (paths, gateway, creds, signatures) |
+| `doctor` | Diagnose common failure modes (config, creds, gateway, loopback secret, pinned pubkey), one line per check |
+| `credential-helper --host <id>` | Emit per-host bearer credentials on stdout (git/Anthropic credential-helper protocol) |
+| `diagnostics` | Print the version and build-provenance banner |
 | `uninstall [--purge]` | Reverse install; `--purge` also clears credentials |
 
 Exit codes: `0` success, `2` emit error, `3` whoami error, `5` no credential source succeeded, `8` pubkey not pinned, `10` transient failure on preferred provider.
@@ -61,7 +68,7 @@ Exit codes: `0` success, `2` emit error, `3` whoami error, `5` no credential sou
 - **Replay protection.** Manifests carry a signed `not_before` field; sync rejects `manifest_version` ≤ last applied or `not_before` outside ±5 min skew.
 - **RFC 8785 (JCS) canonical JSON** for signature input. Field-order stability is contract, not coincidence.
 - **Loopback proxy** validates a constant-time-compared shared secret on every inbound request and rejects non-loopback `Host` headers.
-- **mTLS-preferred chain.** When mtls is configured, a transient gateway failure no longer silently downgrades to PAT — exits `10` distinct from the "no credential source" `5`.
+- **mTLS-preferred chain.** When mTLS is configured, a transient gateway failure no longer silently downgrades to PAT; it exits `10`, distinct from the "no credential source" `5`.
 
 ---
 
@@ -107,3 +114,7 @@ Cache lives at the OS cache dir under `systemprompt-bridge/cache.json` (mode 060
 ## Release
 
 Tag `bridge-vX.Y.Z` triggers `.github/workflows/bridge-release.yml`. Workspace CI is unaffected.
+
+---
+
+Part of [systemprompt.io](https://systemprompt.io), self-hosted AI governance infrastructure.

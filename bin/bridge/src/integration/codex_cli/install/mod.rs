@@ -1,6 +1,9 @@
 //! Codex CLI managed-profile installer: renders the bridge-owned config block
 //! (`.toml`, or `.mobileconfig` on macOS) and merges it into the system-scope
 //! config, preserving every user-authored key.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod merge;
 mod render;

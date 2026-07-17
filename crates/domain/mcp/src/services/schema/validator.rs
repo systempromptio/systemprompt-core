@@ -6,6 +6,9 @@
 //! tables from the service's schema files. [`SchemaValidationMode`] selects
 //! whether a mismatch is auto-healed, treated as fatal, or skipped, and
 //! [`SchemaValidationReport`] aggregates the per-table outcome.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::error::McpDomainResult;
 use serde::{Deserialize, Serialize};

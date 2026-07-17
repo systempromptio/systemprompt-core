@@ -1,5 +1,8 @@
 //! Streaming-event accumulation: folds canonical SSE events into a `TapState`
 //! and extracts a finalized `Summary` for the audit sink.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use bytes::{Bytes, BytesMut};
 use systemprompt_identifiers::AiToolCallId;

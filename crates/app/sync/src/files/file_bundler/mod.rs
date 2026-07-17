@@ -3,6 +3,9 @@
 //! diff a remote tarball against the local working tree.
 //!
 //! Extraction and remote-vs-local diffing live in the [`extract`] submodule.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod extract;
 

@@ -1,3 +1,6 @@
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
 use crate::error::McpDomainResult;
 
 use crate::services::client::{validate_connection_by_url, validate_connection_with_auth};

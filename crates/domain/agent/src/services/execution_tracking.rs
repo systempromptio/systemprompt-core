@@ -1,5 +1,8 @@
 //! Recording agent execution steps (understanding, planning, skill usage, tool
 //! calls, completion) and transitioning them through their lifecycle.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::services::shared::Result;
 use chrono::{DateTime, Utc};

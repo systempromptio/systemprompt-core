@@ -8,6 +8,9 @@
 //! advertised to any client API, only reached through an explicit gateway
 //! route). Keeping these two facts orthogonal is what stops a backend provider
 //! from masquerading as an Anthropic model in a client's catalog.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use serde::{Deserialize, Serialize};
 

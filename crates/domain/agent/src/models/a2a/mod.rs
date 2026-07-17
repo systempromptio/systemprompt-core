@@ -4,6 +4,9 @@
 //! Core shapes are re-exported from `systemprompt_models`; this module adds the
 //! JSON-RPC framing and the request parameter types specific to the agent
 //! crate.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod jsonrpc;
 pub mod protocol;

@@ -4,6 +4,9 @@
 //! detail and status, create/edit/delete results, log views, registry
 //! discovery, A2A message output, and MCP tool summaries — so that table, JSON,
 //! and YAML rendering share a single typed contract.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};

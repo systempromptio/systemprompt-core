@@ -1,4 +1,7 @@
 //! Bridge session exchange code generation and consumption.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod provisioning;
 

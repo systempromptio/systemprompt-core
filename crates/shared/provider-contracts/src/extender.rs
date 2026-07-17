@@ -1,5 +1,8 @@
 //! [`TemplateDataExtender`] contract for grafting extra variables onto
 //! per-page template data immediately before rendering.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::any::Any;
 

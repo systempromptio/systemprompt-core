@@ -1,5 +1,8 @@
 //! Canonical HTTP header name constants used throughout the platform for
 //! propagating trace, session, and authorization context across services.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub const TRACE_ID: &str = "x-trace-id";
 pub const CONTEXT_ID: &str = "x-context-id";

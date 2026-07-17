@@ -4,6 +4,9 @@
 //! The dynamic registry is the lower-level counterpart of
 //! [`crate::TypedExtensionRegistry`]: it accepts `Arc<dyn Extension>`
 //! values supplied by either inventory discovery or runtime injection.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod discovery;
 mod queries;

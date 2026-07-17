@@ -3,6 +3,9 @@
 //! `CREATE USER` / `CREATE DATABASE` / `GRANT` run before the target database
 //! exists, so they cannot bind parameters; identifiers and literals are
 //! escaped here instead. Statement execution stays in the setup wizard.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 /// Escapes and double-quotes a `PostgreSQL` identifier (role or database name).
 #[must_use]

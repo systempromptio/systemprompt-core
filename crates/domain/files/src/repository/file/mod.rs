@@ -4,6 +4,9 @@
 //! or path, listing, soft handling, metadata updates, and path search — and
 //! re-exports the [`InsertFileRequest`] builder and [`FileStats`] aggregate.
 //! AI-image and content-association queries live in sibling modules.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod request;
 mod stats;

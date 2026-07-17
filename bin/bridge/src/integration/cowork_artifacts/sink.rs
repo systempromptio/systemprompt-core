@@ -13,6 +13,9 @@
 //! The record shape mirrors Cowork's `create_artifact` input. Store paths and
 //! field names live only here — writers use `LibraryArtifactRecord`, readers
 //! (the GUI listing) use [`StoredArtifactSummary`] via [`read_library_store`].
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::collections::BTreeMap;
 use std::path::Path;

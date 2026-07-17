@@ -1,4 +1,7 @@
 //! CLI rendering of [`StartupValidationReport`] errors and warnings.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_logging::CliService;
 use systemprompt_logging::services::cli::BrandColors;

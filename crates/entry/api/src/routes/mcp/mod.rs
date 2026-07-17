@@ -2,6 +2,9 @@
 //!
 //! [`registry_router`] mounts the read-only MCP server registry endpoint backed
 //! by [`registry::handle_mcp_registry`].
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod registry;
 

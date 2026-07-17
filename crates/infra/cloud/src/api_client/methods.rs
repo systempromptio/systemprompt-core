@@ -10,6 +10,9 @@
 //!   access token via RFC 8693 token-exchange against the tenant deployment's
 //!   `/api/v1/core/oauth/token` endpoint, cache it for the lifetime of this
 //!   client, and retry exactly once after clearing the cache on a 401.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::time::{Duration, Instant};
 

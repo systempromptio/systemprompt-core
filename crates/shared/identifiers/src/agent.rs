@@ -2,6 +2,9 @@
 //! [`AgentName`] (non-empty, reserves `"unknown"`), and
 //! [`ExternalAgentId`] for off-platform "super-agents" (Claude Desktop,
 //! Codex CLI, Claude Code) that connect via the bridge binary.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 crate::define_id!(AgentId, generate, schema);
 crate::define_id!(ExternalAgentId, non_empty);

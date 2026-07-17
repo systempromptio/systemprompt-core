@@ -4,6 +4,9 @@
 //! focus, and reading-pattern metrics) and reads them back per session or
 //! user, plus the aggregated [`SessionEngagementSummary`]. Writes go to the
 //! write pool; reads to the read pool.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
 

@@ -4,6 +4,9 @@
 //! `information_schema` are dynamic by design: per-table `SELECT COUNT(*)`
 //! statements have to be built at runtime against runtime-supplied table
 //! names, and the result columns are typed dynamically.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use sqlx::Row;
 use sqlx::postgres::PgPool;

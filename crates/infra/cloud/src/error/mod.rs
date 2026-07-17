@@ -8,6 +8,9 @@
 //!
 //! Upstream errors are composed via `#[from]` (`reqwest`, `std::io`,
 //! `serde_json`) so callers can use `?` transparently.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use thiserror::Error;
 

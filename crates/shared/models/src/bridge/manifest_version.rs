@@ -9,6 +9,9 @@
 //!
 //! Wire format: serialises and deserialises as the raw string via
 //! `#[serde(try_from = "String", into = "String")]`.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::cmp::Ordering;
 use std::fmt;

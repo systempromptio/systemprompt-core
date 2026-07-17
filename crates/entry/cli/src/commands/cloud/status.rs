@@ -3,6 +3,9 @@
 //! Loads the active profile and cloud credentials, queries the cloud API for
 //! each tenant's live status, and renders the result as a [`CloudStatusOutput`]
 //! card or JSON.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use anyhow::Result;
 use systemprompt_cloud::{CloudApiClient, CloudPath, CredentialsBootstrap, get_cloud_paths};

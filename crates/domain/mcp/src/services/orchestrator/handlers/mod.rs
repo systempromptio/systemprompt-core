@@ -3,6 +3,9 @@
 //! Each [`EventHandler`] reacts to a class of [`McpEvent`] — lifecycle,
 //! health-check, monitoring, and database-sync — and is registered as a
 //! trait object on the bus.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::error::McpDomainResult;
 use async_trait::async_trait;

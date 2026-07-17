@@ -1,5 +1,8 @@
 //! Build the `Command` used to spawn a detached agent subprocess and rotate its
 //! log file.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::services::shared::Result;
 use std::fs::{self, File};

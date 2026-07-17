@@ -27,8 +27,9 @@
 [![Crates.io](https://img.shields.io/crates/v/systemprompt-ai.svg?style=flat-square)](https://crates.io/crates/systemprompt-ai)
 [![Docs.rs](https://img.shields.io/docsrs/systemprompt-ai?style=flat-square)](https://docs.rs/systemprompt-ai)
 [![License: BSL-1.1](https://img.shields.io/badge/license-BSL--1.1-2b6cb0?style=flat-square)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
+[![codecov](https://img.shields.io/codecov/c/github/systempromptio/systemprompt-core/main?style=flat-square&logo=codecov)](https://codecov.io/gh/systempromptio/systemprompt-core)
 
-Provider-agnostic LLM integration for systemprompt.io AI governance — Anthropic, OpenAI, Gemini, and local models unified behind one governed pipeline with cost tracking and audit. Multi-provider AI integration with tool execution, structured output, and request tracking.
+Every model call through one audited path. Anthropic, OpenAI, and Gemini answer to one governed pipeline, so the prompt, the tool call, the tokens, and the cost land in your database instead of a vendor's.
 
 **Layer**: Domain — business-logic modules that implement systemprompt.io features. Part of the [systemprompt-core](https://github.com/systempromptio/systemprompt-core) workspace.
 
@@ -61,7 +62,7 @@ The AI module uses dependency injection for tool operations via the `ToolProvide
 
 ```toml
 [dependencies]
-systemprompt-ai = "0.18.0"
+systemprompt-ai = "0.21"
 ```
 
 ```rust
@@ -84,162 +85,20 @@ let request = AiRequest::builder(
 let response = ai_service.generate(&request).await?;
 ```
 
-## File Structure
+## Module Layout
 
-```
-src/
-├── lib.rs                              # Public API exports
-├── error.rs                            # AiError, RepositoryError types
-├── extension.rs                        # Extension trait implementation, schema registration
-├── jobs/
-│   └── mod.rs                          # Background job definitions
-├── models/
-│   ├── mod.rs                          # AiRequest, AiRequestMessage, usage types
-│   ├── ai_request_record.rs            # AiRequestRecord, RequestStatus, TokenInfo, builder
-│   ├── image_generation.rs             # ImageGenerationRequest/Response, AspectRatio, Resolution
-│   ├── message_converters.rs           # AiMessage to provider format conversions
-│   └── providers/
-│       ├── mod.rs                      # Provider model exports
-│       ├── openai.rs                   # OpenAI API DTOs (requests, responses, tools)
-│       ├── anthropic/
-│       │   ├── mod.rs                  # Anthropic model exports
-│       │   ├── request.rs              # Anthropic request DTOs
-│       │   ├── response.rs             # Anthropic response DTOs
-│       │   ├── search.rs               # Web search tool DTOs
-│       │   └── streaming.rs            # SSE event DTOs
-│       └── gemini/
-│           ├── mod.rs                  # Gemini model exports
-│           ├── request.rs              # Gemini request types, function calling, tools
-│           └── response.rs             # Gemini response types, grounding metadata
-├── repository/
-│   ├── mod.rs                          # Repository exports
-│   ├── ai_gateway_policies.rs          # AiGatewayPolicyRepository
-│   ├── ai_quota_buckets.rs             # AiQuotaBucketRepository, IncrementParams
-│   ├── ai_request_payloads.rs          # AiRequestPayloadRepository, UpsertPayloadParams
-│   ├── ai_safety_findings.rs           # AiSafetyFindingRepository
-│   └── ai_requests/
-│       ├── mod.rs                      # AI request repository exports
-│       ├── repository.rs               # AiRequestRepository struct
-│       ├── queries.rs                  # Read operations (get_by_id, usage queries)
-│       ├── mutations.rs                # Write operations (insert, update_completion, update_error)
-│       └── message_operations.rs       # Message and tool call persistence
-└── services/
-    ├── mod.rs                          # Service exports
-    ├── config/
-    │   ├── mod.rs                      # Config exports
-    │   └── validator.rs                # ConfigValidator for AI configuration
-    ├── core/
-    │   ├── mod.rs                      # Core service exports
-    │   ├── image_service.rs            # ImageService for image generation
-    │   ├── image_persistence.rs        # Image persistence and file record management
-    │   ├── request_logging.rs          # Structured logging helpers
-    │   ├── ai_service/
-    │   │   ├── mod.rs                  # AiService exports
-    │   │   ├── service.rs              # AiService struct, constructor, provider management
-    │   │   ├── generation.rs           # generate() - basic text generation
-    │   │   ├── tool_execution.rs       # generate_with_tools(), execute_tools()
-    │   │   ├── streaming.rs            # generate_stream(), health_check()
-    │   │   ├── stream_wrapper.rs       # StreamStorageWrapper for streaming persistence
-    │   │   ├── planning.rs             # generate_plan(), generate_response(), cost estimation
-    │   │   └── provider_impl.rs        # AiProvider trait implementation for AiService
-    │   └── request_storage/
-    │       ├── mod.rs                  # Storage exports
-    │       ├── storage.rs              # RequestStorage, StoreParams
-    │       ├── record_builder.rs       # build_record(), extract_messages/tool_calls
-    │       └── async_operations.rs     # Background persistence operations
-    ├── providers/
-    │   ├── mod.rs                      # Provider exports
-    │   ├── provider_trait.rs           # AiProvider trait, GenerationParams variants
-    │   ├── provider_factory.rs         # ProviderFactory for creating providers
-    │   ├── image_provider_trait.rs     # ImageProvider trait, capabilities
-    │   ├── image_provider_factory.rs   # ImageProviderFactory
-    │   ├── gemini_images.rs            # GeminiImageProvider implementation
-    │   ├── gemini_images_helpers.rs    # Request building and response parsing helpers
-    │   ├── openai_images.rs            # OpenAiImageProvider implementation
-    │   ├── shared/
-    │   │   ├── mod.rs                  # Shared utilities exports
-    │   │   └── response_builder.rs     # Response building utilities
-    │   ├── anthropic/
-    │   │   ├── mod.rs                  # Anthropic provider exports
-    │   │   ├── provider.rs             # AnthropicProvider struct
-    │   │   ├── converters.rs           # Message/tool conversion
-    │   │   ├── generation.rs           # generate(), generate_with_tools()
-    │   │   ├── streaming.rs            # Streaming implementation
-    │   │   ├── search.rs               # Web search integration
-    │   │   ├── thinking.rs             # Extended thinking support
-    │   │   └── trait_impl.rs           # AiProvider trait implementation
-    │   ├── openai/
-    │   │   ├── mod.rs                  # OpenAI provider exports
-    │   │   ├── provider.rs             # OpenAiProvider struct
-    │   │   ├── converters.rs           # Message/tool/format conversion
-    │   │   ├── generation.rs           # generate(), generate_with_tools(), structured
-    │   │   ├── streaming.rs            # Streaming implementation
-    │   │   ├── response_builder.rs     # Response building helpers
-    │   │   ├── reasoning.rs            # Reasoning effort configuration
-    │   │   ├── search.rs               # Web search integration
-    │   │   └── trait_impl.rs           # AiProvider trait implementation
-    │   └── gemini/
-    │       ├── mod.rs                  # Gemini provider exports
-    │       ├── constants.rs            # API constants, timeouts
-    │       ├── provider.rs             # GeminiProvider struct
-    │       ├── converters.rs           # Message/content conversion
-    │       ├── request_builders.rs     # Request building helpers
-    │       ├── params.rs               # ToolRequestParams, ToolResultParams builders
-    │       ├── tool_conversion.rs      # Tool schema transformation
-    │       ├── tools.rs                # generate_with_tools(), tool result handling
-    │       ├── generation.rs           # generate(), generate_with_schema()
-    │       ├── streaming.rs            # Streaming implementation
-    │       ├── search.rs               # Google Search grounding
-    │       ├── code_execution.rs       # Code execution support
-    │       └── trait_impl.rs           # AiProvider trait implementation
-    ├── schema/
-    │   ├── mod.rs                      # Schema service exports
-    │   ├── analyzer.rs                 # DiscriminatedUnion detection
-    │   ├── capabilities.rs             # ProviderCapabilities
-    │   ├── mapper.rs                   # ToolNameMapper for split tools
-    │   ├── sanitizer.rs                # SchemaSanitizer for provider compatibility
-    │   └── transformer.rs              # SchemaTransformer, TransformedTool
-    ├── storage/
-    │   ├── mod.rs                      # Storage exports
-    │   └── image_storage.rs            # ImageStorage, StorageConfig
-    ├── structured_output/
-    │   ├── mod.rs                      # StructuredOutputProcessor
-    │   ├── parser.rs                   # JSON extraction from responses
-    │   └── validator.rs                # Schema validation
-    ├── tooled/
-    │   ├── mod.rs                      # Tooled service exports
-    │   ├── executor.rs                 # TooledExecutor, ResponseStrategy
-    │   ├── formatter.rs                # ToolResultFormatter
-    │   └── synthesizer.rs              # ResponseSynthesizer, fallback handling
-    └── tools/
-        ├── mod.rs                      # Tool service exports
-        ├── adapter.rs                  # Type conversions (McpTool <-> ToolDefinition)
-        ├── discovery.rs                # ToolDiscovery (uses ToolProvider trait)
-        └── noop_provider.rs            # NoopToolProvider for non-tool use cases
-```
-
-## Module Descriptions
-
-### `models/`
-Data structures for AI requests, responses, and provider-specific DTOs. Contains conversion logic for translating between the unified `AiMessage` format and provider-specific formats.
-
-### `repository/`
-Database access layer for AI requests, messages, tool calls, request/response payloads, quota buckets, gateway policies, and safety findings. Uses SQLX macros for compile-time query verification.
-
-### `services/core/`
-Core AI functionality including `AiService` (main entry point) and `ImageService` for image generation. Handles request orchestration, storage, and logging.
-
-### `services/providers/`
-Provider-specific implementations for Anthropic, OpenAI, and Gemini. Each provider implements the `AiProvider` trait for consistent API access.
-
-### `services/schema/`
-Schema transformation for tool definitions. Handles discriminated union splitting for providers that don't support `anyOf` schemas (like Gemini).
-
-### `services/tooled/`
-Tool execution orchestration. Executes tool calls via the injected `ToolProvider` and synthesizes responses from tool results.
-
-### `services/structured_output/`
-JSON extraction and schema validation for structured output responses.
+| Module | Purpose |
+|--------|---------|
+| `models/` | Unified `AiRequest`/`AiResponse` types plus provider-specific request and response DTOs for Anthropic, OpenAI, and Gemini. |
+| `repository/` | Compile-time-verified persistence for requests, messages, tool calls, request/response payloads, quota buckets, gateway policies, and safety findings. |
+| `services/core/` | `AiService` (top-level orchestration) and `ImageService`, with request storage and structured logging. |
+| `services/providers/` | Per-provider implementations of the `AiProvider` trait for Anthropic, OpenAI, and Gemini, plus the image providers. |
+| `services/gateway/` | Governance policy ingestion, safety scanning, route selection, and system-prompt overrides. Re-exported at the crate root. |
+| `services/schema/` | Tool-schema transformation, including discriminated-union splitting for providers that reject `anyOf`. |
+| `services/tooled/` | Tool-execution orchestration: runs calls through the injected `ToolProvider` and synthesizes responses. |
+| `services/structured_output/` | JSON extraction and schema validation for structured output. |
+| `services/storage/` | `ImageStorage` local blob storage for generated images. |
+| `services/config/` | `ConfigValidator` for AI configuration. |
 
 ## Database
 

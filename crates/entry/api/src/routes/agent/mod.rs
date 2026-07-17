@@ -2,6 +2,9 @@
 //!
 //! Assembles the routers for the agent registry, contexts, tasks, artifacts,
 //! responses, and webhook broadcasts that make up the agent-facing API.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod artifacts;
 pub mod contexts;

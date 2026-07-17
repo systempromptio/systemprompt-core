@@ -6,6 +6,9 @@
 //! missing or invalid they emit a CLI warning and return `None`, since
 //! the affected features (geolocation, landing-page detection) are
 //! optional.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
 

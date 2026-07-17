@@ -10,6 +10,9 @@
 //! emitting telemetry before any auth handshake completes, and the bridge proxy
 //! already gates `/otel` to loopback origin (bin/bridge/src/proxy/server.rs).
 //! Do not add JWT/API-key auth here without coordinating with the bridge.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod convert;
 

@@ -3,6 +3,9 @@
 //! Dispatches [`ProfileCommands`] to create, list, show, edit, and delete
 //! profiles, and drives the interactive operation picker when no subcommand is
 //! given.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod api_keys;
 mod args;

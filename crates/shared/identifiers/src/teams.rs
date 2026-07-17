@@ -3,6 +3,9 @@
 //! identifiers that Teams assigns. These are opaque Microsoft-side strings; the
 //! integration never mints them, only carries them through dispatch and the
 //! federated-identity mapping.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 crate::define_id!(TeamsTenantId);
 crate::define_id!(TeamsConversationId);

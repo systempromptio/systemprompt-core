@@ -3,6 +3,9 @@
 //! Each `extension`/`schema_extension`/`api_extension` call advances the
 //! `Registered` typestate, and the `where E::Deps: Subset<R>` bound forces
 //! callers to register dependencies before their dependents.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::marker::PhantomData;
 

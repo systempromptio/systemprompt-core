@@ -7,6 +7,9 @@
 //! (not the `slack` domain crate) so it can be embedded in
 //! [`super::ServicesConfig`] without a dependency cycle, mirroring
 //! `AgentConfig` and `McpServerSummary`.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::collections::BTreeMap;
 

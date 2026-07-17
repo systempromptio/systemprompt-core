@@ -4,6 +4,9 @@
 //! [`cloud`], [`core`], [`infrastructure`], [`plugins`], [`web`], and the
 //! build tooling in [`build`] — and exposes its own clap subcommand tree.
 //! The private `shared` module holds helpers used across those groups.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod admin;
 pub mod analytics;

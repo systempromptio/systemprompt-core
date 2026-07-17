@@ -1,6 +1,9 @@
 //! Cowork desktop plugin integration: one write per session enabling the
 //! synthetic plugin in `cowork_settings.json`. Pure data in `settings`; IO in
 //! `emit`.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub(crate) mod emit;
 pub(crate) mod settings;

@@ -1,5 +1,8 @@
 //! In-memory registry mapping `ManagedMcpServer` name → upstream URL + headers,
 //! consumed by the proxy router for `/mcp/<name>`.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::collections::{BTreeMap, HashMap};
 use std::sync::{Arc, OnceLock};

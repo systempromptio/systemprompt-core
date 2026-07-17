@@ -4,6 +4,9 @@
 //! [`CliService`] and the [`Display`] trait. This is one of the sanctioned
 //! `println!`/`write!`-to-stdio sinks; it deliberately does not route through
 //! `tracing`. Themed colour and iconography live in [`theme`].
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod banners;
 pub mod display;

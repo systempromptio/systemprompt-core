@@ -3,6 +3,9 @@
 //! Thin constructors over [`TaskBuilder`] (completed, canceled, mock,
 //! submitted) plus [`build_multiturn_task`], which reconstructs the full
 //! message history and per-tool artifacts for a multi-turn agentic run.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use super::TaskBuilder;
 use super::helpers::content_to_json;

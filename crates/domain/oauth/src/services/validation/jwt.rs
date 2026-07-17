@@ -3,6 +3,9 @@
 //! Thin wrapper over the shared [`decode_rs256_claims`] primitive so the OAuth
 //! domain validates self-issued tokens with exactly the same kid lookup, RS256
 //! enforcement, and `exp`/`nbf`/issuer/audience policy as every other surface.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_models::auth::JwtAudience;
 use systemprompt_security::jwt::{ValidationPolicy, decode_rs256_claims};

@@ -15,6 +15,9 @@
 //! cached value is exactly what `plugin_bundles` would return, so the
 //! single-source guarantee is unchanged — reassembly happens only when the
 //! services config or resolved catalogue content changes.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::collections::{BTreeMap, HashMap};
 use std::sync::{Arc, OnceLock, RwLock};

@@ -5,6 +5,9 @@
 //! against the instance ([`ComponentSource`]). [`PluginSummary`] is the
 //! list-view projection; [`PluginConfig::validate`] enforces id and reference
 //! rules.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::fmt;
 

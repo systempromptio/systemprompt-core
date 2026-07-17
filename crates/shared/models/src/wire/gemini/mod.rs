@@ -9,6 +9,9 @@
 //! param is the alternative; this codec uses the header so keys stay out of
 //! request lines and logs). The wire shapes are kept private to this module so
 //! the shared wire codec stays free of the agent-side `domain/ai` crate.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod request;
 mod response;

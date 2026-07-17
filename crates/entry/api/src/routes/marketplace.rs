@@ -7,6 +7,9 @@
 //! and the manifest cannot drift: a plugin the manifest excludes (content-less
 //! or outside the active marketplace) is absent from the map and yields a 404,
 //! and an internal `config.yaml` is never part of the generated bundle to leak.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use axum::Router;
 use axum::extract::{Path as AxumPath, State};

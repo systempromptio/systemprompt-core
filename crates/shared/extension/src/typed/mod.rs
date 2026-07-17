@@ -1,4 +1,7 @@
 //! Compile-time-checked sub-traits for typed extension declarations.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod api;
 mod config;

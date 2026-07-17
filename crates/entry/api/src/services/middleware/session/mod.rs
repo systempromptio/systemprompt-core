@@ -4,6 +4,9 @@
 //! untracked paths, short-circuits detected bots into anonymous contexts,
 //! validates an existing JWT session, and refreshes or recreates the session
 //! when the token is stale, issuing a `Set-Cookie` for newly minted tokens.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod lifecycle;
 mod skip;

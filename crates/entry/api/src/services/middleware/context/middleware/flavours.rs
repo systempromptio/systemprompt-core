@@ -6,6 +6,9 @@
 //! [`A2AContextMiddleware`] recovers the context id from the JSON-RPC body, and
 //! [`McpContextMiddleware`] falls back to the session context so the MCP proxy
 //! can issue an OAuth challenge.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
 

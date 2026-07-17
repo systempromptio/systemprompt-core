@@ -5,6 +5,9 @@
 //! functions ([`format_number`], [`format_cost`], [`format_percent`],
 //! [`format_change`], [`format_tokens`]) that turn raw metrics into the strings
 //! shown in tables.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};

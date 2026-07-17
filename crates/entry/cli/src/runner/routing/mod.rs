@@ -3,6 +3,9 @@
 //! [`determine_execution_target`] resolves the active profile and tenant store
 //! into an [`ExecutionTarget`]; [`execute_remote`] adapts the terminal to the
 //! SSE transport in `systemprompt_client::RemoteCliExecutor`.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::io::{self, Write};
 

@@ -10,6 +10,9 @@
 //! PIDs ([`ServiceManagementService::stop_api_by_port`], the API sweep in
 //! [`ServiceManagementService::cleanup_all_orphans`]) carry no service
 //! identity and stay unverified by design.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_database::{DbPool, ServiceConfig, ServiceRepository};
 use systemprompt_models::subprocess::{AGENT_NAME_ENV, MCP_SERVICE_ID_ENV, live_pid_is_subprocess};

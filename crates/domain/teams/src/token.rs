@@ -5,6 +5,9 @@
 //! in-process and refreshed shortly before expiry, so a burst of replies shares
 //! a single token. The login URL passes the shared SSRF guard before any
 //! request is made.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::sync::RwLock;
 

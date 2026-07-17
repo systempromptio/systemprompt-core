@@ -7,6 +7,9 @@
 //! 2. **Decision** — [`Decision`] is the in-process resolver output;
 //!    [`AuthzRequest`] / [`AuthzDecision`] are the webhook wire format sent to
 //!    and parsed back from extension hook handlers.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod decision;
 mod entity_ref;

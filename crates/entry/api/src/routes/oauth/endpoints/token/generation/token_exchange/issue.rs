@@ -1,6 +1,9 @@
 //! EMA issuer path: on `requested_token_type = id-jag`, mint a short-lived
 //! ID-JAG from a validated upstream OIDC `id_token`, bound to the authenticated
 //! token-exchange client. Mirror of [`super::id_jag_subject`].
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use anyhow::{Result, anyhow};
 use systemprompt_identifiers::ClientId;

@@ -26,15 +26,16 @@
 
 [![Crates.io](https://img.shields.io/crates/v/systemprompt-extension.svg?style=flat-square)](https://crates.io/crates/systemprompt-extension)
 [![Docs.rs](https://img.shields.io/docsrs/systemprompt-extension?style=flat-square)](https://docs.rs/systemprompt-extension)
+[![codecov](https://img.shields.io/codecov/c/github/systempromptio/systemprompt-core/main?style=flat-square&logo=codecov)](https://codecov.io/gh/systempromptio/systemprompt-core)
 [![License: BSL-1.1](https://img.shields.io/badge/license-BSL--1.1-2b6cb0?style=flat-square)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
 
-Compile-time extension framework for systemprompt.io AI governance infrastructure. Built on the `inventory` crate — registers schemas, API routes, jobs, and providers in the MCP governance pipeline. Extensions can add new routes, services, and capabilities to the platform.
+Every route, schema, job, and provider that runs in your governance engine is declared here, at compile time, and collected into one audited startup path. No dynamic plugin loading, no runtime surprises. What links into the binary is what runs.
 
-**Layer**: Shared — foundational types/traits with no dependencies on other layers. Part of the [systemprompt-core](https://github.com/systempromptio/systemprompt-core) workspace.
+**Layer**: Shared: foundational types and traits with no dependencies on other layers. Part of the [systemprompt-core](https://github.com/systempromptio/systemprompt-core) workspace.
 
 ## Overview
 
-Provides the compile-time framework for building and loading systemprompt.io extensions. Extensions declare schemas, API routes, jobs, providers, and assets through the `Extension` trait, are registered via the `inventory` crate, and are collected by the host runtime at startup.
+An extension declares its schemas, API routes, scheduled jobs, providers, seeds, and assets through the `Extension` trait. Authors register each one with the `register_extension!` macro, which submits it to the [`inventory`](https://docs.rs/inventory) linker collector. At startup the runtime gathers every registration, validates the dependency graph, and merges the resulting wiring into the host binary. Dependency ordering is enforced at compile time through a typestate builder, so an extension that names a missing dependency fails to build rather than to boot.
 
 ## Module Map
 
@@ -42,16 +43,19 @@ Provides the compile-time framework for building and loading systemprompt.io ext
 |--------|---------|
 | `any` | Type-erased wrappers (`AnyExtension`, `ApiExtensionWrapper`, `SchemaExtensionWrapper`). |
 | `asset` | `AssetDefinition`, `AssetDefinitionBuilder`, `AssetPaths`, `AssetType`. |
-| `builder` | `ExtensionBuilder` — fluent builder enforcing dependency ordering via typestate. |
-| `capabilities` | `CapabilityContext`, `FullContext`, and `Has*` capability traits. |
-| `context` | `ExtensionContext` and `DynExtensionContext`. |
+| `build` | Build-script helper (`emit_migrations`) that generates `Extension::migrations()` from `schema/migrations/*.sql`, paired with the `extension_migrations!` macro. |
+| `builder` | `ExtensionBuilder`: fluent builder enforcing dependency ordering via typestate. |
+| `capabilities` | `CapabilityContext`, `FullContext`, and the `Has*` capability traits. |
+| `context` | `ExtensionContext` and `DynExtensionContext` handed to extensions during router resolution. |
 | `error` | `LoaderError`, `ConfigError`. |
-| `hlist` | Heterogeneous list machinery (`TypeList`, `Contains`, `Subset`, `NotSame`). |
+| `frame_options` | Per-route `X-Frame-Options` override (`FrameOptions`, `stamp_frame_options`) honoured by the host security-headers middleware. |
+| `hlist` | Heterogeneous-list machinery (`TypeList`, `Contains`, `Subset`, `NotSame`) backing the dependency typestate. |
 | `metadata` | `ExtensionMetadata`, `ExtensionRole`, `SchemaDefinition`. |
 | `migration` | `Migration` value type for versioned extension migrations. |
 | `registry` | `ExtensionRegistry`, `ExtensionRegistration`, discovery, queries, validation. |
 | `router` | `ExtensionRouter`, `ExtensionRouterConfig`, `SiteAuthConfig`. |
-| `runtime_config` | Runtime configuration surface for extensions. |
+| `runtime_config` | Process-level fallback injection of extensions when the `inventory` collector is stripped (for example by LTO). |
+| `seed` | `Seed`: idempotent post-migration data fixtures applied on every boot, outside migration tracking. |
 | `traits` | The `Extension` trait and `register_extension!` macro. |
 | `typed` | Compile-time-checked sub-traits: `SchemaExtensionTyped`, `ApiExtensionTyped`, `ConfigExtensionTyped`, `JobExtensionTyped`, `ProviderExtensionTyped`. |
 | `typed_registry` | `TypedExtensionRegistry` and `RESERVED_PATHS`. |
@@ -61,7 +65,7 @@ Provides the compile-time framework for building and loading systemprompt.io ext
 
 ```toml
 [dependencies]
-systemprompt-extension = "0.18.0"
+systemprompt-extension = "0.21"
 ```
 
 ```rust
@@ -90,14 +94,14 @@ None. This crate has no Cargo features; everything compiles into every build.
 
 ## Dependencies
 
-- `inventory` — Compile-time extension registration.
-- `axum` — Router types for `ExtensionRouter`.
-- `reqwest` — HTTP client types exposed through capability traits.
-- `serde` / `serde_json` — Metadata and configuration serialisation.
-- `thiserror` — Typed error enums.
-- `tracing` — Structured logging.
-- `systemprompt-provider-contracts` — Provider trait definitions re-exported from the prelude.
-- `systemprompt-traits` — Core shared traits (with `web` feature).
+- `inventory`: Compile-time extension registration.
+- `axum`: Router types for `ExtensionRouter` and the frame-options middleware.
+- `reqwest`: HTTP client types exposed through capability traits.
+- `serde` / `serde_json`: Metadata and configuration serialisation.
+- `thiserror`: Typed error enums.
+- `tracing`: Structured logging.
+- `systemprompt-provider-contracts`: Provider trait definitions re-exported from the prelude.
+- `systemprompt-traits` (with `web` feature): Core shared traits.
 
 ## License
 

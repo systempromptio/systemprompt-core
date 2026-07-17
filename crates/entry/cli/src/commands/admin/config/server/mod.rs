@@ -3,6 +3,9 @@
 //! [`ServerCommands`] reports and updates host, port, URLs, and HTTPS settings,
 //! and delegates the CORS allowed-origins list to the `cors` submodule. Changes
 //! persist to the active profile.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod cors;
 

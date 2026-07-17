@@ -5,6 +5,9 @@
 //! unresponsive agents. Results are reported through [`HealthCheckResult`] and
 //! [`MonitoringReport`]; the free `check_*` functions offer standalone TCP and
 //! A2A agent-card probes.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::services::shared::Result;
 use std::time::Duration;

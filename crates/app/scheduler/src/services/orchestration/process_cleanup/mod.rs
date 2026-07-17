@@ -3,6 +3,9 @@
 //! [`ProcessCleanup`] exposes a uniform API; the platform-specific
 //! implementations live in `posix` (Unix) and `winnt` (Windows) and are
 //! gated by `#[cfg(unix)]` / `#[cfg(windows)]`.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::error::{SchedulerError, SchedulerResult};
 

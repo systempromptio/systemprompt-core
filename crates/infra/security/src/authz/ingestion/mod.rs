@@ -11,6 +11,9 @@
 //! resolved id is upserted into `access_control_entities` carrying the rule's
 //! `default_included` flag — so the FK on `access_control_rules` is satisfied
 //! and the resolver never sees the entity as `UnknownEntity`.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod glob;
 mod marketplace;

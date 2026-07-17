@@ -4,6 +4,9 @@
 //! explicit owner does not resolve to an active user is dropped from the
 //! schedule (collected as a [`SkippedJob`]) and, on the live `start` pass,
 //! recorded as an `ERROR` in the `logs` table.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::collections::HashMap;
 

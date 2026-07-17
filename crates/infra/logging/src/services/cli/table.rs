@@ -4,6 +4,9 @@
 //! [`render_service_table`] renders the service-status table from
 //! [`ServiceTableEntry`] values; and [`render_startup_complete`] prints the
 //! post-boot summary. Output goes to stdout via this sanctioned display sink.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::io::Write;
 use std::time::Duration;

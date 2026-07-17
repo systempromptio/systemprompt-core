@@ -4,6 +4,9 @@
 //! [`ApiExtensionWrapper`] — boxes a concrete extension type and exposes a
 //! uniform [`AnyExtension`] surface so the registry can store
 //! heterogeneous registrations in a single `Vec`.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::any::Any;
 use std::fmt::Debug;

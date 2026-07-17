@@ -1,3 +1,6 @@
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
 use axum::http::HeaderMap;
 use systemprompt_identifiers::{AgentName, ContextId, SessionId, TaskId, TraceId, UserId};
 use systemprompt_models::auth::UserType;

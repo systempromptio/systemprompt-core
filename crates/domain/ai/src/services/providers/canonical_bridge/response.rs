@@ -1,6 +1,9 @@
 //! Maps a [`CanonicalResponse`] from the shared codec onto the agent's
 //! provider-neutral response types ([`AiResponse`], [`SearchGroundedResponse`],
 //! [`CodeExecutionResponse`]).
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::time::Instant;
 

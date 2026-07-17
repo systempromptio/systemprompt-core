@@ -1,6 +1,9 @@
 //! Post-build CSS reorganisation: moves the well-known content/syntax CSS
 //! files from `dist/` into `dist/css/` so the deployed site has a tidy
 //! per-asset-type layout.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::path::Path;
 use tokio::fs;

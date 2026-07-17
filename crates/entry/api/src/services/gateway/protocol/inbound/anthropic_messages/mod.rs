@@ -3,6 +3,9 @@
 //! [`AnthropicMessagesInbound`] parses Messages-format request bodies into the
 //! canonical request model and renders canonical responses, streaming events,
 //! and errors back in Messages format.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use bytes::Bytes;
 use http::StatusCode;

@@ -5,6 +5,9 @@
 //! [`SpanVisitor`]/[`SpanContext`]/[`SpanFields`] capture the identifier fields
 //! attached to spans, and [`extract_span_context`] walks a span's ancestors to
 //! resolve the full attribution context for an event.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use tracing::Subscriber;
 use tracing::field::{Field, Visit};

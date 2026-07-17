@@ -3,6 +3,9 @@
 //! Dispatches the `web content-types` subcommands ([`ContentTypesCommands`]) to
 //! list, show, create, edit, and delete the content sources that drive
 //! indexing and sitemap generation.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod builder;
 pub mod create;

@@ -1,4 +1,7 @@
 //! OAuth user record helpers.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use super::OAuthRepository;
 use crate::error::{OauthError, OauthResult};

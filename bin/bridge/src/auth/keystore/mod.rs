@@ -1,3 +1,6 @@
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
 use crate::ids::{CertFingerprint, IdValidationError};
 use sha2::{Digest, Sha256};
 use std::fmt::Write;

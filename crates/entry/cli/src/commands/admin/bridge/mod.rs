@@ -3,6 +3,9 @@
 //! Exposes [`BridgeCommands`] for enrolling device-certificate fingerprints,
 //! issuing one-shot session exchange codes, listing active bridge sessions,
 //! and rotating the ed25519 manifest signing seed.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod enroll_cert;
 mod issue_code;

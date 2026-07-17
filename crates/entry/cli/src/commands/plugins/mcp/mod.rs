@@ -1,4 +1,7 @@
 //! MCP server management commands
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod call;
 mod call_client;

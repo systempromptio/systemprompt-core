@@ -2,6 +2,9 @@
 //! bookkeeping table. [`MigrationService`] applies, reverts, inspects, and
 //! squashes per-extension migration history; reverts live in [`down`],
 //! status/plan queries in [`status`], squash in [`squash`].
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod down;
 mod exec;

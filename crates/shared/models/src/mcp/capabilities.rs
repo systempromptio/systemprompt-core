@@ -4,6 +4,9 @@
 //! tool visibility ([`ToolVisibility`]), and the content-security-policy and
 //! resource UI metadata ([`McpCspDomains`], [`McpResourceUiMeta`]) attached to
 //! MCP resources.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use serde::{Deserialize, Serialize};
 use std::fmt;

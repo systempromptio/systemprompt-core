@@ -2,6 +2,9 @@
 //!
 //! Mounts the file manifest, download, and upload handlers from `files` used
 //! to push and pull agent, skill, content, and config definitions.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use axum::Router;
 use axum::routing::get;

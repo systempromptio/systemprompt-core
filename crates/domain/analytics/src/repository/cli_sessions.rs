@@ -3,6 +3,9 @@
 //! [`CliSessionAnalyticsRepository`] reads session counts, durations, live
 //! activity, and conversion stats for human (non-bot) sessions; every query
 //! filters out bot, behavioural-bot, and scanner traffic.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::Result;
 use chrono::{DateTime, Utc};

@@ -11,6 +11,9 @@
 //!   registry (`profile.providers`).
 //! - [`SecurityConfigService`] — typed mutations of the profile's security
 //!   section.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod provider_catalog;
 mod report;

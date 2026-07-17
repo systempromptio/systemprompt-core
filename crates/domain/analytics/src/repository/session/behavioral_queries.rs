@@ -1,6 +1,9 @@
 //! Behavioural-detector / fingerprint-windowed read queries against
 //! `user_sessions`, `analytics_events`, and `engagement_events`. Split from
 //! `queries.rs` to keep each module under 300 lines.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::Result;
 use chrono::{DateTime, Utc};

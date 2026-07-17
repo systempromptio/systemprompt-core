@@ -8,10 +8,11 @@
 
 # systemprompt
 
-The facade crate for systemprompt-core: a self-hosted platform for running AI agents and MCP servers under one governed boundary.
+The governance engine behind AI infrastructure you actually own. One Rust binary, one PostgreSQL, every agent and tool call through one audited path. This is the facade crate that re-exports the systemprompt-core workspace behind feature flags.
 
 [![Crates.io](https://img.shields.io/crates/v/systemprompt.svg?style=flat-square)](https://crates.io/crates/systemprompt)
 [![Docs.rs](https://img.shields.io/docsrs/systemprompt?style=flat-square)](https://docs.rs/systemprompt)
+[![codecov](https://img.shields.io/codecov/c/github/systempromptio/systemprompt-core/main?style=flat-square&logo=codecov)](https://codecov.io/gh/systempromptio/systemprompt-core)
 [![License: BSL-1.1](https://img.shields.io/badge/license-BSL--1.1-2b6cb0?style=flat-square)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
 [![Rust 1.85+](https://img.shields.io/badge/rust-1.85+-f97316?style=flat-square&logo=rust&logoColor=white)](https://www.rust-lang.org/)
 [![PostgreSQL 18+](https://img.shields.io/badge/postgres-18+-336791?style=flat-square&logo=postgresql&logoColor=white)](https://www.postgresql.org/)

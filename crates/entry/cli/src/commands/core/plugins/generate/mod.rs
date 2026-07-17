@@ -4,6 +4,9 @@
 //! path and materialises skill, agent, MCP, script, and marketplace artifacts
 //! into the plugins storage directory. The per-component generators live in the
 //! `agents`, `mcp`, `skills`, and `marketplace` submodules.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod agents;
 pub mod marketplace;

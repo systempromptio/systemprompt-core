@@ -4,6 +4,9 @@
 //! messages within a transaction. The submodules split the work: `queries`
 //! handles reads and sequence-number allocation, `persistence` writes the
 //! message row, and `parts` handles the typed text/file/data parts.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod parts;
 mod persistence;

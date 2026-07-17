@@ -3,6 +3,9 @@
 //!
 //! Log files follow the `<prefix>-<name>.log` convention; lookup also accepts
 //! bare `<name>.log` paths and substring matches over the discovered set.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::path::{Path, PathBuf};
 

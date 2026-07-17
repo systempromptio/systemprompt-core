@@ -3,6 +3,9 @@
 //! [`build`] constructs a `Profile` for the chosen environment, [`save`]
 //! writes it as YAML with a credential warning header, and [`run_migrations`]
 //! re-invokes the CLI against the new profile to apply the schema.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use anyhow::{Context, Result};
 use std::path::Path;

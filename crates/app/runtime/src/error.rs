@@ -9,6 +9,9 @@
 //! Third-party errors without a `#[from]` adapter are stringified into
 //! the [`RuntimeError::Internal`] variant at the call site so the lossy
 //! conversion is visible.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_analytics::AnalyticsError;
 use systemprompt_config::{ConfigError as ProfileConfigError, ProfileBootstrapError};

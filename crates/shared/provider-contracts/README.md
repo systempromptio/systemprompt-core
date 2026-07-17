@@ -27,14 +27,15 @@
 [![Crates.io](https://img.shields.io/crates/v/systemprompt-provider-contracts.svg?style=flat-square)](https://crates.io/crates/systemprompt-provider-contracts)
 [![Docs.rs](https://img.shields.io/docsrs/systemprompt-provider-contracts?style=flat-square)](https://docs.rs/systemprompt-provider-contracts)
 [![License: BSL-1.1](https://img.shields.io/badge/license-BSL--1.1-2b6cb0?style=flat-square)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
+[![codecov](https://img.shields.io/codecov/c/github/systempromptio/systemprompt-core/main?style=flat-square&logo=codecov)](https://codecov.io/gh/systempromptio/systemprompt-core)
 
-Provider trait contracts for systemprompt.io AI governance infrastructure. `LlmProvider`, `ToolProvider`, `JobContext`, and friends — swap Anthropic, OpenAI, Gemini, and local models at profile level. Implementations live in domain crates while contracts remain in the shared layer for maximum composability.
+The trait boundary that lets you own which model answers. Anthropic, OpenAI, Gemini, or a local model, chosen at profile level, every call routed through one interface you control.
 
-**Layer**: Shared — foundational types/traits with no dependencies on other layers. Part of the [systemprompt-core](https://github.com/systempromptio/systemprompt-core) workspace.
+**Layer**: Shared, foundational types and traits with no dependencies on other layers. Part of the [systemprompt-core](https://github.com/systempromptio/systemprompt-core) workspace.
 
 ## Overview
 
-Defines the core provider trait contracts used throughout systemprompt.io. These traits establish the interface boundaries for LLM providers, tool executors, job runners, template providers, and component renderers. Implementations live in domain crates while contracts remain in the shared layer for maximum composability.
+The contracts are here, in the shared layer. The implementations live in domain crates. That split is deliberate: an LLM provider, a tool executor, a job runner, or a page renderer is a swappable part behind a stable interface, so the code that consumes AI never binds to a vendor. Define the trait once, implement it many times, choose the implementation from configuration.
 
 ## Architecture
 
@@ -59,13 +60,12 @@ Defines the core provider trait contracts used throughout systemprompt.io. These
 
 ```toml
 [dependencies]
-systemprompt-provider-contracts = "0.18.0"
+systemprompt-provider-contracts = "0.21"
 ```
 
 ```rust
-use systemprompt_provider_contracts::{
-    LlmProvider, ChatRequest, ChatResponse, LlmProviderResult,
-    ToolProvider, ToolDefinition, ToolCallRequest, ToolCallResult,
+use systemprompt_provider_contracts::llm::{
+    ChatRequest, ChatResponse, ChatStream, LlmProvider, LlmProviderResult,
 };
 use async_trait::async_trait;
 
@@ -73,8 +73,28 @@ struct MyLlmProvider;
 
 #[async_trait]
 impl LlmProvider for MyLlmProvider {
-    async fn chat(&self, request: ChatRequest) -> LlmProviderResult<ChatResponse> {
+    async fn chat(&self, request: &ChatRequest) -> LlmProviderResult<ChatResponse> {
         todo!()
+    }
+
+    async fn stream_chat(&self, request: &ChatRequest) -> LlmProviderResult<ChatStream> {
+        todo!()
+    }
+
+    fn default_model(&self) -> &str {
+        "my-model"
+    }
+
+    fn supports_model(&self, model: &str) -> bool {
+        model == "my-model"
+    }
+
+    fn supports_streaming(&self) -> bool {
+        false
+    }
+
+    fn supports_tools(&self) -> bool {
+        false
     }
 }
 ```

@@ -4,6 +4,9 @@
 //! from a profile's [`crate::profile::PathsConfig`]. Submodules expose
 //! each tree plus shared directory/file-name constants.
 //! Resolution returns [`PathError`].
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub(crate) mod build;
 pub mod constants;

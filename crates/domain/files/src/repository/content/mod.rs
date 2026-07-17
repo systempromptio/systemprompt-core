@@ -2,6 +2,9 @@
 //!
 //! Linking and unlinking files to content, listing the files for a piece of
 //! content (and vice versa), and managing the single featured-image role.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use chrono::Utc;
 use systemprompt_identifiers::{ContentId, ContextId, FileId, SessionId, TraceId, UserId};

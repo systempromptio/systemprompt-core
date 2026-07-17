@@ -1,6 +1,9 @@
 //! `OpenAI` server-side web search via the Responses API: builds a canonical
 //! request carrying a [`SearchConfig`], renders it with the shared
 //! `openai_responses` codec, and maps the grounded reply back.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::time::Instant;
 

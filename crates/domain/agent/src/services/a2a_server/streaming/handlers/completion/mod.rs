@@ -4,6 +4,9 @@
 //! events; [`handle_error`] records the failure. [`send_a2a_status_event`] is
 //! the shared helper for emitting an A2A `TaskStatusUpdate` over the SSE
 //! channel.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod complete;
 mod error;

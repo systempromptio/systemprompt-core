@@ -1,3 +1,6 @@
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
 use axum::response::sse::Event;
 use systemprompt_identifiers::{ContextId, TaskId};
 use systemprompt_models::{A2AEventBuilder, AgUiEventBuilder};

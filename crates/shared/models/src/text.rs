@@ -5,6 +5,9 @@
 //! so the result is never split mid-codepoint. [`chunk_text`] splits long
 //! output into line-aligned chunks under a byte limit, shared by the Slack
 //! Block Kit and Teams Adaptive Card renderers.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 /// Split `text` into chunks each under `limit` bytes, breaking on line
 /// boundaries.

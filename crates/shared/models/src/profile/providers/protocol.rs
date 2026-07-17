@@ -6,6 +6,9 @@
 //! speaks [`WireProtocol::Anthropic`]; `moonshot` and `qwen` speak
 //! [`WireProtocol::OpenAiChat`]. Decoupling the protocol from the provider name
 //! is what lets a new vendor reuse an existing codec by declaring its protocol.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use serde::{Deserialize, Serialize};
 

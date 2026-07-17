@@ -6,6 +6,9 @@
 //! primitives, `service_management` wraps service-record start/stop
 //! bookkeeping, and `plans` computes pure start/restart plans for composition
 //! roots.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod job_execution;
 pub mod orchestration;

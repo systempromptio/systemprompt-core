@@ -20,6 +20,9 @@
 //! The relay pool is installed once at startup via
 //! [`EventRouter::install_relay`]. Before installation (or in deployments
 //! without Postgres) routing is local-only.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::sync::{LazyLock, OnceLock};
 use systemprompt_identifiers::{EventOutboxId, UserId};

@@ -1,6 +1,9 @@
 //! Service-orchestration primitives: process/port lifecycle, state-manager
 //! verification, and the reconciler that maps desired vs runtime state to
 //! concrete actions.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod process_cleanup;
 pub mod reconciler;

@@ -1,5 +1,8 @@
 //! Collapsing a contiguous range of applied migrations into a single
 //! version-0 baseline row.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use super::MigrationService;
 use std::collections::HashSet;

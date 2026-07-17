@@ -3,6 +3,9 @@
 //! [`TaskBuilder`] is the general builder; the free functions cover the common
 //! shapes (completed, canceled, mock, submitted, multi-turn) used across the
 //! processing pipeline.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod builders;
 pub mod helpers;

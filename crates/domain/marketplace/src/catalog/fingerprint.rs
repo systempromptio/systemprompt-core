@@ -6,6 +6,9 @@
 //! changes a file's mtime and/or size, so the fingerprint shifts and the cache
 //! rebuilds, but an unchanged tree costs only `readdir` + `stat` rather than
 //! reading and parsing every file.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::path::Path;
 use std::time::UNIX_EPOCH;

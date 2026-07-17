@@ -4,6 +4,9 @@
 //! a single HTML [`UiResource`], supporting vertical, grid, and tabbed
 //! layouts and embedding Chart.js configurations for any chart sections.
 //! Individual section rendering lives in the `section` submodule.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod section;
 

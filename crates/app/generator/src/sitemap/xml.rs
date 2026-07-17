@@ -3,6 +3,9 @@
 //! 0.9 protocol. The `xhtml:link` namespace is declared on every `<urlset>`
 //! so per-URL `<xhtml:link rel="alternate" hreflang="…">` entries validate
 //! against Google's hreflang spec.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use chrono::Utc;
 

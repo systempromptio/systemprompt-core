@@ -23,6 +23,9 @@
 //!    composer for the multi-extension case. Extensions read
 //!    `AuthzRequest.attributes` (the opaque tenant-defined bag) and pattern on
 //!    `AuthzContext.kind` for enforcement-site dispatch.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod audit;
 pub mod composite;

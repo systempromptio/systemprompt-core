@@ -5,6 +5,9 @@
 //! that emitted it — and is derived from a [`RequestContext`] via
 //! [`ExecutionMetadataBuilder`]. [`ToolResponse`] wraps an artifact with this
 //! metadata and its persisted ids for return across the MCP boundary.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;

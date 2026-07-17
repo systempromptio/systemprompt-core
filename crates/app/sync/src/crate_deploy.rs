@@ -4,6 +4,9 @@
 //! All process execution flows through the
 //! [`CommandRunner`] seam so tests can
 //! substitute a stub instead of spawning real `cargo`/`git`/`docker`.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::env;
 use std::path::{Path, PathBuf};

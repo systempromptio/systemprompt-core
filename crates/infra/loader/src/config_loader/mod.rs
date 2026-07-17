@@ -7,6 +7,9 @@
 //! references inside agent system prompts and skill instructions, and
 //! finally validates the merged configuration before returning it to the
 //! caller.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod discovery;
 mod includes;

@@ -9,6 +9,9 @@
 //! `404 Session not found` and provoking a client reconnect storm. Persistence
 //! is best-effort: a missing repository or store error degrades to "no stored
 //! state", which simply falls back to the 404/re-initialize path.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use async_trait::async_trait;
 use rmcp::model::InitializeRequestParams;

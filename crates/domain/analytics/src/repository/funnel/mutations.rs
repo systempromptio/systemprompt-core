@@ -3,6 +3,9 @@
 //! Creates funnels with their ordered steps, deactivates and deletes them,
 //! and advances or completes per-session progress. All writes go to the write
 //! pool; `record_progress` only moves a session forward, never backward.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::Result;
 use chrono::Utc;

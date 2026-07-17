@@ -3,6 +3,9 @@
 //!
 //! Runs the per-category validators (selectable via [`ValidationCategory`]) and
 //! aggregates their errors and warnings into a single report.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod asset_validation;
 mod config_validation;

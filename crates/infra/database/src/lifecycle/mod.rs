@@ -5,6 +5,9 @@
 //! and status types, and the standalone validation helpers
 //! ([`validate_database_connection`], [`validate_table_exists`],
 //! [`validate_column_exists`]).
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod installation;
 mod migrations;

@@ -4,6 +4,9 @@
 //! [`AuthorizeQuery`] and [`AuthorizeRequest`] they bind. The flow validates
 //! the inbound request ([`validation`]), then renders the `WebAuthn` challenge
 //! page ([`response_builder`]) rather than supporting password auth.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod handler;
 pub mod response_builder;

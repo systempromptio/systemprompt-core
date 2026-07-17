@@ -3,6 +3,9 @@
 //! Wraps `docker` invocations to inspect, start, health-check, and tear down
 //! the shared container and its volume, and generates the compose file and
 //! credentials used to bring it up.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use anyhow::{Context, Result, anyhow, bail};
 use std::fs;

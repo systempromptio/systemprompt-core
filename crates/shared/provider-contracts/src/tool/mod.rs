@@ -1,6 +1,9 @@
 //! Tool-provider contracts: definitions, call requests/results, and the
 //! [`ToolProvider`] trait that the agent runtime uses to discover and
 //! invoke tools across MCP servers and other backends.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod call;
 mod content;

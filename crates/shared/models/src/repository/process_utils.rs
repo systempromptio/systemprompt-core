@@ -1,3 +1,6 @@
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
 pub fn filter_running_services<T, F, P>(services: Vec<T>, get_pid: F, is_running: P) -> Vec<T>
 where
     F: Fn(&T) -> Option<i32>,

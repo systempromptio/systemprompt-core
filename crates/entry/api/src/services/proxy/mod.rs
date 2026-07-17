@@ -3,6 +3,9 @@
 //! [`ProxyEngine`] is the entry point; the `auth` submodule is the single
 //! authorization boundary for proxied `/api/v1/mcp/*` and `/api/v1/agents/*`
 //! traffic, emitting RFC 9728 OAuth challenges on unauthenticated requests.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod audit;
 pub mod auth;

@@ -1,5 +1,8 @@
 //! CLI command path constants - prevents hardcoded strings from getting out of
 //! sync.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 #[derive(Debug, Clone, Copy)]
 pub struct CliPaths;

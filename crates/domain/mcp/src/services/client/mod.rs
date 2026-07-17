@@ -2,6 +2,9 @@
 //!
 //! Connects to running MCP servers over streamable HTTP, lists their tools,
 //! executes tool calls, and validates reachability.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::error::McpDomainResult;
 use rmcp::handler::client::progress::ProgressDispatcher;

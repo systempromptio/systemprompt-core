@@ -3,6 +3,9 @@
 //! Loads the active profile YAML from `SYSTEMPROMPT_PROFILE` (or an
 //! explicit path) and stores it in a `OnceLock` so the rest of the
 //! application can access it without passing it down call stacks.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::path::Path;
 use std::sync::OnceLock;

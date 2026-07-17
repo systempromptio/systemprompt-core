@@ -5,6 +5,9 @@
 //! [`DbAuditSink`](super::DbAuditSink) (for webhook-fault, default-deny, and
 //! unrestricted-allow decisions) call this repository so there is exactly one
 //! SQL statement that knows the column layout.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use sqlx::PgPool;
 use systemprompt_identifiers::Actor;

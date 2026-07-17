@@ -4,6 +4,9 @@
 //! well-named sections. Each builder returns a fully-typed profile struct; the
 //! gateway and governance sections give `admin setup` a complete, bootable
 //! profile rather than the empty shell it produced before.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::path::Path;
 

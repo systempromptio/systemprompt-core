@@ -2,6 +2,9 @@
 //!
 //! Builds a canonical request through the bridge, renders it with the shared
 //! Gemini codec, posts it, and maps the parsed reply back to an [`AiResponse`].
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::time::Instant;
 

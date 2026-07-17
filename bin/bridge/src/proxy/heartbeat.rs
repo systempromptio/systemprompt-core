@@ -1,6 +1,9 @@
 //! Periodic POST `/v1/bridge/heartbeat` from the local bridge to the gateway.
 //! Pace is fixed at [`HEARTBEAT_INTERVAL`]; on auth failure the token cache
 //! is invalidated so the next tick re-authenticates.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
 use std::sync::atomic::Ordering;

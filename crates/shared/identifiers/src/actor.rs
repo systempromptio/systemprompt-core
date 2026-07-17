@@ -4,6 +4,9 @@
 //! unit; the three values cannot be separated at the call site because they
 //! live inside [`Actor`]. The `user_id` is always a real `users` row — the
 //! kind disambiguates which surface ran on that user's behalf.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::fmt;
 

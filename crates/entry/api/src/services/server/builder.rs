@@ -6,6 +6,9 @@
 //! must run. Binding and serving live in [`super::startup`], which binds the
 //! listener before this router exists and swaps it in once bootstrap
 //! completes.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use anyhow::Result;
 use axum::Router;

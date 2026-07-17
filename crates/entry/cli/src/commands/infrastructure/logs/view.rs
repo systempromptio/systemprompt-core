@@ -1,5 +1,8 @@
 //! `infra logs view`: list recent log entries with level, module, tail-count,
 //! and since filters applied.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use anyhow::{Result, anyhow};
 use clap::Args;

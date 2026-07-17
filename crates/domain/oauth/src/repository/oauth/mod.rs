@@ -1,5 +1,8 @@
 //! Aggregated OAuth repository orchestrating client, code, and token
 //! operations.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod at_rest;
 mod auth_code;

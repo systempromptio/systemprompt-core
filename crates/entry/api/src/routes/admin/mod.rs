@@ -2,6 +2,9 @@
 //!
 //! Composes the CLI gateway (`cli`) and API-key management (`keys`)
 //! sub-routers.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod cli;
 mod keys;

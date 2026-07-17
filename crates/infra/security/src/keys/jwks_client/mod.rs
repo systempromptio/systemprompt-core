@@ -8,6 +8,9 @@
 //! missing or unparseable). Callers resolve a `(issuer, kid)` pair to a
 //! concrete [`super::jwks::Jwk`]; a cache miss for the `kid` forces a refresh
 //! in case the issuer rotated keys mid-window.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod cache;
 mod fetch;

@@ -4,6 +4,9 @@
 //! the `Authorization` bearer header, the MCP proxy header, and the
 //! browser cookie. The [`HeaderInjector`] runs in the opposite direction
 //! to stamp typed identifiers onto outbound requests.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod cookie;
 mod header;

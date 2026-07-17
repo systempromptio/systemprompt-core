@@ -1,4 +1,7 @@
 //! Content management identifiers.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 crate::define_id!(SkillId, generate, schema);
 crate::define_id!(SourceId, schema);

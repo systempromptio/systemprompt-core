@@ -5,6 +5,9 @@
 //! human-readable change entry per mutation. Removal targets that are absent
 //! from the config are returned to the caller (not logged or printed) so the
 //! presentation layer owns how skips are reported.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::fs;
 

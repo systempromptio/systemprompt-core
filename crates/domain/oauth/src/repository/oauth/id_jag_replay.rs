@@ -1,5 +1,8 @@
 //! Single-use replay store for EMA ID-JAGs. Cross-instance authoritative, so
 //! consumption is an atomic `INSERT ... ON CONFLICT DO NOTHING` keyed on `jti`.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use super::OAuthRepository;
 use crate::error::OauthResult;

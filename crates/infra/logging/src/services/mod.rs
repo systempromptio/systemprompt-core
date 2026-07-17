@@ -5,6 +5,9 @@
 //! enforces age-based cleanup on a schedule; [`spans`] provides the request and
 //! system span builders. The CLI display sink ([`CliService`]) is gated behind
 //! the `cli` feature.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 #[cfg(feature = "cli")]
 pub mod cli;

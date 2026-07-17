@@ -2,6 +2,9 @@
 //!
 //! Builds the router for single and batch engagement records, wiring the
 //! engagement, session, and content repositories into the shared handler state.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use anyhow::Result;
 use axum::Router;

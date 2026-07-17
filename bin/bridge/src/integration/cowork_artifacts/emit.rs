@@ -4,6 +4,9 @@
 //! Idempotency mirrors the synthetic-plugin writer: `version.json` carries a
 //! content hash of the artifact set and is written *last*, so it doubles as the
 //! completion marker the next sync's skip check keys on.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::fs;
 use std::path::{Path, PathBuf};

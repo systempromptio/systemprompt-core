@@ -3,6 +3,9 @@
 //! Wires the CRUD handlers for A2A contexts plus their nested tasks, artifacts,
 //! events, and notification endpoints, and exposes the webhook broadcast router
 //! used to fan A2A/AG-UI events out to subscribed streams.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod create_context;
 pub mod delete_context;

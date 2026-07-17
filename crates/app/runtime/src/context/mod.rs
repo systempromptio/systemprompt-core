@@ -3,6 +3,9 @@
 //! Holds shared handles (config, database pool, extension registry,
 //! analytics, route classifier, etc.) cloned cheaply via [`Arc`].
 //! Constructed via [`crate::AppContextBuilder`] or [`AppContext::new`].
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::sync::{Arc, OnceLock};
 

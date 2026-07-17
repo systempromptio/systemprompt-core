@@ -3,6 +3,9 @@
 //! Accessor defaults (grant/response types, auth method, application type)
 //! follow the RFC 7591 §2 and OIDC Dynamic Client Registration §2 server
 //! defaults for omitted fields.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::error::{OauthError, OauthResult};
 use chrono::{DateTime, Utc};

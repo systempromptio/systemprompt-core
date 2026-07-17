@@ -1,4 +1,7 @@
 //! [`PagePrerenderer`] contract for emitting one statically-rendered page.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::any::Any;
 use std::path::PathBuf;

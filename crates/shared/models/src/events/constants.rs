@@ -2,6 +2,9 @@
 //!
 //! Grouped by protocol surface: [`a2a`] (agent-to-agent events) and
 //! [`system`] (context/connection events).
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod a2a {
     pub const TASK_SUBMITTED: &str = "TASK_SUBMITTED";

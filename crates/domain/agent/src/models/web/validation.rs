@@ -1,3 +1,6 @@
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
 pub fn is_valid_version(version: &str) -> bool {
     let parts: Vec<&str> = version.split('.').collect();
     if parts.len() != 3 {

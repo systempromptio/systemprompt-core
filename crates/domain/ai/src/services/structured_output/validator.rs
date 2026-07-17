@@ -4,6 +4,9 @@
 //! `enum`, object `required`/`additionalProperties`, array bounds, string
 //! length/pattern, and numeric range constraints. In strict mode unexpected
 //! object properties are rejected.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::error::Result;
 use serde_json::Value as JsonValue;

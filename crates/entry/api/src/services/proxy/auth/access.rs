@@ -5,6 +5,9 @@
 //! or converts the failure into an RFC 9728 challenge. For MCP it permits a
 //! session-only fallback when a prior authenticated initialize established the
 //! identity in the proxy cache.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use axum::http::header::AUTHORIZATION;
 use axum::http::{HeaderMap, StatusCode};

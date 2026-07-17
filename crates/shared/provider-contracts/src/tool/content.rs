@@ -1,4 +1,7 @@
 //! [`ToolContent`] — one content fragment in a tool result.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use serde::{Deserialize, Serialize};
 

@@ -4,6 +4,9 @@
 //! to [`UserRepository`] for lookups, listing and search, session management,
 //! account creation (including anonymous and federated identities), field
 //! updates, bulk operations, statistics, and account merging.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod provider;
 

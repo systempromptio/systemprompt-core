@@ -1,3 +1,6 @@
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
 use super::ApplyError;
 use super::hooks_schema::{HookEntry as WireHookEntry, HooksFile};
 use crate::gateway::manifest::HookEntry as ManifestHookEntry;

@@ -1,4 +1,7 @@
 //! Server-Sent Events framing shared by every provider SSE codec.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 /// Returns the byte length of the first complete SSE event in `buf`, including
 /// its terminating blank line, or `None` if no complete event has arrived yet.

@@ -3,6 +3,9 @@
 //! Anthropic tool results arrive inside *user* messages; the Responses API
 //! needs them as standalone `function_call_output` items that follow the
 //! matching `function_call`, so they are emitted before any new user content.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 // JSON: protocol boundary — OpenAI Responses wire format is dynamic JSON.
 use serde_json::{Map, Value, json};

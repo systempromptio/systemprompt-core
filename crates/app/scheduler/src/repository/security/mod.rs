@@ -2,6 +2,9 @@
 //!
 //! The repository deliberately reads from the read replica only; mutations
 //! to ban tables live in `systemprompt-users`.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use sqlx::PgPool;
 use std::sync::Arc;

@@ -1,4 +1,7 @@
 //! Task-completion webhook broadcast for MCP-driven tasks.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::repository::task::TaskRepository;
 use rmcp::ErrorData as McpError;

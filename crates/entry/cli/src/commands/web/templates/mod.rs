@@ -2,6 +2,9 @@
 //!
 //! Dispatches the `web templates` subcommands ([`TemplatesCommands`]) to list,
 //! show, create, edit, and delete templates in the web templates config.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod create;
 pub mod delete;

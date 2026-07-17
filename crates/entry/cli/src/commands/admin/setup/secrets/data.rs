@@ -3,6 +3,9 @@
 //! [`SecretsData`] holds the generated OAuth at-rest pepper, database URL, and
 //! AI-provider keys. [`resolve_primary`] picks the default provider from an
 //! explicit flag or the first present key by [`PROVIDER_PRIORITY`].
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use anyhow::{Result, bail};
 use serde::{Deserialize, Serialize};

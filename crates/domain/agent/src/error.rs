@@ -3,6 +3,9 @@
 //! Public APIs return concrete `thiserror`-derived enums instead of
 //! `anyhow::Error` so that downstream callers can match on error variants
 //! without string parsing.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_identifiers::TaskId;
 use thiserror::Error;

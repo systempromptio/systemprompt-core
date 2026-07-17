@@ -4,6 +4,9 @@
 //! [`RecordClickParams`] and [`TrackClickParams`] carry the click-event fields
 //! captured on redirect — the former for a fully-resolved click row, the latter
 //! for the inbound tracking request before the click id is minted.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use chrono::{DateTime, Utc};
 use systemprompt_identifiers::{

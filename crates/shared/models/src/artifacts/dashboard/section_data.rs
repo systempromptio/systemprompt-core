@@ -4,6 +4,9 @@
 //! cards ([`MetricsCardsData`]/[`MetricCard`]), charts ([`ChartSectionData`]),
 //! tables ([`TableSectionData`]), service/database status
 //! ([`StatusSectionData`]), and ranked lists ([`ListSectionData`]).
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use super::super::chart::ChartDataset;
 use schemars::JsonSchema;

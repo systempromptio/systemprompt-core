@@ -1,6 +1,9 @@
 //! `GeoIP` lookup helpers for [`super::SessionAnalytics`]. Compiled to a
 //! no-op when the `geolocation` feature is disabled so callers can keep a
 //! uniform signature.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::GeoIpReader;
 

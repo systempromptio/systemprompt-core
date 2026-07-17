@@ -8,6 +8,9 @@
 //! [`StoredFileId`] / [`StoredFileMetadata`] value types returned across the
 //! storage boundary. Errors are reported as [`FileStorageError`] so that
 //! callers can match on cause rather than parsing strings.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use async_trait::async_trait;
 use std::path::Path;

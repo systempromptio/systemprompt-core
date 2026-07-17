@@ -1,4 +1,7 @@
 //! Per-user bridge hook OAuth client provisioning (client-credentials grant).
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use serde::Serialize;
 use systemprompt_database::DbPool;

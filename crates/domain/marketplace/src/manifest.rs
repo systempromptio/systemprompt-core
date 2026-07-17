@@ -3,6 +3,9 @@
 //! [`CanonicalView`] is the JCS-canonicalised payload that is signed and then
 //! verified bridge-side. [`ManifestService`] assembles a scoped, filtered
 //! [`MarketplaceCandidate`] from the on-disk catalogue and signs a built view.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::path::Path;
 

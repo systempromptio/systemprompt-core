@@ -1,6 +1,9 @@
 //! Behavioural-bot detector — combines a battery of heuristic checks across
 //! a single session and across all sessions sharing a fingerprint to assign
 //! a 0-100 suspicion score and a list of triggered [`BehavioralSignal`]s.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod checks;
 mod fingerprint_checks;

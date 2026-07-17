@@ -12,6 +12,9 @@
 //! then mints a first-class API key via the users `ApiKeyService` — the two
 //! domains are composed here, at the entry layer, rather than wiring an
 //! `oauth → users` edge into either domain crate.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use axum::Json;
 use axum::extract::Request;

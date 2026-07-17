@@ -1,4 +1,7 @@
 //! Static keyword list and matcher for known AI training / search crawlers.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub const AI_CRAWLER_KEYWORDS: &[&str] = &[
     "notebooklm",

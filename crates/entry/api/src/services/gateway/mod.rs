@@ -16,6 +16,9 @@
 //! lives in `systemprompt-ai`; [`registry::SafetyScannerRegistry`] resolves the
 //! scanner names a policy selects against the built-ins plus any extension
 //! registrations.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod audit;
 pub mod captures;

@@ -5,6 +5,9 @@
 //! three update intents for an optional category — leave unchanged, clear, or
 //! set — so a partial update can express "do not touch" separately from "set to
 //! null".
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use chrono::{DateTime, Utc};
 use systemprompt_identifiers::{CategoryId, ContentId, LocaleCode, SourceId};

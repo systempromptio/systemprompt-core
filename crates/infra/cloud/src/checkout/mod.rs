@@ -3,6 +3,9 @@
 //!
 //! Re-exports the callback-flow entry point [`run_checkout_callback_flow`] and
 //! the [`wait_for_provisioning`] poller.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod client;
 mod provisioning;

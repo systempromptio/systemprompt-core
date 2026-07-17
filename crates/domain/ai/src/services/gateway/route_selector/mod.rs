@@ -15,6 +15,9 @@
 //! [`SystemPromptOverride`](super::overrides::SystemPromptOverride)
 //! seam: a `dyn`-object trait, an `inventory`-collected registration, and a
 //! process-global engine resolved once.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::sync::{Arc, OnceLock};
 

@@ -6,6 +6,9 @@
 //! - Specialized envelopes: [`SuccessResponse`], [`CreatedResponse`],
 //!   [`AcceptedResponse`], [`Link`], [`DiscoveryResponse`].
 //! - Markdown envelopes: [`MarkdownFrontmatter`], [`MarkdownResponse`].
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod envelopes;
 mod markdown;

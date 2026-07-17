@@ -10,6 +10,9 @@
 //! Reconciliation is best-effort: the profile write is the source of truth and
 //! has already succeeded. If the database is unreachable (an offline edit), we
 //! warn and return — the next app start reconciles the catalog.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::path::Path;
 use std::sync::Arc;

@@ -4,6 +4,9 @@
 //! a fully-populated [`AgentCard`](crate::models::a2a::AgentCard) from it
 //! (filling interface URL, transport, and default modes) and validates the
 //! result.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::models::a2a::{AgentCapabilities, AgentCard, AgentInterface, TransportProtocol};
 use serde::{Deserialize, Serialize};

@@ -1,4 +1,7 @@
 //! `/.well-known/jwks.json` endpoint for the deployment's signing key.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use axum::extract::State;
 use axum::response::IntoResponse;

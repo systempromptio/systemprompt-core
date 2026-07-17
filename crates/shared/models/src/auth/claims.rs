@@ -4,6 +4,9 @@
 //! fields are the transport for the platform's three authorization layers
 //! (PBAC, RBAC, ABAC). [`ActClaim`] models the recursive `act` delegation
 //! chain, capped at [`MAX_ACT_CHAIN_DEPTH`].
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;

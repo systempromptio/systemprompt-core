@@ -6,6 +6,9 @@
 //!
 //! Model exposure lives on the profile's gateway catalog, not here — see
 //! `GatewayConfig::is_model_exposed`.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use serde::{Deserialize, Serialize};
 

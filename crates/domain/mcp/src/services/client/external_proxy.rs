@@ -6,6 +6,9 @@
 //! provider URL and the per-user outbound headers in one call: the provider
 //! bearer is minted server-side from the caller's systemprompt JWT and the
 //! systemprompt credential is withheld from the provider.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::collections::HashMap;
 

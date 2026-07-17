@@ -10,6 +10,9 @@
 //! `pg_advisory_lock` is the only one that can release it. [`JobLockGuard`]
 //! therefore pins the connection it locked on for the job's whole lifetime
 //! and releases on that same connection.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use sqlx::pool::PoolConnection;
 use sqlx::{PgPool, Postgres};

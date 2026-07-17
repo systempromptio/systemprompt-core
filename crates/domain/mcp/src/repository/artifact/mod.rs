@@ -5,6 +5,9 @@
 //! table. Reads go through the read pool and writes through the write pool;
 //! expired artifacts are filtered on read and reaped via
 //! [`McpArtifactRepository::cleanup_expired`].
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::error::McpDomainResult;
 use chrono::{DateTime, Utc};

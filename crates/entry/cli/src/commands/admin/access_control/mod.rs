@@ -3,6 +3,9 @@
 //! Exposes [`AccessControlCommands`] for exporting the current role rules as a
 //! committable YAML baseline and linting the live access-control tables for
 //! unknown entities or unreachable rules.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod export;
 mod lint;

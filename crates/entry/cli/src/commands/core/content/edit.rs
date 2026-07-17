@@ -1,3 +1,6 @@
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
 use super::edit_apply::{
     ContentEditState, apply_body_flags, apply_set_value_flags, apply_visibility_flags,
 };

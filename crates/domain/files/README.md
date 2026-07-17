@@ -27,8 +27,9 @@
 [![Crates.io](https://img.shields.io/crates/v/systemprompt-files.svg?style=flat-square)](https://crates.io/crates/systemprompt-files)
 [![Docs.rs](https://img.shields.io/docsrs/systemprompt-files?style=flat-square)](https://docs.rs/systemprompt-files)
 [![License: BSL-1.1](https://img.shields.io/badge/license-BSL--1.1-2b6cb0?style=flat-square)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
+[![codecov](https://img.shields.io/codecov/c/github/systempromptio/systemprompt-core/main?style=flat-square&logo=codecov)](https://codecov.io/gh/systempromptio/systemprompt-core)
 
-File storage, metadata, and access control for systemprompt.io AI governance infrastructure. Governed file operations for the MCP governance pipeline with upload validation, AI-generated image tracking, and content-file associations.
+Files that stay on your infrastructure, with a record of every one. Governed uploads with MIME validation, AI-generated image tracking, and content associations, stored where you control them and audited like every other operation.
 
 **Layer**: Domain — business-logic modules that implement systemprompt.io features. Part of the [systemprompt-core](https://github.com/systempromptio/systemprompt-core) workspace.
 
@@ -42,7 +43,7 @@ This crate provides file storage, metadata management, and content-file linking 
 
 ```toml
 [dependencies]
-systemprompt-files = "0.18.0"
+systemprompt-files = "0.21"
 ```
 
 Configured via `files.yaml`:
@@ -61,50 +62,15 @@ files:
       video: false
 ```
 
-## File Structure
+## Module Layout
 
-```
-src/
-├── lib.rs                    Public API exports and crate docs
-├── error.rs                  FilesError, FilesResult
-├── extension.rs              FilesExtension with schema registration
-│
-├── config/
-│   ├── mod.rs                FilesConfig surface and YAML loading
-│   ├── types.rs              FileUploadConfig, AllowedFileTypes, FilePersistenceMode
-│   └── validator.rs          FilesConfigValidator for profile-driven settings
-│
-├── jobs/
-│   ├── mod.rs                Job registration entry point
-│   └── file_ingestion.rs     FileIngestionJob scanning storage for images
-│
-├── models/
-│   ├── mod.rs                Re-exports for File, metadata, content_file
-│   ├── file.rs               File entity with typed identifiers
-│   ├── content_file.rs       Junction model and FileRole enum
-│   ├── metadata.rs           FileMetadata with type-specific variants
-│   └── image_metadata.rs     ImageMetadata, ImageGenerationInfo
-│
-├── repository/
-│   ├── mod.rs                Repository re-exports
-│   ├── file/
-│   │   ├── mod.rs            FileRepository CRUD operations
-│   │   ├── request.rs        InsertFileRequest builder
-│   │   └── stats.rs          FileStats aggregation queries
-│   ├── content/mod.rs        Content linking: link, unlink, featured
-│   └── ai/mod.rs             AI image queries by user and tenant
-│
-└── services/
-    ├── mod.rs                Service re-exports
-    ├── ai_provider.rs        FilesAiPersistenceProvider implementation
-    ├── providers.rs          Provider trait wiring
-    └── upload/
-        ├── mod.rs            Upload module entry point
-        ├── service.rs        FileUploadService with storage and persistence
-        ├── request.rs        FileUploadRequest, FileUploadRequestBuilder, UploadedFile
-        ├── validator.rs      FileValidator, FileCategory, MIME enforcement
-        └── error.rs          FileUploadError, FileValidationError
-```
+| Module | Purpose |
+|--------|---------|
+| `models/` | `File` entity, `content_file` junction with `FileRole`, and file/image metadata types. |
+| `repository/` | Compile-time-verified persistence for files, content linking, and AI-image queries. |
+| `services/` | `FileUploadService` (validation, storage, persistence) and the AI-persistence provider. |
+| `config/` | `FilesConfig` YAML loading, upload limits, allowed types, and profile-driven validation. |
+| `jobs/` | `FileIngestionJob` scanning storage for images. |
 
 ## Modules
 

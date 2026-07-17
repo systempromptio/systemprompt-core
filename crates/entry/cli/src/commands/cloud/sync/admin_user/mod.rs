@@ -3,6 +3,9 @@
 //! Discovers profile databases, then creates or promotes the cloud user to
 //! admin in each. Public surface: [`CloudUser`], [`SyncResult`], the discovery
 //! helpers, and the per-database / all-profiles sync entry points.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod discovery;
 mod sync;

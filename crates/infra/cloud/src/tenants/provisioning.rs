@@ -11,6 +11,9 @@
 //! [`TenantProvisioningService::finalize_tenant`] is the post-checkout half
 //! of the flow; it is public so a tenant whose checkout already completed can
 //! be resumed without a new payment session.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use reqwest::Url;
 use systemprompt_identifiers::{PriceId, TenantId};

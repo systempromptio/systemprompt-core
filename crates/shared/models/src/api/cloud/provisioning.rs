@@ -1,5 +1,8 @@
 //! Cloud provisioning lifecycle events emitted while a tenant is
 //! being created and deployed.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{CheckoutSessionId, PriceId, TenantId, TransactionId, UserId};

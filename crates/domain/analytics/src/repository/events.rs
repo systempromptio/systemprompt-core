@@ -5,6 +5,9 @@
 //! round-trip) and reads them back per session or content as
 //! [`StoredAnalyticsEvent`]. Writes target the write pool; reads the read
 //! pool.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
 

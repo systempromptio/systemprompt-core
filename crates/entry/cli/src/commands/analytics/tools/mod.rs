@@ -4,6 +4,9 @@
 //! Defines the [`ToolsCommands`] subcommand tree and the typed output shapes
 //! ([`ToolStatsOutput`], [`ToolListOutput`], [`ToolTrendsOutput`],
 //! [`ToolShowOutput`]) rendered by the `analytics tools` commands.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod list;
 mod show;

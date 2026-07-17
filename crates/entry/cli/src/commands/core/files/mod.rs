@@ -4,6 +4,9 @@
 //! upload/delete, validate/config, and the `ai` sub-group. On a
 //! `--database-url` invocation only the read-only commands are served; upload,
 //! delete, validate, config, and ai require a full profile context.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod types;
 

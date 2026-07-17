@@ -1,3 +1,6 @@
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
 use crate::services::a2a_server::handlers::state::AgentHandlerState;
 use systemprompt_identifiers::UserId;
 

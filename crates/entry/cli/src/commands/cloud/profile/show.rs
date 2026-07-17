@@ -2,6 +2,9 @@
 //!
 //! Loads the profile and services config, assembles a [`FullConfig`] scoped to
 //! the requested [`ShowFilter`], and emits it as text, JSON, or YAML.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use anyhow::Result;
 use std::collections::HashMap;

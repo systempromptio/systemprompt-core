@@ -6,6 +6,9 @@
 //! [`AiTraceOutput`]. A trace is resolved either from log events or from an AI
 //! task, with the display split across the sibling `display`, `ai_*`,
 //! `summary`, and `json` modules.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod ai_artifacts;
 mod ai_display;

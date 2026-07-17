@@ -1,4 +1,7 @@
 //! Domain models for MCP — sessions, artifacts, validation results, etc.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};

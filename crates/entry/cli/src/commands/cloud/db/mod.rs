@@ -3,6 +3,9 @@
 //! Resolves a profile's database URL from its secrets, then routes most
 //! commands through the shared infrastructure [`db`] handlers; backup and
 //! restore are handled locally via `pg_dump`/`pg_restore`.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod backup;
 mod restore;

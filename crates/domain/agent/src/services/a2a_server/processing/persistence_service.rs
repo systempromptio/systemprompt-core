@@ -4,6 +4,9 @@
 //! their state, and persist a completed task together with its messages —
 //! publishing any attached artifacts unless they were already published
 //! upstream.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::services::shared::{AgentServiceError, Result};
 use systemprompt_database::DbPool;

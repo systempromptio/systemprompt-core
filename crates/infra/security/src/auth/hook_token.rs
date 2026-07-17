@@ -15,6 +15,9 @@
 //! 4. (Optional) `plugin_id` claim equals the `plugin_id` query parameter on
 //!    the request, so a token issued for plugin A can't drive an event into
 //!    plugin B.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_identifiers::{PluginId, UserId};
 use systemprompt_models::auth::{JwtAudience, Permission};

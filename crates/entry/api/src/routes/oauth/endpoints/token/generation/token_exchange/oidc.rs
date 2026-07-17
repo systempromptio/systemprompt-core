@@ -1,6 +1,9 @@
 //! OIDC `id_token` validation for the EMA issuer path: only a trusted issuer
 //! marked `can_issue_id_jag`, matching its `typ_allowlist` and `audience`, may
 //! seed an ID-JAG.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use anyhow::{Result, anyhow};
 use jsonwebtoken::{Algorithm, DecodingKey, Validation, decode, decode_header};

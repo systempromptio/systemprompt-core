@@ -1,5 +1,8 @@
 //! Watch a tenant's provisioning state via SSE, falling back to
 //! polling when the stream errors out.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::time::Duration;
 

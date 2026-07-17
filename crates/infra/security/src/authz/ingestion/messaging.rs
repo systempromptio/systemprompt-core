@@ -5,6 +5,9 @@
 //! A from-scratch deploy authorizes Slack/Teams purely from
 //! `services/*.yaml` — a hand-written `roles.yaml` is needed only for finer
 //! per-channel control. Mirrors the marketplace-access ingestion exactly.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::collections::HashMap;
 

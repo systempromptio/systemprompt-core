@@ -2,6 +2,9 @@
 //!
 //! These DTOs back the rendered show, list, logout, and switch results,
 //! describing cached sessions, profile routing, and per-command outcomes.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};

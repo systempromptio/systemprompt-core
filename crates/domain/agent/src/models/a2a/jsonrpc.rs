@@ -1,5 +1,8 @@
 //! JSON-RPC 2.0 framing primitives: request identifiers and the request and
 //! response envelopes used by the A2A protocol.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;

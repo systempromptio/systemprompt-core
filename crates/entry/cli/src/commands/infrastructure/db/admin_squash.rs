@@ -5,6 +5,9 @@
 //! `--apply`. Baseline placement and writing are delegated to
 //! [`SquashBaselineService`]; this module emits the manual follow-up steps the
 //! operator must complete.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::path::Path;
 use std::sync::Arc;

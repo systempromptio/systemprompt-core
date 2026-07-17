@@ -5,6 +5,9 @@
 //! helpers that wait for a port to free up before a server binds. The probe
 //! timeout guards against kernel-level connect hangs that would otherwise stall
 //! startup silently.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::error::McpDomainResult;
 use std::net::{SocketAddr, TcpStream};

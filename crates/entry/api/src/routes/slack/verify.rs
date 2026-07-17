@@ -5,6 +5,9 @@
 //! store (the MCP-registry pattern). [`verify_any_app`] exists because the
 //! `url_verification` handshake carries no workspace id, so it must succeed
 //! against any configured app's secret.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use axum::http::HeaderMap;
 use systemprompt_config::SecretsBootstrap;

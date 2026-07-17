@@ -1,3 +1,6 @@
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
 use systemprompt_models::modules::ApiPaths;
 
 pub fn should_skip_session_tracking(path: &str) -> bool {

@@ -2,6 +2,9 @@
 //! content source, fetches and enriches its rows, and dispatches per-item
 //! rendering (in [`crate::prerender::render`]) and parent / list rendering
 //! (in [`crate::prerender::list`]).
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use futures::stream::{self, StreamExt};
 use systemprompt_content::models::Content;

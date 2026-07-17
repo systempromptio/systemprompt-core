@@ -2,6 +2,9 @@
 //!
 //! Dispatches the [`HooksCommands`] subcommands (list, validate) that enumerate
 //! hooks across installed plugins and check their definitions.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod types;
 

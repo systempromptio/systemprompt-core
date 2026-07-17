@@ -3,6 +3,9 @@
 //! Detects discriminated unions and other structural shapes that individual
 //! model providers cannot express natively, producing the metadata the mapper
 //! and transformer consume when flattening schemas into a provider's dialect.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use serde_json::Value;
 use std::collections::HashMap;

@@ -4,6 +4,9 @@
 //! tokens through the local signing authority and federated tokens through the
 //! issuer's JWKS. The `iss` peeked from the unsigned payload only selects the
 //! verification path; issuer and signature are re-validated downstream.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use anyhow::{Result, anyhow};
 use jsonwebtoken::{Algorithm, DecodingKey, Validation, decode, decode_header};

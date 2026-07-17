@@ -1,5 +1,8 @@
 //! `/.well-known/*` endpoints owned by the API: A2A agent cards plus the
 //! federated-auth JWKS document.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod agent_cards;
 pub mod jwks;

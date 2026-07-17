@@ -1,6 +1,9 @@
 //! Extension registration — wires analytics schemas (sessions, funnels,
 //! engagement events, fingerprint reputation, anomaly thresholds) and
 //! schema-evolution migrations into the extension framework.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_extension::prelude::*;
 

@@ -8,6 +8,9 @@
 //! `base_path` is the parent of the root `config.yaml` (i.e.
 //! `<services>/config`), so each catalog directory is its grandparent's child —
 //! resolved via [`catalog_dir`].
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::fs;
 use std::path::{Path, PathBuf};

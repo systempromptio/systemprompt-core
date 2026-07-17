@@ -5,6 +5,9 @@
 //! Both computations are I/O-free, so composition roots (the CLI) can build
 //! the inputs, compute the plan, render progress, and drive orchestrators —
 //! while the decision logic stays here and stays table-testable.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_models::ServiceType;
 

@@ -4,6 +4,9 @@
 //! Infrastructure secrets (database URLs, at-rest pepper, signing seed) are
 //! rejected: they are provisioned out-of-band, so a partial edit here cannot
 //! corrupt the values the runtime depends on.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::path::Path;
 

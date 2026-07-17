@@ -3,6 +3,9 @@
 //! [`SchedulerExtension`] declares the schema for the `scheduled_jobs` table
 //! and registers itself with the platform extension registry via
 //! [`register_extension!`].
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_extension::prelude::*;
 

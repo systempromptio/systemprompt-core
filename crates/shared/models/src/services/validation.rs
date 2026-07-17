@@ -3,6 +3,9 @@
 //! These private methods back [`ServicesConfig::validate`]: port conflict and
 //! range checks, marketplace/plugin/skill `include` reference resolution, and
 //! the single-default-agent and default-marketplace-selector business rules.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::collections::HashMap;
 

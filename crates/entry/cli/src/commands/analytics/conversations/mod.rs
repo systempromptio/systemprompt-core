@@ -4,6 +4,9 @@
 //! shapes ([`ConversationStatsOutput`], [`ConversationTrendsOutput`],
 //! [`ConversationListOutput`]) rendered by the `analytics conversations`
 //! commands.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod list;
 mod stats;

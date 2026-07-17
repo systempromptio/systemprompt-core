@@ -46,6 +46,9 @@
 //!
 //! Public functions return `thiserror`-derived enums from [`errors`];
 //! `anyhow::Error` is never used in a public signature.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod macros;
 

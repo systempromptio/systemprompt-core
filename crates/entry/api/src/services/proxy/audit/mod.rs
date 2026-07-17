@@ -5,6 +5,9 @@
 //! writes one `mcp_tool_executions` row under the calling user. `record`
 //! composes the tap over the upstream body; the tap owns an [`McpAudit`] and
 //! finalizes it (once) on stream EOF or drop.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod jsonrpc;
 mod tap;

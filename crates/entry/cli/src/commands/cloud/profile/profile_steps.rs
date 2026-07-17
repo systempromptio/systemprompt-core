@@ -3,6 +3,9 @@
 //! Provides [`create_profile_for_tenant`] and the helpers that resolve a
 //! tenant from CLI args and refresh masked cloud database credentials before a
 //! profile is written.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::path::Path;
 

@@ -3,6 +3,9 @@
 //! Queries the registered [`systemprompt_traits::ToolProvider`]s for the tools
 //! an agent may call in a given [`systemprompt_models::RequestContext`],
 //! producing the definitions passed to the model.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::error::Result;
 use std::sync::Arc;

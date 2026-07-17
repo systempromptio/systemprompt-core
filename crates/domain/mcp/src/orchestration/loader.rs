@@ -4,6 +4,9 @@
 //! deployment config and the caller's JWT permissions), then fetches each
 //! server's tool list with per-server timeouts and DB-lag retry, and assembles
 //! [`McpServerMetadata`] for gateway responses.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::collections::HashMap;
 

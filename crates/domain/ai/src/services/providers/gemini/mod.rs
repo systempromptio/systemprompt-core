@@ -4,6 +4,9 @@
 //! and tool use. Vendor wire translation is delegated to the shared
 //! `systemprompt_models::wire::gemini` codec; this module keeps the transport,
 //! the schema transformer / tool-name mapper, and the canonical glue.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod code_execution;
 mod constants;

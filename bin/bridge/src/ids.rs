@@ -1,3 +1,6 @@
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
 pub use systemprompt_models::bridge::ids::{
     IdValidationError, LibraryArtifactId, ManagedMcpServerName, ManifestSignature, PluginId,
     Sha256Digest, SkillId, SkillName, ToolName, ToolPolicy,

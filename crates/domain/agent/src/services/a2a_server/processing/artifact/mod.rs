@@ -3,6 +3,9 @@
 //! [`ArtifactBuilder`] pairs each tool call with its structured result and
 //! transforms it into an A2A artifact via [`McpToA2aTransformer`], skipping
 //! results without structured content.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::services::shared::{AgentServiceError, Result};
 use systemprompt_identifiers::{ContextId, TaskId};

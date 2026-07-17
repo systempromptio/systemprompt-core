@@ -4,6 +4,9 @@
 //! the equivalent environment variables in subprocess/Fly.io modes),
 //! validates required fields, and exposes typed accessors for the
 //! manifest signing seed and database URLs.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod io;
 mod loader;

@@ -88,5 +88,3 @@ The crate's `build.rs` calls `systemprompt_extension::build::emit_migrations()`,
 <sub>Agent schema reference · Own how your organization uses AI.</sub>
 
 </div>
-</content>
-</invoke>

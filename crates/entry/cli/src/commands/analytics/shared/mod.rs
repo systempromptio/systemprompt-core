@@ -4,6 +4,9 @@
 //! types and number formatters ([`output`]), and time-range parsing and
 //! bucketing ([`time`]) so the per-domain command modules draw from one
 //! surface.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod export;
 pub mod output;

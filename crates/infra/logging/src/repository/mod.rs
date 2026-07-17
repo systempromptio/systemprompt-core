@@ -4,6 +4,9 @@
 //! and/or database) and serves paginated reads, lookups, and age-based cleanup;
 //! [`AnalyticsRepository`] records analytics events. Read and write pools are
 //! held separately so reads never contend with the write path.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::io::Write;
 use std::sync::Arc;

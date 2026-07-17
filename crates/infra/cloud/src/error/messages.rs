@@ -1,4 +1,7 @@
 //! User-facing message + recovery-hint helpers for [`super::CloudError`].
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use super::CloudError;
 

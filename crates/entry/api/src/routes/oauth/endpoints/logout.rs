@@ -4,6 +4,9 @@
 //! consults this table on every authenticated request, so once logout returns
 //! the same bearer is rejected on the next call. Cookie is cleared in the
 //! response so browser flows do not silently re-present the dead token.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use axum::extract::Extension;
 use axum::http::{HeaderValue, StatusCode, header};

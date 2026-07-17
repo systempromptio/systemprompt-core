@@ -4,6 +4,9 @@
 //! agent, MCP, stream, content), extension-mounted routes, discovery and
 //! well-known endpoints, static content, and the global IP-ban and metrics
 //! layers. Each surface is gated with its `AuthzPolicy` at mount time.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod extension_mount;
 mod protocol;

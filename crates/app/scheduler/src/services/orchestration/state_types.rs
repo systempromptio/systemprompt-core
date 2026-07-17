@@ -1,5 +1,8 @@
 //! Lightweight enums describing desired and runtime status of a service,
 //! plus the actions the reconciler can take on them.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use serde::{Deserialize, Serialize};
 

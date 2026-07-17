@@ -2,6 +2,9 @@
 //!
 //! The flattening helpers derive plain-text views and a stable
 //! [`GatewayConversationId`] from the leading message.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::gateway_hash::conversation_prefix_hash;
 use serde_json::Value;

@@ -17,7 +17,7 @@
 
 # Web CLI Commands
 
-This document provides complete documentation for AI agents to use the web CLI commands. All commands support non-interactive mode for automation.
+Your published content lives in files and a database you own, not a hosted dashboard. Define content types, templates, and assets, then publish every route through one path you can inspect, validate, and version.
 
 ---
 

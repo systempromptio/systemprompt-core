@@ -3,6 +3,9 @@
 //! Persists artifacts, enriches them with skill metadata, validates
 //! execution-id foreign keys, and creates the accompanying conversation
 //! messages for direct MCP calls.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::services::shared::{AgentServiceError, Result};
 use serde_json::json;

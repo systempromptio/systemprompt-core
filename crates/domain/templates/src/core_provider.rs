@@ -1,5 +1,8 @@
 //! Filesystem-backed [`TemplateProvider`] used by the core engine and the
 //! `defaults/` template tree.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};

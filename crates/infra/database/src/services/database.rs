@@ -1,6 +1,9 @@
 //! Top-level [`Database`] handle that owns one or two
 //! [`DatabaseProvider`] instances (read + optional write) and exposes the
 //! query and transaction surface.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use super::postgres::PostgresProvider;
 use super::postgres::connection::PoolConfig;

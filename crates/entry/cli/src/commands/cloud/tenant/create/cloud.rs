@@ -6,6 +6,9 @@
 //! provisioning wait, and credential retrieval. Afterwards a profile is
 //! written for the new tenant and, when required, the initial deploy runs
 //! through the sync crate's [`DeployOrchestrator`].
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use anyhow::{Context, Result, anyhow, bail};
 use systemprompt_cloud::constants::checkout::CALLBACK_PORT;

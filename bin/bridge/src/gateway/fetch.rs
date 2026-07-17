@@ -1,5 +1,8 @@
 //! Read-only gateway endpoints: pubkey, signed manifest, plugin files, whoami,
 //! bridge profile, and the liveness probe.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::time::Instant;
 

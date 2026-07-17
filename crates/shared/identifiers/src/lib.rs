@@ -34,6 +34,9 @@
 //! |---------|--------|
 //! | (default) | Pure-Rust types only. |
 //! | `sqlx` | Derives `sqlx::Type` on every identifier, allowing direct binding in `query_as!` macros. |
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod db_value;
 

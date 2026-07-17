@@ -7,6 +7,9 @@
 //! codecs and the agent-flow provider clients resolve the same authority; the
 //! wire protocol picks one via
 //! [`crate::profile::WireProtocol::schema_capabilities`].
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use serde_json::Value;
 

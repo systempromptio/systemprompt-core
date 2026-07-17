@@ -4,6 +4,9 @@
 //! messages and artifacts into a `Vec<AiMessage>`, decoding supported file
 //! parts into [`AiContentPart`]s and serializing artifacts back into textual
 //! context.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::services::shared::{AgentServiceError, Result};
 use base64::Engine;

@@ -2,6 +2,9 @@
 //!
 //! [`KeysCommands`] generates fresh RS256 keypairs and mints long-lived
 //! `aud=plugin` tokens used for hook and governance authentication.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod generate;
 mod issue_plugin_token;

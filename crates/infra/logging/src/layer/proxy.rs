@@ -6,6 +6,9 @@
 //! `DatabaseLayer`; until then span fields are recorded so attribution is not
 //! lost across the boot window. The free functions build the [`LogEntry`]
 //! actor triple by walking the span tree.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::sync::{Arc, OnceLock};
 

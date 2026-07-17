@@ -27,8 +27,9 @@
 [![Crates.io](https://img.shields.io/crates/v/systemprompt-templates.svg?style=flat-square)](https://crates.io/crates/systemprompt-templates)
 [![Docs.rs](https://img.shields.io/docsrs/systemprompt-templates?style=flat-square)](https://docs.rs/systemprompt-templates)
 [![License: BSL-1.1](https://img.shields.io/badge/license-BSL--1.1-2b6cb0?style=flat-square)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
+[![codecov](https://img.shields.io/codecov/c/github/systempromptio/systemprompt-core/main?style=flat-square&logo=codecov)](https://codecov.io/gh/systempromptio/systemprompt-core)
 
-Template registry, loading, and rendering for systemprompt.io config-as-code AI governance deployments. Handlebars-powered template engine for the MCP governance pipeline with plugin architecture, priority resolution, and filesystem discovery.
+The rendering layer for config-as-code deployments you own. A Handlebars template registry with provider plugins, priority resolution, and filesystem discovery, so the HTML your deployment serves is defined in your tree, not a hosted theme.
 
 **Layer**: Domain — business-logic modules that implement systemprompt.io features. Part of the [systemprompt-core](https://github.com/systempromptio/systemprompt-core) workspace.
 
@@ -42,7 +43,7 @@ This crate provides the core template system for discovering, loading, and rende
 
 ```toml
 [dependencies]
-systemprompt-templates = "0.18.0"
+systemprompt-templates = "0.21"
 ```
 
 ```rust
@@ -69,24 +70,14 @@ async fn setup_templates() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-## File Structure
+## Module Layout
 
-```
-src/
-├── lib.rs                  # Public exports and re-exports from template-provider
-├── builder.rs              # TemplateRegistryBuilder for fluent construction
-├── core_provider.rs        # CoreTemplateProvider for filesystem template discovery
-├── embedded_defaults.rs    # EmbeddedDefaultsProvider bundling the in-tree defaults/
-├── error.rs                # TemplateError and TemplateResult
-└── registry/
-    ├── mod.rs              # TemplateRegistry struct and Handlebars wiring
-    ├── lifecycle.rs        # Initialization, partial registration, template loading
-    ├── queries.rs          # render, has_template, and component lookup
-    └── stats.rs            # RegistryStats reporter
-
-defaults/
-└── templates/              # Embedded HTML templates shipped with the crate
-```
+| Module | Purpose |
+|--------|---------|
+| `builder` | `TemplateRegistryBuilder` for fluent registry construction. |
+| `core_provider` | `CoreTemplateProvider` for filesystem template discovery. |
+| `embedded_defaults` | `EmbeddedDefaultsProvider` bundling the in-tree `defaults/templates/`. |
+| `registry/` | `TemplateRegistry` and Handlebars wiring: lifecycle, render/lookup queries, and stats. |
 
 ## Modules
 

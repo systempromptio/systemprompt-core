@@ -4,6 +4,9 @@
 //! All operations are atomic at the per-file level; concurrent writers
 //! racing on the same agent file may overwrite each other and the loader
 //! does not attempt to lock the on-disk config.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::collections::HashMap;
 use std::fs;

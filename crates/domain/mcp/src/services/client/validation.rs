@@ -4,6 +4,9 @@
 //! MCP protocol and exposes tools, producing a [`McpConnectionResult`]. Covers
 //! the OAuth-gated case (port reachability only) and internal/external URL
 //! rewriting for loopback access.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::error::McpDomainResult;
 use rmcp::ServiceExt;

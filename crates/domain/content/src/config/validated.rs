@@ -5,6 +5,9 @@
 //! path, and the [`systemprompt_models::ContentRouting`] implementation answers
 //! URL routing questions (HTML-page detection, source resolution, slug
 //! extraction) from each source's sitemap pattern.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};

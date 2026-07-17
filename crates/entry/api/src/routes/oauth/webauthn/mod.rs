@@ -3,6 +3,9 @@
 //! Groups the three credential flows: [`authenticate`] (login), [`register`]
 //! (first-time enrolment), and [`link`] (adding a passkey to an existing
 //! account). Each exposes paired start/finish handlers.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod authenticate;
 pub mod link;

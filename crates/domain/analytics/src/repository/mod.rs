@@ -4,6 +4,9 @@
 //! verified `sqlx::query!` calls for every analytics aggregation, mutation,
 //! and lookup. Public re-exports below form the only supported entry points;
 //! internal submodules are private to the crate.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod agents;
 mod cli_sessions;

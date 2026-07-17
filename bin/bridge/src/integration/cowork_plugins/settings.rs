@@ -1,5 +1,8 @@
 //! Pure JSON manipulation for `cowork_settings.json`'s `enabledPlugins` map.
 //! Foreign keys (the user's own choices) are preserved verbatim.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use serde_json::{Map, Value};
 

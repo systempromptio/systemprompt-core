@@ -7,6 +7,9 @@
 //! [`OutputFormat`], [`VerbosityLevel`], and [`ColorMode`] enums express the
 //! individual axes. The resolved config travels explicitly on
 //! [`crate::context::CommandContext`]; there is no process-global instance.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::io::IsTerminal;
 

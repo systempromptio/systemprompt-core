@@ -1,5 +1,8 @@
 //! Subprocess-free process enumeration: image basename plus, when available,
 //! the full executable path.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 #[derive(Debug, Clone)]
 pub(crate) struct ProcInfo {

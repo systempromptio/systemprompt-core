@@ -3,6 +3,9 @@
 //! Each builds a canonical request through the bridge, renders it with the
 //! shared Anthropic codec, posts it, and maps the parsed canonical reply back
 //! to an [`AiResponse`]. No vendor wire shapes live here.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::time::Instant;
 

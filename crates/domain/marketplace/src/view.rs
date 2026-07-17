@@ -2,6 +2,9 @@
 //!
 //! These are outgoing-only, fixed-shape API bodies, so `serde_json::Value`
 //! is the idiomatic construction form here (protocol boundary).
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_identifiers::MarketplaceId;
 use systemprompt_models::services::MarketplaceConfig;

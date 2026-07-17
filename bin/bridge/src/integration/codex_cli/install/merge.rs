@@ -3,6 +3,9 @@
 //! other key. Bridge-owned surface: the `model_provider` selector, the
 //! `otel`/`analytics` tables, and the `model_providers.systemprompt` entry; all
 //! other tables survive unchanged.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::path::Path;
 

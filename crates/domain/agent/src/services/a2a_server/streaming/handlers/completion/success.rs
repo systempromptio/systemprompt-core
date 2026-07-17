@@ -1,5 +1,8 @@
 //! Success fan-out for a completed task: the final A2A status frame, the A2A
 //! and AG-UI webhook events, and the task-completed broadcast.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use axum::response::sse::Event;
 use systemprompt_identifiers::{ContextId, MessageId, TaskId};

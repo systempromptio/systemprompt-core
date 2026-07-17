@@ -1,6 +1,9 @@
 //! Internal `thiserror`-derived error type used by the application
 //! tier and converted into the public [`super::ApiError`] envelope at
 //! the HTTP boundary.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use super::{ApiError, ErrorCode};
 

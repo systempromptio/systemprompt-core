@@ -4,6 +4,9 @@
 //! (social, internal navigation, external CTA, external share), assembling the
 //! UTM parameters and short code for each, and resolves destination type and
 //! the public trackable URL.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::error::ContentError;
 use crate::models::{CampaignLink, CreateLinkParams, DestinationType, LinkType, UtmParams};

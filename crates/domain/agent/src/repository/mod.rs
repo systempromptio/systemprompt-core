@@ -3,6 +3,9 @@
 //! Each submodule owns persistence for a domain aggregate (tasks, contexts,
 //! artifacts, agent services, execution steps). The aggregate
 //! [`A2ARepositories`] bundles them for callers that need the full A2A surface.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
 

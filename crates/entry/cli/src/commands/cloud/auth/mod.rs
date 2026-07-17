@@ -2,6 +2,9 @@
 //!
 //! Dispatches the [`AuthCommands`] enum to the per-command modules that manage
 //! the locally stored cloud credentials and authenticated-user state.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod login;
 mod logout;

@@ -2,6 +2,9 @@
 //!
 //! Dispatches the [`ContextsCommands`] subcommands (list, show, create, edit,
 //! delete, use, new) that create contexts and set the session's active one.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod create;
 pub(crate) mod delete;

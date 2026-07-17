@@ -4,6 +4,9 @@
 //! Grouped into submodules by concern (`oauth`, `checkout`, `credentials`,
 //! `docker`, `api`, `regions`, `paths`, `profile`, `env_vars`); path-name and
 //! storage constants are re-exported from `systemprompt_models`.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub use systemprompt_models::paths::constants::{build, dir_names, file_names, storage};
 

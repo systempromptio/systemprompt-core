@@ -3,6 +3,9 @@
 //! [`OverviewAnalyticsRepository`] reads the headline counts shown on the
 //! analytics overview — conversations, agent/task activity, AI requests,
 //! tool executions, sessions, and cost — each scoped to a time window.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::Result;
 use chrono::{DateTime, Utc};

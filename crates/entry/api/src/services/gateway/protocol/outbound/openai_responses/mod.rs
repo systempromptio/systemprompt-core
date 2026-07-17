@@ -4,6 +4,9 @@
 //! status handling, stream-vs-buffered dispatch — and delegates every wire
 //! concern (request build, response parse, SSE-to-event mapping) to the shared
 //! [`systemprompt_models::wire::openai_responses`] codec.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use anyhow::{Result, anyhow};
 use async_trait::async_trait;

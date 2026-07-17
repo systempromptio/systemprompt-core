@@ -5,6 +5,9 @@
 //! here touch the filesystem — confirming declared and derived paths actually
 //! exist — so they belong in the infrastructure layer, at the config-build
 //! boundary, not in the model layer.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_models::profile::Profile;
 use systemprompt_traits::validation_report::{

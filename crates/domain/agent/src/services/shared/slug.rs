@@ -1,5 +1,8 @@
 //! URL-safe slug generation for agent names, including collision-free
 //! uniquification against an existing set of slugs.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub fn generate_slug(name: &str) -> String {
     let slug = name

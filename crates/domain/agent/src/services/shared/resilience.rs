@@ -1,5 +1,8 @@
 //! Resilience primitives for agent services: bounded retry with backoff and
 //! operation timeouts.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::services::shared::error::{AgentServiceError, Result};
 use std::time::Duration;

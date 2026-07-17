@@ -6,6 +6,9 @@
 //! `ToolDefinition`/`ToolCallRequest`/`ToolCallResult` traits, and `rmcp`'s
 //! wire types, plus building a `ToolContext` from a `RequestContext` for an
 //! outbound tool call.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_identifiers::{AiToolCallId, McpServerId};
 use systemprompt_models::RequestContext;

@@ -3,6 +3,9 @@
 //! [`PluginsCommands`] enumerates the subcommands; [`execute`] dispatches each
 //! to its submodule and renders the result. Output payload types live in
 //! [`types`].
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod types;
 

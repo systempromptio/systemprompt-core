@@ -4,6 +4,9 @@
 //! temporary and permanent bans with offense metadata. Ban inputs are carried
 //! by [`BanIpParams`] / [`BanIpWithMetadataParams`] with a [`BanDuration`], and
 //! lookups return [`BannedIp`].
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod listing;
 mod queries;

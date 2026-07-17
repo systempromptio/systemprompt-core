@@ -6,6 +6,9 @@
 //! default-provider that names a provider absent from the registry fails at the
 //! edit rather than at the next boot. The gateway owns no catalog: providers
 //! and models live in `profile.providers` (see `admin config catalog`).
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::collections::HashMap;
 

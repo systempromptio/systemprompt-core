@@ -6,6 +6,9 @@
 //! ([`load_session_store`], [`get_session_for_key`], [`clear_session`],
 //! [`clear_all_sessions`]). The [`api`] submodule carries the remote-session
 //! HTTP surface.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod api;
 mod context;

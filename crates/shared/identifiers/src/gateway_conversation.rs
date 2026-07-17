@@ -5,6 +5,9 @@
 //! `GatewayConversationId` is **always** `ctx_<16 lowercase hex>` derived
 //! from an FNV-1a hash of a conversation prefix, so the same opening turn
 //! maps to the same id across processes, hosts, and Rust versions.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::error::IdValidationError;
 

@@ -3,6 +3,9 @@
 //! [`AgentAnalyticsRepository`] aggregates per-agent task counts, success
 //! rates, execution time, and cost, exposing list, detail, and summary-stat
 //! reads split across the sibling query submodules.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod detail_queries;
 mod list_queries;

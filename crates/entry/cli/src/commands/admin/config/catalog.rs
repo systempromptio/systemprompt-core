@@ -6,6 +6,9 @@
 //! before writing it back. This is how an instance declares a custom provider
 //! such as `minimax` (its wire protocol, endpoint, credential, and model
 //! catalog) without hand-editing YAML.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::collections::HashMap;
 

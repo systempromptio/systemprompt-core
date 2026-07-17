@@ -499,6 +499,51 @@ The command sends a JSON-RPC 2.0 request to the agent endpoint:
 
 **Artifact Type:** `Card`
 
+**Authentication:** `message` uses the active CLI session automatically. Run `admin session login` once to establish it; there is no `--token` flag on this command.
+
+---
+
+### agents tools
+
+List the MCP tools available to an agent by connecting to each of its configured MCP servers.
+
+```bash
+sp admin agents tools <agent_name>
+sp admin agents tools primary --detailed
+sp admin agents tools primary --timeout 60
+```
+
+**Required Arguments:**
+| Argument | Required | Description |
+|----------|----------|-------------|
+| `<name>` | Yes | Agent name (required in non-interactive mode) |
+
+**Optional Flags:**
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--detailed` | false | Show full input/output schemas |
+| `--timeout` | 30 | Timeout in seconds per server |
+
+**Artifact Type:** `Table`
+
+---
+
+### agents run
+
+Run an agent server directly as a subprocess, bypassing orchestration. Used internally by the service supervisor; run it by hand to debug a single agent in isolation.
+
+```bash
+sp admin agents run --agent-name primary --port 8001
+```
+
+**Required Flags:**
+| Flag | Required | Description |
+|------|----------|-------------|
+| `--agent-name` | Yes | Agent name to run |
+| `--port` | Yes | Port to listen on |
+
+**Artifact Type:** `Text`
+
 ---
 
 ### agents task
@@ -607,7 +652,7 @@ echo "Token length: ${#TOKEN}"
 sp --json admin agents registry --running
 
 # Step 4: Send initial message to agent (auto-creates context)
-RESPONSE=$(sp --json admin agents message admin -m "What is 2+2?" --token "$TOKEN" --blocking)
+RESPONSE=$(sp --json admin agents message admin -m "What is 2+2?" --blocking)
 echo "$RESPONSE"
 # Extract task_id and context_id from response (note: JSON output wraps data)
 TASK_ID=$(echo "$RESPONSE" | jq -r '.data.task.task_id')
@@ -621,7 +666,6 @@ sp admin agents task admin --task-id "$TASK_ID" --token "$TOKEN"
 sp --json admin agents message admin \
   -m "Now multiply that by 10" \
   --context-id "$CONTEXT_ID" \
-  --token "$TOKEN" \
   --blocking
 
 # Step 7: Get full conversation history
@@ -630,24 +674,21 @@ sp admin agents task admin --task-id "$TASK_ID" --token "$TOKEN"
 
 ### Authentication
 
-A2A protocol commands require authentication. Use `admin session login` to get a token:
+A2A protocol commands require an authenticated session. Establish one with `admin session login`:
 
 ```bash
-# Get token interactively
+# Log in and persist the session (message reuses it automatically)
 sp admin session login --email admin@example.com
 
-# Get token for scripting (outputs only the token)
+# Message picks up the active session; no token flag needed
+sp admin agents message admin -m "Hello"
+
+# task takes an explicit bearer token
 TOKEN=$(sp admin session login --email admin@example.com --token-only)
-
-# Use token with message command
-sp admin agents message admin -m "Hello" --token "$TOKEN"
-
-# Or set as environment variable
-export SYSTEMPROMPT_TOKEN="$TOKEN"
-sp admin agents message admin -m "Hello"  # Uses env var automatically
+sp admin agents task admin --task-id "$TASK_ID" --token "$TOKEN"
 ```
 
-The token is a JWT with 24-hour default expiration. Use `--duration-hours` to customize.
+The session token is a JWT with a 24-hour default expiration. `message` and `tools` reuse the active session; `task` takes an explicit `--token`.
 
 ---
 
@@ -666,6 +707,8 @@ The token is a JWT with 24-hour default expiration. Use `--duration-hours` to cu
 | `registry` | `RegistryOutput` | `Table` | columns |
 | `message` | `MessageOutput` | `Card` | title |
 | `task` | `TaskGetOutput` | `Card` | title |
+| `tools` | `AgentToolsOutput` | `Table` | columns |
+| `run` | (subprocess) | `Text` | - |
 
 ---
 
@@ -736,7 +779,7 @@ sp --json admin agents show primary | jq '.data.port'
 sp --json admin agents validate | jq '.data.valid'
 sp --json admin agents status | jq '.data.agents[] | select(.is_running == true)'
 sp --json admin agents registry | jq '.data.agents[] | select(.status == "running")'
-sp --json admin agents message primary -m "test" --token "$TOKEN" | jq '.data.task.task_id'
+sp --json admin agents message primary -m "test" | jq '.data.task.task_id'
 ```
 
 ---
@@ -747,7 +790,7 @@ After sending a message to an agent, you can trace the full execution flow using
 
 ```bash
 # Send message and get task ID
-RESPONSE=$(sp --json admin agents message admin -m "What is 2+2?" --token "$TOKEN" --blocking)
+RESPONSE=$(sp --json admin agents message admin -m "What is 2+2?" --blocking)
 TASK_ID=$(echo "$RESPONSE" | jq -r '.data.task.task_id')
 
 # View the execution trace (accepts task ID directly)
@@ -761,7 +804,7 @@ sp infra logs request show <request-id> --messages --tools
 sp infra logs request stats --since 1h
 ```
 
-**Related Documentation:** See [logs/README.md](../logs/README.md) for complete logs command documentation.
+**Related Documentation:** See [logs/README.md](../../infrastructure/logs/README.md) for complete logs command documentation.
 
 ---
 

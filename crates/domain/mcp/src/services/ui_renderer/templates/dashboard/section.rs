@@ -4,6 +4,9 @@
 //! its body according to its `SectionType` (metrics, chart, table, status,
 //! list, or free text), producing the inner markup the dashboard renderer
 //! assembles into the full page.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use super::super::html::html_escape;
 use super::rand_id;

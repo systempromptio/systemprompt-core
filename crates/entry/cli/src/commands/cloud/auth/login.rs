@@ -3,6 +3,9 @@
 //! Runs the provider-selection prompt and browser OAuth flow, persists the
 //! returned credentials and tenant list to the local cloud config paths, and
 //! syncs the authenticated admin user into all profiles.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use anyhow::{Result, anyhow};
 use systemprompt_cloud::{

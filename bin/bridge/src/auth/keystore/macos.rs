@@ -1,3 +1,6 @@
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
 use super::{DeviceCert, DeviceCertSource, KeystoreError, sha256_der};
 use security_framework::item::{ItemClass, ItemSearchOptions, Limit, Reference, SearchResult};
 use std::env;

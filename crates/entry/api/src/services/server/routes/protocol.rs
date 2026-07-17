@@ -3,6 +3,9 @@
 //! Mounts the OAuth, agent (A2A), MCP, stream, and content/admin/marketplace
 //! route groups onto the server router, each nested under its `ApiPaths` base
 //! with the correct context middleware, rate limit, and `AuthzPolicy` gate.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use axum::Router;
 use std::sync::Arc;

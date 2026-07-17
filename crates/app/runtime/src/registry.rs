@@ -5,6 +5,9 @@
 //! endpoints with
 //! [`register_wellknown_route!`](crate::register_wellknown_route). Both submit
 //! to `inventory` collectors that this module materialises into runtime maps.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use axum::Router;
 use serde::{Deserialize, Serialize};

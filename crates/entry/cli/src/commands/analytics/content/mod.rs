@@ -3,6 +3,9 @@
 //! Defines the [`ContentCommands`] subcommand tree and the typed output shapes
 //! ([`ContentStatsOutput`], [`TopContentOutput`], [`ContentTrendsOutput`])
 //! rendered by the `analytics content` commands.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod stats;
 mod top;

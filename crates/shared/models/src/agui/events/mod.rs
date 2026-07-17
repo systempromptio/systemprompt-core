@@ -1,4 +1,7 @@
 //! Top-level AG-UI event enum and the convenience builder.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod builder;
 

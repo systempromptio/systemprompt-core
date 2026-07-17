@@ -12,6 +12,9 @@
 //! Config and secrets resolve on demand (the MCP-registry pattern): the app is
 //! looked up by workspace id, and the signing secret / bot token are read from
 //! the profile secret store. No `AppContext` wiring, no registry struct, no DB.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod verify;
 

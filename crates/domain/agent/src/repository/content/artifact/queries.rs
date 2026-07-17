@@ -1,3 +1,6 @@
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
 use super::ArtifactRepository;
 use super::converters::{row_to_artifact_with_parts, rows_to_artifacts_batch};
 use super::parts::get_artifact_parts;

@@ -1,5 +1,8 @@
 //! Gateway dispatch entry point: route resolution, policy and quota checks,
 //! upstream send, and response finalization.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 #![expect(
     clippy::clone_on_ref_ptr,
     reason = "Arc::clone usage is intentional and ergonomic in this gateway dispatch path"

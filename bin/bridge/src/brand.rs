@@ -21,6 +21,9 @@
 //! change, not a per-client cosmetic swap. The one exception exposed here is
 //! [`Brand::synthetic_plugin_name`], surfaced so a fully self-hosted client
 //! deployment can rename it on both sides together.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::sync::OnceLock;
 

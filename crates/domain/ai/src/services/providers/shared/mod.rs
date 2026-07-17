@@ -4,6 +4,9 @@
 //! input and the [`TokenUsage`] accounting type, letting each provider adapter
 //! turn a raw completion into a normalised `AiResponse` without duplicating the
 //! logic.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod response_builder;
 

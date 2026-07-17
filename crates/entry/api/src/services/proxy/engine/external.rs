@@ -5,6 +5,9 @@
 //! provider endpoint, withholding the systemprompt credential and the provider
 //! URL from the client. A client-mediated `tools/call` is audited under the
 //! calling user via the response tap.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::collections::HashMap;
 

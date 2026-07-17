@@ -1,3 +1,6 @@
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
 pub fn parse_opt_flag(args: &[String], flag: &str) -> Option<String> {
     let mut i = 2;
     while i < args.len() {

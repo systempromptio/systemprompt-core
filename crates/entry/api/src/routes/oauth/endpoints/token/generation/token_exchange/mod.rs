@@ -13,6 +13,9 @@
 //!   scope, and owner permissions;
 //! * `resource` (RFC 8707) is in `allowed_resource_audiences`, otherwise the
 //!   call is rejected with `invalid_target`.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::str::FromStr;
 

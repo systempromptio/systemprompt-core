@@ -1,6 +1,9 @@
 //! Subsystem resolution helpers used by [`AppContextBuilder::build`].
 //!
 //! [`AppContextBuilder::build`]: super::AppContextBuilder::build
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
 

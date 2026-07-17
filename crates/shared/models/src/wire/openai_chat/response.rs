@@ -1,5 +1,8 @@
 //! `OpenAI` Chat Completions buffered-response parsing into the canonical
 //! model.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use serde::Deserialize;
 use serde_json::Value;

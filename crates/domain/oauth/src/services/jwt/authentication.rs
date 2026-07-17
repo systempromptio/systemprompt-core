@@ -1,4 +1,7 @@
 //! JWT-based authentication service entry point.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::services::validation::jwt as jwt_validation;
 use http::{HeaderMap, StatusCode};

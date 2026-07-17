@@ -8,6 +8,9 @@
 //!
 //! The contract is one-way (YAML → DB), mirroring the access-control
 //! ingestion path.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use serde::{Deserialize, Serialize};
 

@@ -1,5 +1,8 @@
 //! Tool-usage repository — persists each MCP tool execution and aggregates
 //! stats.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod stats;
 

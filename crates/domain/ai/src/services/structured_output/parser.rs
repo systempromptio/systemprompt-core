@@ -3,6 +3,9 @@
 //! Model output may wrap the requested JSON in prose or fenced code blocks;
 //! this parser locates and decodes the embedded object so structured-output
 //! requests can validate it against the caller's schema.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::error::Result;
 use regex::Regex;

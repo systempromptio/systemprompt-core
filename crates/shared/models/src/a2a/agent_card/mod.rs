@@ -1,5 +1,8 @@
 //! A2A protocol agent card — the JSON document an agent publishes to
 //! describe its identity, capabilities, transports, and skills.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod extension;
 mod skill;

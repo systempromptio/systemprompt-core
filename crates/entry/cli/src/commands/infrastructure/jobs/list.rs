@@ -1,3 +1,6 @@
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
 use std::collections::HashSet;
 use systemprompt_extension::ExtensionRegistry;
 use systemprompt_traits::Job;

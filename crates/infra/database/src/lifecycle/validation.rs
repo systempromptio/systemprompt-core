@@ -1,4 +1,7 @@
 //! Pre-flight validation helpers used by the boot path and tests.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::error::{DatabaseResult, RepositoryError};
 use crate::services::DatabaseProvider;

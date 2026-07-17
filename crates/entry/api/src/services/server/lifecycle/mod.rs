@@ -3,6 +3,9 @@
 //! Reconciles enabled agents and system MCP services into a running state,
 //! bridges runtime startup events, and initializes the scheduler before the
 //! server begins accepting traffic.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod agents;
 mod event_bridge;

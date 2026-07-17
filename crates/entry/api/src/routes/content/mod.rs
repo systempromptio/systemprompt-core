@@ -3,6 +3,9 @@
 //! Splits content delivery into a public router (read/query, Markdown
 //! negotiation, link analytics), an authenticated router (link generation), and
 //! the bare short-code redirect router.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod blog;
 pub mod links;

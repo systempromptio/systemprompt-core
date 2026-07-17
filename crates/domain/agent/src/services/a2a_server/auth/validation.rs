@@ -3,6 +3,9 @@
 //! [`extract_bearer_token`] pulls the bearer credential from request headers;
 //! [`validate_agent_token`] and [`validate_oauth_for_request`] verify the JWT,
 //! confirm the `a2a` audience, and enforce the required permission scopes.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::services::shared::{AgentServiceError, Result};
 use axum::http::{HeaderMap, StatusCode};

@@ -1,4 +1,7 @@
 //! [`ResilienceGuard`] — composes bulkhead, breaker, retry and timeout.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::fmt;
 use std::future::Future;

@@ -2,6 +2,9 @@
 //! submodules: `queries` (read), `mutations` (write), `behavioral` (bot
 //! detection writes), `behavioral_queries` (bot detection reads), `types`
 //! (DTO/row structs).
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod behavioral;
 mod behavioral_queries;

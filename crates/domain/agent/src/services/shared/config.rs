@@ -1,5 +1,8 @@
 //! Runtime configuration for agent services: connection, runtime, and service
 //! settings, plus a builder and validation for assembling them.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::services::shared::error::{AgentServiceError, Result};
 use serde::{Deserialize, Serialize};

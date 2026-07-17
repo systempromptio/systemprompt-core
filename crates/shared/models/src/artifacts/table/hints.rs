@@ -1,3 +1,6 @@
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
 use super::column::Column;
 use crate::artifacts::traits::ArtifactSchema;
 use crate::artifacts::types::SortOrder;

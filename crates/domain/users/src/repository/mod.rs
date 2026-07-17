@@ -5,6 +5,9 @@
 //! device-cert, and banned-IP repositories live alongside it. Mutating
 //! operations take typed parameter structs ([`UpdateUserParams`],
 //! [`CreateApiKeyParams`], [`EnrollDeviceCertParams`], [`BanIpParams`]).
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod api_key;
 mod banned_ip;

@@ -2,6 +2,9 @@
 //!
 //! Dispatches the [`AiCommands`] subcommands (list, show, count) over files
 //! flagged as AI-generated content.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod count;
 pub mod list;

@@ -6,6 +6,9 @@
 //! `authz/types.rs`) because they describe the *tool-call* enforcement plane
 //! — secret scans, scope checks, blocklists, rate limits — which is
 //! orthogonal to the user→entity allow/deny resolver.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::fmt;
 use std::str::FromStr;

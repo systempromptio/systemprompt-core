@@ -4,6 +4,9 @@
 //! access-control, and signing-key management plus the setup and bootstrap
 //! flows. On a `--database-url` invocation only the user-management subgroup
 //! is served; the rest require a full profile context.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod access_control;
 pub mod agents;

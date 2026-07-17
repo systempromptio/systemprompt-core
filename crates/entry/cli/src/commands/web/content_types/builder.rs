@@ -2,6 +2,9 @@
 //!
 //! The `create` command resolves its inputs (flags or prompts) and delegates
 //! the config shaping here, keeping the YAML-bound structures testable.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use anyhow::{Result, anyhow};
 use systemprompt_identifiers::{CategoryId, SourceId};

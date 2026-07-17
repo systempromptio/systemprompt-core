@@ -1,6 +1,9 @@
 //! Anthropic server-side web search: builds a canonical request carrying a
 //! [`SearchConfig`], renders it with the shared codec (which adds the
 //! `web_search` server tool), and maps the grounded reply back.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::time::Instant;
 

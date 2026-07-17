@@ -5,6 +5,9 @@
 //! and traffic breakdowns (browser, device, geography, bot share).
 //! These are projection types — they carry no behaviour and are never
 //! persisted directly.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};

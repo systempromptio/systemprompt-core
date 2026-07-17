@@ -4,6 +4,9 @@
 //! requested scopes with both the client's static grant and (for delegated
 //! user-tier roles) the owner's permissions. [`ClientCredentialsError`]
 //! partitions failures so the route maps recoverable client mistakes to 4xx.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use axum::http::HeaderMap;
 use std::str::FromStr;

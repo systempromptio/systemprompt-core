@@ -1,3 +1,6 @@
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
 use crate::error::McpDomainResult;
 use crate::services::monitoring::health::{HealthStatus, perform_health_check};
 use crate::{ERROR, McpServerConfig, RUNNING, STOPPED};

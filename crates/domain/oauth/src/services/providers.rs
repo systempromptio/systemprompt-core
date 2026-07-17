@@ -1,4 +1,7 @@
 //! JWT validation provider implementations.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_models::auth::{AuthenticatedUser, JwtAudience, Permission};
 use systemprompt_traits::{

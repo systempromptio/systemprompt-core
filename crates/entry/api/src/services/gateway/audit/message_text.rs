@@ -1,5 +1,8 @@
 //! Flattening of canonical message content into the plain-text form persisted
 //! against an audited AI request.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use super::super::protocol::canonical::CanonicalContent;
 

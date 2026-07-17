@@ -5,6 +5,9 @@
 //! costs), comparing each against the immediately preceding period of equal
 //! length to derive change percentages. Supports CSV export of the rolled-up
 //! row.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use anyhow::Result;
 use chrono::{DateTime, Utc};

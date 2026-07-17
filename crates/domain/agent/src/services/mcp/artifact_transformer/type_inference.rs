@@ -1,3 +1,6 @@
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
 use crate::error::ArtifactError;
 use serde_json::{Value as JsonValue, json};
 use systemprompt_models::artifacts::CliArtifact;

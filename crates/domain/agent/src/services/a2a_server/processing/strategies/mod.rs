@@ -6,6 +6,9 @@
 //! (no tools) and [`PlannedAgenticStrategy`] (plan → execute → respond). The
 //! `plan_executor` and `tool_executor` submodules provide the shared
 //! tool-running primitives.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::services::shared::Result;
 use async_trait::async_trait;

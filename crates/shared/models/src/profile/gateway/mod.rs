@@ -10,6 +10,9 @@
 //!   resolves its provider against `profile.providers` at use time.
 //! - [`route`] / [`GatewayRoute`] — routing patterns and the stable id
 //!   synthesis used to address routes from `access_control_rules`.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod config;
 mod error;

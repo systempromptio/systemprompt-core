@@ -3,6 +3,9 @@
 //! Defines the [`SessionsCommands`] subcommand tree and the typed output shapes
 //! ([`SessionStatsOutput`], [`SessionTrendsOutput`], [`LiveSessionsOutput`])
 //! rendered by the `analytics sessions` commands.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod live;
 mod stats;

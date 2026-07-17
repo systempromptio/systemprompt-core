@@ -1,5 +1,8 @@
 //! Shared pure helpers used by both `checks` (single-session) and
 //! `fingerprint_checks` (cross-session) detector modules.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use chrono::{DateTime, Utc};
 

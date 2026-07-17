@@ -3,6 +3,9 @@
 //! [`SearchRepository`] runs read-only content lookups by category or keyword,
 //! joining `markdown_content` against `content_performance_metrics` so results
 //! can be ordered by view count.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::error::ContentError;
 use crate::models::SearchResult;

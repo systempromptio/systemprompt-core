@@ -3,6 +3,9 @@
 //! Enforces the mode's invariants (webhook needs a URL; unrestricted needs the
 //! exact acknowledgement sentence) at edit time so a misconfigured governance
 //! block cannot reach the fail-closed bootstrap check.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use anyhow::{Result, bail};
 use clap::{Args, Subcommand};

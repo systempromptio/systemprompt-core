@@ -5,6 +5,9 @@
 //! (sanitised), while a discriminated union is auto-split into one function per
 //! variant with merged base/variant properties and a sanitised, provider-safe
 //! function name.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use super::analyzer::DiscriminatedUnion;
 use super::{ProviderCapabilities, SchemaSanitizer};

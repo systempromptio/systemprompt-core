@@ -3,6 +3,9 @@
 //! Dispatches the [`LinkCommands`] subcommands (generate, show, list,
 //! performance, delete) for creating short codes and reading their click
 //! metrics.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod delete;
 pub mod generate;

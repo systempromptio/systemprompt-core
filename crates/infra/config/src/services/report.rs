@@ -1,5 +1,8 @@
 //! Mutable accumulator of errors and warnings produced by
 //! [`super::ConfigValidator`].
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 #[derive(Debug)]
 pub struct ValidationReport {

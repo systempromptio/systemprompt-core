@@ -3,6 +3,9 @@
 //! Scans the profile's skills directory for skill configs, rendering either a
 //! filtered summary table or, when a skill name is given, a single-skill detail
 //! card with an instructions preview.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use anyhow::{Context, Result, anyhow};
 use clap::Args;

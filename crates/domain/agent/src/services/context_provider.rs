@@ -1,6 +1,9 @@
 //! Adapter exposing [`ContextRepository`] through the
 //! [`systemprompt_traits::ContextProvider`] trait so other crates can consume
 //! it without a direct database dependency.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use async_trait::async_trait;
 use systemprompt_database::DbPool;

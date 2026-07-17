@@ -15,7 +15,7 @@ The governance engine behind the only AI infrastructure you actually own. One Ru
 [![CI](https://img.shields.io/github/actions/workflow/status/systempromptio/systemprompt-core/ci.yml?branch=main&style=flat-square&label=CI)](https://github.com/systempromptio/systemprompt-core/actions/workflows/ci.yml)
 [![codecov](https://img.shields.io/codecov/c/github/systempromptio/systemprompt-core/main?style=flat-square&logo=codecov)](https://codecov.io/gh/systempromptio/systemprompt-core)
 [![License: BSL-1.1](https://img.shields.io/badge/license-BSL--1.1-2b6cb0?style=flat-square)](LICENSE)
-[![Rust 1.85+](https://img.shields.io/badge/rust-1.85+-f97316?style=flat-square&logo=rust&logoColor=white)](https://www.rust-lang.org/)
+[![Rust 1.94+](https://img.shields.io/badge/rust-1.94+-f97316?style=flat-square&logo=rust&logoColor=white)](https://www.rust-lang.org/)
 [![PostgreSQL 18+](https://img.shields.io/badge/postgres-18+-336791?style=flat-square&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 
 [**Website**](https://systemprompt.io) · [**Documentation**](documentation/overview.md) · [**Evaluation template**](https://github.com/systempromptio/systemprompt-template) · [**Discord**](https://discord.gg/wkAbSuPWpr)
@@ -59,7 +59,7 @@ Six surfaces, one binary, one authenticated and audited path.
 
 ## Requirements
 
-- Rust 1.85+ (the workspace is edition 2024; the repository pins a nightly toolchain in `rust-toolchain.toml`).
+- Rust 1.94+ (the workspace is edition 2024; the repository pins a nightly toolchain in `rust-toolchain.toml`).
 - PostgreSQL 18+.
 - [`just`](https://just.systems) to run the build recipes.
 
@@ -96,7 +96,7 @@ The workspace publishes to crates.io as `systemprompt-*` crates behind the `syst
 
 ```toml
 [dependencies]
-systemprompt = { version = "0.18", features = ["full"] }
+systemprompt = { version = "0.21", features = ["full"] }
 ```
 
 ```rust

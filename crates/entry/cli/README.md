@@ -26,15 +26,16 @@
 
 [![Crates.io](https://img.shields.io/crates/v/systemprompt-cli.svg?style=flat-square)](https://crates.io/crates/systemprompt-cli)
 [![Docs.rs](https://img.shields.io/docsrs/systemprompt-cli?style=flat-square)](https://docs.rs/systemprompt-cli)
+[![codecov](https://img.shields.io/codecov/c/github/systempromptio/systemprompt-core/main?style=flat-square&logo=codecov)](https://codecov.io/gh/systempromptio/systemprompt-core)
 [![License: BSL-1.1](https://img.shields.io/badge/license-BSL--1.1-2b6cb0?style=flat-square)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
 
-Unified CLI for systemprompt.io: agent orchestration, MCP governance, analytics, profiles, cloud deployment, and self-hosted operations. Every command supports both human-friendly interactive mode and agent-friendly non-interactive mode.
+One binary to run the infrastructure you own: agent orchestration, MCP governance, analytics, profiles, cloud deployment, and self-hosted operations. Every command runs two ways, an interactive mode for humans and a non-interactive mode for agents, over the same code path.
 
 **Layer**: Entry — application boundary. Binary: `systemprompt`. Library: `systemprompt_cli`. Part of the [systemprompt-core](https://github.com/systempromptio/systemprompt-core) workspace.
 
 ## Overview
 
-The CLI exposes the systemprompt.io platform through eight top-level domains:
+The CLI exposes systemprompt.io through eight top-level domains:
 
 | Domain | Purpose |
 |--------|---------|
@@ -49,49 +50,34 @@ The CLI exposes the systemprompt.io platform through eight top-level domains:
 
 ## Architecture
 
+Top-level modules. docs.rs carries the file-level detail.
+
 ```
 src/
-├── lib.rs                 # Entry point: pub async fn run(), command routing
-├── args.rs                # Top-level Commands enum (clap parsing)
-├── bootstrap.rs           # Profile → credentials → secrets → paths → validation
-├── cli_settings.rs        # CliConfig, OutputFormat, VerbosityLevel
-├── descriptor.rs          # CommandDescriptor: declares initialisation needs per command
-├── environment.rs         # Process environment resolution
-├── interactive.rs         # Interactive menu mode
-├── paths.rs               # CLI-local path helpers
-├── session/               # Session lifecycle (JWT, context, persistence)
-├── presentation/          # Output rendering: tables, JSON, YAML, widgets
-├── routing/               # Local vs remote (SSE) command execution
-├── shared/                # Cross-cutting utilities (parsers, paths, docker, profile)
-│
-└── commands/
-    ├── mod.rs             # Domain module re-exports
-    ├── admin/             # Users, agents, config, session, setup, bridge, access-control
-    ├── analytics/         # Overview, conversations, agents, tools, requests,
-    │                      # sessions, content, traffic, costs
-    ├── build/             # Core workspace and MCP extension builds
-    ├── cloud/             # Auth, init, tenant, profile, deploy, status, restart,
-    │                      # sync, secrets, dockerfile, db, domain, templates
-    ├── core/              # Artefacts, content, files, contexts, skills, plugins, hooks
-    ├── infrastructure/    # Services, db, jobs, logs
-    ├── plugins/           # List, show, run, validate, config, capabilities, mcp
-    ├── web/               # Content types, templates, assets, sitemap, validate
-    └── shared/            # Cross-domain command helpers
+├── lib.rs          # Entry point: pub async fn run(), command routing, output finalisation
+├── descriptor.rs   # CommandDescriptor: declares initialisation needs per command
+├── cli_settings.rs # CliConfig, OutputFormat, VerbosityLevel
+├── interactive.rs  # Interactive menu mode
+├── runner/         # args (clap Commands enum), bootstrap, profile routing, structured output
+├── session/        # Session lifecycle (JWT, context, persistence)
+├── presentation/   # Output rendering: tables, JSON, YAML, widgets
+├── shared/         # Cross-cutting utilities (parsers, paths, docker, profile)
+└── commands/       # One module per domain (see the domain table above)
 ```
 
-The top-level `Commands` enum in `src/args.rs` dispatches to per-domain `*Commands` subcommand enums declared in each `commands/<domain>/mod.rs`.
+The top-level `Commands` enum in `src/runner/args.rs` dispatches to per-domain `*Commands` subcommand enums declared in each `commands/<domain>/mod.rs`.
 
 ### Core Modules
 
 | Module | Purpose |
 |--------|---------|
 | `lib.rs` | `pub async fn run()` entry point, top-level routing, output finalisation |
-| `args.rs` | clap-derived `Cli` and `Commands` definitions |
-| `bootstrap.rs` | Initialisation sequence: profile → credentials → secrets → paths → validation |
+| `runner/args.rs` | clap-derived `Cli` and `Commands` definitions |
+| `runner/bootstrap.rs` | Initialisation sequence: profile → credentials → secrets → paths → validation |
 | `cli_settings.rs` | `CliConfig`, `OutputFormat`, `VerbosityLevel` |
-| `descriptor.rs` | `CommandDescriptor` constants (`NONE`, `PROFILE_ONLY`, `FULL`, etc.) declared per command |
+| `descriptor.rs` | `CommandDescriptor` constants (`NONE`, `PROFILE_ONLY`, `PROFILE_AND_SECRETS`, `PROFILE_SECRETS_AND_PATHS`, `FULL`) declared per command |
+| `runner/routing/` | `ExecutionTarget` (local vs remote SSE streaming) |
 | `session/` | JWT session tokens, active context, on-disk persistence |
-| `routing/` | `ExecutionTarget` (local vs remote SSE streaming) |
 | `presentation/` | Format-aware renderer, render state, terminal widgets |
 | `shared/` | `CommandResult<T>`, docker utilities, value parsers, process helpers, profile/project detection |
 
@@ -102,9 +88,10 @@ Each command variant declares a `CommandDescriptor` indicating what bootstrap st
 - `NONE` — standalone (no profile, no secrets, no database)
 - `PROFILE_ONLY` — profile loaded
 - `PROFILE_AND_SECRETS` — profile and secrets loaded
+- `PROFILE_SECRETS_AND_PATHS` — profile, secrets, and resolved paths
 - `FULL` — profile, secrets, paths, validation, database pool
 
-`bootstrap.rs` walks the descriptor and short-circuits unneeded steps.
+`runner/bootstrap.rs` walks the descriptor and short-circuits unneeded steps.
 
 ### Output System
 
@@ -122,7 +109,7 @@ Artefact variants: `Table`, `List`, `Card`, `Text`, `CopyPasteText`, `Chart`, `F
 
 ```toml
 [dependencies]
-systemprompt-cli = "0.18.0"
+systemprompt-cli = "0.21"
 ```
 
 ```bash

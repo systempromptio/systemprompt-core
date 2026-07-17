@@ -4,6 +4,9 @@
 //! the shared codec, and resolve model-emitted function names on the way back.
 //! Tool-result synthesis appends the assistant `functionCall` turn and the
 //! `functionResponse` turn to the canonical request the codec renders.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::time::Instant;
 

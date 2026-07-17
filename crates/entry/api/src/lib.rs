@@ -7,6 +7,9 @@
 //! and [`services::server::run_server`] swaps in the full router;
 //! [`HealthChecker`] reports per-module readiness. Failures surface as the
 //! [`error`] types and are mapped to HTTP responses at the route boundary.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod error;
 pub mod routes;

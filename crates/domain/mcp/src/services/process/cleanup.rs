@@ -4,6 +4,9 @@
 //! then force-kill ([`force_kill`]) a process by PID, and to discover and clear
 //! every process holding a given port. All operations are idempotent against an
 //! already-dead PID.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::error::McpDomainResult;
 use std::process::Command;

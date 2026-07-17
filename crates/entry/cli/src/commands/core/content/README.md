@@ -17,7 +17,7 @@
 
 # Content CLI Commands
 
-This document provides complete documentation for AI agents to use the content CLI commands. All commands support non-interactive mode for automation.
+Publish, inspect, and delete content on infrastructure you own, every command auditable and scriptable. Content lives in your PostgreSQL, not a vendor's. Every command runs non-interactively for automation.
 
 ---
 
@@ -40,10 +40,12 @@ alias sp="./target/debug/systemprompt --non-interactive"
 | `core content list` | List content with pagination | `Table` | No (DB only) |
 | `core content show <id>` | Show content details | `Card` | No (DB only) |
 | `core content search <query>` | Search content | `Table` | No (DB only) |
-| `core content ingest` | Ingest markdown files | `Card` | No (DB only) |
+| `core content edit <id>` | Edit content fields | `Card` | No (DB only) |
 | `core content delete <id>` | Delete content by ID | `Card` | No (DB only) |
-| `core content delete-source` | Delete all content from source | `Card` | No (DB only) |
+| `core content delete-source <id>` | Delete all content from source | `Card` | No (DB only) |
 | `core content popular` | Get popular content | `Table` | No (DB only) |
+| `core content verify <id>` | Verify content is published and accessible | `Card` | No (DB only) |
+| `core content status --source <id>` | Show content health status for a source | `Card` | No (DB only) |
 | `core content link generate` | Generate trackable link | `Card` | No (DB only) |
 | `core content link show` | Show link details | `Card` | No (DB only) |
 | `core content link list` | List links | `Table` | No (DB only) |
@@ -52,6 +54,10 @@ alias sp="./target/debug/systemprompt --non-interactive"
 | `core content analytics clicks` | Link click history | `Table` | No (DB only) |
 | `core content analytics campaign` | Campaign analytics | `Card` | No (DB only) |
 | `core content analytics journey` | Content navigation graph | `Table` | No (DB only) |
+| `core content files link` | Link a file to content with a role | `Card` | No (DB only) |
+| `core content files unlink` | Unlink a file from content | `Card` | No (DB only) |
+| `core content files list` | List files attached to content | `Table` | No (DB only) |
+| `core content files featured` | Get or set the featured image | `Card` | No (DB only) |
 
 ---
 
@@ -194,71 +200,83 @@ sp core content search "api" --category docs --limit 10
 
 ---
 
-### content ingest
+### content edit
 
-Ingest markdown files from a directory into the database.
+Edit fields on an existing content item. Requires full profile context.
 
 ```bash
-sp core content ingest <directory> --source blog
-sp core content ingest ./content/blog --source blog --recursive
-sp core content ingest ./content --source docs --category documentation
-sp core content ingest ./content --source test --dry-run
+sp core content edit <content-id> --set title="New Title"
+sp core content edit getting-started --source blog --set description="Updated"
+sp core content edit <content-id> --public
+sp core content edit <content-id> --body-file ./updated-body.md
 ```
 
 **Required Arguments:**
 | Argument | Required | Description |
 |----------|----------|-------------|
-| `<directory>` | Yes | Path to content directory |
+| `<identifier>` | Yes | Content ID or slug to edit |
+
+**Optional Flags:**
+| Flag | Description |
+|------|-------------|
+| `--source` | Source ID (required when using slug) |
+| `--set <KEY=VALUE>` | Set a field value (repeatable) |
+| `--public` | Make content public (conflicts with `--private`) |
+| `--private` | Make content private (conflicts with `--public`) |
+| `--body` | Body content inline |
+| `--body-file` | File containing body content |
+
+**Artifact Type:** `Card`
+
+---
+
+### content verify
+
+Verify that a content item is published and accessible, optionally checking prerendered HTML and live HTTP status.
+
+```bash
+sp core content verify <content-id>
+sp core content verify getting-started --source blog
+sp core content verify getting-started --source blog --base-url https://example.com --url-pattern "/{source}/{slug}"
+```
+
+**Required Arguments:**
+| Argument | Required | Description |
+|----------|----------|-------------|
+| `<identifier>` | Yes | Content slug or ID |
+
+**Optional Flags:**
+| Flag | Description |
+|------|-------------|
+| `--source` | Source ID (required when using slug) |
+| `--web-dist` | Web dist directory to check for prerendered HTML |
+| `--base-url` | Base URL to check HTTP status |
+| `--url-pattern` | URL pattern, e.g. `/{source}/{slug}` |
+
+**Artifact Type:** `Card`
+
+---
+
+### content status
+
+Show content health status for an entire source.
+
+```bash
+sp core content status --source blog
+sp --json core content status --source blog --limit 100
+```
 
 **Required Flags:**
 | Flag | Required | Description |
 |------|----------|-------------|
-| `--source` | Yes | Source ID for ingested content |
+| `--source` | Yes | Source ID |
 
 **Optional Flags:**
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--category` | `default` | Category ID for ingested content |
-| `--recursive` | `false` | Recursively process subdirectories |
-| `--override` | `false` | Override existing content |
-| `--dry-run` | `false` | Preview without making changes |
-
-**Frontmatter Requirements:**
-
-Markdown files must include YAML frontmatter with these required fields:
-
-```yaml
----
-title: Article Title
-slug: article-slug
-description: Brief description
-published_at: 2024-01-15
-kind: article
-author: Author Name
----
-```
-
-| Field | Required | Format | Description |
-|-------|----------|--------|-------------|
-| `title` | Yes | String | Content title |
-| `slug` | Yes | String | URL-friendly slug |
-| `description` | Yes | String | Brief description |
-| `published_at` | Yes | `YYYY-MM-DD` | Publication date |
-| `kind` | Yes | `article`, `paper`, `guide`, `tutorial` | Content type |
-| `author` | Yes | String | Author name |
-| `category` | No | String | Override default category |
-| `keywords` | No | String | Comma-separated keywords |
-| `image` | No | String | Image path |
-
-**Output Structure:**
-```json
-{
-  "files_found": 25,
-  "files_processed": 25,
-  "errors": [],
-  "success": true
-}
-```
+| `--limit` | `50` | Maximum items to check |
+| `--web-dist` | None | Web dist directory to check for prerendered HTML |
+| `--url-pattern` | None | URL pattern, e.g. `/{source}/{slug}` |
 
 **Artifact Type:** `Card`
 
@@ -664,41 +682,74 @@ sp core content analytics journey --limit 50
 
 ---
 
+## Content-File Commands
+
+Associate stored files (uploaded via `core files`) with content items. Roles: `featured`, `attachment`, `inline`, `og-image`, `thumbnail`.
+
+### content files link
+
+```bash
+sp core content files link <file-id> --content <content-id> --role featured
+sp core content files link <file-id> --content <content-id> --role attachment --order 1
+```
+
+| Argument / Flag | Required | Description |
+|-----------------|----------|-------------|
+| `<file-id>` | Yes | File ID |
+| `--content` | Yes | Content ID |
+| `--role` | Yes | One of `featured`, `attachment`, `inline`, `og-image`, `thumbnail` |
+| `--order` | No | Display order (default `0`) |
+
+### content files unlink
+
+```bash
+sp core content files unlink <file-id> --content <content-id> --yes
+sp core content files unlink <file-id> --content <content-id> --dry-run --yes
+```
+
+`--yes` / `-y` is required in non-interactive mode; `--dry-run` previews without executing.
+
+### content files list
+
+```bash
+sp core content files list --content <content-id>
+sp core content files list --file <file-id>
+```
+
+Pass `--content` to list files attached to a content item, or `--file` for the reverse lookup.
+
+### content files featured
+
+```bash
+sp core content files featured <content-id>
+sp core content files featured <content-id> --set <file-id>
+```
+
+Without `--set`, returns the current featured image; with `--set`, assigns it.
+
+---
+
 ## Complete Content Management Flow Example
 
 ```bash
-# Phase 1: Create content directory and files
-mkdir -p /tmp/tutorials
-cat << 'EOF' > /tmp/tutorials/getting-started.md
----
-title: Getting Started
-slug: getting-started
-description: A beginner's guide
-author: Developer
-published_at: 2024-01-15
-kind: tutorial
----
+# Phase 1: Inspect existing content
+sp --json core content list --source blog
+sp --json core content show getting-started --source blog
 
-# Getting Started
-
-Welcome to our platform...
-EOF
-
-# Phase 2: Dry-run to preview ingestion
-sp core content ingest /tmp/tutorials --source tutorials --dry-run
-
-# Phase 3: Ingest content
-sp core content ingest /tmp/tutorials --source tutorials
-
-# Phase 4: Verify content
-sp --json core content list --source tutorials
-sp --json core content show getting-started --source tutorials
-
-# Phase 5: Search content
+# Phase 2: Search content
 sp --json core content search "getting started"
 
+# Phase 3: Edit a field
+sp core content edit getting-started --source blog --set description="Updated"
+
+# Phase 4: Verify it is published and reachable
+sp core content verify getting-started --source blog --base-url https://example.com
+
+# Phase 5: Check source-wide health
+sp --json core content status --source blog
+
 # Phase 6: Check popular content
-sp --json core content popular --source tutorials --since 7d
+sp --json core content popular --source blog --since 7d
 
 # Phase 7: Generate trackable link
 sp core content link generate --url https://example.com --campaign test --utm-source cli
@@ -707,10 +758,10 @@ sp core content link generate --url https://example.com --campaign test --utm-so
 sp --json core content analytics clicks <link-id>
 
 # Phase 9: Delete content
-sp core content delete getting-started --source tutorials --yes
+sp core content delete getting-started --source blog --yes
 
 # Phase 10: Delete all from source
-sp core content delete-source tutorials --yes
+sp core content delete-source blog --yes
 ```
 
 ---
@@ -720,9 +771,6 @@ sp core content delete-source tutorials --yes
 ### Missing Required Flags
 
 ```bash
-sp core content ingest /path
-# Error: --source is required
-
 sp core content delete content_abc
 # Error: --yes is required to delete content in non-interactive mode
 

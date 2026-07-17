@@ -4,6 +4,9 @@
 //! `PostgreSQL` container (starting it if needed); [`create_external_tenant`]
 //! registers a user-supplied database after validating the connection. Both
 //! then scaffold a local profile.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use anyhow::{Context, Result, anyhow, bail};
 use std::fs;

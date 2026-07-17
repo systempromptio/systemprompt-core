@@ -40,6 +40,9 @@
 //! compile time. The `[package.metadata.docs.rs]` section in
 //! `Cargo.toml` enables `all-features = true` for parity with the
 //! rest of the workspace.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod api_client;
 pub mod auth;

@@ -20,6 +20,9 @@
 //! # Feature flags
 //!
 //! This crate has no Cargo features.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod config;
 mod result;

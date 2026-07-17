@@ -1,4 +1,7 @@
 //! Cross-platform process probing and termination primitives.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::services::shared::{AgentServiceError, Result};
 #[cfg(windows)]

@@ -3,6 +3,9 @@
 //! Resolves the active profile (CLI override, active session, or path), then
 //! initialises secrets, credentials, paths, and config in order, and runs
 //! startup validation before a command executes.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};

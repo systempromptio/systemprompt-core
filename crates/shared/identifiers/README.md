@@ -6,7 +6,7 @@
   <img src="https://systemprompt.io/files/images/logo.svg" alt="systemprompt.io" width="180">
 </picture>
 
-### Production infrastructure for AI agents
+### Typed identity for every boundary you audit
 
 [**Website**](https://systemprompt.io) · [**Documentation**](https://systemprompt.io/documentation/) · [**Guides**](https://systemprompt.io/guides) · [**Core**](https://github.com/systempromptio/systemprompt-core) · [**Template**](https://github.com/systempromptio/systemprompt-template) · [**Discord**](https://discord.gg/wkAbSuPWpr)
 
@@ -27,79 +27,42 @@
 [![Crates.io](https://img.shields.io/crates/v/systemprompt-identifiers.svg?style=flat-square)](https://crates.io/crates/systemprompt-identifiers)
 [![Docs.rs](https://img.shields.io/docsrs/systemprompt-identifiers?style=flat-square)](https://docs.rs/systemprompt-identifiers)
 [![License: BSL-1.1](https://img.shields.io/badge/license-BSL--1.1-2b6cb0?style=flat-square)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
+[![codecov](https://img.shields.io/codecov/c/github/systempromptio/systemprompt-core/main?style=flat-square&logo=codecov)](https://codecov.io/gh/systempromptio/systemprompt-core)
 
-Typed newtype identifiers (`UserId`, `TraceId`, `AgentId`, `McpServerId`, and more) for systemprompt.io AI governance infrastructure. Enforces type-safe IDs across every boundary in the MCP governance pipeline, preventing accidental mixing of different ID types at compile time.
+Every ID in systemprompt.io carries its type. A `UserId` cannot stand in for an `AgentId`, and the compiler proves it before a single request reaches the audit trail. This crate holds the newtype identifiers (`UserId`, `TraceId`, `AgentId`, `McpServerId`, and the rest) that name each boundary in the governance pipeline.
 
-**Layer**: Shared — foundational types/traits with no dependencies on other layers. Part of the [systemprompt-core](https://github.com/systempromptio/systemprompt-core) workspace.
+**Layer**: Shared. Foundational types with no dependencies on other layers. Part of the [systemprompt-core](https://github.com/systempromptio/systemprompt-core) workspace.
 
-## Overview
+## What it guarantees
 
-Strongly-typed newtype wrappers for every domain identifier in systemprompt.io. Distinct ID types cannot be mixed at call sites; the compiler rejects passing a `UserId` where an `AgentId` is expected.
+Distinct ID types never mix at a call site. Passing a `UserId` where an `AgentId` is expected is a compile error, not a runtime surprise found in a log. Validated identifiers reject malformed input at construction, so a bad email or path fails at the edge rather than deep in a query.
 
 ## Layout
 
-```
-src/
-├── lib.rs                  // crate root, re-exports
-├── macros/                 // define_id! / define_token! and helpers
-│   ├── id.rs
-│   ├── token.rs
-│   ├── helpers.rs
-│   └── mod.rs
-├── db_value/               // database boundary types
-│   ├── value.rs            // DbValue enum
-│   ├── to_value.rs         // ToDbValue trait
-│   ├── from_value.rs       // FromDbValue trait + JsonRow
-│   └── mod.rs
-├── auth/                   // ApiKeyId, ApiKeySecret, CloudAuthToken,
-│   │                       // DeviceCertId, JwtToken, SessionToken
-│   └── …
-├── error.rs                // IdValidationError
-├── headers.rs              // HTTP header name constants
-├── agent.rs                // AgentId, AgentName, ExternalAgentId
-├── ai.rs                   // AiGatewayPolicyId, AiQuotaBucketId,
-│                           // AiRequestId, AiSafetyFindingId,
-│                           // ConfigId, MessageId
-├── client.rs               // ClientId, ClientType
-├── cloud.rs                // CheckoutSessionId, PriceId, TransactionId
-├── connection.rs           // ConnectionId
-├── content.rs              // CategoryId, ContentId, FileId, SkillId,
-│                           // SourceId, TagId
-├── context.rs              // ContextId
-├── email.rs                // Email (validated)
-├── execution.rs            // ArtifactId, ExecutionStepId, LogId, TokenId
-├── funnel.rs               // EngagementEventId, FunnelId,
-│                           // FunnelProgressId
-├── gateway_conversation.rs // GatewayConversationId
-├── hook.rs                 // HookId
-├── jobs.rs                 // JobName, ScheduledJobId
-├── links.rs                // CampaignId, LinkClickId, LinkId
-├── locale.rs               // LocaleCode
-├── marketplace.rs          // MarketplaceId
-├── mcp.rs                  // AiToolCallId, McpExecutionId, McpServerId
-├── oauth.rs                // AccessTokenId, AuthorizationCode,
-│                           // ChallengeId, RefreshTokenId
-├── path.rs                 // ValidatedFilePath
-├── plugin.rs               // PluginId
-├── policy.rs               // PolicyVersion
-├── profile.rs              // ProfileName (validated)
-├── provider_request.rs     // ProviderRequestId
-├── roles.rs                // RoleId
-├── section.rs              // SectionId
-├── session.rs              // SessionId, SessionSource
-├── task.rs                 // TaskId
-├── tenant.rs               // TenantId
-├── trace.rs                // TraceId
-├── url.rs                  // ValidatedUrl
-├── user.rs                 // UserId
-└── webhook.rs              // WebhookEndpointId
-```
+| Module | Contents |
+|--------|----------|
+| `macros/` | `define_id!` / `define_token!` and shared construction helpers |
+| `db_value/` | `DbValue` enum, `ToDbValue` / `FromDbValue` traits, `JsonRow` |
+| `auth/` | `ApiKeyId`, `ApiKeySecret`, `CloudAuthToken`, `DeviceCertId`, `JwtToken`, `SessionToken` |
+| `error` | `IdValidationError` |
+| `headers` | HTTP header name constants |
+| `agent`, `ai`, `mcp` | Agent, AI gateway, and MCP identifiers (`AgentId`, `AgentName`, `McpServerId`, `McpToolName`, `AiRequestId`, `MessageId`) |
+| `oauth`, `client`, `session`, `connection` | Auth-flow and session identity (`AccessTokenId`, `ClientId`, `SessionId`, `ConnectionId`) |
+| `content`, `execution`, `task`, `hook`, `section` | Content, task, and execution-step identifiers |
+| `cloud`, `tenant`, `teams`, `marketplace`, `plugin` | Cloud, tenancy, and distribution identifiers |
+| `funnel`, `links`, `events`, `slack` | Analytics, link, and integration identifiers |
+| `trace`, `context`, `gateway_conversation`, `gateway_boot`, `provider_request` | Request-tracing and gateway correlation identifiers |
+| `user`, `actor`, `roles`, `policy` | Principal and authorization identifiers |
+| `email`, `profile`, `url`, `path`, `locale` | Validated value types (`Email`, `ProfileName`, `ValidatedUrl`, `ValidatedFilePath`, `LocaleCode`) |
+| `jobs`, `webhook` | Job and webhook identifiers |
+
+Per-type detail lives on [docs.rs](https://docs.rs/systemprompt-identifiers).
 
 ## Usage
 
 ```toml
 [dependencies]
-systemprompt-identifiers = "0.18.0"
+systemprompt-identifiers = "0.21"
 ```
 
 ```rust
@@ -137,12 +100,12 @@ All ID types implement `Clone`, `Debug`, `PartialEq`, `Eq`, `Hash`, `Serialize`,
 
 ## Dependencies
 
-- `serde`, `serde_json` — serialisation
-- `uuid` — UUID generation
-- `schemars` — JSON schema generation
-- `chrono` — timestamps on `DbValue`
-- `thiserror` — `IdValidationError`
-- `sqlx` (optional) — database type derivation
+- `serde`, `serde_json`: serialisation
+- `uuid`: UUID generation
+- `schemars`: JSON schema generation
+- `chrono`: timestamps on `DbValue`
+- `thiserror`: `IdValidationError`
+- `sqlx` (optional): database type derivation
 
 ## License
 

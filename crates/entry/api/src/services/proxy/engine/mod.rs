@@ -5,6 +5,9 @@
 //! the response back (with SSE keep-alive). For MCP it also maintains the
 //! session-identity cache so a session-only follow-up request can be enriched
 //! with the identity established on the authenticated initialize call.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod external;
 mod handlers;

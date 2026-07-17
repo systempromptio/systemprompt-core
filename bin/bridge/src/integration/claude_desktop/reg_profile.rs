@@ -1,6 +1,9 @@
 //! `.reg` serialisation for the Claude Desktop managed-policy profile.
 //! [`render_reg`] and [`parse_reg_entries`] are inverses, kept
 //! platform-independent so the round-trip is testable on every target.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use super::shared::{ProfileGenInputs, default_models};
 

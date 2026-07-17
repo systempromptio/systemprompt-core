@@ -1,6 +1,9 @@
 //! HTTP plumbing for the Anthropic Messages API: the POST + status-check round
 //! trip shared by every driver entry point. Auth headers and request-body
 //! rendering come from the shared `systemprompt_models::wire` codec.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use reqwest::Response;
 use serde_json::Value;

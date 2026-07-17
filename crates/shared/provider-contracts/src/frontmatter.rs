@@ -1,4 +1,7 @@
 //! [`FrontmatterProcessor`] contract for post-processing parsed frontmatter.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use async_trait::async_trait;
 use std::any::Any;

@@ -3,6 +3,9 @@
 //! Defines [`ArtifactListOutput`] and [`ArtifactPartOutput`] (and re-exports
 //! the shared [`ArtifactSummary`]) so list/show renderers emit a stable JSON
 //! schema.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};

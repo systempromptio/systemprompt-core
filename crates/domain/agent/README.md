@@ -27,8 +27,9 @@
 [![Crates.io](https://img.shields.io/crates/v/systemprompt-agent.svg?style=flat-square)](https://crates.io/crates/systemprompt-agent)
 [![Docs.rs](https://img.shields.io/docsrs/systemprompt-agent?style=flat-square)](https://docs.rs/systemprompt-agent)
 [![License: BSL-1.1](https://img.shields.io/badge/license-BSL--1.1-2b6cb0?style=flat-square)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
+[![codecov](https://img.shields.io/codecov/c/github/systempromptio/systemprompt-core/main?style=flat-square&logo=codecov)](https://codecov.io/gh/systempromptio/systemprompt-core)
 
-Agent-to-Agent (A2A) protocol implementation for systemprompt.io AI governance: JSON-RPC models, task lifecycle, `.well-known` discovery, SSE streaming, governed agent orchestration, skill injection, and MCP tool integration.
+Agents that answer to you, running in your process. An Agent-to-Agent (A2A) protocol server with task lifecycle, discovery, and SSE streaming, where every agent runs as a governed subprocess and every tool call passes through the same audited path.
 
 **Layer**: Domain — business-logic modules built on `shared/*` and `infra/*`. Part of the [systemprompt-core](https://github.com/systempromptio/systemprompt-core) workspace.
 
@@ -99,141 +100,23 @@ HTTP routing lives outside this crate. API consumers compose `AgentHandlerState`
 
 ```toml
 [dependencies]
-systemprompt-agent = "0.18.0"
+systemprompt-agent = "0.21"
 ```
 
-## Directory Structure
+## Module Layout
 
-```
-src/
-├── lib.rs                          # Crate root, public re-exports, A2A_PROTOCOL_VERSION
-├── error.rs                        # AgentError, ArtifactError, ContextError, ProtocolError, RowParseError, TaskError
-├── extension.rs                    # AgentExtension (Extension trait impl, schema registration)
-├── state.rs                        # AgentState container
-│
-├── models/                         # Data structures
-│   ├── mod.rs
-│   ├── agent_info.rs               # AgentInfo
-│   ├── context.rs                  # UserContext, ContextStateEvent
-│   ├── database_rows.rs            # SQLX row structs
-│   ├── external_integrations.rs    # Integration payload types
-│   ├── runtime.rs                  # AgentRuntimeInfo
-│   ├── a2a/
-│   │   ├── mod.rs
-│   │   ├── jsonrpc.rs              # JSON-RPC 2.0 envelope types
-│   │   ├── service_status.rs       # Service status extension
-│   │   └── protocol/
-│   │       ├── mod.rs              # Task, Message, Artifact, Part, AgentCard
-│   │       ├── events.rs           # Streaming event types
-│   │       ├── push_notification.rs
-│   │       └── requests.rs         # A2A method param types
-│   └── web/
-│       ├── mod.rs
-│       ├── card_input.rs           # Agent card input validation
-│       ├── create_agent.rs         # CreateAgentRequest
-│       ├── discovery.rs            # Discovery types
-│       ├── query.rs                # Query parameters
-│       ├── update_agent.rs         # UpdateAgentRequest
-│       └── validation.rs           # URL validation
-│
-├── repository/                     # Database access (SQLX macros only)
-│   ├── mod.rs                      # A2ARepositories aggregate
-│   ├── agent_service/mod.rs        # AgentServiceRepository
-│   ├── content/
-│   │   ├── mod.rs                  # ArtifactRepository re-export
-│   │   ├── push_notification.rs    # PushNotificationConfigRepository
-│   │   └── artifact/
-│   │       ├── mod.rs
-│   │       ├── converters.rs
-│   │       ├── mutations.rs
-│   │       ├── parts.rs
-│   │       └── queries.rs
-│   ├── context/
-│   │   ├── mod.rs                  # ContextRepository
-│   │   ├── mutations.rs
-│   │   ├── notifications.rs
-│   │   ├── queries.rs
-│   │   └── message/
-│   │       ├── mod.rs
-│   │       ├── parts.rs
-│   │       ├── persistence.rs
-│   │       └── queries.rs
-│   ├── execution/
-│   │   ├── mod.rs                  # ExecutionStepRepository
-│   │   └── parse.rs
-│   └── task/
-│       ├── mod.rs                  # TaskRepository
-│       ├── mutations.rs
-│       ├── queries.rs
-│       ├── task_messages.rs
-│       ├── task_updates.rs
-│       └── constructor/
-│           ├── mod.rs              # TaskConstructor
-│           ├── batch.rs
-│           ├── batch_builders.rs
-│           ├── batch_queries.rs
-│           ├── converters.rs
-│           └── single.rs
-│
-└── services/                       # Business logic
-    ├── mod.rs                      # Service re-exports
-    ├── artifact_publishing.rs      # ArtifactPublishingService
-    ├── context.rs                  # ContextService (history loading)
-    ├── context_provider.rs         # ContextProvider trait impl
-    ├── execution_tracking.rs       # ExecutionTrackingService
-    ├── message.rs                  # MessageService
-    ├── registry_provider.rs        # AgentRegistryProvider trait impl
-    │
-    ├── a2a_server/                 # A2A protocol server
-    │   ├── mod.rs
-    │   ├── server.rs               # AgentServer
-    │   ├── standalone.rs           # Standalone agent runner
-    │   ├── auth/                   # JWT validation + middleware
-    │   ├── errors/                 # JSON-RPC error mapping
-    │   ├── handlers/               # card, push_notification_config, request routing
-    │   ├── processing/             # ai_executor, conversation, message, strategies, task_builder, artifact
-    │   └── streaming/              # SSE event loop, broadcast, webhook client
-    │
-    ├── agent_orchestration/        # Agent lifecycle
-    │   ├── mod.rs
-    │   ├── database.rs             # Orchestration state persistence
-    │   ├── event_bus.rs            # AgentEventBus
-    │   ├── events.rs               # AgentEvent
-    │   ├── monitor.rs              # Health probing
-    │   ├── reconciler.rs           # DB ↔ process reconciliation
-    │   ├── lifecycle/              # State machine + verification
-    │   ├── orchestrator/           # AgentOrchestrator, cleanup, daemon, status
-    │   ├── port_manager/           # Dynamic port allocation + probe
-    │   └── process/                # Subprocess command + signal handling
-    │
-    ├── external_integrations/      # External service integrations
-    │   ├── mod.rs
-    │   └── webhook/                # WebhookService (delivery, types)
-    │
-    ├── mcp/                        # MCP tool integration
-    │   ├── mod.rs
-    │   ├── tool_result_handler.rs
-    │   ├── artifact_transformer/   # Tool result → A2A artifact (metadata, parts, type inference)
-    │   └── task_helper/            # Task completion + message helpers
-    │
-    ├── registry/                   # Agent registry
-    │   ├── mod.rs                  # AgentRegistry (card loading)
-    │   ├── security.rs             # Security metadata
-    │   └── skills.rs               # Skill registration
-    │
-    ├── shared/                     # Cross-service utilities
-    │   ├── mod.rs
-    │   ├── auth.rs
-    │   ├── config.rs
-    │   ├── error.rs
-    │   ├── resilience.rs
-    │   └── slug.rs
-    │
-    └── skills/                     # Skill management
-        ├── mod.rs
-        ├── skill.rs                # SkillService
-        └── skill_injector.rs       # SkillInjector
-```
+| Module | Purpose |
+|--------|---------|
+| `models/` | A2A protocol types (JSON-RPC envelopes, `Task`, `Message`, `Artifact`, `AgentCard`, streaming events) plus web request/validation types. |
+| `repository/` | Compile-time-verified persistence for agent services, contexts and messages, execution steps, tasks, and artifacts. |
+| `services/a2a_server/` | The A2A protocol server: request handlers, AI-execution processing, SSE streaming, JWT auth, and JSON-RPC error mapping. |
+| `services/agent_orchestration/` | Agent subprocess lifecycle: orchestrator, state machine, health monitor, port manager, reconciler, and event bus. |
+| `services/config_authoring/` | Programmatic editing of agent configuration. |
+| `services/mcp/` | MCP tool integration: tool-result handling and transformation into A2A artifacts. |
+| `services/registry/` | Agent registry: card loading, security metadata, and skill registration. |
+| `services/skills/` | Skill management and injection (`SkillService`, `SkillInjector`). |
+| `services/external_integrations/` | Outbound integrations such as webhook delivery. |
+| `services/` (files) | `ContextService`, `MessageService`, `ExecutionTrackingService`, `ArtifactPublishingService`, and the `ContextProvider`/`AgentRegistryProvider` trait impls. |
 
 ## Schemas
 
@@ -342,7 +225,7 @@ pub const A2A_PROTOCOL_VERSION: &str = "0.3.0";
 
 ## Features
 
-The crate is feature-flag-free; functionality is unconditional. The facade crate `systemprompt` gates inclusion via its `agent` / `full` features.
+The crate is feature-flag-free; functionality is unconditional. The facade crate `systemprompt` gates inclusion via its `full` feature (there is no standalone `agent` feature).
 
 ## License
 

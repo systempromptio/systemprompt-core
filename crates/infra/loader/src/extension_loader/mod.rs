@@ -5,6 +5,9 @@
 //! either represented as "not found" (`Option`, empty `Vec`) or surfaced
 //! through the [`ExtensionValidationResult`] returned by
 //! [`ExtensionLoader::validate`].
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod manifest;
 mod result;

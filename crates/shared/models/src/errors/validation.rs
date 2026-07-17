@@ -1,5 +1,8 @@
 //! Semantic validation errors raised by the services / agents / plugins
 //! / hooks / modules validation passes.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 #[derive(Debug, Clone, thiserror::Error)]
 pub enum ConfigValidationError {

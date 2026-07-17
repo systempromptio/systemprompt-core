@@ -8,6 +8,9 @@
 //! definition of "is this directory a well-formed bundle?" so the gateway
 //! serve path, the bridge sync, the CLI generator, and the marketplace export
 //! never drift on the contract.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use serde::{Deserialize, Serialize};
 

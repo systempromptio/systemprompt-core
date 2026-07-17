@@ -1,3 +1,6 @@
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
 #[derive(Debug, Clone, Default)]
 pub struct IngestionReport {
     pub files_found: usize,

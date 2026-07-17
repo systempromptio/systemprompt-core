@@ -4,6 +4,9 @@
 //! [`systemprompt_models::profile::GatewayConfigSpec::resolve`]; this module
 //! owns the in-memory fix-ups applied to the parsed spec beforehand: route-id
 //! backfill and `!include` prompt resolution.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::path::Path;
 

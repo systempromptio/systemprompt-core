@@ -2,6 +2,9 @@
 //!
 //! Routes [`WebCommands`] to the content-type, template, asset, sitemap, and
 //! validation subcommands, each operating on the on-disk web content config.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod assets;
 pub mod content_types;

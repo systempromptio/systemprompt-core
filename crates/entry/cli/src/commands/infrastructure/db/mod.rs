@@ -6,6 +6,9 @@
 //! invocation is database-scoped, and the remaining subcommands share the
 //! context's pool. Subcommands cover ad-hoc queries, schema introspection,
 //! migration apply/down/repair/squash, and the schema doctor.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod admin;
 mod admin_migrate;

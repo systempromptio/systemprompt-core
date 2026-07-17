@@ -1,6 +1,9 @@
 //! Public DTO/row types for the analytics crate. Submodules are split by
 //! domain (engagement, events, fingerprint, funnel) plus a `cli` family of
 //! row structs used by `systemprompt-cli` reports.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod cli;
 mod engagement;

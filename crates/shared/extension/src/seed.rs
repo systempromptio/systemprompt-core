@@ -10,6 +10,9 @@
 //! This separates *target schema state* (declarative `schema/*.sql`) and
 //! *one-shot state transitions* (versioned migrations) from *reference data
 //! that should always exist* — the latter being the seed contract.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 #[derive(Debug, Clone, Copy)]
 pub struct Seed {

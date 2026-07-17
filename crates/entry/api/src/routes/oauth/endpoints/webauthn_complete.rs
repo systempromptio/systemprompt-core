@@ -4,6 +4,9 @@
 //! user, mints an authorization code bound to the request's PKCE/resource
 //! parameters, and returns it as a browser redirect or JSON depending on the
 //! caller.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use axum::Json;
 use axum::extract::{Query, State};

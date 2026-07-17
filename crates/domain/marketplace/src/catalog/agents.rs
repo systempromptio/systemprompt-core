@@ -1,5 +1,8 @@
 //! Projects configured agents into the signed `AgentEntry` records the manifest
 //! carries.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_identifiers::{AgentId, AgentName};
 use systemprompt_models::bridge::manifest::AgentEntry;

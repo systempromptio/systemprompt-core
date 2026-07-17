@@ -3,6 +3,9 @@
 //! Parses the operator's arguments and delegates the mutation to
 //! [`SecurityConfigService`], then revalidates the whole profile before
 //! writing it back.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use anyhow::{Result, bail};
 use clap::{Args, Subcommand};

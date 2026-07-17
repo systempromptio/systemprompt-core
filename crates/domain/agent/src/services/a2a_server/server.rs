@@ -3,6 +3,9 @@
 //! [`Server`] loads an agent's configuration, wires OAuth state and the AI
 //! provider, and builds the axum [`Router`] exposing the agent card and the A2A
 //! request endpoint, then runs the listener.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use axum::routing::{get, post};
 use axum::{Router, middleware};

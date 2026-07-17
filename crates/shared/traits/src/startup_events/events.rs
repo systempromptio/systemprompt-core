@@ -1,4 +1,7 @@
 //! Startup event variants emitted by the runtime as it brings services up.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::time::Duration;
 

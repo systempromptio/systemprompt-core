@@ -5,6 +5,9 @@
 //! Fields the gateway has no source for (`tenant_id`, `provider`) are not
 //! emitted; the bridge falls back to its locally verified identity snapshot
 //! for those.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
 

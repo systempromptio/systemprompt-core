@@ -21,6 +21,9 @@
 //! The `repository` token funnels database errors through the canonical
 //! `systemprompt_database::RepositoryError` rather than `sqlx::Error`
 //! directly, so the layer boundary is preserved.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 #[macro_export]
 macro_rules! domain_error {

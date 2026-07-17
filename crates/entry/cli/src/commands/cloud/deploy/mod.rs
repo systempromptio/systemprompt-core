@@ -5,6 +5,9 @@
 //! request to [`DeployOrchestrator`] in `systemprompt-sync`, which owns the
 //! pre-deploy sync, image build/push, secret provisioning, and the deploy
 //! call. Rendering flows back through [`CliDeployProgress`].
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod progress;
 mod select;

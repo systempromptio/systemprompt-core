@@ -4,6 +4,9 @@
 //! validate, tools, call, and logs subcommands. They carry no behaviour beyond
 //! `serde`/`JsonSchema` derivation and exist to give each subcommand a typed,
 //! schema-backed result the shared renderer can format.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};

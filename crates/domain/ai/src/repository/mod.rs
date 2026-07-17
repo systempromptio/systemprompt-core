@@ -7,6 +7,9 @@
 //!
 //! All repositories return [`crate::error::RepositoryError`]. Services are
 //! the only callers — repositories never execute application logic.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod ai_gateway_policies;
 pub mod ai_quota_buckets;

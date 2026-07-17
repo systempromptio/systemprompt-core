@@ -5,6 +5,9 @@
 //! submission ordered by descending `priority`; ties resolve by submission
 //! order (deterministic per build). With no registration the runtime falls back
 //! to [`crate::AllowAllFilter`].
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
 

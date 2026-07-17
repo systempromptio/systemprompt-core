@@ -12,6 +12,9 @@
 //! the gateway client. Those layers pull in `ed25519-dalek` and
 //! `serde_jcs` which are not appropriate dependencies for this
 //! foundation crate.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::collections::BTreeMap;
 

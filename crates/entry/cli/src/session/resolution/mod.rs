@@ -5,6 +5,9 @@
 //! bootstrap), reuses a valid cached session when present, and otherwise mints
 //! a new local or tenant session. The [`helpers`] submodule holds the
 //! per-strategy resolution steps.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod helpers;
 

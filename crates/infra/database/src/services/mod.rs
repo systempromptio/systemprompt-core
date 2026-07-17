@@ -1,5 +1,8 @@
 //! Service layer: provider abstraction, owned [`Database`] handle,
 //! transaction helpers, batch execution, and CLI display traits.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod database;
 pub mod display;

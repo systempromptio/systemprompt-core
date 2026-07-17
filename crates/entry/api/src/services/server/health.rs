@@ -4,6 +4,9 @@
 //! [`get_system_stats`] gathers database, disk, and audit-log statistics for
 //! the detailed health surface, with platform-specific process-memory and
 //! disk-usage helpers.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use axum::Json;
 use serde_json::json;

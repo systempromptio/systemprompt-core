@@ -1,4 +1,7 @@
 //! `scheduled_jobs` table access — read replica + write pool wrapper.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::error::SchedulerResult;
 use crate::models::{JobStatus, ScheduledJob};

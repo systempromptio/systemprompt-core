@@ -3,6 +3,9 @@
 //! Split out of [`crate::prerender::content`] to keep that module focused on
 //! orchestration (source iteration, parallelism) rather than the rendering
 //! pipeline of an individual item.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::path::{Path, PathBuf};
 

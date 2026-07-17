@@ -1,4 +1,7 @@
 //! Schema migration value type.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 /// Expand to the body of
 /// [`Extension::migrations`](crate::Extension::migrations), generated from

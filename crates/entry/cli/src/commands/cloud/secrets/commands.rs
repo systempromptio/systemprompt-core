@@ -3,6 +3,9 @@
 //! Implements sync (from the profile's `secrets.json`), set, unset, and cleanup
 //! against the cloud secrets API, filtering out system-managed environment
 //! variables so they are never pushed.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use anyhow::{Result, bail};
 use std::collections::HashMap;

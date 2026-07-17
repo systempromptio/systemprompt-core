@@ -7,6 +7,9 @@
 //! dispatcher consumes, so downstream identity, authorization, and
 //! agent-routing logic is written once — mirroring the Slack surface
 //! normalization.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use serde::Deserialize;
 use systemprompt_identifiers::{TeamsConversationId, TeamsTenantId, TeamsUserId};

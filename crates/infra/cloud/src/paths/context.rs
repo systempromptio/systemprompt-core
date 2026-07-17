@@ -4,6 +4,9 @@
 //! Precedence is explicit cloud paths first, then the discovered project, then
 //! a `.systemprompt`-relative default, so the same accessor works whether
 //! running in a local checkout or a deployed container.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::path::{Path, PathBuf};
 

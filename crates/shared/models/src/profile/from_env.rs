@@ -4,6 +4,9 @@
 //! that assembles a profile from environment variables rather than profile
 //! YAML. Each `*_from_env` helper maps a config section; `require_env` fails
 //! loud on a missing mandatory variable.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use super::{
     ContentNegotiationConfig, DatabaseConfig, ExtensionsConfig, PathsConfig, Profile, ProfileError,

@@ -1,4 +1,7 @@
 //! OAuth parameter, audience, redirect URI and JWT validation.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod audience;
 pub mod client_credentials;

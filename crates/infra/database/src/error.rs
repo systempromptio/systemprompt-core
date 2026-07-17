@@ -7,6 +7,9 @@
 //! failures are routed through `RepositoryError::InvalidState`. The
 //! filesystem-only [`crate::squash_baseline`] module carries its own error
 //! type.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use thiserror::Error;
 

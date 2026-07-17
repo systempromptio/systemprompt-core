@@ -1,6 +1,9 @@
 //! Implementation of the `copy_extension_assets` job: walks the extension
 //! registry for required asset declarations and copies them into the build
 //! output directory.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::path::Path;
 use systemprompt_extension::{AssetDefinition, ExtensionRegistry};

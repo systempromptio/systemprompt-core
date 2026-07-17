@@ -1,4 +1,7 @@
 //! Cloud Management API types shared between CLI and API server.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod domain;
 mod provisioning;

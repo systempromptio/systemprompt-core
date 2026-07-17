@@ -1,6 +1,9 @@
 //! Authorisation code persistence with PKCE. The `code` and the linked
 //! `refresh_token_id` are stored as HMAC-SHA-256 digests under the deployment
 //! pepper; raw values never touch the database.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use super::OAuthRepository;
 use super::at_rest::hash_at_rest;

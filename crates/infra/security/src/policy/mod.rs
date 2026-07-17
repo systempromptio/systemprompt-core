@@ -6,6 +6,9 @@
 //! and produces the same typed [`crate::authz::types::Decision`] the
 //! user→entity resolver returns — so a single audit shape and a single CLI view
 //! cover both planes.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod types;
 

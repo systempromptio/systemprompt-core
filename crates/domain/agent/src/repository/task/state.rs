@@ -3,6 +3,9 @@
 //! Each transition reads the current row `FOR UPDATE`, validates the move
 //! against [`TaskState::can_transition_to`], and guards the write with a
 //! version check so concurrent updates fail loudly rather than clobber.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
 

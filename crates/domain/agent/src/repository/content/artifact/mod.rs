@@ -1,5 +1,8 @@
 //! Artifact repository — persistence of binary/structured outputs produced by
 //! tasks.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod converters;
 mod mutations;

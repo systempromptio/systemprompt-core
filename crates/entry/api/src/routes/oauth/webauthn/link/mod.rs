@@ -3,6 +3,9 @@
 //! Serves the link page ([`link_passkey_page`]) and the
 //! [`start_link`]/[`finish_link`] ceremony that attaches a new credential to an
 //! existing account.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod finish;
 mod page;

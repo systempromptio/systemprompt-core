@@ -4,6 +4,9 @@
 //! variants), this module records the original-name to variant-name mapping so
 //! tool calls returned by the model can be resolved back to the caller's
 //! declared tool.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use super::transformer::TransformedTool;
 use serde_json::Value;

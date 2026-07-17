@@ -16,6 +16,9 @@
 //! - [`SecretsError`] — on-disk secrets document.
 //! - [`ProviderError`] / [`ProviderResult`] — plug-in trait abstractions.
 //! - [`ServiceError`] — application-tier umbrella enum.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub use systemprompt_traits::RepositoryError;
 

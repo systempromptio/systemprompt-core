@@ -1,4 +1,7 @@
 //! Cross-cutting event publisher traits (logs, user activity, analytics).
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use chrono::{DateTime, Utc};
 use systemprompt_identifiers::{SessionId, UserId};

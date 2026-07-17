@@ -1,3 +1,6 @@
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
 use anyhow::{Context, Result};
 use std::process::Command;
 use systemprompt_cloud::constants::docker::{COMPOSE_PATH, container_name};

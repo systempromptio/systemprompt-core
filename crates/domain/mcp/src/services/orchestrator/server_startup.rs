@@ -4,6 +4,9 @@
 //! already running and aggregating failures into a single error, then publishes
 //! per-server success/failure and overall reconciliation-complete events to the
 //! [`EventBus`] and [`StartupEventSender`].
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::error::McpDomainResult;
 use std::collections::HashSet;

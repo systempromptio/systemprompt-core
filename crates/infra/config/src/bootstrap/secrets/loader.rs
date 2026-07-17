@@ -2,6 +2,9 @@
 //!
 //! Resolves the secrets document from the active profile, falling back
 //! to environment variables in subprocess and Fly.io container modes.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::collections::HashMap;
 use std::path::Path;

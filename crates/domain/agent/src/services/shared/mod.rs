@@ -1,6 +1,9 @@
 //! Cross-cutting helpers shared by the agent service layer: the service-local
 //! error type, JWT authentication, runtime configuration, resilience wrappers,
 //! and slug generation.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod auth;
 pub mod config;

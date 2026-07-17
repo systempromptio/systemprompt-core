@@ -5,6 +5,9 @@
 //! - Top-level endpoints live in `endpoints.rs`; tenant-scoped endpoints in
 //!   `tenant_api.rs`.
 //! - SSE stream subscriptions live in `streams.rs`.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod client;
 mod endpoints;

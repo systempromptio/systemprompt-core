@@ -6,6 +6,9 @@
 //! and recovery transitions on a fixed interval. Accessor-backed external
 //! servers are reported healthy without probing: their bearer is minted
 //! per-user on demand, so the monitor has no credential to authenticate with.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::McpServerConfig;
 use crate::error::McpDomainResult;

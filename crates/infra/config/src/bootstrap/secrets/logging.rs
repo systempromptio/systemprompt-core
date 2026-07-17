@@ -1,4 +1,7 @@
 //! Diagnostic helpers for secrets-loading failures.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_models::profile::SecretsValidationMode;
 use systemprompt_models::secrets::Secrets;

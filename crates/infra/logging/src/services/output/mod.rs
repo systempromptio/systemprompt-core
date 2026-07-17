@@ -4,6 +4,9 @@
 //! letting any crate emit a [`LogEventData`] via [`publish_log`] without
 //! threading the publisher through call sites. Before a publisher is installed
 //! (e.g. early boot), `publish_log` is a no-op.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};

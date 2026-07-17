@@ -7,6 +7,9 @@
 //! (container inspection, compose lifecycle, `docker exec psql`). All process
 //! execution flows through [`CommandRunner`], so tests can substitute a stub
 //! instead of spawning real processes.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::io;
 use std::path::{Path, PathBuf};

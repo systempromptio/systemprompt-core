@@ -5,6 +5,9 @@
 //! [`write_yaml_file`] back the editing commands. The remaining types are the
 //! serializable outputs rendered by the list, validate, and import/export
 //! flows.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::path::PathBuf;
 

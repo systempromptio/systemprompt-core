@@ -5,6 +5,9 @@
 //! command / interactivity replies. Every outbound URL passes the shared SSRF
 //! guard [`validate_outbound_url`] before a request is made, so a malicious or
 //! mistyped `response_url` cannot be turned into an internal request.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use serde_json::{Value, json};
 use systemprompt_models::net::validate_outbound_url;

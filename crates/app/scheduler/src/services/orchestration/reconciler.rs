@@ -1,5 +1,8 @@
 //! Reconciler — given a list of [`ServiceConfig`] and a `start_service`
 //! callback, drives runtime state to match desired state.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::future::Future;
 use std::sync::Arc;

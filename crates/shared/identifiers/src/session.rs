@@ -1,4 +1,7 @@
 //! Session identifier (`sess_<uuid>`) and its originating-source enum.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 crate::define_id!(SessionId, schema);
 

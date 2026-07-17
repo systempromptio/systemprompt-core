@@ -10,6 +10,9 @@
 //! JWTs whose `kid` matches the JWKS this deployment publishes at
 //! `/.well-known/jwks.json`. Token-verifying paths use [`decoding_key_for_kid`]
 //! to look up the public half by `kid`.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::path::PathBuf;
 use std::sync::OnceLock;

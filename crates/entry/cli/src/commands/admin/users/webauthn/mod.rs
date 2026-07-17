@@ -2,6 +2,9 @@
 //!
 //! [`WebauthnCommands`] generates a setup token that links a passkey credential
 //! to an existing user, dispatched by [`execute`].
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod generate_setup_token;
 

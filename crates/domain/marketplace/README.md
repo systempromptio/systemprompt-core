@@ -19,8 +19,9 @@
 [![Crates.io](https://img.shields.io/crates/v/systemprompt-marketplace.svg?style=flat-square)](https://crates.io/crates/systemprompt-marketplace)
 [![Docs.rs](https://img.shields.io/docsrs/systemprompt-marketplace?style=flat-square)](https://docs.rs/systemprompt-marketplace)
 [![License: BSL-1.1](https://img.shields.io/badge/license-BSL--1.1-2b6cb0?style=flat-square)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
+[![codecov](https://img.shields.io/codecov/c/github/systempromptio/systemprompt-core/main?style=flat-square&logo=codecov)](https://codecov.io/gh/systempromptio/systemprompt-core)
 
-Per-user marketplace filtering for systemprompt.io. Defines the `MarketplaceFilter` trait that the API's `GET /v1/bridge/manifest` handler invokes to decide which plugins, skills, agents, hooks, and managed MCP servers a given user is permitted to see. The filter runs before the manifest is signed, so the Ed25519 signature covers exactly the set the user is authorised for.
+Every user gets exactly the catalogue they are entitled to, signed. This crate resolves the active marketplace, loads the on-disk catalogue, scopes and per-user filters it, then hands it to signing, so the Ed25519 signature on the bridge manifest covers precisely the set that user is authorised for.
 
 **Layer**: Domain — business-logic modules that implement systemprompt.io features. Part of the [systemprompt-core](https://github.com/systempromptio/systemprompt-core) workspace.
 
@@ -28,7 +29,7 @@ Per-user marketplace filtering for systemprompt.io. Defines the `MarketplaceFilt
 
 ```toml
 [dependencies]
-systemprompt-marketplace = "0.18.0"
+systemprompt-marketplace = "0.21"
 ```
 
 ```rust,ignore
@@ -41,12 +42,17 @@ register_marketplace_filter!(MyAclFilter::new, priority = 100);
 
 | Item | Description |
 |------|-------------|
-| `MarketplaceFilter` | Async trait implemented by ACL backends. |
-| `MarketplaceCandidate` | Mutable bundle of `PluginEntry`, `SkillEntry`, `AgentEntry`, `HookEntry`, and `ManagedMcpServer` vectors handed to the filter. |
+| `MarketplaceService` | Read-only resolution over a borrowed `ServicesConfig`: lookup, default fallback, active marketplace, referential-integrity check. |
+| `ManifestService` / `CanonicalView` | Assemble a scoped, filtered `MarketplaceCandidate` and sign the canonical view. |
+| `catalog::CatalogContent` / `plugin_bundles` | On-disk loaders projecting the services tree into the signed `*Entry` records; `plugin_bundles` is the single source of the active, content-gated plugin bundles shared by the manifest and serving paths. |
+| `bundle` (`build_plugin_bundle`, `PluginBundle`, `BundleContent`, `BundleFile`) | Build-from-spec assembler that owns the `.claude-plugin` bundle contract. |
+| `scope_to_marketplace` / `active_marketplace` | Marketplace scoping of the catalogue lists. |
+| `view::render_marketplace_json` / `render_marketplace_list` | JSON projections for the HTTP catalogue endpoints. |
+| `MarketplaceFilter` | Async trait implemented by ACL backends, applied before signing. |
+| `MarketplaceCandidate` | Mutable bundle of `plugins`, `skills`, `agents`, `hooks`, `managed_mcp_servers`, and `artifacts` vectors plus optional `marketplace_id` and `access`, handed to the filter. |
 | `AllowAllFilter` | Passthrough default returned when no extension registers a filter. |
-| `MarketplaceFilterError` | Error enum (`Backend`, `UnknownUser`, `Policy`). |
-| `MarketplaceFilterRegistration` | `inventory`-collected registration record with priority ordering. |
-| `discover_filters` | Returns registered filter factories, highest priority first. |
+| `MarketplaceError` / `MarketplaceFilterError` | Crate-wide error (lookup, catalogue load, signing) and the narrower filter error folded into it. |
+| `MarketplaceFilterRegistration` / `discover_filters` | `inventory`-collected registration record with priority ordering, and its lookup (highest priority first). |
 | `register_marketplace_filter!` | Compile-time registration macro for a filter factory. |
 
 ## Wiring
@@ -60,6 +66,7 @@ register_marketplace_filter!(MyAclFilter::new, priority = 100);
 | `systemprompt-models` | Manifest entry types (`PluginEntry`, `SkillEntry`, `AgentEntry`, `HookEntry`, `ManagedMcpServer`). |
 | `systemprompt-identifiers` | Typed identifiers. |
 | `systemprompt-database` | `DbPool` passed to filter factories. |
+| `systemprompt-security` | Ed25519 signing of the canonical manifest view. |
 | `async-trait` | Async methods on the `dyn`-compatible `MarketplaceFilter`. |
 | `inventory` | Compile-time filter registration. |
 

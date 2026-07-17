@@ -14,6 +14,9 @@
 //!
 //! If no candidate resolves, emit a WARN and return zero pricing — a real
 //! configuration gap, not noise to silence.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_models::profile::{GatewayConfig, ProviderRegistry};
 use systemprompt_models::services::ModelPricing;

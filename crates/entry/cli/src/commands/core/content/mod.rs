@@ -4,6 +4,9 @@
 //! edit/delete, ingest verification and status, plus the `link`, `analytics`,
 //! and `files` sub-groups. On a `--database-url` invocation only the read-only
 //! commands are served; the mutating commands require a full profile context.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod analytics;
 pub mod delete;

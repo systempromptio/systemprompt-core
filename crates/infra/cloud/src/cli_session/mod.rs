@@ -3,6 +3,9 @@
 //! Exposes [`SessionKey`] (the local-or-tenant discriminator used as a storage
 //! key), the [`CliSession`] record and its [`CliSessionBuilder`], and the
 //! [`SessionStore`] that loads and saves sessions on disk.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod session;
 mod store;

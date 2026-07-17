@@ -4,6 +4,9 @@
 //! ([`TokenRequest`], [`TokenResponse`]) it binds. Per-grant token minting
 //! lives in [`generation`]; [`TokenError`] partitions failures by RFC 6749
 //! error code and maps onto the HTTP error surface.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod generation;
 mod handler;

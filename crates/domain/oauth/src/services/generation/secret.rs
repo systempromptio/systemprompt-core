@@ -1,4 +1,7 @@
 //! Opaque-token and client-secret generation and hashing.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use rand::distr::Alphanumeric;
 use rand::{RngExt, rng};

@@ -1,5 +1,8 @@
 //! Projects configured managed MCP servers into the signed `ManagedMcpServer`
 //! records the manifest carries.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::collections::BTreeSet;
 

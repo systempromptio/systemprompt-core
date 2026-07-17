@@ -3,6 +3,9 @@
 //! Failure to insert is logged via `tracing::error!` but never propagates —
 //! the calling hook has already decided; losing the audit row must not flip
 //! a deny to an allow.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use async_trait::async_trait;
 use systemprompt_identifiers::{Actor, ContextId, SessionId, TaskId};

@@ -7,6 +7,9 @@
 //! monitoring, drift reconciliation, port allocation, the event bus, and the
 //! low-level process primitives. [`AgentStatus`] is the shared status model and
 //! [`OrchestrationError`] the unified error type.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod database;
 pub mod event_bus;

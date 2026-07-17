@@ -54,6 +54,9 @@
 //! the security-meaningful failure modes (invalid grant, expired code,
 //! PKCE mismatch, client not found, etc.) so HTTP handlers can map them
 //! to RFC 6749 / RFC 8628 / `WebAuthn` error codes without string parsing.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod constants;
 pub mod error;

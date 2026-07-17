@@ -6,6 +6,9 @@
 //! database/hook reachability. The preflight runs automatically before
 //! `cloud deploy` builds an image, and is exposed standalone (`cloud doctor`)
 //! so an operator can check a profile without deploying.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod checks;
 

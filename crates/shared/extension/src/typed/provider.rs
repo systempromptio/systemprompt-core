@@ -1,5 +1,8 @@
 //! [`ProviderExtensionTyped`] — typed contract for extensions that
 //! contribute LLM and tool provider implementations.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
 

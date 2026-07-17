@@ -1,3 +1,6 @@
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
 pub(super) fn is_low_entropy_challenge(challenge: &str) -> bool {
     let Some(first_char) = challenge.chars().next() else {
         return true;

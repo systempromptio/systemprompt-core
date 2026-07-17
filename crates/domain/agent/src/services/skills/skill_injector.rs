@@ -1,5 +1,8 @@
 //! Merging skill instructions into an agent's base prompt before tool
 //! execution.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::services::shared::Result;
 use crate::services::skills::{SkillMetadata, SkillService};

@@ -5,6 +5,9 @@
 //! send it to upstream providers and convert their replies and streams into
 //! [`canonical_response`] events. This indirection lets any supported inbound
 //! protocol target any supported upstream provider.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod canonical;
 pub mod canonical_response;

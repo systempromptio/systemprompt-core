@@ -4,6 +4,9 @@
 //! profile binding, and expiry. Persistence writes a `0600` file under a
 //! `.gitignore`-protected directory and rejects on-disk versions outside the
 //! supported range.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::fs;
 use std::path::{Path, PathBuf};

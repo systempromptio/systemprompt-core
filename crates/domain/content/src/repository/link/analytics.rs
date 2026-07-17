@@ -3,6 +3,9 @@
 //! [`LinkAnalyticsRepository`] records click events and serves the aggregate
 //! click/conversion views over `link_clicks` and `campaign_links`, maintaining
 //! the denormalised counters on the link row as clicks arrive.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::error::ContentError;
 use crate::models::{

@@ -6,6 +6,9 @@
 //! shape before any `CREATE INDEX`/`VIEW` references a migration-added column.
 //! A session-scoped advisory lock serialises concurrent boots. See
 //! `instructions/information/migrations.md`.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod lock;
 mod validation;

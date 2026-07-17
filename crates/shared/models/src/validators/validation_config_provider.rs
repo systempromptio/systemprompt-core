@@ -1,4 +1,7 @@
 //! Config provider wrapper for validation with all pre-loaded configs.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::{Config, ContentConfigRaw, ServicesConfig};
 use systemprompt_traits::ConfigProvider;

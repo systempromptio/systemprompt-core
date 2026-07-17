@@ -51,6 +51,9 @@
 //! These are deferred so the linter behaves identically to the database for
 //! anything it cannot statically prove, avoiding false positives on
 //! late-bound names.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod classify;
 mod columns;

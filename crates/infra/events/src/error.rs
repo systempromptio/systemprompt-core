@@ -4,6 +4,9 @@
 //! fallible operation in the crate. It composes via `#[from]` with
 //! `serde_json::Error` so callers can compose it into larger error enums
 //! without wrapping by hand.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use thiserror::Error;
 

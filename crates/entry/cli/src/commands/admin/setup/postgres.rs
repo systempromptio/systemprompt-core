@@ -5,6 +5,9 @@
 //! credentials—creates the role, database, and grants. The bootstrap `CREATE
 //! USER`/`CREATE DATABASE`/ `GRANT` statements use dynamic SQL because they run
 //! before the target database exists and cannot bind parameters.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use anyhow::{Context, Result, anyhow};
 use sqlx::postgres::PgPoolOptions;

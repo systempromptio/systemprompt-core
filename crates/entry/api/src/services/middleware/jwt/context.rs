@@ -5,6 +5,9 @@
 //! revocation) and building a `RequestContext`. It resolves the context id from
 //! the `x-context-id` header on standard routes and from the JSON-RPC body on
 //! A2A routes, and exposes a gateway decode path for pre-authenticated tokens.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use async_trait::async_trait;
 use axum::body::Body;

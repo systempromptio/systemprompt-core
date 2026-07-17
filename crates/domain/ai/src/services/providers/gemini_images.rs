@@ -4,6 +4,9 @@
 //! Google's `generateContent` image models, validating prompt length,
 //! resolution, and aspect ratio against its declared capabilities before
 //! dispatching the request.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::error::{AiError, Result};
 use crate::models::image_generation::{

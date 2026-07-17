@@ -1,5 +1,8 @@
 //! Helpers shared by the prerender pipeline: deep-merging JSON objects from
 //! template-data providers, and rendering registered template components.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::collections::HashSet;
 

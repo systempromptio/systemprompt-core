@@ -2,6 +2,9 @@
 //!
 //! Dispatches the [`AnalyticsCommands`] subcommands (clicks, campaign,
 //! journey) against the invocation's [`CommandContext`].
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod campaign;
 pub mod clicks;

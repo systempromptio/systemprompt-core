@@ -3,6 +3,9 @@
 //! Creates the `.systemprompt/` directory with its ignore files, Dockerfile,
 //! and entrypoint, and generates the default `services/` boilerplate for a new
 //! project.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use anyhow::{Context, Result};
 use std::path::Path;

@@ -7,6 +7,9 @@
 //! files through [`ConfigWriter`]. Interactive prompting, profile resolution,
 //! and post-write configuration reloads stay with the caller. All failures
 //! surface as [`ConfigAuthoringError`].
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod edit;
 

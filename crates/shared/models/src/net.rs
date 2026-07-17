@@ -5,6 +5,9 @@
 //! uses the same tuned timeouts, plus [`validate_outbound_url`] — the
 //! single SSRF guard applied to every operator-configured webhook
 //! destination (agent integrations and the governance authz hook).
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::time::Duration;
 use thiserror::Error;

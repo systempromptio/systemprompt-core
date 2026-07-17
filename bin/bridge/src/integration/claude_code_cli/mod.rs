@@ -7,6 +7,9 @@
 //! every foreign key. Result: it appears in `claude plugin list` and its skills
 //! load
 //! as `/systemprompt-managed:<skill>`.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod bundle;
 pub mod json_io;

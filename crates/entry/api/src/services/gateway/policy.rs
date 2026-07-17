@@ -4,6 +4,9 @@
 //! [`GatewayPolicySpec`], and caches the result for a short TTL; a DB error or
 //! a malformed spec degrades to a permissive policy rather than failing the
 //! request.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::sync::{Arc, RwLock};
 use std::time::{Duration, Instant};

@@ -16,6 +16,9 @@
 //! * `token_exchange` (`token_exchange.rs`) is the on-behalf-of grant where the
 //!   actor and subject differ; scopes are intersected against the subject's
 //!   permissions as part of the delegation contract.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod client_credentials;
 mod token_exchange;

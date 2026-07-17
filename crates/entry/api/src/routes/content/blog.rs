@@ -3,6 +3,9 @@
 //! Serves content by source and slug as JSON or Markdown, honouring the
 //! configured content-negotiation suffix and advertising the Markdown
 //! alternate via a `Link` header when negotiation is enabled.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use axum::extract::{Path, State};
 use axum::http::StatusCode;

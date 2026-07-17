@@ -1,3 +1,6 @@
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
 use crate::models::ai::{AiRequest, AiResponse, MessageRole};
 use crate::models::{AiRequestRecord, AiRequestRecordBuilder, AiRequestRecordError, RequestStatus};
 use systemprompt_identifiers::{

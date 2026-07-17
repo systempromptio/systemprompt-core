@@ -1,5 +1,8 @@
 //! [`VerifiedServiceState`] — a snapshot of one service's desired vs runtime
 //! status, paired with the [`ServiceAction`] required to converge them.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use super::state_types::{DesiredStatus, RuntimeStatus, ServiceAction, ServiceType};
 use serde::{Deserialize, Serialize};

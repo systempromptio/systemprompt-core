@@ -2,6 +2,9 @@
 //!
 //! Part of the documented sqlx allowlist: SQL is supplied dynamically by
 //! the operator and validated through [`AdminSql`].
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::collections::HashMap;
 use std::sync::Arc;

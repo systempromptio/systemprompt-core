@@ -6,6 +6,9 @@
 //! ([`require_confirmation`], [`resolve_required`], …) keep their behaviour:
 //! interactive mode prompts, non-interactive mode falls back to a default or
 //! fails with a "flag required" error.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::collections::VecDeque;
 use std::sync::Mutex;

@@ -2,6 +2,9 @@
 //!
 //! Each function returns the body of one generated service config, web
 //! template, or starter content file written by `super::scaffolding`.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub fn root_config() -> String {
     r#"# systemprompt.io Services Configuration

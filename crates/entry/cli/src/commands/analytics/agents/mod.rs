@@ -4,6 +4,9 @@
 //! Defines the [`AgentsCommands`] subcommand tree and the typed output rows
 //! ([`AgentStatsOutput`], [`AgentListOutput`], [`AgentTrendsOutput`],
 //! [`AgentShowOutput`]) rendered by the `analytics agents` commands.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod list;
 mod show;

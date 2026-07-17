@@ -4,6 +4,9 @@
 //! organization metadata, sitemap and structured-data settings — plus
 //! the [`ContentRouting`] trait that maps request paths to content
 //! sources. Parsing returns [`ContentConfigError`].
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

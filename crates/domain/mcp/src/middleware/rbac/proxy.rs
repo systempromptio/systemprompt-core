@@ -1,4 +1,7 @@
 //! Proxy-verified-identity short-circuit for trusted upstream gateways.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use rmcp::ErrorData as McpError;
 use systemprompt_identifiers::{Actor, UserId};

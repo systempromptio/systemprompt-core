@@ -28,6 +28,9 @@
 //!
 //! `systemprompt-templates` is a **domain** crate whose only systemprompt
 //! dependency is the `systemprompt-template-provider` shared crate.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod builder;
 mod core_provider;

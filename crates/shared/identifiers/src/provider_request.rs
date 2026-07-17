@@ -4,6 +4,9 @@
 //! its response (e.g. via `x-context-id` or analogous headers). The shape
 //! is provider-defined, so this id is only validated for non-empty and a
 //! sane upper length bound.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::error::IdValidationError;
 

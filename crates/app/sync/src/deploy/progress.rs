@@ -4,6 +4,9 @@
 //! the caller to resolve each [`DeployPrompt`]; implementations decide how
 //! (or whether) to render and answer them. Events carry borrowed data, so no
 //! rendering state lives in the pipeline.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::path::Path;
 

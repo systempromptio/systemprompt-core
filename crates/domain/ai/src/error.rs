@@ -15,6 +15,9 @@
 //! [`systemprompt_models::errors::ProviderResult`] and bridge through
 //! `AiProvider for AiService` in
 //! `crate::services::core::ai_service` (the `provider_impl` submodule).
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::time::Duration;
 

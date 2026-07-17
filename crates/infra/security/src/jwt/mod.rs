@@ -15,6 +15,9 @@
 //! [`crate::AuthValidationService`]; the bare [`decode::extract_user_context`]
 //! enforces a first-party `aud` and is used by request-context middleware that
 //! does its own session and user lookups against the database after decode.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod decode;
 pub mod mint;

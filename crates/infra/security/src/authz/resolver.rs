@@ -11,6 +11,9 @@
 //! the resolver turns into [`DenyReason::UnknownEntity`] rather than the
 //! generic `NotAssigned` deny. This distinction matters operationally: an
 //! unknown entity is a publish-pipeline gap, not a missing role grant.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_identifiers::UserId;
 

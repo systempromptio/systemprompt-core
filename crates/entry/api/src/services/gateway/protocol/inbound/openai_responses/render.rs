@@ -1,3 +1,6 @@
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
 use bytes::Bytes;
 // JSON: protocol boundary — OpenAI Responses wire format is dynamic JSON.
 use serde_json::{Value, json};

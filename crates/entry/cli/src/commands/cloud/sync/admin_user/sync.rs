@@ -3,6 +3,9 @@
 //! Connects to each profile's database and either promotes an existing user or
 //! creates and promotes the cloud user to admin, reporting outcomes as
 //! [`SyncResult`] values.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
 use systemprompt_database::Database;

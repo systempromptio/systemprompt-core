@@ -6,6 +6,9 @@
 //! Within an active marketplace, an empty `include:` list falls back to the
 //! global list: validation rejects an `Explicit` ref with an empty include at
 //! load time, so an empty list here means "all".
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_models::services::{MarketplaceConfig, ServicesConfig};
 

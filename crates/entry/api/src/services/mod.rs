@@ -4,6 +4,9 @@
 //! services that the binary wires together. Re-exports the health-check surface
 //! ([`HealthChecker`], [`HealthSummary`], [`ModuleHealth`], [`ProcessMonitor`])
 //! used by readiness probes.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod gateway;
 pub mod health;

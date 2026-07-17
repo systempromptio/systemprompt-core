@@ -1,3 +1,6 @@
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
 use crate::commands::core::content::types::LinkDeleteOutput;
 use crate::context::CommandContext;
 use crate::interactive::require_confirmation;

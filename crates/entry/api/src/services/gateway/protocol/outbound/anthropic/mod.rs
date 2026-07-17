@@ -3,6 +3,9 @@
 //! [`AnthropicOutbound`] builds a Messages request from the canonical model,
 //! sends it upstream, and returns either a buffered [`CanonicalResponse`] or a
 //! stream of canonical events translated from the Anthropic SSE format.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use anyhow::{Result, anyhow};
 use async_trait::async_trait;

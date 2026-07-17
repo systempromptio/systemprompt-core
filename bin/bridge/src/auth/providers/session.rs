@@ -1,3 +1,6 @@
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
 use crate::auth::loopback::{LOOPBACK_TIMEOUT_SECS, LoopbackServer};
 use crate::auth::providers::{AuthError, AuthFailedSource, AuthProvider};
 use crate::auth::types::{HelperOutput, SessionExchangeRequest};

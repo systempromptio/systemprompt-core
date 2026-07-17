@@ -3,6 +3,9 @@
 //! [`MarketplaceService`] borrows a [`ServicesConfig`] and resolves marketplace
 //! lookups, the active-marketplace selection, and referential integrity without
 //! owning or cloning the config.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::collections::BTreeMap;
 

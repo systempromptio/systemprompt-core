@@ -7,6 +7,9 @@
 //! Direction is fixed: YAML drives the DB. The `to_disk` direction does
 //! not exist for ACL — DB→YAML promotion is an operator-explicit one-shot
 //! export from the CLI.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::path::PathBuf;
 

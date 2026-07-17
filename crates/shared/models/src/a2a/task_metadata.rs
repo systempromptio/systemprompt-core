@@ -5,6 +5,9 @@
 //! an open-ended `extensions` map flattened into the serialized form. The
 //! `new_validated_*` constructors enforce the required-field contract before a
 //! task is recorded.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use chrono::Utc;
 use serde::{Deserialize, Serialize};

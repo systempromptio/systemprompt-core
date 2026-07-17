@@ -11,6 +11,9 @@
 //! memory via `zeroize`. `Serialize` is retained deliberately — operator
 //! tooling round-trips the document back to the on-disk secrets file, the one
 //! legitimate sink.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

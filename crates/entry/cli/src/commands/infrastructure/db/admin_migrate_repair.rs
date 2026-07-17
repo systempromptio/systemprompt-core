@@ -3,6 +3,9 @@
 //! Detects and, with `--apply`, repairs checksum drift between stored migration
 //! rows and the current migration sources for one or all extensions. Provides
 //! both the full-context and standalone (`DatabaseContext`-only) entry points.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use anyhow::{Context, Result, anyhow};
 use std::sync::Arc;

@@ -2,6 +2,9 @@
 //!
 //! Used as the default provider when a request has no tool backend wired up, so
 //! call sites can rely on an always-present provider rather than an `Option`.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use async_trait::async_trait;
 use std::collections::HashMap;

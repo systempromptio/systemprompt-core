@@ -4,6 +4,9 @@
 //! provider results, and re-export the [`super::config_section`] and
 //! [`super::rate_limit_types`] surfaces so handlers import from a single
 //! module.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};

@@ -26,69 +26,38 @@
 
 [![Crates.io](https://img.shields.io/crates/v/systemprompt-config.svg?style=flat-square)](https://crates.io/crates/systemprompt-config)
 [![Docs.rs](https://img.shields.io/docsrs/systemprompt-config?style=flat-square)](https://docs.rs/systemprompt-config)
+[![codecov](https://img.shields.io/codecov/c/github/systempromptio/systemprompt-core/main?style=flat-square&logo=codecov)](https://codecov.io/gh/systempromptio/systemprompt-core)
 [![License: BSL-1.1](https://img.shields.io/badge/license-BSL--1.1-2b6cb0?style=flat-square)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
 
-Profile-based configuration for systemprompt.io AI governance infrastructure. Bootstraps profiles, secrets, and credentials with zero environment-variable fallback.
+One profile is the source of truth for how your deployment runs. Not a scatter of environment variables nobody audited. This crate loads that profile and its secrets, then installs both before any other layer starts.
 
-**Layer**: Infra — infrastructure primitives (database, security, events, etc.) consumed by domain crates. Part of the [systemprompt-core](https://github.com/systempromptio/systemprompt-core) workspace.
+**Layer**: Infra. Infrastructure primitives consumed by the domain and application crates. Part of the [systemprompt-core](https://github.com/systempromptio/systemprompt-core) workspace.
 
-## Overview
+## What it does
 
-This crate is the bootstrap layer for the platform. It loads the active profile YAML, the matching secrets document, and installs both into process-wide singletons before any other layer (database, runtime, agent) starts. It also exposes the deployment-time `ConfigService` used by `systemprompt cloud config` and a `DomainConfig` validator for skill manifests.
+Configuration comes from the active profile, read once at boot. Environment variables are a scoped escape hatch (`${VAR}` interpolation inside profile YAML and a small set of sanctioned overrides), never a general fallback, so what governs the process is auditable in one file you own.
 
-- **Bootstrap singletons**: `ProfileBootstrap` and `SecretsBootstrap` install the process-global profile and secrets, in that order; ordering is enforced by the entry-crate boot sequence.
-- **Profile loading**: Parses `.systemprompt/profiles/<name>/profile.yaml`, with optional catalog overlay.
-- **Secrets loading**: Reads the secrets document referenced by the active profile and seeds the in-process store.
-- **Runtime config construction**: Builds a `systemprompt_models::Config` from the active profile.
-- **Deployment config**: `ConfigService` resolves `${VAR}` / `${VAR:-default}` patterns and emits `.env` files for downstream services.
-- **Schema validation**: Generic YAML/JSON validation utilities and a `SkillConfigValidator` for the `skills/` tree.
+The crate loads the profile YAML, reads the secrets document it references, and installs both into process-wide singletons in a fixed order: profile before secrets. It also backs the deployment pipeline (`systemprompt cloud config`) and the `admin config` CLI surfaces that mutate a profile's provider registry and security section.
 
-## Architecture
+## Modules
 
-```
-src/
-├── lib.rs                      # Crate root — public API surface
-├── error.rs                    # ConfigError / ConfigResult<T>
-├── config_loader.rs            # init_config, build_from_profile, validate_database_config
-├── profile_loader.rs           # load_profile_with_catalog
-├── profile_gateway.rs          # Profile lookup gateway
-├── skill_validator.rs          # SkillConfigValidator (DomainConfig impl)
-├── bootstrap/
-│   ├── mod.rs                  # Bootstrap entry points and re-exports
-│   ├── profile.rs              # ProfileBootstrap singleton
-│   ├── manifest.rs             # Manifest signing seed helpers
-│   └── secrets/
-│       ├── mod.rs              # SecretsBootstrap singleton
-│       ├── loader.rs           # load_secrets_from_path
-│       ├── io.rs               # Disk I/O for secrets documents
-│       └── logging.rs          # log_secrets_issue / skip / warn helpers
-└── services/
-    ├── mod.rs                  # Re-exports
-    ├── manager.rs              # ConfigService — YAML loading, merging, variable resolution
-    ├── report.rs               # ValidationReport
-    ├── schema_validation.rs    # validate_config, validate_yaml_file, generate_schema
-    ├── types.rs                # DeployEnvironment, DeploymentConfig, EnvironmentConfig
-    ├── validator.rs            # ConfigValidator
-    └── writer.rs               # .env file generation
-```
+| Module | Purpose |
+|--------|---------|
+| `bootstrap` | Process-wide cells for the active profile and secrets (`ProfileBootstrap`, `SecretsBootstrap`), plus the manifest-signing seed helpers. Ordering (profile before secrets) is a runtime invariant of the entry-crate boot sequence. |
+| `config_loader` | Builds a runtime `Config` from the active profile (`init_config`, `try_init_config`, `build_from_profile`); `validate_database_config` checks database wiring before startup. |
+| `profile_loader` | `load_profile_with_catalog` — profile YAML parsing with optional catalog overlay. |
+| `profile_gateway` | Profile lookup gateway used during routing resolution. |
+| `path_validation` | Validates the filesystem paths a profile declares (`validate_profile_paths`) and formats path-error reports. |
+| `services` | Deployment and admin utilities: `ConfigService` (in `services/service.rs`), `ConfigValidator`, `ProviderCatalogService`, `SecurityConfigService`, and the schema-validation helpers. |
+| `skill_validator` | `SkillConfigValidator` walks the `skills/` tree and reports missing or malformed manifests through the `DomainConfig` trait. |
 
-### `bootstrap/`
-Process-wide cells for the active profile and secrets document. `ProfileBootstrap::init` (or `init_from_path`) installs the active profile; `SecretsBootstrap::init` then loads the secrets document it references. The *profile before secrets* ordering is a runtime invariant of the entry-crate boot sequence (`crates/entry/cli/src/runner/bootstrap.rs`), which interleaves credential and routing resolution between the two steps. Manifest seed helpers (`generate_seed`, `decode_seed`, `persist_seed`) live alongside.
-
-### `config_loader.rs`
-Builds a runtime `Config` from the active profile via `init_config`, `try_init_config`, `init_config_from_profile`, and `build_from_profile`. `validate_database_config` checks database wiring before startup.
-
-### `services/`
-Deployment-pipeline utilities consumed by `systemprompt cloud config`: `ConfigService` loads and merges YAML, `ConfigValidator` produces a `ValidationReport`, and the schema-validation helpers operate over arbitrary `serde` types.
-
-### `skill_validator.rs`
-`SkillConfigValidator` walks the `skills/` directory and reports missing or malformed manifests through the `DomainConfig` trait.
+`ConfigService` lives in `services/service.rs`. `ProviderCatalogService` (typed mutations of the profile's provider registry, backing `admin config catalog`) and `SecurityConfigService` with `SecurityUpdate` / `SecurityChange` (backing `admin config security`) live in `services/provider_catalog.rs` and `services/security_config.rs`.
 
 ## Usage
 
 ```toml
 [dependencies]
-systemprompt-config = "0.18.0"
+systemprompt-config = "0.21"
 ```
 
 ```rust
@@ -131,6 +100,10 @@ use systemprompt_config::{
     ValidationReport,
     generate_schema, validate_config, validate_yaml_file, validate_yaml_str,
 
+    // Admin config services
+    ProviderCatalogService, ProviderSpec, ModelSpec,
+    SecurityConfigService, SecurityUpdate, SecurityChange,
+
     // Skill validation
     SkillConfigValidator,
 };
@@ -142,6 +115,7 @@ use systemprompt_config::{
 |-------|---------|
 | `systemprompt-models` | `Config` and profile/secrets data types |
 | `systemprompt-traits` | `DomainConfig` trait implemented by `SkillConfigValidator` |
+| `systemprompt-identifiers` | Typed identifiers used across profile and secrets types |
 | `systemprompt-logging` | CLI output via `CliService` |
 | `serde`, `serde_json`, `serde_yaml` | Profile, secrets, and config serialisation |
 | `schemars` | JSON schema generation |

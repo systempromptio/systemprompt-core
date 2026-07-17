@@ -12,6 +12,9 @@
 //! Validation here is the authority for connectivity: unique provider names,
 //! SSRF-guarded endpoints, and globally-unique model ids/aliases. The gateway
 //! and AI layers validate only their references *into* this registry.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod error;
 mod protocol;

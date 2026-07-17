@@ -1,4 +1,7 @@
 //! Pure-function RSS 2.0 XML serialisation.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use chrono::{DateTime, Utc};
 

@@ -1,5 +1,8 @@
 //! Shared SQL-execution helpers for the migration runner: transactional
 //! statement application and the cross-extension `ALTER TABLE` ownership check.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::services::DatabaseProvider;
 use std::collections::HashSet;

@@ -8,6 +8,9 @@
 //! `schema/migrations/` directory. Purely filesystem-facing — no SQL is
 //! executed here — so it carries its own [`SquashBaselineError`] instead of
 //! [`crate::RepositoryError`].
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::path::{Path, PathBuf};
 

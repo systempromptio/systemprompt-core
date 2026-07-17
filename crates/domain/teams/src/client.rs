@@ -5,6 +5,9 @@
 //! token from [`TokenProvider`]. Every outbound URL passes the shared SSRF
 //! guard before a request is made, so a `serviceUrl` cannot be turned into an
 //! internal request even if token validation were ever bypassed.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use serde_json::{Value, json};
 use systemprompt_identifiers::TeamsConversationId;

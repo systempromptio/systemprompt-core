@@ -2,6 +2,9 @@
 //!
 //! [`BuildCommands`] dispatches to the core workspace build and the MCP
 //! extension build; [`types`] holds the shared result rows surfaced by both.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod core;
 pub mod mcp;

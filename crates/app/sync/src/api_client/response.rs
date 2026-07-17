@@ -1,6 +1,9 @@
 //! Response-handling helpers for [`crate::api_client::SyncApiClient`]:
 //! converts HTTP failures into typed [`SyncError`] variants and decodes
 //! JSON / binary success bodies.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use reqwest::StatusCode;
 use serde::de::DeserializeOwned;

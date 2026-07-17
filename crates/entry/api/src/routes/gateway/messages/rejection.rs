@@ -1,3 +1,6 @@
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
 use axum::http::StatusCode;
 use bytes::Bytes;
 use systemprompt_ai::models::ai_request_record::AiRequestRecord;

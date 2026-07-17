@@ -1,6 +1,9 @@
 //! AI provider models — requests, responses, tool calls, sampling
 //! parameters, execution plans, and the `AiProvider` trait shared
 //! across LLM integrations.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod execution_plan;
 pub mod media_types;

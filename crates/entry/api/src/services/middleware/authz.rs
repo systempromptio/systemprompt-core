@@ -26,6 +26,9 @@
 //! Every other public route is read-only; any new public-group handler that
 //! mutates state must enforce its own per-resource ownership check, because
 //! this gate will admit `Anon`.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use axum::extract::Request;
 use axum::middleware::Next;

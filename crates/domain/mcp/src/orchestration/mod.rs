@@ -1,5 +1,8 @@
 //! Multi-server lifecycle and state orchestration: tool discovery/loading
 //! across MCP servers and runtime service-state lookups backed by the database.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod loader;
 mod models;

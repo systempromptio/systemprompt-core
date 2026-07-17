@@ -5,6 +5,9 @@
 //! `context_id`/`task_id`/`client_id`) that the database log layer extracts to
 //! attribute each emitted log row. [`RequestSpanBuilder`] assembles a span with
 //! the optional fields populated.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_identifiers::{ClientId, ContextId, SessionId, TaskId, TraceId, UserId};
 use tracing::Span;

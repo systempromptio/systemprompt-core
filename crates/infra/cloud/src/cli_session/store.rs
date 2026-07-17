@@ -1,4 +1,7 @@
 //! On-disk index of CLI sessions keyed by tenant or `local`.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::collections::HashMap;
 use std::fs;

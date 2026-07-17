@@ -1,3 +1,9 @@
+//! Cache-control constants and `ETag` computation/matching for static file
+//! responses.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
 use axum::http::{HeaderMap, StatusCode, header};
 use axum::response::IntoResponse;
 use std::hash::{Hash, Hasher};
@@ -81,6 +87,8 @@ pub(super) fn resolve_mime_type(path: &std::path::Path) -> &'static str {
         Some("ico") => "image/x-icon",
         Some("json") => "application/json",
         Some("pdf") => "application/pdf",
+        Some("mp4") => "video/mp4",
+        Some("webm") => "video/webm",
         _ => "application/octet-stream",
     }
 }

@@ -1,5 +1,8 @@
 //! Service-state verification — combines DB rows with live process / port
 //! introspection to produce [`VerifiedServiceState`] snapshots.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::collections::{HashMap, HashSet};
 use std::time::Duration;

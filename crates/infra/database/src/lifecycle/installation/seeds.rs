@@ -4,6 +4,9 @@
 //! are deliberately not tracked in `extension_migrations` — every seed body
 //! must be idempotent. The classifier rejects any statement that is not
 //! `INSERT`, `UPDATE`, or `MERGE`.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::services::DatabaseProvider;
 use systemprompt_extension::{Extension, LoaderError, Seed};

@@ -4,6 +4,9 @@
 //! that serializes the payload to JSON and frames it as an SSE `data:` line
 //! (with an explicit `event:` name where the kind needs disambiguation, e.g.
 //! `CliOutputEvent`).
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use axum::response::sse::Event;
 use serde::Serialize;

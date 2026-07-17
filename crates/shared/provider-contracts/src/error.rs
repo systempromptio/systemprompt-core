@@ -8,6 +8,9 @@
 //! Downstream provider crates that implement these traits convert any
 //! third-party error at the boundary with
 //! `.map_err(|e| ProviderError::Internal(e.to_string()))`.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use thiserror::Error;
 

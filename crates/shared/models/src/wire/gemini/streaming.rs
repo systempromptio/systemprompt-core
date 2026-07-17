@@ -4,6 +4,9 @@
 //! candidate parts are incremental. Text parts stream as deltas on block 0;
 //! `functionCall` parts emit a complete tool-use block (Gemini sends each call
 //! whole rather than as partial JSON).
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use bytes::Bytes;
 use futures_util::stream::{self, BoxStream, Stream, StreamExt};

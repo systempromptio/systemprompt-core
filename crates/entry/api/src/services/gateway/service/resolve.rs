@@ -1,5 +1,8 @@
 //! Pre-dispatch upstream resolution: model-exposure check, route and provider
 //! lookup, API-key secret, and outbound wire adapter.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::borrow::Cow;
 use std::sync::Arc;

@@ -7,6 +7,9 @@
 //! migrations — every migration is idempotent (guarded seeds or
 //! `CREATE ... IF NOT EXISTS`), so re-running them re-records the current
 //! checksum without touching real data.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use super::{ChecksumDrift, MigrationService};
 use systemprompt_extension::{Extension, LoaderError};

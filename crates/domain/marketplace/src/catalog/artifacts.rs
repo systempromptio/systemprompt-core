@@ -6,6 +6,9 @@
 //! artifact with empty HTML content or no `mcp_tools` is dropped with a warning
 //! rather than shipped inert, mirroring the plugin-bundle drop in
 //! [`crate::catalog::plugin_bundles`].
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::path::Path;
 

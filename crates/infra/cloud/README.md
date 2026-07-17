@@ -26,97 +26,44 @@
 
 [![Crates.io](https://img.shields.io/crates/v/systemprompt-cloud.svg?style=flat-square)](https://crates.io/crates/systemprompt-cloud)
 [![Docs.rs](https://img.shields.io/docsrs/systemprompt-cloud?style=flat-square)](https://docs.rs/systemprompt-cloud)
+[![codecov](https://img.shields.io/codecov/c/github/systempromptio/systemprompt-core/main?style=flat-square&logo=codecov)](https://codecov.io/gh/systempromptio/systemprompt-core)
 [![License: BSL-1.1](https://img.shields.io/badge/license-BSL--1.1-2b6cb0?style=flat-square)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
 
-Cloud API client, credentials, OAuth, and tenant management for systemprompt.io AI governance deployments. Remote sync and multi-tenant orchestration for the MCP governance pipeline. Includes API client, credentials, OAuth, and tenant management.
+The client that ships your deployment to systemprompt.io Cloud without handing over ownership. It logs you in, provisions the tenant, renders the Dockerfile, and packs your secrets, then hands you a running instance you control.
 
-**Layer**: Infra — infrastructure primitives (database, security, events, etc.) consumed by domain crates. Part of the [systemprompt-core](https://github.com/systempromptio/systemprompt-core) workspace.
+**Layer**: Infra. Infrastructure primitives consumed by the domain and application crates. Part of the [systemprompt-core](https://github.com/systempromptio/systemprompt-core) workspace.
 
-## Overview
+## What it does
 
-Cloud infrastructure services including API client, credentials, OAuth, and tenant management.
+Rent-a-dashboard AI keeps your prompts, keys, and audit trail on someone else's servers. This crate is the opposite path. It authenticates against the systemprompt.io control plane, provisions tenants, and produces the deployment image for a binary that runs on your infrastructure with your secrets injected at boot.
 
-## Architecture
+It is the seam between the local CLI or runtime and the control plane. Every credential, session, and tenant record lives on disk under XDG-aware paths so the same machine can hold several tenants at once.
 
-```
-cloud/
-├── Cargo.toml
-└── src/
-    ├── lib.rs                      # Crate root, public exports, Environment, OAuthProvider enums
-    ├── constants.rs                # OAuth, checkout, credential, path constants
-    ├── context.rs                  # CloudContext, ResolvedTenant
-    ├── credentials.rs              # CloudCredentials management
-    │
-    ├── api_client/
-    │   ├── mod.rs                  # API client exports
-    │   ├── client.rs               # CloudApiClient core HTTP transport
-    │   ├── endpoints.rs            # Endpoint path constants
-    │   ├── methods.rs              # Typed request methods on CloudApiClient
-    │   ├── tenant_api.rs           # Tenant-specific API methods
-    │   ├── streams.rs              # SSE streaming for provisioning/checkout events
-    │   └── types.rs                # Re-exports from systemprompt-models
-    │
-    ├── auth/
-    │   ├── mod.rs                  # Auth exports
-    │   └── token.rs                # JWT token expiry decoding
-    │
-    ├── checkout/
-    │   ├── mod.rs                  # Checkout exports
-    │   ├── provisioning.rs         # Wait for provisioning (SSE + polling)
-    │   └── client/
-    │       ├── mod.rs              # Checkout callback flow entry point
-    │       └── handler.rs          # Callback request handler
-    │
-    ├── cli_session/
-    │   ├── mod.rs                  # Session exports, SessionKey enum
-    │   ├── session.rs              # CliSession, CliSessionBuilder
-    │   └── store.rs                # SessionStore (multi-session management)
-    │
-    ├── credentials_bootstrap/
-    │   ├── mod.rs                  # CredentialsBootstrap global initialization
-    │   └── error.rs                # Bootstrap-specific error types
-    │
-    ├── error/
-    │   ├── mod.rs                  # CloudError, CloudResult
-    │   └── messages.rs             # Recovery hints and error message helpers
-    │
-    ├── oauth/
-    │   ├── mod.rs                  # OAuth exports
-    │   └── client.rs               # OAuth flow with local callback server
-    │
-    ├── paths/
-    │   ├── mod.rs                  # Path resolution exports
-    │   ├── cloud.rs                # CloudPath, CloudPaths (credential/tenant paths)
-    │   ├── context.rs              # UnifiedContext (combined path resolution)
-    │   ├── discovery.rs            # DiscoveredProject (project root discovery)
-    │   └── project.rs              # ProjectPath, ProfilePath, ProjectContext
-    │
-    └── tenants/
-        ├── mod.rs                  # TenantType and re-exports
-        └── tenant_store.rs         # TenantStore, StoredTenant
-```
-
-### Module Overview
+## Modules
 
 | Module | Purpose |
 |--------|---------|
-| `api_client` | HTTP client for systemprompt.io Cloud API with SSE streaming support |
-| `auth` | JWT token handling and expiry checking |
-| `checkout` | Paddle checkout callback flow and provisioning wait logic |
-| `cli_session` | CLI session management with multi-tenant support |
-| `context` | Cloud context resolution combining credentials and profile |
-| `credentials` | Credential storage, validation, and file operations |
-| `credentials_bootstrap` | Global singleton for credential initialization |
-| `error` | Domain-specific error types with recovery hints |
-| `oauth` | OAuth authentication flow with local callback server |
-| `paths` | Path resolution for credentials, tenants, profiles, and projects |
-| `tenants` | Local tenant cache storage and management |
+| `api_client` | Bearer-authenticated REST client for the Cloud API, with SSE streams for provisioning and checkout events. |
+| `auth` | JWT expiry decoding for stored session tokens. |
+| `checkout` | Paddle checkout callback flow and the provisioning watcher (`wait_for_provisioning`). |
+| `cli_session` | Multi-tenant CLI sessions: `CliSession`, `SessionStore`, and the `Local` / `Tenant` session key. |
+| `constants` | Production and sandbox API URLs and other fixed endpoints. |
+| `credentials` | On-disk credential storage, validation, and file operations. |
+| `credentials_bootstrap` | Process-wide credential initialization with its own error type. |
+| `deploy` | Dockerfile rendering (`DockerfileBuilder`) and deployment-image validation. |
+| `docker` | Docker invocations behind a `CommandRunner` seam (`DockerCli`). |
+| `error` | `CloudError` / `CloudResult` and recovery-hint message helpers. |
+| `oauth` | Browser-driven OAuth login against GitHub and Google via a local callback server. |
+| `paths` | XDG-aware discovery of credentials, sessions, tenants, and project files. |
+| `profile_authoring` | Pure `Profile` construction for local and cloud deployment targets. |
+| `secrets_env` | Deploy-time mapping of `secrets.json` to environment variables, including the signing-key PEM transport encoding. |
+| `tenants` | Persistent tenants index (`TenantStore`, `StoredTenant`, `TenantType`). |
 
 ## Usage
 
 ```toml
 [dependencies]
-systemprompt-cloud = "0.18.0"
+systemprompt-cloud = "0.21"
 ```
 
 ```rust
@@ -133,81 +80,35 @@ async fn whoami() -> Result<(), Box<dyn std::error::Error>> {
 
 ## Public API
 
-### Types
+All fallible APIs return `CloudResult<T>` (`Result<T, CloudError>`). `CloudError` composes `reqwest`, `std::io`, `serde_json`, and `CredentialsBootstrapError` via `#[from]`.
 
-| Type | Source | Description |
-|------|--------|-------------|
-| `CloudApiClient` | `api_client/client.rs` | HTTP client for systemprompt.io Cloud API |
-| `CloudCredentials` | `credentials.rs` | API token and authentication data |
-| `CredentialsBootstrap` | `credentials_bootstrap.rs` | Global credential initialization |
-| `CloudContext` | `context.rs` | Resolved cloud context with tenant info |
-| `ResolvedTenant` | `context.rs` | Resolved tenant information |
-| `CliSession` | `cli_session/session.rs` | CLI session with auth tokens |
-| `SessionStore` | `cli_session/store.rs` | Multi-session storage |
-| `SessionKey` | `cli_session/mod.rs` | Session identifier (Local or Tenant) |
-| `TenantStore` | `tenants/tenant_store.rs` | Local tenant cache storage |
-| `StoredTenant` | `tenants/tenant_store.rs` | Cached tenant data |
-| `TenantType` | `tenants/mod.rs` | Local or Cloud tenant type |
-| `CloudError` | `error/mod.rs` | Cloud operation errors |
-| `Environment` | `lib.rs` | Production or Sandbox environment |
-| `OAuthProvider` | `lib.rs` | GitHub or Google OAuth |
-| `CloudPath` | `paths/cloud.rs` | User-scoped paths (credentials, tenants) |
-| `CloudPaths` | `paths/cloud.rs` | Resolved cloud paths |
-| `ProjectPath` | `paths/project.rs` | Project-scoped paths |
-| `ProfilePath` | `paths/project.rs` | Profile-relative paths |
-| `ProjectContext` | `paths/project.rs` | Project path resolution context |
-| `DiscoveredProject` | `paths/discovery.rs` | Discovered project root |
-| `UnifiedContext` | `paths/context.rs` | Combined path resolution |
+| Item | Purpose |
+|------|---------|
+| `CloudApiClient` | Bearer-token REST client; typed methods for user, tenant, checkout, and deploy calls. |
+| `CloudCredentials`, `CredentialsBootstrap` | On-disk and process-wide cloud credentials. |
+| `CliSession`, `SessionStore`, `SessionKey` | Multi-tenant CLI session storage. |
+| `TenantStore`, `StoredTenant`, `TenantType` | Persistent local tenants index. |
+| `run_oauth_flow`, `run_checkout_callback_flow` | Browser-driven OAuth and Paddle checkout flows. |
+| `wait_for_provisioning` | SSE plus polling watcher for tenant provisioning state. |
+| `CloudPaths`, `resolve_path`, `expand_home`, `get_cloud_paths` | XDG-aware path resolution for credentials, tenants, profiles, and projects. |
+| `DockerfileBuilder` | Renders the deployment Dockerfile for the owned binary. |
+| `DockerCli`, `CommandRunner` | Docker invocations behind a testable command seam. |
+| `Environment`, `OAuthProvider` | Production / Sandbox target and GitHub / Google login provider. |
 
-### API Client Types
-
-| Type | Source | Description |
-|------|--------|-------------|
-| `UserMeResponse` | `api_client/types.rs` | Current user information |
-| `Tenant` | `api_client/types.rs` | Tenant metadata |
-| `TenantInfo` | `api_client/types.rs` | Detailed tenant info |
-| `TenantStatus` | `api_client/types.rs` | Tenant provisioning status |
-| `TenantSecrets` | `api_client/types.rs` | Tenant secrets (JWT, database URL) |
-| `Plan` | `api_client/types.rs` | Subscription plan |
-| `CheckoutResponse` | `api_client/types.rs` | Paddle checkout result |
-| `CheckoutEvent` | `api_client/types.rs` | SSE checkout event |
-| `ProvisioningEvent` | `api_client/types.rs` | SSE provisioning event |
-| `DeployResponse` | `api_client/types.rs` | Deployment result |
-| `RegistryToken` | `api_client/types.rs` | Container registry credentials |
-
-### Functions
-
-| Function | Source | Description |
-|----------|--------|-------------|
-| `run_oauth_flow` | `oauth/client.rs` | Execute OAuth authentication flow |
-| `run_checkout_callback_flow` | `checkout/client/mod.rs` | Handle Paddle checkout callback |
-| `wait_for_provisioning` | `checkout/provisioning.rs` | Wait for tenant provisioning |
-| `resolve_path` | `paths/mod.rs` | Resolve path relative to base directory |
-| `expand_home` | `paths/mod.rs` | Expand ~ in paths |
-| `get_cloud_paths` | `paths/cloud.rs` | Get cloud paths from profile |
-
-### Templates
-
-| Type | Source | Description |
-|------|--------|-------------|
-| `OAuthTemplates` | `oauth/client.rs` | HTML templates for OAuth callbacks |
-| `CheckoutTemplates` | `checkout/client/mod.rs` | HTML templates for checkout callbacks |
+Response types re-exported from `api_client` include `UserMeResponse`, `Tenant`, `TenantInfo`, `TenantStatus`, `TenantSecrets`, `Plan`, `CheckoutResponse`, `CheckoutEvent`, `ProvisioningEvent`, `DeployResponse`, and `RegistryToken`.
 
 ## Dependencies
 
-- `systemprompt-models` - Profile and module models
-- `systemprompt-identifiers` - Typed identifiers
-- `systemprompt-logging` - CLI service output
-- `reqwest` - HTTP client
-- `reqwest-eventsource` - SSE client
-- `axum` - Callback server
-- `serde` / `serde_json` - Serialization
-- `chrono` - Timestamps
-- `thiserror` - Error handling
-- `tokio` - Async runtime
-- `tracing` - Logging
-- `clap` - CLI argument parsing
-- `validator` - Struct validation
+- `systemprompt-models` — profile and module models
+- `systemprompt-identifiers` — typed identifiers
+- `systemprompt-loader` — services-config and profile discovery
+- `systemprompt-extension` — extension registration surface
+- `systemprompt-logging` — CLI service output (`cli` feature)
+- `reqwest`, `reqwest-eventsource`, `async-stream`, `futures` — HTTP and SSE
+- `axum` — local callback server
+- `serde`, `serde_json`, `chrono` — serialization
+- `clap`, `open`, `urlencoding`, `base64` — CLI and encoding utilities
+- `thiserror`, `tokio`, `tracing` — errors, async runtime, logging
 
 ## License
 

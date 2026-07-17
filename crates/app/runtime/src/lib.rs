@@ -18,6 +18,9 @@
 //! |---------------|------------------------------------------------------------------|
 //! | (default)     | Core context, builder, registries, validation                   |
 //! | `geolocation` | Enables MaxMind GeoIP2 loading via `maxminddb` and pulls in `systemprompt-analytics/geolocation` |
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod builder;
 mod context;

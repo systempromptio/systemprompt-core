@@ -7,6 +7,9 @@
 //! requires the migration to be idempotent and re-executable. Here, the
 //! operator asserts the migration is already applied; the service only
 //! computes the current checksum and writes the tracking row.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use super::MigrationService;
 use systemprompt_extension::{Extension, LoaderError};

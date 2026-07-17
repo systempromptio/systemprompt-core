@@ -1,3 +1,6 @@
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
 use super::super::hash::{normalise_relative, safe_plugin_id, sha256_hex};
 use super::hooks::{ensure_plugin_json_hooks_field, write_hooks_json};
 use crate::auth::plugin_oauth::global_cache;

@@ -4,6 +4,9 @@
 //! supported file parts decoded into [`AiContentPart`]s), then spawns the
 //! strategy-driven pipeline that streams text, tool, and completion events back
 //! to the caller.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod helpers;
 mod processing;

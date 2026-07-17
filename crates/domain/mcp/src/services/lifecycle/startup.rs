@@ -4,6 +4,9 @@
 //! preparation, spawn, and a bounded health-check poll loop before registering
 //! the running service. Emits [`StartupEventSender`] progress events and treats
 //! a degraded-but-listening server as ready once attempts are nearly exhausted.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use super::LifecycleOrchestrator;
 use crate::McpServerConfig;

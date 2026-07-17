@@ -1,5 +1,8 @@
 //! Server-Sent Events (SSE) subscriptions for tenant provisioning
 //! and Paddle checkout pipelines.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::pin::Pin;
 

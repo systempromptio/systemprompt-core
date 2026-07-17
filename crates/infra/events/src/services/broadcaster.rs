@@ -4,6 +4,9 @@
 //! Sender>>>` and is parameterised over the payload type via the [`ToSse`]
 //! trait. Concrete type aliases (`A2ABroadcaster`, `AgUiBroadcaster`, etc.)
 //! pick the event kind so that callers never need to spell out the generic.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use axum::response::sse::{Event, KeepAlive};
 use std::collections::HashMap;

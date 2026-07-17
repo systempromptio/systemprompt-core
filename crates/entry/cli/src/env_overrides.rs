@@ -5,6 +5,9 @@
 //! through [`crate::context::CommandContext`]. Command code never calls
 //! `std::env::var` directly — tests construct the snapshot with
 //! [`EnvOverrides::from_vars`] instead of mutating process state.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::collections::HashMap;
 

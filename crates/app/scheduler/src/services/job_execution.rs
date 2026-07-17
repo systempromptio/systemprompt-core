@@ -6,6 +6,9 @@
 //! and records the outcome on the job's `scheduled_jobs` row. Callers render
 //! the returned [`JobRunReport`] / [`JobBatchReport`]; a missing job is
 //! reported as a failed run rather than an error so a batch keeps going.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::collections::HashMap;
 use std::sync::Arc;

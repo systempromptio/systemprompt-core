@@ -5,6 +5,9 @@
 //! must run over the **exact** received body before any deserialization, and
 //! must reject replayed requests whose timestamp drifts beyond a tolerance
 //! window. The comparison is constant-time (delegated to `Mac::verify_slice`).
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use hmac::{Hmac, KeyInit, Mac};
 use sha2::Sha256;

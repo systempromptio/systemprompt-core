@@ -1,12 +1,17 @@
 # systemprompt-teams
 
+[![Crates.io](https://img.shields.io/crates/v/systemprompt-teams.svg?style=flat-square)](https://crates.io/crates/systemprompt-teams)
+[![Docs.rs](https://img.shields.io/docsrs/systemprompt-teams?style=flat-square)](https://docs.rs/systemprompt-teams)
+[![License: BSL-1.1](https://img.shields.io/badge/license-BSL--1.1-2b6cb0?style=flat-square)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
+[![codecov](https://img.shields.io/codecov/c/github/systempromptio/systemprompt-core/main?style=flat-square&logo=codecov)](https://codecov.io/gh/systempromptio/systemprompt-core)
+
 Microsoft Teams integration for [systemprompt.io](https://systemprompt.io).
 
-Turns Teams into a first-class inbound surface alongside the gateway, MCP, and
-Slack. Bot Framework activities (messages and invokes) delivered through the
-Azure Bot Service are token-verified, mapped to governed systemprompt
-identities, authorized against RBAC, dispatched to A2A agents, and answered back
-in Teams — under the same audit pipeline as every other surface.
+Every Teams message answers to the same audit pipeline as every other surface.
+Bot Framework activities (messages and invokes) delivered through the Azure Bot
+Service are token-verified, mapped to governed systemprompt identities,
+authorized against RBAC, dispatched to A2A agents, and answered back in Teams,
+under one governed path.
 
 This crate is **fully opt-in**: it is excluded from the facade's `default` and
 `full` feature sets and only compiles under the `teams` feature.

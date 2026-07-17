@@ -1,5 +1,8 @@
 //! Top-level build orchestrator: organises CSS, runs validation, reports
 //! progress, and returns a typed [`BuildError`] on failure.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use indicatif::{ProgressBar, ProgressStyle};
 use std::path::PathBuf;

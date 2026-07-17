@@ -3,6 +3,9 @@
 //! [`DatabaseProvider`] is dyn-safe (callers hold `Arc<dyn DatabaseProvider>`)
 //! and uses `#[async_trait]`. [`DatabaseProviderExt`] is generic, never used
 //! through a trait object, and uses native `async fn`.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::error::DatabaseResult;
 use crate::models::{

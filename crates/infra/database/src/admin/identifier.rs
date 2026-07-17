@@ -1,5 +1,8 @@
 //! Validated `PostgreSQL` identifier wrapper used wherever a raw table name or
 //! column name flows from user input into a SQL string.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::fmt;
 

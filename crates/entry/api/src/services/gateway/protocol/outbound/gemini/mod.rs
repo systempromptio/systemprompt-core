@@ -5,6 +5,9 @@
 //! returns either a buffered [`CanonicalResponse`] or a stream of canonical
 //! events translated from the Gemini `?alt=sse` byte stream. Auth rides the
 //! `x-goog-api-key` header.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use anyhow::{Result, anyhow};
 use async_trait::async_trait;

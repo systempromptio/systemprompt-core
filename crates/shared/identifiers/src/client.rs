@@ -1,4 +1,7 @@
 //! OAuth client identifier with classifier helpers.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 crate::define_id!(ClientId);
 

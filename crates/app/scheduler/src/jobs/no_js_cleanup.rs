@@ -1,5 +1,8 @@
 //! Periodic job that flags sessions with HTTP traffic but no JS engagement
 //! as behavioural bots.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use async_trait::async_trait;
 use systemprompt_database::DbPool;

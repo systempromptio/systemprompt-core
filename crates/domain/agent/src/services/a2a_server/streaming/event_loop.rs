@@ -1,5 +1,8 @@
 //! Streaming event loop — fans `StreamEvent`s from the AI model out to A2A
 //! status frames, AG-UI webhooks, the SSE channel, and the task repository.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
 

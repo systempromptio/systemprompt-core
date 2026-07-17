@@ -3,6 +3,9 @@
 //! [`AudioArtifact`] is the renderable artifact for audio output — a source URI
 //! plus optional metadata (title, artist, artwork) and playback flags. It
 //! implements [`Artifact`] and emits its own JSON schema for tool output.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::artifacts::metadata::ExecutionMetadata;
 use crate::artifacts::traits::Artifact;

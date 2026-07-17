@@ -5,6 +5,9 @@
 //! campaign/destination links; and [`validate_content_metadata`] enforces
 //! frontmatter rules. [`DefaultContentProvider`] is the `ContentProvider`
 //! implementation other crates consume.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod content_provider;
 pub mod ingestion;

@@ -5,6 +5,9 @@
 //! paths accordingly. The single entry point is [`bootstrap_profile`]; it
 //! returns an external database URL when the command should reconnect against
 //! a cloud-issued database instead of continuing the local boot.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use anyhow::{Context, Result, bail};
 use systemprompt_config::{ProfileBootstrap, SecretsBootstrap};

@@ -7,6 +7,9 @@
 //! *that* user. The bearer (plus any static configured headers) is then
 //! injected onto the outbound MCP request while the systemprompt credential is
 //! withheld.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::collections::HashMap;
 

@@ -25,6 +25,9 @@
 //!
 //! let _request = ChatRequest::new(vec![ChatMessage::user("Hello")], "claude-sonnet-4-7", 1024);
 //! ```
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod component;
 mod content_data;

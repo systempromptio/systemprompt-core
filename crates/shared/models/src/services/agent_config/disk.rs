@@ -1,5 +1,8 @@
 //! On-disk YAML shape of an agent's `config.yaml` and its projection
 //! into the runtime [`super::AgentConfig`] shape.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use serde::Deserialize;
 use systemprompt_identifiers::AgentId;

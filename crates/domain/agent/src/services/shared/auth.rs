@@ -1,5 +1,8 @@
 //! JWT validation for agent requests: decoding bearer tokens into typed
 //! session claims and extracting the authenticated [`UserId`].
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::services::shared::error::{AgentServiceError, Result};
 use systemprompt_identifiers::UserId;

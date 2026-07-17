@@ -1,3 +1,6 @@
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
 use super::ValidationConfigProvider;
 use crate::config::RateLimitConfig;
 use systemprompt_traits::validation_report::{ValidationReport, ValidationWarning};

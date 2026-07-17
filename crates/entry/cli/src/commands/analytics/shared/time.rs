@@ -4,6 +4,9 @@
 //! calendar dates, and RFC-3339 timestamps) into a UTC range via
 //! [`parse_time_range`], and snaps timestamps to hour/day/week/month boundaries
 //! with [`truncate_to_period`] for trend grouping.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use anyhow::{Result, anyhow};
 use chrono::{DateTime, Datelike, Duration, NaiveDate, Timelike, Utc};

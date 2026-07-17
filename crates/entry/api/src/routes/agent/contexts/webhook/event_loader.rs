@@ -1,3 +1,6 @@
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
 use serde_json::json;
 use systemprompt_agent::models::a2a::TaskState;
 use systemprompt_identifiers::{MessageId, TaskId, UserId};

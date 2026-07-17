@@ -3,6 +3,9 @@
 //! Defines [`CloudUser`] (the account being synced), [`SyncResult`]
 //! (per-profile outcome), and the [`ProfileSkipReason`] /
 //! [`ProfileDiscoveryResult`] pair used when enumerating local profiles.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use anyhow::Result;
 use std::path::PathBuf;

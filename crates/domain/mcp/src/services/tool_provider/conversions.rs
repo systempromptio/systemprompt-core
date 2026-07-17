@@ -1,3 +1,6 @@
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
 use systemprompt_models::ai::tools::McpTool;
 use systemprompt_traits::{ToolCallResult, ToolContent, ToolDefinition};
 

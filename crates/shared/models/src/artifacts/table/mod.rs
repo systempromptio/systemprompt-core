@@ -3,6 +3,9 @@
 //! [`TableArtifact`] is the builder-style producer; [`TableResponse`] is the
 //! serialized wire shape. Column definitions live in [`mod@column`] and display
 //! hints in [`hints`].
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod column;
 pub mod hints;

@@ -3,6 +3,9 @@
 //!
 //! Part of the documented sqlx allowlist: the binder operates on the dynamic
 //! `sqlx::query::Query` value passed in by the trait implementation.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use sqlx::{Column, Row};
 use std::collections::HashMap;

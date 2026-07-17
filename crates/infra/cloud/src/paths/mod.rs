@@ -4,6 +4,9 @@
 //! path enums ([`ProjectPath`], [`ProfilePath`], [`ProjectContext`]), the
 //! container-side [`CloudPaths`], and the [`UnifiedContext`] that ties them
 //! together for credential, tenant, and session lookups.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod cloud;
 mod context;

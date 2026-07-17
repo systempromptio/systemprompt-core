@@ -1,3 +1,6 @@
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
 use std::path::{Path, PathBuf};
 
 use crate::constants::{cli_session, credentials, dir_names, tenants};

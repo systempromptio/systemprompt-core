@@ -19,6 +19,9 @@
 //! real output limit and giving operators a per-request TPM lever via the
 //! model card's `limits.max_output_tokens`. Both `OpenAI` codecs (Chat
 //! Completions and Responses) share these.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod request;
 mod response;

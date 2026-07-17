@@ -1,6 +1,9 @@
 //! Parse, lint, and phase-classify an extension's declarative schema before
 //! any database I/O. The resulting [`PreparedSchema`] is executed by the
 //! installer in the correct global phase.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_extension::{Extension, LoaderError};
 

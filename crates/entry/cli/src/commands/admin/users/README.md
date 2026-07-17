@@ -65,6 +65,7 @@ alias sp="./target/debug/systemprompt --non-interactive"
 | `admin users ban remove <IP>` | Remove IP ban | **Yes** |
 | `admin users ban check <IP>` | Check if IP is banned | No |
 | `admin users ban cleanup` | Clean up expired bans | **Yes** |
+| `admin users webauthn generate-setup-token` | Mint a token to link WebAuthn credentials to a user | No |
 
 ---
 
@@ -664,6 +665,29 @@ sp admin users ban cleanup --yes
   "message": "Cleaned up 5 expired ban(s)"
 }
 ```
+
+---
+
+## WebAuthn Commands
+
+### users webauthn generate-setup-token
+
+Mint a short-lived setup token that lets an existing user register a WebAuthn credential (passkey). The user redeems the token from the web UI to bind the credential to their account.
+
+```bash
+sp admin users webauthn generate-setup-token --email john@example.com
+sp admin users webauthn generate-setup-token --email john@example.com --expires-minutes 30
+```
+
+**Required Flags:**
+| Flag | Required | Description |
+|------|----------|-------------|
+| `--email` | Yes | Email of the user to generate the token for |
+
+**Optional Flags:**
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--expires-minutes` | `15` | Token validity in minutes |
 
 ---
 

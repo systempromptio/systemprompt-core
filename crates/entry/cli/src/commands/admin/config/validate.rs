@@ -5,6 +5,9 @@
 //! sections, parses each as YAML, and validates a full profile document against
 //! the [`systemprompt_models::profile::Profile`] schema. Also prints the
 //! generated `Profile` JSON schema on demand.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use anyhow::{Result, anyhow};
 use clap::Args;

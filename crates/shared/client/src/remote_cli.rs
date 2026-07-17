@@ -6,6 +6,9 @@
 //! process's exit code. Transport failures mid-stream are reported through
 //! the sink and surface as exit code `1` rather than an error, matching an
 //! interactive terminal session; only setup failures return [`ClientError`].
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::io;
 use std::time::Duration;

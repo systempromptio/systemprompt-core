@@ -1,3 +1,6 @@
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
 use anyhow::{Result, anyhow, bail};
 use systemprompt_cloud::{CloudPath, StoredTenant, TenantStore, TenantType, get_cloud_paths};
 use systemprompt_logging::CliService;

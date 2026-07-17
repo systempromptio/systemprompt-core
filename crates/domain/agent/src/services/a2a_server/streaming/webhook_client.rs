@@ -7,6 +7,9 @@
 //! the deep callers in `event_loop`, `complete_handler`, `message_handler`,
 //! and `skills` stay as free-function calls while the harness still swaps
 //! the network for a deterministic spy.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::sync::{Arc, OnceLock};
 

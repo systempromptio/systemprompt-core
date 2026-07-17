@@ -1,3 +1,6 @@
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
 use futures_util::StreamExt;
 use systemprompt_traits::{
     Phase, ServiceInfo, ServiceState, ServiceType, StartupEvent, StartupEventReceiver,

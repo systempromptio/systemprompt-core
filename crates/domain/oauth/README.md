@@ -27,8 +27,9 @@
 [![Crates.io](https://img.shields.io/crates/v/systemprompt-oauth.svg?style=flat-square)](https://crates.io/crates/systemprompt-oauth)
 [![Docs.rs](https://img.shields.io/docsrs/systemprompt-oauth?style=flat-square)](https://docs.rs/systemprompt-oauth)
 [![License: BSL-1.1](https://img.shields.io/badge/license-BSL--1.1-2b6cb0?style=flat-square)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
+[![codecov](https://img.shields.io/codecov/c/github/systempromptio/systemprompt-core/main?style=flat-square&logo=codecov)](https://codecov.io/gh/systempromptio/systemprompt-core)
 
-OAuth 2.0 / OIDC with PKCE, token introspection, and audience/issuer validation for systemprompt.io AI governance infrastructure. WebAuthn and JWT auth for the MCP governance pipeline with dynamic client registration, token revocation, and passwordless authentication.
+Your own authorization server, not a rented identity provider. OAuth 2.0 and OIDC with PKCE, dynamic client registration, token introspection and revocation, and WebAuthn passwordless login, all running in your binary against your PostgreSQL.
 
 **Layer**: Domain — business-logic modules that implement systemprompt.io features. Part of the [systemprompt-core](https://github.com/systempromptio/systemprompt-core) workspace.
 
@@ -51,7 +52,7 @@ This crate implements a complete OAuth 2.0 authorization server with:
 
 ```toml
 [dependencies]
-systemprompt-oauth = "0.18.0"
+systemprompt-oauth = "0.21"
 ```
 
 ```rust
@@ -64,99 +65,20 @@ use systemprompt_oauth::services::{
 };
 ```
 
-## File Structure
+## Module Layout
 
-```
-src/
-├── lib.rs                              # Crate root, public exports
-├── constants.rs                        # Shared constants (TTLs, claims, headers)
-├── error.rs                            # OauthError / OauthResult
-├── extension.rs                        # OauthExtension (schemas + migrations)
-├── state.rs                            # OAuthState handle
-├── models/                             # Data structures
-│   ├── mod.rs                          # Model exports
-│   ├── analytics.rs                    # Session / login analytics types
-│   ├── cimd.rs                         # Client-Initiated Metadata Discovery types
-│   ├── clients/                        # OAuth client models
-│   │   ├── mod.rs                      # OAuthClient, OAuthClientRow, ClientRelations
-│   │   └── api.rs                      # Create/Update/Response DTOs
-│   └── oauth/                          # OAuth protocol models
-│       ├── mod.rs                      # GrantType, PkceMethod, JwtClaims, ResponseType...
-│       ├── api.rs                      # Pagination types
-│       └── dynamic_registration.rs     # RFC 7591 request / response
-├── queries/                            # SQL query layer
-│   ├── mod.rs
-│   └── postgres/
-│       └── mod.rs                      # PostgreSQL query implementations
-├── repository/                         # Data access layer
-│   ├── mod.rs                          # Repository exports
-│   ├── bridge_host_prefs.rs            # Per-host bridge enable/disable
-│   ├── bridge_session.rs               # Bridge heartbeat sessions
-│   ├── exchange_code.rs                # Bridge exchange-code persistence
-│   ├── setup_token.rs                  # Bootstrap / admin setup tokens
-│   ├── webauthn.rs                     # WebAuthn credential storage
-│   ├── client/                         # Client repository
-│   │   ├── mod.rs                      # ClientRepository
-│   │   ├── queries.rs                  # Read operations
-│   │   ├── mutations.rs                # Write operations
-│   │   ├── inserts.rs                  # Bulk insert helpers
-│   │   ├── relations.rs                # Load client relations
-│   │   └── cleanup.rs                  # Stale client cleanup
-│   └── oauth/                          # OAuth repository
-│       ├── mod.rs                      # OAuthRepository
-│       ├── auth_code.rs                # Authorization codes
-│       ├── refresh_token.rs            # Refresh tokens
-│       ├── scopes.rs                   # Scope validation
-│       ├── user.rs                     # User retrieval
-│       └── cleanup.rs                  # Expired-record cleanup
-└── services/                           # Business logic
-    ├── mod.rs                          # Service exports
-    ├── bridge.rs                       # Bridge access tokens + exchange codes
-    ├── generation.rs                   # Token / JWT / secret generation
-    ├── http.rs                         # HTTP utilities (bearer / cookie extraction)
-    ├── providers.rs                    # JwtValidationProviderImpl
-    ├── templating.rs                   # HTML template rendering
-    ├── cimd/                           # Client metadata validation
-    │   ├── mod.rs
-    │   ├── fetcher.rs                  # Metadata URL fetching
-    │   └── validator.rs                # Metadata validation
-    ├── jwt/                            # JWT handling
-    │   ├── mod.rs                      # TokenValidator trait, AuthService
-    │   ├── authentication.rs           # Token authentication
-    │   └── authorization.rs            # Permission authorization
-    ├── session/                        # Session management
-    │   ├── mod.rs                      # SessionCreationService
-    │   ├── lookup.rs                   # Session lookup / reuse
-    │   └── creation.rs                 # New session creation
-    ├── validation/                     # Request validation
-    │   ├── mod.rs
-    │   ├── audience.rs                 # JWT audience validation
-    │   ├── client_credentials.rs       # Client secret validation
-    │   ├── jwt.rs                      # JWT token validation
-    │   ├── oauth_params.rs             # OAuth parameter validation
-    │   └── redirect_uri.rs             # Redirect URI validation
-    └── webauthn/                       # WebAuthn / FIDO2 service
-        ├── mod.rs
-        ├── config.rs                   # WebAuthnConfig
-        ├── jwt.rs                      # JwtTokenValidator for WebAuthn
-        ├── registry.rs                 # Credential registry
-        ├── token.rs                    # WebAuthn token helpers
-        ├── user_service.rs             # UserCreationService
-        └── service/                    # WebAuthn operations
-            ├── mod.rs                  # WebAuthnService
-            ├── authentication.rs       # Authentication flow
-            ├── credentials.rs          # Credential operations
-            ├── link.rs                 # Account linking
-            └── registration.rs         # Registration flow
-```
-
-## Module Descriptions
+| Module | Purpose |
+|--------|---------|
+| `models/` | OAuth client, token, and JWT-claim types, CIMD metadata, analytics, and typed grant/response/PKCE enums. |
+| `queries/` | Compile-time-verified `sqlx` query layer: `postgres/` analytics queries and `seed/` WebAuthn client seeds. |
+| `repository/` | Data access for clients, OAuth protocol records, bridge sessions and host prefs, exchange codes, setup tokens, and WebAuthn credentials. |
+| `services/` | OAuth business logic: `bridge`, `cimd`, `generation`, `jwt`, `session`, `validation`, `webauthn`, `plugin_token`, `providers`, `templating`, and HTTP helpers. |
 
 ### models/
 Data structures for OAuth clients, tokens, JWT claims, CIMD metadata, and analytics. Includes typed enums for grant types, response types, and PKCE methods.
 
 ### queries/
-PostgreSQL query implementations using compile-time-verified `sqlx` macros.
+PostgreSQL query implementations using compile-time-verified `sqlx` macros, plus `queries/seed/` SQL for seeding the WebAuthn client and its scopes.
 
 ### repository/
 Data access layer with separate repositories for clients (`ClientRepository`), OAuth protocol records (`OAuthRepository`), bridge sessions (`BridgeSessionRepository`), bridge host preferences (`BridgeHostPrefsRepository`), exchange codes, setup tokens, and WebAuthn credentials.
@@ -167,6 +89,7 @@ Business logic including:
 - **cimd**: Client-Initiated Metadata Discovery fetcher and validator.
 - **generation**: Secure token, JWT, and client-secret generation.
 - **jwt**: `TokenValidator` and `AuthService` for token authentication and authorisation.
+- **plugin_token**: `PluginTokenService` mints long-lived plugin-scoped JWTs (`aud=hook`) for hook/governance plugin credentials.
 - **providers**: `JwtValidationProviderImpl` implementing the `JwtValidationProvider` trait.
 - **session**: Anonymous and authenticated session creation and lookup.
 - **templating**: HTML template rendering for the OAuth consent / login pages.
@@ -185,9 +108,14 @@ Business logic including:
 | `oauth_client_contacts` | Contact emails per client |
 | `oauth_auth_codes` | Authorization codes (600s TTL) |
 | `oauth_refresh_tokens` | Refresh tokens |
+| `oauth_state_bindings` | OAuth state-to-session bindings |
+| `oauth_jti_revocations` | Revoked JWT identifiers |
 | `bridge_exchange_codes` | Short-lived bridge session exchange codes |
 | `bridge_sessions` | Bridge heartbeat / active-session records |
-| `setup_tokens` | Bootstrap and admin setup tokens |
+| `bridge_user_host_prefs` | Per-user, per-host bridge enable/disable preferences |
+| `bridge_user_host_model_prefs` | Per-user, per-host model preferences |
+| `id_jag_replay` | ID-JAG token replay protection |
+| `webauthn_setup_tokens` | Bootstrap and admin setup tokens |
 | `webauthn_credentials` | FIDO2 / WebAuthn credentials |
 | `webauthn_challenges` | WebAuthn challenge storage |
 

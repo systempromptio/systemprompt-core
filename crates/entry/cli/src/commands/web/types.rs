@@ -3,6 +3,9 @@
 //! These structs and enums are the rendered payloads (JSON/YAML/table) for the
 //! content-type, template, asset, and sitemap subcommands, plus the shared
 //! validation output re-exported here.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};

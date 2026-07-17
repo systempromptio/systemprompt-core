@@ -6,6 +6,9 @@
 //! `providers` registry, not here. The nested [`ResilienceSettings`] is the
 //! per-dependency timeout/retry/circuit-breaker policy applied to outbound
 //! provider and MCP calls.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

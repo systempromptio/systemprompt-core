@@ -3,6 +3,9 @@
 //! Aggregates the capabilities each extension contributes — jobs, templates,
 //! schemas, tools, roles, and LLM providers — either as a per-kind listing or
 //! as a single rolled-up summary across the whole extension registry.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod jobs;
 pub mod llm_providers;

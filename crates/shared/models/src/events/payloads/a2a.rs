@@ -1,3 +1,6 @@
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use systemprompt_identifiers::{ArtifactId, ContextId, MessageId, TaskId};

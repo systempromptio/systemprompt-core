@@ -1,3 +1,6 @@
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
 use futures_util::StreamExt;
 // JSON: protocol boundary — event shapes are owned by the models::wire
 // Anthropic codec.

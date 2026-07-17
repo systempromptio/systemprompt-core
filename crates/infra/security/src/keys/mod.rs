@@ -5,6 +5,9 @@
 //! deterministic `kid` (SHA-256 of the DER-encoded `SubjectPublicKeyInfo`,
 //! base64 URL-encoded, no padding). The accompanying [`jwks`] module turns the
 //! public half into a JWKS document.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::fs;
 use std::path::Path;

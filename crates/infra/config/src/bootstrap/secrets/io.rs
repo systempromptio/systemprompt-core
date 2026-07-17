@@ -1,5 +1,8 @@
 //! Free functions for ad-hoc secrets I/O outside of the global
 //! bootstrap singleton.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::path::Path;
 

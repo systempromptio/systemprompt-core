@@ -9,6 +9,9 @@
 //! This is the *only* legitimate global owned by the logging crate. Other
 //! subsystems (MCP registry, scheduler) thread their owner explicitly through
 //! `AppContext` instead of consulting a process-wide cell.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::sync::OnceLock;
 use systemprompt_identifiers::UserId;

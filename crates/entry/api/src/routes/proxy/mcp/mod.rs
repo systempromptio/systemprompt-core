@@ -1,6 +1,9 @@
 //! MCP reverse-proxy routes: forwards requests to managed MCP backends and
 //! exposes tool-execution lookups. Per-service discovery metadata lives in the
 //! `discovery` submodule.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod discovery;
 

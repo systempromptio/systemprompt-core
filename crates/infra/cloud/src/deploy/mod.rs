@@ -6,6 +6,9 @@
 //! ones. [`find_services_config`] locates the project's services config, the
 //! shared input to both. Everything here is filesystem-read-only — writing the
 //! rendered Dockerfile is the caller's concern.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod dockerfile;
 mod validation;

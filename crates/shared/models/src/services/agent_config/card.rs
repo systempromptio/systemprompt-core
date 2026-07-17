@@ -1,5 +1,8 @@
 //! Agent capability and skill descriptors plus the container
 //! [`AgentCardConfig`] published as the agent's public face.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use serde::{Deserialize, Serialize};
 

@@ -2,6 +2,9 @@
 //!
 //! Receives A2A and AG-UI webhook payloads, loads the referenced entities, and
 //! fans the resulting events out to subscribed context streams.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod broadcast_handlers;
 mod context_broadcast;

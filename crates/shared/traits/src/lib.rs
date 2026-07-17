@@ -37,6 +37,9 @@
 //! |---------|--------|
 //! | `default` | No optional features. |
 //! | `web`     | Enables the `ApiModule` trait and pulls in `axum` for HTTP routing. |
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod ai_providers;
 pub mod analytics;

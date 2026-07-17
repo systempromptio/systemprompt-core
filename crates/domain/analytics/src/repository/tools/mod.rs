@@ -4,6 +4,9 @@
 //! latency percentiles, error and per-agent breakdowns, and trend series.
 //! Cross-tool listing lives in `list_queries`, single-tool drill-down in
 //! `detail_queries`.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod detail_queries;
 pub(super) mod list_queries;

@@ -1,5 +1,8 @@
 //! [`IncludableString`] — a string field that can either carry inline
 //! content or a `!include <path>` reference resolved at load time.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use serde::{Deserialize, Deserializer, Serialize};
 

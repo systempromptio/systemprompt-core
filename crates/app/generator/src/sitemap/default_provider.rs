@@ -1,5 +1,8 @@
 //! Default `SitemapProvider` that drives sitemap generation from the
 //! crate-local `content.yaml` configuration.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use async_trait::async_trait;
 use chrono::Utc;

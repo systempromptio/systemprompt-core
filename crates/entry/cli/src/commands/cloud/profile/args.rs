@@ -1,4 +1,7 @@
 //! Clap argument and command types for `cloud profile`.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use clap::{Args, Subcommand, ValueEnum};
 use systemprompt_models::none_if_blank;

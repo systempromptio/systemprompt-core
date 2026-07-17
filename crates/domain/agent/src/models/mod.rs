@@ -9,6 +9,9 @@
 //!   integrations
 //! - [`runtime`] — runtime metadata describing a live agent process
 //! - [`web`] — request/response DTOs for the HTTP admin surface
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod a2a;
 pub mod agent_info;

@@ -5,6 +5,9 @@
 //! bundle assembly. Both the signed-manifest projection and the gateway
 //! byte-serving path build their [`BundleContent`] from one of these, so the
 //! two paths cannot resolve the catalogue two different ways and drift.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};

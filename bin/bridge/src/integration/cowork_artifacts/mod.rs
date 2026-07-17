@@ -12,6 +12,9 @@
 //!
 //! The emitter reuses the `"cowork"` host id, so it fires whenever Cowork is in
 //! the manifest's `enabled_hosts` — the same gate as the plugin emitter.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub mod emit;
 pub mod sink;

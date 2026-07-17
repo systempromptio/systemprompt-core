@@ -3,6 +3,9 @@
 //! Renders MCP [`rmcp::model::CallToolResult`] content into the follow-up
 //! prompt turn, truncating oversized payloads so a single tool result cannot
 //! blow the context budget.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use rmcp::model::{CallToolResult, ContentBlock};
 use systemprompt_models::ToolCall;

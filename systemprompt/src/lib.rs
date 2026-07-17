@@ -1,3 +1,6 @@
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
 #![expect(
     clippy::doc_markdown,
     reason = "README contains brand names and acronyms that doc_markdown would over-flag"

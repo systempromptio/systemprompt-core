@@ -3,6 +3,9 @@
 //! [`PushNotificationConfigRepository`] stores, retrieves, and deletes the
 //! webhook [`PushNotificationConfig`] entries attached to a task, mapping the
 //! stored row's JSON header/auth columns back into the typed config.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use chrono::Utc;
 use sqlx::PgPool;

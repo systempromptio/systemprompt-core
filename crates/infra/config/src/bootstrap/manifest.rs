@@ -4,6 +4,9 @@
 //! bridge/manifest pipeline to detach-sign module manifests. This
 //! module owns its base64 encoding and the atomic-write helper that
 //! persists rotated seeds back into the secrets file.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::path::Path;
 

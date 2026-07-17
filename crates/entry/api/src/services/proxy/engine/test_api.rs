@@ -1,4 +1,7 @@
 //! Test-only seams over the proxy session cache and external MCP helpers.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::collections::HashMap;
 

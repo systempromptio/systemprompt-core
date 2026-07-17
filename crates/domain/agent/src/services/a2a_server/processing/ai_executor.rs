@@ -5,6 +5,9 @@
 //! conversational summary after tools have run. Both resolve
 //! provider/model/token settings from the request context and agent runtime
 //! before calling the provider.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use futures::StreamExt;
 use std::sync::Arc;

@@ -1,5 +1,8 @@
 //! Heuristic fix suggestions for common missing-frontmatter errors. Pulled
 //! out of `error.rs` to keep that file focused on the error type itself.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 pub(super) fn suggest_fix_for_field(field: &str) -> Option<String> {
     match field {

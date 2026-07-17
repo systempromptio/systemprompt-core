@@ -1,5 +1,8 @@
 //! Specialized response envelopes for `201 Created`, `202 Accepted`,
 //! plain success messages, and HATEOAS-style discovery payloads.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};

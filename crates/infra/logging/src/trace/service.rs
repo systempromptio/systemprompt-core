@@ -7,6 +7,9 @@
 //! [`get_all_trace_data`] fans the per-source fetches out concurrently.
 //!
 //! [`get_all_trace_data`]: TraceQueryService::get_all_trace_data
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use chrono::{DateTime, Utc};
 use sqlx::PgPool;

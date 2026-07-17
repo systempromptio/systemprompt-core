@@ -2,6 +2,9 @@
 //! codes). The pepper is resolved once per call from the process-wide
 //! [`systemprompt_config::SecretsBootstrap`] and combined with the value via
 //! HMAC-SHA-256; the lowercase-hex digest is what hits the database.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::error::{OauthError, OauthResult};
 

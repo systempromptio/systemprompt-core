@@ -3,6 +3,9 @@
 //! [`Theme`] resolves an [`IconType`]/[`ColorType`] to a styled object;
 //! [`BrandColors`], [`Colors`], and [`Icons`] supply the underlying palette and
 //! glyphs, with terminal-fallback variants for status and message levels.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use console::{Emoji, StyledObject, style};
 

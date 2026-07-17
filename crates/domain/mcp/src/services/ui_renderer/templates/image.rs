@@ -4,6 +4,9 @@
 //! base64 file parts, a remote URI, or data-part metadata — into an HTML
 //! [`UiResource`] with caption and zoom controls, widening the CSP `img-src`
 //! to permit `https:` and `blob:` sources.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use super::html::{HtmlBuilder, base_styles, html_escape, mcp_app_bridge_script};
 use crate::error::McpDomainResult;

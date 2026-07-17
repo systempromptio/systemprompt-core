@@ -1,5 +1,8 @@
 //! `infra logs show`: resolve an id to either a single log entry or all entries
 //! sharing a trace id, falling back to a partial-id match.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use anyhow::{Result, anyhow};
 use clap::Args;

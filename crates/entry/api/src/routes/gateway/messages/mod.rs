@@ -5,6 +5,9 @@
 //! (`extract`), then dispatches to the resolved provider (`dispatch`),
 //! persisting a rejection record (`rejection`) on any early failure. Inbound
 //! wire format is selected by the [`InboundAdapter`] passed in by the router.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod auth;
 mod dispatch;

@@ -5,6 +5,9 @@
 //! declares its [`McpServerType`], OAuth requirement, schemas, and per-tool
 //! [`ToolMetadata`]. Internal-server endpoints are validated relative by
 //! [`Deployment::validate`].
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::ai::ToolModelConfig;
 use crate::auth::{JwtAudience, Permission};

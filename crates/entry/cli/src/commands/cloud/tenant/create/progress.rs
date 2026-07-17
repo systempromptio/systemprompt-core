@@ -4,6 +4,9 @@
 //! `CliService` spinners and message sinks; the
 //! [`TenantProvisioningService`](systemprompt_cloud::tenants::TenantProvisioningService)
 //! owns sequencing, this type owns presentation.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Mutex;
 

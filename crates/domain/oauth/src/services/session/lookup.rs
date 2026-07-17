@@ -1,4 +1,7 @@
 //! Existing-session lookup and JWT regeneration.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use super::{AnonymousSessionInfo, MAX_SESSION_AGE_SECONDS, SessionCreationService};
 use crate::services::generation::{JwtSigningParams, generate_anonymous_jwt};

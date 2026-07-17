@@ -6,6 +6,9 @@
 //! claim. The caller resolves and authorizes the subject identity (admin
 //! check, user lookup) before invoking [`PluginTokenService::issue`]; this
 //! module never touches user storage.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use uuid::Uuid;
 

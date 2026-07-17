@@ -2,6 +2,9 @@
 //!
 //! Re-exports the redirect, generation, and analytics handlers along with their
 //! request/response types.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod handlers;
 mod types;

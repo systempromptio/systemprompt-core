@@ -1,5 +1,8 @@
 //! Reconstructing conversation history for a context into AI-ready messages,
 //! including decoding file parts and serializing artifacts as context.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::services::shared::{AgentServiceError, Result};
 use base64::Engine;
