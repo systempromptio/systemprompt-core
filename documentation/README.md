@@ -1,6 +1,6 @@
 # systemprompt-core documentation
 
-Technical documentation for systemprompt-core, a self-hosted, source-available engine
+Technical documentation for [systemprompt-core](https://systemprompt.io), a self-hosted, source-available engine
 for running governed AI agents (A2A agents, MCP servers, OAuth2/OIDC, and a provider
 gateway) on infrastructure you control.
 

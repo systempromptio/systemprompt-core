@@ -129,5 +129,8 @@ Report vulnerabilities to **ed@systemprompt.io**, not via public issues. See [SE
 ---
 
 <div align="center">
+
+**[systemprompt.io](https://systemprompt.io)** · **[Documentation](https://systemprompt.io/documentation/)** · **[Guides](https://systemprompt.io/guides)** · **[Live Demo](https://systemprompt.io/features/demo)** · **[Template](https://github.com/systempromptio/systemprompt-template)** · **[crates.io](https://crates.io/crates/systemprompt)** · **[docs.rs](https://docs.rs/systemprompt)** · **[Discord](https://discord.gg/wkAbSuPWpr)**
+
 <sub>Rent your control plane and you rent your audit trail. This one compiles.</sub>
 </div>
