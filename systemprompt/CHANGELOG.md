@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.21.1] - 2026-07-17
+
+### Changed
+- Source files now carry a Business Source License 1.1 header referencing <https://systemprompt.io>.
+
 ## [0.19.0] - 2026-07-02
 
 ### Added
