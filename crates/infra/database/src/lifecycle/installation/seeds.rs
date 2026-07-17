@@ -20,14 +20,15 @@ pub(super) async fn apply_seeds(
 
     let ext_id = extension.metadata().id;
 
+    let mut statement_lists = Vec::with_capacity(seeds.len());
     for seed in &seeds {
-        lint_seed(ext_id, seed)?;
+        statement_lists.push(lint_seed(ext_id, seed)?);
     }
 
     info!(extension = %ext_id, count = seeds.len(), "Applying seeds");
 
-    for seed in &seeds {
-        apply_one(ext_id, seed, db).await?;
+    for (seed, statements) in seeds.iter().zip(&statement_lists) {
+        apply_one(ext_id, seed, statements, db).await?;
     }
 
     Ok(())
@@ -36,6 +37,7 @@ pub(super) async fn apply_seeds(
 async fn apply_one(
     ext_id: &str,
     seed: &Seed,
+    statements: &[String],
     db: &dyn DatabaseProvider,
 ) -> Result<(), LoaderError> {
     debug!(extension = %ext_id, seed = %seed.id, "Applying seed");
@@ -49,16 +51,20 @@ async fn apply_one(
             message: format!("begin transaction: {e}"),
         })?;
 
-    if let Err(e) = tx.execute(&seed.sql, &[]).await {
-        let rollback = match tx.rollback().await {
-            Ok(()) => String::new(),
-            Err(rb) => format!(" (rollback also failed: {rb})"),
-        };
-        return Err(LoaderError::SeedFailed {
-            extension: ext_id.to_owned(),
-            seed: seed.id.to_owned(),
-            message: format!("execute: {e}{rollback}"),
-        });
+    // Why: one prepared execute per statement — Postgres rejects multi-command
+    // prepared statements, and multi-statement seed bodies are valid input.
+    for statement in statements {
+        if let Err(e) = tx.execute(statement, &[]).await {
+            let rollback = match tx.rollback().await {
+                Ok(()) => String::new(),
+                Err(rb) => format!(" (rollback also failed: {rb})"),
+            };
+            return Err(LoaderError::SeedFailed {
+                extension: ext_id.to_owned(),
+                seed: seed.id.to_owned(),
+                message: format!("execute: {e}{rollback}"),
+            });
+        }
     }
 
     tx.commit().await.map_err(|e| LoaderError::SeedFailed {
@@ -70,17 +76,19 @@ async fn apply_one(
     Ok(())
 }
 
-fn lint_seed(ext_id: &str, seed: &Seed) -> Result<(), LoaderError> {
+fn lint_seed(ext_id: &str, seed: &Seed) -> Result<Vec<String>, LoaderError> {
     let parsed = pg_query::parse(seed.sql).map_err(|e| LoaderError::SeedFailed {
         extension: ext_id.to_owned(),
         seed: seed.id.to_owned(),
         message: format!("parse: {e}"),
     })?;
 
+    let mut statements = Vec::with_capacity(parsed.protobuf.stmts.len());
     for stmt in &parsed.protobuf.stmts {
         let Some(node) = stmt.stmt.as_ref().and_then(|s| s.node.as_ref()) else {
             continue;
         };
+        statements.push(statement_text(seed.sql, stmt));
         let kind = classify(node);
         if !is_allowed(kind) {
             return Err(LoaderError::InvalidSeedStatement {
@@ -99,7 +107,17 @@ fn lint_seed(ext_id: &str, seed: &Seed) -> Result<(), LoaderError> {
         }
     }
 
-    Ok(())
+    Ok(statements)
+}
+
+fn statement_text(sql: &str, stmt: &pg_query::protobuf::RawStmt) -> String {
+    let start = usize::try_from(stmt.stmt_location).unwrap_or(0);
+    let end = if stmt.stmt_len > 0 {
+        start.saturating_add(usize::try_from(stmt.stmt_len).unwrap_or(0))
+    } else {
+        sql.len()
+    };
+    sql.get(start..end).unwrap_or(sql).trim().to_owned()
 }
 
 const fn classify(node: &pg_query::NodeEnum) -> &'static str {

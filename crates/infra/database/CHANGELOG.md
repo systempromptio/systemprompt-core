@@ -1,5 +1,10 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+- Multi-statement seed bodies now apply correctly; each parsed statement executes individually within the seed's transaction instead of failing as a single multi-command prepared statement.
+
 ## [0.19.0] - 2026-07-02
 
 ### Breaking
