@@ -111,7 +111,7 @@ async fn ensure_session_mints_anonymous_session_without_token() -> anyhow::Resul
             .parse()
             .unwrap(),
     );
-    let info = ensure_session(&headers, None, &state.ctx).await?;
+    let info = ensure_session(&headers, None, None, &state.ctx).await?;
     assert!(info.jwt_token.is_some(), "a bearer token is issued");
     assert!(!info.session_id.as_str().is_empty());
     assert!(!info.user_id.as_str().is_empty());
