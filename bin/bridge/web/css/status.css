@@ -282,6 +282,31 @@ sp-host-card { display: block; }
   margin-right: var(--sp-space-2-5);
 }
 .sp-host-card__open-btn { margin-left: var(--sp-space-2-5); }
+.sp-host-card__proto {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-space-1-5);
+  font-size: 12px;
+  color: var(--sp-muted-strong);
+  cursor: pointer;
+  padding: var(--sp-space-0-5) 0;
+  user-select: none;
+}
+.sp-host-card__protos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-space-1) var(--sp-space-3);
+  margin: var(--sp-space-1) 0;
+}
+.sp-host-card__filter-actions {
+  display: flex;
+  gap: var(--sp-space-2);
+  margin-top: var(--sp-space-2);
+}
+.sp-host-card__filter-actions button {
+  font-size: 12px;
+  padding: var(--sp-space-1-5) var(--sp-space-3);
+}
 .sp-spinner {
   display: inline-block;
   width: 12px;

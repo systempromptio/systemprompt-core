@@ -33,18 +33,62 @@ pub trait HostSync: Send + Sync + 'static {
     fn clear(&self) -> Result<(), ApplyError>;
 }
 
+#[derive(Clone, Copy)]
+pub struct HostSyncRegistration {
+    pub emitter: &'static dyn HostSync,
+    pub priority: i32,
+}
+
+impl std::fmt::Debug for HostSyncRegistration {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("HostSyncRegistration")
+            .field("host_id", &self.emitter.host_id())
+            .field("priority", &self.priority)
+            .finish()
+    }
+}
+
+inventory::collect!(HostSyncRegistration);
+
+/// Register a [`HostSync`] emitter into the compile-time sync registry.
+///
+/// Pass a zero-sized `'static` emitter value. An optional `priority = N`
+/// (default 0) lets a registration shadow a built-in sharing the same
+/// `host_id()`.
+#[macro_export]
+macro_rules! register_host_sync {
+    ($e:expr, priority = $p:expr $(,)?) => {
+        ::inventory::submit! {
+            $crate::sync::host_sync::HostSyncRegistration { emitter: &$e, priority: $p }
+        }
+    };
+    ($e:expr $(,)?) => {
+        $crate::register_host_sync!($e, priority = 0);
+    };
+}
+
 #[cfg(any(target_os = "macos", target_os = "windows"))]
-const DESKTOP_EMITTERS: &[&'static dyn HostSync] = &[&crate::install::mdm::ClaudeDesktopMdmSync];
-#[cfg(not(any(target_os = "macos", target_os = "windows")))]
-const DESKTOP_EMITTERS: &[&'static dyn HostSync] = &[];
+register_host_sync!(crate::install::mdm::ClaudeDesktopMdmSync);
+register_host_sync!(crate::integration::cowork_plugins::CoworkSync);
+register_host_sync!(crate::integration::cowork_artifacts::CoworkArtifactsSync);
+register_host_sync!(crate::integration::codex_cli::CodexCliSync);
+register_host_sync!(crate::integration::claude_code_cli::ClaudeCodeCliSync);
 
 static REGISTRY: LazyLock<Vec<&'static dyn HostSync>> = LazyLock::new(|| {
-    let mut v: Vec<&'static dyn HostSync> = Vec::new();
-    v.extend_from_slice(DESKTOP_EMITTERS);
-    v.push(&crate::integration::cowork_plugins::CoworkSync);
-    v.push(&crate::integration::cowork_artifacts::CoworkArtifactsSync);
-    v.push(&crate::integration::codex_cli::CodexCliSync);
-    v.push(&crate::integration::claude_code_cli::ClaudeCodeCliSync);
+    let mut regs: Vec<&'static HostSyncRegistration> =
+        inventory::iter::<HostSyncRegistration>().collect();
+    regs.sort_by(|a, b| {
+        b.priority
+            .cmp(&a.priority)
+            .then_with(|| a.emitter.host_id().cmp(b.emitter.host_id()))
+    });
+    let mut seen: std::collections::BTreeSet<&'static str> = std::collections::BTreeSet::new();
+    let mut v: Vec<&'static dyn HostSync> = regs
+        .into_iter()
+        .filter(|r| seen.insert(r.emitter.host_id()))
+        .map(|r| r.emitter)
+        .collect();
+    v.sort_by_key(|s| s.host_id());
     v
 });
 

@@ -12,9 +12,11 @@ body:not(.is-setup-mode) .sp-setup { display: none; }
   padding: var(--sp-space-6) var(--sp-space-6);
   overflow-y: auto;
   min-width: 0;
+  min-height: 0;
   display: flex;
   flex-direction: column;
 }
+.sp-tab__panel:has(sp-marketplace) { overflow: hidden; }
 .sp-tab__panel { display: flex; flex-direction: column; gap: var(--sp-space-6); min-height: 0; flex: 1; }
 .sp-tab__panel[hidden] { display: none; }
 .sp-tab__header {

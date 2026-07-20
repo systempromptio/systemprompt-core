@@ -9,12 +9,29 @@ const KIND_LABEL = {
   agents: "Agent",
 };
 
+const CHILD_KIND_LABEL = {
+  skills: "Skill",
+  agents: "Agent",
+  hooks: "Hook",
+  mcp: "MCP server",
+};
+
+const CHILD_KIND_ORDER = ["skills", "agents", "mcp", "hooks"];
+
 export class SpMarketplaceDetail extends SpElement {
   constructor() {
     super();
     this.selected = null;
     this.kind = "plugins";
     this.copied = false;
+    this.knownIds = null;
+    this.registerAction("open-child", (trigger) => {
+      this.dispatchEvent(new CustomEvent("mkt-navigate", {
+        detail: { kind: trigger.dataset.kind, id: trigger.dataset.id },
+        bubbles: true,
+        composed: true,
+      }));
+    });
     this.registerAction("copy-path", async () => {
       const value = this.selected && this.selected.path;
       if (!value) { return; }
@@ -51,6 +68,22 @@ export class SpMarketplaceDetail extends SpElement {
         <h3>${escapeHtml(t("marketplace-detail-tools") || "Tools")} (${tools.length})</h3>
         <div class="sp-chip-list">${tools.map((tool) => `<span class="sp-chip">${escapeHtml(tool)}</span>`).join("")}</div>
       </section>` : "";
+    const children = Array.isArray(selected.children) ? selected.children : [];
+    const childrenSection = children.length ? `
+      <section class="sp-mkt-detail__section">
+        <h3>${escapeHtml(t("marketplace-detail-contents") || "Contents")} (${children.length})</h3>
+        <div class="sp-mkt-detail__children">${CHILD_KIND_ORDER.flatMap((kind) =>
+          children.filter((c) => c.kind === kind).map((c) => {
+            const known = !!(this.knownIds && this.knownIds[kind] && this.knownIds[kind].has(c.id));
+            const sharedChip = c.shared ? `<span class="sp-mkt-chip">shared</span>` : "";
+            const kindChip = `<span class="sp-mkt-chip">${escapeHtml(CHILD_KIND_LABEL[kind] || kind)}</span>`;
+            return `<button type="button" class="sp-mkt-child" data-kind="${escapeHtml(kind)}" data-id="${escapeHtml(c.id)}" ${known ? `data-action="open-child"` : "disabled"}>
+              <span class="sp-mkt-child__name">${escapeHtml(c.name || c.id)}</span>
+              ${sharedChip}${kindChip}
+            </button>`;
+          })
+        ).join("")}</div>
+      </section>` : "";
     const copyLabel = this.copied ? (t("marketplace-detail-copied") || "Copied") : (t("marketplace-detail-copy") || "Copy");
     const pathSection = selected.path ? `
       <section class="sp-mkt-detail__section">
@@ -65,11 +98,12 @@ export class SpMarketplaceDetail extends SpElement {
         <div class="sp-mkt-detail__title"><h2>${escapeHtml(selected.name || selected.id)}</h2></div>
       </div>
       <div class="sp-mkt-detail__meta">
-        <span class="sp-mkt-chip" data-tone="accent">${escapeHtml(KIND_LABEL[this.kind] || this.kind)}</span>
+        <span class="sp-mkt-chip">${escapeHtml(KIND_LABEL[this.kind] || this.kind)}</span>
         ${sourceChip}
         ${versionChip}
       </div>
       ${summary}
+      ${childrenSection}
       ${readme}
       ${toolsSection}
       ${pathSection}

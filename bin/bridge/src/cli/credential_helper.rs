@@ -1,4 +1,5 @@
-//! Credential-helper mode: emits Claude/Codex credentials on stdout for host apps.
+//! Credential-helper mode: emits Claude/Codex credentials on stdout for host
+//! apps.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

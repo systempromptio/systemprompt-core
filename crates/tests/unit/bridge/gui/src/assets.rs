@@ -39,6 +39,28 @@ fn lookup_known_js_module() {
 }
 
 #[test]
+fn brand_overrides_sheet_is_served() {
+    let asset =
+        lookup_path("/assets/css/brand-overrides.css").expect("brand-overrides.css should resolve");
+    assert_eq!(asset.content_type, "text/css; charset=utf-8");
+}
+
+#[test]
+fn main_css_imports_brand_overrides_last() {
+    let asset = lookup_path("/assets/css/main.css").expect("main.css should resolve");
+    let body = std::str::from_utf8(&asset.body).expect("main.css is utf-8");
+    let last_import = body
+        .lines()
+        .filter(|l| l.contains("@import"))
+        .next_back()
+        .expect("main.css has @import lines");
+    assert!(
+        last_import.contains("brand-overrides.css"),
+        "brand-overrides must be the last import so brand rules win the cascade, got: {last_import}"
+    );
+}
+
+#[test]
 fn lookup_unknown_path_is_none() {
     assert!(lookup_path("/assets/css/does-not-exist.css").is_none());
     assert!(lookup_path("/totally/unknown").is_none());

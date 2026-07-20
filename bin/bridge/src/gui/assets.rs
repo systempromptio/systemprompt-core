@@ -5,42 +5,47 @@
 
 use std::borrow::Cow;
 
-const HTML: &str = include_str!("../../web/index.html");
+// All web assets are `include_str!`d from `$OUT_DIR/web`, where the build
+// script stages core's `web/` tree and applies an optional brand overlay
+// (`SYSTEMPROMPT_BRIDGE_WEB_OVERLAY`) on top. A white-label repo overrides any
+// of these files by shipping its own copy in that overlay dir. See build.rs.
+macro_rules! web_asset {
+    ($path:literal) => {
+        include_str!(concat!(env!("OUT_DIR"), "/web/", $path))
+    };
+}
+
+const HTML: &str = web_asset!("index.html");
 
 const CSS_FILES: &[(&str, &str)] = &[
-    ("tokens", include_str!("../../web/css/tokens.css")),
-    ("fonts", include_str!("../../web/css/fonts.css")),
-    ("reset", include_str!("../../web/css/reset.css")),
-    ("kbd", include_str!("../../web/css/kbd.css")),
-    ("dot", include_str!("../../web/css/dot.css")),
-    ("badge", include_str!("../../web/css/badge.css")),
-    ("button", include_str!("../../web/css/button.css")),
-    ("topbar", include_str!("../../web/css/topbar.css")),
-    ("rail", include_str!("../../web/css/rail.css")),
-    ("shell", include_str!("../../web/css/shell.css")),
-    ("drawer", include_str!("../../web/css/drawer.css")),
-    (
-        "marketplace-base",
-        include_str!("../../web/css/marketplace-base.css"),
-    ),
-    (
-        "marketplace-list",
-        include_str!("../../web/css/marketplace-list.css"),
-    ),
+    ("tokens", web_asset!("css/tokens.css")),
+    ("fonts", web_asset!("css/fonts.css")),
+    ("reset", web_asset!("css/reset.css")),
+    ("kbd", web_asset!("css/kbd.css")),
+    ("dot", web_asset!("css/dot.css")),
+    ("badge", web_asset!("css/badge.css")),
+    ("button", web_asset!("css/button.css")),
+    ("topbar", web_asset!("css/topbar.css")),
+    ("rail", web_asset!("css/rail.css")),
+    ("shell", web_asset!("css/shell.css")),
+    ("drawer", web_asset!("css/drawer.css")),
+    ("marketplace-base", web_asset!("css/marketplace-base.css")),
+    ("marketplace-list", web_asset!("css/marketplace-list.css")),
     (
         "marketplace-detail",
-        include_str!("../../web/css/marketplace-detail.css"),
+        web_asset!("css/marketplace-detail.css"),
     ),
-    ("status", include_str!("../../web/css/status.css")),
-    ("settings", include_str!("../../web/css/settings.css")),
-    ("setup", include_str!("../../web/css/setup.css")),
-    ("agents", include_str!("../../web/css/agents.css")),
-    ("profile", include_str!("../../web/css/profile.css")),
-    ("log", include_str!("../../web/css/log.css")),
-    ("footer", include_str!("../../web/css/footer.css")),
-    ("responsive", include_str!("../../web/css/responsive.css")),
-    ("toast", include_str!("../../web/css/toast.css")),
-    ("main", include_str!("../../web/css/main.css")),
+    ("status", web_asset!("css/status.css")),
+    ("settings", web_asset!("css/settings.css")),
+    ("setup", web_asset!("css/setup.css")),
+    ("agents", web_asset!("css/agents.css")),
+    ("profile", web_asset!("css/profile.css")),
+    ("log", web_asset!("css/log.css")),
+    ("footer", web_asset!("css/footer.css")),
+    ("responsive", web_asset!("css/responsive.css")),
+    ("toast", web_asset!("css/toast.css")),
+    ("brand-overrides", web_asset!("css/brand-overrides.css")),
+    ("main", web_asset!("css/main.css")),
 ];
 
 const FONT_INTER_REGULAR: &[u8] = include_bytes!("../../assets/fonts/Inter-Regular.woff2");
@@ -49,137 +54,125 @@ const FONT_OPENSANS_REGULAR: &[u8] = include_bytes!("../../assets/fonts/OpenSans
 const FONT_OPENSANS_BOLD: &[u8] = include_bytes!("../../assets/fonts/OpenSans-Bold.woff2");
 
 const JS_MODULES: &[(&str, &str)] = &[
-    ("i18n", include_str!("../../web/js/i18n.js")),
-    ("theme", include_str!("../../web/js/theme.js")),
-    ("bridge", include_str!("../../web/js/bridge.js")),
-    ("index", include_str!("../../web/js/index.js")),
+    ("i18n", web_asset!("js/i18n.js")),
+    ("theme", web_asset!("js/theme.js")),
+    ("bridge", web_asset!("js/bridge.js")),
+    ("index", web_asset!("js/index.js")),
     (
         "events/bridge-events",
-        include_str!("../../web/js/events/bridge-events.js"),
+        web_asset!("js/events/bridge-events.js"),
     ),
     (
         "services/marketplace-service",
-        include_str!("../../web/js/services/marketplace-service.js"),
+        web_asset!("js/services/marketplace-service.js"),
     ),
-    (
-        "utils/rail-tabs",
-        include_str!("../../web/js/utils/rail-tabs.js"),
-    ),
-    (
-        "utils/gateway",
-        include_str!("../../web/js/utils/gateway.js"),
-    ),
-    ("utils/format", include_str!("../../web/js/utils/format.js")),
+    ("utils/rail-tabs", web_asset!("js/utils/rail-tabs.js")),
+    ("utils/gateway", web_asset!("js/utils/gateway.js")),
+    ("utils/format", web_asset!("js/utils/format.js")),
     (
         "components/log-virtual",
-        include_str!("../../web/js/components/log-virtual.js"),
+        web_asset!("js/components/log-virtual.js"),
     ),
     (
         "components/sp-element",
-        include_str!("../../web/js/components/sp-element.js"),
+        web_asset!("js/components/sp-element.js"),
     ),
     (
         "components/sp-cloud-status",
-        include_str!("../../web/js/components/sp-cloud-status.js"),
+        web_asset!("js/components/sp-cloud-status.js"),
     ),
     (
         "components/sp-proxy-status",
-        include_str!("../../web/js/components/sp-proxy-status.js"),
+        web_asset!("js/components/sp-proxy-status.js"),
     ),
     (
         "components/sp-mcp-auth-status",
-        include_str!("../../web/js/components/sp-mcp-auth-status.js"),
+        web_asset!("js/components/sp-mcp-auth-status.js"),
     ),
     (
         "components/sp-agent-presence",
-        include_str!("../../web/js/components/sp-agent-presence.js"),
+        web_asset!("js/components/sp-agent-presence.js"),
     ),
     (
         "components/sp-agents-summary",
-        include_str!("../../web/js/components/sp-agents-summary.js"),
+        web_asset!("js/components/sp-agents-summary.js"),
     ),
     (
         "components/sp-agents-status",
-        include_str!("../../web/js/components/sp-agents-status.js"),
+        web_asset!("js/components/sp-agents-status.js"),
     ),
     (
         "components/sp-overall-badge",
-        include_str!("../../web/js/components/sp-overall-badge.js"),
+        web_asset!("js/components/sp-overall-badge.js"),
     ),
     (
         "components/sp-sync-pill",
-        include_str!("../../web/js/components/sp-sync-pill.js"),
+        web_asset!("js/components/sp-sync-pill.js"),
     ),
     (
         "components/sp-rail-profile",
-        include_str!("../../web/js/components/sp-rail-profile.js"),
+        web_asset!("js/components/sp-rail-profile.js"),
     ),
     (
         "components/sp-footer",
-        include_str!("../../web/js/components/sp-footer.js"),
+        web_asset!("js/components/sp-footer.js"),
     ),
     (
         "components/sp-crumb",
-        include_str!("../../web/js/components/sp-crumb.js"),
+        web_asset!("js/components/sp-crumb.js"),
     ),
-    (
-        "components/sp-rail",
-        include_str!("../../web/js/components/sp-rail.js"),
-    ),
+    ("components/sp-rail", web_asset!("js/components/sp-rail.js")),
     (
         "components/sp-toast",
-        include_str!("../../web/js/components/sp-toast.js"),
+        web_asset!("js/components/sp-toast.js"),
     ),
     (
         "components/sp-activity-log",
-        include_str!("../../web/js/components/sp-activity-log.js"),
+        web_asset!("js/components/sp-activity-log.js"),
     ),
     (
         "components/sp-host-card",
-        include_str!("../../web/js/components/sp-host-card.js"),
+        web_asset!("js/components/sp-host-card.js"),
     ),
     (
         "components/sp-hosts-list",
-        include_str!("../../web/js/components/sp-hosts-list.js"),
+        web_asset!("js/components/sp-hosts-list.js"),
     ),
     (
         "components/sp-settings",
-        include_str!("../../web/js/components/sp-settings.js"),
+        web_asset!("js/components/sp-settings.js"),
     ),
     (
         "components/sp-profile",
-        include_str!("../../web/js/components/sp-profile.js"),
+        web_asset!("js/components/sp-profile.js"),
     ),
     (
         "components/sp-marketplace",
-        include_str!("../../web/js/components/sp-marketplace.js"),
+        web_asset!("js/components/sp-marketplace.js"),
     ),
     (
         "components/sp-marketplace-list",
-        include_str!("../../web/js/components/sp-marketplace-list.js"),
+        web_asset!("js/components/sp-marketplace-list.js"),
     ),
     (
         "components/sp-marketplace-detail",
-        include_str!("../../web/js/components/sp-marketplace-detail.js"),
+        web_asset!("js/components/sp-marketplace-detail.js"),
     ),
     (
         "components/sp-setup",
-        include_str!("../../web/js/components/sp-setup.js"),
+        web_asset!("js/components/sp-setup.js"),
     ),
     (
         "components/sp-setup-gateway",
-        include_str!("../../web/js/components/sp-setup-gateway.js"),
+        web_asset!("js/components/sp-setup-gateway.js"),
     ),
     (
         "components/sp-setup-agents",
-        include_str!("../../web/js/components/sp-setup-agents.js"),
+        web_asset!("js/components/sp-setup-agents.js"),
     ),
 ];
 
-const I18N_FILES: &[(&str, &str)] = &[(
-    "en-US/bridge",
-    include_str!("../../web/i18n/en-US/bridge.ftl"),
-)];
+const I18N_FILES: &[(&str, &str)] = &[("en-US/bridge", web_asset!("i18n/en-US/bridge.ftl"))];
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 const GIT_SHA_FULL: &str = env!("VERGEN_GIT_SHA");

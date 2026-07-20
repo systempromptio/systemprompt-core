@@ -1,0 +1,16 @@
+[package]
+name = "systemprompt-bridge-inventory-tests"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Unit tests for systemprompt-bridge inventory-based host/sync/marketplace registries"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+systemprompt-bridge = { workspace = true }
+inventory = "0.3"
+serde_json = { workspace = true }

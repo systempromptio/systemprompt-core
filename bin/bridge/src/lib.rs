@@ -1,4 +1,5 @@
-//! Crate root for the systemprompt bridge: wires the CLI, GUI, proxy, sync, and integration modules.
+//! Crate root for the systemprompt bridge: wires the CLI, GUI, proxy, sync, and
+//! integration modules.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

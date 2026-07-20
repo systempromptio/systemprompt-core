@@ -1,0 +1,8 @@
+/* Additive brand override sheet — imported last by main.css so its rules win
+ * the cascade over every component sheet. Empty (no-op) in core: a white-label
+ * build replaces this file via the web overlay
+ * (SYSTEMPROMPT_BRIDGE_WEB_OVERLAY, see build.rs) to add brand-specific cosmetic
+ * rules WITHOUT forking a component stylesheet. For pure design-token value
+ * changes prefer the brand theme.css (BrandAssets::theme_css); reserve this
+ * sheet for rules that target selectors, and full-file overlay for structural
+ * or JS/HTML changes. */

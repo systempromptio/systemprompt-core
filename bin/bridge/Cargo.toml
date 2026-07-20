@@ -56,6 +56,7 @@ bytes = "1"
 parking_lot = "0.12"
 arc-swap = "1"
 async-trait = "0.1"
+inventory = "0.3"
 ctrlc = "3"
 is-terminal = "0.4"
 rand = "0.10"
@@ -210,7 +211,10 @@ allow_attributes_without_reason = "warn"
 
 [profile.release]
 opt-level = "z"
-lto = "fat"
+# `thin` not `fat`: host/sync/marketplace registries are populated via the
+# `inventory` crate, whose link-time static initializers fat LTO strips (same
+# reason core's server workspace uses thin LTO). Costs a small size increase.
+lto = "thin"
 codegen-units = 1
 strip = "symbols"
 panic = "abort"

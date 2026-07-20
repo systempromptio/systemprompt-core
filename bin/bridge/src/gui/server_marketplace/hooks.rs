@@ -59,6 +59,7 @@ pub fn hook_items(bytes: &[u8], path: &Path) -> Vec<MarketplaceItem> {
                             summary: Some(summary),
                             readme: None,
                             change: None,
+                            children: Vec::new(),
                             extra: MarketplaceExtra::None,
                         });
                     },
@@ -103,6 +104,7 @@ pub fn hook_items(bytes: &[u8], path: &Path) -> Vec<MarketplaceItem> {
             summary: Some(summary_parts.join("; ")),
             readme: Some(readme),
             change: None,
+            children: Vec::new(),
             extra: MarketplaceExtra::None,
         });
     }

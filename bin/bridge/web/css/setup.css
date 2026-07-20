@@ -104,11 +104,15 @@ body.is-setup-mode .sp-setup  { display: flex; }
 
 .sp-setup__actions {
   display: flex;
-  align-items: center;
-  gap: var(--sp-space-3-5);
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--sp-space-3);
   margin-top: var(--sp-space-6);
 }
-.sp-setup__actions .sp-btn-primary { padding: var(--sp-space-3) var(--sp-space-6); }
+.sp-setup__actions .sp-btn-primary {
+  padding: var(--sp-space-2-5) var(--sp-space-4-5);
+  font-size: 13px;
+}
 .sp-setup__error {
   font-size: 12px;
   color: oklch(0.72 0.18 25);

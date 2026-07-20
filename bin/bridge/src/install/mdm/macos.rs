@@ -1,4 +1,5 @@
-//! macOS MDM configuration-profile payloads and managed-preferences plist rendering.
+//! macOS MDM configuration-profile payloads and managed-preferences plist
+//! rendering.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

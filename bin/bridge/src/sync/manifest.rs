@@ -95,15 +95,11 @@ async fn resolve_pubkey(
 }
 
 async fn fetch_fresh_token() -> Option<Secret> {
-    use crate::auth::providers::{AuthError, AuthProvider};
+    use crate::auth::providers::AuthError;
     use systemprompt_identifiers::SessionId;
     let cfg = config::load();
     let session_id = SessionId::generate();
-    let chain: Vec<Box<dyn AuthProvider>> = vec![
-        Box::new(crate::auth::providers::mtls::MtlsProvider::new(&cfg)),
-        Box::new(crate::auth::providers::session::SessionProvider::new(&cfg)),
-        Box::new(crate::auth::providers::pat::PatProvider::new(&cfg)),
-    ];
+    let chain = crate::auth::provider_chain(&cfg);
     let mut not_configured: Vec<&'static str> = Vec::new();
     let mut had_failure = false;
     for p in &chain {

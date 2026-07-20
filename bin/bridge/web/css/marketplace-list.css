@@ -1,4 +1,10 @@
 .sp-mkt-list { padding: var(--sp-space-3) var(--sp-space-2-5) var(--sp-space-2-5); gap: var(--sp-space-2); overflow: hidden; }
+sp-marketplace-list {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
 .sp-mkt-search__wrap {
   position: relative;
   display: block;
@@ -108,8 +114,16 @@
   font-size: 11.5px;
   color: var(--sp-muted);
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  line-height: 1.35;
+}
+.sp-mkt-item__chips {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-space-1-5);
+  margin-top: var(--sp-space-0-5);
 }
 
 .sp-mkt-chip {
@@ -129,11 +143,6 @@
   flex: none;
   font-variant-numeric: tabular-nums;
 }
-.sp-mkt-chip[data-tone="accent"] {
-  color: var(--sp-accent);
-  background: var(--sp-accent-soft);
-  border-color: var(--sp-accent-ring);
-}
 .sp-mkt-chip[data-tone="ok"]   { color: var(--sp-ok);   border-color: color-mix(in srgb, var(--sp-ok) 50%, transparent);   background: color-mix(in srgb, var(--sp-ok) 14%, transparent); }
 .sp-mkt-chip[data-tone="warn"] { color: var(--sp-warn); border-color: color-mix(in srgb, var(--sp-warn) 50%, transparent); background: color-mix(in srgb, var(--sp-warn) 14%, transparent); }
 .sp-mkt-chip--mono { font-family: var(--sp-font-mono); font-size: 10px; letter-spacing: 0; text-transform: none; }
@@ -144,14 +153,14 @@
   background: color-mix(in srgb, var(--sp-ok) 14%, transparent);
 }
 .sp-mkt-chip--change[data-change="updated"] {
-  color: var(--sp-accent);
-  background: var(--sp-accent-soft);
-  border-color: var(--sp-accent-ring);
+  color: var(--sp-info);
+  border-color: color-mix(in srgb, var(--sp-info) 50%, transparent);
+  background: color-mix(in srgb, var(--sp-info) 14%, transparent);
 }
 .sp-mkt-chip--change[data-change="removed"] {
-  color: var(--sp-warn);
-  border-color: color-mix(in srgb, var(--sp-warn) 50%, transparent);
-  background: color-mix(in srgb, var(--sp-warn) 14%, transparent);
+  color: var(--sp-err);
+  border-color: color-mix(in srgb, var(--sp-err) 50%, transparent);
+  background: color-mix(in srgb, var(--sp-err) 14%, transparent);
 }
 
 .sp-mkt-item--removed { opacity: 0.55; }

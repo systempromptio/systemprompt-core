@@ -13,9 +13,7 @@ use systemprompt_bridge::gateway::manifest::{
     ArtifactEntry, PluginEntry, PluginFile, SignedManifest, UserInfo,
 };
 use systemprompt_bridge::gateway::manifest_version::ManifestVersion;
-use systemprompt_bridge::ids::{
-    LibraryArtifactId, ManifestSignature, PluginId, Sha256Digest,
-};
+use systemprompt_bridge::ids::{LibraryArtifactId, ManifestSignature, PluginId, Sha256Digest};
 use systemprompt_bridge::sync::run_once;
 use systemprompt_test_fixtures::fixture_user_id;
 use wiremock::matchers::{method, path};

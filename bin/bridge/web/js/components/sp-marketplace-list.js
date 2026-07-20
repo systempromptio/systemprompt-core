@@ -67,19 +67,20 @@ export class SpMarketplaceList extends SpElement {
     }
     return `<ul class="sp-mkt-items">${items.map((it, i) => {
       const sourceChip = it.source
-        ? `<span class="sp-mkt-chip" data-tone="${it.source === "local" ? "" : "accent"}">${escapeHtml(it.source)}</span>`
+        ? `<span class="sp-mkt-chip">${escapeHtml(it.source)}</span>`
         : "";
       const changeChip = changeBadge(it.change);
       const meta = it.summary ? `<div class="sp-mkt-item__meta">${escapeHtml(it.summary)}</div>` : "";
+      const chipsRow = sourceChip ? `<div class="sp-mkt-item__chips">${sourceChip}</div>` : "";
       const removedClass = it.change === "removed" ? " sp-mkt-item--removed" : "";
       return `
         <li class="sp-mkt-item${removedClass}" data-id="${escapeHtml(it.id)}" aria-selected="false" style="--sp-mkt-item-i: ${Math.min(i, 8)}" data-action="select-item">
           <div class="sp-mkt-item__row">
             <span class="sp-mkt-item__name">${escapeHtml(it.name || it.id)}</span>
             ${changeChip}
-            ${sourceChip}
           </div>
           ${meta}
+          ${chipsRow}
         </li>
       `;
     }).join("")}</ul>`;

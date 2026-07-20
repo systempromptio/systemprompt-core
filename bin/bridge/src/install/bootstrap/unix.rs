@@ -1,4 +1,5 @@
-//! Unix bootstrap that chowns the org-plugins tree back to the invoking `SUDO_USER` after root install.
+//! Unix bootstrap that chowns the org-plugins tree back to the invoking
+//! `SUDO_USER` after root install.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

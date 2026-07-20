@@ -12,10 +12,7 @@ pub mod secret;
 pub mod setup;
 pub mod types;
 
-use crate::auth::providers::mtls::MtlsProvider;
-use crate::auth::providers::pat::PatProvider;
-use crate::auth::providers::session::SessionProvider;
-use crate::auth::providers::{AuthError, AuthFailedSource, AuthProvider};
+use crate::auth::providers::{AuthError, AuthFailedSource, AuthProvider, AuthProviderRegistration};
 use crate::auth::types::HelperOutput;
 use crate::config;
 use crate::obs::output::diag;
@@ -116,12 +113,11 @@ fn expand_home(path: &str) -> String {
 }
 
 #[must_use]
-fn provider_chain(cfg: &config::Config) -> Vec<Box<dyn AuthProvider>> {
-    vec![
-        Box::new(MtlsProvider::new(cfg)),
-        Box::new(SessionProvider::new(cfg)),
-        Box::new(PatProvider::new(cfg)),
-    ]
+pub fn provider_chain(cfg: &config::Config) -> Vec<Box<dyn AuthProvider>> {
+    let mut regs: Vec<&'static AuthProviderRegistration> =
+        inventory::iter::<AuthProviderRegistration>().collect();
+    regs.sort_by_key(|reg| std::cmp::Reverse(reg.priority));
+    regs.into_iter().map(|reg| (reg.factory)(cfg)).collect()
 }
 
 pub async fn mint_fresh(

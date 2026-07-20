@@ -9,6 +9,8 @@ mod ipc;
 #[cfg(all(test, any(target_os = "windows", target_os = "macos")))]
 mod jwt;
 #[cfg(all(test, any(target_os = "windows", target_os = "macos")))]
+mod marketplace_children;
+#[cfg(all(test, any(target_os = "windows", target_os = "macos")))]
 mod marketplace_hooks;
 #[cfg(all(test, any(target_os = "windows", target_os = "macos")))]
 mod profile;

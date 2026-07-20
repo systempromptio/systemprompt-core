@@ -48,7 +48,7 @@ button.sp-btn-primary {
   box-shadow:
     0 1px 0 oklch(1 0 0 / 0.30) inset,
     0 -1px 0 oklch(0 0 0 / 0.18) inset,
-    0 4px 14px oklch(0.67 0.18 50 / 0.28),
+    0 2px 8px oklch(0.67 0.18 50 / 0.20),
     0 1px 2px oklch(0 0 0 / 0.20);
   transition: filter 0.15s ease, box-shadow 0.2s ease, border-color 0.15s ease;
 }
@@ -57,7 +57,7 @@ button.sp-btn-primary:hover {
   box-shadow:
     0 1px 0 oklch(1 0 0 / 0.35) inset,
     0 -1px 0 oklch(0 0 0 / 0.18) inset,
-    0 8px 22px oklch(0.67 0.18 50 / 0.40),
+    0 4px 12px oklch(0.67 0.18 50 / 0.30),
     0 2px 4px oklch(0 0 0 / 0.25);
 }
 button.sp-btn-primary:focus-visible {
@@ -66,7 +66,7 @@ button.sp-btn-primary:focus-visible {
     0 1px 0 oklch(1 0 0 / 0.30) inset,
     0 -1px 0 oklch(0 0 0 / 0.18) inset,
     0 0 0 3px oklch(0.70 0.17 51 / 0.45),
-    0 4px 14px oklch(0.67 0.18 50 / 0.28);
+    0 2px 8px oklch(0.67 0.18 50 / 0.20);
 }
 button.sp-btn-primary:active {
   filter: brightness(0.96);
@@ -90,3 +90,43 @@ button.sp-btn-ghost {
   background: transparent;
   border-radius: var(--sp-corners-sm);
 }
+
+input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  flex: none;
+  margin: 0;
+  border: 1px solid var(--sp-line);
+  border-radius: 4px;
+  background: var(--sp-bg-elev-2);
+  cursor: pointer;
+  position: relative;
+  vertical-align: middle;
+  transition: border-color var(--sp-dur-fast) var(--sp-ease-out),
+              background var(--sp-dur-fast) var(--sp-ease-out);
+}
+input[type="checkbox"]:hover { border-color: var(--sp-muted); box-shadow: none; }
+input[type="checkbox"]:checked {
+  background: var(--sp-accent);
+  border-color: var(--sp-accent-deep);
+}
+input[type="checkbox"]:checked::after {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 1px;
+  width: 5px;
+  height: 9px;
+  border: solid oklch(0.20 0.04 50);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+input[type="checkbox"]:focus,
+input[type="checkbox"]:focus-visible {
+  outline: none;
+  border-color: var(--sp-accent);
+  box-shadow: 0 0 0 3px var(--sp-accent-ring);
+}
+input[type="checkbox"]:disabled { opacity: 0.5; cursor: not-allowed; }

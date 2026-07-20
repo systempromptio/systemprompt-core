@@ -71,6 +71,14 @@ export class SpMarketplace extends SpElement {
       this.selectedId = e.detail.id;
       this._pushChildState();
     });
+    this.addEventListener("mkt-navigate", (e) => {
+      const { kind, id } = e.detail;
+      if (!this.listing || !(this.listing[kind] || []).some((it) => it.id === id)) { return; }
+      this.kind = kind;
+      this.selectedId = id;
+      this.search = "";
+      this._pushChildState();
+    });
   }
 
   onConnect() {
@@ -100,6 +108,10 @@ export class SpMarketplace extends SpElement {
     if (detail) {
       detail.selected = items.find((it) => it.id === this.selectedId) || null;
       detail.kind = this.kind;
+      detail.knownIds = MKT_KINDS.reduce((acc, k) => {
+        acc[k] = new Set(((this.listing && this.listing[k]) || []).map((it) => it.id));
+        return acc;
+      }, {});
     }
     const input = this.querySelector("#mkt-search");
     if (input && input.value !== this.search) { input.value = this.search; }

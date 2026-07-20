@@ -7,7 +7,7 @@ sp-marketplace {
 }
 .sp-mkt {
   display: grid;
-  grid-template-columns: 208px 288px minmax(0, 1fr);
+  grid-template-columns: 208px minmax(280px, 340px) minmax(0, 1fr);
   gap: var(--sp-space-px);
   background: var(--sp-line);
   border: 1px solid var(--sp-line);

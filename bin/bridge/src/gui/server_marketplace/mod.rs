@@ -4,11 +4,13 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod hooks;
+pub mod source;
 
 use crate::config::paths;
 use crate::proxy::mcp_probe::McpServerAuth;
 use crate::sync::{LastSyncState, read_last_sync};
 use serde::{Deserialize, Serialize};
+use source::{MarketplaceCategory, MarketplaceSourceCtx, MarketplaceSourceRegistration};
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
@@ -33,7 +35,7 @@ enum MarketplaceExtra {
 
 #[derive(Debug, Serialize)]
 pub struct MarketplaceItem {
-    id: String,
+    pub(crate) id: String,
     name: String,
     source: &'static str,
     path: String,
@@ -41,7 +43,43 @@ pub struct MarketplaceItem {
     readme: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     change: Option<ChangeKind>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    children: Vec<PluginChild>,
     extra: MarketplaceExtra,
+}
+
+impl MarketplaceItem {
+    /// Build a plain item for an external [`source::MarketplaceSource`]. The
+    /// `source` label appears in the GUI; `extra` is `None` and `children`
+    /// empty (external contributions are leaf entries).
+    #[must_use]
+    pub fn new(
+        id: impl Into<String>,
+        name: impl Into<String>,
+        summary: Option<String>,
+        path: impl Into<String>,
+        source: &'static str,
+    ) -> Self {
+        Self {
+            id: id.into(),
+            name: name.into(),
+            source,
+            path: path.into(),
+            summary,
+            readme: None,
+            change: None,
+            children: Vec::new(),
+            extra: MarketplaceExtra::None,
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Clone)]
+pub struct PluginChild {
+    pub kind: &'static str,
+    pub id: String,
+    pub name: String,
+    pub shared: bool,
 }
 
 #[derive(Debug, Serialize, Default)]
@@ -102,9 +140,18 @@ struct McpServerEntry {
     tools: Vec<String>,
 }
 
+fn dedup_by_id(items: Vec<MarketplaceItem>) -> Vec<MarketplaceItem> {
+    let mut seen = std::collections::HashSet::new();
+    items
+        .into_iter()
+        .filter(|item| seen.insert(item.id.clone()))
+        .collect()
+}
+
 pub fn build_listing(mcp_auth: &[McpServerAuth]) -> MarketplaceListing {
     let loc = paths::org_plugins_effective();
     let plugins_dir = loc.as_ref().map(|l| l.path.display().to_string());
+    let plugins_root: Option<PathBuf> = loc.as_ref().map(|l| l.path.clone());
 
     let last_sync = paths::bridge_metadata_dir().and_then(|meta| {
         read_last_sync(&meta.join(paths::LAST_SYNC_SENTINEL))
@@ -127,8 +174,18 @@ pub fn build_listing(mcp_auth: &[McpServerAuth]) -> MarketplaceListing {
                     hooks = hooks::list_hooks(&dir.join("hooks"));
                 }
             }
+            // A skill/agent shared across plugins appears in each plugin dir;
+            // collapse to one listing per id so category counts reflect distinct
+            // components, not catalogue × plugins. (Hooks are already deduped by
+            // the guard above; MCP by `mark_shared_mcp`.)
             let mcp = list_registry_mcp(mcp_auth);
-            (plugins, skills, hooks, mcp, agents)
+            (
+                plugins,
+                dedup_by_id(skills),
+                hooks,
+                mcp,
+                dedup_by_id(agents),
+            )
         },
         None => (Vec::new(), Vec::new(), Vec::new(), Vec::new(), Vec::new()),
     };
@@ -139,16 +196,46 @@ pub fn build_listing(mcp_auth: &[McpServerAuth]) -> MarketplaceListing {
             annotate_plugins_with_diff(&mut plugins, state)
         });
 
+    let ctx = MarketplaceSourceCtx {
+        plugins_root: plugins_root.as_deref(),
+        mcp_auth,
+    };
+
     MarketplaceListing {
-        plugins,
-        skills,
-        hooks,
-        mcp,
-        agents,
-        artifacts: list_artifacts(),
+        plugins: merge_external(plugins, MarketplaceCategory::Plugins, &ctx),
+        skills: merge_external(skills, MarketplaceCategory::Skills, &ctx),
+        hooks: merge_external(hooks, MarketplaceCategory::Hooks, &ctx),
+        mcp: merge_external(mcp, MarketplaceCategory::Mcp, &ctx),
+        agents: merge_external(agents, MarketplaceCategory::Agents, &ctx),
+        artifacts: merge_external(list_artifacts(), MarketplaceCategory::Artifacts, &ctx),
         plugins_dir,
         last_sync_diff,
     }
+}
+
+fn external_items(
+    category: MarketplaceCategory,
+    ctx: &MarketplaceSourceCtx<'_>,
+) -> Vec<MarketplaceItem> {
+    let mut regs: Vec<&'static MarketplaceSourceRegistration> =
+        inventory::iter::<MarketplaceSourceRegistration>()
+            .filter(|r| r.source.category() == category)
+            .collect();
+    regs.sort_by_key(|r| std::cmp::Reverse(r.priority));
+    regs.into_iter().flat_map(|r| r.source.items(ctx)).collect()
+}
+
+fn merge_external(
+    builtin: Vec<MarketplaceItem>,
+    category: MarketplaceCategory,
+    ctx: &MarketplaceSourceCtx<'_>,
+) -> Vec<MarketplaceItem> {
+    let mut merged = external_items(category, ctx);
+    merged.extend(builtin);
+    let mut seen: BTreeSet<String> = BTreeSet::new();
+    merged.retain(|item| seen.insert(item.id.clone()));
+    merged.sort_by(|a, b| a.name.cmp(&b.name));
+    merged
 }
 
 fn plugin_dirs(root: &Path) -> Vec<PathBuf> {
@@ -188,6 +275,7 @@ fn list_artifacts() -> Vec<MarketplaceItem> {
                 summary: record.description,
                 readme: None,
                 change: None,
+                children: Vec::new(),
                 extra: MarketplaceExtra::None,
             }
         })
@@ -223,6 +311,7 @@ fn annotate_plugins_with_diff(
                 summary: Some("Removed in last sync".to_owned()),
                 readme: None,
                 change: Some(ChangeKind::Removed),
+                children: Vec::new(),
                 extra: MarketplaceExtra::None,
             });
         }
@@ -282,11 +371,113 @@ fn list_plugins(root: &Path) -> Vec<MarketplaceItem> {
             summary,
             readme,
             change: None,
+            children: plugin_children(&path),
             extra,
         });
     }
+    let mut children: Vec<Vec<PluginChild>> = out
+        .iter_mut()
+        .map(|p| std::mem::take(&mut p.children))
+        .collect();
+    mark_shared_mcp(&mut children);
+    for (plugin, kids) in out.iter_mut().zip(children) {
+        plugin.children = kids;
+    }
     out.sort_by(|a, b| a.name.cmp(&b.name));
     out
+}
+
+#[derive(Deserialize)]
+struct McpJsonFile {
+    #[serde(default, rename = "mcpServers")]
+    mcp_servers: std::collections::BTreeMap<String, serde::de::IgnoredAny>,
+}
+
+pub fn plugin_children(plugin_dir: &Path) -> Vec<PluginChild> {
+    let mut out = Vec::new();
+    if let Ok(rd) = std::fs::read_dir(plugin_dir.join("skills")) {
+        for entry in rd.flatten() {
+            let Some(id) = entry.file_name().to_str().map(str::to_owned) else {
+                continue;
+            };
+            if id.starts_with('.') || !entry.file_type().ok().is_some_and(|t| t.is_dir()) {
+                continue;
+            }
+            let body = std::fs::read_to_string(entry.path().join("SKILL.md")).ok();
+            let (name, _) = body
+                .as_deref()
+                .map_or((None, None), parse_skill_frontmatter);
+            out.push(PluginChild {
+                kind: "skills",
+                name: name.unwrap_or_else(|| id.clone()),
+                id,
+                shared: false,
+            });
+        }
+    }
+    if let Ok(rd) = std::fs::read_dir(plugin_dir.join("agents")) {
+        for entry in rd.flatten() {
+            let path = entry.path();
+            if path.extension().and_then(|e| e.to_str()) != Some("md") {
+                continue;
+            }
+            let Some(id) = path.file_stem().and_then(|s| s.to_str()).map(str::to_owned) else {
+                continue;
+            };
+            let body = std::fs::read_to_string(&path).ok();
+            let (name, _) = body
+                .as_deref()
+                .map_or((None, None), parse_skill_frontmatter);
+            out.push(PluginChild {
+                kind: "agents",
+                name: name.unwrap_or_else(|| id.clone()),
+                id,
+                shared: false,
+            });
+        }
+    }
+    if let Ok(bytes) = std::fs::read(plugin_dir.join("hooks").join("hooks.json"))
+        && let Ok(file) =
+            serde_json::from_slice::<crate::sync::apply::hooks_schema::HooksFile>(&bytes)
+    {
+        for event in file.hooks.keys() {
+            out.push(PluginChild {
+                kind: "hooks",
+                id: event.clone(),
+                name: event.clone(),
+                shared: false,
+            });
+        }
+    }
+    if let Ok(bytes) = std::fs::read(plugin_dir.join(".mcp.json"))
+        && let Ok(file) = serde_json::from_slice::<McpJsonFile>(&bytes)
+    {
+        for server in file.mcp_servers.keys() {
+            out.push(PluginChild {
+                kind: "mcp",
+                id: server.clone(),
+                name: server.clone(),
+                shared: false,
+            });
+        }
+    }
+    out
+}
+
+pub fn mark_shared_mcp(plugin_children: &mut [Vec<PluginChild>]) {
+    let mut counts: std::collections::BTreeMap<String, usize> = std::collections::BTreeMap::new();
+    for children in plugin_children.iter() {
+        for child in children.iter().filter(|c| c.kind == "mcp") {
+            *counts.entry(child.id.clone()).or_insert(0) += 1;
+        }
+    }
+    for children in plugin_children.iter_mut() {
+        for child in children.iter_mut() {
+            if child.kind == "mcp" && counts.get(&child.id).copied().unwrap_or(0) > 1 {
+                child.shared = true;
+            }
+        }
+    }
 }
 
 fn list_skills(dir: &Path) -> Vec<MarketplaceItem> {
@@ -323,6 +514,7 @@ fn list_skills(dir: &Path) -> Vec<MarketplaceItem> {
             summary,
             readme: body,
             change: None,
+            children: Vec::new(),
             extra,
         });
     }
@@ -363,6 +555,7 @@ fn list_agents(dir: &Path) -> Vec<MarketplaceItem> {
             summary,
             readme: body,
             change: None,
+            children: Vec::new(),
             extra,
         });
     }
@@ -421,6 +614,7 @@ fn list_registry_mcp(mcp_auth: &[McpServerAuth]) -> Vec<MarketplaceItem> {
             summary: Some(proxy_url.clone()),
             readme: None,
             change: None,
+            children: Vec::new(),
             extra: MarketplaceExtra::Mcp(McpServerEntry {
                 url: Some(proxy_url),
                 command: None,

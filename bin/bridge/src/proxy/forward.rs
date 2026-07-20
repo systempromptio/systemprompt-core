@@ -1,4 +1,5 @@
-//! Request forwarding to the gateway: hop-by-hop header stripping and auth injection.
+//! Request forwarding to the gateway: hop-by-hop header stripping and auth
+//! injection.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

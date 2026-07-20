@@ -19,6 +19,7 @@
   --sp-ok:            oklch(0.72 0.17 145);
   --sp-warn:          oklch(0.78 0.15 75);
   --sp-err:           oklch(0.65 0.20 25);
+  --sp-info:          oklch(0.72 0.10 240);
 
   --sp-font-body:     "OpenSans", "OpenSans Fallback", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --sp-font-display:  "Inter", "Inter Fallback", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
