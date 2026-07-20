@@ -130,9 +130,16 @@ async fn bridge_session_captures_request_analytics() {
     let user_id = create_test_user(&db).await;
     let analytics = AnalyticsService::new(&db, None, None).expect("analytics service");
 
-    let result = issue_bridge_access(&db, &analytics, &exchange_request_headers(), None, &user_id)
-        .await
-        .expect("mint bridge access");
+    let caller_ip = "203.0.113.7".parse().ok();
+    let result = issue_bridge_access(
+        &db,
+        &analytics,
+        &exchange_request_headers(),
+        caller_ip,
+        &user_id,
+    )
+    .await
+    .expect("mint bridge access");
 
     let session_id = result
         .headers

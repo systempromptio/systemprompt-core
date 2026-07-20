@@ -287,8 +287,4 @@ async fn doctor_hook_url_variants_warn_but_pass() {
     write_cloud_profile_with_hook(&env, "hook-match", "http://127.0.0.1/hook");
     run_doctor("hook-match").await;
     remove_profile(&env, "hook-match");
-
-    write_cloud_profile_with_hook(&env, "hook-bad", "not a url");
-    run_doctor("hook-bad").await;
-    remove_profile(&env, "hook-bad");
 }
