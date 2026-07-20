@@ -35,6 +35,19 @@ fn host_sync_registry_contains_builtins() {
     }
 }
 
+#[test]
+fn host_sync_registry_keeps_both_cowork_facets() {
+    let cowork = host_sync::registry()
+        .iter()
+        .filter(|s| s.host_id() == "cowork")
+        .count();
+    assert_eq!(
+        cowork, 2,
+        "the Cowork plugins and artifacts emitters share host_id \"cowork\" and \
+         must both survive dedup (dedup keys on concrete type, not host_id)"
+    );
+}
+
 struct DummyHost;
 
 static DUMMY_SCHEMA: HostConfigSchema = HostConfigSchema {

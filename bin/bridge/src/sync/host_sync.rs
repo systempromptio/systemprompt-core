@@ -25,9 +25,12 @@ pub struct HostSyncCtx<'a> {
     pub bearer: &'a str,
 }
 
-// `#[async_trait]`: the static registry needs `dyn HostSync`.
+// `#[async_trait]`: the static registry needs `dyn HostSync`. The `Any` bound
+// lets the registry dedup by concrete emitter type — `host_id()` is the
+// manifest enablement gate and is deliberately shared by the two Cowork facets
+// (plugins + artifacts), so it cannot serve as the dedup key.
 #[async_trait]
-pub trait HostSync: Send + Sync + 'static {
+pub trait HostSync: std::any::Any + Send + Sync + 'static {
     fn host_id(&self) -> &'static str;
     async fn apply(&self, ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError>;
     fn clear(&self) -> Result<(), ApplyError>;
@@ -53,8 +56,10 @@ inventory::collect!(HostSyncRegistration);
 /// Register a [`HostSync`] emitter into the compile-time sync registry.
 ///
 /// Pass a zero-sized `'static` emitter value. An optional `priority = N`
-/// (default 0) lets a registration shadow a built-in sharing the same
-/// `host_id()`.
+/// (default 0) orders registrations; when the same concrete emitter type is
+/// registered more than once, the highest-priority copy wins and the rest are
+/// deduped away. Distinct emitter types coexist even when they share a
+/// `host_id()` — as the Cowork plugins and artifacts emitters do.
 #[macro_export]
 macro_rules! register_host_sync {
     ($e:expr, priority = $p:expr $(,)?) => {
@@ -82,10 +87,10 @@ static REGISTRY: LazyLock<Vec<&'static dyn HostSync>> = LazyLock::new(|| {
             .cmp(&a.priority)
             .then_with(|| a.emitter.host_id().cmp(b.emitter.host_id()))
     });
-    let mut seen: std::collections::BTreeSet<&'static str> = std::collections::BTreeSet::new();
+    let mut seen: std::collections::BTreeSet<std::any::TypeId> = std::collections::BTreeSet::new();
     let mut v: Vec<&'static dyn HostSync> = regs
         .into_iter()
-        .filter(|r| seen.insert(r.emitter.host_id()))
+        .filter(|r| seen.insert(r.emitter.type_id()))
         .map(|r| r.emitter)
         .collect();
     v.sort_by_key(|s| s.host_id());
