@@ -105,12 +105,21 @@ fn plugin_validate_rejects_empty_version() {
 }
 
 #[test]
-fn plugin_validate_rejects_explicit_source_with_empty_include() {
+fn plugin_validate_accepts_explicit_source_with_empty_include() {
     let mut p = valid_plugin("good-id");
     p.skills.source = ComponentSource::Explicit;
     p.skills.include = vec![];
+    p.validate("k")
+        .expect("explicit with an empty include scopes the plugin to zero of that component");
+}
+
+#[test]
+fn plugin_validate_rejects_instance_source_with_include() {
+    let mut p = valid_plugin("good-id");
+    p.skills.source = ComponentSource::Instance;
+    p.skills.include = vec!["some-skill".to_string()];
     let err = p.validate("k").unwrap_err();
-    assert!(format!("{err}").contains("explicit"));
+    assert!(format!("{err}").contains("instance"));
 }
 
 #[test]

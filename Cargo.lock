@@ -4520,7 +4520,6 @@ name = "systemprompt-analytics"
 version = "0.21.1"
 dependencies = [
  "async-trait",
- "axum",
  "chrono",
  "http",
  "inventory",
