@@ -40,8 +40,6 @@ sqlx = { workspace = true }
 # HTTP types (framework-agnostic)
 http = { workspace = true }
 
-axum = { workspace = true }
-
 # Serialization
 serde = { workspace = true }
 serde_json = { workspace = true }
