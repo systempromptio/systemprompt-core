@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.22.0] - 2026-07-20
+
+### Breaking
+
+- **Breaking:** the session-creating APIs — `SessionCreationService::{create_anonymous_session, create_authenticated_session, ensure_anonymous_user}`, `CreateAnonymousSessionInput`, and the bridge `issue_bridge_access` / `exchange_bridge_session_code` / `BridgeAccessRequest` — take a resolved client IP. Migrate by threading the caller IP resolved at the HTTP boundary.
+
 ## [0.21.1] - 2026-07-17
 
 ### Changed

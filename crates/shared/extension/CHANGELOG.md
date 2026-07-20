@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.22.0] - 2026-07-20
+
+### Added
+
+- `FrameOptions` enum modelling the `X-Frame-Options` response header (`DENY`, `SAMEORIGIN`).
+
 ## [0.21.1] - 2026-07-17
 
 ### Changed

@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.22.0] - 2026-07-20
+
+### Breaking
+
+- **Breaking:** `SessionAnalytics` is constructed via the `SessionAnalytics::builder(headers).with_uri(..).with_geoip(..).with_caller_ip(..)` builder; the `from_headers`, `from_headers_with_geoip`, `from_headers_with_geoip_and_socket`, `from_headers_and_uri`, and `from_request` constructors are removed. Migrate to the builder, supplying the caller IP explicitly.
+
+### Fixed
+
+- The extractor no longer parses the client IP from `X-Forwarded-For` / `X-Real-IP`, so a spoofed hop header can no longer set `ip_address` or the derived GeoIP fields.
+
 ## [0.21.1] - 2026-07-17
 
 ### Changed

@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.22.0] - 2026-07-20
+
+### Breaking
+
+- **Breaking:** `AnalyticsProvider::extract_analytics` takes an `ExtractSignals<'_>` bundle (request URI plus resolved caller IP) instead of parsing hop headers. Migrate by constructing `ExtractSignals` with the caller IP resolved at the HTTP boundary.
+
 ## [0.21.1] - 2026-07-17
 
 ### Changed

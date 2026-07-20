@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.22.0] - 2026-07-20
+
+### Breaking
+
+- **Breaking:** `ServerConfig.trusted_proxies` is now `Vec<IpNet>` (was `Vec<String>`), parsed and validated when the profile loads; an invalid CIDR entry fails boot. Migrate by expressing entries in CIDR notation.
+- **Breaking:** `SecurityHeadersConfig.frame_options` is now the `FrameOptions` enum (was `String`). Migrate by using `DENY` or `SAMEORIGIN`.
+
+### Changed
+
+- Profile validation rejects URL fields that are not `http(s)` and CORS origins that include a path, query, or fragment.
+
 ## [0.21.1] - 2026-07-17
 
 ### Changed

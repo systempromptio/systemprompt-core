@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.22.0] - 2026-07-20
+
+### Added
+
+- `ClientIp` request extractor and `resolve_client_ip*` helpers centralise originating-IP resolution against the trusted-proxy allowlist.
+
+### Changed
+
+- Session, OAuth token, and bridge handlers resolve the client IP once at the HTTP boundary and pass it into session analytics.
+- `X-Frame-Options` is emitted from the typed `FrameOptions` config and can be disabled.
+
+### Fixed
+
+- `user_sessions.ip_address` records the trusted-proxy-attested client IP instead of a spoofable hop-header value.
+
 ## [0.21.1] - 2026-07-17
 
 ### Changed

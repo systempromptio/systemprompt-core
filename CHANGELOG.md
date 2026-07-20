@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.22.0] - 2026-07-20
+
+### Breaking
+
+- **Breaking:** `AnalyticsProvider::extract_analytics` takes an `ExtractSignals { uri, caller_ip }` bundle and `SessionAnalytics` is built via `SessionAnalytics::builder(headers)`; the header-parsing constructors (`from_headers`, `from_headers_with_geoip[_and_socket]`, `from_headers_and_uri`, `from_request`) are removed. Migrate by resolving the caller IP at the HTTP boundary and supplying it through the builder / `ExtractSignals`.
+- **Breaking:** `ServerConfig.trusted_proxies` is now `Vec<IpNet>` and `SecurityHeadersConfig.frame_options` a typed `FrameOptions` enum; a profile with an invalid CIDR or a non-`DENY`/`SAMEORIGIN` frame-options value now fails to load. Migrate by using CIDR notation and the enum values.
+
+### Changed
+
+- Client IP is resolved once at the HTTP boundary against the trusted-proxy allowlist; session analytics no longer trusts spoofable `X-Forwarded-For` / `X-Real-IP` values.
+- Profile validation rejects URL fields that are not `http(s)` and CORS origins that carry a path, query, or fragment.
+
+### Fixed
+
+- `user_sessions.ip_address` no longer records client-spoofed RFC1918 addresses; GeoIP and abuse signals key off the trusted-proxy-attested client IP.
+
 ## [0.21.1] - 2026-07-17
 
 ### Changed
