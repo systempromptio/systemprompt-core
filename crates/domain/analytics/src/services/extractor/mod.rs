@@ -244,24 +244,28 @@ impl<'a> SessionAnalyticsBuilder<'a> {
         };
 
         if let Some(uri) = self.uri {
-            let query_params = SessionAnalytics::parse_query_params(uri);
-
-            analytics.utm_source = query_params.get("utm_source").cloned();
-            analytics.utm_medium = query_params.get("utm_medium").cloned();
-            analytics.utm_campaign = query_params.get("utm_campaign").cloned();
-            analytics.utm_content = query_params.get("utm_content").cloned();
-            analytics.utm_term = query_params.get("utm_term").cloned();
-
-            let is_html_page = self
-                .content_routing
-                .is_some_and(|routing| routing.is_html_page(uri.path()));
-
-            if is_html_page {
-                analytics.entry_url = Some(uri.to_string());
-                analytics.landing_page = Some(uri.path().to_owned());
-            }
+            Self::apply_uri(&mut analytics, uri, self.content_routing);
         }
 
         analytics
+    }
+
+    fn apply_uri(
+        analytics: &mut SessionAnalytics,
+        uri: &Uri,
+        content_routing: Option<&dyn systemprompt_models::ContentRouting>,
+    ) {
+        let query_params = SessionAnalytics::parse_query_params(uri);
+
+        analytics.utm_source = query_params.get("utm_source").cloned();
+        analytics.utm_medium = query_params.get("utm_medium").cloned();
+        analytics.utm_campaign = query_params.get("utm_campaign").cloned();
+        analytics.utm_content = query_params.get("utm_content").cloned();
+        analytics.utm_term = query_params.get("utm_term").cloned();
+
+        if content_routing.is_some_and(|routing| routing.is_html_page(uri.path())) {
+            analytics.entry_url = Some(uri.to_string());
+            analytics.landing_page = Some(uri.path().to_owned());
+        }
     }
 }
