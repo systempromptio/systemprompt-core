@@ -48,6 +48,12 @@ pub struct Brand {
     /// Working/state/cache/log leaf directory. Branding it isolates white-label
     /// builds from each other on disk.
     pub working_dir_name: &'static str,
+    /// User-facing default Cowork workspace folder, created under the user's
+    /// home (`~/<workspace_dir_name>`) and pushed as a pre-trusted
+    /// `allowedWorkspaceFolders` entry so the agent gets a real writable
+    /// working directory without folder prompts. Empty string ⇒ emit no
+    /// default folder.
+    pub workspace_dir_name: &'static str,
     pub keyring_service: &'static str,
     pub env_prefix: &'static str,
     pub default_gateway_url: &'static str,
@@ -78,6 +84,7 @@ impl Brand {
         config_file: "systemprompt-bridge.toml",
         pat_file: "systemprompt-bridge.pat",
         working_dir_name: "systemprompt-bridge",
+        workspace_dir_name: "Systemprompt",
         keyring_service: "systemprompt-bridge.oauth-client",
         env_prefix: "SP_BRIDGE",
         default_gateway_url: "http://localhost:8080",

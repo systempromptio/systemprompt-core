@@ -5,10 +5,20 @@
 ### Breaking
 
 - **Breaking:** removed the `Brand::synthetic_plugin_name` field. Migrate by deleting it from any custom `Brand` definition; managed plugins now keep the ids the gateway assigns.
+- **Breaking:** added the `Brand::workspace_dir_name` field (the brand's default Cowork workspace folder name; empty string ⇒ emit no default folder). Migrate by adding it to any custom `Brand` definition.
+
+### Added
+
+- Windows MDM policy pre-trusts a default Cowork workspace folder (`allowedWorkspaceFolders` → `~/<brand workspace dir>`, surfaced as a default-selected folder chip) and materializes the directory on apply, so the agent gets a real writable working directory instead of wandering into protected host paths and triggering folder-permission prompts. The policy also pins `coworkEgressAllowedHosts` to loopback and disables `isLocalDevMcpEnabled`.
 
 ### Changed
 
 - Managed plugins from the gateway manifest are each installed as a distinct plugin in Claude Code and Claude Cowork — carrying their own name, skills, and agents — so the host UI lists one entry per plugin instead of a single merged entry. Managed MCP servers are attached per plugin through the local proxy.
+
+### Fixed
+
+- `managedMcpServers` is now written to `HKLM\SOFTWARE\Policies\Claude` on Windows: Cowork ≥ 1.22209 ignores the `HKCU` policy hive entirely when an `HKLM` policy exists, so the previous `HKCU` write left Cowork loading zero managed servers. An unelevated run clears the ignored `HKCU` copy and no-ops when a stable `HKLM` value already exists, erroring only when policy was never provisioned elevated.
+- The host-sync registry now dedups emitters by concrete type instead of `host_id`, so the two Cowork emitters that deliberately share the `cowork` host id (plugin enables + the artifacts library) both run again; previously one was silently dropped.
 
 ### Removed
 

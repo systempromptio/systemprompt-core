@@ -134,8 +134,12 @@ pub fn windows_policy_values(
     pubkey: Option<&str>,
     org_uuid: Option<&str>,
 ) -> Vec<(&'static str, &'static str, String)> {
-    // `managedMcpServers`/`inferenceGateway*` are omitted: a stale HKLM copy
-    // outranks per-user HKCU and a non-elevated run cannot fix it.
+    // `managedMcpServers`/`inferenceGateway*` are omitted from this static set:
+    // they are dynamic (depend on the live mcp_registry snapshot + rotating
+    // loopback bearer) and are written separately — managedMcpServers via
+    // `windows::write_managed_mcp_servers_value` (HKLM; see the hive-precedence
+    // note there), inferenceGateway* when the Claude Desktop host profile is
+    // applied.
     let mut values: Vec<(&'static str, &'static str, String)> = vec![
         ("inferenceProvider", "REG_SZ", "gateway".into()),
         ("inferenceGatewayAuthScheme", "REG_SZ", "bearer".into()),
@@ -151,6 +155,22 @@ pub fn windows_policy_values(
             r#"["127.0.0.1"]"#.into(),
         ),
     ];
+    // Give Cowork a pre-trusted default working directory so the agent has a
+    // real, writable home instead of the ephemeral per-session outputs mount —
+    // without this the agent wanders into protected host paths (Documents,
+    // /tmp, the session root) and triggers `request_cowork_directory` permission
+    // prompts / hard blocks. `isDefaultSelected:true` surfaces it as a folder
+    // chip on the new-task page AND skips the trust prompt. `~` expands
+    // per-machine to the user's home (the folder is created by `apply`). The
+    // folder NAME is brand-specific (systemprompt vs Astound vs …), so it comes
+    // from the active Brand, not a core literal. Empty ⇒ omit the key. This is
+    // the only documented filesystem-scope policy key.
+    let workspace = crate::brand::brand().workspace_dir_name;
+    if !workspace.is_empty() {
+        let json =
+            serde_json::json!([{ "path": format!("~/{workspace}"), "isDefaultSelected": true }]);
+        values.push(("allowedWorkspaceFolders", "REG_SZ", json.to_string()));
+    }
     if let Some(pk) = pubkey {
         values.push(("inferenceManifestPubkey", "REG_SZ", pk.to_owned()));
     }
@@ -196,11 +216,17 @@ pub(crate) fn managed_mcp_servers_json() -> Option<String> {
     serde_json::to_string(&entries).ok()
 }
 
+/// Operator-facing MDM configuration example for `os`.
+///
+/// The active brand's gateway URL and default workspace folder are substituted
+/// in. Rendered by the installer when it cannot apply policy directly
+/// (unelevated / no MDM channel); `None` for `gateway_url` falls back to the
+/// public placeholder host.
 #[expect(
     clippy::literal_string_with_formatting_args,
     reason = "{gateway} is a template placeholder consumed by str::replace, not a fmt arg"
 )]
-pub(crate) fn snippet(os: Os, gateway_url: Option<&str>) -> String {
+pub fn snippet(os: Os, gateway_url: Option<&str>) -> String {
     let gateway = gateway_url.unwrap_or("https://gateway.systemprompt.io");
     match os {
         Os::Mac => MDM_MACOS_SNIPPET_TMPL.replace("{gateway}", gateway),
@@ -218,6 +244,9 @@ Windows Registry Editor Version 5.00
 "disableNonessentialServices"="true"
 "disableAutoUpdates"="true"
 "disableDeploymentModeChooser"="true"
+"isLocalDevMcpEnabled"="false"
+"coworkEgressAllowedHosts"="[\"127.0.0.1\"]"
+"allowedWorkspaceFolders"="[{\"path\":\"~/{workspace}\",\"isDefaultSelected\":true}]"
 ; Optional: identify this deployment to your org for telemetry/support.
 ; Omit to use Anthropic's shared placeholder UUID. Standard hyphenated form only.
 ; "deploymentOrganizationUuid"="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
@@ -225,7 +254,7 @@ Windows Registry Editor Version 5.00
 ; key by the Bridge when you apply the Claude Desktop host profile, and re-applied
 ; whenever the local loopback secret rotates. Do not pin them here.
 "#
-            .to_owned()
+            .replace("{workspace}", crate::brand::brand().workspace_dir_name)
         },
         Os::Linux => format!(
             r"Anthropic does not document an MDM format for Linux.

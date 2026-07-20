@@ -16,9 +16,9 @@ pub(crate) mod xml;
 pub use apply::install;
 pub use builders::{InstallOptionsBuilder, UninstallSummaryBuilder};
 pub use error::InstallError;
-pub use mdm::is_uuid_like;
 #[cfg(target_os = "windows")]
 pub use mdm::windows_policy_values;
+pub use mdm::{is_uuid_like, snippet as mdm_snippet};
 pub use schedule_emit::emit_schedule;
 pub use summary::{render_install_summary, render_uninstall_summary};
 

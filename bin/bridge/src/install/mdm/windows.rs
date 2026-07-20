@@ -11,9 +11,48 @@ pub(super) fn refresh_managed_mcp_servers() -> Result<String, String> {
 }
 
 pub(super) fn write_managed_mcp_servers_value(value: &str) -> Result<String, String> {
-    // HKCU: the per-user hive the non-elevated GUI can rewrite as the secret
-    // rotates.
-    let key = r"HKCU\SOFTWARE\Policies\Claude";
+    // Cowork >= 1.22209 enforces registry-policy hive precedence: when
+    // `HKLM\SOFTWARE\Policies\Claude` exists, `HKCU\SOFTWARE\Policies\Claude`
+    // is ignored ENTIRELY (Anthropic 3P docs, /cowork/3p/configuration). Our
+    // `inference*` keys always live in HKLM, so `managedMcpServers` MUST be in
+    // HKLM as well or Cowork loads zero managed servers (mcpServerCount:0, the
+    // connector never appears). Older builds merged both hives, which is why
+    // writing HKCU used to work — it no longer does.
+    //
+    // Writing HKLM requires elevation. If we are not elevated we cannot fix it:
+    // clear any stale HKCU copy (so it is not mistaken for live config) and
+    // fail loudly rather than silently write an HKCU value Cowork ignores.
+    let hkcu = r"HKCU\SOFTWARE\Policies\Claude";
+    let key = r"HKLM\SOFTWARE\Policies\Claude";
+    if !crate::winproc::is_elevated() {
+        // Best-effort clear the ignored HKCU copy so it can't be mistaken for
+        // live config.
+        _ = crate::winproc::reg_command()
+            .args(["delete", hkcu, "/v", "managedMcpServers", "/f"])
+            .status();
+        // If an elevated run already provisioned managedMcpServers in HKLM we
+        // cannot update it here, but we don't need to: the loopback bearer and
+        // proxy port are stable, so the existing HKLM value stays valid. Treat
+        // that as a no-op success instead of failing the whole host sync (which
+        // would report PARTIAL on every non-elevated refresh). Only error when
+        // HKLM has no value at all — i.e. it was never provisioned elevated.
+        let already_in_hklm = crate::winproc::reg_command()
+            .args(["query", key, "/v", "managedMcpServers"])
+            .status()
+            .is_ok_and(|s| s.success());
+        if already_in_hklm {
+            return Ok(format!(
+                "{key} already holds managedMcpServers; skipping (elevation needed to \
+                 rewrite, but the value is stable). Cleared ignored {hkcu} copy."
+            ));
+        }
+        return Err(
+            "managedMcpServers requires elevation: Cowork ignores HKCU when an HKLM policy \
+             exists, so the managed server list must be written to HKLM\\SOFTWARE\\Policies\\Claude. \
+             Re-run the Bridge from an elevated (Administrator) context."
+                .to_owned(),
+        );
+    }
     let status = crate::winproc::reg_command()
         .args([
             "add",
@@ -34,15 +73,12 @@ pub(super) fn write_managed_mcp_servers_value(value: &str) -> Result<String, Str
             status.code().unwrap_or(-1)
         ));
     }
-    // A stale HKLM copy outranks HKCU and breaks MCP auth; purge it (needs
-    // elevation, may no-op).
-    let stale = r"HKLM\SOFTWARE\Policies\Claude";
+    // Remove the now-ignored (and potentially stale) HKCU copy so it can never
+    // be confused for the live value.
     _ = crate::winproc::reg_command()
-        .args(["delete", stale, "/v", "managedMcpServers", "/f"])
+        .args(["delete", hkcu, "/v", "managedMcpServers", "/f"])
         .status();
-    Ok(format!(
-        "{key} ← managedMcpServers (best-effort cleared {stale})"
-    ))
+    Ok(format!("{key} ← managedMcpServers (cleared stale {hkcu})"))
 }
 
 pub(super) fn remove_policy() -> Result<bool, String> {
@@ -87,6 +123,25 @@ pub(super) fn apply(gateway: &str, pubkey: Option<&str>) -> Result<Vec<String>, 
             ));
         }
         summary.push(format!("wrote {name} ({kind})"));
+    }
+    // Materialize the default workspace dir referenced by
+    // `allowedWorkspaceFolders` (~/<brand workspace dir>) so Cowork's
+    // pre-trusted folder chip resolves to an existing, writable directory
+    // rather than prompting. Folder name is brand-specific, from the Brand.
+    let workspace = crate::brand::brand().workspace_dir_name;
+    if !workspace.is_empty()
+        && let Some(home) = std::env::var_os("USERPROFILE")
+    {
+        let ws = std::path::Path::new(&home).join(workspace);
+        match std::fs::create_dir_all(&ws) {
+            Ok(()) => summary.push(format!("ensured workspace dir {}", ws.display())),
+            Err(e) => {
+                summary.push(format!(
+                    "warning: could not create workspace dir {}: {e}",
+                    ws.display()
+                ));
+            },
+        }
     }
     if !elevated {
         summary.push(
