@@ -1,13 +1,13 @@
 //! External marketplace-source contribution point.
 //!
 //! White-label crates register a [`MarketplaceSource`] via
-//! [`register_marketplace_source!`] to inject branded items into any of the six
-//! marketplace categories, without editing core's built-in scanners. Sources
-//! are consulted during [`super::build_listing`]. A source carries a `priority`
-//! (default 0): higher-priority source items are merged first, and each
-//! category is deduped by item id keeping the first-seen — so a source at
-//! `priority > 0` can **shadow a built-in item** of the same id, not only
-//! append new ones.
+//! [`register_marketplace_source!`](crate::register_marketplace_source) to
+//! inject branded items into any of the six marketplace categories, without
+//! editing core's built-in scanners. Sources are consulted during
+//! [`super::build_listing`]. A source carries a `priority` (default 0):
+//! higher-priority source items are merged first, and each category is deduped
+//! by item id keeping the first-seen — so a source at `priority > 0` can
+//! **shadow a built-in item** of the same id, not only append new ones.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

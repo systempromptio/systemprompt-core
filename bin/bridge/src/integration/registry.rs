@@ -1,11 +1,12 @@
 //! Compile-time registry of available desktop host integrations.
 //!
 //! Hosts are contributed through the `inventory` crate: built-ins submit via
-//! [`register_host_app!`] below, and white-label crates can register their own
-//! without editing core. Registrations carry a `priority` (built-ins use 0);
-//! the registry sorts by descending priority then `id()`, then **dedups by
-//! `id()` keeping the highest-priority entry** — so a white-label crate can
-//! shadow a built-in host by re-registering its id at `priority > 0`.
+//! [`register_host_app!`](crate::register_host_app) below, and white-label
+//! crates can register their own without editing core. Registrations carry a
+//! `priority` (built-ins use 0); the registry sorts by descending priority then
+//! `id()`, then **dedups by `id()` keeping the highest-priority entry** — so a
+//! white-label crate can shadow a built-in host by re-registering its id at
+//! `priority > 0`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
