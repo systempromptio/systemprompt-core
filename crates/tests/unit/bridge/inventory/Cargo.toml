@@ -12,5 +12,7 @@ workspace = true
 
 [dependencies]
 systemprompt-bridge = { workspace = true }
+systemprompt-identifiers = { workspace = true }
 inventory = "0.3"
 serde_json = { workspace = true }
+async-trait = { workspace = true }

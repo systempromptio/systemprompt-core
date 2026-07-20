@@ -6728,7 +6728,6 @@ name = "systemprompt-analytics"
 version = "0.21.1"
 dependencies = [
  "async-trait",
- "axum",
  "chrono",
  "http",
  "inventory",
@@ -6763,6 +6762,7 @@ dependencies = [
  "systemprompt-identifiers",
  "systemprompt-models",
  "systemprompt-test-fixtures",
+ "systemprompt-traits",
  "tokio",
  "uuid",
 ]
@@ -7154,9 +7154,11 @@ dependencies = [
 name = "systemprompt-bridge-inventory-tests"
 version = "0.0.11"
 dependencies = [
+ "async-trait",
  "inventory",
  "serde_json",
  "systemprompt-bridge",
+ "systemprompt-identifiers",
 ]
 
 [[package]]

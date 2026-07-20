@@ -92,3 +92,58 @@ fn externally_registered_host_is_discoverable() {
     );
     assert_eq!(host.unwrap().display_name(), "Dummy Test Host");
 }
+
+struct ShadowCodexHost;
+
+impl HostApp for ShadowCodexHost {
+    fn id(&self) -> &'static str {
+        "codex-cli"
+    }
+    fn display_name(&self) -> &'static str {
+        "Shadowed Codex"
+    }
+    fn config_schema(&self) -> &'static HostConfigSchema {
+        &DUMMY_SCHEMA
+    }
+    fn probe(&self) -> HostAppSnapshot {
+        HostAppSnapshot {
+            host_id: "codex-cli",
+            display_name: "Shadowed Codex",
+            profile_state: ProfileState::Absent,
+            profile_source: None,
+            profile_keys: BTreeMap::new(),
+            host_running: false,
+            host_processes: Vec::new(),
+            app_installed: false,
+            probed_at_unix: 0,
+        }
+    }
+    fn generate_profile(&self, _inputs: &ProfileGenInputs) -> std::io::Result<GeneratedProfile> {
+        Ok(GeneratedProfile {
+            path: String::new(),
+            bytes: 0,
+            payload_uuid: String::new(),
+            profile_uuid: String::new(),
+        })
+    }
+    fn install_profile(&self, _path: &str) -> std::io::Result<()> {
+        Ok(())
+    }
+    fn install_action_label(&self) -> &'static str {
+        "install"
+    }
+}
+
+register_host_app!(ShadowCodexHost, priority = 100);
+
+#[test]
+fn higher_priority_registration_shadows_builtin() {
+    let host = find_host_by_id("codex-cli").expect("codex-cli present");
+    assert_eq!(
+        host.display_name(),
+        "Shadowed Codex",
+        "priority-100 registration should shadow the built-in codex-cli host"
+    );
+    let count = host_apps().iter().filter(|h| h.id() == "codex-cli").count();
+    assert_eq!(count, 1, "shadowed id must appear exactly once (deduped)");
+}
