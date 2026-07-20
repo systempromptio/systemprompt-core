@@ -8,19 +8,66 @@ use std::ffi::OsString;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use sha2::{Digest, Sha256};
 use systemprompt_bridge::gateway::manifest::{
-    AgentEntry, AgentId, AgentName, ArtifactEntry, ManagedMcpServer, SignedManifest, SkillEntry,
-    UserInfo, ValidatedUrl,
+    ArtifactEntry, PluginEntry, PluginFile, SignedManifest, UserInfo,
 };
 use systemprompt_bridge::gateway::manifest_version::ManifestVersion;
 use systemprompt_bridge::ids::{
-    LibraryArtifactId, ManagedMcpServerName, ManifestSignature, PluginId, Sha256Digest, SkillId,
-    SkillName,
+    LibraryArtifactId, ManifestSignature, PluginId, Sha256Digest,
 };
 use systemprompt_bridge::sync::run_once;
 use systemprompt_test_fixtures::fixture_user_id;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
+
+const PLUGIN_ID: &str = "plugin-a";
+
+fn sha_hex(bytes: &[u8]) -> String {
+    hex::encode(Sha256::digest(bytes))
+}
+
+/// The files the gateway serves for `plugin-a`: a manifest, one skill, one
+/// agent, and a bundled `.mcp.json` (stripped from the Cowork tree and
+/// re-projected by the CLI emitter).
+fn plugin_files() -> Vec<(&'static str, Vec<u8>)> {
+    vec![
+        (
+            ".claude-plugin/plugin.json",
+            br#"{"name":"plugin-a","version":"1.0.0","description":"Plugin A"}"#.to_vec(),
+        ),
+        (
+            "skills/research/SKILL.md",
+            b"---\nname: research\ndescription: desc research\n---\n\n# Research\n".to_vec(),
+        ),
+        (
+            "agents/triage.md",
+            b"---\nname: triage\nmodel: claude\n---\n\n# Triage\n".to_vec(),
+        ),
+        (
+            ".mcp.json",
+            br#"{"mcpServers":{"Primary MCP":{"type":"http","url":"http://127.0.0.1:9911/mcp"}}}"#
+                .to_vec(),
+        ),
+    ]
+}
+
+fn plugin_entry() -> PluginEntry {
+    let files = plugin_files()
+        .iter()
+        .map(|(p, bytes)| PluginFile {
+            path: (*p).into(),
+            sha256: Sha256Digest::try_new(sha_hex(bytes)).unwrap(),
+            size: bytes.len() as u64,
+        })
+        .collect();
+    PluginEntry {
+        id: PluginId::try_new(PLUGIN_ID).unwrap(),
+        version: "1.0.0".into(),
+        sha256: Sha256Digest::try_new("0".repeat(64)).unwrap(),
+        files,
+    }
+}
 
 const PERSONAL_SESSION_UUID: &str = "00000000-0000-4000-8000-000000000001";
 
@@ -112,48 +159,15 @@ fn version(suffix: &str) -> ManifestVersion {
 }
 
 fn manifest(enabled_hosts: Vec<String>, populated: bool, suffix: &str) -> SignedManifest {
-    let (skills, agents, mcp, artifacts) = if populated {
+    let (plugins, artifacts) = if populated {
         (
-            vec![SkillEntry {
-                id: SkillId::try_new("research").unwrap(),
-                name: SkillName::try_new("research").unwrap(),
-                description: "desc: research".into(),
-                file_path: "research/SKILL.md".into(),
-                tags: vec![],
-                sha256: Sha256Digest::try_new("0".repeat(64)).unwrap(),
-                instructions: "# Research\n".into(),
-            }],
-            vec![AgentEntry {
-                id: AgentId::new("a-triage"),
-                name: AgentName::new("triage"),
-                display_name: "Triage".into(),
-                description: "agent triage".into(),
-                version: "1.0.0".into(),
-                endpoint: "https://example.invalid/a".into(),
-                enabled: true,
-                is_default: false,
-                is_primary: false,
-                provider: None,
-                model: Some("claude".into()),
-                mcp_servers: Default::default(),
-                skills: Default::default(),
-                tags: vec![],
-                system_prompt: None,
-            }],
-            vec![ManagedMcpServer {
-                name: ManagedMcpServerName::try_new("Primary MCP").unwrap(),
-                url: ValidatedUrl::try_new("http://127.0.0.1:9911/mcp").unwrap(),
-                transport: Some("http".into()),
-                headers: None,
-                oauth: None,
-                tool_policy: None,
-            }],
+            vec![plugin_entry()],
             vec![ArtifactEntry {
                 id: LibraryArtifactId::try_new("welcome-doc").unwrap(),
                 name: "Welcome".into(),
                 description: "org welcome doc".into(),
                 version: "1.0.0".into(),
-                plugin_id: PluginId::try_new("plugin-a").unwrap(),
+                plugin_id: PluginId::try_new(PLUGIN_ID).unwrap(),
                 mcp_tools: vec![],
                 content: "<h1>Welcome</h1>".into(),
                 starred: false,
@@ -161,7 +175,7 @@ fn manifest(enabled_hosts: Vec<String>, populated: bool, suffix: &str) -> Signed
             }],
         )
     } else {
-        (vec![], vec![], vec![], vec![])
+        (vec![], vec![])
     };
     SignedManifest {
         manifest_version: version(suffix),
@@ -176,11 +190,11 @@ fn manifest(enabled_hosts: Vec<String>, populated: bool, suffix: &str) -> Signed
             display_name: None,
             roles: vec![],
         }),
-        plugins: vec![],
-        skills,
-        agents,
+        plugins,
+        skills: vec![],
+        agents: vec![],
         hooks: vec![],
-        managed_mcp_servers: mcp,
+        managed_mcp_servers: vec![],
         revocations: vec![],
         enabled_hosts,
         host_model_protocols: std::collections::BTreeMap::default(),
@@ -198,6 +212,13 @@ async fn mount_gateway(server: &MockServer, m: &SignedManifest) {
         })))
         .mount(server)
         .await;
+    for (rel, bytes) in plugin_files() {
+        Mock::given(method("GET"))
+            .and(path(format!("/v1/bridge/plugins/{PLUGIN_ID}/{rel}")))
+            .respond_with(ResponseTemplate::new(200).set_body_bytes(bytes))
+            .mount(server)
+            .await;
+    }
     Mock::given(method("GET"))
         .and(path("/v1/bridge/manifest"))
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::to_value(m).unwrap()))
@@ -211,11 +232,11 @@ fn assert_claude_cli_installed(claude_home: &Path) {
         .join("marketplaces")
         .join("org-provisioned")
         .join("plugins")
-        .join("systemprompt-managed");
+        .join(PLUGIN_ID);
     let cache = plugins
         .join("cache")
         .join("org-provisioned")
-        .join("systemprompt-managed")
+        .join(PLUGIN_ID)
         .join("current");
 
     for bundle in [&source, &cache] {
@@ -223,7 +244,8 @@ fn assert_claude_cli_installed(claude_home: &Path) {
             &fs::read(bundle.join(".claude-plugin").join("plugin.json")).unwrap(),
         )
         .unwrap();
-        assert_eq!(pj["name"], "systemprompt-managed");
+        assert_eq!(pj["name"], PLUGIN_ID);
+        assert_eq!(pj["installationPreference"], "required");
         assert!(
             bundle
                 .join("skills")
@@ -258,6 +280,11 @@ fn assert_claude_cli_installed(claude_home: &Path) {
     )
     .unwrap();
     assert_eq!(marketplace["name"], "org-provisioned");
+    assert_eq!(marketplace["plugins"][0]["name"], PLUGIN_ID);
+    assert_eq!(
+        marketplace["plugins"][0]["source"],
+        format!("./plugins/{PLUGIN_ID}")
+    );
 
     let known: serde_json::Value =
         serde_json::from_slice(&fs::read(plugins.join("known_marketplaces.json")).unwrap())
@@ -266,12 +293,12 @@ fn assert_claude_cli_installed(claude_home: &Path) {
 
     let installed: serde_json::Value =
         serde_json::from_slice(&fs::read(plugins.join("installed_plugins.json")).unwrap()).unwrap();
-    assert!(installed["plugins"]["systemprompt-managed@org-provisioned"].is_array());
+    assert!(installed["plugins"][format!("{PLUGIN_ID}@org-provisioned")].is_array());
 
     let settings: serde_json::Value =
         serde_json::from_slice(&fs::read(claude_home.join("settings.json")).unwrap()).unwrap();
     assert_eq!(
-        settings["enabledPlugins"]["systemprompt-managed@org-provisioned"],
+        settings["enabledPlugins"][format!("{PLUGIN_ID}@org-provisioned")],
         true
     );
     assert!(settings["extraKnownMarketplaces"]["org-provisioned"].is_object());
@@ -312,7 +339,7 @@ fn run_once_with_enabled_hosts_materialises_all_host_state() {
     )
     .unwrap();
     assert_eq!(
-        cowork_settings["enabledPlugins"]["systemprompt-managed@org-provisioned"],
+        cowork_settings["enabledPlugins"][format!("{PLUGIN_ID}@org-provisioned")],
         true
     );
 
@@ -381,22 +408,22 @@ fn run_once_with_hosts_disabled_clears_all_host_state() {
         !plugins
             .join("cache")
             .join("org-provisioned")
-            .join("systemprompt-managed")
+            .join(PLUGIN_ID)
             .join("current")
             .exists()
     );
     let installed: serde_json::Value =
         serde_json::from_slice(&fs::read(plugins.join("installed_plugins.json")).unwrap()).unwrap();
-    assert!(installed["plugins"]["systemprompt-managed@org-provisioned"].is_null());
+    assert!(installed["plugins"][format!("{PLUGIN_ID}@org-provisioned")].is_null());
     let settings: serde_json::Value =
         serde_json::from_slice(&fs::read(dirs.claude_home.join("settings.json")).unwrap()).unwrap();
-    assert!(settings["enabledPlugins"]["systemprompt-managed@org-provisioned"].is_null());
+    assert!(settings["enabledPlugins"][format!("{PLUGIN_ID}@org-provisioned")].is_null());
 
     let cowork_settings: serde_json::Value = serde_json::from_slice(
         &fs::read(dirs.session_org_dir.join("cowork_settings.json")).unwrap(),
     )
     .unwrap();
-    assert!(cowork_settings["enabledPlugins"]["systemprompt-managed@org-provisioned"].is_null());
+    assert!(cowork_settings["enabledPlugins"][format!("{PLUGIN_ID}@org-provisioned")].is_null());
 
     assert!(!dirs.session_org_dir.join("cowork_artifacts").exists());
 }

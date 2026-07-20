@@ -79,10 +79,12 @@ fn ctx<'a>(
     root: &'a Path,
     client: &'a GatewayClient,
     bearer: &'a str,
+    plugin_mcp_servers: &'a std::collections::BTreeMap<String, Vec<String>>,
 ) -> HostSyncCtx<'a> {
     HostSyncCtx {
         manifest,
         org_plugins_root: root,
+        plugin_mcp_servers,
         client,
         bearer,
     }
@@ -145,7 +147,8 @@ fn read_cfg(home: &Path) -> String {
 
 fn apply(m: &SignedManifest, home: &Path) {
     let client = stub_client();
-    block_on(CodexCliSync.apply(&ctx(m, home, &client, ""))).unwrap();
+    let plugin_mcp_servers = std::collections::BTreeMap::new();
+    block_on(CodexCliSync.apply(&ctx(m, home, &client, "", &plugin_mcp_servers))).unwrap();
 }
 
 #[test]

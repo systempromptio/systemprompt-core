@@ -115,11 +115,19 @@ pub fn build_listing(mcp_auth: &[McpServerAuth]) -> MarketplaceListing {
     let (mut plugins, skills, hooks, mcp, agents) = match loc {
         Some(loc) => {
             let plugins = list_plugins(&loc.path);
-            let synthetic = loc.path.join(paths::SYNTHETIC_PLUGIN_NAME);
-            let skills = list_skills(&synthetic.join("skills"));
-            let agents = list_agents(&synthetic.join("agents"));
+            let mut skills = Vec::new();
+            let mut agents = Vec::new();
+            let mut hooks = Vec::new();
+            for dir in plugin_dirs(&loc.path) {
+                skills.extend(list_skills(&dir.join("skills")));
+                agents.extend(list_agents(&dir.join("agents")));
+                // Every plugin carries the same managed hooks file; one listing
+                // suffices.
+                if hooks.is_empty() {
+                    hooks = hooks::list_hooks(&dir.join("hooks"));
+                }
+            }
             let mcp = list_registry_mcp(mcp_auth);
-            let hooks = hooks::list_hooks(&synthetic.join("hooks"));
             (plugins, skills, hooks, mcp, agents)
         },
         None => (Vec::new(), Vec::new(), Vec::new(), Vec::new(), Vec::new()),
@@ -141,6 +149,20 @@ pub fn build_listing(mcp_auth: &[McpServerAuth]) -> MarketplaceListing {
         plugins_dir,
         last_sync_diff,
     }
+}
+
+fn plugin_dirs(root: &Path) -> Vec<PathBuf> {
+    let Ok(entries) = std::fs::read_dir(root) else {
+        return Vec::new();
+    };
+    let mut dirs: Vec<PathBuf> = entries
+        .flatten()
+        .filter(|e| e.file_type().is_ok_and(|t| t.is_dir()))
+        .filter(|e| e.file_name().to_str().is_some_and(|n| !n.starts_with('.')))
+        .map(|e| e.path())
+        .collect();
+    dirs.sort();
+    dirs
 }
 
 fn list_artifacts() -> Vec<MarketplaceItem> {

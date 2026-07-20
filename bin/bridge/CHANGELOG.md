@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.17.0] - 2026-07-20
+
+### Breaking
+
+- **Breaking:** removed the `Brand::synthetic_plugin_name` field. Migrate by deleting it from any custom `Brand` definition; managed plugins now keep the ids the gateway assigns.
+
+### Changed
+
+- Managed plugins from the gateway manifest are each installed as a distinct plugin in Claude Code and Claude Cowork — carrying their own name, skills, and agents — so the host UI lists one entry per plugin instead of a single merged entry. Managed MCP servers are attached per plugin through the local proxy.
+
+### Removed
+
+- The single aggregate `systemprompt-managed` plugin that combined every managed skill and agent into one host entry, along with its reserved-id guard.
+
 ## [0.16.0] - 2026-07-03
 
 ### Added

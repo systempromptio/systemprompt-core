@@ -7,14 +7,15 @@ mod error;
 mod hooks;
 pub(crate) mod hooks_schema;
 mod plugin;
-pub(super) mod synthetic_plugin;
 
 pub use error::{ApplyError, TomlError};
 pub use plugin::HostFailure;
-pub use synthetic_plugin::{
-    PLUGIN_INSTALLATION_PREFERENCE, prune_stale_locations_in, render_plugin_json,
-    write_synthetic_plugin,
-};
+
+pub const PLUGIN_INSTALLATION_PREFERENCE: &str = "required";
+
+// Pre-per-plugin bridges wrote one aggregate plugin under this name; every
+// apply prunes leftovers from all known roots.
+const LEGACY_SYNTHETIC_PLUGIN: &str = "systemprompt-managed";
 
 use crate::config::paths::{self, OrgPluginsLocation};
 use crate::config::{self as config};
@@ -37,17 +38,10 @@ pub(crate) async fn apply_manifest(
     let root = &location.path;
     let (meta_dir, staging_root) = prepare_dirs(root)?;
 
-    if let Some(reserved) = manifest
-        .plugins
-        .iter()
-        .find(|p| p.id.as_str() == paths::SYNTHETIC_PLUGIN_NAME)
-    {
-        return Err(ApplyError::ReservedPluginId(reserved.id.clone()));
-    }
-
     let mut report = plugin::apply_plugins(client, bearer, manifest, root, &staging_root).await?;
 
     _ = fs::remove_dir_all(&staging_root);
+    prune_legacy_state();
 
     let mcp_servers = rewrite_loopback_urls(&manifest.managed_mcp_servers);
     let manifest_for_write = manifest_with_servers(manifest, mcp_servers.clone());
@@ -56,9 +50,11 @@ pub(crate) async fn apply_manifest(
 
     crate::mcp_registry::publish(&mcp_servers);
 
+    let plugin_mcp_servers = report.mcp_servers_by_plugin.clone();
     let ctx = HostSyncCtx {
         manifest: &manifest_for_write,
         org_plugins_root: root,
+        plugin_mcp_servers: &plugin_mcp_servers,
         client,
         bearer,
     };
@@ -83,6 +79,37 @@ pub(crate) async fn apply_manifest(
     }
 
     Ok(report)
+}
+
+fn prune_legacy_state() {
+    for root in paths::all_known_org_plugins_roots() {
+        remove_legacy_dir(
+            &root.join(LEGACY_SYNTHETIC_PLUGIN),
+            "legacy aggregate plugin",
+        );
+        for marker in paths::LEGACY_ORG_PLUGINS_METADATA {
+            remove_legacy_dir(&root.join(marker), "legacy bridge metadata dir");
+        }
+    }
+}
+
+fn remove_legacy_dir(path: &Path, what: &str) {
+    if !path.exists() {
+        return;
+    }
+    match fs::remove_dir_all(path) {
+        Ok(()) => tracing::info!(
+            target: "bridge::sync",
+            path = %path.display(),
+            "pruned {what}"
+        ),
+        Err(e) => tracing::warn!(
+            target: "bridge::sync",
+            path = %path.display(),
+            error = %e,
+            "could not prune {what} (likely permissions); skipping"
+        ),
+    }
 }
 
 /// Rewrites loopback MCP URLs to the bridge's configured gateway host so a

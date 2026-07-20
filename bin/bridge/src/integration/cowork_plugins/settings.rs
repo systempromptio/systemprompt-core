@@ -53,6 +53,41 @@ pub fn enable_plugin(
     Ok(report)
 }
 
+/// Reconciles every `@{marketplace}` key to exactly `plugins`.
+///
+/// Stale keys are removed and missing ones inserted as `true`. Keys under other
+/// marketplaces (the user's own choices) are preserved verbatim. Returns
+/// whether anything changed.
+pub fn reconcile_marketplace(
+    root: &mut Map<String, Value>,
+    plugins: &[&str],
+    marketplace: &str,
+) -> Result<bool, CoworkPluginsError> {
+    let map = ensure_enabled_map(root)?;
+    let suffix = format!("@{marketplace}");
+    let expected: std::collections::BTreeSet<String> = plugins
+        .iter()
+        .map(|p| enabled_plugins_key(p, marketplace))
+        .collect();
+    let stale: Vec<String> = map
+        .keys()
+        .filter(|k| k.ends_with(&suffix) && !expected.contains(*k))
+        .cloned()
+        .collect();
+    let mut changed = false;
+    for key in stale {
+        map.remove(&key);
+        changed = true;
+    }
+    for key in expected {
+        if !matches!(map.get(&key), Some(Value::Bool(true))) {
+            map.insert(key, Value::Bool(true));
+            changed = true;
+        }
+    }
+    Ok(changed)
+}
+
 #[expect(
     clippy::unnecessary_wraps,
     reason = "Result-returning parity with enable_plugin for the symmetric enable/disable API"

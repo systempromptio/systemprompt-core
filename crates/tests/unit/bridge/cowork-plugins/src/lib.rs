@@ -8,5 +8,3 @@ mod cowork_adapter_settings;
 mod emit_io;
 #[cfg(test)]
 mod resolve_target_pick;
-#[cfg(test)]
-mod synthetic_plugin_installation_preference;

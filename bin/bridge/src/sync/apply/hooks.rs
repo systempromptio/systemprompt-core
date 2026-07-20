@@ -45,7 +45,10 @@ pub(super) fn write_hooks_json(
     Ok(())
 }
 
-pub(super) fn ensure_plugin_json_hooks_field(plugin_dir: &Path) -> Result<(), ApplyError> {
+/// Normalises a synced plugin.json for the managed contract: the hooks
+/// pointer, and `installationPreference` without which Cowork's MDM path shows
+/// "Contact an organization owner" instead of auto-installing.
+pub(super) fn ensure_plugin_json_managed_fields(plugin_dir: &Path) -> Result<(), ApplyError> {
     let Some(path) = super::plugin_manifest_path(plugin_dir) else {
         return Ok(());
     };
@@ -60,16 +63,24 @@ pub(super) fn ensure_plugin_json_hooks_field(plugin_dir: &Path) -> Result<(), Ap
     let Some(obj) = value.as_object_mut() else {
         return Ok(());
     };
-    let already = obj
+    let hooks_ok = obj
         .get("hooks")
         .and_then(serde_json::Value::as_str)
         .is_some_and(|s| s == "./hooks/hooks.json");
-    if already {
+    let pref_ok = obj
+        .get("installationPreference")
+        .and_then(serde_json::Value::as_str)
+        .is_some_and(|s| s == super::PLUGIN_INSTALLATION_PREFERENCE);
+    if hooks_ok && pref_ok {
         return Ok(());
     }
     obj.insert(
         "hooks".to_owned(),
         serde_json::Value::String("./hooks/hooks.json".to_owned()),
+    );
+    obj.insert(
+        "installationPreference".to_owned(),
+        serde_json::Value::String(super::PLUGIN_INSTALLATION_PREFERENCE.to_owned()),
     );
     let next = serde_json::to_vec_pretty(&value).map_err(|e| ApplyError::Serialize {
         what: "plugin.json".into(),

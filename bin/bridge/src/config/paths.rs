@@ -10,8 +10,6 @@ pub const LAST_SYNC_SENTINEL: &str = "last-sync.json";
 pub const USER_FRAGMENT: &str = "user.json";
 pub const MCP_SERVERS_FRAGMENT: &str = "mcp-servers.json";
 
-pub const SYNTHETIC_PLUGIN_NAME: &str = "systemprompt-managed";
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct OrgPluginsLocation {
     pub path: PathBuf,

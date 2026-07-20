@@ -4,13 +4,12 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use super::super::hash::{normalise_relative, safe_plugin_id, sha256_hex};
-use super::hooks::{ensure_plugin_json_hooks_field, write_hooks_json};
+use super::hooks::{ensure_plugin_json_managed_fields, write_hooks_json};
 use crate::auth::plugin_oauth::global_cache;
-use crate::config::paths;
 use crate::gateway::GatewayClient;
 use crate::gateway::manifest::{HookEntry, PluginEntry, SignedManifest};
 use crate::ids::Sha256Digest;
-use std::collections::HashSet;
+use std::collections::{BTreeMap, HashSet};
 use std::fs;
 use std::path::Path;
 
@@ -20,6 +19,9 @@ pub(crate) struct PluginApplyOutcome {
     pub removed: Vec<String>,
     pub malformed: Vec<String>,
     pub host_failures: Vec<HostFailure>,
+    /// MCP server names per plugin, recovered from each bundle's `.mcp.json`
+    /// before it is stripped from the Cowork-visible tree.
+    pub mcp_servers_by_plugin: BTreeMap<String, Vec<String>>,
 }
 
 #[derive(Debug, Clone)]
@@ -39,6 +41,7 @@ pub(super) async fn apply_plugins(
     let mut installed = Vec::new();
     let mut updated = Vec::new();
     let mut malformed = Vec::new();
+    let mut mcp_servers_by_plugin = BTreeMap::new();
 
     let ctx = PluginSyncCtx {
         client,
@@ -53,6 +56,10 @@ pub(super) async fn apply_plugins(
         match sync_one_plugin(&ctx, plugin, &manifest.hooks).await? {
             PluginChange::Installed(id) => installed.push(id),
             PluginChange::Updated(id) => updated.push(id),
+        }
+        let servers = extract_mcp_servers(&root.join(plugin.id.as_str()));
+        if !servers.is_empty() {
+            mcp_servers_by_plugin.insert(plugin.id.to_string(), servers);
         }
         if !is_well_formed(&root.join(plugin.id.as_str())) {
             tracing::warn!(
@@ -78,7 +85,37 @@ pub(super) async fn apply_plugins(
         removed,
         malformed,
         host_failures: Vec::new(),
+        mcp_servers_by_plugin,
     })
+}
+
+#[derive(serde::Deserialize)]
+struct McpFileProbe {
+    #[serde(rename = "mcpServers", default)]
+    mcp_servers: BTreeMap<String, serde_json::Value>,
+}
+
+// MCP deliberately never rides the Cowork-visible plugin dir: connectors come
+// from the managed-server policy, and a bundled `.mcp.json` would register a
+// second, unauthenticated copy. The file is parsed for its server names (the
+// CLI emitters re-project them through the bridge proxy) and then removed.
+fn extract_mcp_servers(plugin_dir: &Path) -> Vec<String> {
+    let path = plugin_dir.join(".mcp.json");
+    let Ok(bytes) = fs::read(&path) else {
+        return Vec::new();
+    };
+    let names = serde_json::from_slice::<McpFileProbe>(&bytes)
+        .map(|f| f.mcp_servers.into_keys().collect())
+        .unwrap_or_default();
+    if let Err(e) = fs::remove_file(&path) {
+        tracing::warn!(
+            target: "bridge::sync",
+            path = %path.display(),
+            error = %e,
+            "could not strip bundled .mcp.json"
+        );
+    }
+    names
 }
 
 fn is_well_formed(plugin_dir: &Path) -> bool {
@@ -122,7 +159,7 @@ async fn sync_one_plugin(
 
     let plugin_id_typed = systemprompt_identifiers::PluginId::new(plugin.id.as_str());
     write_hooks_json(&plugin_id_typed, &target, user_hooks)?;
-    ensure_plugin_json_hooks_field(&target)?;
+    ensure_plugin_json_managed_fields(&target)?;
 
     Ok(if was_present {
         PluginChange::Updated(plugin.id.to_string())
@@ -186,9 +223,6 @@ fn remove_stale(root: &Path, expected: &HashSet<&str>) -> Result<Vec<String>, su
             continue;
         };
         if name_str.starts_with('.') {
-            continue;
-        }
-        if name_str == paths::SYNTHETIC_PLUGIN_NAME {
             continue;
         }
         if !expected.contains(name_str) && entry.path().is_dir() {

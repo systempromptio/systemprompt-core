@@ -36,22 +36,10 @@ pub fn render_install_summary(s: &InstallSummary) -> String {
             meta.join(paths::USER_FRAGMENT).display()
         );
     }
-    let synthetic = s.location.path.join(paths::SYNTHETIC_PLUGIN_NAME);
-    _ = writeln!(out, "  managed plugin: {}", synthetic.display());
     _ = writeln!(
         out,
-        "    skills/:    {}",
-        synthetic.join("skills").display()
-    );
-    _ = writeln!(
-        out,
-        "    agents/:    {}",
-        synthetic.join("agents").display()
-    );
-    _ = writeln!(
-        out,
-        "    .mcp.json:  {}",
-        synthetic.join(".mcp.json").display()
+        "  managed plugins: {}/<plugin-id>/",
+        s.location.path.display()
     );
     _ = writeln!(out, "  binary:      {}", s.binary.display());
     _ = writeln!(

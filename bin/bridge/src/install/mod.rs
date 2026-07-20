@@ -132,14 +132,21 @@ pub fn uninstall(purge: bool) -> Result<UninstallSummary, InstallError> {
         _ = fs::remove_dir_all(&staging);
     }
 
-    let synthetic = location.path.join(paths::SYNTHETIC_PLUGIN_NAME);
-    if synthetic.exists() {
-        _ = fs::remove_dir_all(&synthetic);
+    if let Ok(entries) = fs::read_dir(&location.path) {
+        for entry in entries.flatten() {
+            let is_plugin_dir = entry.file_type().is_ok_and(|t| t.is_dir())
+                && entry
+                    .file_name()
+                    .to_str()
+                    .is_some_and(|n| !n.starts_with('.'));
+            if is_plugin_dir {
+                _ = fs::remove_dir_all(entry.path());
+            }
+        }
     }
 
     if let Some(target) = crate::integration::cowork_plugins::resolve_target()
-        && let Err(e) =
-            crate::integration::cowork_plugins::clear_all(&target, paths::SYNTHETIC_PLUGIN_NAME)
+        && let Err(e) = crate::integration::cowork_plugins::clear_all(&target)
     {
         diag(&format!("warning: Cowork enable-key cleanup failed: {e}"));
     }

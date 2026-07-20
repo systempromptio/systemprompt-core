@@ -18,6 +18,9 @@ use super::apply::ApplyError;
 pub struct HostSyncCtx<'a> {
     pub manifest: &'a SignedManifest,
     pub org_plugins_root: &'a Path,
+    /// MCP server names per plugin id, recovered from each bundle's stripped
+    /// `.mcp.json`; emitters re-project them through the bridge proxy.
+    pub plugin_mcp_servers: &'a std::collections::BTreeMap<String, Vec<String>>,
     pub client: &'a GatewayClient,
     pub bearer: &'a str,
 }
@@ -37,7 +40,6 @@ const DESKTOP_EMITTERS: &[&'static dyn HostSync] = &[];
 
 static REGISTRY: LazyLock<Vec<&'static dyn HostSync>> = LazyLock::new(|| {
     let mut v: Vec<&'static dyn HostSync> = Vec::new();
-    v.push(&crate::sync::apply::synthetic_plugin::ClaudeCodePluginSync);
     v.extend_from_slice(DESKTOP_EMITTERS);
     v.push(&crate::integration::cowork_plugins::CoworkSync);
     v.push(&crate::integration::cowork_artifacts::CoworkArtifactsSync);

@@ -14,13 +14,11 @@
 //! early call path safe).
 //!
 //! Note on scope: identifiers that form part of the *wire contract* with the
-//! gateway and the managed host apps — the synthetic managed-plugin name, the
-//! Codex marketplace/provider ids, the governance hook id — are deliberately
-//! NOT brand fields. They must stay in lockstep with what the gateway emits in
-//! its signed manifest, so changing them is a coordinated gateway+bridge
-//! change, not a per-client cosmetic swap. The one exception exposed here is
-//! [`Brand::synthetic_plugin_name`], surfaced so a fully self-hosted client
-//! deployment can rename it on both sides together.
+//! gateway and the managed host apps — plugin ids, the Codex
+//! marketplace/provider ids, the governance hook id — are deliberately NOT
+//! brand fields. They must stay in lockstep with what the gateway emits in its
+//! signed manifest, so changing them is a coordinated gateway+bridge change,
+//! not a per-client cosmetic swap.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -52,9 +50,6 @@ pub struct Brand {
     pub working_dir_name: &'static str,
     pub keyring_service: &'static str,
     pub env_prefix: &'static str,
-    /// WIRE-CONTRACT: must match the managed-plugin name the gateway signs into
-    /// its manifest; only rename alongside a coordinated gateway change.
-    pub synthetic_plugin_name: &'static str,
     pub default_gateway_url: &'static str,
     /// Gateway-relative consent-page path the session flow opens. Part of the
     /// deployment routing contract — must match where the gateway mounts it.
@@ -85,7 +80,6 @@ impl Brand {
         working_dir_name: "systemprompt-bridge",
         keyring_service: "systemprompt-bridge.oauth-client",
         env_prefix: "SP_BRIDGE",
-        synthetic_plugin_name: "systemprompt-managed",
         default_gateway_url: "http://localhost:8080",
         device_link_path: "/bridge/device-link",
         tray_tooltip: "systemprompt-bridge",

@@ -1,19 +1,13 @@
 //! End-to-end tests for the bridge sync/apply pipeline.
 //!
-//! Two seams are exercised:
-//!
-//! * [`systemprompt_bridge::sync::run_once`] — the only `pub` entry point that
-//!   drives the whole pipeline (PAT auth → manifest fetch → plugin-file fetch →
-//!   staging rename → synthetic-plugin write → hooks.json → MCP registry
-//!   publish → host emitters). It is wired against a `wiremock` gateway with
-//!   the bridge's config and all XDG dirs redirected into tempdirs via
-//!   `temp_env`. `apply_manifest` itself is `pub(crate)` and therefore not
-//!   reachable from an external test crate, so `run_once` stands in as the
-//!   integration driver.
-//! * [`systemprompt_bridge::sync::write_synthetic_plugin`] — the deterministic
-//!   synthetic-plugin writer, asserted directly for the
-//!   `installation_preference` contract, skill/agent materialisation, and hooks
-//!   wiring.
+//! [`systemprompt_bridge::sync::run_once`] is the only `pub` entry point that
+//! drives the whole pipeline (PAT auth → manifest fetch → plugin-file fetch →
+//! staging rename → per-plugin `plugin.json` normalisation → hooks.json → MCP
+//! registry publish → host emitters). It is wired against a `wiremock` gateway
+//! with the bridge's config and all XDG dirs redirected into tempdirs via
+//! `temp_env`. `apply_manifest` itself is `pub(crate)` and therefore not
+//! reachable from an external test crate, so `run_once` stands in as the
+//! integration driver.
 //!
 //! Because `run_once` reads process-global config and several `dirs`-resolved
 //! locations, those tests build a current-thread tokio runtime *inside* the
@@ -34,7 +28,7 @@ use systemprompt_bridge::ids::{
     ManagedMcpServerName, ManifestSignature, Sha256Digest, SkillId, SkillName,
 };
 use systemprompt_bridge::mcp_registry::normalize_key;
-use systemprompt_bridge::sync::{render_plugin_json, run_once, write_synthetic_plugin};
+use systemprompt_bridge::sync::run_once;
 use systemprompt_identifiers::HookId;
 use systemprompt_models::services::hooks::{HookCategory, HookEvent};
 use systemprompt_test_fixtures::fixture_user_id;
@@ -140,94 +134,6 @@ fn fresh_dir(label: &str) -> PathBuf {
     ));
     fs::create_dir_all(&p).unwrap();
     p
-}
-
-fn synthetic_manifest(
-    skills: Vec<SkillEntry>,
-    agents: Vec<AgentEntry>,
-    hooks: Vec<HookEntry>,
-) -> SignedManifest {
-    SignedManifest {
-        manifest_version: version(),
-        issued_at: "2026-05-01T12:00:00+00:00".into(),
-        not_before: "2026-05-01T12:00:00+00:00".into(),
-        user_id: fixture_user_id(),
-        tenant_id: None,
-        user: None,
-        plugins: vec![],
-        skills,
-        agents,
-        hooks,
-        managed_mcp_servers: vec![],
-        revocations: vec![],
-        enabled_hosts: vec![],
-        host_model_protocols: Default::default(),
-        artifacts: vec![],
-        signature: ManifestSignature::new("ignored"),
-    }
-}
-
-#[test]
-fn synthetic_plugin_renders_required_installation_preference() {
-    let bytes = render_plugin_json(version().as_str()).unwrap();
-    let value: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
-    assert_eq!(value["name"], "systemprompt-managed");
-    assert_eq!(value["installationPreference"], "required");
-}
-
-#[test]
-fn write_synthetic_materialises_skills_agents_and_hooks() {
-    let root = fresh_dir("synthetic");
-    let m = synthetic_manifest(
-        vec![skill("research", "# Research\n")],
-        vec![agent("triage")],
-        vec![hook()],
-    );
-
-    write_synthetic_plugin(&root, &m).unwrap();
-
-    let plugin_dir = root.join("systemprompt-managed");
-
-    let plugin_json = plugin_dir.join(".claude-plugin").join("plugin.json");
-    assert!(plugin_json.is_file(), "plugin.json missing");
-    let pj: serde_json::Value = serde_json::from_slice(&fs::read(&plugin_json).unwrap()).unwrap();
-    assert_eq!(pj["installationPreference"], "required");
-    assert_eq!(pj["hooks"], "./hooks/hooks.json");
-
-    assert!(
-        plugin_dir
-            .join("skills")
-            .join("research")
-            .join("SKILL.md")
-            .is_file(),
-        "skill not materialised"
-    );
-    assert!(
-        plugin_dir.join("agents").join("triage.md").is_file(),
-        "agent not materialised"
-    );
-    assert!(
-        plugin_dir.join("hooks").join("hooks.json").is_file(),
-        "hooks.json not written"
-    );
-}
-
-#[test]
-fn write_synthetic_with_no_content_removes_plugin() {
-    let root = fresh_dir("synthetic-empty");
-    write_synthetic_plugin(
-        &root,
-        &synthetic_manifest(vec![skill("x", "# x\n")], vec![], vec![]),
-    )
-    .unwrap();
-    let plugin_dir = root.join("systemprompt-managed");
-    assert!(plugin_dir.is_dir());
-
-    write_synthetic_plugin(&root, &synthetic_manifest(vec![], vec![], vec![])).unwrap();
-    assert!(
-        !plugin_dir.exists(),
-        "synthetic plugin must be removed when the manifest has no managed content"
-    );
 }
 
 #[test]
@@ -421,6 +327,10 @@ fn run_once_applies_full_manifest_end_to_end() {
         serde_json::from_slice(&fs::read(&fetched).unwrap()).unwrap();
     assert_eq!(fetched_json["name"], "acme-plugin");
     assert_eq!(fetched_json["hooks"], "./hooks/hooks.json");
+    assert_eq!(
+        fetched_json["installationPreference"], "required",
+        "each synced plugin.json must carry the managed installationPreference"
+    );
     assert!(
         org_plugins
             .join("acme-plugin")
@@ -430,29 +340,16 @@ fn run_once_applies_full_manifest_end_to_end() {
         "per-plugin hooks.json missing"
     );
 
-    let synth = org_plugins.join("systemprompt-managed");
-    let pj: serde_json::Value = serde_json::from_slice(
-        &fs::read(synth.join(".claude-plugin").join("plugin.json")).unwrap(),
-    )
-    .unwrap();
-    assert_eq!(pj["installationPreference"], "required");
     assert!(
-        synth
-            .join("skills")
-            .join("research")
-            .join("SKILL.md")
-            .is_file()
+        !org_plugins.join("systemprompt-managed").exists(),
+        "the legacy aggregate plugin must never be written"
     );
-    assert!(synth.join("agents").join("triage.md").is_file());
-    assert!(synth.join("hooks").join("hooks.json").is_file());
-
-    assert!(!synth.join(".mcp.json").exists());
 
     assert!(summary.one_line().contains("sync ok"));
 }
 
 #[test]
-fn run_once_empty_manifest_writes_no_synthetic_plugin() {
+fn run_once_empty_manifest_writes_no_plugins() {
     let rt = setup_runtime();
     let (server, dirs, pat_dir) = rt.block_on(async {
         let server = MockServer::start().await;
@@ -500,7 +397,7 @@ fn run_once_empty_manifest_writes_no_synthetic_plugin() {
     assert!(summary.installed.is_empty());
     assert!(
         !org_plugins.join("systemprompt-managed").exists(),
-        "synthetic plugin must not exist for an empty manifest"
+        "the legacy aggregate plugin must not exist for an empty manifest"
     );
 }
 

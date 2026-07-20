@@ -9,19 +9,23 @@ use std::path::Path;
 use crate::fsutil;
 
 use super::emit::{CoworkTarget, EmitError};
-use super::{COWORK_SETTINGS_FILE, disable_plugin, enable_plugin, parse_settings, render_settings};
+use super::{
+    COWORK_SETTINGS_FILE, disable_plugin, parse_settings, reconcile_marketplace, render_settings,
+};
 
-pub(super) fn upsert_enabled(
+pub(super) fn reconcile_enabled(
     target: &CoworkTarget,
-    plugin_name: &str,
+    plugins: &[&str],
     mp_name: &str,
 ) -> Result<bool, EmitError> {
     let path = target.session_org_dir.join(COWORK_SETTINGS_FILE);
     let bytes = read_bytes(&path)?;
     let mut root = parse_settings(&bytes)?;
-    let report = enable_plugin(&mut root, plugin_name, mp_name)?;
-    atomic_write(&path, &render_settings(&root)?)?;
-    Ok(report.set || report.already)
+    let changed = reconcile_marketplace(&mut root, plugins, mp_name)?;
+    if changed {
+        atomic_write(&path, &render_settings(&root)?)?;
+    }
+    Ok(changed)
 }
 
 pub(super) fn clear_enabled(

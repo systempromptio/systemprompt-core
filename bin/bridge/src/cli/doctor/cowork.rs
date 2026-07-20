@@ -8,7 +8,7 @@ use crate::config::paths;
 use super::Check;
 
 // Catches the silent "plugin on disk but Cowork never enabled it" state via the
-// enable key in cowork_settings.json.
+// enable keys in cowork_settings.json.
 pub fn check_cowork_enable() -> Check {
     use crate::integration::cowork_plugins::{
         COWORK_SETTINGS_FILE, enabled_plugins_key, resolve_target,
@@ -21,7 +21,16 @@ pub fn check_cowork_enable() -> Check {
         );
     };
     let settings = target.session_org_dir.join(COWORK_SETTINGS_FILE);
-    let key = enabled_plugins_key(paths::SYNTHETIC_PLUGIN_NAME, ORG_PROVISIONED);
+    let plugin_ids = synced_plugin_ids();
+    if plugin_ids.is_empty() {
+        return Check::warn(
+            "cowork enable",
+            format!(
+                "no synced plugin dirs found — run `{} sync`",
+                crate::brand::brand().binary_name
+            ),
+        );
+    }
     let Ok(text) = std::fs::read_to_string(&settings) else {
         return Check::warn(
             "cowork enable",
@@ -32,25 +41,51 @@ pub fn check_cowork_enable() -> Check {
             ),
         );
     };
-    let enabled = serde_json::from_str::<serde_json::Value>(&text)
+    let enabled_map = serde_json::from_str::<serde_json::Value>(&text)
         .ok()
         .and_then(|v| v.get("enabledPlugins").cloned())
-        .and_then(|v| v.get(&key).cloned())
-        == Some(serde_json::Value::Bool(true));
-    if enabled {
+        .unwrap_or_default();
+    let missing: Vec<String> = plugin_ids
+        .iter()
+        .map(|id| enabled_plugins_key(id, ORG_PROVISIONED))
+        .filter(|key| enabled_map.get(key) != Some(&serde_json::Value::Bool(true)))
+        .collect();
+    if missing.is_empty() {
         Check::ok(
             "cowork enable",
-            format!("{key} = true in {}", settings.display()),
+            format!(
+                "{} plugin(s) enabled in {}",
+                plugin_ids.len(),
+                settings.display()
+            ),
         )
     } else {
         Check::fail(
             "cowork enable",
             format!(
-                "{key} not set in {} — Cowork will not load the synced plugin",
+                "{} not set in {} — Cowork will not load those synced plugins",
+                missing.join(", "),
                 settings.display()
             ),
         )
     }
+}
+
+fn synced_plugin_ids() -> Vec<String> {
+    let Some(location) = paths::org_plugins_effective() else {
+        return Vec::new();
+    };
+    let Ok(entries) = std::fs::read_dir(&location.path) else {
+        return Vec::new();
+    };
+    let mut ids: Vec<String> = entries
+        .flatten()
+        .filter(|e| e.file_type().is_ok_and(|t| t.is_dir()))
+        .filter_map(|e| e.file_name().to_str().map(str::to_owned))
+        .filter(|n| !n.starts_with('.'))
+        .collect();
+    ids.sort();
+    ids
 }
 
 #[derive(serde::Deserialize)]
@@ -65,59 +100,76 @@ pub fn check_plugin_installation_preference() -> Check {
     let Some(location) = paths::org_plugins_effective() else {
         return Check::warn("plugin auto-install", "no org-plugins location resolvable");
     };
-    let plugin_json = location
-        .path
-        .join(paths::SYNTHETIC_PLUGIN_NAME)
-        .join(".claude-plugin")
-        .join("plugin.json");
-    let Ok(text) = std::fs::read_to_string(&plugin_json) else {
+    let plugin_ids = synced_plugin_ids();
+    if plugin_ids.is_empty() {
         return Check::warn(
             "plugin auto-install",
             format!(
-                "{} not present — run `{} sync`",
-                plugin_json.display(),
+                "no synced plugin dirs under {} — run `{} sync`",
+                location.path.display(),
                 crate::brand::brand().binary_name
             ),
         );
-    };
-    let Ok(probe) = serde_json::from_str::<PluginManifestProbe>(&text) else {
-        return Check::fail(
-            "plugin auto-install",
-            format!("{}: invalid JSON", plugin_json.display()),
-        );
-    };
-    match probe.installation_preference.as_deref() {
-        Some(pref @ ("required" | "auto_install")) => Check::ok(
-            "plugin auto-install",
-            format!(
-                "{} has installationPreference={pref}",
-                plugin_json.display(),
-            ),
-        ),
-        Some("available") => Check::fail(
-            "plugin auto-install",
-            format!(
-                "{}: installationPreference=available — Cowork will require a manual install \
-                 click, which surfaces \"Contact an organization owner\" under MDM",
-                plugin_json.display(),
-            ),
-        ),
-        Some(other) => Check::fail(
-            "plugin auto-install",
-            format!(
-                "{}: installationPreference={other} is not one of required|auto_install|available",
-                plugin_json.display(),
-            ),
-        ),
-        None => Check::fail(
-            "plugin auto-install",
-            format!(
-                "{}: installationPreference is missing — Cowork will default to \"available\" \
-                 (manual install, owner-gated)",
-                plugin_json.display(),
-            ),
-        ),
     }
+    for id in &plugin_ids {
+        let plugin_json = location
+            .path
+            .join(id)
+            .join(".claude-plugin")
+            .join("plugin.json");
+        let Ok(text) = std::fs::read_to_string(&plugin_json) else {
+            return Check::fail(
+                "plugin auto-install",
+                format!("{} not present", plugin_json.display()),
+            );
+        };
+        let Ok(probe) = serde_json::from_str::<PluginManifestProbe>(&text) else {
+            return Check::fail(
+                "plugin auto-install",
+                format!("{}: invalid JSON", plugin_json.display()),
+            );
+        };
+        match probe.installation_preference.as_deref() {
+            Some("required" | "auto_install") => {},
+            Some("available") => {
+                return Check::fail(
+                    "plugin auto-install",
+                    format!(
+                        "{}: installationPreference=available — Cowork will require a manual \
+                         install click, which surfaces \"Contact an organization owner\" under MDM",
+                        plugin_json.display(),
+                    ),
+                );
+            },
+            Some(other) => {
+                return Check::fail(
+                    "plugin auto-install",
+                    format!(
+                        "{}: installationPreference={other} is not one of \
+                         required|auto_install|available",
+                        plugin_json.display(),
+                    ),
+                );
+            },
+            None => {
+                return Check::fail(
+                    "plugin auto-install",
+                    format!(
+                        "{}: installationPreference is missing — Cowork will default to \
+                         \"available\" (manual install, owner-gated)",
+                        plugin_json.display(),
+                    ),
+                );
+            },
+        }
+    }
+    Check::ok(
+        "plugin auto-install",
+        format!(
+            "{} plugin(s) carry installationPreference=required|auto_install",
+            plugin_ids.len()
+        ),
+    )
 }
 
 // Warns when Cowork sessions exist but none matches the hard-coded

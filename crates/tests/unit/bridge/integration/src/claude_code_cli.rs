@@ -10,7 +10,8 @@ use systemprompt_bridge::integration::claude_code_cli::json_io::{
     object_entry, read_optional_object,
 };
 use systemprompt_bridge::integration::claude_code_cli::marketplace::{
-    installed_entry, marketplace_value, strip_known_marketplace, upsert_known_marketplace,
+    MarketplaceEntry, installed_entry, marketplace_value, strip_known_marketplace,
+    upsert_known_marketplace,
 };
 use tempfile::tempdir;
 
@@ -21,10 +22,24 @@ fn read(path: &Path) -> Value {
 #[test]
 fn marketplace_value_has_required_owner_object() {
     // `claude plugin validate` fails with "owner: expected object" without this.
-    let v = marketplace_value("v1");
+    let entries = vec![
+        MarketplaceEntry {
+            name: "plugin-a".into(),
+            description: "Plugin A".into(),
+            version: "1.0.0".into(),
+        },
+        MarketplaceEntry {
+            name: "plugin-b".into(),
+            description: "Plugin B".into(),
+            version: "1.0.0".into(),
+        },
+    ];
+    let v = marketplace_value("v1", &entries);
     assert!(v["owner"].is_object(), "owner must be an object");
     assert_eq!(v["name"], json!("org-provisioned"));
-    assert_eq!(v["plugins"][0]["name"], json!("systemprompt-managed"));
+    assert_eq!(v["plugins"][0]["name"], json!("plugin-a"));
+    assert_eq!(v["plugins"][0]["source"], json!("./plugins/plugin-a"));
+    assert_eq!(v["plugins"][1]["name"], json!("plugin-b"));
 }
 
 #[test]

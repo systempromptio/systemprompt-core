@@ -1,6 +1,6 @@
-//! Cowork desktop plugin integration: one write per session enabling the
-//! synthetic plugin in `cowork_settings.json`. Pure data in `settings`; IO in
-//! `emit`.
+//! Cowork desktop plugin integration: one write per session reconciling the
+//! org-provisioned plugin enables in `cowork_settings.json` to the manifest's
+//! plugin list. Pure data in `settings`; IO in `emit`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -16,7 +16,7 @@ pub use emit::{
 
 pub use settings::{
     SettingsReport, disable_plugin, enable_plugin, enabled_plugins_key, parse_settings,
-    render_settings,
+    reconcile_marketplace, render_settings,
 };
 
 pub(crate) const COWORK_SETTINGS_FILE: &str = "cowork_settings.json";
@@ -25,7 +25,6 @@ use thiserror::Error;
 
 use async_trait::async_trait;
 
-use crate::config::paths;
 use crate::sync::ApplyError;
 use crate::sync::host_sync::{HostSync, HostSyncCtx};
 
@@ -38,7 +37,7 @@ impl HostSync for CoworkSync {
         "cowork"
     }
 
-    async fn apply(&self, _ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError> {
+    async fn apply(&self, ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError> {
         let Some(target) = resolve_target() else {
             tracing::info!(
                 target: "bridge::cowork",
@@ -46,8 +45,8 @@ impl HostSync for CoworkSync {
             );
             return Ok(());
         };
-        let plugin_name = paths::SYNTHETIC_PLUGIN_NAME;
-        let report = apply_enable(&target, plugin_name).map_err(|e| ApplyError::Io {
+        let plugin_ids: Vec<&str> = ctx.manifest.plugins.iter().map(|p| p.id.as_str()).collect();
+        let report = apply_enable(&target, &plugin_ids).map_err(|e| ApplyError::Io {
             context: format!("cowork enable: {e}"),
             source: std::io::Error::other(e.to_string()),
         })?;
@@ -64,7 +63,7 @@ impl HostSync for CoworkSync {
         let Some(target) = resolve_target() else {
             return Ok(());
         };
-        clear_all(&target, paths::SYNTHETIC_PLUGIN_NAME).map_err(|e| ApplyError::Io {
+        clear_all(&target).map_err(|e| ApplyError::Io {
             context: format!("cowork clear: {e}"),
             source: std::io::Error::other(e.to_string()),
         })

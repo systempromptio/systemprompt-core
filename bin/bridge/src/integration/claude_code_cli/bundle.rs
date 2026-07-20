@@ -1,6 +1,6 @@
-//! Writes the on-disk plugin bundle the Claude CLI loads: the
-//! `.claude-plugin/plugin.json` descriptor, an optional `.mcp.json`, and one
-//! Markdown file per managed skill and agent.
+//! Mirrors synced org-plugin trees into the CLI's marketplace layout and
+//! re-projects each plugin's managed MCP servers through the bridge proxy as a
+//! plugin-local `.mcp.json`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -10,26 +10,41 @@ use std::path::Path;
 
 use serde_json::{Map, json};
 
-use super::json_io::write_json;
-use super::{PLUGIN_NAME, io_err};
-use crate::gateway::manifest::{AgentEntry, ManagedMcpServer, SignedManifest, SkillEntry};
-use crate::sync::{ApplyError, safe_id_segment};
+use super::io_err;
+use crate::sync::ApplyError;
 
-pub(super) fn write_bundle(root: &Path, manifest: &SignedManifest) -> Result<(), ApplyError> {
-    if root.exists() {
-        fs::remove_dir_all(root).map_err(|e| io_err(format!("clear {}", root.display()), e))?;
+pub(super) fn mirror_plugin(
+    src: &Path,
+    dst: &Path,
+    mcp_servers: &[String],
+) -> Result<(), ApplyError> {
+    if dst.exists() {
+        fs::remove_dir_all(dst).map_err(|e| io_err(format!("clear {}", dst.display()), e))?;
     }
-    fs::create_dir_all(root).map_err(|e| io_err(format!("create {}", root.display()), e))?;
+    copy_dir_all(src, dst)?;
+    if !mcp_servers.is_empty() {
+        write_mcp_json(dst, mcp_servers)?;
+    }
+    Ok(())
+}
 
-    write_plugin_json(root, manifest)?;
-    if !manifest.managed_mcp_servers.is_empty() {
-        write_mcp_json(root, &manifest.managed_mcp_servers)?;
-    }
-    for skill in &manifest.skills {
-        write_skill(root, skill)?;
-    }
-    for agent in &manifest.agents {
-        write_agent(root, agent)?;
+fn copy_dir_all(src: &Path, dst: &Path) -> Result<(), ApplyError> {
+    fs::create_dir_all(dst).map_err(|e| io_err(format!("create {}", dst.display()), e))?;
+    let entries =
+        fs::read_dir(src).map_err(|e| io_err(format!("read dir {}", src.display()), e))?;
+    for entry in entries {
+        let entry = entry.map_err(|e| io_err(format!("read dir {}", src.display()), e))?;
+        let from = entry.path();
+        let to = dst.join(entry.file_name());
+        let file_type = entry
+            .file_type()
+            .map_err(|e| io_err(format!("stat {}", from.display()), e))?;
+        if file_type.is_dir() {
+            copy_dir_all(&from, &to)?;
+        } else {
+            fs::copy(&from, &to)
+                .map_err(|e| io_err(format!("copy {} -> {}", from.display(), to.display()), e))?;
+        }
     }
     Ok(())
 }
@@ -42,107 +57,39 @@ pub(super) fn remove_dir(path: &Path) -> Result<(), ApplyError> {
     }
 }
 
-fn write_plugin_json(root: &Path, manifest: &SignedManifest) -> Result<(), ApplyError> {
-    let dir = root.join(".claude-plugin");
-    fs::create_dir_all(&dir).map_err(|e| io_err(format!("create {}", dir.display()), e))?;
-    let value = json!({
-        "name": PLUGIN_NAME,
-        "version": manifest.manifest_version.as_str(),
-        "description": "Skills, agents, and MCP servers managed by your systemprompt.io organization.",
-    });
-    write_json(&dir.join("plugin.json"), &value)
+pub(super) fn remove_stale_children(dir: &Path, expected: &[&str]) -> Result<(), ApplyError> {
+    let Ok(entries) = fs::read_dir(dir) else {
+        return Ok(());
+    };
+    for entry in entries.flatten() {
+        let name = entry.file_name();
+        let Some(name_str) = name.to_str() else {
+            continue;
+        };
+        if name_str.starts_with('.') || expected.contains(&name_str) {
+            continue;
+        }
+        if entry.path().is_dir() {
+            remove_dir(&entry.path())?;
+        }
+    }
+    Ok(())
 }
 
-fn write_mcp_json(root: &Path, servers: &[ManagedMcpServer]) -> Result<(), ApplyError> {
+fn write_mcp_json(root: &Path, servers: &[String]) -> Result<(), ApplyError> {
     let bearer = crate::proxy::loopback_bearer()
         .map_err(|e| io_err("read loopback secret for claude-code .mcp.json", e))?;
     let mut map = Map::new();
-    for s in servers {
-        let slug = crate::mcp_registry::normalize_key(s.name.as_str());
+    for name in servers {
+        let slug = crate::mcp_registry::normalize_key(name);
         map.insert(
             slug.clone(),
             json!({
-                "type": s.transport.as_deref().unwrap_or("http"),
+                "type": "http",
                 "url": crate::proxy::mcp_url(&slug),
                 "headers": { "Authorization": bearer.clone() },
             }),
         );
     }
-    write_json(&root.join(".mcp.json"), &json!({ "mcpServers": map }))
-}
-
-fn write_skill(root: &Path, skill: &SkillEntry) -> Result<(), ApplyError> {
-    if !safe_id_segment(skill.id.as_str()) {
-        return Err(ApplyError::UnsafeSkillId(skill.id.clone()));
-    }
-    let dir = root.join("skills").join(skill.id.as_str());
-    fs::create_dir_all(&dir).map_err(|e| io_err(format!("create {}", dir.display()), e))?;
-    fs::write(dir.join("SKILL.md"), skill_markdown(skill))
-        .map_err(|e| io_err(format!("write SKILL.md in {}", dir.display()), e))
-}
-
-fn write_agent(root: &Path, agent: &AgentEntry) -> Result<(), ApplyError> {
-    if !safe_id_segment(agent.name.as_str()) {
-        return Err(ApplyError::UnsafeAgentName(agent.name.to_string()));
-    }
-    let dir = root.join("agents");
-    fs::create_dir_all(&dir).map_err(|e| io_err(format!("create {}", dir.display()), e))?;
-    fs::write(
-        dir.join(format!("{}.md", agent.name)),
-        agent_markdown(agent),
-    )
-    .map_err(|e| io_err(format!("write agent in {}", dir.display()), e))
-}
-
-fn skill_markdown(skill: &SkillEntry) -> String {
-    if skill.instructions.trim_start().starts_with("---") {
-        return ensure_newline(skill.instructions.clone());
-    }
-    let mut out = String::from("---\n");
-    out.push_str(&format!("name: {}\n", skill.name.as_str()));
-    out.push_str(&format!(
-        "description: {}\n",
-        yaml_scalar(&skill.description)
-    ));
-    out.push_str("---\n\n");
-    out.push_str(&skill.instructions);
-    ensure_newline(out)
-}
-
-fn agent_markdown(agent: &AgentEntry) -> String {
-    let mut out = String::from("---\n");
-    out.push_str(&format!("name: {}\n", agent.name.as_str()));
-    out.push_str(&format!(
-        "description: {}\n",
-        yaml_scalar(&agent.description)
-    ));
-    if let Some(model) = &agent.model {
-        out.push_str(&format!("model: {}\n", yaml_scalar(model)));
-    }
-    out.push_str("---\n\n");
-    match &agent.system_prompt {
-        Some(p) => out.push_str(p),
-        None => out.push_str(&format!(
-            "# {}\n\n{}",
-            agent.display_name, agent.description
-        )),
-    }
-    ensure_newline(out)
-}
-
-fn ensure_newline(mut s: String) -> String {
-    if !s.ends_with('\n') {
-        s.push('\n');
-    }
-    s
-}
-
-fn yaml_scalar(s: &str) -> String {
-    let needs_quotes = s.contains(':')
-        || s.contains('#')
-        || s.starts_with(['-', '?', '!', '&', '*', '|', '>', '\'', '"', '%', '@', '`']);
-    if !needs_quotes {
-        return s.to_owned();
-    }
-    format!("\"{}\"", s.replace('"', "\\\""))
+    super::json_io::write_json(&root.join(".mcp.json"), &json!({ "mcpServers": map }))
 }

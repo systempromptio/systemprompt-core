@@ -84,11 +84,17 @@ fn print_cowork_status() {
                     "(not written)".into()
                 },
             );
-            let key = crate::integration::cowork_plugins::enabled_plugins_key(
-                paths::SYNTHETIC_PLUGIN_NAME,
-                "org-provisioned",
-            );
-            status_indent("enable key", key);
+            if let Some(loc) = paths::org_plugins_effective() {
+                for id in list_plugin_dirs(&loc.path) {
+                    status_indent(
+                        "enable key",
+                        crate::integration::cowork_plugins::enabled_plugins_key(
+                            &id,
+                            "org-provisioned",
+                        ),
+                    );
+                }
+            }
         },
         None => {
             status_line("cowork session", "(not detected)");
@@ -114,13 +120,31 @@ fn print_org_plugins_status(plugins_path: &std::path::Path) {
     if let Some(email) = read_user_email(&meta) {
         status_indent("identity", email);
     }
-    let synthetic = plugins_path.join(paths::SYNTHETIC_PLUGIN_NAME);
-    if let Some(n) = count_subdirs(&synthetic.join("skills")) {
-        status_indent("skills", n);
+    let plugin_ids = list_plugin_dirs(plugins_path);
+    status_indent("plugins", plugin_ids.len());
+    let mut skills = 0usize;
+    let mut agents = 0usize;
+    for id in &plugin_ids {
+        let dir = plugins_path.join(id);
+        skills += count_subdirs(&dir.join("skills")).unwrap_or(0);
+        agents += count_files_with_ext(&dir.join("agents"), "md").unwrap_or(0);
     }
-    if let Some(n) = count_files_with_ext(&synthetic.join("agents"), "md") {
-        status_indent("agents", n);
-    }
+    status_indent("skills", skills);
+    status_indent("agents", agents);
+}
+
+fn list_plugin_dirs(root: &std::path::Path) -> Vec<String> {
+    let Ok(entries) = std::fs::read_dir(root) else {
+        return Vec::new();
+    };
+    let mut ids: Vec<String> = entries
+        .flatten()
+        .filter(|e| e.file_type().is_ok_and(|t| t.is_dir()))
+        .filter_map(|e| e.file_name().to_str().map(str::to_owned))
+        .filter(|n| !n.starts_with('.'))
+        .collect();
+    ids.sort();
+    ids
 }
 
 fn read_user_email(meta: &std::path::Path) -> Option<String> {

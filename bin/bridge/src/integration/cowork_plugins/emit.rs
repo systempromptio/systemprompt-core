@@ -21,11 +21,15 @@ pub(super) const ORG_PROVISIONED_MARKETPLACE: &str = "org-provisioned";
 // scan, so every `apply_enable` purges them.
 const LEGACY_MARKETPLACE_TO_PURGE: &str = "systemprompt-bridge-managed";
 
+// Pre-per-plugin bridges enabled one aggregate plugin under this name; its
+// enable key and on-disk state are purged on every apply.
+const LEGACY_SYNTHETIC_PLUGIN: &str = "systemprompt-managed";
+
 const INSTALLED_PLUGINS_FILE: &str = "installed_plugins.json";
 const KNOWN_MARKETPLACES_FILE: &str = "known_marketplaces.json";
 
 use super::CoworkPluginsError;
-use super::upsert::{clear_enabled, upsert_enabled};
+use super::upsert::{clear_enabled, reconcile_enabled};
 use crate::fsutil;
 use serde_json::Value;
 
@@ -127,25 +131,25 @@ pub fn pick_target(candidates: &[(SystemTime, PathBuf)]) -> Option<PathBuf> {
     fallback
 }
 
-pub fn apply_enable(target: &CoworkTarget, plugin_name: &str) -> Result<EmitReport, EmitError> {
-    purge_legacy_marketplace(target, plugin_name, LEGACY_MARKETPLACE_TO_PURGE)?;
-    let enabled = upsert_enabled(target, plugin_name, ORG_PROVISIONED_MARKETPLACE)?;
+pub fn apply_enable(target: &CoworkTarget, plugin_ids: &[&str]) -> Result<EmitReport, EmitError> {
+    purge_legacy_marketplace(target, LEGACY_SYNTHETIC_PLUGIN, LEGACY_MARKETPLACE_TO_PURGE)?;
+    reconcile_enabled(target, plugin_ids, ORG_PROVISIONED_MARKETPLACE)?;
     tracing::info!(
         target: "bridge::cowork",
         session_org = %target.session_org_dir.display(),
-        plugin = plugin_name,
+        plugins = plugin_ids.len(),
         marketplace = ORG_PROVISIONED_MARKETPLACE,
-        "enabled bridge plugin in Cowork settings"
+        "reconciled bridge plugin enables in Cowork settings"
     );
     Ok(EmitReport {
         target: Some(target.session_org_dir.clone()),
-        enabled,
+        enabled: !plugin_ids.is_empty(),
     })
 }
 
-pub fn clear_all(target: &CoworkTarget, plugin_name: &str) -> Result<(), EmitError> {
-    clear_enabled(target, plugin_name, ORG_PROVISIONED_MARKETPLACE)?;
-    purge_legacy_marketplace(target, plugin_name, LEGACY_MARKETPLACE_TO_PURGE)?;
+pub fn clear_all(target: &CoworkTarget) -> Result<(), EmitError> {
+    reconcile_enabled(target, &[], ORG_PROVISIONED_MARKETPLACE)?;
+    purge_legacy_marketplace(target, LEGACY_SYNTHETIC_PLUGIN, LEGACY_MARKETPLACE_TO_PURGE)?;
     Ok(())
 }
 

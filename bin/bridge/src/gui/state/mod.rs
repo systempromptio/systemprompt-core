@@ -385,9 +385,8 @@ impl AppState {
                 snap.host_model_protocols = record.host_model_protocols;
             }
 
-            let synthetic = loc.path.join(paths::SYNTHETIC_PLUGIN_NAME);
-            snap.skill_count = counters::count_dir_children(&synthetic.join("skills"));
-            snap.agent_count = counters::count_md_files(&synthetic.join("agents"));
+            snap.skill_count = counters::count_skills_across_plugins(&loc.path);
+            snap.agent_count = counters::count_agents_across_plugins(&loc.path);
         }
     }
 }

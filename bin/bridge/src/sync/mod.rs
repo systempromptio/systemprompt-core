@@ -10,10 +10,7 @@ pub mod host_sync;
 mod manifest;
 mod replay;
 
-pub use apply::{
-    ApplyError, HostFailure, PLUGIN_INSTALLATION_PREFERENCE, TomlError, prune_stale_locations_in,
-    render_plugin_json, write_synthetic_plugin,
-};
+pub use apply::{ApplyError, HostFailure, PLUGIN_INSTALLATION_PREFERENCE, TomlError};
 pub use error::SyncError;
 pub(crate) use hash::{safe_id_segment, sha256_hex};
 pub use host_sync::{HostSync, HostSyncCtx};

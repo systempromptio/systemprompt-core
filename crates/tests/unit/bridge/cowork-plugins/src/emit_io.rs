@@ -2,6 +2,9 @@
 //! `XDG_CONFIG_HOME` session tree, and `apply_enable`/`clear_all` including the
 //! legacy session-marketplace purge.
 
+// `PLUGIN` doubles as a synced plugin id and, being the legacy aggregate name,
+// as the target of the legacy-state purge.
+
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -106,7 +109,7 @@ fn apply_enable_writes_enabled_key_and_purges_legacy_state() {
     )
     .unwrap();
 
-    let report = apply_enable(&target, PLUGIN).unwrap();
+    let report = apply_enable(&target, &[PLUGIN]).unwrap();
     assert!(report.enabled);
     assert_eq!(report.target.as_deref(), Some(org.as_path()));
 
@@ -139,12 +142,31 @@ fn apply_enable_without_legacy_state_is_clean() {
     fs::create_dir_all(org.join("cowork_plugins")).unwrap();
     let target = target_for(&org);
 
-    let report = apply_enable(&target, PLUGIN).unwrap();
+    let report = apply_enable(&target, &[PLUGIN]).unwrap();
     assert!(report.enabled);
     assert_eq!(
         settings(&org)["enabledPlugins"][format!("{PLUGIN}@org-provisioned")],
         true
     );
+}
+
+#[test]
+fn apply_enable_reconciles_to_the_current_plugin_set() {
+    let temp = tempdir().unwrap();
+    let org = temp.path().join("org");
+    fs::create_dir_all(org.join("cowork_plugins")).unwrap();
+    let target = target_for(&org);
+
+    apply_enable(&target, &["alpha", "beta"]).unwrap();
+    apply_enable(&target, &["beta", "gamma"]).unwrap();
+
+    let s = settings(&org);
+    assert!(
+        s["enabledPlugins"]["alpha@org-provisioned"].is_null(),
+        "a plugin dropped from the manifest must lose its enable key"
+    );
+    assert_eq!(s["enabledPlugins"]["beta@org-provisioned"], true);
+    assert_eq!(s["enabledPlugins"]["gamma@org-provisioned"], true);
 }
 
 #[test]
@@ -167,7 +189,7 @@ fn clear_all_removes_enabled_key_and_preserves_foreign_keys() {
     )
     .unwrap();
 
-    clear_all(&target, PLUGIN).unwrap();
+    clear_all(&target).unwrap();
 
     let s = settings(&org);
     assert!(s["enabledPlugins"][format!("{PLUGIN}@org-provisioned")].is_null());
@@ -180,6 +202,6 @@ fn clear_all_without_settings_file_is_noop() {
     let temp = tempdir().unwrap();
     let org = temp.path().join("org");
     fs::create_dir_all(org.join("cowork_plugins")).unwrap();
-    clear_all(&target_for(&org), PLUGIN).unwrap();
+    clear_all(&target_for(&org)).unwrap();
     assert!(!org.join("cowork_settings.json").exists());
 }
