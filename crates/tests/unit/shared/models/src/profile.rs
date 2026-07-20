@@ -40,7 +40,7 @@ fn make_server_config() -> ServerConfig {
 
 fn make_security_config() -> SecurityConfig {
     SecurityConfig {
-        issuer: "test-issuer".to_string(),
+        issuer: "https://issuer.test".to_string(),
         access_token_expiration: 3600,
         refresh_token_expiration: 86400,
         audiences: vec![JwtAudience::Api],
@@ -673,7 +673,10 @@ fn content_negotiation_default() {
 fn security_headers_default() {
     let config = SecurityHeadersConfig::default();
     assert!(config.enabled);
-    assert_eq!(config.frame_options, "DENY");
+    assert_eq!(
+        config.frame_options,
+        systemprompt_models::profile::FrameOptions::Deny
+    );
     assert_eq!(config.content_type_options, "nosniff");
     assert!(config.content_security_policy.is_none());
 }
@@ -755,5 +758,160 @@ fn validate_does_not_flag_audience_when_hook_present() {
     assert!(
         !msg.contains("allowed_resource_audiences"),
         "validator must not flag allowed_resource_audiences when \"hook\" is present; got: {msg}"
+    );
+}
+
+fn server_config_with_trusted_proxies(entries: &str) -> Result<ServerConfig, serde_yaml::Error> {
+    let mut value = serde_yaml::to_value(make_server_config()).expect("serialize server config");
+    value["trusted_proxies"] = serde_yaml::from_str(entries).expect("parse entries yaml");
+    serde_yaml::from_value(value)
+}
+
+#[test]
+fn trusted_proxies_rejects_malformed_cidr_at_load() {
+    let err = server_config_with_trusted_proxies("[\"10.0.0/8\"]")
+        .expect_err("a malformed CIDR must fail profile load, not be silently dropped");
+    assert!(
+        format!("{err}").contains("10.0.0/8"),
+        "load error must name the offending entry; got: {err}"
+    );
+}
+
+#[test]
+fn trusted_proxies_accepts_cidr_and_promotes_bare_address() {
+    let cfg = server_config_with_trusted_proxies("[\"10.0.0.0/8\", \"192.168.1.5\"]")
+        .expect("valid CIDR and bare address must parse");
+    let rendered: Vec<String> = cfg
+        .trusted_proxies
+        .iter()
+        .map(ToString::to_string)
+        .collect();
+    assert_eq!(rendered, ["10.0.0.0/8", "192.168.1.5/32"]);
+}
+
+fn valid_profile(name: &str) -> Profile {
+    let mut profile = make_profile(name);
+    profile.security.allowed_resource_audiences = vec!["hook".to_string()];
+    profile
+}
+
+#[test]
+fn validate_accepts_well_formed_profile() {
+    valid_profile("ok")
+        .validate()
+        .expect("a well-formed profile must validate");
+}
+
+#[test]
+fn validate_rejects_url_without_scheme() {
+    let mut profile = valid_profile("bad-url");
+    profile.server.api_external_url = "example.com".to_string();
+    let err = profile
+        .validate()
+        .expect_err("a scheme-less URL must fail validation");
+    assert!(
+        format!("{err}").contains("api_external_url"),
+        "validator must name the offending URL field; got: {err}"
+    );
+}
+
+#[test]
+fn validate_rejects_non_http_scheme() {
+    let mut profile = valid_profile("bad-scheme");
+    profile.security.issuer = "ftp://example.com".to_string();
+    let err = profile
+        .validate()
+        .expect_err("a non-http(s) issuer must fail validation");
+    assert!(format!("{err}").contains("security.issuer"), "got: {err}");
+}
+
+#[test]
+fn validate_rejects_cors_origin_with_path() {
+    let mut profile = valid_profile("bad-cors");
+    profile.server.cors_allowed_origins = vec!["https://example.com/app".to_string()];
+    let err = profile
+        .validate()
+        .expect_err("a CORS origin carrying a path must fail validation");
+    assert!(
+        format!("{err}").contains("no path/query/fragment"),
+        "got: {err}"
+    );
+}
+
+#[test]
+fn validate_rejects_trusted_issuer_non_https_jwks() {
+    use systemprompt_models::profile::TrustedIssuer;
+    let mut profile = valid_profile("bad-jwks");
+    profile.security.trusted_issuers = vec![TrustedIssuer {
+        issuer: "https://idp.example.com".to_string(),
+        jwks_uri: "http://idp.example.com/keys".to_string(),
+        audience: "client-abc".to_string(),
+        typ_allowlist: vec![],
+        allowed_client_ids: vec![],
+        can_issue_id_jag: false,
+    }];
+    let err = profile
+        .validate()
+        .expect_err("a plaintext-http JWKS endpoint must fail validation");
+    let msg = format!("{err}");
+    assert!(
+        msg.contains("jwks_uri") && msg.contains("https"),
+        "validator must flag the jwks_uri as https-only; got: {msg}"
+    );
+}
+
+#[test]
+fn validate_rejects_trusted_issuer_malformed_issuer() {
+    use systemprompt_models::profile::TrustedIssuer;
+    let mut profile = valid_profile("bad-issuer");
+    profile.security.trusted_issuers = vec![TrustedIssuer {
+        issuer: "not-a-url".to_string(),
+        jwks_uri: "https://idp.example.com/keys".to_string(),
+        audience: "client-abc".to_string(),
+        typ_allowlist: vec![],
+        allowed_client_ids: vec![],
+        can_issue_id_jag: false,
+    }];
+    let err = profile
+        .validate()
+        .expect_err("a malformed trusted-issuer URL must fail validation");
+    assert!(
+        format!("{err}").contains("trusted_issuers[0].issuer"),
+        "got: {err}"
+    );
+}
+
+#[test]
+fn validate_rejects_governance_webhook_malformed_url() {
+    use systemprompt_models::profile::{AuthzConfig, AuthzHookConfig, AuthzMode, GovernanceConfig};
+    let mut profile = valid_profile("bad-webhook");
+    profile.governance = Some(GovernanceConfig {
+        authz: Some(AuthzConfig {
+            hook: AuthzHookConfig {
+                mode: AuthzMode::Webhook,
+                url: Some("example.com/authz".to_string()),
+                timeout_ms: 500,
+                acknowledgement: None,
+            },
+        }),
+    });
+    let err = profile
+        .validate()
+        .expect_err("a scheme-less webhook URL must fail validation");
+    assert!(
+        format!("{err}").contains("governance.authz.hook.url"),
+        "got: {err}"
+    );
+}
+
+#[test]
+fn referrer_policy_deserializes_header_token() {
+    let policy: systemprompt_models::profile::ReferrerPolicy =
+        serde_yaml::from_str("same-origin").expect("valid token must parse");
+    assert_eq!(policy.header_value(), "same-origin");
+    assert!(
+        serde_yaml::from_str::<systemprompt_models::profile::ReferrerPolicy>("bogus-policy")
+            .is_err(),
+        "an unknown referrer-policy token must fail load"
     );
 }

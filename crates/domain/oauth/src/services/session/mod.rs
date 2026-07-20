@@ -9,14 +9,15 @@ mod lookup;
 use crate::error::OauthResult;
 use http::{HeaderMap, Uri};
 use std::collections::HashMap;
+use std::net::IpAddr;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use uuid::Uuid;
 
 use systemprompt_identifiers::{ClientId, SessionId, SessionSource, UserId};
 use systemprompt_traits::{
-    AnalyticsProvider, CreateSessionInput, FingerprintProvider, SessionAnalytics, UserEvent,
-    UserEventPublisher, UserProvider,
+    AnalyticsProvider, CreateSessionInput, ExtractSignals, FingerprintProvider, SessionAnalytics,
+    UserEvent, UserEventPublisher, UserProvider,
 };
 
 const MAX_SESSION_AGE_SECONDS: i64 = 7 * 24 * 60 * 60;
@@ -57,6 +58,7 @@ pub struct AuthenticatedSessionInfo {
 pub struct CreateAnonymousSessionInput<'a> {
     pub headers: &'a HeaderMap,
     pub uri: Option<&'a Uri>,
+    pub caller_ip: Option<IpAddr>,
     pub client_id: &'a ClientId,
     pub session_source: SessionSource,
 }
@@ -125,8 +127,11 @@ impl SessionCreationService {
         &self,
         headers: &HeaderMap,
         uri: Option<&Uri>,
+        caller_ip: Option<IpAddr>,
     ) -> OauthResult<(UserId, String)> {
-        let analytics = self.analytics_provider.extract_analytics(headers, uri);
+        let analytics = self
+            .analytics_provider
+            .extract_analytics(headers, ExtractSignals { uri, caller_ip });
         let fingerprint = analytics.compute_fingerprint();
         let user = self
             .user_provider
@@ -140,9 +145,13 @@ impl SessionCreationService {
         &self,
         input: CreateAnonymousSessionInput<'_>,
     ) -> OauthResult<AnonymousSessionInfo> {
-        let analytics = self
-            .analytics_provider
-            .extract_analytics(input.headers, input.uri);
+        let analytics = self.analytics_provider.extract_analytics(
+            input.headers,
+            ExtractSignals {
+                uri: input.uri,
+                caller_ip: input.caller_ip,
+            },
+        );
         let is_ai_crawler = analytics.is_ai_crawler();
         let is_bot = analytics.is_bot();
         let fingerprint = analytics.compute_fingerprint();
@@ -163,6 +172,7 @@ impl SessionCreationService {
         user_id: &UserId,
         headers: &HeaderMap,
         session_source: SessionSource,
+        caller_ip: Option<IpAddr>,
     ) -> Result<SessionId, SessionCreationError> {
         let user = self
             .user_provider
@@ -177,7 +187,13 @@ impl SessionCreationService {
         }
 
         let session_id = SessionId::new(format!("sess_{}", Uuid::new_v4()));
-        let analytics = self.analytics_provider.extract_analytics(headers, None);
+        let analytics = self.analytics_provider.extract_analytics(
+            headers,
+            ExtractSignals {
+                caller_ip,
+                ..Default::default()
+            },
+        );
         let is_ai_crawler = analytics.is_ai_crawler();
         let is_bot = analytics.is_bot();
 

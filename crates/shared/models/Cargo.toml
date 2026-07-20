@@ -43,6 +43,9 @@ http = { workspace = true }
 # URL parsing for outbound-endpoint (SSRF) validation
 url = { workspace = true }
 
+# Typed CIDR ranges for trusted_proxies (parse-on-deserialize, fail-closed)
+ipnet = { workspace = true }
+
 # Optional: sqlx::Type derives for DB-persisted enums (feature `sqlx`)
 sqlx = { workspace = true, optional = true }
 

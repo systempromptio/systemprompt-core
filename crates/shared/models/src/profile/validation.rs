@@ -17,6 +17,7 @@ impl Profile {
         let is_cloud = self.target.is_cloud();
 
         self.validate_required_fields(&mut errors);
+        self.validate_urls(&mut errors);
         self.validate_paths(&mut errors, is_cloud);
         self.validate_security_settings(&mut errors);
         self.validate_database_pool(&mut errors);
@@ -111,6 +112,80 @@ impl Profile {
     pub(super) fn require_non_empty(errors: &mut Vec<String>, value: &str, field_name: &str) {
         if value.is_empty() {
             errors.push(format!("{field_name} is required"));
+        }
+    }
+
+    pub(super) fn validate_urls(&self, errors: &mut Vec<String>) {
+        for (name, value) in [
+            ("server.api_server_url", self.server.api_server_url.as_str()),
+            (
+                "server.api_internal_url",
+                self.server.api_internal_url.as_str(),
+            ),
+            (
+                "server.api_external_url",
+                self.server.api_external_url.as_str(),
+            ),
+            ("security.issuer", self.security.issuer.as_str()),
+        ] {
+            Self::require_absolute_url(errors, name, value, false);
+        }
+
+        if !self.server.host.is_empty() && self.server.host.contains("://") {
+            errors.push(format!(
+                "server.host must be a bare hostname or IP, not a URL (got: {})",
+                self.server.host
+            ));
+        }
+
+        for (idx, issuer) in self.security.trusted_issuers.iter().enumerate() {
+            Self::require_absolute_url(
+                errors,
+                &format!("security.trusted_issuers[{idx}].issuer"),
+                &issuer.issuer,
+                false,
+            );
+            Self::require_absolute_url(
+                errors,
+                &format!("security.trusted_issuers[{idx}].jwks_uri"),
+                &issuer.jwks_uri,
+                true,
+            );
+        }
+
+        if let Some(hook) = self.governance.as_ref().and_then(|g| g.authz.as_ref())
+            && let Some(url) = hook.hook.url.as_deref()
+        {
+            Self::require_absolute_url(errors, "governance.authz.hook.url", url, false);
+        }
+    }
+
+    fn require_absolute_url(errors: &mut Vec<String>, field: &str, value: &str, https_only: bool) {
+        if value.is_empty() {
+            return;
+        }
+        let allowed: &[&str] = if https_only {
+            &["https"]
+        } else {
+            &["http", "https"]
+        };
+        match url::Url::parse(value) {
+            Ok(url) if !allowed.contains(&url.scheme()) => {
+                errors.push(format!(
+                    "{field} must be {} (got scheme '{}': {value})",
+                    if https_only {
+                        "an https URL"
+                    } else {
+                        "an http(s) URL"
+                    },
+                    url.scheme()
+                ));
+            },
+            Ok(url) if url.host_str().is_none_or(str::is_empty) => {
+                errors.push(format!("{field} must include a host (got: {value})"));
+            },
+            Ok(_) => {},
+            Err(e) => errors.push(format!("{field} is not a valid URL ({e}): {value}")),
         }
     }
 
@@ -217,13 +292,32 @@ impl Profile {
                 continue;
             }
 
-            let is_https = origin.starts_with("https://");
-            let is_loopback_http = origin.starts_with("http://localhost")
-                || origin.starts_with("http://127.0.0.1")
-                || origin.starts_with("http://[::1]");
-            if !is_https && !is_loopback_http {
+            let parsed = match url::Url::parse(origin) {
+                Ok(url) => url,
+                Err(e) => {
+                    errors.push(format!("Invalid CORS origin ({e}): {origin}"));
+                    continue;
+                },
+            };
+
+            let Some(host) = parsed.host_str() else {
+                errors.push(format!("CORS origin must include a host: {origin}"));
+                continue;
+            };
+
+            let bare_host = host.trim_start_matches('[').trim_end_matches(']');
+            let is_loopback_http =
+                parsed.scheme() == "http" && matches!(bare_host, "localhost" | "127.0.0.1" | "::1");
+            if parsed.scheme() != "https" && !is_loopback_http {
                 errors.push(format!(
                     "Invalid CORS origin (must be https:// or http://localhost): {origin}"
+                ));
+                continue;
+            }
+
+            if parsed.path() != "/" || parsed.query().is_some() || parsed.fragment().is_some() {
+                errors.push(format!(
+                    "CORS origin must be scheme://host[:port] with no path/query/fragment: {origin}"
                 ));
             }
         }

@@ -6,23 +6,25 @@
 use std::sync::Arc;
 use systemprompt_analytics::AnalyticsService;
 use systemprompt_identifiers::{ClientId, SessionId, SessionSource, UserId};
+
+use super::RequestMeta;
 use systemprompt_models::api::ApiError;
 use systemprompt_oauth::services::{
     CreateAnonymousSessionInput, SessionCreationError, SessionCreationService,
 };
+use systemprompt_traits::ExtractSignals;
 
 pub(super) async fn create_new_session(
     session_creation_service: &Arc<SessionCreationService>,
-    headers: &http::HeaderMap,
-    uri: &http::Uri,
-    _method: &http::Method,
+    meta: &RequestMeta<'_>,
 ) -> Result<(SessionId, UserId, String, bool, String), ApiError> {
     let client_id = ClientId::new("sp_web".to_owned());
 
     session_creation_service
         .create_anonymous_session(CreateAnonymousSessionInput {
-            headers,
-            uri: Some(uri),
+            headers: meta.headers,
+            uri: Some(meta.uri),
+            caller_ip: meta.caller_ip,
             client_id: &client_id,
             session_source: SessionSource::Web,
         })
@@ -46,11 +48,10 @@ pub(super) async fn refresh_session_for_user(
     session_creation_service: &Arc<SessionCreationService>,
     analytics_service: &Arc<AnalyticsService>,
     user_id: &UserId,
-    headers: &http::HeaderMap,
-    uri: &http::Uri,
+    meta: &RequestMeta<'_>,
 ) -> Result<(SessionId, UserId, String, bool, String), ApiError> {
     let session_id = session_creation_service
-        .create_authenticated_session(user_id, headers, SessionSource::Web)
+        .create_authenticated_session(user_id, meta.headers, SessionSource::Web, meta.caller_ip)
         .await
         .map_err(|e| match e {
             SessionCreationError::UserNotFound { ref user_id } => {
@@ -81,7 +82,13 @@ pub(super) async fn refresh_session_for_user(
         ApiError::internal_error("Failed to refresh session")
     })?;
 
-    let analytics = analytics_service.extract_analytics(headers, Some(uri));
+    let analytics = analytics_service.extract_analytics(
+        meta.headers,
+        ExtractSignals {
+            uri: Some(meta.uri),
+            caller_ip: meta.caller_ip,
+        },
+    );
     let fingerprint = AnalyticsService::compute_fingerprint(&analytics);
 
     Ok((session_id, user_id.clone(), token, true, fingerprint))

@@ -5002,6 +5002,7 @@ dependencies = [
  "futures-util",
  "http",
  "indexmap",
+ "ipnet",
  "regex",
  "rmcp",
  "schemars",

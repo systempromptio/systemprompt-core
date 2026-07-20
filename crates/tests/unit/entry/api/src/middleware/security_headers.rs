@@ -34,7 +34,10 @@ fn default_hsts_includes_preload() {
 #[test]
 fn default_frame_options_is_deny() {
     let config = SecurityHeadersConfig::default();
-    assert_eq!(config.frame_options, "DENY");
+    assert_eq!(
+        config.frame_options,
+        systemprompt_extension::FrameOptions::Deny
+    );
 }
 
 #[test]
@@ -46,7 +49,10 @@ fn default_content_type_options_is_nosniff() {
 #[test]
 fn default_referrer_policy() {
     let config = SecurityHeadersConfig::default();
-    assert_eq!(config.referrer_policy, "strict-origin-when-cross-origin");
+    assert_eq!(
+        config.referrer_policy.header_value(),
+        "strict-origin-when-cross-origin"
+    );
 }
 
 #[test]
@@ -87,14 +93,19 @@ fn custom_csp_can_be_set() {
 fn all_default_values_are_valid_http_header_values() {
     let config = SecurityHeadersConfig::default();
     assert!(config.hsts.parse::<http::HeaderValue>().is_ok());
-    assert!(config.frame_options.parse::<http::HeaderValue>().is_ok());
+    assert!(
+        config
+            .frame_options
+            .header_value()
+            .is_none_or(|v| http::HeaderValue::from_str(v).is_ok())
+    );
     assert!(
         config
             .content_type_options
             .parse::<http::HeaderValue>()
             .is_ok()
     );
-    assert!(config.referrer_policy.parse::<http::HeaderValue>().is_ok());
+    assert!(http::HeaderValue::from_str(config.referrer_policy.header_value()).is_ok());
     assert!(
         config
             .permissions_policy

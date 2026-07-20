@@ -17,44 +17,22 @@
 //! `X-Real-IP` and `CF-Connecting-IP` are honoured only under rule 2's
 //! trust gate; otherwise they are ignored.
 //!
-//! `parse_trusted_proxies` drops invalid CIDR entries with a `tracing::warn!`
-//! rather than failing bootstrap: a single typo in a profile must not take
-//! the whole replica offline.
+//! The trusted-proxy CIDR set is parsed and validated when the profile
+//! loads (`ServerConfig::trusted_proxies` deserialises to `Vec<IpNet>`);
+//! an invalid entry fails boot rather than being silently dropped, so this
+//! resolver only ever sees a validated set.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::convert::Infallible;
+use std::future::{Future, ready};
 use std::net::{IpAddr, SocketAddr};
 
-use axum::extract::ConnectInfo;
+use axum::extract::{ConnectInfo, FromRequestParts};
 use axum::http::HeaderMap;
+use axum::http::request::Parts;
 use ipnet::IpNet;
-
-#[must_use]
-pub fn parse_trusted_proxies(raw: &[String]) -> Vec<IpNet> {
-    raw.iter()
-        .filter_map(|s| {
-            let trimmed = s.trim();
-            if trimmed.is_empty() {
-                return None;
-            }
-            if let Ok(net) = trimmed.parse::<IpNet>() {
-                return Some(net);
-            }
-            if let Ok(addr) = trimmed.parse::<IpAddr>() {
-                let prefix = match addr {
-                    IpAddr::V4(_) => 32,
-                    IpAddr::V6(_) => 128,
-                };
-                if let Ok(net) = IpNet::new(addr, prefix) {
-                    return Some(net);
-                }
-            }
-            tracing::warn!(entry = %trimmed, "ignoring invalid trusted_proxies entry");
-            None
-        })
-        .collect()
-}
 
 fn is_trusted(addr: IpAddr, trusted: &[IpNet]) -> bool {
     trusted.iter().any(|net| net.contains(&addr))
@@ -97,4 +75,41 @@ pub fn resolve_client_ip(
     }
 
     Some(peer_ip)
+}
+
+#[must_use]
+pub fn resolve_client_ip_from_config(
+    headers: &HeaderMap,
+    connect_info: Option<&ConnectInfo<SocketAddr>>,
+) -> Option<IpAddr> {
+    let trusted = systemprompt_models::Config::get()
+        .map(|c| c.trusted_proxies.clone())
+        .unwrap_or_default();
+    resolve_client_ip(headers, connect_info, &trusted)
+}
+
+#[must_use]
+pub fn client_ip_from_request(request: &axum::extract::Request) -> Option<IpAddr> {
+    resolve_client_ip_from_config(
+        request.headers(),
+        request.extensions().get::<ConnectInfo<SocketAddr>>(),
+    )
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct ClientIp(pub Option<IpAddr>);
+
+impl<S: Sync> FromRequestParts<S> for ClientIp {
+    type Rejection = Infallible;
+
+    fn from_request_parts(
+        parts: &mut Parts,
+        _state: &S,
+    ) -> impl Future<Output = Result<Self, Infallible>> + Send {
+        let resolved = resolve_client_ip_from_config(
+            &parts.headers,
+            parts.extensions.get::<ConnectInfo<SocketAddr>>(),
+        );
+        ready(Ok(Self(resolved)))
+    }
 }

@@ -8,7 +8,10 @@ use axum::extract::State;
 use axum::http::{HeaderMap, HeaderValue, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use serde::{Deserialize, Serialize};
+use std::net::IpAddr;
 use std::sync::Arc;
+
+use crate::services::middleware::client_addr::ClientIp;
 
 use systemprompt_identifiers::{ClientId, SessionId, SessionSource, UserId};
 use systemprompt_models::auth::TokenType;
@@ -60,9 +63,10 @@ async fn issue_anonymous_session(
     session_service: &SessionCreationService,
     req: &AnonymousTokenRequest,
     headers: &HeaderMap,
+    caller_ip: Option<IpAddr>,
     client_type: String,
-    expires_in: i64,
 ) -> Result<Response, OAuthHttpError> {
+    let expires_in = systemprompt_oauth::constants::token::ANONYMOUS_TOKEN_EXPIRY_SECONDS;
     let client_id = req.client_id.clone();
     let session_source = SessionSource::from_client_id(&req.client_id);
 
@@ -70,6 +74,7 @@ async fn issue_anonymous_session(
         .create_anonymous_session(CreateAnonymousSessionInput {
             headers,
             uri: None,
+            caller_ip,
             client_id: &client_id,
             session_source,
         })
@@ -105,10 +110,10 @@ fn build_session_service(state: &OAuthState) -> SessionCreationService {
 
 pub async fn generate_anonymous_token(
     State(state): State<OAuthState>,
+    ClientIp(caller_ip): ClientIp,
     headers: HeaderMap,
     Json(req): Json<AnonymousTokenRequest>,
 ) -> Result<Response, OAuthHttpError> {
-    let expires_in = systemprompt_oauth::constants::token::ANONYMOUS_TOKEN_EXPIRY_SECONDS;
     let client_id = req.client_id.clone();
 
     let validator = ClientValidator::new(state.db_pool()).map_err(|e| {
@@ -127,8 +132,8 @@ pub async fn generate_anonymous_token(
         &session_service,
         &req,
         &headers,
+        caller_ip,
         client_type.to_string(),
-        expires_in,
     )
     .await
 }

@@ -9,6 +9,7 @@ use systemprompt_database::DbPool;
 use systemprompt_identifiers::{SessionId, SessionSource};
 use systemprompt_models::ContentRouting;
 use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
+use systemprompt_traits::ExtractSignals;
 use tokio::sync::{Mutex, MutexGuard, OnceCell};
 use uuid::Uuid;
 
@@ -141,7 +142,13 @@ async fn create_session_persists_extracted_attribution() -> Result<()> {
     let uri: Uri = "https://example.com/?utm_source=google&utm_medium=organic&utm_campaign=product-launch&utm_content=hero&utm_term=agents"
         .parse()?;
 
-    let analytics = service.extract_analytics(&headers, Some(&uri));
+    let analytics = service.extract_analytics(
+        &headers,
+        ExtractSignals {
+            uri: Some(&uri),
+            ..Default::default()
+        },
+    );
     assert!(!AnalyticsService::is_bot(&analytics));
 
     let session_id = fx
@@ -202,7 +209,13 @@ async fn recent_fingerprint_lookup_deduplicates_sessions() -> Result<()> {
     let headers = Fixture::headers(&fx.user_agent("dedup"), None);
     let uri: Uri = "https://example.com/".parse()?;
 
-    let analytics = service.extract_analytics(&headers, Some(&uri));
+    let analytics = service.extract_analytics(
+        &headers,
+        ExtractSignals {
+            uri: Some(&uri),
+            ..Default::default()
+        },
+    );
     let fingerprint = AnalyticsService::compute_fingerprint(&analytics);
     let session_id = fx
         .create_session(&service, &analytics, expires_in_one_hour())
@@ -214,7 +227,13 @@ async fn recent_fingerprint_lookup_deduplicates_sessions() -> Result<()> {
     assert_eq!(found.map(|record| record.session_id), Some(session_id));
 
     let other_headers = Fixture::headers(&fx.user_agent("dedup-other"), None);
-    let other_analytics = service.extract_analytics(&other_headers, Some(&uri));
+    let other_analytics = service.extract_analytics(
+        &other_headers,
+        ExtractSignals {
+            uri: Some(&uri),
+            ..Default::default()
+        },
+    );
     let other_fingerprint = AnalyticsService::compute_fingerprint(&other_analytics);
     assert_ne!(fingerprint, other_fingerprint);
     assert!(
@@ -234,7 +253,13 @@ async fn ended_session_excluded_from_fingerprint_dedup() -> Result<()> {
     let headers = Fixture::headers(&fx.user_agent("ended"), None);
     let uri: Uri = "https://example.com/".parse()?;
 
-    let analytics = service.extract_analytics(&headers, Some(&uri));
+    let analytics = service.extract_analytics(
+        &headers,
+        ExtractSignals {
+            uri: Some(&uri),
+            ..Default::default()
+        },
+    );
     let fingerprint = AnalyticsService::compute_fingerprint(&analytics);
     let session_id = fx
         .create_session(&service, &analytics, expires_in_one_hour())
@@ -259,7 +284,13 @@ async fn bot_user_agent_session_marked_is_bot() -> Result<()> {
     for bot_ua in ["Go-http-client/2.0", "Googlebot/2.1"] {
         let headers = Fixture::headers(bot_ua, None);
         let uri: Uri = "https://example.com/".parse()?;
-        let analytics = service.extract_analytics(&headers, Some(&uri));
+        let analytics = service.extract_analytics(
+            &headers,
+            ExtractSignals {
+                uri: Some(&uri),
+                ..Default::default()
+            },
+        );
         assert!(AnalyticsService::is_bot(&analytics), "{bot_ua} not a bot");
 
         let session_id = fx
@@ -282,7 +313,13 @@ async fn request_count_and_activity_tracking() -> Result<()> {
     let headers = Fixture::headers(&fx.user_agent("count"), None);
     let uri: Uri = "https://example.com/".parse()?;
 
-    let analytics = service.extract_analytics(&headers, Some(&uri));
+    let analytics = service.extract_analytics(
+        &headers,
+        ExtractSignals {
+            uri: Some(&uri),
+            ..Default::default()
+        },
+    );
     let session_id = fx
         .create_session(&service, &analytics, expires_in_one_hour())
         .await?;
@@ -315,7 +352,13 @@ async fn create_session_upserts_on_duplicate_id() -> Result<()> {
     let headers = Fixture::headers(&fx.user_agent("upsert"), None);
     let uri: Uri = "https://example.com/".parse()?;
 
-    let analytics = service.extract_analytics(&headers, Some(&uri));
+    let analytics = service.extract_analytics(
+        &headers,
+        ExtractSignals {
+            uri: Some(&uri),
+            ..Default::default()
+        },
+    );
     let session_id = fx
         .create_session(&service, &analytics, expires_in_one_hour())
         .await?;

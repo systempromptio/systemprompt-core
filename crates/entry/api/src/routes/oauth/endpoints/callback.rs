@@ -20,6 +20,7 @@ use systemprompt_models::Config;
 use systemprompt_models::auth::{AuthenticatedUser, Permission, parse_permissions};
 
 use crate::routes::oauth::extractors::OAuthRepo;
+use crate::services::middleware::client_addr::ClientIp;
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::repository::{OAuthRepository, RefreshTokenParams};
 
@@ -33,6 +34,7 @@ pub async fn handle_callback(
     Query(params): Query<CallbackQuery>,
     State(state): State<OAuthState>,
     OAuthRepo(repo): OAuthRepo,
+    ClientIp(caller_ip): ClientIp,
     headers: HeaderMap,
 ) -> impl IntoResponse {
     let config = match Config::get() {
@@ -65,6 +67,7 @@ pub async fn handle_callback(
     let token_response = match exchange_code_for_token(
         &repo,
         CodeExchangeParams {
+            caller_ip,
             code: &code,
             client_id: &client_id,
             redirect_uri: &redirect_uri,
@@ -148,6 +151,7 @@ async fn find_browser_client(
 }
 
 struct CodeExchangeParams<'a> {
+    caller_ip: Option<std::net::IpAddr>,
     code: &'a AuthorizationCode,
     client_id: &'a ClientId,
     redirect_uri: &'a str,
@@ -188,6 +192,7 @@ async fn exchange_code_for_token(
             &validation_result.user_id,
             params.headers,
             SessionSource::Oauth,
+            params.caller_ip,
         )
         .await?;
 

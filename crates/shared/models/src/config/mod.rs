@@ -76,7 +76,7 @@ pub struct Config {
     pub use_https: bool,
     pub rate_limits: RateLimitConfig,
     pub cors_allowed_origins: Vec<String>,
-    pub trusted_proxies: Vec<String>,
+    pub trusted_proxies: Vec<ipnet::IpNet>,
     pub is_cloud: bool,
     pub content_negotiation: ContentNegotiationConfig,
     pub security_headers: SecurityHeadersConfig,

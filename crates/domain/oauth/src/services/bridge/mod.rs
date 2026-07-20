@@ -14,13 +14,14 @@ use rand::Rng;
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
+use std::net::IpAddr;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{
     ClientId, PolicyVersion, SessionId, SessionSource, TraceId, UserId, headers,
 };
 use systemprompt_models::Config;
 use systemprompt_models::auth::{AuthenticatedUser, JwtAudience};
-use systemprompt_traits::{AnalyticsProvider, CreateSessionInput};
+use systemprompt_traits::{AnalyticsProvider, CreateSessionInput, ExtractSignals};
 
 use crate::repository::{CreateExchangeCodeParams, OAuthRepository};
 use crate::services::generation::{
@@ -41,6 +42,7 @@ pub struct BridgeAuthResult {
 #[derive(Debug)]
 pub struct BridgeAccessRequest<'a> {
     pub request_headers: &'a HeaderMap,
+    pub caller_ip: Option<IpAddr>,
     pub user_id: &'a UserId,
     pub client_id: ClientId,
     pub session_source: SessionSource,
@@ -51,6 +53,7 @@ pub async fn issue_bridge_access(
     pool: &DbPool,
     analytics: &dyn AnalyticsProvider,
     request_headers: &HeaderMap,
+    caller_ip: Option<IpAddr>,
     user_id: &UserId,
 ) -> Result<BridgeAuthResult> {
     issue_bridge_access_with(
@@ -58,6 +61,7 @@ pub async fn issue_bridge_access(
         analytics,
         BridgeAccessRequest {
             request_headers,
+            caller_ip,
             user_id,
             client_id: ClientId::bridge(),
             session_source: SessionSource::Bridge,
@@ -74,6 +78,7 @@ pub async fn issue_bridge_access_with(
 ) -> Result<BridgeAuthResult> {
     let BridgeAccessRequest {
         request_headers,
+        caller_ip,
         user_id,
         client_id,
         session_source,
@@ -116,7 +121,13 @@ pub async fn issue_bridge_access_with(
     // here so the token and its session are born together. Analytics is
     // captured from the credential-exchange request so the session is traceable
     // to the device that minted it.
-    let session_analytics = analytics.extract_analytics(request_headers, None);
+    let session_analytics = analytics.extract_analytics(
+        request_headers,
+        ExtractSignals {
+            caller_ip,
+            ..Default::default()
+        },
+    );
     let expires_at = Utc::now() + ChronoDuration::seconds(i64::try_from(ttl_seconds).unwrap_or(0));
     analytics
         .create_session(CreateSessionInput {
@@ -224,6 +235,7 @@ pub async fn exchange_bridge_session_code(
     pool: &DbPool,
     analytics: &dyn AnalyticsProvider,
     request_headers: &HeaderMap,
+    caller_ip: Option<IpAddr>,
     code: &str,
 ) -> Result<Option<BridgeAuthResult>> {
     let code_hash = hash_exchange_code(code);
@@ -231,7 +243,7 @@ pub async fn exchange_bridge_session_code(
     let Some(user_id) = repo.consume_bridge_exchange_code(&code_hash).await? else {
         return Ok(None);
     };
-    let result = issue_bridge_access(pool, analytics, request_headers, &user_id).await?;
+    let result = issue_bridge_access(pool, analytics, request_headers, caller_ip, &user_id).await?;
     Ok(Some(result))
 }
 

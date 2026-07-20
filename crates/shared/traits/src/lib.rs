@@ -100,8 +100,8 @@ pub use events::{
 
 pub use analytics::{
     ActiveSession, AnalyticsProvider, AnalyticsProviderError, AnalyticsResult, AnalyticsSession,
-    CreateSessionInput, DynAnalyticsProvider, DynFingerprintProvider, FingerprintProvider,
-    SessionAnalytics,
+    CreateSessionInput, DynAnalyticsProvider, DynFingerprintProvider, ExtractSignals,
+    FingerprintProvider, SessionAnalytics,
 };
 
 pub use auth::{

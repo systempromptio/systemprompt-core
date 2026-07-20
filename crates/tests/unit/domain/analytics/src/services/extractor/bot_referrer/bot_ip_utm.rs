@@ -2,7 +2,6 @@
 //! extraction tests.
 
 use axum::http::{HeaderMap, HeaderValue, Uri};
-use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use systemprompt_analytics::SessionAnalytics;
 
 mod bot_ip_utm_tests {
@@ -11,12 +10,6 @@ mod bot_ip_utm_tests {
     fn create_headers_with_user_agent(ua: &str) -> HeaderMap {
         let mut headers = HeaderMap::new();
         headers.insert("user-agent", HeaderValue::from_str(ua).unwrap());
-        headers
-    }
-
-    fn create_headers_with_ip(ip: &str) -> HeaderMap {
-        let mut headers = HeaderMap::new();
-        headers.insert("x-forwarded-for", HeaderValue::from_str(ip).unwrap());
         headers
     }
 
@@ -45,7 +38,7 @@ mod bot_ip_utm_tests {
     #[test]
     fn compatible_user_agent_without_browser_is_bot() {
         let headers = create_headers_with_user_agent("Mozilla/5.0 (compatible; SomeBot/1.0)");
-        let analytics = SessionAnalytics::from_headers(&headers);
+        let analytics = SessionAnalytics::builder(&headers).build();
 
         assert!(analytics.is_bot());
     }
@@ -55,68 +48,75 @@ mod bot_ip_utm_tests {
         let headers = create_headers_with_user_agent(
             "Mozilla/5.0 (compatible; MSIE 10.0; Windows NT; Chrome/120.0)",
         );
-        let analytics = SessionAnalytics::from_headers(&headers);
+        let analytics = SessionAnalytics::builder(&headers).build();
 
         assert!(!analytics.is_bot());
     }
 
     #[test]
-    fn from_headers_with_socket_addr_fallback() {
+    fn client_ip_is_stored_as_ip_address() {
         let headers = HeaderMap::new();
-        let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(192, 168, 0, 100)), 8080);
-        let analytics =
-            SessionAnalytics::from_headers_with_geoip_and_socket(&headers, None, Some(socket));
+        let analytics = SessionAnalytics::builder(&headers)
+            .with_caller_ip("203.0.113.9".parse().unwrap())
+            .build();
 
-        assert_eq!(analytics.ip_address, Some("192.168.0.100".to_string()));
+        assert_eq!(analytics.ip_address, Some("203.0.113.9".to_string()));
     }
 
     #[test]
-    fn socket_addr_not_used_when_forwarded_for_present() {
-        let mut headers = HeaderMap::new();
-        headers.insert("x-forwarded-for", HeaderValue::from_static("10.0.0.1"));
-        let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(192, 168, 0, 100)), 8080);
-        let analytics =
-            SessionAnalytics::from_headers_with_geoip_and_socket(&headers, None, Some(socket));
+    fn client_ip_none_leaves_ip_address_unset() {
+        let headers = HeaderMap::new();
+        let analytics = SessionAnalytics::builder(&headers).build();
 
-        assert_eq!(analytics.ip_address, Some("10.0.0.1".to_string()));
+        assert!(analytics.ip_address.is_none());
     }
 
     #[test]
     fn is_bot_ip_returns_true_for_microsoft_157_ip() {
-        let headers = create_headers_with_ip("157.55.39.1");
-        let analytics = SessionAnalytics::from_headers(&headers);
+        let headers = HeaderMap::new();
+        let analytics = SessionAnalytics::builder(&headers)
+            .with_caller_ip("157.55.39.1".parse().unwrap())
+            .build();
 
         assert!(analytics.is_bot_ip());
     }
 
     #[test]
     fn is_bot_ip_returns_true_for_microsoft_207_ip() {
-        let headers = create_headers_with_ip("207.46.13.1");
-        let analytics = SessionAnalytics::from_headers(&headers);
+        let headers = HeaderMap::new();
+        let analytics = SessionAnalytics::builder(&headers)
+            .with_caller_ip("207.46.13.1".parse().unwrap())
+            .build();
 
         assert!(analytics.is_bot_ip());
     }
 
     #[test]
     fn is_bot_ip_returns_true_for_facebook_69_ip() {
-        let headers = create_headers_with_ip("69.171.250.1");
-        let analytics = SessionAnalytics::from_headers(&headers);
+        let headers = HeaderMap::new();
+        let analytics = SessionAnalytics::builder(&headers)
+            .with_caller_ip("69.171.250.1".parse().unwrap())
+            .build();
 
         assert!(analytics.is_bot_ip());
     }
 
     #[test]
     fn is_bot_ip_returns_true_for_facebook_173_ip() {
-        let headers = create_headers_with_ip("173.252.88.1");
-        let analytics = SessionAnalytics::from_headers(&headers);
+        let headers = HeaderMap::new();
+        let analytics = SessionAnalytics::builder(&headers)
+            .with_caller_ip("173.252.88.1".parse().unwrap())
+            .build();
 
         assert!(analytics.is_bot_ip());
     }
 
     #[test]
     fn is_bot_ip_returns_true_for_facebook_31_ip() {
-        let headers = create_headers_with_ip("31.13.24.1");
-        let analytics = SessionAnalytics::from_headers(&headers);
+        let headers = HeaderMap::new();
+        let analytics = SessionAnalytics::builder(&headers)
+            .with_caller_ip("31.13.24.1".parse().unwrap())
+            .build();
 
         assert!(analytics.is_bot_ip());
     }
@@ -127,7 +127,7 @@ mod bot_ip_utm_tests {
         let uri: Uri = "https://example.com/page?utm_source=google"
             .parse()
             .unwrap();
-        let analytics = SessionAnalytics::from_headers_and_uri(&headers, Some(&uri), None, None);
+        let analytics = SessionAnalytics::builder(&headers).with_uri(&uri).build();
 
         assert_eq!(analytics.utm_source, Some("google".to_string()));
     }
@@ -136,7 +136,7 @@ mod bot_ip_utm_tests {
     fn from_headers_and_uri_extracts_utm_medium() {
         let headers = create_full_headers();
         let uri: Uri = "https://example.com/page?utm_medium=cpc".parse().unwrap();
-        let analytics = SessionAnalytics::from_headers_and_uri(&headers, Some(&uri), None, None);
+        let analytics = SessionAnalytics::builder(&headers).with_uri(&uri).build();
 
         assert_eq!(analytics.utm_medium, Some("cpc".to_string()));
     }
@@ -147,7 +147,7 @@ mod bot_ip_utm_tests {
         let uri: Uri = "https://example.com/page?utm_campaign=summer_sale"
             .parse()
             .unwrap();
-        let analytics = SessionAnalytics::from_headers_and_uri(&headers, Some(&uri), None, None);
+        let analytics = SessionAnalytics::builder(&headers).with_uri(&uri).build();
 
         assert_eq!(analytics.utm_campaign, Some("summer_sale".to_string()));
     }
@@ -158,7 +158,7 @@ mod bot_ip_utm_tests {
         let uri: Uri = "https://example.com/?utm_source=google&utm_medium=cpc&utm_campaign=test"
             .parse()
             .unwrap();
-        let analytics = SessionAnalytics::from_headers_and_uri(&headers, Some(&uri), None, None);
+        let analytics = SessionAnalytics::builder(&headers).with_uri(&uri).build();
 
         assert_eq!(analytics.utm_source, Some("google".to_string()));
         assert_eq!(analytics.utm_medium, Some("cpc".to_string()));
@@ -168,7 +168,7 @@ mod bot_ip_utm_tests {
     #[test]
     fn from_headers_and_uri_without_uri() {
         let headers = create_full_headers();
-        let analytics = SessionAnalytics::from_headers_and_uri(&headers, None, None, None);
+        let analytics = SessionAnalytics::builder(&headers).build();
 
         assert!(analytics.utm_source.is_none());
         assert!(analytics.entry_url.is_none());

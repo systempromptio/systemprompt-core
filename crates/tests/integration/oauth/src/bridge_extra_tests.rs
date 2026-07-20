@@ -86,7 +86,7 @@ async fn exchange_code_issued_and_consumed_once() {
     let analytics =
         systemprompt_analytics::AnalyticsService::new(&db, None, None).expect("analytics service");
     let headers = http::HeaderMap::new();
-    let result = exchange_bridge_session_code(&db, &analytics, &headers, &issued.code)
+    let result = exchange_bridge_session_code(&db, &analytics, &headers, None, &issued.code)
         .await
         .expect("consume code");
     assert!(
@@ -94,7 +94,7 @@ async fn exchange_code_issued_and_consumed_once() {
         "first consume must yield a BridgeAuthResult"
     );
 
-    let replay = exchange_bridge_session_code(&db, &analytics, &headers, &issued.code)
+    let replay = exchange_bridge_session_code(&db, &analytics, &headers, None, &issued.code)
         .await
         .expect("replay returns None, not Err");
     assert!(replay.is_none(), "exchange code must be single-use");
@@ -107,7 +107,7 @@ async fn exchange_unknown_code_returns_none() {
     let analytics =
         systemprompt_analytics::AnalyticsService::new(&db, None, None).expect("analytics service");
     let headers = http::HeaderMap::new();
-    let result = exchange_bridge_session_code(&db, &analytics, &headers, "deadbeef")
+    let result = exchange_bridge_session_code(&db, &analytics, &headers, None, "deadbeef")
         .await
         .expect("not an error");
     assert!(result.is_none());

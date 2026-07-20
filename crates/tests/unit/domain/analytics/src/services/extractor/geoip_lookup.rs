@@ -1,12 +1,15 @@
 //! GeoIP enrichment behavior of `SessionAnalytics`, driven through the public
-//! `from_headers_with_geoip` seam against the MaxMind test database.
+//! `from_headers_and_uri` seam against the MaxMind test database.
 //!
 //! The fixture is `GeoIP2-City-Test.mmdb` from the MaxMind-DB test corpus;
 //! 89.160.20.128 is its canonical Swedish (SE, Linköping) test address.
+//! The client IP is now injected already-resolved via `caller_ip`; the
+//! extractor no longer parses it from headers.
 
+use std::net::IpAddr;
 use std::sync::Arc;
 
-use axum::http::{HeaderMap, HeaderValue};
+use axum::http::HeaderMap;
 use systemprompt_analytics::{GeoIpReader, SessionAnalytics};
 
 fn test_reader() -> GeoIpReader {
@@ -30,17 +33,17 @@ fn debug_subscriber_guard() -> tracing::subscriber::DefaultGuard {
     tracing::subscriber::set_default(subscriber)
 }
 
-fn headers_with_ip(ip: &str) -> HeaderMap {
-    let mut headers = HeaderMap::new();
-    headers.insert("x-forwarded-for", HeaderValue::from_str(ip).unwrap());
-    headers
+fn ip(s: &str) -> IpAddr {
+    s.parse().unwrap()
 }
 
 #[test]
 fn public_ip_in_the_database_is_enriched_with_country_region_and_city() {
     let reader = test_reader();
-    let analytics =
-        SessionAnalytics::from_headers_with_geoip(&headers_with_ip("89.160.20.128"), Some(&reader));
+    let analytics = SessionAnalytics::builder(&HeaderMap::new())
+        .with_geoip(&reader)
+        .with_caller_ip(ip("89.160.20.128"))
+        .build();
 
     assert_eq!(analytics.country.as_deref(), Some("SE"));
     assert_eq!(analytics.region.as_deref(), Some("E"));
@@ -50,8 +53,10 @@ fn public_ip_in_the_database_is_enriched_with_country_region_and_city() {
 #[test]
 fn ip_absent_from_the_database_leaves_geo_fields_empty() {
     let reader = test_reader();
-    let analytics =
-        SessionAnalytics::from_headers_with_geoip(&headers_with_ip("203.0.113.7"), Some(&reader));
+    let analytics = SessionAnalytics::builder(&HeaderMap::new())
+        .with_geoip(&reader)
+        .with_caller_ip(ip("203.0.113.7"))
+        .build();
 
     assert_eq!(analytics.country, None);
     assert_eq!(analytics.region, None);
@@ -61,16 +66,18 @@ fn ip_absent_from_the_database_leaves_geo_fields_empty() {
 #[test]
 fn loopback_unspecified_private_and_link_local_addresses_are_never_looked_up() {
     let reader = test_reader();
-    for ip in [
+    for addr in [
         "127.0.0.1",
         "0.0.0.0",
         "10.1.2.3",
         "192.168.1.1",
         "169.254.10.10",
     ] {
-        let analytics =
-            SessionAnalytics::from_headers_with_geoip(&headers_with_ip(ip), Some(&reader));
-        assert_eq!(analytics.country, None, "{ip} must not be geolocated");
+        let analytics = SessionAnalytics::builder(&HeaderMap::new())
+            .with_geoip(&reader)
+            .with_caller_ip(ip(addr))
+            .build();
+        assert_eq!(analytics.country, None, "{addr} must not be geolocated");
     }
 }
 
@@ -81,8 +88,10 @@ fn tree_traversal_error_from_a_corrupt_database_yields_no_geo() {
     // DEBUG subscriber is active so the failure-log fields are evaluated.
     let _guard = debug_subscriber_guard();
     let reader = reader_from("MaxMind-DB-test-broken-pointers-24.mmdb");
-    let analytics =
-        SessionAnalytics::from_headers_with_geoip(&headers_with_ip("1.1.1.32"), Some(&reader));
+    let analytics = SessionAnalytics::builder(&HeaderMap::new())
+        .with_geoip(&reader)
+        .with_caller_ip(ip("1.1.1.32"))
+        .build();
     assert_eq!(analytics.country, None);
     assert_eq!(analytics.region, None);
     assert_eq!(analytics.city, None);
@@ -95,21 +104,25 @@ fn record_decode_error_from_a_corrupt_database_yields_no_geo() {
     // no geo rather than propagate the error.
     let _guard = debug_subscriber_guard();
     let reader = reader_from("GeoIP2-City-Test-Broken-Double-Format.mmdb");
-    let analytics =
-        SessionAnalytics::from_headers_with_geoip(&headers_with_ip("89.160.20.128"), Some(&reader));
+    let analytics = SessionAnalytics::builder(&HeaderMap::new())
+        .with_geoip(&reader)
+        .with_caller_ip(ip("89.160.20.128"))
+        .build();
     assert_eq!(analytics.country, None);
     assert_eq!(analytics.region, None);
     assert_eq!(analytics.city, None);
 }
 
 #[test]
-fn unparseable_ip_and_missing_reader_skip_enrichment() {
+fn missing_client_ip_and_missing_reader_skip_enrichment() {
     let reader = test_reader();
-    let analytics =
-        SessionAnalytics::from_headers_with_geoip(&headers_with_ip("not-an-ip"), Some(&reader));
+    let analytics = SessionAnalytics::builder(&HeaderMap::new())
+        .with_geoip(&reader)
+        .build();
     assert_eq!(analytics.country, None);
 
-    let analytics =
-        SessionAnalytics::from_headers_with_geoip(&headers_with_ip("89.160.20.128"), None);
+    let analytics = SessionAnalytics::builder(&HeaderMap::new())
+        .with_caller_ip(ip("89.160.20.128"))
+        .build();
     assert_eq!(analytics.country, None);
 }

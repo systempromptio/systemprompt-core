@@ -20,7 +20,6 @@ use systemprompt_traits::{AppContext as AppContextTrait, StartupEventSender};
 use systemprompt_users::BannedIpRepository;
 
 use crate::services::middleware::authz::AuthzPolicy;
-use crate::services::middleware::client_addr::parse_trusted_proxies;
 use crate::services::middleware::{
     A2AContextMiddleware, JtiRevocationChecker, JwtContextExtractor, McpContextMiddleware,
     PublicContextMiddleware, RouterExt, UserOnlyContextMiddleware, ip_ban_middleware,
@@ -92,7 +91,7 @@ pub(super) fn configure_routes(
             message: e.to_string(),
         }
     })?);
-    let trusted_proxies = Arc::new(parse_trusted_proxies(&ctx.config().trusted_proxies));
+    let trusted_proxies = Arc::new(ctx.config().trusted_proxies.clone());
 
     router = router.layer(axum::middleware::from_fn(move |req, next| {
         let repo = Arc::clone(&banned_ip_repo);

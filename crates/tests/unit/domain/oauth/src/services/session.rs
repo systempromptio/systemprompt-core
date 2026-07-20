@@ -16,7 +16,8 @@ use systemprompt_oauth::{
 use systemprompt_test_fixtures::fixture_user_id;
 use systemprompt_traits::{
     AnalyticsProvider, AnalyticsResult, AnalyticsSession, AuthResult, AuthUser, CreateSessionInput,
-    FingerprintProvider, SessionAnalytics, UserEvent, UserEventPublisher, UserProvider,
+    ExtractSignals, FingerprintProvider, SessionAnalytics, UserEvent, UserEventPublisher,
+    UserProvider,
 };
 
 const TEST_CLIENT_SECRET: &str = "secret_TestClientSecretValue12345";
@@ -32,7 +33,7 @@ impl AnalyticsProvider for MockAnalyticsProvider {
     fn extract_analytics(
         &self,
         _headers: &HeaderMap,
-        _uri: Option<&http::Uri>,
+        _signals: ExtractSignals<'_>,
     ) -> SessionAnalytics {
         SessionAnalytics::default()
     }
@@ -282,6 +283,7 @@ fn test_create_anonymous_session_input_debug() {
     let input = CreateAnonymousSessionInput {
         headers: &headers,
         uri: None,
+        caller_ip: None,
         client_id: &client_id,
         session_source: SessionSource::Web,
     };

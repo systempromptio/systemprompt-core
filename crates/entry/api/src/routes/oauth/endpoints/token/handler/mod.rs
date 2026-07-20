@@ -16,6 +16,7 @@ use tracing::instrument;
 use super::{TokenError, TokenRequest};
 use crate::routes::oauth::OAuthHttpError;
 use crate::routes::oauth::extractors::OAuthRepo;
+use crate::services::middleware::client_addr::ClientIp;
 
 mod grants;
 
@@ -25,11 +26,16 @@ use grants::{
     handle_token_exchange_grant,
 };
 
-#[instrument(skip(state, _req_ctx, headers, request, repo), fields(grant_type = %request.grant_type))]
+#[expect(
+    clippy::too_many_arguments,
+    reason = "axum handler: each extractor is a separate parameter"
+)]
+#[instrument(skip(state, _req_ctx, caller_ip, headers, request, repo), fields(grant_type = %request.grant_type))]
 pub async fn handle_token(
     Extension(_req_ctx): Extension<RequestContext>,
     State(state): State<OAuthState>,
     OAuthRepo(repo): OAuthRepo,
+    ClientIp(caller_ip): ClientIp,
     headers: HeaderMap,
     Form(request): Form<TokenRequest>,
 ) -> Result<Response, OAuthHttpError> {
@@ -38,16 +44,16 @@ pub async fn handle_token(
     let parsed = request.grant_type.parse::<GrantType>().ok();
     let response = match parsed {
         Some(GrantType::AuthorizationCode) => {
-            handle_authorization_code_grant(repo, request, &headers, &state).await?
+            handle_authorization_code_grant(repo, request, &headers, caller_ip, &state).await?
         },
         Some(GrantType::RefreshToken) => {
-            handle_refresh_token_grant(repo, request, &headers, &state).await?
+            handle_refresh_token_grant(repo, request, &headers, caller_ip, &state).await?
         },
         Some(GrantType::ClientCredentials) => {
-            handle_client_credentials_grant(repo, request, &headers, &state).await?
+            handle_client_credentials_grant(repo, request, &headers, caller_ip, &state).await?
         },
         Some(GrantType::TokenExchange) => {
-            handle_token_exchange_grant(repo, request, &headers, &state).await?
+            handle_token_exchange_grant(repo, request, &headers, caller_ip, &state).await?
         },
         None => {
             return Err(TokenError::UnsupportedGrantType {

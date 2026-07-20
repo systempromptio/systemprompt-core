@@ -8,7 +8,6 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use axum::http::HeaderMap;
 use std::str::FromStr;
 use systemprompt_identifiers::{ClientId, SessionId, SessionSource, UserId};
 use systemprompt_models::Config;
@@ -18,10 +17,11 @@ use systemprompt_models::auth::{
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::repository::OAuthRepository;
 use systemprompt_oauth::services::{JwtConfig, JwtSigningParams, generate_jwt};
-use systemprompt_traits::CreateSessionInput;
+use systemprompt_traits::{CreateSessionInput, ExtractSignals};
 use thiserror::Error;
 
 use super::super::TokenResponse;
+use super::RequestOrigin;
 
 #[derive(Debug, Default)]
 pub struct ClientTokenOptions<'a> {
@@ -91,13 +91,19 @@ async fn load_active_owner(
 
 async fn create_client_session(
     state: &OAuthState,
-    headers: &HeaderMap,
+    origin: RequestOrigin<'_>,
     owner_user_id: &UserId,
     expires_in: i64,
 ) -> Result<SessionId, ClientCredentialsError> {
     let session_id = SessionId::new(format!("sess_{}", uuid::Uuid::new_v4().simple()));
     let expires_at = chrono::Utc::now() + chrono::Duration::seconds(expires_in);
-    let analytics = state.analytics_provider().extract_analytics(headers, None);
+    let analytics = state.analytics_provider().extract_analytics(
+        origin.headers,
+        ExtractSignals {
+            caller_ip: origin.caller_ip,
+            ..Default::default()
+        },
+    );
 
     state
         .analytics_provider()
@@ -118,7 +124,7 @@ async fn create_client_session(
 pub async fn generate_client_tokens(
     repo: &OAuthRepository,
     client_id: &ClientId,
-    headers: &HeaderMap,
+    origin: RequestOrigin<'_>,
     state: &OAuthState,
     options: ClientTokenOptions<'_>,
 ) -> Result<TokenResponse, ClientCredentialsError> {
@@ -164,7 +170,7 @@ pub async fn generate_client_tokens(
         ..Default::default()
     };
     let session_id =
-        create_client_session(state, headers, &client.owner_user_id, expires_in).await?;
+        create_client_session(state, origin, &client.owner_user_id, expires_in).await?;
 
     let signing = JwtSigningParams {
         issuer: &global_config.jwt_issuer,

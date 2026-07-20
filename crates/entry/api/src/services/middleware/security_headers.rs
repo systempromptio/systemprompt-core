@@ -38,17 +38,25 @@ pub async fn inject_security_headers(
         )) {
             headers.insert("content-security-policy", value);
         }
-    } else if let Ok(value) = HeaderValue::from_str(&config.frame_options) {
-        headers.insert("x-frame-options", value);
+    } else {
+        match config.frame_options.header_value() {
+            Some(value) => {
+                headers.insert("x-frame-options", HeaderValue::from_static(value));
+            },
+            None => {
+                headers.remove("x-frame-options");
+            },
+        }
     }
 
     if let Ok(value) = HeaderValue::from_str(&config.content_type_options) {
         headers.insert("x-content-type-options", value);
     }
 
-    if let Ok(value) = HeaderValue::from_str(&config.referrer_policy) {
-        headers.insert("referrer-policy", value);
-    }
+    headers.insert(
+        "referrer-policy",
+        HeaderValue::from_static(config.referrer_policy.header_value()),
+    );
 
     if let Ok(value) = HeaderValue::from_str(&config.permissions_policy) {
         headers.insert("permissions-policy", value);

@@ -6938,7 +6938,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-bridge"
-version = "0.16.0"
+version = "0.17.0"
 dependencies = [
  "arc-swap",
  "async-trait",
@@ -6958,6 +6958,7 @@ dependencies = [
  "hyper",
  "hyper-util",
  "image",
+ "inventory",
  "is-terminal",
  "keyring",
  "libc",
@@ -7108,6 +7109,7 @@ dependencies = [
  "systemprompt-bridge",
  "systemprompt-identifiers",
  "systemprompt-models",
+ "tempfile",
 ]
 
 [[package]]
@@ -7146,6 +7148,15 @@ dependencies = [
  "tempfile",
  "tokio",
  "wiremock",
+]
+
+[[package]]
+name = "systemprompt-bridge-inventory-tests"
+version = "0.0.11"
+dependencies = [
+ "inventory",
+ "serde_json",
+ "systemprompt-bridge",
 ]
 
 [[package]]
@@ -8143,6 +8154,7 @@ dependencies = [
  "futures-util",
  "http",
  "indexmap",
+ "ipnet",
  "regex",
  "rmcp",
  "schemars",

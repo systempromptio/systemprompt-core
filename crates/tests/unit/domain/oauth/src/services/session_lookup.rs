@@ -19,7 +19,8 @@ use systemprompt_oauth::{
 use systemprompt_test_fixtures::{ensure_test_bootstrap, install_test_signing_key};
 use systemprompt_traits::{
     AnalyticsProvider, AnalyticsResult, AnalyticsSession, AuthResult, AuthUser, CreateSessionInput,
-    FingerprintProvider, SessionAnalytics, UserEvent, UserEventPublisher, UserProvider,
+    ExtractSignals, FingerprintProvider, SessionAnalytics, UserEvent, UserEventPublisher,
+    UserProvider,
 };
 
 struct StubAnalyticsProvider {
@@ -41,7 +42,7 @@ impl AnalyticsProvider for StubAnalyticsProvider {
     fn extract_analytics(
         &self,
         _headers: &HeaderMap,
-        _uri: Option<&http::Uri>,
+        _signals: ExtractSignals<'_>,
     ) -> SessionAnalytics {
         SessionAnalytics::default()
     }
@@ -205,6 +206,7 @@ fn anonymous_input<'a>(
     CreateAnonymousSessionInput {
         headers,
         uri: None,
+        caller_ip: None,
         client_id: client,
         session_source: SessionSource::Web,
     }
@@ -329,7 +331,7 @@ async fn create_authenticated_session_persists_for_known_user() {
     );
 
     let session_id = service
-        .create_authenticated_session(&user_id, &HeaderMap::new(), SessionSource::Web)
+        .create_authenticated_session(&user_id, &HeaderMap::new(), SessionSource::Web, None)
         .await
         .expect("session");
 
@@ -348,7 +350,7 @@ async fn create_authenticated_session_rejects_unknown_user() {
 
     let user_id = UserId::new("user_missing");
     let err = service
-        .create_authenticated_session(&user_id, &HeaderMap::new(), SessionSource::Web)
+        .create_authenticated_session(&user_id, &HeaderMap::new(), SessionSource::Web, None)
         .await
         .expect_err("unknown user");
 
@@ -367,7 +369,7 @@ impl AnalyticsProvider for FailingAnalyticsProvider {
     fn extract_analytics(
         &self,
         _headers: &HeaderMap,
-        _uri: Option<&http::Uri>,
+        _signals: ExtractSignals<'_>,
     ) -> SessionAnalytics {
         SessionAnalytics::default()
     }
@@ -423,7 +425,7 @@ impl AnalyticsProvider for SlowAnalyticsProvider {
     fn extract_analytics(
         &self,
         _headers: &HeaderMap,
-        _uri: Option<&http::Uri>,
+        _signals: ExtractSignals<'_>,
     ) -> SessionAnalytics {
         SessionAnalytics::default()
     }
@@ -702,7 +704,7 @@ async fn ensure_anonymous_user_resolves_user_and_fingerprint() {
     );
 
     let (user_id, fingerprint) = service
-        .ensure_anonymous_user(&HeaderMap::new(), None)
+        .ensure_anonymous_user(&HeaderMap::new(), None, None)
         .await
         .expect("anonymous user");
 

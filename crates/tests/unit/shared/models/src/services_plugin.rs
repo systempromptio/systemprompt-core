@@ -32,7 +32,7 @@ fn valid_plugin(id: &str) -> PluginConfig {
 
 #[test]
 fn component_source_display_and_default() {
-    assert_eq!(ComponentSource::default(), ComponentSource::Instance);
+    assert_eq!(ComponentSource::default(), ComponentSource::Explicit);
     assert_eq!(ComponentSource::Instance.to_string(), "instance");
     assert_eq!(ComponentSource::Explicit.to_string(), "explicit");
 }

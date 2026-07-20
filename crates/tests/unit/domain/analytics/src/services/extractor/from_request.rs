@@ -1,5 +1,5 @@
-//! Tests for `SessionAnalytics::from_request` (the axum `Request` entry point
-//! that folds headers, URI UTM params, and content routing) and the
+//! Tests for `SessionAnalytics::from_headers_and_uri` fed from a built request
+//! (headers, URI UTM params, and content routing) and the
 //! `should_skip_tracking` AI-crawler exemption branch.
 
 use axum::body::Body;
@@ -37,7 +37,10 @@ fn from_request_extracts_utm_and_landing_page() {
         "Mozilla/5.0 (Windows NT 10.0) Chrome/120.0",
     );
     let routing = HtmlRouting;
-    let analytics = SessionAnalytics::from_request(&request, None, Some(&routing));
+    let analytics = SessionAnalytics::builder(request.headers())
+        .with_uri(request.uri())
+        .with_content_routing(&routing)
+        .build();
 
     assert_eq!(analytics.utm_source.as_deref(), Some("news"));
     assert_eq!(analytics.utm_campaign.as_deref(), Some("launch"));
@@ -57,7 +60,9 @@ fn from_request_extracts_utm_and_landing_page() {
 #[test]
 fn from_request_without_routing_leaves_landing_page_unset() {
     let request = request_with("https://example.com/x", "Mozilla/5.0 Chrome/120.0");
-    let analytics = SessionAnalytics::from_request(&request, None, None);
+    let analytics = SessionAnalytics::builder(request.headers())
+        .with_uri(request.uri())
+        .build();
 
     assert!(analytics.landing_page.is_none());
     assert!(analytics.entry_url.is_none());
@@ -66,7 +71,9 @@ fn from_request_without_routing_leaves_landing_page_unset() {
 #[test]
 fn should_skip_tracking_is_false_for_ai_crawler() {
     let request = request_with("https://example.com/", "GPTBot/1.0");
-    let analytics = SessionAnalytics::from_request(&request, None, None);
+    let analytics = SessionAnalytics::builder(request.headers())
+        .with_uri(request.uri())
+        .build();
 
     assert!(analytics.is_ai_crawler());
     // The AI-crawler exemption short-circuits every skip heuristic.
@@ -76,7 +83,9 @@ fn should_skip_tracking_is_false_for_ai_crawler() {
 #[test]
 fn should_skip_tracking_is_true_for_plain_bot() {
     let request = request_with("https://example.com/", "Googlebot/2.1");
-    let analytics = SessionAnalytics::from_request(&request, None, None);
+    let analytics = SessionAnalytics::builder(request.headers())
+        .with_uri(request.uri())
+        .build();
 
     assert!(!analytics.is_ai_crawler());
     assert!(analytics.should_skip_tracking());

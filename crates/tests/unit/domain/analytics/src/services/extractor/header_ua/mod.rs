@@ -9,19 +9,12 @@ fn create_headers_with_user_agent(ua: &str) -> HeaderMap {
     headers
 }
 
-fn create_headers_with_ip(ip: &str) -> HeaderMap {
-    let mut headers = HeaderMap::new();
-    headers.insert("x-forwarded-for", HeaderValue::from_str(ip).unwrap());
-    headers
-}
-
 fn create_full_headers() -> HeaderMap {
     let mut headers = HeaderMap::new();
     headers.insert(
         "user-agent",
         HeaderValue::from_static("Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0"),
     );
-    headers.insert("x-forwarded-for", HeaderValue::from_static("192.168.1.1"));
     headers.insert("x-fingerprint", HeaderValue::from_static("fp_abc123"));
     headers.insert(
         "accept-language",

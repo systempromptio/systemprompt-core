@@ -129,5 +129,8 @@ fn none_if_blank_filters_empty_and_whitespace() {
     assert_eq!(none_if_blank(None), None);
     assert_eq!(none_if_blank(Some(String::new())), None);
     assert_eq!(none_if_blank(Some("  ".to_owned())), None);
-    assert_eq!(none_if_blank(Some("key".to_owned())).as_deref(), Some("key"));
+    assert_eq!(
+        none_if_blank(Some("key".to_owned())).as_deref(),
+        Some("key")
+    );
 }

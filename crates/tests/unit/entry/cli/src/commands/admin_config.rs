@@ -56,7 +56,7 @@ fn make_profile(services: &Path) -> Profile {
             geoip_database: None,
         },
         security: SecurityConfig {
-            issuer: "test-issuer".to_string(),
+            issuer: "https://issuer.test".to_string(),
             access_token_expiration: 3600,
             refresh_token_expiration: 86400,
             audiences: vec![JwtAudience::Api],

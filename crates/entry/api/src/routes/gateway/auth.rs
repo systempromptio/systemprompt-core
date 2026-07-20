@@ -36,6 +36,7 @@ use systemprompt_users::{ApiKeyService, DeviceCertService, IssueApiKeyParams};
 
 use crate::error::ApiHttpError;
 use crate::services::middleware::JwtContextExtractor;
+use crate::services::middleware::client_addr::{ClientIp, client_ip_from_request};
 
 #[derive(Debug, Serialize)]
 pub struct AuthResponse {
@@ -98,10 +99,12 @@ pub async fn pat(ctx: AppContext, request: Request) -> Result<Json<AuthResponse>
         .ok_or_else(|| ApiHttpError::unauthorized("Invalid PAT"))?;
 
     let analytics = require_analytics(&ctx)?;
+    let caller_ip = client_ip_from_request(&request);
     let result = issue_bridge_access(
         ctx.db_pool(),
         analytics.as_ref(),
         request.headers(),
+        caller_ip,
         &record.user_id,
     )
     .await?;
@@ -111,6 +114,7 @@ pub async fn pat(ctx: AppContext, request: Request) -> Result<Json<AuthResponse>
 
 pub async fn session(
     ctx: AppContext,
+    ClientIp(caller_ip): ClientIp,
     headers: HeaderMap,
     Json(body): Json<SessionExchangeBody>,
 ) -> Result<Json<AuthResponse>, ApiHttpError> {
@@ -123,6 +127,7 @@ pub async fn session(
         ctx.db_pool(),
         analytics.as_ref(),
         &headers,
+        caller_ip,
         body.code.trim(),
     )
     .await?
@@ -217,6 +222,7 @@ fn build_token_endpoint() -> Result<String, ApiHttpError> {
 
 pub async fn mtls(
     ctx: AppContext,
+    ClientIp(caller_ip): ClientIp,
     headers: HeaderMap,
     Json(body): Json<MtlsRequestBody>,
 ) -> Result<Json<AuthResponse>, ApiHttpError> {
@@ -232,8 +238,14 @@ pub async fn mtls(
         .ok_or_else(|| ApiHttpError::unauthorized("device certificate not enrolled or revoked"))?;
 
     let analytics = require_analytics(&ctx)?;
-    let result =
-        issue_bridge_access(ctx.db_pool(), analytics.as_ref(), &headers, &record.user_id).await?;
+    let result = issue_bridge_access(
+        ctx.db_pool(),
+        analytics.as_ref(),
+        &headers,
+        caller_ip,
+        &record.user_id,
+    )
+    .await?;
 
     Ok(Json(result.into()))
 }

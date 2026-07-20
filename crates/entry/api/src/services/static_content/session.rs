@@ -6,6 +6,8 @@
 
 use std::sync::Arc;
 
+use std::net::IpAddr;
+
 use anyhow::Result;
 use axum::http::HeaderMap;
 use systemprompt_identifiers::{ClientId, SessionId, SessionSource, UserId};
@@ -25,6 +27,7 @@ pub struct SessionInfo {
 pub async fn ensure_session(
     headers: &HeaderMap,
     uri: Option<&http::Uri>,
+    caller_ip: Option<IpAddr>,
     ctx: &AppContext,
 ) -> Result<SessionInfo> {
     let config = systemprompt_models::Config::get()?;
@@ -51,6 +54,7 @@ pub async fn ensure_session(
         .create_anonymous_session(CreateAnonymousSessionInput {
             headers,
             uri,
+            caller_ip,
             client_id: &client_id,
             session_source: SessionSource::Web,
         })

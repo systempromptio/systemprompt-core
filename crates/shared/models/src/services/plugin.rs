@@ -24,8 +24,8 @@ const fn default_true() -> bool {
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "lowercase")]
 pub enum ComponentSource {
-    #[default]
     Instance,
+    #[default]
     Explicit,
 }
 
@@ -175,9 +175,13 @@ impl PluginConfig {
         key: &str,
         field: &str,
     ) -> Result<(), ConfigValidationError> {
-        if component.source == ComponentSource::Explicit && component.include.is_empty() {
+        // `explicit` (the default) means "exactly what `include` lists" — an empty
+        // list is valid and scopes the plugin to zero of this component. Under
+        // `instance` the whole catalogue is taken, so a stray `include` would be
+        // silently ignored: reject it as a likely mistake.
+        if component.source == ComponentSource::Instance && !component.include.is_empty() {
             return Err(ConfigValidationError::invalid_field(format!(
-                "Plugin '{key}': {field}.source is 'explicit' but {field}.include is empty"
+                "Plugin '{key}': {field}.source is 'instance' but {field}.include is set (ignored)"
             )));
         }
 

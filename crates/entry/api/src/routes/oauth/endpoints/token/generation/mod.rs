@@ -31,6 +31,7 @@ pub use token_exchange::{
 use super::TokenResponse;
 use anyhow::Result;
 use axum::http::HeaderMap;
+use std::net::IpAddr;
 use std::sync::Arc;
 use systemprompt_identifiers::{ClientId, RefreshTokenId, SessionId, SessionSource, UserId};
 use systemprompt_models::Config;
@@ -39,12 +40,19 @@ use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::repository::{OAuthRepository, RefreshTokenParams};
 use systemprompt_oauth::services::{JwtConfig, JwtSigningParams, generate_jwt};
 
+#[derive(Debug, Clone, Copy)]
+pub struct RequestOrigin<'a> {
+    pub headers: &'a HeaderMap,
+    pub caller_ip: Option<IpAddr>,
+}
+
 #[derive(Debug)]
 pub struct TokenGenerationParams<'a> {
     pub client_id: &'a ClientId,
     pub user_id: &'a UserId,
     pub scope: Option<&'a str>,
     pub headers: &'a HeaderMap,
+    pub caller_ip: Option<IpAddr>,
     pub resource: Option<&'a str>,
     pub family_id: Option<&'a str>,
 }
@@ -76,7 +84,12 @@ pub async fn generate_tokens_by_user_id(
         Arc::clone(state.user_provider()),
     );
     let session_id = session_service
-        .create_authenticated_session(params.user_id, params.headers, SessionSource::Oauth)
+        .create_authenticated_session(
+            params.user_id,
+            params.headers,
+            SessionSource::Oauth,
+            params.caller_ip,
+        )
         .await?;
 
     let jwt_and_refresh =

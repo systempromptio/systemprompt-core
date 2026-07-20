@@ -12,11 +12,12 @@
 
 use async_trait::async_trait;
 use chrono::Utc;
-use http::{HeaderMap, Uri};
+use http::HeaderMap;
 use systemprompt_identifiers::{SessionId, UserId};
 use systemprompt_traits::{
     ActiveSession, AnalyticsProvider, AnalyticsProviderError, AnalyticsResult, AnalyticsSession,
-    CreateSessionInput, FingerprintProvider, SessionAnalytics as TraitSessionAnalytics,
+    CreateSessionInput, ExtractSignals, FingerprintProvider,
+    SessionAnalytics as TraitSessionAnalytics,
 };
 
 use super::SessionAnalytics;
@@ -25,8 +26,12 @@ use crate::repository::FingerprintRepository;
 
 #[async_trait]
 impl AnalyticsProvider for AnalyticsService {
-    fn extract_analytics(&self, headers: &HeaderMap, uri: Option<&Uri>) -> TraitSessionAnalytics {
-        let local = Self::extract_analytics(self, headers, uri);
+    fn extract_analytics(
+        &self,
+        headers: &HeaderMap,
+        signals: ExtractSignals<'_>,
+    ) -> TraitSessionAnalytics {
+        let local = Self::extract_analytics(self, headers, signals);
         TraitSessionAnalytics {
             ip_address: local.ip_address,
             user_agent: local.user_agent,

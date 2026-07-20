@@ -9,8 +9,8 @@ use systemprompt_oauth::OAuthState;
 use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_database_url, fixture_db_pool};
 use systemprompt_traits::{
     AnalyticsProvider, AnalyticsResult, AnalyticsSession, AuthResult, AuthUser, CreateSessionInput,
-    FingerprintProvider, McpRegistryProvider, SessionAnalytics, UserEvent, UserEventPublisher,
-    UserProvider,
+    ExtractSignals, FingerprintProvider, McpRegistryProvider, SessionAnalytics, UserEvent,
+    UserEventPublisher, UserProvider,
 };
 
 struct NullAnalytics;
@@ -20,7 +20,7 @@ impl AnalyticsProvider for NullAnalytics {
     fn extract_analytics(
         &self,
         _headers: &HeaderMap,
-        _uri: Option<&http::Uri>,
+        _signals: ExtractSignals<'_>,
     ) -> SessionAnalytics {
         SessionAnalytics::default()
     }

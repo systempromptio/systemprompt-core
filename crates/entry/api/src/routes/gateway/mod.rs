@@ -161,9 +161,9 @@ fn bridge_auth_routes(ctx: &AppContext, jwt_extractor: &Arc<JwtContextExtractor>
         )
         .route(
             "/auth/bridge/session",
-            post(move |headers, body| {
+            post(move |caller_ip, headers, body| {
                 let context = ctx_session.clone();
-                async move { auth::session(context, headers, body).await }
+                async move { auth::session(context, caller_ip, headers, body).await }
             }),
         )
         .route(
@@ -175,9 +175,9 @@ fn bridge_auth_routes(ctx: &AppContext, jwt_extractor: &Arc<JwtContextExtractor>
         )
         .route(
             "/auth/bridge/mtls",
-            post(move |headers, body| {
+            post(move |caller_ip, headers, body| {
                 let context = ctx_mtls.clone();
-                async move { auth::mtls(context, headers, body).await }
+                async move { auth::mtls(context, caller_ip, headers, body).await }
             }),
         )
         .route(

@@ -9,6 +9,7 @@
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use http::{HeaderMap, Uri};
+use std::net::IpAddr;
 use std::sync::Arc;
 use systemprompt_identifiers::{SessionId, SessionSource, UserId};
 
@@ -145,9 +146,22 @@ pub struct CreateSessionInput<'a> {
     pub expires_at: DateTime<Utc>,
 }
 
+/// Optional request signals for analytics extraction that vary per call site.
+/// `GeoIP` and content-routing are supplied by the provider itself, so only the
+/// request-scoped inputs live here.
+#[derive(Debug, Default, Clone, Copy)]
+pub struct ExtractSignals<'a> {
+    pub uri: Option<&'a Uri>,
+    pub caller_ip: Option<IpAddr>,
+}
+
 #[async_trait]
 pub trait AnalyticsProvider: Send + Sync {
-    fn extract_analytics(&self, headers: &HeaderMap, uri: Option<&Uri>) -> SessionAnalytics;
+    fn extract_analytics(
+        &self,
+        headers: &HeaderMap,
+        signals: ExtractSignals<'_>,
+    ) -> SessionAnalytics;
 
     async fn create_session(&self, input: CreateSessionInput<'_>) -> AnalyticsResult<()>;
 

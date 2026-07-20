@@ -76,6 +76,7 @@ members = [
     "unit/bridge/sync",
     "unit/bridge/sync-e2e",
     "unit/bridge/integration",
+    "unit/bridge/inventory",
     "unit/bridge/proxy",
     "unit/bridge/proxy-harness",
     "unit/bridge/auth",

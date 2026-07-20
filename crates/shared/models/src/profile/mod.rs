@@ -56,7 +56,9 @@ pub use security::{
     DEFAULT_ID_JAG_TTL_SECS, GATEWAY_REQUIRED_RESOURCE_AUDIENCES, SecurityConfig, TrustedIssuer,
     default_resource_audiences,
 };
-pub use server::{ContentNegotiationConfig, SecurityHeadersConfig, ServerConfig};
+pub use server::{
+    ContentNegotiationConfig, FrameOptions, ReferrerPolicy, SecurityHeadersConfig, ServerConfig,
+};
 pub use site::SiteConfig;
 pub use style::ProfileStyle;
 

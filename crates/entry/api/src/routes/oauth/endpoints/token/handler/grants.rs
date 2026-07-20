@@ -5,13 +5,15 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use axum::http::HeaderMap;
+use std::net::IpAddr;
 use systemprompt_identifiers::{AuthorizationCode, ClientId, RefreshTokenId};
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::repository::OAuthRepository;
 
 use super::super::generation::{
-    ClientCredentialsError, ClientTokenOptions, TokenExchangeRequest, TokenGenerationParams,
-    generate_client_tokens, generate_tokens_by_user_id, handle_token_exchange,
+    ClientCredentialsError, ClientTokenOptions, RequestOrigin, TokenExchangeRequest,
+    TokenGenerationParams, generate_client_tokens, generate_tokens_by_user_id,
+    handle_token_exchange,
 };
 use super::super::validation::{
     AuthCodeValidationParams, extract_required_field, validate_authorization_code,
@@ -24,6 +26,7 @@ pub(super) async fn handle_authorization_code_grant(
     repo: OAuthRepository,
     request: TokenRequest,
     headers: &HeaderMap,
+    caller_ip: Option<IpAddr>,
     state: &OAuthState,
 ) -> Result<TokenResponse, TokenError> {
     let code_str = extract_required_field(request.code.as_deref(), "code")?;
@@ -66,6 +69,7 @@ pub(super) async fn handle_authorization_code_grant(
             user_id: &validation_result.user_id,
             scope: Some(&validation_result.scope),
             headers,
+            caller_ip,
             resource: validation_result.resource.as_deref(),
             family_id: None,
         },
@@ -102,6 +106,7 @@ pub(super) async fn handle_refresh_token_grant(
     repo: OAuthRepository,
     request: TokenRequest,
     headers: &HeaderMap,
+    caller_ip: Option<IpAddr>,
     state: &OAuthState,
 ) -> Result<TokenResponse, TokenError> {
     let refresh_token_str =
@@ -159,6 +164,7 @@ pub(super) async fn handle_refresh_token_grant(
             user_id: &user_id,
             scope: Some(effective_scope),
             headers,
+            caller_ip,
             resource: request.resource.as_deref(),
             family_id: Some(family_id.as_str()),
         },
@@ -187,6 +193,7 @@ pub(super) async fn handle_token_exchange_grant(
     repo: OAuthRepository,
     request: TokenRequest,
     headers: &HeaderMap,
+    caller_ip: Option<IpAddr>,
     state: &OAuthState,
 ) -> Result<TokenResponse, TokenError> {
     let subject_token = extract_required_field(request.subject_token.as_deref(), "subject_token")?;
@@ -210,7 +217,8 @@ pub(super) async fn handle_token_exchange_grant(
         resource: request.resource.as_deref(),
     };
 
-    let response = handle_token_exchange(&repo, &client_id, exchange, headers, state)
+    let origin = RequestOrigin { headers, caller_ip };
+    let response = handle_token_exchange(&repo, &client_id, exchange, origin, state)
         .await
         .map_err(|e| map_exchange_error(&e))?;
 
@@ -228,6 +236,7 @@ pub(super) async fn handle_client_credentials_grant(
     repo: OAuthRepository,
     request: TokenRequest,
     headers: &HeaderMap,
+    caller_ip: Option<IpAddr>,
     state: &OAuthState,
 ) -> Result<TokenResponse, TokenError> {
     let client_id_str = extract_required_field(request.client_id.as_deref(), "client_id")?;
@@ -249,7 +258,8 @@ pub(super) async fn handle_client_credentials_grant(
         plugin_id: request.plugin_id.as_deref(),
         audience: request.audience.as_deref(),
     };
-    let token_response = generate_client_tokens(&repo, &client_id, headers, state, options)
+    let origin = RequestOrigin { headers, caller_ip };
+    let token_response = generate_client_tokens(&repo, &client_id, origin, state, options)
         .await
         .map_err(|e| map_client_credentials_error(&client_id, e))?;
 

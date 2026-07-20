@@ -20,7 +20,6 @@
 use std::str::FromStr;
 
 use anyhow::{Result, anyhow};
-use axum::http::HeaderMap;
 use systemprompt_identifiers::{ClientId, SessionId, UserId};
 use systemprompt_models::Config;
 use systemprompt_models::auth::{AuthenticatedUser, Permission, parse_permissions};
@@ -29,6 +28,7 @@ use systemprompt_oauth::repository::OAuthRepository;
 use systemprompt_oauth::services::{JwtConfig, JwtSigningParams, generate_jwt_with_act};
 
 use super::super::{TokenError, TokenResponse};
+use super::RequestOrigin;
 
 mod claims;
 mod id_jag_subject;
@@ -65,7 +65,7 @@ pub async fn handle_token_exchange(
     repo: &OAuthRepository,
     client_id: &ClientId,
     request: TokenExchangeRequest<'_>,
-    headers: &HeaderMap,
+    origin: RequestOrigin<'_>,
     state: &OAuthState,
 ) -> Result<TokenResponse> {
     let global = Config::get()?;
@@ -109,7 +109,7 @@ pub async fn handle_token_exchange(
         final_perms.clone(),
     );
 
-    let session_id = ensure_session(state, headers, &grant.owner_user_id, global).await?;
+    let session_id = ensure_session(state, origin, &grant.owner_user_id, global).await?;
 
     let config = JwtConfig {
         permissions: final_perms.clone(),
@@ -211,17 +211,23 @@ async fn load_delegation_grant(
 
 async fn ensure_session(
     state: &OAuthState,
-    headers: &HeaderMap,
+    origin: RequestOrigin<'_>,
     owner_user_id: &UserId,
     global: &Config,
 ) -> Result<SessionId> {
     use systemprompt_identifiers::SessionSource;
-    use systemprompt_traits::CreateSessionInput;
+    use systemprompt_traits::{CreateSessionInput, ExtractSignals};
 
     let session_id = SessionId::new(format!("sess_{}", uuid::Uuid::new_v4().simple()));
     let expires_at =
         chrono::Utc::now() + chrono::Duration::seconds(global.jwt_access_token_expiration);
-    let analytics = state.analytics_provider().extract_analytics(headers, None);
+    let analytics = state.analytics_provider().extract_analytics(
+        origin.headers,
+        ExtractSignals {
+            caller_ip: origin.caller_ip,
+            ..Default::default()
+        },
+    );
     state
         .analytics_provider()
         .create_session(CreateSessionInput {

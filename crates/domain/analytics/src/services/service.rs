@@ -7,12 +7,12 @@ use std::sync::Arc;
 
 use crate::Result;
 use chrono::{DateTime, Utc};
-use http::{HeaderMap, Uri};
+use http::HeaderMap;
 
-use axum::extract::Request;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{SessionId, SessionSource, UserId};
 use systemprompt_models::ContentRouting;
+use systemprompt_traits::ExtractSignals;
 
 use crate::GeoIpReader;
 use crate::repository::{CreateSessionParams, SessionRecord, SessionRepository};
@@ -59,22 +59,25 @@ impl AnalyticsService {
         })
     }
 
-    pub fn extract_analytics(&self, headers: &HeaderMap, uri: Option<&Uri>) -> SessionAnalytics {
-        SessionAnalytics::from_headers_and_uri(
-            headers,
-            uri,
-            self.geoip_reader.as_ref(),
-            self.content_routing.as_deref(),
-        )
-    }
-
-    pub fn extract_from_request(&self, request: &Request) -> SessionAnalytics {
-        SessionAnalytics::from_headers_and_uri(
-            request.headers(),
-            Some(request.uri()),
-            self.geoip_reader.as_ref(),
-            self.content_routing.as_deref(),
-        )
+    pub fn extract_analytics(
+        &self,
+        headers: &HeaderMap,
+        signals: ExtractSignals<'_>,
+    ) -> SessionAnalytics {
+        let mut builder = SessionAnalytics::builder(headers);
+        if let Some(uri) = signals.uri {
+            builder = builder.with_uri(uri);
+        }
+        if let Some(reader) = self.geoip_reader.as_ref() {
+            builder = builder.with_geoip(reader);
+        }
+        if let Some(content_routing) = self.content_routing.as_deref() {
+            builder = builder.with_content_routing(content_routing);
+        }
+        if let Some(caller_ip) = signals.caller_ip {
+            builder = builder.with_caller_ip(caller_ip);
+        }
+        builder.build()
     }
 
     pub fn is_bot(analytics: &SessionAnalytics) -> bool {

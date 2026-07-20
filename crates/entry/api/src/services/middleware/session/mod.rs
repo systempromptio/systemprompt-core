@@ -13,10 +13,12 @@ mod skip;
 
 pub use skip::should_skip_session_tracking;
 
-use axum::extract::Request;
+use axum::extract::{ConnectInfo, Request};
 use axum::http::header;
 use axum::middleware::Next;
 use axum::response::Response;
+use ipnet::IpNet;
+use std::net::{IpAddr, SocketAddr};
 use std::sync::Arc;
 use systemprompt_analytics::AnalyticsService;
 use systemprompt_identifiers::{AgentName, ContextId, SessionId, UserId};
@@ -28,14 +30,21 @@ use systemprompt_runtime::AppContext;
 use systemprompt_security::{
     CookieExtractor, HeaderExtractor, TokenExtractor, extract_user_context,
 };
-use systemprompt_traits::AnalyticsProvider;
+use systemprompt_traits::{AnalyticsProvider, ExtractSignals};
 use systemprompt_users::UserService;
 use uuid::Uuid;
+
+struct RequestMeta<'a> {
+    headers: &'a http::HeaderMap,
+    uri: &'a http::Uri,
+    caller_ip: Option<IpAddr>,
+}
 
 #[derive(Clone, Debug)]
 pub struct SessionMiddleware {
     analytics_service: Arc<AnalyticsService>,
     session_creation_service: Arc<SessionCreationService>,
+    trusted_proxies: Arc<Vec<IpNet>>,
 }
 
 impl SessionMiddleware {
@@ -51,13 +60,23 @@ impl SessionMiddleware {
         Ok(Self {
             analytics_service: Arc::clone(ctx.analytics_service()),
             session_creation_service,
+            trusted_proxies: Arc::new(ctx.config().trusted_proxies.clone()),
         })
     }
 
     pub async fn handle(&self, mut request: Request, next: Next) -> Result<Response, ApiError> {
-        let headers = request.headers();
+        let caller_ip = super::client_addr::resolve_client_ip(
+            request.headers(),
+            request.extensions().get::<ConnectInfo<SocketAddr>>(),
+            &self.trusted_proxies,
+        );
         let uri = request.uri().clone();
-        let method = request.method().clone();
+        let headers = request.headers();
+        let meta = RequestMeta {
+            headers,
+            uri: &uri,
+            caller_ip,
+        };
 
         let should_skip = should_skip_session_tracking(uri.path());
 
@@ -71,13 +90,11 @@ impl SessionMiddleware {
 
         let (req_ctx, jwt_cookie) = if should_skip {
             (
-                self.anonymous_context("untracked", trace_id, headers, &uri)
-                    .await?,
+                self.anonymous_context("untracked", trace_id, &meta).await?,
                 None,
             )
         } else {
-            self.tracked_context(trace_id, headers, &uri, &method)
-                .await?
+            self.tracked_context(trace_id, &meta).await?
         };
 
         tracing::debug!(
@@ -113,12 +130,11 @@ impl SessionMiddleware {
         &self,
         session_prefix: &str,
         trace_id: systemprompt_identifiers::TraceId,
-        headers: &http::HeaderMap,
-        uri: &http::Uri,
+        meta: &RequestMeta<'_>,
     ) -> Result<RequestContext, ApiError> {
         let (user_id, fingerprint) = self
             .session_creation_service
-            .ensure_anonymous_user(headers, Some(uri))
+            .ensure_anonymous_user(meta.headers, Some(meta.uri), meta.caller_ip)
             .await
             .map_err(|e| {
                 tracing::error!(error = %e, session_prefix, "Failed to ensure anonymous user");
@@ -140,36 +156,35 @@ impl SessionMiddleware {
     async fn tracked_context(
         &self,
         trace_id: systemprompt_identifiers::TraceId,
-        headers: &http::HeaderMap,
-        uri: &http::Uri,
-        method: &http::Method,
+        meta: &RequestMeta<'_>,
     ) -> Result<(RequestContext, Option<String>), ApiError> {
-        let analytics = self.analytics_service.extract_analytics(headers, Some(uri));
+        let analytics = self.analytics_service.extract_analytics(
+            meta.headers,
+            ExtractSignals {
+                uri: Some(meta.uri),
+                caller_ip: meta.caller_ip,
+            },
+        );
         let is_bot = AnalyticsService::is_bot(&analytics);
 
         tracing::debug!(
-            path = %uri.path(),
+            path = %meta.uri.path(),
             is_bot = is_bot,
             user_agent = ?analytics.user_agent,
             "Session middleware bot check"
         );
 
         if is_bot {
-            return Ok((
-                self.anonymous_context("bot", trace_id, headers, uri)
-                    .await?,
-                None,
-            ));
+            return Ok((self.anonymous_context("bot", trace_id, meta).await?, None));
         }
 
-        let token_result = TokenExtractor::browser_only().extract(headers).ok();
+        let token_result = TokenExtractor::browser_only().extract(meta.headers).ok();
 
-        let (session_id, user_id, jwt_token, jwt_cookie, fingerprint_hash) = self
-            .resolve_session(token_result, headers, uri, method)
-            .await?;
+        let (session_id, user_id, jwt_token, jwt_cookie, fingerprint_hash) =
+            self.resolve_session(token_result, meta).await?;
 
         let context_id =
-            HeaderExtractor::extract_context_id(headers).unwrap_or_else(ContextId::generate);
+            HeaderExtractor::extract_context_id(meta.headers).unwrap_or_else(ContextId::generate);
 
         let mut ctx = RequestContext::new(session_id, trace_id, context_id, AgentName::system())
             .with_actor(systemprompt_identifiers::Actor::user(user_id))
@@ -185,22 +200,18 @@ impl SessionMiddleware {
     async fn resolve_session(
         &self,
         token_result: Option<String>,
-        headers: &http::HeaderMap,
-        uri: &http::Uri,
-        method: &http::Method,
+        meta: &RequestMeta<'_>,
     ) -> Result<(SessionId, UserId, String, Option<String>, Option<String>), ApiError> {
         let Some(token) = token_result else {
             let (sid, uid, token, is_new, fp) =
-                lifecycle::create_new_session(&self.session_creation_service, headers, uri, method)
-                    .await?;
+                lifecycle::create_new_session(&self.session_creation_service, meta).await?;
             let jwt_cookie = if is_new { Some(token.clone()) } else { None };
             return Ok((sid, uid, token, jwt_cookie, Some(fp)));
         };
 
         let Ok(jwt_context) = extract_user_context(&token) else {
             let (sid, uid, token, is_new, fp) =
-                lifecycle::create_new_session(&self.session_creation_service, headers, uri, method)
-                    .await?;
+                lifecycle::create_new_session(&self.session_creation_service, meta).await?;
             let jwt_cookie = if is_new { Some(token.clone()) } else { None };
             return Ok((sid, uid, token, jwt_cookie, Some(fp)));
         };
@@ -236,8 +247,7 @@ impl SessionMiddleware {
             &self.session_creation_service,
             &self.analytics_service,
             &jwt_context.user_id,
-            headers,
-            uri,
+            meta,
         )
         .await
         {
@@ -249,13 +259,8 @@ impl SessionMiddleware {
                     user_id = %jwt_context.user_id,
                     "JWT references non-existent user, creating new anonymous session"
                 );
-                let (sid, uid, token, _, fp) = lifecycle::create_new_session(
-                    &self.session_creation_service,
-                    headers,
-                    uri,
-                    method,
-                )
-                .await?;
+                let (sid, uid, token, _, fp) =
+                    lifecycle::create_new_session(&self.session_creation_service, meta).await?;
                 Ok((sid, uid, token.clone(), Some(token), Some(fp)))
             },
             Err(e) => Err(e),
