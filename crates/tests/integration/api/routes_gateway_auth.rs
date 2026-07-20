@@ -13,6 +13,7 @@ use axum::http::{HeaderMap, StatusCode};
 use axum::response::IntoResponse;
 use std::sync::Arc;
 use systemprompt_api::routes::gateway::{auth, bridge_manifest};
+use systemprompt_api::services::middleware::client_addr::ClientIp;
 use systemprompt_api::services::middleware::{JtiRevocationChecker, JwtContextExtractor};
 use systemprompt_traits::AppContext as _;
 use systemprompt_users::{ApiKeyService, IssueApiKeyParams};
@@ -92,6 +93,7 @@ async fn session_with_blank_code_is_bad_request() -> Result<()> {
     let (_db, ctx) = setup_ctx().await?;
     let err = auth::session(
         (*ctx).clone(),
+        ClientIp(None),
         HeaderMap::new(),
         Json(auth::SessionExchangeBody {
             code: "   ".to_owned(),
@@ -108,6 +110,7 @@ async fn session_with_unknown_code_is_unauthorized() -> Result<()> {
     let (_db, ctx) = setup_ctx().await?;
     let err = auth::session(
         (*ctx).clone(),
+        ClientIp(None),
         HeaderMap::new(),
         Json(auth::SessionExchangeBody {
             code: format!("code-{}", uuid::Uuid::new_v4()),
@@ -156,6 +159,7 @@ async fn mtls_with_blank_fingerprint_is_bad_request() -> Result<()> {
     let (_db, ctx) = setup_ctx().await?;
     let err = auth::mtls(
         (*ctx).clone(),
+        ClientIp(None),
         HeaderMap::new(),
         Json(auth::MtlsRequestBody {
             device_cert_fingerprint: "  ".to_owned(),
@@ -172,6 +176,7 @@ async fn mtls_with_unenrolled_cert_is_unauthorized() -> Result<()> {
     let (_db, ctx) = setup_ctx().await?;
     let err = auth::mtls(
         (*ctx).clone(),
+        ClientIp(None),
         HeaderMap::new(),
         Json(auth::MtlsRequestBody {
             device_cert_fingerprint: "a".repeat(64),
@@ -251,6 +256,7 @@ async fn session_with_valid_code_issues_bridge_access() -> Result<()> {
     let (code, _user) = seed_exchange_code(&ctx, &pool).await?;
     let resp = auth::session(
         (*ctx).clone(),
+        ClientIp(None),
         HeaderMap::new(),
         Json(auth::SessionExchangeBody { code }),
     )
