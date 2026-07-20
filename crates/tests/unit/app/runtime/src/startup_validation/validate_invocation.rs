@@ -39,7 +39,7 @@ fn minimal_config() -> Config {
         api_server_url: "http://127.0.0.1:8080".to_string(),
         api_internal_url: "http://127.0.0.1:8080".to_string(),
         api_external_url: "http://example.test".to_string(),
-        jwt_issuer: "test".to_string(),
+        jwt_issuer: "https://issuer.test".to_string(),
         jwt_access_token_expiration: 3600,
         jwt_refresh_token_expiration: 86_400,
         jwt_audiences: Vec::new(),

@@ -107,7 +107,7 @@ async fn userinfo_valid_token_returns_identity() -> anyhow::Result<()> {
     let state = oauth_state().await?;
     let app = systemprompt_api::routes::oauth::authenticated_router().with_state(state);
     let user = UserId::new(Uuid::new_v4().to_string());
-    let token = mint_admin_jwt(&user, "userinfo@userinfo.invalid", "test");
+    let token = mint_admin_jwt(&user, "userinfo@userinfo.invalid", "https://issuer.test");
     let resp = app
         .oneshot(get_userinfo(Some(&format!("Bearer {}", token.as_str()))))
         .await?;

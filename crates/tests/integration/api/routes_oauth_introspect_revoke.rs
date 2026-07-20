@@ -87,7 +87,7 @@ async fn seeded_client() -> anyhow::Result<(UserId, OAuthClientFixture)> {
 }
 
 fn mint_access_token(user: &UserId) -> String {
-    mint_admin_jwt(user, "introspect@introspect.invalid", "test")
+    mint_admin_jwt(user, "introspect@introspect.invalid", "https://issuer.test")
         .as_str()
         .to_owned()
 }

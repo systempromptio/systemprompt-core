@@ -53,7 +53,7 @@ fn ensure_config() {
             api_server_url: "http://127.0.0.1".to_owned(),
             api_internal_url: "http://127.0.0.1".to_owned(),
             api_external_url: "http://127.0.0.1".to_owned(),
-            jwt_issuer: "test".to_owned(),
+            jwt_issuer: "https://issuer.test".to_owned(),
             jwt_access_token_expiration: 3600,
             jwt_refresh_token_expiration: 86_400,
             jwt_audiences: vec![],

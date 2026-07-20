@@ -22,7 +22,7 @@ fn bearer_headers(token: &str) -> HeaderMap {
 
 fn minted_headers(email: &str) -> (UserId, HeaderMap) {
     let user_id = UserId::new(Uuid::new_v4().to_string());
-    let token = mint_admin_jwt(&user_id, email, "test");
+    let token = mint_admin_jwt(&user_id, email, "https://issuer.test");
     (user_id, bearer_headers(token.as_str()))
 }
 
@@ -49,7 +49,7 @@ fn authenticate_rejects_garbage_token() {
 fn authenticate_rejects_non_uuid_subject() {
     ensure_test_bootstrap();
     let user_id = UserId::new("service-account");
-    let token = mint_admin_jwt(&user_id, "svc@test.invalid", "test");
+    let token = mint_admin_jwt(&user_id, "svc@test.invalid", "https://issuer.test");
 
     let err = AuthenticationService::authenticate(&bearer_headers(token.as_str()))
         .expect_err("non-uuid sub");

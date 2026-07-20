@@ -73,7 +73,7 @@ mod config_backed {
     fn from_config_validates_fixture_minted_token() {
         ensure_test_bootstrap();
         let user_id = UserId::new(Uuid::new_v4().to_string());
-        let token = mint_admin_jwt(&user_id, "prov@test.invalid", "test");
+        let token = mint_admin_jwt(&user_id, "prov@test.invalid", "https://issuer.test");
 
         let provider = JwtValidationProviderImpl::from_config().expect("from_config");
         let claims = provider

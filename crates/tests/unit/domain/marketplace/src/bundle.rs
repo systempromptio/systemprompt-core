@@ -157,6 +157,7 @@ fn build_plugin_bundle_instance_source_includes_all_minus_exclude() {
         PluginComponentRef::default(),
         PluginComponentRef::default(),
     );
+    config.skills.source = ComponentSource::Instance;
     config.skills.exclude = vec!["b_skill".to_owned()];
 
     let bundle = build_plugin_bundle(&config, &content).expect("build bundle");

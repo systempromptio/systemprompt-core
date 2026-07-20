@@ -37,7 +37,7 @@ paths:
   bin: {}
 
 security:
-  jwt_issuer: valid
+  jwt_issuer: https://issuer.test
   jwt_access_token_expiration: 2592000
   jwt_refresh_token_expiration: 15552000
   jwt_audiences:
@@ -108,7 +108,7 @@ paths:
   bin: {}
 
 security:
-  jwt_issuer: test
+  jwt_issuer: https://issuer.test
   jwt_access_token_expiration: 2592000
   jwt_refresh_token_expiration: 15552000
   jwt_audiences:
@@ -182,7 +182,7 @@ paths:
   bin: {}
 
 security:
-  jwt_issuer: env-test
+  jwt_issuer: https://issuer.test
   jwt_access_token_expiration: 2592000
   jwt_refresh_token_expiration: 15552000
   jwt_audiences:
@@ -248,7 +248,7 @@ paths:
   bin: {bin}
 
 security:
-  jwt_issuer: {name}
+  jwt_issuer: https://issuer.test
   jwt_access_token_expiration: 2592000
   jwt_refresh_token_expiration: 15552000
   jwt_audiences:
