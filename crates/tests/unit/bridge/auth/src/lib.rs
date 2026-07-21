@@ -6,3 +6,5 @@ mod chain_fallthrough;
 mod loopback;
 #[cfg(test)]
 mod setup;
+#[cfg(test)]
+mod credential_source;
