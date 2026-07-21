@@ -28,7 +28,20 @@ pub const TEST_TEAMS_APP_ID: &str = "app-test-1";
 // The agent both messaging apps route to. A `services` backend row plus the
 // matching `config.yaml` entry (`oauth.required = false`) make it
 // dispatchable.
-pub const TEST_MESSAGING_AGENT: &str = "test_messaging_agent";
+//
+// The name is minted once per process because the backing `services` row is
+// keyed on it and every messaging test shares one database: a fixed name let a
+// concurrently-running test's `seed_agent_backend` repoint the row at its own
+// wiremock, so a dispatch could reach another test's backend (including one
+// mounted to return a JSON-RPC error). The suffix is truncated because
+// `ServicesConfig::validate` caps an agent name at 50 characters.
+pub fn test_messaging_agent() -> &'static str {
+    static NAME: OnceLock<String> = OnceLock::new();
+    NAME.get_or_init(|| {
+        let uuid = uuid::Uuid::new_v4().simple().to_string();
+        format!("test_messaging_agent_{}", &uuid[..12])
+    })
+}
 
 // The Slack signing secret resolved from the named ref `slack_signing_secret`.
 pub const TEST_SLACK_SIGNING_SECRET: &str = "test-slack-signing-secret-value";
@@ -236,7 +249,7 @@ teams_apps:
       allowed_roles:
         - user
 "#,
-        agent = TEST_MESSAGING_AGENT,
+        agent = test_messaging_agent(),
         slack_ws = TEST_SLACK_WORKSPACE_ID,
         teams_tenant = TEST_TEAMS_TENANT_ID,
         teams_app = TEST_TEAMS_APP_ID,

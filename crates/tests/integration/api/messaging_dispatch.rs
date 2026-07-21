@@ -14,9 +14,9 @@ use systemprompt_api::routes::messaging::{
 use systemprompt_identifiers::{AgentName, SlackWorkspaceId};
 use systemprompt_security::authz::{DenyAllHook, EntityRef};
 use systemprompt_test_fixtures::{
-    TEST_MESSAGING_AGENT, TEST_SLACK_WORKSPACE_ID, agent_error_response_json,
-    agent_reply_response_json, ensure_messaging_bootstrap, fixture_app_context,
-    fixture_app_context_with_hook, fixture_db_pool, install_test_signing_key, seed_agent_backend,
+    TEST_SLACK_WORKSPACE_ID, agent_error_response_json, agent_reply_response_json,
+    ensure_messaging_bootstrap, fixture_app_context, fixture_app_context_with_hook,
+    fixture_db_pool, install_test_signing_key, seed_agent_backend, test_messaging_agent,
 };
 use uuid::Uuid;
 use wiremock::matchers::method;
@@ -32,7 +32,7 @@ fn inbound(external_user_id: &str, text: &str) -> MessagingInbound {
         channel_id: "C_TEST".to_owned(),
         external_user_id: external_user_id.to_owned(),
         text: text.to_owned(),
-        agent_name: AgentName::new(TEST_MESSAGING_AGENT),
+        agent_name: AgentName::new(test_messaging_agent()),
         entity: EntityRef::SlackWorkspace(SlackWorkspaceId::new(TEST_SLACK_WORKSPACE_ID)),
         reply: ReplyTarget::Channel {
             id: "C_TEST".to_owned(),

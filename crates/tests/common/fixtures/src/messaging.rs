@@ -3,7 +3,7 @@
 //! [`seed_agent_backend`] registers a `running` agent-module `services` row
 //! pointing at a wiremock backend, so the proxy resolves the dispatch target to
 //! a loopback server. The agent itself resolves in the registry from the
-//! fixture `config.yaml` ([`TEST_MESSAGING_AGENT`], `oauth.required = false`),
+//! fixture `config.yaml` ([`test_messaging_agent`], `oauth.required = false`),
 //! so the proxy forwards without a token check. The response builders return
 //! the exact A2A JSON-RPC bodies `dispatch_messaging` parses.
 
@@ -12,7 +12,7 @@ use serde_json::{json, Value};
 use systemprompt_database::{CreateServiceInput, DbPool, ServiceRepository};
 use wiremock::MockServer;
 
-use crate::bootstrap::TEST_MESSAGING_AGENT;
+use crate::bootstrap::test_messaging_agent;
 
 // Register the dispatchable agent backend at `mock`'s loopback port.
 // Idempotent — `create_service` upserts on the service name, so a re-run
@@ -20,7 +20,7 @@ use crate::bootstrap::TEST_MESSAGING_AGENT;
 pub async fn seed_agent_backend(pool: &DbPool, mock: &MockServer) -> Result<()> {
     let repo = ServiceRepository::new(pool).map_err(|e| anyhow::anyhow!("service repo: {e}"))?;
     repo.create_service(CreateServiceInput {
-        name: TEST_MESSAGING_AGENT,
+        name: test_messaging_agent(),
         module_name: "agent",
         status: "running",
         port: mock.address().port(),
