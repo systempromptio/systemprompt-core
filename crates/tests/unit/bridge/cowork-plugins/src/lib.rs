@@ -10,3 +10,5 @@ mod emit_io;
 mod prune_orphans;
 #[cfg(test)]
 mod resolve_target_pick;
+#[cfg(test)]
+mod configured_target;

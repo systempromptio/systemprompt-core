@@ -7451,6 +7451,8 @@ version = "0.0.11"
 dependencies = [
  "serde_json",
  "systemprompt-bridge",
+ "temp-env",
+ "tempfile",
  "tokio",
  "wiremock",
 ]
@@ -7555,6 +7557,7 @@ dependencies = [
  "chrono",
  "serde_json",
  "systemprompt-bridge",
+ "systemprompt-identifiers",
  "systemprompt-test-fixtures",
  "temp-env",
  "tempfile",

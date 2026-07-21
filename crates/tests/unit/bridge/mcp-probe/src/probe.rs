@@ -3,8 +3,11 @@
 //! Each test stands up a `MockServer` standing in for "loopback proxy +
 //! upstream MCP server", programs the JSON-RPC calls the probe issues on the
 //! single `/mcp/<slug>` POST path, and drives [`probe_endpoint`] with the
-//! production client builder. The global proxy registry and loopback secret
-//! are never touched — the URL and bearer are injected directly.
+//! production client builder, injecting the URL and bearer directly.
+//!
+//! The `probe_all` registry walk is the exception: it reads the process-global
+//! registry and loopback secret, so it lives in a single sequential test that
+//! owns both.
 
 use systemprompt_bridge::proxy::mcp_probe::{
     McpAuthState, build_client, probe_all, probe_endpoint,
@@ -215,4 +218,83 @@ async fn probe_all_empty_registry_yields_no_servers() {
     let results = probe_all().await;
     assert_eq!(results.len(), 1);
     assert_eq!(results[0].state, McpAuthState::NoServers);
+}
+
+
+fn state_sandbox<R>(state: &tempfile::TempDir, f: impl FnOnce() -> R) -> R {
+    let root = state.path().display().to_string();
+    temp_env::with_vars(
+        vec![
+            ("XDG_STATE_HOME", Some(root.clone())),
+            ("XDG_CONFIG_HOME", Some(root.clone())),
+            ("XDG_CACHE_HOME", Some(root.clone())),
+            ("HOME", Some(root)),
+        ],
+        f,
+    )
+}
+
+fn seed_registry(state: &std::path::Path, names: &[&str]) {
+    let meta = state.join("systemprompt-bridge").join("metadata");
+    std::fs::create_dir_all(&meta).expect("metadata dir");
+    let servers: Vec<serde_json::Value> = names
+        .iter()
+        .map(|n| {
+            serde_json::json!({
+                "name": n,
+                "url": "http://127.0.0.1:9/mcp",
+                "transport": "http",
+            })
+        })
+        .collect();
+    std::fs::write(
+        meta.join("mcp-servers.json"),
+        serde_json::to_vec(&servers).expect("servers json"),
+    )
+    .expect("write fragment");
+    systemprompt_bridge::mcp_registry::rehydrate_from_disk();
+}
+
+#[test]
+fn probe_all_walks_the_registry_and_reports_each_server() {
+    let state = tempfile::tempdir().expect("state dir");
+    state_sandbox(&state, || {
+        seed_registry(state.path(), &["Zulu MCP", "Alpha MCP"]);
+        let results = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .expect("runtime")
+            .block_on(probe_all());
+
+        let ids: Vec<&str> = results.iter().map(|r| r.id.as_str()).collect();
+        assert_eq!(
+            ids,
+            vec!["alpha-mcp", "zulu-mcp"],
+            "every registered slug is probed, in sorted order"
+        );
+        for entry in &results {
+            assert!(
+                entry.url.ends_with(&format!("/mcp/{}", entry.id)),
+                "each result carries its own loopback MCP URL: {}",
+                entry.url
+            );
+            assert!(
+                matches!(entry.state, McpAuthState::ProxyUnreachable),
+                "no proxy is listening, so every server reads as unreachable: {:?}",
+                entry.state
+            );
+            assert!(entry.latency_ms.is_some(), "the attempt is timed");
+            assert!(entry.http_status.is_none());
+            assert!(entry.tools.is_empty());
+        }
+
+        assert!(
+            state
+                .path()
+                .join("systemprompt")
+                .join("bridge-loopback.key")
+                .is_file(),
+            "the probe mints the loopback secret it needs"
+        );
+    });
 }

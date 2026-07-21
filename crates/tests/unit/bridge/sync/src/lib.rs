@@ -8,3 +8,5 @@ mod cowork_artifacts;
 mod replay;
 #[cfg(test)]
 mod artifact_sink;
+#[cfg(test)]
+mod artifact_emitter;
