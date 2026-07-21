@@ -217,7 +217,6 @@ impl UiInitializeParams {
     }
 }
 
-
 #[must_use]
 pub fn ui_method_js_constants() -> String {
     let entries = UiMethod::all()

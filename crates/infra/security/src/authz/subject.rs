@@ -112,6 +112,10 @@ impl FromIterator<(RuleType, Vec<String>)> for SubjectAttributes {
 pub static NO_SUBJECT_ATTRIBUTES: SubjectAttributes = SubjectAttributes::EMPTY;
 
 /// Looks up the values a user holds for one extension-owned dimension.
+///
+/// `#[async_trait]` because providers are held as
+/// [`SharedSubjectAttributeProvider`], an `Arc<dyn …>`, so the trait must stay
+/// `dyn`-compatible.
 #[async_trait]
 pub trait SubjectAttributeProvider: Send + Sync + Debug {
     /// The dimension this provider supplies. Must be stable for the process

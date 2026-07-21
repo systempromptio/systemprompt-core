@@ -100,7 +100,7 @@ export class SpElement extends HTMLElement {
 //
 // A deliberately small keyed patcher. It exists to stop `innerHTML = html` from
 // destroying and rebuilding every subtree on every state event; it is not a
-// general virtual DOM and makes two assumptions that hold across this app:
+// general virtual DOM and makes three assumptions that hold across this app:
 //
 //  1. A custom element (any tag containing "-") owns its own children. We sync
 //     its attributes and stop — recursing would wipe content the child rendered

@@ -199,8 +199,8 @@ fn department() -> RuleType {
     RuleType::extension("department").expect("well-formed slug")
 }
 
-/// Precedence 100 slots between USER (0) and ROLE (200): a department rule
-/// outranks a role rule and yields to a user rule.
+// Precedence 100 slots between USER (0) and ROLE (200): a department rule
+// outranks a role rule and yields to a user rule.
 fn department_dimension() -> SubjectDimension {
     SubjectDimension {
         rule_type: department(),
@@ -318,8 +318,8 @@ fn department_allow_outranks_role_deny() {
     );
 }
 
-/// A department rule the subject does not hold the value for is unmatchable,
-/// so the ladder falls through to the role band.
+// A department rule the subject does not hold the value for is unmatchable,
+// so the ladder falls through to the role band.
 #[test]
 fn department_rule_for_another_department_does_not_match() {
     let e = entity();
@@ -347,9 +347,9 @@ fn department_rule_for_another_department_does_not_match() {
     );
 }
 
-/// The regression guard for the ladder rewrite: with the dimension left
-/// unregistered its rules are inert, which is exactly the pre-change
-/// behaviour every other case in this file asserts.
+// The regression guard for the ladder rewrite: with the dimension left
+// unregistered its rules are inert, which is exactly the pre-change
+// behaviour every other case in this file asserts.
 #[test]
 fn unregistered_dimension_rules_are_inert() {
     let e = entity();
