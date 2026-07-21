@@ -59,7 +59,15 @@ allow = [
     "OpenSSL",
     "CDLA-Permissive-2.0",
 ]
-exceptions = []
+# Scoped per-crate license allowances. Prefer these over widening `allow` above:
+# the exception records exactly which crate earned it and why.
+exceptions = [
+    # `libfuzzer-sys` is `(MIT OR Apache-2.0) AND NCSA` — the NCSA term comes from
+    # the bundled LLVM libFuzzer runtime. NCSA is OSI-approved and FSF-free, and the
+    # crate is a dev-only dependency of `crates/tests/fuzz`; it is never linked into
+    # a published crate or a shipped binary.
+    { name = "libfuzzer-sys", allow = ["NCSA"] },
+]
 
 [[licenses.clarify]]
 crate = "ring"

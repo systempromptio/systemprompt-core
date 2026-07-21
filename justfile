@@ -214,14 +214,10 @@ deny:
         (cd "$w" && cargo deny check --config "$(git rev-parse --show-toplevel)/deny.toml")
     done
 
-# Run cargo-audit against the RustSec advisory DB, across every workspace
-audit:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    for w in {{ workspaces }}; do
-        echo "==> cargo audit: $w"
-        (cd "$w" && cargo audit)
-    done
+# RustSec advisory scanning lives in `just deny` (cargo-deny's `advisories` check
+# reads the same RustSec database). cargo-audit was dropped rather than run
+# alongside it because it keeps its own separate ignore file, and two ignore lists
+# for one set of advisories drift apart. `deny.toml` is the single source of truth.
 
 # Detect unused dependencies across every workspace
 machete:
