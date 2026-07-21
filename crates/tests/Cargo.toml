@@ -138,7 +138,7 @@ single_component_path_imports = "allow"
 
 [workspace.dependencies]
 # Core dependencies - match main workspace versions
-tokio = { version = "1.49", features = ["rt-multi-thread", "net", "io-util", "time", "sync", "macros", "fs", "process", "signal", "test-util"] }
+tokio = { version = "1.53", features = ["rt-multi-thread", "net", "io-util", "time", "sync", "macros", "fs", "process", "signal", "test-util"] }
 tokio-test = "0.4"
 anyhow = "1.0"
 thiserror = "2.0"
@@ -148,22 +148,22 @@ async-trait = "0.1"
 
 # Database
 sqlx = { version = "0.9", features = ["runtime-tokio", "tls-rustls-ring-webpki", "postgres", "migrate", "chrono", "rust_decimal"] }
-rust_decimal = "1.40"
+rust_decimal = "1.42"
 
 # Serialization
 serde = { version = "1.0", features = ["derive"] }
 serde_yaml = { package = "serde_yaml_ng", version = "0.10" }
 serde_json = { version = "1.0", features = ["preserve_order"] }
 chrono = { version = "0.4", features = ["serde"] }
-uuid = { version = "1.18", features = ["v4", "serde"] }
+uuid = { version = "1.24", features = ["v4", "serde"] }
 validator = { version = "0.20", features = ["derive"] }
-regex = "1.11"
-indexmap = { version = "2.0", features = ["serde"] }
+regex = "1.13"
+indexmap = { version = "2.14", features = ["serde"] }
 
 # HTTP/API
 axum = "0.8"
 reqwest = { version = "0.12", default-features = false, features = ["json", "stream", "rustls-tls"] }
-http = "1.0"
+http = "1.4"
 tower-http = { version = "0.7", features = ["cors", "trace", "fs"] }
 tower = { version = "0.5", features = ["util"] }
 
@@ -175,19 +175,19 @@ dialoguer = "0.12"
 # Utilities
 inventory = "0.3"
 dotenvy = "0.15"
-tempfile = "3.0"
+tempfile = "3.27"
 temp-env = "0.3"
-walkdir = "2.0"
+walkdir = "2.5"
 config = { version = "0.15", features = ["yaml"] }
 futures = "0.3"
 futures-util = "0.3"
 tokio-stream = "0.1"
-bytes = "1.0"
+bytes = "1.12"
 schemars = { version = "1.2", features = ["derive"] }
 url = "2.5"
 
 # MCP
-rmcp = { version = "2.0", features = ["server", "client", "transport-io", "transport-streamable-http-server", "transport-streamable-http-server-session", "transport-streamable-http-client"] }
+rmcp = { version = "2.2", features = ["server", "client", "transport-io", "transport-streamable-http-server", "transport-streamable-http-server-session", "transport-streamable-http-client"] }
 
 # Security
 rand = "0.10"
@@ -208,7 +208,7 @@ flate2 = "1.1"
 hex = "0.4"
 
 # Property-based testing
-proptest = "1.9"
+proptest = "1.11"
 proptest-derive = "0.8"
 
 # Path dependencies to main crates (relative to crates/tests/)
@@ -231,7 +231,7 @@ systemprompt-users = { path = "../domain/users" }
 systemprompt-oauth = { path = "../domain/oauth" }
 systemprompt-files = { path = "../domain/files" }
 systemprompt-analytics = { path = "../domain/analytics" }
-maxminddb = "0.29"
+maxminddb = "0.30"
 systemprompt-content = { path = "../domain/content" }
 systemprompt-mcp = { path = "../domain/mcp" }
 systemprompt-ai = { path = "../domain/ai" }

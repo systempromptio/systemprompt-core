@@ -164,7 +164,7 @@ single_use_lifetimes = "warn"
 
 [workspace.dependencies]
 # Core dependencies
-tokio = { version = "1.49", features = ["rt-multi-thread", "net", "io-util", "time", "sync", "macros"] }
+tokio = { version = "1.53", features = ["rt-multi-thread", "net", "io-util", "time", "sync", "macros"] }
 tokio-test = "0.4"
 anyhow = "1.0"
 thiserror = "2.0"
@@ -174,22 +174,22 @@ async-trait = "0.1"
 
 # Database
 sqlx = { version = "0.9", default-features = false, features = ["runtime-tokio", "tls-rustls-ring-webpki", "macros", "postgres", "migrate", "chrono", "rust_decimal", "json"] }
-rust_decimal = "1.40"
+rust_decimal = "1.42"
 
 # Serialization
 serde = { version = "1.0", features = ["derive"] }
 serde_yaml = { package = "serde_yaml_ng", version = "0.10" }
 serde_json = { version = "1.0", features = ["preserve_order"] }
 chrono = { version = "0.4", features = ["serde"] }
-uuid = { version = "1.18", features = ["v4", "v5", "serde"] }
+uuid = { version = "1.24", features = ["v4", "v5", "serde"] }
 validator = { version = "0.20", features = ["derive"] }
-regex = "1.11"
-indexmap = { version = "2.0", features = ["serde"] }
+regex = "1.13"
+indexmap = { version = "2.14", features = ["serde"] }
 
 # HTTP/API (for API crate)
 axum = "0.8"
 reqwest = { version = "0.12", default-features = false, features = ["json", "stream", "rustls-tls"] }
-http = "1.0"
+http = "1.4"
 tower-http = { version = "0.7", features = ["cors", "trace", "fs"] }
 tower = { version = "0.5", features = ["util"] }
 tower_governor = { version = "0.8", default-features = false, features = ["axum"] }
@@ -221,22 +221,22 @@ ctrlc = "3.5"
 # Utilities
 inventory = "0.3"
 pg_query = "6.1"
-tempfile = "3.0"
-walkdir = "2.0"
+tempfile = "3.27"
+walkdir = "2.5"
 flate2 = "1.1"
 tar = "0.4"
 zip = { version = "8", default-features = false, features = ["deflate"] }
 tokio-cron-scheduler = "0.15"
-maxminddb = "0.29"
+maxminddb = "0.30"
 
 # Additional utilities
 futures = "0.3"
 futures-util = "0.3"
 tokio-stream = "0.1"
 tokio-util = "0.7"
-bytes = "1.0"
+bytes = "1.12"
 hex = "0.4"
-ipnet = "2.10"
+ipnet = "2.12"
 xxhash-rust = { version = "0.8", features = ["xxh64"] }
 schemars = { version = "1.2", features = ["derive"] }
 url = "2.5"
@@ -246,14 +246,14 @@ reqwest-eventsource = "0.6"
 wiremock = "0.6"
 
 # Markdown and templating
-comrak = { version = "0.53", default-features = false }
+comrak = { version = "0.54", default-features = false }
 handlebars = "6"
 # Static-site generation (app/generator)
 quick-xml = { version = "0.41", features = ["serialize"] }
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp"] }
 
 # MCP additional dependencies
-sse-stream = "0.2.1"
+sse-stream = "0.2.4"
 # Lean by default = rmcp's own default features (`base64`, `macros`, `server`),
 # which give the `rmcp::model` types + their `schemars`/JsonSchema impls but pull
 # NO HTTP stack. In rmcp >=1.7 a *second* reqwest (0.13, alongside the workspace's
@@ -263,8 +263,8 @@ sse-stream = "0.2.1"
 # it with their own reqwest-0.12 `HttpClientWithContext`, so the whole tree resolves
 # to a single reqwest. Every other dependent (notably the desktop bridge) only uses
 # `rmcp::model` via systemprompt-models.
-rmcp = { version = "2.0" }
-rmcp-macros = "2.0"
+rmcp = { version = "2.2" }
+rmcp-macros = "2.2"
 
 # Security
 rand = "0.10"
