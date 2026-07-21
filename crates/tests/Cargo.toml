@@ -79,6 +79,7 @@ members = [
     "unit/bridge/inventory",
     "unit/bridge/proxy",
     "unit/bridge/proxy-harness",
+    "unit/bridge/proxy-module",
     "unit/bridge/auth",
     "unit/bridge/config",
     "unit/bridge/cowork-plugins",

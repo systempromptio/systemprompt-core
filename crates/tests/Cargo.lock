@@ -7473,6 +7473,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "systemprompt-bridge-proxy-module-tests"
+version = "0.0.11"
+dependencies = [
+ "systemprompt-bridge",
+ "temp-env",
+ "tempfile",
+]
+
+[[package]]
 name = "systemprompt-bridge-proxy-tests"
 version = "0.0.11"
 dependencies = [

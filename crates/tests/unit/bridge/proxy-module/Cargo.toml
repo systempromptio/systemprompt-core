@@ -1,0 +1,16 @@
+[package]
+name = "systemprompt-bridge-proxy-module-tests"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Tests for the systemprompt-bridge process-wide proxy module state"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+systemprompt-bridge = { workspace = true }
+tempfile = { workspace = true }
+temp-env = { workspace = true }
