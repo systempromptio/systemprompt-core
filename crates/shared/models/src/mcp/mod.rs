@@ -18,9 +18,9 @@ pub mod server;
 mod tool_result_metadata;
 
 pub use apps::{
-    EXTENSION_ID, LATEST_PROTOCOL_VERSION, LEGACY_RESOURCE_URI_META_KEY, McpUiToolMeta,
-    RESOURCE_MIME_TYPE, SizeChangedParams, UI_META_KEY, UiInitializeParams, UiMessageParams,
-    UiMessageRole, UiMethod, ui_method_js_constants,
+    EXTENSION_ID, LATEST_PROTOCOL_VERSION, McpUiToolMeta, RESOURCE_MIME_TYPE, SizeChangedParams,
+    UI_META_KEY, UiInitializeParams, UiMessageParams, UiMessageRole, UiMethod,
+    ui_method_js_constants,
 };
 pub use call_tool_result_ext::CallToolResultExt;
 pub use capabilities::{

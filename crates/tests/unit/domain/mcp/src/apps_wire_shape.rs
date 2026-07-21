@@ -3,9 +3,9 @@
 // anything it does not recognise, so a rename here fails loudly instead.
 
 use systemprompt_models::mcp::{
-    EXTENSION_ID, LATEST_PROTOCOL_VERSION, LEGACY_RESOURCE_URI_META_KEY, McpCspDomains,
-    McpUiToolMeta, RESOURCE_MIME_TYPE, SizeChangedParams, ToolVisibility, UI_META_KEY,
-    UiInitializeParams, UiMessageParams, UiMethod, ui_method_js_constants,
+    EXTENSION_ID, LATEST_PROTOCOL_VERSION, McpCspDomains, McpUiToolMeta, RESOURCE_MIME_TYPE,
+    SizeChangedParams, ToolVisibility, UI_META_KEY, UiInitializeParams, UiMessageParams, UiMethod,
+    ui_method_js_constants,
 };
 
 #[test]
@@ -14,7 +14,6 @@ fn extension_id_matches_spec() {
     assert_eq!(RESOURCE_MIME_TYPE, "text/html;profile=mcp-app");
     assert_eq!(LATEST_PROTOCOL_VERSION, "2026-01-26");
     assert_eq!(UI_META_KEY, "ui");
-    assert_eq!(LEGACY_RESOURCE_URI_META_KEY, "ui/resourceUri");
 }
 
 #[test]

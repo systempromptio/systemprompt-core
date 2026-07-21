@@ -31,10 +31,6 @@ pub const LATEST_PROTOCOL_VERSION: &str = "2026-01-26";
 
 pub const UI_META_KEY: &str = "ui";
 
-/// Emitted alongside `_meta.ui` for hosts predating it, as the reference SDK
-/// does.
-pub const LEGACY_RESOURCE_URI_META_KEY: &str = "ui/resourceUri";
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum UiMethod {
     #[serde(rename = "ui/initialize")]
