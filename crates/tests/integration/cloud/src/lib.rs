@@ -13,7 +13,7 @@
 //! with its own `app_id`, `hostname`, `database_url`, and (server-side)
 //! `oauth_at_rest_pepper`. Per-tenant secrets are fetched from a
 //! per-tenant `secrets_url` and are never co-mingled client-side; the
-//! tests in [`pepper_boundary_tests`] document that architectural
+//! tests in `pepper_boundary_tests` document that architectural
 //! invariant.
 
 #[cfg(test)]

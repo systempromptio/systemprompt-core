@@ -4,8 +4,7 @@
 //! [`AppContextBuilder`](systemprompt_runtime::AppContextBuilder)
 //! bootstrap (profile / config / logging / system-admin resolution) and
 //! assembles a context directly via `AppContext::from_parts`. The fixture wires
-//! in an [`AllowAllHook`](systemprompt_security::authz::AllowAllHook) so route
-//! handlers behave like permissive auth.
+//! in an [`AllowAllHook`] so route handlers behave like permissive auth.
 
 use std::sync::{Arc, OnceLock};
 
