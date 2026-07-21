@@ -73,9 +73,9 @@ pub(super) fn paths(
     }
 }
 
-pub(super) fn security(env_name: &str) -> SecurityConfig {
+pub(super) fn security(api_external_url: &str) -> SecurityConfig {
     SecurityConfig {
-        issuer: format!("systemprompt-{}", env_name),
+        issuer: api_external_url.to_owned(),
         access_token_expiration: 2_592_000,
         refresh_token_expiration: 15_552_000,
         audiences: vec![

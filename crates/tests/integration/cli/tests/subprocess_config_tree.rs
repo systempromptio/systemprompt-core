@@ -331,7 +331,7 @@ fn security_show_set_and_trusted_issuers() {
         "security",
         "set",
         "--jwt-issuer",
-        "test2",
+        "https://issuer2.example.com",
         "--access-expiry",
         "7200",
         "--refresh-expiry",

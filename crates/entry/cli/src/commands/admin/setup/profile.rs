@@ -57,6 +57,7 @@ pub(super) fn build(params: &ProfileBuildParams<'_>) -> Result<Profile> {
     let is_prod = matches!(runtime_env, Environment::Production);
     let server = sections::server(is_prod);
     let governance = sections::governance(&server.api_internal_url);
+    let security = sections::security(&server.api_external_url);
 
     let profile = Profile {
         name: env_name.to_owned(),
@@ -73,7 +74,7 @@ pub(super) fn build(params: &ProfileBuildParams<'_>) -> Result<Profile> {
         },
         server,
         paths: sections::paths(project_root, bin_path, &ctx),
-        security: sections::security(env_name),
+        security,
         rate_limits: RateLimitsConfig {
             disabled: !is_prod,
             ..Default::default()
