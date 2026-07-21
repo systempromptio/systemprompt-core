@@ -1,0 +1,17 @@
+[package]
+name = "systemprompt-bridge-cli-dispatch-tests"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Tests for the systemprompt-bridge CLI argv dispatch tree"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+systemprompt-bridge = { workspace = true }
+tempfile = { workspace = true }
+temp-env = { workspace = true }
+serde_json = { workspace = true }

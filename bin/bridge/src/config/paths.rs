@@ -131,17 +131,32 @@ pub fn all_known_org_plugins_roots() -> Vec<PathBuf> {
 
 pub const LEGACY_ORG_PLUGINS_METADATA: &[&str] = &[".systemprompt-bridge", ".systemprompt-cowork"];
 
+// `Permissions::readonly` reports the file's own mode bits, not whether *this*
+// process may create entries in the directory, so an unelevated Linux install
+// used to select the root-owned system root and then fail. Probe by creating.
 #[cfg(not(target_os = "macos"))]
 fn probe_writable(path: &std::path::Path) -> bool {
-    if let Ok(metadata) = std::fs::metadata(path) {
-        return metadata.is_dir() && !metadata.permissions().readonly();
-    }
-    if let Some(parent) = path.parent()
-        && let Ok(metadata) = std::fs::metadata(parent)
-    {
-        return metadata.is_dir() && !metadata.permissions().readonly();
+    let mut candidate = Some(path);
+    while let Some(dir) = candidate {
+        match std::fs::metadata(dir) {
+            Ok(metadata) if metadata.is_dir() => return can_create_in(dir),
+            Ok(_) => return false,
+            Err(_) => candidate = dir.parent(),
+        }
     }
     false
+}
+
+#[cfg(not(target_os = "macos"))]
+fn can_create_in(dir: &std::path::Path) -> bool {
+    let probe = dir.join(format!(".sp-bridge-writeprobe-{}", std::process::id()));
+    match std::fs::File::create(&probe) {
+        Ok(_) => {
+            _ = std::fs::remove_file(&probe);
+            true
+        },
+        Err(_) => false,
+    }
 }
 
 // `None` means no Cowork install detected; callers must treat as a no-op, not
