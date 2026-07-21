@@ -61,23 +61,46 @@
     <div class="status"><span class="spinner"></span><span>Loading artifact…</span></div>
   </div>
   <script>
+    // MCP Apps (SEP-1865) shell. The host renders this predeclared template
+    // and pushes the tool result via `ui/notifications/tool-result`. All
+    // artifact markup is rendered server-side; this shell only mounts it and
+    // relays size, so it needs no knowledge of artifact types.
     const HTML_MIME_PREFIX = 'text/html';
+    const PENDING = new Map();
+    let requestId = 0;
+    let lastSize = { width: 0, height: 0 };
 
-    function publishHeight(height) {
-      if (!height) {
-        return;
-      }
-      window.parent.postMessage({
-        jsonrpc: '2.0',
-        method: 'ui/notifications/size-changed',
-        params: { height }
-      }, '*');
-      window.parent.postMessage({ type: 'ui-size-change', payload: { height } }, '*');
+    function post(message) {
+      window.parent.postMessage(message, '*');
     }
 
-    function renderedHtml(result) {
-      const blocks = (result && result.content) || [];
-      for (const block of blocks) {
+    function request(method, params) {
+      return new Promise((resolve, reject) => {
+        const id = ++requestId;
+        PENDING.set(id, { resolve, reject });
+        post({ jsonrpc: '2.0', id, method, params });
+      });
+    }
+
+    function publishSize() {
+      const doc = document.documentElement;
+      const width = Math.ceil(Math.max(doc.scrollWidth, document.body.scrollWidth));
+      const height = Math.ceil(Math.max(doc.scrollHeight, document.body.scrollHeight));
+      if (!height || (width === lastSize.width && height === lastSize.height)) {
+        return;
+      }
+      lastSize = { width, height };
+      post({
+        jsonrpc: '2.0',
+        method: 'ui/notifications/size-changed',
+        params: { width, height }
+      });
+    }
+
+    // The tool result carries the rendered artifact as an embedded ui://
+    // resource — the zero-round-trip path.
+    function embeddedHtml(result) {
+      for (const block of (result && result.content) || []) {
         const resource = block && block.resource;
         const mime = resource && (resource.mimeType || resource.mime_type);
         if (resource && typeof resource.text === 'string' && mime && mime.startsWith(HTML_MIME_PREFIX)) {
@@ -87,71 +110,98 @@
       return null;
     }
 
-    function showRendered(html) {
+    // Spec-sanctioned fallback: read the artifact's own ui:// resource from
+    // the server when the host does not forward embedded content blocks.
+    async function fetchedHtml(result) {
+      const meta = result && result._meta;
+      const uri = meta && meta['io.systemprompt/ui-resource-uri'];
+      if (!uri) {
+        return null;
+      }
+      const read = await request('resources/read', { uri });
+      for (const contents of (read && read.contents) || []) {
+        if (typeof contents.text === 'string') {
+          return contents.text;
+        }
+      }
+      return null;
+    }
+
+    function mount(html) {
       const root = document.getElementById('root');
       root.innerHTML = '<iframe id="frame" sandbox="allow-scripts allow-popups"></iframe>';
-      const frame = document.getElementById('frame');
-      frame.srcdoc = html;
+      document.getElementById('frame').srcdoc = html;
     }
 
     function showFallback(result) {
       const structured = (result && result.structuredContent) || result || {};
       const payload = structured.artifact || structured;
-      const root = document.getElementById('root');
-      const pre = document.createElement('pre');
-      pre.textContent = JSON.stringify(payload, null, 2);
       const wrapper = document.createElement('div');
       wrapper.className = 'fallback';
+      const pre = document.createElement('pre');
+      pre.textContent = JSON.stringify(payload, null, 2);
       wrapper.appendChild(pre);
+      const root = document.getElementById('root');
       root.innerHTML = '';
       root.appendChild(wrapper);
-      publishHeight(document.documentElement.scrollHeight);
+      publishSize();
     }
 
     function showError(message) {
-      const root = document.getElementById('root');
       const div = document.createElement('div');
       div.className = 'error';
       div.textContent = message;
+      const root = document.getElementById('root');
       root.innerHTML = '';
       root.appendChild(div);
-      publishHeight(document.documentElement.scrollHeight);
+      publishSize();
     }
 
-    function render(result) {
-      const html = renderedHtml(result);
-      if (html) {
-        showRendered(html);
-      } else {
-        showFallback(result);
+    async function render(result) {
+      const inline = embeddedHtml(result);
+      if (inline) {
+        mount(inline);
+        return;
       }
+      try {
+        const fetched = await fetchedHtml(result);
+        if (fetched) {
+          mount(fetched);
+          return;
+        }
+      } catch (err) {
+        console.error('resources/read for artifact failed:', err);
+      }
+      showFallback(result);
     }
 
     window.addEventListener('message', (event) => {
-      const data = event.data;
+      const data = event.data || {};
       try {
-        if (data && data.method === 'ui/notifications/size-changed' && data.params) {
+        if (data.id && PENDING.has(data.id)) {
+          const { resolve, reject } = PENDING.get(data.id);
+          PENDING.delete(data.id);
+          if (data.error) {
+            reject(new Error(data.error.message || 'Request failed'));
+          } else {
+            resolve(data.result);
+          }
+          return;
+        }
+
+        // The mounted artifact reports its own size; grow to fit and pass the
+        // measurement up to the host.
+        if (data.method === 'ui/notifications/size-changed' && data.params) {
           const frame = document.getElementById('frame');
-          if (frame) {
+          if (frame && event.source === frame.contentWindow) {
             frame.style.height = data.params.height + 'px';
+            publishSize();
           }
-          publishHeight(data.params.height);
           return;
         }
-        if (data && data.type === 'ui-size-change' && data.payload) {
-          const frame = document.getElementById('frame');
-          if (frame) {
-            frame.style.height = data.payload.height + 'px';
-          }
-          publishHeight(data.payload.height);
-          return;
-        }
-        if (data && data.method === 'ui/notifications/tool-result') {
+
+        if (data.method === 'ui/notifications/tool-result') {
           render(data.params);
-        } else if (data && data.jsonrpc === '2.0' && data.result) {
-          render(data.result);
-        } else if (data && data.structuredContent) {
-          render(data);
         }
       } catch (err) {
         console.error('Artifact shell failed to render:', err);
@@ -159,8 +209,15 @@
       }
     });
 
-    window.parent.postMessage({ jsonrpc: '2.0', method: 'ui/notifications/initialized' }, '*');
-    window.parent.postMessage({ jsonrpc: '2.0', method: 'ui/ready', params: {} }, '*');
+    request('ui/initialize', {
+      appInfo: { name: 'systemprompt-artifact-viewer', version: '1.0.0' },
+      appCapabilities: {}
+    }).then(() => {
+      post({ jsonrpc: '2.0', method: 'ui/notifications/initialized', params: {} });
+      publishSize();
+    }).catch((err) => {
+      console.error('ui/initialize failed:', err);
+    });
   </script>
 </body>
 </html>

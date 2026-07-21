@@ -6,6 +6,8 @@ for (const button of document.querySelectorAll('.card-cta')) {
         if (!cta) {
             return;
         }
-        McpAppBridge.sendNotification('ui/notifications/prompt', { prompt: cta.message });
+        McpAppBridge.sendMessage(cta.message).catch((err) => {
+            console.error('ui/message failed:', err);
+        });
     });
 }

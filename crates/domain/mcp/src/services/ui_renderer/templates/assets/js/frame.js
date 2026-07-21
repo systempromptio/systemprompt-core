@@ -1,6 +1,10 @@
+// Size negotiation per MCP Apps (SEP-1865): the app notifies the host of its
+// viewport dimensions with `ui/notifications/size-changed`, whose params carry
+// both `width` and `height` in pixels.
 const McpAppFrame = {
     parent: window.parent,
     origin: '*',
+    lastWidth: 0,
     lastHeight: 0,
     pending: false,
 
@@ -25,30 +29,29 @@ const McpAppFrame = {
     measure() {
         const doc = document.documentElement;
         const body = document.body;
-        return Math.ceil(Math.max(
-            doc.scrollHeight,
-            doc.offsetHeight,
-            body ? body.scrollHeight : 0,
-            body ? body.offsetHeight : 0
-        ));
+        return {
+            width: Math.ceil(Math.max(doc.scrollWidth, body ? body.scrollWidth : 0)),
+            height: Math.ceil(Math.max(
+                doc.scrollHeight,
+                doc.offsetHeight,
+                body ? body.scrollHeight : 0,
+                body ? body.offsetHeight : 0
+            ))
+        };
     },
 
     publish() {
-        const height = this.measure();
-        if (height === this.lastHeight || height === 0) {
+        const { width, height } = this.measure();
+        if (height === 0 || (width === this.lastWidth && height === this.lastHeight)) {
             return;
         }
+        this.lastWidth = width;
         this.lastHeight = height;
 
         this.parent.postMessage({
             jsonrpc: '2.0',
             method: 'ui/notifications/size-changed',
-            params: { height }
-        }, this.origin);
-
-        this.parent.postMessage({
-            type: 'ui-size-change',
-            payload: { height }
+            params: { width, height }
         }, this.origin);
     }
 };

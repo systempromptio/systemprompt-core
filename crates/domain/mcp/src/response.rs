@@ -18,6 +18,11 @@ use systemprompt_models::RequestContext;
 use systemprompt_models::artifacts::{ExecutionMetadata, ToolResponse};
 use systemprompt_models::mcp::McpResourceUiMeta;
 
+/// `_meta` key on a tool result naming the `ui://` resource that renders it.
+/// Namespaced per the MCP `_meta` convention so it cannot collide with keys
+/// the protocol or a host defines.
+pub const UI_RESOURCE_URI_META_KEY: &str = "io.systemprompt/ui-resource-uri";
+
 pub struct McpResponseBuilder<T: Serialize + JsonSchema> {
     output: T,
     tool_name: String,
@@ -105,16 +110,23 @@ impl<T: Serialize + JsonSchema + McpOutputSchema> McpResponseBuilder<T> {
 
         tracing::info!(artifact_id = %artifact_id, server = %create_artifact.server_name, "Artifact persisted");
 
+        let ui_resource_uri =
+            artifact_resource_uri(&create_artifact.server_name, &create_artifact.artifact_id);
+
         let mut content = vec![ContentBlock::text(summary_str)];
-        if let Some(block) = ui_resource_block(&create_artifact, &self.ctx).await {
+        if let Some(block) = ui_resource_block(&create_artifact, &self.ctx, &ui_resource_uri).await {
             content.push(block);
         }
 
         let mut result = CallToolResult::success(content);
         result.structured_content = Some(structured_content);
-        if let Some(meta) = meta_for_result {
-            result = result.with_meta(Some(meta));
-        }
+
+        // The app shell reads this to `resources/read` the rendered artifact
+        // when the host does not forward embedded content blocks to it.
+        let mut meta_map = meta_for_result.map_or_else(serde_json::Map::new, |m| m.0);
+        meta_map.insert(UI_RESOURCE_URI_META_KEY.to_owned(), ui_resource_uri.into());
+        result = result.with_meta(Some(Meta(meta_map)));
+
         Ok(result)
     }
 }
@@ -125,6 +137,7 @@ impl<T: Serialize + JsonSchema + McpOutputSchema> McpResponseBuilder<T> {
 async fn ui_resource_block(
     artifact: &CreateMcpArtifact,
     ctx: &RequestContext,
+    uri: &str,
 ) -> Option<ContentBlock> {
     let payload = artifact.data.get("artifact")?;
     let target = RenderTarget {
@@ -154,7 +167,7 @@ async fn ui_resource_block(
 
     Some(ContentBlock::resource(
         ResourceContents::TextResourceContents {
-            uri: artifact_resource_uri(&artifact.server_name, &artifact.artifact_id),
+            uri: uri.to_owned(),
             mime_type: Some(UiResource::mime_type().to_owned()),
             text: resource.html,
             meta: Some(Meta(ui_meta.to_meta_map())),

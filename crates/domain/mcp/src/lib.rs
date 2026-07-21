@@ -69,7 +69,7 @@ pub use resources::{
 };
 pub use services::ui_renderer::templates::html::artifact_shell_template;
 pub use services::ui_renderer::{artifact_resource_uri, parse_artifact_resource_uri};
-pub use response::McpResponseBuilder;
+pub use response::{McpResponseBuilder, UI_RESOURCE_URI_META_KEY};
 pub use schema::McpOutputSchema;
 pub use tool::{McpToolExecutor, McpToolHandler};
 
