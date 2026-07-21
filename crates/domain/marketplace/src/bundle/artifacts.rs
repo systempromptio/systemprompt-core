@@ -60,7 +60,7 @@ pub(super) fn append_artifact_files(
     for artifact in content
         .artifacts
         .iter()
-        .filter(|a| selects_artifact(config, a.id.as_str()))
+        .filter(|a| selects_artifact(config, &a.id))
     {
         let record = BundledArtifactRecord::from(artifact);
         match serde_json::to_vec_pretty(&record) {

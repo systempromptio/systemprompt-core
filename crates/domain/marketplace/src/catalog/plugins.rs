@@ -23,7 +23,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::sync::{Arc, OnceLock, RwLock};
 
 use sha2::{Digest, Sha256};
-use systemprompt_models::bridge::ids::{PluginId, Sha256Digest};
+use systemprompt_models::bridge::ids::{LibraryArtifactId, PluginId, Sha256Digest};
 use systemprompt_models::bridge::manifest::{ArtifactEntry, PluginEntry, PluginFile};
 use systemprompt_models::services::{ComponentSource, PluginConfig, ServicesConfig};
 
@@ -164,8 +164,8 @@ pub fn artifact_owners(
             ComponentSource::Explicit => config.artifacts.include.clone(),
             ComponentSource::Instance => artifacts
                 .iter()
+                .filter(|a| selects_artifact(config, &a.id))
                 .map(|a| a.id.as_str().to_owned())
-                .filter(|id| selects_artifact(config, id))
                 .collect(),
         };
         for id in selected {
@@ -183,7 +183,8 @@ pub fn artifact_owners(
 /// is a distribution gate — an artifact reaches a client only through a plugin
 /// that selects it — so the two callers must not drift.
 #[must_use]
-pub fn selects_artifact(config: &PluginConfig, artifact_id: &str) -> bool {
+pub fn selects_artifact(config: &PluginConfig, artifact_id: &LibraryArtifactId) -> bool {
+    let artifact_id = artifact_id.as_str();
     match config.artifacts.source {
         ComponentSource::Explicit => config
             .artifacts
