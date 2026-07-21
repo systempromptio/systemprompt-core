@@ -166,6 +166,7 @@ struct SandboxDirs {
     state_home: OsString,
     home: OsString,
     org_plugins: PathBuf,
+    metadata: PathBuf,
 }
 
 fn sandbox(gateway_uri: &str, pat_file: &Path, pubkey: Option<&str>) -> SandboxDirs {
@@ -182,6 +183,7 @@ fn sandbox(gateway_uri: &str, pat_file: &Path, pubkey: Option<&str>) -> SandboxD
     let org_plugins = data_home.join("Claude").join("org-plugins");
     fs::create_dir_all(&org_plugins).unwrap();
 
+    let metadata = state_home.join("systemprompt-bridge").join("metadata");
     let config_file = config_home.join("systemprompt-bridge.toml");
     let mut toml = String::new();
     toml.push_str(&format!("gateway_url = \"{gateway_uri}\"\n"));
@@ -200,6 +202,7 @@ fn sandbox(gateway_uri: &str, pat_file: &Path, pubkey: Option<&str>) -> SandboxD
         data_home: data_home.into(),
         state_home: state_home.into(),
         home: home.into(),
+        metadata,
         org_plugins,
         _temp: temp,
     }
@@ -523,4 +526,136 @@ fn run_once_surfaces_plugin_file_404_as_apply_failure() {
         err.to_lowercase().contains("apply") || err.contains("404") || err.contains("plugin"),
         "unexpected error surface: {err}"
     );
+}
+
+
+fn manifest_with(servers: Vec<ManagedMcpServer>, enabled_hosts: Vec<String>) -> SignedManifest {
+    SignedManifest {
+        manifest_version: version(),
+        issued_at: "2026-05-01T12:00:00+00:00".into(),
+        not_before: "2026-05-01T12:00:00+00:00".into(),
+        user_id: fixture_user_id(),
+        tenant_id: None,
+        user: None,
+        plugins: vec![],
+        skills: vec![],
+        agents: vec![],
+        hooks: vec![],
+        managed_mcp_servers: servers,
+        revocations: vec![],
+        enabled_hosts,
+        host_model_protocols: Default::default(),
+        artifacts: vec![],
+        signature: ManifestSignature::new(""),
+    }
+}
+
+fn serve(m: &SignedManifest, label: &str) -> (MockServer, SandboxDirs, PathBuf) {
+    let rt = setup_runtime();
+    rt.block_on(async {
+        let server = MockServer::start().await;
+        pat_mock().mount(&server).await;
+        Mock::given(method("GET"))
+            .and(path("/v1/bridge/manifest"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(manifest_json(m)))
+            .mount(&server)
+            .await;
+        let pat_dir = fresh_dir(label);
+        let pat_file = pat_dir.join("pat.txt");
+        fs::write(&pat_file, "sp-live-test-pat").unwrap();
+        let dirs = sandbox(&server.uri(), &pat_file, None);
+        (server, dirs, pat_dir)
+    })
+}
+
+fn written_servers(dirs: &SandboxDirs) -> Vec<serde_json::Value> {
+    let raw = fs::read_to_string(dirs.metadata.join("mcp-servers.json"))
+        .expect("apply writes the MCP fragment");
+    serde_json::from_str(&raw).expect("MCP fragment is a JSON array")
+}
+
+#[test]
+fn a_loopback_mcp_url_is_rewritten_to_the_gateway_host() {
+    let m = manifest_with(
+        vec![
+            mcp("Loopback MCP", "http://localhost:9911/mcp"),
+            mcp("Remote MCP", "https://remote.invalid/mcp"),
+        ],
+        vec![],
+    );
+    let (server, dirs, pat_dir) = serve(&m, "pat-rewrite");
+    let gateway_uri = server.uri();
+    let summary = run_sync(&dirs).expect("sync applies");
+    assert_eq!(summary.mcp_count, 2);
+
+    let written = written_servers(&dirs);
+    let loopback = written
+        .iter()
+        .find(|s| s["name"] == "Loopback MCP")
+        .expect("loopback server written");
+    assert_eq!(
+        loopback["url"].as_str().expect("url"),
+        format!("{gateway_uri}/mcp"),
+        "a localhost MCP URL is rehomed onto the gateway origin"
+    );
+    let remote = written
+        .iter()
+        .find(|s| s["name"] == "Remote MCP")
+        .expect("remote server written");
+    assert_eq!(
+        remote["url"].as_str(),
+        Some("https://remote.invalid/mcp"),
+        "a non-loopback URL is left alone"
+    );
+    let _ = (&server, &pat_dir);
+}
+
+#[test]
+fn applying_a_manifest_prunes_legacy_bridge_state() {
+    let m = manifest_with(vec![], vec![]);
+    let (server, dirs, pat_dir) = serve(&m, "pat-prune");
+
+    let legacy_plugin = dirs.org_plugins.join("systemprompt-managed");
+    let legacy_meta = dirs.org_plugins.join(".systemprompt-bridge");
+    fs::create_dir_all(&legacy_plugin).unwrap();
+    fs::create_dir_all(&legacy_meta).unwrap();
+    fs::write(legacy_plugin.join("stale.json"), "{}").unwrap();
+
+    run_sync(&dirs).expect("sync applies");
+
+    assert!(
+        !legacy_plugin.exists(),
+        "the legacy aggregate plugin dir is pruned"
+    );
+    assert!(
+        !legacy_meta.exists(),
+        "the legacy bridge metadata marker dir is pruned"
+    );
+    let _ = (&server, &pat_dir);
+}
+
+#[test]
+fn a_manifest_without_a_user_writes_a_null_user_fragment() {
+    let m = manifest_with(vec![], vec![]);
+    let (server, dirs, pat_dir) = serve(&m, "pat-nulluser");
+    run_sync(&dirs).expect("sync applies");
+    assert_eq!(
+        fs::read_to_string(dirs.metadata.join("user.json")).expect("user fragment written"),
+        "null",
+        "an absent user is recorded explicitly, not omitted"
+    );
+    let _ = (&server, &pat_dir);
+}
+
+#[test]
+fn an_enabled_host_with_nothing_installed_is_a_no_op() {
+    let enabled = manifest_with(vec![], vec!["cowork".into()]);
+    let (server, dirs, pat_dir) = serve(&enabled, "pat-hosts");
+    let summary = run_sync(&dirs).expect("sync applies");
+    assert!(
+        summary.one_line().contains("sync ok"),
+        "an enabled host with no Cowork install is a no-op, not a failure: {}",
+        summary.one_line()
+    );
+    let _ = (&server, &pat_dir);
 }
