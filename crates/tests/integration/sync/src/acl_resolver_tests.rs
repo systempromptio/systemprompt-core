@@ -69,6 +69,8 @@ async fn role_deny_overrides_role_allow_for_same_subject() {
         user_roles: &["engineer".to_owned()],
         default_included: Some(false),
         parents: &[],
+        attributes: &systemprompt_security::authz::NO_SUBJECT_ATTRIBUTES,
+        dimensions: &[],
     });
     assert!(
         matches!(decision, Decision::Deny { .. }),
@@ -134,6 +136,8 @@ async fn user_deny_overrides_role_allow_specificity_wins() {
         user_roles: &["admin".to_owned()],
         default_included: Some(false),
         parents: &[],
+        attributes: &systemprompt_security::authz::NO_SUBJECT_ATTRIBUTES,
+        dimensions: &[],
     });
     assert!(
         matches!(decision, Decision::Deny { .. }),
@@ -154,14 +158,14 @@ async fn deny_overrides_at_resolve_regardless_of_rule_order() {
     use systemprompt_identifiers::RuleId;
     let allow_rule = AccessRule {
         id: RuleId::generate(),
-        rule_type: RuleType::Role,
+        rule_type: RuleType::ROLE,
         rule_value: "dev".to_owned(),
         access: Access::Allow,
         justification: None,
     };
     let deny_rule = AccessRule {
         id: RuleId::generate(),
-        rule_type: RuleType::Role,
+        rule_type: RuleType::ROLE,
         rule_value: "dev".to_owned(),
         access: Access::Deny,
         justification: Some("test".to_owned()),
@@ -177,6 +181,8 @@ async fn deny_overrides_at_resolve_regardless_of_rule_order() {
         user_roles: &roles,
         default_included: Some(false),
         parents: &[],
+        attributes: &systemprompt_security::authz::NO_SUBJECT_ATTRIBUTES,
+        dimensions: &[],
     });
     let decision_b = resolve(ResolveInput {
         entity: &entity_ref,
@@ -185,6 +191,8 @@ async fn deny_overrides_at_resolve_regardless_of_rule_order() {
         user_roles: &roles,
         default_included: Some(false),
         parents: &[],
+        attributes: &systemprompt_security::authz::NO_SUBJECT_ATTRIBUTES,
+        dimensions: &[],
     });
     assert!(
         matches!(decision_a, Decision::Deny { .. }),
@@ -275,6 +283,8 @@ async fn yaml_rule_ordering_does_not_change_decision() {
         user_roles: &roles,
         default_included: Some(false),
         parents: &[],
+        attributes: &systemprompt_security::authz::NO_SUBJECT_ATTRIBUTES,
+        dimensions: &[],
     });
     let decision_b = resolve(ResolveInput {
         entity: &entity_ref_b,
@@ -283,6 +293,8 @@ async fn yaml_rule_ordering_does_not_change_decision() {
         user_roles: &roles,
         default_included: Some(false),
         parents: &[],
+        attributes: &systemprompt_security::authz::NO_SUBJECT_ATTRIBUTES,
+        dimensions: &[],
     });
     assert!(
         matches!(decision_a, Decision::Deny { .. }),

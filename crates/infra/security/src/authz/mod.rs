@@ -40,6 +40,7 @@ pub mod repository;
 pub mod resolver;
 pub mod rule_based;
 pub mod runtime;
+pub mod subject;
 pub mod types;
 
 pub use audit::{
@@ -58,6 +59,11 @@ pub use repository::{AccessControlRepository, UpsertRuleParams};
 pub use resolver::{ResolveInput, ResolveParent, resolve};
 pub use rule_based::RuleBasedHook;
 pub use runtime::build_authz_hook;
+pub use subject::{
+    NO_SUBJECT_ATTRIBUTES, ROLE_PRECEDENCE, SharedSubjectAttributeProvider,
+    SubjectAttributeProvider, SubjectAttributes, SubjectDimension, SubjectProviderRegistration,
+    USER_PRECEDENCE, dimensions_of, discover_subject_providers, gather_subject_attributes,
+};
 pub use types::{
     Access, AccessRule, AuthzContext, AuthzDecision, AuthzRequest, Decision, DecisionTag,
     DenyReason, EntityKind, EntityRef, EntityRow, MatchedBy, RuleType,

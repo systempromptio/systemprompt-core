@@ -11,6 +11,7 @@ use systemprompt_identifiers::{McpToolName, PolicyId, SecretPatternId, UserId};
 use thiserror::Error;
 
 use super::entity_ref::EntityRef;
+use super::kinds::RuleType;
 use crate::policy::types::{AccessScope, RateLimitWindow, SecretLocation};
 
 /// Why an [`super::request::AuthzRequest`] was allowed. Carries enough
@@ -22,6 +23,12 @@ pub enum MatchedBy {
     UserAllow,
     RoleAllow {
         role: String,
+    },
+    /// Allowed by a rule on an extension-declared subject dimension
+    /// (`rule_type` outside core's `user` / `role`), e.g. a department grant.
+    AttributeAllow {
+        rule_type: RuleType,
+        value: String,
     },
     DefaultIncluded,
     PolicyAllow {
@@ -52,6 +59,17 @@ pub enum DenyReason {
     RoleDeny {
         entity: EntityRef,
         role: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        justification: Option<String>,
+    },
+    /// Denied by a rule on an extension-declared subject dimension. `value` is
+    /// the dimension value the subject holds that the rule named, e.g.
+    /// `rule_type = "department"`, `value = "engineering"`.
+    #[error("{rule_type} {value} denied for {entity}")]
+    AttributeDeny {
+        entity: EntityRef,
+        rule_type: RuleType,
+        value: String,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         justification: Option<String>,
     },

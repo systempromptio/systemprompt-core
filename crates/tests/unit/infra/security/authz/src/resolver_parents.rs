@@ -29,8 +29,8 @@ fn own_allow_wins_over_parent() {
     let parent = parent_entity();
     let user = fixture_user_id();
     let roles: Vec<String> = vec!["eng".into()];
-    let own = vec![rule(RuleType::Role, "eng", Access::Allow)];
-    let parent_rules = vec![rule(RuleType::Role, "eng", Access::Deny)];
+    let own = vec![rule(RuleType::ROLE, "eng", Access::Allow)];
+    let parent_rules = vec![rule(RuleType::ROLE, "eng", Access::Deny)];
     let parents = [ResolveParent {
         entity: &parent,
         rules: &parent_rules,
@@ -44,6 +44,8 @@ fn own_allow_wins_over_parent() {
         user_roles: &roles,
         default_included: Some(false),
         parents: &parents,
+        attributes: &systemprompt_security::authz::NO_SUBJECT_ATTRIBUTES,
+        dimensions: &[],
     });
 
     assert_eq!(
@@ -60,8 +62,8 @@ fn own_deny_overrides_parent_allow() {
     let parent = parent_entity();
     let user = fixture_user_id();
     let roles: Vec<String> = vec!["eng".into()];
-    let own = vec![rule(RuleType::Role, "eng", Access::Deny)];
-    let parent_rules = vec![rule(RuleType::Role, "eng", Access::Allow)];
+    let own = vec![rule(RuleType::ROLE, "eng", Access::Deny)];
+    let parent_rules = vec![rule(RuleType::ROLE, "eng", Access::Allow)];
     let parents = [ResolveParent {
         entity: &parent,
         rules: &parent_rules,
@@ -75,6 +77,8 @@ fn own_deny_overrides_parent_allow() {
         user_roles: &roles,
         default_included: Some(false),
         parents: &parents,
+        attributes: &systemprompt_security::authz::NO_SUBJECT_ATTRIBUTES,
+        dimensions: &[],
     });
 
     assert!(
@@ -94,7 +98,7 @@ fn parent_allow_cascades_when_own_absent() {
     let parent = parent_entity();
     let user = fixture_user_id();
     let roles: Vec<String> = vec!["eng".into()];
-    let parent_rules = vec![rule(RuleType::Role, "eng", Access::Allow)];
+    let parent_rules = vec![rule(RuleType::ROLE, "eng", Access::Allow)];
     let parents = [ResolveParent {
         entity: &parent,
         rules: &parent_rules,
@@ -108,6 +112,8 @@ fn parent_allow_cascades_when_own_absent() {
         user_roles: &roles,
         default_included: Some(false),
         parents: &parents,
+        attributes: &systemprompt_security::authz::NO_SUBJECT_ATTRIBUTES,
+        dimensions: &[],
     });
 
     assert_eq!(
@@ -125,8 +131,8 @@ fn parent_deny_overrides_parent_allow() {
     let user = fixture_user_id();
     let roles: Vec<String> = vec!["eng".into(), "contractor".into()];
     let parent_rules = vec![
-        rule(RuleType::Role, "eng", Access::Allow),
-        rule(RuleType::Role, "contractor", Access::Deny),
+        rule(RuleType::ROLE, "eng", Access::Allow),
+        rule(RuleType::ROLE, "contractor", Access::Deny),
     ];
     let parents = [ResolveParent {
         entity: &parent,
@@ -141,6 +147,8 @@ fn parent_deny_overrides_parent_allow() {
         user_roles: &roles,
         default_included: Some(false),
         parents: &parents,
+        attributes: &systemprompt_security::authz::NO_SUBJECT_ATTRIBUTES,
+        dimensions: &[],
     });
 
     assert!(
@@ -161,8 +169,8 @@ fn nearer_parent_allow_beats_farther_parent_deny() {
     let far = EntityRef::Marketplace(MarketplaceId::new("far-market"));
     let user = fixture_user_id();
     let roles: Vec<String> = vec!["eng".into()];
-    let near_rules = vec![rule(RuleType::Role, "eng", Access::Allow)];
-    let far_rules = vec![rule(RuleType::Role, "eng", Access::Deny)];
+    let near_rules = vec![rule(RuleType::ROLE, "eng", Access::Allow)];
+    let far_rules = vec![rule(RuleType::ROLE, "eng", Access::Deny)];
     let parents = [
         ResolveParent {
             entity: &near,
@@ -183,6 +191,8 @@ fn nearer_parent_allow_beats_farther_parent_deny() {
         user_roles: &roles,
         default_included: Some(false),
         parents: &parents,
+        attributes: &systemprompt_security::authz::NO_SUBJECT_ATTRIBUTES,
+        dimensions: &[],
     });
 
     assert_eq!(
@@ -212,6 +222,8 @@ fn own_default_included_allows_before_parent_default() {
         user_roles: &roles,
         default_included: Some(true),
         parents: &parents,
+        attributes: &systemprompt_security::authz::NO_SUBJECT_ATTRIBUTES,
+        dimensions: &[],
     });
 
     assert_eq!(
@@ -241,6 +253,8 @@ fn parent_default_included_allows_when_own_default_off() {
         user_roles: &roles,
         default_included: Some(false),
         parents: &parents,
+        attributes: &systemprompt_security::authz::NO_SUBJECT_ATTRIBUTES,
+        dimensions: &[],
     });
 
     assert_eq!(
@@ -270,6 +284,8 @@ fn unknown_entity_when_nothing_matches_and_own_default_none() {
         user_roles: &roles,
         default_included: None,
         parents: &parents,
+        attributes: &systemprompt_security::authz::NO_SUBJECT_ATTRIBUTES,
+        dimensions: &[],
     });
 
     assert!(
@@ -302,6 +318,8 @@ fn parent_default_allows_even_when_own_default_none() {
         user_roles: &roles,
         default_included: None,
         parents: &parents,
+        attributes: &systemprompt_security::authz::NO_SUBJECT_ATTRIBUTES,
+        dimensions: &[],
     });
 
     assert_eq!(
@@ -318,8 +336,8 @@ fn non_matching_own_ruleset_does_not_inherit_parent_allow() {
     let parent = parent_entity();
     let user = fixture_user_id();
     let roles: Vec<String> = vec!["user".into()];
-    let own = vec![rule(RuleType::Role, "admin", Access::Allow)];
-    let parent_rules = vec![rule(RuleType::Role, "user", Access::Allow)];
+    let own = vec![rule(RuleType::ROLE, "admin", Access::Allow)];
+    let parent_rules = vec![rule(RuleType::ROLE, "user", Access::Allow)];
     let parents = [ResolveParent {
         entity: &parent,
         rules: &parent_rules,
@@ -333,6 +351,8 @@ fn non_matching_own_ruleset_does_not_inherit_parent_allow() {
         user_roles: &roles,
         default_included: Some(false),
         parents: &parents,
+        attributes: &systemprompt_security::authz::NO_SUBJECT_ATTRIBUTES,
+        dimensions: &[],
     });
 
     assert!(
@@ -352,7 +372,7 @@ fn non_matching_own_ruleset_ignores_parent_default_included() {
     let parent = parent_entity();
     let user = fixture_user_id();
     let roles: Vec<String> = vec!["user".into()];
-    let own = vec![rule(RuleType::Role, "admin", Access::Allow)];
+    let own = vec![rule(RuleType::ROLE, "admin", Access::Allow)];
     let parents = [ResolveParent {
         entity: &parent,
         rules: &[],
@@ -366,6 +386,8 @@ fn non_matching_own_ruleset_ignores_parent_default_included() {
         user_roles: &roles,
         default_included: Some(false),
         parents: &parents,
+        attributes: &systemprompt_security::authz::NO_SUBJECT_ATTRIBUTES,
+        dimensions: &[],
     });
 
     assert!(
@@ -385,7 +407,7 @@ fn matching_own_ruleset_still_allows() {
     let parent = parent_entity();
     let user = fixture_user_id();
     let roles: Vec<String> = vec!["admin".into()];
-    let own = vec![rule(RuleType::Role, "admin", Access::Allow)];
+    let own = vec![rule(RuleType::ROLE, "admin", Access::Allow)];
     let parents = [ResolveParent {
         entity: &parent,
         rules: &[],
@@ -399,6 +421,8 @@ fn matching_own_ruleset_still_allows() {
         user_roles: &roles,
         default_included: Some(false),
         parents: &parents,
+        attributes: &systemprompt_security::authz::NO_SUBJECT_ATTRIBUTES,
+        dimensions: &[],
     });
 
     assert_eq!(
@@ -417,7 +441,7 @@ fn empty_own_ruleset_still_inherits() {
     let parent = parent_entity();
     let user = fixture_user_id();
     let roles: Vec<String> = vec!["user".into()];
-    let parent_rules = vec![rule(RuleType::Role, "user", Access::Allow)];
+    let parent_rules = vec![rule(RuleType::ROLE, "user", Access::Allow)];
     let parents = [ResolveParent {
         entity: &parent,
         rules: &parent_rules,
@@ -431,6 +455,8 @@ fn empty_own_ruleset_still_inherits() {
         user_roles: &roles,
         default_included: Some(false),
         parents: &parents,
+        attributes: &systemprompt_security::authz::NO_SUBJECT_ATTRIBUTES,
+        dimensions: &[],
     });
 
     assert_eq!(

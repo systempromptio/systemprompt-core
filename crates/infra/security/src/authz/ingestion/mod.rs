@@ -135,7 +135,7 @@ impl AccessControlIngestionService {
                     let target = Target {
                         entity_kind: rule.entity_kind,
                         entity_id: id,
-                        rule_type: RuleType::Role,
+                        rule_type: RuleType::ROLE,
                         rule_value: role,
                         access: rule.access,
                         justification: rule.justification,

@@ -64,7 +64,7 @@ impl AccessControlIngestionService {
                 let target = Target {
                     entity_kind: EntityKind::Marketplace,
                     entity_id,
-                    rule_type: RuleType::Role,
+                    rule_type: RuleType::ROLE,
                     rule_value: role.as_str(),
                     access: "allow",
                     justification: cfg.access.justification.as_deref(),

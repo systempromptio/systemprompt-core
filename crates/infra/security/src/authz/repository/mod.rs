@@ -32,7 +32,7 @@ pub struct ExportRuleRow {
     pub justification: Option<String>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct UpsertRuleParams<'a> {
     pub entity_type: EntityKind,
     pub entity_id: &'a str,

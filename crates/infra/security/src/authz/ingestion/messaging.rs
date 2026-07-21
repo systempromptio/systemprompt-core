@@ -102,7 +102,7 @@ impl AccessControlIngestionService {
                 let target = Target {
                     entity_kind: kind,
                     entity_id: &seed.entity_id,
-                    rule_type: RuleType::Role,
+                    rule_type: RuleType::ROLE,
                     rule_value: role.as_str(),
                     access: "allow",
                     justification: None,

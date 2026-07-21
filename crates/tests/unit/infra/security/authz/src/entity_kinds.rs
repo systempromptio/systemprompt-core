@@ -165,20 +165,26 @@ fn entity_ref_serde_roundtrip() {
 
 #[test]
 fn rule_type_from_str_valid() {
-    assert_eq!(RuleType::from_str("user").unwrap(), RuleType::User);
-    assert_eq!(RuleType::from_str("role").unwrap(), RuleType::Role);
+    assert_eq!(RuleType::from_str("user").unwrap(), RuleType::USER);
+    assert_eq!(RuleType::from_str("role").unwrap(), RuleType::ROLE);
 }
 
+/// `rule_type` is an open vocabulary, so parsing a stored row never fails on
+/// an unrecognised slug — an extension dimension core has never heard of must
+/// round-trip rather than poison the read. Minting a *new* slug is where the
+/// shape rules apply; see `RuleType::extension`.
 #[test]
-fn rule_type_from_str_invalid() {
-    assert!(RuleType::from_str("group").is_err());
-    assert!(RuleType::from_str("").is_err());
+fn rule_type_from_str_accepts_unknown_slugs() {
+    let parsed = RuleType::from_str("group").expect("unknown slug is data, not an error");
+    assert_eq!(parsed.as_str(), "group");
+    assert_ne!(parsed, RuleType::USER);
+    assert_ne!(parsed, RuleType::ROLE);
 }
 
 #[test]
 fn rule_type_display() {
-    assert_eq!(format!("{}", RuleType::User), "user");
-    assert_eq!(format!("{}", RuleType::Role), "role");
+    assert_eq!(format!("{}", RuleType::USER), "user");
+    assert_eq!(format!("{}", RuleType::ROLE), "role");
 }
 
 #[test]

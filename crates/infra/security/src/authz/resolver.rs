@@ -1,4 +1,12 @@
-//! Pure deny-overrides resolver with `user > role` specificity.
+//! Pure deny-overrides resolver with `user > … > role` specificity.
+//!
+//! Core ships two subject dimensions, `user` and `role`. Extensions declare
+//! their own — department, cost centre, clearance — as
+//! [`SubjectDimension`]s and pass them in via [`ResolveInput::dimensions`],
+//! with the user's values for them in [`ResolveInput::attributes`]. The
+//! precedence ladder is built per call from those two fields, so `resolve`
+//! learns no tenant vocabulary and stays pure. With no dimensions passed the
+//! ladder is exactly `user > role`, which is the pre-existing behaviour.
 //!
 //! The function is intentionally synchronous and free of I/O so it can be
 //! reused by the in-process [`super::rule_based::RuleBasedHook`], the
@@ -23,6 +31,7 @@
 
 use systemprompt_identifiers::UserId;
 
+use super::subject::{ROLE_PRECEDENCE, SubjectAttributes, SubjectDimension, USER_PRECEDENCE};
 use super::types::{Access, AccessRule, Decision, DenyReason, EntityRef, MatchedBy, RuleType};
 
 /// A parent entity whose rules cascade onto the child being resolved.
@@ -47,6 +56,13 @@ pub struct ResolveInput<'a> {
     pub user_roles: &'a [String],
     pub default_included: Option<bool>,
     pub parents: &'a [ResolveParent<'a>],
+    /// The user's values for each extension-declared dimension, gathered by
+    /// [`gather_subject_attributes`][super::subject::gather_subject_attributes].
+    pub attributes: &'a SubjectAttributes,
+    /// Extension dimensions to interleave into the precedence ladder. Passed
+    /// in rather than read from the inventory so `resolve` stays pure and
+    /// unit-testable; pass `&[]` for core-only `user > role` behaviour.
+    pub dimensions: &'a [SubjectDimension],
 }
 
 /// Resolves a decision with parent inheritance on the crate-head deny-overrides
@@ -68,9 +84,19 @@ pub fn resolve(input: ResolveInput<'_>) -> Decision {
         user_roles,
         default_included,
         parents,
+        attributes,
+        dimensions,
     } = input;
 
-    if let Some(decision) = match_ruleset(entity, rules, user_id, user_roles) {
+    let ladder = ladder(dimensions);
+    let subject = Subject {
+        user_id,
+        user_roles,
+        attributes,
+        ladder: &ladder,
+    };
+
+    if let Some(decision) = match_ruleset(entity, rules, &subject) {
         return decision;
     }
     // A declared ruleset is authoritative: an entity that names its own roles is
@@ -80,7 +106,7 @@ pub fn resolve(input: ResolveInput<'_>) -> Decision {
     let parents = if rules.is_empty() { parents } else { &[] };
 
     for parent in parents {
-        if let Some(decision) = match_ruleset(parent.entity, parent.rules, user_id, user_roles) {
+        if let Some(decision) = match_ruleset(parent.entity, parent.rules, &subject) {
             return decision;
         }
     }
@@ -115,59 +141,118 @@ pub fn resolve(input: ResolveInput<'_>) -> Decision {
     }
 }
 
+/// The precedence ladder for one call: core's built-ins unioned with the
+/// caller-supplied dimensions, tightest-binding first.
+///
+/// A dimension that re-declares `user` or `role` is ignored rather than
+/// duplicating a band — core owns those two slugs and their precedence.
+/// The sort is stable, so dimensions sharing a precedence keep registration
+/// order.
+fn ladder(dimensions: &[SubjectDimension]) -> Vec<(RuleType, u16)> {
+    let mut bands = vec![
+        (RuleType::USER, USER_PRECEDENCE),
+        (RuleType::ROLE, ROLE_PRECEDENCE),
+    ];
+    bands.extend(
+        dimensions
+            .iter()
+            .filter(|d| d.rule_type != RuleType::USER && d.rule_type != RuleType::ROLE)
+            .map(|d| (d.rule_type.clone(), d.precedence)),
+    );
+    bands.sort_by_key(|&(_, precedence)| precedence);
+    bands
+}
+
+/// Everything about the requesting subject the band matcher needs, bundled so
+/// the ladder is built once per [`resolve`] rather than once per ruleset.
+struct Subject<'a> {
+    user_id: &'a UserId,
+    user_roles: &'a [String],
+    attributes: &'a SubjectAttributes,
+    ladder: &'a [(RuleType, u16)],
+}
+
+impl Subject<'_> {
+    /// Whether `rule` targets this subject in its own band.
+    fn matches(&self, rule: &AccessRule) -> bool {
+        if rule.rule_type == RuleType::USER {
+            return rule.rule_value == self.user_id.as_str();
+        }
+        let held = if rule.rule_type == RuleType::ROLE {
+            self.user_roles
+        } else {
+            self.attributes.values(&rule.rule_type)
+        };
+        held.iter().any(|value| value == &rule.rule_value)
+    }
+}
+
+/// Walks the precedence ladder tightest band first, denying before allowing
+/// within each band. The first band that matches decides; a band the subject
+/// holds no value for cannot match and falls through.
 fn match_ruleset(
     target: &EntityRef,
     ruleset: &[AccessRule],
-    user_id: &UserId,
-    user_roles: &[String],
+    subject: &Subject<'_>,
 ) -> Option<Decision> {
-    let user_match =
-        |r: &AccessRule| r.rule_type == RuleType::User && r.rule_value == user_id.as_str();
-    let role_match = |r: &AccessRule| {
-        r.rule_type == RuleType::Role && user_roles.iter().any(|role| role == &r.rule_value)
-    };
+    for (rule_type, _) in subject.ladder {
+        let in_band = |r: &&AccessRule| r.rule_type == *rule_type && subject.matches(r);
 
-    if let Some(rule) = ruleset
-        .iter()
-        .find(|r| user_match(r) && r.access == Access::Deny)
-    {
-        return Some(Decision::Deny {
-            reason: DenyReason::UserDeny {
-                entity: target.clone(),
-                user_id: user_id.clone(),
-                justification: rule.justification.clone(),
-            },
-        });
-    }
-    if ruleset
-        .iter()
-        .any(|r| user_match(r) && r.access == Access::Allow)
-    {
-        return Some(Decision::Allow {
-            matched_by: MatchedBy::UserAllow,
-        });
-    }
-    if let Some(rule) = ruleset
-        .iter()
-        .find(|r| role_match(r) && r.access == Access::Deny)
-    {
-        return Some(Decision::Deny {
-            reason: DenyReason::RoleDeny {
-                entity: target.clone(),
-                role: rule.rule_value.clone(),
-                justification: rule.justification.clone(),
-            },
-        });
-    }
-    if let Some(rule) = ruleset
-        .iter()
-        .find(|r| role_match(r) && r.access == Access::Allow)
-    {
-        return Some(Decision::Allow {
-            matched_by: MatchedBy::RoleAllow {
-                role: rule.rule_value.clone(),
-            },
-        });
+        if let Some(rule) = ruleset
+            .iter()
+            .find(|r| in_band(r) && r.access == Access::Deny)
+        {
+            return Some(deny_for(target, subject, rule));
+        }
+        if let Some(rule) = ruleset
+            .iter()
+            .find(|r| in_band(r) && r.access == Access::Allow)
+        {
+            return Some(allow_for(rule));
+        }
     }
     None
+}
+
+/// Built-ins keep their dedicated variants so existing `governance_decisions`
+/// audit JSON stays stable; extension dimensions report through the generic
+/// attribute variants.
+fn deny_for(target: &EntityRef, subject: &Subject<'_>, rule: &AccessRule) -> Decision {
+    let reason = if rule.rule_type == RuleType::USER {
+        DenyReason::UserDeny {
+            entity: target.clone(),
+            user_id: subject.user_id.clone(),
+            justification: rule.justification.clone(),
+        }
+    } else if rule.rule_type == RuleType::ROLE {
+        DenyReason::RoleDeny {
+            entity: target.clone(),
+            role: rule.rule_value.clone(),
+            justification: rule.justification.clone(),
+        }
+    } else {
+        DenyReason::AttributeDeny {
+            entity: target.clone(),
+            rule_type: rule.rule_type.clone(),
+            value: rule.rule_value.clone(),
+            justification: rule.justification.clone(),
+        }
+    };
+    Decision::Deny { reason }
+}
+
+fn allow_for(rule: &AccessRule) -> Decision {
+    let matched_by = if rule.rule_type == RuleType::USER {
+        MatchedBy::UserAllow
+    } else if rule.rule_type == RuleType::ROLE {
+        MatchedBy::RoleAllow {
+            role: rule.rule_value.clone(),
+        }
+    } else {
+        MatchedBy::AttributeAllow {
+            rule_type: rule.rule_type.clone(),
+            value: rule.rule_value.clone(),
+        }
+    };
+    Decision::Allow { matched_by }
 }

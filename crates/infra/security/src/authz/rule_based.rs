@@ -26,22 +26,40 @@ use sqlx::PgPool;
 
 use super::audit::{AuthzAuditSink, AuthzSource};
 use super::hook::AuthzDecisionHook;
+use super::registry::AuthzHookContext;
 use super::repository::AccessControlRepository;
 use super::resolver::{ResolveInput, resolve};
+use super::subject::{
+    SharedSubjectAttributeProvider, SubjectDimension, dimensions_of, discover_subject_providers,
+    gather_subject_attributes,
+};
 use super::types::{AuthzDecision, AuthzRequest, Decision, DenyReason};
 
 #[derive(Debug, Clone)]
 pub struct RuleBasedHook {
     repo: AccessControlRepository,
     sink: Arc<dyn AuthzAuditSink>,
+    providers: Vec<SharedSubjectAttributeProvider>,
+    dimensions: Vec<SubjectDimension>,
 }
 
 impl RuleBasedHook {
+    /// Binds the extension subject-attribute providers registered via
+    /// [`register_subject_attribute_provider!
+    /// `][crate::register_subject_attribute_provider]
+    /// once, at construction, so every evaluation resolves the same ladder the
+    /// access matrix renders.
     #[must_use]
     pub fn new(pool: Arc<PgPool>, sink: Arc<dyn AuthzAuditSink>) -> Self {
+        let providers = discover_subject_providers(&AuthzHookContext {
+            pool: Arc::clone(&pool),
+            sink: Arc::clone(&sink),
+        });
         Self {
             repo: AccessControlRepository::from_pool(pool),
             sink,
+            dimensions: dimensions_of(&providers),
+            providers,
         }
     }
 
@@ -81,6 +99,7 @@ impl AuthzDecisionHook for RuleBasedHook {
             Err(err) => return self.fault(&req, &err.to_string()).await,
         };
 
+        let attributes = gather_subject_attributes(&self.providers, &req.user_id).await;
         let decision = resolve(ResolveInput {
             entity: &req.entity,
             rules: &rules,
@@ -88,6 +107,8 @@ impl AuthzDecisionHook for RuleBasedHook {
             user_roles: &req.roles,
             default_included: entity.map(|e| e.default_included),
             parents: &[],
+            attributes: &attributes,
+            dimensions: &self.dimensions,
         });
 
         let policy = AuthzSource::RuleBased.policy().to_owned();

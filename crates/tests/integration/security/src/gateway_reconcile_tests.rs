@@ -186,6 +186,8 @@ async fn reconcile_materializes_synthetic_default_route_and_wildcard_grants_it()
         user_roles: &["admin".to_owned()],
         default_included: Some(entity.default_included),
         parents: &[],
+        attributes: &systemprompt_security::authz::NO_SUBJECT_ATTRIBUTES,
+        dimensions: &[],
     });
     assert!(
         matches!(decision, Decision::Allow { .. }),
@@ -210,6 +212,8 @@ async fn reconcile_materializes_synthetic_default_route_and_wildcard_grants_it()
         user_roles: &["admin".to_owned()],
         default_included: bogus_entity.map(|e| e.default_included),
         parents: &[],
+        attributes: &systemprompt_security::authz::NO_SUBJECT_ATTRIBUTES,
+        dimensions: &[],
     });
     assert!(
         matches!(

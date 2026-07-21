@@ -119,7 +119,7 @@ async fn upsert_rule_requires_an_entity_then_persists_and_lists() {
         .upsert_rule(UpsertRuleParams {
             entity_type: KIND,
             entity_id: &id,
-            rule_type: RuleType::Role,
+            rule_type: RuleType::ROLE,
             rule_value: "admin",
             access: Access::Allow,
             justification: Some("ops"),
@@ -138,14 +138,14 @@ async fn upsert_rule_requires_an_entity_then_persists_and_lists() {
         .upsert_rule(UpsertRuleParams {
             entity_type: KIND,
             entity_id: &id,
-            rule_type: RuleType::Role,
+            rule_type: RuleType::ROLE,
             rule_value: "admin",
             access: Access::Allow,
             justification: Some("ops"),
         })
         .await
         .expect("upsert rule");
-    assert_eq!(rule.rule_type, RuleType::Role);
+    assert_eq!(rule.rule_type, RuleType::ROLE);
     assert_eq!(rule.rule_value, "admin");
     assert_eq!(rule.access, Access::Allow);
     assert_eq!(rule.justification.as_deref(), Some("ops"));
@@ -174,7 +174,7 @@ async fn upsert_rule_conflict_updates_access_in_place() {
         .upsert_rule(UpsertRuleParams {
             entity_type: KIND,
             entity_id: &id,
-            rule_type: RuleType::User,
+            rule_type: RuleType::USER,
             rule_value: "alice",
             access: Access::Allow,
             justification: None,
@@ -186,7 +186,7 @@ async fn upsert_rule_conflict_updates_access_in_place() {
         .upsert_rule(UpsertRuleParams {
             entity_type: KIND,
             entity_id: &id,
-            rule_type: RuleType::User,
+            rule_type: RuleType::USER,
             rule_value: "alice",
             access: Access::Deny,
             justification: Some("revoked"),
@@ -221,7 +221,7 @@ async fn list_rules_bulk_groups_by_entity_and_seeds_empty_ids() {
     repo.upsert_rule(UpsertRuleParams {
         entity_type: KIND,
         entity_id: &with_rule,
-        rule_type: RuleType::Role,
+        rule_type: RuleType::ROLE,
         rule_value: "viewer",
         access: Access::Allow,
         justification: None,
@@ -264,7 +264,7 @@ async fn set_justification_and_delete_rule_report_affected_rows() {
         .upsert_rule(UpsertRuleParams {
             entity_type: KIND,
             entity_id: &id,
-            rule_type: RuleType::Role,
+            rule_type: RuleType::ROLE,
             rule_value: "editor",
             access: Access::Allow,
             justification: Some("initial"),
@@ -328,7 +328,7 @@ async fn list_role_rules_for_export_includes_role_grants_only() {
     repo.upsert_rule(UpsertRuleParams {
         entity_type: KIND,
         entity_id: &id,
-        rule_type: RuleType::Role,
+        rule_type: RuleType::ROLE,
         rule_value: "auditor",
         access: Access::Allow,
         justification: None,
@@ -338,7 +338,7 @@ async fn list_role_rules_for_export_includes_role_grants_only() {
     repo.upsert_rule(UpsertRuleParams {
         entity_type: KIND,
         entity_id: &id,
-        rule_type: RuleType::User,
+        rule_type: RuleType::USER,
         rule_value: "bob",
         access: Access::Allow,
         justification: None,
@@ -350,7 +350,7 @@ async fn list_role_rules_for_export_includes_role_grants_only() {
     let ours: Vec<_> = exported.iter().filter(|r| r.entity_id == id).collect();
     assert_eq!(ours.len(), 1, "export carries the role grant only");
     let row = ours[0];
-    assert_eq!(RuleType::from_str(&row.rule_type).unwrap(), RuleType::Role);
+    assert_eq!(RuleType::from_str(&row.rule_type).unwrap(), RuleType::ROLE);
     assert_eq!(row.rule_value, "auditor");
     assert_eq!(Access::from_str(&row.access).unwrap(), Access::Allow);
 
