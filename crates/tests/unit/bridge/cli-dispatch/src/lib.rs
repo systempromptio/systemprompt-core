@@ -11,3 +11,6 @@ mod install_cmd;
 
 #[cfg(test)]
 mod authenticated;
+
+#[cfg(test)]
+mod status_cmd;
