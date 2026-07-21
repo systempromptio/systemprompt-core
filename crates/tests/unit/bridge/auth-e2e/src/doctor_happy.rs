@@ -249,3 +249,127 @@ fn hook_token_mint_rejection_is_reported_as_failure() {
         plugin_oauth::delete_creds().unwrap();
     });
 }
+
+
+#[test]
+fn a_revoked_pat_is_reported_as_a_whoami_401() {
+    let home = TempDir::new().unwrap();
+    let root = home.path().to_path_buf();
+
+    let (server, uri) = block_on(async {
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/health"))
+            .respond_with(ResponseTemplate::new(200))
+            .mount(&server)
+            .await;
+        Mock::given(method("POST"))
+            .and(path("/v1/auth/bridge/pat"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "token": "jwt.doctor.token",
+                "ttl": 3600,
+            })))
+            .mount(&server)
+            .await;
+        Mock::given(method("GET"))
+            .and(path("/v1/bridge/whoami"))
+            .respond_with(ResponseTemplate::new(401))
+            .mount(&server)
+            .await;
+        let uri = server.uri();
+        (server, uri)
+    });
+    let _ = &server;
+
+    let pat_file = root.join("pat.txt");
+    fs::write(&pat_file, "sp-live-doctor-pat").unwrap();
+    write_config(&root, &uri, &pat_file);
+
+    temp_env::with_vars(sandbox_vars(&home), || {
+        let (checks, any_fail) = block_on(doctor::run_checks());
+        assert!(any_fail);
+        let whoami = status_of(&checks, "authenticated whoami");
+        assert_eq!(whoami.status, Status::Fail);
+        assert!(
+            whoami.detail.contains("401") && whoami.detail.contains("revoked"),
+            "a 401 must be reported as a revoked PAT, not a generic failure: {}",
+            whoami.detail
+        );
+        assert_eq!(
+            status_of(&checks, "mint JWT").status,
+            Status::Ok,
+            "the token exchange itself succeeded"
+        );
+    });
+}
+
+#[test]
+fn a_gateway_that_rejects_the_exchange_fails_mint_and_skips_whoami() {
+    let home = TempDir::new().unwrap();
+    let root = home.path().to_path_buf();
+
+    let (server, uri) = block_on(async {
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/v1/auth/bridge/pat"))
+            .respond_with(ResponseTemplate::new(403))
+            .mount(&server)
+            .await;
+        let uri = server.uri();
+        (server, uri)
+    });
+    let _ = &server;
+
+    let pat_file = root.join("pat.txt");
+    fs::write(&pat_file, "sp-live-doctor-pat").unwrap();
+    write_config(&root, &uri, &pat_file);
+
+    temp_env::with_vars(sandbox_vars(&home), || {
+        let (checks, any_fail) = block_on(doctor::run_checks());
+        assert!(any_fail);
+        assert_eq!(status_of(&checks, "mint JWT").status, Status::Fail);
+        let whoami = status_of(&checks, "authenticated whoami");
+        assert_eq!(whoami.status, Status::Fail);
+        assert!(
+            whoami.detail.contains("skipped"),
+            "with no bearer the whoami check reports that it was skipped: {}",
+            whoami.detail
+        );
+        let reachable = status_of(&checks, "gateway reachable");
+        assert_eq!(
+            reachable.status,
+            Status::Fail,
+            "no /health route is mounted: {}",
+            reachable.detail
+        );
+        assert_eq!(
+            status_of(&checks, "hook token mint").status,
+            Status::Warn,
+            "an unprovisioned OAuth client is a warning, not a failure"
+        );
+    });
+}
+
+#[test]
+fn an_unconfigured_sandbox_fails_the_credential_source_check() {
+    let home = TempDir::new().unwrap();
+    temp_env::with_vars(sandbox_vars(&home), || {
+        let (checks, any_fail) = block_on(doctor::run_checks());
+        assert!(any_fail);
+        assert_eq!(
+            status_of(&checks, "config file").status,
+            Status::Warn,
+            "a missing config file is a warning: defaults still apply"
+        );
+        assert_eq!(status_of(&checks, "credential source").status, Status::Fail);
+        assert_eq!(
+            status_of(&checks, "loopback secret").status,
+            Status::Warn,
+            "the proxy mints the loopback secret on first start"
+        );
+        assert_eq!(
+            status_of(&checks, "manifest pubkey pinned").status,
+            Status::Warn
+        );
+    });
+}

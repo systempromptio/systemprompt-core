@@ -405,3 +405,75 @@ async fn fetch_plugin_file_traversal_path_maps_to_unsafe_path() {
         other => panic!("expected UnsafePath, got {other:?}"),
     }
 }
+
+
+#[tokio::test]
+async fn set_host_model_filter_posts_the_host_and_protocol_list() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/v1/bridge/profile/host-model-filter"))
+        .respond_with(ResponseTemplate::new(204))
+        .mount(&server)
+        .await;
+
+    client(&server)
+        .set_host_model_filter("bearer-token", "codex-cli", Some(&["responses".to_owned()]))
+        .await
+        .expect("a 2xx means the filter was accepted");
+
+    let requests = server.received_requests().await.expect("requests");
+    let body: serde_json::Value = serde_json::from_slice(&requests[0].body).expect("json body");
+    assert_eq!(body["host_id"], "codex-cli");
+    assert_eq!(body["model_protocols"][0], "responses");
+    assert_eq!(
+        requests[0]
+            .headers
+            .get("authorization")
+            .and_then(|v| v.to_str().ok()),
+        Some("Bearer bearer-token")
+    );
+}
+
+#[tokio::test]
+async fn clearing_the_host_model_filter_sends_a_null_protocol_list() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/v1/bridge/profile/host-model-filter"))
+        .respond_with(ResponseTemplate::new(200))
+        .mount(&server)
+        .await;
+
+    client(&server)
+        .set_host_model_filter("bearer-token", "claude-desktop", None)
+        .await
+        .expect("clearing is accepted");
+
+    let requests = server.received_requests().await.expect("requests");
+    let body: serde_json::Value = serde_json::from_slice(&requests[0].body).expect("json body");
+    assert!(
+        body["model_protocols"].is_null(),
+        "an absent protocol list clears the filter: {body}"
+    );
+}
+
+#[tokio::test]
+async fn a_rejected_host_model_filter_maps_to_http_status() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/v1/bridge/profile/host-model-filter"))
+        .respond_with(ResponseTemplate::new(422))
+        .mount(&server)
+        .await;
+
+    let err = client(&server)
+        .set_host_model_filter("bearer-token", "codex-cli", Some(&[]))
+        .await
+        .expect_err("a 422 must surface");
+    match err {
+        GatewayError::HttpStatus { status, endpoint } => {
+            assert_eq!(status.as_u16(), 422);
+            assert_eq!(endpoint, "host-model-filter");
+        },
+        other => panic!("expected HttpStatus, got {other:?}"),
+    }
+}

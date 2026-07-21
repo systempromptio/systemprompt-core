@@ -10,3 +10,5 @@ mod replay;
 mod artifact_sink;
 #[cfg(test)]
 mod artifact_emitter;
+#[cfg(test)]
+mod summary_line;
