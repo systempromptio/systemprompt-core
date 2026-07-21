@@ -7293,10 +7293,14 @@ dependencies = [
 name = "systemprompt-bridge-cli-dispatch-tests"
 version = "0.0.11"
 dependencies = [
+ "keyring-core",
+ "linux-keyutils-keyring-store",
  "serde_json",
  "systemprompt-bridge",
  "temp-env",
  "tempfile",
+ "tokio",
+ "wiremock",
 ]
 
 [[package]]

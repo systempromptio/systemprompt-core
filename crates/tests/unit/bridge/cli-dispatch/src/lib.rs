@@ -8,3 +8,6 @@ mod dispatch;
 
 #[cfg(test)]
 mod install_cmd;
+
+#[cfg(test)]
+mod authenticated;
