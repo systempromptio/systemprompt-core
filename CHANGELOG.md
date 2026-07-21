@@ -10,6 +10,7 @@
 - **Breaking:** `ServerConfig.trusted_proxies` is now `Vec<IpNet>` and `SecurityHeadersConfig.frame_options` a typed `FrameOptions` enum; a profile with an invalid CIDR or a non-`DENY`/`SAMEORIGIN` frame-options value now fails to load. Migrate by using CIDR notation and the enum values.
 - **Breaking:** `ed25519-dalek` moves from 2 to 3, changing the `SigningKey` / `VerifyingKey` / `Signature` types exposed by `systemprompt_security::manifest_signing`. The Ed25519 wire format is unchanged, so manifests signed by earlier releases still verify. Migrate by moving dependent crates to `ed25519-dalek` 3.
 - **Breaking:** `maxminddb` moves from 0.29 to 0.30, changing the `maxminddb::Reader` type behind the public `systemprompt_analytics::GeoIpReader` alias. Migrate by moving dependent crates to `maxminddb` 0.30.
+- **Breaking:** `SessionAnalytics` is defined once, in `systemprompt-traits`; the parallel struct in `systemprompt-analytics` and the two-way field-by-field conversion between them are gone. Six write-only or always-`None` fields (`referer`, `accept_language`, `page_url`, `screen_width`, `screen_height`, `timezone`) are removed and `is_bot` / `is_ai_crawler` / `skip_tracking` added, decided once at extraction. `SessionCreationService`'s session-creating APIs take `&SessionAnalytics` instead of `headers` / `uri` / `caller_ip`. Migrate by extracting once at the request boundary, passing the reference down, and reading the verdicts as fields.
 
 ### Added
 
@@ -19,6 +20,8 @@
 ### Changed
 
 - Client IP is resolved once at the HTTP boundary against the trusted-proxy allowlist; session analytics no longer trusts spoofable `X-Forwarded-For` / `X-Real-IP` values.
+- Request analytics are extracted exactly once per request. Establishing a session previously re-derived them from the same headers two or three times, repeating the user-agent parse, referrer parse, and GeoIP lookup on every request.
+- Bot classification has a single implementation. The persisted `is_bot` / `is_ai_crawler` columns came from a naive user-agent substring check while the session middleware routed on the curated keyword tables, so the recorded verdict could contradict the routing decision for the same request. Both now use the curated tables, and a request with no `User-Agent` is classified as a bot.
 - Profile validation rejects URL fields that are not `http(s)` and CORS origins that carry a path, query, or fragment.
 - Every dependency lockfile in the repository was refreshed and the declared minimums raised to match: `tokio` 1.53, `regex` 1.13, `uuid` 1.24, `indexmap` 2.14, `rust_decimal` 1.42, `http` 1.4, `bytes` 1.12, `ipnet` 2.12, `tempfile` 3.27, `walkdir` 2.5, `rmcp` 2.2, `sse-stream` 0.2.4, `comrak` 0.54, `maxminddb` 0.30, `proptest` 1.11.
 - `reqwest` is held at 0.12 and `pkcs8` at 0.10, each with the blocking dependency recorded in `Cargo.toml`: `reqwest-eventsource` has no 0.13-compatible release, and `pkcs8` 0.11 requires `rsa` 0.10, which is still a release candidate.

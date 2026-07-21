@@ -1,6 +1,7 @@
 //! Tests for session analytics extractor
 
 mod bot_referrer;
+mod classification;
 mod content_routing;
 mod from_request;
 mod geoip_lookup;

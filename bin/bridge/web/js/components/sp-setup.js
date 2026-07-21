@@ -114,7 +114,7 @@ export class SpSetup extends SpElement {
     return `
       <div class="sp-setup__card">
         <div class="sp-setup__hero">
-          <div class="sp-setup__mark" data-logo-slot></div>
+          <div class="sp-setup__mark" data-logo-slot data-preserve></div>
           <div class="sp-setup__eyebrow"><span data-l10n-id="setup-eyebrow-prefix">DEMO BUILD</span> · v${escapeHtml(version)} · <span>${escapeHtml(stepLabel)}</span></div>
           <h1 data-l10n-id="setup-heading">Welcome to systemprompt bridge</h1>
           <p class="sp-setup__lede" data-l10n-id="setup-lede">systemprompt bridge routes one or more coding agents through your enterprise gateway.</p>
