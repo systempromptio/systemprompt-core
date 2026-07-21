@@ -473,3 +473,110 @@ fn empty_manifest_registers_nothing() {
         }
     });
 }
+
+
+#[test]
+fn a_skill_that_already_carries_front_matter_is_passed_through_verbatim() {
+    with_codex_home(|home| {
+        let body = "---\nname: custom\ndescription: authored upstream\n---\n\nBody text.\n";
+        apply(&manifest_with(vec![skill("authored", body)], vec![], vec![]), home);
+        let written = fs::read_to_string(
+            plugin_src(home)
+                .join("skills")
+                .join("authored")
+                .join("SKILL.md"),
+        )
+        .expect("SKILL.md");
+        assert_eq!(
+            written, body,
+            "an upstream front-matter block must not be wrapped in a second one"
+        );
+    });
+}
+
+#[test]
+fn a_skill_without_front_matter_gets_a_generated_block_and_a_trailing_newline() {
+    with_codex_home(|home| {
+        apply(
+            &manifest_with(vec![skill("plain", "Do the thing.")], vec![], vec![]),
+            home,
+        );
+        let written = fs::read_to_string(
+            plugin_src(home).join("skills").join("plain").join("SKILL.md"),
+        )
+        .expect("SKILL.md");
+        assert!(written.starts_with("---\nname: plain\n"), "{written}");
+        assert!(written.contains("description: desc for plain"), "{written}");
+        assert!(written.ends_with("Do the thing.\n"), "{written}");
+    });
+}
+
+#[test]
+fn a_description_with_yaml_metacharacters_is_quoted() {
+    with_codex_home(|home| {
+        let mut entry = skill("colonised", "Body.");
+        entry.description = "reads: a \"quoted\" thing # really".into();
+        apply(&manifest_with(vec![entry], vec![], vec![]), home);
+        let written = fs::read_to_string(
+            plugin_src(home)
+                .join("skills")
+                .join("colonised")
+                .join("SKILL.md"),
+        )
+        .expect("SKILL.md");
+        assert!(
+            written.contains(r#"description: "reads: a \"quoted\" thing # really""#),
+            "a colon-bearing description must be a quoted YAML scalar: {written}"
+        );
+    });
+}
+
+#[test]
+fn an_unsafe_skill_id_is_refused_before_anything_is_written() {
+    with_codex_home(|home| {
+        let mut entry = skill("legit", "Body.");
+        entry.id = SkillId::try_new("../escape").expect("id constructs");
+        let m = manifest_with(vec![entry], vec![], vec![]);
+        let client = stub_client();
+        let plugin_servers = std::collections::BTreeMap::new();
+        let context = ctx(&m, home, &client, "", &plugin_servers);
+        let err = block_on(CodexCliSync.apply(&context))
+            .expect_err("a traversing skill id must abort the emitter");
+        assert!(
+            err.to_string().contains("escape"),
+            "the offending id is named: {err}"
+        );
+        assert!(
+            !plugin_src(home).join("skills").join("..").exists(),
+            "nothing is written outside the plugin source tree"
+        );
+    });
+}
+
+#[test]
+fn a_deleted_marketplace_json_forces_the_source_tree_to_be_rewritten() {
+    with_codex_home(|home| {
+        let m = manifest_with(vec![skill("research", "Body.")], vec![], vec![]);
+        apply(&m, home);
+        let manifest_path = marketplace_json(home);
+        assert!(manifest_path.is_file());
+        fs::remove_file(&manifest_path).expect("remove marketplace.json");
+
+        apply(&m, home);
+        assert!(
+            manifest_path.is_file(),
+            "an unchanged version must still rewrite when the marketplace file is gone"
+        );
+    });
+}
+
+#[test]
+fn clearing_a_codex_home_that_was_never_written_is_a_no_op() {
+    with_codex_home(|home| {
+        CodexCliSync.clear().expect("clear on a clean home succeeds");
+        assert!(
+            !marketplace_root(home).exists(),
+            "nothing is created by a clear"
+        );
+    });
+}
