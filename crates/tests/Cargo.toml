@@ -94,6 +94,7 @@ members = [
     "unit/bridge/activity",
     "unit/bridge/validate",
     "unit/bridge/auth-e2e",
+    "unit/bridge/auth-session",
     "unit/bridge/cli",
     "unit/bridge/cli-commands",
     "unit/bridge/cli-dispatch",
