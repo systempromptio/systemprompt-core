@@ -108,8 +108,12 @@ fn semantic_hash(value: &Value) -> u64 {
 }
 
 fn hash_value(value: &Value, hasher: &mut impl Hasher) {
+    // Tag each variant so that structurally different shapes carrying equal
+    // leaf content — an object and an array of its keys and values, say —
+    // cannot hash alike and suppress a real change.
     match value {
         Value::Object(map) => {
+            0u8.hash(hasher);
             for (k, v) in map {
                 if VOLATILE_KEYS.contains(&k.as_str()) {
                     continue;
@@ -119,11 +123,15 @@ fn hash_value(value: &Value, hasher: &mut impl Hasher) {
             }
         },
         Value::Array(items) => {
+            1u8.hash(hasher);
             for item in items {
                 hash_value(item, hasher);
             }
         },
-        other => other.to_string().hash(hasher),
+        other => {
+            2u8.hash(hasher);
+            other.to_string().hash(hasher);
+        },
     }
 }
 
