@@ -7276,6 +7276,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "systemprompt-bridge-cli-dispatch-tests"
+version = "0.0.11"
+dependencies = [
+ "serde_json",
+ "systemprompt-bridge",
+ "temp-env",
+ "tempfile",
+]
+
+[[package]]
 name = "systemprompt-bridge-cli-subprocess-tests"
 version = "0.0.11"
 dependencies = [

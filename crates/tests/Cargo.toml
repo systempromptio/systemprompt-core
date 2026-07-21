@@ -95,6 +95,7 @@ members = [
     "unit/bridge/auth-e2e",
     "unit/bridge/cli",
     "unit/bridge/cli-commands",
+    "unit/bridge/cli-dispatch",
     "unit/bridge/cli-subprocess",
     # Common test utilities
     "common/mocks",
