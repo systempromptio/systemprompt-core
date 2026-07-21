@@ -659,3 +659,339 @@ fn an_enabled_host_with_nothing_installed_is_a_no_op() {
     );
     let _ = (&server, &pat_dir);
 }
+
+
+struct Bundle {
+    server: MockServer,
+    dirs: SandboxDirs,
+    pat_dir: PathBuf,
+}
+
+fn serve_plugins(m: &SignedManifest, files: &[(&str, &str, &[u8])], label: &str) -> Bundle {
+    let rt = setup_runtime();
+    let owned: Vec<(String, String, Vec<u8>)> = files
+        .iter()
+        .map(|(p, f, b)| ((*p).to_owned(), (*f).to_owned(), (*b).to_vec()))
+        .collect();
+    rt.block_on(async {
+        let server = MockServer::start().await;
+        pat_mock().mount(&server).await;
+        Mock::given(method("GET"))
+            .and(path("/v1/bridge/manifest"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(manifest_json(m)))
+            .mount(&server)
+            .await;
+        for (plugin_id, file_path, bytes) in owned {
+            Mock::given(method("GET"))
+                .and(path(format!("/v1/bridge/plugins/{plugin_id}/{file_path}")))
+                .respond_with(ResponseTemplate::new(200).set_body_bytes(bytes))
+                .mount(&server)
+                .await;
+        }
+        let pat_dir = fresh_dir(label);
+        let pat_file = pat_dir.join("pat.txt");
+        fs::write(&pat_file, "sp-live-test-pat").unwrap();
+        let dirs = sandbox(&server.uri(), &pat_file, None);
+        Bundle {
+            server,
+            dirs,
+            pat_dir,
+        }
+    })
+}
+
+fn manifest_of(plugins: Vec<PluginEntry>, hooks: Vec<HookEntry>) -> SignedManifest {
+    SignedManifest {
+        manifest_version: version(),
+        issued_at: "2026-05-01T12:00:00+00:00".into(),
+        not_before: "2026-05-01T12:00:00+00:00".into(),
+        user_id: fixture_user_id(),
+        tenant_id: None,
+        user: None,
+        plugins,
+        skills: vec![],
+        agents: vec![],
+        hooks,
+        managed_mcp_servers: vec![],
+        revocations: vec![],
+        enabled_hosts: vec![],
+        host_model_protocols: Default::default(),
+        artifacts: vec![],
+        signature: ManifestSignature::new(""),
+    }
+}
+
+fn hooks_json_of(dirs: &SandboxDirs, plugin_id: &str) -> serde_json::Value {
+    let raw = fs::read(
+        dirs.org_plugins
+            .join(plugin_id)
+            .join("hooks")
+            .join("hooks.json"),
+    )
+    .expect("hooks.json written");
+    serde_json::from_slice(&raw).expect("hooks.json is JSON")
+}
+
+fn plugin_with_include(id: &str, include: Vec<String>) -> PluginEntry {
+    PluginEntry {
+        hooks: PluginHooksRef {
+            governance: false,
+            include,
+        },
+        ..plugin(id, vec![(".claude-plugin/plugin.json", PLUGIN_FILE_BODY)])
+    }
+}
+
+#[test]
+fn an_included_hook_is_materialised_as_a_user_command_entry() {
+    let m = manifest_of(
+        vec![plugin_with_include("acme-plugin", vec!["hook-1".to_owned()])],
+        vec![hook()],
+    );
+    let b = serve_plugins(
+        &m,
+        &[("acme-plugin", ".claude-plugin/plugin.json", PLUGIN_FILE_BODY)],
+        "pat-include",
+    );
+    run_sync(&b.dirs).expect("sync applies");
+
+    let hooks = hooks_json_of(&b.dirs, "acme-plugin");
+    let group = &hooks["hooks"]["PreToolUse"];
+    assert_eq!(
+        group.as_array().map(Vec::len),
+        Some(1),
+        "the included hook lands under its own event: {hooks}"
+    );
+    let entry = &group[0]["hooks"][0];
+    assert_eq!(entry["type"], "command");
+    assert_eq!(entry["command"], "echo hi");
+    assert_eq!(entry["event"], "PreToolUse");
+    assert_eq!(group[0]["matcher"], "*");
+    let _ = (&b.server, &b.pat_dir);
+}
+
+#[test]
+fn a_hook_id_that_is_not_in_the_manifest_is_skipped_rather_than_failing_the_sync() {
+    let m = manifest_of(
+        vec![plugin_with_include(
+            "acme-plugin",
+            vec!["no-such-hook".to_owned()],
+        )],
+        vec![hook()],
+    );
+    let b = serve_plugins(
+        &m,
+        &[("acme-plugin", ".claude-plugin/plugin.json", PLUGIN_FILE_BODY)],
+        "pat-missing-hook",
+    );
+    let summary = run_sync(&b.dirs).expect("a dangling hook reference is not fatal");
+    assert_eq!(summary.plugin_count, 1);
+    assert_eq!(
+        hooks_json_of(&b.dirs, "acme-plugin")["hooks"],
+        serde_json::json!({}),
+        "an unresolvable hook id contributes nothing"
+    );
+    let _ = (&b.server, &b.pat_dir);
+}
+
+#[test]
+fn a_second_sync_reports_the_plugin_as_updated_and_prunes_the_one_that_left() {
+    let both = manifest_of(
+        vec![
+            plugin("acme-plugin", vec![(".claude-plugin/plugin.json", PLUGIN_FILE_BODY)]),
+            plugin("acme-commons", vec![(".claude-plugin/plugin.json", COMMONS_FILE_BODY)]),
+        ],
+        vec![],
+    );
+    let b = serve_plugins(
+        &both,
+        &[
+            ("acme-plugin", ".claude-plugin/plugin.json", PLUGIN_FILE_BODY),
+            ("acme-commons", ".claude-plugin/plugin.json", COMMONS_FILE_BODY),
+        ],
+        "pat-updated",
+    );
+    let first = run_sync(&b.dirs).expect("first sync");
+    assert_eq!(first.installed.len(), 2);
+    assert!(first.removed.is_empty());
+
+    let second = run_sync(&b.dirs).expect("second sync");
+    assert!(
+        second.installed.is_empty(),
+        "a re-sync of the same plugins is an update, not an install: {:?}",
+        second.installed
+    );
+    assert_eq!(second.removed.len(), 0);
+
+    let only_one = manifest_of(
+        vec![plugin("acme-plugin", vec![(".claude-plugin/plugin.json", PLUGIN_FILE_BODY)])],
+        vec![],
+    );
+    let c = serve_plugins(
+        &only_one,
+        &[("acme-plugin", ".claude-plugin/plugin.json", PLUGIN_FILE_BODY)],
+        "pat-updated-2",
+    );
+    fs::create_dir_all(c.dirs.org_plugins.join("acme-commons")).unwrap();
+    fs::create_dir_all(c.dirs.org_plugins.join(".dot-dir")).unwrap();
+    let pruned = run_sync(&c.dirs).expect("third sync");
+    assert_eq!(
+        pruned.removed,
+        vec!["acme-commons".to_owned()],
+        "a plugin dropped from the manifest is removed from disk"
+    );
+    assert!(
+        c.dirs.org_plugins.join(".dot-dir").exists(),
+        "dot-prefixed dirs are not plugin dirs and must survive"
+    );
+    let _ = (&b.server, &b.pat_dir, &c.server, &c.pat_dir);
+}
+
+#[test]
+fn a_plugin_without_its_manifest_file_is_reported_as_malformed() {
+    let m = manifest_of(
+        vec![plugin("acme-plugin", vec![("README.md", PLUGIN_FILE_BODY)])],
+        vec![],
+    );
+    let b = serve_plugins(
+        &m,
+        &[("acme-plugin", "README.md", PLUGIN_FILE_BODY)],
+        "pat-malformed",
+    );
+    let summary = run_sync(&b.dirs).expect("sync applies");
+    assert_eq!(
+        summary.malformed,
+        vec!["acme-plugin".to_owned()],
+        "a bundle with no claude-plugin/plugin.json is flagged"
+    );
+    assert!(
+        summary.installed.contains(&"acme-plugin".to_owned()),
+        "it is still materialised so the operator can inspect it"
+    );
+    let _ = (&b.server, &b.pat_dir);
+}
+
+#[test]
+fn a_bundled_mcp_file_is_recorded_then_stripped_from_the_plugin_dir() {
+    const MCP_BODY: &[u8] = br#"{"mcpServers":{"salesforce":{"url":"http://x"},"jira":{}}}"#;
+    let m = manifest_of(
+        vec![plugin(
+            "acme-plugin",
+            vec![
+                (".claude-plugin/plugin.json", PLUGIN_FILE_BODY),
+                (".mcp.json", MCP_BODY),
+            ],
+        )],
+        vec![],
+    );
+    let b = serve_plugins(
+        &m,
+        &[
+            ("acme-plugin", ".claude-plugin/plugin.json", PLUGIN_FILE_BODY),
+            ("acme-plugin", ".mcp.json", MCP_BODY),
+        ],
+        "pat-mcpfile",
+    );
+    run_sync(&b.dirs).expect("sync applies");
+    assert!(
+        !b.dirs.org_plugins.join("acme-plugin").join(".mcp.json").exists(),
+        "the bundled .mcp.json must never reach the Cowork-visible tree"
+    );
+    let _ = (&b.server, &b.pat_dir);
+}
+
+#[test]
+fn a_file_whose_body_does_not_match_its_digest_fails_the_sync() {
+    let mut entry = plugin("acme-plugin", vec![(".claude-plugin/plugin.json", PLUGIN_FILE_BODY)]);
+    entry.files[0].sha256 = Sha256Digest::try_new("1".repeat(64)).unwrap();
+    let m = manifest_of(vec![entry], vec![]);
+    let b = serve_plugins(
+        &m,
+        &[("acme-plugin", ".claude-plugin/plugin.json", PLUGIN_FILE_BODY)],
+        "pat-hash",
+    );
+    let err = run_sync(&b.dirs).expect_err("a digest mismatch must abort the apply");
+    assert!(
+        err.contains("acme-plugin/.claude-plugin/plugin.json"),
+        "the failing file is named: {err}"
+    );
+    let _ = (&b.server, &b.pat_dir);
+}
+
+#[test]
+fn a_traversing_file_path_is_refused_before_any_download() {
+    let m = manifest_of(
+        vec![plugin("acme-plugin", vec![("../escape.json", PLUGIN_FILE_BODY)])],
+        vec![],
+    );
+    let b = serve_plugins(&m, &[], "pat-traversal");
+    let err = run_sync(&b.dirs).expect_err("a traversing path must abort the apply");
+    assert!(err.contains("escape.json"), "the unsafe path is named: {err}");
+    let _ = (&b.server, &b.pat_dir);
+}
+
+#[test]
+fn an_already_managed_plugin_json_is_left_byte_identical() {
+    const MANAGED: &[u8] =
+        br#"{"name":"acme-plugin","hooks":"./hooks/hooks.json","installationPreference":"required"}"#;
+    let m = manifest_of(
+        vec![plugin("acme-plugin", vec![(".claude-plugin/plugin.json", MANAGED)])],
+        vec![],
+    );
+    let b = serve_plugins(
+        &m,
+        &[("acme-plugin", ".claude-plugin/plugin.json", MANAGED)],
+        "pat-managed",
+    );
+    run_sync(&b.dirs).expect("sync applies");
+    let on_disk = fs::read(
+        b.dirs
+            .org_plugins
+            .join("acme-plugin")
+            .join(".claude-plugin")
+            .join("plugin.json"),
+    )
+    .expect("plugin.json");
+    assert_eq!(
+        on_disk, MANAGED,
+        "a plugin.json that already carries both managed fields is not rewritten"
+    );
+    let _ = (&b.server, &b.pat_dir);
+}
+
+#[test]
+fn a_plugin_json_that_is_not_an_object_is_left_alone() {
+    const ARRAY: &[u8] = br#"["not","an","object"]"#;
+    const BROKEN: &[u8] = b"{not json at all";
+    let m = manifest_of(
+        vec![
+            plugin("acme-plugin", vec![(".claude-plugin/plugin.json", ARRAY)]),
+            plugin("acme-commons", vec![(".claude-plugin/plugin.json", BROKEN)]),
+        ],
+        vec![],
+    );
+    let b = serve_plugins(
+        &m,
+        &[
+            ("acme-plugin", ".claude-plugin/plugin.json", ARRAY),
+            ("acme-commons", ".claude-plugin/plugin.json", BROKEN),
+        ],
+        "pat-shape",
+    );
+    run_sync(&b.dirs).expect("sync applies");
+    for (id, expected) in [("acme-plugin", ARRAY), ("acme-commons", BROKEN)] {
+        let on_disk = fs::read(
+            b.dirs
+                .org_plugins
+                .join(id)
+                .join(".claude-plugin")
+                .join("plugin.json"),
+        )
+        .expect("plugin.json");
+        assert_eq!(
+            on_disk, expected,
+            "{id}: a manifest the normaliser cannot understand is preserved verbatim"
+        );
+    }
+    let _ = (&b.server, &b.pat_dir);
+}
