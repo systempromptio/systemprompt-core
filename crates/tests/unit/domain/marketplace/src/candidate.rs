@@ -67,13 +67,12 @@ fn hook(id: &str) -> HookEntry {
 }
 
 fn artifact(id: &str) -> ArtifactEntry {
-    use systemprompt_models::bridge::ids::{LibraryArtifactId, PluginId, Sha256Digest};
+    use systemprompt_models::bridge::ids::{LibraryArtifactId, Sha256Digest};
     ArtifactEntry {
         id: LibraryArtifactId::try_new(id).expect("valid artifact id"),
         name: id.to_owned(),
         description: String::new(),
         version: "1".into(),
-        plugin_id: PluginId::try_new("owner-plugin").expect("valid plugin id"),
         mcp_tools: vec!["mcp__x__y".to_owned()],
         content: "<table></table>".into(),
         starred: true,

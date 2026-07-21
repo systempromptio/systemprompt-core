@@ -64,6 +64,7 @@ fn plugin_entry() -> PluginEntry {
         version: "1.0.0".into(),
         sha256: Sha256Digest::try_new("0".repeat(64)).unwrap(),
         files,
+        hooks: systemprompt_models::services::PluginHooksRef::default(),
     }
 }
 
@@ -165,7 +166,6 @@ fn manifest(enabled_hosts: Vec<String>, populated: bool, suffix: &str) -> Signed
                 name: "Welcome".into(),
                 description: "org welcome doc".into(),
                 version: "1.0.0".into(),
-                plugin_id: PluginId::try_new(PLUGIN_ID).unwrap(),
                 mcp_tools: vec![],
                 content: "<h1>Welcome</h1>".into(),
                 starred: false,

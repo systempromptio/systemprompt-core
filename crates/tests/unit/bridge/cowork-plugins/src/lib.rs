@@ -7,4 +7,6 @@ mod cowork_adapter_settings;
 #[cfg(test)]
 mod emit_io;
 #[cfg(test)]
+mod prune_orphans;
+#[cfg(test)]
 mod resolve_target_pick;

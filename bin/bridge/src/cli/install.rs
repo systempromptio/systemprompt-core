@@ -34,6 +34,7 @@ pub(super) fn cmd_install(args: &[String]) -> ExitCode {
     let pubkey = parse_opt_flag(args, "--pubkey").map(PinnedPubKey::new);
     let apply = has_flag(args, "--apply");
     let apply_mobileconfig = has_flag(args, "--apply-mobileconfig");
+    let apply_schedule = has_flag(args, "--apply-schedule");
     match install::install(&install::InstallOptions {
         print_mdm,
         emit_schedule_template: emit_sched,
@@ -41,6 +42,7 @@ pub(super) fn cmd_install(args: &[String]) -> ExitCode {
         pubkey,
         apply,
         apply_mobileconfig,
+        apply_schedule,
     }) {
         Ok(summary) => {
             output::print_str(&install::render_install_summary(&summary));

@@ -101,6 +101,40 @@ Cache lives at the OS cache dir under `systemprompt-bridge/cache.json` (mode 060
 
 ---
 
+## Configuration file
+
+`systemprompt-bridge.toml` (location above, or `SP_BRIDGE_CONFIG`). Every key is optional.
+
+```toml
+gateway_url = "https://gateway.systemprompt.io"
+deployment_organization_uuid = "…"   # Cowork organization this deployment targets
+
+[pat]
+file = "…"                            # PAT path override (default: <config_dir>/systemprompt-bridge.pat)
+
+[session]
+enabled = true                        # device-link browser sign-in
+
+[mtls]
+cert_keystore_ref = "…"               # OS keystore reference for the device cert
+
+[sync]
+pinned_pubkey = "…"                   # base64 manifest signing key; also settable via --pubkey / MDM
+
+[claude]
+# host-app integration overrides
+
+[cowork]
+session_org_dir = "…"                 # absolute path to the Cowork session/organization directory
+```
+
+`[cowork] session_org_dir` pins which Cowork session directory the bridge writes plugin enables and
+the artifacts library into. Leave it unset when there is exactly one usable candidate — resolution
+falls back to the deployment's personal-session UUID, then to a sole usable candidate, and otherwise
+fails loudly listing what it found rather than guessing.
+
+---
+
 ## Plugin mount paths
 
 | OS | Path |

@@ -16,6 +16,8 @@ pub struct CspPolicy {
     pub script_src: Vec<String>,
     pub style_src: Vec<String>,
     pub img_src: Vec<String>,
+    #[serde(default)]
+    pub media_src: Vec<String>,
     pub connect_src: Vec<String>,
     pub font_src: Vec<String>,
     pub frame_src: Vec<String>,
@@ -29,6 +31,7 @@ impl CspPolicy {
             script_src: vec!["'self'".to_owned(), "'unsafe-inline'".to_owned()],
             style_src: vec!["'self'".to_owned(), "'unsafe-inline'".to_owned()],
             img_src: vec!["'self'".to_owned(), "data:".to_owned()],
+            media_src: vec!["'self'".to_owned(), "data:".to_owned()],
             connect_src: vec!["'self'".to_owned()],
             font_src: vec!["'self'".to_owned()],
             frame_src: vec!["'none'".to_owned()],
@@ -59,6 +62,9 @@ impl CspPolicy {
         }
         if !self.img_src.is_empty() {
             directives.push(format!("img-src {}", self.img_src.join(" ")));
+        }
+        if !self.media_src.is_empty() {
+            directives.push(format!("media-src {}", self.media_src.join(" ")));
         }
         if !self.connect_src.is_empty() {
             directives.push(format!("connect-src {}", self.connect_src.join(" ")));
@@ -99,6 +105,7 @@ impl CspPolicy {
             .iter()
             .chain(self.style_src.iter())
             .chain(self.img_src.iter())
+            .chain(self.media_src.iter())
             .chain(self.font_src.iter());
 
         let mut domains: Vec<String> = all_sources
@@ -155,6 +162,11 @@ impl CspBuilder {
 
     pub fn img_src(mut self, sources: Vec<String>) -> Self {
         self.policy.img_src = sources;
+        self
+    }
+
+    pub fn media_src(mut self, sources: Vec<String>) -> Self {
+        self.policy.media_src = sources;
         self
     }
 

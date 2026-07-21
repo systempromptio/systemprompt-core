@@ -1,18 +1,30 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+
+- Sync prunes plugins Cowork still holds in its own copy of the org-provisioned marketplace after the manifest dropped them. Cowork installs each plugin into its own tree and never removes an orphan, so the retired `systemprompt-managed` aggregate kept appearing in its plugin picker.
+- An unelevated run now compares the desired `managedMcpServers` value against the live `HKLM` policy and requests elevation when they differ, instead of treating any existing value as current. A managed MCP server added after the policy was first provisioned never reached Cowork's connector list. A matching value still no-ops, so a steady-state sync raises no elevation prompt.
+- The GUI activity log survives re-render. Each render replaces the component's `innerHTML`, detaching the nodes the virtual list was bound to, and the list was only ever built once — so the log went permanently blank while the header counters kept updating.
+
 ## [0.17.0] - 2026-07-20
 
 ### Breaking
 
 - **Breaking:** removed the `Brand::synthetic_plugin_name` field. Migrate by deleting it from any custom `Brand` definition; managed plugins now keep the ids the gateway assigns.
+- **Breaking:** added the `Brand::schedule_label`, `Brand::schedule_unit`, and `Brand::schedule_task_name` fields (the launchd label, systemd unit basename, and Task Scheduler task name for the periodic sync job). Migrate by adding them to any custom `Brand` definition so a white-label build does not register an upstream-named task.
 - **Breaking:** added the `Brand::workspace_dir_name` field (the brand's default Cowork workspace folder name; empty string ⇒ emit no default folder). Migrate by adding it to any custom `Brand` definition.
 
 ### Added
 
+- `[cowork] session_org_dir` in `systemprompt-bridge.toml` pins which Cowork session/organization directory the bridge syncs into.
+- `install --apply-schedule` registers the periodic sync job with the host scheduler (launchd, Task Scheduler, or a systemd user timer) instead of only writing a template for the user to install by hand. Registration is idempotent, the identifiers are brand-scoped, and `uninstall` deregisters the job.
 - Windows MDM policy pre-trusts a default Cowork workspace folder (`allowedWorkspaceFolders` → `~/<brand workspace dir>`, surfaced as a default-selected folder chip) and materializes the directory on apply, so the agent gets a real writable working directory instead of wandering into protected host paths and triggering folder-permission prompts. The policy also pins `coworkEgressAllowedHosts` to loopback and disables `isLocalDevMcpEnabled`.
 
 ### Changed
 
+- The Cowork session directory is resolved deterministically — configured value, then the deployment's personal-session UUID, then a sole usable candidate — and fails loudly listing the candidates instead of guessing the most recently modified one.
 - Managed plugins from the gateway manifest are each installed as a distinct plugin in Claude Code and Claude Cowork — carrying their own name, skills, and agents — so the host UI lists one entry per plugin instead of a single merged entry. Managed MCP servers are attached per plugin through the local proxy.
 
 ### Fixed

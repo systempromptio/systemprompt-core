@@ -21,6 +21,7 @@ export class SpSetupGateway extends SpElement {
     this._pendingSince = 0;
     this._pendingTimer = null;
     this.registerAction("sign-in", () => this._signIn());
+    this.registerAction("cancel-sign-in", () => this._cancelSignIn());
     this.registerAction("connect", () => this._connect());
     this.registerAction("edit-pat", () => this._editPat());
     this.registerAction("input:gateway", (t) => this._onGatewayInput(t));
@@ -42,6 +43,9 @@ export class SpSetupGateway extends SpElement {
   onConnect() {
     bridge.stateSnapshot().then((s) => this._applySnapshot(s)).catch((e) => console.warn("snapshot failed", e));
     this.bridgeSubscribe("state.changed", (s) => this._applySnapshot(s));
+    // Sign-in is gated on a reachable gateway, so the probe has to run before
+    // first paint — otherwise the button sits disabled on a stale "unknown".
+    bridge.gatewayProbe().catch((e) => console.warn("initial probe", e));
   }
 
   onDisconnect() {
@@ -125,6 +129,15 @@ export class SpSetupGateway extends SpElement {
     } finally {
       this.signingIn = false; this.invalidate();
     }
+  }
+
+  async _cancelSignIn() {
+    try {
+      await bridge.cancel("login");
+    } catch (err) {
+      console.warn("cancel sign-in", err);
+    }
+    this.signingIn = false; this.error = ""; this.invalidate();
   }
 
   async _connect() {

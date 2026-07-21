@@ -6,6 +6,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub(crate) mod emit;
+mod prune;
 pub(crate) mod settings;
 mod upsert;
 

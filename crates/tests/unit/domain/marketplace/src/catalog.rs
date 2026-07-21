@@ -452,6 +452,7 @@ fn load_plugins_empty_config_returns_empty() {
         agents: &[],
         mcp_servers: &[],
         disabled_mcp_servers: &no_disabled,
+        artifacts: &[],
         plugins_root: &plugins_root,
     };
     let plugins = load_plugins(&config, &content).expect("load plugins");
@@ -583,7 +584,7 @@ fn load_artifacts_reads_valid_artifact_with_default_content_file() {
     write_artifact(
         dir.path(),
         "pipeline",
-        "id: pipeline\nname: Pipeline\ndescription: opps\nversion: \"3\"\nplugin_id: sfdc\nstarred: true\nmcp_tools:\n  - mcp__salesforce__query_opportunities\n",
+        "id: pipeline\nname: Pipeline\ndescription: opps\nversion: \"3\"\nstarred: true\nmcp_tools:\n  - mcp__salesforce__query_opportunities\n",
         Some("<table><tr><td>data</td></tr></table>"),
     );
 
@@ -591,7 +592,6 @@ fn load_artifacts_reads_valid_artifact_with_default_content_file() {
     assert_eq!(artifacts.len(), 1);
     let a = &artifacts[0];
     assert_eq!(a.id.as_str(), "pipeline");
-    assert_eq!(a.plugin_id.as_str(), "sfdc");
     assert_eq!(a.version, "3");
     assert!(a.starred);
     assert_eq!(
@@ -609,7 +609,7 @@ fn load_artifacts_drops_artifact_with_missing_content() {
     write_artifact(
         dir.path(),
         "empty",
-        "id: empty\nname: Empty\ndescription: x\nplugin_id: sfdc\nmcp_tools:\n  - mcp__x__y\n",
+        "id: empty\nname: Empty\ndescription: x\nmcp_tools:\n  - mcp__x__y\n",
         None,
     );
     let artifacts = load_artifacts(dir.path()).expect("load artifacts");
@@ -625,7 +625,7 @@ fn load_artifacts_drops_artifact_with_no_mcp_tools() {
     write_artifact(
         dir.path(),
         "toolless",
-        "id: toolless\nname: Toolless\ndescription: x\nplugin_id: sfdc\n",
+        "id: toolless\nname: Toolless\ndescription: x\n",
         Some("<table></table>"),
     );
     let artifacts = load_artifacts(dir.path()).expect("load artifacts");
@@ -641,7 +641,7 @@ fn load_artifacts_skips_disabled() {
     write_artifact(
         dir.path(),
         "off",
-        "id: off\nname: Off\ndescription: x\nplugin_id: sfdc\nenabled: false\nmcp_tools:\n  - mcp__x__y\n",
+        "id: off\nname: Off\ndescription: x\nenabled: false\nmcp_tools:\n  - mcp__x__y\n",
         Some("<table></table>"),
     );
     let artifacts = load_artifacts(dir.path()).expect("load artifacts");
@@ -807,7 +807,7 @@ fn load_artifacts_stray_file_and_config_less_dir_are_ignored() {
     write_artifact(
         dir.path(),
         "real",
-        "id: real\nname: Real\ndescription: d\nplugin_id: sfdc\nmcp_tools:\n  - mcp__x__y\n",
+        "id: real\nname: Real\ndescription: d\nmcp_tools:\n  - mcp__x__y\n",
         Some("<table>data</table>"),
     );
 
@@ -832,7 +832,7 @@ fn load_artifacts_unparseable_config_is_skipped_not_fatal() {
     write_artifact(
         dir.path(),
         "good",
-        "id: good\nname: Good\ndescription: d\nplugin_id: sfdc\nmcp_tools:\n  - mcp__x__y\n",
+        "id: good\nname: Good\ndescription: d\nmcp_tools:\n  - mcp__x__y\n",
         Some("<table>data</table>"),
     );
 
@@ -919,14 +919,14 @@ fn load_artifacts_non_utf8_dir_name_is_skipped() {
     let bad = non_utf8_dir(&artifacts_root);
     fs::write(
         bad.join("config.yaml"),
-        "id: bad\nname: Bad\ndescription: d\nplugin_id: sfdc\nmcp_tools:\n  - mcp__x__y\n",
+        "id: bad\nname: Bad\ndescription: d\nmcp_tools:\n  - mcp__x__y\n",
     )
     .expect("write config in non-utf8 dir");
     fs::write(bad.join("content.html"), "<table>x</table>").expect("write content");
     write_artifact(
         dir.path(),
         "good",
-        "id: good\nname: Good\ndescription: d\nplugin_id: sfdc\nmcp_tools:\n  - mcp__x__y\n",
+        "id: good\nname: Good\ndescription: d\nmcp_tools:\n  - mcp__x__y\n",
         Some("<table>data</table>"),
     );
 
@@ -944,7 +944,7 @@ fn load_artifacts_drops_artifact_with_whitespace_only_content() {
     write_artifact(
         dir.path(),
         "blank",
-        "id: blank\nname: Blank\ndescription: x\nplugin_id: sfdc\nmcp_tools:\n  - mcp__x__y\n",
+        "id: blank\nname: Blank\ndescription: x\nmcp_tools:\n  - mcp__x__y\n",
         Some("   \n\t  \n"),
     );
     let artifacts = load_artifacts(dir.path()).expect("load artifacts");

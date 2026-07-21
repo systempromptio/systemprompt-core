@@ -1,4 +1,5 @@
 import { subscribe } from "/assets/js/bridge.js";
+import { isReady as i18nReady } from "/assets/js/i18n.js";
 
 export class SpElement extends HTMLElement {
   constructor() {
@@ -22,6 +23,11 @@ export class SpElement extends HTMLElement {
     }
     this._renderNow();
     this._bindActions();
+    if (!i18nReady()) {
+      const onReady = () => this.invalidate();
+      document.addEventListener("sp-i18n-ready", onReady, { once: true });
+      this._unsubs.push(() => document.removeEventListener("sp-i18n-ready", onReady));
+    }
   }
 
   disconnectedCallback() {

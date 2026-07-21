@@ -91,10 +91,15 @@ pub fn create_default_registry() -> UiRendererRegistry {
     registry.register(super::templates::TableRenderer::new());
     registry.register(super::templates::ChartRenderer::new());
     registry.register(super::templates::TextRenderer::new());
+    registry.register(super::templates::CopyPasteTextRenderer::new());
     registry.register(super::templates::FormRenderer::new());
     registry.register(super::templates::ListRenderer::new());
     registry.register(super::templates::ImageRenderer::new());
+    registry.register(super::templates::AudioRenderer::new());
+    registry.register(super::templates::VideoRenderer::new());
     registry.register(super::templates::DashboardRenderer::new());
+    registry.register(super::templates::PresentationCardRenderer::new());
+    registry.register(super::templates::MessageRenderer::new());
 
     registry
 }

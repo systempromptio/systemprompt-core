@@ -36,6 +36,7 @@ fn sample_plugin() -> PluginEntry {
             sha256: Sha256Digest::try_new(FAKE_SHA).unwrap(),
             size: 42,
         }],
+        hooks: Default::default(),
     }
 }
 

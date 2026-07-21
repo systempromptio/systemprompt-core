@@ -1,5 +1,6 @@
 const messages = new Map();
 let activeLocale = "en-US";
+let ready = false;
 
 function parseFtl(src) {
   const out = new Map();
@@ -78,7 +79,17 @@ export async function init() {
       for (const [k, v] of localeCatalog) messages.set(k, v);
     }
   }
+  ready = true;
   hydrate();
+  // Custom elements upgrade synchronously on import, so any `t()` baked into a
+  // first render resolved against an empty catalog and emitted the raw message
+  // id. `hydrate()` only patches [data-l10n-id] nodes, not innerHTML built by
+  // render() — so tell components to render again now the catalog is in.
+  document.dispatchEvent(new CustomEvent("sp-i18n-ready"));
+}
+
+export function isReady() {
+  return ready;
 }
 
 export function locale() {

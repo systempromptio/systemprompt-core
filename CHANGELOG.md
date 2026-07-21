@@ -5,7 +5,14 @@
 ### Breaking
 
 - **Breaking:** `AnalyticsProvider::extract_analytics` takes an `ExtractSignals { uri, caller_ip }` bundle and `SessionAnalytics` is built via `SessionAnalytics::builder(headers)`; the header-parsing constructors (`from_headers`, `from_headers_with_geoip[_and_socket]`, `from_headers_and_uri`, `from_request`) are removed. Migrate by resolving the caller IP at the HTTP boundary and supplying it through the builder / `ExtractSignals`.
+- **Breaking:** `ArtifactEntry.plugin_id` and `DiskArtifactConfig.plugin_id` are removed; a plugin now selects its artifacts through `PluginConfig.artifacts`, so an artifact can belong to several plugins. Migrate by deleting `plugin_id:` from each `services/artifacts/<id>/config.yaml` and listing the artifact id under the owning plugin's `artifacts.include`.
+- **Breaking:** A declared access-control ruleset is now authoritative and closed: `systemprompt_security::authz::resolve` consults an entity's parents only when the entity declares no rules of its own, so an entity that names roles is closed to every role it does not name — including via a parent's `default_included`. Previously a child ruleset that matched none of the caller's roles was indistinguishable from an absent ruleset and fell through to the parent grant, which made a narrow `roles: [admin]` rule on a member of an everyone-granted marketplace purely additive rather than restrictive. Core's own `RuleBasedHook` passes no parents and is unaffected. Migrate by adding an explicit `allow` rule for every role that should keep access to an entity that declares any rule, or by removing the entity's rules to restore inheritance.
 - **Breaking:** `ServerConfig.trusted_proxies` is now `Vec<IpNet>` and `SecurityHeadersConfig.frame_options` a typed `FrameOptions` enum; a profile with an invalid CIDR or a non-`DENY`/`SAMEORIGIN` frame-options value now fails to load. Migrate by using CIDR notation and the enum values.
+
+### Added
+
+- `PluginConfig.artifacts` (a `PluginComponentRef`) selects which artifacts a plugin ships, matching how it already selects skills, agents, and MCP servers.
+- `GET /v1/bridge/plugins/{id}/{*path}` is served by core from the cached plugin bundles, so bridge plugin files no longer depend on a per-deployment route.
 
 ### Changed
 
@@ -14,6 +21,8 @@
 
 ### Fixed
 
+- Role-restricted entities are no longer granted to unnamed roles by parent inheritance. A caller whose roles matched no rule on the entity itself previously received the parent's allow (or `default_included`) at both the marketplace-listing and the runtime-authz call site, so an admin-only MCP server, plugin, or skill inside a marketplace granted to `user` was handed to every user; only a separate JWT scope check stopped it where one existed.
+- Artifacts whose every owning plugin is filtered out for a user are no longer shipped in that user's manifest; orphan pruning runs after per-user filtering rather than before it.
 - `user_sessions.ip_address` no longer records client-spoofed RFC1918 addresses; GeoIP and abuse signals key off the trusted-proxy-attested client IP.
 
 ## [0.21.1] - 2026-07-17

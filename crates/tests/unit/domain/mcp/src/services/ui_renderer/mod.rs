@@ -1,3 +1,4 @@
+mod coverage;
 mod csp;
 mod html;
 mod registry;

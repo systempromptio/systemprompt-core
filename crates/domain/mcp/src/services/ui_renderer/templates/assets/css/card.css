@@ -1,0 +1,102 @@
+.card {
+    border: 1px solid #e2e2e8;
+    border-radius: 10px;
+    overflow: hidden;
+    background: #fff;
+}
+
+.card-header {
+    padding: 16px 20px 12px;
+    border-bottom: 1px solid #f0f0f4;
+}
+
+.card-header .mcp-app-title {
+    margin-bottom: 4px;
+}
+
+.card-header .mcp-app-description {
+    margin-bottom: 0;
+}
+
+.card-theme-gradient .card-header {
+    background: linear-gradient(135deg, #f7f7fb 0%, #fff 100%);
+}
+
+.card-sections {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1px;
+    background: #f0f0f4;
+}
+
+.card-section {
+    background: #fff;
+    padding: 14px 20px;
+}
+
+.card-section-heading {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #6a6a78;
+    margin-bottom: 6px;
+}
+
+.card-section-content {
+    font-size: 15px;
+    color: #1a1a1a;
+}
+
+.card-section-content p {
+    margin: 0 0 4px;
+}
+
+.card-section-content p:last-child {
+    margin-bottom: 0;
+}
+
+.card-empty {
+    padding: 20px;
+    color: #666;
+}
+
+.card-ctas {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 14px 20px;
+    border-top: 1px solid #f0f0f4;
+}
+
+.card-cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    font: inherit;
+    font-weight: 500;
+    border-radius: 6px;
+    border: 1px solid #d5d5de;
+    background: #fff;
+    color: #1a1a1a;
+    cursor: pointer;
+}
+
+.card-cta:hover {
+    border-color: #b5b5c2;
+}
+
+.card-cta-primary {
+    background: #1a1a1a;
+    border-color: #1a1a1a;
+    color: #fff;
+}
+
+.card-cta-primary:hover {
+    background: #33333d;
+    border-color: #33333d;
+}

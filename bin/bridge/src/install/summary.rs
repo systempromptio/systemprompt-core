@@ -6,8 +6,8 @@
 use std::fmt::Write as _;
 
 use super::{
-    CredentialsOutcome, InstallSummary, ManagedProfileOutcome, MdmDisplay, UninstallSummary,
-    os_label,
+    CredentialsOutcome, InstallSummary, ManagedProfileOutcome, MdmDisplay, ScheduleDisplay,
+    ScheduleRemoval, UninstallSummary, os_label,
 };
 use crate::config::paths::{self, Scope};
 
@@ -51,15 +51,35 @@ pub fn render_install_summary(s: &InstallSummary) -> String {
     render_mdm(&mut out, &s.mdm);
 
     if let Some(sched) = &s.schedule {
-        out.push('\n');
-        _ = writeln!(out, "--- Schedule template ({}) ---", os_label(sched.os));
-        _ = writeln!(out, "wrote: {}", sched.path.display());
-        out.push_str(&sched.install_hint);
-        if !sched.install_hint.ends_with('\n') {
-            out.push('\n');
-        }
+        render_schedule(&mut out, sched);
     }
     out
+}
+
+fn render_schedule(out: &mut String, sched: &ScheduleDisplay) {
+    match sched {
+        ScheduleDisplay::Template(emit) => {
+            out.push('\n');
+            _ = writeln!(out, "--- Schedule template ({}) ---", os_label(emit.os));
+            _ = writeln!(out, "wrote: {}", emit.path.display());
+            out.push_str(&emit.install_hint);
+            if !emit.install_hint.ends_with('\n') {
+                out.push('\n');
+            }
+            out.push_str("Tip: rerun with --apply-schedule to register it directly.\n");
+        },
+        ScheduleDisplay::Applied(applied) => {
+            out.push('\n');
+            _ = writeln!(
+                out,
+                "--- sync schedule registered ({}) ---",
+                os_label(applied.os)
+            );
+            for line in &applied.lines {
+                _ = writeln!(out, "  {line}");
+            }
+        },
+    }
 }
 
 fn render_mdm(out: &mut String, mdm: &MdmDisplay) {
@@ -120,6 +140,18 @@ pub fn render_uninstall_summary(s: &UninstallSummary) -> String {
             );
         },
         CredentialsOutcome::PurgeFailed(_) => {},
+    }
+    match &s.schedule {
+        ScheduleRemoval::Removed(label) => {
+            _ = writeln!(out, "Removed scheduled sync job {label}");
+        },
+        ScheduleRemoval::NotInstalled(label) if !label.is_empty() => {
+            _ = writeln!(
+                out,
+                "No scheduled sync job {label} registered (nothing to remove)"
+            );
+        },
+        ScheduleRemoval::NotInstalled(_) | ScheduleRemoval::Failed(_) => {},
     }
     out
 }

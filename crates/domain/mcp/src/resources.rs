@@ -10,7 +10,13 @@ use rmcp::model::{
 };
 
 use crate::capabilities::WEBSITE_URL;
-use crate::services::ui_renderer::{CspPolicy, MCP_APP_MIME_TYPE, UiMetadata};
+use crate::repository::McpArtifactRepository;
+use crate::services::ui_renderer::{
+    CspPolicy, MCP_APP_MIME_TYPE, RenderTarget, UiMetadata, artifact_ui_resource,
+    parse_artifact_resource_uri,
+};
+use systemprompt_identifiers::{ArtifactId, ContextId};
+use systemprompt_models::mcp::McpResourceUiMeta;
 
 #[derive(Debug)]
 pub struct ArtifactViewerConfig<'a> {
@@ -67,6 +73,69 @@ pub fn read_artifact_viewer_resource(
         mime_type: Some(MCP_APP_MIME_TYPE.to_owned()),
         text: template.to_owned(),
         meta: Some(meta),
+    };
+
+    Ok(ReadResourceResult::new(vec![contents]))
+}
+
+/// Serves `ui://<server>/artifact/<id>` by re-rendering the stored artifact.
+///
+/// Tool results already embed this HTML; this is the pull-based path for hosts
+/// that resolve the resource URI instead of rendering the embedded block.
+pub async fn read_artifact_resource(
+    request: &ReadResourceRequestParams,
+    server_name: &str,
+    repo: &McpArtifactRepository,
+) -> Result<ReadResourceResult, McpError> {
+    let uri = &request.uri;
+    let (uri_server, artifact_id) = parse_artifact_resource_uri(uri).ok_or_else(|| {
+        McpError::invalid_params(format!("Not an artifact resource URI: {uri}"), None)
+    })?;
+
+    if uri_server != server_name {
+        return Err(McpError::invalid_params(
+            format!("Artifact URI names server '{uri_server}', not '{server_name}'"),
+            None,
+        ));
+    }
+
+    let artifact_id = ArtifactId::from(artifact_id.to_owned());
+    let record = repo
+        .find_by_id(&artifact_id)
+        .await
+        .map_err(|e| McpError::internal_error(format!("Failed to load artifact: {e}"), None))?
+        .ok_or_else(|| {
+            McpError::invalid_params(format!("Unknown artifact: {artifact_id}"), None)
+        })?;
+
+    let payload = record.data.get("artifact").ok_or_else(|| {
+        McpError::internal_error(
+            format!("Stored artifact {artifact_id} has no payload to render"),
+            None,
+        )
+    })?;
+
+    let target = RenderTarget {
+        artifact_id: &artifact_id,
+        artifact_type: &record.artifact_type,
+        payload,
+        context_id: record.context_id.clone().unwrap_or_else(ContextId::generate),
+        title: record.title.clone(),
+    };
+
+    let resource = artifact_ui_resource(&target)
+        .await
+        .map_err(|e| McpError::internal_error(format!("Failed to render artifact: {e}"), None))?;
+
+    let ui_meta = McpResourceUiMeta::new()
+        .with_prefers_border(true)
+        .with_csp_opt(Some(resource.csp.to_mcp_domains()));
+
+    let contents = ResourceContents::TextResourceContents {
+        uri: uri.clone(),
+        mime_type: Some(MCP_APP_MIME_TYPE.to_owned()),
+        text: resource.html,
+        meta: Some(Meta(ui_meta.to_meta_map())),
     };
 
     Ok(ReadResourceResult::new(vec![contents]))

@@ -18,6 +18,7 @@ pub mod bridge;
 pub mod bridge_data;
 pub mod bridge_heartbeat;
 pub mod bridge_manifest;
+pub mod bridge_plugin_file;
 pub mod bridge_profile_usage;
 pub mod bridge_whoami;
 pub mod messages;
@@ -198,6 +199,8 @@ fn bridge_profile_routes(ctx: &AppContext, jwt_extractor: &Arc<JwtContextExtract
     let ctx_host_model_filter = ctx.clone();
     let ctx_profile_usage = ctx.clone();
     let ctx_heartbeat = ctx.clone();
+    let ctx_plugin_file = ctx.clone();
+    let jwt_plugin_file = Arc::clone(jwt_extractor);
     let jwt_whoami = Arc::clone(jwt_extractor);
     let jwt_manifest = Arc::clone(jwt_extractor);
     let jwt_enabled_hosts = Arc::clone(jwt_extractor);
@@ -222,6 +225,14 @@ fn bridge_profile_routes(ctx: &AppContext, jwt_extractor: &Arc<JwtContextExtract
                 let extractor = Arc::clone(&jwt_manifest);
                 let context = ctx_manifest.clone();
                 async move { bridge_manifest::manifest(extractor, context, headers).await }
+            }),
+        )
+        .route(
+            "/bridge/plugins/{plugin_id}/{*path}",
+            get(move |headers, path| {
+                let extractor = Arc::clone(&jwt_plugin_file);
+                let context = ctx_plugin_file.clone();
+                async move { bridge_plugin_file::handle(extractor, context, headers, path).await }
             }),
         )
         .route(

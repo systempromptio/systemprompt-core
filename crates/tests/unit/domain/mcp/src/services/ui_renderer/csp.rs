@@ -68,7 +68,7 @@ fn to_header_value_directives_separated_by_semicolons() {
     let policy = CspPolicy::strict();
     let header = policy.to_header_value();
     let parts: Vec<&str> = header.split("; ").collect();
-    assert_eq!(parts.len(), 8);
+    assert_eq!(parts.len(), 9);
 }
 
 #[test]

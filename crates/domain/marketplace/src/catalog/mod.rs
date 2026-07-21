@@ -24,5 +24,7 @@ pub use artifacts::load_artifacts;
 pub use content::CatalogContent;
 pub use hooks::load_hooks;
 pub use mcp::{disabled_mcp_server_names, load_managed_mcp_servers};
-pub use plugins::{load_plugins, plugin_bundles, plugin_bundles_cached};
+pub use plugins::{
+    artifact_owners, load_plugins, plugin_bundles, plugin_bundles_cached, selects_artifact,
+};
 pub use skills::load_skills;

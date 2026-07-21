@@ -3,7 +3,7 @@
 //! unsafe-id guard in `SeedStaging`.
 
 use systemprompt_bridge::gateway::manifest::ArtifactEntry;
-use systemprompt_bridge::ids::{LibraryArtifactId, PluginId, Sha256Digest};
+use systemprompt_bridge::ids::{LibraryArtifactId, Sha256Digest};
 use systemprompt_bridge::integration::cowork_artifacts::emit::{
     active_sinks, artifacts_version, write_artifacts,
 };
@@ -18,7 +18,6 @@ fn artifact(id: &str, version: &str, content: &str) -> ArtifactEntry {
         name: format!("Artifact {id}"),
         description: format!("desc {id}"),
         version: version.to_owned(),
-        plugin_id: PluginId::try_new("plugin-a").unwrap(),
         mcp_tools: vec!["tool-one".into()],
         content: content.to_owned(),
         starred: true,

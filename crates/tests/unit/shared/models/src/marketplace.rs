@@ -77,6 +77,8 @@ fn services_config_validates_marketplace_with_known_plugin() {
             agents: PluginComponentRef::default(),
             mcp_servers: PluginComponentRef::default(),
             content_sources: PluginComponentRef::default(),
+            artifacts: PluginComponentRef::default(),
+            hooks: Default::default(),
             scripts: vec![],
         },
     );

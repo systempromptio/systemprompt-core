@@ -67,6 +67,15 @@ pub struct Brand {
     /// with Salesforce" for a Salesforce-federated gateway).
     pub sign_in_label: &'static str,
     pub sign_in_hint: &'static str,
+    /// launchd `Label` and plist basename for the scheduled sync (reverse-DNS).
+    /// Brand-scoped so two white-label bridges on one Mac register distinct
+    /// agents instead of clobbering each other.
+    pub schedule_label: &'static str,
+    /// systemd user-unit basename and Windows XML basename for the scheduled
+    /// sync.
+    pub schedule_unit: &'static str,
+    /// Windows Task Scheduler task name for the scheduled sync.
+    pub schedule_task_name: &'static str,
     pub assets: BrandAssets,
 }
 
@@ -94,6 +103,9 @@ impl Brand {
         app_menu_name: "systemprompt-bridge",
         sign_in_label: "Sign in to your gateway",
         sign_in_hint: "Opens your browser to sign in on the gateway; this device is linked automatically.",
+        schedule_label: "io.systemprompt.bridge-sync",
+        schedule_unit: "systemprompt-bridge-sync",
+        schedule_task_name: "SystempromptBridgeSync",
         assets: BrandAssets {
             icon_svg: include_str!("../assets/icon.svg"),
             logo_svg: include_str!("../assets/logo.svg"),

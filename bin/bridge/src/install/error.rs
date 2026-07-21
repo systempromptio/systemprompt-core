@@ -21,6 +21,10 @@ pub enum InstallError {
     MobileconfigApply(String),
     #[error("--apply-mobileconfig is only supported on macOS")]
     MobileconfigUnsupported,
+    #[error("registering the scheduled sync job failed: {0}")]
+    ScheduleApply(String),
+    #[error("--apply-schedule can only register a job for the OS it runs on")]
+    ScheduleOsMismatch,
     #[error("failed to write {path}: {source}")]
     Schedule {
         path: String,

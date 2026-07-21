@@ -52,8 +52,9 @@ pub async fn manifest(
         hooks,
         managed_mcp_servers,
         artifacts,
-        // Why: marketplace_id/access are filter context, deliberately excluded
-        // from CanonicalView so the signed payload stays byte-identical.
+        // Why: marketplace_id/access/artifact_owners are filter context,
+        // deliberately excluded from CanonicalView so the signed payload stays
+        // byte-identical.
         ..
     } = assemble_candidate(&ctx, profile, &claims.user_id).await?;
 

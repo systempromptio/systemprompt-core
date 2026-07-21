@@ -44,6 +44,7 @@ fn plugin(id: &str) -> PluginEntry {
         )
         .expect("zero digest is valid hex"),
         files: vec![],
+        hooks: Default::default(),
     }
 }
 

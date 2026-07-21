@@ -27,7 +27,7 @@ impl PatProvider {
                     .pat
                     .as_ref()
                     .and_then(|p| p.file.as_ref())
-                    .and_then(|path| fs::read_to_string(expand(path)).ok())
+                    .and_then(|path| fs::read_to_string(crate::fsutil::expand_tilde(path)).ok())
                     .map(|s| s.trim().to_owned())
             })
             .filter(|s| !s.is_empty())
@@ -57,13 +57,4 @@ impl AuthProvider for PatProvider {
             })?;
         Ok(resp.into())
     }
-}
-
-fn expand(path: &str) -> String {
-    if let Some(rest) = path.strip_prefix("~/")
-        && let Some(home) = dirs::home_dir()
-    {
-        return home.join(rest).to_string_lossy().into_owned();
-    }
-    path.to_owned()
 }

@@ -31,11 +31,13 @@ use systemprompt_bridge::mcp_registry::normalize_key;
 use systemprompt_bridge::sync::run_once;
 use systemprompt_identifiers::HookId;
 use systemprompt_models::services::hooks::{HookCategory, HookEvent};
+use systemprompt_models::services::PluginHooksRef;
 use systemprompt_test_fixtures::fixture_user_id;
 use wiremock::matchers::{method, path, path_regex};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 const PLUGIN_FILE_BODY: &[u8] = br#"{"name":"acme-plugin","version":"1.0.0"}"#;
+const COMMONS_FILE_BODY: &[u8] = br#"{"name":"acme-commons","version":"1.0.0"}"#;
 
 fn sha_hex(bytes: &[u8]) -> String {
     hex::encode(Sha256::digest(bytes))
@@ -118,6 +120,17 @@ fn plugin(id: &str, files: Vec<(&str, &[u8])>) -> PluginEntry {
         version: "1.0.0".into(),
         sha256: Sha256Digest::try_new("0".repeat(64)).unwrap(),
         files: plugin_files,
+        hooks: PluginHooksRef::default(),
+    }
+}
+
+fn governance_plugin(id: &str, files: Vec<(&str, &[u8])>) -> PluginEntry {
+    PluginEntry {
+        hooks: PluginHooksRef {
+            governance: true,
+            include: vec![],
+        },
+        ..plugin(id, files)
     }
 }
 
@@ -264,10 +277,16 @@ fn run_once_applies_full_manifest_end_to_end() {
                 display_name: Some("Alice".into()),
                 roles: vec!["admin".into()],
             }),
-            plugins: vec![plugin(
-                "acme-plugin",
-                vec![(".claude-plugin/plugin.json", PLUGIN_FILE_BODY)],
-            )],
+            plugins: vec![
+                plugin(
+                    "acme-plugin",
+                    vec![(".claude-plugin/plugin.json", PLUGIN_FILE_BODY)],
+                ),
+                governance_plugin(
+                    "acme-commons",
+                    vec![(".claude-plugin/plugin.json", COMMONS_FILE_BODY)],
+                ),
+            ],
             skills: vec![skill("research", "# Research\n")],
             agents: vec![agent("triage")],
             hooks: vec![hook()],
@@ -292,6 +311,13 @@ fn run_once_applies_full_manifest_end_to_end() {
             .respond_with(ResponseTemplate::new(200).set_body_bytes(PLUGIN_FILE_BODY.to_vec()))
             .mount(&server)
             .await;
+        Mock::given(method("GET"))
+            .and(path(
+                "/v1/bridge/plugins/acme-commons/.claude-plugin/plugin.json",
+            ))
+            .respond_with(ResponseTemplate::new(200).set_body_bytes(COMMONS_FILE_BODY.to_vec()))
+            .mount(&server)
+            .await;
 
         let pat_dir = fresh_dir("pat");
         let pat_file = pat_dir.join("pat.txt");
@@ -305,12 +331,15 @@ fn run_once_applies_full_manifest_end_to_end() {
     let org_plugins = dirs.org_plugins.clone();
     let summary = run_sync(&dirs).expect("run_once should succeed");
 
-    assert_eq!(summary.plugin_count, 1);
+    assert_eq!(summary.plugin_count, 2);
     assert_eq!(summary.skill_count, 1);
     assert_eq!(summary.agent_count, 1);
     assert_eq!(summary.hook_count, 1);
     assert_eq!(summary.mcp_count, 1);
-    assert_eq!(summary.installed, vec!["acme-plugin".to_string()]);
+    assert_eq!(
+        summary.installed,
+        vec!["acme-plugin".to_string(), "acme-commons".to_string()]
+    );
     assert!(summary.removed.is_empty());
     assert!(summary.malformed.is_empty());
     assert_eq!(summary.identity, "alice@example.com");
@@ -331,13 +360,53 @@ fn run_once_applies_full_manifest_end_to_end() {
         fetched_json["installationPreference"], "required",
         "each synced plugin.json must carry the managed installationPreference"
     );
+    let hooks_path = org_plugins
+        .join("acme-plugin")
+        .join("hooks")
+        .join("hooks.json");
+    assert!(hooks_path.is_file(), "per-plugin hooks.json missing");
+
+    let hooks_json: serde_json::Value =
+        serde_json::from_slice(&fs::read(&hooks_path).unwrap()).unwrap();
+    assert_eq!(
+        hooks_json["hooks"],
+        serde_json::json!({}),
+        "a plugin that does not own hooks must emit an empty hooks map, not the \
+         governance hooks — they run session-globally and would fire once per plugin"
+    );
+
+    let owner_hooks: serde_json::Value = serde_json::from_slice(
+        &fs::read(
+            org_plugins
+                .join("acme-commons")
+                .join("hooks")
+                .join("hooks.json"),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    let pre_tool_use = &owner_hooks["hooks"]["PreToolUse"];
+    assert_eq!(
+        pre_tool_use.as_array().map(Vec::len),
+        Some(1),
+        "the governance owner must carry exactly one PreToolUse matcher group"
+    );
+    let govern = &pre_tool_use[0]["hooks"][0];
+    assert_eq!(govern["type"], "http");
     assert!(
-        org_plugins
-            .join("acme-plugin")
-            .join("hooks")
-            .join("hooks.json")
-            .is_file(),
-        "per-plugin hooks.json missing"
+        govern["url"]
+            .as_str()
+            .unwrap()
+            .contains("/api/public/hooks/govern?plugin_id=acme-commons"),
+        "govern hook must point at the loopback govern endpoint, got {:?}",
+        govern["url"]
+    );
+    assert!(
+        govern["headers"]["Authorization"]
+            .as_str()
+            .unwrap()
+            .starts_with("Bearer "),
+        "govern hook must carry the loopback bearer"
     );
 
     assert!(

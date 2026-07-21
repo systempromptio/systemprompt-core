@@ -3,7 +3,9 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::{CredentialsOutcome, InstallOptions, ManagedProfileOutcome, UninstallSummary};
+use super::{
+    CredentialsOutcome, InstallOptions, ManagedProfileOutcome, ScheduleRemoval, UninstallSummary,
+};
 use crate::ids::PinnedPubKey;
 use crate::schedule::Os;
 use std::path::PathBuf;
@@ -17,6 +19,7 @@ pub struct InstallOptionsBuilder {
     pubkey: Option<PinnedPubKey>,
     apply: bool,
     apply_mobileconfig: bool,
+    apply_schedule: bool,
 }
 
 impl InstallOptionsBuilder {
@@ -62,6 +65,12 @@ impl InstallOptionsBuilder {
     }
 
     #[must_use]
+    pub const fn apply_schedule(mut self, apply_schedule: bool) -> Self {
+        self.apply_schedule = apply_schedule;
+        self
+    }
+
+    #[must_use]
     pub fn build(self) -> InstallOptions {
         InstallOptions {
             print_mdm: self.print_mdm,
@@ -70,6 +79,7 @@ impl InstallOptionsBuilder {
             pubkey: self.pubkey,
             apply: self.apply,
             apply_mobileconfig: self.apply_mobileconfig,
+            apply_schedule: self.apply_schedule,
         }
     }
 }
@@ -80,6 +90,7 @@ pub struct UninstallSummaryBuilder {
     metadata_already_clean: Option<PathBuf>,
     managed_profile: ManagedProfileOutcome,
     credentials: CredentialsOutcome,
+    schedule: ScheduleRemoval,
 }
 
 impl UninstallSummaryBuilder {
@@ -90,6 +101,7 @@ impl UninstallSummaryBuilder {
             metadata_already_clean: None,
             managed_profile: ManagedProfileOutcome::NotApplicable,
             credentials: CredentialsOutcome::Kept,
+            schedule: ScheduleRemoval::NotInstalled(String::new()),
         }
     }
 
@@ -118,12 +130,19 @@ impl UninstallSummaryBuilder {
     }
 
     #[must_use]
+    pub fn schedule(mut self, outcome: ScheduleRemoval) -> Self {
+        self.schedule = outcome;
+        self
+    }
+
+    #[must_use]
     pub fn build(self) -> UninstallSummary {
         UninstallSummary {
             metadata_removed: self.metadata_removed,
             metadata_already_clean: self.metadata_already_clean,
             managed_profile: self.managed_profile,
             credentials: self.credentials,
+            schedule: self.schedule,
         }
     }
 }

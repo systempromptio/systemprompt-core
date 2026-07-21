@@ -27,7 +27,7 @@ use crate::bridge::ids::{
 };
 use crate::bridge::manifest_version::ManifestVersion;
 use crate::services::hooks::{HookCategory, HookEvent};
-use crate::services::plugin::PluginComponentRef;
+use crate::services::plugin::{PluginComponentRef, PluginHooksRef};
 use systemprompt_identifiers::{AgentId, AgentName, HookId, TenantId, UserId, ValidatedUrl};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -83,6 +83,8 @@ pub struct PluginEntry {
     pub version: String,
     pub sha256: Sha256Digest,
     pub files: Vec<PluginFile>,
+    #[serde(default)]
+    pub hooks: PluginHooksRef,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -100,7 +102,6 @@ pub struct ArtifactEntry {
     pub name: String,
     pub description: String,
     pub version: String,
-    pub plugin_id: PluginId,
     pub mcp_tools: Vec<String>,
     pub content: String,
     pub starred: bool,

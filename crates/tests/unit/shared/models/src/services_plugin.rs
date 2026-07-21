@@ -1,7 +1,8 @@
 use systemprompt_identifiers::{MarketplaceId, PluginId};
 use systemprompt_models::services::{
     ComponentFilter, ComponentSource, MarketplaceConfig, MarketplaceVisibility, McpServerSummary,
-    PluginAuthor, PluginComponentRef, PluginConfig, PluginScript, PluginSummary, PluginVariableDef,
+    PluginAuthor, PluginComponentRef, PluginConfig, PluginHooksRef, PluginScript, PluginSummary,
+    PluginVariableDef,
 };
 
 fn author() -> PluginAuthor {
@@ -26,6 +27,8 @@ fn valid_plugin(id: &str) -> PluginConfig {
         agents: PluginComponentRef::default(),
         mcp_servers: PluginComponentRef::default(),
         content_sources: PluginComponentRef::default(),
+        artifacts: PluginComponentRef::default(),
+        hooks: Default::default(),
         scripts: vec![],
     }
 }
@@ -234,4 +237,34 @@ fn mcp_server_summary_serde_round_trip() {
     let parsed: McpServerSummary = serde_json::from_str(&json).unwrap();
     assert_eq!(parsed.name, "fs");
     assert_eq!(parsed.port, 5050);
+}
+
+#[test]
+fn plugin_hooks_ref_defaults_to_no_hooks() {
+    let parsed: PluginHooksRef = serde_yaml::from_str("{}").unwrap();
+    assert!(parsed.is_empty());
+    assert!(!parsed.governance);
+}
+
+#[test]
+fn plugin_hooks_ref_parses_governance_owner() {
+    let parsed: PluginHooksRef = serde_yaml::from_str("governance: true").unwrap();
+    assert!(parsed.governance);
+    assert!(!parsed.is_empty());
+}
+
+#[test]
+fn plugin_hooks_ref_parses_custom_hook_includes() {
+    let parsed: PluginHooksRef = serde_yaml::from_str("include:\n  - audit_trail\n").unwrap();
+    assert!(!parsed.governance);
+    assert!(!parsed.is_empty());
+    assert_eq!(parsed.include, vec!["audit_trail".to_owned()]);
+}
+
+// A typo must fail loudly rather than silently leave the plugin without the
+// governance hooks it meant to declare.
+#[test]
+fn plugin_hooks_ref_rejects_unknown_fields() {
+    let err = serde_yaml::from_str::<PluginHooksRef>("governence: true");
+    assert!(err.is_err(), "misspelled hook key must not parse");
 }

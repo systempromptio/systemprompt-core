@@ -47,7 +47,15 @@ pub struct Config {
     #[serde(default)]
     pub claude: Option<ClaudeConfig>,
     #[serde(default)]
+    pub cowork: Option<CoworkConfig>,
+    #[serde(default)]
     pub deployment_organization_uuid: Option<String>,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct CoworkConfig {
+    #[serde(default)]
+    pub session_org_dir: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]

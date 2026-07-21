@@ -7,12 +7,16 @@
 //! These are Cowork-native library documents, not the in-chat MCP artifacts in
 //! [`crate::artifacts`].
 //!
+//! An artifact declares no owning plugin: selection is driven the other way,
+//! by each plugin's `artifacts` [`crate::services::PluginComponentRef`], so one
+//! artifact can ship with several plugins.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use serde::Deserialize;
 
-use crate::bridge::ids::{LibraryArtifactId, PluginId};
+use crate::bridge::ids::LibraryArtifactId;
 
 const fn default_true() -> bool {
     true
@@ -32,7 +36,6 @@ pub struct DiskArtifactConfig {
     pub description: String,
     #[serde(default = "default_artifact_version")]
     pub version: String,
-    pub plugin_id: PluginId,
     #[serde(default)]
     pub mcp_tools: Vec<String>,
     #[serde(default = "default_true")]

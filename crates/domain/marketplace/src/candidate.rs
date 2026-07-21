@@ -3,6 +3,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::collections::{BTreeMap, BTreeSet};
+
 use systemprompt_identifiers::MarketplaceId;
 use systemprompt_models::bridge::manifest::{
     AgentEntry, ArtifactEntry, HookEntry, ManagedMcpServer, PluginEntry, SkillEntry,
@@ -20,6 +22,10 @@ pub struct MarketplaceCandidate {
     pub hooks: Vec<HookEntry>,
     pub managed_mcp_servers: Vec<ManagedMcpServer>,
     pub artifacts: Vec<ArtifactEntry>,
+    /// Artifact id to the plugins that ship it. Artifacts carry no access rule
+    /// of their own, so a filter gates them through this map: an artifact
+    /// survives only while at least one owning plugin does.
+    pub artifact_owners: BTreeMap<String, BTreeSet<String>>,
     pub marketplace_id: Option<MarketplaceId>,
     pub access: Option<MarketplaceAccess>,
 }
@@ -46,9 +52,16 @@ impl MarketplaceCandidate {
             hooks,
             managed_mcp_servers,
             artifacts,
+            artifact_owners: BTreeMap::new(),
             marketplace_id: None,
             access: None,
         }
+    }
+
+    #[must_use]
+    pub fn with_artifact_owners(mut self, owners: BTreeMap<String, BTreeSet<String>>) -> Self {
+        self.artifact_owners = owners;
+        self
     }
 
     #[must_use]
@@ -60,6 +73,26 @@ impl MarketplaceCandidate {
         self.marketplace_id = Some(id);
         self.access = access;
         self
+    }
+
+    /// Drops artifacts whose every owning plugin was filtered away. Enforced
+    /// centrally after filtering rather than left to each `MarketplaceFilter`,
+    /// so a filter that only removes plugins cannot leak their artifacts.
+    pub fn prune_orphaned_artifacts(&mut self) {
+        let surviving: BTreeSet<&str> = self.plugins.iter().map(|p| p.id.as_str()).collect();
+        let owners = &self.artifact_owners;
+        self.artifacts.retain(|a| {
+            let kept = owners
+                .get(a.id.as_str())
+                .is_some_and(|o| o.iter().any(|p| surviving.contains(p.as_str())));
+            if !kept {
+                tracing::warn!(
+                    artifact_id = %a.id.as_str(),
+                    "marketplace: every plugin shipping this artifact was filtered out; dropping"
+                );
+            }
+            kept
+        });
     }
 
     #[must_use]

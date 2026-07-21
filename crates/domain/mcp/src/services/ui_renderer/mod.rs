@@ -8,10 +8,14 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod artifact_ui;
 mod csp;
 pub mod registry;
 pub mod templates;
 
+pub use artifact_ui::{
+    RenderTarget, artifact_resource_uri, artifact_ui_resource, parse_artifact_resource_uri,
+};
 pub use csp::{CspBuilder, CspPolicy};
 pub use registry::UiRendererRegistry;
 

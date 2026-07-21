@@ -1,6 +1,6 @@
 import { SpElement } from "/assets/js/components/sp-element.js";
 import { bridge } from "/assets/js/bridge.js";
-import { createLogVirtual } from "/assets/js/components/log-virtual.js";
+import { DEFAULT_CAPACITY, createLogVirtual } from "/assets/js/components/log-virtual.js";
 
 function fmtCount(n) {
   const v = Number(n) || 0;
@@ -18,7 +18,7 @@ export class SpActivityLog extends SpElement {
   constructor() {
     super();
     this._virtual = null;
-    this._pending = [];
+    this._lines = [{ text: "Ready.", level: "info" }];
     this.registerAction("open-log-folder", async () => {
       try { await bridge.openLogFolder(); } catch (e) { console.warn("open log folder", e); }
     });
@@ -38,17 +38,17 @@ export class SpActivityLog extends SpElement {
     this.bridgeSubscribe("log", (entry) => this._appendLog(entry && entry.line));
   }
 
+  // Every render replaces innerHTML, detaching the nodes the previous virtual
+  // list closed over; rebinding is what keeps the log visible across the
+  // i18n-ready re-render.
   afterRender() {
     const root = this.querySelector(".sp-log-virtual");
-    if (root && !this._virtual) {
-      try {
-        this._virtual = createLogVirtual(root);
-        this._virtual.append({ text: "Ready.", level: "info" });
-        for (const line of this._pending) { this._appendLine(line); }
-        this._pending = [];
-      } catch (e) {
-        console.error("log-virtual init failed", e);
-      }
+    if (!root || (this._virtual && this._virtual.root === root)) { return; }
+    try {
+      this._virtual = createLogVirtual(root, { initial: this._lines });
+    } catch (e) {
+      this._virtual = null;
+      console.error("log-virtual init failed", e);
     }
   }
 
@@ -66,13 +66,13 @@ export class SpActivityLog extends SpElement {
 
   _appendLog(line) {
     if (!line) { return; }
-    if (!this._virtual) { this._pending.push(line); return; }
-    this._appendLine(line);
-  }
-
-  _appendLine(line) {
     const ts = new Date().toLocaleTimeString();
-    this._virtual.append({ text: `[${ts}] ${line}`, level: classifyLevel(line) });
+    const entry = { text: `[${ts}] ${line}`, level: classifyLevel(line) };
+    this._lines.push(entry);
+    if (this._lines.length > DEFAULT_CAPACITY) {
+      this._lines.splice(0, this._lines.length - DEFAULT_CAPACITY);
+    }
+    if (this._virtual) { this._virtual.append(entry); }
   }
 
   render() {

@@ -1,0 +1,28 @@
+.media-frame {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px;
+    border: 1px solid #e2e2e8;
+    border-radius: 10px;
+    background: #fafafc;
+}
+
+.media-element {
+    width: 100%;
+    max-width: 100%;
+    border-radius: 6px;
+}
+
+.media-artwork {
+    width: 72px;
+    height: 72px;
+    object-fit: cover;
+    border-radius: 6px;
+    flex: none;
+}
+
+.media-caption {
+    margin-top: 10px;
+    color: #666;
+}

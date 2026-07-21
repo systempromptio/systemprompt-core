@@ -3,8 +3,11 @@
 //!
 //! Unlike [`super::cowork_plugins`] (a settings toggle), this emitter writes
 //! content, so it follows the synthetic-plugin writer's shape: a content-hashed
-//! `version.json` written last as the idempotency/completion marker, and a
-//! remove-on-empty clear. The write mechanism itself is pluggable (see
+//! `version.json` written last as the idempotency/completion marker. Teardown
+//! is explicit: only [`HostSync::clear`] (the disabled-host path) removes the
+//! store. An enabled host sending an empty artifact set preserves the store and
+//! warns — that shape signals an upstream population bug, not intent to wipe.
+//! The write mechanism itself is pluggable (see
 //! [`sink`]): the live Cowork library ingests artifacts only via its native
 //! `create_artifact` tool, so [`emit::active_sinks`] writes through both
 //! [`sink::SeedStaging`] (input for the first-run seed skill) and

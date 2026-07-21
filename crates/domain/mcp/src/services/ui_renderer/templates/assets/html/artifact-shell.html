@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Artifact Viewer</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 14px;
+      color: #333;
+      background: #fff;
+    }
+    #frame {
+      display: block;
+      width: 100%;
+      border: 0;
+      min-height: 120px;
+    }
+    .status {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 32px;
+      color: #666;
+    }
+    .spinner {
+      width: 18px;
+      height: 18px;
+      border: 2px solid #e2e2e8;
+      border-top-color: #6366f1;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .fallback { padding: 16px; }
+    .fallback pre {
+      background: #f6f6f9;
+      border: 1px solid #e2e2e8;
+      border-radius: 6px;
+      padding: 12px;
+      overflow-x: auto;
+      font-size: 12px;
+    }
+    .error {
+      margin: 16px;
+      padding: 12px;
+      border: 1px solid #f8b4b4;
+      border-left: 3px solid #ef4444;
+      border-radius: 6px;
+      background: #fef4f4;
+      color: #a00;
+    }
+  </style>
+</head>
+<body>
+  <div id="root">
+    <div class="status"><span class="spinner"></span><span>Loading artifact…</span></div>
+  </div>
+  <script>
+    const HTML_MIME_PREFIX = 'text/html';
+
+    function publishHeight(height) {
+      if (!height) {
+        return;
+      }
+      window.parent.postMessage({
+        jsonrpc: '2.0',
+        method: 'ui/notifications/size-changed',
+        params: { height }
+      }, '*');
+      window.parent.postMessage({ type: 'ui-size-change', payload: { height } }, '*');
+    }
+
+    function renderedHtml(result) {
+      const blocks = (result && result.content) || [];
+      for (const block of blocks) {
+        const resource = block && block.resource;
+        const mime = resource && (resource.mimeType || resource.mime_type);
+        if (resource && typeof resource.text === 'string' && mime && mime.startsWith(HTML_MIME_PREFIX)) {
+          return resource.text;
+        }
+      }
+      return null;
+    }
+
+    function showRendered(html) {
+      const root = document.getElementById('root');
+      root.innerHTML = '<iframe id="frame" sandbox="allow-scripts allow-popups"></iframe>';
+      const frame = document.getElementById('frame');
+      frame.srcdoc = html;
+    }
+
+    function showFallback(result) {
+      const structured = (result && result.structuredContent) || result || {};
+      const payload = structured.artifact || structured;
+      const root = document.getElementById('root');
+      const pre = document.createElement('pre');
+      pre.textContent = JSON.stringify(payload, null, 2);
+      const wrapper = document.createElement('div');
+      wrapper.className = 'fallback';
+      wrapper.appendChild(pre);
+      root.innerHTML = '';
+      root.appendChild(wrapper);
+      publishHeight(document.documentElement.scrollHeight);
+    }
+
+    function showError(message) {
+      const root = document.getElementById('root');
+      const div = document.createElement('div');
+      div.className = 'error';
+      div.textContent = message;
+      root.innerHTML = '';
+      root.appendChild(div);
+      publishHeight(document.documentElement.scrollHeight);
+    }
+
+    function render(result) {
+      const html = renderedHtml(result);
+      if (html) {
+        showRendered(html);
+      } else {
+        showFallback(result);
+      }
+    }
+
+    window.addEventListener('message', (event) => {
+      const data = event.data;
+      try {
+        if (data && data.method === 'ui/notifications/size-changed' && data.params) {
+          const frame = document.getElementById('frame');
+          if (frame) {
+            frame.style.height = data.params.height + 'px';
+          }
+          publishHeight(data.params.height);
+          return;
+        }
+        if (data && data.type === 'ui-size-change' && data.payload) {
+          const frame = document.getElementById('frame');
+          if (frame) {
+            frame.style.height = data.payload.height + 'px';
+          }
+          publishHeight(data.payload.height);
+          return;
+        }
+        if (data && data.method === 'ui/notifications/tool-result') {
+          render(data.params);
+        } else if (data && data.jsonrpc === '2.0' && data.result) {
+          render(data.result);
+        } else if (data && data.structuredContent) {
+          render(data);
+        }
+      } catch (err) {
+        console.error('Artifact shell failed to render:', err);
+        showError(err.message || 'Failed to render artifact');
+      }
+    });
+
+    window.parent.postMessage({ jsonrpc: '2.0', method: 'ui/notifications/initialized' }, '*');
+    window.parent.postMessage({ jsonrpc: '2.0', method: 'ui/ready', params: {} }, '*');
+  </script>
+</body>
+</html>

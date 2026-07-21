@@ -196,9 +196,10 @@ fn html_builder_with_multiple_scripts() {
 }
 
 #[test]
-fn html_builder_no_scripts_no_script_tag() {
+fn html_builder_always_emits_the_frame_sizing_script() {
     let html = HtmlBuilder::new("Test").build();
-    assert!(!html.contains("<script>"));
+    assert!(html.contains("<script>"));
+    assert!(html.contains("ui/notifications/size-changed"));
 }
 
 #[test]

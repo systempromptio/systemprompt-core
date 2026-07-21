@@ -311,3 +311,134 @@ fn parent_default_allows_even_when_own_default_none() {
         }
     );
 }
+
+#[test]
+fn non_matching_own_ruleset_does_not_inherit_parent_allow() {
+    let child = child();
+    let parent = parent_entity();
+    let user = fixture_user_id();
+    let roles: Vec<String> = vec!["user".into()];
+    let own = vec![rule(RuleType::Role, "admin", Access::Allow)];
+    let parent_rules = vec![rule(RuleType::Role, "user", Access::Allow)];
+    let parents = [ResolveParent {
+        entity: &parent,
+        rules: &parent_rules,
+        default_included: Some(false),
+    }];
+
+    let decision = resolve(ResolveInput {
+        entity: &child,
+        rules: &own,
+        user_id: &user,
+        user_roles: &roles,
+        default_included: Some(false),
+        parents: &parents,
+    });
+
+    assert!(
+        matches!(
+            decision,
+            Decision::Deny {
+                reason: DenyReason::NotAssigned { ref entity, .. }
+            } if entity.id_str() == "child-skill"
+        ),
+        "got {decision:?}",
+    );
+}
+
+#[test]
+fn non_matching_own_ruleset_ignores_parent_default_included() {
+    let child = child();
+    let parent = parent_entity();
+    let user = fixture_user_id();
+    let roles: Vec<String> = vec!["user".into()];
+    let own = vec![rule(RuleType::Role, "admin", Access::Allow)];
+    let parents = [ResolveParent {
+        entity: &parent,
+        rules: &[],
+        default_included: Some(true),
+    }];
+
+    let decision = resolve(ResolveInput {
+        entity: &child,
+        rules: &own,
+        user_id: &user,
+        user_roles: &roles,
+        default_included: Some(false),
+        parents: &parents,
+    });
+
+    assert!(
+        matches!(
+            decision,
+            Decision::Deny {
+                reason: DenyReason::NotAssigned { .. }
+            }
+        ),
+        "got {decision:?}",
+    );
+}
+
+#[test]
+fn matching_own_ruleset_still_allows() {
+    let child = child();
+    let parent = parent_entity();
+    let user = fixture_user_id();
+    let roles: Vec<String> = vec!["admin".into()];
+    let own = vec![rule(RuleType::Role, "admin", Access::Allow)];
+    let parents = [ResolveParent {
+        entity: &parent,
+        rules: &[],
+        default_included: Some(false),
+    }];
+
+    let decision = resolve(ResolveInput {
+        entity: &child,
+        rules: &own,
+        user_id: &user,
+        user_roles: &roles,
+        default_included: Some(false),
+        parents: &parents,
+    });
+
+    assert_eq!(
+        decision,
+        Decision::Allow {
+            matched_by: MatchedBy::RoleAllow {
+                role: "admin".into()
+            }
+        }
+    );
+}
+
+#[test]
+fn empty_own_ruleset_still_inherits() {
+    let child = child();
+    let parent = parent_entity();
+    let user = fixture_user_id();
+    let roles: Vec<String> = vec!["user".into()];
+    let parent_rules = vec![rule(RuleType::Role, "user", Access::Allow)];
+    let parents = [ResolveParent {
+        entity: &parent,
+        rules: &parent_rules,
+        default_included: Some(false),
+    }];
+
+    let decision = resolve(ResolveInput {
+        entity: &child,
+        rules: &[],
+        user_id: &user,
+        user_roles: &roles,
+        default_included: Some(false),
+        parents: &parents,
+    });
+
+    assert_eq!(
+        decision,
+        Decision::Allow {
+            matched_by: MatchedBy::RoleAllow {
+                role: "user".into()
+            }
+        }
+    );
+}

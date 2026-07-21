@@ -94,6 +94,15 @@ Commands (plugin + MCP sync):
     [--print-mdm macos|windows|linux]     Print MDM snippet for target OS (default: current OS)
     [--emit-schedule-template macos|windows|linux]
                                           Write an OS scheduler template to CWD
+    [--apply-schedule]                    Register the periodic sync job with this
+                                          machine's scheduler (launchd / Task
+                                          Scheduler / systemd --user). Idempotent;
+                                          `uninstall` deregisters it.
+                                          Config keys ({config_file}): gateway_url,
+                                          deployment_organization_uuid, [sync] pinned_pubkey,
+                                          and [cowork] session_org_dir — pins the Cowork
+                                          session directory to sync into instead of
+                                          resolving it. See README.
   sync                       Pull plugins + MCP allowlist from gateway into org-plugins
     [--watch] [--interval <secs>] [--allow-unsigned] [--force-replay] [--allow-tofu]
                                           --allow-tofu opts back into trust-on-first-use

@@ -6,6 +6,12 @@
 //! [`AccessRule`]s plus the `default_included` sentinel from
 //! [`super::repository::AccessControlRepository`] and pass them in.
 //!
+//! A declared ruleset is **authoritative and closed**: an entity that names its
+//! own roles is closed to every role it does not name, and only an entity with
+//! no rules of its own defers to its parents. This is what makes a narrow
+//! `roles: [admin]` grant restrictive even when the entity belongs to a group
+//! that is granted to everyone.
+//!
 //! `default_included` is `Option<bool>` — `None` signals the entity is
 //! unknown to access control (no row in `access_control_entities`), which
 //! the resolver turns into [`DenyReason::UnknownEntity`] rather than the
@@ -48,7 +54,8 @@ pub struct ResolveInput<'a> {
 ///
 /// A child deny overrides a parent allow, a nearer rule overrides a farther one
 /// within the same precedence band, and a parent grant cascades to the child
-/// only when no nearer rule matches. An unknown child entity
+/// only when the child declares no rules at all — a child that declares any rule
+/// owns its decision and is closed to roles it does not name. An unknown child entity
 /// (`default_included == None`) yields [`DenyReason::UnknownEntity`] unless a
 /// rule or a parent's `default_included` grants access.
 #[must_use]
@@ -65,6 +72,12 @@ pub fn resolve(input: ResolveInput<'_>) -> Decision {
     if let Some(decision) = match_ruleset(entity, rules, user_id, user_roles) {
         return decision;
     }
+    // A declared ruleset is authoritative: an entity that names its own roles is
+    // closed to every role it does not name. `match_ruleset` cannot distinguish
+    // "no rule matches you" from "no rules exist", so only an entity with no rules
+    // of its own defers to its parents.
+    let parents = if rules.is_empty() { parents } else { &[] };
+
     for parent in parents {
         if let Some(decision) = match_ruleset(parent.entity, parent.rules, user_id, user_roles) {
             return decision;

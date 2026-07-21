@@ -19,39 +19,23 @@ pub(super) fn write_managed_mcp_servers_value(value: &str) -> Result<String, Str
     // connector never appears). Older builds merged both hives, which is why
     // writing HKCU used to work — it no longer does.
     //
-    // Writing HKLM requires elevation. If we are not elevated we cannot fix it:
-    // clear any stale HKCU copy (so it is not mistaken for live config) and
-    // fail loudly rather than silently write an HKCU value Cowork ignores.
+    // Writing HKLM requires elevation. If we are not elevated we cannot fix it
+    // in-process: clear any stale HKCU copy (so it is not mistaken for live
+    // config), then ask for elevation — but only when the value actually
+    // drifted, so a steady-state sync never raises a UAC prompt.
     let hkcu = r"HKCU\SOFTWARE\Policies\Claude";
     let key = r"HKLM\SOFTWARE\Policies\Claude";
     if !crate::winproc::is_elevated() {
-        // Best-effort clear the ignored HKCU copy so it can't be mistaken for
-        // live config.
         _ = crate::winproc::reg_command()
             .args(["delete", hkcu, "/v", "managedMcpServers", "/f"])
             .status();
-        // If an elevated run already provisioned managedMcpServers in HKLM we
-        // cannot update it here, but we don't need to: the loopback bearer and
-        // proxy port are stable, so the existing HKLM value stays valid. Treat
-        // that as a no-op success instead of failing the whole host sync (which
-        // would report PARTIAL on every non-elevated refresh). Only error when
-        // HKLM has no value at all — i.e. it was never provisioned elevated.
-        let already_in_hklm = crate::winproc::reg_command()
-            .args(["query", key, "/v", "managedMcpServers"])
-            .status()
-            .is_ok_and(|s| s.success());
-        if already_in_hklm {
+        if current_value().as_deref() == Some(value) {
             return Ok(format!(
-                "{key} already holds managedMcpServers; skipping (elevation needed to \
-                 rewrite, but the value is stable). Cleared ignored {hkcu} copy."
+                "{key} already holds this managedMcpServers value; skipping (cleared \
+                 ignored {hkcu} copy)."
             ));
         }
-        return Err(
-            "managedMcpServers requires elevation: Cowork ignores HKCU when an HKLM policy \
-             exists, so the managed server list must be written to HKLM\\SOFTWARE\\Policies\\Claude. \
-             Re-run the Bridge from an elevated (Administrator) context."
-                .to_owned(),
-        );
+        return elevated_write(value).map(|()| format!("{key} ← managedMcpServers (elevated)"));
     }
     let status = crate::winproc::reg_command()
         .args([
@@ -79,6 +63,43 @@ pub(super) fn write_managed_mcp_servers_value(value: &str) -> Result<String, Str
         .args(["delete", hkcu, "/v", "managedMcpServers", "/f"])
         .status();
     Ok(format!("{key} ← managedMcpServers (cleared stale {hkcu})"))
+}
+
+fn current_value() -> Option<String> {
+    match crate::config::store::managed_policy_store().read_managed_policy("managedMcpServers") {
+        Ok(v) => v,
+        Err(e) => {
+            tracing::warn!(
+                target: "bridge::install::mdm",
+                error = %e,
+                "could not read the current managedMcpServers policy value"
+            );
+            None
+        },
+    }
+}
+
+fn elevated_write(value: &str) -> Result<(), String> {
+    let dir = std::env::temp_dir().join(crate::brand::brand().working_dir_name);
+    std::fs::create_dir_all(&dir).map_err(|e| format!("create staging dir: {e}"))?;
+    let path = dir.join("managed-mcp-servers.reg");
+    let body = crate::integration::claude_desktop::reg_profile::render_reg_values(
+        true,
+        &[("managedMcpServers", value.to_owned())],
+    );
+    std::fs::write(&path, body).map_err(|e| format!("stage managedMcpServers profile: {e}"))?;
+    tracing::info!(
+        target: "bridge::install::mdm",
+        path = %path.display(),
+        "managed MCP server list drifted; requesting elevation to update HKLM policy"
+    );
+    crate::integration::claude_desktop::elevate::elevate_and_install(&path.to_string_lossy())
+        .map_err(|e| {
+            format!(
+                "the MCP connector list could not be updated: {e}. Re-run the Bridge as \
+                 Administrator to apply it."
+            )
+        })
 }
 
 pub(super) fn remove_policy() -> Result<bool, String> {

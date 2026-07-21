@@ -134,11 +134,11 @@ struct PluginSyncCtx<'a> {
     staging_root: &'a Path,
 }
 
-#[tracing::instrument(level = "debug", skip(ctx, plugin, user_hooks), fields(plugin_id = %plugin.id))]
+#[tracing::instrument(level = "debug", skip(ctx, plugin, hook_pool), fields(plugin_id = %plugin.id))]
 async fn sync_one_plugin(
     ctx: &PluginSyncCtx<'_>,
     plugin: &PluginEntry,
-    user_hooks: &[HookEntry],
+    hook_pool: &[HookEntry],
 ) -> Result<PluginChange, super::ApplyError> {
     let target = ctx.root.join(plugin.id.as_str());
 
@@ -157,8 +157,7 @@ async fn sync_one_plugin(
         source: e,
     })?;
 
-    let plugin_id_typed = systemprompt_identifiers::PluginId::new(plugin.id.as_str());
-    write_hooks_json(&plugin_id_typed, &target, user_hooks)?;
+    write_hooks_json(plugin, &target, hook_pool)?;
     ensure_plugin_json_managed_fields(&target)?;
 
     Ok(if was_present {

@@ -107,6 +107,71 @@ fn template_filenames_per_os() {
     );
 }
 
+// Every scheduler identifier is read off the brand rather than hardcoded, so a
+// white-label build registers its own task instead of the upstream one. These
+// assert the default brand's values and that the templates carry them through.
+#[test]
+fn schedule_labels_come_from_the_brand() {
+    let brand = systemprompt_bridge::brand::brand();
+    assert_eq!(schedule::schedule_label(Os::Mac), brand.schedule_label);
+    assert_eq!(
+        schedule::schedule_label(Os::Windows),
+        brand.schedule_task_name
+    );
+    assert_eq!(schedule::schedule_label(Os::Linux), brand.schedule_unit);
+}
+
+#[test]
+fn templates_substitute_the_brand_label_and_app_name() {
+    let brand = systemprompt_bridge::brand::brand();
+    for os in [Os::Mac, Os::Windows, Os::Linux] {
+        let rendered = schedule::template(os, binary());
+        assert!(!rendered.contains("{label}"), "{rendered}");
+        assert!(!rendered.contains("{app}"), "{rendered}");
+    }
+    assert!(schedule::template(Os::Mac, binary()).contains(brand.schedule_label));
+    assert!(schedule::template(Os::Linux, binary()).contains(brand.schedule_unit));
+    assert!(schedule::template(Os::Windows, binary()).contains(brand.app_name));
+}
+
+#[test]
+fn linux_template_splits_into_service_and_timer() {
+    let rendered = schedule::template(Os::Linux, binary());
+    let (service, timer) = schedule::split_systemd_unit(&rendered).expect("timer section present");
+
+    assert!(service.contains("[Service]"));
+    assert!(service.contains(BINARY));
+    assert!(service.contains("WantedBy=default.target"));
+    assert!(!service.contains("[Timer]"));
+
+    assert!(timer.contains("[Timer]"));
+    assert!(timer.contains("WantedBy=timers.target"));
+    assert!(!timer.contains("[Service]"));
+
+    assert!(service.ends_with('\n'));
+    assert!(timer.ends_with('\n'));
+}
+
+#[test]
+fn split_systemd_unit_returns_none_without_a_timer_section() {
+    assert!(schedule::split_systemd_unit("[Service]\nExecStart=/bin/true\n").is_none());
+}
+
+// Registration is overwrite-based (`schtasks /F`, `launchctl bootout` then
+// `bootstrap`, `systemctl enable --now`), so a second apply is a no-op exactly
+// when rendering is deterministic. The live double-apply check needs a real
+// host scheduler and is part of manual release verification.
+#[test]
+fn rendering_is_deterministic_so_reapplying_cannot_duplicate() {
+    for os in [Os::Mac, Os::Windows, Os::Linux] {
+        assert_eq!(
+            schedule::template(os, binary()),
+            schedule::template(os, binary())
+        );
+        assert_eq!(schedule::template_filename(os), schedule::template_filename(os));
+    }
+}
+
 #[test]
 fn mac_install_hint_mentions_launchctl() {
     let hint = schedule::install_hint(Os::Mac);

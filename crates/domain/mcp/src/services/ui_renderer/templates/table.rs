@@ -47,7 +47,8 @@ impl TableRenderer {
                     }
                 } else if let Some(obj) = data.as_object()
                     && let Some(data_arr) = obj
-                        .get("data")
+                        .get("items")
+                        .or_else(|| obj.get("data"))
                         .or_else(|| obj.get("rows"))
                         .and_then(JsonValue::as_array)
                 {
@@ -60,6 +61,12 @@ impl TableRenderer {
                                 })
                             })
                             .collect();
+                    }
+
+                    if columns.is_empty()
+                        && let Some(first_obj) = data_arr.first().and_then(JsonValue::as_object)
+                    {
+                        columns = first_obj.keys().cloned().collect();
                     }
 
                     for item in data_arr {

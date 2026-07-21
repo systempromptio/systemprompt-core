@@ -1,8 +1,8 @@
 const ROW_HEIGHT = 18;
 const VIEWPORT_OVERSCAN = 10;
-const DEFAULT_CAPACITY = 20000;
+export const DEFAULT_CAPACITY = 20000;
 
-export function createLogVirtual(rootEl, capacity = DEFAULT_CAPACITY) {
+export function createLogVirtual(rootEl, { capacity = DEFAULT_CAPACITY, initial = [] } = {}) {
   const viewport = rootEl.querySelector(".sp-log-virtual__viewport");
   const spacerTop = rootEl.querySelector(".sp-log-virtual__spacer-top");
   const spacerBottom = rootEl.querySelector(".sp-log-virtual__spacer-bottom");
@@ -10,7 +10,7 @@ export function createLogVirtual(rootEl, capacity = DEFAULT_CAPACITY) {
     throw new Error("log-virtual: missing required child elements");
   }
 
-  const buffer = [];
+  const buffer = initial.slice(-capacity);
   let stickyTail = true;
   let scheduled = false;
 
@@ -72,5 +72,5 @@ export function createLogVirtual(rootEl, capacity = DEFAULT_CAPACITY) {
   }
 
   schedule();
-  return { append, clear };
+  return { append, clear, root: rootEl };
 }

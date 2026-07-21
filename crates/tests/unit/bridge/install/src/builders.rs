@@ -1,7 +1,7 @@
 use systemprompt_bridge::ids::PinnedPubKey;
 use systemprompt_bridge::install::{
     CredentialsOutcome, InstallOptions, InstallOptionsBuilder, ManagedProfileOutcome,
-    UninstallSummaryBuilder,
+    ScheduleRemoval, UninstallSummaryBuilder,
 };
 use systemprompt_bridge::schedule::Os;
 use systemprompt_identifiers::ValidatedUrl;
@@ -15,6 +15,7 @@ fn builder_defaults_are_empty() {
     assert!(opts.pubkey.is_none());
     assert!(!opts.apply);
     assert!(!opts.apply_mobileconfig);
+    assert!(!opts.apply_schedule);
 }
 
 #[test]
@@ -26,6 +27,7 @@ fn builder_new_matches_builder_fn() {
     assert!(opts.pubkey.is_none());
     assert!(!opts.apply);
     assert!(!opts.apply_mobileconfig);
+    assert!(!opts.apply_schedule);
 }
 
 #[test]
@@ -84,6 +86,7 @@ fn all_setters_chain_together() {
         .pubkey(PinnedPubKey::new("base64data"))
         .apply(true)
         .apply_mobileconfig(true)
+        .apply_schedule(true)
         .build();
     assert!(matches!(opts.print_mdm, Some(Os::Windows)));
     assert!(matches!(opts.emit_schedule_template, Some(Os::Mac)));
@@ -97,6 +100,13 @@ fn all_setters_chain_together() {
     );
     assert!(opts.apply);
     assert!(opts.apply_mobileconfig);
+    assert!(opts.apply_schedule);
+}
+
+#[test]
+fn apply_schedule_setter_sets_field() {
+    let opts = InstallOptions::builder().apply_schedule(true).build();
+    assert!(opts.apply_schedule);
 }
 
 #[test]
@@ -120,6 +130,7 @@ fn uninstall_summary_builder_chains_setters() {
         .credentials(CredentialsOutcome::Purged(std::path::PathBuf::from(
             "/creds",
         )))
+        .schedule(ScheduleRemoval::Removed("job".into()))
         .build();
     assert_eq!(
         summary.metadata_removed,
@@ -134,4 +145,5 @@ fn uninstall_summary_builder_chains_setters() {
         ManagedProfileOutcome::Removed("profile-id")
     ));
     assert!(matches!(summary.credentials, CredentialsOutcome::Purged(_)));
+    assert!(matches!(summary.schedule, ScheduleRemoval::Removed(_)));
 }

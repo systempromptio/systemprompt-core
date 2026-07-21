@@ -93,6 +93,7 @@ impl CatalogContent {
             agents: &self.agents,
             mcp_servers: &self.managed_mcp_servers,
             disabled_mcp_servers: &self.disabled_mcp_servers,
+            artifacts: &self.artifacts,
             plugins_root: &self.plugins_root,
         }
     }

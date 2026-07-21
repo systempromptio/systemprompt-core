@@ -5,14 +5,18 @@
 
 use crate::repository::{CreateMcpArtifact, McpArtifactRepository};
 use crate::schema::McpOutputSchema;
+use crate::services::ui_renderer::{
+    RenderTarget, UiResource, artifact_resource_uri, artifact_ui_resource,
+};
 use rmcp::ErrorData as McpError;
-use rmcp::model::{CallToolResult, ContentBlock};
+use rmcp::model::{CallToolResult, ContentBlock, Meta, ResourceContents};
 use schemars::JsonSchema;
 use serde::Serialize;
 use serde_json::Value as JsonValue;
 use systemprompt_identifiers::{ArtifactId, McpExecutionId};
 use systemprompt_models::RequestContext;
 use systemprompt_models::artifacts::{ExecutionMetadata, ToolResponse};
+use systemprompt_models::mcp::McpResourceUiMeta;
 
 pub struct McpResponseBuilder<T: Serialize + JsonSchema> {
     output: T,
@@ -101,13 +105,61 @@ impl<T: Serialize + JsonSchema + McpOutputSchema> McpResponseBuilder<T> {
 
         tracing::info!(artifact_id = %artifact_id, server = %create_artifact.server_name, "Artifact persisted");
 
-        let mut result = CallToolResult::success(vec![ContentBlock::text(summary_str)]);
+        let mut content = vec![ContentBlock::text(summary_str)];
+        if let Some(block) = ui_resource_block(&create_artifact, &self.ctx).await {
+            content.push(block);
+        }
+
+        let mut result = CallToolResult::success(content);
         result.structured_content = Some(structured_content);
         if let Some(meta) = meta_for_result {
             result = result.with_meta(Some(meta));
         }
         Ok(result)
     }
+}
+
+/// Renders the artifact to HTML and returns it as an embedded `ui://`
+/// resource block. Rendering is presentational: a failure is logged and the
+/// tool result goes out without it rather than failing the call.
+async fn ui_resource_block(
+    artifact: &CreateMcpArtifact,
+    ctx: &RequestContext,
+) -> Option<ContentBlock> {
+    let payload = artifact.data.get("artifact")?;
+    let target = RenderTarget {
+        artifact_id: &artifact.artifact_id,
+        artifact_type: &artifact.artifact_type,
+        payload,
+        context_id: ctx.context_id().clone(),
+        title: artifact.title.clone(),
+    };
+
+    let resource = match artifact_ui_resource(&target).await {
+        Ok(resource) => resource,
+        Err(e) => {
+            tracing::warn!(
+                error = %e,
+                artifact_id = %artifact.artifact_id,
+                artifact_type = %artifact.artifact_type,
+                "Artifact UI rendering failed; returning result without embedded resource"
+            );
+            return None;
+        },
+    };
+
+    let ui_meta = McpResourceUiMeta::new()
+        .with_prefers_border(true)
+        .with_csp_opt(Some(resource.csp.to_mcp_domains()));
+
+    Some(ContentBlock::resource(
+        ResourceContents::TextResourceContents {
+            uri: artifact_resource_uri(&artifact.server_name, &artifact.artifact_id),
+            mime_type: Some(UiResource::mime_type().to_owned()),
+            text: resource.html,
+            meta: Some(Meta(ui_meta.to_meta_map())),
+        },
+    ))
 }
 
 fn log_schema_validation(

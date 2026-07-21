@@ -107,7 +107,6 @@ fn build_artifact_entry(artifact_dir: &Path) -> Result<Option<ArtifactEntry>, Ma
         name: config.name,
         description: config.description,
         version: config.version,
-        plugin_id: config.plugin_id,
         mcp_tools: config.mcp_tools,
         content,
         starred: config.starred,

@@ -19,13 +19,13 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::sync::{Arc, OnceLock, RwLock};
 
 use sha2::{Digest, Sha256};
 use systemprompt_models::bridge::ids::{PluginId, Sha256Digest};
-use systemprompt_models::bridge::manifest::{PluginEntry, PluginFile};
-use systemprompt_models::services::{PluginConfig, ServicesConfig};
+use systemprompt_models::bridge::manifest::{ArtifactEntry, PluginEntry, PluginFile};
+use systemprompt_models::services::{ComponentSource, PluginConfig, ServicesConfig};
 
 use crate::bundle::{BundleContent, PluginBundle, build_plugin_bundle, bundle_has_content};
 use crate::catalog::fingerprint::hash_dir_metadata;
@@ -107,6 +107,10 @@ fn bundle_fingerprint(
     hash_part(&mut hasher, &to_json(content.agents)?);
     hash_part(&mut hasher, &to_json(content.mcp_servers)?);
     hash_part(&mut hasher, &to_json(content.disabled_mcp_servers)?);
+    // Bundles now carry artifact bodies, so an edited dashboard must invalidate
+    // this cache — without it the fingerprint is unchanged and the stale bundle
+    // is served forever.
+    hash_part(&mut hasher, &to_json(content.artifacts)?);
     hash_part(
         &mut hasher,
         content.plugins_root.as_os_str().as_encoded_bytes(),
@@ -128,21 +132,66 @@ pub fn load_plugins(
     services: &ServicesConfig,
     content: &BundleContent<'_>,
 ) -> Result<Vec<PluginEntry>, MarketplaceError> {
-    let versions: HashMap<&str, &str> = services
+    let configs: HashMap<&str, &PluginConfig> = services
         .plugins
         .values()
-        .map(|p| (p.id.as_str(), p.version.as_str()))
+        .map(|p| (p.id.as_str(), p))
         .collect();
 
     let bundles = plugin_bundles_cached(services, content)?;
     let mut out = Vec::with_capacity(bundles.len());
     for (id, bundle) in bundles.iter() {
-        let version = versions.get(id.as_str()).copied().ok_or_else(|| {
+        let config = configs.get(id.as_str()).copied().ok_or_else(|| {
             MarketplaceError::Catalog(format!("plugin {id} missing from services config"))
         })?;
-        out.push(hash_entry(id.clone(), version, bundle)?);
+        out.push(hash_entry(id.clone(), config, bundle)?);
     }
     Ok(out)
+}
+
+/// Artifact id to the ids of the selected plugins that ship it.
+///
+/// Selection is many-to-many — one artifact may be included by several
+/// plugins — so a per-user filter that drops a plugin must drop only the
+/// artifacts left with no surviving owner.
+pub fn artifact_owners(
+    services: &ServicesConfig,
+    artifacts: &[ArtifactEntry],
+) -> BTreeMap<String, BTreeSet<String>> {
+    let mut out: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
+    for config in selected_configs(services) {
+        let selected: Vec<String> = match config.artifacts.source {
+            ComponentSource::Explicit => config.artifacts.include.clone(),
+            ComponentSource::Instance => artifacts
+                .iter()
+                .map(|a| a.id.as_str().to_owned())
+                .filter(|id| selects_artifact(config, id))
+                .collect(),
+        };
+        for id in selected {
+            out.entry(id)
+                .or_default()
+                .insert(config.id.as_str().to_owned());
+        }
+    }
+    out
+}
+
+/// Single source of truth for "does this plugin ship this artifact".
+///
+/// Shared by the manifest's owner map above and the bundle assembler. Selection
+/// is a distribution gate — an artifact reaches a client only through a plugin
+/// that selects it — so the two callers must not drift.
+#[must_use]
+pub fn selects_artifact(config: &PluginConfig, artifact_id: &str) -> bool {
+    match config.artifacts.source {
+        ComponentSource::Explicit => config
+            .artifacts
+            .include
+            .iter()
+            .any(|inc| inc == artifact_id),
+        ComponentSource::Instance => !config.artifacts.exclude.iter().any(|ex| ex == artifact_id),
+    }
 }
 
 fn selected_configs(services: &ServicesConfig) -> Vec<&PluginConfig> {
@@ -157,12 +206,14 @@ fn selected_configs(services: &ServicesConfig) -> Vec<&PluginConfig> {
 
 fn hash_entry(
     id: PluginId,
-    version: &str,
+    config: &PluginConfig,
     bundle: &PluginBundle,
 ) -> Result<PluginEntry, MarketplaceError> {
+    let version = config.version.as_str();
     let mut hasher = Sha256::new();
     hasher.update(id.as_str().as_bytes());
     hasher.update(version.as_bytes());
+    hasher.update(&to_json(&config.hooks)?);
 
     let mut files = Vec::with_capacity(bundle.len());
     for (path, file) in bundle {
@@ -183,6 +234,7 @@ fn hash_entry(
         version: version.to_owned(),
         sha256: aggregate,
         files,
+        hooks: config.hooks.clone(),
     })
 }
 

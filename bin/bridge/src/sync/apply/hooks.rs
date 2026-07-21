@@ -1,38 +1,40 @@
 //! Hook materialisation from manifest entries, gated on recorded consent.
 //!
+//! Claude Code runs plugin hooks session-globally: a `PreToolUse` hook with a
+//! `*` matcher fires on every tool call regardless of which plugin contributed
+//! the tool. Materialising the governance hooks into every plugin would
+//! therefore fire N identical-but-not-deduplicated calls per tool call (the
+//! `?plugin_id=` query differs, so Claude Code's identical-command dedup does
+//! not apply). Exactly one plugin carries them — the one whose config sets
+//! `hooks.governance` — and every other plugin gets an empty hooks file.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use super::ApplyError;
 use super::hooks_schema::{HookEntry as WireHookEntry, HooksFile};
-use crate::gateway::manifest::HookEntry as ManifestHookEntry;
+use crate::gateway::manifest::{HookEntry as ManifestHookEntry, PluginEntry};
 use std::fs;
 use std::path::Path;
-use systemprompt_identifiers::PluginId;
 
 pub(super) fn write_hooks_json(
-    plugin_id: &PluginId,
+    plugin: &PluginEntry,
     plugin_dir: &Path,
-    user_hooks: &[ManifestHookEntry],
+    hook_pool: &[ManifestHookEntry],
 ) -> Result<(), ApplyError> {
+    let plugin_id = &plugin.id;
     let hooks_dir = plugin_dir.join("hooks");
     fs::create_dir_all(&hooks_dir).map_err(|e| ApplyError::Io {
         context: format!("create {}", hooks_dir.display()),
         source: e,
     })?;
-    let authorization = crate::proxy::loopback_bearer().map_err(|e| ApplyError::Io {
-        context: format!("loopback secret for hooks.json ({plugin_id})"),
-        source: e,
-    })?;
-    let origin = crate::proxy::loopback_origin();
-    let govern_url = format!("{origin}/api/public/hooks/govern?plugin_id={plugin_id}");
-    let track_url = format!("{origin}/api/public/hooks/track?plugin_id={plugin_id}");
-    let mut body = HooksFile::new(govern_url, &track_url, &authorization);
-    for hook in user_hooks {
-        let entry =
-            WireHookEntry::user_command(hook.command.clone(), hook.event.as_str(), hook.is_async);
-        body.append_user_hook(hook.event.as_str().to_owned(), hook.matcher.clone(), entry);
-    }
+
+    let body = if plugin.hooks.is_empty() {
+        HooksFile::empty()
+    } else {
+        build_hooks_file(plugin, hook_pool)?
+    };
+
     let bytes = serde_json::to_vec_pretty(&body).map_err(|e| ApplyError::Serialize {
         what: format!("hooks.json for {plugin_id}"),
         source: e,
@@ -43,6 +45,41 @@ pub(super) fn write_hooks_json(
         source: e,
     })?;
     Ok(())
+}
+
+fn build_hooks_file(
+    plugin: &PluginEntry,
+    hook_pool: &[ManifestHookEntry],
+) -> Result<HooksFile, ApplyError> {
+    let plugin_id = &plugin.id;
+    let authorization = crate::proxy::loopback_bearer().map_err(|e| ApplyError::Io {
+        context: format!("loopback secret for hooks.json ({plugin_id})"),
+        source: e,
+    })?;
+    let origin = crate::proxy::loopback_origin();
+
+    let mut body = if plugin.hooks.governance {
+        let govern_url = format!("{origin}/api/public/hooks/govern?plugin_id={plugin_id}");
+        let track_url = format!("{origin}/api/public/hooks/track?plugin_id={plugin_id}");
+        HooksFile::new(govern_url, &track_url, &authorization)
+    } else {
+        HooksFile::empty()
+    };
+
+    for id in &plugin.hooks.include {
+        let Some(hook) = hook_pool.iter().find(|h| h.id.as_str() == id) else {
+            tracing::warn!(
+                plugin_id = %plugin_id,
+                hook_id = %id,
+                "plugin references a hook that is not in the manifest; skipping"
+            );
+            continue;
+        };
+        let entry =
+            WireHookEntry::user_command(hook.command.clone(), hook.event.as_str(), hook.is_async);
+        body.append_user_hook(hook.event.as_str().to_owned(), hook.matcher.clone(), entry);
+    }
+    Ok(body)
 }
 
 /// Normalises a synced plugin.json for the managed contract: the hooks

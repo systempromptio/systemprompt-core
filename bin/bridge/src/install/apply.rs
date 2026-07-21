@@ -5,7 +5,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use super::{
-    InstallError, InstallOptions, InstallSummary, MdmDisplay, bootstrap, mdm, schedule_emit,
+    InstallError, InstallOptions, InstallSummary, MdmDisplay, ScheduleDisplay, bootstrap, mdm,
+    schedule_apply, schedule_emit,
 };
 use crate::config::paths::{self, Scope};
 use crate::config::{self as config};
@@ -29,16 +30,28 @@ pub fn install(opts: &InstallOptions) -> Result<InstallSummary, InstallError> {
     let inference_base_url = resolve_inference_base_url();
     let mdm = run_mdm_step(opts, target_os, &inference_base_url)?;
 
-    let schedule = match opts.emit_schedule_template {
-        Some(os) => Some(schedule_emit::emit_schedule(os, &binary)?),
-        None => None,
-    };
+    let schedule = run_schedule_step(opts, &binary)?;
 
     Ok(InstallSummary {
         location,
         binary,
         mdm,
         schedule,
+    })
+}
+
+// --apply-schedule wins over --emit-schedule-template: registering the job is
+// a superset of printing instructions for registering it by hand.
+fn run_schedule_step(
+    opts: &InstallOptions,
+    binary: &Path,
+) -> Result<Option<ScheduleDisplay>, InstallError> {
+    if opts.apply_schedule {
+        return schedule_apply::apply_schedule(Os::current(), binary)
+            .map(|a| Some(ScheduleDisplay::Applied(a)));
+    }
+    opts.emit_schedule_template.map_or(Ok(None), |os| {
+        schedule_emit::emit_schedule(os, binary).map(|e| Some(ScheduleDisplay::Template(e)))
     })
 }
 

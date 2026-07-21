@@ -3,8 +3,9 @@
 //! [`build_plugin_bundle`] turns a [`PluginConfig`] spec plus the instance's
 //! already-resolved catalogue ([`BundleContent`]) into the canonical
 //! installable bundle: a `.claude-plugin/plugin.json` manifest rooted over
-//! `skills/<n>/SKILL.md`, `agents/<n>.md`, `.mcp.json`, and plugin-local
-//! scripts. It is the single owner of the bundle contract — the gateway serve
+//! `skills/<n>/SKILL.md`, `agents/<n>.md`, `artifacts/<id>.json`, `.mcp.json`,
+//! and plugin-local scripts. It is the single owner of the bundle contract —
+//! the gateway serve
 //! path (manifest hashes *and* byte streaming), the CLI generator, and the
 //! marketplace export all consume it rather than re-implementing the layout.
 //!
@@ -29,7 +30,9 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
 use sha2::{Digest, Sha256};
-use systemprompt_models::bridge::manifest::{AgentEntry, ManagedMcpServer, SkillEntry};
+use systemprompt_models::bridge::manifest::{
+    AgentEntry, ArtifactEntry, ManagedMcpServer, SkillEntry,
+};
 use systemprompt_models::bridge::plugin_bundle::{
     ManifestAuthor, PLUGIN_MANIFEST_RELPATH, PluginManifest, bundle_has_manifest,
 };
@@ -38,6 +41,7 @@ use systemprompt_models::services::PluginConfig;
 use crate::error::MarketplaceError;
 
 mod agents;
+mod artifacts;
 mod mcp;
 mod skills;
 
@@ -55,6 +59,9 @@ pub struct BundleContent<'a> {
     pub agents: &'a [AgentEntry],
     pub mcp_servers: &'a [ManagedMcpServer],
     pub disabled_mcp_servers: &'a BTreeSet<String>,
+    /// First-class catalogue entities, selected many-to-many by plugin spec —
+    /// not owned by any one skill.
+    pub artifacts: &'a [ArtifactEntry],
     pub plugins_root: &'a Path,
 }
 
@@ -71,6 +78,7 @@ pub fn build_plugin_bundle(
     let agent_ids = agents::resolve_agents(config, content.agents);
     skills::append_skill_files(config, content, &agent_ids, &mut bundle);
     agents::append_agent_files(content.agents, &agent_ids, &mut bundle);
+    artifacts::append_artifact_files(config, content, &mut bundle);
     mcp::append_mcp_file(
         config,
         content.mcp_servers,

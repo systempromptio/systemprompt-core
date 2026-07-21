@@ -229,4 +229,38 @@ impl ServicesConfig {
             ))),
         }
     }
+
+    /// Plugin hooks run session-globally, so at most one enabled plugin may
+    /// carry the governance hooks — a second owner fires a duplicate govern
+    /// request on every tool call.
+    ///
+    /// Zero owners is valid (an instance need not run governance hooks at
+    /// all) but is worth a warning: it is indistinguishable at runtime from
+    /// governance silently not being installed.
+    pub(super) fn validate_single_governance_hook_owner(
+        &self,
+    ) -> Result<(), ConfigValidationError> {
+        let owners: Vec<&str> = self
+            .plugins
+            .values()
+            .filter(|p| p.enabled && p.hooks.governance)
+            .map(|p| p.id.as_str())
+            .collect();
+
+        match owners.len() {
+            0 => {
+                tracing::warn!(
+                    "no enabled plugin sets 'hooks.governance: true' — governance hooks will \
+                     not be installed, so no tool call will be checked"
+                );
+                Ok(())
+            },
+            1 => Ok(()),
+            _ => Err(ConfigValidationError::business_rule(format!(
+                "Multiple plugins set 'hooks.governance: true': {}. Hooks run session-globally, \
+                 so at most one plugin may own them",
+                owners.join(", ")
+            ))),
+        }
+    }
 }

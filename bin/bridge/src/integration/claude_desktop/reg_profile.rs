@@ -33,6 +33,11 @@ pub fn profile_entries(inputs: &ProfileGenInputs) -> Vec<(&'static str, String)>
 
 #[must_use]
 pub fn render_reg(elevated: bool, inputs: &ProfileGenInputs) -> String {
+    render_reg_values(elevated, &profile_entries(inputs))
+}
+
+#[must_use]
+pub fn render_reg_values(elevated: bool, entries: &[(&str, String)]) -> String {
     let hive = if elevated {
         "HKEY_LOCAL_MACHINE"
     } else {
@@ -41,8 +46,8 @@ pub fn render_reg(elevated: bool, inputs: &ProfileGenInputs) -> String {
     let mut out = String::new();
     out.push_str("Windows Registry Editor Version 5.00\r\n\r\n");
     out.push_str(&format!("[{hive}\\{POLICY_SUBKEY}]\r\n"));
-    for (name, value) in profile_entries(inputs) {
-        out.push_str(&format!("\"{name}\"=\"{}\"\r\n", reg_escape(&value)));
+    for (name, value) in entries {
+        out.push_str(&format!("\"{name}\"=\"{}\"\r\n", reg_escape(value)));
     }
     out
 }

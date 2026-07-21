@@ -21,6 +21,6 @@ pub fn emit_schedule(schedule_os: Os, binary: &Path) -> Result<ScheduleEmit, Ins
     Ok(ScheduleEmit {
         os: schedule_os,
         path: out,
-        install_hint: schedule::install_hint(schedule_os).to_owned(),
+        install_hint: schedule::install_hint(schedule_os),
     })
 }

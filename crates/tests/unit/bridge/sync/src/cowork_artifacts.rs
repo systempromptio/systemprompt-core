@@ -2,7 +2,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use systemprompt_bridge::gateway::manifest::ArtifactEntry;
-use systemprompt_bridge::ids::{LibraryArtifactId, PluginId, Sha256Digest};
+use systemprompt_bridge::ids::{LibraryArtifactId, Sha256Digest};
 use systemprompt_bridge::integration::cowork_artifacts::emit::{
     artifacts_version, remove_dir, write_artifacts,
 };
@@ -30,7 +30,6 @@ fn artifact(id: &str, version: &str) -> ArtifactEntry {
         name: id.to_owned(),
         description: "desc".into(),
         version: version.to_owned(),
-        plugin_id: PluginId::try_new("sfdc").unwrap(),
         mcp_tools: vec!["mcp__salesforce__query".to_owned()],
         content: format!("<table id=\"{id}\"></table>"),
         starred: true,
@@ -160,14 +159,20 @@ fn dual_sink_materializes_both_stores_and_second_run_is_noop() {
 }
 
 #[test]
-fn empty_set_removes_the_store() {
+fn empty_set_preserves_the_store() {
     let dir = tempdir();
     let store = dir.join("cowork_artifacts");
     write_artifacts(&store, &[&FileSink], &[artifact("pipeline", "1")]).expect("write");
     assert!(store.exists());
 
-    write_artifacts(&store, &[&FileSink], &[]).expect("empty write");
-    assert!(!store.exists(), "empty artifact set removes the store dir");
+    // An enabled host sending zero artifacts signals an upstream population bug,
+    // not intent to wipe — the store must be preserved, not cleared. Explicit
+    // teardown goes through `remove_dir` (the disabled-host `clear` path).
+    write_artifacts(&store, &[&FileSink], &[]).expect("empty write is a no-op");
+    assert!(
+        store.join(LIBRARY_STORE_FILE).is_file(),
+        "empty artifact set must preserve the existing store"
+    );
 }
 
 #[test]

@@ -46,7 +46,7 @@ pub use marketplace::{
 pub use mcp::McpServerSummary;
 pub use plugin::{
     ComponentFilter, ComponentSource, PluginAuthor, PluginComponentRef, PluginConfig,
-    PluginConfigFile, PluginScript, PluginSummary, PluginVariableDef,
+    PluginConfigFile, PluginHooksRef, PluginScript, PluginSummary, PluginVariableDef,
 };
 pub use runtime::{RuntimeStatus, ServiceType};
 pub use scheduler::*;
@@ -120,6 +120,8 @@ impl ServicesConfig {
             plugin.validate(name)?;
             self.validate_plugin_bindings(name, plugin)?;
         }
+
+        self.validate_single_governance_hook_owner()?;
 
         for (id, marketplace) in &self.marketplaces {
             marketplace.validate(id.as_str())?;

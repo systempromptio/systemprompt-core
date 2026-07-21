@@ -65,6 +65,7 @@ fn sample_manifest() -> SignedManifest {
                 sha256: Sha256Digest::try_new(FAKE_SHA_B).unwrap(),
                 size: 42,
             }],
+            hooks: Default::default(),
         }],
         skills: vec![SkillEntry {
             id: SkillId::try_new("skill_one").unwrap(),
@@ -115,7 +116,6 @@ fn sample_manifest() -> SignedManifest {
             name: "Opportunities".into(),
             description: "pipeline table".into(),
             version: "2".into(),
-            plugin_id: PluginId::try_new("salesforce").unwrap(),
             mcp_tools: vec!["mcp__salesforce__query_opportunities".into()],
             content: "<table></table>".into(),
             starred: true,

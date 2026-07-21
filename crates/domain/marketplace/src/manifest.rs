@@ -20,7 +20,7 @@ use systemprompt_models::services::ServicesConfig;
 use systemprompt_security::manifest_signing;
 
 use crate::candidate::MarketplaceCandidate;
-use crate::catalog::{CatalogContent, load_hooks, load_plugins};
+use crate::catalog::{CatalogContent, artifact_owners, load_hooks, load_plugins};
 use crate::error::MarketplaceError;
 use crate::filter::MarketplaceFilter;
 use crate::scope::{active_marketplace, scope_to_marketplace};
@@ -76,7 +76,10 @@ impl ManifestService {
             None => (skills, agents, managed_mcp_servers, artifacts),
         };
 
-        let artifacts = gate_artifacts_by_plugin(artifacts, &plugins);
+        let owners = artifact_owners(services, &artifacts);
+        let selected_artifacts: std::collections::BTreeSet<String> =
+            owners.keys().cloned().collect();
+        let artifacts = gate_artifacts_by_plugin(artifacts, &selected_artifacts);
 
         let mut candidate = MarketplaceCandidate::new(
             plugins,
@@ -85,11 +88,14 @@ impl ManifestService {
             hooks,
             managed_mcp_servers,
             artifacts,
-        );
+        )
+        .with_artifact_owners(owners);
         if let Some(mp) = active {
             candidate = candidate.with_marketplace(mp.id.clone(), Some(mp.access.clone()));
         }
-        Ok(filter.filter(user_id, candidate).await?)
+        let mut filtered = filter.filter(user_id, candidate).await?;
+        filtered.prune_orphaned_artifacts();
+        Ok(filtered)
     }
 
     pub fn sign(view: &CanonicalView<'_>) -> Result<ManifestSignature, MarketplaceError> {
@@ -101,19 +107,26 @@ impl ManifestService {
 
 fn gate_artifacts_by_plugin(
     artifacts: Vec<ArtifactEntry>,
-    plugins: &[PluginEntry],
+    selected: &std::collections::BTreeSet<String>,
 ) -> Vec<ArtifactEntry> {
-    let plugin_ids: std::collections::HashSet<&str> =
-        plugins.iter().map(|p| p.id.as_str()).collect();
+    for id in selected {
+        if !artifacts.iter().any(|a| a.id.as_str() == id) {
+            tracing::warn!(
+                artifact_id = %id,
+                "marketplace: plugin artifacts.include names an artifact that does not exist \
+                 or was dropped as invalid"
+            );
+        }
+    }
+
     artifacts
         .into_iter()
         .filter(|a| {
-            let kept = plugin_ids.contains(a.plugin_id.as_str());
+            let kept = selected.contains(a.id.as_str());
             if !kept {
                 tracing::warn!(
                     artifact_id = %a.id.as_str(),
-                    plugin_id = %a.plugin_id.as_str(),
-                    "marketplace: artifact's owning plugin is not enabled/selected; skipping"
+                    "marketplace: artifact is not selected by any enabled plugin; skipping"
                 );
             }
             kept

@@ -90,7 +90,35 @@ pub struct PluginConfig {
     #[serde(default)]
     pub content_sources: PluginComponentRef,
     #[serde(default)]
+    pub artifacts: PluginComponentRef,
+    #[serde(default)]
+    pub hooks: PluginHooksRef,
+    #[serde(default)]
     pub scripts: Vec<PluginScript>,
+}
+
+/// Selects which hooks a plugin materialises into its `hooks/hooks.json`.
+///
+/// Claude Code executes plugin hooks session-globally — a `PreToolUse` hook
+/// with a `*` matcher fires for every tool call regardless of which plugin
+/// contributed the tool. One plugin therefore carries the governance hooks for
+/// the whole instance; every other plugin emits an empty hooks file.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct PluginHooksRef {
+    /// Emit the built-in govern + track HTTP hooks into this plugin.
+    #[serde(default)]
+    pub governance: bool,
+    /// Ids of custom hooks from `services/hooks/<id>/` to materialise here.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub include: Vec<String>,
+}
+
+impl PluginHooksRef {
+    #[must_use]
+    pub const fn is_empty(&self) -> bool {
+        !self.governance && self.include.is_empty()
+    }
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -166,6 +194,7 @@ impl PluginConfig {
 
         Self::validate_component_ref(&self.skills, key, "skills")?;
         Self::validate_component_ref(&self.agents, key, "agents")?;
+        Self::validate_component_ref(&self.artifacts, key, "artifacts")?;
 
         Ok(())
     }

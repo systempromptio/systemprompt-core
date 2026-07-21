@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::sync::{LazyLock, Once};
 
 use base64::Engine;
@@ -9,7 +9,10 @@ use systemprompt_models::bridge::manifest_version::ManifestVersion;
 use systemprompt_security::manifest_signing;
 use systemprompt_test_fixtures::fixture_user_id;
 
-use crate::helpers::{access, config_with, include, marketplace, warn_subscriber_guard};
+use crate::helpers::{
+    access, config_with, config_with_plugins, include, marketplace, plugin_shipping_artifacts,
+    warn_subscriber_guard, write_skill_on_disk,
+};
 
 static INIT_SECRETS: Once = Once::new();
 static EMPTY_HOST_MODEL_PROTOCOLS: LazyLock<BTreeMap<String, Vec<String>>> =
@@ -90,24 +93,22 @@ async fn assemble_candidate_unscoped_without_marketplace() {
     assert!(candidate.access.is_none());
 }
 
-fn write_artifact_on_disk(root: &std::path::Path, id: &str, plugin_id: &str) {
+fn write_artifact_on_disk(root: &std::path::Path, id: &str) {
     let dir = root.join("artifacts").join(id);
     std::fs::create_dir_all(&dir).expect("create artifact dir");
     std::fs::write(
         dir.join("config.yaml"),
-        format!(
-            "id: {id}\nname: {id}\ndescription: d\nplugin_id: {plugin_id}\nmcp_tools:\n  - mcp__x__y\n"
-        ),
+        format!("id: {id}\nname: {id}\ndescription: d\nmcp_tools:\n  - mcp__x__y\n"),
     )
     .expect("write config");
     std::fs::write(dir.join("content.html"), "<table></table>").expect("write html");
 }
 
 #[tokio::test]
-async fn assemble_candidate_gates_artifacts_by_plugin_enablement() {
+async fn assemble_candidate_drops_artifacts_no_plugin_selects() {
     let _guard = warn_subscriber_guard();
     let dir = tempfile::tempdir().expect("temp services root");
-    write_artifact_on_disk(dir.path(), "pipeline", "absent-plugin");
+    write_artifact_on_disk(dir.path(), "pipeline");
     let config = config_with(vec![]);
 
     let candidate = ManifestService::assemble_candidate(
@@ -122,7 +123,64 @@ async fn assemble_candidate_gates_artifacts_by_plugin_enablement() {
 
     assert!(
         candidate.artifacts.is_empty(),
-        "an artifact whose owning plugin is not enabled/selected is gated out",
+        "an artifact no enabled plugin lists in artifacts.include is gated out",
+    );
+}
+
+#[tokio::test]
+async fn assemble_candidate_keeps_artifacts_a_plugin_includes() {
+    let _guard = warn_subscriber_guard();
+    let dir = tempfile::tempdir().expect("temp services root");
+    write_artifact_on_disk(dir.path(), "pipeline");
+    write_artifact_on_disk(dir.path(), "unlisted");
+    write_skill_on_disk(dir.path(), "owned_skill");
+    let config = config_with_plugins(vec![plugin_shipping_artifacts(
+        "sfdc",
+        "owned_skill",
+        &["pipeline"],
+    )]);
+
+    let candidate = ManifestService::assemble_candidate(
+        &config,
+        dir.path(),
+        "https://api.example.com",
+        &AllowAllFilter,
+        &fixture_user_id(),
+    )
+    .await
+    .expect("assemble candidate");
+
+    let ids: Vec<&str> = candidate.artifacts.iter().map(|a| a.id.as_str()).collect();
+    assert_eq!(ids, vec!["pipeline"]);
+}
+
+#[tokio::test]
+async fn assemble_candidate_lets_several_plugins_ship_one_artifact() {
+    let _guard = warn_subscriber_guard();
+    let dir = tempfile::tempdir().expect("temp services root");
+    write_artifact_on_disk(dir.path(), "shared");
+    write_skill_on_disk(dir.path(), "owned_skill");
+    let config = config_with_plugins(vec![
+        plugin_shipping_artifacts("alpha", "owned_skill", &["shared"]),
+        plugin_shipping_artifacts("beta", "owned_skill", &["shared"]),
+    ]);
+
+    let candidate = ManifestService::assemble_candidate(
+        &config,
+        dir.path(),
+        "https://api.example.com",
+        &AllowAllFilter,
+        &fixture_user_id(),
+    )
+    .await
+    .expect("assemble candidate");
+
+    let ids: Vec<&str> = candidate.artifacts.iter().map(|a| a.id.as_str()).collect();
+    assert_eq!(ids, vec!["shared"], "one entry, not one per owning plugin");
+    assert_eq!(
+        candidate.artifact_owners.get("shared").map(BTreeSet::len),
+        Some(2),
+        "both plugins are recorded as owners",
     );
 }
 
@@ -207,8 +265,8 @@ async fn assemble_candidate_keeps_artifact_owned_by_enabled_plugin() {
     )
     .expect("write skill config");
 
-    write_artifact_on_disk(dir.path(), "kept-art", "owner-plugin");
-    write_artifact_on_disk(dir.path(), "dropped-art", "absent-plugin");
+    write_artifact_on_disk(dir.path(), "kept-art");
+    write_artifact_on_disk(dir.path(), "dropped-art");
 
     let mut config = config_with(vec![]);
     config.plugins.insert(
@@ -234,6 +292,12 @@ async fn assemble_candidate_keeps_artifact_owned_by_enabled_plugin() {
             agents: PluginComponentRef::default(),
             mcp_servers: PluginComponentRef::default(),
             content_sources: PluginComponentRef::default(),
+            artifacts: PluginComponentRef {
+                source: ComponentSource::Explicit,
+                include: vec!["kept-art".to_owned()],
+                ..Default::default()
+            },
+            hooks: Default::default(),
             scripts: vec![],
         },
     );

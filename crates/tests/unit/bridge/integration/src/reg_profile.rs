@@ -1,5 +1,5 @@
 use systemprompt_bridge::integration::claude_desktop::reg_profile::{
-    parse_reg_entries, profile_entries, render_reg,
+    parse_reg_entries, profile_entries, render_reg, render_reg_values,
 };
 use systemprompt_bridge::integration::host_app::ProfileGenInputs;
 
@@ -138,4 +138,15 @@ fn parser_ignores_header_and_section_lines() {
         parsed,
         vec![("inferenceProvider".to_string(), "gateway".to_string())]
     );
+}
+
+#[test]
+fn render_reg_values_round_trips_a_json_payload() {
+    let payload = r#"[{"name":"systemprompt","headers":{"Authorization":"Bearer x"}}]"#;
+    let body = render_reg_values(true, &[("managedMcpServers", payload.to_string())]);
+
+    assert!(body.contains("[HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Claude]"));
+    let entries = parse_reg_entries(&body);
+    assert_eq!(entries.len(), 1);
+    assert_eq!(value_of(&entries, "managedMcpServers"), payload);
 }

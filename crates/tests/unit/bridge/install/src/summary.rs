@@ -1,7 +1,8 @@
 use systemprompt_bridge::config::paths::{OrgPluginsLocation, Scope};
 use systemprompt_bridge::install::{
-    CredentialsOutcome, InstallSummary, ManagedProfileOutcome, MdmDisplay, ScheduleEmit,
-    UninstallSummary, render_install_summary, render_uninstall_summary,
+    CredentialsOutcome, InstallSummary, ManagedProfileOutcome, MdmDisplay, ScheduleApplied,
+    ScheduleDisplay, ScheduleEmit, ScheduleRemoval, UninstallSummary, render_install_summary,
+    render_uninstall_summary,
 };
 use systemprompt_bridge::schedule::Os;
 
@@ -60,11 +61,11 @@ fn install_summary_with_schedule_renders_template() {
             os: Os::Mac,
             snippet: "KEY=val".into(),
         },
-        schedule: Some(ScheduleEmit {
+        schedule: Some(ScheduleDisplay::Template(ScheduleEmit {
             os: Os::Linux,
             path: "/tmp/x.timer".into(),
             install_hint: "systemctl enable".into(),
-        }),
+        })),
     };
     let out = render_install_summary(&s);
     assert!(out.contains("Schedule template"));
@@ -97,11 +98,13 @@ fn uninstall_summary_removed_and_kept() {
         metadata_already_clean: None,
         managed_profile: ManagedProfileOutcome::Removed("profile-id"),
         credentials: CredentialsOutcome::Kept,
+        schedule: ScheduleRemoval::Removed("io.systemprompt.bridge-sync".into()),
     };
     let out = render_uninstall_summary(&s);
     assert!(out.contains("Removed /x"));
     assert!(out.contains("Removed managed profile profile-id"));
     assert!(out.contains("left intact"));
+    assert!(out.contains("Removed scheduled sync job io.systemprompt.bridge-sync"));
 }
 
 #[test]
@@ -111,8 +114,35 @@ fn uninstall_summary_purged_and_not_installed() {
         metadata_already_clean: None,
         managed_profile: ManagedProfileOutcome::NotInstalled("pid"),
         credentials: CredentialsOutcome::Purged("/creds".into()),
+        schedule: ScheduleRemoval::NotInstalled("io.systemprompt.bridge-sync".into()),
     };
     let out = render_uninstall_summary(&s);
     assert!(out.contains("Purged credentials"));
     assert!(out.contains("No managed profile pid installed"));
+    assert!(out.contains("No scheduled sync job io.systemprompt.bridge-sync registered"));
+}
+
+#[test]
+fn install_summary_with_applied_schedule_renders_registration() {
+    let s = InstallSummary {
+        location: OrgPluginsLocation {
+            path: "/opt/plugins".into(),
+            scope: Scope::User,
+        },
+        binary: "/usr/bin/systemprompt-bridge".into(),
+        mdm: MdmDisplay::Snippet {
+            os: Os::Mac,
+            snippet: "KEY=val".into(),
+        },
+        schedule: Some(ScheduleDisplay::Applied(ScheduleApplied {
+            os: Os::Linux,
+            label: "systemprompt-bridge-sync".into(),
+            path: "/home/u/.config/systemd/user/systemprompt-bridge-sync.timer".into(),
+            lines: vec!["systemd user timer: systemprompt-bridge-sync.timer".into()],
+        })),
+    };
+    let out = render_install_summary(&s);
+    assert!(out.contains("sync schedule registered"));
+    assert!(out.contains("systemprompt-bridge-sync.timer"));
+    assert!(!out.contains("Schedule template"));
 }

@@ -36,6 +36,9 @@ impl HtmlBuilder {
         self
     }
 
+    /// Builds the document. Every rendered resource carries
+    /// [`frame_script`] so the embedding host can size its iframe to the
+    /// content instead of cropping it.
     pub fn build(self) -> String {
         let styles = if self.styles.is_empty() {
             String::new()
@@ -43,10 +46,10 @@ impl HtmlBuilder {
             format!("<style>\n{}\n</style>", self.styles.join("\n"))
         };
 
-        let scripts = if self.scripts.is_empty() {
-            String::new()
-        } else {
-            format!("<script>\n{}\n</script>", self.scripts.join("\n"))
+        let scripts = {
+            let mut all = self.scripts;
+            all.push(frame_script().to_owned());
+            format!("<script>\n{}\n</script>", all.join("\n"))
         };
 
         format!(
@@ -89,4 +92,18 @@ pub const fn base_styles() -> &'static str {
 
 pub const fn mcp_app_bridge_script() -> &'static str {
     include_str!("assets/js/bridge.js")
+}
+
+/// Host iframe size negotiation, injected into every built document.
+pub const fn frame_script() -> &'static str {
+    include_str!("assets/js/frame.js")
+}
+
+/// The static MCP-App shell a server advertises as its artifact viewer.
+///
+/// It performs no type dispatch of its own: the tool result carries the
+/// server-rendered HTML as an embedded `ui://` resource, and the shell mounts
+/// it and relays its height to the host.
+pub const fn artifact_shell_template() -> &'static str {
+    include_str!("assets/html/artifact-shell.html")
 }

@@ -8,6 +8,7 @@ mod bootstrap;
 mod builders;
 mod error;
 pub(crate) mod mdm;
+mod schedule_apply;
 mod schedule_emit;
 mod summary;
 #[cfg(target_os = "macos")]
@@ -19,6 +20,7 @@ pub use error::InstallError;
 #[cfg(target_os = "windows")]
 pub use mdm::windows_policy_values;
 pub use mdm::{is_uuid_like, snippet as mdm_snippet};
+pub use schedule_apply::{apply_schedule, remove_schedule};
 pub use schedule_emit::emit_schedule;
 pub use summary::{render_install_summary, render_uninstall_summary};
 
@@ -42,6 +44,7 @@ pub struct InstallOptions {
     pub pubkey: Option<PinnedPubKey>,
     pub apply: bool,
     pub apply_mobileconfig: bool,
+    pub apply_schedule: bool,
 }
 
 impl InstallOptions {
@@ -56,7 +59,7 @@ pub struct InstallSummary {
     pub location: paths::OrgPluginsLocation,
     pub binary: PathBuf,
     pub mdm: MdmDisplay,
-    pub schedule: Option<ScheduleEmit>,
+    pub schedule: Option<ScheduleDisplay>,
 }
 
 #[derive(Debug)]
@@ -64,6 +67,14 @@ pub enum MdmDisplay {
     Snippet { os: Os, snippet: String },
     Applied { os: Os, lines: Vec<String> },
     MobileconfigApplied { lines: Vec<String> },
+}
+
+/// What the install did about the periodic sync job: wrote a template for the
+/// user to install by hand, or registered it with the host scheduler.
+#[derive(Debug)]
+pub enum ScheduleDisplay {
+    Template(ScheduleEmit),
+    Applied(ScheduleApplied),
 }
 
 #[derive(Debug)]
@@ -74,11 +85,27 @@ pub struct ScheduleEmit {
 }
 
 #[derive(Debug)]
+pub struct ScheduleApplied {
+    pub os: Os,
+    pub label: String,
+    pub path: PathBuf,
+    pub lines: Vec<String>,
+}
+
+#[derive(Debug)]
+pub enum ScheduleRemoval {
+    NotInstalled(String),
+    Removed(String),
+    Failed(String),
+}
+
+#[derive(Debug)]
 pub struct UninstallSummary {
     pub metadata_removed: Option<PathBuf>,
     pub metadata_already_clean: Option<PathBuf>,
     pub managed_profile: ManagedProfileOutcome,
     pub credentials: CredentialsOutcome,
+    pub schedule: ScheduleRemoval,
 }
 
 impl UninstallSummary {
@@ -151,6 +178,11 @@ pub fn uninstall(purge: bool) -> Result<UninstallSummary, InstallError> {
         diag(&format!("warning: Cowork enable-key cleanup failed: {e}"));
     }
 
+    let schedule = remove_schedule();
+    if let ScheduleRemoval::Failed(e) = &schedule {
+        diag(&format!("warning: scheduled sync job removal failed: {e}"));
+    }
+
     let managed_profile = remove_managed_profile();
 
     let credentials = if purge {
@@ -171,6 +203,7 @@ pub fn uninstall(purge: bool) -> Result<UninstallSummary, InstallError> {
         metadata_already_clean,
         managed_profile,
         credentials,
+        schedule,
     })
 }
 

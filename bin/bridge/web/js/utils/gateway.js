@@ -58,8 +58,21 @@ export function renderGatewayForm(state) {
   const signInLabel = snap.sign_in_label || "Sign in to your gateway";
   const signInHint = snap.sign_in_hint || "Opens your browser to sign in on the gateway; this device is linked automatically.";
   const signInBusy = state.signingIn;
-  const signInText = signInBusy ? (t("setup-signing-in") || "Waiting for browser…") : signInLabel;
+  const signInText = signInBusy ? t("setup-signing-in") : signInLabel;
   const keepChecked = state.keepSignedIn === false ? "" : "checked";
+  // The device-link flow round-trips through the gateway's browser login, so an
+  // unreachable gateway can only ever fail — gate the button and say why rather
+  // than opening a browser at a dead host.
+  const reachable = (snap.gateway_status || {}).state === "reachable";
+  const signInDisabled = signInBusy || state.pending || !reachable;
+  const gateReason = reachable || signInBusy || state.pending
+    ? ""
+    : `<p class="sp-setup__hint sp-setup__hint--gate">${escapeHtml(t("setup-gateway-required"))}</p>`;
+  const cancelBtn = signInBusy
+    ? `<button class="sp-btn-ghost" type="button" data-action="cancel-sign-in">
+        <span class="sp-btn__label">${escapeHtml(t("setup-sign-in-cancel"))}</span>
+      </button>`
+    : "";
   return `
     <div class="sp-setup__field">
       <label for="setup-gateway" data-l10n-id="setup-gateway-label">Gateway URL</label>
@@ -70,9 +83,11 @@ export function renderGatewayForm(state) {
       </div>
     </div>
     <div class="sp-setup__actions">
-      <button class="sp-btn-primary" type="button" ${signInBusy || state.pending ? "disabled" : ""} data-action="sign-in">
+      <button class="sp-btn-primary" type="button" ${signInDisabled ? "disabled" : ""} data-action="sign-in">
         <span class="sp-btn__label">${escapeHtml(signInText)}</span>
       </button>
+      ${cancelBtn}
+      ${gateReason}
       <label class="sp-setup__keep">
         <input id="setup-keep" type="checkbox" ${keepChecked} ${signInBusy ? "disabled" : ""} data-input="keep" />
         <span>Keep me signed in on this device</span>

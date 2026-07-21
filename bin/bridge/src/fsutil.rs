@@ -57,6 +57,15 @@ pub fn read_optional(path: &Path) -> io::Result<Option<String>> {
     }
 }
 
+pub fn expand_tilde(path: &str) -> String {
+    if let Some(rest) = path.strip_prefix("~/")
+        && let Some(home) = dirs::home_dir()
+    {
+        return home.join(rest).to_string_lossy().into_owned();
+    }
+    path.to_owned()
+}
+
 pub fn create_dir_all_mode_0700(path: &Path) -> io::Result<()> {
     fs::create_dir_all(path)?;
     #[cfg(unix)]
