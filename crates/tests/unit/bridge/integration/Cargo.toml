@@ -21,4 +21,5 @@ temp-env = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 wiremock = { workspace = true }
 sha2 = { workspace = true }
-keyring = { workspace = true }
+keyring-core = { workspace = true }
+linux-keyutils-keyring-store = { workspace = true }

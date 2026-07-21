@@ -281,8 +281,19 @@ zeroize = { version = "1", features = ["zeroize_derive"] }
 # `crates/domain/oauth/src/services/webauthn/service/mod.rs`.
 webauthn-rs = { version = "0.5", features = ["danger-allow-state-serialisation"] }
 rsa = { version = "0.9", features = ["pem", "sha2"] }
+# `pkcs8` is held at 0.10 because it must be the same version `rsa` re-exports as
+# `rsa::pkcs8` — `crates/infra/security/src/keys/mod.rs` mixes the two namespaces.
+# 0.11 pairs with `rsa` 0.10, which is still a release candidate (0.10.0-rc.18).
+# Bump both together, which also retires the RUSTSEC-2023-0071 ignore in deny.toml.
 pkcs8 = { version = "0.10", features = ["pem"] }
 lru = "0.18"
+
+# Ed25519 manifest signing. Core signs (`infra/security/src/manifest_signing.rs`)
+# and the bridge verifies (`bin/bridge/src/gateway/manifest.rs`), so both the
+# signature crate and the RFC-8785 canonicaliser must resolve to one version
+# across the two workspaces — a `serde_jcs` skew silently breaks verification.
+ed25519-dalek = { version = "3", default-features = false }
+serde_jcs = "0.2"
 
 
 # Internal workspace crates (use workspace = true in dependencies)

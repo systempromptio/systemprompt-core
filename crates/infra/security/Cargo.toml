@@ -48,10 +48,10 @@ lru = { workspace = true }
 url = { workspace = true }
 
 # Signed-manifest crypto (bridge)
-ed25519-dalek = { version = "2", default-features = false, features = ["std"] }
+ed25519-dalek = { workspace = true }
 base64 = { workspace = true }
 serde = { workspace = true }
-serde_jcs = "0.1"
+serde_jcs = { workspace = true }
 
 # Authz module
 inventory = { workspace = true }

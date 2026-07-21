@@ -80,8 +80,33 @@ pub fn creds_path() -> Option<PathBuf> {
     )
 }
 
-fn keyring_entry(client_id: &ClientId) -> Result<keyring::Entry, PluginOAuthError> {
-    keyring::Entry::new(crate::brand::brand().keyring_service, client_id.as_str())
+/// Installs the platform credential store, but only if the process has none.
+///
+/// The guard is what lets the bridge test suites pre-install a headless keyutils
+/// store: an unconditional registration would clobber it on the first entry.
+fn ensure_credential_store() -> Result<(), PluginOAuthError> {
+    if keyring_core::get_default_store().is_some() {
+        return Ok(());
+    }
+    #[cfg(target_os = "macos")]
+    let store = apple_native_keyring_store::keychain::Store::new();
+    #[cfg(target_os = "windows")]
+    let store = windows_native_keyring_store::Store::new();
+    #[cfg(all(unix, not(target_os = "macos")))]
+    let store = dbus_secret_service_keyring_store::Store::new();
+
+    match store {
+        Ok(store) => {
+            keyring_core::set_default_store(store);
+            Ok(())
+        },
+        Err(e) => Err(PluginOAuthError::Keyring(e.to_string())),
+    }
+}
+
+fn keyring_entry(client_id: &ClientId) -> Result<keyring_core::Entry, PluginOAuthError> {
+    ensure_credential_store()?;
+    keyring_core::Entry::new(crate::brand::brand().keyring_service, client_id.as_str())
         .map_err(|e| PluginOAuthError::Keyring(e.to_string()))
 }
 
@@ -94,14 +119,14 @@ fn write_secret(client_id: &ClientId, secret: &str) -> Result<(), PluginOAuthErr
 fn read_secret(client_id: &ClientId) -> Result<Option<String>, PluginOAuthError> {
     match keyring_entry(client_id)?.get_password() {
         Ok(s) => Ok(Some(s)),
-        Err(keyring::Error::NoEntry) => Ok(None),
+        Err(keyring_core::Error::NoEntry) => Ok(None),
         Err(e) => Err(PluginOAuthError::Keyring(e.to_string())),
     }
 }
 
 fn delete_secret(client_id: &ClientId) {
     match keyring_entry(client_id).and_then(|e| match e.delete_credential() {
-        Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
+        Ok(()) | Err(keyring_core::Error::NoEntry) => Ok(()),
         Err(e) => Err(PluginOAuthError::Keyring(e.to_string())),
     }) {
         Ok(()) => {},

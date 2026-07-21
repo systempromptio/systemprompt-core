@@ -18,4 +18,5 @@ wiremock = { workspace = true }
 tempfile = { workspace = true }
 temp-env = { workspace = true }
 serde_json = { workspace = true }
-keyring = { workspace = true }
+keyring-core = { workspace = true }
+linux-keyutils-keyring-store = { workspace = true }

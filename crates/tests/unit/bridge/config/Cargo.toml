@@ -15,4 +15,4 @@ systemprompt-bridge = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 
 [dev-dependencies]
-toml = "0.9"
+toml = "1.1"

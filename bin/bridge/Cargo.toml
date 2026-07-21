@@ -26,12 +26,12 @@ path = "src/main.rs"
 [dependencies]
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order", "raw_value"] }
-toml = "0.9"
+toml = "1.1"
 time = { version = "0.3", features = ["serde", "formatting", "parsing"] }
 chrono = { version = "0.4", default-features = false, features = ["clock", "std", "serde"] }
 dirs = "6"
 sha2 = "0.11"
-ed25519-dalek = { version = "2", default-features = false, features = ["std", "pkcs8"] }
+ed25519-dalek = { version = "3", default-features = false, features = ["pkcs8"] }
 base64 = "0.22"
 serde_jcs = "0.2"
 thiserror = "2"
@@ -60,17 +60,20 @@ inventory = "0.3"
 ctrlc = "3"
 is-terminal = "0.4"
 rand = "0.10"
-systemprompt-identifiers = { path = "../../crates/shared/identifiers", version = "0.21.0", default-features = false }
-systemprompt-models = { path = "../../crates/shared/models", version = "0.21.0", default-features = false }
+systemprompt-identifiers = { path = "../../crates/shared/identifiers", version = "0.21.1", default-features = false }
+systemprompt-models = { path = "../../crates/shared/models", version = "0.21.1", default-features = false }
 hostname = "0.4"
 ts-rs = { version = "12", optional = true }
-# Why: OAuth client_secret moves off disk into the OS keystore. v3 needs explicit
-# native-backend feature flags per platform; `linux-native-sync-persistent` uses
-# Secret Service synchronously (matches our blocking store/load API). Distros
-# without libsecret will fail at runtime; document via tracing::warn at the call
-# site rather than swapping to a file-backed fallback that recreates the bug we
-# are fixing.
-keyring = { version = "3", features = ["apple-native", "windows-native", "linux-native-sync-persistent"] }
+# Why: OAuth client_secret moves off disk into the OS keystore. We link
+# `keyring-core` plus explicit per-platform stores rather than the `keyring` v1
+# facade for two reasons: the facade hard-codes the *async* zbus Secret Service
+# backend on Linux (we need the blocking dbus one to match our synchronous
+# store/load calls), and its lazy `Entry::new` bootstrap unconditionally overwrites
+# the process default store, which makes the headless keyutils store used by the
+# bridge test suites impossible to install. Distros without a Secret Service
+# provider will fail at runtime; document via tracing::warn at the call site rather
+# than swapping to a file-backed fallback that recreates the bug we are fixing.
+keyring-core = "1"
 
 [features]
 default = []
@@ -80,7 +83,13 @@ ts-export = ["dep:ts-rs"]
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
 
+# `crypto-rust` keeps the session-encryption backend on RustCrypto so the bridge
+# does not acquire an OpenSSL build dependency on Linux.
+[target.'cfg(all(unix, not(target_os = "macos")))'.dependencies]
+dbus-secret-service-keyring-store = { version = "1", features = ["crypto-rust"] }
+
 [target.'cfg(target_os = "macos")'.dependencies]
+apple-native-keyring-store = { version = "1", features = ["keychain"] }
 security-framework = "3"
 core-foundation = "0.10"
 core-foundation-sys = "0.8"
@@ -91,6 +100,7 @@ wry = { version = "0.55", default-features = false, features = ["os-webview", "p
 image = { version = "0.25", default-features = false, features = ["png"] }
 
 [target.'cfg(target_os = "windows")'.dependencies]
+windows-native-keyring-store = "1"
 tray-icon = "0.24"
 muda = "0.19"
 winit = "0.30"

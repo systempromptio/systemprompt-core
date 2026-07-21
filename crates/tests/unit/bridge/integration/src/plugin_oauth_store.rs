@@ -19,7 +19,8 @@ static UNIQUE: AtomicU32 = AtomicU32::new(0);
 fn use_keyutils_store() {
     static ONCE: std::sync::Once = std::sync::Once::new();
     ONCE.call_once(|| {
-        keyring::set_default_credential_builder(keyring::keyutils::default_credential_builder());
+        let store = linux_keyutils_keyring_store::Store::new().unwrap();
+        keyring_core::set_default_store(store);
     });
 }
 

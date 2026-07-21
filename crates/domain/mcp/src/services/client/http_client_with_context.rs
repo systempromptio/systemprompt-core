@@ -156,7 +156,7 @@ impl StreamableHttpClient for HttpClientWithContext {
                 return Err(StreamableHttpError::UnexpectedContentType(None));
             },
         }
-        let event_stream = SseStream::from_byte_stream(response.bytes_stream()).boxed();
+        let event_stream = SseStream::from_bytes_stream(response.bytes_stream()).boxed();
         Ok(event_stream)
     }
 
@@ -249,7 +249,7 @@ impl StreamableHttpClient for HttpClientWithContext {
         let session_id = session_id.and_then(|v| v.to_str().ok()).map(str::to_owned);
         match content_type {
             Some(ct) if ct.as_bytes().starts_with(EVENT_STREAM_MIME_TYPE.as_bytes()) => {
-                let event_stream = SseStream::from_byte_stream(response.bytes_stream()).boxed();
+                let event_stream = SseStream::from_bytes_stream(response.bytes_stream()).boxed();
                 Ok(StreamableHttpPostResponse::Sse(event_stream, session_id))
             },
             Some(ct) if ct.as_bytes().starts_with(JSON_MIME_TYPE.as_bytes()) => {
