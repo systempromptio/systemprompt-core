@@ -66,6 +66,15 @@ pub async fn capture_device_link_code(base_url: &ValidatedUrl) -> Result<String,
             provider: "session",
             source: AuthFailedSource::Loopback(e),
         })?;
+    capture_on(server, base_url).await
+}
+
+/// Opens the consent page against an already-bound callback listener and waits
+/// for the browser to come back to it.
+pub async fn capture_on(
+    server: LoopbackServer,
+    base_url: &ValidatedUrl,
+) -> Result<String, AuthError> {
     let callback = server.callback_url();
     let auth_url = build_auth_url(base_url.as_str(), callback.as_str());
 
