@@ -5,6 +5,7 @@ use base64::Engine;
 use ed25519_dalek::{Signature, VerifyingKey};
 use systemprompt_config::SecretsBootstrap;
 use systemprompt_marketplace::{AllowAllFilter, CanonicalView, ManifestService};
+use systemprompt_models::bridge::ids::LibraryArtifactId;
 use systemprompt_models::bridge::manifest_version::ManifestVersion;
 use systemprompt_security::manifest_signing;
 use systemprompt_test_fixtures::fixture_user_id;
@@ -178,7 +179,10 @@ async fn assemble_candidate_lets_several_plugins_ship_one_artifact() {
     let ids: Vec<&str> = candidate.artifacts.iter().map(|a| a.id.as_str()).collect();
     assert_eq!(ids, vec!["shared"], "one entry, not one per owning plugin");
     assert_eq!(
-        candidate.artifact_owners.get("shared").map(BTreeSet::len),
+        candidate
+            .artifact_owners
+            .get(&LibraryArtifactId::try_new("shared").expect("artifact id"))
+            .map(BTreeSet::len),
         Some(2),
         "both plugins are recorded as owners",
     );

@@ -6,6 +6,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use systemprompt_identifiers::MarketplaceId;
+use systemprompt_models::bridge::ids::{LibraryArtifactId, PluginId};
 use systemprompt_models::bridge::manifest::{
     AgentEntry, ArtifactEntry, HookEntry, ManagedMcpServer, PluginEntry, SkillEntry,
 };
@@ -25,7 +26,7 @@ pub struct MarketplaceCandidate {
     /// Artifact id to the plugins that ship it. Artifacts carry no access rule
     /// of their own, so a filter gates them through this map: an artifact
     /// survives only while at least one owning plugin does.
-    pub artifact_owners: BTreeMap<String, BTreeSet<String>>,
+    pub artifact_owners: BTreeMap<LibraryArtifactId, BTreeSet<PluginId>>,
     pub marketplace_id: Option<MarketplaceId>,
     pub access: Option<MarketplaceAccess>,
 }
@@ -59,7 +60,10 @@ impl MarketplaceCandidate {
     }
 
     #[must_use]
-    pub fn with_artifact_owners(mut self, owners: BTreeMap<String, BTreeSet<String>>) -> Self {
+    pub fn with_artifact_owners(
+        mut self,
+        owners: BTreeMap<LibraryArtifactId, BTreeSet<PluginId>>,
+    ) -> Self {
         self.artifact_owners = owners;
         self
     }
@@ -79,12 +83,12 @@ impl MarketplaceCandidate {
     /// centrally after filtering rather than left to each `MarketplaceFilter`,
     /// so a filter that only removes plugins cannot leak their artifacts.
     pub fn prune_orphaned_artifacts(&mut self) {
-        let surviving: BTreeSet<&str> = self.plugins.iter().map(|p| p.id.as_str()).collect();
+        let surviving: BTreeSet<&PluginId> = self.plugins.iter().map(|p| &p.id).collect();
         let owners = &self.artifact_owners;
         self.artifacts.retain(|a| {
             let kept = owners
-                .get(a.id.as_str())
-                .is_some_and(|o| o.iter().any(|p| surviving.contains(p.as_str())));
+                .get(&a.id)
+                .is_some_and(|o| o.iter().any(|p| surviving.contains(p)));
             if !kept {
                 tracing::warn!(
                     artifact_id = %a.id.as_str(),

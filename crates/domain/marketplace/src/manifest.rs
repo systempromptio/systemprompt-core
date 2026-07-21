@@ -11,7 +11,7 @@ use std::path::Path;
 
 use serde::Serialize;
 use systemprompt_identifiers::{TenantId, UserId};
-use systemprompt_models::bridge::ids::ManifestSignature;
+use systemprompt_models::bridge::ids::{LibraryArtifactId, ManifestSignature};
 use systemprompt_models::bridge::manifest::{
     AgentEntry, ArtifactEntry, HookEntry, ManagedMcpServer, PluginEntry, SkillEntry, UserInfo,
 };
@@ -76,8 +76,8 @@ impl ManifestService {
             None => (skills, agents, managed_mcp_servers, artifacts),
         };
 
-        let owners = artifact_owners(services, &artifacts);
-        let selected_artifacts: std::collections::BTreeSet<String> =
+        let owners = artifact_owners(services, &artifacts)?;
+        let selected_artifacts: std::collections::BTreeSet<LibraryArtifactId> =
             owners.keys().cloned().collect();
         let artifacts = gate_artifacts_by_plugin(artifacts, &selected_artifacts);
 
@@ -107,10 +107,10 @@ impl ManifestService {
 
 fn gate_artifacts_by_plugin(
     artifacts: Vec<ArtifactEntry>,
-    selected: &std::collections::BTreeSet<String>,
+    selected: &std::collections::BTreeSet<LibraryArtifactId>,
 ) -> Vec<ArtifactEntry> {
     for id in selected {
-        if !artifacts.iter().any(|a| a.id.as_str() == id) {
+        if !artifacts.iter().any(|a| &a.id == id) {
             tracing::warn!(
                 artifact_id = %id,
                 "marketplace: plugin artifacts.include names an artifact that does not exist \
@@ -122,7 +122,7 @@ fn gate_artifacts_by_plugin(
     artifacts
         .into_iter()
         .filter(|a| {
-            let kept = selected.contains(a.id.as_str());
+            let kept = selected.contains(&a.id);
             if !kept {
                 tracing::warn!(
                     artifact_id = %a.id.as_str(),

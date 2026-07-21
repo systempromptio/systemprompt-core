@@ -157,24 +157,32 @@ pub fn load_plugins(
 pub fn artifact_owners(
     services: &ServicesConfig,
     artifacts: &[ArtifactEntry],
-) -> BTreeMap<String, BTreeSet<String>> {
-    let mut out: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
+) -> Result<BTreeMap<LibraryArtifactId, BTreeSet<PluginId>>, MarketplaceError> {
+    let mut out: BTreeMap<LibraryArtifactId, BTreeSet<PluginId>> = BTreeMap::new();
     for config in selected_configs(services) {
-        let selected: Vec<String> = match config.artifacts.source {
-            ComponentSource::Explicit => config.artifacts.include.clone(),
+        let selected: Vec<LibraryArtifactId> = match config.artifacts.source {
+            ComponentSource::Explicit => config
+                .artifacts
+                .include
+                .iter()
+                .map(|id| {
+                    LibraryArtifactId::try_new(id.as_str())
+                        .map_err(|e| MarketplaceError::Catalog(e.to_string()))
+                })
+                .collect::<Result<_, _>>()?,
             ComponentSource::Instance => artifacts
                 .iter()
                 .filter(|a| selects_artifact(config, &a.id))
-                .map(|a| a.id.as_str().to_owned())
+                .map(|a| a.id.clone())
                 .collect(),
         };
+        let owner = PluginId::try_new(config.id.as_str())
+            .map_err(|e| MarketplaceError::Catalog(e.to_string()))?;
         for id in selected {
-            out.entry(id)
-                .or_default()
-                .insert(config.id.as_str().to_owned());
+            out.entry(id).or_default().insert(owner.clone());
         }
     }
-    out
+    Ok(out)
 }
 
 /// Single source of truth for "does this plugin ship this artifact".

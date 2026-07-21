@@ -95,7 +95,7 @@ pub async fn read_artifact_resource(
         ));
     }
 
-    let artifact_id = ArtifactId::from(artifact_id.to_owned());
+    let artifact_id = ArtifactId::new(artifact_id);
     let record = repo
         .find_by_id(&artifact_id)
         .await
