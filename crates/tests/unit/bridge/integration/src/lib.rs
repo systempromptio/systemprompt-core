@@ -20,3 +20,5 @@ mod profile_state;
 mod proxy_probe;
 #[cfg(test)]
 mod reg_profile;
+#[cfg(test)]
+mod codex_host;
