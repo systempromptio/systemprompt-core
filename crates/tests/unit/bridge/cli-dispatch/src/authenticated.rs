@@ -177,3 +177,119 @@ fn a_gateway_that_rejects_the_pat_leaves_no_oauth_client_behind() {
         "a rejected PAT must not provision an OAuth client"
     );
 }
+
+
+#[test]
+fn sync_through_dispatch_applies_the_manifest_and_writes_the_sentinel() {
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .expect("runtime");
+    let server = runtime.block_on(MockServer::start());
+    let uri = server.uri();
+    runtime.block_on(async {
+        Mock::given(method("POST"))
+            .and(path("/v1/auth/bridge/pat"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "token": "jwt-for-sync",
+                "ttl": 900,
+            })))
+            .mount(&server)
+            .await;
+        Mock::given(method("GET"))
+            .and(path("/v1/bridge/manifest"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "manifest_version": "2026-05-01T12:00:00Z-deadbeef",
+                "issued_at": "2026-05-01T12:00:00+00:00",
+                "not_before": "2026-05-01T12:00:00+00:00",
+                "user_id": "00000000-0000-4000-8000-00000000fee1",
+                "user": {
+                    "id": "00000000-0000-4000-8000-00000000fee1",
+                    "name": "alice",
+                    "email": "alice@example.com",
+                    "roles": [],
+                },
+                "plugins": [],
+                "skills": [],
+                "agents": [],
+                "hooks": [],
+                "managed_mcp_servers": [],
+                "revocations": [],
+                "enabled_hosts": [],
+                "host_model_protocols": {},
+                "artifacts": [],
+                "signature": "unused-when-allow-unsigned",
+            })))
+            .mount(&server)
+            .await;
+    });
+
+    let sb = Sandbox::new();
+    let mut vars = sb.vars();
+    vars.push(("SP_BRIDGE_GATEWAY_URL", Some(uri)));
+    vars.push((
+        "SP_BRIDGE_PAT",
+        Some("sp-live-testprefix.secretsecretsecretsecretsecret012345".to_owned()),
+    ));
+    temp_env::with_vars(vars, || {
+        let _ = run_with_args(&argv(&["install"]));
+        let _ = run_with_args(&argv(&["sync", "--allow-unsigned", "--force-replay"]));
+    });
+
+    let sentinel = sb.metadata().join("last-sync.json");
+    let raw = std::fs::read_to_string(&sentinel).expect("sync writes the last-sync sentinel");
+    let parsed: serde_json::Value = serde_json::from_str(&raw).expect("sentinel is JSON");
+    assert_eq!(
+        parsed["manifest_version"], "2026-05-01T12:00:00Z-deadbeef",
+        "the applied manifest version is recorded: {raw}"
+    );
+    assert_eq!(parsed["user"], "alice@example.com");
+    assert!(
+        sb.org_plugins().is_dir(),
+        "the apply prepares the org-plugins root"
+    );
+    drop(server);
+}
+
+#[test]
+fn a_sync_whose_manifest_is_refused_leaves_no_sentinel() {
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .expect("runtime");
+    let server = runtime.block_on(MockServer::start());
+    let uri = server.uri();
+    runtime.block_on(async {
+        Mock::given(method("POST"))
+            .and(path("/v1/auth/bridge/pat"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "token": "jwt-for-sync",
+                "ttl": 900,
+            })))
+            .mount(&server)
+            .await;
+        Mock::given(method("GET"))
+            .and(path("/v1/bridge/manifest"))
+            .respond_with(ResponseTemplate::new(500))
+            .mount(&server)
+            .await;
+    });
+
+    let sb = Sandbox::new();
+    let mut vars = sb.vars();
+    vars.push(("SP_BRIDGE_GATEWAY_URL", Some(uri)));
+    vars.push((
+        "SP_BRIDGE_PAT",
+        Some("sp-live-testprefix.secretsecretsecretsecretsecret012345".to_owned()),
+    ));
+    temp_env::with_vars(vars, || {
+        let _ = run_with_args(&argv(&["install"]));
+        let _ = run_with_args(&argv(&["sync", "--allow-unsigned", "--force-replay"]));
+    });
+
+    assert!(
+        !sb.metadata().join("last-sync.json").exists(),
+        "a failed manifest fetch must not advance the replay sentinel"
+    );
+    drop(server);
+}
