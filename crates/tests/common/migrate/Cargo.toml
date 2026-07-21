@@ -3,6 +3,7 @@ name = "systemprompt-test-migrate"
 version = "0.0.1"
 edition = "2024"
 publish = false
+license.workspace = true
 description = "Test helper: applies all extension schemas to a Postgres instance via install_extension_schemas."
 
 [lints]
