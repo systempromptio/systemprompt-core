@@ -7260,6 +7260,8 @@ dependencies = [
  "reqwest",
  "systemprompt-bridge",
  "systemprompt-identifiers",
+ "temp-env",
+ "tempfile",
  "tokio",
 ]
 
