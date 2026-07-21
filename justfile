@@ -149,6 +149,18 @@ format-check:
     cargo +nightly fmt --all -- --check
     cd crates/tests && cargo +nightly fmt --all -- --check
 
+# Build rustdoc with warnings as errors (main + test workspace).
+# `--workspace` stops at the manifest it is invoked from, so the 86 test
+# crates need their own pass — without it their `//!` heads go unchecked and
+# intra-doc links rot silently.
+# Local-only, like `just style-check`: the test workspace ships no `.sqlx`
+# cache, so its `query!` fixtures need the live database that
+# `crates/tests/.cargo/config.toml` points at. CI's docs job runs offline and
+# covers the main workspace alone.
+doc-check:
+    RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --all-features
+    cd crates/tests && RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps
+
 # Run clippy linter with strict settings (main workspace).
 # The separate `crates/tests` workspace is clippied by `just style-check` (it
 # needs a live database for its `query!` fixtures, which CI's lint job lacks);
@@ -209,9 +221,12 @@ workspaces := ". bin/bridge crates/tests crates/tests/bench crates/tests/fuzz cr
 deny:
     #!/usr/bin/env bash
     set -euo pipefail
+    # Stay in the repo root and point cargo-deny at each manifest, so the root
+    # deny.toml is the config it discovers. `--config` has moved between global
+    # and subcommand scope across cargo-deny releases; `--manifest-path` has not.
     for w in {{ workspaces }}; do
         echo "==> cargo deny: $w"
-        (cd "$w" && cargo deny check --config "$(git rev-parse --show-toplevel)/deny.toml")
+        cargo deny --manifest-path "${w%/}/Cargo.toml" check
     done
 
 # RustSec advisory scanning lives in `just deny` (cargo-deny's `advisories` check
@@ -270,6 +285,9 @@ style-check:
     (cd crates/tests && cargo +nightly fmt --all -- --check)
     (cd crates/tests && cargo clippy --workspace --all-targets --all-features -- -D warnings)
     (cd crates/tests && cargo test --workspace --no-run)
+    echo ""
+    echo "7️⃣  Building rustdoc (both workspaces)..."
+    just doc-check
     echo ""
     echo "✅ All style checks passed!"
 

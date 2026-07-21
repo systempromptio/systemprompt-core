@@ -121,7 +121,9 @@ as part of an approved change.
 - **Naming**: `*Service` by default, `*Handler` only for HTTP/RPC handlers, `*Orchestrator` for cross-domain workflows. Avoid `*Manager`.
 - **Schema DDL & migrations**: schema DDL lives in `{crate}/schema/*.sql`, embedded via `include_str!()` in `extension.rs`. Migration SQL lives in `{crate}/schema/migrations/NNN_<name>.sql`, discovered by the crate's `build.rs` (`systemprompt_extension::build::emit_migrations()`) and returned via the `extension_migrations!()` macro — never inline SQL string constants or a hand-written `Migration::new(...)` list. Pre-merge: `just lint-extensions`.
 
-Run after changes: `cargo +nightly fmt --all && cargo clippy --workspace --all-targets --all-features -- -D warnings && RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --all-features && just file-size`.
+Run after changes: `cargo +nightly fmt --all && cargo clippy --workspace --all-targets --all-features -- -D warnings && just doc-check && just file-size`.
+
+`just doc-check` builds rustdoc with warnings as errors across **both** workspaces. `--workspace` stops at the manifest it is invoked from, so a bare `cargo doc` leaves the 86 crates under `crates/tests/` unchecked — and CI cannot cover them, because they carry no `.sqlx` cache and need the live database that `crates/tests/.cargo/config.toml` points at.
 
 ### Typed Identifiers
 
