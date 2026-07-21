@@ -11,6 +11,31 @@ yanked = "warn"
 ignore = [
     { id = "RUSTSEC-2023-0071", reason = "Marvin Attack in `rsa` crate. Transitively pulled by `jsonwebtoken` for RSA-family JWT verification. No upstream fix available — the `rsa` crate does not yet provide constant-time implementations. The JWT plane is RS256-only (verification rejects any other algorithm in crates/infra/security/src/auth/validation.rs); there is no ES/EdDSA path. Systemprompt mitigations: (1) the exploitable Marvin surface is RSA private-key decryption timing, not the RSA signature verification this code performs, so the timing side-channel does not apply to the verification path; (2) JWT verification is CPU-bounded and not exposed as an unauthenticated high-throughput endpoint, further limiting exploitability; (3) tracked — we will drop the ignore as soon as a fixed `rsa` release is available. See documentation/security/threat-model.md." },
     { id = "RUSTSEC-2026-0173", reason = "proc-macro-error2 is unmaintained. It is a build-time-only proc-macro dependency pulled transitively by `tabled` (CLI table rendering) and `validator` (config validation); it is never linked into the runtime binary, so the unmaintained status carries no runtime security surface. Tracked — drop the ignore once `tabled` and `validator` move off it." },
+
+    # The entries below are reached only from the `bin/bridge` and `crates/tests`
+    # workspaces. This file is the single deny config for every workspace in the
+    # repo (see the `deny` recipe in the justfile), so they are declared here
+    # rather than in per-workspace copies that would drift.
+    #
+    # All of them sit under `winit`/`wry`, whose Linux windowing backend the
+    # bridge never compiles: the tray/webview stack is declared only under
+    # `cfg(target_os = "macos")` and `cfg(target_os = "windows")`. Cargo resolves
+    # the Linux branch into the lockfile regardless of target, so cargo-deny sees
+    # it, but no shipped bridge artifact contains this code. There is also no
+    # upgrade available — `winit` 0.30.13, `wry` 0.55.1, `tray-icon` 0.24.1 and
+    # `muda` 0.19.3 are all the latest published releases as of 2026-07-21.
+    { id = "RUSTSEC-2026-0194", reason = "Quadratic run time in `quick-xml` <0.41 duplicate-attribute checking. Pulled by `wayland-scanner` <- `winit` (Linux windowing only). Our own direct `quick-xml` dependency is already 0.41. Not compiled into any shipped bridge artifact; no upstream release moves `winit` off it yet." },
+    { id = "RUSTSEC-2026-0195", reason = "Unbounded namespace-declaration allocation in `quick-xml` <0.41 `NsReader`. Same `wayland-scanner` <- `winit` Linux-only path as RUSTSEC-2026-0194; our direct dependency is already 0.41." },
+    { id = "RUSTSEC-2026-0192", reason = "`ttf-parser` is unmaintained. Reached via `ab_glyph` <- `sctk-adwaita` <- `winit`, the Linux client-side-decoration path. Never compiled on the platforms the bridge GUI ships for." },
+    { id = "RUSTSEC-2024-0370", reason = "`proc-macro-error` is unmaintained. Build-time-only proc-macro crate under the GTK3 stack (`gtk3-macros`/`glib-macros`); never linked into a runtime binary, and only on the Linux `wry` path the bridge does not build." },
+    { id = "RUSTSEC-2024-0412", reason = "gtk-rs GTK3 bindings (`gdk`) are unmaintained. Linux-only `wry`/`tray-icon` dependency; the bridge GUI targets macOS and Windows only." },
+    { id = "RUSTSEC-2024-0413", reason = "gtk-rs GTK3 bindings (`atk`) are unmaintained. Same Linux-only `wry`/`tray-icon` path." },
+    { id = "RUSTSEC-2024-0415", reason = "gtk-rs GTK3 bindings (`gtk`) are unmaintained. Same Linux-only `wry`/`tray-icon` path." },
+    { id = "RUSTSEC-2024-0416", reason = "gtk-rs GTK3 bindings (`atk-sys`) are unmaintained. Same Linux-only `wry`/`tray-icon` path." },
+    { id = "RUSTSEC-2024-0418", reason = "gtk-rs GTK3 bindings (`gdk-sys`) are unmaintained. Same Linux-only `wry`/`tray-icon` path." },
+    { id = "RUSTSEC-2024-0419", reason = "gtk-rs GTK3 bindings (`gtk3-macros`) are unmaintained. Same Linux-only `wry`/`tray-icon` path." },
+    { id = "RUSTSEC-2024-0420", reason = "gtk-rs GTK3 bindings (`gtk-sys`) are unmaintained. Same Linux-only `wry`/`tray-icon` path." },
+    { id = "RUSTSEC-2024-0429", reason = "Unsoundness in `glib::VariantStrIter` (glib 0.18). Reached only through the Linux GTK3 stack under `wry`/`tray-icon`, which the bridge does not compile; we never construct a `VariantStrIter` ourselves." },
 ]
 
 [licenses]

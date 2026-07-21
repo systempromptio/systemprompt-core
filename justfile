@@ -198,17 +198,39 @@ lint-no-untyped-admin:
         exit 1
     fi
 
-# Run cargo-deny: licenses, advisories, banned crates, source policies
+# Every Cargo workspace in the repo. `bin/bridge` and `crates/tests*` are excluded
+# from the root workspace, so a bare root-level scan silently skips them — which is
+# how a 7.5-high advisory sat unnoticed in the bridge lockfile. Keep this list in
+# sync with the tracked Cargo.lock files (`git ls-files '*Cargo.lock'`).
+workspaces := ". bin/bridge crates/tests crates/tests/bench crates/tests/fuzz crates/tests/loadtest crates/tests/mock-inference"
+
+# Run cargo-deny across every workspace: licenses, advisories, bans, sources.
+# All workspaces share the root deny.toml so the ignore rationales live in one file.
 deny:
-    cargo deny check
+    #!/usr/bin/env bash
+    set -euo pipefail
+    for w in {{ workspaces }}; do
+        echo "==> cargo deny: $w"
+        (cd "$w" && cargo deny check --config "$(git rev-parse --show-toplevel)/deny.toml")
+    done
 
-# Run cargo-audit against the RustSec advisory DB
+# Run cargo-audit against the RustSec advisory DB, across every workspace
 audit:
-    cargo audit
+    #!/usr/bin/env bash
+    set -euo pipefail
+    for w in {{ workspaces }}; do
+        echo "==> cargo audit: $w"
+        (cd "$w" && cargo audit)
+    done
 
-# Detect unused workspace dependencies
+# Detect unused dependencies across every workspace
 machete:
-    cargo machete
+    #!/usr/bin/env bash
+    set -euo pipefail
+    for w in {{ workspaces }}; do
+        echo "==> cargo machete: $w"
+        (cd "$w" && cargo machete)
+    done
 
 # Build every feature powerset (catches facade-flag drift)
 hack:
