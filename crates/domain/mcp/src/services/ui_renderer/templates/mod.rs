@@ -4,8 +4,8 @@
 //! Between them they cover every variant of
 //! [`CliArtifact`](systemprompt_models::artifacts::CliArtifact) plus `form`,
 //! a coverage guarantee enforced by the registry's exhaustiveness test.
-//! [`html`] provides the shared HTML-escaping and element helpers, and
-//! [`typed`] the schema-faithful payload decoding.
+//! [`html`] provides the shared HTML-escaping and element helpers, and the
+//! private `typed` module the schema-faithful payload decoding.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
