@@ -80,12 +80,12 @@ export class SpActivityLog extends SpElement {
       <header class="sp-activity__header">
         <span class="sp-activity__title" data-l10n-id="activity-title">Activity</span>
         <div class="sp-activity-lane" aria-label="Activity totals">
-          <span class="sp-activity-lane__stat"><b data-stat="msgs">0</b><span class="sp-activity-lane__label" data-l10n-id="activity-msgs">msgs</span></span>
-          <span class="sp-activity-lane__stat"><b data-stat="tin">0</b><span class="sp-activity-lane__label" data-l10n-id="activity-tin">in</span></span>
-          <span class="sp-activity-lane__stat"><b data-stat="tout">0</b><span class="sp-activity-lane__label" data-l10n-id="activity-tout">out</span></span>
+          <span class="sp-activity-lane__stat"><b data-stat="msgs" data-preserve>0</b><span class="sp-activity-lane__label" data-l10n-id="activity-msgs">msgs</span></span>
+          <span class="sp-activity-lane__stat"><b data-stat="tin" data-preserve>0</b><span class="sp-activity-lane__label" data-l10n-id="activity-tin">in</span></span>
+          <span class="sp-activity-lane__stat"><b data-stat="tout" data-preserve>0</b><span class="sp-activity-lane__label" data-l10n-id="activity-tout">out</span></span>
         </div>
       </header>
-      <div class="sp-log sp-log-virtual" role="log" aria-live="polite" aria-atomic="false" tabindex="0">
+      <div class="sp-log sp-log-virtual" role="log" aria-live="polite" aria-atomic="false" tabindex="0" data-preserve>
         <div class="sp-log-virtual__spacer-top" aria-hidden="true"></div>
         <ol class="sp-log-virtual__viewport"></ol>
         <div class="sp-log-virtual__spacer-bottom" aria-hidden="true"></div>

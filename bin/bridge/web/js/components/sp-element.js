@@ -177,8 +177,7 @@ function patchNode(oldNode, newNode) {
     return;
   }
   patchAttributes(oldNode, newNode);
-  // Assumption 1: custom elements render their own subtree.
-  if (!isCustomElement(oldNode)) { reconcile(oldNode, newNode); }
+  if (!ownsChildren(oldNode)) { reconcile(oldNode, newNode); }
 }
 
 function patchAttributes(oldEl, newEl) {
