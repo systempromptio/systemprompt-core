@@ -207,8 +207,8 @@ fn bootstrap_system_admin(fixture: &FullBootstrap) {
     normalize_admin_email();
 }
 
-/// A pre-existing `testadmin` row keeps its original email through bootstrap;
-/// session-token generation rejects dot-less domains, so repair it in place.
+// A pre-existing `testadmin` row keeps its original email through bootstrap;
+// session-token generation rejects dot-less domains, so repair it in place.
 fn normalize_admin_email() {
     let Some(url) = database_url() else { return };
     let runtime = tokio::runtime::Builder::new_current_thread()

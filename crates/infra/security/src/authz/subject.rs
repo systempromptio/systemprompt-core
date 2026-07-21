@@ -142,7 +142,6 @@ pub struct SubjectProviderRegistration {
 
 inventory::collect!(SubjectProviderRegistration);
 
-/// Builds every registered provider, in collection order.
 #[must_use]
 pub fn discover_subject_providers(ctx: &AuthzHookContext) -> Vec<SharedSubjectAttributeProvider> {
     inventory::iter::<SubjectProviderRegistration>()

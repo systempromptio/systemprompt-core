@@ -339,8 +339,8 @@ fn enabled_extensions_keeps_required_even_when_disabled() {
     );
 }
 
-/// Guards against the `HashMap`-keyed lookups silently colliding across many
-/// extensions.
+// Guards against the `HashMap`-keyed lookups silently colliding across many
+// extensions.
 #[test]
 fn ids_and_get_round_trip_over_many() {
     let exts: Vec<Arc<dyn Extension>> = (0..5)

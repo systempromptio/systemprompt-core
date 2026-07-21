@@ -51,8 +51,6 @@ fn parse_referrer_source(url: &str) -> Option<String> {
     }
 }
 
-/// Builds a [`SessionAnalytics`] from an HTTP request.
-///
 /// `headers` is the only required input; every enrichment source (URI for
 /// UTM/landing-page, `GeoIP` reader, content-routing classifier, resolved
 /// caller IP) is opt-in via a `with_*` setter.

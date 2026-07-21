@@ -13,8 +13,8 @@ use std::sync::{Mutex, MutexGuard, OnceLock};
 
 use tempfile::TempDir;
 
-/// Serializes every test in this module: they all mutate the process-global
-/// `CARGO_MANIFEST_DIR`/`OUT_DIR` env vars, so they must never run in parallel.
+// Serializes every test in this module: they all mutate the process-global
+// `CARGO_MANIFEST_DIR`/`OUT_DIR` env vars, so they must never run in parallel.
 fn env_lock() -> MutexGuard<'static, ()> {
     static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
     LOCK.get_or_init(|| Mutex::new(()))
@@ -58,8 +58,8 @@ impl Drop for EnvGuard {
     }
 }
 
-/// Lay out a `schema/migrations` directory under `manifest`, run
-/// `emit_migrations`, and return the generated `migrations.rs` body.
+// Lay out a `schema/migrations` directory under `manifest`, run
+// `emit_migrations`, and return the generated `migrations.rs` body.
 fn run(manifest: &TempDir, out: &TempDir, files: &[(&str, &str)]) -> String {
     let migrations_dir = manifest.path().join("schema/migrations");
     fs::create_dir_all(&migrations_dir).expect("create migrations dir");

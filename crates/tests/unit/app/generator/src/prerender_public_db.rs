@@ -25,9 +25,9 @@ use systemprompt_test_fixtures::{
     TestBootstrap, ensure_test_bootstrap, fixture_database_url, fixture_db_pool,
 };
 
-/// Serialises this module's tests so each one can write the shared
-/// `web/config.yaml` + `content/config.yaml` and run the prerenderer without a
-/// sibling test in this module overwriting the config mid-flight.
+// Serialises this module's tests so each one can write the shared
+// `web/config.yaml` + `content/config.yaml` and run the prerenderer without a
+// sibling test in this module overwriting the config mid-flight.
 static SERIALIZE: Mutex<()> = Mutex::new(());
 
 const WEB_CONFIG_YAML: &str = r##"
@@ -178,9 +178,9 @@ async fn maybe_db() -> Option<DbPool> {
     fixture_db_pool(&url).await.ok()
 }
 
-/// Path the default-locale prerenderer would write for `slug`, mirroring
-/// `write_rendered_page` with `url_pattern = "/blog/{slug}"` and no locale
-/// prefix: `dist/blog/{slug}/index.html`.
+// Path the default-locale prerenderer would write for `slug`, mirroring
+// `write_rendered_page` with `url_pattern = "/blog/{slug}"` and no locale
+// prefix: `dist/blog/{slug}/index.html`.
 fn rendered_page_path(boot: &TestBootstrap, slug: &str) -> std::path::PathBuf {
     boot.app_paths
         .web()

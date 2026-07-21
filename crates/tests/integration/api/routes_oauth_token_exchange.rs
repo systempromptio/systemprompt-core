@@ -387,10 +387,10 @@ async fn exchange_unknown_client_does_not_500() -> anyhow::Result<()> {
 
 const ID_TOKEN_TYPE: &str = "urn:ietf:params:oauth:token-type:id_token";
 
-/// Seed a client whose owner has a UUID-form id. The delegation path
-/// (`load_delegation_grant`) parses the owner id as a UUID, so the full
-/// exchange only completes for a UUID owner; the shared [`seeded_client`] uses
-/// a prefixed id that only the error-path tests reach.
+// Seed a client whose owner has a UUID-form id. The delegation path
+// (`load_delegation_grant`) parses the owner id as a UUID, so the full
+// exchange only completes for a UUID owner; the shared [`seeded_client`] uses
+// a prefixed id that only the error-path tests reach.
 async fn seeded_client_uuid_owner() -> anyhow::Result<OAuthClientFixture> {
     let b = ensure_test_bootstrap();
     let pool = fixture_db_pool(&b.database_url).await?;
@@ -404,9 +404,9 @@ async fn seeded_client_uuid_owner() -> anyhow::Result<OAuthClientFixture> {
     seed_oauth_client(&pool, &user).await
 }
 
-/// Mint a self-issued ID-JAG (issuer = this deployment) bound to `client_id`,
-/// signed by the process-wide test authority. `aud` controls the audience
-/// binding the consume path enforces against `jwt_issuer`.
+// Mint a self-issued ID-JAG (issuer = this deployment) bound to `client_id`,
+// signed by the process-wide test authority. `aud` controls the audience
+// binding the consume path enforces against `jwt_issuer`.
 fn mint_id_jag_for(client_id: &str, aud: &str) -> String {
     install_test_signing_key();
     let issuer = Config::get().expect("config").jwt_issuer.clone();

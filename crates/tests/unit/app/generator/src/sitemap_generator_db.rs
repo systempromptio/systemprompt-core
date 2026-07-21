@@ -22,10 +22,10 @@ use systemprompt_test_fixtures::{
     TestBootstrap, ensure_test_bootstrap, fixture_database_url, fixture_db_pool,
 };
 
-/// Serialises this module's tests so each one can write the shared
-/// `web/config.yaml` + `content/config.yaml`, run the generator, and read back
-/// `sitemap.xml` without a sibling test in this module overwriting the config
-/// mid-flight.
+// Serialises this module's tests so each one can write the shared
+// `web/config.yaml` + `content/config.yaml`, run the generator, and read back
+// `sitemap.xml` without a sibling test in this module overwriting the config
+// mid-flight.
 static SERIALIZE: Mutex<()> = Mutex::new(());
 
 const WEB_CONFIG_TWO_LOCALES_YAML: &str = r##"

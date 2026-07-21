@@ -17,24 +17,24 @@ use tempfile::TempDir;
 const TEST_OAUTH_AT_REST_PEPPER: &str = "test_oauth_at_rest_pepper_for_bootstrap_fixture_zzz";
 const TEST_MANIFEST_SIGNING_SEED: &str = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
 
-/// The Slack workspace id seeded into the fixture `config.yaml`. Tests sign
-/// requests carrying this `team_id` so [`crate::messaging`] resolves the app.
+// The Slack workspace id seeded into the fixture `config.yaml`. Tests sign
+// requests carrying this `team_id` so [`crate::messaging`] resolves the app.
 pub const TEST_SLACK_WORKSPACE_ID: &str = "T_TEST_WS";
-/// The Teams Entra tenant id seeded into the fixture `config.yaml`.
+// The Teams Entra tenant id seeded into the fixture `config.yaml`.
 pub const TEST_TEAMS_TENANT_ID: &str = "tenant-test";
-/// The Microsoft App (bot) id — the audience inbound Teams activity tokens
-/// must carry, and the `client_id` for outbound token acquisition.
+// The Microsoft App (bot) id — the audience inbound Teams activity tokens
+// must carry, and the `client_id` for outbound token acquisition.
 pub const TEST_TEAMS_APP_ID: &str = "app-test-1";
-/// The agent both messaging apps route to. A `services` backend row plus the
-/// matching `config.yaml` entry (`oauth.required = false`) make it
-/// dispatchable.
+// The agent both messaging apps route to. A `services` backend row plus the
+// matching `config.yaml` entry (`oauth.required = false`) make it
+// dispatchable.
 pub const TEST_MESSAGING_AGENT: &str = "test_messaging_agent";
 
-/// The Slack signing secret resolved from the named ref `slack_signing_secret`.
+// The Slack signing secret resolved from the named ref `slack_signing_secret`.
 pub const TEST_SLACK_SIGNING_SECRET: &str = "test-slack-signing-secret-value";
-/// The Slack bot token resolved from the named ref `slack_bot_token`.
+// The Slack bot token resolved from the named ref `slack_bot_token`.
 pub const TEST_SLACK_BOT_TOKEN: &str = "xoxb-test-bot-token";
-/// The Teams app password resolved from the named ref `teams_app_password`.
+// The Teams app password resolved from the named ref `teams_app_password`.
 pub const TEST_TEAMS_APP_PASSWORD: &str = "test-teams-app-password";
 
 pub struct TestBootstrap {
@@ -54,10 +54,10 @@ pub fn ensure_test_bootstrap() -> &'static TestBootstrap {
     BOOTSTRAP.get_or_init(init_bootstrap)
 }
 
-/// Bootstrap with the messaging apps + dispatchable agent written into
-/// `config.yaml`. Sets the opt-in env gate **before** the one-shot init, so it
-/// must be the first bootstrap call in the process (true under nextest, which
-/// runs each test in its own process).
+// Bootstrap with the messaging apps + dispatchable agent written into
+// `config.yaml`. Sets the opt-in env gate **before** the one-shot init, so it
+// must be the first bootstrap call in the process (true under nextest, which
+// runs each test in its own process).
 pub fn ensure_messaging_bootstrap() -> &'static TestBootstrap {
     // SAFETY: set before the `BOOTSTRAP` OnceLock initialises; process-local
     // under nextest's per-test process model.
@@ -194,11 +194,11 @@ fn write_yaml_stub(path: &std::path::Path) {
     std::fs::write(path, "{}\n").expect("write yaml stub");
 }
 
-/// The seeded services config: one dispatchable agent (`oauth.required =
-/// false`) plus one Slack app and one Teams app routing to it.
-/// `ConfigLoader::load()` reads exactly this file, so the messaging routes
-/// resolve their app, agent, and named secrets from a single deterministic
-/// source.
+// The seeded services config: one dispatchable agent (`oauth.required =
+// false`) plus one Slack app and one Teams app routing to it.
+// `ConfigLoader::load()` reads exactly this file, so the messaging routes
+// resolve their app, agent, and named secrets from a single deterministic
+// source.
 fn messaging_config_yaml() -> String {
     format!(
         r#"agents:

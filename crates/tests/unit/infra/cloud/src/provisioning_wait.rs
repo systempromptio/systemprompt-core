@@ -21,9 +21,9 @@ fn sse_response(body: &str) -> ResponseTemplate {
         .set_body_raw(body.to_owned().into_bytes(), "text/event-stream")
 }
 
-/// The polling fallback hits `get_tenant_status`, which first acquires a
-/// tenant access token via RFC 8693 token-exchange. Stub it so the poll
-/// resolves on the first attempt rather than erroring and retrying.
+// The polling fallback hits `get_tenant_status`, which first acquires a
+// tenant access token via RFC 8693 token-exchange. Stub it so the poll
+// resolves on the first attempt rather than erroring and retrying.
 async fn token_mock(server: &MockServer) {
     Mock::given(method("POST"))
         .and(path("/api/v1/core/oauth/token"))

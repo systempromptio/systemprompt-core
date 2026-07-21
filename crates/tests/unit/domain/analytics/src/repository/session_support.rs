@@ -13,7 +13,7 @@ pub fn unique_session_id() -> SessionId {
     SessionId::new(format!("sess-{}", Uuid::new_v4()))
 }
 
-/// Minimal session seed: no user, web source, expiry one hour out.
+// Minimal session seed: no user, web source, expiry one hour out.
 pub fn base_params<'a>(
     session_id: &'a SessionId,
     fingerprint_hash: Option<&'a str>,
@@ -57,8 +57,8 @@ pub async fn seed_session(repo: &SessionRepository, session_id: &SessionId, fing
     repo.create_session(&params).await.expect("seed session");
 }
 
-/// Insert an `analytics_events` row directly. The session FK must already
-/// exist.
+// Insert an `analytics_events` row directly. The session FK must already
+// exist.
 pub async fn insert_analytics_event(
     pool: &DbPool,
     session_id: &SessionId,
@@ -86,7 +86,7 @@ pub async fn insert_analytics_event(
     .expect("insert analytics_event");
 }
 
-/// Insert an `engagement_events` row (no session FK required).
+// Insert an `engagement_events` row (no session FK required).
 pub async fn insert_engagement_event(pool: &DbPool, session_id: &SessionId) {
     let id = format!("eng-{}", Uuid::new_v4());
     let p = pool.pool_arc().expect("read pool");

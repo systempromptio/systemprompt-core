@@ -51,8 +51,8 @@ fn mint(kid: &str) -> String {
     encode(&header, &claims, &key).expect("mint token")
 }
 
-/// The committed public key as a JWK, base64url-encoding the modulus/exponent
-/// the way the Bot Connector's published key set does.
+// The committed public key as a JWK, base64url-encoding the modulus/exponent
+// the way the Bot Connector's published key set does.
 fn jwk(kid: &str) -> serde_json::Value {
     let key = RsaPublicKey::from_public_key_pem(PUBLIC_PEM).expect("parse public pem");
     let n = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(key.n().to_bytes_be());

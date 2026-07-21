@@ -106,9 +106,9 @@ pub fn fixture_app_context_with(
     fixture_app_context_full(pool, database_url, paths, marketplace_filter, hook)
 }
 
-/// Build a fixture context with an explicit authorization hook — used by tests
-/// that need to drive the `Deny` branch (pass a
-/// [`DenyAllHook`](systemprompt_security::authz::DenyAllHook)).
+// Build a fixture context with an explicit authorization hook — used by tests
+// that need to drive the `Deny` branch (pass a
+// [`DenyAllHook`](systemprompt_security::authz::DenyAllHook)).
 pub fn fixture_app_context_with_hook(
     pool: &DbPool,
     database_url: &str,

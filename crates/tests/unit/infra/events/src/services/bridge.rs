@@ -25,10 +25,10 @@ use systemprompt_test_fixtures::{
     closed_db_pool, fixture_database_url, fixture_db_pool, unique_user_id,
 };
 
-/// The bridge tests each `start()` a [`PostgresEventBridge`], whose
-/// `PgListener` holds a long-lived connection from the shared fixture pool.
-/// Running several concurrently exhausts that pool and times out, so they take
-/// turns through this process-global async lock.
+// The bridge tests each `start()` a [`PostgresEventBridge`], whose
+// `PgListener` holds a long-lived connection from the shared fixture pool.
+// Running several concurrently exhausts that pool and times out, so they take
+// turns through this process-global async lock.
 static BRIDGE_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 
 async fn pool() -> Option<sqlx::PgPool> {
@@ -71,9 +71,9 @@ fn analytics_event() -> AnalyticsEvent {
     AnalyticsEventBuilder::heartbeat()
 }
 
-/// Spin the relay until the subscriber receives an event or the budget is
-/// exhausted. Re-routing on each attempt covers the race where the bridge's
-/// `LISTEN` is not yet established when the first `NOTIFY` fires.
+// Spin the relay until the subscriber receives an event or the budget is
+// exhausted. Re-routing on each attempt covers the race where the bridge's
+// `LISTEN` is not yet established when the first `NOTIFY` fires.
 async fn relay_until_delivered<F>(route: F, rx: &mut tokio::sync::mpsc::Receiver<R>) -> bool
 where
     F: Fn() -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send>>,
@@ -229,10 +229,10 @@ async fn analytics_event_relays_through_bridge_to_local_subscriber() {
     );
 }
 
-/// `route_*` must persist a durable, queryable `event_outbox` row once the
-/// relay pool is installed — the handoff peer replicas read back. Installing
-/// the relay directly (no live bridge) keeps the shared fixture pool free of
-/// the listener's long-lived connection while the assertions run.
+// `route_*` must persist a durable, queryable `event_outbox` row once the
+// relay pool is installed — the handoff peer replicas read back. Installing
+// the relay directly (no live bridge) keeps the shared fixture pool free of
+// the listener's long-lived connection while the assertions run.
 #[tokio::test]
 async fn route_persists_queryable_outbox_row() {
     let Some(pool) = pool().await else {
@@ -291,11 +291,11 @@ async fn notify_outbox(pool: &sqlx::PgPool, id: &str) {
         .await;
 }
 
-/// Repeatedly fire a "poison" notification (an outbox id the bridge cannot
-/// deliver) alongside a valid analytics route, asserting the bridge survives
-/// the poison branch and still delivers the good event. The valid delivery is
-/// the deterministic signal; the poison exercises `deliver`/`fan_in` error
-/// arms.
+// Repeatedly fire a "poison" notification (an outbox id the bridge cannot
+// deliver) alongside a valid analytics route, asserting the bridge survives
+// the poison branch and still delivers the good event. The valid delivery is
+// the deterministic signal; the poison exercises `deliver`/`fan_in` error
+// arms.
 async fn relay_survives_poison<Fp>(
     poison: Fp,
     user: &UserId,
@@ -481,9 +481,9 @@ async fn outbox_row_exists(pool: &sqlx::PgPool, id: &str) -> bool {
     row.0 > 0
 }
 
-/// The prune tick fires every 300 seconds, far beyond any test budget, so the
-/// clock is briefly paused and advanced past the interval on each attempt;
-/// the DELETE itself then runs in resumed real time.
+// The prune tick fires every 300 seconds, far beyond any test budget, so the
+// clock is briefly paused and advanced past the interval on each attempt;
+// the DELETE itself then runs in resumed real time.
 #[tokio::test]
 async fn bridge_prune_deletes_expired_rows_and_keeps_fresh_ones() {
     let Some(pool) = pool().await else {

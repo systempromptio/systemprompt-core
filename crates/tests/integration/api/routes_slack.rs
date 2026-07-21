@@ -26,8 +26,8 @@ use wiremock::{Mock, MockServer, ResponseTemplate};
 
 use super::common::body_to_string;
 
-/// A fixture context whose `config.yaml` carries the messaging Slack app, so
-/// `resolve_app` and the signing-secret lookup resolve.
+// A fixture context whose `config.yaml` carries the messaging Slack app, so
+// `resolve_app` and the signing-secret lookup resolve.
 async fn messaging_ctx() -> anyhow::Result<(DbPool, Arc<AppContext>)> {
     let b = ensure_messaging_bootstrap();
     let pool = fixture_db_pool(&b.database_url).await?;

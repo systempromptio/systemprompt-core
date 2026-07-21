@@ -46,10 +46,10 @@ pub fn access(default_included: bool, roles: &[&str]) -> MarketplaceAccess {
     }
 }
 
-/// Installs a WARN-level subscriber for the duration of the returned guard so
-/// the field expressions inside `tracing::warn!` skip/drop branches are
-/// evaluated (and therefore counted) rather than short-circuited by the
-/// no-subscriber fast path.
+// Installs a WARN-level subscriber for the duration of the returned guard so
+// the field expressions inside `tracing::warn!` skip/drop branches are
+// evaluated (and therefore counted) rather than short-circuited by the
+// no-subscriber fast path.
 #[must_use]
 pub fn warn_subscriber_guard() -> tracing::subscriber::DefaultGuard {
     let subscriber = tracing_subscriber::fmt()

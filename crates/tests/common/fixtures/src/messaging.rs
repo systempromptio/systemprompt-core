@@ -14,9 +14,9 @@ use wiremock::MockServer;
 
 use crate::bootstrap::TEST_MESSAGING_AGENT;
 
-/// Register the dispatchable agent backend at `mock`'s loopback port.
-/// Idempotent — `create_service` upserts on the service name, so a re-run
-/// repoints the row.
+// Register the dispatchable agent backend at `mock`'s loopback port.
+// Idempotent — `create_service` upserts on the service name, so a re-run
+// repoints the row.
 pub async fn seed_agent_backend(pool: &DbPool, mock: &MockServer) -> Result<()> {
     let repo = ServiceRepository::new(pool).map_err(|e| anyhow::anyhow!("service repo: {e}"))?;
     repo.create_service(CreateServiceInput {
@@ -31,8 +31,8 @@ pub async fn seed_agent_backend(pool: &DbPool, mock: &MockServer) -> Result<()> 
     Ok(())
 }
 
-/// A successful `message/send` response whose terminal status message carries
-/// `text` — the shape the dispatch reply extraction joins text parts from.
+// A successful `message/send` response whose terminal status message carries
+// `text` — the shape the dispatch reply extraction joins text parts from.
 #[must_use]
 pub fn agent_reply_response_json(text: &str) -> Value {
     json!({
@@ -54,7 +54,7 @@ pub fn agent_reply_response_json(text: &str) -> Value {
     })
 }
 
-/// A JSON-RPC error response — drives the `MessagingError::Dispatch` branch.
+// A JSON-RPC error response — drives the `MessagingError::Dispatch` branch.
 #[must_use]
 pub fn agent_error_response_json(code: i32, message: &str) -> Value {
     json!({
