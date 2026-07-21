@@ -59,9 +59,9 @@ pub fn warn_subscriber_guard() -> tracing::subscriber::DefaultGuard {
     tracing::subscriber::set_default(subscriber)
 }
 
-/// An enabled plugin shipping the named artifacts. It also references
-/// `skill_id`, because a plugin whose references resolve to no content is
-/// dropped from the bundle map — and with it, its artifacts.
+// An enabled plugin shipping the named artifacts. It also references
+// `skill_id`, because a plugin whose references resolve to no content is
+// dropped from the bundle map — and with it, its artifacts.
 #[must_use]
 pub fn plugin_shipping_artifacts(id: &str, skill_id: &str, artifact_ids: &[&str]) -> PluginConfig {
     PluginConfig {
@@ -87,8 +87,8 @@ pub fn plugin_shipping_artifacts(id: &str, skill_id: &str, artifact_ids: &[&str]
     }
 }
 
-/// Writes a minimal enabled skill so a plugin referencing it resolves to real
-/// bundle content.
+// Writes a minimal enabled skill so a plugin referencing it resolves to real
+// bundle content.
 pub fn write_skill_on_disk(root: &std::path::Path, id: &str) {
     let dir = root.join("skills").join(id);
     std::fs::create_dir_all(&dir).expect("create skill dir");

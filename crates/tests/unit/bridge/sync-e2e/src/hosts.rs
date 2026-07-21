@@ -25,9 +25,9 @@ fn sha_hex(bytes: &[u8]) -> String {
     hex::encode(Sha256::digest(bytes))
 }
 
-/// The files the gateway serves for `plugin-a`: a manifest, one skill, one
-/// agent, and a bundled `.mcp.json` (stripped from the Cowork tree and
-/// re-projected by the CLI emitter).
+// The files the gateway serves for `plugin-a`: a manifest, one skill, one
+// agent, and a bundled `.mcp.json` (stripped from the Cowork tree and
+// re-projected by the CLI emitter).
 fn plugin_files() -> Vec<(&'static str, Vec<u8>)> {
     vec![
         (

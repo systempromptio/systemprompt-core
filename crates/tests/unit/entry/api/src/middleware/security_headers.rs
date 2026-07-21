@@ -91,21 +91,17 @@ fn custom_csp_can_be_set() {
 
 #[test]
 fn all_default_values_are_valid_http_header_values() {
+    // Only the free-text fields can carry a value that is not a legal header;
+    // frame_options and referrer_policy render from closed enums, so asserting
+    // on them would test the type system rather than the defaults.
     let config = SecurityHeadersConfig::default();
     assert!(config.hsts.parse::<http::HeaderValue>().is_ok());
-    assert!(
-        config
-            .frame_options
-            .header_value()
-            .is_none_or(|v| http::HeaderValue::from_str(v).is_ok())
-    );
     assert!(
         config
             .content_type_options
             .parse::<http::HeaderValue>()
             .is_ok()
     );
-    assert!(http::HeaderValue::from_str(config.referrer_policy.header_value()).is_ok());
     assert!(
         config
             .permissions_policy

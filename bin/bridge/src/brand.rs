@@ -71,10 +71,7 @@ pub struct Brand {
     /// Brand-scoped so two white-label bridges on one Mac register distinct
     /// agents instead of clobbering each other.
     pub schedule_label: &'static str,
-    /// systemd user-unit basename and Windows XML basename for the scheduled
-    /// sync.
     pub schedule_unit: &'static str,
-    /// Windows Task Scheduler task name for the scheduled sync.
     pub schedule_task_name: &'static str,
     pub assets: BrandAssets,
 }

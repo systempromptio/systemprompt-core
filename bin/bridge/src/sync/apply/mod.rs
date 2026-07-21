@@ -101,13 +101,15 @@ fn remove_legacy_dir(path: &Path, what: &str) {
         Ok(()) => tracing::info!(
             target: "bridge::sync",
             path = %path.display(),
-            "pruned {what}"
+            kind = what,
+            "pruned legacy state"
         ),
         Err(e) => tracing::warn!(
             target: "bridge::sync",
             path = %path.display(),
+            kind = what,
             error = %e,
-            "could not prune {what} (likely permissions); skipping"
+            "could not prune legacy state (likely permissions); skipping"
         ),
     }
 }
