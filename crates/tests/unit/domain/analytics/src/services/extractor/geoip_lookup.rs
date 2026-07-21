@@ -10,7 +10,7 @@ use std::net::IpAddr;
 use std::sync::Arc;
 
 use axum::http::HeaderMap;
-use systemprompt_analytics::{GeoIpReader, SessionAnalytics};
+use systemprompt_analytics::{GeoIpReader, SessionAnalyticsBuilder};
 
 fn test_reader() -> GeoIpReader {
     let path = concat!(
@@ -40,7 +40,7 @@ fn ip(s: &str) -> IpAddr {
 #[test]
 fn public_ip_in_the_database_is_enriched_with_country_region_and_city() {
     let reader = test_reader();
-    let analytics = SessionAnalytics::builder(&HeaderMap::new())
+    let analytics = SessionAnalyticsBuilder::new(&HeaderMap::new())
         .with_geoip(&reader)
         .with_caller_ip(ip("89.160.20.128"))
         .build();
@@ -53,7 +53,7 @@ fn public_ip_in_the_database_is_enriched_with_country_region_and_city() {
 #[test]
 fn ip_absent_from_the_database_leaves_geo_fields_empty() {
     let reader = test_reader();
-    let analytics = SessionAnalytics::builder(&HeaderMap::new())
+    let analytics = SessionAnalyticsBuilder::new(&HeaderMap::new())
         .with_geoip(&reader)
         .with_caller_ip(ip("203.0.113.7"))
         .build();
@@ -73,7 +73,7 @@ fn loopback_unspecified_private_and_link_local_addresses_are_never_looked_up() {
         "192.168.1.1",
         "169.254.10.10",
     ] {
-        let analytics = SessionAnalytics::builder(&HeaderMap::new())
+        let analytics = SessionAnalyticsBuilder::new(&HeaderMap::new())
             .with_geoip(&reader)
             .with_caller_ip(ip(addr))
             .build();
@@ -88,7 +88,7 @@ fn tree_traversal_error_from_a_corrupt_database_yields_no_geo() {
     // DEBUG subscriber is active so the failure-log fields are evaluated.
     let _guard = debug_subscriber_guard();
     let reader = reader_from("MaxMind-DB-test-broken-pointers-24.mmdb");
-    let analytics = SessionAnalytics::builder(&HeaderMap::new())
+    let analytics = SessionAnalyticsBuilder::new(&HeaderMap::new())
         .with_geoip(&reader)
         .with_caller_ip(ip("1.1.1.32"))
         .build();
@@ -104,7 +104,7 @@ fn record_decode_error_from_a_corrupt_database_yields_no_geo() {
     // no geo rather than propagate the error.
     let _guard = debug_subscriber_guard();
     let reader = reader_from("GeoIP2-City-Test-Broken-Double-Format.mmdb");
-    let analytics = SessionAnalytics::builder(&HeaderMap::new())
+    let analytics = SessionAnalyticsBuilder::new(&HeaderMap::new())
         .with_geoip(&reader)
         .with_caller_ip(ip("89.160.20.128"))
         .build();
@@ -116,12 +116,12 @@ fn record_decode_error_from_a_corrupt_database_yields_no_geo() {
 #[test]
 fn missing_client_ip_and_missing_reader_skip_enrichment() {
     let reader = test_reader();
-    let analytics = SessionAnalytics::builder(&HeaderMap::new())
+    let analytics = SessionAnalyticsBuilder::new(&HeaderMap::new())
         .with_geoip(&reader)
         .build();
     assert_eq!(analytics.country, None);
 
-    let analytics = SessionAnalytics::builder(&HeaderMap::new())
+    let analytics = SessionAnalyticsBuilder::new(&HeaderMap::new())
         .with_caller_ip(ip("89.160.20.128"))
         .build();
     assert_eq!(analytics.country, None);

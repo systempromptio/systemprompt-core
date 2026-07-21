@@ -6,28 +6,15 @@
 use std::sync::Arc;
 
 use crate::Result;
-use chrono::{DateTime, Utc};
 use http::HeaderMap;
 
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::{SessionId, SessionSource, UserId};
 use systemprompt_models::ContentRouting;
-use systemprompt_traits::ExtractSignals;
+use systemprompt_traits::{CreateSessionInput, ExtractSignals};
 
 use crate::GeoIpReader;
 use crate::repository::{CreateSessionParams, SessionRecord, SessionRepository};
-use crate::services::SessionAnalytics;
-
-#[derive(Debug)]
-pub struct CreateAnalyticsSessionInput<'a> {
-    pub session_id: &'a SessionId,
-    pub user_id: Option<&'a UserId>,
-    pub analytics: &'a SessionAnalytics,
-    pub session_source: SessionSource,
-    pub is_bot: bool,
-    pub is_ai_crawler: bool,
-    pub expires_at: DateTime<Utc>,
-}
+use crate::services::{SessionAnalytics, SessionAnalyticsBuilder};
 
 #[derive(Clone)]
 pub struct AnalyticsService {
@@ -64,7 +51,7 @@ impl AnalyticsService {
         headers: &HeaderMap,
         signals: ExtractSignals<'_>,
     ) -> SessionAnalytics {
-        let mut builder = SessionAnalytics::builder(headers);
+        let mut builder = SessionAnalyticsBuilder::new(headers);
         if let Some(uri) = signals.uri {
             builder = builder.with_uri(uri);
         }
@@ -80,29 +67,8 @@ impl AnalyticsService {
         builder.build()
     }
 
-    pub fn is_bot(analytics: &SessionAnalytics) -> bool {
-        analytics.should_skip_tracking()
-    }
-
-    pub fn compute_fingerprint(analytics: &SessionAnalytics) -> String {
-        analytics.fingerprint_hash.clone().unwrap_or_else(|| {
-            use xxhash_rust::xxh64::xxh64;
-
-            let data = format!(
-                "{}|{}",
-                analytics.user_agent.as_deref().unwrap_or(""),
-                analytics.preferred_locale.as_deref().unwrap_or("")
-            );
-
-            format!("fp_{:016x}", xxh64(data.as_bytes(), 0))
-        })
-    }
-
-    pub async fn create_analytics_session(
-        &self,
-        input: CreateAnalyticsSessionInput<'_>,
-    ) -> Result<()> {
-        let fingerprint = Self::compute_fingerprint(input.analytics);
+    pub async fn create_analytics_session(&self, input: CreateSessionInput<'_>) -> Result<()> {
+        let fingerprint = input.analytics.compute_fingerprint();
 
         let params = CreateSessionParams {
             session_id: input.session_id,

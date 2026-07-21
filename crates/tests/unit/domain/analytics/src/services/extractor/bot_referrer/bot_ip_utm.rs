@@ -2,7 +2,7 @@
 //! extraction tests.
 
 use axum::http::{HeaderMap, HeaderValue, Uri};
-use systemprompt_analytics::SessionAnalytics;
+use systemprompt_analytics::SessionAnalyticsBuilder;
 
 mod bot_ip_utm_tests {
     use super::*;
@@ -38,9 +38,9 @@ mod bot_ip_utm_tests {
     #[test]
     fn compatible_user_agent_without_browser_is_bot() {
         let headers = create_headers_with_user_agent("Mozilla/5.0 (compatible; SomeBot/1.0)");
-        let analytics = SessionAnalytics::builder(&headers).build();
+        let analytics = SessionAnalyticsBuilder::new(&headers).build();
 
-        assert!(analytics.is_bot());
+        assert!(analytics.is_bot);
     }
 
     #[test]
@@ -48,15 +48,15 @@ mod bot_ip_utm_tests {
         let headers = create_headers_with_user_agent(
             "Mozilla/5.0 (compatible; MSIE 10.0; Windows NT; Chrome/120.0)",
         );
-        let analytics = SessionAnalytics::builder(&headers).build();
+        let analytics = SessionAnalyticsBuilder::new(&headers).build();
 
-        assert!(!analytics.is_bot());
+        assert!(!analytics.is_bot);
     }
 
     #[test]
     fn client_ip_is_stored_as_ip_address() {
         let headers = HeaderMap::new();
-        let analytics = SessionAnalytics::builder(&headers)
+        let analytics = SessionAnalyticsBuilder::new(&headers)
             .with_caller_ip("203.0.113.9".parse().unwrap())
             .build();
 
@@ -66,59 +66,69 @@ mod bot_ip_utm_tests {
     #[test]
     fn client_ip_none_leaves_ip_address_unset() {
         let headers = HeaderMap::new();
-        let analytics = SessionAnalytics::builder(&headers).build();
+        let analytics = SessionAnalyticsBuilder::new(&headers).build();
 
         assert!(analytics.ip_address.is_none());
     }
 
     #[test]
-    fn is_bot_ip_returns_true_for_microsoft_157_ip() {
-        let headers = HeaderMap::new();
-        let analytics = SessionAnalytics::builder(&headers)
+    fn known_bot_ip_range_skips_tracking_microsoft_157_ip() {
+        let headers = create_headers_with_user_agent(
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36",
+        );
+        let analytics = SessionAnalyticsBuilder::new(&headers)
             .with_caller_ip("157.55.39.1".parse().unwrap())
             .build();
 
-        assert!(analytics.is_bot_ip());
+        assert!(analytics.skip_tracking);
     }
 
     #[test]
-    fn is_bot_ip_returns_true_for_microsoft_207_ip() {
-        let headers = HeaderMap::new();
-        let analytics = SessionAnalytics::builder(&headers)
+    fn known_bot_ip_range_skips_tracking_microsoft_207_ip() {
+        let headers = create_headers_with_user_agent(
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36",
+        );
+        let analytics = SessionAnalyticsBuilder::new(&headers)
             .with_caller_ip("207.46.13.1".parse().unwrap())
             .build();
 
-        assert!(analytics.is_bot_ip());
+        assert!(analytics.skip_tracking);
     }
 
     #[test]
-    fn is_bot_ip_returns_true_for_facebook_69_ip() {
-        let headers = HeaderMap::new();
-        let analytics = SessionAnalytics::builder(&headers)
+    fn known_bot_ip_range_skips_tracking_facebook_69_ip() {
+        let headers = create_headers_with_user_agent(
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36",
+        );
+        let analytics = SessionAnalyticsBuilder::new(&headers)
             .with_caller_ip("69.171.250.1".parse().unwrap())
             .build();
 
-        assert!(analytics.is_bot_ip());
+        assert!(analytics.skip_tracking);
     }
 
     #[test]
-    fn is_bot_ip_returns_true_for_facebook_173_ip() {
-        let headers = HeaderMap::new();
-        let analytics = SessionAnalytics::builder(&headers)
+    fn known_bot_ip_range_skips_tracking_facebook_173_ip() {
+        let headers = create_headers_with_user_agent(
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36",
+        );
+        let analytics = SessionAnalyticsBuilder::new(&headers)
             .with_caller_ip("173.252.88.1".parse().unwrap())
             .build();
 
-        assert!(analytics.is_bot_ip());
+        assert!(analytics.skip_tracking);
     }
 
     #[test]
-    fn is_bot_ip_returns_true_for_facebook_31_ip() {
-        let headers = HeaderMap::new();
-        let analytics = SessionAnalytics::builder(&headers)
+    fn known_bot_ip_range_skips_tracking_facebook_31_ip() {
+        let headers = create_headers_with_user_agent(
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36",
+        );
+        let analytics = SessionAnalyticsBuilder::new(&headers)
             .with_caller_ip("31.13.24.1".parse().unwrap())
             .build();
 
-        assert!(analytics.is_bot_ip());
+        assert!(analytics.skip_tracking);
     }
 
     #[test]
@@ -127,7 +137,9 @@ mod bot_ip_utm_tests {
         let uri: Uri = "https://example.com/page?utm_source=google"
             .parse()
             .unwrap();
-        let analytics = SessionAnalytics::builder(&headers).with_uri(&uri).build();
+        let analytics = SessionAnalyticsBuilder::new(&headers)
+            .with_uri(&uri)
+            .build();
 
         assert_eq!(analytics.utm_source, Some("google".to_string()));
     }
@@ -136,7 +148,9 @@ mod bot_ip_utm_tests {
     fn from_headers_and_uri_extracts_utm_medium() {
         let headers = create_full_headers();
         let uri: Uri = "https://example.com/page?utm_medium=cpc".parse().unwrap();
-        let analytics = SessionAnalytics::builder(&headers).with_uri(&uri).build();
+        let analytics = SessionAnalyticsBuilder::new(&headers)
+            .with_uri(&uri)
+            .build();
 
         assert_eq!(analytics.utm_medium, Some("cpc".to_string()));
     }
@@ -147,7 +161,9 @@ mod bot_ip_utm_tests {
         let uri: Uri = "https://example.com/page?utm_campaign=summer_sale"
             .parse()
             .unwrap();
-        let analytics = SessionAnalytics::builder(&headers).with_uri(&uri).build();
+        let analytics = SessionAnalyticsBuilder::new(&headers)
+            .with_uri(&uri)
+            .build();
 
         assert_eq!(analytics.utm_campaign, Some("summer_sale".to_string()));
     }
@@ -158,7 +174,9 @@ mod bot_ip_utm_tests {
         let uri: Uri = "https://example.com/?utm_source=google&utm_medium=cpc&utm_campaign=test"
             .parse()
             .unwrap();
-        let analytics = SessionAnalytics::builder(&headers).with_uri(&uri).build();
+        let analytics = SessionAnalyticsBuilder::new(&headers)
+            .with_uri(&uri)
+            .build();
 
         assert_eq!(analytics.utm_source, Some("google".to_string()));
         assert_eq!(analytics.utm_medium, Some("cpc".to_string()));
@@ -168,7 +186,7 @@ mod bot_ip_utm_tests {
     #[test]
     fn from_headers_and_uri_without_uri() {
         let headers = create_full_headers();
-        let analytics = SessionAnalytics::builder(&headers).build();
+        let analytics = SessionAnalyticsBuilder::new(&headers).build();
 
         assert!(analytics.utm_source.is_none());
         assert!(analytics.entry_url.is_none());

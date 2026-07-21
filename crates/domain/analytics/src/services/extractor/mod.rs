@@ -25,111 +25,37 @@ use crate::GeoIpReader;
 
 mod geoip;
 
-#[derive(Debug, Clone, Default)]
-pub struct SessionAnalytics {
-    pub ip_address: Option<String>,
-    pub user_agent: Option<String>,
-    pub device_type: Option<String>,
-    pub browser: Option<String>,
-    pub os: Option<String>,
-    pub fingerprint_hash: Option<String>,
-    pub preferred_locale: Option<String>,
-    pub country: Option<String>,
-    pub region: Option<String>,
-    pub city: Option<String>,
-    pub referrer_source: Option<String>,
-    pub referrer_url: Option<String>,
-    pub landing_page: Option<String>,
-    pub entry_url: Option<String>,
-    pub utm_source: Option<String>,
-    pub utm_medium: Option<String>,
-    pub utm_campaign: Option<String>,
-    pub utm_content: Option<String>,
-    pub utm_term: Option<String>,
+pub use systemprompt_traits::SessionAnalytics;
+
+fn parse_query_params(uri: &Uri) -> HashMap<String, String> {
+    uri.query().map_or_else(HashMap::new, |q| {
+        q.split('&')
+            .filter_map(|param| {
+                let mut parts = param.splitn(2, '=');
+                Some((parts.next()?.to_owned(), parts.next()?.to_owned()))
+            })
+            .collect()
+    })
 }
 
-impl SessionAnalytics {
-    #[must_use]
-    pub fn builder(headers: &HeaderMap) -> SessionAnalyticsBuilder<'_> {
-        SessionAnalyticsBuilder {
-            headers,
-            uri: None,
-            geoip_reader: None,
-            content_routing: None,
-            caller_ip: None,
-        }
-    }
-
-    fn parse_query_params(uri: &Uri) -> HashMap<String, String> {
-        uri.query().map_or_else(HashMap::new, |q| {
-            q.split('&')
-                .filter_map(|param| {
-                    let mut parts = param.splitn(2, '=');
-                    Some((parts.next()?.to_owned(), parts.next()?.to_owned()))
-                })
-                .collect()
-        })
-    }
-
-    fn parse_referrer_source(url: &str) -> Option<String> {
-        geoip::parse_referrer_source(url)
-    }
-
-    pub fn is_bot(&self) -> bool {
-        if self.is_ai_crawler() {
-            return false;
-        }
-        self.user_agent
-            .as_ref()
-            .is_none_or(|ua| ua.is_empty() || matches_bot_pattern(ua))
-    }
-
-    pub fn is_ai_crawler(&self) -> bool {
-        self.user_agent
-            .as_ref()
-            .is_some_and(|ua| matches_ai_crawler(ua))
-    }
-
-    pub fn is_bot_ip(&self) -> bool {
-        self.ip_address
-            .as_ref()
-            .is_some_and(|ip| matches_bot_ip_range(ip))
-    }
-
-    pub fn is_spam_referrer(&self) -> bool {
-        self.referrer_url
-            .as_ref()
-            .is_some_and(|url| detection::is_spam_referrer(url))
-    }
-
-    pub fn is_datacenter_ip(&self) -> bool {
-        self.ip_address
-            .as_ref()
-            .is_some_and(|ip| detection::is_datacenter_ip(ip))
-    }
-
-    pub fn is_high_risk_country(&self) -> bool {
-        self.country
-            .as_ref()
-            .is_some_and(|c| detection::is_high_risk_country(c))
-    }
-
-    pub fn should_skip_tracking(&self) -> bool {
-        if self.is_ai_crawler() {
-            return false;
-        }
-        self.is_bot()
-            || self.is_bot_ip()
-            || self.is_datacenter_ip()
-            || self.is_high_risk_country()
-            || self.is_spam_referrer()
+fn parse_referrer_source(url: &str) -> Option<String> {
+    match url::Url::parse(url) {
+        Ok(parsed_url) => parsed_url
+            .host_str()
+            .map(str::to_owned)
+            .filter(|host| host.parse::<IpAddr>().is_err()),
+        Err(err) => {
+            tracing::debug!(url = %url, error = %err, "failed to parse referrer URL");
+            None
+        },
     }
 }
 
-/// Builds a [`SessionAnalytics`] from an HTTP request. `headers` is the only
-/// required input; every enrichment source (URI for UTM/landing-page, `GeoIP`
-/// reader, content-routing classifier, resolved caller IP) is opt-in via a
-/// `with_*` setter.
+/// Builds a [`SessionAnalytics`] from an HTTP request.
+///
+/// `headers` is the only required input; every enrichment source (URI for
+/// UTM/landing-page, `GeoIP` reader, content-routing classifier, resolved
+/// caller IP) is opt-in via a `with_*` setter.
 pub struct SessionAnalyticsBuilder<'a> {
     headers: &'a HeaderMap,
     uri: Option<&'a Uri>,
@@ -154,6 +80,17 @@ impl std::fmt::Debug for SessionAnalyticsBuilder<'_> {
 }
 
 impl<'a> SessionAnalyticsBuilder<'a> {
+    #[must_use]
+    pub const fn new(headers: &'a HeaderMap) -> Self {
+        Self {
+            headers,
+            uri: None,
+            geoip_reader: None,
+            content_routing: None,
+            caller_ip: None,
+        }
+    }
+
     #[must_use]
     pub const fn with_uri(mut self, uri: &'a Uri) -> Self {
         self.uri = Some(uri);
@@ -217,9 +154,7 @@ impl<'a> SessionAnalyticsBuilder<'a> {
             .and_then(|v| v.to_str().ok())
             .map(str::to_owned);
 
-        let referrer_source = referrer_url
-            .as_ref()
-            .and_then(|url| SessionAnalytics::parse_referrer_source(url));
+        let referrer_source = referrer_url.as_deref().and_then(parse_referrer_source);
 
         let mut analytics = SessionAnalytics {
             ip_address,
@@ -241,13 +176,49 @@ impl<'a> SessionAnalyticsBuilder<'a> {
             utm_campaign: None,
             utm_content: None,
             utm_term: None,
+            is_bot: false,
+            is_ai_crawler: false,
+            skip_tracking: false,
         };
 
         if let Some(uri) = self.uri {
             Self::apply_uri(&mut analytics, uri, self.content_routing);
         }
 
+        Self::classify(&mut analytics);
+
         analytics
+    }
+
+    /// Decides the bot/crawler verdicts once, at the only place that owns the
+    /// keyword tables. Must run after `apply_uri` — `skip_tracking` consults
+    /// the referrer, and the country comes from the `GeoIP` lookup above.
+    fn classify(analytics: &mut SessionAnalytics) {
+        analytics.is_ai_crawler = analytics
+            .user_agent
+            .as_ref()
+            .is_some_and(|ua| matches_ai_crawler(ua));
+
+        analytics.is_bot = !analytics.is_ai_crawler
+            && analytics
+                .user_agent
+                .as_ref()
+                .is_none_or(|ua| ua.is_empty() || matches_bot_pattern(ua));
+
+        let flagged_origin = analytics
+            .ip_address
+            .as_ref()
+            .is_some_and(|ip| matches_bot_ip_range(ip) || detection::is_datacenter_ip(ip))
+            || analytics
+                .country
+                .as_ref()
+                .is_some_and(|c| detection::is_high_risk_country(c))
+            || analytics
+                .referrer_url
+                .as_ref()
+                .is_some_and(|url| detection::is_spam_referrer(url));
+
+        analytics.skip_tracking = !analytics.is_ai_crawler && (analytics.is_bot || flagged_origin);
     }
 
     fn apply_uri(
@@ -255,7 +226,7 @@ impl<'a> SessionAnalyticsBuilder<'a> {
         uri: &Uri,
         content_routing: Option<&dyn systemprompt_models::ContentRouting>,
     ) {
-        let query_params = SessionAnalytics::parse_query_params(uri);
+        let query_params = parse_query_params(uri);
 
         analytics.utm_source = query_params.get("utm_source").cloned();
         analytics.utm_medium = query_params.get("utm_medium").cloned();

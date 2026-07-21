@@ -16,11 +16,9 @@ use http::HeaderMap;
 use systemprompt_identifiers::{SessionId, UserId};
 use systemprompt_traits::{
     ActiveSession, AnalyticsProvider, AnalyticsProviderError, AnalyticsResult, AnalyticsSession,
-    CreateSessionInput, ExtractSignals, FingerprintProvider,
-    SessionAnalytics as TraitSessionAnalytics,
+    CreateSessionInput, ExtractSignals, FingerprintProvider, SessionAnalytics,
 };
 
-use super::SessionAnalytics;
 use super::service::AnalyticsService;
 use crate::repository::FingerprintRepository;
 
@@ -30,83 +28,12 @@ impl AnalyticsProvider for AnalyticsService {
         &self,
         headers: &HeaderMap,
         signals: ExtractSignals<'_>,
-    ) -> TraitSessionAnalytics {
-        let local = Self::extract_analytics(self, headers, signals);
-        TraitSessionAnalytics {
-            ip_address: local.ip_address,
-            user_agent: local.user_agent,
-            device_type: local.device_type,
-            browser: local.browser,
-            os: local.os,
-            fingerprint_hash: local.fingerprint_hash,
-            referer: local.referrer_url.clone(),
-            referrer_url: local.referrer_url,
-            referrer_source: local.referrer_source,
-            accept_language: local.preferred_locale.clone(),
-            preferred_locale: local.preferred_locale,
-            screen_width: None,
-            screen_height: None,
-            timezone: None,
-            page_url: local.entry_url.clone(),
-            landing_page: local.landing_page,
-            entry_url: local.entry_url,
-            country: local.country,
-            region: local.region,
-            city: local.city,
-            utm_source: local.utm_source,
-            utm_medium: local.utm_medium,
-            utm_campaign: local.utm_campaign,
-            utm_content: local.utm_content,
-            utm_term: local.utm_term,
-        }
+    ) -> SessionAnalytics {
+        Self::extract_analytics(self, headers, signals)
     }
 
     async fn create_session(&self, input: CreateSessionInput<'_>) -> AnalyticsResult<()> {
-        let local_analytics = SessionAnalytics {
-            ip_address: input.analytics.ip_address.clone(),
-            user_agent: input.analytics.user_agent.clone(),
-            device_type: input.analytics.device_type.clone(),
-            browser: input.analytics.browser.clone(),
-            os: input.analytics.os.clone(),
-            fingerprint_hash: input.analytics.fingerprint_hash.clone(),
-            referrer_url: input
-                .analytics
-                .referrer_url
-                .clone()
-                .or_else(|| input.analytics.referer.clone()),
-            referrer_source: input.analytics.referrer_source.clone(),
-            preferred_locale: input
-                .analytics
-                .preferred_locale
-                .clone()
-                .or_else(|| input.analytics.accept_language.clone()),
-            landing_page: input.analytics.landing_page.clone(),
-            entry_url: input
-                .analytics
-                .entry_url
-                .clone()
-                .or_else(|| input.analytics.page_url.clone()),
-            country: input.analytics.country.clone(),
-            region: input.analytics.region.clone(),
-            city: input.analytics.city.clone(),
-            utm_source: input.analytics.utm_source.clone(),
-            utm_medium: input.analytics.utm_medium.clone(),
-            utm_campaign: input.analytics.utm_campaign.clone(),
-            utm_content: input.analytics.utm_content.clone(),
-            utm_term: input.analytics.utm_term.clone(),
-        };
-
-        let local_input = super::service::CreateAnalyticsSessionInput {
-            session_id: input.session_id,
-            user_id: input.user_id,
-            analytics: &local_analytics,
-            session_source: input.session_source,
-            is_bot: input.is_bot,
-            is_ai_crawler: input.is_ai_crawler,
-            expires_at: input.expires_at,
-        };
-
-        self.create_analytics_session(local_input)
+        self.create_analytics_session(input)
             .await
             .map_err(|e| AnalyticsProviderError::Internal(e.to_string()))
     }

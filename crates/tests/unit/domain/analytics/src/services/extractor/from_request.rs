@@ -5,7 +5,7 @@
 use axum::body::Body;
 use axum::extract::Request;
 use axum::http::HeaderValue;
-use systemprompt_analytics::SessionAnalytics;
+use systemprompt_analytics::SessionAnalyticsBuilder;
 use systemprompt_models::ContentRouting;
 
 #[derive(Debug)]
@@ -37,7 +37,7 @@ fn from_request_extracts_utm_and_landing_page() {
         "Mozilla/5.0 (Windows NT 10.0) Chrome/120.0",
     );
     let routing = HtmlRouting;
-    let analytics = SessionAnalytics::builder(request.headers())
+    let analytics = SessionAnalyticsBuilder::new(request.headers())
         .with_uri(request.uri())
         .with_content_routing(&routing)
         .build();
@@ -60,7 +60,7 @@ fn from_request_extracts_utm_and_landing_page() {
 #[test]
 fn from_request_without_routing_leaves_landing_page_unset() {
     let request = request_with("https://example.com/x", "Mozilla/5.0 Chrome/120.0");
-    let analytics = SessionAnalytics::builder(request.headers())
+    let analytics = SessionAnalyticsBuilder::new(request.headers())
         .with_uri(request.uri())
         .build();
 
@@ -71,22 +71,22 @@ fn from_request_without_routing_leaves_landing_page_unset() {
 #[test]
 fn should_skip_tracking_is_false_for_ai_crawler() {
     let request = request_with("https://example.com/", "GPTBot/1.0");
-    let analytics = SessionAnalytics::builder(request.headers())
+    let analytics = SessionAnalyticsBuilder::new(request.headers())
         .with_uri(request.uri())
         .build();
 
-    assert!(analytics.is_ai_crawler());
+    assert!(analytics.is_ai_crawler);
     // The AI-crawler exemption short-circuits every skip heuristic.
-    assert!(!analytics.should_skip_tracking());
+    assert!(!analytics.skip_tracking);
 }
 
 #[test]
 fn should_skip_tracking_is_true_for_plain_bot() {
     let request = request_with("https://example.com/", "Googlebot/2.1");
-    let analytics = SessionAnalytics::builder(request.headers())
+    let analytics = SessionAnalyticsBuilder::new(request.headers())
         .with_uri(request.uri())
         .build();
 
-    assert!(!analytics.is_ai_crawler());
-    assert!(analytics.should_skip_tracking());
+    assert!(!analytics.is_ai_crawler);
+    assert!(analytics.skip_tracking);
 }

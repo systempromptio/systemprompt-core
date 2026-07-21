@@ -23,6 +23,7 @@ use crate::routes::oauth::extractors::OAuthRepo;
 use crate::services::middleware::client_addr::ClientIp;
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::repository::{OAuthRepository, RefreshTokenParams};
+use systemprompt_traits::ExtractSignals;
 
 #[derive(Debug, Deserialize)]
 pub struct CallbackQuery {
@@ -187,13 +188,15 @@ async fn exchange_code_for_token(
     if let Some(publisher) = state.event_publisher() {
         session_service = session_service.with_event_publisher(Arc::clone(publisher));
     }
+    let analytics = state.analytics_provider().extract_analytics(
+        params.headers,
+        ExtractSignals {
+            caller_ip: params.caller_ip,
+            ..Default::default()
+        },
+    );
     let session_id = session_service
-        .create_authenticated_session(
-            &validation_result.user_id,
-            params.headers,
-            SessionSource::Oauth,
-            params.caller_ip,
-        )
+        .create_authenticated_session(&validation_result.user_id, &analytics, SessionSource::Oauth)
         .await?;
 
     let access_token_jti = generate_access_token_jti();

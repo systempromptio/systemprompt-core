@@ -55,7 +55,7 @@ pub use services::{
     AnalyticsAiSessionProvider, AnalyticsService, AnomalyCheckResult, AnomalyDetectionService,
     AnomalyEvent, AnomalyLevel, AnomalyThresholdConfig, BEHAVIORAL_BOT_THRESHOLD,
     BehavioralAnalysisInput, BehavioralAnalysisResult, BehavioralBotDetector, BehavioralSignal,
-    CreateAnalyticsSessionInput, SessionAnalytics, SessionCleanupService, SignalType, detection,
+    SessionAnalytics, SessionAnalyticsBuilder, SessionCleanupService, SignalType, detection,
 };
 
 #[cfg(feature = "geolocation")]

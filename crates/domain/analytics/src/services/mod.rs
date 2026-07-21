@@ -27,6 +27,6 @@ pub use behavioral_detector::{
     BEHAVIORAL_BOT_THRESHOLD, BehavioralAnalysisInput, BehavioralAnalysisResult,
     BehavioralBotDetector, BehavioralSignal, SignalType,
 };
-pub use extractor::SessionAnalytics;
-pub use service::{AnalyticsService, CreateAnalyticsSessionInput};
+pub use extractor::{SessionAnalytics, SessionAnalyticsBuilder};
+pub use service::AnalyticsService;
 pub use session_cleanup::SessionCleanupService;

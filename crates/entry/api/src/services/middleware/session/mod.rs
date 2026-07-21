@@ -18,9 +18,9 @@ use axum::http::header;
 use axum::middleware::Next;
 use axum::response::Response;
 use ipnet::IpNet;
-use std::net::{IpAddr, SocketAddr};
+use std::net::SocketAddr;
 use std::sync::Arc;
-use systemprompt_analytics::AnalyticsService;
+use systemprompt_analytics::{AnalyticsService, SessionAnalytics};
 use systemprompt_identifiers::{AgentName, ContextId, SessionId, UserId};
 use systemprompt_models::api::ApiError;
 use systemprompt_models::auth::UserType;
@@ -34,10 +34,13 @@ use systemprompt_traits::{AnalyticsProvider, ExtractSignals};
 use systemprompt_users::UserService;
 use uuid::Uuid;
 
+/// The request, extracted exactly once. `analytics` is derived at the top of
+/// [`SessionMiddleware::handle`] and passed by reference from there on — no
+/// downstream step re-derives it from `headers`.
 struct RequestMeta<'a> {
     headers: &'a http::HeaderMap,
     uri: &'a http::Uri,
-    caller_ip: Option<IpAddr>,
+    analytics: &'a SessionAnalytics,
 }
 
 #[derive(Clone, Debug)]
@@ -72,10 +75,17 @@ impl SessionMiddleware {
         );
         let uri = request.uri().clone();
         let headers = request.headers();
+        let analytics = self.analytics_service.extract_analytics(
+            headers,
+            ExtractSignals {
+                uri: Some(&uri),
+                caller_ip,
+            },
+        );
         let meta = RequestMeta {
             headers,
             uri: &uri,
-            caller_ip,
+            analytics: &analytics,
         };
 
         let should_skip = should_skip_session_tracking(uri.path());
@@ -134,7 +144,7 @@ impl SessionMiddleware {
     ) -> Result<RequestContext, ApiError> {
         let (user_id, fingerprint) = self
             .session_creation_service
-            .ensure_anonymous_user(meta.headers, Some(meta.uri), meta.caller_ip)
+            .ensure_anonymous_user(meta.analytics)
             .await
             .map_err(|e| {
                 tracing::error!(error = %e, session_prefix, "Failed to ensure anonymous user");
@@ -158,23 +168,14 @@ impl SessionMiddleware {
         trace_id: systemprompt_identifiers::TraceId,
         meta: &RequestMeta<'_>,
     ) -> Result<(RequestContext, Option<String>), ApiError> {
-        let analytics = self.analytics_service.extract_analytics(
-            meta.headers,
-            ExtractSignals {
-                uri: Some(meta.uri),
-                caller_ip: meta.caller_ip,
-            },
-        );
-        let is_bot = AnalyticsService::is_bot(&analytics);
-
         tracing::debug!(
             path = %meta.uri.path(),
-            is_bot = is_bot,
-            user_agent = ?analytics.user_agent,
+            skip_tracking = meta.analytics.skip_tracking,
+            user_agent = ?meta.analytics.user_agent,
             "Session middleware bot check"
         );
 
-        if is_bot {
+        if meta.analytics.skip_tracking {
             return Ok((self.anonymous_context("bot", trace_id, meta).await?, None));
         }
 
@@ -245,7 +246,6 @@ impl SessionMiddleware {
         );
         match lifecycle::refresh_session_for_user(
             &self.session_creation_service,
-            &self.analytics_service,
             &jwt_context.user_id,
             meta,
         )

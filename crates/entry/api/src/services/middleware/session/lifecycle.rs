@@ -4,7 +4,6 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
-use systemprompt_analytics::AnalyticsService;
 use systemprompt_identifiers::{ClientId, SessionId, SessionSource, UserId};
 
 use super::RequestMeta;
@@ -12,7 +11,6 @@ use systemprompt_models::api::ApiError;
 use systemprompt_oauth::services::{
     CreateAnonymousSessionInput, SessionCreationError, SessionCreationService,
 };
-use systemprompt_traits::ExtractSignals;
 
 pub(super) async fn create_new_session(
     session_creation_service: &Arc<SessionCreationService>,
@@ -22,9 +20,7 @@ pub(super) async fn create_new_session(
 
     session_creation_service
         .create_anonymous_session(CreateAnonymousSessionInput {
-            headers: meta.headers,
-            uri: Some(meta.uri),
-            caller_ip: meta.caller_ip,
+            analytics: meta.analytics,
             client_id: &client_id,
             session_source: SessionSource::Web,
         })
@@ -46,12 +42,11 @@ pub(super) async fn create_new_session(
 
 pub(super) async fn refresh_session_for_user(
     session_creation_service: &Arc<SessionCreationService>,
-    analytics_service: &Arc<AnalyticsService>,
     user_id: &UserId,
     meta: &RequestMeta<'_>,
 ) -> Result<(SessionId, UserId, String, bool, String), ApiError> {
     let session_id = session_creation_service
-        .create_authenticated_session(user_id, meta.headers, SessionSource::Web, meta.caller_ip)
+        .create_authenticated_session(user_id, meta.analytics, SessionSource::Web)
         .await
         .map_err(|e| match e {
             SessionCreationError::UserNotFound { ref user_id } => {
@@ -82,14 +77,11 @@ pub(super) async fn refresh_session_for_user(
         ApiError::internal_error("Failed to refresh session")
     })?;
 
-    let analytics = analytics_service.extract_analytics(
-        meta.headers,
-        ExtractSignals {
-            uri: Some(meta.uri),
-            caller_ip: meta.caller_ip,
-        },
-    );
-    let fingerprint = AnalyticsService::compute_fingerprint(&analytics);
-
-    Ok((session_id, user_id.clone(), token, true, fingerprint))
+    Ok((
+        session_id,
+        user_id.clone(),
+        token,
+        true,
+        meta.analytics.compute_fingerprint(),
+    ))
 }

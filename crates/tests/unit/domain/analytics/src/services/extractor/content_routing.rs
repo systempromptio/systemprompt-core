@@ -1,7 +1,7 @@
 //! Tests for content routing integration with session analytics.
 
 use axum::http::{HeaderMap, HeaderValue, Uri};
-use systemprompt_analytics::SessionAnalytics;
+use systemprompt_analytics::SessionAnalyticsBuilder;
 use systemprompt_models::ContentRouting;
 
 #[derive(Debug)]
@@ -51,7 +51,7 @@ fn html_page_sets_entry_url() {
     let headers = create_full_headers();
     let uri: Uri = "https://example.com/about".parse().unwrap();
     let routing = MockHtmlRouting;
-    let analytics = SessionAnalytics::builder(&headers)
+    let analytics = SessionAnalyticsBuilder::new(&headers)
         .with_uri(&uri)
         .with_content_routing(&routing)
         .build();
@@ -64,7 +64,7 @@ fn html_page_without_referrer_sets_landing_page() {
     let headers = create_headers_with_user_agent("Mozilla/5.0 Chrome/120");
     let uri: Uri = "https://example.com/landing".parse().unwrap();
     let routing = MockHtmlRouting;
-    let analytics = SessionAnalytics::builder(&headers)
+    let analytics = SessionAnalyticsBuilder::new(&headers)
         .with_uri(&uri)
         .with_content_routing(&routing)
         .build();
@@ -80,7 +80,7 @@ fn html_page_with_same_site_referrer_sets_landing_page() {
     );
     let uri: Uri = "https://example.com/page".parse().unwrap();
     let routing = MockHtmlRouting;
-    let analytics = SessionAnalytics::builder(&headers)
+    let analytics = SessionAnalyticsBuilder::new(&headers)
         .with_uri(&uri)
         .with_content_routing(&routing)
         .build();
@@ -96,7 +96,7 @@ fn html_page_with_localhost_referrer_sets_landing_page() {
     );
     let uri: Uri = "https://example.com/page".parse().unwrap();
     let routing = MockHtmlRouting;
-    let analytics = SessionAnalytics::builder(&headers)
+    let analytics = SessionAnalyticsBuilder::new(&headers)
         .with_uri(&uri)
         .with_content_routing(&routing)
         .build();
@@ -112,7 +112,7 @@ fn html_page_with_tyingshoelaces_referrer_sets_landing_page() {
     );
     let uri: Uri = "https://example.com/page".parse().unwrap();
     let routing = MockHtmlRouting;
-    let analytics = SessionAnalytics::builder(&headers)
+    let analytics = SessionAnalyticsBuilder::new(&headers)
         .with_uri(&uri)
         .with_content_routing(&routing)
         .build();
@@ -128,7 +128,7 @@ fn html_page_with_external_referrer_still_sets_landing_page() {
     );
     let uri: Uri = "https://example.com/page".parse().unwrap();
     let routing = MockHtmlRouting;
-    let analytics = SessionAnalytics::builder(&headers)
+    let analytics = SessionAnalyticsBuilder::new(&headers)
         .with_uri(&uri)
         .with_content_routing(&routing)
         .build();
@@ -140,7 +140,7 @@ fn non_html_page_no_entry_url() {
     let headers = create_full_headers();
     let uri: Uri = "https://example.com/api/data".parse().unwrap();
     let routing = MockNonHtmlRouting;
-    let analytics = SessionAnalytics::builder(&headers)
+    let analytics = SessionAnalyticsBuilder::new(&headers)
         .with_uri(&uri)
         .with_content_routing(&routing)
         .build();

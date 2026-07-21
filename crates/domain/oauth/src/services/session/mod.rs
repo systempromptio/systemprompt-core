@@ -7,17 +7,15 @@ mod creation;
 mod lookup;
 
 use crate::error::OauthResult;
-use http::{HeaderMap, Uri};
 use std::collections::HashMap;
-use std::net::IpAddr;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use uuid::Uuid;
 
 use systemprompt_identifiers::{ClientId, SessionId, SessionSource, UserId};
 use systemprompt_traits::{
-    AnalyticsProvider, CreateSessionInput, ExtractSignals, FingerprintProvider, SessionAnalytics,
-    UserEvent, UserEventPublisher, UserProvider,
+    AnalyticsProvider, CreateSessionInput, FingerprintProvider, SessionAnalytics, UserEvent,
+    UserEventPublisher, UserProvider,
 };
 
 const MAX_SESSION_AGE_SECONDS: i64 = 7 * 24 * 60 * 60;
@@ -32,9 +30,7 @@ pub enum SessionCreationError {
 }
 
 struct SessionCreationParams<'a> {
-    analytics: SessionAnalytics,
-    is_bot: bool,
-    is_ai_crawler: bool,
+    analytics: &'a SessionAnalytics,
     fingerprint: String,
     client_id: &'a ClientId,
     session_source: SessionSource,
@@ -56,9 +52,7 @@ pub struct AuthenticatedSessionInfo {
 
 #[derive(Debug)]
 pub struct CreateAnonymousSessionInput<'a> {
-    pub headers: &'a HeaderMap,
-    pub uri: Option<&'a Uri>,
-    pub caller_ip: Option<IpAddr>,
+    pub analytics: &'a SessionAnalytics,
     pub client_id: &'a ClientId,
     pub session_source: SessionSource,
 }
@@ -125,13 +119,8 @@ impl SessionCreationService {
     /// suppressed but downstream handlers still need an FK-valid `user_id`.
     pub async fn ensure_anonymous_user(
         &self,
-        headers: &HeaderMap,
-        uri: Option<&Uri>,
-        caller_ip: Option<IpAddr>,
+        analytics: &SessionAnalytics,
     ) -> OauthResult<(UserId, String)> {
-        let analytics = self
-            .analytics_provider
-            .extract_analytics(headers, ExtractSignals { uri, caller_ip });
         let fingerprint = analytics.compute_fingerprint();
         let user = self
             .user_provider
@@ -145,22 +134,9 @@ impl SessionCreationService {
         &self,
         input: CreateAnonymousSessionInput<'_>,
     ) -> OauthResult<AnonymousSessionInfo> {
-        let analytics = self.analytics_provider.extract_analytics(
-            input.headers,
-            ExtractSignals {
-                uri: input.uri,
-                caller_ip: input.caller_ip,
-            },
-        );
-        let is_ai_crawler = analytics.is_ai_crawler();
-        let is_bot = analytics.is_bot();
-        let fingerprint = analytics.compute_fingerprint();
-
         let params = SessionCreationParams {
-            analytics,
-            is_bot,
-            is_ai_crawler,
-            fingerprint,
+            analytics: input.analytics,
+            fingerprint: input.analytics.compute_fingerprint(),
             client_id: input.client_id,
             session_source: input.session_source,
         };
@@ -170,9 +146,8 @@ impl SessionCreationService {
     pub async fn create_authenticated_session(
         &self,
         user_id: &UserId,
-        headers: &HeaderMap,
+        analytics: &SessionAnalytics,
         session_source: SessionSource,
-        caller_ip: Option<IpAddr>,
     ) -> Result<SessionId, SessionCreationError> {
         let user = self
             .user_provider
@@ -187,15 +162,6 @@ impl SessionCreationService {
         }
 
         let session_id = SessionId::new(format!("sess_{}", Uuid::new_v4()));
-        let analytics = self.analytics_provider.extract_analytics(
-            headers,
-            ExtractSignals {
-                caller_ip,
-                ..Default::default()
-            },
-        );
-        let is_ai_crawler = analytics.is_ai_crawler();
-        let is_bot = analytics.is_bot();
 
         let global_config = systemprompt_models::Config::get()
             .map_err(|e| SessionCreationError::Internal(e.to_string()))?;
@@ -206,10 +172,10 @@ impl SessionCreationService {
             .create_session(CreateSessionInput {
                 session_id: &session_id,
                 user_id: Some(user_id),
-                analytics: &analytics,
+                analytics,
                 session_source,
-                is_bot,
-                is_ai_crawler,
+                is_bot: analytics.is_bot,
+                is_ai_crawler: analytics.is_ai_crawler,
                 expires_at,
             })
             .await
@@ -229,7 +195,7 @@ impl SessionCreationService {
     ) -> OauthResult<AnonymousSessionInfo> {
         let _guard = self.acquire_fingerprint_lock(&params.fingerprint).await;
 
-        self.update_fingerprint_if_available(&params.fingerprint, &params.analytics)
+        self.update_fingerprint_if_available(&params.fingerprint, params.analytics)
             .await;
 
         if let Some(session) = self

@@ -4,12 +4,12 @@ use anyhow::Result;
 use chrono::{DateTime, Duration, Utc};
 use http::{HeaderMap, HeaderValue, Uri};
 use sqlx::{PgPool, Row};
-use systemprompt_analytics::{AnalyticsService, CreateAnalyticsSessionInput, SessionAnalytics};
+use systemprompt_analytics::{AnalyticsService, SessionAnalytics};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{SessionId, SessionSource};
 use systemprompt_models::ContentRouting;
 use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
-use systemprompt_traits::ExtractSignals;
+use systemprompt_traits::{CreateSessionInput, ExtractSignals};
 use tokio::sync::{Mutex, MutexGuard, OnceCell};
 use uuid::Uuid;
 
@@ -92,12 +92,12 @@ impl Fixture {
     ) -> Result<SessionId> {
         let session_id = SessionId::generate();
         service
-            .create_analytics_session(CreateAnalyticsSessionInput {
+            .create_analytics_session(CreateSessionInput {
                 session_id: &session_id,
                 user_id: None,
                 analytics,
                 session_source: SessionSource::Web,
-                is_bot: AnalyticsService::is_bot(analytics),
+                is_bot: analytics.is_bot,
                 is_ai_crawler: false,
                 expires_at,
             })
@@ -149,7 +149,7 @@ async fn create_session_persists_extracted_attribution() -> Result<()> {
             ..Default::default()
         },
     );
-    assert!(!AnalyticsService::is_bot(&analytics));
+    assert!(!analytics.is_bot);
 
     let session_id = fx
         .create_session(&service, &analytics, expires_in_one_hour())
@@ -158,7 +158,7 @@ async fn create_session_persists_extracted_attribution() -> Result<()> {
     let row = fx.fetch_row(&session_id).await?;
     assert_eq!(
         row.get::<Option<String>, _>("fingerprint_hash"),
-        Some(AnalyticsService::compute_fingerprint(&analytics))
+        Some(analytics.compute_fingerprint())
     );
     assert_eq!(row.get::<Option<String>, _>("user_agent"), Some(ua));
     assert_eq!(
@@ -216,7 +216,7 @@ async fn recent_fingerprint_lookup_deduplicates_sessions() -> Result<()> {
             ..Default::default()
         },
     );
-    let fingerprint = AnalyticsService::compute_fingerprint(&analytics);
+    let fingerprint = analytics.compute_fingerprint();
     let session_id = fx
         .create_session(&service, &analytics, expires_in_one_hour())
         .await?;
@@ -234,7 +234,7 @@ async fn recent_fingerprint_lookup_deduplicates_sessions() -> Result<()> {
             ..Default::default()
         },
     );
-    let other_fingerprint = AnalyticsService::compute_fingerprint(&other_analytics);
+    let other_fingerprint = other_analytics.compute_fingerprint();
     assert_ne!(fingerprint, other_fingerprint);
     assert!(
         service
@@ -260,7 +260,7 @@ async fn ended_session_excluded_from_fingerprint_dedup() -> Result<()> {
             ..Default::default()
         },
     );
-    let fingerprint = AnalyticsService::compute_fingerprint(&analytics);
+    let fingerprint = analytics.compute_fingerprint();
     let session_id = fx
         .create_session(&service, &analytics, expires_in_one_hour())
         .await?;
@@ -291,7 +291,7 @@ async fn bot_user_agent_session_marked_is_bot() -> Result<()> {
                 ..Default::default()
             },
         );
-        assert!(AnalyticsService::is_bot(&analytics), "{bot_ua} not a bot");
+        assert!(analytics.is_bot, "{bot_ua} not a bot");
 
         let session_id = fx
             .create_session(&service, &analytics, expires_in_one_hour())
@@ -365,7 +365,7 @@ async fn create_session_upserts_on_duplicate_id() -> Result<()> {
 
     let later = Utc::now() + Duration::hours(2);
     service
-        .create_analytics_session(CreateAnalyticsSessionInput {
+        .create_analytics_session(CreateSessionInput {
             session_id: &session_id,
             user_id: None,
             analytics: &analytics,

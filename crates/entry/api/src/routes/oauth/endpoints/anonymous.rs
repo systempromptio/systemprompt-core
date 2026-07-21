@@ -20,6 +20,7 @@ use systemprompt_oauth::services::cimd::ClientValidator;
 use systemprompt_oauth::services::{CreateAnonymousSessionInput, SessionCreationService};
 
 use crate::routes::oauth::OAuthHttpError;
+use systemprompt_traits::{AnalyticsProvider, ExtractSignals};
 
 #[derive(Debug, Serialize)]
 pub struct AnonymousTokenResponse {
@@ -61,6 +62,7 @@ fn token_response(body: AnonymousTokenResponse, jwt_token: &str, expires_in: i64
 
 async fn issue_anonymous_session(
     session_service: &SessionCreationService,
+    analytics_provider: &dyn AnalyticsProvider,
     req: &AnonymousTokenRequest,
     headers: &HeaderMap,
     caller_ip: Option<IpAddr>,
@@ -70,11 +72,17 @@ async fn issue_anonymous_session(
     let client_id = req.client_id.clone();
     let session_source = SessionSource::from_client_id(&req.client_id);
 
+    let analytics = analytics_provider.extract_analytics(
+        headers,
+        ExtractSignals {
+            caller_ip,
+            ..Default::default()
+        },
+    );
+
     let session_info = session_service
         .create_anonymous_session(CreateAnonymousSessionInput {
-            headers,
-            uri: None,
-            caller_ip,
+            analytics: &analytics,
             client_id: &client_id,
             session_source,
         })
@@ -130,6 +138,7 @@ pub async fn generate_anonymous_token(
 
     issue_anonymous_session(
         &session_service,
+        state.analytics_provider().as_ref(),
         &req,
         &headers,
         caller_ip,

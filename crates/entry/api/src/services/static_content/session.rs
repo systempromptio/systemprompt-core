@@ -14,6 +14,7 @@ use systemprompt_identifiers::{ClientId, SessionId, SessionSource, UserId};
 use systemprompt_oauth::{CreateAnonymousSessionInput, SessionCreationService, validate_jwt_token};
 use systemprompt_runtime::AppContext;
 use systemprompt_security::TokenExtractor;
+use systemprompt_traits::ExtractSignals;
 use systemprompt_users::UserService;
 
 #[derive(Debug, Clone)]
@@ -50,11 +51,12 @@ pub async fn ensure_session(
     let session_service = SessionCreationService::new(analytics, Arc::new(user_service));
 
     let client_id = ClientId::new("sp_web");
+    let request_analytics = ctx
+        .analytics_service()
+        .extract_analytics(headers, ExtractSignals { uri, caller_ip });
     let session_info = session_service
         .create_anonymous_session(CreateAnonymousSessionInput {
-            headers,
-            uri,
-            caller_ip,
+            analytics: &request_analytics,
             client_id: &client_id,
             session_source: SessionSource::Web,
         })

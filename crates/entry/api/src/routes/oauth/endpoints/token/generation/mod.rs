@@ -39,6 +39,7 @@ use systemprompt_models::auth::{AuthenticatedUser, Permission, parse_permissions
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::repository::{OAuthRepository, RefreshTokenParams};
 use systemprompt_oauth::services::{JwtConfig, JwtSigningParams, generate_jwt};
+use systemprompt_traits::ExtractSignals;
 
 #[derive(Debug, Clone, Copy)]
 pub struct RequestOrigin<'a> {
@@ -83,13 +84,15 @@ pub async fn generate_tokens_by_user_id(
         Arc::clone(state.analytics_provider()),
         Arc::clone(state.user_provider()),
     );
+    let analytics = state.analytics_provider().extract_analytics(
+        params.headers,
+        ExtractSignals {
+            caller_ip: params.caller_ip,
+            ..Default::default()
+        },
+    );
     let session_id = session_service
-        .create_authenticated_session(
-            params.user_id,
-            params.headers,
-            SessionSource::Oauth,
-            params.caller_ip,
-        )
+        .create_authenticated_session(params.user_id, &analytics, SessionSource::Oauth)
         .await?;
 
     let jwt_and_refresh =

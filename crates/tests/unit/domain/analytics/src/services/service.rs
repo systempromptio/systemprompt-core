@@ -1,7 +1,7 @@
 //! Tests for AnalyticsService static methods and related types.
 
 use axum::http::{HeaderMap, HeaderValue};
-use systemprompt_analytics::{AnalyticsService, SessionAnalytics};
+use systemprompt_analytics::SessionAnalyticsBuilder;
 use systemprompt_test_fixtures::fixture_user_id;
 
 mod analytics_service_instance_tests {
@@ -73,19 +73,19 @@ mod analytics_service_tests {
     #[test]
     fn is_bot_returns_true_for_bot_user_agent() {
         let headers = create_headers_with_user_agent("Googlebot/2.1");
-        let analytics = SessionAnalytics::builder(&headers).build();
+        let analytics = SessionAnalyticsBuilder::new(&headers).build();
 
-        assert!(AnalyticsService::is_bot(&analytics));
+        assert!(analytics.skip_tracking);
     }
 
     #[test]
     fn is_bot_returns_true_for_bot_ip() {
         let headers = create_headers_with_user_agent("Mozilla/5.0 (Windows) Chrome/120.0");
-        let analytics = SessionAnalytics::builder(&headers)
+        let analytics = SessionAnalyticsBuilder::new(&headers)
             .with_caller_ip("66.249.64.1".parse().unwrap())
             .build();
 
-        assert!(AnalyticsService::is_bot(&analytics));
+        assert!(analytics.skip_tracking);
     }
 
     #[test]
@@ -98,17 +98,17 @@ mod analytics_service_tests {
             ),
         );
         headers.insert("x-forwarded-for", HeaderValue::from_static("192.168.1.1"));
-        let analytics = SessionAnalytics::builder(&headers).build();
+        let analytics = SessionAnalyticsBuilder::new(&headers).build();
 
-        assert!(!AnalyticsService::is_bot(&analytics));
+        assert!(!analytics.skip_tracking);
     }
 
     #[test]
     fn is_bot_returns_true_for_empty_analytics() {
         let headers = HeaderMap::new();
-        let analytics = SessionAnalytics::builder(&headers).build();
+        let analytics = SessionAnalyticsBuilder::new(&headers).build();
 
-        assert!(AnalyticsService::is_bot(&analytics));
+        assert!(analytics.skip_tracking);
     }
 
     #[test]
@@ -120,9 +120,9 @@ mod analytics_service_tests {
         );
         headers.insert("x-fingerprint", HeaderValue::from_static("custom_hash_123"));
         headers.insert("accept-language", HeaderValue::from_static("en-US"));
-        let analytics = SessionAnalytics::builder(&headers).build();
+        let analytics = SessionAnalyticsBuilder::new(&headers).build();
 
-        let fingerprint = AnalyticsService::compute_fingerprint(&analytics);
+        let fingerprint = analytics.compute_fingerprint();
 
         assert_eq!(fingerprint, "custom_hash_123");
     }
@@ -134,9 +134,9 @@ mod analytics_service_tests {
             "user-agent",
             HeaderValue::from_static("Mozilla/5.0 Chrome/120"),
         );
-        let analytics = SessionAnalytics::builder(&headers).build();
+        let analytics = SessionAnalyticsBuilder::new(&headers).build();
 
-        let fingerprint = AnalyticsService::compute_fingerprint(&analytics);
+        let fingerprint = analytics.compute_fingerprint();
 
         assert!(!fingerprint.is_empty());
         assert!(fingerprint.starts_with("fp_"));
@@ -151,7 +151,7 @@ mod analytics_service_tests {
             HeaderValue::from_static("Mozilla/5.0 Chrome/120"),
         );
         headers1.insert("accept-language", HeaderValue::from_static("en-US"));
-        let analytics1 = SessionAnalytics::builder(&headers1).build();
+        let analytics1 = SessionAnalyticsBuilder::new(&headers1).build();
 
         let mut headers2 = HeaderMap::new();
         headers2.insert(
@@ -159,10 +159,10 @@ mod analytics_service_tests {
             HeaderValue::from_static("Mozilla/5.0 Chrome/120"),
         );
         headers2.insert("accept-language", HeaderValue::from_static("fr-FR"));
-        let analytics2 = SessionAnalytics::builder(&headers2).build();
+        let analytics2 = SessionAnalyticsBuilder::new(&headers2).build();
 
-        let fp1 = AnalyticsService::compute_fingerprint(&analytics1);
-        let fp2 = AnalyticsService::compute_fingerprint(&analytics2);
+        let fp1 = analytics1.compute_fingerprint();
+        let fp2 = analytics2.compute_fingerprint();
 
         assert_ne!(fp1, fp2);
     }
@@ -175,7 +175,7 @@ mod analytics_service_tests {
             HeaderValue::from_static("Mozilla/5.0 Firefox/121"),
         );
         headers1.insert("accept-language", HeaderValue::from_static("de-DE"));
-        let analytics1 = SessionAnalytics::builder(&headers1).build();
+        let analytics1 = SessionAnalyticsBuilder::new(&headers1).build();
 
         let mut headers2 = HeaderMap::new();
         headers2.insert(
@@ -183,10 +183,10 @@ mod analytics_service_tests {
             HeaderValue::from_static("Mozilla/5.0 Firefox/121"),
         );
         headers2.insert("accept-language", HeaderValue::from_static("de-DE"));
-        let analytics2 = SessionAnalytics::builder(&headers2).build();
+        let analytics2 = SessionAnalyticsBuilder::new(&headers2).build();
 
-        let fp1 = AnalyticsService::compute_fingerprint(&analytics1);
-        let fp2 = AnalyticsService::compute_fingerprint(&analytics2);
+        let fp1 = analytics1.compute_fingerprint();
+        let fp2 = analytics2.compute_fingerprint();
 
         assert_eq!(fp1, fp2);
     }
@@ -194,9 +194,9 @@ mod analytics_service_tests {
     #[test]
     fn compute_fingerprint_handles_no_user_agent() {
         let headers = HeaderMap::new();
-        let analytics = SessionAnalytics::builder(&headers).build();
+        let analytics = SessionAnalyticsBuilder::new(&headers).build();
 
-        let fingerprint = AnalyticsService::compute_fingerprint(&analytics);
+        let fingerprint = analytics.compute_fingerprint();
 
         assert!(fingerprint.starts_with("fp_"));
     }
@@ -204,13 +204,13 @@ mod analytics_service_tests {
     #[test]
     fn compute_fingerprint_different_user_agents_produce_different_hash() {
         let headers1 = create_headers_with_user_agent("Mozilla/5.0 Chrome/120");
-        let analytics1 = SessionAnalytics::builder(&headers1).build();
+        let analytics1 = SessionAnalyticsBuilder::new(&headers1).build();
 
         let headers2 = create_headers_with_user_agent("Mozilla/5.0 Firefox/121");
-        let analytics2 = SessionAnalytics::builder(&headers2).build();
+        let analytics2 = SessionAnalyticsBuilder::new(&headers2).build();
 
-        let fp1 = AnalyticsService::compute_fingerprint(&analytics1);
-        let fp2 = AnalyticsService::compute_fingerprint(&analytics2);
+        let fp1 = analytics1.compute_fingerprint();
+        let fp2 = analytics2.compute_fingerprint();
 
         assert_ne!(fp1, fp2);
     }
@@ -219,17 +219,17 @@ mod analytics_service_tests {
 mod create_analytics_session_input_tests {
     use super::*;
     use chrono::Utc;
-    use systemprompt_analytics::CreateAnalyticsSessionInput;
     use systemprompt_identifiers::{SessionId, SessionSource};
+    use systemprompt_traits::CreateSessionInput;
 
     #[test]
     fn input_stores_session_id() {
         let session_id = SessionId::new("sess_123".to_string());
         let headers = HeaderMap::new();
-        let analytics = SessionAnalytics::builder(&headers).build();
+        let analytics = SessionAnalyticsBuilder::new(&headers).build();
         let expires_at = Utc::now();
 
-        let input = CreateAnalyticsSessionInput {
+        let input = CreateSessionInput {
             session_id: &session_id,
             user_id: None,
             analytics: &analytics,
@@ -247,10 +247,10 @@ mod create_analytics_session_input_tests {
         let session_id = SessionId::new("sess_456".to_string());
         let user_id = fixture_user_id();
         let headers = HeaderMap::new();
-        let analytics = SessionAnalytics::builder(&headers).build();
+        let analytics = SessionAnalyticsBuilder::new(&headers).build();
         let expires_at = Utc::now();
 
-        let input = CreateAnalyticsSessionInput {
+        let input = CreateSessionInput {
             session_id: &session_id,
             user_id: Some(&user_id),
             analytics: &analytics,
@@ -268,10 +268,10 @@ mod create_analytics_session_input_tests {
     fn input_stores_is_bot() {
         let session_id = SessionId::new("sess_bot".to_string());
         let headers = HeaderMap::new();
-        let analytics = SessionAnalytics::builder(&headers).build();
+        let analytics = SessionAnalyticsBuilder::new(&headers).build();
         let expires_at = Utc::now();
 
-        let input = CreateAnalyticsSessionInput {
+        let input = CreateSessionInput {
             session_id: &session_id,
             user_id: None,
             analytics: &analytics,
@@ -288,10 +288,10 @@ mod create_analytics_session_input_tests {
     fn input_stores_expires_at() {
         let session_id = SessionId::new("sess_exp".to_string());
         let headers = HeaderMap::new();
-        let analytics = SessionAnalytics::builder(&headers).build();
+        let analytics = SessionAnalyticsBuilder::new(&headers).build();
         let expires_at = Utc::now();
 
-        let input = CreateAnalyticsSessionInput {
+        let input = CreateSessionInput {
             session_id: &session_id,
             user_id: None,
             analytics: &analytics,
@@ -308,10 +308,10 @@ mod create_analytics_session_input_tests {
     fn input_stores_session_source() {
         let session_id = SessionId::new("sess_src".to_string());
         let headers = HeaderMap::new();
-        let analytics = SessionAnalytics::builder(&headers).build();
+        let analytics = SessionAnalyticsBuilder::new(&headers).build();
         let expires_at = Utc::now();
 
-        let input = CreateAnalyticsSessionInput {
+        let input = CreateSessionInput {
             session_id: &session_id,
             user_id: None,
             analytics: &analytics,
@@ -328,10 +328,10 @@ mod create_analytics_session_input_tests {
     fn input_is_debug() {
         let session_id = SessionId::new("sess_dbg".to_string());
         let headers = HeaderMap::new();
-        let analytics = SessionAnalytics::builder(&headers).build();
+        let analytics = SessionAnalyticsBuilder::new(&headers).build();
         let expires_at = Utc::now();
 
-        let input = CreateAnalyticsSessionInput {
+        let input = CreateSessionInput {
             session_id: &session_id,
             user_id: None,
             analytics: &analytics,
@@ -342,6 +342,6 @@ mod create_analytics_session_input_tests {
         };
 
         let debug_str = format!("{:?}", input);
-        assert!(debug_str.contains("CreateAnalyticsSessionInput"));
+        assert!(debug_str.contains("CreateSessionInput"));
     }
 }

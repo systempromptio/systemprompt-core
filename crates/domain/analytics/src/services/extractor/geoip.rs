@@ -12,10 +12,7 @@ pub(super) fn lookup_geoip(
     ip_str: &str,
     geoip_reader: Option<&GeoIpReader>,
 ) -> Option<(Option<String>, Option<String>, Option<String>)> {
-    let Some(reader) = geoip_reader else {
-        tracing::debug!(ip = %ip_str, "GeoIP lookup skipped: reader not configured");
-        return None;
-    };
+    let reader = geoip_reader?;
 
     let ip: std::net::IpAddr = match ip_str.parse() {
         Ok(ip) => ip,
@@ -26,14 +23,12 @@ pub(super) fn lookup_geoip(
     };
 
     if ip.is_loopback() || ip.is_unspecified() {
-        tracing::debug!(ip = %ip_str, "GeoIP lookup skipped: loopback or unspecified address");
         return None;
     }
 
     if let std::net::IpAddr::V4(ipv4) = ip
         && (ipv4.is_private() || ipv4.is_link_local())
     {
-        tracing::debug!(ip = %ip_str, "GeoIP lookup skipped: private or link-local address");
         return None;
     }
 
@@ -76,17 +71,4 @@ pub(super) const fn lookup_geoip(
     _geoip_reader: Option<&GeoIpReader>,
 ) -> Option<(Option<String>, Option<String>, Option<String>)> {
     None
-}
-
-pub(super) fn parse_referrer_source(url: &str) -> Option<String> {
-    match url::Url::parse(url) {
-        Ok(parsed_url) => parsed_url
-            .host_str()
-            .map(str::to_owned)
-            .filter(|host| host.parse::<std::net::IpAddr>().is_err()),
-        Err(err) => {
-            tracing::debug!(url = %url, error = %err, "failed to parse referrer URL");
-            None
-        },
-    }
 }

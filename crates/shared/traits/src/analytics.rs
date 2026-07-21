@@ -28,6 +28,12 @@ pub enum AnalyticsProviderError {
     Internal(String),
 }
 
+/// A single HTTP request reduced to the signals the session pipeline records.
+///
+/// Produced once per request by an [`AnalyticsProvider`] and passed by
+/// reference from there on — the classification verdicts (`is_bot`,
+/// `is_ai_crawler`, `skip_tracking`) are decided by the provider, which owns
+/// the keyword tables, so no consumer re-derives them.
 #[derive(Debug, Clone, Default)]
 pub struct SessionAnalytics {
     pub ip_address: Option<String>,
@@ -36,72 +42,30 @@ pub struct SessionAnalytics {
     pub browser: Option<String>,
     pub os: Option<String>,
     pub fingerprint_hash: Option<String>,
-    pub referer: Option<String>,
-    pub referrer_url: Option<String>,
-    pub referrer_source: Option<String>,
-    pub accept_language: Option<String>,
     pub preferred_locale: Option<String>,
-    pub screen_width: Option<i32>,
-    pub screen_height: Option<i32>,
-    pub timezone: Option<String>,
-    pub page_url: Option<String>,
-    pub landing_page: Option<String>,
-    pub entry_url: Option<String>,
     pub country: Option<String>,
     pub region: Option<String>,
     pub city: Option<String>,
+    pub referrer_source: Option<String>,
+    pub referrer_url: Option<String>,
+    pub landing_page: Option<String>,
+    pub entry_url: Option<String>,
     pub utm_source: Option<String>,
     pub utm_medium: Option<String>,
     pub utm_campaign: Option<String>,
     pub utm_content: Option<String>,
     pub utm_term: Option<String>,
+    pub is_bot: bool,
+    pub is_ai_crawler: bool,
+    /// Whether the session pipeline should suppress the analytics write.
+    /// Broader than `is_bot`: also covers bot IP ranges, datacenter ranges,
+    /// high-risk countries, and spam referrers.
+    pub skip_tracking: bool,
 }
 
-const AI_CRAWLER_TOKENS: &[&str] = &[
-    "notebooklm",
-    "gemini-deep-research",
-    "grammarly",
-    "chatgpt-user",
-    "oai-searchbot",
-    "gptbot",
-    "perplexitybot",
-    "perplexity-user",
-    "claudebot",
-    "claude-user",
-    "claude-web",
-    "anthropic-ai",
-    "applebot-extended",
-    "ccbot",
-    "bytespider",
-    "amazonbot",
-    "youbot",
-    "diffbot",
-    "cohere-ai",
-];
-
 impl SessionAnalytics {
-    pub fn is_ai_crawler(&self) -> bool {
-        self.user_agent.as_ref().is_some_and(|ua| {
-            let ua_lower = ua.to_lowercase();
-            AI_CRAWLER_TOKENS
-                .iter()
-                .any(|token| ua_lower.contains(token))
-        })
-    }
-
-    pub fn is_bot(&self) -> bool {
-        if self.is_ai_crawler() {
-            return false;
-        }
-        self.user_agent.as_ref().is_some_and(|ua| {
-            let ua_lower = ua.to_lowercase();
-            ua_lower.contains("bot")
-                || ua_lower.contains("crawler")
-                || ua_lower.contains("spider")
-                || ua_lower.contains("headless")
-        })
-    }
-
+    /// Returns the client-supplied fingerprint when present, else derives a
+    /// stable one from the user agent and locale.
     pub fn compute_fingerprint(&self) -> String {
         use xxhash_rust::xxh64::xxh64;
 
@@ -112,10 +76,7 @@ impl SessionAnalytics {
         let data = format!(
             "{}|{}",
             self.user_agent.as_deref().unwrap_or(""),
-            self.accept_language
-                .as_deref()
-                .or(self.preferred_locale.as_deref())
-                .unwrap_or("")
+            self.preferred_locale.as_deref().unwrap_or("")
         );
 
         format!("fp_{:016x}", xxh64(data.as_bytes(), 0))
