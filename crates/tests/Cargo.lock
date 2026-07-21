@@ -7489,6 +7489,8 @@ dependencies = [
  "arc-swap",
  "hyper",
  "hyper-util",
+ "keyring-core",
+ "linux-keyutils-keyring-store",
  "reqwest",
  "serde_json",
  "systemprompt-bridge",

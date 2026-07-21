@@ -5,3 +5,5 @@ mod heartbeat;
 mod proxy_flow;
 #[cfg(test)]
 mod server_start;
+#[cfg(test)]
+mod forward_paths;

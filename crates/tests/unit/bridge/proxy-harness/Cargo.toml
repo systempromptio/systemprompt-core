@@ -22,3 +22,7 @@ temp-env = { workspace = true }
 hyper = { version = "1", features = ["http1", "server"] }
 hyper-util = { version = "0.1", features = ["server", "tokio"] }
 arc-swap = "1"
+keyring-core = { workspace = true }
+
+[target."cfg(all(unix, not(target_os = \"macos\")))".dependencies]
+linux-keyutils-keyring-store = { workspace = true }
