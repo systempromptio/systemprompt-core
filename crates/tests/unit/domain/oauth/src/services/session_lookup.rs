@@ -200,13 +200,11 @@ fn client_id() -> ClientId {
 }
 
 fn anonymous_input<'a>(
-    headers: &'a HeaderMap,
+    analytics: &'a SessionAnalytics,
     client: &'a ClientId,
 ) -> CreateAnonymousSessionInput<'a> {
     CreateAnonymousSessionInput {
-        headers,
-        uri: None,
-        caller_ip: None,
+        analytics,
         client_id: client,
         session_source: SessionSource::Web,
     }
@@ -230,10 +228,10 @@ async fn session_at_fingerprint_limit_is_reused() {
         reusable_session: Some("sess_reusable".to_owned()),
     }));
 
-    let headers = HeaderMap::new();
+    let request_analytics = SessionAnalytics::default();
     let client = client_id();
     let info = service
-        .create_anonymous_session(anonymous_input(&headers, &client))
+        .create_anonymous_session(anonymous_input(&request_analytics, &client))
         .await
         .expect("session");
 
@@ -266,10 +264,10 @@ async fn recent_session_is_returned_without_creating_a_new_one() {
         reusable_session: None,
     }));
 
-    let headers = HeaderMap::new();
+    let request_analytics = SessionAnalytics::default();
     let client = client_id();
     let info = service
-        .create_anonymous_session(anonymous_input(&headers, &client))
+        .create_anonymous_session(anonymous_input(&request_analytics, &client))
         .await
         .expect("session");
 
@@ -297,10 +295,10 @@ async fn recent_session_without_user_falls_through_to_fresh_creation() {
     )
     .with_event_publisher(Arc::clone(&publisher) as Arc<dyn UserEventPublisher>);
 
-    let headers = HeaderMap::new();
+    let request_analytics = SessionAnalytics::default();
     let client = client_id();
     let info = service
-        .create_anonymous_session(anonymous_input(&headers, &client))
+        .create_anonymous_session(anonymous_input(&request_analytics, &client))
         .await
         .expect("session");
 
@@ -331,7 +329,7 @@ async fn create_authenticated_session_persists_for_known_user() {
     );
 
     let session_id = service
-        .create_authenticated_session(&user_id, &HeaderMap::new(), SessionSource::Web, None)
+        .create_authenticated_session(&user_id, &SessionAnalytics::default(), SessionSource::Web)
         .await
         .expect("session");
 
@@ -350,7 +348,7 @@ async fn create_authenticated_session_rejects_unknown_user() {
 
     let user_id = UserId::new("user_missing");
     let err = service
-        .create_authenticated_session(&user_id, &HeaderMap::new(), SessionSource::Web, None)
+        .create_authenticated_session(&user_id, &SessionAnalytics::default(), SessionSource::Web)
         .await
         .expect_err("unknown user");
 
@@ -532,10 +530,10 @@ async fn failing_reusable_session_lookup_falls_through_to_fresh_session() {
     )
     .with_fingerprint_provider(Arc::new(ReusableLookupFailsProvider));
 
-    let headers = HeaderMap::new();
+    let request_analytics = SessionAnalytics::default();
     let client = client_id();
     let info = service
-        .create_anonymous_session(anonymous_input(&headers, &client))
+        .create_anonymous_session(anonymous_input(&request_analytics, &client))
         .await
         .expect("session despite reusable-lookup failure");
 
@@ -559,10 +557,10 @@ async fn at_limit_failing_recent_lookup_falls_through_to_fresh_session() {
         reusable_session: Some("sess_reusable".to_owned()),
     }));
 
-    let headers = HeaderMap::new();
+    let request_analytics = SessionAnalytics::default();
     let client = client_id();
     let info = service
-        .create_anonymous_session(anonymous_input(&headers, &client))
+        .create_anonymous_session(anonymous_input(&request_analytics, &client))
         .await
         .expect("session despite recent-lookup failure at limit");
 
@@ -582,10 +580,10 @@ async fn failing_fingerprint_count_falls_through_to_fresh_session() {
     )
     .with_fingerprint_provider(Arc::new(FailingFingerprintProvider));
 
-    let headers = HeaderMap::new();
+    let request_analytics = SessionAnalytics::default();
     let client = client_id();
     let info = service
-        .create_anonymous_session(anonymous_input(&headers, &client))
+        .create_anonymous_session(anonymous_input(&request_analytics, &client))
         .await
         .expect("session despite fingerprint failure");
 
@@ -608,10 +606,10 @@ async fn at_limit_without_reusable_session_creates_fresh_session() {
         reusable_session: None,
     }));
 
-    let headers = HeaderMap::new();
+    let request_analytics = SessionAnalytics::default();
     let client = client_id();
     let info = service
-        .create_anonymous_session(anonymous_input(&headers, &client))
+        .create_anonymous_session(anonymous_input(&request_analytics, &client))
         .await
         .expect("session");
 
@@ -637,10 +635,10 @@ async fn at_limit_with_recent_session_lacking_user_creates_fresh_session() {
         reusable_session: Some("sess_reusable".to_owned()),
     }));
 
-    let headers = HeaderMap::new();
+    let request_analytics = SessionAnalytics::default();
     let client = client_id();
     let info = service
-        .create_anonymous_session(anonymous_input(&headers, &client))
+        .create_anonymous_session(anonymous_input(&request_analytics, &client))
         .await
         .expect("session");
 
@@ -660,10 +658,10 @@ async fn failing_analytics_lookup_falls_through_to_fresh_session() {
         Arc::new(StubUserProvider { known_user: None }),
     );
 
-    let headers = HeaderMap::new();
+    let request_analytics = SessionAnalytics::default();
     let client = client_id();
     let info = service
-        .create_anonymous_session(anonymous_input(&headers, &client))
+        .create_anonymous_session(anonymous_input(&request_analytics, &client))
         .await
         .expect("session despite analytics failure");
 
@@ -683,10 +681,10 @@ async fn slow_session_lookup_times_out_and_creates_fresh_session() {
         Arc::new(StubUserProvider { known_user: None }),
     );
 
-    let headers = HeaderMap::new();
+    let request_analytics = SessionAnalytics::default();
     let client = client_id();
     let info = service
-        .create_anonymous_session(anonymous_input(&headers, &client))
+        .create_anonymous_session(anonymous_input(&request_analytics, &client))
         .await
         .expect("session despite lookup timeout");
 
@@ -704,7 +702,7 @@ async fn ensure_anonymous_user_resolves_user_and_fingerprint() {
     );
 
     let (user_id, fingerprint) = service
-        .ensure_anonymous_user(&HeaderMap::new(), None, None)
+        .ensure_anonymous_user(&SessionAnalytics::default())
         .await
         .expect("anonymous user");
 

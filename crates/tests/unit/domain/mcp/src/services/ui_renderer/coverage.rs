@@ -117,11 +117,7 @@ async fn copy_paste_text_renders_preformatted() {
         .expect("copy paste text renders");
 
     assert!(resource.html.contains("<pre><code>"));
-    assert!(
-        resource
-            .html
-            .contains("systemprompt admin users list")
-    );
+    assert!(resource.html.contains("systemprompt admin users list"));
 }
 
 #[tokio::test]

@@ -278,12 +278,10 @@ fn test_session_creation_error_is_std_error() {
 
 #[test]
 fn test_create_anonymous_session_input_debug() {
-    let headers = HeaderMap::new();
+    let analytics = SessionAnalytics::default();
     let client_id = ClientId::new("client_test123".to_string());
     let input = CreateAnonymousSessionInput {
-        headers: &headers,
-        uri: None,
-        caller_ip: None,
+        analytics: &analytics,
         client_id: &client_id,
         session_source: SessionSource::Web,
     };

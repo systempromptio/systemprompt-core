@@ -24,7 +24,10 @@ fn ui_method_strings_match_spec() {
         UiMethod::Initialized.as_str(),
         "ui/notifications/initialized"
     );
-    assert_eq!(UiMethod::ToolResult.as_str(), "ui/notifications/tool-result");
+    assert_eq!(
+        UiMethod::ToolResult.as_str(),
+        "ui/notifications/tool-result"
+    );
     assert_eq!(
         UiMethod::SizeChanged.as_str(),
         "ui/notifications/size-changed"
