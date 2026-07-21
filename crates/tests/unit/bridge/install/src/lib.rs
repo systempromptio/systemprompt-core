@@ -8,3 +8,7 @@ mod mdm_snippet;
 mod pubkey;
 #[cfg(test)]
 mod summary;
+#[cfg(test)]
+mod bootstrap;
+#[cfg(test)]
+mod schedule;
