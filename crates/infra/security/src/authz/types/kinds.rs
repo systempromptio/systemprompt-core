@@ -71,19 +71,17 @@ impl fmt::Display for RuleType {
     }
 }
 
-impl FromStr for RuleType {
-    type Err = AuthzError;
-
-    /// Infallible for every stored slug: a rule type read back from the
-    /// database is data, so an unknown dimension round-trips rather than
-    /// failing the read. The `Err` arm exists only so call sites that already
-    /// use `?` keep compiling.
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(match s {
+impl From<&str> for RuleType {
+    /// A rule type read back from storage is data, not input: an extension
+    /// dimension core has never heard of round-trips instead of poisoning the
+    /// read. Minting a *new* slug goes through [`RuleType::extension`], which
+    /// is where the shape rules are enforced.
+    fn from(s: &str) -> Self {
+        match s {
             "user" => Self::USER,
             "role" => Self::ROLE,
             other => Self(Cow::Owned(other.to_owned())),
-        })
+        }
     }
 }
 
@@ -111,7 +109,7 @@ impl<'r> sqlx::Decode<'r, sqlx::Postgres> for RuleType {
         value: <sqlx::Postgres as sqlx::Database>::ValueRef<'r>,
     ) -> Result<Self, sqlx::error::BoxDynError> {
         let raw = <&str as sqlx::Decode<'r, sqlx::Postgres>>::decode(value)?;
-        Ok(Self::from_str(raw)?)
+        Ok(Self::from(raw))
     }
 }
 

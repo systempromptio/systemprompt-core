@@ -350,7 +350,7 @@ async fn list_role_rules_for_export_includes_role_grants_only() {
     let ours: Vec<_> = exported.iter().filter(|r| r.entity_id == id).collect();
     assert_eq!(ours.len(), 1, "export carries the role grant only");
     let row = ours[0];
-    assert_eq!(RuleType::from_str(&row.rule_type).unwrap(), RuleType::ROLE);
+    assert_eq!(RuleType::from(row.rule_type.as_str()), RuleType::ROLE);
     assert_eq!(row.rule_value, "auditor");
     assert_eq!(Access::from_str(&row.access).unwrap(), Access::Allow);
 

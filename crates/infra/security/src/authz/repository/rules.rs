@@ -50,7 +50,7 @@ impl AccessControlRepository {
         for row in rows {
             out.push(AccessRule {
                 id: RuleId::new(row.id),
-                rule_type: RuleType::from_str(&row.rule_type)?,
+                rule_type: RuleType::from(row.rule_type.as_str()),
                 rule_value: row.rule_value,
                 access: Access::from_str(&row.access)?,
                 justification: row.justification,
@@ -88,7 +88,7 @@ impl AccessControlRepository {
         for row in rows {
             let rule = AccessRule {
                 id: RuleId::new(row.id),
-                rule_type: RuleType::from_str(&row.rule_type)?,
+                rule_type: RuleType::from(row.rule_type.as_str()),
                 rule_value: row.rule_value,
                 access: Access::from_str(&row.access)?,
                 justification: row.justification,
@@ -130,7 +130,7 @@ impl AccessControlRepository {
 
         Ok(AccessRule {
             id: RuleId::new(row.id),
-            rule_type: RuleType::from_str(&row.rule_type)?,
+            rule_type: RuleType::from(row.rule_type.as_str()),
             rule_value: row.rule_value,
             access: Access::from_str(&row.access)?,
             justification: row.justification,
