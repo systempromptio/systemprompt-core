@@ -7,3 +7,5 @@ mod credential_helper;
 mod diagnostics;
 #[cfg(test)]
 mod doctor;
+#[cfg(test)]
+mod doctor_cowork;

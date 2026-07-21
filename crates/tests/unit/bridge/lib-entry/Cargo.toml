@@ -1,0 +1,16 @@
+[package]
+name = "systemprompt-bridge-lib-entry-tests"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Tests for the systemprompt-bridge process entry point"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+systemprompt-bridge = { workspace = true }
+tempfile = { workspace = true }
+temp-env = { workspace = true }

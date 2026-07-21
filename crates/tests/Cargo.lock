@@ -7425,6 +7425,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "systemprompt-bridge-lib-entry-tests"
+version = "0.0.11"
+dependencies = [
+ "systemprompt-bridge",
+ "temp-env",
+ "tempfile",
+]
+
+[[package]]
 name = "systemprompt-bridge-manifest-tests"
 version = "0.0.11"
 dependencies = [

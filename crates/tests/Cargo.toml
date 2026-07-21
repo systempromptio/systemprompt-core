@@ -98,6 +98,7 @@ members = [
     "unit/bridge/cli",
     "unit/bridge/cli-commands",
     "unit/bridge/cli-dispatch",
+    "unit/bridge/lib-entry",
     "unit/bridge/cli-subprocess",
     # Common test utilities
     "common/mocks",
