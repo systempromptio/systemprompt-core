@@ -218,3 +218,55 @@ fn installing_a_profile_merges_it_into_the_managed_config() {
         "the bridge block is merged in: {merged}"
     );
 }
+
+
+#[test]
+fn the_codex_host_describes_itself_as_a_toml_cli_tool() {
+    use systemprompt_bridge::integration::host_app::{ConfigFormat, HostKind};
+
+    assert_eq!(CODEX_CLI_HOST.display_name(), "Codex CLI");
+    assert_eq!(CODEX_CLI_HOST.icon_id(), "codex-cli");
+    assert_eq!(CODEX_CLI_HOST.kind(), HostKind::CliTool);
+    assert_eq!(CODEX_CLI_HOST.config_format(), ConfigFormat::Toml);
+    assert!(
+        CODEX_CLI_HOST.download_url().starts_with("https://"),
+        "the download URL is offered: {}",
+        CODEX_CLI_HOST.download_url()
+    );
+    assert!(
+        CODEX_CLI_HOST.description().contains("managed configuration"),
+        "{}",
+        CODEX_CLI_HOST.description()
+    );
+    assert!(
+        CODEX_CLI_HOST.accepted_surfaces().is_empty(),
+        "Codex accepts every provider surface"
+    );
+    assert!(
+        !CODEX_CLI_HOST.install_action_label().is_empty(),
+        "the install action is labelled for the current platform"
+    );
+}
+
+#[test]
+fn the_codex_schema_requires_the_provider_and_auth_keys() {
+    let schema = CODEX_CLI_HOST.config_schema();
+    assert!(
+        schema
+            .required_keys
+            .contains(&"model_providers.systemprompt.auth.command"),
+        "{:?}",
+        schema.required_keys
+    );
+    assert!(
+        schema.required_keys.contains(&"model_provider"),
+        "{:?}",
+        schema.required_keys
+    );
+    for key in schema.required_keys {
+        assert!(
+            schema.display_keys.contains(key),
+            "{key} is required but never displayed"
+        );
+    }
+}

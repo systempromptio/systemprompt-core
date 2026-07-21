@@ -11,3 +11,5 @@ mod doctor;
 mod doctor_cowork;
 #[cfg(test)]
 mod doctor_filesystem;
+#[cfg(test)]
+mod doctor_auth;

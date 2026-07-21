@@ -15,3 +15,4 @@ systemprompt-bridge = { workspace = true }
 serde_json = { workspace = true }
 temp-env = { workspace = true }
 tempfile = { workspace = true }
+toml = "0.9"
