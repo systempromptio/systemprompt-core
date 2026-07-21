@@ -12,17 +12,16 @@
 
 - The OAuth `client_secret` keystore moves from `keyring` 3 to `keyring-core` 1 with explicit per-platform stores (Keychain on macOS, Credential Manager on Windows, the blocking dbus Secret Service on Linux). The `keyring` 4 facade was not adopted: it hard-codes the async zbus Secret Service backend on Linux, and its lazy bootstrap overwrites the process credential store, which would silently replace the headless store the bridge test suites install. Behaviour on all three platforms is unchanged.
 - `ed25519-dalek` moves from 2 to 3 and `toml` from 0.9 to 1.1. The Ed25519 wire format is unchanged, so manifests signed by earlier releases still verify.
+- The Cowork session directory is resolved deterministically — configured value, then the deployment's personal-session UUID, then a sole usable candidate — and fails loudly listing the candidates instead of guessing the most recently modified one.
+- Managed plugins from the gateway manifest are each installed as a distinct plugin in Claude Code and Claude Cowork — carrying their own name, skills, and agents — so the host UI lists one entry per plugin instead of a single merged entry. Managed MCP servers are attached per plugin through the local proxy.
 
 ### Added
 
 - `[cowork] session_org_dir` in `systemprompt-bridge.toml` pins which Cowork session/organization directory the bridge syncs into.
 - `install --apply-schedule` registers the periodic sync job with the host scheduler (launchd, Task Scheduler, or a systemd user timer) instead of only writing a template for the user to install by hand. Registration is idempotent, the identifiers are brand-scoped, and `uninstall` deregisters the job.
 - Windows MDM policy pre-trusts a default Cowork workspace folder (`allowedWorkspaceFolders` → `~/<brand workspace dir>`, surfaced as a default-selected folder chip) and materializes the directory on apply, so the agent gets a real writable working directory instead of wandering into protected host paths and triggering folder-permission prompts. The policy also pins `coworkEgressAllowedHosts` to loopback and disables `isLocalDevMcpEnabled`.
-
-### Changed
-
-- The Cowork session directory is resolved deterministically — configured value, then the deployment's personal-session UUID, then a sole usable candidate — and fails loudly listing the candidates instead of guessing the most recently modified one.
-- Managed plugins from the gateway manifest are each installed as a distinct plugin in Claude Code and Claude Cowork — carrying their own name, skills, and agents — so the host UI lists one entry per plugin instead of a single merged entry. Managed MCP servers are attached per plugin through the local proxy.
+- The integration layer reports a per-host application launch state, which the tray and the hosts list render, so a host that is installed but not running is distinguishable from one that is unavailable.
+- A web client session service backs the rail profile, cloud status, and setup views from one source of truth instead of each view fetching its own.
 
 ### Fixed
 
@@ -30,6 +29,7 @@
 - The host-sync registry now dedups emitters by concrete type instead of `host_id`, so the two Cowork emitters that deliberately share the `cowork` host id (plugin enables + the artifacts library) both run again; previously one was silently dropped.
 - Sync prunes plugins Cowork still holds in its own copy of the org-provisioned marketplace after the manifest dropped them. Cowork installs each plugin into its own tree and never removes an orphan, so the retired `systemprompt-managed` aggregate kept appearing in its plugin picker.
 - An unelevated run compares the desired `managedMcpServers` value against the live `HKLM` policy and requests elevation when they differ, instead of treating any existing value as current. A managed MCP server added after the policy was first provisioned never reached Cowork's connector list. A matching value still no-ops, so a steady-state sync raises no elevation prompt.
+- The GUI host dedupe no longer suppresses real changes. The client's volatile-key set omitted `expires_at_unix`, so a host payload carrying it compared unequal on every probe tick, and the semantic hash mixed in no variant tag, letting an object and an array with equal leaf content collide and hide a genuine change.
 - The GUI activity log survives re-render. Each render replaces the component's `innerHTML`, detaching the nodes the virtual list was bound to, and the list was only ever built once, so the log went permanently blank while the header counters kept updating.
 
 ### Removed
