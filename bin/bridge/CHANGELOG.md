@@ -1,14 +1,6 @@
 # Changelog
 
-## [Unreleased]
-
-### Fixed
-
-- Sync prunes plugins Cowork still holds in its own copy of the org-provisioned marketplace after the manifest dropped them. Cowork installs each plugin into its own tree and never removes an orphan, so the retired `systemprompt-managed` aggregate kept appearing in its plugin picker.
-- An unelevated run now compares the desired `managedMcpServers` value against the live `HKLM` policy and requests elevation when they differ, instead of treating any existing value as current. A managed MCP server added after the policy was first provisioned never reached Cowork's connector list. A matching value still no-ops, so a steady-state sync raises no elevation prompt.
-- The GUI activity log survives re-render. Each render replaces the component's `innerHTML`, detaching the nodes the virtual list was bound to, and the list was only ever built once — so the log went permanently blank while the header counters kept updating.
-
-## [0.17.0] - 2026-07-20
+## [0.17.0] - 2026-07-21
 
 ### Breaking
 
@@ -31,6 +23,9 @@
 
 - `managedMcpServers` is now written to `HKLM\SOFTWARE\Policies\Claude` on Windows: Cowork ≥ 1.22209 ignores the `HKCU` policy hive entirely when an `HKLM` policy exists, so the previous `HKCU` write left Cowork loading zero managed servers. An unelevated run clears the ignored `HKCU` copy and no-ops when a stable `HKLM` value already exists, erroring only when policy was never provisioned elevated.
 - The host-sync registry now dedups emitters by concrete type instead of `host_id`, so the two Cowork emitters that deliberately share the `cowork` host id (plugin enables + the artifacts library) both run again; previously one was silently dropped.
+- Sync prunes plugins Cowork still holds in its own copy of the org-provisioned marketplace after the manifest dropped them. Cowork installs each plugin into its own tree and never removes an orphan, so the retired `systemprompt-managed` aggregate kept appearing in its plugin picker.
+- An unelevated run compares the desired `managedMcpServers` value against the live `HKLM` policy and requests elevation when they differ, instead of treating any existing value as current. A managed MCP server added after the policy was first provisioned never reached Cowork's connector list. A matching value still no-ops, so a steady-state sync raises no elevation prompt.
+- The GUI activity log survives re-render. Each render replaces the component's `innerHTML`, detaching the nodes the virtual list was bound to, and the list was only ever built once, so the log went permanently blank while the header counters kept updating.
 
 ### Removed
 

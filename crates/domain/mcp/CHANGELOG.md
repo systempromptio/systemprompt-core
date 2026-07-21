@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.22.0] - 2026-07-21
+
+### Added
+
+- Tool results always carry the `io.systemprompt/ui-resource-uri` `_meta` key (`UI_RESOURCE_URI_META_KEY`) naming the artifact's `ui://` resource, so a host that does not forward embedded resource content blocks can reach the rendered artifact through `resources/read`.
+- `artifact_resource_uri` and `parse_artifact_resource_uri` build and parse `ui://` artifact resource URIs; `artifact_shell_template` exposes the artifact shell markup.
+
 ## [0.21.1] - 2026-07-17
 
 ### Changed

@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.22.0] - 2026-07-21
+
+### Breaking
+
+- `ArtifactEntry.plugin_id` and `DiskArtifactConfig.plugin_id` are removed; a plugin selects its artifacts through `PluginConfig.artifacts`, so one artifact can belong to several plugins. Migrate by deleting `plugin_id:` from each `services/artifacts/<id>/config.yaml` and listing the artifact id under the owning plugin's `artifacts.include`.
+
+### Added
+
+- `selects_artifact` and `artifact_owners` expose plugin-to-artifact selection as the single distribution gate shared by manifest assembly and bundle building.
+- Plugin bundles carry their selected artifacts as `artifacts/<id>.json` entries.
+
+### Fixed
+
+- Artifacts whose every owning plugin is filtered out for a user are no longer shipped in that user's manifest; orphan pruning runs after per-user filtering rather than before it.
+
 ## [0.21.1] - 2026-07-17
 
 ### Changed

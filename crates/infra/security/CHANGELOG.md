@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.22.0] - 2026-07-21
+
+### Breaking
+
+- A declared access-control ruleset is authoritative and closed: `authz::resolve` consults an entity's parents only when the entity declares no rules of its own, so an entity that names roles is closed to every role it does not name, including via a parent's `default_included`. Migrate by adding an explicit `allow` rule for every role that should keep access to an entity that declares any rule, or by removing the entity's rules to restore inheritance.
+- `authz::resolve` takes a `ResolveInput` bundle carrying the entity, its rules, the caller, and an ordered `parents` slice of `ResolveParent` values. Migrate by constructing `ResolveInput`; `RuleBasedHook` passes an empty parent slice and is unaffected by the closed-ruleset change.
+
 ## [0.21.1] - 2026-07-17
 
 ### Changed
