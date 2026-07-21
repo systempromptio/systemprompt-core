@@ -32,8 +32,6 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-/// Core trait surface from `systemprompt-traits`.
-///
 /// Includes `LlmProvider`, `ToolProvider`, `Job`, and the typed error
 /// contracts (`ApiError`, `ExtensionError`, `McpErrorData`).
 #[cfg(feature = "core")]
@@ -42,16 +40,14 @@ pub mod traits {
     pub use systemprompt_traits::*;
 }
 
-/// I/O-free data models from `systemprompt-models` — config structs, profile
-/// types, domain DTOs.
+/// I/O-free: config structs, profile types, domain DTOs.
 #[cfg(feature = "core")]
 #[cfg_attr(docsrs, doc(cfg(feature = "core")))]
 pub mod models {
     pub use systemprompt_models::*;
 }
 
-/// Typed identifiers from `systemprompt-identifiers` (`UserId`, `AgentId`,
-/// `TaskId`, `TraceId`, …).
+/// `UserId`, `AgentId`, `TaskId`, `TraceId`, and the rest of the wrappers.
 #[cfg(feature = "core")]
 #[cfg_attr(docsrs, doc(cfg(feature = "core")))]
 pub mod identifiers {
@@ -105,7 +101,7 @@ pub mod loader {
     pub use systemprompt_loader::*;
 }
 
-/// In-process event bus and SSE broadcasting from `systemprompt-events`.
+/// In-process event bus and SSE broadcasting.
 #[cfg(feature = "events")]
 #[cfg_attr(docsrs, doc(cfg(feature = "events")))]
 pub mod events {
@@ -157,134 +153,119 @@ pub mod cli {
 #[cfg_attr(docsrs, doc(cfg(feature = "runtime")))]
 pub mod runtime;
 
-/// `RuntimeBuilder` re-export — fluent builder for embedding the CLI with
-/// extensions injected at compile time.
 #[cfg(feature = "runtime")]
 #[cfg_attr(docsrs, doc(cfg(feature = "runtime")))]
 pub use runtime::RuntimeBuilder;
 
-/// `WebAssets` strategy re-export — controls how the runtime serves the static
-/// web bundle (in-binary, on-disk, or disabled).
+/// Controls how the runtime serves the static web bundle: in-binary, on-disk,
+/// or disabled.
 #[cfg(feature = "runtime")]
 #[cfg_attr(docsrs, doc(cfg(feature = "runtime")))]
 pub use runtime::WebAssets;
 
-/// Typed error returned by [`RuntimeBuilder::run`].
 #[cfg(feature = "runtime")]
 #[cfg_attr(docsrs, doc(cfg(feature = "runtime")))]
 pub use runtime::RuntimeError;
 
-/// Agent-to-Agent (A2A) protocol surface from `systemprompt-agent` — message
-/// types, task lifecycle, streaming server, agent registry.
+/// Agent-to-Agent (A2A) protocol: message types, task lifecycle, streaming
+/// server, agent registry.
 #[cfg(feature = "full")]
 #[cfg_attr(docsrs, doc(cfg(feature = "full")))]
 pub mod agent {
     pub use systemprompt_agent::*;
 }
 
-/// LLM integration surface from `systemprompt-ai` — provider selection,
-/// request/response types, cost accounting.
+/// Provider selection, request/response types, cost accounting.
 #[cfg(feature = "full")]
 #[cfg_attr(docsrs, doc(cfg(feature = "full")))]
 pub mod ai {
     pub use systemprompt_ai::*;
 }
 
-/// Model Context Protocol implementation from `systemprompt-mcp` — server
-/// orchestrator, network/proxy layer, RBAC middleware.
+/// Server orchestrator, network/proxy layer, RBAC middleware.
 #[cfg(feature = "full")]
 #[cfg_attr(docsrs, doc(cfg(feature = "full")))]
 pub mod mcp {
     pub use systemprompt_mcp::*;
 }
 
-/// OAuth2 / OIDC / WebAuthn flows from `systemprompt-oauth`.
+/// OAuth2, OIDC, and WebAuthn flows.
 #[cfg(feature = "full")]
 #[cfg_attr(docsrs, doc(cfg(feature = "full")))]
 pub mod oauth {
     pub use systemprompt_oauth::*;
 }
 
-/// User management domain from `systemprompt-users` — accounts, roles, scopes.
+/// Accounts, roles, scopes.
 #[cfg(feature = "full")]
 #[cfg_attr(docsrs, doc(cfg(feature = "full")))]
 pub mod users {
     pub use systemprompt_users::*;
 }
 
-/// Content management domain from `systemprompt-content` — pages, articles,
-/// markdown ingestion.
+/// Pages, articles, markdown ingestion.
 #[cfg(feature = "full")]
 #[cfg_attr(docsrs, doc(cfg(feature = "full")))]
 pub mod content {
     pub use systemprompt_content::*;
 }
 
-/// Analytics domain from `systemprompt-analytics` — request, conversation,
-/// agent, tool, cost metrics.
+/// Request, conversation, agent, tool, and cost metrics.
 #[cfg(feature = "full")]
 #[cfg_attr(docsrs, doc(cfg(feature = "full")))]
 pub mod analytics {
     pub use systemprompt_analytics::*;
 }
 
-/// Marketplace filtering domain from `systemprompt-marketplace` — the
-/// `MarketplaceFilter` trait that gates per-user visibility of
-/// plugins, skills, agents, and managed MCP servers in the bridge
-/// manifest.
+/// The `MarketplaceFilter` trait, which gates per-user visibility of plugins,
+/// skills, agents, and managed MCP servers in the bridge manifest.
 #[cfg(feature = "full")]
 #[cfg_attr(docsrs, doc(cfg(feature = "full")))]
 pub mod marketplace {
     pub use systemprompt_marketplace::*;
 }
 
-/// Background-job scheduler from `systemprompt-scheduler`.
 #[cfg(feature = "full")]
 #[cfg_attr(docsrs, doc(cfg(feature = "full")))]
 pub mod scheduler {
     pub use systemprompt_scheduler::*;
 }
 
-/// Slack integration from `systemprompt-slack` — inbound Events API, slash
-/// commands, and Block Kit interactivity dispatched to governed agents.
+/// Inbound Events API, slash commands, and Block Kit interactivity dispatched
+/// to governed agents.
 #[cfg(feature = "slack")]
 #[cfg_attr(docsrs, doc(cfg(feature = "slack")))]
 pub mod slack {
     pub use systemprompt_slack::*;
 }
 
-/// Microsoft Teams integration from `systemprompt-teams` — inbound Bot
-/// Framework activities, token validation, Adaptive Card rendering.
+/// Inbound Bot Framework activities, token validation, Adaptive Card rendering.
 #[cfg(feature = "teams")]
 #[cfg_attr(docsrs, doc(cfg(feature = "teams")))]
 pub mod teams {
     pub use systemprompt_teams::*;
 }
 
-/// Static-site generator from `systemprompt-generator` — Tera-based renderer
-/// driving the `web` CLI domain.
+/// Tera-based renderer driving the `web` CLI domain.
 #[cfg(feature = "full")]
 #[cfg_attr(docsrs, doc(cfg(feature = "full")))]
 pub mod generator {
     pub use systemprompt_generator::*;
 }
 
-/// File-storage domain from `systemprompt-files`.
 #[cfg(feature = "full")]
 #[cfg_attr(docsrs, doc(cfg(feature = "full")))]
 pub mod files {
     pub use systemprompt_files::*;
 }
 
-/// Cloud synchronisation primitives from `systemprompt-sync`.
 #[cfg(feature = "sync")]
 #[cfg_attr(docsrs, doc(cfg(feature = "sync")))]
 pub mod sync {
     pub use systemprompt_sync::*;
 }
 
-/// Cloud API client from `systemprompt-cloud` — credentials bootstrap, tenant
-/// management, deployment.
+/// Credentials bootstrap, tenant management, deployment.
 #[cfg(feature = "cloud")]
 #[cfg_attr(docsrs, doc(cfg(feature = "cloud")))]
 pub mod cloud {
@@ -297,26 +278,22 @@ pub mod cloud {
 #[cfg(feature = "core")]
 #[cfg_attr(docsrs, doc(cfg(feature = "core")))]
 pub mod profile {
-    /// `ProfileBootstrap` loader and its typed error.
     #[cfg(feature = "config")]
     pub use systemprompt_config::{ProfileBootstrap, ProfileBootstrapError};
 
-    /// Profile schema types from `systemprompt-models`.
     pub use systemprompt_models::profile::{
         CloudConfig, CloudValidationMode, Profile, ProfileStyle,
     };
 }
 
-/// Cloud credentials bootstrap from `systemprompt-cloud` — loads OAuth client
-/// credentials and tenant identity at startup.
+/// Loads OAuth client credentials and tenant identity at startup.
 #[cfg(feature = "cloud")]
 #[cfg_attr(docsrs, doc(cfg(feature = "cloud")))]
 pub mod credentials {
     pub use systemprompt_cloud::{CredentialsBootstrap, CredentialsBootstrapError};
 }
 
-/// Curated re-exports for ergonomic `use systemprompt::prelude::*`. See
-/// [`prelude`] for the full list.
+/// Curated re-exports for `use systemprompt::prelude::*`.
 pub mod prelude;
 
 pub use crate::prelude::*;

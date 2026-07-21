@@ -53,11 +53,9 @@ pub use systemprompt_runtime::{AppContext, AppContextBuilder};
 #[cfg(feature = "mcp")]
 pub use rmcp;
 
-/// Filesystem-backed config loader from `systemprompt-loader`.
 #[cfg(feature = "full")]
 pub use systemprompt_loader::ConfigLoader;
 
-/// Tracing initialisation entry point from `systemprompt-logging`.
 #[cfg(feature = "full")]
 pub use systemprompt_logging::init_logging;
 
