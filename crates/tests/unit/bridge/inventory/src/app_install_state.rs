@@ -16,13 +16,6 @@ fn only_installed_counts_as_installed() {
 }
 
 #[test]
-fn unknown_is_the_only_inconclusive_state() {
-    assert!(AppInstallState::Installed.is_conclusive());
-    assert!(AppInstallState::NotInstalled.is_conclusive());
-    assert!(!AppInstallState::Unknown.is_conclusive());
-}
-
-#[test]
 fn serializes_to_the_tags_the_ui_matches_on() {
     let tag = |s: AppInstallState| serde_json::to_string(&s).expect("serialize");
     assert_eq!(tag(AppInstallState::Installed), "\"installed\"");

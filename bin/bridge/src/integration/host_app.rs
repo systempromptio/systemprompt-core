@@ -101,12 +101,6 @@ impl AppInstallState {
     pub const fn is_installed(self) -> bool {
         matches!(self, Self::Installed)
     }
-
-    /// True only when detection reached a definite answer either way.
-    #[must_use]
-    pub const fn is_conclusive(self) -> bool {
-        !matches!(self, Self::Unknown)
-    }
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -187,21 +181,6 @@ pub trait HostApp: Send + Sync + 'static {
     /// restriction.
     fn accepted_surfaces(&self) -> &'static [ApiSurface] {
         &[]
-    }
-
-    /// Windows MSIX package family name (e.g. `Claude_pzs8sxrjxfjjc`), when the
-    /// host ships as a Store/MSIX package. Such installs live under the
-    /// ACL-locked `%ProgramFiles%\WindowsApps`, so a plain path check cannot
-    /// see them; this lets detection consult the `AppModel` registry
-    /// instead.
-    fn msix_package_family(&self) -> Option<&'static str> {
-        None
-    }
-
-    /// Application ID within [`Self::msix_package_family`], used to launch via
-    /// `shell:AppsFolder\<family>!<app-id>`.
-    fn msix_app_id(&self) -> &'static str {
-        "App"
     }
 }
 

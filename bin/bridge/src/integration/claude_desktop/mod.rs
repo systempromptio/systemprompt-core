@@ -115,14 +115,6 @@ impl HostApp for ClaudeDesktopHost {
     fn accepted_surfaces(&self) -> &'static [systemprompt_models::profile::ApiSurface] {
         &[systemprompt_models::profile::ApiSurface::Anthropic]
     }
-
-    fn msix_package_family(&self) -> Option<&'static str> {
-        Some(MSIX_FAMILY)
-    }
-
-    fn msix_app_id(&self) -> &'static str {
-        MSIX_APP_ID
-    }
 }
 
 /// Package family name of the Store/MSIX build of Claude Desktop. The trailing
