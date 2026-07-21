@@ -45,12 +45,7 @@ impl HostApp for CodexCliHost {
             profile_keys: read.keys,
             host_running: !processes.is_empty(),
             host_processes: processes,
-            app_installed: crate::integration::app_launch::is_installed(
-                "Codex",
-                "Codex",
-                &[],
-                "codex",
-            ),
+            app_installed: crate::integration::app_launch::is_installed(&locator()),
             probed_at_unix: config::now_unix(),
         }
     }
@@ -64,7 +59,7 @@ impl HostApp for CodexCliHost {
     }
 
     fn open(&self) -> std::io::Result<()> {
-        crate::integration::app_launch::open_app("Codex", "Codex", &[], "codex")
+        crate::integration::app_launch::open_app(&locator())
     }
 
     fn install_action_label(&self) -> &'static str {
@@ -100,5 +95,18 @@ impl HostApp for CodexCliHost {
 
     fn accepted_surfaces(&self) -> &'static [systemprompt_models::profile::ApiSurface] {
         &[]
+    }
+}
+
+/// Codex ships as a conventional installer on every platform, so there is no
+/// MSIX family to consult.
+const fn locator() -> crate::integration::app_launch::AppLocator<'static> {
+    crate::integration::app_launch::AppLocator {
+        macos_name: "Codex",
+        windows_name: "Codex",
+        windows_candidates: &[],
+        linux_bin: "codex",
+        msix_family: None,
+        msix_app_id: "App",
     }
 }

@@ -1,7 +1,8 @@
 use std::collections::BTreeMap;
 
 use systemprompt_bridge::integration::host_app::{
-    GeneratedProfile, HostApp, HostAppSnapshot, HostConfigSchema, ProfileGenInputs, ProfileState,
+    AppInstallState, GeneratedProfile, HostApp, HostAppSnapshot, HostConfigSchema,
+    ProfileGenInputs, ProfileState,
 };
 use systemprompt_bridge::integration::{find_host_by_id, host_apps};
 use systemprompt_bridge::register_host_app;
@@ -74,7 +75,7 @@ impl HostApp for DummyHost {
             profile_keys: BTreeMap::new(),
             host_running: false,
             host_processes: Vec::new(),
-            app_installed: false,
+            app_installed: AppInstallState::NotInstalled,
             probed_at_unix: 0,
         }
     }
@@ -127,7 +128,7 @@ impl HostApp for ShadowCodexHost {
             profile_keys: BTreeMap::new(),
             host_running: false,
             host_processes: Vec::new(),
-            app_installed: false,
+            app_installed: AppInstallState::NotInstalled,
             probed_at_unix: 0,
         }
     }

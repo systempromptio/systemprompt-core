@@ -168,7 +168,10 @@ fn rendering_is_deterministic_so_reapplying_cannot_duplicate() {
             schedule::template(os, binary()),
             schedule::template(os, binary())
         );
-        assert_eq!(schedule::template_filename(os), schedule::template_filename(os));
+        assert_eq!(
+            schedule::template_filename(os),
+            schedule::template_filename(os)
+        );
     }
 }
 

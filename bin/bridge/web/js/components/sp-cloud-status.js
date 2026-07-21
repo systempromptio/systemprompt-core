@@ -1,6 +1,7 @@
 import { SpElement, reactive, escapeHtml } from "/assets/js/components/sp-element.js";
 import { bridge } from "/assets/js/bridge.js";
 import { fmtRelative, publishSectionState } from "/assets/js/utils/format.js";
+import { logout } from "/assets/js/services/session-service.js";
 
 function reachabilityView(status) {
   if (status.state === "reachable") {
@@ -69,9 +70,7 @@ export class SpCloudStatus extends SpElement {
   }
 
   async _onLogout() {
-    this.logoutError = "";
-    try { await bridge.logout(); }
-    catch (e) { this.logoutError = (e && e.message) || "logout failed"; }
+    this.logoutError = await logout();
   }
 
   render() {

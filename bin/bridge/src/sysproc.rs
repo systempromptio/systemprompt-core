@@ -40,6 +40,9 @@ mod windows {
         CreateToolhelp32Snapshot, PROCESSENTRY32W, Process32FirstW, Process32NextW,
         TH32CS_SNAPPROCESS,
     };
+    use windows_sys::Win32::System::Threading::{
+        OpenProcess, PROCESS_QUERY_LIMITED_INFORMATION, QueryFullProcessImageNameW,
+    };
 
     pub(super) fn list() -> Vec<ProcInfo> {
         // SAFETY: `CreateToolhelp32Snapshot` has no preconditions and reports failure
@@ -63,7 +66,8 @@ mod windows {
                     .position(|&c| c == 0)
                     .unwrap_or(exe_field.len());
                 let name = String::from_utf16_lossy(&exe_field[..len]);
-                out.push(ProcInfo { name, path: None });
+                let path = image_path(entry.th32ProcessID);
+                out.push(ProcInfo { name, path });
                 // SAFETY: `snap` remains valid and `entry` stays initialized across iterations.
                 if unsafe { Process32NextW(snap, &raw mut entry) } == 0 {
                     break;
@@ -73,6 +77,35 @@ mod windows {
         // SAFETY: `snap` is the live snapshot handle owned by this function.
         unsafe { CloseHandle(snap) };
         out
+    }
+
+    /// Best-effort full image path for a PID.
+    ///
+    /// `None` for processes we may not open (System, other users, protected
+    /// processes). Callers must treat that as "unknown", not "no path" —
+    /// `PROCESS_QUERY_LIMITED_INFORMATION` is the least privilege that works
+    /// and still fails on parts of the process table.
+    fn image_path(pid: u32) -> Option<String> {
+        const MAX_PATH_LONG: usize = 32_768;
+
+        // SAFETY: `OpenProcess` takes plain scalars and reports failure with a
+        // null handle, checked immediately below.
+        let handle = unsafe { OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, pid) };
+        if handle.is_null() {
+            return None;
+        }
+        let mut buf = vec![0u16; MAX_PATH_LONG];
+        let mut len = u32::try_from(buf.len()).unwrap_or(0);
+        // SAFETY: `handle` is a live process handle and `buf`/`len` are a matched
+        // buffer and capacity out-param.
+        let ok = unsafe { QueryFullProcessImageNameW(handle, 0, buf.as_mut_ptr(), &raw mut len) };
+        // SAFETY: `handle` is the live handle owned by this function.
+        unsafe { CloseHandle(handle) };
+        if ok == 0 {
+            return None;
+        }
+        let len = usize::try_from(len).unwrap_or(0).min(buf.len());
+        Some(String::from_utf16_lossy(&buf[..len]))
     }
 }
 

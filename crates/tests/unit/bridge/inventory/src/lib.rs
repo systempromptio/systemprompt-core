@@ -1,6 +1,8 @@
 #![allow(clippy::all)]
 
 #[cfg(test)]
+mod app_install_state;
+#[cfg(test)]
 mod auth_chain;
 #[cfg(test)]
 mod host_registries;

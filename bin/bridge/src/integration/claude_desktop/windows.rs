@@ -46,7 +46,7 @@ pub(super) fn list_claude_processes() -> Vec<String> {
             let lower = p.name.to_ascii_lowercase();
             let is_claude = lower == "claude.exe" || lower.starts_with("claude helper");
             let is_code = lower.contains("claude code") || lower == "claude-code.exe";
-            if is_claude && !is_code {
+            if is_claude && !is_code && !is_cli_image(p.path.as_deref()) {
                 Some(p.name)
             } else {
                 None
@@ -56,6 +56,19 @@ pub(super) fn list_claude_processes() -> Vec<String> {
     hits.sort();
     hits.dedup();
     hits
+}
+
+/// The Claude Code CLI installs as `claude.exe` too, so the image name alone
+/// cannot tell the desktop app from the CLI. When we could read the path, use
+/// it; when we could not, fall back to counting it (better a stale "running"
+/// than dropping the real desktop app because its handle was unreadable).
+fn is_cli_image(path: Option<&str>) -> bool {
+    const CLI_MARKERS: [&str; 3] = [r"\.local\bin\", r"\npm\", r"\node_modules\"];
+
+    path.is_some_and(|p| {
+        let lower = p.to_ascii_lowercase();
+        CLI_MARKERS.iter().any(|m| lower.contains(m))
+    })
 }
 
 pub(super) fn write_profile(inputs: &ProfileGenInputs) -> std::io::Result<GeneratedProfile> {

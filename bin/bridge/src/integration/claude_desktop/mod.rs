@@ -60,12 +60,9 @@ impl HostApp for ClaudeDesktopHost {
             profile_keys: read.keys,
             host_running: !processes.is_empty(),
             host_processes: processes,
-            app_installed: crate::integration::app_launch::is_installed(
-                "Claude",
-                "Claude",
+            app_installed: crate::integration::app_launch::is_installed(&locator(
                 &claude_app_candidates(),
-                "claude",
-            ),
+            )),
             probed_at_unix: shared::now_unix(),
         }
     }
@@ -79,12 +76,7 @@ impl HostApp for ClaudeDesktopHost {
     }
 
     fn open(&self) -> std::io::Result<()> {
-        crate::integration::app_launch::open_app(
-            "Claude",
-            "Claude",
-            &claude_app_candidates(),
-            "claude",
-        )
+        crate::integration::app_launch::open_app(&locator(&claude_app_candidates()))
     }
 
     fn install_action_label(&self) -> &'static str {
@@ -122,6 +114,37 @@ impl HostApp for ClaudeDesktopHost {
 
     fn accepted_surfaces(&self) -> &'static [systemprompt_models::profile::ApiSurface] {
         &[systemprompt_models::profile::ApiSurface::Anthropic]
+    }
+
+    fn msix_package_family(&self) -> Option<&'static str> {
+        Some(MSIX_FAMILY)
+    }
+
+    fn msix_app_id(&self) -> &'static str {
+        MSIX_APP_ID
+    }
+}
+
+/// Package family name of the Store/MSIX build of Claude Desktop. The trailing
+/// segment is the publisher-ID hash, which is derived from Anthropic's signing
+/// certificate and is therefore identical on every machine.
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+const MSIX_FAMILY: &str = "Claude_pzs8sxrjxfjjc";
+
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+const MSIX_APP_ID: &str = "Claude";
+
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+const fn locator(
+    candidates: &[std::path::PathBuf],
+) -> crate::integration::app_launch::AppLocator<'_> {
+    crate::integration::app_launch::AppLocator {
+        macos_name: "Claude",
+        windows_name: "Claude",
+        windows_candidates: candidates,
+        linux_bin: "claude",
+        msix_family: Some(MSIX_FAMILY),
+        msix_app_id: MSIX_APP_ID,
     }
 }
 

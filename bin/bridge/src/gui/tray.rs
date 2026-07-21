@@ -19,6 +19,7 @@ pub struct TrayHandles {
     pub identity_item: MenuItem,
     pub last_sync_item: MenuItem,
     pub sync_item: MenuItem,
+    pub logout_item: MenuItem,
     pub icon_normal: Icon,
     pub icon_alert: Icon,
     pub status: TrayStatus,
@@ -56,6 +57,7 @@ pub fn build(initial: &AppStateSnapshot) -> GuiResult<TrayHandles> {
     let validate_item = MenuItem::new("Validate setup", true, None);
     let open_settings_item = MenuItem::new("Open settings…", true, None);
     let open_folder_item = MenuItem::new("Open config folder", true, None);
+    let logout_item = MenuItem::new("Sign out", is_signed_in(initial), None);
     let quit_item = MenuItem::new("Quit", true, None);
 
     menu.append(&identity_item)?;
@@ -67,6 +69,7 @@ pub fn build(initial: &AppStateSnapshot) -> GuiResult<TrayHandles> {
     menu.append(&open_settings_item)?;
     menu.append(&open_folder_item)?;
     menu.append(&PredefinedMenuItem::separator())?;
+    menu.append(&logout_item)?;
     menu.append(&quit_item)?;
 
     let mut bindings = HashMap::new();
@@ -80,6 +83,10 @@ pub fn build(initial: &AppStateSnapshot) -> GuiResult<TrayHandles> {
     );
     bindings.insert(open_settings_item.id().clone(), UiEvent::OpenSettings);
     bindings.insert(open_folder_item.id().clone(), UiEvent::OpenConfigFolder);
+    bindings.insert(
+        logout_item.id().clone(),
+        UiEvent::LogoutRequested { reply_to: None },
+    );
     bindings.insert(quit_item.id().clone(), UiEvent::Quit);
 
     let icon_normal = decode_icon()?;
@@ -100,6 +107,7 @@ pub fn build(initial: &AppStateSnapshot) -> GuiResult<TrayHandles> {
         identity_item,
         last_sync_item,
         sync_item,
+        logout_item,
         icon_normal,
         icon_alert,
         status: TrayStatus::Normal,
@@ -110,6 +118,7 @@ pub fn refresh(handles: &mut TrayHandles, snap: &AppStateSnapshot) {
     handles.identity_item.set_text(format_identity(snap));
     handles.last_sync_item.set_text(format_last_sync(snap));
     handles.sync_item.set_enabled(!snap.sync_in_flight);
+    handles.logout_item.set_enabled(is_signed_in(snap));
     if snap.sync_in_flight {
         handles.sync_item.set_text("Syncing…");
     } else {
@@ -150,6 +159,13 @@ pub fn drain(handles: &TrayHandles) -> Vec<UiEvent> {
         }
     }
     out
+}
+
+/// A stored PAT counts: signing out must stay available even while identity
+/// verification is still in flight or the gateway is unreachable, since that is
+/// exactly when a user wants to re-authenticate.
+const fn is_signed_in(snap: &AppStateSnapshot) -> bool {
+    snap.pat_present || snap.verified_identity.is_some()
 }
 
 fn format_identity(snap: &AppStateSnapshot) -> String {

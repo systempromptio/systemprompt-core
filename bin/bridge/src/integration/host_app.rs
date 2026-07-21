@@ -81,6 +81,34 @@ pub struct HostConfigSchema {
     pub display_keys: &'static [&'static str],
 }
 
+/// Outcome of looking for the host's application on disk.
+///
+/// [`Self::Unknown`] is not a synonym for "absent": it means every detector we
+/// tried was inconclusive (a bounded probe timed out, a registry hive was
+/// unreadable). Callers must never render it as "not installed" — an
+/// inconclusive probe masking an otherwise healthy host is the bug this
+/// tri-state exists to prevent.
+#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum AppInstallState {
+    Installed,
+    NotInstalled,
+    Unknown,
+}
+
+impl AppInstallState {
+    #[must_use]
+    pub const fn is_installed(self) -> bool {
+        matches!(self, Self::Installed)
+    }
+
+    /// True only when detection reached a definite answer either way.
+    #[must_use]
+    pub const fn is_conclusive(self) -> bool {
+        !matches!(self, Self::Unknown)
+    }
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct HostAppSnapshot {
     pub host_id: &'static str,
@@ -90,7 +118,7 @@ pub struct HostAppSnapshot {
     pub profile_keys: BTreeMap<String, String>,
     pub host_running: bool,
     pub host_processes: Vec<String>,
-    pub app_installed: bool,
+    pub app_installed: AppInstallState,
     pub probed_at_unix: u64,
 }
 
@@ -159,6 +187,21 @@ pub trait HostApp: Send + Sync + 'static {
     /// restriction.
     fn accepted_surfaces(&self) -> &'static [ApiSurface] {
         &[]
+    }
+
+    /// Windows MSIX package family name (e.g. `Claude_pzs8sxrjxfjjc`), when the
+    /// host ships as a Store/MSIX package. Such installs live under the
+    /// ACL-locked `%ProgramFiles%\WindowsApps`, so a plain path check cannot
+    /// see them; this lets detection consult the `AppModel` registry
+    /// instead.
+    fn msix_package_family(&self) -> Option<&'static str> {
+        None
+    }
+
+    /// Application ID within [`Self::msix_package_family`], used to launch via
+    /// `shell:AppsFolder\<family>!<app-id>`.
+    fn msix_app_id(&self) -> &'static str {
+        "App"
     }
 }
 

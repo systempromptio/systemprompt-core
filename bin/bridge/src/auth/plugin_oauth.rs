@@ -82,8 +82,9 @@ pub fn creds_path() -> Option<PathBuf> {
 
 /// Installs the platform credential store, but only if the process has none.
 ///
-/// The guard is what lets the bridge test suites pre-install a headless keyutils
-/// store: an unconditional registration would clobber it on the first entry.
+/// The guard is what lets the bridge test suites pre-install a headless
+/// keyutils store: an unconditional registration would clobber it on the first
+/// entry.
 fn ensure_credential_store() -> Result<(), PluginOAuthError> {
     if keyring_core::get_default_store().is_some() {
         return Ok(());

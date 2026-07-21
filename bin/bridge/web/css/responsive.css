@@ -10,9 +10,12 @@
   .sp-rail-tab__count,
   .sp-rail-tab__shortcut,
   .sp-rail-section__label,
-  .sp-rail-profile__meta { display: none; }
+  .sp-rail-profile__meta,
+  .sp-rail-profile__caret { display: none; }
   .sp-rail-tab { grid-template-columns: 1fr; justify-items: center; padding: var(--sp-space-2-5) 0; }
-  .sp-rail-profile { grid-template-columns: 1fr; justify-items: center; padding: var(--sp-space-2-5) 0; }
+  .sp-rail-profile__trigger { grid-template-columns: 1fr; justify-items: center; padding: var(--sp-space-2-5) 0; }
+  /* The rail collapses to icon width; let the menu keep a readable size. */
+  .sp-rail-profile__menu { right: auto; min-width: 140px; }
   .sp-topbar__center { display: none; }
   .sp-topbar { grid-template-columns: auto auto; justify-content: space-between; }
   .sp-footer__left .sp-footer__path { display: none; }

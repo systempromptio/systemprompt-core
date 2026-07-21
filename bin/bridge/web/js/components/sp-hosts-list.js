@@ -5,6 +5,19 @@ import "/assets/js/components/sp-host-card.js";
 import "/assets/js/components/sp-overall-badge.js";
 import "/assets/js/components/sp-agents-status.js";
 
+// Timestamps advance on every probe whether or not anything changed; comparing
+// them would make every tick look like a real update. Mirrors VOLATILE_KEYS on
+// the Rust side (src/gui/emit.rs).
+const VOLATILE_KEYS = new Set(["probed_at_unix", "last_probe_at_unix", "ttl_seconds"]);
+
+function stable(value) {
+  return JSON.stringify(value, (k, v) => (VOLATILE_KEYS.has(k) ? undefined : v));
+}
+
+function sameHost(a, b) {
+  return a != null && b != null && stable(a) === stable(b);
+}
+
 export class SpHostsList extends SpElement {
   constructor() {
     super();
@@ -47,14 +60,14 @@ export class SpHostsList extends SpElement {
 
   _applyHostDelta(host) {
     if (!host || !host.id) { return; }
+    const known = this.order.includes(host.id);
+    // A probe that found nothing new still emits host.changed. Re-rendering on
+    // it is pure cost, so compare before invalidating.
+    if (known && sameHost(this.hostsById.get(host.id), host)) { return; }
     const next = new Map(this.hostsById);
     next.set(host.id, host);
     this.hostsById = next;
-    if (!this.order.includes(host.id)) {
-      this.order = [...this.order, host.id];
-    } else {
-      this.order = [...this.order];
-    }
+    this.order = known ? [...this.order] : [...this.order, host.id];
     this.invalidate();
   }
 
@@ -81,7 +94,9 @@ export class SpHostsList extends SpElement {
     if (this.order.length === 0) {
       return `${headerMarkup}${statusStrip}<div class="sp-u-muted sp-host-list__empty">${escapeHtml(t("hosts-empty") || "No host apps detected.")}</div>`;
     }
-    const cardsMarkup = this.order.map((id) => `<sp-host-card data-host-id="${escapeHtml(id)}"></sp-host-card>`).join("");
+    // data-key lets the reconciler reuse the same card element per host across
+    // renders instead of rebuilding it (and its whole subtree) each time.
+    const cardsMarkup = this.order.map((id) => `<sp-host-card data-key="${escapeHtml(id)}" data-host-id="${escapeHtml(id)}"></sp-host-card>`).join("");
     return `${headerMarkup}${statusStrip}${cardsMarkup}`;
   }
 
@@ -89,10 +104,12 @@ export class SpHostsList extends SpElement {
     for (const card of this.querySelectorAll("sp-host-card")) {
       const id = card.dataset.hostId;
       const host = this.hostsById.get(id);
-      if (host) {
-        card.host = host;
-        card.snapshot = this.snapshot;
-      }
+      if (!host) { continue; }
+      // The reactive setters compare by identity, and these are fresh objects
+      // every time — so gate on content to keep an unchanged card from
+      // re-rendering.
+      if (!sameHost(card.host, host)) { card.host = host; }
+      if (!sameHost(card.snapshot, this.snapshot)) { card.snapshot = this.snapshot; }
     }
   }
 }

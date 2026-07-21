@@ -3,8 +3,19 @@ import { bridge } from "/assets/js/bridge.js";
 import { t } from "/assets/js/i18n.js";
 import { fmtRelative } from "/assets/js/utils/format.js";
 
-function chooseBadge(appInstalled, installed, partial, proxyState, modelsBlocked) {
-  if (!appInstalled) { return { text: t("host-badge-app-missing") || "app not installed", cls: "sp-badge--err" }; }
+// `app_installed` is a tri-state: "installed" | "not_installed" | "unknown".
+// "unknown" means every detector was inconclusive (a bounded probe timed out),
+// which is NOT evidence of absence — treating it as such is what made a
+// running, fully configured host render as a red error.
+const APP_INSTALLED = "installed";
+const APP_NOT_INSTALLED = "not_installed";
+
+function appInstallState(hs) {
+  return (hs && hs.app_installed) || "unknown";
+}
+
+function chooseBadge(appState, installed, partial, proxyState, modelsBlocked) {
+  if (appState === APP_NOT_INSTALLED) { return { text: t("host-badge-app-missing") || "app not installed", cls: "sp-badge--err" }; }
   if (!installed && !partial) { return { text: t("host-badge-not-installed") || "profile not installed", cls: "sp-badge--warn" }; }
   if (partial) { return { text: t("host-badge-partial") || "partial", cls: "sp-badge--warn" }; }
   if (modelsBlocked) { return { text: t("host-badge-no-models") || "no compatible model", cls: "sp-badge--warn" }; }
@@ -19,8 +30,8 @@ export class SpHostCard extends SpElement {
     this.host = null;
     this.snapshot = null;
     this.registerAction("open", async () => {
-      const installed = !!(this.host && this.host.snapshot && this.host.snapshot.app_installed);
-      if (this.host && installed) {
+      const state = appInstallState(this.host && this.host.snapshot);
+      if (this.host && state !== APP_NOT_INSTALLED) {
         try { await bridge.agentOpen(this.host.id); } catch (e) { console.warn("open", e); }
       }
     });
@@ -60,7 +71,7 @@ export class SpHostCard extends SpElement {
     const stale = profileState.kind === "stale";
     const proxyState = ((snap.local_proxy && snap.local_proxy.state) || "Unknown").toString();
     const probing = !!host.probe_in_flight;
-    const appInstalled = !!(hs && hs.app_installed);
+    const appState = appInstallState(hs);
     const modelsChecked = !!host.models_checked;
     const compatibleModels = Array.isArray(host.compatible_models) ? host.compatible_models : [];
     const unconfigured = Array.isArray(host.unconfigured_providers) ? host.unconfigured_providers : [];
@@ -69,7 +80,7 @@ export class SpHostCard extends SpElement {
       ? { text: "probing…", cls: "sp-badge--muted" }
       : stale
         ? { text: t("host-badge-stale") || "secret out of date", cls: "sp-badge--warn" }
-        : chooseBadge(appInstalled, installed, partial, proxyState, modelsBlocked);
+        : chooseBadge(appState, installed, partial, proxyState, modelsBlocked);
     const spinnerMarkup = probing && hs ? `<span class="sp-spinner" aria-hidden="true"></span>` : "";
 
     let profileDot = "sp-dot--err";
@@ -79,10 +90,14 @@ export class SpHostCard extends SpElement {
     else if (stale) { profileDot = "sp-dot--warn"; profileText = t("host-profile-stale") || "secret out of date — re-apply profile"; }
 
     const profileSource = (hs && hs.profile_source) || "—";
-    const appDot = appInstalled ? "sp-dot--ok" : "sp-dot--err";
-    const appInstalledText = appInstalled
+    const appDot = appState === APP_INSTALLED
+      ? "sp-dot--ok"
+      : (appState === APP_NOT_INSTALLED ? "sp-dot--err" : "sp-dot--warn");
+    const appInstalledText = appState === APP_INSTALLED
       ? (t("host-app-installed") || "installed")
-      : (t("host-app-not-installed") || "not installed");
+      : (appState === APP_NOT_INSTALLED
+          ? (t("host-app-not-installed") || "not installed")
+          : (t("host-app-unknown") || "could not determine"));
     const downloadUrl = (host && host.download_url) || "";
 
     const running = hs && hs.host_running;
@@ -184,7 +199,10 @@ export class SpHostCard extends SpElement {
     const iconId = host.icon || host.id || "";
     const openLabel = escapeHtml(t("host-action-open") || "Open");
     const downloadLabel = escapeHtml(t("host-action-download") || "Download");
-    const actionMarkup = appInstalled
+    // Offer Open unless we know for certain the app is absent: on an
+    // inconclusive probe, letting the user try beats blocking them behind a
+    // Download button for an app they already have.
+    const actionMarkup = appState !== APP_NOT_INSTALLED
       ? `<button class="sp-btn-ghost sp-host-card__open-btn" type="button" data-action="open">${openLabel}</button>`
       : (downloadUrl
           ? `<button class="sp-btn-ghost sp-host-card__open-btn" type="button" data-action="download" title="${escapeHtml(downloadUrl)}">${downloadLabel} ↗</button>`

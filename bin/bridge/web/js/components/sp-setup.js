@@ -23,10 +23,12 @@ export class SpSetup extends SpElement {
     this.step = "connect";
     this.anyInstalled = false;
     this._finished = false;
+    /** Latched once the app proper is on screen; see `_applySnapshot`. */
+    this._leftSetup = false;
     this._logoFragment = null;
     this._onSetupOpen = () => { document.body.classList.add("is-setup-mode"); };
     this.registerAction("finish", () => this._finish());
-    this.registerAction("open-bridge", () => { document.body.classList.remove("is-setup-mode"); });
+    this.registerAction("open-bridge", () => { this._leftSetup = true; document.body.classList.remove("is-setup-mode"); });
   }
 
   onConnect() {
@@ -58,15 +60,34 @@ export class SpSetup extends SpElement {
     const settled = hosts.length > 0 && hosts.every((h) => h.snapshot);
     const anyInstalled = hosts.some((h) => h.snapshot?.profile_state?.kind === "installed");
     this.anyInstalled = anyInstalled;
-
-    const needAgents = configured && settled && !anyInstalled && !this._finished;
-    const inSetup = !configured || needAgents;
-    document.body.classList.toggle("is-setup-mode", inSetup);
     this.step = configured ? "agents" : "connect";
+
+    // Signing out is the one thing that legitimately sends us back to the
+    // splash. Clear the latch so it can.
+    if (!snap.verified_identity || !snap.verified_identity.user_id) { this._leftSetup = false; }
+
+    // Everything below decides whether to show a full-screen overlay, so it must
+    // only ever run on a settled snapshot. `configured` and `anyInstalled` each
+    // start out false and flip true as the gateway probe and then the host
+    // probes land — evaluating on those partial snapshots is what made the
+    // window flick splash → app → splash → app during startup.
+    const gatewayProbing = !snap.gateway_status || snap.gateway_status.state === "probing"
+      || snap.gateway_status.state === "unknown";
+    if (gatewayProbing || !settled) { return; }
+
+    // One-way latch: once the app proper has been shown, a later probe result
+    // must not yank the user back into onboarding mid-session.
+    if (this._leftSetup) { return; }
+
+    const needAgents = !anyInstalled && !this._finished;
+    const inSetup = !configured || needAgents;
+    if (!inSetup) { this._leftSetup = true; }
+    document.body.classList.toggle("is-setup-mode", inSetup);
   }
 
   _finish() {
     this._finished = true;
+    this._leftSetup = true;
     bridge.setupComplete().catch((err) => console.warn("setup complete", err));
     document.body.classList.remove("is-setup-mode");
   }

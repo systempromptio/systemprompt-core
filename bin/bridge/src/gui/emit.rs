@@ -80,14 +80,51 @@ pub(crate) fn emit_sync_progress(app: &GuiApp, phase: &str, summary: Option<&str
 pub(crate) fn emit_state(app: &mut GuiApp) {
     let snap = app.state.snapshot();
     let value = crate::gui::server_json::snapshot_value(&snap);
-    let mut hasher = std::collections::hash_map::DefaultHasher::new();
-    value.to_string().hash(&mut hasher);
-    let hash = hasher.finish();
+    let hash = semantic_hash(&value);
     if app.last_state_hash == Some(hash) {
         return;
     }
     app.last_state_hash = Some(hash);
     send_emit(app, "state.changed", &value);
+}
+
+/// Clock-driven fields that advance on every probe tick whether or not anything
+/// actually changed. Hashing them defeated the dedupe entirely, so a full
+/// `state.changed` — and with it a re-render of every subscriber — was
+/// broadcast every probe interval, forever.
+const VOLATILE_KEYS: [&str; 4] = [
+    "probed_at_unix",
+    "last_probe_at_unix",
+    "ttl_seconds",
+    "expires_at_unix",
+];
+
+/// Hash of `value` ignoring monotonic timestamps, so the dedupe fires on
+/// semantic change only.
+fn semantic_hash(value: &Value) -> u64 {
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    hash_value(value, &mut hasher);
+    hasher.finish()
+}
+
+fn hash_value(value: &Value, hasher: &mut impl Hasher) {
+    match value {
+        Value::Object(map) => {
+            for (k, v) in map {
+                if VOLATILE_KEYS.contains(&k.as_str()) {
+                    continue;
+                }
+                k.hash(hasher);
+                hash_value(v, hasher);
+            }
+        },
+        Value::Array(items) => {
+            for item in items {
+                hash_value(item, hasher);
+            }
+        },
+        other => other.to_string().hash(hasher),
+    }
 }
 
 pub(crate) fn emit_theme_changed(app: &GuiApp, theme: &str) {

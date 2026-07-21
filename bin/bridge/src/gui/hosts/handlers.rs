@@ -82,11 +82,10 @@ pub(crate) fn on_probe_finished(
         .get(host_id)
         .and_then(|s| s.snapshot.clone());
     app.state.apply_host_snapshot(host_id, snapshot.clone());
-    _ = app
-        .proxy
-        .send_event(UiEvent::Host(HostUiEvent::ProxyProbeRequested {
-            reply_to: None,
-        }));
+    // Deliberately no ProxyProbeRequested here: with N hosts this fanned one
+    // probe round out into N proxy probes, each ending in its own
+    // proxy.changed + state.changed. `hosts::tick::maybe_probe` already owns
+    // proxy probe scheduling on the same interval, with an in-flight guard.
     app.refresh_ui();
     emit::emit_host_changed(app, host_id);
     let log_line = match cause {

@@ -30,8 +30,8 @@ use systemprompt_bridge::ids::{
 use systemprompt_bridge::mcp_registry::normalize_key;
 use systemprompt_bridge::sync::run_once;
 use systemprompt_identifiers::HookId;
-use systemprompt_models::services::hooks::{HookCategory, HookEvent};
 use systemprompt_models::services::PluginHooksRef;
+use systemprompt_models::services::hooks::{HookCategory, HookEvent};
 use systemprompt_test_fixtures::fixture_user_id;
 use wiremock::matchers::{method, path, path_regex};
 use wiremock::{Mock, MockServer, ResponseTemplate};
