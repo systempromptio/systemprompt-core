@@ -4627,7 +4627,6 @@ dependencies = [
  "tracing",
  "url",
  "uuid",
- "xxhash-rust",
 ]
 
 [[package]]

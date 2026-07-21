@@ -8,7 +8,6 @@ use axum::extract::State;
 use axum::http::{HeaderMap, HeaderValue, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use serde::{Deserialize, Serialize};
-use std::net::IpAddr;
 use std::sync::Arc;
 
 use crate::services::middleware::client_addr::ClientIp;
@@ -20,7 +19,7 @@ use systemprompt_oauth::services::cimd::ClientValidator;
 use systemprompt_oauth::services::{CreateAnonymousSessionInput, SessionCreationService};
 
 use crate::routes::oauth::OAuthHttpError;
-use systemprompt_traits::{AnalyticsProvider, ExtractSignals};
+use systemprompt_traits::{ExtractSignals, SessionAnalytics};
 
 #[derive(Debug, Serialize)]
 pub struct AnonymousTokenResponse {
@@ -62,27 +61,17 @@ fn token_response(body: AnonymousTokenResponse, jwt_token: &str, expires_in: i64
 
 async fn issue_anonymous_session(
     session_service: &SessionCreationService,
-    analytics_provider: &dyn AnalyticsProvider,
     req: &AnonymousTokenRequest,
-    headers: &HeaderMap,
-    caller_ip: Option<IpAddr>,
+    analytics: &SessionAnalytics,
     client_type: String,
 ) -> Result<Response, OAuthHttpError> {
     let expires_in = systemprompt_oauth::constants::token::ANONYMOUS_TOKEN_EXPIRY_SECONDS;
     let client_id = req.client_id.clone();
     let session_source = SessionSource::from_client_id(&req.client_id);
 
-    let analytics = analytics_provider.extract_analytics(
-        headers,
-        ExtractSignals {
-            caller_ip,
-            ..Default::default()
-        },
-    );
-
     let session_info = session_service
         .create_anonymous_session(CreateAnonymousSessionInput {
-            analytics: &analytics,
+            analytics,
             client_id: &client_id,
             session_source,
         })
@@ -136,13 +125,13 @@ pub async fn generate_anonymous_token(
 
     let session_service = build_session_service(&state);
 
-    issue_anonymous_session(
-        &session_service,
-        state.analytics_provider().as_ref(),
-        &req,
+    let analytics = state.analytics_provider().extract_analytics(
         &headers,
-        caller_ip,
-        client_type.to_string(),
-    )
-    .await
+        ExtractSignals {
+            caller_ip,
+            ..Default::default()
+        },
+    );
+
+    issue_anonymous_session(&session_service, &req, &analytics, client_type.to_string()).await
 }

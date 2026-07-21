@@ -33,7 +33,7 @@ impl SessionCreationService {
             .create_session(CreateSessionInput {
                 session_id: &session_id,
                 user_id: Some(&user_id),
-                analytics: &params.analytics,
+                analytics: params.analytics,
                 session_source: params.session_source,
                 is_bot: params.analytics.is_bot,
                 is_ai_crawler: params.analytics.is_ai_crawler,
