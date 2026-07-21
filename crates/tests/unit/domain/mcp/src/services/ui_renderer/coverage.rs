@@ -6,9 +6,8 @@ use systemprompt_models::artifacts::{
 };
 use systemprompt_models::{A2aArtifact as Artifact, ArtifactMetadata, DataPart, Part};
 
-/// Every variant a `CliArtifact` can carry. A variant added to the union
-/// without a renderer would silently degrade to a raw JSON dump in the host,
-/// so the registry must cover this list exactly.
+// A variant added to the union without a renderer silently degrades to a raw
+// JSON dump in the host, so the registry must cover this list exactly.
 const CLI_ARTIFACT_TYPES: &[&str] = &[
     TableArtifact::ARTIFACT_TYPE_STR,
     ListArtifact::ARTIFACT_TYPE_STR,

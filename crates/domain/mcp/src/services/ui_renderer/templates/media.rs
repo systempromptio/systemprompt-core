@@ -105,10 +105,10 @@ impl UiRenderer for VideoRenderer {
             title = html_escape(title),
             src = html_escape(&video.src),
             type_attr = mime_attr(video.mime_type.as_deref()),
-            poster = video.poster.as_ref().map_or_else(String::new, |p| format!(
-                r#" poster="{}""#,
-                html_escape(p)
-            )),
+            poster = video
+                .poster
+                .as_ref()
+                .map_or_else(String::new, |p| format!(r#" poster="{}""#, html_escape(p))),
             flags = Playback {
                 controls: video.controls,
                 autoplay: video.autoplay,
@@ -156,7 +156,6 @@ fn mime_attr(mime_type: Option<&str>) -> String {
     mime_type.map_or_else(String::new, |m| format!(r#" type="{}""#, html_escape(m)))
 }
 
-/// The boolean attributes of a media element, rendered as HTML attributes.
 #[derive(Debug, Clone, Copy, Default)]
 struct Playback {
     controls: bool,

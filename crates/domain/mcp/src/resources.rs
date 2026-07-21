@@ -78,10 +78,6 @@ pub fn read_artifact_viewer_resource(
     Ok(ReadResourceResult::new(vec![contents]))
 }
 
-/// Serves `ui://<server>/artifact/<id>` by re-rendering the stored artifact.
-///
-/// Tool results already embed this HTML; this is the pull-based path for hosts
-/// that resolve the resource URI instead of rendering the embedded block.
 pub async fn read_artifact_resource(
     request: &ReadResourceRequestParams,
     server_name: &str,
@@ -119,7 +115,10 @@ pub async fn read_artifact_resource(
         artifact_id: &artifact_id,
         artifact_type: &record.artifact_type,
         payload,
-        context_id: record.context_id.clone().unwrap_or_else(ContextId::generate),
+        context_id: record
+            .context_id
+            .clone()
+            .unwrap_or_else(ContextId::generate),
         title: record.title.clone(),
     };
 

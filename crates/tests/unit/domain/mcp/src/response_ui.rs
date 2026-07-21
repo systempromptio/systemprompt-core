@@ -101,8 +101,7 @@ async fn presentation_card_tool_result_embeds_rendered_card_html() {
     assert!(html.contains("card-section"));
 }
 
-/// MCP Apps (SEP-1865) sends the app its dimensions as `{width, height}`;
-/// a height-only notification does not satisfy the schema.
+// MCP Apps sends dimensions as {width, height}; height alone is not the shape.
 #[tokio::test]
 async fn rendered_artifact_reports_both_dimensions_to_the_host() {
     let Some(db) = db().await else { return };
@@ -116,8 +115,8 @@ async fn rendered_artifact_reports_both_dimensions_to_the_host() {
     assert!(html.contains("params: { width, height }"));
 }
 
-/// The app shell needs the artifact's own `ui://` URI to fall back to
-/// `resources/read` when a host does not forward embedded content blocks.
+// The shell needs this URI to fall back to resources/read when a host does
+// not forward embedded content blocks.
 #[tokio::test]
 async fn result_meta_names_the_ui_resource_uri() {
     let Some(db) = db().await else { return };

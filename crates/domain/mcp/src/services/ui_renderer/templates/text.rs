@@ -31,7 +31,11 @@ impl UiRenderer for TextRenderer {
     }
 
     async fn render(&self, artifact: &Artifact) -> McpDomainResult<UiResource> {
-        Ok(render_text(artifact, Presentation::Prose, self.csp_policy()))
+        Ok(render_text(
+            artifact,
+            Presentation::Prose,
+            self.csp_policy(),
+        ))
     }
 
     fn csp_policy(&self) -> CspPolicy {
@@ -128,15 +132,15 @@ fn render_text(artifact: &Artifact, presentation: Presentation, csp: CspPolicy) 
     UiResource::new(html).with_csp(csp)
 }
 
-/// Collects the artifact's prose from text parts, falling back to the
-/// `content` field of a data part — the shape the CLI text artifacts carry.
 fn extract_text(artifact: &Artifact) -> String {
     let mut text_parts = Vec::new();
 
     for part in &artifact.parts {
         if let Some(text) = part.as_text() {
             text_parts.push(text.to_owned());
-        } else if let Some(content) = part.as_data().and_then(|data| string_field(&data, "content"))
+        } else if let Some(content) = part
+            .as_data()
+            .and_then(|data| string_field(&data, "content"))
         {
             text_parts.push(content);
         }

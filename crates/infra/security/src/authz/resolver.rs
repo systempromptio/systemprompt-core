@@ -54,10 +54,11 @@ pub struct ResolveInput<'a> {
 ///
 /// A child deny overrides a parent allow, a nearer rule overrides a farther one
 /// within the same precedence band, and a parent grant cascades to the child
-/// only when the child declares no rules at all — a child that declares any rule
-/// owns its decision and is closed to roles it does not name. An unknown child entity
-/// (`default_included == None`) yields [`DenyReason::UnknownEntity`] unless a
-/// rule or a parent's `default_included` grants access.
+/// only when the child declares no rules at all — a child that declares any
+/// rule owns its decision and is closed to roles it does not name. An unknown
+/// child entity (`default_included == None`) yields
+/// [`DenyReason::UnknownEntity`] unless a rule or a parent's `default_included`
+/// grants access.
 #[must_use]
 pub fn resolve(input: ResolveInput<'_>) -> Decision {
     let ResolveInput {

@@ -15,6 +15,8 @@
 #![allow(clippy::all)]
 
 #[cfg(test)]
+mod apps_wire_shape;
+#[cfg(test)]
 mod capabilities;
 #[cfg(test)]
 mod capabilities_extended;

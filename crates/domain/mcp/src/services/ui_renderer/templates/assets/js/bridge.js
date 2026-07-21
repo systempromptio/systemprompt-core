@@ -1,6 +1,6 @@
-// Host bridge per MCP Apps (SEP-1865). The app is the JSON-RPC client: it
-// opens with a `ui/initialize` request, then issues requests such as
-// `tools/call`, `resources/read`, and `ui/message` over postMessage.
+// Host bridge per MCP Apps (SEP-1865). The app is the JSON-RPC client.
+// Method names come from the injected MCP_UI constants, generated from the
+// Rust UiMethod enum — never spell them out here.
 const McpAppBridge = {
     parent: window.parent,
     origin: '*',
@@ -10,14 +10,15 @@ const McpAppBridge = {
 
     init() {
         window.addEventListener('message', (event) => this.handleMessage(event));
-        this.sendRequest('ui/initialize', {
+        this.sendRequest(MCP_UI.INITIALIZE, {
             appInfo: { name: 'systemprompt-artifact', version: '1.0.0' },
-            appCapabilities: {}
+            appCapabilities: {},
+            protocolVersion: MCP_UI.PROTOCOL_VERSION
         }).then((result) => {
             this.hostContext = (result && result.hostContext) || null;
-            this.sendNotification('ui/notifications/initialized', {});
+            this.sendNotification(MCP_UI.INITIALIZED, {});
         }).catch((err) => {
-            console.error('ui/initialize failed:', err);
+            console.error('MCP Apps initialize failed:', err);
         });
     },
 
@@ -63,16 +64,16 @@ const McpAppBridge = {
         return this.sendRequest('resources/read', { uri });
     },
 
-    // Sends a user turn to the host's chat interface.
+    // `content` is an array of content blocks, not a bare block.
     async sendMessage(text) {
-        return this.sendRequest('ui/message', {
+        return this.sendRequest(MCP_UI.MESSAGE, {
             role: 'user',
-            content: { type: 'text', text }
+            content: [{ type: 'text', text }]
         });
     },
 
     updateModelContext(data) {
-        this.sendNotification('ui/update-model-context', { data });
+        this.sendNotification(MCP_UI.UPDATE_MODEL_CONTEXT, { data });
     }
 };
 

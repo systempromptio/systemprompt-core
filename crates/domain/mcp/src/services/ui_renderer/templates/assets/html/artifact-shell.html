@@ -61,10 +61,11 @@
     <div class="status"><span class="spinner"></span><span>Loading artifact…</span></div>
   </div>
   <script>
-    // MCP Apps (SEP-1865) shell. The host renders this predeclared template
-    // and pushes the tool result via `ui/notifications/tool-result`. All
-    // artifact markup is rendered server-side; this shell only mounts it and
-    // relays size, so it needs no knowledge of artifact types.
+    /*MCP_UI_CONSTANTS*/
+
+    // Method names come from the generated MCP_UI constants; never spell them
+    // out here. All artifact markup is rendered server-side, so this shell
+    // needs no knowledge of artifact types.
     const HTML_MIME_PREFIX = 'text/html';
     const PENDING = new Map();
     let requestId = 0;
@@ -92,7 +93,7 @@
       lastSize = { width, height };
       post({
         jsonrpc: '2.0',
-        method: 'ui/notifications/size-changed',
+        method: MCP_UI.SIZE_CHANGED,
         params: { width, height }
       });
     }
@@ -191,7 +192,7 @@
 
         // The mounted artifact reports its own size; grow to fit and pass the
         // measurement up to the host.
-        if (data.method === 'ui/notifications/size-changed' && data.params) {
+        if (data.method === MCP_UI.SIZE_CHANGED && data.params) {
           const frame = document.getElementById('frame');
           if (frame && event.source === frame.contentWindow) {
             frame.style.height = data.params.height + 'px';
@@ -200,7 +201,7 @@
           return;
         }
 
-        if (data.method === 'ui/notifications/tool-result') {
+        if (data.method === MCP_UI.TOOL_RESULT) {
           render(data.params);
         }
       } catch (err) {
@@ -209,14 +210,15 @@
       }
     });
 
-    request('ui/initialize', {
+    request(MCP_UI.INITIALIZE, {
       appInfo: { name: 'systemprompt-artifact-viewer', version: '1.0.0' },
-      appCapabilities: {}
+      appCapabilities: {},
+      protocolVersion: MCP_UI.PROTOCOL_VERSION
     }).then(() => {
-      post({ jsonrpc: '2.0', method: 'ui/notifications/initialized', params: {} });
+      post({ jsonrpc: '2.0', method: MCP_UI.INITIALIZED, params: {} });
       publishSize();
     }).catch((err) => {
-      console.error('ui/initialize failed:', err);
+      console.error('MCP Apps initialize failed:', err);
     });
   </script>
 </body>

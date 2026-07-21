@@ -8,6 +8,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+pub mod apps;
 mod call_tool_result_ext;
 pub mod capabilities;
 pub mod deployment;
@@ -16,6 +17,11 @@ pub mod registry_trait;
 pub mod server;
 mod tool_result_metadata;
 
+pub use apps::{
+    EXTENSION_ID, Implementation, LATEST_PROTOCOL_VERSION, LEGACY_RESOURCE_URI_META_KEY,
+    McpUiToolMeta, RESOURCE_MIME_TYPE, SizeChangedParams, UI_META_KEY, UiInitializeParams,
+    UiMessageParams, UiMessageRole, UiMethod, ui_method_js_constants,
+};
 pub use call_tool_result_ext::CallToolResultExt;
 pub use capabilities::{
     MCP_APP_MIME_TYPE, McpAppsUiConfig, McpCspDomains, McpCspDomainsBuilder, McpExtensionId,

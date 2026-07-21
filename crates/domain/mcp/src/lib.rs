@@ -67,10 +67,10 @@ pub use resources::{
     ArtifactViewerConfig, build_artifact_viewer_resource, default_server_icons,
     read_artifact_resource, read_artifact_viewer_resource,
 };
-pub use services::ui_renderer::templates::html::artifact_shell_template;
-pub use services::ui_renderer::{artifact_resource_uri, parse_artifact_resource_uri};
 pub use response::{McpResponseBuilder, UI_RESOURCE_URI_META_KEY};
 pub use schema::McpOutputSchema;
+pub use services::ui_renderer::templates::html::artifact_shell_template;
+pub use services::ui_renderer::{artifact_resource_uri, parse_artifact_resource_uri};
 pub use tool::{McpToolExecutor, McpToolHandler};
 
 pub use systemprompt_models::mcp::{

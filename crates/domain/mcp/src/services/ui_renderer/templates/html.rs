@@ -1,7 +1,15 @@
 //! HTML builder for artifact UI rendering.
 //!
+//! Every document built here opens with the generated `MCP_UI` constants and
+//! closes with the frame-sizing script, so app code addresses protocol
+//! methods through [`UiMethod`](systemprompt_models::mcp::UiMethod) rather
+//! than string literals, and no renderer has to opt into host size
+//! negotiation.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
+
+use systemprompt_models::mcp::ui_method_js_constants;
 
 #[derive(Debug)]
 pub struct HtmlBuilder {
@@ -36,9 +44,6 @@ impl HtmlBuilder {
         self
     }
 
-    /// Builds the document. Every rendered resource carries
-    /// [`frame_script`] so the embedding host can size its iframe to the
-    /// content instead of cropping it.
     pub fn build(self) -> String {
         let styles = if self.styles.is_empty() {
             String::new()
@@ -47,7 +52,8 @@ impl HtmlBuilder {
         };
 
         let scripts = {
-            let mut all = self.scripts;
+            let mut all = vec![ui_method_js_constants()];
+            all.extend(self.scripts);
             all.push(frame_script().to_owned());
             format!("<script>\n{}\n</script>", all.join("\n"))
         };
@@ -94,16 +100,13 @@ pub const fn mcp_app_bridge_script() -> &'static str {
     include_str!("assets/js/bridge.js")
 }
 
-/// Host iframe size negotiation, injected into every built document.
 pub const fn frame_script() -> &'static str {
     include_str!("assets/js/frame.js")
 }
 
-/// The static MCP-App shell a server advertises as its artifact viewer.
-///
-/// It performs no type dispatch of its own: the tool result carries the
-/// server-rendered HTML as an embedded `ui://` resource, and the shell mounts
-/// it and relays its height to the host.
-pub const fn artifact_shell_template() -> &'static str {
+pub fn artifact_shell_template() -> String {
     include_str!("assets/html/artifact-shell.html")
+        .replace(MCP_UI_CONSTANTS_PLACEHOLDER, &ui_method_js_constants())
 }
+
+const MCP_UI_CONSTANTS_PLACEHOLDER: &str = "/*MCP_UI_CONSTANTS*/";

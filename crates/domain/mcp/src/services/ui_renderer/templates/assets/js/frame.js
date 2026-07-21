@@ -1,6 +1,6 @@
-// Size negotiation per MCP Apps (SEP-1865): the app notifies the host of its
-// viewport dimensions with `ui/notifications/size-changed`, whose params carry
-// both `width` and `height` in pixels.
+// Size negotiation per MCP Apps (SEP-1865). Method names come from the
+// injected MCP_UI constants, which are generated from the Rust `UiMethod`
+// enum — never spell them out here.
 const McpAppFrame = {
     parent: window.parent,
     origin: '*',
@@ -50,7 +50,7 @@ const McpAppFrame = {
 
         this.parent.postMessage({
             jsonrpc: '2.0',
-            method: 'ui/notifications/size-changed',
+            method: MCP_UI.SIZE_CHANGED,
             params: { width, height }
         }, this.origin);
     }

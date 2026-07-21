@@ -17,22 +17,15 @@ use std::sync::{Arc, OnceLock};
 use systemprompt_identifiers::{ArtifactId, ContextId, TaskId};
 use systemprompt_models::a2a::{Artifact, ArtifactMetadata, DataPart, Part};
 
-/// Identifies a stored artifact for rendering.
 #[derive(Debug)]
 pub struct RenderTarget<'a> {
     pub artifact_id: &'a ArtifactId,
-    /// The type the artifact was persisted under — the `cli` envelope tag for
-    /// CLI-sourced artifacts, otherwise the concrete type.
     pub artifact_type: &'a str,
-    /// The artifact payload: the `artifact` field of the tool response
-    /// envelope, carrying its own variant tag.
     pub payload: &'a JsonValue,
     pub context_id: ContextId,
     pub title: Option<String>,
 }
 
-/// The process-wide default registry. Renderers are stateless, so one shared
-/// instance serves every tool call.
 fn default_registry() -> Arc<UiRendererRegistry> {
     static REGISTRY: OnceLock<Arc<UiRendererRegistry>> = OnceLock::new();
     Arc::clone(REGISTRY.get_or_init(|| Arc::new(create_default_registry())))
@@ -43,13 +36,10 @@ pub async fn artifact_ui_resource(target: &RenderTarget<'_>) -> McpDomainResult<
     default_registry().render(&artifact).await
 }
 
-/// The `ui://` URI a rendered artifact is addressable at, both as an embedded
-/// resource on the tool result and via `resources/read`.
 pub fn artifact_resource_uri(server_name: &str, artifact_id: &ArtifactId) -> String {
     format!("ui://{server_name}/artifact/{artifact_id}")
 }
 
-/// Splits a `ui://<server>/artifact/<id>` URI back into its parts.
 pub fn parse_artifact_resource_uri(uri: &str) -> Option<(&str, &str)> {
     let rest = uri.strip_prefix("ui://")?;
     let (server_name, tail) = rest.split_once('/')?;
@@ -58,11 +48,10 @@ pub fn parse_artifact_resource_uri(uri: &str) -> Option<(&str, &str)> {
 }
 
 fn to_a2a_artifact(target: &RenderTarget<'_>) -> McpDomainResult<Artifact> {
-    let data = target
-        .payload
-        .as_object()
-        .cloned()
-        .ok_or_else(|| McpDomainError::Internal("Artifact payload is not an object".to_owned()))?;
+    let data =
+        target.payload.as_object().cloned().ok_or_else(|| {
+            McpDomainError::Internal("Artifact payload is not an object".to_owned())
+        })?;
 
     Ok(Artifact {
         id: target.artifact_id.clone(),

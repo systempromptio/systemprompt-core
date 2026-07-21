@@ -7,7 +7,7 @@ for (const button of document.querySelectorAll('.card-cta')) {
             return;
         }
         McpAppBridge.sendMessage(cta.message).catch((err) => {
-            console.error('ui/message failed:', err);
+            console.error('Sending message to host failed:', err);
         });
     });
 }

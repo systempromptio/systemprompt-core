@@ -100,16 +100,36 @@ pub fn visibility_to_json(visibility: &[ToolVisibility]) -> serde_json::Value {
     serde_json::json!(visibility)
 }
 
+/// CSP origin declarations on a UI resource's `_meta.ui.csp`.
+///
+/// Field names are fixed by the MCP Apps schema (`connectDomains`,
+/// `resourceDomains`, `frameDomains`, `baseUriDomains`); a host silently
+/// ignores anything else, so they are pinned by a wire-shape test.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct McpCspDomains {
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[serde(
+        rename = "connectDomains",
+        default,
+        skip_serializing_if = "Vec::is_empty"
+    )]
     pub connect: Vec<String>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[serde(
+        rename = "resourceDomains",
+        default,
+        skip_serializing_if = "Vec::is_empty"
+    )]
     pub resources: Vec<String>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[serde(
+        rename = "frameDomains",
+        default,
+        skip_serializing_if = "Vec::is_empty"
+    )]
     pub frames: Vec<String>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[serde(
+        rename = "baseUriDomains",
+        default,
+        skip_serializing_if = "Vec::is_empty"
+    )]
     pub base_uri: Vec<String>,
 }
 

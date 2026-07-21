@@ -62,7 +62,8 @@ impl UiRenderer for MessageRenderer {
 
 fn render_lines(lines: &[NoticeLine]) -> String {
     if lines.is_empty() {
-        return r#"<li class="notice notice-info">Command completed with no output.</li>"#.to_owned();
+        return r#"<li class="notice notice-info">Command completed with no output.</li>"#
+            .to_owned();
     }
 
     lines

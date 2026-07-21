@@ -1,5 +1,13 @@
 //! MCP tool-response assembly with output-schema validation logging.
 //!
+//! Every response carries its artifact three ways: the text summary for the
+//! model, `structured_content` for programmatic consumers, and — for MCP Apps
+//! hosts — server-rendered HTML as an embedded `ui://` resource, with
+//! [`UI_RESOURCE_URI_META_KEY`] on the result `_meta` naming that same
+//! resource for hosts that prefer to `resources/read` it. Rendering is
+//! presentational, so a renderer failure drops the resource rather than
+//! failing the tool call.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -18,9 +26,6 @@ use systemprompt_models::RequestContext;
 use systemprompt_models::artifacts::{ExecutionMetadata, ToolResponse};
 use systemprompt_models::mcp::McpResourceUiMeta;
 
-/// `_meta` key on a tool result naming the `ui://` resource that renders it.
-/// Namespaced per the MCP `_meta` convention so it cannot collide with keys
-/// the protocol or a host defines.
 pub const UI_RESOURCE_URI_META_KEY: &str = "io.systemprompt/ui-resource-uri";
 
 pub struct McpResponseBuilder<T: Serialize + JsonSchema> {
@@ -114,15 +119,14 @@ impl<T: Serialize + JsonSchema + McpOutputSchema> McpResponseBuilder<T> {
             artifact_resource_uri(&create_artifact.server_name, &create_artifact.artifact_id);
 
         let mut content = vec![ContentBlock::text(summary_str)];
-        if let Some(block) = ui_resource_block(&create_artifact, &self.ctx, &ui_resource_uri).await {
+        if let Some(block) = ui_resource_block(&create_artifact, &self.ctx, &ui_resource_uri).await
+        {
             content.push(block);
         }
 
         let mut result = CallToolResult::success(content);
         result.structured_content = Some(structured_content);
 
-        // The app shell reads this to `resources/read` the rendered artifact
-        // when the host does not forward embedded content blocks to it.
         let mut meta_map = meta_for_result.map_or_else(serde_json::Map::new, |m| m.0);
         meta_map.insert(UI_RESOURCE_URI_META_KEY.to_owned(), ui_resource_uri.into());
         result = result.with_meta(Some(Meta(meta_map)));
@@ -131,9 +135,6 @@ impl<T: Serialize + JsonSchema + McpOutputSchema> McpResponseBuilder<T> {
     }
 }
 
-/// Renders the artifact to HTML and returns it as an embedded `ui://`
-/// resource block. Rendering is presentational: a failure is logged and the
-/// tool result goes out without it rather than failing the call.
 async fn ui_resource_block(
     artifact: &CreateMcpArtifact,
     ctx: &RequestContext,

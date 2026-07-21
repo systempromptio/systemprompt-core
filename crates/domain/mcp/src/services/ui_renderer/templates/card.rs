@@ -15,7 +15,9 @@ use crate::error::McpDomainResult;
 use crate::services::ui_renderer::{CspPolicy, UiRenderer, UiResource};
 use async_trait::async_trait;
 use systemprompt_models::a2a::Artifact;
-use systemprompt_models::artifacts::{ArtifactType, CardCta, CardSection, PresentationCardArtifact};
+use systemprompt_models::artifacts::{
+    ArtifactType, CardCta, CardSection, PresentationCardArtifact,
+};
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct PresentationCardRenderer;
