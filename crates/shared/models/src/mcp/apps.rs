@@ -19,6 +19,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use super::capabilities::ToolVisibility;
+use rmcp::model::{ContentBlock, Implementation};
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
@@ -175,7 +176,7 @@ pub struct SizeChangedParams {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UiMessageParams {
     pub role: UiMessageRole,
-    pub content: Vec<serde_json::Value>,
+    pub content: Vec<ContentBlock>,
 }
 
 impl UiMessageParams {
@@ -183,7 +184,7 @@ impl UiMessageParams {
     pub fn user_text(text: impl Into<String>) -> Self {
         Self {
             role: UiMessageRole::User,
-            content: vec![serde_json::json!({"type": "text", "text": text.into()})],
+            content: vec![ContentBlock::text(text.into())],
         }
     }
 }
@@ -199,6 +200,8 @@ pub enum UiMessageRole {
 #[serde(rename_all = "camelCase")]
 pub struct UiInitializeParams {
     pub app_info: Implementation,
+    // JSON: protocol boundary — McpUiAppCapabilities is an open object hosts
+    // extend, so the schema fixes no field set to type against.
     pub app_capabilities: serde_json::Value,
     pub protocol_version: String,
 }
@@ -207,21 +210,13 @@ impl UiInitializeParams {
     #[must_use]
     pub fn new(name: impl Into<String>, version: impl Into<String>) -> Self {
         Self {
-            app_info: Implementation {
-                name: name.into(),
-                version: version.into(),
-            },
+            app_info: Implementation::new(name.into(), version.into()),
             app_capabilities: serde_json::json!({}),
             protocol_version: LATEST_PROTOCOL_VERSION.to_owned(),
         }
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Implementation {
-    pub name: String,
-    pub version: String,
-}
 
 #[must_use]
 pub fn ui_method_js_constants() -> String {
