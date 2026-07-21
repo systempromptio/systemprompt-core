@@ -50,12 +50,15 @@ pub struct LoopbackServer {
 
 impl LoopbackServer {
     pub async fn bind() -> Result<Self> {
-        let listener = TcpListener::bind(("127.0.0.1", LOOPBACK_PORT))
+        Self::bind_on(LOOPBACK_PORT).await
+    }
+
+    /// Binds an arbitrary loopback port. Port `0` lets the OS pick one, which
+    /// [`Self::callback_url`] then reports back.
+    pub async fn bind_on(port: u16) -> Result<Self> {
+        let listener = TcpListener::bind(("127.0.0.1", port))
             .await
-            .map_err(|source| LoopbackError::Bind {
-                port: LOOPBACK_PORT,
-                source,
-            })?;
+            .map_err(|source| LoopbackError::Bind { port, source })?;
         let addr = listener.local_addr()?;
         Ok(Self { listener, addr })
     }
