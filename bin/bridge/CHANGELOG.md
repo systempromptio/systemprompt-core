@@ -8,6 +8,11 @@
 - **Breaking:** added the `Brand::schedule_label`, `Brand::schedule_unit`, and `Brand::schedule_task_name` fields (the launchd label, systemd unit basename, and Task Scheduler task name for the periodic sync job). Migrate by adding them to any custom `Brand` definition so a white-label build does not register an upstream-named task.
 - **Breaking:** added the `Brand::workspace_dir_name` field (the brand's default Cowork workspace folder name; empty string ⇒ emit no default folder). Migrate by adding it to any custom `Brand` definition.
 
+### Changed
+
+- The OAuth `client_secret` keystore moves from `keyring` 3 to `keyring-core` 1 with explicit per-platform stores (Keychain on macOS, Credential Manager on Windows, the blocking dbus Secret Service on Linux). The `keyring` 4 facade was not adopted: it hard-codes the async zbus Secret Service backend on Linux, and its lazy bootstrap overwrites the process credential store, which would silently replace the headless store the bridge test suites install. Behaviour on all three platforms is unchanged.
+- `ed25519-dalek` moves from 2 to 3 and `toml` from 0.9 to 1.1. The Ed25519 wire format is unchanged, so manifests signed by earlier releases still verify.
+
 ### Added
 
 - `[cowork] session_org_dir` in `systemprompt-bridge.toml` pins which Cowork session/organization directory the bridge syncs into.

@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.22.0] - 2026-07-21
+
+### Changed
+
+- `comrak` moves from 0.53 to 0.54. Markdown rendering and the prerender table-of-contents walker are unaffected; no option or AST usage changed.
+
 ## [0.21.1] - 2026-07-17
 
 ### Changed

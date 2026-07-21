@@ -9,6 +9,7 @@
 ### Changed
 
 - Session, OAuth token, and bridge handlers resolve the client IP once at the HTTP boundary and pass it into session analytics.
+- The session middleware extracts request analytics exactly once per request and passes it down by reference. Establishing a session previously re-derived it — repeating the user-agent parse, referrer parse, and GeoIP lookup — two or three times.
 - `X-Frame-Options` is emitted from the typed `FrameOptions` config and can be disabled.
 
 ### Fixed

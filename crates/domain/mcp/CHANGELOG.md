@@ -2,10 +2,22 @@
 
 ## [0.22.0] - 2026-07-21
 
+### Breaking
+
+- **Breaking:** `CspPolicy` gains a `media_src` field, emitted as the `media-src` directive. Migrate by constructing policies through `CspBuilder` rather than a struct literal.
+
 ### Added
 
 - Tool results always carry the `io.systemprompt/ui-resource-uri` `_meta` key (`UI_RESOURCE_URI_META_KEY`) naming the artifact's `ui://` resource, so a host that does not forward embedded resource content blocks can reach the rendered artifact through `resources/read`.
 - `artifact_resource_uri` and `parse_artifact_resource_uri` build and parse `ui://` artifact resource URIs; `artifact_shell_template` exposes the artifact shell markup.
+- Tool results embed the server-rendered artifact as a `text/html;profile=mcp-app` resource block, and `read_artifact_resource` serves the same markup from `resources/read`.
+- `PresentationCardRenderer`, `MessageRenderer`, `AudioRenderer`, `VideoRenderer`, and `CopyPasteTextRenderer` complete `create_default_registry` coverage of every `CliArtifact` variant.
+
+### Changed
+
+- `tool_ui_meta` builds `_meta.ui` from the typed `McpUiToolMeta` and also writes the legacy `ui/resourceUri` key for hosts that predate it.
+- Rendered artifact documents carry the generated `MCP_UI` method constants and report their `{width, height}` to the host through `ui/notifications/size-changed`.
+- `TableRenderer` reads rows from `items`, the field `TableArtifact` serializes, alongside `data` and `rows`.
 
 ## [0.21.1] - 2026-07-17
 

@@ -5,6 +5,11 @@
 ### Breaking
 
 - **Breaking:** the session-creating APIs — `SessionCreationService::{create_anonymous_session, create_authenticated_session, ensure_anonymous_user}`, `CreateAnonymousSessionInput`, and the bridge `issue_bridge_access` / `exchange_bridge_session_code` / `BridgeAccessRequest` — take a resolved client IP. Migrate by threading the caller IP resolved at the HTTP boundary.
+- **Breaking:** `SessionCreationService::{create_anonymous_session, create_authenticated_session, ensure_anonymous_user}` and `CreateAnonymousSessionInput` take an already-extracted `&SessionAnalytics` in place of `headers` / `uri` / `caller_ip`; the service no longer calls `extract_analytics` itself. Migrate by extracting once at the request boundary and passing the reference.
+
+### Fixed
+
+- Anonymous and authenticated sessions record the same bot verdict the session middleware routes on. The persisted `is_bot` / `is_ai_crawler` columns previously came from a naive user-agent substring check that could contradict the curated classification used to route the very same request.
 
 ## [0.21.1] - 2026-07-17
 

@@ -5,6 +5,7 @@
 ### Breaking
 
 - **Breaking:** `AnalyticsProvider::extract_analytics` takes an `ExtractSignals<'_>` bundle (request URI plus resolved caller IP) instead of parsing hop headers. Migrate by constructing `ExtractSignals` with the caller IP resolved at the HTTP boundary.
+- **Breaking:** `SessionAnalytics` is the single definition of a request's session signals — the parallel struct in `systemprompt-analytics` is gone. Its `referer`, `accept_language`, `page_url`, `screen_width`, `screen_height`, and `timezone` fields are removed (each was a write-only alias or always `None`), and it gains `is_bot`, `is_ai_crawler`, and `skip_tracking`, decided once by the provider that owns the keyword tables. Migrate by reading `preferred_locale` / `referrer_url` / `entry_url` and treating the verdicts as fields rather than calling `is_bot()` / `is_ai_crawler()`.
 
 ## [0.21.1] - 2026-07-17
 

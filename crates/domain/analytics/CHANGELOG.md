@@ -5,6 +5,8 @@
 ### Breaking
 
 - **Breaking:** `SessionAnalytics` is constructed via the `SessionAnalytics::builder(headers).with_uri(..).with_geoip(..).with_caller_ip(..)` builder; the `from_headers`, `from_headers_with_geoip`, `from_headers_with_geoip_and_socket`, `from_headers_and_uri`, and `from_request` constructors are removed. Migrate to the builder, supplying the caller IP explicitly.
+- **Breaking:** `maxminddb` moves from 0.29 to 0.30, changing the `maxminddb::Reader` type behind the public `GeoIpReader` alias. Migrate by moving dependent crates to `maxminddb` 0.30.
+- **Breaking:** `SessionAnalytics` is re-exported from `systemprompt-traits` rather than defined here, and its builder is constructed as `SessionAnalyticsBuilder::new(headers)`. `SessionAnalytics::builder`, the `is_bot()` / `is_ai_crawler()` / `is_bot_ip()` / `is_datacenter_ip()` / `is_high_risk_country()` / `is_spam_referrer()` / `should_skip_tracking()` predicates, `AnalyticsService::{is_bot, compute_fingerprint}`, and `CreateAnalyticsSessionInput` are removed. Migrate to `SessionAnalyticsBuilder::new`, the `is_bot` / `is_ai_crawler` / `skip_tracking` fields, `SessionAnalytics::compute_fingerprint`, and `systemprompt_traits::CreateSessionInput`.
 
 ### Fixed
 

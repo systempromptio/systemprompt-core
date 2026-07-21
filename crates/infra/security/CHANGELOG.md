@@ -6,6 +6,11 @@
 
 - A declared access-control ruleset is authoritative and closed: `authz::resolve` consults an entity's parents only when the entity declares no rules of its own, so an entity that names roles is closed to every role it does not name, including via a parent's `default_included`. Migrate by adding an explicit `allow` rule for every role that should keep access to an entity that declares any rule, or by removing the entity's rules to restore inheritance.
 - `authz::resolve` takes a `ResolveInput` bundle carrying the entity, its rules, the caller, and an ordered `parents` slice of `ResolveParent` values. Migrate by constructing `ResolveInput`; `RuleBasedHook` passes an empty parent slice and is unaffected by the closed-ruleset change.
+- `ed25519-dalek` moves from 2 to 3, changing the `SigningKey` / `VerifyingKey` / `Signature` types in `manifest_signing`. The Ed25519 wire format is unchanged, so manifests signed by earlier releases still verify. Migrate by moving dependent crates to `ed25519-dalek` 3.
+
+### Fixed
+
+- `serde_jcs` moves to 0.2, matching the version the bridge verifies with. Core previously canonicalised RFC 8785 payloads with 0.1 while the bridge used 0.2, so any divergence between them would have surfaced as an unexplained manifest signature rejection.
 
 ## [0.21.1] - 2026-07-17
 

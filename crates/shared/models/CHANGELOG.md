@@ -2,6 +2,14 @@
 
 ## [0.22.0] - 2026-07-20
 
+### Added
+
+- `mcp::apps` provides typed bindings for the MCP Apps extension (SEP-1865): `UiMethod`, `McpUiToolMeta`, `SizeChangedParams`, `UiMessageParams`, `UiInitializeParams`, the extension constants, and `ui_method_js_constants` for projecting method names into browser code.
+
+### Fixed
+
+- `McpCspDomains` serializes to the `connectDomains`, `resourceDomains`, `frameDomains`, and `baseUriDomains` field names the MCP Apps schema defines, so hosts apply the declared content-security policy.
+
 ### Breaking
 
 - **Breaking:** `ServerConfig.trusted_proxies` is now `Vec<IpNet>` (was `Vec<String>`), parsed and validated when the profile loads; an invalid CIDR entry fails boot. Migrate by expressing entries in CIDR notation.

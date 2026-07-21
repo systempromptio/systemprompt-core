@@ -8,6 +8,8 @@
 - **Breaking:** `ArtifactEntry.plugin_id` and `DiskArtifactConfig.plugin_id` are removed; a plugin now selects its artifacts through `PluginConfig.artifacts`, so an artifact can belong to several plugins. Migrate by deleting `plugin_id:` from each `services/artifacts/<id>/config.yaml` and listing the artifact id under the owning plugin's `artifacts.include`.
 - **Breaking:** A declared access-control ruleset is authoritative and closed: `systemprompt_security::authz::resolve` consults an entity's parents only when the entity declares no rules of its own, so an entity that names roles is closed to every role it does not name, including via a parent's `default_included`. A narrow `roles: [admin]` rule on a member of an everyone-granted marketplace is therefore restrictive rather than additive. Core's own `RuleBasedHook` passes no parents and is unaffected. Migrate by adding an explicit `allow` rule for every role that should keep access to an entity that declares any rule, or by removing the entity's rules to restore inheritance.
 - **Breaking:** `ServerConfig.trusted_proxies` is now `Vec<IpNet>` and `SecurityHeadersConfig.frame_options` a typed `FrameOptions` enum; a profile with an invalid CIDR or a non-`DENY`/`SAMEORIGIN` frame-options value now fails to load. Migrate by using CIDR notation and the enum values.
+- **Breaking:** `ed25519-dalek` moves from 2 to 3, changing the `SigningKey` / `VerifyingKey` / `Signature` types exposed by `systemprompt_security::manifest_signing`. The Ed25519 wire format is unchanged, so manifests signed by earlier releases still verify. Migrate by moving dependent crates to `ed25519-dalek` 3.
+- **Breaking:** `maxminddb` moves from 0.29 to 0.30, changing the `maxminddb::Reader` type behind the public `systemprompt_analytics::GeoIpReader` alias. Migrate by moving dependent crates to `maxminddb` 0.30.
 
 ### Added
 
@@ -18,9 +20,19 @@
 
 - Client IP is resolved once at the HTTP boundary against the trusted-proxy allowlist; session analytics no longer trusts spoofable `X-Forwarded-For` / `X-Real-IP` values.
 - Profile validation rejects URL fields that are not `http(s)` and CORS origins that carry a path, query, or fragment.
+- Every dependency lockfile in the repository was refreshed and the declared minimums raised to match: `tokio` 1.53, `regex` 1.13, `uuid` 1.24, `indexmap` 2.14, `rust_decimal` 1.42, `http` 1.4, `bytes` 1.12, `ipnet` 2.12, `tempfile` 3.27, `walkdir` 2.5, `rmcp` 2.2, `sse-stream` 0.2.4, `comrak` 0.54, `maxminddb` 0.30, `proptest` 1.11.
+- `reqwest` is held at 0.12 and `pkcs8` at 0.10, each with the blocking dependency recorded in `Cargo.toml`: `reqwest-eventsource` has no 0.13-compatible release, and `pkcs8` 0.11 requires `rsa` 0.10, which is still a release candidate.
+- Supply-chain scanning covers all seven Cargo workspaces instead of only the root one. `just deny`, `just machete` and the Supply Chain workflow now iterate every workspace, sharing a single `deny.toml` so each advisory exemption is justified in one place.
+- `cargo-audit` was dropped in favour of `cargo deny check advisories`, which reads the same RustSec database; maintaining two separate ignore lists for one set of advisories let them drift.
+
+### Security
+
+- Cleared every fixable advisory in the previously unscanned workspaces: `quinn-proto` RUSTSEC-2026-0185 (7.5 high, remote memory exhaustion), `crossbeam-epoch` RUSTSEC-2026-0204, the `anyhow` RUSTSEC-2026-0190 `downcast_mut` unsoundness, and yanked `num-bigint` / `spin` releases.
+- The bridge's OAuth `client_secret` keystore moves from `keyring` 3 to `keyring-core` 1 with explicit per-platform stores. The `keyring` 4 facade was not used: it hard-codes the async zbus Secret Service backend on Linux where the bridge needs the blocking dbus one, and its lazy bootstrap overwrites the process credential store, which would have silently replaced the headless store the bridge test suites install.
 
 ### Fixed
 
+- Bridge manifests are signed and verified through a single `serde_jcs` version. Core canonicalised with 0.1 while the bridge verified with 0.2, so any divergence in RFC 8785 output between the two would have surfaced as an unexplained signature rejection.
 - Role-restricted entities are no longer granted to unnamed roles by parent inheritance, at either the marketplace-listing or the runtime-authz call site. An admin-only MCP server, plugin, or skill inside a marketplace granted to `user` is now withheld from callers whose roles it does not name.
 - Artifacts whose every owning plugin is filtered out for a user are no longer shipped in that user's manifest; orphan pruning runs after per-user filtering rather than before it.
 - `user_sessions.ip_address` no longer records client-spoofed RFC1918 addresses; GeoIP and abuse signals key off the trusted-proxy-attested client IP.
