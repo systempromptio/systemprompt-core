@@ -6,3 +6,5 @@ mod codex_managed_resources;
 mod cowork_artifacts;
 #[cfg(test)]
 mod replay;
+#[cfg(test)]
+mod artifact_sink;

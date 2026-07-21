@@ -9,3 +9,5 @@ mod diagnostics;
 mod doctor;
 #[cfg(test)]
 mod doctor_cowork;
+#[cfg(test)]
+mod doctor_filesystem;
