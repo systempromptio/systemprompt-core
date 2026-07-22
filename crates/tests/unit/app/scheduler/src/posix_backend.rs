@@ -305,8 +305,21 @@ mod kill_by_pattern_live {
             .spawn()
             .expect("spawn symlinked sleep");
 
-        let killed = ProcessCleanup::kill_by_pattern(&unique);
-        assert_eq!(killed, 1, "pkill must report a successful match");
+        // The child's cmdline is only pattern-visible once exec has replaced
+        // the forked image, so a single-shot pkill can race it and match
+        // nothing. Retry until the match lands.
+        let deadline = Instant::now() + Duration::from_secs(5);
+        loop {
+            if ProcessCleanup::kill_by_pattern(&unique) == 1 {
+                break;
+            }
+            if Instant::now() >= deadline {
+                let _ = child.kill();
+                let _ = child.wait();
+                panic!("pkill never matched the symlinked child");
+            }
+            std::thread::sleep(Duration::from_millis(25));
+        }
 
         // A killed child is a zombie until reaped, so death is observed via
         // try_wait rather than process_exists.
