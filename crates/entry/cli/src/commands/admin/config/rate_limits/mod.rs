@@ -12,7 +12,7 @@
 mod diff;
 mod helpers;
 mod import_export;
-mod preset;
+pub mod preset;
 mod reset;
 mod set;
 mod show;

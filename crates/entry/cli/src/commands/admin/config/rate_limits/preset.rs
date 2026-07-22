@@ -104,7 +104,7 @@ fn execute_preset_show(args: PresetShowArgs, config: &CliConfig) -> Result<()> {
     Ok(())
 }
 
-fn get_preset_description(name: &str) -> Result<String> {
+pub fn get_preset_description(name: &str) -> Result<String> {
     match name {
         "development" => Ok("Relaxed limits for local development".to_owned()),
         "production" => Ok("Balanced limits for production workloads".to_owned()),
@@ -184,7 +184,7 @@ fn execute_preset_apply(
     Ok(())
 }
 
-fn get_preset_config(name: &str) -> Result<RateLimitsConfig> {
+pub fn get_preset_config(name: &str) -> Result<RateLimitsConfig> {
     match name {
         "development" => Ok(RateLimitsConfig {
             disabled: false,

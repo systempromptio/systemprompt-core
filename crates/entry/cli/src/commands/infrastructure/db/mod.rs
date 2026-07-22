@@ -22,7 +22,7 @@ mod admin_squash;
 mod commands;
 mod dispatch;
 mod doctor;
-mod helpers;
+pub mod helpers;
 mod introspect;
 mod query;
 mod schema;

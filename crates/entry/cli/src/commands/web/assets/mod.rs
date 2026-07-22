@@ -8,7 +8,7 @@
 
 pub mod asset_type;
 pub mod list;
-mod show;
+pub mod show;
 
 use anyhow::{Context, Result};
 use clap::Subcommand;

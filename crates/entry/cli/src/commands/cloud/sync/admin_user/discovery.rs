@@ -10,7 +10,7 @@ use systemprompt_logging::CliService;
 
 use super::types::{ProfileDiscoveryResult, ProfileEntryResult, ProfileInfo, ProfileSkipReason};
 
-fn process_profile_entry(ctx: &ProjectContext, path: PathBuf) -> ProfileEntryResult {
+pub fn process_profile_entry(ctx: &ProjectContext, path: PathBuf) -> ProfileEntryResult {
     if !path.is_dir() {
         return ProfileEntryResult::NotDirectory;
     }

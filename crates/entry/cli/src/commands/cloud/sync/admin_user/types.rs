@@ -70,7 +70,8 @@ impl CloudUser {
 
 pub use systemprompt_models::profile::ProfileInfo;
 
-pub(super) enum ProfileEntryResult {
+#[derive(Debug)]
+pub enum ProfileEntryResult {
     Valid(ProfileInfo),
     Skip(ProfileSkipReason),
     NotDirectory,
