@@ -55,6 +55,9 @@ pub(crate) fn stub_jwt() -> systemprompt_traits::DynJwtValidationProvider {
 pub(crate) struct StubAiProvider {
     generate_responses: Mutex<Vec<ProviderResult<AiResponse>>>,
     stream_chunks: Mutex<Vec<Vec<ProviderResult<StreamChunk>>>>,
+    plans: Mutex<Vec<ProviderResult<PlanningResult>>>,
+    responses: Mutex<Vec<ProviderResult<String>>>,
+    tool_results: Mutex<HashMap<String, CallToolResult>>,
     fail_stream: bool,
     provider: String,
     model: String,
@@ -72,6 +75,9 @@ impl StubAiProvider {
         Self {
             generate_responses: Mutex::new(Vec::new()),
             stream_chunks: Mutex::new(Vec::new()),
+            plans: Mutex::new(Vec::new()),
+            responses: Mutex::new(Vec::new()),
+            tool_results: Mutex::new(HashMap::new()),
             fail_stream: false,
             provider: "mock-provider".to_owned(),
             model: "mock-model".to_owned(),
@@ -103,6 +109,35 @@ impl StubAiProvider {
 
     pub(crate) fn failing_stream(mut self) -> Self {
         self.fail_stream = true;
+        self
+    }
+
+    pub(crate) fn with_plan(mut self, plan: PlanningResult) -> Self {
+        self.plans.get_mut().expect("lock").push(Ok(plan));
+        self
+    }
+
+    pub(crate) fn with_response(mut self, text: &str) -> Self {
+        self.responses
+            .get_mut()
+            .expect("lock")
+            .push(Ok(text.to_owned()));
+        self
+    }
+
+    pub(crate) fn with_failing_response(mut self) -> Self {
+        self.responses
+            .get_mut()
+            .expect("lock")
+            .push(Err("stub response failure".into()));
+        self
+    }
+
+    pub(crate) fn with_tool_result(mut self, tool_name: &str, result: CallToolResult) -> Self {
+        self.tool_results
+            .get_mut()
+            .expect("lock")
+            .insert(tool_name.to_owned(), result);
         self
     }
 
@@ -181,7 +216,13 @@ impl AiProvider for StubAiProvider {
         _context: &RequestContext,
         _agent_overrides: Option<&ToolModelOverrides>,
     ) -> (Vec<ToolCall>, Vec<CallToolResult>) {
-        (tool_calls, Vec::new())
+        let configured = self.tool_results.lock().expect("lock");
+        let results = tool_calls
+            .iter()
+            .filter_map(|call| configured.get(&call.name).cloned())
+            .collect();
+        drop(configured);
+        (tool_calls, results)
     }
 
     async fn list_available_tools_for_agent(
@@ -220,14 +261,22 @@ impl AiProvider for StubAiProvider {
         _request: &AiRequest,
         _available_tools: &[McpTool],
     ) -> ProviderResult<PlanningResult> {
-        Ok(PlanningResult::direct_response("stub plan"))
+        self.plans
+            .lock()
+            .expect("lock")
+            .pop()
+            .unwrap_or_else(|| Ok(PlanningResult::direct_response("stub plan")))
     }
 
     async fn generate_response(
         &self,
         _params: GenerateResponseParams<'_>,
     ) -> ProviderResult<String> {
-        Ok("stub response".to_owned())
+        self.responses
+            .lock()
+            .expect("lock")
+            .pop()
+            .unwrap_or_else(|| Ok("stub response".to_owned()))
     }
 }
 
