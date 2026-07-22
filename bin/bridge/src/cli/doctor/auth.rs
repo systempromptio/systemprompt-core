@@ -57,7 +57,7 @@ pub fn check_credential_source(cfg: &config::Config) -> Check {
     }
 }
 
-pub(super) async fn check_mint_jwt(
+pub async fn check_mint_jwt(
     cfg: &config::Config,
     checks: &mut Vec<Check>,
 ) -> Option<auth::types::HelperOutput> {
@@ -90,7 +90,7 @@ pub(super) async fn check_mint_jwt(
     }
 }
 
-pub(super) async fn check_gateway_reachable(
+pub async fn check_gateway_reachable(
     cfg: &config::Config,
     checks: &mut Vec<Check>,
 ) -> GatewayClient {
@@ -109,7 +109,7 @@ pub(super) async fn check_gateway_reachable(
     client
 }
 
-pub(super) async fn check_whoami(
+pub async fn check_whoami(
     client: &GatewayClient,
     bearer: Option<&auth::types::HelperOutput>,
     checks: &mut Vec<Check>,
@@ -215,7 +215,7 @@ pub fn check_pinned_pubkey() -> Check {
 
 // Surfaces hook-token mint errors that otherwise fail silently as a
 // host_failures row in `sync` PARTIAL output.
-pub(super) async fn check_hook_token_mint(gateway: &GatewayClient) -> Check {
+pub async fn check_hook_token_mint(gateway: &GatewayClient) -> Check {
     let creds = match plugin_oauth::load_creds() {
         Ok(Some(c)) => c,
         Ok(None) => {

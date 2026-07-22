@@ -7,6 +7,8 @@ mod codex_merge;
 #[cfg(test)]
 mod cowork_artifacts;
 #[cfg(test)]
+mod doctor_hook_token;
+#[cfg(test)]
 mod gateway_hook_token;
 #[cfg(test)]
 mod keystore_linux;

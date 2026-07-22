@@ -93,6 +93,31 @@ fn garbage_status_line_yields_http_error() {
 }
 
 #[test]
+fn a_listener_that_never_responds_yields_a_read_probe_error() {
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let addr = listener.local_addr().unwrap();
+    let (done_tx, done_rx) = std::sync::mpsc::channel::<()>();
+    let handle = std::thread::spawn(move || {
+        if let Ok((mut stream, _)) = listener.accept() {
+            use std::io::Read;
+            let mut buf = [0u8; 512];
+            let _ = stream.read(&mut buf);
+            let _ = done_rx.recv();
+        }
+    });
+    let url = format!("http://127.0.0.1:{}", addr.port());
+    let health = proxy_probe::probe(Some(&url));
+    let _ = done_tx.send(());
+    handle.join().unwrap();
+    assert_eq!(health.state, ProxyProbeState::HttpError);
+    assert!(
+        health.error.unwrap().contains("read probe"),
+        "the 1.5s read timeout surfaces as a read-probe error"
+    );
+    assert!(health.latency_ms.is_some());
+}
+
+#[test]
 fn unsupported_scheme_yields_http_error() {
     let health = proxy_probe::probe(Some("ftp://127.0.0.1:2121"));
     assert_eq!(health.state, ProxyProbeState::HttpError);
