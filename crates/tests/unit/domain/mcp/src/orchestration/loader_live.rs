@@ -223,3 +223,67 @@ async fn create_mcp_extensions_empty_input_short_circuits() {
     assert!(infos.is_empty());
     let _ = loader.service_manager();
 }
+
+#[tokio::test]
+async fn stopped_service_row_is_reported_not_running() {
+    let Some((live, _mock)) = live_setup(false).await else {
+        return;
+    };
+    let config = live
+        .registry
+        .get_server(&live.server_name)
+        .expect("server in registry");
+    live.database
+        .register_service(&config, std::process::id())
+        .await
+        .expect("service registered");
+    live.database
+        .update_service_status(&live.server_name, "stopped")
+        .await
+        .expect("status updated");
+
+    let err = live
+        .loader
+        .load_server_tools(&live.server_name, &request_context("ldr-stop"))
+        .await
+        .expect_err("stopped service rejected");
+
+    live.database
+        .unregister_service(&live.server_name)
+        .await
+        .expect("cleanup");
+
+    assert!(err.to_string().contains("is not running"));
+    assert!(err.to_string().contains("stopped"));
+}
+
+#[tokio::test]
+async fn scoped_server_metadata_advertises_first_scope_without_tools() {
+    let Some((live, _mock)) = live_setup(true).await else {
+        return;
+    };
+    let bootstrap = ensure_test_bootstrap();
+    let yaml = config_with_servers(&[external_server_block(&ExternalServerSpec {
+        name: &live.server_name,
+        endpoint: "http://127.0.0.1:59996/mcp",
+        oauth_required: true,
+        enabled: true,
+    })])
+    .replace("scopes: []", "scopes: [admin, user]");
+    write_services_config(bootstrap, &yaml);
+
+    let infos = live
+        .loader
+        .create_mcp_extensions(
+            std::slice::from_ref(&live.server_name),
+            "http://gw.example",
+            &request_context("ldr-scope"),
+        )
+        .await
+        .expect("extensions assemble");
+
+    assert_eq!(infos.len(), 1);
+    assert_eq!(infos[0].auth, "admin");
+    assert_eq!(infos[0].status, "not_started");
+    assert!(infos[0].tools.is_none());
+}
