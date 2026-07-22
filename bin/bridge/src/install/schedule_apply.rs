@@ -37,6 +37,7 @@ const fn same_os(a: Os, b: Os) -> bool {
     )
 }
 
+#[cfg(not(target_os = "windows"))]
 fn write(path: &Path, contents: &str) -> Result<(), InstallError> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).map_err(|e| InstallError::Schedule {
@@ -50,6 +51,7 @@ fn write(path: &Path, contents: &str) -> Result<(), InstallError> {
     })
 }
 
+#[cfg(not(target_os = "windows"))]
 fn home() -> Result<PathBuf, InstallError> {
     dirs::home_dir().ok_or_else(|| {
         InstallError::ScheduleApply("cannot resolve the user's home directory".into())
