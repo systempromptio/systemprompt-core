@@ -81,6 +81,16 @@ async fn database_context_debug_output() {
 }
 
 #[tokio::test]
+async fn from_pool_wraps_the_given_pool_without_reconnecting() {
+    let Some(url) = db_url() else { return };
+    let seed = DatabaseContext::from_url(&url).await.expect("connect");
+    let pool = seed.db_pool_arc();
+
+    let ctx = DatabaseContext::from_pool(std::sync::Arc::clone(&pool));
+    assert!(std::sync::Arc::ptr_eq(ctx.db_pool(), &pool));
+}
+
+#[tokio::test]
 async fn from_url_invalid_returns_error() {
     let result =
         DatabaseContext::from_url("postgres://invalid_host_that_cannot_resolve:9999/nodb").await;
