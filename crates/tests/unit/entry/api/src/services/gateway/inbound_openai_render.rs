@@ -249,3 +249,37 @@ fn render_terminal_incomplete_maps_to_incomplete_status() {
         "max_output_tokens"
     );
 }
+
+#[test]
+fn render_terminal_non_terminal_event_yields_no_frame() {
+    let inbound = OpenAiResponsesInbound;
+    let snapshot = sample_response();
+    assert!(
+        inbound
+            .render_terminal_event(
+                &CanonicalEvent::MessageStart {
+                    id: "r".into(),
+                    model: "m".into(),
+                    usage: CanonicalUsage::default(),
+                },
+                &snapshot,
+                "m",
+            )
+            .is_none()
+    );
+}
+
+#[test]
+fn render_terminal_item_done_out_of_range_index_yields_no_frame() {
+    let inbound = OpenAiResponsesInbound;
+    let snapshot = sample_response();
+    assert!(
+        inbound
+            .render_terminal_event(
+                &CanonicalEvent::ContentBlockStop { index: 99 },
+                &snapshot,
+                "m"
+            )
+            .is_none()
+    );
+}

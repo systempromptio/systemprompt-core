@@ -325,3 +325,43 @@ async fn mcp_admits_when_extractor_succeeds() {
         "MCP flavour must use the extractor's context on success, got {body}"
     );
 }
+
+#[tokio::test]
+async fn a2a_rejects_when_extractor_fails() {
+    let mw = A2AContextMiddleware::new(FailExtractor);
+    let app = pipeline_with_session(
+        move |r| {
+            r.layer(from_fn(move |req, next| {
+                let mw = mw.clone();
+                async move { mw.handle(req, next).await }
+            }))
+        },
+        Some(anon_session_context()),
+    );
+    let (status, body) = drive(app, Method::POST, &[]).await;
+    assert_eq!(
+        status,
+        StatusCode::UNAUTHORIZED,
+        "A2A flavour must reject on extractor failure, not fall back to the session context"
+    );
+    assert!(
+        body.contains("Missing Authorization header"),
+        "A2A rejection must surface the extractor's auth error, got {body}"
+    );
+}
+
+#[test]
+fn flavour_debug_impls_hide_the_extractor() {
+    assert_eq!(
+        format!("{:?}", UserOnlyContextMiddleware::new(FailExtractor)),
+        "UserOnlyContextMiddleware"
+    );
+    assert_eq!(
+        format!("{:?}", A2AContextMiddleware::new(FailExtractor)),
+        "A2AContextMiddleware"
+    );
+    assert_eq!(
+        format!("{:?}", McpContextMiddleware::new(FailExtractor)),
+        "McpContextMiddleware"
+    );
+}
