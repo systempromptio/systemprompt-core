@@ -103,7 +103,7 @@ pub(super) fn ensure_profile_dirs(ctx: &ProjectContext, profile_dir: &Path) -> R
     Ok(())
 }
 
-pub(super) fn write_profile_secrets(
+pub fn write_profile_secrets(
     tenant: &StoredTenant,
     api_keys: &ApiKeys,
     profile_dir: &Path,
@@ -189,10 +189,7 @@ pub(super) fn report_profile_validation(profile: &Profile) {
     }
 }
 
-pub(super) fn resolve_tenant_from_args(
-    args: &CreateArgs,
-    store: &TenantStore,
-) -> Result<StoredTenant> {
+pub fn resolve_tenant_from_args(args: &CreateArgs, store: &TenantStore) -> Result<StoredTenant> {
     let tenant_id = args.tenant.as_ref().ok_or_else(|| {
         anyhow::anyhow!(
             "Missing required flag: --tenant-id\nIn non-interactive mode, --tenant-id is \
@@ -244,7 +241,7 @@ async fn refresh_tenant_credentials(
     })
 }
 
-pub(super) async fn ensure_unmasked_credentials(
+pub async fn ensure_unmasked_credentials(
     tenant: StoredTenant,
     tenants_path: &Path,
 ) -> Result<StoredTenant> {

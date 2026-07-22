@@ -20,7 +20,7 @@ use super::templates::{
 
 const ADMIN_MCP_REPO: &str = "https://github.com/systempromptio/systemprompt-mcp-admin.git";
 
-pub(super) fn generate_services_boilerplate(project_root: &Path, project_name: &str) -> Result<()> {
+pub fn generate_services_boilerplate(project_root: &Path, project_name: &str) -> Result<()> {
     CliService::section("Creating Services Boilerplate");
 
     let services_dir = project_root.join("services");

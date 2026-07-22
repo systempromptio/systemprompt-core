@@ -17,7 +17,7 @@ mod edit;
 mod edit_secrets;
 pub mod edit_settings;
 mod list;
-mod profile_steps;
+pub mod profile_steps;
 mod show;
 pub mod show_display;
 pub mod show_types;

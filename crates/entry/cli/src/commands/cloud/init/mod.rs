@@ -13,7 +13,7 @@ use systemprompt_cloud::ProjectContext;
 use systemprompt_logging::CliService;
 use systemprompt_models::CliPaths;
 
-mod scaffolding;
+pub mod scaffolding;
 pub mod templates;
 
 use crate::cli_settings::CliConfig;
