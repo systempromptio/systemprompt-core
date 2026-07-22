@@ -8,7 +8,45 @@ use systemprompt_mcp::services::client::{
     validate_connection, validate_connection_by_url, validate_connection_with_auth,
 };
 
+use crate::harness::{default_tools_json, mount_mcp_endpoint};
+use wiremock::MockServer;
+
 const UNREACHABLE_HOST: &str = "127.0.0.1";
+
+#[tokio::test]
+async fn validate_connection_by_url_live_endpoint_is_mcp_validated() {
+    let mock = MockServer::start().await;
+    mount_mcp_endpoint(&mock, default_tools_json()).await;
+
+    let result = validate_connection_by_url("val-live", &format!("{}/mcp", mock.uri()))
+        .await
+        .expect("validation runs");
+
+    assert!(result.success);
+    assert_eq!(result.validation_type, "mcp_validated");
+    assert_eq!(result.tools_count, 2);
+    assert!(result.server_info.is_some());
+}
+
+#[tokio::test]
+async fn validate_connection_by_url_empty_tools_reports_no_tools() {
+    let mock = MockServer::start().await;
+    mount_mcp_endpoint(&mock, serde_json::json!([])).await;
+
+    let result = validate_connection_by_url("val-empty", &format!("{}/mcp", mock.uri()))
+        .await
+        .expect("validation runs");
+
+    assert!(!result.success);
+    assert_eq!(result.validation_type, "no_tools");
+    assert_eq!(result.tools_count, 0);
+    assert!(
+        result
+            .error_message
+            .as_deref()
+            .is_some_and(|m| m.contains("No tools returned"))
+    );
+}
 
 fn unused_port() -> u16 {
     let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind ephemeral");
