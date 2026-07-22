@@ -37,7 +37,7 @@ struct RegistryResponse {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct AgentCardResponse {
+pub struct AgentCardResponse {
     name: String,
     description: String,
     #[serde(default)]
@@ -138,7 +138,7 @@ async fn fetch_registry(registry_url: &str) -> Result<RegistryResponse> {
         .context("Failed to parse registry response")
 }
 
-fn to_agent_info(agent: AgentCardResponse, verbose: bool) -> RegistryAgentInfo {
+pub fn to_agent_info(agent: AgentCardResponse, verbose: bool) -> RegistryAgentInfo {
     let status = extract_status(&agent);
     let skills: Vec<String> = agent.skills.iter().map(|s| s.name.clone()).collect();
 
@@ -163,7 +163,7 @@ fn to_agent_info(agent: AgentCardResponse, verbose: bool) -> RegistryAgentInfo {
     }
 }
 
-fn is_agent_running(agent: &AgentCardResponse) -> bool {
+pub fn is_agent_running(agent: &AgentCardResponse) -> bool {
     agent.capabilities.extensions.as_ref().is_some_and(|exts| {
         exts.iter().any(|ext| {
             ext.uri == "systemprompt:service-status"
@@ -177,7 +177,7 @@ fn is_agent_running(agent: &AgentCardResponse) -> bool {
     })
 }
 
-fn extract_status(agent: &AgentCardResponse) -> String {
+pub fn extract_status(agent: &AgentCardResponse) -> String {
     agent
         .capabilities
         .extensions

@@ -23,7 +23,7 @@ pub mod logs_disk;
 mod message;
 mod message_request;
 mod message_streaming;
-mod registry;
+pub mod registry;
 mod run;
 pub mod shared;
 pub mod show;

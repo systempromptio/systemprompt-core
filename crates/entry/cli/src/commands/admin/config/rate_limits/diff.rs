@@ -70,7 +70,7 @@ pub(super) fn execute_diff(args: &DiffArgs, config: &CliConfig) -> Result<()> {
     Ok(())
 }
 
-fn collect_differences(
+pub fn collect_differences(
     current: &RateLimitsConfig,
     compare_with: &RateLimitsConfig,
 ) -> Vec<DiffEntry> {
