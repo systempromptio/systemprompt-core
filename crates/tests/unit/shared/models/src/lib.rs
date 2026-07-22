@@ -219,3 +219,12 @@ mod auth_claims;
 
 #[cfg(test)]
 mod canonical_request;
+
+#[cfg(test)]
+mod ai_template_validation;
+
+#[cfg(test)]
+mod events_builders;
+
+#[cfg(test)]
+mod mcp_apps;

@@ -8472,6 +8472,7 @@ dependencies = [
  "bytes",
  "chrono",
  "futures",
+ "http",
  "indexmap",
  "rmcp",
  "serde_json",

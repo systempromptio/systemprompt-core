@@ -18,6 +18,7 @@ systemprompt-traits = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 
 [dev-dependencies]
+http = { workspace = true }
 tokio = { workspace = true }
 serde_json = { workspace = true }
 serde_yaml = { workspace = true }
