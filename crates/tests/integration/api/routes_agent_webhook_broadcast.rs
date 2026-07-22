@@ -350,6 +350,96 @@ async fn broadcast_task_created_empty_history_returns_400() -> anyhow::Result<()
     Ok(())
 }
 
+async fn seed_message(pool: &DbPool, s: &Seeded, task_id: &TaskId) -> anyhow::Result<MessageId> {
+    let message_id = MessageId::generate();
+    let handle = pool.pool_arc()?;
+    sqlx::query(
+        "INSERT INTO task_messages (task_id, message_id, role, context_id, user_id, \
+         sequence_number) VALUES ($1, $2, 'user', $3, $4, 1)",
+    )
+    .bind(task_id.as_str())
+    .bind(message_id.as_str())
+    .bind(s.context_id.as_str())
+    .bind(s.user_id.as_str())
+    .execute(handle.as_ref())
+    .await?;
+    Ok(message_id)
+}
+
+#[tokio::test]
+async fn broadcast_task_completed_unknown_task_returns_404() -> anyhow::Result<()> {
+    let (pool, ctx) = setup_ctx().await?;
+    let s = seed_context(&pool).await?;
+    let body = webhook_body("task_completed", "no-such-task", &s, serde_json::json!({}));
+    let resp = app(&ctx, &s.user_id)
+        .oneshot(json_post("/broadcast", body))
+        .await?;
+    assert_eq!(resp.status().as_u16(), 404, "{}", resp.status());
+    Ok(())
+}
+
+#[tokio::test]
+async fn broadcast_task_completed_with_messages_carries_history() -> anyhow::Result<()> {
+    let (pool, ctx) = setup_ctx().await?;
+    let s = seed_context(&pool).await?;
+    let task_id = seed_task(&pool, &s).await?;
+    seed_message(&pool, &s, &task_id).await?;
+    let body = webhook_body(
+        "task_completed",
+        task_id.as_str(),
+        &s,
+        serde_json::json!({}),
+    );
+    let resp = app(&ctx, &s.user_id)
+        .oneshot(json_post("/broadcast", body))
+        .await?;
+    assert_eq!(resp.status().as_u16(), 200, "{}", resp.status());
+
+    let handle = pool.pool_arc()?;
+    let status: String = sqlx::query_scalar("SELECT status FROM agent_tasks WHERE task_id = $1")
+        .bind(task_id.as_str())
+        .fetch_one(handle.as_ref())
+        .await?;
+    assert_eq!(status, "TASK_STATE_COMPLETED");
+    Ok(())
+}
+
+#[tokio::test]
+async fn broadcast_artifact_created_missing_returns_404() -> anyhow::Result<()> {
+    let (pool, ctx) = setup_ctx().await?;
+    let s = seed_context(&pool).await?;
+    let body = webhook_body(
+        "artifact_created",
+        "no-such-artifact",
+        &s,
+        serde_json::json!({}),
+    );
+    let resp = app(&ctx, &s.user_id)
+        .oneshot(json_post("/broadcast", body))
+        .await?;
+    assert_eq!(resp.status().as_u16(), 404, "{}", resp.status());
+    Ok(())
+}
+
+#[tokio::test]
+async fn broadcast_message_received_existing_succeeds() -> anyhow::Result<()> {
+    let (pool, ctx) = setup_ctx().await?;
+    let s = seed_context(&pool).await?;
+    let task_id = seed_task(&pool, &s).await?;
+    let message_id = seed_message(&pool, &s, &task_id).await?;
+    let body = webhook_body(
+        "message_received",
+        message_id.as_str(),
+        &s,
+        serde_json::json!({}),
+    );
+    let resp = app(&ctx, &s.user_id)
+        .oneshot(json_post("/broadcast", body))
+        .await?;
+    assert_eq!(resp.status().as_u16(), 200, "{}", resp.status());
+    Ok(())
+}
+
 #[tokio::test]
 async fn broadcast_unknown_event_type_returns_400() -> anyhow::Result<()> {
     let (pool, ctx) = setup_ctx().await?;
