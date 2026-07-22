@@ -53,6 +53,7 @@ mod setup_catalog;
 mod setup_ddl;
 mod setup_postgres;
 mod setup_secrets_prompts;
+mod setup_wizard_helpers;
 mod tenant_progress_info;
 mod web_assets_refs;
 mod web_assets_sitemap;

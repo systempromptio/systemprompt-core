@@ -25,7 +25,7 @@ use super::wizard_prompts::{
 use super::{SetupArgs, ai_config, common, profile, secrets};
 use crate::CliConfig;
 
-fn should_write(path: &Path, force: bool, config: &CliConfig) -> bool {
+pub fn should_write(path: &Path, force: bool, config: &CliConfig) -> bool {
     if force || !path.exists() {
         return true;
     }
@@ -187,7 +187,7 @@ fn write_configuration(
     Ok((secrets_data, profile_path))
 }
 
-fn database_info(
+pub fn database_info(
     pg_config: &PostgresConfig,
     connection_status: &str,
     docker: bool,
@@ -211,7 +211,7 @@ const fn secrets_info(secrets_data: &secrets::SecretsData) -> SecretsConfiguredI
     }
 }
 
-fn build_cancelled(args: &SetupArgs, env_name: &str, config: &CliConfig) -> CommandOutput {
+pub fn build_cancelled(args: &SetupArgs, env_name: &str, config: &CliConfig) -> CommandOutput {
     let output = SetupOutput {
         environment: env_name.to_owned(),
         profile_path: String::new(),

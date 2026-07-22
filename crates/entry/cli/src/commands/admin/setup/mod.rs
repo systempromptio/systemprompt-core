@@ -20,7 +20,7 @@ mod profile;
 mod profile_sections;
 pub mod secrets;
 mod types;
-mod wizard;
+pub mod wizard;
 mod wizard_dry_run;
 mod wizard_prompts;
 
