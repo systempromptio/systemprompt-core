@@ -444,7 +444,7 @@ coverage:
         RUSTFLAGS="-C instrument-coverage -C llvm-args=--runtime-counter-relocation" \
         SYSTEMPROMPT_BIN="$SYSTEMPROMPT_BIN" \
         DATABASE_URL="$DATABASE_URL" \
-        cargo nextest run --workspace --lib --bins --tests --build-jobs 4 --no-fail-fast \
+        cargo nextest run --workspace --lib --bins --tests --build-jobs 4 --no-fail-fast --profile coverage \
         || echo "warning: test failures/timeouts above — continuing to coverage report"
 
     PROFRAW_COUNT=$(find "$PROFDIR" -name "*.profraw" | wc -l)

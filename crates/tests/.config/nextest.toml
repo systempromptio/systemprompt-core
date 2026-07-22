@@ -201,3 +201,69 @@ slow-timeout = { period = "120s", terminate-after = 3 }
 [[profile.ci.overrides]]
 filter = 'package(systemprompt-cli-integration-tests)'
 slow-timeout = { period = "120s", terminate-after = 3 }
+
+# The `coverage` profile mirrors `default`'s serial groups but widens the
+# slow-timeout band: instrumented debug binaries with continuous-mode profraws
+# run 5-10x slower and server-booting integration tests otherwise time out en
+# masse, silently dropping whole crates from the coverage report.
+[profile.coverage]
+slow-timeout = { period = "120s", terminate-after = 5 }
+fail-fast = false
+failure-output = "immediate-final"
+final-status-level = "slow"
+
+[[profile.coverage.overrides]]
+filter = 'package(systemprompt-api-integration-tests) and test(/(messaging_dispatch|routes_slack|routes_teams)::/)'
+test-group = 'messaging-dispatch-db'
+
+[[profile.coverage.overrides]]
+filter = 'package(systemprompt-api-integration-tests) and test(/(server_health_more|proxy_more|health_monitor)::/)'
+test-group = 'scheduler-services-db'
+
+[[profile.coverage.overrides]]
+filter = 'package(systemprompt-scheduler-tests) and test(/(state_verifier_seeded_db|service_management_db|service_management_behaviour_db|reconciler_db)::/)'
+test-group = 'scheduler-services-db'
+
+[[profile.coverage.overrides]]
+filter = 'package(systemprompt-scheduler-integration-tests) and test(/service_management_tests::/)'
+test-group = 'scheduler-services-db'
+
+[[profile.coverage.overrides]]
+filter = 'package(systemprompt-agent-integration-tests) and test(/agent_service_repo_e2e::/)'
+test-group = 'scheduler-services-db'
+
+[[profile.coverage.overrides]]
+filter = 'package(systemprompt-scheduler-tests) and test(/(jobs_seeded_db|bootstrap_dispatch_db|job_execution_db|start_owner_resolution_db)::/)'
+test-group = 'scheduler-jobs-db'
+
+[[profile.coverage.overrides]]
+filter = 'package(systemprompt-oauth-tests) and test(/repository::/)'
+test-group = 'oauth-clients-db'
+
+[[profile.coverage.overrides]]
+filter = 'package(systemprompt-users-tests) and test(/(repository::federated_identity|repository::device_cert|services::device_cert_service|services::user_service)::/)'
+test-group = 'users-db'
+
+[[profile.coverage.overrides]]
+filter = 'package(systemprompt-generator-tests) and test(/(sitemap_generator_db|pipeline_full|prerender_public_db)::/)'
+test-group = 'generator-config-db'
+
+[[profile.coverage.overrides]]
+filter = 'package(systemprompt-api-integration-tests) and test(/health_monitor::/)'
+test-group = 'api-health-monitor-db'
+
+[[profile.coverage.overrides]]
+filter = 'package(systemprompt-mcp-tests) and test(/(loader_live|loader_state|orchestrator_extended|orchestrator_populated|orchestrator_smoke|database_state|database_state_extended|database_sync|database_service|lifecycle_deep|lifecycle_live|lifecycle_smoke|proxy_health|proxy_health_healthy)::/)'
+test-group = 'scheduler-services-db'
+
+[[profile.coverage.overrides]]
+filter = 'package(systemprompt-agent-tests) and test(/repository::(artifact|artifact_parts)::/)'
+test-group = 'agent-artifacts-db'
+
+[[profile.coverage.overrides]]
+filter = 'package(systemprompt-cli-integration-tests) and test(/cloud_harness::/)'
+test-group = 'cli-cloud-harness'
+
+[[profile.coverage.overrides]]
+filter = 'package(systemprompt-cli-integration-tests)'
+slow-timeout = { period = "180s", terminate-after = 5 }

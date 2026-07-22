@@ -181,7 +181,7 @@ jobs:
           # nextest runs each test in its own process; continuous mode (%c)
           # lets those processes share one mmap'd profile per binary instead of
           # each dumping a full-counter file.
-          cargo nextest run --profile ci \
+          cargo nextest run --profile coverage \
             --manifest-path crates/tests/Cargo.toml \
             --workspace --lib --bins --tests --no-fail-fast
           status=$?
