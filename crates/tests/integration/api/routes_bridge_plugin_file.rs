@@ -123,7 +123,7 @@ fn seed_plugin_tree() {
         .expect("write services config");
 }
 
-async fn bundle_router_and_pool() -> anyhow::Result<(Router, DbPool)> {
+pub(crate) async fn bundle_router_and_pool() -> anyhow::Result<(Router, DbPool)> {
     let b = systemprompt_test_fixtures::ensure_test_bootstrap();
     seed_plugin_tree();
     let pool = systemprompt_test_fixtures::fixture_db_pool(&b.database_url).await?;

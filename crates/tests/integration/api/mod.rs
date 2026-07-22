@@ -273,6 +273,10 @@ mod routes_content_negotiation;
 mod routes_bridge_plugin_file;
 
 #[cfg(test)]
+#[path = "routes_bridge_manifest_catalog.rs"]
+mod routes_bridge_manifest_catalog;
+
+#[cfg(test)]
 #[path = "routes_agent_cards.rs"]
 mod routes_agent_cards;
 
