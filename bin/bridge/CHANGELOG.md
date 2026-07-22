@@ -1,5 +1,19 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- A white-label build sets `SYSTEMPROMPT_BRIDGE_WINRES=off` to skip core's Windows resource embed, so the brand's icon and version info are the only `.rsrc` linked instead of a duplicate pair.
+
+### Changed
+
+- The GUI asset routing table is generated at build time from the staged web tree (core plus brand overlay), so every stylesheet, script, and locale file that exists is embedded and served. A brand overlay can now add new files, not only override existing ones.
+
+### Fixed
+
+- The GUI no longer opens to a blank window when a client module ships without a matching routing entry; the session service module was unroutable, and its failed import prevented the entire client from loading.
+
 ## [0.17.0] - 2026-07-21
 
 ### Breaking
