@@ -228,3 +228,6 @@ mod events_builders;
 
 #[cfg(test)]
 mod mcp_apps;
+
+#[cfg(test)]
+mod services_validation;
