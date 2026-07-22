@@ -8,5 +8,6 @@ mod rbac_live;
 mod rbac_context;
 mod rbac_proxy;
 mod session_manager_error;
+mod session_manager_live;
 mod session_recovery;
 mod session_store_errors;
