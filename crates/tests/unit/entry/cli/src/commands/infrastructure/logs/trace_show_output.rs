@@ -44,7 +44,11 @@ fn build_trace_output_computes_deltas_from_first_event() {
     assert_eq!(output.trace_id.as_str(), "trace-1");
     let deltas: Vec<i64> = output.events.iter().map(|e| e.delta_ms).collect();
     assert_eq!(deltas, vec![0, 250, 900]);
-    assert!(output.events[0].timestamp.starts_with("2026-07-22 10:00:00"));
+    assert!(
+        output.events[0]
+            .timestamp
+            .starts_with("2026-07-22 10:00:00")
+    );
     assert!(output.task.is_none());
 }
 

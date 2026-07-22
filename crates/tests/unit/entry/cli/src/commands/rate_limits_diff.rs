@@ -27,7 +27,10 @@ fn changed_scalar_fields_are_reported_with_both_values() {
     assert_eq!(disabled.current, current.disabled.to_string());
     assert_eq!(disabled.other, other.disabled.to_string());
 
-    let tasks = diffs.iter().find(|d| d.field == "tasks_per_second").unwrap();
+    let tasks = diffs
+        .iter()
+        .find(|d| d.field == "tasks_per_second")
+        .unwrap();
     assert_eq!(tasks.other, other.tasks_per_second.to_string());
 }
 
@@ -40,7 +43,10 @@ fn tier_multiplier_changes_use_dotted_field_names_and_one_decimal() {
     let diffs = collect_differences(&current, &other);
     assert_eq!(diffs.len(), 1);
     assert_eq!(diffs[0].field, "tier_multipliers.admin");
-    assert_eq!(diffs[0].other, format!("{:.1}", other.tier_multipliers.admin));
+    assert_eq!(
+        diffs[0].other,
+        format!("{:.1}", other.tier_multipliers.admin)
+    );
 }
 
 #[test]

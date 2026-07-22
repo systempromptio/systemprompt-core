@@ -112,6 +112,48 @@ async fn fresh_database_migrates_and_reports_status() {
 }
 
 #[tokio::test]
+async fn migrations_status_reports_pending_and_history_lists_applied() {
+    let disp = Disposable::create().await;
+
+    db::execute(parse(&["migrate"]), &disp.ctx(false).await)
+        .await
+        .unwrap();
+
+    db::execute(
+        parse(&["migrations", "history", "logging"]),
+        &disp.ctx(false).await,
+    )
+    .await
+    .unwrap();
+    db::execute(
+        parse(&["migrations", "history", "logging"]),
+        &disp.ctx(true).await,
+    )
+    .await
+    .unwrap();
+
+    let missing = db::execute(
+        parse(&["migrations", "history", "no_such_extension"]),
+        &disp.ctx(false).await,
+    )
+    .await;
+    assert!(
+        missing.is_err(),
+        "history for an unknown extension must error"
+    );
+
+    disp.untrack_logging_v3().await;
+    db::execute(parse(&["migrations", "status"]), &disp.ctx(false).await)
+        .await
+        .unwrap();
+    db::execute(parse(&["migrations", "status"]), &disp.ctx(true).await)
+        .await
+        .unwrap();
+
+    disp.drop().await;
+}
+
+#[tokio::test]
 async fn fresh_database_mark_applied_and_down() {
     let disp = Disposable::create().await;
 

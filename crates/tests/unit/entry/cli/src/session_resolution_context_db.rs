@@ -25,7 +25,9 @@ async fn seeded_identity(pool: &DbPool, prefix: &str) -> (UserId, SessionId) {
     let email = format!("{}@test.local", user_id.as_str());
     seed_user_row(pool, &user_id, &email).await.unwrap();
     let session_id = SessionId::generate();
-    seed_user_session(pool, &user_id, &session_id).await.unwrap();
+    seed_user_session(pool, &user_id, &session_id)
+        .await
+        .unwrap();
     (user_id, session_id)
 }
 

@@ -84,7 +84,9 @@ fn select_agent_from_log_files_errors_when_empty() {
 
 #[test]
 fn resolve_display_name_prefers_flag_then_prompt_then_name() {
-    let interactive = CliConfig::new().with_interactive(true).with_assume_terminal(true);
+    let interactive = CliConfig::new()
+        .with_interactive(true)
+        .with_assume_terminal(true);
     let non_interactive = CliConfig::new().with_interactive(false);
 
     let flagged = resolve_display_name(
@@ -105,7 +107,9 @@ fn resolve_display_name_prefers_flag_then_prompt_then_name() {
 
 #[test]
 fn resolve_description_prefers_flag_then_prompt_then_empty() {
-    let interactive = CliConfig::new().with_interactive(true).with_assume_terminal(true);
+    let interactive = CliConfig::new()
+        .with_interactive(true)
+        .with_assume_terminal(true);
     let non_interactive = CliConfig::new().with_interactive(false);
 
     let flagged = resolve_description(Some("desc".to_owned()), &scripted(&[]), &interactive);

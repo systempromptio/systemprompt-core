@@ -84,6 +84,45 @@ async fn stream_bounded_renders_recent_logs() {
 }
 
 #[tokio::test]
+async fn stream_renders_all_levels_and_plain_entries() {
+    let pool = pool().await;
+    let module = format!("cli.stream.levels.{}", uuid::Uuid::new_v4().simple());
+    seed_log(&pool, LogLevel::Warn, &module, "stream warn line").await;
+    seed_log(&pool, LogLevel::Debug, &module, "stream debug line").await;
+    seed_log(&pool, LogLevel::Trace, &module, "stream trace line").await;
+
+    let actor = LogActor::new(
+        unique_user_id("clistream"),
+        SessionId::generate(),
+        TraceId::generate(),
+    );
+    let plain = LogEntry::new(LogLevel::Info, &module, "no metadata line", actor);
+    LoggingRepository::new(&pool)
+        .unwrap()
+        .with_terminal(false)
+        .with_database(true)
+        .log(plain)
+        .await
+        .unwrap();
+
+    let ctx = app_ctx(&pool);
+    logs::execute(
+        parse(&[
+            "stream",
+            "--module",
+            &module,
+            "--interval",
+            "1",
+            "--max-iterations",
+            "1",
+        ]),
+        &ctx,
+    )
+    .await
+    .unwrap();
+}
+
+#[tokio::test]
 async fn stream_clear_and_empty_filter_terminate() {
     let pool = pool().await;
     let ctx = app_ctx(&pool);

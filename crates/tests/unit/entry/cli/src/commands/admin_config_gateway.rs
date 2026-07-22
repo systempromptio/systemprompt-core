@@ -113,7 +113,9 @@ fn set_enabled_creates_spec_and_toggles_flag() {
 #[test]
 fn spec_mut_rejects_a_resolved_gateway() {
     let mut p = profile();
-    p.gateway = Some(GatewayState::Resolved(GatewayConfigSpec::default().resolve()));
+    p.gateway = Some(GatewayState::Resolved(
+        GatewayConfigSpec::default().resolve(),
+    ));
     let err = spec_mut(&mut p).unwrap_err().to_string();
     assert!(err.contains("resolved state"), "unexpected error: {err}");
 }
