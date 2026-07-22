@@ -272,6 +272,142 @@ async fn generate_with_tools_stream_yields_chunks() {
     );
 }
 
+struct StreamAudit {
+    status: String,
+    input_tokens: Option<i32>,
+    output_tokens: Option<i32>,
+    is_streaming: bool,
+    cost_microdollars: i64,
+    content_len: i32,
+}
+
+// The stream wrapper persists via tokio::spawn after the stream ends, so the
+// row lands asynchronously; poll with a bounded deadline instead of sleeping a
+// fixed interval.
+async fn wait_for_streamed_row(pool: &DbPool, user_id: &UserId) -> StreamAudit {
+    let read = pool.pool_arc().expect("read pool");
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    loop {
+        let row = sqlx::query!(
+            r#"SELECT status as "status!", input_tokens, output_tokens,
+               is_streaming as "is_streaming!", cost_microdollars as "cost_microdollars!",
+               LENGTH(COALESCE(m.content, '')) as "content_len!"
+               FROM ai_requests r
+               LEFT JOIN ai_request_messages m
+                 ON m.request_id = r.id AND m.role = 'assistant'
+               WHERE r.user_id = $1"#,
+            user_id.as_str()
+        )
+        .fetch_optional(read.as_ref())
+        .await
+        .expect("query");
+        // Messages are written after the ai_requests row; wait for the
+        // assistant message so content_len is stable.
+        if let Some(row) = row.filter(|r| r.content_len > 0) {
+            return StreamAudit {
+                status: row.status,
+                input_tokens: row.input_tokens,
+                output_tokens: row.output_tokens,
+                is_streaming: row.is_streaming,
+                cost_microdollars: row.cost_microdollars,
+                content_len: row.content_len,
+            };
+        }
+        assert!(
+            std::time::Instant::now() < deadline,
+            "streamed audit row never appeared for {user_id}"
+        );
+        tokio::time::sleep(std::time::Duration::from_millis(25)).await;
+    }
+}
+
+// A usage-only message_delta frame is the arm that reaches the wrapper as a
+// Usage chunk; a message_delta carrying stop_reason maps to MessageStop and
+// drops its usage payload.
+const ANTHROPIC_SSE_WITH_USAGE: &str = "data: {\"type\":\"message_start\",\"message\":{\"id\":\"x\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"claude\",\"content\":[],\"stop_reason\":null,\"stop_sequence\":null,\"usage\":{\"input_tokens\":3,\"output_tokens\":1}}}\n\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"hello\"}}\n\ndata: {\"type\":\"message_delta\",\"usage\":{\"input_tokens\":3,\"output_tokens\":5}}\n\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\"},\"usage\":{\"output_tokens\":5}}\n\n";
+
+#[tokio::test]
+async fn drained_stream_persists_completed_audit_with_aggregated_usage() {
+    let Some(pool) = pool().await else {
+        return;
+    };
+    let server = mock_http::anthropic_messages_stream(ANTHROPIC_SSE_WITH_USAGE).await;
+    let svc = service(&pool, ANTHROPIC, server.uri());
+    let (user_id, ctx) = seeded_context(&pool).await;
+    let request = user_request(ANTHROPIC_MODEL, ctx);
+
+    let mut stream = svc.generate_stream(&request).await.expect("stream ok");
+    let mut text = String::new();
+    while let Some(chunk) = stream.next().await {
+        if let StreamChunk::Text(t) = chunk.expect("chunk ok") {
+            text.push_str(&t);
+        }
+    }
+    drop(stream);
+    assert_eq!(text, "hello");
+
+    let audit = wait_for_streamed_row(&pool, &user_id).await;
+    assert_eq!(audit.status, "completed");
+    assert!(audit.is_streaming);
+    assert_eq!(audit.input_tokens, Some(3));
+    assert_eq!(audit.output_tokens, Some(5));
+    assert!(
+        audit.cost_microdollars > 0,
+        "priced model must accrue cost, got {}",
+        audit.cost_microdollars
+    );
+    assert_eq!(
+        audit.content_len,
+        i32::try_from("hello".len()).expect("len")
+    );
+}
+
+#[tokio::test]
+async fn tool_stream_drained_to_end_persists_completed_audit() {
+    let Some(pool) = pool().await else {
+        return;
+    };
+    let server = mock_http::anthropic_messages_stream(ANTHROPIC_SSE).await;
+    let svc = service(&pool, ANTHROPIC, server.uri());
+    let (user_id, ctx) = seeded_context(&pool).await;
+    let request = user_request(ANTHROPIC_MODEL, ctx);
+
+    let mut stream = svc
+        .generate_with_tools_stream(&request)
+        .await
+        .expect("tool stream ok");
+    while let Some(chunk) = stream.next().await {
+        chunk.expect("chunk ok");
+    }
+    drop(stream);
+
+    let audit = wait_for_streamed_row(&pool, &user_id).await;
+    assert_eq!(audit.status, "completed");
+    assert!(audit.is_streaming);
+}
+
+#[tokio::test]
+async fn stream_connect_failure_surfaces_provider_error() {
+    let Some(pool) = pool().await else {
+        return;
+    };
+    let server = mock_http::anthropic_messages_error(
+        500,
+        json!({ "error": { "type": "overloaded", "message": "busy" } }),
+    )
+    .await;
+    let svc = service(&pool, ANTHROPIC, server.uri());
+    let (user_id, ctx) = seeded_context(&pool).await;
+    let request = user_request(ANTHROPIC_MODEL, ctx);
+
+    let result = svc.generate_stream(&request).await;
+    let Err(err) = result else {
+        panic!("stream connect against a 500 endpoint must fail");
+    };
+    assert!(!err.to_string().is_empty());
+    assert_eq!(count_requests(&pool, &user_id).await, 0);
+}
+
 #[tokio::test]
 async fn health_check_reports_provider_and_tools() {
     let Some(pool) = pool().await else {

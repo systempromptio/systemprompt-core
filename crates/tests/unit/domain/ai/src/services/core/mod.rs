@@ -6,6 +6,7 @@
 
 mod ai_service;
 mod image_service;
+mod request_storage;
 
 use std::sync::Arc;
 
