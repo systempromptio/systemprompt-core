@@ -2,7 +2,6 @@
 //! surface, `PostgresTransaction`, and the typed `DatabaseProviderExt`
 //! fetch helpers. Each test uses a uniquely-named temp table.
 
-use std::sync::Arc;
 
 use super::db_helper::pool;
 use systemprompt_database::{

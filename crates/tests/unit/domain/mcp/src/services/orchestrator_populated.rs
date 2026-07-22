@@ -477,7 +477,7 @@ async fn reconcile_with_events_kills_running_row_and_reports_cleanup() {
     assert!(!child.wait().expect("child reaped").success());
 
     let mut saw_cleanup = false;
-    while let Ok(Some(event)) = rx.try_next() {
+    while let Ok(event) = rx.try_recv() {
         if matches!(
             event,
             systemprompt_traits::StartupEvent::McpServiceCleanup { .. }

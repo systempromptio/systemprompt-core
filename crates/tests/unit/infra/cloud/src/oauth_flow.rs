@@ -61,7 +61,7 @@ async fn flow_error(api_url: &str) -> CloudError {
 async fn drive(api_url: &str, query: &str) -> (String, Result<String, CloudError>) {
     let deadline = tokio::time::Instant::now() + Duration::from_secs(90);
     loop {
-        let mut flow = spawn_flow(api_url.to_owned());
+        let flow = spawn_flow(api_url.to_owned());
         loop {
             if flow.is_finished() {
                 break;
