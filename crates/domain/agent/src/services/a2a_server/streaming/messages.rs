@@ -9,11 +9,13 @@ use axum::response::sse::Event;
 use systemprompt_models::RequestContext;
 use tokio_stream::wrappers::ReceiverStream;
 
+use crate::error::AgentResult;
 use crate::models::a2a::Message;
 use crate::models::a2a::jsonrpc::NumberOrString;
 use crate::models::a2a::protocol::PushNotificationConfig;
 use crate::services::a2a_server::handlers::AgentHandlerState;
 use crate::services::a2a_server::processing::message::ProcessMessageStreamParams;
+use crate::services::registry::AgentRegistry;
 
 use super::event_loop::{ProcessEventsParams, process_events};
 use super::event_loop_lifecycle::handle_stream_creation_error;
@@ -50,6 +52,17 @@ pub struct StreamRejected;
 pub async fn create_sse_stream(
     params: CreateSseStreamParams,
 ) -> Result<ReceiverStream<Event>, StreamRejected> {
+    create_sse_stream_with_registry(params, AgentRegistry::new()).await
+}
+
+/// Sibling of [`create_sse_stream`] taking the agent-registry snapshot as an
+/// argument instead of resolving the global [`ConfigLoader`] registry.
+///
+/// [`ConfigLoader`]: systemprompt_loader::ConfigLoader
+pub async fn create_sse_stream_with_registry(
+    params: CreateSseStreamParams,
+    registry: AgentResult<AgentRegistry>,
+) -> Result<ReceiverStream<Event>, StreamRejected> {
     let CreateSseStreamParams {
         message,
         agent_name,
@@ -80,6 +93,7 @@ pub async fn create_sse_stream(
         request_id,
         context,
         callback_config,
+        registry,
     };
 
     tokio::spawn(async move {

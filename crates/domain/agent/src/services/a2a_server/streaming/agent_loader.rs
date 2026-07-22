@@ -7,6 +7,7 @@ use axum::response::sse::Event;
 use systemprompt_identifiers::TaskId;
 use tokio::sync::mpsc::Sender;
 
+use crate::error::AgentResult;
 use crate::models::AgentRuntimeInfo;
 use crate::models::a2a::jsonrpc::NumberOrString;
 use crate::repository::task::TaskRepository;
@@ -14,14 +15,27 @@ use crate::services::registry::AgentRegistry;
 
 use super::initialization::create_jsonrpc_error_event;
 
+pub(super) struct LoadAgentRuntimeParams<'a> {
+    pub registry: AgentResult<AgentRegistry>,
+    pub agent_name: &'a str,
+    pub task_id: &'a TaskId,
+    pub task_repo: &'a TaskRepository,
+    pub tx: &'a Sender<Event>,
+    pub request_id: &'a NumberOrString,
+}
+
 pub(super) async fn load_agent_runtime(
-    agent_name: &str,
-    task_id: &TaskId,
-    task_repo: &TaskRepository,
-    tx: &Sender<Event>,
-    request_id: &NumberOrString,
+    params: LoadAgentRuntimeParams<'_>,
 ) -> Result<AgentRuntimeInfo, ()> {
-    let registry = match AgentRegistry::new() {
+    let LoadAgentRuntimeParams {
+        registry,
+        agent_name,
+        task_id,
+        task_repo,
+        tx,
+        request_id,
+    } = params;
+    let registry = match registry {
         Ok(r) => r,
         Err(e) => {
             let error_msg = format!("Failed to load agent registry: {}", e);

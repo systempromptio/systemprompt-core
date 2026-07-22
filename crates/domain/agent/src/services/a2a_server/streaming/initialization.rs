@@ -16,9 +16,10 @@ use uuid::Uuid;
 
 use crate::models::a2a::Message;
 use crate::models::a2a::jsonrpc::NumberOrString;
+use crate::services::a2a_server::handlers::AgentHandlerState;
 use crate::services::a2a_server::processing::message::MessageProcessor;
 
-use super::agent_loader::load_agent_runtime;
+use super::agent_loader::{LoadAgentRuntimeParams, load_agent_runtime};
 use super::broadcast::{BroadcastTaskCreatedParams, broadcast_task_created};
 use super::initialization_steps::{
     persist_initial_task, save_push_notification_config, validate_context,
@@ -57,6 +58,26 @@ pub(super) fn resolve_task_id(message: &Message) -> TaskId {
         .unwrap_or_else(|| TaskId::new(Uuid::new_v4().to_string()))
 }
 
+fn create_processor(
+    state: &AgentHandlerState,
+    tx: &Sender<Event>,
+    request_id: &NumberOrString,
+) -> Result<MessageProcessor, ()> {
+    MessageProcessor::new(&state.db_pool, Arc::clone(&state.ai_service)).map_err(|e| {
+        tracing::error!(error = %e, "Failed to create MessageProcessor");
+        if tx
+            .try_send(create_jsonrpc_error_event(
+                -32603,
+                &format!("Failed to initialize message processor: {e}"),
+                request_id,
+            ))
+            .is_err()
+        {
+            tracing::trace!("Failed to send error event, channel closed");
+        }
+    })
+}
+
 pub(super) async fn setup_stream(
     input: StreamInput,
     tx: &Sender<Event>,
@@ -68,6 +89,7 @@ pub(super) async fn setup_stream(
         request_id,
         mut context,
         callback_config,
+        registry,
     } = input;
 
     align_context_agent_name(&agent_name, &mut context);
@@ -108,23 +130,17 @@ pub(super) async fn setup_stream(
 
     save_push_notification_config(&task_id, callback_config.as_ref(), &state).await;
 
-    let agent_runtime =
-        load_agent_runtime(&agent_name, &task_id, &task_repo, tx, &request_id).await?;
+    let agent_runtime = load_agent_runtime(LoadAgentRuntimeParams {
+        registry,
+        agent_name: &agent_name,
+        task_id: &task_id,
+        task_repo: &task_repo,
+        tx,
+        request_id: &request_id,
+    })
+    .await?;
 
-    let processor =
-        MessageProcessor::new(&state.db_pool, Arc::clone(&state.ai_service)).map_err(|e| {
-            tracing::error!(error = %e, "Failed to create MessageProcessor");
-            if tx
-                .try_send(create_jsonrpc_error_event(
-                    -32603,
-                    &format!("Failed to initialize message processor: {e}"),
-                    &request_id,
-                ))
-                .is_err()
-            {
-                tracing::trace!("Failed to send error event, channel closed");
-            }
-        })?;
+    let processor = create_processor(&state, tx, &request_id)?;
 
     Ok(StreamSetupResult {
         task_id,
