@@ -4,6 +4,7 @@
 
 mod analytics_commands_db;
 mod analytics_show_seeded_db;
+mod export_csv;
 mod output_format;
 mod overview;
 mod time_parse;
