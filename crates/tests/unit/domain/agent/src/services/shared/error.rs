@@ -193,3 +193,47 @@ fn test_error_message_timeout_includes_duration() {
     assert!(message.contains("60000"));
     assert!(message.contains("ms"));
 }
+
+#[test]
+fn from_io_error_maps_to_internal() {
+    let err: AgentServiceError =
+        std::io::Error::new(std::io::ErrorKind::PermissionDenied, "locked").into();
+    assert!(matches!(err, AgentServiceError::Internal(_)));
+    assert!(err.to_string().contains("io: locked"));
+}
+
+#[test]
+fn from_sqlx_error_maps_to_database() {
+    let err: AgentServiceError = sqlx::Error::RowNotFound.into();
+    assert!(matches!(err, AgentServiceError::Database(_)));
+}
+
+#[test]
+fn from_repository_errors_map_to_repository() {
+    let err: AgentServiceError =
+        systemprompt_agent::repository::RepositoryError::NotFound("row gone".to_owned()).into();
+    assert!(matches!(err, AgentServiceError::Repository(_)));
+    assert!(err.to_string().contains("row gone"));
+
+    let db_err: AgentServiceError =
+        systemprompt_database::RepositoryError::NotFound("db row".to_owned()).into();
+    assert!(matches!(db_err, AgentServiceError::Repository(_)));
+    assert!(db_err.to_string().contains("db row"));
+}
+
+#[test]
+fn from_agent_error_maps_to_internal() {
+    let err: AgentServiceError =
+        systemprompt_agent::AgentError::NotFound("ghost".to_owned()).into();
+    assert!(matches!(err, AgentServiceError::Internal(_)));
+    assert!(err.to_string().contains("ghost"));
+}
+
+#[test]
+fn from_provider_error_maps_to_internal() {
+    let provider_err: systemprompt_models::errors::ProviderError =
+        Box::new(std::io::Error::other("bad prompt"));
+    let err: AgentServiceError = provider_err.into();
+    assert!(matches!(err, AgentServiceError::Internal(_)));
+    assert!(err.to_string().contains("bad prompt"));
+}
