@@ -2,6 +2,7 @@ pub(crate) mod a2a_helpers;
 mod ai_executor;
 mod artifact_builder;
 mod broadcast;
+mod card_and_middleware;
 mod conversation_service;
 mod errors_jsonrpc;
 mod event_loop;

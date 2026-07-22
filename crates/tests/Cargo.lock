@@ -6894,6 +6894,7 @@ dependencies = [
  "systemprompt-traits",
  "tempfile",
  "tokio",
+ "tower",
  "uuid",
  "wiremock",
 ]
