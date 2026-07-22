@@ -39,4 +39,5 @@ mod tool_context;
 mod tool_conversions;
 mod tool_provider;
 mod tool_provider_live;
+mod tool_provider_resilience;
 mod ui_renderer;
