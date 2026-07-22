@@ -259,3 +259,86 @@ fn validate_sitemap_and_assets_run_on_fixture_profile() {
     validate_sitemap(&profile, &mut errors, &mut warnings);
     validate_assets(&profile, &web_paths, &mut errors, &mut warnings);
 }
+
+const BAD_SITEMAP_CONFIG: &str = r#"
+content_sources:
+  docs:
+    path: content/docs
+    source_id: docs
+    category_id: docs
+    enabled: true
+    sitemap:
+      enabled: true
+      url_pattern: "docs/{slug}"
+      priority: 1.5
+      changefreq: fortnightly
+      parent_route:
+        enabled: true
+        url: "/docs"
+        priority: -0.2
+        changefreq: sometimes
+"#;
+
+#[test]
+fn validate_sitemap_flags_bad_priorities_changefreq_and_url_pattern() {
+    let services = tempfile::tempdir().unwrap();
+    fs::create_dir_all(services.path().join("content")).unwrap();
+    fs::write(
+        services.path().join("content/config.yaml"),
+        BAD_SITEMAP_CONFIG,
+    )
+    .unwrap();
+
+    let profile = make_profile(services.path());
+    let mut errors = Vec::new();
+    let mut warnings = Vec::new();
+    validate_sitemap(&profile, &mut errors, &mut warnings);
+
+    assert!(
+        errors
+            .iter()
+            .any(|e| e.message.contains("Invalid priority 1.5")),
+        "{errors:?}"
+    );
+    assert!(
+        errors
+            .iter()
+            .any(|e| e.message.contains("Invalid parent route priority -0.2")),
+        "{errors:?}"
+    );
+    assert!(
+        warnings
+            .iter()
+            .any(|w| w.message.contains("Invalid changefreq 'fortnightly'")),
+        "{warnings:?}"
+    );
+    assert!(
+        warnings.iter().any(|w| w
+            .message
+            .contains("Invalid parent route changefreq 'sometimes'")),
+        "{warnings:?}"
+    );
+    let url_warning = warnings
+        .iter()
+        .find(|w| w.message.contains("should start with '/'"))
+        .unwrap();
+    assert_eq!(
+        url_warning.suggestion.as_deref(),
+        Some("Change to /docs/{slug}")
+    );
+}
+
+#[test]
+fn validate_sitemap_missing_or_unparseable_config_is_silent() {
+    let services = tempfile::tempdir().unwrap();
+    let profile = make_profile(services.path());
+    let mut errors = Vec::new();
+    let mut warnings = Vec::new();
+    validate_sitemap(&profile, &mut errors, &mut warnings);
+    assert!(errors.is_empty() && warnings.is_empty());
+
+    fs::create_dir_all(services.path().join("content")).unwrap();
+    fs::write(services.path().join("content/config.yaml"), "not: [valid").unwrap();
+    validate_sitemap(&profile, &mut errors, &mut warnings);
+    assert!(errors.is_empty() && warnings.is_empty());
+}

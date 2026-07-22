@@ -3,6 +3,7 @@
 //! ([`time_parse`]).
 
 mod analytics_commands_db;
+mod analytics_seeded_lists_db;
 mod analytics_show_seeded_db;
 mod export_csv;
 mod output_format;
