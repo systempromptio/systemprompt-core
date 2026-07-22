@@ -6,6 +6,7 @@ use systemprompt_bridge::ids::{LibraryArtifactId, Sha256Digest};
 use systemprompt_bridge::integration::cowork_artifacts::emit::{
     artifacts_version, remove_dir, write_artifacts,
 };
+use systemprompt_bridge::sync::ApplyError;
 use systemprompt_bridge::integration::cowork_artifacts::sink::{
     ArtifactSink, FileSink, LIBRARY_STORE_FILE, STAGING_SUBDIR, SeedStaging,
 };
@@ -183,4 +184,76 @@ fn remove_dir_is_idempotent() {
     write_artifacts(&store, &[&FileSink], &[artifact("pipeline", "1")]).expect("write");
     remove_dir(&store).expect("remove existing dir");
     assert!(!store.exists());
+}
+
+#[cfg(unix)]
+fn with_read_only<R>(dir: &Path, f: impl FnOnce() -> R) -> R {
+    use std::os::unix::fs::PermissionsExt;
+    fs::set_permissions(dir, fs::Permissions::from_mode(0o555)).unwrap();
+    let out = f();
+    fs::set_permissions(dir, fs::Permissions::from_mode(0o755)).unwrap();
+    out
+}
+
+#[cfg(unix)]
+fn assert_io_arm(err: ApplyError, context_fragment: &str) {
+    match err {
+        ApplyError::Io { context, .. } => assert!(
+            context.contains(context_fragment),
+            "context names the failing path: {context}"
+        ),
+        other => panic!("expected Io, got {other:?}"),
+    }
+}
+
+#[cfg(unix)]
+#[test]
+fn a_read_only_store_dir_surfaces_the_file_sink_write_as_an_io_error() {
+    let dir = tempdir();
+    let err = with_read_only(&dir, || {
+        FileSink
+            .write(&dir, &[artifact("pipeline", "1")])
+            .expect_err("write into a read-only dir must fail")
+    });
+    assert_io_arm(err, LIBRARY_STORE_FILE);
+}
+
+#[cfg(unix)]
+#[test]
+fn a_read_only_staging_parent_surfaces_the_seed_write_as_an_io_error() {
+    let dir = tempdir();
+    fs::create_dir_all(dir.join(STAGING_SUBDIR)).unwrap();
+    let staging = dir.join(STAGING_SUBDIR);
+    let err = with_read_only(&staging, || {
+        SeedStaging
+            .write(&dir, &[artifact("pipeline", "1")])
+            .expect_err("staging write into a read-only dir must fail")
+    });
+    assert_io_arm(err, "pipeline.json");
+}
+
+#[cfg(unix)]
+#[test]
+fn an_uncreatable_target_dir_fails_write_artifacts_with_the_create_context() {
+    let parent = tempdir();
+    let target = parent.join("cowork_artifacts");
+    let err = with_read_only(&parent, || {
+        write_artifacts(&target, &[&FileSink], &[artifact("pipeline", "1")])
+            .expect_err("create under a read-only parent must fail")
+    });
+    assert_io_arm(err, "create ");
+    assert!(!target.exists());
+}
+
+#[cfg(unix)]
+#[test]
+fn an_unremovable_store_dir_surfaces_remove_as_an_io_error() {
+    let parent = tempdir();
+    let target = parent.join("cowork_artifacts");
+    write_artifacts(&target, &[&FileSink], &[artifact("pipeline", "1")]).expect("write");
+    let err = with_read_only(&parent, || {
+        remove_dir(&target).expect_err("remove under a read-only parent must fail")
+    });
+    assert_io_arm(err, "remove ");
+    assert!(target.exists(), "the store survives the failed removal");
 }
