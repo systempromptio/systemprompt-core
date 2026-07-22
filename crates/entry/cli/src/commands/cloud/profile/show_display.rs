@@ -7,6 +7,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::collections::HashMap;
+use std::hash::BuildHasher;
 use systemprompt_logging::CliService;
 use systemprompt_models::{
     AgentConfig, AiConfig, ContentConfigRaw, Deployment, SkillsConfig, WebConfig,
@@ -117,7 +118,9 @@ pub fn render_settings_section(settings: &SettingsOutput) -> Vec<DisplayLine> {
     ]
 }
 
-pub fn render_agents_section(agents: &HashMap<String, AgentConfig>) -> Vec<DisplayLine> {
+pub fn render_agents_section<S: BuildHasher>(
+    agents: &HashMap<String, AgentConfig, S>,
+) -> Vec<DisplayLine> {
     let mut lines = vec![DisplayLine::section(format!("Agents ({})", agents.len()))];
     for (name, agent) in agents {
         lines.push(DisplayLine::info(format!(
@@ -133,7 +136,9 @@ pub fn render_agents_section(agents: &HashMap<String, AgentConfig>) -> Vec<Displ
     lines
 }
 
-pub fn render_mcp_section(mcp_servers: &HashMap<String, Deployment>) -> Vec<DisplayLine> {
+pub fn render_mcp_section<S: BuildHasher>(
+    mcp_servers: &HashMap<String, Deployment, S>,
+) -> Vec<DisplayLine> {
     let mut lines = vec![DisplayLine::section(format!(
         "MCP Servers ({})",
         mcp_servers.len()
