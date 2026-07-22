@@ -87,7 +87,30 @@ impl Extension for AuthedExt {
     }
 }
 
-async fn app_with_extensions() -> anyhow::Result<Router> {
+struct SiteAuthExt;
+
+impl Extension for SiteAuthExt {
+    fn metadata(&self) -> ExtensionMetadata {
+        ExtensionMetadata {
+            id: "covsiteauth",
+            name: "Coverage Site Auth Extension",
+            version: "0.0.1",
+        }
+    }
+
+    fn site_auth(&self) -> Option<systemprompt_extension::SiteAuthConfig> {
+        Some(systemprompt_extension::SiteAuthConfig {
+            login_path: "/covlogin",
+            protected_prefixes: &[],
+            public_prefixes: &["/covpublic"],
+            required_scope: "admin",
+        })
+    }
+}
+
+async fn app_with_extensions(
+    injected: Vec<Arc<dyn Extension>>,
+) -> anyhow::Result<Router> {
     let bootstrap = ensure_test_bootstrap();
     let pool = fixture_db_pool(&bootstrap.database_url).await?;
 
@@ -104,12 +127,8 @@ async fn app_with_extensions() -> anyhow::Result<Router> {
     };
     let app_paths = Arc::new(AppPaths::from_profile(&paths)?);
 
-    let registry = ExtensionRegistry::discover_and_merge(vec![
-        Arc::new(NestedPublicExt),
-        Arc::new(RootMergedExt),
-        Arc::new(AuthedExt),
-    ])
-    .map_err(|e| anyhow::anyhow!("registry: {e}"))?;
+    let registry =
+        ExtensionRegistry::discover_and_merge(injected).map_err(|e| anyhow::anyhow!("registry: {e}"))?;
 
     let ctx = Arc::new(AppContext::from_parts(
         DataPlane {
@@ -150,7 +169,12 @@ fn get_req(uri: &str) -> Request<Body> {
 
 #[tokio::test]
 async fn extension_routes_mount_across_nested_root_and_authed_paths() -> anyhow::Result<()> {
-    let app = app_with_extensions().await?;
+    let app = app_with_extensions(vec![
+        Arc::new(NestedPublicExt),
+        Arc::new(RootMergedExt),
+        Arc::new(AuthedExt),
+    ])
+    .await?;
 
     let nested = app.clone().oneshot(get_req("/covmount/ping")).await?;
     assert_eq!(nested.status().as_u16(), 200, "{}", nested.status());
@@ -173,6 +197,32 @@ async fn extension_routes_mount_across_nested_root_and_authed_paths() -> anyhow:
         401,
         "auth-required extension route must reject anonymous requests, got {}",
         authed.status()
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn site_auth_extension_gates_static_pages_behind_login_redirect() -> anyhow::Result<()> {
+    let app = app_with_extensions(vec![Arc::new(SiteAuthExt)]).await?;
+
+    let gated = app.clone().oneshot(get_req("/some-protected-page")).await?;
+    assert!(
+        gated.status().is_redirection(),
+        "unauthenticated page must redirect to login, got {}",
+        gated.status()
+    );
+    let location = gated
+        .headers()
+        .get("location")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or_default();
+    assert!(location.starts_with("/covlogin"), "{location}");
+
+    let public = app.oneshot(get_req("/covpublic/page")).await?;
+    assert!(
+        !public.status().is_redirection(),
+        "public prefix must bypass the gate, got {}",
+        public.status()
     );
     Ok(())
 }

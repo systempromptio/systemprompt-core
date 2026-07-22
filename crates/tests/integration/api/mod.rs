@@ -113,6 +113,10 @@ mod server_extension_mount;
 mod server_early_bind;
 
 #[cfg(test)]
+#[path = "server_run_loop.rs"]
+mod server_run_loop;
+
+#[cfg(test)]
 #[path = "services_quota_policy.rs"]
 mod services_quota_policy;
 
