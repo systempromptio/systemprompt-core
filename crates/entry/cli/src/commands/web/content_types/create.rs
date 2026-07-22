@@ -49,7 +49,7 @@ pub struct CreateArgs {
     pub changefreq: String,
 }
 
-fn resolve_description(
+pub fn resolve_description(
     description: Option<String>,
     prompter: &dyn Prompter,
     config: &CliConfig,
@@ -66,7 +66,7 @@ fn resolve_description(
     })
 }
 
-fn resolve_sitemap(
+pub fn resolve_sitemap(
     url_pattern: Option<String>,
     priority: f32,
     changefreq: &str,

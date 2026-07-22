@@ -233,7 +233,10 @@ pub fn failure_output(service_name: &str, detail: FailureDetail) -> McpValidateO
     }
 }
 
-pub fn success_output(service_name: &str, validation_result: McpConnectionResult) -> McpValidateOutput {
+pub fn success_output(
+    service_name: &str,
+    validation_result: McpConnectionResult,
+) -> McpValidateOutput {
     let health_status = validation_result.health_status().to_owned();
     let message = validation_result.status_description();
 

@@ -23,10 +23,7 @@ use crate::env_overrides::EnvOverrides;
 use crate::paths::ResolvedPaths;
 use crate::session::context::CliSessionContext;
 
-pub fn try_session_from_env(
-    profile: &Profile,
-    env: &EnvOverrides,
-) -> Option<CliSessionContext> {
+pub fn try_session_from_env(profile: &Profile, env: &EnvOverrides) -> Option<CliSessionContext> {
     if !env.is_remote_cli {
         return None;
     }

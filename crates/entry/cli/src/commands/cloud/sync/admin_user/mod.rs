@@ -13,4 +13,7 @@ mod types;
 
 pub use discovery::{discover_profiles, print_discovery_summary, process_profile_entry};
 pub use sync::{print_sync_results, sync_admin_to_all_profiles, sync_admin_to_database};
-pub use types::{CloudUser, ProfileDiscoveryResult, ProfileEntryResult, ProfileInfo, ProfileSkipReason, SyncResult};
+pub use types::{
+    CloudUser, ProfileDiscoveryResult, ProfileEntryResult, ProfileInfo, ProfileSkipReason,
+    SyncResult,
+};
