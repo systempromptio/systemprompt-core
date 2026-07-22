@@ -202,3 +202,75 @@ fn logout_on_a_config_that_is_only_a_pat_section_removes_the_file() {
         "a config left empty after stripping [pat] is deleted"
     );
 }
+
+#[cfg(unix)]
+fn set_mode(path: &std::path::Path, mode: u32) {
+    use std::os::unix::fs::PermissionsExt;
+    std::fs::set_permissions(path, std::fs::Permissions::from_mode(mode)).unwrap();
+}
+
+#[cfg(unix)]
+#[test]
+fn login_fails_with_the_create_dir_context_when_the_config_base_is_read_only() {
+    let (err, cfg) = sandbox(|| {
+        let base = std::path::PathBuf::from(std::env::var("XDG_CONFIG_HOME").unwrap());
+        set_mode(&base, 0o555);
+        setup::login(GOOD, None).expect_err("login under a read-only config base must fail")
+    });
+    set_mode(cfg.path(), 0o755);
+    match err {
+        SetupError::Io(msg) => assert!(
+            msg.contains("create config dir"),
+            "error names the failing step: {msg}"
+        ),
+        other => panic!("expected Io, got {other:?}"),
+    }
+}
+
+#[test]
+fn login_fails_with_the_rename_context_when_the_pat_path_is_a_directory() {
+    let (err, _cfg) = sandbox(|| {
+        let paths = setup::resolve_paths().unwrap();
+        std::fs::create_dir_all(&paths.pat_file).unwrap();
+        setup::login(GOOD, None).expect_err("a directory squatting on the PAT path must fail")
+    });
+    match err {
+        SetupError::Io(msg) => assert!(
+            msg.contains("rename"),
+            "the atomic-write rename step surfaces: {msg}"
+        ),
+        other => panic!("expected Io, got {other:?}"),
+    }
+}
+
+#[test]
+fn logout_fails_with_the_read_config_context_when_the_config_path_is_a_directory() {
+    let (err, _cfg) = sandbox(|| {
+        let paths = setup::resolve_paths().unwrap();
+        std::fs::create_dir_all(&paths.config_file).unwrap();
+        setup::logout().expect_err("an unreadable config must fail logout")
+    });
+    match err {
+        SetupError::Io(msg) => assert!(
+            msg.contains("read config"),
+            "error names the failing step: {msg}"
+        ),
+        other => panic!("expected Io, got {other:?}"),
+    }
+}
+
+#[test]
+fn clean_fails_with_the_remove_context_when_the_pat_path_is_a_directory() {
+    let (err, _cfg) = sandbox(|| {
+        let paths = setup::resolve_paths().unwrap();
+        std::fs::create_dir_all(&paths.pat_file).unwrap();
+        setup::clean().expect_err("an unremovable PAT path must fail clean")
+    });
+    match err {
+        SetupError::Io(msg) => assert!(
+            msg.contains("remove"),
+            "error names the failing step: {msg}"
+        ),
+        other => panic!("expected Io, got {other:?}"),
+    }
+}
