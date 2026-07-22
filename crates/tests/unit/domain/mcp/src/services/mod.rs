@@ -8,6 +8,7 @@ mod database_state_extended;
 mod database_sync;
 mod deployment_service;
 mod lifecycle_deep;
+mod lifecycle_live;
 mod lifecycle_smoke;
 mod lifecycle_startup;
 mod monitoring;
