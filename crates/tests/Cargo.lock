@@ -7675,6 +7675,7 @@ dependencies = [
  "chrono",
  "clap",
  "rand 0.10.2",
+ "rmcp",
  "serde",
  "serde_json",
  "serde_yaml_ng",
