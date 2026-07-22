@@ -7,6 +7,7 @@ mod admin_prompts;
 mod admin_session_show;
 mod admin_user_discovery;
 mod admin_user_sync_db;
+mod admin_users_ban_bulk_db;
 mod admin_users_role_session_db;
 mod cloud_profile_show_types;
 mod core_content_link_ops_db;
