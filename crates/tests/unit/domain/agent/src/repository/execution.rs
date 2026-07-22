@@ -277,3 +277,63 @@ async fn list_by_task_empty_for_unknown() {
         .expect("list");
     assert!(list.is_empty());
 }
+
+#[tokio::test]
+async fn get_step_with_corrupt_status_errors() {
+    let Some(pool) = try_pool().await else {
+        return;
+    };
+    let r = repos(&pool);
+    let (user_id, session_id) = seed_user_and_session(&pool).await;
+    let (_context_id, task_id) = seed_context_and_task(&r, &user_id, &session_id).await;
+
+    let step = ExecutionStep::tool_execution(task_id.clone(), "search", serde_json::json!({}));
+    let step_id = step.step_id.clone();
+    r.execution_steps.create(&step).await.expect("create");
+
+    let pg = pool.pool_arc().expect("pg pool");
+    sqlx::query("UPDATE task_execution_steps SET status = 'bogus_state' WHERE step_id = $1")
+        .bind(step_id.to_string())
+        .execute(pg.as_ref())
+        .await
+        .expect("corrupt status");
+
+    let err = r
+        .execution_steps
+        .get(&step_id)
+        .await
+        .expect_err("corrupt status must fail parsing");
+    assert!(err.to_string().contains("Invalid status"), "got {err}");
+
+    r.tasks.delete_task(&task_id).await.ok();
+}
+
+#[tokio::test]
+async fn get_step_with_corrupt_content_errors() {
+    let Some(pool) = try_pool().await else {
+        return;
+    };
+    let r = repos(&pool);
+    let (user_id, session_id) = seed_user_and_session(&pool).await;
+    let (_context_id, task_id) = seed_context_and_task(&r, &user_id, &session_id).await;
+
+    let step = ExecutionStep::tool_execution(task_id.clone(), "search", serde_json::json!({}));
+    let step_id = step.step_id.clone();
+    r.execution_steps.create(&step).await.expect("create");
+
+    let pg = pool.pool_arc().expect("pg pool");
+    sqlx::query("UPDATE task_execution_steps SET content = '[]'::jsonb WHERE step_id = $1")
+        .bind(step_id.to_string())
+        .execute(pg.as_ref())
+        .await
+        .expect("corrupt content");
+
+    let err = r
+        .execution_steps
+        .get(&step_id)
+        .await
+        .expect_err("corrupt content must fail parsing");
+    assert!(err.to_string().contains("Invalid content"), "got {err}");
+
+    r.tasks.delete_task(&task_id).await.ok();
+}
