@@ -62,6 +62,27 @@ async fn unknown_agent_returns_not_found() {
 }
 
 #[tokio::test]
+async fn card_assembly_failure_returns_internal_error() {
+    systemprompt_test_fixtures::ensure_test_bootstrap();
+    let mut agents = HashMap::new();
+    agents.insert(
+        "card_seam_alias".to_owned(),
+        agent_config("card_seam_real_name"),
+    );
+    let registry = AgentRegistry::from_config(ServicesConfig {
+        agents,
+        ..ServicesConfig::default()
+    });
+
+    let response =
+        agent_card_response(Ok(registry), "card_seam_alias", "http://cards.invalid").await;
+
+    assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+    let body = body_string(response).await;
+    assert!(body.contains("Failed to build agent card"), "got {body}");
+}
+
+#[tokio::test]
 async fn registry_failure_returns_internal_error() {
     systemprompt_test_fixtures::ensure_test_bootstrap();
     let response = agent_card_response(
