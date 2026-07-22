@@ -6,3 +6,5 @@ mod apply;
 mod hosts;
 #[cfg(test)]
 mod manifest_verify;
+#[cfg(test)]
+mod replay_gate;
