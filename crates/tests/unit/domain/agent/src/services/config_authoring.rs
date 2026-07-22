@@ -543,3 +543,26 @@ fn apply_set_value_changes_handles_supported_and_invalid_keys() {
         "Invalid boolean value for dev_only: 'banana'"
     );
 }
+
+#[test]
+fn apply_set_value_changes_covers_description_version_endpoint_and_default() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let mut agent = create_and_load(dir.path(), "edit_agent", 8106);
+
+    let request = AgentEditRequest {
+        set_values: vec![
+            "card.description=A described agent".to_owned(),
+            "card.version=2.1.0".to_owned(),
+            "endpoint=/set/endpoint".to_owned(),
+            "default=true".to_owned(),
+        ],
+        ..Default::default()
+    };
+    AgentConfigAuthoringService::apply_set_value_changes(&mut agent, &request, &mut Vec::new())
+        .expect("set values");
+
+    assert_eq!(agent.card.description, "A described agent");
+    assert_eq!(agent.card.version, "2.1.0");
+    assert_eq!(agent.endpoint, "/set/endpoint");
+    assert!(agent.default);
+}
