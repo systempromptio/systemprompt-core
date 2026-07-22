@@ -47,6 +47,8 @@ mod repository;
 #[cfg(test)]
 mod resources;
 #[cfg(test)]
+mod resources_artifact;
+#[cfg(test)]
 mod resources_extended;
 #[cfg(test)]
 mod response;
