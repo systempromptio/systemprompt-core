@@ -27,6 +27,11 @@ impl AgentReconciler {
         Ok(Self { db_service })
     }
 
+    #[must_use]
+    pub const fn with_db_service(db_service: AgentDatabaseService) -> Self {
+        Self { db_service }
+    }
+
     pub async fn reconcile_running_services(&self) -> OrchestrationResult<u32> {
         tracing::debug!("Reconciling running services with actual processes");
 

@@ -8,10 +8,12 @@
 mod agent_service;
 mod aggregate;
 mod artifact;
+mod artifact_parts;
 mod batch_builders;
 mod context;
 mod execution;
 mod message;
+mod message_tx;
 mod push_notification;
 mod task;
 

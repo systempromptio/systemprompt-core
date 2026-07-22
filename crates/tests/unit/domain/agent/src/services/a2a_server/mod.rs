@@ -5,6 +5,7 @@ mod broadcast;
 mod conversation_service;
 mod errors_jsonrpc;
 mod event_loop;
+mod event_loop_lifecycle;
 mod message_handler;
 mod message_processor;
 mod multiturn_task;

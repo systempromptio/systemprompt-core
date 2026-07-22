@@ -34,6 +34,11 @@ impl AgentMonitor {
         Ok(Self { db_service })
     }
 
+    #[must_use]
+    pub const fn with_db_service(db_service: AgentDatabaseService) -> Self {
+        Self { db_service }
+    }
+
     pub async fn comprehensive_health_check(
         &self,
         agent_name: &str,
