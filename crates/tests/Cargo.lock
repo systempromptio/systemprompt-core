@@ -7688,6 +7688,7 @@ dependencies = [
  "systemprompt-files",
  "systemprompt-identifiers",
  "systemprompt-logging",
+ "systemprompt-mcp",
  "systemprompt-models",
  "systemprompt-runtime",
  "systemprompt-scheduler",

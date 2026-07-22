@@ -43,7 +43,11 @@ fn missing_config_and_secrets_are_reported() {
     ));
 
     let dir = profile_dir(&c, "configured");
-    fs::write(c.profile_path("configured", ProfilePath::Config), "name: x\n").unwrap();
+    fs::write(
+        c.profile_path("configured", ProfilePath::Config),
+        "name: x\n",
+    )
+    .unwrap();
     let result = process_profile_entry(&c, dir);
     assert!(matches!(
         result,

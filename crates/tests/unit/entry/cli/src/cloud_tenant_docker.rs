@@ -216,3 +216,109 @@ async fn wait_for_postgres_healthy_returns_on_healthy() {
         .await
         .unwrap();
 }
+
+
+mod container_state {
+    use super::{Resp, StubRunner};
+    use systemprompt_cli::ScriptedPrompter;
+    use systemprompt_cli::cloud::tenant::docker::SharedContainerConfig;
+    use systemprompt_cli::cloud::tenant::{handle_orphaned_volume, resolve_container_state};
+
+    fn config() -> SharedContainerConfig {
+        SharedContainerConfig::new("pw".to_owned(), 5555)
+    }
+
+    #[test]
+    fn existing_config_and_running_container_is_reused_without_start() {
+        let docker = StubRunner::docker(vec![]);
+        let prompter = ScriptedPrompter::new(Vec::<String>::new());
+
+        let (resolved, needs_start) =
+            resolve_container_state(&docker, Some(config()), true, &prompter).unwrap();
+
+        assert!(!needs_start);
+        assert_eq!(resolved.admin_password, "pw");
+        assert_eq!(resolved.port, 5555);
+    }
+
+    #[test]
+    fn existing_config_with_stopped_container_requests_start() {
+        let docker = StubRunner::docker(vec![]);
+        let prompter = ScriptedPrompter::new(Vec::<String>::new());
+
+        let (_, needs_start) =
+            resolve_container_state(&docker, Some(config()), false, &prompter).unwrap();
+
+        assert!(needs_start);
+    }
+
+    #[test]
+    fn unknown_running_container_declined_is_an_error() {
+        let docker = StubRunner::docker(vec![]);
+        let prompter = ScriptedPrompter::new(["n"]);
+
+        let err = resolve_container_state(&docker, None, true, &prompter).unwrap_err();
+        assert!(err.to_string().contains("stop the existing one"));
+    }
+
+    #[test]
+    fn unknown_running_container_accepted_reads_password_from_inspect() {
+        let docker = StubRunner::docker(vec![Resp::stdout(
+            0,
+            "POSTGRES_USER=admin\nPOSTGRES_PASSWORD=sekret\n",
+        )]);
+        let prompter = ScriptedPrompter::new(["y"]);
+
+        let (resolved, needs_start) =
+            resolve_container_state(&docker, None, true, &prompter).unwrap();
+
+        assert!(!needs_start);
+        assert_eq!(resolved.admin_password, "sekret");
+    }
+
+    #[test]
+    fn unknown_running_container_without_password_is_an_error() {
+        let docker = StubRunner::docker(vec![Resp::stdout(0, "POSTGRES_USER=admin\n")]);
+        let prompter = ScriptedPrompter::new(["y"]);
+
+        let err = resolve_container_state(&docker, None, true, &prompter).unwrap_err();
+        assert!(err.to_string().contains("Could not retrieve password"));
+    }
+
+    #[test]
+    fn fresh_environment_generates_password_and_starts() {
+        let docker = StubRunner::docker(vec![Resp::stdout(0, "")]);
+        let prompter = ScriptedPrompter::new(Vec::<String>::new());
+
+        let (resolved, needs_start) =
+            resolve_container_state(&docker, None, false, &prompter).unwrap();
+
+        assert!(needs_start);
+        assert!(!resolved.admin_password.is_empty());
+    }
+
+    #[test]
+    fn orphaned_volume_absent_is_a_noop() {
+        let docker = StubRunner::docker(vec![Resp::stdout(0, "")]);
+        let prompter = ScriptedPrompter::new(Vec::<String>::new());
+
+        handle_orphaned_volume(&docker, &prompter).unwrap();
+    }
+
+    #[test]
+    fn orphaned_volume_reset_declined_is_an_error() {
+        let docker = StubRunner::docker(vec![Resp::stdout(0, "vol-id\n")]);
+        let prompter = ScriptedPrompter::new(["n"]);
+
+        let err = handle_orphaned_volume(&docker, &prompter).unwrap_err();
+        assert!(err.to_string().contains("docker volume rm"));
+    }
+
+    #[test]
+    fn orphaned_volume_reset_accepted_removes_volume() {
+        let docker = StubRunner::docker(vec![Resp::stdout(0, "vol-id\n"), Resp::ok(0)]);
+        let prompter = ScriptedPrompter::new(["y"]);
+
+        handle_orphaned_volume(&docker, &prompter).unwrap();
+    }
+}

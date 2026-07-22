@@ -11,11 +11,7 @@ use systemprompt_identifiers::ProviderId;
 
 #[test]
 fn selecting_single_provider_stores_key_and_returns_default() {
-    let cases = [
-        (0usize, "gemini"),
-        (1, "anthropic"),
-        (2, "openai"),
-    ];
+    let cases = [(0usize, "gemini"), (1, "anthropic"), (2, "openai")];
     for (index, provider) in cases {
         let prompter = ScriptedPrompter::new([index.to_string(), "sk-key".to_owned()]);
         let mut secrets = SecretsData::default();

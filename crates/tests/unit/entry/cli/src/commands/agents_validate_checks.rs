@@ -2,16 +2,16 @@
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
+use systemprompt_cli::admin::agents::types::ValidationIssue;
 use systemprompt_cli::admin::agents::validate::{
     ValidationSources, check_basics, check_mcp_references, check_provider,
 };
+use systemprompt_models::ServicesConfig;
 use systemprompt_models::profile::ProviderRegistry;
 use systemprompt_models::secrets::Secrets;
 use systemprompt_models::services::{
     AgentCardConfig, AgentConfig, AgentMetadataConfig, CapabilitiesConfig, OAuthConfig,
 };
-use systemprompt_cli::admin::agents::types::ValidationIssue;
-use systemprompt_models::ServicesConfig;
 
 fn card(display_name: &str, description: &str) -> AgentCardConfig {
     AgentCardConfig {

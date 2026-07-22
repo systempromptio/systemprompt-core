@@ -40,7 +40,10 @@ fn high_traffic_preset_is_strict() {
 fn unknown_preset_is_rejected_with_valid_options() {
     let err = get_preset_config("nope").unwrap_err();
     assert!(err.to_string().contains("Unknown preset: nope"));
-    assert!(err.to_string().contains("development, production, high-traffic"));
+    assert!(
+        err.to_string()
+            .contains("development, production, high-traffic")
+    );
 
     let err = get_preset_description("nope").unwrap_err();
     assert!(err.to_string().contains("Unknown preset: nope"));

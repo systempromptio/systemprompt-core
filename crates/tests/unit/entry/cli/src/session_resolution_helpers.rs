@@ -11,9 +11,7 @@ use systemprompt_cli::session::resolution::helpers::{
     try_session_from_env,
 };
 use systemprompt_cloud::{CliSession, SessionIdentity, SessionKey, SessionStore};
-use systemprompt_identifiers::{
-    ContextId, Email, ProfileName, SessionId, SessionToken, UserId,
-};
+use systemprompt_identifiers::{ContextId, Email, ProfileName, SessionId, SessionToken, UserId};
 use systemprompt_models::auth::UserType;
 use systemprompt_models::services::SystemAdminConfig;
 use systemprompt_models::{
@@ -150,9 +148,10 @@ fn try_session_from_env_builds_remote_session() {
 
 #[test]
 fn extract_profile_name_uses_parent_dir_name() {
-    let name =
-        extract_profile_name(Path::new("/home/user/.systemprompt/profiles/dev/profile.yaml"))
-            .unwrap();
+    let name = extract_profile_name(Path::new(
+        "/home/user/.systemprompt/profiles/dev/profile.yaml",
+    ))
+    .unwrap();
     assert_eq!(name, "dev");
 }
 
@@ -166,7 +165,10 @@ fn extract_profile_name_rejects_rootless_path() {
 fn resolve_profile_path_from_session_rejects_profile_mismatch() {
     let s = session("alpha");
     let err = resolve_profile_path_from_session(&s, Some("beta")).unwrap_err();
-    assert!(err.to_string().contains("No session for active profile 'beta'"));
+    assert!(
+        err.to_string()
+            .contains("No session for active profile 'beta'")
+    );
 }
 
 #[test]
@@ -184,10 +186,16 @@ fn resolve_profile_path_from_session_returns_existing_path_only() {
 
     let mut stale = session("alpha");
     stale.update_profile_path(tmp.path().join("missing.yaml"));
-    assert_eq!(resolve_profile_path_from_session(&stale, None).unwrap(), None);
+    assert_eq!(
+        resolve_profile_path_from_session(&stale, None).unwrap(),
+        None
+    );
 
     let bare = session("alpha");
-    assert_eq!(resolve_profile_path_from_session(&bare, None).unwrap(), None);
+    assert_eq!(
+        resolve_profile_path_from_session(&bare, None).unwrap(),
+        None
+    );
 }
 
 #[test]
@@ -198,7 +206,10 @@ fn resolve_profile_path_without_session_errors_when_store_has_nothing() {
 
     let err =
         resolve_profile_path_without_session(&paths, &store, &SessionKey::Local, None).unwrap_err();
-    assert!(err.to_string().contains("No session for active profile 'unknown'"));
+    assert!(
+        err.to_string()
+            .contains("No session for active profile 'unknown'")
+    );
 }
 
 #[test]

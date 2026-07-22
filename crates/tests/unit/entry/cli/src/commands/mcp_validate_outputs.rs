@@ -2,11 +2,11 @@
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
+use systemprompt_cli::ScriptedPrompter;
 use systemprompt_cli::plugins::mcp::validate::{
     FailureDetail, failure_output, prompt_server_selection, run_connection_validation,
     success_output,
 };
-use systemprompt_cli::ScriptedPrompter;
 use systemprompt_mcp::services::client::{McpConnectionResult, McpProtocolInfo};
 use systemprompt_models::{Deployment, ServicesConfig};
 
