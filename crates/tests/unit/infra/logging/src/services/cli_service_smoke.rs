@@ -65,3 +65,32 @@ fn service_spinner_with_and_without_port() {
     let _ = CliService::service_spinner("api", Some(8080));
     let _ = CliService::service_spinner("worker", None);
 }
+
+#[test]
+fn startup_complete_publishes_and_renders() {
+    CliService::startup_complete(
+        std::time::Duration::from_millis(1500),
+        "http://localhost:8080",
+    );
+}
+
+#[test]
+fn json_helpers_report_unserialisable_values() {
+    let bad: std::collections::HashMap<(u8, u8), u8> =
+        std::collections::HashMap::from([((1, 2), 3)]);
+    CliService::json(&bad);
+    CliService::json_compact(&bad);
+}
+
+#[test]
+fn status_line_renders_each_status() {
+    use systemprompt_logging::services::cli::ItemStatus;
+    CliService::status_line("api", "running", ItemStatus::Valid);
+    CliService::status_line("db", "stopped", ItemStatus::Failed);
+}
+
+#[test]
+fn init_console_logging_installs_subscriber() {
+    systemprompt_logging::init_console_logging();
+    tracing::info!("console logging active");
+}

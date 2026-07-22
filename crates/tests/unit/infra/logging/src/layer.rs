@@ -268,6 +268,166 @@ mod database_layer {
             .unwrap();
     }
 
+    #[tokio::test]
+    async fn attached_proxy_delegates_spans_records_and_events() {
+        let Ok(url) = fixture_database_url() else {
+            return;
+        };
+        let Ok(db) = fixture_db_pool(&url).await else {
+            return;
+        };
+        let raw = db.pool_arc().unwrap().as_ref().clone();
+
+        let trace_id = format!("proxy-attached-{}", uuid::Uuid::new_v4().simple());
+
+        {
+            let proxy = ProxyDatabaseLayer::new();
+            proxy.attach(db.clone());
+            let subscriber =
+                tracing_subscriber::registry().with(proxy.with_filter(LevelFilter::TRACE));
+            let _guard = tracing::subscriber::set_default(subscriber);
+
+            let span = info_span!(
+                "request",
+                user_id = tracing::field::Empty,
+                session_id = "proxy-session",
+                trace_id = trace_id.as_str(),
+                task_id = "",
+                context_id = "not-a-uuid",
+                client_id = "proxy-client",
+            );
+            span.record("user_id", "proxy-user");
+            let _enter = span.enter();
+
+            tracing::warn!(count = 7_u64, negative = -3_i64, flag = false, "warn event");
+            tracing::debug!(
+                password = 42_i64,
+                token = 9_u64,
+                secret = true,
+                "debug event"
+            );
+            tracing::trace!("trace event");
+            error!("flush now");
+
+            for _ in 0..50 {
+                if log_count_for_trace(&raw, &trace_id).await >= 4 {
+                    break;
+                }
+                tokio::time::sleep(Duration::from_millis(50)).await;
+            }
+        }
+
+        let rows: Vec<(String, Option<String>, Option<String>, Option<String>)> = sqlx::query!(
+            "SELECT level, metadata, context_id, client_id FROM logs WHERE trace_id = $1",
+            trace_id.as_str()
+        )
+        .fetch_all(&raw)
+        .await
+        .unwrap()
+        .into_iter()
+        .map(|r| (r.level, r.metadata, r.context_id, r.client_id))
+        .collect();
+
+        let levels: Vec<&str> = rows.iter().map(|r| r.0.as_str()).collect();
+        for expected in ["WARN", "DEBUG", "TRACE", "ERROR"] {
+            assert!(levels.contains(&expected), "missing {expected}: {levels:?}");
+        }
+
+        for (_, _, context_id, client_id) in &rows {
+            assert!(
+                context_id.is_none(),
+                "non-UUID context_id must be skipped, got {context_id:?}"
+            );
+            assert_eq!(client_id.as_deref(), Some("proxy-client"));
+        }
+
+        let warn_metadata = rows
+            .iter()
+            .find(|r| r.0 == "WARN")
+            .and_then(|r| r.1.clone())
+            .expect("warn metadata");
+        assert!(warn_metadata.contains("\"count\""));
+        assert!(warn_metadata.contains("-3"));
+        assert!(warn_metadata.contains("false"));
+
+        let debug_metadata = rows
+            .iter()
+            .find(|r| r.0 == "DEBUG")
+            .and_then(|r| r.1.clone())
+            .expect("debug metadata");
+        assert!(
+            !debug_metadata.contains("42") && debug_metadata.contains("[REDACTED]"),
+            "numeric and bool sensitive fields must be redacted: {debug_metadata}"
+        );
+
+        let user_ids: Vec<Option<String>> = sqlx::query_scalar!(
+            "SELECT user_id FROM logs WHERE trace_id = $1",
+            trace_id.as_str()
+        )
+        .fetch_all(&raw)
+        .await
+        .unwrap();
+        assert!(
+            user_ids.iter().all(|u| u.as_deref() == Some("proxy-user")),
+            "span.record must update attribution: {user_ids:?}"
+        );
+
+        sqlx::query!("DELETE FROM logs WHERE trace_id = $1", trace_id.as_str())
+            .execute(&raw)
+            .await
+            .unwrap();
+    }
+
+    #[tokio::test]
+    async fn database_layer_flushes_on_size_threshold_and_debug_formats() {
+        let Ok(url) = fixture_database_url() else {
+            return;
+        };
+        let Ok(db) = fixture_db_pool(&url).await else {
+            return;
+        };
+        let raw = db.pool_arc().unwrap().as_ref().clone();
+
+        let trace_id = format!("bulk-trace-{}", uuid::Uuid::new_v4().simple());
+
+        {
+            let layer = DatabaseLayer::new(db.clone());
+            assert!(format!("{layer:?}").contains("dropped"));
+            let subscriber =
+                tracing_subscriber::registry().with(layer.with_filter(LevelFilter::TRACE));
+            let _guard = tracing::subscriber::set_default(subscriber);
+
+            let span = info_span!(
+                "bulk",
+                user_id = "bulk-user",
+                session_id = "bulk-session",
+                trace_id = trace_id.as_str(),
+            );
+            let _enter = span.enter();
+            for i in 0..120_u32 {
+                info!(i, "bulk event");
+            }
+
+            for _ in 0..50 {
+                if log_count_for_trace(&raw, &trace_id).await >= 100 {
+                    break;
+                }
+                tokio::time::sleep(Duration::from_millis(50)).await;
+            }
+        }
+
+        let count = log_count_for_trace(&raw, &trace_id).await;
+        assert!(
+            count >= 100,
+            "size-threshold flush must persist a full batch without waiting for the timer, got {count}"
+        );
+
+        sqlx::query!("DELETE FROM logs WHERE trace_id = $1", trace_id.as_str())
+            .execute(&raw)
+            .await
+            .unwrap();
+    }
+
     #[test]
     fn enqueue_background_without_sink_is_silent() {
         // When no sink is attached the entry is dropped without panicking. In a
