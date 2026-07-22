@@ -1,9 +1,10 @@
 mod connection;
 mod conversion;
 mod database;
-mod db_helper;
+pub(crate) mod db_helper;
 mod display;
 mod executor;
 mod introspection;
+mod postgres_provider;
 mod schema_linter;
 mod transaction;
