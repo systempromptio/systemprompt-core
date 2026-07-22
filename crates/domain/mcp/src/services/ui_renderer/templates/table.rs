@@ -32,20 +32,7 @@ impl TableRenderer {
 
         for part in &artifact.parts {
             if let Some(data) = part.as_data() {
-                if let Some(arr) = data.as_array() {
-                    for (i, item) in arr.iter().enumerate() {
-                        if let Some(obj) = item.as_object() {
-                            if i == 0 {
-                                columns = obj.keys().cloned().collect();
-                            }
-                            let row: Vec<JsonValue> = columns
-                                .iter()
-                                .map(|k| obj.get(k).cloned().unwrap_or(JsonValue::Null))
-                                .collect();
-                            rows.push(row);
-                        }
-                    }
-                } else if let Some(obj) = data.as_object()
+                if let Some(obj) = data.as_object()
                     && let Some(data_arr) = obj
                         .get("items")
                         .or_else(|| obj.get("data"))

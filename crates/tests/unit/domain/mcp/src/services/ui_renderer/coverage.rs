@@ -74,6 +74,30 @@ async fn presentation_card_renders_sections_not_json() {
 }
 
 #[tokio::test]
+async fn presentation_card_renders_ctas_and_subtitle() {
+    let registry = create_default_registry();
+    let artifact = enveloped(serde_json::json!({
+        "artifact_type": "presentation_card",
+        "title": "Release Report",
+        "subtitle": "v1.2.3 rollout",
+        "sections": [{"heading": "Status", "content": "line one\nline two", "icon": "S"}],
+        "ctas": [
+            {"id": "approve", "label": "Approve", "message": "approve it", "variant": "primary", "icon": ">"},
+            {"id": "reject", "label": "Reject", "message": "reject it", "variant": "secondary"}
+        ]
+    }));
+
+    let resource = registry.render(&artifact).await.expect("card renders");
+
+    assert!(resource.html.contains("v1.2.3 rollout"));
+    assert!(resource.html.contains("card-section-icon"));
+    assert!(resource.html.contains(r#"data-cta-id="approve""#));
+    assert!(resource.html.contains("card-cta-secondary"));
+    assert!(resource.html.contains("card-ctas"));
+    assert!(resource.html.contains("window.CARD_CTAS"));
+}
+
+#[tokio::test]
 async fn table_renders_items_rows() {
     let registry = create_default_registry();
     let artifact = enveloped(serde_json::json!({
