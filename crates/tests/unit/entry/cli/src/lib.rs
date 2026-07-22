@@ -45,4 +45,6 @@ mod paths;
 #[cfg(test)]
 mod presentation_tables;
 #[cfg(test)]
+mod session_resolution_helpers;
+#[cfg(test)]
 mod shared;

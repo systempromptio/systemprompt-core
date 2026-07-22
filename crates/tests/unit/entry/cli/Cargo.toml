@@ -37,6 +37,7 @@ systemprompt-database = { workspace = true }
 systemprompt-files = { workspace = true }
 systemprompt-runtime = { workspace = true }
 systemprompt-scheduler = { workspace = true }
+systemprompt-mcp = { workspace = true }
 systemprompt-users = { workspace = true }
 systemprompt-test-fixtures = { workspace = true }
 tokio = { workspace = true }
