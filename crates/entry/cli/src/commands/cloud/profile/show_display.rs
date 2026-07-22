@@ -1,6 +1,6 @@
 //! Terminal rendering of profile sections for `cloud profile show`.
 //!
-//! Each section renders to [`DisplayLine`]s; [`print_formatted_config`] emits
+//! Each section renders to [`DisplayLine`]s; `print_formatted_config` emits
 //! them through `CliService`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.

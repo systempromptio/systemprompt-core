@@ -1,9 +1,9 @@
 //! Secret collection and persistence for the setup wizard.
 //!
 //! The `collect_*` functions gather the OAuth at-rest pepper, database URL, and
-//! AI-provider keys interactively or from flags; [`save`] writes the file with
+//! AI-provider keys interactively or from flags; `save` writes the file with
 //! `0600` permissions on Unix. The data model and default-provider resolution
-//! live in [`data`]; the interactive prompts live in [`prompts`].
+//! live in `data`; the interactive prompts live in [`prompts`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
