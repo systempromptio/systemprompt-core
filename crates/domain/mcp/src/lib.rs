@@ -35,7 +35,6 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub(crate) mod capabilities;
-pub(crate) mod cli;
 pub(crate) mod error;
 pub(crate) mod extension;
 pub(crate) mod jobs;
@@ -107,8 +106,6 @@ pub fn mcp_protocol_version_str() -> &'static str {
 pub mod registry {
     pub use crate::services::registry::RegistryService;
 }
-
-pub use cli::{list_services, show_status, start_services, stop_services};
 
 pub(crate) mod state;
 
