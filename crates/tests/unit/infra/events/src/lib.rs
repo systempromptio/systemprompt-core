@@ -7,6 +7,9 @@ mod broadcaster;
 mod error;
 
 #[cfg(test)]
+mod extension;
+
+#[cfg(test)]
 mod local_routing;
 
 #[cfg(test)]

@@ -8016,6 +8016,7 @@ dependencies = [
  "sqlx",
  "systemprompt-database",
  "systemprompt-events",
+ "systemprompt-extension",
  "systemprompt-identifiers",
  "systemprompt-models",
  "systemprompt-test-fixtures",
@@ -9060,6 +9061,7 @@ version = "0.0.11"
 dependencies = [
  "async-trait",
  "serde_json",
+ "serde_yaml_ng",
  "systemprompt-template-provider",
  "systemprompt-templates",
  "tempfile",
