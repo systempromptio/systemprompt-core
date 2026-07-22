@@ -46,7 +46,7 @@ pub fn execute(args: &ShowArgs, _config: &CliConfig) -> Result<CommandOutput> {
     ))
 }
 
-fn build_detail_output(ext: &dyn Extension) -> ExtensionDetailOutput {
+pub fn build_detail_output(ext: &dyn Extension) -> ExtensionDetailOutput {
     ExtensionDetailOutput {
         id: systemprompt_identifiers::PluginId::new(ext.id()),
         name: ext.name().to_owned(),

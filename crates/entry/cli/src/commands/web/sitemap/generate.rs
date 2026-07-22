@@ -33,6 +33,10 @@ pub struct GenerateArgs {
 
 pub(super) fn execute(args: &GenerateArgs, _config: &CliConfig) -> Result<CommandOutput> {
     let profile = ProfileBootstrap::get().context("Failed to get profile")?;
+    execute_with_profile(args, profile)
+}
+
+pub fn execute_with_profile(args: &GenerateArgs, profile: &Profile) -> Result<CommandOutput> {
     let content_config = load_content_config(profile)?;
     let base_url = resolve_base_url(args, profile);
     let output_path = resolve_output_path(args, profile)?;
