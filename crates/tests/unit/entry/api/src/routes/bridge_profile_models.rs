@@ -5,9 +5,9 @@
 //! the list via `ProviderRegistry::advertised_model_ids` /
 //! `models::model_entries`.
 
-use systemprompt_api::routes::gateway::bridge::provider_health;
+use systemprompt_api::routes::gateway::bridge::{canonicalize_org_uuid, provider_health};
 use systemprompt_api::routes::gateway::models::model_entries;
-use systemprompt_identifiers::{ModelId, ProviderId, SecretName};
+use systemprompt_identifiers::{ModelId, ProviderId, SecretName, TenantId};
 use systemprompt_models::profile::{
     ApiSurface, ProviderEntry, ProviderModel, ProviderRegistry, WireProtocol,
 };
@@ -261,5 +261,41 @@ fn provider_health_excludes_backend_provider() {
             .iter()
             .flat_map(|h| h.models.iter())
             .any(|m| m == "MiniMax-M2")
+    );
+}
+
+#[test]
+fn canonicalize_org_uuid_peels_local_prefix_from_uuid_tenant() {
+    let tenant = TenantId::new("local_6fa459ea-ee8a-3ca4-894e-db77e160355e");
+    assert_eq!(
+        canonicalize_org_uuid(&tenant),
+        "6fa459ea-ee8a-3ca4-894e-db77e160355e"
+    );
+}
+
+#[test]
+fn canonicalize_org_uuid_normalizes_bare_uuid_to_lowercase_canonical() {
+    let tenant = TenantId::new("6FA459EA-EE8A-3CA4-894E-DB77E160355E");
+    assert_eq!(
+        canonicalize_org_uuid(&tenant),
+        "6fa459ea-ee8a-3ca4-894e-db77e160355e"
+    );
+}
+
+#[test]
+fn canonicalize_org_uuid_derives_stable_v5_for_non_uuid_tenant() {
+    let tenant = TenantId::new("local_acme-corp");
+    let got = canonicalize_org_uuid(&tenant);
+    assert_eq!(got.len(), 36, "{got}");
+    assert_eq!(got.as_bytes()[14], b'5', "expected a v5 UUID: {got}");
+    assert_eq!(
+        got,
+        canonicalize_org_uuid(&tenant),
+        "derivation must be deterministic"
+    );
+    assert_ne!(
+        got,
+        canonicalize_org_uuid(&TenantId::new("local_other-corp")),
+        "distinct tenants must not collide"
     );
 }
