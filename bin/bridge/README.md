@@ -94,6 +94,7 @@ The authoritative build commands are the `build-bridge*` recipes in the root `ju
 | `SP_BRIDGE_GATEWAY_URL` | Gateway base URL (default `https://gateway.systemprompt.io`) |
 | `SP_BRIDGE_PAT` | Inline PAT (overrides file-based `[pat]`) |
 | `SP_BRIDGE_POLICY_PUBKEY` | Pinned manifest signing pubkey (overrides operator value) |
+| `SP_BRIDGE_ORG_PLUGINS_SYSTEM` | Override the system-scope org-plugins root (nonstandard installs, hermetic tests) |
 | `SP_BRIDGE_LOG_FORMAT` | `json` for structured logs; default human-readable |
 | `SP_BRIDGE_DEVICE_CERT_SHA256` | Pin a specific device cert by SHA-256 fingerprint |
 

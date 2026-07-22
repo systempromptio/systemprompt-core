@@ -30,9 +30,31 @@ impl Dirs {
             .join("version.json")
     }
 
+    // Pins the system org-plugins root to an unwritable path inside the
+    // sandbox so install exercises the user-scope path even on hosts where
+    // the real system parent is writable (CI runners).
+    fn system_org_plugins(&self) -> String {
+        let root = self.data.path().join("system-root");
+        std::fs::create_dir_all(&root).expect("system root");
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(&root, std::fs::Permissions::from_mode(0o555))
+                .expect("read-only system root");
+        }
+        root.join("Claude")
+            .join("org-plugins")
+            .display()
+            .to_string()
+    }
+
     fn run<R>(&self, sudo_user: Option<&str>, f: impl FnOnce() -> R) -> R {
         let vars: Vec<(&str, Option<String>)> = vec![
             ("HOME", Some(self.home.path().display().to_string())),
+            (
+                "SP_BRIDGE_ORG_PLUGINS_SYSTEM",
+                Some(self.system_org_plugins()),
+            ),
             (
                 "XDG_CONFIG_HOME",
                 Some(self.config.path().display().to_string()),
@@ -45,7 +67,10 @@ impl Dirs {
                 "XDG_STATE_HOME",
                 Some(self.state.path().display().to_string()),
             ),
-            ("XDG_CACHE_HOME", Some(self.home.path().display().to_string())),
+            (
+                "XDG_CACHE_HOME",
+                Some(self.home.path().display().to_string()),
+            ),
             ("SUDO_USER", sudo_user.map(str::to_owned)),
         ];
         temp_env::with_vars(vars, f)
@@ -108,10 +133,7 @@ fn install_is_idempotent() {
     let (first, second) = dirs.run(None, || {
         let first = install(&options()).expect("first install");
         let second = install(&options()).expect("second install");
-        (
-            first.location.path.clone(),
-            second.location.path.clone(),
-        )
+        (first.location.path.clone(), second.location.path.clone())
     });
     assert_eq!(first, second, "both installs resolve the same location");
     assert!(dirs.sentinel().is_file());

@@ -29,9 +29,25 @@ impl Sandbox {
             .join("metadata")
     }
 
+    // Points the system org-plugins root at an unwritable path inside the
+    // sandbox so an in-process `install` can never provision the host's real
+    // system root (on CI runners /opt is writable) and poison sibling suites.
+    fn system_org_plugins(&self) -> Option<String> {
+        let root = self.data.path().join("system-root");
+        std::fs::create_dir_all(&root).expect("system root");
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(&root, std::fs::Permissions::from_mode(0o555))
+                .expect("read-only system root");
+        }
+        p(&root.join("Claude").join("org-plugins"))
+    }
+
     pub fn vars(&self) -> Vec<(&'static str, Option<String>)> {
         vec![
             ("HOME", p(self.home.path())),
+            ("SP_BRIDGE_ORG_PLUGINS_SYSTEM", self.system_org_plugins()),
             ("XDG_CONFIG_HOME", p(self.config.path())),
             ("XDG_DATA_HOME", p(self.data.path())),
             ("XDG_STATE_HOME", p(self.state.path())),

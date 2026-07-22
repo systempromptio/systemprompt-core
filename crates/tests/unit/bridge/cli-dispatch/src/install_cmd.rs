@@ -170,5 +170,8 @@ fn uninstall_on_a_never_installed_machine_is_clean() {
     sb.run(|| {
         let _ = run_with_args(&argv(&["uninstall"]));
     });
-    assert!(!sb.metadata().exists(), "nothing to remove, nothing created");
+    assert!(
+        !sb.metadata().exists(),
+        "nothing to remove, nothing created"
+    );
 }

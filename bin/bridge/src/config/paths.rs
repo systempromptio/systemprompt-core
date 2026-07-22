@@ -6,6 +6,13 @@
 use std::path::PathBuf;
 
 pub const VERSION_SENTINEL: &str = "version.json";
+
+// Operator/test override for the system org-plugins root. Without it the
+// system root is a fixed machine-wide path, so any test or nonstandard install
+// on a host with a writable parent would collide with the real location.
+fn org_plugins_system_override() -> Option<PathBuf> {
+    std::env::var_os(crate::brand::brand().env("ORG_PLUGINS_SYSTEM")).map(PathBuf::from)
+}
 pub const LAST_SYNC_SENTINEL: &str = "last-sync.json";
 pub const USER_FRAGMENT: &str = "user.json";
 pub const MCP_SERVERS_FRAGMENT: &str = "mcp-servers.json";
@@ -23,15 +30,13 @@ pub enum Scope {
 }
 
 #[cfg(target_os = "macos")]
-#[expect(
-    clippy::unnecessary_wraps,
-    reason = "uniform Option<PathBuf> contract across OS-cfg variants; sibling org_plugins_user \
-              can legitimately return None"
-)]
+#[must_use]
 pub fn org_plugins_system() -> Option<PathBuf> {
-    Some(PathBuf::from(
-        "/Library/Application Support/Claude/org-plugins",
-    ))
+    org_plugins_system_override().or_else(|| {
+        Some(PathBuf::from(
+            "/Library/Application Support/Claude/org-plugins",
+        ))
+    })
 }
 
 #[cfg(target_os = "macos")]
@@ -48,8 +53,11 @@ pub fn org_plugins_user() -> Option<PathBuf> {
 // invisible to it.
 #[cfg(target_os = "windows")]
 pub fn org_plugins_system() -> Option<PathBuf> {
-    std::env::var_os("ProgramFiles")
-        .map(|p| PathBuf::from(p).join("Claude").join("org-plugins"))
+    org_plugins_system_override()
+        .or_else(|| {
+            std::env::var_os("ProgramFiles")
+                .map(|p| PathBuf::from(p).join("Claude").join("org-plugins"))
+        })
         .or_else(|| Some(PathBuf::from(r"C:\Program Files\Claude\org-plugins")))
 }
 
@@ -60,12 +68,8 @@ pub fn org_plugins_user() -> Option<PathBuf> {
 
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]
 #[must_use]
-#[expect(
-    clippy::unnecessary_wraps,
-    reason = "Option-returning signature parity with the macos/windows cfg variants"
-)]
 pub fn org_plugins_system() -> Option<PathBuf> {
-    Some(PathBuf::from("/opt/Claude/org-plugins"))
+    org_plugins_system_override().or_else(|| Some(PathBuf::from("/opt/Claude/org-plugins")))
 }
 
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]

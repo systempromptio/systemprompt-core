@@ -32,7 +32,10 @@ fn login_through_dispatch_writes_pat_and_config() {
         cfg.contains("http://gateway.invalid:9000"),
         "--gateway must land in the config: {cfg}"
     );
-    assert!(cfg.contains("[pat]"), "login records a [pat] section: {cfg}");
+    assert!(
+        cfg.contains("[pat]"),
+        "login records a [pat] section: {cfg}"
+    );
     assert_eq!(
         std::fs::read_to_string(pat_file(&sb)).expect("pat file written"),
         "sp-live-testprefix.secretsecretsecretsecretsecret012345"

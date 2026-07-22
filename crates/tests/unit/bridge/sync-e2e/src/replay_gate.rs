@@ -22,6 +22,7 @@ struct Sandbox {
     data_home: PathBuf,
     state_home: PathBuf,
     home: PathBuf,
+    system_org_plugins: std::ffi::OsString,
     metadata: PathBuf,
     org_plugins: PathBuf,
     _temp: tempfile::TempDir,
@@ -107,6 +108,7 @@ fn build_sandbox(gateway_uri: &str) -> Sandbox {
     )
     .unwrap();
 
+    let system_org_plugins = crate::unwritable_system_org_plugins(base);
     let metadata = state_home.join("systemprompt-bridge").join("metadata");
     Sandbox {
         config_file,
@@ -115,6 +117,7 @@ fn build_sandbox(gateway_uri: &str) -> Sandbox {
         data_home,
         state_home,
         home,
+        system_org_plugins,
         metadata,
         org_plugins,
         _temp: temp,
@@ -131,6 +134,10 @@ fn run_gated(sandbox: &Sandbox) -> Result<systemprompt_bridge::sync::SyncSummary
             ("XDG_DATA_HOME", Some(sandbox.data_home.clone().into())),
             ("XDG_STATE_HOME", Some(sandbox.state_home.clone().into())),
             ("HOME", Some(sandbox.home.clone().into())),
+            (
+                "SP_BRIDGE_ORG_PLUGINS_SYSTEM",
+                Some(sandbox.system_org_plugins.clone()),
+            ),
         ],
         || {
             tokio::runtime::Builder::new_current_thread()

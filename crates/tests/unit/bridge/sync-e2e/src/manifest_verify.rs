@@ -145,6 +145,10 @@ fn sandbox(gateway_uri: &str, pinned_pubkey: Option<&str>) -> VerifySandbox {
         ("XDG_DATA_HOME", Some(data_home.into())),
         ("XDG_STATE_HOME", Some(base.join("state").into())),
         ("HOME", Some(home.into())),
+        (
+            "SP_BRIDGE_ORG_PLUGINS_SYSTEM",
+            Some(crate::unwritable_system_org_plugins(base)),
+        ),
     ];
     VerifySandbox {
         config_file,

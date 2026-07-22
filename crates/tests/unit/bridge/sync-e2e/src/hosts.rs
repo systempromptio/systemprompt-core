@@ -78,6 +78,7 @@ struct HostSandbox {
     data_home: OsString,
     state_home: OsString,
     home: OsString,
+    system_org_plugins: OsString,
     claude_home: PathBuf,
     session_org_dir: PathBuf,
 }
@@ -125,6 +126,7 @@ fn sandbox(gateway_uri: &str) -> HostSandbox {
         data_home: data_home.into(),
         state_home: state_home.into(),
         home: home.into(),
+        system_org_plugins: crate::unwritable_system_org_plugins(base),
         claude_home,
         session_org_dir,
         _temp: temp,
@@ -141,6 +143,10 @@ fn run_sync(dirs: &HostSandbox) -> Result<systemprompt_bridge::sync::SyncSummary
             ("XDG_DATA_HOME", Some(&dirs.data_home)),
             ("XDG_STATE_HOME", Some(&dirs.state_home)),
             ("HOME", Some(&dirs.home)),
+            (
+                "SP_BRIDGE_ORG_PLUGINS_SYSTEM",
+                Some(&dirs.system_org_plugins),
+            ),
         ],
         || {
             tokio::runtime::Builder::new_current_thread()

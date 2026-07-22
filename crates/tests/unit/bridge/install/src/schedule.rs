@@ -7,8 +7,10 @@ use tempfile::TempDir;
 fn home_sandbox<R>(f: impl FnOnce(&std::path::Path) -> R) -> R {
     let home = TempDir::new().expect("home tempdir");
     let path = home.path().to_path_buf();
-    let vars: Vec<(&str, Option<String>)> =
-        vec![("HOME", Some(path.display().to_string())), ("SUDO_USER", None)];
+    let vars: Vec<(&str, Option<String>)> = vec![
+        ("HOME", Some(path.display().to_string())),
+        ("SUDO_USER", None),
+    ];
     let out = temp_env::with_vars(vars, || f(&path));
     drop(home);
     out

@@ -165,6 +165,7 @@ struct SandboxDirs {
     data_home: OsString,
     state_home: OsString,
     home: OsString,
+    system_org_plugins: OsString,
     org_plugins: PathBuf,
     metadata: PathBuf,
 }
@@ -202,6 +203,7 @@ fn sandbox(gateway_uri: &str, pat_file: &Path, pubkey: Option<&str>) -> SandboxD
         data_home: data_home.into(),
         state_home: state_home.into(),
         home: home.into(),
+        system_org_plugins: crate::unwritable_system_org_plugins(base),
         metadata,
         org_plugins,
         _temp: temp,
@@ -228,6 +230,10 @@ where
             ("XDG_DATA_HOME", Some(&dirs.data_home)),
             ("XDG_STATE_HOME", Some(&dirs.state_home)),
             ("HOME", Some(&dirs.home)),
+            (
+                "SP_BRIDGE_ORG_PLUGINS_SYSTEM",
+                Some(&dirs.system_org_plugins),
+            ),
         ],
         body,
     )
@@ -745,12 +751,19 @@ fn plugin_with_include(id: &str, include: Vec<String>) -> PluginEntry {
 #[test]
 fn an_included_hook_is_materialised_as_a_user_command_entry() {
     let m = manifest_of(
-        vec![plugin_with_include("acme-plugin", vec!["hook-1".to_owned()])],
+        vec![plugin_with_include(
+            "acme-plugin",
+            vec!["hook-1".to_owned()],
+        )],
         vec![hook()],
     );
     let b = serve_plugins(
         &m,
-        &[("acme-plugin", ".claude-plugin/plugin.json", PLUGIN_FILE_BODY)],
+        &[(
+            "acme-plugin",
+            ".claude-plugin/plugin.json",
+            PLUGIN_FILE_BODY,
+        )],
         "pat-include",
     );
     run_sync(&b.dirs).expect("sync applies");
@@ -781,7 +794,11 @@ fn a_hook_id_that_is_not_in_the_manifest_is_skipped_rather_than_failing_the_sync
     );
     let b = serve_plugins(
         &m,
-        &[("acme-plugin", ".claude-plugin/plugin.json", PLUGIN_FILE_BODY)],
+        &[(
+            "acme-plugin",
+            ".claude-plugin/plugin.json",
+            PLUGIN_FILE_BODY,
+        )],
         "pat-missing-hook",
     );
     let summary = run_sync(&b.dirs).expect("a dangling hook reference is not fatal");
@@ -798,16 +815,30 @@ fn a_hook_id_that_is_not_in_the_manifest_is_skipped_rather_than_failing_the_sync
 fn a_second_sync_reports_the_plugin_as_updated_and_prunes_the_one_that_left() {
     let both = manifest_of(
         vec![
-            plugin("acme-plugin", vec![(".claude-plugin/plugin.json", PLUGIN_FILE_BODY)]),
-            plugin("acme-commons", vec![(".claude-plugin/plugin.json", COMMONS_FILE_BODY)]),
+            plugin(
+                "acme-plugin",
+                vec![(".claude-plugin/plugin.json", PLUGIN_FILE_BODY)],
+            ),
+            plugin(
+                "acme-commons",
+                vec![(".claude-plugin/plugin.json", COMMONS_FILE_BODY)],
+            ),
         ],
         vec![],
     );
     let b = serve_plugins(
         &both,
         &[
-            ("acme-plugin", ".claude-plugin/plugin.json", PLUGIN_FILE_BODY),
-            ("acme-commons", ".claude-plugin/plugin.json", COMMONS_FILE_BODY),
+            (
+                "acme-plugin",
+                ".claude-plugin/plugin.json",
+                PLUGIN_FILE_BODY,
+            ),
+            (
+                "acme-commons",
+                ".claude-plugin/plugin.json",
+                COMMONS_FILE_BODY,
+            ),
         ],
         "pat-updated",
     );
@@ -824,12 +855,19 @@ fn a_second_sync_reports_the_plugin_as_updated_and_prunes_the_one_that_left() {
     assert_eq!(second.removed.len(), 0);
 
     let only_one = manifest_of(
-        vec![plugin("acme-plugin", vec![(".claude-plugin/plugin.json", PLUGIN_FILE_BODY)])],
+        vec![plugin(
+            "acme-plugin",
+            vec![(".claude-plugin/plugin.json", PLUGIN_FILE_BODY)],
+        )],
         vec![],
     );
     let c = serve_plugins(
         &only_one,
-        &[("acme-plugin", ".claude-plugin/plugin.json", PLUGIN_FILE_BODY)],
+        &[(
+            "acme-plugin",
+            ".claude-plugin/plugin.json",
+            PLUGIN_FILE_BODY,
+        )],
         "pat-updated-2",
     );
     fs::create_dir_all(c.dirs.org_plugins.join("acme-commons")).unwrap();
@@ -887,14 +925,22 @@ fn a_bundled_mcp_file_is_recorded_then_stripped_from_the_plugin_dir() {
     let b = serve_plugins(
         &m,
         &[
-            ("acme-plugin", ".claude-plugin/plugin.json", PLUGIN_FILE_BODY),
+            (
+                "acme-plugin",
+                ".claude-plugin/plugin.json",
+                PLUGIN_FILE_BODY,
+            ),
             ("acme-plugin", ".mcp.json", MCP_BODY),
         ],
         "pat-mcpfile",
     );
     run_sync(&b.dirs).expect("sync applies");
     assert!(
-        !b.dirs.org_plugins.join("acme-plugin").join(".mcp.json").exists(),
+        !b.dirs
+            .org_plugins
+            .join("acme-plugin")
+            .join(".mcp.json")
+            .exists(),
         "the bundled .mcp.json must never reach the Cowork-visible tree"
     );
     let _ = (&b.server, &b.pat_dir);
@@ -902,12 +948,19 @@ fn a_bundled_mcp_file_is_recorded_then_stripped_from_the_plugin_dir() {
 
 #[test]
 fn a_file_whose_body_does_not_match_its_digest_fails_the_sync() {
-    let mut entry = plugin("acme-plugin", vec![(".claude-plugin/plugin.json", PLUGIN_FILE_BODY)]);
+    let mut entry = plugin(
+        "acme-plugin",
+        vec![(".claude-plugin/plugin.json", PLUGIN_FILE_BODY)],
+    );
     entry.files[0].sha256 = Sha256Digest::try_new("1".repeat(64)).unwrap();
     let m = manifest_of(vec![entry], vec![]);
     let b = serve_plugins(
         &m,
-        &[("acme-plugin", ".claude-plugin/plugin.json", PLUGIN_FILE_BODY)],
+        &[(
+            "acme-plugin",
+            ".claude-plugin/plugin.json",
+            PLUGIN_FILE_BODY,
+        )],
         "pat-hash",
     );
     let err = run_sync(&b.dirs).expect_err("a digest mismatch must abort the apply");
@@ -921,12 +974,18 @@ fn a_file_whose_body_does_not_match_its_digest_fails_the_sync() {
 #[test]
 fn a_traversing_file_path_is_refused_before_any_download() {
     let m = manifest_of(
-        vec![plugin("acme-plugin", vec![("../escape.json", PLUGIN_FILE_BODY)])],
+        vec![plugin(
+            "acme-plugin",
+            vec![("../escape.json", PLUGIN_FILE_BODY)],
+        )],
         vec![],
     );
     let b = serve_plugins(&m, &[], "pat-traversal");
     let err = run_sync(&b.dirs).expect_err("a traversing path must abort the apply");
-    assert!(err.contains("escape.json"), "the unsafe path is named: {err}");
+    assert!(
+        err.contains("escape.json"),
+        "the unsafe path is named: {err}"
+    );
     let _ = (&b.server, &b.pat_dir);
 }
 
@@ -935,7 +994,10 @@ fn an_already_managed_plugin_json_is_left_byte_identical() {
     const MANAGED: &[u8] =
         br#"{"name":"acme-plugin","hooks":"./hooks/hooks.json","installationPreference":"required"}"#;
     let m = manifest_of(
-        vec![plugin("acme-plugin", vec![(".claude-plugin/plugin.json", MANAGED)])],
+        vec![plugin(
+            "acme-plugin",
+            vec![(".claude-plugin/plugin.json", MANAGED)],
+        )],
         vec![],
     );
     let b = serve_plugins(
