@@ -3,16 +3,13 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use anyhow::{Context, Result, anyhow};
+use anyhow::{Context, Result};
 use clap::Args;
-use std::path::Path;
-use systemprompt_identifiers::SkillId;
-use systemprompt_models::SKILL_CONFIG_FILENAME;
 
 use crate::CliConfig;
 use crate::shared::CommandOutput;
 
-use super::types::{SkillDetailOutput, parse_skill_from_config};
+use super::list::show_skill_detail;
 
 #[derive(Debug, Clone, Args)]
 pub struct ShowArgs {
@@ -28,48 +25,4 @@ pub(super) fn execute(args: &ShowArgs, _config: &CliConfig) -> Result<CommandOut
 fn get_skills_path() -> Result<std::path::PathBuf> {
     let profile = systemprompt_config::ProfileBootstrap::get().context("Failed to get profile")?;
     Ok(std::path::PathBuf::from(profile.paths.skills()))
-}
-
-fn show_skill_detail(skill_name: &str, skills_path: &Path) -> Result<CommandOutput> {
-    let skill_dir = skills_path.join(skill_name);
-
-    if !skill_dir.exists() {
-        return Err(anyhow!("Skill '{}' not found", skill_name));
-    }
-
-    let config_path = skill_dir.join(SKILL_CONFIG_FILENAME);
-
-    if !config_path.exists() {
-        return Err(anyhow!(
-            "Skill '{}' has no {} file",
-            skill_name,
-            SKILL_CONFIG_FILENAME
-        ));
-    }
-
-    let parsed = parse_skill_from_config(&config_path, &skill_dir)?;
-
-    let instructions_preview = parsed.instructions.chars().take(200).collect::<String>()
-        + if parsed.instructions.len() > 200 {
-            "..."
-        } else {
-            ""
-        };
-
-    let output = SkillDetailOutput {
-        skill_id: SkillId::new(skill_name),
-        name: parsed.name.clone(),
-        display_name: parsed.name,
-        description: parsed.description,
-        enabled: parsed.enabled,
-        tags: parsed.tags,
-        category: parsed.category,
-        file_path: Some(config_path.to_string_lossy().to_string()),
-        instructions_preview,
-    };
-
-    Ok(CommandOutput::card_value(
-        format!("Skill: {}", skill_name),
-        &output,
-    ))
 }

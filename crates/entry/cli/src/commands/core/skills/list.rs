@@ -32,12 +32,15 @@ pub struct ListArgs {
 
 pub(super) fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandOutput> {
     let skills_path = get_skills_path()?;
+    execute_with_path(args, &skills_path)
+}
 
+pub fn execute_with_path(args: ListArgs, skills_path: &Path) -> Result<CommandOutput> {
     if let Some(name) = args.name {
-        return show_skill_detail(&name, &skills_path);
+        return show_skill_detail(&name, skills_path);
     }
 
-    let skills = scan_skills(&skills_path)?;
+    let skills = scan_skills(skills_path)?;
 
     let filtered: Vec<SkillSummary> = skills
         .into_iter()
@@ -66,7 +69,7 @@ fn get_skills_path() -> Result<std::path::PathBuf> {
     Ok(std::path::PathBuf::from(profile.paths.skills()))
 }
 
-fn show_skill_detail(skill_name: &str, skills_path: &Path) -> Result<CommandOutput> {
+pub fn show_skill_detail(skill_name: &str, skills_path: &Path) -> Result<CommandOutput> {
     let skill_dir = skills_path.join(skill_name);
 
     if !skill_dir.exists() {

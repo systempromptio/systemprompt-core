@@ -20,6 +20,10 @@ pub struct ShowArgs {
 
 pub(super) fn execute(args: &ShowArgs, _config: &CliConfig) -> Result<CommandOutput> {
     let plugins_path = get_plugins_path()?;
+    execute_with_path(args, &plugins_path)
+}
+
+pub fn execute_with_path(args: &ShowArgs, plugins_path: &Path) -> Result<CommandOutput> {
     let plugin_dir = plugins_path.join(&args.id);
 
     if !plugin_dir.exists() {

@@ -9,8 +9,8 @@
 
 pub mod types;
 
-mod list;
-mod show;
+pub mod list;
+pub mod show;
 
 use anyhow::{Context, Result};
 use clap::Subcommand;

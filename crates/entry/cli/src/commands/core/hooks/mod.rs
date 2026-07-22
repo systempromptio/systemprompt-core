@@ -8,7 +8,7 @@
 
 pub mod types;
 
-mod list;
+pub mod list;
 pub mod validate;
 
 use anyhow::{Context, Result};
