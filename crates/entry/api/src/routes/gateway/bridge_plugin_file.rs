@@ -108,6 +108,19 @@ fn build_bundles(
     plugin_bundles_cached(&services, &catalog.as_content()).map_err(|e| internal("bundle", &e))
 }
 
+#[cfg(feature = "test-api")]
+pub mod test_api {
+    #[must_use]
+    pub fn relative_path_is_safe(relative: &str) -> bool {
+        super::relative_path_is_safe(relative)
+    }
+
+    #[must_use]
+    pub fn content_type(relative_path: &str) -> &'static str {
+        super::content_type(relative_path)
+    }
+}
+
 fn relative_path_is_safe(relative: &str) -> bool {
     !relative.is_empty()
         && Path::new(relative)

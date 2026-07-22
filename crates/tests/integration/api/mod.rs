@@ -105,6 +105,14 @@ mod routes_agent_contexts;
 mod server_boot;
 
 #[cfg(test)]
+#[path = "server_extension_mount.rs"]
+mod server_extension_mount;
+
+#[cfg(test)]
+#[path = "server_early_bind.rs"]
+mod server_early_bind;
+
+#[cfg(test)]
 #[path = "services_quota_policy.rs"]
 mod services_quota_policy;
 
@@ -251,6 +259,14 @@ mod gateway_upstream_error_map;
 #[cfg(test)]
 #[path = "routes_content_blog.rs"]
 mod routes_content_blog;
+
+#[cfg(test)]
+#[path = "routes_content_negotiation.rs"]
+mod routes_content_negotiation;
+
+#[cfg(test)]
+#[path = "routes_bridge_plugin_file.rs"]
+mod routes_bridge_plugin_file;
 
 #[cfg(test)]
 #[path = "routes_agent_cards.rs"]

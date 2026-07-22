@@ -12,7 +12,8 @@ pub mod user;
 pub mod web_config;
 
 pub use app_context::{
-    fixture_app_context, fixture_app_context_with, fixture_app_context_with_hook, fixture_config,
+    fixture_app_context, fixture_app_context_with, fixture_app_context_with_config,
+    fixture_app_context_with_hook, fixture_config,
 };
 pub use bootstrap::{
     ensure_messaging_bootstrap, ensure_test_bootstrap, test_messaging_agent, TestBootstrap,

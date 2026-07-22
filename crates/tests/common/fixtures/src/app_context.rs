@@ -106,6 +106,17 @@ pub fn fixture_app_context_with(
     fixture_app_context_full(pool, database_url, paths, marketplace_filter, hook)
 }
 
+pub fn fixture_app_context_with_config(pool: &DbPool, config: Config) -> Result<Arc<AppContext>> {
+    let hook = Arc::new(AllowAllHook::new(Arc::new(NullAuditSink)));
+    fixture_app_context_assembled(
+        pool,
+        config,
+        tmp_paths(),
+        Arc::new(AllowAllFilter),
+        hook,
+    )
+}
+
 // Build a fixture context with an explicit authorization hook — used by tests
 // that need to drive the `Deny` branch (pass a
 // [`DenyAllHook`](systemprompt_security::authz::DenyAllHook)).
@@ -130,6 +141,22 @@ fn fixture_app_context_full(
     marketplace_filter: Arc<dyn MarketplaceFilter>,
     authz_hook: SharedAuthzHook,
 ) -> Result<Arc<AppContext>> {
+    fixture_app_context_assembled(
+        pool,
+        fixture_config(database_url),
+        paths,
+        marketplace_filter,
+        authz_hook,
+    )
+}
+
+fn fixture_app_context_assembled(
+    pool: &DbPool,
+    config: Config,
+    paths: PathsConfig,
+    marketplace_filter: Arc<dyn MarketplaceFilter>,
+    authz_hook: SharedAuthzHook,
+) -> Result<Arc<AppContext>> {
     let app_paths = Arc::new(AppPaths::from_profile(&paths)?);
 
     let ctx = AppContext::from_parts(
@@ -140,7 +167,7 @@ fn fixture_app_context_full(
             user_service: Some(Arc::new(UserService::new(pool)?)),
         },
         ConfigPlane {
-            config: Arc::new(fixture_config(database_url)),
+            config: Arc::new(config),
             app_paths,
             content_config: None,
             route_classifier: Arc::new(RouteClassifier::new(None)),
