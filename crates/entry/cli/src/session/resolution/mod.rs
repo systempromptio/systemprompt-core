@@ -9,7 +9,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-mod helpers;
+pub mod helpers;
 
 use std::path::{Path, PathBuf};
 
@@ -30,7 +30,8 @@ use helpers::{
     try_validate_context,
 };
 
-pub(super) struct ProfileContext<'a> {
+#[derive(Debug)]
+pub struct ProfileContext<'a> {
     pub name: &'a str,
     pub path: PathBuf,
 }

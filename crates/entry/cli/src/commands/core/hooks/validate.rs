@@ -31,7 +31,7 @@ pub(super) fn execute(_args: ValidateArgs, _config: &CliConfig) -> Result<Comman
     )
 }
 
-fn validate_all_hooks(hooks_path: &Path) -> Result<Vec<HookValidateEntry>> {
+pub fn validate_all_hooks(hooks_path: &Path) -> Result<Vec<HookValidateEntry>> {
     if !hooks_path.exists() {
         return Ok(Vec::new());
     }

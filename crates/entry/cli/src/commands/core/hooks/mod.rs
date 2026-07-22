@@ -9,7 +9,7 @@
 pub mod types;
 
 mod list;
-mod validate;
+pub mod validate;
 
 use anyhow::{Context, Result};
 use clap::Subcommand;

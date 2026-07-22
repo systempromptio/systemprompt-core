@@ -21,10 +21,11 @@ pub struct ValidateArgs {
     pub name: Option<String>,
 }
 
-struct ValidationSources<'a> {
-    services_config: &'a ServicesConfig,
-    registry: &'a ProviderRegistry,
-    secrets: Option<&'a Secrets>,
+#[derive(Debug)]
+pub struct ValidationSources<'a> {
+    pub services_config: &'a ServicesConfig,
+    pub registry: &'a ProviderRegistry,
+    pub secrets: Option<&'a Secrets>,
 }
 
 pub(super) fn execute(args: &ValidateArgs, _config: &CliConfig) -> Result<CommandOutput> {
@@ -71,7 +72,7 @@ pub(super) fn execute(args: &ValidateArgs, _config: &CliConfig) -> Result<Comman
     Ok(CommandOutput::card_value("Validation Results", &output))
 }
 
-fn check_basics(
+pub fn check_basics(
     name: &str,
     agent: &AgentConfig,
     errors: &mut Vec<ValidationIssue>,
@@ -118,7 +119,7 @@ fn check_basics(
     }
 }
 
-fn check_provider(
+pub fn check_provider(
     name: &str,
     agent: &AgentConfig,
     sources: &ValidationSources<'_>,
@@ -185,7 +186,7 @@ fn check_provider(
     }
 }
 
-fn check_mcp_references(
+pub fn check_mcp_references(
     name: &str,
     agent: &AgentConfig,
     services_config: &ServicesConfig,

@@ -18,7 +18,7 @@ mod docker_database;
 pub mod postgres;
 mod profile;
 mod profile_sections;
-mod secrets;
+pub mod secrets;
 mod types;
 mod wizard;
 mod wizard_dry_run;

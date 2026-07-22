@@ -18,7 +18,7 @@ use crate::interactive::Prompter;
 
 /// Returns `None` for the "enter multiple keys" path; that default is resolved
 /// later from the keys actually present, not at selection time.
-pub(super) fn select_provider_keys(
+pub fn select_provider_keys(
     prompter: &dyn Prompter,
     secrets: &mut SecretsData,
 ) -> Result<Option<ProviderId>> {
@@ -64,7 +64,7 @@ pub(super) fn select_provider_keys(
     }
 }
 
-pub(super) fn resolve_interactive_primary(
+pub fn resolve_interactive_primary(
     prompter: &dyn Prompter,
     explicit: Option<ProviderId>,
     secrets: &SecretsData,

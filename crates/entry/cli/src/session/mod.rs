@@ -13,7 +13,7 @@
 pub mod api;
 mod context;
 mod creation;
-mod resolution;
+pub mod resolution;
 mod store;
 
 pub use context::CliSessionContext;

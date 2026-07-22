@@ -165,7 +165,7 @@ async fn validate_single_service(
     run_connection_validation(service_name, server, timeout_secs).await
 }
 
-async fn run_connection_validation(
+pub async fn run_connection_validation(
     service_name: &str,
     server: &Deployment,
     timeout_secs: u64,
@@ -210,15 +210,16 @@ async fn run_connection_validation(
     success_output(service_name, validation_result)
 }
 
-struct FailureDetail {
-    health_status: &'static str,
-    validation_type: &'static str,
-    latency_ms: u32,
-    issue: String,
-    message: String,
+#[derive(Debug)]
+pub struct FailureDetail {
+    pub health_status: &'static str,
+    pub validation_type: &'static str,
+    pub latency_ms: u32,
+    pub issue: String,
+    pub message: String,
 }
 
-fn failure_output(service_name: &str, detail: FailureDetail) -> McpValidateOutput {
+pub fn failure_output(service_name: &str, detail: FailureDetail) -> McpValidateOutput {
     McpValidateOutput {
         server: service_name.to_owned(),
         valid: false,
@@ -232,7 +233,7 @@ fn failure_output(service_name: &str, detail: FailureDetail) -> McpValidateOutpu
     }
 }
 
-fn success_output(service_name: &str, validation_result: McpConnectionResult) -> McpValidateOutput {
+pub fn success_output(service_name: &str, validation_result: McpConnectionResult) -> McpValidateOutput {
     let health_status = validation_result.health_status().to_owned();
     let message = validation_result.status_description();
 

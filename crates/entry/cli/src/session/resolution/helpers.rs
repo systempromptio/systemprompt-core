@@ -23,7 +23,7 @@ use crate::env_overrides::EnvOverrides;
 use crate::paths::ResolvedPaths;
 use crate::session::context::CliSessionContext;
 
-pub(super) fn try_session_from_env(
+pub fn try_session_from_env(
     profile: &Profile,
     env: &EnvOverrides,
 ) -> Option<CliSessionContext> {
@@ -53,7 +53,7 @@ pub(super) fn try_session_from_env(
     })
 }
 
-pub(super) fn extract_profile_name(profile_path: &Path) -> Result<String> {
+pub fn extract_profile_name(profile_path: &Path) -> Result<String> {
     let profile_dir = profile_path
         .parent()
         .ok_or_else(|| anyhow::anyhow!("Invalid profile path: no parent directory"))?;
@@ -108,7 +108,7 @@ pub(super) async fn create_new_session(
     .await
 }
 
-pub(super) fn resolve_profile_path_from_session(
+pub fn resolve_profile_path_from_session(
     session: &CliSession,
     active_profile: Option<&str>,
 ) -> Result<Option<PathBuf>> {
@@ -127,7 +127,7 @@ pub(super) fn resolve_profile_path_from_session(
     }
 }
 
-pub(super) fn resolve_profile_path_without_session(
+pub fn resolve_profile_path_without_session(
     paths: &ResolvedPaths,
     store: &SessionStore,
     active_key: &SessionKey,

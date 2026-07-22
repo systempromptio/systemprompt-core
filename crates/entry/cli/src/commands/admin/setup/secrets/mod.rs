@@ -9,7 +9,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod data;
-mod prompts;
+pub mod prompts;
 
 use anyhow::{Context, Result};
 use std::path::Path;

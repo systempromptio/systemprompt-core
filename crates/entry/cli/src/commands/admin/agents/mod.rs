@@ -31,7 +31,7 @@ mod status;
 mod task;
 mod tools;
 mod tools_mcp;
-mod validate;
+pub mod validate;
 
 use anyhow::{Context, Result};
 use clap::Subcommand;

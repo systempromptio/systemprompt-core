@@ -59,7 +59,7 @@ fn get_plugins_path() -> Result<std::path::PathBuf> {
     Ok(std::path::PathBuf::from(profile.paths.plugins()))
 }
 
-fn scan_plugins(plugins_path: &Path) -> Result<Vec<PluginSummary>> {
+pub fn scan_plugins(plugins_path: &Path) -> Result<Vec<PluginSummary>> {
     if !plugins_path.exists() {
         return Ok(Vec::new());
     }
