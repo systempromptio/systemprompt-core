@@ -80,7 +80,7 @@ pub(super) fn execute(args: &GenerateArgs, _config: &CliConfig) -> Result<Comman
         .join("plugins");
     marketplace::generate_marketplace_json(&plugins_path, &plugins_output_path)?;
 
-    let install_hint = extract_install_command(profile);
+    let install_hint = extract_install_command(profile.site.github_link.as_deref());
 
     let output = PluginGenerateAllOutput {
         results,
@@ -156,9 +156,8 @@ pub fn generate_plugin(
     })
 }
 
-pub fn extract_install_command(profile: &systemprompt_models::Profile) -> Option<String> {
-    let github_link = profile.site.github_link.as_deref()?;
-    let repo_path = github_link
+pub fn extract_install_command(github_link: Option<&str>) -> Option<String> {
+    let repo_path = github_link?
         .trim_end_matches('/')
         .trim_end_matches(".git")
         .rsplit("github.com/")
