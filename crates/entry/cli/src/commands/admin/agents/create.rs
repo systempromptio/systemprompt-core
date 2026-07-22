@@ -111,7 +111,11 @@ pub fn resolve_display_name(
     })
 }
 
-pub fn resolve_description(arg: Option<String>, prompter: &dyn Prompter, config: &CliConfig) -> String {
+pub fn resolve_description(
+    arg: Option<String>,
+    prompter: &dyn Prompter,
+    config: &CliConfig,
+) -> String {
     arg.unwrap_or_else(|| {
         if config.is_interactive() {
             prompt_description(prompter).unwrap_or_else(|e| {
