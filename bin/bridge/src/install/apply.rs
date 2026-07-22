@@ -60,7 +60,7 @@ fn resolve_binary_path() -> Result<PathBuf, InstallError> {
 }
 
 fn resolve_org_plugins() -> Result<paths::OrgPluginsLocation, InstallError> {
-    paths::org_plugins_effective().ok_or(InstallError::OrgPluginsUnresolvable)
+    paths::org_plugins_install_target().ok_or(InstallError::OrgPluginsUnresolvable)
 }
 
 fn bootstrap_install(

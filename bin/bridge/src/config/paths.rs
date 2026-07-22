@@ -76,8 +76,42 @@ pub fn org_plugins_user() -> Option<PathBuf> {
         .map(|base| base.join("Claude").join("org-plugins"))
 }
 
+// The system scope wins only when its directory already exists: consumers of
+// the effective location (sync, doctor, GUI, status) must never adopt a system
+// path that no install provisioned — on hosts where the system parent happens
+// to be writable (CI runners, permissive /opt) that would silently shadow the
+// user scope. `org_plugins_install_target` keeps the create-if-possible probe.
 #[must_use]
 pub fn org_plugins_effective() -> Option<OrgPluginsLocation> {
+    #[cfg(target_os = "macos")]
+    {
+        return org_plugins_system().map(|path| OrgPluginsLocation {
+            path,
+            scope: Scope::System,
+        });
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        if let Some(path) = org_plugins_system()
+            && path.is_dir()
+            && can_create_in(&path)
+        {
+            return Some(OrgPluginsLocation {
+                path,
+                scope: Scope::System,
+            });
+        }
+        org_plugins_user().map(|path| OrgPluginsLocation {
+            path,
+            scope: Scope::User,
+        })
+    }
+}
+
+// Install may create the system directory, so it probes the nearest existing
+// ancestor for writability instead of requiring the directory to exist.
+#[must_use]
+pub fn org_plugins_install_target() -> Option<OrgPluginsLocation> {
     #[cfg(target_os = "macos")]
     {
         return org_plugins_system().map(|path| OrgPluginsLocation {
