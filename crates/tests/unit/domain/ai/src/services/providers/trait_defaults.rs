@@ -82,7 +82,10 @@ impl AiProvider for MinimalProvider {
         Ok((Self::response("tools"), Vec::new()))
     }
 
-    async fn generate_with_schema(&self, _params: SchemaGenerationParams<'_>) -> Result<AiResponse> {
+    async fn generate_with_schema(
+        &self,
+        _params: SchemaGenerationParams<'_>,
+    ) -> Result<AiResponse> {
         Ok(Self::response("schema"))
     }
 }
@@ -146,8 +149,10 @@ async fn default_generate_structured_delegates_to_generate() {
     let provider = MinimalProvider::default();
     let msgs = messages();
     let format = ResponseFormat::JsonObject;
-    let params =
-        StructuredGenerationParams::new(GenerationParams::new(&msgs, "minimal-model", 512), &format);
+    let params = StructuredGenerationParams::new(
+        GenerationParams::new(&msgs, "minimal-model", 512),
+        &format,
+    );
 
     let response = provider.generate_structured(params).await.expect("ok");
     assert_eq!(response.content, "generated");
@@ -248,7 +253,11 @@ async fn retry_exhaustion_surfaces_last_parse_error() {
     .await
     .expect_err("all attempts invalid");
     assert!(!err.to_string().is_empty());
-    assert_eq!(*calls.lock().expect("lock"), 3, "max_retries=2 means 3 attempts");
+    assert_eq!(
+        *calls.lock().expect("lock"),
+        3,
+        "max_retries=2 means 3 attempts"
+    );
 }
 
 #[tokio::test]

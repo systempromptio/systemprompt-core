@@ -146,7 +146,9 @@ async fn validation_helpers_detect_tables_and_columns() {
         return;
     };
 
-    validate_database_connection(&db).await.expect("connection valid");
+    validate_database_connection(&db)
+        .await
+        .expect("connection valid");
 
     assert!(validate_table_exists(&db, "users").await.expect("query"));
     assert!(
