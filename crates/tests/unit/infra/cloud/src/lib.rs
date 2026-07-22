@@ -18,7 +18,11 @@ mod credentials_bootstrap_error;
 #[cfg(test)]
 mod credentials_bootstrap_flow;
 #[cfg(test)]
+mod credentials_bootstrap_paths;
+#[cfg(test)]
 mod deploy_dockerfile;
+#[cfg(test)]
+mod deploy_dockerfile_extensions;
 #[cfg(test)]
 mod deploy_validation;
 #[cfg(test)]

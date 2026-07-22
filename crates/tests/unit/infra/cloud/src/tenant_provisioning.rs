@@ -297,6 +297,124 @@ async fn finalize_tenant_surfaces_provisioning_failure() {
     assert!(!labels.contains(&"Provisioned".to_owned()));
 }
 
+#[tokio::test]
+async fn finalize_tenant_relays_sse_progress_messages() {
+    let server = MockServer::start().await;
+    let db_url = "postgres://u:p@internal.systemprompt.io:5432/demo";
+    mount_ready_tenant(&server, "t-sse", db_url).await;
+    let sse_body = concat!(
+        "event: provisioning\n",
+        "data: {\"tenant_id\":\"t-sse\",\"event_type\":\"vm_provisioning_started\",",
+        "\"status\":\"working\",\"message\":\"allocating vm\"}\n\n",
+        "event: provisioning\n",
+        "data: {\"tenant_id\":\"t-sse\",\"event_type\":\"tenant_ready\",\"status\":\"ready\"}\n\n"
+    );
+    Mock::given(method("GET"))
+        .and(path("/api/v1/tenants/t-sse/events"))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .insert_header("content-type", "text/event-stream")
+                .set_body_raw(sse_body.as_bytes().to_vec(), "text/event-stream"),
+        )
+        .with_priority(1)
+        .mount(&server)
+        .await;
+
+    let client = CloudApiClient::new(&server.uri(), "operator").unwrap();
+    let progress = RecordingProgress::new();
+    let tenant = TenantProvisioningService::new(&client)
+        .finalize_tenant(&TenantId::new("t-sse"), false, &progress)
+        .await
+        .expect("finalize");
+
+    assert_eq!(tenant.id.as_str(), "t-sse");
+    let labels = progress.labels();
+    assert!(
+        labels.contains(&"ProvisioningUpdate".to_owned()),
+        "SSE message must surface as a progress update, got {labels:?}"
+    );
+    assert!(labels.contains(&"Provisioned".to_owned()));
+}
+
+#[tokio::test]
+async fn provision_runs_checkout_then_finalizes_tenant() {
+    unsafe { std::env::set_var("BROWSER", "/bin/true") };
+    let server = MockServer::start().await;
+    let db_url = "postgres://u:p@internal.systemprompt.io:5432/demo";
+    mount_ready_tenant(&server, "t-full", db_url).await;
+    Mock::given(method("POST"))
+        .and(path("/api/v1/checkout"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "checkout_url": "http://127.0.0.1:9/never-opened",
+            "transaction_id": "tx-full",
+            "checkout_session_id": "cs-full"
+        })))
+        .mount(&server)
+        .await;
+
+    let api_url = server.uri();
+    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(90);
+    let (progress_labels, provisioned) = loop {
+        let api_url_cl = api_url.clone();
+        let flow = tokio::spawn(async move {
+            let client = CloudApiClient::new(&api_url_cl, "operator").expect("client");
+            let progress = RecordingProgress::new();
+            let plan = systemprompt_cloud::tenants::TenantCreatePlan {
+                price_id: systemprompt_identifiers::PriceId::new("price-basic"),
+                region: "lhr".to_owned(),
+                redirect_uri: "http://127.0.0.1:8766/callback".to_owned(),
+                external_db_access: false,
+                templates: systemprompt_cloud::CheckoutTemplates {
+                    success_html: "<p>ok {{TENANT_ID}}</p>",
+                    error_html: "<p>err</p>",
+                    waiting_html: "<p>wait</p>",
+                },
+            };
+            let result = TenantProvisioningService::new(&client)
+                .provision(&plan, &progress)
+                .await;
+            (progress.labels(), result)
+        });
+
+        loop {
+            if flow.is_finished() {
+                break;
+            }
+            let callback = reqwest::get(
+                "http://127.0.0.1:8766/callback?transaction_id=tx-full&tenant_id=t-full&status=completed",
+            )
+            .await;
+            if callback.is_ok() {
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+        }
+
+        let (labels, result) = flow.await.expect("join");
+        match result {
+            Ok(provisioned) => break (labels, provisioned),
+            Err(e)
+                if matches!(&e, systemprompt_cloud::error::CloudError::Io(io)
+                    if io.kind() == std::io::ErrorKind::AddrInUse) =>
+            {
+                assert!(
+                    tokio::time::Instant::now() < deadline,
+                    "callback port stayed in use"
+                );
+                tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+            },
+            Err(other) => panic!("provision failed: {other:?}"),
+        }
+    };
+
+    assert_eq!(provisioned.tenant.id.as_str(), "t-full");
+    assert!(!provisioned.needs_deploy);
+    assert!(progress_labels.contains(&"CheckoutSessionStarted".to_owned()));
+    assert!(progress_labels.contains(&"CheckoutSessionCreated".to_owned()));
+    assert!(progress_labels.contains(&"CheckoutComplete".to_owned()));
+    assert!(progress_labels.contains(&"TenantSynced".to_owned()));
+}
+
 #[test]
 fn swap_to_external_host_targets_production() {
     let url = "postgres://u:p@internal.systemprompt.io:5432/db?sslmode=disable";

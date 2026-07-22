@@ -157,3 +157,122 @@ async fn cached_token_is_reused_across_two_calls() {
     assert_eq!(first.status, "running");
     assert_eq!(second.status, "running");
 }
+
+#[tokio::test]
+async fn tenant_post_retries_once_after_401() {
+    let server = MockServer::start().await;
+    token_mock(&server).await;
+
+    Mock::given(method("POST"))
+        .and(path("/api/v1/tenants/t-dep/deploy"))
+        .respond_with(ResponseTemplate::new(401))
+        .up_to_n_times(1)
+        .with_priority(1)
+        .mount(&server)
+        .await;
+    Mock::given(method("POST"))
+        .and(path("/api/v1/tenants/t-dep/deploy"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "data": { "status": "deploying", "app_url": "https://t-dep.fly.dev" }
+        })))
+        .with_priority(2)
+        .mount(&server)
+        .await;
+
+    let client = CloudApiClient::new(&server.uri(), "op").unwrap();
+    let response = client
+        .deploy(&TenantId::new("t-dep"), "registry/image:tag")
+        .await
+        .expect("deploy retry should succeed");
+    assert_eq!(response.status, "deploying");
+}
+
+#[tokio::test]
+async fn tenant_put_retries_once_after_401() {
+    let server = MockServer::start().await;
+    token_mock(&server).await;
+
+    Mock::given(method("PUT"))
+        .and(path("/api/v1/tenants/t-ext/external-db-access"))
+        .respond_with(ResponseTemplate::new(401))
+        .up_to_n_times(1)
+        .with_priority(1)
+        .mount(&server)
+        .await;
+    Mock::given(method("PUT"))
+        .and(path("/api/v1/tenants/t-ext/external-db-access"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "data": {
+                "tenant_id": "t-ext",
+                "external_db_access": true,
+                "database_url": "postgres://u:p@db/demo"
+            }
+        })))
+        .with_priority(2)
+        .mount(&server)
+        .await;
+
+    let client = CloudApiClient::new(&server.uri(), "op").unwrap();
+    let response = client
+        .set_external_db_access(&TenantId::new("t-ext"), true)
+        .await
+        .expect("put retry should succeed");
+    assert!(response.external_db_access);
+}
+
+#[tokio::test]
+async fn tenant_put_no_content_retries_once_after_401() {
+    let server = MockServer::start().await;
+    token_mock(&server).await;
+
+    Mock::given(method("PUT"))
+        .and(path("/api/v1/tenants/t-sec/secrets"))
+        .respond_with(ResponseTemplate::new(401))
+        .up_to_n_times(1)
+        .with_priority(1)
+        .mount(&server)
+        .await;
+    Mock::given(method("PUT"))
+        .and(path("/api/v1/tenants/t-sec/secrets"))
+        .respond_with(ResponseTemplate::new(204))
+        .with_priority(2)
+        .mount(&server)
+        .await;
+
+    let client = CloudApiClient::new(&server.uri(), "op").unwrap();
+    let keys = client
+        .set_secrets(
+            &TenantId::new("t-sec"),
+            std::collections::HashMap::from([("API_KEY".to_owned(), "v".to_owned())]),
+        )
+        .await
+        .expect("set_secrets retry should succeed");
+    assert_eq!(keys, vec!["API_KEY".to_owned()]);
+}
+
+#[tokio::test]
+async fn tenant_post_empty_retries_once_after_401() {
+    let server = MockServer::start().await;
+    token_mock(&server).await;
+
+    Mock::given(method("POST"))
+        .and(path("/api/v1/tenants/t-restart/restart"))
+        .respond_with(ResponseTemplate::new(401))
+        .up_to_n_times(1)
+        .with_priority(1)
+        .mount(&server)
+        .await;
+    Mock::given(method("POST"))
+        .and(path("/api/v1/tenants/t-restart/restart"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({ "status": "restarting" })))
+        .with_priority(2)
+        .mount(&server)
+        .await;
+
+    let client = CloudApiClient::new(&server.uri(), "op").unwrap();
+    let response = client
+        .restart_tenant(&TenantId::new("t-restart"))
+        .await
+        .expect("restart retry should succeed");
+    assert_eq!(response.status, "restarting");
+}

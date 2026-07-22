@@ -155,3 +155,62 @@ async fn polling_fallback_reports_failed_status_as_error() {
     }
     assert!(polls.load(Ordering::SeqCst) >= 1);
 }
+
+#[tokio::test]
+async fn polling_fallback_keeps_polling_through_pending_status() {
+    let server = MockServer::start().await;
+    token_mock(&server).await;
+    Mock::given(method("GET"))
+        .and(path("/api/v1/tenants/t-pending/status"))
+        .respond_with(ResponseTemplate::new(200).set_body_raw(
+            br#"{"data":{"tenant_id":"t-pending","status":"provisioning"}}"#.to_vec(),
+            "application/json",
+        ))
+        .up_to_n_times(1)
+        .with_priority(1)
+        .mount(&server)
+        .await;
+    Mock::given(method("GET"))
+        .and(path("/api/v1/tenants/t-pending/status"))
+        .respond_with(ResponseTemplate::new(200).set_body_raw(
+            br#"{"data":{"tenant_id":"t-pending","status":"ready"}}"#.to_vec(),
+            "application/json",
+        ))
+        .with_priority(2)
+        .mount(&server)
+        .await;
+
+    let client = CloudApiClient::new(&server.uri(), "op").unwrap();
+    let event = wait_for_provisioning(&client, &TenantId::new("t-pending"), |_e| {})
+        .await
+        .expect("ready after pending poll");
+    assert_eq!(event.status, "ready");
+}
+
+#[tokio::test]
+async fn polling_fallback_retries_after_status_request_error() {
+    let server = MockServer::start().await;
+    token_mock(&server).await;
+    Mock::given(method("GET"))
+        .and(path("/api/v1/tenants/t-flaky/status"))
+        .respond_with(ResponseTemplate::new(500).set_body_string("transient"))
+        .up_to_n_times(1)
+        .with_priority(1)
+        .mount(&server)
+        .await;
+    Mock::given(method("GET"))
+        .and(path("/api/v1/tenants/t-flaky/status"))
+        .respond_with(ResponseTemplate::new(200).set_body_raw(
+            br#"{"data":{"tenant_id":"t-flaky","status":"ready"}}"#.to_vec(),
+            "application/json",
+        ))
+        .with_priority(2)
+        .mount(&server)
+        .await;
+
+    let client = CloudApiClient::new(&server.uri(), "op").unwrap();
+    let event = wait_for_provisioning(&client, &TenantId::new("t-flaky"), |_e| {})
+        .await
+        .expect("ready after transient status error");
+    assert_eq!(event.status, "ready");
+}
