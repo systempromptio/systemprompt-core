@@ -481,3 +481,22 @@ fn generate_plugin_errors_on_missing_config() {
     let err = generate_plugin("ghost", &ctx).unwrap_err();
     assert!(err.to_string().contains("Failed to read"));
 }
+
+#[test]
+fn extract_install_command_parses_github_repo_paths() {
+    use systemprompt_cli::core::plugins::generate::extract_install_command;
+
+    assert_eq!(extract_install_command(None), None);
+    assert_eq!(
+        extract_install_command(Some("https://github.com/acme/plugins")).as_deref(),
+        Some("/plugin marketplace add acme/plugins")
+    );
+    assert_eq!(
+        extract_install_command(Some("https://github.com/acme/plugins.git/")).as_deref(),
+        Some("/plugin marketplace add acme/plugins")
+    );
+    assert_eq!(
+        extract_install_command(Some("https://github.com/acme")),
+        None
+    );
+}
