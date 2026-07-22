@@ -349,3 +349,83 @@ async fn gemini_stream_emits_tool_use_block_with_signature() {
         Some("sig==")
     );
 }
+
+fn tool_result_message(
+    is_error: bool,
+    structured: Option<Value>,
+    texts: &[&str],
+) -> CanonicalMessage {
+    CanonicalMessage {
+        role: Role::Tool,
+        content: vec![CanonicalContent::ToolResult {
+            tool_use_id: "call_1".to_owned(),
+            content: texts
+                .iter()
+                .map(|t| CanonicalContent::Text((*t).to_owned()))
+                .collect(),
+            is_error,
+            structured_content: structured,
+            meta: None,
+        }],
+    }
+}
+
+#[test]
+fn gemini_tool_result_error_flattens_text_into_error_payload() {
+    let mut req = base_request();
+    req.messages = vec![tool_result_message(true, None, &["boom", "again"])];
+    let body = gemini::build_request_body(&req, None);
+    let part = &body["contents"][0]["parts"][0]["functionResponse"];
+    assert_eq!(part["name"], "call_1");
+    assert_eq!(part["response"]["error"], "boom\nagain");
+    assert_eq!(body["contents"][0]["role"], "user");
+}
+
+#[test]
+fn gemini_tool_result_prefers_structured_content_over_text() {
+    let mut req = base_request();
+    req.messages = vec![tool_result_message(
+        false,
+        Some(json!({"rows": [1, 2]})),
+        &["ignored text"],
+    )];
+    let body = gemini::build_request_body(&req, None);
+    let response = &body["contents"][0]["parts"][0]["functionResponse"]["response"];
+    assert_eq!(response["result"], json!({"rows": [1, 2]}));
+}
+
+#[test]
+fn gemini_tool_result_without_structure_flattens_text_result() {
+    let mut req = base_request();
+    req.messages = vec![tool_result_message(false, None, &["line one", "line two"])];
+    let body = gemini::build_request_body(&req, None);
+    let response = &body["contents"][0]["parts"][0]["functionResponse"]["response"];
+    assert_eq!(response["result"], "line one\nline two");
+}
+
+#[test]
+fn gemini_drops_system_thinking_and_empty_part_messages_from_contents() {
+    let mut req = base_request();
+    req.messages = vec![
+        CanonicalMessage {
+            role: Role::System,
+            content: vec![CanonicalContent::Text("sys".to_owned())],
+        },
+        CanonicalMessage {
+            role: Role::Assistant,
+            content: vec![CanonicalContent::Thinking {
+                text: "hidden chain".to_owned(),
+                signature: None,
+            }],
+        },
+        CanonicalMessage {
+            role: Role::Assistant,
+            content: vec![CanonicalContent::Text("visible".to_owned())],
+        },
+    ];
+    let body = gemini::build_request_body(&req, None);
+    let contents = body["contents"].as_array().expect("contents array");
+    assert_eq!(contents.len(), 1);
+    assert_eq!(contents[0]["role"], "model");
+    assert_eq!(contents[0]["parts"][0]["text"], "visible");
+}

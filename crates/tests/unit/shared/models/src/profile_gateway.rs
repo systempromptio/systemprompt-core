@@ -815,3 +815,110 @@ fn reasoning_effort_orders_and_round_trips_snake_case() {
         ReasoningEffort::Low
     );
 }
+
+#[test]
+fn matched_predicates_lists_set_fields_in_declaration_order() {
+    assert!(RouteMatch::default().matched_predicates().is_empty());
+
+    let full = RouteMatch {
+        requires_tools: Some(true),
+        min_tools: Some(2),
+        thinking: Some(true),
+        min_reasoning_effort: Some(ReasoningEffort::Low),
+        stream: Some(true),
+        min_input_tokens: Some(10),
+        response_format: Some(ResponseFormatKind::JsonObject),
+    };
+    assert_eq!(
+        full.matched_predicates(),
+        vec![
+            "requires_tools",
+            "min_tools",
+            "thinking",
+            "min_reasoning_effort",
+            "stream",
+            "min_input_tokens",
+            "response_format",
+        ]
+    );
+
+    let sparse = RouteMatch {
+        thinking: Some(false),
+        min_input_tokens: Some(1),
+        ..RouteMatch::default()
+    };
+    assert_eq!(
+        sparse.matched_predicates(),
+        vec!["thinking", "min_input_tokens"]
+    );
+}
+
+#[test]
+fn route_match_validate_rejects_vacuous_and_contradictory_tool_predicates() {
+    assert!(
+        RouteMatch {
+            min_tools: Some(0),
+            ..RouteMatch::default()
+        }
+        .validate()
+        .is_err()
+    );
+    assert!(
+        RouteMatch {
+            requires_tools: Some(false),
+            min_tools: Some(1),
+            ..RouteMatch::default()
+        }
+        .validate()
+        .is_err()
+    );
+    assert!(
+        RouteMatch {
+            requires_tools: Some(true),
+            min_tools: Some(1),
+            ..RouteMatch::default()
+        }
+        .validate()
+        .is_ok()
+    );
+}
+
+#[test]
+fn route_match_token_estimate_counts_thinking_and_nested_tool_result_text() {
+    let mut r = req("m");
+    r.messages = vec![CanonicalMessage {
+        role: Role::User,
+        content: vec![
+            CanonicalContent::Thinking {
+                text: "x".repeat(40),
+                signature: None,
+            },
+            CanonicalContent::ToolResult {
+                tool_use_id: "call_1".to_owned(),
+                content: vec![CanonicalContent::Text("y".repeat(40))],
+                is_error: false,
+                structured_content: None,
+                meta: None,
+            },
+        ],
+    }];
+    assert!(
+        RouteMatch {
+            min_input_tokens: Some(20),
+            ..RouteMatch::default()
+        }
+        .matches_request(&r),
+        "thinking and tool-result text must contribute to the estimate"
+    );
+}
+
+#[test]
+fn route_resolve_finds_registry_entry_by_provider_name() {
+    let registry = registry_with_endpoint("https://api.example.com/v1");
+    let hit = route("claude-*");
+    assert!(hit.resolve(&registry).is_some());
+
+    let mut miss = route("claude-*");
+    miss.provider = ProviderId::new("absent");
+    assert!(miss.resolve(&registry).is_none());
+}

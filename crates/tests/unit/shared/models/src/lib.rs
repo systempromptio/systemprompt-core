@@ -243,3 +243,6 @@ mod models_misc_edges;
 
 #[cfg(test)]
 mod profile_from_env;
+
+#[cfg(test)]
+mod ai_request_response;
