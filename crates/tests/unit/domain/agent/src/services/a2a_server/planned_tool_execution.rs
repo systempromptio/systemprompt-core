@@ -110,6 +110,40 @@ async fn successful_tool_run_synthesizes_and_emits_response() {
 }
 
 #[tokio::test]
+async fn direct_response_plan_streams_text_without_tool_calls() {
+    let provider =
+        StubAiProvider::new().with_plan(PlanningResult::direct_response("no tools required"));
+    let Some(Harness { context, mut rx }) = harness(provider).await else {
+        return;
+    };
+    let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
+
+    let result = PlannedAgenticStrategy::new()
+        .execute(context, Vec::new())
+        .await
+        .expect("direct response succeeds");
+
+    assert_eq!(result.accumulated_text, "no tools required");
+    assert!(result.tool_calls.is_empty());
+    assert!(result.tool_results.is_empty());
+    assert_eq!(result.iterations, 1);
+
+    let events = drain(&mut rx);
+    assert!(
+        events
+            .iter()
+            .any(|e| matches!(e, StreamEvent::Text(t) if t == "no tools required")),
+        "direct response must be streamed"
+    );
+    assert!(
+        events
+            .iter()
+            .any(|e| matches!(e, StreamEvent::ExecutionStepUpdate { .. })),
+        "planning steps must be streamed"
+    );
+}
+
+#[tokio::test]
 async fn template_referencing_unplanned_tool_returns_validation_explanation() {
     let provider = StubAiProvider::new()
         .with_plan(PlanningResult::tool_calls(
