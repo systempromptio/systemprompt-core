@@ -77,11 +77,11 @@ filter = 'package(systemprompt-api-integration-tests) and test(/(messaging_dispa
 test-group = 'messaging-dispatch-db'
 
 [[profile.default.overrides]]
-filter = 'package(systemprompt-api-integration-tests) and test(/(server_health_more|proxy_more|proxy_external_mcp|health_monitor)::/)'
+filter = 'package(systemprompt-api-integration-tests) and test(/(server_health_more|server_run_loop|proxy_more|proxy_external_mcp|health_monitor)::/)'
 test-group = 'scheduler-services-db'
 
 [[profile.ci.overrides]]
-filter = 'package(systemprompt-api-integration-tests) and test(/(server_health_more|proxy_more|proxy_external_mcp|health_monitor)::/)'
+filter = 'package(systemprompt-api-integration-tests) and test(/(server_health_more|server_run_loop|proxy_more|proxy_external_mcp|health_monitor)::/)'
 test-group = 'scheduler-services-db'
 
 [[profile.default.overrides]]
@@ -226,7 +226,7 @@ filter = 'package(systemprompt-api-integration-tests) and test(/(messaging_dispa
 test-group = 'messaging-dispatch-db'
 
 [[profile.coverage.overrides]]
-filter = 'package(systemprompt-api-integration-tests) and test(/(server_health_more|proxy_more|proxy_external_mcp|health_monitor)::/)'
+filter = 'package(systemprompt-api-integration-tests) and test(/(server_health_more|server_run_loop|proxy_more|proxy_external_mcp|health_monitor)::/)'
 test-group = 'scheduler-services-db'
 
 [[profile.coverage.overrides]]
