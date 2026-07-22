@@ -8,7 +8,7 @@ use std::env;
 use std::path::PathBuf;
 use std::sync::OnceLock;
 
-use systemprompt_config::{init_config_from_profile, ProfileBootstrap, SecretsBootstrap};
+use systemprompt_config::{ProfileBootstrap, SecretsBootstrap, init_config_from_profile};
 use systemprompt_files::FilesConfig;
 use systemprompt_models::profile::UNRESTRICTED_ACKNOWLEDGEMENT;
 use systemprompt_models::{AppPaths, Config};
@@ -80,7 +80,23 @@ pub fn ensure_messaging_bootstrap() -> &'static TestBootstrap {
     ensure_test_bootstrap()
 }
 
+// Bootstrap whose profile advertises `api_base_url` as the server's
+// api_server/internal/external URL and whose services `config.yaml` is
+// caller-supplied. Callers own the process-global one-shot inits, so this must
+// be the first bootstrap call in the process (true under nextest) and must not
+// be mixed with `ensure_test_bootstrap` pointing at a different tree.
+pub fn init_isolated_bootstrap(api_base_url: &str, services_config_yaml: &str) -> TestBootstrap {
+    init_bootstrap_inner(Some(api_base_url), Some(services_config_yaml))
+}
+
 fn init_bootstrap() -> TestBootstrap {
+    init_bootstrap_inner(None, None)
+}
+
+fn init_bootstrap_inner(
+    api_base_url: Option<&str>,
+    services_config_yaml: Option<&str>,
+) -> TestBootstrap {
     let database_url = env::var("TEST_DATABASE_URL")
         .or_else(|_| env::var("DATABASE_URL"))
         .unwrap_or_else(|_| {
@@ -121,7 +137,10 @@ fn init_bootstrap() -> TestBootstrap {
     // the populated agent registry never leaks into suites that assert on an
     // empty config (each nextest test is its own process, so the env gate is
     // local to messaging-test processes).
-    if env::var("SYSTEMPROMPT_TEST_MESSAGING").is_ok() {
+    if let Some(yaml) = services_config_yaml {
+        std::fs::write(services_path.join("config/config.yaml"), yaml)
+            .expect("write services config.yaml");
+    } else if env::var("SYSTEMPROMPT_TEST_MESSAGING").is_ok() {
         std::fs::write(
             services_path.join("config/config.yaml"),
             messaging_config_yaml(),
@@ -140,6 +159,7 @@ fn init_bootstrap() -> TestBootstrap {
         &bin_path,
         &storage_path,
         &web_path,
+        api_base_url.unwrap_or("http://127.0.0.1"),
     );
     let profile_path = tmp_path.join("profile.yaml");
     std::fs::write(&profile_path, profile_yaml).expect("write profile.yaml");
@@ -262,6 +282,7 @@ fn render_profile_yaml(
     bin: &std::path::Path,
     storage: &std::path::Path,
     web: &std::path::Path,
+    api_base_url: &str,
 ) -> String {
     format!(
         r#"name: test
@@ -276,9 +297,9 @@ database:
 server:
   host: 127.0.0.1
   port: 8080
-  api_server_url: http://127.0.0.1
-  api_internal_url: http://127.0.0.1
-  api_external_url: http://127.0.0.1
+  api_server_url: {api_base_url}
+  api_internal_url: {api_base_url}
+  api_external_url: {api_base_url}
   use_https: false
   cors_allowed_origins:
     - http://127.0.0.1
@@ -357,5 +378,6 @@ governance:
         storage = storage.display(),
         web = web.display(),
         ack = UNRESTRICTED_ACKNOWLEDGEMENT,
+        api_base_url = api_base_url,
     )
 }

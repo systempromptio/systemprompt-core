@@ -377,6 +377,10 @@ mod static_content_more;
 mod middleware_more;
 
 #[cfg(test)]
+#[path = "proxy_external_mcp.rs"]
+mod proxy_external_mcp;
+
+#[cfg(test)]
 #[path = "proxy_more.rs"]
 mod proxy_more;
 
