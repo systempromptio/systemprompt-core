@@ -11,6 +11,7 @@ mod artifact;
 mod artifact_parts;
 mod batch_builders;
 mod context;
+mod context_notifications;
 mod execution;
 mod message;
 mod message_tx;
