@@ -31,41 +31,40 @@ impl TableRenderer {
         let mut rows = Vec::new();
 
         for part in &artifact.parts {
-            if let Some(data) = part.as_data() {
-                if let Some(obj) = data.as_object()
-                    && let Some(data_arr) = obj
-                        .get("items")
-                        .or_else(|| obj.get("data"))
-                        .or_else(|| obj.get("rows"))
-                        .and_then(JsonValue::as_array)
-                {
-                    if let Some(cols) = obj.get("columns").and_then(JsonValue::as_array) {
-                        columns = cols
-                            .iter()
-                            .filter_map(|c| {
-                                c.as_str().map(String::from).or_else(|| {
-                                    c.get("name").and_then(|n| n.as_str()).map(String::from)
-                                })
+            if let Some(data) = part.as_data()
+                && let Some(obj) = data.as_object()
+                && let Some(data_arr) = obj
+                    .get("items")
+                    .or_else(|| obj.get("data"))
+                    .or_else(|| obj.get("rows"))
+                    .and_then(JsonValue::as_array)
+            {
+                if let Some(cols) = obj.get("columns").and_then(JsonValue::as_array) {
+                    columns = cols
+                        .iter()
+                        .filter_map(|c| {
+                            c.as_str().map(String::from).or_else(|| {
+                                c.get("name").and_then(|n| n.as_str()).map(String::from)
                             })
+                        })
+                        .collect();
+                }
+
+                if columns.is_empty()
+                    && let Some(first_obj) = data_arr.first().and_then(JsonValue::as_object)
+                {
+                    columns = first_obj.keys().cloned().collect();
+                }
+
+                for item in data_arr {
+                    if let Some(row_obj) = item.as_object() {
+                        let row: Vec<JsonValue> = columns
+                            .iter()
+                            .map(|k| row_obj.get(k).cloned().unwrap_or(JsonValue::Null))
                             .collect();
-                    }
-
-                    if columns.is_empty()
-                        && let Some(first_obj) = data_arr.first().and_then(JsonValue::as_object)
-                    {
-                        columns = first_obj.keys().cloned().collect();
-                    }
-
-                    for item in data_arr {
-                        if let Some(row_obj) = item.as_object() {
-                            let row: Vec<JsonValue> = columns
-                                .iter()
-                                .map(|k| row_obj.get(k).cloned().unwrap_or(JsonValue::Null))
-                                .collect();
-                            rows.push(row);
-                        } else if let Some(row_arr) = item.as_array() {
-                            rows.push(row_arr.clone());
-                        }
+                        rows.push(row);
+                    } else if let Some(row_arr) = item.as_array() {
+                        rows.push(row_arr.clone());
                     }
                 }
             }
