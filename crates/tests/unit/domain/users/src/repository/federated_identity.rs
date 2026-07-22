@@ -30,7 +30,7 @@ fn claims(email: Option<&str>, verified: bool) -> FederatedIdentityClaims {
     FederatedIdentityClaims {
         email: email.map(ToOwned::to_owned),
         email_verified: verified,
-        name: Some("Federated Person".to_owned()),
+        name: Some(format!("Federated Person {}", Uuid::new_v4().simple())),
         preferred_username: None,
         roles: Vec::new(),
     }
@@ -60,18 +60,16 @@ async fn create_then_find_and_reuse_identity() {
         return;
     };
 
+    let email = format!("verified-{}@example.com", Uuid::new_v4().simple());
+    let identity_claims = claims(Some(&email), true);
     let user = ctx
         .repo
-        .find_or_create_federated(
-            &ctx.issuer,
-            &ctx.external_sub,
-            &claims(Some("verified@example.com"), true),
-        )
+        .find_or_create_federated(&ctx.issuer, &ctx.external_sub, &identity_claims)
         .await
         .expect("first create");
 
-    assert_eq!(user.email, "verified@example.com");
-    assert_eq!(user.display_name.as_deref(), Some("Federated Person"));
+    assert_eq!(user.email, email);
+    assert_eq!(user.display_name, identity_claims.name);
     assert!(user.roles.iter().any(|r| r == "user"));
 
     let mapped = ctx
@@ -84,11 +82,7 @@ async fn create_then_find_and_reuse_identity() {
 
     let again = ctx
         .repo
-        .find_or_create_federated(
-            &ctx.issuer,
-            &ctx.external_sub,
-            &claims(Some("verified@example.com"), true),
-        )
+        .find_or_create_federated(&ctx.issuer, &ctx.external_sub, &identity_claims)
         .await
         .expect("second create");
     assert_eq!(again.id, user.id, "existing identity must be reused");

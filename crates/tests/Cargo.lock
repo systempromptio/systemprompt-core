@@ -9218,6 +9218,8 @@ version = "0.0.11"
 dependencies = [
  "chrono",
  "serde_json",
+ "sqlx",
+ "systemprompt-database",
  "systemprompt-extension",
  "systemprompt-identifiers",
  "systemprompt-test-fixtures",

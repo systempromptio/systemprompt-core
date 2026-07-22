@@ -24,6 +24,9 @@ mod extension;
 mod jobs;
 
 #[cfg(test)]
+mod jobs_db;
+
+#[cfg(test)]
 mod models;
 
 #[cfg(test)]
