@@ -44,7 +44,7 @@ pub struct SearchArgs {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub(super) struct ToolSearchResult {
+pub struct ToolSearchResult {
     pub timestamp: String,
     pub trace_id: TraceId,
     pub tool_name: String,
@@ -55,7 +55,7 @@ pub(super) struct ToolSearchResult {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub(super) struct CombinedSearchOutput {
+pub struct CombinedSearchOutput {
     pub logs: Vec<LogEntryRow>,
     pub log_count: u64,
     pub tools: Vec<ToolSearchResult>,
@@ -126,7 +126,7 @@ async fn execute_with_pool_inner(
     Ok(result.with_skip_render())
 }
 
-fn map_log_rows(rows: Vec<LogSearchItem>, module_filter: Option<&str>) -> Vec<LogEntryRow> {
+pub fn map_log_rows(rows: Vec<LogSearchItem>, module_filter: Option<&str>) -> Vec<LogEntryRow> {
     rows.into_iter()
         .filter(|r| module_filter.is_none_or(|module| r.module.contains(module)))
         .map(|r| LogEntryRow {
@@ -148,7 +148,7 @@ fn map_log_rows(rows: Vec<LogSearchItem>, module_filter: Option<&str>) -> Vec<Lo
         .collect()
 }
 
-fn map_tool_rows(rows: Vec<ToolExecutionItem>) -> Vec<ToolSearchResult> {
+pub fn map_tool_rows(rows: Vec<ToolExecutionItem>) -> Vec<ToolSearchResult> {
     rows.into_iter()
         .map(|r| ToolSearchResult {
             timestamp: r.timestamp.format("%Y-%m-%d %H:%M:%S").to_string(),

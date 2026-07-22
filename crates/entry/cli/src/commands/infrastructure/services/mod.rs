@@ -14,7 +14,7 @@ mod lifecycle;
 pub mod restart;
 pub mod serve;
 pub mod start;
-mod status;
+pub mod status;
 mod stop;
 mod types;
 

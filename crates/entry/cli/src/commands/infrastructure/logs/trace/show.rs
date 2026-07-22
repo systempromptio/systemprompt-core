@@ -56,10 +56,11 @@ pub struct TraceSections {
     pub all: bool,
 }
 
-struct TraceSummaries<'a> {
-    ai: &'a systemprompt_logging::AiRequestSummary,
-    mcp: &'a systemprompt_logging::McpExecutionSummary,
-    step: &'a systemprompt_logging::ExecutionStepSummary,
+#[derive(Debug)]
+pub struct TraceSummaries<'a> {
+    pub ai: &'a systemprompt_logging::AiRequestSummary,
+    pub mcp: &'a systemprompt_logging::McpExecutionSummary,
+    pub step: &'a systemprompt_logging::ExecutionStepSummary,
 }
 
 struct FormattedDisplayContext<'a> {
@@ -223,7 +224,7 @@ fn print_formatted(ctx: &FormattedDisplayContext<'_>) {
     print_summary(&summary_ctx);
 }
 
-fn build_trace_output(
+pub fn build_trace_output(
     trace_id: &str,
     events: &[TraceEvent],
     summaries: &TraceSummaries<'_>,

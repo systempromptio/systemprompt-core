@@ -20,13 +20,13 @@ use systemprompt_scheduler::{
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub(super) struct ServiceStatusOutput {
+pub struct ServiceStatusOutput {
     pub services: Vec<ServiceStatusRow>,
     pub summary: StatusSummary,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub(super) struct ServiceStatusRow {
+pub struct ServiceStatusRow {
     pub name: String,
     pub service_type: String,
     pub status: String,
@@ -41,8 +41,8 @@ pub(super) struct ServiceStatusRow {
     pub endpoint: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub(super) struct StatusSummary {
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema)]
+pub struct StatusSummary {
     pub total: usize,
     pub running: usize,
     pub stopped: usize,
@@ -64,7 +64,7 @@ impl From<&VerifiedServiceState> for ServiceStatusRow {
     }
 }
 
-fn health_label(health: HealthStatus) -> String {
+pub fn health_label(health: HealthStatus) -> String {
     if matches!(health, HealthStatus::Healthy | HealthStatus::Degraded) {
         "OK".to_owned()
     } else {
@@ -72,7 +72,7 @@ fn health_label(health: HealthStatus) -> String {
     }
 }
 
-fn external_row(status: &McpServiceStatus) -> ServiceStatusRow {
+pub fn external_row(status: &McpServiceStatus) -> ServiceStatusRow {
     ServiceStatusRow {
         name: status.name.clone(),
         service_type: "mcp".to_owned(),
@@ -86,7 +86,7 @@ fn external_row(status: &McpServiceStatus) -> ServiceStatusRow {
     }
 }
 
-fn build_status_output(
+pub fn build_status_output(
     states: &[VerifiedServiceState],
     mcp_health: &HashMap<String, HealthStatus>,
     external: &[ServiceStatusRow],
@@ -126,7 +126,7 @@ fn build_status_output(
     }
 }
 
-fn managed_health_label(
+pub fn managed_health_label(
     state: &VerifiedServiceState,
     mcp_health: &HashMap<String, HealthStatus>,
 ) -> String {

@@ -17,7 +17,7 @@ mod ai_trace_display;
 mod display;
 mod json;
 mod list;
-mod show;
+pub mod show;
 mod summary;
 
 pub use summary::{SummaryContext, print_summary};

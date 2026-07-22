@@ -16,7 +16,7 @@ pub(super) mod delete;
 pub mod duration;
 mod export;
 pub mod request;
-mod search;
+pub mod search;
 pub mod shared;
 mod show;
 mod stream;

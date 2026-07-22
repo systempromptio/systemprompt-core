@@ -96,7 +96,7 @@ pub(super) fn execute(
     Ok(CommandOutput::card_value("Agent Created", &output))
 }
 
-fn resolve_display_name(
+pub fn resolve_display_name(
     arg: Option<String>,
     name: &str,
     prompter: &dyn Prompter,
@@ -111,7 +111,7 @@ fn resolve_display_name(
     })
 }
 
-fn resolve_description(arg: Option<String>, prompter: &dyn Prompter, config: &CliConfig) -> String {
+pub fn resolve_description(arg: Option<String>, prompter: &dyn Prompter, config: &CliConfig) -> String {
     arg.unwrap_or_else(|| {
         if config.is_interactive() {
             prompt_description(prompter).unwrap_or_else(|e| {

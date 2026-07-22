@@ -127,7 +127,7 @@ async fn apply(
     Ok(())
 }
 
-fn spec_mut(profile: &mut Profile) -> Result<&mut GatewayConfigSpec> {
+pub fn spec_mut(profile: &mut Profile) -> Result<&mut GatewayConfigSpec> {
     profile
         .gateway
         .get_or_insert_with(|| GatewayState::Spec(GatewayConfigSpec::default()))
@@ -135,12 +135,12 @@ fn spec_mut(profile: &mut Profile) -> Result<&mut GatewayConfigSpec> {
         .ok_or_else(|| anyhow!("gateway is in a resolved state and cannot be edited"))
 }
 
-fn set_enabled(profile: &mut Profile, enabled: bool) -> Result<String> {
+pub fn set_enabled(profile: &mut Profile, enabled: bool) -> Result<String> {
     spec_mut(profile)?.enabled = enabled;
     Ok(format!("Gateway enabled = {}", enabled))
 }
 
-fn add_route(profile: &mut Profile, args: &RouteAddArgs) -> Result<String> {
+pub fn add_route(profile: &mut Profile, args: &RouteAddArgs) -> Result<String> {
     let mut route = GatewayRoute {
         id: RouteId::new(""),
         model_pattern: args.model_pattern.clone(),
@@ -161,17 +161,17 @@ fn add_route(profile: &mut Profile, args: &RouteAddArgs) -> Result<String> {
     ))
 }
 
-fn set_default_provider(profile: &mut Profile, provider: &str) -> Result<String> {
+pub fn set_default_provider(profile: &mut Profile, provider: &str) -> Result<String> {
     spec_mut(profile)?.default_provider = Some(ProviderId::new(provider));
     Ok(format!("Gateway default provider set to {}", provider))
 }
 
-fn clear_default_provider(profile: &mut Profile) -> Result<String> {
+pub fn clear_default_provider(profile: &mut Profile) -> Result<String> {
     spec_mut(profile)?.default_provider = None;
     Ok("Gateway default provider cleared".to_owned())
 }
 
-fn remove_route(profile: &mut Profile, model_pattern: &str) -> Result<String> {
+pub fn remove_route(profile: &mut Profile, model_pattern: &str) -> Result<String> {
     let spec = spec_mut(profile)?;
     let before = spec.routes.len();
     spec.routes.retain(|r| r.model_pattern != model_pattern);
@@ -181,7 +181,7 @@ fn remove_route(profile: &mut Profile, model_pattern: &str) -> Result<String> {
     Ok(format!("Route {} removed", model_pattern))
 }
 
-fn validate_gateway(profile: &Profile) -> Result<()> {
+pub fn validate_gateway(profile: &Profile) -> Result<()> {
     let Some(state) = &profile.gateway else {
         return Ok(());
     };

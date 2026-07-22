@@ -190,7 +190,15 @@ pub(super) async fn try_validate_context(
         )
         .ok()?;
     let db_pool = DbPool::from(Arc::new(db));
-    let context_repo = ContextRepository::new(&db_pool)
+    revalidate_context(&db_pool, session, profile_name).await
+}
+
+pub async fn revalidate_context(
+    db_pool: &DbPool,
+    session: &mut CliSession,
+    profile_name: &str,
+) -> Option<CliSession> {
+    let context_repo = ContextRepository::new(db_pool)
         .map_err(|e| tracing::debug!(error = %e, "Failed to build context repository"))
         .ok()?;
 
