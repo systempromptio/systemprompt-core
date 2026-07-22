@@ -116,3 +116,90 @@ async fn cleanup_crashed_agent_without_record_is_noop() {
         .await
         .expect("cleanup is a no-op without a record");
 }
+
+#[tokio::test]
+async fn disable_with_event_bus_publishes_agent_disabled() {
+    let Some(pool) = try_pool().await else {
+        return;
+    };
+    let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
+    let bus = Arc::new(
+        systemprompt_agent::services::agent_orchestration::event_bus::AgentEventBus::new(16),
+    );
+    let mut events = bus.subscribe();
+    let lifecycle = lifecycle(&pool).with_event_bus(Arc::clone(&bus));
+    let db = db_service(&pool);
+
+    let name = unique_name("lc_bus_dis");
+    db.register_agent(&name, DEAD_PID, 9412)
+        .await
+        .expect("register");
+
+    lifecycle.disable_agent(&name).await.expect("disable");
+
+    let event = events.try_recv().expect("disable must publish an event");
+    match event {
+        systemprompt_agent::services::agent_orchestration::events::AgentEvent::AgentDisabled {
+            agent_id,
+        } => assert_eq!(agent_id.as_str(), name),
+        other => panic!("expected AgentDisabled, got {other:?}"),
+    }
+}
+
+#[tokio::test]
+async fn restart_with_event_bus_publishes_restart_requested_before_failing() {
+    let Some(pool) = try_pool().await else {
+        return;
+    };
+    let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
+    let bus = Arc::new(
+        systemprompt_agent::services::agent_orchestration::event_bus::AgentEventBus::new(16),
+    );
+    let mut events = bus.subscribe();
+    let lifecycle = lifecycle(&pool).with_event_bus(bus);
+
+    let name = unique_name("lc_bus_restart");
+    let result = lifecycle.restart_agent(&name, None).await;
+    assert!(result.is_err(), "unconfigured agent must not restart");
+
+    let event = events.try_recv().expect("restart must publish an event");
+    match event {
+        systemprompt_agent::services::agent_orchestration::events::AgentEvent::AgentRestartRequested {
+            agent_id,
+            reason,
+        } => {
+            assert_eq!(agent_id.as_str(), name);
+            assert!(reason.to_lowercase().contains("restart"));
+        },
+        other => panic!("expected AgentRestartRequested, got {other:?}"),
+    }
+}
+
+#[tokio::test]
+async fn free_function_verbs_cover_missing_agent_paths() {
+    let Some(pool) = try_pool().await else {
+        return;
+    };
+    let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
+    use systemprompt_agent::services::agent_orchestration::lifecycle as verbs;
+
+    let name = unique_name("lc_free");
+    assert!(
+        verbs::start_agent(&pool, app_paths(), &name, None)
+            .await
+            .is_err()
+    );
+    assert!(
+        verbs::enable_agent(&pool, app_paths(), &name, None)
+            .await
+            .is_err()
+    );
+    assert!(
+        verbs::restart_agent(&pool, app_paths(), &name, None)
+            .await
+            .is_err()
+    );
+    verbs::disable_agent(&pool, app_paths(), &name)
+        .await
+        .expect("disable of an unregistered agent is a no-op removal");
+}

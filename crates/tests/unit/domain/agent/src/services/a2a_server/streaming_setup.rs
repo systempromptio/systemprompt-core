@@ -128,3 +128,45 @@ async fn setup_without_task_id_mints_one_and_validates_context() {
         "expected agent-load failure event, got {events:?}"
     );
 }
+
+#[tokio::test]
+async fn setup_with_unknown_context_emits_validation_error_and_persists_nothing() {
+    let Some(pool) = try_pool().await else {
+        return;
+    };
+    systemprompt_test_fixtures::ensure_test_bootstrap();
+    let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
+    let repos_handle = repos(&pool);
+    let (user, session) = seed_user_and_session(&pool).await;
+    let unknown_ctx = ContextId::generate();
+
+    let state = make_handler_state(&pool, Arc::new(StubAiProvider::new()), 4);
+    let context = request_context(&unknown_ctx, &session, &user, "test_agent");
+    let task_id = TaskId::generate();
+
+    let stream = create_sse_stream(CreateSseStreamParams {
+        message: message(&unknown_ctx, Some(task_id.clone())),
+        agent_name: "test_agent".to_owned(),
+        state,
+        request_id: RequestId::Number(7),
+        context,
+        callback_config: None,
+    })
+    .await
+    .map_err(|_| ())
+    .expect("permit available");
+
+    let events = collect_events(stream).await;
+    assert!(
+        events
+            .iter()
+            .any(|e| e.contains("Context validation failed")),
+        "expected context-validation error event, got {events:?}"
+    );
+
+    let stored = repos_handle.tasks.get_task(&task_id).await.expect("query");
+    assert!(
+        stored.is_none(),
+        "no task may be persisted when context validation fails"
+    );
+}

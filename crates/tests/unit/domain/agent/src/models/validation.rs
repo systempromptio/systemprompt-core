@@ -188,3 +188,16 @@ fn test_extract_port_overflow_port() {
 fn test_valid_version_max_u32_values() {
     assert!(is_valid_version("4294967295.4294967295.4294967295"));
 }
+
+#[tokio::test]
+async fn list_available_mcp_servers_reads_loader_config() {
+    systemprompt_test_fixtures::ensure_test_bootstrap();
+    let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
+    let servers = systemprompt_agent::models::web::list_available_mcp_servers()
+        .await
+        .expect("loader-backed listing succeeds under the fixture bootstrap");
+    assert!(
+        servers.is_empty(),
+        "fixture services dir declares no MCP servers, got {servers:?}"
+    );
+}
