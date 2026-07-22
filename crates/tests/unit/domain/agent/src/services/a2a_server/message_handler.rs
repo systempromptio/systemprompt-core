@@ -96,6 +96,39 @@ async fn handle_message_with_runtime_reuses_inbound_task_id() {
 }
 
 #[tokio::test]
+async fn handle_message_with_runtime_surfaces_model_stream_failure() {
+    let Some(pool) = try_pool().await else {
+        return;
+    };
+    systemprompt_test_fixtures::ensure_test_bootstrap();
+    let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
+    let repos = repos(&pool);
+    let (user, session) = seed_user_and_session(&pool).await;
+    let (ctx, _) = seed_context_and_task(&repos, &user, &session).await;
+    let client_task_id = TaskId::generate();
+
+    let provider = Arc::new(StubAiProvider::new().failing_stream());
+    let processor = MessageProcessor::new(&pool, provider).expect("processor");
+
+    let runtime = runtime_info("nonstream-agent");
+    let request = request_context(&ctx, &session, &user, "nonstream-agent");
+    let msg = user_message(&ctx, Some(client_task_id.clone()), "boom");
+
+    processor
+        .handle_message_with_runtime(msg, &runtime, "nonstream-agent", &request)
+        .await
+        .expect_err("failing model stream must propagate as an error");
+
+    let stored = repos
+        .tasks
+        .get_task(&client_task_id)
+        .await
+        .expect("get task")
+        .expect("initial task must have been persisted before the failure");
+    assert_ne!(stored.status.state, TaskState::Completed);
+}
+
+#[tokio::test]
 async fn handle_message_with_runtime_rejects_unowned_context() {
     let Some(pool) = try_pool().await else {
         return;
