@@ -24,8 +24,16 @@ pub struct CreateArgs {
 pub(super) async fn execute(args: CreateArgs, ctx: &CommandContext) -> Result<CommandOutput> {
     let session_ctx = get_or_create_session(ctx).await?;
     let pool = ctx.db_pool().await?;
+    execute_with_pool(args, &session_ctx.session, &pool, &ctx.cli).await
+}
 
-    let repo = ContextRepository::new(&pool)?;
+pub async fn execute_with_pool(
+    args: CreateArgs,
+    session: &systemprompt_cloud::CliSession,
+    pool: &systemprompt_database::DbPool,
+    config: &crate::cli_settings::CliConfig,
+) -> Result<CommandOutput> {
+    let repo = ContextRepository::new(pool)?;
 
     let name = args
         .name
@@ -33,8 +41,8 @@ pub(super) async fn execute(args: CreateArgs, ctx: &CommandContext) -> Result<Co
 
     let context_id = repo
         .create_context(
-            &session_ctx.session.user_id,
-            Some(&session_ctx.session.session_id),
+            &session.user_id,
+            Some(&session.session_id),
             &name,
             ContextKind::User,
         )
@@ -47,7 +55,7 @@ pub(super) async fn execute(args: CreateArgs, ctx: &CommandContext) -> Result<Co
         message: format!("Context '{}' created successfully", name),
     };
 
-    if !ctx.cli.is_json_output() {
+    if !config.is_json_output() {
         CliService::success(&output.message);
         CliService::key_value("ID", context_id.as_str());
         CliService::key_value("Name", &name);

@@ -6,13 +6,13 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-mod create;
-pub(crate) mod delete;
-mod edit;
+pub mod create;
+pub mod delete;
+pub mod edit;
 mod list;
 mod new;
-mod resolve;
-mod show;
+pub mod resolve;
+pub mod show;
 mod types;
 mod use_context;
 

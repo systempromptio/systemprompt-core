@@ -26,12 +26,20 @@ pub struct EditArgs {
 pub(super) async fn execute(args: EditArgs, ctx: &CommandContext) -> Result<CommandOutput> {
     let session_ctx = get_or_create_session(ctx).await?;
     let pool = ctx.db_pool().await?;
+    execute_with_pool(args, &session_ctx.session, &pool, &ctx.cli).await
+}
 
-    let repo = ContextRepository::new(&pool)?;
+pub async fn execute_with_pool(
+    args: EditArgs,
+    session: &systemprompt_cloud::CliSession,
+    pool: &systemprompt_database::DbPool,
+    config: &crate::cli_settings::CliConfig,
+) -> Result<CommandOutput> {
+    let repo = ContextRepository::new(pool)?;
 
-    let context_id = resolve_context(&args.context, &session_ctx.session.user_id, &repo).await?;
+    let context_id = resolve_context(&args.context, &session.user_id, &repo).await?;
 
-    repo.update_context_name(&context_id, &session_ctx.session.user_id, &args.name)
+    repo.update_context_name(&context_id, &session.user_id, &args.name)
         .await
         .context("Failed to update context")?;
 
@@ -41,7 +49,7 @@ pub(super) async fn execute(args: EditArgs, ctx: &CommandContext) -> Result<Comm
         message: format!("Context renamed to '{}'", args.name),
     };
 
-    if !ctx.cli.is_json_output() {
+    if !config.is_json_output() {
         CliService::success(&output.message);
         CliService::key_value("ID", context_id.as_str());
         CliService::key_value("Name", &args.name);

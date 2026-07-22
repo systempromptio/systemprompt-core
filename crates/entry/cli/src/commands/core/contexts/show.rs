@@ -28,7 +28,7 @@ pub(super) async fn execute(args: ShowArgs, ctx: &CommandContext) -> Result<Comm
     execute_with_pool(args, &session_ctx.session, &pool, &ctx.cli).await
 }
 
-pub(super) async fn execute_with_pool(
+pub async fn execute_with_pool(
     args: ShowArgs,
     session: &systemprompt_cloud::CliSession,
     pool: &DbPool,

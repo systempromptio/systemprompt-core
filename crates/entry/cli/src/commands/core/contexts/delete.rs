@@ -26,12 +26,21 @@ pub struct DeleteArgs {
 pub(super) async fn execute(args: DeleteArgs, ctx: &CommandContext) -> Result<CommandOutput> {
     let session_ctx = get_or_create_session(ctx).await?;
     let pool = ctx.db_pool().await?;
+    execute_with_pool(args, &session_ctx.session, &pool, &ctx.cli, ctx.prompter()).await
+}
 
-    let repo = ContextRepository::new(&pool)?;
+pub async fn execute_with_pool(
+    args: DeleteArgs,
+    session: &systemprompt_cloud::CliSession,
+    pool: &systemprompt_database::DbPool,
+    config: &crate::cli_settings::CliConfig,
+    prompter: &dyn crate::interactive::Prompter,
+) -> Result<CommandOutput> {
+    let repo = ContextRepository::new(pool)?;
 
-    let context_id = resolve_context(&args.context, &session_ctx.session.user_id, &repo).await?;
+    let context_id = resolve_context(&args.context, &session.user_id, &repo).await?;
 
-    if context_id == session_ctx.session.context_id {
+    if context_id == session.context_id {
         bail!(
             "Cannot delete the active context. Switch to a different context first with 'contexts \
              use <id>'."
@@ -39,18 +48,18 @@ pub(super) async fn execute(args: DeleteArgs, ctx: &CommandContext) -> Result<Co
     }
 
     let context = repo
-        .get_context(&context_id, &session_ctx.session.user_id)
+        .get_context(&context_id, &session.user_id)
         .await
         .context("Failed to fetch context details")?;
 
-    if !args.yes && ctx.cli.is_interactive() {
+    if !args.yes && config.is_interactive() {
         CliService::warning(&format!(
             "You are about to delete context '{}' ({})",
             context.name,
             context_id.as_str()
         ));
 
-        if !ctx.prompter().confirm("Are you sure?", false)? {
+        if !prompter.confirm("Are you sure?", false)? {
             CliService::info("Deletion cancelled");
             let cancelled = ContextDeletedOutput {
                 id: context_id,
@@ -63,7 +72,7 @@ pub(super) async fn execute(args: DeleteArgs, ctx: &CommandContext) -> Result<Co
         }
     }
 
-    repo.delete_context(&context_id, &session_ctx.session.user_id)
+    repo.delete_context(&context_id, &session.user_id)
         .await
         .context("Failed to delete context")?;
 
@@ -72,7 +81,7 @@ pub(super) async fn execute(args: DeleteArgs, ctx: &CommandContext) -> Result<Co
         message: format!("Context '{}' deleted successfully", context.name),
     };
 
-    if !ctx.cli.is_json_output() {
+    if !config.is_json_output() {
         CliService::success(&output.message);
     }
 
