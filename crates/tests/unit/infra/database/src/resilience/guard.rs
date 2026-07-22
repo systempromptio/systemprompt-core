@@ -95,6 +95,34 @@ async fn breaker_opens_and_fast_fails_after_repeated_failures() {
 }
 
 #[tokio::test]
+async fn accessors_expose_key_config_and_breaker() {
+    let guard = ResilienceGuard::new("dep-key", config());
+    assert_eq!(guard.key(), "dep-key");
+    assert_eq!(guard.config().bulkhead.max_concurrent, 4);
+    assert!(guard.breaker().acquire().is_ok());
+}
+
+#[tokio::test]
+async fn full_bulkhead_rejects_with_bulkhead_full() {
+    let mut cfg = config();
+    cfg.bulkhead = BulkheadConfig { max_concurrent: 1 };
+    let guard = ResilienceGuard::new("dep", cfg);
+
+    let held = guard.acquire_permit::<Error>().expect("first permit");
+
+    let result: Result<(), ResilienceError<Error>> =
+        guard.execute(classify, || async { Ok(()) }).await;
+    match result {
+        Err(ResilienceError::BulkheadFull { key, limit }) => {
+            assert_eq!(key, "dep");
+            assert_eq!(limit, 1);
+        },
+        other => panic!("expected BulkheadFull, got {other:?}"),
+    }
+    drop(held);
+}
+
+#[tokio::test]
 async fn an_attempt_exceeding_the_timeout_surfaces_as_timeout() {
     let guard = ResilienceGuard::new("dep", config());
 

@@ -1,6 +1,7 @@
 mod connection;
 mod conversion;
 mod database;
+mod database_surface;
 pub(crate) mod db_helper;
 mod display;
 mod executor;
