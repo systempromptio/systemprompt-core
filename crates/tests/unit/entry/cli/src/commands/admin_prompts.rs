@@ -5,8 +5,10 @@
 
 use std::path::Path;
 
+use systemprompt_cli::CliConfig;
 use systemprompt_cli::admin::agents::create::{
-    prompt_name, prompt_port, validate_name_input, validate_port_input,
+    prompt_name, prompt_port, resolve_description, resolve_display_name, validate_name_input,
+    validate_port_input,
 };
 use systemprompt_cli::admin::agents::logs_disk::select_agent_from_log_files;
 use systemprompt_cli::interactive::ScriptedPrompter;
@@ -78,4 +80,40 @@ fn select_agent_from_log_files_errors_when_empty() {
     let err =
         select_agent_from_log_files(&prompter, &[], Path::new("/unused")).expect_err("no files");
     assert!(err.to_string().contains("No agent log files found"));
+}
+
+#[test]
+fn resolve_display_name_prefers_flag_then_prompt_then_name() {
+    let interactive = CliConfig::new().with_interactive(true).with_assume_terminal(true);
+    let non_interactive = CliConfig::new().with_interactive(false);
+
+    let flagged = resolve_display_name(
+        Some("Flagged".to_owned()),
+        "agent_one",
+        &scripted(&[]),
+        &interactive,
+    );
+    assert_eq!(flagged, "Flagged");
+
+    let prompted =
+        resolve_display_name(None, "agent_one", &scripted(&["Pretty Name"]), &interactive);
+    assert_eq!(prompted, "Pretty Name");
+
+    let fallback = resolve_display_name(None, "agent_one", &scripted(&[]), &non_interactive);
+    assert_eq!(fallback, "agent_one");
+}
+
+#[test]
+fn resolve_description_prefers_flag_then_prompt_then_empty() {
+    let interactive = CliConfig::new().with_interactive(true).with_assume_terminal(true);
+    let non_interactive = CliConfig::new().with_interactive(false);
+
+    let flagged = resolve_description(Some("desc".to_owned()), &scripted(&[]), &interactive);
+    assert_eq!(flagged, "desc");
+
+    let prompted = resolve_description(None, &scripted(&["typed"]), &interactive);
+    assert_eq!(prompted, "typed");
+
+    let empty = resolve_description(None, &scripted(&[]), &non_interactive);
+    assert_eq!(empty, "");
 }

@@ -6,3 +6,4 @@
 mod duration_parse;
 mod logs_builders;
 mod request_builders;
+mod trace_show_output;
