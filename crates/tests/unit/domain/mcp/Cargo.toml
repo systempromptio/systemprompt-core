@@ -18,6 +18,7 @@ systemprompt-identifiers = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-extension = { workspace = true }
 systemprompt-traits = { workspace = true }
+systemprompt-provider-contracts = { workspace = true }
 systemprompt-security = { workspace = true }
 axum = { workspace = true }
 tower = { workspace = true }
@@ -31,6 +32,7 @@ chrono = { workspace = true }
 uuid = { workspace = true }
 rmcp = { workspace = true }
 async-trait = { workspace = true }
+inventory = { workspace = true }
 tempfile = { workspace = true }
 wiremock = { workspace = true }
 futures = { workspace = true }

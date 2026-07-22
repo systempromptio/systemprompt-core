@@ -46,6 +46,58 @@ pub fn external_server_block(spec: &ExternalServerSpec<'_>) -> String {
     )
 }
 
+pub fn internal_server_block(name: &str, port: u16) -> String {
+    format!(
+        r"  {name}:
+    server_type: internal
+    binary: {name}-bin
+    package: null
+    port: {port}
+    enabled: true
+    display_in_web: true
+    oauth:
+      required: false
+      scopes: []
+      audience: mcp
+      client_id: null
+",
+    )
+}
+
+pub fn external_server_block_with_accessor(name: &str, endpoint: &str) -> String {
+    format!(
+        r"  {name}:
+    server_type: external
+    binary: {name}-bin
+    package: null
+    port: 0
+    endpoint: {endpoint}
+    enabled: true
+    display_in_web: true
+    oauth:
+      required: false
+      scopes: []
+      audience: mcp
+      client_id: null
+    external_auth:
+      token_endpoint: /api/public/{name}/token
+",
+    )
+}
+
+pub fn register_internal_extension(bootstrap: &TestBootstrap, name: &str) {
+    let ext_dir = bootstrap.system_path.join("extensions").join(name);
+    std::fs::create_dir_all(&ext_dir).expect("create extension dir");
+    std::fs::write(
+        ext_dir.join("manifest.yaml"),
+        format!(
+            "extension:\n  type: mcp\n  name: {name}\n  binary: {name}-bin\n  description: \
+             harness extension\n  enabled: true\n"
+        ),
+    )
+    .expect("write extension manifest");
+}
+
 pub fn config_with_servers(server_blocks: &[String]) -> String {
     format!("mcp_servers:\n{}", server_blocks.join(""))
 }

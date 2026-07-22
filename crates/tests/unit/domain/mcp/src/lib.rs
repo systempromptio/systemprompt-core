@@ -33,6 +33,8 @@ mod extension;
 #[cfg(test)]
 mod harness;
 #[cfg(test)]
+mod jobs_cleanup;
+#[cfg(test)]
 mod lib_smoke;
 #[cfg(test)]
 mod middleware;

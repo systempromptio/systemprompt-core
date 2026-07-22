@@ -152,11 +152,11 @@ test-group = 'api-health-monitor-db'
 # running row with an unresponsive port as stopped. Serialise them into the
 # shared services-table slot so no sweep runs mid-assertion.
 [[profile.default.overrides]]
-filter = 'package(systemprompt-mcp-tests) and test(/(loader_live|loader_state|orchestrator_extended|orchestrator_smoke|database_state|database_state_extended|database_sync|database_service|lifecycle_deep|lifecycle_smoke|proxy_health)::/)'
+filter = 'package(systemprompt-mcp-tests) and test(/(loader_live|loader_state|orchestrator_extended|orchestrator_populated|orchestrator_smoke|database_state|database_state_extended|database_sync|database_service|lifecycle_deep|lifecycle_smoke|proxy_health|proxy_health_healthy)::/)'
 test-group = 'scheduler-services-db'
 
 [[profile.ci.overrides]]
-filter = 'package(systemprompt-mcp-tests) and test(/(loader_live|loader_state|orchestrator_extended|orchestrator_smoke|database_state|database_state_extended|database_sync|database_service|lifecycle_deep|lifecycle_smoke|proxy_health)::/)'
+filter = 'package(systemprompt-mcp-tests) and test(/(loader_live|loader_state|orchestrator_extended|orchestrator_populated|orchestrator_smoke|database_state|database_state_extended|database_sync|database_service|lifecycle_deep|lifecycle_smoke|proxy_health|proxy_health_healthy)::/)'
 test-group = 'scheduler-services-db'
 
 # The cloud CLI harness (cloud_harness) drives command paths in-process against
