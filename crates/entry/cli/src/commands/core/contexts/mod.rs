@@ -10,11 +10,11 @@ pub mod create;
 pub mod delete;
 pub mod edit;
 mod list;
-mod new;
+pub mod new;
 pub mod resolve;
 pub mod show;
 mod types;
-mod use_context;
+pub mod use_context;
 
 use crate::context::CommandContext;
 use crate::shared::render_result;

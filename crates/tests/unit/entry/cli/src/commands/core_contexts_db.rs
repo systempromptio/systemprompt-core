@@ -311,3 +311,184 @@ async fn delete_cancellation_keeps_the_context() {
         .collect();
     assert!(remaining.contains(&victim), "{remaining:?}");
 }
+
+fn minimal_profile() -> systemprompt_models::Profile {
+    use systemprompt_models::auth::JwtAudience;
+    use systemprompt_models::services::SystemAdminConfig;
+    use systemprompt_models::{
+        ContentNegotiationConfig, ExtensionsConfig, PathsConfig, Profile, ProfileDatabaseConfig,
+        ProfileType, RateLimitsConfig, RuntimeConfig, SecurityConfig, SecurityHeadersConfig,
+        ServerConfig, SiteConfig,
+    };
+
+    Profile {
+        name: "ctxcmd".to_string(),
+        display_name: "Ctx".to_string(),
+        target: ProfileType::Local,
+        site: SiteConfig {
+            name: "Test Site".to_string(),
+            github_link: None,
+        },
+        database: ProfileDatabaseConfig {
+            db_type: "postgres".to_string(),
+            external_db_access: false,
+            pool: None,
+        },
+        server: ServerConfig {
+            host: "127.0.0.1".to_string(),
+            port: 8080,
+            api_server_url: "http://localhost:8080".to_string(),
+            api_internal_url: "http://localhost:8080".to_string(),
+            api_external_url: "https://example.com".to_string(),
+            use_https: false,
+            cors_allowed_origins: vec![],
+            content_negotiation: ContentNegotiationConfig::default(),
+            security_headers: SecurityHeadersConfig::default(),
+            instance_id: None,
+            max_concurrent_streams: systemprompt_models::config::DEFAULT_MAX_CONCURRENT_STREAMS,
+            trusted_proxies: Vec::new(),
+        },
+        paths: PathsConfig {
+            system: "/tmp/ctxcmd".to_string(),
+            services: "/tmp/ctxcmd/services".to_string(),
+            bin: "/tmp/ctxcmd/bin".to_string(),
+            web_path: None,
+            storage: None,
+            geoip_database: None,
+        },
+        security: SecurityConfig {
+            issuer: "https://issuer.test".to_string(),
+            access_token_expiration: 3600,
+            refresh_token_expiration: 86400,
+            audiences: vec![JwtAudience::Api],
+            allowed_resource_audiences: vec![],
+            allow_registration: true,
+            signing_key_path: std::path::PathBuf::from("/tmp/test-signing-key.pem"),
+            trusted_issuers: vec![],
+            id_jag_ttl_secs: systemprompt_models::profile::DEFAULT_ID_JAG_TTL_SECS,
+        },
+        rate_limits: RateLimitsConfig::default(),
+        runtime: RuntimeConfig::default(),
+        cloud: None,
+        secrets: None,
+        extensions: ExtensionsConfig::default(),
+        providers: systemprompt_models::profile::ProviderRegistry::default(),
+        gateway: None,
+        governance: None,
+        system_admin: SystemAdminConfig {
+            username: "admin".to_string(),
+        },
+    }
+}
+
+#[tokio::test]
+async fn new_execute_resolved_creates_context_and_updates_session_store() {
+    use systemprompt_cli::core::contexts::new;
+    use systemprompt_cli::session::CliSessionContext;
+    use systemprompt_cloud::{SessionKey, SessionStore};
+
+    let pool = pool().await;
+    let (user_id, session_id) = seeded_identity(&pool, "ctxnew").await;
+    let session_ctx = CliSessionContext {
+        session: session_for(&user_id, session_id, ContextId::generate()),
+        profile: minimal_profile(),
+    };
+    let sessions = tempfile::tempdir().unwrap();
+
+    let out = new::execute_resolved(
+        new::NewArgs {
+            name: Some("seam-context".to_owned()),
+        },
+        &cfg(),
+        &session_ctx,
+        &pool,
+        sessions.path(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(card_title(&out), "New Context Created");
+
+    let names: Vec<String> = ContextRepository::new(&pool)
+        .unwrap()
+        .list_contexts_basic(&user_id)
+        .await
+        .unwrap()
+        .into_iter()
+        .map(|c| c.name)
+        .collect();
+    assert!(names.contains(&"seam-context".to_owned()), "{names:?}");
+
+    let store = SessionStore::load_or_create(sessions.path()).unwrap();
+    let stored = store
+        .get_session(&SessionKey::from_tenant_id(None))
+        .expect("session persisted");
+    assert_ne!(stored.context_id, *session_ctx.context_id());
+
+    let defaulted = new::execute_resolved(
+        new::NewArgs { name: None },
+        &cfg(),
+        &session_ctx,
+        &pool,
+        sessions.path(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(card_title(&defaulted), "New Context Created");
+}
+
+#[tokio::test]
+async fn use_execute_resolved_switches_to_named_context() {
+    use systemprompt_cli::core::contexts::use_context;
+    use systemprompt_cli::session::CliSessionContext;
+    use systemprompt_cloud::{SessionKey, SessionStore};
+
+    let pool = pool().await;
+    let (user_id, session_id) = seeded_identity(&pool, "ctxuse").await;
+    let repo = ContextRepository::new(&pool).unwrap();
+    let target = repo
+        .create_context(
+            &user_id,
+            Some(&session_id),
+            "switch-target",
+            systemprompt_agent::models::context::ContextKind::User,
+        )
+        .await
+        .unwrap();
+
+    let session_ctx = CliSessionContext {
+        session: session_for(&user_id, session_id, ContextId::generate()),
+        profile: minimal_profile(),
+    };
+    let sessions = tempfile::tempdir().unwrap();
+
+    let out = use_context::execute_resolved(
+        use_context::UseArgs {
+            context: "switch-target".to_owned(),
+        },
+        &cfg(),
+        &session_ctx,
+        &pool,
+        sessions.path(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(card_title(&out), "Context Switched");
+
+    let store = SessionStore::load_or_create(sessions.path()).unwrap();
+    let stored = store
+        .get_session(&SessionKey::from_tenant_id(None))
+        .expect("session persisted");
+    assert_eq!(stored.context_id, target);
+
+    let missing = use_context::execute_resolved(
+        use_context::UseArgs {
+            context: "no-such-context".to_owned(),
+        },
+        &cfg(),
+        &session_ctx,
+        &pool,
+        sessions.path(),
+    )
+    .await;
+    assert!(missing.is_err());
+}

@@ -12,10 +12,13 @@ use systemprompt_cloud::{SessionKey, SessionStore};
 use systemprompt_logging::CliService;
 
 use super::types::ContextSwitchedOutput;
+use crate::CliConfig;
 use crate::context::CommandContext;
 use crate::paths::ResolvedPaths;
-use crate::session::get_or_create_session;
+use crate::session::{CliSessionContext, get_or_create_session};
 use crate::shared::CommandOutput;
+use std::path::Path;
+use systemprompt_database::DbPool;
 
 #[derive(Debug, Args)]
 pub struct NewArgs {
@@ -26,8 +29,18 @@ pub struct NewArgs {
 pub(super) async fn execute(args: NewArgs, ctx: &CommandContext) -> Result<CommandOutput> {
     let session_ctx = get_or_create_session(ctx).await?;
     let pool = ctx.db_pool().await?;
+    let sessions_dir = ResolvedPaths::discover().sessions_dir();
+    execute_resolved(args, &ctx.cli, &session_ctx, &pool, &sessions_dir).await
+}
 
-    let repo = ContextRepository::new(&pool)?;
+pub async fn execute_resolved(
+    args: NewArgs,
+    cli: &CliConfig,
+    session_ctx: &CliSessionContext,
+    pool: &DbPool,
+    sessions_dir: &Path,
+) -> Result<CommandOutput> {
+    let repo = ContextRepository::new(pool)?;
 
     let name = args
         .name
@@ -43,8 +56,7 @@ pub(super) async fn execute(args: NewArgs, ctx: &CommandContext) -> Result<Comma
         .await
         .context("Failed to create context")?;
 
-    let sessions_dir = ResolvedPaths::discover().sessions_dir();
-    let mut store = SessionStore::load_or_create(&sessions_dir)?;
+    let mut store = SessionStore::load_or_create(sessions_dir)?;
 
     let session_key = SessionKey::from_tenant_id(
         session_ctx
@@ -57,7 +69,7 @@ pub(super) async fn execute(args: NewArgs, ctx: &CommandContext) -> Result<Comma
     let mut session = session_ctx.session.clone();
     session.set_context_id(context_id.clone());
     store.upsert_session(&session_key, session);
-    store.save(&sessions_dir)?;
+    store.save(sessions_dir)?;
 
     let output = ContextSwitchedOutput {
         id: context_id.clone(),
@@ -65,7 +77,7 @@ pub(super) async fn execute(args: NewArgs, ctx: &CommandContext) -> Result<Comma
         message: format!("Created and switched to context '{}'", name),
     };
 
-    if !ctx.cli.is_json_output() {
+    if !cli.is_json_output() {
         CliService::success(&output.message);
         CliService::key_value("ID", context_id.as_str());
         CliService::key_value("Name", &name);
