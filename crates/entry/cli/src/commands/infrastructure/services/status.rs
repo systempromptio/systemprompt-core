@@ -9,6 +9,7 @@ use anyhow::Result;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::hash::BuildHasher;
 use std::sync::Arc;
 use systemprompt_logging::CliService;
 use systemprompt_mcp::services::McpOrchestrator;
@@ -86,9 +87,9 @@ pub fn external_row(status: &McpServiceStatus) -> ServiceStatusRow {
     }
 }
 
-pub fn build_status_output(
+pub fn build_status_output<S: BuildHasher>(
     states: &[VerifiedServiceState],
-    mcp_health: &HashMap<String, HealthStatus>,
+    mcp_health: &HashMap<String, HealthStatus, S>,
     external: &[ServiceStatusRow],
     include_health: bool,
 ) -> ServiceStatusOutput {
@@ -126,9 +127,9 @@ pub fn build_status_output(
     }
 }
 
-pub fn managed_health_label(
+pub fn managed_health_label<S: BuildHasher>(
     state: &VerifiedServiceState,
-    mcp_health: &HashMap<String, HealthStatus>,
+    mcp_health: &HashMap<String, HealthStatus, S>,
 ) -> String {
     if state.service_type == ServiceType::Mcp {
         return mcp_health

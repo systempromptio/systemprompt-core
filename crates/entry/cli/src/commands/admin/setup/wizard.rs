@@ -1,6 +1,6 @@
 //! Top-level orchestration of the setup wizard.
 //!
-//! [`execute`] runs the end-to-end flow: detect the project root, resolve the
+//! `execute` runs the end-to-end flow: detect the project root, resolve the
 //! environment, provision `PostgreSQL`, collect secrets, write the profile, and
 //! optionally run migrations, returning a [`SetupOutput`]. The dry-run and
 //! cancellation paths short-circuit without touching the filesystem.
