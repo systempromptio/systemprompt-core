@@ -37,6 +37,7 @@ mod spawn_env;
 mod startup_delay;
 mod tool_context;
 mod tool_conversions;
+mod registry_trait_populated;
 mod tool_provider;
 mod tool_provider_live;
 mod tool_provider_resilience;
