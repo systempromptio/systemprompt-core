@@ -19,6 +19,7 @@ mod monitor;
 mod oauth_validation;
 mod plan_executor;
 mod registry;
+mod registry_provider;
 mod shared;
 mod skills;
 mod strategies;
