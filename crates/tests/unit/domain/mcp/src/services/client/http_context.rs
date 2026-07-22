@@ -323,3 +323,45 @@ async fn external_client_withholds_context_and_internal_bearer() {
         Some("Bearer third-party")
     );
 }
+
+#[tokio::test]
+async fn post_message_non_utf8_www_authenticate_is_rejected() {
+    let server = MockServer::start().await;
+    let opaque = http::HeaderValue::from_bytes(b"Bearer realm=\xff").expect("opaque header bytes");
+    Mock::given(method("POST"))
+        .respond_with(ResponseTemplate::new(401).insert_header("www-authenticate", opaque))
+        .mount(&server)
+        .await;
+
+    let client = HttpClientWithContext::forwarding(ctx(), HashMap::new());
+    let err = client
+        .post_message(uri(&server), ping(), None, None, HashMap::new())
+        .await
+        .expect_err("undecodable challenge must error");
+
+    assert!(
+        err.to_string()
+            .contains("invalid www-authenticate header value"),
+        "got: {err}"
+    );
+}
+
+#[tokio::test]
+async fn get_stream_missing_content_type_errors() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .respond_with(ResponseTemplate::new(200))
+        .mount(&server)
+        .await;
+
+    let client = HttpClientWithContext::forwarding(ctx(), HashMap::new());
+    let err = match client
+        .get_stream(uri(&server), Arc::from("sess"), None, None, HashMap::new())
+        .await
+    {
+        Ok(_) => panic!("missing content type must error"),
+        Err(e) => e,
+    };
+
+    assert!(err.to_string().to_lowercase().contains("content type"));
+}
