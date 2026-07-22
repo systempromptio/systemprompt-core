@@ -432,6 +432,114 @@ async fn bridge_survives_undecodable_payload() {
     );
 }
 
+#[tokio::test]
+async fn bridge_survives_undecodable_payloads_on_every_channel() {
+    let Some(pool) = pool().await else {
+        return;
+    };
+    let _guard = BRIDGE_LOCK.lock().await;
+    let user = unique_user_id("bridge-bad-all");
+    let conn = ConnectionId::new("bridge-bad-all-conn");
+
+    let mut bad_ids = Vec::new();
+    for channel in ["a2a", "system", "analytics"] {
+        let id = EventOutboxId::generate().as_str().to_owned();
+        insert_raw_outbox(&pool, &id, channel, &user, r#"{"unexpected":"shape"}"#).await;
+        bad_ids.push(id);
+    }
+
+    let handle = PostgresEventBridge::new(pool.clone()).start();
+    let (tx, mut rx) = tokio::sync::mpsc::channel::<R>(systemprompt_events::SSE_BUFFER);
+    ANALYTICS_BROADCASTER.register(&user, &conn, tx).await;
+
+    let poison_pool = pool.clone();
+    let poison_ids = bad_ids.clone();
+    let delivered = relay_survives_poison(
+        move || {
+            let pool = poison_pool.clone();
+            let ids = poison_ids.clone();
+            Box::pin(async move {
+                for id in &ids {
+                    notify_outbox(&pool, id).await;
+                }
+            })
+        },
+        &user,
+        &mut rx,
+    )
+    .await;
+
+    ANALYTICS_BROADCASTER.unregister(&user, &conn).await;
+    handle.abort();
+    cleanup(&pool, &user).await;
+
+    assert!(
+        delivered,
+        "undecodable payloads on the A2A, system, and analytics channels must each be logged and \
+         skipped without stalling the relay"
+    );
+}
+
+async fn terminate_outbox_listeners(pool: &sqlx::PgPool) {
+    let _ = sqlx::query(
+        "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE pid != \
+         pg_backend_pid() AND query ILIKE '%LISTEN \"event_outbox%'",
+    )
+    .execute(pool)
+    .await;
+}
+
+#[tokio::test]
+async fn bridge_reconnects_after_listener_connection_is_terminated() {
+    let Some(pool) = pool().await else {
+        return;
+    };
+    let _guard = BRIDGE_LOCK.lock().await;
+    let user = unique_user_id("bridge-reconnect");
+    let conn = ConnectionId::new("bridge-reconnect-conn");
+
+    let handle = PostgresEventBridge::new(pool.clone()).start();
+    let (tx, mut rx) = tokio::sync::mpsc::channel::<R>(systemprompt_events::SSE_BUFFER);
+    ANALYTICS_BROADCASTER.register(&user, &conn, tx).await;
+
+    let user_for_route = user.clone();
+    let delivered_before = relay_until_delivered(
+        move || {
+            let user = user_for_route.clone();
+            Box::pin(async move {
+                EventRouter::route_analytics(&user, analytics_event()).await;
+            })
+        },
+        &mut rx,
+    )
+    .await;
+    assert!(delivered_before, "bridge must deliver before the kill");
+
+    terminate_outbox_listeners(&pool).await;
+    while rx.try_recv().is_ok() {}
+
+    let user_for_route = user.clone();
+    let delivered_after = relay_until_delivered(
+        move || {
+            let user = user_for_route.clone();
+            Box::pin(async move {
+                EventRouter::route_analytics(&user, analytics_event()).await;
+            })
+        },
+        &mut rx,
+    )
+    .await;
+
+    ANALYTICS_BROADCASTER.unregister(&user, &conn).await;
+    handle.abort();
+    cleanup(&pool, &user).await;
+
+    assert!(
+        delivered_after,
+        "after its LISTEN connection is terminated the bridge must reconnect and resume delivery"
+    );
+}
+
 // Paused time makes the 5-second retry back-off instantaneous, so several
 // connect-fail/sleep iterations run without any wall-clock cost.
 #[tokio::test(start_paused = true)]

@@ -36,6 +36,8 @@ mod database_sync_failure;
 #[cfg(test)]
 mod deploy_artifacts;
 #[cfg(test)]
+mod deploy_artifacts_assets;
+#[cfg(test)]
 mod deploy_artifacts_extra;
 #[cfg(test)]
 mod deploy_orchestrator;
@@ -49,6 +51,8 @@ mod diff_content;
 mod edge_cases;
 #[cfg(test)]
 mod error;
+#[cfg(test)]
+mod ext_asset_fixtures;
 #[cfg(test)]
 mod extract_traversal;
 #[cfg(test)]
