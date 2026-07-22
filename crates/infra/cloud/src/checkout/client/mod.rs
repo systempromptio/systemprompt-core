@@ -91,7 +91,7 @@ pub async fn run_checkout_callback_flow(
         .with_state(Arc::new(state));
 
     let addr = format!("127.0.0.1:{CALLBACK_PORT}");
-    let listener = tokio::net::TcpListener::bind(&addr).await?;
+    let listener = crate::callback_listener::bind_callback_listener(CALLBACK_PORT)?;
 
     CliService::info(&format!(
         "Starting checkout callback server on http://{addr}"

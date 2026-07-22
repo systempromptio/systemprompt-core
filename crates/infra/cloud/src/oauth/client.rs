@@ -147,7 +147,7 @@ pub async fn run_oauth_flow(
         .route("/callback", get(callback_handler))
         .with_state(state);
     let addr = format!("127.0.0.1:{CALLBACK_PORT}");
-    let listener = tokio::net::TcpListener::bind(&addr).await?;
+    let listener = crate::callback_listener::bind_callback_listener(CALLBACK_PORT)?;
 
     CliService::info(&format!("Starting authentication server on http://{addr}"));
 

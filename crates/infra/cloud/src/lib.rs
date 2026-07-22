@@ -46,6 +46,7 @@
 
 pub mod api_client;
 pub mod auth;
+mod callback_listener;
 pub mod checkout;
 pub mod cli_session;
 pub mod constants;
