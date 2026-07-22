@@ -71,23 +71,22 @@ impl ServerHandler for RbacProbe {
             parts.extensions.insert(sys_ctx());
             context.extensions.insert(parts);
 
-            let outcome = match enforce_rbac_from_registry(&context, &probe.server, &probe.hook)
-                .await
-            {
-                Ok(AuthResult::Anonymous(ctx)) => {
-                    format!("anonymous:{}", ctx.session_id().as_str())
-                },
-                Ok(AuthResult::Authenticated(auth)) => format!(
-                    "authenticated:user={}:token-len={}",
-                    auth.context
-                        .user
-                        .as_ref()
-                        .map(|u| u.email.clone())
-                        .unwrap_or_default(),
-                    auth.token().len()
-                ),
-                Err(err) => format!("err:{}", err.message),
-            };
+            let outcome =
+                match enforce_rbac_from_registry(&context, &probe.server, &probe.hook).await {
+                    Ok(AuthResult::Anonymous(ctx)) => {
+                        format!("anonymous:{}", ctx.session_id().as_str())
+                    },
+                    Ok(AuthResult::Authenticated(auth)) => format!(
+                        "authenticated:user={}:token-len={}",
+                        auth.context
+                            .user
+                            .as_ref()
+                            .map(|u| u.email.clone())
+                            .unwrap_or_default(),
+                        auth.token().len()
+                    ),
+                    Err(err) => format!("err:{}", err.message),
+                };
 
             Ok(ListToolsResult {
                 tools: vec![Tool::new(
@@ -168,7 +167,10 @@ async fn oauth_required_without_bearer_is_rejected() {
         hook: Arc::new(AllowAllHook::null()),
     })
     .await;
-    assert!(outcome.contains("Authentication required"), "got: {outcome}");
+    assert!(
+        outcome.contains("Authentication required"),
+        "got: {outcome}"
+    );
 }
 
 #[tokio::test]
