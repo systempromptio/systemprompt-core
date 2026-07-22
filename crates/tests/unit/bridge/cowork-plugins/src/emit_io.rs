@@ -205,3 +205,60 @@ fn clear_all_without_settings_file_is_noop() {
     clear_all(&target_for(&org)).unwrap();
     assert!(!org.join("cowork_settings.json").exists());
 }
+
+#[cfg(unix)]
+fn set_mode(path: &Path, mode: u32) {
+    use std::os::unix::fs::PermissionsExt;
+    fs::set_permissions(path, fs::Permissions::from_mode(mode)).unwrap();
+}
+
+#[cfg(unix)]
+#[test]
+fn an_unremovable_legacy_marketplace_dir_fails_the_purge_with_its_path() {
+    let temp = tempdir().unwrap();
+    let org = temp.path().join("org");
+    let marketplaces = org.join("cowork_plugins").join("marketplaces");
+    let legacy = marketplaces.join(LEGACY_MP);
+    fs::create_dir_all(&legacy).unwrap();
+    set_mode(&marketplaces, 0o555);
+
+    let err = apply_enable(&target_for(&org), &[PLUGIN])
+        .expect_err("an unremovable legacy dir must fail the apply");
+    set_mode(&marketplaces, 0o755);
+
+    let msg = err.to_string();
+    assert!(msg.contains("remove_dir_all"), "{msg}");
+    assert!(msg.contains(LEGACY_MP), "{msg}");
+    assert!(legacy.is_dir(), "the legacy dir survives the failed purge");
+}
+
+#[cfg(unix)]
+#[test]
+fn an_unwritable_known_marketplaces_file_fails_the_purge_at_the_atomic_write() {
+    let temp = tempdir().unwrap();
+    let org = temp.path().join("org");
+    let plugins_dir = org.join("cowork_plugins");
+    fs::create_dir_all(&plugins_dir).unwrap();
+    fs::write(
+        plugins_dir.join("known_marketplaces.json"),
+        format!(r#"{{"{LEGACY_MP}": {{"source": "legacy"}}}}"#),
+    )
+    .unwrap();
+    set_mode(&plugins_dir, 0o555);
+
+    let err = apply_enable(&target_for(&org), &[PLUGIN])
+        .expect_err("an unwritable state file must fail the apply");
+    set_mode(&plugins_dir, 0o755);
+
+    let msg = err.to_string();
+    assert!(msg.contains("atomic_write"), "{msg}");
+    assert!(msg.contains("known_marketplaces.json"), "{msg}");
+    let kept: serde_json::Value = serde_json::from_str(
+        &fs::read_to_string(plugins_dir.join("known_marketplaces.json")).unwrap(),
+    )
+    .unwrap();
+    assert!(
+        kept.get(LEGACY_MP).is_some(),
+        "the legacy entry survives the failed write: {kept}"
+    );
+}
