@@ -71,7 +71,10 @@ async fn json_response_carries_markdown_alternate_link_header() -> Result<()> {
         .and_then(|v| v.to_str().ok())
         .map(str::to_owned)
         .expect("Link header present when negotiation enabled");
-    assert!(link.contains(&format!("/api/v1/content/{source}/{slug}/md")), "{link}");
+    assert!(
+        link.contains(&format!("/api/v1/content/{source}/{slug}/md")),
+        "{link}"
+    );
     assert!(link.contains("rel=\"alternate\""), "{link}");
     assert!(link.contains("text/markdown"), "{link}");
     Ok(())

@@ -108,9 +108,7 @@ impl Extension for SiteAuthExt {
     }
 }
 
-async fn app_with_extensions(
-    injected: Vec<Arc<dyn Extension>>,
-) -> anyhow::Result<Router> {
+async fn app_with_extensions(injected: Vec<Arc<dyn Extension>>) -> anyhow::Result<Router> {
     let bootstrap = ensure_test_bootstrap();
     let pool = fixture_db_pool(&bootstrap.database_url).await?;
 
@@ -127,8 +125,8 @@ async fn app_with_extensions(
     };
     let app_paths = Arc::new(AppPaths::from_profile(&paths)?);
 
-    let registry =
-        ExtensionRegistry::discover_and_merge(injected).map_err(|e| anyhow::anyhow!("registry: {e}"))?;
+    let registry = ExtensionRegistry::discover_and_merge(injected)
+        .map_err(|e| anyhow::anyhow!("registry: {e}"))?;
 
     let ctx = Arc::new(AppContext::from_parts(
         DataPlane {

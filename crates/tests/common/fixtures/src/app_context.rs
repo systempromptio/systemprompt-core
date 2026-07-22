@@ -108,13 +108,7 @@ pub fn fixture_app_context_with(
 
 pub fn fixture_app_context_with_config(pool: &DbPool, config: Config) -> Result<Arc<AppContext>> {
     let hook = Arc::new(AllowAllHook::new(Arc::new(NullAuditSink)));
-    fixture_app_context_assembled(
-        pool,
-        config,
-        tmp_paths(),
-        Arc::new(AllowAllFilter),
-        hook,
-    )
+    fixture_app_context_assembled(pool, config, tmp_paths(), Arc::new(AllowAllFilter), hook)
 }
 
 // Build a fixture context with an explicit authorization hook — used by tests
