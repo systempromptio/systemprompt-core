@@ -63,6 +63,58 @@ fn stage_web_assets() {
             );
         }
     }
+
+    write_web_manifest(&staged, std::path::Path::new(&out_dir));
+}
+
+fn is_served(path: &std::path::Path) -> bool {
+    matches!(
+        path.extension().and_then(|e| e.to_str()),
+        Some("css" | "js" | "ftl" | "html")
+    )
+}
+
+fn collect_served(root: &std::path::Path, dir: &std::path::Path, out: &mut Vec<String>) {
+    for entry in std::fs::read_dir(dir).expect("read staged web dir") {
+        let entry = entry.expect("read staged web dir entry");
+        let path = entry.path();
+        if entry.file_type().expect("staged web file type").is_dir() {
+            collect_served(root, &path, out);
+        } else if is_served(&path) {
+            let rel = path
+                .strip_prefix(root)
+                .expect("staged file under staged root")
+                .to_str()
+                .expect("staged asset path is utf-8")
+                .to_owned();
+            out.push(rel);
+        }
+    }
+}
+
+fn write_web_manifest(staged: &std::path::Path, out_dir: &std::path::Path) {
+    // Generate the asset routing table from the staged tree (core + overlay)
+    // instead of hand-maintaining a list in assets.rs. Every servable file that
+    // exists after staging is embedded and routable — a newly added module can
+    // no longer 404 at runtime because someone forgot to register it.
+    let mut rels = Vec::new();
+    collect_served(staged, staged, &mut rels);
+    rels.sort();
+
+    let mut src = String::from("static WEB_TEXT_ASSETS: &[(&str, &str)] = &[\n");
+    for rel in &rels {
+        if rel == "index.html" {
+            // Served via render_index(), which fills the template placeholders.
+            continue;
+        }
+        let abs = staged.join(rel);
+        src.push_str(&format!(
+            "    ({rel:?}, include_str!({:?})),\n",
+            abs.display()
+        ));
+    }
+    src.push_str("];\n");
+    std::fs::write(out_dir.join("web_manifest.rs"), src).expect("write web_manifest.rs");
 }
 
 fn main() {
