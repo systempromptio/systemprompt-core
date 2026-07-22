@@ -15,6 +15,8 @@ mod config_writer;
 #[cfg(test)]
 mod config_writer_edges;
 #[cfg(test)]
+mod coverage_gaps;
+#[cfg(test)]
 mod error_display;
 #[cfg(test)]
 mod extension_loader;
