@@ -316,44 +316,8 @@ async fn token_client_credentials_with_unknown_client_does_not_return_500() -> a
 }
 
 async fn seed_client_with_scopes(scopes: Vec<&str>) -> anyhow::Result<OAuthClientFixture> {
-    let b = ensure_test_bootstrap();
-    let pool = fixture_db_pool(&b.database_url).await?;
     let user = UserId::new(Uuid::new_v4().to_string());
-    let p = pool.pool_arc().expect("read pool");
-    sqlx::query(
-        "INSERT INTO users (id, name, email, roles) VALUES ($1, $1, $2, '{}'::TEXT[]) ON CONFLICT \
-         DO NOTHING",
-    )
-    .bind(user.as_str())
-    .bind(format!("{}@oauth.invalid", user.as_str()))
-    .execute(p.as_ref())
-    .await?;
-    let client_id = ClientId::new(format!("test-client-cc-{}", Uuid::new_v4().simple()));
-    let secret_hash =
-        hash_client_secret(TEST_CLIENT_SECRET).map_err(|e| anyhow::anyhow!("hash secret: {e}"))?;
-    let repo = ClientRepository::new(&pool).map_err(|e| anyhow::anyhow!("client repo: {e}"))?;
-    repo.create(CreateClientParams {
-        client_id: client_id.clone(),
-        owner_user_id: user.clone(),
-        client_secret_hash: secret_hash,
-        client_name: "test-client-cc".to_owned(),
-        redirect_uris: vec![TEST_REDIRECT_URI.to_owned()],
-        grant_types: Some(vec!["client_credentials".to_owned()]),
-        response_types: Some(vec![]),
-        scopes: scopes.iter().map(|s| (*s).to_owned()).collect(),
-        token_endpoint_auth_method: Some("client_secret_basic".to_owned()),
-        application_type: "web".to_owned(),
-        client_uri: None,
-        logo_uri: None,
-        contacts: None,
-    })
-    .await
-    .map_err(|e| anyhow::anyhow!("create client: {e}"))?;
-    Ok(OAuthClientFixture {
-        client_id,
-        client_secret: TEST_CLIENT_SECRET.to_owned(),
-        redirect_uri: TEST_REDIRECT_URI.to_owned(),
-    })
+    seed_client_for_owner(&user, scopes).await
 }
 
 #[tokio::test]
@@ -479,5 +443,138 @@ async fn token_authorization_code_missing_code_field_returns_invalid_request() -
     assert!(resp.status().is_client_error(), "{}", resp.status());
     let v = read_json(resp).await?;
     assert_eq!(v["error"].as_str(), Some("invalid_request"), "{v}");
+    Ok(())
+}
+
+#[tokio::test]
+async fn token_client_credentials_unlisted_audience_returns_invalid_target() -> anyhow::Result<()> {
+    let client = seed_client_with_scopes(vec!["hook:govern"]).await?;
+    let app = token_app().await?;
+    let body = urlencode(&[
+        ("grant_type", "client_credentials"),
+        ("client_id", client.client_id.as_str()),
+        ("client_secret", &client.client_secret),
+        ("scope", "hook:govern"),
+        ("audience", "not-an-allowed-audience"),
+    ]);
+    let resp = app.oneshot(form_post("/token", body)).await?;
+    let s = resp.status();
+    let v = read_json(resp).await?;
+    assert_eq!(s, StatusCode::BAD_REQUEST, "{s} {v}");
+    assert_eq!(v["error"].as_str(), Some("invalid_target"), "{v}");
+    let desc = v["error_description"].as_str().unwrap_or("");
+    assert!(
+        desc.contains("not in allowed audiences"),
+        "audience rejection must name the deficit; got {desc}"
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn token_client_credentials_hook_scope_without_hook_audience_rejected() -> anyhow::Result<()>
+{
+    let client = seed_client_with_scopes(vec!["hook:govern"]).await?;
+    let app = token_app().await?;
+    let body = urlencode(&[
+        ("grant_type", "client_credentials"),
+        ("client_id", client.client_id.as_str()),
+        ("client_secret", &client.client_secret),
+        ("scope", "hook:govern"),
+    ]);
+    let resp = app.oneshot(form_post("/token", body)).await?;
+    let s = resp.status();
+    let v = read_json(resp).await?;
+    assert_eq!(s, StatusCode::BAD_REQUEST, "{s} {v}");
+    assert_eq!(v["error"].as_str(), Some("invalid_scope"), "{v}");
+    let desc = v["error_description"].as_str().unwrap_or("");
+    assert!(
+        desc.contains("audience=hook"),
+        "hook-scope rejection must point at the missing hook audience; got {desc}"
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn token_client_credentials_unparseable_scope_returns_invalid_scope() -> anyhow::Result<()> {
+    let client = seed_client_with_scopes(vec!["hook:govern"]).await?;
+    let app = token_app().await?;
+    let body = urlencode(&[
+        ("grant_type", "client_credentials"),
+        ("client_id", client.client_id.as_str()),
+        ("client_secret", &client.client_secret),
+        ("scope", "definitely-not-a-scope"),
+    ]);
+    let resp = app.oneshot(form_post("/token", body)).await?;
+    let s = resp.status();
+    let v = read_json(resp).await?;
+    assert_eq!(s, StatusCode::BAD_REQUEST, "{s} {v}");
+    assert_eq!(v["error"].as_str(), Some("invalid_scope"), "{v}");
+    Ok(())
+}
+
+async fn seed_client_for_owner(
+    user: &UserId,
+    scopes: Vec<&str>,
+) -> anyhow::Result<OAuthClientFixture> {
+    let b = ensure_test_bootstrap();
+    let pool = fixture_db_pool(&b.database_url).await?;
+    let p = pool.pool_arc().expect("read pool");
+    sqlx::query(
+        "INSERT INTO users (id, name, email, roles) VALUES ($1, $1, $2, '{}'::TEXT[]) ON CONFLICT \
+         DO NOTHING",
+    )
+    .bind(user.as_str())
+    .bind(format!("{}@oauth.invalid", user.as_str()))
+    .execute(p.as_ref())
+    .await?;
+    let client_id = ClientId::new(format!("test-client-cc-{}", Uuid::new_v4().simple()));
+    let secret_hash =
+        hash_client_secret(TEST_CLIENT_SECRET).map_err(|e| anyhow::anyhow!("hash secret: {e}"))?;
+    let repo = ClientRepository::new(&pool).map_err(|e| anyhow::anyhow!("client repo: {e}"))?;
+    repo.create(CreateClientParams {
+        client_id: client_id.clone(),
+        owner_user_id: user.clone(),
+        client_secret_hash: secret_hash,
+        client_name: "test-client-cc".to_owned(),
+        redirect_uris: vec![TEST_REDIRECT_URI.to_owned()],
+        grant_types: Some(vec!["client_credentials".to_owned()]),
+        response_types: Some(vec![]),
+        scopes: scopes.iter().map(|s| (*s).to_owned()).collect(),
+        token_endpoint_auth_method: Some("client_secret_basic".to_owned()),
+        application_type: "web".to_owned(),
+        client_uri: None,
+        logo_uri: None,
+        contacts: None,
+    })
+    .await
+    .map_err(|e| anyhow::anyhow!("create client: {e}"))?;
+    Ok(OAuthClientFixture {
+        client_id,
+        client_secret: TEST_CLIENT_SECRET.to_owned(),
+        redirect_uri: TEST_REDIRECT_URI.to_owned(),
+    })
+}
+
+#[tokio::test]
+async fn token_client_credentials_non_uuid_owner_returns_server_error() -> anyhow::Result<()> {
+    let user = UserId::new(format!("not-a-uuid-owner-{}", Uuid::new_v4().simple()));
+    let client = seed_client_for_owner(&user, vec!["hook:govern"]).await?;
+    let app = token_app().await?;
+    let body = urlencode(&[
+        ("grant_type", "client_credentials"),
+        ("client_id", client.client_id.as_str()),
+        ("client_secret", &client.client_secret),
+        ("scope", "hook:govern"),
+        ("audience", "hook"),
+    ]);
+    let resp = app.oneshot(form_post("/token", body)).await?;
+    let s = resp.status();
+    let v = read_json(resp).await?;
+    assert_eq!(
+        s,
+        StatusCode::INTERNAL_SERVER_ERROR,
+        "non-uuid owner id is operator misconfiguration and must be 500; got {s} {v}"
+    );
+    assert_eq!(v["error"].as_str(), Some("server_error"), "{v}");
     Ok(())
 }
