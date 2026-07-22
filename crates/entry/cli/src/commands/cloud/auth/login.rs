@@ -121,7 +121,7 @@ pub async fn complete_login(
     Ok(CommandOutput::card_value("Cloud Login", &output).with_skip_render())
 }
 
-fn build_login_output(
+pub fn build_login_output(
     response: &UserMeResponse,
     credentials_path: &std::path::Path,
     tenants_path: &std::path::Path,

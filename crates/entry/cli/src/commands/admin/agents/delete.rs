@@ -197,7 +197,7 @@ async fn build_orchestrator() -> Result<Option<AgentOrchestrator>, String> {
     )
 }
 
-async fn delete_single_agent(
+pub async fn delete_single_agent(
     agent_name: &str,
     agent_port: Option<u16>,
     orchestrator: Option<&AgentOrchestrator>,
@@ -236,7 +236,7 @@ async fn delete_single_agent(
     }
 }
 
-async fn stop_agent_process(
+pub async fn stop_agent_process(
     agent_name: &str,
     agent_port: Option<u16>,
     orchestrator: Option<&AgentOrchestrator>,

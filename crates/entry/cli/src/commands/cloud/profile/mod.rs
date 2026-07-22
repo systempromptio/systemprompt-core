@@ -19,8 +19,8 @@ pub mod edit_settings;
 mod list;
 mod profile_steps;
 mod show;
-mod show_display;
-mod show_types;
+pub mod show_display;
+pub mod show_types;
 pub mod templates;
 
 pub use api_keys::{ApiKeys, collect_api_keys};

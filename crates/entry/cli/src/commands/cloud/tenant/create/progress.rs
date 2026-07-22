@@ -15,6 +15,37 @@ use systemprompt_cloud::tenants::{ProvisioningProgress, ProvisioningProgressEven
 use systemprompt_logging::CliService;
 use url::Url;
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DatabaseConnectionInfo {
+    pub host: String,
+    pub port: u16,
+    pub database: String,
+    pub username: String,
+    pub password: String,
+}
+
+impl DatabaseConnectionInfo {
+    #[must_use]
+    pub fn parse(url: &str) -> Option<Self> {
+        let parsed = Url::parse(url).ok()?;
+        Some(Self {
+            host: parsed.host_str().unwrap_or("unknown").to_owned(),
+            port: parsed.port().unwrap_or(5432),
+            database: parsed.path().trim_start_matches('/').to_owned(),
+            username: parsed.username().to_owned(),
+            password: parsed.password().unwrap_or("********").to_owned(),
+        })
+    }
+
+    #[must_use]
+    pub fn psql_command(&self) -> String {
+        format!(
+            "PGPASSWORD='{}' psql -h {} -p {} -U {} -d {}",
+            self.password, self.host, self.port, self.username, self.database
+        )
+    }
+}
+
 pub(super) struct CliProvisioningProgress {
     spinner: Mutex<Option<ProgressBar>>,
 }
@@ -92,28 +123,19 @@ impl ProvisioningProgress for CliProvisioningProgress {
 }
 
 fn print_database_connection_info(url: &str) {
-    let Ok(parsed) = Url::parse(url) else {
+    let Some(info) = DatabaseConnectionInfo::parse(url) else {
         return;
     };
 
-    let host = parsed.host_str().unwrap_or("unknown");
-    let port = parsed.port().unwrap_or(5432);
-    let database = parsed.path().trim_start_matches('/');
-    let username = parsed.username();
-    let password = parsed.password().unwrap_or("********");
-
     CliService::section("Database Connection");
-    CliService::key_value("Host", host);
-    CliService::key_value("Port", &port.to_string());
-    CliService::key_value("Database", database);
-    CliService::key_value("User", username);
-    CliService::key_value("Password", password);
+    CliService::key_value("Host", &info.host);
+    CliService::key_value("Port", &info.port.to_string());
+    CliService::key_value("Database", &info.database);
+    CliService::key_value("User", &info.username);
+    CliService::key_value("Password", &info.password);
     CliService::key_value("SSL", "required");
     CliService::info("");
     CliService::key_value("Connection URL", url);
     CliService::info("");
-    CliService::info(&format!(
-        "Connect with psql:\n  PGPASSWORD='{}' psql -h {} -p {} -U {} -d {}",
-        password, host, port, username, database
-    ));
+    CliService::info(&format!("Connect with psql:\n  {}", info.psql_command()));
 }

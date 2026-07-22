@@ -14,7 +14,7 @@ use systemprompt_models::{
 };
 
 #[derive(Debug, Serialize, Deserialize)]
-pub(in crate::commands::cloud) struct FullConfig {
+pub struct FullConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub environment: Option<EnvironmentConfig>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -34,7 +34,7 @@ pub(in crate::commands::cloud) struct FullConfig {
 }
 
 impl FullConfig {
-    pub(in crate::commands::cloud) const fn empty() -> Self {
+    pub const fn empty() -> Self {
         Self {
             environment: None,
             settings: None,
@@ -47,58 +47,49 @@ impl FullConfig {
         }
     }
 
-    pub(in crate::commands::cloud) fn with_environment(
-        mut self,
-        environment: EnvironmentConfig,
-    ) -> Self {
+    pub fn with_environment(mut self, environment: EnvironmentConfig) -> Self {
         self.environment = Some(environment);
         self
     }
 
-    pub(in crate::commands::cloud) fn with_settings(mut self, settings: SettingsOutput) -> Self {
+    pub fn with_settings(mut self, settings: SettingsOutput) -> Self {
         self.settings = Some(settings);
         self
     }
 
-    pub(in crate::commands::cloud) fn with_agents(
-        mut self,
-        agents: HashMap<String, AgentConfig>,
-    ) -> Self {
+    pub fn with_agents(mut self, agents: HashMap<String, AgentConfig>) -> Self {
         self.agents = Some(agents);
         self
     }
 
-    pub(in crate::commands::cloud) fn with_mcp_servers(
-        mut self,
-        mcp_servers: HashMap<String, Deployment>,
-    ) -> Self {
+    pub fn with_mcp_servers(mut self, mcp_servers: HashMap<String, Deployment>) -> Self {
         self.mcp_servers = Some(mcp_servers);
         self
     }
 
-    pub(in crate::commands::cloud) fn with_skills(mut self, skills: SkillsConfig) -> Self {
+    pub fn with_skills(mut self, skills: SkillsConfig) -> Self {
         self.skills = Some(skills);
         self
     }
 
-    pub(in crate::commands::cloud) fn with_ai(mut self, ai: AiConfig) -> Self {
+    pub fn with_ai(mut self, ai: AiConfig) -> Self {
         self.ai = Some(ai);
         self
     }
 
-    pub(in crate::commands::cloud) fn with_web(mut self, web: Option<WebConfig>) -> Self {
+    pub fn with_web(mut self, web: Option<WebConfig>) -> Self {
         self.web = web;
         self
     }
 
-    pub(in crate::commands::cloud) fn with_content(mut self, content: ContentConfigRaw) -> Self {
+    pub fn with_content(mut self, content: ContentConfigRaw) -> Self {
         self.content = Some(content);
         self
     }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub(in crate::commands::cloud) struct EnvironmentConfig {
+pub struct EnvironmentConfig {
     pub core: CoreEnvVars,
     pub systemprompt: SystempromptEnvVars,
     pub database: DatabaseEnvVars,
@@ -108,7 +99,7 @@ pub(in crate::commands::cloud) struct EnvironmentConfig {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub(in crate::commands::cloud) struct CoreEnvVars {
+pub struct CoreEnvVars {
     pub sitename: String,
     pub host: String,
     pub port: u16,
@@ -121,7 +112,7 @@ pub(in crate::commands::cloud) struct CoreEnvVars {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub(in crate::commands::cloud) struct SystempromptEnvVars {
+pub struct SystempromptEnvVars {
     pub env: String,
     pub verbosity: String,
     pub services_path: Option<String>,
@@ -130,27 +121,27 @@ pub(in crate::commands::cloud) struct SystempromptEnvVars {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub(in crate::commands::cloud) struct DatabaseEnvVars {
+pub struct DatabaseEnvVars {
     pub database_type: String,
     pub database_url: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub(in crate::commands::cloud) struct JwtEnvVars {
+pub struct JwtEnvVars {
     pub issuer: String,
     pub secret: String,
     pub access_token_expiration: i64,
     pub refresh_token_expiration: i64,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub(in crate::commands::cloud) struct RateLimitEnvVars {
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub struct RateLimitEnvVars {
     pub disabled: bool,
     pub burst_multiplier: u64,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub(in crate::commands::cloud) struct PathsEnvVars {
+pub struct PathsEnvVars {
     pub system_path: String,
     pub services: String,
     pub skills: String,
@@ -158,7 +149,7 @@ pub(in crate::commands::cloud) struct PathsEnvVars {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub(in crate::commands::cloud) struct SettingsOutput {
+pub struct SettingsOutput {
     pub agent_port_range: (u16, u16),
     pub mcp_port_range: (u16, u16),
     pub auto_start_enabled: bool,
@@ -166,7 +157,7 @@ pub(in crate::commands::cloud) struct SettingsOutput {
     pub schema_validation_mode: String,
 }
 
-pub(in crate::commands::cloud) fn build_env_config(
+pub fn build_env_config(
     config: &systemprompt_models::Config,
     paths: Option<&systemprompt_models::AppPaths>,
 ) -> EnvironmentConfig {

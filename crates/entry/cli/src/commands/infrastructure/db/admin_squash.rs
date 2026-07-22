@@ -171,7 +171,7 @@ fn render_squash_text(
     }
 }
 
-fn build_follow_up(plan: &SquashPlan, baseline_path: &Path, apply: bool) -> Vec<String> {
+pub fn build_follow_up(plan: &SquashPlan, baseline_path: &Path, apply: bool) -> Vec<String> {
     let mut steps = Vec::new();
     if !apply {
         steps.push(format!(

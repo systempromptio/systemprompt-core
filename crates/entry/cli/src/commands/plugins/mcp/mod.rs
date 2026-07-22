@@ -4,8 +4,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod call;
-mod call_client;
-mod list;
+pub mod call_client;
+pub mod list;
 mod list_packages;
 pub mod logs;
 pub mod logs_db;

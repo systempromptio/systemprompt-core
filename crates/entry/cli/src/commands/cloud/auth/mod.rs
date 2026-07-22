@@ -10,7 +10,7 @@ mod login;
 mod logout;
 mod whoami;
 
-pub use login::complete_login;
+pub use login::{build_login_output, complete_login};
 
 use crate::context::CommandContext;
 use crate::shared::render_result;

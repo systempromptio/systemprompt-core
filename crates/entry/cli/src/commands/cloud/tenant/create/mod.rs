@@ -9,7 +9,7 @@
 
 mod cloud;
 mod local;
-mod progress;
+pub mod progress;
 
 pub use cloud::create_cloud_tenant;
 pub use local::{

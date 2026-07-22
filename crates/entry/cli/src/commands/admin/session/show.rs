@@ -52,7 +52,7 @@ fn collect_sessions(paths: &ResolvedPaths) -> Vec<SessionInfo> {
     results
 }
 
-fn session_info(key: &str, session: &CliSession, is_active: bool) -> SessionInfo {
+pub fn session_info(key: &str, session: &CliSession, is_active: bool) -> SessionInfo {
     let display_key = if key == LOCAL_SESSION_KEY {
         "local".to_owned()
     } else {
@@ -95,7 +95,10 @@ fn session_info(key: &str, session: &CliSession, is_active: bool) -> SessionInfo
     }
 }
 
-fn missing_active_session(active_key: Option<&str>, active_profile: Option<&str>) -> SessionInfo {
+pub fn missing_active_session(
+    active_key: Option<&str>,
+    active_profile: Option<&str>,
+) -> SessionInfo {
     let display_name = active_profile.unwrap_or_else(|| {
         active_key.map_or("unknown", |k| {
             if k == LOCAL_SESSION_KEY {

@@ -18,7 +18,7 @@ mod admin_migrate_plan;
 mod admin_migrate_repair;
 mod admin_migrate_status;
 mod admin_migrations;
-mod admin_squash;
+pub mod admin_squash;
 mod commands;
 mod dispatch;
 mod doctor;

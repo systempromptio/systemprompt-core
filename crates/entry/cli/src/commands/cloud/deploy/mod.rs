@@ -100,14 +100,15 @@ pub(super) async fn execute(
     Ok(())
 }
 
-struct DeployTarget {
-    tenant_id: TenantId,
-    tenant_name: String,
-    hostname: Option<String>,
-    creds: systemprompt_cloud::CloudCredentials,
+#[derive(Debug)]
+pub struct DeployTarget {
+    pub tenant_id: TenantId,
+    pub tenant_name: String,
+    pub hostname: Option<String>,
+    pub creds: systemprompt_cloud::CloudCredentials,
 }
 
-fn resolve_deploy_target(profile: &systemprompt_models::Profile) -> Result<DeployTarget> {
+pub fn resolve_deploy_target(profile: &systemprompt_models::Profile) -> Result<DeployTarget> {
     let cloud_config = profile
         .cloud
         .as_ref()

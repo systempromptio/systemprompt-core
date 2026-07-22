@@ -7,7 +7,7 @@ mod list;
 pub mod login;
 pub mod login_helpers;
 mod logout;
-mod show;
+pub mod show;
 mod switch;
 pub mod types;
 

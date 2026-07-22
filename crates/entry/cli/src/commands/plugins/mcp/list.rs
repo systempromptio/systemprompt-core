@@ -43,7 +43,13 @@ pub(super) fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandOutp
                 true
             }
         })
-        .map(|(name, server)| summarize_server(name, server, project_root.as_ref()))
+        .map(|(name, server)| {
+            summarize_server(
+                name,
+                server,
+                project_root.as_ref().map(ProjectRoot::as_path),
+            )
+        })
         .collect();
 
     servers.sort_by(|a, b| a.name.cmp(&b.name));
@@ -66,10 +72,10 @@ pub(super) fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandOutp
     .with_title("MCP Servers"))
 }
 
-fn summarize_server(
+pub fn summarize_server(
     name: &str,
     server: &Deployment,
-    project_root: Option<&ProjectRoot>,
+    project_root: Option<&std::path::Path>,
 ) -> McpServerSummary {
     if server.server_type == McpServerType::External {
         return McpServerSummary {
@@ -120,8 +126,8 @@ fn summarize_server(
     }
 }
 
-fn get_binary_info(
-    project_root: Option<&ProjectRoot>,
+pub fn get_binary_info(
+    project_root: Option<&std::path::Path>,
     binary_name: &str,
     release: bool,
 ) -> (Option<String>, Option<String>) {
@@ -130,11 +136,7 @@ fn get_binary_info(
     };
 
     let profile = if release { "release" } else { "debug" };
-    let binary_path: PathBuf = root
-        .as_path()
-        .join("target")
-        .join(profile)
-        .join(binary_name);
+    let binary_path: PathBuf = root.join("target").join(profile).join(binary_name);
 
     if !binary_path.exists() {
         return (None, None);
@@ -153,7 +155,7 @@ fn get_binary_info(
     (path_str, created_at)
 }
 
-fn determine_status(enabled: bool, debug: Option<&str>, release: Option<&str>) -> String {
+pub fn determine_status(enabled: bool, debug: Option<&str>, release: Option<&str>) -> String {
     if !enabled {
         return "disabled".to_owned();
     }
