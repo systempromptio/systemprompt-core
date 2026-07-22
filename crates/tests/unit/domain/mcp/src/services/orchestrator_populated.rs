@@ -419,3 +419,72 @@ async fn list_services_and_show_status_render_the_populated_registry() {
     o.list_services().await.expect("list renders");
     o.show_status().await.expect("status renders");
 }
+
+#[tokio::test]
+async fn reconcile_with_events_kills_running_row_and_reports_cleanup() {
+    let bootstrap = ensure_test_bootstrap();
+    let name = unique("reckill");
+    register_internal_extension(bootstrap, &name);
+    let Some(o) = orchestrator_with_config(&[internal_server_block(&name, 65407)]).await else {
+        return;
+    };
+    let Ok(url) = fixture_database_url() else {
+        return;
+    };
+    let db = fixture_db_pool(&url).await.expect("pool");
+    let repo = ServiceRepository::new(&db).unwrap();
+
+    let disabled = unique("recgone");
+    repo.create_service(CreateServiceInput {
+        name: &disabled,
+        module_name: "mcp",
+        status: "running",
+        port: 65408,
+        binary_mtime: None,
+    })
+    .await
+    .unwrap();
+
+    let mut child = std::process::Command::new("sleep")
+        .arg("30")
+        .env("SYSTEMPROMPT_SUBPROCESS", "1")
+        .env("MCP_SERVICE_ID", &name)
+        .spawn()
+        .expect("spawn sleep");
+    repo.create_service(CreateServiceInput {
+        name: &name,
+        module_name: "mcp",
+        status: "running",
+        port: 65407,
+        binary_mtime: None,
+    })
+    .await
+    .unwrap();
+    repo.update_service_pid(&name, i32::try_from(child.id()).unwrap())
+        .await
+        .unwrap();
+
+    let (tx, mut rx) = systemprompt_traits::startup_channel();
+    let result = o.reconcile_with_events(Some(&tx)).await;
+    drop(tx);
+
+    let disabled_row = repo.find_service_by_name(&disabled).await.unwrap();
+    repo.delete_service(&name).await.ok();
+
+    let err = result.expect_err("missing binary still fails the start phase");
+    assert!(err.to_string().contains(&name));
+    assert!(disabled_row.is_none(), "disabled service row is pruned");
+    assert!(!child.wait().expect("child reaped").success());
+
+    let mut saw_cleanup = false;
+    while let Ok(Some(event)) = rx.try_next() {
+        if matches!(
+            event,
+            systemprompt_traits::StartupEvent::McpServiceCleanup { .. }
+        ) {
+            saw_cleanup = true;
+        }
+    }
+    assert!(saw_cleanup, "reconcile reports cleanup over the event channel");
+}
+
