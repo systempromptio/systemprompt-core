@@ -201,4 +201,30 @@ mod discover_tests {
         assert_eq!(provider.priority(), 250);
         assert_eq!(provider.templates()[0].priority, 250);
     }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn discover_unreadable_directory_returns_io_error() {
+        use std::os::unix::fs::PermissionsExt;
+        use systemprompt_templates::TemplateError;
+
+        let temp_dir = tempfile::TempDir::new().expect("failed to create temp dir");
+        fs::write(temp_dir.path().join("page.html"), "<html></html>")
+            .await
+            .expect("failed to write template");
+
+        std::fs::set_permissions(temp_dir.path(), std::fs::Permissions::from_mode(0o000))
+            .expect("failed to strip permissions");
+        let dir_is_actually_unreadable = std::fs::read_dir(temp_dir.path()).is_err();
+        let result = CoreTemplateProvider::discover_from(temp_dir.path()).await;
+        std::fs::set_permissions(temp_dir.path(), std::fs::Permissions::from_mode(0o755))
+            .expect("failed to restore permissions");
+
+        if dir_is_actually_unreadable {
+            let err = result.expect_err("discovery over an unreadable directory must fail");
+            assert!(matches!(err, TemplateError::Io(_)), "got: {err}");
+        } else {
+            result.expect("root ignores directory permissions");
+        }
+    }
 }

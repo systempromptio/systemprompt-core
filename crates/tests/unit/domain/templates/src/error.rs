@@ -294,3 +294,28 @@ mod edge_case_tests {
         assert!(display.contains("middle context"));
     }
 }
+
+mod converted_variant_tests {
+    use super::*;
+
+    #[test]
+    fn io_error_converts_and_displays_source() {
+        let io = std::io::Error::new(std::io::ErrorKind::PermissionDenied, "denied");
+        let error = TemplateError::from(io);
+
+        assert!(matches!(error, TemplateError::Io(_)));
+        let display = error.to_string();
+        assert!(display.contains("io error"));
+        assert!(display.contains("denied"));
+    }
+
+    #[test]
+    fn yaml_error_converts_and_displays_source() {
+        let yaml = serde_yaml::from_str::<serde_yaml::Value>("a: [unclosed")
+            .expect_err("malformed yaml must fail");
+        let error = TemplateError::from(yaml);
+
+        assert!(matches!(error, TemplateError::Yaml(_)));
+        assert!(error.to_string().contains("yaml error"));
+    }
+}
