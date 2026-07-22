@@ -49,9 +49,17 @@ fn load_surfaces_an_unreadable_secret_path_as_an_error() {
 fn load_treats_missing_and_blank_files_as_unminted() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("bridge-loopback.key");
-    assert!(secret::load(&path).expect("missing is not an error").is_none());
+    assert!(
+        secret::load(&path)
+            .expect("missing is not an error")
+            .is_none()
+    );
     std::fs::write(&path, "  \n").unwrap();
-    assert!(secret::load(&path).expect("blank is not an error").is_none());
+    assert!(
+        secret::load(&path)
+            .expect("blank is not an error")
+            .is_none()
+    );
 }
 
 #[test]

@@ -7521,6 +7521,8 @@ dependencies = [
  "http-body-util",
  "hyper",
  "systemprompt-bridge",
+ "temp-env",
+ "tempfile",
  "tokio",
 ]
 
@@ -7536,6 +7538,7 @@ name = "systemprompt-bridge-sync-e2e-tests"
 version = "0.0.11"
 dependencies = [
  "base64 0.22.1",
+ "chrono",
  "ed25519-dalek 3.0.0",
  "hex",
  "serde_json",

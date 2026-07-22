@@ -145,7 +145,10 @@ fn logout_keeps_a_config_that_still_carries_a_gateway() {
         )
     });
     assert!(!pat_exists, "logout removes the PAT file");
-    assert!(!config.contains("[pat]"), "[pat] section stripped: {config}");
+    assert!(
+        !config.contains("[pat]"),
+        "[pat] section stripped: {config}"
+    );
     assert!(
         config.contains("http://gw.invalid:7400"),
         "gateway_url survives logout: {config}"

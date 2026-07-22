@@ -6,10 +6,10 @@ use systemprompt_bridge::ids::{LibraryArtifactId, Sha256Digest};
 use systemprompt_bridge::integration::cowork_artifacts::emit::{
     artifacts_version, remove_dir, write_artifacts,
 };
-use systemprompt_bridge::sync::ApplyError;
 use systemprompt_bridge::integration::cowork_artifacts::sink::{
     ArtifactSink, FileSink, LIBRARY_STORE_FILE, STAGING_SUBDIR, SeedStaging,
 };
+use systemprompt_bridge::sync::ApplyError;
 
 fn tempdir() -> PathBuf {
     let mut p = std::env::temp_dir();

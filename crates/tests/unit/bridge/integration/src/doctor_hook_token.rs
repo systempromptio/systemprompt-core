@@ -24,7 +24,10 @@ fn unique_client(prefix: &str) -> String {
     format!("{prefix}-{}", std::process::id())
 }
 
-fn check_with_endpoint(client_id: &str, token_status: u16) -> systemprompt_bridge::cli::doctor::Check {
+fn check_with_endpoint(
+    client_id: &str,
+    token_status: u16,
+) -> systemprompt_bridge::cli::doctor::Check {
     use_keyutils_store();
     let temp = TempDir::new().unwrap();
     temp_env::with_var("XDG_CACHE_HOME", Some(temp.path().as_os_str()), || {
@@ -86,9 +89,5 @@ fn a_rejected_grant_fails_with_the_operator_action_diagnosis() {
     assert_eq!(check.status, Status::Fail, "{}", check.detail);
     assert!(check.detail.contains("status=403"), "{}", check.detail);
     assert!(check.detail.contains("invalid_scope"), "{}", check.detail);
-    assert!(
-        check.detail.contains("operator action"),
-        "{}",
-        check.detail
-    );
+    assert!(check.detail.contains("operator action"), "{}", check.detail);
 }

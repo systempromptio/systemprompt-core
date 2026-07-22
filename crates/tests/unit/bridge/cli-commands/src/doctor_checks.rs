@@ -97,8 +97,7 @@ fn gateway_reachable_passes_on_health_200_and_fails_on_a_closed_port() {
     sandbox(|root| {
         let cfg_file = root.join("systemprompt").join("systemprompt-bridge.toml");
         std::fs::create_dir_all(cfg_file.parent().unwrap()).expect("config dir");
-        std::fs::write(&cfg_file, format!("gateway_url = \"{}\"\n", server.uri()))
-            .expect("config");
+        std::fs::write(&cfg_file, format!("gateway_url = \"{}\"\n", server.uri())).expect("config");
         let cfg = config::load();
         let mut checks = Vec::new();
         block_on(check_gateway_reachable(&cfg, &mut checks));
