@@ -231,3 +231,15 @@ mod mcp_apps;
 
 #[cfg(test)]
 mod services_validation;
+
+#[cfg(test)]
+mod artifacts_provenance;
+
+#[cfg(test)]
+mod events_system;
+
+#[cfg(test)]
+mod models_misc_edges;
+
+#[cfg(test)]
+mod profile_from_env;
