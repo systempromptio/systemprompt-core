@@ -277,6 +277,14 @@ mod routes_bridge_plugin_file;
 mod routes_bridge_manifest_catalog;
 
 #[cfg(test)]
+#[path = "routes_slack_edges.rs"]
+mod routes_slack_edges;
+
+#[cfg(test)]
+#[path = "routes_proxy_mcp_executions.rs"]
+mod routes_proxy_mcp_executions;
+
+#[cfg(test)]
 #[path = "routes_agent_cards.rs"]
 mod routes_agent_cards;
 
