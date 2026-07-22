@@ -40,7 +40,16 @@
 # test's own wiremock port. A concurrent run would overwrite another test's
 # backend port mid-dispatch, sending its reply to the wrong mock. Serialise the
 # whole messaging suite into one slot so each test owns the backend row.
+#
+# The agent artifact suites share the `task_artifacts`/`artifact_parts` tables:
+# `artifact_parts::get_parts_rejects_non_object_data_content` seeds a
+# deliberately malformed (non-object) data part via raw SQL, and
+# `artifact::list_artifacts_by_task_context_and_user` runs the table-wide
+# `get_all_artifacts` scan, which decodes every row and fails on the malformed
+# one. Serialise both modules into one slot so the scan never sees the seeded
+# bad row.
 [test-groups]
+agent-artifacts-db = { max-threads = 1 }
 messaging-dispatch-db = { max-threads = 1 }
 scheduler-services-db = { max-threads = 1 }
 scheduler-jobs-db = { max-threads = 1 }
@@ -165,6 +174,14 @@ test-group = 'scheduler-services-db'
 # project root for each test. An in-process async mutex already serialises the
 # module, but the group keeps its cwd mutation from racing sibling cwd-sensitive
 # tests in the same binary. Serialise it into one slot.
+[[profile.default.overrides]]
+filter = 'package(systemprompt-agent-tests) and test(/repository::(artifact|artifact_parts)::/)'
+test-group = 'agent-artifacts-db'
+
+[[profile.ci.overrides]]
+filter = 'package(systemprompt-agent-tests) and test(/repository::(artifact|artifact_parts)::/)'
+test-group = 'agent-artifacts-db'
+
 [[profile.default.overrides]]
 filter = 'package(systemprompt-cli-integration-tests) and test(/cloud_harness::/)'
 test-group = 'cli-cloud-harness'
