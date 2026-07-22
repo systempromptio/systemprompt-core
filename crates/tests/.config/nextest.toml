@@ -58,6 +58,15 @@ users-db = { max-threads = 1 }
 generator-config-db = { max-threads = 1 }
 api-health-monitor-db = { max-threads = 1 }
 cli-cloud-harness = { max-threads = 1 }
+cloud-checkout-port = { max-threads = 1 }
+
+[[profile.default.overrides]]
+filter = 'package(systemprompt-cloud-tests) and (test(/checkout_flow::/) or test(/tenant_provisioning::provision_/))'
+test-group = 'cloud-checkout-port'
+
+[[profile.ci.overrides]]
+filter = 'package(systemprompt-cloud-tests) and (test(/checkout_flow::/) or test(/tenant_provisioning::provision_/))'
+test-group = 'cloud-checkout-port'
 
 [[profile.default.overrides]]
 filter = 'package(systemprompt-api-integration-tests) and test(/(messaging_dispatch|routes_slack|routes_teams)::/)'
