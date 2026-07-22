@@ -7,6 +7,7 @@ mod admin_prompts;
 mod admin_session_show;
 mod admin_user_discovery;
 mod admin_user_sync_db;
+mod admin_users_role_session_db;
 mod admin_users_session_end_db;
 mod admin_users_show_db;
 mod admin_users_write_db;
