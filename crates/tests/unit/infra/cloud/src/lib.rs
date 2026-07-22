@@ -3,6 +3,8 @@
 #[cfg(test)]
 mod api_client_tests;
 #[cfg(test)]
+mod checkout_flow;
+#[cfg(test)]
 mod cli_session;
 #[cfg(test)]
 mod constants;
@@ -13,6 +15,8 @@ mod constants_extra;
 mod credentials;
 #[cfg(test)]
 mod credentials_bootstrap_error;
+#[cfg(test)]
+mod credentials_bootstrap_flow;
 #[cfg(test)]
 mod deploy_dockerfile;
 #[cfg(test)]
@@ -29,6 +33,8 @@ mod error;
 mod error_extra;
 #[cfg(test)]
 mod jwt;
+#[cfg(test)]
+mod oauth_flow;
 #[cfg(test)]
 mod paths;
 #[cfg(test)]

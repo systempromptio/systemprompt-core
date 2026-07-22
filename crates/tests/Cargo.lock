@@ -7779,6 +7779,7 @@ dependencies = [
  "base64 0.22.1",
  "chrono",
  "futures",
+ "reqwest",
  "serde_json",
  "systemprompt-cloud",
  "systemprompt-identifiers",
