@@ -489,3 +489,67 @@ async fn build_fails_when_default_provider_not_enabled() {
     );
     assert!(result.is_err());
 }
+
+#[tokio::test]
+async fn google_search_errs_when_no_provider_supports_it() {
+    let Some(pool) = pool().await else {
+        return;
+    };
+    let server = mock_http::anthropic_messages_success(json!({})).await;
+    let svc = service(&pool, ANTHROPIC, server.uri());
+
+    let err = svc
+        .generate_with_google_search(systemprompt_ai::models::ai::GoogleSearchParams {
+            messages: vec![AiMessage::user("what is new?")],
+            sampling: None,
+            max_output_tokens: 64,
+            model: None,
+            urls: None,
+            response_schema: None,
+        })
+        .await
+        .expect_err("anthropic-only service has no search-capable provider");
+    assert!(format!("{err}").contains("Google Search"), "err: {err}");
+}
+
+#[tokio::test]
+async fn google_search_uses_search_capable_provider_and_surfaces_sources() {
+    let Some(pool) = pool().await else {
+        return;
+    };
+    let server =
+        mock_http::gemini_generate_success(mock_http::gemini_grounded_body("grounded answer"))
+            .await;
+    let registry = super::registry_with_endpoint("gemini", server.uri());
+    let mut config = super::ai_config("gemini");
+    config
+        .providers
+        .get_mut("gemini")
+        .expect("gemini policy entry")
+        .google_search_enabled = true;
+    let svc = systemprompt_ai::AiService::new(
+        &pool,
+        &registry,
+        &config,
+        std::sync::Arc::new(systemprompt_ai::NoopToolProvider::new()),
+        None,
+    )
+    .expect("AiService builds");
+
+    let response = svc
+        .generate_with_google_search(systemprompt_ai::models::ai::GoogleSearchParams {
+            messages: vec![AiMessage::user("what is new?")],
+            sampling: Some(systemprompt_ai::models::ai::SamplingParams::default()),
+            max_output_tokens: 64,
+            model: None,
+            urls: Some(vec!["https://example.com/a".to_owned()]),
+            response_schema: Some(json!({"type": "object"})),
+        })
+        .await
+        .expect("grounded generation ok");
+
+    assert!(response.content.contains("grounded answer"));
+    assert_eq!(response.sources.len(), 1);
+    assert_eq!(response.sources[0].uri, "https://example.com/a");
+    assert_eq!(response.web_search_queries, vec!["test query".to_owned()]);
+}
