@@ -662,6 +662,148 @@ async fn mark_applied_rejects_unknown_version() {
 }
 
 #[test]
+fn migration_service_debug_shows_config_only() {
+    let log = Arc::new(CallLog::default());
+    let provider = RecordingProvider::new(Arc::clone(&log));
+    let service =
+        MigrationService::new(&provider).with_config(systemprompt_database::MigrationConfig {
+            allow_checksum_drift: true,
+        });
+    let debug = format!("{service:?}");
+    assert!(debug.contains("MigrationService"));
+    assert!(debug.contains("allow_checksum_drift: true"));
+}
+
+#[tokio::test]
+async fn run_pending_migrations_short_circuits_when_extension_has_none() {
+    let log = Arc::new(CallLog::default());
+    let provider = RecordingProvider::new(Arc::clone(&log));
+    let service = MigrationService::new(&provider);
+
+    let extension = StubExtension {
+        id: "no_migrations_ext",
+        migrations: vec![],
+    };
+
+    let result = service
+        .run_pending_migrations(&extension)
+        .await
+        .expect("no migrations -> Ok");
+    assert_eq!(result.migrations_run, 0);
+    assert_eq!(result.migrations_skipped, 0);
+    assert!(
+        log.snapshot().is_empty(),
+        "no database calls for an extension without migrations"
+    );
+}
+
+#[tokio::test]
+async fn transactional_migration_with_unparseable_sql_fails_before_execution() {
+    let log = Arc::new(CallLog::default());
+    let provider = RecordingProvider::new(Arc::clone(&log));
+    let service = MigrationService::new(&provider);
+
+    let extension = StubExtension {
+        id: "parse_fail_ext",
+        migrations: vec![Migration::new(3, "broken", "THIS IS NOT SQL")],
+    };
+
+    let err = service
+        .run_pending_migrations(&extension)
+        .await
+        .expect_err("unparseable migration must fail");
+    match err {
+        LoaderError::MigrationFailed { message, .. } => {
+            assert!(message.contains("parse"), "message: {message}");
+            assert!(
+                message.contains("3"),
+                "message names the version: {message}"
+            );
+        },
+        other => panic!("expected MigrationFailed, got {other:?}"),
+    }
+    assert!(
+        !log.snapshot().iter().any(|e| e == "begin"),
+        "no transaction may open for an unparseable migration"
+    );
+}
+
+mod checksum_drift_db {
+    use super::{Migration, MigrationService, StubExtension};
+    use crate::services::db_helper::pool;
+    use systemprompt_database::{MigrationConfig, PostgresProvider};
+
+    async fn provider() -> Option<PostgresProvider> {
+        let db = pool().await?;
+        let pg = db.write_pool_arc().ok()?;
+        Some(PostgresProvider::from_pool(pg))
+    }
+
+    fn ext(id: &'static str, sql: &'static str) -> StubExtension {
+        StubExtension {
+            id,
+            migrations: vec![Migration::new(1, "v1", sql)],
+        }
+    }
+
+    #[tokio::test]
+    async fn edited_applied_migration_is_refused_unless_drift_allowed() {
+        let Some(provider) = provider().await else {
+            return;
+        };
+        let service = MigrationService::new(&provider);
+
+        use systemprompt_database::DatabaseProvider as _;
+        let _ = provider
+            .execute_raw("DELETE FROM extension_migrations WHERE extension_id = 'drift_ext'")
+            .await;
+        let _ = provider
+            .execute_raw("DROP TABLE IF EXISTS drift_ext_t")
+            .await;
+
+        let original = ext(
+            "drift_ext",
+            "CREATE TABLE IF NOT EXISTS drift_ext_t (id BIGINT PRIMARY KEY);",
+        );
+        let first = service
+            .run_pending_migrations(&original)
+            .await
+            .expect("initial apply");
+        assert_eq!(first.migrations_run, 1);
+
+        let rerun = service
+            .run_pending_migrations(&original)
+            .await
+            .expect("identical rerun");
+        assert_eq!(rerun.migrations_run, 0);
+        assert_eq!(rerun.migrations_skipped, 1);
+
+        let edited = ext(
+            "drift_ext",
+            "CREATE TABLE IF NOT EXISTS drift_ext_t (id BIGINT PRIMARY KEY, extra TEXT);",
+        );
+        let err = service
+            .run_pending_migrations(&edited)
+            .await
+            .expect_err("edited migration must be refused");
+        assert!(
+            err.to_string().contains("Refusing to proceed"),
+            "err: {err}"
+        );
+
+        let tolerant = MigrationService::new(&provider).with_config(MigrationConfig {
+            allow_checksum_drift: true,
+        });
+        let tolerated = tolerant
+            .run_pending_migrations(&edited)
+            .await
+            .expect("drift tolerated with --allow-checksum-drift");
+        assert_eq!(tolerated.migrations_run, 0);
+        assert_eq!(tolerated.migrations_skipped, 1);
+    }
+}
+
+#[test]
 fn test_migration_status_all_pending() {
     let status = MigrationStatus {
         extension_id: "fresh_install".to_string(),

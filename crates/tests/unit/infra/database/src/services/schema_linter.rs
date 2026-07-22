@@ -330,3 +330,35 @@ fn unknown_column_includes_index_name_in_message() {
         err.message
     );
 }
+
+#[test]
+fn error_position_skips_block_comments_before_statement() {
+    let sql = "CREATE TABLE IF NOT EXISTS users (id TEXT);\n/* outer /* nested */ block \
+               */\n-- trailing line comment\nALTER TABLE users ADD COLUMN email TEXT;";
+    let errs = lint_err(sql);
+    let alter = errs
+        .iter()
+        .find(|e| e.message.contains("ALTER"))
+        .expect("expected ALTER error");
+    assert_eq!(
+        alter.line, 4,
+        "position must skip nested block and line comments: {alter:?}"
+    );
+    assert_eq!(alter.column, 1);
+}
+
+#[test]
+fn error_position_skips_inline_block_comment_on_same_line() {
+    let sql = "CREATE TABLE IF NOT EXISTS users (id TEXT);\n/* lead */ ALTER TABLE users ADD \
+               COLUMN email TEXT;";
+    let errs = lint_err(sql);
+    let alter = errs
+        .iter()
+        .find(|e| e.message.contains("ALTER"))
+        .expect("expected ALTER error");
+    assert_eq!(alter.line, 2, "{alter:?}");
+    assert_eq!(
+        alter.column, 12,
+        "column must point at the first significant token: {alter:?}"
+    );
+}

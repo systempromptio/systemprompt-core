@@ -267,3 +267,150 @@ async fn install_rejects_imperative_sql_in_declarative_schema() {
     assert!(matches!(err, LoaderError::SchemaInstallationFailed { .. }));
     assert!(err.to_string().contains("Imperative SQL"));
 }
+
+async fn seed_rejection(seed_sql: &'static str) -> LoaderError {
+    let (provider, _db) = provider_and_db().await.expect("db required");
+    let table = unique_id("install_seed_kind");
+    let ext = StubExtension {
+        id: unique_id("ext_seed_kind"),
+        schemas: vec![SchemaDefinition::new(
+            table,
+            format!("CREATE TABLE IF NOT EXISTS \"{table}\" (id BIGINT PRIMARY KEY);"),
+        )],
+        seeds: vec![Seed::new(unique_id("seed"), seed_sql)],
+    };
+    install_extension_schemas_with_config(&registry_with(ext), &provider, &[])
+        .await
+        .expect_err("disallowed seed statement rejected")
+}
+
+#[tokio::test]
+async fn install_rejects_seed_statements_by_classified_kind() {
+    if provider_and_db().await.is_none() {
+        return;
+    }
+    let cases: [(&'static str, &'static str); 7] = [
+        ("SELECT 1;", "SELECT"),
+        ("CREATE TABLE seed_smuggled_ddl (id BIGINT);", "CREATE"),
+        ("CREATE INDEX seed_idx ON seed_t (id);", "CREATE"),
+        ("ALTER TABLE seed_t ADD COLUMN x TEXT;", "ALTER"),
+        ("DROP TABLE seed_t;", "DROP"),
+        ("TRUNCATE seed_t;", "TRUNCATE"),
+        ("GRANT SELECT ON seed_t TO PUBLIC;", "GRANT"),
+    ];
+    for (sql, expected_kind) in cases {
+        let err = seed_rejection(sql).await;
+        match err {
+            LoaderError::InvalidSeedStatement { statement, .. } => {
+                assert_eq!(statement, expected_kind, "for seed sql {sql:?}");
+            },
+            other => panic!("expected InvalidSeedStatement for {sql:?}, got {other:?}"),
+        }
+    }
+}
+
+#[tokio::test]
+async fn install_rejects_seed_with_unclassified_statement_as_other() {
+    if provider_and_db().await.is_none() {
+        return;
+    }
+    let err = seed_rejection("SET search_path TO public;").await;
+    assert!(
+        matches!(err, LoaderError::InvalidSeedStatement { statement, .. } if statement == "OTHER")
+    );
+}
+
+#[tokio::test]
+async fn install_rejects_unparseable_seed_sql() {
+    if provider_and_db().await.is_none() {
+        return;
+    }
+    let err = seed_rejection("THIS IS NOT SQL AT ALL").await;
+    match err {
+        LoaderError::SeedFailed { message, .. } => {
+            assert!(message.contains("parse"), "message: {message}");
+        },
+        other => panic!("expected SeedFailed(parse), got {other:?}"),
+    }
+}
+
+#[tokio::test]
+async fn install_surfaces_seed_execution_failure_and_rolls_back() {
+    let Some((provider, db)) = provider_and_db().await else {
+        return;
+    };
+    let table = unique_id("install_seed_exec_fail");
+    let missing = unique_id("no_such_table");
+    let ext = StubExtension {
+        id: unique_id("ext_seed_exec_fail"),
+        schemas: vec![SchemaDefinition::new(
+            table,
+            format!("CREATE TABLE IF NOT EXISTS \"{table}\" (id BIGINT PRIMARY KEY);"),
+        )],
+        seeds: vec![Seed::new(
+            unique_id("seed"),
+            leak(format!(
+                "INSERT INTO \"{table}\" (id) VALUES (7) ON CONFLICT (id) DO NOTHING; INSERT \
+                 INTO \"{missing}\" (id) VALUES (1) ON CONFLICT (id) DO NOTHING;"
+            )),
+        )],
+    };
+
+    let err = install_extension_schemas_with_config(&registry_with(ext), &provider, &[])
+        .await
+        .expect_err("seed hitting a missing table must fail");
+    match err {
+        LoaderError::SeedFailed { message, .. } => {
+            assert!(message.contains("execute"), "message: {message}");
+        },
+        other => panic!("expected SeedFailed(execute), got {other:?}"),
+    }
+
+    let pg = db.write_pool_arc().expect("write pool");
+    let rows: i64 = sqlx::query_scalar(sqlx::AssertSqlSafe(format!(
+        "SELECT COUNT(*) FROM \"{table}\""
+    )))
+    .fetch_one(&*pg)
+    .await
+    .expect("count");
+    assert_eq!(rows, 0, "failed seed transaction must roll back");
+
+    drop_table(&db, table).await;
+}
+
+#[tokio::test]
+async fn install_applies_update_and_multi_statement_seed() {
+    let Some((provider, db)) = provider_and_db().await else {
+        return;
+    };
+    let table = unique_id("install_seed_update");
+    let ext = StubExtension {
+        id: unique_id("ext_seed_update"),
+        schemas: vec![SchemaDefinition::new(
+            table,
+            format!("CREATE TABLE IF NOT EXISTS \"{table}\" (id BIGINT PRIMARY KEY, label TEXT);"),
+        )],
+        seeds: vec![Seed::new(
+            unique_id("seed"),
+            leak(format!(
+                "INSERT INTO \"{table}\" (id, label) VALUES (1, 'raw') ON CONFLICT (id) DO \
+                 NOTHING; UPDATE \"{table}\" SET label = 'updated' WHERE id = 1;"
+            )),
+        )],
+    };
+
+    install_extension_schemas_with_config(&registry_with(ext), &provider, &[])
+        .await
+        .expect("multi-statement seed applies");
+
+    let pg = db.write_pool_arc().expect("write pool");
+    let label: String = sqlx::query_scalar(sqlx::AssertSqlSafe(format!(
+        "SELECT label FROM \"{table}\" WHERE id = 1"
+    )))
+    .fetch_one(&*pg)
+    .await
+    .expect("label");
+    assert_eq!(label, "updated");
+
+    drop_table(&db, table).await;
+}
