@@ -29,6 +29,8 @@ inventory = { workspace = true }
 sqlx = { workspace = true }
 uuid = { workspace = true }
 wiremock = { workspace = true }
+http = { workspace = true }
+reqwest = { workspace = true }
 futures = { workspace = true }
 
 [package.metadata.cargo-machete]

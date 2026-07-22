@@ -371,3 +371,68 @@ mod classify_tests {
         assert!(matches!(err.classify(), Outcome::Permanent));
     }
 }
+
+mod from_error_response_tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn captures_status_body_and_retry_after() {
+        let http = http::Response::builder()
+            .status(429)
+            .header("retry-after", "7")
+            .body("rate limited body")
+            .expect("response");
+        let err = AiError::from_error_response("openai", reqwest::Response::from(http)).await;
+
+        match &err {
+            AiError::HttpStatus {
+                provider,
+                status,
+                retry_after,
+                body,
+            } => {
+                assert_eq!(provider, "openai");
+                assert_eq!(*status, 429);
+                assert_eq!(*retry_after, Some(Duration::from_secs(7)));
+                assert_eq!(body, "rate limited body");
+            },
+            other => panic!("expected HttpStatus, got {other:?}"),
+        }
+        assert!(matches!(
+            err.classify(),
+            Outcome::Transient {
+                retry_after: Some(d)
+            } if d == Duration::from_secs(7)
+        ));
+    }
+
+    #[tokio::test]
+    async fn non_numeric_retry_after_is_ignored() {
+        let http = http::Response::builder()
+            .status(503)
+            .header("retry-after", "Wed, 21 Oct 2026 07:28:00 GMT")
+            .body("")
+            .expect("response");
+        let err = AiError::from_error_response("gemini", reqwest::Response::from(http)).await;
+
+        assert!(matches!(
+            err,
+            AiError::HttpStatus {
+                status: 503,
+                retry_after: None,
+                ..
+            }
+        ));
+    }
+
+    #[tokio::test]
+    async fn client_error_without_retry_after_is_permanent() {
+        let http = http::Response::builder()
+            .status(401)
+            .body("unauthorized")
+            .expect("response");
+        let err = AiError::from_error_response("anthropic", reqwest::Response::from(http)).await;
+
+        assert!(matches!(err.classify(), Outcome::Permanent));
+    }
+}
