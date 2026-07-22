@@ -43,6 +43,76 @@ async fn sync_all_collects_per_operation_results() {
     }
 }
 
+#[tokio::test]
+async fn sync_database_wraps_cloud_url_failure_as_api_error() {
+    use wiremock::matchers::{method, path};
+    use wiremock::{Mock, MockServer, ResponseTemplate};
+
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/api/v1/cloud/tenants/tenant-1/database"))
+        .respond_with(ResponseTemplate::new(500).set_body_string("boom"))
+        .mount(&server)
+        .await;
+
+    let cfg = SyncConfig::builder(TenantId::new("tenant-1"), &server.uri(), "tok", "/services")
+        .with_direction(SyncDirection::Push)
+        .with_local_database_url("postgres://nouser:nopass@127.0.0.1:1/nodb")
+        .build();
+    let service = SyncService::new(cfg).expect("service");
+
+    let err = service.sync_database().await.expect_err("must fail");
+    match err {
+        systemprompt_sync::SyncError::ApiError { status, message } => {
+            assert_eq!(status, 500);
+            assert!(
+                message.contains("Failed to get cloud database URL"),
+                "got: {message}"
+            );
+        },
+        other => panic!("expected ApiError, got: {other}"),
+    }
+}
+
+#[tokio::test]
+async fn sync_all_records_failed_database_state_on_cloud_url_error() {
+    use wiremock::matchers::{method, path};
+    use wiremock::{Mock, MockServer, ResponseTemplate};
+
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/api/v1/cloud/tenants/tenant-1/database"))
+        .respond_with(ResponseTemplate::new(500).set_body_string("boom"))
+        .mount(&server)
+        .await;
+
+    let tmp = tempfile::TempDir::new().expect("tmp");
+    let cfg = SyncConfig::builder(
+        TenantId::new("tenant-1"),
+        &server.uri(),
+        "tok",
+        tmp.path().to_string_lossy(),
+    )
+    .with_direction(SyncDirection::Push)
+    .with_dry_run(true)
+    .with_local_database_url("postgres://nouser:nopass@127.0.0.1:1/nodb")
+    .build();
+    let service = SyncService::new(cfg).expect("service");
+
+    let results = service
+        .sync_all()
+        .await
+        .expect("files dry-run must succeed");
+    assert_eq!(results.len(), 2);
+    let db = results
+        .iter()
+        .find(|r| r.operation == "database")
+        .expect("database entry");
+    assert!(!db.success);
+    assert_eq!(db.state, systemprompt_sync::SyncOpState::Failed);
+    assert!(db.errors[0].contains("Failed to get cloud database URL"));
+}
+
 #[test]
 fn service_debug_renders() {
     let service = SyncService::new(config(SyncDirection::Pull, true)).expect("service");

@@ -407,3 +407,91 @@ async fn pre_sync_without_hostname_fails_closed() {
     assert!(matches!(err, SyncError::HostnameNotConfigured));
     assert!(docker_calls.lock().unwrap().is_empty());
 }
+
+#[tokio::test]
+async fn present_secrets_file_and_signing_key_are_provisioned() {
+    let server = MockServer::start().await;
+    mount_deploy_mocks(&server).await;
+    let project = scaffold_project("prod");
+    fs::write(
+        project.path().join("secrets.json"),
+        json!({"anthropic": "sk-ant", "my_custom": "v1"}).to_string(),
+    )
+    .unwrap();
+    fs::write(project.path().join("signing-key.pem"), "PEM-BYTES").unwrap();
+
+    let (orchestrator, _docker_calls) = orchestrator_with_stub();
+    let progress = RecordingProgress::new(true);
+
+    let mut req = request(
+        &server.uri(),
+        project.path(),
+        DeployOptions {
+            skip_push: false,
+            dry_run: false,
+            pre_sync: None,
+        },
+    );
+    req.secrets_path = project.path().join("secrets.json");
+    req.signing_key_path = project.path().join("signing-key.pem");
+
+    let report = orchestrator.deploy(&req, &progress).await.expect("deploy");
+    assert!(matches!(report.outcome, DeployOutcome::Deployed { .. }));
+
+    let labels = progress.labels();
+    assert!(labels.contains(&"SecretsSyncStarted".to_owned()));
+    assert!(labels.contains(&"SecretsSynced".to_owned()));
+    assert!(!labels.contains(&"SecretsFileMissing".to_owned()));
+
+    let requests = server.received_requests().await.unwrap();
+    let secret_bodies: Vec<serde_json::Value> = requests
+        .iter()
+        .filter(|r| r.url.path().ends_with("/secrets"))
+        .map(|r| r.body_json().unwrap())
+        .collect();
+    let env_body = &secret_bodies[0]["secrets"];
+    assert_eq!(env_body["ANTHROPIC_API_KEY"], "sk-ant");
+    assert_eq!(env_body["MY_CUSTOM"], "v1");
+    assert_eq!(env_body["SYSTEMPROMPT_CUSTOM_SECRETS"], "MY_CUSTOM");
+    let pem = env_body["SIGNING_KEY_PEM"].as_str().unwrap();
+    assert!(!pem.is_empty());
+    assert_ne!(pem, "PEM-BYTES");
+}
+
+#[tokio::test]
+async fn secrets_json_signing_key_wins_over_pem_file() {
+    let server = MockServer::start().await;
+    mount_deploy_mocks(&server).await;
+    let project = scaffold_project("prod");
+    fs::write(
+        project.path().join("secrets.json"),
+        json!({"signing_key_pem": "from-secrets"}).to_string(),
+    )
+    .unwrap();
+    fs::write(project.path().join("signing-key.pem"), "from-file").unwrap();
+
+    let (orchestrator, _docker_calls) = orchestrator_with_stub();
+    let progress = RecordingProgress::new(true);
+
+    let mut req = request(
+        &server.uri(),
+        project.path(),
+        DeployOptions {
+            skip_push: false,
+            dry_run: false,
+            pre_sync: None,
+        },
+    );
+    req.secrets_path = project.path().join("secrets.json");
+    req.signing_key_path = project.path().join("signing-key.pem");
+
+    orchestrator.deploy(&req, &progress).await.expect("deploy");
+
+    let requests = server.received_requests().await.unwrap();
+    let env_body: serde_json::Value = requests
+        .iter()
+        .find(|r| r.url.path().ends_with("/secrets"))
+        .map(|r| r.body_json().unwrap())
+        .unwrap();
+    assert_eq!(env_body["secrets"]["SIGNING_KEY_PEM"], "from-secrets");
+}
