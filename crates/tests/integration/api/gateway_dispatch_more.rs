@@ -23,7 +23,7 @@ use systemprompt_api::services::gateway::service::{
     DispatchError, PolicyDenied, QuotaExceeded, REQUEST_ID_HEADER, SafetyBlocked,
 };
 use systemprompt_identifiers::{AiRequestId, ProviderId};
-use systemprompt_models::profile::GatewayConfig;
+use systemprompt_models::profile::{GatewayConfig, OverrideRuleAction, SystemPromptRule};
 
 #[test]
 fn classify_policy_denied_is_forbidden() {
@@ -163,4 +163,79 @@ async fn apply_system_prompt_override_is_noop_without_overrides() {
             .await;
     assert!(descriptor.is_none(), "no overrides configured");
     assert_eq!(request.system, before, "system prompt is untouched");
+}
+
+fn config_with_rule(rule: SystemPromptRule) -> GatewayConfig {
+    GatewayConfig {
+        enabled: true,
+        system_prompt_overrides: vec![rule],
+        ..GatewayConfig::default()
+    }
+}
+
+#[tokio::test]
+async fn apply_system_prompt_override_replace_swaps_system_prompt() {
+    let config = config_with_rule(SystemPromptRule {
+        provider: Some(ProviderId::new("anthropic")),
+        model_pattern: None,
+        action: OverrideRuleAction::Replace,
+        prompt: Some("governed prompt".to_owned()),
+    });
+    let mut request = canonical();
+    let descriptor = apply_system_prompt_override(
+        &config,
+        &ProviderId::new("anthropic"),
+        "claude-test-upstream",
+        &mut request,
+    )
+    .await;
+    assert!(
+        descriptor.is_some(),
+        "replace must produce an audit descriptor"
+    );
+    assert_eq!(request.system.as_deref(), Some("governed prompt"));
+}
+
+#[tokio::test]
+async fn apply_system_prompt_override_strip_clears_system_prompt() {
+    let config = config_with_rule(SystemPromptRule {
+        provider: None,
+        model_pattern: None,
+        action: OverrideRuleAction::Strip,
+        prompt: None,
+    });
+    let mut request = canonical();
+    request.system = Some("to be removed".to_owned());
+    let descriptor = apply_system_prompt_override(
+        &config,
+        &ProviderId::new("anthropic"),
+        "claude-test-upstream",
+        &mut request,
+    )
+    .await;
+    assert!(
+        descriptor.is_some(),
+        "strip must produce an audit descriptor"
+    );
+    assert!(request.system.is_none());
+}
+
+#[tokio::test]
+async fn apply_system_prompt_override_non_matching_provider_passes_through() {
+    let config = config_with_rule(SystemPromptRule {
+        provider: Some(ProviderId::new("gemini")),
+        model_pattern: None,
+        action: OverrideRuleAction::Strip,
+        prompt: None,
+    });
+    let mut request = canonical();
+    let before = request.system.clone();
+    apply_system_prompt_override(
+        &config,
+        &ProviderId::new("anthropic"),
+        "claude-test-upstream",
+        &mut request,
+    )
+    .await;
+    assert_eq!(request.system, before, "non-matching rule must not apply");
 }
