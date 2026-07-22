@@ -2,4 +2,5 @@
 
 mod models;
 mod queries;
+mod seeded_audit;
 mod seeded_queries;

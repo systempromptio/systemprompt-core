@@ -165,3 +165,30 @@ fn secret_named_fields_are_redacted_on_console() {
     assert!(logs.contains("[REDACTED]"));
     assert!(logs.contains("normal="));
 }
+
+#[test]
+fn control_chars_escape_and_suffix_exact_redaction_rules() {
+    let writer = CapturingWriter::default();
+    let subscriber = make_subscriber(writer.clone());
+
+    tracing::subscriber::with_default(subscriber, || {
+        info!(
+            payload = %"a\rb\tc\u{7}d",
+            tls_cert = "PEMDATA",
+            auth = "basic xyz",
+            author = "mary",
+            "controls"
+        );
+    });
+
+    let logs = writer.contents();
+    assert!(logs.contains("\\r"));
+    assert!(logs.contains("\\t"));
+    assert!(logs.contains("\\u{0007}"));
+    assert!(!logs.contains("PEMDATA"), "_cert suffix must be redacted");
+    assert!(!logs.contains("basic xyz"), "exact 'auth' must be redacted");
+    assert!(
+        logs.contains("author=") && logs.contains("mary"),
+        "'author' must not match the exact 'auth' rule"
+    );
+}
