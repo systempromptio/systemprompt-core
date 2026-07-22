@@ -14,7 +14,11 @@ fn fresh_id() -> ArtifactId {
     ArtifactId::new(format!("art-{}", uuid::Uuid::new_v4().simple()))
 }
 
-fn stored(id: &ArtifactId, data: serde_json::Value, context_id: Option<ContextId>) -> CreateMcpArtifact {
+fn stored(
+    id: &ArtifactId,
+    data: serde_json::Value,
+    context_id: Option<ContextId>,
+) -> CreateMcpArtifact {
     CreateMcpArtifact {
         artifact_id: id.clone(),
         mcp_execution_id: McpExecutionId::new(format!("exec-{}", uuid::Uuid::new_v4().simple())),
@@ -33,7 +37,9 @@ fn stored(id: &ArtifactId, data: serde_json::Value, context_id: Option<ContextId
 async fn read_artifact_rejects_non_artifact_uri() {
     let Some(repo) = repo().await else { return };
     let request = ReadResourceRequestParams::new("ui://srv/artifact-viewer");
-    let err = read_artifact_resource(&request, "srv", &repo).await.unwrap_err();
+    let err = read_artifact_resource(&request, "srv", &repo)
+        .await
+        .unwrap_err();
     assert!(err.message.contains("Not an artifact resource URI"));
 }
 
@@ -41,7 +47,9 @@ async fn read_artifact_rejects_non_artifact_uri() {
 async fn read_artifact_rejects_server_mismatch() {
     let Some(repo) = repo().await else { return };
     let request = ReadResourceRequestParams::new("ui://other/artifact/abc");
-    let err = read_artifact_resource(&request, "srv", &repo).await.unwrap_err();
+    let err = read_artifact_resource(&request, "srv", &repo)
+        .await
+        .unwrap_err();
     assert!(err.message.contains("names server 'other'"));
     assert!(err.message.contains("'srv'"));
 }
@@ -51,7 +59,9 @@ async fn read_artifact_unknown_id_is_invalid_params() {
     let Some(repo) = repo().await else { return };
     let id = fresh_id();
     let request = ReadResourceRequestParams::new(format!("ui://srv/artifact/{id}"));
-    let err = read_artifact_resource(&request, "srv", &repo).await.unwrap_err();
+    let err = read_artifact_resource(&request, "srv", &repo)
+        .await
+        .unwrap_err();
     assert!(err.message.contains("Unknown artifact"));
 }
 
@@ -64,7 +74,9 @@ async fn read_artifact_without_payload_key_is_internal_error() {
         .expect("save");
 
     let request = ReadResourceRequestParams::new(format!("ui://srv/artifact/{id}"));
-    let err = read_artifact_resource(&request, "srv", &repo).await.unwrap_err();
+    let err = read_artifact_resource(&request, "srv", &repo)
+        .await
+        .unwrap_err();
     assert!(err.message.contains("no payload to render"));
 }
 
@@ -87,7 +99,9 @@ async fn read_artifact_renders_stored_payload_with_ui_meta() {
     .expect("save");
 
     let request = ReadResourceRequestParams::new(format!("ui://srv/artifact/{id}"));
-    let result = read_artifact_resource(&request, "srv", &repo).await.expect("render");
+    let result = read_artifact_resource(&request, "srv", &repo)
+        .await
+        .expect("render");
 
     assert_eq!(result.contents.len(), 1);
     let serialized = serde_json::to_string(&result.contents).expect("serializable");
@@ -108,7 +122,9 @@ async fn read_artifact_without_context_id_still_renders() {
     repo.save(&stored(&id, payload, None)).await.expect("save");
 
     let request = ReadResourceRequestParams::new(format!("ui://srv/artifact/{id}"));
-    let result = read_artifact_resource(&request, "srv", &repo).await.expect("render");
+    let result = read_artifact_resource(&request, "srv", &repo)
+        .await
+        .expect("render");
     let serialized = serde_json::to_string(&result.contents).expect("serializable");
     assert!(serialized.contains("context-free render"));
 }

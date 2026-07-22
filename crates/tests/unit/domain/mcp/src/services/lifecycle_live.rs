@@ -81,7 +81,11 @@ fn make_config(name: &str, port: u16) -> McpServerConfig {
     }
 }
 
-async fn seed_service(db: &systemprompt_database::DbPool, name: &str, port: u16) -> ServiceRepository {
+async fn seed_service(
+    db: &systemprompt_database::DbPool,
+    name: &str,
+    port: u16,
+) -> ServiceRepository {
     let repo = ServiceRepository::new(db).unwrap();
     repo.create_service(CreateServiceInput {
         name,
@@ -97,7 +101,9 @@ async fn seed_service(db: &systemprompt_database::DbPool, name: &str, port: u16)
 
 #[tokio::test]
 async fn health_check_live_mcp_endpoint_reports_healthy() {
-    let Some((life, db)) = make_lifecycle().await else { return };
+    let Some((life, db)) = make_lifecycle().await else {
+        return;
+    };
     let mock = MockServer::start().await;
     mount_mcp_endpoint(&mock, default_tools_json()).await;
     let port = mock.address().port();
@@ -107,7 +113,12 @@ async fn health_check_live_mcp_endpoint_reports_healthy() {
 
     let healthy = life.health_check(&make_config(&name, port)).await.unwrap();
 
-    let status = repo.find_service_by_name(&name).await.unwrap().unwrap().status;
+    let status = repo
+        .find_service_by_name(&name)
+        .await
+        .unwrap()
+        .unwrap()
+        .status;
     repo.delete_service(&name).await.unwrap();
 
     assert!(healthy);
@@ -116,7 +127,9 @@ async fn health_check_live_mcp_endpoint_reports_healthy() {
 
 #[tokio::test]
 async fn health_check_non_mcp_listener_marks_service_error() {
-    let Some((life, db)) = make_lifecycle().await else { return };
+    let Some((life, db)) = make_lifecycle().await else {
+        return;
+    };
     let mock = MockServer::start().await;
     let port = mock.address().port();
 
@@ -125,7 +138,12 @@ async fn health_check_non_mcp_listener_marks_service_error() {
 
     let healthy = life.health_check(&make_config(&name, port)).await.unwrap();
 
-    let status = repo.find_service_by_name(&name).await.unwrap().unwrap().status;
+    let status = repo
+        .find_service_by_name(&name)
+        .await
+        .unwrap()
+        .unwrap()
+        .status;
     repo.delete_service(&name).await.unwrap();
 
     assert!(!healthy);
@@ -134,7 +152,9 @@ async fn health_check_non_mcp_listener_marks_service_error() {
 
 #[tokio::test]
 async fn stop_server_terminates_registered_live_child_and_finalizes_row() {
-    let Some((life, db)) = make_lifecycle().await else { return };
+    let Some((life, db)) = make_lifecycle().await else {
+        return;
+    };
 
     let name = format!("stop-live-{}", uuid::Uuid::new_v4().simple());
     let port = 65401;
@@ -162,7 +182,9 @@ async fn stop_server_terminates_registered_live_child_and_finalizes_row() {
 
 #[tokio::test]
 async fn restart_server_sweeps_stale_running_row_then_fails_on_missing_binary() {
-    let Some((life, db)) = make_lifecycle().await else { return };
+    let Some((life, db)) = make_lifecycle().await else {
+        return;
+    };
 
     let name = format!("restart-{}", uuid::Uuid::new_v4().simple());
     let port = 65402;

@@ -485,6 +485,8 @@ async fn reconcile_with_events_kills_running_row_and_reports_cleanup() {
             saw_cleanup = true;
         }
     }
-    assert!(saw_cleanup, "reconcile reports cleanup over the event channel");
+    assert!(
+        saw_cleanup,
+        "reconcile reports cleanup over the event channel"
+    );
 }
-

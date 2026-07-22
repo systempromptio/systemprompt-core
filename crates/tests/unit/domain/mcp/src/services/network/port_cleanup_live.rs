@@ -24,7 +24,10 @@ fn spawn_listener_child(port: u16) -> Child {
 fn await_port_state(port: u16, in_use: bool) {
     let deadline = Instant::now() + Duration::from_secs(10);
     while is_port_in_use(port) != in_use {
-        assert!(Instant::now() < deadline, "port {port} never reached in_use={in_use}");
+        assert!(
+            Instant::now() < deadline,
+            "port {port} never reached in_use={in_use}"
+        );
         std::thread::sleep(Duration::from_millis(50));
     }
 }
@@ -57,7 +60,9 @@ async fn wait_for_port_release_with_retry_reclaims_port_from_foreign_listener() 
     let mut child = spawn_listener_child(port);
     await_port_state(port, true);
 
-    wait_for_port_release_with_retry(port, 3).await.expect("port reclaimed");
+    wait_for_port_release_with_retry(port, 3)
+        .await
+        .expect("port reclaimed");
 
     assert!(!is_port_in_use(port));
     child.wait().expect("child reaped");

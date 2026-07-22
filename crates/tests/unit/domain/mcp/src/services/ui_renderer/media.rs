@@ -14,7 +14,11 @@ fn media_artifact(kind: &str, title: Option<&str>, payload: serde_json::Value) -
         description: None,
         parts: vec![Part::Data(DataPart { data })],
         extensions: vec![],
-        metadata: ArtifactMetadata::new(kind.to_string(), ContextId::generate(), TaskId::generate()),
+        metadata: ArtifactMetadata::new(
+            kind.to_string(),
+            ContextId::generate(),
+            TaskId::generate(),
+        ),
     }
 }
 
@@ -41,12 +45,23 @@ async fn audio_render_full_payload_includes_artist_artwork_and_flags() {
         }),
     );
 
-    let resource = AudioRenderer::new().render(&artifact).await.expect("render");
+    let resource = AudioRenderer::new()
+        .render(&artifact)
+        .await
+        .expect("render");
 
     assert!(resource.html.contains("Night Drive"));
     assert!(resource.html.contains("The &lt;Bots&gt;"));
-    assert!(resource.html.contains(r#"<img class="media-artwork" src="https://cdn.example.com/cover.png""#));
-    assert!(resource.html.contains(r#"src="https://cdn.example.com/track.mp3""#));
+    assert!(
+        resource
+            .html
+            .contains(r#"<img class="media-artwork" src="https://cdn.example.com/cover.png""#)
+    );
+    assert!(
+        resource
+            .html
+            .contains(r#"src="https://cdn.example.com/track.mp3""#)
+    );
     assert!(resource.html.contains(r#" type="audio/mpeg""#));
     assert!(resource.html.contains(" controls autoplay loop"));
     assert!(!resource.html.contains(" muted"));
@@ -60,7 +75,10 @@ async fn audio_render_minimal_payload_falls_back_to_artifact_title() {
         serde_json::json!({"src": "blob:abc"}),
     );
 
-    let resource = AudioRenderer::new().render(&artifact).await.expect("render");
+    let resource = AudioRenderer::new()
+        .render(&artifact)
+        .await
+        .expect("render");
 
     assert!(resource.html.contains("From Artifact"));
     assert!(!resource.html.contains(r#"<p class="mcp-app-description">"#));
@@ -73,8 +91,15 @@ async fn audio_render_minimal_payload_falls_back_to_artifact_title() {
 #[tokio::test]
 async fn audio_render_without_any_title_uses_default() {
     let artifact = media_artifact("audio", None, serde_json::json!({"src": "a.mp3"}));
-    let resource = AudioRenderer::new().render(&artifact).await.expect("render");
-    assert!(resource.html.contains("<h1 class=\"mcp-app-title\">Audio</h1>"));
+    let resource = AudioRenderer::new()
+        .render(&artifact)
+        .await
+        .expect("render");
+    assert!(
+        resource
+            .html
+            .contains("<h1 class=\"mcp-app-title\">Audio</h1>")
+    );
 }
 
 #[tokio::test]
@@ -101,10 +126,17 @@ async fn video_render_full_payload_includes_poster_caption_and_muted() {
         }),
     );
 
-    let resource = VideoRenderer::new().render(&artifact).await.expect("render");
+    let resource = VideoRenderer::new()
+        .render(&artifact)
+        .await
+        .expect("render");
 
     assert!(resource.html.contains("Launch &lt;Video&gt;"));
-    assert!(resource.html.contains(r#" poster="https://cdn.example.com/poster.jpg""#));
+    assert!(
+        resource
+            .html
+            .contains(r#" poster="https://cdn.example.com/poster.jpg""#)
+    );
     assert!(resource.html.contains(r#" type="video/mp4""#));
     assert!(resource.html.contains("Q3 launch &amp; recap"));
     assert!(resource.html.contains(" autoplay loop muted"));
@@ -115,9 +147,16 @@ async fn video_render_full_payload_includes_poster_caption_and_muted() {
 async fn video_render_minimal_payload_uses_default_title_and_omits_extras() {
     let artifact = media_artifact("video", None, serde_json::json!({"src": "v.webm"}));
 
-    let resource = VideoRenderer::new().render(&artifact).await.expect("render");
+    let resource = VideoRenderer::new()
+        .render(&artifact)
+        .await
+        .expect("render");
 
-    assert!(resource.html.contains("<h1 class=\"mcp-app-title\">Video</h1>"));
+    assert!(
+        resource
+            .html
+            .contains("<h1 class=\"mcp-app-title\">Video</h1>")
+    );
     assert!(!resource.html.contains("poster="));
     assert!(!resource.html.contains(r#"<p class="media-caption">"#));
     assert!(resource.html.contains(" controls"));
