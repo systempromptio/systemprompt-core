@@ -281,3 +281,53 @@ system_admin:
 
     assert!(temp_dir.path().join("profiles").exists());
 }
+
+#[test]
+fn test_save_errors_when_profiles_path_is_a_file() {
+    let temp_dir = TempDir::new().expect("Failed to create temp dir");
+    std::fs::write(temp_dir.path().join("profiles"), "not a directory")
+        .expect("Failed to write blocking file");
+
+    let source_dir = TempDir::new().expect("Failed to create source dir");
+    let profile_path = source_dir.path().join("profile.yaml");
+    std::fs::write(&profile_path, create_valid_profile_yaml()).expect("Failed to write profile");
+    let profile = ProfileLoader::load_from_path(&profile_path).expect("Failed to load profile");
+
+    let err = ProfileLoader::save(&profile, temp_dir.path())
+        .expect_err("save must fail when the profiles path is a regular file");
+    assert!(
+        err.to_string().contains("io error"),
+        "expected io error, got: {err}"
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn test_list_available_unreadable_dir_returns_empty() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let temp_dir = TempDir::new().expect("Failed to create temp dir");
+    let profiles_dir = temp_dir.path().join("profiles");
+    std::fs::create_dir(&profiles_dir).expect("Failed to create profiles dir");
+    std::fs::write(
+        profiles_dir.join("dev.secrets.profile.yaml"),
+        create_valid_profile_yaml(),
+    )
+    .expect("Failed to write profile");
+
+    std::fs::set_permissions(&profiles_dir, std::fs::Permissions::from_mode(0o000))
+        .expect("Failed to strip permissions");
+    let dir_is_actually_unreadable = std::fs::read_dir(&profiles_dir).is_err();
+    let profiles = ProfileLoader::list_available(temp_dir.path());
+    std::fs::set_permissions(&profiles_dir, std::fs::Permissions::from_mode(0o755))
+        .expect("Failed to restore permissions");
+
+    if dir_is_actually_unreadable {
+        assert!(
+            profiles.is_empty(),
+            "an unreadable profiles directory must yield an empty listing"
+        );
+    } else {
+        assert_eq!(profiles.len(), 1, "root ignores directory permissions");
+    }
+}

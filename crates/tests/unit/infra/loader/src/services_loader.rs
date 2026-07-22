@@ -296,7 +296,7 @@ ai:
     );
 }
 
-const FULL_WEB_BLOCK: &str = r#"web:
+pub(crate) const FULL_WEB_BLOCK: &str = r#"web:
   branding:
     name: fixture-brand
     title: "Fixture Brand"
