@@ -95,3 +95,26 @@ fn test_client_initialize_display() {
     let err = McpDomainError::ClientInitialize("badinit".to_string());
     assert!(err.to_string().contains("badinit"));
 }
+
+#[test]
+fn test_from_rmcp_service_error_is_transient() {
+    let err: McpDomainError = rmcp::ServiceError::TransportClosed.into();
+    assert!(err.to_string().contains("Transport closed"));
+    assert!(matches!(
+        err.classify(),
+        systemprompt_database::resilience::Outcome::Transient { retry_after: None }
+    ));
+}
+
+#[test]
+fn test_from_config_validation_error() {
+    let source = systemprompt_models::errors::ConfigValidationError::Required(
+        "database.url is required".to_string(),
+    );
+    let err: McpDomainError = source.into();
+    assert!(err.to_string().contains("database.url is required"));
+    assert!(matches!(
+        err.classify(),
+        systemprompt_database::resilience::Outcome::Permanent
+    ));
+}
