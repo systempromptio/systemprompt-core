@@ -153,3 +153,28 @@ async fn accessors() {
     let _ = svc.clone();
     let _ = format!("{svc:?}");
 }
+
+#[tokio::test]
+async fn register_existing_process_creates_running_row_with_pid() {
+    let Some(svc) = make_db_service().await else {
+        return;
+    };
+    let name = format!("adopt-{}", uuid::Uuid::new_v4().simple());
+    let config = crate::harness::internal_mcp_config(&name, 65410);
+
+    let registered = svc
+        .register_existing_process(&config, std::process::id())
+        .await
+        .expect("adoption registers");
+    assert_eq!(registered, name);
+
+    let row = svc
+        .get_service_by_name(&name)
+        .await
+        .unwrap()
+        .expect("row created");
+    svc.unregister_service(&name).await.unwrap();
+
+    assert_eq!(row.status, "running");
+    assert_eq!(row.pid, Some(i32::try_from(std::process::id()).unwrap()));
+}
