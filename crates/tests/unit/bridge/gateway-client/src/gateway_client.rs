@@ -456,6 +456,74 @@ async fn clearing_the_host_model_filter_sends_a_null_protocol_list() {
     );
 }
 
+fn dead_client() -> GatewayClient {
+    GatewayClient::new(ValidatedUrl::new("http://127.0.0.1:1".to_owned()))
+}
+
+#[tokio::test]
+async fn each_endpoint_maps_a_connection_failure_to_its_own_fetch_variant() {
+    let c = dead_client();
+    assert!(matches!(
+        c.fetch_pubkey().await.unwrap_err(),
+        GatewayError::PubkeyFetch(_)
+    ));
+    assert!(matches!(
+        c.fetch_manifest(BEARER).await.unwrap_err(),
+        GatewayError::ManifestFetch(_)
+    ));
+    assert!(matches!(
+        c.fetch_whoami(BEARER).await.unwrap_err(),
+        GatewayError::WhoamiFetch(_)
+    ));
+    assert!(matches!(
+        c.fetch_bridge_profile().await.unwrap_err(),
+        GatewayError::ProfileFetch(_)
+    ));
+    assert!(matches!(
+        c.fetch_profile_usage(BEARER).await.unwrap_err(),
+        GatewayError::ProfileUsageFetch(_)
+    ));
+    assert!(matches!(
+        c.health().await.unwrap_err(),
+        GatewayError::HealthCheck(_)
+    ));
+    assert!(matches!(
+        c.set_host_model_filter(BEARER, "codex-cli", None)
+            .await
+            .unwrap_err(),
+        GatewayError::PostRequest(_)
+    ));
+}
+
+#[tokio::test]
+async fn a_plugin_file_connection_failure_carries_the_plugin_and_path() {
+    let err = dead_client()
+        .fetch_plugin_file(BEARER, "my-plugin", "dist/index.js")
+        .await
+        .unwrap_err();
+    match err {
+        GatewayError::PluginFetch {
+            plugin_id, path, ..
+        } => {
+            assert_eq!(plugin_id, "my-plugin");
+            assert_eq!(path, "dist/index.js");
+        },
+        other => panic!("expected PluginFetch, got {other:?}"),
+    }
+}
+
+#[tokio::test]
+async fn an_absolute_plugin_path_is_refused_before_any_request() {
+    let err = dead_client()
+        .fetch_plugin_file(BEARER, "my-plugin", "/etc/passwd")
+        .await
+        .unwrap_err();
+    match err {
+        GatewayError::UnsafePath(p) => assert_eq!(p, "/etc/passwd"),
+        other => panic!("expected UnsafePath, got {other:?}"),
+    }
+}
+
 #[tokio::test]
 async fn a_rejected_host_model_filter_maps_to_http_status() {
     let server = MockServer::start().await;
