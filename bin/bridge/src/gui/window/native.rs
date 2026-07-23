@@ -27,8 +27,13 @@ const BG_RGBA: (u8, u8, u8, u8) = (15, 17, 21, 255);
 
 const SP_PROTOCOL: &str = "sp";
 const SP_HOST: &str = "app";
+// Windows/Android map the custom protocol onto http(s)://sp.<host>. The `.app`
+// TLD is HSTS-preloaded in Chromium, so WebView2 force-upgrades subresource
+// requests on an http origin to https — which then miss wry's interception
+// filter and die on the real network. Serve over https (paired with
+// with_https_scheme below) so the upgrade is a no-op.
 #[cfg(any(target_os = "windows", target_os = "android"))]
-const SP_INDEX_URL: &str = "http://sp.app/index.html";
+const SP_INDEX_URL: &str = "https://sp.app/index.html";
 #[cfg(not(any(target_os = "windows", target_os = "android")))]
 const SP_INDEX_URL: &str = "sp://app/index.html";
 
@@ -76,7 +81,13 @@ impl SettingsWindow {
 
         let nav_legacy: Option<String> = legacy_origin.map(str::to_owned);
         let ipc_proxy = proxy.clone();
-        let webview = WebViewBuilder::new()
+        let builder = WebViewBuilder::new();
+        #[cfg(target_os = "windows")]
+        let builder = {
+            use wry::WebViewBuilderExtWindows as _;
+            builder.with_https_scheme(true)
+        };
+        let webview = builder
             .with_url(SP_INDEX_URL)
             .with_background_color(BG_RGBA)
             .with_accept_first_mouse(true)
@@ -203,6 +214,7 @@ fn not_found() -> Response<Cow<'static, [u8]>> {
 fn allow_navigation(target: &str, legacy_origin: Option<&str>) -> bool {
     if target.starts_with("sp://")
         || target.starts_with("http://sp.app")
+        || target.starts_with("https://sp.app")
         || target.starts_with("about:")
     {
         return true;
