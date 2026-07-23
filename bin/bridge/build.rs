@@ -81,12 +81,14 @@ fn collect_served(root: &std::path::Path, dir: &std::path::Path, out: &mut Vec<S
         if entry.file_type().expect("staged web file type").is_dir() {
             collect_served(root, &path, out);
         } else if is_served(&path) {
+            // Manifest keys are matched against URL paths at runtime, so they
+            // must use `/` even when the build host's separator is `\`.
             let rel = path
                 .strip_prefix(root)
                 .expect("staged file under staged root")
                 .to_str()
                 .expect("staged asset path is utf-8")
-                .to_owned();
+                .replace('\\', "/");
             out.push(rel);
         }
     }
@@ -100,6 +102,14 @@ fn write_web_manifest(staged: &std::path::Path, out_dir: &std::path::Path) {
     let mut rels = Vec::new();
     collect_served(staged, staged, &mut rels);
     rels.sort();
+    assert!(
+        rels.iter().all(|r| !r.contains('\\')),
+        "manifest keys must be URL-form (forward slashes): {rels:?}"
+    );
+    assert!(
+        rels.iter().any(|r| r == "css/main.css"),
+        "staged web tree is missing css/main.css; the GUI would render unstyled"
+    );
 
     let mut src = String::from("static WEB_TEXT_ASSETS: &[(&str, &str)] = &[\n");
     for rel in &rels {

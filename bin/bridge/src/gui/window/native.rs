@@ -167,7 +167,13 @@ fn serve_custom_asset(request: &http::Request<Vec<u8>>) -> Response<Cow<'static,
     if path.is_empty() || path == "/" {
         "/index.html".clone_into(&mut path);
     }
-    assets::lookup_path(&path).map_or_else(not_found, asset_response)
+    assets::lookup_path(&path).map_or_else(
+        || {
+            tracing::warn!(%path, "GUI asset not found; serving 404");
+            not_found()
+        },
+        asset_response,
+    )
 }
 
 fn asset_response(asset: Asset) -> Response<Cow<'static, [u8]>> {
