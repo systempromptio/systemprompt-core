@@ -47,4 +47,4 @@ pub use session::{
 };
 pub use tools::ToolAnalyticsRepository;
 pub use tools::list_queries::ToolListParams;
-pub use traffic::TrafficAnalyticsRepository;
+pub use traffic::{NavigationQuery, PageQuery, TrafficAnalyticsRepository};

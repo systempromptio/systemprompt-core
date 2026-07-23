@@ -43,6 +43,20 @@ pub struct TrafficSourceRow {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+pub struct TrafficPageRow {
+    pub page: Option<String>,
+    pub source: Option<String>,
+    pub count: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+pub struct TrafficNavigationRow {
+    pub from_path: Option<String>,
+    pub to_path: Option<String>,
+    pub count: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct GeoRow {
     pub country: Option<String>,
     pub count: i64,

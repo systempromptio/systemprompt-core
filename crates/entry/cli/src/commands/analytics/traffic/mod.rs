@@ -10,6 +10,8 @@
 mod bots;
 mod devices;
 mod geo;
+mod navigation;
+mod pages;
 mod sources;
 
 use anyhow::Result;
@@ -24,6 +26,12 @@ use crate::shared::render_result;
 pub enum TrafficCommands {
     #[command(about = "Traffic source breakdown", alias = "list")]
     Sources(sources::SourcesArgs),
+
+    #[command(about = "Sessions by landing page")]
+    Pages(pages::PagesArgs),
+
+    #[command(about = "Internal link-click transitions")]
+    Navigation(navigation::NavigationArgs),
 
     #[command(about = "Geographic distribution")]
     Geo(geo::GeoArgs),
@@ -47,6 +55,36 @@ pub struct TrafficSourcesOutput {
     pub period: String,
     pub sources: Vec<TrafficSourceRow>,
     pub total_sessions: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct TrafficPageRow {
+    pub page: String,
+    pub source: String,
+    pub session_count: i64,
+    pub percentage: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct TrafficPagesOutput {
+    pub period: String,
+    pub pages: Vec<TrafficPageRow>,
+    pub total_sessions: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct NavigationRow {
+    pub from_path: String,
+    pub to_path: String,
+    pub click_count: i64,
+    pub percentage: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct NavigationOutput {
+    pub period: String,
+    pub transitions: Vec<NavigationRow>,
+    pub total_clicks: i64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -99,6 +137,16 @@ pub async fn execute(command: TrafficCommands, ctx: &CommandContext) -> Result<(
     match command {
         TrafficCommands::Sources(args) => {
             let result = sources::execute_with_pool(args, &db_ctx, &ctx.cli).await?;
+            render_result(&result, &ctx.cli);
+            Ok(())
+        },
+        TrafficCommands::Pages(args) => {
+            let result = pages::execute_with_pool(args, &db_ctx, &ctx.cli).await?;
+            render_result(&result, &ctx.cli);
+            Ok(())
+        },
+        TrafficCommands::Navigation(args) => {
+            let result = navigation::execute_with_pool(args, &db_ctx, &ctx.cli).await?;
             render_result(&result, &ctx.cli);
             Ok(())
         },
