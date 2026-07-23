@@ -9,8 +9,7 @@ mod disk;
 mod summary;
 
 pub use card::{
-    AgentCardConfig, AgentMetadataConfig, AgentProviderInfo, AgentSkillConfig, CapabilitiesConfig,
-    OAuthConfig,
+    AgentCardConfig, AgentMetadataConfig, AgentProviderInfo, CapabilitiesConfig, OAuthConfig,
 };
 pub use disk::DiskAgentConfig;
 pub use summary::AgentSummary;

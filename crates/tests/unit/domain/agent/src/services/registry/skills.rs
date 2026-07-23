@@ -278,7 +278,6 @@ fn agent_card_config_empty() -> AgentCardConfig {
         default_output_modes: vec!["text/plain".to_owned()],
         security_schemes: None,
         security: None,
-        skills: Vec::new(),
         supports_authenticated_extended_card: false,
     }
 }
@@ -307,9 +306,9 @@ fn agent_with_metadata_skills(skills: Vec<String>) -> AgentConfig {
 
 #[test]
 fn a2a_card_skills_are_joined_from_metadata_skills_against_disk_catalog() {
-    // Regression: agent declares `metadata.skills: [example_web_search]` and
-    // leaves `card.skills` empty. The A2A card must populate
-    // `card.skills` by reading the skill catalog under `skills_dir`.
+    // Regression: agent declares `metadata.skills: [example_web_search]`; the
+    // A2A card must populate its skills by reading the catalog under
+    // `skills_dir`.
     let dir = TempDir::new().unwrap();
     let skill_dir = dir.path().join("example_web_search");
     std::fs::create_dir_all(&skill_dir).unwrap();
@@ -348,37 +347,4 @@ fn a2a_card_skills_drop_unresolvable_metadata_ids_silently() {
 
     let resolved = load_agent_skills_from_dir(&agent, dir.path());
     assert!(resolved.is_empty(), "expected empty, got {resolved:?}");
-}
-
-#[test]
-fn a2a_card_skills_ignore_authored_card_skills() {
-    // Even if YAML authored card.skills (now deprecated), the A2A loader must
-    // ignore them — only metadata.skills drives the join.
-    let dir = TempDir::new().unwrap();
-    let skill_dir = dir.path().join("foo");
-    std::fs::create_dir_all(&skill_dir).unwrap();
-    std::fs::write(skill_dir.join("SKILL.md"), "content").unwrap();
-    std::fs::write(skill_dir.join("config.yaml"), "name: Foo\n").unwrap();
-
-    let mut agent = agent_with_metadata_skills(vec!["foo".to_owned()]);
-    // Author a phantom card.skills entry referencing a skill that does NOT
-    // exist on disk. The loader must NOT surface it.
-    agent.card.skills = vec![systemprompt_models::services::AgentSkillConfig {
-        id: SkillId::new("phantom_bar"),
-        name: "Phantom Bar".to_owned(),
-        description: "ignored".to_owned(),
-        tags: Vec::new(),
-        examples: None,
-        input_modes: None,
-        output_modes: None,
-        security: None,
-    }];
-
-    let resolved = load_agent_skills_from_dir(&agent, dir.path());
-    let ids: Vec<&str> = resolved.iter().map(|s| s.id.as_str()).collect();
-    assert_eq!(ids, vec!["foo"]);
-    assert!(
-        !ids.contains(&"phantom_bar"),
-        "authored card.skills must be ignored"
-    );
 }

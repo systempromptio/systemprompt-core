@@ -1,7 +1,6 @@
-use systemprompt_identifiers::{AgentId, SkillId};
+use systemprompt_identifiers::AgentId;
 use systemprompt_models::services::{
-    AgentCardConfig, AgentSkillConfig, CapabilitiesConfig, DiskAgentConfig, OAuthConfig,
-    PluginComponentRef,
+    AgentCardConfig, CapabilitiesConfig, DiskAgentConfig, OAuthConfig, PluginComponentRef,
 };
 
 fn pcr<I: IntoIterator<Item = &'static str>>(items: I) -> PluginComponentRef {
@@ -27,16 +26,6 @@ fn empty_card() -> AgentCardConfig {
         default_output_modes: vec!["text/plain".to_owned()],
         security_schemes: None,
         security: None,
-        skills: vec![AgentSkillConfig {
-            id: SkillId::new("skill_a"),
-            name: "Skill A".to_owned(),
-            description: "desc".to_owned(),
-            tags: vec![],
-            examples: None,
-            input_modes: None,
-            output_modes: None,
-            security: None,
-        }],
         supports_authenticated_extended_card: false,
     }
 }
@@ -199,7 +188,6 @@ card:
   defaultInputModes: ['text/plain']
   defaultOutputModes: ['text/plain']
   capabilities: {}
-  skills: []
 "#;
     let cfg: DiskAgentConfig = serde_yaml::from_str(yaml).unwrap();
     assert_eq!(cfg.name, "my_agent");

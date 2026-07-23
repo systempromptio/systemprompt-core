@@ -40,7 +40,6 @@ fn make_agent_config(name: &str) -> AgentConfig {
             default_output_modes: vec!["text".into()],
             security_schemes: None,
             security: None,
-            skills: vec![],
             supports_authenticated_extended_card: false,
         },
         metadata: AgentMetadataConfig::default(),

@@ -40,9 +40,6 @@ impl AgentRegistry {
         }
     }
 
-    // The lookup methods below are `async` to match the `AgentRegistryProvider`
-    // trait surface; their bodies are pure synchronous reads of an `Arc` snapshot.
-
     #[expect(
         clippy::unused_async,
         clippy::unused_async_trait_impl,
@@ -224,7 +221,7 @@ fn load_agent_skills(agent: &AgentConfig) -> Vec<crate::models::a2a::AgentSkill>
 }
 
 /// Resolves each id in `agent.metadata.skills` against the on-disk skill
-/// catalog under `skills_dir`; authored `agent.card.skills` is ignored.
+/// catalog under `skills_dir`.
 /// Unresolvable skills are dropped with a `tracing::warn!` rather than failing
 /// the card. The dependency-injected (testable) variant of
 /// [`load_agent_skills`].

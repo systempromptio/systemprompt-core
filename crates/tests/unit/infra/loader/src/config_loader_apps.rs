@@ -1,6 +1,6 @@
 //! Behavioural tests for the remaining `merge_into` branches (Slack/Teams
-//! apps, `web` carry-over), the sanctioned env-var overrides, the authored
-//! `card.skills` deprecation path, and the bootstrap-dependent entry points.
+//! apps, `web` carry-over), the sanctioned env-var overrides, and the
+//! bootstrap-dependent entry points.
 
 use systemprompt_loader::{ConfigLoadError, ConfigLoader};
 use tempfile::TempDir;
@@ -166,62 +166,6 @@ fn web_block_carried_from_include_when_root_has_none() {
 
     let web = config.web.expect("web block from include must be carried");
     assert_eq!(web.branding.name, "fixture-brand");
-}
-
-fn agent_with_card_skills(name: &str, port: u16) -> String {
-    format!(
-        r#"
-agents:
-  {name}:
-    name: {name}
-    port: {port}
-    endpoint: http://localhost:{port}/{name}
-    enabled: true
-    card:
-      protocolVersion: "0.2.3"
-      displayName: Card Skills Agent
-      description: Agent that still authors card.skills
-      version: 1.0.0
-      preferredTransport: JSONRPC
-      capabilities:
-        streaming: true
-        pushNotifications: false
-        stateTransitionHistory: false
-      defaultInputModes: [text/plain]
-      defaultOutputModes: [text/plain]
-      skills:
-        - id: legacy_skill
-          name: Legacy Skill
-          description: Authored directly on the card
-          tags: [legacy]
-      supportsAuthenticatedExtendedCard: false
-    metadata: {{}}
-    oauth: {{required: false, scopes: [], audience: a2a}}
-mcp_servers: {{}}
-settings:
-  agent_port_range: [4000, 4999]
-  mcp_port_range: [5000, 5999]
-ai:
-  default_provider: anthropic
-"#
-    )
-}
-
-#[test]
-fn authored_card_skills_load_with_deprecation_warning() {
-    let temp = TempDir::new().expect("tempdir");
-    let config_path = temp.path().join("services.yaml");
-
-    let root = agent_with_card_skills("legacy_agent", 4010);
-    let config = ConfigLoader::load_from_content(&root, &config_path)
-        .expect("agent with authored card.skills must still load");
-
-    let agent = config.agents.get("legacy_agent").expect("agent present");
-    assert_eq!(
-        agent.card.skills.len(),
-        1,
-        "the deprecated card.skills array is preserved on the parsed card"
-    );
 }
 
 #[test]

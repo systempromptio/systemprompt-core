@@ -342,7 +342,6 @@ pub(crate) fn agent_config(name: &str) -> systemprompt_models::AgentConfig {
             default_output_modes: vec!["text/plain".to_owned()],
             security_schemes: None,
             security: None,
-            skills: Vec::new(),
             supports_authenticated_extended_card: false,
         },
         metadata: AgentMetadataConfig::default(),

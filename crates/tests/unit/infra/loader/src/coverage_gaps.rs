@@ -1,6 +1,6 @@
 //! Filesystem error branches and catalogue edge paths of the loader:
 //! unreadable catalog entries, directory-shaped includes, duplicate
-//! marketplaces across includes, deprecated `card.skills` warnings, skill
+//! marketplaces across includes, skill
 //! instruction includes, profile save/list failures, nested extension
 //! groups, and `ConfigWriter` lookups where the filename differs from the
 //! agent name.
@@ -135,46 +135,6 @@ ai:
     let err = ConfigLoader::load_from_content(main, &temp.path().join("config.yaml"))
         .expect_err("duplicate marketplace must be rejected");
     assert!(format!("{err:#}").contains("dup-market"), "got {err:#}");
-}
-
-#[test]
-fn authored_card_skills_load_and_warn() {
-    let temp = TempDir::new().expect("tempdir");
-    let config_path = temp.path().join("config.yaml");
-    let main = r#"
-agents:
-  legacy:
-    name: legacy
-    port: 4000
-    endpoint: http://localhost:4000/legacy
-    enabled: true
-    card:
-      protocolVersion: "0.2.3"
-      displayName: "Legacy Agent"
-      description: "Authors card.skills directly"
-      version: "1.0.0"
-      preferredTransport: JSONRPC
-      capabilities:
-        streaming: true
-      defaultInputModes: [text/plain]
-      defaultOutputModes: [text/plain]
-      skills:
-        - id: legacy-skill
-          name: Legacy Skill
-          description: deprecated authoring path
-      supportsAuthenticatedExtendedCard: false
-    metadata: {}
-mcp_servers: {}
-settings:
-  agent_port_range: [4000, 4999]
-  mcp_port_range: [5000, 5999]
-ai:
-  default_provider: anthropic
-"#;
-
-    let config =
-        ConfigLoader::load_from_content(main, &config_path).expect("legacy card.skills loads");
-    assert_eq!(config.agents["legacy"].card.skills.len(), 1);
 }
 
 #[test]

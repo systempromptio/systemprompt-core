@@ -115,12 +115,6 @@ impl AgentConfigValidator {
             ));
         }
 
-        // NOTE: `agent.card.skills` is deprecated and no longer the source
-        // of truth — the A2A endpoint and the bridge marketplace derive
-        // the card's skills list from `agent.metadata.skills` joined
-        // against the on-disk `services/skills/` catalog. Only
-        // `metadata.skills` is validated here.
-
         for skill_id in &agent.metadata.skills.include {
             let skill_path = Path::new(skills_path).join(skill_id);
             if !skill_path.exists() {

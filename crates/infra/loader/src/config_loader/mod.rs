@@ -27,10 +27,7 @@ use crate::error::{ConfigLoadError, ConfigLoadResult};
 
 use discovery::{discover_marketplaces, discover_plugins, discover_skills};
 use includes::resolve_includes_recursively;
-use merge::{
-    resolve_skill_instruction_includes, resolve_system_prompt_includes,
-    warn_on_authored_card_skills,
-};
+use merge::{resolve_skill_instruction_includes, resolve_system_prompt_includes};
 use types::IncludeResolveCtx;
 
 #[derive(Debug)]
@@ -114,7 +111,6 @@ impl ConfigLoader {
 
         resolve_system_prompt_includes(&self.base_path, &mut merged)?;
         resolve_skill_instruction_includes(&self.base_path, &mut merged)?;
-        warn_on_authored_card_skills(&merged);
 
         discover_skills(&self.base_path, &mut merged)?;
         discover_plugins(&self.base_path, &mut merged)?;

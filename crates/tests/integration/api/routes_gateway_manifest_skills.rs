@@ -1,16 +1,12 @@
 //! Locks the skill-catalog invariant for the bridge marketplace and the
 //! A2A agent card.
 //!
-//! Two cross-cutting guarantees Phase A of the skill-catalog refactor must
-//! keep in place forever:
+//! Two cross-cutting guarantees:
 //!
 //! 1. The bridge manifest's `skills[]` list is sourced exclusively from
-//!    `services/skills/<id>/config.yaml`. Agent YAML `card.skills[]` arrays
-//!    must NOT leak into the manifest, even when they reference skill ids that
-//!    do not exist on disk.
+//!    `services/skills/<id>/config.yaml`.
 //! 2. An agent's `metadata.skills: [id, ...]` is the only authored signal that
-//!    drives the manifest's `AgentEntry.skills` field. Authored `card.skills`
-//!    (now deprecated) must be ignored by the bridge manifest.
+//!    drives the manifest's `AgentEntry.skills` field.
 //!
 //! Both tests exercise the manifest loaders directly against a synthetic
 //! `services/` tree on disk so they are free of the shared `OnceLock`
@@ -18,12 +14,11 @@
 
 use std::fs;
 
-use systemprompt_identifiers::SkillId;
 use systemprompt_marketplace::catalog::{load_agents, load_skills};
 use systemprompt_marketplace::scope_to_marketplace;
 use systemprompt_models::services::{
-    AgentCardConfig, AgentConfig, AgentMetadataConfig, AgentSkillConfig, CapabilitiesConfig,
-    OAuthConfig, ServicesConfig,
+    AgentCardConfig, AgentConfig, AgentMetadataConfig, CapabilitiesConfig, OAuthConfig,
+    ServicesConfig,
 };
 use tempfile::TempDir;
 
@@ -60,27 +55,11 @@ fn empty_card() -> AgentCardConfig {
         default_output_modes: vec!["text/plain".to_owned()],
         security_schemes: None,
         security: None,
-        skills: Vec::new(),
         supports_authenticated_extended_card: false,
     }
 }
 
-// An agent that authors a (deprecated) `card.skills` entry referencing a skill
-// id ("bar") that does NOT exist on disk, while declaring "foo" via
-// `metadata.skills`. The bridge manifest must surface "foo" only.
 fn phantom_agent() -> AgentConfig {
-    let mut card = empty_card();
-    card.skills = vec![AgentSkillConfig {
-        id: SkillId::new("bar"),
-        name: "Bar".to_owned(),
-        description: "Phantom skill that lives only in YAML.".to_owned(),
-        tags: Vec::new(),
-        examples: None,
-        input_modes: None,
-        output_modes: None,
-        security: None,
-    }];
-
     AgentConfig {
         name: "phantom_agent".to_owned(),
         port: 9111,
@@ -90,7 +69,7 @@ fn phantom_agent() -> AgentConfig {
         dev_only: false,
         is_primary: false,
         default: false,
-        card,
+        card: empty_card(),
         metadata: AgentMetadataConfig {
             skills: systemprompt_models::services::PluginComponentRef {
                 include: vec!["foo".to_owned()],
@@ -116,8 +95,7 @@ fn manifest_skills_come_from_services_skills_dir_only() {
     );
     assert!(
         !ids.iter().any(|id| id == "bar"),
-        "manifest must NOT include 'bar': it is only authored in agent card.skills, not present \
-         in services/skills/. Got {ids:?}"
+        "manifest must NOT include 'bar': it is not present in services/skills/. Got {ids:?}"
     );
 }
 
@@ -127,14 +105,6 @@ fn manifest_agent_entry_skills_mirror_metadata_skills() {
     write_skill_foo(tmp.path());
 
     let agent = phantom_agent();
-
-    // Fixture sanity: the agent authors a phantom `card.skills` entry that
-    // the bridge manifest must ignore.
-    assert!(
-        !agent.card.skills.is_empty(),
-        "fixture should still tolerate (deprecated) card.skills in YAML"
-    );
-    assert_eq!(agent.card.skills[0].id.as_str(), "bar");
     assert_eq!(agent.metadata.skills.include, vec!["foo".to_owned()]);
 
     let mut services = ServicesConfig::default();
@@ -146,11 +116,7 @@ fn manifest_agent_entry_skills_mirror_metadata_skills() {
     assert_eq!(
         entry.skills.include,
         vec!["foo".to_owned()],
-        "AgentEntry.skills must mirror metadata.skills, not card.skills"
-    );
-    assert!(
-        !entry.skills.include.iter().any(|s| s == "bar"),
-        "AgentEntry.skills must not leak card.skills ids"
+        "AgentEntry.skills must mirror metadata.skills"
     );
 }
 

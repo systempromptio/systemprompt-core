@@ -12,10 +12,10 @@ use systemprompt_models::services::{IncludableString, ServicesConfig, SkillsConf
 
 use crate::error::{ConfigLoadError, ConfigLoadResult};
 
-/// Duplicate keys across includes (or include-vs-root) are a hard error: there
-/// is no "last writer wins", so two includes silently shadowing each other is
-/// impossible. AI providers are accumulated; `web` and `scheduler` carry
-/// whichever side defined them (root has priority).
+// Why: Duplicate keys across includes (or include-vs-root) are a hard error:
+// there is no "last writer wins", so two includes silently shadowing each other
+// is impossible. AI providers are accumulated; `web` and `scheduler` carry
+// whichever side defined them (root has priority).
 pub(super) fn merge_into(
     target: &mut ServicesConfig,
     include: ServicesConfig,
@@ -96,21 +96,6 @@ fn merge_skills(target: &mut SkillsConfig, partial: SkillsConfig) -> ConfigLoadR
         target.skills.insert(id, skill);
     }
     Ok(())
-}
-
-pub(super) fn warn_on_authored_card_skills(config: &ServicesConfig) {
-    for (name, agent) in &config.agents {
-        if !agent.card.skills.is_empty() {
-            tracing::warn!(
-                agent = %name,
-                count = agent.card.skills.len(),
-                "deprecated: agent YAML authors card.skills; this field is ignored. \
-                 A2A card.skills is now derived from metadata.skills against the \
-                 services/skills/ catalog. Remove the card.skills: array from this \
-                 agent's config.yaml."
-            );
-        }
-    }
 }
 
 pub(super) fn resolve_system_prompt_includes(

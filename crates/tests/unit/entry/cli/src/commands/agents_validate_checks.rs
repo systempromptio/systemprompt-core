@@ -29,7 +29,6 @@ fn card(display_name: &str, description: &str) -> AgentCardConfig {
         default_output_modes: vec!["text/plain".to_owned()],
         security_schemes: None,
         security: None,
-        skills: vec![],
         supports_authenticated_extended_card: false,
     }
 }
