@@ -49,12 +49,7 @@ async fn create_session_is_upsert_on_conflict() {
     let second = base_params(&sid, Some(&fp), Utc::now() + Duration::hours(2));
     repo.create_session(&second).await.expect("upsert");
 
-    assert!(
-        repo.find_by_id(&sid)
-            .await
-            .expect("find")
-            .is_some()
-    );
+    assert!(repo.find_by_id(&sid).await.expect("find").is_some());
 
     delete_session(&pool, &sid).await;
 }
