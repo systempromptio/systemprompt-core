@@ -19,7 +19,9 @@ async fn request(port: u16, line: &str) -> String {
     body
 }
 
-async fn drive(line: &'static str) -> (systemprompt_bridge::auth::loopback::Result<String>, String) {
+async fn drive(
+    line: &'static str,
+) -> (systemprompt_bridge::auth::loopback::Result<String>, String) {
     let server = LoopbackServer::bind_on(0).await.expect("ephemeral bind");
     let port = server
         .callback_url()

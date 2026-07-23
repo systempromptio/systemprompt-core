@@ -120,7 +120,9 @@ fn client() -> systemprompt_bridge::gateway::GatewayClient {
 #[test]
 fn the_emitter_resolves_the_artifacts_dir_from_the_cowork_session() {
     let session = Session::new();
-    let resolved = session.run(resolve_artifacts_dir).expect("session detected");
+    let resolved = session
+        .run(resolve_artifacts_dir)
+        .expect("session detected");
     assert_eq!(resolved, session.artifacts_dir());
 }
 
@@ -162,7 +164,9 @@ fn apply_writes_the_store_and_clear_removes_the_whole_directory() {
             "the library store is materialised"
         );
 
-        CoworkArtifactsSync.clear().expect("clear removes the store");
+        CoworkArtifactsSync
+            .clear()
+            .expect("clear removes the store");
         assert!(
             !session.artifacts_dir().exists(),
             "an explicit teardown removes the whole artifacts dir"

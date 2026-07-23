@@ -79,7 +79,9 @@ fn each_sink_reports_materialisation_only_once_it_has_written() {
     assert!(!FileSink.is_materialized(&dir));
     assert!(!SeedStaging.is_materialized(&dir));
 
-    FileSink.write(&dir, &[artifact("pipeline")]).expect("write");
+    FileSink
+        .write(&dir, &[artifact("pipeline")])
+        .expect("write");
     assert!(FileSink.is_materialized(&dir));
     assert!(
         !SeedStaging.is_materialized(&dir),

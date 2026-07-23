@@ -486,7 +486,11 @@ async fn a_request_that_cannot_mint_a_token_is_reported_as_a_bad_gateway() {
         .expect("request to proxy");
     assert_eq!(resp.status().as_u16(), 502);
     assert!(
-        gateway.received_requests().await.expect("requests").is_empty(),
+        gateway
+            .received_requests()
+            .await
+            .expect("requests")
+            .is_empty(),
         "no JWT means the request never leaves the machine"
     );
     assert_eq!(stats.last_status.load(Ordering::Relaxed), 502);
@@ -536,15 +540,13 @@ fn a_registered_mcp_server_is_routed_to_with_its_own_headers() {
             Mock::given(method("POST"))
                 .and(path("/mcp"))
                 .respond_with(
-                    ResponseTemplate::new(200).set_body_raw(br#"{"tools":[]}"#.to_vec(), "application/json"),
+                    ResponseTemplate::new(200)
+                        .set_body_raw(br#"{"tools":[]}"#.to_vec(), "application/json"),
                 )
                 .mount(&upstream)
                 .await;
 
-            let meta = state
-                .path()
-                .join("systemprompt-bridge")
-                .join("metadata");
+            let meta = state.path().join("systemprompt-bridge").join("metadata");
             std::fs::create_dir_all(&meta).expect("metadata dir");
             std::fs::write(
                 meta.join("mcp-servers.json"),
@@ -570,7 +572,10 @@ fn a_registered_mcp_server_is_routed_to_with_its_own_headers() {
             );
             let seen = upstream.received_requests().await.expect("requests");
             assert_eq!(
-                seen[0].headers.get("x-connector").and_then(|v| v.to_str().ok()),
+                seen[0]
+                    .headers
+                    .get("x-connector")
+                    .and_then(|v| v.to_str().ok()),
                 Some("salesforce"),
                 "the registry's per-server headers are injected"
             );

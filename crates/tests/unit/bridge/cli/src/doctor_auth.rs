@@ -1,7 +1,7 @@
+use systemprompt_bridge::cli::doctor::Status;
 use systemprompt_bridge::cli::doctor::auth::{
     check_config_file, check_credential_source, check_loopback_secret, check_pinned_pubkey,
 };
-use systemprompt_bridge::cli::doctor::Status;
 use systemprompt_bridge::config::Config;
 use tempfile::TempDir;
 
@@ -33,7 +33,10 @@ fn the_config_check_warns_when_no_config_has_been_written() {
 
 #[test]
 fn the_config_check_passes_on_valid_toml_and_fails_on_a_parse_error() {
-    let ok = with_config(Some("gateway_url = \"http://gw.invalid:7000\"\n"), check_config_file);
+    let ok = with_config(
+        Some("gateway_url = \"http://gw.invalid:7000\"\n"),
+        check_config_file,
+    );
     assert_eq!(ok.status, Status::Ok, "{}", ok.detail);
     assert!(ok.detail.contains("parses cleanly"), "{}", ok.detail);
 
@@ -87,7 +90,11 @@ fn the_loopback_secret_check_warns_when_unminted_and_passes_once_present() {
 fn the_pinned_pubkey_check_warns_until_a_key_is_pinned() {
     let unpinned = with_config(None, check_pinned_pubkey);
     assert_eq!(unpinned.status, Status::Warn, "{}", unpinned.detail);
-    assert!(unpinned.detail.contains("allow-tofu"), "{}", unpinned.detail);
+    assert!(
+        unpinned.detail.contains("allow-tofu"),
+        "{}",
+        unpinned.detail
+    );
 
     let pinned = with_config(
         Some("[sync]\npinned_pubkey = \"dGVzdC1wdWJrZXk\"\n"),

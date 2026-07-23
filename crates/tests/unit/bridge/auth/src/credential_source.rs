@@ -19,10 +19,9 @@ fn an_empty_config_has_no_credential_source() {
 
 #[test]
 fn an_inline_pat_env_var_counts_but_an_empty_one_does_not() {
-    let set = temp_env::with_vars(
-        vec![("SP_BRIDGE_PAT", Some("sp-live-x.y"))],
-        || has_credential_source(&config("")),
-    );
+    let set = temp_env::with_vars(vec![("SP_BRIDGE_PAT", Some("sp-live-x.y"))], || {
+        has_credential_source(&config(""))
+    });
     assert!(set, "a non-empty inline PAT is a credential source");
 
     let empty = temp_env::with_vars(vec![("SP_BRIDGE_PAT", Some(""))], || {

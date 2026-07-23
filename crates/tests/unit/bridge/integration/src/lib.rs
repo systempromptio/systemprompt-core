@@ -3,6 +3,8 @@
 #[cfg(test)]
 mod claude_code_cli;
 #[cfg(test)]
+mod codex_host;
+#[cfg(test)]
 mod codex_merge;
 #[cfg(test)]
 mod cowork_artifacts;
@@ -22,5 +24,3 @@ mod profile_state;
 mod proxy_probe;
 #[cfg(test)]
 mod reg_profile;
-#[cfg(test)]
-mod codex_host;

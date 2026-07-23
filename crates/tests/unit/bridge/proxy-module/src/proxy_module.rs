@@ -76,7 +76,11 @@ fn reloading_the_runtime_config_republishes_the_configured_gateway() {
 
     let gateway = temp_env::with_var("XDG_CONFIG_HOME", Some(temp.path().as_os_str()), || {
         proxy::reload_runtime_config();
-        proxy::runtime_config().load().gateway_base.as_str().to_owned()
+        proxy::runtime_config()
+            .load()
+            .gateway_base
+            .as_str()
+            .to_owned()
     });
     assert_eq!(gateway, "http://reloaded.invalid:7700");
 }

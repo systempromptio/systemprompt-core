@@ -3,6 +3,8 @@
 #[cfg(test)]
 mod bridge_working_dir;
 #[cfg(test)]
+mod configured_target;
+#[cfg(test)]
 mod cowork_adapter_settings;
 #[cfg(test)]
 mod emit_io;
@@ -10,5 +12,3 @@ mod emit_io;
 mod prune_orphans;
 #[cfg(test)]
 mod resolve_target_pick;
-#[cfg(test)]
-mod configured_target;

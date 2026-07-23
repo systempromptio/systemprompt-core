@@ -29,7 +29,10 @@ fn a_clean_sync_renders_ok_with_every_count() {
         line.contains("3 skills, 1 agents, 4 hooks, 5 MCP"),
         "{line}"
     );
-    assert!(line.ends_with("manifest 2026-05-01T12:00:00Z-deadbeef"), "{line}");
+    assert!(
+        line.ends_with("manifest 2026-05-01T12:00:00Z-deadbeef"),
+        "{line}"
+    );
 }
 
 #[test]
@@ -37,9 +40,14 @@ fn malformed_plugins_are_named_in_a_warning_suffix() {
     let mut s = summary();
     s.malformed = vec!["ghost".into(), "husk".into()];
     let line = s.one_line();
-    assert!(line.starts_with("sync ok"), "malformed is a warning, not a failure: {line}");
     assert!(
-        line.contains("WARNING: 2 malformed plugin(s) missing claude-plugin/plugin.json: ghost, husk"),
+        line.starts_with("sync ok"),
+        "malformed is a warning, not a failure: {line}"
+    );
+    assert!(
+        line.contains(
+            "WARNING: 2 malformed plugin(s) missing claude-plugin/plugin.json: ghost, husk"
+        ),
         "{line}"
     );
 }

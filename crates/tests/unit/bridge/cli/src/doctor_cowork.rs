@@ -115,8 +115,7 @@ fn cowork_enable_fails_when_a_synced_plugin_is_not_enabled() {
     let env = Env::new();
     let org = env.session_org("account-1", "org-1");
     env.plugin("acme-plugin", None);
-    std::fs::write(org.join("cowork_settings.json"), r#"{"enabledPlugins":{}}"#)
-        .expect("settings");
+    std::fs::write(org.join("cowork_settings.json"), r#"{"enabledPlugins":{}}"#).expect("settings");
     let check = env.run(check_cowork_enable);
     assert_eq!(status(&check), Status::Fail);
     assert!(
@@ -138,7 +137,11 @@ fn cowork_enable_passes_when_every_synced_plugin_is_enabled() {
     .expect("settings");
     let check = env.run(check_cowork_enable);
     assert_eq!(status(&check), Status::Ok);
-    assert!(check.detail.contains("1 plugin(s) enabled"), "{}", check.detail);
+    assert!(
+        check.detail.contains("1 plugin(s) enabled"),
+        "{}",
+        check.detail
+    );
 }
 
 #[test]
@@ -191,11 +194,7 @@ fn installation_preference_fails_on_available_and_on_an_unknown_value() {
     unknown.plugin("acme-plugin", Some(r#"{"installationPreference":"maybe"}"#));
     let check = unknown.run(check_plugin_installation_preference);
     assert_eq!(status(&check), Status::Fail);
-    assert!(
-        check.detail.contains("is not one of"),
-        "{}",
-        check.detail
-    );
+    assert!(check.detail.contains("is not one of"), "{}", check.detail);
 }
 
 #[test]

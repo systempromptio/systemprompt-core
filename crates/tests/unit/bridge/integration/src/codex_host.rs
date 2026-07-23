@@ -146,7 +146,10 @@ fn the_managed_config_wins_over_the_user_config() {
     ];
     let snapshot = temp_env::with_vars(vars, || CODEX_CLI_HOST.probe());
     assert_eq!(
-        snapshot.profile_keys.get("model_provider").map(String::as_str),
+        snapshot
+            .profile_keys
+            .get("model_provider")
+            .map(String::as_str),
         Some("managed-choice"),
         "the managed scope takes precedence"
     );
@@ -234,7 +237,9 @@ fn the_codex_host_describes_itself_as_a_toml_cli_tool() {
         CODEX_CLI_HOST.download_url()
     );
     assert!(
-        CODEX_CLI_HOST.description().contains("managed configuration"),
+        CODEX_CLI_HOST
+            .description()
+            .contains("managed configuration"),
         "{}",
         CODEX_CLI_HOST.description()
     );
