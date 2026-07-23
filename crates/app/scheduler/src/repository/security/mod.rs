@@ -34,6 +34,8 @@ impl SecurityRepository {
         &self,
         threshold: i64,
     ) -> SchedulerResult<Vec<IpSessionRecord>> {
+        // Intentionally not v_clean_traffic: abuse detection must still see
+        // scanner and behavioral-bot sessions; only UA-matched bots are skipped.
         let rows = sqlx::query!(
             r#"
             SELECT ip_address, COUNT(*) as session_count

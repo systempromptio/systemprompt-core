@@ -18,6 +18,10 @@ pub struct JobConfig {
     pub enabled: bool,
     #[serde(default)]
     pub schedule: Option<String>,
+    /// Opt-in for destructive job actions (e.g. automated IP bans). When
+    /// `false` — the default — such jobs run in observe-and-log mode.
+    #[serde(default)]
+    pub enforce: bool,
 }
 
 const fn default_true() -> bool {
@@ -36,7 +40,14 @@ impl JobConfig {
             owner: None,
             enabled: true,
             schedule: None,
+            enforce: false,
         }
+    }
+
+    #[must_use]
+    pub const fn with_enforce(mut self) -> Self {
+        self.enforce = true;
+        self
     }
 
     #[must_use]

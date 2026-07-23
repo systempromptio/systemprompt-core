@@ -176,20 +176,9 @@ fn sections_from_value(value: &JsonValue) -> Vec<CardSection> {
     match value {
         JsonValue::Object(map) => map
             .iter()
-            .map(|(key, val)| CardSection::new(key.clone(), value_to_display(val)))
+            .map(|(key, val)| CardSection::value(key.clone(), val.clone()))
             .collect(),
         JsonValue::Null => Vec::new(),
-        other => vec![CardSection::new("Value", value_to_display(other))],
-    }
-}
-
-fn value_to_display(value: &JsonValue) -> String {
-    match value {
-        JsonValue::String(s) => s.clone(),
-        JsonValue::Null => String::new(),
-        JsonValue::Bool(_) | JsonValue::Number(_) => value.to_string(),
-        JsonValue::Array(_) | JsonValue::Object(_) => {
-            serde_json::to_string(value).unwrap_or_else(|_| value.to_string())
-        },
+        other => vec![CardSection::value("Value", other.clone())],
     }
 }

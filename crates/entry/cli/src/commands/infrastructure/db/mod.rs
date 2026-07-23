@@ -54,13 +54,10 @@ pub async fn execute(cmd: DbCommands, ctx: &CommandContext) -> Result<()> {
     let (pool, admin_service, query_executor) = connect_services(ctx).await?;
 
     match cmd {
-        DbCommands::Query {
-            sql,
-            limit,
-            offset,
-            format: _,
-        } => run_query(&query_executor, &sql, limit, offset, config).await,
-        DbCommands::Execute { sql, format: _ } => run_write(&query_executor, &sql, config).await,
+        DbCommands::Query { sql, limit, offset } => {
+            run_query(&query_executor, &sql, limit, offset, config).await
+        },
+        DbCommands::Execute { sql } => run_write(&query_executor, &sql, config).await,
         DbCommands::Tables { filter } => {
             schema::execute_tables(&admin_service, filter, config).await
         },

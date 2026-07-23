@@ -30,19 +30,3 @@ CREATE INDEX IF NOT EXISTS idx_fingerprint_reputation_last_seen
     ON fingerprint_reputation(last_seen_at);
 CREATE INDEX IF NOT EXISTS idx_fingerprint_reputation_abuse
     ON fingerprint_reputation(abuse_incidents) WHERE abuse_incidents > 0;
-
-CREATE OR REPLACE VIEW v_high_risk_fingerprints AS
-SELECT
-    fingerprint_hash,
-    total_session_count,
-    requests_last_hour,
-    peak_requests_per_minute,
-    reputation_score,
-    abuse_incidents,
-    flag_reason,
-    last_ip_address
-FROM fingerprint_reputation
-WHERE is_flagged = TRUE
-   OR reputation_score < 30
-   OR abuse_incidents >= 3
-ORDER BY reputation_score ASC, abuse_incidents DESC;

@@ -78,6 +78,11 @@ impl SchedulerService {
             app_context: Arc::clone(&self.app_context),
             running_jobs: Arc::clone(ctx.running_jobs),
             distributed_lock: self.config.distributed_lock,
+            enforce: self
+                .config
+                .jobs
+                .iter()
+                .any(|job| job.name == job_name && job.enforce),
         })
         .await;
 

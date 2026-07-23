@@ -9,6 +9,18 @@
 - The client-IP resolver honours `Fly-Client-IP` under the same trusted-peer gate as `X-Real-IP` and `CF-Connecting-IP`.
 - A warning is logged at boot when a cloud profile has an empty `server.trusted_proxies`, and at most hourly at runtime when an untrusted private-range peer presents `X-Forwarded-For` — the signature of a proxy missing from the allowlist.
 - `systemprompt_logging::LogThrottle` gates repeated hot-path log emissions to one per interval.
+- `JobConfig.enforce` (default `false`) gates destructive scheduler-job actions. `behavioral_analysis` and `malicious_ip_blacklist` classify and log ban candidates in observe mode and ban IPs only when a profile sets `enforce: true`, so automated banning is an explicit per-deployment opt-in.
+- The scheduler warns at boot for every inventory-registered job that has no `scheduler.jobs` entry — a job available in the build but silently never scheduled is now visible.
+- `analytics traffic bots` reports a three-way partition — `human_sessions`, `ghost_sessions` (no landing page or zero requests), and `bot_sessions` — and the per-type breakdown now sums to the bot total. The `--include-all` flag, which silently moved ghost sessions between the human and bot buckets, is removed.
+- `infra jobs list|show|history` work against cloud/external databases; the mutating jobs subcommands remain local-only.
+- `ai_requests.session_id` carries a foreign key to `user_sessions` (`ON DELETE SET NULL`); the migration nulls historical orphaned rows, and the audit path creates the session row before inserting so failed requests keep their audit trail.
+
+### Changed
+
+- One canonical human-traffic definition. The SQL views `v_clean_traffic` / `v_engaged_traffic` (and the new `v_bot_sessions`, which carries the user-agent bot taxonomy) are the single source of truth for the human/bot predicate, and every analytics repository query selects from them instead of restating flag combinations — `analytics overview`, `analytics traffic`, and `analytics sessions` now agree on what a human session is. All four bot flags (`is_bot`, `is_ai_crawler`, `is_scanner`, `is_behavioral_bot`) are excluded uniformly; the redundant `v_clean_human_traffic` view is dropped.
+- `--json` output is honest machine JSON: card section content and table cells serialize as real nested JSON values instead of JSON-encoded strings (`CardSection.content` is now a `serde_json::Value`). The dead per-command `--format` argument on `infra db query|execute` and `cloud db query|execute` is removed — the global `--json`/`--yaml` flags are the one output switch.
+- `BotRow.request_count` in the bots breakdown is renamed to `session_count` — it always counted sessions.
+- The bot user-agent keyword tables cover `mkgp-data-pipeline` (Common Crawl) and `quic-go`.
 
 ## [0.22.0] - 2026-07-21
 

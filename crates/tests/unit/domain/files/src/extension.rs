@@ -48,7 +48,7 @@ fn test_files_extension_metadata_version() {
 fn test_files_extension_schemas_count() {
     let ext = FilesExtension;
     let schemas = ext.schemas();
-    assert_eq!(schemas.len(), 3);
+    assert_eq!(schemas.len(), 2);
 }
 
 #[test]
@@ -58,7 +58,6 @@ fn test_files_extension_schemas_names() {
     let names: Vec<&str> = schemas.iter().map(|s| s.table.as_str()).collect();
     assert!(names.contains(&"files"));
     assert!(names.contains(&"content_files"));
-    assert!(names.contains(&"ai_image_analytics"));
 }
 
 #[test]
@@ -120,15 +119,4 @@ fn test_files_extension_content_files_schema_sql_contains_table() {
     let schemas = ext.schemas();
     let schema = schemas.iter().find(|s| s.table == "content_files").unwrap();
     assert!(schema.sql.contains("CREATE TABLE") || schema.sql.contains("content_files"));
-}
-
-#[test]
-fn test_files_extension_ai_image_analytics_schema() {
-    let ext = FilesExtension;
-    let schemas = ext.schemas();
-    let schema = schemas
-        .iter()
-        .find(|s| s.table == "ai_image_analytics")
-        .unwrap();
-    assert_eq!(schema.table, "ai_image_analytics");
 }

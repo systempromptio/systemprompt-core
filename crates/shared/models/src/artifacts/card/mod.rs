@@ -39,7 +39,9 @@ pub struct PresentationCardResponse {
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct CardSection {
     pub heading: String,
-    pub content: String,
+    /// Plain text serializes as a JSON string; structured data serializes as
+    /// real nested JSON so machine consumers never double-decode.
+    pub content: JsonValue,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub icon: Option<String>,
 }
@@ -48,8 +50,28 @@ impl CardSection {
     pub fn new(heading: impl Into<String>, content: impl Into<String>) -> Self {
         Self {
             heading: heading.into(),
-            content: content.into(),
+            content: JsonValue::String(content.into()),
             icon: None,
+        }
+    }
+
+    #[must_use]
+    pub fn value(heading: impl Into<String>, content: JsonValue) -> Self {
+        Self {
+            heading: heading.into(),
+            content,
+            icon: None,
+        }
+    }
+
+    /// Terminal/HTML display form: strings render verbatim, everything else
+    /// as compact JSON.
+    #[must_use]
+    pub fn content_display(&self) -> String {
+        match &self.content {
+            JsonValue::String(s) => s.clone(),
+            JsonValue::Null => String::new(),
+            other => other.to_string(),
         }
     }
 
@@ -220,7 +242,7 @@ impl Artifact for PresentationCardArtifact {
                         "type": "object",
                         "properties": {
                             "heading": {"type": "string"},
-                            "content": {"type": "string"},
+                            "content": {"description": "Section content: plain string or structured JSON"},
                             "icon": {"type": "string"}
                         },
                         "required": ["heading", "content"]

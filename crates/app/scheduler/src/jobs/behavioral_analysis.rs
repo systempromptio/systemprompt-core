@@ -1,5 +1,6 @@
-//! Behavioural-analysis job: scans fingerprint reputation rows, flags
-//! suspicious patterns, and bans IPs that crossed the abuse threshold.
+//! Behavioural-analysis job: scans fingerprint reputation rows and flags
+//! suspicious patterns. IPs past the abuse threshold are banned only when the
+//! job's `enforce` config flag is set; otherwise qualifying IPs are logged.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -63,7 +64,13 @@ impl Job for BehavioralAnalysisJob {
             .get_fingerprints_for_analysis()
             .await
             .map_err(SchedulerError::from)?;
-        let stats = process_fingerprints(&fingerprints, &fingerprint_repo, &banned_ip_repo).await;
+        let stats = process_fingerprints(
+            &fingerprints,
+            &fingerprint_repo,
+            &banned_ip_repo,
+            ctx.enforce(),
+        )
+        .await;
         let expired_cleaned = match banned_ip_repo.cleanup_expired().await {
             Ok(count) => count,
             Err(e) => {
@@ -93,6 +100,7 @@ async fn process_fingerprints(
     fingerprints: &[FingerprintReputation],
     fingerprint_repo: &FingerprintRepository,
     banned_ip_repo: &BannedIpRepository,
+    enforce: bool,
 ) -> AnalysisStats {
     let mut stats = AnalysisStats {
         flagged: 0,
@@ -106,7 +114,7 @@ async fn process_fingerprints(
             stats.flagged += 1;
         }
 
-        if ban_ip_if_needed(fp, banned_ip_repo).await {
+        if ban_ip_if_needed(fp, banned_ip_repo, enforce).await {
             stats.banned += 1;
         }
     }
@@ -195,7 +203,11 @@ fn log_flag_result(
     }
 }
 
-async fn ban_ip_if_needed(fp: &FingerprintReputation, repo: &BannedIpRepository) -> bool {
+async fn ban_ip_if_needed(
+    fp: &FingerprintReputation,
+    repo: &BannedIpRepository,
+    enforce: bool,
+) -> bool {
     if fp.abuse_incidents < ABUSE_THRESHOLD_FOR_BAN {
         return false;
     }
@@ -203,6 +215,16 @@ async fn ban_ip_if_needed(fp: &FingerprintReputation, repo: &BannedIpRepository)
     let Some(ip) = &fp.last_ip_address else {
         return false;
     };
+
+    if !enforce {
+        info!(
+            ip = %ip,
+            fingerprint = %fp.fingerprint_hash,
+            abuse_incidents = fp.abuse_incidents,
+            "enforce disabled: IP qualifies for a behavioral ban but was not banned"
+        );
+        return false;
+    }
 
     let params = BanIpParams::new(
         ip,

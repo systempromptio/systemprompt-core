@@ -38,6 +38,8 @@ impl Job for NoJsCleanupJob {
 
         let pool = db_pool.write_pool_arc().map_err(SchedulerError::from)?;
 
+        // Writers reclassify the very flags v_clean_traffic filters on, so the
+        // human predicate stays inline here and must mirror that view.
         let result = sqlx::query_scalar!(
             r#"
             WITH cleaned AS (
@@ -46,6 +48,7 @@ impl Job for NoJsCleanupJob {
                     behavioral_bot_reason = 'no_javascript',
                     behavioral_bot_score = 20
                 WHERE is_bot = false
+                  AND is_ai_crawler = false
                   AND is_scanner = false
                   AND is_behavioral_bot = false
                   AND request_count > 0

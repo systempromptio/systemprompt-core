@@ -54,7 +54,7 @@ CREATE TABLE IF NOT EXISTS user_sessions (
 COMMENT ON COLUMN user_sessions.behavioral_bot_score IS 'Cumulative behavioral bot score from multi-signal detection (0-100+)';
 
 COMMENT ON COLUMN user_sessions.total_ai_cost_microdollars IS 'AI cost in microdollars (millionths of a dollar). Divide by 1,000,000 to get USD.';
-COMMENT ON COLUMN user_sessions.is_bot IS 'Whether this session was created by a bot/crawler (search engines, AI scrapers, social media bots, etc.)';
+COMMENT ON COLUMN user_sessions.is_bot IS 'Whether this session was created by a UA-matched bot/crawler. Always false on persisted rows in practice: the analytics extractor sets skip_tracking for UA-matched bots, so their sessions are never inserted. Kept so the canonical traffic views state the full predicate.';
 COMMENT ON COLUMN user_sessions.is_ai_crawler IS 'Whether this session was created by a declared AI agent/crawler (NotebookLM, ChatGPT-User, ClaudeBot, etc.). Tracked separately from is_bot so AI citations are visible without polluting human metrics.';
 COMMENT ON COLUMN user_sessions.is_scanner IS 'Whether this session exhibits scanner/attacker behavior (accessing .php, .env, admin paths, high velocity)';
 COMMENT ON COLUMN user_sessions.is_behavioral_bot IS 'Whether this session exhibits bot-like behavior based on request patterns (high request count, page coverage, etc.)';
@@ -87,7 +87,7 @@ CREATE INDEX IF NOT EXISTS idx_user_sessions_human_sessions ON user_sessions(is_
 CREATE INDEX IF NOT EXISTS idx_user_sessions_is_scanner ON user_sessions(is_scanner);
 CREATE INDEX IF NOT EXISTS idx_user_sessions_is_behavioral_bot ON user_sessions(is_behavioral_bot);
 CREATE INDEX IF NOT EXISTS idx_user_sessions_behavioral_score ON user_sessions(behavioral_bot_score) WHERE behavioral_bot_score >= 50;
-CREATE INDEX IF NOT EXISTS idx_user_sessions_clean_traffic ON user_sessions(started_at) WHERE is_bot = false AND is_scanner = false AND is_behavioral_bot = false;
+CREATE INDEX IF NOT EXISTS idx_user_sessions_clean_traffic ON user_sessions(started_at) WHERE is_bot = false AND is_ai_crawler = false AND is_scanner = false AND is_behavioral_bot = false;
 CREATE INDEX IF NOT EXISTS idx_sessions_referrer ON user_sessions(referrer_source, started_at) WHERE is_bot = false;
 CREATE INDEX IF NOT EXISTS idx_sessions_utm ON user_sessions(utm_source, utm_campaign, utm_medium, started_at) WHERE is_bot = false;
 CREATE INDEX IF NOT EXISTS idx_sessions_landing ON user_sessions(landing_page, is_bot);
@@ -107,80 +107,13 @@ CREATE INDEX IF NOT EXISTS idx_user_sessions_visitor_traffic
 -- Views are dropped before recreation: CREATE OR REPLACE VIEW cannot rename or
 -- reorder output columns, so an analytics column rename on an existing install
 -- would otherwise fail. Views are stateless — dropping loses nothing.
-DROP VIEW IF EXISTS v_session_analytics_by_client CASCADE;
-DROP VIEW IF EXISTS v_client_rate_limits CASCADE;
-DROP VIEW IF EXISTS v_client_conversion_rates CASCADE;
-DROP VIEW IF EXISTS v_scanner_activity CASCADE;
 DROP VIEW IF EXISTS v_clean_traffic CASCADE;
-DROP VIEW IF EXISTS v_clean_human_traffic CASCADE;
-DROP VIEW IF EXISTS v_ai_crawler_activity CASCADE;
 DROP VIEW IF EXISTS v_engaged_traffic CASCADE;
-DROP VIEW IF EXISTS v_security_threats CASCADE;
-DROP VIEW IF EXISTS v_top_referrer_sources CASCADE;
-DROP VIEW IF EXISTS v_utm_campaign_performance CASCADE;
-DROP VIEW IF EXISTS v_behavioral_bot_analysis CASCADE;
-CREATE OR REPLACE VIEW v_session_analytics_by_client AS
-SELECT
-    client_id,
-    client_type,
-    COUNT(*) as session_count,
-    COUNT(DISTINCT user_id) as unique_users,
-    SUM(request_count) as total_requests,
-    AVG(duration_seconds) as avg_session_duration_seconds,
-    AVG(avg_response_time_ms) as avg_response_time_ms,
-    SUM(total_tokens_used) as total_tokens,
-    SUM(total_ai_cost_microdollars) as total_cost_microdollars,
-    MIN(started_at) as first_seen,
-    MAX(last_activity_at) as last_seen
-FROM user_sessions
-WHERE client_type != 'system'
-  AND is_bot = false
-  AND is_behavioral_bot = false
-GROUP BY client_id, client_type
-ORDER BY session_count DESC;
-CREATE OR REPLACE VIEW v_client_rate_limits AS
-SELECT
-    client_id,
-    client_type,
-    COUNT(*) as sessions_last_hour,
-    MAX(started_at) as last_session_created
-FROM user_sessions
-WHERE started_at >= NOW() - INTERVAL '1 hour'
-  AND is_bot = false
-  AND is_behavioral_bot = false
-GROUP BY client_id, client_type;
-CREATE OR REPLACE VIEW v_client_conversion_rates AS
-SELECT
-    client_id,
-    client_type,
-    COUNT(*) as total_sessions,
-    SUM(CASE WHEN converted_at IS NOT NULL THEN 1 ELSE 0 END) as converted_sessions,
-    CAST(SUM(CASE WHEN converted_at IS NOT NULL THEN 1 ELSE 0 END) AS DOUBLE PRECISION) / COUNT(*) as conversion_rate
-FROM user_sessions
-WHERE user_type = 'anon'
-  AND is_bot = false
-  AND is_behavioral_bot = false
-GROUP BY client_id, client_type;
+DROP VIEW IF EXISTS v_bot_sessions CASCADE;
 
-CREATE OR REPLACE VIEW v_scanner_activity AS
-SELECT
-    DATE(started_at) as date,
-    COUNT(*) as scanner_sessions,
-    COUNT(DISTINCT ip_address) as unique_ips,
-    SUM(request_count) as total_requests,
-    ROUND(AVG(request_count), 2) as avg_requests_per_session,
-    ROUND(AVG(
-        CASE
-            WHEN ended_at IS NOT NULL THEN duration_seconds
-            ELSE EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - started_at))::INTEGER
-        END
-    ), 2) as avg_duration_seconds
-FROM user_sessions
-WHERE is_scanner = true
-  AND started_at >= CURRENT_TIMESTAMP - INTERVAL '30 days'
-GROUP BY DATE(started_at)
-ORDER BY date DESC;
-
+-- Canonical human-traffic predicate. Every consumer (Rust repositories,
+-- downstream extensions) must derive from v_clean_traffic / v_engaged_traffic
+-- rather than restating flag combinations.
 CREATE OR REPLACE VIEW v_clean_traffic AS
 SELECT * FROM user_sessions
 WHERE is_bot = false
@@ -188,36 +121,7 @@ WHERE is_bot = false
   AND is_scanner = false
   AND is_behavioral_bot = false;
 
-CREATE OR REPLACE VIEW v_clean_human_traffic AS
-SELECT * FROM user_sessions
-WHERE is_bot = false
-  AND is_ai_crawler = false
-  AND is_scanner = false
-  AND (is_behavioral_bot IS NULL OR is_behavioral_bot = false);
-
-CREATE OR REPLACE VIEW v_ai_crawler_activity AS
-SELECT
-    DATE(started_at) as date,
-    user_agent,
-    COUNT(*) as session_count,
-    COUNT(DISTINCT ip_address) as unique_ips,
-    SUM(request_count) as total_requests,
-    array_agg(DISTINCT landing_page) FILTER (WHERE landing_page IS NOT NULL) as landing_pages
-FROM user_sessions
-WHERE is_ai_crawler = true
-  AND started_at >= CURRENT_TIMESTAMP - INTERVAL '30 days'
-GROUP BY DATE(started_at), user_agent
-ORDER BY date DESC, session_count DESC;
-
-COMMENT ON VIEW v_ai_crawler_activity IS 'AI agent / crawler citations per day. Tracked separately from human traffic and from generic bots so SEO can measure agent surface presence.';
-
-COMMENT ON VIEW v_clean_human_traffic IS 'Consolidated view of verified human traffic excluding all bot types';
-
-CREATE INDEX IF NOT EXISTS idx_user_sessions_clean_human_traffic
-ON user_sessions(started_at)
-WHERE is_bot = false
-  AND is_scanner = false
-  AND (is_behavioral_bot IS NULL OR is_behavioral_bot = false);
+COMMENT ON VIEW v_clean_traffic IS 'Canonical human traffic: excludes every bot classification (is_bot, is_ai_crawler, is_scanner, is_behavioral_bot)';
 
 CREATE OR REPLACE VIEW v_engaged_traffic AS
 SELECT * FROM user_sessions
@@ -233,78 +137,42 @@ COMMENT ON VIEW v_engaged_traffic IS 'Human traffic with actual page engagement 
 CREATE INDEX IF NOT EXISTS idx_user_sessions_engaged_traffic
 ON user_sessions(started_at)
 WHERE is_bot = false
+  AND is_ai_crawler = false
   AND is_scanner = false
   AND is_behavioral_bot = false
   AND landing_page IS NOT NULL
   AND request_count > 0;
 
-CREATE OR REPLACE VIEW v_security_threats AS
+CREATE OR REPLACE VIEW v_bot_sessions AS
 SELECT
-    s.session_id,
-    s.ip_address,
-    s.user_agent,
-    s.country,
-    s.started_at,
-    s.request_count,
-    EXTRACT(EPOCH FROM (COALESCE(s.ended_at, CURRENT_TIMESTAMP) - s.started_at))::INTEGER as duration_seconds,
-    ROUND((s.request_count::numeric / NULLIF(EXTRACT(EPOCH FROM (COALESCE(s.ended_at, CURRENT_TIMESTAMP) - s.started_at))::numeric, 0) * 60), 2) as requests_per_minute,
-    s.endpoints_accessed,
+    *,
     CASE
-        WHEN s.endpoints_accessed::text LIKE '%.env%' THEN 'credential_theft'
-        WHEN s.endpoints_accessed::text LIKE '%.php%' THEN 'backdoor_scanning'
-        WHEN s.endpoints_accessed::text LIKE '%admin%' THEN 'admin_bruteforce'
-        WHEN s.user_agent ILIKE '%masscan%' OR s.user_agent ILIKE '%nmap%' THEN 'port_scanning'
-        ELSE 'unknown_threat'
-    END as threat_type
-FROM user_sessions s
-WHERE s.is_scanner = true
-  AND s.started_at >= CURRENT_TIMESTAMP - INTERVAL '7 days'
-ORDER BY s.started_at DESC;
-
-CREATE OR REPLACE VIEW v_top_referrer_sources AS
-SELECT
-    referrer_source,
-    COUNT(*) as session_count,
-    COUNT(DISTINCT user_id) as unique_users,
-    AVG(request_count) as avg_requests_per_session,
-    AVG(duration_seconds) as avg_session_duration_seconds,
-    SUM(total_ai_cost_microdollars) as total_cost_microdollars
+        WHEN user_agent ILIKE '%googlebot%' OR user_agent ILIKE '%google-inspectiontool%' OR user_agent ILIKE '%adsbot-google%' THEN 'Google'
+        WHEN user_agent ILIKE '%bingbot%' OR user_agent ILIKE '%bingpreview%' OR user_agent ILIKE '%msnbot%' THEN 'Bing'
+        WHEN user_agent ILIKE '%chatgpt%' OR user_agent ILIKE '%gptbot%' THEN 'OpenAI'
+        WHEN user_agent ILIKE '%claude%' OR user_agent ILIKE '%anthropic%' THEN 'Anthropic'
+        WHEN user_agent ILIKE '%perplexity%' THEN 'Perplexity'
+        WHEN user_agent ILIKE '%baiduspider%' THEN 'Baidu'
+        WHEN user_agent ILIKE '%yandexbot%' THEN 'Yandex'
+        WHEN user_agent ILIKE '%facebookexternalhit%' OR user_agent ILIKE '%facebot%' OR user_agent ILIKE '%meta-externalagent%' THEN 'Meta'
+        WHEN user_agent ILIKE '%twitterbot%' THEN 'Twitter/X'
+        WHEN user_agent ILIKE '%linkedinbot%' THEN 'LinkedIn'
+        WHEN user_agent ILIKE '%semrushbot%' OR user_agent ILIKE '%ahrefsbot%' OR user_agent ILIKE '%mj12bot%' OR user_agent ILIKE '%dotbot%' THEN 'SEO Crawlers'
+        WHEN user_agent ILIKE '%bytespider%' THEN 'ByteDance'
+        WHEN user_agent ILIKE '%amazonbot%' OR user_agent ILIKE '%applebot%' THEN 'Tech Giants'
+        WHEN user_agent ILIKE '%python%' OR user_agent ILIKE '%scrapy%' OR user_agent ILIKE '%httpx%' THEN 'Python Scrapers'
+        WHEN user_agent ILIKE '%curl%' OR user_agent ILIKE '%wget%' OR user_agent ILIKE '%node-fetch%' OR user_agent ILIKE '%axios%' THEN 'CLI/HTTP Tools'
+        WHEN user_agent ILIKE '%headless%' OR user_agent ILIKE '%phantom%' OR user_agent ILIKE '%selenium%' OR user_agent ILIKE '%puppeteer%' THEN 'Headless Browsers'
+        WHEN user_agent ILIKE '%uptimerobot%' OR user_agent ILIKE '%pingdom%' OR user_agent ILIKE '%statuscake%' OR user_agent ILIKE '%lighthouse%' THEN 'Monitoring'
+        WHEN is_ai_crawler = true THEN 'AI Crawler'
+        WHEN is_behavioral_bot = true THEN 'Behavioral Bot'
+        WHEN is_scanner = true THEN 'Scanner'
+        ELSE 'Other'
+    END as bot_type
 FROM user_sessions
-WHERE referrer_source IS NOT NULL
-  AND is_bot = false
-  AND is_behavioral_bot = false
-GROUP BY referrer_source
-ORDER BY session_count DESC;
+WHERE is_bot = true
+   OR is_ai_crawler = true
+   OR is_scanner = true
+   OR is_behavioral_bot = true;
 
-CREATE OR REPLACE VIEW v_utm_campaign_performance AS
-SELECT
-    utm_source,
-    utm_medium,
-    utm_campaign,
-    COUNT(*) as session_count,
-    COUNT(DISTINCT user_id) as unique_users,
-    SUM(CASE WHEN user_type = 'registered' THEN 1 ELSE 0 END) as registered_users,
-    SUM(CASE WHEN converted_at IS NOT NULL THEN 1 ELSE 0 END) as conversions,
-    CAST(SUM(CASE WHEN converted_at IS NOT NULL THEN 1 ELSE 0 END) AS NUMERIC) / NULLIF(COUNT(*), 0) * 100 as conversion_rate_percent,
-    AVG(duration_seconds) as avg_session_duration_seconds,
-    SUM(total_ai_cost_microdollars) as total_cost_microdollars,
-    AVG(total_ai_cost_microdollars) as avg_cost_per_session_cents
-FROM user_sessions
-WHERE utm_source IS NOT NULL
-  AND is_bot = false
-  AND is_behavioral_bot = false
-GROUP BY utm_source, utm_medium, utm_campaign
-ORDER BY session_count DESC;
-
-CREATE OR REPLACE VIEW v_behavioral_bot_analysis AS
-SELECT
-    DATE(started_at) as date,
-    COUNT(*) as total_sessions,
-    COUNT(CASE WHEN is_behavioral_bot = true THEN 1 END) as behavioral_bot_sessions,
-    COUNT(CASE WHEN behavioral_bot_score >= 50 THEN 1 END) as suspicious_sessions,
-    AVG(CASE WHEN behavioral_bot_score > 0 THEN behavioral_bot_score END)::INTEGER as avg_bot_score,
-    MAX(behavioral_bot_score) as max_bot_score
-FROM user_sessions
-WHERE started_at >= CURRENT_DATE - INTERVAL '30 days'
-GROUP BY DATE(started_at)
-ORDER BY date DESC;
+COMMENT ON VIEW v_bot_sessions IS 'Complement of v_clean_traffic: every session with any bot classification, labelled with the canonical user-agent bot taxonomy (bot_type)';

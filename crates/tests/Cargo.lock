@@ -8033,11 +8033,13 @@ dependencies = [
 name = "systemprompt-extension"
 version = "0.22.0"
 dependencies = [
+ "async-trait",
  "axum",
  "inventory",
  "reqwest",
  "serde",
  "serde_json",
+ "sqlx",
  "systemprompt-provider-contracts",
  "systemprompt-traits",
  "thiserror 2.0.19",

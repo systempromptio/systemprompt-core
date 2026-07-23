@@ -214,12 +214,7 @@ async fn traffic_repository_smoke() -> Result<()> {
     let dev_engaged = repo
         .get_device_breakdown(fx.window_start, fx.window_end, 50, true)
         .await?;
-    let bot_totals = repo
-        .get_bot_totals(fx.window_start, fx.window_end, false)
-        .await?;
-    let bot_engaged = repo
-        .get_bot_totals(fx.window_start, fx.window_end, true)
-        .await?;
+    let bot_totals = repo.get_bot_totals(fx.window_start, fx.window_end).await?;
     let bot_breakdown = repo
         .get_bot_breakdown(fx.window_start, fx.window_end)
         .await?;
@@ -236,12 +231,13 @@ async fn traffic_repository_smoke() -> Result<()> {
     let _ = dev_engaged;
     assert!(bot_totals.human >= 1);
     assert!(bot_totals.bot >= 1);
-    assert!(bot_engaged.human <= bot_totals.human);
     assert!(
         bot_breakdown
             .iter()
             .any(|r| r.bot_type.as_deref() == Some("Google"))
     );
+    let breakdown_sum: i64 = bot_breakdown.iter().map(|r| r.count).sum();
+    assert_eq!(breakdown_sum, bot_totals.bot);
 
     fx.cleanup().await?;
     Ok(())

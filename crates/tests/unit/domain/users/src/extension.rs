@@ -64,7 +64,7 @@ mod extension_schema_tests {
         let ext = UsersExtension;
         let schemas = ext.schemas();
 
-        assert_eq!(schemas.len(), 9);
+        assert_eq!(schemas.len(), 6);
     }
 
     #[test]
@@ -92,24 +92,6 @@ mod extension_schema_tests {
 
         let banned_schema = schemas.iter().find(|s| s.table == "banned_ips");
         banned_schema.expect("expected Some value");
-    }
-
-    #[test]
-    fn schemas_include_analytics_views() {
-        let ext = UsersExtension;
-        let schemas = ext.schemas();
-
-        let session_analytics = schemas
-            .iter()
-            .find(|s| s.table == "session_analytics_views");
-        let referrer_analytics = schemas
-            .iter()
-            .find(|s| s.table == "referrer_analytics_views");
-        let bot_analytics = schemas.iter().find(|s| s.table == "bot_analytics_views");
-
-        session_analytics.expect("expected Some value");
-        referrer_analytics.expect("expected Some value");
-        bot_analytics.expect("expected Some value");
     }
 
     #[test]
@@ -161,27 +143,6 @@ mod extension_schema_tests {
                 !schema.sql.is_empty(),
                 "Schema {} has empty SQL",
                 schema.table
-            );
-        }
-    }
-
-    #[test]
-    fn analytics_views_have_no_required_columns() {
-        let ext = UsersExtension;
-        let schemas = ext.schemas();
-
-        let analytics_tables = [
-            "session_analytics_views",
-            "referrer_analytics_views",
-            "bot_analytics_views",
-        ];
-
-        for table_name in &analytics_tables {
-            let schema = schemas.iter().find(|s| &s.table == table_name).unwrap();
-            assert!(
-                schema.required_columns.is_empty(),
-                "{} should have no required columns",
-                table_name
             );
         }
     }

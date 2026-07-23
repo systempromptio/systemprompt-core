@@ -35,7 +35,6 @@ fn schemas_contain_all_tables() {
     );
     assert!(table_names.iter().any(|n| n == "task_execution_steps"));
     assert!(table_names.iter().any(|n| n == "services"));
-    assert!(table_names.iter().any(|n| n == "user_session_analytics"));
 }
 
 #[test]

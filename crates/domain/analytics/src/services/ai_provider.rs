@@ -31,13 +31,6 @@ impl AnalyticsAiSessionProvider {
 
 #[async_trait]
 impl AiSessionProvider for AnalyticsAiSessionProvider {
-    async fn session_exists(&self, session_id: &SessionId) -> AiProviderResult<bool> {
-        self.session_repo
-            .exists(session_id)
-            .await
-            .map_err(|e| AiProviderError::Internal(e.to_string()))
-    }
-
     async fn create_session(&self, params: CreateAiSessionParams<'_>) -> AiProviderResult<()> {
         let full_params = CreateSessionParams {
             session_id: params.session_id,

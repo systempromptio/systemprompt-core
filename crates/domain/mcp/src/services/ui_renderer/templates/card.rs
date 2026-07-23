@@ -105,7 +105,7 @@ fn render_sections(sections: &[CardSection]) -> String {
                     html_escape(i)
                 )),
                 heading = html_escape(&section.heading),
-                content = render_multiline(&section.content),
+                content = render_multiline(&section.content_display()),
             )
         })
         .collect::<Vec<_>>()

@@ -11,7 +11,7 @@ use systemprompt_models::artifacts::{
     ChartArtifact, CliArtifact, ListArtifact, PresentationCardArtifact, TableArtifact,
 };
 
-use super::{CommandOutput, value_to_display};
+use super::CommandOutput;
 use crate::cli_settings::{CliConfig, OutputFormat};
 
 pub fn render_result(result: &CommandOutput, config: &CliConfig) {
@@ -90,10 +90,7 @@ fn render_table(artifact: &TableArtifact) {
             artifact
                 .columns
                 .iter()
-                .map(|col| {
-                    item.get(&col.name)
-                        .map_or_else(String::new, value_to_display)
-                })
+                .map(|col| item.get(&col.name).map_or_else(String::new, cell_display))
                 .collect()
         })
         .collect();
@@ -120,7 +117,7 @@ fn render_card(artifact: &PresentationCardArtifact) {
     }
     for section in &artifact.sections {
         CliService::subsection(&section.heading);
-        CliService::output(&section.content);
+        CliService::output(&section.content_display());
     }
 }
 
@@ -149,4 +146,12 @@ fn render_chart(artifact: &ChartArtifact) {
         .collect();
 
     CliService::table(&headers, &rows);
+}
+
+fn cell_display(value: &serde_json::Value) -> String {
+    match value {
+        serde_json::Value::String(s) => s.clone(),
+        serde_json::Value::Null => String::new(),
+        other => other.to_string(),
+    }
 }

@@ -37,8 +37,6 @@ pub enum CloudDbCommands {
         limit: Option<u32>,
         #[arg(long)]
         offset: Option<u32>,
-        #[arg(long)]
-        format: Option<String>,
     },
 
     #[command(about = "Execute write operation on cloud database")]
@@ -46,8 +44,6 @@ pub enum CloudDbCommands {
         #[arg(long, help = "Profile name")]
         profile: String,
         sql: String,
-        #[arg(long)]
-        format: Option<String>,
     },
 
     #[command(about = "Validate cloud database schema")]
@@ -171,18 +167,9 @@ impl CloudDbCommands {
                 allow_checksum_drift: false,
             }),
             Self::Query {
-                sql,
-                limit,
-                offset,
-                format,
-                ..
-            } => Some(db::DbCommands::Query {
-                sql,
-                limit,
-                offset,
-                format,
-            }),
-            Self::Execute { sql, format, .. } => Some(db::DbCommands::Execute { sql, format }),
+                sql, limit, offset, ..
+            } => Some(db::DbCommands::Query { sql, limit, offset }),
+            Self::Execute { sql, .. } => Some(db::DbCommands::Execute { sql }),
             Self::Validate { .. } => Some(db::DbCommands::Validate),
             Self::Status { .. } => Some(db::DbCommands::Status),
             Self::Info { .. } => Some(db::DbCommands::Info),

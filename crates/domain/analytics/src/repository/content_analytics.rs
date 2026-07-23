@@ -40,11 +40,9 @@ impl ContentAnalyticsRepository {
                     COUNT(DISTINCT ee.session_id)::bigint as unique_visitors,
                     (AVG(LEAST(ee.time_on_page_ms, 1800000)) / 1000.0)::float8 as avg_time_on_page_seconds
                 FROM engagement_events ee
-                INNER JOIN user_sessions us ON ee.session_id = us.session_id
+                INNER JOIN v_clean_traffic us ON ee.session_id = us.session_id
                 WHERE ee.created_at >= $1 AND ee.created_at < $2
-                    AND ee.content_id IS NOT NULL
-                    AND us.is_bot = false AND us.is_behavioral_bot = false
-                GROUP BY ee.content_id
+                    AND ee.content_id IS NOT NULL                GROUP BY ee.content_id
             )
             SELECT
                 cs.content_id as "content_id!: ContentId",
@@ -84,10 +82,8 @@ impl ContentAnalyticsRepository {
                 COALESCE(AVG(ee.max_scroll_depth), 0)::float8 as "avg_scroll_depth",
                 COALESCE(SUM(ee.click_count), 0)::bigint as "total_clicks!"
             FROM engagement_events ee
-            INNER JOIN user_sessions us ON ee.session_id = us.session_id
-            WHERE ee.created_at >= $1 AND ee.created_at < $2
-                AND us.is_bot = false AND us.is_behavioral_bot = false
-            "#,
+            INNER JOIN v_clean_traffic us ON ee.session_id = us.session_id
+            WHERE ee.created_at >= $1 AND ee.created_at < $2            "#,
             start,
             end
         )
@@ -117,10 +113,8 @@ impl ContentAnalyticsRepository {
                     COUNT(*)::bigint as views,
                     COUNT(DISTINCT ee.session_id)::bigint as unique_visitors
                 FROM engagement_events ee
-                INNER JOIN user_sessions us ON ee.session_id = us.session_id
-                WHERE ee.created_at >= $1 AND ee.created_at < $2
-                    AND us.is_bot = false AND us.is_behavioral_bot = false
-                GROUP BY date_trunc('day', ee.created_at)
+                INNER JOIN v_clean_traffic us ON ee.session_id = us.session_id
+                WHERE ee.created_at >= $1 AND ee.created_at < $2                GROUP BY date_trunc('day', ee.created_at)
             )
             SELECT
                 ds.day as "timestamp!",

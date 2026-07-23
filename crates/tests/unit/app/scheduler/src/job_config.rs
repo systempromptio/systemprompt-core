@@ -55,6 +55,34 @@ mod job_config_tests {
     }
 
     #[test]
+    fn new_defaults_enforce_to_false() {
+        let cfg = JobConfig::new("job");
+        assert!(!cfg.enforce);
+    }
+
+    #[test]
+    fn with_enforce_opts_in() {
+        let cfg = JobConfig::new("job").with_enforce();
+        assert!(cfg.enforce);
+    }
+
+    #[test]
+    fn deserialized_config_defaults_enforce_to_false() {
+        let cfg: JobConfig =
+            serde_json::from_str(r#"{"name": "behavioral_analysis", "schedule": "0 0 * * * *"}"#)
+                .expect("valid job config");
+        assert!(!cfg.enforce);
+    }
+
+    #[test]
+    fn deserialized_config_honours_explicit_enforce() {
+        let cfg: JobConfig =
+            serde_json::from_str(r#"{"name": "malicious_ip_blacklist", "enforce": true}"#)
+                .expect("valid job config");
+        assert!(cfg.enforce);
+    }
+
+    #[test]
     fn builder_chain_works() {
         let owner = UserId::new("user-1");
         let cfg = JobConfig::new("complex_job")

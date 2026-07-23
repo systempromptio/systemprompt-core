@@ -124,10 +124,6 @@ fn service_schemas() -> Vec<SchemaDefinition> {
     vec![
         SchemaDefinition::new("services", include_str!("../schema/services.sql"))
             .with_required_columns(vec!["name".into(), "module_name".into(), "status".into()]),
-        SchemaDefinition::new(
-            "user_session_analytics",
-            include_str!("../schema/user_session_analytics.sql"),
-        ),
     ]
 }
 

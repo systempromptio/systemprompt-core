@@ -14,15 +14,9 @@ pub enum DbCommands {
         limit: Option<u32>,
         #[arg(long)]
         offset: Option<u32>,
-        #[arg(long)]
-        format: Option<String>,
     },
     #[command(about = "Execute write operation (INSERT, UPDATE, DELETE)")]
-    Execute {
-        sql: String,
-        #[arg(long)]
-        format: Option<String>,
-    },
+    Execute { sql: String },
     #[command(about = "List all tables with row counts and sizes")]
     Tables {
         #[arg(long, help = "Filter tables by pattern")]

@@ -53,10 +53,6 @@ impl Extension for ContentExtension {
             ]),
             SchemaDefinition::new("link_clicks", include_str!("../schema/link_clicks.sql"))
                 .with_required_columns(vec!["id".into(), "link_id".into(), "clicked_at".into()]),
-            SchemaDefinition::new(
-                "link_analytics_views",
-                include_str!("../schema/link_analytics_views.sql"),
-            ),
         ]
     }
 

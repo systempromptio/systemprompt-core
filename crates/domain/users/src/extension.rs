@@ -38,18 +38,6 @@ impl Extension for UsersExtension {
                     "reason".into(),
                     "banned_at".into(),
                 ]),
-            SchemaDefinition::new(
-                "session_analytics_views",
-                include_str!("../schema/session_analytics_views.sql"),
-            ),
-            SchemaDefinition::new(
-                "referrer_analytics_views",
-                include_str!("../schema/referrer_analytics_views.sql"),
-            ),
-            SchemaDefinition::new(
-                "bot_analytics_views",
-                include_str!("../schema/bot_analytics_views.sql"),
-            ),
             SchemaDefinition::new("user_api_keys", include_str!("../schema/user_api_keys.sql"))
                 .with_required_columns(vec![
                     "id".into(),

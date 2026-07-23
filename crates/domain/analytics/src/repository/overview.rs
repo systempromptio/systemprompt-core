@@ -115,11 +115,9 @@ impl OverviewAnalyticsRepository {
         let count = sqlx::query_scalar!(
             r#"
             SELECT COUNT(*)::bigint as "count!"
-            FROM user_sessions
+            FROM v_clean_traffic
             WHERE ended_at IS NULL
-              AND last_activity_at >= $1
-              AND is_bot = false AND is_behavioral_bot = false AND is_scanner = false
-            "#,
+              AND last_activity_at >= $1            "#,
             since
         )
         .fetch_one(&*self.pool)
@@ -133,7 +131,7 @@ impl OverviewAnalyticsRepository {
         end: DateTime<Utc>,
     ) -> Result<i64> {
         let count = sqlx::query_scalar!(
-            r#"SELECT COUNT(*)::bigint as "count!" FROM user_sessions WHERE started_at >= $1 AND started_at < $2 AND is_bot = false AND is_behavioral_bot = false AND is_scanner = false"#,
+            r#"SELECT COUNT(*)::bigint as "count!" FROM v_clean_traffic WHERE started_at >= $1 AND started_at < $2"#,
             start,
             end
         )

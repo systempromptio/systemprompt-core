@@ -1,11 +1,12 @@
 //! Inventory-collected gateway request guards.
 //!
 //! A [`GatewayRequestGuard`] is consulted on every gateway request, right after
-//! the quota precheck. Extensions register guards with [`register_gateway_guard!`](macro@crate::register_gateway_guard)
-//! (mirroring [`register_extension!`](crate::register_extension)); the gateway
-//! runs every collected guard and denies the request on the first
-//! [`GatewayDenyReason`]. This lets an extension enforce a policy — for example a
-//! per-user credit balance — without the core needing to know about it.
+//! the quota precheck. Extensions register guards with
+//! [`register_gateway_guard!`](macro@crate::register_gateway_guard) (mirroring
+//! [`register_extension!`](crate::register_extension)); the gateway runs every
+//! collected guard and denies the request on the first [`GatewayDenyReason`].
+//! This lets an extension enforce a policy — for example a per-user credit
+//! balance — without the core needing to know about it.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

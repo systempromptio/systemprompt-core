@@ -138,6 +138,79 @@ mod malicious_ip_blacklist_db {
                 .expect("repeated MaliciousIpBlacklistJob executions must all succeed");
         }
     }
+
+    async fn seed_scanner_sessions(pool: &systemprompt_database::DbPool, ip: &str, count: i32) {
+        let pg = pool.pool_arc().expect("fixture pool");
+        for i in 0..count {
+            sqlx::query(
+                "INSERT INTO user_sessions (session_id, ip_address, is_scanner, started_at, \
+                 last_activity_at) VALUES ($1, $2, true, NOW(), NOW())",
+            )
+            .bind(format!("scanner_enforce_{ip}_{i}"))
+            .bind(ip)
+            .execute(&*pg)
+            .await
+            .expect("seed scanner session");
+        }
+    }
+
+    async fn cleanup_seed(pool: &systemprompt_database::DbPool, ip: &str) {
+        let pg = pool.pool_arc().expect("fixture pool");
+        sqlx::query("DELETE FROM banned_ips WHERE ip_address = $1")
+            .bind(ip)
+            .execute(&*pg)
+            .await
+            .expect("cleanup banned_ips");
+        sqlx::query("DELETE FROM user_sessions WHERE ip_address = $1")
+            .bind(ip)
+            .execute(&*pg)
+            .await
+            .expect("cleanup sessions");
+    }
+
+    async fn is_ip_banned(pool: &systemprompt_database::DbPool, ip: &str) -> bool {
+        let pg = pool.pool_arc().expect("fixture pool");
+        let count: i64 =
+            sqlx::query_scalar("SELECT COUNT(*) FROM banned_ips WHERE ip_address = $1")
+                .bind(ip)
+                .fetch_one(&*pg)
+                .await
+                .expect("count banned_ips");
+        count > 0
+    }
+
+    // One sequential test rather than two: an enforce=true execution bans
+    // every qualifying candidate in the shared fixture DB, so a concurrent
+    // no-enforce test's seeded IP would be banned by the other test's run.
+    #[tokio::test]
+    async fn enforce_flag_gates_banning_of_qualifying_candidates() {
+        let (pool, url) = pool_or_skip!();
+        let ip = format!("198.51.100.{}", std::process::id() % 200);
+        cleanup_seed(&pool, &ip).await;
+        seed_scanner_sessions(&pool, &ip, 3).await;
+
+        let observe_ctx = make_test_ctx(&pool, &url);
+        MaliciousIpBlacklistJob
+            .execute(&observe_ctx)
+            .await
+            .expect("execute must not error");
+        assert!(
+            !is_ip_banned(&pool, &ip).await,
+            "enforce defaults to false, so a qualifying scanner IP must not be banned"
+        );
+
+        let enforce_ctx = make_test_ctx(&pool, &url).with_enforce(true);
+        MaliciousIpBlacklistJob
+            .execute(&enforce_ctx)
+            .await
+            .expect("execute must not error");
+        assert!(
+            is_ip_banned(&pool, &ip).await,
+            "with enforce=true the qualifying scanner IP must be banned"
+        );
+
+        cleanup_seed(&pool, &ip).await;
+    }
 }
 
 mod database_cleanup_db {

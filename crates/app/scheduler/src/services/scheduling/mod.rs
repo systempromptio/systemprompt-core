@@ -119,6 +119,7 @@ impl SchedulerService {
             registered_jobs.len(),
             self.config.jobs.len()
         );
+        self.warn_unscheduled_jobs(&registered_jobs);
 
         let running_jobs: RunningJobs = Arc::new(Mutex::new(HashSet::new()));
 
@@ -171,6 +172,30 @@ impl SchedulerService {
         }
     }
 
+    /// An inventory job absent from `scheduler.jobs` is silently never
+    /// scheduled; surface each one at boot so a dead pipeline (e.g. bot
+    /// classification jobs missing from a deployed profile) is visible.
+    fn warn_unscheduled_jobs(
+        &self,
+        registered_jobs: &HashMap<&'static str, &'static dyn JobTrait>,
+    ) {
+        let configured: HashSet<&str> = self
+            .config
+            .jobs
+            .iter()
+            .map(|job| job.name.as_str())
+            .chain(self.config.bootstrap_jobs.iter().map(String::as_str))
+            .collect();
+        for name in registered_jobs.keys() {
+            if !configured.contains(name) {
+                warn!(
+                    job = %name,
+                    "job is available in this build but has no scheduler.jobs entry; it will never run"
+                );
+            }
+        }
+    }
+
     async fn register_jobs(&self, ctx: &RegistrationCtx<'_>) -> SchedulerResult<()> {
         for job_config in &self.config.jobs {
             self.register_single_job(ctx, job_config).await?;
@@ -217,20 +242,20 @@ impl SchedulerService {
             .upsert_job(&job_config.name, &schedule, job_config.enabled)
             .await?;
 
-        let job =
-            self.create_job_from_trait(&job_config.name, &schedule, ctx.running_jobs, actor)?;
+        let job = self.create_job_from_trait(job_config, &schedule, ctx.running_jobs, actor)?;
         ctx.scheduler.add(job).await?;
         Ok(())
     }
 
     fn create_job_from_trait(
         &self,
-        job_name: &str,
+        job_config: &JobConfig,
         schedule: &str,
         running_jobs: &RunningJobs,
         actor: Actor,
     ) -> SchedulerResult<Job> {
-        let job_name_owned = job_name.to_owned();
+        let enforce = job_config.enforce;
+        let job_name_owned = job_config.name.clone();
         let schedule_owned = schedule.to_owned();
         let db_pool = Arc::clone(&self.db_pool);
         let repository = self.repository.clone();
@@ -256,6 +281,7 @@ impl SchedulerService {
                     app_context,
                     running_jobs,
                     distributed_lock,
+                    enforce,
                 })
                 .instrument(span.span().clone())
                 .await;

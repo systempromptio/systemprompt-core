@@ -20,10 +20,10 @@ impl CoreStatsRepository {
             r#"
             SELECT
                 (SELECT COUNT(*) FROM users WHERE status != 'deleted') as "total_users!",
-                (SELECT COUNT(DISTINCT user_id) FROM user_sessions WHERE last_activity_at > $1 AND is_bot = false AND is_behavioral_bot = false AND is_scanner = false) as "active_users_24h!",
-                (SELECT COUNT(DISTINCT user_id) FROM user_sessions WHERE last_activity_at > $2 AND is_bot = false AND is_behavioral_bot = false AND is_scanner = false) as "active_users_7d!",
-                (SELECT COUNT(*) FROM user_sessions WHERE is_bot = false AND is_behavioral_bot = false AND is_scanner = false) as "total_sessions!",
-                (SELECT COUNT(*) FROM user_sessions WHERE ended_at IS NULL AND is_bot = false AND is_behavioral_bot = false AND is_scanner = false) as "active_sessions!",
+                (SELECT COUNT(DISTINCT user_id) FROM v_clean_traffic WHERE last_activity_at > $1) as "active_users_24h!",
+                (SELECT COUNT(DISTINCT user_id) FROM v_clean_traffic WHERE last_activity_at > $2) as "active_users_7d!",
+                (SELECT COUNT(*) FROM v_clean_traffic) as "total_sessions!",
+                (SELECT COUNT(*) FROM v_clean_traffic WHERE ended_at IS NULL) as "active_sessions!",
                 (SELECT COUNT(*) FROM user_contexts WHERE kind = $3) as "total_contexts!",
                 (SELECT COUNT(*) FROM agent_tasks) as "total_tasks!",
                 (SELECT COUNT(*) FROM ai_requests) as "total_ai_requests!"
@@ -81,8 +81,7 @@ impl CoreStatsRepository {
                 COUNT(DISTINCT fingerprint_hash) FILTER (WHERE last_activity_at > $4 AND last_activity_at <= $1) as "prev_24h!",
                 COUNT(DISTINCT fingerprint_hash) FILTER (WHERE last_activity_at > $5 AND last_activity_at <= $2) as "prev_7d!",
                 COUNT(DISTINCT fingerprint_hash) FILTER (WHERE last_activity_at > $6 AND last_activity_at <= $3) as "prev_30d!"
-            FROM user_sessions
-            WHERE is_bot = false AND is_behavioral_bot = false AND is_scanner = false
+            FROM v_clean_traffic
             "#,
             since_hours_24,
             since_days_7,

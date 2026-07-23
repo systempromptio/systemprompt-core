@@ -92,6 +92,8 @@ pub const BOT_KEYWORDS: &[&str] = &[
     "amazon-quick",
     "gzip(gfe)",
     "rv:1.9",
+    "mkgp-data-pipeline",
+    "quic-go",
 ];
 
 pub const BOT_IP_PREFIXES: &[&str] = &[

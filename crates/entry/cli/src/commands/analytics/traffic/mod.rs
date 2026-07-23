@@ -119,7 +119,7 @@ pub struct DevicesOutput {
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct BotRow {
     pub bot_type: String,
-    pub request_count: i64,
+    pub session_count: i64,
     pub percentage: f64,
 }
 
@@ -127,6 +127,7 @@ pub struct BotRow {
 pub struct BotsOutput {
     pub period: String,
     pub human_sessions: i64,
+    pub ghost_sessions: i64,
     pub bot_sessions: i64,
     pub bot_percentage: f64,
     pub bot_breakdown: Vec<BotRow>,

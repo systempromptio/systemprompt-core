@@ -70,6 +70,7 @@ pub struct JobContext {
     app_context: Arc<dyn std::any::Any + Send + Sync>,
     app_paths: Arc<dyn std::any::Any + Send + Sync>,
     parameters: HashMap<String, String>,
+    enforce: bool,
 }
 
 impl std::fmt::Debug for JobContext {
@@ -80,6 +81,7 @@ impl std::fmt::Debug for JobContext {
             .field("app_context", &"<type-erased>")
             .field("app_paths", &"<type-erased>")
             .field("parameters", &self.parameters)
+            .field("enforce", &self.enforce)
             .finish()
     }
 }
@@ -98,7 +100,23 @@ impl JobContext {
             app_context,
             app_paths,
             parameters: HashMap::new(),
+            enforce: false,
         }
+    }
+
+    /// Enforcement consent from the job's configuration. Jobs whose actions
+    /// are destructive or outward-facing (e.g. banning IPs) must take those
+    /// actions only when this is `true`; otherwise they observe and log.
+    /// Defaults to `false` so a job never enforces without explicit opt-in.
+    #[must_use]
+    pub const fn enforce(&self) -> bool {
+        self.enforce
+    }
+
+    #[must_use]
+    pub const fn with_enforce(mut self, enforce: bool) -> Self {
+        self.enforce = enforce;
+        self
     }
 
     #[must_use]

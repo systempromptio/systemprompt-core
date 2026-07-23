@@ -36,7 +36,18 @@ pub enum InfraCommands {
 }
 
 pub async fn execute(cmd: InfraCommands, ctx: &CommandContext) -> Result<()> {
-    if ctx.is_database_scoped() && !matches!(cmd, InfraCommands::Db(_) | InfraCommands::Logs(_)) {
+    if ctx.is_database_scoped()
+        && !matches!(
+            cmd,
+            InfraCommands::Db(_)
+                | InfraCommands::Logs(_)
+                | InfraCommands::Jobs(
+                    jobs::JobsCommands::List
+                        | jobs::JobsCommands::Show(_)
+                        | jobs::JobsCommands::History(_)
+                )
+        )
+    {
         return Err(crate::shared::database_scoped_command_error());
     }
 

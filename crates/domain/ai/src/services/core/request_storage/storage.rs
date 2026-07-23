@@ -15,7 +15,9 @@ use systemprompt_traits::{AnalyticsEventPublisher, DynAiSessionProvider};
 use super::record_builder::{
     BuildRecordParams, build_record, extract_messages, extract_tool_calls,
 };
-use super::writes::{store_messages, store_request, store_tool_calls, update_session_usage};
+use super::writes::{
+    ensure_session_exists, store_messages, store_request, store_tool_calls, update_session_usage,
+};
 
 #[derive(Debug)]
 pub struct StoreParams<'a> {
@@ -95,6 +97,16 @@ impl RequestStorage {
         let session_id = record.session_id.clone();
         let tokens = record.tokens.tokens_used;
         let cost = record.cost_microdollars;
+
+        // ai_requests.session_id carries a foreign key to user_sessions; the
+        // session row must exist before the audit insert or the row is lost —
+        // error paths never reach update_session_usage, so this cannot be
+        // deferred to it.
+        if let (Some(provider), Some(session_id)) =
+            (self.session_provider.as_ref(), session_id.as_ref())
+        {
+            ensure_session_exists(provider.as_ref(), session_id, &user_id).await;
+        }
 
         let db_id = store_request(&self.ai_request_repo, &record).await?;
 

@@ -27,12 +27,6 @@ pub struct BotsArgs {
 
     #[arg(long, help = "Export to CSV")]
     pub export: Option<PathBuf>,
-
-    #[arg(
-        long,
-        help = "Include all sessions (ghost sessions, suspected bots that evaded detection)"
-    )]
-    pub include_all: bool,
 }
 
 pub(super) async fn execute_with_pool(
@@ -50,11 +44,10 @@ async fn execute_internal(
 ) -> Result<CommandOutput> {
     let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
 
-    let engaged_only = !args.include_all;
-    let totals = repo.get_bot_totals(start, end, engaged_only).await?;
+    let totals = repo.get_bot_totals(start, end).await?;
     let bot_types = repo.get_bot_breakdown(start, end).await?;
 
-    let total = totals.human + totals.bot;
+    let total = totals.human + totals.ghost + totals.bot;
     let bot_percentage = if total > 0 {
         (totals.bot as f64 / total as f64) * 100.0
     } else {
@@ -71,7 +64,7 @@ async fn execute_internal(
             };
             BotRow {
                 bot_type: row.bot_type.unwrap_or_else(|| "Unknown".to_owned()),
-                request_count: row.count,
+                session_count: row.count,
                 percentage,
             }
         })
@@ -80,6 +73,7 @@ async fn execute_internal(
     let output = BotsOutput {
         period: format_date_range(start, end),
         human_sessions: totals.human,
+        ghost_sessions: totals.ghost,
         bot_sessions: totals.bot,
         bot_percentage,
         bot_breakdown,

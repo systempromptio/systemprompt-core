@@ -29,25 +29,3 @@ CREATE INDEX IF NOT EXISTS idx_logs_session_timestamp ON logs(session_id, timest
 CREATE INDEX IF NOT EXISTS idx_logs_context_timestamp ON logs(context_id, timestamp DESC);
 CREATE INDEX IF NOT EXISTS idx_logs_client_timestamp ON logs(client_id, timestamp DESC);
 CREATE INDEX IF NOT EXISTS idx_logs_client_level ON logs(client_id, level);
-CREATE OR REPLACE VIEW v_log_analytics_by_client AS
-SELECT
-    client_id,
-    level,
-    module,
-    COUNT(*) as log_count,
-    MIN(timestamp) as first_seen,
-    MAX(timestamp) as last_seen
-FROM logs
-WHERE client_id IS NOT NULL
-GROUP BY client_id, level, module
-ORDER BY log_count DESC;
-CREATE OR REPLACE VIEW v_client_errors AS
-SELECT
-    client_id,
-    COUNT(*) as error_count,
-    COUNT(DISTINCT session_id) as affected_sessions,
-    MAX(timestamp) as last_error
-FROM logs
-WHERE level = 'ERROR' AND client_id IS NOT NULL
-GROUP BY client_id
-ORDER BY error_count DESC;

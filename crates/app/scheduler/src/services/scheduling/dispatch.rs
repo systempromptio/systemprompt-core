@@ -27,6 +27,7 @@ pub(super) struct JobDispatch {
     pub(super) app_context: Arc<AppContext>,
     pub(super) running_jobs: RunningJobs,
     pub(super) distributed_lock: bool,
+    pub(super) enforce: bool,
 }
 
 pub(super) async fn execute_job(dispatch: JobDispatch) {
@@ -38,6 +39,7 @@ pub(super) async fn execute_job(dispatch: JobDispatch) {
         app_context,
         running_jobs,
         distributed_lock,
+        enforce,
     } = dispatch;
 
     {
@@ -74,7 +76,7 @@ pub(super) async fn execute_job(dispatch: JobDispatch) {
         error!(job_name = %job_name, error = %e, "Failed to increment run count");
     }
 
-    let result = find_and_execute_job(&job_name, actor, db_pool, app_context).await;
+    let result = find_and_execute_job(&job_name, actor, db_pool, app_context, enforce).await;
     handle_job_result(&job_name, result, &repository).await;
 
     if let Some(claim) = claim {
@@ -160,6 +162,7 @@ async fn find_and_execute_job(
     actor: Actor,
     db_pool: DbPool,
     app_context: Arc<AppContext>,
+    enforce: bool,
 ) -> SchedulerResult<JobResult> {
     use futures::FutureExt;
     use std::panic::AssertUnwindSafe;
@@ -169,7 +172,7 @@ async fn find_and_execute_job(
         SchedulerError::job_not_found(job_name)
     })?;
 
-    let ctx = make_job_context(actor, db_pool, app_context);
+    let ctx = make_job_context(actor, db_pool, app_context).with_enforce(enforce);
 
     match AssertUnwindSafe(job.execute(&ctx)).catch_unwind().await {
         Ok(result) => {

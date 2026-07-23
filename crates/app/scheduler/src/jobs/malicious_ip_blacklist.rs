@@ -1,6 +1,7 @@
-//! Periodic job that classifies and bans malicious IPs based on
-//! request patterns, scanner activity, datacenter ranges, and high-risk
-//! country fan-out.
+//! Periodic job that classifies malicious IPs based on request patterns,
+//! scanner activity, datacenter ranges, and high-risk country fan-out.
+//! Candidates are banned only when the job's `enforce` config flag is set;
+//! otherwise they are logged for review.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -75,19 +76,20 @@ impl Job for MaliciousIpBlacklistJob {
 
         info!("Starting malicious IP blacklist job");
 
+        let enforce = ctx.enforce();
         let mut banned_count = 0u64;
 
         let high_volume_candidates = find_high_volume_candidates(&security_repo).await?;
-        banned_count += process_candidates(&high_volume_candidates, &banned_ip_repo).await;
+        banned_count += process_candidates(&high_volume_candidates, &banned_ip_repo, enforce).await;
 
         let scanner_candidates = find_scanner_candidates(&security_repo).await?;
-        banned_count += process_candidates(&scanner_candidates, &banned_ip_repo).await;
+        banned_count += process_candidates(&scanner_candidates, &banned_ip_repo, enforce).await;
 
         let datacenter_candidates = find_datacenter_candidates(&security_repo).await?;
-        banned_count += process_candidates(&datacenter_candidates, &banned_ip_repo).await;
+        banned_count += process_candidates(&datacenter_candidates, &banned_ip_repo, enforce).await;
 
         let high_risk_candidates = find_high_risk_country_candidates(&security_repo).await?;
-        banned_count += process_candidates(&high_risk_candidates, &banned_ip_repo).await;
+        banned_count += process_candidates(&high_risk_candidates, &banned_ip_repo, enforce).await;
 
         let expired_cleaned = match banned_ip_repo.cleanup_expired().await {
             Ok(count) => count,
@@ -186,7 +188,11 @@ fn records_to_candidates(
         .collect()
 }
 
-async fn process_candidates(candidates: &[MaliciousIpCandidate], repo: &BannedIpRepository) -> u64 {
+async fn process_candidates(
+    candidates: &[MaliciousIpCandidate],
+    repo: &BannedIpRepository,
+    enforce: bool,
+) -> u64 {
     let mut banned = 0u64;
 
     for candidate in candidates {
@@ -203,6 +209,16 @@ async fn process_candidates(candidates: &[MaliciousIpCandidate], repo: &BannedIp
         };
 
         if is_already_banned {
+            continue;
+        }
+
+        if !enforce {
+            info!(
+                ip = %candidate.ip_address,
+                reason = ?candidate.reason,
+                sessions = candidate.session_count,
+                "enforce disabled: IP qualifies for a ban but was not banned"
+            );
             continue;
         }
 

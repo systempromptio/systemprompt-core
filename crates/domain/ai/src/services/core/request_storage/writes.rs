@@ -97,7 +97,7 @@ pub(super) async fn update_session_usage(
     }
 }
 
-async fn ensure_session_exists(
+pub(super) async fn ensure_session_exists(
     session_provider: &dyn AiSessionProvider,
     session_id: &SessionId,
     user_id: &UserId,

@@ -1,8 +1,8 @@
 //! Extension registration for the files domain.
 //!
-//! Registers the `files`, `content_files`, and `ai_image_analytics` schemas
-//! with the platform extension framework and declares dependencies on the
-//! `users` and `content` extensions.
+//! Registers the `files` and `content_files` schemas with the platform
+//! extension framework and declares dependencies on the `users` and
+//! `content` extensions.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -32,15 +32,15 @@ impl Extension for FilesExtension {
                 ]),
             SchemaDefinition::new("content_files", include_str!("../schema/content_files.sql"))
                 .with_required_columns(vec!["id".into(), "content_id".into(), "file_id".into()]),
-            SchemaDefinition::new(
-                "ai_image_analytics",
-                include_str!("../schema/ai_image_analytics.sql"),
-            ),
         ]
     }
 
     fn dependencies(&self) -> Vec<&'static str> {
         vec!["users", "content"]
+    }
+
+    fn migrations(&self) -> Vec<Migration> {
+        extension_migrations!()
     }
 }
 

@@ -284,6 +284,19 @@ fn card_section_builder() {
 }
 
 #[test]
+fn card_section_structured_content_serializes_as_nested_json() {
+    let nested = serde_json::json!({"total": 3, "items": ["a", "b"]});
+    let s = CardSection::value("stats", nested.clone());
+    let v = serde_json::to_value(&s).unwrap();
+    assert_eq!(v["content"], nested, "content must not be double-encoded");
+    assert_eq!(s.content_display(), nested.to_string());
+
+    let text = CardSection::new("h", "plain");
+    assert_eq!(serde_json::to_value(&text).unwrap()["content"], "plain");
+    assert_eq!(text.content_display(), "plain");
+}
+
+#[test]
 fn card_cta_builder() {
     let cta = CardCta::new("id", "Label", "msg", "primary").with_icon("arrow");
     assert_eq!(cta.id, "id");

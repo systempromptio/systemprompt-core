@@ -93,7 +93,7 @@ mod behavioral_analysis_seeded {
         .await
         .expect("seed fingerprint_reputation row");
 
-        let ctx = make_test_ctx(&pool, &url);
+        let ctx = make_test_ctx(&pool, &url).with_enforce(true);
         let result = BehavioralAnalysisJob
             .execute(&ctx)
             .await
@@ -139,7 +139,7 @@ mod behavioral_analysis_seeded {
         .await
         .expect("seed fingerprint_reputation row");
 
-        let ctx = make_test_ctx(&pool, &url);
+        let ctx = make_test_ctx(&pool, &url).with_enforce(true);
         let result = BehavioralAnalysisJob
             .execute(&ctx)
             .await
@@ -185,7 +185,7 @@ mod behavioral_analysis_seeded {
         .await
         .expect("seed high-velocity fingerprint_reputation row");
 
-        let ctx = make_test_ctx(&pool, &url);
+        let ctx = make_test_ctx(&pool, &url).with_enforce(true);
         let result = BehavioralAnalysisJob
             .execute(&ctx)
             .await
@@ -231,7 +231,7 @@ mod behavioral_analysis_seeded {
         .await
         .expect("seed high-session-count fingerprint_reputation row");
 
-        let ctx = make_test_ctx(&pool, &url);
+        let ctx = make_test_ctx(&pool, &url).with_enforce(true);
         let result = BehavioralAnalysisJob
             .execute(&ctx)
             .await
@@ -280,7 +280,7 @@ mod behavioral_analysis_seeded {
         .await
         .expect("seed fingerprint_reputation row with high abuse_incidents");
 
-        let ctx = make_test_ctx(&pool, &url);
+        let ctx = make_test_ctx(&pool, &url).with_enforce(true);
         let result = BehavioralAnalysisJob
             .execute(&ctx)
             .await
@@ -332,7 +332,7 @@ mod behavioral_analysis_seeded {
         .await
         .expect("seed low-reputation fingerprint_reputation row");
 
-        let ctx = make_test_ctx(&pool, &url);
+        let ctx = make_test_ctx(&pool, &url).with_enforce(true);
         let result = BehavioralAnalysisJob
             .execute(&ctx)
             .await
@@ -376,7 +376,7 @@ mod behavioral_analysis_seeded {
         .await
         .expect("seed fingerprint_reputation row without ip");
 
-        let ctx = make_test_ctx(&pool, &url);
+        let ctx = make_test_ctx(&pool, &url).with_enforce(true);
         let result = BehavioralAnalysisJob
             .execute(&ctx)
             .await
@@ -425,7 +425,7 @@ mod behavioral_analysis_seeded {
         .await
         .expect("seed multiple fingerprint_reputation rows");
 
-        let ctx = make_test_ctx(&pool, &url);
+        let ctx = make_test_ctx(&pool, &url).with_enforce(true);
         let result = BehavioralAnalysisJob
             .execute(&ctx)
             .await
@@ -497,7 +497,7 @@ mod malicious_ip_blacklist_seeded {
             session_ids.push(sid);
         }
 
-        let ctx = make_test_ctx(&pool, &url);
+        let ctx = make_test_ctx(&pool, &url).with_enforce(true);
         let result = MaliciousIpBlacklistJob
             .execute(&ctx)
             .await
@@ -539,7 +539,7 @@ mod malicious_ip_blacklist_seeded {
             session_ids.push(sid);
         }
 
-        let ctx = make_test_ctx(&pool, &url);
+        let ctx = make_test_ctx(&pool, &url).with_enforce(true);
         let result = MaliciousIpBlacklistJob
             .execute(&ctx)
             .await
@@ -572,7 +572,7 @@ mod malicious_ip_blacklist_seeded {
 
         insert_session(&pg, &sid, &ip, false, false, None).await;
 
-        let ctx = make_test_ctx(&pool, &url);
+        let ctx = make_test_ctx(&pool, &url).with_enforce(true);
         let result = MaliciousIpBlacklistJob
             .execute(&ctx)
             .await
@@ -607,7 +607,7 @@ mod malicious_ip_blacklist_seeded {
             session_ids.push(sid);
         }
 
-        let ctx = make_test_ctx(&pool, &url);
+        let ctx = make_test_ctx(&pool, &url).with_enforce(true);
         let result = MaliciousIpBlacklistJob
             .execute(&ctx)
             .await
@@ -656,7 +656,7 @@ mod malicious_ip_blacklist_seeded {
             session_ids.push(sid);
         }
 
-        let ctx = make_test_ctx(&pool, &url);
+        let ctx = make_test_ctx(&pool, &url).with_enforce(true);
         let result = MaliciousIpBlacklistJob
             .execute(&ctx)
             .await
@@ -693,7 +693,7 @@ mod malicious_ip_blacklist_seeded {
             session_ids.push(sid);
         }
 
-        let ctx = make_test_ctx(&pool, &url);
+        let ctx = make_test_ctx(&pool, &url).with_enforce(true);
         let result = MaliciousIpBlacklistJob
             .execute(&ctx)
             .await
@@ -740,7 +740,7 @@ mod malicious_ip_blacklist_seeded {
             session_ids.push(sid);
         }
 
-        let ctx = make_test_ctx(&pool, &url);
+        let ctx = make_test_ctx(&pool, &url).with_enforce(true);
         let result = MaliciousIpBlacklistJob
             .execute(&ctx)
             .await

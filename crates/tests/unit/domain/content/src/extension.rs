@@ -21,10 +21,10 @@ fn test_dependencies_includes_users_and_analytics() {
 }
 
 #[test]
-fn test_schemas_count_seven() {
+fn test_schemas_count_six() {
     let ext = ContentExtension;
     let schemas = ext.schemas();
-    assert_eq!(schemas.len(), 7);
+    assert_eq!(schemas.len(), 6);
 }
 
 #[test]
@@ -39,7 +39,6 @@ fn test_schemas_include_core_tables() {
         "content_performance_metrics",
         "campaign_links",
         "link_clicks",
-        "link_analytics_views",
     ] {
         assert!(
             names.contains(&expected),

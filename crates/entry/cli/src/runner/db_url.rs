@@ -35,7 +35,13 @@ impl Commands {
 
             Self::Core(core::CoreCommands::Content(_) | core::CoreCommands::Files(_))
             | Self::Infra(
-                infrastructure::InfraCommands::Db(_) | infrastructure::InfraCommands::Logs(_),
+                infrastructure::InfraCommands::Db(_)
+                | infrastructure::InfraCommands::Logs(_)
+                | infrastructure::InfraCommands::Jobs(
+                    infrastructure::jobs::JobsCommands::List
+                    | infrastructure::jobs::JobsCommands::Show(_)
+                    | infrastructure::jobs::JobsCommands::History(_),
+                ),
             )
             | Self::Admin(admin::AdminCommands::Users(_))
             | Self::Analytics(_)

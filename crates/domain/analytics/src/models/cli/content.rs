@@ -72,6 +72,7 @@ pub struct DeviceRow {
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, FromRow)]
 pub struct BotTotalsRow {
     pub human: i64,
+    pub ghost: i64,
     pub bot: i64,
 }
 
