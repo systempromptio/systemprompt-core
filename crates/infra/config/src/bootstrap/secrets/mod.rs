@@ -172,7 +172,7 @@ impl SecretsBootstrap {
         secrets.manifest_signing_secret_seed =
             Some(base64::engine::general_purpose::STANDARD.encode(seed));
 
-        // The profile directory may be mounted read-only (e.g. an air-gapped
+        // Why: The profile directory may be mounted read-only (e.g. an air-gapped
         // deployment with a `:ro` profile mount). The seed is only needed for
         // manifest signing within this process, so a failed persist is a
         // warning, not a fatal error: the in-memory seed above keeps signing

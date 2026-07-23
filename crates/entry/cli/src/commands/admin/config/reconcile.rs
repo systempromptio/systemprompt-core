@@ -28,10 +28,10 @@ use systemprompt_sync::AccessControlLocalSync;
 
 const ROLES_YAML_RELATIVE: &str = "access-control/roles.yaml";
 
-/// Result of a post-edit authz reconciliation. `Deferred` carries the reason
-/// the catalog could not be re-materialised now (e.g. the database was
-/// unreachable during an offline edit); the profile write has already succeeded
-/// regardless.
+// Why: Result of a post-edit authz reconciliation. `Deferred` carries the
+// reason the catalog could not be re-materialised now (e.g. the database was
+// unreachable during an offline edit); the profile write has already succeeded
+// regardless.
 pub(super) enum ReconcileOutcome {
     Reconciled,
     Deferred(String),
@@ -51,9 +51,6 @@ pub(super) async fn reconcile_authz(profile: &Profile, profile_path: &str) -> Re
     }
 }
 
-/// Append a visible deferral notice to a mutation's success message when the
-/// post-edit reconciliation could not run, so the operator sees that the live
-/// catalog is stale until the next app start (or a retry with the DB up).
 pub(super) fn append_reconcile_notice(message: String, outcome: &ReconcileOutcome) -> String {
     match outcome {
         ReconcileOutcome::Reconciled => message,

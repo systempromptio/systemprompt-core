@@ -99,10 +99,10 @@ pub fn resolve(input: ResolveInput<'_>) -> Decision {
     if let Some(decision) = match_ruleset(entity, rules, &subject) {
         return decision;
     }
-    // A declared ruleset is authoritative: an entity that names its own roles is
-    // closed to every role it does not name. `match_ruleset` cannot distinguish
-    // "no rule matches you" from "no rules exist", so only an entity with no rules
-    // of its own defers to its parents.
+    // Why: A declared ruleset is authoritative: an entity that names its own roles
+    // is closed to every role it does not name. `match_ruleset` cannot
+    // distinguish "no rule matches you" from "no rules exist", so only an
+    // entity with no rules of its own defers to its parents.
     let parents = if rules.is_empty() { parents } else { &[] };
 
     for parent in parents {
@@ -141,13 +141,6 @@ pub fn resolve(input: ResolveInput<'_>) -> Decision {
     }
 }
 
-/// The precedence ladder for one call: core's built-ins unioned with the
-/// caller-supplied dimensions, tightest-binding first.
-///
-/// A dimension that re-declares `user` or `role` is ignored rather than
-/// duplicating a band — core owns those two slugs and their precedence.
-/// The sort is stable, so dimensions sharing a precedence keep registration
-/// order.
 fn ladder(dimensions: &[SubjectDimension]) -> Vec<(RuleType, u16)> {
     let mut bands = vec![
         (RuleType::USER, USER_PRECEDENCE),
@@ -163,8 +156,6 @@ fn ladder(dimensions: &[SubjectDimension]) -> Vec<(RuleType, u16)> {
     bands
 }
 
-/// Everything about the requesting subject the band matcher needs, bundled so
-/// the ladder is built once per [`resolve`] rather than once per ruleset.
 struct Subject<'a> {
     user_id: &'a UserId,
     user_roles: &'a [String],
@@ -173,7 +164,6 @@ struct Subject<'a> {
 }
 
 impl Subject<'_> {
-    /// Whether `rule` targets this subject in its own band.
     fn matches(&self, rule: &AccessRule) -> bool {
         if rule.rule_type == RuleType::USER {
             return rule.rule_value == self.user_id.as_str();
@@ -187,9 +177,6 @@ impl Subject<'_> {
     }
 }
 
-/// Walks the precedence ladder tightest band first, denying before allowing
-/// within each band. The first band that matches decides; a band the subject
-/// holds no value for cannot match and falls through.
 fn match_ruleset(
     target: &EntityRef,
     ruleset: &[AccessRule],
@@ -214,9 +201,9 @@ fn match_ruleset(
     None
 }
 
-/// Built-ins keep their dedicated variants so existing `governance_decisions`
-/// audit JSON stays stable; extension dimensions report through the generic
-/// attribute variants.
+// Why: Built-ins keep their dedicated variants so existing
+// `governance_decisions` audit JSON stays stable; extension dimensions report
+// through the generic attribute variants.
 fn deny_for(target: &EntityRef, subject: &Subject<'_>, rule: &AccessRule) -> Decision {
     let reason = if rule.rule_type == RuleType::USER {
         DenyReason::UserDeny {

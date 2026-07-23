@@ -11,8 +11,6 @@
 use serde_json::{Value, json};
 use systemprompt_models::text::chunk_text;
 
-/// Soft per-`TextBlock` chunk size, matching the Slack section limit for
-/// symmetry across surfaces.
 const TEXT_BLOCK_LIMIT: usize = 3000;
 
 const ADAPTIVE_CARD_CONTENT_TYPE: &str = "application/vnd.microsoft.card.adaptive";

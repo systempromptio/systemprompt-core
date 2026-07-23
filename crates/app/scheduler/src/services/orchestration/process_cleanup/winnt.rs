@@ -75,7 +75,7 @@ pub(super) async fn terminate_gracefully(pid: u32, grace_period_ms: u64) -> bool
 }
 
 pub(super) async fn terminate_group_gracefully(pid: u32, grace_period_ms: u64) -> bool {
-    // `taskkill /T` terminates the process and any child processes it started,
+    // Why: `taskkill /T` terminates the process and any child processes it started,
     // the closest Windows analogue to POSIX process-group signalling.
     if let Err(e) = Command::new("taskkill")
         .args(["/PID", &pid.to_string(), "/T"])

@@ -15,9 +15,6 @@ use super::config::ResilienceConfig;
 use super::error::ResilienceError;
 use super::retry::retry_async;
 
-/// Wraps a caller error so a per-attempt timeout can flow through the retry
-/// loop as a transient failure without the caller's `E` needing a timeout
-/// variant.
 enum AttemptError<E> {
     Inner(E),
     Timeout(std::time::Duration),

@@ -40,13 +40,13 @@ impl ExtensionRegistry {
         Self::default()
     }
 
-    /// Topologically order extensions by [`Extension::dependencies`], breaking
-    /// ties with [`Extension::priority`] (lower runs first).
-    ///
-    /// Missing dependencies are warned and ignored — an extension may
-    /// optionally depend on another that was not loaded in this build. A
-    /// dependency cycle returns [`LoaderError::DependencyCycle`] with a
-    /// human-readable chain (`"A -> B -> A"`).
+    // Why: Topologically order extensions by [`Extension::dependencies`], breaking
+    // ties with [`Extension::priority`] (lower runs first).
+    //
+    // Missing dependencies are warned and ignored — an extension may
+    // optionally depend on another that was not loaded in this build. A
+    // dependency cycle returns [`LoaderError::DependencyCycle`] with a
+    // human-readable chain (`"A -> B -> A"`).
     pub(crate) fn sort_by_priority(&mut self) -> Result<(), LoaderError> {
         let ids: Vec<String> = self
             .sorted_extensions

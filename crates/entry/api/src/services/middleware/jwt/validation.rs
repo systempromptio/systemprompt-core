@@ -27,7 +27,7 @@ pub struct ValidatedUser {
     pub user: AuthUser,
 }
 
-// Why mutex (not RwLock): writes happen on every fetch (TTL refresh), so a
+// Why: mutex (not RwLock): writes happen on every fetch (TTL refresh), so a
 // reader-writer split would barely help; the contention window is the
 // negligible HashMap lookup. No `.await` is held across the guard.
 #[cfg_attr(

@@ -12,8 +12,9 @@ use async_trait::async_trait;
 
 use super::events::McpEvent;
 
-// `#[async_trait]` required: handlers are stored and dispatched as `Arc<dyn
-// EventHandler>` in `EventBus`, so the trait must stay `dyn`-compatible.
+// Why: `#[async_trait]` required: handlers are stored and dispatched as
+// `Arc<dyn EventHandler>` in `EventBus`, so the trait must stay
+// `dyn`-compatible.
 #[async_trait]
 pub trait EventHandler: Send + Sync {
     async fn handle(&self, event: &McpEvent) -> McpDomainResult<()>;

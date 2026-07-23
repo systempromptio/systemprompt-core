@@ -31,11 +31,11 @@ pub(super) struct FieldVisitor {
     pub fields: Option<serde_json::Value>,
 }
 
-/// Strips ANSI CSI escape sequences (`ESC [ … final-byte`) from `input` so the
-/// stored message is plain text. Scope is intentionally narrow: only CSI
-/// sequences (the colour/style codes the console fmt layer emits) are removed.
-/// Other escape forms (OSC, single-character escapes) have just the lone `ESC`
-/// dropped; their payload is preserved rather than guessed at.
+// Why: Strips ANSI CSI escape sequences (`ESC [ … final-byte`) from `input` so
+// the stored message is plain text. Scope is intentionally narrow: only CSI
+// sequences (the colour/style codes the console fmt layer emits) are removed.
+// Other escape forms (OSC, single-character escapes) have just the lone `ESC`
+// dropped; their payload is preserved rather than guessed at.
 fn strip_ansi(input: &str) -> String {
     let mut out = String::with_capacity(input.len());
     let mut chars = input.chars().peekable();

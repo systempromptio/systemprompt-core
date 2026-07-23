@@ -129,8 +129,12 @@ lint-schema:
 lint-extensions:
     ./scripts/lint-extensions.sh crates
 
+# Reject inline // comments in production crates (whitelist: '// Why:' / '// JSON:')
+lint-comments:
+    ./scripts/lint-inline-comments.sh
+
 # Check without building
-check: lint-schema lint-extensions lint-test-value
+check: lint-schema lint-extensions lint-comments lint-test-value
     cargo check --workspace
 
 # Check offline (uses cached .sqlx metadata, no database required)

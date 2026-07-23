@@ -78,10 +78,10 @@ pub(super) async fn terminate_gracefully(pid: u32, grace_period_ms: u64) -> bool
     kill_process(pid)
 }
 
-/// Polls until the process has exited or the grace deadline elapses, so a child
-/// that dies promptly on SIGTERM does not cost the full grace period. Liveness
-/// is zombie-aware ([`process_is_live`]) because killed children are never
-/// reaped and would otherwise still answer `kill(pid, 0)`.
+// Why: Polls until the process has exited or the grace deadline elapses, so a
+// child that dies promptly on SIGTERM does not cost the full grace period.
+// Liveness is zombie-aware ([`process_is_live`]) because killed children are
+// never reaped and would otherwise still answer `kill(pid, 0)`.
 async fn wait_for_exit(pid: u32, grace_period_ms: u64) -> bool {
     let mut waited = 0;
     while waited < grace_period_ms {
@@ -99,12 +99,12 @@ fn process_is_live(pid: u32) -> bool {
     process_exists(pid) && !systemprompt_models::subprocess::is_zombie(pid)
 }
 
-/// Signal a whole process group, escalating SIGTERM to SIGKILL after a grace
-/// period, but only when `pgid` still leads its own group — our children are
-/// placed in a fresh group (`process_group(0)`, pgid == pid), so a mismatch
-/// means the id is recycled and `kill(-pid)` would reach an unrelated session.
-/// In that case, and for any non-signalable id, it falls back to single-PID
-/// termination rather than broadcasting.
+// Why: Signal a whole process group, escalating SIGTERM to SIGKILL after a
+// grace period, but only when `pgid` still leads its own group — our children
+// are placed in a fresh group (`process_group(0)`, pgid == pid), so a mismatch
+// means the id is recycled and `kill(-pid)` would reach an unrelated session.
+// In that case, and for any non-signalable id, it falls back to single-PID
+// termination rather than broadcasting.
 pub(super) async fn terminate_group_gracefully(pgid: u32, grace_period_ms: u64) -> bool {
     use nix::sys::signal::{self, Signal};
     use nix::unistd::{Pid, getpgid};

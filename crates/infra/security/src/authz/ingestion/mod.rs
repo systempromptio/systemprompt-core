@@ -52,8 +52,6 @@ pub struct AccessControlIngestionService {
     write_pool: Arc<PgPool>,
 }
 
-/// A rule with its glob expanded to concrete catalog ids, borrowing the role
-/// list and justification from the source [`RuleEntry`].
 struct ResolvedRule<'a> {
     entity_kind: EntityKind,
     ids: Vec<String>,

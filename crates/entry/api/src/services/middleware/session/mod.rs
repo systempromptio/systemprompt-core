@@ -34,9 +34,6 @@ use systemprompt_traits::{AnalyticsProvider, ExtractSignals};
 use systemprompt_users::UserService;
 use uuid::Uuid;
 
-/// The request, extracted exactly once. `analytics` is derived at the top of
-/// [`SessionMiddleware::handle`] and passed by reference from there on — no
-/// downstream step re-derives it from `headers`.
 struct RequestMeta<'a> {
     headers: &'a http::HeaderMap,
     uri: &'a http::Uri,
@@ -132,10 +129,10 @@ impl SessionMiddleware {
         Ok(response)
     }
 
-    /// Builds an untracked anonymous context. `session_prefix` distinguishes
-    /// the synthetic session id (`untracked_*` for skip-tracking paths,
-    /// `bot_*` for detected crawlers) so the two cases stay legible in logs
-    /// and analytics without two near-identical constructors.
+    // Why: Builds an untracked anonymous context. `session_prefix` distinguishes
+    // the synthetic session id (`untracked_*` for skip-tracking paths,
+    // `bot_*` for detected crawlers) so the two cases stay legible in logs
+    // and analytics without two near-identical constructors.
     async fn anonymous_context(
         &self,
         session_prefix: &str,

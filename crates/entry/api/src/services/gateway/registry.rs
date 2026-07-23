@@ -43,8 +43,6 @@ impl GatewayUpstreamRegistry {
     pub(super) fn build() -> Self {
         let mut entries: HashMap<String, Arc<dyn OutboundAdapter>> = HashMap::new();
 
-        // Outbound adapters are keyed on the WireProtocol tag, not the provider
-        // name: a ProviderEntry's `protocol` selects the wire codec.
         entries.insert(
             WireProtocol::Anthropic.as_tag().to_owned(),
             Arc::new(AnthropicOutbound),

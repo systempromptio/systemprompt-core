@@ -56,8 +56,6 @@ where
         if deployment.dev_only && is_cloud {
             continue;
         }
-        // External servers carry an empty `binary` and are reached at their
-        // endpoint; only Internal servers resolve to an extension manifest.
         if !matches!(deployment.server_type, McpServerType::Internal) {
             continue;
         }

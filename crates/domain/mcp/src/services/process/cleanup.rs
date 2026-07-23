@@ -18,7 +18,7 @@ pub fn terminate_gracefully(pid: u32) -> McpDomainResult<()> {
     use nix::sys::signal::{self, Signal};
     use nix::unistd::Pid;
 
-    // Never signal the caller: a misresolved port/name lookup must not let
+    // Why: Never signal the caller: a misresolved port/name lookup must not let
     // server cleanup terminate this process.
     if pid == std::process::id() {
         return Ok(());
@@ -70,7 +70,7 @@ pub fn force_kill(pid: u32) -> McpDomainResult<()> {
     use nix::sys::signal::{self, Signal};
     use nix::unistd::Pid;
 
-    // Never signal the caller: a misresolved port/name lookup must not let
+    // Why: Never signal the caller: a misresolved port/name lookup must not let
     // server cleanup terminate this process.
     if pid == std::process::id() {
         return Ok(());

@@ -140,8 +140,9 @@ fn encode_with_authority(claims: &JwtClaims) -> Result<String> {
     Ok(token)
 }
 
-/// Like [`encode_with_authority`] but stamps the mandatory `oauth-id-jag+jwt`
-/// JOSE `typ` so the consume path can distinguish the assertion by its header.
+// Why: Like [`encode_with_authority`] but stamps the mandatory
+// `oauth-id-jag+jwt` JOSE `typ` so the consume path can distinguish the
+// assertion by its header.
 fn encode_id_jag_with_authority(
     claims: &crate::services::validation::id_jag::IdJagClaims,
 ) -> Result<String> {

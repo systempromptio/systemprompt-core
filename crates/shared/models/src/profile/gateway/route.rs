@@ -195,10 +195,10 @@ impl From<Option<&ResponseFormat>> for ResponseFormatKind {
     }
 }
 
-/// Deliberately approximate input-token estimate (`chars / 4 + 1`) over the
-/// system prompt and message text — cheap and dependency-free. Precise
-/// tokenisation, when needed, belongs in a [`super::super`]-side
-/// `RouteSelector`.
+// Why: Deliberately approximate input-token estimate (`chars / 4 + 1`) over the
+// system prompt and message text — cheap and dependency-free. Precise
+// tokenisation, when needed, belongs in a [`super::super`]-side
+// `RouteSelector`.
 fn estimate_input_tokens(request: &CanonicalRequest) -> u32 {
     let mut chars = request.system.as_deref().map_or(0, str::len);
     for message in &request.messages {

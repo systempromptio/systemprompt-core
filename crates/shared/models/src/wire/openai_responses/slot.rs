@@ -36,7 +36,7 @@ pub(super) enum SlotKindMatch {
     Reasoning,
 }
 
-// Responses has no finish-reason field: tool use is signalled by a
+// Why: Responses has no finish-reason field: tool use is signalled by a
 // `function_call` output item, truncation by `incomplete_details.reason`.
 pub(super) fn stop_reason(
     items: &[ItemSlot],

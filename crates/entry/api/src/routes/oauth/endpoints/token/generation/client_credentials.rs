@@ -207,28 +207,10 @@ fn scope_permissions(scopes: &[String]) -> Vec<Permission> {
         .collect()
 }
 
-/// Decide which of the requested scopes a `client_credentials` token may carry.
-///
-/// `client_credentials` (RFC 6749 §4.4) is the grant where the client acts as
-/// itself, with no resource owner in the loop. systemprompt-oauth still records
-/// an `owner_user_id` on every client for *audit attribution* — the JWT's
-/// `sub` resolves back to a human so downstream events trace to a person —
-/// but ownership does not authorize the grant by itself.
-///
-/// Scopes split into two tiers, already encoded on [`Permission`]:
-///
-/// * **Service-tier** ([`Permission::is_service_scope`]: `hook:govern`,
-///   `hook:track`, `service`, `a2a`, `mcp`). The client is provisioned with
-///   these statically at registration; the owner is irrelevant. Granted iff the
-///   client holds the scope.
-/// * **User-tier** ([`Permission::is_user_role`]: `admin`, `user`,
-///   `anonymous`). These represent delegated authority — the machine acting on
-///   behalf of the owner — so they require both the client *and* the owner to
-///   hold the permission.
-///
-/// If the result is empty the error names the actual deficit (client grant vs.
-/// owner roles) so operator logs and the bridge `sync` PARTIAL body point at
-/// the right misconfiguration instead of a generic "not allowed".
+// Why: service-tier scopes ([`Permission::is_service_scope`]) need only the
+// client grant, but user-tier roles are delegated authority and require both
+// the client *and* its owner to hold the permission — the RFC 6749 §4.4
+// owner is audit attribution, never authorization by itself.
 fn authorize_client_grant(
     requested: &[Permission],
     client_scopes: &[String],

@@ -22,16 +22,17 @@ const HTTP_REQUEST_DURATION_SECONDS: &str = "http_request_duration_seconds";
 const HTTP_REQUESTS_IN_FLIGHT: &str = "http_requests_in_flight";
 const SSE_CONNECTIONS: &str = "sse_active_connections";
 
-// The Prometheus recorder is a process global: `install_recorder` errors in
-// `metrics::set_global_recorder` if called twice. Cache our handle so repeat
+// Why: The Prometheus recorder is a process global: `install_recorder` errors
+// in `metrics::set_global_recorder` if called twice. Cache our handle so repeat
 // callers (test binaries that build multiple API routers, or any future
 // hot-reload path) get a clone of the original instead of a hard error.
 static RECORDER: OnceLock<PrometheusHandle> = OnceLock::new();
-// Serialises concurrent installers so the first writer wins the global recorder
-// race outright; without it a parallel test runner with two `setup_api_server`
-// calls both observe an empty `RECORDER`, both call `install_recorder`, and the
-// loser surfaces "attempted to set a recorder after the metrics system was
-// already initialized" instead of getting the cached handle.
+// Why: Serialises concurrent installers so the first writer wins the global
+// recorder race outright; without it a parallel test runner with two
+// `setup_api_server` calls both observe an empty `RECORDER`, both call
+// `install_recorder`, and the loser surfaces "attempted to set a recorder after
+// the metrics system was already initialized" instead of getting the cached
+// handle.
 static RECORDER_INIT: Mutex<()> = Mutex::new(());
 
 pub fn install_recorder() -> anyhow::Result<PrometheusHandle> {

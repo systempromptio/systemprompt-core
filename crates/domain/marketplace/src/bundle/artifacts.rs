@@ -22,7 +22,7 @@ use crate::catalog::selects_artifact;
 
 use super::{BundleContent, BundleFile, PluginBundle};
 
-/// Field names track Cowork's native library-entry shape.
+// Why: Field names track Cowork's native library-entry shape.
 #[derive(Debug, Serialize)]
 struct BundledArtifactRecord<'a> {
     id: &'a str,
@@ -50,8 +50,8 @@ impl<'a> From<&'a ArtifactEntry> for BundledArtifactRecord<'a> {
     }
 }
 
-/// A record that fails to serialise is dropped with a warning rather than
-/// failing the whole bundle, mirroring the catalogue's fail-closed drops.
+// Why: A record that fails to serialise is dropped with a warning rather than
+// failing the whole bundle, mirroring the catalogue's fail-closed drops.
 pub(super) fn append_artifact_files(
     config: &PluginConfig,
     content: &BundleContent<'_>,

@@ -76,8 +76,8 @@ impl SlackClient {
         Self::check_ok(resp).await
     }
 
-    /// Slack returns HTTP 200 with `{"ok": false, "error": "..."}` on logical
-    /// failures; surface those as errors rather than treating 200 as success.
+    // Why: Slack returns HTTP 200 with `{"ok": false, "error": "..."}` on logical
+    // failures; surface those as errors rather than treating 200 as success.
     async fn check_ok(resp: reqwest::Response) -> SlackResult<()> {
         let status = resp.status();
         let payload: Value = resp

@@ -55,8 +55,6 @@ fn lookup(
     registry_pricing(registry, gateway, model)
 }
 
-// Prefer the route provider's own catalog entry for the model so a per-provider
-// rate wins; otherwise accept any provider that serves the model id/alias.
 fn registry_pricing(
     registry: &ProviderRegistry,
     gateway: Option<&GatewayConfig>,

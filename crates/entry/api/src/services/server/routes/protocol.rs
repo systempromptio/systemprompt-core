@@ -113,10 +113,10 @@ pub(super) fn mount_agent(
     router
 }
 
-/// Mount the chat-platform inbound surfaces (Slack, Teams). Both authenticate
-/// per-request at the handler (Slack signature / Teams activity token), so no
-/// JWT middleware is applied — only a rate limit mirroring the agent surface
-/// they ultimately dispatch into.
+// Why: Mount the chat-platform inbound surfaces (Slack, Teams). Both
+// authenticate per-request at the handler (Slack signature / Teams activity
+// token), so no JWT middleware is applied — only a rate limit mirroring the
+// agent surface they ultimately dispatch into.
 pub(super) fn mount_messaging(mut router: Router, ctx: &AppContext) -> Router {
     let rate_config = &ctx.config().rate_limits;
 

@@ -88,7 +88,7 @@ pub fn is_zombie(pid: u32) -> bool {
     let Ok(stat) = std::fs::read_to_string(format!("/proc/{pid}/stat")) else {
         return false;
     };
-    // The comm field is parenthesised and may contain spaces or `)`, so the
+    // Why: The comm field is parenthesised and may contain spaces or `)`, so the
     // state char is the first token after the final `)`.
     let Some((_, after_comm)) = stat.rsplit_once(')') else {
         return false;

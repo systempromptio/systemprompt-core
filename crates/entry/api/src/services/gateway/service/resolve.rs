@@ -22,9 +22,9 @@ pub(super) struct ResolvedUpstream<'a> {
     pub(super) provider: &'a ProviderEntry,
     pub(super) api_key: &'static str,
     pub(super) adapter: &'static Arc<dyn OutboundAdapter>,
-    /// Audit descriptor of how this route was selected: the matched `when`
-    /// predicates and/or the re-routing selector. `None` for a plain
-    /// model-only match (the behaviour unchanged from before `when`).
+    // Why: Audit descriptor of how this route was selected: the matched `when`
+    // predicates and/or the re-routing selector. `None` for a plain
+    // model-only match (the behaviour unchanged from before `when`).
     pub(super) route_match_descriptor: Option<String>,
 }
 

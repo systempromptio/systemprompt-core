@@ -53,8 +53,8 @@ async fn handle_messages(
     let Ok(activity) = serde_json::from_slice::<Activity>(&body) else {
         return StatusCode::BAD_REQUEST.into_response();
     };
-    // A non-dispatchable surface (e.g. a typing/event activity) is acked so the
-    // Bot Service does not retry.
+    // Why: A non-dispatchable surface (e.g. a typing/event activity) is acked so
+    // the Bot Service does not retry.
     let Ok(normalized) = activity.normalize() else {
         return StatusCode::OK.into_response();
     };
@@ -173,10 +173,10 @@ fn bearer(headers: &HeaderMap) -> Option<&str> {
         .and_then(|v| v.strip_prefix("Bearer "))
 }
 
-/// Build the inbound activity-token verifier. Under `test-api`, an
-/// `SYSTEMPROMPT_TEST_TEAMS_OPENID_URL` override redirects the JWKS fetch to a
-/// loopback mock server so a full signed happy-path can be driven without the
-/// live Bot Connector metadata. Production always uses the hardcoded endpoint.
+// Why: Build the inbound activity-token verifier. Under `test-api`, an
+// `SYSTEMPROMPT_TEST_TEAMS_OPENID_URL` override redirects the JWKS fetch to a
+// loopback mock server so a full signed happy-path can be driven without the
+// live Bot Connector metadata. Production always uses the hardcoded endpoint.
 fn activity_verifier(app_id: &str) -> ActivityTokenVerifier {
     #[cfg(feature = "test-api")]
     if let Ok(openid_url) = std::env::var("SYSTEMPROMPT_TEST_TEAMS_OPENID_URL") {
@@ -189,10 +189,10 @@ fn activity_verifier(app_id: &str) -> ActivityTokenVerifier {
     ActivityTokenVerifier::new(http_client(), app_id.to_owned())
 }
 
-/// Build the outbound Bot Connector client. Under `test-api`, an
-/// `SYSTEMPROMPT_TEST_TEAMS_TOKEN_URL` override redirects client-credentials
-/// token acquisition to a loopback mock server. Production always uses the
-/// hardcoded login authority.
+// Why: Build the outbound Bot Connector client. Under `test-api`, an
+// `SYSTEMPROMPT_TEST_TEAMS_TOKEN_URL` override redirects client-credentials
+// token acquisition to a loopback mock server. Production always uses the
+// hardcoded login authority.
 fn teams_client(app_id: String, app_password: String) -> TeamsClient {
     #[cfg(feature = "test-api")]
     if let Ok(token_url) = std::env::var("SYSTEMPROMPT_TEST_TEAMS_TOKEN_URL") {

@@ -30,9 +30,6 @@ use systemprompt_security::authz::{AuthzContext, AuthzDecision, AuthzRequest, En
 use a2a::{authenticated_user, build_a2a_request, mint_a2a_token, run_agent};
 use identity::resolve_or_link_user;
 
-/// Process-wide HTTP client for every outbound platform call. Cloning shares
-/// the underlying connection pool; a fresh `reqwest::Client` per reply would
-/// discard keep-alive connections and TLS sessions.
 static CLIENT: LazyLock<reqwest::Client> = LazyLock::new(reqwest::Client::new);
 
 #[must_use]

@@ -135,7 +135,7 @@ fn collect_message_content(msg: ChatMessage, content: &mut Vec<CanonicalContent>
         } else {
             &tc.function.arguments
         };
-        // Tool-call arguments are a user-defined schema instance; the canonical
+        // JSON: Tool-call arguments are a user-defined schema instance; the canonical
         // model carries them as an opaque JSON value, not a typed shape.
         let input: Value =
             serde_json::from_str(args).unwrap_or_else(|_| Value::Object(serde_json::Map::new()));

@@ -104,7 +104,7 @@ impl Secrets {
                 context: "Failed to parse secrets JSON",
                 source,
             })?;
-        // Null and blank entries are both "absent": setup wizards and container
+        // Why: Null and blank entries are both "absent": setup wizards and container
         // platforms have historically persisted "" for unset provider keys, and
         // a blank key must not enable a provider.
         if let Some(obj) = value.as_object_mut() {

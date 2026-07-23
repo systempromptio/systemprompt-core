@@ -148,9 +148,6 @@ impl AppContextBuilder {
             self.show_startup_warnings,
         )?;
 
-        // UserService is a mandatory dependency: the system admin cannot be
-        // resolved without it, so a construction failure is fatal here rather
-        // than a warning that re-surfaces as a less specific error downstream.
         let user_service = Arc::new(UserService::new(&database)?);
 
         let system_admin =

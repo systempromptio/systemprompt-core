@@ -205,7 +205,7 @@ impl ConfigService {
                 break;
             }
 
-            // Reaching the final pass while still mutating means a cycle or a
+            // Why: Reaching the final pass while still mutating means a cycle or a
             // reference chain deeper than MAX_PASSES — surface it rather than
             // returning a config that still carries placeholders.
             if current_pass == MAX_PASSES - 1 {

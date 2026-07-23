@@ -230,13 +230,13 @@ impl ServicesConfig {
         }
     }
 
-    /// Plugin hooks run session-globally, so at most one enabled plugin may
-    /// carry the governance hooks — a second owner fires a duplicate govern
-    /// request on every tool call.
-    ///
-    /// Zero owners is valid (an instance need not run governance hooks at
-    /// all) but is worth a warning: it is indistinguishable at runtime from
-    /// governance silently not being installed.
+    // Why: Plugin hooks run session-globally, so at most one enabled plugin may
+    // carry the governance hooks — a second owner fires a duplicate govern
+    // request on every tool call.
+    //
+    // Zero owners is valid (an instance need not run governance hooks at
+    // all) but is worth a warning: it is indistinguishable at runtime from
+    // governance silently not being installed.
     pub(super) fn validate_single_governance_hook_owner(
         &self,
     ) -> Result<(), ConfigValidationError> {

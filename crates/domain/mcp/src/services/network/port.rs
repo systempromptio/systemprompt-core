@@ -18,11 +18,11 @@ pub const MAX_PORT_CLEANUP_ATTEMPTS: u32 = 5;
 pub const PORT_BACKOFF_BASE_MS: u64 = 200;
 pub const POST_KILL_DELAY_MS: u64 = 500;
 
-/// Hard cap on a single localhost TCP connect probe. Without a timeout,
-/// a stuck `SYN_SENT` (WSL2 / firewall / SYN-blackhole pathologies)
-/// blocks the runtime worker indefinitely and the entire MCP startup
-/// hangs silently with no log line to show why. 1s is generous for
-/// loopback while still failing fast and loud.
+// Why: Hard cap on a single localhost TCP connect probe. Without a timeout,
+// a stuck `SYN_SENT` (WSL2 / firewall / SYN-blackhole pathologies)
+// blocks the runtime worker indefinitely and the entire MCP startup
+// hangs silently with no log line to show why. 1s is generous for
+// loopback while still failing fast and loud.
 const PORT_PROBE_TIMEOUT: Duration = Duration::from_secs(1);
 
 pub async fn prepare_port(port: u16) -> McpDomainResult<()> {
@@ -97,7 +97,7 @@ pub async fn cleanup_port_processes(port: u16) -> McpDomainResult<()> {
         let self_pid = std::process::id() as i32;
         for pid_str in pids.lines() {
             if let Ok(pid) = pid_str.trim().parse::<i32>() {
-                // Never signal ourselves: `lsof` can return this process when it
+                // Why: Never signal ourselves: `lsof` can return this process when it
                 // holds the port, and killing the caller is never the intent.
                 if pid <= 0 || pid == self_pid {
                     continue;

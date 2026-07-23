@@ -107,9 +107,8 @@ fn bundle_fingerprint(
     hash_part(&mut hasher, &to_json(content.agents)?);
     hash_part(&mut hasher, &to_json(content.mcp_servers)?);
     hash_part(&mut hasher, &to_json(content.disabled_mcp_servers)?);
-    // Bundles now carry artifact bodies, so an edited dashboard must invalidate
-    // this cache — without it the fingerprint is unchanged and the stale bundle
-    // is served forever.
+    // Why: Bundles carry artifact bodies, so an edited dashboard must change the
+    // fingerprint — otherwise the stale bundle is served forever.
     hash_part(&mut hasher, &to_json(content.artifacts)?);
     hash_part(
         &mut hasher,

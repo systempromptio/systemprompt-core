@@ -145,7 +145,7 @@ pub fn validate_outbound_url_with_trust(
         url::Host::Domain(_) => false,
         url::Host::Ipv4(ip) => is_blocked_v4(ip),
         url::Host::Ipv6(ip) => {
-            // RFC 4291 §2.5.5.2: an ::ffff:0:0/96 address embeds a real IPv4
+            // Why: RFC 4291 §2.5.5.2: an ::ffff:0:0/96 address embeds a real IPv4
             // address; treat it as that IPv4 address for SSRF purposes so a
             // hand-crafted v4-mapped URL cannot bypass the v4 block list.
             ip.to_ipv4_mapped().map_or_else(
@@ -167,8 +167,8 @@ pub fn validate_outbound_url_with_trust(
     Ok(parsed)
 }
 
-/// RFC 6598 carrier-grade NAT range `100.64.0.0/10` — operator-routable but
-/// commonly bridges to internal services on cloud-provider managed networks.
+// Why: RFC 6598 carrier-grade NAT range `100.64.0.0/10` — operator-routable but
+// commonly bridges to internal services on cloud-provider managed networks.
 fn is_cgnat_shared_v4(ip: std::net::Ipv4Addr) -> bool {
     let [a, b, _, _] = ip.octets();
     a == 100 && (64..=127).contains(&b)

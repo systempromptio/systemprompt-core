@@ -25,7 +25,7 @@ pub(super) fn validate_resource_uri(
         return Err("Resource URI must not contain a fragment".to_owned());
     }
 
-    // Self-origin carve-out: OAuth clients are permitted to target the gateway
+    // Why: Self-origin carve-out: OAuth clients are permitted to target the gateway
     // itself, even when its `api_external_url` is a loopback dev URL. Under
     // RFC 9728 dual-self-identity (one gateway answering on multiple hosts,
     // e.g. `127.0.0.1` and `localhost`), the request-derived origin may
@@ -34,7 +34,7 @@ pub(super) fn validate_resource_uri(
         return Ok(());
     }
 
-    // SSRF guard for OAuth resource indicators. The OAuth surface is stricter
+    // Why: SSRF guard for OAuth resource indicators. The OAuth surface is stricter
     // than the workspace default `validate_outbound_url`: loopback hostnames
     // and `.internal` / `.local` suffixes are also rejected, because an OAuth
     // resource URI is presented by the relying party and must reference a
@@ -55,7 +55,7 @@ pub(super) fn validate_resource_uri(
             "Resource URI host '{ip}' is an internal or private (loopback) network address"
         ));
     }
-    // Defer the broader private-range / link-local / blocked-IP check to the
+    // Why: Defer the broader private-range / link-local / blocked-IP check to the
     // workspace-canonical guard. The scheme gate is OAuth's own concern (we
     // accept http above for legacy relying parties) — only fail on the
     // address-block rule.

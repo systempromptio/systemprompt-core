@@ -72,7 +72,6 @@ async fn log_gateway_request(req: Request, next: Next) -> Response {
         tracing::info!(method = %method, path = %path, status, elapsed_ms, "gateway request");
     }
 
-    // Persist off the response hot path, via the background batch writer.
     match LogActor::platform(systemprompt_identifiers::TraceId::system()) {
         Ok(actor) => {
             let entry = LogEntry::new(

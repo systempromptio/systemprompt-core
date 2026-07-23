@@ -93,12 +93,12 @@ impl AiService {
         })
     }
 
-    /// Build one client per enabled AI-policy provider that also has registry
-    /// connectivity. Providers with policy but no registry entry are skipped
-    /// with a warning. A missing credential never silently drops a configured
-    /// provider: the registry endpoint is always present (it may be an internal
-    /// mock), so the provider stays enabled with an empty key and the absence
-    /// is recorded for [`ConfigValidator`].
+    // Why: Build one client per enabled AI-policy provider that also has registry
+    // connectivity. Providers with policy but no registry entry are skipped
+    // with a warning. A missing credential never silently drops a configured
+    // provider: the registry endpoint is always present (it may be an internal
+    // mock), so the provider stays enabled with an empty key and the absence
+    // is recorded for [`ConfigValidator`].
     fn build_providers(
         registry: &ProviderRegistry,
         ai_config: &AiConfig,

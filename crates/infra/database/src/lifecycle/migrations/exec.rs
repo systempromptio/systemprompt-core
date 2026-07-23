@@ -24,8 +24,8 @@ fn alter_table_targets(sql: &str) -> Result<Vec<String>, String> {
     Ok(out)
 }
 
-/// The caller must record the migration bookkeeping row only after this
-/// returns `Ok` — a rolled-back migration must leave no row behind.
+// Why: The caller must record the migration bookkeeping row only after this
+// returns `Ok` — a rolled-back migration must leave no row behind.
 pub(super) async fn execute_statements_transactional(
     db: &dyn DatabaseProvider,
     statements: &[String],

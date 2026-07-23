@@ -188,9 +188,9 @@ impl<'a> SessionAnalyticsBuilder<'a> {
         analytics
     }
 
-    /// Decides the bot/crawler verdicts once, at the only place that owns the
-    /// keyword tables. Must run after `apply_uri` — `skip_tracking` consults
-    /// the referrer, and the country comes from the `GeoIP` lookup above.
+    // Why: Decides the bot/crawler verdicts once, at the only place that owns the
+    // keyword tables. Must run after `apply_uri` — `skip_tracking` consults
+    // the referrer, and the country comes from the `GeoIP` lookup above.
     fn classify(analytics: &mut SessionAnalytics) {
         analytics.is_ai_crawler = analytics
             .user_agent

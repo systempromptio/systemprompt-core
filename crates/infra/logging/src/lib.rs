@@ -91,11 +91,11 @@ fn build_filter(base: &str) -> EnvFilter {
     EnvFilter::new(filter_str)
 }
 
-/// Installs the global subscriber, idempotently: the first call wins and later
-/// calls no-op. This is load-bearing, not defensive — startup installs the
-/// console subscriber before the database pool exists, then `init_logging`
-/// re-enters here to guarantee the subscriber is present before attaching the
-/// DB sink.
+// Why: Installs the global subscriber, idempotently: the first call wins and
+// later calls no-op. This is load-bearing, not defensive — startup installs the
+// console subscriber before the database pool exists, then `init_logging`
+// re-enters here to guarantee the subscriber is present before attaching the
+// DB sink.
 fn ensure_subscriber(level_override: Option<&str>) {
     if SUBSCRIBER_INITIALIZED.set(()).is_err() {
         return;

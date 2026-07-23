@@ -77,15 +77,13 @@ fn write_atomic(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
     std::fs::rename(&tmp, path)
 }
 
-/// Detects a read-only profile mount before writing the manifest signing seed,
-/// so callers can degrade gracefully rather than failing with `EROFS`.
 #[must_use]
 pub(super) fn dir_is_writable(dir: &Path) -> bool {
     let probe = dir.join(".sp-write-probe");
     if std::fs::write(&probe, b"").is_err() {
         return false;
     }
-    // Best-effort cleanup of the probe file; failure to remove it does not
+    // Why: Best-effort cleanup of the probe file; failure to remove it does not
     // change the fact that the directory is writable.
     drop(std::fs::remove_file(&probe));
     true

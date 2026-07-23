@@ -44,9 +44,6 @@ impl<'a> MarketplaceService<'a> {
         self.active_entry().ok_or(MarketplaceError::NoDefault)
     }
 
-    /// `None` only when no marketplace is configured. With more than one the
-    /// active one is named by `settings.default_marketplace_id`, which
-    /// [`ServicesConfig::validate`] guarantees is present and resolvable.
     fn active_entry(&self) -> Option<(&'a MarketplaceId, &'a MarketplaceConfig)> {
         match self.services.marketplaces.len() {
             0 => None,

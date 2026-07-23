@@ -146,11 +146,6 @@ impl SchedulerService {
             .collect()
     }
 
-    /// Fails loud if any name in `jobs` or `bootstrap_jobs` is absent from the
-    /// inventory catalog. The inventory is authoritative — a configured name
-    /// with no `submit_job!` registration is a wiring typo, not a silent skip.
-    /// (A registered job absent from `jobs` is fine: an intentional cron
-    /// opt-out.)
     fn validate_configured_jobs(
         &self,
         registered_jobs: &HashMap<&'static str, &'static dyn JobTrait>,

@@ -144,7 +144,6 @@ impl OAuthHttpError {
         Self::new(OAuthErrorCode::NotFound, description)
     }
 
-    // Use sparingly — the per-code default already encodes the spec mapping.
     #[must_use]
     pub const fn with_status(mut self, status: StatusCode) -> Self {
         self.status = status;

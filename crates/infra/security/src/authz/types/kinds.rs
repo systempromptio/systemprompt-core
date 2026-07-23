@@ -72,10 +72,10 @@ impl fmt::Display for RuleType {
 }
 
 impl From<&str> for RuleType {
-    /// A rule type read back from storage is data, not input: an extension
-    /// dimension core has never heard of round-trips instead of poisoning the
-    /// read. Minting a *new* slug goes through [`RuleType::extension`], which
-    /// is where the shape rules are enforced.
+    // Why: A rule type read back from storage is data, not input: an extension
+    // dimension core has never heard of round-trips instead of poisoning the
+    // read. Minting a *new* slug goes through [`RuleType::extension`], which
+    // is where the shape rules are enforced.
     fn from(s: &str) -> Self {
         match s {
             "user" => Self::USER,

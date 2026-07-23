@@ -109,10 +109,6 @@ impl AiConfigValidator {
             );
         }
 
-        // Connectivity (credential, endpoint, model catalog) lives in the
-        // profile `providers` registry and is validated there; this policy
-        // layer only flags an enabled provider that names no default-model
-        // override.
         for (name, cfg) in &enabled {
             if cfg.default_model.is_empty() {
                 report.add_warning(ValidationWarning::new(

@@ -151,9 +151,6 @@ pub fn render_event_frame(event: &CanonicalEvent, model: &str) -> Option<Bytes> 
                 "delta": partial_json,
             }),
         ),
-        // The Responses terminal frames (`output_item.done`, `response.completed`)
-        // must embed finalized item content the per-event value does not carry;
-        // they are rendered from the accumulated snapshot via `render_terminal`.
         CanonicalEvent::ContentBlockStop { .. }
         | CanonicalEvent::MessageStop { .. }
         | CanonicalEvent::UsageDelta(_)

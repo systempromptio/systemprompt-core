@@ -112,9 +112,6 @@ async fn starting_fallback() -> impl IntoResponse {
     )
 }
 
-/// Per-request delegate to whichever router is currently installed in the
-/// swap slot; `Router` clones are Arc-backed, so the read lock is held only
-/// for the clone.
 #[derive(Clone)]
 struct SwapService {
     swap: Arc<RwLock<Router>>,

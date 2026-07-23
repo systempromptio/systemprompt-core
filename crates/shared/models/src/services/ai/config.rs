@@ -63,7 +63,6 @@ impl Default for McpConfig {
     }
 }
 
-/// MCP defaults: tool RPCs are bounded at 30s rather than the 60s AI default.
 fn default_mcp_resilience() -> ResilienceSettings {
     ResilienceSettings {
         request_timeout_ms: 30_000,

@@ -67,7 +67,7 @@ pub enum CanonicalContent {
         id: String,
         name: String,
         input: Value,
-        // Gemini attaches an opaque `thoughtSignature` to function-call parts that
+        // Why: Gemini attaches an opaque `thoughtSignature` to function-call parts that
         // must be echoed back verbatim on the next turn; this carries it through.
         signature: Option<String>,
     },

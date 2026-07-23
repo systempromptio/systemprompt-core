@@ -10,16 +10,15 @@ use tracing::{debug, warn};
 
 use crate::services::DatabaseProvider;
 
-/// Every `systemprompt` process must lock on this same value for the advisory
-/// lock to serialise concurrent boots.
 const BOOTSTRAP_ADVISORY_LOCK_KEY: i64 = 0x73_70_72_6F_6D_70_74_01;
 
-/// Holds the dedicated Postgres session that owns the bootstrap advisory lock.
-///
-/// `pg_advisory_lock` is session-scoped: only the backend that acquired the
-/// lock can release it. The guard pins one [`PoolConnection`] for the install's
-/// lifetime so acquire and release run on the same session. Non-Postgres
-/// providers skip locking — bootstrap concurrency is a Postgres-only concern.
+// Why: Holds the dedicated Postgres session that owns the bootstrap advisory
+// lock.
+//
+// `pg_advisory_lock` is session-scoped: only the backend that acquired the
+// lock can release it. The guard pins one [`PoolConnection`] for the install's
+// lifetime so acquire and release run on the same session. Non-Postgres
+// providers skip locking — bootstrap concurrency is a Postgres-only concern.
 pub(super) struct BootstrapLockGuard {
     conn: Option<PoolConnection<Postgres>>,
 }

@@ -151,7 +151,7 @@ pub fn parse_response_object(value: &Value, fallback_model: &str) -> CanonicalRe
     }
 }
 
-// Responses has no finish-reason field: tool use is signalled by a
+// Why: Responses has no finish-reason field: tool use is signalled by a
 // `function_call` output item, truncation by `incomplete_details.reason`.
 fn buffered_stop_reason(
     content: &[CanonicalContent],
@@ -201,7 +201,7 @@ fn collect_output_item(
             } else {
                 &call.arguments
             };
-            // Tool-call arguments are a user-defined schema instance; the
+            // JSON: Tool-call arguments are a user-defined schema instance; the
             // canonical model carries them as an opaque JSON value.
             let input: Value = serde_json::from_str(args)
                 .unwrap_or_else(|_| Value::Object(serde_json::Map::new()));

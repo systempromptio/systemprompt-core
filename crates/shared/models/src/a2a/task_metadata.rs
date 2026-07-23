@@ -53,7 +53,7 @@ pub struct TaskMetadata {
     pub model: Option<String>,
     #[serde(rename = "executionSteps", skip_serializing_if = "Option::is_none")]
     pub execution_steps: Option<Vec<ExecutionStep>>,
-    // `flatten` ignores `skip_serializing_if`; an empty map already flattens to
+    // Why: `flatten` ignores `skip_serializing_if`; an empty map already flattens to
     // no fields and deserialises back to an empty map, so the type round-trips.
     #[serde(flatten, default)]
     pub extensions: serde_json::Map<String, serde_json::Value>,

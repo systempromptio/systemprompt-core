@@ -28,13 +28,13 @@ const ALL_KINDS: &[EntityKind] = &[
     EntityKind::TeamsConversation,
 ];
 
-/// * **Unknown entities** — rows in `access_control_rules` whose `(entity_type,
-///   entity_id)` has no matching catalog row. The FK added in migration 007
-///   makes this impossible going forward, but the check is cheap and catches
-///   manual SQL fixes that bypass the schema.
-/// * **Unreachable entities** — catalog rows with `default_included = false`
-///   and zero matching grants. The entity is registered but no one can reach
-///   it.
+// Why: * **Unknown entities** — rows in `access_control_rules` whose
+// `(entity_type, entity_id)` has no matching catalog row. The FK added in
+// migration 007 makes this impossible going forward, but the check is cheap and
+// catches manual SQL fixes that bypass the schema.
+// * **Unreachable entities** — catalog rows with `default_included = false`
+// and zero matching grants. The entity is registered but no one can reach
+// it.
 pub(super) async fn run(_args: LintArgs, _config: &CliConfig) -> Result<(String, bool)> {
     let ctx = AppContext::new().await?;
     let repo =

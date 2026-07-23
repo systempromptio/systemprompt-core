@@ -68,7 +68,7 @@ async fn handle_events(State(ctx): State<AppContext>, headers: HeaderMap, body: 
             if !verify_app(&app, &headers, &body) {
                 return StatusCode::UNAUTHORIZED.into_response();
             }
-            // Drop the bot's own echoes and non-message events to avoid loops.
+            // Why: Drop the bot's own echoes and non-message events to avoid loops.
             if event.bot_id.is_some() || !matches!(event.kind.as_str(), "message" | "app_mention") {
                 return StatusCode::OK.into_response();
             }
@@ -193,8 +193,8 @@ async fn handle_interactivity(
     StatusCode::OK.into_response()
 }
 
-/// Dispatch in the background and post the rendered reply. Spawned so the route
-/// can ack Slack within its 3-second timeout.
+// Why: Dispatch in the background and post the rendered reply. Spawned so the
+// route can ack Slack within its 3-second timeout.
 fn spawn_reply(ctx: AppContext, inbound: MessagingInbound, bot_token: Option<String>) {
     tokio::spawn(async move {
         let (text, ephemeral) = match dispatch_messaging(&ctx, inbound.clone()).await {

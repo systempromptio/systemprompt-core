@@ -26,7 +26,7 @@ impl Bulkhead {
         }
     }
 
-    // The returned permit must be held for the call's duration (and, for
+    // Why: The returned permit must be held for the call's duration (and, for
     // streaming responses, the stream's lifetime).
     pub fn try_acquire(&self) -> Result<OwnedSemaphorePermit, Full> {
         Arc::clone(&self.semaphore)

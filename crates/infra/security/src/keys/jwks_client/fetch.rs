@@ -66,7 +66,7 @@ impl JwksClient {
         let cached = CachedJwks {
             jwks: jwks.clone(),
             expires_at: now + ttl,
-            // Only record the kid-miss refetch timestamp when the refetch
+            // Why: Only record the kid-miss refetch timestamp when the refetch
             // failed to surface the requested kid. A successful rotation
             // pickup resets the throttle so the next rotation isn't
             // blocked by the previous one.

@@ -15,14 +15,12 @@ use std::sync::Mutex;
 use std::time::{Duration, Instant};
 use uuid::Uuid;
 
-/// Cache TTL for negative results (jti not revoked). Revoked results are
-/// cached indefinitely because revocation is monotonic — a revoked jti cannot
-/// become un-revoked. 60s caps the window during which a freshly-revoked
-/// token continues to pass.
+// Why: Cache TTL for negative results (jti not revoked). Revoked results are
+// cached indefinitely because revocation is monotonic — a revoked jti cannot
+// become un-revoked. 60s caps the window during which a freshly-revoked
+// token continues to pass.
 const NEGATIVE_TTL_SECONDS: u64 = 60;
 
-/// Bound for the in-memory LRU. Sized for steady-state workloads on a single
-/// API node; cache misses fall through to the DB.
 const DEFAULT_CACHE_CAPACITY: usize = 5_000;
 
 impl OAuthRepository {

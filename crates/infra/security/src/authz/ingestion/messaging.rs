@@ -18,8 +18,6 @@ use super::super::types::{EntityKind, RuleType};
 use super::upsert::{Target, UpsertOutcome, upsert_entity_row, upsert_target};
 use super::{AccessControlIngestionService, IngestOptions, IngestReport};
 
-/// One workspace/tenant entity to seed: its id and the roles allowed to drive
-/// it.
 struct AppSeed {
     entity_id: String,
     roles: Vec<String>,

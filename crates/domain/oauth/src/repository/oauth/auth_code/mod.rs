@@ -73,7 +73,7 @@ impl OAuthRepository {
         let now = Utc::now();
         let code_hash = hash_at_rest(code.as_str())?;
 
-        // Atomically claim the code: only one concurrent caller wins the
+        // Why: Atomically claim the code: only one concurrent caller wins the
         // `used_at IS NULL` race. The application-level checks below run
         // against the row the winner just locked, so two simultaneous
         // exchanges of the same code cannot both pass validation.
@@ -139,9 +139,9 @@ impl OAuthRepository {
         })
     }
 
-    /// Disambiguate "atomic claim returned no row." Either the code never
-    /// existed, or it was previously consumed (replay) — the latter must
-    /// revoke the entire refresh-token family per RFC 6819 §5.2.2.3.
+    // Why: Disambiguate "atomic claim returned no row." Either the code never
+    // existed, or it was previously consumed (replay) — the latter must
+    // revoke the entire refresh-token family per RFC 6819 §5.2.2.3.
     async fn handle_unclaimable_auth_code(
         &self,
         code_hash: &str,

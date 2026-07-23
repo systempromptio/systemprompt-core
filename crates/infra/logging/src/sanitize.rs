@@ -9,9 +9,6 @@
 
 pub(crate) const REDACTION_PLACEHOLDER: &str = "[REDACTED]";
 
-/// Substrings (matched case-insensitively anywhere in the name) that mark a
-/// field as carrying a secret, covering `client_secret`, `auth_token`,
-/// `id_token`, `x-api-key`, `set-cookie`, and similar.
 const REDACT_SUBSTRINGS: &[&str] = &[
     "password",
     "passwd",
@@ -37,17 +34,14 @@ pub(crate) fn is_redacted(field_name: &str) -> bool {
         || REDACT_EXACT.iter().any(|e| lower == *e)
 }
 
-/// Whether `rendered` is the `system` attribution sentinel that
-/// [`SystemSpan`](crate::SystemSpan) stamps onto internal spans. The console
-/// sink drops it as noise; the database sink keeps it for attribution queries.
-/// `rendered` may be a bare `system` or a `Debug`-quoted `"system"`.
+// Why: Whether `rendered` is the `system` attribution sentinel that
+// [`SystemSpan`](crate::SystemSpan) stamps onto internal spans. The console
+// sink drops it as noise; the database sink keeps it for attribution queries.
+// `rendered` may be a bare `system` or a `Debug`-quoted `"system"`.
 pub(crate) fn is_system_sentinel(rendered: &str) -> bool {
     rendered == "system" || rendered == "\"system\""
 }
 
-/// Escapes newlines and other control characters so `value` stays on a single
-/// line for the line-oriented console sink. The database sink stores JSON and
-/// does not need this (serde escapes on serialization).
 pub(crate) fn escape_control(value: &str) -> String {
     if !value.chars().any(char::is_control) {
         return value.to_owned();

@@ -20,12 +20,12 @@ use tracing::warn;
 
 use crate::error::{SchedulerError, SchedulerResult};
 
-/// Holds the dedicated connection an advisory lock was taken on.
-///
-/// Call [`JobLockGuard::release`] once the job body finishes. [`Drop`] is a
-/// safety net only: if `release` was missed, the connection is dropped and
-/// returned to the pool, and Postgres releases all session advisory locks
-/// when that pooled connection is eventually recycled or closed.
+// Why: Holds the dedicated connection an advisory lock was taken on.
+//
+// Call [`JobLockGuard::release`] once the job body finishes. [`Drop`] is a
+// safety net only: if `release` was missed, the connection is dropped and
+// returned to the pool, and Postgres releases all session advisory locks
+// when that pooled connection is eventually recycled or closed.
 pub(super) struct JobLockGuard {
     conn: Option<PoolConnection<Postgres>>,
     key: i64,

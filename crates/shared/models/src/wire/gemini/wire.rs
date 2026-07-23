@@ -51,7 +51,7 @@ pub(crate) enum GeminiPart {
     FunctionCall {
         #[serde(rename = "functionCall")]
         function_call: GeminiFunctionCall,
-        // Part-level sibling of `functionCall`, not nested inside it: Gemini 3.x
+        // Why: Part-level sibling of `functionCall`, not nested inside it: Gemini 3.x
         // requires this opaque blob be returned on the same part next turn.
         #[serde(
             rename = "thoughtSignature",

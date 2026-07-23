@@ -39,8 +39,6 @@ pub fn execute(args: &ValidateArgs, _config: &CliConfig) -> Result<(CommandOutpu
         return print_profile_schema();
     }
 
-    // A target that is an existing `.yaml`/`.yml` file is treated as a
-    // full profile document and validated against the `Profile` schema.
     if let Some(target) = &args.target {
         let path = std::path::PathBuf::from(target);
         if path.exists() && is_yaml_file(&path) && target.parse::<ConfigSection>().is_err() {

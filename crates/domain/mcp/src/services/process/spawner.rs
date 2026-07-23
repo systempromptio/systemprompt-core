@@ -41,8 +41,9 @@ pub fn build_environment(
             env.push((inherited.to_owned(), value));
         }
     }
-    // SSRF guard allowlist (see systemprompt_models::net::TRUSTED_HTTP_HOSTS_ENV).
-    // The MCP child re-validates outbound URLs when it loads the profile catalog,
+    // Why: SSRF guard allowlist (see
+    // systemprompt_models::net::TRUSTED_HTTP_HOSTS_ENV). The MCP child
+    // re-validates outbound URLs when it loads the profile catalog,
     // so the operator's process-wide trust assertion must travel with it —
     // env_clear would otherwise leave the child running with an empty allowlist
     // and reject sealed-network hostnames the parent already accepted.
@@ -227,7 +228,7 @@ pub fn spawn_server(paths: &AppPaths, config: &McpServerConfig) -> McpDomainResu
 #[cfg(unix)]
 fn place_in_own_process_group(command: &mut Command) {
     use std::os::unix::process::CommandExt;
-    // pgid 0 makes the child its own group leader (pgid == pid), so the
+    // Why: pgid 0 makes the child its own group leader (pgid == pid), so the
     // supervisor can signal the whole group on shutdown rather than orphaning
     // any helper processes the server spawns.
     command.process_group(0);

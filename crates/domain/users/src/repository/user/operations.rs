@@ -62,7 +62,7 @@ impl UserRepository {
     pub async fn create_anonymous(&self, fingerprint: &str) -> Result<User> {
         let email = format!("{}@anonymous.local", fingerprint);
 
-        // Read first: repeat bot traffic hits an existing row, so avoid the
+        // Why: Read first: repeat bot traffic hits an existing row, so avoid the
         // upsert's per-request write lock and commit on the hot path.
         if let Some(existing) = sqlx::query_as!(
             User,
@@ -80,7 +80,7 @@ impl UserRepository {
             return Ok(existing);
         }
 
-        // ON CONFLICT covers a concurrent first request racing this insert.
+        // Why: ON CONFLICT covers a concurrent first request racing this insert.
         let user_id = uuid::Uuid::new_v4();
         let id = UserId::new(user_id.to_string());
         let name = format!("anonymous_{}", &user_id.to_string()[..8]);

@@ -269,10 +269,11 @@ pub mod test_api {
     }
 }
 
-/// A `running` row is stale unless its recorded PID is alive *and* still names
-/// our child — a recycled PID that now belongs to an unrelated process must be
-/// dropped, never adopted (and never signalled on the next reap). `error` /
-/// `stopped` rows are always stale; any other status is left untouched.
+// Why: A `running` row is stale unless its recorded PID is alive *and* still
+// names our child — a recycled PID that now belongs to an unrelated process
+// must be dropped, never adopted (and never signalled on the next reap).
+// `error` / `stopped` rows are always stale; any other status is left
+// untouched.
 fn service_row_is_stale(status: &str, pid: Option<i32>, name_key: &str, name: &str) -> bool {
     use systemprompt_scheduler::ProcessCleanup;
 

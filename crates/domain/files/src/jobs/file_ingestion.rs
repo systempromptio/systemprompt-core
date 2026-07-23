@@ -48,8 +48,8 @@ struct FileProcessingContext<'a> {
     images_dir: &'a Path,
 }
 
-// `#[async_trait]` is required: `Job` is registered and dispatched as `dyn Job`
-// by the scheduler, so its async methods cannot use native `async fn`.
+// Why: `#[async_trait]` is required: `Job` is registered and dispatched as `dyn
+// Job` by the scheduler, so its async methods cannot use native `async fn`.
 #[async_trait]
 impl Job for FileIngestionJob {
     fn name(&self) -> &'static str {

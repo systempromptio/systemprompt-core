@@ -42,7 +42,7 @@ pub fn kill_process(pid: u32) -> bool {
     use nix::sys::signal::{self, Signal};
     use nix::unistd::Pid;
     let raw = pid as i32;
-    // Refuse to signal ourselves, and reject ids that cast to a non-positive
+    // Why: Refuse to signal ourselves, and reject ids that cast to a non-positive
     // `i32` — `Pid::from_raw(<= 0)` targets a process group (e.g. `u32::MAX - 1`
     // becomes `-2`), which would broadcast the signal far beyond `pid`.
     if raw <= 0 || pid == std::process::id() {

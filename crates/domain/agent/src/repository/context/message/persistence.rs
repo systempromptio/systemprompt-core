@@ -164,7 +164,7 @@ pub async fn persist_message_with_tx(
     let session_id_str = session_id.as_str();
     let trace_id_str = trace_id.as_str();
 
-    // `metadata` is a jsonb column; bind the JSON string with an explicit
+    // Why: `metadata` is a jsonb column; bind the JSON string with an explicit
     // ::jsonb cast so the Postgres protocol does not reject the text OID.
     let insert_query: &str = "INSERT INTO task_messages (task_id, message_id, client_message_id, \
                               role, context_id, user_id, session_id, trace_id, sequence_number, \

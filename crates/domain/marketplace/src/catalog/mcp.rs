@@ -28,7 +28,7 @@ pub fn load_managed_mcp_servers(
 
     let mut out = Vec::with_capacity(entries.len());
     for (name, deployment) in entries {
-        // An accessor-backed external server is proxied through the gateway so
+        // Why: An accessor-backed external server is proxied through the gateway so
         // its provider URL and per-user token never reach the client.
         let url_str = if deployment.external_auth.is_some() {
             format!("{base}/api/v1/mcp/{name}/mcp")

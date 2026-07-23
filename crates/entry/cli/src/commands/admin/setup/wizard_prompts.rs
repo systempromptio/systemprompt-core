@@ -47,11 +47,11 @@ pub(super) async fn setup_postgres(
     postgres::setup_interactive(args, prompter, env_name, config).await
 }
 
-/// Provider-key collection is gated on whether a key was already supplied and
-/// whether stdin is a TTY — deliberately independent of the global
-/// `is_interactive()` flag. This lets `setup-local` keep DB/env/migrations
-/// non-interactive (via flags + `SYSTEMPROMPT_NON_INTERACTIVE`) while still
-/// prompting the operator to pick a provider when no key was passed.
+// Why: Provider-key collection is gated on whether a key was already supplied
+// and whether stdin is a TTY — deliberately independent of the global
+// `is_interactive()` flag. This lets `setup-local` keep DB/env/migrations
+// non-interactive (via flags + `SYSTEMPROMPT_NON_INTERACTIVE`) while still
+// prompting the operator to pick a provider when no key was passed.
 pub(super) fn collect_secrets(
     args: &SetupArgs,
     prompter: &dyn Prompter,

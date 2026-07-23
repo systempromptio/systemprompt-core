@@ -10,7 +10,7 @@
 use serde_json::{Value, json};
 use systemprompt_models::text::chunk_text;
 
-/// Slack's hard limit on a single section block's text length.
+// Why: Slack's hard limit on a single section block's text length.
 const SECTION_TEXT_LIMIT: usize = 3000;
 
 #[must_use]

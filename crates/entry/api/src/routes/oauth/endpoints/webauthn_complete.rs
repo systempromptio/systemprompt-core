@@ -99,9 +99,9 @@ pub async fn handle_webauthn_complete(
     let authorization_code = generate_secure_token("auth_code");
     store_authorization_code(&repo, &authorization_code, &params).await?;
 
-    // RFC 9207: the authorization response carries `iss` so the client can bind the
-    // code to this issuer. Derive it the same way discovery does, so the emitted
-    // value is byte-identical to the advertised `issuer`.
+    // Why: RFC 9207: the authorization response carries `iss` so the client can
+    // bind the code to this issuer. Derive it the same way discovery does, so
+    // the emitted value is byte-identical to the advertised `issuer`.
     let issuer = OAuthServerConfig::from_api_server_url(base.as_str()).issuer;
 
     Ok(create_successful_response(

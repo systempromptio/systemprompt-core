@@ -166,13 +166,13 @@ pub async fn terminate_gracefully(pid: u32, timeout_secs: u64) -> Result<()> {
     )))
 }
 
-/// True only if `pid` is alive and still ours.
-///
-/// Matches this agent's spawn markers (`SYSTEMPROMPT_SUBPROCESS=1` +
-/// `AGENT_NAME=<service_name>`) in `/proc/<pid>/environ`.
-/// Registry PIDs outlive the processes that minted them and are recycled by the
-/// kernel; every signal aimed at a PID believed to be "our agent `<name>`" must
-/// gate on this, so `kill`/`force_kill` can never reach an unrelated process.
+// Why: True only if `pid` is alive and still ours.
+//
+// Matches this agent's spawn markers (`SYSTEMPROMPT_SUBPROCESS=1` +
+// `AGENT_NAME=<service_name>`) in `/proc/<pid>/environ`.
+// Registry PIDs outlive the processes that minted them and are recycled by the
+// kernel; every signal aimed at a PID believed to be "our agent `<name>`" must
+// gate on this, so `kill`/`force_kill` can never reach an unrelated process.
 fn pid_is_agent_child(pid: u32, service_name: &str) -> bool {
     systemprompt_models::subprocess::live_pid_is_subprocess(
         pid,

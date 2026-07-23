@@ -49,7 +49,7 @@ pub struct TokenResponse {
     pub refresh_token: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub scope: Option<String>,
-    // RFC 8693 §2.2.1 issued_token_type. Only set by the
+    // Why: RFC 8693 §2.2.1 issued_token_type. Only set by the
     // urn:ietf:params:oauth:grant-type:token-exchange flow.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub issued_token_type: Option<String>,

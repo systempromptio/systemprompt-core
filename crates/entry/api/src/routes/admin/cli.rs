@@ -53,9 +53,10 @@ impl Default for CliBinaryPath {
 }
 const MAX_CLI_ARG_LEN: usize = 256;
 
-// The CLI subprocess is spawned without a shell, so this is defence-in-depth
-// against argv smuggling (flag injection via crafted `--foo=$(...)` payloads,
-// NUL-byte truncation) reaching downstream tooling that does invoke a shell.
+// Why: The CLI subprocess is spawned without a shell, so this is
+// defence-in-depth against argv smuggling (flag injection via crafted
+// `--foo=$(...)` payloads, NUL-byte truncation) reaching downstream tooling
+// that does invoke a shell.
 fn validate_cli_args(args: &[String]) -> Result<(), Box<ApiError>> {
     if args.is_empty() {
         return Err(Box::new(ApiError::bad_request(

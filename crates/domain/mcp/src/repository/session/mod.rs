@@ -175,7 +175,7 @@ impl McpSessionRepository {
         &self,
         session_id: &SessionId,
     ) -> McpDomainResult<Option<serde_json::Value>> {
-        // A worker that ends (after any request, or a server restart) marks its
+        // Why: A worker that ends (after any request, or a server restart) marks its
         // row 'closed' but leaves initialize_params intact; only a client DELETE
         // nulls them. Presence of non-null params — not status — is the
         // recoverable signal, so recovery must not filter on status = 'active'.

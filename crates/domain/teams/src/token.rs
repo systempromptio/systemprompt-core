@@ -19,8 +19,6 @@ use crate::error::{TeamsError, TeamsResult};
 const LOGIN_URL: &str = "https://login.microsoftonline.com/botframework.com/oauth2/v2.0/token";
 const SCOPE: &str = "https://api.botframework.com/.default";
 
-/// Refresh this many seconds before the reported expiry to absorb clock skew
-/// and request latency.
 const REFRESH_SKEW_SECS: i64 = 60;
 
 #[derive(Debug, Clone)]

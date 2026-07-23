@@ -204,7 +204,7 @@ impl PluginConfig {
         key: &str,
         field: &str,
     ) -> Result<(), ConfigValidationError> {
-        // `explicit` (the default) means "exactly what `include` lists" — an empty
+        // Why: `explicit` (the default) means "exactly what `include` lists" — an empty
         // list is valid and scopes the plugin to zero of this component. Under
         // `instance` the whole catalogue is taken, so a stray `include` would be
         // silently ignored: reject it as a likely mistake.

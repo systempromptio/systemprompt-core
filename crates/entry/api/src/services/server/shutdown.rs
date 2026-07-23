@@ -151,10 +151,10 @@ async fn terminate_mcp_children(repo: &systemprompt_database::ServiceRepository)
     .await;
 }
 
-/// Group-kills a recorded child only after confirming the live PID is still
-/// that child. A recycled PID is cleared without signalling — `kill(-pid)` on
-/// it would hit every process in the reused group, e.g. the systemd
-/// `user@<uid>` session leader.
+// Why: Group-kills a recorded child only after confirming the live PID is still
+// that child. A recycled PID is cleared without signalling — `kill(-pid)` on
+// it would hit every process in the reused group, e.g. the systemd
+// `user@<uid>` session leader.
 async fn terminate_service_child(
     repo: &systemprompt_database::ServiceRepository,
     name: &str,

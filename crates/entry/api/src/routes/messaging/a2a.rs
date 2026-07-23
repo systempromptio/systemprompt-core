@@ -43,8 +43,6 @@ pub(super) fn authenticated_user(user: &User) -> Result<AuthenticatedUser, Messa
     })
 }
 
-/// Mint a per-user A2A bearer scoped to the `a2a` audience and permission, so
-/// the proxy auth boundary accepts it for the agent backend.
 pub(super) fn mint_a2a_token(
     ctx: &AppContext,
     authed: &AuthenticatedUser,
@@ -158,7 +156,6 @@ pub(super) async fn run_agent(
     Ok(reply_text(parsed.result.as_ref()))
 }
 
-/// Empty when the agent produced no terminal status message.
 pub(super) fn reply_text(task: Option<&Task>) -> String {
     let Some(task) = task else {
         return String::new();

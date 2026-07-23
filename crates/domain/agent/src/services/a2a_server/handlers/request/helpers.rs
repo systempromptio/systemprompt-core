@@ -68,8 +68,6 @@ pub async fn parse_a2a_request(
     }
 }
 
-/// Suggested client back-off, in seconds, advertised via `Retry-After` when
-/// the global stream-concurrency cap rejects a streaming request.
 const STREAM_RETRY_AFTER_SECONDS: u32 = 5;
 
 pub async fn handle_streaming_path(

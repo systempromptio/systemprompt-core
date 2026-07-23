@@ -15,8 +15,6 @@ use super::super::SetupArgs;
 
 pub(super) const STANDARD_PROVIDERS: [&str; 3] = ["gemini", "anthropic", "openai"];
 
-// Default-provider precedence when no --default-provider flag is given: the
-// first provider in this order whose key was supplied wins.
 const PROVIDER_PRIORITY: [&str; 3] = ["anthropic", "openai", "gemini"];
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -90,9 +88,6 @@ fn first_present_by_priority(secrets: &SecretsData) -> Option<ProviderId> {
         .map(ProviderId::new)
 }
 
-/// An explicit, key-backed `--default-provider` flag wins; otherwise the first
-/// present key by [`PROVIDER_PRIORITY`]. The flag's absence is never fatal —
-/// `validate_secrets` already guarantees at least one key is present.
 pub(super) fn resolve_primary(
     args: &SetupArgs,
     secrets: &SecretsData,

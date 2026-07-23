@@ -72,16 +72,16 @@ pub(super) fn resolve_includes_recursively(
     Ok(())
 }
 
-/// Sniff the YAML for a top-level `settings:` key before deserializing.
-///
-/// Settings are only meaningful at the root config; an include that sets
-/// them is almost certainly an operator error (the values would otherwise
-/// be silently ignored). Reject explicitly so the misconfiguration shows
-/// up at startup.
+// Why: Sniff the YAML for a top-level `settings:` key before deserializing.
+//
+// Settings are only meaningful at the root config; an include that sets
+// them is almost certainly an operator error (the values would otherwise
+// be silently ignored). Reject explicitly so the misconfiguration shows
+// up at startup.
 fn reject_settings_at_include(content: &str, path: &Path) -> ConfigLoadResult<()> {
     let value: serde_yaml::Value = match serde_yaml::from_str(content) {
         Ok(v) => v,
-        // Defer the error to the typed deserialize path so callers get
+        // Why: Defer the error to the typed deserialize path so callers get
         // the structured Yaml error variant with the proper context.
         Err(_) => return Ok(()),
     };

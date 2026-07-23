@@ -90,10 +90,10 @@ pub async fn issue_bridge_access_with(
 
     let global_config = Config::get()?;
 
-    // The bridge declares its stable session id via the `x-session-id` header on
-    // the exchange request; the minted JWT must carry that id so it matches the
-    // header the bridge sends on `/v1/messages`. Fall back to a fresh id for any
-    // caller that does not supply one.
+    // Why: The bridge declares its stable session id via the `x-session-id` header
+    // on the exchange request; the minted JWT must carry that id so it matches
+    // the header the bridge sends on `/v1/messages`. Fall back to a fresh id
+    // for any caller that does not supply one.
     let session_id = request_headers
         .get(headers::SESSION_ID)
         .and_then(|v| v.to_str().ok())
@@ -116,7 +116,7 @@ pub async fn issue_bridge_access_with(
         &signing,
     )?;
 
-    // The JWT embeds `session_id`, but the hardened gateway validator only
+    // Why: The JWT embeds `session_id`, but the hardened gateway validator only
     // honours tokens whose session row exists and is unrevoked. Persist the row
     // here so the token and its session are born together. Analytics is
     // captured from the credential-exchange request so the session is traceable
@@ -161,7 +161,7 @@ pub async fn issue_bridge_access_with(
 fn build_bridge_jwt_config(auth_user: &AuthenticatedUser, ttl_hours: i64) -> JwtConfig {
     JwtConfig {
         permissions: auth_user.permissions().to_vec(),
-        // The bridge runs a first-party loopback proxy that fronts managed
+        // Why: The bridge runs a first-party loopback proxy that fronts managed
         // services on behalf of this authenticated user: it injects this token
         // when forwarding Cowork/Codex MCP traffic to `/api/v1/mcp/<svc>`. The
         // service-proxy guard (`validate_service_access`) only accepts the
