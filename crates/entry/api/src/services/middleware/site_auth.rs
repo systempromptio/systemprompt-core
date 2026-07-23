@@ -4,11 +4,19 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use axum::extract::Request;
+use axum::http::{HeaderValue, header};
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Redirect, Response};
 use systemprompt_extension::SiteAuthConfig;
 use systemprompt_models::auth::Permission;
 use systemprompt_security::{TokenExtractor, extract_user_context};
+
+// Why: Purges a token minted under a previous `security.issuer` instead of
+// bouncing the browser between login and the protected page forever;
+// `Secure` is omitted because a `Secure` deletion is discarded on
+// plain-HTTP local deployments.
+const CLEAR_ACCESS_TOKEN_COOKIE: &str =
+    "access_token=; Path=/; Max-Age=0; HttpOnly; SameSite=Strict";
 
 const STATIC_ASSET_EXTENSIONS: &[&str] = &[
     ".css", ".js", ".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico", ".woff", ".woff2", ".ttf",
@@ -50,34 +58,54 @@ pub async fn site_auth_gate(request: Request, next: Next, config: SiteAuthConfig
         return next.run(request).await;
     }
 
-    let auth_result = TokenExtractor::browser_only()
+    match authorize(&request, &config) {
+        AuthOutcome::Authorized => next.run(request).await,
+        outcome => {
+            let redirect = login_redirect(config.login_path, request.uri());
+            let mut response = Redirect::to(&redirect).into_response();
+            if matches!(outcome, AuthOutcome::InvalidToken)
+                && let Ok(cookie) = HeaderValue::from_str(CLEAR_ACCESS_TOKEN_COOKIE)
+            {
+                response.headers_mut().insert(header::SET_COOKIE, cookie);
+            }
+            response
+        },
+    }
+}
+
+enum AuthOutcome {
+    Authorized,
+    InvalidToken,
+    Unauthorized,
+}
+
+fn authorize(request: &Request, config: &SiteAuthConfig) -> AuthOutcome {
+    let path = request.uri().path();
+    let Ok(token) = TokenExtractor::browser_only()
         .extract(request.headers())
         .map_err(|e| tracing::debug!(error = %e, %path, "token extraction failed"))
-        .ok()
-        .and_then(|token| {
-            let required = config
-                .required_scope
-                .parse::<Permission>()
-                .map_err(|e| {
-                    tracing::warn!(
-                        error = %e,
-                        scope = config.required_scope,
-                        "invalid required_scope config"
-                    );
-                })
-                .ok()?;
-            let user_ctx = extract_user_context(&token)
-                .map_err(|e| tracing::debug!(error = %e, %path, "jwt validation failed"))
-                .ok()?;
-            (user_ctx.role == required || user_ctx.role.implies(&required)).then_some(())
-        });
-
-    if auth_result.is_some() {
-        return next.run(request).await;
+    else {
+        return AuthOutcome::Unauthorized;
+    };
+    let Ok(required) = config.required_scope.parse::<Permission>().map_err(|e| {
+        tracing::warn!(
+            error = %e,
+            scope = config.required_scope,
+            "invalid required_scope config"
+        );
+    }) else {
+        return AuthOutcome::Unauthorized;
+    };
+    let Ok(user_ctx) = extract_user_context(&token)
+        .map_err(|e| tracing::debug!(error = %e, %path, "jwt validation failed; clearing cookie"))
+    else {
+        return AuthOutcome::InvalidToken;
+    };
+    if user_ctx.role == required || user_ctx.role.implies(&required) {
+        AuthOutcome::Authorized
+    } else {
+        AuthOutcome::Unauthorized
     }
-
-    let redirect = login_redirect(config.login_path, request.uri());
-    Redirect::to(&redirect).into_response()
 }
 
 /// The bridge device-link carries its loopback callback in `?redirect=...`, so
