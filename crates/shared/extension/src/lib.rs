@@ -68,6 +68,7 @@ pub mod capabilities;
 pub mod context;
 pub mod error;
 pub mod frame_options;
+pub mod gateway_guard;
 pub mod hlist;
 pub mod metadata;
 pub mod migration;
@@ -84,6 +85,9 @@ pub use asset::{AssetDefinition, AssetDefinitionBuilder, AssetPaths, AssetType};
 pub use context::{DynExtensionContext, ExtensionContext};
 pub use error::{ConfigError, LoaderError};
 pub use frame_options::{FrameOptions, FrameOptionsOverride, stamp_frame_options};
+pub use gateway_guard::{
+    GatewayDenyReason, GatewayRequestGuard, GatewayRequestGuardRegistration, run_gateway_guards,
+};
 pub use metadata::{ExtensionMetadata, ExtensionRole, SchemaDefinition};
 pub use migration::Migration;
 pub use registry::{ExtensionRegistration, ExtensionRegistry};
@@ -109,12 +113,13 @@ pub mod prelude {
     pub use crate::asset::{AssetDefinition, AssetDefinitionBuilder, AssetPaths, AssetType};
     pub use crate::context::{DynExtensionContext, ExtensionContext};
     pub use crate::error::{ConfigError, LoaderError};
+    pub use crate::gateway_guard::{GatewayDenyReason, GatewayRequestGuard, run_gateway_guards};
     pub use crate::registry::ExtensionRegistry;
     pub use crate::seed::Seed;
     pub use crate::{
         Extension, ExtensionMetadata, ExtensionRole, ExtensionRouter, FrameOptions, Migration,
         SchemaDefinition, SiteAuthConfig, extension_migrations, register_extension,
-        stamp_frame_options,
+        register_gateway_guard, stamp_frame_options,
     };
 
     pub use crate::any::AnyExtension;

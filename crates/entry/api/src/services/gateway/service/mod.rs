@@ -127,6 +127,7 @@ impl GatewayService {
         }
 
         enforce_quota(db, &ctx.user_id, &policy.quota_windows, &audit).await?;
+        enforce_request_guards(db, &ctx.user_id, &audit).await?;
         enforce_request_safety(db, &ai_request_id, &request, &policy.safety, &audit).await?;
 
         let outcome = send_to_upstream(config, &upstream, &mut request, &audit).await?;
@@ -212,6 +213,35 @@ async fn enforce_quota(
         QuotaExceeded {
             message: msg,
             retry_after_seconds: decision.window_seconds,
+        }
+        .into(),
+    ))
+}
+
+async fn enforce_request_guards(
+    db: &DbPool,
+    user_id: &UserId,
+    audit: &GatewayAudit,
+) -> Result<(), DispatchError> {
+    let Some(pool) = db.pool() else {
+        return Ok(());
+    };
+    let Err(deny) = systemprompt_extension::run_gateway_guards(&pool, user_id.as_str()).await
+    else {
+        return Ok(());
+    };
+    tracing::warn!(
+        user_id = %user_id,
+        reason = %deny.message,
+        "Gateway request denied by request guard"
+    );
+    if let Err(e) = audit.fail(&deny.message).await {
+        tracing::warn!(error = %e, "request-guard audit fail failed");
+    }
+    Err(DispatchError::Recorded(
+        QuotaExceeded {
+            message: deny.message,
+            retry_after_seconds: deny.retry_after_seconds,
         }
         .into(),
     ))
