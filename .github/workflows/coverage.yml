@@ -267,7 +267,11 @@ jobs:
           PY
 
       - name: Upload coverage to Codecov
-        if: always()
+        # Guard on the rendered report: a bare always() uploads an empty payload
+        # when the build dies before rendering, which Codecov records as a 0%
+        # "error" commit and the branch badge then shows 0% instead of the last
+        # real number.
+        if: ${{ always() && hashFiles('lcov.info') != '' }}
         uses: codecov/codecov-action@v5
         with:
           files: lcov.info
