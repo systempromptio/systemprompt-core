@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.23.0] - 2026-07-23
+
+### Added
+
+- The deploy preflight fails a cloud profile whose `server.trusted_proxies` does not cover Fly's `fc00::/7` peer range.
+
 ## [0.21.1] - 2026-07-17
 
 ### Changed

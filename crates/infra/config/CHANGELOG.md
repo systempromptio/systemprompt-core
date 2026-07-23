@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.23.0] - 2026-07-23
+
+### Added
+
+- A warning is logged when a cloud profile is loaded with an empty `server.trusted_proxies`.
+
 ## [0.21.1] - 2026-07-17
 
 ### Changed

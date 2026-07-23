@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.23.0] - 2026-07-23
+
+### Added
+
+- `trusted_proxies` module with topology-correct defaults: `default_cloud_trusted_proxies()` (private + Fly 6PN + Cloudflare ranges), `default_local_trusted_proxies()` (loopback + RFC1918), and `covers_fly_peer()`.
+
+### Changed
+
+- `CloudProfileBuilder` and `LocalProfileBuilder` emit the new trusted-proxy defaults instead of an empty list.
+
 ## [0.21.1] - 2026-07-17
 
 ### Changed

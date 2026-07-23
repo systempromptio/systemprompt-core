@@ -181,6 +181,26 @@ pub(super) async fn check_database_reachable(secrets: &HashMap<String, String>) 
     }
 }
 
+pub fn check_proxy_topology(profile: &Profile) -> CheckResult {
+    if !profile.target.is_cloud() {
+        return CheckResult::pass("proxy-topology", "not a cloud profile");
+    }
+    if systemprompt_cloud::trusted_proxies::covers_fly_peer(&profile.server.trusted_proxies) {
+        return CheckResult::pass(
+            "proxy-topology",
+            "server.trusted_proxies covers the Fly peer range (fc00::/7)",
+        );
+    }
+    CheckResult::fail(
+        "proxy-topology",
+        "server.trusted_proxies does not cover Fly's internal peer range fc00::/7 — every \
+         request would resolve to the Fly proxy's private address and forwarded client-IP \
+         headers (X-Forwarded-For, CF-Connecting-IP) would be ignored, breaking geo \
+         attribution, rate-limit keys, and IP bans. Add to the profile:\n  server:\n    \
+         trusted_proxies:\n      - \"fc00::/7\"\nplus your edge proxy ranges (e.g. Cloudflare).",
+    )
+}
+
 pub(super) fn check_governance_hook_url(profile: &Profile) -> CheckResult {
     let Some(authz) = profile.governance.as_ref().and_then(|g| g.authz.as_ref()) else {
         return CheckResult::warn("hook-url", "no governance.authz block");

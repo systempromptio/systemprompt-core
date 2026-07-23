@@ -58,6 +58,10 @@ fn test_local_profile_defaults() {
     assert!(profile.security.trusted_issuers.is_empty());
     assert!(profile.security.allow_registration);
     assert!(profile.rate_limits.disabled);
+    assert_eq!(
+        profile.server.trusted_proxies,
+        systemprompt_cloud::trusted_proxies::default_local_trusted_proxies()
+    );
     assert!(matches!(
         profile.runtime.environment,
         Environment::Development
@@ -135,6 +139,13 @@ fn test_cloud_profile_defaults() {
     assert_eq!(profile.paths.web_path.as_deref(), Some("/app/web"));
     assert_eq!(profile.security.issuer, "systemprompt");
     assert!(!profile.rate_limits.disabled);
+    assert_eq!(
+        profile.server.trusted_proxies,
+        systemprompt_cloud::trusted_proxies::default_cloud_trusted_proxies()
+    );
+    assert!(systemprompt_cloud::trusted_proxies::covers_fly_peer(
+        &profile.server.trusted_proxies
+    ));
     assert!(matches!(
         profile.runtime.environment,
         Environment::Production

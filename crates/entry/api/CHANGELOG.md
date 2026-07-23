@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.23.0] - 2026-07-23
+
+### Added
+
+- The client-IP resolver honours `Fly-Client-IP` under the same trusted-peer gate as `X-Real-IP` and `CF-Connecting-IP`.
+- The session middleware logs an hourly-throttled warning when an untrusted private-range peer presents `X-Forwarded-For`, the signature of a proxy missing from `server.trusted_proxies`.
+
 ## [0.22.0] - 2026-07-20
 
 ### Added

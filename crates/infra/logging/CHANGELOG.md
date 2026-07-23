@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.23.0] - 2026-07-23
+
+### Added
+
+- `LogThrottle`, an interval-based gate for repeated hot-path log emissions.
+
 ## [0.21.1] - 2026-07-17
 
 ### Changed

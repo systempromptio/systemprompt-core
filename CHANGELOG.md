@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.23.0] - 2026-07-23
+
+### Added
+
+- Generated profiles ship topology-correct `server.trusted_proxies` defaults: cloud profiles trust the private, Fly 6PN (`fc00::/7`), and Cloudflare ranges; local profiles trust loopback and RFC1918.
+- `cloud deploy` / `cloud doctor` preflight fails when a cloud profile's `trusted_proxies` does not cover Fly's `fc00::/7` peer range, with the exact YAML to add.
+- The client-IP resolver honours `Fly-Client-IP` under the same trusted-peer gate as `X-Real-IP` and `CF-Connecting-IP`.
+- A warning is logged at boot when a cloud profile has an empty `server.trusted_proxies`, and at most hourly at runtime when an untrusted private-range peer presents `X-Forwarded-For` — the signature of a proxy missing from the allowlist.
+- `systemprompt_logging::LogThrottle` gates repeated hot-path log emissions to one per interval.
+
 ## [0.22.0] - 2026-07-21
 
 ### Breaking

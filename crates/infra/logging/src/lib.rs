@@ -43,8 +43,8 @@ pub use repository::{AnalyticsEvent, AnalyticsRepository, LoggingRepository};
 #[cfg(feature = "cli")]
 pub use services::CliService;
 pub use services::{
-    BufferedNotice, DatabaseLogService, FilterSystemFields, LoggingMaintenanceService, RequestSpan,
-    RequestSpanBuilder, SystemSpan, buffer_notice, drain_notices, is_startup_mode,
+    BufferedNotice, DatabaseLogService, FilterSystemFields, LogThrottle, LoggingMaintenanceService,
+    RequestSpan, RequestSpanBuilder, SystemSpan, buffer_notice, drain_notices, is_startup_mode,
     is_structured_output, mark_structured_emitted, publish_log, set_log_publisher,
     set_startup_mode, set_structured_output, structured_was_emitted,
 };

@@ -17,6 +17,7 @@ mod maintenance;
 pub mod output;
 pub mod retention;
 pub mod spans;
+mod throttle;
 
 #[cfg(feature = "cli")]
 pub use cli::CliService;
@@ -30,3 +31,4 @@ pub use output::{
 };
 pub use retention::{RetentionConfig, RetentionPolicy, RetentionScheduler};
 pub use spans::{RequestSpan, RequestSpanBuilder, SystemSpan};
+pub use throttle::LogThrottle;

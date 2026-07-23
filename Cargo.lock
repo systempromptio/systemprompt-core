@@ -4787,6 +4787,7 @@ dependencies = [
  "chrono",
  "clap",
  "futures",
+ "ipnet",
  "open",
  "reqwest",
  "reqwest-eventsource",

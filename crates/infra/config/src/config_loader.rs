@@ -119,6 +119,15 @@ fn build_config(profile: &Profile, paths: BuildConfigPaths) -> ConfigResult<Conf
     let secrets = SecretsBootstrap::get()?;
     let system_admin_username = resolve_system_admin_username(profile)?;
 
+    if profile.target.is_cloud() && profile.server.trusted_proxies.is_empty() {
+        tracing::warn!(
+            "cloud profile has an empty server.trusted_proxies — forwarded client-IP headers \
+             (X-Forwarded-For, CF-Connecting-IP) will be ignored and every request will resolve \
+             to the proxy's peer address; add your proxy ranges (e.g. \"fc00::/7\" on Fly) to \
+             server.trusted_proxies"
+        );
+    }
+
     Ok(Config {
         instance_id: profile
             .server

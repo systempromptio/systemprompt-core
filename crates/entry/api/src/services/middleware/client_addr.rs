@@ -14,8 +14,8 @@
 //! 3. If the chain is empty or every hop is trusted, fall back to the peer
 //!    address.
 //!
-//! `X-Real-IP` and `CF-Connecting-IP` are honoured only under rule 2's
-//! trust gate; otherwise they are ignored.
+//! `X-Real-IP`, `Fly-Client-IP`, and `CF-Connecting-IP` are honoured only
+//! under rule 2's trust gate; otherwise they are ignored.
 //!
 //! The trusted-proxy CIDR set is parsed and validated when the profile
 //! loads (`ServerConfig::trusted_proxies` deserialises to `Vec<IpNet>`);
@@ -65,7 +65,7 @@ pub fn resolve_client_ip(
         }
     }
 
-    for header in ["x-real-ip", "cf-connecting-ip"] {
+    for header in ["x-real-ip", "fly-client-ip", "cf-connecting-ip"] {
         if let Some(raw) = headers.get(header).and_then(|v| v.to_str().ok())
             && let Ok(addr) = raw.trim().parse::<IpAddr>()
             && !is_trusted(addr, trusted)
@@ -75,6 +75,33 @@ pub fn resolve_client_ip(
     }
 
     Some(peer_ip)
+}
+
+/// Detects a proxy missing from `trusted_proxies`.
+///
+/// An untrusted private-range peer presenting `X-Forwarded-For` near-certainly
+/// means the server is deployed behind an unlisted proxy — real clients never
+/// connect from those ranges in a cloud deployment.
+#[must_use]
+pub fn forwarded_headers_ignored(headers: &HeaderMap, peer_ip: IpAddr, trusted: &[IpNet]) -> bool {
+    !is_trusted(peer_ip, trusted)
+        && is_private_range(peer_ip)
+        && headers.contains_key("x-forwarded-for")
+}
+
+const fn is_private_range(ip: IpAddr) -> bool {
+    match ip {
+        IpAddr::V4(v4) => {
+            let is_cgnat = v4.octets()[0] == 100 && (v4.octets()[1] & 0xc0) == 64;
+            v4.is_loopback() || v4.is_private() || v4.is_link_local() || is_cgnat
+        },
+        IpAddr::V6(v6) => {
+            let seg0 = v6.segments()[0];
+            let is_unique_local = (seg0 & 0xfe00) == 0xfc00;
+            let is_link_local = (seg0 & 0xffc0) == 0xfe80;
+            v6.is_loopback() || is_unique_local || is_link_local
+        },
+    }
 }
 
 #[must_use]

@@ -60,6 +60,7 @@ pub mod paths;
 pub mod profile_authoring;
 pub mod secrets_env;
 pub mod tenants;
+pub mod trusted_proxies;
 
 pub use api_client::{
     CheckoutEvent, CheckoutResponse, CloudApiClient, DeployResponse, ListSecretsResponse, Plan,

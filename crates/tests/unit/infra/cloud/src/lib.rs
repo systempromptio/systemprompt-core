@@ -65,5 +65,7 @@ mod tenant_provisioning;
 mod tenant_token_retry;
 #[cfg(test)]
 mod tenants;
+
+mod trusted_proxies;
 #[cfg(test)]
 mod wire_format;

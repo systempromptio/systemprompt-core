@@ -83,7 +83,7 @@ impl LocalProfileBuilder {
                 security_headers: SecurityHeadersConfig::default(),
                 instance_id: None,
                 max_concurrent_streams: systemprompt_models::config::DEFAULT_MAX_CONCURRENT_STREAMS,
-                trusted_proxies: Vec::new(),
+                trusted_proxies: crate::trusted_proxies::default_local_trusted_proxies(),
             },
             paths: PathsConfig {
                 system: system_path,

@@ -45,7 +45,10 @@ pub struct SessionMiddleware {
     analytics_service: Arc<AnalyticsService>,
     session_creation_service: Arc<SessionCreationService>,
     trusted_proxies: Arc<Vec<IpNet>>,
+    ignored_forwarded_warn: Arc<systemprompt_logging::LogThrottle>,
 }
+
+const IGNORED_FORWARDED_WARN_INTERVAL_SECS: u64 = 3600;
 
 impl SessionMiddleware {
     pub fn new(ctx: &AppContext) -> anyhow::Result<Self> {
@@ -61,6 +64,9 @@ impl SessionMiddleware {
             analytics_service: Arc::clone(ctx.analytics_service()),
             session_creation_service,
             trusted_proxies: Arc::new(ctx.config().trusted_proxies.clone()),
+            ignored_forwarded_warn: Arc::new(systemprompt_logging::LogThrottle::new(
+                IGNORED_FORWARDED_WARN_INTERVAL_SECS,
+            )),
         })
     }
 
@@ -70,6 +76,20 @@ impl SessionMiddleware {
             request.extensions().get::<ConnectInfo<SocketAddr>>(),
             &self.trusted_proxies,
         );
+        if let Some(peer) = request.extensions().get::<ConnectInfo<SocketAddr>>()
+            && super::client_addr::forwarded_headers_ignored(
+                request.headers(),
+                peer.0.ip(),
+                &self.trusted_proxies,
+            )
+            && self.ignored_forwarded_warn.allow()
+        {
+            tracing::warn!(
+                peer_ip = %peer.0.ip(),
+                "ignoring forwarded client-IP headers from untrusted private peer; if this \
+                 server runs behind a proxy, add the peer's range to server.trusted_proxies"
+            );
+        }
         let uri = request.uri().clone();
         let headers = request.headers();
         let analytics = self.analytics_service.extract_analytics(
