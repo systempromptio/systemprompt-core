@@ -144,17 +144,6 @@ pub(super) async fn find_active_by_id(
     .map_err(Into::into)
 }
 
-pub(super) async fn exists(pool: &PgPool, session_id: &SessionId) -> Result<bool> {
-    let id = session_id.as_str();
-    let result = sqlx::query_scalar!(
-        r#"SELECT 1 as "exists" FROM user_sessions WHERE session_id = $1 LIMIT 1"#,
-        id
-    )
-    .fetch_optional(pool)
-    .await?;
-    Ok(result.is_some())
-}
-
 pub(super) async fn get_total_content_pages(pool: &PgPool) -> Result<i64> {
     let count = sqlx::query_scalar!(
         r#"

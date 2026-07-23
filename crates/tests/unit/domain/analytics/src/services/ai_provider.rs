@@ -26,7 +26,7 @@ async fn cleanup(pool: &systemprompt_database::DbPool, session_id: &SessionId) {
 }
 
 #[tokio::test]
-async fn create_session_then_exists_and_increment_usage_round_trip() {
+async fn create_session_then_increment_usage_round_trip() {
     let Ok(url) = fixture_database_url() else {
         return;
     };
@@ -35,11 +35,6 @@ async fn create_session_then_exists_and_increment_usage_round_trip() {
     let provider = AnalyticsAiSessionProvider::new(&pool).expect("provider");
 
     let sid = unique_session_id();
-    assert!(
-        !provider.session_exists(&sid).await.expect("exists pre"),
-        "unseen session must not exist"
-    );
-
     provider
         .create_session(CreateAiSessionParams {
             session_id: &sid,
@@ -49,11 +44,6 @@ async fn create_session_then_exists_and_increment_usage_round_trip() {
         })
         .await
         .expect("create");
-
-    assert!(
-        provider.session_exists(&sid).await.expect("exists post"),
-        "created session must exist"
-    );
 
     provider
         .increment_ai_usage(&sid, 120, 6_000)
@@ -91,21 +81,17 @@ async fn from_repository_shares_the_backing_repo() {
         })
         .await
         .expect("create");
-    assert!(provider.session_exists(&sid).await.expect("exists"));
+    assert!(
+        SessionRepository::new(&pool)
+            .expect("repo")
+            .find_by_id(&sid)
+            .await
+            .expect("find")
+            .is_some(),
+        "created session must be visible through the shared repo"
+    );
 
     cleanup(&pool, &sid).await;
-}
-
-#[tokio::test]
-async fn session_exists_maps_pool_failure_to_internal() {
-    let pool = closed_db_pool().await;
-    let provider = AnalyticsAiSessionProvider::new(&pool).expect("provider");
-
-    let err = provider
-        .session_exists(&unique_session_id())
-        .await
-        .expect_err("closed pool must fail");
-    assert!(matches!(err, AiProviderError::Internal(_)));
 }
 
 #[tokio::test]

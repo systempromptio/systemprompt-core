@@ -485,7 +485,7 @@ async fn build_fails_when_default_provider_not_enabled() {
         &registry,
         &config,
         std::sync::Arc::new(systemprompt_ai::NoopToolProvider::new()),
-        None,
+        super::noop_session_provider(),
     );
     assert!(result.is_err());
 }
@@ -532,7 +532,7 @@ async fn google_search_uses_search_capable_provider_and_surfaces_sources() {
         &registry,
         &config,
         std::sync::Arc::new(systemprompt_ai::NoopToolProvider::new()),
-        None,
+        super::noop_session_provider(),
     )
     .expect("AiService builds");
 

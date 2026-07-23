@@ -18,8 +18,33 @@ use systemprompt_models::profile::ProviderRegistry;
 use systemprompt_models::services::{AiConfig, AiProviderConfig};
 use systemprompt_test_fixtures::{
     ensure_test_bootstrap, ensure_test_secrets_bootstrap, fixture_database_url, fixture_db_pool,
-    seed_user_row, unique_user_id,
+    seed_user_row, seed_user_session, unique_user_id,
 };
+use systemprompt_traits::{
+    AiProviderResult, AiSessionProvider, CreateAiSessionParams, DynAiSessionProvider,
+};
+
+struct NoopSessionProvider;
+
+#[async_trait::async_trait]
+impl AiSessionProvider for NoopSessionProvider {
+    async fn create_session(&self, _params: CreateAiSessionParams<'_>) -> AiProviderResult<()> {
+        Ok(())
+    }
+
+    async fn increment_ai_usage(
+        &self,
+        _session_id: &systemprompt_identifiers::SessionId,
+        _tokens: i32,
+        _cost_microdollars: i64,
+    ) -> AiProviderResult<()> {
+        Ok(())
+    }
+}
+
+pub(crate) fn noop_session_provider() -> DynAiSessionProvider {
+    Arc::new(NoopSessionProvider)
+}
 
 // A registry seeded from the embedded catalog with the chosen provider's
 // endpoint rewritten to the mock server. The endpoint field is public, so the
@@ -73,21 +98,26 @@ pub(crate) fn service(pool: &DbPool, provider: &str, endpoint: String) -> AiServ
         &registry,
         &config,
         Arc::new(NoopToolProvider::new()),
-        None,
+        noop_session_provider(),
     )
     .expect("AiService builds")
 }
 
-// Seed a user and return a RequestContext whose actor carries that user id so
-// the ai_requests audit FK to `users` is satisfied.
+// Seed a user plus a session row and return a RequestContext carrying both,
+// so the ai_requests audit FKs to `users` and `user_sessions` are satisfied
+// even when the test wires a non-persisting session provider.
 pub(crate) async fn seeded_context(pool: &DbPool) -> (UserId, RequestContext) {
     let user_id = unique_user_id("ai-core");
     let email = format!("{}@ai-core.invalid", user_id.as_str());
     seed_user_row(pool, &user_id, &email)
         .await
         .expect("seed user");
+    let session_id = SessionId::generate();
+    seed_user_session(pool, &user_id, &session_id)
+        .await
+        .expect("seed session");
     let context = RequestContext::new(
-        SessionId::generate(),
+        session_id,
         TraceId::generate(),
         ContextId::new(uuid::Uuid::new_v4().to_string()),
         AgentName::new("ai-core-test"),

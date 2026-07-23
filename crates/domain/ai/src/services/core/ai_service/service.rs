@@ -49,7 +49,7 @@ impl AiService {
         registry: &ProviderRegistry,
         ai_config: &AiConfig,
         tool_provider: Arc<dyn ToolProvider>,
-        session_provider: Option<DynAiSessionProvider>,
+        session_provider: DynAiSessionProvider,
     ) -> Result<Self> {
         let mut missing_env_vars = Vec::new();
         let providers = Self::build_providers(registry, ai_config, db_pool, &mut missing_env_vars)?;
@@ -75,10 +75,7 @@ impl AiService {
         let tool_discovery = Arc::new(ToolDiscovery::new(Arc::clone(&tool_provider)));
         let tooled_executor = TooledExecutor::new(Arc::clone(&tool_provider));
 
-        let mut storage = RequestStorage::new(AiRequestRepository::new(db_pool)?);
-        if let Some(provider) = session_provider {
-            storage = storage.with_session_provider(provider);
-        }
+        let storage = RequestStorage::new(AiRequestRepository::new(db_pool)?, session_provider);
 
         Ok(Self {
             providers,

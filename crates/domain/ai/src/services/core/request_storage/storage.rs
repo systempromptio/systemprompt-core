@@ -16,7 +16,7 @@ use super::record_builder::{
     BuildRecordParams, build_record, extract_messages, extract_tool_calls,
 };
 use super::writes::{
-    ensure_session_exists, store_messages, store_request, store_tool_calls, update_session_usage,
+    store_messages, store_request, store_tool_calls, touch_session, update_session_usage,
 };
 
 #[derive(Debug)]
@@ -32,7 +32,7 @@ pub struct StoreParams<'a> {
 #[derive(Clone)]
 pub struct RequestStorage {
     ai_request_repo: AiRequestRepository,
-    session_provider: Option<DynAiSessionProvider>,
+    session_provider: DynAiSessionProvider,
     event_publisher: Option<Arc<dyn AnalyticsEventPublisher>>,
 }
 
@@ -41,29 +41,23 @@ impl std::fmt::Debug for RequestStorage {
         f.debug_struct("RequestStorage")
             .field("ai_request_repo", &self.ai_request_repo)
             .field(
-                "session_provider",
-                &self.session_provider.as_ref().map(|_| "<provider>"),
-            )
-            .field(
                 "event_publisher",
                 &self.event_publisher.as_ref().map(|_| "<publisher>"),
             )
-            .finish()
+            .finish_non_exhaustive()
     }
 }
 
 impl RequestStorage {
-    pub fn new(ai_request_repo: AiRequestRepository) -> Self {
+    pub fn new(
+        ai_request_repo: AiRequestRepository,
+        session_provider: DynAiSessionProvider,
+    ) -> Self {
         Self {
             ai_request_repo,
-            session_provider: None,
+            session_provider,
             event_publisher: None,
         }
-    }
-
-    pub fn with_session_provider(mut self, provider: DynAiSessionProvider) -> Self {
-        self.session_provider = Some(provider);
-        self
     }
 
     pub fn with_event_publisher(mut self, publisher: Arc<dyn AnalyticsEventPublisher>) -> Self {
@@ -98,14 +92,8 @@ impl RequestStorage {
         let tokens = record.tokens.tokens_used;
         let cost = record.cost_microdollars;
 
-        // ai_requests.session_id carries a foreign key to user_sessions; the
-        // session row must exist before the audit insert or the row is lost —
-        // error paths never reach update_session_usage, so this cannot be
-        // deferred to it.
-        if let (Some(provider), Some(session_id)) =
-            (self.session_provider.as_ref(), session_id.as_ref())
-        {
-            ensure_session_exists(provider.as_ref(), session_id, &user_id).await;
+        if let Some(session_id) = session_id.as_ref() {
+            touch_session(self.session_provider.as_ref(), session_id, &user_id).await;
         }
 
         let db_id = store_request(&self.ai_request_repo, &record).await?;
@@ -113,16 +101,14 @@ impl RequestStorage {
         store_messages(&self.ai_request_repo, &db_id, messages).await;
         store_tool_calls(&self.ai_request_repo, &db_id, tool_calls).await;
 
-        if let Some(provider) = self.session_provider.as_ref() {
-            update_session_usage(
-                provider.as_ref(),
-                &user_id,
-                session_id.as_ref(),
-                tokens,
-                cost,
-            )
-            .await;
-        }
+        update_session_usage(
+            self.session_provider.as_ref(),
+            &user_id,
+            session_id.as_ref(),
+            tokens,
+            cost,
+        )
+        .await;
 
         if let Some(publisher) = self.event_publisher.as_ref() {
             publisher.publish_analytics_event(

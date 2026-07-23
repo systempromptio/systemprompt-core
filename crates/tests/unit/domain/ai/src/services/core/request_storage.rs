@@ -1,7 +1,6 @@
 // RequestStorage seams: session-usage propagation through AiSessionProvider
 // and analytics-event publication, driven against the migrated test DB.
 
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
 use systemprompt_ai::models::RequestStatus;
@@ -20,17 +19,12 @@ use super::{pool, seeded_context};
 
 #[derive(Default)]
 struct RecordingSessionProvider {
-    exists: AtomicBool,
     created: Mutex<Vec<String>>,
     increments: Mutex<Vec<(String, i32, i64)>>,
 }
 
 #[async_trait::async_trait]
 impl AiSessionProvider for RecordingSessionProvider {
-    async fn session_exists(&self, _session_id: &SessionId) -> AiProviderResult<bool> {
-        Ok(self.exists.load(Ordering::SeqCst))
-    }
-
     async fn create_session(&self, params: CreateAiSessionParams<'_>) -> AiProviderResult<()> {
         self.created
             .lock()
@@ -91,8 +85,8 @@ fn response(request_id: Uuid, content: &str) -> AiResponse {
     response
 }
 
-fn storage(pool: &DbPool) -> RequestStorage {
-    RequestStorage::new(AiRequestRepository::new(pool).expect("repo"))
+fn storage(pool: &DbPool, provider: Arc<RecordingSessionProvider>) -> RequestStorage {
+    RequestStorage::new(AiRequestRepository::new(pool).expect("repo"), provider)
 }
 
 async fn store(storage: &RequestStorage, request: &AiRequest, response: &AiResponse, cost: i64) {
@@ -110,14 +104,14 @@ async fn store(storage: &RequestStorage, request: &AiRequest, response: &AiRespo
 }
 
 #[tokio::test]
-async fn missing_session_is_created_then_usage_incremented() {
+async fn session_is_touched_then_usage_incremented() {
     let Some(pool) = pool().await else {
         return;
     };
     let (_user, ctx) = seeded_context(&pool).await;
     let session_id = ctx.session_id().as_str().to_owned();
     let provider = Arc::new(RecordingSessionProvider::default());
-    let storage = storage(&pool).with_session_provider(provider.clone());
+    let storage = storage(&pool, provider.clone());
 
     let request = request(ctx);
     let response = response(Uuid::new_v4(), "answer");
@@ -134,25 +128,7 @@ async fn missing_session_is_created_then_usage_incremented() {
 }
 
 #[tokio::test]
-async fn existing_session_is_not_recreated() {
-    let Some(pool) = pool().await else {
-        return;
-    };
-    let (_user, ctx) = seeded_context(&pool).await;
-    let provider = Arc::new(RecordingSessionProvider::default());
-    provider.exists.store(true, Ordering::SeqCst);
-    let storage = storage(&pool).with_session_provider(provider.clone());
-
-    let request = request(ctx);
-    let response = response(Uuid::new_v4(), "answer");
-    store(&storage, &request, &response, 0).await;
-
-    assert!(provider.created.lock().expect("lock").is_empty());
-    assert_eq!(provider.increments.lock().expect("lock").len(), 1);
-}
-
-#[tokio::test]
-async fn system_user_skips_session_accounting() {
+async fn system_user_skips_usage_accounting_but_touches_session() {
     let Some(pool) = pool().await else {
         return;
     };
@@ -162,14 +138,15 @@ async fn system_user_skips_session_accounting() {
         .expect("seed system user");
     let (_seeded, ctx) = seeded_context(&pool).await;
     let ctx = ctx.with_actor(systemprompt_identifiers::Actor::system(system_user));
+    let session_id = ctx.session_id().as_str().to_owned();
     let provider = Arc::new(RecordingSessionProvider::default());
-    let storage = storage(&pool).with_session_provider(provider.clone());
+    let storage = storage(&pool, provider.clone());
 
     let request = request(ctx);
     let response = response(Uuid::new_v4(), "answer");
     store(&storage, &request, &response, 7).await;
 
-    assert!(provider.created.lock().expect("lock").is_empty());
+    assert_eq!(*provider.created.lock().expect("lock"), vec![session_id]);
     assert!(provider.increments.lock().expect("lock").is_empty());
 }
 
@@ -180,7 +157,8 @@ async fn analytics_publisher_receives_token_count() {
     };
     let (_user, ctx) = seeded_context(&pool).await;
     let publisher = Arc::new(RecordingPublisher::default());
-    let storage = storage(&pool).with_event_publisher(publisher.clone());
+    let storage = storage(&pool, Arc::new(RecordingSessionProvider::default()))
+        .with_event_publisher(publisher.clone());
 
     let request = request(ctx);
     let response = response(Uuid::new_v4(), "answer");
@@ -195,7 +173,7 @@ async fn stored_request_persists_messages_and_assistant_reply() {
         return;
     };
     let (_user, ctx) = seeded_context(&pool).await;
-    let storage = storage(&pool);
+    let storage = storage(&pool, Arc::new(RecordingSessionProvider::default()));
     let request_id = Uuid::new_v4();
 
     let request = request(ctx);

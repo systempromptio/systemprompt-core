@@ -63,19 +63,9 @@ async fn query_supports_limits_and_rejects_writes() {
     let pool = pool().await;
     let ctx = ctx(&pool);
 
-    db::execute(
-        parse(&[
-            "query",
-            "SELECT 1 AS one",
-            "--limit",
-            "5",
-            "--format",
-            "json",
-        ]),
-        &ctx,
-    )
-    .await
-    .unwrap();
+    db::execute(parse(&["query", "SELECT 1 AS one", "--limit", "5"]), &ctx)
+        .await
+        .unwrap();
 
     let write_attempt = db::execute(parse(&["query", "DELETE FROM logs"]), &ctx).await;
     assert!(write_attempt.is_err() || write_attempt.is_ok());

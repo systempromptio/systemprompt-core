@@ -60,7 +60,7 @@ pub(super) async fn execute(args: RunArgs) -> Result<()> {
             &profile.providers,
             &services_config.ai,
             tool_provider,
-            Some(session_provider),
+            session_provider,
         )
         .context("Failed to create AI service")?,
     );

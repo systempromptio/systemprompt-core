@@ -30,8 +30,6 @@ async fn create_session_then_find_by_id_round_trip() {
     assert!(!found.is_bot);
     assert_eq!(found.request_count, Some(0));
 
-    assert!(repo.exists(&sid).await.expect("exists"));
-
     delete_session(&pool, &sid).await;
 }
 
@@ -51,7 +49,12 @@ async fn create_session_is_upsert_on_conflict() {
     let second = base_params(&sid, Some(&fp), Utc::now() + Duration::hours(2));
     repo.create_session(&second).await.expect("upsert");
 
-    assert!(repo.exists(&sid).await.expect("exists"));
+    assert!(
+        repo.find_by_id(&sid)
+            .await
+            .expect("find")
+            .is_some()
+    );
 
     delete_session(&pool, &sid).await;
 }

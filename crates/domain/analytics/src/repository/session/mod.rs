@@ -144,10 +144,6 @@ impl SessionRepository {
         queries::find_recent_by_fingerprint(&self.pool, fingerprint_hash, max_age_seconds).await
     }
 
-    pub async fn exists(&self, session_id: &SessionId) -> Result<bool> {
-        queries::exists(&self.pool, session_id).await
-    }
-
     pub async fn increment_ai_usage(
         &self,
         session_id: &SessionId,

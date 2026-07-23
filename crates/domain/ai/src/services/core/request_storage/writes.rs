@@ -80,8 +80,6 @@ pub(super) async fn update_session_usage(
         return;
     };
 
-    ensure_session_exists(session_provider, session_id, user_id).await;
-
     let tokens = tokens.unwrap_or(0);
     if let Err(e) = session_provider
         .increment_ai_usage(session_id, tokens, cost_microdollars)
@@ -97,24 +95,11 @@ pub(super) async fn update_session_usage(
     }
 }
 
-pub(super) async fn ensure_session_exists(
+pub(super) async fn touch_session(
     session_provider: &dyn AiSessionProvider,
     session_id: &SessionId,
     user_id: &UserId,
 ) {
-    let exists = session_provider
-        .session_exists(session_id)
-        .await
-        .map_err(|e| {
-            error!(error = %e, session_id = %session_id, "Failed to check session existence");
-            e
-        })
-        .unwrap_or(false);
-
-    if exists {
-        return;
-    }
-
     let jwt_expiration = systemprompt_models::Config::get()
         .map(|c| c.jwt_access_token_expiration)
         .inspect_err(|e| {
