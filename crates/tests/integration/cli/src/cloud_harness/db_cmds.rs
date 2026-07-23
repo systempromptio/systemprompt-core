@@ -82,7 +82,6 @@ async fn db_introspection_commands_run() {
             sql: "SELECT 1 AS one".to_owned(),
             limit: Some(1),
             offset: None,
-            format: None,
         },
     ];
 
@@ -186,7 +185,6 @@ async fn db_execute_with_database_url_bypasses_profile() {
             sql: "SELECT 1 AS one".to_owned(),
             limit: None,
             offset: None,
-            format: None,
         },
         &url,
         &json_ctx(),

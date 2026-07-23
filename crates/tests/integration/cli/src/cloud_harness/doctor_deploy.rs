@@ -34,6 +34,7 @@ fn write_cloud_profile(env: &Env, name: &str) -> std::path::PathBuf {
     let mut in_paths = false;
     let cloud: String = base
         .replace("target: local", "target: cloud")
+        .replace("trusted_proxies: []", "trusted_proxies: [\"fc00::/7\"]")
         .lines()
         .map(|line| {
             if !line.starts_with(' ') {
