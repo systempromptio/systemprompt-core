@@ -40,15 +40,28 @@ fn test_database_extension_schemas() {
     let ext = DatabaseExtension;
     let schemas = ext.schemas();
     assert_eq!(schemas.len(), 2);
-    assert!(schemas.iter().any(|s| s.table == "extension_migrations"));
+    assert!(
+        schemas
+            .iter()
+            .any(|s| s.table.as_deref() == Some("extension_migrations"))
+    );
 }
 
 #[test]
-fn test_database_extension_schemas_contains_functions() {
+fn test_database_extension_declares_shared_functions_without_a_table() {
     let ext = DatabaseExtension;
     let schemas = ext.schemas();
-    let has_functions = schemas.iter().any(|s| s.table == "functions");
-    assert!(has_functions);
+
+    let functions = schemas
+        .iter()
+        .find(|s| s.sql.contains("update_timestamp_trigger"))
+        .expect("the shared trigger function is declared");
+
+    assert!(
+        functions.table.is_none(),
+        "the shared functions definition creates no table and must declare none"
+    );
+    assert!(!functions.sql.to_uppercase().contains("CREATE TABLE"));
 }
 
 #[test]

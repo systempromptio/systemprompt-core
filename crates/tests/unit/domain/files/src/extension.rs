@@ -55,7 +55,7 @@ fn test_files_extension_schemas_count() {
 fn test_files_extension_schemas_names() {
     let ext = FilesExtension;
     let schemas = ext.schemas();
-    let names: Vec<&str> = schemas.iter().map(|s| s.table.as_str()).collect();
+    let names: Vec<&str> = schemas.iter().filter_map(|s| s.table.as_deref()).collect();
     assert!(names.contains(&"files"));
     assert!(names.contains(&"content_files"));
 }
@@ -64,7 +64,10 @@ fn test_files_extension_schemas_names() {
 fn test_files_extension_files_schema_has_required_columns() {
     let ext = FilesExtension;
     let schemas = ext.schemas();
-    let files_schema = schemas.iter().find(|s| s.table == "files").unwrap();
+    let files_schema = schemas
+        .iter()
+        .find(|s| s.table.as_deref() == Some("files"))
+        .unwrap();
     let required = &files_schema.required_columns;
     assert!(required.contains(&"id".to_string()));
     assert!(required.contains(&"path".to_string()));
@@ -76,7 +79,10 @@ fn test_files_extension_files_schema_has_required_columns() {
 fn test_files_extension_content_files_schema_has_required_columns() {
     let ext = FilesExtension;
     let schemas = ext.schemas();
-    let schema = schemas.iter().find(|s| s.table == "content_files").unwrap();
+    let schema = schemas
+        .iter()
+        .find(|s| s.table.as_deref() == Some("content_files"))
+        .unwrap();
     let required = &schema.required_columns;
     assert!(required.contains(&"id".to_string()));
     assert!(required.contains(&"content_id".to_string()));
@@ -100,7 +106,7 @@ fn test_files_extension_schemas_have_sql() {
         assert!(
             !schema.sql.is_empty(),
             "Schema {} has empty SQL",
-            schema.table
+            schema.table.as_deref().unwrap_or("<table-less>")
         );
     }
 }
@@ -109,7 +115,10 @@ fn test_files_extension_schemas_have_sql() {
 fn test_files_extension_files_schema_sql_contains_table() {
     let ext = FilesExtension;
     let schemas = ext.schemas();
-    let files_schema = schemas.iter().find(|s| s.table == "files").unwrap();
+    let files_schema = schemas
+        .iter()
+        .find(|s| s.table.as_deref() == Some("files"))
+        .unwrap();
     assert!(files_schema.sql.contains("CREATE TABLE") || files_schema.sql.contains("files"));
 }
 
@@ -117,6 +126,9 @@ fn test_files_extension_files_schema_sql_contains_table() {
 fn test_files_extension_content_files_schema_sql_contains_table() {
     let ext = FilesExtension;
     let schemas = ext.schemas();
-    let schema = schemas.iter().find(|s| s.table == "content_files").unwrap();
+    let schema = schemas
+        .iter()
+        .find(|s| s.table.as_deref() == Some("content_files"))
+        .unwrap();
     assert!(schema.sql.contains("CREATE TABLE") || schema.sql.contains("content_files"));
 }

@@ -16,9 +16,11 @@ struct Harness {
 }
 
 fn parse(args: &[&str]) -> DbCommands {
+    try_parse(args).unwrap().cmd
+}
+
+fn try_parse(args: &[&str]) -> Result<Harness, clap::Error> {
     Harness::try_parse_from(std::iter::once("db").chain(args.iter().copied()))
-        .unwrap()
-        .cmd
 }
 
 async fn pool() -> DbPool {
@@ -173,13 +175,20 @@ async fn migrate_down_rejects_unknown_extension() {
 }
 
 #[tokio::test]
-async fn validate_and_doctor_inspect_schema() {
+async fn doctor_reconciles_schema_against_extension_declarations() {
     let pool = pool().await;
     let ctx = ctx(&pool);
-    let validate = db::execute(parse(&["validate"]), &ctx).await;
-    assert!(validate.is_ok() || !validate.unwrap_err().to_string().is_empty());
-    let doctor = db::execute(parse(&["doctor"]), &ctx).await;
-    assert!(doctor.is_ok() || !doctor.unwrap_err().to_string().is_empty());
+    db::execute(parse(&["doctor"]), &ctx)
+        .await
+        .expect("doctor reconciles a migrated schema without erroring");
+}
+
+#[test]
+fn validate_subcommand_is_gone() {
+    assert!(
+        try_parse(&["validate"]).is_err(),
+        "`infra db validate` was removed in favour of `doctor`"
+    );
 }
 
 #[tokio::test]

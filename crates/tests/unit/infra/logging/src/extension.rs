@@ -19,7 +19,7 @@ fn extension_is_required() {
 #[test]
 fn schemas_include_logs_and_analytics() {
     let schemas = LoggingExtension.schemas();
-    let names: Vec<&str> = schemas.iter().map(|s| s.table.as_str()).collect();
+    let names: Vec<&str> = schemas.iter().filter_map(|s| s.table.as_deref()).collect();
     assert!(names.contains(&"logs"));
     assert!(names.contains(&"analytics_events"));
 }
@@ -27,14 +27,17 @@ fn schemas_include_logs_and_analytics() {
 #[test]
 fn schemas_have_required_columns() {
     let schemas = LoggingExtension.schemas();
-    let logs = schemas.iter().find(|s| s.table == "logs").unwrap();
+    let logs = schemas
+        .iter()
+        .find(|s| s.table.as_deref() == Some("logs"))
+        .unwrap();
     assert!(logs.required_columns.iter().any(|c| c == "id"));
     assert!(logs.required_columns.iter().any(|c| c == "level"));
     assert!(logs.required_columns.iter().any(|c| c == "timestamp"));
 
     let analytics = schemas
         .iter()
-        .find(|s| s.table == "analytics_events")
+        .find(|s| s.table.as_deref() == Some("analytics_events"))
         .unwrap();
     assert!(analytics.required_columns.iter().any(|c| c == "id"));
     assert!(analytics.required_columns.iter().any(|c| c == "user_id"));

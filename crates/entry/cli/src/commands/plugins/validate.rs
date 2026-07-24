@@ -61,7 +61,7 @@ pub fn execute(args: &ValidateArgs, _config: &CliConfig) -> (CommandOutput, bool
             extension_id: Some(ext.id().to_owned()),
             warning_type: "asset_validation_skipped".to_owned(),
             message: "Asset validation requires full profile initialization. Use 'systemprompt \
-                      infra db validate'."
+                      infra db doctor'."
                 .to_owned(),
         });
     }

@@ -120,8 +120,6 @@ pub enum DbCommands {
     AssignAdmin { user: String },
     #[command(about = "Show database connection status")]
     Status,
-    #[command(about = "Validate database schema against expected tables")]
-    Validate,
     #[command(about = "Get row count for a table")]
     Count { table_name: String },
     #[command(about = "List all indexes")]

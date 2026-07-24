@@ -42,13 +42,11 @@ pub(super) async fn execute_doctor(db_pool: &DbPool, config: &CliConfig) -> Resu
     for ext in registry.schema_extensions() {
         let ext_id = ext.id().to_owned();
         for schema in ext.schemas() {
-            if schema.table.is_empty() {
+            let Some(table) = schema.table else {
                 continue;
-            }
-            owner
-                .entry(schema.table.clone())
-                .or_insert_with(|| ext_id.clone());
-            let entry = declared_columns.entry(schema.table.clone()).or_default();
+            };
+            owner.entry(table.clone()).or_insert_with(|| ext_id.clone());
+            let entry = declared_columns.entry(table).or_default();
             for col in &schema.required_columns {
                 entry.insert(col.clone());
             }
@@ -151,7 +149,8 @@ fn render(
 async fn fetch_live_tables(db: &dyn DatabaseProvider) -> Result<BTreeSet<String>> {
     let result = db
         .query_raw_with(
-            &"SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'",
+            &"SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND \
+              table_type = 'BASE TABLE'",
             &[],
         )
         .await

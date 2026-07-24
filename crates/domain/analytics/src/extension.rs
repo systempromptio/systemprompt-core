@@ -42,6 +42,8 @@ impl Extension for AnalyticsExtension {
             .with_required_columns(vec!["fingerprint_hash".into()]),
             SchemaDefinition::new("funnels", include_str!("../schema/funnels.sql"))
                 .with_required_columns(vec!["id".into(), "name".into()]),
+            SchemaDefinition::new("funnel_steps", include_str!("../schema/funnel_steps.sql"))
+                .with_required_columns(vec!["funnel_id".into(), "step_order".into()]),
             SchemaDefinition::new(
                 "funnel_progress",
                 include_str!("../schema/funnel_progress.sql"),

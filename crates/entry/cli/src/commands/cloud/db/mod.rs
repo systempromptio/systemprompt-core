@@ -46,8 +46,8 @@ pub enum CloudDbCommands {
         sql: String,
     },
 
-    #[command(about = "Validate cloud database schema")]
-    Validate {
+    #[command(about = "Diff cloud schema against extension declarations")]
+    Doctor {
         #[arg(long, help = "Profile name")]
         profile: String,
     },
@@ -148,7 +148,7 @@ impl CloudDbCommands {
             Self::Migrate { profile }
             | Self::Query { profile, .. }
             | Self::Execute { profile, .. }
-            | Self::Validate { profile }
+            | Self::Doctor { profile }
             | Self::Status { profile }
             | Self::Info { profile }
             | Self::Tables { profile, .. }
@@ -170,7 +170,7 @@ impl CloudDbCommands {
                 sql, limit, offset, ..
             } => Some(db::DbCommands::Query { sql, limit, offset }),
             Self::Execute { sql, .. } => Some(db::DbCommands::Execute { sql }),
-            Self::Validate { .. } => Some(db::DbCommands::Validate),
+            Self::Doctor { .. } => Some(db::DbCommands::Doctor),
             Self::Status { .. } => Some(db::DbCommands::Status),
             Self::Info { .. } => Some(db::DbCommands::Info),
             Self::Tables { filter, .. } => Some(db::DbCommands::Tables { filter }),

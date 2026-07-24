@@ -30,7 +30,7 @@ fn test_schemas_three_tables() {
 fn test_schemas_table_names_match_expected() {
     let ext = McpExtension;
     let schemas = ext.schemas();
-    let names: Vec<&str> = schemas.iter().map(|s| s.table.as_str()).collect();
+    let names: Vec<&str> = schemas.iter().filter_map(|s| s.table.as_deref()).collect();
     assert!(names.contains(&"mcp_tool_executions"));
     assert!(names.contains(&"mcp_sessions"));
     assert!(names.contains(&"mcp_artifacts"));

@@ -72,7 +72,7 @@ mod extension_schema_tests {
         let ext = UsersExtension;
         let schemas = ext.schemas();
 
-        let users_schema = schemas.iter().find(|s| s.table == "users");
+        let users_schema = schemas.iter().find(|s| s.table.as_deref() == Some("users"));
         users_schema.expect("expected Some value");
     }
 
@@ -81,7 +81,9 @@ mod extension_schema_tests {
         let ext = UsersExtension;
         let schemas = ext.schemas();
 
-        let sessions_schema = schemas.iter().find(|s| s.table == "user_sessions");
+        let sessions_schema = schemas
+            .iter()
+            .find(|s| s.table.as_deref() == Some("user_sessions"));
         sessions_schema.expect("expected Some value");
     }
 
@@ -90,7 +92,9 @@ mod extension_schema_tests {
         let ext = UsersExtension;
         let schemas = ext.schemas();
 
-        let banned_schema = schemas.iter().find(|s| s.table == "banned_ips");
+        let banned_schema = schemas
+            .iter()
+            .find(|s| s.table.as_deref() == Some("banned_ips"));
         banned_schema.expect("expected Some value");
     }
 
@@ -99,7 +103,10 @@ mod extension_schema_tests {
         let ext = UsersExtension;
         let schemas = ext.schemas();
 
-        let users_schema = schemas.iter().find(|s| s.table == "users").unwrap();
+        let users_schema = schemas
+            .iter()
+            .find(|s| s.table.as_deref() == Some("users"))
+            .unwrap();
         let required = &users_schema.required_columns;
 
         assert!(required.contains(&"id".to_string()));
@@ -113,7 +120,10 @@ mod extension_schema_tests {
         let ext = UsersExtension;
         let schemas = ext.schemas();
 
-        let sessions_schema = schemas.iter().find(|s| s.table == "user_sessions").unwrap();
+        let sessions_schema = schemas
+            .iter()
+            .find(|s| s.table.as_deref() == Some("user_sessions"))
+            .unwrap();
         let required = &sessions_schema.required_columns;
 
         assert!(required.contains(&"session_id".to_string()));
@@ -125,7 +135,10 @@ mod extension_schema_tests {
         let ext = UsersExtension;
         let schemas = ext.schemas();
 
-        let banned_schema = schemas.iter().find(|s| s.table == "banned_ips").unwrap();
+        let banned_schema = schemas
+            .iter()
+            .find(|s| s.table.as_deref() == Some("banned_ips"))
+            .unwrap();
         let required = &banned_schema.required_columns;
 
         assert!(required.contains(&"ip_address".to_string()));
@@ -142,7 +155,7 @@ mod extension_schema_tests {
             assert!(
                 !schema.sql.is_empty(),
                 "Schema {} has empty SQL",
-                schema.table
+                schema.table.as_deref().unwrap_or("<table-less>")
             );
         }
     }

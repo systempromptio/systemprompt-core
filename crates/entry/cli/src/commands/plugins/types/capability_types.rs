@@ -126,7 +126,7 @@ pub struct TemplatesListOutput {
 pub struct SchemaWithExtension {
     pub extension_id: PluginId,
     pub extension_name: String,
-    pub table: String,
+    pub table: Option<String>,
     pub source: String,
 }
 

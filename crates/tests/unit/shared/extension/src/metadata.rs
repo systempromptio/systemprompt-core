@@ -52,7 +52,7 @@ fn extension_metadata_serde_roundtrip() {
 #[test]
 fn schema_definition_new_constructor() {
     let schema = SchemaDefinition::new("users", "CREATE TABLE users (id TEXT)");
-    assert_eq!(schema.table, "users");
+    assert_eq!(schema.table.as_deref(), Some("users"));
     assert!(schema.sql.contains("CREATE TABLE"));
     assert!(schema.required_columns.is_empty());
 }
@@ -72,7 +72,7 @@ fn schema_definition_serde_roundtrip() {
         .with_required_columns(vec!["id".to_string()]);
     let json = serde_json::to_string(&schema).expect("serialize");
     let deserialized: SchemaDefinition = serde_json::from_str(&json).expect("deserialize");
-    assert_eq!(deserialized.table, "events");
+    assert_eq!(deserialized.table.as_deref(), Some("events"));
     assert_eq!(deserialized.required_columns, vec!["id"]);
     assert!(deserialized.sql.contains("CREATE TABLE"));
 }

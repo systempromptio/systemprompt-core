@@ -33,7 +33,8 @@ pub(super) fn prepare_extension_schema(ext: &dyn Extension) -> Result<PreparedSc
     let mut lint_errors: Vec<String> = Vec::new();
 
     for schema in &schemas {
-        if let Err(errors) = lint_declarative_schema(&schema.sql, schema.table.as_str()) {
+        let lint_source = schema.table.as_deref().unwrap_or(extension_id.as_str());
+        if let Err(errors) = lint_declarative_schema(&schema.sql, lint_source) {
             for err in errors {
                 lint_errors.push(err.to_string());
             }
@@ -41,10 +42,12 @@ pub(super) fn prepare_extension_schema(ext: &dyn Extension) -> Result<PreparedSc
 
         all_sql.push(schema.sql.as_str());
 
-        if !schema.required_columns.is_empty() {
+        if let Some(table) = schema.table.as_ref()
+            && !schema.required_columns.is_empty()
+        {
             columns_to_validate.push(ColumnsToValidate {
                 schema: schema.schema_name().to_owned(),
-                table: schema.table.clone(),
+                table: table.clone(),
                 columns: schema.required_columns.clone(),
             });
         }

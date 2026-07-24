@@ -140,15 +140,6 @@ async fn count_rows_counts_seeded_rows() {
     assert_eq!(count, 7);
 }
 
-#[tokio::test]
-async fn list_expected_tables_names_core_schema() {
-    let expected = DatabaseAdminService::list_expected_tables();
-    assert!(expected.contains(&"users"));
-    assert!(expected.contains(&"agent_tasks"));
-    assert!(expected.contains(&"oauth_clients"));
-    assert!(expected.len() >= 20);
-}
-
 fn swap_db_name(url: &str, new_db: &str) -> String {
     let (base, _old) = url.rsplit_once('/').expect("url has a database segment");
     format!("{base}/{new_db}")

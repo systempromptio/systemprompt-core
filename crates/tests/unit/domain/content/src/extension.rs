@@ -31,7 +31,7 @@ fn test_schemas_count_six() {
 fn test_schemas_include_core_tables() {
     let ext = ContentExtension;
     let schemas = ext.schemas();
-    let names: Vec<&str> = schemas.iter().map(|s| s.table.as_str()).collect();
+    let names: Vec<&str> = schemas.iter().filter_map(|s| s.table.as_deref()).collect();
     for expected in [
         "markdown_categories",
         "markdown_content",

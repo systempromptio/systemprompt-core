@@ -48,7 +48,7 @@ pub struct TemplateInfo {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct SchemaInfo {
-    pub table: String,
+    pub table: Option<String>,
     pub source: String,
     pub required_columns: Vec<String>,
 }

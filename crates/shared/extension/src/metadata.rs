@@ -14,7 +14,7 @@ pub struct ExtensionMetadata {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SchemaDefinition {
-    pub table: String,
+    pub table: Option<String>,
     pub sql: String,
     pub required_columns: Vec<String>,
     #[serde(default)]
@@ -25,7 +25,17 @@ impl SchemaDefinition {
     #[must_use]
     pub fn new(table: impl Into<String>, sql: impl Into<String>) -> Self {
         Self {
-            table: table.into(),
+            table: Some(table.into()),
+            sql: sql.into(),
+            required_columns: Vec::new(),
+            schema: None,
+        }
+    }
+
+    #[must_use]
+    pub fn sql_only(sql: impl Into<String>) -> Self {
+        Self {
+            table: None,
             sql: sql.into(),
             required_columns: Vec::new(),
             schema: None,

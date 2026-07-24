@@ -158,6 +158,8 @@ fn bridge_schemas() -> Vec<SchemaDefinition> {
             "host_id".into(),
             "model_protocols".into(),
         ]),
+        SchemaDefinition::new("id_jag_replay", include_str!("../schema/id_jag_replay.sql"))
+            .with_required_columns(vec!["jti".into(), "expires_at".into()]),
     ]
 }
 

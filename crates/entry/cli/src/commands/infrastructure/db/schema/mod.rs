@@ -1,15 +1,11 @@
 //! Schema-inspection handlers for the `db` command group.
 //!
 //! Implements the `tables`, `describe`, `info`, and `count` subcommands over a
-//! [`DatabaseAdminService`], rendering JSON or formatted text. Schema
-//! validation lives in the `validate` submodule and is re-exported here.
+//! [`DatabaseAdminService`], rendering JSON or formatted text. Reconciling the
+//! live schema against extension declarations is the `doctor` subcommand's job.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
-
-mod validate;
-
-pub(super) use validate::execute_validate;
 
 use anyhow::{Context, Result, anyhow};
 use systemprompt_database::{DatabaseAdminService, DatabaseCliDisplay, SafeIdentifier};

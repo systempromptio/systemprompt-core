@@ -15,7 +15,7 @@ fn metadata_identifies_the_oauth_extension() {
 #[test]
 fn schemas_cover_client_token_webauthn_and_bridge_tables() {
     let schemas = OauthExtension.schemas();
-    let names: Vec<&str> = schemas.iter().map(|s| s.table.as_str()).collect();
+    let names: Vec<&str> = schemas.iter().filter_map(|s| s.table.as_deref()).collect();
 
     for expected in [
         "oauth_clients",
@@ -33,7 +33,7 @@ fn schemas_cover_client_token_webauthn_and_bridge_tables() {
         assert!(
             !schema.sql.trim().is_empty(),
             "schema {} embeds empty SQL",
-            schema.table
+            schema.table.as_deref().unwrap_or("<table-less>")
         );
     }
 }

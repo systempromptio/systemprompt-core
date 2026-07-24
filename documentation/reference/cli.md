@@ -89,7 +89,6 @@ Database operations (`crates/entry/cli/src/commands/infrastructure/db/commands.r
 | `infra db migrate-mark-applied` | Record a migration as applied without running it. |
 | `infra db migrate-squash` | Squash an extension's migrations into a baseline. |
 | `infra db migrations` | Show migration status and history. |
-| `infra db validate` | Validate the schema against expected tables. |
 | `infra db count <TABLE>` | Row count for a table. |
 | `infra db indexes` | List indexes. |
 | `infra db size` | Database and table sizes. |

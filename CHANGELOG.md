@@ -1,5 +1,30 @@
 # Changelog
 
+## [0.24.0] - 2026-07-24
+
+### Breaking
+
+- **Breaking:** `SchemaDefinition.table` is `Option<String>`, so a definition may declare DDL that creates no table. Migrate by matching on the option at any site that reads `.table`, and by declaring table-less DDL with `SchemaDefinition::sql_only(sql)`.
+
+### Added
+
+- `SchemaDefinition::sql_only(sql)` declares DDL with no owning table, such as shared trigger functions.
+- `infra logs request list` and `infra logs request show` report the caller: a `user_id` column plus `actor_kind`/`actor_id`, read from columns `ai_requests` already stores. `AiRequestListItem` and `AiRequestDetail` gained the matching fields — the `trace/` module's request queries were the only ones dropping identity at the SQL boundary, so `--json` had no `user_id` key at all.
+- `infra logs request list --user <id>` filters a listing to one caller, answering "which requests did this user make?" without dropping to `infra db query`.
+
+### Changed
+
+- **Breaking:** `TraceQueryService::list_ai_requests` takes a single `&AiRequestFilter` instead of four positional arguments, matching the `list_traces`/`list_tool_executions` idiom. Migrate by building the filter: `AiRequestFilter::new(limit).with_model(pattern)`.
+
+### Fixed
+
+- `infra db doctor` reads only base tables from the live schema, so views are no longer reported as undeclared tables.
+- The analytics extension declares `funnel_steps`, and the oauth extension declares `id_jag_replay`.
+
+### Removed
+
+- **Breaking:** `infra db validate` and `cloud db validate` are removed, along with `DatabaseAdminService::list_expected_tables`. Migrate by running `infra db doctor` or `cloud db doctor`, which reconcile the live schema against the tables declared by registered extensions.
+
 ## [0.23.0] - 2026-07-24
 
 ### Breaking

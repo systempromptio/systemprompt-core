@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.24.0] - 2026-07-24
+
+### Fixed
+
+- The extension declares `id_jag_replay`, registering the existing `schema/id_jag_replay.sql`. The installed schema is unchanged.
+
 ## [0.23.0] - 2026-07-24
 
 ### Breaking

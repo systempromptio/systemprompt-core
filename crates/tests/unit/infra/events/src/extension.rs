@@ -19,7 +19,7 @@ fn schema_declares_event_outbox_with_relay_columns() {
     assert_eq!(schemas.len(), 1);
 
     let outbox = &schemas[0];
-    assert_eq!(outbox.table, "event_outbox");
+    assert_eq!(outbox.table.as_deref(), Some("event_outbox"));
     assert!(
         outbox.sql.contains("event_outbox"),
         "embedded DDL must create the declared table"

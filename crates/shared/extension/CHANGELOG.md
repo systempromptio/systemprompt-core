@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.24.0] - 2026-07-24
+
+### Breaking
+
+- **Breaking:** `SchemaDefinition.table` is `Option<String>`, so a definition may declare DDL that creates no table. Migrate by matching on the option at any site that reads `.table`; `SchemaDefinition::new(table, sql)` is unchanged and yields `Some`.
+
+### Added
+
+- `SchemaDefinition::sql_only(sql)` declares DDL with no owning table, such as shared trigger functions.
+
 ## [0.23.0] - 2026-07-24
 
 ### Added

@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.24.0] - 2026-07-24
+
+### Fixed
+
+- The database extension declares its shared trigger functions with `SchemaDefinition::sql_only`, so it no longer claims to own a table named `functions` that its SQL does not create.
+
+### Removed
+
+- **Breaking:** `DatabaseAdminService::list_expected_tables` is removed. Migrate by reconciling against the tables declared by registered extensions, as `infra db doctor` does.
+
 ## [0.21.1] - 2026-07-17
 
 ### Changed

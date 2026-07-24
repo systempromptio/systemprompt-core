@@ -18,7 +18,7 @@ fn metadata_basics() {
 #[test]
 fn schemas_contain_all_tables() {
     let schemas = AgentExtension.schemas();
-    let table_names: Vec<String> = schemas.iter().map(|s| s.table.clone()).collect();
+    let table_names: Vec<String> = schemas.iter().filter_map(|s| s.table.clone()).collect();
 
     assert!(table_names.iter().any(|n| n == "user_contexts"));
     assert!(table_names.iter().any(|n| n == "agent_tasks"));

@@ -97,16 +97,6 @@ pub struct DbAssignAdminOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DbValidateOutput {
-    pub valid: bool,
-    pub expected_tables: usize,
-    pub actual_tables: usize,
-    pub missing_tables: Vec<String>,
-    pub extra_tables: Vec<String>,
-    pub message: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DbCountOutput {
     pub table: String,
     pub count: i64,

@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.24.0] - 2026-07-24
+
+### Fixed
+
+- The extension declares `funnel_steps`, whose DDL moves to its own `schema/funnel_steps.sql`. The installed schema is unchanged.
+
 ## [0.23.0] - 2026-07-24
 
 ### Breaking

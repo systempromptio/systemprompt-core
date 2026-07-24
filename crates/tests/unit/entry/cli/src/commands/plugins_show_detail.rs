@@ -98,7 +98,7 @@ fn build_detail_output_projects_all_populated_sections() {
     assert_eq!(out.templates[0].description, "page, post");
 
     assert_eq!(out.schemas.len(), 1);
-    assert_eq!(out.schemas[0].table, "widgets");
+    assert_eq!(out.schemas[0].table.as_deref(), Some("widgets"));
     assert_eq!(out.schemas[0].source, "inline");
     assert_eq!(out.schemas[0].required_columns, vec!["id".to_owned()]);
 

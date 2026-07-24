@@ -36,21 +36,33 @@ mod ai_extension_tests {
     fn schemas_includes_ai_requests() {
         let ext = AiExtension;
         let schemas = Extension::schemas(&ext);
-        assert!(schemas.iter().any(|s| s.table == "ai_requests"));
+        assert!(
+            schemas
+                .iter()
+                .any(|s| s.table.as_deref() == Some("ai_requests"))
+        );
     }
 
     #[test]
     fn schemas_includes_ai_request_messages() {
         let ext = AiExtension;
         let schemas = Extension::schemas(&ext);
-        assert!(schemas.iter().any(|s| s.table == "ai_request_messages"));
+        assert!(
+            schemas
+                .iter()
+                .any(|s| s.table.as_deref() == Some("ai_request_messages"))
+        );
     }
 
     #[test]
     fn schemas_includes_ai_request_tool_calls() {
         let ext = AiExtension;
         let schemas = Extension::schemas(&ext);
-        assert!(schemas.iter().any(|s| s.table == "ai_request_tool_calls"));
+        assert!(
+            schemas
+                .iter()
+                .any(|s| s.table.as_deref() == Some("ai_request_tool_calls"))
+        );
     }
 
     #[test]

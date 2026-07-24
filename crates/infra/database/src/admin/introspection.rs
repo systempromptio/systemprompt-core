@@ -192,36 +192,6 @@ impl DatabaseAdminService {
             tables,
         })
     }
-
-    pub fn list_expected_tables() -> Vec<&'static str> {
-        vec![
-            "users",
-            "user_sessions",
-            "user_contexts",
-            "agent_tasks",
-            "agent_skills",
-            "task_messages",
-            "task_artifacts",
-            "task_execution_steps",
-            "artifact_parts",
-            "message_parts",
-            "ai_requests",
-            "ai_request_messages",
-            "ai_request_tool_calls",
-            "mcp_tool_executions",
-            "logs",
-            "analytics_events",
-            "oauth_clients",
-            "oauth_auth_codes",
-            "oauth_refresh_tokens",
-            "scheduled_jobs",
-            "services",
-            "markdown_content",
-            "markdown_categories",
-            "files",
-            "content_files",
-        ]
-    }
 }
 
 fn quote_identifier(identifier: &str) -> String {

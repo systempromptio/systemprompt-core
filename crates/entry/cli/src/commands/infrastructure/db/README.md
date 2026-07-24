@@ -53,7 +53,6 @@ alias sp="./target/debug/systemprompt --non-interactive"
 | `infra db migrate-mark-applied` | Record a migration as already applied without running its SQL | `Text` | No (DB only) |
 | `infra db assign-admin <user>` | Assign admin role to a user | `Text` | No (DB only) |
 | `infra db status` | Show database connection status | `Card` | No (DB only) |
-| `infra db validate` | Validate schema against expected tables | `Text` | No (DB only) |
 | `infra db count <table>` | Get row count for a table | `Text` | No (DB only) |
 | `infra db indexes` | List all indexes | `Table` | No (DB only) |
 | `infra db size` | Show database and table sizes | `Table` | No (DB only) |
@@ -485,31 +484,6 @@ sp --json infra db status
 
 ---
 
-### db validate
-
-Validate database schema against expected tables.
-
-```bash
-sp infra db validate
-sp --json infra db validate
-```
-
-**Output Structure:**
-```json
-{
-  "valid": true,
-  "expected_tables": 25,
-  "actual_tables": 85,
-  "missing_tables": [],
-  "extra_tables": ["anomaly_thresholds", "banned_ips", "..."],
-  "message": "Database schema is valid"
-}
-```
-
-**Artifact Type:** `Text`
-
----
-
 ### db count
 
 Get the row count for a single table.
@@ -595,8 +569,7 @@ sp --json infra db query "SELECT COUNT(*) as count FROM users"
 sp --json infra db migrate-plan
 sp infra db migrate
 
-# Phase 7: Validate schema and diff against declarations
-sp --json infra db validate
+# Phase 7: Diff the live schema against extension declarations
 sp --json infra db doctor
 
 # Phase 8: Assign admin role
@@ -694,7 +667,7 @@ sp --json infra db query "SELECT * FROM users LIMIT 5" | jq '.rows[].email'
 - [x] JSON output supported via `--json` flag
 - [x] No destructive operations (reset removed for safety)
 - [x] User-friendly error messages
-- [x] Schema validation via `infra db validate`
+- [x] Schema reconciliation against extension declarations via `infra db doctor`
 - [x] Table sizes and index information included
 
 

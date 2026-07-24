@@ -12,6 +12,7 @@ workspace = true
 
 [dependencies]
 systemprompt-loader = { workspace = true, features = ["expose-internals"] }
+systemprompt-database = { workspace = true }
 systemprompt-models = { workspace = true }
 serde = { workspace = true }
 tempfile = { workspace = true }

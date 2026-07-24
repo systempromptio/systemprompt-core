@@ -100,7 +100,6 @@ pub async fn execute(cmd: DbCommands, ctx: &CommandContext) -> Result<()> {
             admin::execute_assign_admin(ctx.app_context().await?, &user, config).await
         },
         DbCommands::Status => admin::execute_status(&admin_service, config).await,
-        DbCommands::Validate => schema::execute_validate(&admin_service, config).await,
         DbCommands::Count { table_name } => {
             schema::execute_count(&admin_service, &table_name, config).await
         },
