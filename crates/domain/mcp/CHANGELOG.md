@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.23.0] - 2026-07-24
+
+### Breaking
+
+- **Breaking:** the `cli` module and its `start_services`, `stop_services`, `show_status`, and `list_services` display helpers are removed; the CLI drives `McpOrchestrator` directly. Migrate by calling the orchestrator methods and rendering the result with your own output sink.
+
+### Changed
+
+- The UI renderer emits card, list, and table content as structured JSON values rather than pre-formatted strings, so `--json` output carries real nested JSON.
+
 ## [0.22.0] - 2026-07-21
 
 ### Breaking

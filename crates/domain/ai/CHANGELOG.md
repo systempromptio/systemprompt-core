@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.23.0] - 2026-07-24
+
+### Added
+
+- `ai_requests.session_id` carries a foreign key to `user_sessions` (`ON DELETE SET NULL`); the migration nulls historical orphaned rows, and the audit path creates the session row before inserting so a failed request keeps its audit trail.
+
 ## [0.21.1] - 2026-07-17
 
 ### Changed

@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.23.0] - 2026-07-24
+
+### Added
+
+- `GatewayRequestGuard`, `GatewayDenyReason`, `run_gateway_guards`, and the `register_gateway_guard!` macro: an inventory-collected policy hook consulted on every gateway request after the quota precheck, so an extension can enforce its own admission policy (a per-user credit balance, for instance) without core knowing about it.
+
 ## [0.22.0] - 2026-07-20
 
 ### Added

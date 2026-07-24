@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.23.0] - 2026-07-24
+
+### Added
+
+- `behavioral_analysis` and `malicious_ip_blacklist` classify and log ban candidates in observe mode and ban IPs only when the job's `enforce` flag is set, so automated banning is an explicit per-deployment opt-in.
+- A warning is logged at boot for every inventory-registered job with no `scheduler.jobs` entry — a job available in the build but silently never scheduled is now visible.
+
 ## [0.21.1] - 2026-07-17
 
 ### Changed

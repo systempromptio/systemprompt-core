@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.23.0] - 2026-07-24
+
+### Removed
+
+- The unused `ai_image_stats` view (migration `001_drop_ai_image_stats_view`).
+
 ## [0.21.1] - 2026-07-17
 
 ### Changed

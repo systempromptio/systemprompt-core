@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.23.0] - 2026-07-24
+
+### Breaking
+
+- **Breaking:** `ClientId::sync()` and the `sys_sync` client identifier are removed along with the cloud-sync feature that was their only consumer. Migrate by dropping references; there is no replacement.
+
 ## [0.21.1] - 2026-07-17
 
 ### Changed

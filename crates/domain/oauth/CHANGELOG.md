@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.23.0] - 2026-07-24
+
+### Breaking
+
+- **Breaking:** `PluginTokenService::issue` takes a `session_id: &SessionId`. It previously generated an id that was never persisted, which the governance webhook's session attestation now rejects. Migrate by writing the `user_sessions` row first and passing its id.
+
+### Added
+
+- `SessionCreationService::create_authenticated_session_with_ttl` mints a session row with a caller-supplied lifetime, for callers that issue their own credential. `create_authenticated_session` is unchanged and keeps using the configured access-token lifetime.
+
 ## [0.22.0] - 2026-07-20
 
 ### Breaking

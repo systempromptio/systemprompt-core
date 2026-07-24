@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.23.0] - 2026-07-24
+
+### Breaking
+
+- **Breaking:** `CardSection.content` is a `serde_json::Value` rather than a `String`, so a card section can carry structured data that serializes as real nested JSON instead of a JSON-encoded string. Migrate by building sections with `CardSection::new` (unchanged, wraps a string) or the new `CardSection::value`, and by reading the display form through `CardSection::content_display()`.
+- **Breaking:** `AgentSkillConfig` and `AgentCardConfig.skills` are removed. A2A `card.skills` has been computed at serve time from `metadata.skills` and the on-disk skill catalog since the catalog refactor, so authoring the field was already a no-op. Migrate by deleting `card.skills` from agent YAML.
+
+### Added
+
+- `ApiPaths::GATEWAY_PUBLIC_BASE` (`/api/public/gateway`), the unauthenticated gateway path prefix.
+- `JobConfig.enforce` (default `false`) and `JobConfig::with_enforce`, the opt-in for destructive scheduler-job actions.
+
 ## [0.22.0] - 2026-07-20
 
 ### Added

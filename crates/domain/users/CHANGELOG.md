@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.23.0] - 2026-07-24
+
+### Breaking
+
+- **Breaking:** the session analytics views are consolidated. `v_clean_traffic` and `v_engaged_traffic` are the canonical human-traffic predicate, `v_bot_sessions` carries the user-agent bot taxonomy, and the redundant `v_clean_human_traffic` plus the unused bot, referrer, and session analytics views are dropped (migration `008_canonical_traffic_views`). Migrate any external query that selected from a dropped view to the canonical three.
+
 ## [0.21.1] - 2026-07-17
 
 ### Changed

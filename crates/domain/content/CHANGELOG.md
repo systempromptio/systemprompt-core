@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.23.0] - 2026-07-24
+
+### Removed
+
+- The unused link analytics views (migration `002_drop_link_analytics_views`).
+
 ## [0.21.1] - 2026-07-17
 
 ### Changed

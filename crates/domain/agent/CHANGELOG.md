@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.23.0] - 2026-07-24
+
+### Removed
+
+- The unused `user_session_analytics` views (migration `009_drop_session_analytics_views`). The canonical human-traffic views in `systemprompt-users` are the supported query surface.
+
 ## [0.21.1] - 2026-07-17
 
 ### Changed

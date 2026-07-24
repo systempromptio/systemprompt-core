@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.23.0] - 2026-07-24
+
+### Breaking
+
+- **Breaking:** `BotRow.request_count` is renamed to `session_count` — it always counted sessions.
+
+### Changed
+
+- Every traffic, overview, and session query selects from the canonical `v_clean_traffic` / `v_engaged_traffic` / `v_bot_sessions` views instead of restating flag combinations, so the human/bot predicate is defined once and all four bot flags (`is_bot`, `is_ai_crawler`, `is_scanner`, `is_behavioral_bot`) are excluded uniformly.
+- The bots breakdown reports a three-way partition — human, ghost (no landing page or zero requests), and bot sessions — whose per-type counts sum to the bot total.
+- The bot user-agent keyword tables cover `mkgp-data-pipeline` (Common Crawl) and `quic-go`.
+
 ## [0.22.0] - 2026-07-20
 
 ### Breaking

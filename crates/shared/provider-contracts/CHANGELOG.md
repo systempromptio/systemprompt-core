@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.23.0] - 2026-07-24
+
+### Added
+
+- `JobContext::enforce()` and `JobContext::with_enforce()` carry the job configuration's enforcement consent. A job whose actions are destructive or outward-facing must take them only when `enforce()` is `true`; the default is `false`.
+
 ## [0.21.1] - 2026-07-17
 
 ### Changed

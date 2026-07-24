@@ -8,6 +8,8 @@
 - **Breaking:** `/v1/messages` and `/v1/responses` attest the `x-session-id` header for API-key callers. The header must name a live `user_sessions` row owned by the key's user; an unknown, revoked, or foreign session is rejected with `401 unknown or revoked session; mint one at POST /api/public/gateway/sessions`. Previously the session id was accepted verbatim on this path, so `ai_requests.session_id` was client-asserted for PAT callers while the identical column was server-attested for JWT callers. Migrate by minting a session at the new endpoint and sending the id it returns.
 - **Breaking:** `PluginTokenService::issue` takes a `session_id: &SessionId`. It previously generated an id that was never persisted, which the governance webhook's session attestation now rejects. Migrate by writing the `user_sessions` row first and passing its id, as `admin keys issue-plugin-token` does.
 - **Breaking:** `cloud sync admin-user` moves to `cloud auth admin-user` (flags unchanged), and `ClientId::sync()` / the `sys_sync` client identifier are removed with their only consumer.
+- **Breaking:** `AgentSkillConfig` and `AgentCardConfig.skills` are removed. A2A `card.skills` has been computed at serve time from `metadata.skills` and the on-disk skill catalog since the catalog refactor, so authoring the field was already a no-op. Migrate by deleting `card.skills` from agent YAML.
+- **Breaking:** `systemprompt-mcp`'s `cli` module and its `start_services` / `stop_services` / `show_status` / `list_services` display helpers are removed; the CLI drives `McpOrchestrator` directly. Migrate by calling the orchestrator methods and rendering the result with your own output sink.
 
 ### Added
 
@@ -19,6 +21,7 @@
 - The client-IP resolver honours `Fly-Client-IP` under the same trusted-peer gate as `X-Real-IP` and `CF-Connecting-IP`.
 - A warning is logged at boot when a cloud profile has an empty `server.trusted_proxies`, and at most hourly at runtime when an untrusted private-range peer presents `X-Forwarded-For` — the signature of a proxy missing from the allowlist.
 - `systemprompt_logging::LogThrottle` gates repeated hot-path log emissions to one per interval.
+- `GatewayRequestGuard`, `GatewayDenyReason`, `run_gateway_guards`, and the `register_gateway_guard!` macro in `systemprompt-extension`: an inventory-collected policy hook consulted on every gateway request after the quota precheck, so an extension can enforce its own admission policy — a per-user credit balance, for instance — without core knowing about it. A denial maps onto the quota-exceeded response path.
 - `JobConfig.enforce` (default `false`) gates destructive scheduler-job actions. `behavioral_analysis` and `malicious_ip_blacklist` classify and log ban candidates in observe mode and ban IPs only when a profile sets `enforce: true`, so automated banning is an explicit per-deployment opt-in.
 - The scheduler warns at boot for every inventory-registered job that has no `scheduler.jobs` entry — a job available in the build but silently never scheduled is now visible.
 - `analytics traffic bots` reports a three-way partition — `human_sessions`, `ghost_sessions` (no landing page or zero requests), and `bot_sessions` — and the per-type breakdown now sums to the bot total. The `--include-all` flag, which silently moved ghost sessions between the human and bot buckets, is removed.
