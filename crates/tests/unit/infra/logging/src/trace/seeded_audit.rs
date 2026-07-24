@@ -6,7 +6,7 @@
 
 use chrono::{Duration as ChronoDuration, Utc};
 use systemprompt_identifiers::{AiRequestId, ContextId, TaskId, TraceId};
-use systemprompt_logging::{AiTraceService, TraceQueryService};
+use systemprompt_logging::{AiRequestFilter, AiTraceService, TraceQueryService};
 use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
 
 struct AuditSeed {
@@ -369,13 +369,40 @@ async fn audit_and_request_queries_map_seeded_rows() {
     assert_eq!(detail.status, "completed");
     assert_eq!(detail.error_message.as_deref(), Some("partial failure"));
     assert_eq!(detail.latency_ms, Some(900));
+    assert_eq!(detail.user_id.as_str(), seed.user_id);
+    assert_eq!(detail.actor_kind, "user");
+    assert_eq!(detail.actor_id, seed.user_id);
 
     let listed = svc
-        .list_ai_requests(None, Some(seed.model.as_str()), Some("anthropic"), 10)
+        .list_ai_requests(
+            &AiRequestFilter::new(10)
+                .with_model(seed.model.clone())
+                .with_provider("anthropic".to_owned()),
+        )
         .await
         .unwrap();
     assert_eq!(listed.len(), 1);
     assert_eq!(listed[0].id.as_str(), seed.request_id);
+    assert_eq!(listed[0].user_id.as_str(), seed.user_id);
+    assert_eq!(listed[0].actor_kind, "user");
+    assert_eq!(listed[0].actor_id, seed.user_id);
+
+    let by_user = svc
+        .list_ai_requests(&AiRequestFilter::new(10).with_user(seed.user_id.clone()))
+        .await
+        .unwrap();
+    assert_eq!(by_user.len(), 1);
+    assert_eq!(by_user[0].id.as_str(), seed.request_id);
+
+    assert!(
+        svc.list_ai_requests(
+            &AiRequestFilter::new(10).with_user(format!("{}_other", seed.user_id))
+        )
+        .await
+        .unwrap()
+        .is_empty(),
+        "--user filter must exclude requests belonging to another user"
+    );
     assert_eq!(
         listed[0].trace_id.as_ref().map(TraceId::as_str),
         Some(seed.trace_id.as_str())

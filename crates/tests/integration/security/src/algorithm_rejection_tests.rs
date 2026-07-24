@@ -7,14 +7,15 @@ use systemprompt_identifiers::{ClientId, SessionId};
 use systemprompt_models::auth::{
     JwtAudience, JwtClaims, Permission, RateLimitTier, TokenType, UserType,
 };
-use systemprompt_security::keys::{RsaSigningKey, authority};
+use systemprompt_security::keys::authority;
 use systemprompt_security::{AuthError, AuthValidationService};
 
 static INSTALL: Once = Once::new();
 
 fn ensure_authority() {
     INSTALL.call_once(|| {
-        let key = RsaSigningKey::generate_bits(2048).expect("rsa");
+        let key =
+            systemprompt_test_fixtures::test_key(systemprompt_test_fixtures::AUTHORITY_KEY_INDEX);
         authority::install_for_test(key);
     });
 }
@@ -79,7 +80,7 @@ async fn hs256_token_is_rejected_with_unsupported_algorithm_error() {
 #[tokio::test]
 async fn rs256_token_without_kid_is_rejected_with_missing_kid_error() {
     ensure_authority();
-    let key = RsaSigningKey::generate_bits(2048).expect("rsa");
+    let key = systemprompt_test_fixtures::next_test_key();
     let der = rsa::pkcs1::EncodeRsaPrivateKey::to_pkcs1_der(key.private_key()).expect("der");
     let enc = EncodingKey::from_rsa_der(der.as_bytes());
     let header = Header::new(Algorithm::RS256);
@@ -98,7 +99,7 @@ async fn rs256_token_without_kid_is_rejected_with_missing_kid_error() {
 #[tokio::test]
 async fn rs256_token_with_unknown_kid_is_rejected_with_unknown_kid_error() {
     ensure_authority();
-    let foreign = RsaSigningKey::generate_bits(2048).expect("rsa");
+    let foreign = systemprompt_test_fixtures::next_test_key();
     let der = rsa::pkcs1::EncodeRsaPrivateKey::to_pkcs1_der(foreign.private_key()).expect("der");
     let enc = EncodingKey::from_rsa_der(der.as_bytes());
     let mut header = Header::new(Algorithm::RS256);

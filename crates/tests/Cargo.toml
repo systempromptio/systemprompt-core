@@ -257,3 +257,14 @@ systemprompt-bridge = { path = "../../bin/bridge" }
 trybuild = "1.0"
 systemprompt-test-mocks = { path = "common/mocks" }
 systemprompt-test-fixtures = { path = "common/fixtures" }
+
+# Optimise everything that is not a test crate.
+#
+# The suite is crypto-bound, not compile-bound: at `opt-level = 0` a bcrypt
+# cost-12 verify costs ~0.53s and an RSA-2048 operation is ~10x its optimised
+# cost, which dominated the integration shard's wall-clock. `"*"` covers the
+# `systemprompt-*` crates too — they are path dependencies from outside this
+# workspace, not members — so production code under test is optimised while the
+# test bodies themselves stay unoptimised and quick to rebuild.
+[profile.dev.package."*"]
+opt-level = 2

@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.24.0] - 2026-07-24
+
+### Added
+
+- `infra logs request list` shows `user_id` and `actor` (`kind:id`) columns, and `infra logs request show` names the caller. Both surfaces previously omitted the fields entirely, so `--json` emitted objects with no `user_id` key at all.
+- `infra logs request list --user <id>` filters to one caller's requests (exact match).
+
+### Changed
+
+- **Breaking:** `cloud db validate` becomes `cloud db doctor`, reconciling a cloud profile's schema against extension declarations. The `--profile` flag is unchanged.
+
+### Fixed
+
+- `infra db doctor` reads only base tables from the live schema, so views are no longer reported as undeclared tables.
+
+### Removed
+
+- **Breaking:** `infra db validate` is removed. Migrate by running `infra db doctor`, which reconciles the live schema against the tables declared by registered extensions.
+
 ## [0.23.0] - 2026-07-24
 
 ### Breaking

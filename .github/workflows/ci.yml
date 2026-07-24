@@ -66,7 +66,7 @@ jobs:
         # Group names only; the group→prefix mapping, package selection, and
         # nextest invocation live in scripts/test-shard.sh so CI and the local
         # `just test-shard` recipes share one source of truth.
-        group: [shared, infra, domain, app-runtime, app-scheduler, app-generator, entry-api, entry-cli, bridge, integration, edge]
+        group: [shared, infra, domain, app-runtime, app-scheduler, app-generator, entry-api, entry-cli, bridge, integration-api, integration-cli, integration-rest, edge]
     # This job verifies tests pass; linting the (separate) test workspace
     # is not its job, so it does not inherit the `-D warnings` RUSTFLAGS.
     # Drop debuginfo and incremental artifacts: each shard's compile footprint
@@ -138,6 +138,11 @@ jobs:
           cargo run \
             --manifest-path crates/tests/Cargo.toml \
             -p systemprompt-test-migrate
+          # This database dies with the runner, so durability buys nothing and
+          # the per-commit flush is pure latency across ~1000 DB-backed tests.
+          # Transaction atomicity is unchanged — the batch_atomicity and
+          # advisory_lock suites still assert exactly what they assert.
+          psql "$DATABASE_URL" -c 'ALTER DATABASE test SET synchronous_commit = off;'
 
       - name: Run shard
         env:

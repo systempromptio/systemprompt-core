@@ -15,8 +15,10 @@ pub struct TestKey {
 }
 
 impl TestKey {
+    /// Takes the next committed fixture key rather than generating one: these
+    /// suites need keys that differ from each other, not keys that are fresh.
     pub fn generate() -> Self {
-        let signing = RsaSigningKey::generate_bits(2048).expect("generate rsa");
+        let signing = systemprompt_test_fixtures::next_test_key();
         let private = signing.private_key().clone();
         let kid = signing.kid().to_string();
         Self {

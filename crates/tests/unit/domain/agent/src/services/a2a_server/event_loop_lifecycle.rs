@@ -183,11 +183,13 @@ async fn stream_creation_error_marks_task_failed_and_broadcasts_run_error() {
         .expect("task present");
     assert_eq!(task.status.state, TaskState::Failed);
 
-    let agui = rec.agui.lock().expect("lock");
-    assert!(
-        agui.iter()
-            .any(|e| e.contains("STREAM_CREATION_ERROR") && e.contains("upstream refused"))
-    );
+    {
+        let agui = rec.agui.lock().expect("lock");
+        assert!(
+            agui.iter()
+                .any(|e| e.contains("STREAM_CREATION_ERROR") && e.contains("upstream refused"))
+        );
+    }
 
     r.tasks.delete_task(&task_id).await.ok();
 }

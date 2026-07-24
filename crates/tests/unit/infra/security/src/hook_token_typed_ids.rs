@@ -21,7 +21,8 @@ const ISSUER: &str = "hook-issuer";
 
 fn ensure_authority() -> &'static RsaSigningKey {
     INSTALL.call_once(|| {
-        let key = RsaSigningKey::generate_bits(2048).expect("generate test signing key");
+        let key =
+            systemprompt_test_fixtures::test_key(systemprompt_test_fixtures::AUTHORITY_KEY_INDEX);
         authority::install_for_test(key);
     });
     authority::signing_key().expect("authority installed")

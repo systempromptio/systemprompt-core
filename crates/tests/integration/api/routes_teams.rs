@@ -149,7 +149,7 @@ async fn signed_activity_dispatches_and_posts_the_card() -> anyhow::Result<()> {
     // Bot Connector: serves OpenID metadata, JWKS, the outbound token, and the
     // reply endpoint. `serviceUrl` points here.
     let connector = MockServer::start().await;
-    let signing = RsaSigningKey::generate_bits(2048).expect("rsa");
+    let signing = systemprompt_test_fixtures::next_test_key();
     Mock::given(method("GET"))
         .and(path("/openid"))
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({

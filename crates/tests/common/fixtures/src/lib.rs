@@ -5,6 +5,7 @@ pub mod bootstrap;
 pub mod credential;
 pub mod db;
 pub mod jwt;
+pub mod keys;
 pub mod messaging;
 pub mod oauth;
 pub mod secrets;
@@ -26,10 +27,11 @@ pub use credential::{
 };
 pub use db::{closed_db_pool, fixture_database_url, fixture_db_pool};
 pub use jwt::{install_test_signing_key, mint_admin_jwt, mint_bridge_jwt};
+pub use keys::{next_test_key, test_key, AUTHORITY_KEY_INDEX, ROTATING_KEY_COUNT};
 pub use messaging::{agent_error_response_json, agent_reply_response_json, seed_agent_backend};
 pub use oauth::{
     pkce_pair, seed_oauth_client, OAuthClientFixture, PkcePair, TEST_CLIENT_SECRET,
-    TEST_REDIRECT_URI,
+    TEST_CLIENT_SECRET_HASH, TEST_REDIRECT_URI,
 };
 pub use secrets::ensure_test_secrets_bootstrap;
 pub use user::{fixture_actor, fixture_system_admin, fixture_user_id, unique_user_id};

@@ -67,10 +67,11 @@ async fn wait_for_terminal_status(db: &DbPool, id: &AiRequestId) -> (String, Opt
                 .fetch_optional(pool.as_ref())
                 .await
                 .expect("query ai_requests");
-        if let Some((status, error)) = row {
-            if status != "pending" && status != "processing" {
-                return (status, error);
-            }
+        if let Some((status, error)) = row
+            && status != "pending"
+            && status != "processing"
+        {
+            return (status, error);
         }
         tokio::time::sleep(Duration::from_millis(25)).await;
     }

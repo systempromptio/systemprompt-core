@@ -13,12 +13,12 @@ use std::time::Duration;
 use systemprompt_security::keys::jwks_client::{
     MAX_CACHE_TTL, MIN_CACHE_TTL, clamp_ttl, parse_max_age,
 };
-use systemprompt_security::keys::{Jwk, Jwks, JwksClient, JwksClientError, RsaSigningKey};
+use systemprompt_security::keys::{Jwk, Jwks, JwksClient, JwksClientError};
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 fn test_jwk(kid: &str) -> Jwk {
-    let signing = RsaSigningKey::generate_bits(2048).expect("generate rsa");
+    let signing = systemprompt_test_fixtures::next_test_key();
     Jwk::from_rsa_public_key(signing.public_key(), kid.to_owned())
 }
 

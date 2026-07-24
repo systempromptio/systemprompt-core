@@ -14,14 +14,15 @@ use systemprompt_models::Config;
 use systemprompt_models::auth::JwtAudience;
 use systemprompt_models::config::RateLimitConfig;
 use systemprompt_oauth::services::issue_bridge_access;
-use systemprompt_security::keys::{RsaSigningKey, authority};
+use systemprompt_security::keys::authority;
 use systemprompt_traits::AnalyticsProvider;
 
 static AUTHORITY: Once = Once::new();
 
 fn ensure_runtime() {
     AUTHORITY.call_once(|| {
-        let key = RsaSigningKey::generate_bits(2048).expect("generate signing key");
+        let key =
+            systemprompt_test_fixtures::test_key(systemprompt_test_fixtures::AUTHORITY_KEY_INDEX);
         authority::install_for_test(key);
     });
     // `Config::install` is a one-shot global; ignore the error when another

@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.24.0] - 2026-07-24
+
+### Added
+
+- `AiRequestListItem` and `AiRequestDetail` carry the caller's `user_id` (typed `UserId`) along with `actor_kind` and `actor_id`, all read from the columns `ai_requests` already stores. The `infra logs request` read path was the only query module in `trace/` that dropped identity at the SQL boundary.
+- `AiRequestFilter::with_user` filters a listing to one user id (exact match, served by the existing `(user_id, created_at)` index).
+
+### Changed
+
+- **Breaking:** `TraceQueryService::list_ai_requests` takes a single `&AiRequestFilter` instead of four positional arguments, matching `list_traces` and `list_tool_executions`. Migrate by building the filter: `AiRequestFilter::new(limit).with_model(pattern)`.
+
 ## [0.23.0] - 2026-07-23
 
 ### Added

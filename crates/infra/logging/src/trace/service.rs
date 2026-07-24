@@ -21,10 +21,10 @@ use crate::models::{LogEntry, LoggingError};
 pub(super) type Result<T> = std::result::Result<T, LoggingError>;
 
 use super::models::{
-    AiRequestDetail, AiRequestListItem, AiRequestStats, AiRequestSummary, AuditLookupResult,
-    AuditToolCallRow, ConversationMessage, ExecutionStepSummary, LevelCount, LinkedMcpCall,
-    LogSearchItem, LogTimeRange, McpExecutionSummary, ModuleCount, ToolExecutionFilter,
-    ToolExecutionItem, TraceEvent, TraceListFilter, TraceListItem,
+    AiRequestDetail, AiRequestFilter, AiRequestListItem, AiRequestStats, AiRequestSummary,
+    AuditLookupResult, AuditToolCallRow, ConversationMessage, ExecutionStepSummary, LevelCount,
+    LinkedMcpCall, LogSearchItem, LogTimeRange, McpExecutionSummary, ModuleCount,
+    ToolExecutionFilter, ToolExecutionItem, TraceEvent, TraceListFilter, TraceListItem,
 };
 use super::{
     audit_queries, list_queries, log_lookup_queries, log_search_queries, log_summary_queries,
@@ -138,12 +138,9 @@ impl TraceQueryService {
 
     pub async fn list_ai_requests(
         &self,
-        since: Option<DateTime<Utc>>,
-        model: Option<&str>,
-        provider: Option<&str>,
-        limit: i64,
+        filter: &AiRequestFilter,
     ) -> Result<Vec<AiRequestListItem>> {
-        request_queries::list_ai_requests(&self.pool, since, model, provider, limit).await
+        request_queries::list_ai_requests(&self.pool, filter).await
     }
 
     pub async fn get_ai_request_stats(

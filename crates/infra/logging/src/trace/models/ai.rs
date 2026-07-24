@@ -6,7 +6,7 @@
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use systemprompt_identifiers::{AiRequestId, TraceId};
+use systemprompt_identifiers::{AiRequestId, TraceId, UserId};
 
 #[derive(Debug, Clone)]
 pub struct AiRequestFilter {
@@ -14,6 +14,7 @@ pub struct AiRequestFilter {
     pub since: Option<DateTime<Utc>>,
     pub model: Option<String>,
     pub provider: Option<String>,
+    pub user: Option<String>,
 }
 
 impl AiRequestFilter {
@@ -23,6 +24,7 @@ impl AiRequestFilter {
             since: None,
             model: None,
             provider: None,
+            user: None,
         }
     }
 
@@ -34,6 +36,7 @@ impl AiRequestFilter {
     systemprompt_models::builder_methods! {
         with_model(model) -> String,
         with_provider(provider) -> String,
+        with_user(user) -> String,
     }
 }
 
@@ -42,6 +45,9 @@ pub struct AiRequestListItem {
     pub id: AiRequestId,
     pub created_at: DateTime<Utc>,
     pub trace_id: Option<TraceId>,
+    pub user_id: UserId,
+    pub actor_kind: String,
+    pub actor_id: String,
     pub provider: String,
     pub model: String,
     pub input_tokens: Option<i32>,
@@ -54,6 +60,9 @@ pub struct AiRequestListItem {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AiRequestDetail {
     pub id: AiRequestId,
+    pub user_id: UserId,
+    pub actor_kind: String,
+    pub actor_id: String,
     pub provider: String,
     pub model: String,
     pub input_tokens: Option<i32>,

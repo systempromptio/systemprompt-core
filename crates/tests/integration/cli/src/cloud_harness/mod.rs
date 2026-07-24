@@ -118,8 +118,7 @@ fn scaffold_project(root: &Path) {
 }
 
 fn write_signing_key(path: &Path) {
-    let key = systemprompt_security::keys::RsaSigningKey::generate_bits(2048)
-        .expect("generate harness signing key");
+    let key = systemprompt_test_fixtures::test_key(systemprompt_test_fixtures::AUTHORITY_KEY_INDEX);
     key.write_pem_file(path).expect("write signing key pem");
 }
 

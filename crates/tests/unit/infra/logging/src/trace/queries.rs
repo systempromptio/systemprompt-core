@@ -155,17 +155,17 @@ async fn trace_service_ai_request_lookups_on_random_ids() {
     let missing = nonexistent_tag();
 
     assert!(
-        svc.list_ai_requests(None, Some(missing.as_str()), None, 10)
+        svc.list_ai_requests(&AiRequestFilter::new(10).with_model(missing.clone()))
             .await
             .unwrap()
             .is_empty()
     );
     assert!(
         svc.list_ai_requests(
-            Some(Utc::now() + ChronoDuration::days(1)),
-            Some("gpt-4"),
-            Some("openai"),
-            5,
+            &AiRequestFilter::new(5)
+                .with_since(Utc::now() + ChronoDuration::days(1))
+                .with_model("gpt-4".to_owned())
+                .with_provider("openai".to_owned()),
         )
         .await
         .unwrap()

@@ -285,3 +285,15 @@ async fn test_application_type_round_trip() {
 
     repo.delete(&client_id).await.ok();
 }
+
+#[test]
+fn precomputed_fixture_hash_verifies_against_the_test_client_secret() {
+    assert!(
+        systemprompt_oauth::services::verify_client_secret(
+            systemprompt_test_fixtures::TEST_CLIENT_SECRET,
+            systemprompt_test_fixtures::TEST_CLIENT_SECRET_HASH,
+        )
+        .expect("bcrypt verify"),
+        "the committed bcrypt hash must match TEST_CLIENT_SECRET; regenerate it if the secret changes"
+    );
+}

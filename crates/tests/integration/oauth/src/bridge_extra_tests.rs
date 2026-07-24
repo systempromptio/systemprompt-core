@@ -13,13 +13,14 @@ use systemprompt_oauth::services::{
     exchange_bridge_session_code, hash_exchange_code, issue_bridge_exchange_code,
     provision_bridge_oauth_client,
 };
-use systemprompt_security::keys::{RsaSigningKey, authority};
+use systemprompt_security::keys::authority;
 
 static AUTHORITY: Once = Once::new();
 
 fn ensure_runtime() {
     AUTHORITY.call_once(|| {
-        let key = RsaSigningKey::generate_bits(2048).expect("generate signing key");
+        let key =
+            systemprompt_test_fixtures::test_key(systemprompt_test_fixtures::AUTHORITY_KEY_INDEX);
         authority::install_for_test(key);
     });
     let _ = Config::install(test_config());

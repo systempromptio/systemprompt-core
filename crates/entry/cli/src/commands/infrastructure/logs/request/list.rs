@@ -6,7 +6,7 @@
 use anyhow::Result;
 use clap::Args;
 use std::sync::Arc;
-use systemprompt_logging::TraceQueryService;
+use systemprompt_logging::{AiRequestFilter, TraceQueryService};
 
 use super::{RequestListRow, build_request_list};
 use crate::commands::infrastructure::logs::duration::parse_since;
@@ -34,6 +34,9 @@ pub struct ListArgs {
 
     #[arg(long, help = "Filter by provider (e.g., 'openai', 'anthropic')")]
     pub provider: Option<String>,
+
+    #[arg(long, help = "Filter by user id (exact match)")]
+    pub user: Option<String>,
 }
 
 crate::define_pool_command!(ListArgs => CommandOutput, no_config);
@@ -42,19 +45,22 @@ async fn execute_with_pool_inner(
     args: ListArgs,
     pool: &Arc<sqlx::PgPool>,
 ) -> Result<CommandOutput> {
-    let since_timestamp = parse_since(args.since.as_ref())?;
-    let model_pattern = args.model.as_ref().map(|m| format!("%{m}%"));
-    let provider_pattern = args.provider.as_ref().map(|p| format!("%{p}%"));
+    let mut filter = AiRequestFilter::new(args.limit);
+    if let Some(since) = parse_since(args.since.as_ref())? {
+        filter = filter.with_since(since);
+    }
+    if let Some(model) = args.model.as_ref() {
+        filter = filter.with_model(format!("%{model}%"));
+    }
+    if let Some(provider) = args.provider.as_ref() {
+        filter = filter.with_provider(format!("%{provider}%"));
+    }
+    if let Some(user) = args.user {
+        filter = filter.with_user(user);
+    }
 
     let service = TraceQueryService::new(Arc::clone(pool));
-    let rows = service
-        .list_ai_requests(
-            since_timestamp,
-            model_pattern.as_deref(),
-            provider_pattern.as_deref(),
-            args.limit,
-        )
-        .await?;
+    let rows = service.list_ai_requests(&filter).await?;
 
     let requests: Vec<RequestListRow> = rows
         .into_iter()
@@ -66,6 +72,8 @@ async fn execute_with_pool_inner(
             RequestListRow {
                 request_id: truncate_with_ellipsis(r.id.as_str(), 12),
                 timestamp: r.created_at.format("%Y-%m-%d %H:%M:%S").to_string(),
+                user_id: r.user_id,
+                actor: format!("{}:{}", r.actor_kind, r.actor_id),
                 provider: r.provider,
                 model: r.model,
                 tokens: format!("{}/{}", input, output),

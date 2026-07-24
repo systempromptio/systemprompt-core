@@ -18,13 +18,16 @@ use serde::{Deserialize, Serialize};
 use super::types::{MessageRow, ToolCallRow};
 use crate::context::CommandContext;
 use crate::shared::{CommandOutput, render_result};
+use systemprompt_identifiers::UserId;
 use systemprompt_models::artifacts::NoticeLine;
 
 pub use stats::{RequestStatsOutput, build_request_stats};
 
-const REQUEST_LIST_COLUMNS: [&str; 8] = [
+const REQUEST_LIST_COLUMNS: [&str; 10] = [
     "request_id",
     "timestamp",
+    "user_id",
+    "actor",
     "provider",
     "model",
     "tokens",
@@ -85,6 +88,8 @@ pub enum RequestCommands {
 pub struct RequestListRow {
     pub request_id: String,
     pub timestamp: String,
+    pub user_id: UserId,
+    pub actor: String,
     pub provider: String,
     pub model: String,
     pub tokens: String,
@@ -97,6 +102,9 @@ pub struct RequestListRow {
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct RequestShowOutput {
     pub request_id: String,
+    pub user_id: UserId,
+    pub actor_kind: String,
+    pub actor_id: String,
     pub provider: String,
     pub model: String,
     pub input_tokens: i32,

@@ -5,12 +5,15 @@ use systemprompt_cli::infrastructure::logs::request::{
     build_request_stats, request_show_not_found,
 };
 use systemprompt_cli::infrastructure::logs::{MessageRow, ToolCallRow};
+use systemprompt_identifiers::UserId;
 use systemprompt_models::artifacts::CliArtifact;
 
 fn sample_row() -> RequestListRow {
     RequestListRow {
         request_id: "req_abc123".to_owned(),
         timestamp: "2026-06-03 10:00:00".to_owned(),
+        user_id: UserId::new("user_abc123"),
+        actor: "user:user_abc123".to_owned(),
         provider: "anthropic".to_owned(),
         model: "claude".to_owned(),
         tokens: "10/20".to_owned(),
@@ -37,6 +40,9 @@ fn request_list_empty_returns_message() {
 fn request_show_returns_card() {
     let detail = RequestShowOutput {
         request_id: "req_abc123".to_owned(),
+        user_id: UserId::new("user_abc123"),
+        actor_kind: "user".to_owned(),
+        actor_id: "user_abc123".to_owned(),
         provider: "anthropic".to_owned(),
         model: "claude".to_owned(),
         input_tokens: 10,

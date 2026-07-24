@@ -15,12 +15,26 @@ group_prefixes() {
     entry-api)     echo "/tests/unit/entry/api/" ;;
     entry-cli)     echo "/tests/unit/entry/cli/" ;;
     bridge)        echo "/tests/unit/bridge/" ;;
-    integration)   echo "/tests/integration/" ;;
+    # `integration` was one shard of 18 packages and 1684 tests, and at ~21min
+    # it was CI's entire critical path while no other shard passed 5min. Split
+    # three ways. `cli` and `cloud` stay together: both are pinned to single
+    # nextest test-groups (cli-cloud-harness, cloud-checkout-port), so splitting
+    # them apart would buy no parallelism.
+    integration-api)  echo "/tests/integration/api/" ;;
+    integration-cli)  echo "/tests/integration/cli/ /tests/integration/cloud/" ;;
+    integration-rest) echo "/tests/integration/agent/ /tests/integration/analytics/ \
+                             /tests/integration/content/ /tests/integration/database/ \
+                             /tests/integration/events/ /tests/integration/extension/ \
+                             /tests/integration/files/ /tests/integration/gateway/ \
+                             /tests/integration/generator/ /tests/integration/mcp/ \
+                             /tests/integration/oauth/ /tests/integration/runtime/ \
+                             /tests/integration/security/ /tests/integration/scheduler/ \
+                             /tests/integration/users/" ;;
     edge)          echo "/tests/concurrency/ /tests/property/ /tests/contract/" ;;
     *) echo "unknown shard group: $1" >&2; exit 2 ;;
   esac
 }
-SHARD_GROUPS="shared infra domain app-runtime app-scheduler app-generator entry-api entry-cli bridge integration edge"
+SHARD_GROUPS="shared infra domain app-runtime app-scheduler app-generator entry-api entry-cli bridge integration-api integration-cli integration-rest edge"
 
 [ "${1:-}" = "--list" ] && { echo $SHARD_GROUPS; exit 0; }
 group="${1:?usage: test-shard.sh <group|--list> [extra nextest args]}"; shift || true
@@ -39,13 +53,19 @@ echo "shard $group: $PKGS"
 # prebuild it once so subprocess fixtures never pay for (or time out on) a
 # cold `cargo build` inside a running test.
 case "$group" in
-  entry-cli|integration)
+  entry-cli|integration-api|integration-cli|integration-rest)
     echo "==> Prebuilding systemprompt binary for subprocess tests"
     cargo build -p systemprompt-cli --bin systemprompt
     export SYSTEMPROMPT_BIN="$ROOT/target/debug/systemprompt"
     ;;
 esac
 
+# Scale to the host but keep the old ceiling: each test opens its own pool of up
+# to 8 connections (crates/tests/common/fixtures/src/db.rs) against a server
+# whose max_connections is 100, so parallelism above 8 exhausts the budget.
+cores="$(nproc 2>/dev/null || echo 4)"
+threads="${TEST_THREADS:-$(( cores < 8 ? cores : 8 ))}"
+
 cargo nextest run --profile "${NEXTEST_PROFILE:-default}" \
   --manifest-path crates/tests/Cargo.toml \
-  --lib $PKGS --test-threads "${TEST_THREADS:-4}" "$@"
+  --lib $PKGS --test-threads "$threads" "$@"

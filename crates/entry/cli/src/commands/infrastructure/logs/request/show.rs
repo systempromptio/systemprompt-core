@@ -66,6 +66,9 @@ async fn execute_with_pool_inner(
 
     let output = RequestShowOutput {
         request_id: request_id.as_str().to_owned(),
+        user_id: row.user_id,
+        actor_kind: row.actor_kind,
+        actor_id: row.actor_id,
         provider: row.provider,
         model: row.model,
         input_tokens: row.input_tokens.unwrap_or(0),

@@ -2,8 +2,9 @@
 //!
 //! [`install_test_signing_key`] is idempotent — the underlying authority cell
 //! is process-wide, so the first caller wins. Concurrent test runs must share
-//! the same minted key, which is fine because every test that consumes a JWT
-//! resolves it via [`mint_admin_jwt`] / [`mint_bridge_jwt`].
+//! the same key, which is fine because every test that consumes a JWT resolves
+//! it via [`mint_admin_jwt`] / [`mint_bridge_jwt`]. The key is the committed
+//! fixture from [`crate::keys`] rather than a freshly generated one.
 
 use std::collections::BTreeMap;
 use std::sync::OnceLock;
@@ -22,7 +23,7 @@ static SIGNING_KEY: OnceLock<RsaSigningKey> = OnceLock::new();
 
 pub fn install_test_signing_key() -> &'static RsaSigningKey {
     SIGNING_KEY.get_or_init(|| {
-        let key = RsaSigningKey::generate_bits(2048).expect("rsa keygen");
+        let key = crate::keys::test_key(crate::keys::AUTHORITY_KEY_INDEX);
         install_for_test(key.clone());
         key
     })

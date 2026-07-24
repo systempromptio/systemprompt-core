@@ -154,11 +154,13 @@ fn init_bootstrap_inner(
     write_yaml_stub(&services_path.join("web/metadata.yaml"));
 
     let profile_yaml = render_profile_yaml(
-        &system_path,
-        &services_path,
-        &bin_path,
-        &storage_path,
-        &web_path,
+        &ProfilePaths {
+            system: &system_path,
+            services: &services_path,
+            bin: &bin_path,
+            storage: &storage_path,
+            web: &web_path,
+        },
         api_base_url.unwrap_or("http://127.0.0.1"),
     );
     let profile_path = tmp_path.join("profile.yaml");
@@ -276,14 +278,22 @@ teams_apps:
     )
 }
 
-fn render_profile_yaml(
-    system: &std::path::Path,
-    services: &std::path::Path,
-    bin: &std::path::Path,
-    storage: &std::path::Path,
-    web: &std::path::Path,
-    api_base_url: &str,
-) -> String {
+struct ProfilePaths<'a> {
+    system: &'a std::path::Path,
+    services: &'a std::path::Path,
+    bin: &'a std::path::Path,
+    storage: &'a std::path::Path,
+    web: &'a std::path::Path,
+}
+
+fn render_profile_yaml(paths: &ProfilePaths<'_>, api_base_url: &str) -> String {
+    let ProfilePaths {
+        system,
+        services,
+        bin,
+        storage,
+        web,
+    } = *paths;
     format!(
         r#"name: test
 display_name: Bootstrap Fixture Profile

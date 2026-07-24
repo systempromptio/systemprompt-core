@@ -22,7 +22,8 @@ static INSTALL: Once = Once::new();
 
 fn ensure_authority() -> &'static RsaSigningKey {
     INSTALL.call_once(|| {
-        let key = RsaSigningKey::generate_bits(2048).expect("generate test signing key");
+        let key =
+            systemprompt_test_fixtures::test_key(systemprompt_test_fixtures::AUTHORITY_KEY_INDEX);
         authority::install_for_test(key);
     });
     authority::signing_key().expect("authority installed")
@@ -109,11 +110,11 @@ fn unknown_kid_is_rejected_by_authority() {
 #[test]
 fn foreign_key_is_not_accepted_via_local_lookup() {
     let local = ensure_authority();
-    let foreign = RsaSigningKey::generate_bits(2048).expect("generate foreign key");
+    let foreign = systemprompt_test_fixtures::next_test_key();
     assert_ne!(
         local.kid(),
         foreign.kid(),
-        "fresh RSA keys must produce distinct kids"
+        "distinct RSA keys must produce distinct kids"
     );
     let lookup = authority::decoding_key_for_kid(foreign.kid()).expect("authority callable");
     assert!(
@@ -155,7 +156,7 @@ fn install_for_test_is_idempotent() {
 
     // A second install with a distinct key must be a no-op: the authority is
     // set exactly once per process and never rebound.
-    authority::install_for_test(RsaSigningKey::generate_bits(2048).expect("second key"));
+    authority::install_for_test(systemprompt_test_fixtures::next_test_key());
 
     let kid_after = authority::signing_key().expect("still installed").kid();
     assert_eq!(
