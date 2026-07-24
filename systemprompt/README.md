@@ -21,10 +21,6 @@ The governance engine behind AI infrastructure you actually own. One Rust binary
 
 </div>
 
-> This README mirrors the [systemprompt-core root README](https://github.com/systempromptio/systemprompt-core#readme) and is published to [docs.rs](https://docs.rs/systemprompt). `systemprompt` re-exports the workspace crates behind feature flags; the full project documentation lives in the [`documentation/`](https://github.com/systempromptio/systemprompt-core/tree/main/documentation) directory.
-
----
-
 ## Why this exists
 
 Most teams govern AI one of two ways. They rent a dashboard, and someone else's infrastructure holds their prompts, their keys, and their audit trail. Or they build it themselves, and eighteen months later they are maintaining a distributed system instead of shipping.
@@ -62,7 +58,7 @@ Six surfaces, one binary, one authenticated and audited path.
 
 ```toml
 [dependencies]
-systemprompt = { version = "0.21.1", features = ["full"] }
+systemprompt = { version = "0.23", features = ["full"] }
 ```
 
 ```rust
