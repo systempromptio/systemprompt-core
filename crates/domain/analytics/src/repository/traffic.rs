@@ -333,7 +333,7 @@ impl TrafficAnalyticsRepository {
         start: DateTime<Utc>,
         end: DateTime<Utc>,
     ) -> Result<BotTotalsRow> {
-        // Partitions every session into exactly one bucket; the flag and
+        // Why: Partitions every session into exactly one bucket; the flag and
         // engagement predicates must mirror v_clean_traffic / v_engaged_traffic.
         sqlx::query_as!(
             BotTotalsRow,

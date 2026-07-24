@@ -34,7 +34,7 @@ pub(super) async fn check_and_mark_behavioral_bot(
     request_count_threshold: i32,
 ) -> Result<bool> {
     let id = session_id.as_str();
-    // Writers reclassify the very flags v_clean_traffic filters on, so the
+    // Why: Writers reclassify the very flags v_clean_traffic filters on, so the
     // human predicate stays inline here and must mirror that view.
     let result = sqlx::query!(
         r#"
