@@ -50,9 +50,13 @@ pub(super) async fn create_local_session(
         CliService::key_value("User", &admin_user.email);
     }
 
-    let session_id = create_local_session_row(&db_pool, &admin_user.id)
-        .await
-        .context("Failed to create local CLI session row in the database")?;
+    let session_id = create_local_session_row(
+        &db_pool,
+        &admin_user.id,
+        chrono::Duration::hours(crate::session::api::DEFAULT_CLI_SESSION_HOURS),
+    )
+    .await
+    .context("Failed to create local CLI session row in the database")?;
 
     let context_id =
         create_cli_context(db_pool, &admin_user, &session_id, profile_ctx.name).await?;
@@ -113,9 +117,13 @@ pub(super) async fn create_session_for_tenant(
     let admin_user =
         resolve_tenant_admin_with_fallback(&db_pool, creds, user_email, session_email_hint).await?;
 
-    let session_id = create_local_session_row(&db_pool, &admin_user.id)
-        .await
-        .context("Failed to create local tenant CLI session row in the database")?;
+    let session_id = create_local_session_row(
+        &db_pool,
+        &admin_user.id,
+        chrono::Duration::hours(crate::session::api::DEFAULT_CLI_SESSION_HOURS),
+    )
+    .await
+    .context("Failed to create local tenant CLI session row in the database")?;
 
     let context_id =
         create_cli_context(db_pool, &admin_user, &session_id, profile_ctx.name).await?;

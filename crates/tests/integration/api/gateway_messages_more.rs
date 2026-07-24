@@ -24,7 +24,7 @@ use systemprompt_api::services::gateway::protocol::{
 };
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::headers::{GATEWAY_CONVERSATION_ID, SESSION_ID};
-use systemprompt_identifiers::{AiRequestId, TraceId, UserId};
+use systemprompt_identifiers::{AiRequestId, SessionId, TraceId, UserId};
 use systemprompt_security::authz::{AllowAllHook, DenyAllHook, SharedAuthzHook};
 use systemprompt_test_fixtures::{install_test_signing_key, seed_admin_credential};
 use systemprompt_users::{ApiKeyService, IssueApiKeyParams};
@@ -206,6 +206,7 @@ fn api_key_principal(user: &str) -> AuthedPrincipal {
     AuthedPrincipal::ApiKey(ApiKeyPrincipal {
         user_id: UserId::new(user),
         trace_id: TraceId::generate(),
+        attested_session: SessionId::generate(),
     })
 }
 
@@ -273,14 +274,39 @@ async fn authenticate_accepts_seeded_api_key() -> Result<()> {
         .await?;
 
     let extractor = jwt_extractor(&ctx)?;
-    let principal = authenticate(&issued.secret, &extractor, &ctx)
+    let principal = authenticate(&issued.secret, &cred.session_id, &extractor, &ctx)
         .await
         .expect("api key authenticates");
     assert_eq!(principal.user_id().as_str(), cred.user_id.as_str());
-    assert!(
-        principal.attested_session().is_none(),
-        "api-key has no session"
+    assert_eq!(
+        principal.attested_session().as_str(),
+        cred.session_id.as_str(),
+        "api-key principal carries the session it presented, once attested"
     );
+    Ok(())
+}
+
+#[tokio::test]
+async fn authenticate_rejects_unissued_session_for_api_key() -> Result<()> {
+    let (pool, ctx) = setup_ctx().await?;
+    install_test_signing_key();
+    let cred = seed_admin_credential(&pool, "auth-apikey-forged@example.invalid").await?;
+    let service = ApiKeyService::new(ctx.db_pool())?;
+    let issued = service
+        .issue(IssueApiKeyParams {
+            user_id: &cred.user_id,
+            name: "gateway-auth-forged-session",
+            expires_at: None,
+        })
+        .await?;
+
+    let extractor = jwt_extractor(&ctx)?;
+    let forged = SessionId::new("not-a-real-session");
+    let (status, msg) = authenticate(&issued.secret, &forged, &extractor, &ctx)
+        .await
+        .expect_err("a session the server never issued must not authenticate");
+    assert_eq!(status, StatusCode::UNAUTHORIZED);
+    assert!(msg.contains("mint one at"), "{msg}");
     Ok(())
 }
 
@@ -288,9 +314,14 @@ async fn authenticate_accepts_seeded_api_key() -> Result<()> {
 async fn authenticate_rejects_unknown_api_key() -> Result<()> {
     let (_pool, ctx) = setup_ctx().await?;
     let extractor = jwt_extractor(&ctx)?;
-    let (status, _msg) = authenticate("sp-live-deadbeefdeadbeef", &extractor, &ctx)
-        .await
-        .expect_err("unknown api key must fail");
+    let (status, _msg) = authenticate(
+        "sp-live-deadbeefdeadbeef",
+        &SessionId::generate(),
+        &extractor,
+        &ctx,
+    )
+    .await
+    .expect_err("unknown api key must fail");
     assert_eq!(status, StatusCode::UNAUTHORIZED);
     Ok(())
 }
@@ -301,13 +332,13 @@ async fn authenticate_accepts_seeded_jwt() -> Result<()> {
     install_test_signing_key();
     let cred = seed_admin_credential(&pool, "auth-jwt@example.invalid").await?;
     let extractor = jwt_extractor(&ctx)?;
-    let principal = authenticate(cred.jwt.as_str(), &extractor, &ctx)
+    let principal = authenticate(cred.jwt.as_str(), &cred.session_id, &extractor, &ctx)
         .await
         .expect("jwt authenticates");
     assert_eq!(principal.user_id().as_str(), cred.user_id.as_str());
     assert_eq!(
-        principal.attested_session().map(|s| s.as_str()),
-        Some(cred.session_id.as_str()),
+        principal.attested_session().as_str(),
+        cred.session_id.as_str(),
         "jwt principal carries its attested session"
     );
     Ok(())

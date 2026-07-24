@@ -13,6 +13,7 @@ use tokio::sync::RwLock;
 use uuid::Uuid;
 
 use systemprompt_identifiers::{ClientId, SessionId, SessionSource, UserId};
+use systemprompt_models::Config;
 use systemprompt_traits::{
     AnalyticsProvider, CreateSessionInput, FingerprintProvider, SessionAnalytics, UserEvent,
     UserEventPublisher, UserProvider,
@@ -149,6 +150,27 @@ impl SessionCreationService {
         analytics: &SessionAnalytics,
         session_source: SessionSource,
     ) -> Result<SessionId, SessionCreationError> {
+        let global_config =
+            Config::get().map_err(|e| SessionCreationError::Internal(e.to_string()))?;
+        self.create_authenticated_session_with_ttl(
+            user_id,
+            analytics,
+            session_source,
+            chrono::Duration::seconds(global_config.jwt_access_token_expiration),
+        )
+        .await
+    }
+
+    /// `ttl` must match the lifetime of the credential that will name this
+    /// session: a row that expires before its token fails attestation while the
+    /// token still verifies.
+    pub async fn create_authenticated_session_with_ttl(
+        &self,
+        user_id: &UserId,
+        analytics: &SessionAnalytics,
+        session_source: SessionSource,
+        ttl: chrono::Duration,
+    ) -> Result<SessionId, SessionCreationError> {
         let user = self
             .user_provider
             .find_by_id(user_id)
@@ -162,11 +184,7 @@ impl SessionCreationService {
         }
 
         let session_id = SessionId::new(format!("sess_{}", Uuid::new_v4()));
-
-        let global_config = systemprompt_models::Config::get()
-            .map_err(|e| SessionCreationError::Internal(e.to_string()))?;
-        let expires_at = chrono::Utc::now()
-            + chrono::Duration::seconds(global_config.jwt_access_token_expiration);
+        let expires_at = chrono::Utc::now() + ttl;
 
         self.analytics_provider
             .create_session(CreateSessionInput {

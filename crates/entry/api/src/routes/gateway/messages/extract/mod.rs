@@ -95,7 +95,7 @@ pub(super) async fn extract_request_context(
     partial.session_id = Some(session_id.clone());
     let header_gateway_conversation = optional_gateway_conversation_id(request.headers())?;
 
-    let principal = authenticate(&presented, rc.jwt_extractor, rc.ctx).await?;
+    let principal = authenticate(&presented, &session_id, rc.jwt_extractor, rc.ctx).await?;
     partial.user_id = Some(principal.user_id().clone());
     partial.trace_id = Some(principal.trace_id().clone());
 

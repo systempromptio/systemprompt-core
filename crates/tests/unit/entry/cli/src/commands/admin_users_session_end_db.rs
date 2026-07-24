@@ -4,7 +4,7 @@
 
 use clap::Parser;
 use systemprompt_cli::admin::users::{self, UsersCommands};
-use systemprompt_cli::session::api::create_local_session_row;
+use systemprompt_cli::session::api::{DEFAULT_CLI_SESSION_HOURS, create_local_session_row};
 use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
 use systemprompt_database::DbPool;
 use systemprompt_test_fixtures::{fixture_app_context, fixture_database_url, fixture_db_pool};
@@ -54,7 +54,13 @@ async fn end_specific_session_succeeds() {
     let service = UserService::new(&pool).unwrap();
     let (n, e) = unique("sesend");
     let user = service.create(&n, &e, None, None).await.unwrap();
-    let session_id = create_local_session_row(&pool, &user.id).await.unwrap();
+    let session_id = create_local_session_row(
+        &pool,
+        &user.id,
+        chrono::Duration::hours(DEFAULT_CLI_SESSION_HOURS),
+    )
+    .await
+    .unwrap();
 
     let ctx = ctx(&pool);
     users::execute(
@@ -83,8 +89,20 @@ async fn end_all_sessions_for_user() {
     let service = UserService::new(&pool).unwrap();
     let (n, e) = unique("sesall");
     let user = service.create(&n, &e, None, None).await.unwrap();
-    create_local_session_row(&pool, &user.id).await.unwrap();
-    create_local_session_row(&pool, &user.id).await.unwrap();
+    create_local_session_row(
+        &pool,
+        &user.id,
+        chrono::Duration::hours(DEFAULT_CLI_SESSION_HOURS),
+    )
+    .await
+    .unwrap();
+    create_local_session_row(
+        &pool,
+        &user.id,
+        chrono::Duration::hours(DEFAULT_CLI_SESSION_HOURS),
+    )
+    .await
+    .unwrap();
 
     let ctx = ctx(&pool);
     users::execute(

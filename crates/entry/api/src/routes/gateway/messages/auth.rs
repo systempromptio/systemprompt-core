@@ -10,6 +10,11 @@ use systemprompt_runtime::AppContext;
 use systemprompt_users::{API_KEY_PREFIX, ApiKeyService};
 
 use crate::services::middleware::JwtContextExtractor;
+use crate::services::middleware::session::{SessionAttestationError, attest_session};
+use systemprompt_traits::AppContext as _;
+
+const UNKNOWN_SESSION_MESSAGE: &str =
+    "unknown or revoked session; mint one at POST /api/public/gateway/sessions";
 
 #[cfg_attr(
     not(feature = "test-api"),
@@ -52,6 +57,7 @@ pub struct JwtPrincipal {
 pub struct ApiKeyPrincipal {
     pub user_id: UserId,
     pub trace_id: TraceId,
+    pub attested_session: SessionId,
 }
 
 #[cfg_attr(
@@ -76,10 +82,10 @@ impl AuthedPrincipal {
         }
     }
 
-    pub const fn attested_session(&self) -> Option<&SessionId> {
+    pub const fn attested_session(&self) -> &SessionId {
         match self {
-            Self::Jwt(p) => Some(&p.attested_session),
-            Self::ApiKey(_) => None,
+            Self::Jwt(p) => &p.attested_session,
+            Self::ApiKey(p) => &p.attested_session,
         }
     }
 
@@ -93,23 +99,19 @@ impl AuthedPrincipal {
     }
 
     pub fn enforce_session_binding(&self, header: &SessionId) -> Result<(), (StatusCode, String)> {
-        match self {
-            Self::Jwt(p) => p.enforce_session_binding(header),
-            Self::ApiKey(_) => Ok(()),
-        }
-    }
-}
-
-impl JwtPrincipal {
-    fn enforce_session_binding(&self, header: &SessionId) -> Result<(), (StatusCode, String)> {
-        if self.attested_session.as_str() == header.as_str() {
+        let (attested, credential) = match self {
+            Self::Jwt(p) => (&p.attested_session, "bearer JWT session_id"),
+            Self::ApiKey(p) => (&p.attested_session, "attested API-key session"),
+        };
+        if attested.as_str() == header.as_str() {
             return Ok(());
         }
         tracing::warn!(
             header_session = %header.as_str(),
-            jwt_session = %self.attested_session.as_str(),
-            user_id = %self.user_id,
-            "X-Session-ID header does not match bearer JWT session_id; rejecting"
+            attested_session = %attested.as_str(),
+            user_id = %self.user_id(),
+            credential = %credential,
+            "X-Session-ID header does not match the attested session; rejecting"
         );
         Err((
             StatusCode::UNAUTHORIZED,
@@ -127,17 +129,19 @@ impl JwtPrincipal {
 )]
 pub async fn authenticate(
     credential: &str,
+    session_id: &SessionId,
     jwt_extractor: &JwtContextExtractor,
     ctx: &AppContext,
 ) -> Result<AuthedPrincipal, (StatusCode, String)> {
     if credential.starts_with(API_KEY_PREFIX) {
-        return authenticate_api_key(credential, ctx).await;
+        return authenticate_api_key(credential, session_id, ctx).await;
     }
     authenticate_jwt(credential, jwt_extractor).await
 }
 
 async fn authenticate_api_key(
     credential: &str,
+    session_id: &SessionId,
     ctx: &AppContext,
 ) -> Result<AuthedPrincipal, (StatusCode, String)> {
     let service = ApiKeyService::new(ctx.db_pool()).map_err(|e| {
@@ -152,16 +156,37 @@ async fn authenticate_api_key(
             format!("API key verification failed: {e}"),
         )
     })?;
-    match record {
-        Some(rec) => Ok(AuthedPrincipal::ApiKey(ApiKeyPrincipal {
-            user_id: rec.user_id,
-            trace_id: TraceId::generate(),
-        })),
-        None => Err((
+    let Some(rec) = record else {
+        return Err((
             StatusCode::UNAUTHORIZED,
             "Invalid or revoked API key".to_owned(),
-        )),
-    }
+        ));
+    };
+
+    let analytics = ctx.analytics_provider().ok_or_else(|| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "Analytics provider unavailable: cannot attest session".to_owned(),
+        )
+    })?;
+
+    attest_session(&analytics, session_id, &rec.user_id, "gateway/messages")
+        .await
+        .map_err(|e| match e {
+            SessionAttestationError::Lookup(message) => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Session attestation failed: {message}"),
+            ),
+            SessionAttestationError::Missing | SessionAttestationError::UserMismatch => {
+                (StatusCode::UNAUTHORIZED, UNKNOWN_SESSION_MESSAGE.to_owned())
+            },
+        })?;
+
+    Ok(AuthedPrincipal::ApiKey(ApiKeyPrincipal {
+        user_id: rec.user_id,
+        trace_id: TraceId::generate(),
+        attested_session: session_id.clone(),
+    }))
 }
 
 async fn authenticate_jwt(

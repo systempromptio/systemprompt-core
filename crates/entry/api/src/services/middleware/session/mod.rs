@@ -5,12 +5,19 @@
 //! validates an existing JWT session, and refreshes or recreates the session
 //! when the token is stale, issuing a `Set-Cookie` for newly minted tokens.
 //!
+//! Validation runs through [`attest_session`], the same predicate the JWT and
+//! gateway credential paths use: a cookie must name a session the server issued
+//! *to that user*. An existence-only check would let a signed token borrow
+//! another user's live session for analytics attribution.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod attestation;
 mod lifecycle;
 mod skip;
 
+pub use attestation::{SessionAttestationError, attest_session};
 pub use skip::should_skip_session_tracking;
 
 use axum::extract::{ConnectInfo, Request};
@@ -234,33 +241,37 @@ impl SessionMiddleware {
             return Ok((sid, uid, token, jwt_cookie, Some(fp)));
         };
 
-        let session_exists = self
-            .analytics_service
-            .find_active_session_by_id(&jwt_context.session_id)
-            .await
-            .map_err(|e| {
-                tracing::warn!(error = %e, "find_active_session_by_id failed");
-                e
-            })
-            .ok()
-            .flatten()
-            .is_some();
+        let analytics_provider: Arc<dyn AnalyticsProvider> =
+            Arc::<AnalyticsService>::clone(&self.analytics_service);
 
-        if session_exists {
-            return Ok((
-                jwt_context.session_id,
-                jwt_context.user_id,
-                token,
-                None,
-                None,
-            ));
+        // Why: a lookup failure is infrastructure, not evidence of a bad
+        // session, so it takes the same mint-a-replacement recovery as a
+        // missing one rather than failing the request.
+        match attest_session(
+            &analytics_provider,
+            &jwt_context.session_id,
+            &jwt_context.user_id,
+            "session_middleware",
+        )
+        .await
+        {
+            Ok(()) => {
+                return Ok((
+                    jwt_context.session_id,
+                    jwt_context.user_id,
+                    token,
+                    None,
+                    None,
+                ));
+            },
+            Err(e) => tracing::info!(
+                old_session_id = %jwt_context.session_id,
+                user_id = %jwt_context.user_id,
+                reason = %e,
+                "JWT session failed attestation, refreshing with new session"
+            ),
         }
 
-        tracing::info!(
-            old_session_id = %jwt_context.session_id,
-            user_id = %jwt_context.user_id,
-            "JWT valid but session missing, refreshing with new session"
-        );
         match lifecycle::refresh_session_for_user(
             &self.session_creation_service,
             &jwt_context.user_id,

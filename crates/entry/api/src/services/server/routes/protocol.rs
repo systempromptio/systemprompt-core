@@ -262,6 +262,12 @@ pub(super) fn mount_content_and_misc(
 
     if let Some(gateway) = crate::routes::gateway::gateway_router(ctx) {
         router = router.nest(ApiPaths::GATEWAY_BASE, gateway);
+        router = router.nest(
+            ApiPaths::GATEWAY_PUBLIC_BASE,
+            crate::routes::gateway::sessions::public_router(ctx)
+                .with_rate_limit(rate_config, rate_config.oauth_public_per_second)
+                .with_auth(*public_middleware, AuthzPolicy::public()),
+        );
     }
 
     Ok(router)

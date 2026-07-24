@@ -24,6 +24,7 @@ pub mod bridge_whoami;
 pub mod messages;
 pub mod models;
 pub mod otel;
+pub mod sessions;
 
 use axum::extract::Request;
 use axum::middleware::Next;

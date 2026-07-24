@@ -84,7 +84,7 @@ pub async fn enforce_authz_pre_dispatch(
         trace_id: principal.trace_id().clone(),
         route_id,
         model: ModelId::new(model),
-        session_id: principal.attested_session().cloned(),
+        session_id: Some(principal.attested_session().clone()),
     });
     match hook.evaluate(req).await {
         AuthzDecision::Allow => Ok(()),

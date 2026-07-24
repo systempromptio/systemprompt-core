@@ -13,6 +13,8 @@ use systemprompt_models::execution::context::ContextExtractionError;
 use systemprompt_security::JwtUserContext;
 use systemprompt_traits::{AnalyticsProvider, AuthUser, UserProvider};
 
+use crate::services::middleware::session::{SessionAttestationError, attest_session};
+
 const USER_CACHE_TTL: Duration = Duration::from_secs(30);
 
 #[cfg_attr(
@@ -162,39 +164,17 @@ pub(super) async fn validate_session_exists(
     jwt_context: &JwtUserContext,
     route_context: &str,
 ) -> Result<(), ContextExtractionError> {
-    let session = analytics_provider
-        .find_active_session_by_id(&jwt_context.session_id)
-        .await
-        .map_err(|e| ContextExtractionError::DatabaseError {
-            message: format!("Failed to check session: {e}"),
-        })?;
-
-    let Some(session) = session else {
-        tracing::info!(
-            session_id = %jwt_context.session_id.as_str(),
-            user_id = %jwt_context.user_id.as_str(),
-            route = %route_context,
-            "JWT validation failed: session missing or revoked"
-        );
-        return Err(ContextExtractionError::InvalidToken(
-            "Session missing or revoked".to_owned(),
-        ));
-    };
-
-    if let Some(session_user_id) = session.user_id.as_ref()
-        && session_user_id.as_str() != jwt_context.user_id.as_str()
-    {
-        tracing::warn!(
-            session_id = %jwt_context.session_id.as_str(),
-            claimed_user_id = %jwt_context.user_id.as_str(),
-            session_user_id = %session_user_id.as_str(),
-            route = %route_context,
-            "JWT validation failed: session user mismatch"
-        );
-        return Err(ContextExtractionError::InvalidToken(
-            "Session user mismatch".to_owned(),
-        ));
-    }
-
-    Ok(())
+    attest_session(
+        analytics_provider,
+        &jwt_context.session_id,
+        &jwt_context.user_id,
+        route_context,
+    )
+    .await
+    .map_err(|e| match e {
+        SessionAttestationError::Lookup(message) => ContextExtractionError::DatabaseError {
+            message: format!("Failed to check session: {message}"),
+        },
+        other => ContextExtractionError::InvalidToken(other.to_string()),
+    })
 }

@@ -96,7 +96,7 @@ pub(super) fn generate_admin_token(
             user_id: &user.id,
             session_id,
             email: &user.email,
-            duration: ChronoDuration::hours(24),
+            duration: ChronoDuration::hours(crate::session::api::DEFAULT_CLI_SESSION_HOURS),
             user_type: UserType::Admin,
             permissions: vec![Permission::Admin],
             roles: vec!["admin".to_owned()],

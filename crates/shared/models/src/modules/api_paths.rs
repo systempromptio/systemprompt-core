@@ -10,6 +10,7 @@ pub struct ApiPaths;
 
 impl ApiPaths {
     pub const GATEWAY_BASE: &'static str = "/v1";
+    pub const GATEWAY_PUBLIC_BASE: &'static str = "/api/public/gateway";
 
     pub const API_BASE: &'static str = "/api";
     pub const API_V1: &'static str = "/api/v1";

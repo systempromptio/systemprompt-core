@@ -5,10 +5,13 @@
 ### Breaking
 
 - **Breaking:** the cloud-sync feature is removed in full. The `systemprompt-sync` crate is deleted, the facade's `sync` feature and `systemprompt::sync` module are gone (`full` no longer implies `sync`), `POST /api/v1/sync/files` is unmounted, and the `cloud sync` command tree (`push`, `pull`, interactive menu) along with `cloud deploy`'s `--no-sync`, `-y`/`--yes`, and `--dry-run` flags are removed. The pre-deploy sync it implemented had been failing closed since the token-exchange grant began requiring `client_id`, so no deployment was relying on it. Deploys are now stateless container rebuilds: runtime files created inside the running container are not preserved. Migrate by running `cloud backup` before a deploy when a copy is wanted.
+- **Breaking:** `/v1/messages` and `/v1/responses` attest the `x-session-id` header for API-key callers. The header must name a live `user_sessions` row owned by the key's user; an unknown, revoked, or foreign session is rejected with `401 unknown or revoked session; mint one at POST /api/public/gateway/sessions`. Previously the session id was accepted verbatim on this path, so `ai_requests.session_id` was client-asserted for PAT callers while the identical column was server-attested for JWT callers. Migrate by minting a session at the new endpoint and sending the id it returns.
 - **Breaking:** `cloud sync admin-user` moves to `cloud auth admin-user` (flags unchanged), and `ClientId::sync()` / the `sys_sync` client identifier are removed with their only consumer.
 
 ### Added
 
+- `POST /api/public/gateway/sessions` mints a `user_sessions` row for the holder of a personal access token (`x-api-key` or `Authorization: Bearer`) and returns `201 Created` with `{"session_id": "..."}` for use as `x-session-id` on the gateway. It is the API-key equivalent of the session a JWT is born with.
+- `SessionCreationService::create_authenticated_session_with_ttl` mints a session row with a caller-supplied lifetime, for callers that issue their own credential. `create_authenticated_session` is unchanged and keeps using the configured access-token lifetime.
 - `cloud backup [-p <profile>] [-o <dir>] [--list]` downloads a tenant's runtime `services/` tree to a standalone directory — deliberately separate from the deploy flow, and never writing into the project's own `services/`. It reuses the retained `GET /api/v1/sync/files` and `/manifest` routes and keeps the tarball path-traversal guards.
 - Generated profiles ship topology-correct `server.trusted_proxies` defaults: cloud profiles trust the private, Fly 6PN (`fc00::/7`), Fly public edge (`66.241.64.0/18`), and Cloudflare ranges; local profiles trust loopback and RFC1918.
 - `cloud deploy` / `cloud doctor` preflight fails when a cloud profile's `trusted_proxies` does not cover Fly's `fc00::/7` peer range, with the exact YAML to add, and warns when the Fly public edge range is missing.
@@ -24,8 +27,11 @@
 ### Fixed
 
 - The RFC 8693 token-exchange callers send the required `client_id` (`sp_web`, the seeded public client). The token endpoint has required it since the grant handler was tightened, so `CloudApiClient`'s tenant-scoped calls — and the pre-deploy sync that is now removed — failed with `400 client_id: is required`.
+- CLI session rows expire with the admin token that names them rather than after a fixed 24 hours, so `admin session login --duration-hours` above 24 no longer produces a token that outlives its session row and starts failing attestation mid-session.
 
 ### Security
+
+- The session cookie middleware attests that a JWT's `session_id` belongs to the JWT's user instead of only checking that the row exists, so a signed token can no longer attribute activity to another user's live session.
 
 - Cloud trusted-proxy defaults trust Fly's public proxy range `66.241.64.0/18`. Traffic entering through Fly's public edge appends a hop from that range to `X-Forwarded-For`; without it the client-IP resolver attributed every such session to the Fly proxy, producing an all-US geo skew observed in production on 2026-07-24. Existing cloud profiles are not regenerated automatically — add the range to `server.trusted_proxies`, or run `cloud doctor`, which now warns when it is missing.
 

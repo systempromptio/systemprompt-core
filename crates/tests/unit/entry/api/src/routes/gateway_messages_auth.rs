@@ -23,10 +23,11 @@ fn jwt_principal(session: &SessionId) -> AuthedPrincipal {
     })
 }
 
-fn api_key_principal() -> AuthedPrincipal {
+fn api_key_principal(session: &SessionId) -> AuthedPrincipal {
     AuthedPrincipal::ApiKey(ApiKeyPrincipal {
         user_id: UserId::new("user-key"),
         trace_id: TraceId::new("trace-key"),
+        attested_session: session.clone(),
     })
 }
 
@@ -36,12 +37,12 @@ fn accessors_map_per_variant() {
     let jwt = jwt_principal(&session);
     assert_eq!(jwt.user_id().as_str(), "user-jwt");
     assert_eq!(jwt.trace_id().as_str(), "trace-jwt");
-    assert_eq!(jwt.attested_session(), Some(&session));
+    assert_eq!(jwt.attested_session(), &session);
 
-    let key = api_key_principal();
+    let key = api_key_principal(&session);
     assert_eq!(key.user_id().as_str(), "user-key");
     assert_eq!(key.trace_id().as_str(), "trace-key");
-    assert!(key.attested_session().is_none());
+    assert_eq!(key.attested_session(), &session);
 }
 
 #[test]
@@ -52,7 +53,7 @@ fn authz_attributes_come_from_jwt_only() {
     assert_eq!(attributes.get("team"), Some(&json!("core")));
     assert_eq!(act_chain.len(), 1);
 
-    let (roles, attributes, act_chain) = api_key_principal().authz_attributes();
+    let (roles, attributes, act_chain) = api_key_principal(&session).authz_attributes();
     assert!(roles.is_empty());
     assert!(attributes.is_empty());
     assert!(act_chain.is_empty());
@@ -80,11 +81,22 @@ fn session_binding_rejects_mismatched_session() {
 }
 
 #[test]
-fn session_binding_is_not_enforced_for_api_keys() {
-    let any_session = SessionId::generate();
+fn session_binding_accepts_attested_api_key_session() {
+    let session = SessionId::generate();
     assert!(
-        api_key_principal()
-            .enforce_session_binding(&any_session)
+        api_key_principal(&session)
+            .enforce_session_binding(&session)
             .is_ok()
     );
+}
+
+#[test]
+fn session_binding_rejects_mismatched_api_key_session() {
+    let session = SessionId::generate();
+    let other = SessionId::generate();
+    let (status, message) = api_key_principal(&session)
+        .enforce_session_binding(&other)
+        .expect_err("an api-key principal is bound to its attested session too");
+    assert_eq!(status, StatusCode::UNAUTHORIZED);
+    assert!(message.contains("X-Session-ID"));
 }

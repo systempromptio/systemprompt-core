@@ -5,56 +5,45 @@
 
 use anyhow::{Context, Result};
 use chrono::Duration;
-use systemprompt_analytics::{CreateSessionParams, SessionRepository};
+use std::sync::Arc;
+use systemprompt_analytics::AnalyticsService;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{SessionId, SessionSource, UserId};
-use uuid::Uuid;
+use systemprompt_oauth::services::SessionCreationService;
+use systemprompt_traits::{AnalyticsProvider, SessionAnalytics, UserProvider};
+use systemprompt_users::UserService;
+
+/// Lifetime of a CLI session row and of the admin token that names it. The two
+/// must agree, or the operator sees a mid-session 401.
+pub const DEFAULT_CLI_SESSION_HOURS: i64 = 24;
 
 // Why: the public `POST /oauth/session` endpoint must not accept a
 // caller-supplied `user_id` — doing so allows arbitrary admin-JWT issuance
 // against any known user UUID on a public route. The CLI is colocated with
 // the database and holds the JWT signing secret, so it mints session rows
 // (and the JWTs above) locally instead of round-tripping through the public
-// HTTP endpoint.
-pub async fn create_local_session_row(db_pool: &DbPool, user: &UserId) -> Result<SessionId> {
-    let session_repo =
-        SessionRepository::new(db_pool).context("Failed to construct session repository")?;
+// HTTP endpoint. It goes through `SessionCreationService` rather than the
+// repository so every `user_sessions` row in the deployment is written by one
+// code path, whatever minted it.
+pub async fn create_local_session_row(
+    db_pool: &DbPool,
+    user: &UserId,
+    ttl: Duration,
+) -> Result<SessionId> {
+    let analytics: Arc<dyn AnalyticsProvider> = Arc::new(
+        AnalyticsService::new(db_pool, None, None)
+            .context("Failed to construct analytics service")?,
+    );
+    let users: Arc<dyn UserProvider> =
+        Arc::new(UserService::new(db_pool).context("Failed to construct user service")?);
 
-    let session_id = SessionId::new(format!("sess_{}", Uuid::new_v4()));
-    let expires_at = chrono::Utc::now() + Duration::hours(24);
-
-    let params = CreateSessionParams {
-        session_id: &session_id,
-        user_id: Some(user),
-        session_source: SessionSource::Cli,
-        fingerprint_hash: None,
-        ip_address: None,
-        user_agent: None,
-        device_type: None,
-        browser: None,
-        os: None,
-        country: None,
-        region: None,
-        city: None,
-        preferred_locale: None,
-        referrer_source: None,
-        referrer_url: None,
-        landing_page: None,
-        entry_url: None,
-        utm_source: None,
-        utm_medium: None,
-        utm_campaign: None,
-        utm_content: None,
-        utm_term: None,
-        is_bot: false,
-        is_ai_crawler: false,
-        expires_at,
-    };
-
-    session_repo
-        .create_session(&params)
+    SessionCreationService::new(analytics, users)
+        .create_authenticated_session_with_ttl(
+            user,
+            &SessionAnalytics::default(),
+            SessionSource::Cli,
+            ttl,
+        )
         .await
-        .context("Failed to insert CLI session row")?;
-
-    Ok(session_id)
+        .context("Failed to insert CLI session row")
 }

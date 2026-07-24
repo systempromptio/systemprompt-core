@@ -104,7 +104,12 @@ pub async fn login_for_profile(
     .await?;
 
     progress(args, "Creating session...");
-    let session_id = create_local_session_row(&db_pool, &admin_user.id).await?;
+    let session_id = create_local_session_row(
+        &db_pool,
+        &admin_user.id,
+        chrono::Duration::hours(args.duration_hours),
+    )
+    .await?;
 
     progress(args, "Creating context...");
     let context_id =

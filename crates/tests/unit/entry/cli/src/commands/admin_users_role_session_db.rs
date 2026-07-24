@@ -5,7 +5,7 @@
 
 use clap::Parser;
 use systemprompt_cli::admin::users::{self, UsersCommands};
-use systemprompt_cli::session::api::create_local_session_row;
+use systemprompt_cli::session::api::{DEFAULT_CLI_SESSION_HOURS, create_local_session_row};
 use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
 use systemprompt_database::DbPool;
 use systemprompt_runtime::DatabaseContext;
@@ -245,7 +245,13 @@ async fn session_list_recent_and_active_for_seeded_user() {
     let service = UserService::new(&pool).unwrap();
     let (n, e) = unique("seslist");
     let user = service.create(&n, &e, None, None).await.unwrap();
-    create_local_session_row(&pool, &user.id).await.unwrap();
+    create_local_session_row(
+        &pool,
+        &user.id,
+        chrono::Duration::hours(DEFAULT_CLI_SESSION_HOURS),
+    )
+    .await
+    .unwrap();
 
     let ctx = ctx(&pool);
     users::execute(parse(&["session", "list", user.id.as_str()]), &ctx)

@@ -14,6 +14,7 @@ use systemprompt_models::api::ApiError;
 use systemprompt_models::errors::ServiceError;
 use systemprompt_models::execution::ContextExtractionError;
 use systemprompt_oauth::OauthError;
+use systemprompt_oauth::services::SessionCreationError;
 use systemprompt_traits::RepositoryError;
 use systemprompt_users::UserError;
 
@@ -115,6 +116,16 @@ impl From<OauthError> for ApiHttpError {
             | OauthError::Internal(_) => ApiError::internal_error(message),
         };
         Self(api)
+    }
+}
+
+impl From<SessionCreationError> for ApiHttpError {
+    fn from(err: SessionCreationError) -> Self {
+        let message = err.to_string();
+        Self(match err {
+            SessionCreationError::UserNotFound { .. } => ApiError::not_found(message),
+            SessionCreationError::Internal(_) => ApiError::internal_error(message),
+        })
     }
 }
 
