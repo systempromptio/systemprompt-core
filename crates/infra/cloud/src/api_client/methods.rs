@@ -25,6 +25,10 @@ use crate::error::{CloudError, CloudResult};
 const TOKEN_REFRESH_MARGIN: Duration = Duration::from_secs(30);
 const RFC8693_GRANT_TYPE: &str = "urn:ietf:params:oauth:grant-type:token-exchange";
 const RFC8693_TOKEN_TYPE: &str = "urn:ietf:params:oauth:token-type:access_token";
+/// The seeded public client (`token_endpoint_auth_method = none`). The
+/// token-exchange grant rejects a request without a registered `client_id`,
+/// and no secret is required for a public client.
+const PUBLIC_CLIENT_ID: &str = "sp_web";
 
 #[derive(Debug, Deserialize)]
 struct TokenExchangeResponse {
@@ -99,6 +103,7 @@ impl CloudApiClient {
                 ("subject_token", self.token.as_str()),
                 ("subject_token_type", RFC8693_TOKEN_TYPE),
                 ("resource", self.api_url.as_str()),
+                ("client_id", PUBLIC_CLIENT_ID),
             ])
             .send()
             .await?;
