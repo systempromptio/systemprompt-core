@@ -40,7 +40,7 @@ jobs:
       - run: cargo doc --workspace --no-deps --all-features
 
   source-gates:
-    name: Schema / SQL / error-boundary linters
+    name: Schema / SQL / comment / error-boundary linters
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -51,6 +51,7 @@ jobs:
           tool: cargo-machete
       - run: just lint-schema
       - run: just lint-extensions
+      - run: just lint-comments
       - run: just lint-sqlx
       - run: just lint-http-errors
       - run: just lint-test-value
