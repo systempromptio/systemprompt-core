@@ -148,21 +148,21 @@ systemprompt infra logs traces
 systemprompt admin agents status my-agent
 ```
 
-## cloud — deployment, sync, tenants
+## cloud — deployment, backup, tenants
 
 `crates/entry/cli/src/commands/cloud/`
 
 | Subcommand | Notable flags / commands | Purpose |
 |------------|--------------------------|---------|
-| `cloud auth` | `login`, `logout` | Authenticate with systemprompt.io Cloud via OAuth. |
+| `cloud auth` | `login`, `logout`, `whoami`, `admin-user` | Authenticate with systemprompt.io Cloud via OAuth; `admin-user` projects the authenticated cloud user as an admin into local profile databases. |
 | `cloud init` | `--force` | Initialize project structure. |
 | `cloud tenant` | `create`, `show`, `delete`, `edit`, `rotate-credentials`, `cancel` | Manage tenants (local or cloud). |
 | `cloud profile` | — | Manage profiles. |
-| `cloud deploy` | `--skip-push`, `-p`/`--profile`, `--no-sync`, `-y`/`--yes`, `--dry-run`, `--check` | Deploy to systemprompt.io Cloud. Runs the deploy preflight first and blocks on failure; `--check` runs the preflight only. |
+| `cloud deploy` | `--skip-push`, `-p`/`--profile`, `--check` | Deploy to systemprompt.io Cloud. Runs the deploy preflight first and blocks on failure; `--check` runs the preflight only. Deploys replace the running container: runtime files created inside it are not preserved — run `cloud backup` first if you need a copy. |
+| `cloud backup` | `-p`/`--profile`, `-o`/`--output`, `--list` | Download the tenant's runtime `services/` tree to a standalone directory (never the project's own `services/`). `--list` shows the remote manifest without downloading. |
 | `cloud doctor` | `-p`/`--profile` | Run the deploy preflight standalone (profile, secrets, signing key, provider credentials, extension config). Exits non-zero on failure. |
 | `cloud status` | — | Check cloud deployment status. |
 | `cloud restart` | `--tenant`, `-y`/`--yes` | Restart a tenant machine. |
-| `cloud sync` | — | Sync between local and cloud environments. |
 | `cloud secrets` | — | Manage secrets for a cloud tenant. |
 | `cloud dockerfile` | — | Generate a Dockerfile from discovered extensions. |
 | `cloud db` | — | Cloud database operations. |

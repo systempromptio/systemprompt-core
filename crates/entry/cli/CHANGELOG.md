@@ -1,10 +1,20 @@
 # Changelog
 
-## [0.23.0] - 2026-07-23
+## [0.23.0] - 2026-07-24
+
+### Breaking
+
+- **Breaking:** `cloud sync` is removed, along with the `push`, `pull`, and interactive-menu subcommands and the `--no-sync`, `-y`/`--yes`, and `--dry-run` flags on `cloud deploy`. Deploys are stateless container rebuilds and no longer pull the tenant's runtime files first. Migrate by running the new `cloud backup` before a deploy if you need a copy of the runtime `services/` tree.
+- **Breaking:** `cloud sync admin-user` moves to `cloud auth admin-user`; the flags are unchanged.
 
 ### Added
 
-- The deploy preflight fails a cloud profile whose `server.trusted_proxies` does not cover Fly's `fc00::/7` peer range.
+- The deploy preflight fails a cloud profile whose `server.trusted_proxies` does not cover Fly's `fc00::/7` peer range, and warns when it covers the peer range but not Fly's public edge range `66.241.64.0/18`.
+- `cloud backup [-p <profile>] [-o <dir>] [--list]` downloads the tenant's runtime `services/` tree into a standalone directory (default `./systemprompt-backup-<timestamp>/`, never the project's own `services/`). `--list` prints the remote manifest without downloading. Extraction keeps the path-traversal guards from the removed sync client: symlinks, absolute paths, `..` components, and entries outside the allow-listed top-level directories are rejected before anything touches disk.
+
+### Changed
+
+- The deploy pipeline (`DeployOrchestrator`, artifact validation, progress seam) moves from the deleted `systemprompt-sync` crate into `cloud::deploy::pipeline`, and its errors are `anyhow` rather than `SyncError`. `DeployRequest` loses `hostname`; `DeployOptions` keeps only `skip_push`.
 
 ## [0.21.1] - 2026-07-17
 

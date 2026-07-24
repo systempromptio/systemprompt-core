@@ -2,7 +2,7 @@
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
-use systemprompt_cli::cloud::sync::admin_user::{CloudUser, SyncResult, sync_admin_to_database};
+use systemprompt_cli::cloud::auth::admin_user::{CloudUser, SyncResult, sync_admin_to_database};
 use systemprompt_database::DbPool;
 use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
 use systemprompt_users::UserService;

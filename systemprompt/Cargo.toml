@@ -46,9 +46,6 @@ api = [
     "dep:axum",
 ]
 
-# Sync functionality for cloud synchronization
-sync = ["dep:systemprompt-sync"]
-
 # Cloud infrastructure (API client, credentials, OAuth)
 cloud = ["dep:systemprompt-cloud"]
 
@@ -80,7 +77,6 @@ teams = ["dep:systemprompt-teams"]
 full = [
     "api",
     "mcp",
-    "sync",
     "cloud",
     "cli",
     "dep:systemprompt-agent",
@@ -123,7 +119,6 @@ systemprompt-client = { workspace = true, optional = true }
 systemprompt-security = { workspace = true, optional = true }
 
 # Application
-systemprompt-sync = { workspace = true, optional = true }
 systemprompt-runtime = { workspace = true, optional = true, features = ["geolocation"] }
 systemprompt-generator = { workspace = true, optional = true, features = ["image-processing"] }
 

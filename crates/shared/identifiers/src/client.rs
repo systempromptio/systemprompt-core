@@ -59,10 +59,6 @@ impl ClientId {
         Self("sp_bridge".to_owned())
     }
 
-    pub fn sync() -> Self {
-        Self("sys_sync".to_owned())
-    }
-
     pub fn system(service_name: &str) -> Self {
         Self(format!("sys_{service_name}"))
     }

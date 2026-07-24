@@ -73,6 +73,23 @@ impl AccessControlIngestionService {
         Self { write_pool: pool }
     }
 
+    pub async fn ingest_config_from_yaml_path(
+        &self,
+        yaml_path: &std::path::Path,
+        options: IngestOptions,
+    ) -> AuthzResult<IngestReport> {
+        let raw = std::fs::read_to_string(yaml_path).map_err(|err| {
+            AuthzError::Validation(format!("failed to read {}: {err}", yaml_path.display()))
+        })?;
+        let cfg: AccessControlConfig = serde_yaml::from_str(&raw).map_err(|err| {
+            AuthzError::Validation(format!(
+                "failed to parse {} as AccessControlConfig: {err}",
+                yaml_path.display()
+            ))
+        })?;
+        self.ingest_config(&cfg, options).await
+    }
+
     /// `entity_match` globs are resolved against rows **already present** in
     /// `access_control_entities` for the rule's kind — entity bootstrap
     /// (publish pipeline, gateway reconciliation) must therefore run before

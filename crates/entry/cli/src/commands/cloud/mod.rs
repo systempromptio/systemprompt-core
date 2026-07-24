@@ -1,13 +1,15 @@
 //! `cloud` command tree for systemprompt.io Cloud.
 //!
 //! Routes [`CloudCommands`] to the auth, init, tenant, profile, deploy,
-//! status, restart, sync, secrets, dockerfile, db, and domain subcommands, and
-//! declares each command's profile/secret requirements via [`DescribeCommand`].
+//! backup, status, restart, secrets, dockerfile, db, and domain subcommands,
+//! and declares each command's profile/secret requirements via
+//! [`DescribeCommand`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod auth;
+pub mod backup;
 pub mod db;
 pub mod deploy;
 pub mod doctor;
@@ -17,7 +19,6 @@ pub mod profile;
 mod restart;
 pub mod secrets;
 mod status;
-pub mod sync;
 pub mod templates;
 pub mod tenant;
 pub mod types;
@@ -32,7 +33,10 @@ use clap::Subcommand;
 
 #[derive(Debug, Subcommand)]
 pub enum CloudCommands {
-    #[command(subcommand, about = "Authentication (login, logout, whoami)")]
+    #[command(
+        subcommand,
+        about = "Authentication (login, logout, whoami, admin-user)"
+    )]
     Auth(auth::AuthCommands),
 
     #[command(about = "Initialize project structure")]
@@ -61,20 +65,24 @@ pub enum CloudCommands {
         #[arg(long, short = 'p', help = "Profile name to deploy")]
         profile: Option<String>,
 
-        #[arg(
-            long,
-            help = "Skip pre-deploy sync from cloud (WARNING: may lose runtime files)"
-        )]
-        no_sync: bool,
-
-        #[arg(short = 'y', long, help = "Skip confirmation prompts")]
-        yes: bool,
-
-        #[arg(long, help = "Preview sync without deploying")]
-        dry_run: bool,
-
         #[arg(long, help = "Run the pre-deploy preflight only, without deploying")]
         check: bool,
+    },
+
+    #[command(about = "Download the tenant's runtime services/ tree to a local directory")]
+    Backup {
+        #[arg(long, short = 'p', help = "Profile name to back up")]
+        profile: Option<String>,
+
+        #[arg(
+            long,
+            short = 'o',
+            help = "Output directory (default: ./systemprompt-backup-<timestamp>)"
+        )]
+        output: Option<std::path::PathBuf>,
+
+        #[arg(long, help = "List remote files without downloading")]
+        list: bool,
     },
 
     #[command(about = "Run the pre-deploy preflight for a profile without deploying")]
@@ -95,15 +103,6 @@ pub enum CloudCommands {
         yes: bool,
     },
 
-    #[command(
-        subcommand_required = false,
-        about = "Sync between local and cloud environments"
-    )]
-    Sync {
-        #[command(subcommand)]
-        command: Option<sync::SyncCommands>,
-    },
-
     #[command(subcommand, about = "Manage secrets for cloud tenant")]
     Secrets(secrets::SecretsCommands),
 
@@ -120,11 +119,8 @@ pub enum CloudCommands {
 impl DescribeCommand for CloudCommands {
     fn descriptor(&self) -> CommandDescriptor {
         match self {
-            Self::Deploy { .. } => CommandDescriptor::PROFILE_AND_SECRETS,
-            Self::Sync { command: Some(_) } | Self::Secrets { .. } => {
-                CommandDescriptor::PROFILE_AND_SECRETS
-            },
-            Self::Status | Self::Restart { .. } | Self::Domain { .. } => {
+            Self::Deploy { .. } | Self::Secrets { .. } => CommandDescriptor::PROFILE_AND_SECRETS,
+            Self::Backup { .. } | Self::Status | Self::Restart { .. } | Self::Domain { .. } => {
                 CommandDescriptor::PROFILE_ONLY
             },
             _ => CommandDescriptor::NONE,
@@ -136,16 +132,12 @@ impl CloudCommands {
     pub const fn requires_profile(&self) -> bool {
         matches!(
             self,
-            Self::Sync { command: Some(_) }
-                | Self::Status
-                | Self::Restart { .. }
-                | Self::Secrets { .. }
-                | Self::Domain { .. }
+            Self::Status | Self::Restart { .. } | Self::Secrets { .. } | Self::Domain { .. }
         )
     }
 
     pub const fn requires_secrets(&self) -> bool {
-        matches!(self, Self::Sync { command: Some(_) } | Self::Secrets { .. })
+        matches!(self, Self::Secrets { .. })
     }
 }
 
@@ -158,19 +150,29 @@ pub async fn execute(cmd: CloudCommands, ctx: &CommandContext) -> Result<()> {
         CloudCommands::Deploy {
             skip_push,
             profile,
-            no_sync,
-            yes,
-            dry_run,
             check,
         } => {
             deploy::execute(
                 deploy::DeployArgs {
                     skip_push,
                     profile_name: profile,
-                    no_sync,
-                    yes,
-                    dry_run,
                     check,
+                },
+                ctx.prompter(),
+                &ctx.cli,
+            )
+            .await
+        },
+        CloudCommands::Backup {
+            profile,
+            output,
+            list,
+        } => {
+            backup::execute(
+                backup::BackupArgs {
+                    profile_name: profile,
+                    output,
+                    list,
                 },
                 ctx.prompter(),
                 &ctx.cli,
@@ -190,7 +192,6 @@ pub async fn execute(cmd: CloudCommands, ctx: &CommandContext) -> Result<()> {
             crate::shared::render_result(&result, &ctx.cli);
             Ok(())
         },
-        CloudCommands::Sync { command } => sync::execute(command, ctx).await,
         CloudCommands::Secrets(cmd) => secrets::execute(cmd, ctx).await,
         CloudCommands::Dockerfile => execute_dockerfile(&ctx.cli),
         CloudCommands::Db(cmd) => match ctx.database_url() {

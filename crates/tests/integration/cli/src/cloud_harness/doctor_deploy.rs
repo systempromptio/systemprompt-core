@@ -144,9 +144,6 @@ fn deploy_cmd(profile: Option<&str>, check: bool) -> CloudCommands {
     CloudCommands::Deploy {
         skip_push: false,
         profile: profile.map(str::to_owned),
-        no_sync: true,
-        yes: true,
-        dry_run: true,
         check,
     }
 }

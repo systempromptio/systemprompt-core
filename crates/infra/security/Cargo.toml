@@ -57,6 +57,7 @@ serde_jcs = { workspace = true }
 inventory = { workspace = true }
 reqwest = { workspace = true }
 serde_json = { workspace = true }
+serde_yaml = { workspace = true }
 sqlx = { workspace = true }
 metrics = { workspace = true }
 

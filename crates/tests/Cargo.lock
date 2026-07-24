@@ -7598,6 +7598,7 @@ dependencies = [
  "dialoguer",
  "dirs",
  "ed25519-dalek 3.0.0",
+ "flate2",
  "futures-util",
  "indicatif",
  "inventory",
@@ -7633,10 +7634,10 @@ dependencies = [
  "systemprompt-runtime",
  "systemprompt-scheduler",
  "systemprompt-security",
- "systemprompt-sync",
  "systemprompt-traits",
  "systemprompt-users",
  "tabled",
+ "tar",
  "thiserror 2.0.19",
  "tokio",
  "tracing",
@@ -7699,7 +7700,6 @@ dependencies = [
  "systemprompt-models",
  "systemprompt-runtime",
  "systemprompt-scheduler",
- "systemprompt-sync",
  "systemprompt-test-fixtures",
  "systemprompt-users",
  "tempfile",
@@ -8801,6 +8801,7 @@ dependencies = [
  "serde",
  "serde_jcs",
  "serde_json",
+ "serde_yaml_ng",
  "sha2 0.11.0",
  "sqlx",
  "systemprompt-config",
@@ -8915,84 +8916,6 @@ dependencies = [
  "tempfile",
  "tokio",
  "wiremock",
-]
-
-[[package]]
-name = "systemprompt-sync"
-version = "0.22.0"
-dependencies = [
- "async-trait",
- "chrono",
- "flate2",
- "hex",
- "inventory",
- "reqwest",
- "serde",
- "serde_json",
- "serde_yaml_ng",
- "sha2 0.11.0",
- "sqlx",
- "systemprompt-cloud",
- "systemprompt-content",
- "systemprompt-database",
- "systemprompt-extension",
- "systemprompt-identifiers",
- "systemprompt-loader",
- "systemprompt-models",
- "systemprompt-provider-contracts",
- "systemprompt-security",
- "systemprompt-traits",
- "tar",
- "tempfile",
- "thiserror 2.0.19",
- "tokio",
- "tracing",
- "walkdir",
- "zip",
-]
-
-[[package]]
-name = "systemprompt-sync-integration-tests"
-version = "0.0.11"
-dependencies = [
- "serde_json",
- "sqlx",
- "systemprompt-database",
- "systemprompt-identifiers",
- "systemprompt-security",
- "systemprompt-sync",
- "systemprompt-test-fixtures",
- "tempfile",
- "tokio",
- "uuid",
- "wiremock",
-]
-
-[[package]]
-name = "systemprompt-sync-tests"
-version = "0.0.11"
-dependencies = [
- "chrono",
- "flate2",
- "inventory",
- "reqwest",
- "serde_json",
- "sqlx",
- "systemprompt-cloud",
- "systemprompt-content",
- "systemprompt-database",
- "systemprompt-extension",
- "systemprompt-identifiers",
- "systemprompt-models",
- "systemprompt-sync",
- "systemprompt-test-fixtures",
- "systemprompt-traits",
- "tar",
- "tempfile",
- "tokio",
- "uuid",
- "wiremock",
- "zip",
 ]
 
 [[package]]
@@ -9132,7 +9055,6 @@ dependencies = [
  "systemprompt-oauth",
  "systemprompt-scheduler",
  "systemprompt-security",
- "systemprompt-sync",
  "systemprompt-users",
  "tokio",
 ]

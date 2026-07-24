@@ -28,7 +28,6 @@ systemprompt = { version = "0.14", default-features = false, features = ["databa
 | `config` | `systemprompt-config` | — | Profile/secrets configuration loaders (bootstrap sequence). |
 | `mcp` | `rmcp` | — | MCP (Model Context Protocol) support via the `rmcp` crate, including `rmcp-macros`. |
 | `api` | `systemprompt-api`, `systemprompt-runtime`, `axum` | `core`, `database` | HTTP server, `AppContext`, runtime lifecycle. `systemprompt-runtime` is built with its `geolocation` feature. |
-| `sync` | `systemprompt-sync` | — | Cloud synchronization. |
 | `cloud` | `systemprompt-cloud` | — | Cloud API client, credentials, OAuth. |
 | `logging` | `systemprompt-logging` | — | Tracing setup. |
 | `loader` | `systemprompt-loader` | — | File/module discovery. |
@@ -38,9 +37,9 @@ systemprompt = { version = "0.14", default-features = false, features = ["databa
 | `test-utils` | — | `cloud` | Credential fixtures and other test helpers. |
 | `cli` | `systemprompt-cli` | — | CLI entry point for product binaries (standalone). |
 | `runtime` | `systemprompt-extension` | `cli` | Runtime builder for embedding systemprompt as a library. |
-| `full` | all domain crates + `systemprompt-files`, `systemprompt-generator` (with `image-processing`), `systemprompt-scheduler` | `api`, `mcp`, `sync`, `cloud`, `cli`, `logging`, `config`, `loader`, `events`, `client`, `security`, plus `systemprompt-logging/cli` | Everything: all domain modules, all infrastructure layers, and the CLI. |
+| `full` | all domain crates + `systemprompt-files`, `systemprompt-generator` (with `image-processing`), `systemprompt-scheduler` | `api`, `mcp`, `cloud`, `cli`, `logging`, `config`, `loader`, `events`, `client`, `security`, plus `systemprompt-logging/cli` | Everything: all domain modules, all infrastructure layers, and the CLI. |
 
-The crate names map to the workspace layers in `crates/`: shared (`traits`, `models`, `identifiers`, `extension`, `template-provider`), infra (`database`, `config`, `cloud`, `logging`, `loader`, `events`, `client`, `security`), domain (`agent`, `ai`, `mcp`, `oauth`, `users`, `content`, `analytics`, `marketplace`), app (`runtime`, `scheduler`, `generator`, `sync`), entry (`api`, `cli`).
+The crate names map to the workspace layers in `crates/`: shared (`traits`, `models`, `identifiers`, `extension`, `template-provider`), infra (`database`, `config`, `cloud`, `logging`, `loader`, `events`, `client`, `security`), domain (`agent`, `ai`, `mcp`, `oauth`, `users`, `content`, `analytics`, `marketplace`), app (`runtime`, `scheduler`, `generator`), entry (`api`, `cli`).
 
 ## Inter-flag dependencies
 
@@ -52,7 +51,7 @@ These implications are encoded directly in `[features]`; enabling the left bring
 | `api` | `core`, `database` (and therefore `systemprompt-traits`, `systemprompt-models`, `systemprompt-identifiers`, `systemprompt-extension`, `systemprompt-template-provider`, `systemprompt-database`, `sqlx`) |
 | `runtime` | `cli` |
 | `test-utils` | `cloud` |
-| `full` | `api`, `mcp`, `sync`, `cloud`, `cli`, `logging`, `config`, `loader`, `events`, `client`, `security` (and everything those imply) |
+| `full` | `api`, `mcp`, `cloud`, `cli`, `logging`, `config`, `loader`, `events`, `client`, `security` (and everything those imply) |
 
 `full` is the only flag that aggregates the domain crates (`agent`, `ai`, `mcp`, `oauth`, `users`, `content`, `analytics`, `marketplace`, `scheduler`, `generator`, `files`). There is no narrower flag that selects an individual domain crate through the facade.
 

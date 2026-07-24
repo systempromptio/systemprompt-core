@@ -13,7 +13,6 @@
 //! | `config` | `systemprompt-config` | Profile, secrets, and credential bootstrap loaders. |
 //! | `mcp` | `rmcp` | Implement Model Context Protocol servers. |
 //! | `api` | `systemprompt-api`, `systemprompt-runtime`, `axum` (implies `core` + `database`) | HTTP server, `AppContext`, Axum router. |
-//! | `sync` | `systemprompt-sync` | Cloud synchronisation primitives. |
 //! | `cloud` | `systemprompt-cloud` | Cloud API client, credentials bootstrap, OAuth. |
 //! | `logging` | `systemprompt-logging` | Tracing setup with the workspace's layer stack. |
 //! | `loader` | `systemprompt-loader` | Filesystem and module discovery. |
@@ -257,12 +256,6 @@ pub mod generator {
 #[cfg_attr(docsrs, doc(cfg(feature = "full")))]
 pub mod files {
     pub use systemprompt_files::*;
-}
-
-#[cfg(feature = "sync")]
-#[cfg_attr(docsrs, doc(cfg(feature = "sync")))]
-pub mod sync {
-    pub use systemprompt_sync::*;
 }
 
 /// Credentials bootstrap, tenant management, deployment.

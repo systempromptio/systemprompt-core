@@ -1,4 +1,4 @@
-//! Request/response types for the cloud file-sync endpoints.
+//! Request/response types for the file-download endpoints.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -52,12 +52,4 @@ pub(super) struct FileManifest {
     pub checksum: String,
     #[serde(default)]
     pub total_size: u64,
-}
-
-#[derive(Debug, Serialize)]
-pub(super) struct UploadResult {
-    pub files_uploaded: usize,
-    pub uploaded_at: chrono::DateTime<chrono::Utc>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub manifest: Option<FileManifest>,
 }

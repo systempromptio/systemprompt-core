@@ -5,7 +5,6 @@
 
 use systemprompt_cli::cloud::profile::collect_api_keys;
 use systemprompt_cli::cloud::profile::create_tenant::{select_tenant, select_tenant_type};
-use systemprompt_cli::cloud::sync::interactive::{SyncType, select_sync_type};
 use systemprompt_cli::cloud::tenant::{
     TenantCommands, choose_tenant_operation, select_tenant as select_tenant_menu,
 };
@@ -71,28 +70,6 @@ fn choose_tenant_operation_edit_without_tenants_falls_back_to_list() {
 fn choose_tenant_operation_exhausted_errors() {
     let err = choose_tenant_operation(&scripted(&[]), true).expect_err("no answer");
     assert!(err.to_string().contains("exhausted"));
-}
-
-#[test]
-fn select_sync_type_push() {
-    assert_eq!(
-        select_sync_type(&scripted(&["0"])).expect("push"),
-        SyncType::Push
-    );
-}
-
-#[test]
-fn select_sync_type_pull() {
-    assert_eq!(
-        select_sync_type(&scripted(&["1"])).expect("pull"),
-        SyncType::Pull
-    );
-}
-
-#[test]
-fn select_sync_type_out_of_range_errors() {
-    let err = select_sync_type(&scripted(&["2"])).expect_err("out of range");
-    assert!(err.to_string().contains("out of range"));
 }
 
 #[test]

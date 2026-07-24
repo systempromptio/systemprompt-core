@@ -1,6 +1,6 @@
-//! Cloud-sync file-transfer handlers for the `services/` tree.
+//! File-download handlers for the `services/` tree.
 //!
-//! Exposes manifest, download, and upload endpoints that move the allow-listed
+//! Exposes manifest and download endpoints that serve the allow-listed
 //! service directories as a gzipped tarball. The blocking filesystem and
 //! tar/gzip work lives in [`super::archive`] and runs under `spawn_blocking`
 //! so a large transfer never parks a Tokio worker.
@@ -16,10 +16,8 @@ use axum::response::{IntoResponse, Response};
 use systemprompt_models::api::ApiError;
 use systemprompt_runtime::AppContext;
 
-use super::archive::{
-    collect_files, create_tarball, extract_tarball, get_services_path, peek_manifest,
-};
-use super::types::{ApiResult, FileManifest, FilesQuery, UploadResult, to_api_error};
+use super::archive::{collect_files, create_tarball, get_services_path};
+use super::types::{ApiResult, FileManifest, FilesQuery, to_api_error};
 
 async fn run_blocking<T, F>(job: F) -> Result<T, ApiError>
 where
@@ -81,31 +79,6 @@ pub(super) async fn download(
         .header(header::CONTENT_LENGTH, tarball.len())
         .body(Body::from(tarball))
         .map_err(to_api_error)
-}
-
-pub(super) async fn upload(
-    State(ctx): State<AppContext>,
-    Query(query): Query<FilesQuery>,
-    body: axum::body::Bytes,
-) -> ApiResult<Json<UploadResult>> {
-    let services_path = get_services_path(&ctx).map_err(to_api_error)?;
-
-    if query.dry_run {
-        let manifest = run_blocking(move || peek_manifest(&body)).await?;
-        return Ok(Json(UploadResult {
-            files_uploaded: manifest.files.len(),
-            uploaded_at: chrono::Utc::now(),
-            manifest: Some(manifest),
-        }));
-    }
-
-    let count = run_blocking(move || extract_tarball(&body, &services_path)).await?;
-
-    Ok(Json(UploadResult {
-        files_uploaded: count,
-        uploaded_at: chrono::Utc::now(),
-        manifest: None,
-    }))
 }
 
 fn owned_directories(query: &FilesQuery) -> Vec<String> {

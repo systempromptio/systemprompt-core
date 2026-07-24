@@ -1,6 +1,10 @@
 # Changelog
 
-## [0.23.0] - 2026-07-23
+## [0.23.0] - 2026-07-24
+
+### Breaking
+
+- **Breaking:** `POST /api/v1/sync/files` (the services-tree upload) is removed together with the cloud-sync feature; the tarball extraction helpers behind it are gone. `GET /api/v1/sync/files` and `GET /api/v1/sync/files/manifest` remain and back the new `systemprompt cloud backup` command.
 
 ### Added
 

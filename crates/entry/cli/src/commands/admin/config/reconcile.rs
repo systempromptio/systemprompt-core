@@ -24,7 +24,6 @@ use systemprompt_security::authz::{
     AccessControlIngestionService, AccessControlRepository, IngestOptions,
     reconcile_gateway_entities,
 };
-use systemprompt_sync::AccessControlLocalSync;
 
 const ROLES_YAML_RELATIVE: &str = "access-control/roles.yaml";
 
@@ -85,12 +84,17 @@ async fn try_reconcile(profile: &Profile, profile_path: &str) -> anyhow::Result<
 
     let roles_yaml = Path::new(&profile.paths.services).join(ROLES_YAML_RELATIVE);
     if roles_yaml.exists() {
-        AccessControlLocalSync::new(Arc::clone(&database), roles_yaml)
-            .sync_to_db(true, false)
-            .await?;
+        let svc = AccessControlIngestionService::new(&database)?;
+        svc.ingest_config_from_yaml_path(
+            &roles_yaml,
+            IngestOptions {
+                override_existing: true,
+                delete_orphans: false,
+            },
+        )
+        .await?;
 
         let services = systemprompt_loader::ConfigLoader::load()?;
-        let svc = AccessControlIngestionService::new(&database)?;
         svc.ingest_marketplace_access(
             &services.marketplaces,
             IngestOptions {

@@ -5,7 +5,7 @@
 use std::fs;
 use std::path::Path;
 
-use systemprompt_cli::cloud::sync::admin_user::{
+use systemprompt_cli::cloud::auth::admin_user::{
     ProfileEntryResult, ProfileSkipReason, process_profile_entry,
 };
 use systemprompt_cloud::{ProfilePath, ProjectContext};

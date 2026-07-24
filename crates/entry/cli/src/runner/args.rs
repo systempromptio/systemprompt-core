@@ -147,7 +147,7 @@ pub(super) enum Commands {
     )]
     Admin(admin::AdminCommands),
 
-    #[command(subcommand, about = "Cloud deployment, sync, and setup")]
+    #[command(subcommand, about = "Cloud deployment, backup, and setup")]
     Cloud(cloud::CloudCommands),
 
     #[command(subcommand, about = "Analytics and metrics reporting")]

@@ -39,8 +39,7 @@ systemprompt-core/
 │   ├── app/              # Application services layer
 │   │   ├── runtime/      # systemprompt-runtime - AppContext, lifecycle
 │   │   ├── scheduler/    # systemprompt-scheduler - Job scheduling
-│   │   ├── generator/    # systemprompt-generator - Static site gen
-│   │   └── sync/         # systemprompt-sync - Cloud sync
+│   │   └── generator/    # systemprompt-generator - Static site gen
 │   │
 │   ├── entry/            # Application boundaries
 │   │   ├── api/          # systemprompt-api - HTTP server
@@ -289,9 +288,9 @@ MCP implementation in `crates/domain/mcp/`:
 
 ## Testing
 
-Tests are in a separate workspace at `crates/tests/` (66 crates, ~12k tests),
+Tests are in a separate workspace at `crates/tests/` (64 crates, ~12k tests),
 excluded from the main workspace. The suite runs **sharded** under
-`cargo-nextest` — a 12-shard split shared by CI and the `just` recipes below, so
+`cargo-nextest` — an 11-shard split shared by CI and the `just` recipes below, so
 each shard compiles and links a bounded slice of the workspace and the whole
 suite runs comfortably both locally and on CI's matrix. The shard definitions
 live in `scripts/test-shard.sh`, the single source of truth for both.
@@ -306,10 +305,10 @@ disposable `systemprompt_test`).
 just install-nextest
 
 # Run one shard (bounded compile + run memory, fresh migrated DB).
-# Groups: shared infra domain app-runtime app-scheduler app-sync app-generator entry-api entry-cli bridge integration edge
+# Groups: shared infra domain app-runtime app-scheduler app-generator entry-api entry-cli bridge integration edge
 just test-shard shared
 
-# Run all 12 shards sequentially (each against its own fresh DB)
+# Run all 11 shards sequentially (each against its own fresh DB)
 just test-all-shards
 
 # Iterate on a single crate

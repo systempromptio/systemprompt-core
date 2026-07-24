@@ -86,7 +86,7 @@ sqlx-prepare-publish:
                  crates/domain/analytics crates/domain/agent crates/domain/oauth \
                  crates/domain/users crates/domain/content crates/domain/files \
                  crates/domain/ai crates/domain/mcp crates/app/scheduler \
-                 crates/app/sync crates/entry/cli; do
+                 crates/entry/cli; do
         echo "  Preparing $crate..."
         (cd "$crate" && cargo sqlx prepare)
     done
@@ -104,7 +104,7 @@ sqlx-verify-offline:
     for crate in systemprompt-database systemprompt-events systemprompt-logging systemprompt-security \
                  systemprompt-analytics systemprompt-agent systemprompt-oauth systemprompt-users \
                  systemprompt-content systemprompt-files systemprompt-ai \
-                 systemprompt-mcp systemprompt-scheduler systemprompt-sync \
+                 systemprompt-mcp systemprompt-scheduler \
                  systemprompt-cli systemprompt-api; do
         echo "  Checking $crate..."
         SQLX_OFFLINE=true cargo package -p "$crate" --allow-dirty 2>&1 | tail -1
@@ -754,7 +754,7 @@ install-nextest:
 # nextest invocation come from scripts/test-shard.sh (shared with CI). Each run
 # drops+recreates the target DB so cross-run pollution can't occur. Override the
 # DB with TEST_DATABASE_URL; the default is a disposable `systemprompt_test`.
-# Groups: shared infra domain app-runtime app-scheduler app-sync app-generator entry-api entry-cli bridge integration edge
+# Groups: shared infra domain app-runtime app-scheduler app-generator entry-api entry-cli bridge integration edge
 test-shard GROUP *args:
     #!/usr/bin/env bash
     set -euo pipefail

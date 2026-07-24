@@ -1,11 +1,7 @@
-//! Filesystem and tar/gzip helpers backing the cloud-sync handlers.
+//! Filesystem and tar/gzip helpers backing the file-download handlers.
 //!
 //! These are blocking, CPU- and syscall-bound operations (directory walks,
-//! gzip, tar pack/unpack) invoked from [`super::files`] inside
-//! `spawn_blocking`. Extraction enforces path-traversal guards: every entry
-//! must be a regular file or directory, relative, rooted under an allowed
-//! directory, and resolve inside the canonical target — anything else aborts
-//! the unpack.
+//! gzip, tar packing) invoked from [`super::files`] inside `spawn_blocking`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -14,11 +10,10 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use flate2::Compression;
-use flate2::read::GzDecoder;
 use flate2::write::GzEncoder;
 use sha2::{Digest, Sha256};
 use systemprompt_runtime::AppContext;
-use tar::{Archive, Builder};
+use tar::Builder;
 
 use super::types::{FileEntry, FileManifest};
 
@@ -118,113 +113,4 @@ pub(super) fn create_tarball(base: &Path, manifest: &FileManifest) -> Result<Vec
     encoder
         .finish()
         .map_err(|e| format!("Failed to finish gzip: {e}"))
-}
-
-pub(super) fn extract_tarball(data: &[u8], target: &Path) -> Result<usize, String> {
-    let decoder = GzDecoder::new(data);
-    let mut archive = Archive::new(decoder);
-    let mut count = 0;
-
-    let canonical_target = target
-        .canonicalize()
-        .map_err(|e| format!("Failed to canonicalize target: {e}"))?;
-
-    for entry in archive
-        .entries()
-        .map_err(|e| format!("Failed to read tarball entries: {e}"))?
-    {
-        let mut entry = entry.map_err(|e| format!("Failed to read entry: {e}"))?;
-
-        let entry_type = entry.header().entry_type();
-        if !(entry_type.is_file() || entry_type.is_dir()) {
-            let entry_path = entry
-                .path()
-                .map_err(|e| format!("Failed to get entry path: {e}"))?;
-            return Err(format!(
-                "Disallowed entry type {:?} in tarball: {}",
-                entry_type,
-                entry_path.to_string_lossy()
-            ));
-        }
-
-        let entry_path = entry
-            .path()
-            .map_err(|e| format!("Failed to get entry path: {e}"))?;
-
-        if entry_path.is_absolute() {
-            return Err(format!(
-                "Absolute path in tarball: {}",
-                entry_path.to_string_lossy()
-            ));
-        }
-
-        let entry_path_str = entry_path.to_string_lossy();
-        if entry_path.components().any(|c| {
-            matches!(
-                c,
-                std::path::Component::ParentDir | std::path::Component::RootDir
-            )
-        }) {
-            return Err(format!("Invalid path in tarball: {entry_path_str}"));
-        }
-
-        let first_component = entry_path
-            .components()
-            .next()
-            .and_then(|c| c.as_os_str().to_str());
-
-        if !first_component.is_some_and(|c| ALLOWED_DIRS.contains(&c)) {
-            return Err(format!("Path not in allowed directory: {entry_path_str}"));
-        }
-
-        let dest_path = canonical_target.join(&*entry_path);
-
-        if !dest_path.starts_with(&canonical_target) {
-            return Err(format!("Path escapes target directory: {entry_path_str}"));
-        }
-
-        if let Some(parent) = dest_path.parent() {
-            fs::create_dir_all(parent).map_err(|e| format!("Failed to create directory: {e}"))?;
-        }
-
-        entry
-            .unpack(&dest_path)
-            .map_err(|e| format!("Failed to unpack file: {e}"))?;
-        count += 1;
-    }
-
-    Ok(count)
-}
-
-pub(super) fn peek_manifest(data: &[u8]) -> Result<FileManifest, String> {
-    let decoder = GzDecoder::new(data);
-    let mut archive = Archive::new(decoder);
-    let mut files = Vec::new();
-    let mut total_size = 0u64;
-
-    for entry in archive
-        .entries()
-        .map_err(|e| format!("Failed to read tarball: {e}"))?
-    {
-        let entry = entry.map_err(|e| format!("Failed to read entry: {e}"))?;
-        let size = entry.size();
-        total_size += size;
-
-        files.push(FileEntry {
-            path: entry
-                .path()
-                .map_err(|e| format!("Invalid path: {e}"))?
-                .to_string_lossy()
-                .to_string(),
-            checksum: String::new(),
-            size,
-        });
-    }
-
-    Ok(FileManifest {
-        files,
-        timestamp: chrono::Utc::now(),
-        checksum: String::new(),
-        total_size,
-    })
 }

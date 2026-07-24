@@ -32,5 +32,4 @@ systemprompt-mcp = { workspace = true }
 systemprompt-oauth = { workspace = true }
 systemprompt-scheduler = { workspace = true }
 systemprompt-security = { workspace = true }
-systemprompt-sync = { workspace = true }
 systemprompt-users = { workspace = true }

@@ -14,7 +14,7 @@ use crate::interactive::Prompter;
 
 pub async fn handle_local_tenant_setup(
     prompter: &dyn Prompter,
-    cloud_user: &crate::cloud::sync::admin_user::CloudUser,
+    cloud_user: &crate::cloud::auth::admin_user::CloudUser,
     db_url: &str,
     tenant_name: &str,
     profile_path: &Path,
@@ -58,7 +58,7 @@ pub async fn handle_local_tenant_setup(
         };
 
         if migrations_succeeded {
-            let result = crate::cloud::sync::admin_user::sync_admin_to_database(
+            let result = crate::cloud::auth::admin_user::sync_admin_to_database(
                 cloud_user,
                 db_url,
                 tenant_name,
@@ -66,19 +66,19 @@ pub async fn handle_local_tenant_setup(
             .await;
 
             match &result {
-                crate::cloud::sync::admin_user::SyncResult::Created { email, .. } => {
+                crate::cloud::auth::admin_user::SyncResult::Created { email, .. } => {
                     CliService::success(&format!("Created admin user: {}", email));
                 },
-                crate::cloud::sync::admin_user::SyncResult::Promoted { email, .. } => {
+                crate::cloud::auth::admin_user::SyncResult::Promoted { email, .. } => {
                     CliService::success(&format!("Promoted user to admin: {}", email));
                 },
-                crate::cloud::sync::admin_user::SyncResult::AlreadyAdmin { email, .. } => {
+                crate::cloud::auth::admin_user::SyncResult::AlreadyAdmin { email, .. } => {
                     CliService::info(&format!("User '{}' is already admin", email));
                 },
-                crate::cloud::sync::admin_user::SyncResult::ConnectionFailed { error, .. } => {
+                crate::cloud::auth::admin_user::SyncResult::ConnectionFailed { error, .. } => {
                     CliService::warning(&format!("Could not sync admin user: {}", error));
                 },
-                crate::cloud::sync::admin_user::SyncResult::Failed { error, .. } => {
+                crate::cloud::auth::admin_user::SyncResult::Failed { error, .. } => {
                     CliService::warning(&format!("Admin user sync failed: {}", error));
                 },
             }
@@ -88,8 +88,8 @@ pub async fn handle_local_tenant_setup(
     Ok(())
 }
 
-pub fn get_cloud_user() -> Result<crate::cloud::sync::admin_user::CloudUser> {
-    crate::cloud::sync::admin_user::CloudUser::from_credentials()?.ok_or_else(|| {
+pub fn get_cloud_user() -> Result<crate::cloud::auth::admin_user::CloudUser> {
+    crate::cloud::auth::admin_user::CloudUser::from_credentials()?.ok_or_else(|| {
         anyhow::anyhow!("Cloud credentials required. Run 'systemprompt cloud login' first.")
     })
 }

@@ -1313,7 +1313,6 @@ checksum = "843fba2746e448b37e26a819579957415c8cef339bf08564fe8b7ddbd959573c"
 dependencies = [
  "crc32fast",
  "miniz_oxide",
- "zlib-rs",
 ]
 
 [[package]]
@@ -4525,7 +4524,6 @@ dependencies = [
  "systemprompt-scheduler",
  "systemprompt-security",
  "systemprompt-slack",
- "systemprompt-sync",
  "systemprompt-teams",
  "systemprompt-template-provider",
  "systemprompt-traits",
@@ -4711,6 +4709,7 @@ dependencies = [
  "dialoguer",
  "dirs",
  "ed25519-dalek 3.0.0",
+ "flate2",
  "futures",
  "futures-util",
  "indicatif",
@@ -4748,10 +4747,10 @@ dependencies = [
  "systemprompt-runtime",
  "systemprompt-scheduler",
  "systemprompt-security",
- "systemprompt-sync",
  "systemprompt-traits",
  "systemprompt-users",
  "tabled",
+ "tar",
  "tempfile",
  "thiserror 2.0.19",
  "tokio",
@@ -5245,6 +5244,7 @@ dependencies = [
  "serde",
  "serde_jcs",
  "serde_json",
+ "serde_yaml_ng",
  "sha2 0.11.0",
  "sqlx",
  "systemprompt-config",
@@ -5275,40 +5275,6 @@ dependencies = [
  "systemprompt-identifiers",
  "systemprompt-models",
  "thiserror 2.0.19",
-]
-
-[[package]]
-name = "systemprompt-sync"
-version = "0.22.0"
-dependencies = [
- "async-trait",
- "chrono",
- "flate2",
- "hex",
- "inventory",
- "reqwest",
- "serde",
- "serde_json",
- "serde_yaml_ng",
- "sha2 0.11.0",
- "sqlx",
- "systemprompt-cloud",
- "systemprompt-content",
- "systemprompt-database",
- "systemprompt-extension",
- "systemprompt-identifiers",
- "systemprompt-loader",
- "systemprompt-models",
- "systemprompt-provider-contracts",
- "systemprompt-security",
- "systemprompt-traits",
- "tar",
- "tempfile",
- "thiserror 2.0.19",
- "tokio",
- "tracing",
- "walkdir",
- "zip",
 ]
 
 [[package]]
@@ -5842,12 +5808,6 @@ name = "typed-arena"
 version = "2.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6af6ae20167a9ece4bcb41af5b80f8a1f1df981f6391189ce00fd257af04126a"
-
-[[package]]
-name = "typed-path"
-version = "0.12.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8e28f89b80c87b8fb0cf04ab448d5dd0dd0ade2f8891bae878de66a75a28600e"
 
 [[package]]
 name = "typenum"
@@ -6612,42 +6572,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "zip"
-version = "8.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2d04a6b5381502aa6087c94c669499eb1602eb9c5e8198e534de571f7154809b"
-dependencies = [
- "crc32fast",
- "flate2",
- "indexmap",
- "memchr",
- "typed-path",
- "zopfli",
-]
-
-[[package]]
-name = "zlib-rs"
-version = "0.6.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b142a20ec14a91d5bc708c1dc21b080c550113d8aa77afa29635673a65dd02c5"
-
-[[package]]
 name = "zmij"
 version = "1.0.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "29666d0abbfad1e3dc4dcf6144730dd3a3ab225bbbdac83319345b1b44ccfc1b"
-
-[[package]]
-name = "zopfli"
-version = "0.8.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f05cd8797d63865425ff89b5c4a48804f35ba0ce8d125800027ad6017d2b5249"
-dependencies = [
- "bumpalo",
- "crc32fast",
- "log",
- "simd-adler32",
-]
 
 [[package]]
 name = "zune-core"

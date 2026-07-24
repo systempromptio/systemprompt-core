@@ -1,11 +1,17 @@
 # Changelog
 
-## [0.23.0] - 2026-07-23
+## [0.23.0] - 2026-07-24
+
+### Breaking
+
+- **Breaking:** the cloud-sync feature is removed in full. The `systemprompt-sync` crate is deleted, the facade's `sync` feature and `systemprompt::sync` module are gone (`full` no longer implies `sync`), `POST /api/v1/sync/files` is unmounted, and the `cloud sync` command tree (`push`, `pull`, interactive menu) along with `cloud deploy`'s `--no-sync`, `-y`/`--yes`, and `--dry-run` flags are removed. The pre-deploy sync it implemented had been failing closed since the token-exchange grant began requiring `client_id`, so no deployment was relying on it. Deploys are now stateless container rebuilds: runtime files created inside the running container are not preserved. Migrate by running `cloud backup` before a deploy when a copy is wanted.
+- **Breaking:** `cloud sync admin-user` moves to `cloud auth admin-user` (flags unchanged), and `ClientId::sync()` / the `sys_sync` client identifier are removed with their only consumer.
 
 ### Added
 
-- Generated profiles ship topology-correct `server.trusted_proxies` defaults: cloud profiles trust the private, Fly 6PN (`fc00::/7`), and Cloudflare ranges; local profiles trust loopback and RFC1918.
-- `cloud deploy` / `cloud doctor` preflight fails when a cloud profile's `trusted_proxies` does not cover Fly's `fc00::/7` peer range, with the exact YAML to add.
+- `cloud backup [-p <profile>] [-o <dir>] [--list]` downloads a tenant's runtime `services/` tree to a standalone directory — deliberately separate from the deploy flow, and never writing into the project's own `services/`. It reuses the retained `GET /api/v1/sync/files` and `/manifest` routes and keeps the tarball path-traversal guards.
+- Generated profiles ship topology-correct `server.trusted_proxies` defaults: cloud profiles trust the private, Fly 6PN (`fc00::/7`), Fly public edge (`66.241.64.0/18`), and Cloudflare ranges; local profiles trust loopback and RFC1918.
+- `cloud deploy` / `cloud doctor` preflight fails when a cloud profile's `trusted_proxies` does not cover Fly's `fc00::/7` peer range, with the exact YAML to add, and warns when the Fly public edge range is missing.
 - The client-IP resolver honours `Fly-Client-IP` under the same trusted-peer gate as `X-Real-IP` and `CF-Connecting-IP`.
 - A warning is logged at boot when a cloud profile has an empty `server.trusted_proxies`, and at most hourly at runtime when an untrusted private-range peer presents `X-Forwarded-For` — the signature of a proxy missing from the allowlist.
 - `systemprompt_logging::LogThrottle` gates repeated hot-path log emissions to one per interval.
@@ -14,6 +20,14 @@
 - `analytics traffic bots` reports a three-way partition — `human_sessions`, `ghost_sessions` (no landing page or zero requests), and `bot_sessions` — and the per-type breakdown now sums to the bot total. The `--include-all` flag, which silently moved ghost sessions between the human and bot buckets, is removed.
 - `infra jobs list|show|history` work against cloud/external databases; the mutating jobs subcommands remain local-only.
 - `ai_requests.session_id` carries a foreign key to `user_sessions` (`ON DELETE SET NULL`); the migration nulls historical orphaned rows, and the audit path creates the session row before inserting so failed requests keep their audit trail.
+
+### Fixed
+
+- The RFC 8693 token-exchange callers send the required `client_id` (`sp_web`, the seeded public client). The token endpoint has required it since the grant handler was tightened, so `CloudApiClient`'s tenant-scoped calls — and the pre-deploy sync that is now removed — failed with `400 client_id: is required`.
+
+### Security
+
+- Cloud trusted-proxy defaults trust Fly's public proxy range `66.241.64.0/18`. Traffic entering through Fly's public edge appends a hop from that range to `X-Forwarded-For`; without it the client-IP resolver attributed every such session to the Fly proxy, producing an all-US geo skew observed in production on 2026-07-24. Existing cloud profiles are not regenerated automatically — add the range to `server.trusted_proxies`, or run `cloud doctor`, which now warns when it is missing.
 
 ### Changed
 

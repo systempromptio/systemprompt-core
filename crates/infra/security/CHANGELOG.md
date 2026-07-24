@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.23.0] - 2026-07-24
+
+### Added
+
+- `AccessControlIngestionService::ingest_config_from_yaml_path` reads an `AccessControlConfig` from disk and ingests it, replacing the `AccessControlLocalSync` wrapper that lived in the deleted `systemprompt-sync` crate.
+
 ## [0.22.0] - 2026-07-21
 
 ### Breaking

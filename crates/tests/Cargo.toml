@@ -27,7 +27,6 @@ members = [
     "integration/runtime",
     "integration/security",
     "integration/scheduler",
-    "integration/sync",
     "integration/users",
     # Unit tests - shared layer
     "unit/shared/extension",
@@ -63,7 +62,6 @@ members = [
     "unit/app/generator",
     "unit/app/runtime",
     "unit/app/scheduler",
-    "unit/app/sync",
     # Unit tests - entry layer
     "unit/entry/api",
     "unit/entry/cli",
@@ -251,7 +249,6 @@ systemprompt-teams = { path = "../domain/teams" }
 systemprompt-runtime = { path = "../app/runtime" }
 systemprompt-scheduler = { path = "../app/scheduler" }
 systemprompt-generator = { path = "../app/generator" }
-systemprompt-sync = { path = "../app/sync" }
 systemprompt-api = { path = "../entry/api" }
 systemprompt-cli = { path = "../entry/cli" }
 systemprompt-bridge = { path = "../../bin/bridge" }

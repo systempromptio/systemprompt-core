@@ -13,8 +13,6 @@ mod routes_marketplace_success;
 mod routes_gateway_auth;
 
 #[cfg(test)]
-#[path = "routes_sync_archive_guards.rs"]
-mod routes_sync_archive_guards;
 
 #[cfg(test)]
 #[path = "routes_mcp_registry.rs"]

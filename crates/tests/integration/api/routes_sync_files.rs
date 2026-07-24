@@ -1,24 +1,17 @@
-//! Cloud-sync file transfer end to end through `sync_router`.
+//! File download end to end through `sync_router`.
 //!
 //! Builds an `AppContext` whose `paths.services` points at a temp tree
-//! containing allow-listed directories, then drives the manifest / download /
-//! upload handlers so the internal `collect_files`, `create_tarball`,
-//! `peek_manifest`, and `extract_tarball` helpers all run. Upload covers the
-//! success path (a clean tarball rooted under an allowed dir) and the
-//! path-traversal guards (a `../` entry and a non-allow-listed directory must
-//! be rejected, and a corrupt gzip aborts the unpack).
+//! containing allow-listed directories, then drives the manifest and download
+//! handlers so the internal `collect_files` and `create_tarball` helpers run.
 //!
 //! `get_services_path` honours `SYSTEMPROMPT_SERVICES_PATH` first, so the test
 //! drives the path purely through the context's `app_paths` (no env mutation,
 //! which the workspace forbids under `unsafe_code = "deny"`).
 
-use std::io::Write;
 use std::sync::Arc;
 
 use axum::body::{Body, to_bytes};
 use axum::http::{Request, Response, header};
-use flate2::Compression;
-use flate2::write::GzEncoder;
 use systemprompt_api::routes::sync_router;
 use systemprompt_marketplace::AllowAllFilter;
 use systemprompt_models::profile::PathsConfig;
@@ -57,24 +50,6 @@ fn make_services_tree() -> tempfile::TempDir {
     dir
 }
 
-fn gz_tar(entries: &[(&str, &[u8])]) -> Vec<u8> {
-    let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
-    {
-        let mut builder = tar::Builder::new(&mut encoder);
-        for (name, data) in entries {
-            let mut header = tar::Header::new_gnu();
-            header.set_size(data.len() as u64);
-            header.set_mode(0o644);
-            header.set_cksum();
-            builder
-                .append_data(&mut header, name, *data)
-                .expect("append tar entry");
-        }
-        builder.finish().expect("finish tar");
-    }
-    encoder.finish().expect("finish gz")
-}
-
 async fn read_json(resp: Response<Body>) -> anyhow::Result<(http::StatusCode, serde_json::Value)> {
     let status = resp.status();
     let bytes = to_bytes(resp.into_body(), 8 * 1024 * 1024).await?;
@@ -86,15 +61,6 @@ fn get(uri: &str) -> Request<Body> {
     Request::builder()
         .uri(uri)
         .body(Body::empty())
-        .expect("build")
-}
-
-fn post_bytes(uri: &str, body: Vec<u8>) -> Request<Body> {
-    Request::builder()
-        .method(http::Method::POST)
-        .uri(uri)
-        .header(header::CONTENT_TYPE, "application/gzip")
-        .body(Body::from(body))
         .expect("build")
 }
 
@@ -172,70 +138,3 @@ async fn download_streams_gzip_tarball() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[tokio::test]
-async fn upload_dry_run_peeks_manifest() -> anyhow::Result<()> {
-    let tree = make_services_tree();
-    let ctx = ctx_with_services(tree.path()).await?;
-
-    let tarball = gz_tar(&[("agents/new.yaml", b"name: new\n")]);
-    let resp = app(&ctx)
-        .oneshot(post_bytes("/files?dry_run=true", tarball))
-        .await?;
-    let (status, body) = read_json(resp).await?;
-    assert_eq!(status.as_u16(), 200, "{body}");
-    assert_eq!(body["files_uploaded"].as_u64(), Some(1), "{body}");
-    assert!(body["manifest"].is_object(), "{body}");
-    Ok(())
-}
-
-#[tokio::test]
-async fn upload_clean_tarball_extracts_files() -> anyhow::Result<()> {
-    let tree = make_services_tree();
-    let ctx = ctx_with_services(tree.path()).await?;
-
-    let tarball = gz_tar(&[("config/extracted.json", br#"{"ok":true}"#)]);
-    let resp = app(&ctx).oneshot(post_bytes("/files", tarball)).await?;
-    let (status, body) = read_json(resp).await?;
-    assert_eq!(status.as_u16(), 200, "{body}");
-    assert_eq!(body["files_uploaded"].as_u64(), Some(1), "{body}");
-    assert!(
-        tree.path().join("config/extracted.json").exists(),
-        "uploaded file must land in the services tree"
-    );
-    Ok(())
-}
-
-
-#[tokio::test]
-async fn upload_rejects_path_outside_allowed_dirs() -> anyhow::Result<()> {
-    let tree = make_services_tree();
-    let ctx = ctx_with_services(tree.path()).await?;
-
-    let tarball = gz_tar(&[("secrets/leak.txt", b"nope")]);
-    let resp = app(&ctx).oneshot(post_bytes("/files", tarball)).await?;
-    let (status, _body) = read_json(resp).await?;
-    assert!(
-        status.is_server_error() || status.is_client_error(),
-        "{status}"
-    );
-    assert!(!tree.path().join("secrets/leak.txt").exists());
-    Ok(())
-}
-
-#[tokio::test]
-async fn upload_rejects_corrupt_gzip() -> anyhow::Result<()> {
-    let tree = make_services_tree();
-    let ctx = ctx_with_services(tree.path()).await?;
-
-    let mut not_gzip = Vec::new();
-    not_gzip
-        .write_all(b"this is not a gzip stream")
-        .expect("write");
-    let resp = app(&ctx).oneshot(post_bytes("/files", not_gzip)).await?;
-    let (status, _body) = read_json(resp).await?;
-    assert!(
-        status.is_server_error() || status.is_client_error(),
-        "{status}"
-    );
-    Ok(())
-}

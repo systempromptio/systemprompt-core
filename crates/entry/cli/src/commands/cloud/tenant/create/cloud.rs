@@ -5,11 +5,17 @@
 //! [`TenantProvisioningService`], which drives the Paddle checkout callback,
 //! provisioning wait, and credential retrieval. Afterwards a profile is
 //! written for the new tenant and, when required, the initial deploy runs
-//! through the sync crate's [`DeployOrchestrator`].
+//! through the deploy pipeline's [`DeployOrchestrator`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::cloud::deploy::CliDeployProgress;
+use crate::cloud::deploy::pipeline::{DeployOptions, DeployOrchestrator, DeployRequest};
+use crate::cloud::profile::{collect_api_keys, create_profile_for_tenant};
+use crate::cloud::templates::{CHECKOUT_ERROR_HTML, CHECKOUT_SUCCESS_HTML, WAITING_HTML};
+use crate::interactive::Prompter;
+use crate::shared::project::ProjectRoot;
 use anyhow::{Context, Result, anyhow, bail};
 use systemprompt_cloud::constants::checkout::CALLBACK_PORT;
 use systemprompt_cloud::constants::regions::AVAILABLE;
@@ -19,13 +25,6 @@ use systemprompt_cloud::{
 };
 use systemprompt_identifiers::{PriceId, TenantId};
 use systemprompt_logging::CliService;
-use systemprompt_sync::deploy::{DeployOptions, DeployOrchestrator, DeployRequest};
-
-use crate::cloud::deploy::CliDeployProgress;
-use crate::cloud::profile::{collect_api_keys, create_profile_for_tenant};
-use crate::cloud::templates::{CHECKOUT_ERROR_HTML, CHECKOUT_SUCCESS_HTML, WAITING_HTML};
-use crate::interactive::Prompter;
-use crate::shared::project::ProjectRoot;
 
 use super::super::validation::{validate_build_ready, warn_required_secrets};
 use super::progress::CliProvisioningProgress;
@@ -158,17 +157,12 @@ async fn run_initial_deploy(
         profile_name: profile_name.to_owned(),
         project_root: project.as_path().to_path_buf(),
         credentials: creds.clone(),
-        hostname: tenant.hostname.clone(),
         secrets_path: ProfilePath::Secrets.resolve(&profile_dir),
         signing_key_path: profile_dir.join("signing_key.pem"),
-        options: DeployOptions {
-            skip_push: false,
-            dry_run: false,
-            pre_sync: None,
-        },
+        options: DeployOptions { skip_push: false },
     };
 
-    let progress = CliDeployProgress::non_interactive();
+    let progress = CliDeployProgress::new();
     DeployOrchestrator::new()
         .deploy(&request, &progress)
         .await?;

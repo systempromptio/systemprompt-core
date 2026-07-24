@@ -33,7 +33,6 @@ members = [
     "crates/app/runtime",
     "crates/app/scheduler",
     "crates/app/generator",
-    "crates/app/sync",
     # Entry layer
     "crates/entry/api",
     "crates/entry/cli",
@@ -326,7 +325,6 @@ systemprompt-teams = { path = "crates/domain/teams", version = "0.22.0" }
 systemprompt-runtime = { path = "crates/app/runtime", version = "0.22.0" }
 systemprompt-scheduler = { path = "crates/app/scheduler", version = "0.22.0" }
 systemprompt-generator = { path = "crates/app/generator", version = "0.22.0" }
-systemprompt-sync = { path = "crates/app/sync", version = "0.22.0" }
 systemprompt-api = { path = "crates/entry/api", version = "0.22.0" }
 systemprompt-cli = { path = "crates/entry/cli", version = "0.22.0" }
 

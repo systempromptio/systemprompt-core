@@ -47,7 +47,6 @@ systemprompt-scheduler = { workspace = true }
 systemprompt-analytics = { workspace = true }
 systemprompt-security = { workspace = true }
 systemprompt-ai = { workspace = true }
-systemprompt-sync = { workspace = true }
 systemprompt-generator = { workspace = true, features = ["image-processing"] }
 systemprompt-models = { workspace = true }
 systemprompt-config = { workspace = true }
@@ -88,6 +87,8 @@ url = { workspace = true }
 rand = { workspace = true }
 indicatif = { workspace = true }
 regex = { workspace = true }
+flate2 = { workspace = true }
+tar = { workspace = true }
 
 [dev-dependencies]
 futures = { workspace = true }

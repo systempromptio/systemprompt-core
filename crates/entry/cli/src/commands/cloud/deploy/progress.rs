@@ -2,7 +2,7 @@
 //!
 //! [`CliDeployProgress`] implements the orchestrator's
 //! [`DeployProgress`] seam over `CliService` spinners and message sinks:
-//! sequencing lives in `systemprompt-sync`, presentation lives here. A single
+//! sequencing lives in [`super::pipeline`], presentation lives here. A single
 //! spinner slot is cleared at every event boundary so each long-running step
 //! replaces the previous indicator.
 //!
@@ -13,38 +13,22 @@ use std::sync::Mutex;
 
 use indicatif::ProgressBar;
 use systemprompt_logging::CliService;
-use systemprompt_sync::deploy::{DeployEvent, DeployProgress, DeployPrompt};
-use systemprompt_sync::{
-    FileDiffStatus, SyncDiffResult, SyncError, SyncOperationResult, SyncResult,
-};
 
-use crate::cli_settings::CliConfig;
-use crate::interactive::{Prompter, confirm_optional};
+use super::pipeline::{DeployEvent, DeployProgress};
 
-pub struct CliDeployProgress<'a> {
-    config: Option<(&'a dyn Prompter, &'a CliConfig)>,
+pub struct CliDeployProgress {
     spinner: Mutex<Option<ProgressBar>>,
 }
 
-impl std::fmt::Debug for CliDeployProgress<'_> {
+impl std::fmt::Debug for CliDeployProgress {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("CliDeployProgress")
-            .field("interactive", &self.config.is_some())
-            .finish_non_exhaustive()
+        f.debug_struct("CliDeployProgress").finish_non_exhaustive()
     }
 }
 
-impl<'a> CliDeployProgress<'a> {
-    pub const fn new(prompter: &'a dyn Prompter, config: &'a CliConfig) -> Self {
+impl CliDeployProgress {
+    pub const fn new() -> Self {
         Self {
-            config: Some((prompter, config)),
-            spinner: Mutex::new(None),
-        }
-    }
-
-    pub const fn non_interactive() -> Self {
-        Self {
-            config: None,
             spinner: Mutex::new(None),
         }
     }
@@ -64,7 +48,13 @@ impl<'a> CliDeployProgress<'a> {
     }
 }
 
-impl DeployProgress for CliDeployProgress<'_> {
+impl Default for CliDeployProgress {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl DeployProgress for CliDeployProgress {
     fn event(&self, event: &DeployEvent<'_>) {
         self.clear_spinner();
         if let Some(message) = spinner_message(event) {
@@ -73,31 +63,10 @@ impl DeployProgress for CliDeployProgress<'_> {
         }
         render_event(event);
     }
-
-    fn confirm(&self, prompt: &DeployPrompt) -> SyncResult<bool> {
-        self.clear_spinner();
-        let (message, default) = match prompt {
-            DeployPrompt::PreSync => ("Sync files from cloud before deploying?".to_owned(), true),
-            DeployPrompt::ApplyChanges { count } => (
-                format!(
-                    "Apply {} change{} from cloud? (backup saved)",
-                    count,
-                    if *count == 1 { "" } else { "s" }
-                ),
-                true,
-            ),
-        };
-        self.config.map_or(Ok(default), |(prompter, config)| {
-            confirm_optional(prompter, &message, default, config).map_err(SyncError::internal)
-        })
-    }
 }
 
 pub const fn spinner_message(event: &DeployEvent<'_>) -> Option<&'static str> {
     match event {
-        DeployEvent::SyncDryRunStarted => Some("Syncing files from cloud..."),
-        DeployEvent::SyncDownloadStarted => Some("Downloading files from cloud..."),
-        DeployEvent::SyncBackupStarted => Some("Backing up local services..."),
         DeployEvent::RegistryAuthStarted => Some("Fetching registry credentials..."),
         DeployEvent::BuildStarted => Some("Building Docker image..."),
         DeployEvent::PushStarted => Some("Pushing to registry..."),
@@ -110,35 +79,6 @@ pub const fn spinner_message(event: &DeployEvent<'_>) -> Option<&'static str> {
 
 fn render_event(event: &DeployEvent<'_>) {
     match event {
-        DeployEvent::PreSyncSkippedByFlag => {
-            CliService::warning("Pre-deploy sync skipped (--no-sync)");
-            CliService::warning("Runtime files on the container will be LOST");
-        },
-        DeployEvent::PreSyncStarted => {
-            CliService::section("Pre-Deploy Sync");
-            display_destructive_warning();
-        },
-        DeployEvent::PreSyncDeclined => {
-            CliService::warning("Pre-deploy sync skipped by user");
-            CliService::warning("Runtime files on the container will be LOST");
-        },
-        DeployEvent::SyncDryRunFinished(result) => display_dry_run_result(result),
-        DeployEvent::SyncErrors(errors) => {
-            for err in *errors {
-                CliService::error(&format!("Sync error: {}", err));
-            }
-        },
-        DeployEvent::SyncBackupFinished(path) => {
-            CliService::success(&format!("Backed up to {}", path.display()));
-        },
-        DeployEvent::SyncDiff(diff) => display_diff(diff),
-        DeployEvent::SyncAlreadyClean => CliService::success("All files are already in sync"),
-        DeployEvent::SyncCancelled => {
-            CliService::warning("Sync cancelled by user. Backup preserved.");
-        },
-        DeployEvent::SyncApplied { count } => {
-            CliService::success(&format!("Applied {} files from cloud", count));
-        },
         DeployEvent::ArtifactsResolved {
             tenant_name,
             binary,
@@ -171,76 +111,5 @@ fn render_event(event: &DeployEvent<'_>) {
             }
         },
         _ => {},
-    }
-}
-
-fn display_destructive_warning() {
-    CliService::warning("DESTRUCTIVE OPERATION");
-    CliService::info("  Deploying replaces the running container.");
-    CliService::info("  Runtime files (uploads, AI-generated images) not in your local build");
-    CliService::info("  will be PERMANENTLY LOST unless synced first.");
-    CliService::info("");
-    CliService::info("  Database records are preserved.");
-    CliService::info("");
-}
-
-fn display_diff(diff: &SyncDiffResult) {
-    CliService::section("Cloud Sync Diff");
-
-    if diff.added > 0 {
-        CliService::info(&format!("  Added ({}):", diff.added));
-        for entry in &diff.entries {
-            if entry.status == FileDiffStatus::Added {
-                CliService::info(&format!("    + {}", entry.path));
-            }
-        }
-    }
-
-    if diff.modified > 0 {
-        CliService::info(&format!("  Modified ({}):", diff.modified));
-        for entry in &diff.entries {
-            if entry.status == FileDiffStatus::Modified {
-                CliService::info(&format!("    ~ {}", entry.path));
-            }
-        }
-    }
-
-    if diff.deleted > 0 {
-        CliService::info(&format!("  Deleted from cloud ({}):", diff.deleted));
-        for entry in &diff.entries {
-            if entry.status == FileDiffStatus::Deleted {
-                CliService::info(&format!("    - {}", entry.path));
-            }
-        }
-    }
-
-    if diff.unchanged > 0 {
-        CliService::info(&format!("  Unchanged ({} files identical)", diff.unchanged));
-    }
-}
-
-fn display_dry_run_result(result: &SyncOperationResult) {
-    CliService::section("Dry Run - Files to Sync");
-    match &result.details {
-        Some(details) => display_file_list(details),
-        None => CliService::info(&format!("Would sync {} items", result.items_skipped)),
-    }
-}
-
-fn display_file_list(details: &serde_json::Value) {
-    let Some(files) = details.get("files").and_then(|f| f.as_array()) else {
-        return;
-    };
-
-    CliService::info(&format!("Would sync {} files:", files.len()));
-
-    for file in files.iter().take(20) {
-        if let Some(path) = file.get("path").and_then(|p| p.as_str()) {
-            CliService::info(&format!("  - {}", path));
-        }
-    }
-
-    if files.len() > 20 {
-        CliService::info(&format!("  ... and {} more", files.len() - 20));
     }
 }

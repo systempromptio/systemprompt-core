@@ -674,15 +674,6 @@ async fn auth_logout_removes_credentials_file() {
 }
 
 #[tokio::test]
-async fn sync_without_subcommand_errors_non_interactive() {
-    let _env = enter().await;
-    let err = cloud::execute(CloudCommands::Sync { command: None }, &json_ctx())
-        .await
-        .expect_err("sync needs a subcommand");
-    assert!(err.to_string().contains("subcommand"));
-}
-
-#[tokio::test]
 async fn secrets_set_pushes_to_cloud() {
     let env = enter().await;
     if !env.profile_ready() {
@@ -834,71 +825,6 @@ async fn login_post_token_fails_on_rejected_token() {
 }
 
 #[tokio::test]
-async fn sync_pull_rejects_local_profile_tenant() {
-    let env = enter().await;
-    let _ = env;
-    let local_only = TenantStore::new(vec![StoredTenant::new_local(
-        TenantId::new(TENANT_ID),
-        "Harness Prod".to_owned(),
-        "postgres://local/db".to_owned(),
-    )]);
-    local_only
-        .save_to_path(&get_cloud_paths().resolve(CloudPath::Tenants))
-        .expect("seed local-only tenants");
-
-    let err = cloud::execute(
-        CloudCommands::Sync {
-            command: Some(systemprompt_cli::cloud::sync::SyncCommands::Pull(
-                systemprompt_cli::cloud::sync::SyncArgs {
-                    dry_run: true,
-                    force: false,
-                    verbose: false,
-                },
-            )),
-        },
-        &json_ctx(),
-    )
-    .await
-    .expect_err("local tenant cannot sync");
-    assert!(err.to_string().contains("local tenant"));
-}
-
-#[tokio::test]
-async fn sync_push_requires_hostname() {
-    let env = enter().await;
-    let _ = env;
-    let no_hostname = TenantStore::new(vec![StoredTenant::new_cloud(NewCloudTenantParams {
-        id: TenantId::new(TENANT_ID),
-        name: "Harness Prod".to_owned(),
-        app_id: None,
-        hostname: None,
-        region: None,
-        database_url: None,
-        internal_database_url: "postgres://int/db".to_owned(),
-        external_db_access: false,
-    })]);
-    no_hostname
-        .save_to_path(&get_cloud_paths().resolve(CloudPath::Tenants))
-        .expect("seed hostname-less tenants");
-
-    let err = cloud::execute(
-        CloudCommands::Sync {
-            command: Some(systemprompt_cli::cloud::sync::SyncCommands::Push(
-                systemprompt_cli::cloud::sync::SyncArgs {
-                    dry_run: true,
-                    force: false,
-                    verbose: false,
-                },
-            )),
-        },
-        &json_ctx(),
-    )
-    .await
-    .expect_err("push without hostname fails");
-    assert!(err.to_string().contains("Hostname"));
-}
-
-#[tokio::test]
 async fn admin_user_sync_creates_then_reports_existing_admin() {
     let Some(database_url) = crate::full_bootstrap::database_url() else {
         return;
@@ -910,12 +836,12 @@ async fn admin_user_sync_creates_then_reports_existing_admin() {
         std::process::id(),
         Utc::now().timestamp_micros()
     );
-    let user = systemprompt_cli::cloud::sync::admin_user::CloudUser {
+    let user = systemprompt_cli::cloud::auth::admin_user::CloudUser {
         email: email.clone(),
         name: Some("Harness Admin".to_owned()),
     };
 
-    let first = systemprompt_cli::cloud::sync::admin_user::sync_admin_to_database(
+    let first = systemprompt_cli::cloud::auth::admin_user::sync_admin_to_database(
         &user,
         &database_url,
         "harness-profile",
@@ -924,12 +850,12 @@ async fn admin_user_sync_creates_then_reports_existing_admin() {
     assert!(
         matches!(
             first,
-            systemprompt_cli::cloud::sync::admin_user::SyncResult::Created { .. }
+            systemprompt_cli::cloud::auth::admin_user::SyncResult::Created { .. }
         ),
         "first sync should create the admin: {first:?}"
     );
 
-    let second = systemprompt_cli::cloud::sync::admin_user::sync_admin_to_database(
+    let second = systemprompt_cli::cloud::auth::admin_user::sync_admin_to_database(
         &user,
         &database_url,
         "harness-profile",
@@ -938,22 +864,22 @@ async fn admin_user_sync_creates_then_reports_existing_admin() {
     assert!(
         matches!(
             second,
-            systemprompt_cli::cloud::sync::admin_user::SyncResult::AlreadyAdmin { .. }
-                | systemprompt_cli::cloud::sync::admin_user::SyncResult::Promoted { .. }
+            systemprompt_cli::cloud::auth::admin_user::SyncResult::AlreadyAdmin { .. }
+                | systemprompt_cli::cloud::auth::admin_user::SyncResult::Promoted { .. }
         ),
         "second sync should find the existing admin: {second:?}"
     );
-    systemprompt_cli::cloud::sync::admin_user::print_sync_results(&[first, second]);
+    systemprompt_cli::cloud::auth::admin_user::print_sync_results(&[first, second]);
 }
 
 #[tokio::test]
 async fn admin_user_sync_reports_connection_failure() {
     let _env = enter().await;
-    let user = systemprompt_cli::cloud::sync::admin_user::CloudUser {
+    let user = systemprompt_cli::cloud::auth::admin_user::CloudUser {
         email: "unreachable@example.com".to_owned(),
         name: None,
     };
-    let result = systemprompt_cli::cloud::sync::admin_user::sync_admin_to_database(
+    let result = systemprompt_cli::cloud::auth::admin_user::sync_admin_to_database(
         &user,
         "postgres://nobody:nothing@127.0.0.1:1/void",
         "dead-profile",
@@ -961,6 +887,6 @@ async fn admin_user_sync_reports_connection_failure() {
     .await;
     assert!(matches!(
         result,
-        systemprompt_cli::cloud::sync::admin_user::SyncResult::ConnectionFailed { .. }
+        systemprompt_cli::cloud::auth::admin_user::SyncResult::ConnectionFailed { .. }
     ));
 }

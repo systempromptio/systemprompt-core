@@ -105,11 +105,11 @@ pub async fn complete_login(
     }
 
     CliService::section("Syncing Admin User to Profiles");
-    if let Some(cloud_user) = crate::cloud::sync::admin_user::CloudUser::from_credentials()? {
+    if let Some(cloud_user) = crate::cloud::auth::admin_user::CloudUser::from_credentials()? {
         let verbose = config.should_show_verbose();
         let results =
-            crate::cloud::sync::admin_user::sync_admin_to_all_profiles(&cloud_user, verbose).await;
-        crate::cloud::sync::admin_user::print_sync_results(&results);
+            crate::cloud::auth::admin_user::sync_admin_to_all_profiles(&cloud_user, verbose).await;
+        crate::cloud::auth::admin_user::print_sync_results(&results);
     } else {
         CliService::warning("Could not load cloud user for admin sync");
     }

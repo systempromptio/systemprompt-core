@@ -2,13 +2,18 @@
 //!
 //! Resolves the active cloud profile and tenant, runs the `cloud doctor`
 //! preflight (deploys hard-block on a failing report), then hands the typed
-//! request to [`DeployOrchestrator`] in `systemprompt-sync`, which owns the
-//! pre-deploy sync, image build/push, secret provisioning, and the deploy
-//! call. Rendering flows back through [`CliDeployProgress`].
+//! request to [`DeployOrchestrator`] in the [`pipeline`] module, which owns
+//! the image build/push, secret provisioning, and the deploy call. Rendering
+//! flows back through [`CliDeployProgress`].
+//!
+//! Deploys are stateless container rebuilds: runtime files created inside the
+//! previous container are not preserved. Use `systemprompt cloud backup`
+//! first to keep a copy.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+pub mod pipeline;
 pub mod progress;
 mod select;
 
@@ -19,9 +24,8 @@ use anyhow::{Context, Result, anyhow, bail};
 use systemprompt_cloud::{CloudPath, ProfilePath, TenantStore, get_cloud_paths};
 use systemprompt_identifiers::TenantId;
 use systemprompt_logging::CliService;
-use systemprompt_sync::deploy::{
-    DeployOptions, DeployOrchestrator, DeployOutcome, DeployRequest, PreSyncOptions,
-};
+
+use pipeline::{DeployOptions, DeployOrchestrator, DeployRequest};
 
 use super::tenant::get_credentials;
 use crate::cli_settings::CliConfig;
@@ -31,9 +35,6 @@ use crate::shared::project::ProjectRoot;
 pub(super) struct DeployArgs {
     pub skip_push: bool,
     pub profile_name: Option<String>,
-    pub no_sync: bool,
-    pub yes: bool,
-    pub dry_run: bool,
     pub check: bool,
 }
 
@@ -75,27 +76,17 @@ pub(super) async fn execute(
         profile_name: profile.name.clone(),
         project_root: project.as_path().to_path_buf(),
         credentials: target.creds,
-        hostname: target.hostname,
         secrets_path: ProfilePath::Secrets.resolve(profile_dir),
         signing_key_path: super::doctor::resolve_signing_key_path(&profile, profile_dir),
         options: DeployOptions {
             skip_push: args.skip_push,
-            dry_run: args.dry_run,
-            pre_sync: Some(PreSyncOptions {
-                no_sync: args.no_sync,
-                assume_yes: args.yes,
-            }),
         },
     };
 
-    let progress = CliDeployProgress::new(prompter, config);
-    let report = DeployOrchestrator::new()
+    let progress = CliDeployProgress::new();
+    DeployOrchestrator::new()
         .deploy(&request, &progress)
         .await?;
-
-    if matches!(report.outcome, DeployOutcome::DryRun) {
-        CliService::info("Dry run complete. No deployment performed.");
-    }
 
     Ok(())
 }

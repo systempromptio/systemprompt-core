@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.23.0] - 2026-07-24
+
+### Breaking
+
+- **Breaking:** the `sync` feature and the `systemprompt::sync` module are removed along with the `systemprompt-sync` crate; `full` no longer implies `sync`. There is no replacement — the deploy pipeline is internal to the CLI.
+
 ## [0.21.1] - 2026-07-17
 
 ### Changed

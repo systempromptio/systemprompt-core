@@ -132,7 +132,6 @@ The headline figure is approximately **79.5% line coverage** across the producti
 | `domain/mcp` | 7,390 | 76.3% | MCP servers |
 | `app/runtime` | 1,275 | 76.2% | AppContext wiring |
 | `domain/agent` | 12,567 | 75.2% | A2A protocol (largest crate in the hot path) |
-| `app/sync` | 1,924 | 74.0% | cloud sync |
 | `app/generator` | 2,145 | 71.4% | static site builder |
 | `entry/cli` | 32,133 | 70.4% | CLI commands (largest crate; e2e / subprocess surface) |
 
