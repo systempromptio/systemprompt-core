@@ -16,6 +16,7 @@ fn cloud_defaults_cover_private_fly_and_cloudflare_ranges() {
         "127.0.0.0/8",
         "10.0.0.0/8",
         "fc00::/7",
+        "66.241.64.0/18",
         "104.16.0.0/13",
         "2606:4700::/32",
     ] {
@@ -31,6 +32,7 @@ fn local_defaults_are_private_only() {
     assert!(strings.contains(&"127.0.0.0/8".to_owned()));
     assert!(strings.contains(&"192.168.0.0/16".to_owned()));
     assert!(!strings.iter().any(|s| s == "fc00::/7"));
+    assert!(!strings.iter().any(|s| s == "66.241.64.0/18"));
     assert!(!strings.iter().any(|s| s == "104.16.0.0/13"));
 }
 

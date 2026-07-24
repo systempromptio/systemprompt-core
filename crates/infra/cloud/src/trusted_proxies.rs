@@ -31,6 +31,7 @@ fn parse_ranges(ranges: &[&str]) -> Vec<IpNet> {
 pub fn default_cloud_trusted_proxies() -> Vec<IpNet> {
     let mut nets = parse_ranges(proxies::PRIVATE_RANGES);
     nets.extend(parse_ranges(proxies::FLY_PRIVATE_RANGES));
+    nets.extend(parse_ranges(proxies::FLY_PUBLIC_RANGES));
     nets.extend(parse_ranges(proxies::CLOUDFLARE_RANGES));
     nets
 }

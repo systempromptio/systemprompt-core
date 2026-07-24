@@ -144,6 +144,8 @@ pub mod proxies {
 
     pub const FLY_PRIVATE_RANGES: &[&str] = &["fc00::/7"];
 
+    pub const FLY_PUBLIC_RANGES: &[&str] = &["66.241.64.0/18"];
+
     pub const CLOUDFLARE_RANGES: &[&str] = &[
         "173.245.48.0/20",
         "103.21.244.0/22",
