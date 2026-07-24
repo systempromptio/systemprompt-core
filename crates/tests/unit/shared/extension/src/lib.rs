@@ -1,11 +1,7 @@
 #[cfg(test)]
-mod any;
-#[cfg(test)]
 mod asset;
 #[cfg(test)]
 mod build;
-#[cfg(test)]
-mod builder;
 #[cfg(test)]
 mod capabilities;
 #[cfg(test)]
@@ -16,8 +12,6 @@ mod error;
 mod extension_trait;
 #[cfg(test)]
 mod frame_options;
-#[cfg(test)]
-mod hlist;
 #[cfg(test)]
 mod injected;
 #[cfg(test)]
@@ -36,9 +30,3 @@ mod router;
 mod runtime_config;
 #[cfg(test)]
 mod seed;
-#[cfg(test)]
-mod typed_extensions;
-#[cfg(test)]
-mod typed_registry;
-#[cfg(test)]
-mod types;

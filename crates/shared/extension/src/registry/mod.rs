@@ -1,9 +1,8 @@
-//! Dynamic extension registry that stores extensions as `Arc<dyn
-//! Extension>`.
+//! Extension registry that stores extensions as `Arc<dyn Extension>`.
 //!
-//! The dynamic registry is the lower-level counterpart of
-//! [`crate::TypedExtensionRegistry`]: it accepts `Arc<dyn Extension>`
-//! values supplied by either inventory discovery or runtime injection.
+//! It accepts `Arc<dyn Extension>` values supplied by either inventory
+//! discovery or runtime injection, sorts them by priority, and validates
+//! their declared dependencies.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

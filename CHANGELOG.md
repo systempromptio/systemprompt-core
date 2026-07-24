@@ -24,6 +24,7 @@
 ### Removed
 
 - **Breaking:** `infra db validate` and `cloud db validate` are removed, along with `DatabaseAdminService::list_expected_tables`. Migrate by running `infra db doctor` or `cloud db doctor`, which reconcile the live schema against the tables declared by registered extensions.
+- **Breaking:** `systemprompt-extension`'s unused typestate authoring API is removed — `ExtensionBuilder`, `TypedExtensionRegistry`, the `*Typed` traits and `SchemaDefinitionTyped`, the `ExtensionType`/`Dependencies`/`hlist` machinery, the `AnyExtension` wrappers, and `HasExtension`. Extensions are authored through the `Extension` trait and `register_extension!`, which is unchanged.
 
 ## [0.23.0] - 2026-07-24
 

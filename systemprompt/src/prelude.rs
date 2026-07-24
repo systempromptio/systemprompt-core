@@ -66,8 +66,8 @@ pub use systemprompt_mcp::{McpHttpConfig, SessionTimeouts, create_router as crea
 /// separate `use std::sync::Arc` line when wiring extensions.
 pub use std::sync::Arc;
 
-/// Axum `Router` type — re-exported so consumers writing `ApiExtensionTyped`
-/// implementations do not need a direct `axum` dependency.
+/// Axum `Router` type — re-exported so extension routers do not need a direct
+/// `axum` dependency.
 #[cfg(feature = "api")]
 pub use axum::Router;
 

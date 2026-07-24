@@ -10,7 +10,9 @@
 
 - `SchemaDefinition::sql_only(sql)` declares DDL with no owning table, such as shared trigger functions.
 
-## [0.23.0] - 2026-07-24
+### Removed
+
+- **Breaking:** the unused typestate authoring API is removed: `ExtensionBuilder`, `TypedExtensionRegistry`, the `SchemaExtensionTyped` / `ApiExtensionTyped` / `JobExtensionTyped` / `ProviderExtensionTyped` / `ConfigExtensionTyped` traits and `SchemaDefinitionTyped`, the `ExtensionType` / `ExtensionMeta` / `Dependencies` / `DependencyList` / `NoDependencies` traits, the `hlist` (`TypeList` / `Subset`) machinery, the `AnyExtension` wrappers, and `HasExtension`. Extensions are authored through the `Extension` trait and registered with `register_extension!`, which is unchanged.
 
 ### Added
 

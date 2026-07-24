@@ -14,8 +14,6 @@ use std::sync::Arc;
 
 use systemprompt_traits::{ConfigProvider, DatabaseHandle};
 
-use crate::types::ExtensionType;
-
 pub trait HasConfig: Send + Sync {
     type Config: ConfigProvider;
 
@@ -26,10 +24,6 @@ pub trait HasDatabase: Send + Sync {
     type Database: DatabaseHandle;
 
     fn database(&self) -> &Self::Database;
-}
-
-pub trait HasExtension<E: ExtensionType>: Send + Sync {
-    fn extension(&self) -> &E;
 }
 
 pub trait HasHttpClient: Send + Sync {
