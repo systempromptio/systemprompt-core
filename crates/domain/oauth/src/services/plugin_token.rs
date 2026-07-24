@@ -35,11 +35,15 @@ pub struct IssuedPluginToken {
 pub struct PluginTokenService;
 
 impl PluginTokenService {
+    /// `session_id` must name a persisted `user_sessions` row for `subject`
+    /// that outlives `duration_days`: the governance webhook attests the claim
+    /// on every hook call, so an unpersisted id fails on all of them.
     pub fn issue(
         subject: PluginTokenSubject,
         issuer: &str,
         plugin_id: String,
         duration_days: u32,
+        session_id: &SessionId,
     ) -> OauthResult<IssuedPluginToken> {
         let permissions = vec![Permission::HookGovern, Permission::HookTrack];
         let authenticated = AuthenticatedUser::new_with_roles(
@@ -53,7 +57,6 @@ impl PluginTokenService {
         );
 
         let signing = JwtSigningParams { issuer };
-        let session_id = SessionId::generate();
         let jti = generate_access_token_jti();
 
         let config = JwtConfig {
@@ -64,7 +67,7 @@ impl PluginTokenService {
             plugin_id: Some(plugin_id),
         };
 
-        let token = generate_jwt(&authenticated, config, jti.clone(), &session_id, &signing)?;
+        let token = generate_jwt(&authenticated, config, jti.clone(), session_id, &signing)?;
 
         Ok(IssuedPluginToken { token, jti })
     }

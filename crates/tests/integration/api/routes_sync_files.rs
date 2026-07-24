@@ -137,4 +137,3 @@ async fn download_streams_gzip_tarball() -> anyhow::Result<()> {
     assert_eq!(&bytes[..2], &[0x1f, 0x8b], "gzip magic bytes");
     Ok(())
 }
-

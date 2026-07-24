@@ -6,6 +6,7 @@
 
 - **Breaking:** the cloud-sync feature is removed in full. The `systemprompt-sync` crate is deleted, the facade's `sync` feature and `systemprompt::sync` module are gone (`full` no longer implies `sync`), `POST /api/v1/sync/files` is unmounted, and the `cloud sync` command tree (`push`, `pull`, interactive menu) along with `cloud deploy`'s `--no-sync`, `-y`/`--yes`, and `--dry-run` flags are removed. The pre-deploy sync it implemented had been failing closed since the token-exchange grant began requiring `client_id`, so no deployment was relying on it. Deploys are now stateless container rebuilds: runtime files created inside the running container are not preserved. Migrate by running `cloud backup` before a deploy when a copy is wanted.
 - **Breaking:** `/v1/messages` and `/v1/responses` attest the `x-session-id` header for API-key callers. The header must name a live `user_sessions` row owned by the key's user; an unknown, revoked, or foreign session is rejected with `401 unknown or revoked session; mint one at POST /api/public/gateway/sessions`. Previously the session id was accepted verbatim on this path, so `ai_requests.session_id` was client-asserted for PAT callers while the identical column was server-attested for JWT callers. Migrate by minting a session at the new endpoint and sending the id it returns.
+- **Breaking:** `PluginTokenService::issue` takes a `session_id: &SessionId`. It previously generated an id that was never persisted, which the governance webhook's session attestation now rejects. Migrate by writing the `user_sessions` row first and passing its id, as `admin keys issue-plugin-token` does.
 - **Breaking:** `cloud sync admin-user` moves to `cloud auth admin-user` (flags unchanged), and `ClientId::sync()` / the `sys_sync` client identifier are removed with their only consumer.
 
 ### Added
@@ -27,6 +28,7 @@
 ### Fixed
 
 - The RFC 8693 token-exchange callers send the required `client_id` (`sp_web`, the seeded public client). The token endpoint has required it since the grant handler was tightened, so `CloudApiClient`'s tenant-scoped calls — and the pre-deploy sync that is now removed — failed with `400 client_id: is required`.
+- `admin keys issue-plugin-token` writes the `user_sessions` row its token's `session_id` names, with the token's own lifetime, so governance hook calls attest instead of failing with an unknown session.
 - CLI session rows expire with the admin token that names them rather than after a fixed 24 hours, so `admin session login --duration-hours` above 24 no longer produces a token that outlives its session row and starts failing attestation mid-session.
 
 ### Security

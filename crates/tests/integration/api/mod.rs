@@ -13,8 +13,6 @@ mod routes_marketplace_success;
 mod routes_gateway_auth;
 
 #[cfg(test)]
-
-#[cfg(test)]
 #[path = "routes_mcp_registry.rs"]
 mod routes_mcp_registry;
 

@@ -96,11 +96,20 @@ pub(super) async fn execute(args: IssuePluginTokenArgs) -> Result<CommandOutput>
         email: user.email,
     };
 
+    let session_id = crate::session::api::create_local_session_row(
+        &db_pool,
+        &user.id,
+        chrono::Duration::days(i64::from(args.duration_days)),
+    )
+    .await
+    .context("Failed to create the session row backing the plugin token")?;
+
     let issued = PluginTokenService::issue(
         subject,
         &profile.security.issuer,
         args.plugin_id.clone(),
         args.duration_days,
+        &session_id,
     )
     .context("Failed to mint plugin-scope JWT")?;
 

@@ -3,6 +3,7 @@
 
 use base64::Engine;
 use jsonwebtoken::{Algorithm, decode_header};
+use systemprompt_identifiers::SessionId;
 use systemprompt_models::auth::{JwtAudience, JwtClaims, Permission};
 use systemprompt_oauth::services::plugin_token::{PluginTokenService, PluginTokenSubject};
 use systemprompt_test_fixtures::install_test_signing_key;
@@ -29,8 +30,14 @@ fn decode_claims(token: &str) -> JwtClaims {
 fn issue_mints_rs256_token_with_kid_header() {
     install_test_signing_key();
 
-    let issued = PluginTokenService::issue(subject(), ISSUER, "cowork-bundle".to_owned(), 30)
-        .expect("issue plugin token");
+    let issued = PluginTokenService::issue(
+        subject(),
+        ISSUER,
+        "cowork-bundle".to_owned(),
+        30,
+        &SessionId::generate(),
+    )
+    .expect("issue plugin token");
 
     let header = decode_header(&issued.token).expect("decode header");
     assert_eq!(header.alg, Algorithm::RS256);
@@ -42,9 +49,22 @@ fn issue_mints_rs256_token_with_kid_header() {
 fn issue_embeds_hook_scope_plugin_audience_and_plugin_id() {
     install_test_signing_key();
 
-    let issued = PluginTokenService::issue(subject(), ISSUER, "cowork-bundle".to_owned(), 30)
-        .expect("issue plugin token");
+    let session_id = SessionId::generate();
+    let issued = PluginTokenService::issue(
+        subject(),
+        ISSUER,
+        "cowork-bundle".to_owned(),
+        30,
+        &session_id,
+    )
+    .expect("issue plugin token");
     let claims = decode_claims(&issued.token);
+
+    assert_eq!(
+        claims.session_id.as_ref(),
+        Some(&session_id),
+        "the caller's persisted session must reach the claim, or the governance webhook cannot attest it"
+    );
 
     assert_eq!(claims.sub, "11111111-2222-3333-4444-555555555555");
     assert_eq!(claims.iss, ISSUER);
@@ -70,8 +90,14 @@ fn issue_embeds_hook_scope_plugin_audience_and_plugin_id() {
 fn issue_sets_expiry_from_duration_days() {
     install_test_signing_key();
 
-    let issued = PluginTokenService::issue(subject(), ISSUER, "cowork-bundle".to_owned(), 30)
-        .expect("issue plugin token");
+    let issued = PluginTokenService::issue(
+        subject(),
+        ISSUER,
+        "cowork-bundle".to_owned(),
+        30,
+        &SessionId::generate(),
+    )
+    .expect("issue plugin token");
     let claims = decode_claims(&issued.token);
 
     // The service computes `exp` from a clock read taken just before `iat`,
@@ -85,18 +111,36 @@ fn issue_sets_expiry_from_duration_days() {
 fn issue_rejects_duration_beyond_one_year() {
     install_test_signing_key();
 
-    PluginTokenService::issue(subject(), ISSUER, "cowork-bundle".to_owned(), 366)
-        .expect_err("366 days exceeds the 8760-hour expiry ceiling");
+    PluginTokenService::issue(
+        subject(),
+        ISSUER,
+        "cowork-bundle".to_owned(),
+        366,
+        &SessionId::generate(),
+    )
+    .expect_err("366 days exceeds the 8760-hour expiry ceiling");
 }
 
 #[test]
 fn issue_generates_unique_jti_per_token() {
     install_test_signing_key();
 
-    let first = PluginTokenService::issue(subject(), ISSUER, "cowork-bundle".to_owned(), 30)
-        .expect("first token");
-    let second = PluginTokenService::issue(subject(), ISSUER, "cowork-bundle".to_owned(), 30)
-        .expect("second token");
+    let first = PluginTokenService::issue(
+        subject(),
+        ISSUER,
+        "cowork-bundle".to_owned(),
+        30,
+        &SessionId::generate(),
+    )
+    .expect("first token");
+    let second = PluginTokenService::issue(
+        subject(),
+        ISSUER,
+        "cowork-bundle".to_owned(),
+        30,
+        &SessionId::generate(),
+    )
+    .expect("second token");
 
     assert_ne!(first.jti, second.jti);
     assert_ne!(first.token, second.token);
