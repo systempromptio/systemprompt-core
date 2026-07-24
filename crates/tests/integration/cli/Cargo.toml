@@ -18,7 +18,6 @@ systemprompt-cli = { workspace = true }
 systemprompt-traits = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-users = { workspace = true }
-systemprompt-security = { workspace = true }
 systemprompt-cloud = { workspace = true }
 systemprompt-loader = { workspace = true }
 systemprompt-models = { workspace = true }

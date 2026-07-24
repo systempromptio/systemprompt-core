@@ -7661,7 +7661,6 @@ dependencies = [
  "systemprompt-identifiers",
  "systemprompt-loader",
  "systemprompt-models",
- "systemprompt-security",
  "systemprompt-test-fixtures",
  "systemprompt-traits",
  "systemprompt-users",
