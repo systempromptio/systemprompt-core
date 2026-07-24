@@ -2,7 +2,7 @@
 //! request logging layer, and the buffering-suppression response header.
 
 use axum::body::Body;
-use systemprompt_mcp::{McpHttpConfig, SessionTimeouts, create_router};
+use systemprompt_mcp::{MAX_REQUEST_BODY_BYTES, McpHttpConfig, SessionTimeouts, create_router};
 use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_database_url, fixture_db_pool};
 use tower::ServiceExt;
 
@@ -106,4 +106,34 @@ async fn router_honours_disabled_host_allow_list() {
         .expect("router responds");
 
     assert!(response.status().as_u16() < 500);
+}
+
+#[tokio::test]
+async fn router_rejects_bodies_over_the_request_ceiling() {
+    let _ = ensure_test_bootstrap();
+    let Ok(url) = fixture_database_url() else {
+        return;
+    };
+    let Ok(db) = fixture_db_pool(&url).await else {
+        return;
+    };
+
+    let router = create_router(NullHandler, &db, McpHttpConfig::default());
+
+    let oversized = "x".repeat(MAX_REQUEST_BODY_BYTES + 1);
+    let response = router
+        .oneshot(
+            http::Request::builder()
+                .method("POST")
+                .uri("/mcp")
+                .header("host", "127.0.0.1")
+                .header("content-type", "application/json")
+                .header("accept", "application/json, text/event-stream")
+                .body(Body::from(oversized))
+                .expect("request builds"),
+        )
+        .await
+        .expect("router responds");
+
+    assert_eq!(response.status(), http::StatusCode::PAYLOAD_TOO_LARGE);
 }

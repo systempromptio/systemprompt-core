@@ -46,7 +46,7 @@ impl McpToolResultMetadata {
         Ok(())
     }
 
-    pub fn to_meta(&self) -> Result<rmcp::model::Meta, MetadataError> {
+    pub fn to_meta(&self) -> Result<rmcp::model::MetaObject, MetadataError> {
         self.validate()?;
 
         let json_value = serde_json::to_value(self)?;
@@ -55,10 +55,10 @@ impl McpToolResultMetadata {
             .ok_or(MetadataError::NotJsonObject)?
             .clone();
 
-        Ok(rmcp::model::Meta(json_object))
+        Ok(rmcp::model::MetaObject(json_object))
     }
 
-    pub fn from_meta(meta: &rmcp::model::Meta) -> Result<Self, MetadataError> {
+    pub fn from_meta(meta: &rmcp::model::MetaObject) -> Result<Self, MetadataError> {
         let json_value = Value::Object(meta.0.clone());
         let metadata: Self = serde_json::from_value(json_value)?;
 

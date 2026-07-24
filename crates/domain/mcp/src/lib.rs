@@ -122,6 +122,14 @@ use systemprompt_database::DbPool;
 
 use crate::middleware::DatabaseSessionHandler;
 
+/// Ceiling for inbound MCP POST bodies, above which the transport answers
+/// `413`.
+///
+/// Stated explicitly rather than inherited from rmcp so the limit our servers
+/// enforce cannot move under us on an SDK bump; tool-call payloads that need
+/// more than this belong in the file store, not the JSON-RPC envelope.
+pub const MAX_REQUEST_BODY_BYTES: usize = 4 * 1024 * 1024;
+
 #[derive(Debug, Clone)]
 pub struct McpHttpConfig {
     pub allowed_hosts: Option<Vec<String>>,
@@ -219,7 +227,9 @@ where
         Some(hosts) => host_policy.with_allowed_hosts(hosts),
         None => host_policy.disable_allowed_hosts(),
     };
-    let mut config = host_policy.with_sse_keep_alive(session.keep_alive);
+    let mut config = host_policy
+        .with_sse_keep_alive(session.keep_alive)
+        .with_max_request_body_bytes(MAX_REQUEST_BODY_BYTES);
     let session_store: std::sync::Arc<
         dyn rmcp::transport::streamable_http_server::session::store::SessionStore,
     > = std::sync::Arc::new(middleware::PostgresSessionStore::new(db_pool));

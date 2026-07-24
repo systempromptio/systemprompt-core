@@ -78,9 +78,8 @@ pub use gateway_guard::{
 };
 pub use metadata::{ExtensionMetadata, ExtensionRole, SchemaDefinition};
 pub use migration::Migration;
-pub use registry::{ExtensionRegistration, ExtensionRegistry};
+pub use registry::{ExtensionRegistration, ExtensionRegistry, RESERVED_PATHS};
 pub use router::{ExtensionRouter, ExtensionRouterConfig, SiteAuthConfig};
-pub use registry::RESERVED_PATHS;
 pub use seed::Seed;
 pub use traits::Extension;
 

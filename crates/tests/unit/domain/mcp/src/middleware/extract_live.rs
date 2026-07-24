@@ -70,11 +70,9 @@ impl ServerHandler for ExtractProbe {
         let recovered = extract_request_context(&context).expect("context extension present");
         outcomes.push(format!("session:{}", recovered.session_id().as_str()));
 
-        std::future::ready(Ok(ListToolsResult {
-            tools: outcomes.into_iter().map(tool).collect(),
-            next_cursor: None,
-            meta: None,
-        }))
+        std::future::ready(Ok(ListToolsResult::with_all_items(
+            outcomes.into_iter().map(tool).collect(),
+        )))
     }
 }
 

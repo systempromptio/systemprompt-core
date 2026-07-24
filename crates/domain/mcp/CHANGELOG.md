@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.24.0] - 2026-07-24
+
+### Breaking
+
+- **Breaking:** the MCP SDK moves to rmcp `3.0.0-beta.1`, which changes two `ServerHandler` return types every downstream server implementation overrides. Migrate by returning the response enum: `call_tool` yields `CallToolResponse` and `read_resource` yields `ReadResourceResponse`, both reachable from the old result type with `.into()`.
+- **Breaking:** rmcp's paginated result types (`ListToolsResult`, `ListResourcesResult`, ...) gained `result_type`, `ttl_ms`, and `cache_scope` fields, so struct literals no longer compile. Migrate by constructing them with `T::with_all_items(items)`.
+- **Breaking:** `tools/call` responses now carry a `"resultType": "complete"` discriminator on the wire (SEP-2663). Results serialized before this release still deserialize, defaulting to `complete`, but strict JSON consumers must tolerate the new field.
+
+### Added
+
+- `MAX_REQUEST_BODY_BYTES` (4 MiB) is applied to the MCP router explicitly, so oversized POST bodies get a `413` at a limit this crate owns rather than one inherited from the SDK.
+- The streamable-HTTP client enforces rmcp's `max_sse_event_size` budget. Previously the setting was accepted and silently ignored, because the SDK can only apply it inside a client implementation and ours parses SSE itself.
+
+### Changed
+
+- `HttpClientWithContext::get_stream` takes `session_id: Option<Arc<str>>`, matching rmcp 3.0's stateless-resume path; `None` omits the session header and resumes from `last_event_id` alone.
+
 ## [0.23.0] - 2026-07-24
 
 ### Breaking

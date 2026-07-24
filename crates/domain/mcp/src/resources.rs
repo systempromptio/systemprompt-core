@@ -5,7 +5,7 @@
 
 use rmcp::ErrorData as McpError;
 use rmcp::model::{
-    Icon, ListResourcesResult, Meta, ReadResourceRequestParams, ReadResourceResult, Resource,
+    Icon, ListResourcesResult, MetaObject, ReadResourceRequestParams, ReadResourceResult, Resource,
     ResourceContents,
 };
 
@@ -39,11 +39,7 @@ pub fn build_artifact_viewer_resource(config: &ArtifactViewerConfig<'_>) -> List
     .with_size(u64::try_from(config.template.len()).unwrap_or(u64::MAX));
     resource.icons.clone_from(&config.icons);
 
-    ListResourcesResult {
-        resources: vec![resource],
-        next_cursor: None,
-        meta: None,
-    }
+    ListResourcesResult::with_all_items(vec![resource])
 }
 
 pub fn read_artifact_viewer_resource(
@@ -66,7 +62,7 @@ pub fn read_artifact_viewer_resource(
         .with_prefers_border(true);
 
     let resource_meta = ui_meta.to_resource_meta();
-    let meta = Meta(resource_meta.to_meta_map());
+    let meta = MetaObject(resource_meta.to_meta_map());
 
     let contents = ResourceContents::TextResourceContents {
         uri: uri.clone(),
@@ -134,7 +130,7 @@ pub async fn read_artifact_resource(
         uri: uri.clone(),
         mime_type: Some(MCP_APP_MIME_TYPE.to_owned()),
         text: resource.html,
-        meta: Some(Meta(ui_meta.to_meta_map())),
+        meta: Some(MetaObject(ui_meta.to_meta_map())),
     };
 
     Ok(ReadResourceResult::new(vec![contents]))

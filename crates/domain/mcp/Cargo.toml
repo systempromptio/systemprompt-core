@@ -54,6 +54,7 @@ tower-http = { workspace = true }
 futures = { workspace = true }
 http = { workspace = true }
 sse-stream = { workspace = true }
+bytes = { workspace = true }
 
 # CLI
 

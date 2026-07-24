@@ -88,15 +88,11 @@ impl ServerHandler for RbacProbe {
                     Err(err) => format!("err:{}", err.message),
                 };
 
-            Ok(ListToolsResult {
-                tools: vec![Tool::new(
-                    outcome,
-                    "rbac outcome",
-                    Arc::new(serde_json::Map::new()),
-                )],
-                next_cursor: None,
-                meta: None,
-            })
+            Ok(ListToolsResult::with_all_items(vec![Tool::new(
+                outcome,
+                "rbac outcome",
+                Arc::new(serde_json::Map::new()),
+            )]))
         }
     }
 }

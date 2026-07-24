@@ -5,6 +5,7 @@
 ### Breaking
 
 - **Breaking:** `SchemaDefinition.table` is `Option<String>`, so a definition may declare DDL that creates no table. Migrate by matching on the option at any site that reads `.table`, and by declaring table-less DDL with `SchemaDefinition::sql_only(sql)`.
+- **Breaking:** the MCP SDK moves to rmcp `3.0.0-beta.1`. Extension authors implementing an MCP server must return `CallToolResponse` from `call_tool` and `ReadResourceResponse` from `read_resource` (both `.into()` from the previous result types), construct paginated results with `T::with_all_items(items)` rather than struct literals, and rename `rmcp::model::Meta` to `MetaObject`. `tools/call` responses gain a `"resultType"` field on the wire. The pin is exact, so this release carries a pre-release dependency.
 
 ### Added
 

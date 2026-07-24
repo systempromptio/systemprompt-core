@@ -162,7 +162,13 @@ async fn get_stream_method_not_allowed_maps_to_unsupported_sse() {
 
     let client = HttpClientWithContext::forwarding(ctx(), HashMap::new());
     let err = match client
-        .get_stream(uri(&server), Arc::from("sess"), None, None, HashMap::new())
+        .get_stream(
+            uri(&server),
+            Some(Arc::from("sess")),
+            None,
+            None,
+            HashMap::new(),
+        )
         .await
     {
         Ok(_) => panic!("405 must map to unsupported"),
@@ -186,7 +192,7 @@ async fn get_stream_success_yields_sse_events() {
     let mut stream = client
         .get_stream(
             uri(&server),
-            Arc::from("sess"),
+            Some(Arc::from("sess")),
             Some("evt-1".to_owned()),
             None,
             HashMap::new(),
@@ -208,7 +214,13 @@ async fn get_stream_wrong_content_type_errors() {
 
     let client = HttpClientWithContext::forwarding(ctx(), HashMap::new());
     let err = match client
-        .get_stream(uri(&server), Arc::from("sess"), None, None, HashMap::new())
+        .get_stream(
+            uri(&server),
+            Some(Arc::from("sess")),
+            None,
+            None,
+            HashMap::new(),
+        )
         .await
     {
         Ok(_) => panic!("json content type must error"),
@@ -356,7 +368,13 @@ async fn get_stream_missing_content_type_errors() {
 
     let client = HttpClientWithContext::forwarding(ctx(), HashMap::new());
     let err = match client
-        .get_stream(uri(&server), Arc::from("sess"), None, None, HashMap::new())
+        .get_stream(
+            uri(&server),
+            Some(Arc::from("sess")),
+            None,
+            None,
+            HashMap::new(),
+        )
         .await
     {
         Ok(_) => panic!("missing content type must error"),
@@ -364,4 +382,72 @@ async fn get_stream_missing_content_type_errors() {
     };
 
     assert!(err.to_string().to_lowercase().contains("content type"));
+}
+
+// rmcp's `max_sse_event_size` can only be honoured inside the client, so
+// `HttpClientWithContext` enforces it itself. An oversized event must fail the
+// stream rather than be buffered without bound.
+#[tokio::test]
+async fn get_stream_rejects_events_over_the_size_ceiling() {
+    let server = MockServer::start().await;
+    let oversized = format!("data: {}\n\n", "x".repeat(256));
+    Mock::given(method("GET"))
+        .respond_with(ResponseTemplate::new(200).set_body_raw(oversized, "text/event-stream"))
+        .mount(&server)
+        .await;
+
+    let client = HttpClientWithContext::forwarding(ctx(), HashMap::new());
+    let mut stream = client
+        .get_stream_with_max_sse_event_size(
+            uri(&server),
+            Some(Arc::from("sess")),
+            None,
+            None,
+            HashMap::new(),
+            64,
+        )
+        .await
+        .expect("stream opens");
+
+    let err = stream
+        .next()
+        .await
+        .expect("an item")
+        .expect_err("oversized event must fail the stream");
+
+    assert!(err.to_string().to_lowercase().contains("maximum size"));
+    assert!(
+        stream.next().await.is_none(),
+        "stream terminates on failure"
+    );
+}
+
+// The ceiling is per event, not per stream: a blank line resets the budget so
+// many small events stream indefinitely.
+#[tokio::test]
+async fn get_stream_size_ceiling_resets_between_events() {
+    let server = MockServer::start().await;
+    let body = "data: one\n\ndata: two\n\ndata: three\n\n";
+    Mock::given(method("GET"))
+        .respond_with(ResponseTemplate::new(200).set_body_raw(body, "text/event-stream"))
+        .mount(&server)
+        .await;
+
+    let client = HttpClientWithContext::forwarding(ctx(), HashMap::new());
+    let mut stream = client
+        .get_stream_with_max_sse_event_size(
+            uri(&server),
+            Some(Arc::from("sess")),
+            None,
+            None,
+            HashMap::new(),
+            16,
+        )
+        .await
+        .expect("stream opens");
+
+    for expected in ["one", "two", "three"] {
+        let event = stream.next().await.expect("event").expect("valid sse");
+        assert_eq!(event.data.as_deref(), Some(expected));
+    }
 }

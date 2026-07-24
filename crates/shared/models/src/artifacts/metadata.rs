@@ -175,7 +175,7 @@ impl ExecutionMetadata {
         }
     }
 
-    pub fn to_meta(&self) -> Option<rmcp::model::Meta> {
+    pub fn to_meta(&self) -> Option<rmcp::model::MetaObject> {
         serde_json::to_value(self)
             .map_err(|e| {
                 tracing::warn!(error = %e, "ExecutionMetadata serialization failed");
@@ -183,7 +183,7 @@ impl ExecutionMetadata {
             })
             .ok()
             .and_then(|v| v.as_object().cloned())
-            .map(rmcp::model::Meta)
+            .map(rmcp::model::MetaObject)
     }
 }
 

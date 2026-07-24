@@ -10,8 +10,8 @@
 use std::sync::Arc;
 
 use rmcp::model::{
-    CallToolRequestParams, CallToolResult, ContentBlock, Implementation, ListToolsResult,
-    PaginatedRequestParams, ProtocolVersion, ServerCapabilities, ServerInfo, Tool,
+    CallToolRequestParams, CallToolResponse, CallToolResult, ContentBlock, Implementation,
+    ListToolsResult, PaginatedRequestParams, ProtocolVersion, ServerCapabilities, ServerInfo, Tool,
 };
 use rmcp::service::RequestContext;
 use rmcp::transport::streamable_http_server::session::local::LocalSessionManager;
@@ -69,7 +69,7 @@ impl ServerHandler for EchoMcpServer {
         &self,
         request: CallToolRequestParams,
         _context: RequestContext<RoleServer>,
-    ) -> Result<CallToolResult, McpError> {
+    ) -> Result<CallToolResponse, McpError> {
         if request.name.as_ref() != self.tool_name {
             return Err(McpError::invalid_params(
                 format!("unknown tool: {}", request.name),
@@ -85,9 +85,7 @@ impl ServerHandler for EchoMcpServer {
             .unwrap_or("")
             .to_owned();
 
-        Ok(CallToolResult::success(vec![ContentBlock::text(format!(
-            "echo: {message}"
-        ))]))
+        Ok(CallToolResult::success(vec![ContentBlock::text(format!("echo: {message}"))]).into())
     }
 }
 

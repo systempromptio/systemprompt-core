@@ -262,8 +262,7 @@ sse-stream = "0.2.4"
 # it with their own reqwest-0.12 `HttpClientWithContext`, so the whole tree resolves
 # to a single reqwest. Every other dependent (notably the desktop bridge) only uses
 # `rmcp::model` via systemprompt-models.
-rmcp = { version = "2.2" }
-rmcp-macros = "2.2"
+rmcp = { version = "=3.0.0-beta.1" }
 
 # Security
 rand = "0.10"

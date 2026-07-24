@@ -17,7 +17,7 @@ use crate::services::ui_renderer::{
     RenderTarget, UiResource, artifact_resource_uri, artifact_ui_resource,
 };
 use rmcp::ErrorData as McpError;
-use rmcp::model::{CallToolResult, ContentBlock, Meta, ResourceContents};
+use rmcp::model::{CallToolResult, ContentBlock, MetaObject, ResourceContents};
 use schemars::JsonSchema;
 use serde::Serialize;
 use serde_json::Value as JsonValue;
@@ -129,7 +129,7 @@ impl<T: Serialize + JsonSchema + McpOutputSchema> McpResponseBuilder<T> {
 
         let mut meta_map = meta_for_result.map_or_else(serde_json::Map::new, |m| m.0);
         meta_map.insert(UI_RESOURCE_URI_META_KEY.to_owned(), ui_resource_uri.into());
-        result = result.with_meta(Some(Meta(meta_map)));
+        result = result.with_meta(Some(MetaObject(meta_map)));
 
         Ok(result)
     }
@@ -171,7 +171,7 @@ async fn ui_resource_block(
             uri: uri.to_owned(),
             mime_type: Some(UiResource::mime_type().to_owned()),
             text: resource.html,
-            meta: Some(Meta(ui_meta.to_meta_map())),
+            meta: Some(MetaObject(ui_meta.to_meta_map())),
         },
     ))
 }

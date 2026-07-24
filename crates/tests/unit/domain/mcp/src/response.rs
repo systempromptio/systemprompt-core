@@ -66,3 +66,36 @@ fn build_error_long_message_preserved() {
     let serialized = serde_json::to_string(&result).expect("serializable");
     assert!(serialized.contains(&long));
 }
+
+// Pins the `tools/call` result envelope. rmcp 3.0 added the SEP-2663
+// `resultType` discriminator with no `skip_serializing_if`, so every result we
+// emit now carries it — a visible wire change for strict downstream consumers.
+#[test]
+fn tool_result_envelope_carries_result_type_discriminator() {
+    let result: rmcp::model::CallToolResult =
+        McpResponseBuilder::<TextArtifact>::build_error("boom");
+    let json = serde_json::to_value(&result).expect("serializable");
+
+    assert_eq!(json["resultType"], "complete");
+    assert_eq!(json["isError"], true);
+
+    let round_tripped: rmcp::model::CallToolResult =
+        serde_json::from_value(json).expect("round-trips");
+    assert_eq!(round_tripped.result_type, result.result_type);
+}
+
+// A pre-3.0 result has no `resultType`; it must still deserialize, defaulting
+// to `complete`, so persisted artifacts and older peers keep working.
+#[test]
+fn tool_result_without_result_type_deserializes_as_complete() {
+    let legacy = serde_json::json!({
+        "content": [{ "type": "text", "text": "hello" }],
+        "isError": false,
+    });
+
+    let result: rmcp::model::CallToolResult =
+        serde_json::from_value(legacy).expect("legacy envelope deserializes");
+
+    assert_eq!(result.result_type, rmcp::model::ResultType::default());
+    assert_eq!(result.is_error, Some(false));
+}

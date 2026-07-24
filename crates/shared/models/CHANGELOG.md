@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.24.0] - 2026-07-24
+
+### Breaking
+
+- **Breaking:** `McpToolResultMetadata::to_meta`/`from_meta` and `ExecutionMetadata::to_meta` use `rmcp::model::MetaObject` instead of `rmcp::model::Meta`, which rmcp 3.0 demoted to a deprecated alias. Migrate by renaming the type at call sites; construction and `Deref` behaviour are unchanged.
+
 ## [0.23.0] - 2026-07-24
 
 ### Breaking
