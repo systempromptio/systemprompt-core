@@ -65,6 +65,15 @@ fn proxy_topology_fails_when_fly_range_missing() {
 }
 
 #[test]
+fn proxy_topology_warns_when_only_fly_public_edge_missing() {
+    let mut profile = CloudProfileBuilder::new("prod").build();
+    profile.server.trusted_proxies = vec!["fc00::/7".parse().unwrap()];
+    let result = check_proxy_topology(&profile);
+    assert_eq!(result.status, CheckStatus::Warn);
+    assert!(result.detail.contains("66.241.64.0/18"));
+}
+
+#[test]
 fn proxy_topology_fails_for_empty_cloud_list() {
     let mut profile = CloudProfileBuilder::new("prod").build();
     profile.server.trusted_proxies = Vec::new();

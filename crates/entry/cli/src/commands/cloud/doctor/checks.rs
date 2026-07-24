@@ -186,9 +186,21 @@ pub fn check_proxy_topology(profile: &Profile) -> CheckResult {
         return CheckResult::pass("proxy-topology", "not a cloud profile");
     }
     if systemprompt_cloud::trusted_proxies::covers_fly_peer(&profile.server.trusted_proxies) {
+        if !systemprompt_cloud::trusted_proxies::covers_fly_public_edge(
+            &profile.server.trusted_proxies,
+        ) {
+            return CheckResult::warn(
+                "proxy-topology",
+                "server.trusted_proxies covers the Fly peer range (fc00::/7) but not Fly's \
+                 public edge range 66.241.64.0/18 — requests routed through the public edge \
+                 would be attributed to the Fly proxy instead of the client. Add to the \
+                 profile:\n  server:\n    trusted_proxies:\n      - \"66.241.64.0/18\"",
+            );
+        }
         return CheckResult::pass(
             "proxy-topology",
-            "server.trusted_proxies covers the Fly peer range (fc00::/7)",
+            "server.trusted_proxies covers the Fly peer (fc00::/7) and public edge \
+             (66.241.64.0/18) ranges",
         );
     }
     CheckResult::fail(

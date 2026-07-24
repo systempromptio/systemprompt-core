@@ -1,14 +1,22 @@
 # Changelog
 
-## [0.23.0] - 2026-07-23
+## [0.23.0] - 2026-07-24
 
 ### Added
 
-- `trusted_proxies` module with topology-correct defaults: `default_cloud_trusted_proxies()` (private + Fly 6PN + Cloudflare ranges), `default_local_trusted_proxies()` (loopback + RFC1918), and `covers_fly_peer()`.
+- `trusted_proxies` module with topology-correct defaults: `default_cloud_trusted_proxies()` (private + Fly 6PN + Fly public edge + Cloudflare ranges), `default_local_trusted_proxies()` (loopback + RFC1918), `covers_fly_peer()`, and `covers_fly_public_edge()`.
 
 ### Changed
 
 - `CloudProfileBuilder` and `LocalProfileBuilder` emit the new trusted-proxy defaults instead of an empty list.
+
+### Security
+
+- Cloud trusted-proxy defaults trust Fly's public proxy range `66.241.64.0/18` (`proxies::FLY_PUBLIC_RANGES`) alongside the private `fc00::/7` peer range. Traffic entering through Fly's public edge appends a hop from that range to `X-Forwarded-For`; without it the resolver attributed every such session to the Fly proxy — an all-US geo skew observed in production on 2026-07-24. Existing cloud profiles are not regenerated automatically: add the range to `server.trusted_proxies`, or run `cloud doctor`, which now warns when it is missing.
+
+### Fixed
+
+- `CloudApiClient::exchange_token` sends the required `client_id` (`sp_web`) in the RFC 8693 token-exchange form. The token endpoint has required it since the grant handler was tightened, so every tenant-scoped call failed with `400 client_id: is required`.
 
 ## [0.21.1] - 2026-07-17
 

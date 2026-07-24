@@ -11,7 +11,6 @@ mod constants;
 #[cfg(test)]
 mod constants_extra;
 #[cfg(test)]
-#[cfg(test)]
 mod credentials;
 #[cfg(test)]
 mod credentials_bootstrap_error;
