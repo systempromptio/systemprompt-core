@@ -6,6 +6,13 @@
 //! the [`systemprompt_models::profile::Profile`] schema. Also prints the
 //! generated `Profile` JSON schema on demand.
 //!
+//! Whenever the scheduler section is in scope, the merged services config is
+//! additionally cross-checked against the registered job catalog, so a job name
+//! no `submit_job!` registers is caught here instead of aborting scheduler
+//! startup on a deploy. That catalog is the set of jobs linked into the *CLI*
+//! binary; a downstream that links job-registering crates only into its API
+//! binary would see false positives.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -15,8 +22,10 @@ use clap::Args;
 use super::types::{ConfigFileInfo, ConfigSection, ConfigValidateOutput, read_yaml_file};
 use crate::CliConfig;
 use crate::shared::CommandOutput;
+use systemprompt_loader::ConfigLoader;
 use systemprompt_logging::CliService;
 use systemprompt_models::profile::Profile;
+use systemprompt_scheduler::SchedulerConfig;
 
 #[derive(Debug, Clone, Args)]
 pub struct ValidateArgs {
@@ -89,6 +98,16 @@ pub fn execute(args: &ValidateArgs, _config: &CliConfig) -> Result<(CommandOutpu
             valid,
             error,
         });
+    }
+
+    if let Some(error) = scheduler_catalog_error(&results) {
+        all_valid = false;
+        for file in &mut results {
+            if file.section == "scheduler" && file.error.is_none() {
+                file.valid = false;
+                file.error = Some(error.clone());
+            }
+        }
     }
 
     let output = ConfigValidateOutput {
@@ -164,6 +183,39 @@ fn validate_profile_file(path: &std::path::Path) -> Result<(CommandOutput, bool)
             path.display()
         )),
     }
+}
+
+/// The merged services config is loaded rather than the walked files, because
+/// `services/scheduler/config.yaml` is one fragment of an `includes:` graph —
+/// only the merged document carries the job set the server will see.
+fn scheduler_catalog_error(files: &[ConfigFileInfo]) -> Option<String> {
+    if !files
+        .iter()
+        .any(|file| file.section == "scheduler" && file.error.is_none())
+    {
+        return None;
+    }
+
+    match ConfigLoader::load() {
+        Ok(services) => unknown_jobs_message(
+            &services
+                .scheduler
+                .unwrap_or_else(SchedulerConfig::with_system_admin),
+        ),
+        Err(e) => Some(format!("failed to load merged services config: {e}")),
+    }
+}
+
+pub fn unknown_jobs_message(config: &SchedulerConfig) -> Option<String> {
+    let unknown = systemprompt_scheduler::unknown_job_names(config);
+    if unknown.is_empty() {
+        return None;
+    }
+    Some(format!(
+        "job(s) not registered via submit_job!: {}. Run `systemprompt infra jobs list` to see \
+         every registered job.",
+        unknown.join(", ")
+    ))
 }
 
 fn is_yaml_file(path: &std::path::Path) -> bool {

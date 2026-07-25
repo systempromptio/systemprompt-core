@@ -10,7 +10,7 @@ use systemprompt_cli::CliConfig;
 use systemprompt_cli::admin::config::config_section::{
     ConfigSection, read_yaml_file, write_yaml_file,
 };
-use systemprompt_cli::admin::config::validate::{ValidateArgs, execute};
+use systemprompt_cli::admin::config::validate::{ValidateArgs, execute, unknown_jobs_message};
 use systemprompt_models::auth::JwtAudience;
 use systemprompt_models::services::SystemAdminConfig;
 use systemprompt_models::{
@@ -18,6 +18,7 @@ use systemprompt_models::{
     ProfileType, RateLimitsConfig, RuntimeConfig, SecurityConfig, SecurityHeadersConfig,
     ServerConfig, SiteConfig,
 };
+use systemprompt_scheduler::{JobConfig, SchedulerConfig};
 
 fn make_profile(services: &Path) -> Profile {
     Profile {
@@ -248,4 +249,21 @@ fn validate_reports_missing_file_and_detects_section_from_path() {
         assert_eq!(files[0]["exists"], false);
         assert_eq!(files[0]["error"], "File not found");
     }
+}
+
+#[test]
+fn validate_accepts_a_scheduler_config_of_registered_jobs() {
+    assert!(unknown_jobs_message(&SchedulerConfig::with_system_admin()).is_none());
+}
+
+#[test]
+fn validate_names_every_unregistered_scheduler_job() {
+    let mut config = SchedulerConfig::with_system_admin();
+    config.jobs.push(JobConfig::new("access_control_sync"));
+    config.bootstrap_jobs.push("content_sync".to_owned());
+
+    let message = unknown_jobs_message(&config).expect("phantom job names must fail validation");
+    assert!(message.contains("access_control_sync"), "got: {message}");
+    assert!(message.contains("content_sync"), "got: {message}");
+    assert!(message.contains("infra jobs list"), "got: {message}");
 }

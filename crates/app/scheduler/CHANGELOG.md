@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.24.0] - 2026-07-25
+
+### Added
+
+- `unknown_job_names(&SchedulerConfig)` reports every `jobs`/`bootstrap_jobs` entry that no `submit_job!` registers, exposing the check `SchedulerService::start` enforces at boot so authoring-time tooling can reject the same configs.
+
 ## [0.23.0] - 2026-07-24
 
 ### Added

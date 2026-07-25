@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.24.0] - 2026-07-25
+
+### Changed
+
+- Scheduler initialisation failure is fatal: the server aborts startup instead of logging a warning and continuing. `run_bootstrap_jobs` runs only in that phase, so a rejected scheduler config previously left every boot-time job unexecuted while the process reported a successful start and passed its health check. Disable the scheduler with `scheduler.enabled: false`, which still starts cleanly.
+
 ## [0.23.0] - 2026-07-24
 
 ### Breaking

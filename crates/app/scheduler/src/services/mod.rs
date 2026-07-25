@@ -27,7 +27,7 @@ pub use orchestration::{
 pub use plans::{
     RestartPlan, RestartScope, RestartTarget, ServiceSnapshot, StartupPlan, StartupRequest,
 };
-pub use scheduling::{SchedulerHandle, SchedulerService, SchedulerStartup};
+pub use scheduling::{SchedulerHandle, SchedulerService, SchedulerStartup, unknown_job_names};
 pub use service_management::{
     OrphanCleanupReport, OrphanDisposition, OrphanOutcome, ServiceManagementService,
 };

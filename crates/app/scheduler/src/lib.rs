@@ -64,4 +64,5 @@ pub use services::{
     SchedulerHandle, SchedulerService, SchedulerStartup, ServiceAction, ServiceConfig,
     ServiceManagementService, ServiceReconciler, ServiceSnapshot, ServiceStateVerifier,
     ServiceType, StartupPlan, StartupRequest, VerifiedServiceState, parse_job_parameters,
+    unknown_job_names,
 };

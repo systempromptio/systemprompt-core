@@ -4,6 +4,7 @@
 
 ### Added
 
+- `admin config validate` cross-checks every `jobs[].name` and `bootstrap_jobs` entry in the merged services config against the registered job catalog, so a job name no `submit_job!` registers fails validation instead of aborting scheduler startup on deploy. The catalog is the set of jobs linked into the CLI binary.
 - `infra logs request list` shows `user_id` and `actor` (`kind:id`) columns, and `infra logs request show` names the caller. Both surfaces previously omitted the fields entirely, so `--json` emitted objects with no `user_id` key at all.
 - `infra logs request list --user <id>` filters to one caller's requests (exact match).
 

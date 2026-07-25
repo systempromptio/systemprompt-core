@@ -12,9 +12,11 @@
 - `SchemaDefinition::sql_only(sql)` declares DDL with no owning table, such as shared trigger functions.
 - `infra logs request list` and `infra logs request show` report the caller: a `user_id` column plus `actor_kind`/`actor_id`, read from columns `ai_requests` already stores. `AiRequestListItem` and `AiRequestDetail` gained the matching fields — the `trace/` module's request queries were the only ones dropping identity at the SQL boundary, so `--json` had no `user_id` key at all.
 - `infra logs request list --user <id>` filters a listing to one caller, answering "which requests did this user make?" without dropping to `infra db query`.
+- `admin config validate` cross-checks every scheduler `jobs[].name` and `bootstrap_jobs` entry against the registered job catalog, so a job name no `submit_job!` registers is caught at authoring time. `systemprompt_scheduler::unknown_job_names` exposes the same check the server enforces at boot.
 
 ### Changed
 
+- Scheduler initialisation failure aborts server startup instead of logging a warning and continuing. Boot-time jobs run only in that phase, so a rejected scheduler config previously left every `bootstrap_jobs` entry unexecuted while the process reported a successful start and passed its health check. Disable the scheduler with `scheduler.enabled: false`, which still starts cleanly.
 - **Breaking:** `TraceQueryService::list_ai_requests` takes a single `&AiRequestFilter` instead of four positional arguments, matching the `list_traces`/`list_tool_executions` idiom. Migrate by building the filter: `AiRequestFilter::new(limit).with_model(pattern)`.
 
 ### Fixed

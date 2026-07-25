@@ -77,6 +77,43 @@ struct RegistrationCtx<'a> {
     owners: &'a HashMap<String, UserId>,
 }
 
+/// The check [`SchedulerService::start`] enforces at boot, exposed so
+/// authoring-time tooling rejects what the server rejects.
+///
+/// Membership is tested against the `inventory` catalog alone — the only
+/// catalog dispatch resolves against, so a name carried solely by an
+/// [`systemprompt_extension::ExtensionRegistry`] entry genuinely cannot run and
+/// must be reported.
+#[must_use]
+pub fn unknown_job_names(config: &SchedulerConfig) -> Vec<String> {
+    let registered: HashSet<&'static str> = inventory::iter::<&'static dyn JobTrait>
+        .into_iter()
+        .map(|job| job.name())
+        .collect();
+    collect_unknown_job_names(config, |name| registered.contains(name))
+        .into_iter()
+        .map(str::to_owned)
+        .collect()
+}
+
+fn collect_unknown_job_names(
+    config: &SchedulerConfig,
+    is_registered: impl Fn(&str) -> bool,
+) -> Vec<&str> {
+    let mut unknown: Vec<&str> = Vec::new();
+    for name in config
+        .jobs
+        .iter()
+        .map(|job| job.name.as_str())
+        .chain(config.bootstrap_jobs.iter().map(String::as_str))
+    {
+        if !is_registered(name) && !unknown.contains(&name) {
+            unknown.push(name);
+        }
+    }
+    unknown
+}
+
 #[derive(Debug)]
 pub struct SchedulerService {
     config: SchedulerConfig,
@@ -151,18 +188,8 @@ impl SchedulerService {
         &self,
         registered_jobs: &HashMap<&'static str, &'static dyn JobTrait>,
     ) -> SchedulerResult<()> {
-        let mut unknown: Vec<&str> = Vec::new();
-        for name in self
-            .config
-            .jobs
-            .iter()
-            .map(|job| job.name.as_str())
-            .chain(self.config.bootstrap_jobs.iter().map(String::as_str))
-        {
-            if !registered_jobs.contains_key(name) && !unknown.contains(&name) {
-                unknown.push(name);
-            }
-        }
+        let unknown =
+            collect_unknown_job_names(&self.config, |name| registered_jobs.contains_key(name));
         if unknown.is_empty() {
             Ok(())
         } else {
