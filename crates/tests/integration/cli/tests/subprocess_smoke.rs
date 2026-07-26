@@ -351,10 +351,6 @@ fn cloud_restart_help() {
     assert_help_ok(&["cloud", "restart"]);
 }
 #[test]
-fn cloud_sync_help() {
-    assert_help_ok(&["cloud", "sync"]);
-}
-#[test]
 fn cloud_secrets_help() {
     assert_help_ok(&["cloud", "secrets"]);
 }
@@ -702,10 +698,6 @@ fn infra_db_migrations_help() {
 #[test]
 fn infra_db_status_help() {
     assert_help_ok(&["infra", "db", "status"]);
-}
-#[test]
-fn infra_db_validate_help() {
-    assert_help_ok(&["infra", "db", "validate"]);
 }
 #[test]
 fn infra_db_count_help() {

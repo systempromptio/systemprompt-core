@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.24.0] - 2026-07-24
+## [0.24.0] - 2026-07-26
 
 ### Added
 
@@ -15,6 +15,7 @@
 ### Fixed
 
 - `infra db doctor` reads only base tables from the live schema, so views are no longer reported as undeclared tables.
+- `admin agents logs <agent>` returns only that agent's log lines. The named lookup also matched the catch-all `%agent%` and `%a2a%` module patterns, so every agent's logs came back under the requested agent's heading, and an unknown agent reported logs instead of failing.
 
 ### Removed
 

@@ -363,11 +363,6 @@ fn infra_db_tables_full() {
 }
 
 #[test]
-fn infra_db_validate_full() {
-    stderr_has_fmt(&["infra", "db", "validate"], "Schema Validation");
-}
-
-#[test]
 fn infra_db_doctor_full() {
     run_with_formats(&["infra", "db", "doctor"]);
 }

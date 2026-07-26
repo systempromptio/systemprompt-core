@@ -75,11 +75,7 @@ pub async fn execute_db_mode_with_pool(
 }
 
 fn build_agent_patterns(agent: &str) -> Vec<String> {
-    vec![
-        format!("%{}%", agent),
-        "%agent%".to_owned(),
-        "%a2a%".to_owned(),
-    ]
+    vec![format!("%{}%", agent)]
 }
 
 fn build_all_agent_patterns() -> Result<Vec<String>> {

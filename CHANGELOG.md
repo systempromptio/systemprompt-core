@@ -22,6 +22,7 @@
 ### Fixed
 
 - `infra db doctor` reads only base tables from the live schema, so views are no longer reported as undeclared tables.
+- `admin agents logs <agent>` returns only that agent's log lines, instead of every agent's logs under the requested agent's heading.
 - The analytics extension declares `funnel_steps`, and the oauth extension declares `id_jag_replay`.
 
 ### Removed

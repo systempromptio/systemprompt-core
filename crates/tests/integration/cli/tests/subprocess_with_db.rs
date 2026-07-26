@@ -151,11 +151,6 @@ fn db_tables_filter_nonmatching() {
 }
 
 #[test]
-fn db_validate() {
-    db_stderr_fmt(&["infra", "db", "validate"], "Schema Validation");
-}
-
-#[test]
 fn db_size() {
     db_stderr_fmt(&["infra", "db", "size"], "Database Size");
 }
