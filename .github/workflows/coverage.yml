@@ -215,17 +215,17 @@ jobs:
 
           # Unfiltered first so we can see raw paths llvm-cov emits.
           "$LLVM_COV" report --instr-profile=coverage-merged.profdata $OBJ_ARGS \
-            --ignore-filename-regex='(\.cargo|rustc|crates/tests|bin/bridge|/home/runner/\.cargo)' \
+            --ignore-filename-regex='(\.cargo|rustc|crates/tests|bin/bridge|/debug/build/[^/]+/out/|/home/runner/\.cargo)' \
             --summary-only \
             | tee coverage-summary.txt
 
           "$LLVM_COV" export --instr-profile=coverage-merged.profdata $OBJ_ARGS \
-            --ignore-filename-regex='(\.cargo|rustc|crates/tests|bin/bridge|/home/runner/\.cargo)' \
+            --ignore-filename-regex='(\.cargo|rustc|crates/tests|bin/bridge|/debug/build/[^/]+/out/|/home/runner/\.cargo)' \
             --format=text --summary-only \
             > coverage-summary.json
 
           "$LLVM_COV" export --instr-profile=coverage-merged.profdata $OBJ_ARGS \
-            --ignore-filename-regex='(\.cargo|rustc|crates/tests|bin/bridge|/home/runner/\.cargo)' \
+            --ignore-filename-regex='(\.cargo|rustc|crates/tests|bin/bridge|/debug/build/[^/]+/out/|/home/runner/\.cargo)' \
             --format=lcov \
             > lcov.info
 

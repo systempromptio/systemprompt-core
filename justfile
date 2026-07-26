@@ -478,13 +478,13 @@ coverage:
     "$LLVM_COV" report \
         --instr-profile="$ROOT/coverage-report/tests.profdata" \
         $OBJ_ARGS \
-        --ignore-filename-regex="(\.cargo|rustc|crates/tests|bin/bridge|$HOME/\.cargo)" \
+        --ignore-filename-regex="(\.cargo|rustc|crates/tests|bin/bridge|/debug/build/[^/]+/out/|$HOME/\.cargo)" \
         --summary-only
 
     "$LLVM_COV" export \
         --instr-profile="$ROOT/coverage-report/tests.profdata" \
         $OBJ_ARGS \
-        --ignore-filename-regex="(\.cargo|rustc|crates/tests|bin/bridge|$HOME/\.cargo)" \
+        --ignore-filename-regex="(\.cargo|rustc|crates/tests|bin/bridge|/debug/build/[^/]+/out/|$HOME/\.cargo)" \
         --format=lcov \
         > "$ROOT/coverage-report/lcov.info"
 
@@ -518,7 +518,7 @@ coverage-html:
     "$LLVM_COV" show \
         --instr-profile="$ROOT/coverage-report/tests.profdata" \
         $OBJ_ARGS \
-        --ignore-filename-regex="(\.cargo|rustc|crates/tests|bin/bridge|$HOME/\.cargo)" \
+        --ignore-filename-regex="(\.cargo|rustc|crates/tests|bin/bridge|/debug/build/[^/]+/out/|$HOME/\.cargo)" \
         --format=html \
         --output-dir="$ROOT/coverage-report/html"
     echo "Coverage report: coverage-report/html/index.html"
