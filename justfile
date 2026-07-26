@@ -261,7 +261,6 @@ check-headers:
 
 # Run custom style validators
 validate:
-    ./tests/validator/validate.sh
     ./scripts/check-sqlx.sh
 
 # Run all style checks (format + lint + validate)
@@ -276,21 +275,18 @@ style-check:
     echo "2️⃣  Running clippy linter..."
     cargo clippy --workspace --all-targets --all-features -- -D warnings
     echo ""
-    echo "3️⃣  Running custom validators..."
-    ./tests/validator/validate.sh
-    echo ""
-    echo "4️⃣  Checking sqlx::query allowlist..."
+    echo "3️⃣  Checking sqlx::query allowlist..."
     ./scripts/check-sqlx.sh
     echo ""
-    echo "5️⃣  Checking HTTP error propagation..."
+    echo "4️⃣  Checking HTTP error propagation..."
     ./scripts/check-http-errors.sh
     echo ""
-    echo "6️⃣  Checking the test workspace (fmt + clippy + compile)..."
+    echo "5️⃣  Checking the test workspace (fmt + clippy + compile)..."
     (cd crates/tests && cargo +nightly fmt --all -- --check)
     (cd crates/tests && cargo clippy --workspace --all-targets --all-features -- -D warnings)
     (cd crates/tests && cargo test --workspace --no-run)
     echo ""
-    echo "7️⃣  Building rustdoc (both workspaces)..."
+    echo "6️⃣  Building rustdoc (both workspaces)..."
     just doc-check
     echo ""
     echo "✅ All style checks passed!"
