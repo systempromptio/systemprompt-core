@@ -205,9 +205,15 @@ async fn signed_activity_dispatches_and_posts_the_card() -> anyhow::Result<()> {
 
     let posted = wait_for_activity(&connector).await;
     let card = String::from_utf8_lossy(&posted);
+    // The pipeline answers with a generic error card whatever went wrong, so
+    // say which side of the proxy hop failed — otherwise a failure here is
+    // only reproducible under the load that caused it.
+    let agent_calls = agent.received_requests().await.map_or(0, |r| r.len());
     assert!(
         card.contains("teams reply text"),
-        "Adaptive Card carries the agent reply: {card}"
+        "Adaptive Card carries the agent reply (agent backend received \
+         {agent_calls} request(s), so the dispatch failed {} it): {card}",
+        if agent_calls == 0 { "before" } else { "after" }
     );
     Ok(())
 }
