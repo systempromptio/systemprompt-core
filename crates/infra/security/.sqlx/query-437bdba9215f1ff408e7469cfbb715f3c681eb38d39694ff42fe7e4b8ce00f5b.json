@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT\n            id as \"id!: AiRequestId\",\n            created_at as \"created_at!\",\n            trace_id,\n            provider as \"provider!\",\n            model as \"model!\",\n            input_tokens,\n            output_tokens,\n            cost_microdollars as \"cost_microdollars!\",\n            latency_ms,\n            status as \"status!\"\n        FROM ai_requests\n        WHERE ($1::timestamptz IS NULL OR created_at >= $1)\n          AND ($2::text IS NULL OR model ILIKE $2)\n          AND ($3::text IS NULL OR provider ILIKE $3)\n        ORDER BY created_at DESC\n        LIMIT $4\n        ",
+  "query": "\n        SELECT\n            id as \"id!: AiRequestId\",\n            user_id as \"user_id!: UserId\",\n            actor_kind as \"actor_kind!\",\n            actor_id as \"actor_id!\",\n            provider as \"provider!\",\n            model as \"model!\",\n            input_tokens,\n            output_tokens,\n            cost_microdollars as \"cost_microdollars!\",\n            latency_ms,\n            status as \"status!\",\n            error_message\n        FROM ai_requests\n        WHERE id = $1 OR id LIKE $2\n        LIMIT 1\n        ",
   "describe": {
     "columns": [
       {
@@ -16,28 +16,39 @@
       },
       {
         "ordinal": 1,
-        "name": "created_at!",
-        "type_info": "Timestamptz",
+        "name": "user_id!: UserId",
+        "type_info": "Varchar",
         "origin": {
           "Table": {
             "table": "ai_requests",
-            "name": "created_at"
+            "name": "user_id"
           }
         }
       },
       {
         "ordinal": 2,
-        "name": "trace_id",
-        "type_info": "Varchar",
+        "name": "actor_kind!",
+        "type_info": "Text",
         "origin": {
           "Table": {
             "table": "ai_requests",
-            "name": "trace_id"
+            "name": "actor_kind"
           }
         }
       },
       {
         "ordinal": 3,
+        "name": "actor_id!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "ai_requests",
+            "name": "actor_id"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
         "name": "provider!",
         "type_info": "Text",
         "origin": {
@@ -48,7 +59,7 @@
         }
       },
       {
-        "ordinal": 4,
+        "ordinal": 5,
         "name": "model!",
         "type_info": "Text",
         "origin": {
@@ -59,7 +70,7 @@
         }
       },
       {
-        "ordinal": 5,
+        "ordinal": 6,
         "name": "input_tokens",
         "type_info": "Int4",
         "origin": {
@@ -70,7 +81,7 @@
         }
       },
       {
-        "ordinal": 6,
+        "ordinal": 7,
         "name": "output_tokens",
         "type_info": "Int4",
         "origin": {
@@ -81,7 +92,7 @@
         }
       },
       {
-        "ordinal": 7,
+        "ordinal": 8,
         "name": "cost_microdollars!",
         "type_info": "Int8",
         "origin": {
@@ -92,7 +103,7 @@
         }
       },
       {
-        "ordinal": 8,
+        "ordinal": 9,
         "name": "latency_ms",
         "type_info": "Int4",
         "origin": {
@@ -103,7 +114,7 @@
         }
       },
       {
-        "ordinal": 9,
+        "ordinal": 10,
         "name": "status!",
         "type_info": "Varchar",
         "origin": {
@@ -112,28 +123,39 @@
             "name": "status"
           }
         }
+      },
+      {
+        "ordinal": 11,
+        "name": "error_message",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "ai_requests",
+            "name": "error_message"
+          }
+        }
       }
     ],
     "parameters": {
       "Left": [
-        "Timestamptz",
         "Text",
-        "Text",
-        "Int8"
+        "Text"
       ]
     },
     "nullable": [
       false,
       false,
-      true,
+      false,
+      false,
       false,
       false,
       true,
       true,
       false,
       true,
-      false
+      false,
+      true
     ]
   },
-  "hash": "2aa2eaa1709db60e41b3c6d3f06358d605c4afc3b14c703eb0235259015d94cf"
+  "hash": "437bdba9215f1ff408e7469cfbb715f3c681eb38d39694ff42fe7e4b8ce00f5b"
 }

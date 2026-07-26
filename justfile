@@ -95,19 +95,25 @@ sqlx-prepare-publish:
     echo "  git add crates/*/.sqlx"
     echo "  git commit -m 'chore: update SQLx cache for release'"
 
-# Verify packages can be built offline (pre-publish check)
+# Verify every SQLx crate compiles against its own per-crate .sqlx cache.
+#
+# Run from each crate directory so the macros resolve that crate's `.sqlx/`
+# rather than the workspace root cache — that is the cache crates.io builds
+# against. `cargo package` cannot be used here: pre-publish, the workspace's
+# own path dependencies do not yet exist at the new version on the index, so
+# it fails on resolution for reasons unrelated to the SQLx cache.
 sqlx-verify-offline:
     #!/usr/bin/env bash
     set -e
     echo "Verifying offline compilation for all SQLx crates..."
     echo ""
-    for crate in systemprompt-database systemprompt-events systemprompt-logging systemprompt-security \
-                 systemprompt-analytics systemprompt-agent systemprompt-oauth systemprompt-users \
-                 systemprompt-content systemprompt-files systemprompt-ai \
-                 systemprompt-mcp systemprompt-scheduler \
-                 systemprompt-cli systemprompt-api; do
+    for crate in crates/infra/database crates/infra/events crates/infra/logging crates/infra/security \
+                 crates/domain/analytics crates/domain/agent crates/domain/oauth crates/domain/users \
+                 crates/domain/content crates/domain/files crates/domain/ai \
+                 crates/domain/mcp crates/app/scheduler \
+                 crates/entry/cli crates/entry/api; do
         echo "  Checking $crate..."
-        SQLX_OFFLINE=true cargo package -p "$crate" --allow-dirty 2>&1 | tail -1
+        (cd "$crate" && SQLX_OFFLINE=true cargo check --all-features)
     done
     echo ""
     echo "All crates verified for offline compilation!"
