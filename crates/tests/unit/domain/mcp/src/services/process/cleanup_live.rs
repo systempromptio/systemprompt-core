@@ -11,7 +11,27 @@ fn spawn_sleeper(envs: &[(&str, &str)]) -> Child {
     for (k, v) in envs {
         cmd.env(k, v);
     }
-    cmd.spawn().expect("spawn sleep")
+    let child = cmd.spawn().expect("spawn sleep");
+    if !envs.is_empty() {
+        await_environ(child.id(), envs[envs.len() - 1].1);
+    }
+    child
+}
+
+/// `spawn` returns between `fork` and `exec`, and the new environment only
+/// becomes visible in `/proc/<pid>/environ` at `exec`. Reading it before then
+/// yields the parent's environment, so an identity-verified signal is correctly
+/// skipped and the assertion under test races the scheduler.
+fn await_environ(pid: u32, marker: &str) {
+    for _ in 0..500 {
+        if let Ok(environ) = std::fs::read(format!("/proc/{pid}/environ"))
+            && String::from_utf8_lossy(&environ).contains(marker)
+        {
+            return;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+    panic!("child {pid} never exposed {marker} in its environ");
 }
 
 #[test]
