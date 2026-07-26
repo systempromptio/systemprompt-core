@@ -62,7 +62,9 @@ async fn seed_sessions(pool: &DbPool, sessions: &[Session]) -> String {
 
     for session in sessions {
         let session_id = SessionId::generate();
-        seed_user_session(pool, &user_id, &session_id).await.unwrap();
+        seed_user_session(pool, &user_id, &session_id)
+            .await
+            .unwrap();
         sqlx::query(
             "UPDATE user_sessions SET landing_page = $2, referrer_source = $3, request_count = \
              $4, is_bot = $5, started_at = NOW() - INTERVAL '1 minute' WHERE session_id = $1",
@@ -131,9 +133,24 @@ async fn pages_counts_sessions_per_landing_page() {
     let prefix = seed_sessions(
         &pool,
         &[
-            Session { landing_page: "/docs", referrer: Some("google"), request_count: 4, is_bot: false },
-            Session { landing_page: "/docs", referrer: Some("google"), request_count: 2, is_bot: false },
-            Session { landing_page: "/pricing", referrer: None, request_count: 1, is_bot: false },
+            Session {
+                landing_page: "/docs",
+                referrer: Some("google"),
+                request_count: 4,
+                is_bot: false,
+            },
+            Session {
+                landing_page: "/docs",
+                referrer: Some("google"),
+                request_count: 2,
+                is_bot: false,
+            },
+            Session {
+                landing_page: "/pricing",
+                referrer: None,
+                request_count: 1,
+                is_bot: false,
+            },
         ],
     )
     .await;
@@ -144,7 +161,10 @@ async fn pages_counts_sessions_per_landing_page() {
 
     assert_eq!(rows.len(), 2, "one row per landing page and source: {csv}");
     let docs = rows.iter().find(|r| r.contains("/docs")).unwrap();
-    assert!(docs.contains("google"), "referrer source is reported: {docs}");
+    assert!(
+        docs.contains("google"),
+        "referrer source is reported: {docs}"
+    );
     assert!(docs.contains(",2,"), "both /docs sessions counted: {docs}");
     let pricing = rows.iter().find(|r| r.contains("/pricing")).unwrap();
     assert!(
@@ -159,16 +179,35 @@ async fn pages_excludes_ghost_and_bot_sessions_unless_include_all() {
     let prefix = seed_sessions(
         &pool,
         &[
-            Session { landing_page: "/real", referrer: None, request_count: 3, is_bot: false },
-            Session { landing_page: "/ghost", referrer: None, request_count: 0, is_bot: false },
-            Session { landing_page: "/bot", referrer: None, request_count: 5, is_bot: true },
+            Session {
+                landing_page: "/real",
+                referrer: None,
+                request_count: 3,
+                is_bot: false,
+            },
+            Session {
+                landing_page: "/ghost",
+                referrer: None,
+                request_count: 0,
+                is_bot: false,
+            },
+            Session {
+                landing_page: "/bot",
+                referrer: None,
+                request_count: 5,
+                is_bot: true,
+            },
         ],
     )
     .await;
     let ctx = ctx(&pool);
 
     let engaged = export_rows(&pages_csv(&ctx, &[]).await, &prefix);
-    assert_eq!(engaged.len(), 1, "only the engaged human session: {engaged:?}");
+    assert_eq!(
+        engaged.len(),
+        1,
+        "only the engaged human session: {engaged:?}"
+    );
     assert!(engaged[0].contains("/real"));
 
     let all = export_rows(&pages_csv(&ctx, &["--include-all"]).await, &prefix);
@@ -184,8 +223,18 @@ async fn pages_filters_by_referrer_and_path_prefix() {
     let prefix = seed_sessions(
         &pool,
         &[
-            Session { landing_page: "/docs/intro", referrer: Some("google"), request_count: 2, is_bot: false },
-            Session { landing_page: "/blog/post", referrer: Some("reddit"), request_count: 2, is_bot: false },
+            Session {
+                landing_page: "/docs/intro",
+                referrer: Some("google"),
+                request_count: 2,
+                is_bot: false,
+            },
+            Session {
+                landing_page: "/blog/post",
+                referrer: Some("reddit"),
+                request_count: 2,
+                is_bot: false,
+            },
         ],
     )
     .await;
@@ -208,7 +257,12 @@ async fn pages_renders_without_export() {
     let pool = pool().await;
     seed_sessions(
         &pool,
-        &[Session { landing_page: "/docs", referrer: None, request_count: 1, is_bot: false }],
+        &[Session {
+            landing_page: "/docs",
+            referrer: None,
+            request_count: 1,
+            is_bot: false,
+        }],
     )
     .await;
     let ctx = ctx(&pool);
@@ -246,7 +300,10 @@ async fn navigation_include_external_adds_outbound_clicks() {
     let prefix = seed_link_clicks(&pool).await;
     let ctx = ctx(&pool);
 
-    let rows = export_rows(&navigation_csv(&ctx, &["--include-external"]).await, &prefix);
+    let rows = export_rows(
+        &navigation_csv(&ctx, &["--include-external"]).await,
+        &prefix,
+    );
 
     assert_eq!(rows.len(), 3, "{rows:?}");
     assert!(rows.iter().any(|r| r.contains("/elsewhere")));

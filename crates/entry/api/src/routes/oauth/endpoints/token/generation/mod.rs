@@ -28,6 +28,9 @@ pub use token_exchange::{
     TokenExchangeRequest, build_act_chain, handle_token_exchange, intersect_scopes, peek_issuer,
 };
 
+#[cfg(feature = "test-api")]
+pub use token_exchange::test_api;
+
 use super::TokenResponse;
 use anyhow::Result;
 use axum::http::HeaderMap;

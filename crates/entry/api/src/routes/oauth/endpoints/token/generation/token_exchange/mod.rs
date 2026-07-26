@@ -39,6 +39,11 @@ mod subject;
 pub use claims::{build_act_chain, intersect_scopes};
 pub use subject::peek_issuer;
 
+#[cfg(feature = "test-api")]
+pub mod test_api {
+    pub use super::subject::{SubjectIdentity, validate_subject_token};
+}
+
 use claims::resolve_audience;
 use id_jag_subject::validate_id_jag_subject;
 use issue::issue_id_jag;

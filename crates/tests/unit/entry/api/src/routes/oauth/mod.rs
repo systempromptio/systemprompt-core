@@ -10,5 +10,6 @@ mod responses;
 mod responses_direct;
 mod token;
 mod token_exchange;
+mod token_exchange_subject;
 mod token_generation;
 mod token_validation;

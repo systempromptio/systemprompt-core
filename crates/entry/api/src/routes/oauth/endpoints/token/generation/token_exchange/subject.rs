@@ -23,13 +23,13 @@ struct IssOnly {
     iss: String,
 }
 
-pub(super) struct SubjectIdentity {
-    pub(super) scope: Vec<Permission>,
-    pub(super) prior_act: Option<ActClaim>,
+pub struct SubjectIdentity {
+    pub scope: Vec<Permission>,
+    pub prior_act: Option<ActClaim>,
 }
 
 impl SubjectIdentity {
-    pub(super) const fn new(scope: Vec<Permission>) -> Self {
+    pub const fn new(scope: Vec<Permission>) -> Self {
         Self {
             scope,
             prior_act: None,
@@ -37,7 +37,7 @@ impl SubjectIdentity {
     }
 }
 
-pub(super) async fn validate_subject_token(
+pub async fn validate_subject_token(
     token: &str,
     token_type: &str,
     global: &Config,

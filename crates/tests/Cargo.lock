@@ -7158,6 +7158,7 @@ dependencies = [
  "systemprompt-models",
  "systemprompt-oauth",
  "systemprompt-security",
+ "systemprompt-test-fixtures",
  "systemprompt-traits",
  "tokio",
  "tower",
