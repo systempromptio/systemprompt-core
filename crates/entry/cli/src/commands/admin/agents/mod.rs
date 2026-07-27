@@ -98,10 +98,10 @@ pub async fn execute(command: AgentsCommands, ctx: &CommandContext) -> Result<()
         AgentsCommands::Edit(args) => {
             edit::execute(&args, ctx.prompter(), &ctx.cli).context("Failed to edit agent")?
         },
-        AgentsCommands::Delete(args) => delete::execute(args, ctx.prompter(), &ctx.cli)
+        AgentsCommands::Delete(args) => delete::execute(args, ctx)
             .await
             .context("Failed to delete agent")?,
-        AgentsCommands::Status(args) => status::execute(args, &ctx.cli)
+        AgentsCommands::Status(args) => status::execute(args, ctx)
             .await
             .context("Failed to get agent status")?,
         AgentsCommands::Logs(args) => logs::execute(args, ctx.prompter(), &ctx.cli)

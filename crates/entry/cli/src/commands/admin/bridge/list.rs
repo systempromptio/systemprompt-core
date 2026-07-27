@@ -10,9 +10,8 @@ use clap::Args;
 use serde::Serialize;
 use systemprompt_identifiers::{SessionId, UserId};
 use systemprompt_oauth::repository::{BridgeSessionRepository, BridgeSessionRow};
-use systemprompt_runtime::AppContext;
 
-use crate::CliConfig;
+use crate::context::CommandContext;
 use crate::shared::CommandOutput;
 
 const DEFAULT_WITHIN_SECS: u64 = 120;
@@ -47,9 +46,9 @@ pub(super) struct BridgeSessionSummary {
     pub forwarded_total: i64,
 }
 
-pub(super) async fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandOutput> {
-    let ctx = AppContext::new().await?;
-    let repo = BridgeSessionRepository::new(ctx.db_pool())?;
+pub(super) async fn execute(args: ListArgs, ctx: &CommandContext) -> Result<CommandOutput> {
+    let app = ctx.app_context().await?;
+    let repo = BridgeSessionRepository::new(app.db_pool())?;
     let within = Duration::from_secs(args.within_secs);
 
     let rows = match args.user_id.as_ref().filter(|u| !u.as_str().is_empty()) {

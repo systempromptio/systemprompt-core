@@ -3,7 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::cli_settings::CliConfig;
+use crate::context::CommandContext;
 use crate::shared::CommandOutput;
 use anyhow::Result;
 use schemars::JsonSchema;
@@ -147,9 +147,10 @@ pub(super) async fn execute(
     detailed: bool,
     json: bool,
     health: bool,
-    config: &CliConfig,
+    cmd_ctx: &CommandContext,
 ) -> Result<CommandOutput> {
-    let ctx = Arc::new(AppContext::new().await?);
+    let config = &cmd_ctx.cli;
+    let ctx = Arc::clone(cmd_ctx.app_context().await?);
 
     let Ok(configs) = super::load_service_configs() else {
         let mut validator = StartupValidator::new();

@@ -20,7 +20,6 @@ use systemprompt_identifiers::SessionToken;
 use systemprompt_loader::ConfigLoader;
 use systemprompt_mcp::McpServerConfig;
 use systemprompt_mcp::services::McpOrchestrator;
-use systemprompt_runtime::AppContext;
 
 #[derive(Debug, Args)]
 pub struct ToolsArgs {
@@ -67,14 +66,15 @@ pub(super) async fn execute(args: ToolsArgs, ctx: &CommandContext) -> Result<Com
 
     let session_ctx = get_or_create_session(ctx).await?;
 
-    let ctx = AppContext::new()
+    let app = ctx
+        .app_context()
         .await
         .context("Failed to initialize application context")?;
 
     let manager = McpOrchestrator::new(
-        Arc::clone(ctx.db_pool()),
-        Arc::clone(ctx.app_paths_arc()),
-        ctx.mcp_registry().clone(),
+        Arc::clone(app.db_pool()),
+        Arc::clone(app.app_paths_arc()),
+        app.mcp_registry().clone(),
     )
     .context("Failed to initialize MCP manager")?;
     let running_servers = manager

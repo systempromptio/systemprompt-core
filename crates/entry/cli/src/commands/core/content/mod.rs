@@ -107,7 +107,7 @@ pub async fn execute(command: ContentCommands, ctx: &CommandContext) -> Result<(
             render_result(&result, &ctx.cli);
         },
         ContentCommands::Edit(args) => {
-            let result = edit::execute(args, ctx.prompter(), &ctx.cli)
+            let result = edit::execute(args, ctx)
                 .await
                 .context("Failed to edit content")?;
             render_result(&result, &ctx.cli);
@@ -149,7 +149,7 @@ pub async fn execute(command: ContentCommands, ctx: &CommandContext) -> Result<(
             analytics::execute(cmd, ctx).await?;
         },
         ContentCommands::Files(cmd) => {
-            files::execute(cmd, ctx.prompter(), &ctx.cli).await?;
+            files::execute(cmd, ctx.prompter(), ctx).await?;
         },
     }
     Ok(())

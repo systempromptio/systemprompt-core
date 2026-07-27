@@ -38,17 +38,17 @@ pub enum BridgeCommands {
 pub async fn execute(cmd: BridgeCommands, ctx: &CommandContext) -> Result<()> {
     match cmd {
         BridgeCommands::EnrollCert(args) => {
-            let result = enroll_cert::execute(args, &ctx.cli).await?;
+            let result = enroll_cert::execute(args, ctx).await?;
             render_result(&result, &ctx.cli);
             Ok(())
         },
         BridgeCommands::IssueCode(args) => {
-            let result = issue_code::execute(args, &ctx.cli).await?;
+            let result = issue_code::execute(args, ctx).await?;
             render_result(&result, &ctx.cli);
             Ok(())
         },
         BridgeCommands::List(args) => {
-            let result = list::execute(args, &ctx.cli).await?;
+            let result = list::execute(args, ctx).await?;
             render_result(&result, &ctx.cli);
             Ok(())
         },

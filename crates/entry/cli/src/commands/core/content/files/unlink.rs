@@ -8,10 +8,10 @@ use clap::Args;
 use systemprompt_database::DbPool;
 use systemprompt_files::FileRepository;
 use systemprompt_identifiers::{ContentId, FileId};
-use systemprompt_runtime::AppContext;
 
 use crate::CliConfig;
 use crate::commands::core::files::types::ContentUnlinkOutput;
+use crate::context::CommandContext;
 use crate::interactive::Prompter;
 use crate::shared::CommandOutput;
 
@@ -37,10 +37,10 @@ pub struct UnlinkArgs {
 pub(super) async fn execute(
     args: UnlinkArgs,
     prompter: &dyn Prompter,
-    config: &CliConfig,
+    ctx: &CommandContext,
 ) -> Result<CommandOutput> {
-    let ctx = AppContext::new().await?;
-    execute_with_pool(args, prompter, ctx.db_pool(), config).await
+    let app = ctx.app_context().await?;
+    execute_with_pool(args, prompter, app.db_pool(), &ctx.cli).await
 }
 
 pub async fn execute_with_pool(

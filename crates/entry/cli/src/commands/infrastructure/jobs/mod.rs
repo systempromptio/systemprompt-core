@@ -64,7 +64,7 @@ pub async fn execute(cmd: JobsCommands, ctx: &CommandContext) -> Result<()> {
             Ok(())
         },
         JobsCommands::Show(args) => {
-            render_result(&show::execute(args).await?, &ctx.cli);
+            render_result(&show::execute(args, ctx).await?, &ctx.cli);
             Ok(())
         },
         JobsCommands::Run(args) => {
@@ -72,23 +72,23 @@ pub async fn execute(cmd: JobsCommands, ctx: &CommandContext) -> Result<()> {
             Ok(())
         },
         JobsCommands::History(args) => {
-            render_result(&history::execute(args).await?, &ctx.cli);
+            render_result(&history::execute(args, ctx).await?, &ctx.cli);
             Ok(())
         },
         JobsCommands::Enable(args) => {
-            render_result(&enable::execute(args).await?, &ctx.cli);
+            render_result(&enable::execute(args, ctx).await?, &ctx.cli);
             Ok(())
         },
         JobsCommands::Disable(args) => {
-            render_result(&disable::execute(args).await?, &ctx.cli);
+            render_result(&disable::execute(args, ctx).await?, &ctx.cli);
             Ok(())
         },
         JobsCommands::CleanupSessions(args) | JobsCommands::SessionCleanup(args) => {
-            render_result(&cleanup_sessions::execute(args).await?, &ctx.cli);
+            render_result(&cleanup_sessions::execute(args, ctx).await?, &ctx.cli);
             Ok(())
         },
         JobsCommands::LogCleanup(args) => {
-            render_result(&cleanup_logs::execute(args).await?, &ctx.cli);
+            render_result(&cleanup_logs::execute(args, ctx).await?, &ctx.cli);
             Ok(())
         },
     }

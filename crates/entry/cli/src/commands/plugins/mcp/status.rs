@@ -11,14 +11,13 @@ use anyhow::{Context, Result};
 use clap::Args;
 
 use super::types::{McpStatusEntry, McpStatusOutput, McpStatusSummary};
-use crate::CliConfig;
+use crate::context::CommandContext;
 use crate::shared::CommandOutput;
 use systemprompt_loader::ConfigLoader;
 use systemprompt_mcp::services::McpOrchestrator;
 use systemprompt_mcp::{HealthStatus, McpServiceStatus};
 use systemprompt_models::ServicesConfig;
 use systemprompt_models::mcp::McpServerType;
-use systemprompt_runtime::AppContext;
 
 #[derive(Debug, Clone, Args)]
 pub struct StatusArgs {
@@ -29,19 +28,20 @@ pub struct StatusArgs {
     pub server: Option<String>,
 }
 
-pub(super) async fn execute(args: StatusArgs, _config: &CliConfig) -> Result<CommandOutput> {
+pub(super) async fn execute(args: StatusArgs, ctx: &CommandContext) -> Result<CommandOutput> {
     let services_config = ConfigLoader::load().context("Failed to load services configuration")?;
 
-    let ctx = AppContext::new()
+    let app = ctx
+        .app_context()
         .await
         .context("Failed to initialize application context")?;
 
-    let bin_path = ctx.app_paths().build().bin().to_path_buf();
+    let bin_path = app.app_paths().build().bin().to_path_buf();
 
     let manager = McpOrchestrator::new(
-        Arc::clone(ctx.db_pool()),
-        Arc::clone(ctx.app_paths_arc()),
-        ctx.mcp_registry().clone(),
+        Arc::clone(app.db_pool()),
+        Arc::clone(app.app_paths_arc()),
+        app.mcp_registry().clone(),
     )
     .context("Failed to initialize MCP manager")?;
     let statuses = manager

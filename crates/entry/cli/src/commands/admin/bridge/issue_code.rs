@@ -7,10 +7,9 @@ use anyhow::{Result, anyhow};
 use clap::Args;
 use systemprompt_identifiers::UserId;
 use systemprompt_oauth::services::issue_bridge_exchange_code;
-use systemprompt_runtime::AppContext;
 
 use super::types::ExchangeCodeIssuedOutput;
-use crate::CliConfig;
+use crate::context::CommandContext;
 use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
@@ -19,15 +18,15 @@ pub struct IssueCodeArgs {
     pub user_id: UserId,
 }
 
-pub(super) async fn execute(args: IssueCodeArgs, _config: &CliConfig) -> Result<CommandOutput> {
-    let ctx = AppContext::new().await?;
+pub(super) async fn execute(args: IssueCodeArgs, ctx: &CommandContext) -> Result<CommandOutput> {
+    let app = ctx.app_context().await?;
 
     let user_id = args.user_id;
     if user_id.as_str().trim().is_empty() {
         return Err(anyhow!("user_id cannot be empty"));
     }
 
-    let issued = issue_bridge_exchange_code(ctx.db_pool(), &user_id).await?;
+    let issued = issue_bridge_exchange_code(app.db_pool(), &user_id).await?;
 
     let output = ExchangeCodeIssuedOutput {
         user_id: user_id.clone(),

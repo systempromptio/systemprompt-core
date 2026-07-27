@@ -12,11 +12,10 @@ use clap::Args;
 use sha2::{Digest, Sha256};
 use systemprompt_files::{FileUploadRequest, FileUploadService, FilesConfig};
 use systemprompt_identifiers::{ContextId, SessionId, UserId};
-use systemprompt_runtime::AppContext;
 use tokio::fs;
 
 use super::types::FileUploadOutput;
-use crate::CliConfig;
+use crate::context::CommandContext;
 use crate::shared::CommandOutput;
 
 #[derive(Debug, Clone, Args)]
@@ -37,10 +36,10 @@ pub struct UploadArgs {
     pub ai: bool,
 }
 
-pub async fn execute(args: UploadArgs, _config: &CliConfig) -> Result<CommandOutput> {
-    let ctx = AppContext::new().await?;
+pub async fn execute(args: UploadArgs, ctx: &CommandContext) -> Result<CommandOutput> {
+    let app = ctx.app_context().await?;
     let files_config = FilesConfig::get()?;
-    let service = FileUploadService::new(ctx.db_pool(), files_config.clone())?;
+    let service = FileUploadService::new(app.db_pool(), files_config.clone())?;
 
     if !service.is_enabled() {
         return Err(anyhow!("File uploads are disabled in configuration"));

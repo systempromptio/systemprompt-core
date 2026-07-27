@@ -8,12 +8,12 @@ use clap::Args;
 use systemprompt_database::DbPool;
 use systemprompt_files::FileRepository;
 use systemprompt_identifiers::{ContentId, FileId};
-use systemprompt_runtime::AppContext;
 
 use crate::CliConfig;
 use crate::commands::core::files::types::{
     ContentFileRow, ContentFilesOutput, FileContentLinkRow, FileContentLinksOutput,
 };
+use crate::context::CommandContext;
 use crate::shared::CommandOutput;
 
 #[derive(Debug, Clone, Args)]
@@ -25,9 +25,9 @@ pub struct ListArgs {
     pub file: Option<String>,
 }
 
-pub(super) async fn execute(args: ListArgs, config: &CliConfig) -> Result<CommandOutput> {
-    let ctx = AppContext::new().await?;
-    execute_with_pool(args, ctx.db_pool(), config).await
+pub(super) async fn execute(args: ListArgs, ctx: &CommandContext) -> Result<CommandOutput> {
+    let app = ctx.app_context().await?;
+    execute_with_pool(args, app.db_pool(), &ctx.cli).await
 }
 
 pub async fn execute_with_pool(

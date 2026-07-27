@@ -9,14 +9,13 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use super::types::{McpBatchValidateOutput, McpServerInfo, McpValidateOutput, McpValidateSummary};
-use crate::CliConfig;
+use crate::context::CommandContext;
 use crate::interactive::{Prompter, resolve_required};
 use crate::shared::CommandOutput;
 use systemprompt_loader::ConfigLoader;
 use systemprompt_mcp::services::client::{McpConnectionResult, validate_connection_with_auth};
 use systemprompt_mcp::services::database::DatabaseService;
 use systemprompt_models::Deployment;
-use systemprompt_runtime::AppContext;
 
 #[derive(Debug, Args)]
 pub struct ValidateArgs {
@@ -37,21 +36,20 @@ pub struct ValidateArgs {
     pub timeout: u64,
 }
 
-pub(super) async fn execute(
-    args: ValidateArgs,
-    prompter: &dyn Prompter,
-    config: &CliConfig,
-) -> Result<CommandOutput> {
+pub(super) async fn execute(args: ValidateArgs, ctx: &CommandContext) -> Result<CommandOutput> {
+    let prompter = ctx.prompter();
+    let config = &ctx.cli;
     let services_config = ConfigLoader::load().context("Failed to load services configuration")?;
 
-    let ctx = AppContext::new()
+    let app = ctx
+        .app_context()
         .await
         .context("Failed to initialize application context")?;
 
     let database = DatabaseService::new(
-        Arc::clone(ctx.db_pool()),
-        Arc::clone(ctx.app_paths_arc()),
-        ctx.mcp_registry().clone(),
+        Arc::clone(app.db_pool()),
+        Arc::clone(app.app_paths_arc()),
+        app.mcp_registry().clone(),
     );
 
     let server_arg = args.server.or(args.service);

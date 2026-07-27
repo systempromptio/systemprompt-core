@@ -7,11 +7,10 @@
 use anyhow::{Result, anyhow};
 use clap::Args;
 use systemprompt_identifiers::UserId;
-use systemprompt_runtime::AppContext;
 use systemprompt_users::{DeviceCertService, EnrollDeviceCertServiceParams};
 
 use super::types::DeviceCertEnrolledOutput;
-use crate::CliConfig;
+use crate::context::CommandContext;
 use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
@@ -30,9 +29,9 @@ pub struct EnrollCertArgs {
     pub label: String,
 }
 
-pub(super) async fn execute(args: EnrollCertArgs, _config: &CliConfig) -> Result<CommandOutput> {
-    let ctx = AppContext::new().await?;
-    let service = DeviceCertService::new(ctx.db_pool())?;
+pub(super) async fn execute(args: EnrollCertArgs, ctx: &CommandContext) -> Result<CommandOutput> {
+    let app = ctx.app_context().await?;
+    let service = DeviceCertService::new(app.db_pool())?;
 
     let user_id = args.user_id;
     if user_id.as_str().trim().is_empty() {

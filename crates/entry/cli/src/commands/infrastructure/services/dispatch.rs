@@ -60,7 +60,7 @@ pub async fn execute(command: ServicesCommands, ctx: &CommandContext) -> Result<
             json,
             health,
         } => {
-            let result = super::status::execute(detailed, json, health, config).await?;
+            let result = super::status::execute(detailed, json, health, ctx).await?;
             render_result(&result, config);
             Ok(())
         },

@@ -5,12 +5,11 @@
 
 use anyhow::Result;
 use clap::Args;
-use std::sync::Arc;
 use systemprompt_analytics::{SessionCleanupService, SessionRepository};
 use systemprompt_database::DbPool;
-use systemprompt_runtime::AppContext;
 
 use super::types::SessionCleanupOutput;
+use crate::context::CommandContext;
 use crate::shared::CommandOutput;
 
 #[derive(Debug, Clone, Copy, Args)]
@@ -26,9 +25,12 @@ pub struct CleanupSessionsArgs {
     pub dry_run: bool,
 }
 
-pub(super) async fn execute(args: CleanupSessionsArgs) -> Result<CommandOutput> {
-    let ctx = Arc::new(AppContext::new().await?);
-    execute_with_pool(args, ctx.db_pool()).await
+pub(super) async fn execute(
+    args: CleanupSessionsArgs,
+    ctx: &CommandContext,
+) -> Result<CommandOutput> {
+    let app = ctx.app_context().await?;
+    execute_with_pool(args, app.db_pool()).await
 }
 
 pub async fn execute_with_pool(args: CleanupSessionsArgs, pool: &DbPool) -> Result<CommandOutput> {

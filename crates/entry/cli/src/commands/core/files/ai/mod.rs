@@ -13,7 +13,7 @@ pub mod show;
 use anyhow::{Context, Result};
 use clap::Subcommand;
 
-use crate::CliConfig;
+use crate::context::CommandContext;
 use crate::shared::render_result;
 
 #[derive(Debug, Subcommand)]
@@ -28,24 +28,25 @@ pub enum AiCommands {
     Count(count::CountArgs),
 }
 
-pub async fn execute(cmd: AiCommands, config: &CliConfig) -> Result<()> {
+pub async fn execute(cmd: AiCommands, ctx: &CommandContext) -> Result<()> {
+    let config = &ctx.cli;
     match cmd {
         AiCommands::List(args) => {
-            let result = list::execute(args, config)
+            let result = list::execute(args, ctx)
                 .await
                 .context("Failed to list AI images")?;
             render_result(&result, config);
             Ok(())
         },
         AiCommands::Show(args) => {
-            let result = show::execute(args, config)
+            let result = show::execute(args, ctx)
                 .await
                 .context("Failed to show AI image")?;
             render_result(&result, config);
             Ok(())
         },
         AiCommands::Count(args) => {
-            let result = count::execute(args, config)
+            let result = count::execute(args, ctx)
                 .await
                 .context("Failed to count AI images")?;
             render_result(&result, config);

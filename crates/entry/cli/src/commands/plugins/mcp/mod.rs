@@ -56,14 +56,14 @@ pub async fn execute(command: McpCommands, ctx: &CommandContext) -> Result<()> {
             Ok(())
         },
         McpCommands::Status(args) => {
-            let result = status::execute(args, config)
+            let result = status::execute(args, ctx)
                 .await
                 .context("Failed to get MCP server status")?;
             render_result(&result, config);
             Ok(())
         },
         McpCommands::Validate(args) => {
-            let result = validate::execute(args, ctx.prompter(), config)
+            let result = validate::execute(args, ctx)
                 .await
                 .context("Failed to validate MCP server")?;
             render_result(&result, config);
@@ -77,7 +77,7 @@ pub async fn execute(command: McpCommands, ctx: &CommandContext) -> Result<()> {
             Ok(())
         },
         McpCommands::ListPackages(args) => {
-            let result = list_packages::execute(args, config)
+            let result = list_packages::execute(args, ctx)
                 .await
                 .context("Failed to list MCP packages")?;
             render_result(&result, config);

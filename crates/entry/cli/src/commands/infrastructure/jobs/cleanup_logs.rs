@@ -5,11 +5,10 @@
 
 use anyhow::Result;
 use clap::Args;
-use std::sync::Arc;
 use systemprompt_database::{CleanupRepository, DbPool};
-use systemprompt_runtime::AppContext;
 
 use super::types::LogCleanupOutput;
+use crate::context::CommandContext;
 use crate::shared::CommandOutput;
 
 #[derive(Debug, Clone, Copy, Args)]
@@ -21,9 +20,9 @@ pub struct LogCleanupArgs {
     pub dry_run: bool,
 }
 
-pub(super) async fn execute(args: LogCleanupArgs) -> Result<CommandOutput> {
-    let ctx = Arc::new(AppContext::new().await?);
-    execute_with_pool(args, ctx.db_pool()).await
+pub(super) async fn execute(args: LogCleanupArgs, ctx: &CommandContext) -> Result<CommandOutput> {
+    let app = ctx.app_context().await?;
+    execute_with_pool(args, app.db_pool()).await
 }
 
 pub async fn execute_with_pool(args: LogCleanupArgs, pool: &DbPool) -> Result<CommandOutput> {

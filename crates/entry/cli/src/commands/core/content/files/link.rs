@@ -8,10 +8,10 @@ use clap::{Args, ValueEnum};
 use systemprompt_database::DbPool;
 use systemprompt_files::{FileRepository, FileRole};
 use systemprompt_identifiers::{ContentId, FileId};
-use systemprompt_runtime::AppContext;
 
 use crate::CliConfig;
 use crate::commands::core::files::types::ContentLinkOutput;
+use crate::context::CommandContext;
 use crate::shared::CommandOutput;
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
@@ -50,9 +50,9 @@ pub struct LinkArgs {
     pub order: i32,
 }
 
-pub(super) async fn execute(args: LinkArgs, config: &CliConfig) -> Result<CommandOutput> {
-    let ctx = AppContext::new().await?;
-    execute_with_pool(args, ctx.db_pool(), config).await
+pub(super) async fn execute(args: LinkArgs, ctx: &CommandContext) -> Result<CommandOutput> {
+    let app = ctx.app_context().await?;
+    execute_with_pool(args, app.db_pool(), &ctx.cli).await
 }
 
 pub async fn execute_with_pool(

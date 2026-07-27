@@ -7,10 +7,9 @@ use anyhow::Result;
 use clap::Args;
 use systemprompt_files::FileRepository;
 use systemprompt_identifiers::UserId;
-use systemprompt_runtime::AppContext;
 
-use crate::CliConfig;
 use crate::commands::core::files::types::AiFilesCountOutput;
+use crate::context::CommandContext;
 use crate::shared::CommandOutput;
 
 #[derive(Debug, Clone, Args)]
@@ -22,9 +21,9 @@ pub struct CountArgs {
     pub user: Option<String>,
 }
 
-pub(super) async fn execute(args: CountArgs, _config: &CliConfig) -> Result<CommandOutput> {
-    let ctx = AppContext::new().await?;
-    let service = FileRepository::new(ctx.db_pool())?;
+pub(super) async fn execute(args: CountArgs, ctx: &CommandContext) -> Result<CommandOutput> {
+    let app = ctx.app_context().await?;
+    let service = FileRepository::new(app.db_pool())?;
 
     let user_id = args.user.as_ref().map(|u| UserId::new(u.clone()));
 

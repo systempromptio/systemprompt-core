@@ -15,7 +15,7 @@ pub mod unlink;
 use anyhow::{Context, Result};
 use clap::Subcommand;
 
-use crate::CliConfig;
+use crate::context::CommandContext;
 use crate::interactive::Prompter;
 use crate::shared::render_result;
 
@@ -37,32 +37,33 @@ pub enum ContentFilesCommands {
 pub async fn execute(
     cmd: ContentFilesCommands,
     prompter: &dyn Prompter,
-    config: &CliConfig,
+    ctx: &CommandContext,
 ) -> Result<()> {
+    let config = &ctx.cli;
     match cmd {
         ContentFilesCommands::Link(args) => {
-            let result = link::execute(args, config)
+            let result = link::execute(args, ctx)
                 .await
                 .context("Failed to link file to content")?;
             render_result(&result, config);
             Ok(())
         },
         ContentFilesCommands::Unlink(args) => {
-            let result = unlink::execute(args, prompter, config)
+            let result = unlink::execute(args, prompter, ctx)
                 .await
                 .context("Failed to unlink file from content")?;
             render_result(&result, config);
             Ok(())
         },
         ContentFilesCommands::List(args) => {
-            let result = list::execute(args, config)
+            let result = list::execute(args, ctx)
                 .await
                 .context("Failed to list content files")?;
             render_result(&result, config);
             Ok(())
         },
         ContentFilesCommands::Featured(args) => {
-            let result = featured::execute(args, config)
+            let result = featured::execute(args, ctx)
                 .await
                 .context("Failed to get/set featured image")?;
             render_result(&result, config);

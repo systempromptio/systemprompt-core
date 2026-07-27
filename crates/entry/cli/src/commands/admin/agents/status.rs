@@ -8,13 +8,12 @@ use clap::Args;
 use std::sync::Arc;
 
 use super::types::{AgentStatusOutput, AgentStatusRow};
-use crate::CliConfig;
+use crate::context::CommandContext;
 use crate::shared::CommandOutput;
 use systemprompt_agent::AgentState;
 use systemprompt_agent::services::agent_orchestration::{AgentOrchestrator, AgentStatus};
 use systemprompt_loader::ConfigLoader;
 use systemprompt_oauth::JwtValidationProviderImpl;
-use systemprompt_runtime::AppContext;
 
 #[derive(Debug, Args)]
 pub struct StatusArgs {
@@ -22,10 +21,11 @@ pub struct StatusArgs {
     pub name: Option<String>,
 }
 
-pub(super) async fn execute(args: StatusArgs, _config: &CliConfig) -> Result<CommandOutput> {
+pub(super) async fn execute(args: StatusArgs, ctx: &CommandContext) -> Result<CommandOutput> {
     let services_config = ConfigLoader::load().context("Failed to load services configuration")?;
 
-    let ctx = AppContext::new()
+    let app = ctx
+        .app_context()
         .await
         .context("Failed to initialize application context")?;
 
@@ -33,12 +33,12 @@ pub(super) async fn execute(args: StatusArgs, _config: &CliConfig) -> Result<Com
         JwtValidationProviderImpl::from_config().context("Failed to create JWT provider")?,
     );
     let agent_state = Arc::new(AgentState::new(
-        Arc::clone(ctx.db_pool()),
-        Arc::new(ctx.config().clone()),
+        Arc::clone(app.db_pool()),
+        Arc::new(app.config().clone()),
         jwt_provider,
     ));
 
-    let orchestrator = AgentOrchestrator::new(agent_state, Arc::clone(ctx.app_paths_arc()), None)
+    let orchestrator = AgentOrchestrator::new(agent_state, Arc::clone(app.app_paths_arc()), None)
         .await
         .context("Failed to initialize agent orchestrator")?;
 

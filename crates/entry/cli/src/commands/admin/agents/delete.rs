@@ -11,6 +11,7 @@ use std::sync::Arc;
 
 use super::types::AgentDeleteOutput;
 use crate::CliConfig;
+use crate::context::CommandContext;
 use crate::interactive::{Prompter, require_confirmation, resolve_required};
 use crate::shared::CommandOutput;
 use systemprompt_agent::AgentState;
@@ -20,7 +21,6 @@ use systemprompt_config::ProfileBootstrap;
 use systemprompt_loader::ConfigLoader;
 use systemprompt_logging::CliService;
 use systemprompt_oauth::JwtValidationProviderImpl;
-use systemprompt_runtime::AppContext;
 use systemprompt_scheduler::ProcessCleanup;
 
 #[derive(Debug, Args)]
@@ -38,11 +38,9 @@ pub struct DeleteArgs {
     pub force: bool,
 }
 
-pub(super) async fn execute(
-    args: DeleteArgs,
-    prompter: &dyn Prompter,
-    config: &CliConfig,
-) -> Result<CommandOutput> {
+pub(super) async fn execute(args: DeleteArgs, ctx: &CommandContext) -> Result<CommandOutput> {
+    let prompter = ctx.prompter();
+    let config = &ctx.cli;
     let services_config = ConfigLoader::load().context("Failed to load services configuration")?;
 
     let agents_to_delete = resolve_targets(&args, prompter, &services_config, config)?;
@@ -57,7 +55,7 @@ pub(super) async fn execute(
     let profile = ProfileBootstrap::get().context("Failed to get profile")?;
     let authoring = AgentConfigAuthoringService::new(Path::new(&profile.paths.services));
 
-    let orchestrator = match build_orchestrator().await {
+    let orchestrator = match build_orchestrator(ctx).await {
         Ok(orchestrator) => orchestrator,
         Err(message) => {
             return Ok(CommandOutput::card_value(
@@ -94,7 +92,7 @@ pub(super) async fn execute(
     }
 
     if !deleted.is_empty() {
-        ConfigLoader::load().with_context(|| {
+        ConfigLoader::reload().with_context(|| {
             "Agent(s) deleted but configuration validation failed. Please check the configuration."
         })?;
     }
@@ -167,9 +165,9 @@ pub fn delete_success_message(deleted: &[String]) -> String {
     }
 }
 
-async fn build_orchestrator() -> Result<Option<AgentOrchestrator>, String> {
-    let ctx = match AppContext::new().await {
-        Ok(ctx) => ctx,
+async fn build_orchestrator(ctx: &CommandContext) -> Result<Option<AgentOrchestrator>, String> {
+    let app = match ctx.app_context().await {
+        Ok(app) => app,
         Err(e) => {
             tracing::debug!(error = %e, "Failed to create AppContext for agent deletion");
             return Ok(None);
@@ -185,13 +183,13 @@ async fn build_orchestrator() -> Result<Option<AgentOrchestrator>, String> {
     };
 
     let agent_state = Arc::new(AgentState::new(
-        Arc::clone(ctx.db_pool()),
-        Arc::new(ctx.config().clone()),
+        Arc::clone(app.db_pool()),
+        Arc::new(app.config().clone()),
         jwt_provider,
     ));
 
     Ok(
-        AgentOrchestrator::new(agent_state, Arc::clone(ctx.app_paths_arc()), None)
+        AgentOrchestrator::new(agent_state, Arc::clone(app.app_paths_arc()), None)
             .await
             .ok(),
     )

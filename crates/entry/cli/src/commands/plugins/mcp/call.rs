@@ -10,7 +10,6 @@ use clap::Args;
 use systemprompt_loader::ConfigLoader;
 use systemprompt_mcp::services::McpOrchestrator;
 use systemprompt_models::ai::tools::CallToolResult;
-use systemprompt_runtime::AppContext;
 
 use super::call_client::{
     ToolCallParams, convert_content, execute_tool_call, list_available_tools,
@@ -60,7 +59,7 @@ pub(super) async fn execute(args: CallArgs, ctx: &CommandContext) -> Result<Comm
         .get(&server_name)
         .ok_or_else(|| anyhow!("MCP server '{}' not found in configuration", server_name))?;
 
-    let port = resolve_running_port(&server_name).await?;
+    let port = resolve_running_port(&server_name, ctx).await?;
 
     let tool_name = resolve_required(tool_arg, "tool", config, || {
         prompt_tool_selection(prompter, &server_name, port, &session_ctx, timeout_secs)
@@ -104,15 +103,16 @@ pub(super) async fn execute(args: CallArgs, ctx: &CommandContext) -> Result<Comm
     Ok(card)
 }
 
-async fn resolve_running_port(server_name: &str) -> Result<u16> {
-    let ctx = AppContext::new()
+async fn resolve_running_port(server_name: &str, ctx: &CommandContext) -> Result<u16> {
+    let app = ctx
+        .app_context()
         .await
         .context("Failed to initialize application context")?;
 
     let manager = McpOrchestrator::new(
-        Arc::clone(ctx.db_pool()),
-        Arc::clone(ctx.app_paths_arc()),
-        ctx.mcp_registry().clone(),
+        Arc::clone(app.db_pool()),
+        Arc::clone(app.app_paths_arc()),
+        app.mcp_registry().clone(),
     )
     .context("Failed to initialize MCP manager")?;
     let running_servers = manager

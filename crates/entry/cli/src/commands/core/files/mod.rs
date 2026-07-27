@@ -87,14 +87,14 @@ pub async fn execute(cmd: FilesCommands, ctx: &CommandContext) -> Result<()> {
             Ok(())
         },
         FilesCommands::Upload(args) => {
-            let result = upload::execute(args, &ctx.cli)
+            let result = upload::execute(args, ctx)
                 .await
                 .context("Failed to upload file")?;
             render_result(&result, &ctx.cli);
             Ok(())
         },
         FilesCommands::Delete(args) => {
-            let result = delete::execute(args, ctx.prompter(), &ctx.cli)
+            let result = delete::execute(args, ctx.prompter(), ctx)
                 .await
                 .context("Failed to delete file")?;
             render_result(&result, &ctx.cli);
@@ -124,6 +124,6 @@ pub async fn execute(cmd: FilesCommands, ctx: &CommandContext) -> Result<()> {
             render_result(&result, &ctx.cli);
             Ok(())
         },
-        FilesCommands::Ai(cmd) => ai::execute(cmd, &ctx.cli).await,
+        FilesCommands::Ai(cmd) => ai::execute(cmd, ctx).await,
     }
 }

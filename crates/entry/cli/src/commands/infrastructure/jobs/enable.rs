@@ -5,12 +5,11 @@
 
 use anyhow::{Context, Result};
 use clap::Args;
-use std::sync::Arc;
-use systemprompt_runtime::AppContext;
 use systemprompt_scheduler::JobRepository;
 use systemprompt_traits::Job;
 
 use super::types::JobEnableOutput;
+use crate::context::CommandContext;
 use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
@@ -19,7 +18,7 @@ pub struct EnableArgs {
     pub job_name: String,
 }
 
-pub(super) async fn execute(args: EnableArgs) -> Result<CommandOutput> {
+pub(super) async fn execute(args: EnableArgs, ctx: &CommandContext) -> Result<CommandOutput> {
     let job = inventory::iter::<&'static dyn Job>
         .into_iter()
         .find(|&j| j.name() == args.job_name)
@@ -32,8 +31,8 @@ pub(super) async fn execute(args: EnableArgs) -> Result<CommandOutput> {
         );
     }
 
-    let ctx = Arc::new(AppContext::new().await?);
-    let repo = JobRepository::new(ctx.db_pool())?;
+    let app = ctx.app_context().await?;
+    let repo = JobRepository::new(app.db_pool())?;
     repo.set_enabled(&args.job_name, true)
         .await
         .context("Failed to enable job")?;

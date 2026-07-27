@@ -8,6 +8,7 @@ use super::edit_apply::{
 };
 use super::types::UpdateOutput;
 use crate::cli_settings::CliConfig;
+use crate::context::CommandContext;
 use crate::interactive::{Prompter, resolve_required};
 use crate::shared::CommandOutput;
 use anyhow::{Result, anyhow};
@@ -16,7 +17,6 @@ use systemprompt_content::{CategoryIdUpdate, ContentRepository};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ContentId, LocaleCode, SourceId};
 use systemprompt_logging::CliService;
-use systemprompt_runtime::AppContext;
 
 #[derive(Debug, Args)]
 pub struct EditArgs {
@@ -42,13 +42,9 @@ pub struct EditArgs {
     pub body_file: Option<String>,
 }
 
-pub(super) async fn execute(
-    args: EditArgs,
-    prompter: &dyn Prompter,
-    config: &CliConfig,
-) -> Result<CommandOutput> {
-    let ctx = AppContext::new().await?;
-    execute_with_pool(args, prompter, ctx.db_pool(), config).await
+pub(super) async fn execute(args: EditArgs, ctx: &CommandContext) -> Result<CommandOutput> {
+    let app = ctx.app_context().await?;
+    execute_with_pool(args, ctx.prompter(), app.db_pool(), &ctx.cli).await
 }
 
 pub async fn execute_with_pool(
