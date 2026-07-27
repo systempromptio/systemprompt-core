@@ -23,6 +23,7 @@ struct IssOnly {
     iss: String,
 }
 
+#[derive(Debug)]
 pub struct SubjectIdentity {
     pub scope: Vec<Permission>,
     pub prior_act: Option<ActClaim>,

@@ -23,7 +23,7 @@ use systemprompt_security::keys::{JwksClient, authority};
 use super::super::super::TokenError;
 use super::subject::{SubjectIdentity, jwks_host_allowlist, peek_issuer};
 
-pub(super) async fn validate_id_jag_subject(
+pub async fn validate_id_jag_subject(
     token: &str,
     authenticated_client: &ClientId,
     repo: &OAuthRepository,

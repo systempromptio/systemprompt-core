@@ -7147,11 +7147,13 @@ dependencies = [
  "ipnet",
  "jsonwebtoken",
  "opentelemetry-proto",
+ "rsa",
  "serde",
  "serde_json",
  "sqlx",
  "systemprompt-ai",
  "systemprompt-api",
+ "systemprompt-database",
  "systemprompt-extension",
  "systemprompt-identifiers",
  "systemprompt-logging",
@@ -7163,6 +7165,7 @@ dependencies = [
  "tokio",
  "tower",
  "url",
+ "uuid",
  "wiremock",
 ]
 

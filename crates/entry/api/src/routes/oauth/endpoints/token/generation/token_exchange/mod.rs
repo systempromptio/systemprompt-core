@@ -41,6 +41,7 @@ pub use subject::peek_issuer;
 
 #[cfg(feature = "test-api")]
 pub mod test_api {
+    pub use super::id_jag_subject::validate_id_jag_subject;
     pub use super::subject::{SubjectIdentity, validate_subject_token};
 }
 
