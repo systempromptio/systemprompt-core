@@ -76,14 +76,9 @@ async fn wait_for_signal() {
     }
 }
 
-/// Exits on a second shutdown signal, however far along the drain is. Armed as
-/// soon as the first signal lands, so a second Ctrl-C is always honoured.
-///
-/// Deliberately has no timer: while axum is still draining, a deadline that
-/// fired here would kill the process before [`drain`] ever ran and strand every
-/// MCP and agent child. That window is bounded by
-/// [`join_within_drain_grace`] instead, which abandons the drain rather than
-/// the process.
+/// Deliberately has no timer: a deadline armed here fires while axum is still
+/// draining and strands every MCP and agent child. [`join_within_drain_grace`]
+/// bounds that window instead, abandoning the drain rather than the process.
 fn arm_exit_on_second_signal() {
     tokio::spawn(async {
         wait_for_signal().await;
@@ -92,10 +87,6 @@ fn arm_exit_on_second_signal() {
     });
 }
 
-// Why: backstop for the post-drain teardown in `drain`. Armed by the run loop
-// only once axum's drain has finished, so the whole grace window is available
-// to child termination — arming it at first signal spent the window on the
-// drain and left children stranded.
 pub(super) fn arm_forced_exit() {
     tokio::spawn(async {
         tokio::time::sleep(Duration::from_millis(FORCED_SHUTDOWN_GRACE_MS)).await;
@@ -115,16 +106,31 @@ fn force_exit() -> ! {
     std::process::exit(0);
 }
 
-// Why: SSE streams never close on their own, so an unbounded wait on axum's
-// drain starves the child termination that follows. Abandoning the drain after
-// AXUM_DRAIN_GRACE_MS is the lesser evil: the listener is already closed and
-// readiness already reports shutting-down, so the alternative is leaving MCP
-// and agent subprocesses running on their ports for the next boot to reclaim.
 pub(super) async fn join_within_drain_grace(
     serve: impl Future<Output = anyhow::Result<()>>,
 ) -> anyhow::Result<()> {
+    use super::readiness::ReadinessEvent;
+    use tokio::sync::broadcast::error::RecvError;
+
+    let mut serve = std::pin::pin!(serve);
+    let mut readiness = super::readiness::get_readiness_receiver();
+
+    // Why: the grace window must not start ticking until there is a drain to
+    // bound — armed around the whole serve future it is a timer on the server's
+    // own lifetime and tears the process down with no signal involved.
+    loop {
+        tokio::select! {
+            result = &mut serve => return result,
+            event = readiness.recv() => match event {
+                Ok(ReadinessEvent::ApiShuttingDown) => break,
+                Ok(ReadinessEvent::ApiReady) | Err(RecvError::Lagged(_)) => (),
+                Err(RecvError::Closed) => return serve.await,
+            },
+        }
+    }
+
     tokio::select! {
-        result = serve => result,
+        result = &mut serve => result,
         () = tokio::time::sleep(Duration::from_millis(AXUM_DRAIN_GRACE_MS)) => {
             tracing::warn!(
                 grace_ms = AXUM_DRAIN_GRACE_MS,
@@ -202,10 +208,9 @@ async fn terminate_mcp_children(repo: &systemprompt_database::ServiceRepository)
     .await;
 }
 
-// Why: Group-kills a recorded child only after confirming the live PID is still
-// that child. A recycled PID is cleared without signalling — `kill(-pid)` on
-// it would hit every process in the reused group, e.g. the systemd
-// `user@<uid>` session leader.
+// Why: a recycled PID is cleared without signalling — `kill(-pid)` on it would
+// hit every process in the reused group, e.g. the systemd `user@<uid>` session
+// leader.
 async fn terminate_service_child(
     repo: &systemprompt_database::ServiceRepository,
     name: &str,

@@ -10,11 +10,14 @@ use axum::Router;
 use axum::body::{Body, to_bytes};
 use axum::http::{Request, StatusCode};
 use axum::routing::get;
+use std::time::Duration;
 use systemprompt_api::services::server::reconciliation_test_api::{
     cleanup_stale_service_entries, service_row_is_stale,
 };
 use systemprompt_api::services::server::test_api::{handle_health_detail, human_bytes};
-use systemprompt_api::services::server::{handle_health, scheduler_health, shutdown_test_api};
+use systemprompt_api::services::server::{
+    handle_health, readiness, scheduler_health, shutdown_test_api,
+};
 use systemprompt_database::{CreateServiceInput, ServiceRepository};
 use systemprompt_models::subprocess::MCP_SERVICE_ID_ENV;
 use systemprompt_runtime::AppContext;
@@ -170,12 +173,38 @@ async fn shutdown_drain_clears_dead_and_recycled_children() -> anyhow::Result<()
     Ok(())
 }
 
+/// Both halves of the drain guard, in one test because the readiness broadcast
+/// is process-wide: as separate tests, the shutdown announced by one could arm
+/// the other's grace window and make the pair flaky.
 #[tokio::test(start_paused = true)]
-async fn wedged_connection_drain_gives_up_and_lets_teardown_run() {
-    let never_closes = std::future::pending::<anyhow::Result<()>>();
+async fn drain_grace_bounds_the_drain_and_not_the_server() {
+    let grace = Duration::from_millis(shutdown_test_api::AXUM_DRAIN_GRACE_MS);
 
-    let result = shutdown_test_api::join_within_drain_grace(never_closes).await;
+    // Never signalled: the guard must not be a deadline on healthy serving.
+    let unsignalled = tokio::time::timeout(
+        grace * 3,
+        shutdown_test_api::join_within_drain_grace(std::future::pending::<anyhow::Result<()>>()),
+    )
+    .await;
+    assert!(
+        unsignalled.is_err(),
+        "an unsignalled server must keep serving, not tear itself down"
+    );
 
+    // Signalled, then wedged: the drain is abandoned rather than the process.
+    // The signal is spawned rather than sent inline because the guard
+    // subscribes on first poll, and a broadcast delivers nothing sent earlier.
+    let wedged = tokio::spawn(async {
+        shutdown_test_api::join_within_drain_grace(std::future::pending::<anyhow::Result<()>>())
+            .await
+    });
+    tokio::time::sleep(Duration::from_millis(50)).await;
+    readiness::signal_shutdown();
+
+    let result = tokio::time::timeout(grace * 3, wedged)
+        .await
+        .expect("a wedged drain must be abandoned once shutdown is signalled")
+        .expect("join task panicked");
     assert!(
         result.is_ok(),
         "abandoning a wedged drain must not fail the run loop"
