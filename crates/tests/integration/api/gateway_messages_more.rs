@@ -13,6 +13,7 @@ use anyhow::Result;
 use axum::body::Body;
 use axum::extract::Request;
 use axum::http::{HeaderMap, HeaderValue, StatusCode};
+use systemprompt_ai::models::RequestStatus;
 use systemprompt_api::routes::gateway::messages::test_api::{
     ApiKeyPrincipal, AuthedPrincipal, RejectionPartial, authenticate, build_rejection_record,
     derive_conversation, enforce_authz_pre_dispatch, optional_gateway_conversation_id,
@@ -355,13 +356,25 @@ fn build_rejection_record_needs_user_id() {
 }
 
 #[test]
-fn build_rejection_record_fills_defaults_for_missing_fields() {
+fn build_rejection_record_leaves_unresolved_routing_absent() {
     let mut partial = RejectionPartial::default();
     partial.user_id = Some(UserId::new("rej-user"));
     let id = AiRequestId::generate();
     let record = build_rejection_record(&id, &partial).expect("record built");
-    assert_eq!(record.provider, "unknown");
-    assert_eq!(record.model, "unknown");
+    assert_eq!(record.provider, None);
+    assert_eq!(record.model, None);
+    assert_eq!(record.status, RequestStatus::Rejected);
+}
+
+#[test]
+fn build_rejection_record_keeps_routing_it_did_resolve() {
+    let mut partial = RejectionPartial::default();
+    partial.user_id = Some(UserId::new("rej-user"));
+    partial.model = Some("claude-test".to_owned());
+    let id = AiRequestId::generate();
+    let record = build_rejection_record(&id, &partial).expect("record built");
+    assert_eq!(record.provider, None);
+    assert_eq!(record.model.as_deref(), Some("claude-test"));
 }
 
 #[tokio::test]
@@ -382,6 +395,49 @@ async fn persist_rejection_writes_audit_row() -> Result<()> {
         "rejection persisted an ai_requests row"
     );
     Ok(())
+}
+
+// The governance hole this whole path exists to close: before the routing
+// columns became nullable, a request refused ahead of routing failed record
+// construction and the caller swallowed the error, so the audit row was
+// dropped entirely.
+#[tokio::test]
+async fn persist_rejection_writes_an_audit_row_when_routing_never_resolved() -> Result<()> {
+    let (pool, ctx) = setup_ctx().await?;
+    let cred = seed_admin_credential(&pool, "rej-unrouted@example.invalid").await?;
+    let id = AiRequestId::generate();
+    let mut partial = RejectionPartial::default();
+    partial.user_id = Some(cred.user_id.clone());
+
+    persist_rejection(
+        &ctx,
+        &id,
+        &partial,
+        StatusCode::PAYMENT_REQUIRED,
+        "credit exhausted",
+    )
+    .await;
+
+    let row = audit_routing_row(&pool, &id)
+        .await?
+        .expect("a pre-routing rejection must still be audited");
+    assert_eq!(row.0, None, "provider stays absent rather than faked");
+    assert_eq!(row.1, None, "model stays absent rather than faked");
+    assert_eq!(row.2, "rejected");
+    Ok(())
+}
+
+async fn audit_routing_row(
+    pool: &DbPool,
+    id: &AiRequestId,
+) -> Result<Option<(Option<String>, Option<String>, String)>> {
+    let pg = pool.pool_arc().map_err(|e| anyhow::anyhow!("pool: {e}"))?;
+    let row: Option<(Option<String>, Option<String>, String)> =
+        sqlx::query_as("SELECT provider, model, status FROM ai_requests WHERE id = $1")
+            .bind(id.as_str())
+            .fetch_optional(pg.as_ref())
+            .await?;
+    Ok(row)
 }
 
 async fn audit_row_exists(pool: &DbPool, id: &AiRequestId) -> Result<bool> {

@@ -129,23 +129,5 @@ fn relative_path_is_safe(relative: &str) -> bool {
 }
 
 fn content_type(relative_path: &str) -> &'static str {
-    let ext = Path::new(relative_path)
-        .extension()
-        .and_then(|e| e.to_str())
-        .map(str::to_ascii_lowercase);
-    match ext.as_deref() {
-        Some("md") => "text/markdown; charset=utf-8",
-        Some("txt") => "text/plain; charset=utf-8",
-        Some("json") => "application/json",
-        Some("yaml" | "yml") => "application/yaml",
-        Some("toml") => "application/toml",
-        Some("html" | "htm") => "text/html; charset=utf-8",
-        Some("css") => "text/css; charset=utf-8",
-        Some("js") => "application/javascript",
-        Some("png") => "image/png",
-        Some("jpg" | "jpeg") => "image/jpeg",
-        Some("svg") => "image/svg+xml",
-        Some("wasm") => "application/wasm",
-        _ => "application/octet-stream",
-    }
+    systemprompt_models::mime::http_content_type(Path::new(relative_path))
 }

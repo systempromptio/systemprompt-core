@@ -33,8 +33,7 @@ pub(crate) async fn seed_request(pool: &DbPool, user_id: &UserId) -> AiRequestId
     let record = AiRequestRecord::builder(AiRequestId::generate(), user_id.clone())
         .provider("anthropic")
         .model("claude-3-opus")
-        .build()
-        .expect("record");
+        .build();
     repo.insert(&record).await.expect("insert request")
 }
 
@@ -53,5 +52,4 @@ pub(crate) fn completed_record(user_id: &UserId) -> AiRequestRecord {
         .latency(420)
         .completed()
         .build()
-        .expect("record")
 }

@@ -33,6 +33,7 @@ use axum::routing::{get, post};
 use axum::{Extension, Router};
 use std::sync::Arc;
 use std::time::Instant;
+use systemprompt_identifiers::{SessionId, TraceId, UserId};
 use systemprompt_logging::{LogActor, LogEntry, LogLevel};
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::AppContext as _;
@@ -41,6 +42,33 @@ use crate::services::gateway::protocol::inbound::InboundAdapter;
 use crate::services::gateway::protocol::inbound::anthropic_messages::AnthropicMessagesInbound;
 use crate::services::gateway::protocol::inbound::openai_responses::OpenAiResponsesInbound;
 use crate::services::middleware::{JtiRevocationChecker, JwtContextExtractor};
+
+// Why: the gateway router is nested without the context middleware — it
+// authenticates inside the handler — so the access log cannot read a principal
+// off the request. The handler carries it back on the response instead.
+#[derive(Debug, Clone)]
+pub(crate) struct GatewayLogIdentity {
+    pub user: UserId,
+    pub session: SessionId,
+    pub trace: TraceId,
+}
+
+fn gateway_log_actor(resp: &Response) -> Option<LogActor> {
+    if let Some(identity) = resp.extensions().get::<GatewayLogIdentity>() {
+        return Some(LogActor::new(
+            identity.user.clone(),
+            identity.session.clone(),
+            identity.trace.clone(),
+        ));
+    }
+    match LogActor::platform(TraceId::system()) {
+        Ok(actor) => Some(actor),
+        Err(e) => {
+            tracing::warn!(error = %e, "gateway access log skipped: system admin not initialized");
+            None
+        },
+    }
+}
 
 async fn log_gateway_request(req: Request, next: Next) -> Response {
     let method = req.method().clone();
@@ -51,6 +79,7 @@ async fn log_gateway_request(req: Request, next: Next) -> Response {
     let elapsed_ms = started.elapsed().as_millis() as u64;
 
     let metadata = serde_json::json!({
+        "kind": "access_log",
         "method": method.to_string(),
         "path": path,
         "status": status,
@@ -73,20 +102,15 @@ async fn log_gateway_request(req: Request, next: Next) -> Response {
         tracing::info!(method = %method, path = %path, status, elapsed_ms, "gateway request");
     }
 
-    match LogActor::platform(systemprompt_identifiers::TraceId::system()) {
-        Ok(actor) => {
-            let entry = LogEntry::new(
-                level,
-                "systemprompt_api::gateway",
-                format!("{method} {path} -> {status} ({elapsed_ms}ms)"),
-                actor,
-            )
-            .with_metadata(metadata);
-            systemprompt_logging::enqueue_background(entry);
-        },
-        Err(e) => {
-            tracing::warn!(error = %e, "gateway access log skipped: system admin not initialized");
-        },
+    if let Some(actor) = gateway_log_actor(&resp) {
+        let entry = LogEntry::new(
+            level,
+            "systemprompt_api::gateway",
+            format!("{method} {path} -> {status} ({elapsed_ms}ms)"),
+            actor,
+        )
+        .with_metadata(metadata);
+        systemprompt_logging::enqueue_background(entry);
     }
 
     resp

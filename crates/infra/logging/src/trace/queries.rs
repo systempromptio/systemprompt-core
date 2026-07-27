@@ -47,7 +47,7 @@ pub(super) async fn fetch_log_events(
         .map(|row| TraceEvent {
             event_type: row.r#type,
             timestamp: row.timestamp,
-            details: row.details.unwrap_or_else(String::new),
+            details: row.details.unwrap_or_default(),
             user_id: row.user_id.map(UserId::new),
             session_id: row.session_id.map(SessionId::new),
             task_id: row.task_id.map(TaskId::new),
@@ -126,10 +126,10 @@ pub(super) async fn fetch_ai_request_events(
     Ok(rows
         .into_iter()
         .map(|row| {
+            let provider = row.provider.clone().unwrap_or_else(|| "-".to_owned());
+            let model = row.model.clone().unwrap_or_else(|| "-".to_owned());
             let details = format!(
-                "{}/{}: {} (in:{}, out:{}, {}ms)",
-                row.provider,
-                row.model,
+                "{provider}/{model}: {} (in:{}, out:{}, {}ms)",
                 row.status,
                 row.input_tokens.unwrap_or(0),
                 row.output_tokens.unwrap_or(0),

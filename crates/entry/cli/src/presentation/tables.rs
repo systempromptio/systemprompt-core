@@ -20,12 +20,8 @@ use crate::shared::truncate_with_ellipsis;
 
 #[must_use]
 pub fn truncate_cell(s: &str, max_len: usize) -> String {
-    let s = s.replace('\n', " ").replace('\r', "");
-    if s.len() > max_len {
-        format!("{}...", &s[..max_len.saturating_sub(3)])
-    } else {
-        s
-    }
+    let flattened = s.replace('\n', " ").replace('\r', "");
+    truncate_with_ellipsis(&flattened, max_len)
 }
 
 fn dash() -> String {
@@ -201,7 +197,11 @@ pub fn ai_requests_table(requests: &[AiRequestInfo]) -> String {
     let rows: Vec<AiRequestRow> = requests
         .iter()
         .map(|r| AiRequestRow {
-            model: format!("{}/{}", r.provider, r.model),
+            model: format!(
+                "{}/{}",
+                r.provider.as_deref().unwrap_or("-"),
+                r.model.as_deref().unwrap_or("-")
+            ),
             max_tokens: r.max_tokens.map_or_else(dash, |t| t.to_string()),
             tokens: format!(
                 "{} (in:{}, out:{})",

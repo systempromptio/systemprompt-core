@@ -62,9 +62,7 @@ async fn persist_ai_request(
         builder = builder.mcp_execution_id(mcp_execution_id.clone());
     }
 
-    let record = builder
-        .build()
-        .map_err(|e| AiError::InvalidInput(e.to_string()))?;
+    let record = builder.build();
 
     ai_request_repo
         .insert(&record)

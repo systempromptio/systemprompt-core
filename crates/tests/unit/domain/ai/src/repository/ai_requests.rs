@@ -1,6 +1,7 @@
 // DB-backed tests for AiRequestRepository: insert, status updates, usage
 // aggregates, and per-turn message / tool-call writes.
 
+use systemprompt_ai::models::{AiRequestRecord, RequestStatus};
 use systemprompt_ai::repository::ai_requests::UpdateCompletionParams;
 use systemprompt_ai::repository::{AiRequestRepository, InsertToolCallParams};
 use systemprompt_identifiers::{AiRequestId, AiToolCallId};
@@ -30,14 +31,61 @@ async fn insert_then_get_by_id_round_trips() {
     let fetched = repo.get_by_id(&id).await.expect("get").expect("present");
     assert_eq!(fetched.id, id);
     assert_eq!(fetched.user_id, uid);
-    assert_eq!(fetched.provider, "anthropic");
-    assert_eq!(fetched.model, "claude-3-opus");
+    assert_eq!(fetched.provider.as_deref(), Some("anthropic"));
+    assert_eq!(fetched.model.as_deref(), Some("claude-3-opus"));
     assert_eq!(fetched.status, "completed");
     assert_eq!(fetched.input_tokens, Some(100));
     assert_eq!(fetched.output_tokens, Some(50));
     assert!(fetched.cache_hit);
     assert_eq!(fetched.cost_microdollars, 1_500);
     assert!(fetched.completed_at.is_some());
+}
+
+#[tokio::test]
+async fn rejection_without_a_resolved_provider_still_persists_a_row() {
+    let Some((repo, pool)) = repo().await else {
+        return;
+    };
+    let uid = user();
+    let email = format!("{}@ai.invalid", uid.as_str());
+    systemprompt_test_fixtures::seed_user_row(&pool, &uid, &email)
+        .await
+        .expect("seed");
+    let record = AiRequestRecord::builder(AiRequestId::generate(), uid.clone())
+        .rejected()
+        .build();
+
+    let id = repo.insert(&record).await.expect("rejection must persist");
+
+    let fetched = repo.get_by_id(&id).await.expect("get").expect("present");
+    assert_eq!(fetched.status, "rejected");
+    assert_eq!(fetched.provider, None);
+    assert_eq!(fetched.model, None);
+}
+
+#[tokio::test]
+async fn completed_request_without_a_provider_is_refused_by_the_database() {
+    let Some((repo, pool)) = repo().await else {
+        return;
+    };
+    let uid = user();
+    let email = format!("{}@ai.invalid", uid.as_str());
+    systemprompt_test_fixtures::seed_user_row(&pool, &uid, &email)
+        .await
+        .expect("seed");
+    let record = AiRequestRecord::builder(AiRequestId::generate(), uid.clone())
+        .completed()
+        .build();
+
+    let err = repo
+        .insert(&record)
+        .await
+        .expect_err("a served request with no provider must not be storable");
+
+    assert!(
+        err.to_string().contains("ai_requests_routed_has_provider"),
+        "expected the routing constraint to reject it, got: {err}"
+    );
 }
 
 #[tokio::test]
@@ -109,12 +157,27 @@ async fn update_error_sets_failed_status_and_message() {
     let id = seed_request(&pool, &uid).await;
 
     let updated = repo
-        .update_error(&id, "provider exploded")
+        .update_error(&id, RequestStatus::Failed, "provider exploded")
         .await
         .expect("update error");
     assert_eq!(updated.status, "failed");
     assert_eq!(updated.error_message.as_deref(), Some("provider exploded"));
     assert!(updated.completed_at.is_some());
+}
+
+#[tokio::test]
+async fn update_error_can_stamp_a_pre_routing_rejection() {
+    let Some((repo, pool)) = repo().await else {
+        return;
+    };
+    let uid = user();
+    let id = seed_request(&pool, &uid).await;
+
+    let updated = repo
+        .update_error(&id, RequestStatus::Rejected, "HTTP 400: no messages")
+        .await
+        .expect("update error");
+    assert_eq!(updated.status, "rejected");
 }
 
 #[tokio::test]
@@ -128,7 +191,7 @@ async fn update_model_changes_model() {
         .await
         .expect("update model");
     let fetched = repo.get_by_id(&id).await.expect("get").expect("present");
-    assert_eq!(fetched.model, "claude-3-5-sonnet");
+    assert_eq!(fetched.model.as_deref(), Some("claude-3-5-sonnet"));
 }
 
 #[tokio::test]

@@ -238,7 +238,7 @@ fn content_type_maps_known_extensions_and_defaults_to_octet_stream() {
     assert_eq!(content_type("a.html"), "text/html; charset=utf-8");
     assert_eq!(content_type("a.HTM"), "text/html; charset=utf-8");
     assert_eq!(content_type("a.css"), "text/css; charset=utf-8");
-    assert_eq!(content_type("a.js"), "application/javascript");
+    assert_eq!(content_type("a.js"), "text/javascript; charset=utf-8");
     assert_eq!(content_type("a.png"), "image/png");
     assert_eq!(content_type("a.jpg"), "image/jpeg");
     assert_eq!(content_type("a.JPEG"), "image/jpeg");

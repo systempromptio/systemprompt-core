@@ -36,12 +36,20 @@ pub(super) async fn print_mcp_executions(
 
         print_tool_io(exec, show_full);
 
-        if let Ok(linked_requests) = service
+        match service
             .get_mcp_linked_ai_requests(&exec.mcp_execution_id)
             .await
-            && !linked_requests.is_empty()
         {
-            print_mcp_linked_ai_requests(service, &linked_requests, &exec.tool_name).await;
+            Ok(linked_requests) => {
+                if !linked_requests.is_empty() {
+                    print_mcp_linked_ai_requests(service, &linked_requests, &exec.tool_name).await;
+                }
+            },
+            Err(e) => tracing::warn!(
+                mcp_execution_id = %exec.mcp_execution_id,
+                error = %e,
+                "Failed to fetch AI requests linked to MCP execution"
+            ),
         }
     }
 }
@@ -106,26 +114,32 @@ async fn print_mcp_linked_ai_requests(
         CliService::info(&format!(
             "    {} {}/{} | {tokens} tokens | {latency_str}",
             truncate(req.id.as_str(), 8),
-            req.provider,
-            req.model
+            req.provider.as_deref().unwrap_or("-"),
+            req.model.as_deref().unwrap_or("-")
         ));
 
-        if let Ok(previews) = service.get_ai_request_message_previews(&req.id).await {
-            for msg in previews {
-                let preview = if msg.content.len() >= 500 {
-                    format!("{}...", truncate(&msg.content, 200))
-                } else if msg.role == "system" && msg.content.len() > 100 {
-                    format!("[System: {} chars]", msg.content.len())
-                } else {
-                    truncate(&msg.content, 200)
-                };
+        let previews = match service.get_ai_request_message_previews(&req.id).await {
+            Ok(previews) => previews,
+            Err(e) => {
+                tracing::warn!(request_id = %req.id, error = %e, "Failed to fetch message previews");
+                continue;
+            },
+        };
 
-                CliService::info(&format!(
-                    "      #{} [{}] {preview}",
-                    msg.sequence_number,
-                    msg.role.to_uppercase()
-                ));
-            }
+        for msg in previews {
+            let preview = if msg.content.len() >= 500 {
+                format!("{}...", truncate(&msg.content, 200))
+            } else if msg.role == "system" && msg.content.len() > 100 {
+                format!("[System: {} chars]", msg.content.len())
+            } else {
+                truncate(&msg.content, 200)
+            };
+
+            CliService::info(&format!(
+                "      #{} [{}] {preview}",
+                msg.sequence_number,
+                msg.role.to_uppercase()
+            ));
         }
     }
 }
@@ -135,8 +149,12 @@ async fn print_tool_errors_from_logs(
     task_id: &TaskId,
     context_id: &ContextId,
 ) {
-    let Ok(logs) = service.get_tool_logs(task_id, context_id).await else {
-        return;
+    let logs = match service.get_tool_logs(task_id, context_id).await {
+        Ok(logs) => logs,
+        Err(e) => {
+            tracing::warn!(task_id = %task_id, error = %e, "Failed to fetch tool logs");
+            return;
+        },
     };
 
     if logs.is_empty() {

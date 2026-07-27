@@ -23,8 +23,8 @@ struct ListRow {
     user_id: UserId,
     actor_kind: String,
     actor_id: String,
-    provider: String,
-    model: String,
+    provider: Option<String>,
+    model: Option<String>,
     input_tokens: Option<i32>,
     output_tokens: Option<i32>,
     cost_microdollars: i64,
@@ -62,8 +62,8 @@ struct DetailRow {
     user_id: UserId,
     actor_kind: String,
     actor_id: String,
-    provider: String,
-    model: String,
+    provider: Option<String>,
+    model: Option<String>,
     input_tokens: Option<i32>,
     output_tokens: Option<i32>,
     cost_microdollars: i64,
@@ -91,8 +91,8 @@ pub(super) async fn list_ai_requests(
             user_id as "user_id!: UserId",
             actor_kind as "actor_kind!",
             actor_id as "actor_id!",
-            provider as "provider!",
-            model as "model!",
+            provider,
+            model,
             input_tokens,
             output_tokens,
             cost_microdollars as "cost_microdollars!",
@@ -211,6 +211,7 @@ async fn fetch_provider_stats(
             COALESCE(AVG(latency_ms), 0)::bigint as "avg_latency_ms"
         FROM ai_requests
         WHERE ($1::timestamptz IS NULL OR created_at >= $1)
+          AND provider IS NOT NULL
         GROUP BY provider
         ORDER BY request_count DESC
         "#,
@@ -237,6 +238,7 @@ async fn fetch_model_stats(
             COALESCE(AVG(latency_ms), 0)::bigint as "avg_latency_ms"
         FROM ai_requests
         WHERE ($1::timestamptz IS NULL OR created_at >= $1)
+          AND model IS NOT NULL AND provider IS NOT NULL
         GROUP BY model, provider
         ORDER BY request_count DESC
         LIMIT 10
@@ -261,8 +263,8 @@ pub(super) async fn find_ai_request_detail(
             user_id as "user_id!: UserId",
             actor_kind as "actor_kind!",
             actor_id as "actor_id!",
-            provider as "provider!",
-            model as "model!",
+            provider,
+            model,
             input_tokens,
             output_tokens,
             cost_microdollars as "cost_microdollars!",

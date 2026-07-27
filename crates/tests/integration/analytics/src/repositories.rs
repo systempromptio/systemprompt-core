@@ -142,6 +142,22 @@ impl Fixture {
         Ok(())
     }
 
+    async fn insert_rejected_ai_request(&self) -> Result<()> {
+        let id = format!("rej_{}_{}", self.tag, Uuid::new_v4().simple());
+        sqlx::query(
+            "INSERT INTO ai_requests (id, request_id, user_id, cost_microdollars, tokens_used, \
+             status, created_at, updated_at, actor_kind, actor_id) VALUES ($1, $2, $3, 0, 0, \
+             'rejected', $4, $4, 'user', $3)",
+        )
+        .bind(&id)
+        .bind(&id)
+        .bind(&self.user_id)
+        .bind(self.window_start + Duration::minutes(2))
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
     async fn cleanup(&self) -> Result<()> {
         let _ = sqlx::query("DELETE FROM engagement_events WHERE user_id = $1")
             .bind(&self.user_id)
@@ -396,6 +412,34 @@ async fn request_analytics_repository_smoke() -> Result<()> {
         .list_requests(fx.window_start, fx.window_end, 100, Some("m2"))
         .await?;
     assert!(!listed_filtered.is_empty());
+
+    fx.cleanup().await?;
+    Ok(())
+}
+
+#[tokio::test]
+async fn rejected_requests_are_excluded_from_model_mix_but_listed() -> Result<()> {
+    let fx = Fixture::new().await?;
+    fx.insert_ai_request("m1", 100, 10).await?;
+    fx.insert_rejected_ai_request().await?;
+
+    let repo = RequestAnalyticsRepository::new(&fx.db)?;
+
+    let models = repo.list_models(fx.window_start, fx.window_end, 10).await?;
+    assert!(
+        models.iter().all(|m| m.model == "m1"),
+        "a pre-routing rejection must not appear as a model in the mix"
+    );
+
+    let listed = repo
+        .list_requests(fx.window_start, fx.window_end, 100, None)
+        .await?;
+    assert!(
+        listed
+            .iter()
+            .any(|r| r.status == "rejected" && r.model.is_none()),
+        "the rejection must still be visible in the request list"
+    );
 
     fx.cleanup().await?;
     Ok(())

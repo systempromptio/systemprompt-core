@@ -73,6 +73,7 @@ impl CostAnalyticsRepository {
                 COALESCE(SUM(tokens_used), 0)::bigint as "tokens!"
             FROM ai_requests
             WHERE created_at >= $1 AND created_at < $2
+              AND model IS NOT NULL
             GROUP BY model
             ORDER BY SUM(cost_microdollars) DESC NULLS LAST
             LIMIT $3
@@ -102,6 +103,7 @@ impl CostAnalyticsRepository {
                 COALESCE(SUM(tokens_used), 0)::bigint as "tokens!"
             FROM ai_requests
             WHERE created_at >= $1 AND created_at < $2
+              AND provider IS NOT NULL
             GROUP BY provider
             ORDER BY SUM(cost_microdollars) DESC NULLS LAST
             LIMIT $3

@@ -25,8 +25,8 @@ pub struct AuditArgs {
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct AuditOutput {
     pub request_id: AiRequestId,
-    pub provider: String,
-    pub model: String,
+    pub provider: Option<String>,
+    pub model: Option<String>,
     pub requested_model: Option<String>,
     pub input_tokens: i32,
     pub output_tokens: i32,

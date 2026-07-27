@@ -1,8 +1,7 @@
 //! Tests for AI request record types.
 
 use systemprompt_ai::models::{
-    AiRequestRecord, AiRequestRecordBuilder, AiRequestRecordError, CacheInfo, RequestStatus,
-    TokenInfo,
+    AiRequestRecord, AiRequestRecordBuilder, CacheInfo, RequestStatus, TokenInfo,
 };
 use systemprompt_identifiers::{
     Actor, ActorKind, AiRequestId, ContextId, GatewayConversationId, McpExecutionId,
@@ -77,6 +76,13 @@ mod request_status_tests {
     fn failed_status_as_str() {
         assert_eq!(RequestStatus::Failed.as_str(), "failed");
     }
+
+    // The `ai_requests_routed_has_provider` constraint is keyed on this exact
+    // string; drifting it silently makes every rejection insert fail.
+    #[test]
+    fn rejected_status_as_str() {
+        assert_eq!(RequestStatus::Rejected.as_str(), "rejected");
+    }
 }
 
 mod ai_request_record_builder_tests {
@@ -87,21 +93,37 @@ mod ai_request_record_builder_tests {
     }
 
     #[test]
-    fn builder_requires_provider() {
-        let result = AiRequestRecordBuilder::new(AiRequestId::new("req-123"), test_user_id())
+    fn builder_leaves_provider_none_when_routing_never_resolved() {
+        let record = AiRequestRecordBuilder::new(AiRequestId::new("req-123"), test_user_id())
             .model("gpt-4")
             .build();
 
-        assert!(matches!(result, Err(AiRequestRecordError::MissingProvider)));
+        assert_eq!(record.provider, None);
+        assert_eq!(record.model.as_deref(), Some("gpt-4"));
     }
 
     #[test]
-    fn builder_requires_model() {
-        let result = AiRequestRecordBuilder::new(AiRequestId::new("req-123"), test_user_id())
+    fn builder_leaves_model_none_when_the_body_was_never_read() {
+        let record = AiRequestRecordBuilder::new(AiRequestId::new("req-123"), test_user_id())
             .provider("openai")
             .build();
 
-        assert!(matches!(result, Err(AiRequestRecordError::MissingModel)));
+        assert_eq!(record.model, None);
+        assert_eq!(record.provider.as_deref(), Some("openai"));
+    }
+
+    // `rejected()` carries no error message of its own — the rejection path
+    // stamps one afterwards via `update_error` — unlike `failed()`.
+    #[test]
+    fn builder_marks_a_pre_routing_rejection_without_an_error_message() {
+        let record = AiRequestRecordBuilder::new(AiRequestId::new("req-123"), test_user_id())
+            .rejected()
+            .build();
+
+        assert_eq!(record.status, RequestStatus::Rejected);
+        assert_eq!(record.provider, None);
+        assert_eq!(record.model, None);
+        assert_eq!(record.error_message, None);
     }
 
     #[test]
@@ -109,12 +131,11 @@ mod ai_request_record_builder_tests {
         let record = AiRequestRecordBuilder::new(AiRequestId::new("req-123"), test_user_id())
             .provider("openai")
             .model("gpt-4")
-            .build()
-            .unwrap();
+            .build();
 
         assert_eq!(record.request_id, "req-123");
-        assert_eq!(record.provider, "openai");
-        assert_eq!(record.model, "gpt-4");
+        assert_eq!(record.provider.as_deref(), Some("openai"));
+        assert_eq!(record.model.as_deref(), Some("gpt-4"));
         assert_eq!(record.status, RequestStatus::Pending);
     }
 
@@ -125,8 +146,7 @@ mod ai_request_record_builder_tests {
             .provider("anthropic")
             .model("claude-3")
             .session_id(session_id.clone())
-            .build()
-            .unwrap();
+            .build();
 
         assert_eq!(record.session_id, Some(session_id));
     }
@@ -138,8 +158,7 @@ mod ai_request_record_builder_tests {
             .provider("gemini")
             .model("gemini-pro")
             .task_id(task_id.clone())
-            .build()
-            .unwrap();
+            .build();
 
         assert_eq!(record.task_id, Some(task_id));
     }
@@ -151,8 +170,7 @@ mod ai_request_record_builder_tests {
             .provider("openai")
             .model("gpt-4")
             .context_id(context_id.clone())
-            .build()
-            .unwrap();
+            .build();
 
         assert_eq!(record.context_id, Some(context_id));
     }
@@ -164,8 +182,7 @@ mod ai_request_record_builder_tests {
             .provider("openai")
             .model("gpt-4")
             .trace_id(trace_id.clone())
-            .build()
-            .unwrap();
+            .build();
 
         assert_eq!(record.trace_id, Some(trace_id));
     }
@@ -176,8 +193,7 @@ mod ai_request_record_builder_tests {
             .provider("openai")
             .model("gpt-4")
             .max_tokens(4096)
-            .build()
-            .unwrap();
+            .build();
 
         assert_eq!(record.max_tokens, Some(4096));
     }
@@ -188,8 +204,7 @@ mod ai_request_record_builder_tests {
             .provider("openai")
             .model("gpt-4")
             .tokens(Some(1000), Some(500))
-            .build()
-            .unwrap();
+            .build();
 
         assert_eq!(record.tokens.input_tokens, Some(1000));
         assert_eq!(record.tokens.output_tokens, Some(500));
@@ -202,8 +217,7 @@ mod ai_request_record_builder_tests {
             .provider("openai")
             .model("gpt-4")
             .tokens(Some(1000), None)
-            .build()
-            .unwrap();
+            .build();
 
         assert_eq!(record.tokens.input_tokens, Some(1000));
         assert_eq!(record.tokens.output_tokens, None);
@@ -216,8 +230,7 @@ mod ai_request_record_builder_tests {
             .provider("openai")
             .model("gpt-4")
             .tokens(None, Some(500))
-            .build()
-            .unwrap();
+            .build();
 
         assert_eq!(record.tokens.input_tokens, None);
         assert_eq!(record.tokens.output_tokens, Some(500));
@@ -230,8 +243,7 @@ mod ai_request_record_builder_tests {
             .provider("anthropic")
             .model("claude-3")
             .cache(true, Some(500), Some(100))
-            .build()
-            .unwrap();
+            .build();
 
         assert!(record.cache.hit);
         assert_eq!(record.cache.read_tokens, Some(500));
@@ -244,8 +256,7 @@ mod ai_request_record_builder_tests {
             .provider("openai")
             .model("gpt-4")
             .streaming(true)
-            .build()
-            .unwrap();
+            .build();
 
         assert!(record.is_streaming);
     }
@@ -256,8 +267,7 @@ mod ai_request_record_builder_tests {
             .provider("openai")
             .model("gpt-4")
             .cost(150)
-            .build()
-            .unwrap();
+            .build();
 
         assert_eq!(record.cost_microdollars, 150);
     }
@@ -268,8 +278,7 @@ mod ai_request_record_builder_tests {
             .provider("openai")
             .model("gpt-4")
             .latency(250)
-            .build()
-            .unwrap();
+            .build();
 
         assert_eq!(record.latency_ms, 250);
     }
@@ -280,8 +289,7 @@ mod ai_request_record_builder_tests {
             .provider("openai")
             .model("gpt-4")
             .completed()
-            .build()
-            .unwrap();
+            .build();
 
         assert_eq!(record.status, RequestStatus::Completed);
         assert!(record.error_message.is_none());
@@ -293,8 +301,7 @@ mod ai_request_record_builder_tests {
             .provider("openai")
             .model("gpt-4")
             .failed("Rate limit exceeded")
-            .build()
-            .unwrap();
+            .build();
 
         assert_eq!(record.status, RequestStatus::Failed);
         assert_eq!(
@@ -324,12 +331,11 @@ mod ai_request_record_builder_tests {
             .cost(500)
             .latency(1500)
             .completed()
-            .build()
-            .unwrap();
+            .build();
 
         assert_eq!(record.request_id, "req-full");
-        assert_eq!(record.provider, "anthropic");
-        assert_eq!(record.model, "claude-3-opus");
+        assert_eq!(record.provider.as_deref(), Some("anthropic"));
+        assert_eq!(record.model.as_deref(), Some("claude-3-opus"));
         assert_eq!(record.max_tokens, Some(8192));
         assert_eq!(record.tokens.tokens_used, Some(3000));
         assert!(record.cache.hit);
@@ -350,8 +356,7 @@ mod builder_optional_ids_tests {
             .provider("openai")
             .model("gpt-4")
             .actor(Actor::agent(user, "claude-code"))
-            .build()
-            .unwrap();
+            .build();
         assert!(matches!(record.actor.kind, ActorKind::Agent { .. }));
     }
 
@@ -360,8 +365,7 @@ mod builder_optional_ids_tests {
         let record = AiRequestRecordBuilder::new(AiRequestId::new("req-d"), fixture_user_id())
             .provider("openai")
             .model("gpt-4")
-            .build()
-            .unwrap();
+            .build();
         assert!(matches!(record.actor.kind, ActorKind::User));
     }
 
@@ -372,8 +376,7 @@ mod builder_optional_ids_tests {
             .provider("openai")
             .model("gpt-4")
             .gateway_conversation_id(gw.clone())
-            .build()
-            .unwrap();
+            .build();
         assert_eq!(record.gateway_conversation_id, Some(gw));
     }
 
@@ -384,8 +387,7 @@ mod builder_optional_ids_tests {
             .provider("openai")
             .model("gpt-4")
             .provider_request_id(prid.clone())
-            .build()
-            .unwrap();
+            .build();
         assert_eq!(record.provider_request_id, Some(prid));
     }
 
@@ -396,8 +398,7 @@ mod builder_optional_ids_tests {
             .provider("openai")
             .model("gpt-4")
             .mcp_execution_id(mid.clone())
-            .build()
-            .unwrap();
+            .build();
         assert_eq!(record.mcp_execution_id, Some(mid));
     }
 
@@ -407,8 +408,7 @@ mod builder_optional_ids_tests {
             .provider("openai")
             .model("gpt-4")
             .tokens(None, None)
-            .build()
-            .unwrap();
+            .build();
         assert!(record.tokens.tokens_used.is_none());
     }
 }
@@ -421,28 +421,8 @@ mod ai_request_record_tests {
         let user_id = fixture_user_id();
         let builder = AiRequestRecord::builder(AiRequestId::new("req-456"), user_id);
 
-        let record = builder
-            .provider("test")
-            .model("test-model")
-            .build()
-            .unwrap();
+        let record = builder.provider("test").model("test-model").build();
 
         assert_eq!(record.request_id, "req-456");
-    }
-}
-
-mod ai_request_record_error_tests {
-    use super::*;
-
-    #[test]
-    fn missing_provider_error_display() {
-        let err = AiRequestRecordError::MissingProvider;
-        assert_eq!(err.to_string(), "Provider is required");
-    }
-
-    #[test]
-    fn missing_model_error_display() {
-        let err = AiRequestRecordError::MissingModel;
-        assert_eq!(err.to_string(), "Model is required");
     }
 }

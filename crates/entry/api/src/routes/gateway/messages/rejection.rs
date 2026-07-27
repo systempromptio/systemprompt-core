@@ -5,6 +5,7 @@
 
 use axum::http::StatusCode;
 use bytes::Bytes;
+use systemprompt_ai::models::RequestStatus;
 use systemprompt_ai::models::ai_request_record::AiRequestRecord;
 use systemprompt_ai::repository::{
     AiRequestPayloadRepository, AiRequestRepository, UpsertPayloadParams,
@@ -58,25 +59,22 @@ pub fn build_rejection_record(
     partial: &RejectionPartial,
 ) -> Option<AiRequestRecord> {
     let Some(user_id) = partial.user_id.clone() else {
-        tracing::warn!(
+        tracing::debug!(
             ai_request_id = %ai_request_id,
-            "Skipping rejection record: caller user_id unknown"
+            "No rejection record: request was rejected before it authenticated"
         );
         return None;
     };
-    let provider = partial
-        .provider
-        .clone()
-        .unwrap_or_else(|| "unknown".to_owned());
-    let model = partial
-        .model
-        .clone()
-        .unwrap_or_else(|| "unknown".to_owned());
 
     let mut builder = AiRequestRecord::builder(ai_request_id.clone(), user_id)
-        .provider(provider)
-        .model(model)
-        .streaming(partial.is_streaming);
+        .streaming(partial.is_streaming)
+        .rejected();
+    if let Some(provider) = &partial.provider {
+        builder = builder.provider(provider.clone());
+    }
+    if let Some(model) = &partial.model {
+        builder = builder.model(model.clone());
+    }
     if let Some(s) = &partial.session_id {
         builder = builder.session_id(s.clone());
     }
@@ -89,17 +87,7 @@ pub fn build_rejection_record(
     if let Some(mt) = partial.max_tokens {
         builder = builder.max_tokens(mt);
     }
-    match builder.build() {
-        Ok(record) => Some(record),
-        Err(e) => {
-            tracing::warn!(
-                error = %e,
-                ai_request_id = %ai_request_id,
-                "Skipping rejection record: builder failed"
-            );
-            None
-        },
-    }
+    Some(builder.build())
 }
 
 async fn write_rejection_record(
@@ -114,7 +102,10 @@ async fn write_rejection_record(
         return;
     }
     let err_msg = format!("HTTP {}: {message}", status.as_u16());
-    if let Err(e) = repo.update_error(ai_request_id, &err_msg).await {
+    if let Err(e) = repo
+        .update_error(ai_request_id, RequestStatus::Rejected, &err_msg)
+        .await
+    {
         tracing::warn!(error = %e, ai_request_id = %ai_request_id, "rejection audit: update_error failed");
     }
 }

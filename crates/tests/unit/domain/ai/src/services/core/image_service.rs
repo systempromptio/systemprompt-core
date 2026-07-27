@@ -333,7 +333,11 @@ async fn generate_image_unknown_model_errors() {
         .generate_image(request(&user_id, Some("nonexistent-model")))
         .await
         .expect_err("unknown model");
-    assert!(format!("{err}").contains("No provider found for model"));
+    assert!(matches!(
+        err,
+        systemprompt_ai::error::AiError::NoProviderForModel { ref model }
+            if model == "nonexistent-model"
+    ));
 }
 
 #[tokio::test]

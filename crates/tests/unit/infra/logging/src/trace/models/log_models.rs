@@ -159,8 +159,8 @@ fn log_search_item_clone_and_serialize() {
 fn audit_lookup_result_construction() {
     let result = AuditLookupResult {
         id: "req-audit-1".to_owned().into(),
-        provider: "anthropic".to_owned(),
-        model: "claude-3".to_owned(),
+        provider: Some("anthropic".to_owned()),
+        model: Some("claude-3".to_owned()),
         requested_model: Some("claude-3-opus".to_owned()),
         input_tokens: Some(200),
         output_tokens: Some(100),
@@ -169,7 +169,7 @@ fn audit_lookup_result_construction() {
         task_id: None,
         trace_id: None,
     };
-    assert_eq!(result.provider, "anthropic");
+    assert_eq!(result.provider.as_deref(), Some("anthropic"));
     assert_eq!(result.cost_microdollars, 5);
     assert_eq!(result.requested_model.as_deref(), Some("claude-3-opus"));
     assert!(result.task_id.is_none());
@@ -179,8 +179,8 @@ fn audit_lookup_result_construction() {
 fn audit_lookup_result_with_ids() {
     let result = AuditLookupResult {
         id: "req-2".to_owned().into(),
-        provider: "openai".to_owned(),
-        model: "gpt-4".to_owned(),
+        provider: Some("openai".to_owned()),
+        model: Some("gpt-4".to_owned()),
         requested_model: None,
         input_tokens: None,
         output_tokens: None,
@@ -203,8 +203,8 @@ fn audit_lookup_result_with_ids() {
 fn audit_lookup_result_serialize() {
     let result = AuditLookupResult {
         id: "req-ser".to_owned().into(),
-        provider: "p".to_owned(),
-        model: "m".to_owned(),
+        provider: Some("p".to_owned()),
+        model: Some("m".to_owned()),
         requested_model: None,
         input_tokens: None,
         output_tokens: None,

@@ -1,4 +1,4 @@
-//! Analytics aggregate queries (traffic, sources, devices).
+//! AI provider/model usage aggregates over `ai_requests`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -43,6 +43,7 @@ impl AnalyticsQueryRepository {
             FROM ai_requests
             WHERE created_at >= NOW() - INTERVAL '1 day' * $1::int
               AND ($2::text IS NULL OR user_id = $2)
+              AND provider IS NOT NULL AND model IS NOT NULL
             GROUP BY provider, model
             ORDER BY COUNT(*) DESC
             "#,

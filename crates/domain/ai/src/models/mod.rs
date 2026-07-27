@@ -30,8 +30,7 @@ pub mod image_generation;
 pub mod providers;
 
 pub use ai_request_record::{
-    AiRequestRecord, AiRequestRecordBuilder, AiRequestRecordError, CacheInfo, RequestStatus,
-    TokenInfo,
+    AiRequestRecord, AiRequestRecordBuilder, CacheInfo, RequestStatus, TokenInfo,
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
@@ -45,8 +44,10 @@ pub struct AiRequest {
     pub gateway_conversation_id: Option<GatewayConversationId>,
     pub provider_request_id: Option<ProviderRequestId>,
     pub trace_id: Option<TraceId>,
-    pub provider: String,
-    pub model: String,
+    /// `None` for a request rejected before routing resolved a provider.
+    pub provider: Option<String>,
+    /// `None` for a request rejected before a model was read.
+    pub model: Option<String>,
     pub temperature: Option<f64>,
     pub top_p: Option<f64>,
     pub max_tokens: Option<i32>,

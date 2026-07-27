@@ -28,6 +28,33 @@ async fn insert_ai_request(pool: &DbPool, user_id: &str, provider: &str, model: 
     .expect("insert ai_request");
 }
 
+async fn insert_rejected_ai_request(pool: &DbPool, user_id: &str) {
+    let p = pool.write_pool_arc().expect("write pool");
+    sqlx::query(
+        r"
+        INSERT INTO ai_requests
+            (id, request_id, user_id, tokens_used,
+             cost_microdollars, latency_ms, status, actor_kind, actor_id)
+        VALUES ($1, $2, $3, 0, 0, 0, 'rejected', 'user', $3)
+        ",
+    )
+    .bind(Uuid::new_v4().to_string())
+    .bind(Uuid::new_v4().to_string())
+    .bind(user_id)
+    .execute(p.as_ref())
+    .await
+    .expect("insert rejected ai_request");
+}
+
+async fn cleanup_user(pool: &DbPool, user_id: &str) {
+    let p = pool.write_pool_arc().expect("write pool");
+    sqlx::query("DELETE FROM ai_requests WHERE user_id = $1")
+        .bind(user_id)
+        .execute(p.as_ref())
+        .await
+        .ok();
+}
+
 async fn cleanup(pool: &DbPool, provider: &str) {
     let p = pool.write_pool_arc().expect("write pool");
     sqlx::query("DELETE FROM ai_requests WHERE provider = $1")
@@ -92,4 +119,34 @@ async fn get_ai_provider_usage_filters_by_user() {
     assert_eq!(mine[0].model, "model-x");
 
     cleanup(&pool, &provider).await;
+}
+
+// The aggregate keeps its `as "provider!"` / `as "model!"` overrides, so an
+// unfiltered rejection row would fail the decode outright rather than merely
+// add a phantom group.
+#[tokio::test]
+async fn get_ai_provider_usage_excludes_requests_rejected_before_routing() {
+    let Ok(url) = fixture_database_url() else {
+        return;
+    };
+    ensure_test_bootstrap();
+    let pool = fixture_db_pool(&url).await.expect("pool");
+    let repo = AnalyticsQueryRepository::new(&pool).expect("repo");
+
+    let provider = format!("prov-{}", Uuid::new_v4());
+    let user = format!("user-{}", Uuid::new_v4());
+    insert_ai_request(&pool, &user, &provider, "model-x").await;
+    insert_rejected_ai_request(&pool, &user).await;
+
+    let uid = UserId::new(user.clone());
+    let usage = repo
+        .get_ai_provider_usage(7, Some(&uid))
+        .await
+        .expect("an unrouted request must not break the provider usage decode");
+
+    assert_eq!(usage.len(), 1, "only the routed request is aggregated");
+    assert_eq!(usage[0].provider, provider);
+    assert_eq!(usage[0].model, "model-x");
+
+    cleanup_user(&pool, &user).await;
 }

@@ -54,6 +54,9 @@ pub enum AiError {
     #[error("Provider {provider} error: {message}")]
     ProviderError { provider: String, message: String },
 
+    #[error("No configured provider supports model {model}")]
+    NoProviderForModel { model: String },
+
     #[error(transparent)]
     Provider(#[from] LlmProviderError),
 

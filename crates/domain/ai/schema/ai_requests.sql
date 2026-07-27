@@ -9,8 +9,8 @@ CREATE TABLE IF NOT EXISTS ai_requests (
     provider_request_id VARCHAR(255),
     trace_id VARCHAR(255),
     mcp_execution_id VARCHAR(255),
-    provider TEXT NOT NULL,
-    model TEXT NOT NULL,
+    provider TEXT,
+    model TEXT,
     requested_model TEXT,
     system_prompt_override TEXT,
     route_match TEXT,
@@ -33,7 +33,9 @@ CREATE TABLE IF NOT EXISTS ai_requests (
     actor_id TEXT NOT NULL CHECK (length(actor_id) > 0),
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    completed_at TIMESTAMPTZ
+    completed_at TIMESTAMPTZ,
+    CONSTRAINT ai_requests_routed_has_provider
+        CHECK (status = 'rejected' OR (provider IS NOT NULL AND model IS NOT NULL))
 );
 CREATE INDEX IF NOT EXISTS idx_ai_requests_actor ON ai_requests(actor_kind, actor_id);
 CREATE INDEX IF NOT EXISTS idx_ai_requests_request_id ON ai_requests(request_id);

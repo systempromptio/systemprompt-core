@@ -103,6 +103,22 @@ impl Fixture {
         Ok(())
     }
 
+    async fn insert_rejected_ai_request(&self) -> Result<()> {
+        let id = format!("rej_{}_{}", self.tag, Uuid::new_v4().simple());
+        sqlx::query(
+            "INSERT INTO ai_requests (id, request_id, user_id, cost_microdollars, tokens_used, \
+             status, created_at, updated_at, actor_kind, actor_id) VALUES ($1, $2, $3, 0, 0, \
+             'rejected', $4, $4, 'user', $3)",
+        )
+        .bind(&id)
+        .bind(&id)
+        .bind(&self.user_id)
+        .bind(self.window_start + Duration::minutes(2))
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
     async fn insert_task(&self, agent_name: &str) -> Result<String> {
         let task_id = format!("task_{}_{}", self.tag, Uuid::new_v4().simple());
         sqlx::query(
@@ -391,6 +407,43 @@ async fn cost_repository_per_user_paths() -> Result<()> {
         .get_previous_cost(fx.window_start - Duration::days(2), fx.window_start)
         .await?;
     let _ = prev_cost;
+
+    fx.cleanup().await?;
+    Ok(())
+}
+
+// A rejection carries no provider and no model. Every per-provider and
+// per-model aggregate must skip it, or the NULL surfaces as a phantom group
+// (and, before the `!` overrides were guarded, as a decode failure).
+#[tokio::test]
+async fn cost_breakdowns_skip_requests_rejected_before_routing() -> Result<()> {
+    let fx = Fixture::new().await?;
+    let task = fx.insert_task("agent-a").await?;
+    fx.insert_ai_request_for_task(&task, 1_000).await?;
+    fx.insert_rejected_ai_request().await?;
+
+    let repo = CostAnalyticsRepository::new(&fx.db)?;
+
+    let by_model = repo
+        .get_breakdown_by_model(fx.window_start, fx.window_end, 10)
+        .await?;
+    assert!(
+        by_model.iter().all(|r| r.name == "mod"),
+        "model breakdown must not gain a group for an unrouted request"
+    );
+
+    let by_provider = repo
+        .get_breakdown_by_provider(fx.window_start, fx.window_end, 10)
+        .await?;
+    assert!(
+        by_provider.iter().all(|r| r.name == "prov"),
+        "provider breakdown must not gain a group for an unrouted request"
+    );
+
+    let by_model_user = repo
+        .get_breakdown_by_model_for_user(&fx.user_typed, fx.window_start, fx.window_end, 10)
+        .await?;
+    assert!(by_model_user.iter().all(|r| r.name == "mod"));
 
     fx.cleanup().await?;
     Ok(())

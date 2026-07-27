@@ -203,8 +203,8 @@ fn execution_steps_table_numbers_rows_and_defaults_type() {
 fn ai_requests_table_sums_tokens_and_formats_cost() {
     let requests = vec![AiRequestInfo {
         id: AiRequestId::new("req-1"),
-        provider: "anthropic".to_owned(),
-        model: "claude".to_owned(),
+        provider: Some("anthropic".to_owned()),
+        model: Some("claude".to_owned()),
         max_tokens: Some(1024),
         input_tokens: Some(100),
         output_tokens: Some(50),
@@ -223,8 +223,8 @@ fn ai_requests_table_sums_tokens_and_formats_cost() {
 fn ai_requests_table_defaults_missing_numbers() {
     let requests = vec![AiRequestInfo {
         id: AiRequestId::new("req-2"),
-        provider: "openai".to_owned(),
-        model: "gpt".to_owned(),
+        provider: Some("openai".to_owned()),
+        model: Some("gpt".to_owned()),
         max_tokens: None,
         input_tokens: None,
         output_tokens: None,

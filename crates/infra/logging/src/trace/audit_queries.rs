@@ -14,8 +14,8 @@ use super::models::{AuditLookupResult, AuditToolCallRow, ConversationMessage, Li
 
 struct AuditRow {
     id: AiRequestId,
-    provider: String,
-    model: String,
+    provider: Option<String>,
+    model: Option<String>,
     requested_model: Option<String>,
     input_tokens: Option<i32>,
     output_tokens: Option<i32>,
@@ -67,7 +67,7 @@ async fn find_audit_by_request_id(
     let row = sqlx::query_as!(
         AuditRow,
         r#"
-        SELECT id as "id!: AiRequestId", provider as "provider!", model as "model!",
+        SELECT id as "id!: AiRequestId", provider, model,
             requested_model,
             input_tokens, output_tokens, cost_microdollars as "cost_microdollars!",
             latency_ms,
@@ -92,7 +92,7 @@ async fn find_audit_by_task_id(
     let row = sqlx::query_as!(
         AuditRow,
         r#"
-        SELECT id as "id!: AiRequestId", provider as "provider!", model as "model!",
+        SELECT id as "id!: AiRequestId", provider, model,
             requested_model,
             input_tokens, output_tokens, cost_microdollars as "cost_microdollars!",
             latency_ms,
@@ -118,7 +118,7 @@ async fn find_audit_by_trace_id(
     let row = sqlx::query_as!(
         AuditRow,
         r#"
-        SELECT id as "id!: AiRequestId", provider as "provider!", model as "model!",
+        SELECT id as "id!: AiRequestId", provider, model,
             requested_model,
             input_tokens, output_tokens, cost_microdollars as "cost_microdollars!",
             latency_ms,

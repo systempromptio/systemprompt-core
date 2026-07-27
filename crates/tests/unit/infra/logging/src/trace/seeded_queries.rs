@@ -315,8 +315,8 @@ async fn mcp_trace_queries_map_seeded_rows() {
         .await
         .unwrap();
     assert_eq!(linked.len(), 1);
-    assert_eq!(linked[0].provider, "openai");
-    assert_eq!(linked[0].model, "gpt-4");
+    assert_eq!(linked[0].provider.as_deref(), Some("openai"));
+    assert_eq!(linked[0].model.as_deref(), Some("gpt-4"));
     assert_eq!(linked[0].input_tokens, Some(10));
     assert_eq!(linked[0].cost_microdollars, 5);
 

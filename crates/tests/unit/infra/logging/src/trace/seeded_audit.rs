@@ -91,6 +91,23 @@ impl AuditSeed {
         })
     }
 
+    async fn insert_rejected_request(&self) -> String {
+        let rejected_id = format!("{}_rejected", self.request_id);
+        sqlx::query(
+            "INSERT INTO ai_requests \
+             (id, request_id, user_id, trace_id, actor_kind, actor_id, status, error_message, \
+              cost_microdollars) \
+             VALUES ($1, $1, $2, $3, 'user', $2, 'rejected', 'HTTP 402: credit exhausted', 0)",
+        )
+        .bind(&rejected_id)
+        .bind(&self.user_id)
+        .bind(&self.trace_id)
+        .execute(&self.pool)
+        .await
+        .unwrap();
+        rejected_id
+    }
+
     async fn insert_request_message(&self, role: &str, content: &str, seq: i32) {
         sqlx::query(
             "INSERT INTO ai_request_messages (request_id, role, content, sequence_number) \
@@ -269,7 +286,7 @@ async fn ai_trace_service_maps_seeded_task_and_message_rows() {
     let requests = svc.get_ai_requests(&task_id).await.unwrap();
     assert_eq!(requests.len(), 1);
     assert_eq!(requests[0].id.as_str(), seed.request_id);
-    assert_eq!(requests[0].provider, "anthropic");
+    assert_eq!(requests[0].provider.as_deref(), Some("anthropic"));
     assert_eq!(requests[0].max_tokens, Some(4096));
     assert_eq!(requests[0].cost_microdollars, 250);
 
@@ -316,7 +333,7 @@ async fn audit_and_request_queries_map_seeded_rows() {
         .unwrap()
         .expect("audit hit by request id");
     assert_eq!(by_request.id.as_str(), seed.request_id);
-    assert_eq!(by_request.provider, "anthropic");
+    assert_eq!(by_request.provider.as_deref(), Some("anthropic"));
     assert_eq!(
         by_request.requested_model.as_deref(),
         Some("requested-alias")
@@ -365,7 +382,7 @@ async fn audit_and_request_queries_map_seeded_rows() {
         .await
         .unwrap()
         .expect("detail found");
-    assert_eq!(detail.model, seed.model);
+    assert_eq!(detail.model.as_deref(), Some(seed.model.as_str()));
     assert_eq!(detail.status, "completed");
     assert_eq!(detail.error_message.as_deref(), Some("partial failure"));
     assert_eq!(detail.latency_ms, Some(900));
@@ -441,6 +458,52 @@ async fn audit_and_request_queries_map_seeded_rows() {
     );
     let metadata = events[0].metadata.as_deref().expect("AI event metadata");
     assert!(metadata.contains("\"tokens_used\":150"));
+
+    seed.cleanup().await;
+}
+
+// A request refused before routing is a real audit row with no provider and no
+// model. It must stay visible in the row-level views — that is the whole point
+// of recording it — while the per-provider and per-model aggregates skip it.
+#[tokio::test]
+async fn pre_routing_rejections_are_listed_but_excluded_from_provider_and_model_stats() {
+    let Some(seed) = AuditSeed::new().await else {
+        return;
+    };
+    let rejected_id = seed.insert_rejected_request().await;
+    let svc = TraceQueryService::new(std::sync::Arc::new(seed.pool.clone()));
+
+    let listed = svc
+        .list_ai_requests(&AiRequestFilter::new(50).with_user(seed.user_id.clone()))
+        .await
+        .unwrap();
+    let rejected = listed
+        .iter()
+        .find(|r| r.id.as_str() == rejected_id)
+        .expect("the rejection must be visible in the request list");
+    assert_eq!(rejected.provider, None);
+    assert_eq!(rejected.model, None);
+    assert_eq!(rejected.status, "rejected");
+
+    let detail = svc
+        .find_ai_request_detail(&rejected_id)
+        .await
+        .unwrap()
+        .expect("the rejection must be inspectable");
+    assert_eq!(detail.provider, None);
+    assert_eq!(detail.model, None);
+    assert_eq!(
+        detail.error_message.as_deref(),
+        Some("HTTP 402: credit exhausted")
+    );
+
+    // These aggregate over every row in the window, so this asserts nothing
+    // about group membership — other tests seed concurrently. The guard is that
+    // the call succeeds: the queries force a non-`Option` decode via
+    // `as "provider!"`, so an unfiltered NULL row fails them outright.
+    svc.get_ai_request_stats(Some(Utc::now() - ChronoDuration::hours(1)))
+        .await
+        .expect("provider/model stats must not decode the rejection's NULL routing");
 
     seed.cleanup().await;
 }

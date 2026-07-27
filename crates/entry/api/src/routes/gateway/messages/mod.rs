@@ -69,7 +69,7 @@ pub async fn handle(
         ai_request_id: &ai_request_id,
         partial: &mut partial,
     };
-    match inner.run(request).await {
+    let mut response = match inner.run(request).await {
         Ok(resp) => resp,
         Err(RejectionError {
             status,
@@ -93,7 +93,27 @@ pub async fn handle(
                 .body(Body::from(body))
                 .unwrap_or_else(|_| build_error_response(status, &message))
         },
-    }
+    };
+    attach_log_identity(&mut response, &partial);
+    response
+}
+
+/// The access-log middleware wraps this handler and so consumes the request
+/// before any principal exists; without this hand-off every gateway call is
+/// logged as the platform owner.
+fn attach_log_identity(response: &mut Response<Body>, partial: &RejectionPartial) {
+    let (Some(user_id), Some(session_id), Some(trace_id)) = (
+        partial.user_id.as_ref(),
+        partial.session_id.as_ref(),
+        partial.trace_id.as_ref(),
+    ) else {
+        return;
+    };
+    response.extensions_mut().insert(super::GatewayLogIdentity {
+        user: user_id.clone(),
+        session: session_id.clone(),
+        trace: trace_id.clone(),
+    });
 }
 
 struct HandleInner<'a> {

@@ -51,14 +51,15 @@ impl AiRequestRepository {
             ProviderUsage,
             r#"
             SELECT
-                provider,
-                model,
+                provider as "provider!",
+                model as "model!",
                 COUNT(*)::bigint as "request_count!",
                 COALESCE(SUM(tokens_used), 0)::bigint as "total_tokens!",
                 COALESCE(SUM(cost_microdollars), 0)::float8 / 1000000.0 as "total_cost!",
                 AVG(latency_ms)::bigint as "avg_latency_ms"
             FROM ai_requests
             WHERE created_at > $1 AND status = 'completed'
+              AND provider IS NOT NULL AND model IS NOT NULL
             GROUP BY provider, model
             ORDER BY COUNT(*) DESC
             "#,

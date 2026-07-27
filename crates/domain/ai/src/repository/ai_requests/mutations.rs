@@ -75,6 +75,7 @@ impl AiRequestRepository {
     pub async fn update_error(
         &self,
         id: &AiRequestId,
+        status: RequestStatus,
         error_message: &str,
     ) -> Result<AiRequest, RepositoryError> {
         sqlx::query_as!(
@@ -102,7 +103,7 @@ impl AiRequestRepository {
                       cache_read_tokens, cache_creation_tokens, is_streaming, status,
                       error_message, created_at, updated_at, completed_at
             "#,
-            RequestStatus::Failed.as_str(),
+            status.as_str(),
             error_message,
             id.as_str()
         )
@@ -175,7 +176,7 @@ impl AiRequestRepository {
 
         let use_completed_at = matches!(
             record.status,
-            RequestStatus::Completed | RequestStatus::Failed
+            RequestStatus::Completed | RequestStatus::Failed | RequestStatus::Rejected
         );
 
         let (actor_kind, actor_id) = record.actor.audit_columns();

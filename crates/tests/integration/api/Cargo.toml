@@ -23,6 +23,7 @@ systemprompt-database = { workspace = true }
 systemprompt-security = { workspace = true }
 systemprompt-oauth = { workspace = true }
 systemprompt-traits = { workspace = true }
+systemprompt-ai = { workspace = true }
 systemprompt-analytics = { workspace = true }
 systemprompt-extension = { workspace = true }
 systemprompt-marketplace = { workspace = true }

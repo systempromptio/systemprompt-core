@@ -34,7 +34,7 @@ impl RequestAnalyticsRepository {
         model_filter: Option<&str>,
     ) -> Result<RequestStatsRow> {
         if let Some(model) = model_filter {
-            let pattern = format!("%{}%", model);
+            let pattern = format!("%{model}%");
             sqlx::query_as!(
                 RequestStatsRow,
                 r#"
@@ -99,6 +99,7 @@ impl RequestAnalyticsRepository {
                 AVG(latency_ms)::float8 as "avg_latency"
             FROM ai_requests
             WHERE created_at >= $1 AND created_at < $2
+              AND provider IS NOT NULL AND model IS NOT NULL
             GROUP BY provider, model
             ORDER BY COUNT(*) DESC
             LIMIT $3
@@ -145,14 +146,14 @@ impl RequestAnalyticsRepository {
         model_filter: Option<&str>,
     ) -> Result<Vec<RequestListRow>> {
         if let Some(model) = model_filter {
-            let pattern = format!("%{}%", model);
+            let pattern = format!("%{model}%");
             sqlx::query_as!(
                 RequestListRow,
                 r#"
                 SELECT
                     id as "id!",
-                    provider as "provider!",
-                    model as "model!",
+                    provider,
+                    model,
                     input_tokens,
                     output_tokens,
                     cost_microdollars,
@@ -182,8 +183,8 @@ impl RequestAnalyticsRepository {
                 r#"
                 SELECT
                     id as "id!",
-                    provider as "provider!",
-                    model as "model!",
+                    provider,
+                    model,
                     input_tokens,
                     output_tokens,
                     cost_microdollars,

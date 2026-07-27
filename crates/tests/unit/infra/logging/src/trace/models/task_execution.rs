@@ -157,8 +157,8 @@ fn test_execution_step_serialize() {
 fn test_ai_request_info_creation() {
     let info = AiRequestInfo {
         id: "req-123".to_string().into(),
-        provider: "anthropic".to_string(),
-        model: "claude-3".to_string(),
+        provider: Some("anthropic".to_string()),
+        model: Some("claude-3".to_string()),
         max_tokens: Some(4096),
         input_tokens: Some(500),
         output_tokens: Some(300),
@@ -167,8 +167,8 @@ fn test_ai_request_info_creation() {
     };
 
     assert_eq!(info.id, "req-123");
-    assert_eq!(info.provider, "anthropic");
-    assert_eq!(info.model, "claude-3");
+    assert_eq!(info.provider.as_deref(), Some("anthropic"));
+    assert_eq!(info.model.as_deref(), Some("claude-3"));
     assert_eq!(info.max_tokens, Some(4096));
     assert_eq!(info.cost_microdollars, 5);
 }
@@ -177,8 +177,8 @@ fn test_ai_request_info_creation() {
 fn test_ai_request_info_minimal() {
     let info = AiRequestInfo {
         id: "req-min".to_string().into(),
-        provider: "openai".to_string(),
-        model: "gpt-4".to_string(),
+        provider: Some("openai".to_string()),
+        model: Some("gpt-4".to_string()),
         max_tokens: None,
         input_tokens: None,
         output_tokens: None,
@@ -195,8 +195,8 @@ fn test_ai_request_info_minimal() {
 fn test_ai_request_info_serialize() {
     let info = AiRequestInfo {
         id: "ser".to_string().into(),
-        provider: "test".to_string(),
-        model: "model".to_string(),
+        provider: Some("test".to_string()),
+        model: Some("model".to_string()),
         max_tokens: None,
         input_tokens: None,
         output_tokens: None,

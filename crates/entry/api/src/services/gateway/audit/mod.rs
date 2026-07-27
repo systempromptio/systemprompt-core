@@ -24,6 +24,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
 use anyhow::Result;
+use systemprompt_ai::models::RequestStatus;
 use systemprompt_ai::repository::{AiRequestPayloadRepository, AiRequestRepository};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{
@@ -118,7 +119,7 @@ impl GatewayAudit {
     pub async fn fail(&self, error: &str) -> Result<()> {
         if let Err(e) = self
             .requests
-            .update_error(&self.ctx.ai_request_id, error)
+            .update_error(&self.ctx.ai_request_id, RequestStatus::Failed, error)
             .await
         {
             tracing::warn!(error = %e, "audit fail update failed");

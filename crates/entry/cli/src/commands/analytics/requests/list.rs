@@ -112,8 +112,8 @@ fn build_row_output(row: RequestListRow) -> RequestListRowOutput {
     RequestListRowOutput {
         id: AiRequestId::new(row.id),
         user_id: row.user_id,
-        provider: row.provider,
-        model: row.model,
+        provider: row.provider.unwrap_or_else(|| "-".to_owned()),
+        model: row.model.unwrap_or_else(|| "-".to_owned()),
         status: row.status,
         error_message: row.error_message,
         input_tokens: row.input_tokens.unwrap_or(0),

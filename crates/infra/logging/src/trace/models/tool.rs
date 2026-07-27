@@ -53,8 +53,10 @@ pub struct ToolExecutionItem {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AuditLookupResult {
     pub id: AiRequestId,
-    pub provider: String,
-    pub model: String,
+    /// `None` for a request rejected before routing resolved a provider.
+    pub provider: Option<String>,
+    /// `None` for a request rejected before a model was read.
+    pub model: Option<String>,
     pub requested_model: Option<String>,
     pub input_tokens: Option<i32>,
     pub output_tokens: Option<i32>,

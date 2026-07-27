@@ -27,6 +27,10 @@ pub enum RequestStatus {
     Pending,
     Completed,
     Failed,
+    /// Refused before routing resolved a provider, so `provider` and `model`
+    /// may be absent. The only status the routing constraint permits them
+    /// under.
+    Rejected,
 }
 
 impl RequestStatus {
@@ -35,6 +39,7 @@ impl RequestStatus {
             Self::Pending => "pending",
             Self::Completed => "completed",
             Self::Failed => "failed",
+            Self::Rejected => "rejected",
         }
     }
 }
@@ -51,13 +56,14 @@ pub struct AiRequestRecord {
     pub provider_request_id: Option<ProviderRequestId>,
     pub trace_id: Option<TraceId>,
     pub mcp_execution_id: Option<McpExecutionId>,
-    pub provider: String,
+    /// `None` when the request was rejected before routing resolved a provider.
+    pub provider: Option<String>,
     /// The model actually served, after route rewrite and any upstream
     /// substitution (set from the provider response via `set_served_model`).
-    pub model: String,
+    /// `None` when the request was rejected before a model was read.
+    pub model: Option<String>,
     /// The model the client requested on the wire, before route rewrite. `None`
-    /// for non-gateway requests. Recorded so an audit shows both what was asked
-    /// for and what was served (e.g. requested `gpt-5`, served `MiniMax-M3`).
+    /// for non-gateway requests.
     pub requested_model: Option<String>,
     pub max_tokens: Option<i32>,
     pub tokens: TokenInfo,
@@ -239,14 +245,17 @@ impl AiRequestRecordBuilder {
         self
     }
 
-    pub fn build(self) -> Result<AiRequestRecord, AiRequestRecordError> {
-        let provider = self.provider.ok_or(AiRequestRecordError::MissingProvider)?;
-        let model = self.model.ok_or(AiRequestRecordError::MissingModel)?;
+    pub const fn rejected(mut self) -> Self {
+        self.status = RequestStatus::Rejected;
+        self
+    }
 
+    #[must_use]
+    pub fn build(self) -> AiRequestRecord {
         let actor = self
             .actor
             .unwrap_or_else(|| Actor::user(self.user_id.clone()));
-        Ok(AiRequestRecord {
+        AiRequestRecord {
             request_id: self.request_id,
             user_id: self.user_id,
             actor,
@@ -257,8 +266,8 @@ impl AiRequestRecordBuilder {
             provider_request_id: self.provider_request_id,
             trace_id: self.trace_id,
             mcp_execution_id: self.mcp_execution_id,
-            provider,
-            model,
+            provider: self.provider,
+            model: self.model,
             requested_model: self.requested_model,
             max_tokens: self.max_tokens,
             tokens: self.tokens,
@@ -268,14 +277,6 @@ impl AiRequestRecordBuilder {
             latency_ms: self.latency_ms,
             status: self.status,
             error_message: self.error_message,
-        })
+        }
     }
-}
-
-#[derive(Debug, Clone, Copy, thiserror::Error)]
-pub enum AiRequestRecordError {
-    #[error("Provider is required")]
-    MissingProvider,
-    #[error("Model is required")]
-    MissingModel,
 }

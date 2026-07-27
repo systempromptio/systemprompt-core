@@ -150,7 +150,7 @@ impl ImageService {
                     user_id = ?request.user_id,
                     session_id = ?request.session_id,
                     reference_images_count = request.reference_images.len(),
-                    "Image generation failed - full request context logged for debugging"
+                    "Image generation failed"
                 );
                 return Err(e);
             },
@@ -223,9 +223,8 @@ impl ImageService {
             }
         }
 
-        Err(AiError::ProviderError {
-            provider: "unknown".to_owned(),
-            message: format!("No provider found for model: {model}"),
+        Err(AiError::NoProviderForModel {
+            model: model.to_owned(),
         })
     }
 }

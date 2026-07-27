@@ -4,7 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::models::ai::{AiRequest, AiResponse, MessageRole};
-use crate::models::{AiRequestRecord, AiRequestRecordBuilder, AiRequestRecordError, RequestStatus};
+use crate::models::{AiRequestRecord, AiRequestRecordBuilder, RequestStatus};
 use systemprompt_identifiers::{
     AiRequestId, AiToolCallId, ContextId, McpExecutionId, SessionId, TaskId, TraceId, UserId,
 };
@@ -33,9 +33,7 @@ pub(super) struct BuildRecordParams<'a> {
     pub cost_microdollars: i64,
 }
 
-pub(super) fn build_record(
-    params: &BuildRecordParams<'_>,
-) -> Result<AiRequestRecord, AiRequestRecordError> {
+pub(super) fn build_record(params: &BuildRecordParams<'_>) -> AiRequestRecord {
     let user_id = UserId::new(params.context.user_id().as_str());
 
     let mut builder = AiRequestRecordBuilder::new(
@@ -77,8 +75,7 @@ pub(super) fn build_record(
     if trace_id_str.is_empty() {
         tracing::warn!(
             request_id = %params.response.request_id,
-            "ai_requests.trace_id missing: RequestContext.trace_id is empty — \
-             downstream trace correlation (trace list status, ai_requests count) will break"
+            "RequestContext.trace_id is empty; trace correlation will be incomplete"
         );
     } else {
         builder = builder.trace_id(TraceId::new(trace_id_str));
@@ -94,6 +91,7 @@ pub(super) fn build_record(
             let error_text = params.error_message.unwrap_or("Unknown error");
             builder.failed(error_text)
         },
+        RequestStatus::Rejected => builder.rejected(),
         RequestStatus::Pending => builder,
     };
 

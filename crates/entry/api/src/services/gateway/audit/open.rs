@@ -15,7 +15,7 @@ use super::payload::slice_payload;
 use crate::services::gateway::protocol::canonical::{CanonicalRequest, Role};
 
 impl GatewayAudit {
-    fn build_record(&self) -> Result<AiRequestRecord> {
+    fn build_record(&self) -> AiRequestRecord {
         let mut record =
             AiRequestRecord::builder(self.ctx.ai_request_id.clone(), self.ctx.user_id.clone())
                 .provider(self.ctx.provider.clone())
@@ -37,11 +37,11 @@ impl GatewayAudit {
         if let Some(mt) = self.ctx.max_tokens {
             record = record.max_tokens(mt);
         }
-        record.build().map_err(anyhow::Error::from)
+        record.build()
     }
 
     pub async fn open(&self, request: &CanonicalRequest, request_body: &Bytes) -> Result<()> {
-        let record = self.build_record()?;
+        let record = self.build_record();
 
         self.requests
             .insert_with_id(&self.ctx.ai_request_id, &record)
