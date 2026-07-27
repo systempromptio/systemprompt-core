@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.25.0] - 2026-07-27
+
+### Added
+
+- `subprocess::spawn_supervised` is the sanctioned way to start an agent or MCP child. It spawns every child from one dedicated, never-joined thread and arms `prctl(PR_SET_PDEATHSIG, SIGTERM)` in the forked child, so a supervisor that is `SIGKILL`ed or panics no longer strands children holding ports 8080/5010/9101/9102 for the next boot to reclaim. The dedicated thread is load-bearing: the death signal fires when the *forking thread* exits, so forking from a tokio worker would tie a live agent's lifetime to whichever worker happened to poll the spawn.
+
+### Changed
+
+- Child supervision is documented as Linux-only, matching where the server runs. The identity and reap checks read `/proc` and the death signal is `prctl`; on other platforms `live_pid_is_subprocess` now logs a WARN naming the consequence — the process will not be signalled and must be stopped by hand — instead of silently returning `false`.
+
 ## [0.24.0] - 2026-07-26
 
 ### Breaking

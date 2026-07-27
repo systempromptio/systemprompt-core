@@ -4,8 +4,8 @@
 
 ### Fixed
 
+- MCP server subprocesses are spawned through `subprocess::spawn_supervised`, so the kernel `SIGTERM`s them if the supervisor dies rather than leaving them holding their ports.
 - The event bus no longer logs `error=channel closed` when publishing an event with no broadcast subscribers. `broadcast::Sender::send` returns that error precisely when the receiver count is zero; nothing was closed and nothing was lost, since the handler fan-out is a separate list that still runs.
-
 - `DeploymentService::validate_config` no longer validates the merged configuration a second time; `ConfigLoader::load` has already validated what it returns.
 
 ## [0.24.0] - 2026-07-26

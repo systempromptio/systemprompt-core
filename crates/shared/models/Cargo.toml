@@ -87,5 +87,9 @@ sqlx = ["dep:sqlx"]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
+# Parent-death signalling for spawned children (see `subprocess::spawn_supervised`)
+[target.'cfg(unix)'.dependencies]
+libc = { workspace = true }
+
 [dev-dependencies]
 tempfile = { workspace = true }

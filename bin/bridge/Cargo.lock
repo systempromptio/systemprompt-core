@@ -4919,6 +4919,7 @@ dependencies = [
  "http",
  "indexmap",
  "ipnet",
+ "libc",
  "regex",
  "rmcp",
  "schemars",

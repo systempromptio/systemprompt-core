@@ -206,21 +206,12 @@ pub fn spawn_server(paths: &AppPaths, config: &McpServerConfig) -> McpDomainResu
         .stdin(std::process::Stdio::null());
     place_in_own_process_group(&mut child_command);
 
-    let child = child_command.spawn().map_err(|e| {
+    let pid = systemprompt_models::subprocess::spawn_supervised(child_command).map_err(|e| {
         crate::error::McpDomainError::Internal(format!(
             "Failed to start detached {}: {e}",
             config.name
         ))
     })?;
-
-    let pid = child.id();
-
-    #[expect(
-        clippy::mem_forget,
-        reason = "detached MCP server: skip Child's drop-time wait so the OS keeps the process \
-                  alive after this fn returns"
-    )]
-    std::mem::forget(child);
 
     Ok(pid)
 }

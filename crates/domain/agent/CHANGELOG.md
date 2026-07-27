@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.25.0] - 2026-07-27
+
+### Fixed
+
+- Agent subprocesses are spawned through `subprocess::spawn_supervised`, so the kernel `SIGTERM`s them if the supervisor dies. A `SIGKILL`ed or panicking parent previously left agents running on their ports until the next boot reclaimed them.
+
 ## [0.23.0] - 2026-07-24
 
 ### Removed

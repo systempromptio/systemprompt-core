@@ -43,7 +43,7 @@ pub fn spawn_detached(paths: &AppPaths, agent_name: &str, port: u16) -> Orchestr
 
     let log_file = command::prepare_agent_log_file(agent_name, &paths.system().logs())?;
 
-    let mut cmd = command::build_agent_command(command::BuildAgentCommandParams {
+    let cmd = command::build_agent_command(command::BuildAgentCommandParams {
         binary_path: &binary_path,
         agent_name,
         port,
@@ -53,17 +53,9 @@ pub fn spawn_detached(paths: &AppPaths, agent_name: &str, port: u16) -> Orchestr
         log_file,
     });
 
-    let child = cmd.spawn().map_err(|e| {
+    let pid = systemprompt_models::subprocess::spawn_supervised(cmd).map_err(|e| {
         OrchestrationError::ProcessSpawnFailed(format!("Failed to spawn {agent_name}: {e}"))
     })?;
-
-    let pid = child.id();
-    #[expect(
-        clippy::mem_forget,
-        reason = "detached agent process: skip Child's drop-time wait so the spawned agent keeps \
-                  running after this fn returns"
-    )]
-    std::mem::forget(child);
 
     if !signals::verify_process_started(pid) {
         return Err(OrchestrationError::ProcessSpawnFailed(format!(
