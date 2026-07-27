@@ -24,7 +24,19 @@ const UNRESTRICTED_ACKNOWLEDGEMENT: &str = "I understand this disables all autho
 pub const FIXTURE_AGENT: &str = "covagent";
 pub const FIXTURE_EDIT_AGENT: &str = "covedit";
 pub const FIXTURE_DELETE_AGENT: &str = "covdelete";
-pub const FIXTURE_MCP_SERVER: &str = "fixture_mcp";
+// The MCP server both the fixture services config and the `services` table
+// name. Minted once per process because `mcp_stub` upserts the backing
+// `services` row keyed on it, and every subprocess test shares one database: a
+// fixed name let a concurrently-running test process repoint the row at its own
+// wiremock stub, so `plugins mcp call` could resolve another process's port
+// (or one whose stub had already gone away).
+pub fn fixture_mcp_server() -> &'static str {
+    static NAME: OnceLock<String> = OnceLock::new();
+    NAME.get_or_init(|| {
+        let uuid = uuid::Uuid::new_v4().simple().to_string();
+        format!("fixture_mcp_{}", &uuid[..12])
+    })
+}
 
 pub struct FullBootstrap {
     _tmp: TempDir,
@@ -237,7 +249,9 @@ pub fn rewrite_services_config(fixture: &FullBootstrap, mcp_port: u16) {
 }
 
 fn render_services_config(mcp_port: u16) -> String {
-    SERVICES_CONFIG_TEMPLATE.replace("@MCP_PORT@", &mcp_port.to_string())
+    SERVICES_CONFIG_TEMPLATE
+        .replace("@MCP_PORT@", &mcp_port.to_string())
+        .replace("@MCP_NAME@", fixture_mcp_server())
 }
 
 fn render_extra_agent(name: &str, port: u16) -> String {
@@ -321,7 +335,7 @@ agents:
       mcpServers:
         source: instance
         include:
-        - fixture_mcp
+        - @MCP_NAME@
       skills:
         source: instance
       provider: anthropic
@@ -332,7 +346,7 @@ agents:
       scopes: []
       audience: a2a
 mcp_servers:
-  fixture_mcp:
+  @MCP_NAME@:
     type: external
     binary: ""
     remote_endpoint: http://127.0.0.1:@MCP_PORT@/mcp

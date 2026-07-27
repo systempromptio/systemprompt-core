@@ -7,7 +7,7 @@ use std::path::Path;
 use predicates::prelude::*;
 use serde_json::json;
 use systemprompt_cli_integration_tests::full_bootstrap::{
-    FIXTURE_AGENT, FIXTURE_DELETE_AGENT, FIXTURE_EDIT_AGENT, command, fixture,
+    FIXTURE_AGENT, FIXTURE_DELETE_AGENT, FIXTURE_EDIT_AGENT, command, fixture, fixture_mcp_server,
 };
 use systemprompt_cli_integration_tests::mcp_stub::stub_port;
 use wiremock::matchers::{method, path};
@@ -462,7 +462,7 @@ fn edit_apply_covers_field_groups() {
         "--system-prompt",
         "You are edited.",
         "--mcp-server",
-        "fixture_mcp",
+        fixture_mcp_server(),
         "--skill",
         "echo_skill",
         "--port",
@@ -481,7 +481,7 @@ fn edit_apply_covers_field_groups() {
         "edit",
         FIXTURE_EDIT_AGENT,
         "--remove-mcp-server",
-        "fixture_mcp",
+        fixture_mcp_server(),
         "--remove-skill",
         "echo_skill",
         "--set",

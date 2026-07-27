@@ -11,7 +11,9 @@
 //! business outcomes against a freshly-migrated test database.
 
 use predicates::str::contains;
-use systemprompt_cli_integration_tests::full_bootstrap::{command, run, run_with_formats};
+use systemprompt_cli_integration_tests::full_bootstrap::{
+    command, fixture_mcp_server, run, run_with_formats,
+};
 
 fn stdout_has(args: &[&str], needle: &str) {
     let Some(mut cmd) = command() else { return };
@@ -196,7 +198,16 @@ fn admin_config_rate_limits_validate() {
 
 #[test]
 fn admin_users_list_full() {
-    stdout_has_fmt(&["admin", "users", "list"], "testadmin");
+    // Scoped to admins with the page size raised well above the default 20:
+    // every subprocess test shares one database and the unfiltered first page
+    // fills with users other tests create (webauthn/grants/tx-oidc fixtures),
+    // pushing the seeded `testadmin` row off it.
+    stdout_has_fmt(
+        &[
+            "admin", "users", "list", "--role", "admin", "--limit", "500",
+        ],
+        "testadmin",
+    );
 }
 
 #[test]
@@ -582,7 +593,7 @@ fn plugins_capabilities_full() {
 
 #[test]
 fn plugins_mcp_list_full() {
-    stdout_has_fmt(&["plugins", "mcp", "list"], "fixture_mcp");
+    stdout_has_fmt(&["plugins", "mcp", "list"], fixture_mcp_server());
 }
 
 #[test]

@@ -28,6 +28,16 @@ pub async fn seed_agent_backend(pool: &DbPool, mock: &MockServer) -> Result<()> 
     })
     .await
     .map_err(|e| anyhow::anyhow!("seed agent backend: {e}"))?;
+    // `ServiceRepository::cleanup_stale_entries` deletes every
+    // `status = 'running' AND pid IS NULL` row across the whole table, and a
+    // concurrently-running test boots an orchestrator that calls it. Without a
+    // pid this registration was deleted before the dispatch resolved its
+    // target, and the backend received zero requests. The pid is honest: the
+    // wiremock backend is hosted by this process.
+    let pid = i32::try_from(std::process::id()).map_err(|e| anyhow::anyhow!("pid: {e}"))?;
+    repo.update_service_pid(test_messaging_agent(), pid)
+        .await
+        .map_err(|e| anyhow::anyhow!("seed agent backend pid: {e}"))?;
     Ok(())
 }
 

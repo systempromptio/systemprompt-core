@@ -1,10 +1,10 @@
 //! Subprocess tests for `plugins mcp call` / `plugins mcp tools` against the
 //! scripted streamable-HTTP MCP stub started by [`mcp_stub`], which registers
-//! `fixture_mcp` as a running service so port resolution succeeds and the
-//! real client/render paths execute.
+//! a per-process fixture MCP server as a running service so port resolution
+//! succeeds and the real client/render paths execute.
 
 use predicates::prelude::*;
-use systemprompt_cli_integration_tests::full_bootstrap::command;
+use systemprompt_cli_integration_tests::full_bootstrap::{command, fixture_mcp_server};
 use systemprompt_cli_integration_tests::mcp_stub::stub_port;
 
 fn stub_command() -> Option<assert_cmd::Command> {
@@ -21,7 +21,7 @@ fn mcp_call_echo_succeeds() {
         "plugins",
         "mcp",
         "call",
-        "fixture_mcp",
+        fixture_mcp_server(),
         "echo",
         "-a",
         r#"{"message":"hello"}"#,
@@ -41,7 +41,7 @@ fn mcp_call_echo_json_output() {
         "plugins",
         "mcp",
         "call",
-        "fixture_mcp",
+        fixture_mcp_server(),
         "echo",
         "-a",
         r#"{"message":"hello"}"#,
@@ -57,7 +57,7 @@ fn mcp_call_without_args_payload() {
     let Some(mut cmd) = stub_command() else {
         return;
     };
-    cmd.args(["plugins", "mcp", "call", "fixture_mcp", "echo"]);
+    cmd.args(["plugins", "mcp", "call", fixture_mcp_server(), "echo"]);
     cmd.assert()
         .success()
         .stdout(predicate::str::contains("stub output"));
@@ -68,7 +68,7 @@ fn mcp_call_tool_error_maps_to_failure() {
     let Some(mut cmd) = stub_command() else {
         return;
     };
-    cmd.args(["plugins", "mcp", "call", "fixture_mcp", "boom"]);
+    cmd.args(["plugins", "mcp", "call", fixture_mcp_server(), "boom"]);
     cmd.assert()
         .failure()
         .stderr(predicate::str::contains("boom exploded").or(predicate::str::contains("is_error")));
@@ -79,7 +79,7 @@ fn mcp_call_rejected_tool_maps_to_failure() {
     let Some(mut cmd) = stub_command() else {
         return;
     };
-    cmd.args(["plugins", "mcp", "call", "fixture_mcp", "reject"]);
+    cmd.args(["plugins", "mcp", "call", fixture_mcp_server(), "reject"]);
     cmd.assert().failure();
 }
 
@@ -92,7 +92,7 @@ fn mcp_call_invalid_json_args_fails() {
         "plugins",
         "mcp",
         "call",
-        "fixture_mcp",
+        fixture_mcp_server(),
         "echo",
         "-a",
         "{not json",
@@ -127,7 +127,7 @@ fn mcp_call_missing_tool_non_interactive_fails() {
     let Some(mut cmd) = stub_command() else {
         return;
     };
-    cmd.args(["plugins", "mcp", "call", "fixture_mcp"]);
+    cmd.args(["plugins", "mcp", "call", fixture_mcp_server()]);
     cmd.assert().failure();
 }
 
@@ -152,7 +152,7 @@ fn mcp_tools_filtered_by_server_with_schema() {
         "mcp",
         "tools",
         "--server",
-        "fixture_mcp",
+        fixture_mcp_server(),
         "--schema",
     ]);
     cmd.assert()

@@ -393,6 +393,22 @@ loadtest-distributed NODES *ARGS:
 #      the cargo configs (silently strips -C instrument-coverage).
 #      Those sections are gone; if a coverage run ever produces
 #      profraws but a 0% report again, check they haven't returned.
+#
+# --ignore-filename-regex also excludes seven CLI process-entry files.
+# Each is a supervisor whose body is `spawn a subprocess / long-running
+# server and wait`; there is no seam to drive one from a test without
+# actually booting the thing it supervises, and all seven measure 0%.
+# They are listed explicitly rather than by directory so that ordinary
+# testable code added alongside them still counts. Keep this list in
+# sync with .github/workflows/coverage.yml (3 sites each):
+#
+#   commands/infrastructure/services/serve.rs      — blocking API server boot
+#   commands/cloud/deploy/pipeline/orchestrator.rs — drives a live Fly deploy
+#   commands/cloud/deploy/pipeline/artifacts.rs    — shells out to docker build
+#   commands/cloud/tenant/create/cloud.rs          — provisions real cloud tenants
+#   commands/admin/setup/docker.rs                 — spawns docker daemon setup
+#   commands/admin/setup/docker_database.rs        — spawns a postgres container
+#   commands/cloud/backup/client.rs                — streams a live backup socket
 coverage:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -478,13 +494,13 @@ coverage:
     "$LLVM_COV" report \
         --instr-profile="$ROOT/coverage-report/tests.profdata" \
         $OBJ_ARGS \
-        --ignore-filename-regex="(\.cargo|rustc|crates/tests|bin/bridge|/debug/build/[^/]+/out/|$HOME/\.cargo)" \
+        --ignore-filename-regex="(\.cargo|rustc|crates/tests|bin/bridge|/debug/build/[^/]+/out/|$HOME/\.cargo|crates/entry/cli/src/commands/(infrastructure/services/serve|cloud/deploy/pipeline/(orchestrator|artifacts)|cloud/tenant/create/cloud|admin/setup/docker(_database)?|cloud/backup/client)\.rs)" \
         --summary-only
 
     "$LLVM_COV" export \
         --instr-profile="$ROOT/coverage-report/tests.profdata" \
         $OBJ_ARGS \
-        --ignore-filename-regex="(\.cargo|rustc|crates/tests|bin/bridge|/debug/build/[^/]+/out/|$HOME/\.cargo)" \
+        --ignore-filename-regex="(\.cargo|rustc|crates/tests|bin/bridge|/debug/build/[^/]+/out/|$HOME/\.cargo|crates/entry/cli/src/commands/(infrastructure/services/serve|cloud/deploy/pipeline/(orchestrator|artifacts)|cloud/tenant/create/cloud|admin/setup/docker(_database)?|cloud/backup/client)\.rs)" \
         --format=lcov \
         > "$ROOT/coverage-report/lcov.info"
 
@@ -518,7 +534,7 @@ coverage-html:
     "$LLVM_COV" show \
         --instr-profile="$ROOT/coverage-report/tests.profdata" \
         $OBJ_ARGS \
-        --ignore-filename-regex="(\.cargo|rustc|crates/tests|bin/bridge|/debug/build/[^/]+/out/|$HOME/\.cargo)" \
+        --ignore-filename-regex="(\.cargo|rustc|crates/tests|bin/bridge|/debug/build/[^/]+/out/|$HOME/\.cargo|crates/entry/cli/src/commands/(infrastructure/services/serve|cloud/deploy/pipeline/(orchestrator|artifacts)|cloud/tenant/create/cloud|admin/setup/docker(_database)?|cloud/backup/client)\.rs)" \
         --format=html \
         --output-dir="$ROOT/coverage-report/html"
     echo "Coverage report: coverage-report/html/index.html"

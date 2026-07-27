@@ -195,6 +195,13 @@ jobs:
           fi
           exit $status
 
+      # --ignore-filename-regex below excludes seven CLI process-entry files
+      # (serve, deploy orchestrator/artifacts, tenant create cloud, setup
+      # docker/docker_database, backup client). Each is a supervisor that
+      # spawns a subprocess or boots a blocking server, has no seam to drive
+      # from a test, and measures 0%. Listed file-by-file, not by directory,
+      # so testable code alongside them still counts. Mirrors the justfile
+      # `coverage` recipe comment — keep both in sync.
       - name: Merge profdata and render
         if: always()
         run: |
@@ -215,17 +222,17 @@ jobs:
 
           # Unfiltered first so we can see raw paths llvm-cov emits.
           "$LLVM_COV" report --instr-profile=coverage-merged.profdata $OBJ_ARGS \
-            --ignore-filename-regex='(\.cargo|rustc|crates/tests|bin/bridge|/debug/build/[^/]+/out/|/home/runner/\.cargo)' \
+            --ignore-filename-regex='(\.cargo|rustc|crates/tests|bin/bridge|/debug/build/[^/]+/out/|/home/runner/\.cargo|crates/entry/cli/src/commands/(infrastructure/services/serve|cloud/deploy/pipeline/(orchestrator|artifacts)|cloud/tenant/create/cloud|admin/setup/docker(_database)?|cloud/backup/client)\.rs)' \
             --summary-only \
             | tee coverage-summary.txt
 
           "$LLVM_COV" export --instr-profile=coverage-merged.profdata $OBJ_ARGS \
-            --ignore-filename-regex='(\.cargo|rustc|crates/tests|bin/bridge|/debug/build/[^/]+/out/|/home/runner/\.cargo)' \
+            --ignore-filename-regex='(\.cargo|rustc|crates/tests|bin/bridge|/debug/build/[^/]+/out/|/home/runner/\.cargo|crates/entry/cli/src/commands/(infrastructure/services/serve|cloud/deploy/pipeline/(orchestrator|artifacts)|cloud/tenant/create/cloud|admin/setup/docker(_database)?|cloud/backup/client)\.rs)' \
             --format=text --summary-only \
             > coverage-summary.json
 
           "$LLVM_COV" export --instr-profile=coverage-merged.profdata $OBJ_ARGS \
-            --ignore-filename-regex='(\.cargo|rustc|crates/tests|bin/bridge|/debug/build/[^/]+/out/|/home/runner/\.cargo)' \
+            --ignore-filename-regex='(\.cargo|rustc|crates/tests|bin/bridge|/debug/build/[^/]+/out/|/home/runner/\.cargo|crates/entry/cli/src/commands/(infrastructure/services/serve|cloud/deploy/pipeline/(orchestrator|artifacts)|cloud/tenant/create/cloud|admin/setup/docker(_database)?|cloud/backup/client)\.rs)' \
             --format=lcov \
             > lcov.info
 

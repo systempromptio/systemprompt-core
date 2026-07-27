@@ -2,15 +2,18 @@
 //!
 //! [`stub_port`] lazily starts a wiremock server on an ephemeral port that
 //! answers the MCP handshake, `tools/list`, and `tools/call`, then rewrites
-//! the shared fixture's services config so `fixture_mcp` points at it and
-//! upserts a `running` services row so `resolve_running_port` finds it.
+//! the shared fixture's services config so the fixture MCP server points at it
+//! and upserts a `running` services row so `resolve_running_port` finds it.
+//!
+//! The server name is per-process ([`fixture_mcp_server`]) so concurrent test
+//! processes cannot repoint each other's `services` row.
 
 use std::sync::OnceLock;
 
 use wiremock::matchers::{body_partial_json, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
-use crate::full_bootstrap::{FIXTURE_MCP_SERVER, database_url, fixture, rewrite_services_config};
+use crate::full_bootstrap::{database_url, fixture, fixture_mcp_server, rewrite_services_config};
 
 static STUB: OnceLock<Option<u16>> = OnceLock::new();
 
@@ -51,13 +54,22 @@ fn register_running_service(database_url: &str, port: u16) {
         let pool = sqlx::PgPool::connect(database_url)
             .await
             .expect("connect to test database");
+        // The row carries this test process's pid because
+        // `ServiceRepository::cleanup_stale_entries` deletes every
+        // `status = 'running' AND pid IS NULL` row across the whole table, and
+        // a concurrently-running test process boots an orchestrator that calls
+        // it. A pid-less stub registration was therefore deleted out from under
+        // this process, and the command under test saw no running MCP server.
+        // The pid is honest: the wiremock stub is hosted by this process.
+        let pid = i32::try_from(std::process::id()).expect("pid fits in i32");
         sqlx::query(
-            "INSERT INTO services (name, module_name, server_type, port, status)
-             VALUES ($1, 'mcp', 'external', $2, 'running')
-             ON CONFLICT (name) DO UPDATE SET port = $2, status = 'running'",
+            "INSERT INTO services (name, module_name, server_type, port, status, pid)
+             VALUES ($1, 'mcp', 'external', $2, 'running', $3)
+             ON CONFLICT (name) DO UPDATE SET port = $2, status = 'running', pid = $3",
         )
-        .bind(FIXTURE_MCP_SERVER)
+        .bind(fixture_mcp_server())
         .bind(i32::from(port))
+        .bind(pid)
         .execute(&pool)
         .await
         .expect("register running fixture_mcp service");

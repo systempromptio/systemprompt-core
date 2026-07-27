@@ -9,7 +9,9 @@
 //! Tests accept success or failure exit codes; the goal is driving handler
 //! bodies under the instrumented binary.
 
-use systemprompt_cli_integration_tests::full_bootstrap::{run, run_with_formats};
+use systemprompt_cli_integration_tests::full_bootstrap::{
+    fixture_mcp_server, run, run_with_formats,
+};
 
 #[test]
 fn agents_show_fixture() {
@@ -128,7 +130,7 @@ fn services_stop_agent_fixture() {
 
 #[test]
 fn services_stop_mcp_fixture() {
-    run(&["infra", "services", "stop", "mcp", "fixture_mcp"]);
+    run(&["infra", "services", "stop", "mcp", fixture_mcp_server()]);
 }
 
 #[test]
@@ -150,7 +152,7 @@ fn services_restart_agent_fixture() {
 
 #[test]
 fn services_restart_mcp_fixture() {
-    run(&["infra", "services", "restart", "mcp", "fixture_mcp"]);
+    run(&["infra", "services", "restart", "mcp", fixture_mcp_server()]);
 }
 
 #[test]
@@ -166,14 +168,21 @@ fn mcp_status_and_list() {
 
 #[test]
 fn mcp_validate_fixture() {
-    run_with_formats(&["plugins", "mcp", "validate", "fixture_mcp"]);
+    run_with_formats(&["plugins", "mcp", "validate", fixture_mcp_server()]);
     run(&["plugins", "mcp", "validate"]);
 }
 
 #[test]
 fn mcp_logs_fixture() {
-    run(&["plugins", "mcp", "logs", "fixture_mcp"]);
-    run(&["plugins", "mcp", "logs", "fixture_mcp", "--limit", "5"]);
+    run(&["plugins", "mcp", "logs", fixture_mcp_server()]);
+    run(&[
+        "plugins",
+        "mcp",
+        "logs",
+        fixture_mcp_server(),
+        "--limit",
+        "5",
+    ]);
 }
 
 #[test]
@@ -183,7 +192,7 @@ fn mcp_tools_and_call() {
         "plugins",
         "mcp",
         "call",
-        "fixture_mcp",
+        fixture_mcp_server(),
         "no_such_tool",
         "--args",
         "{}",
