@@ -76,13 +76,38 @@ jobs:
         with:
           tool: cargo-llvm-cov,nextest
 
-      # Only the bridge unit-test crates: they exercise systemprompt-bridge
-      # (including gui) and need no database, so no Postgres service is required.
+      # A nextest `-E` filter selects which tests run, not what cargo builds, so
+      # it cannot keep the live-database fixture crate out of the graph. The
+      # bridge test crates that pull in `systemprompt-test-fixtures` compile
+      # `sqlx::query!` against a database these runners do not have, and the
+      # tests workspace ships no `.sqlx` cache by design. Select the packages
+      # explicitly instead, dropping the ones that need a database.
+      - name: Select database-free bridge test packages
+        shell: python
+        run: |
+          import json, os, subprocess
+          meta = json.loads(subprocess.run(
+              ["cargo", "metadata", "--no-deps", "--format-version", "1",
+               "--manifest-path", "crates/tests/Cargo.toml"],
+              capture_output=True, text=True, check=True).stdout)
+          selected = sorted(
+              p["name"] for p in meta["packages"]
+              if p["name"].startswith("systemprompt-bridge")
+              and not any(d["name"] == "systemprompt-test-fixtures"
+                          for d in p["dependencies"])
+          )
+          if not selected:
+              raise SystemExit("no database-free bridge test packages found")
+          print("\n".join(selected))
+          with open(os.environ["GITHUB_ENV"], "a") as fh:
+              fh.write("BRIDGE_PKGS=" + " ".join(f"-p {n}" for n in selected) + "\n")
+
       - name: Instrumented bridge tests + coverage
+        shell: bash
         run: |
           cargo llvm-cov nextest \
             --manifest-path crates/tests/Cargo.toml \
-            -E 'package(~systemprompt-bridge)' \
+            $BRIDGE_PKGS \
             --ignore-filename-regex '(crates[\\/]tests|[\\/]\.cargo[\\/]|rustc)' \
             --summary-only \
             | tee coverage-bridge-${{ matrix.os }}.txt
