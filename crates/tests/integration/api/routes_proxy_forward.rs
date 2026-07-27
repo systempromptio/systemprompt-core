@@ -21,7 +21,6 @@ use axum::http::{Request, header};
 use axum::middleware::{self, Next};
 use axum::response::Response;
 use systemprompt_api::routes::proxy::{agents, mcp};
-use systemprompt_database::{CreateServiceInput, ServiceRepository};
 use systemprompt_identifiers::{AgentName, ContextId, SessionId, TraceId, UserId};
 use systemprompt_models::Config;
 use systemprompt_models::execution::context::RequestContext;
@@ -76,16 +75,7 @@ async fn register_running_service(
     module: &str,
     port: u16,
 ) -> anyhow::Result<()> {
-    let repo = ServiceRepository::new(pool)?;
-    repo.create_service(CreateServiceInput {
-        name,
-        module_name: module,
-        status: "running",
-        port,
-        binary_mtime: None,
-    })
-    .await?;
-    Ok(())
+    systemprompt_test_fixtures::seed_running_service(pool, name, module, port).await
 }
 
 fn unique_name(prefix: &str) -> String {

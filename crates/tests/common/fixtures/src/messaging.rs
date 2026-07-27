@@ -9,36 +9,17 @@
 
 use anyhow::Result;
 use serde_json::{json, Value};
-use systemprompt_database::{CreateServiceInput, DbPool, ServiceRepository};
+use systemprompt_database::DbPool;
 use wiremock::MockServer;
 
 use crate::bootstrap::test_messaging_agent;
+use crate::service_row::seed_running_service;
 
 // Register the dispatchable agent backend at `mock`'s loopback port.
 // Idempotent — `create_service` upserts on the service name, so a re-run
 // repoints the row.
 pub async fn seed_agent_backend(pool: &DbPool, mock: &MockServer) -> Result<()> {
-    let repo = ServiceRepository::new(pool).map_err(|e| anyhow::anyhow!("service repo: {e}"))?;
-    repo.create_service(CreateServiceInput {
-        name: test_messaging_agent(),
-        module_name: "agent",
-        status: "running",
-        port: mock.address().port(),
-        binary_mtime: None,
-    })
-    .await
-    .map_err(|e| anyhow::anyhow!("seed agent backend: {e}"))?;
-    // `ServiceRepository::cleanup_stale_entries` deletes every
-    // `status = 'running' AND pid IS NULL` row across the whole table, and a
-    // concurrently-running test boots an orchestrator that calls it. Without a
-    // pid this registration was deleted before the dispatch resolved its
-    // target, and the backend received zero requests. The pid is honest: the
-    // wiremock backend is hosted by this process.
-    let pid = i32::try_from(std::process::id()).map_err(|e| anyhow::anyhow!("pid: {e}"))?;
-    repo.update_service_pid(test_messaging_agent(), pid)
-        .await
-        .map_err(|e| anyhow::anyhow!("seed agent backend pid: {e}"))?;
-    Ok(())
+    seed_running_service(pool, test_messaging_agent(), "agent", mock.address().port()).await
 }
 
 // A successful `message/send` response whose terminal status message carries

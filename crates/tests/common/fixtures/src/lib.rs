@@ -9,6 +9,7 @@ pub mod keys;
 pub mod messaging;
 pub mod oauth;
 pub mod secrets;
+pub mod service_row;
 pub mod user;
 pub mod web_config;
 
@@ -34,5 +35,6 @@ pub use oauth::{
     TEST_CLIENT_SECRET_HASH, TEST_REDIRECT_URI,
 };
 pub use secrets::ensure_test_secrets_bootstrap;
+pub use service_row::seed_running_service;
 pub use user::{fixture_actor, fixture_system_admin, fixture_user_id, unique_user_id};
 pub use web_config::{web_config, WEB_CONFIG_YAML};

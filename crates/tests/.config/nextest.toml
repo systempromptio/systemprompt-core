@@ -169,12 +169,17 @@ test-group = 'api-health-monitor-db'
 # their own (empty) registry config, and the proxy-health tests mark every
 # running row with an unresponsive port as stopped. Serialise them into the
 # shared services-table slot so no sweep runs mid-assertion.
+#
+# `orchestrator::process_cleanup` joins them because one of its cases seeds a
+# row named after the test *process* and then asserts the port holder is no
+# longer reported as an orphan. `database_sync`'s unregister sweep would delete
+# that row between the seed and the assertion.
 [[profile.default.overrides]]
-filter = 'package(systemprompt-mcp-tests) and test(/(loader_live|loader_state|orchestrator_extended|orchestrator_populated|orchestrator_smoke|database_state|database_state_extended|database_sync|database_service|lifecycle_deep|lifecycle_live|lifecycle_smoke|proxy_health|proxy_health_healthy)::/)'
+filter = 'package(systemprompt-mcp-tests) and test(/(loader_live|loader_state|orchestrator_extended|orchestrator_populated|orchestrator_smoke|database_state|database_state_extended|database_sync|database_service|lifecycle_deep|lifecycle_live|lifecycle_smoke|proxy_health|proxy_health_healthy|orchestrator::process_cleanup)::/)'
 test-group = 'scheduler-services-db'
 
 [[profile.ci.overrides]]
-filter = 'package(systemprompt-mcp-tests) and test(/(loader_live|loader_state|orchestrator_extended|orchestrator_populated|orchestrator_smoke|database_state|database_state_extended|database_sync|database_service|lifecycle_deep|lifecycle_live|lifecycle_smoke|proxy_health|proxy_health_healthy)::/)'
+filter = 'package(systemprompt-mcp-tests) and test(/(loader_live|loader_state|orchestrator_extended|orchestrator_populated|orchestrator_smoke|database_state|database_state_extended|database_sync|database_service|lifecycle_deep|lifecycle_live|lifecycle_smoke|proxy_health|proxy_health_healthy|orchestrator::process_cleanup)::/)'
 test-group = 'scheduler-services-db'
 
 # The cloud CLI harness (cloud_harness) drives command paths in-process against
@@ -262,7 +267,7 @@ filter = 'package(systemprompt-api-integration-tests) and test(/health_monitor::
 test-group = 'api-health-monitor-db'
 
 [[profile.coverage.overrides]]
-filter = 'package(systemprompt-mcp-tests) and test(/(loader_live|loader_state|orchestrator_extended|orchestrator_populated|orchestrator_smoke|database_state|database_state_extended|database_sync|database_service|lifecycle_deep|lifecycle_live|lifecycle_smoke|proxy_health|proxy_health_healthy)::/)'
+filter = 'package(systemprompt-mcp-tests) and test(/(loader_live|loader_state|orchestrator_extended|orchestrator_populated|orchestrator_smoke|database_state|database_state_extended|database_sync|database_service|lifecycle_deep|lifecycle_live|lifecycle_smoke|proxy_health|proxy_health_healthy|orchestrator::process_cleanup)::/)'
 test-group = 'scheduler-services-db'
 
 [[profile.coverage.overrides]]
