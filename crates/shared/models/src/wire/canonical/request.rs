@@ -217,6 +217,42 @@ impl CanonicalRequest {
         }
         if out.is_empty() { None } else { Some(out) }
     }
+
+    /// Flattens the newest message of `role`, ignoring every earlier one.
+    ///
+    /// Distinct from [`Self::flatten_message_text`], which concatenates every
+    /// message of the role: a safety scanner that judges the latter re-reads
+    /// what the caller already sent on previous turns.
+    pub fn latest_message_text(&self, role: Role) -> Option<String> {
+        let msg = self.messages.iter().rev().find(|m| m.role == role)?;
+        let mut out = String::new();
+        for part in &msg.content {
+            flatten_part(&mut out, part);
+        }
+        if out.is_empty() { None } else { Some(out) }
+    }
+
+    /// Flattens the system prompt and each message into its own string.
+    ///
+    /// Detectors that slide a window over their input need this rather than
+    /// [`Self::flatten_text`], whose concatenation lets two unrelated messages
+    /// splice into a match neither one contains.
+    pub fn message_units(&self) -> Vec<String> {
+        let mut units = Vec::with_capacity(self.messages.len() + 1);
+        if let Some(sys) = &self.system {
+            units.push(sys.clone());
+        }
+        for msg in &self.messages {
+            let mut out = String::new();
+            for part in &msg.content {
+                flatten_part(&mut out, part);
+            }
+            if !out.is_empty() {
+                units.push(out);
+            }
+        }
+        units
+    }
 }
 
 fn flatten_part(out: &mut String, part: &CanonicalContent) {

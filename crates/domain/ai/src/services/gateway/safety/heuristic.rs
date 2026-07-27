@@ -4,9 +4,13 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use async_trait::async_trait;
-use systemprompt_models::wire::canonical::{CanonicalContent, CanonicalRequest, CanonicalResponse};
+use systemprompt_models::wire::canonical::{
+    CanonicalContent, CanonicalRequest, CanonicalResponse, Role,
+};
 
-use super::{Finding, SafetyScanner, Severity};
+use super::{
+    Finding, PHASE_REQUEST, PHASE_REQUEST_HISTORY, PHASE_RESPONSE, SafetyScanner, Severity,
+};
 
 const JAILBREAK_PHRASES: &[&str] = &[
     "ignore previous instructions",
@@ -32,8 +36,20 @@ impl SafetyScanner for HeuristicScanner {
 
     async fn scan_request(&self, req: &CanonicalRequest) -> Vec<Finding> {
         let mut findings = Vec::new();
-        let text = req.flatten_text();
-        scan_text("request", &text, &mut findings);
+        if let Some(sys) = &req.system {
+            scan_text(PHASE_REQUEST, sys, &mut findings);
+        }
+        if let Some(text) = req.latest_message_text(Role::User) {
+            scan_text(PHASE_REQUEST, &text, &mut findings);
+        }
+        findings
+    }
+
+    async fn scan_request_history(&self, req: &CanonicalRequest) -> Vec<Finding> {
+        let mut findings = Vec::new();
+        for unit in history_units(req) {
+            scan_text(PHASE_REQUEST_HISTORY, &unit, &mut findings);
+        }
         findings
     }
 
@@ -46,9 +62,27 @@ impl SafetyScanner for HeuristicScanner {
             }
         }
         let mut findings = Vec::new();
-        scan_text("response", &text, &mut findings);
+        scan_text(PHASE_RESPONSE, &text, &mut findings);
         findings
     }
+}
+
+/// The turns [`SafetyScanner::scan_request`] did not already judge.
+///
+/// The system prompt and the newest user turn are the request proper; anything
+/// before them is what the caller already sent and was already scanned on the
+/// turn it arrived.
+fn history_units(req: &CanonicalRequest) -> Vec<String> {
+    let mut units = req.message_units();
+    if req.system.is_some() && !units.is_empty() {
+        units.remove(0);
+    }
+    if let Some(newest) = req.latest_message_text(Role::User)
+        && units.last() == Some(&newest)
+    {
+        units.pop();
+    }
+    units
 }
 
 fn scan_text(phase: &'static str, text: &str, out: &mut Vec<Finding>) {
@@ -71,7 +105,7 @@ fn scan_text(phase: &'static str, text: &str, out: &mut Vec<Finding>) {
         }
     }
 
-    if detect_email(&lower) {
+    if detect_email(text) {
         out.push(Finding {
             phase,
             severity: Severity::Low,
@@ -80,7 +114,7 @@ fn scan_text(phase: &'static str, text: &str, out: &mut Vec<Finding>) {
             scanner: "heuristic",
         });
     }
-    if detect_credit_card(&lower) {
+    if detect_credit_card(text) {
         out.push(Finding {
             phase,
             severity: Severity::High,
@@ -114,12 +148,30 @@ fn detect_email(text: &str) -> bool {
     false
 }
 
+/// A run is only a candidate card number if nothing but the separators a human
+/// writes a card with interrupts its digits. Stripping every non-digit instead
+/// splices unrelated numbers — two version strings, a timestamp and an id —
+/// into a window that passes Luhn while no card is present.
 fn detect_credit_card(text: &str) -> bool {
-    let digits: String = text.chars().filter(char::is_ascii_digit).collect();
-    if digits.len() < 13 {
-        return false;
+    let mut run = String::new();
+    for ch in text.chars() {
+        if ch.is_ascii_digit() {
+            run.push(ch);
+            continue;
+        }
+        if matches!(ch, ' ' | '-') && !run.is_empty() {
+            continue;
+        }
+        if luhn_run(&run) {
+            return true;
+        }
+        run.clear();
     }
-    digits.as_bytes().windows(16).any(luhn_16)
+    luhn_run(&run)
+}
+
+fn luhn_run(run: &str) -> bool {
+    run.as_bytes().windows(16).any(luhn_16)
 }
 
 fn luhn_16(window: &[u8]) -> bool {

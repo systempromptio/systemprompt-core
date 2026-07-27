@@ -29,6 +29,7 @@ pub use route_selector::{
     RouteSelector, RouteSelectorEngine, RouteSelectorError, RouteSelectorRegistration,
 };
 pub use safety::{
-    Finding, HeuristicScanner, NullScanner, SafetyScanner, SafetyScannerRegistration, Severity,
+    Finding, HeuristicScanner, NullScanner, PHASE_REQUEST, PHASE_REQUEST_HISTORY, PHASE_RESPONSE,
+    SafetyScanner, SafetyScannerRegistration, Severity,
 };
-pub use spec::{GatewayPolicySpec, QuotaWindow, SafetyConfig};
+pub use spec::{GatewayPolicySpec, QuotaWindow, SafetyConfig, SafetyHistoryMode};

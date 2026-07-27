@@ -323,3 +323,97 @@ mod derived_gateway_conversation_id {
         );
     }
 }
+
+mod latest_message_text {
+    use super::*;
+
+    #[test]
+    fn returns_only_the_newest_message_of_the_role() {
+        let mut req = empty_request();
+        req.messages = vec![
+            msg(Role::User, vec![CanonicalContent::Text("first".to_owned())]),
+            msg(
+                Role::Assistant,
+                vec![CanonicalContent::Text("reply".to_owned())],
+            ),
+            msg(
+                Role::User,
+                vec![CanonicalContent::Text("second".to_owned())],
+            ),
+        ];
+
+        assert_eq!(
+            req.latest_message_text(Role::User).as_deref(),
+            Some("second")
+        );
+        assert_eq!(
+            req.flatten_message_text(Role::User).as_deref(),
+            Some("first\nsecond")
+        );
+    }
+
+    #[test]
+    fn is_none_when_the_role_never_spoke() {
+        let mut req = empty_request();
+        req.messages = vec![msg(
+            Role::Assistant,
+            vec![CanonicalContent::Text("hi".to_owned())],
+        )];
+        assert_eq!(req.latest_message_text(Role::User), None);
+    }
+
+    #[test]
+    fn is_none_when_the_newest_message_carries_no_text() {
+        let mut req = empty_request();
+        req.messages = vec![
+            msg(Role::User, vec![CanonicalContent::Text("older".to_owned())]),
+            msg(
+                Role::User,
+                vec![CanonicalContent::Image(ImageSource::Url {
+                    url: "https://x".to_owned(),
+                    detail: Some(ImageDetail::Auto),
+                })],
+            ),
+        ];
+        assert_eq!(req.latest_message_text(Role::User), None);
+    }
+}
+
+mod message_units {
+    use super::*;
+
+    #[test]
+    fn keeps_each_message_separate_where_flatten_text_joins_them() {
+        let mut req = empty_request();
+        req.system = Some("sys".to_owned());
+        req.messages = vec![
+            msg(Role::User, vec![CanonicalContent::Text("one".to_owned())]),
+            msg(Role::User, vec![CanonicalContent::Text("two".to_owned())]),
+        ];
+
+        assert_eq!(req.message_units(), vec!["sys", "one", "two"]);
+        assert_eq!(req.flatten_text(), "sys\none\ntwo");
+    }
+
+    #[test]
+    fn drops_messages_that_flatten_to_nothing() {
+        let mut req = empty_request();
+        req.messages = vec![
+            msg(
+                Role::User,
+                vec![CanonicalContent::Image(ImageSource::Url {
+                    url: "https://x".to_owned(),
+                    detail: Some(ImageDetail::Auto),
+                })],
+            ),
+            msg(Role::User, vec![CanonicalContent::Text("kept".to_owned())]),
+        ];
+
+        assert_eq!(req.message_units(), vec!["kept"]);
+    }
+
+    #[test]
+    fn is_empty_for_an_empty_request() {
+        assert!(empty_request().message_units().is_empty());
+    }
+}

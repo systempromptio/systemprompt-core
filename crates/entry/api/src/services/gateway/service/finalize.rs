@@ -13,6 +13,7 @@ use http::HeaderValue;
 use systemprompt_ai::repository::AiSafetyFindingRepository;
 use systemprompt_ai::{
     Finding, InsertSafetyFinding, OverrideAction, OverrideContext, OverrideEngine, SafetyConfig,
+    SafetyHistoryMode,
 };
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{AiRequestId, ModelId, ProviderId};
@@ -135,18 +136,38 @@ pub(super) async fn run_request_safety_scan(
     safety: &SafetyConfig,
 ) -> Vec<Finding> {
     let registry = SafetyScannerRegistry::global();
+    let scan_history = safety.history != SafetyHistoryMode::Off;
     let mut findings = Vec::new();
     for name in &safety.scanners {
         if let Some(scanner) = registry.get(name) {
             findings.extend(scanner.scan_request(request).await);
+            if scan_history {
+                findings.extend(scanner.scan_request_history(request).await);
+            }
         } else {
             tracing::warn!(scanner = %name, "Unknown safety scanner in policy — skipped");
         }
     }
+    dedupe_findings(&mut findings);
     if !findings.is_empty() {
         persist_findings(db, ai_request_id, &findings).await;
     }
     findings
+}
+
+/// A scanner reports one finding per match, so a message tripping two jailbreak
+/// phrases writes two otherwise identical rows before any conversation
+/// repetition is involved.
+#[cfg_attr(
+    not(feature = "test-api"),
+    expect(
+        unreachable_pub,
+        reason = "re-exported via `test_api` only when the feature is on"
+    )
+)]
+pub fn dedupe_findings(findings: &mut Vec<Finding>) {
+    let mut seen = std::collections::HashSet::new();
+    findings.retain(|f| seen.insert((f.phase, f.category.clone(), f.scanner)));
 }
 
 async fn run_response_safety_scan(
@@ -164,6 +185,7 @@ async fn run_response_safety_scan(
             tracing::warn!(scanner = %name, "Unknown safety scanner in policy — skipped");
         }
     }
+    dedupe_findings(&mut findings);
     if !findings.is_empty() {
         persist_findings(db, ai_request_id, &findings).await;
     }

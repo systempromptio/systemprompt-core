@@ -13,7 +13,8 @@ mod resolve;
 
 #[cfg(feature = "test-api")]
 pub mod test_api {
-    pub use super::finalize::{apply_system_prompt_override, attach_request_id};
+    pub use super::blocks_at_phase;
+    pub use super::finalize::{apply_system_prompt_override, attach_request_id, dedupe_findings};
 }
 
 use std::sync::Arc;
@@ -22,7 +23,7 @@ use anyhow::{Result, anyhow};
 use axum::body::Body;
 use axum::response::Response;
 use bytes::Bytes;
-use systemprompt_ai::SafetyConfig;
+use systemprompt_ai::{PHASE_REQUEST, PHASE_REQUEST_HISTORY, SafetyConfig, SafetyHistoryMode};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{AiRequestId, UserId};
 use systemprompt_models::profile::{GatewayConfig, ProviderRegistry};
@@ -255,10 +256,9 @@ async fn enforce_request_safety(
     audit: &GatewayAudit,
 ) -> Result<(), DispatchError> {
     let findings = run_request_safety_scan(db, ai_request_id, request, safety).await;
-    let Some(finding) = findings
-        .iter()
-        .find(|f| safety.block_categories.contains(&f.category))
-    else {
+    let Some(finding) = findings.iter().find(|f| {
+        safety.block_categories.contains(&f.category) && blocks_at_phase(f.phase, safety.history)
+    }) else {
         return Ok(());
     };
     let msg = format!(
@@ -281,6 +281,20 @@ async fn enforce_request_safety(
         }
         .into(),
     ))
+}
+
+/// Whether a finding raised at `phase` may deny the request.
+///
+/// A blocked category found in an earlier turn would otherwise deny every
+/// remaining turn of the conversation, including the turns that carry nothing
+/// objectionable — and a tool call the policy layer already refused is replayed
+/// into the scan surface for the rest of the session.
+pub fn blocks_at_phase(phase: &str, history: SafetyHistoryMode) -> bool {
+    match phase {
+        PHASE_REQUEST => true,
+        PHASE_REQUEST_HISTORY => history == SafetyHistoryMode::Block,
+        _ => false,
+    }
 }
 
 async fn audit_upstream_failure(

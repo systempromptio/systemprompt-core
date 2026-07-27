@@ -218,3 +218,96 @@ async fn heuristic_skips_non_text_response_content() {
     let findings = s.scan_response_final(&resp).await;
     assert!(findings.is_empty());
 }
+
+mod block_scope {
+    use systemprompt_ai::{
+        PHASE_REQUEST, PHASE_REQUEST_HISTORY, PHASE_RESPONSE, SafetyHistoryMode,
+    };
+    use systemprompt_api::services::gateway::service::test_api::blocks_at_phase;
+
+    #[test]
+    fn a_finding_in_the_newest_turn_always_blocks() {
+        for history in [
+            SafetyHistoryMode::Off,
+            SafetyHistoryMode::Audit,
+            SafetyHistoryMode::Block,
+        ] {
+            assert!(blocks_at_phase(PHASE_REQUEST, history));
+        }
+    }
+
+    #[test]
+    fn a_finding_from_an_earlier_turn_blocks_only_when_policy_says_so() {
+        assert!(!blocks_at_phase(
+            PHASE_REQUEST_HISTORY,
+            SafetyHistoryMode::Off
+        ));
+        assert!(!blocks_at_phase(
+            PHASE_REQUEST_HISTORY,
+            SafetyHistoryMode::Audit
+        ));
+        assert!(blocks_at_phase(
+            PHASE_REQUEST_HISTORY,
+            SafetyHistoryMode::Block
+        ));
+    }
+
+    #[test]
+    fn a_response_finding_never_blocks_the_request() {
+        assert!(!blocks_at_phase(PHASE_RESPONSE, SafetyHistoryMode::Block));
+    }
+}
+
+mod dedup {
+    use super::*;
+    use systemprompt_ai::PHASE_REQUEST;
+    use systemprompt_api::services::gateway::service::test_api::dedupe_findings;
+
+    fn finding(phase: &'static str, category: &str, excerpt: &str) -> Finding {
+        Finding {
+            phase,
+            severity: Severity::Medium,
+            category: category.to_owned(),
+            excerpt: Some(excerpt.to_owned()),
+            scanner: "heuristic",
+        }
+    }
+
+    #[test]
+    fn repeats_of_one_category_collapse_to_a_single_row() {
+        let mut findings = vec![
+            finding(PHASE_REQUEST, "jailbreak", "first phrase"),
+            finding(PHASE_REQUEST, "jailbreak", "second phrase"),
+        ];
+
+        dedupe_findings(&mut findings);
+
+        assert_eq!(findings.len(), 1);
+        assert_eq!(findings[0].excerpt.as_deref(), Some("first phrase"));
+    }
+
+    #[test]
+    fn distinct_categories_phases_and_scanners_all_survive() {
+        let mut findings = vec![
+            finding(PHASE_REQUEST, "jailbreak", "a"),
+            finding(PHASE_REQUEST, "pii_email", "b"),
+            finding("request_history", "jailbreak", "c"),
+        ];
+        findings.push(Finding {
+            scanner: "other",
+            ..finding(PHASE_REQUEST, "jailbreak", "d")
+        });
+
+        dedupe_findings(&mut findings);
+
+        assert_eq!(findings.len(), 4);
+    }
+}
+
+#[test]
+fn registry_resolves_the_null_scanner_by_name() {
+    let scanner = SafetyScannerRegistry::global()
+        .get("null")
+        .expect("null is built in");
+    assert_eq!(scanner.name(), "null");
+}

@@ -41,6 +41,12 @@ impl Severity {
     }
 }
 
+pub const PHASE_REQUEST: &str = "request";
+
+pub const PHASE_REQUEST_HISTORY: &str = "request_history";
+
+pub const PHASE_RESPONSE: &str = "response";
+
 #[derive(Debug, Clone)]
 pub struct Finding {
     pub phase: &'static str,
@@ -55,7 +61,22 @@ pub struct Finding {
 #[async_trait]
 pub trait SafetyScanner: Send + Sync {
     fn name(&self) -> &'static str;
+
+    /// Judges the newest turn of `req`. Findings belong at [`PHASE_REQUEST`]
+    /// and deny the request when their category is blocked by policy.
+    ///
+    /// A request carries the whole conversation, so a scanner that reads all of
+    /// it here denies every later turn once a single finding lands. Earlier
+    /// turns belong in [`Self::scan_request_history`].
     async fn scan_request(&self, req: &CanonicalRequest) -> Vec<Finding>;
+
+    /// Judges the turns preceding the newest one. Findings belong at
+    /// [`PHASE_REQUEST_HISTORY`] and are recorded without denying the request
+    /// unless policy sets `SafetyConfig::history` to `block`.
+    async fn scan_request_history(&self, _req: &CanonicalRequest) -> Vec<Finding> {
+        Vec::new()
+    }
+
     async fn scan_response_final(&self, response: &CanonicalResponse) -> Vec<Finding>;
 }
 

@@ -11,7 +11,7 @@ use super::protocol::outbound::gemini::GeminiOutbound;
 use super::protocol::outbound::openai_chat::OpenAiChatOutbound;
 use super::protocol::outbound::openai_responses::OpenAiResponsesOutbound;
 use super::protocol::outbound::{OutboundAdapter, OutboundAdapterRegistration};
-use systemprompt_ai::{HeuristicScanner, SafetyScanner, SafetyScannerRegistration};
+use systemprompt_ai::{HeuristicScanner, NullScanner, SafetyScanner, SafetyScannerRegistration};
 use systemprompt_models::profile::WireProtocol;
 
 pub struct GatewayUpstreamRegistry {
@@ -104,6 +104,7 @@ impl SafetyScannerRegistry {
     pub(super) fn build() -> Self {
         let mut entries: HashMap<String, Arc<dyn SafetyScanner>> = HashMap::new();
         entries.insert("heuristic".to_owned(), Arc::new(HeuristicScanner));
+        entries.insert("null".to_owned(), Arc::new(NullScanner));
 
         for registration in inventory::iter::<SafetyScannerRegistration> {
             let name = registration.name.to_owned();

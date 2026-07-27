@@ -1,4 +1,4 @@
-use systemprompt_ai::{GatewayPolicySpec, QuotaWindow, SafetyConfig};
+use systemprompt_ai::{GatewayPolicySpec, QuotaWindow, SafetyConfig, SafetyHistoryMode};
 
 #[test]
 fn permissive_is_default() {
@@ -34,4 +34,30 @@ fn spec_yaml_unknown_field_rejected() {
     let yaml = "quota_windows: []\nzz: 5";
     let r: Result<GatewayPolicySpec, _> = serde_yaml::from_str(yaml);
     assert!(r.is_err());
+}
+
+#[test]
+fn safety_history_defaults_to_off() {
+    assert_eq!(SafetyConfig::default().history, SafetyHistoryMode::Off);
+}
+
+#[test]
+fn a_policy_written_before_history_existed_still_deserializes() {
+    let yaml = "scanners: [heuristic]\nblock_categories: [jailbreak]";
+    let s: SafetyConfig = serde_yaml::from_str(yaml).expect("de");
+    assert_eq!(s.history, SafetyHistoryMode::Off);
+    assert_eq!(s.scanners, vec!["heuristic".to_owned()]);
+}
+
+#[test]
+fn safety_history_modes_round_trip_as_lowercase() {
+    for (text, mode) in [
+        ("off", SafetyHistoryMode::Off),
+        ("audit", SafetyHistoryMode::Audit),
+        ("block", SafetyHistoryMode::Block),
+    ] {
+        let yaml = format!("scanners: []\nblock_categories: []\nhistory: {text}");
+        let s: SafetyConfig = serde_yaml::from_str(&yaml).expect("de");
+        assert_eq!(s.history, mode);
+    }
 }
