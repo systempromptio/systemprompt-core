@@ -1,6 +1,13 @@
 //! Persistent activity writer: `install_persistent_writer` must mirror global
 //! appends into `activity.jsonl` under the state dir and roll the file over
 //! once it exceeds the size cap.
+//!
+//! Redirecting the state dir with `XDG_STATE_HOME` only works where the bridge
+//! reads it, so this is gated to the same targets as `obs::platform_log_dir`'s
+//! XDG branch. Windows and macOS resolve a native directory that ignores the
+//! variable entirely.
+
+#![cfg(not(any(target_os = "windows", target_os = "macos")))]
 
 use systemprompt_bridge::activity::{activity_log, install_persistent_writer};
 
