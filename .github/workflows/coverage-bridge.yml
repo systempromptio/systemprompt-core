@@ -77,30 +77,36 @@ jobs:
           tool: cargo-llvm-cov,nextest
 
       # A nextest `-E` filter selects which tests run, not what cargo builds, so
-      # it cannot keep the live-database fixture crate out of the graph. The
-      # bridge test crates that pull in `systemprompt-test-fixtures` compile
-      # `sqlx::query!` against a database these runners do not have, and the
-      # tests workspace ships no `.sqlx` cache by design. Select the packages
-      # explicitly instead, dropping the ones that need a database.
-      - name: Select database-free bridge test packages
+      # it cannot keep a package out of the graph. Two kinds of bridge test
+      # crate cannot compile on these runners: those pulling
+      # `systemprompt-test-fixtures`, which expands `sqlx::query!` against a
+      # database that is not here (and the tests workspace ships no `.sqlx`
+      # cache by design), and those pulling `linux-keyutils-keyring-store`,
+      # whose `linux-keyutils` needs `libc::EKEYREJECTED` and friends. Select
+      # the packages explicitly, dropping both.
+      - name: Select bridge test packages that build off Linux
         shell: python
         run: |
           import json, os, subprocess
+          UNBUILDABLE = {"systemprompt-test-fixtures", "linux-keyutils-keyring-store"}
           meta = json.loads(subprocess.run(
               ["cargo", "metadata", "--no-deps", "--format-version", "1",
                "--manifest-path", "crates/tests/Cargo.toml"],
               capture_output=True, text=True, check=True).stdout)
-          selected = sorted(
-              p["name"] for p in meta["packages"]
-              if p["name"].startswith("systemprompt-bridge")
-              and not any(d["name"] == "systemprompt-test-fixtures"
-                          for d in p["dependencies"])
-          )
+          selected, dropped = [], []
+          for p in meta["packages"]:
+              if not p["name"].startswith("systemprompt-bridge"):
+                  continue
+              blockers = UNBUILDABLE.intersection(d["name"] for d in p["dependencies"])
+              (dropped if blockers else selected).append((p["name"], sorted(blockers)))
           if not selected:
-              raise SystemExit("no database-free bridge test packages found")
-          print("\n".join(selected))
+              raise SystemExit("no bridge test package builds off Linux")
+          for name, blockers in sorted(dropped):
+              print(f"dropped {name}: {', '.join(blockers)}")
+          print(f"selected {len(selected)} package(s)")
           with open(os.environ["GITHUB_ENV"], "a") as fh:
-              fh.write("BRIDGE_PKGS=" + " ".join(f"-p {n}" for n in selected) + "\n")
+              fh.write("BRIDGE_PKGS="
+                       + " ".join(f"-p {n}" for n, _ in sorted(selected)) + "\n")
 
       - name: Instrumented bridge tests + coverage
         shell: bash
