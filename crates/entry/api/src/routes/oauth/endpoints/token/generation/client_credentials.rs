@@ -63,6 +63,11 @@ pub enum ClientCredentialsError {
     ConfigUnavailable(#[source] Box<dyn std::error::Error + Send + Sync>),
 }
 
+#[cfg(feature = "test-api")]
+pub mod test_api {
+    pub use super::{authorize_client_grant, resolve_audience, scope_permissions};
+}
+
 struct OwnerProfile {
     name: String,
     email: String,
@@ -200,7 +205,14 @@ pub async fn generate_client_tokens(
     })
 }
 
-fn scope_permissions(scopes: &[String]) -> Vec<Permission> {
+#[cfg_attr(
+    not(feature = "test-api"),
+    expect(
+        unreachable_pub,
+        reason = "items are re-exported via `test_api` only when the feature is on"
+    )
+)]
+pub fn scope_permissions(scopes: &[String]) -> Vec<Permission> {
     scopes
         .iter()
         .filter_map(|s| Permission::from_str(s).ok())
@@ -211,7 +223,14 @@ fn scope_permissions(scopes: &[String]) -> Vec<Permission> {
 // client grant, but user-tier roles are delegated authority and require both
 // the client *and* its owner to hold the permission — the RFC 6749 §4.4
 // owner is audit attribution, never authorization by itself.
-fn authorize_client_grant(
+#[cfg_attr(
+    not(feature = "test-api"),
+    expect(
+        unreachable_pub,
+        reason = "items are re-exported via `test_api` only when the feature is on"
+    )
+)]
+pub fn authorize_client_grant(
     requested: &[Permission],
     client_scopes: &[String],
     owner_permissions: &[Permission],
@@ -266,7 +285,14 @@ fn authorize_client_grant(
     Ok(granted)
 }
 
-fn resolve_audience(
+#[cfg_attr(
+    not(feature = "test-api"),
+    expect(
+        unreachable_pub,
+        reason = "items are re-exported via `test_api` only when the feature is on"
+    )
+)]
+pub fn resolve_audience(
     requested: Option<&str>,
     global_config: &Config,
 ) -> Result<Vec<JwtAudience>, ClientCredentialsError> {

@@ -17,7 +17,7 @@ pub mod event_bus;
 pub mod events;
 pub mod handlers;
 mod lifecycle_ops;
-mod process_cleanup;
+pub(crate) mod process_cleanup;
 mod reconciliation;
 mod schema_sync;
 mod server_startup;

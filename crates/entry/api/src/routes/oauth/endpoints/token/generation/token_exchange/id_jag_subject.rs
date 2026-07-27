@@ -23,6 +23,13 @@ use systemprompt_security::keys::{JwksClient, authority};
 use super::super::super::TokenError;
 use super::subject::{SubjectIdentity, jwks_host_allowlist, peek_issuer};
 
+#[cfg_attr(
+    not(feature = "test-api"),
+    expect(
+        unreachable_pub,
+        reason = "items are re-exported via `test_api` only when the feature is on"
+    )
+)]
 pub async fn validate_id_jag_subject(
     token: &str,
     authenticated_client: &ClientId,

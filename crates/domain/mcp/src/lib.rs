@@ -51,6 +51,19 @@ pub(crate) mod tool;
 
 pub use extension::McpExtension;
 
+/// Internal seams exposed for the out-of-tree test workspace.
+///
+/// Not part of the semver-stable surface — the orchestrator's cleanup passes
+/// are crate-private because callers must go through
+/// [`services::McpOrchestrator::reconcile`], which sequences them against the
+/// database prune and the start phase.
+#[doc(hidden)]
+pub mod test_api {
+    pub use crate::services::orchestrator::process_cleanup::{
+        detect_and_handle_orphaned_processes, detect_and_handle_stale_binaries,
+    };
+}
+
 pub use error::{McpDomainError, McpDomainResult};
 pub use rmcp::ErrorData as McpError;
 

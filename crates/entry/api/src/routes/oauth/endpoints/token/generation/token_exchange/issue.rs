@@ -15,7 +15,14 @@ use super::super::super::{TokenError, TokenResponse};
 use super::oidc::validate_oidc_subject;
 use super::{ID_TOKEN_TYPE, JWT_TOKEN_TYPE, TokenExchangeRequest};
 
-pub(super) async fn issue_id_jag(
+#[cfg_attr(
+    not(feature = "test-api"),
+    expect(
+        unreachable_pub,
+        reason = "items are re-exported via `test_api` only when the feature is on"
+    )
+)]
+pub async fn issue_id_jag(
     client_id: &ClientId,
     request: &TokenExchangeRequest<'_>,
     global: &Config,

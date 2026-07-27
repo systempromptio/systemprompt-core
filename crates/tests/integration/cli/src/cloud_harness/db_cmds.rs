@@ -176,6 +176,88 @@ async fn db_backup_and_restore_round_trip() {
 }
 
 #[tokio::test]
+async fn db_profile_without_secrets_reports_secret_load_failure() {
+    let env = enter().await;
+    let dir = env.root().join(".systemprompt/profiles/dbnosecrets");
+    std::fs::create_dir_all(&dir).expect("bare profile dir");
+
+    let err = cloud::execute(
+        CloudCommands::Db(CloudDbCommands::Status {
+            profile: "dbnosecrets".to_owned(),
+        }),
+        &json_ctx(),
+    )
+    .await
+    .expect_err("profile without secrets.json");
+    assert!(
+        err.to_string().contains("dbnosecrets"),
+        "error should name the profile, got: {err}"
+    );
+
+    remove_db_profile(&env, "dbnosecrets");
+}
+
+#[tokio::test]
+async fn db_doctor_diffs_declared_schema_against_live_database() {
+    let Some(url) = database_url() else { return };
+    let env = enter().await;
+    scaffold_db_profile(&env, "dbdoctor", &url);
+
+    cloud::execute(
+        CloudCommands::Db(CloudDbCommands::Doctor {
+            profile: "dbdoctor".to_owned(),
+        }),
+        &json_ctx(),
+    )
+    .await
+    .expect("doctor diffs the live schema");
+
+    remove_db_profile(&env, "dbdoctor");
+}
+
+#[tokio::test]
+async fn db_execute_applies_write_statements() {
+    let Some(url) = database_url() else { return };
+    let env = enter().await;
+    scaffold_db_profile(&env, "dbexec", &url);
+
+    let table = format!("cloud_db_exec_{}", std::process::id());
+    let ctx = json_ctx();
+
+    cloud::execute(
+        CloudCommands::Db(CloudDbCommands::Execute {
+            profile: "dbexec".to_owned(),
+            sql: format!("CREATE TABLE IF NOT EXISTS {table} (id integer PRIMARY KEY)"),
+        }),
+        &ctx,
+    )
+    .await
+    .expect("execute creates the table");
+
+    cloud::execute(
+        CloudCommands::Db(CloudDbCommands::Count {
+            profile: "dbexec".to_owned(),
+            table_name: table.clone(),
+        }),
+        &ctx,
+    )
+    .await
+    .expect("the table created by execute is countable");
+
+    cloud::execute(
+        CloudCommands::Db(CloudDbCommands::Execute {
+            profile: "dbexec".to_owned(),
+            sql: format!("DROP TABLE {table}"),
+        }),
+        &ctx,
+    )
+    .await
+    .expect("execute drops the table");
+
+    remove_db_profile(&env, "dbexec");
+}
+
+#[tokio::test]
 async fn db_execute_with_database_url_bypasses_profile() {
     let Some(url) = database_url() else { return };
     let _env = enter().await;

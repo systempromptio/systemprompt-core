@@ -33,7 +33,12 @@ async fn pool() -> DbPool {
 
 /// Sign an ID-JAG with the authority key the fixture installs, so the
 /// self-issued verification path resolves it by `kid`.
-fn sign_id_jag(config: &Config, typ: Option<&str>, alg: Algorithm, claims: serde_json::Value) -> String {
+fn sign_id_jag(
+    config: &Config,
+    typ: Option<&str>,
+    alg: Algorithm,
+    claims: serde_json::Value,
+) -> String {
     let key = install_test_signing_key();
     let mut header = Header::new(alg);
     header.kid = Some(key.kid().to_owned());

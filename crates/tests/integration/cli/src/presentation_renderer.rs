@@ -77,8 +77,11 @@ async fn renderer_drives_full_happy_path() {
     .unwrap();
     tx.unbounded_send(StartupEvent::SchedulerInitializing)
         .unwrap();
-    tx.unbounded_send(StartupEvent::SchedulerReady { job_count: 4 })
-        .unwrap();
+    tx.unbounded_send(StartupEvent::SchedulerReady {
+        scheduled: 4,
+        available: 23,
+    })
+    .unwrap();
     tx.unbounded_send(StartupEvent::Warning {
         message: "warm".to_owned(),
         context: Some("ctx".to_owned()),

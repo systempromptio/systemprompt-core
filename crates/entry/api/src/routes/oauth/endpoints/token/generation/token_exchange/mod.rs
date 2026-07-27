@@ -41,8 +41,12 @@ pub use subject::peek_issuer;
 
 #[cfg(feature = "test-api")]
 pub mod test_api {
+    pub use super::claims::resolve_audience;
     pub use super::id_jag_subject::validate_id_jag_subject;
-    pub use super::subject::{SubjectIdentity, validate_subject_token};
+    pub use super::issue::issue_id_jag;
+    pub use super::oidc::validate_oidc_subject;
+    pub use super::subject::{SubjectIdentity, jwks_host_allowlist, validate_subject_token};
+    pub use super::{ACCESS_TOKEN_TYPE, ID_TOKEN_TYPE, JWT_TOKEN_TYPE, validate_resource};
 }
 
 use claims::resolve_audience;
@@ -51,9 +55,30 @@ use issue::issue_id_jag;
 use subject::validate_subject_token;
 use systemprompt_oauth::services::validation::id_jag::ID_JAG_TOKEN_TYPE;
 
-pub(super) const ACCESS_TOKEN_TYPE: &str = "urn:ietf:params:oauth:token-type:access_token";
-pub(super) const ID_TOKEN_TYPE: &str = "urn:ietf:params:oauth:token-type:id_token";
-pub(super) const JWT_TOKEN_TYPE: &str = "urn:ietf:params:oauth:token-type:jwt";
+#[cfg_attr(
+    not(feature = "test-api"),
+    expect(
+        unreachable_pub,
+        reason = "items are re-exported via `test_api` only when the feature is on"
+    )
+)]
+pub const ACCESS_TOKEN_TYPE: &str = "urn:ietf:params:oauth:token-type:access_token";
+#[cfg_attr(
+    not(feature = "test-api"),
+    expect(
+        unreachable_pub,
+        reason = "items are re-exported via `test_api` only when the feature is on"
+    )
+)]
+pub const ID_TOKEN_TYPE: &str = "urn:ietf:params:oauth:token-type:id_token";
+#[cfg_attr(
+    not(feature = "test-api"),
+    expect(
+        unreachable_pub,
+        reason = "items are re-exported via `test_api` only when the feature is on"
+    )
+)]
+pub const JWT_TOKEN_TYPE: &str = "urn:ietf:params:oauth:token-type:jwt";
 
 #[derive(Debug, Default)]
 pub struct TokenExchangeRequest<'a> {
@@ -153,7 +178,17 @@ pub async fn handle_token_exchange(
     })
 }
 
-fn validate_resource<'a>(resource: Option<&'a str>, global: &Config) -> Result<Option<&'a str>> {
+#[cfg_attr(
+    not(feature = "test-api"),
+    expect(
+        unreachable_pub,
+        reason = "items are re-exported via `test_api` only when the feature is on"
+    )
+)]
+pub fn validate_resource<'a>(
+    resource: Option<&'a str>,
+    global: &Config,
+) -> Result<Option<&'a str>> {
     match resource {
         Some(value)
             if !global

@@ -11,6 +11,8 @@ mod gateway_auth_responses;
 mod gateway_authz_request;
 mod gateway_extract_credential;
 mod gateway_messages_auth;
+mod gateway_messages_dispatch_errors;
+mod gateway_messages_extract;
 mod gateway_otel_convert;
 mod gateway_otel_ingest;
 mod gateway_upstream_status_mapping;

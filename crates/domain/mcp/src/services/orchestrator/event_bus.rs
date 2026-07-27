@@ -30,8 +30,8 @@ impl EventBus {
     }
 
     pub async fn publish(&self, event: McpEvent) -> McpDomainResult<()> {
-        if let Err(e) = self.sender.send(event.clone()) {
-            tracing::debug!(error = %e, "No broadcast subscribers for event");
+        if self.sender.send(event.clone()).is_err() {
+            tracing::debug!("No broadcast subscribers for event");
         }
 
         for handler in &self.handlers {

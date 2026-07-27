@@ -90,13 +90,39 @@ struct Loop {
     pool: systemprompt_database::DbPool,
 }
 
+// `agent_name` is the name the completion handler stamps into the task
+// metadata; the request context always carries a valid `AgentName`, whose
+// constructor rejects the empty string outright.
+struct LoopSpec<'a> {
+    agent_name: &'a str,
+    persist_task_row: bool,
+}
+
+impl Default for LoopSpec<'_> {
+    fn default() -> Self {
+        Self {
+            agent_name: "loop-agent",
+            persist_task_row: true,
+        }
+    }
+}
+
 async fn spawn_loop() -> Option<Loop> {
+    spawn_loop_with(LoopSpec::default()).await
+}
+
+async fn spawn_loop_with(spec: LoopSpec<'_>) -> Option<Loop> {
     let pool = try_pool().await?;
     systemprompt_test_fixtures::ensure_test_bootstrap();
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let repos = repos(&pool);
     let (user, session) = seed_user_and_session(&pool).await;
-    let (ctx, task_id) = seed_context_and_task(&repos, &user, &session).await;
+    let (ctx, seeded_task_id) = seed_context_and_task(&repos, &user, &session).await;
+    let task_id = if spec.persist_task_row {
+        seeded_task_id
+    } else {
+        TaskId::generate()
+    };
 
     let processor =
         Arc::new(MessageProcessor::new(&pool, Arc::new(StubAiProvider::new())).expect("processor"));
@@ -113,7 +139,7 @@ async fn spawn_loop() -> Option<Loop> {
         context_id: ctx.clone(),
         message_id: MessageId::generate(),
         original_message: user_message(&ctx, &task_id),
-        agent_name: "loop-agent".to_owned(),
+        agent_name: spec.agent_name.to_owned(),
         context: request,
         task_repo,
         processor,
@@ -276,5 +302,97 @@ async fn process_events_broadcasts_tool_and_step_events() {
     assert!(
         agui.iter().any(|e| e.contains("step-1")),
         "expected an AG-UI execution-step broadcast"
+    );
+}
+
+#[tokio::test]
+async fn completion_with_an_empty_agent_name_aborts_before_persistence() {
+    let rec = recorder();
+    let Some(ctx) = spawn_loop_with(LoopSpec {
+        agent_name: "",
+        ..LoopSpec::default()
+    })
+    .await
+    else {
+        return;
+    };
+
+    ctx.event_tx
+        .send(StreamEvent::Complete {
+            full_text: "answer".to_owned(),
+            artifacts: vec![],
+        })
+        .await
+        .expect("send complete");
+    ctx.handle.await.expect("loop finished");
+
+    let repos = repos(&ctx.pool);
+    let stored = repos
+        .tasks
+        .get_task(&ctx.task_id)
+        .await
+        .expect("get task")
+        .expect("task row");
+    assert_eq!(
+        stored.status.state,
+        TaskState::Completed,
+        "the task state is marked before metadata is built"
+    );
+
+    let agui: Vec<String> = rec.agui.lock().expect("lock").clone();
+    assert!(
+        agui.iter().any(|e| e.contains("METADATA_ERROR")),
+        "an unusable agent name is reported as a RUN_ERROR"
+    );
+    assert!(
+        !agui
+            .iter()
+            .any(|e| e.contains("RUN_FINISHED") && e.contains(ctx.task_id.as_str())),
+        "the success fan-out is skipped when metadata cannot be built"
+    );
+}
+
+#[tokio::test]
+async fn completion_of_an_unpersisted_task_reports_a_persistence_error() {
+    let rec = recorder();
+    let Some(ctx) = spawn_loop_with(LoopSpec {
+        persist_task_row: false,
+        ..LoopSpec::default()
+    })
+    .await
+    else {
+        return;
+    };
+
+    ctx.event_tx
+        .send(StreamEvent::Complete {
+            full_text: "answer".to_owned(),
+            artifacts: vec![],
+        })
+        .await
+        .expect("send complete");
+    ctx.handle.await.expect("loop finished");
+
+    let repos = repos(&ctx.pool);
+    assert!(
+        repos
+            .tasks
+            .get_task(&ctx.task_id)
+            .await
+            .expect("get task")
+            .is_none(),
+        "the task was never persisted, so nothing is written back"
+    );
+
+    let agui: Vec<String> = rec.agui.lock().expect("lock").clone();
+    assert!(
+        agui.iter().any(|e| e.contains("PERSISTENCE_ERROR")),
+        "a failed write is reported as a RUN_ERROR"
+    );
+    assert!(
+        !agui
+            .iter()
+            .any(|e| e.contains("RUN_FINISHED") && e.contains(ctx.task_id.as_str())),
+        "the success fan-out is skipped when persistence fails"
     );
 }

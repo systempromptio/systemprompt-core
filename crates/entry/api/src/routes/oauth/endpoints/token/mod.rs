@@ -14,6 +14,9 @@ pub mod validation;
 
 pub use handler::handle_token;
 
+#[cfg(feature = "test-api")]
+pub use handler::test_api as handler_test_api;
+
 use serde::{Deserialize, Serialize};
 
 use crate::routes::oauth::OAuthHttpError;

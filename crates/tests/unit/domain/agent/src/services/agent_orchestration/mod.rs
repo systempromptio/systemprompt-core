@@ -10,6 +10,7 @@ mod monitor_db;
 mod monitor_functions;
 mod monitor_types;
 mod orchestrator;
+mod orchestrator_reconcile;
 mod orchestrator_registry;
 mod port_service_cleanup;
 mod port_service_functions;

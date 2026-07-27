@@ -23,6 +23,13 @@ struct IssOnly {
     iss: String,
 }
 
+#[cfg_attr(
+    not(feature = "test-api"),
+    expect(
+        unreachable_pub,
+        reason = "items are re-exported via `test_api` only when the feature is on"
+    )
+)]
 #[derive(Debug)]
 pub struct SubjectIdentity {
     pub scope: Vec<Permission>,
@@ -30,6 +37,13 @@ pub struct SubjectIdentity {
 }
 
 impl SubjectIdentity {
+    #[cfg_attr(
+        not(feature = "test-api"),
+        expect(
+            unreachable_pub,
+            reason = "items are re-exported via `test_api` only when the feature is on"
+        )
+    )]
     pub const fn new(scope: Vec<Permission>) -> Self {
         Self {
             scope,
@@ -38,6 +52,13 @@ impl SubjectIdentity {
     }
 }
 
+#[cfg_attr(
+    not(feature = "test-api"),
+    expect(
+        unreachable_pub,
+        reason = "items are re-exported via `test_api` only when the feature is on"
+    )
+)]
 pub async fn validate_subject_token(
     token: &str,
     token_type: &str,
@@ -197,7 +218,14 @@ fn validate_self_issued(token: &str, global: &Config) -> Result<SubjectIdentity>
     })
 }
 
-pub(super) fn jwks_host_allowlist(trusted: &[TrustedIssuer]) -> Vec<String> {
+#[cfg_attr(
+    not(feature = "test-api"),
+    expect(
+        unreachable_pub,
+        reason = "items are re-exported via `test_api` only when the feature is on"
+    )
+)]
+pub fn jwks_host_allowlist(trusted: &[TrustedIssuer]) -> Vec<String> {
     trusted
         .iter()
         .filter_map(|t| url::Url::parse(&t.jwks_uri).ok())

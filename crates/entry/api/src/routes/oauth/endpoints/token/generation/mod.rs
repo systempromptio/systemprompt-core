@@ -29,6 +29,8 @@ pub use token_exchange::{
 };
 
 #[cfg(feature = "test-api")]
+pub use client_credentials::test_api as client_credentials_test_api;
+#[cfg(feature = "test-api")]
 pub use token_exchange::test_api;
 
 use super::TokenResponse;

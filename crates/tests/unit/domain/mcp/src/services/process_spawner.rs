@@ -150,7 +150,10 @@ fn open_server_log_creates_the_logs_directory_and_appends() {
         std::io::Write::write_all(&mut file, b"second\n").expect("write");
     }
 
-    let log = paths.system().logs().join(format!("mcp-{}.log", config.name));
+    let log = paths
+        .system()
+        .logs()
+        .join(format!("mcp-{}.log", config.name));
     let contents = std::fs::read_to_string(&log).expect("log written");
     assert_eq!(
         contents, "first\nsecond\n",

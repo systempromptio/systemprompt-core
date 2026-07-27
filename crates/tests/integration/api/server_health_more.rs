@@ -170,6 +170,29 @@ async fn shutdown_drain_clears_dead_and_recycled_children() -> anyhow::Result<()
     Ok(())
 }
 
+#[tokio::test(start_paused = true)]
+async fn wedged_connection_drain_gives_up_and_lets_teardown_run() {
+    let never_closes = std::future::pending::<anyhow::Result<()>>();
+
+    let result = shutdown_test_api::join_within_drain_grace(never_closes).await;
+
+    assert!(
+        result.is_ok(),
+        "abandoning a wedged drain must not fail the run loop"
+    );
+}
+
+#[tokio::test(start_paused = true)]
+async fn drain_grace_leaves_room_for_child_termination() {
+    assert!(
+        shutdown_test_api::AXUM_DRAIN_GRACE_MS > shutdown_test_api::CHILD_SHUTDOWN_GRACE_MS,
+        "a drain that consumes the whole budget would strand every child"
+    );
+
+    let served = shutdown_test_api::join_within_drain_grace(async { Ok(()) }).await;
+    assert!(served.is_ok(), "a clean drain returns the serve result");
+}
+
 #[tokio::test]
 async fn cleanup_sweeps_stale_agent_row_and_keeps_non_stale_mcp() -> anyhow::Result<()> {
     let (_pool, ctx) = setup_ctx().await?;

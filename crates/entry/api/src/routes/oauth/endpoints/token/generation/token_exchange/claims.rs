@@ -36,10 +36,14 @@ pub fn intersect_scopes(
     Ok(out)
 }
 
-pub(super) fn resolve_audience(
-    requested: Option<&str>,
-    global: &Config,
-) -> Result<Vec<JwtAudience>> {
+#[cfg_attr(
+    not(feature = "test-api"),
+    expect(
+        unreachable_pub,
+        reason = "items are re-exported via `test_api` only when the feature is on"
+    )
+)]
+pub fn resolve_audience(requested: Option<&str>, global: &Config) -> Result<Vec<JwtAudience>> {
     if let Some(value) = requested {
         if !global
             .allowed_resource_audiences

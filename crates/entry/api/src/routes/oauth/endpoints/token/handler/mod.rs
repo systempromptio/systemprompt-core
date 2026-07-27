@@ -65,7 +65,19 @@ pub async fn handle_token(
     Ok((StatusCode::OK, Json(response)).into_response())
 }
 
-pub(super) fn map_exchange_error(err: &anyhow::Error) -> TokenError {
+#[cfg(feature = "test-api")]
+pub mod test_api {
+    pub use super::map_exchange_error;
+}
+
+#[cfg_attr(
+    not(feature = "test-api"),
+    expect(
+        unreachable_pub,
+        reason = "items are re-exported via `test_api` only when the feature is on"
+    )
+)]
+pub fn map_exchange_error(err: &anyhow::Error) -> TokenError {
     if let Some(token_err) = err.downcast_ref::<TokenError>() {
         return clone_token_error(token_err);
     }

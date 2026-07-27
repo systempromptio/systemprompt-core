@@ -269,10 +269,12 @@ mod db_cmds;
 mod doctor_deploy;
 mod domain_cmds;
 mod init_cmds;
+mod login_flows;
 mod profile_cmds;
 mod secrets_cmds;
 mod sync_cmds;
 mod tenant_flows;
+mod tenant_sync;
 
 pub(super) struct Env {
     _guard: MutexGuard<'static, ()>,
