@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.25.0] - 2026-07-27
+
+### Changed
+
+- File ingestion and the upload validator's extension lookup resolve through `systemprompt_models::mime` rather than two local tables.
+
+### Fixed
+
+- The upload validator strips parameters from the submitted MIME type before matching. A browser sends `Content-Type: text/plain; charset=utf-8` on a multipart part, which no allowlist entry matched, so a plain text file was rejected as a disallowed type; the same parameter also carried a script type past the blocklist, where only the closed allowlist that follows stopped it.
+
 ## [0.23.0] - 2026-07-24
 
 ### Removed

@@ -2,15 +2,18 @@
 
 ## [0.25.0] - 2026-07-27
 
-### Fixed
-
-- The scheduler startup line reads `Scheduler (5 scheduled, 23 available)`. It previously printed only the inventory total, so a deployment with five cron entries reported twenty-three.
-- The agent `create`, `edit`, and `delete` commands validate the configuration they just wrote. Each loads the configuration earlier in the same process to resolve its target, so the post-write `ConfigLoader::load` was served the pre-write cache entry and validated nothing. They now use `ConfigLoader::reload`.
-
 ### Changed
 
+- The AI-request tables and trace output render `-` for the provider and model of a request rejected before routing, in place of the literal `unknown` those rows used to carry.
+- `files upload` detects the content type through `systemprompt_models::mime` rather than its own table, so it names the same type the server stores and serves.
 - Command bodies that need an `AppContext` read it from the `CommandContext` they are handed rather than calling `AppContext::new()` themselves. Roughly twenty-five commands across `admin agents`, `admin bridge`, `core content`, `core files`, `infra jobs`, `infra services`, and `plugins mcp` each built a second, independent context, duplicating the bootstrap the dispatcher had already performed. Behaviour is unchanged; the context is now shared.
 - The container entrypoint written by `cloud init` and `cloud profile` no longer runs `infra db migrate` before starting the server. `services serve` already migrates in-process, so the schema install and its checksum verification ran twice on every container start. Existing containers keep the entrypoint baked into their image until it is regenerated.
+
+### Fixed
+
+- A table cell whose truncation point fell inside a multi-byte character panicked the rendering. Cells truncate through `systemprompt_models::text::truncate_with_ellipsis`, which cuts on a character boundary.
+- The scheduler startup line reads `Scheduler (5 scheduled, 23 available)`. It previously printed only the inventory total, so a deployment with five cron entries reported twenty-three.
+- The agent `create`, `edit`, and `delete` commands validate the configuration they just wrote. Each loads the configuration earlier in the same process to resolve its target, so the post-write `ConfigLoader::load` was served the pre-write cache entry and validated nothing. They now use `ConfigLoader::reload`.
 
 ## [0.24.0] - 2026-07-26
 

@@ -8,6 +8,7 @@
 
 ### Fixed
 
+- `AiRequestInfo::provider` and `AiRequestInfo::model` are `Option<String>`, and trace output renders `-` for a request that was rejected before routing resolved either. They previously could not represent such a row at all.
 - Integer and boolean fields are no longer redacted by name in either log sink. Redaction matched the substring `token` against the field name with no type check, so a `u64` delete count named `oauth_tokens` was recorded as the string `"[REDACTED]"` — losing the value and changing the field's JSON type. String and debug fields are unaffected.
 - The services table renders a square frame. Its width constant was two characters wider than a row's true interior, so the top border overhung every line beneath it and the title row's right edge landed a character short of both. The status column is also padded before it is styled — padding a string that already carried ANSI escapes counted the escape bytes as content and collapsed the column — and the `Port` heading is right-justified to match its values.
 

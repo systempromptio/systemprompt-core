@@ -4,6 +4,8 @@
 
 ### Added
 
+- `CanonicalRequest::latest_message_text` flattens the newest message of a role, and `CanonicalRequest::message_units` flattens the system prompt and each message into its own string. A safety scanner that judges `flatten_text` re-reads the whole conversation on every turn, and a detector that slides a window over it sees two unrelated messages as one; these are the primitives that let a caller scope to the newest turn and respect message boundaries.
+- `systemprompt_models::mime` is the single source of truth for extension↔MIME mapping. `from_path` and `from_extension` give the parameterless essence to store or validate against an allowlist, `http_content_type` gives the served form carrying `charset=utf-8` on the `text/*` types, `extension_for` inverts the mapping tolerating parameters and aliases, and `essence_of` strips parameters from a client-supplied type. Six independent tables previously disagreed about `woff`, `yaml`, and whether a charset was emitted, and a format missing from one of them was served as `application/octet-stream`.
 - `subprocess::spawn_supervised` is the sanctioned way to start an agent or MCP child. It spawns every child from one dedicated, never-joined thread and arms `prctl(PR_SET_PDEATHSIG, SIGTERM)` in the forked child, so a supervisor that is `SIGKILL`ed or panics no longer strands children holding ports 8080/5010/9101/9102 for the next boot to reclaim. The dedicated thread is load-bearing: the death signal fires when the *forking thread* exits, so forking from a tokio worker would tie a live agent's lifetime to whichever worker happened to poll the spawn.
 
 ### Changed
@@ -159,7 +161,6 @@
 ### Changed
 
 - `bridge_manifest::manifest()` now scopes the manifest's skills, agents, mcp_servers, and plugins to the active marketplace's `MarketplaceConfig.<entity>.include` lists before RBAC filtering. `MarketplaceConfig` was previously parsed but unused at manifest time. Empty `include:` preserves the global-list fallback for backwards compatibility. All four catalogues are now uniformly authored as `PluginComponentRef` on `MarketplaceConfig`.
-
 - `mcp::Deployment.endpoint` is now `Option<String>`. The struct gains a `validate(name)` method that rejects absolute URLs for `internal` servers; `ServicesConfig::validate` invokes it for every entry in `mcp_servers`. `external` servers continue to accept absolute upstream URLs.
 - `AgentCardConfig::skills` is now `#[serde(default, skip_serializing)]` and deprecated. The A2A `card.skills` view is computed at serve time by joining `agent.metadata.skills` against the on-disk `services/skills/` catalog; authored `card.skills:` arrays in agent YAML are tolerated for one release (so downstream repos can land their YAML cleanup separately) but are ignored. `AgentConfigValidator` no longer requires `card.skills[].id` to resolve on disk — only `metadata.skills` ids are validated. See root CHANGELOG.
 

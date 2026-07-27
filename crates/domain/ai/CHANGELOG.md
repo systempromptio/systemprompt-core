@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.25.0] - 2026-07-27
+
+### Breaking
+
+- **Breaking:** `AiRequestRecord::provider` and `AiRequestRecord::model` are `Option<String>`, and the matching `ai_requests` columns are nullable. A request refused before routing has no provider and no model; both columns previously held the literal `"unknown"`, indistinguishable from a provider actually named that. The `NOT NULL` pair becomes a status-keyed `CHECK` — only a `rejected` row may omit them. `AiRequestRecordBuilder::build` is infallible and returns `AiRequestRecord`; `AiRequestRecordError` is deleted. Migration `010` backfills the sentinel to `NULL` and stamps those rows `rejected`.
+- **Breaking:** `RequestStatus` gains a `Rejected` variant. Migrate by covering it in any exhaustive match.
+
+### Added
+
+- `SafetyConfig::history` selects how far back the request-phase scanners look: `off` (the default) judges only the newest user turn, `audit` also scans earlier turns and records them at the new `request_history` phase without denying the request, and `block` restores the pre-0.25.0 behaviour. Policies written before the field existed keep working and get `off`.
+- `SafetyScanner::scan_request_history` is the seam for judging turns the caller already sent. It defaults to scanning nothing and is called only when policy asks for it, so existing scanners need no change. `PHASE_REQUEST`, `PHASE_REQUEST_HISTORY` and `PHASE_RESPONSE` name the phases a `Finding` can carry.
+
+### Fixed
+
+- `HeuristicScanner` judges the system prompt and the newest user turn rather than the whole conversation. It read `CanonicalRequest::flatten_text`, so every turn re-scanned everything the caller had already sent: a single finding in a blocked category denied every later turn of the conversation, and a tool call the policy layer had correctly refused was replayed into the scan surface as `[tool_use:…]` for the rest of the session.
+- The credit-card detector no longer splices unrelated numbers into a card. It stripped every non-digit from the flattened conversation and slid a 16-digit window over the result, so a version string, a timestamp and an identifier could concatenate into a Luhn-valid sequence while nothing present was a card number. Digits are collected per message into runs that only a space or hyphen may interrupt.
+
 ## [0.23.0] - 2026-07-24
 
 ### Added

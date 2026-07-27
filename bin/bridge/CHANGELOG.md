@@ -2,6 +2,15 @@
 
 ## [0.19.0] - 2026-07-27
 
+### Fixed
+
+- An embedded GUI asset whose extension the server does not recognise is served as `application/octet-stream`. The fallback was `text/html; charset=utf-8`, so an unrecognised asset was handed to the webview as markup. Only names in the generated `WEB_TEXT_ASSETS` manifest reach the fallback today, so this is hardening rather than a reachable defect.
+- GUI asset responses carry `x-content-type-options: nosniff`, which they omitted entirely.
+
+### Changed
+
+- Asset content types resolve through `systemprompt_models::mime` rather than a local table, so the GUI names types the same way the server does. JavaScript is served as `text/javascript` rather than `application/javascript`.
+
 ### Added
 
 - Linking a device provisions the registered hosts automatically: every host is probed, and each one that has its app installed gets a profile generated, installed, and synced. Previously the link finished and left nothing installed, so the app stayed unusable until the user found the agents tab and ran the install by hand. Progress appears per host in the setup wizard, which refuses to finish while a run is in flight, and a host that fails is reported rather than passed over silently. A run is recorded in `first-run.json` in the bridge metadata directory, so signing out and back in does not repeat it; `auth clean` removes the sentinel along with the rest of the machine state. A run that stops making progress — an unanswered elevation prompt, a probe that never reports — times out after five minutes and hands the app back with the failures on screen.

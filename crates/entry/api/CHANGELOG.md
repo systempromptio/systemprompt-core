@@ -2,8 +2,20 @@
 
 ## [0.25.0] - 2026-07-27
 
+### Changed
+
+- Static assets, marketplace plugin files, and bridge plugin files all resolve their type through `systemprompt_models::mime` rather than three local tables. JavaScript is served as `text/javascript` rather than `application/javascript`, YAML as `application/yaml` rather than `text/yaml`, and served `text/*` responses — HTML and CSS included — now carry `charset=utf-8`.
+
 ### Fixed
 
+- One safety finding no longer denies the rest of a conversation. `enforce_request_safety` matched `block_categories` against a bare category string with no notion of which turn raised the finding, so anything the built-in scanner found in the conversation history denied the current request. Blocking is now phase-aware: only a finding against the newest turn denies, unless `safety.history` is set to `block`.
+- Duplicate `ai_safety_findings` rows are collapsed. A scanner emits one finding per match, so a message tripping two jailbreak phrases wrote two rows; findings are deduplicated by phase, category and scanner before persistence, on both the request and response paths.
+- Gateway requests are attributed to their caller in the `logs` table. The gateway router is nested without the context middleware — it authenticates inside the handler — so the access log ran before any principal existed and recorded every request as the platform owner. A single rejected request read back as two users acting at the same instant. The handler hands the resolved principal back on the response and the access log uses it, falling back to the platform actor only when the request never authenticated. These rows carry `"kind": "access_log"`.
+- A request rejected before it authenticated no longer warns about a skipped audit row. It has no principal by construction, and forcing an `ai_requests` row would let anything probing `/v1/messages` write unbounded rows; the access-log entry records the rejection and its status, and the message drops to `DEBUG`.
+- The rejection record writes `NULL` for provider and model rather than the literal `"unknown"`, and is stamped `rejected`.
+- The `null` scanner resolves from the gateway scanner registry. It was exported and documented as the scanner to name when scanning is disabled but never registered, so naming it silently ran nothing.
+- Static assets with a `webp`, `gif`, or `avif` extension are served with their image type instead of `application/octet-stream`. Core already classified `.webp` as a static asset, accepted `image/webp` on upload, and recorded it as such, but the serving table could not name the type it had just ingested. Because the same response sets `x-content-type-options: nosniff`, the browser is forbidden from recovering by sniffing, so such an image returned a clean 200 and silently never decoded.
+- `.woff` is served as `font/woff`. It was served as `font/woff2`, a different format.
 - Shutdown no longer strands MCP and agent child processes. The forced-exit deadline was armed when the first signal landed, which is *before* axum begins draining connections, so a long-lived SSE stream could consume the whole grace window and kill the process before any child was signalled. The connection drain is now bounded separately and abandoned on expiry, and the hard deadline is armed only once the drain has returned, so child termination always gets its full grace. A second signal still exits immediately.
 - The scheduler startup event reports the configured job count alongside the discovered one.
 

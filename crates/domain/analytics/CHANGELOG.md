@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.25.0] - 2026-07-27
+
+### Breaking
+
+- **Breaking:** `RequestListRow::provider` and `RequestListRow::model` are `Option<String>`. A request rejected before routing has neither. Migrate by matching on the option at any site that reads either field.
+
+### Changed
+
+- The per-provider and per-model aggregates in `CostAnalyticsRepository`, `AnalyticsQueryRepository`, and `RequestAnalyticsRepository` exclude rows whose `provider` or `model` is `NULL`, so a rejected request no longer forms a group of its own.
+
 ## [0.24.0] - 2026-07-26
 
 ### Fixed
