@@ -34,6 +34,10 @@ fn save_entrypoint_writes_executable_script() {
     let content = std::fs::read_to_string(&path).expect("readable");
     assert!(content.starts_with("#!/bin/sh"));
     assert!(content.contains("systemprompt"));
+    assert!(
+        !content.contains("db migrate"),
+        "serve migrates in-process; a migrate step here would install the schema twice: {content}"
+    );
 
     #[cfg(unix)]
     {

@@ -8,6 +8,11 @@
 //! finally validates the merged configuration before returning it to the
 //! caller.
 //!
+//! [`ConfigLoader::load`] — the active-profile entry point — memoises its
+//! result for the lifetime of the process. The explicit
+//! [`ConfigLoader::load_from_path`] and [`ConfigLoader::validate_file`] forms
+//! are one-shot reads of a caller-supplied file and are never cached.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -16,9 +21,10 @@ mod includes;
 mod merge;
 mod types;
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::{OnceLock, PoisonError, RwLock};
 
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_models::services::ServicesConfig;
@@ -55,8 +61,60 @@ impl ConfigLoader {
         Ok(Self::new(config_path))
     }
 
+    /// Loads the active profile's services configuration.
+    ///
+    /// The result is cached for the lifetime of the process, keyed by the
+    /// resolved configuration path. Boot alone calls this dozens of times —
+    /// startup validation, the scheduler, the agent registry, and every MCP
+    /// deployment accessor — and each uncached call re-read the YAML, re-walked
+    /// the skills/plugins/marketplaces trees, and re-validated the whole file.
+    /// Configuration is fixed for the life of a deployment, so an edit requires
+    /// a restart to take effect.
     pub fn load() -> ConfigLoadResult<ServicesConfig> {
-        Self::for_active_profile()?.run()
+        Self::for_active_profile()?.run_cached()
+    }
+
+    /// Re-reads and re-validates the active profile's services configuration,
+    /// bypassing the [`Self::load`] cache and refreshing it with the result.
+    ///
+    /// Required by any command that validates its own write: the agent
+    /// create/edit/delete commands each load the configuration to resolve their
+    /// target before writing, so a cached [`Self::load`] afterwards would
+    /// return the pre-write state and the validation would silently pass.
+    pub fn reload() -> ConfigLoadResult<ServicesConfig> {
+        Self::for_active_profile()?.run_uncached()
+    }
+
+    fn run_uncached(&self) -> ConfigLoadResult<ServicesConfig> {
+        let config = self.run()?;
+        let key = fs::canonicalize(&self.config_path).unwrap_or_else(|_| self.config_path.clone());
+        cache_store(key, &config);
+        Ok(config)
+    }
+
+    /// [`Self::load`] against an explicit path, sharing the same process-wide
+    /// cache.
+    #[cfg(any(test, feature = "expose-internals"))]
+    pub fn load_cached_from_path(path: &Path) -> ConfigLoadResult<ServicesConfig> {
+        Self::new(path.to_path_buf()).run_cached()
+    }
+
+    /// [`Self::reload`] against an explicit path.
+    #[cfg(any(test, feature = "expose-internals"))]
+    pub fn reload_from_path(path: &Path) -> ConfigLoadResult<ServicesConfig> {
+        Self::new(path.to_path_buf()).run_uncached()
+    }
+
+    fn run_cached(&self) -> ConfigLoadResult<ServicesConfig> {
+        let key = fs::canonicalize(&self.config_path).unwrap_or_else(|_| self.config_path.clone());
+
+        if let Some(cached) = cache_read(&key) {
+            return Ok(cached);
+        }
+
+        let config = self.run()?;
+        cache_store(key, &config);
+        Ok(config)
     }
 
     pub fn load_from_path(path: &Path) -> ConfigLoadResult<ServicesConfig> {
@@ -166,4 +224,29 @@ impl ConfigLoader {
     pub fn base_path(&self) -> &Path {
         &self.base_path
     }
+}
+
+// Why: keyed by path rather than a bare `OnceLock` so that a process which
+// resolves more than one configuration — the CLI acting on an explicit path, a
+// test case pointed at its own temporary profile — cannot be served another
+// path's entry.
+static CONFIG_CACHE: OnceLock<RwLock<HashMap<PathBuf, ServicesConfig>>> = OnceLock::new();
+
+fn config_cache() -> &'static RwLock<HashMap<PathBuf, ServicesConfig>> {
+    CONFIG_CACHE.get_or_init(|| RwLock::new(HashMap::new()))
+}
+
+fn cache_read(key: &Path) -> Option<ServicesConfig> {
+    config_cache()
+        .read()
+        .unwrap_or_else(PoisonError::into_inner)
+        .get(key)
+        .cloned()
+}
+
+fn cache_store(key: PathBuf, config: &ServicesConfig) {
+    config_cache()
+        .write()
+        .unwrap_or_else(PoisonError::into_inner)
+        .insert(key, config.clone());
 }

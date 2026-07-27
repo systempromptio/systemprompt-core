@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.25.0] - 2026-07-27
+
+### Added
+
+- `ConfigLoader::reload` re-reads and re-validates the active profile's services configuration, bypassing the `ConfigLoader::load` cache and refreshing it with the result. Any caller that validates its own write needs it, since a cached read after the write would report the pre-write state and the validation would pass without inspecting what was written.
+
+### Changed
+
+- `ConfigLoader::load` memoises the active profile's merged services configuration for the lifetime of the process, keyed by the resolved configuration path. Boot called it a dozen times — startup validation, the scheduler, the agent registry, and every `DeploymentService` accessor in the MCP reconciliation fan-out — and each call re-read the YAML, re-resolved the `includes:` graph, re-walked the skills, plugins, and marketplaces trees, and re-validated the result, emitting the same validation warnings once per call. A configuration edit now requires a restart to take effect. The explicit `ConfigLoader::load_from_path` and `ConfigLoader::validate_file` forms are unchanged and still read from disk on every call.
+- The content and page prerender jobs share one set of prerender assets. Both ran at boot and each built its own `ExtensionRegistry`, scanned the template directory, and compiled the same templates; the registry is now built once per process. Template and theme edits require a restart to be picked up.
+- The container entrypoint written by `cloud init` and `cloud profile` no longer runs `infra db migrate` before starting the server. `services serve` already migrates in-process, so the schema install and its checksum verification ran twice on every container start. Existing containers keep the entrypoint baked into their image until it is regenerated.
+
+### Fixed
+
+- `DeploymentService::validate_config` no longer validates the merged configuration a second time; `ConfigLoader::load` has already validated what it returns.
+
 ## [0.24.0] - 2026-07-26
 
 ### Breaking

@@ -42,17 +42,12 @@ pub fn save_dockerfile(path: &Path, profile_name: &str, project_root: &Path) -> 
 
 pub fn save_entrypoint(path: &Path) -> Result<()> {
     let content = format!(
-        r#"#!/bin/sh
+        r"#!/bin/sh
 set -e
 
-echo "Running database migrations..."
-{bin}/systemprompt {db_migrate_cmd}
-
-echo "Starting services..."
 exec {bin}/systemprompt {services_serve_cmd} --foreground
-"#,
+",
         bin = container::BIN,
-        db_migrate_cmd = CliPaths::db_migrate_cmd(),
         services_serve_cmd = CliPaths::services_serve_cmd(),
     );
 

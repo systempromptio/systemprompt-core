@@ -51,16 +51,11 @@ logs
 
 fn entrypoint_content() -> String {
     format!(
-        r#"#!/bin/sh
+        r"#!/bin/sh
 set -e
 
-echo "Running database migrations..."
-/app/bin/systemprompt {db_migrate_cmd}
-
-echo "Starting services..."
 exec /app/bin/systemprompt {services_serve_cmd} --foreground
-"#,
-        db_migrate_cmd = CliPaths::db_migrate_cmd(),
+",
         services_serve_cmd = CliPaths::services_serve_cmd(),
     )
 }

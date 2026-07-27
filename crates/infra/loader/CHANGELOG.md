@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.25.0] - 2026-07-27
+
+### Added
+
+- `ConfigLoader::reload` re-reads and re-validates the active profile's configuration, bypassing the `ConfigLoader::load` cache and refreshing it with the result. Commands that validate their own write need it, since a cached read after the write would report the pre-write state.
+
+### Changed
+
+- `ConfigLoader::load` memoises its result for the lifetime of the process, keyed by the resolved configuration path. Each call previously re-read the YAML, re-resolved the `includes:` graph, re-walked the skills, plugins, and marketplaces trees, and re-validated the result; boot alone called it a dozen times. A configuration edit now requires a restart. `ConfigLoader::load_from_path` and `ConfigLoader::validate_file` are unchanged and still read from disk on every call.
+
 ## [0.21.1] - 2026-07-17
 
 ### Changed

@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.25.0] - 2026-07-27
+
+### Changed
+
+- The container entrypoint written by `cloud init` and `cloud profile` no longer runs `infra db migrate` before starting the server. `services serve` already migrates in-process, so the schema install and its checksum verification ran twice on every container start. Existing containers keep the entrypoint baked into their image until it is regenerated.
+
 ## [0.24.0] - 2026-07-26
 
 ### Added

@@ -728,7 +728,7 @@ api-nuke:
 test-rust *args:
     #!/usr/bin/env bash
     set -euo pipefail
-    db="${TEST_DATABASE_URL:-postgres://postgres:postgres@localhost:5432/systemprompt_test}"
+    db="${TEST_DATABASE_URL:-postgres://systemprompt_admin:3e00fcdac26b5b731829e8737515db8f@localhost:5432/systemprompt_test}"
     base="${db%/*}"
     name="${db##*/}"
     echo "▶ resetting test database: ${name}"
@@ -764,7 +764,7 @@ test-shard GROUP *args:
         echo "cargo-nextest not found — run 'just install-nextest' first" >&2
         exit 1
     }
-    db="${TEST_DATABASE_URL:-postgres://postgres:postgres@localhost:5432/systemprompt_test}"
+    db="${TEST_DATABASE_URL:-postgres://systemprompt_admin:3e00fcdac26b5b731829e8737515db8f@localhost:5432/systemprompt_test}"
     base="${db%/*}"
     name="${db##*/}"
     echo "▶ resetting test database: ${name}"

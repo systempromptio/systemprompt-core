@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.25.0] - 2026-07-27
+
+### Fixed
+
+- `DeploymentService::validate_config` no longer validates the merged configuration a second time; `ConfigLoader::load` has already validated what it returns.
+
 ## [0.24.0] - 2026-07-26
 
 ### Breaking

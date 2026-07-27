@@ -64,8 +64,7 @@ impl DeploymentService {
     }
 
     pub fn validate_config() -> McpDomainResult<()> {
-        let config = ConfigLoader::load()?;
-        config.validate()?;
+        ConfigLoader::load()?;
         Ok(())
     }
 

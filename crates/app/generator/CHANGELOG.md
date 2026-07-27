@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.25.0] - 2026-07-27
+
+### Changed
+
+- The content and page prerender entry points share one set of prerender assets. Both run at boot and each previously built its own `ExtensionRegistry`, scanned the template directory, and compiled the same templates. The registry is now built once per process, so template and theme edits require a restart to be picked up.
+
 ## [0.22.0] - 2026-07-21
 
 ### Changed

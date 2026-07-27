@@ -16,17 +16,33 @@ use systemprompt_templates::{
     CoreTemplateProvider, EmbeddedDefaultsProvider, TemplateRegistry, TemplateRegistryBuilder,
 };
 use tokio::fs;
+use tokio::sync::OnceCell;
 
 use crate::error::{GeneratorResult, PublishError};
 use crate::templates::{get_templates_path, load_web_config};
 
-pub(super) struct PrerenderContext {
-    pub db_pool: DbPool,
+/// The half of the prerender context that is fixed for the life of a
+/// deployment: content and web configuration, the compiled template registry,
+/// and the registered content data providers.
+pub(super) struct PrerenderAssets {
     pub config: ContentConfigRaw,
     pub web_config: WebConfig,
     pub template_registry: TemplateRegistry,
     pub dist_dir: PathBuf,
     pub content_data_providers: Vec<Arc<dyn ContentDataProvider>>,
+}
+
+pub(super) struct PrerenderContext {
+    pub db_pool: DbPool,
+    assets: Arc<PrerenderAssets>,
+}
+
+impl std::ops::Deref for PrerenderContext {
+    type Target = PrerenderAssets;
+
+    fn deref(&self) -> &Self::Target {
+        &self.assets
+    }
 }
 
 impl std::fmt::Debug for PrerenderContext {
@@ -44,10 +60,28 @@ impl std::fmt::Debug for PrerenderContext {
     }
 }
 
+// Why: the content and page prerender jobs run back to back at boot and each
+// used to rebuild this from scratch — a second extension discovery, template
+// directory scan, and handlebars compile of the same templates. Templates and
+// configuration only change on redeploy, so a restart is the way to pick edits
+// up.
+static PRERENDER_ASSETS: OnceCell<Arc<PrerenderAssets>> = OnceCell::const_new();
+
 pub(super) async fn load_prerender_context(
     db_pool: DbPool,
     paths: &AppPaths,
 ) -> GeneratorResult<PrerenderContext> {
+    let assets = PRERENDER_ASSETS
+        .get_or_try_init(|| async { load_prerender_assets(paths).await.map(Arc::new) })
+        .await?;
+
+    Ok(PrerenderContext {
+        db_pool,
+        assets: Arc::clone(assets),
+    })
+}
+
+async fn load_prerender_assets(paths: &AppPaths) -> GeneratorResult<PrerenderAssets> {
     let config_path = paths.system().content_config();
 
     let yaml_content = fs::read_to_string(&config_path).await.map_err(|source| {
@@ -84,8 +118,7 @@ pub(super) async fn load_prerender_context(
 
     let dist_dir = paths.web().dist().to_path_buf();
 
-    Ok(PrerenderContext {
-        db_pool,
+    Ok(PrerenderAssets {
         config,
         web_config,
         template_registry,
@@ -117,31 +150,39 @@ fn register_extensions(
     mut registry_builder: TemplateRegistryBuilder,
 ) -> GeneratorResult<(TemplateRegistryBuilder, Vec<Arc<dyn ContentDataProvider>>)> {
     let extensions = ExtensionRegistry::discover()?;
-    tracing::debug!(
-        extension_count = extensions.extensions().len(),
-        "Discovered extensions for prerender context"
-    );
 
     let mut content_data_providers: Vec<Arc<dyn ContentDataProvider>> = Vec::new();
+    let mut contributing = 0usize;
 
     for ext in extensions.extensions() {
         let providers = ext.page_data_providers();
         let prerenderers = ext.page_prerenderers();
         let content_providers = ext.content_data_providers();
-        tracing::debug!(
-            extension_id = %ext.metadata().id,
-            page_provider_count = providers.len(),
-            page_prerenderer_count = prerenderers.len(),
-            content_data_provider_count = content_providers.len(),
-            component_count = ext.component_renderers().len(),
-            extender_count = ext.template_data_extenders().len(),
-            "Extension providers discovered"
-        );
+        let components = ext.component_renderers();
+        let extenders = ext.template_data_extenders();
 
-        for component in ext.component_renderers() {
+        if !providers.is_empty()
+            || !prerenderers.is_empty()
+            || !content_providers.is_empty()
+            || !components.is_empty()
+            || !extenders.is_empty()
+        {
+            contributing += 1;
+            tracing::debug!(
+                extension_id = %ext.metadata().id,
+                page_provider_count = providers.len(),
+                page_prerenderer_count = prerenderers.len(),
+                content_data_provider_count = content_providers.len(),
+                component_count = components.len(),
+                extender_count = extenders.len(),
+                "Extension providers discovered"
+            );
+        }
+
+        for component in components {
             registry_builder = registry_builder.with_component(component);
         }
-        for extender in ext.template_data_extenders() {
+        for extender in extenders {
             registry_builder = registry_builder.with_extender(extender);
         }
         for provider in providers {
@@ -152,6 +193,12 @@ fn register_extensions(
         }
         content_data_providers.extend(content_providers);
     }
+
+    tracing::debug!(
+        extension_count = extensions.extensions().len(),
+        contributing_extensions = contributing,
+        "Discovered extensions for prerender context"
+    );
 
     Ok((registry_builder, content_data_providers))
 }
