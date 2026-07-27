@@ -135,7 +135,7 @@ fn register(os: Os, rendered: &str) -> Result<(PathBuf, Vec<String>), InstallErr
         )));
     }
     Ok((
-        path.clone(),
+        path,
         vec![format!("scheduled task: {task} (logon + every 30m)")],
     ))
 }

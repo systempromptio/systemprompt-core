@@ -102,7 +102,8 @@ struct McpJsonFile {
     mcp_servers: BTreeMap<String, serde::de::IgnoredAny>,
 }
 
-fn plugin_children(plugin_dir: &Path) -> Vec<PluginChild> {
+/// The skills, agents, and MCP servers a plugin directory contributes.
+pub fn plugin_children(plugin_dir: &Path) -> Vec<PluginChild> {
     let mut out = Vec::new();
     if let Ok(rd) = std::fs::read_dir(plugin_dir.join("skills")) {
         for entry in rd.flatten() {
@@ -173,7 +174,9 @@ fn plugin_children(plugin_dir: &Path) -> Vec<PluginChild> {
     out
 }
 
-fn mark_shared_mcp(plugin_children: &mut [Vec<PluginChild>]) {
+/// Flags every MCP server that more than one plugin declares, so the UI can
+/// say a server is shared rather than showing it as owned by each plugin.
+pub fn mark_shared_mcp(plugin_children: &mut [Vec<PluginChild>]) {
     let mut counts: BTreeMap<String, usize> = BTreeMap::new();
     for children in plugin_children.iter() {
         for child in children.iter().filter(|c| c.kind == "mcp") {

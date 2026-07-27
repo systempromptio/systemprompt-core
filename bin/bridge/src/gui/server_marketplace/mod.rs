@@ -15,6 +15,8 @@ pub mod hooks;
 mod plugins;
 pub mod source;
 
+pub use plugins::{mark_shared_mcp, plugin_children};
+
 use std::collections::BTreeSet;
 use std::path::PathBuf;
 

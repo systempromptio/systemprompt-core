@@ -65,3 +65,10 @@ fn lookup_unknown_path_is_none() {
     assert!(lookup_path("/assets/css/does-not-exist.css").is_none());
     assert!(lookup_path("/totally/unknown").is_none());
 }
+
+#[test]
+fn lookup_locale_bundle_is_served_as_plain_text() {
+    let asset = lookup_path("/assets/i18n/en-US/bridge.ftl").expect("bridge.ftl should resolve");
+    assert_eq!(asset.content_type, "text/plain; charset=utf-8");
+    assert!(!asset.body.is_empty());
+}

@@ -4,6 +4,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::borrow::Cow;
+use std::ffi::OsStr;
+use std::path::Path;
 
 // All web assets are `include_str!`d from `$OUT_DIR/web`, where the build
 // script stages core's `web/` tree and applies an optional brand overlay
@@ -92,14 +94,11 @@ pub fn render_index() -> String {
 }
 
 fn content_type_for(rel: &str) -> &'static str {
-    if rel.ends_with(".css") {
-        "text/css; charset=utf-8"
-    } else if rel.ends_with(".js") {
-        "application/javascript; charset=utf-8"
-    } else if rel.ends_with(".ftl") {
-        "text/plain; charset=utf-8"
-    } else {
-        "text/html; charset=utf-8"
+    match Path::new(rel).extension().and_then(OsStr::to_str) {
+        Some(ext) if ext.eq_ignore_ascii_case("css") => "text/css; charset=utf-8",
+        Some(ext) if ext.eq_ignore_ascii_case("js") => "application/javascript; charset=utf-8",
+        Some(ext) if ext.eq_ignore_ascii_case("ftl") => "text/plain; charset=utf-8",
+        _ => "text/html; charset=utf-8",
     }
 }
 
