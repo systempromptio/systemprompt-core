@@ -183,3 +183,22 @@ fn images_disabled_rejects_image_category() {
         other => panic!("expected CategoryDisabled, got {other:?}"),
     }
 }
+
+/// A browser sends `Content-Type: text/plain; charset=utf-8` on a multipart
+/// part, so matching the raw header against the allowlist rejected a plain
+/// text file, and matching it against the blocklist let the same parameter
+/// carry a script type straight past.
+#[test]
+fn mime_parameters_do_not_defeat_the_allowlist_or_the_blocklist() {
+    let v = default_validator();
+    assert_eq!(
+        v.validate("text/plain; charset=utf-8", 1000).unwrap(),
+        systemprompt_files::FileCategory::Document
+    );
+    assert_eq!(
+        v.validate("IMAGE/PNG", 1000).unwrap(),
+        systemprompt_files::FileCategory::Image
+    );
+    assert_blocked("text/javascript; charset=utf-8");
+    assert_blocked("application/x-sh ; foo=bar");
+}

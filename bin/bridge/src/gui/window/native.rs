@@ -198,6 +198,10 @@ fn asset_response(asset: Asset) -> Response<Cow<'static, [u8]>> {
         http::header::CACHE_CONTROL,
         http::HeaderValue::from_static("no-store, must-revalidate"),
     );
+    _ = response.headers_mut().insert(
+        http::header::X_CONTENT_TYPE_OPTIONS,
+        http::HeaderValue::from_static("nosniff"),
+    );
     response
 }
 

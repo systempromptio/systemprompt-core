@@ -223,7 +223,9 @@ fn build_file_record(file_path: &str, public_url: &str, extension: &str, path: &
         id: uuid::Uuid::new_v4(),
         path: file_path.to_owned(),
         public_url: public_url.to_owned(),
-        mime_type: mime_from_extension(extension),
+        mime_type: systemprompt_models::mime::from_extension(extension)
+            .unwrap_or("application/octet-stream")
+            .to_owned(),
         size_bytes: std::fs::metadata(path)
             .map(|m| m.len() as i64)
             .inspect_err(
@@ -240,19 +242,6 @@ fn build_file_record(file_path: &str, public_url: &str, extension: &str, path: &
         updated_at: now,
         deleted_at: None,
     }
-}
-
-fn mime_from_extension(ext: &str) -> String {
-    match ext {
-        "png" => "image/png",
-        "jpg" | "jpeg" => "image/jpeg",
-        "gif" => "image/gif",
-        "webp" => "image/webp",
-        "svg" => "image/svg+xml",
-        "ico" => "image/x-icon",
-        _ => "application/octet-stream",
-    }
-    .to_owned()
 }
 
 systemprompt_provider_contracts::submit_job!(&FileIngestionJob);

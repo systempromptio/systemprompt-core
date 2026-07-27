@@ -34,7 +34,7 @@ fn lookup_known_css_module() {
 #[test]
 fn lookup_known_js_module() {
     let asset = lookup_path("/assets/js/index.js").expect("index.js should resolve");
-    assert_eq!(asset.content_type, "application/javascript; charset=utf-8");
+    assert_eq!(asset.content_type, "text/javascript; charset=utf-8");
     assert!(!asset.body.is_empty());
 }
 

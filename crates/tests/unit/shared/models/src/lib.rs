@@ -83,6 +83,9 @@ mod ai_tool_model_config;
 mod text_utils;
 
 #[cfg(test)]
+mod mime;
+
+#[cfg(test)]
 mod routing;
 
 #[cfg(test)]

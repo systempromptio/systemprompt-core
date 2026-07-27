@@ -74,21 +74,3 @@ pub(super) async fn serve_cached_file(
         Err(_) => (StatusCode::INTERNAL_SERVER_ERROR, "Error reading file").into_response(),
     }
 }
-
-pub(super) fn resolve_mime_type(path: &std::path::Path) -> &'static str {
-    match path.extension().and_then(|ext| ext.to_str()) {
-        Some("js") => "application/javascript",
-        Some("css") => "text/css",
-        Some("woff" | "woff2") => "font/woff2",
-        Some("ttf") => "font/ttf",
-        Some("png") => "image/png",
-        Some("jpg" | "jpeg") => "image/jpeg",
-        Some("svg") => "image/svg+xml",
-        Some("ico") => "image/x-icon",
-        Some("json") => "application/json",
-        Some("pdf") => "application/pdf",
-        Some("mp4") => "video/mp4",
-        Some("webm") => "video/webm",
-        _ => "application/octet-stream",
-    }
-}

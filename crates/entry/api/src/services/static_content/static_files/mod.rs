@@ -20,7 +20,7 @@ use axum::response::IntoResponse;
 use std::sync::Arc;
 
 use super::config::StaticContentMatcher;
-use cache::{resolve_mime_type, serve_cached_file};
+use cache::serve_cached_file;
 use responses::{not_found_response, not_prerendered_response};
 use systemprompt_content::ContentRepository;
 use systemprompt_files::FilesConfig;
@@ -56,7 +56,7 @@ pub async fn serve_static_content(
         return serve_cached_file(
             &dist_dir.join("index.html"),
             &headers,
-            "text/html",
+            "text/html; charset=utf-8",
             CACHE_HTML,
         )
         .await;
@@ -72,7 +72,13 @@ pub async fn serve_static_content(
     let trimmed_path = path.trim_start_matches('/');
     let parent_route_path = dist_dir.join(trimmed_path).join("index.html");
     if parent_route_path.exists() {
-        return serve_cached_file(&parent_route_path, &headers, "text/html", CACHE_HTML).await;
+        return serve_cached_file(
+            &parent_route_path,
+            &headers,
+            "text/html; charset=utf-8",
+            CACHE_HTML,
+        )
+        .await;
     }
 
     if let Some((slug, source_id)) = state.matcher.matches(path) {
@@ -110,7 +116,7 @@ async fn serve_static_asset(
     );
 
     if asset_path.exists() && asset_path.is_file() {
-        let mime_type = resolve_mime_type(&asset_path);
+        let mime_type = systemprompt_models::mime::http_content_type(&asset_path);
         return serve_cached_file(&asset_path, headers, mime_type, CACHE_STATIC_ASSET).await;
     }
 
@@ -131,10 +137,8 @@ async fn serve_metadata_file(
     let mime_type = if path == "/feed.xml" {
         "application/rss+xml; charset=utf-8"
     } else {
-        match file_path.extension().and_then(|ext| ext.to_str()) {
-            Some("xml") => "application/xml",
-            _ => "text/plain",
-        }
+        systemprompt_models::mime::http_content_type_opt(&file_path)
+            .unwrap_or("text/plain; charset=utf-8")
     };
 
     serve_cached_file(&file_path, headers, mime_type, CACHE_METADATA).await
@@ -155,12 +159,24 @@ async fn serve_content_page(
 ) -> axum::response::Response {
     let exact_path = req.dist_dir.join(req.trimmed_path);
     if exact_path.exists() && exact_path.is_file() {
-        return serve_cached_file(&exact_path, req.headers, "text/html", CACHE_HTML).await;
+        return serve_cached_file(
+            &exact_path,
+            req.headers,
+            "text/html; charset=utf-8",
+            CACHE_HTML,
+        )
+        .await;
     }
 
     let index_path = req.dist_dir.join(req.trimmed_path).join("index.html");
     if index_path.exists() {
-        return serve_cached_file(&index_path, req.headers, "text/html", CACHE_HTML).await;
+        return serve_cached_file(
+            &index_path,
+            req.headers,
+            "text/html; charset=utf-8",
+            CACHE_HTML,
+        )
+        .await;
     }
 
     let Ok(content_repo) = ContentRepository::new(ctx.db_pool()) else {

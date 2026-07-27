@@ -46,21 +46,10 @@ fn marketplaces_path(ctx: &AppContext) -> PathBuf {
     ctx.app_paths().system().services().join("marketplaces")
 }
 
-fn resolve_mime_type(path: &Path) -> &'static str {
-    match path.extension().and_then(|ext| ext.to_str()) {
-        Some("json") => "application/json",
-        Some("md") => "text/markdown; charset=utf-8",
-        Some("sh") => "application/x-sh",
-        Some("yaml" | "yml") => "text/yaml; charset=utf-8",
-        Some("txt") => "text/plain; charset=utf-8",
-        _ => "application/octet-stream",
-    }
-}
-
 #[expect(
     clippy::result_large_err,
-    reason = "ApiError carries response context that is intentionally large; boxing here would \
-              propagate to every caller for negligible gain"
+    reason = "ApiHttpError carries response context that is intentionally large; boxing here \
+              would propagate to every caller for negligible gain"
 )]
 fn load_services_config() -> Result<ServicesConfig, ApiHttpError> {
     ConfigLoader::load()
@@ -161,7 +150,7 @@ async fn get_marketplace_yaml(
     Ok((
         StatusCode::OK,
         [
-            (header::CONTENT_TYPE, "text/yaml; charset=utf-8"),
+            (header::CONTENT_TYPE, "application/yaml"),
             (header::CACHE_CONTROL, "public, max-age=300"),
         ],
         content,
@@ -202,7 +191,7 @@ async fn serve_plugin_file(
         [
             (
                 header::CONTENT_TYPE,
-                resolve_mime_type(Path::new(&file_path)),
+                systemprompt_models::mime::http_content_type(Path::new(&file_path)),
             ),
             (header::CACHE_CONTROL, "public, max-age=300"),
         ],

@@ -122,11 +122,17 @@ async fn serves_static_asset_with_resolved_mime() -> anyhow::Result<()> {
     std::fs::write(dist.join("assets/app.js"), "console.log(1)")?;
     std::fs::write(dist.join("assets/style.css"), "body{}")?;
     std::fs::write(dist.join("assets/logo.svg"), "<svg/>")?;
+    std::fs::write(dist.join("assets/hero.webp"), b"RIFF____WEBPVP8 ")?;
+    std::fs::write(dist.join("assets/spinner.gif"), b"GIF89a")?;
+    std::fs::write(dist.join("assets/body.woff"), b"wOFF")?;
 
     for (path, mime) in [
-        ("/assets/app.js", "application/javascript"),
-        ("/assets/style.css", "text/css"),
+        ("/assets/app.js", "text/javascript; charset=utf-8"),
+        ("/assets/style.css", "text/css; charset=utf-8"),
         ("/assets/logo.svg", "image/svg+xml"),
+        ("/assets/hero.webp", "image/webp"),
+        ("/assets/spinner.gif", "image/gif"),
+        ("/assets/body.woff", "font/woff"),
     ] {
         let (status, hdrs, _body) = serve(&state, path, HeaderMap::new()).await;
         assert_eq!(status, StatusCode::OK, "{path}");
@@ -166,7 +172,10 @@ async fn serves_metadata_files_and_rss_mime() -> anyhow::Result<()> {
 
     let (status, hdrs, _b) = serve(&state, "/robots.txt", HeaderMap::new()).await;
     assert_eq!(status, StatusCode::OK);
-    assert_eq!(hdrs.get(header::CONTENT_TYPE).unwrap(), "text/plain");
+    assert_eq!(
+        hdrs.get(header::CONTENT_TYPE).unwrap(),
+        "text/plain; charset=utf-8"
+    );
 
     let (status, hdrs, _b) = serve(&state, "/feed.xml", HeaderMap::new()).await;
     assert_eq!(status, StatusCode::OK);
@@ -194,7 +203,10 @@ async fn serves_parent_route_index() -> anyhow::Result<()> {
 
     let (status, hdrs, body) = serve(&state, "/about", HeaderMap::new()).await;
     assert_eq!(status, StatusCode::OK);
-    assert_eq!(hdrs.get(header::CONTENT_TYPE).unwrap(), "text/html");
+    assert_eq!(
+        hdrs.get(header::CONTENT_TYPE).unwrap(),
+        "text/html; charset=utf-8"
+    );
     assert_eq!(String::from_utf8_lossy(&body), "<h1>about</h1>");
     Ok(())
 }
@@ -215,7 +227,10 @@ async fn custom_404_html_is_served() -> anyhow::Result<()> {
 
     let (status, hdrs, body) = serve(&state, "/nope-page", HeaderMap::new()).await;
     assert_eq!(status, StatusCode::NOT_FOUND);
-    assert_eq!(hdrs.get(header::CONTENT_TYPE).unwrap(), "text/html");
+    assert_eq!(
+        hdrs.get(header::CONTENT_TYPE).unwrap(),
+        "text/html; charset=utf-8"
+    );
     assert!(String::from_utf8_lossy(&body).contains("custom 404"));
     Ok(())
 }
