@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.25.0] - 2026-07-27
+
+### Added
+
+- `Job::schedulable` lets a job declare that it exists only as an inline step of a larger pipeline job and so can never legitimately carry its own `scheduler.jobs` entry. The scheduler skips its unscheduled-job warning for such a job. Defaults to `true`, so no existing implementation needs to change.
+
 ## [0.23.0] - 2026-07-24
 
 ### Added

@@ -167,7 +167,7 @@ fn write_agent_config(request: AgentCreateRequest) -> Result<std::path::PathBuf>
         .create(request)
         .with_context(|| format!("Failed to create agent '{}'", name))?;
 
-    ConfigLoader::load().with_context(|| {
+    ConfigLoader::reload().with_context(|| {
         format!(
             "Agent file created at {} but validation failed. Please check the configuration.",
             agent_file.display()

@@ -48,6 +48,18 @@ impl<'a> FilteringVisitor<'a> {
         self.write_value(field.name(), &debug_str);
     }
 
+    /// Writes a primitive field verbatim, bypassing the name-based redaction in
+    /// [`Self::write_value`]. A number or bool cannot carry a secret, and
+    /// blanking one only destroys operational data — a delete count named
+    /// `oauth_tokens` matched the `token` substring and rendered as
+    /// `[REDACTED]`.
+    fn write_scalar(&mut self, field: &Field, value: impl fmt::Display) {
+        if self.result.is_err() {
+            return;
+        }
+        self.result = self.write_field(field.name(), &value.to_string());
+    }
+
     fn write_value(&mut self, name: &str, rendered: &str) {
         let safe = if is_redacted(name) {
             REDACTION_PLACEHOLDER.to_owned()
@@ -80,6 +92,30 @@ impl Visit for FilteringVisitor<'_> {
             return;
         }
         self.write_value(field.name(), &format!("{:?}", value));
+    }
+
+    fn record_i64(&mut self, field: &Field, value: i64) {
+        self.write_scalar(field, value);
+    }
+
+    fn record_u64(&mut self, field: &Field, value: u64) {
+        self.write_scalar(field, value);
+    }
+
+    fn record_i128(&mut self, field: &Field, value: i128) {
+        self.write_scalar(field, value);
+    }
+
+    fn record_u128(&mut self, field: &Field, value: u128) {
+        self.write_scalar(field, value);
+    }
+
+    fn record_f64(&mut self, field: &Field, value: f64) {
+        self.write_scalar(field, value);
+    }
+
+    fn record_bool(&mut self, field: &Field, value: bool) {
+        self.write_scalar(field, value);
     }
 }
 

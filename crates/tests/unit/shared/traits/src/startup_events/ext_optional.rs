@@ -265,9 +265,15 @@ async fn scheduler_initializing_some_emits() {
 #[tokio::test]
 async fn scheduler_ready_some_emits() {
     let (tx, mut rx) = startup_channel();
-    Some(&tx).scheduler_ready(4);
+    Some(&tx).scheduler_ready(4, 23);
     match rx.next().await.unwrap() {
-        StartupEvent::SchedulerReady { job_count } => assert_eq!(job_count, 4),
+        StartupEvent::SchedulerReady {
+            scheduled,
+            available,
+        } => {
+            assert_eq!(scheduled, 4);
+            assert_eq!(available, 23);
+        },
         e => panic!("unexpected {e:?}"),
     }
 }
@@ -397,7 +403,7 @@ async fn none_sender_emits_nothing_across_all_methods() {
     none.agent_cleanup("a", "r");
     none.server_listening("addr", 1);
     none.scheduler_initializing();
-    none.scheduler_ready(0);
+    none.scheduler_ready(0, 0);
     none.bootstrap_job_started("j");
     none.bootstrap_job_completed("j", false, None);
     none.warning("w");

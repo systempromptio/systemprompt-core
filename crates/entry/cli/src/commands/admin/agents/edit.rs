@@ -90,7 +90,7 @@ pub(super) fn execute(
     ConfigWriter::update_agent(&name, &agent, services_dir)
         .with_context(|| format!("Failed to update agent '{}'", name))?;
 
-    ConfigLoader::load().with_context(|| {
+    ConfigLoader::reload().with_context(|| {
         format!(
             "Agent '{}' updated but validation failed. Please check the configuration.",
             name

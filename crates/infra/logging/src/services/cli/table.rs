@@ -123,13 +123,13 @@ impl ServiceColumns {
     fn measure(services: &[ServiceTableEntry]) -> Self {
         let name = services
             .iter()
-            .map(|s| s.name.len())
+            .map(|s| s.name.chars().count())
             .max()
             .unwrap_or(4)
             .max(4);
         let service_type = services
             .iter()
-            .map(|s| s.service_type.len())
+            .map(|s| s.service_type.chars().count())
             .max()
             .unwrap_or(4)
             .max(4);
@@ -141,87 +141,121 @@ impl ServiceColumns {
         }
     }
 
-    fn rule(&self, left: &str, middle: &str, right: &str) {
-        stdout_writeln(format_args!(
+    /// Display width of a row's interior, i.e. everything strictly between the
+    /// two outer box-drawing glyphs. Every line of the table is framed against
+    /// this one number so the borders, title, header, and rows cannot drift.
+    const fn interior_width(&self) -> usize {
+        (self.name + 2) + (self.service_type + 2) + (self.port + 2) + (self.status + 2) + 3
+    }
+
+    fn rule(
+        &self,
+        out: &mut impl Write,
+        left: &str,
+        middle: &str,
+        right: &str,
+    ) -> std::io::Result<()> {
+        writeln!(
+            out,
             "{left}{}{middle}{}{middle}{}{middle}{}{right}",
             "\u{2500}".repeat(self.name + 2),
             "\u{2500}".repeat(self.service_type + 2),
             "\u{2500}".repeat(self.port + 2),
             "\u{2500}".repeat(self.status + 2)
-        ));
+        )
     }
 }
 
 pub fn render_service_table(title: &str, services: &[ServiceTableEntry]) {
+    render_service_table_into(&mut std::io::stdout(), title, services).ok();
+}
+
+/// Renders the service-status table into `out`.
+///
+/// Split from [`render_service_table`] so the frame geometry is assertable: the
+/// stdout entry point above discards the result, which is why an off-by-two in
+/// the top border went unnoticed.
+pub fn render_service_table_into(
+    out: &mut impl Write,
+    title: &str,
+    services: &[ServiceTableEntry],
+) -> std::io::Result<()> {
     if services.is_empty() {
-        return;
+        return Ok(());
     }
 
     let cols = ServiceColumns::measure(services);
-    let total_width = cols.name + cols.service_type + cols.port + cols.status + 13;
+    let interior = cols.interior_width();
 
-    stdout_writeln(format_args!(""));
-    stdout_writeln(format_args!(
-        "\u{250c}{}\u{2510}",
-        "\u{2500}".repeat(total_width)
-    ));
-    stdout_writeln(format_args!(
+    writeln!(out)?;
+    writeln!(out, "\u{250c}{}\u{2510}", "\u{2500}".repeat(interior))?;
+    writeln!(
+        out,
         "\u{2502} {:<width$} \u{2502}",
         BrandColors::white_bold(title),
-        width = total_width - 3
-    ));
+        width = interior - 2
+    )?;
 
-    cols.rule("\u{251c}", "\u{252c}", "\u{2524}");
-    render_service_header(&cols);
-    cols.rule("\u{251c}", "\u{253c}", "\u{2524}");
+    cols.rule(out, "\u{251c}", "\u{252c}", "\u{2524}")?;
+    render_service_header(out, &cols)?;
+    cols.rule(out, "\u{251c}", "\u{253c}", "\u{2524}")?;
 
     for service in services {
-        render_service_row(service, &cols);
+        render_service_row(out, service, &cols)?;
     }
 
-    cols.rule("\u{2514}", "\u{2534}", "\u{2518}");
+    cols.rule(out, "\u{2514}", "\u{2534}", "\u{2518}")
 }
 
-fn render_service_header(cols: &ServiceColumns) {
+fn render_service_header(out: &mut impl Write, cols: &ServiceColumns) -> std::io::Result<()> {
     let name_width = cols.name;
     let type_width = cols.service_type;
     let port_width = cols.port;
     let status_width = cols.status;
-    stdout_writeln(format_args!(
-        "\u{2502} {:<name_width$} \u{2502} {:<type_width$} \u{2502} {:<port_width$} \u{2502} \
+    writeln!(
+        out,
+        "\u{2502} {:<name_width$} \u{2502} {:<type_width$} \u{2502} {:>port_width$} \u{2502} \
          {:<status_width$} \u{2502}",
         BrandColors::dim("Name"),
         BrandColors::dim("Type"),
         BrandColors::dim("Port"),
         BrandColors::dim("Status"),
-    ));
+    )
 }
 
-fn render_service_row(service: &ServiceTableEntry, cols: &ServiceColumns) {
+fn render_service_row(
+    out: &mut impl Write,
+    service: &ServiceTableEntry,
+    cols: &ServiceColumns,
+) -> std::io::Result<()> {
     let name_width = cols.name;
     let type_width = cols.service_type;
     let port_width = cols.port;
-    let status_width = cols.status;
 
     let port_str = service
         .port
         .map_or_else(|| "-".to_owned(), |p| p.to_string());
 
     let status_display = format!("{} {}", service.status.symbol(), service.status.text());
+    // Why: pad before styling. A styled `String` carries ANSI escapes, and
+    // `str`'s formatter counts those bytes as content, so padding a
+    // pre-rendered status collapses the column.
+    let padded_status = format!("{status_display:<width$}", width = cols.status);
     let colored_status = match service.status {
-        ServiceStatus::Running => format!("{}", BrandColors::running(&status_display)),
-        ServiceStatus::Starting => format!("{}", BrandColors::starting(&status_display)),
-        ServiceStatus::Stopped | ServiceStatus::Failed => {
-            format!("{}", BrandColors::stopped(&status_display))
-        },
-        ServiceStatus::Unknown => format!("{}", BrandColors::dim(&status_display)),
+        ServiceStatus::Running => BrandColors::running(padded_status),
+        ServiceStatus::Starting => BrandColors::starting(padded_status),
+        ServiceStatus::Stopped | ServiceStatus::Failed => BrandColors::stopped(padded_status),
+        ServiceStatus::Unknown => BrandColors::dim(padded_status),
     };
 
-    stdout_writeln(format_args!(
+    writeln!(
+        out,
         "\u{2502} {:<name_width$} \u{2502} {:<type_width$} \u{2502} {:>port_width$} \u{2502} \
-         {:<status_width$} \u{2502}",
-        service.name, service.service_type, port_str, colored_status,
-    ));
+         {colored_status} \u{2502}",
+        truncate_to_width(&service.name, name_width),
+        truncate_to_width(&service.service_type, type_width),
+        port_str,
+    )
 }
 
 pub fn render_startup_complete(duration: Duration, api_url: &str) {

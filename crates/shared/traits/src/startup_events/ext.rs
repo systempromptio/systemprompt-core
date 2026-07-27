@@ -37,7 +37,7 @@ pub trait StartupEventExt {
     fn server_listening(&self, address: impl Into<String>, pid: u32);
 
     fn scheduler_initializing(&self);
-    fn scheduler_ready(&self, job_count: usize);
+    fn scheduler_ready(&self, scheduled: usize, available: usize);
     fn bootstrap_job_started(&self, name: impl Into<String>);
     fn bootstrap_job_completed(
         &self,
@@ -195,8 +195,14 @@ impl StartupEventExt for StartupEventSender {
         emit(self, StartupEvent::SchedulerInitializing);
     }
 
-    fn scheduler_ready(&self, job_count: usize) {
-        emit(self, StartupEvent::SchedulerReady { job_count });
+    fn scheduler_ready(&self, scheduled: usize, available: usize) {
+        emit(
+            self,
+            StartupEvent::SchedulerReady {
+                scheduled,
+                available,
+            },
+        );
     }
 
     fn bootstrap_job_started(&self, name: impl Into<String>) {

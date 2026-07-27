@@ -407,9 +407,15 @@ mod startup_event_ext_remaining_tests {
     #[tokio::test]
     async fn scheduler_ready_sends_event() {
         let (tx, mut rx) = startup_channel();
-        tx.scheduler_ready(9);
+        tx.scheduler_ready(5, 9);
         match rx.next().await.unwrap() {
-            StartupEvent::SchedulerReady { job_count } => assert_eq!(job_count, 9),
+            StartupEvent::SchedulerReady {
+                scheduled,
+                available,
+            } => {
+                assert_eq!(scheduled, 5);
+                assert_eq!(available, 9);
+            },
             e => panic!("unexpected {e:?}"),
         }
     }
@@ -515,6 +521,6 @@ mod dropped_receiver_tests {
 
         tx.phase_started(Phase::PreFlight);
         tx.phase_failed(Phase::Database, "boom");
-        tx.scheduler_ready(0);
+        tx.scheduler_ready(0, 0);
     }
 }

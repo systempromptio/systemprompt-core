@@ -33,7 +33,7 @@ pub trait OptionalStartupEventExt {
     fn server_listening(&self, address: impl Into<String>, pid: u32);
 
     fn scheduler_initializing(&self);
-    fn scheduler_ready(&self, job_count: usize);
+    fn scheduler_ready(&self, scheduled: usize, available: usize);
     fn bootstrap_job_started(&self, name: impl Into<String>);
     fn bootstrap_job_completed(
         &self,
@@ -164,9 +164,9 @@ impl OptionalStartupEventExt for Option<&StartupEventSender> {
         }
     }
 
-    fn scheduler_ready(&self, job_count: usize) {
+    fn scheduler_ready(&self, scheduled: usize, available: usize) {
         if let Some(s) = self {
-            s.scheduler_ready(job_count);
+            s.scheduler_ready(scheduled, available);
         }
     }
 

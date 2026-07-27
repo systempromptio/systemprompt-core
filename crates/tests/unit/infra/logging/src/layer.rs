@@ -302,8 +302,9 @@ mod database_layer {
             tracing::warn!(count = 7_u64, negative = -3_i64, flag = false, "warn event");
             tracing::debug!(
                 password = 42_i64,
-                token = 9_u64,
+                oauth_tokens = 9_u64,
                 secret = true,
+                password_hash = "hunter2",
                 "debug event"
             );
             tracing::trace!("trace event");
@@ -356,8 +357,19 @@ mod database_layer {
             .and_then(|r| r.1.clone())
             .expect("debug metadata");
         assert!(
-            !debug_metadata.contains("42") && debug_metadata.contains("[REDACTED]"),
-            "numeric and bool sensitive fields must be redacted: {debug_metadata}"
+            !debug_metadata.contains("hunter2") && debug_metadata.contains("[REDACTED]"),
+            "a sensitively-named string field must be redacted: {debug_metadata}"
+        );
+        assert!(
+            debug_metadata.contains("\"oauth_tokens\":9"),
+            "a numeric field is not redacted by name — it cannot carry a secret, and blanking it \
+             destroys operational data and changes the JSON type: {debug_metadata}"
+        );
+        assert!(
+            debug_metadata.contains("\"password\":42")
+                && debug_metadata.contains("\"secret\":true"),
+            "numeric and bool fields keep their value and type regardless of name: \
+             {debug_metadata}"
         );
 
         let user_ids: Vec<Option<String>> = sqlx::query_scalar!(

@@ -121,8 +121,14 @@ pub enum StartupEvent {
         name: String,
         schedule: String,
     },
+    /// `scheduled` is the number of jobs with a `scheduler.jobs` entry, i.e.
+    /// what will actually run; `available` is the number compiled into the
+    /// binary and discovered via inventory. The two are reported separately
+    /// because `available` alone reads as a deployment's job count when it is
+    /// really a build capability.
     SchedulerReady {
-        job_count: usize,
+        scheduled: usize,
+        available: usize,
     },
     BootstrapJobStarted {
         name: String,

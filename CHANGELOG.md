@@ -2,18 +2,32 @@
 
 ## [0.25.0] - 2026-07-27
 
+### Breaking
+
+- **Breaking:** `StartupEvent::SchedulerReady` carries `scheduled` and `available` in place of `job_count`, and `StartupEventExt::scheduler_ready` takes both. Migrate by passing the configured count first and the discovered count second.
+
 ### Added
 
+- `Job::schedulable` lets a job declare that it exists only as an inline step of a larger pipeline job. Such a step can never legitimately carry its own `scheduler.jobs` entry, so the scheduler no longer warns that it has none. The method defaults to `true`, so no existing `Job` implementation needs to change; extensions whose publish pipeline invokes jobs inline should override it to `false` on those steps.
+- `render_service_table_into` renders the service-status table into any `std::io::Write`, so its frame geometry can be asserted. `render_service_table` is now a thin wrapper that writes to stdout.
 - `ConfigLoader::reload` re-reads and re-validates the active profile's services configuration, bypassing the `ConfigLoader::load` cache and refreshing it with the result. Any caller that validates its own write needs it, since a cached read after the write would report the pre-write state and the validation would pass without inspecting what was written.
 
 ### Changed
 
 - `ConfigLoader::load` memoises the active profile's merged services configuration for the lifetime of the process, keyed by the resolved configuration path. Boot called it a dozen times — startup validation, the scheduler, the agent registry, and every `DeploymentService` accessor in the MCP reconciliation fan-out — and each call re-read the YAML, re-resolved the `includes:` graph, re-walked the skills, plugins, and marketplaces trees, and re-validated the result, emitting the same validation warnings once per call. A configuration edit now requires a restart to take effect. The explicit `ConfigLoader::load_from_path` and `ConfigLoader::validate_file` forms are unchanged and still read from disk on every call.
 - The content and page prerender jobs share one set of prerender assets. Both ran at boot and each built its own `ExtensionRegistry`, scanned the template directory, and compiled the same templates; the registry is now built once per process. Template and theme edits require a restart to be picked up.
+- CLI command bodies that need an `AppContext` now read it from the `CommandContext` they are handed rather than calling `AppContext::new()` themselves. Roughly twenty-five commands across `admin agents`, `admin bridge`, `core content`, `core files`, `infra jobs`, `infra services`, and `plugins mcp` each built a second, independent context — duplicating the bootstrap the dispatcher had already performed. Behaviour is unchanged; the context is now shared.
+- The scheduler startup line reports both counts: `Scheduler (5 scheduled, 23 available)`. It previously printed only the inventory total, which is the number of jobs compiled into the binary rather than the number a deployment will actually run — a deployment with five cron entries reported twenty-three. `StartupEvent::SchedulerReady` carries `scheduled` and `available` in place of `job_count`, and `SchedulerStartup` gained a `scheduled` field.
+- Integer and boolean log fields are no longer redacted by name. Redaction matched the substring `token` against the field name with no type check, so a `u64` delete count named `oauth_tokens` was recorded as the string `"[REDACTED]"` — losing the value and changing the field's JSON type. String and debug fields are unaffected; that is where secrets actually live.
+- The per-extension prerender DEBUG line is emitted only for extensions that contribute a provider, prerenderer, component, or extender. Sixteen of eighteen extensions logged five zeroes each, twice per publish. The summary line now carries `contributing_extensions` alongside `extension_count`.
 - The container entrypoint written by `cloud init` and `cloud profile` no longer runs `infra db migrate` before starting the server. `services serve` already migrates in-process, so the schema install and its checksum verification ran twice on every container start. Existing containers keep the entrypoint baked into their image until it is regenerated.
 
 ### Fixed
 
+- Shutdown no longer strands MCP and agent child processes. The forced-exit deadline was armed when the first signal landed, which is *before* axum begins draining connections, so a long-lived SSE stream could consume the whole grace window and kill the process before any child was signalled — leaving the next boot to reclaim ports 8080, 5010, 9101, and 9102 from orphans. The connection drain is now bounded separately and abandoned on expiry, and the hard deadline is armed only once the drain has returned, so child termination always gets its full grace. A second signal still exits immediately.
+- The agent `create`, `edit`, and `delete` commands validate the configuration they just wrote. Each loads the configuration earlier in the same process to resolve its target, so the post-write `ConfigLoader::load` was served the pre-write cache entry and validated nothing. They now use `ConfigLoader::reload`.
+- The services table renders a square frame. `total_width` was computed two characters wider than a row's true interior, so the top border overhung every line beneath it and the title row's right edge landed a character short of both. The status column is also padded before it is styled — padding a string that already carried ANSI escapes counted the escape bytes as content and collapsed the column — and the `Port` heading is right-justified to match its values.
+- The MCP event bus no longer logs `error=channel closed` when publishing an event with no broadcast subscribers. `broadcast::Sender::send` returns that error precisely when the receiver count is zero; nothing was closed and nothing was lost, since the handler fan-out is a separate list that still runs.
 - `DeploymentService::validate_config` no longer validates the merged configuration a second time; `ConfigLoader::load` has already validated what it returns.
 
 ## [0.24.0] - 2026-07-26

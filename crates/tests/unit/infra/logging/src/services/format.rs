@@ -167,6 +167,34 @@ fn secret_named_fields_are_redacted_on_console() {
 }
 
 #[test]
+fn numeric_fields_are_not_redacted_by_name_on_console() {
+    let writer = CapturingWriter::default();
+    let subscriber = make_subscriber(writer.clone());
+
+    tracing::subscriber::with_default(subscriber, || {
+        info!(
+            oauth_tokens = 49_u64,
+            oauth_codes = 0_u64,
+            token_valid = true,
+            access_token = "sk-live-123",
+            "cleanup finished"
+        );
+    });
+
+    let logs = writer.contents();
+    assert!(
+        logs.contains("oauth_tokens=49"),
+        "a delete count whose name contains `token` must survive: {logs}"
+    );
+    assert!(logs.contains("oauth_codes=0"), "{logs}");
+    assert!(logs.contains("token_valid=true"), "{logs}");
+    assert!(
+        !logs.contains("sk-live-123") && logs.contains("[REDACTED]"),
+        "string secrets are still redacted: {logs}"
+    );
+}
+
+#[test]
 fn control_chars_escape_and_suffix_exact_redaction_rules() {
     let writer = CapturingWriter::default();
     let subscriber = make_subscriber(writer.clone());

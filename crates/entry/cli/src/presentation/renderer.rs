@@ -171,13 +171,15 @@ impl StartupRenderer {
                 let spinner = Self::create_phase_spinner("Scheduler");
                 self.state.spinners.insert("scheduler".to_owned(), spinner);
             },
-            StartupEvent::SchedulerReady { job_count } => {
+            StartupEvent::SchedulerReady {
+                scheduled,
+                available,
+            } => {
                 if let Some(spinner) = self.state.spinners.remove("scheduler") {
                     spinner.finish_and_clear();
                     systemprompt_logging::CliService::info(&format!(
-                        "  {} Scheduler ({} jobs)",
+                        "  {} Scheduler ({scheduled} scheduled, {available} available)",
                         BrandColors::running("✓"),
-                        job_count
                     ));
                 }
             },

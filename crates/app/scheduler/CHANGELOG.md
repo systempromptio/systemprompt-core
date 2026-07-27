@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.25.0] - 2026-07-27
+
+### Added
+
+- `SchedulerStartup::scheduled` reports how many jobs carry a `scheduler.jobs` entry, so a caller can distinguish what will run from what the build happens to contain.
+
+### Changed
+
+- The unscheduled-job warning skips jobs that return `false` from `Job::schedulable`. Those are inline steps of a pipeline job; a cron entry for one would duplicate work the pipeline already does, and the volume buried the genuinely dead jobs in the same list.
+
 ## [0.24.0] - 2026-07-26
 
 ### Added

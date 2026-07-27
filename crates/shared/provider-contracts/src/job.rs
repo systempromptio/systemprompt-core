@@ -192,6 +192,17 @@ pub trait Job: Send + Sync + 'static {
     fn enabled(&self) -> bool {
         true
     }
+
+    /// Whether this job is meant to carry its own `scheduler.jobs` cron entry.
+    ///
+    /// Return `false` for a job that exists only as an inline step of a larger
+    /// pipeline job. Scheduling such a step independently would duplicate work
+    /// the pipeline already does, so the scheduler stops warning that it has no
+    /// cron entry — a warning that is otherwise the right signal for a job that
+    /// really has fallen out of a deployed profile.
+    fn schedulable(&self) -> bool {
+        true
+    }
 }
 
 inventory::collect!(&'static dyn Job);

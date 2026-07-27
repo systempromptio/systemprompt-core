@@ -47,8 +47,9 @@ pub async fn run_server(
 
     systemprompt_logging::set_startup_mode(false);
 
-    let serve_result = early.join().await;
+    let serve_result = super::shutdown::join_within_drain_grace(early.join()).await;
 
+    super::shutdown::arm_forced_exit();
     super::shutdown::drain(&ctx, scheduler_handle).await;
 
     serve_result

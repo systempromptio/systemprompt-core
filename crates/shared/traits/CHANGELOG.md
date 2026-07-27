@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.25.0] - 2026-07-27
+
+### Breaking
+
+- **Breaking:** `StartupEvent::SchedulerReady` carries `scheduled` and `available` in place of `job_count`, and `StartupEventExt::scheduler_ready` takes both. The single count was the inventory total — the jobs compiled into the binary, not the jobs a deployment will run. Migrate by passing the configured count first and the discovered count second.
+
 ## [0.22.0] - 2026-07-20
 
 ### Breaking

@@ -1,5 +1,12 @@
 //! Graceful shutdown: signal wait, child termination, forced-exit backstop.
 //!
+//! Ordering matters. Axum starts draining connections only once
+//! [`shutdown_signal`] resolves, so the run loop bounds that drain with
+//! [`join_within_drain_grace`] and arms the hard [`arm_forced_exit`] deadline
+//! only afterwards — a single deadline spanning both would let a wedged SSE
+//! stream consume the whole budget and kill the process before any child was
+//! signalled.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -8,6 +15,7 @@ use systemprompt_runtime::AppContext;
 use systemprompt_scheduler::{ProcessCleanup, SchedulerHandle};
 
 const CHILD_SHUTDOWN_GRACE_MS: u64 = 5_000;
+const AXUM_DRAIN_GRACE_MS: u64 = 10_000;
 const FORCED_SHUTDOWN_GRACE_MS: u64 = 10_000;
 
 #[cfg(feature = "test-api")]
@@ -21,12 +29,21 @@ pub mod test_api {
     pub async fn terminate_children(ctx: &AppContext) {
         super::terminate_children(ctx).await;
     }
+
+    pub async fn join_within_drain_grace(
+        serve: impl Future<Output = anyhow::Result<()>>,
+    ) -> anyhow::Result<()> {
+        super::join_within_drain_grace(serve).await
+    }
+
+    pub const AXUM_DRAIN_GRACE_MS: u64 = super::AXUM_DRAIN_GRACE_MS;
+    pub const CHILD_SHUTDOWN_GRACE_MS: u64 = super::CHILD_SHUTDOWN_GRACE_MS;
 }
 
 pub(super) async fn shutdown_signal() {
     wait_for_signal().await;
     super::readiness::signal_shutdown();
-    arm_forced_exit();
+    arm_exit_on_second_signal();
 }
 
 async fn wait_for_signal() {
@@ -59,29 +76,64 @@ async fn wait_for_signal() {
     }
 }
 
-/// Forces exit if axum's graceful drain wedges on a long-lived connection
-/// (SSE streams never close on their own); the clean path abandons this
-/// detached task instead.
+/// Exits on a second shutdown signal, however far along the drain is. Armed as
+/// soon as the first signal lands, so a second Ctrl-C is always honoured.
+///
+/// Deliberately has no timer: while axum is still draining, a deadline that
+/// fired here would kill the process before [`drain`] ever ran and strand every
+/// MCP and agent child. That window is bounded by
+/// [`join_within_drain_grace`] instead, which abandons the drain rather than
+/// the process.
+fn arm_exit_on_second_signal() {
+    tokio::spawn(async {
+        wait_for_signal().await;
+        tracing::warn!("Second shutdown signal received, forcing immediate exit");
+        force_exit();
+    });
+}
+
+/// Backstop for the post-drain teardown in [`drain`]. Armed by the run loop
+/// only once axum's drain has finished, so the whole grace window is available
+/// to child termination.
+pub(super) fn arm_forced_exit() {
+    tokio::spawn(async {
+        tokio::time::sleep(Duration::from_millis(FORCED_SHUTDOWN_GRACE_MS)).await;
+        tracing::warn!(
+            grace_ms = FORCED_SHUTDOWN_GRACE_MS,
+            "Shutdown teardown exceeded grace window, forcing exit"
+        );
+        force_exit();
+    });
+}
+
 #[expect(
     clippy::exit,
-    reason = "forced process exit is the explicit purpose of this guard when graceful drain \
-              wedges on a long-lived connection"
+    reason = "forced process exit is the explicit purpose of the shutdown backstops"
 )]
-fn arm_forced_exit() {
-    tokio::spawn(async {
-        tokio::select! {
-            () = wait_for_signal() => {
-                tracing::warn!("Second shutdown signal received, forcing immediate exit");
-            },
-            () = tokio::time::sleep(Duration::from_millis(FORCED_SHUTDOWN_GRACE_MS)) => {
-                tracing::warn!(
-                    grace_ms = FORCED_SHUTDOWN_GRACE_MS,
-                    "Graceful shutdown exceeded grace window, forcing exit"
-                );
-            },
-        }
-        std::process::exit(0);
-    });
+fn force_exit() -> ! {
+    std::process::exit(0);
+}
+
+/// Waits for axum's graceful drain, giving up after [`AXUM_DRAIN_GRACE_MS`].
+///
+/// SSE streams never close on their own, so an unbounded wait starves the child
+/// termination that follows. Abandoning the drain is the lesser evil: the
+/// listener is already closed and readiness already reports shutting-down, so
+/// the alternative is leaving MCP and agent subprocesses running on their ports
+/// for the next boot to reclaim.
+pub(super) async fn join_within_drain_grace(
+    serve: impl Future<Output = anyhow::Result<()>>,
+) -> anyhow::Result<()> {
+    tokio::select! {
+        result = serve => result,
+        () = tokio::time::sleep(Duration::from_millis(AXUM_DRAIN_GRACE_MS)) => {
+            tracing::warn!(
+                grace_ms = AXUM_DRAIN_GRACE_MS,
+                "Connection drain exceeded grace window, proceeding to terminate children"
+            );
+            Ok(())
+        },
+    }
 }
 
 pub(super) async fn drain(ctx: &AppContext, scheduler: Option<SchedulerHandle>) {

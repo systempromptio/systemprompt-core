@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.25.0] - 2026-07-27
+
+### Fixed
+
+- Shutdown no longer strands MCP and agent child processes. The forced-exit deadline was armed when the first signal landed, which is *before* axum begins draining connections, so a long-lived SSE stream could consume the whole grace window and kill the process before any child was signalled. The connection drain is now bounded separately and abandoned on expiry, and the hard deadline is armed only once the drain has returned, so child termination always gets its full grace. A second signal still exits immediately.
+- The scheduler startup event reports the configured job count alongside the discovered one.
+
 ## [0.24.0] - 2026-07-26
 
 ### Changed

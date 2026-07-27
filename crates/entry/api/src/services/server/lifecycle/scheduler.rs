@@ -33,7 +33,7 @@ pub(in crate::services::server) async fn initialize_scheduler(
     let scheduler =
         SchedulerService::new(config, Arc::clone(ctx.db_pool()), Arc::new(ctx.clone()))?;
 
-    let job_count = scheduler.run_bootstrap_jobs(events).await?;
+    let available_jobs = scheduler.run_bootstrap_jobs(events).await?;
     let startup = scheduler.start().await?;
 
     if !startup.degraded.is_empty() {
@@ -44,6 +44,6 @@ pub(in crate::services::server) async fn initialize_scheduler(
     }
     scheduler_health::record(startup.degraded);
 
-    events.scheduler_ready(job_count);
+    events.scheduler_ready(startup.scheduled, available_jobs);
     Ok(startup.handle)
 }

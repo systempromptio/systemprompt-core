@@ -298,10 +298,43 @@ mod job_trait_default_tests {
         }
     }
 
+    struct PipelineStepJob;
+
+    #[async_trait::async_trait]
+    impl Job for PipelineStepJob {
+        fn name(&self) -> &'static str {
+            "pipeline_step"
+        }
+
+        fn schedule(&self) -> &'static str {
+            "@daily"
+        }
+
+        fn schedulable(&self) -> bool {
+            false
+        }
+
+        async fn execute(&self, _ctx: &JobContext) -> ProviderResult<JobResult> {
+            Ok(JobResult::success())
+        }
+    }
+
     #[test]
     fn unoverridden_jobs_are_enabled_untagged_and_undescribed() {
         assert!(MinimalJob.enabled());
         assert!(MinimalJob.tags().is_empty());
         assert_eq!(MinimalJob.description(), "");
+    }
+
+    #[test]
+    fn jobs_are_schedulable_unless_they_opt_out() {
+        assert!(
+            MinimalJob.schedulable(),
+            "a job with no cron entry is a real signal by default"
+        );
+        assert!(
+            !PipelineStepJob.schedulable(),
+            "an inline pipeline step opts out of the unscheduled-job warning"
+        );
     }
 }

@@ -54,11 +54,14 @@ impl SchedulerHandle {
 ///
 /// `handle` is `None` when the scheduler is disabled; `degraded` lists jobs
 /// dropped because their explicit owner did not resolve, for the caller to
-/// surface as a health signal.
+/// surface as a health signal. `scheduled` is how many jobs carry a
+/// `scheduler.jobs` entry — the number that will actually run, as distinct
+/// from the inventory total the build happens to contain.
 #[derive(Debug)]
 pub struct SchedulerStartup {
     pub handle: Option<SchedulerHandle>,
     pub degraded: Vec<SkippedJob>,
+    pub scheduled: usize,
 }
 
 impl SchedulerStartup {
@@ -66,6 +69,7 @@ impl SchedulerStartup {
         Self {
             handle: None,
             degraded: Vec::new(),
+            scheduled: 0,
         }
     }
 }
@@ -174,6 +178,7 @@ impl SchedulerService {
         Ok(SchedulerStartup {
             handle: Some(SchedulerHandle { scheduler }),
             degraded: resolved.into_degraded(),
+            scheduled: self.config.jobs.len(),
         })
     }
 
@@ -202,6 +207,8 @@ impl SchedulerService {
     /// An inventory job absent from `scheduler.jobs` is silently never
     /// scheduled; surface each one at boot so a dead pipeline (e.g. bot
     /// classification jobs missing from a deployed profile) is visible.
+    /// Jobs that opt out via [`JobTrait::schedulable`] are inline steps of a
+    /// pipeline job and are expected to have no entry of their own.
     fn warn_unscheduled_jobs(
         &self,
         registered_jobs: &HashMap<&'static str, &'static dyn JobTrait>,
@@ -213,8 +220,8 @@ impl SchedulerService {
             .map(|job| job.name.as_str())
             .chain(self.config.bootstrap_jobs.iter().map(String::as_str))
             .collect();
-        for name in registered_jobs.keys() {
-            if !configured.contains(name) {
+        for (name, job) in registered_jobs {
+            if !configured.contains(name) && job.schedulable() {
                 warn!(
                     job = %name,
                     "job is available in this build but has no scheduler.jobs entry; it will never run"

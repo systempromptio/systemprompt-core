@@ -2,6 +2,10 @@
 //!
 //! [`FieldVisitor`] collects event fields into a JSON metadata blob, redacting
 //! a fixed set of sensitive field names so secrets never reach the log store.
+//! Redaction is name-based and therefore applies only to the string and debug
+//! arms: an `i64`/`u64`/`bool` cannot carry a secret, and blanking one both
+//! destroys operational data (row counts named `oauth_tokens`, say) and changes
+//! the recorded JSON type from a number to a string.
 //! [`SpanVisitor`]/[`SpanContext`]/[`SpanFields`] capture the identifier fields
 //! attached to spans, and [`extract_span_context`] walks a span's ancestors to
 //! resolve the full attribution context for an event.
@@ -90,38 +94,35 @@ impl Visit for FieldVisitor {
     }
 
     fn record_i64(&mut self, field: &Field, value: i64) {
-        let fields = self.fields.get_or_insert_with(|| serde_json::json!({}));
-        if let Some(obj) = fields.as_object_mut() {
-            let rendered = if is_redacted(field.name()) {
-                serde_json::json!("[REDACTED]")
-            } else {
-                serde_json::json!(value)
-            };
-            obj.insert(field.name().to_owned(), rendered);
-        }
+        self.insert_scalar(field, serde_json::json!(value));
     }
 
     fn record_u64(&mut self, field: &Field, value: u64) {
-        let fields = self.fields.get_or_insert_with(|| serde_json::json!({}));
-        if let Some(obj) = fields.as_object_mut() {
-            let rendered = if is_redacted(field.name()) {
-                serde_json::json!("[REDACTED]")
-            } else {
-                serde_json::json!(value)
-            };
-            obj.insert(field.name().to_owned(), rendered);
-        }
+        self.insert_scalar(field, serde_json::json!(value));
+    }
+
+    fn record_i128(&mut self, field: &Field, value: i128) {
+        self.insert_scalar(field, serde_json::json!(value));
+    }
+
+    fn record_u128(&mut self, field: &Field, value: u128) {
+        self.insert_scalar(field, serde_json::json!(value));
+    }
+
+    fn record_f64(&mut self, field: &Field, value: f64) {
+        self.insert_scalar(field, serde_json::json!(value));
     }
 
     fn record_bool(&mut self, field: &Field, value: bool) {
+        self.insert_scalar(field, serde_json::json!(value));
+    }
+}
+
+impl FieldVisitor {
+    fn insert_scalar(&mut self, field: &Field, value: serde_json::Value) {
         let fields = self.fields.get_or_insert_with(|| serde_json::json!({}));
         if let Some(obj) = fields.as_object_mut() {
-            let rendered = if is_redacted(field.name()) {
-                serde_json::json!("[REDACTED]")
-            } else {
-                serde_json::json!(value)
-            };
-            obj.insert(field.name().to_owned(), rendered);
+            obj.insert(field.name().to_owned(), value);
         }
     }
 }
