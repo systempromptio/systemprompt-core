@@ -97,6 +97,9 @@ pub(crate) fn on_probe_finished(
     }
     let snap = app.state.snapshot();
     let value = crate::gui::server_json::single_host_value(&snap, host_id);
+    if app.state.first_run_active() {
+        crate::gui::first_run::handlers::on_probe_result(app, host_id, snapshot);
+    }
     finish(app, Ok(json!({ "snapshot": value })), reply_to);
 }
 
@@ -236,6 +239,10 @@ pub(crate) fn on_profile_generate_finished(
     };
     app.refresh_ui();
     emit::emit_host_changed(app, host_id);
+    if app.state.first_run_active() {
+        let error = bridge_result.as_ref().err().map(|e| e.message.clone());
+        crate::gui::first_run::handlers::on_generate_result(app, host_id, error);
+    }
     finish(app, bridge_result, reply_to);
 }
 
@@ -305,7 +312,7 @@ pub(crate) fn on_profile_install_requested(
 }
 
 pub(crate) fn on_profile_install_finished(
-    app: &GuiApp,
+    app: &mut GuiApp,
     host_id: &str,
     result: Result<String, Arc<GuiError>>,
     reply_to: ReplyId,
@@ -342,6 +349,10 @@ pub(crate) fn on_profile_install_finished(
             cause: ProbeCause::Manual,
             reply_to: None,
         }));
+    if app.state.first_run_active() {
+        let error = bridge_result.as_ref().err().map(|e| e.message.clone());
+        crate::gui::first_run::handlers::on_install_result(app, host_id, error);
+    }
     finish(app, bridge_result, reply_to);
 }
 

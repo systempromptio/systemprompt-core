@@ -14,6 +14,7 @@ pub(crate) struct HostsPayload<'a> {
     pub host_apps: Vec<HostEntryPayload<'a>>,
     pub local_proxy: &'a ProxyHealth,
     pub agents_onboarded: bool,
+    pub first_run: crate::gui::first_run::serde::FirstRunPayload<'a>,
 }
 
 #[derive(Serialize)]
@@ -95,5 +96,6 @@ pub(crate) fn payload(snap: &AppStateSnapshot) -> HostsPayload<'_> {
         host_apps: entries,
         local_proxy: &snap.hosts.local_proxy,
         agents_onboarded: snap.agents_onboarded,
+        first_run: crate::gui::first_run::serde::build(&snap.first_run),
     }
 }

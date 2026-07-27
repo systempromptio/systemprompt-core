@@ -59,6 +59,7 @@ const fn lifecycle_kind(event: &UiEvent) -> Option<&'static str> {
         UiEvent::AgentOpenConfig { .. } => "AgentOpenConfig",
         UiEvent::AgentOpen { .. } => "AgentOpen",
         UiEvent::SetupComplete => "SetupComplete",
+        UiEvent::FirstRunStart => "FirstRunStart",
         UiEvent::FocusWindow => "FocusWindow",
         UiEvent::Host(_) => "Host",
         UiEvent::ProxyStatsTick => "ProxyStatsTick",
@@ -218,6 +219,7 @@ fn dispatch_lifecycle(app: &mut GuiApp, event: UiEvent) -> Result<(), Box<UiEven
             handlers::agents::on_open(app, &host_id, reply_to);
         },
         UiEvent::SetupComplete => handlers::agents::on_setup_complete(app),
+        UiEvent::FirstRunStart => crate::gui::first_run::handlers::on_start(app),
         UiEvent::Host(e) => crate::gui::hosts::dispatch::handle(app, e),
         UiEvent::ProxyStatsTick => crate::gui::emit::emit_proxy_stats(app),
         other => return Err(Box::new(other)),

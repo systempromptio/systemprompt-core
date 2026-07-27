@@ -9,6 +9,7 @@ pub mod dispatch;
 pub mod emit;
 pub mod error;
 pub mod events;
+pub mod first_run;
 pub mod handlers;
 
 pub mod hosts;
@@ -257,6 +258,7 @@ impl ApplicationHandler<UiEvent> for GuiApp {
         }
 
         hosts::tick::maybe_probe(self);
+        first_run::tick(self);
 
         if self.last_proxy_stats_tick.elapsed() >= Duration::from_secs(PROXY_STATS_TICK_SECS) {
             self.last_proxy_stats_tick = Instant::now();

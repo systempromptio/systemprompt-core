@@ -98,6 +98,9 @@ pub struct AppStateSnapshot {
     pub verified_identity: Option<VerifiedIdentity>,
     pub last_probe_at_unix: Option<u64>,
     pub agents_onboarded: bool,
+    /// One-time post-link provisioning: progress while running, and whether it
+    /// has ever completed on this machine.
+    pub first_run: crate::gui::first_run::state::FirstRunState,
     pub enabled_hosts: Vec<String>,
     /// Per-host synced override; empty value means "all models", absent keeps
     /// the default.
@@ -251,6 +254,57 @@ impl AppState {
         self.inner.write().agents_onboarded = flag;
     }
 
+    pub fn first_run_active(&self) -> bool {
+        self.inner.read().first_run.active
+    }
+
+    pub fn begin_first_run(&self, hosts: &[(String, String)]) {
+        use crate::gui::first_run::state::{FirstRunHost, FirstRunPhase, StepStatus};
+        let mut guard = self.inner.write();
+        guard.first_run.active = true;
+        guard.first_run.phase = FirstRunPhase::Probing;
+        guard.first_run.sync = StepStatus::Pending;
+        guard.first_run.error = None;
+        guard.first_run.started_at_unix = now_unix();
+        guard.first_run.hosts = hosts
+            .iter()
+            .map(|(id, name)| FirstRunHost {
+                host_id: id.clone(),
+                display_name: name.clone(),
+                status: StepStatus::Probing,
+                error: None,
+            })
+            .collect();
+    }
+
+    pub fn set_first_run_host(
+        &self,
+        host_id: &str,
+        status: crate::gui::first_run::state::StepStatus,
+        error: Option<String>,
+    ) {
+        let mut guard = self.inner.write();
+        if let Some(host) = guard.first_run.host_mut(host_id) {
+            host.status = status;
+            host.error = error;
+        }
+    }
+
+    pub fn set_first_run_phase(&self, phase: crate::gui::first_run::state::FirstRunPhase) {
+        self.inner.write().first_run.phase = phase;
+    }
+
+    pub fn set_first_run_sync(&self, status: crate::gui::first_run::state::StepStatus) {
+        self.inner.write().first_run.sync = status;
+    }
+
+    pub fn finish_first_run(&self, phase: crate::gui::first_run::state::FirstRunPhase) {
+        let mut guard = self.inner.write();
+        guard.first_run.phase = phase;
+        guard.first_run.active = false;
+        guard.first_run.done = true;
+    }
+
     pub fn apply_host_snapshot(&self, host_id: &str, snap: HostAppSnapshot) {
         let mut guard = self.inner.write();
         let entry = guard.hosts.entry(host_id);
@@ -337,6 +391,11 @@ impl AppState {
     fn reload_into(snap: &mut AppStateSnapshot) {
         let cfg = config::load();
         snap.gateway_url = config::gateway_url_or_default(&cfg).to_string();
+
+        // Only `done` is derived from disk. `active`/`hosts` describe a run in
+        // flight, and `reload` is called from inside one (on_sync_finished) —
+        // recomputing them here would wipe the progress the wizard is showing.
+        snap.first_run.done = crate::gui::first_run::record::read().is_some();
 
         if let Ok(s) = setup::status() {
             snap.config_file = s.paths.config_file.display().to_string();

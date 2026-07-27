@@ -96,6 +96,12 @@ pub(crate) fn on_open(app: &GuiApp, host_id: &str, reply_to: ReplyId) {
 }
 
 pub(crate) fn on_setup_complete(app: &mut GuiApp) {
+    // Belt and braces against a stray IPC: the wizard already disables Finish
+    // while first-use provisioning runs, and completing it mid-run is how a
+    // user ends up in the half-installed state.
+    if app.state.first_run_active() {
+        return;
+    }
     app.state.set_agents_onboarded(true);
     app.append_log("setup marked complete by user");
     emit::emit_state(app);

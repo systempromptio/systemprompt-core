@@ -77,6 +77,20 @@ pub(crate) fn emit_sync_progress(app: &GuiApp, phase: &str, summary: Option<&str
     send_emit(app, "sync.progress", &value);
 }
 
+/// Live per-host progress for the first-use run.
+///
+/// Its own channel, like `sync.progress`: `emit_state` dedupes on a semantic
+/// hash and is coarse enough to re-render every subscriber, neither of which
+/// suits a step-by-step ticker.
+pub(crate) fn emit_first_run_progress(app: &GuiApp) {
+    let snap = app.state.snapshot();
+    let payload = crate::gui::first_run::serde::build(&snap.first_run);
+    match serde_json::to_value(&payload) {
+        Ok(value) => send_emit(app, "setup.progress", &value),
+        Err(e) => tracing::warn!(error = %e, "first-run progress serialize failed"),
+    }
+}
+
 pub(crate) fn emit_state(app: &mut GuiApp) {
     let snap = app.state.snapshot();
     let value = crate::gui::server_json::snapshot_value(&snap);

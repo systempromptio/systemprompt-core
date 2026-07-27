@@ -22,6 +22,7 @@ export class SpSetup extends SpElement {
     this.snapshot = null;
     this.step = "connect";
     this.anyInstalled = false;
+    this.firstRunActive = false;
     this._finished = false;
     /** Latched once the app proper is on screen; see `_applySnapshot`. */
     this._leftSetup = false;
@@ -62,6 +63,17 @@ export class SpSetup extends SpElement {
     this.anyInstalled = anyInstalled;
     this.step = configured ? "agents" : "connect";
 
+    // First-use provisioning pins the wizard open. Checked before the
+    // settled/latched guards below: a run is exactly the window in which host
+    // snapshots are still arriving, so those guards would return early and let
+    // the app show over a half-installed machine.
+    this.firstRunActive = !!(snap.first_run && snap.first_run.active);
+    if (this.firstRunActive) {
+      this._leftSetup = false;
+      document.body.classList.add("is-setup-mode");
+      return;
+    }
+
     // Signing out is the one thing that legitimately sends us back to the
     // splash. Clear the latch so it can.
     if (!snap.verified_identity || !snap.verified_identity.user_id) { this._leftSetup = false; }
@@ -86,6 +98,7 @@ export class SpSetup extends SpElement {
   }
 
   _finish() {
+    if (this.firstRunActive) { return; }
     this._finished = true;
     this._leftSetup = true;
     bridge.setupComplete().catch((err) => console.warn("setup complete", err));
@@ -106,11 +119,13 @@ export class SpSetup extends SpElement {
     const version = this.dataset.version || "";
     const platform = this.dataset.platform || "linux";
     const platformDisplay = this.dataset.platformDisplay || "";
-    // Finish is always enabled. Host install-state is probe-driven and can lag
-    // or misreport (e.g. the card shows "Installed ✓" while `anyInstalled` is
-    // still false), which trapped the user on this step with no way forward.
-    // Installing agents is optional, so never block completing setup.
-    const finishDisabled = "";
+    // Finish is enabled except while first-use provisioning is running. Host
+    // install-state is probe-driven and can lag or misreport (e.g. the card
+    // shows "Installed ✓" while `anyInstalled` is still false), which trapped
+    // the user on this step with no way forward — so it is never gated on that.
+    // An in-flight run is different: it is a bounded operation that reports its
+    // own completion, and leaving mid-run is what produced a broken app.
+    const finishDisabled = this.firstRunActive ? "disabled" : "";
     return `
       <div class="sp-setup__card">
         <div class="sp-setup__hero">
@@ -145,5 +160,5 @@ export class SpSetup extends SpElement {
   }
 }
 
-reactive(SpSetup.prototype, ["snapshot", "step", "anyInstalled"]);
+reactive(SpSetup.prototype, ["snapshot", "step", "anyInstalled", "firstRunActive"]);
 customElements.define("sp-setup", SpSetup);

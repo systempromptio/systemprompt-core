@@ -6,6 +6,7 @@ export class SpSetupAgents extends SpElement {
   constructor() {
     super();
     this.snapshot = null;
+    this.firstRun = null;
     this.registerAction("install-host", async (trigger) => {
       const id = trigger.dataset.hostId;
       if (!id) { return; }
@@ -32,8 +33,14 @@ export class SpSetupAgents extends SpElement {
   onConnect() {
     this.classList.add("sp-setup-agent-list");
     this.setAttribute("aria-live", "polite");
-    bridge.stateSnapshot().then((s) => { this.snapshot = s; }).catch((e) => console.warn("snapshot failed", e));
+    bridge.stateSnapshot().then((s) => {
+      this.snapshot = s;
+      // A late-mounting component would otherwise show nothing until the next
+      // tick; the snapshot carries the run's current state.
+      if (s && s.first_run) { this.firstRun = s.first_run; }
+    }).catch((e) => console.warn("snapshot failed", e));
     this.bridgeSubscribe("state.changed", (s) => { this.snapshot = s; });
+    this.bridgeSubscribe("setup.progress", (p) => { this.firstRun = p; });
     this.bridgeSubscribe("host.changed", (host) => this._mergeHost(host));
   }
 
@@ -45,7 +52,43 @@ export class SpSetupAgents extends SpElement {
     this.snapshot = { ...this.snapshot, host_apps: list };
   }
 
+  _renderFirstRun() {
+    const fr = this.firstRun;
+    const glyphs = {
+      pending: "·", probing: "…", generating: "…", installing: "…",
+      done: "✓", failed: "✗", skipped: "–",
+    };
+    const rows = (fr.hosts || []).map((h) => {
+      const failed = h.status === "failed";
+      const detail = failed
+        ? h.error || "failed"
+        : (h.status === "skipped" ? "not detected on this device" : h.status);
+      return `
+        <div class="sp-setup-agent" data-state="${escapeHtml(h.status)}">
+          <div class="sp-setup-agent__meta">
+            <div class="sp-setup-agent__name">${escapeHtml(glyphs[h.status] || "·")} ${escapeHtml(h.display_name)}</div>
+            <div class="sp-setup-agent__desc">${escapeHtml(detail)}</div>
+          </div>
+          ${failed ? `<button type="button" class="sp-btn-ghost" data-action="install-host" data-host-id="${escapeHtml(h.host_id)}">Retry</button>` : ""}
+        </div>
+      `;
+    }).join("");
+    const syncLabel = { pending: "Waiting", installing: "Syncing…", done: "Synced ✓", failed: "Sync failed ✗" }[fr.sync] || fr.sync;
+    return `${rows}
+      <div class="sp-setup-agent" data-state="${escapeHtml(fr.sync)}">
+        <div class="sp-setup-agent__meta">
+          <div class="sp-setup-agent__name">Plugins &amp; skills</div>
+          <div class="sp-setup-agent__desc">${escapeHtml(syncLabel)}</div>
+        </div>
+      </div>`;
+  }
+
   render() {
+    // While first use is provisioning, the per-host status IS the list — the
+    // manual install buttons would race the run.
+    if (this.firstRun && this.firstRun.active) {
+      return this._renderFirstRun();
+    }
     const hosts = (this.snapshot && this.snapshot.host_apps) || [];
     if (hosts.length === 0) {
       return `<div class="sp-u-muted">${escapeHtml(t("setup-agents-empty") || "No agents detected on this device.")}</div>`;
@@ -68,5 +111,5 @@ export class SpSetupAgents extends SpElement {
   }
 }
 
-reactive(SpSetupAgents.prototype, ["snapshot"]);
+reactive(SpSetupAgents.prototype, ["snapshot", "firstRun"]);
 customElements.define("sp-setup-agents", SpSetupAgents);

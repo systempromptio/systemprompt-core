@@ -115,6 +115,8 @@ pub enum UiEvent {
         reply_to: ReplyId,
     },
     SetupComplete,
+    /// Begin one-time provisioning after the first device link.
+    FirstRunStart,
 
     Host(HostUiEvent),
 

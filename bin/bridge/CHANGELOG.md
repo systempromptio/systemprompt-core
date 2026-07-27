@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.19.0] - 2026-07-27
+
+### Added
+
+- Linking a device provisions the registered hosts automatically: every host is probed, and each one that has its app installed gets a profile generated, installed, and synced. Previously the link finished and left nothing installed, so the app stayed unusable until the user found the agents tab and ran the install by hand. Progress appears per host in the setup wizard, which refuses to finish while a run is in flight, and a host that fails is reported rather than passed over silently. A run is recorded in `first-run.json` in the bridge metadata directory, so signing out and back in does not repeat it; `auth clean` removes the sentinel along with the rest of the machine state. A run that stops making progress — an unanswered elevation prompt, a probe that never reports — times out after five minutes and hands the app back with the failures on screen.
+
 ## [0.18.0] - 2026-07-24
 
 ### Added

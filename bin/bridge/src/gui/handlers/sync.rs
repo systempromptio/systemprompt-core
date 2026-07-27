@@ -119,6 +119,9 @@ pub(crate) fn on_sync_finished(
     };
     app.state.reload();
     app.refresh_ui();
+    if app.state.first_run_active() {
+        crate::gui::first_run::handlers::on_sync_result(app, succeeded);
+    }
     emit::emit_state(app);
     if succeeded {
         _ = app

@@ -159,10 +159,17 @@ pub(crate) fn on_login_finished(
             super::gateway_probe::spawn_probe(app, None);
             app.state.reload();
             app.refresh_ui();
-            _ = app
-                .proxy
-                .send_event(UiEvent::SyncRequested { reply_to: None });
-            crate::gui::hosts::tick::request_initial_probe(app);
+            // First device link on this machine provisions the hosts itself;
+            // leaving it to the user is what left the app unusable until the
+            // install was run by hand. Afterwards, the ordinary path.
+            if crate::gui::first_run::should_run(app) {
+                _ = app.proxy.send_event(UiEvent::FirstRunStart);
+            } else {
+                _ = app
+                    .proxy
+                    .send_event(UiEvent::SyncRequested { reply_to: None });
+                crate::gui::hosts::tick::request_initial_probe(app);
+            }
             Ok(())
         },
         Err(e) => {
