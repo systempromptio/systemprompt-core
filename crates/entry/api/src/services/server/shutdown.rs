@@ -92,9 +92,10 @@ fn arm_exit_on_second_signal() {
     });
 }
 
-/// Backstop for the post-drain teardown in [`drain`]. Armed by the run loop
-/// only once axum's drain has finished, so the whole grace window is available
-/// to child termination.
+// Why: backstop for the post-drain teardown in `drain`. Armed by the run loop
+// only once axum's drain has finished, so the whole grace window is available
+// to child termination — arming it at first signal spent the window on the
+// drain and left children stranded.
 pub(super) fn arm_forced_exit() {
     tokio::spawn(async {
         tokio::time::sleep(Duration::from_millis(FORCED_SHUTDOWN_GRACE_MS)).await;
@@ -114,13 +115,11 @@ fn force_exit() -> ! {
     std::process::exit(0);
 }
 
-/// Waits for axum's graceful drain, giving up after [`AXUM_DRAIN_GRACE_MS`].
-///
-/// SSE streams never close on their own, so an unbounded wait starves the child
-/// termination that follows. Abandoning the drain is the lesser evil: the
-/// listener is already closed and readiness already reports shutting-down, so
-/// the alternative is leaving MCP and agent subprocesses running on their ports
-/// for the next boot to reclaim.
+// Why: SSE streams never close on their own, so an unbounded wait on axum's
+// drain starves the child termination that follows. Abandoning the drain after
+// AXUM_DRAIN_GRACE_MS is the lesser evil: the listener is already closed and
+// readiness already reports shutting-down, so the alternative is leaving MCP
+// and agent subprocesses running on their ports for the next boot to reclaim.
 pub(super) async fn join_within_drain_grace(
     serve: impl Future<Output = anyhow::Result<()>>,
 ) -> anyhow::Result<()> {

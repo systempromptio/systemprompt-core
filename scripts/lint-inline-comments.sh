@@ -6,9 +6,15 @@ set -uo pipefail
 # The only permitted full-line inline comments are the two whitelisted
 # justification prefixes mandated by the rust-coding-standards skill:
 #
-#   // Why:  — a non-obvious invariant, hidden constraint, or exemption
-#              justification (e.g. a permitted `let _ =`)
-#   // JSON: — a sanctioned `serde_json::Value` protocol-boundary usage
+#   // Why:    — a non-obvious invariant, hidden constraint, or exemption
+#                justification (e.g. a permitted `let _ =`)
+#   // JSON:   — a sanctioned `serde_json::Value` protocol-boundary usage
+#   // SAFETY: — the discharge of an `unsafe` block's obligations. Not a
+#                discretionary comment: clippy's `undocumented_unsafe_blocks`
+#                is warn-level and the workspace builds with `-D warnings`, so
+#                every `unsafe` block must carry one and it must start with
+#                `SAFETY:` for clippy to recognise it. Banning the prefix here
+#                would leave the two gates mutually unsatisfiable.
 #
 # Continuation lines of a whitelisted comment block are allowed. `//!` module
 # heads are governed separately (rustdoc placement rules), as are `///` docs
@@ -30,7 +36,7 @@ while IFS= read -r file; do
         /^[[:space:]]*\/\/!/ { prev_allowed = 0; next }
         /^[[:space:]]*\/\// {
             in_doc = 0
-            if ($0 ~ /^[[:space:]]*\/\/ (Why|JSON):/) { prev_allowed = 1; next }
+            if ($0 ~ /^[[:space:]]*\/\/ (Why|JSON|SAFETY):/) { prev_allowed = 1; next }
             if (prev_allowed) { next }
             print FILENAME ":" FNR ":" $0
             next
@@ -57,7 +63,7 @@ if [ -z "$MATCHES" ]; then
 fi
 
 echo "lint-inline-comments: inline // comments are banned in production crates."
-echo "Delete the comment, or justify it with a '// Why:' or '// JSON:' prefix:"
+echo "Delete the comment, or justify it with a '// Why:', '// JSON:' or '// SAFETY:' prefix:"
 echo ""
 printf '%s' "$MATCHES"
 exit 1

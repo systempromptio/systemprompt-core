@@ -21,9 +21,10 @@ use tokio::sync::OnceCell;
 use crate::error::{GeneratorResult, PublishError};
 use crate::templates::{get_templates_path, load_web_config};
 
-/// The half of the prerender context that is fixed for the life of a
-/// deployment: content and web configuration, the compiled template registry,
-/// and the registered content data providers.
+// Why: this is the half of the prerender context that is fixed for the life of
+// a deployment — content and web configuration, the compiled template registry,
+// and the registered content data providers. The split exists so this half can
+// be built once per process rather than per job.
 pub(super) struct PrerenderAssets {
     pub config: ContentConfigRaw,
     pub web_config: WebConfig,
