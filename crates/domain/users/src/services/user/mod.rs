@@ -138,6 +138,18 @@ impl UserService {
             .await
     }
 
+    pub async fn create_if_absent(
+        &self,
+        name: &str,
+        email: &str,
+        full_name: Option<&str>,
+        display_name: Option<&str>,
+    ) -> Result<Option<User>> {
+        self.repository
+            .create_if_absent(name, email, full_name, display_name)
+            .await
+    }
+
     pub async fn create_anonymous(&self, fingerprint: &str) -> Result<User> {
         self.repository.create_anonymous(fingerprint).await
     }

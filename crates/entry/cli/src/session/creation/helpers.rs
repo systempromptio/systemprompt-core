@@ -74,10 +74,20 @@ pub(super) async fn get_or_create_admin(
 
     tracing::info!(email = %email, name = %name, context = %context_type, "Auto-provisioning user");
 
-    let user = user_service
-        .create(&name, email, None, None)
+    // Every local-trial process resolves the same well-known admin, so a
+    // concurrent one may have inserted it between the lookup above and here.
+    let user = match user_service
+        .create_if_absent(&name, email, None, None)
         .await
-        .with_context(|| format!("Failed to create user in {} database", context_type))?;
+        .with_context(|| format!("Failed to create user in {context_type} database"))?
+    {
+        Some(user) => user,
+        None => user_service
+            .find_by_email(email)
+            .await
+            .context("Failed to query user by email")?
+            .with_context(|| format!("User {email} vanished between provisioning and lookup"))?,
+    };
 
     user_service
         .assign_roles(&user.id, &["admin".to_owned()])

@@ -59,6 +59,56 @@ impl UserRepository {
         Ok(row)
     }
 
+    /// Inserts the user, yielding `None` when one already holds that name or
+    /// email.
+    ///
+    /// `create` is the right call when the caller owns the identity it is
+    /// minting. This one is for the auto-provisioning paths, where several
+    /// processes resolve the *same* well-known identity — the local-trial
+    /// `admin` — and would otherwise each read "absent" and then race to
+    /// insert it, leaving every loser with a unique-violation the caller can
+    /// only tell apart by matching on the driver's error text.
+    pub async fn create_if_absent(
+        &self,
+        name: &str,
+        email: &str,
+        full_name: Option<&str>,
+        display_name: Option<&str>,
+    ) -> Result<Option<User>> {
+        let now = Utc::now();
+        let id = UserId::new(uuid::Uuid::new_v4().to_string());
+        let display_name_val = display_name.or(full_name);
+        let status = UserStatus::Active.as_str();
+        let role = UserRole::User.as_str();
+
+        let row = sqlx::query_as!(
+            User,
+            r#"
+            INSERT INTO users (
+                id, name, email, full_name, display_name,
+                status, email_verified, roles, is_bot,
+                created_at, updated_at
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, false, ARRAY[$7]::TEXT[], false, $8, $8)
+            ON CONFLICT DO NOTHING
+            RETURNING id, name, email, full_name, display_name, status, email_verified,
+                      roles, avatar_url, is_bot, is_scanner, created_at, updated_at
+            "#,
+            id.as_str(),
+            name,
+            email,
+            full_name,
+            display_name_val,
+            status,
+            role,
+            now
+        )
+        .fetch_optional(&*self.write_pool)
+        .await?;
+
+        Ok(row)
+    }
+
     pub async fn create_anonymous(&self, fingerprint: &str) -> Result<User> {
         let email = format!("{}@anonymous.local", fingerprint);
 
