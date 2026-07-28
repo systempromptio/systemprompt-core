@@ -11,6 +11,11 @@
 
 - `SectionType::Text`, `TextSectionData`, `TimelineSectionData`, and `TimelineEvent`: the free-text and timeline section bodies the dashboard renderer now consumes. `Timeline` existed in the taxonomy but had no data shape.
 
+### Fixed
+
+- The Anthropic upstream request body no longer carries the gateway's vendor-extension fields. `build_request_body` shared its block renderer with the client-facing render, so `signature` on `tool_use` and `structuredContent`/`_meta` on `tool_result` — fields the gateway adds for its own clients — went to the real Anthropic API, which rejects unknown keys in content blocks. The client-facing `content_to_anthropic_block` still emits them; the upstream body does not.
+- Gemini `functionResponse.name` carries the declared function name rather than the gateway-minted `tool_use` id. Gemini's function call has no id, so the canonical `ToolResult` only holds the minted one; the encoder now recovers the name from the matching `ToolUse` earlier in the same replayed history, falling back to the id only when no match exists.
+
 ## [0.25.0] - 2026-07-27
 
 ### Added

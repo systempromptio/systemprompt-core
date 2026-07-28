@@ -49,7 +49,7 @@ pub fn build_request_body(
         .messages
         .iter()
         .filter(|m| !matches!(m.role, Role::System))
-        .map(canonical_message_to_anthropic)
+        .map(|m| canonical_message_to_anthropic(m, BlockAudience::Upstream))
         .collect();
 
     let mut obj = Map::new();
@@ -172,12 +172,16 @@ fn tool_to_anthropic(tool: &CanonicalTool) -> Value {
     Value::Object(tobj)
 }
 
-fn canonical_message_to_anthropic(msg: &CanonicalMessage) -> Value {
+fn canonical_message_to_anthropic(msg: &CanonicalMessage, audience: BlockAudience) -> Value {
     let role = match msg.role {
         Role::Assistant => "assistant",
         Role::User | Role::Tool | Role::System => "user",
     };
-    let content: Vec<Value> = msg.content.iter().map(content_to_anthropic_block).collect();
+    let content: Vec<Value> = msg
+        .content
+        .iter()
+        .map(|part| block_for_audience(part, audience))
+        .collect();
     json!({ "role": role, "content": content })
 }
 
@@ -190,8 +194,22 @@ fn tool_choice_to_anthropic(tc: &CanonicalToolChoice) -> Value {
     }
 }
 
+/// Whether a rendered block is bound for the gateway's own client (which may
+/// rely on the gateway's vendor-extension fields: `signature` on `tool_use`,
+/// `structuredContent` / `_meta` on `tool_result`) or for the real Anthropic
+/// API, which rejects unknown keys in content blocks.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum BlockAudience {
+    Client,
+    Upstream,
+}
+
 #[must_use]
 pub fn content_to_anthropic_block(part: &CanonicalContent) -> Value {
+    block_for_audience(part, BlockAudience::Client)
+}
+
+fn block_for_audience(part: &CanonicalContent, audience: BlockAudience) -> Value {
     match part {
         CanonicalContent::Text(t) => json!({ "type": "text", "text": t }),
         CanonicalContent::Thinking { text, signature } => {
@@ -214,7 +232,9 @@ pub fn content_to_anthropic_block(part: &CanonicalContent) -> Value {
             obj.insert("id".into(), Value::String(id.clone()));
             obj.insert("name".into(), Value::String(name.clone()));
             obj.insert("input".into(), input.clone());
-            if let Some(sig) = signature {
+            if audience == BlockAudience::Client
+                && let Some(sig) = signature
+            {
                 obj.insert("signature".into(), Value::String(sig.clone()));
             }
             Value::Object(obj)
@@ -226,17 +246,22 @@ pub fn content_to_anthropic_block(part: &CanonicalContent) -> Value {
             structured_content,
             meta,
         } => {
-            let inner: Vec<Value> = content.iter().map(content_to_anthropic_block).collect();
+            let inner: Vec<Value> = content
+                .iter()
+                .map(|p| block_for_audience(p, audience))
+                .collect();
             let mut obj = Map::new();
             obj.insert("type".into(), Value::String("tool_result".into()));
             obj.insert("tool_use_id".into(), Value::String(tool_use_id.clone()));
             obj.insert("is_error".into(), Value::Bool(*is_error));
             obj.insert("content".into(), Value::Array(inner));
-            if let Some(sc) = structured_content {
-                obj.insert("structuredContent".into(), sc.clone());
-            }
-            if let Some(m) = meta {
-                obj.insert("_meta".into(), m.clone());
+            if audience == BlockAudience::Client {
+                if let Some(sc) = structured_content {
+                    obj.insert("structuredContent".into(), sc.clone());
+                }
+                if let Some(m) = meta {
+                    obj.insert("_meta".into(), m.clone());
+                }
             }
             Value::Object(obj)
         },

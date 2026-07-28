@@ -23,6 +23,7 @@ use super::RequestContext;
 use super::auth::{AuthedPrincipal, authenticate};
 use crate::services::gateway::protocol::canonical::CanonicalRequest;
 use crate::services::gateway::protocol::inbound::InboundAdapter;
+use crate::services::gateway::signature_cache::ThoughtSignatureCache;
 use authz::enforce_authz_pre_dispatch;
 use headers::{optional_gateway_conversation_id, read_gateway_body, require_session_id};
 
@@ -101,10 +102,11 @@ pub(super) async fn extract_request_context(
 
     principal.enforce_session_binding(&session_id)?;
 
-    let (body_bytes, gateway_request) = read_gateway_body(inbound, request, partial).await?;
+    let (body_bytes, mut gateway_request) = read_gateway_body(inbound, request, partial).await?;
 
     let (gateway_conversation_id, context_id) =
         derive_conversation(header_gateway_conversation, &gateway_request, partial)?;
+    ThoughtSignatureCache::global().hydrate_request(&gateway_conversation_id, &mut gateway_request);
 
     let route = gateway_config
         .resolve_route(&rc.profile.providers, &gateway_request)

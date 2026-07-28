@@ -29,6 +29,7 @@ pub mod protocol;
 pub mod quota;
 pub mod registry;
 pub mod service;
+pub mod signature_cache;
 pub mod stream_tap;
 
 pub use audit::{GatewayAudit, GatewayRequestContext};

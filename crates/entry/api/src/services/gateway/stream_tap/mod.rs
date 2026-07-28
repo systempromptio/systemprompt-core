@@ -23,6 +23,7 @@ use self::accumulator::{Summary, TapState, accumulate_event, extract_summary, sn
 use super::audit::GatewayAudit;
 use super::protocol::canonical_response::CanonicalEvent;
 use super::protocol::inbound::InboundAdapter;
+use super::signature_cache::ThoughtSignatureCache;
 
 pub fn tap(
     upstream: BoxStream<'static, Result<CanonicalEvent, String>>,
@@ -155,6 +156,9 @@ pub const fn classify(
 }
 
 fn finalize(audit: Arc<GatewayAudit>, summary: Summary, origin: &'static str) {
+    if let Some(conversation) = &audit.ctx.gateway_conversation_id {
+        ThoughtSignatureCache::global().store_from_response(conversation, &summary.response);
+    }
     tokio::spawn(async move {
         if let Some(model) = summary.served_model.as_deref() {
             audit.set_served_model(model).await;

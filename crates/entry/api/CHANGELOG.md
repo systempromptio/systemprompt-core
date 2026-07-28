@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.26.0]
+
+### Fixed
+
+- Gemini multi-turn tool calls survive strict Anthropic clients. Gemini's `thoughtSignature` must be echoed back verbatim on the turn after a function call, and the gateway carried it to the client as a non-standard `signature` field on the `tool_use` block — a channel any faithful Anthropic SDK client strips when replaying history, at which point Gemini rejects the signatureless replay. The new `ThoughtSignatureCache` captures signatures server-side as responses pass through (buffered and streamed alike) and re-injects them on inbound requests whose `tool_use` blocks arrive without one; a client that does round-trip the field still wins over the cache. Entries are keyed by conversation and `tool_use` id — the ids on inbound requests are client-supplied, so an unscoped key would let one caller read another conversation's cached signatures — and expire an hour after last use. The cache is per-process; multi-replica gateways need sticky routing for signature recovery to hit.
+
 ## [0.25.0] - 2026-07-27
 
 ### Changed

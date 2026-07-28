@@ -26,6 +26,7 @@ use super::super::protocol::canonical_response::CanonicalResponse;
 use super::super::protocol::inbound::InboundAdapter;
 use super::super::protocol::outbound::OutboundOutcome;
 use super::super::registry::SafetyScannerRegistry;
+use super::super::signature_cache::ThoughtSignatureCache;
 use super::super::{parse, quota, stream_tap};
 use super::REQUEST_ID_HEADER;
 
@@ -81,6 +82,9 @@ pub(super) async fn finalize(outcome: OutboundOutcome, fctx: FinalizeCtx) -> Res
     match outcome {
         OutboundOutcome::Buffered(canonical) => {
             let canonical = *canonical;
+            if let Some(conversation) = &audit.ctx.gateway_conversation_id {
+                ThoughtSignatureCache::global().store_from_response(conversation, &canonical);
+            }
             let body_bytes = inbound.render_response(&canonical);
             let audit_clone = Arc::clone(&audit);
             let body_for_task = body_bytes.clone();

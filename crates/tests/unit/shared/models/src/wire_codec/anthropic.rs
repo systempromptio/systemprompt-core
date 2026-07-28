@@ -219,3 +219,34 @@ fn anthropic_sse_tool_use_block_start_carries_signature() {
         other => panic!("expected tool_use ContentBlockStart, got {other:?}"),
     }
 }
+
+#[test]
+fn anthropic_upstream_body_strips_vendor_extension_fields() {
+    let mut req = base_request();
+    req.messages = vec![
+        CanonicalMessage {
+            role: Role::Assistant,
+            content: vec![tool_use(Some("sig=="))],
+        },
+        CanonicalMessage {
+            role: Role::Tool,
+            content: vec![CanonicalContent::ToolResult {
+                tool_use_id: "call_1".to_owned(),
+                content: vec![CanonicalContent::Text("ok".to_owned())],
+                is_error: false,
+                structured_content: Some(json!({"rows": 1})),
+                meta: Some(json!({"trace": "t1"})),
+            }],
+        },
+    ];
+    let body = anthropic::build_request_body(&req, "claude-x", None);
+    let tool_use_block = &body["messages"][0]["content"][0];
+    assert_eq!(tool_use_block["id"], "call_1");
+    assert!(
+        tool_use_block.get("signature").is_none(),
+        "the gateway-extension `signature` key must not reach the Anthropic API"
+    );
+    let tool_result_block = &body["messages"][1]["content"][0];
+    assert!(tool_result_block.get("structuredContent").is_none());
+    assert!(tool_result_block.get("_meta").is_none());
+}

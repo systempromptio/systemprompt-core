@@ -429,3 +429,20 @@ fn gemini_drops_system_thinking_and_empty_part_messages_from_contents() {
     assert_eq!(contents[0]["role"], "model");
     assert_eq!(contents[0]["parts"][0]["text"], "visible");
 }
+
+#[test]
+fn gemini_function_response_name_recovered_from_matching_tool_use() {
+    let mut req = base_request();
+    req.messages = vec![
+        CanonicalMessage {
+            role: Role::Assistant,
+            content: vec![tool_use(None)],
+        },
+        tool_result_message(false, None, &["ok"]),
+    ];
+    let body = gemini::build_request_body(&req, None);
+    assert_eq!(
+        body["contents"][1]["parts"][0]["functionResponse"]["name"], "lookup",
+        "functionResponse.name must be the declared function name, not the minted id"
+    );
+}

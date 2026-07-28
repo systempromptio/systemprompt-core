@@ -20,6 +20,9 @@
 
 - Typed `DashboardSection` payloads render their bodies. The renderer resolved the section type from a `type` key the typed model never serializes, so every section fell through to the text fallback and rendered an empty paragraph; section ids, layout widths, ordering, and every per-type data shape (`cards`, `columns`/`rows`, `services`, `lists`) now come from the typed structs.
 - Chart titles, chart types, and axis labels survive storage. The chart renderer read them exclusively from `metadata.rendering_hints`, which the stored-artifact path never populated.
+- Gemini multi-turn tool calls survive strict Anthropic clients. Gemini's `thoughtSignature` must be echoed back on the turn after a function call, and the gateway carried it to the client as a non-standard `signature` field on the `tool_use` block — a channel any faithful Anthropic SDK client strips when replaying history, at which point Gemini rejects the replay. The gateway now caches signatures server-side, keyed by conversation and `tool_use` id, and re-injects them on inbound requests whose `tool_use` blocks arrive without one; a client that does round-trip the field still wins over the cache. The cache is per-process, so multi-replica gateways need sticky routing for recovery to hit.
+- The Anthropic upstream request body no longer carries the gateway's vendor-extension fields (`signature` on `tool_use`, `structuredContent`/`_meta` on `tool_result`); the real Anthropic API rejects unknown keys in content blocks. The client-facing render still emits them.
+- Gemini `functionResponse.name` carries the declared function name rather than the gateway-minted `tool_use` id, recovered from the matching `ToolUse` earlier in the same replayed history.
 
 ## [0.25.0] - 2026-07-27
 

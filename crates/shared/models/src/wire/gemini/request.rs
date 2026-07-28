@@ -3,6 +3,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::collections::HashMap;
+
 use serde_json::{Value, json};
 
 use super::wire::{
@@ -132,20 +134,43 @@ fn tool_config(choice: &CanonicalToolChoice) -> GeminiToolConfig {
 }
 
 fn contents(request: &CanonicalRequest) -> Vec<GeminiContent> {
+    let call_names = tool_call_names(request);
     request
         .messages
         .iter()
-        .filter_map(message_to_content)
+        .filter_map(|msg| message_to_content(msg, &call_names))
         .collect()
 }
 
-fn message_to_content(msg: &CanonicalMessage) -> Option<GeminiContent> {
+/// Gemini's `functionResponse.name` must be the declared function name, but
+/// the canonical `ToolResult` carries only the gateway-minted `tool_use_id`;
+/// the matching `ToolUse` earlier in the same replayed history recovers it.
+fn tool_call_names(request: &CanonicalRequest) -> HashMap<&str, &str> {
+    let mut names = HashMap::new();
+    for msg in &request.messages {
+        for part in &msg.content {
+            if let CanonicalContent::ToolUse { id, name, .. } = part {
+                names.insert(id.as_str(), name.as_str());
+            }
+        }
+    }
+    names
+}
+
+fn message_to_content(
+    msg: &CanonicalMessage,
+    call_names: &HashMap<&str, &str>,
+) -> Option<GeminiContent> {
     let role = match msg.role {
         Role::System => return None,
         Role::Assistant => "model",
         Role::User | Role::Tool => "user",
     };
-    let parts: Vec<GeminiPart> = msg.content.iter().filter_map(content_to_part).collect();
+    let parts: Vec<GeminiPart> = msg
+        .content
+        .iter()
+        .filter_map(|part| content_to_part(part, call_names))
+        .collect();
     if parts.is_empty() {
         return None;
     }
@@ -155,7 +180,10 @@ fn message_to_content(msg: &CanonicalMessage) -> Option<GeminiContent> {
     })
 }
 
-fn content_to_part(part: &CanonicalContent) -> Option<GeminiPart> {
+fn content_to_part(
+    part: &CanonicalContent,
+    call_names: &HashMap<&str, &str>,
+) -> Option<GeminiPart> {
     match part {
         CanonicalContent::Text(t) => Some(GeminiPart::Text { text: t.clone() }),
         CanonicalContent::Image(src) => Some(image_part(src)),
@@ -178,7 +206,10 @@ fn content_to_part(part: &CanonicalContent) -> Option<GeminiPart> {
             structured_content,
             ..
         } => Some(tool_result_part(
-            tool_use_id,
+            call_names
+                .get(tool_use_id.as_str())
+                .copied()
+                .unwrap_or(tool_use_id),
             content,
             *is_error,
             structured_content.as_ref(),
@@ -202,7 +233,7 @@ fn image_part(src: &ImageSource) -> GeminiPart {
 }
 
 fn tool_result_part(
-    tool_use_id: &str,
+    function_name: &str,
     content: &[CanonicalContent],
     is_error: bool,
     structured_content: Option<&Value>,
@@ -216,7 +247,7 @@ fn tool_result_part(
     };
     GeminiPart::FunctionResponse {
         function_response: GeminiFunctionResponse {
-            name: tool_use_id.to_owned(),
+            name: function_name.to_owned(),
             response,
         },
     }

@@ -14,6 +14,7 @@ mod parse;
 mod pricing;
 mod registry;
 mod safety;
+mod signature_cache;
 mod stream_tap;
 mod stream_tap_accumulator;
 mod upstream_error;
