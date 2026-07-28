@@ -14,7 +14,6 @@ pub(super) struct Scale {
 }
 
 impl Scale {
-    /// Where `value` sits in `0.0..=1.0` across the range.
     pub(super) fn fraction(self, value: f64) -> f64 {
         let span = self.max - self.min;
         if span <= 0.0 {
@@ -31,10 +30,8 @@ impl Scale {
     }
 }
 
-/// Pick an axis range whose ticks land on round numbers.
-///
-/// The baseline is pinned to zero whenever the data does not cross it: a bar
-/// chart drawn from a floating baseline exaggerates every difference on it.
+// Why: the baseline is pinned to zero whenever the data does not cross it — a
+// bar chart drawn from a floating baseline exaggerates every difference on it.
 pub(super) fn linear(datasets: &[ChartDataset]) -> Scale {
     let values: Vec<f64> = datasets
         .iter()
@@ -85,7 +82,6 @@ fn nice_step(rough: f64) -> f64 {
     stepped * magnitude
 }
 
-/// Format a value for an axis tick or a bar label, without trailing zeros.
 pub(super) fn format_value(value: f64) -> String {
     if !value.is_finite() {
         return String::from("—");
@@ -103,8 +99,8 @@ pub(super) fn format_value(value: f64) -> String {
         .to_owned()
 }
 
-/// SVG coordinates carry no units, so a stable short form keeps the emitted
-/// markup diffable and free of float noise like `12.000000000000002`.
+// Why: SVG coordinates carry no units, so a stable short form keeps the
+// emitted markup diffable and free of float noise like `12.000000000000002`.
 pub(super) fn coord(value: f64) -> String {
     format!("{:.2}", value)
         .trim_end_matches('0')

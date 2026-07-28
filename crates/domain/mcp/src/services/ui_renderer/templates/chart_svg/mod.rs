@@ -48,7 +48,6 @@ impl ChartSpec<'_> {
     }
 }
 
-/// The `var()` reference for a series, wrapping at [`SERIES_SLOTS`].
 pub(super) fn series_color(index: usize) -> String {
     format!("var(--mcpui-series-{})", index % SERIES_SLOTS + 1)
 }
