@@ -74,8 +74,6 @@ pub(super) async fn get_or_create_admin(
 
     tracing::info!(email = %email, name = %name, context = %context_type, "Auto-provisioning user");
 
-    // Every local-trial process resolves the same well-known admin, so a
-    // concurrent one may have inserted it between the lookup above and here.
     let user = match user_service
         .create_if_absent(&name, email, None, None)
         .await
