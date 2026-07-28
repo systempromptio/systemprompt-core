@@ -27,8 +27,12 @@ fn login_writes_a_private_pat_file_and_a_config_pointing_at_it() {
     let stored = std::fs::read_to_string(&paths.pat_file).expect("pat file");
     assert_eq!(stored, GOOD);
     let config = std::fs::read_to_string(&paths.config_file).expect("config file");
-    assert!(
-        config.contains(&paths.pat_file.display().to_string()),
+    // Parsed rather than substring-matched: TOML escapes the backslashes of a
+    // Windows path, so the serialized form never contains the raw one.
+    let parsed: toml::Value = toml::from_str(&config).expect("config is valid TOML");
+    assert_eq!(
+        parsed["pat"]["file"].as_str().map(std::path::Path::new),
+        Some(paths.pat_file.as_path()),
         "config points at the PAT file: {config}"
     );
     assert!(

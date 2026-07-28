@@ -189,7 +189,10 @@ fn sandbox(gateway_uri: &str, pat_file: &Path, pubkey: Option<&str>) -> SandboxD
     let mut toml = String::new();
     toml.push_str(&format!("gateway_url = \"{gateway_uri}\"\n"));
     toml.push_str("[pat]\n");
-    toml.push_str(&format!("file = \"{}\"\n", pat_file.display()));
+    // A literal string: a path's backslashes would be invalid escapes in a
+    // basic string. This suite is Linux-only today, but the next one to write
+    // a path here should copy the working form.
+    toml.push_str(&format!("file = '{}'\n", pat_file.display()));
     if let Some(pk) = pubkey {
         toml.push_str("[sync]\n");
         toml.push_str(&format!("pinned_pubkey = \"{pk}\"\n"));

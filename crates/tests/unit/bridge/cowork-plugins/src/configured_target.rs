@@ -32,8 +32,11 @@ impl Sandbox {
             config_home
                 .join("systemprompt")
                 .join("systemprompt-bridge.toml"),
+            // A TOML literal string: a Windows path's backslashes are invalid
+            // escapes in a basic string, so interpolating one there makes the
+            // whole file unparseable and the setting silently absent.
             format!(
-                "gateway_url = \"http://gw.invalid:7000\"\n\n[cowork]\nsession_org_dir = \"{}\"\n",
+                "gateway_url = \"http://gw.invalid:7000\"\n\n[cowork]\nsession_org_dir = '{}'\n",
                 session_org_dir.display()
             ),
         )
