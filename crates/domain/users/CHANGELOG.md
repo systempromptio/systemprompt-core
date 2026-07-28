@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.26.0] - 2026-07-28
+
+### Added
+
+- `UserRepository::create_if_absent` and `UserService::create_if_absent` insert a user and return `None` when the name or email is already taken, rather than surfacing a unique violation. The auto-provisioning paths resolve the *same* well-known identity from several processes at once, so each one read "absent" and then raced to insert; every loser got back a driver error it could only classify by matching on the message text.
+
 ## [0.23.0] - 2026-07-24
 
 ### Breaking

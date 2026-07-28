@@ -1,19 +1,16 @@
 # Changelog
 
-## [0.26.0]
+## [0.26.0] - 2026-07-28
 
 ### Breaking
 
 - **Breaking:** `ChartArtifact` serializes `chart_type`, `title`, `x_axis_label`, `y_axis_label`, `x_axis_type`, and `y_axis_type` with the payload, and the fields are public. They were `#[serde(skip)]` and only ever surfaced through the schema's `x-chart-hints` block, which nothing on the stored-artifact path read. The `x-chart-hints` block is gone from `to_schema`; the fields appear in `properties` instead. Payloads stored before this release deserialize to the defaults.
 - **Breaking:** `DashboardArtifact.hints` serializes with the payload and is public, and `DashboardHints::generate_schema` is deleted along with the schema's `x-dashboard-hints` block — layout travels in the artifact itself rather than in a side channel the renderer never received.
+- **Breaking:** `CanonicalContent::Thinking` gains `id` and `encrypted_content`, and `ContentBlockKind::Thinking` gains `id`. OpenAI Responses reasoning items carry a provider id and an opaque `encrypted_content` blob that must be replayed verbatim for stateless reasoning continuity — the canonical model previously had no channel for either, so the gateway emitted id-less reasoning items upstream and lost continuity every turn. `CanonicalEvent` gains an `EncryptedContentDelta` variant carrying the blob when it arrives at `output_item.done`. Migrate constructors by supplying `None` and exhaustive matches with a no-op arm.
 
 ### Added
 
 - `SectionType::Text`, `TextSectionData`, `TimelineSectionData`, and `TimelineEvent`: the free-text and timeline section bodies the dashboard renderer now consumes. `Timeline` existed in the taxonomy but had no data shape.
-
-### Breaking
-
-- **Breaking:** `CanonicalContent::Thinking` gains `id` and `encrypted_content`, and `ContentBlockKind::Thinking` gains `id`. OpenAI Responses reasoning items carry a provider id and an opaque `encrypted_content` blob that must be replayed verbatim for stateless reasoning continuity — the canonical model previously had no channel for either, so the gateway emitted id-less reasoning items upstream and lost continuity every turn. `CanonicalEvent` gains an `EncryptedContentDelta` variant carrying the blob when it arrives at `output_item.done`. Migrate constructors by supplying `None` and exhaustive matches with a no-op arm.
 
 ### Fixed
 

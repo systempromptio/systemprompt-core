@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.26.0] - 2026-07-28
+
+### Fixed
+
+- Auto-provisioning the admin user survives concurrent CLI invocations. Two processes starting against the same database both saw the user as absent and both inserted, and the loser failed with a unique violation. Provisioning now goes through `create_if_absent` and falls back to a lookup by email when another process won the race.
+
 ## [0.25.0] - 2026-07-27
 
 ### Changed
