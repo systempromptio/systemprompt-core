@@ -2,7 +2,7 @@ use super::sandbox::{Sandbox, argv};
 use systemprompt_bridge::cli::run_with_args;
 
 #[test]
-fn install_bootstraps_the_user_scoped_org_plugins_tree() {
+fn install_bootstraps_the_org_plugins_tree() {
     let sb = Sandbox::new();
     sb.run(|| {
         let _ = run_with_args(&argv(&["install"]));

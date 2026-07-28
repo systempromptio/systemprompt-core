@@ -29,19 +29,15 @@ impl Sandbox {
             .join("metadata")
     }
 
-    // Points the system org-plugins root at an unwritable path inside the
-    // sandbox so an in-process `install` can never provision the host's real
-    // system root (on CI runners /opt is writable) and poison sibling suites.
+    // Points the system org-plugins root inside the sandbox so an in-process
+    // `install` can never provision the host's real one (on CI runners /opt is
+    // writable) and poison sibling suites. It is the same path the assertions
+    // read: macOS takes the system scope unconditionally and never probes
+    // writability, so an unwritable decoy there would resolve to a directory
+    // no test looks at rather than falling back the way Linux does. Which
+    // scope wins is asserted directly in the `paths` suite.
     fn system_org_plugins(&self) -> Option<String> {
-        let root = self.data.path().join("system-root");
-        std::fs::create_dir_all(&root).expect("system root");
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            std::fs::set_permissions(&root, std::fs::Permissions::from_mode(0o555))
-                .expect("read-only system root");
-        }
-        p(&root.join("Claude").join("org-plugins"))
+        p(&self.org_plugins())
     }
 
     pub fn vars(&self) -> Vec<(&'static str, Option<String>)> {
