@@ -59,7 +59,7 @@ pub fn read_optional(path: &Path) -> io::Result<Option<String>> {
 
 pub fn expand_tilde(path: &str) -> String {
     if let Some(rest) = path.strip_prefix("~/")
-        && let Some(home) = dirs::home_dir()
+        && let Some(home) = crate::basedirs::home_dir()
     {
         return home.join(rest).to_string_lossy().into_owned();
     }

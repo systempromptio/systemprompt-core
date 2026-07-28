@@ -145,8 +145,8 @@ mod windows {
 
 #[cfg(unix)]
 pub fn lock_path() -> Result<PathBuf, String> {
-    let base = dirs::data_local_dir()
-        .or_else(dirs::home_dir)
+    let base = crate::basedirs::data_local_dir()
+        .or_else(crate::basedirs::home_dir)
         .unwrap_or_else(std::env::temp_dir);
     Ok(base
         .join(crate::brand::brand().config_dir)
@@ -159,8 +159,8 @@ pub fn lock_path() -> Result<PathBuf, String> {
     reason = "mirrors the fallible unix lock_path so the shared sidecar_path call site stays cfg-agnostic"
 )]
 pub(crate) fn lock_path() -> Result<PathBuf, String> {
-    let base = dirs::data_local_dir()
-        .or_else(dirs::home_dir)
+    let base = crate::basedirs::data_local_dir()
+        .or_else(crate::basedirs::home_dir)
         .unwrap_or_else(std::env::temp_dir);
     Ok(base
         .join(crate::brand::brand().config_dir)

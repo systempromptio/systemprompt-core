@@ -111,9 +111,14 @@ jobs:
       - name: Instrumented bridge tests + coverage
         shell: bash
         run: |
+          # Without --no-fail-fast nextest cancels the run at the first failure,
+          # so a red macOS or Windows job names two or three tests and leaves
+          # the rest of the suite unreported — you fix those and rediscover the
+          # next few on the following run.
           cargo llvm-cov nextest \
             --manifest-path crates/tests/Cargo.toml \
             $BRIDGE_PKGS \
+            --no-fail-fast \
             --ignore-filename-regex '(crates[\\/]tests|[\\/]\.cargo[\\/]|rustc)' \
             --summary-only \
             | tee coverage-bridge-${{ matrix.os }}.txt

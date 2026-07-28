@@ -53,7 +53,7 @@ fn write(path: &Path, contents: &str) -> Result<(), InstallError> {
 
 #[cfg(not(target_os = "windows"))]
 fn home() -> Result<PathBuf, InstallError> {
-    dirs::home_dir().ok_or_else(|| {
+    crate::basedirs::home_dir().ok_or_else(|| {
         InstallError::ScheduleApply("cannot resolve the user's home directory".into())
     })
 }

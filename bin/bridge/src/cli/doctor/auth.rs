@@ -147,7 +147,7 @@ pub fn check_loopback_secret() -> Check {
     let Some(path) = proxy_secret::secret_path() else {
         return Check::fail(
             "loopback secret",
-            "no config dir resolvable (dirs::config_dir() returned None)",
+            "no config dir resolvable (crate::basedirs::config_dir() returned None)",
         );
     };
     match proxy_secret::load(&path) {

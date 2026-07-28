@@ -73,7 +73,7 @@ struct LegacyCreds {
 }
 
 pub fn creds_path() -> Option<PathBuf> {
-    let base = dirs::cache_dir()?;
+    let base = crate::basedirs::cache_dir()?;
     Some(
         base.join(crate::brand::brand().working_dir_name)
             .join(CREDS_FILE),

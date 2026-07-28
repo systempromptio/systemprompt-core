@@ -20,6 +20,7 @@
 
 pub mod activity;
 pub mod auth;
+pub mod basedirs;
 pub mod brand;
 pub mod cli;
 pub mod config;
@@ -153,7 +154,7 @@ pub fn run_with_brand(brand: &'static brand::Brand) -> ExitCode {
 }
 
 fn purge_legacy_agents_state() {
-    let Some(base) = dirs::config_dir() else {
+    let Some(base) = basedirs::config_dir() else {
         return;
     };
     let path = base.join(brand::brand().config_dir).join("agents.json");

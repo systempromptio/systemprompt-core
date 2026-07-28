@@ -19,7 +19,7 @@ static SECRET: OnceLock<LoopbackSecret> = OnceLock::new();
 
 #[must_use]
 pub fn secret_path() -> Option<PathBuf> {
-    let base = dirs::config_dir()?;
+    let base = crate::basedirs::config_dir()?;
     Some(
         base.join(crate::brand::brand().config_dir)
             .join(LOOPBACK_FILENAME),

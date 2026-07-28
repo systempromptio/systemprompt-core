@@ -137,7 +137,7 @@ pub mod tracing_init {
 
     #[cfg(target_os = "macos")]
     fn platform_log_dir() -> Option<PathBuf> {
-        dirs::home_dir().map(|h| {
+        crate::basedirs::home_dir().map(|h| {
             h.join("Library")
                 .join("Logs")
                 .join(crate::brand::brand().working_dir_name)
@@ -148,7 +148,7 @@ pub mod tracing_init {
     fn platform_log_dir() -> Option<PathBuf> {
         std::env::var_os("XDG_STATE_HOME")
             .map(PathBuf::from)
-            .or_else(|| dirs::home_dir().map(|h| h.join(".local").join("state")))
+            .or_else(|| crate::basedirs::home_dir().map(|h| h.join(".local").join("state")))
             .map(|base| base.join(crate::brand::brand().working_dir_name))
     }
 

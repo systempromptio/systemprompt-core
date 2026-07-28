@@ -43,7 +43,7 @@ fn negotiated_locale() -> Option<String> {
 }
 
 fn load_external(locale: &str) -> Option<HashMap<String, String>> {
-    let cfg_dir = dirs::config_dir()?
+    let cfg_dir = crate::basedirs::config_dir()?
         .join(crate::brand::brand().config_dir)
         .join("i18n");
     let candidate = cfg_dir.join(locale).join("bridge.ftl");

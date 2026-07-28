@@ -147,7 +147,7 @@ pub fn config_path() -> Option<PathBuf> {
     if let Ok(explicit) = env::var(crate::brand::brand().env("CONFIG")) {
         return Some(PathBuf::from(explicit));
     }
-    let base = dirs::config_dir()?;
+    let base = crate::basedirs::config_dir()?;
     let brand = crate::brand::brand();
     Some(base.join(brand.config_dir).join(brand.config_file))
 }

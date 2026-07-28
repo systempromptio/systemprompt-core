@@ -124,7 +124,7 @@ pub(crate) fn is_installed(loc: &AppLocator<'_>) -> AppInstallState {
 #[cfg(target_os = "macos")]
 fn macos_bundles(name: &str) -> Vec<PathBuf> {
     let mut out = vec![PathBuf::from(format!("/Applications/{name}.app"))];
-    if let Some(home) = dirs::home_dir() {
+    if let Some(home) = crate::basedirs::home_dir() {
         out.push(home.join("Applications").join(format!("{name}.app")));
     }
     out

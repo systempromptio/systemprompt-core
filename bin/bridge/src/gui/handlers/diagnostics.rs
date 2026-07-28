@@ -69,8 +69,8 @@ pub(crate) fn on_export_diagnostic_bundle(app: &GuiApp, reply_to: ReplyId) {
 fn build_bundle() -> io::Result<PathBuf> {
     let log_dir = crate::obs::log_dir()
         .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "log dir unavailable"))?;
-    let dest_dir = dirs::desktop_dir()
-        .or_else(dirs::home_dir)
+    let dest_dir = crate::basedirs::desktop_dir()
+        .or_else(crate::basedirs::home_dir)
         .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "no home dir"))?;
     let ts = chrono::Utc::now().format("%Y%m%dT%H%M%SZ");
     let zip_path = dest_dir.join(format!(

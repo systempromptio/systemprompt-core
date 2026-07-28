@@ -50,7 +50,7 @@ pub(super) fn codex_home() -> PathBuf {
     if let Some(custom) = std::env::var_os("CODEX_HOME") {
         return PathBuf::from(custom);
     }
-    if let Some(home) = dirs::home_dir() {
+    if let Some(home) = crate::basedirs::home_dir() {
         return home.join(".codex");
     }
     PathBuf::from(".codex")

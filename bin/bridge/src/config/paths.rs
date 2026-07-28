@@ -43,7 +43,7 @@ pub fn org_plugins_system() -> Option<PathBuf> {
 
 #[cfg(target_os = "macos")]
 pub fn org_plugins_user() -> Option<PathBuf> {
-    dirs::home_dir().map(|h| {
+    crate::basedirs::home_dir().map(|h| {
         h.join("Library")
             .join("Application Support")
             .join("Claude")
@@ -78,7 +78,7 @@ pub fn org_plugins_system() -> Option<PathBuf> {
 pub fn org_plugins_user() -> Option<PathBuf> {
     std::env::var_os("XDG_DATA_HOME")
         .map(PathBuf::from)
-        .or_else(|| dirs::home_dir().map(|h| h.join(".local").join("share")))
+        .or_else(|| crate::basedirs::home_dir().map(|h| h.join(".local").join("share")))
         .map(|base| base.join("Claude").join("org-plugins"))
 }
 
@@ -213,7 +213,7 @@ pub fn cowork3p_sessions_root() -> Option<PathBuf> {
     }
     #[cfg(target_os = "macos")]
     {
-        return dirs::home_dir().map(|h| {
+        return crate::basedirs::home_dir().map(|h| {
             h.join("Library")
                 .join("Application Support")
                 .join("Claude-3p")
@@ -224,7 +224,7 @@ pub fn cowork3p_sessions_root() -> Option<PathBuf> {
     {
         std::env::var_os("XDG_CONFIG_HOME")
             .map(PathBuf::from)
-            .or_else(|| dirs::home_dir().map(|h| h.join(".config")))
+            .or_else(|| crate::basedirs::home_dir().map(|h| h.join(".config")))
             .map(|base| base.join("Claude-3p").join("local-agent-mode-sessions"))
     }
 }
@@ -244,7 +244,7 @@ pub fn bridge_working_dir() -> Option<PathBuf> {
 #[cfg(target_os = "macos")]
 #[must_use]
 pub fn bridge_working_dir() -> Option<PathBuf> {
-    dirs::home_dir().map(|h| {
+    crate::basedirs::home_dir().map(|h| {
         h.join("Library")
             .join("Application Support")
             .join(crate::brand::brand().working_dir_name)
@@ -256,7 +256,7 @@ pub fn bridge_working_dir() -> Option<PathBuf> {
 pub fn bridge_working_dir() -> Option<PathBuf> {
     std::env::var_os("XDG_STATE_HOME")
         .map(PathBuf::from)
-        .or_else(|| dirs::home_dir().map(|h| h.join(".local").join("state")))
+        .or_else(|| crate::basedirs::home_dir().map(|h| h.join(".local").join("state")))
         .map(|base| base.join(crate::brand::brand().working_dir_name))
 }
 
@@ -272,7 +272,7 @@ pub fn bridge_metadata_dir() -> Option<PathBuf> {
 
 #[must_use]
 pub fn claude_cli_home() -> Option<PathBuf> {
-    dirs::home_dir().map(|h| h.join(".claude"))
+    crate::basedirs::home_dir().map(|h| h.join(".claude"))
 }
 
 #[must_use]

@@ -105,7 +105,7 @@ pub fn has_credential_source(cfg: &config::Config) -> bool {
 
 fn expand_home(path: &str) -> String {
     if let Some(rest) = path.strip_prefix("~/")
-        && let Some(home) = dirs::home_dir()
+        && let Some(home) = crate::basedirs::home_dir()
     {
         return home.join(rest).to_string_lossy().into_owned();
     }

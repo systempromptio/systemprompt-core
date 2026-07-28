@@ -27,7 +27,7 @@ pub struct PathLayout {
 }
 
 pub fn resolve_paths() -> Result<PathLayout, SetupError> {
-    let base = dirs::config_dir().ok_or_else(|| {
+    let base = crate::basedirs::config_dir().ok_or_else(|| {
         SetupError::Path("no OS config directory available on this platform".to_owned())
     })?;
     let brand = crate::brand::brand();

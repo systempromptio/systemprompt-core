@@ -19,7 +19,7 @@ struct CacheEntry {
 
 #[must_use]
 fn cache_path() -> Option<PathBuf> {
-    let base = dirs::cache_dir()?;
+    let base = crate::basedirs::cache_dir()?;
     Some(
         base.join(crate::brand::brand().working_dir_name)
             .join(CACHE_FILE),
