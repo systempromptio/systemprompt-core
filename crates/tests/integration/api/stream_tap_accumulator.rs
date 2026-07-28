@@ -231,7 +231,10 @@ fn accumulates_thinking_with_signature() {
         &[
             CanonicalEvent::ContentBlockStart {
                 index: 0,
-                block: ContentBlockKind::Thinking { signature: None },
+                block: ContentBlockKind::Thinking {
+                    id: None,
+                    signature: None,
+                },
             },
             CanonicalEvent::ThinkingDelta {
                 index: 0,
@@ -250,7 +253,9 @@ fn accumulates_thinking_with_signature() {
 
     let response = snapshot(&state);
     match &response.content[0] {
-        CanonicalContent::Thinking { text, signature } => {
+        CanonicalContent::Thinking {
+            text, signature, ..
+        } => {
             assert_eq!(text, "step one step two");
             assert_eq!(signature.as_deref(), Some("sig-abc"));
         },

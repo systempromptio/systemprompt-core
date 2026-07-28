@@ -113,6 +113,8 @@ fn flatten_message_content_covers_every_arm() {
         CanonicalContent::Thinking {
             text: "pondering".to_owned(),
             signature: None,
+            id: None,
+            encrypted_content: None,
         },
         CanonicalContent::ToolUse {
             id: "call-1".to_owned(),

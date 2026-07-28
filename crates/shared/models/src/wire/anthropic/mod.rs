@@ -184,8 +184,9 @@ fn canonical_message_to_anthropic(
         .content
         .iter()
         .filter(|part| {
-            // Anthropic 400s on a replayed thinking block without its signature;
-            // history without the block is valid and merely loses continuity.
+            // Why: Anthropic 400s on a replayed thinking block without its
+            // signature; history without the block is valid and merely loses
+            // continuity.
             audience == BlockAudience::Client
                 || !matches!(
                     part,
