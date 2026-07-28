@@ -463,3 +463,73 @@ async fn stats_and_breakdowns_reflect_active_user_population() {
 
     ctx.service.delete(&user.id).await.expect("cleanup");
 }
+
+#[tokio::test]
+async fn create_if_absent_yields_the_row_once_and_none_to_every_later_caller() {
+    let Some(ctx) = setup().await else {
+        return;
+    };
+    let (name, email) = unique("absent");
+
+    let first = ctx
+        .service
+        .create_if_absent(&name, &email, None, None)
+        .await
+        .expect("first insert");
+    let user = first.expect("the first caller inserts the row");
+
+    let second = ctx
+        .service
+        .create_if_absent(&name, &email, None, None)
+        .await
+        .expect("a conflicting insert is not an error");
+    assert!(
+        second.is_none(),
+        "the name is taken, so nothing is inserted"
+    );
+
+    let by_email = ctx
+        .service
+        .find_by_email(&email)
+        .await
+        .expect("lookup")
+        .expect("the row a losing caller re-reads");
+    assert_eq!(by_email.id, user.id);
+
+    ctx.service.delete(&user.id).await.expect("cleanup");
+}
+
+// The local-trial admin is provisioned by whichever CLI process gets there
+// first, so several arrive at the insert together and `users.name` is UNIQUE.
+// The plain `create` path fails every loser with a unique violation.
+#[tokio::test]
+async fn concurrent_create_if_absent_on_one_identity_elects_a_single_winner() {
+    let Some(ctx) = setup().await else {
+        return;
+    };
+    let (name, email) = unique("racer");
+
+    // A service apiece, as the racing CLI processes each have their own.
+    let attempts: Vec<_> = (0..8)
+        .map(|_| {
+            let pool = ctx.pool.clone();
+            let (name, email) = (name.clone(), email.clone());
+            tokio::spawn(async move {
+                let service = UserService::new(&pool).expect("service");
+                service.create_if_absent(&name, &email, None, None).await
+            })
+        })
+        .collect();
+
+    let mut inserted = Vec::new();
+    for attempt in attempts {
+        let user = attempt
+            .await
+            .expect("task")
+            .expect("a losing insert reports absence, never an error");
+        inserted.extend(user);
+    }
+
+    assert_eq!(inserted.len(), 1, "exactly one caller inserts the identity");
+    ctx.service.delete(&inserted[0].id).await.expect("cleanup");
+}
