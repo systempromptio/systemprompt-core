@@ -3,7 +3,10 @@ use tempfile::TempDir;
 
 const GOOD: &str = "sp-live-testprefix.secretsecretsecretsecretsecret012345";
 
-fn sandbox<R>(f: impl FnOnce() -> R) -> (R, TempDir) {
+// macOS resolves the bridge config under `$HOME/Library/Application Support`
+// rather than `XDG_CONFIG_HOME`, so every tempdir must outlive the assertions
+// that read the returned paths.
+fn sandbox<R>(f: impl FnOnce() -> R) -> (R, [TempDir; 3]) {
     let config = TempDir::new().expect("config tempdir");
     let state = TempDir::new().expect("state tempdir");
     let home = TempDir::new().expect("home tempdir");
@@ -14,8 +17,7 @@ fn sandbox<R>(f: impl FnOnce() -> R) -> (R, TempDir) {
         ("XDG_CACHE_HOME", Some(home.path().display().to_string())),
     ];
     let out = temp_env::with_vars(vars, f);
-    drop((state, home));
-    (out, config)
+    (out, [config, state, home])
 }
 
 #[test]
@@ -215,12 +217,19 @@ fn set_mode(path: &std::path::Path, mode: u32) {
 #[cfg(unix)]
 #[test]
 fn login_fails_with_the_create_dir_context_when_the_config_base_is_read_only() {
-    let (err, cfg) = sandbox(|| {
-        let base = std::path::PathBuf::from(std::env::var("XDG_CONFIG_HOME").unwrap());
+    let (err, _dirs) = sandbox(|| {
+        // Lock the resolved config dir's parent (XDG_CONFIG_HOME on Linux,
+        // `$HOME/Library/Application Support` on macOS) rather than assuming
+        // the XDG layout.
+        let paths = setup::resolve_paths().expect("paths");
+        let base = paths.config_dir.parent().expect("config base").to_owned();
+        std::fs::create_dir_all(&base).expect("mkdir base");
         set_mode(&base, 0o555);
-        setup::login(GOOD, None).expect_err("login under a read-only config base must fail")
+        let err =
+            setup::login(GOOD, None).expect_err("login under a read-only config base must fail");
+        set_mode(&base, 0o755);
+        err
     });
-    set_mode(cfg.path(), 0o755);
     match err {
         SetupError::Io(msg) => assert!(
             msg.contains("create config dir"),

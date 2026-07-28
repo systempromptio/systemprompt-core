@@ -33,16 +33,18 @@ fn an_inline_pat_env_var_counts_but_an_empty_one_does_not() {
 #[test]
 fn a_pat_file_counts_only_when_it_exists_on_disk() {
     let dir = TempDir::new().expect("tempdir");
+    // TOML literal strings: a Windows tempdir path in a basic string would
+    // parse `\U` as a unicode escape.
     let missing = dir.path().join("absent.pat");
     assert!(!without_env(|| has_credential_source(&config(&format!(
-        "[pat]\nfile = \"{}\"\n",
+        "[pat]\nfile = '{}'\n",
         missing.display()
     )))));
 
     let present = dir.path().join("present.pat");
     std::fs::write(&present, "sp-live-x.y").expect("write pat");
     assert!(without_env(|| has_credential_source(&config(&format!(
-        "[pat]\nfile = \"{}\"\n",
+        "[pat]\nfile = '{}'\n",
         present.display()
     )))));
 }

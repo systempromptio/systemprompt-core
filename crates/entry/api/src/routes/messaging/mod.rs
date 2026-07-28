@@ -86,6 +86,20 @@ pub enum MessagingError {
     Response(String),
 }
 
+impl MessagingError {
+    /// The reply-surface rendering of a dispatch failure. Production keeps the
+    /// message opaque; under `test-api` the error text is appended, because the
+    /// spawned pipeline's `tracing::error!` is invisible to an asserting test
+    /// and an opaque card makes a CI failure unreproducible.
+    #[must_use]
+    pub fn user_message(&self) -> String {
+        #[cfg(feature = "test-api")]
+        return format!("Sorry — something went wrong handling that. ({self})");
+        #[cfg(not(feature = "test-api"))]
+        "Sorry — something went wrong handling that.".to_owned()
+    }
+}
+
 /// Run the shared inbound pipeline.
 ///
 /// Links the platform sender to a governed identity, authorizes against the

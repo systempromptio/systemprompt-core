@@ -124,7 +124,7 @@ fn spawn_reply(ctx: AppContext, inbound: MessagingInbound, reply: TeamsReply) {
             Ok(DispatchOutcome::Denied(reason)) => format!("⛔ {reason}"),
             Err(err) => {
                 tracing::error!(error = %err, "teams dispatch failed");
-                "Sorry — something went wrong handling that.".to_owned()
+                err.user_message()
             },
         };
         let attachments = systemprompt_teams::cards::render_card(&text);

@@ -202,10 +202,7 @@ fn spawn_reply(ctx: AppContext, inbound: MessagingInbound, bot_token: Option<Str
             Ok(DispatchOutcome::Denied(reason)) => (format!("⛔ {reason}"), true),
             Err(err) => {
                 tracing::error!(error = %err, "slack dispatch failed");
-                (
-                    "Sorry — something went wrong handling that.".to_owned(),
-                    true,
-                )
+                (err.user_message(), true)
             },
         };
         let blocks = systemprompt_slack::blockkit::render_blocks(&text);
