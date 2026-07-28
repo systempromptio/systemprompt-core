@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.20.0]
+
+### Fixed
+
+- `BridgeError.detail` and `IpcReplyPayload.value`/`.error` are omitted from the IPC payload when unset, rather than sent as explicit nulls. The `skip_serializing_if` sat behind `cfg_attr(not(feature = "ts-export"))`, and because cargo unifies features across a build and one test package enables that feature, which form the GUI's JavaScript received depended on what else was in the build graph. Anything reading these fields should treat absent and null alike. The generated TypeScript is unchanged — `ts(optional)` already described the field as optional.
+
+### Changed
+
+- macOS and Windows honour `HOME` and `XDG_CONFIG_HOME` / `XDG_DATA_HOME` / `XDG_STATE_HOME` when they are set to an absolute path, falling back to the platform's native location — `Library/Application Support`, `Library/Logs`, `LOCALAPPDATA` — when they are not. `dirs` reads those variables on Linux alone, and on Windows resolves through the known-folder API, which no environment variable can redirect; the bridge's own paths were therefore impossible to relocate on either platform, which is also why its macOS and Windows test suites had been asserting against the real user profile. Linux behaviour is unchanged. The practical consequence is on Windows, where `HOME` is not normally set but a git-bash or MSYS shell may set it: there the bridge now follows it instead of `%USERPROFILE%`. An empty or relative value is ignored rather than resolved against the working directory.
+
 ## [0.19.0] - 2026-07-27
 
 ### Fixed
