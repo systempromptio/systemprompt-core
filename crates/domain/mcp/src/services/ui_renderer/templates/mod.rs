@@ -12,6 +12,7 @@
 
 mod card;
 mod chart;
+pub mod chart_svg;
 mod dashboard;
 mod form;
 mod form_field;

@@ -1,30 +1,24 @@
 //! Dashboard artifact renderer.
 //!
 //! [`DashboardRenderer`] composes a typed [`DashboardArtifact`] payload into a
-//! single HTML [`UiResource`], supporting vertical, grid, and tabbed layouts
-//! and embedding Chart.js configurations for any chart sections. Individual
-//! section rendering lives in the `section` submodule.
+//! single HTML [`UiResource`], supporting vertical, grid, and tabbed layouts.
+//! Chart sections are inline SVG like every other chart, so a dashboard needs
+//! no script beyond tab switching. Individual section rendering lives in the
+//! `section` submodule.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 mod section;
 
-use super::html::{
-    HtmlBuilder, base_styles, html_escape, json_to_js_literal, mcp_app_bridge_script,
-};
+use super::html::{HtmlBuilder, base_styles, html_escape, mcp_app_bridge_script};
 use super::typed;
 use crate::error::McpDomainResult;
-use crate::services::ui_renderer::{CspBuilder, CspPolicy, UiRenderer, UiResource};
+use crate::services::ui_renderer::{CspPolicy, UiRenderer, UiResource};
 use async_trait::async_trait;
-use serde_json::Value as JsonValue;
 use systemprompt_models::a2a::Artifact;
 use systemprompt_models::artifacts::ArtifactType;
-use systemprompt_models::artifacts::dashboard::{
-    ChartSectionData, DashboardArtifact, DashboardSection, LayoutMode, SectionType,
-};
-
-const CHART_JS_CDN: &str = "https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js";
+use systemprompt_models::artifacts::dashboard::{DashboardArtifact, DashboardSection, LayoutMode};
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct DashboardRenderer;
@@ -50,35 +44,6 @@ impl DashboardRenderer {
             });
 
         format!(r#"<div class="tabs-nav">{tabs}</div>"#)
-    }
-
-    fn build_chart_configs(sections: &[&DashboardSection]) -> McpDomainResult<Vec<JsonValue>> {
-        sections
-            .iter()
-            .filter(|s| matches!(s.section_type, SectionType::Chart))
-            .map(|s| {
-                let chart: ChartSectionData =
-                    serde_json::from_value(s.data.clone()).map_err(|e| {
-                        crate::error::McpDomainError::Internal(format!(
-                            "Dashboard section '{}' data does not match its declared type: {e}",
-                            s.section_id.as_str()
-                        ))
-                    })?;
-
-                Ok(serde_json::json!({
-                    "id": format!("chart-{}", s.section_id.as_str()),
-                    "type": chart.chart_type,
-                    "data": {
-                        "labels": chart.labels,
-                        "datasets": chart.datasets
-                    },
-                    "options": {
-                        "responsive": true,
-                        "maintainAspectRatio": false
-                    }
-                }))
-            })
-            .collect()
     }
 }
 
@@ -112,8 +77,6 @@ impl UiRenderer for DashboardRenderer {
             String::new()
         };
 
-        let chart_configs = Self::build_chart_configs(&sections)?;
-
         let body = format!(
             r#"<div class="container">
     {title_html}
@@ -145,11 +108,8 @@ impl UiRenderer for DashboardRenderer {
         );
 
         let script = format!(
-            "{bridge}\nwindow.DASHBOARD_CHART_CONFIGS = {chart_configs};\nwindow.CHART_JS_CDN = \
-             '{cdn}';\n{app}",
+            "{bridge}\n{app}",
             bridge = mcp_app_bridge_script(),
-            chart_configs = json_to_js_literal(&serde_json::json!(chart_configs)),
-            cdn = CHART_JS_CDN,
             app = include_str!("../assets/js/dashboard.js"),
         );
 
@@ -164,9 +124,7 @@ impl UiRenderer for DashboardRenderer {
     }
 
     fn csp_policy(&self) -> CspPolicy {
-        CspBuilder::strict()
-            .add_script_src("https://cdn.jsdelivr.net")
-            .build()
+        CspPolicy::strict()
     }
 }
 

@@ -1,107 +1,145 @@
+/* The wrapper owns the horizontal scroll so a wide table never makes the whole
+ * artifact frame scroll sideways. */
 .table-wrapper {
     overflow-x: auto;
-    border: 1px solid #e0e0e0;
-    border-radius: 4px;
+    overscroll-behavior-x: contain;
+    border: 1px solid var(--mcpui-border);
+    border-radius: var(--mcpui-radius-card);
+    background: var(--mcpui-surface);
+    box-shadow: var(--mcpui-shadow-card);
 }
 
 .data-table {
     width: 100%;
-    border-collapse: collapse;
-    font-size: 13px;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: var(--mcpui-text-sm);
 }
 
 .data-table th,
 .data-table td {
-    padding: 10px 12px;
+    padding: var(--mcpui-space-3) var(--mcpui-space-4);
     text-align: left;
-    border-bottom: 1px solid #e0e0e0;
+    border-bottom: 1px solid var(--mcpui-border);
+}
+
+.data-table tbody tr:last-child td {
+    border-bottom: none;
 }
 
 .data-table th {
-    background: #f8f9fa;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: var(--mcpui-surface-sunken);
+    border-bottom-color: var(--mcpui-border-strong);
+    color: var(--mcpui-ink-dim);
+    font-size: var(--mcpui-text-xs);
     font-weight: 600;
-    color: #444;
+    letter-spacing: var(--mcpui-tracking-wide);
+    text-transform: uppercase;
     white-space: nowrap;
     user-select: none;
 }
 
 .data-table th.sortable {
     cursor: pointer;
+    transition: color var(--mcpui-duration) var(--mcpui-ease);
 }
 
 .data-table th.sortable:hover {
-    background: #eef1f4;
+    color: var(--mcpui-ink);
+}
+
+.data-table th.sort-asc,
+.data-table th.sort-desc {
+    color: var(--mcpui-accent);
 }
 
 .data-table th.sort-asc::after {
     content: ' \25B2';
-    font-size: 10px;
+    font-size: 0.625rem;
 }
 
 .data-table th.sort-desc::after {
     content: ' \25BC';
-    font-size: 10px;
-}
-
-.data-table tbody tr:hover {
-    background: #f5f7fa;
+    font-size: 0.625rem;
 }
 
 .data-table td {
-    color: #333;
+    color: var(--mcpui-ink);
+}
+
+.data-table tbody tr {
+    transition: background var(--mcpui-duration) var(--mcpui-ease);
+}
+
+.data-table tbody tr:hover {
+    background: var(--mcpui-accent-wash);
 }
 
 .filter-bar {
-    margin-bottom: 12px;
+    display: flex;
 }
 
 .filter-input {
     width: 100%;
-    max-width: 300px;
-    padding: 8px 12px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    font-size: 14px;
+    max-width: 20rem;
+    padding: var(--mcpui-space-2) var(--mcpui-space-3);
+    border: 1px solid var(--mcpui-border);
+    border-radius: var(--mcpui-radius-inner);
+    background: var(--mcpui-surface);
+    color: var(--mcpui-ink);
+    font-size: var(--mcpui-text-sm);
+    transition: border-color var(--mcpui-duration) var(--mcpui-ease);
+}
+
+.filter-input::placeholder {
+    color: var(--mcpui-ink-faint);
 }
 
 .filter-input:focus {
     outline: none;
-    border-color: #007bff;
-    box-shadow: 0 0 0 2px rgba(0,123,255,0.1);
+    border-color: var(--mcpui-accent);
+    box-shadow: 0 0 0 3px var(--mcpui-accent-wash);
 }
 
 .pagination {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-top: 12px;
-    padding: 8px 0;
+    gap: var(--mcpui-space-3);
 }
 
 .page-info {
-    color: #666;
-    font-size: 13px;
+    color: var(--mcpui-ink-dim);
+    font-size: var(--mcpui-text-sm);
+    font-variant-numeric: tabular-nums;
 }
 
 .page-nav {
     display: flex;
-    gap: 8px;
+    gap: var(--mcpui-space-2);
 }
 
 .page-nav button {
-    padding: 6px 12px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    background: #fff;
+    padding: var(--mcpui-space-2) var(--mcpui-space-3);
+    border: 1px solid var(--mcpui-border);
+    border-radius: var(--mcpui-radius-inner);
+    background: var(--mcpui-surface);
+    color: var(--mcpui-ink);
+    font-size: var(--mcpui-text-sm);
     cursor: pointer;
-    font-size: 13px;
+    transition: border-color var(--mcpui-duration) var(--mcpui-ease),
+                background var(--mcpui-duration) var(--mcpui-ease);
 }
 
 .page-nav button:hover:not(:disabled) {
-    background: #f5f5f5;
+    border-color: var(--mcpui-accent-rim);
+    background: var(--mcpui-accent-wash);
 }
 
 .page-nav button:disabled {
-    opacity: 0.5;
+    opacity: 0.45;
     cursor: not-allowed;
 }

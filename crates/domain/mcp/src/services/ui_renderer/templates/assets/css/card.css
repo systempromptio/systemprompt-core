@@ -1,102 +1,107 @@
 .card {
-    border: 1px solid #e2e2e8;
-    border-radius: 10px;
+    border: 1px solid var(--mcpui-glass-border);
+    border-radius: var(--mcpui-radius-card);
     overflow: hidden;
-    background: #fff;
+    background: var(--mcpui-glass-bg);
+    background-image: var(--mcpui-glass-specular);
+    box-shadow: var(--mcpui-shadow-raised), var(--mcpui-shadow-inset);
+    -webkit-backdrop-filter: blur(var(--mcpui-glass-blur)) saturate(140%);
+    backdrop-filter: blur(var(--mcpui-glass-blur)) saturate(140%);
 }
 
 .card-header {
-    padding: 16px 20px 12px;
-    border-bottom: 1px solid #f0f0f4;
-}
-
-.card-header .mcp-app-title {
-    margin-bottom: 4px;
+    position: relative;
+    padding: var(--mcpui-space-5) var(--mcpui-space-5) var(--mcpui-space-4);
+    border-bottom: 1px solid var(--mcpui-border);
 }
 
 .card-header .mcp-app-description {
-    margin-bottom: 0;
+    margin-top: var(--mcpui-space-3);
 }
 
 .card-theme-gradient .card-header {
-    background: linear-gradient(135deg, #f7f7fb 0%, #fff 100%);
+    background:
+        radial-gradient(60% 140% at 12% 0%, var(--mcpui-accent-wash) 0%, transparent 70%);
 }
 
+/* The 1px gap is the grid background showing through, so section fills read as
+ * hairline rules without a border on each cell. */
 .card-sections {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
     gap: 1px;
-    background: #f0f0f4;
+    background: var(--mcpui-border);
 }
 
 .card-section {
-    background: #fff;
-    padding: 14px 20px;
+    padding: var(--mcpui-space-4) var(--mcpui-space-5);
+    background: var(--mcpui-surface);
 }
 
 .card-section-heading {
     display: flex;
     align-items: center;
-    gap: 6px;
-    font-size: 12px;
+    gap: var(--mcpui-space-2);
+    margin-bottom: var(--mcpui-space-2);
+    color: var(--mcpui-ink-faint);
+    font-size: var(--mcpui-text-xs);
     font-weight: 600;
-    letter-spacing: 0.04em;
+    letter-spacing: var(--mcpui-tracking-wide);
     text-transform: uppercase;
-    color: #6a6a78;
-    margin-bottom: 6px;
 }
 
 .card-section-content {
-    font-size: 15px;
-    color: #1a1a1a;
+    max-width: 60ch;
+    color: var(--mcpui-ink);
+    font-size: var(--mcpui-text-md);
 }
 
-.card-section-content p {
-    margin: 0 0 4px;
-}
-
-.card-section-content p:last-child {
-    margin-bottom: 0;
+.card-section-content p + p {
+    margin-top: var(--mcpui-space-2);
 }
 
 .card-empty {
-    padding: 20px;
-    color: #666;
+    padding: var(--mcpui-space-5);
+    color: var(--mcpui-ink-dim);
 }
 
 .card-ctas {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
-    padding: 14px 20px;
-    border-top: 1px solid #f0f0f4;
+    gap: var(--mcpui-space-2);
+    padding: var(--mcpui-space-4) var(--mcpui-space-5);
+    border-top: 1px solid var(--mcpui-border);
 }
 
 .card-cta {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    padding: 8px 14px;
+    gap: var(--mcpui-space-2);
+    padding: var(--mcpui-space-2) var(--mcpui-space-4);
+    border: 1px solid var(--mcpui-border-strong);
+    border-radius: var(--mcpui-radius-inner);
+    background: var(--mcpui-surface);
+    color: var(--mcpui-ink);
     font: inherit;
     font-weight: 500;
-    border-radius: 6px;
-    border: 1px solid #d5d5de;
-    background: #fff;
-    color: #1a1a1a;
     cursor: pointer;
+    transition: border-color var(--mcpui-duration) var(--mcpui-ease),
+                background var(--mcpui-duration) var(--mcpui-ease);
 }
 
 .card-cta:hover {
-    border-color: #b5b5c2;
+    border-color: var(--mcpui-accent-rim);
+    background: var(--mcpui-accent-wash);
 }
 
 .card-cta-primary {
-    background: #1a1a1a;
-    border-color: #1a1a1a;
-    color: #fff;
+    border-color: var(--mcpui-accent);
+    background: var(--mcpui-accent);
+    color: var(--mcpui-accent-ink);
 }
 
 .card-cta-primary:hover {
-    background: #33333d;
-    border-color: #33333d;
+    border-color: var(--mcpui-accent);
+    background: color-mix(in oklab, var(--mcpui-accent) 86%, var(--mcpui-ink));
+    color: var(--mcpui-accent-ink);
 }

@@ -7,53 +7,58 @@
     display: inline-block;
     max-width: 100%;
     overflow: auto;
-    border: 1px solid #e0e0e0;
-    border-radius: 4px;
-    background: #f5f5f5;
+    border: 1px solid var(--mcpui-border);
+    border-radius: var(--mcpui-radius-card);
+    background: var(--mcpui-surface-sunken);
+    box-shadow: var(--mcpui-shadow-card);
 }
 
 .artifact-image {
     display: block;
     max-width: 100%;
     height: auto;
-    transition: transform 0.2s ease;
     transform-origin: top left;
+    transition: transform var(--mcpui-duration) var(--mcpui-ease);
 }
 
 .image-controls {
     position: absolute;
-    bottom: 8px;
-    right: 8px;
+    right: var(--mcpui-space-2);
+    bottom: var(--mcpui-space-2);
     display: flex;
-    gap: 4px;
-    background: rgba(255,255,255,0.9);
-    padding: 4px;
-    border-radius: 4px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    gap: var(--mcpui-space-1);
+    padding: var(--mcpui-space-1);
+    border: 1px solid var(--mcpui-border);
+    border-radius: var(--mcpui-radius-inner);
+    background: var(--mcpui-surface);
+    box-shadow: var(--mcpui-shadow-raised);
 }
 
 .control-btn {
-    width: 28px;
-    height: 28px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    background: #fff;
-    cursor: pointer;
-    font-size: 16px;
-    line-height: 1;
     display: flex;
     align-items: center;
     justify-content: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    border: 1px solid var(--mcpui-border);
+    border-radius: var(--mcpui-radius-sm);
+    background: var(--mcpui-surface);
+    color: var(--mcpui-ink);
+    font-size: var(--mcpui-text-lg);
+    line-height: 1;
+    cursor: pointer;
+    transition: border-color var(--mcpui-duration) var(--mcpui-ease),
+                background var(--mcpui-duration) var(--mcpui-ease);
 }
 
 .control-btn:hover {
-    background: #f0f0f0;
+    border-color: var(--mcpui-accent-rim);
+    background: var(--mcpui-accent-wash);
 }
 
 .image-caption {
-    margin-top: 8px;
-    color: #666;
-    font-size: 13px;
-    font-style: italic;
+    margin-top: var(--mcpui-space-2);
+    color: var(--mcpui-ink-dim);
+    font-size: var(--mcpui-text-sm);
     text-align: center;
 }

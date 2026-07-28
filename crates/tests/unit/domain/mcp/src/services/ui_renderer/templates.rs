@@ -249,8 +249,8 @@ async fn chart_area_type_sets_fill() {
         .with_labels(vec!["A".into(), "B".into()])
         .with_datasets(vec![ChartDataset::new("D", vec![1.0, 2.0])]);
     let result = renderer.render(&chart_artifact(&chart)).await.unwrap();
-    assert!(result.html.contains("fill"));
-    assert!(result.html.contains("\"type\":\"line\""));
+    assert!(result.html.contains("class=\"chart-area\""));
+    assert!(result.html.contains("class=\"chart-line\""));
 }
 
 #[tokio::test]
@@ -260,7 +260,10 @@ async fn chart_doughnut_type() {
         .with_labels(vec!["A".into()])
         .with_datasets(vec![ChartDataset::new("D", vec![1.0])]);
     let result = renderer.render(&chart_artifact(&chart)).await.unwrap();
-    assert!(result.html.contains("doughnut"));
+    assert!(result.html.contains("class=\"chart-slice\""));
+    // The hole is what distinguishes a doughnut: its path closes back along an
+    // inner arc, so it carries two arc commands where a pie carries one.
+    assert_eq!(result.html.matches(" A ").count(), 2);
 }
 
 #[tokio::test]
@@ -278,7 +281,7 @@ async fn chart_stored_payload_without_presentation_fields_defaults() {
     );
     let result = renderer.render(&artifact).await.unwrap();
     assert!(result.html.contains("Legacy"));
-    assert!(result.html.contains("\"type\":\"line\""));
+    assert!(result.html.contains("class=\"chart-line\""));
 }
 
 #[tokio::test]
@@ -301,7 +304,7 @@ async fn chart_axis_labels_add_scales() {
     let result = renderer.render(&chart_artifact(&chart)).await.unwrap();
     assert!(result.html.contains("OnlyX"));
     assert!(result.html.contains("OnlyY"));
-    assert!(result.html.contains("scales"));
+    assert_eq!(result.html.matches("class=\"chart-axis-label\"").count(), 2);
 }
 
 #[tokio::test]
@@ -1028,9 +1031,11 @@ async fn dashboard_chart_section_pie() {
         .render(&dashboard_artifact(&dashboard))
         .await
         .unwrap();
-    assert!(result.html.contains("chart-g1"));
-    assert!(result.html.contains("DASHBOARD_CHART_CONFIGS"));
-    assert!(result.html.contains("pie"));
+    assert!(result.html.contains("class=\"chart-slice\""));
+    assert!(!result.html.contains("<canvas"));
+    // A single-slice pie is one full sweep, so the arc is not the "large" kind
+    // only by the > PI test — assert the slice closes on the centre point.
+    assert!(result.html.contains(" Z\""));
 }
 
 #[tokio::test]

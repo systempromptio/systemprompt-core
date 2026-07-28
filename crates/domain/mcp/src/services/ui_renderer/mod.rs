@@ -5,6 +5,11 @@
 //! [`UiRendererRegistry`]. [`CspPolicy`] carries the content-security-policy
 //! constraints attached to rendered resources.
 //!
+//! Two seams let a deployment change what renders without forking this module:
+//! [`ArtifactTheme`] re-declares the `--mcpui-*` design tokens every template
+//! reads, and [`UiRendererRegistration`] replaces the renderer for one artifact
+//! type outright.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -12,12 +17,14 @@ mod artifact_ui;
 mod csp;
 pub mod registry;
 pub mod templates;
+mod theme;
 
 pub use artifact_ui::{
     RenderTarget, artifact_resource_uri, artifact_ui_resource, parse_artifact_resource_uri,
 };
 pub use csp::{CspBuilder, CspPolicy};
-pub use registry::UiRendererRegistry;
+pub use registry::{UiRendererRegistration, UiRendererRegistry};
+pub use theme::{ArtifactTheme, ArtifactThemeRegistration, active_theme};
 
 use crate::error::McpDomainResult;
 use async_trait::async_trait;

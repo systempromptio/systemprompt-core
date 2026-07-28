@@ -9,18 +9,21 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use super::super::chart_svg::{self, ChartSpec};
 use super::super::html::html_escape;
 use crate::error::{McpDomainError, McpDomainResult};
 use serde::de::DeserializeOwned;
 use systemprompt_models::artifacts::dashboard::{
-    DashboardSection, LayoutWidth, ListSectionData, MetricStatus, MetricsCardsData, SectionType,
-    StatusSectionData, TableSectionData, TextSectionData, TimelineSectionData,
+    ChartSectionData, DashboardSection, LayoutWidth, ListSectionData, MetricStatus,
+    MetricsCardsData, SectionType, StatusSectionData, TableSectionData, TextSectionData,
+    TimelineSectionData,
 };
+use systemprompt_models::artifacts::types::ChartType;
 
 pub(super) fn render_section(section: &DashboardSection) -> McpDomainResult<String> {
     let content = match section.section_type {
         SectionType::MetricsCards => render_metrics(section)?,
-        SectionType::Chart => render_chart(section),
+        SectionType::Chart => render_chart(section)?,
         SectionType::Table => render_table(section)?,
         SectionType::Status => render_status(section)?,
         SectionType::List => render_list(section)?,
@@ -96,11 +99,33 @@ fn render_metrics(section: &DashboardSection) -> McpDomainResult<String> {
     Ok(format!(r#"<div class="metrics-grid">{cards}</div>"#))
 }
 
-fn render_chart(section: &DashboardSection) -> String {
-    format!(
-        r#"<div class="chart-container"><canvas id="chart-{}"></canvas></div>"#,
-        html_escape(section.section_id.as_str())
-    )
+fn render_chart(section: &DashboardSection) -> McpDomainResult<String> {
+    let data: ChartSectionData = section_data(section)?;
+    let spec = ChartSpec {
+        chart_type: chart_type(&data.chart_type),
+        labels: &data.labels,
+        datasets: &data.datasets,
+        x_axis_label: "",
+        y_axis_label: "",
+    };
+
+    Ok(format!(
+        r#"<div class="chart-container">{}</div>"#,
+        chart_svg::render(&spec, &section.title)
+    ))
+}
+
+// Why: a dashboard section carries its chart kind as a free string rather than
+// the `ChartType` enum, so an unknown value has to degrade to a plot rather
+// than fail the whole dashboard.
+fn chart_type(declared: &str) -> ChartType {
+    match declared.to_lowercase().as_str() {
+        "bar" | "column" => ChartType::Bar,
+        "pie" => ChartType::Pie,
+        "doughnut" | "donut" => ChartType::Doughnut,
+        "area" => ChartType::Area,
+        _ => ChartType::Line,
+    }
 }
 
 fn render_table(section: &DashboardSection) -> McpDomainResult<String> {
@@ -139,10 +164,12 @@ fn render_table(section: &DashboardSection) -> McpDomainResult<String> {
     });
 
     Ok(format!(
-        r#"<table class="section-table">
-                <thead><tr>{header}</tr></thead>
-                <tbody>{body}</tbody>
-            </table>"#,
+        r#"<div class="section-table-wrap">
+                <table class="section-table">
+                    <thead><tr>{header}</tr></thead>
+                    <tbody>{body}</tbody>
+                </table>
+            </div>"#,
     ))
 }
 

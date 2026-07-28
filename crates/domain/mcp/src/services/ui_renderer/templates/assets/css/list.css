@@ -1,14 +1,16 @@
 .item-list {
     margin: 0;
     padding: 0;
+    border: 1px solid var(--mcpui-border);
+    border-radius: var(--mcpui-radius-card);
+    background: var(--mcpui-surface);
+    box-shadow: var(--mcpui-shadow-card);
+    overflow: hidden;
 }
 
-.ordered-list {
-    padding-left: 24px;
-}
-
+.ordered-list,
 .unordered-list {
-    padding-left: 24px;
+    padding-left: var(--mcpui-space-6);
 }
 
 .unstyled-list {
@@ -16,31 +18,53 @@
 }
 
 .list-item {
-    padding: 12px 0;
-    border-bottom: 1px solid #eee;
+    position: relative;
     display: flex;
     flex-wrap: wrap;
     align-items: baseline;
-    gap: 8px;
+    gap: var(--mcpui-space-2);
+    padding: var(--mcpui-space-3) var(--mcpui-space-4);
+    border-bottom: 1px solid var(--mcpui-border);
+    transition: background var(--mcpui-duration) var(--mcpui-ease);
 }
 
 .list-item:last-child {
     border-bottom: none;
 }
 
+/* An accent edge on hover marks the row without shifting any text. */
+.list-item::before {
+    content: "";
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 2px;
+    background: var(--mcpui-accent);
+    opacity: 0;
+    transition: opacity var(--mcpui-duration) var(--mcpui-ease);
+}
+
+.list-item:hover {
+    background: var(--mcpui-accent-wash);
+}
+
+.list-item:hover::before {
+    opacity: 1;
+}
+
 .item-icon {
-    font-size: 16px;
-    min-width: 24px;
+    min-width: 1.5rem;
+    font-size: var(--mcpui-text-lg);
+    line-height: 1;
 }
 
 .item-title {
-    font-weight: 500;
-    color: #333;
+    color: var(--mcpui-ink);
+    font-weight: 600;
 }
 
 .item-link {
-    font-weight: 500;
-    color: #007bff;
+    color: var(--mcpui-accent);
+    font-weight: 600;
     text-decoration: none;
 }
 
@@ -50,10 +74,11 @@
 
 .item-description {
     flex-basis: 100%;
-    margin: 4px 0 0 0;
-    padding-left: 32px;
-    color: #666;
-    font-size: 13px;
+    margin-top: var(--mcpui-space-1);
+    padding-left: 2rem;
+    max-width: 68ch;
+    color: var(--mcpui-ink-dim);
+    font-size: var(--mcpui-text-sm);
 }
 
 .unstyled-list .item-description {
@@ -61,12 +86,15 @@
 }
 
 .list-info {
-    margin-top: 12px;
-    padding-top: 12px;
-    border-top: 1px solid #eee;
+    padding: var(--mcpui-space-3) var(--mcpui-space-4);
+    border-top: 1px solid var(--mcpui-border);
+    background: var(--mcpui-surface-sunken);
 }
 
 .item-count {
-    color: #888;
-    font-size: 13px;
+    color: var(--mcpui-ink-faint);
+    font-size: var(--mcpui-text-xs);
+    letter-spacing: var(--mcpui-tracking-wide);
+    text-transform: uppercase;
+    font-variant-numeric: tabular-nums;
 }

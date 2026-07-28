@@ -1,0 +1,112 @@
+/* The artifact design tokens.
+ *
+ * Every renderer stylesheet in this directory addresses colour, radius,
+ * shadow, type, and spacing through these custom properties and nothing else —
+ * a literal hex value in a sibling file is a bug, because it is a value no
+ * registered ArtifactTheme can reach.
+ *
+ * The defaults below are deliberately unbranded: a neutral slate that reads
+ * well in both schemes so an untethered deployment still looks composed. Brand
+ * arrives as an ArtifactTheme re-declaring whichever of these it cares about.
+ */
+
+:root {
+  color-scheme: light dark;
+
+  /* ── surfaces ─────────────────────────────────────────────────────────── */
+  --mcpui-bg:             light-dark(oklch(0.99 0.002 250), oklch(0.18 0.008 255));
+  --mcpui-surface:        light-dark(oklch(1 0 0),          oklch(0.22 0.009 255));
+  --mcpui-surface-raised: light-dark(oklch(1 0 0),          oklch(0.26 0.010 255));
+  --mcpui-surface-sunken: light-dark(oklch(0.97 0.003 250), oklch(0.20 0.008 255));
+  --mcpui-border:         light-dark(oklch(0.90 0.005 250), oklch(0.31 0.011 255));
+  --mcpui-border-strong:  light-dark(oklch(0.82 0.008 250), oklch(0.39 0.013 255));
+
+  /* ── ink ──────────────────────────────────────────────────────────────── */
+  --mcpui-ink:       light-dark(oklch(0.24 0.010 255), oklch(0.96 0.003 250));
+  --mcpui-ink-dim:   light-dark(oklch(0.48 0.012 255), oklch(0.78 0.006 250));
+  --mcpui-ink-faint: light-dark(oklch(0.63 0.010 255), oklch(0.62 0.008 250));
+
+  /* ── accent ───────────────────────────────────────────────────────────── */
+  --mcpui-accent:      light-dark(oklch(0.55 0.16 255), oklch(0.72 0.14 255));
+  --mcpui-accent-ink:  light-dark(oklch(1 0 0),         oklch(0.18 0.008 255));
+  --mcpui-accent-wash: color-mix(in oklab, var(--mcpui-accent) 12%, transparent);
+  --mcpui-accent-rim:  color-mix(in oklab, var(--mcpui-accent) 42%, transparent);
+
+  /* ── status ───────────────────────────────────────────────────────────── */
+  --mcpui-success: light-dark(oklch(0.58 0.15 155), oklch(0.75 0.16 158));
+  --mcpui-warning: light-dark(oklch(0.68 0.15 75),  oklch(0.83 0.15 85));
+  --mcpui-danger:  light-dark(oklch(0.55 0.20 25),  oklch(0.70 0.17 22));
+  --mcpui-info:    light-dark(oklch(0.56 0.14 245), oklch(0.74 0.13 245));
+  --mcpui-success-wash: color-mix(in oklab, var(--mcpui-success) 14%, transparent);
+  --mcpui-warning-wash: color-mix(in oklab, var(--mcpui-warning) 16%, transparent);
+  --mcpui-danger-wash:  color-mix(in oklab, var(--mcpui-danger)  14%, transparent);
+  --mcpui-info-wash:    color-mix(in oklab, var(--mcpui-info)    14%, transparent);
+
+  /* ── chart series ─────────────────────────────────────────────────────── */
+  /* Ordered for categorical use: adjacent pairs stay distinguishable at small
+   * sizes and in the common forms of colour-vision deficiency. */
+  --mcpui-series-1: light-dark(oklch(0.55 0.16 255), oklch(0.72 0.14 255));
+  --mcpui-series-2: light-dark(oklch(0.60 0.17 155), oklch(0.76 0.15 158));
+  --mcpui-series-3: light-dark(oklch(0.62 0.18 300), oklch(0.74 0.15 300));
+  --mcpui-series-4: light-dark(oklch(0.70 0.15 75),  oklch(0.82 0.14 82));
+  --mcpui-series-5: light-dark(oklch(0.60 0.13 200), oklch(0.79 0.11 200));
+  --mcpui-series-6: light-dark(oklch(0.57 0.19 25),  oklch(0.72 0.16 22));
+
+  /* ── radii ────────────────────────────────────────────────────────────── */
+  /* Four values: top-left, top-right, bottom-right, bottom-left. The default
+   * is symmetric; a brand with a notched corner re-declares just these. */
+  --mcpui-radius-card:  0.75rem;
+  --mcpui-radius-inner: 0.5rem;
+  --mcpui-radius-sm:    0.3125rem;
+  --mcpui-radius-pill:  9999px;
+
+  /* ── elevation ────────────────────────────────────────────────────────── */
+  --mcpui-shadow-card:   light-dark(0 1px 2px oklch(0.2 0.01 255 / 0.06),
+                                    0 1px 2px oklch(0 0 0 / 0.32));
+  --mcpui-shadow-raised: light-dark(0 4px 16px -4px oklch(0.2 0.01 255 / 0.14),
+                                    0 6px 22px -6px oklch(0 0 0 / 0.52));
+  --mcpui-shadow-inset:  inset 0 1px 0 light-dark(oklch(1 0 0 / 0.7), oklch(1 0 0 / 0.045));
+
+  /* ── glass ────────────────────────────────────────────────────────────── */
+  /* Inert by default: blur 0 with an opaque fill renders as a plain surface,
+   * so a theme opts into glass rather than every renderer opting out. */
+  --mcpui-glass-bg:        var(--mcpui-surface-raised);
+  --mcpui-glass-border:    var(--mcpui-border);
+  --mcpui-glass-blur:      0px;
+  --mcpui-glass-specular:  none;
+
+  /* ── type ─────────────────────────────────────────────────────────────── */
+  --mcpui-font-heading: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --mcpui-font-body:    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --mcpui-font-mono:    ui-monospace, 'Cascadia Code', 'Fira Code', Menlo, monospace;
+
+  --mcpui-text-xs:  0.6875rem;
+  --mcpui-text-sm:  0.8125rem;
+  --mcpui-text-md:  0.875rem;
+  --mcpui-text-lg:  1rem;
+  --mcpui-text-xl:  1.1875rem;
+  --mcpui-text-2xl: 1.5rem;
+  --mcpui-text-figure: clamp(1.5rem, 1.1rem + 1.6vw, 2rem);
+
+  --mcpui-leading-tight:   1.2;
+  --mcpui-leading-normal:  1.55;
+  --mcpui-tracking-tight:  -0.015em;
+  --mcpui-tracking-wide:   0.06em;
+
+  /* ── spacing ──────────────────────────────────────────────────────────── */
+  --mcpui-space-1: 0.25rem;
+  --mcpui-space-2: 0.5rem;
+  --mcpui-space-3: 0.75rem;
+  --mcpui-space-4: 1rem;
+  --mcpui-space-5: 1.5rem;
+  --mcpui-space-6: 2rem;
+
+  --mcpui-duration: 160ms;
+  --mcpui-ease: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --mcpui-duration: 0ms;
+  }
+}

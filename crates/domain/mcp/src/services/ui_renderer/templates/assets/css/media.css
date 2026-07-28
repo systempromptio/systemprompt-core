@@ -1,28 +1,29 @@
 .media-frame {
     display: flex;
     align-items: center;
-    gap: 16px;
-    padding: 16px;
-    border: 1px solid #e2e2e8;
-    border-radius: 10px;
-    background: #fafafc;
+    gap: var(--mcpui-space-4);
+    padding: var(--mcpui-space-4);
+    border: 1px solid var(--mcpui-border);
+    border-radius: var(--mcpui-radius-card);
+    background: var(--mcpui-surface);
+    box-shadow: var(--mcpui-shadow-card);
 }
 
 .media-element {
     width: 100%;
     max-width: 100%;
-    border-radius: 6px;
+    border-radius: var(--mcpui-radius-inner);
 }
 
 .media-artwork {
-    width: 72px;
-    height: 72px;
+    width: 4.5rem;
+    height: 4.5rem;
     object-fit: cover;
-    border-radius: 6px;
+    border-radius: var(--mcpui-radius-inner);
     flex: none;
 }
 
 .media-caption {
-    margin-top: 10px;
-    color: #666;
+    color: var(--mcpui-ink-dim);
+    font-size: var(--mcpui-text-sm);
 }

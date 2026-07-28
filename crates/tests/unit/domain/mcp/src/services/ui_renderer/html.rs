@@ -170,9 +170,10 @@ fn html_builder_with_multiple_styles() {
 }
 
 #[test]
-fn html_builder_no_styles_no_style_tag() {
+fn html_builder_always_emits_design_tokens() {
     let html = HtmlBuilder::new("Test").build();
-    assert!(!html.contains("<style>"));
+    assert!(html.contains("<style>"));
+    assert!(html.contains("--mcpui-accent"));
 }
 
 #[test]

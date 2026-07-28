@@ -28,8 +28,12 @@ impl UiRendererRegistry {
     }
 
     pub fn register<R: UiRenderer + 'static>(&mut self, renderer: R) {
+        self.register_arc(Arc::new(renderer));
+    }
+
+    pub fn register_arc(&mut self, renderer: Arc<dyn UiRenderer>) {
         let artifact_type = renderer.artifact_type().to_string();
-        self.renderers.insert(artifact_type, Arc::new(renderer));
+        self.renderers.insert(artifact_type, renderer);
     }
 
     pub fn get(&self, artifact_type: &str) -> Option<Arc<dyn UiRenderer>> {
@@ -85,6 +89,41 @@ impl std::fmt::Debug for UiRendererRegistry {
     }
 }
 
+/// Compile-time registration of a [`UiRenderer`] implementation.
+///
+/// The default registry seeds its built-ins, then folds in every
+/// `inventory`-collected registration. A registration for an artifact type that
+/// already has a built-in replaces it — that is the supported way to change how
+/// one artifact type renders without forking the whole registry.
+#[derive(Debug, Clone, Copy)]
+pub struct UiRendererRegistration {
+    pub name: &'static str,
+    pub factory: fn() -> Arc<dyn UiRenderer>,
+}
+
+inventory::collect!(UiRendererRegistration);
+
+/// Register a [`UiRenderer`] implementation, replacing the built-in for its
+/// artifact type if there is one.
+///
+/// ```ignore
+/// use systemprompt_mcp::register_ui_renderer;
+/// register_ui_renderer!(BrandTableRenderer::new, name = "brand-table");
+/// ```
+///
+/// `$factory` is any `fn() -> R where R: UiRenderer + 'static`.
+#[macro_export]
+macro_rules! register_ui_renderer {
+    ($factory:expr, name = $name:expr $(,)?) => {
+        ::inventory::submit! {
+            $crate::services::ui_renderer::registry::UiRendererRegistration {
+                name: $name,
+                factory: || ::std::sync::Arc::new($factory()),
+            }
+        }
+    };
+}
+
 pub fn create_default_registry() -> UiRendererRegistry {
     let mut registry = UiRendererRegistry::new();
 
@@ -100,6 +139,19 @@ pub fn create_default_registry() -> UiRendererRegistry {
     registry.register(super::templates::DashboardRenderer::new());
     registry.register(super::templates::PresentationCardRenderer::new());
     registry.register(super::templates::MessageRenderer::new());
+
+    for registration in inventory::iter::<UiRendererRegistration>() {
+        let renderer = (registration.factory)();
+        let artifact_type = renderer.artifact_type().to_string();
+        if registry.supports(&artifact_type) {
+            tracing::info!(
+                renderer = registration.name,
+                artifact_type = %artifact_type,
+                "registered UI renderer replaces the built-in"
+            );
+        }
+        registry.register_arc(renderer);
+    }
 
     registry
 }

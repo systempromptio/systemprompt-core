@@ -278,13 +278,12 @@ fn chart_renderer_artifact_type() {
 }
 
 #[test]
-fn chart_renderer_csp_includes_jsdelivr() {
+fn chart_renderer_csp_is_strict() {
     let renderer = ChartRenderer::new();
     let csp = renderer.csp_policy();
-    assert!(
-        csp.script_src
-            .contains(&"https://cdn.jsdelivr.net".to_string())
-    );
+    assert_eq!(csp.script_src, CspPolicy::strict().script_src);
+    assert!(!csp.script_src.iter().any(|src| src.contains("://")));
+    assert_eq!(csp.frame_src, vec!["'none'"]);
 }
 
 #[tokio::test]
@@ -305,7 +304,9 @@ async fn chart_renderer_bar_chart() {
     );
     let result = renderer.render(&artifact).await.unwrap();
     assert!(result.html.contains("Sales Chart"));
-    assert!(result.html.contains(r#""type":"bar""#));
+    assert!(result.html.contains("<svg class=\"chart-svg\""));
+    assert_eq!(result.html.matches("class=\"chart-bar\"").count(), 3);
+    assert!(!result.html.contains("<canvas"));
 }
 
 #[tokio::test]
@@ -323,7 +324,8 @@ async fn chart_renderer_line_chart() {
     );
     let result = renderer.render(&artifact).await.unwrap();
     assert!(result.html.contains("Trend"));
-    assert!(result.html.contains(r#""type":"line""#));
+    assert!(result.html.contains("class=\"chart-line\""));
+    assert_eq!(result.html.matches("class=\"chart-point\"").count(), 2);
 }
 
 #[tokio::test]
@@ -340,8 +342,9 @@ async fn chart_renderer_pie_chart() {
         None,
     );
     let result = renderer.render(&artifact).await.unwrap();
-    assert!(result.html.contains("canvas"));
-    assert!(result.html.contains(r#""type":"pie""#));
+    assert!(!result.html.contains("<canvas"));
+    assert_eq!(result.html.matches("class=\"chart-slice\"").count(), 2);
+    assert!(result.html.contains("A: 60 (60%)"));
 }
 
 #[tokio::test]
@@ -359,7 +362,7 @@ async fn chart_renderer_with_axis_labels() {
         None,
     );
     let result = renderer.render(&artifact).await.unwrap();
-    assert!(result.html.contains("CHART_CONFIG"));
+    assert!(result.html.contains("class=\"chart-axis-label\""));
     assert!(result.html.contains("Category"));
     assert!(result.html.contains("Value"));
 }
@@ -705,13 +708,12 @@ fn dashboard_renderer_artifact_type() {
 }
 
 #[test]
-fn dashboard_renderer_csp_includes_jsdelivr() {
+fn dashboard_renderer_csp_is_strict() {
     let renderer = DashboardRenderer::new();
     let csp = renderer.csp_policy();
-    assert!(
-        csp.script_src
-            .contains(&"https://cdn.jsdelivr.net".to_string())
-    );
+    assert_eq!(csp.script_src, CspPolicy::strict().script_src);
+    assert!(!csp.script_src.iter().any(|src| src.contains("://")));
+    assert_eq!(csp.frame_src, vec!["'none'"]);
 }
 
 #[tokio::test]
@@ -835,8 +837,9 @@ async fn dashboard_renderer_chart_section() {
         .await
         .unwrap();
     assert!(result.html.contains("chart-container"));
-    assert!(result.html.contains("DASHBOARD_CHART_CONFIGS"));
-    assert!(result.html.contains("chart-my-chart"));
+    assert!(result.html.contains("<svg class=\"chart-svg\""));
+    assert!(result.html.contains("class=\"chart-line\""));
+    assert!(!result.html.contains("<canvas"));
 }
 
 #[tokio::test]

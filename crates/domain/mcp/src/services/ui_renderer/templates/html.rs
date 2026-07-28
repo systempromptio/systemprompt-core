@@ -9,6 +9,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::services::ui_renderer::active_theme;
 use systemprompt_models::mcp::ui_method_js_constants;
 
 #[derive(Debug)]
@@ -45,11 +46,19 @@ impl HtmlBuilder {
     }
 
     pub fn build(self) -> String {
-        let styles = if self.styles.is_empty() {
-            String::new()
-        } else {
-            format!("<style>\n{}\n</style>", self.styles.join("\n"))
-        };
+        let theme = active_theme();
+
+        let mut sheets = vec![design_tokens().to_owned()];
+        if let Some(theme) = theme {
+            sheets.push(format!(":root {{\n{}\n}}", theme.tokens));
+        }
+        sheets.extend(self.styles);
+        if let Some(theme) = theme
+            && !theme.extra_css.is_empty()
+        {
+            sheets.push(theme.extra_css.to_owned());
+        }
+        let styles = format!("<style>\n{}\n</style>", sheets.join("\n"));
 
         let scripts = {
             let mut all = vec![ui_method_js_constants()];
@@ -94,6 +103,10 @@ pub fn json_to_js_literal(value: &serde_json::Value) -> String {
 
 pub const fn base_styles() -> &'static str {
     include_str!("assets/css/base.css")
+}
+
+pub const fn design_tokens() -> &'static str {
+    include_str!("assets/css/tokens.css")
 }
 
 pub const fn mcp_app_bridge_script() -> &'static str {

@@ -186,6 +186,9 @@ pub mod ai {
 #[cfg_attr(docsrs, doc(cfg(feature = "full")))]
 pub mod mcp {
     pub use systemprompt_mcp::*;
+    // Why: `#[macro_export]` puts these at the defining crate's root, where the
+    // glob above cannot see them.
+    pub use systemprompt_mcp::{register_artifact_theme, register_ui_renderer};
 }
 
 /// OAuth2, OIDC, and WebAuthn flows.

@@ -5,44 +5,87 @@
 }
 
 body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
-    font-size: 14px;
-    line-height: 1.5;
-    color: #333;
-    background: #fff;
-    padding: 16px;
+    font-family: var(--mcpui-font-body);
+    font-size: var(--mcpui-text-md);
+    line-height: var(--mcpui-leading-normal);
+    color: var(--mcpui-ink);
+    background: var(--mcpui-bg);
+    padding: var(--mcpui-space-5);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
 }
 
 .container {
     max-width: 100%;
-    overflow-x: auto;
+    display: flex;
+    flex-direction: column;
+    gap: var(--mcpui-space-4);
 }
 
 .mcp-app-title {
-    font-size: 18px;
+    font-family: var(--mcpui-font-heading);
+    font-size: var(--mcpui-text-xl);
     font-weight: 600;
-    margin-bottom: 16px;
-    color: #1a1a1a;
+    line-height: var(--mcpui-leading-tight);
+    letter-spacing: var(--mcpui-tracking-tight);
+    color: var(--mcpui-ink);
+}
+
+/* The title carries the accent as a rule beneath it rather than as coloured
+ * text: at this size a tinted heading reads as a link. */
+.mcp-app-title::after {
+    content: "";
+    display: block;
+    width: 2.25rem;
+    height: 2px;
+    margin-top: var(--mcpui-space-2);
+    border-radius: var(--mcpui-radius-pill);
+    background: var(--mcpui-accent);
 }
 
 .mcp-app-description {
-    color: #666;
-    margin-bottom: 16px;
+    max-width: 68ch;
+    color: var(--mcpui-ink-dim);
+    font-size: var(--mcpui-text-sm);
+}
+
+.mcp-app-title + .mcp-app-description {
+    margin-top: calc(var(--mcpui-space-2) * -1);
+}
+
+:where(a) {
+    color: var(--mcpui-accent);
+    text-underline-offset: 0.15em;
+}
+
+:where(button, input, select, textarea) {
+    font-family: inherit;
+    font-size: inherit;
+}
+
+:where(button, a, input, select, textarea):focus-visible {
+    outline: 2px solid var(--mcpui-accent);
+    outline-offset: 2px;
+}
+
+/* Figures are read by comparison down a column, so they must not reflow as
+ * digits change width. */
+:where(.metric-value, .list-value, .data-table td, .status-value) {
+    font-variant-numeric: tabular-nums;
 }
 
 .error-message {
-    background: #fee;
-    border: 1px solid #f88;
-    color: #a00;
-    padding: 12px;
-    border-radius: 4px;
-    margin: 16px 0;
+    padding: var(--mcpui-space-3) var(--mcpui-space-4);
+    border: 1px solid var(--mcpui-danger);
+    border-radius: var(--mcpui-radius-inner);
+    background: var(--mcpui-danger-wash);
+    color: var(--mcpui-ink);
 }
 
 .loading {
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 32px;
-    color: #666;
+    padding: var(--mcpui-space-6);
+    color: var(--mcpui-ink-dim);
 }

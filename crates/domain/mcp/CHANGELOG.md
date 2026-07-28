@@ -5,6 +5,11 @@
 ### Breaking
 
 - **Breaking:** the dashboard and chart renderers consume the typed artifact models via the same typed-payload path as card/message/media. The dashboard renderer previously parsed a loose dialect (`type`, top-level `id`/`width`, flat `metrics`/`items` arrays) that no producer emitted — the typed models serialize `section_type`, `section_id`, `layout`, and nested `data` structs, so every typed dashboard rendered with empty section bodies. The loose dialect is deleted; a section whose `data` does not match its declared `section_type` is a render error rather than an empty body.
+- **Breaking:** charts are inline SVG rendered by the new `chart_svg` module rather than Chart.js. Neither renderer loads a script from `cdn.jsdelivr.net` any more, so both emit a plain strict CSP in place of one exempting that host, and `assets/js/chart.js` is deleted. A rendered artifact now draws identically with no network. Anything asserting on the old `<canvas>`, on `window.CHART_CONFIG`, or on the CDN in a CSP header needs updating.
+
+### Added
+
+- `ArtifactTheme` and `register_artifact_theme!` let a deployment restyle rendered artifact UI without forking a renderer. Every stylesheet addresses colour, radius, shadow, and type through the `--mcpui-*` custom properties in `tokens.css`; a registered theme re-declares some or all of them and inherits the rest, with `extra_css` for what a custom property cannot express. Registration is compile-time, matching the existing scanner and route-selector registries.
 
 ### Fixed
 
