@@ -21,6 +21,7 @@ const CONVERSION_EVENT_TYPES: &[&str] = &[
     "github_click",
     "evaluate_click",
     "demo_click",
+    "demo_site_click",
     "pricing_click",
 ];
 
