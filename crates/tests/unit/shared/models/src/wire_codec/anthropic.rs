@@ -250,3 +250,41 @@ fn anthropic_upstream_body_strips_vendor_extension_fields() {
     assert!(tool_result_block.get("structuredContent").is_none());
     assert!(tool_result_block.get("_meta").is_none());
 }
+
+#[test]
+fn anthropic_upstream_body_omits_unsigned_thinking_and_empty_messages() {
+    let mut req = base_request();
+    req.messages = vec![
+        CanonicalMessage {
+            role: Role::Assistant,
+            content: vec![CanonicalContent::Thinking {
+                text: "unsigned".to_owned(),
+                signature: None,
+                id: None,
+                encrypted_content: None,
+            }],
+        },
+        CanonicalMessage {
+            role: Role::Assistant,
+            content: vec![
+                CanonicalContent::Thinking {
+                    text: "signed".to_owned(),
+                    signature: Some("sig==".to_owned()),
+                    id: None,
+                    encrypted_content: None,
+                },
+                CanonicalContent::Text("answer".to_owned()),
+            ],
+        },
+    ];
+    let body = anthropic::build_request_body(&req, "claude-x", None);
+    let messages = body["messages"].as_array().expect("messages");
+    assert_eq!(
+        messages.len(),
+        1,
+        "a message reduced to zero blocks must be dropped, not sent empty"
+    );
+    assert_eq!(messages[0]["content"][0]["type"], "thinking");
+    assert_eq!(messages[0]["content"][0]["signature"], "sig==");
+    assert_eq!(messages[0]["content"][1]["text"], "answer");
+}

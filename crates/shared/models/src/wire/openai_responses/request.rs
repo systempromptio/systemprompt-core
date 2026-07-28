@@ -79,6 +79,11 @@ pub fn build_request_body(
     }
     if let Some(effort) = reasoning_effort(request) {
         obj.insert("reasoning".into(), json!({ "effort": effort }));
+        // Why: reasoning continuity across turns needs stateless replay —
+        // `store: false` plus the encrypted payload, echoed back verbatim on
+        // the next turn, is the only mode that works through a gateway.
+        obj.insert("store".into(), Value::Bool(false));
+        obj.insert("include".into(), json!(["reasoning.encrypted_content"]));
     }
     if let Some(format) = &request.response_format {
         obj.insert(
@@ -154,7 +159,7 @@ fn render_tool_message(msg: &CanonicalMessage, input: &mut Vec<Value>) {
 fn render_assistant_message(msg: &CanonicalMessage, input: &mut Vec<Value>) {
     let mut text = String::new();
     let mut tool_calls: Vec<Value> = Vec::new();
-    let mut reasoning: Option<String> = None;
+    let mut reasoning_items: Vec<Value> = Vec::new();
     for part in &msg.content {
         match part {
             CanonicalContent::Text(t) => text.push_str(t),
@@ -172,18 +177,34 @@ fn render_assistant_message(msg: &CanonicalMessage, input: &mut Vec<Value>) {
                         .unwrap_or_else(|_| "{}".into()),
                 }));
             },
-            CanonicalContent::Thinking { text: t, .. } => {
-                reasoning = Some(t.clone());
+            CanonicalContent::Thinking {
+                text: t,
+                id: Some(id),
+                encrypted_content,
+                ..
+            } => {
+                let mut item = Map::new();
+                item.insert("type".into(), json!("reasoning"));
+                item.insert("id".into(), json!(id));
+                item.insert(
+                    "summary".into(),
+                    if t.is_empty() {
+                        json!([])
+                    } else {
+                        json!([{ "type": "summary_text", "text": t }])
+                    },
+                );
+                if let Some(enc) = encrypted_content {
+                    item.insert("encrypted_content".into(), json!(enc));
+                }
+                reasoning_items.push(Value::Object(item));
             },
+            // Why: a reasoning item without its provider id is rejected upstream;
+            // thinking that originated on another provider is dropped instead.
             _ => {},
         }
     }
-    if let Some(r) = reasoning {
-        input.push(json!({
-            "type": "reasoning",
-            "summary": [{ "type": "summary_text", "text": r }],
-        }));
-    }
+    input.extend(reasoning_items);
     input.extend(tool_calls);
     if !text.is_empty() {
         input.push(json!({

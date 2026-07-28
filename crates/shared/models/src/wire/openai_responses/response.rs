@@ -73,7 +73,11 @@ enum OutputItem {
     FunctionCall(FunctionCall),
     Reasoning {
         #[serde(default)]
+        id: Option<String>,
+        #[serde(default)]
         summary: Vec<SummaryPart>,
+        #[serde(default)]
+        encrypted_content: Option<String>,
     },
     #[serde(other)]
     Unknown,
@@ -212,16 +216,22 @@ fn collect_output_item(
                 signature: None,
             });
         },
-        OutputItem::Reasoning { summary } => {
+        OutputItem::Reasoning {
+            id,
+            summary,
+            encrypted_content,
+        } => {
             let text = summary
                 .into_iter()
                 .filter_map(|s| s.text)
                 .collect::<Vec<_>>()
                 .join("\n");
-            if !text.is_empty() {
+            if !text.is_empty() || encrypted_content.is_some() {
                 content.push(CanonicalContent::Thinking {
                     text,
                     signature: None,
+                    id,
+                    encrypted_content,
                 });
             }
         },

@@ -113,7 +113,12 @@ fn parse_reasoning_item(item: &Value) -> Option<CanonicalMessage> {
                 .collect::<Vec<_>>()
                 .join("\n")
         });
-    if text.is_empty() {
+    let id = item.get("id").and_then(Value::as_str).map(str::to_owned);
+    let encrypted_content = item
+        .get("encrypted_content")
+        .and_then(Value::as_str)
+        .map(str::to_owned);
+    if text.is_empty() && encrypted_content.is_none() {
         return None;
     }
     Some(CanonicalMessage {
@@ -121,6 +126,8 @@ fn parse_reasoning_item(item: &Value) -> Option<CanonicalMessage> {
         content: vec![CanonicalContent::Thinking {
             text,
             signature: None,
+            id,
+            encrypted_content,
         }],
     })
 }

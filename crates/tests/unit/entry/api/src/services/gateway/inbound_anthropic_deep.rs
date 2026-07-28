@@ -262,7 +262,9 @@ fn parse_content_block_thinking() {
     }"#;
     let req = parse_ok(body);
     match req.messages[0].content.first() {
-        Some(CanonicalContent::Thinking { text, signature }) => {
+        Some(CanonicalContent::Thinking {
+            text, signature, ..
+        }) => {
             assert_eq!(text, "hmm");
             assert_eq!(signature.as_deref(), Some("sig123"));
         },
@@ -271,16 +273,22 @@ fn parse_content_block_thinking() {
 }
 
 #[test]
-fn parse_unknown_content_block_returns_unsupported() {
-    let a = AnthropicMessagesInbound;
+fn parse_unknown_content_block_is_dropped_not_rejected() {
     let body = br#"{
         "model":"m","max_tokens":1,
-        "messages":[{"role":"user","content":[{"type":"audio","data":"xxx"}]}]
+        "messages":[{"role":"user","content":[
+            {"type":"redacted_thinking","data":"xxx"},
+            {"type":"text","text":"hi"},
+            {"type":"web_search_tool_result","tool_use_id":"srvtoolu_1","content":[]}
+        ]}]
     }"#;
-    let err = a.parse_request(&Bytes::from_static(body)).expect_err("err");
-    assert!(
-        matches!(err, InboundParseError::Unsupported { field, .. } if field == "messages[].content[].type")
-    );
+    let req = parse_ok(body);
+    assert_eq!(req.messages.len(), 1);
+    assert_eq!(req.messages[0].content.len(), 1);
+    assert!(matches!(
+        &req.messages[0].content[0],
+        CanonicalContent::Text(t) if t == "hi"
+    ));
 }
 
 #[test]

@@ -62,7 +62,15 @@ pub(super) fn parse_message(value: &Value) -> Result<CanonicalMessage, InboundPa
 fn parse_content(value: &Value) -> Result<Vec<CanonicalContent>, InboundParseError> {
     match value {
         Value::String(s) => Ok(vec![CanonicalContent::Text(s.clone())]),
-        Value::Array(blocks) => blocks.iter().map(parse_content_block).collect(),
+        Value::Array(blocks) => {
+            let mut out = Vec::with_capacity(blocks.len());
+            for block in blocks {
+                if let Some(content) = parse_content_block(block)? {
+                    out.push(content);
+                }
+            }
+            Ok(out)
+        },
         other => Err(InboundParseError::Unsupported {
             field: "messages[].content",
             detail: format!("unexpected shape: {other}"),
@@ -70,18 +78,23 @@ fn parse_content(value: &Value) -> Result<Vec<CanonicalContent>, InboundParseErr
     }
 }
 
-fn parse_content_block(value: &Value) -> Result<CanonicalContent, InboundParseError> {
+/// `Ok(None)` drops a block the gateway does not model — `redacted_thinking`,
+/// `document`, `server_tool_use`, `web_search_tool_result` — mirroring the
+/// response-side parse, which strips the same types before the client ever
+/// sees them. Rejecting instead would 400 any client replaying history from a
+/// direct Anthropic session.
+fn parse_content_block(value: &Value) -> Result<Option<CanonicalContent>, InboundParseError> {
     let kind = value.get("type").and_then(Value::as_str).unwrap_or("text");
     match kind {
-        "text" => Ok(CanonicalContent::Text(
+        "text" => Ok(Some(CanonicalContent::Text(
             value
                 .get("text")
                 .and_then(Value::as_str)
                 .unwrap_or("")
                 .to_owned(),
-        )),
-        "image" => parse_image(value),
-        "tool_use" => Ok(CanonicalContent::ToolUse {
+        ))),
+        "image" => parse_image(value).map(Some),
+        "tool_use" => Ok(Some(CanonicalContent::ToolUse {
             id: value
                 .get("id")
                 .and_then(Value::as_str)
@@ -97,12 +110,12 @@ fn parse_content_block(value: &Value) -> Result<CanonicalContent, InboundParseEr
                 .get("signature")
                 .and_then(Value::as_str)
                 .map(str::to_owned),
-        }),
+        })),
         "tool_result" => {
             let inner = value
                 .get("content")
                 .map_or_else(Vec::new, parse_tool_result_content);
-            Ok(CanonicalContent::ToolResult {
+            Ok(Some(CanonicalContent::ToolResult {
                 tool_use_id: value
                     .get("tool_use_id")
                     .and_then(Value::as_str)
@@ -115,9 +128,11 @@ fn parse_content_block(value: &Value) -> Result<CanonicalContent, InboundParseEr
                     .unwrap_or(false),
                 structured_content: value.get("structuredContent").cloned(),
                 meta: value.get("_meta").cloned(),
-            })
+            }))
         },
-        "thinking" => Ok(CanonicalContent::Thinking {
+        "thinking" => Ok(Some(CanonicalContent::Thinking {
+            id: None,
+            encrypted_content: None,
             text: value
                 .get("thinking")
                 .and_then(Value::as_str)
@@ -127,11 +142,14 @@ fn parse_content_block(value: &Value) -> Result<CanonicalContent, InboundParseEr
                 .get("signature")
                 .and_then(Value::as_str)
                 .map(str::to_owned),
-        }),
-        other => Err(InboundParseError::Unsupported {
-            field: "messages[].content[].type",
-            detail: other.to_owned(),
-        }),
+        })),
+        other => {
+            tracing::debug!(
+                block_type = %other,
+                "dropped unmodelled content block from inbound message history"
+            );
+            Ok(None)
+        },
     }
 }
 
@@ -140,7 +158,7 @@ fn parse_tool_result_content(value: &Value) -> Vec<CanonicalContent> {
         Value::String(s) => vec![CanonicalContent::Text(s.clone())],
         Value::Array(arr) => arr
             .iter()
-            .filter_map(|v| parse_content_block(v).ok())
+            .filter_map(|v| parse_content_block(v).ok().flatten())
             .collect(),
         _ => Vec::new(),
     }

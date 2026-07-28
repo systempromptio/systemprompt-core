@@ -62,6 +62,8 @@ fn rich_request() -> CanonicalRequest {
                 role: Role::Assistant,
                 content: vec![
                     CanonicalContent::Thinking {
+                        id: None,
+                        encrypted_content: None,
                         text: "let me think".into(),
                         signature: Some("sig".into()),
                     },

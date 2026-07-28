@@ -126,7 +126,17 @@ pub(super) fn parts_to_content(parts: &[GeminiPart]) -> Vec<CanonicalContent> {
     parts
         .iter()
         .filter_map(|part| match part {
-            GeminiPart::Text { text } if !text.is_empty() => {
+            GeminiPart::Text {
+                text,
+                thought: Some(true),
+                thought_signature,
+            } => Some(CanonicalContent::Thinking {
+                text: text.clone(),
+                signature: thought_signature.clone(),
+                id: None,
+                encrypted_content: None,
+            }),
+            GeminiPart::Text { text, .. } if !text.is_empty() => {
                 Some(CanonicalContent::Text(text.clone()))
             },
             GeminiPart::FunctionCall {

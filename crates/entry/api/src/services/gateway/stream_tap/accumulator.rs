@@ -36,8 +36,10 @@ pub struct TapState {
 enum BlockAccumulator {
     Text(String),
     Thinking {
+        id: Option<String>,
         text: String,
         signature: Option<String>,
+        encrypted_content: Option<String>,
     },
     ToolUse {
         id: String,
@@ -135,9 +137,16 @@ fn build_response(state: &TapState) -> CanonicalResponse {
         .iter()
         .map(|b| match b {
             BlockAccumulator::Text(t) => CanonicalContent::Text(t.clone()),
-            BlockAccumulator::Thinking { text, signature } => CanonicalContent::Thinking {
+            BlockAccumulator::Thinking {
+                id,
+                text,
+                signature,
+                encrypted_content,
+            } => CanonicalContent::Thinking {
                 text: text.clone(),
                 signature: signature.clone(),
+                id: id.clone(),
+                encrypted_content: encrypted_content.clone(),
             },
             BlockAccumulator::ToolUse {
                 id,
@@ -168,9 +177,11 @@ fn build_response(state: &TapState) -> CanonicalResponse {
 fn start_block(state: &mut TapState, index: u32, block: &ContentBlockKind) {
     let slot = match block {
         ContentBlockKind::Text => BlockAccumulator::Text(String::new()),
-        ContentBlockKind::Thinking { signature } => BlockAccumulator::Thinking {
+        ContentBlockKind::Thinking { id, signature } => BlockAccumulator::Thinking {
+            id: id.clone(),
             text: String::new(),
             signature: signature.clone(),
+            encrypted_content: None,
         },
         ContentBlockKind::ToolUse {
             id,
@@ -226,6 +237,14 @@ pub fn accumulate_event(state: &mut TapState, event: &CanonicalEvent) {
                 state.blocks.get_mut(*index as usize)
             {
                 *sig = Some(signature.clone());
+            }
+        },
+        CanonicalEvent::EncryptedContentDelta { index, data } => {
+            if let Some(BlockAccumulator::Thinking {
+                encrypted_content, ..
+            }) = state.blocks.get_mut(*index as usize)
+            {
+                *encrypted_content = Some(data.clone());
             }
         },
         CanonicalEvent::ToolUseDelta {

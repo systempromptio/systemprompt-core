@@ -1,7 +1,8 @@
 //! Maps the Gemini `?alt=sse` byte stream to canonical events.
 //!
 //! Each SSE `data:` frame carries a full [`GeminiResponse`] chunk whose
-//! candidate parts are incremental. Text parts stream as deltas on block 0;
+//! candidate parts are incremental. Thought parts (`"thought": true`) and
+//! answer text each stream as deltas on their own content block;
 //! `functionCall` parts emit a complete tool-use block (Gemini sends each call
 //! whole rather than as partial JSON).
 //!
@@ -24,7 +25,8 @@ struct StreamState {
     model: String,
     message_id: String,
     started: bool,
-    text_block_open: bool,
+    text_block: Option<u32>,
+    thinking_block: Option<u32>,
     next_index: u32,
 }
 
@@ -41,7 +43,8 @@ where
         model: fallback_model,
         message_id: format!("msg_{}", Uuid::new_v4().simple()),
         started: false,
-        text_block_open: false,
+        text_block: None,
+        thinking_block: None,
         next_index: 0,
     };
 
@@ -115,14 +118,24 @@ fn emit_stop(
     reason: CanonicalStopReason,
     events: &mut Vec<Result<CanonicalEvent, String>>,
 ) {
-    if state.text_block_open {
-        events.push(Ok(CanonicalEvent::ContentBlockStop { index: 0 }));
-        state.text_block_open = false;
-    }
+    close_thinking(state, events);
+    close_text(state, events);
     events.push(Ok(CanonicalEvent::MessageStop {
         id: state.message_id.clone(),
         stop_reason: Some(reason),
     }));
+}
+
+fn close_text(state: &mut StreamState, events: &mut Vec<Result<CanonicalEvent, String>>) {
+    if let Some(index) = state.text_block.take() {
+        events.push(Ok(CanonicalEvent::ContentBlockStop { index }));
+    }
+}
+
+fn close_thinking(state: &mut StreamState, events: &mut Vec<Result<CanonicalEvent, String>>) {
+    if let Some(index) = state.thinking_block.take() {
+        events.push(Ok(CanonicalEvent::ContentBlockStop { index }));
+    }
 }
 
 fn emit_start(
@@ -150,11 +163,17 @@ fn emit_part(
     events: &mut Vec<Result<CanonicalEvent, String>>,
 ) {
     match part {
-        GeminiPart::Text { text } if !text.is_empty() => emit_text(state, text, events),
+        GeminiPart::Text {
+            text,
+            thought: Some(true),
+            thought_signature,
+        } => emit_thought(state, text, thought_signature.clone(), events),
+        GeminiPart::Text { text, .. } if !text.is_empty() => emit_text(state, text, events),
         GeminiPart::FunctionCall {
             function_call,
             thought_signature,
         } => {
+            close_thinking(state, events);
             emit_tool_use(
                 state,
                 &function_call.name,
@@ -172,20 +191,55 @@ fn emit_text(
     text: &str,
     events: &mut Vec<Result<CanonicalEvent, String>>,
 ) {
-    if !state.text_block_open {
+    close_thinking(state, events);
+    let index = if let Some(index) = state.text_block {
+        index
+    } else {
+        let index = state.next_index;
+        state.next_index += 1;
+        state.text_block = Some(index);
         events.push(Ok(CanonicalEvent::ContentBlockStart {
-            index: 0,
+            index,
             block: ContentBlockKind::Text,
         }));
-        state.text_block_open = true;
-        if state.next_index == 0 {
-            state.next_index = 1;
-        }
-    }
+        index
+    };
     events.push(Ok(CanonicalEvent::TextDelta {
-        index: 0,
+        index,
         text: text.to_owned(),
     }));
+}
+
+fn emit_thought(
+    state: &mut StreamState,
+    text: &str,
+    signature: Option<String>,
+    events: &mut Vec<Result<CanonicalEvent, String>>,
+) {
+    let index = if let Some(index) = state.thinking_block {
+        index
+    } else {
+        let index = state.next_index;
+        state.next_index += 1;
+        state.thinking_block = Some(index);
+        events.push(Ok(CanonicalEvent::ContentBlockStart {
+            index,
+            block: ContentBlockKind::Thinking {
+                id: None,
+                signature: None,
+            },
+        }));
+        index
+    };
+    if !text.is_empty() {
+        events.push(Ok(CanonicalEvent::ThinkingDelta {
+            index,
+            text: text.to_owned(),
+        }));
+    }
+    if let Some(signature) = signature {
+        events.push(Ok(CanonicalEvent::SignatureDelta { index, signature }));
+    }
 }
 
 fn emit_tool_use(

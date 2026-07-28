@@ -11,8 +11,15 @@
 
 - `SectionType::Text`, `TextSectionData`, `TimelineSectionData`, and `TimelineEvent`: the free-text and timeline section bodies the dashboard renderer now consumes. `Timeline` existed in the taxonomy but had no data shape.
 
+### Breaking
+
+- **Breaking:** `CanonicalContent::Thinking` gains `id` and `encrypted_content`, and `ContentBlockKind::Thinking` gains `id`. OpenAI Responses reasoning items carry a provider id and an opaque `encrypted_content` blob that must be replayed verbatim for stateless reasoning continuity — the canonical model previously had no channel for either, so the gateway emitted id-less reasoning items upstream and lost continuity every turn. `CanonicalEvent` gains an `EncryptedContentDelta` variant carrying the blob when it arrives at `output_item.done`. Migrate constructors by supplying `None` and exhaustive matches with a no-op arm.
+
 ### Fixed
 
+- Gemini thought parts round-trip. `GeminiPart::Text` now models the part-level `thought` flag and `thoughtSignature`, so thought summaries parse to `CanonicalContent::Thinking` (streamed as real thinking blocks with `ThinkingDelta`/`SignatureDelta`) instead of leaking to clients as ordinary answer text with the signature silently dropped. The request encoder replays `Thinking` as `{"thought": true}` parts with signatures — the documented "return the entire response with all parts back" contract — where it previously discarded thinking entirely, and `thinkingConfig.includeThoughts` is set whenever thinking is enabled so Gemini returns thought parts at all.
+- The Anthropic upstream body never carries an unsigned thinking block. Anthropic rejects a replayed thinking block without its signature; a block arriving signatureless (cross-provider history, or a client that dropped it) is now omitted — and a message reduced to zero blocks is dropped rather than sent empty — degrading reasoning continuity instead of failing the request.
+- OpenAI Responses reasoning items are emitted one per `Thinking` part with their provider `id` and `encrypted_content` (previously all parts collapsed into a single id-less summary item, which the API rejects), and reasoning-enabled request bodies send `store: false` so encrypted reasoning content is returned for stateless replay. A `Thinking` part with no provider id emits nothing rather than a malformed item.
 - The Anthropic upstream request body no longer carries the gateway's vendor-extension fields. `build_request_body` shared its block renderer with the client-facing render, so `signature` on `tool_use` and `structuredContent`/`_meta` on `tool_result` — fields the gateway adds for its own clients — went to the real Anthropic API, which rejects unknown keys in content blocks. The client-facing `content_to_anthropic_block` still emits them; the upstream body does not.
 - Gemini `functionResponse.name` carries the declared function name rather than the gateway-minted `tool_use` id. Gemini's function call has no id, so the canonical `ToolResult` only holds the minted one; the encoder now recovers the name from the matching `ToolUse` earlier in the same replayed history, falling back to the id only when no match exists.
 

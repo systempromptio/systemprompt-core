@@ -74,7 +74,10 @@ fn thinking_block_collects_text_and_signature() {
         &mut state,
         &CanonicalEvent::ContentBlockStart {
             index: 0,
-            block: ContentBlockKind::Thinking { signature: None },
+            block: ContentBlockKind::Thinking {
+                id: None,
+                signature: None,
+            },
         },
     );
     accumulate_event(
@@ -95,7 +98,7 @@ fn thinking_block_collects_text_and_signature() {
     let response = snapshot(&state);
     assert!(matches!(
         &response.content[0],
-        CanonicalContent::Thinking { text, signature }
+        CanonicalContent::Thinking { text, signature, .. }
             if text == "pondering" && signature.as_deref() == Some("sig-abc")
     ));
 }
@@ -342,4 +345,48 @@ fn extract_summary_on_empty_state_has_no_model_or_stop() {
     assert!(summary.error.is_none());
     assert!(summary.tool_calls.is_empty());
     assert!(summary.response.content.is_empty());
+}
+
+#[test]
+fn encrypted_content_delta_lands_on_the_thinking_block() {
+    let mut state = TapState::default();
+    start(&mut state, "resp-1", "model-a");
+    accumulate_event(
+        &mut state,
+        &CanonicalEvent::ContentBlockStart {
+            index: 0,
+            block: ContentBlockKind::Thinking {
+                id: Some("rs_live".to_owned()),
+                signature: None,
+            },
+        },
+    );
+    accumulate_event(
+        &mut state,
+        &CanonicalEvent::ThinkingDelta {
+            index: 0,
+            text: "chain".to_owned(),
+        },
+    );
+    accumulate_event(
+        &mut state,
+        &CanonicalEvent::EncryptedContentDelta {
+            index: 0,
+            data: "opaque==".to_owned(),
+        },
+    );
+    let snapshot = snapshot(&state);
+    match snapshot.content.first() {
+        Some(CanonicalContent::Thinking {
+            text,
+            id,
+            encrypted_content,
+            ..
+        }) => {
+            assert_eq!(text, "chain");
+            assert_eq!(id.as_deref(), Some("rs_live"));
+            assert_eq!(encrypted_content.as_deref(), Some("opaque=="));
+        },
+        other => panic!("expected Thinking, got {other:?}"),
+    }
 }

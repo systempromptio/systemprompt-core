@@ -26,7 +26,7 @@ pub fn build_request_body(request: &CanonicalRequest, limits: Option<ModelLimits
     let body = GeminiRequest {
         contents: contents(request),
         system_instruction: request.system.as_ref().map(|s| GeminiSystemInstruction {
-            parts: vec![GeminiPart::Text { text: s.clone() }],
+            parts: vec![plain_text_part(s.clone())],
         }),
         generation_config: Some(generation_config(request, limits)),
         tools: tools(request),
@@ -79,7 +79,7 @@ fn thinking_config(
     };
     Some(GeminiThinkingConfig {
         thinking_budget,
-        include_thoughts: None,
+        include_thoughts: Some(true),
     })
 }
 
@@ -169,7 +169,7 @@ fn message_to_content(
     let parts: Vec<GeminiPart> = msg
         .content
         .iter()
-        .filter_map(|part| content_to_part(part, call_names))
+        .map(|part| content_to_part(part, call_names))
         .collect();
     if parts.is_empty() {
         return None;
@@ -180,32 +180,29 @@ fn message_to_content(
     })
 }
 
-fn content_to_part(
-    part: &CanonicalContent,
-    call_names: &HashMap<&str, &str>,
-) -> Option<GeminiPart> {
+fn content_to_part(part: &CanonicalContent, call_names: &HashMap<&str, &str>) -> GeminiPart {
     match part {
-        CanonicalContent::Text(t) => Some(GeminiPart::Text { text: t.clone() }),
-        CanonicalContent::Image(src) => Some(image_part(src)),
+        CanonicalContent::Text(t) => plain_text_part(t.clone()),
+        CanonicalContent::Image(src) => image_part(src),
         CanonicalContent::ToolUse {
             name,
             input,
             signature,
             ..
-        } => Some(GeminiPart::FunctionCall {
+        } => GeminiPart::FunctionCall {
             function_call: GeminiFunctionCall {
                 name: name.clone(),
                 args: input.clone(),
             },
             thought_signature: signature.clone(),
-        }),
+        },
         CanonicalContent::ToolResult {
             tool_use_id,
             content,
             is_error,
             structured_content,
             ..
-        } => Some(tool_result_part(
+        } => tool_result_part(
             call_names
                 .get(tool_use_id.as_str())
                 .copied()
@@ -213,8 +210,22 @@ fn content_to_part(
             content,
             *is_error,
             structured_content.as_ref(),
-        )),
-        CanonicalContent::Thinking { .. } => None,
+        ),
+        CanonicalContent::Thinking {
+            text, signature, ..
+        } => GeminiPart::Text {
+            text: text.clone(),
+            thought: Some(true),
+            thought_signature: signature.clone(),
+        },
+    }
+}
+
+const fn plain_text_part(text: String) -> GeminiPart {
+    GeminiPart::Text {
+        text,
+        thought: None,
+        thought_signature: None,
     }
 }
 
@@ -228,7 +239,7 @@ fn image_part(src: &ImageSource) -> GeminiPart {
                 data: data.clone(),
             },
         },
-        ImageSource::Url { url, .. } => GeminiPart::Text { text: url.clone() },
+        ImageSource::Url { url, .. } => plain_text_part(url.clone()),
     }
 }
 

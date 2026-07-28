@@ -334,3 +334,83 @@ async fn openai_responses_stream_emits_message_start() {
     });
     assert_eq!(started.as_deref(), Some("resp_42"));
 }
+
+#[test]
+fn openai_responses_reasoning_requests_stateless_replay_params() {
+    let mut req = base_request();
+    req.thinking = Some(ThinkingConfig {
+        enabled: true,
+        budget_tokens: Some(8000),
+    });
+    let body = openai_responses::build_request_body(&req, "o4-mini", None);
+    assert_eq!(body["store"], json!(false));
+    assert_eq!(body["include"], json!(["reasoning.encrypted_content"]));
+}
+
+#[test]
+fn openai_responses_replays_reasoning_items_per_part_with_id_and_encrypted_content() {
+    let mut req = base_request();
+    req.messages = vec![CanonicalMessage {
+        role: Role::Assistant,
+        content: vec![
+            CanonicalContent::Thinking {
+                text: "first".to_owned(),
+                signature: None,
+                id: Some("rs_a".to_owned()),
+                encrypted_content: Some("enc_a".to_owned()),
+            },
+            CanonicalContent::Thinking {
+                text: String::new(),
+                signature: None,
+                id: Some("rs_b".to_owned()),
+                encrypted_content: Some("enc_b".to_owned()),
+            },
+            CanonicalContent::Thinking {
+                text: "foreign, no id".to_owned(),
+                signature: None,
+                id: None,
+                encrypted_content: None,
+            },
+        ],
+    }];
+    let body = openai_responses::build_request_body(&req, "o4-mini", None);
+    let input = body["input"].as_array().expect("input");
+    let reasoning: Vec<_> = input.iter().filter(|i| i["type"] == "reasoning").collect();
+    assert_eq!(
+        reasoning.len(),
+        2,
+        "one item per identified Thinking part; id-less parts are dropped"
+    );
+    assert_eq!(reasoning[0]["id"], "rs_a");
+    assert_eq!(reasoning[0]["encrypted_content"], "enc_a");
+    assert_eq!(reasoning[0]["summary"][0]["text"], "first");
+    assert_eq!(reasoning[1]["id"], "rs_b");
+    assert_eq!(reasoning[1]["summary"], json!([]));
+}
+
+#[test]
+fn openai_responses_parse_captures_reasoning_id_and_encrypted_content() {
+    let value = json!({
+        "id": "resp_1", "model": "o4-mini", "status": "completed",
+        "output": [{
+            "type": "reasoning",
+            "id": "rs_live",
+            "summary": [{ "type": "summary_text", "text": "chain" }],
+            "encrypted_content": "opaque=="
+        }]
+    });
+    let response = openai_responses::parse_response_object(&value, "fallback");
+    match response.content.first() {
+        Some(CanonicalContent::Thinking {
+            text,
+            id,
+            encrypted_content,
+            ..
+        }) => {
+            assert_eq!(text, "chain");
+            assert_eq!(id.as_deref(), Some("rs_live"));
+            assert_eq!(encrypted_content.as_deref(), Some("opaque=="));
+        },
+        other => panic!("expected Thinking, got {other:?}"),
+    }
+}

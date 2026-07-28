@@ -49,7 +49,7 @@ pub fn build_request_body(
         .messages
         .iter()
         .filter(|m| !matches!(m.role, Role::System))
-        .map(|m| canonical_message_to_anthropic(m, BlockAudience::Upstream))
+        .filter_map(|m| canonical_message_to_anthropic(m, BlockAudience::Upstream))
         .collect();
 
     let mut obj = Map::new();
@@ -172,7 +172,10 @@ fn tool_to_anthropic(tool: &CanonicalTool) -> Value {
     Value::Object(tobj)
 }
 
-fn canonical_message_to_anthropic(msg: &CanonicalMessage, audience: BlockAudience) -> Value {
+fn canonical_message_to_anthropic(
+    msg: &CanonicalMessage,
+    audience: BlockAudience,
+) -> Option<Value> {
     let role = match msg.role {
         Role::Assistant => "assistant",
         Role::User | Role::Tool | Role::System => "user",
@@ -180,9 +183,24 @@ fn canonical_message_to_anthropic(msg: &CanonicalMessage, audience: BlockAudienc
     let content: Vec<Value> = msg
         .content
         .iter()
+        .filter(|part| {
+            // Anthropic 400s on a replayed thinking block without its signature;
+            // history without the block is valid and merely loses continuity.
+            audience == BlockAudience::Client
+                || !matches!(
+                    part,
+                    CanonicalContent::Thinking {
+                        signature: None,
+                        ..
+                    }
+                )
+        })
         .map(|part| block_for_audience(part, audience))
         .collect();
-    json!({ "role": role, "content": content })
+    if content.is_empty() {
+        return None;
+    }
+    Some(json!({ "role": role, "content": content }))
 }
 
 fn tool_choice_to_anthropic(tc: &CanonicalToolChoice) -> Value {
@@ -212,7 +230,9 @@ pub fn content_to_anthropic_block(part: &CanonicalContent) -> Value {
 fn block_for_audience(part: &CanonicalContent, audience: BlockAudience) -> Value {
     match part {
         CanonicalContent::Text(t) => json!({ "type": "text", "text": t }),
-        CanonicalContent::Thinking { text, signature } => {
+        CanonicalContent::Thinking {
+            text, signature, ..
+        } => {
             let mut obj = Map::new();
             obj.insert("type".into(), Value::String("thinking".into()));
             obj.insert("thinking".into(), Value::String(text.clone()));

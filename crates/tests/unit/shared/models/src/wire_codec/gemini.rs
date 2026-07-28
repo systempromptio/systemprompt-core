@@ -404,7 +404,7 @@ fn gemini_tool_result_without_structure_flattens_text_result() {
 }
 
 #[test]
-fn gemini_drops_system_thinking_and_empty_part_messages_from_contents() {
+fn gemini_drops_system_messages_and_replays_thinking_as_thought_parts() {
     let mut req = base_request();
     req.messages = vec![
         CanonicalMessage {
@@ -415,7 +415,9 @@ fn gemini_drops_system_thinking_and_empty_part_messages_from_contents() {
             role: Role::Assistant,
             content: vec![CanonicalContent::Thinking {
                 text: "hidden chain".to_owned(),
-                signature: None,
+                signature: Some("tsig==".to_owned()),
+                id: None,
+                encrypted_content: None,
             }],
         },
         CanonicalMessage {
@@ -425,9 +427,12 @@ fn gemini_drops_system_thinking_and_empty_part_messages_from_contents() {
     ];
     let body = gemini::build_request_body(&req, None);
     let contents = body["contents"].as_array().expect("contents array");
-    assert_eq!(contents.len(), 1);
-    assert_eq!(contents[0]["role"], "model");
-    assert_eq!(contents[0]["parts"][0]["text"], "visible");
+    assert_eq!(contents.len(), 2);
+    let thought = &contents[0]["parts"][0];
+    assert_eq!(thought["text"], "hidden chain");
+    assert_eq!(thought["thought"], true);
+    assert_eq!(thought["thoughtSignature"], "tsig==");
+    assert_eq!(contents[1]["parts"][0]["text"], "visible");
 }
 
 #[test]
@@ -445,4 +450,42 @@ fn gemini_function_response_name_recovered_from_matching_tool_use() {
         body["contents"][1]["parts"][0]["functionResponse"]["name"], "lookup",
         "functionResponse.name must be the declared function name, not the minted id"
     );
+}
+
+#[test]
+fn gemini_thinking_enabled_requests_thought_summaries() {
+    let mut req = base_request();
+    req.thinking = Some(ThinkingConfig {
+        enabled: true,
+        budget_tokens: None,
+    });
+    let body = gemini::build_request_body(&req, None);
+    assert_eq!(
+        body["generationConfig"]["thinkingConfig"]["includeThoughts"],
+        json!(true)
+    );
+}
+
+#[test]
+fn gemini_parse_maps_thought_parts_to_thinking_with_signature() {
+    let value = json!({
+        "candidates": [{ "content": { "role": "model", "parts": [
+            { "text": "let me reason", "thought": true, "thoughtSignature": "tsig==" },
+            { "text": "the answer" }
+        ]}, "finishReason": "STOP" }]
+    });
+    let response = gemini::parse_response(&value, "fallback");
+    match response.content.first() {
+        Some(CanonicalContent::Thinking {
+            text, signature, ..
+        }) => {
+            assert_eq!(text, "let me reason");
+            assert_eq!(signature.as_deref(), Some("tsig=="));
+        },
+        other => panic!("expected Thinking, got {other:?}"),
+    }
+    assert!(matches!(
+        response.content.get(1),
+        Some(CanonicalContent::Text(t)) if t == "the answer"
+    ));
 }

@@ -130,11 +130,17 @@ fn output_item_value(index: u32, block: &CanonicalContent) -> Option<Value> {
                 "status": "completed",
             }))
         },
-        CanonicalContent::Thinking { text, .. } => Some(json!({
-            "type": "reasoning",
-            "id": format!("rs_{index}"),
-            "summary": [{ "type": "summary_text", "text": text }],
-        })),
+        CanonicalContent::Thinking {
+            text,
+            id,
+            encrypted_content,
+            ..
+        } => Some(super::render::reasoning_output_item(
+            id.as_deref(),
+            &format!("rs_{index}"),
+            text,
+            encrypted_content.as_deref(),
+        )),
         CanonicalContent::Image(_) | CanonicalContent::ToolResult { .. } => None,
     }
 }

@@ -81,6 +81,12 @@ pub enum CanonicalContent {
     Thinking {
         text: String,
         signature: Option<String>,
+        // Why: OpenAI Responses reasoning items carry a provider id and, with
+        // `include: ["reasoning.encrypted_content"]`, an opaque blob — both must
+        // be replayed verbatim for stateless reasoning continuity, exactly like
+        // Gemini's thoughtSignature. Anthropic/Gemini thinking has neither.
+        id: Option<String>,
+        encrypted_content: Option<String>,
     },
 }
 

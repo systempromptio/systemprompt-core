@@ -201,6 +201,8 @@ fn canonical_block(block: AnthropicBlock) -> Option<CanonicalContent> {
             thinking,
             signature,
         } => Some(CanonicalContent::Thinking {
+            id: None,
+            encrypted_content: None,
             text: thinking,
             signature,
         }),

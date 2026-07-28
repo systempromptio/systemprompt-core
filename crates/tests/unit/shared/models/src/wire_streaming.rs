@@ -86,7 +86,7 @@ mod anthropic_event_from_sse {
         match ev {
             CanonicalEvent::ContentBlockStart {
                 index,
-                block: ContentBlockKind::Thinking { signature },
+                block: ContentBlockKind::Thinking { signature, .. },
             } => {
                 assert_eq!(index, 2);
                 assert_eq!(signature.as_deref(), Some("sig"));
@@ -323,7 +323,7 @@ mod anthropic_parse_response {
         );
         assert!(matches!(
             resp.content.first(),
-            Some(CanonicalContent::Thinking { text, signature })
+            Some(CanonicalContent::Thinking { text, signature, .. })
                 if text == "hmm" && signature.as_deref() == Some("s")
         ));
     }
@@ -672,6 +672,55 @@ mod openai_responses_streaming {
 
 mod gemini_streaming {
     use super::*;
+
+    #[tokio::test]
+    async fn thought_parts_stream_as_thinking_block_with_signature() {
+        let sse = concat!(
+            "data: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":",
+            "[{\"text\":\"pondering\",\"thought\":true}]}}]}\n\n",
+            "data: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":",
+            "[{\"text\":\"\",\"thought\":true,\"thoughtSignature\":\"tsig==\"},",
+            "{\"text\":\"answer\"}]},\"finishReason\":\"STOP\"}]}\n\n"
+        )
+        .to_owned();
+        let events = run(sse).await;
+        assert!(events.iter().any(|e| matches!(
+            e,
+            CanonicalEvent::ContentBlockStart {
+                index: 0,
+                block: ContentBlockKind::Thinking { .. },
+            }
+        )));
+        assert!(events.iter().any(|e| matches!(
+            e,
+            CanonicalEvent::ThinkingDelta { index: 0, text } if text == "pondering"
+        )));
+        assert!(events.iter().any(|e| matches!(
+            e,
+            CanonicalEvent::SignatureDelta { index: 0, signature } if signature == "tsig=="
+        )));
+        let thinking_stop = events
+            .iter()
+            .position(|e| matches!(e, CanonicalEvent::ContentBlockStop { index: 0 }))
+            .expect("thinking block closed");
+        let text_start = events
+            .iter()
+            .position(|e| {
+                matches!(
+                    e,
+                    CanonicalEvent::ContentBlockStart {
+                        index: 1,
+                        block: ContentBlockKind::Text,
+                    }
+                )
+            })
+            .expect("answer text opens its own block");
+        assert!(thinking_stop < text_start);
+        assert!(events.iter().any(|e| matches!(
+            e,
+            CanonicalEvent::TextDelta { index: 1, text } if text == "answer"
+        )));
+    }
 
     async fn run(sse: String) -> Vec<CanonicalEvent> {
         gemini::sse_to_canonical_events(one_frame(sse), "fallback".to_owned())

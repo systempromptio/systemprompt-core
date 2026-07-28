@@ -95,6 +95,8 @@ fn extract_assistant_text_skips_non_text_variants() {
     let mut r = empty_response();
     r.content = vec![
         CanonicalContent::Thinking {
+            id: None,
+            encrypted_content: None,
             text: "thought".into(),
             signature: None,
         },

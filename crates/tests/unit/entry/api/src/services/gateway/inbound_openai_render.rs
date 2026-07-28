@@ -21,6 +21,8 @@ fn sample_response() -> CanonicalResponse {
                 signature: None,
             },
             CanonicalContent::Thinking {
+                id: None,
+                encrypted_content: None,
                 text: "thinking".into(),
                 signature: None,
             },
@@ -122,7 +124,10 @@ fn render_event_covers_all_variants() {
         },
         CanonicalEvent::ContentBlockStart {
             index: 2,
-            block: ContentBlockKind::Thinking { signature: None },
+            block: ContentBlockKind::Thinking {
+                id: None,
+                signature: None,
+            },
         },
         CanonicalEvent::TextDelta {
             index: 0,
@@ -282,4 +287,23 @@ fn render_terminal_item_done_out_of_range_index_yields_no_frame() {
             )
             .is_none()
     );
+}
+
+#[test]
+fn reasoning_output_item_uses_provider_id_and_encrypted_content() {
+    let mut response = sample_response();
+    response.content = vec![CanonicalContent::Thinking {
+        id: Some("rs_live".into()),
+        encrypted_content: Some("opaque==".into()),
+        text: "chain".into(),
+        signature: None,
+    }];
+    let inbound = OpenAiResponsesInbound;
+    let bytes = inbound.render_response(&response);
+    let body: Value = serde_json::from_slice(&bytes).expect("json");
+    let item = &body["output"][0];
+    assert_eq!(item["type"], "reasoning");
+    assert_eq!(item["id"], "rs_live");
+    assert_eq!(item["encrypted_content"], "opaque==");
+    assert_eq!(item["summary"][0]["text"], "chain");
 }

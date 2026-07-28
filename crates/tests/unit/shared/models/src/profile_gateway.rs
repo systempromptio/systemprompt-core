@@ -892,6 +892,8 @@ fn route_match_token_estimate_counts_thinking_and_nested_tool_result_text() {
             CanonicalContent::Thinking {
                 text: "x".repeat(40),
                 signature: None,
+                id: None,
+                encrypted_content: None,
             },
             CanonicalContent::ToolResult {
                 tool_use_id: "call_1".to_owned(),

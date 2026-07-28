@@ -53,10 +53,14 @@ fn content_block_helpers_cover_all_variants() {
     let cases = vec![
         CanonicalContent::Text("hello".into()),
         CanonicalContent::Thinking {
+            id: None,
+            encrypted_content: None,
             text: "thought".into(),
             signature: Some("sig".into()),
         },
         CanonicalContent::Thinking {
+            id: None,
+            encrypted_content: None,
             text: "thought2".into(),
             signature: None,
         },
@@ -135,6 +139,7 @@ fn render_event_covers_all_variants() {
         CanonicalEvent::ContentBlockStart {
             index: 1,
             block: ContentBlockKind::Thinking {
+                id: None,
                 signature: Some("sig".into()),
             },
         },

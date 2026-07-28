@@ -183,6 +183,8 @@ mod flatten_text {
             vec![CanonicalContent::Thinking {
                 text: "pondering".to_owned(),
                 signature: None,
+                id: None,
+                encrypted_content: None,
             }],
         )];
         assert_eq!(req.flatten_text(), "pondering");

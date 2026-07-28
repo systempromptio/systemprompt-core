@@ -40,11 +40,6 @@ pub fn render_response_value(response: &CanonicalResponse) -> Value {
     })
 }
 
-#[expect(
-    clippy::unnecessary_wraps,
-    reason = "render_event in the InboundAdapter trait returns Option<Bytes>; propagating Option \
-              here keeps the call site in mod.rs a single line"
-)]
 #[cfg_attr(
     not(feature = "test-api"),
     expect(
@@ -72,6 +67,7 @@ pub fn render_event_frame(event: &CanonicalEvent, model: &str) -> Option<Bytes> 
             "index": index,
             "delta": { "type": "thinking_delta", "thinking": text },
         }),
+        CanonicalEvent::EncryptedContentDelta { .. } => return None,
         CanonicalEvent::SignatureDelta { index, signature } => json!({
             "type": "content_block_delta",
             "index": index,
@@ -140,7 +136,7 @@ fn render_message_start(
 fn render_content_block_start(index: u32, block: &ContentBlockKind) -> Value {
     let block_value = match block {
         ContentBlockKind::Text => json!({ "type": "text", "text": "" }),
-        ContentBlockKind::Thinking { signature } => {
+        ContentBlockKind::Thinking { signature, .. } => {
             render_thinking_block_start(signature.as_deref())
         },
         ContentBlockKind::ToolUse {

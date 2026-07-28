@@ -267,3 +267,44 @@ fn parse_metadata_preserved() {
     let req = parse_ok(br#"{"model":"gpt-4o","metadata":{"trace":"abc"}}"#);
     assert_eq!(req.metadata.expect("meta")["trace"], "abc");
 }
+
+#[test]
+fn parse_reasoning_item_captures_id_and_encrypted_content() {
+    let body = br#"{
+        "model":"gpt-4o",
+        "input":[{"type":"reasoning","id":"rs_live","summary":[{"text":"chain"}],
+                  "encrypted_content":"opaque=="}]
+    }"#;
+    let req = parse_ok(body);
+    match req.messages[0].content.first() {
+        Some(CanonicalContent::Thinking {
+            text,
+            id,
+            encrypted_content,
+            ..
+        }) => {
+            assert_eq!(text, "chain");
+            assert_eq!(id.as_deref(), Some("rs_live"));
+            assert_eq!(encrypted_content.as_deref(), Some("opaque=="));
+        },
+        other => panic!("expected thinking, got {other:?}"),
+    }
+}
+
+#[test]
+fn parse_reasoning_item_encrypted_only_is_kept() {
+    let body = br#"{
+        "model":"gpt-4o",
+        "input":[{"type":"reasoning","id":"rs_live","summary":[],
+                  "encrypted_content":"opaque=="}]
+    }"#;
+    let req = parse_ok(body);
+    assert_eq!(req.messages.len(), 1);
+    assert!(matches!(
+        req.messages[0].content.first(),
+        Some(CanonicalContent::Thinking {
+            encrypted_content: Some(e),
+            ..
+        }) if e == "opaque=="
+    ));
+}

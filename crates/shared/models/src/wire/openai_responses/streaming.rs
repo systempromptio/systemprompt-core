@@ -177,7 +177,10 @@ fn handle_item_added(
         },
         "reasoning" => (
             SlotKind::Reasoning,
-            ContentBlockKind::Thinking { signature: None },
+            ContentBlockKind::Thinking {
+                id: item.get("id").and_then(Value::as_str).map(str::to_owned),
+                signature: None,
+            },
         ),
         _ => return,
     };
@@ -244,6 +247,16 @@ fn handle_item_done(
         .and_then(Value::as_i64)
         .unwrap_or(-1);
     if let Some(slot) = state.items.iter().find(|s| s.output_index == output_index) {
+        if let Some(encrypted) = value
+            .get("item")
+            .and_then(|i| i.get("encrypted_content"))
+            .and_then(Value::as_str)
+        {
+            events.push(Ok(CanonicalEvent::EncryptedContentDelta {
+                index: slot.canonical_index,
+                data: encrypted.to_owned(),
+            }));
+        }
         events.push(Ok(CanonicalEvent::ContentBlockStop {
             index: slot.canonical_index,
         }));

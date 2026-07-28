@@ -43,6 +43,14 @@ pub(crate) struct GeminiContent {
 pub(crate) enum GeminiPart {
     Text {
         text: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        thought: Option<bool>,
+        #[serde(
+            rename = "thoughtSignature",
+            default,
+            skip_serializing_if = "Option::is_none"
+        )]
+        thought_signature: Option<String>,
     },
     InlineData {
         #[serde(rename = "inlineData")]

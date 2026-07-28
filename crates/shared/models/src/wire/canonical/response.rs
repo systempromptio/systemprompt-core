@@ -128,6 +128,10 @@ pub enum CanonicalEvent {
         index: u32,
         signature: String,
     },
+    EncryptedContentDelta {
+        index: u32,
+        data: String,
+    },
     ToolUseDelta {
         index: u32,
         partial_json: String,
@@ -147,6 +151,7 @@ pub enum CanonicalEvent {
 pub enum ContentBlockKind {
     Text,
     Thinking {
+        id: Option<String>,
         signature: Option<String>,
     },
     ToolUse {

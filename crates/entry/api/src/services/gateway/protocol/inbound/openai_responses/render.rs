@@ -41,13 +41,17 @@ pub fn render_response_object(response: &CanonicalResponse) -> Value {
                     "status": "completed",
                 }));
             },
-            CanonicalContent::Thinking { text, .. } => {
-                output.push(json!({
-                    "type": "reasoning",
-                    "id": format!("rs_{}", response.id),
-                    "summary": [{ "type": "summary_text", "text": text }],
-                }));
-            },
+            CanonicalContent::Thinking {
+                text,
+                id,
+                encrypted_content,
+                ..
+            } => output.push(reasoning_output_item(
+                id.as_deref(),
+                &format!("rs_{}", response.id),
+                text,
+                encrypted_content.as_deref(),
+            )),
             CanonicalContent::Image(_) | CanonicalContent::ToolResult { .. } => {},
         }
     }
@@ -154,7 +158,8 @@ pub fn render_event_frame(event: &CanonicalEvent, model: &str) -> Option<Bytes> 
         CanonicalEvent::ContentBlockStop { .. }
         | CanonicalEvent::MessageStop { .. }
         | CanonicalEvent::UsageDelta(_)
-        | CanonicalEvent::SignatureDelta { .. } => return None,
+        | CanonicalEvent::SignatureDelta { .. }
+        | CanonicalEvent::EncryptedContentDelta { .. } => return None,
         CanonicalEvent::Error(msg) => return Some(render_error_frame(msg)),
     };
     Some(Bytes::from(format!(
@@ -188,16 +193,39 @@ fn render_block_start(index: u32, block: &ContentBlockKind) -> Value {
                 "status": "in_progress",
             },
         }),
-        ContentBlockKind::Thinking { .. } => json!({
+        ContentBlockKind::Thinking { id, .. } => json!({
             "type": "response.output_item.added",
             "output_index": index,
             "item": {
                 "type": "reasoning",
-                "id": format!("rs_{index}"),
+                "id": id.clone().unwrap_or_else(|| format!("rs_{index}")),
                 "summary": [],
             },
         }),
     }
+}
+
+pub(super) fn reasoning_output_item(
+    id: Option<&str>,
+    fallback_id: &str,
+    text: &str,
+    encrypted_content: Option<&str>,
+) -> Value {
+    let mut item = serde_json::Map::new();
+    item.insert("type".into(), json!("reasoning"));
+    item.insert("id".into(), json!(id.unwrap_or(fallback_id)));
+    item.insert(
+        "summary".into(),
+        if text.is_empty() {
+            json!([])
+        } else {
+            json!([{ "type": "summary_text", "text": text }])
+        },
+    );
+    if let Some(enc) = encrypted_content {
+        item.insert("encrypted_content".into(), json!(enc));
+    }
+    Value::Object(item)
 }
 
 fn render_error_frame(msg: &str) -> Bytes {

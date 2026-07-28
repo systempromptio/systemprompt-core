@@ -58,6 +58,7 @@ fn convert_content_block_start(value: &Value) -> Option<CanonicalEvent> {
     let kind = match block_type {
         "text" => ContentBlockKind::Text,
         "thinking" => ContentBlockKind::Thinking {
+            id: None,
             signature: block
                 .get("signature")
                 .and_then(Value::as_str)
