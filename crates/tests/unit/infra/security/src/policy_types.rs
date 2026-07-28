@@ -2,7 +2,7 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 use serde_json::json;
-use systemprompt_identifiers::{McpToolName, PolicyId, SessionId, UserId};
+use systemprompt_identifiers::{CallId, McpToolName, PolicyId, SessionId, UserId};
 use systemprompt_security::authz::types::{Decision, MatchedBy};
 use systemprompt_security::policy::types::{
     AccessScope, AgentScope, GovernanceChain, GovernancePolicy, McpToolInput, PolicyContext,
@@ -170,6 +170,8 @@ impl GovernancePolicy for DenyPolicy {
     }
 }
 
+static TEST_CALL: std::sync::LazyLock<CallId> = std::sync::LazyLock::new(CallId::generate);
+
 fn make_context<'a>(
     tool: &'a McpToolName,
     session: &'a SessionId,
@@ -183,6 +185,7 @@ fn make_context<'a>(
         session_id: session,
         user_id: user,
         tool_input: input,
+        call_id: &TEST_CALL,
     }
 }
 

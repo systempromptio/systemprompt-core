@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.26.0]
+
+### Added
+
+- `CallId` identifies one governed call, stable across every evaluation of it, so a policy that accumulates state can tell a re-evaluation from a new call.
+
 ## [0.23.0] - 2026-07-24
 
 ### Breaking

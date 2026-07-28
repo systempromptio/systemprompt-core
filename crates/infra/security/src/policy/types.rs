@@ -15,7 +15,7 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
-use systemprompt_identifiers::{McpToolName, PolicyId, SessionId, UserId};
+use systemprompt_identifiers::{CallId, McpToolName, PolicyId, SessionId, UserId};
 
 use crate::authz::error::AuthzError;
 use crate::authz::types::Decision;
@@ -159,13 +159,24 @@ pub struct PolicyContext<'a> {
     pub session_id: &'a SessionId,
     pub user_id: &'a UserId,
     pub tool_input: &'a McpToolInput,
+    /// Identity of the logical call, stable across every evaluation of it.
+    ///
+    /// One call is legitimately evaluated more than once — an enforcement point
+    /// behind another still has to run the chain, because it is reachable by
+    /// callers that never passed the first. A policy that accumulates state
+    /// uses this to tell "the same call again" from "another call".
+    pub call_id: &'a CallId,
 }
 
 /// A unit of governance evaluation for an MCP tool call.
 ///
-/// Implementations are pure-sync and side-effect free; auditing happens
-/// outside the chain. First-deny-wins composition is provided by
-/// [`super::GovernanceChain`].
+/// Implementations are pure-sync; auditing happens outside the chain.
+/// First-deny-wins composition is provided by [`super::GovernanceChain`].
+///
+/// `evaluate` must be **idempotent per [`PolicyContext::call_id`]**: evaluating
+/// one call twice yields the same [`Decision`] and leaves the same state behind
+/// as evaluating it once. A policy that counts calls therefore counts calls,
+/// not evaluations — the two diverge wherever enforcement points nest.
 pub trait GovernancePolicy: Send + Sync + fmt::Debug {
     fn id(&self) -> PolicyId;
     fn name(&self) -> &'static str;

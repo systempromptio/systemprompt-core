@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.26.0]
+
+### Breaking
+
+- **Breaking:** `PolicyContext` carries a `call_id`, and `GovernancePolicy::evaluate` is documented as idempotent per that id: evaluating one call twice must yield the same `Decision` and leave the same state behind as evaluating it once. One call is legitimately evaluated more than once — an enforcement point behind another still runs the chain, because callers that never passed the first can reach it — so a policy that counts calls must count calls rather than evaluations. Migrate by populating the new field at each enforcement point; a policy that keeps no state is unaffected.
+
 ## [0.23.0] - 2026-07-24
 
 ### Added
