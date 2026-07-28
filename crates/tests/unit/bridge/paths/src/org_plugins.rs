@@ -100,3 +100,46 @@ fn set_xdg_os(v: &std::ffi::OsStr) {
 fn clear_xdg() {
     unsafe { std::env::remove_var("XDG_DATA_HOME") }
 }
+
+// The install suite used to cover this incidentally, by pinning an unwritable
+// system root so its assertions landed on the user scope. That decoy could not
+// survive macOS, where the system scope is taken unconditionally, so the
+// behaviour it depended on is asserted directly here instead.
+#[cfg(not(any(target_os = "macos", target_os = "windows")))]
+#[test]
+fn an_unwritable_system_root_falls_back_to_the_user_scope() {
+    use systemprompt_bridge::config::paths::{Scope, org_plugins_install_target};
+
+    let _guard = env_lock();
+    let data = tempfile::TempDir::new().expect("data dir");
+    let system = tempfile::TempDir::new().expect("system dir");
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(system.path(), std::fs::Permissions::from_mode(0o555))
+            .expect("read-only system root");
+    }
+
+    let prev_xdg = std::env::var_os("XDG_DATA_HOME");
+    let prev_system = std::env::var_os("SP_BRIDGE_ORG_PLUGINS_SYSTEM");
+    set_xdg(&data.path().display().to_string());
+    unsafe {
+        std::env::set_var(
+            "SP_BRIDGE_ORG_PLUGINS_SYSTEM",
+            system.path().join("Claude").join("org-plugins"),
+        );
+    }
+
+    let target = org_plugins_install_target().expect("a target always resolves");
+
+    match prev_xdg {
+        Some(v) => set_xdg_os(&v),
+        None => clear_xdg(),
+    }
+    match prev_system {
+        Some(v) => unsafe { std::env::set_var("SP_BRIDGE_ORG_PLUGINS_SYSTEM", v) },
+        None => unsafe { std::env::remove_var("SP_BRIDGE_ORG_PLUGINS_SYSTEM") },
+    }
+
+    assert!(matches!(target.scope, Scope::User), "{target:?}");
+    assert_eq!(target.path, data.path().join("Claude").join("org-plugins"));
+}

@@ -62,6 +62,13 @@ impl Env {
                 Some(self.home.path().display().to_string()),
             ),
             ("SP_BRIDGE_CONFIG", None),
+            // macOS resolves org-plugins to the system scope unconditionally —
+            // Claude Desktop reads nowhere else — so XDG_DATA_HOME alone leaves
+            // these checks pointed at the real /Library root.
+            (
+                "SP_BRIDGE_ORG_PLUGINS_SYSTEM",
+                Some(self.org_plugins().display().to_string()),
+            ),
         ];
         temp_env::with_vars(vars, f)
     }

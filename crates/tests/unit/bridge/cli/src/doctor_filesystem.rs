@@ -10,6 +10,18 @@ fn with_dirs<R>(data: &TempDir, state: &TempDir, home: &TempDir, f: impl FnOnce(
         ("XDG_CONFIG_HOME", Some(home.path().display().to_string())),
         ("XDG_DATA_HOME", Some(data.path().display().to_string())),
         ("XDG_STATE_HOME", Some(state.path().display().to_string())),
+        // macOS resolves org-plugins to the system scope unconditionally, so
+        // XDG_DATA_HOME alone leaves the check probing the real /Library root.
+        (
+            "SP_BRIDGE_ORG_PLUGINS_SYSTEM",
+            Some(
+                data.path()
+                    .join("Claude")
+                    .join("org-plugins")
+                    .display()
+                    .to_string(),
+            ),
+        ),
     ];
     temp_env::with_vars(vars, f)
 }
