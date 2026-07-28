@@ -36,10 +36,15 @@
 # the wrong output. Serialise the whole config-writing suite into one slot.
 #
 # The messaging dispatch and full-router tests share one dispatchable agent
-# backend: a fixed-name `services` row (`test_messaging_agent`) repointed at each
-# test's own wiremock port. A concurrent run would overwrite another test's
-# backend port mid-dispatch, sending its reply to the wrong mock. Serialise the
-# whole messaging suite into one slot so each test owns the backend row.
+# backend: a `services` row repointed at each test's own wiremock port. A
+# concurrent run would overwrite another test's backend port mid-dispatch,
+# sending its reply to the wrong mock. They share the services-table slot rather
+# than owning one, because that row must also survive the table-wide sweeps the
+# suites below run: `cleanup_stale_service_entries` judges a `running` row stale
+# unless its PID both exists and names the agent in its environment, which a
+# nextest process seeding the row on its own PID can never satisfy. Left in its
+# own slot, a sweep deletes the backend between the seed and the dispatch and
+# the reply comes back as a generic error card.
 #
 # The agent artifact suites share the `task_artifacts`/`artifact_parts` tables:
 # `artifact_parts::get_parts_rejects_non_object_data_content` seeds a
@@ -50,7 +55,6 @@
 # bad row.
 [test-groups]
 agent-artifacts-db = { max-threads = 1 }
-messaging-dispatch-db = { max-threads = 1 }
 scheduler-services-db = { max-threads = 1 }
 scheduler-jobs-db = { max-threads = 1 }
 oauth-clients-db = { max-threads = 1 }
@@ -70,11 +74,11 @@ test-group = 'cloud-checkout-port'
 
 [[profile.default.overrides]]
 filter = 'package(systemprompt-api-integration-tests) and test(/(messaging_dispatch|routes_slack|routes_teams)::/)'
-test-group = 'messaging-dispatch-db'
+test-group = 'scheduler-services-db'
 
 [[profile.ci.overrides]]
 filter = 'package(systemprompt-api-integration-tests) and test(/(messaging_dispatch|routes_slack|routes_teams)::/)'
-test-group = 'messaging-dispatch-db'
+test-group = 'scheduler-services-db'
 
 [[profile.default.overrides]]
 filter = 'package(systemprompt-api-integration-tests) and test(/(server_health_more|server_run_loop|proxy_more|proxy_external_mcp|health_monitor)::/)'
@@ -228,7 +232,7 @@ final-status-level = "slow"
 
 [[profile.coverage.overrides]]
 filter = 'package(systemprompt-api-integration-tests) and test(/(messaging_dispatch|routes_slack|routes_teams)::/)'
-test-group = 'messaging-dispatch-db'
+test-group = 'scheduler-services-db'
 
 [[profile.coverage.overrides]]
 filter = 'package(systemprompt-api-integration-tests) and test(/(server_health_more|server_run_loop|proxy_more|proxy_external_mcp|health_monitor)::/)'
