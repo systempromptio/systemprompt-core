@@ -43,12 +43,11 @@ pub fn org_plugins_system() -> Option<PathBuf> {
 
 #[cfg(target_os = "macos")]
 pub fn org_plugins_user() -> Option<PathBuf> {
-    crate::basedirs::home_dir().map(|h| {
-        h.join("Library")
-            .join("Application Support")
-            .join("Claude")
-            .join("org-plugins")
-    })
+    crate::basedirs::data_home_override()
+        .or_else(|| {
+            crate::basedirs::home_dir().map(|h| h.join("Library").join("Application Support"))
+        })
+        .map(|base| base.join("Claude").join("org-plugins"))
 }
 
 // Cowork scans %ProgramFiles%\Claude\org-plugins only; %ProgramData% is
@@ -65,7 +64,9 @@ pub fn org_plugins_system() -> Option<PathBuf> {
 
 #[cfg(target_os = "windows")]
 pub fn org_plugins_user() -> Option<PathBuf> {
-    std::env::var_os("LOCALAPPDATA").map(|p| PathBuf::from(p).join("Claude").join("org-plugins"))
+    crate::basedirs::data_home_override()
+        .or_else(|| std::env::var_os("LOCALAPPDATA").map(PathBuf::from))
+        .map(|base| base.join("Claude").join("org-plugins"))
 }
 
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]
@@ -76,8 +77,7 @@ pub fn org_plugins_system() -> Option<PathBuf> {
 
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]
 pub fn org_plugins_user() -> Option<PathBuf> {
-    std::env::var_os("XDG_DATA_HOME")
-        .map(PathBuf::from)
+    crate::basedirs::data_home_override()
         .or_else(|| crate::basedirs::home_dir().map(|h| h.join(".local").join("share")))
         .map(|base| base.join("Claude").join("org-plugins"))
 }
@@ -203,29 +203,24 @@ fn can_create_in(dir: &std::path::Path) -> bool {
 // an error.
 #[must_use]
 pub fn cowork3p_sessions_root() -> Option<PathBuf> {
+    cowork3p_base().map(|base| base.join("Claude-3p").join("local-agent-mode-sessions"))
+}
+
+fn cowork3p_base() -> Option<PathBuf> {
+    if let Some(base) = crate::basedirs::config_home_override() {
+        return Some(base);
+    }
     #[cfg(target_os = "windows")]
     {
-        std::env::var_os("LOCALAPPDATA").map(|p| {
-            PathBuf::from(p)
-                .join("Claude-3p")
-                .join("local-agent-mode-sessions")
-        })
+        std::env::var_os("LOCALAPPDATA").map(PathBuf::from)
     }
     #[cfg(target_os = "macos")]
     {
-        return crate::basedirs::home_dir().map(|h| {
-            h.join("Library")
-                .join("Application Support")
-                .join("Claude-3p")
-                .join("local-agent-mode-sessions")
-        });
+        crate::basedirs::home_dir().map(|h| h.join("Library").join("Application Support"))
     }
     #[cfg(not(any(target_os = "windows", target_os = "macos")))]
     {
-        std::env::var_os("XDG_CONFIG_HOME")
-            .map(PathBuf::from)
-            .or_else(|| crate::basedirs::home_dir().map(|h| h.join(".config")))
-            .map(|base| base.join("Claude-3p").join("local-agent-mode-sessions"))
+        crate::basedirs::home_dir().map(|h| h.join(".config"))
     }
 }
 
@@ -234,30 +229,27 @@ pub const COWORK_PLUGINS_SUBDIR: &str = "cowork_plugins";
 pub const COWORK_ARTIFACTS_SUBDIR: &str = "cowork_artifacts";
 
 // Always user-writable, unlike the admin-only org-plugins root on Windows.
-#[cfg(target_os = "windows")]
 #[must_use]
 pub fn bridge_working_dir() -> Option<PathBuf> {
-    std::env::var_os("LOCALAPPDATA")
-        .map(|p| PathBuf::from(p).join(crate::brand::brand().working_dir_name))
+    bridge_state_base().map(|base| base.join(crate::brand::brand().working_dir_name))
 }
 
-#[cfg(target_os = "macos")]
-#[must_use]
-pub fn bridge_working_dir() -> Option<PathBuf> {
-    crate::basedirs::home_dir().map(|h| {
-        h.join("Library")
-            .join("Application Support")
-            .join(crate::brand::brand().working_dir_name)
-    })
-}
-
-#[cfg(not(any(target_os = "macos", target_os = "windows")))]
-#[must_use]
-pub fn bridge_working_dir() -> Option<PathBuf> {
-    std::env::var_os("XDG_STATE_HOME")
-        .map(PathBuf::from)
-        .or_else(|| crate::basedirs::home_dir().map(|h| h.join(".local").join("state")))
-        .map(|base| base.join(crate::brand::brand().working_dir_name))
+fn bridge_state_base() -> Option<PathBuf> {
+    if let Some(base) = crate::basedirs::state_home_override() {
+        return Some(base);
+    }
+    #[cfg(target_os = "windows")]
+    {
+        std::env::var_os("LOCALAPPDATA").map(PathBuf::from)
+    }
+    #[cfg(target_os = "macos")]
+    {
+        crate::basedirs::home_dir().map(|h| h.join("Library").join("Application Support"))
+    }
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+    {
+        crate::basedirs::home_dir().map(|h| h.join(".local").join("state"))
+    }
 }
 
 #[must_use]

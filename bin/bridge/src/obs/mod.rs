@@ -126,30 +126,26 @@ pub mod tracing_init {
         Some(dir.join(format!("bridge.log.{day}")))
     }
 
-    #[cfg(target_os = "windows")]
     fn platform_log_dir() -> Option<PathBuf> {
-        std::env::var_os("LOCALAPPDATA").map(|p| {
-            PathBuf::from(p)
-                .join("Claude")
-                .join(crate::brand::brand().working_dir_name)
-        })
+        log_base().map(|base| base.join(crate::brand::brand().working_dir_name))
     }
 
-    #[cfg(target_os = "macos")]
-    fn platform_log_dir() -> Option<PathBuf> {
-        crate::basedirs::home_dir().map(|h| {
-            h.join("Library")
-                .join("Logs")
-                .join(crate::brand::brand().working_dir_name)
-        })
-    }
-
-    #[cfg(not(any(target_os = "windows", target_os = "macos")))]
-    fn platform_log_dir() -> Option<PathBuf> {
-        std::env::var_os("XDG_STATE_HOME")
-            .map(PathBuf::from)
-            .or_else(|| crate::basedirs::home_dir().map(|h| h.join(".local").join("state")))
-            .map(|base| base.join(crate::brand::brand().working_dir_name))
+    fn log_base() -> Option<PathBuf> {
+        if let Some(base) = crate::basedirs::state_home_override() {
+            return Some(base);
+        }
+        #[cfg(target_os = "windows")]
+        {
+            std::env::var_os("LOCALAPPDATA").map(|p| PathBuf::from(p).join("Claude"))
+        }
+        #[cfg(target_os = "macos")]
+        {
+            crate::basedirs::home_dir().map(|h| h.join("Library").join("Logs"))
+        }
+        #[cfg(not(any(target_os = "windows", target_os = "macos")))]
+        {
+            crate::basedirs::home_dir().map(|h| h.join(".local").join("state"))
+        }
     }
 
     // Install before `init` so panics during subscriber setup are captured.

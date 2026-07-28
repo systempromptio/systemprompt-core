@@ -50,3 +50,26 @@ pub fn data_local_dir() -> Option<PathBuf> {
 pub fn desktop_dir() -> Option<PathBuf> {
     dirs::desktop_dir()
 }
+
+/// The override root alone, with no fallback.
+///
+/// The path ladders in [`crate::config::paths`] and [`crate::obs`] cannot use
+/// the functions above: they hand-roll a different layout per platform —
+/// `LOCALAPPDATA` on Windows, `Library/Application Support` on macOS — and only
+/// the Linux arm ever consulted these variables. Each ladder consults its
+/// override first and keeps its native layout as the fallback, so a caller that
+/// sets one gets the same directory on all three platforms.
+#[must_use]
+pub fn config_home_override() -> Option<PathBuf> {
+    env_dir("XDG_CONFIG_HOME")
+}
+
+#[must_use]
+pub fn data_home_override() -> Option<PathBuf> {
+    env_dir("XDG_DATA_HOME")
+}
+
+#[must_use]
+pub fn state_home_override() -> Option<PathBuf> {
+    env_dir("XDG_STATE_HOME")
+}
