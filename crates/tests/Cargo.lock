@@ -7488,6 +7488,7 @@ version = "0.0.11"
 dependencies = [
  "systemprompt-bridge",
  "temp-env",
+ "tempfile",
 ]
 
 [[package]]
