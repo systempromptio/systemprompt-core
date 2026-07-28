@@ -12,7 +12,7 @@ use systemprompt_models::artifacts::card::{
     CardCta, CardSection, PresentationCardArtifact, PresentationCardResponse,
 };
 use systemprompt_models::artifacts::chart::{ChartArtifact, ChartDataset};
-use systemprompt_models::artifacts::dashboard::DashboardArtifact;
+use systemprompt_models::artifacts::dashboard::{DashboardArtifact, DashboardHints, LayoutMode};
 use systemprompt_models::artifacts::image::ImageArtifact;
 use systemprompt_models::artifacts::list::{ListArtifact, ListItem};
 use systemprompt_models::artifacts::traits::Artifact;
@@ -423,25 +423,52 @@ fn chart_with_labels_alias() {
 }
 
 #[test]
-fn chart_schema_carries_hints() {
+fn chart_schema_declares_presentation_properties() {
     let c = ChartArtifact::new("My Chart", ChartType::Bar).with_axes("X-axis", "Y-axis");
     let s = c.to_schema();
     assert_eq!(s["x-artifact-type"], "chart");
     assert_eq!(s["required"], json!(["labels", "datasets"]));
-    assert_eq!(s["x-chart-hints"]["title"], "My Chart");
-    assert_eq!(s["x-chart-hints"]["x_axis"]["label"], "X-axis");
-    assert_eq!(s["x-chart-hints"]["y_axis"]["label"], "Y-axis");
+    assert!(s["properties"]["chart_type"].is_object());
+    assert!(s["properties"]["title"].is_object());
+    assert!(s.get("x-chart-hints").is_none());
 }
 
 #[test]
-fn chart_serde_excludes_skipped_fields() {
+fn chart_serde_carries_presentation_fields() {
     let c = ChartArtifact::new("T", ChartType::Pie)
-        .with_datasets(vec![ChartDataset::new("d", vec![1.0, 2.0])]);
+        .with_datasets(vec![ChartDataset::new("d", vec![1.0, 2.0])])
+        .with_axes("X", "Y");
     let v = serde_json::to_value(&c).unwrap();
     assert_eq!(v["x-artifact-type"], "chart");
-    assert!(v.get("title").is_none());
-    assert!(v.get("chart_type").is_none());
+    assert_eq!(v["title"], "T");
+    assert_eq!(v["chart_type"], "pie");
+    assert_eq!(v["x_axis_label"], "X");
+    assert_eq!(v["y_axis_label"], "Y");
     assert_eq!(v["datasets"][0]["label"], "d");
+    assert!(v.get("metadata").is_none());
+}
+
+#[test]
+fn chart_serde_roundtrip() {
+    let c = ChartArtifact::new("T", ChartType::Area)
+        .with_labels(vec!["a".to_owned()])
+        .with_datasets(vec![ChartDataset::new("d", vec![1.0])]);
+    let v = serde_json::to_value(&c).unwrap();
+    let back: ChartArtifact = serde_json::from_value(v).unwrap();
+    assert_eq!(back.title, "T");
+    assert!(matches!(back.chart_type, ChartType::Area));
+}
+
+#[test]
+fn chart_deserializes_stored_payload_without_presentation_fields() {
+    let back: ChartArtifact = serde_json::from_value(json!({
+        "x-artifact-type": "chart",
+        "labels": ["a"],
+        "datasets": [{"label": "d", "data": [1.0]}]
+    }))
+    .unwrap();
+    assert!(back.title.is_empty());
+    assert!(matches!(back.chart_type, ChartType::Line));
 }
 
 // ---------- DashboardArtifact ----------
@@ -467,8 +494,29 @@ fn dashboard_serde_skips_none_description() {
     assert_eq!(v["x-artifact-type"], "dashboard");
     assert_eq!(v["title"], "Ops");
     assert!(v.get("description").is_none());
-    assert!(v.get("hints").is_none());
+    assert!(v["hints"].is_object());
     assert!(v.get("metadata").is_none());
+}
+
+#[test]
+fn dashboard_hints_serialize_with_payload() {
+    let d = DashboardArtifact::new("Ops")
+        .with_hints(DashboardHints::new().with_layout(LayoutMode::Grid));
+    let v = serde_json::to_value(&d).unwrap();
+    assert_eq!(v["hints"]["layout"], "grid");
+    let back: DashboardArtifact = serde_json::from_value(v).unwrap();
+    assert!(matches!(back.hints.layout, LayoutMode::Grid));
+}
+
+#[test]
+fn dashboard_deserializes_stored_payload_without_hints() {
+    let back: DashboardArtifact = serde_json::from_value(json!({
+        "x-artifact-type": "dashboard",
+        "title": "Ops",
+        "sections": []
+    }))
+    .unwrap();
+    assert!(matches!(back.hints.layout, LayoutMode::Vertical));
 }
 
 #[test]
@@ -477,5 +525,5 @@ fn dashboard_schema_shape() {
     let s = d.to_schema();
     assert_eq!(s["x-artifact-type"], "dashboard");
     assert_eq!(s["required"], json!(["title", "sections"]));
-    assert!(s["x-dashboard-hints"].is_object());
+    assert!(s.get("x-dashboard-hints").is_none());
 }

@@ -2,9 +2,10 @@
 //! schemas.
 //!
 //! [`build_metadata`] assembles validated artifact metadata for a transformed
-//! MCP tool result, deriving rendering hints (table columns, form fields, chart
-//! and dashboard layouts) from the tool's output schema and honouring any
-//! explicit `x-*-hints` overrides.
+//! MCP tool result, deriving rendering hints (table columns, form fields,
+//! presentation themes) from the tool's output schema and honouring any
+//! explicit `x-*-hints` overrides. Chart and dashboard presentation travels in
+//! the artifact payload itself, so those types carry no rendering hints.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -37,9 +38,7 @@ pub fn build_metadata(params: BuildMetadataParams<'_>) -> Result<ArtifactMetadat
     let rendering_hints = match artifact_type {
         ArtifactType::Table => extract_table_hints(schema),
         ArtifactType::Form => extract_form_hints(schema),
-        ArtifactType::Chart => extract_chart_hints(schema),
         ArtifactType::PresentationCard => extract_presentation_hints(schema),
-        ArtifactType::Dashboard => extract_dashboard_hints(schema),
         _ => json!(null),
     };
 
@@ -111,17 +110,6 @@ fn extract_form_hints(schema: Option<&JsonValue>) -> JsonValue {
     json!({})
 }
 
-fn extract_chart_hints(schema: Option<&JsonValue>) -> JsonValue {
-    if let Some(schema) = schema
-        && let Some(hints) = schema.get("x-chart-hints")
-    {
-        return hints.clone();
-    }
-    json!({
-        "chart_type": "bar",
-    })
-}
-
 fn extract_presentation_hints(schema: Option<&JsonValue>) -> JsonValue {
     if let Some(schema) = schema
         && let Some(hints) = schema.get("x-presentation-hints")
@@ -130,17 +118,6 @@ fn extract_presentation_hints(schema: Option<&JsonValue>) -> JsonValue {
     }
     json!({
         "theme": "default"
-    })
-}
-
-fn extract_dashboard_hints(schema: Option<&JsonValue>) -> JsonValue {
-    if let Some(schema) = schema
-        && let Some(hints) = schema.get("x-dashboard-hints")
-    {
-        return hints.clone();
-    }
-    json!({
-        "layout": "vertical"
     })
 }
 

@@ -1,9 +1,9 @@
 //! Chart artifact.
 //!
 //! A [`ChartArtifact`] carries labelled axes and one or more [`ChartDataset`]s
-//! for a given [`ChartType`]. Axis configuration and presentation hints are
-//! serialized into the emitted JSON schema; the artifact implements
-//! [`Artifact`].
+//! for a given [`ChartType`]. Chart type, title, and axis configuration
+//! serialize with the payload so renderers consume them directly; the artifact
+//! implements [`Artifact`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -43,24 +43,18 @@ pub struct ChartArtifact {
     pub artifact_type: String,
     pub labels: Vec<String>,
     pub datasets: Vec<ChartDataset>,
-    #[serde(skip)]
-    #[schemars(skip)]
-    chart_type: ChartType,
-    #[serde(skip)]
-    #[schemars(skip)]
-    title: String,
-    #[serde(skip)]
-    #[schemars(skip)]
-    x_axis_label: String,
-    #[serde(skip)]
-    #[schemars(skip)]
-    y_axis_label: String,
-    #[serde(skip)]
-    #[schemars(skip)]
-    x_axis_type: AxisType,
-    #[serde(skip)]
-    #[schemars(skip)]
-    y_axis_type: AxisType,
+    #[serde(default)]
+    pub chart_type: ChartType,
+    #[serde(default)]
+    pub title: String,
+    #[serde(default)]
+    pub x_axis_label: String,
+    #[serde(default)]
+    pub y_axis_label: String,
+    #[serde(default)]
+    pub x_axis_type: AxisType,
+    #[serde(default)]
+    pub y_axis_type: AxisType,
     #[serde(skip)]
     #[schemars(skip)]
     metadata: ExecutionMetadata,
@@ -163,22 +157,16 @@ impl Artifact for ChartArtifact {
                         }
                     }
                 },
+                "chart_type": {"type": "string"},
+                "title": {"type": "string"},
+                "x_axis_label": {"type": "string"},
+                "y_axis_label": {"type": "string"},
+                "x_axis_type": {"type": "string"},
+                "y_axis_type": {"type": "string"},
                 "_execution_id": {"type": "string"}
             },
             "required": ["labels", "datasets"],
-            "x-artifact-type": "chart",
-            "x-chart-hints": {
-                "chart_type": self.chart_type,
-                "title": self.title,
-                "x_axis": {
-                    "label": self.x_axis_label,
-                    "type": self.x_axis_type
-                },
-                "y_axis": {
-                    "label": self.y_axis_label,
-                    "type": self.y_axis_type
-                }
-            }
+            "x-artifact-type": "chart"
         })
     }
 }

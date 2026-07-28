@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.26.0]
+
+### Changed
+
+- The artifact transformer no longer synthesizes `rendering_hints` for chart and dashboard artifacts from `x-chart-hints`/`x-dashboard-hints` schema blocks. Chart and dashboard presentation travels in the artifact payload itself, and the renderers stopped reading the hints. Table, form, and presentation-card hints are unchanged.
+
 ## [0.25.0] - 2026-07-27
 
 ### Fixed

@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.26.0]
+
+### Breaking
+
+- **Breaking:** `ChartArtifact` serializes `chart_type`, `title`, `x_axis_label`, `y_axis_label`, `x_axis_type`, and `y_axis_type` with the payload, and the fields are public. They were `#[serde(skip)]` and only ever surfaced through the schema's `x-chart-hints` block, which nothing on the stored-artifact path read — every stored chart rendered as an untitled bar chart regardless of what the builder was told. The `x-chart-hints` block is gone from `to_schema`; the fields appear in `properties` instead. Payloads stored before this release lack the new fields and deserialize to the defaults, which renders exactly as they did before.
+- **Breaking:** `DashboardArtifact.hints` serializes with the payload and is public, and `DashboardHints::generate_schema` is deleted along with the schema's `x-dashboard-hints` block — layout now travels in the artifact itself rather than in a side channel the renderer never received.
+- **Breaking:** the dashboard and chart renderers consume the typed artifact models. The dashboard renderer previously parsed a loose dialect (`type`, top-level `id`/`width`, flat `metrics`/`items` arrays) that no producer emitted — the typed models serialize `section_type`, `section_id`, `layout`, and nested `data` structs, so every typed dashboard rendered with empty section bodies. The loose dialect is deleted; a section whose `data` does not match its declared `section_type` is now a render error rather than an empty body. The artifact transformer no longer synthesizes `rendering_hints` for chart and dashboard artifacts, since nothing reads them.
+
+### Added
+
+- `SectionType::Text` and `SectionType::Timeline` render: `TextSectionData` carries a free-text section body and `TimelineSectionData` an ordered list of `TimelineEvent`s. `Timeline` existed in the model but had no renderer-side counterpart, so a timeline section silently rendered as empty text.
+
+### Fixed
+
+- Typed `DashboardSection` payloads render their bodies. The renderer resolved the section type from a `type` key the typed model never serializes, so every section fell through to the text fallback and rendered an empty paragraph; section ids, layout widths, ordering, and every per-type data shape (`cards`, `columns`/`rows`, `services`, `lists`) now come from the typed structs.
+- Chart titles, chart types, and axis labels survive storage. The chart renderer read them exclusively from `metadata.rendering_hints`, which the stored-artifact path never populated.
+
 ## [0.25.0] - 2026-07-27
 
 ### Breaking

@@ -5,9 +5,32 @@ use systemprompt_mcp::services::ui_renderer::templates::{
 use systemprompt_mcp::services::ui_renderer::{
     CspPolicy, MCP_APP_MIME_TYPE, UiMetadata, UiRenderer, UiResource,
 };
+use systemprompt_models::artifacts::chart::{ChartArtifact, ChartDataset};
+use systemprompt_models::artifacts::dashboard::{
+    ChartSectionData, DashboardArtifact, DashboardHints, DashboardSection, ItemList, LayoutMode,
+    ListItem, ListSectionData, MetricCard, MetricsCardsData, SectionType, ServiceStatus,
+    StatusSectionData, TableSectionData, TextSectionData,
+};
+use systemprompt_models::artifacts::types::ChartType;
 use systemprompt_models::{
     A2aArtifact as Artifact, ArtifactMetadata, ArtifactType, DataPart, Part, TextPart,
 };
+
+fn dashboard_artifact(dashboard: &DashboardArtifact) -> Artifact {
+    make_artifact(
+        "dashboard",
+        None,
+        None,
+        vec![data_part(serde_json::to_value(dashboard).unwrap())],
+        None,
+    )
+}
+
+fn text_section(id: &str, title: &str, text: &str) -> DashboardSection {
+    DashboardSection::new(id, title, SectionType::Text)
+        .with_data(TextSectionData::new(text))
+        .unwrap()
+}
 
 fn make_artifact(
     artifact_type: &str,
@@ -267,74 +290,78 @@ fn chart_renderer_csp_includes_jsdelivr() {
 #[tokio::test]
 async fn chart_renderer_bar_chart() {
     let renderer = ChartRenderer::new();
+    let chart = ChartArtifact::new("Sales Chart", ChartType::Bar)
+        .with_labels(vec!["Jan".into(), "Feb".into(), "Mar".into()])
+        .with_datasets(vec![ChartDataset::new(
+            "Revenue",
+            vec![100.0, 200.0, 150.0],
+        )]);
     let artifact = make_artifact(
         "chart",
-        Some("Sales Chart"),
         None,
-        vec![data_part(serde_json::json!({
-            "labels": ["Jan", "Feb", "Mar"],
-            "datasets": [{"label": "Revenue", "data": [100, 200, 150]}]
-        }))],
-        Some(serde_json::json!({"chart_type": "bar"})),
+        None,
+        vec![data_part(serde_json::to_value(&chart).unwrap())],
+        None,
     );
     let result = renderer.render(&artifact).await.unwrap();
     assert!(result.html.contains("Sales Chart"));
-    assert!(result.html.contains("chart"));
+    assert!(result.html.contains(r#""type":"bar""#));
 }
 
 #[tokio::test]
 async fn chart_renderer_line_chart() {
     let renderer = ChartRenderer::new();
+    let chart = ChartArtifact::new("Trend", ChartType::Line)
+        .with_labels(vec!["Q1".into(), "Q2".into()])
+        .with_datasets(vec![ChartDataset::new("Growth", vec![10.0, 20.0])]);
     let artifact = make_artifact(
         "chart",
-        Some("Trend"),
         None,
-        vec![data_part(serde_json::json!({
-            "labels": ["Q1", "Q2"],
-            "datasets": [{"label": "Growth", "data": [10, 20]}]
-        }))],
-        Some(serde_json::json!({"chart_type": "line"})),
+        None,
+        vec![data_part(serde_json::to_value(&chart).unwrap())],
+        None,
     );
     let result = renderer.render(&artifact).await.unwrap();
     assert!(result.html.contains("Trend"));
+    assert!(result.html.contains(r#""type":"line""#));
 }
 
 #[tokio::test]
 async fn chart_renderer_pie_chart() {
     let renderer = ChartRenderer::new();
+    let chart = ChartArtifact::new("Split", ChartType::Pie)
+        .with_labels(vec!["A".into(), "B".into()])
+        .with_datasets(vec![ChartDataset::new("Share", vec![60.0, 40.0])]);
     let artifact = make_artifact(
         "chart",
         None,
         None,
-        vec![data_part(serde_json::json!({
-            "labels": ["A", "B"],
-            "datasets": [{"data": [60, 40]}]
-        }))],
-        Some(serde_json::json!({"chart_type": "pie"})),
+        vec![data_part(serde_json::to_value(&chart).unwrap())],
+        None,
     );
     let result = renderer.render(&artifact).await.unwrap();
     assert!(result.html.contains("canvas"));
+    assert!(result.html.contains(r#""type":"pie""#));
 }
 
 #[tokio::test]
 async fn chart_renderer_with_axis_labels() {
     let renderer = ChartRenderer::new();
+    let chart = ChartArtifact::new("Bars", ChartType::Bar)
+        .with_labels(vec!["A".into()])
+        .with_datasets(vec![ChartDataset::new("Data", vec![1.0])])
+        .with_axes("Category", "Value");
     let artifact = make_artifact(
         "chart",
         None,
         None,
-        vec![data_part(serde_json::json!({
-            "labels": ["A"],
-            "data": [1]
-        }))],
-        Some(serde_json::json!({
-            "chart_type": "bar",
-            "x_axis_label": "Category",
-            "y_axis_label": "Value"
-        })),
+        vec![data_part(serde_json::to_value(&chart).unwrap())],
+        None,
     );
     let result = renderer.render(&artifact).await.unwrap();
     assert!(result.html.contains("CHART_CONFIG"));
+    assert!(result.html.contains("Category"));
+    assert!(result.html.contains("Value"));
 }
 
 #[test]
@@ -690,54 +717,41 @@ fn dashboard_renderer_csp_includes_jsdelivr() {
 #[tokio::test]
 async fn dashboard_renderer_vertical_layout() {
     let renderer = DashboardRenderer::new();
-    let artifact = make_artifact(
-        "dashboard",
-        Some("Overview"),
-        None,
-        vec![data_part(serde_json::json!({
-            "sections": [
-                {"type": "text", "title": "Welcome", "text": "Hello"},
-            ]
-        }))],
-        None,
-    );
-    let result = renderer.render(&artifact).await.unwrap();
+    let dashboard =
+        DashboardArtifact::new("Overview").add_section(text_section("welcome", "Welcome", "Hello"));
+    let result = renderer
+        .render(&dashboard_artifact(&dashboard))
+        .await
+        .unwrap();
     assert!(result.html.contains("Overview"));
     assert!(result.html.contains("layout-vertical"));
+    assert!(result.html.contains("Hello"));
 }
 
 #[tokio::test]
 async fn dashboard_renderer_grid_layout() {
     let renderer = DashboardRenderer::new();
-    let artifact = make_artifact(
-        "dashboard",
-        None,
-        None,
-        vec![data_part(serde_json::json!({
-            "sections": [{"type": "text", "title": "S1", "text": "A"}]
-        }))],
-        Some(serde_json::json!({"layout": "grid"})),
-    );
-    let result = renderer.render(&artifact).await.unwrap();
+    let dashboard = DashboardArtifact::new("Grid")
+        .add_section(text_section("s1", "S1", "A"))
+        .with_hints(DashboardHints::new().with_layout(LayoutMode::Grid));
+    let result = renderer
+        .render(&dashboard_artifact(&dashboard))
+        .await
+        .unwrap();
     assert!(result.html.contains("layout-grid"));
 }
 
 #[tokio::test]
 async fn dashboard_renderer_tabs_layout() {
     let renderer = DashboardRenderer::new();
-    let artifact = make_artifact(
-        "dashboard",
-        None,
-        None,
-        vec![data_part(serde_json::json!({
-            "sections": [
-                {"type": "text", "title": "Tab 1", "id": "tab1", "text": "Content 1"},
-                {"type": "text", "title": "Tab 2", "id": "tab2", "text": "Content 2"}
-            ]
-        }))],
-        Some(serde_json::json!({"layout": "tabs"})),
-    );
-    let result = renderer.render(&artifact).await.unwrap();
+    let dashboard = DashboardArtifact::new("Tabs")
+        .add_section(text_section("tab1", "Tab 1", "Content 1"))
+        .add_section(text_section("tab2", "Tab 2", "Content 2"))
+        .with_hints(DashboardHints::new().with_layout(LayoutMode::Tabs));
+    let result = renderer
+        .render(&dashboard_artifact(&dashboard))
+        .await
+        .unwrap();
     assert!(result.html.contains("layout-tabs"));
     assert!(result.html.contains("tabs-nav"));
     assert!(result.html.contains("Tab 1"));
@@ -747,48 +761,39 @@ async fn dashboard_renderer_tabs_layout() {
 #[tokio::test]
 async fn dashboard_renderer_metrics_section() {
     let renderer = DashboardRenderer::new();
-    let artifact = make_artifact(
-        "dashboard",
-        None,
-        None,
-        vec![data_part(serde_json::json!({
-            "sections": [{
-                "type": "metrics",
-                "title": "KPIs",
-                "metrics": [
-                    {"label": "Revenue", "value": 1000.50, "unit": "$", "change": 5.2},
-                    {"label": "Users", "value": 42}
-                ]
-            }]
-        }))],
-        None,
+    let dashboard = DashboardArtifact::new("KPIs").add_section(
+        DashboardSection::new("kpis", "KPIs", SectionType::MetricsCards)
+            .with_data(MetricsCardsData::new(vec![
+                MetricCard::new("Revenue", "$1000.50").with_subtitle("+5.2%"),
+                MetricCard::new("Users", "42"),
+            ]))
+            .unwrap(),
     );
-    let result = renderer.render(&artifact).await.unwrap();
+    let result = renderer
+        .render(&dashboard_artifact(&dashboard))
+        .await
+        .unwrap();
     assert!(result.html.contains("KPIs"));
     assert!(result.html.contains("metric-card"));
     assert!(result.html.contains("Revenue"));
+    assert!(result.html.contains("+5.2%"));
 }
 
 #[tokio::test]
 async fn dashboard_renderer_status_section() {
     let renderer = DashboardRenderer::new();
-    let artifact = make_artifact(
-        "dashboard",
-        None,
-        None,
-        vec![data_part(serde_json::json!({
-            "sections": [{
-                "type": "status",
-                "title": "Services",
-                "items": [
-                    {"name": "API", "status": "ok"},
-                    {"name": "DB", "status": "error"}
-                ]
-            }]
-        }))],
-        None,
+    let dashboard = DashboardArtifact::new("Health").add_section(
+        DashboardSection::new("svcs", "Services", SectionType::Status)
+            .with_data(StatusSectionData::new(vec![
+                ServiceStatus::new("API", "ok"),
+                ServiceStatus::new("DB", "error"),
+            ]))
+            .unwrap(),
     );
-    let result = renderer.render(&artifact).await.unwrap();
+    let result = renderer
+        .render(&dashboard_artifact(&dashboard))
+        .await
+        .unwrap();
     assert!(result.html.contains("Services"));
     assert!(result.html.contains("status-ok"));
     assert!(result.html.contains("status-error"));
@@ -797,67 +802,91 @@ async fn dashboard_renderer_status_section() {
 #[tokio::test]
 async fn dashboard_renderer_table_section() {
     let renderer = DashboardRenderer::new();
-    let artifact = make_artifact(
-        "dashboard",
-        None,
-        None,
-        vec![data_part(serde_json::json!({
-            "sections": [{
-                "type": "table",
-                "title": "Data",
-                "columns": ["name", "value"],
-                "rows": [{"name": "A", "value": "1"}]
-            }]
-        }))],
-        None,
+    let dashboard = DashboardArtifact::new("Data").add_section(
+        DashboardSection::new("data", "Data", SectionType::Table)
+            .with_data(TableSectionData::new(
+                vec!["name".into(), "value".into()],
+                vec![serde_json::json!({"name": "A", "value": "1"})],
+            ))
+            .unwrap(),
     );
-    let result = renderer.render(&artifact).await.unwrap();
+    let result = renderer
+        .render(&dashboard_artifact(&dashboard))
+        .await
+        .unwrap();
     assert!(result.html.contains("section-table"));
+    assert!(result.html.contains("<td>A</td>"));
 }
 
 #[tokio::test]
 async fn dashboard_renderer_chart_section() {
     let renderer = DashboardRenderer::new();
-    let artifact = make_artifact(
-        "dashboard",
-        None,
-        None,
-        vec![data_part(serde_json::json!({
-            "sections": [{
-                "type": "chart",
-                "title": "Trend",
-                "id": "my-chart",
-                "chart_type": "line",
-                "labels": ["A", "B"],
-                "datasets": [{"label": "D", "data": [1, 2]}]
-            }]
-        }))],
-        None,
+    let dashboard = DashboardArtifact::new("Trends").add_section(
+        DashboardSection::new("my-chart", "Trend", SectionType::Chart)
+            .with_data(ChartSectionData::new(
+                "line",
+                vec!["A".into(), "B".into()],
+                vec![ChartDataset::new("D", vec![1.0, 2.0])],
+            ))
+            .unwrap(),
     );
-    let result = renderer.render(&artifact).await.unwrap();
+    let result = renderer
+        .render(&dashboard_artifact(&dashboard))
+        .await
+        .unwrap();
     assert!(result.html.contains("chart-container"));
     assert!(result.html.contains("DASHBOARD_CHART_CONFIGS"));
+    assert!(result.html.contains("chart-my-chart"));
 }
 
 #[tokio::test]
 async fn dashboard_renderer_list_section() {
     let renderer = DashboardRenderer::new();
-    let artifact = make_artifact(
-        "dashboard",
-        None,
-        None,
-        vec![data_part(serde_json::json!({
-            "sections": [{
-                "type": "list",
-                "title": "Items",
-                "items": ["One", "Two"]
-            }]
-        }))],
-        None,
+    let dashboard = DashboardArtifact::new("Lists").add_section(
+        DashboardSection::new("items", "Items", SectionType::List)
+            .with_data(ListSectionData::new(vec![ItemList::new(
+                "Top",
+                vec![
+                    ListItem::new(1, "One", "10"),
+                    ListItem::new(2, "Two", "20").with_badge("new"),
+                ],
+            )]))
+            .unwrap(),
     );
-    let result = renderer.render(&artifact).await.unwrap();
+    let result = renderer
+        .render(&dashboard_artifact(&dashboard))
+        .await
+        .unwrap();
     assert!(result.html.contains("section-list"));
     assert!(result.html.contains("One"));
+    assert!(result.html.contains("list-badge"));
+}
+
+#[tokio::test]
+async fn dashboard_renderer_sections_sorted_by_order() {
+    let renderer = DashboardRenderer::new();
+    let dashboard = DashboardArtifact::new("Ordered")
+        .add_section(text_section("second", "Second", "b").with_order(1))
+        .add_section(text_section("first", "First", "a").with_order(0));
+    let result = renderer
+        .render(&dashboard_artifact(&dashboard))
+        .await
+        .unwrap();
+    let first = result.html.find("First").unwrap();
+    let second = result.html.find("Second").unwrap();
+    assert!(first < second);
+}
+
+#[tokio::test]
+async fn dashboard_renderer_rejects_mismatched_section_data() {
+    let renderer = DashboardRenderer::new();
+    let dashboard = DashboardArtifact::new("Broken").add_section(
+        DashboardSection::new("m", "Metrics", SectionType::MetricsCards)
+            .with_data(serde_json::json!({"metrics": [{"label": "x", "value": 1}]}))
+            .unwrap(),
+    );
+    let result = renderer.render(&dashboard_artifact(&dashboard)).await;
+    assert!(result.is_err());
 }
 
 #[tokio::test]
@@ -872,15 +901,25 @@ async fn all_renderers_produce_valid_html_structure() {
 
     let simple_data = vec![data_part(serde_json::json!({"text": "test"}))];
     let text_data = vec![text_part("test")];
+    let chart_payload = ChartArtifact::new("C", ChartType::Bar)
+        .with_labels(vec!["A".into()])
+        .with_datasets(vec![ChartDataset::new("D", vec![1.0])]);
+    let dashboard_payload = DashboardArtifact::new("D").add_section(text_section("s", "S", "test"));
 
     let artifacts = vec![
         make_artifact("table", None, None, simple_data.clone(), None),
-        make_artifact("chart", None, None, simple_data.clone(), None),
+        make_artifact(
+            "chart",
+            None,
+            None,
+            vec![data_part(serde_json::to_value(&chart_payload).unwrap())],
+            None,
+        ),
         make_artifact("text", None, None, text_data, None),
         make_artifact("list", None, None, simple_data.clone(), None),
         make_artifact("form", None, None, simple_data.clone(), None),
-        make_artifact("image", None, None, simple_data.clone(), None),
-        make_artifact("dashboard", None, None, simple_data, None),
+        make_artifact("image", None, None, simple_data, None),
+        dashboard_artifact(&dashboard_payload),
     ];
 
     let renderers: Vec<Box<dyn UiRenderer>> = vec![

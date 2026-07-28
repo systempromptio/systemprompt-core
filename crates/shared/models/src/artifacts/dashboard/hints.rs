@@ -1,11 +1,10 @@
-//! Rendering hints for dashboard artifacts.
+//! Layout hints for dashboard artifacts.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use serde_json::{Value as JsonValue, json};
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, JsonSchema)]
 pub struct DashboardHints {
@@ -47,19 +46,5 @@ impl DashboardHints {
     pub const fn with_layout(mut self, layout: LayoutMode) -> Self {
         self.layout = layout;
         self
-    }
-
-    pub fn generate_schema(&self) -> JsonValue {
-        let mut schema = json!({
-            "layout": self.layout,
-            "refreshable": self.refreshable,
-            "drill_down_enabled": self.drill_down_enabled
-        });
-
-        if let Some(interval) = self.refresh_interval_seconds {
-            schema["refresh_interval_seconds"] = json!(interval);
-        }
-
-        schema
     }
 }

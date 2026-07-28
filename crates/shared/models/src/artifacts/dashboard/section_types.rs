@@ -15,6 +15,7 @@ pub enum SectionType {
     Timeline,
     Status,
     List,
+    Text,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema)]

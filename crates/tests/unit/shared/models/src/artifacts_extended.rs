@@ -198,23 +198,6 @@ fn dashboard_hints_with_layout_tabs() {
 }
 
 #[test]
-fn dashboard_hints_generate_schema() {
-    let hints = DashboardHints::new()
-        .with_refreshable(true)
-        .with_refresh_interval(60);
-    let schema = hints.generate_schema();
-    assert_eq!(schema["refreshable"], json!(true));
-    assert_eq!(schema["refresh_interval_seconds"], json!(60));
-}
-
-#[test]
-fn dashboard_hints_generate_schema_no_interval() {
-    let hints = DashboardHints::new();
-    let schema = hints.generate_schema();
-    assert!(schema.get("refresh_interval_seconds").is_none());
-}
-
-#[test]
 fn dashboard_hints_serde_roundtrip() {
     let hints = DashboardHints::new()
         .with_layout(LayoutMode::Grid)

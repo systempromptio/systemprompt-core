@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.26.0]
+
+### Breaking
+
+- **Breaking:** the dashboard and chart renderers consume the typed artifact models via the same typed-payload path as card/message/media. The dashboard renderer previously parsed a loose dialect (`type`, top-level `id`/`width`, flat `metrics`/`items` arrays) that no producer emitted — the typed models serialize `section_type`, `section_id`, `layout`, and nested `data` structs, so every typed dashboard rendered with empty section bodies. The loose dialect is deleted; a section whose `data` does not match its declared `section_type` is a render error rather than an empty body.
+
+### Fixed
+
+- Typed `DashboardSection` payloads render their bodies, ids, layout widths, and ordering; `Timeline` and `Text` sections render (a timeline section previously fell through to empty text).
+- Chart titles, chart types, and axis labels survive storage. The chart renderer read them exclusively from `metadata.rendering_hints`, which the stored-artifact path never populated — every stored chart rendered as an untitled bar chart.
+
 ## [0.25.0] - 2026-07-27
 
 ### Fixed

@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.26.0]
+
+### Breaking
+
+- **Breaking:** `ChartArtifact` serializes `chart_type`, `title`, `x_axis_label`, `y_axis_label`, `x_axis_type`, and `y_axis_type` with the payload, and the fields are public. They were `#[serde(skip)]` and only ever surfaced through the schema's `x-chart-hints` block, which nothing on the stored-artifact path read. The `x-chart-hints` block is gone from `to_schema`; the fields appear in `properties` instead. Payloads stored before this release deserialize to the defaults.
+- **Breaking:** `DashboardArtifact.hints` serializes with the payload and is public, and `DashboardHints::generate_schema` is deleted along with the schema's `x-dashboard-hints` block — layout travels in the artifact itself rather than in a side channel the renderer never received.
+
+### Added
+
+- `SectionType::Text`, `TextSectionData`, `TimelineSectionData`, and `TimelineEvent`: the free-text and timeline section bodies the dashboard renderer now consumes. `Timeline` existed in the taxonomy but had no data shape.
+
 ## [0.25.0] - 2026-07-27
 
 ### Added

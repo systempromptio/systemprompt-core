@@ -40,9 +40,8 @@ pub struct DashboardArtifact {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     pub sections: Vec<DashboardSection>,
-    #[serde(skip)]
-    #[schemars(skip)]
-    hints: DashboardHints,
+    #[serde(default)]
+    pub hints: DashboardHints,
     #[serde(skip)]
     #[schemars(skip)]
     metadata: ExecutionMetadata,
@@ -134,14 +133,17 @@ impl Artifact for DashboardArtifact {
                         }
                     }
                 },
+                "hints": {
+                    "type": "object",
+                    "description": "Layout hints"
+                },
                 "_execution_id": {
                     "type": "string",
                     "description": "Execution ID for tracking"
                 }
             },
             "required": ["title", "sections"],
-            "x-artifact-type": "dashboard",
-            "x-dashboard-hints": self.hints.generate_schema()
+            "x-artifact-type": "dashboard"
         })
     }
 }

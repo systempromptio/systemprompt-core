@@ -502,7 +502,7 @@ fn build_metadata_form_infers_fields_from_properties() {
 }
 
 #[test]
-fn build_metadata_chart_default_hints() {
+fn build_metadata_chart_has_no_rendering_hints() {
     let result = build_metadata(BuildMetadataParams {
         artifact_type: &ArtifactType::Chart,
         schema: None,
@@ -513,7 +513,7 @@ fn build_metadata_chart_default_hints() {
     });
     let meta = result.expect("chart metadata builds");
     assert_eq!(meta.tool_name.as_deref(), Some("chart-tool"));
-    assert_eq!(meta.rendering_hints, Some(json!({"chart_type": "bar"})));
+    assert_eq!(meta.rendering_hints, None);
 }
 
 #[test]
@@ -532,7 +532,7 @@ fn build_metadata_presentation_card_default_hints() {
 }
 
 #[test]
-fn build_metadata_dashboard_default_hints() {
+fn build_metadata_dashboard_has_no_rendering_hints() {
     let result = build_metadata(BuildMetadataParams {
         artifact_type: &ArtifactType::Dashboard,
         schema: None,
@@ -543,7 +543,7 @@ fn build_metadata_dashboard_default_hints() {
     });
     let meta = result.expect("dashboard metadata builds");
     assert_eq!(meta.tool_name.as_deref(), Some("dashboard-tool"));
-    assert_eq!(meta.rendering_hints, Some(json!({"layout": "vertical"})));
+    assert_eq!(meta.rendering_hints, None);
 }
 
 #[test]
