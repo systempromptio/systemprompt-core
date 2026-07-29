@@ -8,6 +8,9 @@
 //!   admin_only_prefixes:
 //!     - "mcp__systemprompt__"
 //! ```
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::borrow::Cow;
 

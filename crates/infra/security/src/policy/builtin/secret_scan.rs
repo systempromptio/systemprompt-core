@@ -4,6 +4,9 @@
 //! into the chat reaches the model exactly as one passed as a tool argument
 //! would. The pattern list ships with the binary; per-deployment additions go
 //! in the governance config under `policies[id=secret_scan].extra_patterns`.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::borrow::Cow;
 

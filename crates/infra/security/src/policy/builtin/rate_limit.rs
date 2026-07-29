@@ -10,6 +10,9 @@
 //!   requests_per_window: 300
 //!   window_secs: 60
 //! ```
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::borrow::Cow;
 use std::collections::HashMap;

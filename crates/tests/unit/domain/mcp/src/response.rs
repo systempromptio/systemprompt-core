@@ -68,8 +68,8 @@ fn build_error_long_message_preserved() {
 }
 
 // Pins the `tools/call` result envelope. rmcp 3.0 added the SEP-2663
-// `resultType` discriminator with no `skip_serializing_if`, so every result we
-// emit now carries it — a visible wire change for strict downstream consumers.
+// `resultType` discriminator and its constructors populate it, so every result
+// we emit carries it — a visible wire change for strict downstream consumers.
 #[test]
 fn tool_result_envelope_carries_result_type_discriminator() {
     let result: rmcp::model::CallToolResult =
@@ -84,10 +84,10 @@ fn tool_result_envelope_carries_result_type_discriminator() {
     assert_eq!(round_tripped.result_type, result.result_type);
 }
 
-// A pre-3.0 result has no `resultType`; it must still deserialize, defaulting
-// to `complete`, so persisted artifacts and older peers keep working.
+// A pre-3.0 result has no `resultType`; it must still deserialize — the field
+// stays `None` — so persisted artifacts and older peers keep working.
 #[test]
-fn tool_result_without_result_type_deserializes_as_complete() {
+fn tool_result_without_result_type_still_deserializes() {
     let legacy = serde_json::json!({
         "content": [{ "type": "text", "text": "hello" }],
         "isError": false,
@@ -96,6 +96,6 @@ fn tool_result_without_result_type_deserializes_as_complete() {
     let result: rmcp::model::CallToolResult =
         serde_json::from_value(legacy).expect("legacy envelope deserializes");
 
-    assert_eq!(result.result_type, rmcp::model::ResultType::default());
+    assert_eq!(result.result_type, None);
     assert_eq!(result.is_error, Some(false));
 }
