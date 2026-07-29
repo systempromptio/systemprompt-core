@@ -32,8 +32,6 @@ async fn setup_api_server_assembles_full_router() -> anyhow::Result<()> {
     let pool = fixture_db_pool(&bootstrap.database_url).await?;
 
     let mut config = fixture_config(&bootstrap.database_url);
-    // CORS layer requires at least one origin; the fixture default is empty
-    // because most route-level tests bypass CORS.
     config.cors_allowed_origins = vec!["http://127.0.0.1".to_owned()];
 
     let paths = PathsConfig {
@@ -44,7 +42,10 @@ async fn setup_api_server_assembles_full_router() -> anyhow::Result<()> {
         storage: Some("/tmp".to_string()),
         geoip_database: None,
     };
-    let app_paths = Arc::new(AppPaths::from_profile(&paths)?);
+    let app_paths = Arc::new(AppPaths::from_profile(
+        &paths,
+        systemprompt_models::PathResolution::Canonicalize,
+    )?);
 
     let ctx = Arc::new(AppContext::from_parts(
         DataPlane {

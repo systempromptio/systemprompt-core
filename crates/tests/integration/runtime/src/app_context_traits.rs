@@ -168,14 +168,17 @@ async fn files_config_validator_validate_when_initialised() {
     let tmp = tempfile::TempDir::new().expect("tempdir");
     let p = tmp.path().to_string_lossy().to_string();
     let paths = Arc::new(
-        AppPaths::from_profile(&PathsConfig {
-            system: p.clone(),
-            services: p.clone(),
-            bin: p.clone(),
-            web_path: Some(p.clone()),
-            storage: Some(p),
-            geoip_database: None,
-        })
+        AppPaths::from_profile(
+            &PathsConfig {
+                system: p.clone(),
+                services: p.clone(),
+                bin: p.clone(),
+                web_path: Some(p.clone()),
+                storage: Some(p),
+                geoip_database: None,
+            },
+            systemprompt_models::PathResolution::Canonicalize,
+        )
         .expect("paths"),
     );
     let _ = systemprompt_files::FilesConfig::init(&paths);

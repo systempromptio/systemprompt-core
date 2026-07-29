@@ -181,7 +181,11 @@ fn init_bootstrap_inner(
         let _ = init_config_from_profile(profile);
     }
 
-    let app_paths = AppPaths::from_profile(&profile.paths).expect("app paths");
+    let app_paths = AppPaths::from_profile(
+        &profile.paths,
+        systemprompt_models::PathResolution::Canonicalize,
+    )
+    .expect("app paths");
     if FilesConfig::get_optional().is_none() {
         let _ = FilesConfig::init(&app_paths);
     }

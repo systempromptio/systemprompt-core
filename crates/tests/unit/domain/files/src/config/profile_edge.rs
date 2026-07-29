@@ -112,7 +112,11 @@ fn ensure_storage_structure_reports_uncreatable_root() {
     std::fs::write(&profile_path, profile_yaml(&system, &storage)).expect("write profile");
 
     let profile = ProfileBootstrap::init_from_path(&profile_path).expect("init profile");
-    let paths = AppPaths::from_profile(&profile.paths).expect("app paths");
+    let paths = AppPaths::from_profile(
+        &profile.paths,
+        systemprompt_models::PathResolution::Canonicalize,
+    )
+    .expect("app paths");
     let cfg = FilesConfig::from_profile(&paths).expect("from_profile");
 
     let errors = cfg.ensure_storage_structure();

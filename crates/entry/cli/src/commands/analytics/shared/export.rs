@@ -22,7 +22,7 @@ pub fn resolve_export_path(user_path: &Path) -> Result<PathBuf> {
     }
 
     let profile = ProfileBootstrap::get().context("Profile not initialized")?;
-    let paths = AppPaths::from_profile(&profile.paths)
+    let paths = AppPaths::from_profile(&profile.paths, profile.path_resolution())
         .map_err(|e| anyhow::anyhow!("Failed to build paths: {}", e))?;
     let exports_dir = paths.storage().exports().to_path_buf();
 

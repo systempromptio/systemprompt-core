@@ -68,16 +68,18 @@ async fn maybe_db() -> Option<DbPool> {
 async fn copy_extension_assets_copies_required_and_tolerates_optional_missing() {
     let tmp = tempfile::TempDir::new().unwrap();
     let p = tmp.path().to_string_lossy().to_string();
-    let paths =
-        systemprompt_models::AppPaths::from_profile(&systemprompt_models::profile::PathsConfig {
+    let paths = systemprompt_models::AppPaths::from_profile(
+        &systemprompt_models::profile::PathsConfig {
             system: p.clone(),
             services: p.clone(),
             bin: p.clone(),
             web_path: Some(p.clone()),
             storage: Some(p),
             geoip_database: None,
-        })
-        .expect("paths");
+        },
+        systemprompt_models::PathResolution::Canonicalize,
+    )
+    .expect("paths");
 
     let src = paths.storage_files().join(GEN_REQUIRED_ASSET_SOURCE);
     fs::create_dir_all(src.parent().unwrap()).unwrap();
@@ -102,16 +104,18 @@ async fn copy_extension_assets_copies_required_and_tolerates_optional_missing() 
 async fn copy_extension_assets_fails_when_required_asset_missing() {
     let tmp = tempfile::TempDir::new().unwrap();
     let p = tmp.path().to_string_lossy().to_string();
-    let paths =
-        systemprompt_models::AppPaths::from_profile(&systemprompt_models::profile::PathsConfig {
+    let paths = systemprompt_models::AppPaths::from_profile(
+        &systemprompt_models::profile::PathsConfig {
             system: p.clone(),
             services: p.clone(),
             bin: p.clone(),
             web_path: Some(p.clone()),
             storage: Some(p),
             geoip_database: None,
-        })
-        .expect("paths");
+        },
+        systemprompt_models::PathResolution::Canonicalize,
+    )
+    .expect("paths");
     fs::create_dir_all(paths.web().dist()).unwrap();
 
     let err = execute_copy_extension_assets(&paths)

@@ -11,14 +11,17 @@ use tempfile::TempDir;
 
 fn make_app_paths(tmp: &TempDir) -> AppPaths {
     let p = tmp.path().to_string_lossy().to_string();
-    AppPaths::from_profile(&PathsConfig {
-        system: p.clone(),
-        services: p.clone(),
-        bin: p.clone(),
-        web_path: Some(p.clone()),
-        storage: Some(p),
-        geoip_database: None,
-    })
+    AppPaths::from_profile(
+        &PathsConfig {
+            system: p.clone(),
+            services: p.clone(),
+            bin: p.clone(),
+            web_path: Some(p.clone()),
+            storage: Some(p),
+            geoip_database: None,
+        },
+        systemprompt_models::PathResolution::Canonicalize,
+    )
     .expect("paths")
 }
 

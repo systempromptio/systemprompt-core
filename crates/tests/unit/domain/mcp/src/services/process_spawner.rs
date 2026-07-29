@@ -22,7 +22,10 @@ fn make_paths(bin_dir: &str) -> Arc<AppPaths> {
         storage: Some("/tmp".to_string()),
         geoip_database: None,
     };
-    Arc::new(AppPaths::from_profile(&paths).expect("paths"))
+    Arc::new(
+        AppPaths::from_profile(&paths, systemprompt_models::PathResolution::Canonicalize)
+            .expect("paths"),
+    )
 }
 
 fn make_paths_with_system(system_dir: &str) -> Arc<AppPaths> {
@@ -34,7 +37,10 @@ fn make_paths_with_system(system_dir: &str) -> Arc<AppPaths> {
         storage: Some(system_dir.to_string()),
         geoip_database: None,
     };
-    Arc::new(AppPaths::from_profile(&paths).expect("paths"))
+    Arc::new(
+        AppPaths::from_profile(&paths, systemprompt_models::PathResolution::Canonicalize)
+            .expect("paths"),
+    )
 }
 
 fn make_config(binary: &str) -> McpServerConfig {

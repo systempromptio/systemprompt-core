@@ -123,7 +123,10 @@ async fn app_with_extensions(injected: Vec<Arc<dyn Extension>>) -> anyhow::Resul
         storage: Some("/tmp".to_string()),
         geoip_database: None,
     };
-    let app_paths = Arc::new(AppPaths::from_profile(&paths)?);
+    let app_paths = Arc::new(AppPaths::from_profile(
+        &paths,
+        systemprompt_models::PathResolution::Canonicalize,
+    )?);
 
     let registry = ExtensionRegistry::discover_and_merge(injected)
         .map_err(|e| anyhow::anyhow!("registry: {e}"))?;

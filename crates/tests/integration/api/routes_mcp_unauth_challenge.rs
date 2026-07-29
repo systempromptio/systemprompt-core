@@ -54,7 +54,10 @@ async fn boot_full_router() -> anyhow::Result<axum::Router> {
         storage: Some("/tmp".to_string()),
         geoip_database: None,
     };
-    let app_paths = Arc::new(AppPaths::from_profile(&paths)?);
+    let app_paths = Arc::new(AppPaths::from_profile(
+        &paths,
+        systemprompt_models::PathResolution::Canonicalize,
+    )?);
 
     let ctx = Arc::new(AppContext::from_parts(
         DataPlane {

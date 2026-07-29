@@ -61,7 +61,7 @@ fn initialize_config_from_profile(profile_path: &std::path::Path) -> Result<()> 
 fn current_app_paths() -> Option<AppPaths> {
     ProfileBootstrap::get()
         .ok()
-        .and_then(|p| AppPaths::from_profile(&p.paths).ok())
+        .and_then(|p| AppPaths::from_profile(&p.paths, p.path_resolution()).ok())
 }
 
 fn build_config_for_filter(

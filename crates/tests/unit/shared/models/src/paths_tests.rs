@@ -127,3 +127,66 @@ fn paths_config_storage_resolved_none_when_unset() {
     };
     assert!(cfg.storage_resolved().is_none());
 }
+
+mod path_resolution {
+    use systemprompt_models::paths::{AppPaths, PathError, PathResolution};
+    use systemprompt_models::profile::PathsConfig;
+
+    const CONTAINER_ROOT: &str = "/nonexistent/container/app";
+
+    fn paths_config(system: &str) -> PathsConfig {
+        PathsConfig {
+            system: system.to_owned(),
+            services: "/srv/services".to_owned(),
+            bin: "/srv/bin".to_owned(),
+            web_path: None,
+            storage: Some("/srv/storage".to_owned()),
+            geoip_database: None,
+        }
+    }
+
+    #[test]
+    fn lexical_accepts_absolute_path_that_does_not_exist() {
+        let cfg = paths_config(CONTAINER_ROOT);
+        let paths = AppPaths::from_profile(&cfg, PathResolution::Lexical).expect("lexical resolve");
+        assert_eq!(
+            paths.system().root(),
+            std::path::Path::new(CONTAINER_ROOT),
+            "a lexical root must be taken verbatim, not canonicalized"
+        );
+    }
+
+    #[test]
+    fn canonicalize_rejects_a_path_that_does_not_exist() {
+        let cfg = paths_config(CONTAINER_ROOT);
+        let err = AppPaths::from_profile(&cfg, PathResolution::Canonicalize)
+            .expect_err("canonicalize must fail on a missing path");
+        assert!(
+            matches!(
+                err,
+                PathError::CanonicalizeFailed {
+                    field: "system",
+                    ..
+                }
+            ),
+            "unexpected error: {err:?}"
+        );
+    }
+
+    #[test]
+    fn lexical_rejects_a_relative_path() {
+        let cfg = paths_config("relative/container/app");
+        let err = AppPaths::from_profile(&cfg, PathResolution::Lexical)
+            .expect_err("lexical must reject a relative path");
+        assert!(
+            matches!(
+                err,
+                PathError::NotAbsolute {
+                    field: "system",
+                    ..
+                }
+            ),
+            "unexpected error: {err:?}"
+        );
+    }
+}

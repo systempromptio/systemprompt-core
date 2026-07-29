@@ -151,7 +151,10 @@ fn fixture_app_context_assembled(
     marketplace_filter: Arc<dyn MarketplaceFilter>,
     authz_hook: SharedAuthzHook,
 ) -> Result<Arc<AppContext>> {
-    let app_paths = Arc::new(AppPaths::from_profile(&paths)?);
+    let app_paths = Arc::new(AppPaths::from_profile(
+        &paths,
+        systemprompt_models::PathResolution::Canonicalize,
+    )?);
 
     let ctx = AppContext::from_parts(
         DataPlane {

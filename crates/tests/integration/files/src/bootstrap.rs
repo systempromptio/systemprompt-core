@@ -134,7 +134,11 @@ extensions:
     }
 
     let profile = ProfileBootstrap::get().expect("profile initialised");
-    let app_paths = AppPaths::from_profile(&profile.paths).expect("app paths");
+    let app_paths = AppPaths::from_profile(
+        &profile.paths,
+        systemprompt_models::PathResolution::Canonicalize,
+    )
+    .expect("app paths");
 
     if let Err(e) = FilesConfig::init(&app_paths) {
         eprintln!("FilesConfig::init failed: {e}");

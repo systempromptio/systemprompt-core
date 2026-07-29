@@ -5,7 +5,7 @@
 
 use std::path::{Path, PathBuf};
 
-use super::PathError;
+use super::{PathError, PathResolution};
 use crate::profile::PathsConfig;
 
 #[derive(Debug, Clone)]
@@ -22,8 +22,14 @@ pub struct SystemPaths {
 impl SystemPaths {
     const LOGS_DIR: &'static str = "logs";
 
-    pub fn from_profile(paths: &PathsConfig) -> Result<Self, PathError> {
-        let root = Self::canonicalize(&paths.system, "system")?;
+    pub fn from_profile(
+        paths: &PathsConfig,
+        resolution: PathResolution,
+    ) -> Result<Self, PathError> {
+        let root = match resolution {
+            PathResolution::Canonicalize => Self::canonicalize(&paths.system, "system")?,
+            PathResolution::Lexical => Self::lexical(&paths.system, "system")?,
+        };
         let defaults = Self::resolve_defaults_dir(&root);
 
         Ok(Self {
@@ -43,6 +49,15 @@ impl SystemPaths {
             field,
             source,
         })
+    }
+
+    fn lexical(path: &str, field: &'static str) -> Result<PathBuf, PathError> {
+        let path = PathBuf::from(path);
+        if path.is_absolute() {
+            Ok(path)
+        } else {
+            Err(PathError::NotAbsolute { path, field })
+        }
     }
 
     fn resolve_defaults_dir(root: &Path) -> PathBuf {

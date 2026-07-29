@@ -50,7 +50,13 @@ async fn fixture() -> Option<Fixture> {
     let bootstrap = ensure_test_bootstrap();
     let url = fixture_database_url().ok()?;
     let db = fixture_db_pool(&url).await.ok()?;
-    let app_paths = Arc::new(AppPaths::from_profile(&profile_paths(bootstrap)).ok()?);
+    let app_paths = Arc::new(
+        AppPaths::from_profile(
+            &profile_paths(bootstrap),
+            systemprompt_models::PathResolution::Canonicalize,
+        )
+        .ok()?,
+    );
     let repo = ServiceRepository::new(&db).ok()?;
     let database = DatabaseService::new(db, app_paths, RegistryService::new(fixture_user_id()));
     Some(Fixture {

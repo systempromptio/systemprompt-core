@@ -33,7 +33,9 @@ async fn make_lifecycle() -> Option<(LifecycleOrchestrator, systemprompt_databas
         storage: Some("/tmp".to_string()),
         geoip_database: None,
     };
-    let app_paths = Arc::new(AppPaths::from_profile(&paths).ok()?);
+    let app_paths = Arc::new(
+        AppPaths::from_profile(&paths, systemprompt_models::PathResolution::Canonicalize).ok()?,
+    );
     let registry = RegistryService::new(fixture_user_id());
     let database = DatabaseService::new(db.clone(), Arc::clone(&app_paths), registry);
     Some((

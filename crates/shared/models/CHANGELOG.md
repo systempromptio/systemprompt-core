@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.27.0] - 2026-07-29
+
+### Breaking
+
+- **Breaking:** `AppPaths::from_profile` and `SystemPaths::from_profile` take a `PathResolution`; derive it with the new `Profile::path_resolution()`. Cloud profiles resolve lexically — container paths are no longer canonicalized against the local filesystem — and `PathError` gains `NotAbsolute` for a relative path under lexical resolution.
+- **Breaking:** `default_bootstrap_jobs()` no longer includes `database_cleanup`; deployments relying on the boot-time sweep must list it in `scheduler.bootstrap_jobs` explicitly.
+- **Breaking:** `SchedulerConfig::with_system_admin()` sets `enforce` on `cleanup_anonymous_users`, `cleanup_empty_contexts`, and `database_cleanup`, matching the jobs' new observe-by-default behaviour.
+
+### Added
+
+- `JobConfig.parameters` (`#[serde(default)]`, string map) with a `with_parameters` builder; the field rustdoc tables the keys the core jobs read.
+- `RequestScope`: per-request scoping identity (ordered key/value pairs) carried from middleware to the scoped database transactions in `systemprompt-database` — the transport for pooled multi-tenancy dimensions such as the requesting user's organization.
+
 ## [0.26.0] - 2026-07-28
 
 ### Breaking

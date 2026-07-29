@@ -64,7 +64,8 @@ fn app_paths_for(system: &std::path::Path) -> AppPaths {
         storage: Some(system.join("storage").display().to_string()),
         geoip_database: None,
     };
-    AppPaths::from_profile(&paths).expect("app paths")
+    AppPaths::from_profile(&paths, systemprompt_models::PathResolution::Canonicalize)
+        .expect("app paths")
 }
 
 fn valid_mmdb_path() -> String {
@@ -77,18 +78,21 @@ fn valid_mmdb_path() -> String {
 #[test]
 fn load_geoip_database_returns_reader_for_valid_mmdb() {
     let cfg = fixture_config(Some(valid_mmdb_path()));
-    let reader = AppContext::load_geoip_database(&cfg, false);
+    let reader = AppContext::load_geoip_database(&cfg, false).expect("valid mmdb loads");
     assert!(reader.is_some(), "a valid .mmdb must produce a reader");
 }
 
 #[test]
-fn load_geoip_database_returns_none_for_invalid_mmdb_with_warnings() {
+fn load_geoip_database_errors_for_invalid_mmdb() {
     let tmp = tempfile::tempdir().expect("tempdir");
     let bogus = tmp.path().join("not-a-database.mmdb");
     std::fs::write(&bogus, b"this is not a maxmind database").expect("write bogus mmdb");
     let cfg = fixture_config(Some(bogus.display().to_string()));
     let reader = AppContext::load_geoip_database(&cfg, true);
-    assert!(reader.is_none(), "an invalid .mmdb must be rejected");
+    assert!(
+        reader.is_err(),
+        "a configured but invalid .mmdb must fail startup"
+    );
 }
 
 #[test]

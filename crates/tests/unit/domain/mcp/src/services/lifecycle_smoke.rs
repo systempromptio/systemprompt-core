@@ -27,7 +27,9 @@ async fn make_orchestrator() -> Option<(LifecycleOrchestrator, McpServerConfig)>
         storage: Some("/tmp".to_string()),
         geoip_database: None,
     };
-    let app_paths = Arc::new(AppPaths::from_profile(&paths).ok()?);
+    let app_paths = Arc::new(
+        AppPaths::from_profile(&paths, systemprompt_models::PathResolution::Canonicalize).ok()?,
+    );
     let registry = RegistryService::new(fixture_user_id());
     let database = DatabaseService::new(db, Arc::clone(&app_paths), registry);
     let lifecycle = LifecycleOrchestrator::new(

@@ -170,7 +170,13 @@ fn open_server_log_creates_log_directory_and_file() {
         storage: Some(dir.path().display().to_string()),
         geoip_database: None,
     };
-    let paths = Arc::new(AppPaths::from_profile(&paths_config).expect("paths"));
+    let paths = Arc::new(
+        AppPaths::from_profile(
+            &paths_config,
+            systemprompt_models::PathResolution::Canonicalize,
+        )
+        .expect("paths"),
+    );
     let config = make_config("logtest", vec![]);
 
     open_server_log(&paths, &config).expect("log file should open");

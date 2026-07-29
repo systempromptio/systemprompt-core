@@ -70,7 +70,7 @@ pub struct LogsArgs {
 fn get_default_logs_dir() -> PathBuf {
     ProfileBootstrap::get()
         .ok()
-        .and_then(|p| AppPaths::from_profile(&p.paths).ok())
+        .and_then(|p| AppPaths::from_profile(&p.paths, p.path_resolution()).ok())
         .map_or_else(|| PathBuf::from("/var/log"), |paths| paths.system().logs())
 }
 

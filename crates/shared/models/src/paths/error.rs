@@ -14,6 +14,9 @@ pub enum PathError {
     #[error("Path does not exist: {}", path.display())]
     NotFound { path: PathBuf, field: &'static str },
 
+    #[error("Path must be absolute for a remote-execution profile: {}", path.display())]
+    NotAbsolute { path: PathBuf, field: &'static str },
+
     #[error("Failed to canonicalize path {}: {source}", path.display())]
     CanonicalizeFailed {
         path: PathBuf,

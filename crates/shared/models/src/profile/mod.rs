@@ -152,6 +152,18 @@ impl Profile {
         self.cloud.as_ref().is_none_or(CloudConfig::is_local_trial)
     }
 
+    /// A cloud profile's paths are container paths that only resolve inside
+    /// the deployed container, so they are taken lexically instead of being
+    /// canonicalized against the local filesystem.
+    #[must_use]
+    pub const fn path_resolution(&self) -> crate::paths::PathResolution {
+        if self.target.is_cloud() {
+            crate::paths::PathResolution::Lexical
+        } else {
+            crate::paths::PathResolution::Canonicalize
+        }
+    }
+
     pub fn from_yaml(content: &str, profile_path: &Path) -> ProfileResult<Self> {
         let content = interpolate(content, &|name| read_env_optional(name));
 

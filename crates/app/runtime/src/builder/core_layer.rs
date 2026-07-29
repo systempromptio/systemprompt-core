@@ -33,7 +33,10 @@ pub(super) async fn init_core(
     authz_hook_override: Option<SharedAuthzHook>,
 ) -> RuntimeResult<CoreLayer> {
     let profile = ProfileBootstrap::get()?;
-    let app_paths = Arc::new(AppPaths::from_profile(&profile.paths)?);
+    let app_paths = Arc::new(AppPaths::from_profile(
+        &profile.paths,
+        profile.path_resolution(),
+    )?);
     systemprompt_files::FilesConfig::init(&app_paths)?;
     systemprompt_config::try_init_config()
         .map_err(|err| RuntimeError::Internal(format!("config init: {err}")))?;

@@ -31,7 +31,8 @@ fn app_paths_rooted(root: &str) -> AppPaths {
         storage: Some(root.to_owned()),
         geoip_database: None,
     };
-    AppPaths::from_profile(&paths).expect("paths")
+    AppPaths::from_profile(&paths, systemprompt_models::PathResolution::Canonicalize)
+        .expect("paths")
 }
 
 fn write_bad_date_markdown(dir: &std::path::Path, slug: &str) {

@@ -76,18 +76,20 @@ fn make_app_paths(base: &std::path::Path) -> AppPaths {
         storage: Some(base.join("storage").to_string_lossy().to_string()),
         geoip_database: None,
     };
-    AppPaths::from_profile(&paths).expect("AppPaths from profile")
+    AppPaths::from_profile(&paths, systemprompt_models::PathResolution::Canonicalize)
+        .expect("AppPaths from profile")
 }
 
 #[test]
 fn load_geoip_database_returns_none_when_not_configured() {
     let cfg = minimal_config(String::new(), None, String::new(), String::new());
-    let reader = AppContext::load_geoip_database(&cfg, false);
+    let reader =
+        AppContext::load_geoip_database(&cfg, false).expect("unconfigured geoip is not an error");
     assert!(reader.is_none(), "unconfigured geoip must yield None");
 }
 
 #[test]
-fn load_geoip_database_returns_none_when_path_missing() {
+fn load_geoip_database_errors_when_path_missing() {
     let cfg = minimal_config(
         String::new(),
         Some("/does/not/exist.mmdb".to_string()),
@@ -95,7 +97,10 @@ fn load_geoip_database_returns_none_when_path_missing() {
         String::new(),
     );
     let reader = AppContext::load_geoip_database(&cfg, true);
-    assert!(reader.is_none(), "bad geoip path must yield None");
+    assert!(
+        reader.is_err(),
+        "a configured but missing .mmdb must fail startup"
+    );
 }
 
 #[test]

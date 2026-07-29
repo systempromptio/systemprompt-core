@@ -340,14 +340,17 @@ async fn generate_feed_with_providers_propagates_fetch_failure() {
 
 fn tempdir_paths(tmp: &tempfile::TempDir) -> systemprompt_models::AppPaths {
     let p = tmp.path().to_string_lossy().to_string();
-    systemprompt_models::AppPaths::from_profile(&systemprompt_models::profile::PathsConfig {
-        system: p.clone(),
-        services: p.clone(),
-        bin: p.clone(),
-        web_path: Some(p.clone()),
-        storage: Some(p),
-        geoip_database: None,
-    })
+    systemprompt_models::AppPaths::from_profile(
+        &systemprompt_models::profile::PathsConfig {
+            system: p.clone(),
+            services: p.clone(),
+            bin: p.clone(),
+            web_path: Some(p.clone()),
+            storage: Some(p),
+            geoip_database: None,
+        },
+        systemprompt_models::PathResolution::Canonicalize,
+    )
     .expect("paths")
 }
 

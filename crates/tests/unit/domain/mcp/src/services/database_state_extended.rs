@@ -15,7 +15,7 @@ fn paths_with_bin(bin_dir: &str) -> AppPaths {
         storage: Some("/tmp".to_owned()),
         geoip_database: None,
     };
-    AppPaths::from_profile(&cfg).expect("paths")
+    AppPaths::from_profile(&cfg, systemprompt_models::PathResolution::Canonicalize).expect("paths")
 }
 
 #[test]

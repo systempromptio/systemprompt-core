@@ -55,7 +55,9 @@ pub(super) fn validate_extensions(
 
     let paths_result = ProfileBootstrap::get()
         .map_err(|e| e.to_string())
-        .and_then(|p| AppPaths::from_profile(&p.paths).map_err(|e| e.to_string()));
+        .and_then(|p| {
+            AppPaths::from_profile(&p.paths, p.path_resolution()).map_err(|e| e.to_string())
+        });
 
     match paths_result {
         Ok(paths) => validate_extension_assets(&extensions, &paths, report, verbose),

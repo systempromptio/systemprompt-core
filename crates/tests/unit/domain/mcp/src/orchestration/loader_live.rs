@@ -44,7 +44,13 @@ async fn live_setup(oauth_required: bool) -> Option<(Live, MockServer)> {
     write_services_config(bootstrap, &yaml);
 
     let registry = RegistryService::new(fixture_user_id());
-    let app_paths = Arc::new(AppPaths::from_profile(&profile_paths(bootstrap)).ok()?);
+    let app_paths = Arc::new(
+        AppPaths::from_profile(
+            &profile_paths(bootstrap),
+            systemprompt_models::PathResolution::Canonicalize,
+        )
+        .ok()?,
+    );
     let database = DatabaseService::new(db.clone(), app_paths, registry.clone());
     let loader = McpToolLoader::new(&db, registry.clone()).ok()?;
 

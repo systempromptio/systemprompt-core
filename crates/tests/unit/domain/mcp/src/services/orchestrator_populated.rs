@@ -37,7 +37,13 @@ async fn orchestrator_with_config(blocks: &[String]) -> Option<McpOrchestrator> 
     let url = fixture_database_url().ok()?;
     let db = fixture_db_pool(&url).await.ok()?;
     write_services_config(bootstrap, &config_with_servers(blocks));
-    let app_paths = Arc::new(AppPaths::from_profile(&profile_paths(bootstrap)).ok()?);
+    let app_paths = Arc::new(
+        AppPaths::from_profile(
+            &profile_paths(bootstrap),
+            systemprompt_models::PathResolution::Canonicalize,
+        )
+        .ok()?,
+    );
     let registry = RegistryService::new(fixture_user_id());
     McpOrchestrator::new(db, app_paths, registry).ok()
 }

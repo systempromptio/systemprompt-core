@@ -27,6 +27,15 @@ use std::path::Path;
 use crate::profile::PathsConfig;
 use systemprompt_extension::AssetPaths;
 
+/// How profile paths are resolved against the local filesystem. Derive the
+/// right mode for a profile with [`crate::profile::Profile::path_resolution`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PathResolution {
+    Canonicalize,
+    /// Take absolute paths verbatim without touching the filesystem.
+    Lexical,
+}
+
 #[derive(Debug, Clone)]
 pub struct AppPaths {
     system: SystemPaths,
@@ -36,9 +45,12 @@ pub struct AppPaths {
 }
 
 impl AppPaths {
-    pub fn from_profile(paths: &PathsConfig) -> Result<Self, PathError> {
+    pub fn from_profile(
+        paths: &PathsConfig,
+        resolution: PathResolution,
+    ) -> Result<Self, PathError> {
         Ok(Self {
-            system: SystemPaths::from_profile(paths)?,
+            system: SystemPaths::from_profile(paths, resolution)?,
             web: WebPaths::from_profile(paths),
             build: BuildPaths::from_profile(paths),
             storage: StoragePaths::from_profile(paths)?,

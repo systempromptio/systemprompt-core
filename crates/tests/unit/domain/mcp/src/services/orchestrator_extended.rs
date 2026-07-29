@@ -25,7 +25,9 @@ async fn make_orchestrator() -> Option<McpOrchestrator> {
         storage: Some("/tmp".to_string()),
         geoip_database: None,
     };
-    let app_paths = Arc::new(AppPaths::from_profile(&paths).ok()?);
+    let app_paths = Arc::new(
+        AppPaths::from_profile(&paths, systemprompt_models::PathResolution::Canonicalize).ok()?,
+    );
     let registry = RegistryService::new(fixture_user_id());
     McpOrchestrator::new(db, app_paths, registry).ok()
 }
