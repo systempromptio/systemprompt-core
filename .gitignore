@@ -118,6 +118,7 @@ scripts/*
 !scripts/lint-raw-ids.sh
 !scripts/check-sqlx.sh
 !scripts/check-http-errors.sh
+!scripts/lint-layers.sh
 
 # Local-only review notes
 review/

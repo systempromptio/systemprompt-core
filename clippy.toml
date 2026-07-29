@@ -6,8 +6,11 @@
 avoid-breaking-exported-api = false
 msrv = "1.94"
 
-# COGNITIVE COMPLEXITY - Keep code simple and maintainable
-cognitive-complexity-threshold = 30
+# COGNITIVE COMPLEXITY - Keep code simple and maintainable.
+# Clippy charges for every `?` and early return, so idiomatic async/Result code
+# scores roughly double a conventional cognitive-complexity metric. 65 is an
+# enforced outlier gate, not a target — ratchet it down as the tail is cleaned up.
+cognitive-complexity-threshold = 65
 
 # TYPE COMPLEXITY - Avoid overly complex types
 type-complexity-threshold = 250

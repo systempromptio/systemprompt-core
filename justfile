@@ -139,8 +139,12 @@ lint-extensions:
 lint-comments:
     ./scripts/lint-inline-comments.sh
 
+# Reject upward crate dependencies and cycles in the layer stack
+lint-layers:
+    ./scripts/lint-layers.sh
+
 # Check without building
-check: lint-schema lint-extensions lint-comments lint-test-value
+check: lint-schema lint-extensions lint-comments lint-test-value lint-layers
     cargo check --workspace
 
 # Check offline (uses cached .sqlx metadata, no database required)

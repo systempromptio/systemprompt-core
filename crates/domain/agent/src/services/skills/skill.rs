@@ -78,43 +78,45 @@ impl SkillService {
             tracing::error!(error = %e, "Failed to broadcast skill_loaded");
         }
 
-        if let Some(task_id) = ctx.task_id() {
-            tracing::info!(task_id = %task_id.as_str(), "Tracking skill usage for task");
-
-            let Some(execution_step_repo) = self.execution_step_repo.as_ref() else {
-                tracing::warn!(
-                    "ExecutionStepRepository not injected; skill usage will not be tracked"
-                );
-                return Ok(loaded.instructions);
-            };
-
-            let tracking = ExecutionTrackingService::new(Arc::clone(execution_step_repo));
-            match tracking
-                .track_skill_usage(
-                    task_id.clone(),
-                    loaded.skill_id.clone(),
-                    loaded.name.clone(),
-                )
-                .await
-            {
-                Ok(step) => {
-                    tracing::info!(step_id = %step.step_id.as_str(), "Skill usage tracked");
-
-                    let step_event =
-                        AgUiEventBuilder::execution_step(step, ctx.context_id().clone());
-                    if let Err(e) = broadcast_skill_event(ctx, step_event).await {
-                        tracing::error!(error = %e, "Failed to broadcast execution_step");
-                    }
-                },
-                Err(e) => {
-                    tracing::error!(error = %e, "Failed to track skill usage");
-                },
-            }
-        } else {
-            tracing::warn!("No task_id in context - skill usage not tracked");
-        }
+        self.track_skill_usage(&loaded, ctx).await;
 
         Ok(loaded.instructions)
+    }
+
+    async fn track_skill_usage(&self, loaded: &LoadedDiskSkill, ctx: &RequestContext) {
+        let Some(task_id) = ctx.task_id() else {
+            tracing::warn!("No task_id in context - skill usage not tracked");
+            return;
+        };
+
+        tracing::info!(task_id = %task_id.as_str(), "Tracking skill usage for task");
+
+        let Some(execution_step_repo) = self.execution_step_repo.as_ref() else {
+            tracing::warn!("ExecutionStepRepository not injected; skill usage will not be tracked");
+            return;
+        };
+
+        let tracking = ExecutionTrackingService::new(Arc::clone(execution_step_repo));
+        match tracking
+            .track_skill_usage(
+                task_id.clone(),
+                loaded.skill_id.clone(),
+                loaded.name.clone(),
+            )
+            .await
+        {
+            Ok(step) => {
+                tracing::info!(step_id = %step.step_id.as_str(), "Skill usage tracked");
+
+                let step_event = AgUiEventBuilder::execution_step(step, ctx.context_id().clone());
+                if let Err(e) = broadcast_skill_event(ctx, step_event).await {
+                    tracing::error!(error = %e, "Failed to broadcast execution_step");
+                }
+            },
+            Err(e) => {
+                tracing::error!(error = %e, "Failed to track skill usage");
+            },
+        }
     }
 
     #[expect(

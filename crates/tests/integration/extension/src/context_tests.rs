@@ -342,7 +342,7 @@ fn test_extension_has_methods() {
     };
 
     assert!(!ext.has_schemas());
-    assert!(!ext.has_router(&ctx));
+    assert!(ext.router(&ctx).is_none());
     assert!(!ext.has_jobs());
     assert!(!ext.has_config());
     assert!(!ext.has_llm_providers());
