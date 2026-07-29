@@ -17,6 +17,8 @@ anyhow = { workspace = true }
 sqlx = { workspace = true }
 
 [dev-dependencies]
+async-trait = { workspace = true }
+inventory = { workspace = true }
 tokio = { workspace = true }
 uuid = { workspace = true }
 

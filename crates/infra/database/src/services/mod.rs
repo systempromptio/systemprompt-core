@@ -10,6 +10,7 @@ pub mod executor;
 pub mod postgres;
 pub mod provider;
 pub mod schema_linter;
+pub mod scoped_transaction;
 pub mod transaction;
 
 pub use database::{Database, DatabaseExt, DbPool};
@@ -20,4 +21,5 @@ pub use postgres::connection::PoolConfig;
 pub use postgres::transaction::PostgresTransaction;
 pub use provider::{DatabaseProvider, DatabaseProviderExt};
 pub use schema_linter::{LintError, lint_declarative_schema};
+pub use scoped_transaction::{begin_scoped, with_scoped_transaction, with_scoped_transaction_raw};
 pub use transaction::{BoxFuture, with_transaction, with_transaction_raw, with_transaction_retry};

@@ -141,6 +141,16 @@ impl Database {
         let pool = self.write_pool_arc()?;
         pool.begin().await.map_err(Into::into)
     }
+
+    /// Begin a write transaction with the request's connection scope applied
+    /// — see [`crate::scope`].
+    pub async fn begin_scoped(
+        &self,
+        scope: &systemprompt_models::RequestScope,
+    ) -> DatabaseResult<sqlx::Transaction<'static, sqlx::Postgres>> {
+        let pool = self.write_pool_arc()?;
+        super::scoped_transaction::begin_scoped(&pool, scope).await
+    }
 }
 
 pub type DbPool = Arc<Database>;

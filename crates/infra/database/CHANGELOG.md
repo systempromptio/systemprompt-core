@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.27.0] - 2026-07-29
+
+### Breaking
+
+- **Breaking:** `CleanupRepository::delete_orphaned_mcp_executions` is removed. `mcp_tool_executions.context_id` carries no foreign key, so a context id absent from `user_contexts` is a normal state — the sweep hard-deleted same-day governance audit rows the moment their context disappeared. Tool executions outlive their context; consumers aggregate by `user_id`.
+
+### Fixed
+
+- `Database::get_info` skips a table dropped between the table-list query and its per-table row count, so introspection running concurrently with a migration no longer fails with `42P01`.
+
+### Added
+
+- `CleanupRepository::count_orphaned_logs` reports the would-delete count for observe-mode (`enforce: false`) runs of `database_cleanup`.
+- Connection-scope seam for pooled multi-tenancy row-level security: `scope::ConnectionScopeProvider` (registered with `register_scope_provider!`) translates a `RequestScope` into transaction-local custom GUCs, applied via parameter-bound `set_config($1, $2, true)` on the new `begin_scoped` / `with_scoped_transaction{,_raw}` / `Database::begin_scoped` APIs. Settings die at COMMIT/ROLLBACK, so pooled connections return clean. Strictly opt-in: with no registered provider the scoped APIs are a plain `pool.begin()`, and the existing pool and transaction surfaces are untouched.
+
 ## [0.24.0] - 2026-07-26
 
 ### Fixed

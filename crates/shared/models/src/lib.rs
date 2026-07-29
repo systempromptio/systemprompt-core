@@ -29,6 +29,7 @@
 //! - [`profile`] — on-disk profile and bootstrap configuration.
 //! - [`repository`] — repository lifecycle traits and value objects.
 //! - [`routing`] — request routing classification.
+//! - [`scope`] — per-request scoping identity for scoped DB transactions.
 //! - [`secrets`] — secrets document model.
 //! - [`services`] — services manifest (agents, plugins, hooks, MCP, …).
 //! - [`users`] — public user / session summaries.
@@ -79,6 +80,7 @@ pub mod profile;
 pub mod repository;
 pub mod routing;
 pub mod schema;
+pub mod scope;
 pub mod secrets;
 pub mod services;
 pub mod subprocess;
@@ -168,8 +170,8 @@ pub use mcp::{
 pub use modules::{ApiPaths, CliPaths, ServiceCategory};
 pub use oauth::{OAuthClientConfig, OAuthServerConfig};
 pub use paths::{
-    AppPaths, BuildPaths, PathError, StoragePaths, SystemPaths, WebPaths, cloud_container,
-    dir_names, file_names,
+    AppPaths, BuildPaths, PathError, PathResolution, StoragePaths, SystemPaths, WebPaths,
+    cloud_container, dir_names, file_names,
 };
 pub use profile::{
     CloudConfig, CloudValidationMode, ContentNegotiationConfig,
@@ -179,6 +181,7 @@ pub use profile::{
 };
 pub use repository::{ServiceLifecycle, ServiceRecord, WhereClause};
 pub use routing::{ApiCategory, AssetType, RouteClassifier, RouteType};
+pub use scope::RequestScope;
 pub use secrets::Secrets;
 pub use services::{
     AGENT_CONFIG_FILENAME, AgentCardConfig, AgentConfig, AgentMetadataConfig, AgentProviderInfo,

@@ -59,6 +59,7 @@ pub mod models;
 #[macro_use]
 pub mod repository;
 pub mod resilience;
+pub mod scope;
 pub mod services;
 pub mod squash_baseline;
 
@@ -71,11 +72,13 @@ pub use models::{
     ToDbValue, TokenId, TraceId, UserId, parse_database_datetime,
 };
 
+pub use scope::{ConnectionScopeProvider, ScopeError, ScopeSetting, SharedScopeProvider};
 pub use services::{
     BoxFuture, Database, DatabaseCliDisplay, DatabaseExt, DatabaseProvider, DatabaseProviderExt,
-    DbPool, PoolConfig, PostgresProvider, SqlExecutor, with_transaction, with_transaction_raw,
-    with_transaction_retry,
+    DbPool, PoolConfig, PostgresProvider, SqlExecutor, begin_scoped, with_scoped_transaction,
+    with_scoped_transaction_raw, with_transaction, with_transaction_raw, with_transaction_retry,
 };
+pub use systemprompt_models::RequestScope;
 
 pub use error::{DatabaseResult, RepositoryError};
 pub use lifecycle::{
