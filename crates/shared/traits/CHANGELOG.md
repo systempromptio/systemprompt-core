@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.27.0] - 2026-07-29
+
+### Breaking
+
+- **Breaking:** `StartupEvent::McpServerReady.tools` and the `tools` argument of `StartupEventExt::mcp_ready` are `Option<usize>`. `None` means the server's tool list was never enumerated, which an OAuth-gated MCP server's reachability-only validation cannot do; it was previously indistinguishable from a measured zero. Migrate by passing `Some(count)` where a count was measured and `None` where it was not.
+
 ## [0.25.0] - 2026-07-27
 
 ### Breaking

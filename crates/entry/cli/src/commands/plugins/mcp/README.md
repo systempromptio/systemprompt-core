@@ -177,6 +177,10 @@ sp plugins mcp validate --all --timeout 5
 - Tools are registered
 - Latency measurement
 
+An OAuth-gated server is validated by port reachability alone — no token exists
+to call `tools/list` with — so `tools_count` is omitted from its result rather
+than reported as `0`.
+
 **Output Structure (Single Server):**
 ```json
 {
@@ -507,7 +511,8 @@ sp plugins mcp logs filesystem --level error --lines 100
 ### Tool Registration Issues
 
 ```bash
-# Validate and check the tools count
+# Validate and check the tools count. The field is absent when the tool list
+# was never enumerated — an OAuth-gated server is probed for reachability only.
 sp --json plugins mcp validate filesystem | jq '.results[0].tools_count'
 
 # List the tools directly
