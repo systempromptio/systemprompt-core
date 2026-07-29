@@ -7964,6 +7964,8 @@ name = "systemprompt-database-integration-tests"
 version = "0.0.11"
 dependencies = [
  "anyhow",
+ "async-trait",
+ "inventory",
  "sqlx",
  "systemprompt-database",
  "systemprompt-extension",
@@ -8075,6 +8077,7 @@ dependencies = [
  "axum",
  "inventory",
  "serde_json",
+ "sqlx",
  "systemprompt-extension",
  "systemprompt-provider-contracts",
  "systemprompt-traits",
@@ -8763,6 +8766,7 @@ dependencies = [
  "serde_yaml_ng",
  "sqlx",
  "systemprompt-database",
+ "systemprompt-identifiers",
  "systemprompt-models",
  "systemprompt-scheduler",
  "systemprompt-test-fixtures",
