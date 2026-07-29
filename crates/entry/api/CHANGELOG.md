@@ -2,8 +2,16 @@
 
 ## [0.27.0] - 2026-07-29
 
+### Changed
+
+- Gateway request guards receive the resolved request (requested model, route id, provider, streaming flag) and a `Forbidden` denial now renders a 403 without `retry-after`; quota-kind denials keep the 429 + `retry-after` path. Guard denials were previously all funnelled through the quota response, so an entitlement denial invited clients to retry forever.
+- Gateway quota windows resolve their bucket subject per `QuotaWindow.subject`: `user` (default) keys on the requesting user; an extension dimension (e.g. `organization`) resolves through the registered `SubjectAttributeProvider`, first value wins, and a window whose subject cannot be resolved is skipped. `precheck_and_reserve` additionally denies once a window's `max_cost_microdollars` ceiling is spent, and `post_update_tokens` records the request cost computed by the audit (`GatewayAudit::complete` returns it).
+
+- WebAuthn registration promotes a prior anonymous session's full history onto the new account via `UserService::promote_anonymous` (transactional, all user-data tables) instead of moving `user_sessions` rows alone. Promotion stays best-effort: registration never fails on a merge error, which remains repairable via `admin users merge`.
+
 ### Fixed
 
+- Streaming completions debit quota buckets (tokens and the cost `GatewayAudit::complete` computes) and run the response-phase safety scanners; both were buffered-only, so streamed traffic bypassed token counters, `max_cost_microdollars` ceilings, and response-phase findings. A failed stream debits only its precheck reservation.
 - Static assets whose filename carries no content hash are served `Cache-Control: public, max-age=0, must-revalidate`, the new `CACHE_STATIC_ASSET_REVALIDATE`. `asset_cache_policy` reserves `CACHE_STATIC_ASSET` for hashed names such as `app.4f3a9c1e.js` or `main-8ba7f21c.css`; `immutable` suppresses revalidation, so the `ETag` on these responses was unreachable and a redeployed asset could stay cached for up to a year. Files under the configured files prefix honour `files.cacheControl` when set.
 
 ## [0.26.0] - 2026-07-28

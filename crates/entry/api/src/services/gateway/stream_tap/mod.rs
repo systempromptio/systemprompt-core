@@ -18,18 +18,33 @@ use std::task::{Context, Poll};
 use axum::body::Body;
 use bytes::Bytes;
 use futures_util::stream::{BoxStream, Stream};
+use systemprompt_database::DbPool;
+use systemprompt_identifiers::AiRequestId;
 
 use self::accumulator::{Summary, TapState, accumulate_event, extract_summary, snapshot};
 use super::audit::GatewayAudit;
+use super::policy::GatewayPolicySpec;
 use super::protocol::canonical_response::CanonicalEvent;
 use super::protocol::inbound::InboundAdapter;
+use super::quota;
+use super::service::run_response_safety_scan;
 use super::signature_cache::ThoughtSignatureCache;
+
+/// Shared by the streaming and buffered completion tasks so both debit quota
+/// and run the response-phase safety scan identically.
+#[derive(Debug)]
+pub struct TapFinalizeCtx {
+    pub db: DbPool,
+    pub policy: GatewayPolicySpec,
+    pub ai_request_id: AiRequestId,
+}
 
 pub fn tap(
     upstream: BoxStream<'static, Result<CanonicalEvent, String>>,
     inbound: Arc<dyn InboundAdapter>,
     request_model: String,
     audit: Arc<GatewayAudit>,
+    finalize_ctx: TapFinalizeCtx,
 ) -> Body {
     let state = Arc::new(Mutex::new(TapState::default()));
     let tapped = TappedStream {
@@ -38,6 +53,7 @@ pub fn tap(
         inbound,
         request_model,
         audit,
+        finalize_ctx: Some(finalize_ctx),
     };
     Body::from_stream(tapped)
 }
@@ -48,6 +64,7 @@ struct TappedStream {
     inbound: Arc<dyn InboundAdapter>,
     request_model: String,
     audit: Arc<GatewayAudit>,
+    finalize_ctx: Option<TapFinalizeCtx>,
 }
 
 impl Stream for TappedStream {
@@ -100,31 +117,32 @@ impl Stream for TappedStream {
 }
 
 impl TappedStream {
-    fn take_summary(&self) -> Option<Summary> {
+    fn take_summary(&mut self) -> Option<(Summary, TapFinalizeCtx)> {
+        let ctx = self.finalize_ctx.take()?;
         self.state.lock().ok().and_then(|mut s| {
             if s.finalized {
                 return None;
             }
             s.finalized = true;
-            Some(extract_summary(&mut s))
+            Some((extract_summary(&mut s), ctx))
         })
     }
 
-    fn finalize_on_eof(&self) -> Poll<Option<Result<Bytes, std::io::Error>>> {
-        let Some(summary) = self.take_summary() else {
+    fn finalize_on_eof(&mut self) -> Poll<Option<Result<Bytes, std::io::Error>>> {
+        let Some((summary, ctx)) = self.take_summary() else {
             return Poll::Ready(None);
         };
-        finalize(Arc::clone(&self.audit), summary, "eof");
+        finalize(Arc::clone(&self.audit), summary, ctx, "eof");
         Poll::Ready(None)
     }
 }
 
 impl Drop for TappedStream {
     fn drop(&mut self) {
-        let Some(summary) = self.take_summary() else {
+        let Some((summary, ctx)) = self.take_summary() else {
             return;
         };
-        finalize(Arc::clone(&self.audit), summary, "drop");
+        finalize(Arc::clone(&self.audit), summary, ctx, "drop");
     }
 }
 
@@ -155,7 +173,7 @@ pub const fn classify(
     }
 }
 
-fn finalize(audit: Arc<GatewayAudit>, summary: Summary, origin: &'static str) {
+fn finalize(audit: Arc<GatewayAudit>, summary: Summary, ctx: TapFinalizeCtx, origin: &'static str) {
     if let Some(conversation) = &audit.ctx.gateway_conversation_id {
         ThoughtSignatureCache::global().store_from_response(conversation, &summary.response);
     }
@@ -185,7 +203,7 @@ fn finalize(audit: Arc<GatewayAudit>, summary: Summary, origin: &'static str) {
                         "stream completed with content but zero usage: cost capture miss"
                     );
                 }
-                if let Err(e) = audit
+                let cost_microdollars = match audit
                     .complete(
                         summary.usage,
                         summary.tool_calls,
@@ -194,8 +212,30 @@ fn finalize(audit: Arc<GatewayAudit>, summary: Summary, origin: &'static str) {
                     )
                     .await
                 {
-                    tracing::warn!(origin, error = %e, "stream audit complete failed");
-                }
+                    Ok(cost) => cost,
+                    Err(e) => {
+                        tracing::warn!(origin, error = %e, "stream audit complete failed");
+                        0
+                    },
+                };
+                quota::post_update_tokens(
+                    &ctx.db,
+                    quota::PostUpdateParams {
+                        user_id: &audit.ctx.user_id,
+                        windows: &ctx.policy.quota_windows,
+                        input_tokens: summary.usage.input_tokens,
+                        output_tokens: summary.usage.output_tokens,
+                        cost_microdollars,
+                    },
+                )
+                .await;
+                run_response_safety_scan(
+                    &ctx.db,
+                    &ctx.ai_request_id,
+                    &summary.response,
+                    &ctx.policy.safety,
+                )
+                .await;
             },
         }
     });

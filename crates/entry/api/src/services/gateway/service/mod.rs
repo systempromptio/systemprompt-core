@@ -11,6 +11,8 @@
 mod finalize;
 mod resolve;
 
+pub(super) use self::finalize::run_response_safety_scan;
+
 #[cfg(feature = "test-api")]
 pub mod test_api {
     pub use super::blocks_at_phase;
@@ -73,6 +75,12 @@ pub struct QuotaExceeded {
 
 #[derive(Debug, thiserror::Error)]
 #[error("{message}")]
+pub struct GuardForbidden {
+    pub message: String,
+}
+
+#[derive(Debug, thiserror::Error)]
+#[error("{message}")]
 pub struct SafetyBlocked {
     pub category: String,
     pub message: String,
@@ -128,7 +136,7 @@ impl GatewayService {
         }
 
         enforce_quota(db, &ctx.user_id, &policy.quota_windows, &audit).await?;
-        enforce_request_guards(db, &ctx.user_id, &audit).await?;
+        enforce_request_guards(db, &ctx.user_id, &upstream, &request, &audit).await?;
         enforce_request_safety(db, &ai_request_id, &request, &policy.safety, &audit).await?;
 
         let outcome = send_to_upstream(config, &upstream, &mut request, &audit).await?;
@@ -203,10 +211,7 @@ async fn enforce_quota(
     if decision.allow {
         return Ok(());
     }
-    let msg = format!(
-        "quota exceeded for window {}s (used {}/{:?})",
-        decision.window_seconds, decision.state.requests, decision.limit_requests
-    );
+    let msg = decision.message;
     if let Err(e) = audit.fail(&msg).await {
         tracing::warn!(error = %e, "quota audit fail failed");
     }
@@ -222,30 +227,46 @@ async fn enforce_quota(
 async fn enforce_request_guards(
     db: &DbPool,
     user_id: &UserId,
+    upstream: &ResolvedUpstream<'_>,
+    request: &CanonicalRequest,
     audit: &GatewayAudit,
 ) -> Result<(), DispatchError> {
     let Some(pool) = db.pool() else {
         return Ok(());
     };
-    let Err(deny) = systemprompt_extension::run_gateway_guards(&pool, user_id.as_str()).await
-    else {
+    let guard_request = systemprompt_extension::GatewayGuardRequest {
+        user_id: user_id.as_str(),
+        model: &request.model,
+        route_id: Some(upstream.route.id.as_str()),
+        provider: upstream.route.provider.as_str(),
+        streaming: request.stream,
+    };
+    let Err(deny) = systemprompt_extension::run_gateway_guards(&pool, &guard_request).await else {
         return Ok(());
     };
     tracing::warn!(
         user_id = %user_id,
+        model = %request.model,
+        route_id = %upstream.route.id,
+        kind = ?deny.kind,
         reason = %deny.message,
         "Gateway request denied by request guard"
     );
     if let Err(e) = audit.fail(&deny.message).await {
         tracing::warn!(error = %e, "request-guard audit fail failed");
     }
-    Err(DispatchError::Recorded(
-        QuotaExceeded {
+    let inner: anyhow::Error = match deny.kind {
+        systemprompt_extension::GatewayDenyKind::Forbidden => GuardForbidden {
+            message: deny.message,
+        }
+        .into(),
+        systemprompt_extension::GatewayDenyKind::Quota => QuotaExceeded {
             message: deny.message,
             retry_after_seconds: deny.retry_after_seconds,
         }
         .into(),
-    ))
+    };
+    Err(DispatchError::Recorded(inner))
 }
 
 async fn enforce_request_safety(

@@ -88,32 +88,16 @@ pub(super) async fn finalize(outcome: OutboundOutcome, fctx: FinalizeCtx) -> Res
             let body_bytes = inbound.render_response(&canonical);
             let audit_clone = Arc::clone(&audit);
             let body_for_task = body_bytes.clone();
-            tokio::spawn(async move {
-                let canonical_for_task = canonical;
-                let served_model = canonical_for_task.model.clone();
-                if !served_model.is_empty() {
-                    audit_clone.set_served_model(&served_model).await;
-                }
-                let (usage, tool_calls) = parse::extract_from_canonical(&canonical_for_task);
-                if let Err(e) = audit_clone
-                    .complete(usage, tool_calls, &canonical_for_task, &body_for_task)
-                    .await
-                {
-                    tracing::warn!(error = %e, "buffered audit complete failed");
-                }
-                quota::post_update_tokens(
-                    &db,
-                    quota::PostUpdateParams {
-                        user_id: &audit_clone.ctx.user_id,
-                        windows: &policy.quota_windows,
-                        input_tokens: usage.input_tokens,
-                        output_tokens: usage.output_tokens,
-                    },
-                )
-                .await;
-                run_response_safety_scan(&db, &ai_request_id, &canonical_for_task, &policy.safety)
-                    .await;
-            });
+            tokio::spawn(buffered_completion(
+                canonical,
+                body_for_task,
+                audit_clone,
+                stream_tap::TapFinalizeCtx {
+                    db,
+                    policy,
+                    ai_request_id,
+                },
+            ));
             Response::builder()
                 .status(http::StatusCode::OK)
                 .header(http::header::CONTENT_TYPE, "application/json")
@@ -121,7 +105,17 @@ pub(super) async fn finalize(outcome: OutboundOutcome, fctx: FinalizeCtx) -> Res
                 .unwrap_or_else(|_| Response::new(Body::empty()))
         },
         OutboundOutcome::Streaming(stream) => {
-            let body = stream_tap::tap(stream, Arc::clone(&inbound), request_model, audit);
+            let body = stream_tap::tap(
+                stream,
+                Arc::clone(&inbound),
+                request_model,
+                audit,
+                stream_tap::TapFinalizeCtx {
+                    db,
+                    policy,
+                    ai_request_id,
+                },
+            );
             Response::builder()
                 .status(http::StatusCode::OK)
                 .header(http::header::CONTENT_TYPE, inbound.streaming_content_type())
@@ -131,6 +125,38 @@ pub(super) async fn finalize(outcome: OutboundOutcome, fctx: FinalizeCtx) -> Res
                 .unwrap_or_else(|_| Response::new(Body::empty()))
         },
     }
+}
+
+async fn buffered_completion(
+    canonical: CanonicalResponse,
+    body: bytes::Bytes,
+    audit: Arc<GatewayAudit>,
+    ctx: stream_tap::TapFinalizeCtx,
+) {
+    let served_model = canonical.model.clone();
+    if !served_model.is_empty() {
+        audit.set_served_model(&served_model).await;
+    }
+    let (usage, tool_calls) = parse::extract_from_canonical(&canonical);
+    let cost_microdollars = match audit.complete(usage, tool_calls, &canonical, &body).await {
+        Ok(cost) => cost,
+        Err(e) => {
+            tracing::warn!(error = %e, "buffered audit complete failed");
+            0
+        },
+    };
+    quota::post_update_tokens(
+        &ctx.db,
+        quota::PostUpdateParams {
+            user_id: &audit.ctx.user_id,
+            windows: &ctx.policy.quota_windows,
+            input_tokens: usage.input_tokens,
+            output_tokens: usage.output_tokens,
+            cost_microdollars,
+        },
+    )
+    .await;
+    run_response_safety_scan(&ctx.db, &ctx.ai_request_id, &canonical, &ctx.policy.safety).await;
 }
 
 pub(super) async fn run_request_safety_scan(
@@ -174,7 +200,7 @@ pub fn dedupe_findings(findings: &mut Vec<Finding>) {
     findings.retain(|f| seen.insert((f.phase, f.category.clone(), f.scanner)));
 }
 
-async fn run_response_safety_scan(
+pub(in crate::services::gateway) async fn run_response_safety_scan(
     db: &DbPool,
     ai_request_id: &AiRequestId,
     response: &CanonicalResponse,
