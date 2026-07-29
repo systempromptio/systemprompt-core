@@ -12,7 +12,6 @@
 
 use std::fmt;
 use std::str::FromStr;
-use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{CallId, PolicyId, SessionId, UserId};
@@ -154,7 +153,8 @@ pub struct PolicyContext<'a> {
 /// a submitted prompt, per [`PolicyContext::target`].
 ///
 /// Implementations are pure-sync; auditing happens outside the chain.
-/// First-deny-wins composition is provided by [`super::GovernanceChain`].
+/// Traced first-deny-wins composition is provided by
+/// [`super::GovernanceEngine`].
 ///
 /// `evaluate` must be **idempotent per [`PolicyContext::call_id`]**: evaluating
 /// one call twice yields the same [`Decision`] and leaves the same state behind
@@ -165,38 +165,4 @@ pub trait GovernancePolicy: Send + Sync + fmt::Debug {
     fn name(&self) -> &'static str;
     fn description(&self) -> &'static str;
     fn evaluate(&self, ctx: &PolicyContext<'_>) -> Decision;
-}
-
-/// Ordered chain of [`GovernancePolicy`] evaluated first-deny-wins.
-#[derive(Debug, Clone, Default)]
-pub struct GovernanceChain {
-    entries: Vec<Arc<dyn GovernancePolicy>>,
-}
-
-impl GovernanceChain {
-    #[must_use]
-    pub const fn new(entries: Vec<Arc<dyn GovernancePolicy>>) -> Self {
-        Self { entries }
-    }
-
-    pub fn push(&mut self, policy: Arc<dyn GovernancePolicy>) {
-        self.entries.push(policy);
-    }
-
-    #[must_use]
-    pub fn entries(&self) -> &[Arc<dyn GovernancePolicy>] {
-        &self.entries
-    }
-
-    #[must_use]
-    pub fn evaluate(&self, ctx: &PolicyContext<'_>) -> Decision {
-        for policy in &self.entries {
-            if let deny @ Decision::Deny { .. } = policy.evaluate(ctx) {
-                return deny;
-            }
-        }
-        Decision::Allow {
-            matched_by: crate::authz::types::MatchedBy::DefaultIncluded,
-        }
-    }
 }

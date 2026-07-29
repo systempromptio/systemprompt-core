@@ -25,6 +25,14 @@ mod jwt_validate;
 #[cfg(test)]
 mod manifest_signing_jcs;
 #[cfg(test)]
+mod policy_audit;
+#[cfg(test)]
+mod policy_builtins;
+#[cfg(test)]
+mod policy_config;
+#[cfg(test)]
+mod policy_engine;
+#[cfg(test)]
 mod policy_governed;
 #[cfg(test)]
 mod policy_types;

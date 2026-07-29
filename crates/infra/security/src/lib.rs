@@ -24,6 +24,9 @@
 //! - Authorization decision plane ([`authz`]) — deny-overrides resolver,
 //!   `access_control_rules` repository, and `AuthzDecisionHook` extension
 //!   surface shared by the gateway and MCP enforcement sites.
+//! - Governed-call plane ([`policy`]) — the `GovernanceEngine` policy chain
+//!   (secret scan, scope check, blocklist, rate limit + extension-registered
+//!   policies) with per-entry audit tracing into `governance_decisions`.
 //!
 //! All public fallible APIs return typed errors from [`error`] — `anyhow`
 //! is not used in any public signature.

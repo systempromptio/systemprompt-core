@@ -1,13 +1,11 @@
 use std::str::FromStr;
-use std::sync::Arc;
 
 use serde_json::json;
-use systemprompt_identifiers::{CallId, McpToolName, PolicyId, SessionId, UserId};
+use systemprompt_identifiers::{PolicyId, UserId};
 use systemprompt_security::authz::types::{Decision, MatchedBy};
-use systemprompt_security::policy::governed::{GovernedInput, GovernedTarget, McpToolInput};
+use systemprompt_security::policy::governed::McpToolInput;
 use systemprompt_security::policy::types::{
-    AccessScope, AgentScope, GovernanceChain, GovernancePolicy, PolicyContext, RateLimitWindow,
-    SecretLocation,
+    AccessScope, AgentScope, GovernancePolicy, PolicyContext, RateLimitWindow, SecretLocation,
 };
 
 #[test]
@@ -145,104 +143,6 @@ impl GovernancePolicy for AllowPolicy {
             matched_by: MatchedBy::DefaultIncluded,
         }
     }
-}
-
-#[derive(Debug)]
-struct DenyPolicy;
-
-impl GovernancePolicy for DenyPolicy {
-    fn id(&self) -> PolicyId {
-        PolicyId::new("test-deny")
-    }
-    fn name(&self) -> &'static str {
-        "deny-all"
-    }
-    fn description(&self) -> &'static str {
-        "always denies"
-    }
-    fn evaluate(&self, _ctx: &PolicyContext<'_>) -> Decision {
-        use std::borrow::Cow;
-        use systemprompt_security::authz::types::DenyReason;
-        Decision::Deny {
-            reason: DenyReason::PolicyViolation {
-                policy: "test".to_owned(),
-                detail: Cow::Borrowed("blocked"),
-            },
-        }
-    }
-}
-
-static TEST_CALL: std::sync::LazyLock<CallId> = std::sync::LazyLock::new(CallId::generate);
-
-fn make_context<'a>(
-    tool: &McpToolName,
-    session: &'a SessionId,
-    user: &'a UserId,
-    input: &'a GovernedInput,
-) -> PolicyContext<'a> {
-    PolicyContext {
-        target: GovernedTarget::Tool { tool: tool.clone() },
-        agent_scope: AgentScope::System,
-        access_scope: AccessScope::Admin,
-        session_id: session,
-        user_id: user,
-        input,
-        call_id: &TEST_CALL,
-    }
-}
-
-#[test]
-fn governance_chain_empty_returns_default_included() {
-    let chain = GovernanceChain::default();
-    let tool = McpToolName::new("bash");
-    let sid = SessionId::generate();
-    let uid = UserId::new("u1");
-    let input = GovernedInput::tool_arguments(McpToolInput::new(json!({})));
-    let ctx = make_context(&tool, &sid, &uid, &input);
-
-    let d = chain.evaluate(&ctx);
-    assert!(matches!(
-        d,
-        Decision::Allow {
-            matched_by: MatchedBy::DefaultIncluded
-        }
-    ));
-}
-
-#[test]
-fn governance_chain_all_allow_returns_default_included() {
-    let chain = GovernanceChain::new(vec![Arc::new(AllowPolicy), Arc::new(AllowPolicy)]);
-    let tool = McpToolName::new("read_file");
-    let sid = SessionId::generate();
-    let uid = UserId::new("u2");
-    let input = GovernedInput::tool_arguments(McpToolInput::new(json!({ "path": "/tmp" })));
-    let ctx = make_context(&tool, &sid, &uid, &input);
-
-    let d = chain.evaluate(&ctx);
-    assert!(matches!(d, Decision::Allow { .. }));
-}
-
-#[test]
-fn governance_chain_deny_short_circuits() {
-    let mut chain = GovernanceChain::default();
-    chain.push(Arc::new(AllowPolicy));
-    chain.push(Arc::new(DenyPolicy));
-    chain.push(Arc::new(AllowPolicy));
-
-    let tool = McpToolName::new("write_file");
-    let sid = SessionId::generate();
-    let uid = UserId::new("u3");
-    let input = GovernedInput::tool_arguments(McpToolInput::new(json!({})));
-    let ctx = make_context(&tool, &sid, &uid, &input);
-
-    let d = chain.evaluate(&ctx);
-    assert!(matches!(d, Decision::Deny { .. }));
-}
-
-#[test]
-fn governance_chain_entries_accessor() {
-    let chain = GovernanceChain::new(vec![Arc::new(AllowPolicy)]);
-    assert_eq!(chain.entries().len(), 1);
 }
 
 #[test]

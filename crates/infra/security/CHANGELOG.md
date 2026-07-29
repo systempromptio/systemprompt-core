@@ -7,12 +7,17 @@
 - **Breaking:** `PolicyContext.tool` is replaced by `target: GovernedTarget`, and `PolicyContext.tool_input` by `input: &GovernedInput`; a governed call is an MCP tool invocation or a submitted prompt, and a prompt names no tool. Migrate by constructing `GovernedTarget::Tool { tool }` / `GovernedInput::tool_arguments(..)` at each enforcement point, and by reading `ctx.target.tool()` where a policy applies to tool calls only.
 - **Breaking:** `SecretLocation` carries a third field, `redacted`, and `SecretLocation::new` takes three arguments; `path` holds the dotted path to the offending field. Migrate by passing the path and the redacted excerpt separately.
 - **Breaking:** `McpToolInput` moves from `policy::types` to `policy::governed`. Migrate by importing from `systemprompt_security::policy`, which re-exports both modules' public types.
+- **Breaking:** `GovernanceChain` is deleted. It returned only the first deny, discarding the per-policy trace every audit row needs, so no consumer ever called it — downstreams each reimplemented a traced loop instead. Migrate to `GovernanceEngine::evaluate`, which returns an `Evaluation { decision, chain }` with a per-entry `ChainEntryOutcome` trace.
 
 ### Added
 
 - `GovernedInput::strings` yields every string in a governed payload with its dotted path, so a scanner reports the path the input type defines rather than one it reconstructs, and `GovernedInput::location_kind` names the surface a finding sits on (`tool_input` or `prompt`).
 - `GovernedTarget::as_str` gives the audit-visible name of a governed target, recording a prompt submission as `PROMPT_TARGET_NAME`.
 - `SecretLocation` implements `Display`, and `DenyReason::SecretLeak` renders it in place of a `Debug` dump.
+- The governance runtime moves into core. `policy::GovernanceEngine` instantiates the configured chain from the inventory registry (`register_governance_policy!`, mirroring `register_authz_hook!`) and a `GovernanceConfig` parsed from the `governance.policies` YAML shape; `evaluate` runs it first-deny-wins with a full per-entry trace — disabled and skipped-after-deny entries record `skip` with zero duration. Registered policies absent from the config are appended disabled so the trace shows them rather than omitting them. The engine is caller-owned: policy state (the rate limiter's sliding window) is instance-scoped, never process-global.
+- The four built-in policies ship with the crate under their stable ids — `secret_scan` (built-in pattern table + `extra_patterns` prefixes), `scope_check` (`admin_only_prefixes`), `tool_blocklist` (`patterns`), and `rate_limit` (per-`{session,user}` sliding window, idempotent per `call_id`) — emitting the typed `DenyReason` variants this crate already defined for them.
+- `policy::secrets` exposes the shared credential scanner: `SECRET_PATTERNS`, `detect_secrets` over a `GovernedInput`, `scan_str_for_secret` for string surfaces, and the high-entropy backstop `find_high_entropy_token`.
+- `policy::DecisionAudit` (with `PrincipalSnapshot`, `AuditTarget`, `ApproverStamp`, `AuditOrigin`, `ChainEntryOutcome`) is the typed blob persisted into `governance_decisions.evaluated_rules`, and `record_decision` derives the flat columns (`policy` is the first failing chain entry) before delegating to `insert_governance_decision`. `DecisionAudit.act_chain` carries the RFC 8693 delegation lineage; it and `approver` are omitted from the blob when empty, so pre-existing rows and new rows share one shape.
 
 ## [0.26.0] - 2026-07-28
 
