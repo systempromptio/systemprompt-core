@@ -8,11 +8,14 @@
 use crate::GeoIpReader;
 
 #[cfg(feature = "geolocation")]
-pub(super) fn lookup_geoip(
+pub(crate) fn lookup_geoip(
     ip_str: &str,
     geoip_reader: Option<&GeoIpReader>,
 ) -> Option<(Option<String>, Option<String>, Option<String>)> {
-    let reader = geoip_reader?;
+    let Some(reader) = geoip_reader else {
+        tracing::debug!(ip = %ip_str, geoip_skip_reason = "no_reader", "GeoIP lookup skipped");
+        return None;
+    };
 
     let ip: std::net::IpAddr = match ip_str.parse() {
         Ok(ip) => ip,
@@ -23,12 +26,14 @@ pub(super) fn lookup_geoip(
     };
 
     if ip.is_loopback() || ip.is_unspecified() {
+        tracing::debug!(ip = %ip_str, geoip_skip_reason = "private_or_local_ip", "GeoIP lookup skipped");
         return None;
     }
 
     if let std::net::IpAddr::V4(ipv4) = ip
         && (ipv4.is_private() || ipv4.is_link_local())
     {
+        tracing::debug!(ip = %ip_str, geoip_skip_reason = "private_or_local_ip", "GeoIP lookup skipped");
         return None;
     }
 
@@ -66,7 +71,7 @@ pub(super) fn lookup_geoip(
 }
 
 #[cfg(not(feature = "geolocation"))]
-pub(super) const fn lookup_geoip(
+pub(crate) const fn lookup_geoip(
     _ip_str: &str,
     _geoip_reader: Option<&GeoIpReader>,
 ) -> Option<(Option<String>, Option<String>, Option<String>)> {

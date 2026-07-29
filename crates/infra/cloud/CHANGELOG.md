@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.27.0] - 2026-07-29
+
+### Fixed
+
+- `CloudProfileBuilder` accepts `with_geoip_database`, and the profile-authoring CLI passes an existing profile's `paths.geoip_database` through, so re-authoring a cloud profile no longer silently wipes an operator's hand-set GeoIP database path.
+
 ## [0.23.0] - 2026-07-24
 
 ### Added

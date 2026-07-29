@@ -26,7 +26,9 @@ use super::profile_steps::{
     ensure_profile_dirs, ensure_unmasked_credentials, report_profile_validation,
     resolve_tenant_from_args, write_docker_assets, write_profile_secrets,
 };
-use super::templates::{get_services_path, save_profile, update_ai_config_default_provider};
+use super::templates::{
+    existing_geoip_database, get_services_path, save_profile, update_ai_config_default_provider,
+};
 use crate::cli_settings::CliConfig;
 use crate::interactive::Prompter;
 use systemprompt_cloud::profile_authoring::{CloudProfileBuilder, LocalProfileBuilder};
@@ -72,7 +74,7 @@ pub(super) async fn execute(
     update_ai_config_default_provider(api_keys.selected_provider())?;
 
     let profile_path = ProfilePath::Config.resolve(&profile_dir);
-    let built_profile = build_tenant_profile(name, &tenant)?;
+    let built_profile = build_tenant_profile(name, &tenant, &profile_path)?;
 
     save_profile(&built_profile, &profile_path)?;
     CliService::success(&format!("Created: {}", profile_path.display()));
@@ -132,7 +134,7 @@ fn ensure_tenant_database(tenant: &StoredTenant) -> Result<()> {
     Ok(())
 }
 
-fn build_tenant_profile(name: &str, tenant: &StoredTenant) -> Result<Profile> {
+fn build_tenant_profile(name: &str, tenant: &StoredTenant, profile_path: &Path) -> Result<Profile> {
     let services_path = get_services_path()?;
     let relative_secrets_path = "./secrets.json";
 
@@ -144,7 +146,8 @@ fn build_tenant_profile(name: &str, tenant: &StoredTenant) -> Result<Profile> {
             let mut builder = CloudProfileBuilder::new(name)
                 .with_tenant_id(TenantId::new(&tenant.id))
                 .with_external_db_access(tenant.external_db_access)
-                .with_secrets_path(relative_secrets_path);
+                .with_secrets_path(relative_secrets_path)
+                .with_geoip_database(existing_geoip_database(profile_path));
             if let Some(hostname) = &tenant.hostname {
                 builder = builder.with_external_url(format!("https://{}", hostname));
             }

@@ -222,3 +222,40 @@ fn test_cloud_profile_governance_targets_internal_url() {
         Some("http://localhost:8080/api/public/govern/authz")
     );
 }
+
+#[test]
+fn cloud_profile_carries_forward_a_hand_set_geoip_database() {
+    let profile = CloudProfileBuilder::new("prod")
+        .with_geoip_database(Some("/x.mmdb".to_owned()))
+        .build();
+
+    assert_eq!(profile.paths.geoip_database.as_deref(), Some("/x.mmdb"));
+}
+
+#[test]
+fn cloud_profile_without_geoip_database_leaves_it_unset() {
+    let profile = CloudProfileBuilder::new("prod").build();
+
+    assert!(profile.paths.geoip_database.is_none());
+}
+
+#[test]
+fn cloud_profile_paths_are_resolved_lexically() {
+    let profile = CloudProfileBuilder::new("prod").build();
+
+    assert_eq!(
+        profile.path_resolution(),
+        systemprompt_models::paths::PathResolution::Lexical,
+        "container paths only resolve inside the deployed container"
+    );
+}
+
+#[test]
+fn local_profile_paths_are_canonicalized() {
+    let profile = LocalProfileBuilder::new("local", "./secrets.json", "/srv/services").build();
+
+    assert_eq!(
+        profile.path_resolution(),
+        systemprompt_models::paths::PathResolution::Canonicalize
+    );
+}

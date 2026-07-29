@@ -32,7 +32,7 @@ pub(super) fn assemble_content_analytics(
     database: &Arc<Database>,
     show_startup_warnings: bool,
 ) -> RuntimeResult<ContentAnalytics> {
-    let geoip_reader = AppContext::load_geoip_database(config, show_startup_warnings);
+    let geoip_reader = AppContext::load_geoip_database(config, show_startup_warnings)?;
     let content_config = AppContext::load_content_config(config, app_paths);
     let content_routing = content_routing_from(content_config.as_ref());
     let route_classifier = Arc::new(systemprompt_models::RouteClassifier::new(

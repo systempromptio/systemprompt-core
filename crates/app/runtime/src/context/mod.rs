@@ -180,7 +180,10 @@ impl AppContext {
         }
     }
 
-    pub fn load_geoip_database(config: &Config, show_warnings: bool) -> Option<GeoIpReader> {
+    pub fn load_geoip_database(
+        config: &Config,
+        show_warnings: bool,
+    ) -> Result<Option<GeoIpReader>, crate::error::RuntimeError> {
         context_loaders::load_geoip_database(config, show_warnings)
     }
 

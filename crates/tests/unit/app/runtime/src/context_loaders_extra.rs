@@ -57,7 +57,8 @@ fn cfg_without_geoip() -> Config {
 #[test]
 fn load_geoip_database_with_show_warnings_emits_help_text() {
     let cfg = cfg_without_geoip();
-    let reader = AppContext::load_geoip_database(&cfg, true);
+    let reader =
+        AppContext::load_geoip_database(&cfg, true).expect("unconfigured geoip is not an error");
     assert!(reader.is_none(), "no path configured -> None");
 }
 

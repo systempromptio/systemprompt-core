@@ -25,6 +25,7 @@ pub struct CloudProfileBuilder {
     external_db_access: bool,
     secrets_path: Option<String>,
     trusted_issuers: Vec<TrustedIssuer>,
+    geoip_database: Option<String>,
 }
 
 impl CloudProfileBuilder {
@@ -36,7 +37,16 @@ impl CloudProfileBuilder {
             external_db_access: false,
             secrets_path: None,
             trusted_issuers: Vec::new(),
+            geoip_database: None,
         }
+    }
+
+    /// Carries forward an operator's hand-set `paths.geoip_database` so
+    /// re-authoring a cloud profile does not silently disable `GeoIP`.
+    #[must_use]
+    pub fn with_geoip_database(mut self, geoip_database: Option<String>) -> Self {
+        self.geoip_database = geoip_database;
+        self
     }
 
     #[must_use]
@@ -109,7 +119,7 @@ impl CloudProfileBuilder {
                 services: container::SERVICES.to_owned(),
                 bin: container::BIN.to_owned(),
                 storage: Some(container::STORAGE.to_owned()),
-                geoip_database: None,
+                geoip_database: self.geoip_database,
                 web_path: Some(container::WEB.to_owned()),
             },
             security: security_config(consts::CLOUD_ISSUER, self.trusted_issuers),

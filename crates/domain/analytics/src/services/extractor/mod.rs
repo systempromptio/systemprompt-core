@@ -23,7 +23,7 @@ use super::detection;
 use super::user_agent::parse_user_agent;
 use crate::GeoIpReader;
 
-mod geoip;
+pub(crate) mod geoip;
 
 pub use systemprompt_traits::SessionAnalytics;
 

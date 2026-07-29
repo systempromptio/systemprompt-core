@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.27.0] - 2026-07-29
+
+### Breaking
+
+- **Breaking:** `AppContext::load_geoip_database` returns `Result<Option<GeoIpReader>, RuntimeError>`. An explicitly configured `paths.geoip_database` that cannot be opened fails startup with `RuntimeError::GeoIpUnreadable` instead of degrading to a warning that left every session's country NULL; "not configured" keeps the warning-and-`None` behaviour.
+
 ## [0.21.1] - 2026-07-17
 
 ### Changed

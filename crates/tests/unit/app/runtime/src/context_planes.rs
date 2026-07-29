@@ -65,7 +65,13 @@ async fn plane_debug_impls_flag_optional_members() {
         config: Arc::new(systemprompt_test_fixtures::app_context::fixture_config(
             &url,
         )),
-        app_paths: Arc::new(AppPaths::from_profile(&tmp_paths()).expect("app paths")),
+        app_paths: Arc::new(
+            AppPaths::from_profile(
+                &tmp_paths(),
+                systemprompt_models::PathResolution::Canonicalize,
+            )
+            .expect("app paths"),
+        ),
         content_config: Some(content_config()),
         route_classifier: Arc::new(RouteClassifier::new(None)),
     };

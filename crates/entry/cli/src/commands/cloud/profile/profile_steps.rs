@@ -24,8 +24,8 @@ use systemprompt_models::profile::TrustedIssuer;
 
 use super::api_keys::ApiKeys;
 use super::templates::{
-    DatabaseUrls, get_services_path, save_dockerfile, save_dockerignore, save_entrypoint,
-    save_profile, save_secrets, update_ai_config_default_provider,
+    DatabaseUrls, existing_geoip_database, get_services_path, save_dockerfile, save_dockerignore,
+    save_entrypoint, save_profile, save_secrets, update_ai_config_default_provider,
 };
 use super::{CreateArgs, TenantTypeArg};
 use crate::interactive::Prompter;
@@ -55,7 +55,7 @@ pub fn create_profile_for_tenant(
     update_ai_config_default_provider(api_keys.selected_provider())?;
 
     let profile_path = ProfilePath::Config.resolve(&profile_dir);
-    let built_profile = build_tenant_profile(tenant, &name, control_plane_api_url)?;
+    let built_profile = build_tenant_profile(tenant, &name, control_plane_api_url, &profile_path)?;
 
     save_profile(&built_profile, &profile_path)?;
     CliService::success(&format!("Created: {}", profile_path.display()));
@@ -130,6 +130,7 @@ fn build_tenant_profile(
     tenant: &StoredTenant,
     name: &str,
     control_plane_api_url: Option<&str>,
+    profile_path: &Path,
 ) -> Result<Profile> {
     Ok(match tenant.tenant_type {
         TenantType::Local => {
@@ -142,7 +143,8 @@ fn build_tenant_profile(
             let mut builder = CloudProfileBuilder::new(name)
                 .with_tenant_id(tenant.id.clone())
                 .with_external_db_access(tenant.external_db_access)
-                .with_secrets_path("./secrets.json");
+                .with_secrets_path("./secrets.json")
+                .with_geoip_database(existing_geoip_database(profile_path));
             if let Some(hostname) = &tenant.hostname {
                 builder = builder.with_external_url(format!("https://{}", hostname));
             }

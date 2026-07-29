@@ -19,7 +19,11 @@ fn broken_storage_root_reports_storage_errors_with_suggestion() {
         return;
     };
     let profile = systemprompt_config::ProfileBootstrap::get().expect("profile installed");
-    let app_paths = AppPaths::from_profile(&profile.paths).expect("app paths");
+    let app_paths = AppPaths::from_profile(
+        &profile.paths,
+        systemprompt_models::PathResolution::Canonicalize,
+    )
+    .expect("app paths");
     FilesConfig::init(&app_paths).expect("init files config");
 
     let validator = FilesConfigValidator::new();

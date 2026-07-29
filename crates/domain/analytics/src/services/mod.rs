@@ -13,7 +13,7 @@ mod anomaly_detection;
 mod behavioral_detector;
 pub mod bot_keywords;
 pub mod detection;
-mod extractor;
+pub(crate) mod extractor;
 mod providers;
 mod service;
 mod session_cleanup;

@@ -2,10 +2,10 @@
 //!
 //! These run during [`crate::AppContextBuilder::build`] but are split
 //! out of `context.rs` to keep the main type definition under 300
-//! lines. All of them degrade gracefully: when an underlying file is
-//! missing or invalid they emit a CLI warning and return `None`, since
-//! the affected features (geolocation, landing-page detection) are
-//! optional.
+//! lines. Absent optional state (no `GeoIP` path configured, missing
+//! content config) degrades gracefully with a CLI warning; an explicitly
+//! configured but unreadable `GeoIP` database fails startup, since that is
+//! a misconfiguration the operator asked for.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -19,7 +19,13 @@ use systemprompt_models::{AppPaths, Config, ContentConfigRaw};
 use systemprompt_analytics::GeoIpReader;
 
 #[cfg(feature = "geolocation")]
-pub(super) fn load_geoip_database(config: &Config, show_warnings: bool) -> Option<GeoIpReader> {
+use crate::error::RuntimeError;
+
+#[cfg(feature = "geolocation")]
+pub(super) fn load_geoip_database(
+    config: &Config,
+    show_warnings: bool,
+) -> Result<Option<GeoIpReader>, RuntimeError> {
     let Some(geoip_path) = &config.geoip_database_path else {
         if show_warnings {
             CliService::warning(
@@ -33,24 +39,15 @@ pub(super) fn load_geoip_database(config: &Config, show_warnings: bool) -> Optio
                 "  2. Add paths.geoip_database to your profile pointing to the .mmdb file",
             );
         }
-        return None;
+        return Ok(None);
     };
 
     match maxminddb::Reader::open_readfile(geoip_path) {
-        Ok(reader) => Some(Arc::new(reader)),
-        Err(e) => {
-            if show_warnings {
-                CliService::warning(&format!(
-                    "Could not load GeoIP database from {geoip_path}: {e}"
-                ));
-                CliService::info("  Geographic data (country/region/city) will not be available.");
-                CliService::info(
-                    "  To fix: Ensure the path is correct and the file is a valid MaxMind .mmdb \
-                     database",
-                );
-            }
-            None
-        },
+        Ok(reader) => Ok(Some(Arc::new(reader))),
+        Err(e) => Err(RuntimeError::GeoIpUnreadable {
+            path: geoip_path.clone(),
+            message: e.to_string(),
+        }),
     }
 }
 
@@ -63,8 +60,8 @@ pub(super) fn load_geoip_database(config: &Config, show_warnings: bool) -> Optio
 pub(super) fn load_geoip_database(
     _config: &Config,
     _show_warnings: bool,
-) -> Option<systemprompt_analytics::GeoIpReader> {
-    None
+) -> Result<Option<systemprompt_analytics::GeoIpReader>, crate::error::RuntimeError> {
+    Ok(None)
 }
 
 pub(super) fn load_content_config(
