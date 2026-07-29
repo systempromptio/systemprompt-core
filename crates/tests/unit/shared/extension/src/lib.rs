@@ -13,6 +13,8 @@ mod extension_trait;
 #[cfg(test)]
 mod frame_options;
 #[cfg(test)]
+mod gateway_guard;
+#[cfg(test)]
 mod injected;
 #[cfg(test)]
 mod metadata;

@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.27.0] - 2026-07-29
+
+### Breaking
+
+- **Breaking:** quota buckets are keyed by an open-vocabulary subject: `ai_quota_buckets` gains `subject_kind` (default `'user'`) and `cost_microdollars`, `user_id` becomes `subject_id`, and the unique key becomes `(subject_kind, subject_id, window_seconds, window_start)` (migration `011_subject_quota_buckets`; existing rows keep today's behaviour via the default). `IncrementParams` takes `subject_kind`/`subject_id` as plain strings — a subject may be an organization, not a user — and `QuotaBucketDelta`/`QuotaBucketState` gain `cost_microdollars`.
+- **Breaking:** `QuotaWindow` gains `subject` (serde default `"user"`; any extension-registered subject-attribute dimension such as `organization`) and `max_cost_microdollars` (a spend ceiling, enforced one request late since cost is known only after the response), and is no longer `Copy`. Policy rows written before this release deserialize unchanged.
+
+### Added
+
+- `USER_QUOTA_SUBJECT`: the default quota-window subject slug.
+
 ## [0.25.0] - 2026-07-27
 
 ### Breaking

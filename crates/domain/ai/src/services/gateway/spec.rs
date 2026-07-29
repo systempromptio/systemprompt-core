@@ -12,14 +12,44 @@
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct QuotaWindow {
     pub window_seconds: i32,
+    /// Which subject the bucket is keyed by: `user` (the default), or any
+    /// subject-attribute dimension registered by an extension (for example
+    /// `organization`). A window whose subject cannot be resolved for the
+    /// requesting user is skipped.
+    #[serde(default = "default_subject")]
+    pub subject: String,
     pub max_requests: Option<i64>,
     pub max_input_tokens: Option<i64>,
     pub max_output_tokens: Option<i64>,
+    /// Spend ceiling for the window. Enforced one request late: cost is known
+    /// only after the response, so the request that crosses the ceiling
+    /// completes and subsequent requests are denied.
+    #[serde(default)]
+    pub max_cost_microdollars: Option<i64>,
 }
+
+impl Default for QuotaWindow {
+    fn default() -> Self {
+        Self {
+            window_seconds: 0,
+            subject: default_subject(),
+            max_requests: None,
+            max_input_tokens: None,
+            max_output_tokens: None,
+            max_cost_microdollars: None,
+        }
+    }
+}
+
+fn default_subject() -> String {
+    "user".to_owned()
+}
+
+pub const USER_QUOTA_SUBJECT: &str = "user";
 
 /// How far back into a conversation the request-phase scanners look.
 ///

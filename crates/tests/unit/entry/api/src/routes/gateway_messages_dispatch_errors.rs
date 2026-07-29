@@ -13,7 +13,7 @@ use systemprompt_api::routes::gateway::messages::test_api::{
 };
 use systemprompt_api::services::gateway::protocol::outbound::UpstreamError;
 use systemprompt_api::services::gateway::service::{
-    DispatchError, PolicyDenied, QuotaExceeded, SafetyBlocked,
+    DispatchError, GuardForbidden, PolicyDenied, QuotaExceeded, SafetyBlocked,
 };
 
 fn rejection(e: DispatchError) -> (StatusCode, String, bool) {
@@ -77,6 +77,22 @@ fn a_quota_failure_renders_a_429_response_with_retry_after() {
             .get("retry-after")
             .expect("retry-after must be advertised"),
         "90"
+    );
+}
+
+#[test]
+fn a_guard_forbidden_renders_a_403_response_without_retry_after() {
+    let response = map_dispatch_error(DispatchError::Recorded(anyhow::Error::new(
+        GuardForbidden {
+            message: "your plan does not include this model".to_owned(),
+        },
+    )))
+    .expect("an entitlement denial renders a response rather than a rejection");
+
+    assert_eq!(response.status(), StatusCode::FORBIDDEN);
+    assert!(
+        response.headers().get("retry-after").is_none(),
+        "an entitlement denial is not retryable and must not advertise retry-after"
     );
 }
 

@@ -4,6 +4,8 @@
 
 ### Breaking
 
+- **Breaking:** `GatewayRequestGuard::check` and `run_gateway_guards` take a `GatewayGuardRequest` (user id, requested model, resolved route id, provider, streaming flag) instead of a bare user id, so a guard can enforce per-plan model and route entitlement, not only balance checks. Migrate by reading `request.user_id` and matching on the new fields as needed.
+- **Breaking:** `GatewayDenyReason` gains `kind: GatewayDenyKind` (`Quota` | `Forbidden`). `GatewayDenyReason::new` keeps `Quota`, so existing denials still map to 429 + `retry-after`; the new `GatewayDenyReason::forbidden` maps to a 403 with no `retry-after`, for entitlement denials where retrying can never help.
 - **Breaking:** `ExtensionRegistry::api_extensions` is replaced by `api_routers`, which returns `Vec<(Arc<dyn Extension>, ExtensionRouter)>` — each extension paired with its already-built router. Migrate by iterating the pairs instead of calling `router()` again on each extension.
 - **Breaking:** `Extension::has_router` is removed. It answered a boolean by building the whole router and discarding it, so any implementation that allocated, spawned a task, or logged did so an extra time per startup. Migrate by using `api_routers`, which filters on router presence as it builds.
 - **Breaking:** `ExtensionRegistry::enabled_api_extensions` is removed; it had no callers and shared the same defect.

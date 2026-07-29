@@ -32,4 +32,6 @@ pub use safety::{
     Finding, HeuristicScanner, NullScanner, PHASE_REQUEST, PHASE_REQUEST_HISTORY, PHASE_RESPONSE,
     SafetyScanner, SafetyScannerRegistration, Severity,
 };
-pub use spec::{GatewayPolicySpec, QuotaWindow, SafetyConfig, SafetyHistoryMode};
+pub use spec::{
+    GatewayPolicySpec, QuotaWindow, SafetyConfig, SafetyHistoryMode, USER_QUOTA_SUBJECT,
+};

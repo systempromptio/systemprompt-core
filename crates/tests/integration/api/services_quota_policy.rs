@@ -15,6 +15,13 @@ async fn pool() -> systemprompt_database::DbPool {
     fixture_db_pool(&b.database_url).await.expect("pool")
 }
 
+fn window(window_seconds: i32) -> QuotaWindow {
+    QuotaWindow {
+        window_seconds,
+        ..QuotaWindow::default()
+    }
+}
+
 #[tokio::test]
 async fn precheck_with_empty_windows_returns_none() {
     let p = pool().await;
@@ -28,10 +35,8 @@ async fn precheck_within_limit_allows() {
     let p = pool().await;
     let user = UserId::new(format!("quota-allow-{}", uuid::Uuid::new_v4()));
     let windows = vec![QuotaWindow {
-        window_seconds: 60,
         max_requests: Some(100),
-        max_input_tokens: None,
-        max_output_tokens: None,
+        ..window(60)
     }];
     let decision = precheck_and_reserve(&p, &user, &windows).await.expect("ok");
     assert!(decision.is_none(), "expected allow, got {decision:?}");
@@ -42,18 +47,69 @@ async fn precheck_over_limit_denies_second_call() {
     let p = pool().await;
     let user = UserId::new(format!("quota-deny-{}", uuid::Uuid::new_v4()));
     let windows = vec![QuotaWindow {
-        window_seconds: 60,
         max_requests: Some(1),
-        max_input_tokens: None,
-        max_output_tokens: None,
+        ..window(60)
     }];
     let d1 = precheck_and_reserve(&p, &user, &windows).await.expect("ok");
     assert!(d1.is_none());
     let d2 = precheck_and_reserve(&p, &user, &windows).await.expect("ok");
     let dec = d2.expect("expected denial");
     assert!(!dec.allow);
-    assert_eq!(dec.limit_requests, Some(1));
     assert_eq!(dec.window_seconds, 60);
+    assert!(
+        dec.message.contains("quota exceeded"),
+        "unexpected message: {}",
+        dec.message
+    );
+}
+
+#[tokio::test]
+async fn precheck_denies_once_the_cost_ceiling_is_spent() {
+    let p = pool().await;
+    let user = UserId::new(format!("quota-cost-{}", uuid::Uuid::new_v4()));
+    let windows = vec![QuotaWindow {
+        max_cost_microdollars: Some(1_000),
+        ..window(3600)
+    }];
+
+    let before = precheck_and_reserve(&p, &user, &windows).await.expect("ok");
+    assert!(before.is_none(), "no spend yet, must allow");
+
+    post_update_tokens(
+        &p,
+        PostUpdateParams {
+            user_id: &user,
+            windows: &windows,
+            input_tokens: 10,
+            output_tokens: 20,
+            cost_microdollars: 1_500,
+        },
+    )
+    .await;
+
+    let after = precheck_and_reserve(&p, &user, &windows).await.expect("ok");
+    let dec = after.expect("spend exceeds the ceiling, must deny");
+    assert!(!dec.allow);
+    assert!(
+        dec.message.contains("cost ceiling"),
+        "unexpected message: {}",
+        dec.message
+    );
+}
+
+#[tokio::test]
+async fn a_window_keyed_on_an_unresolvable_subject_is_skipped() {
+    let p = pool().await;
+    let user = UserId::new(format!("quota-orgless-{}", uuid::Uuid::new_v4()));
+    let windows = vec![QuotaWindow {
+        subject: "organization".to_owned(),
+        max_requests: Some(0),
+        ..window(60)
+    }];
+    // No organization provider is registered in this binary, so the window
+    // cannot resolve a subject and must not deny even with max_requests: 0.
+    let decision = precheck_and_reserve(&p, &user, &windows).await.expect("ok");
+    assert!(decision.is_none(), "unresolvable subject must skip");
 }
 
 #[tokio::test]
@@ -67,6 +123,7 @@ async fn post_update_with_empty_windows_is_noop() {
             windows: &[],
             input_tokens: 100,
             output_tokens: 50,
+            cost_microdollars: 10,
         },
     )
     .await;
@@ -77,10 +134,10 @@ async fn post_update_increments_token_counts() {
     let p = pool().await;
     let user = UserId::new(format!("quota-post-{}", uuid::Uuid::new_v4()));
     let windows = vec![QuotaWindow {
-        window_seconds: 60,
         max_requests: Some(1000),
         max_input_tokens: Some(1000),
         max_output_tokens: Some(1000),
+        ..window(60)
     }];
     post_update_tokens(
         &p,
@@ -89,6 +146,7 @@ async fn post_update_increments_token_counts() {
             windows: &windows,
             input_tokens: 10,
             output_tokens: 20,
+            cost_microdollars: 5,
         },
     )
     .await;

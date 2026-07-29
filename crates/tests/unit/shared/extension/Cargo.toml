@@ -21,6 +21,7 @@ tempfile = { workspace = true }
 async-trait = { workspace = true }
 axum = { workspace = true }
 inventory = { workspace = true }
+sqlx = { workspace = true }
 tokio = { workspace = true }
 tower = { workspace = true }
 tracing = { workspace = true }

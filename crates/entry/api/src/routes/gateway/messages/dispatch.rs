@@ -13,7 +13,8 @@ use crate::services::gateway::audit::GatewayRequestContext;
 use crate::services::gateway::protocol::inbound::InboundAdapter;
 use crate::services::gateway::protocol::outbound::UpstreamError;
 use crate::services::gateway::service::{
-    DispatchError, DispatchInputs, GatewayService, PolicyDenied, QuotaExceeded, SafetyBlocked,
+    DispatchError, DispatchInputs, GatewayService, GuardForbidden, PolicyDenied, QuotaExceeded,
+    SafetyBlocked,
 };
 
 use super::RequestContext;
@@ -114,6 +115,12 @@ pub fn map_dispatch_error(e: DispatchError) -> Result<Response<Body>, RejectionE
             resp.headers_mut().insert("retry-after", v);
         }
         return Ok(resp);
+    }
+    if let Some(forbidden) = inner.downcast_ref::<GuardForbidden>() {
+        return Ok(build_error_response(
+            StatusCode::FORBIDDEN,
+            &forbidden.message,
+        ));
     }
     let (status, message) = classify_dispatch_error(&inner);
     Err(RejectionError {

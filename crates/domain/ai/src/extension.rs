@@ -65,7 +65,8 @@ impl Extension for AiExtension {
             )
             .with_required_columns(vec![
                 "id".into(),
-                "user_id".into(),
+                "subject_kind".into(),
+                "subject_id".into(),
                 "window_start".into(),
             ]),
             SchemaDefinition::new(

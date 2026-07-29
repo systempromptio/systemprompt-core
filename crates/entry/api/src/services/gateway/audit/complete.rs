@@ -29,13 +29,15 @@ impl GatewayAudit {
             .unwrap_or_else(|| self.ctx.model.clone())
     }
 
+    /// Returns the computed request cost in microdollars so callers can feed
+    /// quota accounting without recomputing pricing.
     pub async fn complete(
         &self,
         usage: CapturedUsage,
         tool_calls: Vec<CapturedToolUse>,
         response: &CanonicalResponse,
         response_body: &Bytes,
-    ) -> Result<()> {
+    ) -> Result<i64> {
         let latency_ms = self.started_at.elapsed().as_millis().min(i32::MAX as u128) as i32;
         let effective_model = self.effective_model();
         let profile = systemprompt_config::ProfileBootstrap::get().ok();
@@ -85,7 +87,7 @@ impl GatewayAudit {
             tool_calls = tool_calls.len(),
             "Gateway audit: request completed"
         );
-        Ok(())
+        Ok(cost)
     }
 
     async fn persist_response(&self, response: &CanonicalResponse, response_body: &Bytes) {
