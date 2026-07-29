@@ -16,7 +16,9 @@ pub struct ServiceStatus {
     pub pid: Option<u32>,
     pub health: String,
     pub uptime_seconds: Option<i64>,
-    pub tools_count: usize,
+    /// `None` when the tool list was never enumerated — see
+    /// [`HealthCheckDetails::tools_available`](crate::services::monitoring::health::HealthCheckDetails::tools_available).
+    pub tools_count: Option<usize>,
     pub latency_ms: Option<u32>,
     pub auth_required: bool,
 }
@@ -29,7 +31,8 @@ pub struct McpServiceStatus {
     pub endpoint: Option<String>,
     pub health: HealthStatus,
     pub pid: Option<u32>,
-    pub tools_count: usize,
+    /// `None` when the tool list was never enumerated.
+    pub tools_count: Option<usize>,
     pub latency_ms: Option<u32>,
     pub auth_required: bool,
 }
@@ -73,7 +76,7 @@ async fn get_service_status(config: &McpServerConfig) -> McpDomainResult<Service
                 pid: None,
                 health: "unreachable".to_owned(),
                 uptime_seconds: None,
-                tools_count: 0,
+                tools_count: None,
                 latency_ms: None,
                 auth_required: config.oauth.required,
             })

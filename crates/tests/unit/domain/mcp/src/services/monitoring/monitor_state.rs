@@ -19,7 +19,7 @@ fn result_with(status: HealthStatus, error: Option<&str>) -> HealthCheckResult {
         latency_ms: 5,
         details: HealthCheckDetails {
             service_name: "mon".to_owned(),
-            tools_available: 0,
+            tools_available: None,
             requires_auth: false,
             validation_type: "test".to_owned(),
             error_message: error.map(ToOwned::to_owned),

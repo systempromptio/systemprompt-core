@@ -78,10 +78,14 @@ async fn mark_service_error(
 }
 
 fn log_healthy_status(config: &McpServerConfig, health_result: &HealthCheckResult) {
-    if health_result.details.tools_available > 0 {
+    if let Some(tools) = health_result
+        .details
+        .tools_available
+        .filter(|count| *count > 0)
+    {
         tracing::debug!(
             service = %config.name,
-            tools = health_result.details.tools_available,
+            tools,
             latency_ms = health_result.latency_ms,
             "Service health validated"
         );

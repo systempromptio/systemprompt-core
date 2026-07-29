@@ -31,7 +31,7 @@ fn mcp_status(name: &str, health: HealthStatus, endpoint: Option<&str>) -> McpSe
         endpoint: endpoint.map(str::to_string),
         health,
         pid: None,
-        tools_count: 3,
+        tools_count: Some(3),
         latency_ms: None,
         auth_required: false,
     }

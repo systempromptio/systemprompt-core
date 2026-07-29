@@ -24,7 +24,13 @@ pub trait StartupEventExt {
 
     fn mcp_starting(&self, name: impl Into<String>, port: u16);
     fn mcp_health_check(&self, name: impl Into<String>, attempt: u8, max: u8);
-    fn mcp_ready(&self, name: impl Into<String>, port: u16, startup_time: Duration, tools: usize);
+    fn mcp_ready(
+        &self,
+        name: impl Into<String>,
+        port: u16,
+        startup_time: Duration,
+        tools: Option<usize>,
+    );
     fn mcp_failed(&self, name: impl Into<String>, error: impl Into<String>);
     fn mcp_service_cleanup(&self, name: impl Into<String>, reason: impl Into<String>);
     fn mcp_reconciliation_complete(&self, running: usize, required: usize);
@@ -111,7 +117,13 @@ impl StartupEventExt for StartupEventSender {
         );
     }
 
-    fn mcp_ready(&self, name: impl Into<String>, port: u16, startup_time: Duration, tools: usize) {
+    fn mcp_ready(
+        &self,
+        name: impl Into<String>,
+        port: u16,
+        startup_time: Duration,
+        tools: Option<usize>,
+    ) {
         emit(
             self,
             StartupEvent::McpServerReady {

@@ -126,7 +126,7 @@ async fn mcp_health_check_some_emits() {
 #[tokio::test]
 async fn mcp_ready_some_emits() {
     let (tx, mut rx) = startup_channel();
-    Some(&tx).mcp_ready("svc", 5000, Duration::from_millis(250), 7);
+    Some(&tx).mcp_ready("svc", 5000, Duration::from_millis(250), Some(7));
     match rx.next().await.unwrap() {
         StartupEvent::McpServerReady {
             name,
@@ -137,7 +137,7 @@ async fn mcp_ready_some_emits() {
             assert_eq!(name, "svc");
             assert_eq!(port, 5000);
             assert_eq!(startup_time, Duration::from_millis(250));
-            assert_eq!(tools, 7);
+            assert_eq!(tools, Some(7));
         },
         e => panic!("unexpected {e:?}"),
     }
@@ -393,7 +393,7 @@ async fn none_sender_emits_nothing_across_all_methods() {
     none.modules_loaded(0, Vec::new());
     none.mcp_starting("s", 1);
     none.mcp_health_check("s", 1, 1);
-    none.mcp_ready("s", 1, Duration::ZERO, 0);
+    none.mcp_ready("s", 1, Duration::ZERO, None);
     none.mcp_failed("s", "e");
     none.mcp_service_cleanup("s", "r");
     none.mcp_reconciliation_complete(0, 0);

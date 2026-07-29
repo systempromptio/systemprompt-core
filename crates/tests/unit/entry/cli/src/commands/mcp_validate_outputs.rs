@@ -35,7 +35,7 @@ fn failure_output_maps_detail_fields() {
     assert_eq!(out.health_status, "stopped");
     assert_eq!(out.validation_type, "not_running");
     assert_eq!(out.latency_ms, 42);
-    assert_eq!(out.tools_count, 0);
+    assert!(out.tools_count.is_none());
     assert!(out.server_info.is_none());
     assert_eq!(out.issues, vec!["Service is not currently running"]);
     assert_eq!(out.message, "MCP server 'svc' is not running");
@@ -53,14 +53,14 @@ fn success_output_copies_connection_result_and_server_info() {
             version: "1.2.3".to_owned(),
             protocol_version: "2025-06-18".to_owned(),
         }),
-        tools_count: 4,
+        tools_count: Some(4),
         validation_type: "full".to_owned(),
     };
 
     let out = success_output("svc", result);
 
     assert!(out.valid);
-    assert_eq!(out.tools_count, 4);
+    assert_eq!(out.tools_count, Some(4));
     assert_eq!(out.latency_ms, 12);
     assert_eq!(out.validation_type, "full");
     let info = out.server_info.unwrap();
@@ -78,7 +78,7 @@ fn success_output_surfaces_error_message_as_issue() {
         error_message: Some("handshake refused".to_owned()),
         connection_time_ms: 3,
         server_info: None,
-        tools_count: 0,
+        tools_count: None,
         validation_type: "partial".to_owned(),
     };
 
@@ -97,7 +97,7 @@ fn success_output_ignores_empty_error_message() {
         error_message: Some(String::new()),
         connection_time_ms: 1,
         server_info: None,
-        tools_count: 0,
+        tools_count: None,
         validation_type: "partial".to_owned(),
     };
 
@@ -115,7 +115,7 @@ async fn run_connection_validation_reports_connection_error_for_closed_port() {
     assert!(!out.valid);
     assert_eq!(out.validation_type, "connection_failed");
     assert!(!out.issues.is_empty());
-    assert_eq!(out.tools_count, 0);
+    assert!(out.tools_count.is_none());
 }
 
 #[tokio::test]

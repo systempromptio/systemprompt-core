@@ -56,7 +56,9 @@ pub struct HealthCheckResult {
 #[derive(Debug, Clone)]
 pub struct HealthCheckDetails {
     pub service_name: String,
-    pub tools_available: usize,
+    /// `None` when the tool list was never enumerated (OAuth-gated or
+    /// accessor-backed servers), as distinct from `Some(0)`.
+    pub tools_available: Option<usize>,
     pub requires_auth: bool,
     pub validation_type: String,
     pub error_message: Option<String>,
@@ -106,7 +108,7 @@ impl HealthCheckResult {
             latency_ms: 0,
             details: HealthCheckDetails {
                 service_name: config.name.clone(),
-                tools_available: 0,
+                tools_available: None,
                 requires_auth: config.oauth.required,
                 validation_type: "external_accessor_backed".to_owned(),
                 error_message: None,
@@ -122,7 +124,7 @@ impl HealthCheckResult {
             latency_ms: 0,
             details: HealthCheckDetails {
                 service_name: config.name.clone(),
-                tools_available: 0,
+                tools_available: None,
                 requires_auth: config.oauth.required,
                 validation_type: ValidationResultType::Error.to_string(),
                 error_message: Some(error),

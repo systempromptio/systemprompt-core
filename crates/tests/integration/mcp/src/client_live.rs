@@ -71,7 +71,11 @@ async fn validate_connection_by_url_against_live_server_lists_tools() {
         .expect("validation must not error");
 
     assert!(result.success, "validation should succeed: {result:?}");
-    assert_eq!(result.tools_count, 1, "echo server advertises one tool");
+    assert_eq!(
+        result.tools_count,
+        Some(1),
+        "echo server advertises one tool"
+    );
     assert_eq!(result.validation_type, "mcp_validated");
     let info = result.server_info.expect("peer info present");
     assert_eq!(info.server_name, "echo-mcp-test-server");
@@ -129,7 +133,7 @@ async fn perform_health_check_external_server_is_healthy() {
         ),
         "reachable MCP server with a tool should connect: {health:?}"
     );
-    assert_eq!(health.details.tools_available, 1);
+    assert_eq!(health.details.tools_available, Some(1));
     assert!(!health.details.requires_auth);
 }
 
@@ -159,5 +163,5 @@ async fn perform_health_check_unreachable_external_is_unhealthy() {
         .expect("health check wraps errors");
 
     assert_eq!(health.status, HealthStatus::Unhealthy);
-    assert_eq!(health.details.tools_available, 0);
+    assert!(health.details.tools_available.is_none());
 }

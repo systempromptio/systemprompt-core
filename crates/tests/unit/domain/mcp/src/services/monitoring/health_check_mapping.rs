@@ -50,7 +50,7 @@ fn conn_result(
     connection_time_ms: u32,
     validation_type: &str,
     error_message: Option<&str>,
-    tools_count: usize,
+    tools_count: Option<usize>,
 ) -> McpConnectionResult {
     McpConnectionResult {
         service_name: "svc".to_string(),
@@ -65,18 +65,18 @@ fn conn_result(
 
 #[test]
 fn success_fast_is_healthy() {
-    let result = conn_result(true, 50, "success", None, 7);
+    let result = conn_result(true, 50, "success", None, Some(7));
     let cfg = config("svc-a", false);
     let hc = HealthCheckResult::from_connection_result(result, &cfg);
     assert_eq!(hc.status, HealthStatus::Healthy);
     assert_eq!(hc.latency_ms, 50);
-    assert_eq!(hc.details.tools_available, 7);
+    assert_eq!(hc.details.tools_available, Some(7));
     assert!(hc.connection_result.is_some());
 }
 
 #[test]
 fn success_slow_is_degraded() {
-    let result = conn_result(true, 1500, "success", None, 1);
+    let result = conn_result(true, 1500, "success", None, Some(1));
     let cfg = config("svc-b", false);
     let hc = HealthCheckResult::from_connection_result(result, &cfg);
     assert_eq!(hc.status, HealthStatus::Degraded);
@@ -86,7 +86,7 @@ fn success_slow_is_degraded() {
 #[test]
 fn success_exactly_at_threshold_is_degraded() {
     // 1000ms is NOT < 1000, so it falls to the degraded branch.
-    let result = conn_result(true, 1000, "success", None, 0);
+    let result = conn_result(true, 1000, "success", None, None);
     let cfg = config("svc-thr", false);
     let hc = HealthCheckResult::from_connection_result(result, &cfg);
     assert_eq!(hc.status, HealthStatus::Degraded);
@@ -94,7 +94,7 @@ fn success_exactly_at_threshold_is_degraded() {
 
 #[test]
 fn failure_auth_required_is_healthy() {
-    let result = conn_result(false, 10, "auth_required", Some("401"), 0);
+    let result = conn_result(false, 10, "auth_required", Some("401"), None);
     let cfg = config("svc-auth", true);
     let hc = HealthCheckResult::from_connection_result(result, &cfg);
     assert_eq!(hc.status, HealthStatus::Healthy);
@@ -103,7 +103,7 @@ fn failure_auth_required_is_healthy() {
 
 #[test]
 fn failure_port_unavailable_is_unhealthy() {
-    let result = conn_result(false, 0, "port_unavailable", Some("no listener"), 0);
+    let result = conn_result(false, 0, "port_unavailable", Some("no listener"), None);
     let cfg = config("svc-port", false);
     let hc = HealthCheckResult::from_connection_result(result, &cfg);
     assert_eq!(hc.status, HealthStatus::Unhealthy);
@@ -111,7 +111,7 @@ fn failure_port_unavailable_is_unhealthy() {
 
 #[test]
 fn failure_connection_failed_is_unhealthy() {
-    let result = conn_result(false, 0, "connection_failed", Some("refused"), 0);
+    let result = conn_result(false, 0, "connection_failed", Some("refused"), None);
     let cfg = config("svc-conn", false);
     let hc = HealthCheckResult::from_connection_result(result, &cfg);
     assert_eq!(hc.status, HealthStatus::Unhealthy);
@@ -119,7 +119,7 @@ fn failure_connection_failed_is_unhealthy() {
 
 #[test]
 fn failure_timeout_is_unhealthy() {
-    let result = conn_result(false, 0, "timeout", Some("timed out"), 0);
+    let result = conn_result(false, 0, "timeout", Some("timed out"), None);
     let cfg = config("svc-to", false);
     let hc = HealthCheckResult::from_connection_result(result, &cfg);
     assert_eq!(hc.status, HealthStatus::Unhealthy);
@@ -129,7 +129,7 @@ fn failure_timeout_is_unhealthy() {
 fn failure_unknown_validation_is_unknown() {
     // "success" parses to Success which is neither Auth/Port/Conn/Timeout,
     // so on a failed probe it maps to the catch-all Unknown branch.
-    let result = conn_result(false, 0, "success", None, 0);
+    let result = conn_result(false, 0, "success", None, None);
     let cfg = config("svc-unk", false);
     let hc = HealthCheckResult::from_connection_result(result, &cfg);
     assert_eq!(hc.status, HealthStatus::Unknown);
@@ -137,7 +137,7 @@ fn failure_unknown_validation_is_unknown() {
 
 #[test]
 fn failure_error_validation_is_unknown() {
-    let result = conn_result(false, 0, "error", Some("weird"), 0);
+    let result = conn_result(false, 0, "error", Some("weird"), None);
     let cfg = config("svc-err", false);
     let hc = HealthCheckResult::from_connection_result(result, &cfg);
     assert_eq!(hc.status, HealthStatus::Unknown);
@@ -145,7 +145,7 @@ fn failure_error_validation_is_unknown() {
 
 #[test]
 fn details_carry_error_and_validation_type() {
-    let result = conn_result(false, 0, "connection_failed", Some("boom"), 0);
+    let result = conn_result(false, 0, "connection_failed", Some("boom"), None);
     let cfg = config("svc-d", false);
     let hc = HealthCheckResult::from_connection_result(result, &cfg);
     assert_eq!(hc.details.service_name, "svc-d");
@@ -156,7 +156,7 @@ fn details_carry_error_and_validation_type() {
 #[test]
 fn server_version_extracted_from_server_info() {
     use systemprompt_mcp::services::client::McpProtocolInfo;
-    let mut result = conn_result(true, 10, "success", None, 3);
+    let mut result = conn_result(true, 10, "success", None, Some(3));
     result.server_info = Some(McpProtocolInfo {
         server_name: "svc".to_string(),
         version: "9.9.9".to_string(),
@@ -196,6 +196,6 @@ fn unhealthy_constructor_sets_fields() {
     assert_eq!(hc.details.error_message.as_deref(), Some("explosion"));
     assert_eq!(hc.details.validation_type, "error");
     assert!(hc.details.requires_auth);
-    assert_eq!(hc.details.tools_available, 0);
+    assert!(hc.details.tools_available.is_none());
     assert!(hc.details.server_version.is_none());
 }

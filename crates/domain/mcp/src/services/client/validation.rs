@@ -74,7 +74,7 @@ pub async fn validate_connection_by_url(
             error_message: Some(e.to_string()),
             connection_time_ms: connection_time,
             server_info: None,
-            tools_count: 0,
+            tools_count: None,
             validation_type: "connection_failed".to_owned(),
         }),
         Err(_) => Ok(McpConnectionResult {
@@ -83,7 +83,7 @@ pub async fn validate_connection_by_url(
             error_message: Some("Connection timeout".to_owned()),
             connection_time_ms: connection_time,
             server_info: None,
-            tools_count: 0,
+            tools_count: None,
             validation_type: "timeout".to_owned(),
         }),
     }
@@ -106,7 +106,7 @@ fn validate_oauth_service(service_name: &str, host: &str, port: u16) -> McpConne
                 version: "unknown".to_owned(),
                 protocol_version: "unknown".to_owned(),
             }),
-            tools_count: 0,
+            tools_count: None,
             validation_type: "auth_required".to_owned(),
         },
         Err(e) => McpConnectionResult {
@@ -115,7 +115,7 @@ fn validate_oauth_service(service_name: &str, host: &str, port: u16) -> McpConne
             error_message: Some(format!("Port not responding: {e}")),
             connection_time_ms: connection_time,
             server_info: None,
-            tools_count: 0,
+            tools_count: None,
             validation_type: "port_unavailable".to_owned(),
         },
     }
@@ -173,7 +173,7 @@ async fn connect_and_validate(
                 ValidationResult {
                     success: true,
                     error_message: None,
-                    tools_count,
+                    tools_count: Some(tools_count),
                     validation_type: "mcp_validated".to_owned(),
                 }
             } else {
@@ -182,7 +182,7 @@ async fn connect_and_validate(
                     error_message: Some(
                         "No tools returned - service may require authentication".to_owned(),
                     ),
-                    tools_count: 0,
+                    tools_count: Some(0),
                     validation_type: "no_tools".to_owned(),
                 }
             }
@@ -190,7 +190,7 @@ async fn connect_and_validate(
         Err(e) => ValidationResult {
             success: false,
             error_message: Some(format!("Tools request failed: {e}")),
-            tools_count: 0,
+            tools_count: None,
             validation_type: "tools_request_failed".to_owned(),
         },
     };

@@ -12,7 +12,10 @@ pub struct McpConnectionResult {
     pub error_message: Option<String>,
     pub connection_time_ms: u32,
     pub server_info: Option<McpProtocolInfo>,
-    pub tools_count: usize,
+    /// `None` when the tool list was never enumerated — an OAuth-gated server
+    /// is probed for reachability only, so zero tools and an unmeasured count
+    /// must not collapse to the same value.
+    pub tools_count: Option<usize>,
     pub validation_type: String,
 }
 
@@ -27,7 +30,7 @@ pub struct McpProtocolInfo {
 pub struct ValidationResult {
     pub success: bool,
     pub error_message: Option<String>,
-    pub tools_count: usize,
+    pub tools_count: Option<usize>,
     pub validation_type: String,
 }
 
@@ -55,7 +58,10 @@ impl McpConnectionResult {
 
     pub fn status_description(&self) -> String {
         match self.validation_type.as_str() {
-            "mcp_validated" => format!("MCP validated with {} tools", self.tools_count),
+            "mcp_validated" => self.tools_count.map_or_else(
+                || "MCP validated".to_owned(),
+                |count| format!("MCP validated with {count} tools"),
+            ),
             "auth_required" => "Port responding, OAuth authentication required".to_owned(),
             "no_tools" => "Connected but no tools returned (likely requires auth)".to_owned(),
             "tools_request_failed" => {

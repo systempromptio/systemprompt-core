@@ -100,7 +100,7 @@ mod startup_event_tests {
             name: "mcp1".to_string(),
             port: 5001,
             startup_time: Duration::from_millis(500),
-            tools: 10,
+            tools: Some(10),
         };
         match event {
             StartupEvent::McpServerReady {
@@ -112,7 +112,7 @@ mod startup_event_tests {
                 assert_eq!(name, "mcp1");
                 assert_eq!(port, 5001);
                 assert_eq!(startup_time, Duration::from_millis(500));
-                assert_eq!(tools, 10);
+                assert_eq!(tools, Some(10));
             },
             _ => panic!("Wrong variant"),
         }

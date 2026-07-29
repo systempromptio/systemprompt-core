@@ -24,7 +24,10 @@ pub struct McpValidateOutput {
     pub valid: bool,
     pub health_status: String,
     pub validation_type: String,
-    pub tools_count: usize,
+    /// Absent when the tool list was never enumerated, e.g. an OAuth-gated
+    /// server validated by reachability alone.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tools_count: Option<usize>,
     pub latency_ms: u32,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub server_info: Option<McpServerInfo>,

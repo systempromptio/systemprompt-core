@@ -24,7 +24,7 @@ async fn validate_connection_by_url_live_endpoint_is_mcp_validated() {
 
     assert!(result.success);
     assert_eq!(result.validation_type, "mcp_validated");
-    assert_eq!(result.tools_count, 2);
+    assert_eq!(result.tools_count, Some(2));
     assert!(result.server_info.is_some());
 }
 
@@ -39,7 +39,7 @@ async fn validate_connection_by_url_empty_tools_reports_no_tools() {
 
     assert!(!result.success);
     assert_eq!(result.validation_type, "no_tools");
-    assert_eq!(result.tools_count, 0);
+    assert_eq!(result.tools_count, Some(0));
     assert!(
         result
             .error_message
@@ -66,7 +66,7 @@ async fn validate_connection_by_url_invalid_uri_returns_failure() {
         r.validation_type.as_str(),
         "connection_failed" | "timeout"
     ));
-    assert_eq!(r.tools_count, 0);
+    assert!(r.tools_count.is_none());
     assert!(r.server_info.is_none());
 }
 
@@ -89,6 +89,10 @@ async fn validate_connection_with_auth_requires_oauth_port_open() {
         .expect("returns Ok with auth-required result");
     assert!(r.success);
     assert_eq!(r.validation_type, "auth_required");
+    assert!(
+        r.tools_count.is_none(),
+        "an OAuth-gated server is never asked for its tools, so the count must          stay unmeasured rather than collapse to Some(0)"
+    );
     assert!(r.server_info.is_some());
     drop(listener);
 }
@@ -101,6 +105,7 @@ async fn validate_connection_with_auth_requires_oauth_port_closed() {
         .expect("returns Ok with port-unavailable");
     assert!(!r.success);
     assert_eq!(r.validation_type, "port_unavailable");
+    assert!(r.tools_count.is_none());
 }
 
 #[tokio::test]

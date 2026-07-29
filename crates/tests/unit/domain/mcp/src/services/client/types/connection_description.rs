@@ -10,7 +10,7 @@ fn test_mcp_connection_result_status_description_mcp_validated() {
         error_message: None,
         connection_time_ms: 100,
         server_info: None,
-        tools_count: 5,
+        tools_count: Some(5),
         validation_type: "mcp_validated".to_string(),
     };
 
@@ -27,7 +27,7 @@ fn test_mcp_connection_result_status_description_auth_required() {
         error_message: None,
         connection_time_ms: 100,
         server_info: None,
-        tools_count: 0,
+        tools_count: None,
         validation_type: "auth_required".to_string(),
     };
 
@@ -43,7 +43,7 @@ fn test_mcp_connection_result_status_description_no_tools() {
         error_message: None,
         connection_time_ms: 100,
         server_info: None,
-        tools_count: 0,
+        tools_count: Some(0),
         validation_type: "no_tools".to_string(),
     };
 
@@ -59,7 +59,7 @@ fn test_mcp_connection_result_status_description_tools_request_failed() {
         error_message: Some("RPC error".to_string()),
         connection_time_ms: 100,
         server_info: None,
-        tools_count: 0,
+        tools_count: None,
         validation_type: "tools_request_failed".to_string(),
     };
 
@@ -76,7 +76,7 @@ fn test_mcp_connection_result_status_description_connection_failed() {
         error_message: Some("Network error".to_string()),
         connection_time_ms: 100,
         server_info: None,
-        tools_count: 0,
+        tools_count: None,
         validation_type: "connection_failed".to_string(),
     };
 
@@ -93,7 +93,7 @@ fn test_mcp_connection_result_status_description_port_unavailable() {
         error_message: None,
         connection_time_ms: 100,
         server_info: None,
-        tools_count: 0,
+        tools_count: None,
         validation_type: "port_unavailable".to_string(),
     };
 
@@ -109,7 +109,7 @@ fn test_mcp_connection_result_status_description_timeout() {
         error_message: None,
         connection_time_ms: 100,
         server_info: None,
-        tools_count: 0,
+        tools_count: None,
         validation_type: "timeout".to_string(),
     };
 
@@ -125,7 +125,7 @@ fn test_mcp_connection_result_status_description_unknown() {
         error_message: None,
         connection_time_ms: 100,
         server_info: None,
-        tools_count: 0,
+        tools_count: None,
         validation_type: "unknown_type".to_string(),
     };
 
@@ -141,10 +141,26 @@ fn test_mcp_connection_result_status_description_no_error_message() {
         error_message: Some(String::new()),
         connection_time_ms: 100,
         server_info: None,
-        tools_count: 0,
+        tools_count: None,
         validation_type: "tools_request_failed".to_string(),
     };
 
     let description = result.status_description();
     assert!(description.contains("[no error message]"));
+}
+
+#[test]
+fn mcp_validated_without_a_measured_count_omits_the_number() {
+    let result = McpConnectionResult {
+        service_name: "test-service".to_string(),
+        success: true,
+        error_message: None,
+        connection_time_ms: 100,
+        server_info: None,
+        tools_count: None,
+        validation_type: "mcp_validated".to_string(),
+    };
+
+    let description = result.status_description();
+    assert_eq!(description, "MCP validated");
 }

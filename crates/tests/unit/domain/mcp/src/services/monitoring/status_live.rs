@@ -18,7 +18,7 @@ async fn live_endpoint_reports_running_with_tool_count() {
     let status = statuses.get("status-live").expect("entry present");
     assert_eq!(status.state, "running");
     assert_eq!(status.health, "healthy");
-    assert_eq!(status.tools_count, 2);
+    assert_eq!(status.tools_count, Some(2));
     assert!(status.latency_ms.is_some());
     assert!(!status.auth_required);
 
@@ -35,5 +35,5 @@ async fn dead_endpoint_reports_stopped() {
 
     let status = statuses.get("status-dead").expect("entry present");
     assert_eq!(status.state, "stopped");
-    assert_eq!(status.tools_count, 0);
+    assert!(status.tools_count.is_none());
 }

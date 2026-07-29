@@ -62,7 +62,9 @@ pub enum StartupEvent {
         name: String,
         port: u16,
         startup_time: Duration,
-        tools: usize,
+        /// `None` when the server's tool list was never enumerated, e.g. an
+        /// OAuth-gated server validated by reachability alone.
+        tools: Option<usize>,
     },
     McpServerFailed {
         name: String,

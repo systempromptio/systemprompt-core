@@ -70,12 +70,12 @@ fn from_connection_result_success_under_1s_is_healthy() {
             version: "1.0".to_owned(),
             protocol_version: "2024-11-05".to_owned(),
         }),
-        tools_count: 3,
+        tools_count: Some(3),
         validation_type: "mcp_validated".to_owned(),
     };
     let hc = HealthCheckResult::from_connection_result(result, &config);
     assert!(matches!(hc.status, HealthStatus::Healthy));
-    assert_eq!(hc.details.tools_available, 3);
+    assert_eq!(hc.details.tools_available, Some(3));
     assert_eq!(hc.details.server_version.as_deref(), Some("1.0"));
 }
 
@@ -88,7 +88,7 @@ fn from_connection_result_slow_is_degraded() {
         error_message: None,
         connection_time_ms: 2500,
         server_info: None,
-        tools_count: 0,
+        tools_count: Some(0),
         validation_type: "mcp_validated".to_owned(),
     };
     let hc = HealthCheckResult::from_connection_result(result, &config);
@@ -104,7 +104,7 @@ fn from_connection_result_auth_required_is_healthy() {
         error_message: Some("auth".to_owned()),
         connection_time_ms: 50,
         server_info: None,
-        tools_count: 0,
+        tools_count: None,
         validation_type: "auth_required".to_owned(),
     };
     let hc = HealthCheckResult::from_connection_result(result, &config);
@@ -120,7 +120,7 @@ fn from_connection_result_connection_failed_is_unhealthy() {
         error_message: Some("nope".to_owned()),
         connection_time_ms: 5000,
         server_info: None,
-        tools_count: 0,
+        tools_count: None,
         validation_type: "connection_failed".to_owned(),
     };
     let hc = HealthCheckResult::from_connection_result(result, &config);
@@ -136,7 +136,7 @@ fn from_connection_result_port_unavailable_is_unhealthy() {
         error_message: Some("port".to_owned()),
         connection_time_ms: 0,
         server_info: None,
-        tools_count: 0,
+        tools_count: None,
         validation_type: "port_unavailable".to_owned(),
     };
     let hc = HealthCheckResult::from_connection_result(result, &config);
@@ -152,7 +152,7 @@ fn from_connection_result_unknown_type_is_unknown() {
         error_message: None,
         connection_time_ms: 0,
         server_info: None,
-        tools_count: 0,
+        tools_count: None,
         validation_type: "anything_else".to_owned(),
     };
     let hc = HealthCheckResult::from_connection_result(result, &config);
@@ -166,7 +166,7 @@ fn unhealthy_constructor() {
     assert!(matches!(hc.status, HealthStatus::Unhealthy));
     assert_eq!(hc.latency_ms, 0);
     assert_eq!(hc.details.error_message.as_deref(), Some("boom"));
-    assert_eq!(hc.details.tools_available, 0);
+    assert!(hc.details.tools_available.is_none());
 }
 
 #[tokio::test]

@@ -60,13 +60,13 @@ fn test_validation_result_success() {
     let result = ValidationResult {
         success: true,
         error_message: None,
-        tools_count: 5,
+        tools_count: Some(5),
         validation_type: "mcp_validated".to_string(),
     };
 
     assert!(result.success);
     assert!(result.error_message.is_none());
-    assert_eq!(result.tools_count, 5);
+    assert_eq!(result.tools_count, Some(5));
     assert_eq!(result.validation_type, "mcp_validated");
 }
 
@@ -75,13 +75,13 @@ fn test_validation_result_failure() {
     let result = ValidationResult {
         success: false,
         error_message: Some("Connection failed".to_string()),
-        tools_count: 0,
+        tools_count: None,
         validation_type: "connection_failed".to_string(),
     };
 
     assert!(!result.success);
     assert_eq!(result.error_message, Some("Connection failed".to_string()));
-    assert_eq!(result.tools_count, 0);
+    assert!(result.tools_count.is_none());
     assert_eq!(result.validation_type, "connection_failed");
 }
 
@@ -90,7 +90,7 @@ fn test_validation_result_debug() {
     let result = ValidationResult {
         success: true,
         error_message: None,
-        tools_count: 5,
+        tools_count: Some(5),
         validation_type: "mcp_validated".to_string(),
     };
 

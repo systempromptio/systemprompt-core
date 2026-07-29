@@ -8,7 +8,7 @@ use systemprompt_mcp::services::monitoring::health::{
 fn test_health_check_details_new() {
     let details = HealthCheckDetails {
         service_name: "test-service".to_string(),
-        tools_available: 5,
+        tools_available: Some(5),
         requires_auth: false,
         validation_type: "mcp_validated".to_string(),
         error_message: None,
@@ -16,7 +16,7 @@ fn test_health_check_details_new() {
     };
 
     assert_eq!(details.service_name, "test-service");
-    assert_eq!(details.tools_available, 5);
+    assert_eq!(details.tools_available, Some(5));
     assert!(!details.requires_auth);
     assert_eq!(details.validation_type, "mcp_validated");
     assert!(details.error_message.is_none());
@@ -27,7 +27,7 @@ fn test_health_check_details_new() {
 fn test_health_check_details_with_error() {
     let details = HealthCheckDetails {
         service_name: "failing-service".to_string(),
-        tools_available: 0,
+        tools_available: None,
         requires_auth: true,
         validation_type: "connection_failed".to_string(),
         error_message: Some("Connection refused".to_string()),
@@ -35,7 +35,7 @@ fn test_health_check_details_with_error() {
     };
 
     assert_eq!(details.service_name, "failing-service");
-    assert_eq!(details.tools_available, 0);
+    assert!(details.tools_available.is_none());
     assert!(details.requires_auth);
     assert_eq!(details.validation_type, "connection_failed");
     assert_eq!(
@@ -49,7 +49,7 @@ fn test_health_check_details_with_error() {
 fn test_health_check_details_auth_required() {
     let details = HealthCheckDetails {
         service_name: "oauth-service".to_string(),
-        tools_available: 0,
+        tools_available: None,
         requires_auth: true,
         validation_type: "auth_required".to_string(),
         error_message: None,
@@ -64,7 +64,7 @@ fn test_health_check_details_auth_required() {
 fn test_health_check_details_clone() {
     let details = HealthCheckDetails {
         service_name: "test-service".to_string(),
-        tools_available: 10,
+        tools_available: Some(10),
         requires_auth: false,
         validation_type: "success".to_string(),
         error_message: None,
@@ -81,7 +81,7 @@ fn test_health_check_details_clone() {
 fn test_health_check_details_debug() {
     let details = HealthCheckDetails {
         service_name: "debug-service".to_string(),
-        tools_available: 3,
+        tools_available: Some(3),
         requires_auth: true,
         validation_type: "success".to_string(),
         error_message: None,
@@ -97,7 +97,7 @@ fn test_health_check_details_debug() {
 fn test_health_check_result_healthy() {
     let details = HealthCheckDetails {
         service_name: "healthy-service".to_string(),
-        tools_available: 5,
+        tools_available: Some(5),
         requires_auth: false,
         validation_type: "mcp_validated".to_string(),
         error_message: None,
@@ -120,7 +120,7 @@ fn test_health_check_result_healthy() {
 fn test_health_check_result_degraded() {
     let details = HealthCheckDetails {
         service_name: "slow-service".to_string(),
-        tools_available: 3,
+        tools_available: Some(3),
         requires_auth: false,
         validation_type: "mcp_validated".to_string(),
         error_message: None,
@@ -142,7 +142,7 @@ fn test_health_check_result_degraded() {
 fn test_health_check_result_unhealthy() {
     let details = HealthCheckDetails {
         service_name: "dead-service".to_string(),
-        tools_available: 0,
+        tools_available: None,
         requires_auth: false,
         validation_type: "connection_failed".to_string(),
         error_message: Some("Connection refused".to_string()),
@@ -164,7 +164,7 @@ fn test_health_check_result_unhealthy() {
 fn test_health_check_result_unknown() {
     let details = HealthCheckDetails {
         service_name: "mystery-service".to_string(),
-        tools_available: 0,
+        tools_available: None,
         requires_auth: false,
         validation_type: "error".to_string(),
         error_message: Some("Unknown error".to_string()),
@@ -185,7 +185,7 @@ fn test_health_check_result_unknown() {
 fn test_health_check_result_clone() {
     let details = HealthCheckDetails {
         service_name: "clone-service".to_string(),
-        tools_available: 2,
+        tools_available: Some(2),
         requires_auth: true,
         validation_type: "auth_required".to_string(),
         error_message: None,
@@ -209,7 +209,7 @@ fn test_health_check_result_clone() {
 fn test_health_check_result_debug() {
     let details = HealthCheckDetails {
         service_name: "debug-result-service".to_string(),
-        tools_available: 1,
+        tools_available: Some(1),
         requires_auth: false,
         validation_type: "success".to_string(),
         error_message: None,

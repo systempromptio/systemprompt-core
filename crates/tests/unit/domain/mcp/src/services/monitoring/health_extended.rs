@@ -48,7 +48,7 @@ fn conn(
     success: bool,
     time_ms: u32,
     vtype: &str,
-    tools: usize,
+    tools: Option<usize>,
     info: Option<McpProtocolInfo>,
 ) -> McpConnectionResult {
     McpConnectionResult {
@@ -84,11 +84,11 @@ fn health_check_details_fields_populated_from_connection_result() {
         version: "2.5.0".to_owned(),
         protocol_version: "2025-01-01".to_owned(),
     };
-    let result = conn(true, 50, "mcp_validated", 5, Some(proto));
+    let result = conn(true, 50, "mcp_validated", Some(5), Some(proto));
     let hc = HealthCheckResult::from_connection_result(result, &cfg);
 
     assert_eq!(hc.details.service_name, "details-test");
-    assert_eq!(hc.details.tools_available, 5);
+    assert_eq!(hc.details.tools_available, Some(5));
     assert!(!hc.details.requires_auth);
     assert_eq!(hc.details.server_version.as_deref(), Some("2.5.0"));
     assert!(hc.details.error_message.is_none());
@@ -98,7 +98,7 @@ fn health_check_details_fields_populated_from_connection_result() {
 #[test]
 fn health_check_details_no_server_info_is_none() {
     let cfg = config("no-info");
-    let result = conn(true, 200, "mcp_validated", 2, None);
+    let result = conn(true, 200, "mcp_validated", Some(2), None);
     let hc = HealthCheckResult::from_connection_result(result, &cfg);
     assert!(hc.details.server_version.is_none());
 }
@@ -106,11 +106,11 @@ fn health_check_details_no_server_info_is_none() {
 #[test]
 fn health_check_result_connection_result_is_some_on_success() {
     let cfg = config("conn-some");
-    let result = conn(true, 100, "mcp_validated", 1, None);
+    let result = conn(true, 100, "mcp_validated", Some(1), None);
     let hc = HealthCheckResult::from_connection_result(result, &cfg);
     let cr = hc.connection_result.expect("connection result on success");
     assert!(cr.success);
-    assert_eq!(cr.tools_count, 1);
+    assert_eq!(cr.tools_count, Some(1));
 }
 
 #[test]
@@ -126,7 +126,7 @@ fn health_check_details_auth_required_flag_propagated() {
     let mut cfg = config("auth-flag");
     cfg.oauth.required = true;
 
-    let result = conn(false, 0, "auth_required", 0, None);
+    let result = conn(false, 0, "auth_required", None, None);
     let hc = HealthCheckResult::from_connection_result(result, &cfg);
     assert!(hc.details.requires_auth);
     assert!(matches!(hc.status, HealthStatus::Healthy));
@@ -135,7 +135,7 @@ fn health_check_details_auth_required_flag_propagated() {
 #[test]
 fn health_check_timeout_validation_type_is_unhealthy() {
     let cfg = config("timeout-check");
-    let result = conn(false, 5000, "timeout", 0, None);
+    let result = conn(false, 5000, "timeout", None, None);
     let hc = HealthCheckResult::from_connection_result(result, &cfg);
     assert!(matches!(hc.status, HealthStatus::Unhealthy));
     assert!(hc.details.validation_type.contains("timeout"));
@@ -144,7 +144,7 @@ fn health_check_timeout_validation_type_is_unhealthy() {
 #[test]
 fn health_check_unknown_validation_type_is_unknown() {
     let cfg = config("unk-type");
-    let result = conn(false, 0, "something_novel", 0, None);
+    let result = conn(false, 0, "something_novel", None, None);
     let hc = HealthCheckResult::from_connection_result(result, &cfg);
     assert!(matches!(hc.status, HealthStatus::Unknown));
 }
@@ -152,7 +152,7 @@ fn health_check_unknown_validation_type_is_unknown() {
 #[test]
 fn health_check_details_error_message_from_connection_result() {
     let cfg = config("err-msg");
-    let mut r = conn(false, 0, "connection_failed", 0, None);
+    let mut r = conn(false, 0, "connection_failed", None, None);
     r.error_message = Some("connection refused".to_owned());
     let hc = HealthCheckResult::from_connection_result(r, &cfg);
     assert_eq!(
@@ -165,7 +165,7 @@ fn health_check_details_error_message_from_connection_result() {
 fn health_check_details_clone_and_debug() {
     let d = HealthCheckDetails {
         service_name: "svc".to_owned(),
-        tools_available: 3,
+        tools_available: Some(3),
         requires_auth: true,
         validation_type: "mcp_validated".to_owned(),
         error_message: None,

@@ -10,7 +10,7 @@ fn create_test_status() -> ServiceStatus {
         pid: Some(1234),
         health: "healthy".to_string(),
         uptime_seconds: Some(3600),
-        tools_count: 5,
+        tools_count: Some(5),
         latency_ms: Some(100),
         auth_required: false,
     }
@@ -24,7 +24,7 @@ fn test_service_status_fields() {
     assert_eq!(status.pid, Some(1234));
     assert_eq!(status.health, "healthy");
     assert_eq!(status.uptime_seconds, Some(3600));
-    assert_eq!(status.tools_count, 5);
+    assert_eq!(status.tools_count, Some(5));
     assert_eq!(status.latency_ms, Some(100));
     assert!(!status.auth_required);
 }
@@ -36,7 +36,7 @@ fn test_service_status_running() {
         pid: Some(5678),
         health: "healthy".to_string(),
         uptime_seconds: Some(7200),
-        tools_count: 10,
+        tools_count: Some(10),
         latency_ms: Some(50),
         auth_required: false,
     };
@@ -52,7 +52,7 @@ fn test_service_status_stopped() {
         pid: None,
         health: "unhealthy".to_string(),
         uptime_seconds: None,
-        tools_count: 0,
+        tools_count: None,
         latency_ms: None,
         auth_required: false,
     };
@@ -70,7 +70,7 @@ fn test_service_status_error() {
         pid: None,
         health: "unreachable".to_string(),
         uptime_seconds: None,
-        tools_count: 0,
+        tools_count: None,
         latency_ms: None,
         auth_required: true,
     };
@@ -86,7 +86,7 @@ fn test_service_status_auth_required() {
         pid: Some(9999),
         health: "healthy".to_string(),
         uptime_seconds: Some(1800),
-        tools_count: 0,
+        tools_count: None,
         latency_ms: Some(200),
         auth_required: true,
     };
@@ -101,7 +101,7 @@ fn test_service_status_degraded() {
         pid: Some(4567),
         health: "degraded".to_string(),
         uptime_seconds: Some(900),
-        tools_count: 3,
+        tools_count: Some(3),
         latency_ms: Some(2000),
         auth_required: false,
     };
@@ -117,12 +117,12 @@ fn test_service_status_no_tools() {
         pid: Some(1111),
         health: "healthy".to_string(),
         uptime_seconds: Some(600),
-        tools_count: 0,
+        tools_count: Some(0),
         latency_ms: Some(75),
         auth_required: true,
     };
 
-    assert_eq!(status.tools_count, 0);
+    assert_eq!(status.tools_count, Some(0));
 }
 
 #[test]
@@ -153,7 +153,7 @@ fn test_service_status_starting() {
         pid: None,
         health: "unknown".to_string(),
         uptime_seconds: None,
-        tools_count: 0,
+        tools_count: None,
         latency_ms: None,
         auth_required: false,
     };
@@ -169,7 +169,7 @@ fn test_service_status_long_uptime() {
         pid: Some(2222),
         health: "healthy".to_string(),
         uptime_seconds: Some(86400 * 30), // 30 days
-        tools_count: 15,
+        tools_count: Some(15),
         latency_ms: Some(25),
         auth_required: false,
     };
@@ -184,7 +184,7 @@ fn test_service_status_high_latency() {
         pid: Some(3333),
         health: "degraded".to_string(),
         uptime_seconds: Some(100),
-        tools_count: 2,
+        tools_count: Some(2),
         latency_ms: Some(5000),
         auth_required: false,
     };
@@ -252,7 +252,7 @@ fn mcp_service_status_managed_row_carries_pid_and_port() {
         endpoint: None,
         health: HealthStatus::Healthy,
         pid: Some(4242),
-        tools_count: 7,
+        tools_count: Some(7),
         latency_ms: Some(12),
         auth_required: false,
     };
@@ -273,7 +273,7 @@ fn mcp_service_status_external_row_carries_endpoint_not_pid() {
         endpoint: Some("https://example.com/mcp".to_owned()),
         health: HealthStatus::Unhealthy,
         pid: None,
-        tools_count: 0,
+        tools_count: None,
         latency_ms: None,
         auth_required: true,
     };

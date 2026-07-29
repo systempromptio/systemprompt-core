@@ -166,13 +166,24 @@ fn handle_healthy_status(
         );
     }
 
-    tracing::info!(
-        service = %config.name,
-        tools = tools_count,
-        startup_ms = startup_time_ms,
-        requires_auth = health_result.details.requires_auth,
-        "MCP service validated"
-    );
+    if let Some(tools) = tools_count {
+        tracing::info!(
+            service = %config.name,
+            tools,
+            startup_ms = startup_time_ms,
+            requires_auth = health_result.details.requires_auth,
+            validation_type = %health_result.details.validation_type,
+            "MCP service validated"
+        );
+    } else {
+        tracing::info!(
+            service = %config.name,
+            startup_ms = startup_time_ms,
+            requires_auth = health_result.details.requires_auth,
+            validation_type = %health_result.details.validation_type,
+            "MCP service validated; tool list not enumerated"
+        );
+    }
 }
 
 fn handle_degraded_status(
@@ -200,7 +211,7 @@ fn handle_degraded_status(
             &config.name,
             config.port,
             Duration::from_millis(startup_time_ms as u64),
-            0,
+            None,
         );
     }
 }

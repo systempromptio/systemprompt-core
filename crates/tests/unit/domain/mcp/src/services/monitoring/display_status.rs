@@ -48,7 +48,7 @@ fn status(state: &str) -> ServiceStatus {
         pid: None,
         health: state.to_owned(),
         uptime_seconds: None,
-        tools_count: 0,
+        tools_count: None,
         latency_ms: None,
         auth_required: false,
     }

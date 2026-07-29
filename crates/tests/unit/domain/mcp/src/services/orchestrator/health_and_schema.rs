@@ -63,14 +63,14 @@ fn health_status_debug() {
 fn health_check_details_construction() {
     let details = HealthCheckDetails {
         service_name: "my-service".to_string(),
-        tools_available: 5,
+        tools_available: Some(5),
         requires_auth: true,
         validation_type: "full".to_string(),
         error_message: None,
         server_version: Some("1.0.0".to_string()),
     };
     assert_eq!(details.service_name, "my-service");
-    assert_eq!(details.tools_available, 5);
+    assert_eq!(details.tools_available, Some(5));
     assert!(details.requires_auth);
     assert!(details.error_message.is_none());
     assert_eq!(details.server_version.as_deref(), Some("1.0.0"));
@@ -80,7 +80,7 @@ fn health_check_details_construction() {
 fn health_check_details_with_error() {
     let details = HealthCheckDetails {
         service_name: "failing-svc".to_string(),
-        tools_available: 0,
+        tools_available: None,
         requires_auth: false,
         validation_type: "port_unavailable".to_string(),
         error_message: Some("Connection refused".to_string()),
@@ -94,7 +94,7 @@ fn health_check_details_with_error() {
 fn health_check_details_clone() {
     let details = HealthCheckDetails {
         service_name: "clone-test".to_string(),
-        tools_available: 3,
+        tools_available: Some(3),
         requires_auth: false,
         validation_type: "test".to_string(),
         error_message: None,
@@ -102,7 +102,7 @@ fn health_check_details_clone() {
     };
     let cloned = details.clone();
     assert_eq!(cloned.service_name, "clone-test");
-    assert_eq!(cloned.tools_available, 3);
+    assert_eq!(cloned.tools_available, Some(3));
 }
 
 #[test]
@@ -281,13 +281,13 @@ fn service_status_construction() {
         pid: Some(1234),
         health: "healthy".to_string(),
         uptime_seconds: Some(3600),
-        tools_count: 10,
+        tools_count: Some(10),
         latency_ms: Some(50),
         auth_required: true,
     };
     assert_eq!(status.state, "running");
     assert_eq!(status.pid, Some(1234));
-    assert_eq!(status.tools_count, 10);
+    assert_eq!(status.tools_count, Some(10));
     assert!(status.auth_required);
 }
 
@@ -298,13 +298,13 @@ fn service_status_stopped() {
         pid: None,
         health: "unreachable".to_string(),
         uptime_seconds: None,
-        tools_count: 0,
+        tools_count: None,
         latency_ms: None,
         auth_required: false,
     };
     assert!(status.pid.is_none());
     assert!(status.latency_ms.is_none());
-    assert_eq!(status.tools_count, 0);
+    assert!(status.tools_count.is_none());
 }
 
 #[test]

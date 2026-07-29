@@ -150,7 +150,7 @@ mod startup_event_ext_tests {
     async fn mcp_ready_sends_event() {
         let (tx, mut rx) = startup_channel();
 
-        tx.mcp_ready("test-mcp", 5000, Duration::from_millis(500), 10);
+        tx.mcp_ready("test-mcp", 5000, Duration::from_millis(500), Some(10));
 
         let event = rx.next().await.unwrap();
         match event {
@@ -163,7 +163,7 @@ mod startup_event_ext_tests {
                 assert_eq!(name, "test-mcp");
                 assert_eq!(port, 5000);
                 assert_eq!(startup_time, Duration::from_millis(500));
-                assert_eq!(tools, 10);
+                assert_eq!(tools, Some(10));
             },
             _ => panic!("Expected McpServerReady event"),
         }

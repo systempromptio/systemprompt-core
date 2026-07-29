@@ -80,7 +80,7 @@ fn log_validation_result(
             service = %service_name,
             server_name = ?validation_result.server_info.as_ref().map(|s| &s.server_name),
             version = ?validation_result.server_info.as_ref().map(|s| &s.version),
-            tools_count = validation_result.tools_count,
+            tools_count = ?validation_result.tools_count,
             connection_time_ms = validation_result.connection_time_ms,
             validation_type = %validation_result.validation_type,
             "Successfully connected to MCP service"

@@ -27,7 +27,7 @@ async fn renderer_drives_full_happy_path() {
         name: "mcp-a".to_owned(),
         port: 9001,
         startup_time: Duration::from_millis(50),
-        tools: 3,
+        tools: Some(3),
     })
     .unwrap();
     tx.unbounded_send(StartupEvent::McpServerFailed {

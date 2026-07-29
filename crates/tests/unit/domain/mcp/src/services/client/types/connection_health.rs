@@ -14,7 +14,7 @@ fn test_mcp_connection_result_healthy() {
             version: "1.0.0".to_string(),
             protocol_version: "2024-11-05".to_string(),
         }),
-        tools_count: 5,
+        tools_count: Some(5),
         validation_type: "mcp_validated".to_string(),
     };
 
@@ -29,7 +29,7 @@ fn test_mcp_connection_result_unhealthy_slow() {
         error_message: None,
         connection_time_ms: 2500,
         server_info: None,
-        tools_count: 5,
+        tools_count: Some(5),
         validation_type: "mcp_validated".to_string(),
     };
 
@@ -44,7 +44,7 @@ fn test_mcp_connection_result_unhealthy_failed() {
         error_message: Some("Connection failed".to_string()),
         connection_time_ms: 100,
         server_info: None,
-        tools_count: 0,
+        tools_count: None,
         validation_type: "connection_failed".to_string(),
     };
 
@@ -59,7 +59,7 @@ fn test_mcp_connection_result_health_status_healthy() {
         error_message: None,
         connection_time_ms: 100,
         server_info: None,
-        tools_count: 5,
+        tools_count: Some(5),
         validation_type: "mcp_validated".to_string(),
     };
 
@@ -74,7 +74,7 @@ fn test_mcp_connection_result_health_status_slow() {
         error_message: None,
         connection_time_ms: 1500,
         server_info: None,
-        tools_count: 5,
+        tools_count: Some(5),
         validation_type: "mcp_validated".to_string(),
     };
 
@@ -89,7 +89,7 @@ fn test_mcp_connection_result_health_status_auth_required() {
         error_message: None,
         connection_time_ms: 100,
         server_info: None,
-        tools_count: 0,
+        tools_count: None,
         validation_type: "auth_required".to_string(),
     };
 
@@ -104,7 +104,7 @@ fn test_mcp_connection_result_health_status_no_tools() {
         error_message: None,
         connection_time_ms: 100,
         server_info: None,
-        tools_count: 0,
+        tools_count: Some(0),
         validation_type: "no_tools".to_string(),
     };
 
@@ -127,7 +127,7 @@ fn test_mcp_connection_result_health_status_unhealthy_variants() {
             error_message: None,
             connection_time_ms: 100,
             server_info: None,
-            tools_count: 0,
+            tools_count: None,
             validation_type: variant.to_string(),
         };
 
@@ -143,7 +143,7 @@ fn test_mcp_connection_result_health_status_unknown() {
         error_message: None,
         connection_time_ms: 100,
         server_info: None,
-        tools_count: 0,
+        tools_count: None,
         validation_type: "some_unknown_type".to_string(),
     };
 
@@ -162,7 +162,7 @@ fn test_mcp_connection_result_clone() {
             version: "1.0.0".to_string(),
             protocol_version: "2024-11-05".to_string(),
         }),
-        tools_count: 5,
+        tools_count: Some(5),
         validation_type: "mcp_validated".to_string(),
     };
 
@@ -180,7 +180,7 @@ fn test_mcp_connection_result_serialize() {
         error_message: None,
         connection_time_ms: 100,
         server_info: None,
-        tools_count: 5,
+        tools_count: Some(5),
         validation_type: "mcp_validated".to_string(),
     };
 

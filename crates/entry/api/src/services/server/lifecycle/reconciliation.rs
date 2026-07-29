@@ -151,7 +151,7 @@ async fn verify_database_registration(
                     server.name.clone(),
                     service.port as u16,
                     std::time::Duration::ZERO,
-                    0,
+                    None,
                 );
             },
             Ok(Some(service)) => {

@@ -223,7 +223,7 @@ pub fn failure_output(service_name: &str, detail: FailureDetail) -> McpValidateO
         valid: false,
         health_status: detail.health_status.to_owned(),
         validation_type: detail.validation_type.to_owned(),
-        tools_count: 0,
+        tools_count: None,
         latency_ms: detail.latency_ms,
         server_info: None,
         issues: vec![detail.issue],
