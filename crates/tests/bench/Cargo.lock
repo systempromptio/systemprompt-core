@@ -4341,6 +4341,7 @@ dependencies = [
  "lru",
  "metrics",
  "pkcs8",
+ "regex",
  "reqwest",
  "rsa",
  "serde",

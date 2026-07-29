@@ -14,7 +14,7 @@ Diagnostics on stderr. `tracing` JSON via `SP_BRIDGE_LOG_FORMAT=json`. Exit 0 on
 
 ## Status
 
-Independent semver, separate from the systemprompt-core workspace. Latest release **0.16.0**: a Cowork artifacts emitter that materialises the manifest's `artifacts` section through two sinks, a staging directory consumed by the first-run `create_artifact` seed skill and an on-disk library store, with content-hashed idempotency and remove-on-empty cleanup. The GUI marketplace gains an Artifacts category listing entries in the local library store. See [`CHANGELOG.md`](CHANGELOG.md).
+Independent semver, separate from the systemprompt-core workspace. Latest release **0.21.0**. See [`CHANGELOG.md`](CHANGELOG.md) for what each release changed.
 
 Released artifacts: macOS (arm64, x86_64), Windows (x86_64), Linux (x86_64). Sigstore-signed; SBOM attached to every release.
 

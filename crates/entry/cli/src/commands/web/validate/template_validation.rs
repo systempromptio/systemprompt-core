@@ -69,11 +69,19 @@ pub fn validate_templates(
         return;
     };
 
-    let content_type_names: HashSet<&String> = content_config.content_sources.keys().collect();
+    let known = known_content_types(&content_config);
+    warn_unknown_references(&templates_config, &known, warnings);
+    warn_orphan_content_types(&templates_config, &known, warnings);
+}
 
+fn warn_unknown_references(
+    templates_config: &TemplatesConfig,
+    known: &HashSet<String>,
+    warnings: &mut Vec<ValidationIssue>,
+) {
     for (template_name, entry) in &templates_config.templates {
         for ct in &entry.content_types {
-            if !content_type_names.contains(ct) {
+            if !known.contains(ct) {
                 warnings.push(ValidationIssue {
                     source: "templates".to_owned(),
                     message: format!(
@@ -85,20 +93,56 @@ pub fn validate_templates(
             }
         }
     }
+}
 
-    let template_content_types: HashSet<&String> = templates_config
+fn warn_orphan_content_types(
+    templates_config: &TemplatesConfig,
+    known: &HashSet<String>,
+    warnings: &mut Vec<ValidationIssue>,
+) {
+    let templated: HashSet<&str> = templates_config
         .templates
         .values()
         .flat_map(|e| e.content_types.iter())
+        .map(String::as_str)
         .collect();
 
-    for name in content_type_names {
-        if !template_content_types.contains(name) {
-            warnings.push(ValidationIssue {
-                source: "templates".to_owned(),
-                message: format!("Content type '{}' has no associated template", name),
-                suggestion: Some("Link a template to this content type".to_owned()),
-            });
+    let mut orphans: Vec<&str> = known
+        .iter()
+        .map(String::as_str)
+        .filter(|name| !templated.contains(name))
+        .collect();
+    orphans.sort_unstable();
+
+    for name in orphans {
+        warnings.push(ValidationIssue {
+            source: "templates".to_owned(),
+            message: format!("Content type '{}' has no associated template", name),
+            suggestion: Some("Link a template to this content type".to_owned()),
+        });
+    }
+}
+
+// Why: source names are not content types. A page carries its type in `kind`,
+// which is what `allowed_content_types` enumerates; keying on `content_sources`
+// keys instead validates templates no page can ever reach.
+fn known_content_types(content_config: &ContentConfigRaw) -> HashSet<String> {
+    let mut names: HashSet<String> = content_config
+        .content_sources
+        .values()
+        .flat_map(|source| source.allowed_content_types.iter().cloned())
+        .collect();
+
+    for (source_name, source) in &content_config.content_sources {
+        let renders_index = source
+            .sitemap
+            .as_ref()
+            .and_then(|sitemap| sitemap.parent_route.as_ref())
+            .is_some_and(|parent| parent.enabled);
+        if renders_index {
+            names.insert(format!("{source_name}-list"));
         }
     }
+
+    names
 }

@@ -63,7 +63,7 @@ It is the seam between the local CLI or runtime and the control plane. Every cre
 
 ```toml
 [dependencies]
-systemprompt-cloud = "0.21"
+systemprompt-cloud = "0.27"
 ```
 
 ```rust

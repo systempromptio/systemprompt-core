@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.21.0] - 2026-07-29
+
+### Changed
+
+- Dependency refresh only; no bridge source changed since 0.20.0. The lockfile moves `rmcp` from `3.0.0-beta.1` to the released `3.0.0`, which pulls `base64` 0.23.0 alongside the existing 0.22.1. `rmcp` is a transitive dependency here — the bridge declares none of it directly — so there is no behavioural change to the bridge's own surface. The release exists so the published binary matches the tree rather than a prerelease dependency.
+
 ## [0.20.0] - 2026-07-28
 
 ### Fixed
