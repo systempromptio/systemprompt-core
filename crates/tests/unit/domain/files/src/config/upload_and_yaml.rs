@@ -92,6 +92,7 @@ fn test_files_config_yaml_serialize() {
 fn test_files_config_yaml_custom_url_prefix() {
     let config = FilesConfigYaml {
         url_prefix: "/storage/v1".to_string(),
+        cache_control: None,
         upload: FileUploadConfig::default(),
     };
     assert_eq!(config.url_prefix, "/storage/v1");
@@ -101,6 +102,7 @@ fn test_files_config_yaml_custom_url_prefix() {
 fn test_files_config_yaml_empty_url_prefix() {
     let config = FilesConfigYaml {
         url_prefix: "".to_string(),
+        cache_control: None,
         upload: FileUploadConfig::default(),
     };
     assert_eq!(config.url_prefix, "");

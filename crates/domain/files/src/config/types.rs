@@ -72,6 +72,11 @@ impl Default for FileUploadConfig {
 pub struct FilesConfigYaml {
     #[serde(default = "default_url_prefix")]
     pub url_prefix: String,
+    /// Stored files are not content-hashed, so leaving this unset gets a
+    /// revalidating policy from the API; set it only where the deployment mints
+    /// immutable URLs under [`FilesConfigYaml::url_prefix`].
+    #[serde(default)]
+    pub cache_control: Option<String>,
     #[serde(default)]
     pub upload: FileUploadConfig,
 }
@@ -84,6 +89,7 @@ impl Default for FilesConfigYaml {
     fn default() -> Self {
         Self {
             url_prefix: default_url_prefix(),
+            cache_control: None,
             upload: FileUploadConfig::default(),
         }
     }

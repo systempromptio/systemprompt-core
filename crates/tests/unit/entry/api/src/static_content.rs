@@ -8,9 +8,11 @@
 //! Note: `StaticContentMatcher::from_config` requires filesystem access
 //! and is tested through integration tests.
 
+use std::path::Path;
 use systemprompt_api::services::static_content::StaticContentMatcher;
 use systemprompt_api::services::static_content::static_files::{
-    CACHE_HTML, CACHE_METADATA, CACHE_STATIC_ASSET, compute_etag,
+    CACHE_HTML, CACHE_METADATA, CACHE_STATIC_ASSET, CACHE_STATIC_ASSET_REVALIDATE,
+    asset_cache_policy, compute_etag,
 };
 
 #[test]
@@ -40,6 +42,45 @@ fn cache_constants_have_expected_directives() {
     assert!(CACHE_STATIC_ASSET.contains("immutable"));
     assert_eq!(CACHE_HTML, "no-cache");
     assert!(CACHE_METADATA.contains("max-age"));
+    assert_eq!(
+        CACHE_STATIC_ASSET_REVALIDATE,
+        "public, max-age=0, must-revalidate"
+    );
+}
+
+#[test]
+fn content_hashed_assets_are_served_immutable() {
+    for name in [
+        "/dist/js/app.4f3a9c1e.js",
+        "/dist/css/main-8ba7f21c.css",
+        "/dist/js/vendor.0a1b2c3d4e5f6789.min.js",
+        "/dist/js/bundle-KJHF3D2A.js",
+    ] {
+        assert_eq!(
+            asset_cache_policy(Path::new(name)),
+            CACHE_STATIC_ASSET,
+            "{name} should be immutable"
+        );
+    }
+}
+
+#[test]
+fn unhashed_assets_are_served_revalidating() {
+    for name in [
+        "/dist/css/content.css",
+        "/dist/js/app.js",
+        "/dist/js/app.min.js",
+        "/dist/css/v2.css",
+        "/dist/images/photo.2024.jpg",
+        "/favicon.ico",
+        "/dist/fonts/inter-regular.woff2",
+    ] {
+        assert_eq!(
+            asset_cache_policy(Path::new(name)),
+            CACHE_STATIC_ASSET_REVALIDATE,
+            "{name} should revalidate"
+        );
+    }
 }
 
 #[test]

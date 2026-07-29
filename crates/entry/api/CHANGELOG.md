@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.27.0] - 2026-07-29
+
+### Fixed
+
+- Static assets whose filename carries no content hash are served `Cache-Control: public, max-age=0, must-revalidate`, the new `CACHE_STATIC_ASSET_REVALIDATE`. `asset_cache_policy` reserves `CACHE_STATIC_ASSET` for hashed names such as `app.4f3a9c1e.js` or `main-8ba7f21c.css`; `immutable` suppresses revalidation, so the `ETag` on these responses was unreachable and a redeployed asset could stay cached for up to a year. Files under the configured files prefix honour `files.cacheControl` when set.
+
 ## [0.26.0] - 2026-07-28
 
 ### Fixed

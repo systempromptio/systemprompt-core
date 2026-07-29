@@ -16,6 +16,10 @@ use super::types::FilesConfigYaml;
 const MAX_RECOMMENDED_FILE_SIZE: u64 = 2 * 1024 * 1024 * 1024;
 const MIN_VIDEO_FILE_SIZE: u64 = 100 * 1024 * 1024;
 
+fn is_valid_header_value(value: &str) -> bool {
+    !value.is_empty() && value.chars().all(|c| matches!(c, ' '..='~'))
+}
+
 #[derive(Debug, Default)]
 pub struct FilesConfigValidator {
     config: Option<FilesConfigYaml>,
@@ -66,6 +70,15 @@ impl DomainConfig for FilesConfigValidator {
             report.add_error(ValidationError::new(
                 "files.urlPrefix",
                 "URL prefix must start with '/'",
+            ));
+        }
+
+        if let Some(cache_control) = config.cache_control.as_deref()
+            && !is_valid_header_value(cache_control)
+        {
+            report.add_error(ValidationError::new(
+                "files.cacheControl",
+                "Cache-Control must be a non-empty string of printable ASCII characters",
             ));
         }
 

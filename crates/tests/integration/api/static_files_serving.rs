@@ -139,10 +139,53 @@ async fn serves_static_asset_with_resolved_mime() -> anyhow::Result<()> {
         assert_eq!(hdrs.get(header::CONTENT_TYPE).unwrap(), mime, "{path}");
         assert_eq!(
             hdrs.get(header::CACHE_CONTROL).unwrap(),
-            "public, max-age=31536000, immutable",
+            "public, max-age=0, must-revalidate",
             "{path}"
         );
     }
+    Ok(())
+}
+
+#[tokio::test]
+async fn unhashed_asset_revalidates_via_etag() -> anyhow::Result<()> {
+    let (_tmp, state) = state_with_dist(StaticContentMatcher::empty()).await?;
+    let dist = dist_dir(&state);
+    std::fs::create_dir_all(dist.join("css"))?;
+    std::fs::write(dist.join("css/content.css"), "body{color:red}")?;
+
+    let (status, hdrs, _body) = serve(&state, "/css/content.css", HeaderMap::new()).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(
+        hdrs.get(header::CACHE_CONTROL).unwrap(),
+        "public, max-age=0, must-revalidate"
+    );
+    let etag = hdrs.get(header::ETAG).unwrap().clone();
+
+    let mut conditional = HeaderMap::new();
+    conditional.insert(header::IF_NONE_MATCH, etag.clone());
+    let (status, _hdrs, _body) = serve(&state, "/css/content.css", conditional.clone()).await;
+    assert_eq!(status, StatusCode::NOT_MODIFIED);
+
+    std::fs::write(dist.join("css/content.css"), "body{color:blue}")?;
+    let (status, hdrs, _body) = serve(&state, "/css/content.css", conditional).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_ne!(hdrs.get(header::ETAG).unwrap(), &etag);
+    Ok(())
+}
+
+#[tokio::test]
+async fn content_hashed_asset_is_immutable() -> anyhow::Result<()> {
+    let (_tmp, state) = state_with_dist(StaticContentMatcher::empty()).await?;
+    let dist = dist_dir(&state);
+    std::fs::create_dir_all(dist.join("assets"))?;
+    std::fs::write(dist.join("assets/app.4f3a9c1e.js"), "console.log(1)")?;
+
+    let (status, hdrs, _body) = serve(&state, "/assets/app.4f3a9c1e.js", HeaderMap::new()).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(
+        hdrs.get(header::CACHE_CONTROL).unwrap(),
+        "public, max-age=31536000, immutable"
+    );
     Ok(())
 }
 

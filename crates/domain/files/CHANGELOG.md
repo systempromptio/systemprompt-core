@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.27.0] - 2026-07-29
+
+### Added
+
+- `files.cacheControl` in `files.yaml`, exposed as `FilesConfig::cache_control`, sets the `Cache-Control` served for files under the configured `urlPrefix`. Unset by default, since stored files are not content-hashed, and validated at config load as a non-empty printable header value.
+
 ## [0.25.0] - 2026-07-27
 
 ### Changed

@@ -137,6 +137,7 @@ fn files_config_yaml_deserialize_defaults_when_empty() {
 fn files_config_yaml_roundtrip() {
     let original = FilesConfigYaml {
         url_prefix: "/assets".to_owned(),
+        cache_control: Some("public, max-age=60".to_owned()),
         upload: FileUploadConfig {
             enabled: false,
             max_file_size_bytes: 5_000_000,
@@ -147,6 +148,7 @@ fn files_config_yaml_roundtrip() {
     let json = serde_json::to_string(&original).unwrap();
     let back: FilesConfigYaml = serde_json::from_str(&json).unwrap();
     assert_eq!(original.url_prefix, back.url_prefix);
+    assert_eq!(original.cache_control, back.cache_control);
     assert_eq!(original.upload.enabled, back.upload.enabled);
     assert_eq!(
         original.upload.max_file_size_bytes,

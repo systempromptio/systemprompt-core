@@ -24,6 +24,7 @@ static FILES_CONFIG: OnceLock<FilesConfig> = OnceLock::new();
 pub struct FilesConfig {
     storage_root: PathBuf,
     url_prefix: String,
+    cache_control: Option<String>,
     upload: FileUploadConfig,
 }
 
@@ -66,6 +67,7 @@ impl FilesConfig {
         Ok(Self {
             storage_root: PathBuf::from(storage_root),
             url_prefix: yaml_config.url_prefix,
+            cache_control: yaml_config.cache_control,
             upload: yaml_config.upload,
         })
     }
@@ -171,6 +173,10 @@ impl FilesConfig {
 
     pub fn url_prefix(&self) -> &str {
         &self.url_prefix
+    }
+
+    pub fn cache_control(&self) -> Option<&str> {
+        self.cache_control.as_deref()
     }
 
     pub fn public_url(&self, relative_path: &str) -> String {

@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.27.0] - 2026-07-29
+
+### Breaking
+
+- **Breaking:** `PolicyContext.tool` is replaced by `target: GovernedTarget`, and `PolicyContext.tool_input` by `input: &GovernedInput`; a governed call is an MCP tool invocation or a submitted prompt, and a prompt names no tool. Migrate by constructing `GovernedTarget::Tool { tool }` / `GovernedInput::tool_arguments(..)` at each enforcement point, and by reading `ctx.target.tool()` where a policy applies to tool calls only.
+- **Breaking:** `SecretLocation` carries a third field, `redacted`, and `SecretLocation::new` takes three arguments; `path` holds the dotted path to the offending field. Migrate by passing the path and the redacted excerpt separately.
+- **Breaking:** `McpToolInput` moves from `policy::types` to `policy::governed`. Migrate by importing from `systemprompt_security::policy`, which re-exports both modules' public types.
+
+### Fixed
+
+- Static assets whose filename carries no content hash are served `Cache-Control: public, max-age=0, must-revalidate`; `public, max-age=31536000, immutable` is reserved for hashed names such as `app.4f3a9c1e.js` or `main-8ba7f21c.css`. `immutable` suppresses revalidation, so the `ETag` on these responses was unreachable and a redeployed asset could stay cached for up to a year.
+
+### Added
+
+- `GovernedInput::strings` yields every string in a governed payload with its dotted path, so a scanner reports the path the input type defines rather than one it reconstructs, and `GovernedInput::location_kind` names the surface a finding sits on (`tool_input` or `prompt`).
+- `GovernedTarget::as_str` gives the audit-visible name of a governed target, recording a prompt submission as `PROMPT_TARGET_NAME`.
+- `SecretLocation` implements `Display`, and `DenyReason::SecretLeak` renders it in place of a `Debug` dump.
+- `files.cacheControl` in `files.yaml` overrides the `Cache-Control` served for files under the configured `urlPrefix`, for deployments that mint immutable URLs there. Unset by default, and validated as a printable header value at config load.
+
 ## [0.26.0] - 2026-07-28
 
 ### Breaking

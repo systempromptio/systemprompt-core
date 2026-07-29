@@ -12,7 +12,10 @@
 mod cache;
 mod responses;
 
-pub use cache::{CACHE_HTML, CACHE_METADATA, CACHE_STATIC_ASSET, compute_etag};
+pub use cache::{
+    CACHE_HTML, CACHE_METADATA, CACHE_STATIC_ASSET, CACHE_STATIC_ASSET_REVALIDATE,
+    asset_cache_policy, compute_etag,
+};
 
 use axum::extract::State;
 use axum::http::{HeaderMap, StatusCode, Uri};
@@ -110,14 +113,18 @@ async fn serve_static_asset(
     };
 
     let files_prefix = format!("{}/", files_config.url_prefix());
-    let asset_path = path.strip_prefix(&files_prefix).map_or_else(
+    let stored_file = path.strip_prefix(&files_prefix);
+    let asset_path = stored_file.map_or_else(
         || dist_dir.join(path.trim_start_matches('/')),
         |relative_path| files_config.files().join(relative_path),
     );
 
     if asset_path.exists() && asset_path.is_file() {
         let mime_type = systemprompt_models::mime::http_content_type(&asset_path);
-        return serve_cached_file(&asset_path, headers, mime_type, CACHE_STATIC_ASSET).await;
+        let cache_control = stored_file
+            .and_then(|_| files_config.cache_control())
+            .unwrap_or_else(|| asset_cache_policy(&asset_path));
+        return serve_cached_file(&asset_path, headers, mime_type, cache_control).await;
     }
 
     (StatusCode::NOT_FOUND, "Asset not found").into_response()
