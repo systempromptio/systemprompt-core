@@ -74,18 +74,6 @@ impl ExtensionRegistry {
     }
 
     #[must_use]
-    pub fn enabled_api_extensions(
-        &self,
-        ctx: &dyn crate::ExtensionContext,
-        disabled_ids: &[String],
-    ) -> Vec<Arc<dyn Extension>> {
-        self.enabled_extensions(disabled_ids)
-            .into_iter()
-            .filter(|e| e.has_router(ctx))
-            .collect()
-    }
-
-    #[must_use]
     pub fn enabled_job_extensions(&self, disabled_ids: &[String]) -> Vec<Arc<dyn Extension>> {
         self.enabled_extensions(disabled_ids)
             .into_iter()
@@ -93,12 +81,18 @@ impl ExtensionRegistry {
             .collect()
     }
 
+    // Why: `router()` is the only way to learn whether an extension has one, and
+    // it is not free — implementations allocate state, spawn background tasks,
+    // and log as a side effect of being asked. Building each router once here
+    // and handing it to the caller is what keeps those side effects single.
     #[must_use]
-    pub fn api_extensions(&self, ctx: &dyn crate::ExtensionContext) -> Vec<Arc<dyn Extension>> {
+    pub fn api_routers(
+        &self,
+        ctx: &dyn crate::ExtensionContext,
+    ) -> Vec<(Arc<dyn Extension>, crate::ExtensionRouter)> {
         self.sorted_extensions
             .iter()
-            .filter(|e| e.has_router(ctx))
-            .cloned()
+            .filter_map(|e| e.router(ctx).map(|r| (Arc::clone(e), r)))
             .collect()
     }
 

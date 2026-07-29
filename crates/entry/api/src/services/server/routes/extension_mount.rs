@@ -17,7 +17,7 @@ pub(super) fn mount_extension_routes(
     user_middleware: &UserOnlyContextMiddleware,
     events: Option<&StartupEventSender>,
 ) -> Result<Router, LoaderError> {
-    let api_extensions = ctx.extension_registry().api_extensions(ctx);
+    let api_extensions = ctx.extension_registry().api_routers(ctx);
 
     if api_extensions.is_empty() {
         return Ok(router);
@@ -34,7 +34,7 @@ pub(super) fn mount_extension_routes(
         "paths": profile.paths,
     });
 
-    for ext in api_extensions {
+    for (ext, ext_router_config) in api_extensions {
         let ext_id = ext.metadata().id;
         let ext_name = ext.metadata().name;
 
@@ -43,10 +43,6 @@ pub(super) fn mount_extension_routes(
                 extension: ext_id.to_owned(),
                 message: e.to_string(),
             })?;
-
-        let Some(ext_router_config) = ext.router(ctx) else {
-            continue;
-        };
 
         let base_path = ext_router_config.base_path;
         let requires_auth = ext_router_config.requires_auth;

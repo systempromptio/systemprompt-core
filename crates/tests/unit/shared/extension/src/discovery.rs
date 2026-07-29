@@ -82,29 +82,19 @@ fn discover_includes_process_injected_extensions_and_skips_duplicate_ids() {
     // The process-global injected list is consulted by `discover()`. Injecting
     // the same id twice must collapse to a single registry entry (the second is
     // skipped as already-discovered), while a distinct id is also included.
-    // Under cargo-nextest each test runs in its own process, so this one-shot
-    // `set` cannot collide with the other tests in this binary. A DEBUG
-    // subscriber is active so the injected-extension log fields (count, name,
-    // priority) and the completion-summary fields are evaluated.
+    // A DEBUG subscriber is active so the injected-extension log fields (count,
+    // name, priority) and the completion-summary fields are evaluated.
     let _guard = debug_subscriber_guard();
-    let injected: Vec<Arc<dyn Extension>> = vec![
-        Arc::new(NamedExt { id: "inj-primary" }),
-        Arc::new(NamedExt { id: "inj-primary" }),
-        Arc::new(NamedExt {
-            id: "inj-secondary",
-        }),
-    ];
-    set_injected_extensions(InjectedExtensions {
-        extensions: injected,
-        web_assets: WebAssetsStrategy::Disabled,
-    })
-    .expect("injected extensions may be set exactly once per process");
+    crate::injected_lock::ensure_set();
 
     let registry = ExtensionRegistry::discover().expect("discover should not error");
 
-    assert!(registry.has("inj-primary"), "injected id must be included");
     assert!(
-        registry.has("inj-secondary"),
+        registry.has(crate::injected_lock::PRIMARY_ID),
+        "injected id must be included"
+    );
+    assert!(
+        registry.has(crate::injected_lock::SECONDARY_ID),
         "second distinct injected id must be included"
     );
     assert!(!registry.is_empty());

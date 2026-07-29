@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.27.0] - 2026-07-29
+
+### Breaking
+
+- **Breaking:** `ExtensionRegistry::api_extensions` is replaced by `api_routers`, which returns `Vec<(Arc<dyn Extension>, ExtensionRouter)>` — each extension paired with its already-built router. Migrate by iterating the pairs instead of calling `router()` again on each extension.
+- **Breaking:** `Extension::has_router` is removed. It answered a boolean by building the whole router and discarding it, so any implementation that allocated, spawned a task, or logged did so an extra time per startup. Migrate by using `api_routers`, which filters on router presence as it builds.
+- **Breaking:** `ExtensionRegistry::enabled_api_extensions` is removed; it had no callers and shared the same defect.
+
+### Fixed
+
+- Extension routers are built once per startup instead of twice. Background tasks spawned during router construction are no longer duplicated for the lifetime of the process.
+
 ## [0.24.0] - 2026-07-26
 
 ### Breaking

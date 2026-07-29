@@ -93,10 +93,12 @@ impl MessagingError {
     /// and an opaque card makes a CI failure unreproducible.
     #[must_use]
     pub fn user_message(&self) -> String {
-        #[cfg(feature = "test-api")]
-        return format!("Sorry — something went wrong handling that. ({self})");
-        #[cfg(not(feature = "test-api"))]
-        "Sorry — something went wrong handling that.".to_owned()
+        let opaque = "Sorry — something went wrong handling that.";
+        if cfg!(feature = "test-api") {
+            format!("{opaque} ({self})")
+        } else {
+            opaque.to_owned()
+        }
     }
 }
 

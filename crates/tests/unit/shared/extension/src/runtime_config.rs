@@ -1,63 +1,34 @@
 use std::path::PathBuf;
-use std::sync::Arc;
 
 use systemprompt_extension::runtime_config::{
     InjectedExtensions, WebAssetsStrategy, get_injected_extensions, get_web_assets_strategy,
     set_injected_extensions,
 };
-use systemprompt_extension::{Extension, ExtensionMetadata};
 
-struct RcExt;
+use crate::injected_lock::{self, ASSETS_PATH, PRIMARY_ID, SECONDARY_ID};
 
-impl Extension for RcExt {
-    fn metadata(&self) -> ExtensionMetadata {
-        ExtensionMetadata {
-            id: "rc-inj",
-            name: "Runtime Config Injected",
-            version: "1.0.0",
-        }
-    }
-}
-
+// Why: asserting the pre-set state is not possible here — the lock is global to
+// the test binary and another module may legitimately have set it first. What
+// survives the race is the invariant that matters: after a set, the getters
+// report that payload and every later set is refused.
 #[test]
-fn get_injected_extensions_is_empty_before_any_set() {
-    // Fresh process under cargo-nextest: the OnceLock is unset, so the getter
-    // falls back to an empty list rather than panicking.
-    assert!(get_injected_extensions().is_empty());
-}
+fn injected_extensions_lock_sets_once_and_refuses_the_rest() {
+    injected_lock::ensure_set();
 
-#[test]
-fn get_web_assets_strategy_is_disabled_before_any_set() {
-    assert!(matches!(
-        get_web_assets_strategy(),
-        WebAssetsStrategy::Disabled
-    ));
-}
-
-#[test]
-fn set_injected_extensions_populates_both_getters() {
-    set_injected_extensions(InjectedExtensions {
-        extensions: vec![Arc::new(RcExt)],
-        web_assets: WebAssetsStrategy::FilePath(PathBuf::from("/srv/assets")),
-    })
-    .expect("first set succeeds");
-
-    let exts = get_injected_extensions();
-    assert_eq!(exts.len(), 1);
-    assert_eq!(exts[0].id(), "rc-inj");
+    let ids: Vec<_> = get_injected_extensions()
+        .iter()
+        .map(|e| e.id().to_owned())
+        .collect();
+    assert!(ids.contains(&PRIMARY_ID.to_owned()));
+    assert!(ids.contains(&SECONDARY_ID.to_owned()));
 
     match get_web_assets_strategy() {
-        WebAssetsStrategy::FilePath(p) => assert_eq!(p, PathBuf::from("/srv/assets")),
+        WebAssetsStrategy::FilePath(p) => assert_eq!(p, PathBuf::from(ASSETS_PATH)),
         other => panic!("expected FilePath strategy, got {other:?}"),
     }
-}
 
-#[test]
-fn set_injected_extensions_rejects_a_second_set() {
-    set_injected_extensions(InjectedExtensions::default()).expect("first set succeeds");
-    let second = set_injected_extensions(InjectedExtensions::default());
     assert!(
-        second.is_err(),
+        set_injected_extensions(InjectedExtensions::default()).is_err(),
         "the injected-extensions OnceLock must reject a second set"
     );
 }

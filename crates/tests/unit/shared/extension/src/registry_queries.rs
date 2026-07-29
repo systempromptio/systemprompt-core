@@ -5,6 +5,7 @@
 
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 use async_trait::async_trait;
 use systemprompt_extension::{
@@ -43,6 +44,7 @@ struct CapExt {
     id: &'static str,
     schemas: bool,
     has_router: bool,
+    router_builds: Arc<AtomicUsize>,
     jobs: Vec<Arc<dyn Job>>,
     storage: Vec<&'static str>,
     required: bool,
@@ -54,6 +56,7 @@ impl CapExt {
             id,
             schemas: false,
             has_router: false,
+            router_builds: Arc::new(AtomicUsize::new(0)),
             jobs: Vec::new(),
             storage: Vec::new(),
             required: false,
@@ -79,6 +82,7 @@ impl Extension for CapExt {
     }
 
     fn router(&self, _ctx: &dyn ExtensionContext) -> Option<ExtensionRouter> {
+        self.router_builds.fetch_add(1, Ordering::SeqCst);
         if self.has_router {
             Some(ExtensionRouter::new(axum::Router::new(), "/api/v1/cap"))
         } else {
@@ -184,30 +188,30 @@ fn enabled_schema_extensions_excludes_disabled_and_non_schema() {
 }
 
 #[test]
-fn api_extensions_filters_by_router_presence() {
+fn api_routers_filters_by_router_presence() {
     let mut routed = CapExt::new("routed");
     routed.has_router = true;
     let registry = registry_with(vec![Arc::new(routed), Arc::new(CapExt::new("unrouted"))]);
 
     let ctx = StubCtx;
-    let api = registry.api_extensions(&ctx);
+    let api = registry.api_routers(&ctx);
     assert_eq!(api.len(), 1);
-    assert_eq!(api[0].id(), "routed");
+    assert_eq!(api[0].0.id(), "routed");
+    assert_eq!(api[0].1.base_path, "/api/v1/cap");
 }
 
 #[test]
-fn enabled_api_extensions_honours_disable_list() {
+fn api_routers_builds_each_router_exactly_once() {
     let mut routed = CapExt::new("routed");
     routed.has_router = true;
+    let builds = Arc::clone(&routed.router_builds);
     let registry = registry_with(vec![Arc::new(routed)]);
 
     let ctx = StubCtx;
-    assert_eq!(registry.enabled_api_extensions(&ctx, &[]).len(), 1);
-    assert!(
-        registry
-            .enabled_api_extensions(&ctx, &["routed".to_string()])
-            .is_empty()
-    );
+    let api = registry.api_routers(&ctx);
+
+    assert_eq!(api.len(), 1);
+    assert_eq!(builds.load(Ordering::SeqCst), 1);
 }
 
 #[test]

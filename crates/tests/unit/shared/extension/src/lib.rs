@@ -30,3 +30,6 @@ mod router;
 mod runtime_config;
 #[cfg(test)]
 mod seed;
+
+#[cfg(test)]
+mod injected_lock;

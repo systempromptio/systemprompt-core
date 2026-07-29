@@ -159,10 +159,6 @@ pub trait Extension: Send + Sync + 'static {
         !self.schemas().is_empty()
     }
 
-    fn has_router(&self, ctx: &dyn ExtensionContext) -> bool {
-        self.router(ctx).is_some()
-    }
-
     fn has_jobs(&self) -> bool {
         !self.jobs().is_empty()
     }
