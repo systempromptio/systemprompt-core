@@ -31,6 +31,12 @@ pub struct PolicyRegistration {
 
 inventory::collect!(PolicyRegistration);
 
+// Why: register_governance_policy! expands to an inventory submission; routing
+// it through this re-export spares every registering crate a direct
+// `inventory` dependency it would otherwise carry for one macro call.
+#[doc(hidden)]
+pub use inventory;
+
 /// Register a governance policy factory at static-init time.
 ///
 /// ```ignore
@@ -41,7 +47,7 @@ inventory::collect!(PolicyRegistration);
 #[macro_export]
 macro_rules! register_governance_policy {
     ($id:expr, $factory:expr) => {
-        ::inventory::submit! {
+        $crate::policy::registry::inventory::submit! {
             $crate::policy::PolicyRegistration {
                 id: $id,
                 factory: $factory,
