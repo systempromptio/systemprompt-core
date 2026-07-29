@@ -3,6 +3,12 @@
 //! Connects to running MCP servers over streamable HTTP, lists their tools,
 //! executes tool calls, and validates reachability.
 //!
+//! Sampling, elicitation, and roots are neither implemented nor advertised in
+//! [`ClientCapabilities`], so a conforming server issues none of them —
+//! including as SEP-2322 `input_required` rounds. Servicing `create_message`
+//! would let a third-party MCP server spend our inference budget under our
+//! credentials, so adding it is an authorization decision.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

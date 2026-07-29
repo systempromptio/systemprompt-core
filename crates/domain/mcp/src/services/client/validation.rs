@@ -149,17 +149,19 @@ async fn connect_and_validate(
         crate::error::McpDomainError::Internal("Failed to get peer info from MCP client".to_owned())
     })?;
 
+    let implementation = peer_info.server_info.as_ref();
+
     let server_info = McpProtocolInfo {
-        server_name: if peer_info.server_info.name.is_empty() {
-            service_name.to_owned()
-        } else {
-            peer_info.server_info.name.clone()
-        },
-        version: if peer_info.server_info.version.is_empty() {
-            "1.0.0".to_owned()
-        } else {
-            peer_info.server_info.version.clone()
-        },
+        server_name: implementation
+            .map(|info| info.name.as_str())
+            .filter(|name| !name.is_empty())
+            .unwrap_or(service_name)
+            .to_owned(),
+        version: implementation
+            .map(|info| info.version.as_str())
+            .filter(|version| !version.is_empty())
+            .unwrap_or("1.0.0")
+            .to_owned(),
         protocol_version: peer_info.protocol_version.to_string(),
     };
 

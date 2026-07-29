@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.27.0] - 2026-07-29
+
+### Breaking
+
+- **Breaking:** `prelude::rmcp` re-exports the released `rmcp` `3.0.0` in place of `3.0.0-beta.1`, so the aliases deprecated since `0.13.0`/`2.0.0` are gone from the facade's surface. Migrate by renaming the singular request-parameter aliases to their plural forms (`CallToolRequestParam` → `CallToolRequestParams`, and likewise for `Initialize`, `GetPrompt`, `ReadResource`, `CreateMessage`, `Complete`, `Paginated`, `SetLevel`, `Subscribe`, `Unsubscribe`), `rmcp::Error` → `rmcp::ErrorData`, `Meta` → `MetaObject`, `CreateElicitationRequest`/`Result` → `ElicitRequest`/`ElicitResult`, `PrimitiveSchema` → `PrimitiveSchemaDefinition`, `ResourceReference` → `ResourceTemplateReference`, and `SamplingMessageContent` → `SamplingMessageContentBlock`.
+
 ## [0.23.0] - 2026-07-24
 
 ### Breaking

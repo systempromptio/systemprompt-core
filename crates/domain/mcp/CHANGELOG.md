@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.27.0] - 2026-07-29
+
+### Fixed
+
+- `validate_connection` reports a name and version for a peer that sends no `Implementation`, which a server answering `server/discover` (SEP-2575) is permitted to do. Both fall back to the configured service name and `1.0.0`.
+
+### Changed
+
+- The MCP SDK moves from `rmcp` `3.0.0-beta.1` to the released `3.0.0`. The enabled feature set is unchanged.
+
 ## [0.26.0] - 2026-07-28
 
 ### Breaking
