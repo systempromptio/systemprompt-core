@@ -1,11 +1,11 @@
 //! Shared types for the unified governance plane.
 //!
-//! These types support the tool-use governance chain
-//! ([`super::GovernancePolicy`]) and feed into the typed deny variants in
-//! [`crate::authz::types::DenyReason`]. They live here (and not in
-//! `authz/types.rs`) because they describe the *tool-call* enforcement plane
-//! — secret scans, scope checks, blocklists, rate limits — which is
-//! orthogonal to the user→entity allow/deny resolver.
+//! These types support the governance chain ([`super::GovernancePolicy`]) and
+//! feed into the typed deny variants in [`crate::authz::types::DenyReason`].
+//! They live here (and not in `authz/types.rs`) because they describe the
+//! *governed-call* enforcement plane — secret scans, scope checks, blocklists,
+//! rate limits — which is orthogonal to the user→entity allow/deny resolver.
+//! What a governed call targets and carries lives in [`super::governed`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -15,26 +15,44 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
-use systemprompt_identifiers::{CallId, McpToolName, PolicyId, SessionId, UserId};
+use systemprompt_identifiers::{CallId, PolicyId, SessionId, UserId};
 
+use super::governed::{GovernedInput, GovernedTarget};
 use crate::authz::error::AuthzError;
 use crate::authz::types::Decision;
 
-/// Where in a tool-call payload a secret-scanner finding was located.
+/// Where in a governed payload a secret-scanner finding was located.
 ///
-/// `kind` identifies the field family (e.g. `"arg"`, `"env"`); `path` is the
-/// JSON-pointer-like dotted path within the tool input.
+/// [`GovernedInput::location_kind`] supplies `kind` for the governance chain,
+/// and `redacted` must already have the credential removed — it is rendered
+/// into [`crate::authz::types::DenyReason`] and reaches the audit log.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SecretLocation {
     pub kind: String,
     pub path: String,
+    pub redacted: String,
 }
 
 impl SecretLocation {
-    pub fn new(kind: impl Into<String>, path: impl Into<String>) -> Self {
+    pub fn new(
+        kind: impl Into<String>,
+        path: impl Into<String>,
+        redacted: impl Into<String>,
+    ) -> Self {
         Self {
             kind: kind.into(),
             path: path.into(),
+            redacted: redacted.into(),
+        }
+    }
+}
+
+impl fmt::Display for SecretLocation {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.path.is_empty() {
+            write!(f, "{} ({})", self.kind, self.redacted)
+        } else {
+            write!(f, "{}.{} ({})", self.kind, self.path, self.redacted)
         }
     }
 }
@@ -115,50 +133,14 @@ impl FromStr for AccessScope {
     }
 }
 
-/// Untyped MCP tool input wrapped at the protocol boundary.
-///
-/// The MCP protocol mandates schema-less JSON for tool arguments — every tool
-/// defines its own input shape. This wrapper is the single point where
-/// governance reaches into that JSON; everywhere else the typed path is
-/// preferred. Callers extract fields via [`Self::as_str`] / [`Self::as_path`].
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(transparent)]
-pub struct McpToolInput(
-    // JSON: MCP-protocol boundary — schema-less tool arguments mandated by the
-    // spec. Governance is the only consumer that reaches into this blob.
-    serde_json::Value,
-);
-
-impl McpToolInput {
-    #[must_use]
-    pub const fn new(value: serde_json::Value) -> Self {
-        Self(value)
-    }
-
-    #[must_use]
-    pub const fn as_value(&self) -> &serde_json::Value {
-        &self.0
-    }
-
-    #[must_use]
-    pub fn as_str(&self, field: &str) -> Option<&str> {
-        self.0.get(field).and_then(serde_json::Value::as_str)
-    }
-
-    #[must_use]
-    pub fn as_path(&self, field: &str) -> Option<&str> {
-        self.as_str(field)
-    }
-}
-
 #[derive(Debug)]
 pub struct PolicyContext<'a> {
-    pub tool: McpToolName,
+    pub target: GovernedTarget,
     pub agent_scope: AgentScope,
     pub access_scope: AccessScope,
     pub session_id: &'a SessionId,
     pub user_id: &'a UserId,
-    pub tool_input: &'a McpToolInput,
+    pub input: &'a GovernedInput,
     /// Identity of the logical call, stable across every evaluation of it.
     ///
     /// One call is legitimately evaluated more than once — an enforcement point
@@ -168,7 +150,8 @@ pub struct PolicyContext<'a> {
     pub call_id: &'a CallId,
 }
 
-/// A unit of governance evaluation for an MCP tool call.
+/// A unit of governance evaluation for one governed call — an MCP tool call or
+/// a submitted prompt, per [`PolicyContext::target`].
 ///
 /// Implementations are pure-sync; auditing happens outside the chain.
 /// First-deny-wins composition is provided by [`super::GovernanceChain`].

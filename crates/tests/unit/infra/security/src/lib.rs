@@ -25,6 +25,8 @@ mod jwt_validate;
 #[cfg(test)]
 mod manifest_signing_jcs;
 #[cfg(test)]
+mod policy_governed;
+#[cfg(test)]
 mod policy_types;
 #[cfg(test)]
 mod rs256_cutover;

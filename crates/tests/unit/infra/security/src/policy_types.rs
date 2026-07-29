@@ -4,21 +4,23 @@ use std::sync::Arc;
 use serde_json::json;
 use systemprompt_identifiers::{CallId, McpToolName, PolicyId, SessionId, UserId};
 use systemprompt_security::authz::types::{Decision, MatchedBy};
+use systemprompt_security::policy::governed::{GovernedInput, GovernedTarget, McpToolInput};
 use systemprompt_security::policy::types::{
-    AccessScope, AgentScope, GovernanceChain, GovernancePolicy, McpToolInput, PolicyContext,
-    RateLimitWindow, SecretLocation,
+    AccessScope, AgentScope, GovernanceChain, GovernancePolicy, PolicyContext, RateLimitWindow,
+    SecretLocation,
 };
 
 #[test]
 fn secret_location_new_stores_fields() {
-    let loc = SecretLocation::new("arg", "input.path");
+    let loc = SecretLocation::new("arg", "input.path", "AKIA...[REDACTED]");
     assert_eq!(loc.kind, "arg");
     assert_eq!(loc.path, "input.path");
+    assert_eq!(loc.redacted, "AKIA...[REDACTED]");
 }
 
 #[test]
 fn secret_location_serde_roundtrip() {
-    let loc = SecretLocation::new("env", "ENV_SECRET");
+    let loc = SecretLocation::new("env", "ENV_SECRET", "ghp_...[REDACTED]");
     let s = serde_json::to_string(&loc).unwrap();
     let back: SecretLocation = serde_json::from_str(&s).unwrap();
     assert_eq!(back, loc);
@@ -173,18 +175,18 @@ impl GovernancePolicy for DenyPolicy {
 static TEST_CALL: std::sync::LazyLock<CallId> = std::sync::LazyLock::new(CallId::generate);
 
 fn make_context<'a>(
-    tool: &'a McpToolName,
+    tool: &McpToolName,
     session: &'a SessionId,
     user: &'a UserId,
-    input: &'a McpToolInput,
+    input: &'a GovernedInput,
 ) -> PolicyContext<'a> {
     PolicyContext {
-        tool: tool.clone(),
+        target: GovernedTarget::Tool { tool: tool.clone() },
         agent_scope: AgentScope::System,
         access_scope: AccessScope::Admin,
         session_id: session,
         user_id: user,
-        tool_input: input,
+        input,
         call_id: &TEST_CALL,
     }
 }
@@ -195,7 +197,7 @@ fn governance_chain_empty_returns_default_included() {
     let tool = McpToolName::new("bash");
     let sid = SessionId::generate();
     let uid = UserId::new("u1");
-    let input = McpToolInput::new(json!({}));
+    let input = GovernedInput::tool_arguments(McpToolInput::new(json!({})));
     let ctx = make_context(&tool, &sid, &uid, &input);
 
     let d = chain.evaluate(&ctx);
@@ -213,7 +215,7 @@ fn governance_chain_all_allow_returns_default_included() {
     let tool = McpToolName::new("read_file");
     let sid = SessionId::generate();
     let uid = UserId::new("u2");
-    let input = McpToolInput::new(json!({ "path": "/tmp" }));
+    let input = GovernedInput::tool_arguments(McpToolInput::new(json!({ "path": "/tmp" })));
     let ctx = make_context(&tool, &sid, &uid, &input);
 
     let d = chain.evaluate(&ctx);
@@ -230,7 +232,7 @@ fn governance_chain_deny_short_circuits() {
     let tool = McpToolName::new("write_file");
     let sid = SessionId::generate();
     let uid = UserId::new("u3");
-    let input = McpToolInput::new(json!({}));
+    let input = GovernedInput::tool_arguments(McpToolInput::new(json!({})));
     let ctx = make_context(&tool, &sid, &uid, &input);
 
     let d = chain.evaluate(&ctx);

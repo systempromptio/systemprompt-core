@@ -139,10 +139,12 @@ fn deny_reason_secret_leak_display() {
     let r = DenyReason::SecretLeak {
         pattern_id: SecretPatternId::new("aws-key"),
         pattern_name: Cow::Borrowed("AWS Secret Key"),
-        location: SecretLocation::new("arg", "input.key"),
+        location: SecretLocation::new("tool_input", "env.AWS_SECRET", "AKIA...[REDACTED]"),
     };
     let s = r.to_string();
     assert!(s.contains("AWS Secret Key"), "got: {s}");
+    assert!(s.contains("tool_input.env.AWS_SECRET"), "got: {s}");
+    assert!(s.contains("AKIA...[REDACTED]"), "got: {s}");
 }
 
 #[test]

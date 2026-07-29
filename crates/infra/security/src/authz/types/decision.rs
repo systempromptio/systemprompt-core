@@ -98,7 +98,7 @@ pub enum DenyReason {
         policy: String,
         detail: Cow<'static, str>,
     },
-    #[error("secret detected: {pattern_name} at {location:?}")]
+    #[error("secret detected: {pattern_name} at {location}")]
     SecretLeak {
         pattern_id: SecretPatternId,
         pattern_name: Cow<'static, str>,

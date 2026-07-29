@@ -1,0 +1,184 @@
+//! What a governed call asks for, and what it carries.
+//!
+//! The governance chain sees two kinds of call: an MCP tool invocation and a
+//! prompt the user submitted. Both reach the model and both are enforced, but
+//! they differ in what a policy may key on — a prompt names no tool — and in
+//! how a finding must be reported.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
+use serde::{Deserialize, Serialize};
+use systemprompt_identifiers::McpToolName;
+
+/// Name a submitted prompt is audited under, standing where a tool name would.
+pub const PROMPT_TARGET_NAME: &str = "user_prompt";
+
+/// Name an unidentifiable target is audited under.
+pub const UNKNOWN_TARGET_NAME: &str = "unknown";
+
+/// Untyped MCP tool input wrapped at the protocol boundary.
+///
+/// The MCP protocol mandates schema-less JSON for tool arguments — every tool
+/// defines its own input shape. This wrapper is the single point where
+/// governance reaches into that JSON; everywhere else the typed path is
+/// preferred. Callers extract fields via [`Self::as_str`] / [`Self::as_path`].
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct McpToolInput(
+    // JSON: MCP-protocol boundary — schema-less tool arguments mandated by the spec.
+    serde_json::Value,
+);
+
+impl McpToolInput {
+    #[must_use]
+    pub const fn new(value: serde_json::Value) -> Self {
+        Self(value)
+    }
+
+    #[must_use]
+    pub const fn as_value(&self) -> &serde_json::Value {
+        &self.0
+    }
+
+    #[must_use]
+    pub fn as_str(&self, field: &str) -> Option<&str> {
+        self.0.get(field).and_then(serde_json::Value::as_str)
+    }
+
+    #[must_use]
+    pub fn as_path(&self, field: &str) -> Option<&str> {
+        self.as_str(field)
+    }
+}
+
+/// What a governed call is asking the platform to do.
+///
+/// A prompt is a distinct variant rather than a reserved tool name, which would
+/// collide with any tool a deployment happened to name the same.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum GovernedTarget {
+    Tool { tool: McpToolName },
+    Prompt,
+    Unknown,
+}
+
+impl GovernedTarget {
+    #[must_use]
+    pub fn as_str(&self) -> &str {
+        match self {
+            Self::Tool { tool } => tool.as_str(),
+            Self::Prompt => PROMPT_TARGET_NAME,
+            Self::Unknown => UNKNOWN_TARGET_NAME,
+        }
+    }
+
+    #[must_use]
+    pub const fn tool(&self) -> Option<&McpToolName> {
+        match self {
+            Self::Tool { tool } => Some(tool),
+            Self::Prompt | Self::Unknown => None,
+        }
+    }
+}
+
+/// The payload a governance policy inspects.
+///
+/// A finding is reported against the surface it was found on, so arguments and
+/// prompt text stay separate variants rather than one JSON blob under a
+/// conventional key.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum GovernedInput {
+    ToolArguments { arguments: McpToolInput },
+    Prompt { text: String },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GovernedString<'a> {
+    pub path: String,
+    pub value: &'a str,
+}
+
+impl GovernedInput {
+    #[must_use]
+    pub const fn tool_arguments(arguments: McpToolInput) -> Self {
+        Self::ToolArguments { arguments }
+    }
+
+    #[must_use]
+    pub const fn prompt(text: String) -> Self {
+        Self::Prompt { text }
+    }
+
+    #[must_use]
+    pub const fn location_kind(&self) -> &'static str {
+        match self {
+            Self::ToolArguments { .. } => "tool_input",
+            Self::Prompt { .. } => "prompt",
+        }
+    }
+
+    #[must_use]
+    pub const fn arguments(&self) -> Option<&McpToolInput> {
+        match self {
+            Self::ToolArguments { arguments } => Some(arguments),
+            Self::Prompt { .. } => None,
+        }
+    }
+
+    /// Every string the payload contains, paired with its dotted path.
+    ///
+    /// Scanners walk this rather than the raw JSON so that the path a finding
+    /// reports is defined once here, not reconstructed by each scanner.
+    #[must_use]
+    pub fn strings(&self) -> Vec<GovernedString<'_>> {
+        match self {
+            Self::ToolArguments { arguments } => {
+                let mut out = Vec::new();
+                collect_strings(arguments.as_value(), &mut String::new(), &mut out);
+                out
+            },
+            Self::Prompt { text } => vec![GovernedString {
+                path: PROMPT_PATH.to_owned(),
+                value: text,
+            }],
+        }
+    }
+}
+
+const PROMPT_PATH: &str = "text";
+
+fn collect_strings<'a>(
+    value: &'a serde_json::Value,
+    path: &mut String,
+    out: &mut Vec<GovernedString<'a>>,
+) {
+    match value {
+        serde_json::Value::String(s) => out.push(GovernedString {
+            path: path.clone(),
+            value: s,
+        }),
+        serde_json::Value::Array(items) => {
+            for (index, item) in items.iter().enumerate() {
+                let parent = path.len();
+                path.push_str(&format!("[{index}]"));
+                collect_strings(item, path, out);
+                path.truncate(parent);
+            }
+        },
+        serde_json::Value::Object(map) => {
+            for (key, item) in map {
+                let parent = path.len();
+                if !path.is_empty() {
+                    path.push('.');
+                }
+                path.push_str(key);
+                collect_strings(item, path, out);
+                path.truncate(parent);
+            }
+        },
+        _ => {},
+    }
+}

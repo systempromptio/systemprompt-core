@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.27.0] - 2026-07-29
+
+### Breaking
+
+- **Breaking:** `PolicyContext.tool` is replaced by `target: GovernedTarget`, and `PolicyContext.tool_input` by `input: &GovernedInput`; a governed call is an MCP tool invocation or a submitted prompt, and a prompt names no tool. Migrate by constructing `GovernedTarget::Tool { tool }` / `GovernedInput::tool_arguments(..)` at each enforcement point, and by reading `ctx.target.tool()` where a policy applies to tool calls only.
+- **Breaking:** `SecretLocation` carries a third field, `redacted`, and `SecretLocation::new` takes three arguments; `path` holds the dotted path to the offending field. Migrate by passing the path and the redacted excerpt separately.
+- **Breaking:** `McpToolInput` moves from `policy::types` to `policy::governed`. Migrate by importing from `systemprompt_security::policy`, which re-exports both modules' public types.
+
+### Added
+
+- `GovernedInput::strings` yields every string in a governed payload with its dotted path, so a scanner reports the path the input type defines rather than one it reconstructs, and `GovernedInput::location_kind` names the surface a finding sits on (`tool_input` or `prompt`).
+- `GovernedTarget::as_str` gives the audit-visible name of a governed target, recording a prompt submission as `PROMPT_TARGET_NAME`.
+- `SecretLocation` implements `Display`, and `DenyReason::SecretLeak` renders it in place of a `Debug` dump.
+
 ## [0.26.0] - 2026-07-28
 
 ### Breaking
