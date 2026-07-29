@@ -122,6 +122,9 @@ pub async fn finish_register(
         .into_response())
 }
 
+// Why: promotion is best-effort — registration must never fail because the
+// anonymous history could not be moved; a failed merge stays repairable via
+// `admin users merge`.
 async fn migrate_session_user(state: &OAuthState, session_id_str: &str, new_user_id: &UserId) {
     use systemprompt_identifiers::SessionId;
 
@@ -136,17 +139,27 @@ async fn migrate_session_user(state: &OAuthState, session_id_str: &str, new_user
             let Some(old_user_id) = session.user_id else {
                 return;
             };
-            match analytics_provider
-                .migrate_user_sessions(&old_user_id, new_user_id)
+            if old_user_id == *new_user_id {
+                return;
+            }
+            let user_service = match systemprompt_users::UserService::new(state.db_pool()) {
+                Ok(service) => service,
+                Err(e) => {
+                    tracing::error!(error = %e, "Failed to build user service for promotion");
+                    return;
+                },
+            };
+            match user_service
+                .promote_anonymous(&old_user_id, new_user_id)
                 .await
             {
-                Ok(count) => {
+                Ok(result) => {
                     tracing::info!(
                         session_id = %session_id,
                         old_user_id = %old_user_id,
                         new_user_id = %new_user_id,
-                        records_migrated = count,
-                        "Successfully migrated user data"
+                        rows_transferred = result.total_rows,
+                        "Promoted anonymous user history onto registered account"
                     );
                 },
                 Err(e) => {
@@ -155,7 +168,7 @@ async fn migrate_session_user(state: &OAuthState, session_id_str: &str, new_user
                         session_id = %session_id,
                         old_user_id = %old_user_id,
                         new_user_id = %new_user_id,
-                        "Failed to migrate session"
+                        "Failed to promote anonymous user"
                     );
                 },
             }

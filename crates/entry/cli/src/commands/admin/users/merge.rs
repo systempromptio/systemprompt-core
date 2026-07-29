@@ -56,14 +56,12 @@ pub(super) async fn execute(args: MergeArgs, ctx: &CommandContext) -> Result<Com
     let output = UserMergeOutput {
         source_id: source_user.id.clone(),
         target_id: target_user.id.clone(),
-        sessions_transferred: result.sessions_transferred,
-        tasks_transferred: result.tasks_transferred,
+        sessions_transferred: result.sessions,
+        tasks_transferred: result.tasks,
+        rows_transferred: result.total_rows,
         message: format!(
-            "Merged user '{}' into '{}': {} sessions, {} tasks transferred",
-            source_user.name,
-            target_user.name,
-            result.sessions_transferred,
-            result.tasks_transferred
+            "Merged user '{}' into '{}': {} sessions, {} tasks, {} rows transferred in total",
+            source_user.name, target_user.name, result.sessions, result.tasks, result.total_rows
         ),
     };
 

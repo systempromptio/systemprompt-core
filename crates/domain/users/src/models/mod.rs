@@ -35,6 +35,13 @@ pub struct User {
     pub updated_at: Option<DateTime<Utc>>,
 }
 
+/// Canonical email form used for every insert and lookup: trimmed and
+/// lowercased, so `Ed@x.com` and `ed@x.com` resolve to one account.
+#[must_use]
+pub fn normalise_email(email: &str) -> String {
+    email.trim().to_lowercase()
+}
+
 impl User {
     pub fn is_active(&self) -> bool {
         self.status.as_deref() == Some(UserStatus::Active.as_str())

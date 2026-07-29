@@ -1,7 +1,7 @@
 CREATE TABLE IF NOT EXISTS users (
     id TEXT PRIMARY KEY,
     name VARCHAR(255) NOT NULL UNIQUE,
-    email VARCHAR(255) NOT NULL UNIQUE,
+    email VARCHAR(255) NOT NULL UNIQUE CONSTRAINT users_email_normalised CHECK (email = lower(trim(email))),
     full_name VARCHAR(255),
     display_name VARCHAR(255),
     status TEXT NOT NULL CHECK(status IN ('active', 'inactive', 'suspended', 'pending', 'deleted', 'temporary')) DEFAULT 'active',

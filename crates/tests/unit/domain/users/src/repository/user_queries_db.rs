@@ -340,8 +340,8 @@ async fn merge_users_transfers_sessions_and_removes_source() {
         .merge_users(&source.id, &target.id)
         .await
         .expect("merge");
-    assert_eq!(result.sessions_transferred, 1);
-    assert_eq!(result.tasks_transferred, 0);
+    assert_eq!(result.sessions, 1);
+    assert_eq!(result.tasks, 0);
 
     assert!(
         ctx.service

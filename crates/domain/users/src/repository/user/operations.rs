@@ -7,7 +7,7 @@ use chrono::{Duration, Utc};
 use systemprompt_identifiers::UserId;
 
 use crate::error::{Result, UserError};
-use crate::models::{User, UserRole, UserStatus};
+use crate::models::{User, UserRole, UserStatus, normalise_email};
 use crate::repository::UserRepository;
 
 #[derive(Debug)]
@@ -31,6 +31,7 @@ impl UserRepository {
         let display_name_val = display_name.or(full_name);
         let status = UserStatus::Active.as_str();
         let role = UserRole::User.as_str();
+        let email = normalise_email(email);
 
         let row = sqlx::query_as!(
             User,
@@ -80,6 +81,7 @@ impl UserRepository {
         let display_name_val = display_name.or(full_name);
         let status = UserStatus::Active.as_str();
         let role = UserRole::User.as_str();
+        let email = normalise_email(email);
 
         let row = sqlx::query_as!(
             User,
@@ -110,7 +112,7 @@ impl UserRepository {
     }
 
     pub async fn create_anonymous(&self, fingerprint: &str) -> Result<User> {
-        let email = format!("{}@anonymous.local", fingerprint);
+        let email = normalise_email(&format!("{}@anonymous.local", fingerprint));
 
         // Why: Read first: repeat bot traffic hits an existing row, so avoid the
         // upsert's per-request write lock and commit on the hot path.
@@ -351,5 +353,30 @@ impl UserRepository {
         .await?;
 
         Ok(result.rows_affected())
+    }
+
+    pub async fn count_old_anonymous(&self, days: i32) -> Result<i64> {
+        let cutoff = Utc::now() - Duration::days(i64::from(days));
+        let anonymous_role = UserRole::Anonymous.as_str();
+        let count = sqlx::query_scalar!(
+            r#"
+            SELECT COUNT(*) as "count!"
+            FROM users u
+            WHERE $1 = ANY(u.roles)
+              AND u.created_at < $2
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM user_sessions s
+                  WHERE s.user_id = u.id
+                    AND s.ended_at IS NULL
+              )
+            "#,
+            anonymous_role,
+            cutoff
+        )
+        .fetch_one(&*self.write_pool)
+        .await?;
+
+        Ok(count)
     }
 }

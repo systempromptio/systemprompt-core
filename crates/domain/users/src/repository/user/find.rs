@@ -30,6 +30,7 @@ impl UserRepository {
     }
 
     pub async fn find_by_email(&self, email: &str) -> Result<Option<User>> {
+        let email = crate::models::normalise_email(email);
         let deleted_status = UserStatus::Deleted.as_str();
         let row = sqlx::query_as!(
             User,

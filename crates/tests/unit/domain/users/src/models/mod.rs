@@ -2,6 +2,7 @@
 
 mod api_key;
 mod device_cert;
+mod email_normalisation;
 mod session_row;
 mod user;
 mod user_activity;

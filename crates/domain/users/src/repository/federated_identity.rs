@@ -10,7 +10,7 @@ use systemprompt_identifiers::UserId;
 use systemprompt_traits::FederatedIdentityClaims;
 
 use crate::error::Result;
-use crate::models::{User, UserRole, UserStatus};
+use crate::models::{User, UserRole, UserStatus, normalise_email};
 use crate::repository::UserRepository;
 
 impl UserRepository {
@@ -60,6 +60,13 @@ impl UserRepository {
             return Ok(user);
         }
 
+        if let Some(existing) =
+            link_by_verified_email(&mut tx, issuer, external_sub, claims).await?
+        {
+            tx.commit().await?;
+            return Ok(existing);
+        }
+
         let fields = NewFederatedUser::derive(issuer, external_sub, claims);
 
         let user = sqlx::query_as!(
@@ -100,6 +107,51 @@ impl UserRepository {
     }
 }
 
+// Why: a verified upstream email attaches this sign-in to the existing
+// account instead of minting a duplicate user — one human, one row.
+// Unverified emails never link (account-claim defence in `derive`).
+async fn link_by_verified_email(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    issuer: &str,
+    external_sub: &str,
+    claims: &FederatedIdentityClaims,
+) -> Result<Option<User>> {
+    if !claims.email_verified {
+        return Ok(None);
+    }
+    let Some(addr) = claims.email.as_deref() else {
+        return Ok(None);
+    };
+    let email = normalise_email(addr);
+    let deleted_status = UserStatus::Deleted.as_str();
+    let Some(existing) = sqlx::query_as!(
+        User,
+        r#"
+        SELECT id, name, email, full_name, display_name, status,
+               email_verified, roles, avatar_url, is_bot, is_scanner,
+               created_at, updated_at
+        FROM users WHERE email = $1 AND status != $2
+        "#,
+        email,
+        deleted_status
+    )
+    .fetch_optional(&mut **tx)
+    .await?
+    else {
+        return Ok(None);
+    };
+
+    sqlx::query!(
+        "INSERT INTO federated_identities (issuer, external_sub, user_id) VALUES ($1, $2, $3)",
+        issuer,
+        external_sub,
+        existing.id.as_str()
+    )
+    .execute(&mut **tx)
+    .await?;
+    Ok(Some(existing))
+}
+
 struct NewFederatedUser {
     id: UserId,
     name: String,
@@ -125,7 +177,7 @@ impl NewFederatedUser {
             )
         };
         let email = match (claims.email.as_deref(), claims.email_verified) {
-            (Some(addr), true) => addr.to_owned(),
+            (Some(addr), true) => normalise_email(addr),
             (Some(addr), false) => {
                 tracing::warn!(
                     issuer,

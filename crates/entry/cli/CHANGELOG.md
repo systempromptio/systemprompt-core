@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.27.0] - 2026-07-29
+
+### Fixed
+
+- `admin session login` works against a cloud profile: the runner no longer canonicalizes container paths (`/app`, …) against the local filesystem, so `infra db query --profile <cloud>` is usable during an incident. `admin session switch` already worked; only `login` was broken.
+- `cloud profile create` preserves an existing profile's `paths.geoip_database` instead of authoring `None` over it.
+
+### Changed
+
+- `jobs run` resolves `enforce` and config-declared `parameters` from the scheduler config for each job, matching scheduled runs; explicit `--param` values override config ones. `admin users merge` reports the total rows transferred by the transactional merge.
+
 ## [0.26.0] - 2026-07-28
 
 ### Fixed

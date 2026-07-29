@@ -14,7 +14,7 @@ use std::collections::HashMap;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{SessionId, UserId};
 
-use crate::error::Result;
+use crate::error::{Result, UserError};
 use crate::models::{
     User, UserActivity, UserCountBreakdown, UserRole, UserSession, UserStats, UserStatus,
     UserWithSessions,
@@ -205,6 +205,10 @@ impl UserService {
         self.repository.cleanup_old_anonymous(days).await
     }
 
+    pub async fn count_old_anonymous(&self, days: i32) -> Result<i64> {
+        self.repository.count_old_anonymous(days).await
+    }
+
     pub async fn count_with_breakdown(&self) -> Result<UserCountBreakdown> {
         let total = self.repository.count().await?;
         let by_status_vec = self.repository.count_by_status().await?;
@@ -247,6 +251,33 @@ impl UserService {
     }
 
     pub async fn merge_users(&self, source_id: &UserId, target_id: &UserId) -> Result<MergeResult> {
+        self.repository.merge_users(source_id, target_id).await
+    }
+
+    /// Moves an anonymous visitor's history onto the account they registered,
+    /// then deletes the anonymous row. Refuses non-anonymous sources so a
+    /// mis-wired caller cannot merge two registered accounts.
+    pub async fn promote_anonymous(
+        &self,
+        source_id: &UserId,
+        target_id: &UserId,
+    ) -> Result<MergeResult> {
+        if source_id == target_id {
+            return Err(UserError::Validation(
+                "cannot promote a user onto itself".to_owned(),
+            ));
+        }
+        let source = self
+            .repository
+            .find_by_id(source_id)
+            .await?
+            .ok_or_else(|| UserError::NotFound(source_id.clone()))?;
+        if !source.has_role(UserRole::Anonymous) {
+            return Err(UserError::Validation(format!(
+                "user {} is not anonymous; use an explicit admin merge instead",
+                source_id
+            )));
+        }
         self.repository.merge_users(source_id, target_id).await
     }
 }

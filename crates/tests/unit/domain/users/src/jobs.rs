@@ -19,12 +19,15 @@ mod cleanup_anonymous_users_job_tests {
     }
 
     #[test]
-    fn job_description_mentions_cleanup() {
+    fn job_description_documents_its_effect_and_parameter() {
         let job = CleanupAnonymousUsersJob;
         let description = job.description();
 
-        assert!(description.contains("Clean"));
         assert!(description.contains("anonymous"));
+        assert!(
+            description.contains("retention_days"),
+            "operators discover job parameters from the description: {description}"
+        );
     }
 
     #[test]
@@ -75,7 +78,10 @@ mod cleanup_anonymous_users_job_tests {
     fn job_description_is_static_str() {
         let job = CleanupAnonymousUsersJob;
         let desc: &'static str = job.description();
-        assert_eq!(desc, "Cleans up old anonymous users (30d)");
+        assert_eq!(
+            desc,
+            "Deletes old anonymous users (parameter retention_days, default 30); requires enforce"
+        );
     }
 
     #[test]

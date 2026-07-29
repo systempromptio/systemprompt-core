@@ -215,6 +215,7 @@ pub struct UserMergeOutput {
     pub target_id: UserId,
     pub sessions_transferred: u64,
     pub tasks_transferred: u64,
+    pub rows_transferred: u64,
     pub message: String,
 }
 

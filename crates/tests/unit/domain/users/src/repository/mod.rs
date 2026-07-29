@@ -13,5 +13,6 @@ mod device_cert;
 mod federated_identity;
 mod federated_identity_naming;
 mod user;
+mod user_identity_db;
 mod user_queries_db;
 mod user_sessions_db;

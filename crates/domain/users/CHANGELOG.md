@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.27.0] - 2026-07-29
+
+### Breaking
+
+- **Breaking:** `users.email` is stored normalised (trimmed, lowercased) with a schema `CHECK`; migration `009_normalise_user_emails` rewrites existing rows and fails loudly on rows differing only by case, naming `admin users merge` as the remedy. `normalise_email` is exported and applied at every create and lookup.
+- **Breaking:** `merge_users` runs as one transaction rekeying every user-data table (sessions, tasks, messages, contexts, MCP executions/artifacts/sessions, governance decisions, logs, AI requests, engagement/analytics events, outbox, files, link clicks, fingerprint associations) instead of two tables non-atomically. Security artifacts deliberately die with the source row via FK cascade. `MergeResult` gains `total_rows`.
+- **Breaking:** `find_or_create_federated` links a federated sign-in whose IdP asserts a verified email to the existing account with that normalised email, instead of minting a duplicate user; unverified emails keep the synthetic `.federated.local` separation.
+- **Breaking:** `cleanup_anonymous_users` honours `enforce` — when `false` it reports the would-delete count — and reads its window from the `retention_days` parameter (default 30).
+
+### Changed
+
+- `merge_users` deletes the source's quota buckets by the new `(subject_kind = 'user', subject_id)` key, matching the subject-keyed `ai_quota_buckets` schema.
+
+### Added
+
+- `UserService::promote_anonymous` moves an anonymous visitor's history onto their registered account, refusing non-anonymous sources and self-merges. `UserRepository::count_old_anonymous` backs observe-mode reporting.
+
 ## [0.26.0] - 2026-07-28
 
 ### Added
