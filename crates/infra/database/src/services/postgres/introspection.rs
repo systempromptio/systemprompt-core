@@ -33,9 +33,17 @@ pub(super) async fn get_database_info(pool: &PgPool) -> DatabaseResult<DatabaseI
 
         let quoted_table = quote_identifier(&table_name);
         let count_query = format!("SELECT COUNT(*) as count FROM {quoted_table}");
-        let count_row = sqlx::query(sqlx::AssertSqlSafe(count_query))
+        // Why: the table list and the per-table count are separate queries, so
+        // a table dropped in between (a concurrent migration) yields 42P01;
+        // skip the vanished table instead of failing the whole introspection.
+        let count_row = match sqlx::query(sqlx::AssertSqlSafe(count_query))
             .fetch_one(pool)
-            .await?;
+            .await
+        {
+            Ok(row) => row,
+            Err(e) if is_undefined_table(&e) => continue,
+            Err(e) => return Err(e.into()),
+        };
         let row_count: i64 = count_row.try_get("count")?;
 
         let column_rows = sqlx::query(
@@ -75,6 +83,12 @@ pub(super) async fn get_database_info(pool: &PgPool) -> DatabaseResult<DatabaseI
         version,
         tables,
     })
+}
+
+fn is_undefined_table(e: &sqlx::Error) -> bool {
+    e.as_database_error()
+        .and_then(sqlx::error::DatabaseError::code)
+        .is_some_and(|code| code == "42P01")
 }
 
 fn quote_identifier(identifier: &str) -> String {
