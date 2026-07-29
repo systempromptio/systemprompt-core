@@ -65,8 +65,10 @@ async fn delete_old_logs_removes_rows_past_cutoff_and_keeps_recent() {
         .await;
 }
 
+// One test covers count + delete: the orphan sweep is table-wide, so two
+// tests each seeding an orphan race each other's DELETE.
 #[tokio::test]
-async fn delete_orphaned_logs_removes_rows_for_missing_users() {
+async fn orphaned_logs_are_counted_then_removed_for_missing_users() {
     let Some((repo, pg)) = repo_and_pool().await else {
         return;
     };
@@ -74,43 +76,16 @@ async fn delete_orphaned_logs_removes_rows_for_missing_users() {
     let ghost_user = unique("ghost_user");
     insert_log(&pg, &orphan_id, Some(&ghost_user), 0).await;
 
+    let count = repo.count_orphaned_logs().await.expect("count orphaned");
+    assert!(count >= 1);
+    assert!(
+        log_exists(&pg, &orphan_id).await,
+        "counting must not delete"
+    );
+
     let deleted = repo.delete_orphaned_logs().await.expect("delete orphaned");
     assert!(deleted >= 1);
     assert!(!log_exists(&pg, &orphan_id).await);
-}
-
-#[tokio::test]
-async fn delete_orphaned_mcp_executions_removes_rows_without_context() {
-    let Some((repo, pg)) = repo_and_pool().await else {
-        return;
-    };
-    let exec_id = unique("mcp_exec");
-    let ghost_context = unique("ghost_ctx");
-    sqlx::query(
-        "INSERT INTO mcp_tool_executions (mcp_execution_id, tool_name, server_name, started_at, \
-         input, status, user_id, context_id) VALUES ($1, 'tool', 'server', NOW(), '{}', \
-         'pending', 'cleanup-test-user', $2)",
-    )
-    .bind(&exec_id)
-    .bind(&ghost_context)
-    .execute(&pg)
-    .await
-    .expect("insert mcp execution fixture");
-
-    let deleted = repo
-        .delete_orphaned_mcp_executions()
-        .await
-        .expect("delete orphaned executions");
-    assert!(deleted >= 1);
-
-    let exists = sqlx::query_scalar::<_, bool>(
-        "SELECT EXISTS(SELECT 1 FROM mcp_tool_executions WHERE mcp_execution_id = $1)",
-    )
-    .bind(&exec_id)
-    .fetch_one(&pg)
-    .await
-    .expect("execution existence probe");
-    assert!(!exists);
 }
 
 async fn seed_user_and_client(pool: &sqlx::PgPool) -> (String, String) {

@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.27.0] - 2026-07-29
+
+### Breaking
+
+- **Breaking:** `database_cleanup` no longer deletes orphaned MCP executions — those rows are the governance audit record and outlive their context. Its log deletes, `cleanup_empty_contexts`, and the new `backfill_session_geo` honour `JobConfig.enforce`, reporting would-affect counts when it is `false`; the OAuth/JAG expiry deletes and `cleanup_inactive_sessions` are exempt.
+- **Breaking:** `JobExecutionService::new` takes the `SchedulerConfig`, so a manually triggered run resolves the same `enforce` and config `parameters` a scheduled run would (explicit `--param` values override config ones).
+
+### Fixed
+
+- `cleanup_empty_contexts` no longer collects a context holding `mcp_tool_executions` or `governance_decisions` rows — a context carrying audit data is not empty regardless of age. Its default window is 24 hours (was 1), overridable per deployment via the `retention_hours` parameter.
+- `JobConfig.parameters` now reaches scheduled and bootstrap runs; previously only manual/API runs received a populated map, so no cron-scheduled job could ever read a parameter.
+
+### Added
+
+- Retention windows are job parameters with the previous constants as defaults: `retention_hours` (cleanup_empty_contexts, default 24), `log_retention_days` (database_cleanup, 30), `inactive_hours` (cleanup_inactive_sessions, 1).
+- `backfill_session_geo`: an on-demand, enforce-gated job that backfills `country`/`region`/`city` on sessions written before GeoIP was enabled (`batch_size` parameter, default 1000).
+- `SchedulerRepository::count_empty_contexts` and observe-mode would-delete reporting across the gated jobs.
+
 ## [0.25.0] - 2026-07-27
 
 ### Added

@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.27.0] - 2026-07-29
+
+### Added
+
+- `SessionRepository::backfill_session_geo` batch-updates `country`/`region`/`city` on sessions with an IP but no geo data (private IPs skipped, keyset-paginated, idempotent), and `count_sessions_missing_geo` reports the candidate count. Backs the new `backfill_session_geo` scheduler job — `country` was previously write-once at INSERT, so enabling GeoIP appeared to do nothing for existing rows.
+- GeoIP lookups log a structured `geoip_skip_reason` (`no_reader` vs `private_or_local_ip`), so a missing database is distinguishable from a proxy misconfiguration resolving clients to private addresses.
+
 ## [0.25.0] - 2026-07-27
 
 ### Breaking

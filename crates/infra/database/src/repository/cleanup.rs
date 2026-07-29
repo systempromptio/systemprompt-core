@@ -34,17 +34,17 @@ impl CleanupRepository {
         Ok(result.rows_affected())
     }
 
-    pub async fn delete_orphaned_mcp_executions(&self) -> DatabaseResult<u64> {
-        let result = sqlx::query!(
+    pub async fn count_orphaned_logs(&self) -> DatabaseResult<i64> {
+        let count = sqlx::query_scalar!(
             r#"
-            DELETE FROM mcp_tool_executions
-            WHERE context_id IS NOT NULL
-              AND context_id NOT IN (SELECT context_id FROM user_contexts)
+            SELECT COUNT(*) as "count!" FROM logs
+            WHERE user_id IS NOT NULL
+              AND user_id NOT IN (SELECT id FROM users)
             "#
         )
-        .execute(&self.write_pool)
+        .fetch_one(&self.write_pool)
         .await?;
-        Ok(result.rows_affected())
+        Ok(count)
     }
 
     pub async fn delete_old_logs(&self, days: i32) -> DatabaseResult<u64> {

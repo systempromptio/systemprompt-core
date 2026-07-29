@@ -491,3 +491,279 @@ mod security_repository {
         }
     }
 }
+
+// Contexts holding audit rows (MCP tool executions, governance decisions) are
+// not "empty" regardless of age — the audit tables reference `context_id`
+// without an FK, so nothing else protects them.
+mod empty_context_audit_guards {
+    use super::*;
+
+    struct Seed {
+        pool: systemprompt_database::DbPool,
+        user_id: systemprompt_identifiers::UserId,
+        session_id: systemprompt_identifiers::SessionId,
+    }
+
+    impl Seed {
+        async fn new(tag: &str) -> Self {
+            let url = fixture_database_url().expect("caller checked the DB is configured");
+            let pool = fixture_db_pool(&url).await.expect("pool");
+            let user_id = systemprompt_test_fixtures::unique_user_id(tag);
+            let session_id = systemprompt_identifiers::SessionId::generate();
+            systemprompt_test_fixtures::seed_user_row(
+                &pool,
+                &user_id,
+                &format!("{}@{tag}.invalid", user_id.as_str()),
+            )
+            .await
+            .expect("seed user");
+            systemprompt_test_fixtures::seed_user_session(&pool, &user_id, &session_id)
+                .await
+                .expect("seed session");
+            Self {
+                pool,
+                user_id,
+                session_id,
+            }
+        }
+
+        fn raw(&self) -> std::sync::Arc<sqlx::PgPool> {
+            self.pool.pool_arc().expect("raw pool")
+        }
+
+        async fn seed_old_context(&self, context_id: &str) {
+            let old = chrono::Utc::now() - chrono::Duration::hours(72);
+            sqlx::query(
+                "INSERT INTO user_contexts (context_id, user_id, session_id, name, kind, \
+                 created_at, updated_at) VALUES ($1, $2, NULL, $3, 'conversation', $4, $4)",
+            )
+            .bind(context_id)
+            .bind(self.user_id.as_str())
+            .bind("audit-guard fixture")
+            .bind(old)
+            .execute(self.raw().as_ref())
+            .await
+            .expect("seed context");
+        }
+
+        async fn seed_tool_execution(&self, execution_id: &str, context_id: &str) {
+            sqlx::query(
+                "INSERT INTO mcp_tool_executions (mcp_execution_id, tool_name, server_name, \
+                 started_at, input, status, user_id, session_id, context_id) VALUES ($1, \
+                 'audit_guard_tool', 'audit_guard_server', NOW() - INTERVAL '72 hours', '{}', \
+                 'success', $2, $3, $4)",
+            )
+            .bind(execution_id)
+            .bind(self.user_id.as_str())
+            .bind(self.session_id.as_str())
+            .bind(context_id)
+            .execute(self.raw().as_ref())
+            .await
+            .expect("seed mcp_tool_executions");
+        }
+
+        async fn seed_governance_decision(&self, decision_id: &str, context_id: &str) {
+            sqlx::query(
+                "INSERT INTO governance_decisions (id, user_id, session_id, tool_name, decision, \
+                 policy, reason, actor_kind, actor_id, act_chain, context_id, created_at) VALUES \
+                 ($1, $2, $3, 'audit_guard_tool', 'allow', 'audit-guard', 'fixture', 'user', $2, \
+                 '[]'::jsonb, $4, NOW() - INTERVAL '72 hours')",
+            )
+            .bind(decision_id)
+            .bind(self.user_id.as_str())
+            .bind(self.session_id.as_str())
+            .bind(context_id)
+            .execute(self.raw().as_ref())
+            .await
+            .expect("seed governance_decisions");
+        }
+
+        async fn context_exists(&self, context_id: &str) -> bool {
+            sqlx::query_scalar::<_, bool>(
+                "SELECT EXISTS(SELECT 1 FROM user_contexts WHERE context_id = $1)",
+            )
+            .bind(context_id)
+            .fetch_one(self.raw().as_ref())
+            .await
+            .expect("context probe")
+        }
+
+        async fn cleanup(&self) {
+            let raw = self.raw();
+            for stmt in [
+                "DELETE FROM governance_decisions WHERE user_id = $1",
+                "DELETE FROM mcp_tool_executions WHERE user_id = $1",
+                "DELETE FROM user_contexts WHERE user_id = $1",
+                "DELETE FROM user_sessions WHERE user_id = $1",
+                "DELETE FROM users WHERE id = $1",
+            ] {
+                let _ = sqlx::query(stmt)
+                    .bind(self.user_id.as_str())
+                    .execute(raw.as_ref())
+                    .await;
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn context_with_tool_execution_survives_cleanup() {
+        let Ok(url) = fixture_database_url() else {
+            return;
+        };
+        if fixture_db_pool(&url).await.is_err() {
+            return;
+        }
+        let seed = Seed::new("auditmte").await;
+        let repo = AnalyticsRepository::new(&seed.pool).expect("repo");
+        // The audit row is written first: a concurrent sweep would otherwise
+        // collect the context through the gap before it is protected.
+        let ctx_id = unique_job_name("auditctx_mte");
+        seed.seed_tool_execution(&unique_job_name("auditexec"), &ctx_id)
+            .await;
+        seed.seed_old_context(&ctx_id).await;
+
+        repo.cleanup_empty_contexts(1).await.expect("cleanup runs");
+
+        assert!(
+            seed.context_exists(&ctx_id).await,
+            "a context referenced by mcp_tool_executions must not be collected"
+        );
+        seed.cleanup().await;
+    }
+
+    #[tokio::test]
+    async fn context_with_governance_decision_survives_cleanup() {
+        let Ok(url) = fixture_database_url() else {
+            return;
+        };
+        if fixture_db_pool(&url).await.is_err() {
+            return;
+        }
+        let seed = Seed::new("auditgd").await;
+        let repo = AnalyticsRepository::new(&seed.pool).expect("repo");
+        let ctx_id = unique_job_name("auditctx_gd");
+        seed.seed_governance_decision(&unique_job_name("auditdec"), &ctx_id)
+            .await;
+        seed.seed_old_context(&ctx_id).await;
+
+        repo.cleanup_empty_contexts(1).await.expect("cleanup runs");
+
+        assert!(
+            seed.context_exists(&ctx_id).await,
+            "a context referenced by governance_decisions must not be collected"
+        );
+        seed.cleanup().await;
+    }
+
+    #[tokio::test]
+    async fn truly_empty_old_context_is_deleted() {
+        let Ok(url) = fixture_database_url() else {
+            return;
+        };
+        if fixture_db_pool(&url).await.is_err() {
+            return;
+        }
+        let seed = Seed::new("auditbare").await;
+        let repo = AnalyticsRepository::new(&seed.pool).expect("repo");
+        let ctx_id = unique_job_name("auditctx_bare");
+        seed.seed_old_context(&ctx_id).await;
+
+        repo.cleanup_empty_contexts(1).await.expect("cleanup runs");
+
+        assert!(
+            !seed.context_exists(&ctx_id).await,
+            "an old context with no messages and no audit rows must be collected"
+        );
+        seed.cleanup().await;
+    }
+
+    #[tokio::test]
+    async fn count_empty_contexts_counts_what_cleanup_deletes() {
+        let Ok(url) = fixture_database_url() else {
+            return;
+        };
+        if fixture_db_pool(&url).await.is_err() {
+            return;
+        }
+        let seed = Seed::new("auditcount").await;
+        let repo = AnalyticsRepository::new(&seed.pool).expect("repo");
+        let collectable = unique_job_name("auditctx_count_bare");
+        let protected = unique_job_name("auditctx_count_mte");
+        seed.seed_tool_execution(&unique_job_name("auditexec"), &protected)
+            .await;
+        seed.seed_old_context(&protected).await;
+        seed.seed_old_context(&collectable).await;
+
+        // The sweep is table-wide and shards run in parallel, so only the
+        // seeded rows can be asserted on: a concurrent cleanup may already
+        // have collected this one between the count and the delete.
+        let counted = repo.count_empty_contexts(1).await.expect("count");
+        if seed.context_exists(&collectable).await {
+            assert!(
+                counted >= 1,
+                "a live collectable context must be counted, got {counted}"
+            );
+        }
+
+        repo.cleanup_empty_contexts(1).await.expect("cleanup");
+        assert!(!seed.context_exists(&collectable).await);
+        assert!(seed.context_exists(&protected).await);
+
+        seed.cleanup().await;
+    }
+
+    // Regression: an MCP tool execution whose context has already been deleted
+    // must survive every retention sweep — audit rows outlive their context.
+    #[tokio::test]
+    async fn orphaned_tool_execution_survives_all_retention_sweeps() {
+        let Ok(url) = fixture_database_url() else {
+            return;
+        };
+        if fixture_db_pool(&url).await.is_err() {
+            return;
+        }
+        let seed = Seed::new("auditorphan").await;
+        let repo = AnalyticsRepository::new(&seed.pool).expect("repo");
+        let exec_id = unique_job_name("auditexec_orphan");
+        let missing_ctx = unique_job_name("auditctx_missing");
+        seed.seed_tool_execution(&exec_id, &missing_ctx).await;
+
+        repo.cleanup_empty_contexts(1).await.expect("context sweep");
+
+        let cleanup = systemprompt_database::CleanupRepository::new(
+            (*seed.pool.write_pool_arc().expect("write pool")).clone(),
+        );
+        cleanup.delete_orphaned_logs().await.expect("orphaned logs");
+        cleanup.delete_old_logs(30).await.expect("old logs");
+        cleanup
+            .delete_expired_oauth_tokens()
+            .await
+            .expect("oauth tokens");
+        cleanup
+            .delete_expired_oauth_codes()
+            .await
+            .expect("oauth codes");
+        cleanup
+            .delete_expired_oauth_state_bindings()
+            .await
+            .expect("oauth state bindings");
+        cleanup
+            .delete_expired_oauth_jti_revocations()
+            .await
+            .expect("oauth jti revocations");
+
+        let survived = sqlx::query_scalar::<_, bool>(
+            "SELECT EXISTS(SELECT 1 FROM mcp_tool_executions WHERE mcp_execution_id = $1)",
+        )
+        .bind(&exec_id)
+        .fetch_one(seed.raw().as_ref())
+        .await
+        .expect("execution probe");
+        assert!(
+            survived,
+            "an MCP tool execution must outlive the context it referenced"
+        );
+
+        seed.cleanup().await;
+    }
+}

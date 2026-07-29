@@ -53,7 +53,18 @@
 # `get_all_artifacts` scan, which decodes every row and fails on the malformed
 # one. Serialise both modules into one slot so the scan never sees the seeded
 # bad row.
+# The database cleanup tests and the scheduler retention-sweep regression both
+# run table-wide DELETEs (`delete_orphaned_logs`, the OAuth expiry deletes)
+# against shared tables, so a concurrent run deletes the row another test
+# seeded and is mid-assertion on. Serialise them into one cross-package slot.
+#
+# The `cleanup_empty_contexts` tests delete every empty context older than the
+# retention window, table-wide: the enforce-gate observe-mode test seeds an old
+# empty fixture context and asserts it survives, while its enforce=true sibling
+# and the repository sweep delete exactly such rows. Serialise them into the
+# scheduler-jobs slot so no sweep runs while the observe fixture is live.
 [test-groups]
+logs-cleanup-db = { max-threads = 1 }
 agent-artifacts-db = { max-threads = 1 }
 scheduler-services-db = { max-threads = 1 }
 scheduler-jobs-db = { max-threads = 1 }
@@ -63,6 +74,22 @@ generator-config-db = { max-threads = 1 }
 api-health-monitor-db = { max-threads = 1 }
 cli-cloud-harness = { max-threads = 1 }
 cloud-checkout-port = { max-threads = 1 }
+
+[[profile.default.overrides]]
+filter = 'package(systemprompt-database-tests) and test(/repository::cleanup::/)'
+test-group = 'logs-cleanup-db'
+
+[[profile.ci.overrides]]
+filter = 'package(systemprompt-database-tests) and test(/repository::cleanup::/)'
+test-group = 'logs-cleanup-db'
+
+[[profile.default.overrides]]
+filter = 'package(systemprompt-scheduler-tests) and test(orphaned_tool_execution_survives_all_retention_sweeps)'
+test-group = 'logs-cleanup-db'
+
+[[profile.ci.overrides]]
+filter = 'package(systemprompt-scheduler-tests) and test(orphaned_tool_execution_survives_all_retention_sweeps)'
+test-group = 'logs-cleanup-db'
 
 [[profile.default.overrides]]
 filter = 'package(systemprompt-cloud-tests) and (test(/checkout_flow::/) or test(/tenant_provisioning::provision_/))'
@@ -118,6 +145,14 @@ test-group = 'scheduler-jobs-db'
 
 [[profile.ci.overrides]]
 filter = 'package(systemprompt-scheduler-tests) and test(/(jobs_seeded_db|bootstrap_dispatch_db|job_execution_db|start_owner_resolution_db)::/)'
+test-group = 'scheduler-jobs-db'
+
+[[profile.default.overrides]]
+filter = 'package(systemprompt-scheduler-integration-tests) and test(/(job_execute_tests|repository_tests)::cleanup_empty_contexts/)'
+test-group = 'scheduler-jobs-db'
+
+[[profile.ci.overrides]]
+filter = 'package(systemprompt-scheduler-integration-tests) and test(/(job_execute_tests|repository_tests)::cleanup_empty_contexts/)'
 test-group = 'scheduler-jobs-db'
 
 [[profile.default.overrides]]
@@ -252,6 +287,10 @@ test-group = 'scheduler-services-db'
 
 [[profile.coverage.overrides]]
 filter = 'package(systemprompt-scheduler-tests) and test(/(jobs_seeded_db|bootstrap_dispatch_db|job_execution_db|start_owner_resolution_db)::/)'
+test-group = 'scheduler-jobs-db'
+
+[[profile.coverage.overrides]]
+filter = 'package(systemprompt-scheduler-integration-tests) and test(/(job_execute_tests|repository_tests)::cleanup_empty_contexts/)'
 test-group = 'scheduler-jobs-db'
 
 [[profile.coverage.overrides]]

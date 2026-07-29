@@ -70,6 +70,7 @@ impl SchedulerService {
 
         ctx.events.bootstrap_job_started(job_name.to_owned());
 
+        let config_entry = self.config.jobs.iter().find(|job| job.name == job_name);
         dispatch::execute_job(dispatch::JobDispatch {
             job_name: job_name.to_owned(),
             actor,
@@ -78,11 +79,10 @@ impl SchedulerService {
             app_context: Arc::clone(&self.app_context),
             running_jobs: Arc::clone(ctx.running_jobs),
             distributed_lock: self.config.distributed_lock,
-            enforce: self
-                .config
-                .jobs
-                .iter()
-                .any(|job| job.name == job_name && job.enforce),
+            enforce: config_entry.is_some_and(|job| job.enforce),
+            parameters: config_entry
+                .map(|job| job.parameters.clone())
+                .unwrap_or_default(),
         })
         .await;
 

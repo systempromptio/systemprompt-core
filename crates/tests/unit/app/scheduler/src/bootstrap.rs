@@ -6,12 +6,9 @@ fn default_bootstrap_jobs_match_built_in_inventory_names() {
     let cfg = SchedulerConfig::with_system_admin();
     assert_eq!(
         cfg.bootstrap_jobs,
-        vec![
-            "database_cleanup".to_string(),
-            "cleanup_inactive_sessions".to_string(),
-        ],
-        "bootstrap_jobs default must list the two jobs that previously relied on the removed \
-         Job::run_on_startup() trait method",
+        vec!["cleanup_inactive_sessions".to_string()],
+        "bootstrap_jobs default must not include an irreversible deleter — database_cleanup runs \
+         from its cron entry only",
     );
 }
 

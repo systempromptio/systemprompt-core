@@ -289,6 +289,7 @@ impl SchedulerService {
         actor: Actor,
     ) -> SchedulerResult<Job> {
         let enforce = job_config.enforce;
+        let parameters = job_config.parameters.clone();
         let job_name_owned = job_config.name.clone();
         let schedule_owned = schedule.to_owned();
         let db_pool = Arc::clone(&self.db_pool);
@@ -304,6 +305,7 @@ impl SchedulerService {
             let repository = repository.clone();
             let app_context = Arc::clone(&app_context);
             let running_jobs = Arc::clone(&running_jobs);
+            let parameters = parameters.clone();
 
             Box::pin(async move {
                 let span = SystemSpan::new(&format!("scheduler:{job_name}"));
@@ -316,6 +318,7 @@ impl SchedulerService {
                     running_jobs,
                     distributed_lock,
                     enforce,
+                    parameters,
                 })
                 .instrument(span.span().clone())
                 .await;

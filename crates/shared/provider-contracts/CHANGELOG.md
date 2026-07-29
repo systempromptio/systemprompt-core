@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.27.0] - 2026-07-29
+
+### Added
+
+- `JobContext::get_parameter_parsed::<T>` parses a job parameter, returning `Ok(None)` when absent and `ProviderError::Configuration` when present but unparseable, so a mistyped override fails the run instead of silently falling back.
+
 ## [0.25.0] - 2026-07-27
 
 ### Added

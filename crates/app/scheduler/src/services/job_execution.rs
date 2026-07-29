@@ -16,6 +16,7 @@ use std::time::Instant;
 
 use systemprompt_extension::ExtensionRegistry;
 use systemprompt_identifiers::Actor;
+use systemprompt_models::SchedulerConfig;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::Job;
 
@@ -78,6 +79,7 @@ impl RunnableJob {
 pub struct JobExecutionService {
     ctx: Arc<AppContext>,
     registry: ExtensionRegistry,
+    scheduler_config: SchedulerConfig,
 }
 
 impl std::fmt::Debug for JobExecutionService {
@@ -89,8 +91,16 @@ impl std::fmt::Debug for JobExecutionService {
 
 impl JobExecutionService {
     #[must_use]
-    pub const fn new(ctx: Arc<AppContext>, registry: ExtensionRegistry) -> Self {
-        Self { ctx, registry }
+    pub const fn new(
+        ctx: Arc<AppContext>,
+        registry: ExtensionRegistry,
+        scheduler_config: SchedulerConfig,
+    ) -> Self {
+        Self {
+            ctx,
+            registry,
+            scheduler_config,
+        }
     }
 
     pub fn resolve_job_names(&self, selection: &JobSelection) -> SchedulerResult<Vec<String>> {
@@ -194,9 +204,20 @@ impl JobExecutionService {
     ) -> JobRunReport {
         let admin_id = self.ctx.system_admin().id().clone();
         let actor = Actor::job(admin_id, job_name.to_owned());
+        let config_entry = self
+            .scheduler_config
+            .jobs
+            .iter()
+            .find(|job| job.name == job_name);
+        let enforce = config_entry.is_some_and(|job| job.enforce);
+        let mut merged = config_entry
+            .map(|job| job.parameters.clone())
+            .unwrap_or_default();
+        merged.extend(parameters.clone());
         let job_ctx =
             make_job_context(actor, Arc::clone(self.ctx.db_pool()), Arc::clone(&self.ctx))
-                .with_parameters(parameters.clone());
+                .with_enforce(enforce)
+                .with_parameters(merged);
 
         match runnable.as_job().execute(&job_ctx).await {
             Ok(result) => JobRunReport {

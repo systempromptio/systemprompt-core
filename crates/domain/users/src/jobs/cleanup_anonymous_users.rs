@@ -12,7 +12,7 @@ use tracing::info;
 
 use crate::UserService;
 
-const ANONYMOUS_USER_RETENTION_DAYS: i32 = 30;
+const DEFAULT_RETENTION_DAYS: i32 = 30;
 
 #[derive(Debug, Clone, Copy)]
 pub struct CleanupAnonymousUsersJob;
@@ -24,7 +24,7 @@ impl Job for CleanupAnonymousUsersJob {
     }
 
     fn description(&self) -> &'static str {
-        "Cleans up old anonymous users (30d)"
+        "Deletes old anonymous users (parameter retention_days, default 30); requires enforce"
     }
 
     fn schedule(&self) -> &'static str {
@@ -40,12 +40,29 @@ impl Job for CleanupAnonymousUsersJob {
 
         info!("Job started");
 
+        let retention_days = ctx
+            .get_parameter_parsed::<i32>("retention_days")?
+            .unwrap_or(DEFAULT_RETENTION_DAYS);
+
         let user_service =
             UserService::new(&db_pool).map_err(|e| ProviderError::Configuration(e.to_string()))?;
-        let deleted_users = user_service
-            .cleanup_old_anonymous(ANONYMOUS_USER_RETENTION_DAYS)
-            .await
-            .map_err(|e| ProviderError::Configuration(e.to_string()))?;
+        let deleted_users = if ctx.enforce() {
+            user_service
+                .cleanup_old_anonymous(retention_days)
+                .await
+                .map_err(|e| ProviderError::Configuration(e.to_string()))?
+        } else {
+            let would_delete = user_service
+                .count_old_anonymous(retention_days)
+                .await
+                .map_err(|e| ProviderError::Configuration(e.to_string()))?;
+            info!(
+                would_delete_users = would_delete,
+                retention_days = retention_days,
+                "enforce disabled: anonymous users qualify for deletion but were not deleted"
+            );
+            0
+        };
 
         let duration_ms = start_time.elapsed().as_millis() as u64;
 

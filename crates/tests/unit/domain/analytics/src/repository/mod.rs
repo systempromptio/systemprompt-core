@@ -10,6 +10,7 @@ mod funnel_mutations;
 mod funnel_queries;
 mod query_repository;
 mod session_behavioral_queries;
+mod session_geo_backfill;
 mod session_mutations;
 mod session_queries;
 mod session_support;

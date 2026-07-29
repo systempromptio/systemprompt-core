@@ -11,7 +11,7 @@ use tracing::info;
 
 use crate::repository::McpSessionRepository;
 
-const STALE_SESSION_RETENTION_DAYS: i32 = 7;
+const DEFAULT_RETENTION_DAYS: i32 = 7;
 
 #[derive(Debug, Clone, Copy)]
 struct McpSessionCleanupJob;
@@ -23,7 +23,7 @@ impl Job for McpSessionCleanupJob {
     }
 
     fn description(&self) -> &'static str {
-        "Expires stale MCP sessions and deletes old closed/expired records"
+        "Expires stale MCP sessions and deletes old closed/expired records (parameter retention_days, default 7)"
     }
 
     fn schedule(&self) -> &'static str {
@@ -42,12 +42,16 @@ impl Job for McpSessionCleanupJob {
         let repo = McpSessionRepository::new(&db_pool)
             .map_err(|e| systemprompt_provider_contracts::ProviderError::Internal(e.to_string()))?;
 
+        let retention_days = ctx
+            .get_parameter_parsed::<i32>("retention_days")?
+            .unwrap_or(DEFAULT_RETENTION_DAYS);
+
         let expired = repo
             .cleanup_expired()
             .await
             .map_err(|e| systemprompt_provider_contracts::ProviderError::Internal(e.to_string()))?;
         let deleted = repo
-            .delete_stale(STALE_SESSION_RETENTION_DAYS)
+            .delete_stale(retention_days)
             .await
             .map_err(|e| systemprompt_provider_contracts::ProviderError::Internal(e.to_string()))?;
 

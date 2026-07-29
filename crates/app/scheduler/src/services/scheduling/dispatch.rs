@@ -5,6 +5,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use systemprompt_database::DbPool;
@@ -28,6 +29,7 @@ pub(super) struct JobDispatch {
     pub(super) running_jobs: RunningJobs,
     pub(super) distributed_lock: bool,
     pub(super) enforce: bool,
+    pub(super) parameters: HashMap<String, String>,
 }
 
 pub(super) async fn execute_job(dispatch: JobDispatch) {
@@ -40,6 +42,7 @@ pub(super) async fn execute_job(dispatch: JobDispatch) {
         running_jobs,
         distributed_lock,
         enforce,
+        parameters,
     } = dispatch;
 
     {
@@ -76,7 +79,10 @@ pub(super) async fn execute_job(dispatch: JobDispatch) {
         error!(job_name = %job_name, error = %e, "Failed to increment run count");
     }
 
-    let result = find_and_execute_job(&job_name, actor, db_pool, app_context, enforce).await;
+    let ctx = make_job_context(actor, db_pool, app_context)
+        .with_enforce(enforce)
+        .with_parameters(parameters);
+    let result = find_and_execute_job(&job_name, &ctx).await;
     handle_job_result(&job_name, result, &repository).await;
 
     if let Some(claim) = claim {
@@ -159,10 +165,7 @@ fn find_job(job_name: &str) -> Option<&'static dyn JobTrait> {
 
 async fn find_and_execute_job(
     job_name: &str,
-    actor: Actor,
-    db_pool: DbPool,
-    app_context: Arc<AppContext>,
-    enforce: bool,
+    ctx: &systemprompt_traits::JobContext,
 ) -> SchedulerResult<JobResult> {
     use futures::FutureExt;
     use std::panic::AssertUnwindSafe;
@@ -172,9 +175,7 @@ async fn find_and_execute_job(
         SchedulerError::job_not_found(job_name)
     })?;
 
-    let ctx = make_job_context(actor, db_pool, app_context).with_enforce(enforce);
-
-    match AssertUnwindSafe(job.execute(&ctx)).catch_unwind().await {
+    match AssertUnwindSafe(job.execute(ctx)).catch_unwind().await {
         Ok(result) => {
             result.map_err(|e| SchedulerError::job_execution_failed(job_name, e.to_string()))
         },

@@ -6,6 +6,10 @@
 
 - **Breaking:** `McpConnectionResult.tools_count`, `HealthCheckDetails.tools_available`, `ServiceStatus.tools_count`, and `McpServiceStatus.tools_count` are `Option<usize>`. `None` means the tool list was never enumerated — an OAuth-gated server is probed for reachability only — and `Some(0)` means a server was asked and answered with none. Migrate by matching on the option at each render site.
 
+### Added
+
+- `mcp_session_cleanup` reads its retention window from the `retention_days` job parameter (default 7, the previous constant).
+
 ### Fixed
 
 - Startup no longer reports `tools=0` for an OAuth-gated MCP server. The fabricated zero read as "this server exposes no tools" on the startup log, `ServiceStatus`, and the `McpServerReady` event alike. The startup line now omits the `tools` field when the count is unmeasured, carries `validation_type`, and reads "MCP service validated; tool list not enumerated".

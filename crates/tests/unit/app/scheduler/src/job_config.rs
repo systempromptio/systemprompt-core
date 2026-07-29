@@ -259,17 +259,15 @@ mod scheduler_config_tests {
     }
 
     #[test]
-    fn bootstrap_jobs_default_has_two_entries() {
+    fn bootstrap_jobs_default_excludes_database_cleanup() {
         let cfg = SchedulerConfig::with_system_admin();
-        assert_eq!(cfg.bootstrap_jobs.len(), 2);
-    }
-
-    #[test]
-    fn bootstrap_jobs_contains_database_cleanup() {
-        let cfg = SchedulerConfig::with_system_admin();
+        assert_eq!(
+            cfg.bootstrap_jobs,
+            vec!["cleanup_inactive_sessions".to_string()]
+        );
         assert!(
-            cfg.bootstrap_jobs.contains(&"database_cleanup".to_string()),
-            "bootstrap_jobs should include database_cleanup"
+            !cfg.bootstrap_jobs.contains(&"database_cleanup".to_string()),
+            "an irreversible deleter must not run on every process start"
         );
     }
 

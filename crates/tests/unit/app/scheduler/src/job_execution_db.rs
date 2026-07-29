@@ -21,7 +21,11 @@ macro_rules! service_or_skip {
         let app_ctx = fixture_app_context(&pool, &url)
             .expect("fixture AppContext must build against a migrated DB");
         (
-            JobExecutionService::new(app_ctx, ExtensionRegistry::new()),
+            JobExecutionService::new(
+                app_ctx,
+                ExtensionRegistry::new(),
+                systemprompt_models::SchedulerConfig::with_system_admin(),
+            ),
             pool,
         )
     }};
@@ -266,7 +270,11 @@ mod dead_pool_recording {
         let Ok(app_ctx) = fixture_app_context(&closed, &url) else {
             return;
         };
-        let service = JobExecutionService::new(app_ctx, ExtensionRegistry::new());
+        let service = JobExecutionService::new(
+            app_ctx,
+            ExtensionRegistry::new(),
+            systemprompt_models::SchedulerConfig::with_system_admin(),
+        );
 
         // The job body and every recording query hit the closed pool; the run
         // still yields a report instead of propagating the DB failure.

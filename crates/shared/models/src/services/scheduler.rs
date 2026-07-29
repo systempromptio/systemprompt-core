@@ -3,6 +3,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::collections::HashMap;
+
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::UserId;
 
@@ -18,10 +20,23 @@ pub struct JobConfig {
     pub enabled: bool,
     #[serde(default)]
     pub schedule: Option<String>,
-    /// Opt-in for destructive job actions (e.g. automated IP bans). When
-    /// `false` — the default — such jobs run in observe-and-log mode.
+    /// Opt-in for destructive job actions (e.g. automated IP bans, retention
+    /// deletes). When `false` — the default — such jobs run in
+    /// observe-and-log mode, reporting would-delete counts.
     #[serde(default)]
     pub enforce: bool,
+    /// String-valued parameters passed to the job on every run (scheduled,
+    /// bootstrap, and manual). Core jobs read:
+    ///
+    /// | Job | Key | Default |
+    /// |---|---|---|
+    /// | `cleanup_empty_contexts` | `retention_hours` | 24 |
+    /// | `database_cleanup` | `log_retention_days` | 30 |
+    /// | `cleanup_inactive_sessions` | `inactive_hours` | 1 |
+    /// | `mcp_session_cleanup` | `retention_days` | 7 |
+    /// | `cleanup_anonymous_users` | `retention_days` | 30 |
+    #[serde(default)]
+    pub parameters: HashMap<String, String>,
 }
 
 const fn default_true() -> bool {
@@ -41,6 +56,7 @@ impl JobConfig {
             enabled: true,
             schedule: None,
             enforce: false,
+            parameters: HashMap::new(),
         }
     }
 
@@ -69,6 +85,12 @@ impl JobConfig {
     }
 
     #[must_use]
+    pub fn with_parameters(mut self, parameters: HashMap<String, String>) -> Self {
+        self.parameters = parameters;
+        self
+    }
+
+    #[must_use]
     pub const fn disabled(mut self) -> Self {
         self.enabled = false;
         self
@@ -88,10 +110,7 @@ pub struct SchedulerConfig {
 }
 
 fn default_bootstrap_jobs() -> Vec<String> {
-    vec![
-        "database_cleanup".to_owned(),
-        "cleanup_inactive_sessions".to_owned(),
-    ]
+    vec!["cleanup_inactive_sessions".to_owned()]
 }
 
 impl SchedulerConfig {
@@ -107,16 +126,19 @@ impl SchedulerConfig {
             jobs: vec![
                 JobConfig::new("cleanup_anonymous_users")
                     .with_extension("core")
-                    .with_schedule("0 0 3 * * *"),
+                    .with_schedule("0 0 3 * * *")
+                    .with_enforce(),
                 JobConfig::new("cleanup_empty_contexts")
                     .with_extension("core")
-                    .with_schedule("0 0 * * * *"),
+                    .with_schedule("0 0 * * * *")
+                    .with_enforce(),
                 JobConfig::new("cleanup_inactive_sessions")
                     .with_extension("core")
                     .with_schedule("0 0 * * * *"),
                 JobConfig::new("database_cleanup")
                     .with_extension("core")
-                    .with_schedule("0 0 4 * * *"),
+                    .with_schedule("0 0 4 * * *")
+                    .with_enforce(),
             ],
             bootstrap_jobs: default_bootstrap_jobs(),
             distributed_lock: true,

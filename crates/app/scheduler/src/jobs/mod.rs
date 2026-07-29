@@ -8,6 +8,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod backfill_session_geo;
 mod behavioral_analysis;
 mod cleanup_empty_contexts;
 mod cleanup_inactive_sessions;
@@ -16,6 +17,7 @@ mod ghost_session_cleanup;
 mod malicious_ip_blacklist;
 mod no_js_cleanup;
 
+pub use backfill_session_geo::BackfillSessionGeoJob;
 pub use behavioral_analysis::BehavioralAnalysisJob;
 pub use cleanup_empty_contexts::CleanupEmptyContextsJob;
 pub use cleanup_inactive_sessions::CleanupInactiveSessionsJob;

@@ -338,3 +338,61 @@ mod job_trait_default_tests {
         );
     }
 }
+
+mod get_parameter_parsed_tests {
+    use super::*;
+    use systemprompt_provider_contracts::ProviderError;
+
+    fn context_with(params: &[(&str, &str)]) -> JobContext {
+        let map: HashMap<String, String> = params
+            .iter()
+            .map(|(k, v)| ((*k).to_owned(), (*v).to_owned()))
+            .collect();
+        JobContext::new(
+            test_actor(),
+            Arc::new(()) as Arc<dyn std::any::Any + Send + Sync>,
+            Arc::new(()) as Arc<dyn std::any::Any + Send + Sync>,
+            Arc::new(()) as Arc<dyn std::any::Any + Send + Sync>,
+        )
+        .with_parameters(map)
+    }
+
+    #[test]
+    fn absent_key_is_ok_none_so_the_job_falls_back_to_its_default() {
+        let ctx = context_with(&[]);
+        let parsed = ctx
+            .get_parameter_parsed::<i32>("retention_hours")
+            .expect("absent key is not an error");
+        assert_eq!(parsed, None);
+    }
+
+    #[test]
+    fn parseable_value_is_returned() {
+        let ctx = context_with(&[("retention_hours", "42")]);
+        let parsed = ctx
+            .get_parameter_parsed::<i32>("retention_hours")
+            .expect("parses");
+        assert_eq!(parsed, Some(42));
+    }
+
+    #[test]
+    fn unparseable_value_fails_the_run_and_names_the_key() {
+        let ctx = context_with(&[("retention_hours", "abc")]);
+        let err = ctx
+            .get_parameter_parsed::<i32>("retention_hours")
+            .expect_err("a mistyped override must not silently fall back");
+        assert!(matches!(err, ProviderError::Configuration(_)));
+        let message = err.to_string();
+        assert!(
+            message.contains("retention_hours") && message.contains("abc"),
+            "error should name the offending key and value: {message}"
+        );
+    }
+
+    #[test]
+    fn enforce_defaults_to_false_and_is_opt_in() {
+        let ctx = context_with(&[]);
+        assert!(!ctx.enforce());
+        assert!(ctx.with_enforce(true).enforce());
+    }
+}

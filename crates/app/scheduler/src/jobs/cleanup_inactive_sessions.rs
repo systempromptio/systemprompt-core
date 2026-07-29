@@ -11,6 +11,8 @@ use tracing::debug;
 
 use crate::error::SchedulerError;
 
+const DEFAULT_INACTIVE_HOURS: i32 = 1;
+
 #[derive(Debug, Clone, Copy)]
 pub struct CleanupInactiveSessionsJob;
 
@@ -21,7 +23,7 @@ impl Job for CleanupInactiveSessionsJob {
     }
 
     fn description(&self) -> &'static str {
-        "Cleans up inactive sessions (1 hour threshold)"
+        "Closes inactive sessions (parameter inactive_hours, default 1)"
     }
 
     fn schedule(&self) -> &'static str {
@@ -38,9 +40,13 @@ impl Job for CleanupInactiveSessionsJob {
 
         debug!("Job started");
 
+        let inactive_hours = ctx
+            .get_parameter_parsed::<i32>("inactive_hours")?
+            .unwrap_or(DEFAULT_INACTIVE_HOURS);
+
         let session_repo = SessionRepository::new(&db_pool).map_err(SchedulerError::from)?;
         let closed_sessions = session_repo
-            .cleanup_inactive(1)
+            .cleanup_inactive(inactive_hours)
             .await
             .map_err(SchedulerError::from)?;
 
@@ -49,7 +55,7 @@ impl Job for CleanupInactiveSessionsJob {
         debug!(
             closed_sessions = closed_sessions,
             duration_ms = duration_ms,
-            inactive_minutes = 60,
+            inactive_hours = inactive_hours,
             "Job completed"
         );
 

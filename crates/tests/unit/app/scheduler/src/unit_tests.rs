@@ -1071,7 +1071,7 @@ fn test_database_cleanup_job_properties() {
     assert_eq!(job.name(), "database_cleanup");
     assert_eq!(
         job.description(),
-        "Cleans up orphaned logs, MCP executions, and expired OAuth tokens"
+        "Cleans up orphaned logs, old logs (parameter log_retention_days, default 30), and expired OAuth tokens; log deletion requires enforce"
     );
     assert_eq!(job.schedule(), "0 0 3 * * *"); // Daily at 3 AM
 }
@@ -1085,7 +1085,7 @@ fn test_cleanup_empty_contexts_job_properties() {
     assert_eq!(job.name(), "cleanup_empty_contexts");
     assert_eq!(
         job.description(),
-        "Deletes empty conversation contexts older than 1 hour"
+        "Deletes empty, audit-free conversation contexts (parameter retention_hours, default 24); requires enforce"
     );
     assert_eq!(job.schedule(), "0 0 */2 * * *"); // Every 2 hours
 }
@@ -1099,7 +1099,7 @@ fn test_cleanup_inactive_sessions_job_properties() {
     assert_eq!(job.name(), "cleanup_inactive_sessions");
     assert_eq!(
         job.description(),
-        "Cleans up inactive sessions (1 hour threshold)"
+        "Closes inactive sessions (parameter inactive_hours, default 1)"
     );
     assert_eq!(job.schedule(), "0 */10 * * * *"); // Every 10 minutes
 }

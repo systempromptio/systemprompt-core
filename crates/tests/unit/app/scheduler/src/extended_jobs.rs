@@ -257,3 +257,35 @@ mod all_jobs_inventory {
         }
     }
 }
+
+mod backfill_session_geo_tests {
+    use super::*;
+    use systemprompt_scheduler::jobs::BackfillSessionGeoJob;
+
+    #[test]
+    fn name_is_backfill_session_geo() {
+        assert_eq!(BackfillSessionGeoJob.name(), "backfill_session_geo");
+    }
+
+    #[test]
+    fn schedule_is_empty_so_the_job_never_fires_on_a_timer() {
+        assert_eq!(BackfillSessionGeoJob.schedule(), "");
+    }
+
+    #[test]
+    fn is_not_schedulable() {
+        assert!(
+            !BackfillSessionGeoJob.schedulable(),
+            "an on-demand backfill must not be registered with the cron scheduler"
+        );
+    }
+
+    #[test]
+    fn description_documents_the_batch_size_parameter() {
+        let desc = BackfillSessionGeoJob.description();
+        assert!(
+            desc.contains("batch_size"),
+            "operators discover job parameters from the description: {desc}"
+        );
+    }
+}

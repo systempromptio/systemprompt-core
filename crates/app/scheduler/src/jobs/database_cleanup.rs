@@ -1,5 +1,5 @@
-//! Periodic database-cleanup job: orphan logs, MCP executions, expired
-//! OAuth artifacts.
+//! Periodic database-cleanup job: orphan logs, old logs, expired OAuth
+//! artifacts.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -7,9 +7,11 @@
 use async_trait::async_trait;
 use systemprompt_database::{CleanupRepository, DbPool};
 use systemprompt_traits::{Job, JobContext, JobResult, ProviderError, ProviderResult};
-use tracing::debug;
+use tracing::{debug, info};
 
 use crate::error::SchedulerError;
+
+const DEFAULT_LOG_RETENTION_DAYS: i32 = 30;
 
 #[derive(Debug, Clone, Copy)]
 pub struct DatabaseCleanupJob;
@@ -21,7 +23,7 @@ impl Job for DatabaseCleanupJob {
     }
 
     fn description(&self) -> &'static str {
-        "Cleans up orphaned logs, MCP executions, and expired OAuth tokens"
+        "Cleans up orphaned logs, old logs (parameter log_retention_days, default 30), and expired OAuth tokens; log deletion requires enforce"
     }
 
     fn schedule(&self) -> &'static str {
@@ -38,27 +40,42 @@ impl Job for DatabaseCleanupJob {
 
         debug!("Job started");
 
+        let log_retention_days = ctx
+            .get_parameter_parsed::<i32>("log_retention_days")?
+            .unwrap_or(DEFAULT_LOG_RETENTION_DAYS);
+
         let write_pool = db_pool.write_pool_arc().map_err(SchedulerError::from)?;
         let cleanup_repo = CleanupRepository::new_with_write_pool((*write_pool).clone());
         let mut total_deleted = 0u64;
 
-        let orphaned_logs = cleanup_repo
-            .delete_orphaned_logs()
-            .await
-            .map_err(|e| ProviderError::from(SchedulerError::from(e)))?;
-        total_deleted += orphaned_logs;
-
-        let orphaned_mcp = cleanup_repo
-            .delete_orphaned_mcp_executions()
-            .await
-            .map_err(|e| ProviderError::from(SchedulerError::from(e)))?;
-        total_deleted += orphaned_mcp;
-
-        let old_logs = cleanup_repo
-            .delete_old_logs(30)
-            .await
-            .map_err(|e| ProviderError::from(SchedulerError::from(e)))?;
-        total_deleted += old_logs;
+        let (orphaned_logs, old_logs) = if ctx.enforce() {
+            let orphaned = cleanup_repo
+                .delete_orphaned_logs()
+                .await
+                .map_err(|e| ProviderError::from(SchedulerError::from(e)))?;
+            let old = cleanup_repo
+                .delete_old_logs(log_retention_days)
+                .await
+                .map_err(|e| ProviderError::from(SchedulerError::from(e)))?;
+            (orphaned, old)
+        } else {
+            let orphaned = cleanup_repo
+                .count_orphaned_logs()
+                .await
+                .map_err(|e| ProviderError::from(SchedulerError::from(e)))?;
+            let old = cleanup_repo
+                .count_old_logs(log_retention_days)
+                .await
+                .map_err(|e| ProviderError::from(SchedulerError::from(e)))?;
+            info!(
+                would_delete_orphaned_logs = orphaned,
+                would_delete_old_logs = old,
+                log_retention_days = log_retention_days,
+                "enforce disabled: log rows qualify for deletion but were not deleted"
+            );
+            (0, 0)
+        };
+        total_deleted += orphaned_logs + old_logs;
 
         let oauth = Self::delete_expired_oauth(&cleanup_repo).await?;
         total_deleted += oauth.total();
@@ -68,7 +85,6 @@ impl Job for DatabaseCleanupJob {
         debug!(
             total_deleted = total_deleted,
             orphaned_logs = orphaned_logs,
-            orphaned_mcp = orphaned_mcp,
             old_logs = old_logs,
             oauth_codes = oauth.codes,
             oauth_tokens = oauth.tokens,

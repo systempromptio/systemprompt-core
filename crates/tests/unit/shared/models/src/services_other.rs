@@ -175,7 +175,18 @@ fn scheduler_config_with_system_admin_emits_core_cleanup_jobs() {
             .expect("core cleanup job has schedule");
         assert!(!schedule.is_empty());
     }
-    assert_eq!(s.bootstrap_jobs.len(), 2);
+    assert_eq!(
+        s.bootstrap_jobs,
+        vec!["cleanup_inactive_sessions".to_owned()]
+    );
+    for j in &s.jobs {
+        let deleting = j.name != "cleanup_inactive_sessions";
+        assert_eq!(
+            j.enforce, deleting,
+            "deleting jobs must default to enforce, non-deleting must not: {}",
+            j.name
+        );
+    }
 }
 
 #[test]
@@ -314,4 +325,76 @@ fn split_frontmatter_handles_crlf_and_bom() {
     let split = split_frontmatter("\u{feff}---\r\ntitle: T\r\n---\r\nBody\r\n").unwrap();
     assert_eq!(split.yaml, "title: T\r\n");
     assert_eq!(split.body, "Body\r\n");
+}
+
+#[test]
+fn job_config_yaml_round_trips_parameters() {
+    let yaml = r#"
+name: cleanup_empty_contexts
+extension: core
+schedule: "0 0 * * * *"
+enforce: true
+parameters:
+  retention_hours: "48"
+  mode: "aggressive"
+"#;
+    let job: JobConfig = serde_yaml::from_str(yaml).expect("parses");
+    assert_eq!(
+        job.parameters.get("retention_hours"),
+        Some(&"48".to_owned())
+    );
+    assert_eq!(job.parameters.get("mode"), Some(&"aggressive".to_owned()));
+    assert!(job.enforce);
+
+    let round_tripped: JobConfig =
+        serde_yaml::from_str(&serde_yaml::to_string(&job).expect("serialize")).expect("reparse");
+    assert_eq!(round_tripped.parameters, job.parameters);
+}
+
+#[test]
+fn job_config_yaml_without_parameters_defaults_to_empty_map() {
+    let job: JobConfig = serde_yaml::from_str("name: database_cleanup\n").expect("parses");
+    assert!(job.parameters.is_empty());
+    assert!(!job.enforce);
+    assert!(job.enabled);
+}
+
+#[test]
+fn job_config_yaml_rejects_unknown_field() {
+    let yaml = "name: database_cleanup\nparamters:\n  foo: \"1\"\n";
+    let res: Result<JobConfig, _> = serde_yaml::from_str(yaml);
+    assert!(
+        res.is_err(),
+        "a misspelled key must not be silently ignored"
+    );
+}
+
+#[test]
+fn with_parameters_sets_the_map() {
+    let mut params = std::collections::HashMap::new();
+    params.insert("retention_hours".to_owned(), "12".to_owned());
+    let job = JobConfig::new("cleanup_empty_contexts").with_parameters(params.clone());
+    assert_eq!(job.parameters, params);
+}
+
+#[test]
+fn scheduler_config_default_bootstrap_jobs_is_session_cleanup_only() {
+    let cfg: SchedulerConfig = serde_yaml::from_str("enabled: true\n").expect("parses");
+    assert_eq!(cfg.bootstrap_jobs, vec!["cleanup_inactive_sessions"]);
+}
+
+#[test]
+fn scheduler_config_with_system_admin_enforces_destructive_jobs_only() {
+    let cfg = SchedulerConfig::with_system_admin();
+    for job in &cfg.jobs {
+        let expected = matches!(
+            job.name.as_str(),
+            "cleanup_anonymous_users" | "cleanup_empty_contexts" | "database_cleanup"
+        );
+        assert_eq!(
+            job.enforce, expected,
+            "{} enforce flag should be {expected}",
+            job.name
+        );
+    }
 }

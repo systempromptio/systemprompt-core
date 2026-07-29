@@ -124,6 +124,18 @@ impl SessionRepository {
         queries::count_inactive(&self.pool, inactive_hours).await
     }
 
+    pub async fn backfill_session_geo(
+        &self,
+        geoip_reader: Option<&crate::GeoIpReader>,
+        batch_size: i64,
+    ) -> Result<u64> {
+        mutations::backfill_session_geo(&self.write_pool, geoip_reader, batch_size).await
+    }
+
+    pub async fn count_sessions_missing_geo(&self) -> Result<i64> {
+        mutations::count_sessions_missing_geo(&self.pool).await
+    }
+
     pub async fn migrate_user_sessions(
         &self,
         old_user_id: &UserId,

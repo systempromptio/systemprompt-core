@@ -122,3 +122,127 @@ async fn jobs_fail_when_dbpool_missing() {
     assert!(MaliciousIpBlacklistJob.execute(&ctx).await.is_err());
     assert!(NoJsCleanupJob.execute(&ctx).await.is_err());
 }
+
+// `enforce` is the operator's opt-in to destructive retention deletes. With it
+// off the job must observe and report only.
+mod cleanup_empty_contexts_enforce_gate {
+    use super::*;
+    use systemprompt_database::DbPool;
+    use systemprompt_test_fixtures::{seed_user_row, unique_user_id};
+
+    struct Fixture {
+        pool: DbPool,
+        user_id: systemprompt_identifiers::UserId,
+        context_id: String,
+    }
+
+    async fn seed(tag: &str) -> Option<Fixture> {
+        let pool = try_pool().await?;
+        let user_id = unique_user_id(tag);
+        seed_user_row(
+            &pool,
+            &user_id,
+            &format!("{}@{tag}.invalid", user_id.as_str()),
+        )
+        .await
+        .expect("seed user");
+
+        let context_id = format!("{tag}-{}", uuid::Uuid::new_v4());
+        let raw = pool.pool_arc().expect("raw pool");
+        sqlx::query(
+            "INSERT INTO user_contexts (context_id, user_id, session_id, name, kind, created_at, \
+             updated_at) VALUES ($1, $2, NULL, 'enforce gate fixture', 'conversation', NOW() - \
+             INTERVAL '72 hours', NOW() - INTERVAL '72 hours')",
+        )
+        .bind(&context_id)
+        .bind(user_id.as_str())
+        .execute(raw.as_ref())
+        .await
+        .expect("seed context");
+
+        Some(Fixture {
+            pool,
+            user_id,
+            context_id,
+        })
+    }
+
+    impl Fixture {
+        async fn context_exists(&self) -> bool {
+            let raw = self.pool.pool_arc().expect("raw pool");
+            sqlx::query_scalar::<_, bool>(
+                "SELECT EXISTS(SELECT 1 FROM user_contexts WHERE context_id = $1)",
+            )
+            .bind(&self.context_id)
+            .fetch_one(raw.as_ref())
+            .await
+            .expect("context probe")
+        }
+
+        async fn cleanup(&self) {
+            let raw = self.pool.pool_arc().expect("raw pool");
+            for stmt in [
+                "DELETE FROM user_contexts WHERE user_id = $1",
+                "DELETE FROM users WHERE id = $1",
+            ] {
+                let _ = sqlx::query(stmt)
+                    .bind(self.user_id.as_str())
+                    .execute(raw.as_ref())
+                    .await;
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn without_enforce_the_context_survives_and_nothing_is_reported_processed() {
+        let Some(fixture) = seed("enfoff").await else {
+            return;
+        };
+        let ctx = make_ctx(&fixture.pool).with_parameters(
+            [("retention_hours".to_owned(), "1".to_owned())]
+                .into_iter()
+                .collect(),
+        );
+
+        let result = CleanupEmptyContextsJob
+            .execute(&ctx)
+            .await
+            .expect("job runs");
+        assert!(result.success);
+        assert_eq!(
+            result.items_processed,
+            Some(0),
+            "observe-only mode must report zero deletions"
+        );
+        assert!(
+            fixture.context_exists().await,
+            "enforce=false must not delete anything"
+        );
+
+        fixture.cleanup().await;
+    }
+
+    #[tokio::test]
+    async fn with_enforce_the_old_empty_context_is_deleted() {
+        let Some(fixture) = seed("enfon").await else {
+            return;
+        };
+        let ctx = make_ctx(&fixture.pool).with_enforce(true).with_parameters(
+            [("retention_hours".to_owned(), "1".to_owned())]
+                .into_iter()
+                .collect(),
+        );
+
+        let result = CleanupEmptyContextsJob
+            .execute(&ctx)
+            .await
+            .expect("job runs");
+        assert!(result.success);
+        assert!(
+            !fixture.context_exists().await,
+            "enforce=true must collect the old empty context"
+        );
+
+        fixture.cleanup().await;
+    }
+}

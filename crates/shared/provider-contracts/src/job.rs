@@ -169,6 +169,28 @@ impl JobContext {
     pub fn get_parameter(&self, key: &str) -> Option<&String> {
         self.parameters.get(key)
     }
+
+    /// Parse a parameter as `T`. `Ok(None)` when the key is absent; an error
+    /// when the value is present but unparseable, so a mistyped override
+    /// fails the run instead of silently falling back to the default.
+    pub fn get_parameter_parsed<T: std::str::FromStr>(
+        &self,
+        key: &str,
+    ) -> Result<Option<T>, crate::ProviderError>
+    where
+        T::Err: std::fmt::Display,
+    {
+        self.parameters
+            .get(key)
+            .map(|value| {
+                value.parse().map_err(|e| {
+                    crate::ProviderError::Configuration(format!(
+                        "invalid job parameter {key}={value}: {e}"
+                    ))
+                })
+            })
+            .transpose()
+    }
 }
 
 // Why: jobs are collected as `&'static dyn Job` via `inventory`; an async fn

@@ -25,7 +25,9 @@ impl AnalyticsRepository {
         // Why: a CLI-session context bound to a live session must survive even
         // when empty — deleting it would force the CLI to re-mint a context on
         // its next run. It becomes collectable once its session is gone
-        // (the FK sets session_id NULL on session deletion).
+        // (the FK sets session_id NULL on session deletion). Audit tables
+        // reference context_id without an FK, so a context holding audit rows
+        // is never empty regardless of age.
         let result = sqlx::query!(
             r#"
             DELETE FROM user_contexts
@@ -34,6 +36,12 @@ impl AnalyticsRepository {
                 FROM user_contexts uc
                 LEFT JOIN task_messages tm ON uc.context_id = tm.context_id
                 WHERE tm.id IS NULL
+                AND NOT EXISTS (
+                    SELECT 1 FROM mcp_tool_executions mte WHERE mte.context_id = uc.context_id
+                )
+                AND NOT EXISTS (
+                    SELECT 1 FROM governance_decisions gd WHERE gd.context_id = uc.context_id
+                )
                 AND uc.created_at < NOW() - ($1 || ' hours')::interval
                 AND (uc.kind != $2 OR uc.session_id IS NULL)
             )
@@ -45,5 +53,30 @@ impl AnalyticsRepository {
         .await?;
 
         Ok(result.rows_affected())
+    }
+
+    pub async fn count_empty_contexts(&self, hours_old: i64) -> SchedulerResult<i64> {
+        let count = sqlx::query_scalar!(
+            r#"
+            SELECT COUNT(*) as "count!"
+            FROM user_contexts uc
+            LEFT JOIN task_messages tm ON uc.context_id = tm.context_id
+            WHERE tm.id IS NULL
+            AND NOT EXISTS (
+                SELECT 1 FROM mcp_tool_executions mte WHERE mte.context_id = uc.context_id
+            )
+            AND NOT EXISTS (
+                SELECT 1 FROM governance_decisions gd WHERE gd.context_id = uc.context_id
+            )
+            AND uc.created_at < NOW() - ($1 || ' hours')::interval
+            AND (uc.kind != $2 OR uc.session_id IS NULL)
+            "#,
+            hours_old.to_string(),
+            ContextKind::CliSession.as_str()
+        )
+        .fetch_one(&*self.write_pool)
+        .await?;
+
+        Ok(count)
     }
 }

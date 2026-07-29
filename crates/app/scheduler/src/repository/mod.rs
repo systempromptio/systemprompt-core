@@ -75,4 +75,8 @@ impl SchedulerRepository {
     pub async fn cleanup_empty_contexts(&self, hours_old: i64) -> SchedulerResult<u64> {
         self.analytics.cleanup_empty_contexts(hours_old).await
     }
+
+    pub async fn count_empty_contexts(&self, hours_old: i64) -> SchedulerResult<i64> {
+        self.analytics.count_empty_contexts(hours_old).await
+    }
 }
