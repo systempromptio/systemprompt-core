@@ -19,3 +19,5 @@ mod gateway_upstream_status_mapping;
 mod oauth;
 mod proxy_mcp_metadata;
 mod sync_types;
+
+mod gateway_sessions_mint;
