@@ -174,7 +174,7 @@ server:
   port: 8080
   api_server_url: http://127.0.0.1
   api_internal_url: http://127.0.0.1
-  api_external_url: http://127.0.0.1
+  api_external_url: https://dep-fixture.fly.dev
   use_https: false
   cors_allowed_origins:
     - http://127.0.0.1

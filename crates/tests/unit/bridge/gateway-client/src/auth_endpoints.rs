@@ -5,7 +5,7 @@
 
 use systemprompt_bridge::auth::types::{MtlsRequest, SessionExchangeRequest, SessionPatRequest};
 use systemprompt_bridge::gateway::{GatewayClient, GatewayError};
-use systemprompt_bridge::ids::CertFingerprint;
+use systemprompt_bridge::ids::{BearerToken, CertFingerprint, PatToken};
 use systemprompt_identifiers::{ClientId, PluginId, SessionId, ValidatedUrl};
 use wiremock::matchers::{body_string_contains, header, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -196,7 +196,7 @@ async fn pat_exchange_sends_bearer_and_decodes() {
         .await;
 
     let out = client(&server)
-        .pat_exchange("sp-live-abc", &session_id())
+        .pat_exchange(&PatToken::new("sp-live-abc"), &session_id())
         .await
         .unwrap();
     assert_eq!(out.token.expose(), "jwt.abc.def");
@@ -212,7 +212,7 @@ async fn pat_exchange_401_maps_to_http_status() {
         .await;
 
     let err = client(&server)
-        .pat_exchange("sp-live-revoked", &session_id())
+        .pat_exchange(&PatToken::new("sp-live-revoked"), &session_id())
         .await
         .unwrap_err();
     match err {
@@ -234,7 +234,7 @@ async fn pat_exchange_malformed_body_maps_to_auth_decode() {
         .await;
 
     let err = client(&server)
-        .pat_exchange("sp-live-abc", &session_id())
+        .pat_exchange(&PatToken::new("sp-live-abc"), &session_id())
         .await
         .unwrap_err();
     assert!(
@@ -248,7 +248,7 @@ async fn provision_oauth_client_decodes_response() {
     let server = MockServer::start().await;
     Mock::given(method("POST"))
         .and(path("/v1/auth/bridge/oauth-client"))
-        .and(header("authorization", "Bearer sp-live-abc"))
+        .and(header("authorization", "Bearer bridge-jwt"))
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
             "client_id": "client_1",
             "client_secret": "s3cret",
@@ -259,7 +259,7 @@ async fn provision_oauth_client_decodes_response() {
         .await;
 
     let out = client(&server)
-        .provision_oauth_client("sp-live-abc")
+        .provision_oauth_client(&BearerToken::new("bridge-jwt"))
         .await
         .unwrap();
     assert_eq!(out.client_id.as_str(), "client_1");
@@ -277,7 +277,7 @@ async fn provision_oauth_client_500_maps_to_http_status() {
         .await;
 
     let err = client(&server)
-        .provision_oauth_client("sp-live-abc")
+        .provision_oauth_client(&BearerToken::new("bridge-jwt"))
         .await
         .unwrap_err();
     match err {
@@ -299,7 +299,7 @@ async fn provision_oauth_client_malformed_body_maps_to_decode() {
         .await;
 
     let err = client(&server)
-        .provision_oauth_client("sp-live-abc")
+        .provision_oauth_client(&BearerToken::new("bridge-jwt"))
         .await
         .unwrap_err();
     assert!(

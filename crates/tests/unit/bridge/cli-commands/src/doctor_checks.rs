@@ -187,7 +187,17 @@ fn hook_token_check_warns_when_no_oauth_client_is_provisioned() {
         let client = client_for("http://127.0.0.1:1");
         let check = block_on(check_hook_token_mint(&client));
         assert_eq!(check.status, Status::Warn, "{}", check.detail);
-        assert!(check.detail.contains("first sync"), "{}", check.detail);
+        assert!(
+            check.detail.contains("first plugin hook request"),
+            "the warning must name where provisioning actually happens; saying it runs on \
+             the first sync sends operators to the wrong subsystem: {}",
+            check.detail
+        );
+        assert!(
+            !check.detail.contains("first sync after login"),
+            "{}",
+            check.detail
+        );
     });
 }
 

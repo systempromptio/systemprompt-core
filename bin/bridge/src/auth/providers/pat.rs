@@ -49,7 +49,7 @@ impl AuthProvider for PatProvider {
         let pat = self.pat_source.as_ref().ok_or(AuthError::NotConfigured)?;
         let client = GatewayClient::new(self.base_url.clone());
         let resp = client
-            .pat_exchange(pat.as_str(), session_id)
+            .pat_exchange(pat, session_id)
             .await
             .map_err(|e| AuthError::Failed {
                 provider: "pat",

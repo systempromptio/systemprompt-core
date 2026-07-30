@@ -203,6 +203,15 @@ pub fn extension_for(mime: &str) -> Option<&'static str> {
         .find(|(alias, _)| *alias == essence)
         .map_or(essence.as_str(), |(_, canonical)| *canonical);
 
+    // `application/octet-stream` is the generic unknown-binary type, and several
+    // concrete rows (exe/msi, appimage, sig) share it as their essence. Taking
+    // the first of those would name an unknown upload `.exe`, so the generic
+    // type resolves to the generic extension rather than to whichever
+    // executable format happens to sort first.
+    if resolved == OCTET_STREAM {
+        return Some("bin");
+    }
+
     TABLE
         .iter()
         .find(|(_, e, _)| *e == resolved)

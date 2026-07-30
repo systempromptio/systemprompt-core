@@ -7,6 +7,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::gateway::{BridgeOAuthClientResponse, GatewayClient, GatewayError, HookTokenResponse};
+use crate::ids::BearerToken;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -343,12 +344,12 @@ pub fn delete_creds() -> io::Result<()> {
 // state is missing.
 pub async fn ensure_creds(
     gateway: &GatewayClient,
-    pat: &str,
+    bearer: &BearerToken,
 ) -> Result<OAuthClientCreds, PluginOAuthError> {
     if let Some(existing) = load_creds()? {
         return Ok(existing);
     }
-    let response = gateway.provision_oauth_client(pat).await?;
+    let response = gateway.provision_oauth_client(bearer).await?;
     let creds: OAuthClientCreds = response.into();
     store_creds(&creds)?;
     Ok(creds)
@@ -356,9 +357,9 @@ pub async fn ensure_creds(
 
 pub async fn refresh_creds(
     gateway: &GatewayClient,
-    pat: &str,
+    bearer: &BearerToken,
 ) -> Result<OAuthClientCreds, PluginOAuthError> {
-    let response = gateway.provision_oauth_client(pat).await?;
+    let response = gateway.provision_oauth_client(bearer).await?;
     let creds: OAuthClientCreds = response.into();
     store_creds(&creds)?;
     Ok(creds)
@@ -429,13 +430,13 @@ async fn mint(
     c: &OAuthClientCreds,
     plugin_id: &PluginId,
 ) -> Result<HookTokenResponse, GatewayError> {
-    let endpoint = gateway_aligned_endpoint(&c.token_endpoint);
+    let endpoint = gateway_aligned_endpoint(&c.token_endpoint, gateway.base_url_str());
     gateway
         .mint_plugin_hook_token(&endpoint, &c.client_id, &c.client_secret, plugin_id)
         .await
 }
 
-/// Re-points a loopback `token_endpoint` at the configured gateway host.
+/// Re-points a loopback `token_endpoint` at the gateway actually being dialled.
 ///
 /// The gateway advertises its own absolute token endpoint, which is
 /// `http://localhost:8080/...` whenever it is itself reached over loopback. A
@@ -443,12 +444,8 @@ async fn mint(
 /// to the gateway, so the hook-token mint fails with a bare connection error
 /// and every plugin hook 503s. Mirrors `sync::apply::rewrite_loopback_urls`,
 /// which solves the identical problem for managed MCP server URLs.
-fn gateway_aligned_endpoint(raw: &str) -> String {
-    let cfg = crate::config::load();
-    let Some(gateway) = cfg.gateway_url.as_ref() else {
-        return raw.to_owned();
-    };
-    let (Ok(mut parsed), Ok(gw)) = (url::Url::parse(raw), url::Url::parse(gateway.as_str())) else {
+fn gateway_aligned_endpoint(raw: &str, gateway: &str) -> String {
+    let (Ok(mut parsed), Ok(gw)) = (url::Url::parse(raw), url::Url::parse(gateway)) else {
         return raw.to_owned();
     };
     let is_loopback = match parsed.host() {
@@ -479,16 +476,18 @@ fn gateway_aligned_endpoint(raw: &str) -> String {
     rebuilt
 }
 
+/// `bearer` is whatever credential the proxy authenticated the caller with —
+/// in practice the bridge JWT, not a PAT.
 pub async fn mint_or_refresh_plugin_token(
     gateway: &GatewayClient,
-    pat: &str,
+    bearer: &BearerToken,
     plugin_id: &PluginId,
 ) -> Result<CachedHookToken, PluginOAuthError> {
     let cache = global_cache().await;
     if let Some(cached) = cache.get(plugin_id, REFRESH_THRESHOLD_SECS) {
         return Ok(cached);
     }
-    let creds = ensure_creds(gateway, pat).await?;
+    let creds = ensure_creds(gateway, bearer).await?;
     let response = match mint(gateway, &creds, plugin_id).await {
         Ok(r) => r,
         Err(GatewayError::HookTokenRejected { status, .. }) if status.as_u16() == 401 => {
@@ -496,7 +495,7 @@ pub async fn mint_or_refresh_plugin_token(
                 plugin_id = plugin_id.as_str(),
                 "hook token mint 401; rotating client secret and retrying"
             );
-            let creds = refresh_creds(gateway, pat).await?;
+            let creds = refresh_creds(gateway, bearer).await?;
             mint(gateway, &creds, plugin_id).await?
         },
         Err(e) => return Err(e.into()),

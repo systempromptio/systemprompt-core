@@ -84,15 +84,20 @@ fn remove_schedule_reports_not_installed_then_removed() {
         std::fs::write(dir.join("systemprompt-bridge-sync.timer"), "[Timer]\n").expect("timer");
         std::fs::write(dir.join("systemprompt-bridge-sync.service"), "[Service]\n")
             .expect("service");
+        std::fs::write(dir.join("systemprompt-bridge-proxy.service"), "[Service]\n")
+            .expect("proxy service");
 
         match remove_schedule() {
-            ScheduleRemoval::Removed(unit) => assert_eq!(unit, "systemprompt-bridge-sync"),
+            ScheduleRemoval::Removed(unit) => {
+                assert_eq!(unit, "systemprompt-bridge-sync + systemprompt-bridge-proxy");
+            },
             other => panic!("expected Removed, got {other:?}"),
         }
         assert!(
             !dir.join("systemprompt-bridge-sync.timer").exists()
-                && !dir.join("systemprompt-bridge-sync.service").exists(),
-            "both units are deleted"
+                && !dir.join("systemprompt-bridge-sync.service").exists()
+                && !dir.join("systemprompt-bridge-proxy.service").exists(),
+            "the sync pair and the proxy service are all deleted"
         );
     });
 }
@@ -105,7 +110,9 @@ fn remove_schedule_tolerates_a_timer_without_its_service() {
         std::fs::create_dir_all(&dir).expect("units dir");
         std::fs::write(dir.join("systemprompt-bridge-sync.timer"), "[Timer]\n").expect("timer");
         match remove_schedule() {
-            ScheduleRemoval::Removed(unit) => assert_eq!(unit, "systemprompt-bridge-sync"),
+            ScheduleRemoval::Removed(unit) => {
+                assert_eq!(unit, "systemprompt-bridge-sync + systemprompt-bridge-proxy");
+            },
             other => panic!("expected Removed, got {other:?}"),
         }
     });

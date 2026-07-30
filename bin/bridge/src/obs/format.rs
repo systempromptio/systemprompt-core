@@ -1,12 +1,16 @@
 //! Tee log writer duplicating tracing output to console and file.
 //!
+//! WARN and above reach stderr as well as the rolling log; INFO and below are
+//! file-only. Every bridge subcommand reports failures through `tracing`, so
+//! without the stderr leg a non-zero exit tells the operator nothing.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::fmt;
 use std::io::{self, Write};
 
-use tracing::{Event, Subscriber};
+use tracing::{Event, Level, Metadata, Subscriber};
 use tracing_appender::non_blocking::NonBlocking;
 use tracing_subscriber::field::Visit;
 use tracing_subscriber::fmt::format::Writer;
@@ -19,33 +23,51 @@ pub(super) struct TeeWriter;
 
 impl<'a> MakeWriter<'a> for TeeWriter {
     type Writer = TeeWriterImpl;
+
     fn make_writer(&'a self) -> Self::Writer {
         TeeWriterImpl {
             file: FILE_WRITER.get().cloned(),
+            stderr: true,
+        }
+    }
+
+    // A subcommand exits without ever touching the terminal unless its
+    // diagnostics also reach stderr: the whole CLI reports through `tracing`,
+    // and once the rolling appender installs, the file is the only sink. WARN
+    // and above is the operator's channel; INFO and below stay in the log so
+    // `run`'s per-request proxy chatter does not flood a console or journal.
+    fn make_writer_for(&'a self, meta: &Metadata<'_>) -> Self::Writer {
+        TeeWriterImpl {
+            file: FILE_WRITER.get().cloned(),
+            stderr: meta.level() <= &Level::WARN,
         }
     }
 }
 
 pub(super) struct TeeWriterImpl {
     file: Option<NonBlocking>,
+    stderr: bool,
 }
 
 impl Write for TeeWriterImpl {
-    // Falls back to stderr so bootstrap errors before the file writer stay visible.
+    // Writes stderr when the file writer is absent too, so bootstrap errors
+    // raised before the appender installs stay visible.
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        if self.stderr || self.file.is_none() {
+            _ = io::stderr().write_all(buf);
+        }
         if let Some(file) = self.file.as_mut() {
             _ = file.write_all(buf);
-        } else {
-            _ = io::stderr().write_all(buf);
         }
         Ok(buf.len())
     }
 
     fn flush(&mut self) -> io::Result<()> {
+        if self.stderr || self.file.is_none() {
+            _ = io::stderr().flush();
+        }
         if let Some(file) = self.file.as_mut() {
             _ = file.flush();
-        } else {
-            _ = io::stderr().flush();
         }
         Ok(())
     }

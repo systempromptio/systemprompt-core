@@ -9,6 +9,7 @@ use systemprompt_bridge::auth::plugin_oauth::{
     self, OAuthClientCreds, mint_or_refresh_plugin_token,
 };
 use systemprompt_bridge::gateway::GatewayClient;
+use systemprompt_bridge::ids::BearerToken;
 use systemprompt_identifiers::{ClientId, PluginId, ValidatedUrl};
 use tempfile::TempDir;
 use wiremock::matchers::{method, path};
@@ -180,12 +181,12 @@ fn ensure_creds_provisions_once_then_reuses_local_state() {
                 .await;
 
             let client = GatewayClient::new(ValidatedUrl::new(server.uri()));
-            let first = plugin_oauth::ensure_creds(&client, "sp-live-pat")
+            let first = plugin_oauth::ensure_creds(&client, &BearerToken::new("bridge-jwt"))
                 .await
                 .unwrap();
             assert_eq!(first.client_secret, "minted-secret");
 
-            let second = plugin_oauth::ensure_creds(&client, "sp-live-pat")
+            let second = plugin_oauth::ensure_creds(&client, &BearerToken::new("bridge-jwt"))
                 .await
                 .unwrap();
             assert_eq!(
@@ -217,7 +218,7 @@ fn refresh_creds_always_reprovisions() {
                 .await;
 
             let client = GatewayClient::new(ValidatedUrl::new(server.uri()));
-            let out = plugin_oauth::refresh_creds(&client, "sp-live-pat")
+            let out = plugin_oauth::refresh_creds(&client, &BearerToken::new("bridge-jwt"))
                 .await
                 .unwrap();
             assert_eq!(out.client_secret, "rotated");
@@ -268,16 +269,22 @@ fn mint_or_refresh_rotates_client_on_401_and_retries() {
                 .await;
 
             let client = GatewayClient::new(ValidatedUrl::new(server.uri()));
-            let token =
-                mint_or_refresh_plugin_token(&client, "sp-live-pat", &PluginId::new(&plugin))
-                    .await
-                    .unwrap();
+            let token = mint_or_refresh_plugin_token(
+                &client,
+                &BearerToken::new("bridge-jwt"),
+                &PluginId::new(&plugin),
+            )
+            .await
+            .unwrap();
             assert_eq!(token.access_token, "hook.jwt.rotated");
 
-            let cached =
-                mint_or_refresh_plugin_token(&client, "sp-live-pat", &PluginId::new(&plugin))
-                    .await
-                    .unwrap();
+            let cached = mint_or_refresh_plugin_token(
+                &client,
+                &BearerToken::new("bridge-jwt"),
+                &PluginId::new(&plugin),
+            )
+            .await
+            .unwrap();
             assert_eq!(
                 cached.access_token, "hook.jwt.rotated",
                 "second call must come from the fresh-token cache"
@@ -315,14 +322,20 @@ fn mint_or_refresh_success_path_caches_token() {
                 .await;
 
             let client = GatewayClient::new(ValidatedUrl::new(server.uri()));
-            let first =
-                mint_or_refresh_plugin_token(&client, "sp-live-pat", &PluginId::new(&plugin))
-                    .await
-                    .unwrap();
-            let second =
-                mint_or_refresh_plugin_token(&client, "sp-live-pat", &PluginId::new(&plugin))
-                    .await
-                    .unwrap();
+            let first = mint_or_refresh_plugin_token(
+                &client,
+                &BearerToken::new("bridge-jwt"),
+                &PluginId::new(&plugin),
+            )
+            .await
+            .unwrap();
+            let second = mint_or_refresh_plugin_token(
+                &client,
+                &BearerToken::new("bridge-jwt"),
+                &PluginId::new(&plugin),
+            )
+            .await
+            .unwrap();
             assert_eq!(first.access_token, "hook.jwt.ok");
             assert_eq!(second.access_token, "hook.jwt.ok");
 

@@ -14,6 +14,7 @@ use crate::auth::types::{
 use crate::gateway::errors::GatewayError;
 use crate::gateway::types::{BridgeOAuthClientResponse, HookTokenResponse};
 use crate::gateway::{GatewayClient, record_span};
+use crate::ids::{BearerToken, PatToken};
 
 impl GatewayClient {
     pub async fn mtls_exchange(
@@ -71,7 +72,7 @@ impl GatewayClient {
     )]
     pub async fn pat_exchange(
         &self,
-        pat: &str,
+        pat: &PatToken,
         session_id: &SessionId,
     ) -> Result<AuthResponse, GatewayError> {
         let url = self.url("/v1/auth/bridge/pat");
@@ -79,7 +80,7 @@ impl GatewayClient {
         let resp = self
             .http()
             .post(&url)
-            .bearer_auth(pat)
+            .bearer_auth(pat.as_str())
             .header("content-type", "application/json")
             .header(sp_headers::SESSION_ID, session_id.as_str())
             .body("{}")
@@ -101,19 +102,19 @@ impl GatewayClient {
     // Plaintext `client_secret` is returned once per call; persist it immediately.
     #[tracing::instrument(
         level = "debug",
-        skip(self, pat),
+        skip(self, bearer),
         fields(endpoint = "oauth-client", status, latency_ms)
     )]
     pub async fn provision_oauth_client(
         &self,
-        pat: &str,
+        bearer: &BearerToken,
     ) -> Result<BridgeOAuthClientResponse, GatewayError> {
         let url = self.url("/v1/auth/bridge/oauth-client");
         let started = Instant::now();
         let resp = self
             .http()
             .post(&url)
-            .bearer_auth(pat)
+            .bearer_auth(bearer.expose())
             .header("content-type", "application/json")
             .body("{}")
             .send()

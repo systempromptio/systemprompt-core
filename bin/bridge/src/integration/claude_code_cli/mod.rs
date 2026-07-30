@@ -28,7 +28,7 @@ use crate::config::paths;
 use crate::sync::ApplyError;
 use crate::sync::host_sync::{HostSync, HostSyncCtx};
 
-const MARKETPLACE: &str = "org-provisioned";
+pub const MARKETPLACE: &str = "org-provisioned";
 const VERSION_DIR: &str = "current";
 
 pub(crate) struct ClaudeCodeCliSync;
@@ -52,7 +52,7 @@ fn plugin_key(plugin_id: &str) -> String {
     format!("{plugin_id}@{MARKETPLACE}")
 }
 
-fn marketplace_dir(plugins: &Path) -> PathBuf {
+pub(crate) fn marketplace_dir(plugins: &Path) -> PathBuf {
     plugins.join("marketplaces").join(MARKETPLACE)
 }
 
@@ -84,7 +84,7 @@ fn io_err(context: impl Into<String>, source: std::io::Error) -> ApplyError {
 /// binary on `PATH` is what distinguishes genuinely-absent from
 /// installed-but-unused; the directory is still honoured because a user may
 /// have the CLI on a path this process cannot see.
-fn claude_cli_installed() -> bool {
+pub(crate) fn claude_cli_installed() -> bool {
     if paths::claude_cli_home().is_some_and(|h| h.exists()) {
         return true;
     }

@@ -243,7 +243,7 @@ fn remove_managed_profile() -> ManagedProfileOutcome {
         return ManagedProfileOutcome::NotInstalled("Linux env configuration");
     }
     for line in &lines {
-        diag(line);
+        tracing::info!(target: "bridge::install", detail = %line, "linux env cleanup");
     }
     ManagedProfileOutcome::Removed("Linux env configuration (env.sh + ~/.profile block)")
 }

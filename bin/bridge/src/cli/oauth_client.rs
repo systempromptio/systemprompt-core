@@ -64,8 +64,7 @@ fn cmd_rotate() -> ExitCode {
         let bearer = auth::obtain_live_token(&cfg, &SessionId::generate())
             .await
             .ok_or("no credential source configured (run `bridge login` first)")?;
-        let token = bearer.token.as_str().to_owned();
-        let creds = plugin_oauth::refresh_creds(&client, &token).await?;
+        let creds = plugin_oauth::refresh_creds(&client, &bearer.token).await?;
         Ok::<_, Box<dyn std::error::Error>>(creds)
     });
 

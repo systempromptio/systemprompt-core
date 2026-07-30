@@ -18,7 +18,7 @@
 
 use axum::Json;
 use axum::extract::Request;
-use axum::http::HeaderMap;
+use axum::http::{HeaderMap, header};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -37,6 +37,7 @@ use systemprompt_users::{ApiKeyService, DeviceCertService, IssueApiKeyParams};
 use crate::error::ApiHttpError;
 use crate::services::middleware::JwtContextExtractor;
 use crate::services::middleware::client_addr::{ClientIp, client_ip_from_request};
+use crate::services::request_base_url;
 
 #[derive(Debug, Serialize)]
 pub struct AuthResponse {
@@ -200,7 +201,7 @@ pub async fn provision_oauth_client(
         .await?;
 
     let user_id = UserId::new(claims.user_id.to_string());
-    let token_endpoint = build_token_endpoint()?;
+    let token_endpoint = build_token_endpoint(request.headers())?;
 
     let result = provision_bridge_oauth_client(ctx.db_pool(), &user_id, token_endpoint).await?;
 
@@ -212,12 +213,20 @@ pub async fn provision_oauth_client(
     reason = "ApiError carries response context that is intentionally large; boxing here would \
               propagate to every caller for negligible gain"
 )]
-fn build_token_endpoint() -> Result<String, ApiHttpError> {
+/// Derives the advertised token endpoint from the host the client actually
+/// dialled, as `/.well-known/oauth-authorization-server` already does.
+///
+/// Formatting `api_external_url` unconditionally handed a remote client the
+/// gateway's own loopback address, so every plugin hook died on a connection
+/// error to `localhost`. `resolve` falls back to `api_external_url` for a host
+/// outside the allowlist, so a forged `Host` cannot redirect the mint.
+fn build_token_endpoint(headers: &HeaderMap) -> Result<String, ApiHttpError> {
     let cfg = Config::get().map_err(|e| ApiHttpError::internal_error(e.to_string()))?;
-    Ok(format!(
-        "{}/api/v1/core/oauth/token",
-        cfg.api_external_url.trim_end_matches('/')
-    ))
+    let configured = url::Url::parse(&cfg.api_external_url)
+        .map_err(|e| ApiHttpError::internal_error(e.to_string()))?;
+    let raw_host = headers.get(header::HOST).and_then(|v| v.to_str().ok());
+    let base = request_base_url::resolve(raw_host, &configured);
+    Ok(format!("{}/api/v1/core/oauth/token", base.as_str()))
 }
 
 pub async fn mtls(

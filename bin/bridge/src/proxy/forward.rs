@@ -65,7 +65,7 @@ impl ForwardError {
     /// An auth failure is the bridge's own inability to obtain a credential,
     /// not a broken upstream, so it must not masquerade as `502`. `503`
     /// tells the caller the condition is local and retryable.
-    pub fn status(&self) -> StatusCode {
+    pub const fn status(&self) -> StatusCode {
         match self {
             Self::Auth(_) | Self::AuthTimeout => StatusCode::SERVICE_UNAVAILABLE,
             Self::BadMethod { .. } | Self::BadHeader(_) => StatusCode::BAD_REQUEST,
@@ -138,13 +138,10 @@ pub(crate) async fn forward(
         RouteResolution::Hook { url, plugin_id } => {
             let gw = crate::gateway::GatewayClient::new(gateway_base.clone());
             let pid = systemprompt_identifiers::PluginId::new(plugin_id);
-            let hook = crate::auth::plugin_oauth::mint_or_refresh_plugin_token(
-                &gw,
-                token.token.expose(),
-                &pid,
-            )
-            .await
-            .map_err(|e| ForwardError::Auth(format!("hook token mint for {pid}: {e}")))?;
+            let hook =
+                crate::auth::plugin_oauth::mint_or_refresh_plugin_token(&gw, &token.token, &pid)
+                    .await
+                    .map_err(|e| ForwardError::Auth(format!("hook token mint for {pid}: {e}")))?;
             (
                 Route {
                     url,

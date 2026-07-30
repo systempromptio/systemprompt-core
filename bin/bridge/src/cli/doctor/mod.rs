@@ -11,6 +11,7 @@ use crate::{config, obs};
 pub mod auth;
 pub mod cowork;
 pub mod filesystem;
+pub mod marketplace;
 pub mod proxy;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -86,6 +87,7 @@ pub async fn run_checks() -> (Vec<Check>, bool) {
         checks.push(check);
     }
     checks.push(auth::check_pinned_pubkey());
+    checks.push(marketplace::check_marketplace());
     checks.extend(cowork::check_cowork_enable());
     checks.extend(cowork::check_plugin_installation_preference());
     checks.extend(cowork::check_personal_session_sentinel());

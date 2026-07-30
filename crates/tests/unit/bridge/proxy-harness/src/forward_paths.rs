@@ -441,13 +441,18 @@ async fn an_unreachable_gateway_yields_502_and_is_recorded() {
 
     let resp = h.authed_post("/v1/messages", "{}").await;
     assert_eq!(resp.status().as_u16(), 502);
-    assert_eq!(resp.text().await.expect("body"), "bad gateway\n");
+    let body = resp.text().await.expect("body");
+    assert!(
+        body.starts_with("upstream request failed:") && body.contains(&dead_port.to_string()),
+        "the body names the upstream that failed, not a bare `bad gateway` the caller \
+         cannot act on: {body}"
+    );
     assert_eq!(h.stats.last_status.load(Ordering::Relaxed), 502);
     assert_eq!(h.stats.forwarded_total.load(Ordering::Relaxed), 1);
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn a_request_that_cannot_mint_a_token_is_reported_as_a_bad_gateway() {
+async fn a_request_that_cannot_mint_a_token_is_reported_as_service_unavailable() {
     let gateway = MockServer::start().await;
     let stats = Arc::new(ProxyStats::default());
     let refresh: RefreshFn = Arc::new(|_| Box::pin(async { None }));
@@ -484,7 +489,9 @@ async fn a_request_that_cannot_mint_a_token_is_reported_as_a_bad_gateway() {
         .send()
         .await
         .expect("request to proxy");
-    assert_eq!(resp.status().as_u16(), 502);
+    // The bridge's own inability to obtain a credential is local and retryable,
+    // so it must not masquerade as an upstream fault.
+    assert_eq!(resp.status().as_u16(), 503);
     assert!(
         gateway
             .received_requests()

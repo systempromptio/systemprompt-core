@@ -1,5 +1,30 @@
 # Changelog
 
+## [0.22.0] - 2026-07-30
+
+### Breaking
+
+- **Breaking:** `GatewayClient::provision_oauth_client` takes `&BearerToken` and `GatewayClient::pat_exchange` takes `&PatToken`, in place of `&str`; `plugin_oauth::{ensure_creds, refresh_creds, mint_or_refresh_plugin_token}` likewise take `&BearerToken`. The parameter these threaded was named `pat` while the proxy passed it the bridge JWT, which reads as PAT-only auth and led to the incorrect conclusion that device-cert users could not use hooks at all. Migrate by passing the typed token — `&auth_token.token` rather than `auth_token.token.expose()`. Both newtypes zeroize on drop and redact in `Debug`, so the `&str` hops were also discarding the secret handling the types exist to provide.
+
+### Fixed
+
+- Bridge subcommands report failures on stderr, not only to the rolling log. `TeeWriterImpl` wrote to stderr solely as a *fallback* for a missing file appender, so in the normal case `sync` exited non-zero with nothing on stdout or stderr and the reason reachable only in `~/.local/state/<brand>/bridge.<date>.log`. Every subcommand was affected — they all report through `tracing`, directly or via `obs::output::diag`. WARN and above now reach both sinks; INFO and below stay file-only, so `run`'s per-request proxy chatter does not flood a console or journal.
+- `gateway_aligned_endpoint` aligns a loopback `token_endpoint` against the gateway actually being dialled rather than against ambient `config::load()`, which made a pure URL transform depend on process-wide state and could re-point the endpoint at a gateway the client was not talking to.
+- `doctor`'s "hook token mint" warning no longer claims provisioning "runs on first sync after login". `ensure_creds` is called only from `mint_or_refresh_plugin_token`, lazily on the first plugin hook request; the old wording sent operators looking at sync for a fault that was not there.
+- The `login` command's doc comment described "browser-based device-link authentication" while the implementation only stores a pasted PAT. It now says so, and records that a device certificate is the only credential that renews unattended: the proxy re-authenticates per request, so a device-link-only configuration reopens a browser on every hook and dies with `authentication timed out after 10s`.
+
+### Added
+
+- `login --code <exchange-code>` redeems a one-shot code from `admin bridge issue-code` for a durable PAT, via the same `/v1/auth/bridge/session-pat` endpoint the desktop GUI's sign-in uses. That endpoint was reachable only from the GUI, which is macOS/Windows-only, so on Linux there was no browserless way to bootstrap a credential at all: the session provider always opens a browser, and `login` accepted only an already-issued `sp-live-…` token that nothing headless could produce. `--device-name` labels the PAT (defaulting to the hostname) so an admin can revoke by machine.
+- Linux `install --apply` writes the environment a login shell needs instead of erroring. It emits `$XDG_CONFIG_HOME/<brand>/env.sh` exporting `ANTHROPIC_BASE_URL` (the loopback proxy origin) and `ANTHROPIC_AUTH_TOKEN`, plus a marker-delimited managed block in `~/.profile` that sources it. The token is read from the loopback key file when the file is sourced rather than baked in, so a rotated secret needs no rewrite and an absent one leaves the variable unset instead of setting an invalid credential. Re-running install replaces the block rather than appending a second one, and both files are written via temp-file + rename so a crash cannot truncate a user's dotfile. `uninstall` removes the env file and the block, leaving the rest of `~/.profile` byte-identical. Only the pair proven end-to-end is written; the `CLAUDE_INFERENCE_GATEWAY_*` keys the old snippet advertised are not.
+- `install --apply-schedule` registers a second systemd user unit on Linux, `<binary-name>-proxy.service`, which runs `<binary> proxy` with `Restart=always`. macOS and Windows run the loopback proxy inside the GUI process; on Linux nothing owned its lifecycle, so it had to be started by hand every session. Rendered from a separate template with its own path — the existing `template`/`split_systemd_unit` contract of one label and one (service, timer) pair is unchanged. `uninstall` disables and removes it.
+- `doctor` gains three checks: whether the loopback proxy is listening (reusing `integration::proxy_probe`, which existed but was never wired in), whether the proxy's systemd unit is present and active (Linux only), and whether the `org-provisioned` marketplace is registered with the Claude Code CLI. The last names the silent failure where `sync` skips its marketplace emitter because the CLI is absent, leaving `claude plugin list` empty with every other check green.
+
+### Changed
+
+- **Behaviour change:** `install --apply-schedule` on Linux no longer fails when `systemctl` is missing or `--user` has no bus — a container, or WSL without systemd. It wrote the unit files first and then returned an error, leaving the install half-done for no gain. It now keeps the files, reports a warning naming the commands to run by hand, and succeeds. This applies to the pre-existing sync timer as well as the new proxy service, and follows the macOS path, which has always ignored `launchctl` failure.
+- `mtls.cert_keystore_ref` is read on Linux, where it names the path to the device certificate; `~` is expanded. Previously every use in the codebase was `.is_some()`, so the key meant only "mTLS is configured" and the certificate could be named solely by `<PREFIX>_DEVICE_CERT`. The env var still wins where both are set, so existing setups are unaffected. macOS (Keychain label) and Windows (cert-store thumbprint) address certificates differently and ignore the value — this is Linux-only. `keystore::platform_source` therefore takes an `Option<&str>` on every platform.
+
 ## [0.21.0] - 2026-07-29
 
 ### Changed

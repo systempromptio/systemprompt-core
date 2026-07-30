@@ -31,8 +31,13 @@ fn windows_snippet_embeds_brand_default_workspace_folder() {
 fn linux_snippet_uses_env_vars_and_no_workspace_placeholder() {
     let text = mdm_snippet(Os::Linux, Some("https://gateway.example"));
     assert!(
-        text.contains("CLAUDE_INFERENCE_GATEWAY_BASE_URL=https://gateway.example"),
+        text.contains("ANTHROPIC_BASE_URL=https://gateway.example"),
         "linux snippet must interpolate the gateway URL: {text}"
+    );
+    assert!(
+        !text.contains("CLAUDE_INFERENCE_GATEWAY"),
+        "only the variable pair proven end-to-end is advertised; the gateway-prefixed keys \
+         were dropped because nothing consumed them: {text}"
     );
     assert!(
         !text.contains("allowedWorkspaceFolders"),
