@@ -128,19 +128,6 @@ impl DescribeCommand for CloudCommands {
     }
 }
 
-impl CloudCommands {
-    pub const fn requires_profile(&self) -> bool {
-        matches!(
-            self,
-            Self::Status | Self::Restart { .. } | Self::Secrets { .. } | Self::Domain { .. }
-        )
-    }
-
-    pub const fn requires_secrets(&self) -> bool {
-        matches!(self, Self::Secrets { .. })
-    }
-}
-
 pub async fn execute(cmd: CloudCommands, ctx: &CommandContext) -> Result<()> {
     match cmd {
         CloudCommands::Auth(cmd) => auth::execute(cmd, ctx).await,

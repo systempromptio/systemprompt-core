@@ -78,3 +78,6 @@ mod core_files_upload_db;
 
 #[cfg(test)]
 mod agents_shared_args;
+
+#[cfg(test)]
+mod cloud_command_gating;
