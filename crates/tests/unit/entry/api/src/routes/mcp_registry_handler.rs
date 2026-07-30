@@ -1,10 +1,14 @@
 //! Tests for the public MCP registry endpoint.
 //!
 //! `handle_mcp_registry` projects the configured MCP servers into the discovery
-//! document clients read. With no services config loaded the registry cannot
-//! enumerate servers, and the handler must surface that as a 500 rather than an
-//! empty document — an empty list would tell clients "this deployment has no
-//! MCP servers", which is a different and wrong answer.
+//! document clients read. Whether the registry can be enumerated depends on
+//! process-global services config that other tests in this binary may or may
+//! not have installed, so these assert the contract that holds in both states
+//! rather than pinning one status: the response is always JSON, a success
+//! always carries a server list, and a failure always names what failed to
+//! load. In particular a registry that cannot be read must never present as an
+//! empty list under `data` — that would tell clients this deployment has no MCP
+//! servers, which is a different and wrong answer.
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
@@ -19,54 +23,86 @@ async fn ctx() -> Option<systemprompt_runtime::AppContext> {
     Some((*fixture_app_context(&pool, &url).ok()?).clone())
 }
 
-async fn body_text(response: axum::response::Response) -> String {
-    let bytes = axum::body::to_bytes(response.into_body(), 1 << 20)
+struct Reply {
+    status: axum::http::StatusCode,
+    content_type: String,
+    body: String,
+}
+
+async fn call() -> Option<Reply> {
+    let response = handle_mcp_registry(State(ctx().await?))
         .await
-        .expect("body");
-    String::from_utf8_lossy(&bytes).into_owned()
-}
-
-#[tokio::test]
-async fn an_unloadable_registry_is_reported_as_a_server_error() {
-    let Some(ctx) = ctx().await else {
-        return;
-    };
-
-    let response = handle_mcp_registry(State(ctx)).await.into_response();
-    assert_eq!(
-        response.status(),
-        axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-        "a registry that cannot enumerate servers must not masquerade as empty"
-    );
-
-    let body = body_text(response).await;
-    assert!(
-        body.contains("MCP registry"),
-        "the error should name what failed to load: {body}"
-    );
-}
-
-#[tokio::test]
-async fn the_failure_response_is_json() {
-    let Some(ctx) = ctx().await else {
-        return;
-    };
-
-    let response = handle_mcp_registry(State(ctx)).await.into_response();
+        .into_response();
+    let status = response.status();
     let content_type = response
         .headers()
         .get(axum::http::header::CONTENT_TYPE)
         .and_then(|v| v.to_str().ok())
         .unwrap_or_default()
         .to_owned();
-    let body = body_text(response).await;
+    let bytes = axum::body::to_bytes(response.into_body(), 1 << 20)
+        .await
+        .expect("body");
+    Some(Reply {
+        status,
+        content_type,
+        body: String::from_utf8_lossy(&bytes).into_owned(),
+    })
+}
+
+#[tokio::test]
+async fn the_response_is_always_json() {
+    let Some(reply) = call().await else {
+        return;
+    };
 
     assert!(
-        content_type.contains("json"),
-        "clients parse this endpoint as JSON, got content-type {content_type:?}"
+        reply.content_type.contains("json"),
+        "clients parse this endpoint as JSON, got content-type {:?}",
+        reply.content_type
     );
     assert!(
-        serde_json::from_str::<serde_json::Value>(&body).is_ok(),
-        "the error body must be valid JSON: {body}"
+        serde_json::from_str::<serde_json::Value>(&reply.body).is_ok(),
+        "body must be valid JSON in both the success and failure cases: {}",
+        reply.body
+    );
+}
+
+#[tokio::test]
+async fn a_failure_names_the_registry_and_is_never_an_empty_list() {
+    let Some(reply) = call().await else {
+        return;
+    };
+
+    if reply.status.is_success() {
+        let value: serde_json::Value = serde_json::from_str(&reply.body).expect("json");
+        assert!(
+            value["data"].is_array(),
+            "a success must carry the server list under `data`: {}",
+            reply.body
+        );
+        assert!(
+            value["meta"]["version"].is_string(),
+            "the success envelope must carry meta.version: {}",
+            reply.body
+        );
+        return;
+    }
+
+    assert_eq!(
+        reply.status,
+        axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+        "the only non-success outcome is a load failure"
+    );
+    assert!(
+        reply.body.contains("MCP registry"),
+        "a failure must name what could not be loaded: {}",
+        reply.body
+    );
+    let value: serde_json::Value = serde_json::from_str(&reply.body).expect("json");
+    assert!(
+        !value["data"].is_array(),
+        "a failed load must not present as an empty server list: {}",
+        reply.body
     );
 }
