@@ -72,3 +72,6 @@ mod web_content_types_prompts;
 mod web_prompts;
 mod web_sitemap_generate_fs;
 mod web_templates_fs;
+
+#[cfg(test)]
+mod core_files_upload_db;
