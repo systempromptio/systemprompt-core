@@ -5,8 +5,17 @@ coverage:
   status:
     project:
       default:
-        target: auto
-        threshold: 0.5%
+        # An absolute floor, not `auto`. Under `auto` the only signal was
+        # relative to the parent commit, so coverage could erode indefinitely a
+        # few tenths at a time and nothing ever failed. `threshold: 0%` because
+        # the number below IS the floor — the relative guard lives in the
+        # coverage.yml ratchet step, which additionally rejects a >0.5pt drop
+        # against the previous successful run.
+        #
+        # Raise this as coverage climbs; it is deliberately just under the
+        # measured 88.7% so it guards the cliff without sitting on the edge.
+        target: 88.5%
+        threshold: 0%
     patch:
       default:
         informational: true

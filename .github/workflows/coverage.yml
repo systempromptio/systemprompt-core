@@ -213,13 +213,17 @@ jobs:
           fi
           exit $status
 
-      # --ignore-filename-regex below excludes seven CLI process-entry files
-      # (serve, deploy orchestrator/artifacts, tenant create cloud, setup
-      # docker/docker_database, backup client). Each is a supervisor that
-      # spawns a subprocess or boots a blocking server, has no seam to drive
-      # from a test, and measures 0%. Listed file-by-file, not by directory,
-      # so testable code alongside them still counts. Mirrors the justfile
-      # `coverage` recipe comment — keep both in sync.
+      # --ignore-filename-regex below excludes twelve process-entry files. Ten
+      # CLI ones (serve, deploy orchestrator/artifacts, tenant create cloud,
+      # setup docker/docker_database, backup client/mod, plugins run, agents
+      # run) and two domain ones (a2a_server standalone, mcp orchestrator
+      # daemon). Each is a supervisor that spawns a subprocess, binds a
+      # listener, or loops until a signal, has no seam to drive from a test,
+      # and measures 0%. Listed file-by-file, not by directory, so testable
+      # code alongside them still counts — which is why sibling files with
+      # real seams (a2a_server/server.rs, backup/extract.rs, policy/audit.rs)
+      # are deliberately absent. Mirrors the justfile `coverage` recipe
+      # comment — keep both in sync.
       - name: Merge profdata and render
         if: ${{ always() && steps.tests.outputs.instrumented == 'true' }}
         run: |
@@ -240,17 +244,17 @@ jobs:
 
           # Unfiltered first so we can see raw paths llvm-cov emits.
           "$LLVM_COV" report --instr-profile=coverage-merged.profdata $OBJ_ARGS \
-            --ignore-filename-regex='(\.cargo|rustc|crates/tests|bin/bridge|/debug/build/[^/]+/out/|/home/runner/\.cargo|crates/entry/cli/src/commands/(infrastructure/services/serve|cloud/deploy/pipeline/(orchestrator|artifacts)|cloud/tenant/create/cloud|admin/setup/docker(_database)?|cloud/backup/client)\.rs)' \
+            --ignore-filename-regex='(\.cargo|rustc|crates/tests|bin/bridge|/debug/build/[^/]+/out/|/home/runner/\.cargo|crates/domain/(agent/src/services/a2a_server/standalone|mcp/src/services/orchestrator/daemon)\.rs|crates/entry/cli/src/commands/(infrastructure/services/serve|cloud/deploy/pipeline/(orchestrator|artifacts)|cloud/tenant/create/cloud|admin/setup/docker(_database)?|cloud/backup/(client|mod)|plugins/run|admin/agents/run)\.rs)' \
             --summary-only \
             | tee coverage-summary.txt
 
           "$LLVM_COV" export --instr-profile=coverage-merged.profdata $OBJ_ARGS \
-            --ignore-filename-regex='(\.cargo|rustc|crates/tests|bin/bridge|/debug/build/[^/]+/out/|/home/runner/\.cargo|crates/entry/cli/src/commands/(infrastructure/services/serve|cloud/deploy/pipeline/(orchestrator|artifacts)|cloud/tenant/create/cloud|admin/setup/docker(_database)?|cloud/backup/client)\.rs)' \
+            --ignore-filename-regex='(\.cargo|rustc|crates/tests|bin/bridge|/debug/build/[^/]+/out/|/home/runner/\.cargo|crates/domain/(agent/src/services/a2a_server/standalone|mcp/src/services/orchestrator/daemon)\.rs|crates/entry/cli/src/commands/(infrastructure/services/serve|cloud/deploy/pipeline/(orchestrator|artifacts)|cloud/tenant/create/cloud|admin/setup/docker(_database)?|cloud/backup/(client|mod)|plugins/run|admin/agents/run)\.rs)' \
             --format=text --summary-only \
             > coverage-summary.json
 
           "$LLVM_COV" export --instr-profile=coverage-merged.profdata $OBJ_ARGS \
-            --ignore-filename-regex='(\.cargo|rustc|crates/tests|bin/bridge|/debug/build/[^/]+/out/|/home/runner/\.cargo|crates/entry/cli/src/commands/(infrastructure/services/serve|cloud/deploy/pipeline/(orchestrator|artifacts)|cloud/tenant/create/cloud|admin/setup/docker(_database)?|cloud/backup/client)\.rs)' \
+            --ignore-filename-regex='(\.cargo|rustc|crates/tests|bin/bridge|/debug/build/[^/]+/out/|/home/runner/\.cargo|crates/domain/(agent/src/services/a2a_server/standalone|mcp/src/services/orchestrator/daemon)\.rs|crates/entry/cli/src/commands/(infrastructure/services/serve|cloud/deploy/pipeline/(orchestrator|artifacts)|cloud/tenant/create/cloud|admin/setup/docker(_database)?|cloud/backup/(client|mod)|plugins/run|admin/agents/run)\.rs)' \
             --format=lcov \
             > lcov.info
 
@@ -264,32 +268,59 @@ jobs:
             coverage-summary.json
             lcov.info
 
-      - name: Coverage ratchet (fail on >0.5pt drop vs previous run)
+      # Two independent guards. The FLOOR is absolute and always evaluated:
+      # without it, coverage could erode indefinitely in sub-0.5pt steps and the
+      # relative check would pass every single time. The RATCHET catches a sharp
+      # single-run drop that still lands above the floor, and is skipped when
+      # there is no previous artifact to compare against — which is exactly why
+      # the floor must not live behind that same early exit.
+      #
+      # Raise COVERAGE_FLOOR as coverage climbs; keep it in step with
+      # codecov.yml's `project.default.target`.
+      - name: Coverage floor and ratchet
         if: ${{ steps.tests.outputs.instrumented == 'true' }}
         env:
           GH_TOKEN: ${{ github.token }}
+          COVERAGE_FLOOR: "88.5"
         run: |
           PREV_ID=$(gh run list --workflow coverage.yml --status success \
             --branch main --limit 1 --json databaseId --jq '.[0].databaseId' \
             -R "${{ github.repository }}")
-          if [ -z "$PREV_ID" ] || [ "$PREV_ID" = "null" ]; then
-            echo "no previous successful run; skipping ratchet"
-            exit 0
-          fi
-          if ! gh run download "$PREV_ID" -n coverage -D prev-coverage \
-               -R "${{ github.repository }}"; then
-            echo "previous run $PREV_ID has no coverage artifact (expired?); skipping ratchet"
-            exit 0
+          if [ -n "$PREV_ID" ] && [ "$PREV_ID" != "null" ]; then
+            gh run download "$PREV_ID" -n coverage -D prev-coverage \
+              -R "${{ github.repository }}" \
+              || echo "previous run $PREV_ID has no coverage artifact (expired?); ratchet will be skipped"
+          else
+            echo "no previous successful run; ratchet will be skipped"
           fi
           python3 - <<'PY'
-          import json, sys
+          import json, os, pathlib, sys
+
           def pct(path):
               with open(path) as f:
                   return json.load(f)["data"][0]["totals"]["lines"]["percent"]
-          prev, cur = pct("prev-coverage/coverage-summary.json"), pct("coverage-summary.json")
-          print(f"previous: {prev:.2f}%  current: {cur:.2f}%  delta: {cur - prev:+.2f}pt")
-          if cur < prev - 0.5:
-              sys.exit(f"line coverage dropped more than 0.5pt ({prev:.2f}% -> {cur:.2f}%)")
+
+          floor = float(os.environ["COVERAGE_FLOOR"])
+          cur = pct("coverage-summary.json")
+          failures = []
+
+          print(f"current: {cur:.2f}%  floor: {floor:.2f}%")
+          if cur < floor:
+              failures.append(f"line coverage {cur:.2f}% is below the {floor:.2f}% floor")
+
+          prev_path = pathlib.Path("prev-coverage/coverage-summary.json")
+          if prev_path.exists():
+              prev = pct(prev_path)
+              print(f"previous: {prev:.2f}%  delta: {cur - prev:+.2f}pt")
+              if cur < prev - 0.5:
+                  failures.append(
+                      f"line coverage dropped more than 0.5pt ({prev:.2f}% -> {cur:.2f}%)"
+                  )
+          else:
+              print("no previous summary available; skipping the relative ratchet")
+
+          if failures:
+              sys.exit("; ".join(failures))
           PY
 
       - name: Upload coverage to Codecov
