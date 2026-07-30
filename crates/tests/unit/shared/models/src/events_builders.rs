@@ -1,5 +1,6 @@
-use systemprompt_identifiers::{ContextId, MessageId, SessionId, TaskId};
-use systemprompt_models::a2a::TaskState;
+use systemprompt_identifiers::{ArtifactId, ContextId, MessageId, SessionId, TaskId};
+use systemprompt_models::a2a::{Artifact, ArtifactMetadata, TaskState};
+use systemprompt_models::events::payloads::{ArtifactUpdatedPayload, JsonRpcErrorPayload};
 use systemprompt_models::events::{
     A2AEvent, A2AEventBuilder, A2AEventType, AnalyticsEvent, AnalyticsEventBuilder,
     SessionStartedPayload,
@@ -155,4 +156,147 @@ fn back_timestamp(json: &str) -> chrono::DateTime<chrono::Utc> {
         .unwrap()
         .parse::<chrono::DateTime<chrono::Utc>>()
         .unwrap()
+}
+
+fn artifact(ctx: &ContextId, task: &TaskId) -> Artifact {
+    Artifact {
+        id: ArtifactId::generate(),
+        title: Some("Result".to_owned()),
+        description: None,
+        parts: vec![],
+        extensions: vec![],
+        metadata: ArtifactMetadata::new("table".to_owned(), ctx.clone(), task.clone()),
+    }
+}
+
+#[test]
+fn artifact_created_builder_carries_ids_and_artifact() {
+    let task = TaskId::new("t-art");
+    let ctx = ContextId::generate();
+    let art = artifact(&ctx, &task);
+    let artifact_id = art.id.clone();
+
+    let event = A2AEventBuilder::artifact_created(task.clone(), ctx.clone(), art);
+
+    assert_eq!(event.event_type(), A2AEventType::ArtifactCreated);
+    match &event {
+        A2AEvent::ArtifactCreated { payload, .. } => {
+            assert_eq!(payload.task_id, task);
+            assert_eq!(payload.context_id, ctx);
+            assert_eq!(payload.artifact.id, artifact_id);
+            assert_eq!(payload.artifact.metadata.artifact_type, "table");
+        },
+        other => panic!("expected ArtifactCreated, got {other:?}"),
+    }
+}
+
+#[test]
+fn artifact_created_serializes_the_flattened_payload() {
+    let task = TaskId::new("t-art2");
+    let ctx = ContextId::generate();
+    let event = A2AEventBuilder::artifact_created(
+        task,
+        ctx,
+        artifact(&ContextId::generate(), &TaskId::new("t")),
+    );
+
+    let value = serde_json::to_value(&event).unwrap();
+    assert_eq!(value["type"], "ARTIFACT_CREATED");
+    assert!(
+        value.get("payload").is_none(),
+        "the payload is flattened, not nested: {value}"
+    );
+    assert!(value.get("artifact").is_some());
+}
+
+#[test]
+fn event_type_maps_the_variants_without_builders() {
+    let now = chrono::Utc::now();
+
+    let updated = A2AEvent::ArtifactUpdated {
+        timestamp: now,
+        payload: ArtifactUpdatedPayload {
+            task_id: TaskId::new("t-up"),
+            context_id: ContextId::generate(),
+            artifact_id: ArtifactId::generate(),
+            append: true,
+            last_chunk: false,
+            content: None,
+        },
+    };
+    assert_eq!(updated.event_type(), A2AEventType::ArtifactUpdated);
+
+    let err = A2AEvent::JsonRpcError {
+        timestamp: now,
+        payload: JsonRpcErrorPayload {
+            id: serde_json::json!(7),
+            code: -32603,
+            message: "internal".to_owned(),
+            data: None,
+        },
+    };
+    assert_eq!(err.event_type(), A2AEventType::JsonRpcError);
+}
+
+#[test]
+fn timestamp_accessor_reads_every_a2a_variant() {
+    let task = || TaskId::new("t-ts");
+    let ctx0 = ContextId::generate();
+    let ctx = move || ctx0.clone();
+    let now = chrono::Utc::now();
+
+    let events = vec![
+        A2AEventBuilder::task_submitted(task(), ctx(), "agent".to_owned(), None),
+        A2AEventBuilder::task_status_update(task(), ctx(), TaskState::Working, None),
+        A2AEventBuilder::artifact_created(task(), ctx(), artifact(&ctx(), &task())),
+        A2AEvent::ArtifactUpdated {
+            timestamp: now,
+            payload: ArtifactUpdatedPayload {
+                task_id: task(),
+                context_id: ctx(),
+                artifact_id: ArtifactId::generate(),
+                append: false,
+                last_chunk: true,
+                content: Some(serde_json::json!("chunk")),
+            },
+        },
+        A2AEventBuilder::agent_message(task(), ctx(), MessageId::new("m-ts"), "hi".to_owned()),
+        A2AEventBuilder::input_required(task(), ctx(), "prompt".to_owned()),
+        A2AEventBuilder::auth_required(task(), ctx(), "https://auth".to_owned()),
+        A2AEventBuilder::json_rpc_response(serde_json::json!(1), serde_json::json!({"ok": true})),
+        A2AEvent::JsonRpcError {
+            timestamp: now,
+            payload: JsonRpcErrorPayload {
+                id: serde_json::json!(2),
+                code: -32000,
+                message: "boom".to_owned(),
+                data: Some(serde_json::json!({"detail": "x"})),
+            },
+        },
+    ];
+
+    assert_eq!(events.len(), 9, "one per A2AEvent variant");
+    for event in &events {
+        assert!(
+            event.timestamp() <= chrono::Utc::now(),
+            "{:?} reported a timestamp in the future",
+            event.event_type()
+        );
+    }
+
+    let explicit: Vec<_> = events
+        .iter()
+        .filter(|e| {
+            matches!(
+                e,
+                A2AEvent::ArtifactUpdated { .. } | A2AEvent::JsonRpcError { .. }
+            )
+        })
+        .map(A2AEvent::timestamp)
+        .collect();
+    assert_eq!(
+        explicit,
+        vec![now, now],
+        "the accessor must return the stored timestamp verbatim"
+    );
 }

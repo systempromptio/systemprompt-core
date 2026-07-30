@@ -75,3 +75,6 @@ mod web_templates_fs;
 
 #[cfg(test)]
 mod core_files_upload_db;
+
+#[cfg(test)]
+mod agents_shared_args;
