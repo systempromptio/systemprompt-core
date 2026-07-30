@@ -47,6 +47,7 @@ rsa = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-runtime = { workspace = true }
 systemprompt-users = { workspace = true }
+systemprompt-content = { workspace = true }
 uuid = { workspace = true }
 
 [package.metadata.cargo-machete]

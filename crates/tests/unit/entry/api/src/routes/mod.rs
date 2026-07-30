@@ -24,3 +24,5 @@ mod gateway_sessions_mint;
 
 mod gateway_otel_handle;
 mod mcp_registry_handler;
+
+mod content_links_redirect;
