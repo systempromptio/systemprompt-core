@@ -311,3 +311,113 @@ async fn skill_service_with_execution_step_repo_returns_self() {
     let dbg = format!("{:?}", svc);
     assert!(dbg.contains("ExecutionStepRepository"));
 }
+
+// The tests above never inject an ExecutionStepRepository and never put a
+// task_id in the context, so `track_skill_usage` always took one of its two
+// early returns and the tracking + execution_step broadcast path never ran.
+fn ctx_with_task(context_id: &ContextId, task_id: &TaskId) -> RequestContext {
+    let mut ctx = RequestContext::new(
+        SessionId::new("skill-track-session"),
+        TraceId::new("skill-track-trace"),
+        context_id.clone(),
+        AgentName::new("test-agent"),
+    );
+    ctx.auth.actor = Actor::user(UserId::new("skill-track-user"));
+    ctx.with_task_id(task_id.clone())
+}
+
+#[tokio::test]
+async fn load_skill_without_a_task_id_still_returns_instructions() {
+    let root = skills_root();
+    let id = format!("notrack{}", uuid::Uuid::new_v4().simple());
+    write_skill(
+        &root,
+        &id,
+        &format!("id: {id}\nname: No Track\ndescription: d\n"),
+        Some("Do the thing.\n"),
+    );
+
+    let svc = SkillService::new().expect("service");
+    let instructions = svc
+        .load_skill(&SkillId::new(&id), &make_ctx())
+        .await
+        .expect("load should succeed even with nothing to track against");
+
+    assert!(
+        instructions.contains("Do the thing."),
+        "instructions should come back verbatim: {instructions}"
+    );
+}
+
+#[tokio::test]
+async fn load_skill_with_a_task_but_no_repository_still_returns_instructions() {
+    let Some(pool) = crate::repository::try_pool().await else {
+        return;
+    };
+    let repos = crate::repository::repos(&pool);
+    let (user, session) = crate::repository::seed_user_and_session(&pool).await;
+    let (context_id, task_id) =
+        crate::repository::seed_context_and_task(&repos, &user, &session).await;
+
+    let root = skills_root();
+    let id = format!("norepo{}", uuid::Uuid::new_v4().simple());
+    write_skill(
+        &root,
+        &id,
+        &format!("id: {id}\nname: No Repo\ndescription: d\n"),
+        Some("Body.\n"),
+    );
+
+    // No with_execution_step_repo: usage tracking is skipped, but loading must
+    // not fail because of it.
+    let svc = SkillService::new().expect("service");
+    let instructions = svc
+        .load_skill(&SkillId::new(&id), &ctx_with_task(&context_id, &task_id))
+        .await
+        .expect("missing repository must not fail the load");
+
+    assert!(instructions.contains("Body."));
+}
+
+#[tokio::test]
+async fn load_skill_records_an_execution_step_when_tracking_is_wired() {
+    let Some(pool) = crate::repository::try_pool().await else {
+        return;
+    };
+    let repos = crate::repository::repos(&pool);
+    let (user, session) = crate::repository::seed_user_and_session(&pool).await;
+    let (context_id, task_id) =
+        crate::repository::seed_context_and_task(&repos, &user, &session).await;
+
+    let root = skills_root();
+    let id = format!("tracked{}", uuid::Uuid::new_v4().simple());
+    write_skill(
+        &root,
+        &id,
+        &format!("id: {id}\nname: Tracked Skill\ndescription: d\n"),
+        Some("Tracked body.\n"),
+    );
+
+    let step_repo = std::sync::Arc::new(
+        systemprompt_agent::repository::execution::ExecutionStepRepository::new(&pool)
+            .expect("step repo"),
+    );
+    let svc = SkillService::new()
+        .expect("service")
+        .with_execution_step_repo(std::sync::Arc::clone(&step_repo));
+
+    let instructions = svc
+        .load_skill(&SkillId::new(&id), &ctx_with_task(&context_id, &task_id))
+        .await
+        .expect("load should succeed");
+    assert!(instructions.contains("Tracked body."));
+
+    let steps = step_repo
+        .list_by_task(&task_id)
+        .await
+        .expect("steps should be readable");
+    assert!(
+        steps.iter().any(|s| format!("{s:?}").contains(&id)),
+        "loading a skill with tracking wired must record a step naming it: {steps:?}"
+    );
+}
