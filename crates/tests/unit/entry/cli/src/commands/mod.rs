@@ -81,3 +81,6 @@ mod agents_shared_args;
 
 #[cfg(test)]
 mod cloud_command_gating;
+
+#[cfg(test)]
+mod plugins_validate;
