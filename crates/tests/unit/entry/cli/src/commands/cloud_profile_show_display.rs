@@ -5,14 +5,16 @@
 use std::collections::HashMap;
 
 use systemprompt_cli::cloud::profile::show_display::{
-    DisplayLine, render_ai_section, render_environment_section, render_formatted_config,
-    render_mcp_section, render_settings_section,
+    DisplayLine, render_agents_section, render_ai_section, render_content_section,
+    render_environment_section, render_formatted_config, render_mcp_section,
+    render_settings_section, render_skills_section,
 };
 use systemprompt_cli::cloud::profile::show_types::{
     CoreEnvVars, DatabaseEnvVars, EnvironmentConfig, FullConfig, JwtEnvVars, PathsEnvVars,
     RateLimitEnvVars, SettingsOutput, SystempromptEnvVars,
 };
-use systemprompt_models::{AiConfig, Deployment};
+use systemprompt_models::services::{AgentConfig, SkillsConfig};
+use systemprompt_models::{AiConfig, ContentConfigRaw, Deployment};
 
 fn env() -> EnvironmentConfig {
     EnvironmentConfig {
@@ -163,5 +165,128 @@ fn formatted_config_renders_only_present_sections_in_order() {
     assert_eq!(
         sections,
         vec!["Environment Configuration", "Services Settings"]
+    );
+}
+
+#[test]
+fn agents_section_lists_port_endpoint_and_display_name() {
+    let agent: AgentConfig = serde_yaml::from_str(
+        "name: helper\nport: 9001\nendpoint: /a2a\nenabled: true\ndev_only: false\nis_primary: false\ndefault: false\ntags: []\ncard:\n  protocolVersion: '1.0'\n  displayName: Helper Agent\n  description: Helps\n  version: 1.0.0\n  preferredTransport: JSONRPC\n  capabilities: {}\n  defaultInputModes: [text/plain]\n  defaultOutputModes: [text/plain]\n  supportsAuthenticatedExtendedCard: false\nmetadata: {}\noauth: {}\n",
+    )
+    .unwrap();
+    let mut agents = HashMap::new();
+    agents.insert("helper".to_owned(), agent);
+
+    let lines = render_agents_section(&agents);
+    assert_eq!(lines[0], DisplayLine::Section("Agents (1)".to_owned()));
+
+    let kvs = key_values(&lines);
+    assert!(kvs.contains(&("    endpoint".to_owned(), "/a2a".to_owned())));
+    assert!(kvs.contains(&("    display_name".to_owned(), "Helper Agent".to_owned())));
+    assert!(
+        lines.iter().any(
+            |l| matches!(l, DisplayLine::Info(s) if s.contains("port: 9001")
+                && s.contains("enabled: true"))
+        ),
+        "the info line should carry port and enabled: {lines:?}"
+    );
+}
+
+#[test]
+fn agents_section_headline_counts_zero() {
+    let agents: HashMap<String, AgentConfig> = HashMap::new();
+    let lines = render_agents_section(&agents);
+    assert_eq!(lines, vec![DisplayLine::Section("Agents (0)".to_owned())]);
+}
+
+#[test]
+fn skills_section_reports_enabled_flag_and_each_skill() {
+    let skills: SkillsConfig = serde_yaml::from_str(
+        "enabled: true\nauto_discover: false\nskills:\n  writer:\n    id: skill-writer\n    name: Writer\n    description: Writes things\n    enabled: true\n",
+    )
+    .unwrap();
+
+    let lines = render_skills_section(&skills);
+    assert_eq!(lines[0], DisplayLine::Section("Skills (1)".to_owned()));
+
+    let kvs = key_values(&lines);
+    assert!(kvs.contains(&("  enabled".to_owned(), "true".to_owned())));
+    assert!(kvs.contains(&("    id".to_owned(), "skill-writer".to_owned())));
+    assert!(kvs.contains(&("    name".to_owned(), "Writer".to_owned())));
+}
+
+#[test]
+fn skills_section_with_no_skills_still_reports_the_enabled_flag() {
+    let skills: SkillsConfig = serde_yaml::from_str("enabled: false\nskills: {}\n").unwrap();
+    let lines = render_skills_section(&skills);
+
+    assert_eq!(lines[0], DisplayLine::Section("Skills (0)".to_owned()));
+    assert_eq!(
+        key_values(&lines),
+        vec![("  enabled".to_owned(), "false".to_owned())]
+    );
+}
+
+#[test]
+fn content_section_lists_each_source_path() {
+    let content: ContentConfigRaw = serde_yaml::from_str(
+        "content_sources:\n  blog:\n    path: content/blog\n    enabled: true\n    source_id: blog\n    category_id: guides\n",
+    )
+    .unwrap();
+
+    let lines = render_content_section(&content);
+    assert_eq!(
+        lines[0],
+        DisplayLine::Section("Content Sources (1)".to_owned())
+    );
+    assert!(key_values(&lines).contains(&("    path".to_owned(), "content/blog".to_owned())));
+}
+
+#[test]
+fn content_section_headline_counts_zero() {
+    let content: ContentConfigRaw = serde_yaml::from_str("content_sources: {}\n").unwrap();
+    assert_eq!(
+        render_content_section(&content),
+        vec![DisplayLine::Section("Content Sources (0)".to_owned())]
+    );
+}
+
+#[test]
+fn formatted_config_renders_every_section_when_all_are_present() {
+    let agents: HashMap<String, AgentConfig> = HashMap::new();
+    let mcp: HashMap<String, Deployment> = HashMap::new();
+    let skills: SkillsConfig = serde_yaml::from_str("enabled: true\nskills: {}\n").unwrap();
+    let ai: AiConfig = serde_yaml::from_str("providers: {}\n").unwrap();
+    let content: ContentConfigRaw = serde_yaml::from_str("content_sources: {}\n").unwrap();
+
+    let config = FullConfig::empty()
+        .with_environment(env())
+        .with_settings(settings())
+        .with_agents(agents)
+        .with_mcp_servers(mcp)
+        .with_skills(skills)
+        .with_ai(ai)
+        .with_content(content);
+
+    let sections: Vec<String> = render_formatted_config(&config)
+        .iter()
+        .filter_map(|l| match l {
+            DisplayLine::Section(s) => Some(s.clone()),
+            _ => None,
+        })
+        .collect();
+
+    assert_eq!(
+        sections,
+        vec![
+            "Environment Configuration",
+            "Services Settings",
+            "Agents (0)",
+            "MCP Servers (0)",
+            "Skills (0)",
+            "AI Configuration",
+            "Content Sources (0)",
+        ],
+        "sections must render in declaration order, skipping absent ones"
     );
 }
