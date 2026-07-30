@@ -135,6 +135,7 @@ jobs:
           cargo build -p systemprompt-cli --bin systemprompt
 
       - name: Run instrumented tests (RUSTFLAGS so path deps get instrumented)
+        id: tests
         env:
           DATABASE_URL: postgres://test:test@localhost:5432/test
           # Continuous mode: %c makes every process for a given binary mmap and
@@ -190,6 +191,19 @@ jobs:
 
           echo "profraw count: $(find /mnt/profraw -name '*.profraw' | wc -l)"
           df -h / /mnt
+
+          # Downstream render/ratchet/upload steps key off this, not on always():
+          # nextest exits 100 when tests ran and some failed (the counters are
+          # still complete enough to report) but 101 when the workspace failed to
+          # compile, in which case no instrumented binary ever ran and llvm-cov
+          # renders a spurious 0.00% that Codecov records as the branch number.
+          instrumented=false
+          if { [ "$status" -eq 0 ] || [ "$status" -eq 100 ]; } \
+             && [ ! -f /mnt/tmp/watchdog.log ]; then
+            instrumented=true
+          fi
+          echo "instrumented=$instrumented" >> "$GITHUB_OUTPUT"
+
           if [ -f /mnt/tmp/watchdog.log ]; then
             echo "=== watchdog tripped ==="; cat /mnt/tmp/watchdog.log; exit 1
           fi
@@ -203,7 +217,7 @@ jobs:
       # so testable code alongside them still counts. Mirrors the justfile
       # `coverage` recipe comment — keep both in sync.
       - name: Merge profdata and render
-        if: always()
+        if: ${{ always() && steps.tests.outputs.instrumented == 'true' }}
         run: |
           LLVM_PROFDATA=$(rustc --print sysroot)/lib/rustlib/x86_64-unknown-linux-gnu/bin/llvm-profdata
           LLVM_COV=$(rustc --print sysroot)/lib/rustlib/x86_64-unknown-linux-gnu/bin/llvm-cov
@@ -237,7 +251,7 @@ jobs:
             > lcov.info
 
       - name: Upload coverage artifacts
-        if: always()
+        if: ${{ always() && steps.tests.outputs.instrumented == 'true' }}
         uses: actions/upload-artifact@v4
         with:
           name: coverage
@@ -247,6 +261,7 @@ jobs:
             lcov.info
 
       - name: Coverage ratchet (fail on >0.5pt drop vs previous run)
+        if: ${{ steps.tests.outputs.instrumented == 'true' }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -274,11 +289,11 @@ jobs:
           PY
 
       - name: Upload coverage to Codecov
-        # Guard on the rendered report: a bare always() uploads an empty payload
-        # when the build dies before rendering, which Codecov records as a 0%
-        # "error" commit and the branch badge then shows 0% instead of the last
-        # real number.
-        if: ${{ always() && hashFiles('lcov.info') != '' }}
+        # Guard on both the instrumented run and the rendered report: hashFiles
+        # alone is not enough, because a workspace that fails to compile still
+        # renders a well-formed all-zero lcov.info, which Codecov then records as
+        # the branch number (0%) instead of leaving the last real one in place.
+        if: ${{ always() && steps.tests.outputs.instrumented == 'true' && hashFiles('lcov.info') != '' }}
         uses: codecov/codecov-action@v5
         with:
           files: lcov.info
