@@ -98,6 +98,14 @@ impl StubAiProvider {
         self
     }
 
+    pub(crate) fn failing_generate(mut self) -> Self {
+        self.generate_responses
+            .get_mut()
+            .expect("lock")
+            .push(Err("stub generate failure".into()));
+        self
+    }
+
     pub(crate) fn with_text_stream(mut self, parts: &[&str]) -> Self {
         let chunks = parts
             .iter()
