@@ -4,7 +4,7 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use systemprompt_cli::cloud::profile::templates::{
-    get_services_path, save_dockerignore, save_entrypoint,
+    existing_geoip_database, get_services_path, save_dockerignore, save_entrypoint,
 };
 use tempfile::TempDir;
 
@@ -59,4 +59,72 @@ fn save_entrypoint_creates_parent_dir() {
 fn get_services_path_returns_a_path() {
     let p = get_services_path().expect("returns path");
     assert!(!p.is_empty());
+}
+
+// `existing_geoip_database` exists so re-authoring a profile carries an
+// operator's hand-set path forward instead of silently wiping it, and it must
+// degrade to None rather than failing when the profile is absent or corrupt.
+#[test]
+fn existing_geoip_database_is_none_for_a_missing_profile() {
+    let tmp = TempDir::new().unwrap();
+    assert_eq!(
+        existing_geoip_database(&tmp.path().join("absent.yaml")),
+        None
+    );
+}
+
+#[test]
+fn existing_geoip_database_is_none_for_an_unparseable_profile() {
+    let tmp = TempDir::new().unwrap();
+    let path = tmp.path().join("profile.yaml");
+    std::fs::write(&path, "this: [is not: valid: profile yaml\n").unwrap();
+
+    assert_eq!(
+        existing_geoip_database(&path),
+        None,
+        "a corrupt profile must not abort re-authoring"
+    );
+}
+
+// A hand-written profile is not a useful fixture here — Profile requires a
+// dozen sections, and a parse failure would make the assertion pass for the
+// wrong reason. These start from the bootstrap fixture's real profile.
+fn bootstrap_profile_yaml() -> String {
+    let boot = systemprompt_test_fixtures::ensure_test_bootstrap();
+    std::fs::read_to_string(&boot.profile_path).expect("bootstrap profile is readable")
+}
+
+#[test]
+fn existing_geoip_database_is_none_when_the_field_is_absent() {
+    let tmp = TempDir::new().unwrap();
+    let path = tmp.path().join("profile.yaml");
+    let yaml = bootstrap_profile_yaml();
+    assert!(
+        yaml.contains("geoip_database: null"),
+        "the bootstrap profile is expected to declare geoip as null"
+    );
+    std::fs::write(&path, &yaml).unwrap();
+
+    assert_eq!(
+        existing_geoip_database(&path),
+        None,
+        "an explicit null must read as absent, not as an error"
+    );
+}
+
+#[test]
+fn existing_geoip_database_carries_a_configured_path_forward() {
+    let tmp = TempDir::new().unwrap();
+    let path = tmp.path().join("profile.yaml");
+    let yaml = bootstrap_profile_yaml().replace(
+        "geoip_database: null",
+        "geoip_database: /srv/geo/GeoLite2-City.mmdb",
+    );
+    std::fs::write(&path, &yaml).unwrap();
+
+    assert_eq!(
+        existing_geoip_database(&path).as_deref(),
+        Some("/srv/geo/GeoLite2-City.mmdb"),
+        "an operator's hand-set geoip path must survive re-authoring"
+    );
 }
