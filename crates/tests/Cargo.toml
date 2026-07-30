@@ -228,6 +228,7 @@ systemprompt-template-provider = { path = "../shared/template-provider", feature
 systemprompt-database = { path = "../infra/database" }
 systemprompt-logging = { path = "../infra/logging" }
 opentelemetry-proto = { version = "0.32", default-features = false, features = ["gen-tonic-messages", "trace", "logs", "metrics"] }
+prost = "0.14"
 systemprompt-config = { path = "../infra/config" }
 systemprompt-events = { path = "../infra/events" }
 systemprompt-security = { path = "../infra/security" }
