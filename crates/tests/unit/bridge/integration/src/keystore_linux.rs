@@ -1,5 +1,6 @@
 //! Tests for the Linux device-cert keystore: `SP_BRIDGE_DEVICE_CERT`-driven
-//! load with PEM-to-DER conversion and raw-DER fallback.
+//! load with PEM-to-DER conversion and raw-DER fallback, plus the precedence
+//! between that env var and the configured `mtls.cert_keystore_ref`.
 
 use sha2::{Digest, Sha256};
 use systemprompt_bridge::auth::keystore::{KeystoreError, platform_source, sha256_der};
@@ -43,7 +44,7 @@ fn base64_encode(bytes: &[u8]) -> String {
 #[test]
 fn unset_env_yields_not_configured() {
     temp_env::with_var("SP_BRIDGE_DEVICE_CERT", None::<&str>, || {
-        let err = platform_source().load().unwrap_err();
+        let err = platform_source(None).load().unwrap_err();
         assert!(
             matches!(err, KeystoreError::NotConfigured(_)),
             "expected NotConfigured, got {err:?}"
@@ -52,15 +53,18 @@ fn unset_env_yields_not_configured() {
 }
 
 #[test]
-fn missing_file_yields_io_error() {
+fn missing_file_yields_not_found_naming_the_path() {
     temp_env::with_var(
         "SP_BRIDGE_DEVICE_CERT",
         Some("/nonexistent/cert.pem"),
         || {
-            let err = platform_source().load().unwrap_err();
+            let err = platform_source(None).load().unwrap_err();
+            let KeystoreError::NotFound(detail) = &err else {
+                panic!("expected NotFound, got {err:?}");
+            };
             assert!(
-                matches!(err, KeystoreError::Io(_)),
-                "expected Io, got {err:?}"
+                detail.contains("/nonexistent/cert.pem"),
+                "the operator needs the path they configured: {detail}"
             );
         },
     );
@@ -73,7 +77,7 @@ fn raw_der_file_fingerprints_bytes_directly() {
     std::fs::write(&path, DER).unwrap();
 
     temp_env::with_var("SP_BRIDGE_DEVICE_CERT", Some(path.as_os_str()), || {
-        let cert = platform_source().load().unwrap();
+        let cert = platform_source(None).load().unwrap();
         assert_eq!(cert.fingerprint.as_str(), hex_sha(DER));
     });
 }
@@ -87,7 +91,7 @@ fn pem_file_is_decoded_to_der_before_fingerprinting() {
     std::fs::write(&path, &pem).unwrap();
 
     temp_env::with_var("SP_BRIDGE_DEVICE_CERT", Some(path.as_os_str()), || {
-        let cert = platform_source().load().unwrap();
+        let cert = platform_source(None).load().unwrap();
         assert_eq!(
             cert.fingerprint.as_str(),
             hex_sha(DER),
@@ -104,7 +108,7 @@ fn pem_with_invalid_base64_falls_back_to_raw_bytes() {
     std::fs::write(&path, pem).unwrap();
 
     temp_env::with_var("SP_BRIDGE_DEVICE_CERT", Some(path.as_os_str()), || {
-        let cert = platform_source().load().unwrap();
+        let cert = platform_source(None).load().unwrap();
         assert_eq!(cert.fingerprint.as_str(), hex_sha(pem.as_bytes()));
     });
 }
@@ -116,4 +120,55 @@ fn sha256_der_produces_lowercase_hex() {
         fp.as_str(),
         "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
     );
+}
+
+// `platform_source` takes the configured `mtls.cert_keystore_ref`. The env var
+// deliberately wins over it so setups predating the config key keep working, so
+// both directions of that precedence are pinned here.
+#[test]
+fn configured_ref_is_used_when_the_env_var_is_unset() {
+    let temp = tempdir().unwrap();
+    let path = temp.path().join("configured.der");
+    std::fs::write(&path, DER).unwrap();
+    let configured = path.to_string_lossy().into_owned();
+
+    temp_env::with_var("SP_BRIDGE_DEVICE_CERT", None::<&str>, || {
+        let cert = platform_source(Some(&configured))
+            .load()
+            .expect("the configured ref should be used when the env var is absent");
+        assert_eq!(cert.fingerprint.as_str(), hex_sha(DER));
+    });
+}
+
+#[test]
+fn env_var_wins_over_the_configured_ref() {
+    let temp = tempdir().unwrap();
+    let env_path = temp.path().join("from-env.der");
+    let configured_path = temp.path().join("from-config.der");
+    let env_der: &[u8] = &[0x30, 0x82, 0x01, 0x0a, 0x01, 0x02, 0x03, 0x04];
+    std::fs::write(&env_path, env_der).unwrap();
+    std::fs::write(&configured_path, DER).unwrap();
+    let configured = configured_path.to_string_lossy().into_owned();
+
+    temp_env::with_var("SP_BRIDGE_DEVICE_CERT", Some(env_path.as_os_str()), || {
+        let cert = platform_source(Some(&configured)).load().unwrap();
+        assert_eq!(
+            cert.fingerprint.as_str(),
+            hex_sha(env_der),
+            "the env var must take precedence over mtls.cert_keystore_ref"
+        );
+    });
+}
+
+#[test]
+fn a_blank_configured_ref_is_treated_as_absent() {
+    temp_env::with_var("SP_BRIDGE_DEVICE_CERT", None::<&str>, || {
+        for blank in ["", "   "] {
+            let err = platform_source(Some(blank)).load().unwrap_err();
+            assert!(
+                matches!(err, KeystoreError::NotConfigured(_)),
+                "a blank ref must read as unconfigured, got {err:?}"
+            );
+        }
+    });
 }

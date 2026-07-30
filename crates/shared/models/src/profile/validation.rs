@@ -24,6 +24,7 @@ impl Profile {
         self.validate_cors_origins(&mut errors);
         self.validate_rate_limits(&mut errors);
         self.validate_governance(&mut errors, is_cloud);
+        self.validate_external_url_is_reachable(&mut errors, is_cloud);
 
         if errors.is_empty() {
             Ok(())
@@ -278,6 +279,45 @@ impl Profile {
             },
             _ => {},
         }
+    }
+
+    // Why: a cloud deployment's `api_external_url` is what it advertises about
+    // itself — OAuth token endpoints, MCP server URLs, agent cards. Pointing it
+    // at loopback hands every remote client an address that resolves to the
+    // client's own machine, which surfaces as connection errors far from the
+    // cause. Local profiles are exempt: binding `0.0.0.0` while reaching the
+    // server on `localhost` is ordinary container-based development.
+    pub(super) fn validate_external_url_is_reachable(
+        &self,
+        errors: &mut Vec<String>,
+        is_cloud: bool,
+    ) {
+        if !is_cloud {
+            return;
+        }
+        let Ok(url) = url::Url::parse(&self.server.api_external_url) else {
+            return;
+        };
+        let Some(host) = url.host_str() else {
+            return;
+        };
+        if Self::is_loopback_host(host) {
+            errors.push(format!(
+                "server.api_external_url must be the address clients dial, not loopback (got: \
+                 {}) — a cloud deployment advertises this URL in OAuth token endpoints, MCP \
+                 server URLs, and agent cards, so every remote client would resolve it to \
+                 itself.",
+                self.server.api_external_url
+            ));
+        }
+    }
+
+    fn is_loopback_host(host: &str) -> bool {
+        let bare = host.trim_start_matches('[').trim_end_matches(']');
+        bare.eq_ignore_ascii_case("localhost")
+            || bare
+                .parse::<std::net::IpAddr>()
+                .is_ok_and(|ip| ip.is_loopback())
     }
 
     pub(super) fn validate_cors_origins(&self, errors: &mut Vec<String>) {

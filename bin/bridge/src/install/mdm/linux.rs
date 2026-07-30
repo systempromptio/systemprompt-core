@@ -71,16 +71,15 @@ fn managed_range(existing: &str) -> Option<(usize, usize)> {
 /// Replaces the managed region if present, appends it otherwise — so running
 /// install twice leaves exactly one block. `None` means "no change needed".
 fn splice(existing: &str, block: &str) -> Option<String> {
-    let replaced = match managed_range(existing) {
-        Some((start, end)) => format!("{}{block}{}", &existing[..start], &existing[end..]),
-        None => {
-            let mut out = existing.to_owned();
-            if !out.is_empty() && !out.ends_with('\n') {
-                out.push('\n');
-            }
-            out.push_str(block);
-            out
-        },
+    let replaced = if let Some((start, end)) = managed_range(existing) {
+        format!("{}{block}{}", &existing[..start], &existing[end..])
+    } else {
+        let mut out = existing.to_owned();
+        if !out.is_empty() && !out.ends_with('\n') {
+            out.push('\n');
+        }
+        out.push_str(block);
+        out
     };
     (replaced != existing).then_some(replaced)
 }

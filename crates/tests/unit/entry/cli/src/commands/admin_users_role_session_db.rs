@@ -191,10 +191,40 @@ async fn role_commands_require_full_profile_context() {
 async fn delete_requires_confirmation() {
     let pool = pool().await;
     let ctx = ctx(&pool);
-    let err = users::execute(parse(&["delete", "whoever"]), &ctx)
+    let service = UserService::new(&pool).unwrap();
+    let (n, e) = unique("delconfirm");
+    let user = service.create(&n, &e, None, None).await.unwrap();
+
+    // The user has to exist for the guard to be reached: `delete` resolves the
+    // reference first so a typo reports "not found" instead of prompting to
+    // confirm the deletion of something that was never there.
+    let err = users::execute(parse(&["delete", n.as_str()]), &ctx)
         .await
         .unwrap_err();
-    assert!(err.to_string().contains("--yes to confirm"), "{err}");
+
+    let msg = err.to_string();
+    assert!(msg.contains("--yes to confirm"), "{msg}");
+    assert!(
+        msg.contains(user.id.as_str()),
+        "the guard should name the id it is about to delete: {msg}"
+    );
+    assert!(
+        service.find_by_id(&user.id).await.unwrap().is_some(),
+        "an unconfirmed delete must leave the row in place"
+    );
+}
+
+#[tokio::test]
+async fn delete_of_an_unknown_reference_reports_not_found() {
+    let pool = pool().await;
+    let ctx = ctx(&pool);
+    let err = users::execute(parse(&["delete", "no-such-user-reference"]), &ctx)
+        .await
+        .unwrap_err();
+    assert!(
+        err.to_string().contains("User not found"),
+        "an unresolvable reference must not reach the confirmation guard: {err}"
+    );
 }
 
 #[tokio::test]

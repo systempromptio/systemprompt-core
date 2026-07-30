@@ -6,10 +6,12 @@
 use anyhow::{Result, anyhow};
 use clap::Args;
 use systemprompt_database::DbPool;
+use systemprompt_logging::CliService;
 use systemprompt_users::{UserAdminService, UserService};
 
 use super::types::{SessionSummary, UserActivityOutput, UserDetailOutput};
 use crate::CliConfig;
+use crate::cli_settings::OutputFormat;
 use crate::context::CommandContext;
 use crate::shared::CommandOutput;
 
@@ -31,7 +33,7 @@ pub(super) async fn execute(args: ShowArgs, ctx: &CommandContext) -> Result<Comm
 pub(super) async fn execute_with_pool(
     args: ShowArgs,
     pool: &DbPool,
-    _config: &CliConfig,
+    config: &CliConfig,
 ) -> Result<CommandOutput> {
     let user_service = UserService::new(pool)?;
     let admin_service = UserAdminService::new(user_service.clone());
@@ -92,8 +94,20 @@ pub(super) async fn execute_with_pool(
         activity,
     };
 
-    Ok(CommandOutput::card_value(
-        format!("User: {}", user.name),
-        &output,
-    ))
+    let card = CommandOutput::card_value(format!("User: {}", user.name), &output);
+
+    // Why: a presentation card serialises as headed sections, so scripting the
+    // provisioning flow meant digging the id back out of `.sections[]`. Machine
+    // formats emit the record itself; the card stays the terminal view.
+    match config.output_format() {
+        OutputFormat::Json => {
+            CliService::json(&output);
+            Ok(card.with_skip_render())
+        },
+        OutputFormat::Yaml => {
+            CliService::yaml(&output);
+            Ok(card.with_skip_render())
+        },
+        OutputFormat::Table => Ok(card),
+    }
 }

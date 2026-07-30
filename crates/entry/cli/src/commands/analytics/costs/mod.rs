@@ -20,10 +20,11 @@ use serde::{Deserialize, Serialize};
 use crate::context::CommandContext;
 use crate::shared::render_result;
 
-/// `analytics costs` with no subcommand runs the summary, so the bare command
-/// documented alongside its siblings is runnable rather than a usage error.
-/// The summary's own arguments are flattened here, which keeps their clap
-/// defaults the single source of truth.
+/// `analytics costs` with no subcommand runs the summary.
+///
+/// That keeps the bare command runnable rather than a usage error. The
+/// summary's own arguments are flattened here, which leaves their clap defaults
+/// the single source of truth.
 #[derive(Debug, Args)]
 pub struct CostsArgs {
     #[command(subcommand)]

@@ -21,10 +21,11 @@ use serde::{Deserialize, Serialize};
 use crate::context::CommandContext;
 use crate::shared::render_result;
 
-/// `analytics requests` with no subcommand runs the stats aggregate, so the
-/// bare command documented alongside its siblings is runnable rather than a
-/// usage error. The stats arguments are flattened here, which keeps their clap
-/// defaults the single source of truth.
+/// `analytics requests` with no subcommand runs the stats aggregate.
+///
+/// That keeps the bare command runnable rather than a usage error. The stats
+/// arguments are flattened here, which leaves their clap defaults the single
+/// source of truth.
 #[derive(Debug, Args)]
 pub struct RequestsArgs {
     #[command(subcommand)]

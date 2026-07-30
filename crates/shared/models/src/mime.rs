@@ -104,9 +104,9 @@ const TABLE: &[(&[&str], &str, &str)] = &[
         "application/vnd.openxmlformats-officedocument.presentationml.presentation",
         "application/vnd.openxmlformats-officedocument.presentationml.presentation",
     ),
-    // Distributable artifacts: a deployment serves its own client downloads
-    // (desktop bridge tarballs and installers) as ordinary static files. Absent
-    // these, the static handler's fallback labelled an archive
+    // Why: a deployment serves its own client downloads (desktop bridge
+    // tarballs and installers) as ordinary static files. Absent these, the
+    // static handler's fallback labelled an archive
     // `text/plain; charset=utf-8`, so a browser rendered it as mojibake instead
     // of saving it.
     (&["gz", "tgz"], "application/gzip", "application/gzip"),
@@ -128,7 +128,8 @@ const TABLE: &[(&[&str], &str, &str)] = &[
     ),
     (&["rpm"], "application/x-rpm", "application/x-rpm"),
     (&["appimage"], OCTET_STREAM, OCTET_STREAM),
-    // Checksum and signature sidecars are meant to be read in the browser.
+    // Why: checksum and signature sidecars are meant to be read in the browser,
+    // not downloaded, so they stay text/plain rather than octet-stream.
     (
         &["sha256", "sha512", "asc"],
         "text/plain",
