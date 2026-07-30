@@ -3,18 +3,50 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::{DeviceCert, DeviceCertSource, KeystoreError, sha256_der};
+use super::{CertRef, DeviceCert, DeviceCertSource, KeystoreError, sha256_der};
 use std::{env, fs};
 
-pub(super) struct LinuxKeystore;
+pub(super) struct LinuxKeystore {
+    configured_path: Option<String>,
+}
+
+impl LinuxKeystore {
+    fn new(cert_ref: CertRef<'_>) -> Self {
+        Self {
+            configured_path: cert_ref
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+                .map(crate::auth::expand_home),
+        }
+    }
+
+    /// The env var wins over `mtls.cert_keystore_ref` so setups that predate
+    /// the config key keep working unchanged.
+    fn resolve(&self) -> Result<String, KeystoreError> {
+        let cert_env = crate::brand::brand().env("DEVICE_CERT");
+        if let Ok(from_env) = env::var(&cert_env)
+            && !from_env.trim().is_empty()
+        {
+            return Ok(from_env);
+        }
+        self.configured_path.clone().ok_or_else(|| {
+            KeystoreError::NotConfigured(format!(
+                "{cert_env} unset and mtls.cert_keystore_ref absent; no device cert on Linux"
+            ))
+        })
+    }
+}
 
 impl DeviceCertSource for LinuxKeystore {
     fn load(&self) -> Result<DeviceCert, KeystoreError> {
-        let cert_env = crate::brand::brand().env("DEVICE_CERT");
-        let path = env::var(&cert_env).map_err(|_unset| {
-            KeystoreError::NotConfigured(format!("{cert_env} unset; no device cert on Linux"))
+        let path = self.resolve()?;
+        let bytes = fs::read(&path).map_err(|e| {
+            if e.kind() == std::io::ErrorKind::NotFound {
+                KeystoreError::NotFound(format!("{path}: {e}"))
+            } else {
+                KeystoreError::Io(e)
+            }
         })?;
-        let bytes = fs::read(&path)?;
         let der = pem_to_der(&bytes).unwrap_or(bytes);
         Ok(DeviceCert {
             fingerprint: sha256_der(&der)?,
@@ -23,8 +55,8 @@ impl DeviceCertSource for LinuxKeystore {
 }
 
 #[must_use]
-pub fn platform_source() -> Box<dyn DeviceCertSource> {
-    Box::new(LinuxKeystore)
+pub fn platform_source(cert_ref: CertRef<'_>) -> Box<dyn DeviceCertSource> {
+    Box::new(LinuxKeystore::new(cert_ref))
 }
 
 fn pem_to_der(input: &[u8]) -> Option<Vec<u8>> {

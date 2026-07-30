@@ -61,6 +61,28 @@ pub enum ForwardError {
     ReadBody(#[source] hyper::Error),
 }
 
+impl ForwardError {
+    /// An auth failure is the bridge's own inability to obtain a credential,
+    /// not a broken upstream, so it must not masquerade as `502`. `503`
+    /// tells the caller the condition is local and retryable.
+    pub fn status(&self) -> StatusCode {
+        match self {
+            Self::Auth(_) | Self::AuthTimeout => StatusCode::SERVICE_UNAVAILABLE,
+            Self::BadMethod { .. } | Self::BadHeader(_) => StatusCode::BAD_REQUEST,
+            Self::Upstream(_) | Self::BuildResponse(_) | Self::ReadBody(_) => {
+                StatusCode::BAD_GATEWAY
+            },
+        }
+    }
+
+    /// Body text for the client. Names the real cause: a plugin hook author
+    /// reading `bad gateway` has no way to discover that the host simply has no
+    /// credential store.
+    pub fn client_detail(&self) -> String {
+        format!("{self}\n")
+    }
+}
+
 pub type ForwardResult<T> = Result<T, ForwardError>;
 
 pub const REFRESH_THRESHOLD_SECS: u64 = 300;

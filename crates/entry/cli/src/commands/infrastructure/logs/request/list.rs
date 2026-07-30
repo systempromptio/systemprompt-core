@@ -11,7 +11,6 @@ use systemprompt_logging::{AiRequestFilter, TraceQueryService};
 use super::{RequestListRow, build_request_list};
 use crate::commands::infrastructure::logs::duration::parse_since;
 use crate::shared::CommandOutput;
-use systemprompt_models::text::truncate_with_ellipsis;
 
 #[derive(Debug, Args)]
 pub struct ListArgs {
@@ -70,7 +69,7 @@ async fn execute_with_pool_inner(
             let cost_dollars = r.cost_microdollars as f64 / 1_000_000.0;
 
             RequestListRow {
-                request_id: truncate_with_ellipsis(r.id.as_str(), 12),
+                request_id: r.id.as_str().to_owned(),
                 timestamp: r.created_at.format("%Y-%m-%d %H:%M:%S").to_string(),
                 user_id: r.user_id,
                 actor: format!("{}:{}", r.actor_kind, r.actor_id),

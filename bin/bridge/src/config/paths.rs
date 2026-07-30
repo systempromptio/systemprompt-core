@@ -199,7 +199,8 @@ fn can_create_in(dir: &std::path::Path) -> bool {
     }
 }
 
-// `None` means no Cowork install detected; callers must treat as a no-op, not
+// `None` means Cowork cannot be present — either no install detected, or the
+// platform ships no Cowork build at all. Callers must treat it as a no-op, not
 // an error.
 #[must_use]
 pub fn cowork3p_sessions_root() -> Option<PathBuf> {
@@ -218,9 +219,12 @@ fn cowork3p_base() -> Option<PathBuf> {
     {
         crate::basedirs::home_dir().map(|h| h.join("Library").join("Application Support"))
     }
+    // Cowork ships macOS and Windows builds only. Deriving an XDG-style Linux
+    // location would name a directory no install can ever create, which reads
+    // downstream as "Cowork present but broken" rather than "not applicable".
     #[cfg(not(any(target_os = "windows", target_os = "macos")))]
     {
-        crate::basedirs::home_dir().map(|h| h.join(".config"))
+        None
     }
 }
 

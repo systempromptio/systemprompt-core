@@ -99,6 +99,28 @@ pub fn split_systemd_unit(rendered: &str) -> Option<(String, String)> {
     Some((format!("{service}\n"), format!("{timer}\n")))
 }
 
+/// The systemd user unit that keeps the loopback inference proxy running.
+///
+/// Deliberately separate from [`template`] and [`split_systemd_unit`], whose
+/// contract is one label and one (service, timer) pair — a third section has no
+/// representation there. Linux-only: macOS and Windows run the proxy inside the
+/// GUI process.
+#[must_use]
+pub fn proxy_unit_name() -> String {
+    format!("{}-proxy", brand().binary_name)
+}
+
+#[expect(
+    clippy::literal_string_with_formatting_args,
+    reason = "{binary}/{app} are template placeholders consumed by str::replace, not fmt args"
+)]
+#[must_use]
+pub fn proxy_template(binary: &Path) -> String {
+    SYSTEMD_PROXY_TMPL
+        .replace("{binary}", &binary.display().to_string())
+        .replace("{app}", brand().app_name)
+}
+
 #[must_use]
 pub fn install_hint(os: Os) -> String {
     let brand = brand();
@@ -114,8 +136,9 @@ pub fn install_hint(os: Os) -> String {
         ),
         Os::Linux => format!(
             "Split into ~/.config/systemd/user/{unit}.{{service,timer}}, then: systemctl --user \
-             daemon-reload && systemctl --user enable --now {unit}.timer",
-            unit = brand.schedule_unit
+             daemon-reload && systemctl --user enable --now {unit}.timer {proxy}.service",
+            unit = brand.schedule_unit,
+            proxy = proxy_unit_name()
         ),
     }
 }
@@ -123,3 +146,4 @@ pub fn install_hint(os: Os) -> String {
 const LAUNCHD_PLIST_TMPL: &str = include_str!("templates/launchd.plist.tmpl");
 const TASK_SCHEDULER_XML_TMPL: &str = include_str!("templates/task-scheduler.xml.tmpl");
 const SYSTEMD_UNIT_TMPL: &str = include_str!("templates/systemd.unit.tmpl");
+const SYSTEMD_PROXY_TMPL: &str = include_str!("templates/systemd.proxy.tmpl");

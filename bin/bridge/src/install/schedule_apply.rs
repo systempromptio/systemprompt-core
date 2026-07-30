@@ -21,7 +21,7 @@ pub fn apply_schedule(os: Os, binary: &Path) -> Result<ScheduleApplied, InstallE
         return Err(InstallError::ScheduleOsMismatch);
     }
     let rendered = schedule::template(os, binary);
-    let (path, lines) = register(os, &rendered)?;
+    let (path, lines) = register(os, &rendered, binary)?;
     Ok(ScheduleApplied {
         os,
         label: schedule::schedule_label(os).to_owned(),
@@ -66,7 +66,11 @@ fn gui_domain() -> String {
 }
 
 #[cfg(target_os = "macos")]
-fn register(os: Os, rendered: &str) -> Result<(PathBuf, Vec<String>), InstallError> {
+fn register(
+    os: Os,
+    rendered: &str,
+    _binary: &Path,
+) -> Result<(PathBuf, Vec<String>), InstallError> {
     use std::process::Command;
 
     let label = schedule::schedule_label(os);
@@ -104,7 +108,11 @@ fn register(os: Os, rendered: &str) -> Result<(PathBuf, Vec<String>), InstallErr
 }
 
 #[cfg(target_os = "windows")]
-fn register(os: Os, rendered: &str) -> Result<(PathBuf, Vec<String>), InstallError> {
+fn register(
+    os: Os,
+    rendered: &str,
+    _binary: &Path,
+) -> Result<(PathBuf, Vec<String>), InstallError> {
     use std::process::Command;
 
     let task = schedule::schedule_label(os);
@@ -141,7 +149,7 @@ fn register(os: Os, rendered: &str) -> Result<(PathBuf, Vec<String>), InstallErr
 }
 
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]
-fn register(os: Os, rendered: &str) -> Result<(PathBuf, Vec<String>), InstallError> {
+fn register(os: Os, rendered: &str, binary: &Path) -> Result<(PathBuf, Vec<String>), InstallError> {
     let unit = schedule::schedule_label(os);
     let (service, timer) = schedule::split_systemd_unit(rendered).ok_or_else(|| {
         InstallError::ScheduleApply("systemd template has no .timer section".into())
@@ -152,18 +160,46 @@ fn register(os: Os, rendered: &str) -> Result<(PathBuf, Vec<String>), InstallErr
     write(&service_path, &service)?;
     write(&timer_path, &timer)?;
 
+    let proxy_unit = schedule::proxy_unit_name();
+    let proxy_path = dir.join(format!("{proxy_unit}.service"));
+    write(&proxy_path, &schedule::proxy_template(binary))?;
+
+    let mut lines = vec![
+        format!("wrote: {}", service_path.display()),
+        format!("wrote: {}", timer_path.display()),
+        format!("wrote: {}", proxy_path.display()),
+    ];
+
+    // Writing the units always succeeds; activating them needs a systemd user
+    // bus, which a container or a systemd-less WSL distro does not have. Having
+    // already written the files, failing here would leave the install half-done
+    // for no gain — so warn and report, as the macOS path does for launchctl.
+    if let Err(e) = activate(unit, &proxy_unit) {
+        crate::obs::output::diag(&format!(
+            "warning: units written but not activated: {e}. Activate them yourself with: \
+             systemctl --user daemon-reload && systemctl --user enable --now {unit}.timer \
+             {proxy_unit}.service"
+        ));
+        lines.push(format!("not activated: {e}"));
+        return Ok((timer_path, lines));
+    }
+
+    lines.push(format!(
+        "systemd user timer: {unit}.timer (enabled, every 30m)"
+    ));
+    lines.push(format!(
+        "systemd user service: {proxy_unit}.service (enabled, restarts on failure)"
+    ));
+    Ok((timer_path, lines))
+}
+
+#[cfg(not(any(target_os = "macos", target_os = "windows")))]
+fn activate(unit: &str, proxy_unit: &str) -> Result<(), InstallError> {
     systemctl(&["daemon-reload"])?;
     // `enable --now` is idempotent: it rewrites the same symlink and leaves an
-    // already-running timer running.
+    // already-running unit running.
     systemctl(&["enable", "--now", &format!("{unit}.timer")])?;
-    Ok((
-        timer_path.clone(),
-        vec![
-            format!("wrote: {}", service_path.display()),
-            format!("wrote: {}", timer_path.display()),
-            format!("systemd user timer: {unit}.timer (enabled, every 30m)"),
-        ],
-    ))
+    systemctl(&["enable", "--now", &format!("{proxy_unit}.service")])
 }
 
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]
@@ -232,27 +268,34 @@ fn remove_current() -> ScheduleRemoval {
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]
 fn remove_current() -> ScheduleRemoval {
     let unit = schedule::schedule_label(Os::Linux);
+    let proxy_unit = schedule::proxy_unit_name();
     let Ok(home) = home() else {
         return ScheduleRemoval::Failed("cannot resolve the user's home directory".into());
     };
     let dir = home.join(".config").join("systemd").join("user");
     let timer_path = dir.join(format!("{unit}.timer"));
-    if !timer_path.exists() {
+    let proxy_path = dir.join(format!("{proxy_unit}.service"));
+    if !timer_path.exists() && !proxy_path.exists() {
         return ScheduleRemoval::NotInstalled(unit.to_owned());
     }
     _ = systemctl(&["disable", "--now", &format!("{unit}.timer")]);
-    let removed = fs::remove_file(&timer_path).and_then(|()| {
-        let service = dir.join(format!("{unit}.service"));
-        match fs::remove_file(&service) {
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
-            other => other,
-        }
-    });
+    _ = systemctl(&["disable", "--now", &format!("{proxy_unit}.service")]);
+    let removed = remove_if_present(&timer_path)
+        .and_then(|()| remove_if_present(&dir.join(format!("{unit}.service"))))
+        .and_then(|()| remove_if_present(&proxy_path));
     match removed {
         Ok(()) => {
             _ = systemctl(&["daemon-reload"]);
-            ScheduleRemoval::Removed(unit.to_owned())
+            ScheduleRemoval::Removed(format!("{unit} + {proxy_unit}"))
         },
-        Err(e) => ScheduleRemoval::Failed(format!("remove {}: {e}", timer_path.display())),
+        Err(e) => ScheduleRemoval::Failed(format!("remove under {}: {e}", dir.display())),
+    }
+}
+
+#[cfg(not(any(target_os = "macos", target_os = "windows")))]
+fn remove_if_present(path: &Path) -> std::io::Result<()> {
+    match fs::remove_file(path) {
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        other => other,
     }
 }

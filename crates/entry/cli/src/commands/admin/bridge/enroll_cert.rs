@@ -4,7 +4,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use anyhow::{Result, anyhow};
+use anyhow::Result;
 use clap::Args;
 use systemprompt_identifiers::UserId;
 use systemprompt_users::{DeviceCertService, EnrollDeviceCertServiceParams};
@@ -15,7 +15,7 @@ use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct EnrollCertArgs {
-    #[arg(long, help = "User ID to enroll the cert for")]
+    #[arg(long, help = "User id, email, or name to enroll the cert for")]
     pub user_id: UserId,
 
     #[arg(long, help = "SHA-256 fingerprint of the device certificate (hex)")]
@@ -33,10 +33,7 @@ pub(super) async fn execute(args: EnrollCertArgs, ctx: &CommandContext) -> Resul
     let app = ctx.app_context().await?;
     let service = DeviceCertService::new(app.db_pool())?;
 
-    let user_id = args.user_id;
-    if user_id.as_str().trim().is_empty() {
-        return Err(anyhow!("user_id cannot be empty"));
-    }
+    let user_id = super::resolve_user_id(app.db_pool(), &args.user_id).await?;
 
     let record = service
         .enroll(EnrollDeviceCertServiceParams {

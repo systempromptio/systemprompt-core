@@ -3,6 +3,11 @@
 //! `json`/`yaml` formats emit the [`CliArtifact`] verbatim; `table` renders per
 //! artifact variant for an interactive terminal.
 //!
+//! A [`Column`](systemprompt_models::artifacts::Column) carrying a `width`
+//! elides over-long cells for the terminal only. Shortening a value while
+//! building the row would corrupt `json`/`yaml` too, which is how
+//! `infra logs request list` came to emit ids no other command would accept.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -10,6 +15,8 @@ use systemprompt_logging::CliService;
 use systemprompt_models::artifacts::{
     ChartArtifact, CliArtifact, ListArtifact, PresentationCardArtifact, TableArtifact,
 };
+
+use systemprompt_models::text::truncate_with_ellipsis;
 
 use super::CommandOutput;
 use crate::cli_settings::{CliConfig, OutputFormat};
@@ -90,7 +97,10 @@ fn render_table(artifact: &TableArtifact) {
             artifact
                 .columns
                 .iter()
-                .map(|col| item.get(&col.name).map_or_else(String::new, cell_display))
+                .map(|col| {
+                    item.get(&col.name)
+                        .map_or_else(String::new, |v| cell_display_within(v, col.width))
+                })
                 .collect()
         })
         .collect();
@@ -153,5 +163,13 @@ fn cell_display(value: &serde_json::Value) -> String {
         serde_json::Value::String(s) => s.clone(),
         serde_json::Value::Null => String::new(),
         other => other.to_string(),
+    }
+}
+
+fn cell_display_within(value: &serde_json::Value, width: Option<usize>) -> String {
+    let rendered = cell_display(value);
+    match width {
+        Some(width) => truncate_with_ellipsis(&rendered, width),
+        None => rendered,
     }
 }

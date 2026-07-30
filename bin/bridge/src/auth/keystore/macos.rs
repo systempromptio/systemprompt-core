@@ -3,7 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::{DeviceCert, DeviceCertSource, KeystoreError, sha256_der};
+use super::{CertRef, DeviceCert, DeviceCertSource, KeystoreError, sha256_der};
 use security_framework::item::{ItemClass, ItemSearchOptions, Limit, Reference, SearchResult};
 use std::env;
 
@@ -58,6 +58,8 @@ impl DeviceCertSource for MacOsKeystore {
     }
 }
 
-pub fn platform_source() -> Box<dyn DeviceCertSource> {
+/// `cert_ref` is Linux-only (a certificate path); the Keychain addresses
+/// certificates by label, so it is ignored here.
+pub fn platform_source(_cert_ref: CertRef<'_>) -> Box<dyn DeviceCertSource> {
     Box::new(MacOsKeystore::new())
 }

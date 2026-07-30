@@ -3,7 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use anyhow::{Result, anyhow};
+use anyhow::Result;
 use clap::Args;
 use systemprompt_identifiers::UserId;
 use systemprompt_oauth::services::issue_bridge_exchange_code;
@@ -14,17 +14,14 @@ use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct IssueCodeArgs {
-    #[arg(long, help = "User ID to issue the exchange code for")]
+    #[arg(long, help = "User id, email, or name to issue the exchange code for")]
     pub user_id: UserId,
 }
 
 pub(super) async fn execute(args: IssueCodeArgs, ctx: &CommandContext) -> Result<CommandOutput> {
     let app = ctx.app_context().await?;
 
-    let user_id = args.user_id;
-    if user_id.as_str().trim().is_empty() {
-        return Err(anyhow!("user_id cannot be empty"));
-    }
+    let user_id = super::resolve_user_id(app.db_pool(), &args.user_id).await?;
 
     let issued = issue_bridge_exchange_code(app.db_pool(), &user_id).await?;
 

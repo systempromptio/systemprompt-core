@@ -7,10 +7,10 @@ use std::time::Duration;
 
 use bytes::Bytes;
 use futures::stream;
+use systemprompt_api::services::gateway::policy::{GatewayPolicySpec, QuotaWindow, SafetyConfig};
 use systemprompt_api::services::gateway::protocol::canonical_response::{
     CanonicalEvent, CanonicalStopReason, CanonicalUsage, ContentBlockKind,
 };
-use systemprompt_api::services::gateway::policy::{GatewayPolicySpec, QuotaWindow, SafetyConfig};
 use systemprompt_api::services::gateway::protocol::inbound::InboundAdapter;
 use systemprompt_api::services::gateway::protocol::inbound::anthropic_messages::AnthropicMessagesInbound;
 use systemprompt_api::services::gateway::stream_tap::{TapFinalizeCtx, tap};

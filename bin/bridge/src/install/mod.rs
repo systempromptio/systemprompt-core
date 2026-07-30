@@ -234,7 +234,16 @@ fn remove_managed_profile() -> ManagedProfileOutcome {
     }
 }
 
+/// On Linux the "managed profile" is the env file plus the `~/.profile` block
+/// `install --apply` wrote; removing them is what makes uninstall its inverse.
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]
-const fn remove_managed_profile() -> ManagedProfileOutcome {
-    ManagedProfileOutcome::NotApplicable
+fn remove_managed_profile() -> ManagedProfileOutcome {
+    let lines = mdm::linux::remove();
+    if lines.is_empty() {
+        return ManagedProfileOutcome::NotInstalled("Linux env configuration");
+    }
+    for line in &lines {
+        diag(line);
+    }
+    ManagedProfileOutcome::Removed("Linux env configuration (env.sh + ~/.profile block)")
 }

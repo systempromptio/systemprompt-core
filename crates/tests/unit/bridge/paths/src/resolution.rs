@@ -64,6 +64,16 @@ fn cowork3p_sessions_root_honours_xdg_config_home() {
     });
 }
 
+// Cowork ships no Linux build, so without the override there is no location to
+// name — an invented XDG path would read downstream as a broken install.
+#[cfg(not(any(target_os = "macos", target_os = "windows")))]
+#[test]
+fn cowork3p_sessions_root_is_absent_on_linux_without_the_override() {
+    temp_env::with_vars([("XDG_CONFIG_HOME", None::<&str>)], || {
+        assert!(cowork3p_sessions_root().is_none());
+    });
+}
+
 #[test]
 fn org_plugins_system_is_constant_on_linux() {
     let p = org_plugins_system().expect("system org-plugins is a constant on Linux");

@@ -3,6 +3,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+#[cfg(not(any(target_os = "macos", target_os = "windows")))]
+pub(crate) mod linux;
 #[cfg(target_os = "macos")]
 pub(super) mod macos;
 #[cfg(target_os = "windows")]
@@ -121,9 +123,10 @@ pub(crate) fn apply_mdm(
         Os::Mac => macos::apply(gateway, pubkey),
         #[cfg(not(target_os = "macos"))]
         Os::Mac => Err("--apply on macOS must be run from a macOS binary".into()),
-        Os::Linux => Err("Linux has no Anthropic-documented MDM format; set the \
-                          CLAUDE_INFERENCE_* env vars in your shell profile or systemd-user unit."
-            .into()),
+        #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+        Os::Linux => linux::apply(gateway),
+        #[cfg(any(target_os = "macos", target_os = "windows"))]
+        Os::Linux => Err("--apply on Linux must be run from a Linux binary".into()),
     }
 }
 
@@ -256,15 +259,27 @@ Windows Registry Editor Version 5.00
 "#
             .replace("{workspace}", crate::brand::brand().workspace_dir_name)
         },
-        Os::Linux => format!(
-            r"Anthropic does not document an MDM format for Linux.
-Environment-based configuration (user shell profile or systemd-user Environment=):
+        Os::Linux => {
+            // The secret really lives under the brand's config dir — see
+            // `crate::proxy::secret::secret_path`, which joins
+            // `brand().config_dir`. Hardcoding "systemprompt" here sent
+            // white-label users to a path that does not exist for them.
+            let config_dir = crate::brand::brand().config_dir;
+            let bin = crate::brand::brand().binary_name;
+            format!(
+                r"Anthropic does not document an MDM format for Linux, so `{bin} install --apply`
+writes the equivalent environment instead:
 
-export CLAUDE_INFERENCE_PROVIDER=gateway
-export CLAUDE_INFERENCE_GATEWAY_BASE_URL={gateway}
-export CLAUDE_INFERENCE_GATEWAY_API_KEY=<loopback-secret-from-$XDG_CONFIG_HOME/systemprompt/bridge-loopback.key>
-export CLAUDE_INFERENCE_GATEWAY_AUTH_SCHEME=bearer
+  $XDG_CONFIG_HOME/{config_dir}/env.sh   exports the two variables below
+  ~/.profile                             a managed block sourcing that file
+
+export ANTHROPIC_BASE_URL={gateway}
+export ANTHROPIC_AUTH_TOKEN=$(cat $XDG_CONFIG_HOME/{config_dir}/bridge-loopback.key)
+
+The token is read from the key file at eval time, so a rotated loopback secret
+needs no rewrite. Rerun with --apply to write these directly.
 "
-        ),
+            )
+        },
     }
 }

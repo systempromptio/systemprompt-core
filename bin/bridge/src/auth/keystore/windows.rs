@@ -8,7 +8,7 @@
     reason = "Windows CryptoAPI / NCrypt FFI for machine-key device cert"
 )]
 
-use super::{DeviceCert, DeviceCertSource, KeystoreError, sha256_der};
+use super::{CertRef, DeviceCert, DeviceCertSource, KeystoreError, sha256_der};
 use std::mem::ManuallyDrop;
 use std::{env, ptr};
 use windows_sys::Win32::Security::Cryptography::{
@@ -128,6 +128,8 @@ fn cert_encoded_bytes(ctx: *const CERT_CONTEXT) -> Vec<u8> {
     }
 }
 
-pub fn platform_source() -> Box<dyn DeviceCertSource> {
+/// `cert_ref` is Linux-only (a certificate path); the Windows store addresses
+/// certificates by SHA-256 thumbprint, so it is ignored here.
+pub fn platform_source(_cert_ref: CertRef<'_>) -> Box<dyn DeviceCertSource> {
     Box::new(WindowsKeystore::new())
 }

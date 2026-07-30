@@ -18,30 +18,40 @@ use serde::{Deserialize, Serialize};
 use super::types::{MessageRow, ToolCallRow};
 use crate::context::CommandContext;
 use crate::shared::{CommandOutput, render_result};
+use serde_json::Value as JsonValue;
 use systemprompt_identifiers::UserId;
-use systemprompt_models::artifacts::NoticeLine;
+use systemprompt_models::artifacts::{Column, ColumnType, NoticeLine, TableArtifact};
 
 pub use stats::{RequestStatsOutput, build_request_stats};
 
-const REQUEST_LIST_COLUMNS: [&str; 10] = [
-    "request_id",
-    "timestamp",
-    "user_id",
-    "actor",
-    "provider",
-    "model",
-    "tokens",
-    "cost",
-    "latency_ms",
-    "status",
-];
+const REQUEST_ID_DISPLAY_WIDTH: usize = 12;
+
+fn request_list_columns() -> Vec<Column> {
+    vec![
+        Column::new("request_id", ColumnType::String).with_width(REQUEST_ID_DISPLAY_WIDTH),
+        Column::new("timestamp", ColumnType::String),
+        Column::new("user_id", ColumnType::String),
+        Column::new("actor", ColumnType::String),
+        Column::new("provider", ColumnType::String),
+        Column::new("model", ColumnType::String),
+        Column::new("tokens", ColumnType::String),
+        Column::new("cost", ColumnType::String),
+        Column::new("latency_ms", ColumnType::Number),
+        Column::new("status", ColumnType::String),
+    ]
+}
 
 #[must_use]
 pub fn build_request_list(rows: &[RequestListRow]) -> CommandOutput {
     if rows.is_empty() {
         return CommandOutput::message(vec![NoticeLine::new("info", "No AI requests found")]);
     }
-    CommandOutput::table_of(REQUEST_LIST_COLUMNS.to_vec(), rows).with_title("AI Requests")
+    let items: Vec<JsonValue> = rows
+        .iter()
+        .map(|row| serde_json::to_value(row).unwrap_or(JsonValue::Null))
+        .collect();
+    CommandOutput::table_artifact(TableArtifact::new(request_list_columns()).with_rows(items))
+        .with_title("AI Requests")
 }
 
 #[must_use]

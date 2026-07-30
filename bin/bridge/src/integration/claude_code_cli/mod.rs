@@ -75,13 +75,48 @@ fn io_err(context: impl Into<String>, source: std::io::Error) -> ApplyError {
     }
 }
 
+/// Whether the standalone `claude` CLI is installed on this machine.
+///
+/// `~/.claude` is created by the CLI's *first run*, not by its installation, so
+/// testing for that directory alone reports "absent" on a freshly provisioned
+/// machine where the tool is installed but has never been launched — which is
+/// exactly the state a new user is in when the bridge first syncs. Probing the
+/// binary on `PATH` is what distinguishes genuinely-absent from
+/// installed-but-unused; the directory is still honoured because a user may
+/// have the CLI on a path this process cannot see.
+fn claude_cli_installed() -> bool {
+    if paths::claude_cli_home().is_some_and(|h| h.exists()) {
+        return true;
+    }
+    binary_on_path("claude")
+}
+
+fn binary_on_path(binary: &str) -> bool {
+    let Some(paths) = std::env::var_os("PATH") else {
+        return false;
+    };
+    std::env::split_paths(&paths).any(|dir| {
+        let candidate = dir.join(binary);
+        candidate.is_file() || candidate.with_extension("exe").is_file()
+    })
+}
+
 fn apply_install(ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError> {
-    // `None` (no home) or no `~/.claude` means the standalone CLI isn't present;
-    // treat as a no-op rather than materialising the tree for a missing tool.
     let Some(plugins) = paths::claude_cli_plugins_dir() else {
+        tracing::warn!(
+            target: "bridge::claude-code-cli",
+            "skipped: no home directory could be resolved, so ~/.claude/plugins has no location — \
+             org plugins will NOT appear in `claude plugin list`"
+        );
         return Ok(());
     };
-    if !paths::claude_cli_home().is_some_and(|h| h.exists()) {
+    if !claude_cli_installed() {
+        tracing::info!(
+            target: "bridge::claude-code-cli",
+            probed_path_for = "claude",
+            "skipped: the standalone Claude Code CLI is not installed (no `claude` on PATH and no \
+             ~/.claude); install it and re-run `sync` to receive org plugins"
+        );
         return Ok(());
     }
 
@@ -123,8 +158,18 @@ fn apply_install(ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError> {
 
 fn clear_install() -> Result<(), ApplyError> {
     let Some(plugins) = paths::claude_cli_plugins_dir() else {
+        tracing::warn!(
+            target: "bridge::claude-code-cli",
+            "clear skipped: no home directory could be resolved"
+        );
         return Ok(());
     };
+    // Clear is purely subtractive, so an absent ~/.claude genuinely means there
+    // is nothing to undo. Without this, `set_enabled(&[])` below would create an
+    // empty settings.json on a machine that has no Claude Code at all.
+    if !paths::claude_cli_home().is_some_and(|h| h.exists()) {
+        return Ok(());
+    }
     remove_dir(&plugins.join("cache").join(MARKETPLACE))?;
     remove_dir(&marketplace_dir(&plugins))?;
     strip_installed_plugins(&plugins)?;

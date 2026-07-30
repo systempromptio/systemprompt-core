@@ -1,0 +1,13 @@
+[Unit]
+Description={app} loopback inference proxy
+After=network-online.target
+
+[Service]
+Type=simple
+ExecStart={binary} proxy
+Restart=always
+RestartSec=5
+Nice=0
+
+[Install]
+WantedBy=default.target

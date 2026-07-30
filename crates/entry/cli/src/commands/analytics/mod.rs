@@ -40,8 +40,8 @@ pub enum AnalyticsCommands {
     #[command(subcommand, about = "Tool usage analytics")]
     Tools(tools::ToolsCommands),
 
-    #[command(subcommand, about = "AI request analytics")]
-    Requests(requests::RequestsCommands),
+    #[command(about = "AI request analytics; defaults to the stats aggregate")]
+    Requests(requests::RequestsArgs),
 
     #[command(subcommand, about = "Session analytics")]
     Sessions(sessions::SessionsCommands),
@@ -52,8 +52,8 @@ pub enum AnalyticsCommands {
     #[command(subcommand, about = "Traffic analytics")]
     Traffic(traffic::TrafficCommands),
 
-    #[command(subcommand, about = "Cost analytics")]
-    Costs(costs::CostsCommands),
+    #[command(about = "Cost analytics; defaults to the spend summary")]
+    Costs(costs::CostsArgs),
 }
 
 pub async fn execute(command: AnalyticsCommands, ctx: &CommandContext) -> Result<()> {

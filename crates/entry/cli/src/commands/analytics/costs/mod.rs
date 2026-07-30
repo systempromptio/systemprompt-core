@@ -13,12 +13,25 @@ mod summary;
 mod trends;
 
 use anyhow::Result;
-use clap::Subcommand;
+use clap::{Args, Subcommand};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::context::CommandContext;
 use crate::shared::render_result;
+
+/// `analytics costs` with no subcommand runs the summary, so the bare command
+/// documented alongside its siblings is runnable rather than a usage error.
+/// The summary's own arguments are flattened here, which keeps their clap
+/// defaults the single source of truth.
+#[derive(Debug, Args)]
+pub struct CostsArgs {
+    #[command(subcommand)]
+    pub cmd: Option<CostsCommands>,
+
+    #[command(flatten)]
+    pub summary: summary::SummaryArgs,
+}
 
 #[derive(Debug, Subcommand)]
 pub enum CostsCommands {
@@ -75,9 +88,9 @@ pub struct CostBreakdownOutput {
     pub total_cost_microdollars: i64,
 }
 
-pub async fn execute(command: CostsCommands, ctx: &CommandContext) -> Result<()> {
+pub async fn execute(args: CostsArgs, ctx: &CommandContext) -> Result<()> {
     let db_ctx = ctx.database().await?;
-    match command {
+    match args.cmd.unwrap_or(CostsCommands::Summary(args.summary)) {
         CostsCommands::Summary(args) => {
             let result = summary::execute_with_pool(args, &db_ctx, &ctx.cli).await?;
             render_result(&result, &ctx.cli);

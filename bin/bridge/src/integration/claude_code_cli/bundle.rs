@@ -22,9 +22,51 @@ pub(super) fn mirror_plugin(
         fs::remove_dir_all(dst).map_err(|e| io_err(format!("clear {}", dst.display()), e))?;
     }
     copy_dir_all(src, dst)?;
+    drop_standard_hooks_pointer(dst)?;
     if !mcp_servers.is_empty() {
         write_mcp_json(dst, mcp_servers)?;
     }
+    Ok(())
+}
+
+/// Removes `plugin.json`'s `hooks` field when it names the standard
+/// `hooks/hooks.json`.
+///
+/// The sync writer sets that pointer for Cowork, which needs it explicitly. The
+/// Claude Code CLI instead loads `hooks/hooks.json` automatically and then
+/// rejects the whole plugin — "Duplicate hooks file detected … manifest.hooks
+/// should only reference additional hook files" — so with the pointer left in
+/// place every org plugin installs and then fails to load. Any other value is a
+/// genuine additional hook file and is left alone.
+fn drop_standard_hooks_pointer(dst: &Path) -> Result<(), ApplyError> {
+    const STANDARD: [&str; 2] = ["./hooks/hooks.json", "hooks/hooks.json"];
+    let path = dst.join(".claude-plugin").join("plugin.json");
+    let Ok(text) = fs::read_to_string(&path) else {
+        return Ok(());
+    };
+    let Ok(serde_json::Value::Object(mut manifest)) = serde_json::from_str(&text) else {
+        tracing::warn!(
+            target: "bridge::claude-code-cli",
+            path = %path.display(),
+            "plugin manifest is not a JSON object; leaving its hooks pointer untouched"
+        );
+        return Ok(());
+    };
+    let points_at_standard = manifest
+        .get("hooks")
+        .and_then(serde_json::Value::as_str)
+        .is_some_and(|h| STANDARD.contains(&h));
+    if !points_at_standard {
+        return Ok(());
+    }
+    manifest.remove("hooks");
+    let bytes = serde_json::to_vec_pretty(&serde_json::Value::Object(manifest)).map_err(|e| {
+        ApplyError::Serialize {
+            what: path.display().to_string(),
+            source: e,
+        }
+    })?;
+    fs::write(&path, &bytes).map_err(|e| io_err(format!("write {}", path.display()), e))?;
     Ok(())
 }
 

@@ -70,9 +70,12 @@ ts-rs = { version = "12", optional = true }
 # backend on Linux (we need the blocking dbus one to match our synchronous
 # store/load calls), and its lazy `Entry::new` bootstrap unconditionally overwrites
 # the process default store, which makes the headless keyutils store used by the
-# bridge test suites impossible to install. Distros without a Secret Service
-# provider will fail at runtime; document via tracing::warn at the call site rather
-# than swapping to a file-backed fallback that recreates the bug we are fixing.
+# bridge test suites impossible to install.
+#
+# Hosts without a Secret Service provider (servers, containers, CI) tier down:
+# secret-service -> kernel keyutils -> this process's memory. Never a plaintext
+# file — the client_secret is re-mintable, so disk persistence would add an
+# exfiltration target and buy nothing.
 keyring-core = "1"
 
 [features]
@@ -87,6 +90,9 @@ libc = "0.2"
 # does not acquire an OpenSSL build dependency on Linux.
 [target.'cfg(all(unix, not(target_os = "macos")))'.dependencies]
 dbus-secret-service-keyring-store = { version = "1", features = ["crypto-rust"] }
+# Fallback for headless hosts with no Secret Service provider. Already the store
+# the bridge test suites run against, so every call site is proven against it.
+linux-keyutils-keyring-store = "1"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 apple-native-keyring-store = { version = "1", features = ["keychain"] }

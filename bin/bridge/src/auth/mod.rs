@@ -100,10 +100,23 @@ pub fn has_credential_source(cfg: &config::Config) -> bool {
     {
         return true;
     }
-    false
+    // The device-cert env vars are a credential source in their own right —
+    // `MtlsProvider::new` treats any of them as "configured". Omitting them here
+    // made `doctor` tell a working device-cert user to run `login`, which is the
+    // one thing they must not do.
+    device_cert_env_configured()
 }
 
-fn expand_home(path: &str) -> String {
+fn device_cert_env_configured() -> bool {
+    ["DEVICE_CERT", "DEVICE_CERT_LABEL", "DEVICE_CERT_SHA256"]
+        .iter()
+        .any(|suffix| {
+            std::env::var(crate::brand::brand().env(suffix))
+                .is_ok_and(|value| !value.trim().is_empty())
+        })
+}
+
+pub(crate) fn expand_home(path: &str) -> String {
     if let Some(rest) = path.strip_prefix("~/")
         && let Some(home) = crate::basedirs::home_dir()
     {

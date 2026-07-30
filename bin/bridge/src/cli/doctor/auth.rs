@@ -213,6 +213,28 @@ pub fn check_pinned_pubkey() -> Check {
     }
 }
 
+/// Reports which credential backend the hook-token path resolved to.
+///
+/// Worth its own line because a headless host silently tiering down to
+/// process memory explains, on its own, why `hook token mint` below reports no
+/// provisioned client in this process.
+pub fn check_credential_store() -> Check {
+    match plugin_oauth::credential_backend() {
+        plugin_oauth::SecretBackend::Keyring => Check::ok(
+            "credential store",
+            "OS credential store available for the OAuth client secret",
+        ),
+        plugin_oauth::SecretBackend::Memory => Check::warn(
+            "credential store",
+            "no OS credential store (no Secret Service provider, and the kernel keyutils keyring \
+             is unavailable — Docker's default seccomp profile denies it). The OAuth client \
+             secret is held in the proxy's memory and re-provisioned on restart, so hooks work \
+             but nothing persists. Install gnome-keyring, or run with \
+             `--security-opt seccomp=unconfined`.",
+        ),
+    }
+}
+
 // Surfaces hook-token mint errors that otherwise fail silently as a
 // host_failures row in `sync` PARTIAL output.
 pub async fn check_hook_token_mint(gateway: &GatewayClient) -> Check {
@@ -221,7 +243,9 @@ pub async fn check_hook_token_mint(gateway: &GatewayClient) -> Check {
         Ok(None) => {
             return Check::warn(
                 "hook token mint",
-                "no bridge OAuth client provisioned yet — runs on first sync after login",
+                "no bridge OAuth client provisioned yet — provisioning is lazy, on the first \
+                 plugin hook request, not during sync. On the in-memory credential backend a \
+                 separate process legitimately sees none; check `credential store` above.",
             );
         },
         Err(e) => {

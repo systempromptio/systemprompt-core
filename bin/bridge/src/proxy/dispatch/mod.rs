@@ -95,7 +95,7 @@ pub(super) async fn forward_to_gateway(
                 crate::activity::activity_log()
                     .append(format!("proxy: {method} {path} → error: {e} [{req_id}]"));
             }
-            Ok(simple_response(StatusCode::BAD_GATEWAY, "bad gateway\n"))
+            Ok(owned_response(e.status(), e.client_detail()))
         },
     }
 }
@@ -113,6 +113,24 @@ pub(super) fn record_stats(stats: &ProxyStats, status: u16, latency_ms: u64) {
 
 pub(super) fn simple_response(status: StatusCode, body: &'static str) -> Response<ProxyBody> {
     let full = Full::new(Bytes::from_static(body.as_bytes()))
+        .map_err(|never| match never {})
+        .boxed();
+    let mut resp = Response::new(full);
+    *resp.status_mut() = status;
+    resp.headers_mut().insert(
+        http::header::CONTENT_TYPE,
+        http::HeaderValue::from_static("text/plain"),
+    );
+    resp.headers_mut().insert(
+        http::header::CONNECTION,
+        http::HeaderValue::from_static("close"),
+    );
+    resp
+}
+
+/// As [`simple_response`], for a body computed at runtime.
+pub(super) fn owned_response(status: StatusCode, body: String) -> Response<ProxyBody> {
+    let full = Full::new(Bytes::from(body))
         .map_err(|never| match never {})
         .boxed();
     let mut resp = Response::new(full);

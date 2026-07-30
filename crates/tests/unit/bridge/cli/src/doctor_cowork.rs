@@ -78,10 +78,30 @@ fn status(check: &Check) -> Status {
     check.status
 }
 
+fn present(check: Option<Check>) -> Check {
+    check.expect("check is emitted when a Cowork host is resolvable")
+}
+
+#[cfg(not(any(target_os = "macos", target_os = "windows")))]
+#[test]
+fn every_cowork_check_withdraws_on_a_platform_with_no_cowork_build() {
+    let home = TempDir::new().expect("home");
+    let vars: Vec<(&str, Option<String>)> = vec![
+        ("HOME", Some(home.path().display().to_string())),
+        ("XDG_CONFIG_HOME", None),
+        ("SP_BRIDGE_CONFIG", None),
+    ];
+    temp_env::with_vars(vars, || {
+        assert!(check_cowork_enable().is_none());
+        assert!(check_plugin_installation_preference().is_none());
+        assert!(check_personal_session_sentinel().is_none());
+    });
+}
+
 #[test]
 fn cowork_enable_warns_when_no_session_exists() {
     let env = Env::new();
-    let check = env.run(check_cowork_enable);
+    let check = present(env.run(check_cowork_enable));
     assert_eq!(status(&check), Status::Warn);
     assert!(
         check.detail.contains("no active Cowork session"),
@@ -94,7 +114,7 @@ fn cowork_enable_warns_when_no_session_exists() {
 fn cowork_enable_warns_when_no_plugins_are_synced() {
     let env = Env::new();
     env.session_org("account-1", "org-1");
-    let check = env.run(check_cowork_enable);
+    let check = present(env.run(check_cowork_enable));
     assert_eq!(status(&check), Status::Warn);
     assert!(
         check.detail.contains("no synced plugin dirs"),
@@ -108,7 +128,7 @@ fn cowork_enable_warns_when_the_settings_file_is_not_written_yet() {
     let env = Env::new();
     env.session_org("account-1", "org-1");
     env.plugin("acme-plugin", None);
-    let check = env.run(check_cowork_enable);
+    let check = present(env.run(check_cowork_enable));
     assert_eq!(status(&check), Status::Warn);
     assert!(
         check.detail.contains("cowork_settings.json"),
@@ -123,7 +143,7 @@ fn cowork_enable_fails_when_a_synced_plugin_is_not_enabled() {
     let org = env.session_org("account-1", "org-1");
     env.plugin("acme-plugin", None);
     std::fs::write(org.join("cowork_settings.json"), r#"{"enabledPlugins":{}}"#).expect("settings");
-    let check = env.run(check_cowork_enable);
+    let check = present(env.run(check_cowork_enable));
     assert_eq!(status(&check), Status::Fail);
     assert!(
         check.detail.contains("acme-plugin@org-provisioned"),
@@ -142,7 +162,7 @@ fn cowork_enable_passes_when_every_synced_plugin_is_enabled() {
         r#"{"enabledPlugins":{"acme-plugin@org-provisioned":true}}"#,
     )
     .expect("settings");
-    let check = env.run(check_cowork_enable);
+    let check = present(env.run(check_cowork_enable));
     assert_eq!(status(&check), Status::Ok);
     assert!(
         check.detail.contains("1 plugin(s) enabled"),
@@ -155,7 +175,7 @@ fn cowork_enable_passes_when_every_synced_plugin_is_enabled() {
 fn installation_preference_warns_when_nothing_is_synced() {
     let env = Env::new();
     std::fs::create_dir_all(env.org_plugins()).expect("org plugins root");
-    let check = env.run(check_plugin_installation_preference);
+    let check = present(env.run(check_plugin_installation_preference));
     assert_eq!(status(&check), Status::Warn);
     assert!(
         check.detail.contains("no synced plugin dirs"),
@@ -168,7 +188,7 @@ fn installation_preference_warns_when_nothing_is_synced() {
 fn installation_preference_fails_when_the_manifest_is_missing() {
     let env = Env::new();
     env.plugin("acme-plugin", None);
-    let check = env.run(check_plugin_installation_preference);
+    let check = present(env.run(check_plugin_installation_preference));
     assert_eq!(status(&check), Status::Fail);
     assert!(check.detail.contains("not present"), "{}", check.detail);
 }
@@ -177,7 +197,7 @@ fn installation_preference_fails_when_the_manifest_is_missing() {
 fn installation_preference_fails_on_invalid_manifest_json() {
     let env = Env::new();
     env.plugin("acme-plugin", Some("{not json"));
-    let check = env.run(check_plugin_installation_preference);
+    let check = present(env.run(check_plugin_installation_preference));
     assert_eq!(status(&check), Status::Fail);
     assert!(check.detail.contains("invalid JSON"), "{}", check.detail);
 }
@@ -189,7 +209,7 @@ fn installation_preference_fails_on_available_and_on_an_unknown_value() {
         "acme-plugin",
         Some(r#"{"installationPreference":"available"}"#),
     );
-    let check = available.run(check_plugin_installation_preference);
+    let check = present(available.run(check_plugin_installation_preference));
     assert_eq!(status(&check), Status::Fail);
     assert!(
         check.detail.contains("Contact an organization owner"),
@@ -199,7 +219,7 @@ fn installation_preference_fails_on_available_and_on_an_unknown_value() {
 
     let unknown = Env::new();
     unknown.plugin("acme-plugin", Some(r#"{"installationPreference":"maybe"}"#));
-    let check = unknown.run(check_plugin_installation_preference);
+    let check = present(unknown.run(check_plugin_installation_preference));
     assert_eq!(status(&check), Status::Fail);
     assert!(check.detail.contains("is not one of"), "{}", check.detail);
 }
@@ -208,7 +228,7 @@ fn installation_preference_fails_on_available_and_on_an_unknown_value() {
 fn installation_preference_fails_when_the_key_is_absent() {
     let env = Env::new();
     env.plugin("acme-plugin", Some(r#"{"name":"acme-plugin"}"#));
-    let check = env.run(check_plugin_installation_preference);
+    let check = present(env.run(check_plugin_installation_preference));
     assert_eq!(status(&check), Status::Fail);
     assert!(
         check.detail.contains("installationPreference is missing"),
@@ -225,7 +245,7 @@ fn installation_preference_passes_for_required_and_auto_install() {
             "acme-plugin",
             Some(&format!(r#"{{"installationPreference":"{value}"}}"#)),
         );
-        let check = env.run(check_plugin_installation_preference);
+        let check = present(env.run(check_plugin_installation_preference));
         assert_eq!(status(&check), Status::Ok, "{value}: {}", check.detail);
     }
 }
@@ -233,7 +253,7 @@ fn installation_preference_passes_for_required_and_auto_install() {
 #[test]
 fn the_personal_session_sentinel_warns_before_cowork_has_ever_run() {
     let env = Env::new();
-    let check = env.run(check_personal_session_sentinel);
+    let check = present(env.run(check_personal_session_sentinel));
     assert_eq!(status(&check), Status::Warn);
     assert!(check.detail.contains("not present"), "{}", check.detail);
 }
@@ -242,7 +262,7 @@ fn the_personal_session_sentinel_warns_before_cowork_has_ever_run() {
 fn the_personal_session_sentinel_warns_on_an_empty_sessions_root() {
     let env = Env::new();
     std::fs::create_dir_all(env.sessions_root()).expect("sessions root");
-    let check = env.run(check_personal_session_sentinel);
+    let check = present(env.run(check_personal_session_sentinel));
     assert_eq!(status(&check), Status::Warn);
     assert!(
         check.detail.contains("no org session dirs"),
@@ -255,7 +275,7 @@ fn the_personal_session_sentinel_warns_on_an_empty_sessions_root() {
 fn the_personal_session_sentinel_fails_when_no_org_matches_the_constant() {
     let env = Env::new();
     env.session_org("account-1", "11111111-2222-4333-8444-555555555555");
-    let check = env.run(check_personal_session_sentinel);
+    let check = present(env.run(check_personal_session_sentinel));
     assert_eq!(status(&check), Status::Fail);
     assert!(
         check.detail.contains(PERSONAL_SESSION_UUID),
@@ -268,7 +288,7 @@ fn the_personal_session_sentinel_fails_when_no_org_matches_the_constant() {
 fn the_personal_session_sentinel_passes_when_the_constant_is_present() {
     let env = Env::new();
     env.session_org("account-1", PERSONAL_SESSION_UUID);
-    let check = env.run(check_personal_session_sentinel);
+    let check = present(env.run(check_personal_session_sentinel));
     assert_eq!(status(&check), Status::Ok);
     assert!(
         check.detail.contains("bridge resolver matches"),

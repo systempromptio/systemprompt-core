@@ -14,23 +14,23 @@ use systemprompt_identifiers::{SessionId, ValidatedUrl};
 #[derive(Debug)]
 pub struct MtlsProvider {
     base_url: ValidatedUrl,
-    configured: bool,
+    /// `mtls.cert_keystore_ref` verbatim. On Linux this is the device
+    /// certificate's path; elsewhere its presence alone means "mTLS is
+    /// configured".
+    cert_ref: Option<String>,
+    env_configured: bool,
 }
 
 impl MtlsProvider {
     #[must_use]
     pub fn new(config: &Config) -> Self {
-        let configured = config
-            .mtls
-            .as_ref()
-            .and_then(|m| m.cert_keystore_ref.as_ref())
-            .is_some()
-            || std::env::var(crate::brand::brand().env("DEVICE_CERT")).is_ok()
+        let env_configured = std::env::var(crate::brand::brand().env("DEVICE_CERT")).is_ok()
             || std::env::var(crate::brand::brand().env("DEVICE_CERT_LABEL")).is_ok()
             || std::env::var(crate::brand::brand().env("DEVICE_CERT_SHA256")).is_ok();
         Self {
             base_url: crate::config::gateway_url_or_default(config),
-            configured,
+            cert_ref: config.cert_keystore_ref().map(|r| r.as_str().to_owned()),
+            env_configured,
         }
     }
 }
@@ -42,11 +42,11 @@ impl AuthProvider for MtlsProvider {
     }
 
     async fn authenticate(&self, session_id: &SessionId) -> Result<HelperOutput, AuthError> {
-        if !self.configured {
+        if !self.env_configured && self.cert_ref.is_none() {
             return Err(AuthError::NotConfigured);
         }
 
-        let cert = keystore::platform_source()
+        let cert = keystore::platform_source(self.cert_ref.as_deref())
             .load()
             .map_err(|e| AuthError::Failed {
                 provider: "mtls",

@@ -10,7 +10,7 @@ use crate::gateway::{BridgeOAuthClientResponse, GatewayClient, GatewayError, Hoo
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::Mutex;
+use std::sync::{LazyLock, Mutex, OnceLock};
 use std::time::{SystemTime, UNIX_EPOCH};
 use std::{fs, io};
 use systemprompt_identifiers::{ClientId, PluginId};
@@ -80,59 +80,200 @@ pub fn creds_path() -> Option<PathBuf> {
     )
 }
 
-/// Installs the platform credential store, but only if the process has none.
+/// Which backend `write_secret`/`read_secret`/`delete_secret` are using.
+///
+/// Resolved exactly once, because `keyring_core`'s default store is process
+/// global and set-once.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SecretBackend {
+    Keyring,
+    Memory,
+}
+
+impl SecretBackend {
+    const fn as_str(self) -> &'static str {
+        match self {
+            Self::Keyring => "keyring",
+            Self::Memory => "memory",
+        }
+    }
+}
+
+static BACKEND: OnceLock<SecretBackend> = OnceLock::new();
+static MEMORY_SECRETS: LazyLock<Mutex<HashMap<String, String>>> =
+    LazyLock::new(|| Mutex::new(HashMap::new()));
+
+/// The backend in use, for `doctor` to report. Resolves the store on first
+/// call.
+pub fn credential_backend() -> SecretBackend {
+    resolve_backend()
+}
+
+fn resolve_backend() -> SecretBackend {
+    if let Some(known) = BACKEND.get() {
+        return *known;
+    }
+    let backend = match install_store() {
+        Ok(()) => SecretBackend::Keyring,
+        Err(e) => {
+            tracing::warn!(
+                target: "bridge::auth::keystore",
+                error = %e,
+                "no OS credential store available; holding the OAuth client secret in memory for \
+                 this process only. It is re-provisioned from the gateway on restart, so hooks \
+                 keep working, but a second process (e.g. `doctor`) will report no client. \
+                 Install a Secret Service provider (gnome-keyring), or allow kernel keyrings \
+                 (docker: --security-opt seccomp=unconfined), to make it persistent."
+            );
+            SecretBackend::Memory
+        },
+    };
+    *BACKEND.get_or_init(|| backend)
+}
+
+/// Installs a platform credential store, but only if the process has none.
 ///
 /// The guard is what lets the bridge test suites pre-install a headless
 /// keyutils store: an unconditional registration would clobber it on the first
 /// entry.
-fn ensure_credential_store() -> Result<(), PluginOAuthError> {
+fn install_store() -> Result<(), PluginOAuthError> {
     if keyring_core::get_default_store().is_some() {
         return Ok(());
     }
     #[cfg(target_os = "macos")]
-    let store = apple_native_keyring_store::keychain::Store::new();
+    let store = apple_native_keyring_store::keychain::Store::new()
+        .map_err(|e| PluginOAuthError::Keyring(e.to_string()));
     #[cfg(target_os = "windows")]
-    let store = windows_native_keyring_store::Store::new();
+    let store = windows_native_keyring_store::Store::new()
+        .map_err(|e| PluginOAuthError::Keyring(e.to_string()));
     #[cfg(all(unix, not(target_os = "macos")))]
-    let store = dbus_secret_service_keyring_store::Store::new();
+    let store = linux_store();
 
-    match store {
-        Ok(store) => {
-            keyring_core::set_default_store(store);
-            Ok(())
-        },
-        Err(e) => Err(PluginOAuthError::Keyring(e.to_string())),
+    let store = store?;
+    keyring_core::set_default_store(store);
+    Ok(())
+}
+
+/// Secret Service first, then the kernel keyutils keyring.
+///
+/// A headless Linux box — a server, a container, CI — has no Secret Service
+/// provider, so the D-Bus store fails to construct even when a session bus is
+/// present. Without a fallback the first plugin hook request dies at the token
+/// mint and the client only sees a bare 502. Keyutils keeps the secret in the
+/// kernel keyring instead: not persistent across a reboot, which is acceptable
+/// because the secret is re-mintable and losing it costs one re-provision.
+///
+/// Construction is not proof of usability: Docker's default seccomp profile
+/// denies `add_key`/`keyctl`, so the store builds and then fails `EPERM` on the
+/// first write. A round-trip probe is what keeps that from becoming the same
+/// 502 in a new place.
+#[cfg(all(unix, not(target_os = "macos")))]
+fn linux_store() -> Result<std::sync::Arc<keyring_core::CredentialStore>, PluginOAuthError> {
+    let dbus_err = match dbus_secret_service_keyring_store::Store::new() {
+        Ok(store) => return Ok(store),
+        Err(e) => e.to_string(),
+    };
+    let store: std::sync::Arc<keyring_core::CredentialStore> =
+        linux_keyutils_keyring_store::Store::new().map_err(|e| {
+            PluginOAuthError::Keyring(format!(
+                "no usable credential store: secret-service ({dbus_err}), keyutils ({e})"
+            ))
+        })?;
+    probe_store(&store).map_err(|e| {
+        PluginOAuthError::Keyring(format!(
+            "no usable credential store: secret-service ({dbus_err}), \
+             keyutils built but is unusable ({e})"
+        ))
+    })?;
+    tracing::warn!(
+        target: "bridge::auth::keystore",
+        secret_service_error = %dbus_err,
+        "no Secret Service provider on this host (headless Linux?); using the kernel keyutils \
+         keyring. The OAuth client secret will not survive a reboot and is re-provisioned \
+         automatically."
+    );
+    Ok(store)
+}
+
+/// Write/read/delete a throwaway entry to prove the store actually works.
+#[cfg(all(unix, not(target_os = "macos")))]
+fn probe_store(store: &std::sync::Arc<keyring_core::CredentialStore>) -> Result<(), String> {
+    let service = format!("{}-probe", crate::brand::brand().keyring_service);
+    let entry = store
+        .build(&service, "probe", None)
+        .map_err(|e| format!("build probe entry: {e}"))?;
+    entry
+        .set_password("probe")
+        .map_err(|e| format!("probe write: {e}"))?;
+    entry
+        .get_password()
+        .map_err(|e| format!("probe read: {e}"))?;
+    if let Err(e) = entry.delete_credential() {
+        tracing::debug!(
+            target: "bridge::auth::keystore",
+            error = %e,
+            "credential-store probe entry could not be removed; it is overwritten on each probe"
+        );
     }
+    Ok(())
 }
 
 fn keyring_entry(client_id: &ClientId) -> Result<keyring_core::Entry, PluginOAuthError> {
-    ensure_credential_store()?;
     keyring_core::Entry::new(crate::brand::brand().keyring_service, client_id.as_str())
         .map_err(|e| PluginOAuthError::Keyring(e.to_string()))
 }
 
 fn write_secret(client_id: &ClientId, secret: &str) -> Result<(), PluginOAuthError> {
-    keyring_entry(client_id)?
-        .set_password(secret)
-        .map_err(|e| PluginOAuthError::Keyring(e.to_string()))
+    match resolve_backend() {
+        SecretBackend::Keyring => keyring_entry(client_id)?
+            .set_password(secret)
+            .map_err(|e| PluginOAuthError::Keyring(e.to_string())),
+        SecretBackend::Memory => {
+            memory_secrets()?.insert(client_id.as_str().to_owned(), secret.to_owned());
+            Ok(())
+        },
+    }
 }
 
 fn read_secret(client_id: &ClientId) -> Result<Option<String>, PluginOAuthError> {
-    match keyring_entry(client_id)?.get_password() {
-        Ok(s) => Ok(Some(s)),
-        Err(keyring_core::Error::NoEntry) => Ok(None),
-        Err(e) => Err(PluginOAuthError::Keyring(e.to_string())),
+    match resolve_backend() {
+        SecretBackend::Keyring => match keyring_entry(client_id)?.get_password() {
+            Ok(s) => Ok(Some(s)),
+            Err(keyring_core::Error::NoEntry) => Ok(None),
+            Err(e) => Err(PluginOAuthError::Keyring(e.to_string())),
+        },
+        SecretBackend::Memory => Ok(memory_secrets()?.get(client_id.as_str()).cloned()),
     }
 }
 
 fn delete_secret(client_id: &ClientId) {
-    match keyring_entry(client_id).and_then(|e| match e.delete_credential() {
-        Ok(()) | Err(keyring_core::Error::NoEntry) => Ok(()),
-        Err(e) => Err(PluginOAuthError::Keyring(e.to_string())),
-    }) {
-        Ok(()) => {},
-        Err(e) => tracing::warn!(error = %e, "keyring delete failed"),
+    let outcome = match resolve_backend() {
+        SecretBackend::Keyring => {
+            keyring_entry(client_id).and_then(|e| match e.delete_credential() {
+                Ok(()) | Err(keyring_core::Error::NoEntry) => Ok(()),
+                Err(e) => Err(PluginOAuthError::Keyring(e.to_string())),
+            })
+        },
+        SecretBackend::Memory => memory_secrets().map(|mut m| {
+            m.remove(client_id.as_str());
+        }),
+    };
+    if let Err(e) = outcome {
+        tracing::warn!(
+            target: "bridge::auth::keystore",
+            backend = resolve_backend().as_str(),
+            error = %e,
+            "could not delete the stored OAuth client secret; it will be overwritten on the next \
+             provision"
+        );
     }
+}
+
+fn memory_secrets()
+-> Result<std::sync::MutexGuard<'static, HashMap<String, String>>, PluginOAuthError> {
+    MEMORY_SECRETS.lock().map_err(|_poisoned| {
+        PluginOAuthError::Keyring("in-memory secret store lock was poisoned".to_owned())
+    })
 }
 
 pub fn store_creds(creds: &OAuthClientCreds) -> Result<(), PluginOAuthError> {
@@ -288,9 +429,54 @@ async fn mint(
     c: &OAuthClientCreds,
     plugin_id: &PluginId,
 ) -> Result<HookTokenResponse, GatewayError> {
+    let endpoint = gateway_aligned_endpoint(&c.token_endpoint);
     gateway
-        .mint_plugin_hook_token(&c.token_endpoint, &c.client_id, &c.client_secret, plugin_id)
+        .mint_plugin_hook_token(&endpoint, &c.client_id, &c.client_secret, plugin_id)
         .await
+}
+
+/// Re-points a loopback `token_endpoint` at the configured gateway host.
+///
+/// The gateway advertises its own absolute token endpoint, which is
+/// `http://localhost:8080/...` whenever it is itself reached over loopback. A
+/// client on another host — a container, another machine — cannot resolve that
+/// to the gateway, so the hook-token mint fails with a bare connection error
+/// and every plugin hook 503s. Mirrors `sync::apply::rewrite_loopback_urls`,
+/// which solves the identical problem for managed MCP server URLs.
+fn gateway_aligned_endpoint(raw: &str) -> String {
+    let cfg = crate::config::load();
+    let Some(gateway) = cfg.gateway_url.as_ref() else {
+        return raw.to_owned();
+    };
+    let (Ok(mut parsed), Ok(gw)) = (url::Url::parse(raw), url::Url::parse(gateway.as_str())) else {
+        return raw.to_owned();
+    };
+    let is_loopback = match parsed.host() {
+        Some(url::Host::Domain(d)) => d.eq_ignore_ascii_case("localhost"),
+        Some(url::Host::Ipv4(a)) => a.is_loopback(),
+        Some(url::Host::Ipv6(a)) => a.is_loopback(),
+        None => false,
+    };
+    if !is_loopback {
+        return raw.to_owned();
+    }
+    let Some(gw_host) = gw.host_str() else {
+        return raw.to_owned();
+    };
+    if parsed.set_scheme(gw.scheme()).is_err()
+        || parsed.set_host(Some(gw_host)).is_err()
+        || parsed.set_port(gw.port()).is_err()
+    {
+        return raw.to_owned();
+    }
+    let rebuilt = parsed.to_string();
+    tracing::info!(
+        target: "bridge::auth::plugin-oauth",
+        original = %raw,
+        rewritten = %rebuilt,
+        "gateway advertised a loopback hook-token endpoint; re-pointed it at the configured gateway"
+    );
+    rebuilt
 }
 
 pub async fn mint_or_refresh_plugin_token(

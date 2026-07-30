@@ -14,7 +14,6 @@ use systemprompt_logging::{CliService, LogEntry, TraceQueryService};
 
 use crate::CliConfig;
 use crate::shared::{CommandOutput, render_result};
-use systemprompt_models::text::truncate_with_ellipsis;
 
 #[derive(Debug, Args)]
 pub struct ShowArgs {
@@ -146,7 +145,7 @@ fn display_single_log(log: &LogEntry, config: &CliConfig, json: bool) {
     CliService::info("");
     CliService::info(&format!(
         "Tip: Use 'logs trace show {}' for full execution trace",
-        truncate_with_ellipsis(output.trace_id.as_str(), 12)
+        output.trace_id
     ));
 }
 
@@ -173,10 +172,7 @@ fn display_trace_logs(logs: &[LogEntry], config: &CliConfig, json: bool) {
         return;
     }
 
-    CliService::section(&format!(
-        "Logs for Trace: {}",
-        truncate_with_ellipsis(trace_id.as_str(), 12)
-    ));
+    CliService::section(&format!("Logs for Trace: {trace_id}"));
     CliService::info(&format!("Found {} log entries", logs.len()));
     CliService::info("");
 
@@ -198,6 +194,6 @@ fn display_trace_logs(logs: &[LogEntry], config: &CliConfig, json: bool) {
     CliService::info("");
     CliService::info(&format!(
         "Tip: Use 'logs trace show {}' for full trace with AI/MCP details",
-        truncate_with_ellipsis(trace_id.as_str(), 12)
+        trace_id
     ));
 }

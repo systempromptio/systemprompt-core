@@ -13,10 +13,14 @@ use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct DeleteArgs {
-    #[arg(value_name = "USER_ID")]
+    #[arg(value_name = "USER_ID", help = "User id, email, or name")]
     pub user: String,
 
-    #[arg(short = 'y', long)]
+    #[arg(
+        short = 'y',
+        long,
+        help = "Confirm permanent deletion of the user and all their data"
+    )]
     pub yes: bool,
 }
 
@@ -25,16 +29,18 @@ pub(super) async fn execute(args: DeleteArgs, ctx: &CommandContext) -> Result<Co
     let user_service = UserService::new(&pool)?;
     let admin_service = UserAdminService::new(user_service.clone());
 
-    if !args.yes {
-        return Err(anyhow!(
-            "This will permanently delete the user. Use --yes to confirm."
-        ));
-    }
-
     let existing = admin_service.find_user(&args.user).await?;
     let Some(user) = existing else {
         return Err(anyhow!("User not found: {}", args.user));
     };
+
+    if !args.yes {
+        return Err(anyhow!(
+            "This will permanently delete user '{}' ({}). Use --yes to confirm.",
+            user.name,
+            user.id
+        ));
+    }
 
     user_service.delete(&user.id).await?;
 

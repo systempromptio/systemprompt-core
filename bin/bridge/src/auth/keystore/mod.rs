@@ -30,6 +30,13 @@ pub trait DeviceCertSource {
     fn load(&self) -> Result<DeviceCert, KeystoreError>;
 }
 
+/// The configured `mtls.cert_keystore_ref`, if any.
+///
+/// Only the Linux source reads it, where it names a path to the device
+/// certificate; the macOS Keychain and Windows certificate-store sources
+/// address certificates by label and thumbprint respectively and ignore it.
+pub type CertRef<'a> = Option<&'a str>;
+
 pub fn sha256_der(der: &[u8]) -> Result<CertFingerprint, KeystoreError> {
     let digest = Sha256::digest(der);
     let mut out = String::with_capacity(64);

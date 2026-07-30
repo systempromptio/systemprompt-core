@@ -14,12 +14,25 @@ mod stats;
 mod trends;
 
 use anyhow::Result;
-use clap::Subcommand;
+use clap::{Args, Subcommand};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::context::CommandContext;
 use crate::shared::render_result;
+
+/// `analytics requests` with no subcommand runs the stats aggregate, so the
+/// bare command documented alongside its siblings is runnable rather than a
+/// usage error. The stats arguments are flattened here, which keeps their clap
+/// defaults the single source of truth.
+#[derive(Debug, Args)]
+pub struct RequestsArgs {
+    #[command(subcommand)]
+    pub cmd: Option<RequestsCommands>,
+
+    #[command(flatten)]
+    pub stats: stats::StatsArgs,
+}
 
 #[derive(Debug, Subcommand)]
 pub enum RequestsCommands {
@@ -86,9 +99,9 @@ pub struct ModelsOutput {
     pub total_requests: i64,
 }
 
-pub async fn execute(command: RequestsCommands, ctx: &CommandContext) -> Result<()> {
+pub async fn execute(args: RequestsArgs, ctx: &CommandContext) -> Result<()> {
     let db_ctx = ctx.database().await?;
-    match command {
+    match args.cmd.unwrap_or(RequestsCommands::Stats(args.stats)) {
         RequestsCommands::Stats(args) => {
             let result = stats::execute_with_pool(args, &db_ctx, &ctx.cli).await?;
             render_result(&result, &ctx.cli);

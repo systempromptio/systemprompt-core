@@ -104,6 +104,37 @@ const TABLE: &[(&[&str], &str, &str)] = &[
         "application/vnd.openxmlformats-officedocument.presentationml.presentation",
         "application/vnd.openxmlformats-officedocument.presentationml.presentation",
     ),
+    // Distributable artifacts: a deployment serves its own client downloads
+    // (desktop bridge tarballs and installers) as ordinary static files. Absent
+    // these, the static handler's fallback labelled an archive
+    // `text/plain; charset=utf-8`, so a browser rendered it as mojibake instead
+    // of saving it.
+    (&["gz", "tgz"], "application/gzip", "application/gzip"),
+    (&["tar"], "application/x-tar", "application/x-tar"),
+    (&["zip"], "application/zip", "application/zip"),
+    (&["bz2"], "application/x-bzip2", "application/x-bzip2"),
+    (&["xz"], "application/x-xz", "application/x-xz"),
+    (&["zst"], "application/zstd", "application/zstd"),
+    (&["exe", "msi"], OCTET_STREAM, OCTET_STREAM),
+    (
+        &["dmg"],
+        "application/x-apple-diskimage",
+        "application/x-apple-diskimage",
+    ),
+    (
+        &["deb"],
+        "application/vnd.debian.binary-package",
+        "application/vnd.debian.binary-package",
+    ),
+    (&["rpm"], "application/x-rpm", "application/x-rpm"),
+    (&["appimage"], OCTET_STREAM, OCTET_STREAM),
+    // Checksum and signature sidecars are meant to be read in the browser.
+    (
+        &["sha256", "sha512", "asc"],
+        "text/plain",
+        "text/plain; charset=utf-8",
+    ),
+    (&["sig"], OCTET_STREAM, OCTET_STREAM),
 ];
 
 /// Types that name the same format as a [`TABLE`] essence, accepted on input

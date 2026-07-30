@@ -11,6 +11,7 @@ use crate::{config, obs};
 pub mod auth;
 pub mod cowork;
 pub mod filesystem;
+pub mod proxy;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Status {
@@ -77,15 +78,20 @@ pub async fn run_checks() -> (Vec<Check>, bool) {
     let client = auth::check_gateway_reachable(&cfg, &mut checks).await;
     auth::check_whoami(&client, bearer.as_ref(), &mut checks).await;
     checks.push(auth::check_loopback_secret());
+    checks.push(proxy::check_proxy_listening());
+    if let Some(check) = proxy::check_proxy_service() {
+        checks.push(check);
+    }
     if let Some(check) = auth::check_host_profile_secrets() {
         checks.push(check);
     }
     checks.push(auth::check_pinned_pubkey());
-    checks.push(cowork::check_cowork_enable());
-    checks.push(cowork::check_plugin_installation_preference());
-    checks.push(cowork::check_personal_session_sentinel());
+    checks.extend(cowork::check_cowork_enable());
+    checks.extend(cowork::check_plugin_installation_preference());
+    checks.extend(cowork::check_personal_session_sentinel());
     checks.push(filesystem::check_bridge_working_dir());
     checks.push(filesystem::check_org_plugins_writable());
+    checks.push(auth::check_credential_store());
     checks.push(auth::check_hook_token_mint(&client).await);
     let any_fail = checks.iter().any(|c| matches!(c.status, Status::Fail));
     (checks, any_fail)
