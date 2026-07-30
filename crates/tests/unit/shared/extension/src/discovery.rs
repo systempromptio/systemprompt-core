@@ -10,9 +10,6 @@
 
 use std::sync::Arc;
 
-use systemprompt_extension::runtime_config::{
-    InjectedExtensions, WebAssetsStrategy, set_injected_extensions,
-};
 use systemprompt_extension::{Extension, ExtensionMetadata, ExtensionRegistry};
 
 const INVENTORY_ID: &str = "inventory-registered-unit-ext";

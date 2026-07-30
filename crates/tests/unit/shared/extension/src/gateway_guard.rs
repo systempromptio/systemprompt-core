@@ -13,7 +13,10 @@ use systemprompt_extension::{
 };
 
 static ARMED: AtomicBool = AtomicBool::new(false);
-static SEEN: Mutex<Option<(String, String, Option<String>, String, bool)>> = Mutex::new(None);
+// route, method, upstream, subject, streaming — as observed by the guard.
+type SeenRequest = (String, String, Option<String>, String, bool);
+
+static SEEN: Mutex<Option<SeenRequest>> = Mutex::new(None);
 
 #[derive(Default)]
 struct RecordingGuard;
