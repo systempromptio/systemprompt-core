@@ -9,7 +9,11 @@ on:
     - cron: "23 6 * * *"
 
 concurrency:
-  group: coverage-${{ github.ref }}
+  # Keyed by event as well as ref: a bare ref group puts the nightly schedule and
+  # manual dispatches in one bucket, so a nightly firing minutes after a dispatch
+  # cancels an hour of instrumented build. Dispatches still share a group with
+  # each other, so re-dispatching supersedes a now-pointless earlier run.
+  group: coverage-${{ github.ref }}-${{ github.event_name }}
   cancel-in-progress: true
 
 permissions:
