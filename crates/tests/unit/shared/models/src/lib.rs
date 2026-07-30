@@ -249,3 +249,15 @@ mod profile_from_env;
 
 #[cfg(test)]
 mod ai_request_response;
+
+#[cfg(test)]
+mod extension_manifest;
+
+#[cfg(test)]
+mod paths_build;
+
+#[cfg(test)]
+mod events_context_summary;
+
+#[cfg(test)]
+mod artifacts_message;
