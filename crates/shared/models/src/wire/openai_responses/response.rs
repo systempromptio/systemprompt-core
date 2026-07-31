@@ -152,6 +152,7 @@ pub fn parse_response_object(value: &Value, fallback_model: &str) -> CanonicalRe
         grounding,
         code_execution: None,
         raw_finish_reason: incomplete_reason,
+        ..Default::default()
     }
 }
 

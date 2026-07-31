@@ -8,7 +8,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::request::CanonicalContent;
+use super::request::{CanonicalContent, flatten_part};
+use crate::wire::inspect::ForwardedSurface;
 
 #[derive(Debug, Clone, Copy, Default)]
 #[expect(
@@ -93,7 +94,7 @@ pub struct CodeExecutionOutput {
     pub outcome: Option<String>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct CanonicalResponse {
     pub id: String,
     pub model: String,
@@ -103,6 +104,35 @@ pub struct CanonicalResponse {
     pub grounding: Option<Grounding>,
     pub code_execution: Option<CodeExecutionOutput>,
     pub raw_finish_reason: Option<String>,
+    /// Every string in the bytes the client receives.
+    ///
+    /// The canonical form is lossy in the same way it is on the request side,
+    /// so the gateway fills this from the rendered response body — buffered
+    /// bytes directly, streamed bytes via
+    /// [`sse_string_leaves`](crate::wire::inspect::sse_string_leaves) — before
+    /// any response scan runs. Callers that never serve through the gateway
+    /// leave it empty.
+    pub received_surface: ForwardedSurface,
+}
+
+impl CanonicalResponse {
+    /// Each content block and each surface leaf is its own unit: concatenating
+    /// them would let two unrelated strings splice into a match neither one
+    /// contains.
+    pub fn content_units(&self) -> Vec<String> {
+        let mut units = Vec::with_capacity(self.content.len() + self.received_surface.len());
+        for part in &self.content {
+            let mut out = String::new();
+            flatten_part(&mut out, part);
+            if !out.is_empty() {
+                units.push(out);
+            }
+        }
+        for leaf in self.received_surface.leaves() {
+            units.push(leaf.value.clone());
+        }
+        units
+    }
 }
 
 #[derive(Debug, Clone)]

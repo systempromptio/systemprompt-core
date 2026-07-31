@@ -10,6 +10,8 @@
 ### Added
 
 - `USER_QUOTA_SUBJECT`: the default quota-window subject slug.
+- `ai_request_payloads` carries `request_body_sha256`, `prepared_body_sha256`, and `response_body_sha256` (migration `012_payload_digests`). The digest is computed over the full bytes, so a truncated capture remains provable, and the request and prepared digests differ legitimately whenever the gateway retargets the model, clamps `max_tokens`, or strips the caller's end-user identifier.
+- `HeuristicScanner` scans `CanonicalRequest.forwarded_surface` at the blocking phase, so content the canonical model cannot represent is no longer invisible to it. Each leaf is scanned as its own unit — concatenating them would let two unrelated strings splice into a match neither one contains.
 
 ## [0.25.0] - 2026-07-27
 

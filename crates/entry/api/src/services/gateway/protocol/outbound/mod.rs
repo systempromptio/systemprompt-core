@@ -130,11 +130,26 @@ pub enum OutboundOutcome {
     },
 }
 
+/// The exact bytes an adapter will put on the wire.
+///
+/// `raw_lane` records that the bytes started as the caller's own; they are
+/// still normalised in place, so they are not byte-identical to what arrived.
+#[derive(Debug, Clone)]
+pub struct PreparedBody {
+    pub bytes: bytes::Bytes,
+    pub raw_lane: bool,
+}
+
 // Why: #[async_trait] is required — the upstream registry stores adapters as
 // `Arc<dyn OutboundAdapter>`, so the trait must stay dyn-compatible.
 #[async_trait]
 pub trait OutboundAdapter: Send + Sync {
-    async fn send(&self, ctx: OutboundCtx<'_>) -> Result<OutboundOutcome>;
+    /// Kept separate from [`OutboundAdapter::send`], and sync and pure, so the
+    /// gateway can have governance inspect the same bytes the socket will
+    /// carry before it commits to sending them.
+    fn build_body(&self, ctx: &OutboundCtx<'_>) -> Result<PreparedBody>;
+
+    async fn send(&self, ctx: OutboundCtx<'_>, body: &PreparedBody) -> Result<OutboundOutcome>;
 }
 
 #[derive(Debug, Clone, Copy)]

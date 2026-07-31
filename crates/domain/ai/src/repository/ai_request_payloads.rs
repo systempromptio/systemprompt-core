@@ -27,6 +27,9 @@ pub struct AiRequestPayload {
     pub response_truncated: bool,
     pub request_bytes: Option<i32>,
     pub response_bytes: Option<i32>,
+    pub request_body_sha256: Option<String>,
+    pub prepared_body_sha256: Option<String>,
+    pub response_body_sha256: Option<String>,
 }
 
 impl AiRequestPayloadRepository {
@@ -46,21 +49,24 @@ impl AiRequestPayloadRepository {
             r#"
             INSERT INTO ai_request_payloads (
                 ai_request_id, request_body, request_excerpt,
-                request_truncated, request_bytes, created_at, updated_at
+                request_truncated, request_bytes, request_body_sha256,
+                created_at, updated_at
             )
-            VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
             ON CONFLICT (ai_request_id) DO UPDATE
             SET request_body = EXCLUDED.request_body,
                 request_excerpt = EXCLUDED.request_excerpt,
                 request_truncated = EXCLUDED.request_truncated,
                 request_bytes = EXCLUDED.request_bytes,
+                request_body_sha256 = EXCLUDED.request_body_sha256,
                 updated_at = CURRENT_TIMESTAMP
             "#,
             ai_request_id.as_str(),
             params.body,
             params.excerpt,
             params.truncated,
-            params.bytes
+            params.bytes,
+            params.sha256
         )
         .execute(self.write_pool.as_ref())
         .await?;
@@ -76,21 +82,47 @@ impl AiRequestPayloadRepository {
             r#"
             INSERT INTO ai_request_payloads (
                 ai_request_id, response_body, response_excerpt,
-                response_truncated, response_bytes, created_at, updated_at
+                response_truncated, response_bytes, response_body_sha256,
+                created_at, updated_at
             )
-            VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
             ON CONFLICT (ai_request_id) DO UPDATE
             SET response_body = EXCLUDED.response_body,
                 response_excerpt = EXCLUDED.response_excerpt,
                 response_truncated = EXCLUDED.response_truncated,
                 response_bytes = EXCLUDED.response_bytes,
+                response_body_sha256 = EXCLUDED.response_body_sha256,
                 updated_at = CURRENT_TIMESTAMP
             "#,
             ai_request_id.as_str(),
             params.body,
             params.excerpt,
             params.truncated,
-            params.bytes
+            params.bytes,
+            params.sha256
+        )
+        .execute(self.write_pool.as_ref())
+        .await?;
+        Ok(())
+    }
+
+    pub async fn upsert_prepared_sha256(
+        &self,
+        ai_request_id: &AiRequestId,
+        sha256: &str,
+    ) -> Result<(), RepositoryError> {
+        sqlx::query!(
+            r#"
+            INSERT INTO ai_request_payloads (
+                ai_request_id, prepared_body_sha256, created_at, updated_at
+            )
+            VALUES ($1, $2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            ON CONFLICT (ai_request_id) DO UPDATE
+            SET prepared_body_sha256 = EXCLUDED.prepared_body_sha256,
+                updated_at = CURRENT_TIMESTAMP
+            "#,
+            ai_request_id.as_str(),
+            sha256
         )
         .execute(self.write_pool.as_ref())
         .await?;
@@ -104,4 +136,5 @@ pub struct UpsertPayloadParams<'a> {
     pub excerpt: Option<&'a str>,
     pub truncated: bool,
     pub bytes: Option<i32>,
+    pub sha256: Option<&'a str>,
 }

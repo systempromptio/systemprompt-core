@@ -55,6 +55,7 @@ fn request_with(content: Vec<CanonicalContent>) -> CanonicalRequest {
         code_execution: false,
         presence_penalty: None,
         frequency_penalty: None,
+        forwarded_surface: Default::default(),
     }
 }
 
@@ -68,6 +69,7 @@ fn response_with(content: Vec<CanonicalContent>) -> CanonicalResponse {
         grounding: None,
         code_execution: None,
         raw_finish_reason: None,
+        ..Default::default()
     }
 }
 

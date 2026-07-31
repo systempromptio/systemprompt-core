@@ -4,9 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use async_trait::async_trait;
-use systemprompt_models::wire::canonical::{
-    CanonicalContent, CanonicalRequest, CanonicalResponse, Role,
-};
+use systemprompt_models::wire::canonical::{CanonicalRequest, CanonicalResponse, Role};
 
 use super::{
     Finding, PHASE_REQUEST, PHASE_REQUEST_HISTORY, PHASE_RESPONSE, SafetyScanner, Severity,
@@ -42,6 +40,11 @@ impl SafetyScanner for HeuristicScanner {
         if let Some(text) = req.latest_message_text(Role::User) {
             scan_text(PHASE_REQUEST, &text, &mut findings);
         }
+        // Why: each leaf is its own unit — concatenating them would let two
+        // unrelated strings splice into a match neither one contains.
+        for leaf in req.forwarded_surface.leaves() {
+            scan_text(PHASE_REQUEST, &leaf.value, &mut findings);
+        }
         findings
     }
 
@@ -54,15 +57,10 @@ impl SafetyScanner for HeuristicScanner {
     }
 
     async fn scan_response_final(&self, response: &CanonicalResponse) -> Vec<Finding> {
-        let mut text = String::new();
-        for part in &response.content {
-            if let CanonicalContent::Text(t) = part {
-                text.push_str(t);
-                text.push('\n');
-            }
-        }
         let mut findings = Vec::new();
-        scan_text(PHASE_RESPONSE, &text, &mut findings);
+        for unit in response.content_units() {
+            scan_text(PHASE_RESPONSE, &unit, &mut findings);
+        }
         findings
     }
 }

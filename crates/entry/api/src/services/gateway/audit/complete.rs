@@ -91,16 +91,17 @@ impl GatewayAudit {
     }
 
     async fn persist_response(&self, response: &CanonicalResponse, response_body: &Bytes) {
-        let (body_json, excerpt, truncated, bytes) = slice_payload(response_body);
+        let capture = slice_payload(response_body);
         if let Err(e) = self
             .payloads
             .upsert_response(
                 &self.ctx.ai_request_id,
                 UpsertPayloadParams {
-                    body: body_json.as_ref(),
-                    excerpt: excerpt.as_deref(),
-                    truncated,
-                    bytes: Some(bytes),
+                    body: capture.json.as_ref(),
+                    excerpt: capture.excerpt.as_deref(),
+                    truncated: capture.truncated,
+                    bytes: Some(capture.byte_len),
+                    sha256: Some(capture.sha256.as_str()),
                 },
             )
             .await

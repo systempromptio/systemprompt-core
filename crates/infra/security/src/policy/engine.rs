@@ -7,16 +7,22 @@
 //! so the audit row preserves the full evaluation order, not just the first
 //! deny.
 //!
-//! The engine is caller-owned and holds no process-global state; policies
-//! that accumulate state (the rate limiter) scope it to their instance, so
-//! two engines never share buckets. Hold one engine per process for shared
-//! enforcement.
+//! Policies that accumulate state (the rate limiter) scope it to their
+//! instance, so two engines never share buckets — a second engine would
+//! silently double every budget. [`GovernanceEngine::global`] is therefore the
+//! way every enforcement point in a process reaches the chain: the MCP
+//! governance webhook and the `/v1/messages` gateway must charge the same
+//! limiter, not one each. [`GovernanceEngine::from_config`] remains available
+//! for tests and for callers that genuinely want an isolated chain.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::collections::{HashMap, HashSet};
+use std::path::PathBuf;
+use std::sync::LazyLock;
 
+use systemprompt_config::ProfileBootstrap;
 use systemprompt_identifiers::PolicyId;
 
 use super::audit::{ChainEntryOutcome, ChainEntryResult};
@@ -58,6 +64,24 @@ impl std::fmt::Debug for GovernanceEngine {
 }
 
 impl GovernanceEngine {
+    /// The process-wide engine, built on first use from the active profile's
+    /// `<services>/governance/config.yaml`.
+    ///
+    /// The path is resolved here rather than through an `init()` seam because
+    /// a `OnceLock` seeded before the profile bootstrap completed would pin
+    /// the built-in defaults permanently, silently dropping every operator
+    /// policy. Resolving lazily means the first caller — whenever that is —
+    /// sees the configured chain. A profile that cannot be read falls back to
+    /// [`GovernanceConfig::defaults`], matching [`GovernanceConfig::load`].
+    pub fn global() -> &'static Self {
+        static ENGINE: LazyLock<GovernanceEngine> = LazyLock::new(|| {
+            let config = governance_config_path()
+                .map_or_else(GovernanceConfig::defaults, |p| GovernanceConfig::load(&p));
+            GovernanceEngine::from_config(&config)
+        });
+        &ENGINE
+    }
+
     /// Instantiate the chain from `config` against the inventory registry.
     ///
     /// Configured ids with no registered factory are logged and skipped.
@@ -168,6 +192,18 @@ impl GovernanceEngine {
             chain,
         }
     }
+}
+
+fn governance_config_path() -> Option<PathBuf> {
+    let profile = ProfileBootstrap::get()
+        .inspect_err(|e| {
+            tracing::error!(
+                error = %e,
+                "governance profile bootstrap failed; policies fall back to built-in defaults"
+            );
+        })
+        .ok()?;
+    Some(PathBuf::from(&profile.paths.services).join("governance/config.yaml"))
 }
 
 fn skip_entry(cfg: &PolicyConfig, detail: &str) -> ChainEntryOutcome {

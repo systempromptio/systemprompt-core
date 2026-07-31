@@ -100,6 +100,12 @@ pub struct DecisionAudit {
     /// direct (non-delegated) tokens.
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub act_chain: Vec<Actor>,
+    /// The conversational context the call belongs to, when the enforcement
+    /// point knows one. The MCP webhook does not; the gateway does, and
+    /// without it an inference decision cannot be joined back to the request
+    /// it judged.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub context_id: Option<String>,
 }
 
 /// Persist one governed-call decision: derive the flat columns (`policy` is
@@ -149,7 +155,7 @@ pub async fn record_decision(pool: &PgPool, audit: &DecisionAudit) -> Result<(),
         evaluated_rules: &evaluated_rules,
         plugin_id: audit.target.plugin_id.as_ref().map(PluginId::as_str),
         act_chain: &audit.act_chain,
-        context_id: None,
+        context_id: audit.context_id.as_deref(),
         task_id: None,
     };
 

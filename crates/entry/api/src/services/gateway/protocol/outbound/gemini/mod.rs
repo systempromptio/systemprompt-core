@@ -15,7 +15,7 @@ use serde_json::Value;
 use systemprompt_models::wire::gemini;
 
 use super::super::canonical_response::CanonicalResponse;
-use super::{OutboundAdapter, OutboundCtx, OutboundOutcome, UpstreamError};
+use super::{OutboundAdapter, OutboundCtx, OutboundOutcome, PreparedBody, UpstreamError};
 
 #[cfg(feature = "test-api")]
 pub mod test_api {
@@ -29,8 +29,17 @@ pub struct GeminiOutbound;
 
 #[async_trait]
 impl OutboundAdapter for GeminiOutbound {
-    async fn send(&self, ctx: OutboundCtx<'_>) -> Result<OutboundOutcome> {
-        let body = gemini::build_request_body(ctx.request, ctx.model_limits);
+    fn build_body(&self, ctx: &OutboundCtx<'_>) -> Result<PreparedBody> {
+        Ok(PreparedBody {
+            bytes: bytes::Bytes::from(
+                serde_json::to_vec(&gemini::build_request_body(ctx.request, ctx.model_limits))
+                    .map_err(|e| anyhow!("render request body: {e}"))?,
+            ),
+            raw_lane: false,
+        })
+    }
+
+    async fn send(&self, ctx: OutboundCtx<'_>, body: &PreparedBody) -> Result<OutboundOutcome> {
         let path = gemini::upstream_path(ctx.upstream_model, ctx.request.stream);
         let url = format!("{}{path}", ctx.endpoint.trim_end_matches('/'));
 
@@ -39,7 +48,7 @@ impl OutboundAdapter for GeminiOutbound {
             .post(&url)
             .header(gemini::API_KEY_HEADER, ctx.api_key)
             .header("content-type", "application/json")
-            .json(&body);
+            .body(body.bytes.clone());
         for (name, value) in &ctx.route.extra_headers {
             req = req.header(name.as_str(), value.as_str());
         }

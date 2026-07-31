@@ -15,6 +15,7 @@ use systemprompt_models::wire::canonical::{
     CanonicalContent, CanonicalMessage, CanonicalRequest, CanonicalTool, CanonicalToolChoice,
     ImageSource, ReasoningEffort, ResponseFormat, Role, SearchConfig, ThinkingConfig,
 };
+use systemprompt_models::wire::inspect::ForwardedSurface;
 
 use crate::models::ai::{
     AiContentPart, AiMessage, MessageRole, ResponseFormat as AgentResponseFormat, SamplingParams,
@@ -142,6 +143,7 @@ impl<'a> CanonicalBuild<'a> {
             code_execution: self.code_execution,
             presence_penalty: self.sampling.and_then(|s| s.presence_penalty),
             frequency_penalty: self.sampling.and_then(|s| s.frequency_penalty),
+            forwarded_surface: ForwardedSurface::default(),
         }
     }
 }

@@ -43,6 +43,7 @@ fn sample_response() -> CanonicalResponse {
         grounding: None,
         code_execution: None,
         raw_finish_reason: None,
+        ..Default::default()
     }
 }
 
@@ -78,6 +79,7 @@ fn render_response_omits_message_when_no_text() {
         grounding: None,
         code_execution: None,
         raw_finish_reason: None,
+        ..Default::default()
     };
     let bytes = inbound.render_response(&resp);
     let v: Value = serde_json::from_slice(&bytes).unwrap();

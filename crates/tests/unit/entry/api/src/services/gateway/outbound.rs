@@ -22,6 +22,18 @@ use systemprompt_models::profile::GatewayRoute;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
+/// Builds the request body then sends it, mirroring what the gateway does.
+///
+/// The adapter splits the two so the gateway can inspect the exact bytes before
+/// they go on the wire; these tests exercise the pair together.
+async fn send_via<A: OutboundAdapter>(
+    adapter: &A,
+    ctx: OutboundCtx<'_>,
+) -> anyhow::Result<OutboundOutcome> {
+    let body = adapter.build_body(&ctx)?;
+    adapter.send(ctx, &body).await
+}
+
 fn route(provider: &str) -> GatewayRoute {
     GatewayRoute {
         id: RouteId::new("r1"),
@@ -68,6 +80,7 @@ fn buffered_request() -> CanonicalRequest {
         code_execution: false,
         presence_penalty: None,
         frequency_penalty: None,
+        forwarded_surface: Default::default(),
     }
 }
 
@@ -107,7 +120,7 @@ async fn anthropic_outbound_buffered_parses_text() {
         forward_headers: &[],
         raw_body: None,
     };
-    let outcome = adapter.send(ctx).await.expect("ok");
+    let outcome = send_via(&adapter, ctx).await.expect("ok");
     match outcome {
         OutboundOutcome::Buffered(r) => {
             assert_eq!(r.id, "msg_a");
@@ -139,7 +152,7 @@ async fn anthropic_outbound_buffered_propagates_upstream_error() {
         forward_headers: &[],
         raw_body: None,
     };
-    let res = adapter.send(ctx).await;
+    let res = send_via(&adapter, ctx).await;
     assert!(res.is_err());
 }
 
@@ -170,7 +183,7 @@ async fn anthropic_outbound_streaming_returns_stream() {
         forward_headers: &[],
         raw_body: None,
     };
-    let outcome = adapter.send(ctx).await.expect("ok");
+    let outcome = send_via(&adapter, ctx).await.expect("ok");
     match outcome {
         OutboundOutcome::Streaming(mut stream) => {
             let mut count = 0;
@@ -217,7 +230,7 @@ async fn openai_chat_outbound_buffered_parses_response() {
         forward_headers: &[],
         raw_body: None,
     };
-    let outcome = adapter.send(ctx).await.expect("ok");
+    let outcome = send_via(&adapter, ctx).await.expect("ok");
     assert!(matches!(outcome, OutboundOutcome::Buffered(_)));
 }
 
@@ -249,7 +262,7 @@ async fn openai_chat_outbound_streaming_returns_stream() {
         forward_headers: &[],
         raw_body: None,
     };
-    let outcome = adapter.send(ctx).await.expect("ok");
+    let outcome = send_via(&adapter, ctx).await.expect("ok");
     if let OutboundOutcome::Streaming(mut stream) = outcome {
         let mut count = 0;
         while let Some(_chunk) = stream.next().await {
@@ -284,7 +297,7 @@ async fn openai_chat_outbound_buffered_propagates_upstream_error() {
         forward_headers: &[],
         raw_body: None,
     };
-    let res = adapter.send(ctx).await;
+    let res = send_via(&adapter, ctx).await;
     assert!(res.is_err());
 }
 
@@ -321,7 +334,7 @@ async fn openai_responses_outbound_buffered_parses_response() {
         forward_headers: &[],
         raw_body: None,
     };
-    let outcome = adapter.send(ctx).await.expect("ok");
+    let outcome = send_via(&adapter, ctx).await.expect("ok");
     assert!(matches!(outcome, OutboundOutcome::Buffered(_)));
 }
 
@@ -373,7 +386,7 @@ async fn anthropic_outbound_buffered_handles_rich_request() {
         forward_headers: &[],
         raw_body: None,
     };
-    let outcome = adapter.send(ctx).await.expect("ok");
+    let outcome = send_via(&adapter, ctx).await.expect("ok");
     if let OutboundOutcome::Buffered(r) = outcome {
         assert!(
             r.content
@@ -406,7 +419,7 @@ async fn anthropic_outbound_buffered_handles_invalid_json() {
         forward_headers: &[],
         raw_body: None,
     };
-    let res = adapter.send(ctx).await;
+    let res = send_via(&adapter, ctx).await;
     assert!(res.is_err());
 }
 
@@ -447,7 +460,7 @@ async fn openai_chat_outbound_buffered_covers_tool_choice_variants() {
             forward_headers: &[],
             raw_body: None,
         };
-        let outcome = adapter.send(ctx).await.expect("ok");
+        let outcome = send_via(&adapter, ctx).await.expect("ok");
         let OutboundOutcome::Buffered(r) = outcome else {
             panic!("expected buffered");
         };
@@ -486,7 +499,7 @@ async fn anthropic_outbound_buffered_covers_tool_choice_variants() {
             forward_headers: &[],
             raw_body: None,
         };
-        let outcome = adapter.send(ctx).await.expect("ok");
+        let outcome = send_via(&adapter, ctx).await.expect("ok");
         let OutboundOutcome::Buffered(r) = outcome else {
             panic!("expected buffered");
         };
@@ -545,7 +558,7 @@ async fn openai_chat_outbound_buffered_covers_messages_with_tools_and_images() {
         forward_headers: &[],
         raw_body: None,
     };
-    let outcome = adapter.send(ctx).await.expect("ok");
+    let outcome = send_via(&adapter, ctx).await.expect("ok");
     if let OutboundOutcome::Buffered(r) = outcome {
         assert!(r.stop_reason.is_some());
         assert!(

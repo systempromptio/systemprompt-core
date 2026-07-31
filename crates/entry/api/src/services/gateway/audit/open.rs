@@ -47,16 +47,17 @@ impl GatewayAudit {
             .insert_with_id(&self.ctx.ai_request_id, &record)
             .await?;
 
-        let (body_json, excerpt, truncated, bytes) = slice_payload(request_body);
+        let capture = slice_payload(request_body);
         if let Err(e) = self
             .payloads
             .upsert_request(
                 &self.ctx.ai_request_id,
                 UpsertPayloadParams {
-                    body: body_json.as_ref(),
-                    excerpt: excerpt.as_deref(),
-                    truncated,
-                    bytes: Some(bytes),
+                    body: capture.json.as_ref(),
+                    excerpt: capture.excerpt.as_deref(),
+                    truncated: capture.truncated,
+                    bytes: Some(capture.byte_len),
+                    sha256: Some(capture.sha256.as_str()),
                 },
             )
             .await

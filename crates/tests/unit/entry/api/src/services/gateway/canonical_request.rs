@@ -27,6 +27,7 @@ fn req_with(messages: Vec<CanonicalMessage>, system: Option<&str>) -> CanonicalR
         code_execution: false,
         presence_penalty: None,
         frequency_penalty: None,
+        forwarded_surface: Default::default(),
     }
 }
 

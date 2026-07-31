@@ -76,6 +76,12 @@ pub struct SafetyConfig {
     pub scanners: Vec<String>,
     #[serde(default)]
     pub block_categories: Vec<String>,
+    /// Response-phase categories that deny the reply instead of merely
+    /// recording it. Buffered replies only: a streamed reply is already on the
+    /// wire by the time the scan can run, so listing a category here has no
+    /// effect on streaming and the gateway does not pretend otherwise.
+    #[serde(default)]
+    pub block_response_categories: Vec<String>,
     #[serde(default)]
     pub history: SafetyHistoryMode,
 }

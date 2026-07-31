@@ -85,7 +85,10 @@ fn merge(rows: Vec<systemprompt_ai::GatewayPolicyRow>) -> GatewayPolicySpec {
         if !spec.quota_windows.is_empty() {
             merged.quota_windows = spec.quota_windows;
         }
-        if !spec.safety.scanners.is_empty() || !spec.safety.block_categories.is_empty() {
+        if !spec.safety.scanners.is_empty()
+            || !spec.safety.block_categories.is_empty()
+            || !spec.safety.block_response_categories.is_empty()
+        {
             merged.safety = spec.safety;
         }
     }

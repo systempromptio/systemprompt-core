@@ -12,7 +12,7 @@ use async_trait::async_trait;
 use serde_json::Value;
 use systemprompt_models::wire::anthropic;
 
-use super::{OutboundAdapter, OutboundCtx, OutboundOutcome, UpstreamError};
+use super::{OutboundAdapter, OutboundCtx, OutboundOutcome, PreparedBody, UpstreamError};
 
 mod request;
 mod response;
@@ -30,23 +30,30 @@ pub struct AnthropicOutbound;
 
 #[async_trait]
 impl OutboundAdapter for AnthropicOutbound {
-    async fn send(&self, ctx: OutboundCtx<'_>) -> Result<OutboundOutcome> {
-        let passthrough = ctx
-            .raw_body
-            .map(|raw| retarget_model(raw, ctx.upstream_model));
+    fn build_body(&self, ctx: &OutboundCtx<'_>) -> Result<PreparedBody> {
+        if let Some(raw) = ctx.raw_body
+            && let Some(bytes) = request::normalize_raw_body(raw, ctx)
+        {
+            return Ok(PreparedBody {
+                bytes,
+                raw_lane: true,
+            });
+        }
+        let body = request::build_request_body(ctx.request, ctx.upstream_model, ctx.model_limits);
+        Ok(PreparedBody {
+            bytes: bytes::Bytes::from(
+                serde_json::to_vec(&body).map_err(|e| anyhow!("render Anthropic request: {e}"))?,
+            ),
+            raw_lane: false,
+        })
+    }
+
+    async fn send(&self, ctx: OutboundCtx<'_>, body: &PreparedBody) -> Result<OutboundOutcome> {
+        let passthrough = body.raw_lane;
         let url = format!("{}/messages", ctx.endpoint.trim_end_matches('/'));
 
         let client = reqwest::Client::new();
-        let mut req = passthrough.as_ref().map_or_else(
-            || {
-                client.post(&url).json(&request::build_request_body(
-                    ctx.request,
-                    ctx.upstream_model,
-                    ctx.model_limits,
-                ))
-            },
-            |body| client.post(&url).body(body.clone()),
-        );
+        let mut req = client.post(&url).body(body.bytes.clone());
         for (name, value) in request_headers(&ctx) {
             req = req.header(name, value);
         }
@@ -72,7 +79,7 @@ impl OutboundAdapter for AnthropicOutbound {
 
         if ctx.request.stream {
             let stream = upstream_response.bytes_stream();
-            if passthrough.is_some() {
+            if passthrough {
                 return Ok(OutboundOutcome::RawStreaming {
                     content_type,
                     stream: streaming::raw_sse_stream(stream),
@@ -90,7 +97,7 @@ impl OutboundAdapter for AnthropicOutbound {
         let value: Value = serde_json::from_slice(&bytes)
             .map_err(|e| anyhow!("Anthropic response not valid JSON: {e}"))?;
         let canonical = Box::new(response::parse_response(&value, ctx.request.model.as_str()));
-        if passthrough.is_some() {
+        if passthrough {
             return Ok(OutboundOutcome::RawBuffered {
                 body: bytes,
                 content_type,
@@ -126,15 +133,4 @@ fn request_headers(ctx: &OutboundCtx<'_>) -> Vec<(String, String)> {
             .map(|(name, value)| (name.clone(), value.clone())),
     );
     headers
-}
-
-fn retarget_model(raw: &bytes::Bytes, upstream_model: &str) -> bytes::Bytes {
-    let Ok(Value::Object(mut obj)) = serde_json::from_slice::<Value>(raw) else {
-        return raw.clone();
-    };
-    if obj.get("model").and_then(Value::as_str) == Some(upstream_model) {
-        return raw.clone();
-    }
-    obj.insert("model".to_owned(), Value::String(upstream_model.to_owned()));
-    serde_json::to_vec(&Value::Object(obj)).map_or_else(|_| raw.clone(), bytes::Bytes::from)
 }

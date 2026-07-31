@@ -63,7 +63,14 @@
 # empty fixture context and asserts it survives, while its enforce=true sibling
 # and the repository sweep delete exactly such rows. Serialise them into the
 # scheduler-jobs slot so no sweep runs while the observe fixture is live.
+# The gateway safety tests each insert a row into the global
+# `ai_gateway_policies` table, which `PolicyResolver::merge` folds into ONE
+# effective spec for every request in flight. A concurrent test's policy
+# therefore decides whether this test's request or response is blocked, and the
+# per-process 60s resolver cache pins whichever spec won. Serialise them so each
+# test's policy is the only one installed while it runs.
 [test-groups]
+gateway-policy-db = { max-threads = 1 }
 logs-cleanup-db = { max-threads = 1 }
 agent-artifacts-db = { max-threads = 1 }
 scheduler-services-db = { max-threads = 1 }
@@ -324,3 +331,15 @@ test-group = 'cli-cloud-harness'
 [[profile.coverage.overrides]]
 filter = 'package(systemprompt-cli-integration-tests)'
 slow-timeout = { period = "180s", terminate-after = 5 }
+
+[[profile.default.overrides]]
+filter = 'package(systemprompt-api-integration-tests) and test(/gateway_pipeline::(buffered_dispatch_persists_request_and_response_safety_findings|jailbreak_request_is_blocked_by_safety_policy_and_finding_persisted|buffered_response_in_a_blocked_category_is_not_served|the_same_response_is_served_intact_when_no_category_blocks|a_streaming_response_is_never_blocked)/)'
+test-group = 'gateway-policy-db'
+
+[[profile.ci.overrides]]
+filter = 'package(systemprompt-api-integration-tests) and test(/gateway_pipeline::(buffered_dispatch_persists_request_and_response_safety_findings|jailbreak_request_is_blocked_by_safety_policy_and_finding_persisted|buffered_response_in_a_blocked_category_is_not_served|the_same_response_is_served_intact_when_no_category_blocks|a_streaming_response_is_never_blocked)/)'
+test-group = 'gateway-policy-db'
+
+[[profile.coverage.overrides]]
+filter = 'package(systemprompt-api-integration-tests) and test(/gateway_pipeline::(buffered_dispatch_persists_request_and_response_safety_findings|jailbreak_request_is_blocked_by_safety_policy_and_finding_persisted|buffered_response_in_a_blocked_category_is_not_served|the_same_response_is_served_intact_when_no_category_blocks|a_streaming_response_is_never_blocked)/)'
+test-group = 'gateway-policy-db'

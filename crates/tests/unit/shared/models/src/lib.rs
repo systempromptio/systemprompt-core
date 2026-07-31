@@ -74,6 +74,9 @@ mod provider_protocol_filter;
 mod wire_codec;
 
 #[cfg(test)]
+mod wire_inspect;
+
+#[cfg(test)]
 mod agui;
 
 #[cfg(test)]

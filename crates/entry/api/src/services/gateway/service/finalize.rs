@@ -2,6 +2,17 @@
 //! spawns the audit-completion task, runs safety scans, and stamps the
 //! request-id header.
 //!
+//! Response-phase scanning reads the bytes the *client* receives, which is the
+//! surface that matters for egress and the only one both lanes agree on. A
+//! buffered reply can therefore be denied before it is served, gated on
+//! `SafetyConfig::block_response_categories`; audit, quota, and cost stay in
+//! the spawned completion task so only the scan sits on the critical path.
+//!
+//! Streaming stays audit-only. The frames are already flowing by the time a
+//! whole-response scan can run, so terminating mid-stream would still leak
+//! everything sent up to that point — the block would be theatre, not
+//! containment.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -18,6 +29,7 @@ use systemprompt_ai::{
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{AiRequestId, ModelId, ProviderId};
 use systemprompt_models::profile::GatewayConfig;
+use systemprompt_models::wire::inspect::{SurfaceBudget, string_leaves};
 
 use super::super::audit::GatewayAudit;
 use super::super::policy::GatewayPolicySpec;
@@ -88,16 +100,15 @@ pub(super) async fn finalize(outcome: OutboundOutcome, fctx: FinalizeCtx) -> Res
         OutboundOutcome::Buffered(canonical) => {
             let canonical = *canonical;
             let body = inbound.render_response(&canonical);
-            spawn_buffered_completion(canonical, body.clone(), &audit, tap_ctx);
-            buffered_response(body, "application/json")
+            finalize_buffered(canonical, body, "application/json", &audit, tap_ctx).await
         },
         OutboundOutcome::RawBuffered {
             body,
             content_type,
             canonical,
         } => {
-            spawn_buffered_completion(*canonical, body.clone(), &audit, tap_ctx);
-            buffered_response(body, content_type.as_deref().unwrap_or("application/json"))
+            let content_type = content_type.unwrap_or_else(|| "application/json".to_owned());
+            finalize_buffered(*canonical, body, &content_type, &audit, tap_ctx).await
         },
         OutboundOutcome::RawStreaming {
             content_type,
@@ -116,11 +127,58 @@ pub(super) async fn finalize(outcome: OutboundOutcome, fctx: FinalizeCtx) -> Res
     }
 }
 
+async fn finalize_buffered(
+    mut canonical: CanonicalResponse,
+    body: bytes::Bytes,
+    content_type: &str,
+    audit: &Arc<GatewayAudit>,
+    tap_ctx: stream_tap::TapFinalizeCtx,
+) -> Response<Body> {
+    canonical.received_surface = string_leaves(&body, SurfaceBudget::default());
+    if tap_ctx.policy.safety.block_response_categories.is_empty() {
+        spawn_buffered_completion(canonical, body.clone(), audit, tap_ctx, false);
+        return buffered_response(body, content_type);
+    }
+    let safety = tap_ctx.policy.safety.clone();
+    let findings =
+        run_response_safety_scan(&tap_ctx.db, &tap_ctx.ai_request_id, &canonical, &safety).await;
+    let blocked = findings
+        .iter()
+        .find(|f| safety.block_response_categories.contains(&f.category))
+        .map(|f| (f.category.clone(), f.scanner));
+    spawn_buffered_completion(canonical, body.clone(), audit, tap_ctx, true);
+    match blocked {
+        Some((category, scanner)) => {
+            tracing::warn!(
+                category = %category,
+                scanner = %scanner,
+                "Gateway blocked response by safety policy"
+            );
+            safety_block_response(&category)
+        },
+        None => buffered_response(body, content_type),
+    }
+}
+
+fn safety_block_response(category: &str) -> Response<Body> {
+    let message = format!("response blocked by safety policy: category '{category}'");
+    let escaped = message.replace('\\', "\\\\").replace('"', "\\\"");
+    let body = format!(
+        "{{\"type\":\"error\",\"error\":{{\"type\":\"api_error\",\"message\":\"{escaped}\"}}}}"
+    );
+    Response::builder()
+        .status(http::StatusCode::FORBIDDEN)
+        .header(http::header::CONTENT_TYPE, "application/json")
+        .body(Body::from(body))
+        .unwrap_or_else(|_| Response::new(Body::empty()))
+}
+
 fn spawn_buffered_completion(
     canonical: CanonicalResponse,
     body: bytes::Bytes,
     audit: &Arc<GatewayAudit>,
     tap_ctx: stream_tap::TapFinalizeCtx,
+    response_scanned: bool,
 ) {
     if let Some(conversation) = &audit.ctx.gateway_conversation_id {
         ThoughtSignatureCache::global().store_from_response(conversation, &canonical);
@@ -130,6 +188,7 @@ fn spawn_buffered_completion(
         body,
         Arc::clone(audit),
         tap_ctx,
+        response_scanned,
     ));
 }
 
@@ -156,6 +215,7 @@ async fn buffered_completion(
     body: bytes::Bytes,
     audit: Arc<GatewayAudit>,
     ctx: stream_tap::TapFinalizeCtx,
+    response_scanned: bool,
 ) {
     let served_model = canonical.model.clone();
     if !served_model.is_empty() {
@@ -180,7 +240,9 @@ async fn buffered_completion(
         },
     )
     .await;
-    run_response_safety_scan(&ctx.db, &ctx.ai_request_id, &canonical, &ctx.policy.safety).await;
+    if !response_scanned {
+        run_response_safety_scan(&ctx.db, &ctx.ai_request_id, &canonical, &ctx.policy.safety).await;
+    }
 }
 
 pub(super) async fn run_request_safety_scan(
@@ -229,7 +291,7 @@ pub(in crate::services::gateway) async fn run_response_safety_scan(
     ai_request_id: &AiRequestId,
     response: &CanonicalResponse,
     safety: &SafetyConfig,
-) {
+) -> Vec<Finding> {
     let registry = SafetyScannerRegistry::global();
     let mut findings = Vec::new();
     for name in &safety.scanners {
@@ -243,6 +305,7 @@ pub(in crate::services::gateway) async fn run_response_safety_scan(
     if !findings.is_empty() {
         persist_findings(db, ai_request_id, &findings).await;
     }
+    findings
 }
 
 async fn persist_findings(db: &DbPool, ai_request_id: &AiRequestId, findings: &[Finding]) {

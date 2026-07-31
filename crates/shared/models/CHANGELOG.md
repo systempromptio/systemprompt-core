@@ -7,8 +7,12 @@
 - **Breaking:** `AppPaths::from_profile` and `SystemPaths::from_profile` take a `PathResolution`; derive it with the new `Profile::path_resolution()`. Cloud profiles resolve lexically — container paths are no longer canonicalized against the local filesystem — and `PathError` gains `NotAbsolute` for a relative path under lexical resolution.
 - **Breaking:** `default_bootstrap_jobs()` no longer includes `database_cleanup`; deployments relying on the boot-time sweep must list it in `scheduler.bootstrap_jobs` explicitly.
 - **Breaking:** `SchedulerConfig::with_system_admin()` sets `enforce` on `cleanup_anonymous_users`, `cleanup_empty_contexts`, and `database_cleanup`, matching the jobs' new observe-by-default behaviour.
+- **Breaking:** `CanonicalRequest` gains `forwarded_surface: ForwardedSurface`, holding every string in the bytes about to be forwarded upstream. `CanonicalRequest::flatten_text` and `message_units` include it, so a scanner reading either covers content the canonical form cannot represent. Migrate by adding `forwarded_surface: ForwardedSurface::default()` at each construction site; a caller that does not send through the gateway leaves it empty. `CanonicalRequest` now derives `Default`.
 
 ### Added
+
+- `wire::inspect`: `string_leaves` collects every string in a JSON body, `sse_string_leaves` does the same across concatenated SSE frames under one shared budget, and `SurfaceBudget` bounds the walk on depth, leaf count, total bytes, and per-leaf size. The walk is iterative — a recursive one over caller-controlled JSON is a stack-overflow primitive well inside the body limit — and a budget stop marks the result truncated rather than reporting a complete surface.
+- `wire::anthropic::strip_user_id` removes `metadata.user_id` from a request body object, dropping `metadata` once it empties rather than sending `{}`. Both the canonical and byte-passthrough lanes strip through this one function.
 
 - `JobConfig.parameters` (`#[serde(default)]`, string map) with a `with_parameters` builder; the field rustdoc tables the keys the core jobs read.
 - `RequestScope`: per-request scoping identity (ordered key/value pairs) carried from middleware to the scoped database transactions in `systemprompt-database` — the transport for pooled multi-tenancy dimensions such as the requesting user's organization.

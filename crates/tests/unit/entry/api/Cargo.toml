@@ -23,6 +23,8 @@ axum = { workspace = true }
 http = { workspace = true }
 serde_json = { workspace = true }
 bytes = { workspace = true }
+sha2 = { workspace = true }
+hex = { workspace = true }
 ipnet = "2.10"
 systemprompt-traits = { workspace = true }
 anyhow = { workspace = true }

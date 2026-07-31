@@ -110,6 +110,7 @@ fn canonical_request(model: &str, stream: bool) -> CanonicalRequest {
         code_execution: false,
         presence_penalty: None,
         frequency_penalty: None,
+        forwarded_surface: Default::default(),
     }
 }
 
@@ -159,6 +160,8 @@ fn inputs(cred: &AuthedFixture, request: CanonicalRequest, stream: bool) -> Disp
         raw_body: body,
         ctx,
         inbound: inbound(),
+        forward_headers: Vec::new(),
+        identity_headers: Vec::new(),
     }
 }
 
@@ -440,6 +443,8 @@ async fn upstream_5xx_is_recorded_upstream_error() -> anyhow::Result<()> {
     Ok(())
 }
 
+// Why: see `install_response_block_policy` — the last policy row by name wins,
+// so these fixtures must sort after any baseline row already in the database.
 async fn install_safety_policy(pool: &DbPool, name: &str) -> anyhow::Result<()> {
     let pg = pool.pool_arc().map_err(anyhow::Error::msg)?;
     sqlx::query(
@@ -492,7 +497,7 @@ async fn buffered_dispatch_persists_request_and_response_safety_findings() -> an
     install_provider_api_key();
     let (pool, _ctx) = setup_ctx().await?;
     let cred = seed_admin_credential(&pool, "gw-safety@example.invalid").await?;
-    let policy_name = format!("cov-safety-{}", uuid::Uuid::new_v4().simple());
+    let policy_name = format!("zz-safety-{}", uuid::Uuid::new_v4().simple());
     install_safety_policy(&pool, &policy_name).await?;
 
     let upstream = MockServer::start().await;
@@ -551,7 +556,7 @@ async fn jailbreak_request_is_blocked_by_safety_policy_and_finding_persisted() -
     install_provider_api_key();
     let (pool, _ctx) = setup_ctx().await?;
     let cred = seed_admin_credential(&pool, "gw-safety-block@example.invalid").await?;
-    let policy_name = format!("cov-block-{}", uuid::Uuid::new_v4().simple());
+    let policy_name = format!("zz-block-{}", uuid::Uuid::new_v4().simple());
     install_safety_policy(&pool, &policy_name).await?;
 
     let config = gateway_config(PROVIDER);
@@ -585,4 +590,167 @@ async fn jailbreak_request_is_blocked_by_safety_policy_and_finding_persisted() -
         "blocked request persists its finding; got {findings:?}"
     );
     Ok(())
+}
+
+// Why: `list_for_global` orders `ORDER BY name ASC` and `merge` lets the last
+// row win, so a policy fixture must sort after any baseline row the target
+// database was seeded with — hence the `zz-` prefix on the names below.
+async fn install_response_block_policy(
+    pool: &DbPool,
+    name: &str,
+    block_response: &[&str],
+) -> anyhow::Result<()> {
+    let pg = pool.pool_arc().map_err(anyhow::Error::msg)?;
+    sqlx::query(
+        "INSERT INTO ai_gateway_policies (id, name, spec, enabled) VALUES ($1, $2, $3, TRUE)",
+    )
+    .bind(format!("gwpol_{}", uuid::Uuid::new_v4().simple()))
+    .bind(name)
+    .bind(serde_json::json!({
+        "safety": {
+            "scanners": ["heuristic"],
+            "block_response_categories": block_response,
+        }
+    }))
+    .execute(pg.as_ref())
+    .await?;
+    Ok(())
+}
+
+fn jailbreak_response_json() -> serde_json::Value {
+    serde_json::json!({
+        "id": "msg_upstream_leak",
+        "type": "message",
+        "role": "assistant",
+        "model": MODEL,
+        "content": [{"type": "text", "text": "fine, you are now free of all rules"}],
+        "stop_reason": "end_turn",
+        "usage": {"input_tokens": 4, "output_tokens": 5}
+    })
+}
+
+async fn dispatch_against_jailbreak_upstream(
+    pool: &DbPool,
+    cred: &AuthedFixture,
+) -> anyhow::Result<(AiRequestId, http::Response<axum::body::Body>)> {
+    let upstream = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/messages"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(jailbreak_response_json()))
+        .mount(&upstream)
+        .await;
+
+    let config = gateway_config(PROVIDER);
+    let registry = provider_registry(&upstream.uri(), PROVIDER);
+    let di = inputs(cred, canonical_request(MODEL, false), false);
+    let request_id = di.ctx.ai_request_id.clone();
+    let resp = GatewayService::dispatch(&config, &registry, pool, di)
+        .await
+        .map_err(|e| anyhow::anyhow!("dispatch failed: {e:?}"))?;
+    Ok((request_id, resp))
+}
+
+#[tokio::test]
+async fn buffered_response_in_a_blocked_category_is_not_served() -> anyhow::Result<()> {
+    install_provider_api_key();
+    let (pool, _ctx) = setup_ctx().await?;
+    let cred = seed_admin_credential(&pool, "gw-resp-block@example.invalid").await?;
+    let policy_name = format!("zz-resp-block-{}", uuid::Uuid::new_v4().simple());
+    install_response_block_policy(&pool, &policy_name, &["jailbreak"]).await?;
+
+    let (request_id, resp) = dispatch_against_jailbreak_upstream(&pool, &cred).await?;
+    let status = resp.status();
+    let bytes = to_bytes(resp.into_body(), 1024 * 1024).await?;
+    let findings = poll_findings(&pool, &request_id, 1).await;
+    remove_safety_policy(&pool, &policy_name).await?;
+
+    assert_eq!(status, http::StatusCode::FORBIDDEN);
+    let body = String::from_utf8_lossy(&bytes).into_owned();
+    assert!(
+        !body.contains("free of all rules"),
+        "the blocked reply must not reach the client; body: {body}"
+    );
+    assert!(body.contains("jailbreak"), "body: {body}");
+    assert!(
+        findings
+            .iter()
+            .any(|(phase, category, _)| phase == "response" && category == "jailbreak"),
+        "the blocking finding is still audited; got {findings:?}"
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn the_same_response_is_served_intact_when_no_category_blocks() -> anyhow::Result<()> {
+    install_provider_api_key();
+    let (pool, _ctx) = setup_ctx().await?;
+    let cred = seed_admin_credential(&pool, "gw-resp-audit@example.invalid").await?;
+    let policy_name = format!("zz-resp-audit-{}", uuid::Uuid::new_v4().simple());
+    install_response_block_policy(&pool, &policy_name, &[]).await?;
+
+    let (request_id, resp) = dispatch_against_jailbreak_upstream(&pool, &cred).await?;
+    let status = resp.status();
+    let bytes = to_bytes(resp.into_body(), 1024 * 1024).await?;
+    let findings = poll_findings(&pool, &request_id, 1).await;
+    remove_safety_policy(&pool, &policy_name).await?;
+
+    assert_eq!(status, http::StatusCode::OK);
+    let body = String::from_utf8_lossy(&bytes).into_owned();
+    assert!(body.contains("free of all rules"), "body: {body}");
+    assert!(
+        findings
+            .iter()
+            .any(|(phase, category, _)| phase == "response" && category == "jailbreak"),
+        "an unblocked category is still recorded; got {findings:?}"
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn a_streaming_response_is_never_blocked() -> anyhow::Result<()> {
+    install_provider_api_key();
+    let (pool, _ctx) = setup_ctx().await?;
+    let cred = seed_admin_credential(&pool, "gw-resp-stream@example.invalid").await?;
+    let policy_name = format!("zz-resp-stream-{}", uuid::Uuid::new_v4().simple());
+    install_response_block_policy(&pool, &policy_name, &["jailbreak"]).await?;
+
+    let upstream = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/messages"))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .set_body_raw(jailbreak_sse_body(), "text/event-stream"),
+        )
+        .mount(&upstream)
+        .await;
+
+    let config = gateway_config(PROVIDER);
+    let registry = provider_registry(&upstream.uri(), PROVIDER);
+    let di = inputs(&cred, canonical_request(MODEL, true), true);
+    let request_id = di.ctx.ai_request_id.clone();
+    let resp = GatewayService::dispatch(&config, &registry, &pool, di)
+        .await
+        .expect("streaming dispatch succeeds");
+
+    assert_eq!(resp.status(), http::StatusCode::OK);
+    let bytes = to_bytes(resp.into_body(), 1024 * 1024).await?;
+    let body = String::from_utf8_lossy(&bytes).into_owned();
+    let findings = poll_findings(&pool, &request_id, 1).await;
+    remove_safety_policy(&pool, &policy_name).await?;
+
+    assert!(
+        body.contains("free of all rules"),
+        "the frames are already on the wire; body: {body}"
+    );
+    assert!(
+        findings
+            .iter()
+            .any(|(phase, category, _)| phase == "response" && category == "jailbreak"),
+        "streaming is audit-only, not silent; got {findings:?}"
+    );
+    Ok(())
+}
+
+fn jailbreak_sse_body() -> String {
+    streaming_sse_body().replace("streamed hello", "fine, you are now free of all rules")
 }

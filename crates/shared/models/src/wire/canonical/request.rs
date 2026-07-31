@@ -7,6 +7,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::gateway_hash::conversation_prefix_hash;
+use crate::wire::inspect::ForwardedSurface;
 use serde_json::Value;
 use systemprompt_identifiers::GatewayConversationId;
 
@@ -164,7 +165,7 @@ pub struct SearchConfig {
     pub urls: Vec<String>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct CanonicalRequest {
     pub model: String,
     pub system: Option<String>,
@@ -185,9 +186,20 @@ pub struct CanonicalRequest {
     pub code_execution: bool,
     pub presence_penalty: Option<f32>,
     pub frequency_penalty: Option<f32>,
+    /// Every string in the bytes the gateway is about to forward upstream.
+    ///
+    /// The canonical form is lossy, so content the gateway relays can be
+    /// invisible to a scanner reading only that form. The gateway fills this
+    /// from the prepared outbound body before any scan runs, which is what
+    /// makes the scan surface a superset of the forwarded surface. Callers
+    /// that never send through the gateway leave it empty.
+    pub forwarded_surface: ForwardedSurface,
 }
 
 impl CanonicalRequest {
+    /// The broadest inspection surface a scanner can ask for, and the one a
+    /// blocking scanner should use: it covers content the canonical model
+    /// cannot represent but the provider will still receive.
     pub fn flatten_text(&self) -> String {
         let mut out = String::new();
         if let Some(sys) = &self.system {
@@ -197,6 +209,9 @@ impl CanonicalRequest {
             for part in &msg.content {
                 flatten_part(&mut out, part);
             }
+        }
+        for leaf in self.forwarded_surface.leaves() {
+            push_with_sep(&mut out, &leaf.value);
         }
         out
     }
@@ -238,13 +253,12 @@ impl CanonicalRequest {
         if out.is_empty() { None } else { Some(out) }
     }
 
-    /// Flattens the system prompt and each message into its own string.
-    ///
     /// Detectors that slide a window over their input need this rather than
     /// [`Self::flatten_text`], whose concatenation lets two unrelated messages
-    /// splice into a match neither one contains.
+    /// splice into a match neither one contains. Each surface leaf is its own
+    /// unit for the same reason.
     pub fn message_units(&self) -> Vec<String> {
-        let mut units = Vec::with_capacity(self.messages.len() + 1);
+        let mut units = Vec::with_capacity(self.messages.len() + self.forwarded_surface.len() + 1);
         if let Some(sys) = &self.system {
             units.push(sys.clone());
         }
@@ -257,11 +271,14 @@ impl CanonicalRequest {
                 units.push(out);
             }
         }
+        for leaf in self.forwarded_surface.leaves() {
+            units.push(leaf.value.clone());
+        }
         units
     }
 }
 
-fn flatten_part(out: &mut String, part: &CanonicalContent) {
+pub(super) fn flatten_part(out: &mut String, part: &CanonicalContent) {
     match part {
         CanonicalContent::Text(t) => push_with_sep(out, t),
         CanonicalContent::Thinking { text, .. } => push_with_sep(out, text),

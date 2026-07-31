@@ -6,6 +6,7 @@
 
 use bytes::{Bytes, BytesMut};
 use systemprompt_identifiers::AiToolCallId;
+use systemprompt_models::wire::inspect::{SurfaceBudget, sse_string_leaves};
 
 use super::super::captures::{CapturedToolUse, CapturedUsage};
 use super::super::protocol::canonical::CanonicalContent;
@@ -75,7 +76,7 @@ pub struct Summary {
     )
 )]
 pub fn extract_summary(state: &mut TapState) -> Summary {
-    let response = build_response(state);
+    let mut response = build_response(state);
     let usage = CapturedUsage {
         input_tokens: state.usage.input_tokens,
         output_tokens: state.usage.output_tokens,
@@ -104,6 +105,7 @@ pub fn extract_summary(state: &mut TapState) -> Summary {
         })
         .collect();
     let final_bytes = std::mem::take(&mut state.final_bytes).freeze();
+    response.received_surface = sse_string_leaves(&final_bytes, SurfaceBudget::default());
     let served_model = if state.served_model.is_empty() {
         None
     } else {
@@ -168,9 +170,7 @@ fn build_response(state: &TapState) -> CanonicalResponse {
         content,
         stop_reason: state.final_stop_reason,
         usage: state.usage,
-        grounding: None,
-        code_execution: None,
-        raw_finish_reason: None,
+        ..Default::default()
     }
 }
 

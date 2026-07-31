@@ -38,8 +38,18 @@ use super::audit::{GatewayAudit, GatewayRequestContext};
 use super::policy::{PolicyResolver, QuotaWindow};
 use super::protocol::canonical::CanonicalRequest;
 use super::protocol::inbound::InboundAdapter;
-use super::protocol::outbound::{OutboundCtx, OutboundOutcome};
+use super::protocol::outbound::{OutboundCtx, OutboundOutcome, PreparedBody};
 use super::quota;
+use systemprompt_identifiers::{CallId, SessionId};
+use systemprompt_models::services::ai::ModelLimits;
+use systemprompt_models::wire::inspect;
+use systemprompt_security::authz::types::Decision;
+use systemprompt_security::policy::types::AccessScope;
+use systemprompt_security::policy::{
+    AgentScope, AuditOrigin, AuditTarget, ChainEntryResult, DecisionAudit, Evaluation,
+    GovernanceEngine, GovernedInput, GovernedTarget, PolicyContext, PrincipalSnapshot,
+    record_decision,
+};
 
 pub const REQUEST_ID_HEADER: &str = "x-systemprompt-request-id";
 
@@ -81,6 +91,15 @@ pub struct QuotaExceeded {
 #[derive(Debug, thiserror::Error)]
 #[error("{message}")]
 pub struct GuardForbidden {
+    pub message: String,
+}
+
+/// A denial from the typed four-stage governance chain — the same engine and
+/// the same operator-configured policies that govern MCP tool calls.
+#[derive(Debug, thiserror::Error)]
+#[error("{message}")]
+pub struct GovernanceDenied {
+    pub policy: String,
     pub message: String,
 }
 
@@ -129,28 +148,7 @@ impl GatewayService {
         let resolver = PolicyResolver::new(db).map_err(DispatchError::PreAudit)?;
         let policy = resolver.resolve().await;
 
-        let audit = Arc::new(
-            GatewayAudit::new(db, ctx.clone())
-                .map_err(|e| DispatchError::PreAudit(anyhow!("audit init failed: {e}")))?,
-        );
-
-        if let Err(e) = audit.open(&request, &raw_body).await {
-            tracing::error!(error = %e, "audit open failed — proceeding without audit row");
-        }
-
-        // Why: these headers identify the client, user, and any spawning agent.
-        // They are recorded here, against the audit row's request id, and then
-        // dropped before the upstream send so a third-party provider never
-        // receives them. Emitted on the trace rather than as an `ai_requests`
-        // column because the attribution they add is per-agent, not per-request.
-        if !identity_headers.is_empty() {
-            tracing::info!(
-                ai_request_id = %ai_request_id,
-                user_id = %ctx.user_id,
-                headers = ?identity_headers,
-                "Gateway consumed client identity headers"
-            );
-        }
+        let audit = open_audit(db, &ctx, &request, &raw_body, &identity_headers).await?;
 
         if let Some(descriptor) = upstream.route_match_descriptor.as_deref() {
             audit.set_route_match(descriptor).await;
@@ -158,20 +156,32 @@ impl GatewayService {
 
         enforce_quota(db, &ctx.user_id, &policy.quota_windows, &audit).await?;
         enforce_request_guards(db, &ctx.user_id, &upstream, &request, &audit).await?;
-        enforce_request_safety(db, &ai_request_id, &request, &policy.safety, &audit).await?;
 
-        let outcome = send_to_upstream(
+        // Why: the payload is built before the scan so governance inspects the
+        // exact bytes that will go on the wire. Scanning the canonical form and
+        // sending something derived from it separately is how the two drift.
+        let prepared = prepare_payload(
             config,
             &upstream,
             &mut request,
             &audit,
             UpstreamRelay {
-                forward_headers: &forward_headers,
                 raw_body: &raw_body,
                 inbound: inbound.as_ref(),
             },
         )
         .await?;
+        audit.set_prepared_body_digest(&prepared.body.bytes).await;
+        attach_forwarded_surface(&mut request, &prepared, &ai_request_id);
+
+        // Why: governance runs before the scanner plane so first-deny-wins holds
+        // across both — a denied request never reaches the scanners, and so
+        // produces exactly one audit row and one 403.
+        enforce_governance(db, &ctx, &request, &audit).await?;
+        enforce_request_safety(db, &ai_request_id, &request, &policy.safety, &audit).await?;
+
+        let outcome =
+            send_to_upstream(&upstream, &request, &prepared, &forward_headers, &audit).await?;
 
         let response = finalize(
             outcome,
@@ -190,18 +200,61 @@ impl GatewayService {
 }
 
 struct UpstreamRelay<'a> {
-    forward_headers: &'a [(String, String)],
     raw_body: &'a Bytes,
     inbound: &'a dyn InboundAdapter,
 }
 
-async fn send_to_upstream(
+async fn open_audit(
+    db: &DbPool,
+    ctx: &GatewayRequestContext,
+    request: &CanonicalRequest,
+    raw_body: &Bytes,
+    identity_headers: &[(String, String)],
+) -> Result<Arc<GatewayAudit>, DispatchError> {
+    let audit = Arc::new(
+        GatewayAudit::new(db, ctx.clone())
+            .map_err(|e| DispatchError::PreAudit(anyhow!("audit init failed: {e}")))?,
+    );
+    if let Err(e) = audit.open(request, raw_body).await {
+        tracing::error!(error = %e, "audit open failed — proceeding without audit row");
+    }
+    // Why: these headers identify the client, user, and any spawning agent.
+    // They are recorded here, against the audit row's request id, and then
+    // dropped before the upstream send so a third-party provider never receives
+    // them. Emitted on the trace rather than as an `ai_requests` column because
+    // the attribution they add is per-agent, not per-request.
+    if !identity_headers.is_empty() {
+        tracing::info!(
+            ai_request_id = %ctx.ai_request_id,
+            user_id = %ctx.user_id,
+            headers = ?identity_headers,
+            "Gateway consumed client identity headers"
+        );
+    }
+    Ok(audit)
+}
+
+#[derive(Clone, Copy)]
+struct CtxParts<'a> {
+    upstream_model: &'a str,
+    model_limits: Option<ModelLimits>,
+    forward_headers: &'a [(String, String)],
+    raw_body: Option<&'a Bytes>,
+}
+
+struct Prepared {
+    upstream_model: String,
+    model_limits: Option<ModelLimits>,
+    body: PreparedBody,
+}
+
+async fn prepare_payload(
     config: &GatewayConfig,
     upstream: &ResolvedUpstream<'_>,
     request: &mut CanonicalRequest,
     audit: &GatewayAudit,
     relay: UpstreamRelay<'_>,
-) -> Result<OutboundOutcome, DispatchError> {
+) -> Result<Prepared, DispatchError> {
     let upstream_model = upstream
         .route
         .effective_upstream_model(&request.model)
@@ -216,24 +269,88 @@ async fn send_to_upstream(
         .provider
         .find_model(&upstream_model)
         .map(|m| m.limits);
+    // Why: an applied override rewrote the canonical request, so the caller's
+    // original bytes no longer describe what the gateway decided to send.
     let raw_body = (override_descriptor.is_none()
         && relay.inbound.passthrough_wire() == Some(upstream.provider.wire))
     .then_some(relay.raw_body);
-    if raw_body.is_none() {
-        strip_caller_identity(request);
+    // Why: unconditional, because an adapter may decline the raw lane and fall
+    // back to the canonical build. Stripping only when the lane was rejected up
+    // front would leave that fallback forwarding the identity.
+    strip_caller_identity(request);
+
+    let ctx = outbound_ctx(
+        upstream,
+        request,
+        CtxParts {
+            upstream_model: &upstream_model,
+            model_limits,
+            forward_headers: &[],
+            raw_body,
+        },
+    );
+    let body = upstream
+        .adapter
+        .build_body(&ctx)
+        .map_err(DispatchError::Recorded)?;
+    Ok(Prepared {
+        upstream_model,
+        model_limits,
+        body,
+    })
+}
+
+fn attach_forwarded_surface(
+    request: &mut CanonicalRequest,
+    prepared: &Prepared,
+    ai_request_id: &AiRequestId,
+) {
+    let surface = inspect::string_leaves(&prepared.body.bytes, inspect::SurfaceBudget::default());
+    if surface.truncated() {
+        tracing::warn!(
+            ai_request_id = %ai_request_id,
+            leaves = surface.len(),
+            "Gateway inspection surface truncated — part of the forwarded body was not scanned"
+        );
     }
-    let outbound_ctx = OutboundCtx {
+    request.forwarded_surface = surface;
+}
+
+fn outbound_ctx<'a>(
+    upstream: &'a ResolvedUpstream<'a>,
+    request: &'a CanonicalRequest,
+    parts: CtxParts<'a>,
+) -> OutboundCtx<'a> {
+    OutboundCtx {
         route: upstream.route.as_ref(),
         endpoint: &upstream.provider.endpoint,
         api_key: upstream.api_key,
         request,
-        upstream_model: &upstream_model,
-        model_limits,
-        forward_headers: relay.forward_headers,
-        raw_body,
-    };
+        upstream_model: parts.upstream_model,
+        model_limits: parts.model_limits,
+        forward_headers: parts.forward_headers,
+        raw_body: parts.raw_body,
+    }
+}
 
-    match upstream.adapter.send(outbound_ctx).await {
+async fn send_to_upstream(
+    upstream: &ResolvedUpstream<'_>,
+    request: &CanonicalRequest,
+    prepared: &Prepared,
+    forward_headers: &[(String, String)],
+    audit: &GatewayAudit,
+) -> Result<OutboundOutcome, DispatchError> {
+    let ctx = outbound_ctx(
+        upstream,
+        request,
+        CtxParts {
+            upstream_model: &prepared.upstream_model,
+            model_limits: prepared.model_limits,
+            forward_headers,
+            raw_body: None,
+        },
+    );
+    match upstream.adapter.send(ctx, &prepared.body).await {
         Ok(o) => Ok(o),
         Err(e) => {
             audit_upstream_failure(audit, upstream.provider.name.as_str(), &request.model, &e)
@@ -244,7 +361,9 @@ async fn send_to_upstream(
 }
 
 // Why: `metadata.user_id` is an end-user identifier meant for the provider the
-// caller chose, so it must not reach a different wire's upstream.
+// caller chose, so it must not reach a different wire's upstream. The
+// passthrough lane applies the same rule to the raw body in
+// `normalize_raw_body`.
 fn strip_caller_identity(request: &mut CanonicalRequest) {
     let Some(metadata) = request.metadata.as_mut() else {
         return;
@@ -329,6 +448,151 @@ async fn enforce_request_guards(
         .into(),
     };
     Err(DispatchError::Recorded(inner))
+}
+
+// Why: written on allow as well as on deny — the chain trace is the product,
+// not just the refusals.
+async fn record_governance_decision(
+    db: &DbPool,
+    ctx: &GatewayRequestContext,
+    evaluation: Evaluation,
+    call_id: CallId,
+    session_id: SessionId,
+) {
+    let decision_audit = DecisionAudit {
+        id: uuid::Uuid::new_v4().to_string(),
+        call_id: call_id.as_str().to_owned(),
+        origin: AuditOrigin::Governed,
+        decision: evaluation.decision,
+        principal: PrincipalSnapshot {
+            user_id: ctx.user_id.clone(),
+            session_id,
+            agent_session: None,
+            agent_id: None,
+            agent_scope: AccessScope::Unknown,
+        },
+        target: AuditTarget {
+            tool_name: GovernedTarget::Prompt.as_str().to_owned(),
+            plugin_id: None,
+        },
+        chain: evaluation.chain,
+        approver: None,
+        act_chain: Vec::new(),
+        context_id: Some(ctx.context_id.as_str().to_owned()),
+    };
+    match db.write_pool_arc() {
+        Ok(pool) => {
+            if let Err(e) = record_decision(&pool, &decision_audit).await {
+                tracing::error!(
+                    target: "governance.audit.write_failed",
+                    error = %e,
+                    ai_request_id = %ctx.ai_request_id,
+                    "gateway governance audit write failed; row dropped"
+                );
+            }
+        },
+        Err(e) => tracing::error!(
+            target: "governance.audit.write_failed",
+            error = %e,
+            ai_request_id = %ctx.ai_request_id,
+            "no write pool for the gateway governance decision; row dropped"
+        ),
+    }
+}
+
+struct PromptEvaluation {
+    evaluation: Evaluation,
+    call_id: CallId,
+    session_id: SessionId,
+}
+
+fn evaluate_prompt(ctx: &GatewayRequestContext, request: &CanonicalRequest) -> PromptEvaluation {
+    // Why: `flatten_text` includes the forwarded surface attached just above,
+    // so the chain scans exactly the bytes that will go on the wire — operator
+    // `extra_patterns` included, which the hardcoded safety scanner cannot do.
+    let input = GovernedInput::prompt(request.flatten_text());
+    // Why: the bucket key is `session_id:user_id`. A sessionless inference call
+    // needs a *stable* placeholder — minting one per request would give every
+    // call its own bucket and silently disable rate limiting.
+    let session_id = ctx.session_id.clone().unwrap_or_else(SessionId::system);
+    // Why: the engine's idempotency contract is per-call_id, and the ai-request
+    // id is the one identifier stable across re-evaluations of this call. It is
+    // what stops the rate limiter charging twice.
+    let call_id = CallId::new(ctx.ai_request_id.as_str());
+
+    // Why: the same engine instance the MCP governance webhook uses — the rate
+    // limiter's buckets are instance-scoped, so a second engine would give
+    // inference its own budget and silently double every operator limit.
+    let evaluation = GovernanceEngine::global().evaluate(&PolicyContext {
+        target: GovernedTarget::Prompt,
+        agent_scope: AgentScope::User {
+            user_id: ctx.user_id.clone(),
+        },
+        // Why: the gateway context carries no permission tier. Both
+        // scope-shaped policies are inert on a Prompt target, so this is not a
+        // live gap today — but it would become one if a future change governed
+        // `tool_use` blocks inside a request body.
+        access_scope: AccessScope::Unknown,
+        session_id: &session_id,
+        user_id: &ctx.user_id,
+        input: &input,
+        call_id: &call_id,
+    });
+
+    PromptEvaluation {
+        evaluation,
+        call_id,
+        session_id,
+    }
+}
+
+async fn enforce_governance(
+    db: &DbPool,
+    ctx: &GatewayRequestContext,
+    request: &CanonicalRequest,
+    audit: &GatewayAudit,
+) -> Result<(), DispatchError> {
+    let PromptEvaluation {
+        evaluation,
+        call_id,
+        session_id,
+    } = evaluate_prompt(ctx, request);
+
+    let denied = match &evaluation.decision {
+        Decision::Allow { .. } => None,
+        Decision::Deny { reason } => Some(reason.to_string()),
+    };
+    let policy = evaluation
+        .chain
+        .iter()
+        .find(|e| e.result == ChainEntryResult::Fail)
+        .map_or_else(
+            || "default_allow".to_owned(),
+            |e| e.policy_id.as_str().to_owned(),
+        );
+
+    record_governance_decision(db, ctx, evaluation, call_id, session_id).await;
+
+    let Some(reason) = denied else {
+        return Ok(());
+    };
+    tracing::warn!(
+        ai_request_id = %ctx.ai_request_id,
+        user_id = %ctx.user_id,
+        policy = %policy,
+        reason = %reason,
+        "Gateway request denied by governance policy"
+    );
+    if let Err(e) = audit.fail(&reason).await {
+        tracing::warn!(error = %e, "governance-deny audit fail failed");
+    }
+    Err(DispatchError::Recorded(
+        GovernanceDenied {
+            policy,
+            message: reason,
+        }
+        .into(),
+    ))
 }
 
 async fn enforce_request_safety(

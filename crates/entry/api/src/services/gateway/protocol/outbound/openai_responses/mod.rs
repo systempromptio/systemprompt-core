@@ -13,7 +13,7 @@ use async_trait::async_trait;
 use serde_json::Value;
 use systemprompt_models::wire::openai_responses as codec;
 
-use super::{OutboundAdapter, OutboundCtx, OutboundOutcome, UpstreamError};
+use super::{OutboundAdapter, OutboundCtx, OutboundOutcome, PreparedBody, UpstreamError};
 
 #[cfg(feature = "test-api")]
 pub mod test_api {
@@ -27,8 +27,21 @@ pub struct OpenAiResponsesOutbound;
 
 #[async_trait]
 impl OutboundAdapter for OpenAiResponsesOutbound {
-    async fn send(&self, ctx: OutboundCtx<'_>) -> Result<OutboundOutcome> {
-        let body = codec::build_request_body(ctx.request, ctx.upstream_model, ctx.model_limits);
+    fn build_body(&self, ctx: &OutboundCtx<'_>) -> Result<PreparedBody> {
+        Ok(PreparedBody {
+            bytes: bytes::Bytes::from(
+                serde_json::to_vec(&codec::build_request_body(
+                    ctx.request,
+                    ctx.upstream_model,
+                    ctx.model_limits,
+                ))
+                .map_err(|e| anyhow!("render request body: {e}"))?,
+            ),
+            raw_lane: false,
+        })
+    }
+
+    async fn send(&self, ctx: OutboundCtx<'_>, body: &PreparedBody) -> Result<OutboundOutcome> {
         let url = format!("{}/responses", ctx.endpoint.trim_end_matches('/'));
 
         let client = reqwest::Client::new();
@@ -36,7 +49,7 @@ impl OutboundAdapter for OpenAiResponsesOutbound {
             .post(&url)
             .header("authorization", format!("Bearer {}", ctx.api_key))
             .header("content-type", "application/json")
-            .json(&body);
+            .body(body.bytes.clone());
         for (name, value) in &ctx.route.extra_headers {
             req = req.header(name.as_str(), value.as_str());
         }

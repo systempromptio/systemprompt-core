@@ -33,6 +33,7 @@ fn sample_audit() -> DecisionAudit {
         }],
         approver: None,
         act_chain: Vec::new(),
+        context_id: None,
     }
 }
 
@@ -96,6 +97,7 @@ fn act_chain_and_approver_are_omitted_when_empty() {
     let obj = blob.as_object().unwrap();
     assert!(!obj.contains_key("act_chain"));
     assert!(!obj.contains_key("approver"));
+    assert!(!obj.contains_key("context_id"));
 }
 
 // record_decision derives the flat columns from the blob: `policy` is the first

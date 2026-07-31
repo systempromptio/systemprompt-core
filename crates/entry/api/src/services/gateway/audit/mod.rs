@@ -96,6 +96,17 @@ impl GatewayAudit {
         }
     }
 
+    pub async fn set_prepared_body_digest(&self, body: &[u8]) {
+        let sha256 = payload::digest_hex(body);
+        if let Err(e) = self
+            .payloads
+            .upsert_prepared_sha256(&self.ctx.ai_request_id, &sha256)
+            .await
+        {
+            tracing::warn!(error = %e, ai_request_id = %self.ctx.ai_request_id, "prepared body digest write failed");
+        }
+    }
+
     pub async fn set_system_prompt_override(&self, descriptor: &str) {
         if let Err(e) = self
             .requests

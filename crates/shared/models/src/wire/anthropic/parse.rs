@@ -191,6 +191,7 @@ pub fn parse_response(value: &Value, fallback_model: &str) -> CanonicalResponse 
         grounding,
         code_execution: None,
         raw_finish_reason: resp.stop_reason,
+        ..Default::default()
     }
 }
 

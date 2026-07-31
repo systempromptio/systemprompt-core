@@ -119,6 +119,7 @@ async fn write_rejection_payload(ctx: &AppContext, ai_request_id: &AiRequestId, 
         },
     };
     let bytes_len = body.len().min(i32::MAX as usize) as i32;
+    let sha256 = crate::services::gateway::audit::payload::digest_hex(body);
     let body_json = serde_json::from_slice::<serde_json::Value>(body).ok();
     let excerpt = if body_json.is_none() {
         Some(String::from_utf8_lossy(body).to_string())
@@ -133,6 +134,7 @@ async fn write_rejection_payload(ctx: &AppContext, ai_request_id: &AiRequestId, 
                 excerpt: excerpt.as_deref(),
                 truncated: false,
                 bytes: Some(bytes_len),
+                sha256: Some(sha256.as_str()),
             },
         )
         .await

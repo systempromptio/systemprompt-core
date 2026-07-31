@@ -1,7 +1,7 @@
 use bytes::Bytes;
 use systemprompt_api::services::gateway::audit::payload::{slice_payload, truncate_for_tool_input};
 
-const PAYLOAD_CAP: usize = 256 * 1024;
+const PAYLOAD_CAP: usize = 1024 * 1024;
 const TOOL_INPUT_CAP: usize = 64 * 1024;
 
 #[test]
@@ -10,7 +10,13 @@ fn slice_payload_at_cap_preserves_parsed_json() {
     let pad_len = PAYLOAD_CAP - 32;
     let body = format!(r#"{{"k":"{}"}}"#, "a".repeat(pad_len));
     assert!(body.len() <= PAYLOAD_CAP);
-    let (json, excerpt, truncated, bytes) = slice_payload(&Bytes::from(body.clone()));
+    let capture = slice_payload(&Bytes::from(body.clone()));
+    let (json, excerpt, truncated, bytes) = (
+        capture.json,
+        capture.excerpt,
+        capture.truncated,
+        capture.byte_len,
+    );
     assert!(!truncated, "payload at-or-below cap is not truncated");
     assert!(
         excerpt.is_none(),
@@ -23,7 +29,13 @@ fn slice_payload_at_cap_preserves_parsed_json() {
 #[test]
 fn slice_payload_one_over_cap_truncates_and_records_size() {
     let body = vec![b'x'; PAYLOAD_CAP + 1];
-    let (json, excerpt, truncated, bytes) = slice_payload(&Bytes::from(body.clone()));
+    let capture = slice_payload(&Bytes::from(body.clone()));
+    let (json, excerpt, truncated, bytes) = (
+        capture.json,
+        capture.excerpt,
+        capture.truncated,
+        capture.byte_len,
+    );
     assert!(truncated, "one byte over the cap must be flagged truncated");
     assert!(json.is_none(), "over-cap payload is never returned as JSON");
     let excerpt = excerpt.expect("over-cap must record an excerpt");
@@ -41,7 +53,13 @@ fn slice_payload_one_over_cap_truncates_and_records_size() {
 #[test]
 fn slice_payload_invalid_json_within_cap_records_excerpt_not_silent_drop() {
     let body = Bytes::from_static(b"definitely not json {[");
-    let (json, excerpt, truncated, bytes) = slice_payload(&body);
+    let capture = slice_payload(&body);
+    let (json, excerpt, truncated, bytes) = (
+        capture.json,
+        capture.excerpt,
+        capture.truncated,
+        capture.byte_len,
+    );
     assert!(json.is_none());
     assert!(!truncated, "small invalid-JSON body is not truncated");
     let excerpt = excerpt.expect("invalid JSON must surface as an excerpt, never silently drop");
@@ -52,7 +70,13 @@ fn slice_payload_invalid_json_within_cap_records_excerpt_not_silent_drop() {
 #[test]
 fn slice_payload_oversized_invalid_json_keeps_head_and_tail() {
     let body = vec![b'q'; PAYLOAD_CAP * 2];
-    let (json, excerpt, truncated, bytes) = slice_payload(&Bytes::from(body.clone()));
+    let capture = slice_payload(&Bytes::from(body.clone()));
+    let (json, excerpt, truncated, bytes) = (
+        capture.json,
+        capture.excerpt,
+        capture.truncated,
+        capture.byte_len,
+    );
     assert!(json.is_none());
     assert!(truncated);
     let excerpt = excerpt.expect("oversized payload must record an excerpt");

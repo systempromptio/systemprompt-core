@@ -86,5 +86,6 @@ fn base_request() -> CanonicalRequest {
         code_execution: false,
         presence_penalty: None,
         frequency_penalty: None,
+        forwarded_surface: Default::default(),
     }
 }

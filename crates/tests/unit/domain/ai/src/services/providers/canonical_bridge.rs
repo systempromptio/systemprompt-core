@@ -148,6 +148,7 @@ fn response_with(usage: CanonicalUsage) -> CanonicalResponse {
         grounding: None,
         code_execution: None,
         raw_finish_reason: Some("stop".to_owned()),
+        ..Default::default()
     }
 }
 
@@ -243,6 +244,7 @@ fn text_content_concatenates_only_text_parts() {
         grounding: None,
         code_execution: None,
         raw_finish_reason: None,
+        ..Default::default()
     };
     assert_eq!(text_content(&response), "hello world");
 }
@@ -266,6 +268,7 @@ fn tool_calls_extracts_tool_use_parts() {
         grounding: None,
         code_execution: None,
         raw_finish_reason: None,
+        ..Default::default()
     };
     let calls = tool_calls(&response);
     assert_eq!(calls.len(), 1);

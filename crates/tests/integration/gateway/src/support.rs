@@ -32,6 +32,7 @@ pub fn minimal_request(system: Option<&str>, first_user_text: &str) -> Canonical
         code_execution: false,
         presence_penalty: None,
         frequency_penalty: None,
+        forwarded_surface: Default::default(),
     }
 }
 

@@ -23,6 +23,18 @@ use systemprompt_models::profile::GatewayRoute;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, Request, ResponseTemplate};
 
+/// Builds the request body then sends it, mirroring what the gateway does.
+///
+/// The adapter splits the two so the gateway can inspect the exact bytes before
+/// they go on the wire; these tests exercise the pair together.
+async fn send_via<A: OutboundAdapter>(
+    adapter: &A,
+    ctx: OutboundCtx<'_>,
+) -> anyhow::Result<OutboundOutcome> {
+    let body = adapter.build_body(&ctx)?;
+    adapter.send(ctx, &body).await
+}
+
 fn route() -> GatewayRoute {
     GatewayRoute {
         id: RouteId::new("r1"),
@@ -59,6 +71,7 @@ fn request(stream: bool) -> CanonicalRequest {
         code_execution: false,
         presence_penalty: None,
         frequency_penalty: None,
+        forwarded_surface: Default::default(),
     }
 }
 
@@ -118,8 +131,9 @@ async fn passthrough_forwards_unmodelled_body_fields_verbatim() {
     let route = route();
     let req = request(false);
     let raw = raw_with_beta_fields();
-    let outcome = AnthropicOutbound
-        .send(OutboundCtx {
+    let outcome = send_via(
+        &AnthropicOutbound,
+        OutboundCtx {
             route: &route,
             endpoint: &server.uri(),
             api_key: "k",
@@ -128,8 +142,9 @@ async fn passthrough_forwards_unmodelled_body_fields_verbatim() {
             model_limits: None,
             forward_headers: &[],
             raw_body: Some(&raw),
-        })
-        .await
+        },
+    )
+    .await
         .expect("send");
 
     assert!(
@@ -159,8 +174,9 @@ async fn passthrough_forwards_anthropic_beta_header_verbatim() {
     let raw = raw_with_beta_fields();
     let beta = "context-management-2025-06-27,interleaved-thinking-2025-05-14";
     let forward = vec![("anthropic-beta".to_owned(), beta.to_owned())];
-    AnthropicOutbound
-        .send(OutboundCtx {
+    send_via(
+        &AnthropicOutbound,
+        OutboundCtx {
             route: &route,
             endpoint: &server.uri(),
             api_key: "k",
@@ -169,8 +185,9 @@ async fn passthrough_forwards_anthropic_beta_header_verbatim() {
             model_limits: None,
             forward_headers: &forward,
             raw_body: Some(&raw),
-        })
-        .await
+        },
+    )
+    .await
         .expect("send");
 
     let sent = last_request(&server);
@@ -191,8 +208,9 @@ async fn client_anthropic_version_is_not_overridden() {
     let route = route();
     let req = request(false);
     let forward = vec![("anthropic-version".to_owned(), "2099-01-01".to_owned())];
-    AnthropicOutbound
-        .send(OutboundCtx {
+    send_via(
+        &AnthropicOutbound,
+        OutboundCtx {
             route: &route,
             endpoint: &server.uri(),
             api_key: "k",
@@ -201,8 +219,9 @@ async fn client_anthropic_version_is_not_overridden() {
             model_limits: None,
             forward_headers: &forward,
             raw_body: None,
-        })
-        .await
+        },
+    )
+    .await
         .expect("send");
 
     let sent = last_request(&server);
@@ -222,8 +241,9 @@ async fn absent_client_version_falls_back_to_the_pinned_default() {
 
     let route = route();
     let req = request(false);
-    AnthropicOutbound
-        .send(OutboundCtx {
+    send_via(
+        &AnthropicOutbound,
+        OutboundCtx {
             route: &route,
             endpoint: &server.uri(),
             api_key: "k",
@@ -232,8 +252,9 @@ async fn absent_client_version_falls_back_to_the_pinned_default() {
             model_limits: None,
             forward_headers: &[],
             raw_body: None,
-        })
-        .await
+        },
+    )
+    .await
         .expect("send");
 
     assert_eq!(
@@ -261,8 +282,9 @@ async fn upstream_error_body_and_retry_after_are_preserved() {
 
     let route = route();
     let req = request(false);
-    let Err(err) = AnthropicOutbound
-        .send(OutboundCtx {
+    let Err(err) = send_via(
+        &AnthropicOutbound,
+        OutboundCtx {
             route: &route,
             endpoint: &server.uri(),
             api_key: "k",
@@ -271,8 +293,9 @@ async fn upstream_error_body_and_retry_after_are_preserved() {
             model_limits: None,
             forward_headers: &[],
             raw_body: None,
-        })
-        .await
+        },
+    )
+    .await
     else {
         panic!("529 must surface as an error");
     };
@@ -325,8 +348,9 @@ async fn passthrough_streaming_relays_frames_unchanged() {
         }))
         .expect("serialize"),
     );
-    let outcome = AnthropicOutbound
-        .send(OutboundCtx {
+    let outcome = send_via(
+        &AnthropicOutbound,
+        OutboundCtx {
             route: &route,
             endpoint: &server.uri(),
             api_key: "k",
@@ -335,8 +359,9 @@ async fn passthrough_streaming_relays_frames_unchanged() {
             model_limits: None,
             forward_headers: &[],
             raw_body: Some(&raw),
-        })
-        .await
+        },
+    )
+    .await
         .expect("send");
 
     let OutboundOutcome::RawStreaming { stream, .. } = outcome else {
@@ -362,8 +387,9 @@ async fn passthrough_rewrites_only_the_model_when_the_route_remaps_it() {
     let route = route();
     let req = request(false);
     let raw = raw_with_beta_fields();
-    AnthropicOutbound
-        .send(OutboundCtx {
+    send_via(
+        &AnthropicOutbound,
+        OutboundCtx {
             route: &route,
             endpoint: &server.uri(),
             api_key: "k",
@@ -372,8 +398,9 @@ async fn passthrough_rewrites_only_the_model_when_the_route_remaps_it() {
             model_limits: None,
             forward_headers: &[],
             raw_body: Some(&raw),
-        })
-        .await
+        },
+    )
+    .await
         .expect("send");
 
     let sent: Value = serde_json::from_slice(&last_request(&server).body).expect("json");

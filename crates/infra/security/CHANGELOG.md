@@ -11,6 +11,9 @@
 
 ### Added
 
+- `GovernanceEngine::global` returns the process-wide engine, so every enforcement point charges one rate limiter. The buckets are instance-scoped, and a second engine gives its callers their own budget and silently doubles every operator limit — the MCP governance webhook and the inference gateway must share one. `GovernanceEngine::from_config` remains for tests and for callers that genuinely want an isolated chain.
+- `DecisionAudit.context_id` records the conversational context a governed call belongs to, omitted from the serialized blob when absent. The MCP webhook knows no context; the gateway does, and without it an inference decision cannot be joined back to the request it judged.
+
 - `GovernedInput::strings` yields every string in a governed payload with its dotted path, so a scanner reports the path the input type defines rather than one it reconstructs, and `GovernedInput::location_kind` names the surface a finding sits on (`tool_input` or `prompt`).
 - `GovernedTarget::as_str` gives the audit-visible name of a governed target, recording a prompt submission as `PROMPT_TARGET_NAME`.
 - `SecretLocation` implements `Display`, and `DenyReason::SecretLeak` renders it in place of a `Debug` dump.

@@ -13,8 +13,8 @@ use crate::services::gateway::audit::GatewayRequestContext;
 use crate::services::gateway::protocol::inbound::InboundAdapter;
 use crate::services::gateway::protocol::outbound::UpstreamError;
 use crate::services::gateway::service::{
-    DispatchError, DispatchInputs, GatewayService, GuardForbidden, PolicyDenied, QuotaExceeded,
-    SafetyBlocked,
+    DispatchError, DispatchInputs, GatewayService, GovernanceDenied, GuardForbidden, PolicyDenied,
+    QuotaExceeded, SafetyBlocked,
 };
 
 use super::RequestContext;
@@ -124,6 +124,9 @@ pub fn map_dispatch_error(e: DispatchError) -> Result<Response<Body>, RejectionE
             StatusCode::FORBIDDEN,
             &forbidden.message,
         ));
+    }
+    if let Some(denied) = inner.downcast_ref::<GovernanceDenied>() {
+        return Ok(build_error_response(StatusCode::FORBIDDEN, &denied.message));
     }
     // Why: Claude Code recovers from several provider rejections by matching on
     // the provider's own error wording and retrying without the rejected

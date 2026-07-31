@@ -41,6 +41,7 @@ fn req_with(text: &str) -> CanonicalRequest {
         code_execution: false,
         presence_penalty: None,
         frequency_penalty: None,
+        forwarded_surface: Default::default(),
     }
 }
 
@@ -54,6 +55,7 @@ fn resp_with(text: &str) -> CanonicalResponse {
         grounding: None,
         code_execution: None,
         raw_finish_reason: None,
+        ..Default::default()
     }
 }
 

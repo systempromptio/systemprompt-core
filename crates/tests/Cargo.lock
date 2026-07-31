@@ -7149,6 +7149,7 @@ dependencies = [
  "bytes",
  "chrono",
  "futures-util",
+ "hex",
  "http",
  "inventory",
  "ipnet",
@@ -7158,6 +7159,7 @@ dependencies = [
  "rsa",
  "serde",
  "serde_json",
+ "sha2 0.11.0",
  "sqlx",
  "systemprompt-ai",
  "systemprompt-api",
@@ -7531,6 +7533,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "systemprompt-bridge-proxy-port-fallback-tests"
+version = "0.0.11"
+dependencies = [
+ "systemprompt-bridge",
+ "temp-env",
+ "tempfile",
+]
+
+[[package]]
 name = "systemprompt-bridge-proxy-tests"
 version = "0.0.11"
 dependencies = [
@@ -7538,6 +7549,7 @@ dependencies = [
  "futures-util",
  "http-body-util",
  "hyper",
+ "serde_json",
  "systemprompt-bridge",
  "temp-env",
  "tempfile",

@@ -32,6 +32,7 @@ fn sample_response() -> CanonicalResponse {
         grounding: None,
         code_execution: None,
         raw_finish_reason: None,
+        ..Default::default()
     }
 }
 

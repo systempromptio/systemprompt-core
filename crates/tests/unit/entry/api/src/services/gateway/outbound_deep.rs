@@ -20,6 +20,18 @@ use systemprompt_models::profile::GatewayRoute;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
+/// Builds the request body then sends it, mirroring what the gateway does.
+///
+/// The adapter splits the two so the gateway can inspect the exact bytes before
+/// they go on the wire; these tests exercise the pair together.
+async fn send_via<A: OutboundAdapter>(
+    adapter: &A,
+    ctx: OutboundCtx<'_>,
+) -> anyhow::Result<OutboundOutcome> {
+    let body = adapter.build_body(&ctx)?;
+    adapter.send(ctx, &body).await
+}
+
 fn route(provider: &str) -> GatewayRoute {
     let mut extra = HashMap::new();
     extra.insert("x-custom".to_owned(), "value".to_owned());
@@ -110,6 +122,7 @@ fn rich_request() -> CanonicalRequest {
         code_execution: false,
         presence_penalty: None,
         frequency_penalty: None,
+        forwarded_surface: Default::default(),
     }
 }
 
@@ -139,7 +152,7 @@ async fn anthropic_outbound_with_rich_request_and_extra_headers() {
         forward_headers: &[],
         raw_body: None,
     };
-    let outcome = AnthropicOutbound.send(ctx).await.expect("ok");
+    let outcome = send_via(&AnthropicOutbound, ctx).await.expect("ok");
     assert!(matches!(outcome, OutboundOutcome::Buffered(_)));
 }
 
@@ -172,7 +185,7 @@ async fn openai_chat_outbound_with_rich_request() {
         forward_headers: &[],
         raw_body: None,
     };
-    let outcome = OpenAiChatOutbound.send(ctx).await.expect("ok");
+    let outcome = send_via(&OpenAiChatOutbound, ctx).await.expect("ok");
     assert!(matches!(outcome, OutboundOutcome::Buffered(_)));
 }
 
@@ -206,7 +219,7 @@ async fn openai_responses_outbound_with_rich_request_buffered() {
         forward_headers: &[],
         raw_body: None,
     };
-    let outcome = OpenAiResponsesOutbound.send(ctx).await.expect("ok");
+    let outcome = send_via(&OpenAiResponsesOutbound, ctx).await.expect("ok");
     assert!(matches!(outcome, OutboundOutcome::Buffered(_)));
 }
 
@@ -230,7 +243,7 @@ async fn openai_responses_outbound_propagates_upstream_error() {
         forward_headers: &[],
         raw_body: None,
     };
-    let res = OpenAiResponsesOutbound.send(ctx).await;
+    let res = send_via(&OpenAiResponsesOutbound, ctx).await;
     assert!(res.is_err());
 }
 
@@ -254,7 +267,7 @@ async fn openai_responses_outbound_handles_invalid_json() {
         forward_headers: &[],
         raw_body: None,
     };
-    let res = OpenAiResponsesOutbound.send(ctx).await;
+    let res = send_via(&OpenAiResponsesOutbound, ctx).await;
     assert!(res.is_err());
 }
 
@@ -294,6 +307,7 @@ async fn anthropic_outbound_no_system_no_tools() {
         code_execution: false,
         presence_penalty: None,
         frequency_penalty: None,
+        forwarded_surface: Default::default(),
     };
     let ctx = OutboundCtx {
         route: &r,
@@ -305,7 +319,7 @@ async fn anthropic_outbound_no_system_no_tools() {
         forward_headers: &[],
         raw_body: None,
     };
-    let outcome = AnthropicOutbound.send(ctx).await.expect("ok");
+    let outcome = send_via(&AnthropicOutbound, ctx).await.expect("ok");
     assert!(matches!(outcome, OutboundOutcome::Buffered(_)));
 }
 
@@ -335,7 +349,7 @@ async fn openai_chat_outbound_streaming_with_extra_headers() {
         forward_headers: &[],
         raw_body: None,
     };
-    let outcome = OpenAiChatOutbound.send(ctx).await.expect("ok");
+    let outcome = send_via(&OpenAiChatOutbound, ctx).await.expect("ok");
     if let OutboundOutcome::Streaming(_s) = outcome {
         // Stream returned — that's the branch we want to cover.
     } else {
