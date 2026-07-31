@@ -96,7 +96,7 @@ The workspace publishes to crates.io as `systemprompt-*` crates behind the `syst
 
 ```toml
 [dependencies]
-systemprompt = { version = "0.27", features = ["full"] }
+systemprompt = { version = "0.28", features = ["full"] }
 ```
 
 ```rust

@@ -43,7 +43,7 @@ Native MCP server lifecycle, orchestration, and governance. Manages MCP process 
 
 ```toml
 [dependencies]
-systemprompt-mcp = "0.27"
+systemprompt-mcp = "0.28"
 ```
 
 ## Architecture

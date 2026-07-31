@@ -25,7 +25,7 @@
 //! | `full` | All of the above plus all domain crates (`agent`, `ai`, `mcp`, `oauth`, `users`, `content`, `analytics`, `scheduler`, `generator`, `files`) | Building a product binary. |
 //!
 //! ```toml
-//! systemprompt = { version = "0.27.0", features = ["full"] }
+//! systemprompt = { version = "0.28.0", features = ["full"] }
 //! ```
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.

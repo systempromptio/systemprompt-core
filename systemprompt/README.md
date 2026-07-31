@@ -31,7 +31,7 @@ For what the platform is and why it exists, see the [repository README](https://
 
 ```toml
 [dependencies]
-systemprompt = { version = "0.27.0", features = ["full"] }
+systemprompt = { version = "0.28.0", features = ["full"] }
 ```
 
 ```rust

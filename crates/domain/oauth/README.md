@@ -42,6 +42,8 @@ This crate implements a complete OAuth 2.0 authorization server with:
 - Authorization Code Grant with PKCE
 - Client Credentials Grant
 - Refresh Token Grant
+- Token Exchange (RFC 8693) and the JWT Bearer assertion grant (RFC 7523)
+- MCP Enterprise-Managed Authorization: ID-JAG issuance and redemption, with single-use replay protection
 - Dynamic Client Registration (RFC 7591)
 - Token Introspection (RFC 7662)
 - Token Revocation (RFC 7009)
@@ -52,7 +54,7 @@ This crate implements a complete OAuth 2.0 authorization server with:
 
 ```toml
 [dependencies]
-systemprompt-oauth = "0.27"
+systemprompt-oauth = "0.28"
 ```
 
 ```rust
