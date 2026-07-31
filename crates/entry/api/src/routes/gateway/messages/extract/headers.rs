@@ -10,6 +10,7 @@ use bytes::Bytes;
 use std::sync::Arc;
 use systemprompt_identifiers::headers::{GATEWAY_CONVERSATION_ID, SESSION_ID};
 use systemprompt_identifiers::{GatewayConversationId, SessionId};
+use systemprompt_models::wire::anthropic as wire_anthropic;
 
 use super::RejectionPartial;
 use crate::services::gateway::protocol::canonical::CanonicalRequest;
@@ -98,20 +99,23 @@ pub async fn read_gateway_body(
     request: Request<Body>,
     partial: &mut RejectionPartial,
 ) -> Result<(Bytes, CanonicalRequest), (StatusCode, String)> {
-    let body_bytes = axum::body::to_bytes(request.into_body(), 8 * 1024 * 1024)
-        .await
-        .map_err(|e| {
-            (
-                StatusCode::BAD_REQUEST,
-                format!("Failed to read request body: {e}"),
-            )
-        })?;
+    let body_bytes = axum::body::to_bytes(
+        request.into_body(),
+        systemprompt_models::wire::BUFFERED_BODY_LIMIT_BYTES,
+    )
+    .await
+    .map_err(|e| {
+        (
+            StatusCode::BAD_REQUEST,
+            format!("failed to read request body: {e}"),
+        )
+    })?;
     partial.body = Some(body_bytes.clone());
 
     let canonical = inbound.parse_request(&body_bytes).map_err(|e| {
         (
             StatusCode::BAD_REQUEST,
-            format!("Invalid request body: {e}"),
+            format!("invalid request body: {e}"),
         )
     })?;
     partial.model = Some(canonical.model.clone());
@@ -120,13 +124,40 @@ pub async fn read_gateway_body(
     Ok((body_bytes, canonical))
 }
 
+// Why: `forward` is relayed upstream unchanged; `identity` is recorded on the
+// audit row and dropped, so a third-party provider never sees which developer,
+// session, or agent produced the request.
+#[derive(Debug, Default, Clone)]
+pub(crate) struct ClientHeaders {
+    pub forward: Vec<(String, String)>,
+    pub identity: Vec<(String, String)>,
+}
+
+pub(super) fn classify_client_headers(headers: &HeaderMap) -> ClientHeaders {
+    let mut classified = ClientHeaders::default();
+    for (name, value) in headers {
+        let Ok(value) = value.to_str() else {
+            continue;
+        };
+        let name = name.as_str();
+        if wire_anthropic::is_forwardable_request_header(name) {
+            classified.forward.push((name.to_owned(), value.to_owned()));
+        } else if wire_anthropic::is_identity_request_header(name) {
+            classified
+                .identity
+                .push((name.to_owned(), value.to_owned()));
+        }
+    }
+    classified
+}
+
 pub fn extract_credential(headers: &HeaderMap) -> Option<String> {
     let raw = headers
         .get("authorization")
         .or_else(|| headers.get("x-api-key"))
         .and_then(|v| v.to_str().ok())?;
 
-    let trimmed = raw.trim_start_matches("Bearer ").trim();
+    let trimmed = raw.strip_prefix("Bearer ").unwrap_or(raw).trim();
     if trimmed.is_empty() {
         None
     } else {

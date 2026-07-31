@@ -14,6 +14,7 @@ pub mod openai_responses;
 
 use bytes::Bytes;
 use http::StatusCode;
+use systemprompt_models::profile::WireProtocol;
 
 use super::canonical::CanonicalRequest;
 use super::canonical_response::{CanonicalEvent, CanonicalResponse};
@@ -30,24 +31,29 @@ pub enum InboundParseError {
 
 pub trait InboundAdapter: Send + Sync + std::fmt::Debug {
     fn wire_name(&self) -> &'static str;
+
+    /// A rebuild from [`CanonicalRequest`] silently drops beta-gated fields
+    /// (`context_management`, `output_config`, …) that clients pair with an
+    /// `anthropic-beta` header, so a same-protocol route forwards the original
+    /// bytes instead.
+    fn passthrough_wire(&self) -> Option<WireProtocol> {
+        None
+    }
+
     fn parse_request(&self, raw: &Bytes) -> Result<CanonicalRequest, InboundParseError>;
     fn render_response(&self, response: &CanonicalResponse) -> Bytes;
     fn render_event(&self, event: &CanonicalEvent, model: &str) -> Option<Bytes>;
 
-    /// Render a terminal streaming event whose wire form must embed
-    /// fully-accumulated item content — the complete tool-call arguments and
-    /// the output list — which the per-event [`CanonicalEvent`] alone does
-    /// not carry. Returns `None` for wires that finalize correctly from
-    /// per-event deltas (the caller then falls back to
-    /// [`InboundAdapter::render_event`]).
+    /// For wires whose terminal frame must embed fully-accumulated content the
+    /// per-event [`CanonicalEvent`] does not carry; `None` falls back to
+    /// [`InboundAdapter::render_event`].
     fn render_terminal_event(
         &self,
         event: &CanonicalEvent,
         snapshot: &CanonicalResponse,
         model: &str,
     ) -> Option<Bytes> {
-        // Why: default impl ignores args; wires that need terminal finalization
-        // override this.
+        // Why: unused-arg suppression in a default trait method body.
         let _ = (event, snapshot, model);
         None
     }

@@ -48,6 +48,9 @@ fn an_upstream_status_is_delegated_to_the_upstream_mapping() {
         provider: "anthropic".to_owned(),
         status: 429,
         message: "slow down".to_owned(),
+        body: bytes::Bytes::new(),
+        retry_after: None,
+        request_id: None,
     }));
 
     assert_eq!(status, StatusCode::TOO_MANY_REQUESTS);

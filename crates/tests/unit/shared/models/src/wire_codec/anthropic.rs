@@ -288,3 +288,59 @@ fn anthropic_upstream_body_omits_unsigned_thinking_and_empty_messages() {
     assert_eq!(messages[0]["content"][0]["signature"], "sig==");
     assert_eq!(messages[0]["content"][1]["text"], "answer");
 }
+
+/// Anthropic's gateway contract splits inbound headers into two classes: those
+/// a gateway must relay to the upstream byte-for-byte, and those it may consume
+/// for routing and attribution without forwarding. These tests pin that split
+/// so a new capability header is relayed by default and an identity header is
+/// not.
+#[test]
+fn anthropic_prefixed_headers_are_forwardable() {
+    for name in [
+        "anthropic-beta",
+        "anthropic-version",
+        "Anthropic-Beta",
+        "anthropic-workspace-id",
+        // Why: the set grows every Claude Code release, so an unrecognised
+        // `anthropic-*` name must forward rather than be dropped.
+        "anthropic-not-invented-yet",
+    ] {
+        assert!(
+            anthropic::is_forwardable_request_header(name),
+            "{name} must reach the upstream unchanged"
+        );
+    }
+}
+
+#[test]
+fn identity_headers_are_never_forwardable() {
+    for name in [
+        "x-claude-code-session-id",
+        "x-claude-code-agent-id",
+        "x-claude-code-parent-agent-id",
+        "X-Stainless-Lang",
+        "user-agent",
+        "cookie",
+        "authorization",
+        "x-api-key",
+        "x-systemprompt-request-id",
+        "x-forwarded-for",
+    ] {
+        assert!(
+            anthropic::is_identity_request_header(name),
+            "{name} must be classified as identity"
+        );
+        assert!(
+            !anthropic::is_forwardable_request_header(name),
+            "{name} must never be relayed to a third-party provider"
+        );
+    }
+}
+
+#[test]
+fn unrelated_headers_are_neither_forwarded_nor_recorded() {
+    for name in ["content-type", "accept", "host", "content-length"] {
+        assert!(!anthropic::is_forwardable_request_header(name), "{name}");
+        assert!(!anthropic::is_identity_request_header(name), "{name}");
+    }
+}

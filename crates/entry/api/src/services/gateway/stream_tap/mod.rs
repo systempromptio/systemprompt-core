@@ -26,6 +26,7 @@ use super::audit::GatewayAudit;
 use super::policy::GatewayPolicySpec;
 use super::protocol::canonical_response::CanonicalEvent;
 use super::protocol::inbound::InboundAdapter;
+use super::protocol::outbound::anthropic::streaming::SseDecoder;
 use super::quota;
 use super::service::run_response_safety_scan;
 use super::signature_cache::ThoughtSignatureCache;
@@ -56,6 +57,90 @@ pub fn tap(
         finalize_ctx: Some(finalize_ctx),
     };
     Body::from_stream(tapped)
+}
+
+/// Relays an upstream byte stream unchanged while accounting for what passes.
+///
+/// The client receives the provider's own SSE frames; a decoded copy feeds the
+/// same accumulator the translating tap uses, so audit, cost, quota, and the
+/// response-phase safety scan behave identically on both lanes.
+pub fn tap_raw(
+    upstream: BoxStream<'static, Result<Bytes, String>>,
+    audit: Arc<GatewayAudit>,
+    finalize_ctx: TapFinalizeCtx,
+) -> Body {
+    Body::from_stream(RawTappedStream {
+        inner: upstream,
+        state: Arc::new(Mutex::new(TapState::default())),
+        decoder: SseDecoder::default(),
+        audit,
+        finalize_ctx: Some(finalize_ctx),
+    })
+}
+
+struct RawTappedStream {
+    inner: BoxStream<'static, Result<Bytes, String>>,
+    state: Arc<Mutex<TapState>>,
+    decoder: SseDecoder,
+    audit: Arc<GatewayAudit>,
+    finalize_ctx: Option<TapFinalizeCtx>,
+}
+
+impl RawTappedStream {
+    fn take_summary(&mut self) -> Option<(Summary, TapFinalizeCtx)> {
+        let ctx = self.finalize_ctx.take()?;
+        self.state.lock().ok().and_then(|mut s| {
+            if s.finalized {
+                return None;
+            }
+            s.finalized = true;
+            Some((extract_summary(&mut s), ctx))
+        })
+    }
+}
+
+impl Stream for RawTappedStream {
+    type Item = Result<Bytes, std::io::Error>;
+
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        match self.inner.as_mut().poll_next(cx) {
+            Poll::Pending => Poll::Pending,
+            Poll::Ready(None) => {
+                if let Some((summary, ctx)) = self.take_summary() {
+                    finalize(Arc::clone(&self.audit), summary, ctx, "eof");
+                }
+                Poll::Ready(None)
+            },
+            Poll::Ready(Some(Err(e))) => {
+                if let Ok(mut s) = self.state.lock() {
+                    s.error = Some(e.clone());
+                }
+                Poll::Ready(Some(Err(std::io::Error::new(
+                    std::io::ErrorKind::BrokenPipe,
+                    e,
+                ))))
+            },
+            Poll::Ready(Some(Ok(bytes))) => {
+                let events = self.decoder.push(&bytes);
+                if let Ok(mut s) = self.state.lock() {
+                    for event in &events {
+                        accumulate_event(&mut s, event);
+                    }
+                    s.final_bytes.extend_from_slice(&bytes);
+                }
+                Poll::Ready(Some(Ok(bytes)))
+            },
+        }
+    }
+}
+
+impl Drop for RawTappedStream {
+    fn drop(&mut self) {
+        let Some((summary, ctx)) = self.take_summary() else {
+            return;
+        };
+        finalize(Arc::clone(&self.audit), summary, ctx, "drop");
+    }
 }
 
 struct TappedStream {

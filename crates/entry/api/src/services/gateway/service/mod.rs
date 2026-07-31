@@ -52,6 +52,11 @@ pub struct DispatchInputs {
     pub raw_body: Bytes,
     pub ctx: GatewayRequestContext,
     pub inbound: Arc<dyn InboundAdapter>,
+    /// Caller headers cleared for verbatim relay to the upstream.
+    pub forward_headers: Vec<(String, String)>,
+    /// Caller headers that identify the client, user, or session. Recorded on
+    /// the audit row and never sent upstream.
+    pub identity_headers: Vec<(String, String)>,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -98,6 +103,8 @@ impl GatewayService {
             raw_body,
             ctx,
             inbound,
+            forward_headers,
+            identity_headers,
         } = inputs;
         if ctx.session_id.is_none() {
             return Err(DispatchError::PreAudit(anyhow!(
@@ -131,6 +138,20 @@ impl GatewayService {
             tracing::error!(error = %e, "audit open failed — proceeding without audit row");
         }
 
+        // Why: these headers identify the client, user, and any spawning agent.
+        // They are recorded here, against the audit row's request id, and then
+        // dropped before the upstream send so a third-party provider never
+        // receives them. Emitted on the trace rather than as an `ai_requests`
+        // column because the attribution they add is per-agent, not per-request.
+        if !identity_headers.is_empty() {
+            tracing::info!(
+                ai_request_id = %ai_request_id,
+                user_id = %ctx.user_id,
+                headers = ?identity_headers,
+                "Gateway consumed client identity headers"
+            );
+        }
+
         if let Some(descriptor) = upstream.route_match_descriptor.as_deref() {
             audit.set_route_match(descriptor).await;
         }
@@ -139,7 +160,18 @@ impl GatewayService {
         enforce_request_guards(db, &ctx.user_id, &upstream, &request, &audit).await?;
         enforce_request_safety(db, &ai_request_id, &request, &policy.safety, &audit).await?;
 
-        let outcome = send_to_upstream(config, &upstream, &mut request, &audit).await?;
+        let outcome = send_to_upstream(
+            config,
+            &upstream,
+            &mut request,
+            &audit,
+            UpstreamRelay {
+                forward_headers: &forward_headers,
+                raw_body: &raw_body,
+                inbound: inbound.as_ref(),
+            },
+        )
+        .await?;
 
         let response = finalize(
             outcome,
@@ -157,26 +189,39 @@ impl GatewayService {
     }
 }
 
+struct UpstreamRelay<'a> {
+    forward_headers: &'a [(String, String)],
+    raw_body: &'a Bytes,
+    inbound: &'a dyn InboundAdapter,
+}
+
 async fn send_to_upstream(
     config: &GatewayConfig,
     upstream: &ResolvedUpstream<'_>,
     request: &mut CanonicalRequest,
     audit: &GatewayAudit,
+    relay: UpstreamRelay<'_>,
 ) -> Result<OutboundOutcome, DispatchError> {
     let upstream_model = upstream
         .route
         .effective_upstream_model(&request.model)
         .to_owned();
-    if let Some(descriptor) =
+    let override_descriptor =
         apply_system_prompt_override(config, &upstream.provider.name, &upstream_model, request)
-            .await
-    {
-        audit.set_system_prompt_override(&descriptor).await;
+            .await;
+    if let Some(descriptor) = &override_descriptor {
+        audit.set_system_prompt_override(descriptor).await;
     }
     let model_limits = upstream
         .provider
         .find_model(&upstream_model)
         .map(|m| m.limits);
+    let raw_body = (override_descriptor.is_none()
+        && relay.inbound.passthrough_wire() == Some(upstream.provider.wire))
+    .then_some(relay.raw_body);
+    if raw_body.is_none() {
+        strip_caller_identity(request);
+    }
     let outbound_ctx = OutboundCtx {
         route: upstream.route.as_ref(),
         endpoint: &upstream.provider.endpoint,
@@ -184,6 +229,8 @@ async fn send_to_upstream(
         request,
         upstream_model: &upstream_model,
         model_limits,
+        forward_headers: relay.forward_headers,
+        raw_body,
     };
 
     match upstream.adapter.send(outbound_ctx).await {
@@ -193,6 +240,21 @@ async fn send_to_upstream(
                 .await;
             Err(DispatchError::Recorded(e))
         },
+    }
+}
+
+// Why: `metadata.user_id` is an end-user identifier meant for the provider the
+// caller chose, so it must not reach a different wire's upstream.
+fn strip_caller_identity(request: &mut CanonicalRequest) {
+    let Some(metadata) = request.metadata.as_mut() else {
+        return;
+    };
+    let Some(obj) = metadata.as_object_mut() else {
+        return;
+    };
+    obj.remove("user_id");
+    if obj.is_empty() {
+        request.metadata = None;
     }
 }
 

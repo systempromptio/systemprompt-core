@@ -19,6 +19,10 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+/// The bridge proxy and the gateway body reader must agree on this ceiling: a
+/// body the bridge accepts and forwards must not be rejected by the gateway.
+pub const BUFFERED_BODY_LIMIT_BYTES: usize = 8 * 1024 * 1024;
+
 pub mod canonical;
 
 pub mod anthropic;

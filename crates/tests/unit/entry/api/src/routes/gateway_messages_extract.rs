@@ -151,7 +151,7 @@ async fn an_unparseable_body_is_a_400_and_still_records_the_raw_bytes() {
         .expect_err("a non-JSON body cannot become a canonical request");
 
     assert_eq!(status, StatusCode::BAD_REQUEST);
-    assert!(message.contains("Invalid request body"), "{message}");
+    assert!(message.contains("invalid request body"), "{message}");
     assert_eq!(
         partial.body.as_deref(),
         Some(b"not json".as_slice()),

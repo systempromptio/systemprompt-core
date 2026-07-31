@@ -10,6 +10,7 @@ mod inbound_openai_deep;
 mod inbound_openai_render;
 mod outbound;
 mod outbound_deep;
+mod outbound_passthrough;
 mod parse;
 mod pricing;
 mod registry;

@@ -13,9 +13,7 @@ use async_trait::async_trait;
 use serde_json::Value;
 use systemprompt_models::wire::openai_responses as codec;
 
-use super::{
-    OutboundAdapter, OutboundCtx, OutboundOutcome, UpstreamError, extract_upstream_message,
-};
+use super::{OutboundAdapter, OutboundCtx, OutboundOutcome, UpstreamError};
 
 #[cfg(feature = "test-api")]
 pub mod test_api {
@@ -49,17 +47,10 @@ impl OutboundAdapter for OpenAiResponsesOutbound {
                 source: e,
             })
         })?;
-        let status = upstream_response.status();
-        if !status.is_success() {
-            let err = upstream_response
-                .text()
-                .await
-                .unwrap_or_else(|e| format!("<failed to read upstream body: {e}>"));
-            return Err(anyhow::Error::new(UpstreamError::Status {
-                provider: ctx.route.provider.as_str().to_owned(),
-                status: status.as_u16(),
-                message: extract_upstream_message(&err),
-            }));
+        if !upstream_response.status().is_success() {
+            return Err(anyhow::Error::new(
+                UpstreamError::from_response(ctx.route.provider.as_str(), upstream_response).await,
+            ));
         }
 
         if ctx.request.stream {

@@ -1,12 +1,9 @@
 //! Anthropic Messages wire codec.
 //!
 //! Pure, transport-free translation between the canonical model and the
-//! Anthropic Messages dialect. This module ([`mod`](self)) owns the request
-//! side — auth headers, request-body build, and canonical-content rendering —
-//! while the `parse` submodule owns the buffered-response and per-SSE-frame
-//! parse side. The HTTP transport and SSE framing live in the gateway adapter;
-//! everything here operates on already-decoded values so it is shared by both
-//! the outbound adapter and the inbound renderer.
+//! Anthropic Messages dialect. HTTP transport and SSE framing live in the
+//! gateway adapter; everything here operates on already-decoded values so it
+//! is shared by both the outbound adapter and the inbound renderer.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -37,6 +34,42 @@ pub fn auth_headers(api_key: &str) -> [(&'static str, String); 3] {
         ("anthropic-version", ANTHROPIC_VERSION.to_owned()),
         ("content-type", "application/json".to_owned()),
     ]
+}
+
+// Why: Anthropic's contract wants `anthropic-*` forwarded verbatim, not
+// allowlisted — each beta body field pairs with a header, and forwarding one
+// half of the pair is a hard 400.
+const FORWARD_PREFIXES: &[&str] = &["anthropic-"];
+
+// Why: the contract classifies these as consumable — recorded on the audit row
+// and dropped before the upstream send, never relayed to a third party.
+const IDENTITY_PREFIXES: &[&str] = &["x-claude-code-", "x-stainless-", "x-systemprompt-"];
+
+// Why: the gateway substitutes its own provider credential — relaying the
+// caller's `authorization`/`x-api-key` would leak a systemprompt credential.
+const IDENTITY_NAMES: &[&str] = &[
+    "user-agent",
+    "cookie",
+    "set-cookie",
+    "authorization",
+    "x-api-key",
+    "x-forwarded-for",
+    "x-real-ip",
+];
+
+#[must_use]
+pub fn is_forwardable_request_header(name: &str) -> bool {
+    let lower = name.to_ascii_lowercase();
+    !identity_lower(&lower) && FORWARD_PREFIXES.iter().any(|p| lower.starts_with(p))
+}
+
+#[must_use]
+pub fn is_identity_request_header(name: &str) -> bool {
+    identity_lower(&name.to_ascii_lowercase())
+}
+
+fn identity_lower(lower: &str) -> bool {
+    IDENTITY_NAMES.contains(&lower) || IDENTITY_PREFIXES.iter().any(|p| lower.starts_with(p))
 }
 
 #[must_use]
@@ -213,10 +246,8 @@ fn tool_choice_to_anthropic(tc: &CanonicalToolChoice) -> Value {
     }
 }
 
-/// Whether a rendered block is bound for the gateway's own client (which may
-/// rely on the gateway's vendor-extension fields: `signature` on `tool_use`,
-/// `structuredContent` / `_meta` on `tool_result`) or for the real Anthropic
-/// API, which rejects unknown keys in content blocks.
+// Why: the real Anthropic API rejects unknown keys in content blocks, while
+// the gateway's own client relies on its vendor-extension fields.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum BlockAudience {
     Client,

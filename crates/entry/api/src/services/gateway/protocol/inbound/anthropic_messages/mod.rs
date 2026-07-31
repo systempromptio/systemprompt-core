@@ -10,6 +10,7 @@
 use bytes::Bytes;
 use http::StatusCode;
 use serde_json::Value;
+use systemprompt_models::profile::WireProtocol;
 
 use super::super::canonical::CanonicalRequest;
 use super::super::canonical_response::{CanonicalEvent, CanonicalResponse};
@@ -32,6 +33,10 @@ pub struct AnthropicMessagesInbound;
 impl InboundAdapter for AnthropicMessagesInbound {
     fn wire_name(&self) -> &'static str {
         "anthropic.messages"
+    }
+
+    fn passthrough_wire(&self) -> Option<WireProtocol> {
+        Some(WireProtocol::Anthropic)
     }
 
     fn parse_request(&self, raw: &Bytes) -> Result<CanonicalRequest, InboundParseError> {

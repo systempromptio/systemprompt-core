@@ -1,12 +1,5 @@
 //! Bridge authentication handlers for the gateway router.
 //!
-//! Exposes the credential-exchange endpoints a bridge uses to obtain a
-//! credential: [`pat`] (personal access token), [`session`] (one-time exchange
-//! code), [`session_pat`] (durable variant that mints a long-lived PAT),
-//! [`mtls`] (enrolled device certificate), and [`provision_oauth_client`]
-//! (dynamic OAuth client registration), plus [`capabilities`] advertising the
-//! supported modes.
-//!
 //! The JWT/session paths funnel through `systemprompt_oauth`'s
 //! `issue_bridge_access`. The durable PAT path consumes the same exchange code,
 //! then mints a first-class API key via the users `ApiKeyService` — the two
@@ -22,7 +15,7 @@ use axum::http::{HeaderMap, header};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
-use systemprompt_identifiers::{JwtToken, UserId, headers};
+use systemprompt_identifiers::{JwtToken, headers};
 use systemprompt_models::Config;
 use systemprompt_models::auth::BEARER_PREFIX;
 use systemprompt_oauth::OAuthRepository;
@@ -139,10 +132,8 @@ pub async fn session(
     Ok(Json(result.into()))
 }
 
-/// Durable variant of [`session`]: mint a long-lived PAT instead of a JWT.
-///
-/// The PAT is returned once; the bridge stores it and refreshes JWTs silently
-/// from then on, with no recurring browser consent.
+/// The PAT is returned exactly once; the bridge stores it and refreshes JWTs
+/// silently from then on, with no recurring browser consent.
 pub async fn session_pat(
     ctx: AppContext,
     Json(body): Json<SessionPatBody>,
@@ -200,10 +191,10 @@ pub async fn provision_oauth_client(
         .decode_for_gateway(&JwtToken::new(bearer))
         .await?;
 
-    let user_id = UserId::new(claims.user_id.to_string());
     let token_endpoint = build_token_endpoint(request.headers())?;
 
-    let result = provision_bridge_oauth_client(ctx.db_pool(), &user_id, token_endpoint).await?;
+    let result =
+        provision_bridge_oauth_client(ctx.db_pool(), &claims.user_id, token_endpoint).await?;
 
     Ok(Json(result))
 }
@@ -213,13 +204,10 @@ pub async fn provision_oauth_client(
     reason = "ApiError carries response context that is intentionally large; boxing here would \
               propagate to every caller for negligible gain"
 )]
-/// Derives the advertised token endpoint from the host the client actually
-/// dialled, as `/.well-known/oauth-authorization-server` already does.
-///
-/// Formatting `api_external_url` unconditionally handed a remote client the
-/// gateway's own loopback address, so every plugin hook died on a connection
-/// error to `localhost`. `resolve` falls back to `api_external_url` for a host
-/// outside the allowlist, so a forged `Host` cannot redirect the mint.
+// Why: the endpoint must reflect the host the client dialled — formatting
+// `api_external_url` hands a remote client a loopback address. `resolve` falls
+// back to the configured URL for a host outside the allowlist, so a forged
+// `Host` cannot redirect the mint.
 fn build_token_endpoint(headers: &HeaderMap) -> Result<String, ApiHttpError> {
     let cfg = Config::get().map_err(|e| ApiHttpError::internal_error(e.to_string()))?;
     let configured = url::Url::parse(&cfg.api_external_url)

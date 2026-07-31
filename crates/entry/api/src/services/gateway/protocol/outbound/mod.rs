@@ -37,6 +37,18 @@ pub enum UpstreamError {
         provider: String,
         status: u16,
         message: String,
+        /// The provider's error response verbatim.
+        ///
+        /// Claude Code recovers from several upstream rejections by matching on
+        /// the error's own wording and then disabling the rejected capability
+        /// for the rest of the conversation. Re-wrapping the error in the
+        /// gateway's envelope defeats that even when the status code survives,
+        /// so the original bytes are carried here and relayed unchanged.
+        body: bytes::Bytes,
+        /// `retry-after` as sent by the provider, when present.
+        retry_after: Option<String>,
+        /// The provider's own request id, for correlating with their support.
+        request_id: Option<String>,
     },
     #[error("{provider} request failed: {source}")]
     Transport {
@@ -44,6 +56,32 @@ pub enum UpstreamError {
         #[source]
         source: reqwest::Error,
     },
+}
+
+impl UpstreamError {
+    /// Builds a [`UpstreamError::Status`] from a non-success upstream response,
+    /// preserving the body and the headers a client needs to retry correctly.
+    pub async fn from_response(provider: &str, response: reqwest::Response) -> Self {
+        let status = response.status().as_u16();
+        let header = |name: &str| {
+            response
+                .headers()
+                .get(name)
+                .and_then(|v| v.to_str().ok())
+                .map(ToOwned::to_owned)
+        };
+        let retry_after = header("retry-after");
+        let request_id = header("request-id").or_else(|| header("x-request-id"));
+        let body = response.bytes().await.unwrap_or_default();
+        Self::Status {
+            provider: provider.to_owned(),
+            status,
+            message: extract_upstream_message(&String::from_utf8_lossy(&body)),
+            body,
+            retry_after,
+            request_id,
+        }
+    }
 }
 
 pub fn extract_upstream_message(body: &str) -> String {
@@ -61,6 +99,12 @@ pub struct OutboundCtx<'a> {
     pub request: &'a CanonicalRequest,
     pub upstream_model: &'a str,
     pub model_limits: Option<ModelLimits>,
+    /// Inbound headers cleared for verbatim relay, already stripped of every
+    /// header that identifies the client, user, or session.
+    pub forward_headers: &'a [(String, String)],
+    /// The caller's request body, set only when the caller's wire protocol
+    /// matches the upstream's and the bytes can be relayed untouched.
+    pub raw_body: Option<&'a bytes::Bytes>,
 }
 
 #[expect(
@@ -70,6 +114,20 @@ pub struct OutboundCtx<'a> {
 pub enum OutboundOutcome {
     Buffered(Box<CanonicalResponse>),
     Streaming(BoxStream<'static, Result<CanonicalEvent, String>>),
+    /// A non-streaming response relayed byte-for-byte, with a canonical parse
+    /// alongside it purely so audit, cost, and safety keep working.
+    RawBuffered {
+        body: bytes::Bytes,
+        content_type: Option<String>,
+        canonical: Box<CanonicalResponse>,
+    },
+    /// A streaming response relayed byte-for-byte. Usage accounting reads a
+    /// copy of the frames as they pass; the bytes the client receives are the
+    /// provider's own.
+    RawStreaming {
+        content_type: Option<String>,
+        stream: BoxStream<'static, Result<bytes::Bytes, String>>,
+    },
 }
 
 // Why: #[async_trait] is required — the upstream registry stores adapters as

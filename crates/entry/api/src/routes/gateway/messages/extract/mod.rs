@@ -25,9 +25,13 @@ use crate::services::gateway::protocol::canonical::CanonicalRequest;
 use crate::services::gateway::protocol::inbound::InboundAdapter;
 use crate::services::gateway::signature_cache::ThoughtSignatureCache;
 use authz::enforce_authz_pre_dispatch;
-use headers::{optional_gateway_conversation_id, read_gateway_body, require_session_id};
+use headers::{
+    classify_client_headers, optional_gateway_conversation_id, read_gateway_body,
+    require_session_id,
+};
 
 pub use authz::{GatewayAuthzRequestInput, build_gateway_authz_request};
+pub(super) use headers::ClientHeaders;
 pub use headers::extract_credential;
 
 #[cfg(feature = "test-api")]
@@ -63,6 +67,7 @@ pub struct RejectionPartial {
 pub(super) struct PreparedRequest {
     pub principal: AuthedPrincipal,
     pub body_bytes: Bytes,
+    pub client_headers: ClientHeaders,
     pub gateway_request: CanonicalRequest,
     pub provider: String,
     pub upstream_model: String,
@@ -91,6 +96,8 @@ pub(super) async fn extract_request_context(
             "Missing Authorization or x-api-key credential".to_owned(),
         )
     })?;
+
+    let client_headers = classify_client_headers(request.headers());
 
     let session_id = require_session_id(request.headers())?;
     partial.session_id = Some(session_id.clone());
@@ -133,6 +140,7 @@ pub(super) async fn extract_request_context(
     Ok(PreparedRequest {
         principal,
         body_bytes,
+        client_headers,
         gateway_request,
         provider: route.provider.as_str().to_owned(),
         upstream_model,

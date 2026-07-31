@@ -136,6 +136,8 @@ async fn anthropic_outbound_with_rich_request_and_extra_headers() {
         request: &req,
         upstream_model: "upstream-1",
         model_limits: None,
+        forward_headers: &[],
+        raw_body: None,
     };
     let outcome = AnthropicOutbound.send(ctx).await.expect("ok");
     assert!(matches!(outcome, OutboundOutcome::Buffered(_)));
@@ -167,6 +169,8 @@ async fn openai_chat_outbound_with_rich_request() {
         request: &req,
         upstream_model: "upstream-1",
         model_limits: None,
+        forward_headers: &[],
+        raw_body: None,
     };
     let outcome = OpenAiChatOutbound.send(ctx).await.expect("ok");
     assert!(matches!(outcome, OutboundOutcome::Buffered(_)));
@@ -199,6 +203,8 @@ async fn openai_responses_outbound_with_rich_request_buffered() {
         request: &req,
         upstream_model: "upstream-1",
         model_limits: None,
+        forward_headers: &[],
+        raw_body: None,
     };
     let outcome = OpenAiResponsesOutbound.send(ctx).await.expect("ok");
     assert!(matches!(outcome, OutboundOutcome::Buffered(_)));
@@ -221,6 +227,8 @@ async fn openai_responses_outbound_propagates_upstream_error() {
         request: &req,
         upstream_model: "upstream-1",
         model_limits: None,
+        forward_headers: &[],
+        raw_body: None,
     };
     let res = OpenAiResponsesOutbound.send(ctx).await;
     assert!(res.is_err());
@@ -243,6 +251,8 @@ async fn openai_responses_outbound_handles_invalid_json() {
         request: &req,
         upstream_model: "upstream-1",
         model_limits: None,
+        forward_headers: &[],
+        raw_body: None,
     };
     let res = OpenAiResponsesOutbound.send(ctx).await;
     assert!(res.is_err());
@@ -292,6 +302,8 @@ async fn anthropic_outbound_no_system_no_tools() {
         request: &req,
         upstream_model: "upstream-1",
         model_limits: None,
+        forward_headers: &[],
+        raw_body: None,
     };
     let outcome = AnthropicOutbound.send(ctx).await.expect("ok");
     assert!(matches!(outcome, OutboundOutcome::Buffered(_)));
@@ -320,6 +332,8 @@ async fn openai_chat_outbound_streaming_with_extra_headers() {
         request: &req,
         upstream_model: "upstream-1",
         model_limits: None,
+        forward_headers: &[],
+        raw_body: None,
     };
     let outcome = OpenAiChatOutbound.send(ctx).await.expect("ok");
     if let OutboundOutcome::Streaming(_s) = outcome {

@@ -104,6 +104,8 @@ async fn anthropic_outbound_buffered_parses_text() {
         request: &req,
         upstream_model: "upstream-1",
         model_limits: None,
+        forward_headers: &[],
+        raw_body: None,
     };
     let outcome = adapter.send(ctx).await.expect("ok");
     match outcome {
@@ -134,6 +136,8 @@ async fn anthropic_outbound_buffered_propagates_upstream_error() {
         request: &req,
         upstream_model: "upstream-1",
         model_limits: None,
+        forward_headers: &[],
+        raw_body: None,
     };
     let res = adapter.send(ctx).await;
     assert!(res.is_err());
@@ -163,6 +167,8 @@ async fn anthropic_outbound_streaming_returns_stream() {
         request: &req,
         upstream_model: "upstream-1",
         model_limits: None,
+        forward_headers: &[],
+        raw_body: None,
     };
     let outcome = adapter.send(ctx).await.expect("ok");
     match outcome {
@@ -208,6 +214,8 @@ async fn openai_chat_outbound_buffered_parses_response() {
         request: &req,
         upstream_model: "upstream-1",
         model_limits: None,
+        forward_headers: &[],
+        raw_body: None,
     };
     let outcome = adapter.send(ctx).await.expect("ok");
     assert!(matches!(outcome, OutboundOutcome::Buffered(_)));
@@ -238,6 +246,8 @@ async fn openai_chat_outbound_streaming_returns_stream() {
         request: &req,
         upstream_model: "upstream-1",
         model_limits: None,
+        forward_headers: &[],
+        raw_body: None,
     };
     let outcome = adapter.send(ctx).await.expect("ok");
     if let OutboundOutcome::Streaming(mut stream) = outcome {
@@ -271,6 +281,8 @@ async fn openai_chat_outbound_buffered_propagates_upstream_error() {
         request: &req,
         upstream_model: "upstream-1",
         model_limits: None,
+        forward_headers: &[],
+        raw_body: None,
     };
     let res = adapter.send(ctx).await;
     assert!(res.is_err());
@@ -306,6 +318,8 @@ async fn openai_responses_outbound_buffered_parses_response() {
         request: &req,
         upstream_model: "upstream-1",
         model_limits: None,
+        forward_headers: &[],
+        raw_body: None,
     };
     let outcome = adapter.send(ctx).await.expect("ok");
     assert!(matches!(outcome, OutboundOutcome::Buffered(_)));
@@ -319,6 +333,9 @@ fn upstream_status_error_carries_real_provider_name() {
         provider: "cerebras".to_owned(),
         status: 429,
         message: "rate limited".to_owned(),
+        body: bytes::Bytes::new(),
+        retry_after: None,
+        request_id: None,
     };
     assert_eq!(err.to_string(), "cerebras returned 429: rate limited");
 }
@@ -353,6 +370,8 @@ async fn anthropic_outbound_buffered_handles_rich_request() {
         request: &req,
         upstream_model: "upstream-1",
         model_limits: None,
+        forward_headers: &[],
+        raw_body: None,
     };
     let outcome = adapter.send(ctx).await.expect("ok");
     if let OutboundOutcome::Buffered(r) = outcome {
@@ -384,6 +403,8 @@ async fn anthropic_outbound_buffered_handles_invalid_json() {
         request: &req,
         upstream_model: "upstream-1",
         model_limits: None,
+        forward_headers: &[],
+        raw_body: None,
     };
     let res = adapter.send(ctx).await;
     assert!(res.is_err());
@@ -423,6 +444,8 @@ async fn openai_chat_outbound_buffered_covers_tool_choice_variants() {
             request: &req,
             upstream_model: "upstream-1",
             model_limits: None,
+            forward_headers: &[],
+            raw_body: None,
         };
         let outcome = adapter.send(ctx).await.expect("ok");
         let OutboundOutcome::Buffered(r) = outcome else {
@@ -460,6 +483,8 @@ async fn anthropic_outbound_buffered_covers_tool_choice_variants() {
             request: &req,
             upstream_model: "upstream-1",
             model_limits: None,
+            forward_headers: &[],
+            raw_body: None,
         };
         let outcome = adapter.send(ctx).await.expect("ok");
         let OutboundOutcome::Buffered(r) = outcome else {
@@ -517,6 +542,8 @@ async fn openai_chat_outbound_buffered_covers_messages_with_tools_and_images() {
         request: &req,
         upstream_model: "upstream-1",
         model_limits: None,
+        forward_headers: &[],
+        raw_body: None,
     };
     let outcome = adapter.send(ctx).await.expect("ok");
     if let OutboundOutcome::Buffered(r) = outcome {

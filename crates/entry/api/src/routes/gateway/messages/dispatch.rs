@@ -42,6 +42,7 @@ pub(super) async fn dispatch_to_provider(
     let PreparedRequest {
         principal,
         body_bytes,
+        client_headers,
         gateway_request,
         provider,
         upstream_model,
@@ -88,6 +89,8 @@ pub(super) async fn dispatch_to_provider(
             raw_body: body_bytes,
             ctx: gateway_ctx,
             inbound,
+            forward_headers: client_headers.forward,
+            identity_headers: client_headers.identity,
         },
     )
     .await
@@ -122,6 +125,15 @@ pub fn map_dispatch_error(e: DispatchError) -> Result<Response<Body>, RejectionE
             &forbidden.message,
         ));
     }
+    // Why: Claude Code recovers from several provider rejections by matching on
+    // the provider's own error wording and retrying without the rejected
+    // capability. Re-wrapping the error defeats that even when the status is
+    // preserved, so an upstream rejection is relayed exactly as it arrived.
+    if let Some(upstream) = inner.downcast_ref::<UpstreamError>()
+        && let Some(response) = build_upstream_passthrough(upstream)
+    {
+        return Ok(response);
+    }
     let (status, message) = classify_dispatch_error(&inner);
     Err(RejectionError {
         status,
@@ -150,11 +162,39 @@ pub fn classify_dispatch_error(e: &anyhow::Error) -> (StatusCode, String) {
     (StatusCode::BAD_GATEWAY, e.to_string())
 }
 
+fn build_upstream_passthrough(e: &UpstreamError) -> Option<Response<Body>> {
+    let UpstreamError::Status {
+        status,
+        body,
+        retry_after,
+        request_id,
+        ..
+    } = e
+    else {
+        return None;
+    };
+    if body.is_empty() {
+        return None;
+    }
+    let status = StatusCode::from_u16(*status).ok()?;
+    let mut builder = Response::builder()
+        .status(status)
+        .header("content-type", "application/json");
+    if let Some(retry_after) = retry_after {
+        builder = builder.header("retry-after", retry_after.as_str());
+    }
+    if let Some(request_id) = request_id {
+        builder = builder.header("x-upstream-request-id", request_id.as_str());
+    }
+    builder.body(Body::from(body.clone())).ok()
+}
+
 pub fn map_upstream_error(e: &UpstreamError) -> (StatusCode, String) {
     let UpstreamError::Status {
         provider,
         status,
         message,
+        ..
     } = e
     else {
         return (

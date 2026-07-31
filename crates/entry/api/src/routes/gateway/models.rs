@@ -45,7 +45,21 @@ pub struct ModelsResponse {
     pub last_id: Option<String>,
 }
 
-pub async fn list(headers: HeaderMap) -> Result<Json<ModelsResponse>, (StatusCode, String)> {
+/// Query parameters accepted by [`list`].
+///
+/// Gateway model discovery requests `/v1/models?limit=1000`. An unparseable or
+/// absent value returns the whole catalog rather than failing: discovery has a
+/// three-second budget and treats any non-success as "no models", so a strict
+/// parse would cost the developer their picker entries over a cosmetic input.
+#[derive(Debug, Default, Clone, Copy, serde::Deserialize)]
+pub struct ListQuery {
+    pub limit: Option<usize>,
+}
+
+pub async fn list(
+    headers: HeaderMap,
+    axum::extract::Query(query): axum::extract::Query<ListQuery>,
+) -> Result<Json<ModelsResponse>, (StatusCode, String)> {
     let profile = ProfileBootstrap::get().map_err(|e| {
         (
             StatusCode::SERVICE_UNAVAILABLE,
@@ -61,13 +75,21 @@ pub async fn list(headers: HeaderMap) -> Result<Json<ModelsResponse>, (StatusCod
         .ok_or_else(|| (StatusCode::NOT_FOUND, "Gateway not enabled".to_owned()))?;
 
     let surfaces = surfaces_from_header(&headers)?;
-    let entries = model_entries(&profile.providers, &surfaces);
+    let mut entries = model_entries(&profile.providers, &surfaces);
+    let total = entries.len();
+    let has_more = match query.limit {
+        Some(limit) if limit < total => {
+            entries.truncate(limit);
+            true
+        },
+        _ => false,
+    };
     let first_id = entries.first().map(|e| e.id.clone());
     let last_id = entries.last().map(|e| e.id.clone());
 
     Ok(Json(ModelsResponse {
         data: entries,
-        has_more: false,
+        has_more,
         first_id,
         last_id,
     }))

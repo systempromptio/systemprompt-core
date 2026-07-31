@@ -50,6 +50,9 @@ fn classify_upstream_status_maps_through() {
         provider: "openai".to_owned(),
         status: 429,
         message: "slow down".to_owned(),
+        body: bytes::Bytes::new(),
+        retry_after: None,
+        request_id: None,
     });
     let (status, _msg) = classify_dispatch_error(&err);
     assert_eq!(status, StatusCode::TOO_MANY_REQUESTS);

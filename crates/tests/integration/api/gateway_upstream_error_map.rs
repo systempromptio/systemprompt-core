@@ -11,6 +11,9 @@ fn status_error(status: u16, message: &str) -> UpstreamError {
         provider: "anthropic".to_owned(),
         status,
         message: message.to_owned(),
+        body: bytes::Bytes::new(),
+        retry_after: None,
+        request_id: None,
     }
 }
 

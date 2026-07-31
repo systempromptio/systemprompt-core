@@ -42,6 +42,42 @@ where
     s.boxed()
 }
 
+/// Relays the upstream SSE byte stream unchanged.
+///
+/// Used when the caller and the upstream speak the same wire protocol: decoding
+/// to [`CanonicalEvent`] and re-rendering would drop any event type or field
+/// the canonical model does not describe, and the client is entitled to the
+/// frames the provider actually sent. Usage accounting reads a copy downstream.
+pub(in crate::services::gateway) fn raw_sse_stream<S>(
+    stream: S,
+) -> futures_util::stream::BoxStream<'static, Result<bytes::Bytes, String>>
+where
+    S: futures_util::Stream<Item = Result<bytes::Bytes, reqwest::Error>> + Send + 'static,
+{
+    stream.map(|chunk| chunk.map_err(|e| e.to_string())).boxed()
+}
+
+/// Incremental Anthropic SSE decoder for callers that also need the raw bytes.
+///
+/// The byte-passthrough lane still has to account for usage and record a
+/// response snapshot, so it feeds a copy of every chunk through this decoder
+/// while the untouched chunk continues to the client.
+#[derive(Debug, Default)]
+pub(in crate::services::gateway) struct SseDecoder {
+    buf: Vec<u8>,
+    msg_id: String,
+}
+
+impl SseDecoder {
+    pub(in crate::services::gateway) fn push(&mut self, chunk: &[u8]) -> Vec<CanonicalEvent> {
+        self.buf.extend_from_slice(chunk);
+        drain_frames(&mut self.buf, &mut self.msg_id)
+            .into_iter()
+            .flatten()
+            .collect()
+    }
+}
+
 fn drain_frames(buf: &mut Vec<u8>, msg_id: &mut String) -> Vec<Result<CanonicalEvent, String>> {
     let mut events: Vec<Result<CanonicalEvent, String>> = Vec::new();
     while let Some(end) = systemprompt_models::wire::sse::frame_end(buf) {

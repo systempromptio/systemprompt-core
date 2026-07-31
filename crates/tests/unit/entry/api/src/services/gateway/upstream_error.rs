@@ -37,6 +37,9 @@ fn status_error_display_carries_provider_status_and_message() {
         provider: "anthropic".to_owned(),
         status: 400,
         message: "bad request".to_owned(),
+        body: bytes::Bytes::new(),
+        retry_after: None,
+        request_id: None,
     }
     .to_string();
     assert!(shown.contains("anthropic"), "{shown}");

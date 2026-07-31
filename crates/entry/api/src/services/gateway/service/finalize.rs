@@ -79,52 +79,76 @@ pub(super) async fn finalize(outcome: OutboundOutcome, fctx: FinalizeCtx) -> Res
         inbound,
         request_model,
     } = fctx;
+    let tap_ctx = stream_tap::TapFinalizeCtx {
+        db,
+        policy,
+        ai_request_id,
+    };
     match outcome {
         OutboundOutcome::Buffered(canonical) => {
             let canonical = *canonical;
-            if let Some(conversation) = &audit.ctx.gateway_conversation_id {
-                ThoughtSignatureCache::global().store_from_response(conversation, &canonical);
-            }
-            let body_bytes = inbound.render_response(&canonical);
-            let audit_clone = Arc::clone(&audit);
-            let body_for_task = body_bytes.clone();
-            tokio::spawn(buffered_completion(
-                canonical,
-                body_for_task,
-                audit_clone,
-                stream_tap::TapFinalizeCtx {
-                    db,
-                    policy,
-                    ai_request_id,
-                },
-            ));
-            Response::builder()
-                .status(http::StatusCode::OK)
-                .header(http::header::CONTENT_TYPE, "application/json")
-                .body(Body::from(body_bytes))
-                .unwrap_or_else(|_| Response::new(Body::empty()))
+            let body = inbound.render_response(&canonical);
+            spawn_buffered_completion(canonical, body.clone(), &audit, tap_ctx);
+            buffered_response(body, "application/json")
         },
+        OutboundOutcome::RawBuffered {
+            body,
+            content_type,
+            canonical,
+        } => {
+            spawn_buffered_completion(*canonical, body.clone(), &audit, tap_ctx);
+            buffered_response(body, content_type.as_deref().unwrap_or("application/json"))
+        },
+        OutboundOutcome::RawStreaming {
+            content_type,
+            stream,
+        } => streaming_response(
+            stream_tap::tap_raw(stream, audit, tap_ctx),
+            content_type
+                .as_deref()
+                .unwrap_or_else(|| inbound.streaming_content_type()),
+        ),
         OutboundOutcome::Streaming(stream) => {
-            let body = stream_tap::tap(
-                stream,
-                Arc::clone(&inbound),
-                request_model,
-                audit,
-                stream_tap::TapFinalizeCtx {
-                    db,
-                    policy,
-                    ai_request_id,
-                },
-            );
-            Response::builder()
-                .status(http::StatusCode::OK)
-                .header(http::header::CONTENT_TYPE, inbound.streaming_content_type())
-                .header("cache-control", "no-cache")
-                .header("x-accel-buffering", "no")
-                .body(body)
-                .unwrap_or_else(|_| Response::new(Body::empty()))
+            let content_type = inbound.streaming_content_type();
+            let body = stream_tap::tap(stream, Arc::clone(&inbound), request_model, audit, tap_ctx);
+            streaming_response(body, content_type)
         },
     }
+}
+
+fn spawn_buffered_completion(
+    canonical: CanonicalResponse,
+    body: bytes::Bytes,
+    audit: &Arc<GatewayAudit>,
+    tap_ctx: stream_tap::TapFinalizeCtx,
+) {
+    if let Some(conversation) = &audit.ctx.gateway_conversation_id {
+        ThoughtSignatureCache::global().store_from_response(conversation, &canonical);
+    }
+    tokio::spawn(buffered_completion(
+        canonical,
+        body,
+        Arc::clone(audit),
+        tap_ctx,
+    ));
+}
+
+fn buffered_response(body: bytes::Bytes, content_type: &str) -> Response<Body> {
+    Response::builder()
+        .status(http::StatusCode::OK)
+        .header(http::header::CONTENT_TYPE, content_type)
+        .body(Body::from(body))
+        .unwrap_or_else(|_| Response::new(Body::empty()))
+}
+
+fn streaming_response(body: Body, content_type: &str) -> Response<Body> {
+    Response::builder()
+        .status(http::StatusCode::OK)
+        .header(http::header::CONTENT_TYPE, content_type)
+        .header("cache-control", "no-cache")
+        .header("x-accel-buffering", "no")
+        .body(body)
+        .unwrap_or_else(|_| Response::new(Body::empty()))
 }
 
 async fn buffered_completion(
