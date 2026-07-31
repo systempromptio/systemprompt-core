@@ -15,11 +15,13 @@ fn chunks(parts: Vec<&str>) -> impl futures::Stream<Item = Result<bytes::Bytes, 
     futures::stream::iter(owned.into_iter().map(Ok::<_, std::io::Error>))
 }
 
-mod anthropic_event_from_sse {
+mod anthropic_events_from_sse {
     use super::*;
 
     fn event(value: Value) -> Option<CanonicalEvent> {
-        anthropic::event_from_sse(&value, "msg_1")
+        anthropic::events_from_sse(&value, "msg_1")
+            .into_iter()
+            .next()
     }
 
     #[test]
@@ -228,6 +230,51 @@ mod anthropic_event_from_sse {
             CanonicalEvent::UsageDelta(usage) => assert_eq!(usage.output_tokens, 42),
             other => panic!("unexpected: {other:?}"),
         }
+    }
+
+    /// Anthropic packs the terminal `stop_reason` and the only real usage
+    /// report of the whole stream into the same `message_delta`. Returning just
+    /// the stop left every streamed gateway request costed from the
+    /// `message_start` placeholder — a few tokens instead of thousands.
+    #[test]
+    fn message_delta_with_stop_reason_still_emits_usage() {
+        let events = anthropic::events_from_sse(
+            &json!({
+                "type": "message_delta",
+                "delta": {"stop_reason": "end_turn"},
+                "usage": {
+                    "input_tokens": 12,
+                    "output_tokens": 340,
+                    "cache_read_input_tokens": 51_200,
+                    "cache_creation_input_tokens": 900
+                }
+            }),
+            "msg_1",
+        );
+        assert_eq!(events.len(), 2, "expected usage then stop: {events:?}");
+        match &events[0] {
+            CanonicalEvent::UsageDelta(usage) => {
+                assert_eq!(usage.input_tokens, 12);
+                assert_eq!(usage.output_tokens, 340);
+                assert_eq!(usage.cache_read_tokens, 51_200);
+                assert_eq!(usage.cache_creation_tokens, 900);
+                assert_eq!(usage.total_tokens, 52_452);
+            },
+            other => panic!("expected UsageDelta first, got {other:?}"),
+        }
+        assert!(matches!(
+            &events[1],
+            CanonicalEvent::MessageStop { stop_reason, .. }
+                if *stop_reason == Some(CanonicalStopReason::EndTurn)
+        ));
+    }
+
+    #[test]
+    fn message_delta_without_stop_or_usage_emits_nothing() {
+        assert!(
+            anthropic::events_from_sse(&json!({"type": "message_delta", "delta": {}}), "msg_1")
+                .is_empty()
+        );
     }
 
     #[test]

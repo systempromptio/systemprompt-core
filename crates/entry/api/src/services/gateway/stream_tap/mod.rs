@@ -268,7 +268,8 @@ fn finalize(audit: Arc<GatewayAudit>, summary: Summary, ctx: TapFinalizeCtx, ori
         }
 
         let has_content = !summary.final_bytes.is_empty();
-        let has_usage = summary.usage.input_tokens > 0 || summary.usage.output_tokens > 0;
+        let has_usage = summary.saw_usage_delta
+            && (summary.usage.input_tokens > 0 || summary.usage.output_tokens > 0);
         match classify(
             summary.error.as_deref(),
             summary.saw_stop,

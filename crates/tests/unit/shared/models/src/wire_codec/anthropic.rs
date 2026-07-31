@@ -181,7 +181,10 @@ fn anthropic_sse_parses_thinking_signature_delta() {
         "index": 1,
         "delta": { "type": "signature_delta", "signature": "abc123==" },
     });
-    match anthropic::event_from_sse(&frame, "msg_1") {
+    match anthropic::events_from_sse(&frame, "msg_1")
+        .into_iter()
+        .next()
+    {
         Some(CanonicalEvent::SignatureDelta { index, signature }) => {
             assert_eq!(index, 1);
             assert_eq!(signature, "abc123==");
@@ -211,7 +214,10 @@ fn anthropic_sse_tool_use_block_start_carries_signature() {
         "index": 3,
         "content_block": {"type": "tool_use", "id": "tu_1", "name": "lookup", "signature": "sig=="},
     });
-    match anthropic::event_from_sse(&frame, "msg_1") {
+    match anthropic::events_from_sse(&frame, "msg_1")
+        .into_iter()
+        .next()
+    {
         Some(CanonicalEvent::ContentBlockStart {
             block: ContentBlockKind::ToolUse { signature, .. },
             ..

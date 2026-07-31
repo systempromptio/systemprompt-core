@@ -28,6 +28,10 @@ pub struct TapState {
     usage: CanonicalUsage,
     blocks: Vec<BlockAccumulator>,
     final_stop_reason: Option<CanonicalStopReason>,
+    /// Whether a real `UsageDelta` arrived. A `message_start` snapshot carries
+    /// small non-zero placeholders, so token counts alone cannot distinguish
+    /// "billed usage reported" from "never reported".
+    saw_usage_delta: bool,
     pub(super) final_bytes: BytesMut,
     pub(super) error: Option<String>,
     pub(super) finalized: bool,
@@ -66,6 +70,7 @@ pub struct Summary {
     pub served_model: Option<String>,
     pub error: Option<String>,
     pub saw_stop: bool,
+    pub saw_usage_delta: bool,
 }
 
 #[cfg_attr(
@@ -119,6 +124,7 @@ pub fn extract_summary(state: &mut TapState) -> Summary {
         served_model,
         error: state.error.clone(),
         saw_stop: state.final_stop_reason.is_some(),
+        saw_usage_delta: state.saw_usage_delta,
     }
 }
 
@@ -172,6 +178,23 @@ fn build_response(state: &TapState) -> CanonicalResponse {
         usage: state.usage,
         ..Default::default()
     }
+}
+
+// Why: Every producer of a [`CanonicalEvent::UsageDelta`] emits a *complete*
+// cumulative snapshot, not a per-field increment, so the last snapshot wins
+// outright. Field-wise `> 0` guards would be wrong twice over: they let a
+// stale `message_start` estimate survive a real later `0`, and they leave
+// `total_tokens` — which no producer sets on a delta — permanently stale.
+const fn apply_usage(state: &mut TapState, usage: &CanonicalUsage) {
+    state.saw_usage_delta = true;
+    state.usage.input_tokens = usage.input_tokens;
+    state.usage.output_tokens = usage.output_tokens;
+    state.usage.cache_read_tokens = usage.cache_read_tokens;
+    state.usage.cache_creation_tokens = usage.cache_creation_tokens;
+    state.usage.total_tokens = state.usage.input_tokens
+        + state.usage.output_tokens
+        + state.usage.cache_read_tokens
+        + state.usage.cache_creation_tokens;
 }
 
 fn start_block(state: &mut TapState, index: u32, block: &ContentBlockKind) {
@@ -259,18 +282,7 @@ pub fn accumulate_event(state: &mut TapState, event: &CanonicalEvent) {
         },
         CanonicalEvent::ContentBlockStop { .. } => {},
         CanonicalEvent::UsageDelta(u) => {
-            if u.input_tokens > 0 {
-                state.usage.input_tokens = u.input_tokens;
-            }
-            if u.output_tokens > 0 {
-                state.usage.output_tokens = u.output_tokens;
-            }
-            if u.cache_read_tokens > 0 {
-                state.usage.cache_read_tokens = u.cache_read_tokens;
-            }
-            if u.cache_creation_tokens > 0 {
-                state.usage.cache_creation_tokens = u.cache_creation_tokens;
-            }
+            apply_usage(state, u);
         },
         CanonicalEvent::MessageStop { stop_reason, .. } => {
             state.final_stop_reason = stop_reason.or(Some(CanonicalStopReason::EndTurn));

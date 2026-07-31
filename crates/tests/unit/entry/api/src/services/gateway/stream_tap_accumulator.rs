@@ -233,7 +233,7 @@ fn deltas_for_unknown_or_mismatched_blocks_are_ignored() {
 }
 
 #[test]
-fn usage_delta_updates_only_nonzero_fields() {
+fn usage_delta_replaces_the_message_start_snapshot_wholesale() {
     let mut state = TapState::default();
     start(&mut state, "resp-7", "model-a");
     accumulate_event(
@@ -247,14 +247,39 @@ fn usage_delta_updates_only_nonzero_fields() {
         }),
     );
 
-    let summary = extract_summary(&mut TapState::default());
-    assert_eq!(summary.usage.input_tokens, 0);
-
     let response = snapshot(&state);
-    assert_eq!(response.usage.input_tokens, 10);
+    // A UsageDelta is a complete cumulative snapshot, so the `message_start`
+    // estimate of 10 input tokens is replaced, not preserved by a `> 0` guard.
+    assert_eq!(response.usage.input_tokens, 0);
     assert_eq!(response.usage.output_tokens, 42);
     assert_eq!(response.usage.cache_read_tokens, 7);
     assert_eq!(response.usage.cache_creation_tokens, 3);
+    // Recomputed here; no producer sets total_tokens on a delta.
+    assert_eq!(response.usage.total_tokens, 52);
+}
+
+#[test]
+fn message_start_alone_does_not_count_as_reported_usage() {
+    let mut state = TapState::default();
+    start(&mut state, "resp-8", "model-a");
+    assert!(
+        !extract_summary(&mut state).saw_usage_delta,
+        "a message_start snapshot must not satisfy the cost-capture-miss check"
+    );
+
+    let mut state = TapState::default();
+    start(&mut state, "resp-9", "model-a");
+    accumulate_event(
+        &mut state,
+        &CanonicalEvent::UsageDelta(CanonicalUsage {
+            input_tokens: 5_000,
+            output_tokens: 120,
+            cache_read_tokens: 0,
+            cache_creation_tokens: 0,
+            total_tokens: 0,
+        }),
+    );
+    assert!(extract_summary(&mut state).saw_usage_delta);
 }
 
 #[test]

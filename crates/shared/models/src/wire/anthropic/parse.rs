@@ -1,7 +1,7 @@
 //! Anthropic Messages response + SSE-frame parse side of the codec.
 //!
 //! [`parse_response`] deserializes a buffered Messages reply into a
-//! [`CanonicalResponse`]; [`event_from_sse`] turns one decoded SSE `data:`
+//! [`CanonicalResponse`]; [`events_from_sse`] turns one decoded SSE `data:`
 //! payload into a [`CanonicalEvent`]. The streaming side stays dynamic because
 //! each frame is a distinct, sparsely-populated event keyed on `type`.
 //!

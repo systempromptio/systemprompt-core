@@ -1,8 +1,13 @@
 //! Anthropic Messages streaming-frame parse side of the codec.
 //!
-//! [`event_from_sse`] turns one decoded SSE `data:` payload into a
-//! [`CanonicalEvent`]. The streaming side stays dynamic because each frame is a
-//! distinct, sparsely-populated event keyed on `type`.
+//! [`events_from_sse`] turns one decoded SSE `data:` payload into zero or more
+//! [`CanonicalEvent`]s. The streaming side stays dynamic because each frame is
+//! a distinct, sparsely-populated event keyed on `type`.
+//!
+//! A frame maps to more than one event because `message_delta` carries both the
+//! terminal `delta.stop_reason` and the final cumulative `usage` — the only
+//! place Anthropic reports real token counts for a stream. Returning just one
+//! of the two silently discards either the stop signal or the whole cost basis.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -16,8 +21,17 @@ use crate::wire::canonical::{
 };
 
 #[must_use]
-pub fn event_from_sse(value: &Value, msg_id: &str) -> Option<CanonicalEvent> {
-    let kind = value.get("type").and_then(Value::as_str)?;
+pub fn events_from_sse(value: &Value, msg_id: &str) -> Vec<CanonicalEvent> {
+    let Some(kind) = value.get("type").and_then(Value::as_str) else {
+        return Vec::new();
+    };
+    if kind == "message_delta" {
+        return convert_message_delta(value, msg_id);
+    }
+    single_event(kind, value, msg_id).into_iter().collect()
+}
+
+fn single_event(kind: &str, value: &Value, msg_id: &str) -> Option<CanonicalEvent> {
     match kind {
         "message_start" => convert_message_start(value),
         "content_block_start" => convert_content_block_start(value),
@@ -25,7 +39,6 @@ pub fn event_from_sse(value: &Value, msg_id: &str) -> Option<CanonicalEvent> {
         "content_block_stop" => Some(CanonicalEvent::ContentBlockStop {
             index: u32_field(value, "index"),
         }),
-        "message_delta" => convert_message_delta(value, msg_id),
         "message_stop" => Some(CanonicalEvent::MessageStop {
             id: msg_id.to_owned(),
             stop_reason: None,
@@ -103,21 +116,25 @@ fn convert_content_block_delta(value: &Value) -> Option<CanonicalEvent> {
     }
 }
 
-fn convert_message_delta(value: &Value, msg_id: &str) -> Option<CanonicalEvent> {
+// Why: Emits the usage before the stop so a consumer that finalizes on the
+// terminal event has already folded in the real token counts.
+fn convert_message_delta(value: &Value, msg_id: &str) -> Vec<CanonicalEvent> {
+    let mut events = Vec::with_capacity(2);
+    if let Some(usage) = value.get("usage") {
+        events.push(CanonicalEvent::UsageDelta(usage_from_value(Some(usage))));
+    }
     let stop_reason = value
         .get("delta")
         .and_then(|d| d.get("stop_reason"))
         .and_then(Value::as_str)
         .map(CanonicalStopReason::from_anthropic);
     if stop_reason.is_some() {
-        return Some(CanonicalEvent::MessageStop {
+        events.push(CanonicalEvent::MessageStop {
             id: msg_id.to_owned(),
             stop_reason,
         });
     }
-    value
-        .get("usage")
-        .map(|u| CanonicalEvent::UsageDelta(usage_from_value(Some(u))))
+    events
 }
 
 fn usage_from_value(v: Option<&Value>) -> CanonicalUsage {

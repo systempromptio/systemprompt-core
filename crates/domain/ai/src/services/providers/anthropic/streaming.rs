@@ -1,6 +1,6 @@
 //! Anthropic streaming: builds a canonical streaming request, posts it, frames
 //! the SSE byte stream, and maps each decoded frame through the shared codec's
-//! [`anthropic::event_from_sse`] into agent [`StreamChunk`]s.
+//! [`anthropic::events_from_sse`] into agent [`StreamChunk`]s.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -78,10 +78,10 @@ impl SseState {
                     continue;
                 };
                 self.capture_message_id(&value);
-                if let Some(event) = anthropic::event_from_sse(&value, &self.message_id)
-                    && let Some(chunk) = canonical_bridge::event_to_chunk(event)
-                {
-                    chunks.push(Ok(chunk));
+                for event in anthropic::events_from_sse(&value, &self.message_id) {
+                    if let Some(chunk) = canonical_bridge::event_to_chunk(event) {
+                        chunks.push(Ok(chunk));
+                    }
                 }
             }
         }

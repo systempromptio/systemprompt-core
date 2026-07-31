@@ -351,7 +351,7 @@ fn event_to_chunk_usage_delta_carries_token_totals() {
         output_tokens: 8,
         cache_read_tokens: 3,
         cache_creation_tokens: 0,
-        total_tokens: 20,
+        total_tokens: 23,
     };
     match event_to_chunk(CanonicalEvent::UsageDelta(usage)) {
         Some(StreamChunk::Usage {
@@ -364,7 +364,8 @@ fn event_to_chunk_usage_delta_carries_token_totals() {
         }) => {
             assert_eq!(input_tokens, Some(12));
             assert_eq!(output_tokens, Some(8));
-            assert_eq!(tokens_used, Some(20));
+            // Cache reads are billable tokens, so they belong in the total.
+            assert_eq!(tokens_used, Some(23));
             assert_eq!(cache_read_tokens, Some(3));
             assert_eq!(cache_creation_tokens, None);
             assert!(finish_reason.is_none());

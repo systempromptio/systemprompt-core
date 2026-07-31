@@ -76,11 +76,14 @@ impl StreamStorageWrapper {
             finish_reason,
         } = chunk
         {
-            if let Some(v) = input_tokens {
-                self.input_tokens = Some(self.input_tokens.unwrap_or(0) + v);
+            // Why: providers report usage as a cumulative snapshot, not an
+            // increment, so a later frame replaces an earlier one. Summing
+            // double-counts any stream that reports usage more than once.
+            if input_tokens.is_some() {
+                self.input_tokens = input_tokens;
             }
-            if let Some(v) = output_tokens {
-                self.output_tokens = Some(self.output_tokens.unwrap_or(0) + v);
+            if output_tokens.is_some() {
+                self.output_tokens = output_tokens;
             }
             if let Some(v) = tokens_used {
                 self.tokens_used = Some(v);
