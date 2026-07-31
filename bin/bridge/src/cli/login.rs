@@ -1,17 +1,10 @@
-//! `login` command: stores a PAT, pasted directly or redeemed from an
-//! admin-issued one-shot exchange code.
+//! `login` command: stores a PAT obtained by single sign-on, pasted directly,
+//! or redeemed from an admin-issued one-shot exchange code.
 //!
-//! Despite the name this opens no browser and runs no device-link flow. Two
-//! ways in: paste a `sp-live-…` token, or pass `--code` from
-//! `admin bridge issue-code`, which this redeems for a durable PAT against the
-//! same `/v1/auth/bridge/session-pat` endpoint the desktop GUI uses — the
-//! headless equivalent of the tray sign-in, and the only browserless way to
-//! bootstrap on Linux, where there is no GUI.
-//!
-//! Device-link lives in `auth::providers::session`, and is interactive per
-//! authentication, so it cannot carry the proxy: that re-authenticates per
-//! request and would reopen a browser on every hook. A device certificate
-//! (`admin bridge enroll-cert`) is the only credential that renews unattended.
+//! Device-link *authentication* (as opposed to this one-time bootstrap) is
+//! interactive per request, which is why it cannot back the proxy; a device
+//! certificate (`admin bridge enroll-cert`) is the only credential that renews
+//! unattended.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -20,20 +13,35 @@ use std::process::ExitCode;
 
 use systemprompt_identifiers::{SessionId, ValidatedUrl};
 
+use crate::auth::loopback::{LOOPBACK_PORT, LoopbackServer};
+use crate::auth::providers::session::{capture_on, device_link_url};
 use crate::auth::setup;
 use crate::auth::types::SessionPatRequest;
-use crate::cli::args::parse_opt_flag;
+use crate::cli::args::{has_flag, parse_opt_flag};
 use crate::cli::output;
 use crate::gateway::GatewayClient;
 use crate::obs::output::diag;
 
 pub fn cmd_login(args: &[String]) -> ExitCode {
     let gateway = parse_opt_flag(args, "--gateway");
+    let device_name = parse_opt_flag(args, "--device-name");
+    let pasted_pat = args.get(2).filter(|t| !t.is_empty() && !t.starts_with('-'));
 
-    // A code and a pasted PAT are two routes to the same stored credential, so
-    // they converge before setup::login.
-    let token = if let Some(code) = parse_opt_flag(args, "--code") {
-        let device_name = parse_opt_flag(args, "--device-name");
+    let code = if let Some(code) = parse_opt_flag(args, "--code") {
+        Some(code)
+    } else if pasted_pat.is_none() {
+        match sso_code(gateway.as_deref(), has_flag(args, "--no-browser")) {
+            Ok(c) => Some(c),
+            Err(e) => {
+                diag(&format!("login: single sign-on failed: {e}"));
+                return ExitCode::from(1);
+            },
+        }
+    } else {
+        None
+    };
+
+    let token = if let Some(code) = code {
         match redeem_code(&code, gateway.as_deref(), device_name) {
             Ok(pat) => pat,
             Err(e) => {
@@ -42,14 +50,14 @@ pub fn cmd_login(args: &[String]) -> ExitCode {
             },
         }
     } else {
-        let Some(t) = args.get(2).filter(|t| !t.is_empty() && !t.starts_with('-')) else {
+        let Some(t) = pasted_pat else {
             diag(&usage());
             return ExitCode::from(64);
         };
-        t.clone()
+        crate::ids::PatToken::new(t.clone())
     };
 
-    match setup::login(&token, gateway.as_deref()) {
+    match setup::login(token.as_str(), gateway.as_deref()) {
         Ok(paths) => {
             let bin = crate::brand::brand().binary_name;
             output::print_line(&format!("Stored PAT for {bin} helper."));
@@ -67,26 +75,92 @@ pub fn cmd_login(args: &[String]) -> ExitCode {
 
 fn usage() -> String {
     format!(
-        "usage: {bin} login <sp-live-...> [--gateway <url>]\n   \
+        "usage: {bin} login [--gateway <url>] [--no-browser] [--device-name <name>]\n   \
+         or: {bin} login <sp-live-...> [--gateway <url>]\n   \
          or: {bin} login --code <exchange-code> [--gateway <url>] [--device-name <name>]\n\
          \n\
-         An administrator issues a code with:\n  \
-         systemprompt admin bridge issue-code --user-id <uuid>",
+         With no token or code, signs in through the gateway's device-link page:\n\
+         you authenticate with your organisation's identity provider and the\n\
+         resulting token is bound to that identity. Use --no-browser on a machine\n\
+         with no browser (SSH, headless) to open the URL elsewhere and paste the\n\
+         redirect back.\n\
+         \n\
+         --code takes a one-shot code an administrator issued with:\n  \
+         systemprompt admin bridge issue-code --user-id <uuid>\n\
+         That path asserts your identity rather than proving it, so prefer SSO\n\
+         wherever a browser is reachable.",
         bin = crate::brand::brand().binary_name
     )
 }
 
-/// Trades a one-shot exchange code for a durable PAT.
+fn sso_code(gateway: Option<&str>, no_browser: bool) -> Result<String, String> {
+    let base_url = resolve_gateway(gateway)?;
+
+    if !no_browser {
+        return crate::proxy::block_on(async move {
+            let server = LoopbackServer::bind()
+                .await
+                .map_err(|e| format!("could not bind the loopback callback listener: {e}"))?;
+            capture_on(server, &base_url)
+                .await
+                .map_err(|e| e.to_string())
+        })
+        .map_err(|e| format!("runtime init: {e}"))?;
+    }
+
+    let callback = format!("http://127.0.0.1:{LOOPBACK_PORT}/callback");
+    let url = device_link_url(base_url.as_str(), &callback);
+    output::print_line("Open this URL on a machine with a browser and sign in:");
+    output::print_line("");
+    output::print_line(&format!("    {url}"));
+    output::print_line("");
+    output::print_line(
+        "After approving, the browser will fail to reach 127.0.0.1 — that is expected.",
+    );
+    output::print_line("Copy the full address it landed on and paste it here.");
+    output::print_line("");
+
+    let mut line = String::new();
+    std::io::stdin()
+        .read_line(&mut line)
+        .map_err(|e| format!("could not read the pasted URL: {e}"))?;
+    extract_code(line.trim())
+}
+
+fn extract_code(pasted: &str) -> Result<String, String> {
+    if pasted.is_empty() {
+        return Err("nothing pasted".into());
+    }
+    let Some((_, query)) = pasted.split_once('?') else {
+        return Ok(pasted.to_owned());
+    };
+    for pair in query.split('&') {
+        if let Some(value) = pair.strip_prefix("code=") {
+            let code = value.split('#').next().unwrap_or(value);
+            if !code.is_empty() {
+                return Ok(code.to_owned());
+            }
+        }
+        if let Some(reason) = pair.strip_prefix("error=") {
+            return Err(format!("the sign-in was not approved ({reason})"));
+        }
+    }
+    Err("that URL carries no `code` parameter — paste the address the browser finished on".into())
+}
+
+fn resolve_gateway(gateway: Option<&str>) -> Result<ValidatedUrl, String> {
+    gateway.map_or_else(
+        || Ok(crate::config::gateway_url_or_default(&crate::config::load())),
+        |raw| ValidatedUrl::try_new(raw.trim()).map_err(|e| format!("--gateway: {e}")),
+    )
+}
+
 fn redeem_code(
     code: &str,
     gateway: Option<&str>,
     device_name: Option<String>,
-) -> Result<String, String> {
-    let cfg = crate::config::load();
-    let base_url = match gateway {
-        Some(raw) => ValidatedUrl::try_new(raw.trim()).map_err(|e| format!("--gateway: {e}"))?,
-        None => crate::config::gateway_url_or_default(&cfg),
-    };
+) -> Result<crate::ids::PatToken, String> {
+    let base_url = resolve_gateway(gateway)?;
     let req = SessionPatRequest {
         code: code.trim().to_owned(),
         device_name: device_name.or_else(default_device_name),
@@ -101,7 +175,6 @@ fn redeem_code(
     .map_err(|e| e.to_string())
 }
 
-/// Labels the PAT in the admin's device list, so a revoke can name a machine.
 fn default_device_name() -> Option<String> {
     std::env::var("HOSTNAME")
         .ok()

@@ -116,7 +116,7 @@ async fn run_session_login(
             .await
             .map_err(|e| setup::SetupError::Io(e.to_string()))?;
         let gw = gateway.clone();
-        tokio::task::spawn_blocking(move || setup::login(&pat, gw.as_deref()))
+        tokio::task::spawn_blocking(move || setup::login(pat.as_str(), gw.as_deref()))
             .await
             .map_err(|e| setup::SetupError::Io(format!("login join: {e}")))??;
     } else {
@@ -159,9 +159,6 @@ pub(crate) fn on_login_finished(
             super::gateway_probe::spawn_probe(app, None);
             app.state.reload();
             app.refresh_ui();
-            // First device link on this machine provisions the hosts itself;
-            // leaving it to the user is what left the app unusable until the
-            // install was run by hand. Afterwards, the ordinary path.
             if crate::gui::first_run::should_run(app) {
                 _ = app.proxy.send_event(UiEvent::FirstRunStart);
             } else {

@@ -39,30 +39,16 @@ impl GatewayClient {
         &self,
         req: &SessionPatRequest,
         session_id: &SessionId,
-    ) -> Result<String, GatewayError> {
-        let url = self.url("/v1/auth/bridge/session-pat");
-        let payload = serde_json::to_vec(req)?;
-        let started = Instant::now();
-        let resp = self
-            .http()
-            .post(&url)
-            .header("content-type", "application/json")
-            .header(sp_headers::SESSION_ID, session_id.as_str())
-            .body(payload)
-            .send()
-            .await
-            .map_err(|e| GatewayError::PostRequest(Box::new(e)))?;
-        record_span(&resp, started);
-        if !resp.status().is_success() {
-            return Err(GatewayError::HttpStatus {
-                status: resp.status(),
-                endpoint: "session-pat",
-            });
-        }
-        resp.json::<DevicePatResponse>()
-            .await
-            .map_err(|e| GatewayError::AuthDecode(Box::new(e)))
-            .map(|b| b.pat)
+    ) -> Result<PatToken, GatewayError> {
+        let resp: DevicePatResponse = self
+            .post_json(
+                "/v1/auth/bridge/session-pat",
+                req,
+                "session-pat",
+                session_id,
+            )
+            .await?;
+        Ok(PatToken::new(resp.pat))
     }
 
     #[tracing::instrument(
@@ -99,7 +85,6 @@ impl GatewayClient {
             .map_err(|e| GatewayError::AuthDecode(Box::new(e)))
     }
 
-    // Plaintext `client_secret` is returned once per call; persist it immediately.
     #[tracing::instrument(
         level = "debug",
         skip(self, bearer),
@@ -163,7 +148,10 @@ impl GatewayClient {
         record_span(&resp, started);
         if !resp.status().is_success() {
             let status = resp.status();
-            let body = resp.text().await.unwrap_or_default();
+            let body = resp.text().await.unwrap_or_else(|e| {
+                tracing::warn!(error = %e, "hook token rejection body unreadable");
+                String::new()
+            });
             return Err(GatewayError::HookTokenRejected { status, body });
         }
         resp.json::<HookTokenResponse>()
@@ -171,13 +159,17 @@ impl GatewayClient {
             .map_err(|e| GatewayError::HookTokenDecode(Box::new(e)))
     }
 
-    pub(super) async fn post_json<T: serde::Serialize + Sync>(
+    pub(super) async fn post_json<T, R>(
         &self,
         path: &str,
         body: &T,
         endpoint: &'static str,
         session_id: &SessionId,
-    ) -> Result<AuthResponse, GatewayError> {
+    ) -> Result<R, GatewayError>
+    where
+        T: serde::Serialize + Sync,
+        R: serde::de::DeserializeOwned,
+    {
         let url = self.url(path);
         let payload = serde_json::to_vec(body)?;
         let started = Instant::now();
@@ -197,7 +189,7 @@ impl GatewayClient {
                 endpoint,
             });
         }
-        resp.json::<AuthResponse>()
+        resp.json::<R>()
             .await
             .map_err(|e| GatewayError::AuthDecode(Box::new(e)))
     }

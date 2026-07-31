@@ -133,7 +133,7 @@ async fn session_pat_exchange_returns_pat() {
         .session_pat_exchange(&req, &session_id())
         .await
         .unwrap();
-    assert_eq!(pat, "sp-live-minted");
+    assert_eq!(pat.as_str(), "sp-live-minted");
 }
 
 #[tokio::test]

@@ -95,9 +95,46 @@ pub(super) async fn forward_to_gateway(
                 crate::activity::activity_log()
                     .append(format!("proxy: {method} {path} → error: {e} [{req_id}]"));
             }
+            if let Some(challenge) = mcp_auth_challenge(&e, &path, cfg.gateway_base.as_ref()) {
+                return Ok(challenge);
+            }
             Ok(owned_response(e.status(), e.client_detail()))
         },
     }
+}
+
+// Why: a credential failure otherwise maps to 503, which `/mcp` renders as a
+// dead server; the RFC 9728 401 challenge offers re-authentication instead.
+fn mcp_auth_challenge(
+    err: &forward::ForwardError,
+    path: &str,
+    gateway_base: &systemprompt_identifiers::ValidatedUrl,
+) -> Option<Response<ProxyBody>> {
+    if !matches!(
+        err,
+        forward::ForwardError::Auth(_) | forward::ForwardError::AuthTimeout
+    ) {
+        return None;
+    }
+    let slug = path.strip_prefix("/mcp/")?.split('/').next()?;
+    if slug.is_empty() {
+        return None;
+    }
+    let base = gateway_base.as_str().trim_end_matches('/');
+    let metadata = format!("{base}/.well-known/oauth-protected-resource/api/v1/mcp/{slug}/mcp");
+    let mut response = owned_response(StatusCode::UNAUTHORIZED, err.client_detail());
+    let value = format!("Bearer resource_metadata=\"{metadata}\"");
+    let header = match hyper::header::HeaderValue::from_str(&value) {
+        Ok(h) => h,
+        Err(e) => {
+            tracing::warn!(error = %e, slug = %slug, "invalid WWW-Authenticate challenge value");
+            return None;
+        },
+    };
+    response
+        .headers_mut()
+        .insert(hyper::header::WWW_AUTHENTICATE, header);
+    Some(response)
 }
 
 pub(super) fn record_stats(stats: &ProxyStats, status: u16, latency_ms: u64) {
@@ -128,7 +165,6 @@ pub(super) fn simple_response(status: StatusCode, body: &'static str) -> Respons
     resp
 }
 
-/// As [`simple_response`], for a body computed at runtime.
 pub(super) fn owned_response(status: StatusCode, body: String) -> Response<ProxyBody> {
     let full = Full::new(Bytes::from(body))
         .map_err(|never| match never {})

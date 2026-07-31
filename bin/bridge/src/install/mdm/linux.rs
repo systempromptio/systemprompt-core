@@ -33,9 +33,6 @@ fn profile_path() -> Option<PathBuf> {
     Some(crate::basedirs::home_dir()?.join(".profile"))
 }
 
-/// The token is read from the loopback key file at eval time rather than baked
-/// in, so a rotated secret needs no rewrite and a missing one degrades to an
-/// unset variable instead of an invalid credential.
 fn env_file_body(gateway: &str, key_path: &Path) -> String {
     let bin = crate::brand::brand().binary_name;
     format!(
@@ -57,7 +54,6 @@ fn profile_block(env_file: &Path) -> String {
     )
 }
 
-/// The half-open byte range the managed block occupies, if it is present.
 fn managed_range(existing: &str) -> Option<(usize, usize)> {
     let (open, close) = markers();
     let start = existing.find(&open)?;
@@ -68,8 +64,6 @@ fn managed_range(existing: &str) -> Option<(usize, usize)> {
     Some((start, end))
 }
 
-/// Replaces the managed region if present, appends it otherwise — so running
-/// install twice leaves exactly one block. `None` means "no change needed".
 fn splice(existing: &str, block: &str) -> Option<String> {
     let replaced = if let Some((start, end)) = managed_range(existing) {
         format!("{}{block}{}", &existing[..start], &existing[end..])
@@ -129,21 +123,191 @@ pub(super) fn apply(gateway: &str) -> Result<Vec<String>, String> {
             profile.display()
         )),
     }
+
+    lines.extend(apply_managed_settings(gateway, &key_path)?);
     lines.push("open a new login shell (or `. ~/.profile`) to pick these up".to_owned());
     Ok(lines)
 }
 
-/// Inverse of [`apply`]: drops the env file and the managed block, leaving the
-/// rest of `~/.profile` untouched.
-pub(crate) fn remove() -> Vec<String> {
-    let mut lines = Vec::new();
-    if let Some(env_file) = env_file_path() {
-        match fs::remove_file(&env_file) {
-            Ok(()) => lines.push(format!("removed: {}", env_file.display())),
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {},
-            Err(e) => lines.push(format!("could not remove {}: {e}", env_file.display())),
+// Why: `~/.profile` reaches only login shells, so IDE terminals, `bash -c`, CI,
+// and systemd miss it; Claude Code reads managed settings on every invocation.
+fn managed_settings_path() -> Option<PathBuf> {
+    let system = PathBuf::from("/etc/claude-code/managed-settings.json");
+    if can_write(&system) {
+        return Some(system);
+    }
+    Some(
+        crate::basedirs::home_dir()?
+            .join(".claude")
+            .join("managed-settings.json"),
+    )
+}
+
+fn can_write(path: &Path) -> bool {
+    let Some(parent) = path.parent() else {
+        return false;
+    };
+    fs::create_dir_all(parent).is_ok()
+        && fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(path)
+            .is_ok()
+}
+
+fn key_helper_path() -> Option<PathBuf> {
+    Some(
+        crate::basedirs::config_dir()?
+            .join(crate::brand::brand().config_dir)
+            .join("claude-key-helper.sh"),
+    )
+}
+
+// Why: `apiKeyHelper` runs on every request, so the loopback secret must be
+// read fresh rather than captured, or rotation breaks the session.
+fn key_helper_body(key_path: &Path) -> String {
+    let bin = crate::brand::brand().binary_name;
+    format!(
+        "#!/bin/sh\n\
+         # Written by `{bin} install --apply`. Rewritten on every apply — do not edit.\n\
+         exec cat \"{key}\"\n",
+        key = key_path.display(),
+    )
+}
+
+fn apply_managed_settings(gateway: &str, key_path: &Path) -> Result<Vec<String>, String> {
+    let helper =
+        key_helper_path().ok_or_else(|| "cannot resolve the user's config directory".to_owned())?;
+    write_atomic(&helper, &key_helper_body(key_path))?;
+    set_executable(&helper)?;
+
+    let settings_path = managed_settings_path()
+        .ok_or_else(|| "cannot resolve the managed settings path".to_owned())?;
+    let existing = read_or_empty(&settings_path)?;
+    // Why: this file may already carry an organisation's own policy. Anything
+    // the bridge does not own is preserved; refusing to parse is safer than
+    // clobbering keys we cannot read back.
+    let mut root: serde_json::Map<String, serde_json::Value> = if existing.trim().is_empty() {
+        serde_json::Map::new()
+    } else {
+        serde_json::from_str(&existing)
+            .map_err(|e| format!("{} is not valid JSON: {e}", settings_path.display()))?
+    };
+
+    let mut lines = vec![format!("wrote: {} (apiKeyHelper)", helper.display())];
+    lines.extend(warn_on_forced_login(&root));
+
+    let env = root
+        .entry("env".to_owned())
+        .or_insert_with(|| serde_json::Value::Object(serde_json::Map::new()));
+    let Some(env) = env.as_object_mut() else {
+        return Err(format!(
+            "{}: \"env\" is present but is not an object",
+            settings_path.display()
+        ));
+    };
+    env.insert(
+        "ANTHROPIC_BASE_URL".to_owned(),
+        serde_json::Value::String(gateway.to_owned()),
+    );
+    env.insert(
+        "CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY".to_owned(),
+        serde_json::Value::String("1".to_owned()),
+    );
+    // Why: Claude Code prepends an attribution block to the system prompt
+    // carrying its version and a conversation fingerprint. Anthropic's endpoint
+    // strips it, but any other provider a route can target receives it as part
+    // of the prompt. The documented remedy is to omit it at the client rather
+    // than reshape system content in the gateway.
+    env.insert(
+        "CLAUDE_CODE_ATTRIBUTION_HEADER".to_owned(),
+        serde_json::Value::String("0".to_owned()),
+    );
+
+    root.insert(
+        "apiKeyHelper".to_owned(),
+        serde_json::Value::String(helper.display().to_string()),
+    );
+
+    let rendered = serde_json::to_string_pretty(&serde_json::Value::Object(root))
+        .map_err(|e| format!("render {}: {e}", settings_path.display()))?;
+    write_atomic(&settings_path, &format!("{rendered}\n"))?;
+    lines.push(format!(
+        "wrote: {} (ANTHROPIC_BASE_URL, apiKeyHelper, model discovery)",
+        settings_path.display()
+    ));
+    Ok(lines)
+}
+
+// Why: on Claude Code v2.1.146+ `forceLoginMethod`/`forceLoginOrgUUID` block
+// `ANTHROPIC_AUTH_TOKEN`, `ANTHROPIC_API_KEY`, and `apiKeyHelper` at startup.
+fn warn_on_forced_login(root: &serde_json::Map<String, serde_json::Value>) -> Vec<String> {
+    ["forceLoginMethod", "forceLoginOrgUUID"]
+        .into_iter()
+        .filter(|key| root.contains_key(*key))
+        .map(|key| {
+            format!(
+                "WARNING: managed settings already set \"{key}\", which blocks the gateway \
+                 credential at startup — remove it or Claude Code will refuse to run"
+            )
+        })
+        .collect()
+}
+
+fn remove_managed_settings() -> Vec<String> {
+    let Some(path) = managed_settings_path() else {
+        return Vec::new();
+    };
+    let Ok(existing) = fs::read_to_string(&path) else {
+        return Vec::new();
+    };
+    let Ok(serde_json::Value::Object(mut root)) = serde_json::from_str(&existing) else {
+        return vec![format!("left {} in place: not valid JSON", path.display())];
+    };
+    root.remove("apiKeyHelper");
+    if let Some(serde_json::Value::Object(env)) = root.get_mut("env") {
+        for key in [
+            "ANTHROPIC_BASE_URL",
+            "CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY",
+            "CLAUDE_CODE_ATTRIBUTION_HEADER",
+        ] {
+            env.remove(key);
+        }
+        if env.is_empty() {
+            root.remove("env");
         }
     }
+    if root.is_empty() {
+        return match fs::remove_file(&path) {
+            Ok(()) => vec![format!("removed: {}", path.display())],
+            Err(e) => vec![format!("could not remove {}: {e}", path.display())],
+        };
+    }
+    let Ok(rendered) = serde_json::to_string_pretty(&serde_json::Value::Object(root)) else {
+        return Vec::new();
+    };
+    match write_atomic(&path, &format!("{rendered}\n")) {
+        Ok(()) => vec![format!("cleaned: {} (bridge keys)", path.display())],
+        Err(e) => vec![format!("could not clean {}: {e}", path.display())],
+    }
+}
+
+fn set_executable(path: &Path) -> Result<(), String> {
+    use std::os::unix::fs::PermissionsExt as _;
+    fs::set_permissions(path, fs::Permissions::from_mode(0o700))
+        .map_err(|e| format!("chmod {}: {e}", path.display()))
+}
+
+pub(crate) fn remove() -> Vec<String> {
+    let mut lines = Vec::new();
+    for path in [env_file_path(), key_helper_path()].into_iter().flatten() {
+        match fs::remove_file(&path) {
+            Ok(()) => lines.push(format!("removed: {}", path.display())),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {},
+            Err(e) => lines.push(format!("could not remove {}: {e}", path.display())),
+        }
+    }
+    lines.extend(remove_managed_settings());
     let Some(profile) = profile_path() else {
         return lines;
     };

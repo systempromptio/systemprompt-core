@@ -1,6 +1,10 @@
-//! Mirrors synced org-plugin trees into the CLI's marketplace layout and
-//! re-projects each plugin's managed MCP servers through the bridge proxy as a
-//! plugin-local `.mcp.json`.
+//! Mirrors synced org-plugin trees into the CLI's marketplace layout, and
+//! provisions MCP servers per-plugin when the elevated policy is unavailable.
+//!
+//! The global `managed-mcp.json` written by [`crate::install::managed_mcp`]
+//! suppresses plugin-provided servers, so the plugin-local `.mcp.json` here is
+//! written only when that elevated policy could not be applied — otherwise an
+//! unprivileged install would finish with no MCP servers at all.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -8,7 +12,7 @@
 use std::fs;
 use std::path::Path;
 
-use serde_json::{Map, json};
+use serde_json::json;
 
 use super::io_err;
 use crate::sync::ApplyError;
@@ -29,20 +33,23 @@ pub(super) fn mirror_plugin(
     Ok(())
 }
 
-/// Removes `plugin.json`'s `hooks` field when it names the standard
-/// `hooks/hooks.json`.
-///
-/// The sync writer sets that pointer for Cowork, which needs it explicitly. The
-/// Claude Code CLI instead loads `hooks/hooks.json` automatically and then
-/// rejects the whole plugin — "Duplicate hooks file detected … manifest.hooks
-/// should only reference additional hook files" — so with the pointer left in
-/// place every org plugin installs and then fails to load. Any other value is a
-/// genuine additional hook file and is left alone.
+// Why: the Claude Code CLI loads `hooks/hooks.json` itself and then rejects any
+// plugin whose manifest also points at it ("Duplicate hooks file detected").
 fn drop_standard_hooks_pointer(dst: &Path) -> Result<(), ApplyError> {
     const STANDARD: [&str; 2] = ["./hooks/hooks.json", "hooks/hooks.json"];
     let path = dst.join(".claude-plugin").join("plugin.json");
-    let Ok(text) = fs::read_to_string(&path) else {
-        return Ok(());
+    let text = match fs::read_to_string(&path) {
+        Ok(t) => t,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+        Err(e) => {
+            tracing::warn!(
+                target: "bridge::claude-code-cli",
+                path = %path.display(),
+                error = %e,
+                "plugin manifest unreadable; leaving its hooks pointer untouched"
+            );
+            return Ok(());
+        },
     };
     let Ok(serde_json::Value::Object(mut manifest)) = serde_json::from_str(&text) else {
         tracing::warn!(
@@ -99,9 +106,37 @@ pub(super) fn remove_dir(path: &Path) -> Result<(), ApplyError> {
     }
 }
 
+fn write_mcp_json(root: &Path, servers: &[String]) -> Result<(), ApplyError> {
+    let bearer = crate::proxy::loopback_bearer()
+        .map_err(|e| io_err("read loopback secret for claude-code .mcp.json", e))?;
+    let mut map = serde_json::Map::new();
+    for name in servers {
+        let slug = crate::mcp_registry::normalize_key(name);
+        map.insert(
+            slug.clone(),
+            json!({
+                "type": "http",
+                "url": crate::proxy::mcp_url(&slug),
+                "headers": { "Authorization": bearer.clone() },
+            }),
+        );
+    }
+    super::json_io::write_json(&root.join(".mcp.json"), &json!({ "mcpServers": map }))
+}
+
 pub(super) fn remove_stale_children(dir: &Path, expected: &[&str]) -> Result<(), ApplyError> {
-    let Ok(entries) = fs::read_dir(dir) else {
-        return Ok(());
+    let entries = match fs::read_dir(dir) {
+        Ok(entries) => entries,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+        Err(e) => {
+            tracing::warn!(
+                target: "bridge::claude-code-cli",
+                dir = %dir.display(),
+                error = %e,
+                "marketplace directory unreadable; stale plugins left in place"
+            );
+            return Ok(());
+        },
     };
     for entry in entries.flatten() {
         let name = entry.file_name();
@@ -116,22 +151,4 @@ pub(super) fn remove_stale_children(dir: &Path, expected: &[&str]) -> Result<(),
         }
     }
     Ok(())
-}
-
-fn write_mcp_json(root: &Path, servers: &[String]) -> Result<(), ApplyError> {
-    let bearer = crate::proxy::loopback_bearer()
-        .map_err(|e| io_err("read loopback secret for claude-code .mcp.json", e))?;
-    let mut map = Map::new();
-    for name in servers {
-        let slug = crate::mcp_registry::normalize_key(name);
-        map.insert(
-            slug.clone(),
-            json!({
-                "type": "http",
-                "url": crate::proxy::mcp_url(&slug),
-                "headers": { "Authorization": bearer.clone() },
-            }),
-        );
-    }
-    super::json_io::write_json(&root.join(".mcp.json"), &json!({ "mcpServers": map }))
 }

@@ -44,11 +44,25 @@ pub fn check_marketplace() -> Check {
         );
     }
 
-    let count = std::fs::read(&manifest)
-        .ok()
-        .and_then(|bytes| serde_json::from_slice::<serde_json::Value>(&bytes).ok())
-        .and_then(|v| v.get("plugins").and_then(|p| p.as_array()).map(Vec::len));
+    let parsed = std::fs::read(&manifest)
+        .map_err(|e| e.to_string())
+        .and_then(|bytes| {
+            serde_json::from_slice::<serde_json::Value>(&bytes).map_err(|e| e.to_string())
+        });
+    let doc = match parsed {
+        Ok(doc) => doc,
+        Err(e) => {
+            return Check::fail(
+                "org marketplace",
+                format!(
+                    "{} is unreadable or not valid JSON ({e}) — re-run `{bin} sync`",
+                    manifest.display()
+                ),
+            );
+        },
+    };
 
+    let count = doc.get("plugins").and_then(|p| p.as_array()).map(Vec::len);
     match count {
         Some(0) | None => Check::warn(
             "org marketplace",

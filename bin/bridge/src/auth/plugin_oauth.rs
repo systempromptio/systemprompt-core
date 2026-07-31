@@ -132,11 +132,6 @@ fn resolve_backend() -> SecretBackend {
     *BACKEND.get_or_init(|| backend)
 }
 
-/// Installs a platform credential store, but only if the process has none.
-///
-/// The guard is what lets the bridge test suites pre-install a headless
-/// keyutils store: an unconditional registration would clobber it on the first
-/// entry.
 fn install_store() -> Result<(), PluginOAuthError> {
     if keyring_core::get_default_store().is_some() {
         return Ok(());
@@ -155,19 +150,9 @@ fn install_store() -> Result<(), PluginOAuthError> {
     Ok(())
 }
 
-/// Secret Service first, then the kernel keyutils keyring.
-///
-/// A headless Linux box — a server, a container, CI — has no Secret Service
-/// provider, so the D-Bus store fails to construct even when a session bus is
-/// present. Without a fallback the first plugin hook request dies at the token
-/// mint and the client only sees a bare 502. Keyutils keeps the secret in the
-/// kernel keyring instead: not persistent across a reboot, which is acceptable
-/// because the secret is re-mintable and losing it costs one re-provision.
-///
-/// Construction is not proof of usability: Docker's default seccomp profile
-/// denies `add_key`/`keyctl`, so the store builds and then fails `EPERM` on the
-/// first write. A round-trip probe is what keeps that from becoming the same
-/// 502 in a new place.
+// Why: headless Linux has no Secret Service provider, so the D-Bus store fails
+// even with a session bus; Docker's seccomp denies `add_key`, so probe by
+// writing.
 #[cfg(all(unix, not(target_os = "macos")))]
 fn linux_store() -> Result<std::sync::Arc<keyring_core::CredentialStore>, PluginOAuthError> {
     let dbus_err = match dbus_secret_service_keyring_store::Store::new() {
@@ -196,7 +181,6 @@ fn linux_store() -> Result<std::sync::Arc<keyring_core::CredentialStore>, Plugin
     Ok(store)
 }
 
-/// Write/read/delete a throwaway entry to prove the store actually works.
 #[cfg(all(unix, not(target_os = "macos")))]
 fn probe_store(store: &std::sync::Arc<keyring_core::CredentialStore>) -> Result<(), String> {
     let service = format!("{}-probe", crate::brand::brand().keyring_service);
@@ -298,6 +282,8 @@ pub fn load_creds() -> Result<Option<OAuthClientCreds>, PluginOAuthError> {
     else {
         return Ok(None);
     };
+    // JSON: on-disk format discrimination — a `client_secret` key marks the
+    // legacy layout, decided before either typed struct can be chosen.
     let raw: serde_json::Value = serde_json::from_str(&text)?;
     if raw.get("client_secret").is_some() {
         let l: LegacyCreds = serde_json::from_value(raw)?;
@@ -340,8 +326,6 @@ pub fn delete_creds() -> io::Result<()> {
     }
 }
 
-// Provisioning rotates the per-tenant secret server-side; only call when local
-// state is missing.
 pub async fn ensure_creds(
     gateway: &GatewayClient,
     bearer: &BearerToken,
@@ -397,23 +381,25 @@ pub struct PluginTokenCache {
 }
 
 impl PluginTokenCache {
+    // Why: recovers from a poisoned lock — treating poison as a miss would
+    // silently re-mint a hook token on every request from then on.
+    fn entries(&self) -> std::sync::MutexGuard<'_, HashMap<String, CachedHookToken>> {
+        self.entries
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+    }
+
     pub fn get(&self, plugin_id: &PluginId, threshold_secs: u64) -> Option<CachedHookToken> {
-        let guard = self.entries.lock().ok()?;
-        let cached = guard.get(plugin_id.as_str())?.clone();
-        drop(guard);
+        let cached = self.entries().get(plugin_id.as_str())?.clone();
         cached.is_fresh(threshold_secs).then_some(cached)
     }
 
     pub fn put(&self, plugin_id: &PluginId, token: CachedHookToken) {
-        if let Ok(mut guard) = self.entries.lock() {
-            guard.insert(plugin_id.as_str().to_owned(), token);
-        }
+        self.entries().insert(plugin_id.as_str().to_owned(), token);
     }
 
     pub fn invalidate(&self, plugin_id: &PluginId) {
-        if let Ok(mut guard) = self.entries.lock() {
-            guard.remove(plugin_id.as_str());
-        }
+        self.entries().remove(plugin_id.as_str());
     }
 }
 
@@ -436,14 +422,6 @@ async fn mint(
         .await
 }
 
-/// Re-points a loopback `token_endpoint` at the gateway actually being dialled.
-///
-/// The gateway advertises its own absolute token endpoint, which is
-/// `http://localhost:8080/...` whenever it is itself reached over loopback. A
-/// client on another host — a container, another machine — cannot resolve that
-/// to the gateway, so the hook-token mint fails with a bare connection error
-/// and every plugin hook 503s. Mirrors `sync::apply::rewrite_loopback_urls`,
-/// which solves the identical problem for managed MCP server URLs.
 fn gateway_aligned_endpoint(raw: &str, gateway: &str) -> String {
     let (Ok(mut parsed), Ok(gw)) = (url::Url::parse(raw), url::Url::parse(gateway)) else {
         return raw.to_owned();

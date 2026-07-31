@@ -57,8 +57,10 @@ pub enum ForwardError {
     Upstream(#[from] reqwest::Error),
     #[error("response build failed: {0}")]
     BuildResponse(#[from] http::Error),
+    #[error("request body exceeds {BUFFERED_BODY_LIMIT} bytes")]
+    BodyTooLarge,
     #[error("request body read failed: {0}")]
-    ReadBody(#[source] hyper::Error),
+    ReadBody(#[source] Box<dyn std::error::Error + Send + Sync>),
 }
 
 impl ForwardError {
@@ -68,6 +70,7 @@ impl ForwardError {
     pub const fn status(&self) -> StatusCode {
         match self {
             Self::Auth(_) | Self::AuthTimeout => StatusCode::SERVICE_UNAVAILABLE,
+            Self::BodyTooLarge => StatusCode::PAYLOAD_TOO_LARGE,
             Self::BadMethod { .. } | Self::BadHeader(_) => StatusCode::BAD_REQUEST,
             Self::Upstream(_) | Self::BuildResponse(_) | Self::ReadBody(_) => {
                 StatusCode::BAD_GATEWAY
@@ -75,9 +78,8 @@ impl ForwardError {
         }
     }
 
-    /// Body text for the client. Names the real cause: a plugin hook author
-    /// reading `bad gateway` has no way to discover that the host simply has no
-    /// credential store.
+    /// Names the real cause: a plugin hook author reading `bad gateway` cannot
+    /// discover that the host simply has no credential store.
     pub fn client_detail(&self) -> String {
         format!("{self}\n")
     }
@@ -87,7 +89,7 @@ pub type ForwardResult<T> = Result<T, ForwardError>;
 
 pub const REFRESH_THRESHOLD_SECS: u64 = 300;
 
-const BUFFERED_BODY_LIMIT: usize = 8 * 1024 * 1024;
+use systemprompt_models::wire::BUFFERED_BODY_LIMIT_BYTES as BUFFERED_BODY_LIMIT;
 
 pub(crate) struct ForwardDeps<'a> {
     pub client: reqwest::Client,
@@ -123,8 +125,6 @@ pub(crate) async fn forward(
     let (parts, body) = req.into_parts();
     let request_path = parts.uri.path().to_owned();
 
-    // A hook route's 401 means its `aud:hook` token is stale, not the bridge JWT;
-    // `is_hook` suppresses shared-cache invalidation.
     let (route, upstream_bearer, is_hook) = match resolve_route(&parts.uri, gateway_base) {
         RouteResolution::Gateway(url) => (
             Route {
@@ -137,11 +137,13 @@ pub(crate) async fn forward(
         RouteResolution::Mcp(route) => (route, token.token.expose().to_owned(), false),
         RouteResolution::Hook { url, plugin_id } => {
             let gw = crate::gateway::GatewayClient::new(gateway_base.clone());
-            let pid = systemprompt_identifiers::PluginId::new(plugin_id);
-            let hook =
-                crate::auth::plugin_oauth::mint_or_refresh_plugin_token(&gw, &token.token, &pid)
-                    .await
-                    .map_err(|e| ForwardError::Auth(format!("hook token mint for {pid}: {e}")))?;
+            let hook = crate::auth::plugin_oauth::mint_or_refresh_plugin_token(
+                &gw,
+                &token.token,
+                &plugin_id,
+            )
+            .await
+            .map_err(|e| ForwardError::Auth(format!("hook token mint for {plugin_id}: {e}")))?;
             (
                 Route {
                     url,
@@ -165,7 +167,7 @@ pub(crate) async fn forward(
     })?;
 
     let (upstream_body, gateway_conversation_id) =
-        prepare_upstream_body(body, &request_path, session_context).await?;
+        prepare_upstream_body(body, session_context).await?;
 
     let upstream_headers = build_upstream_headers(
         &parts.headers,
@@ -228,7 +230,10 @@ enum RouteResolution {
     Gateway(String),
     Mcp(Route),
     UnknownMcp(String),
-    Hook { url: String, plugin_id: String },
+    Hook {
+        url: String,
+        plugin_id: systemprompt_identifiers::PluginId,
+    },
 }
 
 fn resolve_route(uri: &http::Uri, gateway_base: &ValidatedUrl) -> RouteResolution {
@@ -261,11 +266,10 @@ fn parse_mcp_path(path: &str) -> Option<&str> {
     if name.is_empty() { None } else { Some(name) }
 }
 
-// Token must be minted for the `?plugin_id=<id>` the gateway guard matches.
-fn parse_hook_plugin_id(uri: &http::Uri) -> Option<String> {
+fn parse_hook_plugin_id(uri: &http::Uri) -> Option<systemprompt_identifiers::PluginId> {
     uri.query()?.split('&').find_map(|kv| {
         let (k, v) = kv.split_once('=')?;
-        (k == "plugin_id" && !v.is_empty()).then(|| v.to_owned())
+        (k == "plugin_id" && !v.is_empty()).then(|| systemprompt_identifiers::PluginId::new(v))
     })
 }
 
@@ -284,8 +288,8 @@ fn build_gateway_url(gateway_base: &ValidatedUrl, uri: &http::Uri) -> String {
     )
 }
 
-// OTLP exporters POST `/otel` without the `/v1` prefix the gateway router is
-// nested under.
+// Why: OTLP exporters POST `/otel` without the `/v1` prefix the gateway router
+// is nested under.
 fn rewrite_otel_to_v1(path_and_query: &str) -> Option<String> {
     let (path, suffix) = path_and_query
         .split_once('?')
@@ -351,7 +355,6 @@ fn build_upstream_headers(
 
 async fn prepare_upstream_body(
     body: Incoming,
-    _request_path: &str,
     session_context: &SessionContext,
 ) -> ForwardResult<(reqwest::Body, Option<GatewayConversationId>)> {
     let buffered = collect_body(body).await?;
@@ -364,18 +367,14 @@ async fn prepare_upstream_body(
 }
 
 async fn collect_body(body: Incoming) -> ForwardResult<Bytes> {
-    let collected = body
+    match http_body_util::Limited::new(body, BUFFERED_BODY_LIMIT)
         .collect()
         .await
-        .map_err(ForwardError::ReadBody)?
-        .to_bytes();
-    if collected.len() > BUFFERED_BODY_LIMIT {
-        tracing::warn!(
-            bytes = collected.len(),
-            "messages-path body exceeds buffer limit; forwarding anyway"
-        );
+    {
+        Ok(collected) => Ok(collected.to_bytes()),
+        Err(e) if e.is::<http_body_util::LengthLimitError>() => Err(ForwardError::BodyTooLarge),
+        Err(e) => Err(ForwardError::ReadBody(e)),
     }
-    Ok(collected)
 }
 
 fn copy_request_headers(src: &HeaderMap, dest: &mut HeaderMap) {

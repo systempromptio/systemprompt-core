@@ -75,15 +75,9 @@ fn io_err(context: impl Into<String>, source: std::io::Error) -> ApplyError {
     }
 }
 
-/// Whether the standalone `claude` CLI is installed on this machine.
-///
-/// `~/.claude` is created by the CLI's *first run*, not by its installation, so
-/// testing for that directory alone reports "absent" on a freshly provisioned
-/// machine where the tool is installed but has never been launched — which is
-/// exactly the state a new user is in when the bridge first syncs. Probing the
-/// binary on `PATH` is what distinguishes genuinely-absent from
-/// installed-but-unused; the directory is still honoured because a user may
-/// have the CLI on a path this process cannot see.
+// Why: `~/.claude` is created by the CLI's first run, not its installation, so
+// the PATH probe is what distinguishes genuinely-absent from
+// installed-but-unused.
 pub(crate) fn claude_cli_installed() -> bool {
     if paths::claude_cli_home().is_some_and(|h| h.exists()) {
         return true;
@@ -125,15 +119,23 @@ fn apply_install(ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError> {
         return clear_install();
     }
 
+    // Why: `managed-mcp.json` suppresses plugin-provided servers, so writing both
+    // it and per-plugin `.mcp.json` files leaves the latter inert and misleading.
+    let enforced = crate::install::managed_mcp::apply_policy()
+        == crate::install::managed_mcp::PolicyOutcome::Enforced;
+
     let mut ids = Vec::with_capacity(manifest.plugins.len());
     let mut entries = Vec::with_capacity(manifest.plugins.len());
     for plugin in &manifest.plugins {
         let id = plugin.id.as_str();
         let src = ctx.org_plugins_root.join(id);
-        let mcp_servers = ctx
-            .plugin_mcp_servers
-            .get(id)
-            .map_or(&[][..], Vec::as_slice);
+        let mcp_servers = if enforced {
+            &[][..]
+        } else {
+            ctx.plugin_mcp_servers
+                .get(id)
+                .map_or(&[][..], Vec::as_slice)
+        };
         mirror_plugin(&src, &source_plugin_dir(&plugins, id), mcp_servers)?;
         mirror_plugin(&src, &cache_install_dir(&plugins, id), mcp_servers)?;
         entries.push(marketplace::entry_for(&src, id, &plugin.version));
@@ -151,12 +153,14 @@ fn apply_install(ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError> {
         target: "bridge::claude-code-cli",
         marketplace = MARKETPLACE,
         plugins = ids.len(),
+        mcp_policy = if enforced { "managed" } else { "per-plugin" },
         "installed and enabled org plugins for the standalone Claude Code CLI"
     );
     Ok(())
 }
 
 fn clear_install() -> Result<(), ApplyError> {
+    crate::install::managed_mcp::clear_policy();
     let Some(plugins) = paths::claude_cli_plugins_dir() else {
         tracing::warn!(
             target: "bridge::claude-code-cli",
@@ -164,9 +168,6 @@ fn clear_install() -> Result<(), ApplyError> {
         );
         return Ok(());
     };
-    // Clear is purely subtractive, so an absent ~/.claude genuinely means there
-    // is nothing to undo. Without this, `set_enabled(&[])` below would create an
-    // empty settings.json on a machine that has no Claude Code at all.
     if !paths::claude_cli_home().is_some_and(|h| h.exists()) {
         return Ok(());
     }

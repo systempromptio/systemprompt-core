@@ -94,6 +94,16 @@ pub async fn capture_on(
     Ok(captured.code)
 }
 
+/// The device-link consent URL for `callback`.
+///
+/// Exposed so the CLI's browserless path can print the same URL this module
+/// would have opened, and have the user complete the identical SSO flow on a
+/// machine that does have a browser.
+#[must_use]
+pub fn device_link_url(base: &str, callback: &str) -> String {
+    build_auth_url(base, callback)
+}
+
 fn build_auth_url(base: &str, callback: &str) -> String {
     let encoded = encode_component(callback);
     format!(

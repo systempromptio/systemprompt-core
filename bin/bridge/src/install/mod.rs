@@ -7,6 +7,7 @@ mod apply;
 mod bootstrap;
 mod builders;
 mod error;
+pub(crate) mod managed_mcp;
 pub(crate) mod mdm;
 mod schedule_apply;
 mod schedule_emit;
@@ -234,8 +235,6 @@ fn remove_managed_profile() -> ManagedProfileOutcome {
     }
 }
 
-/// On Linux the "managed profile" is the env file plus the `~/.profile` block
-/// `install --apply` wrote; removing them is what makes uninstall its inverse.
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]
 fn remove_managed_profile() -> ManagedProfileOutcome {
     let lines = mdm::linux::remove();
