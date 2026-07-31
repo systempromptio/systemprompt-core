@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.28.0] - 2026-07-31
+
+### Breaking
+
+- The facade re-exports the 0.28.0 surface of every member crate, and several of those types changed shape. Through `systemprompt::models`: `OAuthRequirement` and `ServiceOAuthConfig` gain an `ema` flag, `WellKnownResponse` gains `authorization_grant_profiles_supported`, `GovernanceConfig` gains `enabled`, `CanonicalRequest` gains `forwarded_surface: ForwardedSurface` (and now derives `Default`), `CanonicalEvent::UsageDelta` carries a `CanonicalUsageUpdate`, and `ModelPricing` gains two cache rates. Through `systemprompt::ai`: `wire::anthropic::event_from_sse` is replaced by `events_from_sse`, returning a `Vec<CanonicalEvent>`, and `cost_microdollars` takes a `CostTokens`. A struct built by literal rather than through `Default` needs the extra initialisers; see the root changelog for the full list and the migration for each.
+
 ## [0.27.0] - 2026-07-29
 
 ### Breaking

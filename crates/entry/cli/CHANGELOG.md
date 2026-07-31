@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.28.0] - 2026-07-31
+
+### Changed
+
+- `analytics costs` and `analytics requests` run their summary and stats views when given no subcommand, instead of exiting 2 with a usage dump. Each wraps its subcommand in `CostsArgs`/`RequestsArgs` and flattens the default view's arguments, so `--since`/`--until` work on the bare command and their clap defaults stay the single source of truth.
+- `admin users show` emits the user record itself under `--output json`/`yaml` rather than a presentation card's headed sections, so the provisioning flow that needs a UUID for `admin bridge enroll-cert --user-id` is scriptable without parsing `.sections[]`.
+
+### Fixed
+
+- `infra logs request list` returns the full `request_id` under `--output json`/`yaml`. It was shortened while the row was built, so the machine formats carried an elided value that `infra logs audit` rejects. Truncation is now the terminal renderer's job: `render_table` honours the `width` already carried on `Column`, and the table still shows 12 characters. `infra logs show` likewise printed elided ids inside its `logs trace show <id>` tips, so the command it suggested could not be run.
+- `admin bridge issue-code` and `admin bridge enroll-cert` resolve the user before minting, so an unknown reference reports `no user with id, email, or name '<x>'` instead of surfacing a Postgres foreign-key violation naming the constraint and an internal line number. Both accept an id, email, or name, matching `admin users delete`.
+- `admin users delete --yes` documents itself in `--help` (it rendered as a bare flag with an empty description), and its confirmation guard runs after the lookup, so a mistyped name reports "user not found" rather than the confirmation error.
+
 ## [0.27.0] - 2026-07-29
 
 ### Fixed

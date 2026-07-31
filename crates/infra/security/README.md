@@ -47,7 +47,7 @@ The crate owns the request-level security shared by the HTTP API and the runtime
 | `extraction` | Token extraction from `Authorization` headers, MCP proxy headers, and cookies, plus header injection for context propagation. |
 | `auth` | Request validation into a `RequestContext` (`AuthValidationService`) and bridge hook-token verification. |
 | `authz` | Unified authorization decision plane: the deny-overrides `resolve`, the `access_control_rules` repository, the `AuthzDecisionHook` surface with built-in impls, ingestion, and Postgres audit sinks. |
-| `policy` | Shared tool-use governance types (`GovernancePolicy`, `GovernanceChain`, `PolicyContext`) that produce the same `Decision` shape the authz resolver returns. |
+| `policy` | Shared tool-use governance types (`GovernancePolicy`, `GovernanceEngine`, `PolicyContext`) that produce the same `Decision` shape the authz resolver returns. |
 | `at_rest` | HMAC-SHA256 keyed hashing (`hmac_sha256`, `hmac_sha256_hex`) under the deployment `oauth_at_rest_pepper`, used to store refresh-token ids and authorisation codes as digests rather than plaintext. |
 | `manifest_signing` | Ed25519 bridge-manifest signing with RFC 8785 JCS canonicalisation, keyed independently of the JWT signing key. |
 | `services` | Lightweight scanner / bot detection (`ScannerDetector`). |
@@ -153,7 +153,7 @@ Shared tool-use governance types that produce the same `Decision` shape as the a
 | Export | Type | Purpose |
 |--------|------|---------|
 | `GovernancePolicy` | Trait | Contract every tool-call policy in the chain implements |
-| `GovernanceChain` | Struct | Ordered chain of policies (secret scan, scope check, blocklist, rate limit) |
+| `GovernanceEngine` | Struct | Ordered set of policies (secret scan, scope check, blocklist, rate limit) evaluated to one `Decision` |
 | `PolicyContext` / `McpToolInput` / `AgentScope` | Types | Inputs a policy evaluates against |
 
 ### `manifest_signing`
