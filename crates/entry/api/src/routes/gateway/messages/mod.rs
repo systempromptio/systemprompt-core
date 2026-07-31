@@ -18,7 +18,8 @@ mod rejection;
 pub mod test_api {
     pub use super::auth::{ApiKeyPrincipal, AuthedPrincipal, JwtPrincipal, authenticate};
     pub use super::dispatch::{
-        RejectionError, build_error_response, classify_dispatch_error, map_dispatch_error,
+        RejectionError, build_error_response, build_policy_denial, classify_dispatch_error,
+        error_type_for, map_dispatch_error, policy_denial_message,
     };
     pub use super::extract::test_api::{
         RejectionPartial, derive_conversation, enforce_authz_pre_dispatch,
@@ -43,7 +44,7 @@ use systemprompt_runtime::AppContext;
 use crate::services::gateway::protocol::inbound::InboundAdapter;
 use crate::services::middleware::JwtContextExtractor;
 
-use dispatch::{RejectionError, build_error_response, dispatch_to_provider};
+use dispatch::{RejectionError, build_error_response, dispatch_to_provider, error_type_for};
 use extract::{RejectionPartial, extract_request_context};
 use rejection::persist_rejection;
 
@@ -91,7 +92,7 @@ pub async fn handle(
                 .status(status)
                 .header("content-type", "application/json")
                 .body(Body::from(body))
-                .unwrap_or_else(|_| build_error_response(status, &message))
+                .unwrap_or_else(|_| build_error_response(status, error_type_for(status), &message))
         },
     };
     attach_log_identity(&mut response, &partial);

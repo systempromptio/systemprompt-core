@@ -100,6 +100,73 @@ pub(super) async fn dispatch_to_provider(
     }
 }
 
+const ERROR_TYPE_API: &str = "api_error";
+const ERROR_TYPE_PERMISSION: &str = "permission_error";
+const ERROR_TYPE_INVALID_REQUEST: &str = "invalid_request_error";
+
+const POLICY_DENIAL_PREFIX: &str = "blocked by systemprompt governance";
+
+/// Renders a governance denial as `400 invalid_request_error`, not `403`.
+///
+/// Claude Code and other Anthropic-SDK clients treat any 403 on `/v1/messages`
+/// as an expired credential: they discard the body and tell the operator to
+/// re-login, so the reason never reaches the person who needs it. `400
+/// invalid_request_error` is the shape those clients surface verbatim, which is
+/// what a policy denial needs — the request was refused on its content, and no
+/// amount of re-authenticating will change that.
+#[cfg_attr(
+    not(feature = "test-api"),
+    expect(
+        unreachable_pub,
+        reason = "re-exported via `test_api` only when the feature is on"
+    )
+)]
+pub fn build_policy_denial(message: &str) -> Response<Body> {
+    build_error_response(
+        StatusCode::BAD_REQUEST,
+        ERROR_TYPE_INVALID_REQUEST,
+        &policy_denial_message(message),
+    )
+}
+
+/// Names the gateway as the source. Without it the deny reads as an upstream
+/// Anthropic error, which is exactly how the secret-scan false positive that
+/// prompted this was misdiagnosed.
+#[must_use]
+#[cfg_attr(
+    not(feature = "test-api"),
+    expect(
+        unreachable_pub,
+        reason = "re-exported via `test_api` only when the feature is on"
+    )
+)]
+pub fn policy_denial_message(message: &str) -> String {
+    if message.starts_with(POLICY_DENIAL_PREFIX) {
+        return message.to_owned();
+    }
+    format!("{POLICY_DENIAL_PREFIX}: {message}")
+}
+
+/// The Anthropic error `type` conventionally paired with a status code.
+#[must_use]
+#[cfg_attr(
+    not(feature = "test-api"),
+    expect(
+        unreachable_pub,
+        reason = "re-exported via `test_api` only when the feature is on"
+    )
+)]
+pub fn error_type_for(status: StatusCode) -> &'static str {
+    match status {
+        StatusCode::UNAUTHORIZED => "authentication_error",
+        StatusCode::FORBIDDEN => ERROR_TYPE_PERMISSION,
+        StatusCode::NOT_FOUND => "not_found_error",
+        StatusCode::TOO_MANY_REQUESTS => "rate_limit_error",
+        s if s.is_client_error() => ERROR_TYPE_INVALID_REQUEST,
+        _ => ERROR_TYPE_API,
+    }
+}
+
 #[cfg_attr(
     not(feature = "test-api"),
     expect(
@@ -113,20 +180,28 @@ pub fn map_dispatch_error(e: DispatchError) -> Result<Response<Body>, RejectionE
         DispatchError::Recorded(inner) => (false, inner),
     };
     if let Some(quota) = inner.downcast_ref::<QuotaExceeded>() {
-        let mut resp = build_error_response(StatusCode::TOO_MANY_REQUESTS, &quota.message);
+        let mut resp = build_error_response(
+            StatusCode::TOO_MANY_REQUESTS,
+            error_type_for(StatusCode::TOO_MANY_REQUESTS),
+            &quota.message,
+        );
         if let Ok(v) = HeaderValue::from_str(&quota.retry_after_seconds.to_string()) {
             resp.headers_mut().insert("retry-after", v);
         }
         return Ok(resp);
     }
+    // Why: a guard rejection *is* an authorization failure, so 403 — and the
+    // client's prompt to re-authenticate — is the right response here. It is
+    // the one case below that a re-login can actually fix.
     if let Some(forbidden) = inner.downcast_ref::<GuardForbidden>() {
         return Ok(build_error_response(
             StatusCode::FORBIDDEN,
+            ERROR_TYPE_PERMISSION,
             &forbidden.message,
         ));
     }
     if let Some(denied) = inner.downcast_ref::<GovernanceDenied>() {
-        return Ok(build_error_response(StatusCode::FORBIDDEN, &denied.message));
+        return Ok(build_policy_denial(&denied.message));
     }
     // Why: Claude Code recovers from several provider rejections by matching on
     // the provider's own error wording and retrying without the rejected
@@ -154,10 +229,16 @@ pub fn map_dispatch_error(e: DispatchError) -> Result<Response<Body>, RejectionE
 )]
 pub fn classify_dispatch_error(e: &anyhow::Error) -> (StatusCode, String) {
     if let Some(denied) = e.downcast_ref::<PolicyDenied>() {
-        return (StatusCode::FORBIDDEN, denied.to_string());
+        return (
+            StatusCode::BAD_REQUEST,
+            policy_denial_message(&denied.to_string()),
+        );
     }
     if let Some(blocked) = e.downcast_ref::<SafetyBlocked>() {
-        return (StatusCode::FORBIDDEN, blocked.to_string());
+        return (
+            StatusCode::BAD_REQUEST,
+            policy_denial_message(&blocked.to_string()),
+        );
     }
     if let Some(upstream) = e.downcast_ref::<UpstreamError>() {
         return map_upstream_error(upstream);
@@ -228,10 +309,10 @@ pub fn map_upstream_error(e: &UpstreamError) -> (StatusCode, String) {
         reason = "re-exported via `test_api` only when the feature is on"
     )
 )]
-pub fn build_error_response(status: StatusCode, message: &str) -> Response<Body> {
+pub fn build_error_response(status: StatusCode, error_type: &str, message: &str) -> Response<Body> {
     let escaped = message.replace('\\', "\\\\").replace('"', "\\\"");
     let body = format!(
-        "{{\"type\":\"error\",\"error\":{{\"type\":\"api_error\",\"message\":\"{escaped}\"}}}}"
+        "{{\"type\":\"error\",\"error\":{{\"type\":\"{error_type}\",\"message\":\"{escaped}\"}}}}"
     );
     match Response::builder()
         .status(status)

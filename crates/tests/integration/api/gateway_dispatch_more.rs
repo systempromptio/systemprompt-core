@@ -26,21 +26,22 @@ use systemprompt_identifiers::{AiRequestId, ProviderId};
 use systemprompt_models::profile::{GatewayConfig, OverrideRuleAction, SystemPromptRule};
 
 #[test]
-fn classify_policy_denied_is_forbidden() {
+fn classify_policy_denied_is_a_bad_request_the_client_will_surface() {
     let err = anyhow::Error::new(PolicyDenied("model blocked".to_owned()));
     let (status, msg) = classify_dispatch_error(&err);
-    assert_eq!(status, StatusCode::FORBIDDEN);
+    assert_eq!(status, StatusCode::BAD_REQUEST);
     assert!(msg.contains("model blocked"), "{msg}");
+    assert!(msg.contains("blocked by systemprompt governance"), "{msg}");
 }
 
 #[test]
-fn classify_safety_blocked_is_forbidden() {
+fn classify_safety_blocked_is_a_bad_request_the_client_will_surface() {
     let err = anyhow::Error::new(SafetyBlocked {
         category: "self-harm".to_owned(),
         message: "blocked by safety scanner".to_owned(),
     });
     let (status, msg) = classify_dispatch_error(&err);
-    assert_eq!(status, StatusCode::FORBIDDEN);
+    assert_eq!(status, StatusCode::BAD_REQUEST);
     assert!(msg.contains("blocked by safety scanner"), "{msg}");
 }
 
@@ -86,7 +87,7 @@ fn map_dispatch_error_quota_returns_retry_after_response() {
 fn map_dispatch_error_pre_audit_marks_persist() {
     let err = DispatchError::PreAudit(anyhow::Error::new(PolicyDenied("nope".to_owned())));
     let rejection = map_dispatch_error(err).expect_err("policy denial is a rejection");
-    assert_eq!(rejection.status, StatusCode::FORBIDDEN);
+    assert_eq!(rejection.status, StatusCode::BAD_REQUEST);
     assert!(rejection.persist, "pre-audit rejections must persist");
 }
 
@@ -102,7 +103,11 @@ fn map_dispatch_error_recorded_skips_persist() {
 
 #[test]
 fn build_error_response_escapes_quotes_in_message() {
-    let resp = build_error_response(StatusCode::BAD_REQUEST, "bad \"model\" name");
+    let resp = build_error_response(
+        StatusCode::BAD_REQUEST,
+        "invalid_request_error",
+        "bad \"model\" name",
+    );
     assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
     assert_eq!(
         resp.headers()

@@ -231,7 +231,8 @@ fn a_body_with_no_messages_cannot_derive_a_conversation() {
 
 #[test]
 fn the_error_body_escapes_quotes_so_the_envelope_stays_valid_json() {
-    let response = build_error_response(StatusCode::FORBIDDEN, r#"model "x" is \denied"#);
+    let response =
+        build_error_response(StatusCode::FORBIDDEN, "permission_error", r#"model "x" is \denied"#);
 
     assert_eq!(response.status(), StatusCode::FORBIDDEN);
     assert_eq!(
@@ -245,7 +246,8 @@ fn the_error_body_escapes_quotes_so_the_envelope_stays_valid_json() {
 
 #[tokio::test]
 async fn the_error_body_is_a_parseable_error_envelope() {
-    let response = build_error_response(StatusCode::BAD_GATEWAY, r#"a "quoted" failure"#);
+    let response =
+        build_error_response(StatusCode::BAD_GATEWAY, "api_error", r#"a "quoted" failure"#);
     let bytes = axum::body::to_bytes(response.into_body(), 64 * 1024)
         .await
         .expect("the error body is small and fully buffered");

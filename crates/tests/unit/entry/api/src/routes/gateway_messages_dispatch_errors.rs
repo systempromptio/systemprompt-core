@@ -13,7 +13,7 @@ use systemprompt_api::routes::gateway::messages::test_api::{
 };
 use systemprompt_api::services::gateway::protocol::outbound::UpstreamError;
 use systemprompt_api::services::gateway::service::{
-    DispatchError, GuardForbidden, PolicyDenied, QuotaExceeded, SafetyBlocked,
+    DispatchError, GovernanceDenied, GuardForbidden, PolicyDenied, QuotaExceeded, SafetyBlocked,
 };
 
 fn rejection(e: DispatchError) -> (StatusCode, String, bool) {
@@ -22,24 +22,32 @@ fn rejection(e: DispatchError) -> (StatusCode, String, bool) {
 }
 
 #[test]
-fn a_policy_denial_is_a_403_carrying_the_policy_reason() {
+fn a_policy_denial_is_a_400_carrying_the_policy_reason() {
     let (status, message) = classify_dispatch_error(&anyhow::Error::new(PolicyDenied(
         "model not allowed".to_owned(),
     )));
 
-    assert_eq!(status, StatusCode::FORBIDDEN);
-    assert_eq!(message, "model not allowed");
+    // Why: 403 makes Anthropic-SDK clients report an auth failure and discard
+    // the body, so the operator never learns which policy refused them.
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert_eq!(
+        message,
+        "blocked by systemprompt governance: model not allowed"
+    );
 }
 
 #[test]
-fn a_safety_block_is_a_403_carrying_the_scanner_message() {
+fn a_safety_block_is_a_400_carrying_the_scanner_message() {
     let (status, message) = classify_dispatch_error(&anyhow::Error::new(SafetyBlocked {
         category: "self-harm".to_owned(),
         message: "blocked by safety scanner".to_owned(),
     }));
 
-    assert_eq!(status, StatusCode::FORBIDDEN);
-    assert_eq!(message, "blocked by safety scanner");
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert_eq!(
+        message,
+        "blocked by systemprompt governance: blocked by safety scanner"
+    );
 }
 
 #[test]
@@ -120,6 +128,45 @@ fn map_dispatch_error_preserves_the_classified_status() {
         PolicyDenied("denied".to_owned()),
     )));
 
-    assert_eq!(status, StatusCode::FORBIDDEN);
-    assert_eq!(message, "denied");
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert_eq!(message, "blocked by systemprompt governance: denied");
+}
+
+#[tokio::test]
+async fn a_governance_denial_renders_an_envelope_the_client_will_show_the_operator() {
+    let response = map_dispatch_error(DispatchError::Recorded(anyhow::Error::new(
+        GovernanceDenied {
+            policy: "secret_scan".to_owned(),
+            message: "secret detected: High-entropy token at prompt.text".to_owned(),
+        },
+    )))
+    .expect("a governance denial renders a response");
+
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let bytes = axum::body::to_bytes(response.into_body(), 64 * 1024)
+        .await
+        .expect("the error body is small and fully buffered");
+    let parsed: serde_json::Value = serde_json::from_slice(&bytes).expect("valid JSON envelope");
+
+    // Why: `invalid_request_error` is the type Anthropic-SDK clients surface
+    // verbatim. `api_error` on a 403 is what made this deny render as
+    // "Please run /login" with the reason discarded.
+    assert_eq!(parsed["error"]["type"], "invalid_request_error");
+    let message = parsed["error"]["message"]
+        .as_str()
+        .expect("the message is a string");
+    assert!(message.starts_with("blocked by systemprompt governance:"), "{message}");
+    assert!(message.contains("prompt.text"), "{message}");
+}
+
+#[test]
+fn a_guard_rejection_stays_a_403_because_re_authenticating_can_fix_it() {
+    let response = map_dispatch_error(DispatchError::Recorded(anyhow::Error::new(
+        GuardForbidden {
+            message: "no gateway scope".to_owned(),
+        },
+    )))
+    .expect("a guard rejection renders a response");
+
+    assert_eq!(response.status(), StatusCode::FORBIDDEN);
 }
