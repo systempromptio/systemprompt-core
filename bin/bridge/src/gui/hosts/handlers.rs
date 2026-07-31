@@ -446,9 +446,9 @@ async fn generate_profile_for(
     // profile at all.
     let gateway_base_url = crate::proxy::loopback_origin();
 
-    // A foreign install on our port is the one case that must still refuse:
-    // writing *our* loopback secret against *their* port produces exactly the
-    // 403 this profile is supposed to prevent.
+    // Why: a foreign install on our port must still refuse — writing *our*
+    // loopback secret against *their* port produces exactly the 403 this
+    // profile is supposed to prevent.
     let port = crate::proxy::resolved_port();
     if let crate::integration::proxy_probe::PeerIdentity::Foreign(who) =
         crate::integration::proxy_probe::probe_identity(port)

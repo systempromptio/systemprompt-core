@@ -118,16 +118,8 @@ pub(super) fn verify_loopback_secret(
     Some(rejection(body, reason))
 }
 
-/// The 403 a mismatched client gets.
-///
-/// It says what the proxy knows for certain and the client cannot: this is a
-/// local port collision, not a credential problem. The previous four-word body
-/// was rendered by host UIs as "the provider rejected the credentials IT
-/// configured — expired key or wrong region", which sends operators to audit
-/// gateway keys for a fault that is entirely on this machine.
-///
-/// The secret fingerprints stay in the logs. Putting either in the body would
-/// let any loopback caller confirm a guessed secret.
+// Why: the secret fingerprints stay in the logs — putting either in the body
+// would let any loopback caller confirm a guessed secret.
 fn mismatch_body(ctx: &ProxyContext) -> String {
     format!(
         "forbidden: bad loopback secret\n\
@@ -168,7 +160,6 @@ fn no_credential_body(ctx: &ProxyContext) -> String {
     )
 }
 
-/// Headers let a host UI classify the failure without parsing prose.
 fn rejection(body: String, reason: &'static str) -> Response<ProxyBody> {
     let mut resp = owned_response(StatusCode::FORBIDDEN, body);
     let headers = resp.headers_mut();
