@@ -32,6 +32,23 @@ pub enum GatewayProfileError {
 
     #[error("route `when` sets `requires_tools: false` but also a positive `min_tools`")]
     RouteMatchContradictoryTools,
+
+    #[error(
+        "gateway route '{route}' (model_pattern '{pattern}') reaches no priced model: provider \
+         '{provider}' declares no model matching the pattern and the route sets no `pricing:` \
+         override, so every request it dispatches would be billed at zero"
+    )]
+    RouteReachesNoPricedModel {
+        route: String,
+        pattern: String,
+        provider: String,
+    },
+
+    #[error(
+        "gateway route '{route}' can dispatch model '{model}', which has no usable `pricing:` \
+         (input_per_million and output_per_million must both be non-zero, or per_image_cents set)"
+    )]
+    RouteModelUnpriced { route: String, model: String },
 }
 
 pub type GatewayResult<T> = Result<T, GatewayProfileError>;

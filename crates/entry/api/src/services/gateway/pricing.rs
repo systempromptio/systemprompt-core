@@ -74,10 +74,28 @@ fn registry_pricing(
         .map(|m| m.pricing)
 }
 
-pub fn cost_microdollars(pricing: ModelPricing, input_tokens: u32, output_tokens: u32) -> i64 {
-    let input = f64::from(input_tokens);
-    let output = f64::from(output_tokens);
-    let input_cost = (input / 1_000_000.0) * pricing.input_per_million;
-    let output_cost = (output / 1_000_000.0) * pricing.output_per_million;
-    ((input_cost + output_cost) * 1_000_000.0).round() as i64
+/// Bills each of the four token counts at its own rate.
+///
+/// Cache reads and writes are not priced at the input rate — and for an agent
+/// loop resending a large cached system prompt they are the bulk of the tokens,
+/// so pricing on `input + output` alone understates the bill by an order of
+/// magnitude.
+#[must_use]
+pub fn cost_microdollars(pricing: ModelPricing, tokens: CostTokens) -> i64 {
+    let rate = |count: u32, per_million: f64| (f64::from(count) / 1_000_000.0) * per_million;
+    let total = rate(tokens.input, pricing.input_per_million)
+        + rate(tokens.output, pricing.output_per_million)
+        + rate(tokens.cache_read, pricing.cache_read_per_million)
+        + rate(tokens.cache_creation, pricing.cache_write_per_million);
+    (total * 1_000_000.0).round() as i64
+}
+
+/// The four billable token counts of one request, kept as a struct so a caller
+/// cannot silently transpose two same-typed arguments.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct CostTokens {
+    pub input: u32,
+    pub output: u32,
+    pub cache_read: u32,
+    pub cache_creation: u32,
 }

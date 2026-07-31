@@ -321,9 +321,11 @@ async fn wait_for_streamed_row(pool: &DbPool, user_id: &UserId) -> StreamAudit {
     }
 }
 
-// A usage-only message_delta frame is the arm that reaches the wrapper as a
-// Usage chunk; a message_delta carrying stop_reason maps to MessageStop and
-// drops its usage payload.
+// Both message_delta frames carry usage and both reach the wrapper as Usage
+// chunks — including the one that also carries stop_reason, which is where
+// Anthropic reports the real final counts. Usage is cumulative, so the last
+// frame wins per field: output_tokens 5 from the final frame, input_tokens 3
+// carried over from the frame that reported it.
 const ANTHROPIC_SSE_WITH_USAGE: &str = "data: {\"type\":\"message_start\",\"message\":{\"id\":\"x\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"claude\",\"content\":[],\"stop_reason\":null,\"stop_sequence\":null,\"usage\":{\"input_tokens\":3,\"output_tokens\":1}}}\n\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"hello\"}}\n\ndata: {\"type\":\"message_delta\",\"usage\":{\"input_tokens\":3,\"output_tokens\":5}}\n\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\"},\"usage\":{\"output_tokens\":5}}\n\n";
 
 #[tokio::test]

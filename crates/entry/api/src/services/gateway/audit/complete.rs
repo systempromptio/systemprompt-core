@@ -53,13 +53,24 @@ impl GatewayAudit {
             self.ctx.requested_model.as_deref().unwrap_or(""),
         ];
         let pricing_rates = pricing::resolve(&self.ctx.provider, &candidates, gateway, registry);
-        let cost =
-            pricing::cost_microdollars(pricing_rates, usage.input_tokens, usage.output_tokens);
+        let cost = pricing::cost_microdollars(
+            pricing_rates,
+            pricing::CostTokens {
+                input: usage.input_tokens,
+                output: usage.output_tokens,
+                cache_read: usage.cache_read_tokens,
+                cache_creation: usage.cache_creation_tokens,
+            },
+        );
+        let tokens_used = usage.input_tokens
+            + usage.output_tokens
+            + usage.cache_read_tokens
+            + usage.cache_creation_tokens;
 
         self.requests
             .update_completion(UpdateCompletionParams {
                 id: self.ctx.ai_request_id.clone(),
-                tokens_used: (usage.input_tokens + usage.output_tokens) as i32,
+                tokens_used: tokens_used as i32,
                 input_tokens: usage.input_tokens as i32,
                 output_tokens: usage.output_tokens as i32,
                 cost_microdollars: cost,

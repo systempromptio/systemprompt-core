@@ -231,6 +231,7 @@ impl GatewayConfig {
             if let Some(when) = route.when.as_ref() {
                 when.validate()?;
             }
+            self.validate_route_pricing(registry, route)?;
         }
         for rule in &self.system_prompt_overrides {
             rule.validate()?;
@@ -241,6 +242,58 @@ impl GatewayConfig {
                     provider: provider.as_str().to_owned(),
                 });
             }
+        }
+        Ok(())
+    }
+
+    /// Uncosted AI is a configuration bug, not a runtime warning: a route that
+    /// dispatches real inference must resolve to real rates, or the request is
+    /// billed at zero and the gap is invisible until someone reads the ledger.
+    ///
+    /// A route-level `pricing:` override covers everything the route dispatches
+    /// (it is what `pricing::resolve` prefers), so it short-circuits the check.
+    /// Otherwise every registry model the pattern can reach must carry usable
+    /// rates — and the pattern must reach at least one, which is what catches a
+    /// glob route pointed at a catalog that has fallen behind the models
+    /// actually in use.
+    fn validate_route_pricing(
+        &self,
+        registry: &ProviderRegistry,
+        route: &GatewayRoute,
+    ) -> GatewayResult<()> {
+        if !self.enabled {
+            return Ok(());
+        }
+        let route_id = route.id.as_str().to_owned();
+        if let Some(pricing) = route.pricing {
+            return if pricing.is_billable() {
+                Ok(())
+            } else {
+                Err(GatewayProfileError::RouteModelUnpriced {
+                    route: route_id,
+                    model: route.model_pattern.clone(),
+                })
+            };
+        }
+        let Some(entry) = route.resolve(registry) else {
+            return Ok(());
+        };
+        let mut reached = 0usize;
+        for model in entry.models.iter().filter(|m| route.matches(m.id.as_str())) {
+            reached += 1;
+            if !model.pricing.is_billable() {
+                return Err(GatewayProfileError::RouteModelUnpriced {
+                    route: route_id,
+                    model: model.id.as_str().to_owned(),
+                });
+            }
+        }
+        if reached == 0 {
+            return Err(GatewayProfileError::RouteReachesNoPricedModel {
+                route: route_id,
+                pattern: route.model_pattern.clone(),
+                provider: route.provider.as_str().to_owned(),
+            });
         }
         Ok(())
     }

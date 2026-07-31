@@ -1,4 +1,4 @@
-use systemprompt_api::services::gateway::pricing::{cost_microdollars, resolve};
+use systemprompt_api::services::gateway::pricing::{CostTokens, cost_microdollars, resolve};
 use systemprompt_identifiers::{ModelId, ProviderId, RouteId, SecretName};
 use systemprompt_models::profile::{
     ApiSurface, GatewayConfig, GatewayRoute, ProviderEntry, ProviderModel, ProviderRegistry,
@@ -35,7 +35,7 @@ fn route_pricing_takes_precedence() {
     let custom = ModelPricing {
         input_per_million: 1.0,
         output_per_million: 2.0,
-        per_image_cents: None,
+        ..ModelPricing::default()
     };
     let gw = gateway_with(vec![route("claude-opus-4-7*", "anthropic", Some(custom))]);
     let registry = ProviderRegistry::default();
@@ -54,7 +54,7 @@ fn registry_pricing_used_when_no_route_override() {
     let custom = ModelPricing {
         input_per_million: 7.0,
         output_per_million: 9.0,
-        per_image_cents: None,
+        ..ModelPricing::default()
     };
     let registry = ProviderRegistry {
         providers: vec![ProviderEntry {
@@ -85,7 +85,7 @@ fn resolve_falls_back_to_configured_model_when_served_alias_unknown() {
     let custom = ModelPricing {
         input_per_million: 0.25,
         output_per_million: 2.0,
-        per_image_cents: None,
+        ..ModelPricing::default()
     };
     let registry = ProviderRegistry {
         providers: vec![ProviderEntry {
@@ -154,10 +154,20 @@ fn cost_microdollars_uses_per_million_units() {
     let p = ModelPricing {
         input_per_million: 1.0,
         output_per_million: 2.0,
-        per_image_cents: None,
+        ..ModelPricing::default()
     };
     // 1M input * $1 + 1M output * $2 = $3 = 3_000_000 microdollars.
-    assert_eq!(cost_microdollars(p, 1_000_000, 1_000_000), 3_000_000);
+    assert_eq!(
+        cost_microdollars(
+            p,
+            CostTokens {
+                input: 1_000_000,
+                output: 1_000_000,
+                ..CostTokens::default()
+            }
+        ),
+        3_000_000
+    );
 }
 
 #[test]
@@ -177,9 +187,9 @@ fn cost_microdollars_zero_for_zero_tokens() {
     let p = ModelPricing {
         input_per_million: 5.0,
         output_per_million: 5.0,
-        per_image_cents: None,
+        ..ModelPricing::default()
     };
-    assert_eq!(cost_microdollars(p, 0, 0), 0);
+    assert_eq!(cost_microdollars(p, CostTokens::default()), 0);
 }
 
 #[test]
@@ -188,8 +198,69 @@ fn cost_microdollars_rounds_to_nearest() {
     let p = ModelPricing {
         input_per_million: 1.0,
         output_per_million: 0.0,
+        ..ModelPricing::default()
+    };
+    let input_only = |n| CostTokens {
+        input: n,
+        ..CostTokens::default()
+    };
+    assert_eq!(cost_microdollars(p, input_only(1)), 1);
+    assert_eq!(cost_microdollars(p, input_only(500_000)), 500_000);
+}
+
+/// The Claude Code shape: a large cached system prompt means cache reads
+/// dominate the token mix, so pricing on `input + output` alone reports a
+/// fraction of the real bill.
+#[test]
+fn cost_microdollars_prices_cache_tokens_at_their_own_rates() {
+    let p = ModelPricing {
+        input_per_million: 5.0,
+        output_per_million: 25.0,
+        cache_read_per_million: 0.5,
+        cache_write_per_million: 6.25,
         per_image_cents: None,
     };
-    assert_eq!(cost_microdollars(p, 1, 0), 1);
-    assert_eq!(cost_microdollars(p, 500_000, 0), 500_000);
+    let tokens = CostTokens {
+        input: 1_000,
+        output: 2_000,
+        cache_read: 100_000,
+        cache_creation: 10_000,
+    };
+    // Per million: 1k*$5 + 2k*$25 + 100k*$0.50 + 10k*$6.25, in microdollars.
+    let expected = 5_000 + 50_000 + 50_000 + 62_500;
+    assert_eq!(cost_microdollars(p, tokens), expected);
+
+    let without_cache = cost_microdollars(
+        p,
+        CostTokens {
+            cache_read: 0,
+            cache_creation: 0,
+            ..tokens
+        },
+    );
+    assert_eq!(without_cache, 55_000);
+    assert!(
+        without_cache * 2 < expected,
+        "cache tokens carry most of this bill: {without_cache} vs {expected}"
+    );
+}
+
+#[test]
+fn is_billable_rejects_zeroed_token_rates_but_accepts_image_pricing() {
+    assert!(!ModelPricing::default().is_billable());
+    assert!(
+        !ModelPricing {
+            input_per_million: 5.0,
+            ..ModelPricing::default()
+        }
+        .is_billable(),
+        "an output rate of zero still bills half the request at zero"
+    );
+    assert!(
+        ModelPricing {
+            per_image_cents: Some(4.0),
+            ..ModelPricing::default()
+        }
+        .is_billable()
+    );
 }

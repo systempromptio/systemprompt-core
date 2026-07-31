@@ -80,8 +80,33 @@ pub struct ModelPricing {
     #[serde(default)]
     pub output_per_million: f64,
 
+    /// Rate for tokens served from an existing prompt cache. Typically a
+    /// fraction of [`Self::input_per_million`] (0.1x on Anthropic). Left at
+    /// `0.0` a cache-heavy agent loop — where nearly every input token is a
+    /// cache read — bills as free.
+    #[serde(default)]
+    pub cache_read_per_million: f64,
+
+    /// Rate for tokens written into the prompt cache (Anthropic's 5-minute
+    /// tier, 1.25x input). The 1-hour 2x tier is not modelled separately.
+    #[serde(default)]
+    pub cache_write_per_million: f64,
+
     #[serde(default)]
     pub per_image_cents: Option<f64>,
+}
+
+impl ModelPricing {
+    /// Whether these rates can produce a non-zero bill. Token models need both
+    /// a read and a write side; an image model prices per image instead and is
+    /// legitimately zero on both token rates.
+    #[must_use]
+    pub fn is_billable(&self) -> bool {
+        if self.per_image_cents.is_some_and(|c| c > 0.0) {
+            return true;
+        }
+        self.input_per_million > 0.0 && self.output_per_million > 0.0
+    }
 }
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]

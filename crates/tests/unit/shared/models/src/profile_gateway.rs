@@ -8,6 +8,7 @@ use systemprompt_models::profile::{
     RouteMatch, SystemPromptRule, WireProtocol, default_resource_audiences, slugify_pattern,
     synthesize_route_id,
 };
+use systemprompt_models::services::ModelPricing;
 use systemprompt_models::wire::canonical::{
     CanonicalContent, CanonicalMessage, CanonicalRequest, CanonicalTool, ReasoningEffort,
     ResponseFormat, Role, ThinkingConfig,
@@ -258,12 +259,19 @@ fn provider_entry(name: &str, endpoint: &str, models: Vec<ProviderModel>) -> Pro
     }
 }
 
+/// Carries real rates because `GatewayConfig::validate` refuses to boot a route
+/// that can only bill zero — a fixture priced at zero would fail every
+/// validation test for a reason unrelated to what it is testing.
 fn model(id: &str) -> ProviderModel {
     ProviderModel {
         id: ModelId::new(id),
         aliases: Vec::new(),
         upstream_model: None,
-        pricing: Default::default(),
+        pricing: ModelPricing {
+            input_per_million: 3.0,
+            output_per_million: 15.0,
+            ..ModelPricing::default()
+        },
         capabilities: Default::default(),
         limits: Default::default(),
     }
@@ -924,4 +932,129 @@ fn route_resolve_finds_registry_entry_by_provider_name() {
     let mut miss = route("claude-*");
     miss.provider = ProviderId::new("absent");
     assert!(miss.resolve(&registry).is_none());
+}
+
+fn priced_registry(models: Vec<ProviderModel>) -> ProviderRegistry {
+    ProviderRegistry {
+        providers: vec![ProviderEntry {
+            name: ProviderId::new("test"),
+            wire: WireProtocol::Anthropic,
+            surface: ApiSurface::Anthropic,
+            endpoint: "https://api.anthropic.com/v1".to_owned(),
+            api_key_secret: SecretName::new("test"),
+            extra_headers: HashMap::new(),
+            models,
+        }],
+    }
+}
+
+fn priced_model(id: &str, pricing: ModelPricing) -> ProviderModel {
+    ProviderModel {
+        id: ModelId::new(id),
+        aliases: Vec::new(),
+        upstream_model: None,
+        pricing,
+        capabilities: Default::default(),
+        limits: Default::default(),
+    }
+}
+
+fn token_rates(input: f64, output: f64) -> ModelPricing {
+    ModelPricing {
+        input_per_million: input,
+        output_per_million: output,
+        ..ModelPricing::default()
+    }
+}
+
+fn enabled_gateway(routes: Vec<GatewayRoute>) -> GatewayConfig {
+    GatewayConfig {
+        enabled: true,
+        routes,
+        default_provider: None,
+        allow_unlisted_models: false,
+        auth_scheme: "bearer".to_owned(),
+        inference_path_prefix: "/v1".to_owned(),
+        system_prompt_overrides: Vec::new(),
+    }
+}
+
+#[test]
+fn validate_accepts_a_glob_route_whose_reachable_models_are_all_priced() {
+    let registry = priced_registry(vec![
+        priced_model("claude-opus-5", token_rates(5.0, 25.0)),
+        priced_model("claude-sonnet-5", token_rates(3.0, 15.0)),
+    ]);
+    assert!(
+        enabled_gateway(vec![route("claude-*")])
+            .validate(&registry)
+            .is_ok()
+    );
+}
+
+/// The reported production shape: traffic on `claude-opus-5` through a
+/// `claude-*` route whose provider catalog had fallen behind, so pricing
+/// resolved to nothing and every request audited at `cost_dollars 0.000000`.
+#[test]
+fn validate_rejects_a_glob_route_that_reaches_no_model() {
+    let registry = priced_registry(vec![priced_model("gpt-oss-120b", token_rates(0.35, 0.75))]);
+    let err = enabled_gateway(vec![route("claude-*")])
+        .validate(&registry)
+        .expect_err("a route that can bill nothing must not boot");
+    assert!(
+        matches!(err, GatewayProfileError::RouteReachesNoPricedModel { ref pattern, .. } if pattern == "claude-*"),
+        "unexpected: {err}"
+    );
+}
+
+/// The quieter defect: `ProviderModel.pricing` is `#[serde(default)]`, so a
+/// `models:` entry with `pricing:` omitted resolves *successfully* to zeroed
+/// rates and never even logs a warning.
+#[test]
+fn validate_rejects_a_reachable_model_with_defaulted_pricing() {
+    let registry = priced_registry(vec![
+        priced_model("claude-opus-5", token_rates(5.0, 25.0)),
+        priced_model("claude-sonnet-5", ModelPricing::default()),
+    ]);
+    let err = enabled_gateway(vec![route("claude-*")])
+        .validate(&registry)
+        .expect_err("an unpriced reachable model must not boot");
+    assert!(
+        matches!(err, GatewayProfileError::RouteModelUnpriced { ref model, .. } if model == "claude-sonnet-5"),
+        "unexpected: {err}"
+    );
+}
+
+#[test]
+fn validate_accepts_a_route_level_pricing_override_over_an_unpriced_catalog() {
+    let registry = priced_registry(vec![priced_model("claude-opus-5", ModelPricing::default())]);
+    let mut r = route("claude-*");
+    r.pricing = Some(token_rates(5.0, 25.0));
+    assert!(enabled_gateway(vec![r]).validate(&registry).is_ok());
+}
+
+/// Image models price per image, not per token, so zeroed token rates are
+/// correct for them rather than a gap.
+#[test]
+fn validate_accepts_an_image_model_priced_per_image() {
+    let registry = priced_registry(vec![priced_model(
+        "image-1",
+        ModelPricing {
+            per_image_cents: Some(4.0),
+            ..ModelPricing::default()
+        },
+    )]);
+    assert!(
+        enabled_gateway(vec![route("image-*")])
+            .validate(&registry)
+            .is_ok()
+    );
+}
+
+#[test]
+fn validate_skips_pricing_checks_when_the_gateway_is_disabled() {
+    let registry = priced_registry(vec![priced_model("claude-opus-5", ModelPricing::default())]);
+    let mut gw = enabled_gateway(vec![route("claude-*")]);
+    gw.enabled = false;
+    assert!(gw.validate(&registry).is_ok());
 }

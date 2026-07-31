@@ -155,3 +155,66 @@ fn unknown_model_is_not_in_seed() {
     let registry = seed();
     assert!(!registry.contains_model("definitely-not-a-real-model"));
 }
+
+/// The models in day-to-day use must be in the seed, or a freshly generated
+/// profile prices them at zero — the exact gap that let a whole run of gateway
+/// traffic audit as free.
+#[test]
+fn anthropic_seed_covers_the_current_generation() {
+    let registry = seed();
+    assert_pricing(&registry, "anthropic", "claude-opus-5", 5.0, 25.0);
+    assert_pricing(&registry, "anthropic", "claude-sonnet-5", 3.0, 15.0);
+    assert_pricing(&registry, "anthropic", "claude-fable-5", 10.0, 50.0);
+}
+
+/// Dated ids are still sent by pinned clients, and matching is
+/// exact-id-or-alias with no glob, so a dropped alias prices at zero.
+#[test]
+fn anthropic_dated_ids_resolve_through_aliases() {
+    let registry = seed();
+    assert_pricing(
+        &registry,
+        "anthropic",
+        "claude-haiku-4-5-20251001",
+        1.0,
+        5.0,
+    );
+    assert_pricing(
+        &registry,
+        "anthropic",
+        "claude-opus-4-5-20251101",
+        5.0,
+        25.0,
+    );
+    assert_pricing(
+        &registry,
+        "anthropic",
+        "claude-sonnet-4-5-20250929",
+        3.0,
+        15.0,
+    );
+}
+
+#[test]
+fn anthropic_seed_prices_cache_tokens() {
+    let registry = seed();
+    let entry = registry.find_provider("anthropic").expect("anthropic seed");
+    for model in &entry.models {
+        let p = model.pricing;
+        assert!(
+            p.cache_read_per_million > 0.0 && p.cache_write_per_million > 0.0,
+            "{} has no cache rates: a cache-heavy agent loop would bill as free",
+            model.id.as_str()
+        );
+        assert!(
+            (p.cache_read_per_million - p.input_per_million * 0.1).abs() < 1e-9,
+            "{} cache read is not 0.1x input",
+            model.id.as_str()
+        );
+        assert!(
+            (p.cache_write_per_million - p.input_per_million * 1.25).abs() < 1e-9,
+            "{} cache write is not 1.25x input",
+            model.id.as_str()
+        );
+    }
+}

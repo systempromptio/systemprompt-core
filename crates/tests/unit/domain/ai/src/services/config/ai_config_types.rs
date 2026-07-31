@@ -291,6 +291,7 @@ mod model_pricing_tests {
             input_per_million: 15.0,
             output_per_million: 75.0,
             per_image_cents: Some(4.0),
+            ..ModelPricing::default()
         };
         let json = serde_json::to_string(&pricing).expect("serialize");
         let deserialized: ModelPricing = serde_json::from_str(&json).expect("deserialize");
@@ -304,7 +305,7 @@ mod model_pricing_tests {
         let pricing = ModelPricing {
             input_per_million: 1.0,
             output_per_million: 2.0,
-            per_image_cents: None,
+            ..ModelPricing::default()
         };
         let json = serde_json::to_string(&pricing).expect("serialize");
         let deserialized: ModelPricing = serde_json::from_str(&json).expect("deserialize");
@@ -339,7 +340,7 @@ mod model_definition_tests {
             pricing: ModelPricing {
                 input_per_million: 3.0,
                 output_per_million: 15.0,
-                per_image_cents: None,
+                ..ModelPricing::default()
             },
         };
         let json = serde_json::to_string(&def).expect("serialize");
