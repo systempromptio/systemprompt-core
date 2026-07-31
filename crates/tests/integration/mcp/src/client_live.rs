@@ -39,6 +39,7 @@ fn external_config(name: &str, remote_endpoint: &str) -> McpServerConfig {
             scopes: Vec::<Permission>::new(),
             audience: JwtAudience::Mcp,
             client_id: None,
+            ema: false,
         },
         tools: HashMap::new(),
         model_config: None,

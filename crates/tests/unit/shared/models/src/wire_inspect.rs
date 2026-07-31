@@ -167,7 +167,10 @@ fn an_oversized_leaf_keeps_its_head_and_its_tail() {
         ..SurfaceBudget::default()
     };
 
-    let surface = string_leaves(&serde_json::to_vec(&json!(value)).expect("serialize"), budget);
+    let surface = string_leaves(
+        &serde_json::to_vec(&json!(value)).expect("serialize"),
+        budget,
+    );
     let kept = &surface.leaves()[0].value;
 
     assert!(kept.contains("HEAD-MARKER"), "{kept}");
@@ -183,7 +186,10 @@ fn a_multibyte_leaf_clips_on_a_character_boundary() {
         ..SurfaceBudget::default()
     };
 
-    let surface = string_leaves(&serde_json::to_vec(&json!(value)).expect("serialize"), budget);
+    let surface = string_leaves(
+        &serde_json::to_vec(&json!(value)).expect("serialize"),
+        budget,
+    );
 
     assert_eq!(surface.len(), 1, "clipping must not drop the leaf");
 }

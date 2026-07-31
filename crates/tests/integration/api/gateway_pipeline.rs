@@ -718,8 +718,7 @@ async fn a_streaming_response_is_never_blocked() -> anyhow::Result<()> {
     Mock::given(method("POST"))
         .and(path("/messages"))
         .respond_with(
-            ResponseTemplate::new(200)
-                .set_body_raw(jailbreak_sse_body(), "text/event-stream"),
+            ResponseTemplate::new(200).set_body_raw(jailbreak_sse_body(), "text/event-stream"),
         )
         .mount(&upstream)
         .await;

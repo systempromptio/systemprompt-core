@@ -26,8 +26,8 @@ fn the_master_switch_parses_and_defaults_to_on() {
         "the master switch must not rewrite the per-policy declarations"
     );
 
-    let absent = GovernanceConfig::parse("governance:\n  policies:\n    - id: secret_scan\n")
-        .unwrap();
+    let absent =
+        GovernanceConfig::parse("governance:\n  policies:\n    - id: secret_scan\n").unwrap();
     assert!(absent.enabled);
 }
 

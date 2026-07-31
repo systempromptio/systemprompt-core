@@ -183,8 +183,7 @@ fn secret_scanning_is_not_gated_on_the_target_kind() {
         UserId::new("u-prompt-tool"),
         CallId::generate(),
     );
-    let input =
-        GovernedInput::tool_arguments(McpToolInput::new(json!({ "note": "XDEMO-1234" })));
+    let input = GovernedInput::tool_arguments(McpToolInput::new(json!({ "note": "XDEMO-1234" })));
 
     let evaluation = e.evaluate(&PolicyContext {
         target: GovernedTarget::Prompt,

@@ -155,7 +155,10 @@ async fn a_governance_denial_renders_an_envelope_the_client_will_show_the_operat
     let message = parsed["error"]["message"]
         .as_str()
         .expect("the message is a string");
-    assert!(message.starts_with("blocked by systemprompt governance:"), "{message}");
+    assert!(
+        message.starts_with("blocked by systemprompt governance:"),
+        "{message}"
+    );
     assert!(message.contains("prompt.text"), "{message}");
 }
 

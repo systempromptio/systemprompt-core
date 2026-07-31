@@ -126,6 +126,7 @@ fn get_production_mcp_binary_names_excludes_dev_only() {
                 scopes: vec![],
                 audience: systemprompt_models::auth::JwtAudience::Mcp,
                 client_id: None,
+                ema: false,
             },
             schemas: vec![],
             tools: std::collections::HashMap::new(),

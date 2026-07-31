@@ -216,7 +216,8 @@ fn the_master_switch_allows_without_evaluating_any_policy() {
 
 #[test]
 fn the_master_switch_still_traces_every_configured_policy() {
-    let e = engine("governance:\n  enabled: false\n  policies:\n    - id: t_deny\n    - id: t_allow\n");
+    let e =
+        engine("governance:\n  enabled: false\n  policies:\n    - id: t_deny\n    - id: t_allow\n");
     let sid = SessionId::generate();
     let uid = UserId::new("u8");
     let input = GovernedInput::tool_arguments(McpToolInput::new(json!({})));

@@ -145,7 +145,7 @@ async fn passthrough_forwards_unmodelled_body_fields_verbatim() {
         },
     )
     .await
-        .expect("send");
+    .expect("send");
 
     assert!(
         matches!(outcome, OutboundOutcome::RawBuffered { .. }),
@@ -188,7 +188,7 @@ async fn passthrough_forwards_anthropic_beta_header_verbatim() {
         },
     )
     .await
-        .expect("send");
+    .expect("send");
 
     let sent = last_request(&server);
     assert_eq!(
@@ -222,7 +222,7 @@ async fn client_anthropic_version_is_not_overridden() {
         },
     )
     .await
-        .expect("send");
+    .expect("send");
 
     let sent = last_request(&server);
     let versions: Vec<_> = sent.headers.get_all("anthropic-version").iter().collect();
@@ -255,7 +255,7 @@ async fn absent_client_version_falls_back_to_the_pinned_default() {
         },
     )
     .await
-        .expect("send");
+    .expect("send");
 
     assert_eq!(
         last_request(&server)
@@ -362,7 +362,7 @@ async fn passthrough_streaming_relays_frames_unchanged() {
         },
     )
     .await
-        .expect("send");
+    .expect("send");
 
     let OutboundOutcome::RawStreaming { stream, .. } = outcome else {
         panic!("expected the raw streaming lane");
@@ -401,7 +401,7 @@ async fn passthrough_rewrites_only_the_model_when_the_route_remaps_it() {
         },
     )
     .await
-        .expect("send");
+    .expect("send");
 
     let sent: Value = serde_json::from_slice(&last_request(&server).body).expect("json");
     let original: Value = serde_json::from_slice(&raw).expect("json");

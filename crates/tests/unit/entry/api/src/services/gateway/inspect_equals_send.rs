@@ -115,7 +115,10 @@ fn a_secret_the_canonical_parse_drops_is_still_in_the_inspection_surface() {
          reading flatten_text"
     );
     assert!(
-        governed.message_units().iter().any(|u| u.contains(LEAKED_KEY)),
+        governed
+            .message_units()
+            .iter()
+            .any(|u| u.contains(LEAKED_KEY)),
         "and to a scanner reading message_units"
     );
 }

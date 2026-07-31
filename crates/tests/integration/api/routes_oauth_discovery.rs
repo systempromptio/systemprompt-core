@@ -178,3 +178,35 @@ async fn protected_resource_with_mcp_path_returns_metadata() -> anyhow::Result<(
     assert!(resp.status().is_success(), "{}", resp.status());
     Ok(())
 }
+
+#[tokio::test]
+async fn well_known_advertises_the_id_jag_grant_profile() -> anyhow::Result<()> {
+    let app = discovery_app().await?;
+    let resp = app
+        .oneshot(empty_get("/.well-known/openid-configuration"))
+        .await?;
+    let (status, body) = body_to_string(resp).await?;
+    assert!(status.is_success(), "{status}");
+    let json: serde_json::Value = serde_json::from_str(&body)?;
+
+    let profiles = json["authorization_grant_profiles_supported"]
+        .as_array()
+        .expect("authorization_grant_profiles_supported is an array");
+    assert!(
+        profiles
+            .iter()
+            .any(|p| p == "urn:ietf:params:oauth:grant-profile:id-jag"),
+        "EMA clients detect support through the grant profile: {body}"
+    );
+
+    let grants = json["grant_types_supported"]
+        .as_array()
+        .expect("grant_types_supported is an array");
+    assert!(
+        grants
+            .iter()
+            .any(|g| g == "urn:ietf:params:oauth:grant-type:jwt-bearer"),
+        "the ID-JAG redemption grant must be advertised: {body}"
+    );
+    Ok(())
+}

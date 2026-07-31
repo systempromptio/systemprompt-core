@@ -44,6 +44,7 @@ fn deployment(binary: &str, dev_only: bool) -> Deployment {
             scopes: vec![],
             audience: JwtAudience::Mcp,
             client_id: None,
+            ema: false,
         },
         tools: HashMap::new(),
         model_config: None,

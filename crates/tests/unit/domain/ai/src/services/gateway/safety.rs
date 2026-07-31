@@ -187,9 +187,7 @@ async fn response_thinking_and_tool_result_blocks_are_scanned() {
         },
         CanonicalContent::ToolResult {
             tool_use_id: "t1".to_owned(),
-            content: vec![CanonicalContent::Text(
-                "row: victim@example.com".to_owned(),
-            )],
+            content: vec![CanonicalContent::Text("row: victim@example.com".to_owned())],
             is_error: false,
             structured_content: None,
             meta: None,
