@@ -13,7 +13,7 @@ use std::process::ExitCode;
 
 use systemprompt_identifiers::{SessionId, ValidatedUrl};
 
-use crate::auth::loopback::{LOOPBACK_PORT, LoopbackServer};
+use crate::auth::loopback::LoopbackServer;
 use crate::auth::providers::session::{capture_on, device_link_url};
 use crate::auth::setup;
 use crate::auth::types::SessionPatRequest;
@@ -82,8 +82,8 @@ fn usage() -> String {
          With no token or code, signs in through the gateway's device-link page:\n\
          you authenticate with your organisation's identity provider and the\n\
          resulting token is bound to that identity. Use --no-browser on a machine\n\
-         with no browser (SSH, headless) to open the URL elsewhere and paste the\n\
-         redirect back.\n\
+         with no browser (SSH, headless) to open the URL elsewhere and paste back\n\
+         the code it displays.\n\
          \n\
          --code takes a one-shot code an administrator issued with:\n  \
          systemprompt admin bridge issue-code --user-id <uuid>\n\
@@ -108,30 +108,42 @@ fn sso_code(gateway: Option<&str>, no_browser: bool) -> Result<String, String> {
         .map_err(|e| format!("runtime init: {e}"))?;
     }
 
-    let callback = format!("http://127.0.0.1:{LOOPBACK_PORT}/callback");
-    let url = device_link_url(base_url.as_str(), &callback);
+    let url = device_link_url(base_url.as_str(), None);
     output::print_line("Open this URL on a machine with a browser and sign in:");
     output::print_line("");
     output::print_line(&format!("    {url}"));
     output::print_line("");
-    output::print_line(
-        "After approving, the browser will fail to reach 127.0.0.1 — that is expected.",
-    );
-    output::print_line("Copy the full address it landed on and paste it here.");
+    output::print_line("After approving, the page shows a one-time code. Paste it here:");
     output::print_line("");
 
     let mut line = String::new();
     std::io::stdin()
         .read_line(&mut line)
-        .map_err(|e| format!("could not read the pasted URL: {e}"))?;
+        .map_err(|e| format!("could not read the pasted code: {e}"))?;
     extract_code(line.trim())
 }
 
 fn extract_code(pasted: &str) -> Result<String, String> {
+    let pasted = strip_terminal_noise(pasted);
+    let pasted = pasted.trim();
     if pasted.is_empty() {
         return Err("nothing pasted".into());
     }
+
+    // Why: first, because the displayed command carries a `--gateway` URL that
+    // a query-string parse would otherwise wander into.
+    if let Some(code) = code_after_flag(pasted) {
+        return Ok(code);
+    }
+
     let Some((_, query)) = pasted.split_once('?') else {
+        if pasted.split_whitespace().count() > 1 {
+            return Err(
+                "that looks like a command but carries no `--code` — paste just the code, or the \
+                 whole command the page displayed"
+                    .into(),
+            );
+        }
         return Ok(pasted.to_owned());
     };
     for pair in query.split('&') {
@@ -145,7 +157,45 @@ fn extract_code(pasted: &str) -> Result<String, String> {
             return Err(format!("the sign-in was not approved ({reason})"));
         }
     }
-    Err("that URL carries no `code` parameter — paste the address the browser finished on".into())
+    Err("that URL carries no `code` parameter — paste the code the page displayed".into())
+}
+
+// Why: terminals with bracketed paste enabled wrap the paste in `ESC[200~` /
+// `ESC[201~`. Readline strips those at a shell prompt but nothing strips them
+// from a raw stdin read, so without this the gateway rejects a code the user
+// can see is correct. A non-CSI escape is two characters, hence dropping one.
+fn strip_terminal_noise(pasted: &str) -> String {
+    let mut out = String::with_capacity(pasted.len());
+    let mut chars = pasted.chars();
+    while let Some(c) = chars.next() {
+        if c == '\u{1b}' {
+            if chars.next() == Some('[') {
+                for tail in chars.by_ref() {
+                    if ('\u{40}'..='\u{7e}').contains(&tail) {
+                        break;
+                    }
+                }
+            }
+            continue;
+        }
+        if !c.is_control() || c.is_whitespace() {
+            out.push(c);
+        }
+    }
+    out
+}
+
+fn code_after_flag(pasted: &str) -> Option<String> {
+    let mut tokens = pasted.split_whitespace();
+    while let Some(token) = tokens.next() {
+        if let Some(code) = token.strip_prefix("--code=") {
+            return (!code.is_empty()).then(|| code.to_owned());
+        }
+        if token == "--code" {
+            return tokens.next().map(str::to_owned).filter(|c| !c.is_empty());
+        }
+    }
+    None
 }
 
 fn resolve_gateway(gateway: Option<&str>) -> Result<ValidatedUrl, String> {

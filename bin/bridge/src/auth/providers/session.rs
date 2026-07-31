@@ -76,7 +76,7 @@ pub async fn capture_on(
     base_url: &ValidatedUrl,
 ) -> Result<String, AuthError> {
     let callback = server.callback_url();
-    let auth_url = build_auth_url(base_url.as_str(), callback.as_str());
+    let auth_url = build_auth_url(base_url.as_str(), Some(callback.as_str()));
 
     diag(&format!("opening browser to {auth_url}"));
     if let Err(e) = launch_browser(&auth_url) {
@@ -94,22 +94,27 @@ pub async fn capture_on(
     Ok(captured.code)
 }
 
-/// The device-link consent URL for `callback`.
+/// The device-link consent URL, optionally carrying a loopback `callback`.
 ///
 /// Exposed so the CLI's browserless path can print the same URL this module
 /// would have opened, and have the user complete the identical SSO flow on a
-/// machine that does have a browser.
+/// machine that does have a browser. That path passes `None`: nothing is
+/// listening on this machine's loopback, so the consent page displays the code
+/// instead of redirecting a browser at a dead port.
 #[must_use]
-pub fn device_link_url(base: &str, callback: &str) -> String {
+pub fn device_link_url(base: &str, callback: Option<&str>) -> String {
     build_auth_url(base, callback)
 }
 
-fn build_auth_url(base: &str, callback: &str) -> String {
-    let encoded = encode_component(callback);
-    format!(
-        "{}{}?redirect={encoded}",
-        base.trim_end_matches('/'),
-        crate::brand::brand().device_link_path
+fn build_auth_url(base: &str, callback: Option<&str>) -> String {
+    let path = crate::brand::brand().device_link_path;
+    let base = base.trim_end_matches('/');
+    callback.map_or_else(
+        || format!("{base}{path}"),
+        |callback| {
+            let encoded = encode_component(callback);
+            format!("{base}{path}?redirect={encoded}")
+        },
     )
 }
 

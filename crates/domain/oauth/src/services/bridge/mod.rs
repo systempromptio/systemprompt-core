@@ -30,7 +30,9 @@ use crate::services::generation::{
 
 const DEFAULT_ACCESS_TTL_SECONDS: u64 = 3600;
 const EXCHANGE_CODE_BYTES: usize = 32;
-const EXCHANGE_CODE_TTL_SECONDS: i64 = 120;
+// Why: sized for a person reading the code off a screen and typing it into a
+// terminal, not for the machine round-trip of the loopback-redirect path.
+const EXCHANGE_CODE_TTL_SECONDS: i64 = 600;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct BridgeAuthResult {

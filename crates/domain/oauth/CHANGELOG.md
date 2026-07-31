@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.27.0] - 2026-07-29
+
+### Changed
+
+- A bridge exchange code lives 10 minutes rather than 2, sized for a person reading it off one screen and typing it into another instead of the machine round-trip of the loopback-redirect path.
+
 ## [0.24.0] - 2026-07-26
 
 ### Fixed
