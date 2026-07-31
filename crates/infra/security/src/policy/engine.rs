@@ -45,12 +45,14 @@ struct ChainEntry {
 }
 
 pub struct GovernanceEngine {
+    enabled: bool,
     entries: Vec<ChainEntry>,
 }
 
 impl std::fmt::Debug for GovernanceEngine {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("GovernanceEngine")
+            .field("enabled", &self.enabled)
             .field(
                 "policies",
                 &self
@@ -90,6 +92,12 @@ impl GovernanceEngine {
     /// them.
     #[must_use]
     pub fn from_config(config: &GovernanceConfig) -> Self {
+        if !config.enabled {
+            tracing::warn!(
+                "governance is DISABLED by config: no scope, secret, blocklist or rate-limit \
+                 check will run on any request"
+            );
+        }
         let factories: HashMap<&'static str, PolicyFactory> =
             inventory::iter::<PolicyRegistration>()
                 .map(|r| (r.id, r.factory))
@@ -127,7 +135,10 @@ impl GovernanceEngine {
             });
         }
 
-        Self { entries }
+        Self {
+            enabled: config.enabled,
+            entries,
+        }
     }
 
     /// The instantiated chain in evaluation order, for dashboards and UI
@@ -140,25 +151,47 @@ impl GovernanceEngine {
 
     /// Run the chain first-deny-wins, tracing every entry.
     ///
-    /// Disabled entries and entries after the first deny record a
-    /// [`ChainEntryResult::Skip`] with zero duration; an empty or all-pass
-    /// chain allows with [`MatchedBy::DefaultIncluded`].
+    /// Entries switched off by config record a
+    /// [`ChainEntryResult::Disabled`] and entries after the first deny a
+    /// [`ChainEntryResult::Skip`], both with zero duration; an empty or
+    /// all-pass chain allows with [`MatchedBy::DefaultIncluded`].
     #[must_use]
     pub fn evaluate(&self, ctx: &PolicyContext<'_>) -> Evaluation {
+        if !self.enabled {
+            return Evaluation {
+                decision: Decision::Allow {
+                    matched_by: MatchedBy::DefaultIncluded,
+                },
+                chain: self
+                    .entries
+                    .iter()
+                    .map(|entry| {
+                        chain_entry(
+                            &entry.config,
+                            ChainEntryResult::Disabled,
+                            "Governance disabled by master switch",
+                        )
+                    })
+                    .collect(),
+            };
+        }
+
         let mut chain: Vec<ChainEntryOutcome> = Vec::with_capacity(self.entries.len());
         let mut denied: Option<Decision> = None;
 
         for entry in &self.entries {
             if !entry.config.enabled {
-                chain.push(skip_entry(
+                chain.push(chain_entry(
                     &entry.config,
+                    ChainEntryResult::Disabled,
                     "Policy disabled in governance config",
                 ));
                 continue;
             }
             if denied.is_some() {
-                chain.push(skip_entry(
+                chain.push(chain_entry(
                     &entry.config,
+                    ChainEntryResult::Skip,
                     "Skipped — already denied by an earlier policy",
                 ));
                 continue;
@@ -206,10 +239,10 @@ fn governance_config_path() -> Option<PathBuf> {
     Some(PathBuf::from(&profile.paths.services).join("governance/config.yaml"))
 }
 
-fn skip_entry(cfg: &PolicyConfig, detail: &str) -> ChainEntryOutcome {
+fn chain_entry(cfg: &PolicyConfig, result: ChainEntryResult, detail: &str) -> ChainEntryOutcome {
     ChainEntryOutcome {
         policy_id: PolicyId::new(cfg.id.clone()),
-        result: ChainEntryResult::Skip,
+        result,
         detail: detail.to_owned(),
         duration_ms: 0.0,
     }

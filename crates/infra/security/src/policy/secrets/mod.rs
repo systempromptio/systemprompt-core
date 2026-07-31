@@ -13,6 +13,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod entropy;
 mod patterns;
 
 use std::sync::LazyLock;
@@ -20,8 +21,11 @@ use std::sync::LazyLock;
 use regex::Regex;
 
 use super::governed::GovernedInput;
+pub use entropy::{DEFAULT_MIN_LEN, DEFAULT_THRESHOLD, EntropyConfig, find_high_entropy_token};
 use patterns::HIGH_ENTROPY_PATTERN;
 pub use patterns::{SECRET_PATTERNS, SecretPattern};
+
+static DEFAULT_ENTROPY: LazyLock<EntropyConfig> = LazyLock::new(EntropyConfig::default);
 
 static COMPILED: LazyLock<Vec<(usize, Regex)>> = LazyLock::new(|| {
     SECRET_PATTERNS
@@ -45,42 +49,6 @@ pub fn compiled_pattern_count() -> usize {
     COMPILED.len()
 }
 
-const ENTROPY_MIN_LEN: usize = 32;
-
-const ENTROPY_THRESHOLD: f64 = 4.0;
-
-fn shannon_entropy(s: &str) -> f64 {
-    let mut counts = [0u32; 256];
-    let bytes = s.as_bytes();
-    for &b in bytes {
-        counts[usize::from(b)] += 1;
-    }
-    let len = bytes.len() as f64;
-    counts
-        .iter()
-        .filter(|&&c| c > 0)
-        .map(|&c| {
-            let p = f64::from(c) / len;
-            -p * p.log2()
-        })
-        .sum()
-}
-
-#[must_use]
-pub fn find_high_entropy_token(text: &str) -> Option<&str> {
-    text.split(|c: char| c.is_whitespace() || "\"'`()[]{}<>,;:".contains(c))
-        .find(|token| {
-            token.len() >= ENTROPY_MIN_LEN
-                && token
-                    .chars()
-                    .all(|c| c.is_ascii_alphanumeric() || "+/=_-".contains(c))
-                && token.chars().any(|c| c.is_ascii_uppercase())
-                && token.chars().any(|c| c.is_ascii_lowercase())
-                && token.chars().any(|c| c.is_ascii_digit())
-                && shannon_entropy(token) >= ENTROPY_THRESHOLD
-        })
-}
-
 fn redacted_snippet(s: &str, match_start: usize) -> String {
     let mut snippet_end = (match_start + 12).min(s.len());
     while !s.is_char_boundary(snippet_end) {
@@ -89,21 +57,23 @@ fn redacted_snippet(s: &str, match_start: usize) -> String {
     format!("{}...[REDACTED]", &s[match_start..snippet_end])
 }
 
-fn scan_str(s: &str) -> Option<(&'static SecretPattern, String)> {
+fn scan_str(s: &str, entropy: &EntropyConfig) -> Option<(&'static SecretPattern, String)> {
     for (i, re) in COMPILED.iter() {
         if let Some(m) = re.find(s) {
             return Some((&SECRET_PATTERNS[*i], redacted_snippet(s, m.start())));
         }
     }
-    find_high_entropy_token(s).map(|token| {
+    find_high_entropy_token(s, entropy).map(|token| {
         let start = token.as_ptr() as usize - s.as_ptr() as usize;
         (&HIGH_ENTROPY_PATTERN, redacted_snippet(s, start))
     })
 }
 
+/// String-level entry point for callers with no policy configuration to hand —
+/// the gateway safety scanners. Uses [`EntropyConfig::default`].
 #[must_use]
 pub fn scan_str_for_secret(text: &str) -> Option<String> {
-    scan_str(text).map(|(_, redacted)| redacted)
+    scan_str(text, &DEFAULT_ENTROPY).map(|(_, redacted)| redacted)
 }
 
 /// One credential found in a governed input: the pattern that fired, the
@@ -118,8 +88,15 @@ pub struct SecretHit {
 
 #[must_use]
 pub fn detect_secrets(input: &GovernedInput) -> Option<SecretHit> {
+    detect_secrets_with(input, &DEFAULT_ENTROPY)
+}
+
+/// [`detect_secrets`] under an operator-supplied entropy configuration. The
+/// vendor pattern list is not tunable and applies either way.
+#[must_use]
+pub fn detect_secrets_with(input: &GovernedInput, entropy: &EntropyConfig) -> Option<SecretHit> {
     input.strings().into_iter().find_map(|s| {
-        scan_str(s.value).map(|(pattern, redacted)| SecretHit {
+        scan_str(s.value, entropy).map(|(pattern, redacted)| SecretHit {
             pattern,
             path: s.path,
             redacted,

@@ -24,6 +24,11 @@ use crate::authz::{GovernanceDecisionRecord, insert_governance_decision};
 pub enum ChainEntryResult {
     Pass,
     Fail,
+    /// Switched off by config, either per-policy or by the master switch. Kept
+    /// distinct from [`ChainEntryResult::Skip`] so a reader can tell a chain
+    /// that was never armed from one that stopped early: both leave a policy
+    /// unevaluated, but only one of them means the installation is unguarded.
+    Disabled,
     Skip,
 }
 
@@ -108,6 +113,17 @@ pub struct DecisionAudit {
     pub context_id: Option<String>,
 }
 
+// Why: an allow because nothing ran and an allow because everything passed are
+// the same `Decision`, and the flat `policy` column is what operational queries
+// filter on. Collapsing both to `default_allow` would make an unguarded
+// installation indistinguishable from a healthy one.
+fn allow_policy_label(chain: &[ChainEntryOutcome]) -> &'static str {
+    if !chain.is_empty() && chain.iter().all(|e| e.result == ChainEntryResult::Disabled) {
+        return "governance_disabled";
+    }
+    "default_allow"
+}
+
 /// Persist one governed-call decision: derive the flat columns (`policy` is
 /// the first [`ChainEntryResult::Fail`] entry) and write the blob through the
 /// canonical `governance_decisions` insert.
@@ -121,7 +137,7 @@ pub async fn record_decision(pool: &PgPool, audit: &DecisionAudit) -> Result<(),
         Decision::Allow { .. } => (
             DecisionTag::Allow,
             String::new(),
-            "default_allow".to_owned(),
+            allow_policy_label(&audit.chain).to_owned(),
         ),
         Decision::Deny { reason } => {
             let policy_str = audit

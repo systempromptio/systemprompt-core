@@ -126,7 +126,7 @@ fn trace_preserves_declaration_order_and_pass_entries() {
 }
 
 #[test]
-fn disabled_policy_records_skip_and_does_not_evaluate() {
+fn disabled_policy_records_disabled_and_does_not_evaluate() {
     let e = engine(
         "governance:\n  policies:\n    - id: t_deny\n      enabled: false\n    - id: t_allow\n",
     );
@@ -137,7 +137,10 @@ fn disabled_policy_records_skip_and_does_not_evaluate() {
 
     let evaluation = e.evaluate(&ctx(&sid, &uid, &input, &call));
     assert!(matches!(evaluation.decision, Decision::Allow { .. }));
-    assert_eq!(entry_result(&evaluation, "t_deny"), ChainEntryResult::Skip);
+    assert_eq!(
+        entry_result(&evaluation, "t_deny"),
+        ChainEntryResult::Disabled
+    );
 }
 
 #[test]
@@ -161,7 +164,10 @@ fn unmentioned_registered_policies_are_appended_disabled() {
     let call = CallId::generate();
     let evaluation = e.evaluate(&ctx(&sid, &uid, &input, &call));
     assert!(matches!(evaluation.decision, Decision::Allow { .. }));
-    assert_eq!(entry_result(&evaluation, "t_deny"), ChainEntryResult::Skip);
+    assert_eq!(
+        entry_result(&evaluation, "t_deny"),
+        ChainEntryResult::Disabled
+    );
 }
 
 #[test]
@@ -183,8 +189,61 @@ fn all_disabled_chain_allows_with_default_included() {
         evaluation
             .chain
             .iter()
-            .all(|e| e.result == ChainEntryResult::Skip)
+            .all(|e| e.result == ChainEntryResult::Disabled)
     );
+}
+
+#[test]
+fn the_master_switch_allows_without_evaluating_any_policy() {
+    let e = engine("governance:\n  enabled: false\n  policies:\n    - id: t_deny\n");
+    let sid = SessionId::generate();
+    let uid = UserId::new("u7");
+    let input = GovernedInput::tool_arguments(McpToolInput::new(json!({})));
+    let call = CallId::generate();
+
+    let evaluation = e.evaluate(&ctx(&sid, &uid, &input, &call));
+    assert!(matches!(
+        evaluation.decision,
+        Decision::Allow {
+            matched_by: MatchedBy::DefaultIncluded
+        }
+    ));
+    assert_eq!(
+        entry_result(&evaluation, "t_deny"),
+        ChainEntryResult::Disabled
+    );
+}
+
+#[test]
+fn the_master_switch_still_traces_every_configured_policy() {
+    let e = engine("governance:\n  enabled: false\n  policies:\n    - id: t_deny\n    - id: t_allow\n");
+    let sid = SessionId::generate();
+    let uid = UserId::new("u8");
+    let input = GovernedInput::tool_arguments(McpToolInput::new(json!({})));
+    let call = CallId::generate();
+
+    let evaluation = e.evaluate(&ctx(&sid, &uid, &input, &call));
+    for id in ["t_deny", "t_allow"] {
+        assert_eq!(entry_result(&evaluation, id), ChainEntryResult::Disabled);
+    }
+    assert!(
+        evaluation
+            .chain
+            .iter()
+            .all(|e| e.duration_ms.abs() < f64::EPSILON)
+    );
+}
+
+#[test]
+fn the_master_switch_defaults_to_on_when_the_key_is_absent() {
+    let e = engine("governance:\n  policies:\n    - id: t_deny\n");
+    let sid = SessionId::generate();
+    let uid = UserId::new("u9");
+    let input = GovernedInput::tool_arguments(McpToolInput::new(json!({})));
+    let call = CallId::generate();
+
+    let evaluation = e.evaluate(&ctx(&sid, &uid, &input, &call));
+    assert!(matches!(evaluation.decision, Decision::Deny { .. }));
 }
 
 #[test]

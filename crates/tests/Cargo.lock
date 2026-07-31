@@ -8901,6 +8901,7 @@ dependencies = [
  "chrono",
  "ed25519-dalek 2.2.0",
  "jsonwebtoken",
+ "regex",
  "reqwest",
  "rsa",
  "serde",

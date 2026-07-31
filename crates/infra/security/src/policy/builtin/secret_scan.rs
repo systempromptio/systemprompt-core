@@ -10,11 +10,12 @@
 
 use std::borrow::Cow;
 
+use regex::Regex;
 use serde_yaml::Value as YamlValue;
 use systemprompt_identifiers::{PolicyId, SecretPatternId};
 
 use super::super::registry::PolicyRegistration;
-use super::super::secrets::detect_secrets;
+use super::super::secrets::{EntropyConfig, detect_secrets_with};
 use super::super::types::{GovernancePolicy, PolicyContext, SecretLocation};
 use crate::authz::types::{Decision, DenyReason, MatchedBy};
 
@@ -30,6 +31,53 @@ struct ExtraPattern {
 #[derive(Debug)]
 struct SecretScan {
     extra_patterns: Vec<ExtraPattern>,
+    entropy: EntropyConfig,
+}
+
+// Why: an absent block, an absent key, or a key of the wrong shape each fall
+// back to the built-in default — a typo must not silently disable credential
+// detection.
+fn entropy_from_yaml(v: &YamlValue) -> EntropyConfig {
+    let defaults = EntropyConfig::default();
+    let Some(block) = v.get("entropy") else {
+        return defaults;
+    };
+    let allowlist = block
+        .get("allowlist")
+        .and_then(YamlValue::as_sequence)
+        .map(|seq| {
+            seq.iter()
+                .filter_map(YamlValue::as_str)
+                .filter_map(|expr| match Regex::new(expr) {
+                    Ok(re) => Some(re),
+                    Err(error) => {
+                        tracing::error!(
+                            %expr,
+                            %error,
+                            "secret_scan: entropy.allowlist entry skipped; regex failed to compile"
+                        );
+                        None
+                    },
+                })
+                .collect()
+        })
+        .unwrap_or(defaults.allowlist);
+    EntropyConfig {
+        enabled: block
+            .get("enabled")
+            .and_then(YamlValue::as_bool)
+            .unwrap_or(defaults.enabled),
+        min_len: block
+            .get("min_len")
+            .and_then(YamlValue::as_u64)
+            .and_then(|n| usize::try_from(n).ok())
+            .unwrap_or(defaults.min_len),
+        threshold: block
+            .get("threshold")
+            .and_then(YamlValue::as_f64)
+            .unwrap_or(defaults.threshold),
+        allowlist,
+    }
 }
 
 impl SecretScan {
@@ -67,6 +115,7 @@ impl SecretScan {
             .unwrap_or_default();
         Self {
             extra_patterns: extras,
+            entropy: entropy_from_yaml(v),
         }
     }
 }
@@ -84,7 +133,7 @@ impl GovernancePolicy for SecretScan {
     }
     fn evaluate(&self, ctx: &PolicyContext<'_>) -> Decision {
         let kind = ctx.input.location_kind();
-        if let Some(hit) = detect_secrets(ctx.input) {
+        if let Some(hit) = detect_secrets_with(ctx.input, &self.entropy) {
             return Decision::Deny {
                 reason: DenyReason::SecretLeak {
                     pattern_id: SecretPatternId::new(hit.pattern.id),

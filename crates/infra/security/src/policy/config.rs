@@ -1,12 +1,21 @@
 //! Governance-chain configuration.
 //!
-//! One YAML document (`governance.policies: [{id, enabled, ...params}]`)
-//! declares which policies run, in what order, and with what per-policy
-//! parameters. [`GovernanceConfig::load`] is deliberately lenient — a missing
-//! or malformed file degrades to [`GovernanceConfig::defaults`] with a warning,
-//! because a governance deployment that fails closed on a config typo would
-//! block every tool call in the installation. [`GovernanceConfig::parse`] is
-//! the strict form for callers that want the error.
+//! One YAML document (`governance.enabled` plus `governance.policies: [{id,
+//! enabled, ...params}]`) declares whether the chain runs at all, which
+//! policies it contains, in what order, and with what per-policy parameters.
+//!
+//! Two loaders, because startup and the request path want opposite failure
+//! modes. [`GovernanceConfig::validate`] is for boot: it returns the error so
+//! a misconfigured installation refuses to start.
+//! [`GovernanceConfig::load`] is for the request path: it degrades to
+//! [`GovernanceConfig::defaults`] and logs, because a governance deployment
+//! that failed closed on a config typo would block every tool call.
+//! [`GovernanceConfig::parse`] is the strict form over a string.
+//!
+//! Note the fallback direction: defaults enable every policy, so a file that
+//! cannot be read yields *more* enforcement than it declared, never less.
+//! Governance cannot be disabled by deleting or breaking this file — only by
+//! `governance.enabled: false` or per-policy `enabled: false`.
 //!
 //! Path resolution is the caller's concern: core takes a path, extensions
 //! resolve it from their profile (`<services>/governance/config.yaml`).
@@ -27,6 +36,8 @@ pub enum GovernanceConfigError {
     MissingPolicies,
     #[error("governance config policy entry {index} has no string `id`")]
     MissingPolicyId { index: usize },
+    #[error("governance config exists but could not be read: {0}")]
+    Unreadable(#[from] std::io::Error),
 }
 
 /// One entry of the configured chain: which policy, whether it runs, and the
@@ -41,6 +52,10 @@ pub struct PolicyConfig {
 /// The ordered policy chain declaration.
 #[derive(Debug, Clone)]
 pub struct GovernanceConfig {
+    /// `governance.enabled: false` switches the whole chain off in one key,
+    /// leaving the per-policy declarations below intact so the configuration
+    /// survives being turned back on.
+    pub enabled: bool,
     pub policies: Vec<PolicyConfig>,
 }
 
@@ -57,14 +72,21 @@ impl GovernanceConfig {
                 params: YamlValue::Null,
             })
             .collect();
-        Self { policies }
+        Self {
+            enabled: true,
+            policies,
+        }
     }
 
     /// Strict parse of a YAML document.
     pub fn parse(yaml: &str) -> Result<Self, GovernanceConfigError> {
         let root: YamlValue = serde_yaml::from_str(yaml)?;
-        let policies = root
-            .get("governance")
+        let governance = root.get("governance");
+        let enabled = governance
+            .and_then(|g| g.get("enabled"))
+            .and_then(YamlValue::as_bool)
+            .unwrap_or(true);
+        let policies = governance
             .and_then(|g| g.get("policies"))
             .and_then(YamlValue::as_sequence)
             .ok_or(GovernanceConfigError::MissingPolicies)?;
@@ -86,28 +108,60 @@ impl GovernanceConfig {
                 params: entry.clone(),
             });
         }
-        Ok(Self { policies: out })
+        Ok(Self {
+            enabled,
+            policies: out,
+        })
     }
 
-    /// Lenient load: any failure — absent file, unreadable file, invalid
-    /// YAML, missing `governance.policies` — logs and falls back to
-    /// [`Self::defaults`].
+    /// `Ok(None)` when the file is simply absent — the one failure that is a
+    /// legitimate deployment, not a mistake.
+    fn read(path: &Path) -> Result<Option<Self>, GovernanceConfigError> {
+        match std::fs::read_to_string(path) {
+            Ok(text) => Self::parse(&text).map(Some),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
+            Err(e) => Err(GovernanceConfigError::Unreadable(e)),
+        }
+    }
+
+    /// Boot-time check, for callers that can still refuse to start.
+    ///
+    /// Why: [`Self::load`] cannot fail, so a typo in the policy chain reaches
+    /// the runtime as silently-restored defaults — which for governance means
+    /// *more* enforcement than was asked for, and for an operator who edited
+    /// the file to relax a policy, the exact opposite of their intent. Calling
+    /// this once during startup converts that into a refusal to boot, while
+    /// leaving the request path unable to die on a config read.
+    pub fn validate(path: &Path) -> Result<(), GovernanceConfigError> {
+        Self::read(path).map(|_| ())
+    }
+
+    /// Lenient load for the request path: every failure falls back to
+    /// [`Self::defaults`] and logs, because a governance deployment that
+    /// failed closed on a config typo would block every tool call in the
+    /// installation. Pair with [`Self::validate`] at startup to catch the typo
+    /// before it gets this far.
     #[must_use]
     pub fn load(path: &Path) -> Self {
-        let Ok(text) = std::fs::read_to_string(path) else {
-            tracing::info!(
-                path = %path.display(),
-                "governance config not found; using built-in defaults"
-            );
-            return Self::defaults();
-        };
-        Self::parse(&text).unwrap_or_else(|error| {
-            tracing::warn!(
-                path = %path.display(),
-                %error,
-                "governance config rejected; using built-in defaults"
-            );
-            Self::defaults()
-        })
+        match Self::read(path) {
+            Ok(Some(config)) => config,
+            Ok(None) => {
+                tracing::warn!(
+                    path = %path.display(),
+                    "governance config not found; falling back to the built-in defaults, \
+                     which enable every policy"
+                );
+                Self::defaults()
+            },
+            Err(error) => {
+                tracing::error!(
+                    path = %path.display(),
+                    %error,
+                    "governance config rejected; falling back to the built-in defaults, \
+                     which enable every policy and may not be what this file asked for"
+                );
+                Self::defaults()
+            },
+        }
     }
 }

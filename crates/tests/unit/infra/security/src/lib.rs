@@ -35,6 +35,8 @@ mod policy_engine;
 #[cfg(test)]
 mod policy_governed;
 #[cfg(test)]
+mod policy_prompt_governance;
+#[cfg(test)]
 mod policy_types;
 #[cfg(test)]
 mod rs256_cutover;

@@ -79,6 +79,7 @@ fn chain_entry_result_serializes_as_a_flattened_tag() {
         (ChainEntryResult::Pass, "pass"),
         (ChainEntryResult::Fail, "fail"),
         (ChainEntryResult::Skip, "skip"),
+        (ChainEntryResult::Disabled, "disabled"),
     ] {
         let entry = ChainEntryOutcome {
             policy_id: PolicyId::new("p"),

@@ -5,7 +5,8 @@ use systemprompt_security::policy::governed::{GovernedInput, GovernedTarget, Mcp
 use systemprompt_security::policy::secrets::{self, SECRET_PATTERNS};
 use systemprompt_security::policy::types::{AccessScope, AgentScope, PolicyContext};
 use systemprompt_security::policy::{
-    ChainEntryResult, GovernanceConfig, GovernanceEngine, detect_secrets, scan_str_for_secret,
+    ChainEntryResult, EntropyConfig, GovernanceConfig, GovernanceEngine, detect_secrets,
+    detect_secrets_with, scan_str_for_secret,
 };
 
 fn engine(yaml: &str) -> GovernanceEngine {
@@ -68,6 +69,93 @@ fn a_prefixless_base64_key_is_caught_by_the_entropy_detector() {
     assert_eq!(hit.pattern.id, "high-entropy-token");
     assert!(hit.redacted.ends_with("...[REDACTED]"));
     assert!(!hit.redacted.contains("FIyuuM"));
+}
+
+// Why: the blob that triggered the incident — a protobuf record id returned by
+// a Salesforce MCP tool. Structurally a serialised message, not key material.
+const PROTOBUF_TOOL_PAYLOAD: &str =
+    "CAISLwoLaGVsbG8gd29ybGQSC2NvbnRhY3QtaWQxGhNSb3NlIEdvbnphbGV6IE93bmVy";
+
+#[test]
+fn a_serialised_protobuf_payload_is_not_reported_as_a_credential() {
+    let input = GovernedInput::prompt(format!("tool returned {PROTOBUF_TOOL_PAYLOAD} for you"));
+    assert!(
+        detect_secrets(&input).is_none(),
+        "structured tool output must not read as key material"
+    );
+}
+
+#[test]
+fn a_base64_json_envelope_is_not_reported_as_a_credential() {
+    let envelope = "eyJ1c2VyIjoiZWR3YXJkIiwicm9sZSI6ImFkbWluIiwidGVuYW50IjoiYXN0b3VuZCJ9";
+    assert!(
+        scan_str_for_secret(envelope).is_none(),
+        "base64-encoded JSON must not read as key material"
+    );
+}
+
+#[test]
+fn the_entropy_allowlist_suppresses_a_named_token_shape() {
+    let text = "PHL+ERIbxzlQOeiiRybQwgV7GvYmIclsJe1zsFIyuuM";
+    let config = EntropyConfig {
+        allowlist: vec![regex::Regex::new("^PHL").expect("test regex compiles")],
+        ..EntropyConfig::default()
+    };
+    let input = GovernedInput::prompt(text.to_owned());
+    assert!(detect_secrets(&input).is_some(), "unconfigured, it fires");
+    assert!(
+        detect_secrets_with(&input, &config).is_none(),
+        "an allowlisted shape is exempt"
+    );
+}
+
+#[test]
+fn disabling_the_entropy_heuristic_leaves_the_vendor_patterns_live() {
+    let config = EntropyConfig {
+        enabled: false,
+        ..EntropyConfig::default()
+    };
+    let prefixless = GovernedInput::prompt(
+        "PHL+ERIbxzlQOeiiRybQwgV7GvYmIclsJe1zsFIyuuM here is my api key".to_owned(),
+    );
+    assert!(detect_secrets_with(&prefixless, &config).is_none());
+
+    let vendor = GovernedInput::prompt("AKIAIOSFODNN7EXAMPLE".to_owned());
+    let hit = detect_secrets_with(&vendor, &config).expect("vendor patterns are not tunable");
+    assert_eq!(hit.pattern.id, "aws-access-key");
+}
+
+#[test]
+fn an_absent_entropy_block_keeps_the_built_in_behaviour() {
+    let yaml = "governance:\n  policies:\n    - id: secret_scan\n      enabled: true\n";
+    let engine = engine(yaml);
+    let call = Call::new("u1");
+    let input = GovernedInput::prompt(
+        "PHL+ERIbxzlQOeiiRybQwgV7GvYmIclsJe1zsFIyuuM here is my api key".to_owned(),
+    );
+    let target = tool("read_file");
+    let evaluation = engine.evaluate(&call.ctx(&target, AccessScope::Unknown, &input));
+    assert!(
+        matches!(evaluation.decision, Decision::Deny { .. }),
+        "defaults must still deny an unprefixed key"
+    );
+}
+
+#[test]
+fn a_configured_entropy_allowlist_reaches_the_policy() {
+    let yaml = "governance:\n  policies:\n    - id: secret_scan\n      enabled: true\n      \
+                entropy:\n        allowlist:\n          - '^PHL'\n";
+    let engine = engine(yaml);
+    let call = Call::new("u1");
+    let input = GovernedInput::prompt(
+        "PHL+ERIbxzlQOeiiRybQwgV7GvYmIclsJe1zsFIyuuM here is my api key".to_owned(),
+    );
+    let target = tool("read_file");
+    let evaluation = engine.evaluate(&call.ctx(&target, AccessScope::Unknown, &input));
+    assert!(
+        matches!(evaluation.decision, Decision::Allow { .. }),
+        "the allowlist must reach the policy from YAML"
+    );
 }
 
 #[test]
@@ -369,7 +457,13 @@ fn entry_detail(evaluation: &systemprompt_security::policy::Evaluation, id: &str
     evaluation
         .chain
         .iter()
-        .find(|e| e.policy_id.as_str() == id && e.result != ChainEntryResult::Skip)
+        .find(|e| {
+            e.policy_id.as_str() == id
+                && !matches!(
+                    e.result,
+                    ChainEntryResult::Skip | ChainEntryResult::Disabled
+                )
+        })
         .map(|e| e.detail.clone())
         .unwrap_or_default()
 }

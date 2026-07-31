@@ -11,6 +11,24 @@ fn defaults_declare_the_four_builtins_in_order() {
         ["secret_scan", "scope_check", "tool_blocklist", "rate_limit"]
     );
     assert!(cfg.policies.iter().all(|p| p.enabled));
+    assert!(cfg.enabled);
+}
+
+#[test]
+fn the_master_switch_parses_and_defaults_to_on() {
+    let off = GovernanceConfig::parse(
+        "governance:\n  enabled: false\n  policies:\n    - id: secret_scan\n",
+    )
+    .unwrap();
+    assert!(!off.enabled);
+    assert!(
+        off.policies[0].enabled,
+        "the master switch must not rewrite the per-policy declarations"
+    );
+
+    let absent = GovernanceConfig::parse("governance:\n  policies:\n    - id: secret_scan\n")
+        .unwrap();
+    assert!(absent.enabled);
 }
 
 #[test]
@@ -82,5 +100,36 @@ fn load_falls_back_to_defaults_on_malformed_yaml() {
     std::fs::write(&path, ": : :").unwrap();
     let cfg = GovernanceConfig::load(&path);
     assert_eq!(cfg.policies.len(), 4);
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn validate_accepts_an_absent_file() {
+    assert!(GovernanceConfig::validate(Path::new("/nonexistent/governance/config.yaml")).is_ok());
+}
+
+#[test]
+fn validate_rejects_what_load_would_silently_swallow() {
+    let dir = std::env::temp_dir().join(format!("gov-cfg-validate-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+
+    let malformed = dir.join("malformed.yaml");
+    std::fs::write(&malformed, ": : :").unwrap();
+    assert!(matches!(
+        GovernanceConfig::validate(&malformed),
+        Err(GovernanceConfigError::Yaml(_))
+    ));
+
+    let no_policies = dir.join("no-policies.yaml");
+    std::fs::write(&no_policies, "governance: {}").unwrap();
+    assert!(matches!(
+        GovernanceConfig::validate(&no_policies),
+        Err(GovernanceConfigError::MissingPolicies)
+    ));
+
+    let good = dir.join("good.yaml");
+    std::fs::write(&good, "governance:\n  policies:\n    - id: secret_scan\n").unwrap();
+    assert!(GovernanceConfig::validate(&good).is_ok());
+
     std::fs::remove_dir_all(&dir).ok();
 }
