@@ -88,12 +88,16 @@ fn login_stores_pat_then_logout_and_clean_remove_it() {
 }
 
 #[test]
-fn login_without_token_is_usage_error() {
+fn login_without_a_terminal_fails_instead_of_waiting_for_a_person() {
     sandbox(vec![], || {
         let args = vec!["systemprompt-bridge".to_owned(), "login".to_owned()];
-        // Missing token: exercises the usage-error branch (ExitCode 64). Just
-        // ensure it runs without panicking.
-        let _ = login::cmd_login(&args);
+        assert_eq!(
+            login::cmd_login(&args),
+            std::process::ExitCode::from(1),
+            "bare `login` starts single sign-on, which cannot complete with no \
+             terminal attached; it must report that rather than block on a \
+             browser callback or a pasted code that will never arrive"
+        );
     });
 }
 

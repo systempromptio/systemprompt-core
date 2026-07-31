@@ -9,6 +9,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::io::IsTerminal;
 use std::process::ExitCode;
 
 use systemprompt_identifiers::{SessionId, ValidatedUrl};
@@ -94,6 +95,20 @@ fn usage() -> String {
 }
 
 fn sso_code(gateway: Option<&str>, no_browser: bool) -> Result<String, String> {
+    // Why: both SSO paths need a person — one waits on a browser callback, the
+    // other on a pasted code. Detached from a terminal neither can ever
+    // complete, so they would block until the caller gives up rather than
+    // naming the one credential that works unattended.
+    if !std::io::stdin().is_terminal() {
+        return Err(format!(
+            "signing in interactively needs a terminal. Unattended, redeem an \
+             administrator-issued code with `{bin} login --code <exchange-code>`, or \
+             enrol a device certificate, which is the only credential that renews \
+             without a person present",
+            bin = crate::brand::brand().binary_name
+        ));
+    }
+
     let base_url = resolve_gateway(gateway)?;
 
     if !no_browser {
