@@ -21,9 +21,12 @@ set -uo pipefail
 # on public API items. `crates/tests/**` and `build.rs` files are out of scope.
 #
 # A second check flags `///` rustdoc on items that are NOT public API —
-# `pub(crate)`, `pub(super)`, and private `async fn` items (rustdoc is never
+# `pub(crate)`, `pub(super)`, and private top-level items (rustdoc is never
 # rendered for them). A genuine invariant on such an item belongs in a
 # `// Why:` comment; anything else is deleted.
+#
+# Scope: production sources in `crates/**` and `bin/bridge/src/**`, tracked or
+# not (`git ls-files -co`) — an untracked new file must not pass vacuously.
 
 MATCHES=""
 while IFS= read -r file; do
@@ -48,6 +51,8 @@ while IFS= read -r file; do
                 sub(/^[[:space:]]+/, "", stripped)
                 if (stripped ~ /^(pub\(crate\)|pub\(super\))/) {
                     print FILENAME ":" doc_line ": rustdoc on non-public item (" stripped ") — use // Why: or delete"
+                } else if ($0 ~ /^(async fn|fn|const|static|struct|enum|trait|type|mod|unsafe fn) /) {
+                    print FILENAME ":" doc_line ": rustdoc on private item (" stripped ") — use // Why: or delete"
                 }
             }
             in_doc = 0
@@ -55,7 +60,7 @@ while IFS= read -r file; do
         }
     ' "$file")
     [ -n "$FOUND" ] && MATCHES+="${FOUND}"$'\n'
-done < <(git ls-files 'crates/*.rs' 'crates/**/*.rs' | sort -u)
+done < <(git ls-files -co --exclude-standard 'crates/*.rs' 'crates/**/*.rs' 'bin/bridge/src/*.rs' 'bin/bridge/src/**/*.rs' | sort -u)
 
 if [ -z "$MATCHES" ]; then
     echo "lint-inline-comments: OK (no unlisted inline comments)"
