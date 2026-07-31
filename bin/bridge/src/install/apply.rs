@@ -27,7 +27,11 @@ pub fn install(opts: &InstallOptions) -> Result<InstallSummary, InstallError> {
     persist_optional_config(gateway_str, pubkey_str);
 
     let target_os = opts.print_mdm.unwrap_or_else(Os::current);
-    let inference_base_url = resolve_inference_base_url();
+    // Why: `inferenceGatewayBaseUrl` must stay loopback — the upstream gateway
+    // URL must never be exposed to Cowork. `loopback_origin` also finds a proxy
+    // that had to move off the default port, which this command cannot see
+    // in-process because it runs separately from the proxy itself.
+    let inference_base_url = crate::proxy::loopback_origin();
     let mdm = run_mdm_step(opts, target_os, &inference_base_url)?;
 
     let schedule = run_schedule_step(opts, &binary)?;
@@ -108,15 +112,6 @@ fn persist_optional_config(gateway_url: Option<&str>, pubkey: Option<&str>) {
             )),
         }
     }
-}
-
-// Why: `inferenceGatewayBaseUrl` must stay loopback — the upstream gateway URL
-// must never be exposed to Cowork.
-fn resolve_inference_base_url() -> String {
-    if let Some(handle) = crate::proxy::handle() {
-        return format!("http://127.0.0.1:{}", handle.port);
-    }
-    format!("http://127.0.0.1:{}", crate::proxy::DEFAULT_PROXY_PORT)
 }
 
 fn run_mdm_step(

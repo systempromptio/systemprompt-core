@@ -59,6 +59,8 @@ async fn spawn_harness() -> Harness {
         client: reqwest::Client::new(),
         token_cache: Arc::new(TokenCache::new(stub_refresh())),
         session: Arc::new(SessionContext::new()),
+        port: 0,
+        started_at_unix: 0,
     };
 
     let addr: SocketAddr = SocketAddr::from(([127, 0, 0, 1], 0));
@@ -147,9 +149,12 @@ async fn missing_authorization_is_rejected_403() {
 
     assert_eq!(resp.status().as_u16(), 403);
     let body = resp.text().await.expect("read body");
+    // A missing credential is a distinct fault from a wrong one: the first is
+    // usually an unconfigured client, the second a client pointed at the wrong
+    // install. Collapsing them cost real debugging time.
     assert!(
-        body.contains("bad loopback secret"),
-        "expected bad-secret body, got: {body}"
+        body.contains("no loopback credential presented"),
+        "expected the no-credential body, got: {body}"
     );
     assert_eq!(h.stats.forwarded_total.load(Ordering::Relaxed), 0);
 }

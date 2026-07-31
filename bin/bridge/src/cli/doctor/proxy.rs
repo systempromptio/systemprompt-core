@@ -4,38 +4,106 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::integration::proxy_probe::{self, ProxyProbeState};
+use crate::integration::proxy_probe::{self, PeerIdentity, PortMatch};
 
 use super::Check;
 
 /// A proxy that is not listening is the single most common cause of "Claude
 /// Code cannot reach the gateway", so it is reported as a warning with the
 /// command that fixes it rather than left to be inferred.
+///
+/// It also asks *who* is listening. A liveness probe alone reports any process
+/// that speaks HTTP as healthy, which is how a foreign bridge holding this
+/// port has been passing this check while rejecting every real request.
 #[must_use]
 pub fn check_proxy_listening() -> Check {
+    let port = crate::proxy::resolved_port();
     let url = crate::proxy::loopback_origin();
-    let health = proxy_probe::probe(Some(&url));
     let bin = crate::brand::brand().binary_name;
-    match health.state {
-        ProxyProbeState::Listening => Check::ok(
+
+    match proxy_probe::probe_identity(port) {
+        PeerIdentity::Ours(_) => {
+            let health = proxy_probe::probe(Some(&url));
+            let latency = health.latency_ms.unwrap_or_default();
+            if port == crate::proxy::DEFAULT_PROXY_PORT {
+                Check::ok("inference proxy", format!("{url} responding ({latency}ms)"))
+            } else {
+                Check::warn(
+                    "inference proxy",
+                    format!(
+                        "{url} responding ({latency}ms) — this is a fallback port; port {} was \
+                         taken when the proxy started. Client config written for the default port \
+                         will be rejected.",
+                        crate::proxy::DEFAULT_PROXY_PORT
+                    ),
+                )
+            }
+        },
+        PeerIdentity::Foreign(who) => Check::fail(
             "inference proxy",
             format!(
-                "{url} responding ({}ms)",
-                health.latency_ms.unwrap_or_default()
+                "{url} is answering, but it belongs to a different {} install ({}). Requests from \
+                 this install are rejected with 403. Restart one of them so they take different \
+                 ports, then run `{bin} install --apply`.",
+                crate::brand::brand().app_name,
+                who.config_dir
             ),
         ),
-        ProxyProbeState::Refused => Check::warn(
+        PeerIdentity::Unknown => Check::warn(
+            "inference proxy",
+            format!(
+                "{url} is responding but did not identify itself — an unrelated service, or a \
+                 bridge older than the identity endpoint"
+            ),
+        ),
+        PeerIdentity::Unreachable => Check::warn(
             "inference proxy",
             format!("nothing listening on {url} — start it with `{bin} proxy`"),
         ),
-        other => Check::warn(
-            "inference proxy",
-            format!(
-                "{url} probe returned {other:?}{}",
-                health.error.map(|e| format!(": {e}")).unwrap_or_default()
-            ),
-        ),
     }
+}
+
+/// Catches the mismatch that produces "bad loopback secret": a host configured
+/// for one port while the proxy serves another.
+///
+/// Reports only. Rewriting managed policy files as a side effect of a
+/// diagnostic would be a surprising amount of authority for `doctor` to take.
+#[must_use]
+pub fn check_proxy_client_config() -> Vec<Check> {
+    let actual = crate::proxy::resolved_port();
+    let bin = crate::brand::brand().binary_name;
+    let mut checks = Vec::new();
+
+    for host in crate::integration::registry::host_apps() {
+        let snapshot = host.probe();
+        let Some(configured) = snapshot
+            .profile_keys
+            .get("inferenceGatewayBaseUrl")
+            .filter(|v| !v.is_empty())
+        else {
+            continue;
+        };
+        match proxy_probe::classify_configured_port(configured, actual) {
+            PortMatch::Match => checks.push(Check::ok(
+                "client config port",
+                format!("{} points at 127.0.0.1:{actual}", host.display_name()),
+            )),
+            PortMatch::Mismatch { configured } => checks.push(Check::fail(
+                "client config port",
+                format!(
+                    "{} is configured for 127.0.0.1:{configured} but the proxy is on {actual} — \
+                     this produces 403 'bad loopback secret'. Fix with `{bin} install --apply`, \
+                     then restart {}.",
+                    host.display_name(),
+                    host.display_name()
+                ),
+            )),
+            // Not ours to judge: a deliberately remote or unparseable base URL
+            // is covered by the host's own profile checks.
+            PortMatch::NotLoopback | PortMatch::Unparseable => {},
+        }
+    }
+    checks
 }
 
 /// Linux-only: the proxy has no GUI to own its lifecycle, so the systemd user

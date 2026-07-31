@@ -13,7 +13,6 @@ use hyper::service::service_fn;
 use hyper_util::rt::TokioIo;
 use tokio::net::TcpListener;
 use tokio::runtime::Runtime;
-use tokio::sync::oneshot;
 
 use crate::config::{RuntimeConfig, SharedRuntimeConfig};
 use crate::ids::ProxySecret;
@@ -50,6 +49,10 @@ pub struct ProxyContext {
     pub client: reqwest::Client,
     pub token_cache: Arc<TokenCache>,
     pub session: Arc<SessionContext>,
+    /// The port actually bound, so a request handler can report it without
+    /// consulting the process-global handle — which is unset under test.
+    pub port: u16,
+    pub started_at_unix: u64,
 }
 
 impl ProxyContext {
@@ -58,6 +61,12 @@ impl ProxyContext {
     }
 }
 
+/// Binds `port` and starts serving on it.
+///
+/// Kept as a wrapper over [`try_bind`] + [`start_with_listener`] for callers
+/// that want one fixed port. `start_default` does not use it: it has to try
+/// several ports, and every failed attempt through here would spawn another
+/// heartbeat loop before discovering the bind failed.
 pub fn start(
     rt: &Runtime,
     port: u16,
@@ -65,6 +74,24 @@ pub fn start(
     token_cache: Arc<TokenCache>,
     session: Arc<SessionContext>,
 ) -> std::io::Result<ProxyHandle> {
+    let listener = rt.block_on(try_bind(port))?;
+    start_with_listener(rt, listener, runtime_config, token_cache, session)
+}
+
+/// Starts serving on an already-bound listener.
+///
+/// Everything expensive or global — the secret, the upstream client, the
+/// heartbeat loop — happens here, after the port is already won, so a caller
+/// racing several candidate ports pays for none of it until one succeeds.
+pub fn start_with_listener(
+    rt: &Runtime,
+    listener: TcpListener,
+    runtime_config: SharedRuntimeConfig,
+    token_cache: Arc<TokenCache>,
+    session: Arc<SessionContext>,
+) -> std::io::Result<ProxyHandle> {
+    let bound_port = listener.local_addr()?.port();
+
     let loopback = secret::proxy_init()?;
     let proxy_secret = ProxySecret::new(loopback.into_inner());
     let stats = Arc::new(ProxyStats::default());
@@ -78,10 +105,11 @@ pub fn start(
         client: client.clone(),
         token_cache: Arc::clone(&token_cache),
         session: Arc::clone(&session),
+        port: bound_port,
+        started_at_unix: crate::proxy::identity::now_unix(),
     };
 
-    let (port_tx, port_rx) = oneshot::channel::<std::io::Result<u16>>();
-    rt.spawn(run_listener(port, ctx, port_tx));
+    rt.spawn(run_listener(listener, ctx));
     rt.spawn(heartbeat::run_loop(
         runtime_config,
         token_cache,
@@ -89,12 +117,6 @@ pub fn start(
         Arc::clone(&stats),
         client,
     ));
-
-    let bound_port = match port_rx.blocking_recv() {
-        Ok(Ok(p)) => p,
-        Ok(Err(e)) => return Err(e),
-        Err(_) => return Err(std::io::Error::other("proxy listener task aborted")),
-    };
 
     Ok(ProxyHandle {
         port: bound_port,
@@ -115,27 +137,7 @@ fn build_upstream_client() -> std::io::Result<reqwest::Client> {
         .map_err(|e| std::io::Error::other(format!("upstream client build failed: {e}")))
 }
 
-async fn run_listener(
-    port: u16,
-    ctx: ProxyContext,
-    port_tx: oneshot::Sender<std::io::Result<u16>>,
-) {
-    let listener = match bind_listener(port).await {
-        Ok(l) => l,
-        Err(e) => {
-            _ = port_tx.send(Err(e));
-            return;
-        },
-    };
-    let bound = match listener.local_addr() {
-        Ok(a) => a.port(),
-        Err(e) => {
-            _ = port_tx.send(Err(e));
-            return;
-        },
-    };
-    _ = port_tx.send(Ok(bound));
-
+async fn run_listener(listener: TcpListener, ctx: ProxyContext) {
     loop {
         let (stream, peer) = match listener.accept().await {
             Ok(t) => t,
@@ -172,7 +174,8 @@ async fn run_listener(
     }
 }
 
-async fn bind_listener(port: u16) -> std::io::Result<TcpListener> {
+/// Binds loopback on `port`, IPv4 first. Port `0` asks the OS to choose.
+pub async fn try_bind(port: u16) -> std::io::Result<TcpListener> {
     let v4: SocketAddr = SocketAddr::from(([127u8, 0, 0, 1], port));
     if let Ok(l) = TcpListener::bind(v4).await {
         return Ok(l);

@@ -1,0 +1,16 @@
+[package]
+name = "systemprompt-bridge-proxy-port-fallback-tests"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Tests that the bridge proxy steps aside when its default port is taken"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+systemprompt-bridge = { workspace = true }
+tempfile = { workspace = true }
+temp-env = { workspace = true }

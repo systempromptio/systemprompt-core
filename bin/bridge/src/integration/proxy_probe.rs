@@ -7,6 +7,8 @@ use std::time::Instant;
 
 use serde::Serialize;
 
+use crate::proxy::identity::WhoAmI;
+
 #[derive(Debug, Clone, Serialize, Default)]
 pub struct ProxyHealth {
     pub url: Option<String>,
@@ -129,6 +131,130 @@ pub fn probe(url: Option<&str>) -> ProxyHealth {
         error: None,
         probed_at_unix,
     }
+}
+
+/// Who is answering on a loopback port.
+///
+/// The distinction `probe` cannot make: it reports `Listening` for anything
+/// that returns a parsable status line, which is how a foreign bridge holding
+/// our port has been reading as healthy.
+#[derive(Debug, Clone)]
+pub enum PeerIdentity {
+    /// This install's own proxy.
+    Ours(WhoAmI),
+    /// A bridge proxy belonging to a different install.
+    Foreign(WhoAmI),
+    /// Something is listening but did not identify itself — an unrelated
+    /// service, or a bridge predating the identity endpoint.
+    Unknown,
+    /// Nothing is listening.
+    Unreachable,
+}
+
+/// Asks whoever holds `port` to identify itself.
+///
+/// Deliberately blocking and dependency-free, like the rest of this module, so
+/// the bind loop in `proxy::start_default` can call it before a runtime exists.
+#[must_use]
+pub fn probe_identity(port: u16) -> PeerIdentity {
+    let addr = format!("127.0.0.1:{port}");
+    let Some(resolved) = resolve_first(&addr) else {
+        return PeerIdentity::Unreachable;
+    };
+    let Ok(mut stream) =
+        std::net::TcpStream::connect_timeout(&resolved, std::time::Duration::from_millis(1500))
+    else {
+        return PeerIdentity::Unreachable;
+    };
+    let Ok(body) = http_get_body(&mut stream, "127.0.0.1", crate::proxy::dispatch::WHOAMI_PATH)
+    else {
+        return PeerIdentity::Unknown;
+    };
+    _ = stream.shutdown(std::net::Shutdown::Both);
+
+    let Ok(who) = serde_json::from_str::<WhoAmI>(&body) else {
+        return PeerIdentity::Unknown;
+    };
+    if who.product != crate::proxy::identity::WHOAMI_PRODUCT {
+        return PeerIdentity::Unknown;
+    }
+    // Why: two installs that both failed to establish an id would otherwise
+    // read as the same install and one would wrongly stand down.
+    if !crate::proxy::identity::is_known(&who.install_id) {
+        return PeerIdentity::Unknown;
+    }
+    if who.is_ours() {
+        PeerIdentity::Ours(who)
+    } else {
+        PeerIdentity::Foreign(who)
+    }
+}
+
+/// How a written client config compares to the port the proxy actually holds.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PortMatch {
+    Match,
+    Mismatch { configured: u16 },
+    NotLoopback,
+    Unparseable,
+}
+
+/// Lives here rather than under `cli::doctor` because proxy startup reports the
+/// same mismatch, and one classifier keeps the two messages from drifting.
+#[must_use]
+pub fn classify_configured_port(configured_url: &str, actual: u16) -> PortMatch {
+    let Ok((host, port)) = parse_host_port(configured_url) else {
+        return PortMatch::Unparseable;
+    };
+    if host != "127.0.0.1" && host != "localhost" && host != "::1" {
+        return PortMatch::NotLoopback;
+    }
+    if port == actual {
+        PortMatch::Match
+    } else {
+        PortMatch::Mismatch { configured: port }
+    }
+}
+
+fn http_get_body(
+    stream: &mut std::net::TcpStream,
+    host: &str,
+    path: &str,
+) -> Result<String, String> {
+    use std::io::{Read, Write};
+    _ = stream.set_read_timeout(Some(std::time::Duration::from_millis(1500)));
+    _ = stream.set_write_timeout(Some(std::time::Duration::from_millis(1500)));
+    let req = format!(
+        "GET {path} HTTP/1.1\r\nHost: {host}\r\nConnection: close\r\nAccept: \
+         application/json\r\nUser-Agent: systemprompt-bridge-probe\r\n\r\n",
+    );
+    stream
+        .write_all(req.as_bytes())
+        .map_err(|e| format!("write probe: {e}"))?;
+
+    // Why: bounded because an unrelated service on this port could stream
+    // forever.
+    let mut raw = Vec::new();
+    let mut chunk = [0u8; 1024];
+    while raw.len() < 8192 {
+        match stream.read(&mut chunk) {
+            Ok(0) => break,
+            Ok(n) => raw.extend_from_slice(&chunk[..n]),
+            Err(e) => return Err(format!("read probe: {e}")),
+        }
+    }
+    let text = String::from_utf8_lossy(&raw);
+    let status_ok = text
+        .split_whitespace()
+        .nth(1)
+        .and_then(|c| c.parse::<u16>().ok())
+        .is_some_and(|c| c == 200);
+    if !status_ok {
+        return Err("identity endpoint did not return 200".to_owned());
+    }
+    text.split_once("\r\n\r\n")
+        .map(|(_, body)| body.trim().to_owned())
+        .ok_or_else(|| "no body in identity response".to_owned())
 }
 
 fn http_head_status(stream: &mut std::net::TcpStream, host: &str) -> Result<u16, String> {

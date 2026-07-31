@@ -1,4 +1,5 @@
 use systemprompt_bridge::proxy;
+use systemprompt_bridge::proxy::StartOutcome;
 
 #[test]
 fn the_module_wide_proxy_starts_once_and_publishes_its_loopback_origin() {
@@ -9,13 +10,23 @@ fn the_module_wide_proxy_starts_once_and_publishes_its_loopback_origin() {
             "no proxy is running before start_default"
         );
 
-        let first = proxy::start_default().expect("the default proxy binds");
-        let second = proxy::start_default().expect("a second call reuses the running proxy");
+        let StartOutcome::Started(first) = proxy::start_default() else {
+            panic!("the proxy binds one of its candidate ports");
+        };
+        let StartOutcome::Started(second) = proxy::start_default() else {
+            panic!("a second call reuses the running proxy");
+        };
         assert_eq!(
             first.port, second.port,
             "start_default is idempotent, not additive"
         );
-        assert_eq!(first.port, proxy::DEFAULT_PROXY_PORT);
+        // Not pinned to DEFAULT_PROXY_PORT: a developer machine legitimately
+        // has something else on it, and standing aside is now correct.
+        assert!(
+            proxy::candidate_ports().contains(&first.port),
+            "bound {} which is not a candidate port",
+            first.port
+        );
 
         assert_eq!(
             proxy::handle().map(|h| h.port),
@@ -37,13 +48,22 @@ fn the_module_wide_proxy_starts_once_and_publishes_its_loopback_origin() {
             "loopback bearer is a non-empty Bearer credential"
         );
 
+        let dir = temp.path().join("systemprompt");
         assert!(
-            temp.path()
-                .join("systemprompt")
-                .join("bridge-loopback.key")
-                .is_file(),
+            dir.join("bridge-loopback.key").is_file(),
             "starting the proxy mints the loopback secret in the sandbox"
         );
+        assert!(
+            dir.join("bridge-install.id").is_file(),
+            "starting the proxy establishes an install id"
+        );
+
+        let record = proxy::portfile::read().expect("the bound port is recorded");
+        assert_eq!(
+            record.port, first.port,
+            "the recorded port is the one actually bound, so other processes can find it"
+        );
+        assert_eq!(record.pid, std::process::id());
     });
 }
 

@@ -136,3 +136,33 @@ fn missing_host_yields_http_error() {
     assert_eq!(health.state, ProxyProbeState::HttpError);
     assert!(health.error.unwrap().contains("missing host"));
 }
+
+#[test]
+fn a_configured_port_is_classified_against_the_live_one() {
+    use systemprompt_bridge::integration::proxy_probe::{PortMatch, classify_configured_port};
+
+    assert_eq!(
+        classify_configured_port("http://127.0.0.1:48217", 48217),
+        PortMatch::Match
+    );
+    // The WSL/Windows case: a client written for the default port while the
+    // proxy had to move. This is what produces "bad loopback secret".
+    assert_eq!(
+        classify_configured_port("http://127.0.0.1:48217", 48218),
+        PortMatch::Mismatch { configured: 48217 }
+    );
+    assert_eq!(
+        classify_configured_port("http://localhost:48218", 48218),
+        PortMatch::Match,
+        "localhost is the same loopback as 127.0.0.1"
+    );
+    assert_eq!(
+        classify_configured_port("https://gateway.example.com/v1", 48217),
+        PortMatch::NotLoopback,
+        "a deliberately remote base URL is not our business to flag"
+    );
+    assert_eq!(
+        classify_configured_port("not a url", 48217),
+        PortMatch::Unparseable
+    );
+}

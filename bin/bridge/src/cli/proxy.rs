@@ -10,9 +10,28 @@ use crate::cli::output;
 use crate::obs::output::diag;
 
 pub(super) fn cmd_proxy() -> ExitCode {
-    if crate::proxy::start_default().is_none() {
-        diag("proxy: failed to start (port in use, or no config dir) — see logs above");
-        return ExitCode::from(1);
+    match crate::proxy::start_default() {
+        crate::proxy::StartOutcome::Started(_) => {},
+        // Why: our own proxy already serving is the outcome this command wants,
+        // not a failure. Starting a second one would only split the traffic.
+        crate::proxy::StartOutcome::AlreadyRunning {
+            port,
+            pid,
+            config_dir,
+        } => {
+            output::print_str(&format!(
+                "{bin} proxy is already running on 127.0.0.1:{port} (pid {pid}, config \
+                 {config_dir}) — nothing to do.\n",
+                bin = crate::brand::brand().binary_name,
+            ));
+            return ExitCode::SUCCESS;
+        },
+        crate::proxy::StartOutcome::Failed { tried, last_error } => {
+            diag(&format!(
+                "proxy: failed to start; tried ports {tried:?}: {last_error}"
+            ));
+            return ExitCode::from(1);
+        },
     }
 
     let origin = crate::proxy::loopback_origin();
@@ -46,6 +65,7 @@ pub(super) fn cmd_proxy() -> ExitCode {
     }) {
         Ok(()) => {
             _ = rx.recv();
+            crate::proxy::portfile::clear();
             output::print_str(&format!(
                 "\n{} proxy stopped.\n",
                 crate::brand::brand().binary_name

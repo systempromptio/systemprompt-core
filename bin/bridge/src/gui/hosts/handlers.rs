@@ -440,19 +440,32 @@ async fn generate_profile_for(
 ) -> GuiResult<GeneratedProfile> {
     let cfg = config::load();
 
-    let port = crate::proxy::handle()
-        .map(|h| h.port)
-        .ok_or_else(|| GuiError::Profile {
-            context: "proxy not running".into(),
+    // Why: a proxy that had to move off the default port is still perfectly
+    // usable, and `loopback_origin` finds it. Refusing on a missing in-process
+    // handle used to make a GUI that lost the port race unable to write any
+    // profile at all.
+    let gateway_base_url = crate::proxy::loopback_origin();
+
+    // A foreign install on our port is the one case that must still refuse:
+    // writing *our* loopback secret against *their* port produces exactly the
+    // 403 this profile is supposed to prevent.
+    let port = crate::proxy::resolved_port();
+    if let crate::integration::proxy_probe::PeerIdentity::Foreign(who) =
+        crate::integration::proxy_probe::probe_identity(port)
+    {
+        return Err(GuiError::Profile {
+            context: "proxy port held by another install".into(),
             source: std::io::Error::new(
-                std::io::ErrorKind::ConnectionRefused,
+                std::io::ErrorKind::AddrInUse,
                 format!(
-                    "local proxy is not listening on port {}; cannot generate a profile that \
-                     points to a dead endpoint",
-                    crate::proxy::DEFAULT_PROXY_PORT
+                    "127.0.0.1:{port} is served by a different {} install ({}); a profile written \
+                     now would authenticate against the wrong proxy",
+                    crate::brand::brand().app_name,
+                    who.config_dir
                 ),
             ),
-        })?;
+        });
+    }
 
     let loopback_secret = crate::proxy::secret::for_profile()
         .map(crate::ids::LoopbackSecret::into_inner)
@@ -487,7 +500,7 @@ async fn generate_profile_for(
     }
 
     let inputs = ProfileGenInputs {
-        gateway_base_url: format!("http://127.0.0.1:{port}"),
+        gateway_base_url,
         api_key: loopback_secret,
         models,
         organization_uuid: server_profile.organization_uuid,

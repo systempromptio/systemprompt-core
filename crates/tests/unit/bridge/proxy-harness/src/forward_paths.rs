@@ -55,6 +55,11 @@ async fn spawn_with_base(gateway: MockServer, base: Option<String>) -> Harness {
     let stats = Arc::new(ProxyStats::default());
     let mints = Arc::new(AtomicUsize::new(0));
     let base = base.unwrap_or_else(|| gateway.uri());
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind 127.0.0.1:0");
+    let port = listener.local_addr().expect("local_addr").port();
+
     let ctx = ProxyContext {
         runtime_config: shared_runtime_config(&base),
         secret: Arc::new(ProxySecret::new(SECRET)),
@@ -62,12 +67,9 @@ async fn spawn_with_base(gateway: MockServer, base: Option<String>) -> Harness {
         client: reqwest::Client::new(),
         token_cache: Arc::new(TokenCache::new(counting_refresh(&mints))),
         session: Arc::new(SessionContext::new()),
+        port,
+        started_at_unix: 0,
     };
-
-    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
-        .await
-        .expect("bind 127.0.0.1:0");
-    let port = listener.local_addr().expect("local_addr").port();
 
     tokio::spawn(async move {
         loop {
@@ -377,6 +379,111 @@ async fn healthz_is_served_locally_without_a_loopback_secret() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn whoami_identifies_the_install_without_leaking_the_secret() {
+    let h = spawn_harness().await;
+
+    let resp = Harness::client()
+        .get(h.url("/__bridge/whoami"))
+        .send()
+        .await
+        .expect("GET /__bridge/whoami");
+    assert_eq!(
+        resp.status().as_u16(),
+        200,
+        "identity is unauthenticated on purpose — the caller asking is one that could not \
+         authenticate"
+    );
+    assert_eq!(
+        resp.headers()
+            .get("content-type")
+            .and_then(|v| v.to_str().ok()),
+        Some("application/json")
+    );
+    let body = resp.text().await.expect("body");
+
+    let parsed: serde_json::Value = serde_json::from_str(&body).expect("whoami is JSON");
+    assert_eq!(parsed["product"], "systemprompt-bridge");
+    assert_eq!(parsed["port"], h.port);
+    assert!(parsed["install_id"].as_str().is_some_and(|s| !s.is_empty()));
+
+    // The anti-oracle guard. If any of these ever appear, a loopback caller can
+    // confirm a guessed loopback secret and this endpoint becomes an attack.
+    for forbidden in [SECRET, "fingerprint", "bridge-loopback.key", "secret"] {
+        assert!(
+            !body.contains(forbidden),
+            "whoami leaked `{forbidden}`: {body}"
+        );
+    }
+
+    assert!(
+        h.upstream_requests().await.is_empty(),
+        "/__bridge/whoami never reaches the gateway"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_rejection_says_it_is_a_local_port_problem_not_a_gateway_key_problem() {
+    let h = spawn_harness().await;
+
+    let wrong = Harness::client()
+        .post(h.url("/v1/messages"))
+        .header("authorization", "Bearer not-the-secret")
+        .body("{}")
+        .send()
+        .await
+        .expect("POST with a wrong secret");
+    assert_eq!(wrong.status().as_u16(), 403);
+    assert_eq!(
+        wrong
+            .headers()
+            .get("x-systemprompt-bridge-reason")
+            .and_then(|v| v.to_str().ok()),
+        Some("secret-mismatch"),
+        "a host UI must be able to classify this without parsing prose"
+    );
+    let mismatch_body = wrong.text().await.expect("body");
+    // Why: the old four-word body was rendered by host UIs as "expired key or
+    // wrong region", sending operators to audit gateway credentials for a fault
+    // that is entirely local.
+    assert!(
+        mismatch_body.contains("not an\nexpired or wrong gateway API key"),
+        "the mismatch body must rule out the gateway: {mismatch_body}"
+    );
+    assert!(mismatch_body.contains("WSL2"), "{mismatch_body}");
+
+    let none = Harness::client()
+        .post(h.url("/v1/messages"))
+        .body("{}")
+        .send()
+        .await
+        .expect("POST with no credential");
+    assert_eq!(none.status().as_u16(), 403);
+    assert_eq!(
+        none.headers()
+            .get("x-systemprompt-bridge-reason")
+            .and_then(|v| v.to_str().ok()),
+        Some("no-credential")
+    );
+    let none_body = none.text().await.expect("body");
+    assert_ne!(
+        none_body, mismatch_body,
+        "an absent credential and a wrong one are different faults"
+    );
+
+    for body in [&mismatch_body, &none_body] {
+        assert!(
+            !body.contains(SECRET),
+            "a rejection must never echo the real secret: {body}"
+        );
+    }
+
+    assert!(
+        h.upstream_requests().await.is_empty(),
+        "a rejected request never reaches the gateway"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn otel_posts_are_unauthenticated_and_rewritten_under_v1() {
     let h = spawn_harness().await;
     Mock::given(method("POST"))
@@ -463,6 +570,8 @@ async fn a_request_that_cannot_mint_a_token_is_reported_as_service_unavailable()
         client: reqwest::Client::new(),
         token_cache: Arc::new(TokenCache::new(refresh)),
         session: Arc::new(SessionContext::new()),
+        port: 0,
+        started_at_unix: 0,
     };
     let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
         .await

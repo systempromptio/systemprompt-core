@@ -12,7 +12,7 @@ use crate::proxy::forward::ProxyBody;
 use crate::proxy::secret;
 use crate::proxy::server::ProxyContext;
 
-use super::simple_response;
+use super::{owned_response, simple_response};
 
 pub(super) struct RequestLog<'a> {
     pub req_id: &'a str,
@@ -105,8 +105,82 @@ pub(super) fn verify_loopback_secret(
              expected_fp={expected_fp}; secret_path={secret_path}; {remediation}) [{req_id}]"
         ));
     }
-    Some(simple_response(
-        StatusCode::FORBIDDEN,
-        "forbidden: bad loopback secret\n",
-    ))
+    let body = if presented.is_empty() {
+        no_credential_body(ctx)
+    } else {
+        mismatch_body(ctx)
+    };
+    let reason = if presented.is_empty() {
+        "no-credential"
+    } else {
+        "secret-mismatch"
+    };
+    Some(rejection(body, reason))
+}
+
+/// The 403 a mismatched client gets.
+///
+/// It says what the proxy knows for certain and the client cannot: this is a
+/// local port collision, not a credential problem. The previous four-word body
+/// was rendered by host UIs as "the provider rejected the credentials IT
+/// configured — expired key or wrong region", which sends operators to audit
+/// gateway keys for a fault that is entirely on this machine.
+///
+/// The secret fingerprints stay in the logs. Putting either in the body would
+/// let any loopback caller confirm a guessed secret.
+fn mismatch_body(ctx: &ProxyContext) -> String {
+    format!(
+        "forbidden: bad loopback secret\n\
+         \n\
+         The credential presented does not match the loopback secret of the bridge\n\
+         install answering on this port. This is a LOCAL bridge/port mismatch, not an\n\
+         expired or wrong gateway API key, and not a region problem. Nothing in your\n\
+         gateway credentials needs to change.\n\
+         \n\
+         this install: {config_dir} (port {port}, pid {pid})\n\
+         \n\
+         Your client was configured by a different bridge install. If you are running\n\
+         two bridges on one machine (for example Windows alongside WSL2), they are\n\
+         sharing this loopback port.\n\
+         \n\
+         remediation: {remediation}\n",
+        config_dir = crate::proxy::identity::config_dir_display(),
+        port = ctx.port,
+        pid = std::process::id(),
+        remediation = secret::reapply_hint(),
+    )
+}
+
+fn no_credential_body(ctx: &ProxyContext) -> String {
+    format!(
+        "forbidden: no loopback credential presented\n\
+         \n\
+         This is the {app} loopback proxy. It requires an\n\
+         Authorization: Bearer <loopback secret> header on every request.\n\
+         \n\
+         this install: {config_dir} (port {port})\n\
+         \n\
+         If your client was configured by a different bridge install, it is talking to\n\
+         the wrong proxy.\n",
+        app = crate::brand::brand().app_name,
+        config_dir = crate::proxy::identity::config_dir_display(),
+        port = ctx.port,
+    )
+}
+
+/// Headers let a host UI classify the failure without parsing prose.
+fn rejection(body: String, reason: &'static str) -> Response<ProxyBody> {
+    let mut resp = owned_response(StatusCode::FORBIDDEN, body);
+    let headers = resp.headers_mut();
+    headers.insert(
+        "x-systemprompt-bridge-reason",
+        http::HeaderValue::from_static(reason),
+    );
+    if let Ok(v) = http::HeaderValue::from_str(&crate::proxy::identity::install_id()) {
+        headers.insert("x-systemprompt-bridge-install", v);
+    }
+    if let Ok(v) = http::HeaderValue::from_str(&crate::proxy::identity::config_dir_display()) {
+        headers.insert("x-systemprompt-bridge-config-dir", v);
+    }
+    resp
 }

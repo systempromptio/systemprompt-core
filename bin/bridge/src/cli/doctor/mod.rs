@@ -80,6 +80,7 @@ pub async fn run_checks() -> (Vec<Check>, bool) {
     auth::check_whoami(&client, bearer.as_ref(), &mut checks).await;
     checks.push(auth::check_loopback_secret());
     checks.push(proxy::check_proxy_listening());
+    checks.extend(proxy::check_proxy_client_config());
     if let Some(check) = proxy::check_proxy_service() {
         checks.push(check);
     }

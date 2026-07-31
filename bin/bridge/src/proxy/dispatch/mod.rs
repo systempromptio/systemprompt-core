@@ -182,6 +182,17 @@ pub(super) fn owned_response(status: StatusCode, body: String) -> Response<Proxy
     resp
 }
 
+// Why: `owned_response` fixes `text/plain`, which several 4xx paths rely on, so
+// JSON gets its own constructor rather than a mutable content type.
+pub(super) fn json_response(status: StatusCode, body: String) -> Response<ProxyBody> {
+    let mut resp = owned_response(status, body);
+    resp.headers_mut().insert(
+        http::header::CONTENT_TYPE,
+        http::HeaderValue::from_static("application/json"),
+    );
+    resp
+}
+
 fn now_unix() -> u64 {
     use std::time::{SystemTime, UNIX_EPOCH};
     SystemTime::now()
@@ -242,6 +253,9 @@ pub async fn handle_request(
         if path == "/healthz" {
             return Ok(health_response(&method));
         }
+        if path == WHOAMI_PATH {
+            return Ok(whoami_response(&ctx));
+        }
         return forward_to_gateway(
             req,
             ctx,
@@ -285,9 +299,17 @@ fn header_str(req: &Request<Incoming>, name: http::header::HeaderName) -> String
         .to_owned()
 }
 
+/// Where one bridge asks another "whose proxy are you?".
+///
+/// A path of its own rather than a richer `/healthz`: that endpoint is a
+/// liveness contract with a byte-level parser and a pinned body, and
+/// `/__bridge/` cannot collide with `/v1/*`, `/mcp/*`, `/otel*` or an MCP slug.
+pub const WHOAMI_PATH: &str = "/__bridge/whoami";
+
 fn is_unauthenticated_path(method: &Method, path: &str) -> bool {
     match (method, path) {
         (&Method::GET | &Method::HEAD, "/healthz") => true,
+        (&Method::GET, WHOAMI_PATH) => true,
         (&Method::POST, p) if p == "/otel" || p.starts_with("/otel/") => true,
         _ => false,
     }
@@ -296,6 +318,21 @@ fn is_unauthenticated_path(method: &Method, path: &str) -> bool {
 fn health_response(method: &Method) -> Response<ProxyBody> {
     let body = if method == Method::HEAD { "" } else { "ok\n" };
     simple_response(StatusCode::OK, body)
+}
+
+// Why: unauthenticated on purpose — the caller asking is by definition one that
+// could not authenticate, a sibling bridge deciding whether the port is held by
+// itself or by a stranger. It inherits the loopback-host guard above, and the
+// payload must carry no secret nor anything derived from one.
+fn whoami_response(ctx: &ProxyContext) -> Response<ProxyBody> {
+    let who = crate::proxy::identity::WhoAmI::current(ctx.port, ctx.started_at_unix);
+    match serde_json::to_string(&who) {
+        Ok(body) => json_response(StatusCode::OK, body),
+        Err(e) => {
+            tracing::warn!(error = %e, "could not serialise the whoami payload");
+            simple_response(StatusCode::INTERNAL_SERVER_ERROR, "whoami unavailable\n")
+        },
+    }
 }
 
 fn mint_req_id() -> String {

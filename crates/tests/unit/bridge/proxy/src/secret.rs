@@ -62,22 +62,21 @@ fn load_treats_missing_and_blank_files_as_unminted() {
     );
 }
 
+/// The before and after of minting, in one test on purpose.
+///
+/// `proxy_init` caches the secret in a process-global `OnceLock`, so a separate
+/// "not minted yet" test only passes while it happens to be scheduled first.
+#[cfg(unix)]
 #[test]
-fn for_profile_reports_the_secret_unavailable_until_the_proxy_mints_it() {
-    config_sandbox(|_| {
+fn proxy_init_mints_a_private_secret_that_for_profile_then_serves() {
+    config_sandbox(|root| {
         let err = secret::for_profile().expect_err("no minted secret yet");
         assert_eq!(err.kind(), std::io::ErrorKind::NotFound);
         assert!(
             err.to_string().contains("proxy has not been started"),
             "{err}"
         );
-    });
-}
 
-#[cfg(unix)]
-#[test]
-fn proxy_init_mints_a_private_secret_that_for_profile_then_serves() {
-    config_sandbox(|root| {
         let minted = secret::proxy_init().expect("mint succeeds");
         let path = root.join("systemprompt").join("bridge-loopback.key");
         assert!(path.is_file(), "the secret is persisted at {path:?}");

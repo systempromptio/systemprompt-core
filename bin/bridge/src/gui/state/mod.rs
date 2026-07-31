@@ -371,8 +371,8 @@ impl AppState {
 
 
     pub fn first_configured_proxy_url(&self) -> Option<String> {
-        if let Some(handle) = crate::proxy::handle() {
-            return Some(format!("http://127.0.0.1:{}", handle.port));
+        if crate::proxy::handle().is_some() {
+            return Some(crate::proxy::loopback_origin());
         }
         let guard = self.inner.read();
         guard
