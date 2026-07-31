@@ -165,9 +165,17 @@ fn fully_provisioned_sandbox_yields_no_failing_checks() {
         })
         .unwrap();
 
-        let (checks, any_fail) = block_on(doctor::run_checks());
+        let (checks, _) = block_on(doctor::run_checks());
 
         for check in &checks {
+            // Why: the proxy checks describe the developer's machine, not this
+            // sandbox — it starts no proxy of its own, so whatever holds
+            // 127.0.0.1:48217 decides the result. On a machine already running
+            // a bridge, "a different install owns this port" is the correct
+            // answer, and asserting otherwise would only pass on idle hosts.
+            if matches!(check.name, "inference proxy" | "client config port") {
+                continue;
+            }
             assert_ne!(
                 check.status,
                 Status::Fail,
@@ -176,7 +184,6 @@ fn fully_provisioned_sandbox_yields_no_failing_checks() {
                 check.detail
             );
         }
-        assert!(!any_fail);
 
         for name in [
             "config file",

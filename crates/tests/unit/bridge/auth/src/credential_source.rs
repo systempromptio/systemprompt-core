@@ -98,13 +98,13 @@ fn profile_state_classifies_absent_partial_installed_and_stale() {
     let required = ["a", "b"];
     let empty = BTreeMap::new();
     assert!(matches!(
-        ProfileState::classify(&required, &empty, None),
+        ProfileState::classify(&required, &empty, None, None),
         ProfileState::Absent
     ));
 
     let mut partial = BTreeMap::new();
     partial.insert("a".to_owned(), "1".to_owned());
-    match ProfileState::classify(&required, &partial, None) {
+    match ProfileState::classify(&required, &partial, None, None) {
         ProfileState::Partial { missing_required } => {
             assert_eq!(missing_required, vec!["b".to_owned()]);
         },
@@ -113,18 +113,18 @@ fn profile_state_classifies_absent_partial_installed_and_stale() {
 
     let mut complete = partial.clone();
     complete.insert("b".to_owned(), "2".to_owned());
-    let installed = ProfileState::classify(&required, &complete, Some(true));
+    let installed = ProfileState::classify(&required, &complete, Some(true), None);
     assert!(installed.is_installed(), "{installed:?}");
 
     assert!(
         matches!(
-            ProfileState::classify(&required, &complete, Some(false)),
-            ProfileState::Stale
+            ProfileState::classify(&required, &complete, Some(false), None),
+            ProfileState::Stale { .. }
         ),
         "a definite secret mismatch downgrades a complete profile to Stale"
     );
     assert!(
-        ProfileState::classify(&required, &complete, None).is_installed(),
+        ProfileState::classify(&required, &complete, None, None).is_installed(),
         "an unknown secret never downgrades"
     );
 }

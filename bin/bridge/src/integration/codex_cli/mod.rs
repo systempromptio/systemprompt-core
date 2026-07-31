@@ -35,7 +35,12 @@ impl HostApp for CodexCliHost {
 
     fn probe(&self) -> HostAppSnapshot {
         let read = probe::read_config();
-        let profile_state = ProfileState::classify(config::REQUIRED_KEYS, &read.keys, None);
+        // Why: Codex bakes `<origin>/v1`, and the classifier ignores the path.
+        let endpoint_fresh = ProfileState::endpoint_freshness(
+            read.keys.get(config::PROVIDER_BASE_URL).map(String::as_str),
+        );
+        let profile_state =
+            ProfileState::classify(config::REQUIRED_KEYS, &read.keys, None, endpoint_fresh);
         let processes = probe::list_codex_processes();
         HostAppSnapshot {
             host_id: self.id(),

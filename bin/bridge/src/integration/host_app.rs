@@ -19,6 +19,21 @@ pub struct ProfileGenInputs {
     pub headers: BTreeMap<String, String>,
 }
 
+/// Why a complete profile still cannot work.
+///
+/// Both reasons produce an identical symptom — every request 403s with "bad
+/// loopback secret" — and an identical fix, so they share a state. They are
+/// distinguished only so the message can name the cause.
+#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum StaleReason {
+    /// The baked secret is not the one the live proxy verifies against.
+    LoopbackSecret,
+    /// The baked base URL points at a port the proxy no longer holds — usually
+    /// because another install had taken the default one and this proxy moved.
+    ProxyPort,
+}
+
 #[derive(Debug, Clone, Serialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum ProfileState {
@@ -27,10 +42,11 @@ pub enum ProfileState {
         missing_required: Vec<String>,
     },
     Installed,
-    /// All required keys present, but the baked loopback secret no longer
-    /// matches the one the local proxy verifies against — every request 403s
-    /// until the profile is re-applied.
-    Stale,
+    /// All required keys present, but the profile cannot authenticate as
+    /// written — every request 403s until it is re-applied.
+    Stale {
+        reason: StaleReason,
+    },
 }
 
 impl ProfileState {
@@ -39,20 +55,45 @@ impl ProfileState {
         matches!(self, Self::Installed)
     }
 
-    /// `secret_fresh` carries the result of comparing the profile's baked
-    /// secret against the live proxy secret: `Some(false)` downgrades an
-    /// otherwise complete profile to [`Self::Stale`]. `None` (host has no
-    /// baked secret, or the proxy secret is unknown) never downgrades —
-    /// staleness is asserted only on a definite mismatch.
+    /// Both freshness arguments follow the same rule: `Some(false)` downgrades
+    /// an otherwise complete profile to [`Self::Stale`], while `None` — the
+    /// host bakes no such value, or the live one is unknown — never downgrades.
+    /// Staleness is asserted only on a definite mismatch, because a false
+    /// "re-apply required" trains people to ignore the real one.
+    ///
+    /// A wrong secret is checked first: if both are wrong, re-applying fixes
+    /// both, and the secret is the more familiar diagnosis.
     #[must_use]
     pub fn classify(
         required: &[&str],
         present: &BTreeMap<String, String>,
         secret_fresh: Option<bool>,
+        endpoint_fresh: Option<bool>,
     ) -> Self {
-        match (Self::from_keys(required, present), secret_fresh) {
-            (Self::Installed, Some(false)) => Self::Stale,
-            (state, _) => state,
+        match Self::from_keys(required, present) {
+            Self::Installed if secret_fresh == Some(false) => Self::Stale {
+                reason: StaleReason::LoopbackSecret,
+            },
+            Self::Installed if endpoint_fresh == Some(false) => Self::Stale {
+                reason: StaleReason::ProxyPort,
+            },
+            state => state,
+        }
+    }
+
+    /// Compares a profile's baked base URL against the port the proxy actually
+    /// holds.
+    ///
+    /// Returns `None` for anything that is not a loopback URL we can parse: a
+    /// deliberately remote gateway is not this check's business.
+    #[must_use]
+    pub fn endpoint_freshness(configured_url: Option<&str>) -> Option<bool> {
+        use crate::integration::proxy_probe::{PortMatch, classify_configured_port};
+        let url = configured_url.filter(|u| !u.is_empty())?;
+        match classify_configured_port(url, crate::proxy::resolved_port()) {
+            PortMatch::Match => Some(true),
+            PortMatch::Mismatch { .. } => Some(false),
+            PortMatch::NotLoopback | PortMatch::Unparseable => None,
         }
     }
 

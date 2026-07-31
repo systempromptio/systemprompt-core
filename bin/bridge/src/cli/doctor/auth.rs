@@ -170,14 +170,33 @@ pub fn check_loopback_secret() -> Check {
 pub fn check_host_profile_secrets() -> Option<Check> {
     use crate::integration::ProfileState;
 
+    use crate::integration::StaleReason;
+
     let mut stale: Vec<&'static str> = Vec::new();
+    let mut wrong_port: Vec<&'static str> = Vec::new();
     let mut any_installed = false;
     for host in crate::integration::host_apps() {
         match host.probe().profile_state {
-            ProfileState::Stale => stale.push(host.display_name()),
+            ProfileState::Stale {
+                reason: StaleReason::LoopbackSecret,
+            } => stale.push(host.display_name()),
+            ProfileState::Stale {
+                reason: StaleReason::ProxyPort,
+            } => wrong_port.push(host.display_name()),
             ProfileState::Installed => any_installed = true,
             ProfileState::Partial { .. } | ProfileState::Absent => {},
         }
+    }
+    if !wrong_port.is_empty() {
+        return Some(Check::fail(
+            "host profile secret",
+            format!(
+                "{} points at a proxy port this install no longer holds (the proxy is on {}); {}",
+                wrong_port.join(", "),
+                crate::proxy::resolved_port(),
+                proxy_secret::reapply_hint()
+            ),
+        ));
     }
     if !stale.is_empty() {
         return Some(Check::fail(

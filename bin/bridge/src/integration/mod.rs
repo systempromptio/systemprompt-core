@@ -17,7 +17,7 @@ pub mod stub_host;
 
 pub use host_app::{
     AppInstallState, ConfigFormat, GeneratedProfile, HostApp, HostAppSnapshot, HostConfigSchema,
-    ProfileGenInputs, ProfileState,
+    ProfileGenInputs, ProfileState, StaleReason,
 };
 pub use proxy_probe::{ProxyHealth, ProxyProbeState};
 pub use registry::{find_host_by_id, host_apps};

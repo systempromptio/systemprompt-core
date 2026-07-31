@@ -120,19 +120,27 @@ const fn profile_state_kind(s: &ProfileState) -> &'static str {
         ProfileState::Installed => "installed",
         ProfileState::Partial { .. } => "partial",
         ProfileState::Absent => "absent",
-        ProfileState::Stale => "stale",
+        ProfileState::Stale { .. } => "stale",
     }
 }
 
 fn describe_snapshot(snap: &HostAppSnapshot) -> String {
-    use crate::integration::ProfileState;
+    use crate::integration::{ProfileState, StaleReason};
     let profile = match &snap.profile_state {
         ProfileState::Installed => "profile installed".to_owned(),
         ProfileState::Partial { missing_required } => {
             format!("profile partial (missing: {})", missing_required.join(", "))
         },
         ProfileState::Absent => "profile not installed".to_owned(),
-        ProfileState::Stale => "profile secret out of date (re-apply required)".to_owned(),
+        ProfileState::Stale { reason } => match reason {
+            StaleReason::LoopbackSecret => {
+                "profile secret out of date (re-apply required)".to_owned()
+            },
+            StaleReason::ProxyPort => format!(
+                "profile points at the wrong proxy port — this proxy is on {} (re-apply required)",
+                crate::proxy::resolved_port()
+            ),
+        },
     };
     let process = if snap.host_running {
         "process running"
@@ -450,9 +458,7 @@ async fn generate_profile_for(
     // loopback secret against *their* port produces exactly the 403 this
     // profile is supposed to prevent.
     let port = crate::proxy::resolved_port();
-    if let crate::integration::proxy_probe::PeerIdentity::Foreign(who) =
-        crate::integration::proxy_probe::probe_identity(port)
-    {
+    if let proxy_probe::PeerIdentity::Foreign(who) = proxy_probe::probe_identity(port) {
         return Err(GuiError::Profile {
             context: "proxy port held by another install".into(),
             source: std::io::Error::new(
