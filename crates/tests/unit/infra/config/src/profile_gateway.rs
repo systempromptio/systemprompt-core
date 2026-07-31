@@ -120,6 +120,7 @@ fn load_profile_with_catalog_resolves_gateway_section() {
     api_key_secret: anthropic
     models:
       - id: claude-sonnet-4-5
+        pricing: { input_per_million: 3.0, output_per_million: 15.0 }
 gateway:
   enabled: true
   default_provider: anthropic
