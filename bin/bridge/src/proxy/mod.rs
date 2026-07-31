@@ -112,7 +112,7 @@ pub enum StartOutcome {
 impl StartOutcome {
     /// The port serving this install, however it got there.
     #[must_use]
-    pub fn port(&self) -> Option<u16> {
+    pub const fn port(&self) -> Option<u16> {
         match self {
             Self::Started(h) => Some(h.port),
             Self::AlreadyRunning { port, .. } => Some(*port),
@@ -121,7 +121,7 @@ impl StartOutcome {
     }
 
     #[must_use]
-    pub fn is_usable(&self) -> bool {
+    pub const fn is_usable(&self) -> bool {
         self.port().is_some()
     }
 }

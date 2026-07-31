@@ -308,8 +308,7 @@ pub const WHOAMI_PATH: &str = "/__bridge/whoami";
 
 fn is_unauthenticated_path(method: &Method, path: &str) -> bool {
     match (method, path) {
-        (&Method::GET | &Method::HEAD, "/healthz") => true,
-        (&Method::GET, WHOAMI_PATH) => true,
+        (&Method::GET | &Method::HEAD, "/healthz") | (&Method::GET, WHOAMI_PATH) => true,
         (&Method::POST, p) if p == "/otel" || p.starts_with("/otel/") => true,
         _ => false,
     }

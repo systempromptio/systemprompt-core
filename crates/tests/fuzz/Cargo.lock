@@ -3229,7 +3229,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-agent"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "async-trait",
  "axum",
@@ -3267,7 +3267,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-analytics"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -3290,7 +3290,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-config"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "base64 0.22.1",
  "rand 0.10.2",
@@ -3309,7 +3309,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-database"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "async-trait",
  "base64 0.22.1",
@@ -3334,7 +3334,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-extension"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "async-trait",
  "axum",
@@ -3363,7 +3363,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-identifiers"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "chrono",
  "schemars",
@@ -3376,7 +3376,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-loader"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "serde",
  "serde_yaml_ng",
@@ -3389,7 +3389,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-logging"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -3415,7 +3415,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-models"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "async-trait",
  "axum",
@@ -3447,7 +3447,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-provider-contracts"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -3462,7 +3462,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-security"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "async-trait",
  "axum",
@@ -3498,7 +3498,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-traits"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "async-trait",
  "axum",

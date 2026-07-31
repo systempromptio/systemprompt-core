@@ -6,7 +6,10 @@ fn an_install_id_is_minted_once_and_then_read_back() {
     let path = temp_env::with_var("XDG_CONFIG_HOME", Some(temp.path().as_os_str()), || {
         identity::install_id_path().expect("a config dir yields an install id path")
     });
-    assert_eq!(path, temp.path().join("systemprompt").join("bridge-install.id"));
+    assert_eq!(
+        path,
+        temp.path().join("systemprompt").join("bridge-install.id")
+    );
 
     // The process caches the id in a OnceLock, so minting is exercised through
     // the file rather than by calling install_id() twice under two sandboxes.

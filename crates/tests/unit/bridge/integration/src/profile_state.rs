@@ -51,7 +51,12 @@ fn matching_secret_keeps_installed() {
 #[test]
 fn mismatched_secret_downgrades_installed_to_stale() {
     let s = ProfileState::classify(&["a"], &keys(&[("a", "1")]), Some(false), None);
-    assert!(matches!(s, ProfileState::Stale { reason: StaleReason::LoopbackSecret }));
+    assert!(matches!(
+        s,
+        ProfileState::Stale {
+            reason: StaleReason::LoopbackSecret
+        }
+    ));
 }
 
 #[test]

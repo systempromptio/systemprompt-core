@@ -100,7 +100,9 @@ pub fn run() -> ExitCode {
         },
         // Why: a sibling window of this same install already serves the port.
         // Keep running — the GUI is still useful against that proxy.
-        crate::proxy::StartOutcome::AlreadyRunning { port, config_dir, .. } => {
+        crate::proxy::StartOutcome::AlreadyRunning {
+            port, config_dir, ..
+        } => {
             app.append_log(format!(
                 "another {} bridge from {config_dir} is already serving 127.0.0.1:{port}; this \
                  window will use it",

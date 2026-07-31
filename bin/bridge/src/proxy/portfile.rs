@@ -2,8 +2,8 @@
 //!
 //! `proxy::handle()` is a process-global, so it is set only inside the
 //! long-running proxy. `doctor`, `install --apply` and `sync` each run as their
-//! own process and would otherwise fall back to [`DEFAULT_PROXY_PORT`], which is
-//! wrong the moment the proxy has to move. This file is how they find it.
+//! own process and would otherwise fall back to [`DEFAULT_PROXY_PORT`], which
+//! is wrong the moment the proxy has to move. This file is how they find it.
 //!
 //! Only ports inside the candidate range are recorded. An ephemeral port would
 //! otherwise become *sticky-wrong*: preferred on the next start, yet different

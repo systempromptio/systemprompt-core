@@ -166,8 +166,11 @@ pub fn probe_identity(port: u16) -> PeerIdentity {
     else {
         return PeerIdentity::Unreachable;
     };
-    let Ok(body) = http_get_body(&mut stream, "127.0.0.1", crate::proxy::dispatch::WHOAMI_PATH)
-    else {
+    let Ok(body) = http_get_body(
+        &mut stream,
+        "127.0.0.1",
+        crate::proxy::dispatch::WHOAMI_PATH,
+    ) else {
         return PeerIdentity::Unknown;
     };
     _ = stream.shutdown(std::net::Shutdown::Both);

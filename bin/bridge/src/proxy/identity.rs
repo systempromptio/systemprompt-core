@@ -130,11 +130,7 @@ fn load_or_mint() -> std::io::Result<String> {
     match fs::read(&path) {
         Ok(bytes) => {
             let s = String::from_utf8_lossy(&bytes).trim().to_owned();
-            if s.is_empty() {
-                mint(&path)
-            } else {
-                Ok(s)
-            }
+            if s.is_empty() { mint(&path) } else { Ok(s) }
         },
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => mint(&path),
         Err(e) => Err(e),

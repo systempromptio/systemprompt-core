@@ -14,7 +14,10 @@ fn a_taken_default_port_moves_the_proxy_instead_of_failing() {
     // relay mirroring a Linux bind onto the Windows loopback).
     let squatter = std::net::TcpListener::bind(("127.0.0.1", proxy::DEFAULT_PROXY_PORT));
     let Ok(squatter) = squatter else {
-        eprintln!("skipping: port {} is already in use", proxy::DEFAULT_PROXY_PORT);
+        eprintln!(
+            "skipping: port {} is already in use",
+            proxy::DEFAULT_PROXY_PORT
+        );
         return;
     };
 
