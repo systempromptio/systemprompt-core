@@ -17,6 +17,8 @@ pub const MCP_APP_MIME_TYPE: &str = "text/html;profile=mcp-app";
 pub enum McpExtensionId {
     #[serde(rename = "io.modelcontextprotocol/ui")]
     McpAppsUi,
+    #[serde(rename = "io.modelcontextprotocol/enterprise-managed-authorization")]
+    EnterpriseManagedAuth,
     #[serde(untagged)]
     Custom(String),
 }
@@ -25,6 +27,9 @@ impl McpExtensionId {
     pub fn as_str(&self) -> &str {
         match self {
             Self::McpAppsUi => "io.modelcontextprotocol/ui",
+            Self::EnterpriseManagedAuth => {
+                "io.modelcontextprotocol/enterprise-managed-authorization"
+            },
             Self::Custom(s) => s,
         }
     }

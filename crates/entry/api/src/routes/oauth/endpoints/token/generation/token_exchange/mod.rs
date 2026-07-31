@@ -14,6 +14,11 @@
 //! * `resource` (RFC 8707) is in `allowed_resource_audiences`, otherwise the
 //!   call is rejected with `invalid_target`.
 //!
+//! An ID-JAG subject additionally takes the Enterprise-Managed Authorization
+//! path: the token is issued for the employee the ID-JAG names, linked to a
+//! local account by `(iss, sub)`, and is pinned to the ID-JAG's `resource`
+//! claim when it carries one.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -25,7 +30,10 @@ use systemprompt_models::Config;
 use systemprompt_models::auth::{AuthenticatedUser, Permission, parse_permissions};
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::repository::OAuthRepository;
-use systemprompt_oauth::services::{JwtConfig, JwtSigningParams, generate_jwt_with_act};
+use systemprompt_oauth::services::validation::id_jag::resolve_bound_resource;
+use systemprompt_oauth::services::{
+    JwtConfig, JwtSigningParams, LinkedSubject, generate_jwt_with_act, link_enterprise_principal,
+};
 
 use super::super::{TokenError, TokenResponse};
 use super::RequestOrigin;
@@ -52,7 +60,7 @@ pub mod test_api {
 use claims::resolve_audience;
 use id_jag_subject::validate_id_jag_subject;
 use issue::issue_id_jag;
-use subject::validate_subject_token;
+use subject::{SubjectIdentity, validate_subject_token};
 use systemprompt_oauth::services::validation::id_jag::ID_JAG_TOKEN_TYPE;
 
 #[cfg_attr(
@@ -111,42 +119,31 @@ pub async fn handle_token_exchange(
         validate_subject_token(request.subject_token, request.subject_token_type, global).await?
     };
 
-    let resource = validate_resource(request.resource, global)?;
-
-    let grant = load_delegation_grant(repo, state, client_id).await?;
-    let requested_perms = match request.scope {
-        Some(s) => parse_permissions(s)?,
-        None => subject.scope.clone(),
-    };
-
-    let final_perms = intersect_scopes(
-        &requested_perms,
-        &subject.scope,
-        &grant.client_perms,
-        &grant.owner_perms,
-    )?;
+    let resource = resolve_resource(&subject, request.resource, global)?;
+    let (delegate, final_perms) =
+        resolve_delegate(repo, state, client_id, &subject, request.scope).await?;
 
     let audience = resolve_audience(request.audience, global)?;
 
     let issuer = &global.jwt_issuer;
     let act = build_act_chain(client_id, issuer, subject.prior_act);
 
-    let owner_uuid = uuid::Uuid::parse_str(grant.owner_user_id.as_str())
-        .map_err(|e| anyhow!("Client owner has a non-uuid id ({e})"))?;
+    let delegate_uuid = uuid::Uuid::parse_str(delegate.user_id.as_str())
+        .map_err(|e| anyhow!("Delegated user has a non-uuid id ({e})"))?;
     let delegated_user = AuthenticatedUser::new(
-        owner_uuid,
-        grant.owner_name,
-        grant.owner_email,
+        delegate_uuid,
+        delegate.name,
+        delegate.email,
         final_perms.clone(),
     );
 
-    let session_id = ensure_session(state, origin, &grant.owner_user_id, global).await?;
+    let session_id = ensure_session(state, origin, &delegate.user_id, global).await?;
 
     let config = JwtConfig {
         permissions: final_perms.clone(),
         audience: audience.clone(),
         expires_in_hours: Some(global.jwt_access_token_expiration / 3600),
-        resource: resource.map(str::to_owned),
+        resource,
         plugin_id: None,
     };
     let signing = JwtSigningParams {
@@ -204,6 +201,57 @@ pub fn validate_resource<'a>(
     }
 }
 
+// Why: Resolve the resource the issued token may target, honouring an ID-JAG's
+// pin before the deployment's own allowlist.
+fn resolve_resource(
+    subject: &SubjectIdentity,
+    requested: Option<&str>,
+    global: &Config,
+) -> Result<Option<String>> {
+    let effective =
+        resolve_bound_resource(subject.bound_resource.as_deref(), requested).map_err(|e| {
+            anyhow!(TokenError::InvalidTarget {
+                message: e.to_string(),
+            })
+        })?;
+    Ok(validate_resource(effective, global)?.map(ToOwned::to_owned))
+}
+
+// Why: Resolve who the token is issued for, and the permissions it may carry.
+// An ID-JAG subject names an employee, so the ceiling is that employee's
+// permissions; every other subject delegates the client owner's.
+async fn resolve_delegate(
+    repo: &OAuthRepository,
+    state: &OAuthState,
+    client_id: &ClientId,
+    subject: &SubjectIdentity,
+    requested_scope: Option<&str>,
+) -> Result<(LinkedSubject, Vec<Permission>)> {
+    let grant = load_delegation_grant(repo, state, client_id).await?;
+    let delegate = match subject.principal.as_ref() {
+        Some(principal) => link_enterprise_principal(state, principal).await?,
+        None => LinkedSubject {
+            user_id: grant.owner_user_id,
+            name: grant.owner_name,
+            email: grant.owner_email,
+            permissions: grant.owner_perms,
+        },
+    };
+
+    let requested_perms = match requested_scope {
+        Some(s) => parse_permissions(s)?,
+        None => subject.scope.clone(),
+    };
+    let final_perms = intersect_scopes(
+        &requested_perms,
+        &subject.scope,
+        &grant.client_perms,
+        &delegate.permissions,
+    )?;
+
+    Ok((delegate, final_perms))
+}
+
 struct DelegationGrant {
     owner_user_id: UserId,
     owner_name: String,
@@ -253,7 +301,7 @@ async fn load_delegation_grant(
 async fn ensure_session(
     state: &OAuthState,
     origin: RequestOrigin<'_>,
-    owner_user_id: &UserId,
+    user_id: &UserId,
     global: &Config,
 ) -> Result<SessionId> {
     use systemprompt_identifiers::SessionSource;
@@ -273,7 +321,7 @@ async fn ensure_session(
         .analytics_provider()
         .create_session(CreateSessionInput {
             session_id: &session_id,
-            user_id: Some(owner_user_id),
+            user_id: Some(user_id),
             analytics: &analytics,
             session_source: SessionSource::Oauth,
             is_bot: false,

@@ -1,7 +1,7 @@
 use systemprompt_identifiers::ClientId;
 use systemprompt_oauth::services::validation::id_jag::{
-    ClaimPolicy, DEFAULT_LEEWAY_SECS, ID_JAG_TYP, IdJagClaims, IdJagError, validate_claims,
-    validate_typ,
+    ClaimPolicy, DEFAULT_LEEWAY_SECS, ID_JAG_TYP, IdJagClaims, IdJagError, resolve_bound_resource,
+    validate_claims, validate_typ,
 };
 
 fn claims() -> IdJagClaims {
@@ -16,6 +16,7 @@ fn claims() -> IdJagClaims {
         iat: 999_700,
         scope: Some("user".to_owned()),
         email: None,
+        resource: None,
     }
 }
 
@@ -113,4 +114,44 @@ fn missing_client_binding() {
         validate_claims(&c, &policy(&[], 999_800)),
         Err(IdJagError::MissingClient)
     ));
+}
+
+#[test]
+fn unbound_id_jag_leaves_the_resource_to_the_request() {
+    let c = claims();
+    assert_eq!(
+        resolve_bound_resource(c.resource.as_deref(), None),
+        Ok(None)
+    );
+    assert_eq!(
+        resolve_bound_resource(c.resource.as_deref(), Some("https://a.example")),
+        Ok(Some("https://a.example"))
+    );
+}
+
+#[test]
+fn bound_id_jag_pins_the_resource_when_the_request_omits_it() {
+    let mut c = claims();
+    c.resource = Some("https://a.example".to_owned());
+    assert_eq!(
+        resolve_bound_resource(c.resource.as_deref(), None),
+        Ok(Some("https://a.example"))
+    );
+    assert_eq!(
+        resolve_bound_resource(c.resource.as_deref(), Some("https://a.example")),
+        Ok(Some("https://a.example"))
+    );
+}
+
+#[test]
+fn bound_id_jag_refuses_a_different_resource() {
+    let mut c = claims();
+    c.resource = Some("https://a.example".to_owned());
+    assert_eq!(
+        resolve_bound_resource(c.resource.as_deref(), Some("https://b.example")),
+        Err(IdJagError::ResourceMismatch {
+            expected: "https://a.example".to_owned(),
+            found: "https://b.example".to_owned(),
+        })
+    );
 }

@@ -41,6 +41,7 @@ pub struct TokenRequest {
     pub actor_token: Option<String>,
     pub actor_token_type: Option<String>,
     pub requested_token_type: Option<String>,
+    pub assertion: Option<String>,
 }
 
 #[derive(Debug, Serialize)]

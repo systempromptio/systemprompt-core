@@ -15,6 +15,7 @@ use systemprompt_identifiers::ClientId;
 use systemprompt_models::Config;
 use systemprompt_models::auth::Permission;
 use systemprompt_oauth::repository::OAuthRepository;
+use systemprompt_oauth::services::EnterprisePrincipal;
 use systemprompt_oauth::services::validation::id_jag::{
     ClaimPolicy, DEFAULT_LEEWAY_SECS, IdJagClaims, validate_claims, validate_typ,
 };
@@ -76,7 +77,16 @@ pub async fn validate_id_jag_subject(
         })
         .unwrap_or_default();
 
-    Ok(SubjectIdentity::new(scope))
+    Ok(SubjectIdentity {
+        scope,
+        prior_act: None,
+        principal: Some(EnterprisePrincipal {
+            issuer: claims.iss,
+            sub: claims.sub,
+            email: claims.email,
+        }),
+        bound_resource: claims.resource,
+    })
 }
 
 async fn verify_id_jag_signature(

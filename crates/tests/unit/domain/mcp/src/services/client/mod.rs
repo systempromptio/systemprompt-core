@@ -1,5 +1,6 @@
 //! Unit tests for MCP client types and validation helpers
 
+mod challenge;
 mod execute_tool;
 mod external_auth;
 mod external_proxy;

@@ -28,6 +28,7 @@ fn make_config(name: &str) -> McpServerConfig {
             scopes: vec![],
             audience: JwtAudience::Mcp,
             client_id: None,
+            ema: false,
         },
         tools: Default::default(),
         model_config: None,

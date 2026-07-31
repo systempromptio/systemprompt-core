@@ -43,6 +43,7 @@ impl AgentRegistryProvider for AgentRegistryProviderService {
                 required: agent.oauth.required,
                 scopes: agent.oauth.scopes.iter().map(ToString::to_string).collect(),
                 audience: agent.oauth.audience.to_string(),
+                ema: false,
             },
         })
     }
@@ -64,6 +65,7 @@ impl AgentRegistryProvider for AgentRegistryProviderService {
                     required: agent.oauth.required,
                     scopes: agent.oauth.scopes.iter().map(ToString::to_string).collect(),
                     audience: agent.oauth.audience.to_string(),
+                    ema: false,
                 },
             })
             .collect())
@@ -84,6 +86,7 @@ impl AgentRegistryProvider for AgentRegistryProviderService {
                 required: agent.oauth.required,
                 scopes: agent.oauth.scopes.iter().map(ToString::to_string).collect(),
                 audience: agent.oauth.audience.to_string(),
+                ema: false,
             },
         })
     }

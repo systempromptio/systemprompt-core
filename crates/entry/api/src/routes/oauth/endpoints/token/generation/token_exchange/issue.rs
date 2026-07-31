@@ -1,6 +1,7 @@
 //! EMA issuer path: on `requested_token_type = id-jag`, mint a short-lived
 //! ID-JAG from a validated upstream OIDC `id_token`, bound to the authenticated
-//! token-exchange client. Mirror of [`super::id_jag_subject`].
+//! token-exchange client and, when `resource` is supplied, pinned to that
+//! resource. Mirror of [`super::id_jag_subject`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -52,11 +53,14 @@ pub async fn issue_id_jag(
         },
     };
 
+    let resource = super::validate_resource(request.resource, global)?;
+
     let id_jag = mint_id_jag(&IdJagGrant {
         sub: &subject.sub,
         email: subject.email.as_deref(),
         aud,
         client_id,
+        resource,
         scope: request.scope,
         ttl_secs: global.id_jag_ttl_secs,
         issuer: &global.jwt_issuer,

@@ -28,6 +28,7 @@ fn external_config(external_auth: bool) -> McpServerConfig {
             scopes: vec![],
             audience: JwtAudience::Mcp,
             client_id: None,
+            ema: false,
         },
         tools: HashMap::new(),
         model_config: None,

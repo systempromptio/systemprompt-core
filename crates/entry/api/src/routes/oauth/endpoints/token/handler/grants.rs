@@ -1,5 +1,6 @@
 //! Per-`grant_type` token issuance: authorization-code, refresh-token,
-//! client-credentials, and RFC 8693 token-exchange.
+//! client-credentials, RFC 8693 token-exchange, and the RFC 7523 jwt-bearer
+//! assertion grant that redeems an ID-JAG.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -9,6 +10,7 @@ use std::net::IpAddr;
 use systemprompt_identifiers::{AuthorizationCode, ClientId, RefreshTokenId};
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::repository::OAuthRepository;
+use systemprompt_oauth::services::validation::id_jag::ID_JAG_TOKEN_TYPE;
 
 use super::super::generation::{
     ClientCredentialsError, ClientTokenOptions, RequestOrigin, TokenExchangeRequest,
@@ -227,6 +229,49 @@ pub(super) async fn handle_token_exchange_grant(
         client_id = %client_id,
         scope = %response.scope.as_deref().unwrap_or(""),
         "Token exchanged"
+    );
+
+    Ok(response)
+}
+
+// Why: RFC 7523 assertion grant, the redemption leg of Enterprise-Managed
+// Authorization: the client presents the ID-JAG its `IdP` issued and
+// receives an access token for the employee it names. Shares its validator
+// with the equivalent token-exchange call, which stays available.
+pub(super) async fn handle_jwt_bearer_grant(
+    repo: OAuthRepository,
+    request: TokenRequest,
+    headers: &HeaderMap,
+    caller_ip: Option<IpAddr>,
+    state: &OAuthState,
+) -> Result<TokenResponse, TokenError> {
+    let assertion = extract_required_field(request.assertion.as_deref(), "assertion")?;
+
+    let client_id_str = extract_required_field(request.client_id.as_deref(), "client_id")?;
+    let client_id = ClientId::new(client_id_str);
+    validate_client_credentials(&repo, &client_id, request.client_secret.as_deref())
+        .await
+        .map_err(|_e| TokenError::InvalidClientSecret)?;
+
+    let exchange = TokenExchangeRequest {
+        subject_token: assertion,
+        subject_token_type: ID_JAG_TOKEN_TYPE,
+        scope: request.scope.as_deref(),
+        audience: request.audience.as_deref(),
+        resource: request.resource.as_deref(),
+        ..Default::default()
+    };
+
+    let origin = RequestOrigin { headers, caller_ip };
+    let response = handle_token_exchange(&repo, &client_id, exchange, origin, state)
+        .await
+        .map_err(|e| map_exchange_error(&e))?;
+
+    tracing::info!(
+        grant_type = "urn:ietf:params:oauth:grant-type:jwt-bearer",
+        client_id = %client_id,
+        scope = %response.scope.as_deref().unwrap_or(""),
+        "ID-JAG redeemed"
     );
 
     Ok(response)

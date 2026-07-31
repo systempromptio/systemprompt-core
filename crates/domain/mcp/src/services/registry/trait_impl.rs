@@ -138,6 +138,7 @@ impl McpRegistryProvider for RegistryService {
                     .map(ToString::to_string)
                     .collect(),
                 audience: server.oauth.audience.to_string(),
+                ema: server.oauth.ema,
             },
         })
     }
@@ -161,6 +162,7 @@ impl McpRegistryProvider for RegistryService {
                         .map(ToString::to_string)
                         .collect(),
                     audience: server.oauth.audience.to_string(),
+                    ema: server.oauth.ema,
                 },
             })
             .collect())

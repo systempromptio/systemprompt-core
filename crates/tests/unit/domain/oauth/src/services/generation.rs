@@ -290,6 +290,7 @@ fn mints_id_jag_with_correct_typ_and_claims() {
         email: Some("user@example.com"),
         aud: "https://core.example",
         client_id: &client_id,
+        resource: Some("https://mcp.example/api/v1/mcp/demo/mcp"),
         scope: Some("user mcp"),
         ttl_secs: 300,
         issuer: "https://core.example",
@@ -309,6 +310,10 @@ fn mints_id_jag_with_correct_typ_and_claims() {
     );
     assert_eq!(claims.email.as_deref(), Some("user@example.com"));
     assert_eq!(claims.scope.as_deref(), Some("user mcp"));
+    assert_eq!(
+        claims.resource.as_deref(),
+        Some("https://mcp.example/api/v1/mcp/demo/mcp")
+    );
     assert_eq!(claims.exp - claims.iat, 300);
 }
 
@@ -321,6 +326,7 @@ fn defaults_optional_claims_to_none() {
         email: None,
         aud: "https://rs.example",
         client_id: &client_id,
+        resource: None,
         scope: None,
         ttl_secs: 120,
         issuer: "https://core.example",
@@ -329,6 +335,7 @@ fn defaults_optional_claims_to_none() {
     let claims = id_jag_claims(&token);
     assert!(claims.email.is_none());
     assert!(claims.scope.is_none());
+    assert!(claims.resource.is_none());
     assert_eq!(claims.iss, "https://core.example");
 }
 

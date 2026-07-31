@@ -13,6 +13,7 @@ use jsonwebtoken::{Algorithm, DecodingKey, Validation, decode, decode_header};
 use systemprompt_models::Config;
 use systemprompt_models::auth::{ActClaim, JwtAudience, JwtClaims, Permission};
 use systemprompt_models::profile::TrustedIssuer;
+use systemprompt_oauth::services::EnterprisePrincipal;
 use systemprompt_security::keys::JwksClient;
 
 use super::super::super::TokenError;
@@ -34,22 +35,12 @@ struct IssOnly {
 pub struct SubjectIdentity {
     pub scope: Vec<Permission>,
     pub prior_act: Option<ActClaim>,
-}
-
-impl SubjectIdentity {
-    #[cfg_attr(
-        not(feature = "test-api"),
-        expect(
-            unreachable_pub,
-            reason = "items are re-exported via `test_api` only when the feature is on"
-        )
-    )]
-    pub const fn new(scope: Vec<Permission>) -> Self {
-        Self {
-            scope,
-            prior_act: None,
-        }
-    }
+    /// Set only on the EMA path, where the ID-JAG names the employee the token
+    /// must be issued for. Every other subject type delegates the OAuth
+    /// client owner's identity instead and leaves this `None`.
+    pub principal: Option<EnterprisePrincipal>,
+    /// Resource the ID-JAG pins the exchange to, when it carries one.
+    pub bound_resource: Option<String>,
 }
 
 #[cfg_attr(
@@ -138,6 +129,8 @@ pub async fn validate_subject_token(
     Ok(SubjectIdentity {
         scope: data.claims.scope,
         prior_act: data.claims.act,
+        principal: None,
+        bound_resource: None,
     })
 }
 
@@ -215,6 +208,8 @@ fn validate_self_issued(token: &str, global: &Config) -> Result<SubjectIdentity>
     Ok(SubjectIdentity {
         scope: data.claims.scope,
         prior_act: data.claims.act,
+        principal: None,
+        bound_resource: None,
     })
 }
 

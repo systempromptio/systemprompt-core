@@ -22,8 +22,8 @@ mod grants;
 
 use axum::http::HeaderMap;
 use grants::{
-    handle_authorization_code_grant, handle_client_credentials_grant, handle_refresh_token_grant,
-    handle_token_exchange_grant,
+    handle_authorization_code_grant, handle_client_credentials_grant, handle_jwt_bearer_grant,
+    handle_refresh_token_grant, handle_token_exchange_grant,
 };
 
 #[expect(
@@ -54,6 +54,9 @@ pub async fn handle_token(
         },
         Some(GrantType::TokenExchange) => {
             handle_token_exchange_grant(repo, request, &headers, caller_ip, &state).await?
+        },
+        Some(GrantType::JwtBearer) => {
+            handle_jwt_bearer_grant(repo, request, &headers, caller_ip, &state).await?
         },
         None => {
             return Err(TokenError::UnsupportedGrantType {

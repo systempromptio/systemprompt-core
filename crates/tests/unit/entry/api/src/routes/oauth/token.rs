@@ -2,9 +2,8 @@ use axum::body::to_bytes;
 use axum::response::IntoResponse;
 use http::StatusCode;
 use systemprompt_api::routes::oauth::OAuthHttpError;
-use systemprompt_api::routes::oauth::discovery::{
-    OAuthProtectedResourceResponse, WellKnownResponse,
-};
+use systemprompt_api::routes::oauth::discovery::WellKnownResponse;
+use systemprompt_models::oauth::ProtectedResourceMetadata;
 use systemprompt_api::routes::oauth::endpoints::token::{TokenError, TokenRequest, TokenResponse};
 
 #[test]
@@ -337,6 +336,9 @@ fn test_well_known_response_serialize() {
             "urn:ietf:params:oauth:token-type:access_token".to_string(),
         ],
         issued_token_types_supported: vec!["urn:ietf:params:oauth:token-type:id-jag".to_string()],
+        authorization_grant_profiles_supported: vec![
+            "urn:ietf:params:oauth:grant-profile:id-jag".to_owned(),
+        ],
     };
 
     let json = serde_json::to_value(&response).unwrap();
@@ -360,12 +362,13 @@ fn test_well_known_response_serialize() {
 
 #[test]
 fn test_oauth_protected_resource_response_serialize() {
-    let response = OAuthProtectedResourceResponse {
+    let response = ProtectedResourceMetadata {
         resource: "https://api.example.com".to_string(),
         authorization_servers: vec!["https://auth.example.com".to_string()],
         scopes_supported: vec!["read".to_string(), "write".to_string()],
         bearer_methods_supported: vec!["header".to_string()],
         resource_documentation: Some("https://docs.example.com".to_string()),
+        mcp_extensions_supported: Vec::new(),
     };
 
     let json = serde_json::to_value(&response).unwrap();
@@ -379,14 +382,15 @@ fn test_oauth_protected_resource_response_serialize() {
 
 #[test]
 fn test_oauth_protected_resource_response_debug() {
-    let response = OAuthProtectedResourceResponse {
+    let response = ProtectedResourceMetadata {
         resource: "https://api.example.com".to_string(),
         authorization_servers: vec![],
         scopes_supported: vec![],
         bearer_methods_supported: vec![],
         resource_documentation: None,
+        mcp_extensions_supported: Vec::new(),
     };
 
     let debug = format!("{response:?}");
-    assert!(debug.contains("OAuthProtectedResourceResponse"));
+    assert!(debug.contains("https://api.example.com"), "{debug}");
 }

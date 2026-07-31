@@ -8,7 +8,9 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod client;
+pub mod protected_resource;
 pub mod server;
 
 pub use client::OAuthClientConfig;
+pub use protected_resource::ProtectedResourceMetadata;
 pub use server::OAuthServerConfig;

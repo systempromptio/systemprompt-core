@@ -22,6 +22,7 @@ fn deployment(required: bool, scopes: Vec<Permission>) -> Deployment {
             scopes,
             audience: JwtAudience::Mcp,
             client_id: None,
+            ema: false,
         },
         tools: HashMap::default(),
         model_config: None,

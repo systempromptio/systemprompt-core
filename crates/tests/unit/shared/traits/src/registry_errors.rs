@@ -51,6 +51,7 @@ fn service_oauth_config_default_required_true() {
     assert!(c.required);
     assert!(c.scopes.is_empty());
     assert!(c.audience.is_empty());
+    assert!(!c.ema, "EMA is opt-in per service");
 }
 
 #[test]
@@ -59,11 +60,13 @@ fn service_oauth_config_clone() {
         required: false,
         scopes: vec!["read".into(), "write".into()],
         audience: "api".into(),
+        ema: true,
     };
     let c2 = c.clone();
     assert!(!c2.required);
     assert_eq!(c2.scopes, vec!["read", "write"]);
     assert_eq!(c2.audience, "api");
+    assert!(c2.ema);
 }
 
 // --- AgentInfo ---

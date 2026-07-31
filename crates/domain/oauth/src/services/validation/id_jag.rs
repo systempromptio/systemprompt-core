@@ -12,6 +12,10 @@ pub const ID_JAG_TOKEN_TYPE: &str = "urn:ietf:params:oauth:token-type:id-jag";
 /// Mandatory JOSE `typ` header of an ID-JAG (draft §3).
 pub const ID_JAG_TYP: &str = "oauth-id-jag+jwt";
 
+/// Authorization-grant profile an EMA client looks for in authorization-server
+/// metadata to know it should present an ID-JAG rather than redirect the user.
+pub const ID_JAG_GRANT_PROFILE: &str = "urn:ietf:params:oauth:grant-profile:id-jag";
+
 pub const DEFAULT_LEEWAY_SECS: i64 = 60;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -30,6 +34,8 @@ pub struct IdJagClaims {
     pub scope: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub email: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub resource: Option<String>,
 }
 
 impl IdJagClaims {
@@ -52,6 +58,8 @@ pub enum IdJagError {
     ClientMismatch { expected: String, found: String },
     #[error("ID-JAG client '{found}' is not an allowed client for its issuer")]
     ClientNotAllowed { found: String },
+    #[error("ID-JAG is bound to resource '{expected}', not '{found}'")]
+    ResourceMismatch { expected: String, found: String },
     #[error("ID-JAG has expired")]
     Expired,
     #[error("ID-JAG iat is in the future")]
@@ -111,4 +119,24 @@ pub fn validate_claims(claims: &IdJagClaims, policy: &ClaimPolicy<'_>) -> Result
     }
 
     Ok(())
+}
+
+/// Resolve the resource the exchanged access token may target.
+///
+/// An ID-JAG carrying a `resource` claim pins the grant to that resource: the
+/// request may either omit `resource` or name the same one. An ID-JAG without
+/// the claim leaves the choice to the request, which the caller still filters
+/// through its own resource allowlist.
+pub fn resolve_bound_resource<'a>(
+    bound: Option<&'a str>,
+    requested: Option<&'a str>,
+) -> Result<Option<&'a str>, IdJagError> {
+    match (bound, requested) {
+        (Some(bound), Some(asked)) if bound != asked => Err(IdJagError::ResourceMismatch {
+            expected: bound.to_owned(),
+            found: asked.to_owned(),
+        }),
+        (Some(bound), _) => Ok(Some(bound)),
+        (None, asked) => Ok(asked),
+    }
 }

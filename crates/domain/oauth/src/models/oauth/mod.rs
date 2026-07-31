@@ -75,6 +75,7 @@ pub enum GrantType {
     RefreshToken,
     ClientCredentials,
     TokenExchange,
+    JwtBearer,
 }
 
 impl_str_enum!(GrantType, GrantType, {
@@ -82,6 +83,7 @@ impl_str_enum!(GrantType, GrantType, {
     RefreshToken => "refresh_token",
     ClientCredentials => "client_credentials",
     TokenExchange => "urn:ietf:params:oauth:grant-type:token-exchange",
+    JwtBearer => "urn:ietf:params:oauth:grant-type:jwt-bearer",
 });
 
 impl GrantType {

@@ -226,6 +226,7 @@ async fn test_get_all_service_status_unreachable() {
             scopes: vec![],
             audience: JwtAudience::Mcp,
             client_id: None,
+            ema: false,
         },
         tools: Default::default(),
         model_config: None,

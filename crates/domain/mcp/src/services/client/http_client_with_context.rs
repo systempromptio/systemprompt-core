@@ -9,6 +9,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use super::bounded_sse::{DEFAULT_MAX_SSE_EVENT_SIZE, bounded_sse_stream};
+use super::challenge::{AuthChallenge, McpTransportError};
 use futures::stream::BoxStream;
 use http::header::WWW_AUTHENTICATE;
 use http::{HeaderName, HeaderValue};
@@ -25,8 +26,9 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use systemprompt_models::RequestContext;
 use systemprompt_models::net::{
-    HTTP_KEEPALIVE, HTTP_POOL_IDLE_TIMEOUT, HTTP_STREAM_CONNECT_TIMEOUT,
+    HTTP_KEEPALIVE, HTTP_POOL_IDLE_TIMEOUT, HTTP_STREAM_CONNECT_TIMEOUT, validate_outbound_url,
 };
+use systemprompt_models::oauth::ProtectedResourceMetadata;
 use systemprompt_traits::ContextPropagation;
 
 #[derive(Clone, Debug)]
@@ -40,6 +42,55 @@ pub struct HttpClientWithContext {
 impl HttpClientWithContext {
     pub fn new(context: RequestContext) -> Self {
         Self::build(context, true, HashMap::new())
+    }
+
+    /// Turn a 401's `WWW-Authenticate` challenge into a typed error, enriched
+    /// with whatever its RFC 9728 metadata says about how to authorize.
+    async fn authorization_error(&self, header: &str) -> McpTransportError {
+        let challenge = AuthChallenge::parse(header);
+        let metadata_url = challenge.resource_metadata.clone();
+        let metadata = match metadata_url.as_deref() {
+            Some(url) => self.fetch_protected_resource(url).await,
+            None => None,
+        };
+
+        McpTransportError::AuthorizationRequired {
+            reason: challenge
+                .error_description
+                .or(challenge.error)
+                .unwrap_or_else(|| "the server requires authorization".to_owned()),
+            resource: metadata.as_ref().map(|m| m.resource.clone()),
+            metadata_url,
+            authorization_servers: metadata
+                .as_ref()
+                .map(|m| m.authorization_servers.clone())
+                .unwrap_or_default(),
+            enterprise_managed: metadata
+                .as_ref()
+                .is_some_and(ProtectedResourceMetadata::requires_enterprise_managed_auth),
+        }
+    }
+
+    /// Read the RFC 9728 metadata a challenge points at.
+    ///
+    /// The URL comes from the peer, so it goes through the outbound guard
+    /// before it is dialled. An unreadable document is not an error in itself —
+    /// the 401 stands on its own, and the metadata only enriches it.
+    async fn fetch_protected_resource(
+        &self,
+        metadata_url: &str,
+    ) -> Option<ProtectedResourceMetadata> {
+        let url = validate_outbound_url(metadata_url).ok()?;
+        self.client
+            .get(url)
+            .send()
+            .await
+            .ok()?
+            .error_for_status()
+            .ok()?
+            .json::<ProtectedResourceMetadata>()
+            .await
+            .ok()
     }
 
     /// Client for a third-party external MCP server: the systemprompt JWT and
@@ -105,7 +156,7 @@ impl HttpClientWithContext {
 }
 
 impl StreamableHttpClient for HttpClientWithContext {
-    type Error = reqwest::Error;
+    type Error = McpTransportError;
 
     async fn get_stream(
         &self,
@@ -160,13 +211,13 @@ impl StreamableHttpClient for HttpClientWithContext {
         let response = request_builder
             .send()
             .await
-            .map_err(StreamableHttpError::Client)?;
+            .map_err(|e| StreamableHttpError::Client(e.into()))?;
         if response.status() == reqwest::StatusCode::METHOD_NOT_ALLOWED {
             return Err(StreamableHttpError::ServerDoesNotSupportSse);
         }
         let response = response
             .error_for_status()
-            .map_err(StreamableHttpError::Client)?;
+            .map_err(|e| StreamableHttpError::Client(e.into()))?;
         match response.headers().get(reqwest::header::CONTENT_TYPE) {
             Some(ct) => {
                 if !ct.as_bytes().starts_with(EVENT_STREAM_MIME_TYPE.as_bytes()) {
@@ -207,14 +258,14 @@ impl StreamableHttpClient for HttpClientWithContext {
             .header(HEADER_SESSION_ID, session.as_ref())
             .send()
             .await
-            .map_err(StreamableHttpError::Client)?;
+            .map_err(|e| StreamableHttpError::Client(e.into()))?;
 
         if response.status() == reqwest::StatusCode::METHOD_NOT_ALLOWED {
             return Ok(());
         }
         let _response = response
             .error_for_status()
-            .map_err(StreamableHttpError::Client)?;
+            .map_err(|e| StreamableHttpError::Client(e.into()))?;
         Ok(())
     }
 
@@ -267,25 +318,22 @@ impl StreamableHttpClient for HttpClientWithContext {
             .json(&message)
             .send()
             .await
-            .map_err(StreamableHttpError::Client)?;
+            .map_err(|e| StreamableHttpError::Client(e.into()))?;
         if response.status() == reqwest::StatusCode::UNAUTHORIZED
             && let Some(header) = response.headers().get(WWW_AUTHENTICATE)
         {
-            let header = header
-                .to_str()
-                .map_err(|_e| {
-                    StreamableHttpError::UnexpectedServerResponse(std::borrow::Cow::from(
-                        "invalid www-authenticate header value",
-                    ))
-                })?
-                .to_owned();
-            return Err(StreamableHttpError::UnexpectedServerResponse(
-                std::borrow::Cow::from(format!("auth required: {header}")),
+            let header = header.to_str().map_err(|_e| {
+                StreamableHttpError::UnexpectedServerResponse(std::borrow::Cow::from(
+                    "invalid www-authenticate header value",
+                ))
+            })?;
+            return Err(StreamableHttpError::Client(
+                self.authorization_error(header).await,
             ));
         }
         let response = response
             .error_for_status()
-            .map_err(StreamableHttpError::Client)?;
+            .map_err(|e| StreamableHttpError::Client(e.into()))?;
         if response.status() == reqwest::StatusCode::ACCEPTED {
             return Ok(StreamableHttpPostResponse::Accepted);
         }
@@ -298,8 +346,10 @@ impl StreamableHttpClient for HttpClientWithContext {
                 Ok(StreamableHttpPostResponse::Sse(event_stream, session_id))
             },
             Some(ct) if ct.as_bytes().starts_with(JSON_MIME_TYPE.as_bytes()) => {
-                let message: ServerJsonRpcMessage =
-                    response.json().await.map_err(StreamableHttpError::Client)?;
+                let message: ServerJsonRpcMessage = response
+                    .json()
+                    .await
+                    .map_err(|e| StreamableHttpError::Client(e.into()))?;
                 Ok(StreamableHttpPostResponse::Json(message, session_id))
             },
             _ => Err(StreamableHttpError::UnexpectedContentType(

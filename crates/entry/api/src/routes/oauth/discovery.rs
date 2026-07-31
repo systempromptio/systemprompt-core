@@ -9,7 +9,8 @@ use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use serde::Serialize;
 use systemprompt_models::modules::ApiPaths;
-use systemprompt_models::oauth::OAuthServerConfig;
+use systemprompt_models::oauth::{OAuthServerConfig, ProtectedResourceMetadata};
+use systemprompt_oauth::services::validation::id_jag::ID_JAG_GRANT_PROFILE;
 use systemprompt_runtime::AppContext;
 
 use crate::routes::proxy::mcp::get_mcp_server_scopes;
@@ -36,6 +37,7 @@ pub struct WellKnownResponse {
     pub authorization_response_iss_parameter_supported: bool,
     pub subject_token_types_supported: Vec<String>,
     pub issued_token_types_supported: Vec<String>,
+    pub authorization_grant_profiles_supported: Vec<String>,
 }
 
 pub async fn handle_well_known(base: RequestBaseUrl) -> impl IntoResponse {
@@ -85,29 +87,22 @@ pub async fn handle_well_known(base: RequestBaseUrl) -> impl IntoResponse {
             "urn:ietf:params:oauth:token-type:access_token".to_owned(),
             "urn:ietf:params:oauth:token-type:id-jag".to_owned(),
         ],
+        authorization_grant_profiles_supported: vec![ID_JAG_GRANT_PROFILE.to_owned()],
     };
 
     (StatusCode::OK, Json(response)).into_response()
 }
 
-#[derive(Debug, Serialize)]
-pub struct OAuthProtectedResourceResponse {
-    pub resource: String,
-    pub authorization_servers: Vec<String>,
-    pub scopes_supported: Vec<String>,
-    pub bearer_methods_supported: Vec<String>,
-    pub resource_documentation: Option<String>,
-}
-
 pub async fn handle_oauth_protected_resource(base: RequestBaseUrl) -> impl IntoResponse {
     let config = OAuthServerConfig::from_api_server_url(base.as_str());
 
-    let response = OAuthProtectedResourceResponse {
+    let response = ProtectedResourceMetadata {
         resource: config.issuer.clone(),
         authorization_servers: vec![config.issuer.clone()],
         scopes_supported: config.supported_scopes,
         bearer_methods_supported: vec!["header".to_owned(), "body".to_owned()],
         resource_documentation: Some(config.issuer),
+        mcp_extensions_supported: Vec::new(),
     };
 
     (StatusCode::OK, Json(response)).into_response()
@@ -146,12 +141,13 @@ pub async fn handle_oauth_protected_resource_with_path(
         ApiPaths::mcp_server_endpoint(&service_name)
     );
 
-    let response = OAuthProtectedResourceResponse {
+    let response = ProtectedResourceMetadata {
         resource: resource_url,
         authorization_servers: vec![base_url.clone()],
         scopes_supported: scopes,
         bearer_methods_supported: vec!["header".to_owned()],
         resource_documentation: Some(base_url),
+        mcp_extensions_supported: Vec::new(),
     };
 
     (StatusCode::OK, Json(response)).into_response()

@@ -194,6 +194,11 @@ pub struct OAuthRequirement {
     pub scopes: Vec<Permission>,
     pub audience: JwtAudience,
     pub client_id: Option<ClientId>,
+    /// Declares the MCP Enterprise-Managed Authorization extension on this
+    /// server's protected-resource metadata, telling clients to redeem an
+    /// IdP-issued ID-JAG instead of running their own authorization redirect.
+    #[serde(default)]
+    pub ema: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

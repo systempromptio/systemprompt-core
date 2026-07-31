@@ -70,6 +70,7 @@ fn make_config(name: &str, port: u16) -> McpServerConfig {
             scopes: vec![],
             audience: JwtAudience::Mcp,
             client_id: None,
+            ema: false,
         },
         tools: Default::default(),
         model_config: None,

@@ -15,6 +15,7 @@ pub struct IdJagGrant<'a> {
     pub email: Option<&'a str>,
     pub aud: &'a str,
     pub client_id: &'a ClientId,
+    pub resource: Option<&'a str>,
     pub scope: Option<&'a str>,
     pub ttl_secs: i64,
     pub issuer: &'a str,
@@ -33,6 +34,7 @@ pub fn mint_id_jag(grant: &IdJagGrant<'_>) -> Result<String> {
         iat: now,
         scope: grant.scope.map(ToOwned::to_owned),
         email: grant.email.map(ToOwned::to_owned),
+        resource: grant.resource.map(ToOwned::to_owned),
     };
     super::encode_id_jag_with_authority(&claims)
 }

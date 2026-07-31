@@ -9,30 +9,17 @@ use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use serde::Serialize;
-use std::str::FromStr;
 use systemprompt_models::Config;
-use systemprompt_models::auth::JwtAudience;
 use systemprompt_models::mcp::McpExtensionId;
-use systemprompt_oauth::services::validation::id_jag::ID_JAG_TOKEN_TYPE;
+use systemprompt_models::oauth::ProtectedResourceMetadata;
+use systemprompt_oauth::services::validation::id_jag::{ID_JAG_GRANT_PROFILE, ID_JAG_TOKEN_TYPE};
 use systemprompt_oauth::{GrantType, PkceMethod, ResponseType, TokenAuthMethod};
 use systemprompt_traits::McpRegistryProvider;
 
 use super::{McpState, get_mcp_server_scopes};
 
-const EMA_EXTENSION_ID: &str = "io.modelcontextprotocol/enterprise-managed-authorization";
 const ACCESS_TOKEN_TYPE: &str = "urn:ietf:params:oauth:token-type:access_token";
 const ID_TOKEN_TYPE: &str = "urn:ietf:params:oauth:token-type:id_token";
-
-#[derive(Debug, Serialize)]
-struct McpProtectedResourceMetadata {
-    resource: String,
-    authorization_servers: Vec<String>,
-    scopes_supported: Vec<String>,
-    bearer_methods_supported: Vec<String>,
-    resource_documentation: Option<String>,
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    mcp_extensions_supported: Vec<String>,
-}
 
 #[derive(Debug, Serialize)]
 struct McpAuthorizationServerMetadata {
@@ -48,6 +35,7 @@ struct McpAuthorizationServerMetadata {
     authorization_response_iss_parameter_supported: bool,
     subject_token_types_supported: Vec<String>,
     issued_token_types_supported: Vec<String>,
+    authorization_grant_profiles_supported: Vec<String>,
 }
 
 pub(super) async fn handle_mcp_protected_resource(
@@ -72,14 +60,14 @@ pub(super) async fn handle_mcp_protected_resource(
 
     let mcp_extensions_supported =
         if mcp_server_requires_ema(state.ctx.mcp_registry(), &service_name).await {
-            vec![McpExtensionId::custom(EMA_EXTENSION_ID).as_str().to_owned()]
+            vec![McpExtensionId::EnterpriseManagedAuth]
         } else {
             Vec::new()
         };
 
     let resource_url = format!("{}/api/v1/mcp/{}/mcp", base_url, service_name);
 
-    let metadata = McpProtectedResourceMetadata {
+    let metadata = ProtectedResourceMetadata {
         resource: resource_url,
         authorization_servers: vec![base_url.clone()],
         scopes_supported: scopes,
@@ -117,6 +105,7 @@ pub(super) async fn handle_mcp_authorization_server(
             GrantType::AuthorizationCode.to_string(),
             GrantType::RefreshToken.to_string(),
             GrantType::TokenExchange.to_string(),
+            GrantType::JwtBearer.to_string(),
         ],
         code_challenge_methods_supported: vec![PkceMethod::S256.to_string()],
         token_endpoint_auth_methods_supported: vec![
@@ -134,6 +123,7 @@ pub(super) async fn handle_mcp_authorization_server(
             ACCESS_TOKEN_TYPE.to_owned(),
             ID_JAG_TOKEN_TYPE.to_owned(),
         ],
+        authorization_grant_profiles_supported: vec![ID_JAG_GRANT_PROFILE.to_owned()],
     };
 
     (StatusCode::OK, Json(metadata)).into_response()
@@ -141,12 +131,7 @@ pub(super) async fn handle_mcp_authorization_server(
 
 async fn mcp_server_requires_ema(registry: &dyn McpRegistryProvider, service_name: &str) -> bool {
     match registry.get_server(service_name).await {
-        Ok(info) if info.oauth.required => {
-            matches!(
-                JwtAudience::from_str(&info.oauth.audience),
-                Ok(JwtAudience::Resource(_))
-            )
-        },
-        _ => false,
+        Ok(info) => info.oauth.required && info.oauth.ema,
+        Err(_) => false,
     }
 }

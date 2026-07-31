@@ -4,7 +4,8 @@
 //! executes tool calls, and validates reachability.
 //!
 //! Sampling, elicitation, and roots are neither implemented nor advertised in
-//! [`ClientCapabilities`], so a conforming server issues none of them —
+//! [`rmcp::model::ClientCapabilities`], so a conforming server issues none of
+//! them —
 //! including as SEP-2322 `input_required` rounds. Servicing `create_message`
 //! would let a third-party MCP server spend our inference budget under our
 //! credentials, so adding it is an authorization decision.
@@ -14,7 +15,7 @@
 
 use crate::error::McpDomainResult;
 use rmcp::handler::client::progress::ProgressDispatcher;
-use rmcp::model::{ClientCapabilities, ClientInfo, Implementation, ProgressNotificationParam};
+use rmcp::model::{ClientInfo, Implementation, ProgressNotificationParam};
 use rmcp::service::NotificationContext;
 use rmcp::transport::streamable_http_client::{
     StreamableHttpClientTransport, StreamableHttpClientTransportConfig,
@@ -27,12 +28,15 @@ use systemprompt_models::net::{HTTP_STREAM_CONNECT_TIMEOUT, MCP_TOOL_EXECUTION_T
 use tokio::time::timeout;
 
 mod bounded_sse;
+mod capabilities;
+mod challenge;
 pub mod external_auth;
 mod external_proxy;
 mod http_client_with_context;
 mod types;
 mod validation;
 
+pub use challenge::{AuthChallenge, McpTransportError};
 pub use external_proxy::ExternalProxyTarget;
 pub use http_client_with_context::HttpClientWithContext;
 pub use types::{McpConnectionResult, McpProtocolInfo, ValidationResult};
@@ -86,7 +90,7 @@ impl McpClient {
         let transport = build_transport(server_config, context).await?;
 
         let client_info = ClientInfo::new(
-            ClientCapabilities::default(),
+            capabilities::client_capabilities(),
             Implementation::new("systemprompt-mcp-client", "1.0.0"),
         );
 
@@ -200,7 +204,7 @@ pub async fn execute_tool_call(
     arguments: Option<serde_json::Value>,
 ) -> McpDomainResult<systemprompt_models::CallToolResult> {
     let client_info = ClientInfo::new(
-        ClientCapabilities::default(),
+        capabilities::client_capabilities(),
         Implementation::new("systemprompt-ai-mcp-client", "1.0.0"),
     );
 

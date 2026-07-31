@@ -31,6 +31,7 @@ fn config(name: &str, oauth_required: bool) -> McpServerConfig {
             scopes: vec![],
             audience: JwtAudience::Mcp,
             client_id: None,
+            ema: false,
         },
         tools: HashMap::new(),
         model_config: None,
