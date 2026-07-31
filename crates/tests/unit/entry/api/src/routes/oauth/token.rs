@@ -3,8 +3,8 @@ use axum::response::IntoResponse;
 use http::StatusCode;
 use systemprompt_api::routes::oauth::OAuthHttpError;
 use systemprompt_api::routes::oauth::discovery::WellKnownResponse;
-use systemprompt_models::oauth::ProtectedResourceMetadata;
 use systemprompt_api::routes::oauth::endpoints::token::{TokenError, TokenRequest, TokenResponse};
+use systemprompt_models::oauth::ProtectedResourceMetadata;
 
 #[test]
 fn test_token_error_invalid_request_display() {

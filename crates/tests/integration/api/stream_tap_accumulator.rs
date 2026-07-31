@@ -81,7 +81,7 @@ fn accumulates_text_and_usage_and_stop() {
 }
 
 #[test]
-fn usage_delta_ignores_zero_values() {
+fn usage_delta_replaces_the_message_start_estimate_wholesale() {
     let mut state = TapState::default();
     feed(
         &mut state,
@@ -97,10 +97,11 @@ fn usage_delta_ignores_zero_values() {
 
     let response = snapshot(&state);
     assert_eq!(
-        response.usage.input_tokens, 7,
-        "zero input must not overwrite"
+        response.usage.input_tokens, 0,
+        "a delta is a complete cumulative snapshot, so a real later zero must \
+         replace the message_start estimate rather than be guarded away"
     );
-    assert_eq!(response.usage.output_tokens, 9, "non-zero output updates");
+    assert_eq!(response.usage.output_tokens, 9);
 }
 
 #[test]

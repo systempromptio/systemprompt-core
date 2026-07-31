@@ -4,11 +4,13 @@
 
 use futures::StreamExt;
 use rmcp::model::ClientJsonRpcMessage;
-use rmcp::transport::streamable_http_client::{StreamableHttpClient, StreamableHttpPostResponse};
+use rmcp::transport::streamable_http_client::{
+    StreamableHttpClient, StreamableHttpError, StreamableHttpPostResponse,
+};
 use std::collections::HashMap;
 use std::sync::Arc;
 use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId, TraceId, UserId};
-use systemprompt_mcp::services::client::HttpClientWithContext;
+use systemprompt_mcp::services::client::{HttpClientWithContext, McpTransportError};
 use systemprompt_models::RequestContext;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -117,7 +119,7 @@ async fn post_message_sse_response_returns_stream() {
 }
 
 #[tokio::test]
-async fn post_message_unauthorized_surfaces_www_authenticate() {
+async fn post_message_unauthorized_surfaces_a_typed_challenge() {
     let server = MockServer::start().await;
     Mock::given(method("POST"))
         .respond_with(
@@ -132,7 +134,72 @@ async fn post_message_unauthorized_surfaces_www_authenticate() {
         .await
         .expect_err("401 must error");
 
-    assert!(err.to_string().contains("auth required"));
+    let StreamableHttpError::Client(McpTransportError::AuthorizationRequired {
+        enterprise_managed,
+        metadata_url,
+        ..
+    }) = err
+    else {
+        panic!("expected a typed authorization challenge, got {err:?}");
+    };
+    assert!(
+        !enterprise_managed,
+        "a challenge advertising no metadata cannot claim enterprise-managed auth"
+    );
+    assert!(
+        metadata_url.is_none(),
+        "no resource_metadata was advertised"
+    );
+}
+
+#[tokio::test]
+async fn post_message_unauthorized_reports_enterprise_managed_from_resource_metadata() {
+    let server = MockServer::start().await;
+    let metadata_path = "/.well-known/oauth-protected-resource";
+    let metadata_url = format!("{}{metadata_path}", server.uri());
+    Mock::given(method("POST"))
+        .respond_with(ResponseTemplate::new(401).insert_header(
+            "www-authenticate",
+            format!("Bearer realm=\"mcp\", resource_metadata=\"{metadata_url}\"").as_str(),
+        ))
+        .mount(&server)
+        .await;
+    Mock::given(method("GET"))
+        .and(path(metadata_path))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "resource": "https://api.test/api/v1/mcp/demo/mcp",
+            "authorization_servers": ["https://api.test"],
+            "mcp_extensions_supported": [
+                "io.modelcontextprotocol/enterprise-managed-authorization"
+            ],
+        })))
+        .mount(&server)
+        .await;
+
+    let client = HttpClientWithContext::forwarding(ctx(), HashMap::new());
+    let err = client
+        .post_message(uri(&server), ping(), None, None, HashMap::new())
+        .await
+        .expect_err("401 must error");
+
+    let StreamableHttpError::Client(McpTransportError::AuthorizationRequired {
+        enterprise_managed,
+        resource,
+        authorization_servers,
+        ..
+    }) = err
+    else {
+        panic!("expected a typed authorization challenge, got {err:?}");
+    };
+    assert!(
+        enterprise_managed,
+        "the advertised extension must reach the caller as a flag, not a message"
+    );
+    assert_eq!(
+        resource.as_deref(),
+        Some("https://api.test/api/v1/mcp/demo/mcp")
+    );
+    assert_eq!(authorization_servers, vec!["https://api.test".to_owned()]);
 }
 
 #[tokio::test]
