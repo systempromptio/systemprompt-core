@@ -3,7 +3,7 @@
 
 use systemprompt_api::services::gateway::protocol::canonical::CanonicalContent;
 use systemprompt_api::services::gateway::protocol::canonical_response::{
-    CanonicalEvent, CanonicalStopReason, CanonicalUsage, ContentBlockKind,
+    CanonicalEvent, CanonicalStopReason, CanonicalUsage, CanonicalUsageUpdate, ContentBlockKind,
 };
 use systemprompt_api::services::gateway::stream_tap::test_api::{
     TapState, accumulate_event, extract_summary, snapshot,
@@ -233,17 +233,42 @@ fn deltas_for_unknown_or_mismatched_blocks_are_ignored() {
 }
 
 #[test]
+fn usage_delta_leaves_counts_its_frame_never_stated() {
+    let mut state = TapState::default();
+    start(&mut state, "resp-8", "model-a");
+    accumulate_event(
+        &mut state,
+        &CanonicalEvent::UsageDelta(CanonicalUsageUpdate {
+            output_tokens: Some(340),
+            ..CanonicalUsageUpdate::default()
+        }),
+    );
+
+    let response = snapshot(&state);
+    assert_eq!(
+        response.usage.input_tokens, 10,
+        "an Anthropic `message_delta` may state `output_tokens` alone; folding \
+         it in as a complete snapshot would zero the input count \
+         `message_start` established and bill the request short"
+    );
+    assert_eq!(response.usage.output_tokens, 340);
+    assert_eq!(
+        response.usage.total_tokens, 350,
+        "the total rederives from the merged counts, not from the frame alone"
+    );
+}
+
+#[test]
 fn usage_delta_replaces_the_message_start_snapshot_wholesale() {
     let mut state = TapState::default();
     start(&mut state, "resp-7", "model-a");
     accumulate_event(
         &mut state,
-        &CanonicalEvent::UsageDelta(CanonicalUsage {
-            input_tokens: 0,
-            output_tokens: 42,
-            cache_read_tokens: 7,
-            cache_creation_tokens: 3,
-            total_tokens: 0,
+        &CanonicalEvent::UsageDelta(CanonicalUsageUpdate {
+            input_tokens: Some(0),
+            output_tokens: Some(42),
+            cache_read_tokens: Some(7),
+            cache_creation_tokens: Some(3),
         }),
     );
 
@@ -271,12 +296,11 @@ fn message_start_alone_does_not_count_as_reported_usage() {
     start(&mut state, "resp-9", "model-a");
     accumulate_event(
         &mut state,
-        &CanonicalEvent::UsageDelta(CanonicalUsage {
-            input_tokens: 5_000,
-            output_tokens: 120,
-            cache_read_tokens: 0,
-            cache_creation_tokens: 0,
-            total_tokens: 0,
+        &CanonicalEvent::UsageDelta(CanonicalUsageUpdate {
+            input_tokens: Some(5_000),
+            output_tokens: Some(120),
+            cache_read_tokens: Some(0),
+            cache_creation_tokens: Some(0),
         }),
     );
     assert!(extract_summary(&mut state).saw_usage_delta);

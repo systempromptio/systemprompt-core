@@ -17,7 +17,7 @@
 - Cache reads and cache writes are billed at their own rates instead of being ignored. For an agent loop resending a large cached prompt they are the bulk of the tokens, so costing on `input + output` alone understated the bill by an order of magnitude; `tokens_used` now counts all four buckets too.
 - A streamed request is recorded as having reported usage only when a real usage event arrived. The `message_start` snapshot carries small non-zero placeholders, so token counts alone could not distinguish "billed usage reported" from "never reported", and the stream tap accepted the placeholder as the final answer.
 - The stream tap takes the last usage snapshot outright rather than keeping the largest value per field. Every producer emits a complete cumulative snapshot, so the field-wise `> 0` guards were wrong twice over: they let a stale `message_start` estimate survive a real later zero, and they left `total_tokens` — which no producer sets on a delta — permanently stale.
-
+- The stream tap merges a usage update rather than replacing its whole snapshot, so a frame stating only `output_tokens` no longer zeroes the input and cache counts `message_start` established. A count the frame does state wins even at zero, so a stale estimate still cannot survive a real later report. The Anthropic inbound render omits a count the upstream frame never stated instead of emitting it as zero.
 ## [0.27.0] - 2026-07-29
 
 ### Changed

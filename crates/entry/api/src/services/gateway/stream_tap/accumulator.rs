@@ -11,7 +11,8 @@ use systemprompt_models::wire::inspect::{SurfaceBudget, sse_string_leaves};
 use super::super::captures::{CapturedToolUse, CapturedUsage};
 use super::super::protocol::canonical::CanonicalContent;
 use super::super::protocol::canonical_response::{
-    CanonicalEvent, CanonicalResponse, CanonicalStopReason, CanonicalUsage, ContentBlockKind,
+    CanonicalEvent, CanonicalResponse, CanonicalStopReason, CanonicalUsage, CanonicalUsageUpdate,
+    ContentBlockKind,
 };
 
 #[cfg_attr(
@@ -180,21 +181,14 @@ fn build_response(state: &TapState) -> CanonicalResponse {
     }
 }
 
-// Why: Every producer of a [`CanonicalEvent::UsageDelta`] emits a *complete*
-// cumulative snapshot, not a per-field increment, so the last snapshot wins
-// outright. Field-wise `> 0` guards would be wrong twice over: they let a
-// stale `message_start` estimate survive a real later `0`, and they leave
-// `total_tokens` — which no producer sets on a delta — permanently stale.
-const fn apply_usage(state: &mut TapState, usage: &CanonicalUsage) {
+// Why: an update states only the counts its frame reported, so applying it
+// overwrites those and leaves the rest — a `message_delta` carrying just
+// `output_tokens` must not zero the input and cache counts `message_start`
+// established. A count the frame does state wins even at zero, so a stale
+// `message_start` estimate cannot survive a real later report.
+const fn apply_usage(state: &mut TapState, update: &CanonicalUsageUpdate) {
     state.saw_usage_delta = true;
-    state.usage.input_tokens = usage.input_tokens;
-    state.usage.output_tokens = usage.output_tokens;
-    state.usage.cache_read_tokens = usage.cache_read_tokens;
-    state.usage.cache_creation_tokens = usage.cache_creation_tokens;
-    state.usage.total_tokens = state.usage.input_tokens
-        + state.usage.output_tokens
-        + state.usage.cache_read_tokens
-        + state.usage.cache_creation_tokens;
+    update.apply_to(&mut state.usage);
 }
 
 fn start_block(state: &mut TapState, index: u32, block: &ContentBlockKind) {

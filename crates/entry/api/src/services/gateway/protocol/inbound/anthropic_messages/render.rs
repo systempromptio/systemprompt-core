@@ -9,7 +9,8 @@ use serde_json::{Map, Value, json};
 use systemprompt_models::wire::anthropic::content_to_anthropic_block;
 
 use super::super::super::canonical_response::{
-    CanonicalEvent, CanonicalResponse, CanonicalStopReason, CanonicalUsage, ContentBlockKind,
+    CanonicalEvent, CanonicalResponse, CanonicalStopReason, CanonicalUsage, CanonicalUsageUpdate,
+    ContentBlockKind,
 };
 
 #[cfg_attr(
@@ -88,10 +89,7 @@ pub fn render_event_frame(event: &CanonicalEvent, model: &str) -> Option<Bytes> 
         CanonicalEvent::UsageDelta(usage) => json!({
             "type": "message_delta",
             "delta": {},
-            "usage": {
-                "input_tokens": usage.input_tokens,
-                "output_tokens": usage.output_tokens,
-            },
+            "usage": render_usage(usage),
         }),
         CanonicalEvent::MessageStop { stop_reason, .. } => {
             return Some(render_message_stop(*stop_reason));
@@ -172,6 +170,22 @@ fn render_tool_use_block_start(id: &str, name: &str, signature: Option<&str>) ->
         obj.insert("signature".into(), Value::String(sig.to_owned()));
     }
     Value::Object(obj)
+}
+
+// Why: a count the upstream frame never stated must be omitted, not rendered
+// as `null` or as a zero the client would read as a real report.
+fn render_usage(usage: &CanonicalUsageUpdate) -> Map<String, Value> {
+    let mut out = Map::new();
+    let mut put = |key: &str, v: Option<u32>| {
+        if let Some(v) = v {
+            out.insert(key.to_owned(), json!(v));
+        }
+    };
+    put("input_tokens", usage.input_tokens);
+    put("output_tokens", usage.output_tokens);
+    put("cache_read_input_tokens", usage.cache_read_tokens);
+    put("cache_creation_input_tokens", usage.cache_creation_tokens);
+    out
 }
 
 fn render_message_stop(stop_reason: Option<CanonicalStopReason>) -> Bytes {

@@ -7,7 +7,6 @@ fn parses_a_no_credentials_challenge() {
     let challenge = AuthChallenge::parse(
         r#"Bearer realm="demo", resource_metadata="https://api.test/.well-known/oauth-protected-resource/api/v1/mcp/demo/mcp""#,
     );
-    assert_eq!(challenge.realm.as_deref(), Some("demo"));
     assert_eq!(
         challenge.resource_metadata.as_deref(),
         Some("https://api.test/.well-known/oauth-protected-resource/api/v1/mcp/demo/mcp")
@@ -25,6 +24,18 @@ fn parses_an_invalid_token_challenge_with_a_comma_inside_the_description() {
         challenge.error_description.as_deref(),
         Some("expired, re-authenticate"),
         "a quoted comma must not split the parameter list"
+    );
+}
+
+#[test]
+fn keeps_an_escaped_quote_inside_a_quoted_value() {
+    let challenge = AuthChallenge::parse(
+        r#"Bearer realm="demo", error_description="the token said \"no\", twice""#,
+    );
+    assert_eq!(
+        challenge.error_description.as_deref(),
+        Some(r#"the token said "no", twice"#),
+        "a quoted-pair must neither end the value nor survive as a backslash"
     );
 }
 

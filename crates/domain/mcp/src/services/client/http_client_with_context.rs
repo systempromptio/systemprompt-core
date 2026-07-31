@@ -74,23 +74,58 @@ impl HttpClientWithContext {
     /// Read the RFC 9728 metadata a challenge points at.
     ///
     /// The URL comes from the peer, so it goes through the outbound guard
-    /// before it is dialled. An unreadable document is not an error in itself —
-    /// the 401 stands on its own, and the metadata only enriches it.
+    /// before it is dialled. An unreadable document downgrades the challenge
+    /// rather than replacing it — the 401 stands on its own — but each failure
+    /// is logged, since a metadata endpoint that never answers is a
+    /// misconfiguration the operator cannot otherwise see.
     async fn fetch_protected_resource(
         &self,
         metadata_url: &str,
     ) -> Option<ProtectedResourceMetadata> {
-        let url = validate_outbound_url(metadata_url).ok()?;
-        self.client
-            .get(url)
-            .send()
-            .await
-            .ok()?
-            .error_for_status()
-            .ok()?
-            .json::<ProtectedResourceMetadata>()
-            .await
-            .ok()
+        let url = match validate_outbound_url(metadata_url) {
+            Ok(url) => url,
+            Err(e) => {
+                tracing::debug!(
+                    metadata_url,
+                    error = %e,
+                    "MCP server advertised an unreachable resource_metadata URL"
+                );
+                return None;
+            },
+        };
+
+        let response = match self.client.get(url).send().await {
+            Ok(response) => response,
+            Err(e) => {
+                tracing::debug!(
+                    metadata_url,
+                    error = %e,
+                    "failed to fetch MCP resource metadata"
+                );
+                return None;
+            },
+        };
+        if let Err(e) = response.error_for_status_ref() {
+            tracing::debug!(
+                metadata_url,
+                status = %response.status(),
+                error = %e,
+                "MCP resource metadata endpoint refused the request"
+            );
+            return None;
+        }
+
+        match response.json::<ProtectedResourceMetadata>().await {
+            Ok(metadata) => Some(metadata),
+            Err(e) => {
+                tracing::debug!(
+                    metadata_url,
+                    error = %e,
+                    "MCP resource metadata is not valid RFC 9728 JSON"
+                );
+                None
+            },
+        }
     }
 
     /// Client for a third-party external MCP server: the systemprompt JWT and

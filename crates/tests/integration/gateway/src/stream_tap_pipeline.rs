@@ -9,7 +9,7 @@ use bytes::Bytes;
 use futures::stream;
 use systemprompt_api::services::gateway::policy::{GatewayPolicySpec, QuotaWindow, SafetyConfig};
 use systemprompt_api::services::gateway::protocol::canonical_response::{
-    CanonicalEvent, CanonicalStopReason, CanonicalUsage, ContentBlockKind,
+    CanonicalEvent, CanonicalStopReason, CanonicalUsage, CanonicalUsageUpdate, ContentBlockKind,
 };
 use systemprompt_api::services::gateway::protocol::inbound::InboundAdapter;
 use systemprompt_api::services::gateway::protocol::inbound::anthropic_messages::AnthropicMessagesInbound;
@@ -27,6 +27,16 @@ fn usage(input: u32, output: u32) -> CanonicalUsage {
         cache_read_tokens: 0,
         cache_creation_tokens: 0,
         total_tokens: input + output,
+    }
+}
+
+/// The shape an Anthropic `message_delta` actually takes: it reports the
+/// output count and says nothing about the input, which `message_start`
+/// already established.
+fn output_only_usage(output: u32) -> CanonicalUsageUpdate {
+    CanonicalUsageUpdate {
+        output_tokens: Some(output),
+        ..CanonicalUsageUpdate::default()
     }
 }
 
@@ -137,7 +147,7 @@ async fn tap_renders_client_bytes_and_completes_audit_on_eof() {
             id: "resp-tap-1".to_owned(),
             stop_reason: Some(CanonicalStopReason::EndTurn),
         }),
-        Ok(CanonicalEvent::UsageDelta(usage(0, 7))),
+        Ok(CanonicalEvent::UsageDelta(output_only_usage(7))),
     ]);
     let inbound: Arc<dyn InboundAdapter> = Arc::new(AnthropicMessagesInbound);
     let policy = GatewayPolicySpec {
@@ -303,7 +313,7 @@ async fn tap_completion_runs_response_safety_scan() {
             id: "resp-tap-4".to_owned(),
             stop_reason: Some(CanonicalStopReason::EndTurn),
         }),
-        Ok(CanonicalEvent::UsageDelta(usage(0, 5))),
+        Ok(CanonicalEvent::UsageDelta(output_only_usage(5))),
     ]);
     let inbound: Arc<dyn InboundAdapter> = Arc::new(AnthropicMessagesInbound);
     let policy = GatewayPolicySpec {

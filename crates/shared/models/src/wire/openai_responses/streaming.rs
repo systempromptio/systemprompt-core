@@ -11,7 +11,9 @@ use futures_util::{Stream, StreamExt};
 use serde_json::Value;
 
 use super::slot::{ItemSlot, ResponsesStreamState, SlotKind, SlotKindMatch, lookup_canonical};
-use crate::wire::canonical::{CanonicalEvent, CanonicalUsage, ContentBlockKind};
+use crate::wire::canonical::{
+    CanonicalEvent, CanonicalUsage, CanonicalUsageUpdate, ContentBlockKind,
+};
 
 pub fn sse_to_canonical_events<S, E>(
     stream: S,
@@ -276,17 +278,16 @@ fn handle_completed(
         .filter(|s| !s.is_empty())
         .map_or_else(|| state.response_id.clone(), str::to_owned);
     if let Some(usage) = response.get("usage") {
-        let pull = |key: &str| usage.get(key).and_then(Value::as_u64).unwrap_or(0) as u32;
-        events.push(Ok(CanonicalEvent::UsageDelta(CanonicalUsage {
+        let pull = |key: &str| usage.get(key).and_then(Value::as_u64).map(|v| v as u32);
+        events.push(Ok(CanonicalEvent::UsageDelta(CanonicalUsageUpdate {
             input_tokens: pull("input_tokens"),
             output_tokens: pull("output_tokens"),
             cache_read_tokens: usage
                 .get("input_tokens_details")
                 .and_then(|d| d.get("cached_tokens"))
                 .and_then(Value::as_u64)
-                .unwrap_or(0) as u32,
-            cache_creation_tokens: 0,
-            total_tokens: pull("total_tokens"),
+                .map(|v| v as u32),
+            cache_creation_tokens: None,
         })));
     }
     let incomplete_reason = incomplete

@@ -17,7 +17,8 @@ use systemprompt_ai::services::providers::canonical_bridge::{
 use systemprompt_identifiers::McpServerId;
 use systemprompt_models::wire::canonical::{
     CanonicalContent, CanonicalEvent, CanonicalResponse, CanonicalStopReason, CanonicalUsage,
-    CodeExecutionOutput, GroundedSource, Grounding, ImageSource, ResponseFormat,
+    CanonicalUsageUpdate, CodeExecutionOutput, GroundedSource, Grounding, ImageSource,
+    ResponseFormat,
 };
 use uuid::Uuid;
 
@@ -346,12 +347,11 @@ fn event_to_chunk_empty_text_delta_is_dropped() {
 
 #[test]
 fn event_to_chunk_usage_delta_carries_token_totals() {
-    let usage = CanonicalUsage {
-        input_tokens: 12,
-        output_tokens: 8,
-        cache_read_tokens: 3,
-        cache_creation_tokens: 0,
-        total_tokens: 23,
+    let usage = CanonicalUsageUpdate {
+        input_tokens: Some(12),
+        output_tokens: Some(8),
+        cache_read_tokens: Some(3),
+        cache_creation_tokens: None,
     };
     match event_to_chunk(CanonicalEvent::UsageDelta(usage)) {
         Some(StreamChunk::Usage {

@@ -12,7 +12,7 @@
 - A streamed Anthropic completion reports its token usage. The codec turned a `message_delta` frame into either a stop event or a usage event and preferred the stop, so the one frame carrying real counts was discarded and every streamed request recorded zero tokens and zero cost. Both events are now emitted, usage first, so a consumer finalizing on the terminal event has already folded the counts in.
 - `StreamStorageWrapper` replaces token counts rather than summing them. Providers report usage as a cumulative snapshot, so adding each frame double-counted any stream that reported usage more than once.
 - `canonical_bridge::event_to_chunk` forwards a token count only when it is positive. `CanonicalUsage` has no presence bit, so an unreported field is indistinguishable from a reported zero, and forwarding the zeroes let a frame reporting only `output_tokens` erase an `input_tokens` an earlier frame had supplied. `tokens_used` now includes the cache counts.
-
+- `canonical_bridge::event_to_chunk` forwards each usage count exactly as the frame reported it. It previously dropped any zero to avoid erasing an earlier count, which also discarded genuine zeroes; the presence carried by `CanonicalUsageUpdate` makes the workaround unnecessary.
 ## [0.27.0] - 2026-07-29
 
 ### Breaking

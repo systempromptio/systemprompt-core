@@ -13,7 +13,7 @@ use serde_json::Value;
 use systemprompt_identifiers::MessageId;
 
 use crate::wire::canonical::{
-    CanonicalEvent, CanonicalStopReason, CanonicalUsage, ContentBlockKind,
+    CanonicalEvent, CanonicalStopReason, CanonicalUsage, CanonicalUsageUpdate, ContentBlockKind,
 };
 
 pub fn sse_to_canonical_events<S, E>(
@@ -241,18 +241,17 @@ fn emit_message_stop(
     }));
 }
 
-fn usage_from_value(usage: &Value) -> CanonicalUsage {
-    let field = |name: &str| usage.get(name).and_then(Value::as_u64).unwrap_or(0) as u32;
-    CanonicalUsage {
+fn usage_from_value(usage: &Value) -> CanonicalUsageUpdate {
+    let field = |name: &str| usage.get(name).and_then(Value::as_u64).map(|v| v as u32);
+    CanonicalUsageUpdate {
         input_tokens: field("prompt_tokens"),
         output_tokens: field("completion_tokens"),
         cache_read_tokens: usage
             .get("prompt_tokens_details")
             .and_then(|d| d.get("cached_tokens"))
             .and_then(Value::as_u64)
-            .unwrap_or(0) as u32,
-        cache_creation_tokens: 0,
-        total_tokens: field("total_tokens"),
+            .map(|v| v as u32),
+        cache_creation_tokens: None,
     }
 }
 

@@ -25,6 +25,59 @@ pub struct CanonicalUsage {
     pub total_tokens: u32,
 }
 
+/// A streaming usage report, carrying only the counts its frame actually
+/// stated.
+///
+/// [`CanonicalUsage`] cannot express this: an unreported count and a reported
+/// zero are both `0`. Providers differ in what a mid-stream usage frame
+/// includes — an Anthropic `message_delta` may carry `output_tokens` alone —
+/// so folding one in as though it were complete zeroes the input and cache
+/// counts an earlier frame established, and billing loses them.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+#[expect(
+    clippy::struct_field_names,
+    reason = "every field is a token count; the `_tokens` suffix is the domain vocabulary shared \
+              with the provider usage wire formats"
+)]
+pub struct CanonicalUsageUpdate {
+    pub input_tokens: Option<u32>,
+    pub output_tokens: Option<u32>,
+    pub cache_read_tokens: Option<u32>,
+    pub cache_creation_tokens: Option<u32>,
+}
+
+impl CanonicalUsageUpdate {
+    #[must_use]
+    pub const fn is_empty(&self) -> bool {
+        self.input_tokens.is_none()
+            && self.output_tokens.is_none()
+            && self.cache_read_tokens.is_none()
+            && self.cache_creation_tokens.is_none()
+    }
+
+    /// Overwrite every count this update states, leaving the rest as they were,
+    /// and rederive the total. A stated zero overwrites — it is a real report,
+    /// which is the whole distinction this type exists to carry.
+    pub const fn apply_to(&self, usage: &mut CanonicalUsage) {
+        if let Some(v) = self.input_tokens {
+            usage.input_tokens = v;
+        }
+        if let Some(v) = self.output_tokens {
+            usage.output_tokens = v;
+        }
+        if let Some(v) = self.cache_read_tokens {
+            usage.cache_read_tokens = v;
+        }
+        if let Some(v) = self.cache_creation_tokens {
+            usage.cache_creation_tokens = v;
+        }
+        usage.total_tokens = usage.input_tokens
+            + usage.output_tokens
+            + usage.cache_read_tokens
+            + usage.cache_creation_tokens;
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CanonicalStopReason {
     EndTurn,
@@ -169,7 +222,7 @@ pub enum CanonicalEvent {
     ContentBlockStop {
         index: u32,
     },
-    UsageDelta(CanonicalUsage),
+    UsageDelta(CanonicalUsageUpdate),
     MessageStop {
         id: String,
         stop_reason: Option<CanonicalStopReason>,

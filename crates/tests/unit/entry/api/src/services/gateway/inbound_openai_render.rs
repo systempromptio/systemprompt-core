@@ -3,7 +3,8 @@
 use serde_json::{Value, json};
 use systemprompt_api::services::gateway::protocol::canonical::CanonicalContent;
 use systemprompt_api::services::gateway::protocol::canonical_response::{
-    CanonicalEvent, CanonicalResponse, CanonicalStopReason, CanonicalUsage, ContentBlockKind,
+    CanonicalEvent, CanonicalResponse, CanonicalStopReason, CanonicalUsage, CanonicalUsageUpdate,
+    ContentBlockKind,
 };
 use systemprompt_api::services::gateway::protocol::inbound::InboundAdapter;
 use systemprompt_api::services::gateway::protocol::inbound::openai_responses::OpenAiResponsesInbound;
@@ -154,7 +155,7 @@ fn render_event_covers_all_variants() {
 fn render_event_skips_usage_and_terminal_events() {
     let inbound = OpenAiResponsesInbound;
     let skipped = vec![
-        CanonicalEvent::UsageDelta(CanonicalUsage::default()),
+        CanonicalEvent::UsageDelta(CanonicalUsageUpdate::default()),
         CanonicalEvent::ContentBlockStop { index: 0 },
         CanonicalEvent::MessageStop {
             id: "id".into(),

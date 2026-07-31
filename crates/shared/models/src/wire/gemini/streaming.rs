@@ -17,7 +17,7 @@ use uuid::Uuid;
 use super::response::stop_reason;
 use super::wire::{GeminiPart, GeminiResponse};
 use crate::wire::canonical::{
-    CanonicalEvent, CanonicalStopReason, CanonicalUsage, ContentBlockKind,
+    CanonicalEvent, CanonicalStopReason, CanonicalUsage, CanonicalUsageUpdate, ContentBlockKind,
 };
 
 struct StreamState {
@@ -92,12 +92,10 @@ fn handle_chunk(
         emit_start(state, &chunk, events);
     }
     if let Some(usage) = chunk.usage_metadata {
-        events.push(Ok(CanonicalEvent::UsageDelta(CanonicalUsage {
-            input_tokens: usage.prompt,
-            output_tokens: usage.candidates,
-            cache_read_tokens: 0,
-            cache_creation_tokens: 0,
-            total_tokens: usage.prompt + usage.candidates,
+        events.push(Ok(CanonicalEvent::UsageDelta(CanonicalUsageUpdate {
+            input_tokens: Some(usage.prompt),
+            output_tokens: Some(usage.candidates),
+            ..CanonicalUsageUpdate::default()
         })));
     }
     let Some(candidate) = chunk.candidates.into_iter().next() else {

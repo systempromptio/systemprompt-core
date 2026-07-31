@@ -16,7 +16,7 @@ pub(super) fn client_capabilities() -> ClientCapabilities {
         McpExtensionId::EnterpriseManagedAuth.as_str().to_owned(),
         serde_json::Map::new(),
     );
-    let mut capabilities = ClientCapabilities::default();
-    capabilities.extensions = Some(extensions);
-    capabilities
+    ClientCapabilities::builder()
+        .enable_extensions_with(extensions)
+        .build()
 }

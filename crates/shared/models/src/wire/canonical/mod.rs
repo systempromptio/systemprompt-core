@@ -16,6 +16,6 @@ pub use request::{
     ImageDetail, ImageSource, ReasoningEffort, ResponseFormat, Role, SearchConfig, ThinkingConfig,
 };
 pub use response::{
-    CanonicalEvent, CanonicalResponse, CanonicalStopReason, CanonicalUsage, CodeExecutionOutput,
-    ContentBlockKind, GroundedSource, Grounding,
+    CanonicalEvent, CanonicalResponse, CanonicalStopReason, CanonicalUsage, CanonicalUsageUpdate,
+    CodeExecutionOutput, ContentBlockKind, GroundedSource, Grounding,
 };

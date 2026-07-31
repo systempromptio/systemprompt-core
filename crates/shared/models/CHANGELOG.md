@@ -8,6 +8,7 @@
 - **Breaking:** `wire::anthropic::event_from_sse` is replaced by `events_from_sse`, which returns a `Vec<CanonicalEvent>` rather than an `Option`. One `message_delta` frame carries both the terminal `stop_reason` and the final cumulative `usage`, and the old signature could return only one of the two — it returned the stop and dropped the usage, which is the sole place Anthropic reports real token counts for a stream. Migrate by iterating the returned events instead of matching one option.
 - **Breaking:** `ModelPricing` gains `cache_read_per_million` and `cache_write_per_million`. A struct built by literal needs the two extra initialisers; `..ModelPricing::default()` preserves today's arithmetic. Both are `#[serde(default)]`, so a catalog written before this release still parses — its cached tokens simply bill at zero until rates are supplied.
 - **Breaking:** `OAuthRequirement` gains `ema: bool` (`#[serde(default)]`), declaring the MCP Enterprise-Managed Authorization extension on a server's protected-resource metadata.
+- **Breaking:** `CanonicalEvent::UsageDelta` carries a `CanonicalUsageUpdate` rather than a `CanonicalUsage`. The new type holds four `Option<u32>` counts, so "the frame never stated this" and "the frame reported zero" stop being the same value; `apply_to` folds an update onto a running `CanonicalUsage` and rederives the total, and `is_empty` reports a frame that stated nothing. The streaming codecs emit `None` for a count their frame omits — Anthropic's `message_delta` typically states `output_tokens` alone.
 
 ### Added
 

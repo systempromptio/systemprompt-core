@@ -19,7 +19,8 @@ pub use canonical::{
     ImageSource, Role, ThinkingConfig,
 };
 pub use canonical_response::{
-    CanonicalEvent, CanonicalResponse, CanonicalStopReason, CanonicalUsage, ContentBlockKind,
+    CanonicalEvent, CanonicalResponse, CanonicalStopReason, CanonicalUsage, CanonicalUsageUpdate,
+    ContentBlockKind,
 };
 pub use inbound::{InboundAdapter, InboundParseError, anthropic_messages, openai_responses};
 pub use outbound::{

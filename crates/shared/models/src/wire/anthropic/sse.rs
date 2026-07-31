@@ -17,7 +17,7 @@
 use serde_json::Value;
 
 use crate::wire::canonical::{
-    CanonicalEvent, CanonicalStopReason, CanonicalUsage, ContentBlockKind,
+    CanonicalEvent, CanonicalStopReason, CanonicalUsage, CanonicalUsageUpdate, ContentBlockKind,
 };
 
 #[must_use]
@@ -121,7 +121,10 @@ fn convert_content_block_delta(value: &Value) -> Option<CanonicalEvent> {
 fn convert_message_delta(value: &Value, msg_id: &str) -> Vec<CanonicalEvent> {
     let mut events = Vec::with_capacity(2);
     if let Some(usage) = value.get("usage") {
-        events.push(CanonicalEvent::UsageDelta(usage_from_value(Some(usage))));
+        let update = usage_update_from_value(usage);
+        if !update.is_empty() {
+            events.push(CanonicalEvent::UsageDelta(update));
+        }
     }
     let stop_reason = value
         .get("delta")
@@ -135,6 +138,19 @@ fn convert_message_delta(value: &Value, msg_id: &str) -> Vec<CanonicalEvent> {
         });
     }
     events
+}
+
+// Why: a `message_delta` states only the counts it knows — often
+// `output_tokens` alone — so an absent field must stay absent rather than
+// become a zero that overwrites what `message_start` already established.
+fn usage_update_from_value(u: &Value) -> CanonicalUsageUpdate {
+    let field = |name: &str| u.get(name).and_then(Value::as_u64).map(|v| v as u32);
+    CanonicalUsageUpdate {
+        input_tokens: field("input_tokens"),
+        output_tokens: field("output_tokens"),
+        cache_read_tokens: field("cache_read_input_tokens"),
+        cache_creation_tokens: field("cache_creation_input_tokens"),
+    }
 }
 
 fn usage_from_value(v: Option<&Value>) -> CanonicalUsage {

@@ -227,7 +227,13 @@ mod anthropic_events_from_sse {
         }))
         .expect("event");
         match ev {
-            CanonicalEvent::UsageDelta(usage) => assert_eq!(usage.output_tokens, 42),
+            CanonicalEvent::UsageDelta(usage) => {
+                assert_eq!(usage.output_tokens, Some(42));
+                assert_eq!(
+                    usage.input_tokens, None,
+                    "a frame that states no input count must not claim one"
+                );
+            },
             other => panic!("unexpected: {other:?}"),
         }
     }
@@ -254,11 +260,10 @@ mod anthropic_events_from_sse {
         assert_eq!(events.len(), 2, "expected usage then stop: {events:?}");
         match &events[0] {
             CanonicalEvent::UsageDelta(usage) => {
-                assert_eq!(usage.input_tokens, 12);
-                assert_eq!(usage.output_tokens, 340);
-                assert_eq!(usage.cache_read_tokens, 51_200);
-                assert_eq!(usage.cache_creation_tokens, 900);
-                assert_eq!(usage.total_tokens, 52_452);
+                assert_eq!(usage.input_tokens, Some(12));
+                assert_eq!(usage.output_tokens, Some(340));
+                assert_eq!(usage.cache_read_tokens, Some(51_200));
+                assert_eq!(usage.cache_creation_tokens, Some(900));
             },
             other => panic!("expected UsageDelta first, got {other:?}"),
         }
@@ -267,6 +272,30 @@ mod anthropic_events_from_sse {
             CanonicalEvent::MessageStop { stop_reason, .. }
                 if *stop_reason == Some(CanonicalStopReason::EndTurn)
         ));
+    }
+
+    /// The frame that motivated `CanonicalUsageUpdate`: Anthropic reports
+    /// `output_tokens` alone here, and mapping the absent counts to zero let
+    /// the tap overwrite the input and cache totals `message_start` gave.
+    #[test]
+    fn message_delta_states_only_the_counts_it_carries() {
+        let events = anthropic::events_from_sse(
+            &json!({
+                "type": "message_delta",
+                "delta": {"stop_reason": "end_turn"},
+                "usage": {"output_tokens": 340}
+            }),
+            "msg_1",
+        );
+        match &events[0] {
+            CanonicalEvent::UsageDelta(u) => {
+                assert_eq!(u.output_tokens, Some(340));
+                assert_eq!(u.input_tokens, None);
+                assert_eq!(u.cache_read_tokens, None);
+                assert_eq!(u.cache_creation_tokens, None);
+            },
+            other => panic!("expected UsageDelta first, got {other:?}"),
+        }
     }
 
     #[test]
@@ -499,7 +528,7 @@ mod openai_chat_streaming {
         let events = run(sse).await;
         assert!(events.iter().any(|e| matches!(
             e,
-            CanonicalEvent::UsageDelta(u) if u.input_tokens == 5 && u.output_tokens == 7
+            CanonicalEvent::UsageDelta(u) if u.input_tokens == Some(5) && u.output_tokens == Some(7)
         )));
     }
 
@@ -632,7 +661,8 @@ mod openai_responses_streaming {
         let events = run(sse).await;
         assert!(events.iter().any(|e| matches!(
             e,
-            CanonicalEvent::UsageDelta(u) if u.total_tokens == 7
+            CanonicalEvent::UsageDelta(u)
+                if u.input_tokens == Some(3) && u.output_tokens == Some(4)
         )));
         assert!(matches!(
             events.last(),
@@ -816,7 +846,7 @@ mod gemini_streaming {
         let events = run(sse).await;
         assert!(events.iter().any(|e| matches!(
             e,
-            CanonicalEvent::UsageDelta(u) if u.input_tokens == 4 && u.output_tokens == 6
+            CanonicalEvent::UsageDelta(u) if u.input_tokens == Some(4) && u.output_tokens == Some(6)
         )));
     }
 

@@ -13,11 +13,9 @@
 /// Parsed `WWW-Authenticate: Bearer` challenge parameters.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct AuthChallenge {
-    pub realm: Option<String>,
     pub resource_metadata: Option<String>,
     pub error: Option<String>,
     pub error_description: Option<String>,
-    pub scope: Option<String>,
 }
 
 impl AuthChallenge {
@@ -41,13 +39,11 @@ impl AuthChallenge {
             let Some((key, value)) = part.split_once('=') else {
                 continue;
             };
-            let value = value.trim().trim_matches('"').to_owned();
+            let value = unquote(value);
             match key.trim().to_ascii_lowercase().as_str() {
-                "realm" => challenge.realm = Some(value),
                 "resource_metadata" => challenge.resource_metadata = Some(value),
                 "error" => challenge.error = Some(value),
                 "error_description" => challenge.error_description = Some(value),
-                "scope" => challenge.scope = Some(value),
                 _ => {},
             }
         }
@@ -55,13 +51,18 @@ impl AuthChallenge {
     }
 }
 
-/// Split challenge parameters on commas that sit outside quoted values.
 fn split_params(params: &str) -> Vec<&str> {
     let mut parts = Vec::new();
     let mut start = 0;
     let mut in_quotes = false;
+    let mut escaped = false;
     for (idx, ch) in params.char_indices() {
+        if escaped {
+            escaped = false;
+            continue;
+        }
         match ch {
+            '\\' if in_quotes => escaped = true,
             '"' => in_quotes = !in_quotes,
             ',' if !in_quotes => {
                 parts.push(&params[start..idx]);
@@ -72,6 +73,26 @@ fn split_params(params: &str) -> Vec<&str> {
     }
     parts.push(&params[start..]);
     parts
+}
+
+fn unquote(value: &str) -> String {
+    let trimmed = value.trim();
+    let Some(inner) = trimmed.strip_prefix('"').and_then(|v| v.strip_suffix('"')) else {
+        return trimmed.to_owned();
+    };
+
+    let mut out = String::with_capacity(inner.len());
+    let mut escaped = false;
+    for ch in inner.chars() {
+        match ch {
+            '\\' if !escaped => escaped = true,
+            _ => {
+                escaped = false;
+                out.push(ch);
+            },
+        }
+    }
+    out
 }
 
 /// Why an MCP server refused a request, as far as the transport can tell.

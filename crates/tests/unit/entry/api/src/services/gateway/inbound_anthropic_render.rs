@@ -3,7 +3,8 @@
 use serde_json::{Value, json};
 use systemprompt_api::services::gateway::protocol::canonical::{CanonicalContent, ImageSource};
 use systemprompt_api::services::gateway::protocol::canonical_response::{
-    CanonicalEvent, CanonicalResponse, CanonicalStopReason, CanonicalUsage, ContentBlockKind,
+    CanonicalEvent, CanonicalResponse, CanonicalStopReason, CanonicalUsage, CanonicalUsageUpdate,
+    ContentBlockKind,
 };
 use systemprompt_api::services::gateway::protocol::inbound::InboundAdapter;
 use systemprompt_api::services::gateway::protocol::inbound::anthropic_messages::{
@@ -169,10 +170,10 @@ fn render_event_covers_all_variants() {
             partial_json: "{\"x\":1}".into(),
         },
         CanonicalEvent::ContentBlockStop { index: 0 },
-        CanonicalEvent::UsageDelta(CanonicalUsage {
-            input_tokens: 1,
-            output_tokens: 2,
-            ..CanonicalUsage::default()
+        CanonicalEvent::UsageDelta(CanonicalUsageUpdate {
+            input_tokens: Some(1),
+            output_tokens: Some(2),
+            ..CanonicalUsageUpdate::default()
         }),
         CanonicalEvent::MessageStop {
             id: "m1".into(),

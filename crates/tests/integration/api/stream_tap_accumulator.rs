@@ -5,7 +5,8 @@
 //! reason, error, final bytes, served model).
 
 use systemprompt_api::services::gateway::protocol::{
-    CanonicalContent, CanonicalEvent, CanonicalStopReason, CanonicalUsage, ContentBlockKind,
+    CanonicalContent, CanonicalEvent, CanonicalStopReason, CanonicalUsage, CanonicalUsageUpdate,
+    ContentBlockKind,
 };
 use systemprompt_api::services::gateway::stream_tap::test_api::{
     TapState, accumulate_event, extract_summary, snapshot,
@@ -18,6 +19,14 @@ fn usage(input: u32, output: u32) -> CanonicalUsage {
         cache_read_tokens: 0,
         cache_creation_tokens: 0,
         total_tokens: 0,
+    }
+}
+
+fn usage_update(input: u32, output: u32) -> CanonicalUsageUpdate {
+    CanonicalUsageUpdate {
+        input_tokens: Some(input),
+        output_tokens: Some(output),
+        ..CanonicalUsageUpdate::default()
     }
 }
 
@@ -51,7 +60,7 @@ fn accumulates_text_and_usage_and_stop() {
                 text: "world".to_owned(),
             },
             CanonicalEvent::ContentBlockStop { index: 0 },
-            CanonicalEvent::UsageDelta(usage(10, 5)),
+            CanonicalEvent::UsageDelta(usage_update(10, 5)),
             CanonicalEvent::MessageStop {
                 id: "resp_1".to_owned(),
                 stop_reason: Some(CanonicalStopReason::EndTurn),
@@ -91,7 +100,7 @@ fn usage_delta_replaces_the_message_start_estimate_wholesale() {
                 model: String::new(),
                 usage: usage(7, 3),
             },
-            CanonicalEvent::UsageDelta(usage(0, 9)),
+            CanonicalEvent::UsageDelta(usage_update(0, 9)),
         ],
     );
 
