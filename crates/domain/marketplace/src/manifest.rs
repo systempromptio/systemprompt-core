@@ -25,9 +25,6 @@ use crate::error::MarketplaceError;
 use crate::filter::MarketplaceFilter;
 use crate::scope::{active_marketplace, scope_to_marketplace};
 
-// Why: must mirror the field set and order (alphabetical, after JCS sort) of
-// the verifier-side `CanonicalView` in `bin/bridge/src/gateway/manifest.rs` so
-// signer + verifier produce identical canonical bytes.
 #[derive(Debug, Serialize)]
 pub struct CanonicalView<'a> {
     pub manifest_version: &'a ManifestVersion,

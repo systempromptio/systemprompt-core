@@ -30,8 +30,6 @@ use std::path::Path;
 
 const OCTET_STREAM: &str = "application/octet-stream";
 
-/// `(extensions, essence, served form)`. The first extension of each entry is
-/// the canonical one — it is what [`extension_for`] returns.
 const TABLE: &[(&[&str], &str, &str)] = &[
     (&["png"], "image/png", "image/png"),
     (&["jpg", "jpeg"], "image/jpeg", "image/jpeg"),
@@ -104,11 +102,8 @@ const TABLE: &[(&[&str], &str, &str)] = &[
         "application/vnd.openxmlformats-officedocument.presentationml.presentation",
         "application/vnd.openxmlformats-officedocument.presentationml.presentation",
     ),
-    // Why: a deployment serves its own client downloads (desktop bridge
-    // tarballs and installers) as ordinary static files. Absent these, the
-    // static handler's fallback labelled an archive
-    // `text/plain; charset=utf-8`, so a browser rendered it as mojibake instead
-    // of saving it.
+    // Why: without these rows the static handler labels an archive
+    // `text/plain; charset=utf-8` and a browser renders mojibake instead of saving.
     (&["gz", "tgz"], "application/gzip", "application/gzip"),
     (&["tar"], "application/x-tar", "application/x-tar"),
     (&["zip"], "application/zip", "application/zip"),
@@ -138,8 +133,6 @@ const TABLE: &[(&[&str], &str, &str)] = &[
     (&["sig"], OCTET_STREAM, OCTET_STREAM),
 ];
 
-/// Types that name the same format as a [`TABLE`] essence, accepted on input
-/// to [`extension_for`] but never emitted.
 const ALIASES: &[(&str, &str)] = &[
     ("image/vnd.microsoft.icon", "image/x-icon"),
     ("text/xml", "application/xml"),
@@ -167,35 +160,22 @@ pub fn from_extension(ext: &str) -> Option<&'static str> {
     lookup(ext).map(|(_, essence, _)| *essence)
 }
 
-/// The parameterless `type/subtype` for a path, falling back to
-/// `application/octet-stream` for an unknown or absent extension.
-///
-/// This is the form to persist or to validate against an allowlist. Use
-/// [`http_content_type`] for a response header.
 pub fn from_path(path: &Path) -> &'static str {
     extension_of(path)
         .and_then(from_extension)
         .unwrap_or(OCTET_STREAM)
 }
 
-/// The `Content-Type` header value for a path, falling back to
-/// `application/octet-stream`.
 pub fn http_content_type(path: &Path) -> &'static str {
     http_content_type_opt(path).unwrap_or(OCTET_STREAM)
 }
 
-/// As [`http_content_type`], but yielding `None` rather than a fallback.
 pub fn http_content_type_opt(path: &Path) -> Option<&'static str> {
     extension_of(path)
         .and_then(lookup)
         .map(|(_, _, served)| *served)
 }
 
-/// The canonical extension for a MIME type, with no leading dot.
-///
-/// Any parameters on the input are discarded, so both `text/plain` and
-/// `text/plain; charset=utf-8` resolve, and known aliases such as
-/// `image/vnd.microsoft.icon` resolve to the type they duplicate.
 pub fn extension_for(mime: &str) -> Option<&'static str> {
     let essence = essence_of(mime);
     let resolved = ALIASES
@@ -203,11 +183,8 @@ pub fn extension_for(mime: &str) -> Option<&'static str> {
         .find(|(alias, _)| *alias == essence)
         .map_or(essence.as_str(), |(_, canonical)| *canonical);
 
-    // `application/octet-stream` is the generic unknown-binary type, and several
-    // concrete rows (exe/msi, appimage, sig) share it as their essence. Taking
-    // the first of those would name an unknown upload `.exe`, so the generic
-    // type resolves to the generic extension rather than to whichever
-    // executable format happens to sort first.
+    // Why: several concrete rows (exe/msi, appimage, sig) share octet-stream as
+    // their essence; taking the first would name an unknown upload `.exe`.
     if resolved == OCTET_STREAM {
         return Some("bin");
     }
@@ -218,9 +195,6 @@ pub fn extension_for(mime: &str) -> Option<&'static str> {
         .and_then(|(exts, _, _)| exts.first().copied())
 }
 
-/// Strips parameters and surrounding whitespace from a MIME type and lowercases
-/// it, so `Text/Plain; charset=utf-8` becomes `text/plain`.
-///
 /// Comparing a client-supplied `Content-Type` against an allowlist or a
 /// blocklist without this admits `text/javascript; charset=utf-8` past a
 /// blocklist holding `text/javascript`.

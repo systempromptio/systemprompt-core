@@ -98,9 +98,6 @@ pub async fn handle(
     response
 }
 
-/// The access-log middleware wraps this handler and so consumes the request
-/// before any principal exists; without this hand-off every gateway call is
-/// logged as the platform owner.
 fn attach_log_identity(response: &mut Response<Body>, partial: &RejectionPartial) {
     let (Some(user_id), Some(session_id), Some(trace_id)) = (
         partial.user_id.as_ref(),

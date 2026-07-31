@@ -58,7 +58,7 @@ fn home() -> Result<PathBuf, InstallError> {
     })
 }
 
-/// launchd's per-user domain is addressed as `gui/<uid>`.
+// Why: launchd addresses the per-user domain as `gui/<uid>`.
 #[cfg(target_os = "macos")]
 fn gui_domain() -> String {
     #![allow(unsafe_code, reason = "libc::getuid is the only way to read the uid")]
@@ -81,8 +81,8 @@ fn register(
     write(&path, rendered)?;
 
     let domain = gui_domain();
-    // Idempotency: bootout an existing registration first. A "not loaded"
-    // failure here is the expected first-install case, so it is not fatal.
+    // Why: launchctl fails bootout with "not loaded" on a first install, which
+    // is expected and not fatal.
     _ = Command::new("launchctl")
         .args(["bootout", &domain])
         .arg(&path)
@@ -117,7 +117,7 @@ fn register(
 
     let task = schedule::schedule_label(os);
     let path = std::env::temp_dir().join(schedule::template_filename(os));
-    // Task Scheduler requires UTF-16LE with a BOM for the XML it imports.
+    // Why: Task Scheduler requires UTF-16LE with a BOM for the XML it imports.
     let mut bytes = vec![0xFF, 0xFE];
     for unit in rendered.encode_utf16() {
         bytes.extend_from_slice(&unit.to_le_bytes());
@@ -127,8 +127,8 @@ fn register(
         source: e,
     })?;
 
-    // /F overwrites an existing task of the same name, which is what makes a
-    // second apply a no-op rather than a duplicate.
+    // Why: without `/F` schtasks duplicates rather than replaces a task of the
+    // same name.
     let status = Command::new("schtasks")
         .args(["/Create", "/TN", task, "/XML"])
         .arg(&path)
@@ -170,10 +170,8 @@ fn register(os: Os, rendered: &str, binary: &Path) -> Result<(PathBuf, Vec<Strin
         format!("wrote: {}", proxy_path.display()),
     ];
 
-    // Writing the units always succeeds; activating them needs a systemd user
-    // bus, which a container or a systemd-less WSL distro does not have. Having
-    // already written the files, failing here would leave the install half-done
-    // for no gain — so warn and report, as the macOS path does for launchctl.
+    // Why: activation needs a systemd user bus, which containers and
+    // systemd-less WSL distros lack; the written units still stand.
     if let Err(e) = activate(unit, &proxy_unit) {
         crate::obs::output::diag(&format!(
             "warning: units written but not activated: {e}. Activate them yourself with: \
@@ -196,8 +194,6 @@ fn register(os: Os, rendered: &str, binary: &Path) -> Result<(PathBuf, Vec<Strin
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]
 fn activate(unit: &str, proxy_unit: &str) -> Result<(), InstallError> {
     systemctl(&["daemon-reload"])?;
-    // `enable --now` is idempotent: it rewrites the same symlink and leaves an
-    // already-running unit running.
     systemctl(&["enable", "--now", &format!("{unit}.timer")])?;
     systemctl(&["enable", "--now", &format!("{proxy_unit}.service")])
 }

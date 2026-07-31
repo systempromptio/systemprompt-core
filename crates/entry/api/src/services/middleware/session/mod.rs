@@ -156,10 +156,6 @@ impl SessionMiddleware {
         Ok(response)
     }
 
-    // Why: Builds an untracked anonymous context. `session_prefix` distinguishes
-    // the synthetic session id (`untracked_*` for skip-tracking paths,
-    // `bot_*` for detected crawlers) so the two cases stay legible in logs
-    // and analytics without two near-identical constructors.
     async fn anonymous_context(
         &self,
         session_prefix: &str,
@@ -244,9 +240,6 @@ impl SessionMiddleware {
         let analytics_provider: Arc<dyn AnalyticsProvider> =
             Arc::<AnalyticsService>::clone(&self.analytics_service);
 
-        // Why: a lookup failure is infrastructure, not evidence of a bad
-        // session, so it takes the same mint-a-replacement recovery as a
-        // missing one rather than failing the request.
         match attest_session(
             &analytics_provider,
             &jwt_context.session_id,

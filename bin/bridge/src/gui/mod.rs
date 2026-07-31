@@ -117,7 +117,6 @@ pub(crate) struct GuiApp {
     pub(crate) settings_window: Option<SettingsWindow>,
     pub(crate) last_proxy_stats_tick: Instant,
     pub(crate) last_state_hash: Option<u64>,
-    // The in-memory MCP registry is empty until the first sync, so `/mcp/<slug>` 404s till then.
     pub(crate) did_initial_sync: bool,
 }
 

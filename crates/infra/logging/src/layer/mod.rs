@@ -31,9 +31,6 @@ use systemprompt_identifiers::{ClientId, ContextId, TaskId};
 const BUFFER_FLUSH_SIZE: usize = 100;
 const BUFFER_FLUSH_INTERVAL_SECS: u64 = 10;
 
-// Why: Bounded capacity of the log channel. Beyond this depth (a sustained
-// burst the database writer cannot drain) entries are dropped rather than
-// queued, so a logging backlog cannot grow the heap without bound.
 const CHANNEL_CAPACITY: usize = 8192;
 
 static BACKGROUND_SENDER: OnceLock<mpsc::Sender<LogCommand>> = OnceLock::new();
@@ -53,7 +50,6 @@ pub fn enqueue_background(entry: LogEntry) {
         return;
     }
     if is_error {
-        // Why: best-effort flush nudge; entry send above already accounts for drops
         sender.try_send(LogCommand::FlushNow).ok();
     }
 }
@@ -162,8 +158,6 @@ impl DatabaseLayer {
     ) -> Result<(), crate::models::LoggingError> {
         let pool = db_pool.write_pool_arc()?;
 
-        // Why: One commit per flush, fsync off: the audit log is best-effort, so a
-        // few buffered rows lost on an unclean shutdown is an acceptable trade.
         let mut tx = pool.begin().await?;
         sqlx::query!("SET LOCAL synchronous_commit = off")
             .execute(&mut *tx)

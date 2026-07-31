@@ -22,12 +22,6 @@ impl AnalyticsRepository {
     }
 
     pub async fn cleanup_empty_contexts(&self, hours_old: i64) -> SchedulerResult<u64> {
-        // Why: a CLI-session context bound to a live session must survive even
-        // when empty — deleting it would force the CLI to re-mint a context on
-        // its next run. It becomes collectable once its session is gone
-        // (the FK sets session_id NULL on session deletion). Audit tables
-        // reference context_id without an FK, so a context holding audit rows
-        // is never empty regardless of age.
         let result = sqlx::query!(
             r#"
             DELETE FROM user_contexts

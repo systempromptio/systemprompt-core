@@ -168,15 +168,10 @@ pub fn build_listing(mcp_auth: &[McpServerAuth]) -> MarketplaceListing {
             for dir in plugins::plugin_dirs(&loc.path) {
                 skills.extend(components::list_skills(&dir.join("skills")));
                 agents.extend(components::list_agents(&dir.join("agents")));
-                // Every plugin carries the same managed hooks file; one listing
-                // suffices.
                 if hooks.is_empty() {
                     hooks = hooks::list_hooks(&dir.join("hooks"));
                 }
             }
-            // A skill/agent shared across plugins appears in each plugin dir;
-            // collapse to one listing per id so counts reflect distinct
-            // components, not catalogue × plugins.
             let mcp = components::list_registry_mcp(mcp_auth);
             (
                 plugins,

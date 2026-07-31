@@ -40,8 +40,6 @@ pub fn install(opts: &InstallOptions) -> Result<InstallSummary, InstallError> {
     })
 }
 
-// --apply-schedule wins over --emit-schedule-template: registering the job is
-// a superset of printing instructions for registering it by hand.
 fn run_schedule_step(
     opts: &InstallOptions,
     binary: &Path,
@@ -112,8 +110,8 @@ fn persist_optional_config(gateway_url: Option<&str>, pubkey: Option<&str>) {
     }
 }
 
-// MUST be loopback: the upstream gateway URL never appears in
-// `inferenceGatewayBaseUrl`.
+// Why: `inferenceGatewayBaseUrl` must stay loopback — the upstream gateway URL
+// must never be exposed to Cowork.
 fn resolve_inference_base_url() -> String {
     if let Some(handle) = crate::proxy::handle() {
         return format!("http://127.0.0.1:{}", handle.port);

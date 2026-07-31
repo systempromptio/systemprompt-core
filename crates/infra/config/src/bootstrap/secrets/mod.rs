@@ -172,12 +172,6 @@ impl SecretsBootstrap {
         secrets.manifest_signing_secret_seed =
             Some(base64::engine::general_purpose::STANDARD.encode(seed));
 
-        // Why: The profile directory may be mounted read-only (e.g. an air-gapped
-        // deployment with a `:ro` profile mount). The seed is only needed for
-        // manifest signing within this process, so a failed persist is a
-        // warning, not a fatal error: the in-memory seed above keeps signing
-        // working for this boot. Operators wanting a stable seed across boots
-        // should set `MANIFEST_SIGNING_SECRET_SEED` or use a writable dir.
         let profile_dir = path.parent().unwrap_or_else(|| Path::new("."));
         if !dir_is_writable(profile_dir) {
             tracing::warn!(

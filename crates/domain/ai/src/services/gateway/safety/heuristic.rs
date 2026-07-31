@@ -67,11 +67,6 @@ impl SafetyScanner for HeuristicScanner {
     }
 }
 
-/// The turns [`SafetyScanner::scan_request`] did not already judge.
-///
-/// The system prompt and the newest user turn are the request proper; anything
-/// before them is what the caller already sent and was already scanned on the
-/// turn it arrived.
 fn history_units(req: &CanonicalRequest) -> Vec<String> {
     let mut units = req.message_units();
     if req.system.is_some() && !units.is_empty() {
@@ -148,10 +143,6 @@ fn detect_email(text: &str) -> bool {
     false
 }
 
-/// A run is only a candidate card number if nothing but the separators a human
-/// writes a card with interrupts its digits. Stripping every non-digit instead
-/// splices unrelated numbers — two version strings, a timestamp and an id —
-/// into a window that passes Luhn while no card is present.
 fn detect_credit_card(text: &str) -> bool {
     let mut run = String::new();
     for ch in text.chars() {

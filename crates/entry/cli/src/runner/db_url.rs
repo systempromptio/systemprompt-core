@@ -22,9 +22,6 @@ pub(super) enum DbUrlRouting {
 }
 
 impl Commands {
-    // Why: The [`DbUrlRouting::Direct`] set must stay in lockstep with the
-    // database-scoped gates in each group's `execute` — those are the only
-    // commands `run_with_database_url` can serve.
     pub(super) const fn db_url_routing(&self) -> DbUrlRouting {
         match self {
             Self::Admin(

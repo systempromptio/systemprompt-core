@@ -116,8 +116,6 @@ pub(super) fn check_view_columns(
     ));
 }
 
-// Why: Built only for a `FROM` of plain table references; joins and subqueries
-// yield `None` and are deliberately left unresolved.
 struct ViewFrom {
     alias_map: Vec<(String, String)>,
     single_table: Option<String>,

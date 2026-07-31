@@ -59,8 +59,8 @@ pub(super) fn write_marketplace_json(
     )
 }
 
-// `owner` is a required object and `name` must equal the marketplace key, or
-// `claude plugin validate` rejects the manifest ("owner: expected object").
+// Why: `claude plugin validate` requires `owner` to be an object and `name` to
+// equal the marketplace key, else it rejects the manifest.
 pub fn marketplace_value(version: &str, entries: &[MarketplaceEntry]) -> Value {
     let plugins: Vec<Value> = entries
         .iter()
@@ -191,7 +191,6 @@ pub(super) fn set_enabled(ids: &[&str]) -> Result<(), ApplyError> {
     write_json(&path, &Value::Object(root))
 }
 
-/// Removes every `@{MARKETPLACE}` key not in `keep`; foreign keys survive.
 fn strip_marketplace_keys(map: &mut serde_json::Map<String, Value>, keep: &[&str]) -> bool {
     let suffix = format!("@{MARKETPLACE}");
     let expected: Vec<String> = keep.iter().map(|id| plugin_key(id)).collect();

@@ -20,8 +20,8 @@ use systemprompt_identifiers::ValidatedUrl;
 pub use errors::GatewayError;
 pub use types::{BridgeOAuthClientResponse, HookTokenResponse, WhoamiResponse};
 
-// WSL2's localhost forwarder black-holes IPv6 SYNs, stalling `::1` connects;
-// reqwest 0.12 lacks happy-eyeballs, so order IPv4 first.
+// Why: WSL2's localhost forwarder black-holes IPv6 SYNs and reqwest 0.12 lacks
+// happy-eyeballs, so order IPv4 first.
 #[derive(Debug)]
 pub(crate) struct Ipv4FirstResolver;
 

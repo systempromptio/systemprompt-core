@@ -70,11 +70,6 @@ pub fn spawn_supervised(cmd: Command) -> std::io::Result<u32> {
         .map_err(|disconnected| std::io::Error::other(disconnected.to_string()))?
 }
 
-/// The spawner thread, started on first use and never joined.
-///
-/// The error is stored rather than returned so the thread is attempted exactly
-/// once: if it cannot start, every later spawn fails with the same reason
-/// instead of retrying a thread the OS has already refused.
 fn spawner() -> &'static Result<Sender<(Command, SpawnReply)>, String> {
     static SPAWNER: OnceLock<Result<Sender<(Command, SpawnReply)>, String>> = OnceLock::new();
     SPAWNER.get_or_init(|| {

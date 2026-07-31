@@ -51,8 +51,6 @@ pub(super) struct DomainRead {
     pub api_key_fp: Option<String>,
 }
 
-/// `None` when there is no baked key or the proxy has not started — the caller
-/// must treat that as "cannot assert staleness", never as stale.
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 pub(super) fn secret_freshness(installed_api_key_fp: Option<&str>) -> Option<bool> {
     let installed = installed_api_key_fp?;
@@ -74,8 +72,6 @@ pub(super) fn now_unix() -> u64 {
         .map_or(0, |d| d.as_secs())
 }
 
-// Pid + monotonic counter keep concurrent stagers in the shared temp dir from
-// racing on the same `File::create` path.
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 pub(super) fn unique_stem() -> String {
     use std::sync::atomic::{AtomicU64, Ordering};

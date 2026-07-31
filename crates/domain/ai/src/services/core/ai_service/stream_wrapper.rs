@@ -137,9 +137,6 @@ impl StreamStorageWrapper {
         self.spawn_audit(response, RequestStatus::Failed, Some(error.to_string()), 0);
     }
 
-    // Why: Stream::poll_next is sync; an async storage.store can only be
-    // dispatched off the stream boundary via tokio::spawn. Errors are logged
-    // inside the spawned task — never `.ok()`-swallowed.
     fn spawn_audit(
         &self,
         response: AiResponse,

@@ -34,10 +34,6 @@ pub(crate) fn is_redacted(field_name: &str) -> bool {
         || REDACT_EXACT.iter().any(|e| lower == *e)
 }
 
-// Why: Whether `rendered` is the `system` attribution sentinel that
-// [`SystemSpan`](crate::SystemSpan) stamps onto internal spans. The console
-// sink drops it as noise; the database sink keeps it for attribution queries.
-// `rendered` may be a bare `system` or a `Debug`-quoted `"system"`.
 pub(crate) fn is_system_sentinel(rendered: &str) -> bool {
     rendered == "system" || rendered == "\"system\""
 }

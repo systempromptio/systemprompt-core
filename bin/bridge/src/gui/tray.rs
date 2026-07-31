@@ -161,9 +161,6 @@ pub fn drain(handles: &TrayHandles) -> Vec<UiEvent> {
     out
 }
 
-/// A stored PAT counts: signing out must stay available even while identity
-/// verification is still in flight or the gateway is unreachable, since that is
-/// exactly when a user wants to re-authenticate.
 const fn is_signed_in(snap: &AppStateSnapshot) -> bool {
     snap.pat_present || snap.verified_identity.is_some()
 }

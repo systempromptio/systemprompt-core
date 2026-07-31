@@ -68,7 +68,6 @@ async fn handle_events(State(ctx): State<AppContext>, headers: HeaderMap, body: 
             if !verify_app(&app, &headers, &body) {
                 return StatusCode::UNAUTHORIZED.into_response();
             }
-            // Why: Drop the bot's own echoes and non-message events to avoid loops.
             if event.bot_id.is_some() || !matches!(event.kind.as_str(), "message" | "app_mention") {
                 return StatusCode::OK.into_response();
             }

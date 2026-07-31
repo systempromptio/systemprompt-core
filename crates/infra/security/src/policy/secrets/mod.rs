@@ -29,8 +29,6 @@ static COMPILED: LazyLock<Vec<(usize, Regex)>> = LazyLock::new(|| {
         .enumerate()
         .filter_map(|(i, p)| match Regex::new(p.expr) {
             Ok(re) => Some((i, re)),
-            // Why: a test pins compiled_pattern_count() == SECRET_PATTERNS.len(),
-            // so this arm is a per-pattern guard for the release binary only.
             Err(e) => {
                 tracing::error!(pattern_id = %p.id, error = %e, "secret pattern disabled: regex failed to compile");
                 None
@@ -49,8 +47,6 @@ pub fn compiled_pattern_count() -> usize {
 
 const ENTROPY_MIN_LEN: usize = 32;
 
-// Why: bits per character. Random base64 of 32+ chars sits around 4.4-4.8;
-// English-ish identifiers stay under 4.0.
 const ENTROPY_THRESHOLD: f64 = 4.0;
 
 fn shannon_entropy(s: &str) -> f64 {
@@ -70,9 +66,6 @@ fn shannon_entropy(s: &str) -> f64 {
         .sum()
 }
 
-// Why: the mixed-class requirement (upper AND lower AND digit) is what keeps
-// git SHAs, UUIDs and hex digests out; relaxing it reintroduces those false
-// positives.
 #[must_use]
 pub fn find_high_entropy_token(text: &str) -> Option<&str> {
     text.split(|c: char| c.is_whitespace() || "\"'`()[]{}<>,;:".contains(c))
@@ -108,8 +101,6 @@ fn scan_str(s: &str) -> Option<(&'static SecretPattern, String)> {
     })
 }
 
-// Why: shares [`SECRET_PATTERNS`] with the governance chain so gateway safety
-// scanners and the tool-use governor flag the same credentials.
 #[must_use]
 pub fn scan_str_for_secret(text: &str) -> Option<String> {
     scan_str(text).map(|(_, redacted)| redacted)

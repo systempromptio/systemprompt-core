@@ -54,9 +54,6 @@ impl AuthzAuditSink for DbAuditSink {
             session_id: req.session_id.as_ref().map_or("", SessionId::as_str),
             tool_name: entity_id,
             agent_id: None,
-            // Why: the authz path operates on entities (not agent invocations) so
-            // there's no AccessScope to record. entity_type still flows into the
-            // evaluated_rules JSON above for forensic lookup.
             agent_scope: None,
             decision: decision_tag,
             policy: source.policy(),

@@ -79,12 +79,6 @@ pub fn write_artifacts(
     artifacts: &[ArtifactEntry],
 ) -> Result<(), ApplyError> {
     if artifacts.is_empty() {
-        // Cowork is enabled but the manifest carried zero artifacts. This is
-        // almost always an upstream population bug (marketplace scoping/gating)
-        // rather than an intentional teardown — clearing here would silently
-        // wipe the user's library. Preserve the existing store and warn instead.
-        // Intentional teardown runs through `CoworkArtifactsSync::clear`
-        // (the disabled-host path), which calls `remove_dir` directly.
         tracing::warn!(
             target_dir = %dir.display(),
             "cowork artifacts: enabled host sent an empty artifact set — preserving existing store (not clearing); check gateway marketplace scoping/gating"

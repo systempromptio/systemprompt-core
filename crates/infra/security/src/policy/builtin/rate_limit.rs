@@ -66,9 +66,6 @@ struct Charge {
     call_id: CallId,
 }
 
-// Why: keys are `{session}:{user}` and a session is minted per conversation,
-// so without an idle-bucket sweep the map gains one entry per conversation
-// for the life of the process.
 const SWEEP_AT: usize = 1024;
 
 impl SlidingWindow {
@@ -93,8 +90,6 @@ impl SlidingWindow {
         let charges = self.buckets.entry(key.to_owned()).or_default();
         charges.retain(|c| c.at > cutoff);
 
-        // Why: replaying the position this call was charged at reproduces the
-        // count it first saw, so every later evaluation of it decides the same.
         if let Some(position) = charges.iter().position(|c| c.call_id == *call_id) {
             return position;
         }

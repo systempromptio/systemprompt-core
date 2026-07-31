@@ -115,9 +115,6 @@ fn render_chart(section: &DashboardSection) -> McpDomainResult<String> {
     ))
 }
 
-// Why: a dashboard section carries its chart kind as a free string rather than
-// the `ChartType` enum, so an unknown value has to degrade to a plot rather
-// than fail the whole dashboard.
 fn chart_type(declared: &str) -> ChartType {
     match declared.to_lowercase().as_str() {
         "bar" | "column" => ChartType::Bar,

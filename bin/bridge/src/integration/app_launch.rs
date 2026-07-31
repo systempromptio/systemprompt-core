@@ -45,9 +45,8 @@ pub(crate) fn open_app(loc: &AppLocator<'_>) -> io::Result<()> {
 
 #[cfg(target_os = "windows")]
 pub(crate) fn open_app(loc: &AppLocator<'_>) -> io::Result<()> {
-    // AppsFolder activation first: it is the only launch path that works for an
-    // MSIX package (the exe under %ProgramFiles%\WindowsApps is not directly
-    // executable by us) and it costs no PowerShell spawn.
+    // Why: AppsFolder activation is the only launch path that works for an MSIX
+    // package — its exe under %ProgramFiles%\WindowsApps is not executable by us.
     if let Some(family) = loc.msix_family
         && msix_launch(family, loc.msix_app_id).is_ok()
     {
@@ -90,10 +89,9 @@ pub(crate) fn is_installed(loc: &AppLocator<'_>) -> AppInstallState {
     if loc.windows_candidates.iter().any(|p| p.exists()) {
         return AppInstallState::Installed;
     }
-    // MSIX packages install under the ACL-locked %ProgramFiles%\WindowsApps, so
-    // the path check above can never see them. The per-user AppModel repository
-    // records them and is readable unelevated — and unlike the Start-menu probe
-    // it spawns no process, so it stays cheap enough for a 30s probe tick.
+    // Why: MSIX packages live under the ACL-locked %ProgramFiles%\WindowsApps, so
+    // the path check cannot see them; the AppModel repository is readable
+    // unelevated.
     if let Some(family) = loc.msix_family
         && msix_package_present(family)
     {
@@ -102,9 +100,6 @@ pub(crate) fn is_installed(loc: &AppLocator<'_>) -> AppInstallState {
     match start_menu_present_cached(loc.windows_name) {
         Some(true) => AppInstallState::Installed,
         Some(false) => AppInstallState::NotInstalled,
-        // The probe timed out or could not be spawned. We genuinely do not know;
-        // reporting "not installed" here is what made a running, fully
-        // configured host render as a red error.
         None => AppInstallState::Unknown,
     }
 }
@@ -130,17 +125,13 @@ fn macos_bundles(name: &str) -> Vec<PathBuf> {
     out
 }
 
-/// Registry-only MSIX presence check.
-///
-/// Subkeys of the per-user package repository are named
-/// `<family-stem>_<version>_<arch>__<publisher-id>`, e.g.
-/// `Claude_1.22209.3.0_x64__pzs8sxrjxfjjc` for family `Claude_pzs8sxrjxfjjc`.
+// Why: repository subkeys are named
+// `<family-stem>_<version>_<arch>__<publisher-id>`, e.g. `Claude_1.22209.3.
+// 0_x64__pzs8sxrjxfjjc` for family `Claude_pzs8sxrjxfjjc`.
 #[cfg(target_os = "windows")]
 fn msix_package_present(family: &str) -> bool {
     const REPOSITORY: &str = r"Software\Classes\Local Settings\Software\Microsoft\Windows\CurrentVersion\AppModel\Repository\Packages";
 
-    // Split from the right: the publisher ID is always the final `_` segment,
-    // while the name part may itself contain underscores.
     let Some((stem, publisher)) = family.rsplit_once('_') else {
         return false;
     };
@@ -153,10 +144,6 @@ fn msix_package_present(family: &str) -> bool {
     })
 }
 
-/// Minimal HKCU subkey enumeration.
-///
-/// Kept local rather than added to `config::store`, which is deliberately
-/// scoped to the managed-policy subtree and exposes value reads only.
 #[cfg(target_os = "windows")]
 mod winreg {
     #![allow(
@@ -180,10 +167,9 @@ mod winreg {
         }
     }
 
-    /// `None` means the key could not be opened (absent or unreadable), which
-    /// is distinct from an empty key.
+    // Why: `None` means the key could not be opened, which is distinct from an
+    // empty key; registry key names are capped at 255 chars, +1 for the NUL.
     pub(super) fn enumerate_subkeys(subkey: &str) -> Option<Vec<String>> {
-        // Registry key names are capped at 255 chars; +1 for the NUL.
         const MAX_KEY_NAME: usize = 256;
 
         let subkey_w: Vec<u16> = subkey.encode_utf16().chain(std::iter::once(0)).collect();
@@ -233,15 +219,14 @@ mod winreg {
     }
 }
 
-/// `None` when the probe was inconclusive (timed out or could not be spawned).
 #[cfg(target_os = "windows")]
 fn start_menu_present_cached(display_name: &str) -> Option<bool> {
     use std::collections::HashMap;
     use std::sync::{Mutex, OnceLock};
     use std::time::{Duration, Instant};
 
-    // Get-StartApps cold-starts powershell (seconds per call); cache per app so
-    // probes spawn it at most once per TTL.
+    // Why: Get-StartApps cold-starts powershell (seconds per call); the cache
+    // holds probes to at most one spawn per TTL.
     /// Cached probe verdict (`None` = inconclusive) and when it was taken.
     type Verdict = (Option<bool>, Instant);
 
@@ -272,16 +257,12 @@ fn start_menu_present_cached(display_name: &str) -> Option<bool> {
     present
 }
 
-/// `None` when the probe was inconclusive (timed out or could not be spawned).
 #[cfg(target_os = "windows")]
 fn start_menu_present(display_name: &str) -> Option<bool> {
     use std::os::windows::process::CommandExt;
     use std::time::{Duration, Instant};
 
     const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-    // Bounded so a probe never blocks the UI. This is now only a fallback for
-    // hosts with no MSIX family and no known install path, so the budget is
-    // generous rather than tight — a kill here costs an `Unknown` badge.
     const PROBE_TIMEOUT: Duration = Duration::from_secs(10);
     let script = format!(
         "if (Get-StartApps | Where-Object {{ $_.Name -eq '{name}' }}) {{ exit 0 }} else {{ exit 2 }}",
@@ -297,8 +278,6 @@ fn start_menu_present(display_name: &str) -> Option<bool> {
     let deadline = Instant::now() + PROBE_TIMEOUT;
     loop {
         match child.try_wait() {
-            // Exit 0 = present, exit 2 = absent, anything else = the script
-            // itself failed and tells us nothing.
             Ok(Some(status)) => {
                 return match status.code() {
                     Some(0) => Some(true),

@@ -148,7 +148,6 @@ pub mod tracing_init {
         }
     }
 
-    // Install before `init` so panics during subscriber setup are captured.
     pub fn install_panic_hook() {
         std::panic::set_hook(Box::new(|info| {
             let ts = chrono::Utc::now().format("%Y%m%dT%H%M%SZ");

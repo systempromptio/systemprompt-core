@@ -204,10 +204,6 @@ impl PluginConfig {
         key: &str,
         field: &str,
     ) -> Result<(), ConfigValidationError> {
-        // Why: `explicit` (the default) means "exactly what `include` lists" — an empty
-        // list is valid and scopes the plugin to zero of this component. Under
-        // `instance` the whole catalogue is taken, so a stray `include` would be
-        // silently ignored: reject it as a likely mistake.
         if component.source == ComponentSource::Instance && !component.include.is_empty() {
             return Err(ConfigValidationError::invalid_field(format!(
                 "Plugin '{key}': {field}.source is 'instance' but {field}.include is set (ignored)"

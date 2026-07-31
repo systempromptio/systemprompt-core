@@ -76,9 +76,6 @@ async fn wait_for_signal() {
     }
 }
 
-/// Deliberately has no timer: a deadline armed here fires while axum is still
-/// draining and strands every MCP and agent child. [`join_within_drain_grace`]
-/// bounds that window instead, abandoning the drain rather than the process.
 fn arm_exit_on_second_signal() {
     tokio::spawn(async {
         wait_for_signal().await;
@@ -115,9 +112,6 @@ pub(super) async fn join_within_drain_grace(
     let mut serve = std::pin::pin!(serve);
     let mut readiness = super::readiness::get_readiness_receiver();
 
-    // Why: the grace window must not start ticking until there is a drain to
-    // bound — armed around the whole serve future it is a timer on the server's
-    // own lifetime and tears the process down with no signal involved.
     loop {
         tokio::select! {
             result = &mut serve => return result,

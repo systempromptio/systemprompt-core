@@ -20,8 +20,8 @@ use std::path::PathBuf;
 
 fn env_dir(key: &str) -> Option<PathBuf> {
     let value = std::env::var_os(key)?;
-    // An empty or relative value is what the XDG spec tells us to ignore, and
-    // honouring one would resolve writes against the process's cwd.
+    // Why: the XDG spec says to ignore empty or relative values; honouring one
+    // would resolve writes against the process's cwd.
     let path = PathBuf::from(value);
     path.is_absolute().then_some(path)
 }

@@ -83,8 +83,6 @@ fn empty_plot() -> String {
     )
 }
 
-/// Slice charts key colour by category, every other form keys it by dataset,
-/// so the legend has to read its entries from whichever list drives the fill.
 fn legend(datasets: &[ChartDataset], labels: &[String], chart_type: ChartType) -> String {
     let names: Vec<&str> = match chart_type {
         ChartType::Pie | ChartType::Doughnut => labels.iter().map(String::as_str).collect(),

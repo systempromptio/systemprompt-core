@@ -21,9 +21,6 @@ use systemprompt_database::DbPool;
 use systemprompt_identifiers::UserId;
 use systemprompt_users::{UserAdminService, UserService};
 
-// Why: both credential-minting commands write rows whose `user_id` is a foreign
-// key, so an unknown reference must fail here rather than as a Postgres
-// constraint violation naming an internal table and line number.
 pub(super) async fn resolve_user_id(pool: &DbPool, reference: &UserId) -> Result<UserId> {
     let reference = reference.as_str().trim();
     if reference.is_empty() {

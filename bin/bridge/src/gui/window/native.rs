@@ -27,11 +27,8 @@ const BG_RGBA: (u8, u8, u8, u8) = (15, 17, 21, 255);
 
 const SP_PROTOCOL: &str = "sp";
 const SP_HOST: &str = "app";
-// Windows/Android map the custom protocol onto http(s)://sp.<host>. The `.app`
-// TLD is HSTS-preloaded in Chromium, so WebView2 force-upgrades subresource
-// requests on an http origin to https — which then miss wry's interception
-// filter and die on the real network. Serve over https (paired with
-// with_https_scheme below) so the upgrade is a no-op.
+// Why: `.app` is HSTS-preloaded in Chromium, so WebView2 upgrades an http
+// origin's subresources to https, past wry's interception filter.
 #[cfg(any(target_os = "windows", target_os = "android"))]
 const SP_INDEX_URL: &str = "https://sp.app/index.html";
 #[cfg(not(any(target_os = "windows", target_os = "android")))]

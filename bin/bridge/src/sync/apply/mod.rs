@@ -13,8 +13,6 @@ pub use plugin::HostFailure;
 
 pub const PLUGIN_INSTALLATION_PREFERENCE: &str = "required";
 
-// Pre-per-plugin bridges wrote one aggregate plugin under this name; every
-// apply prunes leftovers from all known roots.
 const LEGACY_SYNTHETIC_PLUGIN: &str = "systemprompt-managed";
 
 use crate::config::paths::{self, OrgPluginsLocation};
@@ -114,8 +112,8 @@ fn remove_legacy_dir(path: &Path, what: &str) {
     }
 }
 
-/// Rewrites loopback MCP URLs to the bridge's configured gateway host so a
-/// Cowork client on a different host can reach them.
+// Why: a Cowork client on a different host cannot reach a loopback MCP URL, so
+// it is re-pointed at the configured gateway host.
 fn rewrite_loopback_urls(servers: &[ManagedMcpServer]) -> Vec<ManagedMcpServer> {
     let cfg = config::load();
     let Some(gateway) = cfg.gateway_url.as_ref() else {
@@ -127,7 +125,7 @@ fn rewrite_loopback_urls(servers: &[ManagedMcpServer]) -> Vec<ManagedMcpServer> 
     let (Some(raw_gw_host), gw_scheme) = (gateway_url.host_str(), gateway_url.scheme()) else {
         return servers.to_vec();
     };
-    // Cowork's MCP URL validator rejects literal `localhost` for non-HTTPS
+    // Why: Cowork's MCP URL validator rejects literal `localhost` for non-HTTPS
     // connectors — only `127.0.0.1` passes.
     let gw_host = if raw_gw_host.eq_ignore_ascii_case("localhost") {
         "127.0.0.1"
@@ -226,8 +224,6 @@ fn prepare_dirs(root: &Path) -> Result<(std::path::PathBuf, std::path::PathBuf),
     Ok((meta_dir, staging_root))
 }
 
-/// Resolves the plugin manifest under either `.claude-plugin/` or the dot-less
-/// `claude-plugin/`, matching the dual-form lookup the GUI readers perform.
 fn plugin_manifest_path(plugin_dir: &Path) -> Option<std::path::PathBuf> {
     use systemprompt_models::bridge::plugin_bundle::{PLUGIN_MANIFEST_DIRS, PLUGIN_MANIFEST_FILE};
     PLUGIN_MANIFEST_DIRS

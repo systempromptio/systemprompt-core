@@ -27,12 +27,6 @@ const SSE_CONNECTIONS: &str = "sse_active_connections";
 // callers (test binaries that build multiple API routers, or any future
 // hot-reload path) get a clone of the original instead of a hard error.
 static RECORDER: OnceLock<PrometheusHandle> = OnceLock::new();
-// Why: Serialises concurrent installers so the first writer wins the global
-// recorder race outright; without it a parallel test runner with two
-// `setup_api_server` calls both observe an empty `RECORDER`, both call
-// `install_recorder`, and the loser surfaces "attempted to set a recorder after
-// the metrics system was already initialized" instead of getting the cached
-// handle.
 static RECORDER_INIT: Mutex<()> = Mutex::new(());
 
 pub fn install_recorder() -> anyhow::Result<PrometheusHandle> {

@@ -78,11 +78,8 @@ fn parse_content(value: &Value) -> Result<Vec<CanonicalContent>, InboundParseErr
     }
 }
 
-/// `Ok(None)` drops a block the gateway does not model — `redacted_thinking`,
-/// `document`, `server_tool_use`, `web_search_tool_result` — mirroring the
-/// response-side parse, which strips the same types before the client ever
-/// sees them. Rejecting instead would 400 any client replaying history from a
-/// direct Anthropic session.
+// Why: `Ok(None)` drops blocks the gateway does not model; rejecting them would
+// 400 any client replaying history from a direct Anthropic session.
 fn parse_content_block(value: &Value) -> Result<Option<CanonicalContent>, InboundParseError> {
     let kind = value.get("type").and_then(Value::as_str).unwrap_or("text");
     match kind {

@@ -125,8 +125,6 @@ async fn acquire_claim(
         },
     };
 
-    // Why: cron's finest granularity is 1s; a peer-completed tick within 900ms
-    // means this tick is already done — skip rather than re-run.
     match repository.find_job(job_name).await {
         Ok(Some(job)) => {
             if let Some(last_run) = job.last_run {

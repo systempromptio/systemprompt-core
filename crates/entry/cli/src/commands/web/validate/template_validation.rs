@@ -123,9 +123,6 @@ fn warn_orphan_content_types(
     }
 }
 
-// Why: source names are not content types. A page carries its type in `kind`,
-// which is what `allowed_content_types` enumerates; keying on `content_sources`
-// keys instead validates templates no page can ever reach.
 fn known_content_types(content_config: &ContentConfigRaw) -> HashSet<String> {
     let mut names: HashSet<String> = content_config
         .content_sources

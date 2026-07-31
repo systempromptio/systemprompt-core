@@ -39,8 +39,8 @@ pub enum ManifestError {
     CanonicalSerialize(serde_json::Error),
 }
 
-// Extension trait: orphan rule forbids an inherent impl on `SignedManifest`
-// (foreign type).
+// Why: the orphan rule forbids an inherent impl on the foreign
+// `SignedManifest`.
 pub trait SignedManifestVerify {
     fn verify(&self, pubkey_b64: &str) -> Result<(), ManifestError>;
 }

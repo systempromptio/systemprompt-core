@@ -15,10 +15,6 @@ use std::sync::Mutex;
 use std::time::{Duration, Instant};
 use uuid::Uuid;
 
-// Why: Cache TTL for negative results (jti not revoked). Revoked results are
-// cached indefinitely because revocation is monotonic — a revoked jti cannot
-// become un-revoked. 60s caps the window during which a freshly-revoked
-// token continues to pass.
 const NEGATIVE_TTL_SECONDS: u64 = 60;
 
 const DEFAULT_CACHE_CAPACITY: usize = 5_000;

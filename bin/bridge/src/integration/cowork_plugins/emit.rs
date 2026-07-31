@@ -11,18 +11,16 @@ use std::{fs, io};
 
 use crate::config::paths;
 
-// Cowork's fixed sentinel for the personal org-session dir; if it ever changes,
-// `pick_target` falls back to mtime.
+// Why: Cowork's fixed sentinel for the personal org-session dir; if it ever
+// changes, `pick_target` falls back to mtime.
 pub const PERSONAL_SESSION_UUID: &str = "00000000-0000-4000-8000-000000000001";
 
 pub(super) const ORG_PROVISIONED_MARKETPLACE: &str = "org-provisioned";
 
-// Legacy session-marketplace entries shadow the org-provisioned filesystem
-// scan, so every `apply_enable` purges them.
+// Why: entries under this key shadow the org-provisioned filesystem scan, so
+// every `apply_enable` must purge them.
 const LEGACY_MARKETPLACE_TO_PURGE: &str = "systemprompt-bridge-managed";
 
-// Pre-per-plugin bridges enabled one aggregate plugin under this name; its
-// enable key and on-disk state are purged on every apply.
 const LEGACY_SYNTHETIC_PLUGIN: &str = "systemprompt-managed";
 
 pub(super) const INSTALLED_PLUGINS_FILE: &str = "installed_plugins.json";
@@ -126,8 +124,6 @@ fn org_uuid_of(p: &std::path::Path) -> Option<String> {
         .map(str::to_ascii_lowercase)
 }
 
-// A half-initialised org dir lacking its `cowork_plugins` subdir would win on
-// mtime and route writes nowhere Cowork reads.
 fn usable_org_dir(p: &std::path::Path) -> bool {
     p.join(paths::COWORK_PLUGINS_SUBDIR).is_dir()
 }
@@ -201,8 +197,6 @@ pub fn clear_all(target: &CoworkTarget) -> Result<(), EmitError> {
     Ok(())
 }
 
-/// Missing paths are not an error — a no-op on a session that carries no legacy
-/// marketplace state.
 pub(super) fn purge_legacy_marketplace(
     target: &CoworkTarget,
     plugin_name: &str,

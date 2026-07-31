@@ -9,9 +9,6 @@ pub(super) struct StmtLoc<'a> {
     pub source: &'a str,
 }
 
-// Why: Advance past leading whitespace and `--` / `/* */` comments so a
-// statement's reported position points at its first significant token rather
-// than at the trailing comment of the previous statement.
 pub(super) const fn stmt_start_offset(sql: &str, start: usize) -> usize {
     let bytes = sql.as_bytes();
     let mut i = start;

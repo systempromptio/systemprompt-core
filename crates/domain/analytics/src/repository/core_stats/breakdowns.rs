@@ -109,8 +109,6 @@ impl CoreStatsRepository {
     }
 
     pub async fn get_bot_traffic_stats(&self) -> Result<BotTrafficStats> {
-        // Why: Partitions every session into human/bot buckets; the flag predicates
-        // must mirror v_clean_traffic / v_bot_sessions.
         sqlx::query_as!(
             BotTrafficStats,
             r#"

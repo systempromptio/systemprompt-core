@@ -142,9 +142,8 @@ fn contents(request: &CanonicalRequest) -> Vec<GeminiContent> {
         .collect()
 }
 
-/// Gemini's `functionResponse.name` must be the declared function name, but
-/// the canonical `ToolResult` carries only the gateway-minted `tool_use_id`;
-/// the matching `ToolUse` earlier in the same replayed history recovers it.
+// Why: Gemini's `functionResponse.name` must be the declared function name, but
+// canonical `ToolResult` carries only the gateway-minted `tool_use_id`.
 fn tool_call_names(request: &CanonicalRequest) -> HashMap<&str, &str> {
     let mut names = HashMap::new();
     for msg in &request.messages {

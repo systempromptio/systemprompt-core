@@ -82,10 +82,6 @@ async fn run_agents_phase(ctx: &AppContext, events: Option<&StartupEventSender>)
     }
 }
 
-/// A scheduler that cannot start is fatal: `run_bootstrap_jobs` is reached only
-/// through this phase, so continuing would serve a process whose boot-time jobs
-/// silently never ran. Disabling the scheduler is done via
-/// `scheduler.enabled: false`, which succeeds here with no handle.
 async fn run_scheduler_phase(
     ctx: &AppContext,
     events: Option<&StartupEventSender>,

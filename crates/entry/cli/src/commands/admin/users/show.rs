@@ -96,9 +96,6 @@ pub(super) async fn execute_with_pool(
 
     let card = CommandOutput::card_value(format!("User: {}", user.name), &output);
 
-    // Why: a presentation card serialises as headed sections, so scripting the
-    // provisioning flow meant digging the id back out of `.sections[]`. Machine
-    // formats emit the record itself; the card stays the terminal view.
     match config.output_format() {
         OutputFormat::Json => {
             CliService::json(&output);

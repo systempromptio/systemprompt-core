@@ -95,10 +95,6 @@ struct McpFileProbe {
     mcp_servers: BTreeMap<String, serde_json::Value>,
 }
 
-// MCP deliberately never rides the Cowork-visible plugin dir: connectors come
-// from the managed-server policy, and a bundled `.mcp.json` would register a
-// second, unauthenticated copy. The file is parsed for its server names (the
-// CLI emitters re-project them through the bridge proxy) and then removed.
 fn extract_mcp_servers(plugin_dir: &Path) -> Vec<String> {
     let path = plugin_dir.join(".mcp.json");
     let Ok(bytes) = fs::read(&path) else {

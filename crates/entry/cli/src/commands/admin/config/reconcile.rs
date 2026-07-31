@@ -27,10 +27,6 @@ use systemprompt_security::authz::{
 
 const ROLES_YAML_RELATIVE: &str = "access-control/roles.yaml";
 
-// Why: Result of a post-edit authz reconciliation. `Deferred` carries the
-// reason the catalog could not be re-materialised now (e.g. the database was
-// unreachable during an offline edit); the profile write has already succeeded
-// regardless.
 pub(super) enum ReconcileOutcome {
     Reconciled,
     Deferred(String),

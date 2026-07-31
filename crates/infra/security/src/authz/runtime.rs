@@ -138,9 +138,6 @@ fn compose_rule_based(
     sink: Arc<dyn AuthzAuditSink>,
     mut tail: Vec<SharedAuthzHook>,
 ) -> SharedAuthzHook {
-    // Why: RuleBasedHook needs the DbPool to query access_control_rules. When
-    // no pool is available (pre-DB bootstrap, tests), skip it — the resolver
-    // cannot run without rule storage, so composing it would only deny.
     let Some(pool) = pool else {
         if tail.len() == 1 {
             return tail.remove(0);

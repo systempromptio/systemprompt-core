@@ -38,8 +38,6 @@ impl Job for GhostSessionCleanupJob {
 
         let pool = db_pool.write_pool_arc().map_err(SchedulerError::from)?;
 
-        // Why: Writers reclassify the very flags v_clean_traffic filters on, so the
-        // human predicate stays inline here and must mirror that view.
         let result = sqlx::query_scalar!(
             r#"
             WITH cleaned AS (

@@ -122,9 +122,6 @@ pub async fn finish_register(
         .into_response())
 }
 
-// Why: promotion is best-effort — registration must never fail because the
-// anonymous history could not be moved; a failed merge stays repairable via
-// `admin users merge`.
 async fn migrate_session_user(state: &OAuthState, session_id_str: &str, new_user_id: &UserId) {
     use systemprompt_identifiers::SessionId;
 

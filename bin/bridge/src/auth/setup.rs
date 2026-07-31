@@ -99,10 +99,6 @@ pub fn clean() -> Result<CleanReport, SetupError> {
     let config_removed = paths.config_file.exists();
     remove_if_exists(&paths.config_file)?;
     remove_managed_mcp_fragment()?;
-    // `clean` resets the machine, so first-use provisioning should run again.
-    // `logout` deliberately does not: signing back in on an already-provisioned
-    // device is not first use. Removed by path rather than through
-    // `gui::first_run::record`, which does not exist on Linux.
     if let Some(dir) = crate::config::paths::bridge_metadata_dir() {
         remove_if_exists(&dir.join(crate::config::paths::FIRST_RUN_SENTINEL))?;
     }

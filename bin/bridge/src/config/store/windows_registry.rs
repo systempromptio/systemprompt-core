@@ -45,7 +45,8 @@ impl ConfigStore for WindowsRegistryStore {
         &self,
         keys: &[&str],
     ) -> Result<ManagedPolicyRead, ConfigStoreError> {
-        // HKCU read last so per-user values override machine-wide HKLM defaults.
+        // Why: HKCU is read last so per-user values override machine-wide HKLM
+        // defaults.
         let mut values: BTreeMap<String, String> = BTreeMap::new();
         let mut hives_with_data: Vec<&'static str> = Vec::new();
         for (hive, hive_label) in [(HKEY_LOCAL_MACHINE, "HKLM"), (HKEY_CURRENT_USER, "HKCU")] {
@@ -236,8 +237,8 @@ fn create_policy_key(hive: HKEY, hive_label: &str) -> Result<OwnedKey, ConfigSto
     }
 }
 
-// `SOFTWARE\Policies` is ACL-protected in both hives; a non-elevated create/set
-// returns status 5.
+// Why: `SOFTWARE\Policies` is ACL-protected in both hives; a non-elevated
+// create/set returns status 5.
 fn access_denied(hive_label: &str) -> ConfigStoreError {
     ConfigStoreError::AccessDenied {
         hive: hive_label.to_owned(),

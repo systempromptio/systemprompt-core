@@ -13,16 +13,9 @@ fn validate_uuid_v4(s: &str) -> Result<(), IdValidationError> {
     Ok(())
 }
 
-// Why: UUID v5 namespace for deriving a stable `ContextId` from a
-// `GatewayConversationId`. Hardcoded so derivations match across processes
-// and rebuilds; rotating it would orphan every prior gateway audit row.
 const GATEWAY_CONVERSATION_NAMESPACE: uuid::Uuid =
     uuid::Uuid::from_u128(0x993f_3f2c_f4d9_463b_853a_d3f0_3e19_0898);
 
-// Why: UUID v5 namespace for deriving a stable `ContextId` from a messaging
-// surface's (platform, org, channel) triple. Hardcoded so derivations match
-// across processes and rebuilds; rotating it would orphan every prior Slack /
-// Teams conversation's audit history.
 const MESSAGING_NAMESPACE: uuid::Uuid =
     uuid::Uuid::from_u128(0x6b1d_2a7e_9c84_4f31_b5e0_71a2_4d8c_3f06);
 

@@ -64,8 +64,6 @@ pub(super) fn ticks(labels: &[String], frame: Frame, slots: usize) -> String {
         .collect::<Vec<_>>()
         .join("\n");
 
-    // Why: past roughly a dozen categories the labels collide, so thin them by
-    // a whole-number stride rather than rotating or truncating them.
     let stride = slots.div_ceil(12).max(1);
     let category_ticks = labels
         .iter()

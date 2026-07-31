@@ -24,8 +24,8 @@ pub fn read_optional_object(path: &Path) -> Result<Option<Map<String, Value>>, A
     if text.trim().is_empty() {
         return Ok(Some(Map::new()));
     }
-    // Abort rather than overwrite a file we can't understand — these files hold
-    // the user's other plugins and (in settings.json) their auth token.
+    // Why: these files hold the user's other plugins and (in settings.json) their
+    // auth token, so an unparseable file must abort rather than be overwritten.
     match serde_json::from_str::<Value>(text) {
         Ok(Value::Object(m)) => Ok(Some(m)),
         Ok(_) => Err(io_err(

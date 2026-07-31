@@ -89,10 +89,6 @@ async fn initialize_post_routing(
     desc: &CommandDescriptor,
     needs_cloud: bool,
 ) -> Result<RoutingAction> {
-    // Why: only commands that hit the cloud control plane should consult
-    // cloud credentials. `external_db_access` is preserved because that
-    // path resolves the DB URL from cloud-issued creds even from a local
-    // CLI.
     if needs_cloud || (ctx.is_cloud && ctx.external_db_access) {
         bootstrap::init_credentials_gracefully(needs_cloud).await?;
     }

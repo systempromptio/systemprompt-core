@@ -25,8 +25,8 @@ pub struct HostSyncCtx<'a> {
     pub bearer: &'a str,
 }
 
-// `#[async_trait]`: the static registry needs `dyn HostSync`. The `Any` bound
-// lets the registry dedup by concrete emitter type — `host_id()` is the
+// Why: `#[async_trait]` — the static registry needs `dyn HostSync`. The `Any`
+// bound lets the registry dedup by concrete emitter type — `host_id()` is the
 // manifest enablement gate and is deliberately shared by the two Cowork facets
 // (plugins + artifacts), so it cannot serve as the dedup key.
 #[async_trait]

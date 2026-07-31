@@ -30,7 +30,7 @@ pub const LIBRARY_STORE_FILE: &str = "library.json";
 
 pub const STAGING_SUBDIR: &str = "staging";
 
-/// Field names track Cowork's native library-entry shape.
+// Why: field names and casing must track Cowork's native library-entry shape.
 #[derive(Debug, Serialize)]
 struct LibraryArtifactRecord<'a> {
     id: &'a str,

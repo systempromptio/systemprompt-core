@@ -43,9 +43,6 @@ use crate::services::gateway::protocol::inbound::anthropic_messages::AnthropicMe
 use crate::services::gateway::protocol::inbound::openai_responses::OpenAiResponsesInbound;
 use crate::services::middleware::{JtiRevocationChecker, JwtContextExtractor};
 
-// Why: the gateway router is nested without the context middleware — it
-// authenticates inside the handler — so the access log cannot read a principal
-// off the request. The handler carries it back on the response instead.
 #[derive(Debug, Clone)]
 pub(crate) struct GatewayLogIdentity {
     pub user: UserId,

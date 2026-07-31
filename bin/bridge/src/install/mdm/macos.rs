@@ -52,8 +52,8 @@ pub fn build_mobileconfig(gateway: &str, pubkey: Option<&str>) -> String {
         .replace("{pubkey_block}", &pubkey_block)
 }
 
-// The empty `<dict/>` under `oauth` MUST be emitted: it signals "needs OAuth,
-// do well-known discovery" to Cowork.
+// Why: Cowork reads an empty `<dict/>` under `oauth` as "needs OAuth, do
+// well-known discovery"; omitting the key disables discovery entirely.
 fn managed_mcp_plist_block() -> String {
     let registry = crate::mcp_registry::snapshot();
     if registry.is_empty() {

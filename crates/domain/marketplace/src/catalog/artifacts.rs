@@ -114,8 +114,6 @@ fn build_artifact_entry(artifact_dir: &Path) -> Result<Option<ArtifactEntry>, Ma
     }))
 }
 
-// Why: NUL-delimited so no concatenation of two fields can collide with a
-// different split.
 fn artifact_digest(
     id: &str,
     version: &str,

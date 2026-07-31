@@ -69,9 +69,6 @@ pub async fn insert_governance_decision(
 ) -> Result<(), sqlx::Error> {
     let actor_kind = record.actor.kind.tag();
     let actor_id = record.actor.kind.actor_id(&record.actor.user_id);
-    // Why: act_chain is `Vec<Actor>` which is unconditionally serde-compliant,
-    // so serialization failure is unreachable; falling back to `[]` keeps the
-    // audit row writable rather than dropping the entire governance record.
     let act_chain =
         serde_json::to_value(record.act_chain).unwrap_or_else(|_| serde_json::json!([]));
     let result = sqlx::query!(
@@ -99,10 +96,6 @@ pub async fn insert_governance_decision(
     .execute(pool)
     .await;
     if let Err(error) = &result {
-        // Why: callers run this inside `tokio::spawn` (fire-and-forget audit
-        // writes), so a swallowed error here is invisible to the HTTP
-        // response. Log + counter at the SQL boundary guarantees every drop
-        // surfaces regardless of caller.
         tracing::error!(
             error = %error,
             actor_kind = actor_kind.as_str(),

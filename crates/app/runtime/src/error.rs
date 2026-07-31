@@ -72,8 +72,6 @@ pub enum RuntimeError {
     )]
     SystemAdminMissingRole { username: String },
 
-    // Why: the message is a String because maxminddb is an optional
-    // dependency — a typed source would feature-fork this enum.
     #[error(
         "Configured GeoIP database at '{path}' could not be loaded: {message}. Fix or remove \
          paths.geoip_database from the profile."

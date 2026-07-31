@@ -7,15 +7,10 @@ use crate::config::paths;
 
 use super::Check;
 
-// Every check in this module diagnoses how Cowork consumes what the bridge
-// syncs. On a host that can host no Cowork at all the questions are not merely
-// unanswered, they are meaningless — so the checks withdraw rather than warn.
 fn cowork_possible() -> bool {
     paths::cowork3p_sessions_root().is_some()
 }
 
-// Catches the silent "plugin on disk but Cowork never enabled it" state via the
-// enable keys in cowork_settings.json.
 pub fn check_cowork_enable() -> Option<Check> {
     use crate::integration::cowork_plugins::{
         COWORK_SETTINGS_FILE, enabled_plugins_key, resolve_target,
@@ -104,7 +99,7 @@ struct PluginManifestProbe {
     installation_preference: Option<String>,
 }
 
-// A synced plugin.json lacking `installationPreference` triggers Cowork's
+// Why: a synced plugin.json lacking `installationPreference` triggers Cowork's
 // "Contact an organization owner" tooltip under MDM.
 pub fn check_plugin_installation_preference() -> Option<Check> {
     if !cowork_possible() {
@@ -188,8 +183,7 @@ pub fn check_plugin_installation_preference() -> Option<Check> {
     ))
 }
 
-// Warns when Cowork sessions exist but none matches the hard-coded
-// PERSONAL_SESSION_UUID (Cowork may have bumped it).
+// Why: Cowork may bump PERSONAL_SESSION_UUID, which we hard-code.
 pub fn check_personal_session_sentinel() -> Option<Check> {
     use crate::integration::cowork_plugins::PERSONAL_SESSION_UUID;
 

@@ -185,9 +185,6 @@ fn validate_profile_file(path: &std::path::Path) -> Result<(CommandOutput, bool)
     }
 }
 
-/// The merged services config is loaded rather than the walked files, because
-/// `services/scheduler/config.yaml` is one fragment of an `includes:` graph —
-/// only the merged document carries the job set the server will see.
 fn scheduler_catalog_error(files: &[ConfigFileInfo]) -> Option<String> {
     if !files
         .iter()

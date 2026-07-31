@@ -137,12 +137,6 @@ pub fn windows_policy_values(
     pubkey: Option<&str>,
     org_uuid: Option<&str>,
 ) -> Vec<(&'static str, &'static str, String)> {
-    // `managedMcpServers`/`inferenceGateway*` are omitted from this static set:
-    // they are dynamic (depend on the live mcp_registry snapshot + rotating
-    // loopback bearer) and are written separately — managedMcpServers via
-    // `windows::write_managed_mcp_servers_value` (HKLM; see the hive-precedence
-    // note there), inferenceGateway* when the Claude Desktop host profile is
-    // applied.
     let mut values: Vec<(&'static str, &'static str, String)> = vec![
         ("inferenceProvider", "REG_SZ", "gateway".into()),
         ("inferenceGatewayAuthScheme", "REG_SZ", "bearer".into()),
@@ -158,16 +152,9 @@ pub fn windows_policy_values(
             r#"["127.0.0.1"]"#.into(),
         ),
     ];
-    // Give Cowork a pre-trusted default working directory so the agent has a
-    // real, writable home instead of the ephemeral per-session outputs mount —
-    // without this the agent wanders into protected host paths (Documents,
-    // /tmp, the session root) and triggers `request_cowork_directory` permission
-    // prompts / hard blocks. `isDefaultSelected:true` surfaces it as a folder
-    // chip on the new-task page AND skips the trust prompt. `~` expands
-    // per-machine to the user's home (the folder is created by `apply`). The
-    // folder NAME is brand-specific (systemprompt vs Astound vs …), so it comes
-    // from the active Brand, not a core literal. Empty ⇒ omit the key. This is
-    // the only documented filesystem-scope policy key.
+    // Why: without a pre-trusted workspace Cowork falls back to protected host
+    // paths and blocks on `request_cowork_directory`; `isDefaultSelected` skips
+    // the trust prompt.
     let workspace = crate::brand::brand().workspace_dir_name;
     if !workspace.is_empty() {
         let json =
@@ -183,8 +170,8 @@ pub fn windows_policy_values(
     values
 }
 
-// Points Cowork at the loopback proxy (which injects the gateway JWT), avoiding
-// Cowork's OAuth flow that rejects the gateway's non-HTTPS authorize URL.
+// Why: Cowork's OAuth flow rejects the gateway's non-HTTPS authorize URL, so
+// servers must point at the loopback proxy that injects the gateway JWT.
 #[cfg(target_os = "windows")]
 #[must_use]
 pub(crate) fn managed_mcp_servers_json() -> Option<String> {
@@ -260,10 +247,6 @@ Windows Registry Editor Version 5.00
             .replace("{workspace}", crate::brand::brand().workspace_dir_name)
         },
         Os::Linux => {
-            // The secret really lives under the brand's config dir — see
-            // `crate::proxy::secret::secret_path`, which joins
-            // `brand().config_dir`. Hardcoding "systemprompt" here sent
-            // white-label users to a path that does not exist for them.
             let config_dir = crate::brand::brand().config_dir;
             let bin = crate::brand::brand().binary_name;
             format!(

@@ -224,9 +224,6 @@ fn build_agent_config(mut request: AgentCreateRequest) -> AgentConfig {
     }
 }
 
-// Why: the seed catalog is the single source of valid out-of-box model ids;
-// deriving the provider's default here keeps agent-create from pinning a
-// retired id that would 404 on first inference.
 fn default_model_for(provider: &str) -> String {
     ProviderRegistry::default_seed()
         .ok()

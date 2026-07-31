@@ -98,9 +98,6 @@ fn resolve_admin_name(requested: Option<&str>) -> Result<String> {
     }
 }
 
-// Why: bootstrap must run before AppContext::build, because AppContext
-// resolution requires the admin row to already exist. Open a database
-// pool directly so SystemAdmin does not need to be installed yet.
 async fn connect_user_service() -> Result<UserService> {
     let database: DbPool = Arc::new(
         Database::from_config_with_write(

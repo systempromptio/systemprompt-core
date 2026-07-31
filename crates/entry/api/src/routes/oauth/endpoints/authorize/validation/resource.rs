@@ -55,10 +55,6 @@ pub(super) fn validate_resource_uri(
             "Resource URI host '{ip}' is an internal or private (loopback) network address"
         ));
     }
-    // Why: Defer the broader private-range / link-local / blocked-IP check to the
-    // workspace-canonical guard. The scheme gate is OAuth's own concern (we
-    // accept http above for legacy relying parties) — only fail on the
-    // address-block rule.
     match systemprompt_models::net::validate_outbound_url(resource) {
         Ok(_) | Err(OutboundUrlError::NonLoopbackHttp) => Ok(()),
         Err(e @ OutboundUrlError::BlockedHost(_)) => Err(format!(

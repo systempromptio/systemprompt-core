@@ -117,9 +117,8 @@ impl HostApp for ClaudeDesktopHost {
     }
 }
 
-/// Package family name of the Store/MSIX build of Claude Desktop. The trailing
-/// segment is the publisher-ID hash, which is derived from Anthropic's signing
-/// certificate and is therefore identical on every machine.
+// Why: the trailing segment is the publisher-ID hash derived from Anthropic's
+// signing certificate, so it is identical on every machine.
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 const MSIX_FAMILY: &str = "Claude_pzs8sxrjxfjjc";
 

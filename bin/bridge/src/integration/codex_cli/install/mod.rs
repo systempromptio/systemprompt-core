@@ -14,8 +14,6 @@ use std::path::Path;
 use super::config;
 use crate::integration::host_app::{GeneratedProfile, ProfileGenInputs};
 
-// Pid + monotonic counter keep concurrent stagers in the shared temp dir from
-// racing on the same `File::create` path.
 fn unique_stem() -> String {
     use std::sync::atomic::{AtomicU64, Ordering};
     static SEQ: AtomicU64 = AtomicU64::new(0);

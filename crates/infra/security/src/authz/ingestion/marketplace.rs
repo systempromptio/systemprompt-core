@@ -37,9 +37,6 @@ impl AccessControlIngestionService {
         }
 
         if options.delete_orphans && !ingested_ids.is_empty() {
-            // Why: scope the sweep to the marketplaces this pass actually owns,
-            // mirroring the role-rule path in `ingest_config`; an unscoped
-            // delete would race other writers holding marketplace role rules.
             let res = sqlx::query!(
                 r#"
                 DELETE FROM access_control_rules

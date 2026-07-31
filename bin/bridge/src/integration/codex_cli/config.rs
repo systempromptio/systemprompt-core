@@ -60,8 +60,8 @@ pub(super) fn user_config_path() -> PathBuf {
     codex_home().join("config.toml")
 }
 
-// Windows has no admin-scope path, so it falls back to user-scope under
-// CODEX_HOME; `CODEX_SYSTEM_CONFIG` overrides for tests.
+// Why: Codex defines no admin-scope path on Windows, so managed config lands
+// user-scope under CODEX_HOME there.
 pub(super) fn managed_config_path() -> PathBuf {
     if let Some(custom) = std::env::var_os("CODEX_SYSTEM_CONFIG") {
         return PathBuf::from(custom);

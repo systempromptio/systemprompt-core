@@ -63,7 +63,6 @@ struct StatePayload<'a> {
     mcp_auth: &'a [McpServerAuth],
     mcp_auth_probe_in_flight: bool,
 
-    // Brand chrome the splash needs to render the one-click sign-in button.
     sign_in_label: &'static str,
     sign_in_hint: &'static str,
 

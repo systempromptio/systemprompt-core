@@ -75,9 +75,6 @@ impl AccessControlIngestionService {
         let ingested_ids: Vec<String> = seeds.iter().map(|s| s.entity_id.clone()).collect();
 
         if options.delete_orphans && !ingested_ids.is_empty() {
-            // Why: scope the sweep to the apps this pass owns, mirroring the
-            // marketplace path; an unscoped delete would race other writers
-            // holding role rules under a different entity.
             let res = sqlx::query!(
                 r#"
                 DELETE FROM access_control_rules

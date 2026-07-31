@@ -182,8 +182,6 @@ pub const SECRET_PATTERNS: &[SecretPattern] = &[
     },
 ];
 
-// Why: reported when `find_high_entropy_token` fires; `expr` is empty because
-// the detector is procedural, so this must never be added to SECRET_PATTERNS.
 pub(super) const HIGH_ENTROPY_PATTERN: SecretPattern = SecretPattern {
     id: "high-entropy-token",
     name: "High-entropy token (possible credential)",

@@ -38,8 +38,6 @@ pub(crate) fn on_probe_requested(
         return;
     };
     if cause == ProbeCause::Manual {
-        // Manual re-verify bypasses the in-flight gate so a user click is never
-        // dropped.
         app.append_log(format!("[{host_id}] re-verifying profile and process"));
     } else if !app.state.mark_host_probing(host_id) {
         if let Some(id) = reply_to {
@@ -82,10 +80,6 @@ pub(crate) fn on_probe_finished(
         .get(host_id)
         .and_then(|s| s.snapshot.clone());
     app.state.apply_host_snapshot(host_id, snapshot.clone());
-    // Deliberately no ProxyProbeRequested here: with N hosts this fanned one
-    // probe round out into N proxy probes, each ending in its own
-    // proxy.changed + state.changed. `hosts::tick::maybe_probe` already owns
-    // proxy probe scheduling on the same interval, with an in-flight guard.
     app.refresh_ui();
     emit::emit_host_changed(app, host_id);
     let log_line = match cause {

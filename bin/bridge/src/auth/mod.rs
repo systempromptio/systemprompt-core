@@ -56,8 +56,6 @@ pub async fn read_or_refresh(
     threshold_secs: u64,
     session_id: &SessionId,
 ) -> Option<HelperOutput> {
-    // Gateway's X-Session-ID check rejects a token minted under a prior session id
-    // after restart.
     if let Some(out) = cache::read_with_threshold(threshold_secs)
         && cached_session_matches(&out, session_id)
     {
@@ -100,10 +98,6 @@ pub fn has_credential_source(cfg: &config::Config) -> bool {
     {
         return true;
     }
-    // The device-cert env vars are a credential source in their own right —
-    // `MtlsProvider::new` treats any of them as "configured". Omitting them here
-    // made `doctor` tell a working device-cert user to run `login`, which is the
-    // one thing they must not do.
     device_cert_env_configured()
 }
 

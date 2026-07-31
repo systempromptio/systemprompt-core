@@ -235,8 +235,6 @@ pub fn check_credential_store() -> Check {
     }
 }
 
-// Surfaces hook-token mint errors that otherwise fail silently as a
-// host_failures row in `sync` PARTIAL output.
 pub async fn check_hook_token_mint(gateway: &GatewayClient) -> Check {
     let creds = match plugin_oauth::load_creds() {
         Ok(Some(c)) => c,

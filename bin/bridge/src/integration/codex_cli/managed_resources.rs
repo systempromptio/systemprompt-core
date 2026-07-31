@@ -103,9 +103,8 @@ fn write_marketplace_tree(manifest: &SignedManifest) -> Result<(), ApplyError> {
     install_into_cache(&plugin_dir, &version)
 }
 
-// Codex marks a plugin "installed" solely by the presence of a version dir
-// under its managed cache, so mirror what `codex plugin add` does (a copy into
-// `cache/<marketplace>/<plugin>/<version>/`) rather than shelling out to it.
+// Why: Codex marks a plugin installed solely by a version dir under its managed
+// cache, so a copy into `cache/<marketplace>/<plugin>/<version>/` suffices.
 fn install_into_cache(plugin_dir: &Path, version: &str) -> Result<(), ApplyError> {
     let base = cache_plugin_dir();
     if let Ok(entries) = fs::read_dir(&base) {
@@ -258,8 +257,6 @@ fn read_existing_version(plugin_dir: &Path) -> Option<String> {
     value.get("version")?.as_str().map(str::to_owned)
 }
 
-// Hashes delivered content, not the gateway's per-request manifest_version,
-// so the source tree stays byte-stable across polls when nothing changed.
 fn bundle_version(manifest: &SignedManifest) -> String {
     let mut skills: Vec<&SkillEntry> = manifest.skills.iter().collect();
     skills.sort_by(|a, b| a.id.as_str().cmp(b.id.as_str()));
@@ -345,8 +342,8 @@ fn write_config_blocks(enabled: bool, mcp_servers: &[ManagedMcpServer]) -> Resul
 
     if enabled {
         let root = marketplace_root();
-        // Merge rather than replace the block: Codex stamps `last_updated` here,
-        // and dropping it forces a needless re-sync.
+        // Why: Codex stamps `last_updated` into this block, so replacing rather
+        // than merging it forces a needless re-sync.
         write_dotted(
             &mut value,
             &format!("marketplaces.{MARKETPLACE}.source_type"),
@@ -366,8 +363,6 @@ fn write_config_blocks(enabled: bool, mcp_servers: &[ManagedMcpServer]) -> Resul
         remove_marketplace_registration(&mut value);
     }
 
-    // The loopback URL identifies our entries, letting us drop/rewrite them with
-    // no persistent state while leaving foreign servers (e.g. `node_repl`) intact.
     strip_bridge_mcp_servers(&mut value);
     if enabled {
         write_mcp_servers(&mut value, mcp_servers)?;

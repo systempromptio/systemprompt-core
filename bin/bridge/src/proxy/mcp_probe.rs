@@ -190,7 +190,6 @@ pub async fn probe_endpoint(
         );
     }
 
-    // A tools/list failure is best-effort and must not downgrade the auth verdict.
     let session = resp
         .headers()
         .get(SESSION_HEADER)

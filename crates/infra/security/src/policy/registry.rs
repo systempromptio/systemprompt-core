@@ -31,9 +31,6 @@ pub struct PolicyRegistration {
 
 inventory::collect!(PolicyRegistration);
 
-// Why: register_governance_policy! expands to an inventory submission; routing
-// it through this re-export spares every registering crate a direct
-// `inventory` dependency it would otherwise carry for one macro call.
 #[doc(hidden)]
 pub use inventory;
 

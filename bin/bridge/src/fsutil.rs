@@ -23,7 +23,7 @@ pub fn atomic_write_0600(path: &Path, bytes: &[u8]) -> io::Result<()> {
         #[cfg(unix)]
         {
             use std::os::unix::fs::OpenOptionsExt;
-            // 0600 at create() closes the TOCTOU window between write and chmod.
+            // Why: 0600 at create() closes the TOCTOU window between write and chmod.
             opts.mode(0o600);
         }
         let mut file = opts.open(&tmp)?;
@@ -34,8 +34,8 @@ pub fn atomic_write_0600(path: &Path, bytes: &[u8]) -> io::Result<()> {
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
-        // Guards a pre-existing temp with looser perms when OpenOptions::mode was
-        // ignored.
+        // Why: guards a pre-existing temp with looser perms when OpenOptions::mode
+        // was ignored.
         _ = fs::set_permissions(&tmp, fs::Permissions::from_mode(0o600));
     }
 
@@ -78,8 +78,6 @@ pub fn create_dir_all_mode_0700(path: &Path) -> io::Result<()> {
 }
 
 pub fn temp_path_for(path: &Path) -> std::path::PathBuf {
-    // pid+nanos suffix avoids lost writes when two bridge processes race the same
-    // target.
     let nanos = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map_or(0, |d| d.as_nanos());

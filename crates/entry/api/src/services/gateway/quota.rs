@@ -33,7 +33,6 @@ pub struct QuotaDecision {
     pub state: QuotaBucketState,
 }
 
-/// The resolved `(subject_kind, subject_id)` a window's bucket is keyed by.
 struct WindowSubject<'a> {
     kind: &'a str,
     id: String,
@@ -49,10 +48,6 @@ fn subject_providers(pool: &Arc<PgPool>) -> &'static [SharedSubjectAttributeProv
     })
 }
 
-/// Resolve the bucket subject for a window. `user`-keyed windows resolve to
-/// the requesting user; extension dimensions resolve through the registered
-/// provider, first value winning. `None` (no provider or no value — e.g. a
-/// user outside any organization) means the window does not apply.
 async fn resolve_subject<'a>(
     window: &'a QuotaWindow,
     user_id: &UserId,

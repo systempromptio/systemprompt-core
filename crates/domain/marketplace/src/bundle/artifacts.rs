@@ -50,8 +50,6 @@ impl<'a> From<&'a ArtifactEntry> for BundledArtifactRecord<'a> {
     }
 }
 
-// Why: A record that fails to serialise is dropped with a warning rather than
-// failing the whole bundle, mirroring the catalogue's fail-closed drops.
 pub(super) fn append_artifact_files(
     config: &PluginConfig,
     content: &BundleContent<'_>,

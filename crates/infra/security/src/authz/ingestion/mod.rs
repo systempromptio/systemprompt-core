@@ -108,10 +108,6 @@ impl AccessControlIngestionService {
         let mut report = IngestReport::default();
 
         if options.delete_orphans {
-            // Why: `delete_orphans` clears stale role rules for the entities this
-            // pass resolved — not the whole table. An unscoped sweep would race
-            // any other writer (parallel test, concurrent bootstrap, another
-            // tenant's loader) that owns role rules under a different entity.
             let mut entity_types: Vec<String> = Vec::new();
             let mut entity_ids: Vec<String> = Vec::new();
             for rule in &resolved {

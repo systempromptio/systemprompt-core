@@ -226,10 +226,6 @@ impl ConfigLoader {
     }
 }
 
-// Why: keyed by path rather than a bare `OnceLock` so that a process which
-// resolves more than one configuration — the CLI acting on an explicit path, a
-// test case pointed at its own temporary profile — cannot be served another
-// path's entry.
 static CONFIG_CACHE: OnceLock<RwLock<HashMap<PathBuf, ServicesConfig>>> = OnceLock::new();
 
 fn config_cache() -> &'static RwLock<HashMap<PathBuf, ServicesConfig>> {

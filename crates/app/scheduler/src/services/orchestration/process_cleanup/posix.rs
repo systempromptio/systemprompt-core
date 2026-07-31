@@ -78,10 +78,6 @@ pub(super) async fn terminate_gracefully(pid: u32, grace_period_ms: u64) -> bool
     kill_process(pid)
 }
 
-// Why: Polls until the process has exited or the grace deadline elapses, so a
-// child that dies promptly on SIGTERM does not cost the full grace period.
-// Liveness is zombie-aware ([`process_is_live`]) because killed children are
-// never reaped and would otherwise still answer `kill(pid, 0)`.
 async fn wait_for_exit(pid: u32, grace_period_ms: u64) -> bool {
     let mut waited = 0;
     while waited < grace_period_ms {

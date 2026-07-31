@@ -10,8 +10,6 @@ use systemprompt_models::artifacts::types::ChartType;
 const DOUGHNUT_INNER: f64 = 0.58;
 
 pub(super) fn plot(spec: &ChartSpec<'_>) -> String {
-    // Why: a slice chart divides one whole, so only the first dataset is
-    // meaningful — a second series would be a different whole on the same axis.
     let Some(values) = spec.datasets.first().map(|set| set.data.as_slice()) else {
         return String::new();
     };

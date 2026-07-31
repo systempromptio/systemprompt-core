@@ -12,10 +12,6 @@ use systemprompt_models::services::{IncludableString, ServicesConfig, SkillsConf
 
 use crate::error::{ConfigLoadError, ConfigLoadResult};
 
-// Why: Duplicate keys across includes (or include-vs-root) are a hard error:
-// there is no "last writer wins", so two includes silently shadowing each other
-// is impossible. AI providers are accumulated; `web` and `scheduler` carry
-// whichever side defined them (root has priority).
 pub(super) fn merge_into(
     target: &mut ServicesConfig,
     include: ServicesConfig,

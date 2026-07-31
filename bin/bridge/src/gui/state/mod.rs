@@ -392,9 +392,6 @@ impl AppState {
         let cfg = config::load();
         snap.gateway_url = config::gateway_url_or_default(&cfg).to_string();
 
-        // Only `done` is derived from disk. `active`/`hosts` describe a run in
-        // flight, and `reload` is called from inside one (on_sync_finished) —
-        // recomputing them here would wipe the progress the wizard is showing.
         snap.first_run.done = crate::gui::first_run::record::read().is_some();
 
         if let Ok(s) = setup::status() {

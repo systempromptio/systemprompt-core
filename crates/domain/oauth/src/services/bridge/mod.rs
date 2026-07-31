@@ -90,10 +90,6 @@ pub async fn issue_bridge_access_with(
 
     let global_config = Config::get()?;
 
-    // Why: The bridge declares its stable session id via the `x-session-id` header
-    // on the exchange request; the minted JWT must carry that id so it matches
-    // the header the bridge sends on `/v1/messages`. Fall back to a fresh id
-    // for any caller that does not supply one.
     let session_id = request_headers
         .get(headers::SESSION_ID)
         .and_then(|v| v.to_str().ok())

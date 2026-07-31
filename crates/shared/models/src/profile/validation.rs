@@ -281,12 +281,6 @@ impl Profile {
         }
     }
 
-    // Why: a cloud deployment's `api_external_url` is what it advertises about
-    // itself — OAuth token endpoints, MCP server URLs, agent cards. Pointing it
-    // at loopback hands every remote client an address that resolves to the
-    // client's own machine, which surfaces as connection errors far from the
-    // cause. Local profiles are exempt: binding `0.0.0.0` while reaching the
-    // server on `localhost` is ordinary container-based development.
     pub(super) fn validate_external_url_is_reachable(
         &self,
         errors: &mut Vec<String>,

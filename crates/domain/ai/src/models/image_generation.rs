@@ -138,7 +138,6 @@ impl ImageGenerationResponse {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GeneratedImageRecord {
-    // Why: storage-row primary key, not a domain entity id
     pub uuid: String,
     pub request_id: AiRequestId,
     pub prompt: String,

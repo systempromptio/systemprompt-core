@@ -83,8 +83,6 @@ pub(super) fn dir_is_writable(dir: &Path) -> bool {
     if std::fs::write(&probe, b"").is_err() {
         return false;
     }
-    // Why: Best-effort cleanup of the probe file; failure to remove it does not
-    // change the fact that the directory is writable.
     drop(std::fs::remove_file(&probe));
     true
 }

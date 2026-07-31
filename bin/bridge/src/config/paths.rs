@@ -7,9 +7,6 @@ use std::path::PathBuf;
 
 pub const VERSION_SENTINEL: &str = "version.json";
 
-// Operator/test override for the system org-plugins root. Without it the
-// system root is a fixed machine-wide path, so any test or nonstandard install
-// on a host with a writable parent would collide with the real location.
 fn org_plugins_system_override() -> Option<PathBuf> {
     std::env::var_os(crate::brand::brand().env("ORG_PLUGINS_SYSTEM")).map(PathBuf::from)
 }
@@ -50,7 +47,7 @@ pub fn org_plugins_user() -> Option<PathBuf> {
         .map(|base| base.join("Claude").join("org-plugins"))
 }
 
-// Cowork scans %ProgramFiles%\Claude\org-plugins only; %ProgramData% is
+// Why: Cowork scans %ProgramFiles%\Claude\org-plugins only; %ProgramData% is
 // invisible to it.
 #[cfg(target_os = "windows")]
 pub fn org_plugins_system() -> Option<PathBuf> {
@@ -82,11 +79,6 @@ pub fn org_plugins_user() -> Option<PathBuf> {
         .map(|base| base.join("Claude").join("org-plugins"))
 }
 
-// The system scope wins only when its directory already exists: consumers of
-// the effective location (sync, doctor, GUI, status) must never adopt a system
-// path that no install provisioned — on hosts where the system parent happens
-// to be writable (CI runners, permissive /opt) that would silently shadow the
-// user scope. `org_plugins_install_target` keeps the create-if-possible probe.
 #[must_use]
 pub fn org_plugins_effective() -> Option<OrgPluginsLocation> {
     #[cfg(target_os = "macos")]
@@ -114,8 +106,6 @@ pub fn org_plugins_effective() -> Option<OrgPluginsLocation> {
     }
 }
 
-// Install may create the system directory, so it probes the nearest existing
-// ancestor for writability instead of requiring the directory to exist.
 #[must_use]
 pub fn org_plugins_install_target() -> Option<OrgPluginsLocation> {
     #[cfg(target_os = "macos")]
@@ -171,9 +161,8 @@ pub fn all_known_org_plugins_roots() -> Vec<PathBuf> {
 
 pub const LEGACY_ORG_PLUGINS_METADATA: &[&str] = &[".systemprompt-bridge", ".systemprompt-cowork"];
 
-// `Permissions::readonly` reports the file's own mode bits, not whether *this*
-// process may create entries in the directory, so an unelevated Linux install
-// used to select the root-owned system root and then fail. Probe by creating.
+// Why: `Permissions::readonly` reports the file's own mode bits, not whether
+// this process may create entries in the directory. Probe by creating.
 #[cfg(not(target_os = "macos"))]
 fn probe_writable(path: &std::path::Path) -> bool {
     let mut candidate = Some(path);
@@ -199,9 +188,6 @@ fn can_create_in(dir: &std::path::Path) -> bool {
     }
 }
 
-// `None` means Cowork cannot be present — either no install detected, or the
-// platform ships no Cowork build at all. Callers must treat it as a no-op, not
-// an error.
 #[must_use]
 pub fn cowork3p_sessions_root() -> Option<PathBuf> {
     cowork3p_base().map(|base| base.join("Claude-3p").join("local-agent-mode-sessions"))
@@ -219,9 +205,8 @@ fn cowork3p_base() -> Option<PathBuf> {
     {
         crate::basedirs::home_dir().map(|h| h.join("Library").join("Application Support"))
     }
-    // Cowork ships macOS and Windows builds only. Deriving an XDG-style Linux
-    // location would name a directory no install can ever create, which reads
-    // downstream as "Cowork present but broken" rather than "not applicable".
+    // Why: Cowork ships macOS and Windows builds only, so an XDG-style Linux path
+    // would name a directory no install can ever create.
     #[cfg(not(any(target_os = "windows", target_os = "macos")))]
     {
         None
@@ -232,7 +217,6 @@ pub const COWORK_PLUGINS_SUBDIR: &str = "cowork_plugins";
 
 pub const COWORK_ARTIFACTS_SUBDIR: &str = "cowork_artifacts";
 
-// Always user-writable, unlike the admin-only org-plugins root on Windows.
 #[must_use]
 pub fn bridge_working_dir() -> Option<PathBuf> {
     bridge_state_base().map(|base| base.join(crate::brand::brand().working_dir_name))

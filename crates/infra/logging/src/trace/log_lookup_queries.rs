@@ -23,9 +23,6 @@ struct LogRow {
     session_id: SessionId,
     task_id: Option<TaskId>,
     trace_id: TraceId,
-    // Why: Decoded as raw text and validated in row_to_entry: ContextId requires a
-    // UUID, but historical log rows may carry malformed values that must be
-    // skipped rather than fail the whole query.
     context_id_text: Option<String>,
     client_id: Option<ClientId>,
 }

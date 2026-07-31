@@ -21,10 +21,6 @@ use tokio::sync::OnceCell;
 use crate::error::{GeneratorResult, PublishError};
 use crate::templates::{get_templates_path, load_web_config};
 
-// Why: this is the half of the prerender context that is fixed for the life of
-// a deployment — content and web configuration, the compiled template registry,
-// and the registered content data providers. The split exists so this half can
-// be built once per process rather than per job.
 pub(super) struct PrerenderAssets {
     pub config: ContentConfigRaw,
     pub web_config: WebConfig,
@@ -61,11 +57,6 @@ impl std::fmt::Debug for PrerenderContext {
     }
 }
 
-// Why: the content and page prerender jobs run back to back at boot and each
-// used to rebuild this from scratch — a second extension discovery, template
-// directory scan, and handlebars compile of the same templates. Templates and
-// configuration only change on redeploy, so a restart is the way to pick edits
-// up.
 static PRERENDER_ASSETS: OnceCell<Arc<PrerenderAssets>> = OnceCell::const_new();
 
 pub(super) async fn load_prerender_context(

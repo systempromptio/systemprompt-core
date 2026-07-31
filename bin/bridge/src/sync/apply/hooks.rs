@@ -82,9 +82,8 @@ fn build_hooks_file(
     Ok(body)
 }
 
-/// Normalises a synced plugin.json for the managed contract: the hooks
-/// pointer, and `installationPreference` without which Cowork's MDM path shows
-/// "Contact an organization owner" instead of auto-installing.
+// Why: without `installationPreference`, Cowork's MDM path shows "Contact an
+// organization owner" instead of auto-installing.
 pub(super) fn ensure_plugin_json_managed_fields(plugin_dir: &Path) -> Result<(), ApplyError> {
     let Some(path) = super::plugin_manifest_path(plugin_dir) else {
         return Ok(());

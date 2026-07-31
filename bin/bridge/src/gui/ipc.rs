@@ -42,9 +42,6 @@ pub struct BridgeError {
     pub scope: ErrorScope,
     pub code: ErrorCode,
     pub message: String,
-    // Why: the skip must not be behind the feature. `ts-export` is enabled by
-    // one test package, and cargo unifies features across a build, so gating it
-    // makes the IPC wire format depend on who else is in the graph.
     #[serde(skip_serializing_if = "Option::is_none")]
     #[cfg_attr(feature = "ts-export", ts(optional, type = "unknown"))]
     pub detail: Option<Value>,

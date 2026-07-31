@@ -81,10 +81,6 @@ impl ExtensionRegistry {
             .collect()
     }
 
-    // Why: `router()` is the only way to learn whether an extension has one, and
-    // it is not free — implementations allocate state, spawn background tasks,
-    // and log as a side effect of being asked. Building each router once here
-    // and handing it to the caller is what keeps those side effects single.
     #[must_use]
     pub fn api_routers(
         &self,

@@ -30,8 +30,6 @@ impl Scale {
     }
 }
 
-// Why: the baseline is pinned to zero whenever the data does not cross it — a
-// bar chart drawn from a floating baseline exaggerates every difference on it.
 pub(super) fn linear(datasets: &[ChartDataset]) -> Scale {
     let values: Vec<f64> = datasets
         .iter()
@@ -60,8 +58,6 @@ pub(super) fn linear(datasets: &[ChartDataset]) -> Scale {
     }
 }
 
-/// Round a raw interval up to the nearest 1, 2, 2.5, 5, or 10 times a power of
-/// ten — the intervals a reader can divide in their head.
 fn nice_step(rough: f64) -> f64 {
     if rough <= 0.0 || !rough.is_finite() {
         return 1.0;
@@ -99,8 +95,6 @@ pub(super) fn format_value(value: f64) -> String {
         .to_owned()
 }
 
-// Why: SVG coordinates carry no units, so a stable short form keeps the
-// emitted markup diffable and free of float noise like `12.000000000000002`.
 pub(super) fn coord(value: f64) -> String {
     format!("{:.2}", value)
         .trim_end_matches('0')

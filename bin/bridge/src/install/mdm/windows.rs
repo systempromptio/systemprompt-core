@@ -11,18 +11,8 @@ pub(super) fn refresh_managed_mcp_servers() -> Result<String, String> {
 }
 
 pub(super) fn write_managed_mcp_servers_value(value: &str) -> Result<String, String> {
-    // Cowork >= 1.22209 enforces registry-policy hive precedence: when
-    // `HKLM\SOFTWARE\Policies\Claude` exists, `HKCU\SOFTWARE\Policies\Claude`
-    // is ignored ENTIRELY (Anthropic 3P docs, /cowork/3p/configuration). Our
-    // `inference*` keys always live in HKLM, so `managedMcpServers` MUST be in
-    // HKLM as well or Cowork loads zero managed servers (mcpServerCount:0, the
-    // connector never appears). Older builds merged both hives, which is why
-    // writing HKCU used to work — it no longer does.
-    //
-    // Writing HKLM requires elevation. If we are not elevated we cannot fix it
-    // in-process: clear any stale HKCU copy (so it is not mistaken for live
-    // config), then ask for elevation — but only when the value actually
-    // drifted, so a steady-state sync never raises a UAC prompt.
+    // Why: Cowork >= 1.22209 ignores HKCU entirely once HKLM\SOFTWARE\Policies\
+    // Claude exists, and HKLM writes need elevation — hence the drift-only UAC.
     let hkcu = r"HKCU\SOFTWARE\Policies\Claude";
     let key = r"HKLM\SOFTWARE\Policies\Claude";
     if !crate::winproc::is_elevated() {
@@ -57,8 +47,6 @@ pub(super) fn write_managed_mcp_servers_value(value: &str) -> Result<String, Str
             status.code().unwrap_or(-1)
         ));
     }
-    // Remove the now-ignored (and potentially stale) HKCU copy so it can never
-    // be confused for the live value.
     _ = crate::winproc::reg_command()
         .args(["delete", hkcu, "/v", "managedMcpServers", "/f"])
         .status();
@@ -145,10 +133,8 @@ pub(super) fn apply(gateway: &str, pubkey: Option<&str>) -> Result<Vec<String>, 
         }
         summary.push(format!("wrote {name} ({kind})"));
     }
-    // Materialize the default workspace dir referenced by
-    // `allowedWorkspaceFolders` (~/<brand workspace dir>) so Cowork's
-    // pre-trusted folder chip resolves to an existing, writable directory
-    // rather than prompting. Folder name is brand-specific, from the Brand.
+    // Why: Cowork prompts instead of pre-trusting unless the directory named by
+    // `allowedWorkspaceFolders` already exists on disk.
     let workspace = crate::brand::brand().workspace_dir_name;
     if !workspace.is_empty()
         && let Some(home) = std::env::var_os("USERPROFILE")

@@ -10,8 +10,8 @@ use std::process::Command;
 
 pub(super) const fn chown_to_sudo_user_if_root(_path: &Path) {}
 
-// `Program Files\Claude\org-plugins` is admin-write-only by default; grant the
-// interactive user Modify so unelevated `bridge sync` can publish there.
+// Why: `Program Files\Claude\org-plugins` is admin-write-only by default, so
+// unelevated `bridge sync` cannot publish there without a Modify grant.
 pub(super) fn grant_user_modify(path: &Path) -> std::io::Result<()> {
     let user = std::env::var("USERNAME")
         .map_err(|e| std::io::Error::other(format!("USERNAME env var not set: {e}")))?;

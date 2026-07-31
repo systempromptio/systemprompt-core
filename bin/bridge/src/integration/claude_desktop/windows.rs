@@ -58,10 +58,9 @@ pub(super) fn list_claude_processes() -> Vec<String> {
     hits
 }
 
-/// The Claude Code CLI installs as `claude.exe` too, so the image name alone
-/// cannot tell the desktop app from the CLI. When we could read the path, use
-/// it; when we could not, fall back to counting it (better a stale "running"
-/// than dropping the real desktop app because its handle was unreadable).
+// Why: the Claude Code CLI also installs as `claude.exe`, so only the image
+// path can tell it from the desktop app; an unreadable path must not exclude
+// the app.
 fn is_cli_image(path: Option<&str>) -> bool {
     const CLI_MARKERS: [&str; 3] = [r"\.local\bin\", r"\npm\", r"\node_modules\"];
 
@@ -77,8 +76,6 @@ pub(super) fn write_profile(inputs: &ProfileGenInputs) -> std::io::Result<Genera
     let (payload_uuid, profile_uuid) = make_uuids();
     let path = dir.join(format!("claude-bridge-{}.reg", unique_stem()));
 
-    // Install always writes HKLM (machine-wide, elevating on demand), so the staged
-    // preview must show that hive.
     let body = super::reg_profile::render_reg(true, inputs);
     std::fs::File::create(&path)?.write_all(body.as_bytes())?;
 

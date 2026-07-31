@@ -77,11 +77,6 @@ pub(crate) fn emit_sync_progress(app: &GuiApp, phase: &str, summary: Option<&str
     send_emit(app, "sync.progress", &value);
 }
 
-/// Live per-host progress for the first-use run.
-///
-/// Its own channel, like `sync.progress`: `emit_state` dedupes on a semantic
-/// hash and is coarse enough to re-render every subscriber, neither of which
-/// suits a step-by-step ticker.
 pub(crate) fn emit_first_run_progress(app: &GuiApp) {
     let snap = app.state.snapshot();
     let payload = crate::gui::first_run::serde::build(&snap.first_run);
@@ -102,10 +97,6 @@ pub(crate) fn emit_state(app: &mut GuiApp) {
     send_emit(app, "state.changed", &value);
 }
 
-/// Clock-driven fields that advance on every probe tick whether or not anything
-/// actually changed. Hashing them defeated the dedupe entirely, so a full
-/// `state.changed` — and with it a re-render of every subscriber — was
-/// broadcast every probe interval, forever.
 const VOLATILE_KEYS: [&str; 4] = [
     "probed_at_unix",
     "last_probe_at_unix",
@@ -113,8 +104,6 @@ const VOLATILE_KEYS: [&str; 4] = [
     "expires_at_unix",
 ];
 
-/// Hash of `value` ignoring monotonic timestamps, so the dedupe fires on
-/// semantic change only.
 fn semantic_hash(value: &Value) -> u64 {
     let mut hasher = std::collections::hash_map::DefaultHasher::new();
     hash_value(value, &mut hasher);
@@ -122,9 +111,6 @@ fn semantic_hash(value: &Value) -> u64 {
 }
 
 fn hash_value(value: &Value, hasher: &mut impl Hasher) {
-    // Tag each variant so that structurally different shapes carrying equal
-    // leaf content — an object and an array of its keys and values, say —
-    // cannot hash alike and suppress a real change.
     match value {
         Value::Object(map) => {
             0u8.hash(hasher);

@@ -181,7 +181,6 @@ fn dispatch_finished(app: &mut GuiApp, event: UiEvent) -> Result<(), Box<UiEvent
             handlers::auth::on_login_finished(app, result, reply_to);
         },
         UiEvent::SessionLoginFinished { result, reply_to } => {
-            // Same post-auth path as a PAT login: reload, probe identity, sync.
             handlers::auth::on_login_finished(app, result, reply_to);
         },
         UiEvent::LogoutFinished { result, reply_to } => {

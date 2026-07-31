@@ -62,9 +62,6 @@ pub struct AuditTarget {
     pub plugin_id: Option<PluginId>,
 }
 
-// Why: the human who answered an approval gate is a distinct actor from the
-// session principal, stamped with the click instant rather than the
-// audit-write instant.
 #[derive(Debug, Serialize, Clone)]
 pub struct ApproverStamp {
     pub user_id: UserId,

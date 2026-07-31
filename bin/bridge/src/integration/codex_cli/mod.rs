@@ -98,8 +98,8 @@ impl HostApp for CodexCliHost {
     }
 }
 
-/// Codex ships as a conventional installer on every platform, so there is no
-/// MSIX family to consult.
+// Why: Codex ships as a conventional installer on every platform, so there is
+// no MSIX family to consult.
 const fn locator() -> crate::integration::app_launch::AppLocator<'static> {
     crate::integration::app_launch::AppLocator {
         macos_name: "Codex",

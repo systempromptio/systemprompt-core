@@ -43,9 +43,6 @@ pub(super) fn resolve_and_display_profile(
 
     let profile = ProfileBootstrap::get()?;
 
-    // Why: only print the banner when the operator opted in (`--verbose`+)
-    // or when the active profile is non-local — for local profiles at default
-    // verbosity it is pure noise.
     let banner_requested = cli_config.verbosity >= VerbosityLevel::Verbose;
     let banner_warranted = profile.target.is_cloud();
     if cli_config.output_format == OutputFormat::Table

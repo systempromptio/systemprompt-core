@@ -79,8 +79,6 @@ pub fn render_index() -> String {
         .replace("__LOGO_SVG__", brand.assets.logo_svg)
         .replace("__PLATFORM_DISPLAY__", PLATFORM_DISPLAY)
         .replace("__PLATFORM__", PLATFORM_SLUG);
-    // Append the brand theme override last so its `:root { --sp-* }` wins the
-    // cascade over the bundled token sheet.
     if brand.assets.theme_css.is_empty() {
         html
     } else {

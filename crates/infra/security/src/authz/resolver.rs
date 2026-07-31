@@ -99,10 +99,6 @@ pub fn resolve(input: ResolveInput<'_>) -> Decision {
     if let Some(decision) = match_ruleset(entity, rules, &subject) {
         return decision;
     }
-    // Why: A declared ruleset is authoritative: an entity that names its own roles
-    // is closed to every role it does not name. `match_ruleset` cannot
-    // distinguish "no rule matches you" from "no rules exist", so only an
-    // entity with no rules of its own defers to its parents.
     let parents = if rules.is_empty() { parents } else { &[] };
 
     for parent in parents {
@@ -201,9 +197,6 @@ fn match_ruleset(
     None
 }
 
-// Why: Built-ins keep their dedicated variants so existing
-// `governance_decisions` audit JSON stays stable; extension dimensions report
-// through the generic attribute variants.
 fn deny_for(target: &EntityRef, subject: &Subject<'_>, rule: &AccessRule) -> Decision {
     let reason = if rule.rule_type == RuleType::USER {
         DenyReason::UserDeny {

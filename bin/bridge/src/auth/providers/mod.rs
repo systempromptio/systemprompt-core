@@ -60,7 +60,7 @@ impl AuthFailedSource {
     }
 }
 
-// Why #[async_trait]: providers are dispatched as `dyn AuthProvider`.
+// Why: #[async_trait] — providers are dispatched as `dyn AuthProvider`.
 #[async_trait]
 pub trait AuthProvider: Send + Sync {
     fn name(&self) -> &'static str;

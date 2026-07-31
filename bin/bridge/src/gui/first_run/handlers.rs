@@ -15,7 +15,6 @@ use crate::integration::{AppInstallState, HostAppSnapshot};
 
 use super::state::{FirstRunPhase, StepStatus};
 
-/// Begin the run: seed one row per registered host and kick off the probes.
 pub(crate) fn on_start(app: &mut GuiApp) {
     let hosts: Vec<(String, String)> = crate::integration::host_apps()
         .iter()
@@ -25,22 +24,13 @@ pub(crate) fn on_start(app: &mut GuiApp) {
     app.append_log("First use: provisioning your agents…");
     progress(app);
     if hosts.is_empty() {
-        // Nothing to probe means nothing will ever call `advance`, so go
-        // straight to the sync rather than waiting out the watchdog.
         advance(app);
         return;
     }
-    // Reuse the normal probe path; results come back through the tap in
-    // `hosts::handlers::on_probe_finished`.
     crate::gui::hosts::tick::request_initial_probe(app);
 }
 
-/// A probe landed. Decide whether this host gets a profile.
 pub(crate) fn on_probe_result(app: &mut GuiApp, host_id: &str, snapshot: &HostAppSnapshot) {
-    // Only a host still waiting on its first probe advances. Terminal hosts are
-    // done, and the periodic tick probe (or the re-probe fired by
-    // `on_profile_install_finished`) would otherwise restart a chain that is
-    // already generating or installing.
     if app
         .state
         .snapshot()
@@ -51,9 +41,6 @@ pub(crate) fn on_probe_result(app: &mut GuiApp, host_id: &str, snapshot: &HostAp
         return;
     }
 
-    // `Unknown` attempts the install anyway. Some hosts cannot report their
-    // install state on every platform, and skipping those is exactly the
-    // half-provisioned state this flow exists to prevent.
     if snapshot.app_installed == AppInstallState::NotInstalled {
         app.state
             .set_first_run_host(host_id, StepStatus::Skipped, None);
@@ -76,7 +63,6 @@ pub(crate) fn on_probe_result(app: &mut GuiApp, host_id: &str, snapshot: &HostAp
         }));
 }
 
-/// Profile generation finished. On success chain straight into the install.
 pub(crate) fn on_generate_result(app: &mut GuiApp, host_id: &str, error: Option<String>) {
     if let Some(err) = error {
         fail_host(app, host_id, err);
@@ -108,7 +94,6 @@ pub(crate) fn on_generate_result(app: &mut GuiApp, host_id: &str, error: Option<
         }));
 }
 
-/// Install finished. One host failing never stops the others.
 pub(crate) fn on_install_result(app: &mut GuiApp, host_id: &str, error: Option<String>) {
     if let Some(err) = error {
         fail_host(app, host_id, err);
@@ -119,15 +104,12 @@ pub(crate) fn on_install_result(app: &mut GuiApp, host_id: &str, error: Option<S
     advance(app);
 }
 
-/// The trailing sync finished — the run is over either way.
 pub(crate) fn on_sync_result(app: &mut GuiApp, succeeded: bool) {
     app.state.set_first_run_sync(if succeeded {
         StepStatus::Done
     } else {
         StepStatus::Failed
     });
-    // Failed only when nothing at all was provisioned. A sync error with hosts
-    // installed still leaves a working app, and the next scheduled sync retries.
     let state = app.state.snapshot().first_run;
     let usable = succeeded || state.any_host_installed();
     app.state.finish_first_run(if usable {
@@ -152,7 +134,6 @@ fn fail_host(app: &mut GuiApp, host_id: &str, error: String) {
     advance(app);
 }
 
-/// Move to the sync stage once every host has settled.
 fn advance(app: &mut GuiApp) {
     progress(app);
     if !app.state.snapshot().first_run.all_hosts_terminal() {

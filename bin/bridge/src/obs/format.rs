@@ -31,11 +31,6 @@ impl<'a> MakeWriter<'a> for TeeWriter {
         }
     }
 
-    // A subcommand exits without ever touching the terminal unless its
-    // diagnostics also reach stderr: the whole CLI reports through `tracing`,
-    // and once the rolling appender installs, the file is the only sink. WARN
-    // and above is the operator's channel; INFO and below stay in the log so
-    // `run`'s per-request proxy chatter does not flood a console or journal.
     fn make_writer_for(&'a self, meta: &Metadata<'_>) -> Self::Writer {
         TeeWriterImpl {
             file: FILE_WRITER.get().cloned(),
@@ -50,8 +45,10 @@ pub(super) struct TeeWriterImpl {
 }
 
 impl Write for TeeWriterImpl {
-    // Writes stderr when the file writer is absent too, so bootstrap errors
-    // raised before the appender installs stay visible.
+    // Why: bootstrap errors raised before the appender installs must stay
+    // visible, so an absent file writer forces the stderr leg. The discarded
+    // write results are deliberate — this is the sink `tracing` itself reports
+    // through, so there is nowhere left to report a sink failure.
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         if self.stderr || self.file.is_none() {
             _ = io::stderr().write_all(buf);

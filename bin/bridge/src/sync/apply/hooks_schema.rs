@@ -86,8 +86,6 @@ impl HookMatcher {
 }
 
 impl HooksFile {
-    /// A plugin that carries no hooks still needs the file on disk: the
-    /// managed `plugin.json` always points at `./hooks/hooks.json`.
     pub(crate) const fn empty() -> Self {
         Self {
             hooks: BTreeMap::new(),
