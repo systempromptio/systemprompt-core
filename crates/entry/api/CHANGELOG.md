@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.28.0] - 2026-07-31
+
+### Breaking
+
+- **Breaking:** `gateway::pricing::cost_microdollars` takes a `CostTokens` struct rather than two `u32` arguments, so the four same-typed counts cannot be silently transposed at a call site.
+
+### Added
+
+- The `urn:ietf:params:oauth:grant-type:jwt-bearer` grant (RFC 7523) redeems an ID-JAG for an access token, the redemption leg of MCP Enterprise-Managed Authorization. It shares its validator with the equivalent token-exchange call, which stays available, and both `/.well-known/oauth-authorization-server` and the per-server MCP metadata advertise the `urn:ietf:params:oauth:grant-profile:id-jag` profile so an EMA-capable client knows to present an ID-JAG rather than redirect the user.
+- A token exchange is pinned to the resource its ID-JAG names. Without the binding an ID-JAG obtained for one MCP server could be redeemed against any other resource in the deployment's allowlist; the request may now omit `resource` or name the same one, and anything else is rejected. An ID-JAG minted without the claim still leaves the choice to the request, which keeps grants issued before this change redeemable.
+- An ID-JAG exchange issues its token for the employee the assertion names — linked to a local account by `(iss, sub)` — rather than for the client's owner.
+
+### Fixed
+
+- Cache reads and cache writes are billed at their own rates instead of being ignored. For an agent loop resending a large cached prompt they are the bulk of the tokens, so costing on `input + output` alone understated the bill by an order of magnitude; `tokens_used` now counts all four buckets too.
+- A streamed request is recorded as having reported usage only when a real usage event arrived. The `message_start` snapshot carries small non-zero placeholders, so token counts alone could not distinguish "billed usage reported" from "never reported", and the stream tap accepted the placeholder as the final answer.
+- The stream tap takes the last usage snapshot outright rather than keeping the largest value per field. Every producer emits a complete cumulative snapshot, so the field-wise `> 0` guards were wrong twice over: they let a stale `message_start` estimate survive a real later zero, and they left `total_tokens` — which no producer sets on a delta — permanently stale.
+
 ## [0.27.0] - 2026-07-29
 
 ### Changed

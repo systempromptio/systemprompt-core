@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.28.0] - 2026-07-31
+
+### Breaking
+
+- **Breaking:** `CanonicalRequest` gains `forwarded_surface: ForwardedSurface`, holding every string in the bytes about to be forwarded upstream. `CanonicalRequest::flatten_text` and `message_units` include it, so a scanner reading either covers content the canonical form cannot represent. Migrate by adding `forwarded_surface: ForwardedSurface::default()` at each construction site; a caller that does not send through the gateway leaves it empty. `CanonicalRequest` now derives `Default`.
+- **Breaking:** `wire::anthropic::event_from_sse` is replaced by `events_from_sse`, which returns a `Vec<CanonicalEvent>` rather than an `Option`. One `message_delta` frame carries both the terminal `stop_reason` and the final cumulative `usage`, and the old signature could return only one of the two — it returned the stop and dropped the usage, which is the sole place Anthropic reports real token counts for a stream. Migrate by iterating the returned events instead of matching one option.
+- **Breaking:** `ModelPricing` gains `cache_read_per_million` and `cache_write_per_million`. A struct built by literal needs the two extra initialisers; `..ModelPricing::default()` preserves today's arithmetic. Both are `#[serde(default)]`, so a catalog written before this release still parses — its cached tokens simply bill at zero until rates are supplied.
+- **Breaking:** `OAuthRequirement` gains `ema: bool` (`#[serde(default)]`), declaring the MCP Enterprise-Managed Authorization extension on a server's protected-resource metadata.
+
+### Added
+
+- `wire::inspect`: `string_leaves` collects every string in a JSON body, `sse_string_leaves` does the same across concatenated SSE frames under one shared budget, and `SurfaceBudget` bounds the walk on depth, leaf count, total bytes, and per-leaf size. The walk is iterative — a recursive one over caller-controlled JSON is a stack-overflow primitive well inside the body limit — and a budget stop marks the result truncated rather than reporting a complete surface.
+- `wire::anthropic::strip_user_id` removes `metadata.user_id` from a request body object, dropping `metadata` once it empties rather than sending `{}`. Both the canonical and byte-passthrough lanes strip through this one function.
+- `ModelPricing::is_billable` reports whether rates can produce a non-zero bill: a token model needs both an input and an output rate, while an image model prices per image and is legitimately zero on both token rates.
+- `GatewayConfig::validate` rejects a route that cannot be costed. A route carrying its own `pricing:` override must make that override billable; otherwise every registry model the pattern reaches must carry usable rates, and the pattern must reach at least one — which is what catches a glob route aimed at a catalog that has fallen behind the models actually in use. `GatewayProfileError` gains `RouteModelUnpriced` and `RouteReachesNoPricedModel`. Uncosted inference is a configuration bug rather than a runtime warning: the request bills at zero and the gap stays invisible until someone reads the ledger.
+- `McpExtensionId::EnterpriseManagedAuth` names `io.modelcontextprotocol/enterprise-managed-authorization`, previously spelled as a bare string constant at each use site.
+- The default provider catalog carries cache read and write rates on every Anthropic, OpenAI, and Gemini model, adds `claude-opus-5`, `claude-sonnet-5`, `claude-fable-5`, and `claude-haiku-4-5`, and gives the dated model ids `aliases` so `claude-opus-4-5` and `claude-opus-4-5-20251101` resolve to one entry. Sonnet 4.6's context window and output ceiling are corrected to 1M/128k.
 ## [0.27.0] - 2026-07-29
 
 ### Breaking
@@ -7,12 +24,8 @@
 - **Breaking:** `AppPaths::from_profile` and `SystemPaths::from_profile` take a `PathResolution`; derive it with the new `Profile::path_resolution()`. Cloud profiles resolve lexically — container paths are no longer canonicalized against the local filesystem — and `PathError` gains `NotAbsolute` for a relative path under lexical resolution.
 - **Breaking:** `default_bootstrap_jobs()` no longer includes `database_cleanup`; deployments relying on the boot-time sweep must list it in `scheduler.bootstrap_jobs` explicitly.
 - **Breaking:** `SchedulerConfig::with_system_admin()` sets `enforce` on `cleanup_anonymous_users`, `cleanup_empty_contexts`, and `database_cleanup`, matching the jobs' new observe-by-default behaviour.
-- **Breaking:** `CanonicalRequest` gains `forwarded_surface: ForwardedSurface`, holding every string in the bytes about to be forwarded upstream. `CanonicalRequest::flatten_text` and `message_units` include it, so a scanner reading either covers content the canonical form cannot represent. Migrate by adding `forwarded_surface: ForwardedSurface::default()` at each construction site; a caller that does not send through the gateway leaves it empty. `CanonicalRequest` now derives `Default`.
 
 ### Added
-
-- `wire::inspect`: `string_leaves` collects every string in a JSON body, `sse_string_leaves` does the same across concatenated SSE frames under one shared budget, and `SurfaceBudget` bounds the walk on depth, leaf count, total bytes, and per-leaf size. The walk is iterative — a recursive one over caller-controlled JSON is a stack-overflow primitive well inside the body limit — and a budget stop marks the result truncated rather than reporting a complete surface.
-- `wire::anthropic::strip_user_id` removes `metadata.user_id` from a request body object, dropping `metadata` once it empties rather than sending `{}`. Both the canonical and byte-passthrough lanes strip through this one function.
 
 - `JobConfig.parameters` (`#[serde(default)]`, string map) with a `with_parameters` builder; the field rustdoc tables the keys the core jobs read.
 - `RequestScope`: per-request scoping identity (ordered key/value pairs) carried from middleware to the scoped database transactions in `systemprompt-database` — the transport for pooled multi-tenancy dimensions such as the requesting user's organization.

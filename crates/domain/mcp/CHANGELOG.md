@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.28.0] - 2026-07-31
+
+### Added
+
+- The outbound MCP client declares the Enterprise-Managed Authorization extension in its `ClientCapabilities`, which tells a server it may answer an unauthenticated call with an EMA challenge instead of driving us into an interactive authorization redirect no user is present to complete.
+- `AuthChallenge` parses a `WWW-Authenticate` challenge and `ProtectedResourceMetadata` describes what the resource behind it expects, so a 401 from an MCP server now says whether an ID-JAG is wanted and which authorization servers issue it, rather than echoing the raw header. The metadata URL comes from the peer, so it is dialled only through the shared outbound guard.
+
 ## [0.27.0] - 2026-07-29
 
 ### Breaking

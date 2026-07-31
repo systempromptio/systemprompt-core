@@ -1,6 +1,16 @@
 # Changelog
 
-## [0.27.0] - 2026-07-29
+## [0.28.0] - 2026-07-31
+
+### Breaking
+
+- **Breaking:** `IdJagClaims` and `IdJagGrant` gain a `resource` field, and `GrantType` gains a `JwtBearer` variant. A struct built by literal needs the extra initialiser (`resource: None` preserves today's behaviour); a `match` over `GrantType` needs the extra arm.
+
+### Added
+
+- `resolve_bound_resource` pins an exchange to the resource an ID-JAG names. The MCP Enterprise-Managed Authorization extension requires the access token to be audience-restricted to the ID-JAG's `resource` claim; without the claim an ID-JAG obtained for one MCP server could be redeemed against any other resource in the deployment's global allowlist. An ID-JAG minted without the claim leaves the choice to the request, which is both the extension's wording and what keeps ID-JAGs issued before this change redeemable.
+- `link_enterprise_principal` resolves an ID-JAG's asserted identity (`EnterprisePrincipal`) to a local account (`LinkedSubject`). The linking lived in the API route layer, where "which account does this assertion map to" is not a routing decision.
+- `GrantType::JwtBearer` carries `urn:ietf:params:oauth:grant-type:jwt-bearer`, the grant the extension specifies for redeeming an ID-JAG. It is not in `default_grant_types`.
 
 ### Changed
 

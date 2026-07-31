@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.28.0] - 2026-07-31
+
+### Breaking
+
+- **Breaking:** `GovernanceConfig` gains an `enabled` field, so a struct built by literal rather than through `Default` needs the extra initialiser.
+
+### Added
+
+- `governance.enabled: false` switches the whole chain off in one key, leaving the per-policy declarations intact so the configuration survives being turned back on. `GovernanceConfig::validate` is the strict boot-time loader — it returns the error so a misconfigured installation refuses to start, where `load` stays lenient for the request path. The fallback direction is deliberate: defaults enable every policy, so an unreadable file yields more enforcement than it declared, never less, and governance cannot be disabled by deleting the file.
+- `secret_scan` takes an optional `entropy` block (`enabled`, `min_len`, `threshold`, `allowlist`) configuring the high-entropy backstop. An absent block, an absent key, or a key of the wrong shape falls back to the built-in default — a typo must not silently disable credential detection — and an `allowlist` regex that fails to compile is skipped with an error rather than failing the policy. `policy::secrets::detect_secrets_with` applies a caller-supplied `EntropyConfig`.
+- `GovernanceEngine::global` returns the process-wide engine, so every enforcement point charges one rate limiter. The buckets are instance-scoped, and a second engine gives its callers their own budget and silently doubles every operator limit — the MCP governance webhook and the inference gateway must share one. `GovernanceEngine::from_config` remains for tests and for callers that genuinely want an isolated chain.
+- `DecisionAudit.context_id` records the conversational context a governed call belongs to, omitted from the serialized blob when absent. The MCP webhook knows no context; the gateway does, and without it an inference decision cannot be joined back to the request it judged.
+- A governance decision whose chain ran entirely disabled records `governance_disabled` rather than `default_allow`, so an unguarded installation is distinguishable from a healthy one in the flat `policy` column that operational queries filter on.
+
+### Fixed
+
+- The entropy backstop no longer flags serialised data as a credential. A base64 token that decodes to mostly-text or to a well-formed protobuf message is treated as structured payload rather than key material; a decode counts as protobuf only when it consumes the buffer exactly, carries at least two fields, and holds a length-delimited payload that is itself text or protobuf, which random key material clears by accident far less than one time in a hundred.
+
 ## [0.27.0] - 2026-07-29
 
 ### Breaking
@@ -10,14 +28,6 @@
 - **Breaking:** `GovernanceChain` is deleted. It returned only the first deny, discarding the per-policy trace every audit row needs, so no consumer ever called it — downstreams each reimplemented a traced loop instead. Migrate to `GovernanceEngine::evaluate`, which returns an `Evaluation { decision, chain }` with a per-entry `ChainEntryOutcome` trace.
 
 ### Added
-
-- `governance.enabled: false` switches the whole chain off in one key, leaving the per-policy declarations intact so the configuration survives being turned back on. `GovernanceConfig` gains the matching `enabled` field, and `GovernanceConfig::validate` is the strict boot-time loader — it returns the error so a misconfigured installation refuses to start, where `load` stays lenient for the request path. The fallback direction is deliberate: defaults enable every policy, so an unreadable file yields more enforcement than it declared, never less, and governance cannot be disabled by deleting the file.
-- `secret_scan` takes an optional `entropy` block (`enabled`, `min_len`, `threshold`, `allowlist`) configuring the high-entropy backstop. An absent block, an absent key, or a key of the wrong shape falls back to the built-in default — a typo must not silently disable credential detection — and an `allowlist` regex that fails to compile is skipped with an error rather than failing the policy. `policy::secrets::detect_secrets_with` applies a caller-supplied `EntropyConfig`.
-- The entropy backstop no longer flags serialised data as a credential. A base64 token that decodes to mostly-text or to a well-formed protobuf message is treated as structured payload rather than key material; a decode counts as protobuf only when it consumes the buffer exactly, carries at least two fields, and holds a length-delimited payload that is itself text or protobuf, which random key material clears by accident far less than one time in a hundred.
-- A governance decision whose chain ran entirely disabled records `governance_disabled` rather than `default_allow`, so an unguarded installation is distinguishable from a healthy one in the flat `policy` column that operational queries filter on.
-
-- `GovernanceEngine::global` returns the process-wide engine, so every enforcement point charges one rate limiter. The buckets are instance-scoped, and a second engine gives its callers their own budget and silently doubles every operator limit — the MCP governance webhook and the inference gateway must share one. `GovernanceEngine::from_config` remains for tests and for callers that genuinely want an isolated chain.
-- `DecisionAudit.context_id` records the conversational context a governed call belongs to, omitted from the serialized blob when absent. The MCP webhook knows no context; the gateway does, and without it an inference decision cannot be joined back to the request it judged.
 
 - `GovernedInput::strings` yields every string in a governed payload with its dotted path, so a scanner reports the path the input type defines rather than one it reconstructs, and `GovernedInput::location_kind` names the surface a finding sits on (`tool_input` or `prompt`).
 - `GovernedTarget::as_str` gives the audit-visible name of a governed target, recording a prompt submission as `PROMPT_TARGET_NAME`.

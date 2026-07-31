@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.28.0] - 2026-07-31
+
+### Breaking
+
+- **Breaking:** the `OAuthRequirement` returned by `McpRegistryProvider` and `AgentRegistryProvider` gains `ema: bool`. An implementation building it by literal needs the extra initialiser; `false` preserves today's behaviour, and agents do not participate in Enterprise-Managed Authorization.
+
 ## [0.27.0] - 2026-07-29
 
 ### Breaking
