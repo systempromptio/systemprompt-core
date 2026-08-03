@@ -259,16 +259,21 @@ test-group = 'cli-cloud-harness'
 # sweep deletes this suite's row mid-test and the command under test resolves no
 # port (1-2 of 13 failing per run); serialised into the shared services slot it
 # is 13/13.
+#
+# `subprocess_agents_a2a` shares the same stub through `stub_port()`, so it takes
+# the same slot: `admin agents tools` there resolved an empty tool list under
+# full-workspace load for exactly this reason. The membership is every binary
+# that touches `mcp_stub` — grep for it before adding a third.
 [[profile.default.overrides]]
-filter = 'package(systemprompt-cli-integration-tests) and binary(subprocess_mcp_stub)'
+filter = 'package(systemprompt-cli-integration-tests) and (binary(subprocess_mcp_stub) or binary(subprocess_agents_a2a))'
 test-group = 'scheduler-services-db'
 
 [[profile.ci.overrides]]
-filter = 'package(systemprompt-cli-integration-tests) and binary(subprocess_mcp_stub)'
+filter = 'package(systemprompt-cli-integration-tests) and (binary(subprocess_mcp_stub) or binary(subprocess_agents_a2a))'
 test-group = 'scheduler-services-db'
 
 [[profile.coverage.overrides]]
-filter = 'package(systemprompt-cli-integration-tests) and binary(subprocess_mcp_stub)'
+filter = 'package(systemprompt-cli-integration-tests) and (binary(subprocess_mcp_stub) or binary(subprocess_agents_a2a))'
 test-group = 'scheduler-services-db'
 
 # The CLI subprocess suite spawns full `systemprompt` boots (validation, DB,
