@@ -276,6 +276,13 @@ impl ApplicationHandler for GuiApp {
             emit::emit_theme_changed(self, label);
             return;
         }
+        if let WindowEvent::SurfaceResized(size) = &event
+            && let Some(win) = &self.settings_window
+            && win.id() == id
+        {
+            win.resize_webview(*size);
+            return;
+        }
         if event == WindowEvent::CloseRequested
             && let Some(win) = &self.settings_window
             && win.id() == id

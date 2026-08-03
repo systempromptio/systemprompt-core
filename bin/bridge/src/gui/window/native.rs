@@ -5,13 +5,13 @@
 
 use std::borrow::Cow;
 
-use winit::dpi::{LogicalSize, PhysicalSize};
+use winit::dpi::{LogicalPosition, LogicalSize, PhysicalSize};
 use winit::event_loop::ActiveEventLoop;
 use winit::icon::{Icon, RgbaIcon};
 use winit::window::{Window, WindowAttributes, WindowId};
 use wry::http::Response;
 use wry::http::header::CONTENT_TYPE;
-use wry::{NewWindowResponse, WebView, WebViewBuilder};
+use wry::{NewWindowResponse, Rect, WebView, WebViewBuilder};
 
 use crate::gui::assets::{self, Asset};
 use crate::gui::error::{GuiError, GuiResult, WindowError};
@@ -98,11 +98,16 @@ impl SettingsWindow {
             use wry::WebViewBuilderExtWindows as _;
             builder.with_https_scheme(true)
         };
+        let initial_size = window.surface_size();
         let webview = builder
             .with_url(SP_INDEX_URL)
             .with_background_color(BG_RGBA)
             .with_accept_first_mouse(true)
             .with_devtools(true)
+            .with_bounds(Rect {
+                position: LogicalPosition::new(0, 0).into(),
+                size: PhysicalSize::new(initial_size.width, initial_size.height).into(),
+            })
             .with_initialization_script(BRIDGE_BOOTSTRAP)
             .with_ipc_handler(move |req| {
                 let body = req.into_body();
@@ -116,7 +121,7 @@ impl SettingsWindow {
                 super::open_external_url(&target);
                 NewWindowResponse::Deny
             })
-            .build(&WindowRef(&*window))
+            .build_as_child(&WindowRef(&*window))
             .map_err(|e| GuiError::Window {
                 context: "webview build".into(),
                 source: WindowError::Wry(e),
@@ -142,6 +147,19 @@ impl SettingsWindow {
 
     pub fn hide(&self) {
         self.window.set_visible(false);
+    }
+
+    /// Resize the child webview to match a new window surface size. Called
+    /// on `WindowEvent::Resized` — without this the webview stays at its
+    /// initial bounds and gets clipped or leaves margins as the window is
+    /// resized.
+    pub fn resize_webview(&self, size: PhysicalSize<u32>) {
+        if let Err(e) = self.webview.set_bounds(Rect {
+            position: LogicalPosition::new(0, 0).into(),
+            size: PhysicalSize::new(size.width, size.height).into(),
+        }) {
+            tracing::warn!(error = %e, "webview set_bounds failed");
+        }
     }
 
     pub fn evaluate_script(&self, script: &str) {
