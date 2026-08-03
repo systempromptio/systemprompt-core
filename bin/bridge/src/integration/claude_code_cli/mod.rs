@@ -159,7 +159,7 @@ fn apply_install(ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError> {
     Ok(())
 }
 
-fn clear_install() -> Result<(), ApplyError> {
+pub(crate) fn clear_install() -> Result<(), ApplyError> {
     crate::install::managed_mcp::clear_policy();
     let Some(plugins) = paths::claude_cli_plugins_dir() else {
         tracing::warn!(

@@ -6969,6 +6969,7 @@ dependencies = [
  "sha2 0.11.0",
  "systemprompt-identifiers",
  "systemprompt-models",
+ "tempfile",
  "thiserror 2.0.19",
  "time",
  "tokio",

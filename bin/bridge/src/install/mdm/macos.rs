@@ -117,12 +117,10 @@ pub fn apply(gateway: &str, pubkey: Option<&str>) -> Result<Vec<String>, String>
     let dest_user =
         format!("/Library/Managed Preferences/{user}/com.anthropic.claudefordesktop.plist");
 
-    // Idempotency: if the on-disk plist already matches, skip elevation.
-    // Only useful when we have permission to read it — Managed Preferences is
-    // world-readable so this works for the current user.
+    // Why: skip elevation when the on-disk plist already matches. The read is
+    // only possible because Managed Preferences is world-readable.
     let existing_matches = fs::read(dest_system).is_ok_and(|b| b == plist.as_bytes())
-        && (user.is_empty()
-            || fs::read(&dest_user).is_ok_and(|b| b == plist.as_bytes()));
+        && (user.is_empty() || fs::read(&dest_user).is_ok_and(|b| b == plist.as_bytes()));
 
     let script = if user.is_empty() {
         format!(

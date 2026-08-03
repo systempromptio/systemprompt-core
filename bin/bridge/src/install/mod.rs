@@ -11,7 +11,6 @@ pub(crate) mod elevate;
 mod error;
 pub(crate) mod managed_mcp;
 pub(crate) mod mdm;
-pub mod proxy_service;
 mod schedule_apply;
 mod schedule_emit;
 mod summary;

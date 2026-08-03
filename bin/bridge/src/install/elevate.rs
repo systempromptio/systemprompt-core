@@ -5,12 +5,12 @@
 //! `/Library/Managed Preferences/…`). Which mechanism can prompt the user
 //! depends on whether we're on a TTY:
 //!
-//! - **TTY present** — `sudo /bin/sh -c "…"` prompts on stdin, same as any
-//!   Unix installer.
-//! - **No TTY** (bridge launched from Finder / launchd via the `.app`) —
-//!   `sudo` has nowhere to prompt and hangs. We shell out to `osascript` with
-//!   `do shell script … with administrator privileges`, which produces the
-//!   native macOS credential dialog (the same one System Preferences uses).
+//! - **TTY present** — `sudo /bin/sh -c "…"` prompts on stdin, same as any Unix
+//!   installer.
+//! - **No TTY** (bridge launched from Finder / launchd via the `.app`) — `sudo`
+//!   has nowhere to prompt and hangs. We shell out to `osascript` with `do
+//!   shell script … with administrator privileges`, which produces the native
+//!   macOS credential dialog (the same one System Preferences uses).
 //!
 //! Callers hand this module a plain `/bin/sh` script; escaping for AppleScript
 //! is our problem.
@@ -35,15 +35,9 @@ pub(crate) enum ElevationError {
     Spawn(#[from] std::io::Error),
 }
 
-/// Run `script` (a `/bin/sh` snippet) with root privileges.
-///
-/// `prompt` is the human-facing sentence shown in the GUI credential dialog —
-/// keep it short and start with "Astound Bridge needs administrator privileges
-/// to …" or similar. Ignored on the TTY path (sudo has its own prompt).
-///
-/// Returns `Ok(())` on success. `Err(UserCancelled)` when the user hits
-/// Cancel on the GUI dialog; callers should surface this as a "declined"
-/// state rather than a hard error.
+// Why: `prompt` reaches the user only on the GUI path — sudo carries its own
+// on a TTY — so it must read as a standalone sentence. `UserCancelled` is a
+// decision, not a failure: callers surface it as "declined" rather than error.
 pub(crate) fn run_privileged(script: &str, prompt: &str) -> Result<(), ElevationError> {
     if std::io::stdout().is_terminal() {
         sudo_direct(script)
@@ -109,7 +103,10 @@ mod tests {
     #[test]
     fn applescript_escape_quotes_and_backslashes() {
         assert_eq!(applescript_escape(r#"echo "hi""#), r#"echo \"hi\""#);
-        assert_eq!(applescript_escape(r"path\with\backslashes"), r"path\\with\\backslashes");
+        assert_eq!(
+            applescript_escape(r"path\with\backslashes"),
+            r"path\\with\\backslashes"
+        );
         assert_eq!(applescript_escape("plain"), "plain");
     }
 }

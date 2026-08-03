@@ -107,9 +107,9 @@ fn write_policy_file(path: &Path, body: &str) -> Result<(), std::io::Error> {
     fs::write(path, body.as_bytes())
 }
 
-/// True when the file already contains exactly `body`. Anything else — missing
-/// file, differing content, read error — returns false. Used to skip elevation
-/// when there is genuinely no work to do (idempotent syncs must not prompt).
+// Why: a read error counts as "does not match" so an unreadable file still
+// triggers the write path — idempotent syncs must skip elevation, but an
+// unknown on-disk state must never be mistaken for an up-to-date one.
 fn body_matches(path: &Path, body: &str) -> bool {
     fs::read(path).is_ok_and(|bytes| bytes == body.as_bytes())
 }
@@ -122,7 +122,6 @@ fn body_matches(path: &Path, body: &str) -> bool {
 pub(crate) enum PolicyOutcome {
     Enforced,
     Unenforced,
-    #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
     Declined,
 }
 
@@ -168,8 +167,8 @@ pub(crate) fn apply_policy() -> PolicyOutcome {
         },
     };
 
-    // Diff-first: if both files are already exactly what we would write, skip
-    // the elevation entirely so idempotent syncs don't prompt.
+    // Why: diff-first — if both files already match, skip elevation entirely so
+    // idempotent syncs don't prompt.
     if body_matches(&mcp_path, &mcp_body) && body_matches(&settings_path, &settings_body) {
         return PolicyOutcome::Enforced;
     }
@@ -205,7 +204,13 @@ pub(crate) fn apply_policy() -> PolicyOutcome {
 
 enum WriteOutcome {
     Ok,
-    #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+    #[cfg_attr(
+        not(target_os = "macos"),
+        expect(
+            dead_code,
+            reason = "only the macOS elevation path can be declined by the operator"
+        )
+    )]
     Declined,
     Failed(String),
 }
@@ -217,23 +222,23 @@ fn write_both(
     settings_path: &Path,
     settings_body: &str,
 ) -> WriteOutcome {
-    // Try the direct write first — CI, root shells, MDM-provisioned users
-    // are already privileged and shouldn't prompt at all.
-    let direct = write_policy_file(mcp_path, mcp_body).and_then(|()| {
-        write_policy_file(settings_path, settings_body)
-    });
+    // Why: try the direct write first — CI, root shells and MDM-provisioned
+    // users are already privileged and must not be prompted at all.
+    let direct = write_policy_file(mcp_path, mcp_body)
+        .and_then(|()| write_policy_file(settings_path, settings_body));
     if direct.is_ok() {
         return WriteOutcome::Ok;
     }
-    // Only real permission-denied errors should escalate — anything else
-    // (disk full, ENOSPC, etc.) is a real failure to report as-is.
+    // Why: only permission-denied justifies escalating — anything else
+    // (ENOSPC and friends) is a real failure and elevation cannot fix it.
     if let Err(err) = &direct
         && err.kind() != std::io::ErrorKind::PermissionDenied
     {
         return WriteOutcome::Failed(err.to_string());
     }
 
-    // Elevated path: stage into a user-writable tempdir, then install.
+    // Why: stage into a user-writable tempdir first — the elevated shell can
+    // read it, whereas a heredoc would embed the body in the script itself.
     let tmp = match stage_temp(mcp_body, settings_body) {
         Ok(t) => t,
         Err(e) => return WriteOutcome::Failed(format!("stage temp: {e}")),
@@ -292,7 +297,11 @@ fn stage_temp(mcp_body: &str, settings_body: &str) -> Result<TempStaging, std::i
     let settings = dir.path().join(MANAGED_SETTINGS_FILE);
     fs::write(&mcp, mcp_body.as_bytes())?;
     fs::write(&settings, settings_body.as_bytes())?;
-    Ok(TempStaging { _dir: dir, mcp, settings })
+    Ok(TempStaging {
+        _dir: dir,
+        mcp,
+        settings,
+    })
 }
 
 #[cfg(target_os = "macos")]
@@ -309,7 +318,8 @@ pub(crate) fn clear_policy() {
     let mcp_path = dir.join(MANAGED_MCP_FILE);
     let settings_path = dir.join(MANAGED_SETTINGS_FILE);
 
-    // Try the direct removal first (user is privileged, or files never existed).
+    // Why: try the direct removal first — a privileged user, or files that
+    // never existed, must not trigger an elevation prompt.
     let stripped_settings_body = if settings_path.exists() {
         read_settings(&settings_path)
             .and_then(|mut doc| {
@@ -349,23 +359,13 @@ fn clear_direct(
         Err(e) if e.kind() == std::io::ErrorKind::PermissionDenied => false,
         Err(_) => false,
     };
-    let settings_ok = match stripped_settings_body {
-        Some(body) => match write_policy_file(settings_path, body) {
-            Ok(()) => true,
-            Err(e) if e.kind() == std::io::ErrorKind::PermissionDenied => false,
-            Err(_) => false,
-        },
-        None => true,
-    };
+    let settings_ok =
+        stripped_settings_body.is_none_or(|body| write_policy_file(settings_path, body).is_ok());
     mcp_ok && settings_ok
 }
 
 #[cfg(target_os = "macos")]
-fn clear_elevated(
-    mcp_path: &Path,
-    settings_path: &Path,
-    stripped_settings_body: Option<&str>,
-) {
+fn clear_elevated(mcp_path: &Path, settings_path: &Path, stripped_settings_body: Option<&str>) {
     let mut script = String::from("set -e\n");
     if mcp_path.exists() {
         script.push_str(&format!(
@@ -374,10 +374,7 @@ fn clear_elevated(
         ));
     }
     let tmp = if let Some(body) = stripped_settings_body {
-        let dir = match tempfile::Builder::new()
-            .prefix("astound-clear-")
-            .tempdir()
-        {
+        let dir = match tempfile::Builder::new().prefix("astound-clear-").tempdir() {
             Ok(d) => d,
             Err(e) => {
                 tracing::warn!(
