@@ -1,5 +1,12 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+
+- macOS: profile install no longer segfaults the bridge. `install_profile` (and the two other install paths that shell out to `open`) now pass `-g` so System Settings loads the `.mobileconfig` without stealing focus. The bridge stayed active during the previous foreground handoff, which fired `-[NSWindow resignKeyWindow]` on our winit NSWindow, and a notification observer registered by muda/tray-icon on `objc2 0.6` then dereferenced a weak reference to that window whose bookkeeping lives on the winit side (`objc2 0.5`) — `EXC_BAD_ACCESS`. Root fix is unifying the objc2 majors (requires bumping past `winit 0.30`) and is tracked separately.
+- macOS: double-clicking the `.app` bundle now opens the GUI instead of silently emitting a JWT and exiting. `should_default_to_gui()` was `const false` off Windows; it now shares the Windows `!isatty(stdout)` heuristic so Finder/launchd invocations (no controlling terminal) route to `cmd_gui`, while Terminal invocations still fall through to `cmd_run`.
+
 ## [0.22.0] - 2026-07-30
 
 ### Breaking

@@ -18,14 +18,14 @@ pub fn has_flag(args: &[String], flag: &str) -> bool {
     args.iter().skip(2).any(|a| a == flag)
 }
 
-#[cfg(target_os = "windows")]
+#[cfg(any(target_os = "windows", target_os = "macos"))]
 pub(crate) fn should_default_to_gui() -> bool {
     use is_terminal::IsTerminal as _;
 
     !std::io::stdout().is_terminal()
 }
 
-#[cfg(not(target_os = "windows"))]
+#[cfg(not(any(target_os = "windows", target_os = "macos")))]
 pub(crate) const fn should_default_to_gui() -> bool {
     false
 }
