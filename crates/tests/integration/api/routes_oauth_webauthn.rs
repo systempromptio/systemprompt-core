@@ -17,7 +17,7 @@ use axum::Router;
 use axum::body::{Body, to_bytes};
 use axum::http::{Request, Response, StatusCode, header};
 use systemprompt_api::routes::oauth::public_router;
-use systemprompt_identifiers::UserId;
+use systemprompt_identifiers::{ChallengeId, UserId};
 use systemprompt_models::Config;
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::repository::OAuthRepository;
@@ -263,5 +263,226 @@ async fn webauthn_complete_user_mismatch_returns_access_denied() -> anyhow::Resu
     assert_eq!(resp.status(), StatusCode::UNAUTHORIZED, "{}", resp.status());
     let v = read_json(resp).await?;
     assert_eq!(v["error"].as_str(), Some("access_denied"), "{v}");
+    Ok(())
+}
+
+fn finish_body(challenge_id: &str, username: &str, email: &str) -> serde_json::Value {
+    serde_json::json!({
+        "challenge_id": challenge_id,
+        "username": username,
+        "email": email,
+        "credential": {
+            "id": "AAAA",
+            "rawId": "AAAA",
+            "type": "public-key",
+            "response": {
+                "attestationObject": "AAAA",
+                "clientDataJSON": "AAAA"
+            }
+        }
+    })
+}
+
+async fn finish_description(body: serde_json::Value) -> anyhow::Result<(StatusCode, String)> {
+    let app = webauthn_app().await?;
+    let resp = app
+        .oneshot(json_post("/webauthn/register/finish", body))
+        .await?;
+    let status = resp.status();
+    let v = read_json(resp).await?;
+    Ok((
+        status,
+        v["error_description"]
+            .as_str()
+            .unwrap_or_default()
+            .to_owned(),
+    ))
+}
+
+#[tokio::test]
+async fn register_finish_blank_challenge_id_is_rejected() -> anyhow::Result<()> {
+    let (status, description) =
+        finish_description(finish_body("   ", "validname", "a@b.com")).await?;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert!(description.contains("Challenge ID"), "{description}");
+    Ok(())
+}
+
+#[tokio::test]
+async fn register_finish_oversized_username_is_rejected() -> anyhow::Result<()> {
+    let (status, description) =
+        finish_description(finish_body("chal", &"u".repeat(51), "a@b.com")).await?;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert!(description.contains("50 characters"), "{description}");
+    Ok(())
+}
+
+#[tokio::test]
+async fn register_finish_illegal_username_chars_are_rejected() -> anyhow::Result<()> {
+    let (status, description) =
+        finish_description(finish_body("chal", "bad name!", "a@b.com")).await?;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert!(description.contains("letters, numbers"), "{description}");
+    Ok(())
+}
+
+#[tokio::test]
+async fn register_finish_invalid_email_is_rejected() -> anyhow::Result<()> {
+    let (status, description) =
+        finish_description(finish_body("chal", "validname", "not-an-email")).await?;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert!(description.contains("valid email"), "{description}");
+    Ok(())
+}
+
+#[tokio::test]
+async fn register_finish_with_valid_input_fails_on_the_unknown_challenge() -> anyhow::Result<()> {
+    let username = format!("user{}", Uuid::new_v4().simple());
+    let challenge = ChallengeId::new(format!("chal-{}", Uuid::new_v4().simple()));
+    let app = webauthn_app().await?;
+    let resp = app
+        .oneshot(json_post(
+            "/webauthn/register/finish",
+            finish_body(
+                challenge.as_str(),
+                &username,
+                &format!("{username}@webauthn.invalid"),
+            ),
+        ))
+        .await?;
+
+    // Input validation passes, so the failure must come from the ceremony
+    // itself: no server-side challenge was ever minted for this id.
+    assert_ne!(
+        resp.status(),
+        StatusCode::OK,
+        "an unminted challenge cannot complete a registration"
+    );
+    let v = read_json(resp).await?;
+    let description = v["error_description"].as_str().unwrap_or_default();
+    assert!(
+        !description.contains("Username") && !description.contains("Email"),
+        "the request must clear input validation, got {description}"
+    );
+    Ok(())
+}
+
+fn browser_get(uri: &str) -> Request<Body> {
+    Request::builder()
+        .method(http::Method::GET)
+        .uri(uri)
+        .header(header::ACCEPT, "text/html,application/xhtml+xml")
+        .header(header::USER_AGENT, "Mozilla/5.0")
+        .body(Body::empty())
+        .expect("build")
+}
+
+async fn complete_uri(extra: &str) -> anyhow::Result<(UserId, OAuthClientFixture, String)> {
+    ensure_config();
+    install_test_signing_key();
+    let (user, client) = seed_user_and_client().await?;
+    let token = inject_verified_auth(&user).await?;
+    let uri = format!(
+        "/webauthn/complete?user_id={}&auth_token={}&client_id={}&redirect_uri={}{extra}",
+        user.as_str(),
+        token,
+        client.client_id.as_str(),
+        "http%3A%2F%2F127.0.0.1%2Fcallback",
+    );
+    Ok((user, client, uri))
+}
+
+#[tokio::test]
+async fn webauthn_complete_omitting_scope_falls_back_to_the_default_roles() -> anyhow::Result<()> {
+    let (_user, _client, uri) = complete_uri("").await?;
+    let app = webauthn_app().await?;
+
+    let resp = app.oneshot(empty_get(&uri)).await?;
+
+    assert_eq!(resp.status(), StatusCode::OK, "{}", resp.status());
+    let v = read_json(resp).await?;
+    assert!(
+        v["authorization_code"]
+            .as_str()
+            .is_some_and(|c| !c.is_empty()),
+        "a completion without an explicit scope still mints a code: {v}"
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn webauthn_complete_binds_the_pkce_challenge_when_one_is_supplied() -> anyhow::Result<()> {
+    let (_user, _client, uri) =
+        complete_uri("&scope=user&code_challenge=abc123challenge&code_challenge_method=S256")
+            .await?;
+    let app = webauthn_app().await?;
+
+    let resp = app.oneshot(empty_get(&uri)).await?;
+
+    assert_eq!(resp.status(), StatusCode::OK, "{}", resp.status());
+    let v = read_json(resp).await?;
+    assert!(
+        v["authorization_code"]
+            .as_str()
+            .is_some_and(|c| !c.is_empty()),
+        "{v}"
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn webauthn_complete_redirects_a_browser_and_carries_the_state_back() -> anyhow::Result<()> {
+    let (_user, client, uri) = complete_uri("&scope=user&state=opaque-state-value").await?;
+    let app = webauthn_app().await?;
+
+    let resp = app.oneshot(browser_get(&uri)).await?;
+
+    assert_eq!(
+        resp.status(),
+        StatusCode::SEE_OTHER,
+        "a browser must be redirected, not handed JSON: {}",
+        resp.status()
+    );
+    let location = resp
+        .headers()
+        .get(header::LOCATION)
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or_default()
+        .to_owned();
+    assert!(location.contains("code="), "{location}");
+    assert!(
+        location.contains("state=opaque-state-value"),
+        "the caller's state must survive the round trip or CSRF protection breaks: {location}"
+    );
+    assert!(
+        location.contains(&format!("client_id={}", client.client_id.as_str())),
+        "{location}"
+    );
+    assert!(
+        location.contains("iss="),
+        "RFC 9207 requires the issuer on the authorization response: {location}"
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn webauthn_complete_without_a_client_id_is_rejected() -> anyhow::Result<()> {
+    ensure_config();
+    install_test_signing_key();
+    let (user, _client) = seed_user_and_client().await?;
+    let token = inject_verified_auth(&user).await?;
+    let app = webauthn_app().await?;
+    let uri = format!(
+        "/webauthn/complete?user_id={}&auth_token={}&redirect_uri={}",
+        user.as_str(),
+        token,
+        "http%3A%2F%2F127.0.0.1%2Fcallback",
+    );
+
+    let resp = app.oneshot(empty_get(&uri)).await?;
+
+    assert_eq!(resp.status(), StatusCode::BAD_REQUEST, "{}", resp.status());
+    let v = read_json(resp).await?;
+    assert_eq!(v["error"].as_str(), Some("invalid_request"), "{v}");
     Ok(())
 }

@@ -436,3 +436,107 @@ mod from_error_response_tests {
         assert!(matches!(err.classify(), Outcome::Permanent));
     }
 }
+
+// The reqwest-backed arms of `classify`. Everything above constructs the error
+// by hand; these two require a real transport failure, and they matter because
+// the resilience guard retries on `Transient` and gives up on `Permanent`.
+mod transport_classification {
+    use super::*;
+    use systemprompt_ai::services::providers::http_client::build_client;
+
+    #[tokio::test]
+    async fn a_connection_failure_classifies_as_transient() {
+        let client = build_client(Duration::from_millis(200), Duration::from_millis(50));
+
+        // Port 1 on loopback refuses immediately: a connect error, not a status.
+        let reqwest_err = client
+            .get("http://127.0.0.1:1/never-listening")
+            .send()
+            .await
+            .expect_err("nothing is listening on that port");
+        assert!(
+            reqwest_err.is_connect() || reqwest_err.is_timeout(),
+            "the fixture must produce a transport failure, got {reqwest_err}"
+        );
+
+        let err = AiError::from(reqwest_err);
+        assert!(
+            matches!(err.classify(), Outcome::Transient { retry_after: None }),
+            "an upstream we could not reach is worth retrying, and carries no \
+             server-supplied backoff"
+        );
+    }
+
+    #[tokio::test]
+    async fn a_request_timeout_classifies_as_transient() {
+        let server = wiremock::MockServer::start().await;
+        wiremock::Mock::given(wiremock::matchers::method("GET"))
+            .respond_with(wiremock::ResponseTemplate::new(200).set_delay(Duration::from_secs(5)))
+            .mount(&server)
+            .await;
+
+        let client = build_client(Duration::from_millis(50), Duration::from_secs(1));
+        let reqwest_err = client
+            .get(format!("{}/slow", server.uri()))
+            .send()
+            .await
+            .expect_err("the client's request timeout must fire first");
+        assert!(
+            reqwest_err.is_timeout(),
+            "the fixture must produce a timeout, got {reqwest_err}"
+        );
+
+        let err = AiError::from(reqwest_err);
+        assert!(
+            matches!(err.classify(), Outcome::Transient { retry_after: None }),
+            "a request that ran out of time is worth retrying"
+        );
+    }
+
+    #[tokio::test]
+    async fn a_transport_error_that_is_neither_connect_nor_timeout_is_permanent() {
+        let client = build_client(Duration::from_secs(5), Duration::from_secs(1));
+
+        // An unsupported scheme fails at request construction, not transport.
+        let reqwest_err = client
+            .get("nonsense://example.invalid/path")
+            .send()
+            .await
+            .expect_err("an unsupported scheme cannot be sent");
+        assert!(
+            !reqwest_err.is_timeout() && !reqwest_err.is_connect(),
+            "the fixture must not be a retryable transport failure, got {reqwest_err}"
+        );
+
+        let err = AiError::from(reqwest_err);
+        assert!(
+            matches!(err.classify(), Outcome::Permanent),
+            "a malformed request will fail identically on every retry"
+        );
+    }
+
+    #[tokio::test]
+    async fn the_built_client_honours_the_request_timeout_it_was_given() {
+        let server = wiremock::MockServer::start().await;
+        wiremock::Mock::given(wiremock::matchers::method("GET"))
+            .respond_with(
+                wiremock::ResponseTemplate::new(200).set_delay(Duration::from_millis(400)),
+            )
+            .mount(&server)
+            .await;
+
+        let impatient = build_client(Duration::from_millis(50), Duration::from_secs(1));
+        assert!(
+            impatient.get(server.uri()).send().await.is_err(),
+            "a 50ms budget must not tolerate a 400ms response"
+        );
+
+        let patient = build_client(Duration::from_secs(5), Duration::from_secs(1));
+        let response = patient
+            .get(server.uri())
+            .send()
+            .await
+            .expect("a 5s budget must tolerate the same response");
+        assert!(response.status().is_success());
+    }
+}

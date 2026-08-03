@@ -459,12 +459,26 @@ coverage:
     # invoke the systemprompt binary through full SecretsBootstrap; without
     # it those tests early-return and produce no coverage.
     #
+    # It must point at a disposable, freshly-migrated database, exactly as
+    # coverage.yml does. Pointed at the shared dev `systemprompt-web` DB — the
+    # default until 2026-08-03 — its web-project triggers fail core tests en
+    # masse and the run under-reports by ~6 points (the 82.75% of the
+    # 2026-07-21 baseline against the same tree that measures 88.91% here).
+    #
     # %m%c (continuous mode, no %p): with per-PID files, PID reuse across the
     # ~18k nextest processes silently overwrites earlier profraws — tests
     # covered only by a single low-frequency process read as uncovered. One
     # mmap-shared file per module signature makes counter updates atomic and
     # mirrors coverage.yml.
-    : "${DATABASE_URL:=postgres://systemprompt_admin:3e00fcdac26b5b731829e8737515db8f@localhost:5432/systemprompt-web}"
+    : "${DATABASE_URL:=postgres://systemprompt_admin:3e00fcdac26b5b731829e8737515db8f@localhost:5432/systemprompt_coverage}"
+    cov_base="${DATABASE_URL%/*}"
+    cov_name="${DATABASE_URL##*/}"
+    echo "==> Resetting coverage database: $cov_name"
+    psql "${cov_base}/postgres" -v ON_ERROR_STOP=1 -c "DROP DATABASE IF EXISTS \"${cov_name}\" WITH (FORCE);" >/dev/null
+    psql "${cov_base}/postgres" -v ON_ERROR_STOP=1 -c "CREATE DATABASE \"${cov_name}\";" >/dev/null
+    echo "==> Applying extension schemas (offline build)"
+    SQLX_OFFLINE=true DATABASE_URL="$DATABASE_URL" \
+        cargo run --manifest-path "$ROOT/crates/tests/Cargo.toml" -p systemprompt-test-migrate --release
     CARGO_BUILD_RUSTC_WRAPPER="" \
         RUSTC_WRAPPER="" \
         CARGO_TARGET_DIR="$TDIR" \

@@ -18,9 +18,10 @@ pub use app_context::{
     fixture_app_context_with_hook, fixture_config,
 };
 pub use bootstrap::{
-    ensure_messaging_bootstrap, ensure_test_bootstrap, init_isolated_bootstrap,
-    test_messaging_agent, TestBootstrap, TEST_SLACK_BOT_TOKEN, TEST_SLACK_SIGNING_SECRET,
-    TEST_SLACK_WORKSPACE_ID, TEST_TEAMS_APP_ID, TEST_TEAMS_APP_PASSWORD, TEST_TEAMS_TENANT_ID,
+    ensure_messaging_bootstrap, ensure_test_bootstrap, init_gateway_bootstrap,
+    init_isolated_bootstrap, test_messaging_agent, TestBootstrap, TEST_SLACK_BOT_TOKEN,
+    TEST_SLACK_SIGNING_SECRET, TEST_SLACK_WORKSPACE_ID, TEST_TEAMS_APP_ID, TEST_TEAMS_APP_PASSWORD,
+    TEST_TEAMS_TENANT_ID,
 };
 pub use credential::{
     seed_admin_credential, seed_bridge_credential, seed_user_row, seed_user_row_with_roles,

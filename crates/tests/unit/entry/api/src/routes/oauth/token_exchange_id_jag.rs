@@ -169,3 +169,78 @@ async fn refuses_the_same_id_jag_twice() {
 
     assert!(err.to_string().contains("replay"), "{err}");
 }
+
+fn unsigned(header: &str, payload: &str) -> String {
+    use base64::Engine;
+    use base64::engine::general_purpose::URL_SAFE_NO_PAD;
+    format!(
+        "{}.{}.c2ln",
+        URL_SAFE_NO_PAD.encode(header),
+        URL_SAFE_NO_PAD.encode(payload)
+    )
+}
+
+async fn reject(token: &str, config: &Config) -> String {
+    let pool = pool().await;
+    validate(token, &pool, config)
+        .await
+        .expect_err("this ID-JAG must be refused")
+        .to_string()
+}
+
+#[tokio::test]
+async fn a_subject_that_is_not_a_jwt_is_refused_before_any_lookup() {
+    let message = reject("not-a-jwt-at-all", &config()).await;
+
+    assert!(message.contains("header decode failed"), "{message}");
+}
+
+#[tokio::test]
+async fn an_id_jag_without_a_kid_cannot_be_verified() {
+    let config = config();
+    let token = unsigned(
+        &format!(r#"{{"alg":"RS256","typ":"{ID_JAG_TYP}"}}"#),
+        &format!(r#"{{"iss":"{}"}}"#, config.jwt_issuer),
+    );
+
+    let message = reject(&token, &config).await;
+
+    assert!(message.contains("missing `kid`"), "{message}");
+}
+
+#[tokio::test]
+async fn a_self_issued_id_jag_naming_an_unknown_kid_is_refused() {
+    install_test_signing_key();
+    let config = config();
+    let token = unsigned(
+        &format!(r#"{{"alg":"RS256","typ":"{ID_JAG_TYP}","kid":"retired-key"}}"#),
+        &format!(r#"{{"iss":"{}"}}"#, config.jwt_issuer),
+    );
+
+    let message = reject(&token, &config).await;
+
+    assert!(message.contains("retired-key"), "{message}");
+}
+
+#[tokio::test]
+async fn a_trusted_issuer_id_jag_whose_jwks_is_unreachable_is_refused() {
+    let mut config = config();
+    config.trusted_issuers = vec![systemprompt_models::profile::TrustedIssuer {
+        issuer: "https://idp.test".to_owned(),
+        jwks_uri: "http://127.0.0.1:1/jwks".to_owned(),
+        audience: config.jwt_issuer.clone(),
+        typ_allowlist: vec![],
+        allowed_client_ids: vec![CLIENT.to_owned()],
+        can_issue_id_jag: true,
+    }];
+    let token = unsigned(
+        &format!(r#"{{"alg":"RS256","typ":"{ID_JAG_TYP}","kid":"k1"}}"#),
+        r#"{"iss":"https://idp.test"}"#,
+    );
+
+    let message = reject(&token, &config).await;
+
+    // An unverifiable signature must never fall through to the claim policy:
+    // the failure has to be the JWKS resolution itself.
+    assert!(message.contains("JWKS resolution failed"), "{message}");
+}

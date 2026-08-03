@@ -405,3 +405,97 @@ async fn authorization_code_cannot_be_redeemed_twice() -> anyhow::Result<()> {
     assert_eq!(v2["error"].as_str(), Some("invalid_grant"), "{v2}");
     Ok(())
 }
+
+// Both grants accept an omitted `client_id` and resolve it from the presented
+// code or refresh token. That lookup's not-found arm is the one an attacker
+// probing for valid codes hits, and no existing test omits `client_id` with a
+// credential the server never issued.
+#[tokio::test]
+async fn an_unissued_code_presented_without_a_client_id_is_refused() -> anyhow::Result<()> {
+    let app = token_app().await?;
+    let body = urlencode(&[
+        ("grant_type", "authorization_code"),
+        ("code", &format!("ac-{}", Uuid::new_v4())),
+        ("redirect_uri", "http://127.0.0.1/callback"),
+    ]);
+
+    let resp = app.oneshot(form_post(body)).await?;
+    let status = resp.status();
+    let v = read_json(resp).await?;
+
+    assert!(status.is_client_error(), "{status}: {v}");
+    assert!(
+        v["access_token"].as_str().is_none(),
+        "an unissued code must never mint a token: {v}"
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn an_unissued_refresh_token_without_a_client_id_is_refused() -> anyhow::Result<()> {
+    let app = token_app().await?;
+    let body = urlencode(&[
+        ("grant_type", "refresh_token"),
+        ("refresh_token", &format!("rt-{}", Uuid::new_v4())),
+    ]);
+
+    let resp = app.oneshot(form_post(body)).await?;
+    let status = resp.status();
+    let v = read_json(resp).await?;
+
+    assert!(status.is_client_error(), "{status}: {v}");
+    assert!(
+        v["access_token"].as_str().is_none(),
+        "an unissued refresh token must never mint a token: {v}"
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn an_unissued_credential_does_not_reveal_whether_it_ever_existed() -> anyhow::Result<()> {
+    let app = token_app().await?;
+    let first = read_json(
+        app.oneshot(form_post(urlencode(&[
+            ("grant_type", "refresh_token"),
+            ("refresh_token", &format!("rt-{}", Uuid::new_v4())),
+        ])))
+        .await?,
+    )
+    .await?;
+
+    let app = token_app().await?;
+    let second = read_json(
+        app.oneshot(form_post(urlencode(&[
+            ("grant_type", "refresh_token"),
+            ("refresh_token", &format!("rt-{}", Uuid::new_v4())),
+        ])))
+        .await?,
+    )
+    .await?;
+
+    // Two different never-issued tokens must be indistinguishable, or the
+    // endpoint becomes an oracle for guessing valid ones.
+    assert_eq!(
+        first["error"].as_str(),
+        second["error"].as_str(),
+        "{first} vs {second}"
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn a_code_grant_with_no_code_at_all_is_refused() -> anyhow::Result<()> {
+    let app = token_app().await?;
+    let body = urlencode(&[("grant_type", "authorization_code")]);
+
+    let resp = app.oneshot(form_post(body)).await?;
+    let status = resp.status();
+    let v = read_json(resp).await?;
+
+    assert!(status.is_client_error(), "{status}: {v}");
+    assert!(
+        v["error"].as_str().is_some_and(|e| !e.is_empty()),
+        "the rejection must carry an RFC 6749 error code: {v}"
+    );
+    Ok(())
+}

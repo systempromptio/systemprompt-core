@@ -193,3 +193,95 @@ fn column_info_data_type_display() {
     };
     assert_eq!(col.data_type, "numeric(10,2)");
 }
+
+// --- driving the trait itself ---
+//
+// `display_with_cli` writes to the process stdout handle, which libtest does
+// not capture, so these drive every formatting branch for its side effect and
+// assert the input invariants each branch keys off. Their value is that the
+// formatting code — including the row/value fallbacks below — cannot regress
+// into a panic on the CLI's real inputs.
+
+use systemprompt_database::DatabaseCliDisplay;
+
+#[test]
+fn every_table_list_branch_formats_without_panicking() {
+    let empty: Vec<TableInfo> = vec![];
+    assert!(empty.is_empty(), "drives the `No tables found` branch");
+    empty.display_with_cli();
+
+    let populated = vec![make_table_info("users", 100), make_table_info("empty", 0)];
+    assert_eq!(populated.len(), 2);
+    populated.display_with_cli();
+}
+
+#[test]
+fn column_listing_formats_both_the_defaulted_and_undefaulted_forms() {
+    let with_default = ColumnInfo {
+        name: "amount".to_string(),
+        data_type: "numeric(10,2)".to_string(),
+        nullable: false,
+        primary_key: true,
+        default: Some("0.00".to_string()),
+    };
+    let without_default = make_column_info("note", true, false);
+    assert!(with_default.default.is_some() && without_default.default.is_none());
+
+    let listing = (vec![with_default, without_default], 2_i64);
+    listing.display_with_cli();
+
+    let no_columns: (Vec<ColumnInfo>, i64) = (vec![], 0);
+    no_columns.display_with_cli();
+}
+
+#[test]
+fn database_info_formats_its_path_version_and_table_count() {
+    let info = DatabaseInfo {
+        path: "postgres://localhost/db".to_string(),
+        size: 4096,
+        version: "15.1".to_string(),
+        tables: vec![make_table_info("a", 1)],
+    };
+    assert_eq!(info.tables.len(), 1);
+    info.display_with_cli();
+}
+
+#[test]
+fn query_results_format_every_json_value_shape_and_the_missing_column_fallback() {
+    let no_columns = QueryResult {
+        columns: vec![],
+        rows: vec![],
+        row_count: 0,
+        execution_time_ms: 0,
+    };
+    assert!(
+        no_columns.columns.is_empty(),
+        "drives the `No data returned` branch"
+    );
+    no_columns.display_with_cli();
+
+    let mut row = std::collections::HashMap::new();
+    row.insert("text".to_string(), serde_json::json!("hello"));
+    row.insert("nulled".to_string(), serde_json::Value::Null);
+    row.insert("flag".to_string(), serde_json::json!(true));
+    row.insert("num".to_string(), serde_json::json!(42));
+    row.insert("list".to_string(), serde_json::json!([1, 2]));
+    row.insert("obj".to_string(), serde_json::json!({"k": "v"}));
+
+    let columns: Vec<String> = ["text", "nulled", "flag", "num", "list", "obj", "absent"]
+        .iter()
+        .map(|c| (*c).to_string())
+        .collect();
+    assert!(
+        !row.contains_key("absent"),
+        "the last column has no value in the row, driving the NULL fallback"
+    );
+
+    let result = QueryResult {
+        columns,
+        rows: vec![row],
+        row_count: 1,
+        execution_time_ms: 7,
+    };
+    result.display_with_cli();
+}

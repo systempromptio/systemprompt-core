@@ -500,3 +500,26 @@ fn extract_install_command_parses_github_repo_paths() {
         None
     );
 }
+
+#[test]
+fn generate_plugin_without_an_override_writes_under_the_storage_path() {
+    let plugins = tempfile::tempdir().unwrap();
+    write_plugin_dir(plugins.path(), "demo", PLUGIN_YAML);
+    let skills = tempfile::tempdir().unwrap();
+    fs::create_dir_all(skills.path().join("alpha_skill")).unwrap();
+    let root = tempfile::tempdir().unwrap();
+    let services = root.path().join("services");
+    fs::create_dir_all(&services).unwrap();
+
+    let ctx = PluginGenerateContext {
+        plugins_path: plugins.path(),
+        skills_path: skills.path(),
+        services_path: &services,
+        output_dir_override: None,
+    };
+    let result = generate_plugin("demo", &ctx).unwrap();
+
+    let expected = root.path().join("storage/files/plugins/demo");
+    assert!(expected.join(".claude-plugin/plugin.json").exists());
+    assert!(result.marketplace_path.ends_with("plugins/demo"));
+}

@@ -7,5 +7,7 @@ mod display;
 mod executor;
 mod introspection;
 mod postgres_provider;
+mod postgres_transaction_db;
 mod schema_linter;
+mod scoped_transaction_db;
 mod transaction;

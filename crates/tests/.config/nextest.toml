@@ -221,11 +221,11 @@ test-group = 'api-health-monitor-db'
 # longer reported as an orphan. `database_sync`'s unregister sweep would delete
 # that row between the seed and the assertion.
 [[profile.default.overrides]]
-filter = 'package(systemprompt-mcp-tests) and test(/(loader_live|loader_state|orchestrator_extended|orchestrator_populated|orchestrator_smoke|database_state|database_state_extended|database_sync|database_service|lifecycle_deep|lifecycle_live|lifecycle_smoke|proxy_health|proxy_health_healthy|orchestrator::process_cleanup)::/)'
+filter = 'package(systemprompt-mcp-tests) and test(/(loader_live|loader_state|orchestrator_extended|orchestrator_populated|orchestrator_smoke|orchestrator_start_live|tool_provider_health|database_state|database_state_extended|database_sync|database_service|lifecycle_deep|lifecycle_live|lifecycle_smoke|proxy_health|proxy_health_healthy|orchestrator::process_cleanup)::/)'
 test-group = 'scheduler-services-db'
 
 [[profile.ci.overrides]]
-filter = 'package(systemprompt-mcp-tests) and test(/(loader_live|loader_state|orchestrator_extended|orchestrator_populated|orchestrator_smoke|database_state|database_state_extended|database_sync|database_service|lifecycle_deep|lifecycle_live|lifecycle_smoke|proxy_health|proxy_health_healthy|orchestrator::process_cleanup)::/)'
+filter = 'package(systemprompt-mcp-tests) and test(/(loader_live|loader_state|orchestrator_extended|orchestrator_populated|orchestrator_smoke|orchestrator_start_live|tool_provider_health|database_state|database_state_extended|database_sync|database_service|lifecycle_deep|lifecycle_live|lifecycle_smoke|proxy_health|proxy_health_healthy|orchestrator::process_cleanup)::/)'
 test-group = 'scheduler-services-db'
 
 # The cloud CLI harness (cloud_harness) drives command paths in-process against
@@ -250,6 +250,27 @@ test-group = 'cli-cloud-harness'
 filter = 'package(systemprompt-cli-integration-tests) and test(/cloud_harness::/)'
 test-group = 'cli-cloud-harness'
 
+# `mcp_stub` registers the per-process fixture MCP server as a `running`
+# services row so `plugins mcp call` can resolve its wiremock port. Sibling
+# subprocess tests invoke CLI paths that run the table-wide
+# `cleanup_stale_service_entries` sweep, which judges a `running` row stale
+# unless its pid names the agent in its environment — something a nextest
+# process seeding the row on its own pid can never satisfy. Run in parallel the
+# sweep deletes this suite's row mid-test and the command under test resolves no
+# port (1-2 of 13 failing per run); serialised into the shared services slot it
+# is 13/13.
+[[profile.default.overrides]]
+filter = 'package(systemprompt-cli-integration-tests) and binary(subprocess_mcp_stub)'
+test-group = 'scheduler-services-db'
+
+[[profile.ci.overrides]]
+filter = 'package(systemprompt-cli-integration-tests) and binary(subprocess_mcp_stub)'
+test-group = 'scheduler-services-db'
+
+[[profile.coverage.overrides]]
+filter = 'package(systemprompt-cli-integration-tests) and binary(subprocess_mcp_stub)'
+test-group = 'scheduler-services-db'
+
 # The CLI subprocess suite spawns full `systemprompt` boots (validation, DB,
 # migrations); under a loaded shard a single boot can legitimately exceed the
 # workspace-wide 60s slow period, so give the whole package a wider band before
@@ -271,6 +292,18 @@ slow-timeout = { period = "120s", terminate-after = 5 }
 fail-fast = false
 failure-output = "immediate-final"
 final-status-level = "slow"
+
+[[profile.coverage.overrides]]
+filter = 'package(systemprompt-database-tests) and test(/repository::cleanup::/)'
+test-group = 'logs-cleanup-db'
+
+[[profile.coverage.overrides]]
+filter = 'package(systemprompt-scheduler-tests) and test(orphaned_tool_execution_survives_all_retention_sweeps)'
+test-group = 'logs-cleanup-db'
+
+[[profile.coverage.overrides]]
+filter = 'package(systemprompt-cloud-tests) and (test(/checkout_flow::/) or test(/tenant_provisioning::provision_/))'
+test-group = 'cloud-checkout-port'
 
 [[profile.coverage.overrides]]
 filter = 'package(systemprompt-api-integration-tests) and test(/(messaging_dispatch|routes_slack|routes_teams)::/)'
@@ -317,7 +350,7 @@ filter = 'package(systemprompt-api-integration-tests) and test(/health_monitor::
 test-group = 'api-health-monitor-db'
 
 [[profile.coverage.overrides]]
-filter = 'package(systemprompt-mcp-tests) and test(/(loader_live|loader_state|orchestrator_extended|orchestrator_populated|orchestrator_smoke|database_state|database_state_extended|database_sync|database_service|lifecycle_deep|lifecycle_live|lifecycle_smoke|proxy_health|proxy_health_healthy|orchestrator::process_cleanup)::/)'
+filter = 'package(systemprompt-mcp-tests) and test(/(loader_live|loader_state|orchestrator_extended|orchestrator_populated|orchestrator_smoke|orchestrator_start_live|tool_provider_health|database_state|database_state_extended|database_sync|database_service|lifecycle_deep|lifecycle_live|lifecycle_smoke|proxy_health|proxy_health_healthy|orchestrator::process_cleanup)::/)'
 test-group = 'scheduler-services-db'
 
 [[profile.coverage.overrides]]

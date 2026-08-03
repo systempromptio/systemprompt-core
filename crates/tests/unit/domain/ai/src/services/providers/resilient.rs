@@ -194,3 +194,97 @@ async fn stream_call_guards_path() {
     let params = GenerationParams::new(&messages, "claude-sonnet-4-6", 16);
     drop(r.generate_stream(params).await.expect("ok stream"));
 }
+
+#[tokio::test]
+async fn a_tripped_breaker_reports_circuit_open_instead_of_the_inner_error() {
+    let server =
+        mock_http::anthropic_messages_error(500, serde_json::json!({"error":{"message":"boom"}}))
+            .await;
+    let inner = AnthropicProvider::with_endpoint("k".to_owned(), server.uri())
+        .with_models(mock_http::seed_models("anthropic"));
+    let s = ResilienceSettings {
+        retry_attempts: 1,
+        breaker_failure_threshold: 1,
+        breaker_open_cooldown_ms: 60_000,
+        ..ResilienceSettings::default()
+    };
+    let r = ResilientProvider::new("anthropic", Arc::new(inner), &s);
+    let messages = vec![AiMessage::user("hi")];
+
+    let first = r
+        .generate(GenerationParams::new(&messages, "claude-sonnet-4-6", 16))
+        .await
+        .expect_err("upstream 500 must surface as an error");
+    assert!(
+        !first.to_string().contains("circuit"),
+        "the first failure is the inner error, not a breaker trip: {first}"
+    );
+
+    let second = r
+        .generate(GenerationParams::new(&messages, "claude-sonnet-4-6", 16))
+        .await
+        .expect_err("the breaker must now be open");
+    let message = second.to_string();
+    assert!(
+        message.contains("anthropic"),
+        "the breaker error must name the provider it protects, got {message}"
+    );
+    assert!(
+        message.to_lowercase().contains("circuit"),
+        "a call past the failure threshold must be rejected by the breaker, got {message}"
+    );
+}
+
+#[tokio::test]
+async fn an_open_breaker_also_short_circuits_the_streaming_path() {
+    let server =
+        mock_http::anthropic_messages_error(500, serde_json::json!({"error":{"message":"boom"}}))
+            .await;
+    let inner = AnthropicProvider::with_endpoint("k".to_owned(), server.uri())
+        .with_models(mock_http::seed_models("anthropic"));
+    let s = ResilienceSettings {
+        retry_attempts: 1,
+        breaker_failure_threshold: 1,
+        breaker_open_cooldown_ms: 60_000,
+        ..ResilienceSettings::default()
+    };
+    let r = ResilientProvider::new("anthropic", Arc::new(inner), &s);
+    let messages = vec![AiMessage::user("hi")];
+
+    assert!(
+        r.generate_stream(GenerationParams::new(&messages, "claude-sonnet-4-6", 16))
+            .await
+            .is_err(),
+        "the upstream failure trips the breaker"
+    );
+
+    let Err(err) = r
+        .generate_stream(GenerationParams::new(&messages, "claude-sonnet-4-6", 16))
+        .await
+    else {
+        panic!("the open breaker must refuse to open a second stream");
+    };
+    assert!(
+        err.to_string().to_lowercase().contains("circuit"),
+        "the streaming path must go through the same permit gate, got {err}"
+    );
+}
+
+#[tokio::test]
+async fn the_debug_rendering_names_the_provider_without_leaking_the_inner_client() {
+    let server =
+        mock_http::anthropic_messages_success(mock_http::anthropic_response_body("x")).await;
+    let inner = AnthropicProvider::with_endpoint("secret-api-key".to_owned(), server.uri())
+        .with_models(mock_http::seed_models("anthropic"));
+    let s = settings();
+    let rendered = format!(
+        "{:?}",
+        ResilientProvider::new("anthropic", Arc::new(inner), &s)
+    );
+
+    assert!(rendered.contains("anthropic"));
+    assert!(
+        !rendered.contains("secret-api-key"),
+        "the wrapper must not render the inner provider's credentials: {rendered}"
+    );
+}

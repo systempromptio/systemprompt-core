@@ -260,3 +260,119 @@ mod image_storage_tests {
         assert_eq!(path.parent().unwrap(), config.base_path);
     }
 }
+
+mod from_trait_config {
+    use super::*;
+    use systemprompt_traits::ImageStorageConfig;
+
+    #[test]
+    fn the_trait_config_maps_onto_the_storage_config_defaults() {
+        let config = StorageConfig::from_image_storage_config(ImageStorageConfig {
+            base_path: std::path::PathBuf::from("/srv/images"),
+            url_prefix: "/media".to_owned(),
+        });
+
+        assert_eq!(config.base_path, std::path::PathBuf::from("/srv/images"));
+        assert_eq!(config.url_prefix, "/media");
+        assert_eq!(
+            config.max_file_size_bytes,
+            StorageConfig::new(std::path::PathBuf::from("/x"), "/y".to_owned()).max_file_size_bytes,
+            "the trait-level config carries no size budget, so it must adopt the same default \
+             as the direct constructor"
+        );
+        assert!(
+            config.organize_by_date,
+            "date organisation is the default layout"
+        );
+        config
+            .validate()
+            .expect("a config mapped from the trait form must be valid");
+    }
+}
+
+mod filesystem_failure_arms {
+    use super::*;
+
+    #[test]
+    fn a_write_whose_parent_cannot_be_created_is_a_storage_error() {
+        let temp = TempDir::new().unwrap();
+        let base = temp.path().join("images");
+        std::fs::create_dir_all(&base).unwrap();
+
+        let storage = ImageStorage::new(StorageConfig::new(
+            base.clone(),
+            "https://example.com/images".to_string(),
+        ))
+        .expect("storage builds");
+
+        // Occupy the date-partition directory the writer wants to create with a
+        // regular file, so `create_dir_all` cannot succeed.
+        let now = chrono::Utc::now();
+        let year_dir = base.join(format!("{:04}", chrono::Datelike::year(&now)));
+        std::fs::write(&year_dir, b"not a directory").expect("plant a blocking file");
+
+        let err = storage
+            .save_image_bytes(b"\x89PNG\r\n\x1a\n", "image/png")
+            .expect_err("a directory that cannot be created must fail the save");
+        let message = err.to_string();
+        assert!(
+            message.contains("directory") || message.contains("file"),
+            "the error must name the filesystem operation that failed, got {message}"
+        );
+    }
+
+    #[test]
+    fn deleting_a_file_leaves_the_storage_usable_even_when_the_directory_cannot_be_pruned() {
+        let temp = TempDir::new().unwrap();
+        let base = temp.path().join("images");
+        let storage = ImageStorage::new(StorageConfig::new(
+            base,
+            "https://example.com/images".to_string(),
+        ))
+        .expect("storage builds");
+
+        let (path, _url) = storage
+            .save_image_bytes(b"\x89PNG\r\n\x1a\n", "image/png")
+            .expect("save");
+
+        // A sibling file keeps the parent directory non-empty, so the cleanup
+        // pass has to leave it alone rather than fail the delete.
+        let sibling = path.parent().unwrap().join("keep-me.txt");
+        std::fs::write(&sibling, b"keep").expect("plant a sibling");
+
+        storage
+            .delete_image(&path)
+            .expect("the delete succeeds even though the directory survives");
+
+        assert!(!path.exists(), "the target file must be gone");
+        assert!(
+            sibling.exists(),
+            "a non-empty directory must not be pruned out from under its other files"
+        );
+    }
+
+    #[test]
+    fn deleting_the_last_file_prunes_the_empty_partition_directories() {
+        let temp = TempDir::new().unwrap();
+        let base = temp.path().join("images");
+        let storage = ImageStorage::new(StorageConfig::new(
+            base.clone(),
+            "https://example.com/images".to_string(),
+        ))
+        .expect("storage builds");
+
+        let (path, _url) = storage
+            .save_image_bytes(b"\x89PNG\r\n\x1a\n", "image/png")
+            .expect("save");
+        let day_dir = path.parent().unwrap().to_path_buf();
+        assert!(day_dir.exists());
+
+        storage.delete_image(&path).expect("delete");
+
+        assert!(
+            !day_dir.exists(),
+            "the now-empty date partition must be cleaned up"
+        );
+        assert!(base.exists(), "the storage root itself must survive");
+    }
+}

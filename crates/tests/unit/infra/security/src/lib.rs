@@ -27,6 +27,8 @@ mod manifest_signing_jcs;
 #[cfg(test)]
 mod policy_audit;
 #[cfg(test)]
+mod policy_builtin_config;
+#[cfg(test)]
 mod policy_builtins;
 #[cfg(test)]
 mod policy_config;

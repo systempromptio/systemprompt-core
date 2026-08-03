@@ -2,7 +2,9 @@
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
-use systemprompt_cli::cloud::auth::admin_user::{CloudUser, SyncResult, sync_admin_to_database};
+use systemprompt_cli::cloud::auth::admin_user::{
+    CloudUser, SyncResult, print_sync_results, sync_admin_to_database,
+};
 use systemprompt_database::DbPool;
 use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
 use systemprompt_users::UserService;
@@ -93,4 +95,32 @@ async fn existing_regular_user_is_promoted() {
         },
         other => panic!("expected promotion, got {other:?}"),
     }
+}
+
+#[test]
+fn every_sync_outcome_renders() {
+    let results = vec![
+        SyncResult::Created {
+            email: "a@sync.test".to_owned(),
+            profile: "local".to_owned(),
+        },
+        SyncResult::Promoted {
+            email: "b@sync.test".to_owned(),
+            profile: "local".to_owned(),
+        },
+        SyncResult::AlreadyAdmin {
+            email: "c@sync.test".to_owned(),
+            profile: "local".to_owned(),
+        },
+        SyncResult::ConnectionFailed {
+            profile: "remote".to_owned(),
+            error: "refused".to_owned(),
+        },
+        SyncResult::Failed {
+            profile: "remote".to_owned(),
+            error: "boom".to_owned(),
+        },
+    ];
+
+    print_sync_results(&results); // lint-ok: no-assert renderer has no return value
 }

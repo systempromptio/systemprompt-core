@@ -264,3 +264,57 @@ async fn the_error_body_is_a_parseable_error_envelope() {
     assert_eq!(parsed["error"]["type"], "api_error");
     assert_eq!(parsed["error"]["message"], r#"a "quoted" failure"#);
 }
+
+fn raw_header(name: &'static str, bytes: &[u8]) -> HeaderMap {
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        name,
+        HeaderValue::from_bytes(bytes).expect("a header value of arbitrary bytes is constructible"),
+    );
+    headers
+}
+
+#[test]
+fn a_session_header_that_is_not_utf8_is_a_400_rather_than_a_panic() {
+    let headers = raw_header(SESSION_ID, &[0xC3, 0x28]);
+
+    let (status, message) =
+        require_session_id(&headers).expect_err("a non-UTF-8 header value cannot name a session");
+
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert!(message.contains(SESSION_ID), "{message}");
+    assert!(message.contains("invalid"), "{message}");
+}
+
+#[test]
+fn a_conversation_header_that_is_not_utf8_is_a_400() {
+    let headers = raw_header(GATEWAY_CONVERSATION_ID, &[0xFF, 0xFE]);
+
+    let (status, message) = optional_gateway_conversation_id(&headers)
+        .expect_err("a non-UTF-8 conversation header cannot be decoded");
+
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert!(message.contains(GATEWAY_CONVERSATION_ID), "{message}");
+}
+
+#[tokio::test]
+async fn a_body_over_the_buffer_limit_is_rejected_rather_than_buffered() {
+    let oversized = vec![b'x'; systemprompt_models::wire::BUFFERED_BODY_LIMIT_BYTES + 1];
+    let request = Request::builder()
+        .method("POST")
+        .uri("/v1/messages")
+        .body(Body::from(oversized))
+        .expect("test request must build");
+    let mut partial = RejectionPartial::default();
+
+    let (status, message) = read_gateway_body(&inbound(), request, &mut partial)
+        .await
+        .expect_err("a body past the buffer limit must not be read into memory");
+
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert!(message.contains("failed to read request body"), "{message}");
+    assert!(
+        partial.body.is_none(),
+        "an unread body must not be recorded on the rejection partial"
+    );
+}

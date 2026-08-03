@@ -156,7 +156,7 @@ async fn pages_counts_sessions_per_landing_page() {
     .await;
     let ctx = ctx(&pool);
 
-    let csv = pages_csv(&ctx, &[]).await;
+    let csv = pages_csv(&ctx, &["--path-prefix", &prefix]).await;
     let rows = export_rows(&csv, &prefix);
 
     assert_eq!(rows.len(), 2, "one row per landing page and source: {csv}");
@@ -202,7 +202,7 @@ async fn pages_excludes_ghost_and_bot_sessions_unless_include_all() {
     .await;
     let ctx = ctx(&pool);
 
-    let engaged = export_rows(&pages_csv(&ctx, &[]).await, &prefix);
+    let engaged = export_rows(&pages_csv(&ctx, &["--path-prefix", &prefix]).await, &prefix);
     assert_eq!(
         engaged.len(),
         1,
@@ -210,7 +210,10 @@ async fn pages_excludes_ghost_and_bot_sessions_unless_include_all() {
     );
     assert!(engaged[0].contains("/real"));
 
-    let all = export_rows(&pages_csv(&ctx, &["--include-all"]).await, &prefix);
+    let all = export_rows(
+        &pages_csv(&ctx, &["--include-all", "--path-prefix", &prefix]).await,
+        &prefix,
+    );
     assert!(
         all.len() > engaged.len(),
         "--include-all widens the set: {all:?}"
@@ -240,7 +243,10 @@ async fn pages_filters_by_referrer_and_path_prefix() {
     .await;
     let ctx = ctx(&pool);
 
-    let by_referrer = export_rows(&pages_csv(&ctx, &["--referrer", "reddit"]).await, &prefix);
+    let by_referrer = export_rows(
+        &pages_csv(&ctx, &["--referrer", "reddit", "--path-prefix", &prefix]).await,
+        &prefix,
+    );
     assert_eq!(by_referrer.len(), 1, "{by_referrer:?}");
     assert!(by_referrer[0].contains("/blog/post"));
 
@@ -287,7 +293,10 @@ async fn navigation_counts_internal_transitions() {
     let prefix = seed_link_clicks(&pool).await;
     let ctx = ctx(&pool);
 
-    let rows = export_rows(&navigation_csv(&ctx, &[]).await, &prefix);
+    let rows = export_rows(
+        &navigation_csv(&ctx, &["--path-prefix", &prefix]).await,
+        &prefix,
+    );
 
     assert_eq!(rows.len(), 2, "external clicks are excluded: {rows:?}");
     let docs = rows.iter().find(|r| r.contains("/docs")).unwrap();
@@ -301,7 +310,7 @@ async fn navigation_include_external_adds_outbound_clicks() {
     let ctx = ctx(&pool);
 
     let rows = export_rows(
-        &navigation_csv(&ctx, &["--include-external"]).await,
+        &navigation_csv(&ctx, &["--include-external", "--path-prefix", &prefix]).await,
         &prefix,
     );
 

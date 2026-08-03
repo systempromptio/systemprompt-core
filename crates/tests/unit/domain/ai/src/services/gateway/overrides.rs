@@ -220,3 +220,56 @@ fn passthrough_resolution_has_no_descriptor_even_with_source() {
     };
     assert_eq!(unsourced.audit_descriptor(), None);
 }
+
+#[tokio::test]
+async fn the_process_wide_engine_collects_the_inventory_registered_overrides() {
+    let engine = OverrideEngine::global();
+
+    assert!(
+        engine.has_extensions(),
+        "the two overrides this file registers must be visible to the global engine"
+    );
+
+    // The global engine resolves through the same ladder as a locally built
+    // one: a matching config rule short-circuits before any extension runs.
+    let context = ctx("anthropic", "claude-x", Some("original"));
+
+    let from_config = engine
+        .resolve(
+            &[replace_rule(Some("anthropic"), None, "config wins")],
+            &context,
+        )
+        .await;
+    assert!(
+        matches!(from_config.source, Some(OverrideSource::Config)),
+        "a matching config rule must win over the registered extensions, got {:?}",
+        from_config.source
+    );
+
+    // Neither a config rule nor any registered extension claims this provider,
+    // so the chain must run to the end and hand back a sourceless passthrough
+    // rather than inventing an override.
+    let exhausted = engine.resolve(&[], &context).await;
+    assert_eq!(exhausted.action, OverrideAction::Passthrough);
+    assert!(
+        exhausted.source.is_none(),
+        "a passthrough must carry no source, or the audit trail would claim an \
+         override that never happened: {:?}",
+        exhausted.source
+    );
+    assert!(
+        exhausted.audit_descriptor().is_none(),
+        "a passthrough contributes nothing to the audit descriptor"
+    );
+}
+
+#[test]
+fn the_engine_debug_reports_a_count_rather_than_naming_the_extensions() {
+    let rendered = format!("{:?}", OverrideEngine::global());
+
+    assert!(rendered.contains("OverrideEngine"));
+    assert!(
+        !rendered.contains("test-replacer"),
+        "the Debug is a count, not a dump of extension internals: {rendered}"
+    );
+}

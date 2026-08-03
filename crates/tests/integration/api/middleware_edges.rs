@@ -105,3 +105,202 @@ async fn health_endpoint_is_reachable_without_auth() {
     // isn't mounted under the bootstrap profile — accept either.
     assert!(s == 200 || s == 404, "{s}");
 }
+
+// The tests below propagate boot failures rather than using `try_boot`, so a
+// broken fixture fails loudly instead of passing vacuously.
+fn get(uri: &str, headers: &[(&str, &str)]) -> Request<Body> {
+    let mut builder = Request::builder().uri(uri);
+    for (name, value) in headers {
+        builder = builder.header(*name, *value);
+    }
+    builder.body(Body::empty()).expect("request must build")
+}
+
+async fn status_of(uri: &str, headers: &[(&str, &str)]) -> anyhow::Result<u16> {
+    let app = boot_server().await?;
+    Ok(app.oneshot(get(uri, headers)).await?.status().as_u16())
+}
+
+#[tokio::test]
+async fn every_response_carries_the_configured_security_headers() -> anyhow::Result<()> {
+    let app = boot_server().await?;
+
+    let resp = app.oneshot(get("/health", &[])).await?;
+
+    let headers = resp.headers();
+    assert_eq!(
+        headers
+            .get("x-content-type-options")
+            .and_then(|v| v.to_str().ok()),
+        Some("nosniff"),
+        "MIME sniffing must stay disabled on every response"
+    );
+    assert_eq!(
+        headers.get("x-frame-options").and_then(|v| v.to_str().ok()),
+        Some("DENY"),
+        "the API must never be framable"
+    );
+    assert!(
+        headers.get("strict-transport-security").is_some(),
+        "HSTS is configured on and must be emitted"
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn an_unknown_path_is_not_served_by_any_handler() -> anyhow::Result<()> {
+    let status = status_of("/no/such/endpoint-at-all", &[]).await?;
+
+    assert!(
+        status == 404 || status == 405,
+        "an unrouted path must fall through to the fallback, got {status}"
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn a_garbage_bearer_token_never_reaches_an_authenticated_handler() -> anyhow::Result<()> {
+    let status = status_of(
+        "/api/v1/core/oauth/userinfo",
+        &[("authorization", "Bearer not-a-jwt-at-all")],
+    )
+    .await?;
+
+    assert!(
+        status == 401 || status == 403,
+        "an unverifiable credential must be refused by the middleware, got {status}"
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn an_authenticated_route_refuses_an_anonymous_caller() -> anyhow::Result<()> {
+    let status = status_of("/api/v1/core/oauth/userinfo", &[]).await?;
+
+    assert!(
+        status == 401 || status == 403,
+        "a route behind auth must not serve an unauthenticated request, got {status}"
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn a_bearer_scheme_with_no_token_is_refused() -> anyhow::Result<()> {
+    let status = status_of(
+        "/api/v1/core/oauth/userinfo",
+        &[("authorization", "Bearer ")],
+    )
+    .await?;
+
+    assert!(
+        status == 401 || status == 403,
+        "an empty credential is not a credential, got {status}"
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn a_non_bearer_authorization_scheme_is_refused() -> anyhow::Result<()> {
+    let status = status_of(
+        "/api/v1/core/oauth/userinfo",
+        &[("authorization", "Basic dXNlcjpwYXNz")],
+    )
+    .await?;
+
+    assert!(
+        status == 401 || status == 403,
+        "basic auth is not accepted anywhere on this API, got {status}"
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn a_scanner_user_agent_is_still_served_the_public_health_route() -> anyhow::Result<()> {
+    // Bot detection is analytics-only by design — it scores the session but
+    // must not deny service, or a mislabelled browser would lose access.
+    let status = status_of(
+        "/health",
+        &[("user-agent", "sqlmap/1.7-dev (http://sqlmap.org)")],
+    )
+    .await?;
+
+    assert_eq!(status, 200, "bot scoring must not gate a public route");
+    Ok(())
+}
+
+#[tokio::test]
+async fn a_request_with_no_user_agent_is_handled_rather_than_rejected() -> anyhow::Result<()> {
+    assert_eq!(status_of("/health", &[]).await?, 200);
+    Ok(())
+}
+
+#[tokio::test]
+async fn a_forged_forwarded_header_does_not_bypass_the_router() -> anyhow::Result<()> {
+    // No trusted proxies are configured, so the hop header is inert; the
+    // request must still be routed normally rather than erroring.
+    let status = status_of(
+        "/health",
+        &[
+            ("x-forwarded-for", "10.0.0.1, 127.0.0.1"),
+            ("x-real-ip", "192.168.1.1"),
+        ],
+    )
+    .await?;
+
+    assert_eq!(
+        status, 200,
+        "an untrusted hop header must be ignored, not fatal"
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn a_cors_preflight_from_the_allowed_origin_is_answered() -> anyhow::Result<()> {
+    let app = boot_server().await?;
+    let req = Request::builder()
+        .method(http::Method::OPTIONS)
+        .uri("/health")
+        .header("origin", "http://127.0.0.1")
+        .header("access-control-request-method", "GET")
+        .body(Body::empty())
+        .expect("request must build");
+
+    let resp = app.oneshot(req).await?;
+
+    assert!(
+        resp.status().is_success() || resp.status().as_u16() == 204,
+        "a preflight from the configured origin must be answered, got {}",
+        resp.status()
+    );
+    assert!(
+        resp.headers().get("access-control-allow-origin").is_some(),
+        "the preflight response must carry the allow-origin header"
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn a_cors_preflight_from_an_unlisted_origin_is_not_granted() -> anyhow::Result<()> {
+    let app = boot_server().await?;
+    let req = Request::builder()
+        .method(http::Method::OPTIONS)
+        .uri("/health")
+        .header("origin", "http://evil.example")
+        .header("access-control-request-method", "GET")
+        .body(Body::empty())
+        .expect("request must build");
+
+    let resp = app.oneshot(req).await?;
+
+    let allowed = resp
+        .headers()
+        .get("access-control-allow-origin")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or_default()
+        .to_owned();
+    assert_ne!(
+        allowed, "http://evil.example",
+        "an unlisted origin must never be echoed back as allowed"
+    );
+    Ok(())
+}

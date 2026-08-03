@@ -247,3 +247,76 @@ mod complex_json_tests {
         assert!(result["empty_arr"].as_array().unwrap().is_empty());
     }
 }
+
+mod heuristic_scanning {
+    use super::*;
+
+    #[test]
+    fn braces_inside_a_string_literal_do_not_close_the_object() {
+        let content = "The model said: {\"template\": \"use {placeholder} here\", \"ok\": true} \
+                       and then kept talking.";
+        let result = JsonParser::extract_json(content, None).unwrap();
+
+        assert_eq!(result["template"], "use {placeholder} here");
+        assert_eq!(result["ok"], true);
+    }
+
+    #[test]
+    fn an_escaped_quote_does_not_terminate_the_string_scan() {
+        let content = "prose {\"quoted\": \"she said \\\"hi\\\" loudly\", \"n\": 1} more prose";
+        let result = JsonParser::extract_json(content, None).unwrap();
+
+        assert_eq!(result["quoted"], "she said \"hi\" loudly");
+        assert_eq!(result["n"], 1);
+    }
+
+    #[test]
+    fn an_escaped_backslash_before_a_quote_still_closes_the_string() {
+        let content = r#"prose {"path": "C:\\dir\\", "n": 2} more"#;
+        let result = JsonParser::extract_json(content, None).unwrap();
+
+        assert_eq!(result["path"], "C:\\dir\\");
+        assert_eq!(result["n"], 2);
+    }
+
+    #[test]
+    fn a_nested_array_inside_an_object_is_scanned_to_the_outer_close() {
+        let content = "answer: {\"items\": [{\"a\": 1}, {\"b\": [2, 3]}], \"done\": true} end";
+        let result = JsonParser::extract_json(content, None).unwrap();
+
+        assert_eq!(result["items"][1]["b"][1], 3);
+        assert_eq!(result["done"], true);
+    }
+
+    #[test]
+    fn an_unbalanced_brace_run_yields_the_no_json_error_rather_than_a_partial_value() {
+        let err = JsonParser::extract_json("here it comes: {\"a\": 1, \"b\": ", None)
+            .expect_err("an unterminated object must not parse");
+        assert!(err.to_string().contains("No valid JSON"), "got {err}");
+    }
+
+    #[test]
+    fn a_balanced_brace_run_that_is_not_json_is_rejected() {
+        let err = JsonParser::extract_json("config { key = value; other = 2 }", None)
+            .expect_err("balanced braces are not sufficient — the span must decode as JSON");
+        assert!(err.to_string().contains("No valid JSON"), "got {err}");
+    }
+
+    #[test]
+    fn content_with_no_opening_bracket_at_all_is_rejected() {
+        let err = JsonParser::extract_json("no structure here whatsoever", None)
+            .expect_err("plain prose has nothing to extract");
+        assert!(err.to_string().contains("No valid JSON"), "got {err}");
+    }
+
+    #[test]
+    fn a_custom_pattern_that_matches_non_json_falls_through_to_the_builtin_patterns() {
+        let content = "PREAMBLE::junk\n```json\n{\"from\": \"fence\"}\n```";
+        let result = JsonParser::extract_json(content, Some(r"PREAMBLE::(\w+)")).unwrap();
+
+        assert_eq!(
+            result["from"], "fence",
+            "a custom pattern whose capture is not JSON must not abort the ladder"
+        );
+    }
+}

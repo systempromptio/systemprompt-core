@@ -4,6 +4,7 @@ use systemprompt_ai::models::image_generation::{
 };
 use systemprompt_ai::services::providers::gemini_images::GeminiImageProvider;
 use systemprompt_ai::services::providers::image_provider_trait::ImageProvider;
+use systemprompt_models::services::{ModelCapabilities, ModelDefinition};
 use systemprompt_test_fixtures::fixture_user_id;
 use wiremock::matchers::{method, path_regex};
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -233,4 +234,108 @@ async fn provider_metadata_is_consistent() {
     assert!(!p.supports_model("dall-e-3"));
     assert!(p.supports_resolution(&ImageResolution::FourK));
     assert!(p.supports_aspect_ratio(&AspectRatio::UltraWide));
+}
+
+// A model definition that opts into resolution configuration. Without one the
+// provider omits the image-size block entirely, so the resolution mapping
+// never runs.
+fn resolution_capable_models(model: &str) -> std::collections::HashMap<String, ModelDefinition> {
+    let mut definitions = std::collections::HashMap::new();
+    definitions.insert(
+        model.to_owned(),
+        ModelDefinition {
+            capabilities: ModelCapabilities {
+                image_resolution_config: true,
+                ..ModelCapabilities::default()
+            },
+            ..ModelDefinition::default()
+        },
+    );
+    definitions
+}
+
+async fn generate_at(resolution: ImageResolution) -> String {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path_regex(r".*/models/.+:generateContent"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "candidates": [{
+                "content": {
+                    "role": "model",
+                    "parts": [{ "inlineData": { "mimeType": "image/png", "data": "AAAA" } }]
+                },
+                "finishReason": "STOP",
+                "index": 0
+            }],
+            "usageMetadata": { "promptTokenCount": 1, "candidatesTokenCount": 1, "totalTokenCount": 2 }
+        })))
+        .mount(&server)
+        .await;
+
+    let model = "gemini-2.5-flash-image";
+    let provider = GeminiImageProvider::with_endpoint("k".to_owned(), server.uri())
+        .with_model_definitions(resolution_capable_models(model));
+
+    let mut request = make_request("a picture");
+    request.resolution = resolution;
+    request.model = Some(model.to_owned());
+    provider
+        .generate_image(&request)
+        .await
+        .expect("generation succeeds");
+
+    let received = server.received_requests().await.expect("recorded requests");
+    String::from_utf8(received[0].body.clone()).expect("request body is utf8")
+}
+
+#[tokio::test]
+async fn each_resolution_is_sent_upstream_in_geminis_own_vocabulary() {
+    for (resolution, expected) in [
+        (ImageResolution::OneK, "1K"),
+        (ImageResolution::TwoK, "2K"),
+        (ImageResolution::FourK, "4K"),
+    ] {
+        let body = generate_at(resolution).await;
+        assert!(
+            body.contains(expected),
+            "the {expected} request must carry Gemini's own size token, got {body}"
+        );
+    }
+}
+
+#[tokio::test]
+async fn a_model_that_does_not_declare_resolution_support_omits_the_size_block() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path_regex(r".*/models/.+:generateContent"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "candidates": [{
+                "content": {
+                    "role": "model",
+                    "parts": [{ "inlineData": { "mimeType": "image/png", "data": "AAAA" } }]
+                },
+                "finishReason": "STOP",
+                "index": 0
+            }],
+            "usageMetadata": { "promptTokenCount": 1, "candidatesTokenCount": 1, "totalTokenCount": 2 }
+        })))
+        .mount(&server)
+        .await;
+
+    // No model definitions at all: the provider must not invent a capability
+    // the upstream model does not have.
+    let provider = GeminiImageProvider::with_endpoint("k".to_owned(), server.uri());
+    let mut request = make_request("a picture");
+    request.resolution = ImageResolution::FourK;
+    provider
+        .generate_image(&request)
+        .await
+        .expect("generation succeeds without resolution configuration");
+
+    let received = server.received_requests().await.expect("recorded requests");
+    let body = String::from_utf8(received[0].body.clone()).expect("utf8");
+    assert!(
+        !body.contains("4K"),
+        "an undeclared capability must not be sent upstream, got {body}"
+    );
 }

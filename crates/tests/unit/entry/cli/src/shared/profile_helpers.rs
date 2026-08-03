@@ -1,0 +1,163 @@
+//! Tests for the profile-resolution helpers in `shared::profile`.
+//!
+//! The sibling `profile` module covers only the error enum's rendering; these
+//! call the resolution, discovery, and persistence functions themselves.
+
+#![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
+
+use std::path::Path;
+
+use systemprompt_cli::shared::profile::{
+    discover_profiles, generate_oauth_at_rest_pepper, save_profile_yaml,
+};
+use systemprompt_cli::shared::{
+    ProfileResolutionError, is_path_input, resolve_profile_from_path, resolve_profile_path,
+    resolve_profile_with_data,
+};
+use systemprompt_models::Profile;
+
+fn fixture_profile() -> Profile {
+    let boot = systemprompt_test_fixtures::ensure_test_bootstrap();
+    serde_yaml::from_str(&std::fs::read_to_string(&boot.profile_path).unwrap()).unwrap()
+}
+
+#[test]
+fn path_shaped_inputs_are_distinguished_from_profile_names() {
+    assert!(is_path_input("./local/profile.yaml"));
+    assert!(is_path_input("/etc/systemprompt/profile.yaml"));
+    assert!(is_path_input("profile.yml"));
+    assert!(is_path_input("~/profiles/dev"));
+    assert!(is_path_input("nested/dir"));
+
+    assert!(!is_path_input("production"));
+    assert!(!is_path_input("local"));
+    assert!(!is_path_input("dev_2"));
+}
+
+#[test]
+fn an_existing_path_resolves_to_itself_whether_file_or_directory() {
+    let tmp = tempfile::tempdir().unwrap();
+    let file = tmp.path().join("profile.yaml");
+    std::fs::write(&file, "name: cov\n").unwrap();
+
+    let direct = resolve_profile_from_path(file.to_str().unwrap()).unwrap();
+    assert_eq!(direct, file);
+
+    // An existing directory short-circuits on the `path.exists()` check, so it
+    // is returned as-is rather than descending to its `profile.yaml`.
+    let by_dir = resolve_profile_from_path(tmp.path().to_str().unwrap()).unwrap();
+    assert_eq!(by_dir, tmp.path());
+}
+
+#[test]
+fn a_path_with_no_profile_reports_the_input_it_was_given() {
+    let tmp = tempfile::tempdir().unwrap();
+    let missing = tmp.path().join("absent");
+
+    let err = resolve_profile_from_path(missing.to_str().unwrap()).unwrap_err();
+    match err {
+        ProfileResolutionError::ProfileNotFound(input) => {
+            assert_eq!(input, missing.to_str().unwrap());
+        },
+        other => panic!("expected not-found, got {other:?}"),
+    }
+}
+
+#[test]
+fn an_explicit_override_wins_over_discovery() {
+    let boot = systemprompt_test_fixtures::ensure_test_bootstrap();
+    let path_str = boot.profile_path.to_string_lossy().to_string();
+
+    let by_cli = resolve_profile_path(Some(&path_str), None, None).unwrap();
+    assert_eq!(by_cli, boot.profile_path);
+
+    let by_env = resolve_profile_path(None, Some(&path_str), None).unwrap();
+    assert_eq!(by_env, boot.profile_path);
+}
+
+#[test]
+fn a_session_path_is_used_only_when_it_exists() {
+    let boot = systemprompt_test_fixtures::ensure_test_bootstrap();
+
+    let from_session = resolve_profile_path(None, None, Some(boot.profile_path.clone())).unwrap();
+    assert_eq!(from_session, boot.profile_path);
+
+    let stale = std::path::PathBuf::from("/nonexistent/profile.yaml");
+    let result = resolve_profile_path(None, None, Some(stale));
+    match result {
+        Ok(path) => assert_ne!(path, Path::new("/nonexistent/profile.yaml")),
+        Err(e) => assert!(!e.to_string().is_empty()),
+    }
+}
+
+#[test]
+fn resolving_with_data_returns_the_parsed_profile() {
+    let boot = systemprompt_test_fixtures::ensure_test_bootstrap();
+    let path_str = boot.profile_path.to_string_lossy().to_string();
+
+    let (path, profile) = resolve_profile_with_data(&path_str).unwrap();
+    assert_eq!(path, boot.profile_path);
+    assert!(!profile.name.is_empty());
+}
+
+#[test]
+fn resolving_with_data_rejects_an_unparseable_profile() {
+    let tmp = tempfile::tempdir().unwrap();
+    let file = tmp.path().join("profile.yaml");
+    std::fs::write(&file, "this: [is not a profile\n").unwrap();
+
+    let err = resolve_profile_with_data(file.to_str().unwrap()).unwrap_err();
+    assert!(matches!(
+        err,
+        ProfileResolutionError::DiscoveryFailed(_) | ProfileResolutionError::ProfileNotFound(_)
+    ));
+}
+
+#[test]
+fn discovery_returns_well_formed_entries() {
+    let discovered = discover_profiles().unwrap();
+    for profile in &discovered {
+        assert!(!profile.name.is_empty());
+        assert!(profile.path.ends_with("profile.yaml"));
+    }
+}
+
+#[test]
+fn each_generated_pepper_is_sixty_four_alphanumeric_characters() {
+    let first = generate_oauth_at_rest_pepper();
+    let second = generate_oauth_at_rest_pepper();
+
+    assert_eq!(first.len(), 64);
+    assert!(first.chars().all(|c| c.is_ascii_alphanumeric()));
+    assert_ne!(first, second);
+}
+
+#[test]
+fn saving_a_profile_creates_parents_and_prepends_the_header() {
+    let profile = fixture_profile();
+    let tmp = tempfile::tempdir().unwrap();
+    let path = tmp.path().join("nested/dir/profile.yaml");
+
+    save_profile_yaml(&profile, &path, Some("# generated by the coverage suite")).unwrap();
+
+    let written = std::fs::read_to_string(&path).unwrap();
+    assert!(written.starts_with("# generated by the coverage suite"));
+    assert!(written.contains(&profile.name));
+
+    let reparsed: Profile = serde_yaml::from_str(&written).unwrap();
+    assert_eq!(reparsed.name, profile.name);
+}
+
+#[test]
+fn saving_without_a_header_writes_bare_yaml() {
+    let profile = fixture_profile();
+    let tmp = tempfile::tempdir().unwrap();
+    let path = tmp.path().join("plain.yaml");
+
+    save_profile_yaml(&profile, &path, None).unwrap();
+
+    let written = std::fs::read_to_string(&path).unwrap();
+    assert!(!written.starts_with('#'));
+    let reparsed: Profile = serde_yaml::from_str(&written).unwrap();
+    assert_eq!(reparsed.name, profile.name);
+}

@@ -1,0 +1,267 @@
+//! `RouterExt::with_rate_limit` / `with_auth` and the four `ContextLayer`
+//! adapters.
+//!
+//! Nothing in the suite mounts either extension method, so the governor layer
+//! is never built and no `ContextLayer::handle` adapter is ever entered — the
+//! adapters are what every authenticated route group hangs off. The
+//! rate-limiting case is a denial path: an exhausted burst must refuse the
+//! request rather than serve it.
+
+use std::net::SocketAddr;
+
+use axum::Router;
+use axum::body::Body;
+use axum::extract::{ConnectInfo, Request};
+use axum::http::{HeaderMap, StatusCode};
+use axum::routing::get;
+use systemprompt_api::services::middleware::{
+    A2AContextMiddleware, AuthzPolicy, ContextExtractor, McpContextMiddleware,
+    PublicContextMiddleware, RouterExt, UserOnlyContextMiddleware,
+};
+use systemprompt_identifiers::{AgentName, ContextId, SessionId, TraceId, UserId};
+use systemprompt_models::RequestContext;
+use systemprompt_models::auth::UserType;
+use systemprompt_models::config::RateLimitConfig;
+use systemprompt_models::execution::ContextExtractionError;
+use tower::ServiceExt;
+
+fn ok_router() -> Router {
+    Router::new().route("/", get(|| async { "ok" }))
+}
+
+fn request() -> Request<Body> {
+    let mut req = Request::builder()
+        .uri("/")
+        .body(Body::empty())
+        .expect("test request must build");
+    req.extensions_mut()
+        .insert(ConnectInfo(SocketAddr::from(([127, 0, 0, 1], 4242))));
+    req
+}
+
+fn authed_request(ctx: RequestContext) -> Request<Body> {
+    let mut req = request();
+    req.extensions_mut().insert(ctx);
+    req
+}
+
+fn context(kind: UserType) -> RequestContext {
+    RequestContext::new(
+        SessionId::generate(),
+        TraceId::generate(),
+        ContextId::generate(),
+        AgentName::new("router-ext"),
+    )
+    .with_user_type(kind)
+    .with_actor(systemprompt_identifiers::Actor::user(UserId::new(
+        "router-ext-user",
+    )))
+}
+
+// The header-extracting flavours take a `ContextExtractor`; the trait itself is
+// never implemented outside the crate, so a stub is the only way to drive both
+// of its outcomes.
+#[derive(Clone)]
+struct StubExtractor {
+    context: Option<RequestContext>,
+}
+
+#[async_trait::async_trait]
+impl ContextExtractor for StubExtractor {
+    async fn extract_from_headers(
+        &self,
+        _headers: &HeaderMap,
+    ) -> Result<RequestContext, ContextExtractionError> {
+        self.context
+            .clone()
+            .ok_or(ContextExtractionError::MissingAuthHeader)
+    }
+}
+
+fn extractor(context: Option<RequestContext>) -> StubExtractor {
+    StubExtractor { context }
+}
+
+fn limited() -> RateLimitConfig {
+    RateLimitConfig {
+        disabled: false,
+        burst_multiplier: 1,
+        ..RateLimitConfig::default()
+    }
+}
+
+#[tokio::test]
+async fn a_disabled_rate_limit_leaves_the_router_untouched() {
+    let config = RateLimitConfig {
+        disabled: true,
+        ..RateLimitConfig::default()
+    };
+    let app = ok_router().with_rate_limit(&config, 1);
+
+    let resp = app.oneshot(request()).await.expect("request must complete");
+
+    assert_eq!(
+        resp.status(),
+        StatusCode::OK,
+        "with limiting off the layer must not be mounted at all"
+    );
+}
+
+#[tokio::test]
+async fn an_exhausted_burst_is_refused_rather_than_served() {
+    let config = limited();
+    let app = ok_router().with_rate_limit(&config, 1);
+
+    let mut statuses = Vec::new();
+    for _ in 0..8 {
+        statuses.push(
+            app.clone()
+                .oneshot(request())
+                .await
+                .expect("request must complete")
+                .status(),
+        );
+    }
+
+    assert_eq!(
+        statuses[0],
+        StatusCode::OK,
+        "the first request is within the burst"
+    );
+    assert!(
+        statuses.contains(&StatusCode::TOO_MANY_REQUESTS),
+        "a burst of 8 against a 1/s quota must be refused somewhere: {statuses:?}"
+    );
+}
+
+async fn drive_flavour(app: Router, ctx: Option<RequestContext>) -> StatusCode {
+    let req = ctx.map_or_else(request, authed_request);
+    app.oneshot(req)
+        .await
+        .expect("request must complete")
+        .status()
+}
+
+#[tokio::test]
+async fn every_context_flavour_refuses_a_request_with_no_session_context() {
+    let public = ok_router().with_auth(PublicContextMiddleware::new(), AuthzPolicy::public());
+    let user_only = ok_router().with_auth(
+        UserOnlyContextMiddleware::new(extractor(None)),
+        AuthzPolicy::public(),
+    );
+    let a2a = ok_router().with_auth(
+        A2AContextMiddleware::new(extractor(None)),
+        AuthzPolicy::public(),
+    );
+    let mcp = ok_router().with_auth(
+        McpContextMiddleware::new(extractor(None)),
+        AuthzPolicy::public(),
+    );
+
+    for (name, app) in [
+        ("public", public),
+        ("user-only", user_only),
+        ("a2a", a2a),
+        ("mcp", mcp),
+    ] {
+        let status = drive_flavour(app, None).await;
+        assert_ne!(
+            status,
+            StatusCode::OK,
+            "{name} must not serve a request that carries no session context"
+        );
+    }
+}
+
+#[tokio::test]
+async fn the_public_flavour_admits_a_request_that_carries_its_context() {
+    let app = ok_router().with_auth(PublicContextMiddleware::new(), AuthzPolicy::public());
+
+    let status = drive_flavour(app, Some(context(UserType::User))).await;
+
+    assert_eq!(
+        status,
+        StatusCode::OK,
+        "a request with a session context passes the public gate"
+    );
+}
+
+#[tokio::test]
+async fn the_policy_gate_runs_ahead_of_the_context_layer() {
+    // `with_auth` mounts the authz gate outermost, so a caller type the policy
+    // excludes is refused even though it carries a valid session context.
+    let app = ok_router().with_auth(PublicContextMiddleware::new(), AuthzPolicy::admin());
+
+    let status = drive_flavour(app, Some(context(UserType::Anon))).await;
+
+    assert_eq!(status, StatusCode::FORBIDDEN);
+}
+
+#[tokio::test]
+async fn an_extracting_flavour_injects_the_context_it_resolved() {
+    let resolved = context(UserType::Mcp);
+    let app = ok_router().with_auth(
+        McpContextMiddleware::new(extractor(Some(resolved))),
+        AuthzPolicy::public(),
+    );
+
+    let status = drive_flavour(app, None).await;
+
+    assert_eq!(
+        status,
+        StatusCode::OK,
+        "a request whose headers resolve to a context needs no pre-existing session"
+    );
+}
+
+#[tokio::test]
+async fn a_failed_extraction_falls_back_to_the_session_context() {
+    let app = ok_router().with_auth(
+        McpContextMiddleware::new(extractor(None)),
+        AuthzPolicy::public(),
+    );
+
+    let status = drive_flavour(app, Some(context(UserType::User))).await;
+
+    assert_eq!(
+        status,
+        StatusCode::OK,
+        "header extraction is an upgrade, not a requirement, when a session already exists"
+    );
+}
+
+#[tokio::test]
+async fn extract_from_request_defaults_to_the_header_extraction() {
+    let resolved = context(UserType::A2a);
+    let stub = extractor(Some(resolved.clone()));
+
+    let (extracted, request) = stub
+        .extract_from_request(request())
+        .await
+        .expect("the stub resolves a context");
+
+    assert_eq!(
+        extracted.user_id(),
+        resolved.user_id(),
+        "the default body must delegate to extract_from_headers"
+    );
+    assert_eq!(
+        request.uri().path(),
+        "/",
+        "the request is handed back intact for the caller to forward"
+    );
+}
+
+#[tokio::test]
+async fn extract_from_request_propagates_an_extraction_failure() {
+    let stub = extractor(None);
+
+    let Err(err) = stub.extract_from_request(request()).await else {
+        panic!("a stub with no context cannot resolve one");
+    };
+
+    assert!(
+        matches!(err, ContextExtractionError::MissingAuthHeader),
+        "the underlying reason must reach the caller: {err}"
+    );
+}

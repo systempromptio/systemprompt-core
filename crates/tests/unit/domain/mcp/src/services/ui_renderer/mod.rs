@@ -3,5 +3,8 @@ mod csp;
 mod html;
 mod media;
 mod registry;
+mod registry_custom;
 mod renderers;
 mod templates;
+mod templates_edge;
+mod theme_registered;

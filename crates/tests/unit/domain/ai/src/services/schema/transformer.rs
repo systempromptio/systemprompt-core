@@ -314,3 +314,145 @@ mod transformed_tool_tests {
         assert!(debug.contains("test"));
     }
 }
+
+mod variant_naming_and_required_merging {
+    use super::*;
+
+    fn union_with_base_required() -> serde_json::Value {
+        json!({
+            "type": "object",
+            "properties": {
+                "action": {"type": "string"},
+                "common_field": {"type": "string"}
+            },
+            "required": ["action", "common_field"],
+            "allOf": [
+                {
+                    "if": {"properties": {"action": {"const": "create"}}},
+                    "then": {
+                        "properties": {"data": {"type": "string"}},
+                        "required": ["data", "common_field"]
+                    }
+                }
+            ]
+        })
+    }
+
+    #[test]
+    fn the_discriminator_is_dropped_from_required_while_base_fields_survive() {
+        let transformer = SchemaTransformer::new(ProviderCapabilities::gemini());
+        let tool = create_test_tool("act", "Acts", union_with_base_required());
+
+        let result = transformer.transform(&tool).unwrap();
+        let variant = result.first().expect("one variant");
+        let required: Vec<&str> = variant.input_schema["required"]
+            .as_array()
+            .expect("required is an array")
+            .iter()
+            .map(|v| v.as_str().expect("required entries are strings"))
+            .collect();
+
+        assert!(
+            !required.contains(&"action"),
+            "the discriminator is pinned by the split, so it must not stay required: {required:?}"
+        );
+        assert!(
+            required.contains(&"common_field"),
+            "a base required field must survive the split: {required:?}"
+        );
+        assert!(
+            required.contains(&"data"),
+            "the variant's own required field must be merged in: {required:?}"
+        );
+        assert_eq!(
+            required.iter().filter(|r| **r == "common_field").count(),
+            1,
+            "a field required by both base and variant must not be duplicated: {required:?}"
+        );
+    }
+
+    fn union_with_discriminator(value: &str) -> serde_json::Value {
+        json!({
+            "type": "object",
+            "properties": {"action": {"type": "string"}},
+            "allOf": [
+                {
+                    "if": {"properties": {"action": {"const": value}}},
+                    "then": {"properties": {"data": {"type": "string"}}}
+                }
+            ]
+        })
+    }
+
+    #[test]
+    fn characters_illegal_in_a_function_name_are_replaced_in_the_variant_name() {
+        let transformer = SchemaTransformer::new(ProviderCapabilities::gemini());
+        let tool = create_test_tool("act", "Acts", union_with_discriminator("create/thing now"));
+
+        let result = transformer.transform(&tool).unwrap();
+        let name = &result.first().expect("one variant").name;
+
+        assert!(
+            !name.contains('/') && !name.contains(' '),
+            "illegal characters must be replaced, got {name}"
+        );
+        assert_eq!(name, "act_create_thing_now");
+        assert_eq!(
+            result[0].discriminator_value.as_deref(),
+            Some("create/thing now"),
+            "the discriminator value itself is not sanitised — only the emitted name is"
+        );
+    }
+
+    #[test]
+    fn a_variant_name_is_truncated_to_the_provider_name_limit() {
+        let transformer = SchemaTransformer::new(ProviderCapabilities::gemini());
+        let long_value = "x".repeat(200);
+        let tool = create_test_tool("act", "Acts", union_with_discriminator(&long_value));
+
+        let result = transformer.transform(&tool).unwrap();
+        let name = &result.first().expect("one variant").name;
+
+        assert_eq!(
+            name.len(),
+            64,
+            "the emitted name must be capped, got {name}"
+        );
+        assert!(name.starts_with("act_x"));
+    }
+
+    #[test]
+    fn a_leading_digit_in_a_variant_name_is_prefixed_rather_than_dropped() {
+        let transformer = SchemaTransformer::new(ProviderCapabilities::gemini());
+        // `sanitize_function_name` sees the whole `{tool}_{variant}` string, so
+        // a tool whose own name starts with a digit drives the first-character
+        // arms.
+        let tool = create_test_tool("9act", "Acts", union_with_discriminator("create"));
+
+        let result = transformer.transform(&tool).unwrap();
+        let name = &result.first().expect("one variant").name;
+
+        assert_eq!(name, "_9act_create");
+    }
+
+    #[test]
+    fn a_leading_symbol_in_a_variant_name_becomes_an_underscore() {
+        let transformer = SchemaTransformer::new(ProviderCapabilities::gemini());
+        let tool = create_test_tool("+act", "Acts", union_with_discriminator("create"));
+
+        let result = transformer.transform(&tool).unwrap();
+        assert_eq!(result.first().expect("one variant").name, "_act_create");
+    }
+
+    #[test]
+    fn a_split_candidate_with_an_empty_description_is_rejected() {
+        let transformer = SchemaTransformer::new(ProviderCapabilities::gemini());
+        let mut tool = create_test_tool("act", "Acts", union_with_discriminator("create"));
+        tool.description = Some(String::new());
+
+        let err = transformer
+            .transform(&tool)
+            .expect_err("a union tool with no description must not be split");
+        assert!(err.to_string().contains("description"), "got {err}");
+    }
+}

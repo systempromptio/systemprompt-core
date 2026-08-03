@@ -49,7 +49,10 @@ async fn scheduler_rejects_invalid_cron_schedule() {
         .expect_err("invalid schedule must fail job creation");
 }
 
-#[tokio::test]
+// The cron tick has to make progress on its own task; under an instrumented
+// (coverage) build a current-thread runtime starves it long enough that the
+// job body never fires, which silently voids this test's whole point.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn scheduled_cleanup_deletes_logs_older_than_retention() {
     let Ok(url) = fixture_database_url() else {
         return;
@@ -81,7 +84,7 @@ async fn scheduled_cleanup_deletes_logs_older_than_retention() {
         .expect("scheduler starts");
 
     let mut remaining = 1_i64;
-    for _ in 0..100 {
+    for _ in 0..600 {
         remaining = sqlx::query_scalar!("SELECT COUNT(*) FROM logs WHERE id = $1", log_id.as_str())
             .fetch_one(&raw)
             .await

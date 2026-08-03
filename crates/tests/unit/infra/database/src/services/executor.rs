@@ -299,3 +299,91 @@ async fn execute_query_invalid_sql_is_internal_error() {
         "error must name the query failure, got: {msg}"
     );
 }
+
+// --- terminal-state error arms ---
+//
+// `parse_sql_statements` walks the SQL as a small state machine; if it reaches
+// the end of the input while still inside a quote, dollar-quote or block
+// comment it must refuse the whole script rather than emit a truncated
+// statement. Each arm names the construct that was left open.
+
+#[test]
+fn an_unterminated_single_quoted_literal_is_refused() {
+    let err = SqlExecutor::parse_sql_statements("SELECT 'never closed")
+        .expect_err("an open string literal must not yield a statement");
+    assert!(
+        err.to_string().contains("Unterminated string literal"),
+        "got {err}"
+    );
+}
+
+#[test]
+fn an_unterminated_dollar_quoted_body_is_refused_and_names_its_tag() {
+    let err =
+        SqlExecutor::parse_sql_statements("CREATE FUNCTION f() RETURNS void AS $body$ BEGIN NULL;")
+            .expect_err("an open dollar-quoted body must not yield a statement");
+    let message = err.to_string();
+    assert!(
+        message.contains("Unterminated dollar-quoted string"),
+        "got {message}"
+    );
+    assert!(
+        message.contains("$body$"),
+        "the error must name the tag that was left open, got {message}"
+    );
+}
+
+#[test]
+fn an_unterminated_block_comment_is_refused() {
+    let err = SqlExecutor::parse_sql_statements("SELECT 1; /* still open")
+        .expect_err("an open block comment must not yield a statement");
+    assert!(
+        err.to_string().contains("Unterminated block comment"),
+        "got {err}"
+    );
+}
+
+#[test]
+fn a_doubled_quote_escapes_rather_than_closing_the_literal() {
+    let stmts = SqlExecutor::parse_sql_statements("INSERT INTO t VALUES ('it''s fine; really');")
+        .expect("a doubled quote is an escape, not a terminator");
+    assert_eq!(
+        stmts.len(),
+        1,
+        "the semicolon inside the literal must not split the statement: {stmts:?}"
+    );
+    assert!(stmts[0].contains("it''s fine; really"));
+}
+
+#[test]
+fn a_lone_dollar_sign_is_ordinary_content_not_a_quote_opener() {
+    let stmts = SqlExecutor::parse_sql_statements("SELECT 'a' || $ || 'b';")
+        .expect("a `$` with no closing tag delimiter is just a character");
+    assert_eq!(stmts.len(), 1, "got {stmts:?}");
+}
+
+#[test]
+fn a_closed_dollar_quoted_body_keeps_its_semicolons() {
+    let stmts = SqlExecutor::parse_sql_statements(
+        "CREATE FUNCTION f() RETURNS void AS $$ BEGIN NULL; NULL; END; $$ LANGUAGE plpgsql; \
+         SELECT 1;",
+    )
+    .expect("a closed dollar-quoted body parses");
+    assert_eq!(
+        stmts.len(),
+        2,
+        "only the semicolons outside the body split statements: {stmts:?}"
+    );
+    assert!(stmts[0].contains("BEGIN NULL; NULL; END;"));
+}
+
+#[test]
+fn trailing_whitespace_and_comments_do_not_emit_an_empty_statement() {
+    let stmts = SqlExecutor::parse_sql_statements("SELECT 1;\n\n-- trailing note\n   \n")
+        .expect("trailing filler parses");
+    assert_eq!(
+        stmts.len(),
+        1,
+        "content-free trailing input must not become a statement: {stmts:?}"
+    );
+}

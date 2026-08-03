@@ -202,3 +202,104 @@ async fn duplicate_policy_names_fail_validation() {
         .expect_err("duplicate rejected");
     assert!(err.to_string().contains("duplicate policy name"));
 }
+
+// NOTE FOR THE nextest CONFIG OWNER: the two tests below drive
+// `load_gateway_policies_from_yaml`, which always ingests with
+// `delete_orphans: true` against the *global* scope — it therefore deletes
+// every `ai_gateway_policies` row not named by its YAML, including rows seeded
+// by sibling tests in this file. They must be serialised against the rest of
+// the gateway-policy suite (a `gateway-policy-db` test-group).
+
+#[tokio::test]
+async fn a_valid_policies_file_is_ingested_and_reconciles_the_table_to_it() {
+    let Some(pool) = pool().await else {
+        return;
+    };
+    let name = unique_name("loader-happy");
+    let orphan = unique_name("loader-orphan");
+    let service = GatewayPolicyIngestionService::new(&pool).expect("service");
+    service
+        .ingest_config(
+            &serde_yaml::from_str(&config_yaml(&[&orphan])).expect("parse"),
+            GatewayPolicyIngestOptions::default(),
+        )
+        .await
+        .expect("seed an orphan the loader's file will not mention");
+
+    let dir = tempfile::tempdir().expect("tempdir");
+    let gateway_dir = dir.path().join("gateway");
+    std::fs::create_dir_all(&gateway_dir).expect("mkdir");
+    std::fs::write(gateway_dir.join("policies.yaml"), config_yaml(&[&name])).expect("write");
+
+    let report = load_gateway_policies_from_yaml(&pool, dir.path())
+        .await
+        .expect("valid file ingests");
+    assert_eq!(report.inserted, 1, "the file's one policy must be inserted");
+
+    let repo = systemprompt_ai::AiGatewayPolicyRepository::new(&pool).expect("repo");
+    let served = repo.list_for_global().await.expect("list");
+    assert_eq!(
+        served.iter().filter(|r| r.name == name).count(),
+        1,
+        "the loaded policy must be served"
+    );
+    assert!(
+        !served.iter().any(|r| r.name == orphan),
+        "a policy absent from the file must be swept — the loader reconciles, it does not merge"
+    );
+    assert!(report.deleted >= 1, "the orphan sweep must be reported");
+
+    // A second boot over the same file is idempotent, not a re-insert.
+    let again = load_gateway_policies_from_yaml(&pool, dir.path())
+        .await
+        .expect("second boot");
+    assert_eq!(again.inserted, 0);
+    assert_eq!(again.updated + again.skipped, 1);
+}
+
+#[tokio::test]
+async fn an_unreadable_policies_path_is_an_error_rather_than_a_silent_noop() {
+    let Some(pool) = pool().await else {
+        return;
+    };
+    let dir = tempfile::tempdir().expect("tempdir");
+    // A directory where the file is expected: readable metadata, but
+    // `read_to_string` fails with something other than NotFound, so the loader
+    // must not mistake it for "no config".
+    std::fs::create_dir_all(dir.path().join("gateway").join("policies.yaml")).expect("mkdir");
+
+    let err = load_gateway_policies_from_yaml(&pool, dir.path())
+        .await
+        .expect_err("an unreadable path must not be treated as an absent config");
+    assert!(
+        err.to_string().contains("gateway/policies.yaml"),
+        "the error must name the file it failed to read, got {err}"
+    );
+}
+
+#[tokio::test]
+async fn a_service_built_from_a_repository_ingests_the_same_as_one_built_from_a_pool() {
+    let Some(pool) = pool().await else {
+        return;
+    };
+    let name = unique_name("from-repo");
+    let repo = systemprompt_ai::AiGatewayPolicyRepository::new(&pool).expect("repo");
+    let service = GatewayPolicyIngestionService::from_repository(repo);
+
+    let cfg: GatewayPolicyConfig = serde_yaml::from_str(&config_yaml(&[&name])).expect("parse");
+    let report = service
+        .ingest_config(&cfg, GatewayPolicyIngestOptions::default())
+        .await
+        .expect("ingest through the repository-built service");
+    assert_eq!(report.inserted, 1);
+
+    let served = systemprompt_ai::AiGatewayPolicyRepository::new(&pool)
+        .expect("repo")
+        .list_for_global()
+        .await
+        .expect("list");
+    assert!(
+        served.iter().any(|r| r.name == name),
+        "the repository-built service must write through the same table"
+    );
+}

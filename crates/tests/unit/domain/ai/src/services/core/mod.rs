@@ -6,7 +6,10 @@
 
 mod ai_service;
 mod image_service;
+mod provider_impl;
 mod request_storage;
+mod service_failure_paths;
+mod stream_audit;
 
 use std::sync::Arc;
 

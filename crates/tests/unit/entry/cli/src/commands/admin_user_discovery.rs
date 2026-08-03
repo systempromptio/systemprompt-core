@@ -98,3 +98,56 @@ fn valid_profile_yields_info_with_database_url() {
         other => panic!("expected valid profile, got {other:?}"),
     }
 }
+
+#[test]
+fn discovery_summary_renders_found_and_skipped_profiles() {
+    use systemprompt_cli::cloud::auth::admin_user::{
+        ProfileDiscoveryResult, ProfileInfo, print_discovery_summary,
+    };
+
+    let result = ProfileDiscoveryResult {
+        profiles: vec![ProfileInfo {
+            name: "prod".to_owned(),
+            display_name: None,
+            database_url: Some("postgres://h/db".to_owned()),
+            tenant_id: None,
+            validation_mode: None,
+            credentials_path: None,
+            routing: None,
+            is_active: None,
+            session_status: None,
+        }],
+        skipped: vec![
+            ProfileSkipReason::MissingConfig {
+                path: std::path::PathBuf::from("/p/profile.yaml"),
+            },
+            ProfileSkipReason::MissingSecrets {
+                path: std::path::PathBuf::from("/p/secrets.json"),
+            },
+            ProfileSkipReason::SecretsReadError {
+                path: std::path::PathBuf::from("/p/secrets.json"),
+                error: "denied".to_owned(),
+            },
+            ProfileSkipReason::SecretsParseError {
+                path: std::path::PathBuf::from("/p/secrets.json"),
+                error: "bad json".to_owned(),
+            },
+            ProfileSkipReason::MissingDatabaseUrl {
+                profile: "prod".to_owned(),
+            },
+            ProfileSkipReason::InvalidDirectoryName {
+                path: std::path::PathBuf::from("/p/\u{fffd}"),
+            },
+        ],
+    };
+
+    // lint-ok: no-assert both branches are console renderers with no return value
+    print_discovery_summary(&result, true);
+    print_discovery_summary(&result, false);
+
+    let empty = ProfileDiscoveryResult {
+        profiles: Vec::new(),
+        skipped: Vec::new(),
+    };
+    print_discovery_summary(&empty, true);
+}

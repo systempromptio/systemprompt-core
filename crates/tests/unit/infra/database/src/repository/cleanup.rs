@@ -45,10 +45,23 @@ async fn delete_old_logs_removes_rows_past_cutoff_and_keeps_recent() {
     let Some((repo, pg)) = repo_and_pool().await else {
         return;
     };
+    // A `logs` row must never carry a NULL user_id: every global read of the
+    // table decodes that column as non-Option, so one leaked NULL row breaks
+    // unrelated suites (`infra logs export`, the logging maintenance service).
+    // A real user also keeps the fresh row out of the table-wide orphan sweep
+    // the sibling test runs.
+    let owner = unique("cleanup_log_owner");
+    sqlx::query("INSERT INTO users (id, name, email) VALUES ($1, $1, $2)")
+        .bind(&owner)
+        .bind(format!("{owner}@cleanup.test"))
+        .execute(&pg)
+        .await
+        .expect("insert log owner fixture");
+
     let old_id = unique("old_log");
     let fresh_id = unique("fresh_log");
-    insert_log(&pg, &old_id, None, 4000).await;
-    insert_log(&pg, &fresh_id, None, 0).await;
+    insert_log(&pg, &old_id, Some(&owner), 4000).await;
+    insert_log(&pg, &fresh_id, Some(&owner), 0).await;
 
     let counted = repo.count_old_logs(3650).await.expect("count old");
     assert!(counted >= 1);
@@ -61,6 +74,10 @@ async fn delete_old_logs_removes_rows_past_cutoff_and_keeps_recent() {
 
     let _ = sqlx::query("DELETE FROM logs WHERE id = $1")
         .bind(&fresh_id)
+        .execute(&pg)
+        .await;
+    let _ = sqlx::query("DELETE FROM users WHERE id = $1")
+        .bind(&owner)
         .execute(&pg)
         .await;
 }

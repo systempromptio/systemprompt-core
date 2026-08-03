@@ -105,3 +105,55 @@ async fn handler_state_debug_and_clone() {
         state.stream_semaphore.available_permits()
     );
 }
+
+// `Server::new` refuses to build without a named, registered agent. Both
+// guards run before any router or listener exists, so they are the only part
+// of the server construction path reachable without mutating the
+// process-global services config that the registry suite asserts is empty.
+
+#[tokio::test]
+async fn server_new_requires_an_agent_name() {
+    let Some(pool) = try_pool().await else {
+        return;
+    };
+    systemprompt_test_fixtures::ensure_test_bootstrap();
+    let state = super::a2a_helpers::make_agent_state(&pool);
+
+    let err = systemprompt_agent::services::a2a_server::Server::new(
+        Arc::clone(&pool),
+        state,
+        Arc::new(StubAiProvider::new()),
+        None,
+        9310,
+    )
+    .await
+    .expect_err("an unnamed agent cannot be served");
+    assert!(
+        err.to_string().contains("Agent name is required"),
+        "unexpected error: {err}"
+    );
+}
+
+#[tokio::test]
+async fn server_new_rejects_an_agent_absent_from_the_registry() {
+    let Some(pool) = try_pool().await else {
+        return;
+    };
+    systemprompt_test_fixtures::ensure_test_bootstrap();
+    let _skills_fixture_read = crate::SKILLS_FIXTURE_LOCK.read().await;
+    let state = super::a2a_helpers::make_agent_state(&pool);
+
+    let err = systemprompt_agent::services::a2a_server::Server::new(
+        Arc::clone(&pool),
+        state,
+        Arc::new(StubAiProvider::new()),
+        Some("__no_such_agent_for_server".to_owned()),
+        9311,
+    )
+    .await
+    .expect_err("an unregistered agent cannot be served");
+    assert!(
+        err.to_string().contains("__no_such_agent_for_server"),
+        "unexpected error: {err}"
+    );
+}

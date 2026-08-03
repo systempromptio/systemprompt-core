@@ -307,3 +307,130 @@ async fn authorize_post_password_attempt_is_unsupported() -> anyhow::Result<()> 
     );
     Ok(())
 }
+
+// `resolve_resource_scopes` (and the `get_mcp_server_scopes_from_resource`
+// parser beneath it) only runs when the authorize request names a `resource`
+// AND the OAuthState carries an MCP registry. The shared fixture supplies
+// neither, so both stayed at zero calls; attaching the registry from the
+// AppContext puts the resource-scoped authorization path on its real branch.
+async fn authorize_app_with_mcp_registry() -> anyhow::Result<Router> {
+    ensure_config();
+    let (_pool, ctx) = setup_ctx().await?;
+    let state = OAuthState::new(
+        Arc::clone(ctx.db_pool()),
+        ctx.analytics_provider().expect("analytics"),
+        ctx.user_provider().expect("user"),
+    )
+    .with_mcp_registry(std::sync::Arc::new(ctx.mcp_registry().clone()));
+    Ok(public_router()
+        .layer(middleware::from_fn(inject_context))
+        .with_state(state))
+}
+
+fn authorize_uri(client_id: &str, resource: Option<&str>) -> String {
+    let mut uri = format!(
+        "/authorize?response_type=code&client_id={}&redirect_uri={}&scope=user&state={}&code_challenge={}&code_challenge_method=S256",
+        client_id,
+        enc("http://127.0.0.1/callback"),
+        VALID_STATE,
+        VALID_CHALLENGE,
+    );
+    if let Some(resource) = resource {
+        uri.push_str(&format!("&resource={}", enc(resource)));
+    }
+    uri
+}
+
+#[tokio::test]
+async fn authorize_with_an_unknown_mcp_resource_still_validates() -> anyhow::Result<()> {
+    let client = seeded_client().await?;
+    let app = authorize_app_with_mcp_registry().await?;
+
+    let resp = app
+        .oneshot(empty_get(&authorize_uri(
+            client.client_id.as_str(),
+            Some("http://127.0.0.1/api/v1/mcp/no-such-server/mcp"),
+        )))
+        .await?;
+
+    // An unregistered resource contributes no scopes; it must not fail the
+    // request, and equally must not silently widen it.
+    assert_eq!(resp.status(), StatusCode::OK, "{}", resp.status());
+    Ok(())
+}
+
+#[tokio::test]
+async fn authorize_rejects_an_https_resource_pointing_at_a_link_local_address() -> anyhow::Result<()>
+{
+    let client = seeded_client().await?;
+    let app = authorize_app_with_mcp_registry().await?;
+
+    let resp = app
+        .oneshot(empty_get(&authorize_uri(
+            client.client_id.as_str(),
+            Some("https://169.254.169.254/api/v1/mcp/meta/mcp"),
+        )))
+        .await?;
+
+    // The cloud metadata endpoint is the canonical SSRF target; an
+    // authorization request naming it must not be honoured.
+    assert_ne!(
+        resp.status(),
+        StatusCode::OK,
+        "a resource naming a link-local address must be refused"
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn authorize_rejects_an_internal_suffix_resource() -> anyhow::Result<()> {
+    let client = seeded_client().await?;
+    let app = authorize_app_with_mcp_registry().await?;
+
+    let resp = app
+        .oneshot(empty_get(&authorize_uri(
+            client.client_id.as_str(),
+            Some("https://vault.internal/api/v1/mcp/secrets/mcp"),
+        )))
+        .await?;
+
+    assert_ne!(
+        resp.status(),
+        StatusCode::OK,
+        "an `.internal` resource host is not externally routable and must be refused"
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn authorize_with_a_malformed_resource_is_refused() -> anyhow::Result<()> {
+    let client = seeded_client().await?;
+    let app = authorize_app_with_mcp_registry().await?;
+
+    let resp = app
+        .oneshot(empty_get(&authorize_uri(
+            client.client_id.as_str(),
+            Some("not-a-uri"),
+        )))
+        .await?;
+
+    assert_ne!(
+        resp.status(),
+        StatusCode::OK,
+        "a resource that is not a URI cannot be validated and must not be accepted"
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn authorize_without_a_resource_is_unaffected_by_the_registry() -> anyhow::Result<()> {
+    let client = seeded_client().await?;
+    let app = authorize_app_with_mcp_registry().await?;
+
+    let resp = app
+        .oneshot(empty_get(&authorize_uri(client.client_id.as_str(), None)))
+        .await?;
+
+    assert_eq!(resp.status(), StatusCode::OK, "{}", resp.status());
+    Ok(())
+}

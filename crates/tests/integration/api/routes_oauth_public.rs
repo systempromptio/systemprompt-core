@@ -388,3 +388,105 @@ async fn clients_get_unknown_returns_4xx() -> anyhow::Result<()> {
     assert!(resp.status().is_client_error() || resp.status().is_server_error());
     Ok(())
 }
+
+async fn dcr_app() -> anyhow::Result<Router> {
+    use axum::Extension;
+    use systemprompt_identifiers::UserId;
+    use uuid::Uuid;
+
+    ensure_config();
+    let (pool, ctx) = setup_ctx().await?;
+    let user_id = UserId::new(format!("dcr-scope-{}", Uuid::new_v4()));
+    let p = pool.pool_arc().expect("read pool");
+    sqlx::query("INSERT INTO users (id, name, email) VALUES ($1, $1, $2) ON CONFLICT DO NOTHING")
+        .bind(user_id.as_str())
+        .bind(format!("{}@dcr-fixture.invalid", user_id.as_str()))
+        .execute(p.as_ref())
+        .await?;
+
+    let mut req_ctx = super::common::request_context("ignored");
+    req_ctx.auth.actor.user_id = user_id;
+    let state = OAuthState::new(
+        Arc::clone(ctx.db_pool()),
+        ctx.analytics_provider().expect("analytics"),
+        ctx.user_provider().expect("user"),
+    );
+    Ok(systemprompt_api::routes::oauth::public_router()
+        .with_state(state)
+        .layer(Extension(req_ctx)))
+}
+
+async fn register_with(scope: Option<&str>) -> anyhow::Result<(u16, serde_json::Value)> {
+    let mut body = serde_json::json!({
+        "client_name": "scope-probe",
+        "redirect_uris": ["http://127.0.0.1:53281/callback"],
+    });
+    if let Some(scope) = scope {
+        body["scope"] = serde_json::Value::String(scope.to_owned());
+    }
+    let resp = dcr_app()
+        .await?
+        .oneshot(json_post("/register", body))
+        .await?;
+    let status = resp.status().as_u16();
+    let (_, text) = super::common::body_to_string(resp).await?;
+    Ok((
+        status,
+        serde_json::from_str(&text).unwrap_or(serde_json::Value::String(text)),
+    ))
+}
+
+#[tokio::test]
+async fn a_requested_scope_is_granted_when_every_scope_is_known() -> anyhow::Result<()> {
+    let (status, json) = register_with(Some("user")).await?;
+
+    assert_eq!(status, 201, "{json}");
+    let granted: Vec<&str> = json["scopes"]
+        .as_array()
+        .or_else(|| json["scope"].as_array())
+        .map(|a| a.iter().filter_map(|s| s.as_str()).collect())
+        .unwrap_or_default();
+    assert!(
+        granted.contains(&"user") || json["scope"].as_str().is_some_and(|s| s.contains("user")),
+        "an explicitly requested known scope must be granted: {json}"
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn an_unknown_requested_scope_is_refused_rather_than_silently_dropped() -> anyhow::Result<()>
+{
+    let (status, json) = register_with(Some("user superuser-everything")).await?;
+
+    // Silently narrowing to the valid subset would hand the client a token it
+    // did not ask for and cannot detect, so registration has to fail outright.
+    assert_eq!(status, 400, "{json}");
+    let rendered = json.to_string();
+    assert!(rendered.contains("scope"), "{rendered}");
+    Ok(())
+}
+
+#[tokio::test]
+async fn omitting_scope_falls_back_to_the_default_roles() -> anyhow::Result<()> {
+    let (status, json) = register_with(None).await?;
+
+    assert_eq!(status, 201, "{json}");
+    let has_scopes = json["scopes"].as_array().is_some_and(|a| !a.is_empty())
+        || json["scope"].as_str().is_some_and(|s| !s.is_empty());
+    assert!(
+        has_scopes,
+        "a client registered without a scope request still receives the defaults: {json}"
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn a_blank_scope_string_is_treated_as_no_request() -> anyhow::Result<()> {
+    let (status, json) = register_with(Some("   ")).await?;
+
+    assert_eq!(
+        status, 201,
+        "whitespace is not a scope request and must not fail registration: {json}"
+    );
+    Ok(())
+}

@@ -407,3 +407,97 @@ mod trait_result_to_rmcp_result_tests {
         assert_eq!(back.is_error, original.is_error);
     }
 }
+
+mod meta_and_unmapped_content {
+    use super::*;
+
+    #[test]
+    fn tool_result_meta_survives_the_round_trip_through_json() {
+        let with_meta = TraitToolCallResult {
+            content: vec![ToolContent::Text {
+                text: "ok".to_string(),
+            }],
+            structured_content: None,
+            is_error: None,
+            meta: Some(json!({"progressToken": "tok-1", "nested": {"n": 2}})),
+        };
+
+        let rmcp = trait_result_to_rmcp_result(&with_meta);
+        assert!(
+            rmcp.meta.is_some(),
+            "a JSON meta blob must be carried onto the rmcp result"
+        );
+
+        let back = rmcp_result_to_trait_result(&rmcp);
+        let meta = back.meta.expect("meta must survive the return trip");
+        assert_eq!(meta["progressToken"], json!("tok-1"));
+        assert_eq!(meta["nested"]["n"], json!(2));
+    }
+
+    #[test]
+    fn a_meta_blob_that_is_not_an_object_is_dropped_rather_than_failing_the_call() {
+        let bad_meta = TraitToolCallResult {
+            content: vec![ToolContent::Text {
+                text: "ok".to_string(),
+            }],
+            structured_content: None,
+            is_error: None,
+            meta: Some(json!("not an object")),
+        };
+
+        let rmcp = trait_result_to_rmcp_result(&bad_meta);
+        assert!(
+            rmcp.meta.is_none(),
+            "an unusable meta blob must be dropped, not panic or leak a malformed value"
+        );
+        assert_eq!(
+            rmcp.content.len(),
+            1,
+            "the content of the call must be unaffected by a bad meta blob"
+        );
+    }
+
+    #[test]
+    fn an_error_result_keeps_its_error_flag_and_structured_content() {
+        let errored = TraitToolCallResult {
+            content: vec![ToolContent::Text {
+                text: "boom".to_string(),
+            }],
+            structured_content: Some(json!({"code": 500})),
+            is_error: Some(true),
+            meta: None,
+        };
+
+        let rmcp = trait_result_to_rmcp_result(&errored);
+        assert_eq!(rmcp.is_error, Some(true));
+        assert_eq!(rmcp.structured_content, Some(json!({"code": 500})));
+
+        let back = rmcp_result_to_trait_result(&rmcp);
+        assert_eq!(back.is_error, Some(true));
+        assert_eq!(back.structured_content, Some(json!({"code": 500})));
+    }
+
+    #[test]
+    fn a_content_block_the_adapter_cannot_map_is_dropped_not_mistranslated() {
+        let audio = ContentBlock::audio("YXVkaW8=".to_string(), "audio/wav".to_string());
+        let result = CallToolResult::success(vec![
+            ContentBlock::text("kept".to_string()),
+            audio,
+            ContentBlock::text("also kept".to_string()),
+        ]);
+
+        let converted = rmcp_result_to_trait_result(&result);
+
+        assert_eq!(
+            converted.content.len(),
+            2,
+            "the unmappable block must be dropped, leaving only the text blocks"
+        );
+        for part in &converted.content {
+            match part {
+                ToolContent::Text { text } => assert!(text.ends_with("kept")),
+                other => panic!("unexpected mapped content: {other:?}"),
+            }
+        }
+    }
+}

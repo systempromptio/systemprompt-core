@@ -21,8 +21,16 @@ mod routes_mcp_registry;
 mod routes_wellknown;
 
 #[cfg(test)]
+#[path = "routes_wellknown_agent_cards_populated.rs"]
+mod routes_wellknown_agent_cards_populated;
+
+#[cfg(test)]
 #[path = "routes_agent_registry.rs"]
 mod routes_agent_registry;
+
+#[cfg(test)]
+#[path = "routes_agent_registry_populated.rs"]
+mod routes_agent_registry_populated;
 
 #[cfg(test)]
 #[path = "routes_agent_tasks.rs"]
@@ -403,3 +411,39 @@ mod routes_analytics_events_success;
 #[cfg(test)]
 #[path = "routes_admin_cli_subprocess.rs"]
 mod routes_admin_cli_subprocess;
+
+#[cfg(test)]
+#[path = "routes_admin_keys_seeded.rs"]
+mod routes_admin_keys_seeded;
+
+#[cfg(test)]
+#[path = "routes_content_links_and_query.rs"]
+mod routes_content_links_and_query;
+
+#[cfg(test)]
+#[path = "routes_mcp_registry_populated.rs"]
+mod routes_mcp_registry_populated;
+
+#[cfg(test)]
+#[path = "routes_oauth_webauthn_link.rs"]
+mod routes_oauth_webauthn_link;
+
+#[cfg(test)]
+#[path = "routes_stream_delivery.rs"]
+mod routes_stream_delivery;
+
+#[cfg(test)]
+#[path = "gateway_enabled_routes.rs"]
+mod gateway_enabled_routes;
+
+#[cfg(test)]
+#[path = "gateway_profile_usage_seeded.rs"]
+mod gateway_profile_usage_seeded;
+
+#[cfg(test)]
+#[path = "jwt_user_state_denial.rs"]
+mod jwt_user_state_denial;
+
+#[cfg(test)]
+#[path = "gateway_dispatch_success.rs"]
+mod gateway_dispatch_success;

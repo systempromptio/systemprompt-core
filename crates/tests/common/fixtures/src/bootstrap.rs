@@ -89,6 +89,17 @@ pub fn init_isolated_bootstrap(api_base_url: &str, services_config_yaml: &str) -
     init_bootstrap_inner(Some(api_base_url), Some(services_config_yaml))
 }
 
+// Bootstrap whose profile carries an enabled `gateway:` section and a provider
+// registry. The shared fixture profile has neither, so every gateway route
+// resolves `GatewayState::resolved()` to `None` and answers 404 "Gateway not
+// enabled" — which leaves the whole dispatch/extract path unreachable. Callers
+// own the process-global one-shot inits, so this must be the first bootstrap
+// call in the process (true under nextest) and must not be mixed with
+// `ensure_test_bootstrap` pointing at a different tree.
+pub fn init_gateway_bootstrap(gateway_yaml: &str) -> TestBootstrap {
+    init_bootstrap_inner_with(None, None, Some(gateway_yaml))
+}
+
 fn init_bootstrap() -> TestBootstrap {
     init_bootstrap_inner(None, None)
 }
@@ -96,6 +107,14 @@ fn init_bootstrap() -> TestBootstrap {
 fn init_bootstrap_inner(
     api_base_url: Option<&str>,
     services_config_yaml: Option<&str>,
+) -> TestBootstrap {
+    init_bootstrap_inner_with(api_base_url, services_config_yaml, None)
+}
+
+fn init_bootstrap_inner_with(
+    api_base_url: Option<&str>,
+    services_config_yaml: Option<&str>,
+    gateway_yaml: Option<&str>,
 ) -> TestBootstrap {
     let database_url = env::var("TEST_DATABASE_URL")
         .or_else(|_| env::var("DATABASE_URL"))
@@ -162,6 +181,7 @@ fn init_bootstrap_inner(
             web: &web_path,
         },
         api_base_url.unwrap_or("http://127.0.0.1"),
+        gateway_yaml,
     );
     let profile_path = tmp_path.join("profile.yaml");
     std::fs::write(&profile_path, profile_yaml).expect("write profile.yaml");
@@ -290,7 +310,11 @@ struct ProfilePaths<'a> {
     web: &'a std::path::Path,
 }
 
-fn render_profile_yaml(paths: &ProfilePaths<'_>, api_base_url: &str) -> String {
+fn render_profile_yaml(
+    paths: &ProfilePaths<'_>,
+    api_base_url: &str,
+    gateway_yaml: Option<&str>,
+) -> String {
     let ProfilePaths {
         system,
         services,
@@ -393,5 +417,5 @@ governance:
         web = web.display(),
         ack = UNRESTRICTED_ACKNOWLEDGEMENT,
         api_base_url = api_base_url,
-    )
+    ) + gateway_yaml.unwrap_or("")
 }

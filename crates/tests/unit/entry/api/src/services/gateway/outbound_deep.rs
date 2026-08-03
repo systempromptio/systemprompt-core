@@ -10,14 +10,15 @@ use systemprompt_api::services::gateway::protocol::canonical::{
     ImageSource, Role, ThinkingConfig,
 };
 use systemprompt_api::services::gateway::protocol::outbound::anthropic::AnthropicOutbound;
+use systemprompt_api::services::gateway::protocol::outbound::gemini::GeminiOutbound;
 use systemprompt_api::services::gateway::protocol::outbound::openai_chat::OpenAiChatOutbound;
 use systemprompt_api::services::gateway::protocol::outbound::openai_responses::OpenAiResponsesOutbound;
 use systemprompt_api::services::gateway::protocol::outbound::{
-    OutboundAdapter, OutboundCtx, OutboundOutcome,
+    OutboundAdapter, OutboundCtx, OutboundOutcome, UpstreamError,
 };
 use systemprompt_identifiers::{ProviderId, RouteId};
 use systemprompt_models::profile::GatewayRoute;
-use wiremock::matchers::{method, path};
+use wiremock::matchers::{header, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 /// Builds the request body then sends it, mirroring what the gateway does.
@@ -30,6 +31,15 @@ async fn send_via<A: OutboundAdapter>(
 ) -> anyhow::Result<OutboundOutcome> {
     let body = adapter.build_body(&ctx)?;
     adapter.send(ctx, &body).await
+}
+
+// `OutboundOutcome` is not `Debug` (it carries a boxed stream), so the failure
+// cases cannot use `expect_err`.
+fn expect_failure(outcome: anyhow::Result<OutboundOutcome>) -> anyhow::Error {
+    match outcome {
+        Ok(_) => panic!("this request must not produce a usable response"),
+        Err(e) => e,
+    }
 }
 
 fn route(provider: &str) -> GatewayRoute {
@@ -355,4 +365,194 @@ async fn openai_chat_outbound_streaming_with_extra_headers() {
     } else {
         panic!("expected streaming outcome");
     }
+}
+
+#[tokio::test]
+async fn gemini_outbound_with_rich_request_buffered() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/models/upstream-1:generateContent"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "candidates": [{
+                "content": {"role": "model", "parts": [{"text": "answer"}]},
+                "finishReason": "STOP"
+            }],
+            "usageMetadata": {"promptTokenCount": 3, "candidatesTokenCount": 4}
+        })))
+        .mount(&server)
+        .await;
+    let r = route("gemini");
+    let req = rich_request();
+    let ctx = OutboundCtx {
+        route: &r,
+        endpoint: &server.uri(),
+        api_key: "k",
+        request: &req,
+        upstream_model: "upstream-1",
+        model_limits: None,
+        forward_headers: &[],
+        raw_body: None,
+    };
+
+    let outcome = send_via(&GeminiOutbound, ctx).await.expect("ok");
+
+    assert!(matches!(outcome, OutboundOutcome::Buffered(_)));
+}
+
+#[tokio::test]
+async fn gemini_outbound_sends_the_api_key_as_a_header_not_a_query_parameter() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/models/upstream-1:generateContent"))
+        .and(header("x-goog-api-key", "secret-key"))
+        .and(header("x-custom", "value"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "candidates": [{
+                "content": {"role": "model", "parts": [{"text": "ok"}]},
+                "finishReason": "STOP"
+            }]
+        })))
+        .mount(&server)
+        .await;
+    let r = route("gemini");
+    let req = rich_request();
+    let ctx = OutboundCtx {
+        route: &r,
+        endpoint: &server.uri(),
+        api_key: "secret-key",
+        request: &req,
+        upstream_model: "upstream-1",
+        model_limits: None,
+        forward_headers: &[],
+        raw_body: None,
+    };
+
+    // The mock only matches when both the credential header and the route's
+    // extra headers are present, so a match is the assertion.
+    send_via(&GeminiOutbound, ctx)
+        .await
+        .expect("the request must carry the api key header and the route extras");
+}
+
+#[tokio::test]
+async fn gemini_outbound_streams_from_the_sse_endpoint() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/models/upstream-1:streamGenerateContent"))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .insert_header("content-type", "text/event-stream")
+                .set_body_string(
+                    "data: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\
+                     \"hi\"}]}}]}\n\n",
+                ),
+        )
+        .mount(&server)
+        .await;
+    let r = route("gemini");
+    let mut req = rich_request();
+    req.stream = true;
+    let ctx = OutboundCtx {
+        route: &r,
+        endpoint: &server.uri(),
+        api_key: "k",
+        request: &req,
+        upstream_model: "upstream-1",
+        model_limits: None,
+        forward_headers: &[],
+        raw_body: None,
+    };
+
+    let outcome = send_via(&GeminiOutbound, ctx).await.expect("ok");
+
+    assert!(
+        matches!(outcome, OutboundOutcome::Streaming(_)),
+        "a streaming request must select the SSE upstream path"
+    );
+}
+
+#[tokio::test]
+async fn a_gemini_upstream_rejection_is_reported_as_an_upstream_status_error() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/models/upstream-1:generateContent"))
+        .respond_with(ResponseTemplate::new(429).set_body_json(json!({
+            "error": {"code": 429, "message": "quota exceeded"}
+        })))
+        .mount(&server)
+        .await;
+    let r = route("gemini");
+    let req = rich_request();
+    let ctx = OutboundCtx {
+        route: &r,
+        endpoint: &server.uri(),
+        api_key: "k",
+        request: &req,
+        upstream_model: "upstream-1",
+        model_limits: None,
+        forward_headers: &[],
+        raw_body: None,
+    };
+
+    let err = expect_failure(send_via(&GeminiOutbound, ctx).await);
+
+    let upstream = err
+        .downcast_ref::<UpstreamError>()
+        .expect("the failure must stay an UpstreamError so the gateway can relay it");
+    let UpstreamError::Status { status, .. } = upstream else {
+        panic!("a rejected request must carry the upstream status");
+    };
+    assert_eq!(*status, 429);
+}
+
+#[tokio::test]
+async fn an_unreachable_gemini_endpoint_is_a_transport_error() {
+    let r = route("gemini");
+    let req = rich_request();
+    let ctx = OutboundCtx {
+        route: &r,
+        endpoint: "http://127.0.0.1:1",
+        api_key: "k",
+        request: &req,
+        upstream_model: "upstream-1",
+        model_limits: None,
+        forward_headers: &[],
+        raw_body: None,
+    };
+
+    let err = expect_failure(send_via(&GeminiOutbound, ctx).await);
+
+    assert!(
+        matches!(
+            err.downcast_ref::<UpstreamError>(),
+            Some(UpstreamError::Transport { .. })
+        ),
+        "a connection failure must be distinguishable from an upstream rejection: {err}"
+    );
+}
+
+#[tokio::test]
+async fn a_gemini_response_that_is_not_json_is_refused() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/models/upstream-1:generateContent"))
+        .respond_with(ResponseTemplate::new(200).set_body_string("<html>not json</html>"))
+        .mount(&server)
+        .await;
+    let r = route("gemini");
+    let req = rich_request();
+    let ctx = OutboundCtx {
+        route: &r,
+        endpoint: &server.uri(),
+        api_key: "k",
+        request: &req,
+        upstream_model: "upstream-1",
+        model_limits: None,
+        forward_headers: &[],
+        raw_body: None,
+    };
+
+    let err = expect_failure(send_via(&GeminiOutbound, ctx).await);
+
+    assert!(err.to_string().contains("not valid JSON"), "{err}");
 }

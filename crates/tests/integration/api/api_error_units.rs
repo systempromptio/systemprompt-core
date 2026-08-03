@@ -9,12 +9,17 @@
 use axum::body::Body;
 use axum::http::{Response, StatusCode};
 use axum::response::IntoResponse;
+use systemprompt_agent::{AgentError, ProtocolError};
 use systemprompt_api::error::ApiHttpError;
 use systemprompt_api::services::middleware::context::middleware::test_api::extraction_error_to_api_error;
 use systemprompt_api::services::proxy::ProxyError;
 use systemprompt_api::services::static_content::test_api::{get_api_suggestions, is_api_path};
+use systemprompt_identifiers::UserId;
 use systemprompt_marketplace::MarketplaceError;
+use systemprompt_models::errors::ServiceError;
 use systemprompt_models::execution::ContextExtractionError;
+use systemprompt_oauth::OauthError;
+use systemprompt_oauth::services::SessionCreationError;
 use systemprompt_users::UserError;
 
 fn status_of(err: ApiHttpError) -> StatusCode {
@@ -308,4 +313,270 @@ fn fallback_api_suggestions_branch_by_prefix() {
     assert!(!get_api_suggestions("/health/deep").is_empty());
     assert!(!get_api_suggestions("/openapi.json").is_empty());
     assert!(!get_api_suggestions("/something-else").is_empty());
+}
+
+#[test]
+fn service_error_variants_classify() {
+    assert_eq!(
+        status_of(ServiceError::NotFound("s".to_owned()).into()),
+        StatusCode::NOT_FOUND
+    );
+    assert_eq!(
+        status_of(ServiceError::Validation("v".to_owned()).into()),
+        StatusCode::BAD_REQUEST
+    );
+    assert_eq!(
+        status_of(ServiceError::Conflict("c".to_owned()).into()),
+        StatusCode::CONFLICT
+    );
+    assert_eq!(
+        status_of(ServiceError::Unauthorized("u".to_owned()).into()),
+        StatusCode::UNAUTHORIZED
+    );
+    assert_eq!(
+        status_of(ServiceError::Forbidden("f".to_owned()).into()),
+        StatusCode::FORBIDDEN
+    );
+    assert_eq!(
+        status_of(ServiceError::External("x".to_owned()).into()),
+        StatusCode::INTERNAL_SERVER_ERROR
+    );
+}
+
+#[test]
+fn agent_error_not_found_and_validation_are_distinguished_from_the_catch_all() {
+    assert_eq!(
+        status_of(AgentError::NotFound("a".to_owned()).into()),
+        StatusCode::NOT_FOUND
+    );
+    assert_eq!(
+        status_of(AgentError::Validation("v".to_owned()).into()),
+        StatusCode::BAD_REQUEST
+    );
+    assert_eq!(
+        status_of(AgentError::Protocol(ProtocolError::ValidationFailed("p".to_owned())).into()),
+        StatusCode::BAD_REQUEST,
+        "a protocol validation failure is the caller's fault, not the server's"
+    );
+    assert_eq!(
+        status_of(AgentError::Spawn("boom".to_owned()).into()),
+        StatusCode::INTERNAL_SERVER_ERROR,
+        "an unclassified agent failure must not be reported as a client error"
+    );
+}
+
+#[test]
+fn a_user_pool_failure_is_a_server_error() {
+    assert_eq!(
+        status_of(UserError::Pool("no connections".to_owned()).into()),
+        StatusCode::INTERNAL_SERVER_ERROR
+    );
+}
+
+#[test]
+fn oauth_error_variants_classify() {
+    let cases: Vec<(OauthError, StatusCode)> = vec![
+        (
+            OauthError::CodeNotFound("c".to_owned()),
+            StatusCode::NOT_FOUND,
+        ),
+        (
+            OauthError::TokenNotFound("t".to_owned()),
+            StatusCode::NOT_FOUND,
+        ),
+        (
+            OauthError::ClientNotFound("cl".to_owned()),
+            StatusCode::NOT_FOUND,
+        ),
+        (
+            OauthError::UserNotFound("u".to_owned()),
+            StatusCode::NOT_FOUND,
+        ),
+        (
+            OauthError::Validation("v".to_owned()),
+            StatusCode::BAD_REQUEST,
+        ),
+        (
+            OauthError::UsernameTaken("n".to_owned()),
+            StatusCode::CONFLICT,
+        ),
+        (
+            OauthError::EmailRegistered("e".to_owned()),
+            StatusCode::CONFLICT,
+        ),
+        (
+            OauthError::InvalidGrant("g".to_owned()),
+            StatusCode::UNAUTHORIZED,
+        ),
+        (
+            OauthError::InvalidClient("c".to_owned()),
+            StatusCode::UNAUTHORIZED,
+        ),
+        (
+            OauthError::TokenInvalid("t".to_owned()),
+            StatusCode::UNAUTHORIZED,
+        ),
+        (OauthError::TokenMissingKid, StatusCode::UNAUTHORIZED),
+        (
+            OauthError::TokenUnknownKid {
+                kid: "k".to_owned(),
+            },
+            StatusCode::UNAUTHORIZED,
+        ),
+        (
+            OauthError::TokenAlgMismatch {
+                got: "HS256".to_owned(),
+                expected: "RS256".to_owned(),
+            },
+            StatusCode::UNAUTHORIZED,
+        ),
+        (
+            OauthError::PkceMismatch("p".to_owned()),
+            StatusCode::UNAUTHORIZED,
+        ),
+        (
+            OauthError::Expired("x".to_owned()),
+            StatusCode::UNAUTHORIZED,
+        ),
+        (
+            OauthError::Provider("p".to_owned()),
+            StatusCode::INTERNAL_SERVER_ERROR,
+        ),
+        (
+            OauthError::Session("s".to_owned()),
+            StatusCode::INTERNAL_SERVER_ERROR,
+        ),
+        (
+            OauthError::WebAuthn("w".to_owned()),
+            StatusCode::INTERNAL_SERVER_ERROR,
+        ),
+        (
+            OauthError::RegistrationStateExpired,
+            StatusCode::INTERNAL_SERVER_ERROR,
+        ),
+        (
+            OauthError::Internal("i".to_owned()),
+            StatusCode::INTERNAL_SERVER_ERROR,
+        ),
+    ];
+
+    for (err, expected) in cases {
+        let rendered = err.to_string();
+        let http: ApiHttpError = err.into();
+        assert_eq!(status_of(http), expected, "{rendered}");
+    }
+}
+
+#[test]
+fn every_token_rejection_is_a_401_rather_than_a_500() {
+    // A malformed or unverifiable token is a credential problem the caller can
+    // fix by re-authenticating; classifying it as a server error would both
+    // mislead the client and mask a real outage.
+    for err in [
+        OauthError::TokenMissingKid,
+        OauthError::TokenUnknownKid {
+            kid: "rotated-out".to_owned(),
+        },
+        OauthError::TokenAlgMismatch {
+            got: "none".to_owned(),
+            expected: "RS256".to_owned(),
+        },
+    ] {
+        let rendered = err.to_string();
+        assert_eq!(
+            status_of(err.into()),
+            StatusCode::UNAUTHORIZED,
+            "{rendered}"
+        );
+    }
+}
+
+#[test]
+fn session_creation_errors_split_missing_user_from_internal_failure() {
+    assert_eq!(
+        status_of(
+            SessionCreationError::UserNotFound {
+                user_id: UserId::new("ghost"),
+            }
+            .into()
+        ),
+        StatusCode::NOT_FOUND
+    );
+    assert_eq!(
+        status_of(SessionCreationError::Internal("pool exhausted".to_owned()).into()),
+        StatusCode::INTERNAL_SERVER_ERROR
+    );
+}
+
+#[test]
+fn the_remaining_proxy_error_variants_classify_and_render() {
+    let cases = [
+        (
+            ProxyError::UrlConstructionFailed {
+                service: "s".to_owned(),
+                reason: "bad port".to_owned(),
+            },
+            StatusCode::INTERNAL_SERVER_ERROR,
+        ),
+        (
+            ProxyError::InvalidMethod {
+                reason: "CONNECT".to_owned(),
+            },
+            StatusCode::BAD_REQUEST,
+        ),
+        (
+            ProxyError::BodyExtractionFailed {
+                source: axum::Error::new(std::io::Error::other("stream closed")),
+            },
+            StatusCode::BAD_REQUEST,
+        ),
+        (
+            ProxyError::AuthenticationRequired {
+                service: "s".to_owned(),
+            },
+            StatusCode::UNAUTHORIZED,
+        ),
+        (
+            ProxyError::MissingContext {
+                message: "no request context".to_owned(),
+            },
+            StatusCode::UNAUTHORIZED,
+        ),
+        (
+            ProxyError::Forbidden {
+                service: "s".to_owned(),
+            },
+            StatusCode::FORBIDDEN,
+        ),
+    ];
+
+    for (err, expected) in cases {
+        let rendered = err.to_string();
+        assert_eq!(err.to_status_code(), expected, "{rendered}");
+        assert_eq!(
+            err.into_response().status(),
+            expected,
+            "the rendered response must carry the classified status: {rendered}"
+        );
+    }
+}
+
+#[test]
+fn a_proxy_error_converts_into_a_bare_status_code() {
+    let status: StatusCode = ProxyError::ServiceNotFound {
+        service: "missing".to_owned(),
+    }
+    .into();
+    assert_eq!(status, StatusCode::NOT_FOUND);
+}
+
+#[test]
+fn a_missing_request_context_is_a_401_not_a_500() {
+    // The proxy cannot attribute the call without a RequestContext, so this is
+    // an authentication problem the caller can fix — reporting it as a server
+    // error would both mislead the caller and hide a real fault.
+    let err = ProxyError::MissingContext {
+        message: "RequestContext extension absent".to_owned(),
+    };
+    assert_eq!(err.to_status_code(), StatusCode::UNAUTHORIZED);
 }

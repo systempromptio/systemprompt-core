@@ -893,3 +893,470 @@ fn test_extension_migration_status_with_drift_and_pending() {
     assert_eq!(s.drift.len(), 1);
     assert_eq!(s.drift[0].version, s.applied[0].version);
 }
+
+// A provider whose `query_raw_with` reports a fixed set of applied versions, so
+// the down-migration runner has something to revert. `RecordingProvider`
+// returns an empty rowset, which short-circuits every revert path before it
+// starts.
+#[derive(Debug)]
+struct AppliedVersionsProvider {
+    log: Arc<CallLog>,
+    applied: Vec<i64>,
+}
+
+impl AppliedVersionsProvider {
+    fn new(log: Arc<CallLog>, applied: Vec<i64>) -> Self {
+        Self { log, applied }
+    }
+
+    fn version_rows(&self) -> QueryResult {
+        let rows = self
+            .applied
+            .iter()
+            .map(|v| {
+                let mut row = std::collections::HashMap::new();
+                row.insert("version".to_owned(), serde_json::json!(v));
+                row
+            })
+            .collect::<Vec<_>>();
+        QueryResult {
+            columns: vec!["version".to_owned()],
+            row_count: rows.len(),
+            rows,
+            execution_time_ms: 0,
+        }
+    }
+}
+
+#[async_trait]
+impl DatabaseProvider for AppliedVersionsProvider {
+    async fn execute(
+        &self,
+        _query: &dyn QuerySelector,
+        _params: &[&dyn ToDbValue],
+    ) -> DatabaseResult<u64> {
+        self.log.push("execute");
+        Ok(0)
+    }
+
+    async fn execute_raw(&self, sql: &str) -> DatabaseResult<()> {
+        self.log.push(format!("execute_raw:{sql}"));
+        Ok(())
+    }
+
+    async fn fetch_all(
+        &self,
+        _query: &dyn QuerySelector,
+        _params: &[&dyn ToDbValue],
+    ) -> DatabaseResult<Vec<JsonRow>> {
+        Ok(vec![])
+    }
+
+    async fn fetch_one(
+        &self,
+        _query: &dyn QuerySelector,
+        _params: &[&dyn ToDbValue],
+    ) -> DatabaseResult<JsonRow> {
+        Ok(JsonRow::new())
+    }
+
+    async fn fetch_optional(
+        &self,
+        _query: &dyn QuerySelector,
+        _params: &[&dyn ToDbValue],
+    ) -> DatabaseResult<Option<JsonRow>> {
+        Ok(None)
+    }
+
+    async fn fetch_scalar_value(
+        &self,
+        _query: &dyn QuerySelector,
+        _params: &[&dyn ToDbValue],
+    ) -> DatabaseResult<DbValue> {
+        Ok(DbValue::NullString)
+    }
+
+    async fn begin_transaction(&self) -> DatabaseResult<Box<dyn DatabaseTransaction>> {
+        self.log.push("begin");
+        Ok(Box::new(RecordingTx {
+            log: Arc::clone(&self.log),
+            statement_index: 0,
+            fail_on_statement: None,
+        }))
+    }
+
+    async fn get_database_info(&self) -> DatabaseResult<DatabaseInfo> {
+        Ok(DatabaseInfo {
+            path: String::new(),
+            size: 0,
+            version: "test".into(),
+            tables: vec![],
+        })
+    }
+
+    async fn test_connection(&self) -> DatabaseResult<()> {
+        Ok(())
+    }
+
+    async fn execute_batch(&self, _sql: &str) -> DatabaseResult<()> {
+        Ok(())
+    }
+
+    async fn query_raw(&self, _query: &dyn QuerySelector) -> DatabaseResult<QueryResult> {
+        Ok(self.version_rows())
+    }
+
+    async fn query_raw_with(
+        &self,
+        _query: &dyn QuerySelector,
+        _params: &[&dyn ToDbValue],
+    ) -> DatabaseResult<QueryResult> {
+        Ok(self.version_rows())
+    }
+}
+
+#[tokio::test]
+async fn run_down_migrations_reverts_the_applied_version_in_a_transaction() {
+    let log = Arc::new(CallLog::default());
+    let provider = AppliedVersionsProvider::new(Arc::clone(&log), vec![1]);
+    let service = MigrationService::new(&provider);
+
+    let extension = StubExtension {
+        id: "reversible_ext",
+        migrations: vec![Migration::with_down(
+            1,
+            "create_then_drop",
+            "CREATE TABLE r (id TEXT);",
+            "DROP TABLE r;",
+        )],
+    };
+
+    let result = service
+        .run_down_migrations(&extension, 1)
+        .await
+        .expect("a reversible migration must revert");
+    assert_eq!(result.migrations_run, 1);
+
+    let events = log.snapshot();
+    assert!(
+        events.contains(&"begin".to_owned()),
+        "the revert must run inside a transaction: {events:?}"
+    );
+    assert!(
+        events.contains(&"commit".to_owned()),
+        "a successful revert must commit: {events:?}"
+    );
+    // `delete_migration_record` is the only non-transactional `execute` the
+    // revert issues, so its presence is the ledger delete.
+    assert_eq!(
+        events.iter().filter(|e| *e == "execute").count(),
+        1,
+        "the ledger row must be deleted after the down SQL runs: {events:?}"
+    );
+    assert!(
+        events.iter().position(|e| e == "commit") < events.iter().position(|e| e == "execute"),
+        "the ledger delete must follow the committed down SQL, not precede it: {events:?}"
+    );
+}
+
+#[tokio::test]
+async fn run_down_migrations_refuses_a_version_with_no_down_sql() {
+    let log = Arc::new(CallLog::default());
+    let provider = AppliedVersionsProvider::new(Arc::clone(&log), vec![1]);
+    let service = MigrationService::new(&provider);
+
+    let extension = StubExtension {
+        id: "irreversible_applied_ext",
+        migrations: vec![Migration::new(1, "no_down", "CREATE TABLE z (id TEXT);")],
+    };
+
+    let err = service
+        .run_down_migrations(&extension, 1)
+        .await
+        .expect_err("a migration with no down SQL cannot be reverted");
+    assert!(
+        err.to_string().contains("not reversible"),
+        "the refusal must say why, got {err}"
+    );
+    assert!(
+        !log.snapshot().iter().any(|e| e == "execute"),
+        "a refused revert must not delete the ledger row: {:?}",
+        log.snapshot()
+    );
+}
+
+#[tokio::test]
+async fn run_down_migrations_reverts_newest_first_and_honours_the_count() {
+    let log = Arc::new(CallLog::default());
+    let provider = AppliedVersionsProvider::new(Arc::clone(&log), vec![2, 1]);
+    let service = MigrationService::new(&provider);
+
+    let extension = StubExtension {
+        id: "multi_reversible_ext",
+        migrations: vec![
+            Migration::with_down(1, "first", "CREATE TABLE a (id TEXT);", "DROP TABLE a;"),
+            Migration::with_down(2, "second", "CREATE TABLE b (id TEXT);", "DROP TABLE b;"),
+        ],
+    };
+
+    let result = service
+        .run_down_migrations(&extension, 2)
+        .await
+        .expect("both versions revert");
+    assert_eq!(
+        result.migrations_run, 2,
+        "the runner must revert every version the query returned"
+    );
+
+    let deletes = log
+        .snapshot()
+        .into_iter()
+        .filter(|e| e == "execute")
+        .count();
+    assert_eq!(deletes, 2, "one ledger delete per reverted migration");
+}
+
+#[tokio::test]
+async fn run_down_migrations_rejects_unparseable_down_sql_before_deleting_the_record() {
+    let log = Arc::new(CallLog::default());
+    let provider = AppliedVersionsProvider::new(Arc::clone(&log), vec![1]);
+    let service = MigrationService::new(&provider);
+
+    let extension = StubExtension {
+        id: "bad_down_ext",
+        migrations: vec![Migration::with_down(
+            1,
+            "unparseable_down",
+            "CREATE TABLE q (id TEXT);",
+            "DROP TABLE q; $$ unterminated dollar quote",
+        )],
+    };
+
+    let result = service.run_down_migrations(&extension, 1).await;
+    let deleted = log.snapshot().iter().any(|e| e == "execute");
+    assert_eq!(
+        result.is_ok(),
+        deleted,
+        "the ledger row is deleted exactly when the revert succeeds — never on a parse failure"
+    );
+}
+
+// A provider returning fully-populated `extension_migrations` rows, so the
+// row-to-`AppliedMigration` mapping runs. `AppliedVersionsProvider` reports
+// versions only, which is enough for the down-migration query but leaves the
+// mapping in `get_applied_migrations` unexercised.
+#[derive(Debug)]
+struct AppliedRowsProvider {
+    log: Arc<CallLog>,
+    rows: Vec<(i64, &'static str, &'static str, Option<&'static str>)>,
+}
+
+impl AppliedRowsProvider {
+    fn applied_rows(&self) -> QueryResult {
+        let rows = self
+            .rows
+            .iter()
+            .map(|(version, name, checksum, applied_at)| {
+                let mut row = std::collections::HashMap::new();
+                row.insert("extension_id".to_owned(), serde_json::json!("rows_ext"));
+                row.insert("version".to_owned(), serde_json::json!(version));
+                row.insert("name".to_owned(), serde_json::json!(name));
+                row.insert("checksum".to_owned(), serde_json::json!(checksum));
+                row.insert(
+                    "applied_at".to_owned(),
+                    applied_at.map_or(serde_json::Value::Null, |v| serde_json::json!(v)),
+                );
+                row
+            })
+            .collect::<Vec<_>>();
+        QueryResult {
+            columns: vec![
+                "extension_id".to_owned(),
+                "version".to_owned(),
+                "name".to_owned(),
+                "checksum".to_owned(),
+                "applied_at".to_owned(),
+            ],
+            row_count: rows.len(),
+            rows,
+            execution_time_ms: 0,
+        }
+    }
+}
+
+#[async_trait]
+impl DatabaseProvider for AppliedRowsProvider {
+    async fn execute(
+        &self,
+        _query: &dyn QuerySelector,
+        _params: &[&dyn ToDbValue],
+    ) -> DatabaseResult<u64> {
+        self.log.push("execute");
+        Ok(0)
+    }
+
+    async fn execute_raw(&self, sql: &str) -> DatabaseResult<()> {
+        self.log.push(format!("execute_raw:{sql}"));
+        Ok(())
+    }
+
+    async fn fetch_all(
+        &self,
+        _query: &dyn QuerySelector,
+        _params: &[&dyn ToDbValue],
+    ) -> DatabaseResult<Vec<JsonRow>> {
+        Ok(vec![])
+    }
+
+    async fn fetch_one(
+        &self,
+        _query: &dyn QuerySelector,
+        _params: &[&dyn ToDbValue],
+    ) -> DatabaseResult<JsonRow> {
+        Ok(JsonRow::new())
+    }
+
+    async fn fetch_optional(
+        &self,
+        _query: &dyn QuerySelector,
+        _params: &[&dyn ToDbValue],
+    ) -> DatabaseResult<Option<JsonRow>> {
+        Ok(None)
+    }
+
+    async fn fetch_scalar_value(
+        &self,
+        _query: &dyn QuerySelector,
+        _params: &[&dyn ToDbValue],
+    ) -> DatabaseResult<DbValue> {
+        Ok(DbValue::NullString)
+    }
+
+    async fn begin_transaction(&self) -> DatabaseResult<Box<dyn DatabaseTransaction>> {
+        self.log.push("begin");
+        Ok(Box::new(RecordingTx {
+            log: Arc::clone(&self.log),
+            statement_index: 0,
+            fail_on_statement: None,
+        }))
+    }
+
+    async fn get_database_info(&self) -> DatabaseResult<DatabaseInfo> {
+        Ok(DatabaseInfo {
+            path: String::new(),
+            size: 0,
+            version: "test".into(),
+            tables: vec![],
+        })
+    }
+
+    async fn test_connection(&self) -> DatabaseResult<()> {
+        Ok(())
+    }
+
+    async fn execute_batch(&self, _sql: &str) -> DatabaseResult<()> {
+        Ok(())
+    }
+
+    async fn query_raw(&self, _query: &dyn QuerySelector) -> DatabaseResult<QueryResult> {
+        Ok(self.applied_rows())
+    }
+
+    async fn query_raw_with(
+        &self,
+        _query: &dyn QuerySelector,
+        _params: &[&dyn ToDbValue],
+    ) -> DatabaseResult<QueryResult> {
+        Ok(self.applied_rows())
+    }
+}
+
+#[tokio::test]
+async fn an_applied_migration_row_maps_every_column_including_a_null_timestamp() {
+    let log = Arc::new(CallLog::default());
+    let provider = AppliedRowsProvider {
+        log: Arc::clone(&log),
+        rows: vec![
+            (1, "first", "checksum_one", Some("2026-01-01T00:00:00Z")),
+            (2, "second", "checksum_two", None),
+        ],
+    };
+    let service = MigrationService::new(&provider);
+
+    let applied = service
+        .get_applied_migrations("rows_ext")
+        .await
+        .expect("the applied-migration query maps its rows");
+
+    assert_eq!(applied.len(), 2, "both rows must map, got {applied:?}");
+    assert_eq!(applied[0].version, 1);
+    assert_eq!(applied[0].name, "first");
+    assert_eq!(applied[0].checksum, "checksum_one");
+    assert_eq!(
+        applied[0].applied_at.as_deref(),
+        Some("2026-01-01T00:00:00Z")
+    );
+    assert_eq!(
+        applied[1].applied_at, None,
+        "a NULL applied_at must map to None rather than dropping the row"
+    );
+}
+
+#[tokio::test]
+async fn a_migration_already_recorded_with_a_matching_checksum_is_skipped_not_rerun() {
+    let log = Arc::new(CallLog::default());
+    let migration = Migration::new(1, "first", "CREATE TABLE m (id TEXT);");
+    let checksum: &'static str = Box::leak(migration.checksum().into_boxed_str());
+
+    let provider = AppliedRowsProvider {
+        log: Arc::clone(&log),
+        rows: vec![(1, "first", checksum, Some("2026-01-01T00:00:00Z"))],
+    };
+    let service = MigrationService::new(&provider);
+    let extension = StubExtension {
+        id: "rows_ext",
+        migrations: vec![migration],
+    };
+
+    let result = service
+        .run_pending_migrations(&extension)
+        .await
+        .expect("an already-applied migration is not an error");
+
+    assert_eq!(
+        result.migrations_run, 0,
+        "a migration whose checksum still matches must not run again"
+    );
+    assert!(
+        !log.snapshot().iter().any(|e| e == "begin"),
+        "nothing may be re-executed, so no transaction is opened: {:?}",
+        log.snapshot()
+    );
+}
+
+#[tokio::test]
+async fn an_extension_with_no_migrations_short_circuits_before_touching_the_ledger() {
+    let log = Arc::new(CallLog::default());
+    let provider = AppliedRowsProvider {
+        log: Arc::clone(&log),
+        rows: vec![],
+    };
+    let service = MigrationService::new(&provider);
+    let extension = StubExtension {
+        id: "empty_ext",
+        migrations: vec![],
+    };
+
+    let result = service
+        .run_pending_migrations(&extension)
+        .await
+        .expect("no migrations is not an error");
+
+    assert_eq!(result.migrations_run, 0);
+    assert!(
+        log.snapshot().is_empty(),
+        "an extension with nothing to migrate must not even create the ledger \
+         table: {:?}",
+        log.snapshot()
+    );
+}

@@ -205,3 +205,37 @@ async fn provider_error_produces_synthesis_failed_fallback() {
     assert!(out.contains("Synthesis error"));
     assert!(out.contains("stub failure"));
 }
+
+#[tokio::test]
+async fn the_synthesis_params_debug_elides_the_provider_but_keeps_the_inputs() {
+    let provider = StubProvider::new(Outcome::Text("x"), Outcome::Error);
+    let messages = original_messages();
+    let calls = tool_calls();
+    let results = tool_results();
+
+    let params = SynthesisParams {
+        provider: &provider,
+        original_messages: &messages,
+        tool_calls: &calls,
+        tool_results: &results,
+        sampling: None,
+        max_output_tokens: 256,
+        model: "stub-model-for-debug",
+    };
+
+    let rendered = format!("{params:?}");
+
+    assert!(
+        rendered.contains("<dyn AiProvider>"),
+        "the provider is a trait object with no Debug of its own, so it must be \
+         elided rather than force the whole struct to be undebuggable: {rendered}"
+    );
+    assert!(
+        rendered.contains("stub-model-for-debug") && rendered.contains("256"),
+        "the scalar inputs must survive so a failing synthesis can be diagnosed: {rendered}"
+    );
+    assert!(
+        rendered.contains("sunny, 24C"),
+        "the tool results being synthesised must appear in the rendering: {rendered}"
+    );
+}

@@ -486,3 +486,162 @@ async fn provider_registry_accessors_report_state() {
     let debug = format!("{service:?}");
     assert!(debug.contains("ImageService"));
 }
+
+// --- persistence failure arms ---
+//
+// Every `image_persistence` helper maps a provider error into
+// `AiError::DatabaseError`. The in-memory provider above never fails, so those
+// arms need a provider that always does.
+
+#[derive(Debug, Default)]
+struct FailingFileProvider;
+
+#[async_trait]
+impl AiFilePersistenceProvider for FailingFileProvider {
+    async fn insert_file(&self, _params: InsertAiFileParams) -> AiProviderResult<()> {
+        Err(AiProviderError::ConfigurationError {
+            message: "file store unavailable".to_owned(),
+        })
+    }
+
+    async fn find_by_id(&self, _id: &FileId) -> AiProviderResult<Option<AiGeneratedFile>> {
+        Err(AiProviderError::ConfigurationError {
+            message: "file lookup unavailable".to_owned(),
+        })
+    }
+
+    async fn list_by_user(
+        &self,
+        _user_id: &UserId,
+        _limit: i64,
+        _offset: i64,
+    ) -> AiProviderResult<Vec<AiGeneratedFile>> {
+        Err(AiProviderError::ConfigurationError {
+            message: "file listing unavailable".to_owned(),
+        })
+    }
+
+    async fn delete(&self, _id: &FileId) -> AiProviderResult<()> {
+        Err(AiProviderError::ConfigurationError {
+            message: "file delete unavailable".to_owned(),
+        })
+    }
+
+    fn storage_config(&self) -> AiProviderResult<ImageStorageConfig> {
+        Err(AiProviderError::ConfigurationError {
+            message: "not used in tests".to_owned(),
+        })
+    }
+}
+
+fn build_failing_service(pool: &DbPool) -> (tempfile::TempDir, ImageService) {
+    let (dir, config) = storage_config();
+    let mut map: HashMap<String, BoxedImageProvider> = HashMap::new();
+    map.insert(
+        "stub".to_owned(),
+        Arc::new(StubImageProvider::ok("stub", "stub-image-1")) as BoxedImageProvider,
+    );
+    let service = ImageService::with_providers(
+        pool,
+        config,
+        Arc::new(FailingFileProvider),
+        map,
+        Some("stub".to_owned()),
+    )
+    .expect("image service builds with a failing file provider");
+    (dir, service)
+}
+
+#[tokio::test]
+async fn a_failing_file_record_write_surfaces_as_a_database_error() {
+    let Some(pool) = pool().await else {
+        return;
+    };
+    let user_id = seed_user(&pool).await;
+    let (_dir, service) = build_failing_service(&pool);
+
+    let err = service
+        .generate_image(request(&user_id, Some("stub-image-1")))
+        .await
+        .expect_err("a file store that cannot record the image must fail the generation");
+    assert!(
+        matches!(err, systemprompt_ai::error::AiError::DatabaseError { .. }),
+        "a persistence failure must be reported as a database error, got {err:?}"
+    );
+}
+
+#[tokio::test]
+async fn a_failing_lookup_is_reported_rather_than_read_as_absent() {
+    let Some(pool) = pool().await else {
+        return;
+    };
+    let (_dir, service) = build_failing_service(&pool);
+
+    let err = service
+        .find_generated_image("no-such-uuid")
+        .await
+        .expect_err("a failing store must not be indistinguishable from an empty one");
+    assert!(matches!(
+        err,
+        systemprompt_ai::error::AiError::DatabaseError { .. }
+    ));
+}
+
+#[tokio::test]
+async fn a_failing_listing_is_reported_rather_than_read_as_empty() {
+    let Some(pool) = pool().await else {
+        return;
+    };
+    let user_id = seed_user(&pool).await;
+    let (_dir, service) = build_failing_service(&pool);
+
+    let err = service
+        .list_user_images(&user_id, Some(10), Some(0))
+        .await
+        .expect_err("a failing listing must surface, not read as no images");
+    assert!(matches!(
+        err,
+        systemprompt_ai::error::AiError::DatabaseError { .. }
+    ));
+
+    // The default limit/offset arm takes the same path.
+    let defaulted = service.list_user_images(&user_id, None, None).await;
+    assert!(defaulted.is_err(), "defaults must not bypass the store");
+}
+
+#[tokio::test]
+async fn deleting_an_image_the_store_cannot_look_up_is_an_error() {
+    let Some(pool) = pool().await else {
+        return;
+    };
+    let (_dir, service) = build_failing_service(&pool);
+
+    let err = service
+        .delete_image("no-such-uuid")
+        .await
+        .expect_err("a failing lookup must abort the delete");
+    assert!(matches!(
+        err,
+        systemprompt_ai::error::AiError::DatabaseError { .. }
+    ));
+}
+
+#[tokio::test]
+async fn deleting_an_absent_image_through_a_working_store_is_a_no_op() {
+    let Some(pool) = pool().await else {
+        return;
+    };
+    let file_provider = Arc::new(InMemoryFileProvider::default());
+    let provider: BoxedImageProvider = Arc::new(StubImageProvider::ok("stub", "stub-image-1"));
+    let (_dir, service) = build_service(
+        &pool,
+        Arc::clone(&file_provider),
+        vec![("stub".to_owned(), provider)],
+        Some("stub".to_owned()),
+    );
+
+    service
+        .delete_image("uuid-that-was-never-stored")
+        .await
+        .expect("deleting an id the store does not hold must succeed quietly");
+}

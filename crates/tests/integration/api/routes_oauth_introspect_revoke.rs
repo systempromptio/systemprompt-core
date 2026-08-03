@@ -246,3 +246,84 @@ async fn revoke_with_bad_client_secret_returns_invalid_client() -> anyhow::Resul
     assert_eq!(v["error"].as_str(), Some("invalid_client"), "{v}");
     Ok(())
 }
+
+// `revoke_access_token_jti` reads the token with `insecure_decode`, so the
+// signature is irrelevant and an unsigned token is enough to drive the claim
+// shapes it has to survive.
+fn unsigned_access_token(claims: serde_json::Value) -> String {
+    use base64::Engine;
+    use base64::engine::general_purpose::URL_SAFE_NO_PAD;
+    format!(
+        "{}.{}.c2ln",
+        URL_SAFE_NO_PAD.encode(r#"{"alg":"RS256","typ":"JWT"}"#),
+        URL_SAFE_NO_PAD.encode(claims.to_string())
+    )
+}
+
+fn base_claims() -> serde_json::Value {
+    serde_json::json!({
+        "sub": Uuid::new_v4().to_string(),
+        "iss": "https://issuer.test",
+        "aud": ["api"],
+        "exp": chrono::Utc::now().timestamp() + 3600,
+        "iat": chrono::Utc::now().timestamp(),
+        "jti": Uuid::new_v4().to_string(),
+        "scope": [],
+        "session_id": Uuid::new_v4().to_string(),
+    })
+}
+
+async fn revoke_token_value(token: &str) -> anyhow::Result<StatusCode> {
+    let (user, _client) = seeded_client().await?;
+    let app = oauth_app(user).await?;
+    let body = urlencode(&[("token", token), ("token_type_hint", "access_token")]);
+    Ok(app.oneshot(form_post("/revoke", body)).await?.status())
+}
+
+#[tokio::test]
+async fn revoking_a_token_whose_subject_is_not_a_uuid_still_succeeds() -> anyhow::Result<()> {
+    let mut claims = base_claims();
+    claims["sub"] = serde_json::Value::String("not-a-uuid".to_owned());
+
+    // RFC 7009 requires the endpoint to report success whether or not the token
+    // was recognised, so an unrecordable subject must not surface as an error.
+    assert_eq!(
+        revoke_token_value(&unsigned_access_token(claims)).await?,
+        StatusCode::OK
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn revoking_a_token_with_no_jti_still_succeeds() -> anyhow::Result<()> {
+    let mut claims = base_claims();
+    claims["jti"] = serde_json::Value::String(String::new());
+
+    assert_eq!(
+        revoke_token_value(&unsigned_access_token(claims)).await?,
+        StatusCode::OK
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn revoking_a_token_with_an_out_of_range_expiry_still_succeeds() -> anyhow::Result<()> {
+    let mut claims = base_claims();
+    claims["exp"] = serde_json::Value::from(i64::MAX);
+
+    assert_eq!(
+        revoke_token_value(&unsigned_access_token(claims)).await?,
+        StatusCode::OK
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn revoking_something_that_is_not_a_token_at_all_still_succeeds() -> anyhow::Result<()> {
+    // An opaque or garbage token must not leak whether it was ever valid.
+    assert_eq!(
+        revoke_token_value("this-is-not-a-jwt").await?,
+        StatusCode::OK
+    );
+    Ok(())
+}

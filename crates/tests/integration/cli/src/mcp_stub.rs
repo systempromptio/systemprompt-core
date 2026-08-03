@@ -8,14 +8,17 @@
 //! The server name is per-process ([`fixture_mcp_server`]) so concurrent test
 //! processes cannot repoint each other's `services` row.
 
+use std::process::{Child, Command, Stdio};
 use std::sync::OnceLock;
 
+use systemprompt_models::subprocess::MCP_SERVICE_ID_ENV;
 use wiremock::matchers::{body_partial_json, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 use crate::full_bootstrap::{database_url, fixture, fixture_mcp_server, rewrite_services_config};
 
 static STUB: OnceLock<Option<u16>> = OnceLock::new();
+static IDENTITY_HOLDER: OnceLock<Child> = OnceLock::new();
 
 pub fn stub_port() -> Option<u16> {
     *STUB.get_or_init(|| {
@@ -26,6 +29,35 @@ pub fn stub_port() -> Option<u16> {
         register_running_service(&url, port);
         Some(port)
     })
+}
+
+// Why: the services row must survive `cleanup_stale_service_entries`, which any
+// concurrently-booting API server runs. That sweep judges a `running` row stale
+// unless its pid is alive *and* `/proc/<pid>/environ` names the service under
+// `MCP_SERVICE_ID` — a check the nextest process can never satisfy, because
+// environ is fixed at exec. Registering this process's own pid therefore let a
+// sibling test delete the row mid-run and `plugins mcp call` resolved no port.
+// So stand up a real child that does carry the identity: the row's pid then
+// means what production means by it.
+//
+// The child blocks reading a pipe this process owns rather than sleeping for a
+// fixed span, so it cannot outlive the test: the kernel closes the write end
+// however the parent dies, `read` sees EOF and the child exits. A timed sleep
+// leaked one process per test binary for the length of its bound.
+fn identity_holder_pid() -> u32 {
+    IDENTITY_HOLDER
+        .get_or_init(|| {
+            Command::new("sh")
+                .arg("-c")
+                .arg("read _")
+                .env(MCP_SERVICE_ID_ENV, fixture_mcp_server())
+                .stdin(Stdio::piped())
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .spawn()
+                .expect("spawn mcp stub identity holder")
+        })
+        .id()
 }
 
 fn start_stub_server() -> u16 {
@@ -54,14 +86,13 @@ fn register_running_service(database_url: &str, port: u16) {
         let pool = sqlx::PgPool::connect(database_url)
             .await
             .expect("connect to test database");
-        // The row carries this test process's pid because
+        // The row must carry a pid at all, because
         // `ServiceRepository::cleanup_stale_entries` deletes every
         // `status = 'running' AND pid IS NULL` row across the whole table, and
         // a concurrently-running test process boots an orchestrator that calls
-        // it. A pid-less stub registration was therefore deleted out from under
-        // this process, and the command under test saw no running MCP server.
-        // The pid is honest: the wiremock stub is hosted by this process.
-        let pid = i32::try_from(std::process::id()).expect("pid fits in i32");
+        // it. It must additionally be a pid whose environ names this service —
+        // see `identity_holder_pid`.
+        let pid = i32::try_from(identity_holder_pid()).expect("pid fits in i32");
         sqlx::query(
             "INSERT INTO services (name, module_name, server_type, port, status, pid)
              VALUES ($1, 'mcp', 'external', $2, 'running', $3)

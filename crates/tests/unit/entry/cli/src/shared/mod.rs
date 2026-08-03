@@ -11,8 +11,12 @@
 
 mod command_result;
 mod disk_logs;
+mod output_type_builders;
 mod parsers;
 mod profile;
+mod profile_helpers;
 mod profile_resolution;
 mod project;
 mod render_and_text;
+mod render_matrix;
+mod scope_error_and_export_arms;

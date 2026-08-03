@@ -243,3 +243,103 @@ async fn proxy_engine_default_constructs() {
     drop(cloned);
     drop(engine);
 }
+
+// `lookup_oauth_requirement` branches on the services row's `module_name`, and
+// only the `custom` branch (a blanket `required: true`) is reached above. The
+// `agent` and `mcp` branches consult their registries, and a row naming a
+// service the registry does not know is exactly the stale-row case that must
+// not be forwarded.
+#[tokio::test]
+async fn a_services_row_naming_an_unknown_agent_is_not_proxied() -> anyhow::Result<()> {
+    let (pool, ctx) = setup_ctx().await?;
+    let backend = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/"))
+        .respond_with(ResponseTemplate::new(200).set_body_string("must-not-be-reached"))
+        .mount(&backend)
+        .await;
+
+    let name = unique_name("ghost-agent");
+    register_running_service(&pool, &name, "agent", backend.address().port()).await?;
+
+    let token = ctx_token();
+    let app = agents::router(&ctx).layer(middleware::from_fn_with_state(token.clone(), inject_ctx));
+    let resp = app.oneshot(authed_get(&format!("/{name}"), &token)).await?;
+    let (status, body) = body_to_string(resp).await?;
+
+    assert!(
+        status.is_client_error() || status.is_server_error(),
+        "a running row for an agent the registry never declared must not forward, got {status}"
+    );
+    assert!(
+        !body.contains("must-not-be-reached"),
+        "the backend must never have been dialled: {body}"
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn a_services_row_naming_an_unknown_mcp_server_is_not_proxied() -> anyhow::Result<()> {
+    let (pool, ctx) = setup_ctx().await?;
+    let backend = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/mcp"))
+        .respond_with(ResponseTemplate::new(200).set_body_string("must-not-be-reached"))
+        .mount(&backend)
+        .await;
+
+    let name = unique_name("ghost-mcp");
+    register_running_service(&pool, &name, "mcp", backend.address().port()).await?;
+
+    let token = ctx_token();
+    let app = mcp::router(&ctx).layer(middleware::from_fn_with_state(token.clone(), inject_ctx));
+    let resp = app
+        .oneshot(authed_post(&format!("/{name}/mcp"), &token, "{}"))
+        .await?;
+    let (status, body) = body_to_string(resp).await?;
+
+    assert!(
+        status.is_client_error() || status.is_server_error(),
+        "a running row for an MCP server the registry never declared must not forward, got {status}"
+    );
+    assert!(
+        !body.contains("must-not-be-reached"),
+        "the backend must never have been dialled: {body}"
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn an_unknown_module_name_still_demands_a_credential() -> anyhow::Result<()> {
+    let (pool, ctx) = setup_ctx().await?;
+    let backend = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/"))
+        .respond_with(ResponseTemplate::new(200).set_body_string("must-not-be-reached"))
+        .mount(&backend)
+        .await;
+
+    let name = unique_name("unknown-module");
+    register_running_service(&pool, &name, "something-else", backend.address().port()).await?;
+
+    // No Authorization header: an unrecognised module defaults to
+    // `required: true`, so it must fail closed rather than open.
+    let token = ctx_token();
+    let app = agents::router(&ctx).layer(middleware::from_fn_with_state(token.clone(), inject_ctx));
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .uri(format!("/{name}"))
+                .body(Body::empty())
+                .expect("request build"),
+        )
+        .await?;
+    let (status, body) = body_to_string(resp).await?;
+
+    assert!(
+        status.is_client_error(),
+        "an unknown module must default to requiring auth, got {status}: {body}"
+    );
+    assert!(!body.contains("must-not-be-reached"), "{body}");
+    Ok(())
+}

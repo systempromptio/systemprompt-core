@@ -8,6 +8,7 @@ mod inbound_anthropic_render;
 mod inbound_openai;
 mod inbound_openai_deep;
 mod inbound_openai_render;
+mod inbound_trait_defaults;
 mod inspect_equals_send;
 mod outbound;
 mod outbound_deep;

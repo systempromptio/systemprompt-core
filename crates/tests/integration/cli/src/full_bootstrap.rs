@@ -489,6 +489,9 @@ providers:
     api_key_secret: anthropic
     models:
       - id: claude-sonnet-4-5
+        pricing:
+          input_per_million: 3.0
+          output_per_million: 15.0
   - name: openai
     wire: openai-chat
     surface: openai
@@ -496,6 +499,9 @@ providers:
     api_key_secret: openai
     models:
       - id: gpt-5
+        pricing:
+          input_per_million: 1.25
+          output_per_million: 10.0
 governance:
   authz:
     hook:

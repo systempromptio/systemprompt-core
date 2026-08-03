@@ -320,3 +320,126 @@ fn compute_etag_is_stable_and_content_sensitive() {
     assert_ne!(a, c);
     assert!(a.starts_with('"') && a.ends_with('"'));
 }
+
+fn blog_matcher(tmp_cfg: &TempDir) -> anyhow::Result<StaticContentMatcher> {
+    let cfg_path = tmp_cfg.path().join("content.yaml");
+    std::fs::write(
+        &cfg_path,
+        concat!(
+            "content_sources:\n",
+            "  blog:\n",
+            "    path: blog\n",
+            "    source_id: blog\n",
+            "    category_id: blog\n",
+            "    enabled: true\n",
+            "    sitemap:\n",
+            "      enabled: true\n",
+            "      url_pattern: \"/blog/{slug}\"\n",
+            "      priority: 0.5\n",
+            "      changefreq: daily\n",
+        ),
+    )?;
+    StaticContentMatcher::from_config(cfg_path.to_str().expect("utf-8 config path"))
+}
+
+async fn seed_blog_post(state: &StaticContentState, slug: &str) -> anyhow::Result<()> {
+    let uniq = uuid::Uuid::new_v4();
+    let pool = state.ctx.db_pool().pool_arc()?;
+    sqlx::query(
+        "INSERT INTO markdown_content \
+         (id, slug, title, description, body, author, published_at, keywords, source_id, \
+         version_hash) \
+         VALUES ($1, $2, 'Prerender Fixture', 'desc', '# body', 'Author', NOW(), '', 'blog', $3)",
+    )
+    .bind(format!("mc-{uniq}"))
+    .bind(slug)
+    .bind(format!("hash-{uniq}"))
+    .execute(pool.as_ref())
+    .await?;
+    Ok(())
+}
+
+#[tokio::test]
+async fn a_prerendered_content_page_is_served_from_disk() -> anyhow::Result<()> {
+    let tmp_cfg = TempDir::new()?;
+    let (_tmp, state) = state_with_dist(blog_matcher(&tmp_cfg)?).await?;
+    let dist = dist_dir(&state);
+    std::fs::create_dir_all(dist.join("blog"))?;
+    std::fs::write(dist.join("blog/rendered.html"), "<h1>rendered post</h1>")?;
+
+    // The exact-file branch only fires when the request path names the built
+    // file; an extensionless route resolves through the directory index below.
+    let (status, hdrs, body) = serve(&state, "/blog/rendered.html", HeaderMap::new()).await;
+
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(
+        hdrs.get(header::CONTENT_TYPE).expect("content type"),
+        "text/html; charset=utf-8"
+    );
+    assert!(
+        String::from_utf8_lossy(&body).contains("rendered post"),
+        "the prerendered file is served without touching the content repository"
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn a_prerendered_content_page_served_as_a_directory_index() -> anyhow::Result<()> {
+    let tmp_cfg = TempDir::new()?;
+    let (_tmp, state) = state_with_dist(blog_matcher(&tmp_cfg)?).await?;
+    let dist = dist_dir(&state);
+    std::fs::create_dir_all(dist.join("blog/nested"))?;
+    std::fs::write(dist.join("blog/nested/index.html"), "<h1>nested post</h1>")?;
+
+    let (status, _hdrs, body) = serve(&state, "/blog/nested", HeaderMap::new()).await;
+
+    assert_eq!(status, StatusCode::OK);
+    assert!(String::from_utf8_lossy(&body).contains("nested post"));
+    Ok(())
+}
+
+#[tokio::test]
+async fn content_that_exists_but_was_never_prerendered_says_so() -> anyhow::Result<()> {
+    let tmp_cfg = TempDir::new()?;
+    let (_tmp, state) = state_with_dist(blog_matcher(&tmp_cfg)?).await?;
+    let slug = format!("unrendered-{}", uuid::Uuid::new_v4().simple());
+    seed_blog_post(&state, &slug).await?;
+
+    let (status, _hdrs, body) = serve(&state, &format!("/blog/{slug}"), HeaderMap::new()).await;
+
+    // A known document with no built HTML is an operator-facing build failure,
+    // not a 404 — the two must stay distinguishable.
+    assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
+    let rendered = String::from_utf8_lossy(&body).into_owned();
+    assert!(rendered.contains("Content Not Prerendered"), "{rendered}");
+    assert!(
+        rendered.contains(&slug),
+        "the diagnostic must name the slug that failed to build: {rendered}"
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn a_prerendered_page_revalidates_with_its_etag() -> anyhow::Result<()> {
+    let tmp_cfg = TempDir::new()?;
+    let (_tmp, state) = state_with_dist(blog_matcher(&tmp_cfg)?).await?;
+    let dist = dist_dir(&state);
+    std::fs::create_dir_all(dist.join("blog"))?;
+    let content = b"<h1>cacheable post</h1>";
+    std::fs::write(dist.join("blog/cacheable.html"), content)?;
+
+    let (first, hdrs, _body) = serve(&state, "/blog/cacheable.html", HeaderMap::new()).await;
+    assert_eq!(first, StatusCode::OK);
+    let etag = hdrs
+        .get(header::ETAG)
+        .expect("a prerendered page is revalidatable")
+        .clone();
+
+    let mut conditional = HeaderMap::new();
+    conditional.insert(header::IF_NONE_MATCH, etag);
+    let (second, _hdrs, body) = serve(&state, "/blog/cacheable.html", conditional).await;
+
+    assert_eq!(second, StatusCode::NOT_MODIFIED);
+    assert!(body.is_empty(), "a 304 must not re-send the page");
+    Ok(())
+}

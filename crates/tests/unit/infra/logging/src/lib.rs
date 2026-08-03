@@ -20,6 +20,8 @@ mod extension;
 #[cfg(test)]
 mod layer;
 #[cfg(test)]
+mod layer_visitor_fields;
+#[cfg(test)]
 mod log_actor;
 #[cfg(test)]
 mod models;

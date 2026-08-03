@@ -362,3 +362,59 @@ fn error_position_skips_inline_block_comment_on_same_line() {
         "column must point at the first significant token: {alter:?}"
     );
 }
+
+// --- arms the existing corpus does not reach ---
+
+#[test]
+fn a_create_extension_without_if_not_exists_is_a_warning_not_a_rejection() {
+    lint_declarative_schema("CREATE EXTENSION pg_trgm;", "warn_ext")
+        .expect("a missing IF NOT EXISTS is advisory — only errors reject the schema");
+
+    lint_declarative_schema("CREATE EXTENSION IF NOT EXISTS pg_trgm;", "ok_ext")
+        .expect("the guarded form is clean");
+}
+
+#[test]
+fn sql_that_does_not_parse_is_reported_as_a_single_parse_error() {
+    let errs = lint_declarative_schema("CREATE TABLE (((", "bad_sql")
+        .expect_err("unparseable SQL cannot be linted");
+    assert_eq!(
+        errs.len(),
+        1,
+        "an unparseable file yields one parse error, not a cascade: {errs:?}"
+    );
+    assert!(
+        errs[0].to_string().contains("SQL parse failed"),
+        "got {}",
+        errs[0]
+    );
+}
+
+#[test]
+fn declarative_object_kinds_other_than_tables_pass_untouched() {
+    lint_declarative_schema(
+        "CREATE TABLE IF NOT EXISTS t (id TEXT PRIMARY KEY, body TEXT);\n\
+         CREATE INDEX IF NOT EXISTS t_body_idx ON t (body);\n\
+         CREATE OR REPLACE VIEW v AS SELECT id FROM t;\n\
+         COMMENT ON TABLE t IS 'a table';",
+        "declarative_kinds",
+    )
+    .expect("indexes, views and comments are declarative");
+}
+
+#[test]
+fn an_empty_schema_file_lints_clean() {
+    lint_declarative_schema("", "empty").expect("an empty file declares nothing");
+    lint_declarative_schema("-- only a comment\n", "comment_only")
+        .expect("a comment-only file declares nothing");
+}
+
+#[test]
+fn every_reported_error_carries_the_source_name_it_was_given() {
+    let errs = lint_declarative_schema("INSERT INTO t VALUES (1);", "my_schema.sql")
+        .expect_err("imperative SQL must be rejected");
+    assert!(
+        errs.iter().all(|e| e.to_string().contains("my_schema.sql")),
+        "every diagnostic must name the file it came from: {errs:?}"
+    );
+}

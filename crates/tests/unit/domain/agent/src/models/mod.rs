@@ -16,6 +16,7 @@ mod agent_runtime;
 mod context;
 mod context_events_extended;
 mod create_update_agent;
+mod create_update_agent_mcp;
 mod external_integrations;
 mod protocol_events;
 mod protocol_requests;

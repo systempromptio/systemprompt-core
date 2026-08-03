@@ -41,12 +41,18 @@ mod environment;
 #[cfg(test)]
 mod interactive;
 #[cfg(test)]
+mod interactive_terminal;
+#[cfg(test)]
 mod paths;
+#[cfg(test)]
+mod presentation_startup_renderer;
 #[cfg(test)]
 mod presentation_tables;
 #[cfg(test)]
 mod session_resolution_context_db;
 #[cfg(test)]
 mod session_resolution_helpers;
+#[cfg(test)]
+mod session_store_reads;
 #[cfg(test)]
 mod shared;

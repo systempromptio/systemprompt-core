@@ -8,7 +8,9 @@
 
 use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
-use systemprompt_api::routes::oauth::endpoints::token::generation::test_api::validate_subject_token;
+use systemprompt_api::routes::oauth::endpoints::token::generation::test_api::{
+    jwks_host_allowlist, validate_subject_token,
+};
 use systemprompt_identifiers::UserId;
 use systemprompt_models::Config;
 use systemprompt_models::profile::TrustedIssuer;
@@ -154,5 +156,72 @@ async fn accepts_a_self_issued_token_and_returns_its_scope() {
     assert!(
         identity.prior_act.is_none(),
         "a directly-issued token has no prior delegation chain"
+    );
+}
+
+fn trusted(jwks_uri: &str) -> TrustedIssuer {
+    TrustedIssuer {
+        issuer: "https://idp.test".to_owned(),
+        jwks_uri: jwks_uri.to_owned(),
+        audience: "systemprompt".to_owned(),
+        typ_allowlist: vec![],
+        allowed_client_ids: vec![],
+        can_issue_id_jag: false,
+    }
+}
+
+#[tokio::test]
+async fn rejects_a_subject_token_whose_payload_is_not_base64url() {
+    let token = format!(
+        "{}.@@not-base64@@.c2ln",
+        URL_SAFE_NO_PAD.encode(r#"{"alg":"RS256","kid":"k1"}"#)
+    );
+
+    let message = err(validate_subject_token(&token, ACCESS_TOKEN_TYPE, &config()).await);
+
+    assert!(message.contains("not base64url"), "{message}");
+}
+
+#[tokio::test]
+async fn rejects_a_subject_token_whose_payload_carries_no_issuer() {
+    let token = unsigned_jwt(r#"{"alg":"RS256","kid":"k1"}"#, r#"{"sub":"nobody"}"#);
+
+    let message = err(validate_subject_token(&token, ACCESS_TOKEN_TYPE, &config()).await);
+
+    assert!(message.contains("missing iss"), "{message}");
+}
+
+#[tokio::test]
+async fn rejects_a_trusted_issuer_token_whose_jwks_cannot_be_resolved() {
+    let mut config = config();
+    config.trusted_issuers = vec![trusted("http://127.0.0.1:1/jwks")];
+    let token = unsigned_jwt(
+        r#"{"alg":"RS256","kid":"k1"}"#,
+        r#"{"iss":"https://idp.test"}"#,
+    );
+
+    let message = err(validate_subject_token(&token, ACCESS_TOKEN_TYPE, &config).await);
+
+    assert!(message.contains("JWKS resolution failed"), "{message}");
+}
+
+#[test]
+fn the_jwks_host_allowlist_is_the_set_of_configured_jwks_hosts() {
+    let hosts = jwks_host_allowlist(&[
+        trusted("https://keys.idp.test/jwks.json"),
+        trusted("https://other.idp.test:8443/jwks"),
+    ]);
+
+    assert_eq!(hosts, vec!["keys.idp.test", "other.idp.test"]);
+}
+
+#[test]
+fn an_unparseable_jwks_uri_contributes_no_allowlist_host() {
+    let hosts = jwks_host_allowlist(&[trusted("not a url"), trusted("https://good.idp.test/jwks")]);
+
+    assert_eq!(
+        hosts,
+        vec!["good.idp.test"],
+        "a malformed jwks_uri must not widen the allowlist"
     );
 }

@@ -118,3 +118,65 @@ async fn selector_trait_refine_is_invoked_directly() {
         .expect("refine must not error");
     assert_eq!(out.expect("re-routed").provider.as_str(), "gemini");
 }
+
+struct AlwaysErrors;
+
+impl AlwaysErrors {
+    fn new() -> Self {
+        Self
+    }
+}
+
+#[async_trait]
+impl RouteSelector for AlwaysErrors {
+    fn name(&self) -> &'static str {
+        "always-errors"
+    }
+
+    async fn refine(
+        &self,
+        _matched: &GatewayRoute,
+        _request: &CanonicalRequest,
+    ) -> Result<Option<GatewayRoute>, RouteSelectorError> {
+        Err(RouteSelectorError::Failed {
+            name: "always-errors",
+            message: "selector backend unavailable".to_owned(),
+        })
+    }
+}
+
+register_route_selector!(AlwaysErrors::new, name = "always-errors");
+
+#[tokio::test]
+async fn a_failing_selector_does_not_abort_the_chain_or_the_matched_route() {
+    let matched = route("claude-*", "anthropic");
+
+    // The erroring selector runs in the same chain as the rerouter; a chain
+    // that aborted on the first error would take the gateway down whenever an
+    // extension's selector backend was unavailable.
+    let unmatched = RouteSelectorEngine::global()
+        .refine(&matched, &req("claude-opus-4-8"))
+        .await;
+    assert!(
+        unmatched.is_none(),
+        "an erroring selector must leave the matched route in place, not re-route"
+    );
+
+    let (refined, name) = RouteSelectorEngine::global()
+        .refine(&matched, &req("reroute-me"))
+        .await
+        .expect("a later healthy selector must still be reached");
+    assert_eq!(refined.provider.as_str(), "gemini");
+    assert_eq!(name, "reroute-to-gemini");
+}
+
+#[test]
+fn the_engine_debug_reports_how_many_selectors_it_holds_without_naming_them() {
+    let rendered = format!("{:?}", RouteSelectorEngine::global());
+
+    assert!(rendered.contains("RouteSelectorEngine"));
+    assert!(
+        !rendered.contains("reroute-to-gemini"),
+        "the Debug is a count, not a dump of extension internals: {rendered}"
+    );
+}

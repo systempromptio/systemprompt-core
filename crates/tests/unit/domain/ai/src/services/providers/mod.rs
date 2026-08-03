@@ -1,7 +1,4 @@
 //! Tests for providers module.
-
-pub mod mock_http;
-
 mod anthropic;
 mod canonical_bridge;
 mod cost_estimation;
@@ -10,8 +7,11 @@ mod gemini_images_http;
 mod gemini_params;
 mod image_provider_factory;
 mod image_provider_trait;
+pub mod mock_http;
 mod openai;
 mod openai_images_http;
+mod openai_search_http;
+mod provider_constructors;
 mod provider_factory;
 mod provider_factory_extended;
 mod provider_trait;

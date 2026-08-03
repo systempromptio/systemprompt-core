@@ -57,6 +57,8 @@ mod response_extended;
 #[cfg(test)]
 mod response_ui;
 #[cfg(test)]
+mod response_unrenderable;
+#[cfg(test)]
 mod router;
 #[cfg(test)]
 mod schema;

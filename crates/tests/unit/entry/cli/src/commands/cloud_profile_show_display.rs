@@ -290,3 +290,17 @@ fn formatted_config_renders_every_section_when_all_are_present() {
         "sections must render in declaration order, skipping absent ones"
     );
 }
+
+#[test]
+fn the_web_section_renders_the_configured_branding() {
+    use systemprompt_cli::cloud::profile::show_display::render_web_section;
+
+    let web = systemprompt_test_fixtures::web_config();
+    let lines = render_web_section(&web);
+
+    assert_eq!(lines.len(), 3);
+    let rendered = format!("{lines:?}");
+    assert!(rendered.contains("Web Configuration"), "{rendered}");
+    assert!(rendered.contains(&web.branding.name), "{rendered}");
+    assert!(rendered.contains(&web.branding.title), "{rendered}");
+}
