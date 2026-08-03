@@ -79,7 +79,6 @@ impl SettingsWindow {
                 .with_title(crate::brand::brand().window_title)
                 .with_surface_size(LogicalSize::new(DEFAULT_WIDTH, DEFAULT_HEIGHT))
                 .with_min_surface_size(PhysicalSize::new(MIN_WIDTH, MIN_HEIGHT))
-                .with_maximized(true)
                 .with_visible(false)
                 .with_window_icon(decode_icon()),
         );
