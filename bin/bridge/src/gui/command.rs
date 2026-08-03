@@ -449,7 +449,7 @@ fn parse<T: serde::de::DeserializeOwned>(args: Value) -> Result<T, BridgeError> 
 }
 
 fn send(app: &GuiApp, event: UiEvent) {
-    _ = app.proxy.send_event(event);
+    app.proxy.send_event(event);
 }
 
 fn marketplace_listing(app: &GuiApp) -> Value {

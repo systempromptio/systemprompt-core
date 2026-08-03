@@ -16,7 +16,7 @@ pub(crate) fn on_validate_requested(app: &GuiApp, reply_to: ReplyId) {
     let proxy = app.proxy.clone();
     app.runtime.spawn(async move {
         let report = validate::run().await;
-        _ = proxy.send_event(UiEvent::ValidateFinished { report, reply_to });
+        proxy.send_event(UiEvent::ValidateFinished { report, reply_to });
     });
 }
 

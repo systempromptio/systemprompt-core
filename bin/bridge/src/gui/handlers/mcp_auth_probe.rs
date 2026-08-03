@@ -26,7 +26,7 @@ fn spawn_probe(app: &GuiApp, reply_to: ReplyId) {
     let proxy = app.proxy.clone();
     app.runtime.spawn(async move {
         let results = mcp_probe::probe_all().await;
-        _ = proxy.send_event(UiEvent::McpAuthProbeFinished { results, reply_to });
+        proxy.send_event(UiEvent::McpAuthProbeFinished { results, reply_to });
     });
 }
 

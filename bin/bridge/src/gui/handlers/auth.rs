@@ -52,7 +52,7 @@ pub(crate) fn on_login_requested(
                 ))))),
             },
         };
-        _ = proxy.send_event(UiEvent::LoginFinished { result, reply_to });
+        proxy.send_event(UiEvent::LoginFinished { result, reply_to });
     });
 }
 
@@ -71,7 +71,7 @@ pub(crate) fn on_session_login_requested(
             .await
             .map_err(GuiError::from)
             .map_err(Arc::new);
-        _ = proxy.send_event(UiEvent::SessionLoginFinished { result, reply_to });
+        proxy.send_event(UiEvent::SessionLoginFinished { result, reply_to });
     });
 }
 
@@ -160,10 +160,9 @@ pub(crate) fn on_login_finished(
             app.state.reload();
             app.refresh_ui();
             if crate::gui::first_run::should_run(app) {
-                _ = app.proxy.send_event(UiEvent::FirstRunStart);
+                app.proxy.send_event(UiEvent::FirstRunStart);
             } else {
-                _ = app
-                    .proxy
+                app.proxy
                     .send_event(UiEvent::SyncRequested { reply_to: None });
                 crate::gui::hosts::tick::request_initial_probe(app);
             }
@@ -223,7 +222,7 @@ pub(crate) fn on_set_gateway_requested(app: &GuiApp, gateway: &str, reply_to: Re
                 ))))),
             },
         };
-        _ = proxy.send_event(UiEvent::SetGatewayFinished { result, reply_to });
+        proxy.send_event(UiEvent::SetGatewayFinished { result, reply_to });
     });
 }
 
@@ -274,7 +273,7 @@ pub(crate) fn on_logout_requested(app: &GuiApp, reply_to: ReplyId) {
                 "logout task join: {join_err}"
             ))))),
         };
-        _ = proxy.send_event(UiEvent::LogoutFinished { result, reply_to });
+        proxy.send_event(UiEvent::LogoutFinished { result, reply_to });
     });
 }
 

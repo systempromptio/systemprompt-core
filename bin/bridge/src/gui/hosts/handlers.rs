@@ -56,7 +56,7 @@ pub(crate) fn on_probe_requested(
         let Ok(snap) = tokio::task::spawn_blocking(move || Box::new(host.probe())).await else {
             return;
         };
-        _ = proxy.send_event(UiEvent::Host(HostUiEvent::ProbeFinished {
+        proxy.send_event(UiEvent::Host(HostUiEvent::ProbeFinished {
             host_id: host_id_owned,
             cause,
             snapshot: snap,
@@ -170,7 +170,7 @@ pub(crate) fn on_proxy_probe_requested(app: &GuiApp, reply_to: ReplyId) {
         else {
             return;
         };
-        _ = proxy.send_event(UiEvent::Host(HostUiEvent::ProxyProbeFinished {
+        proxy.send_event(UiEvent::Host(HostUiEvent::ProxyProbeFinished {
             health,
             reply_to,
         }));
@@ -205,7 +205,7 @@ pub(crate) fn on_profile_generate_requested(app: &GuiApp, host_id: &str, reply_t
         let result = generate_profile_for(host, &overrides)
             .await
             .map_err(Arc::new);
-        _ = proxy.send_event(UiEvent::Host(HostUiEvent::ProfileGenerateFinished {
+        proxy.send_event(UiEvent::Host(HostUiEvent::ProfileGenerateFinished {
             host_id: host_id_owned,
             result,
             reply_to,
@@ -305,7 +305,7 @@ pub(crate) fn on_profile_install_requested(
                 "profile install task join: {join_err}"
             ))))),
         };
-        _ = proxy.send_event(UiEvent::Host(HostUiEvent::ProfileInstallFinished {
+        proxy.send_event(UiEvent::Host(HostUiEvent::ProfileInstallFinished {
             host_id: host_id_owned,
             result,
             reply_to,
@@ -344,8 +344,7 @@ pub(crate) fn on_profile_install_finished(
             Err(BridgeError::new(ErrorScope::Host, code, line))
         },
     };
-    _ = app
-        .proxy
+    app.proxy
         .send_event(UiEvent::Host(HostUiEvent::ProbeRequested {
             host_id: host_id.to_owned(),
             cause: ProbeCause::Manual,
@@ -388,7 +387,7 @@ pub(crate) fn on_model_filter_set_requested(
         let result = push_model_filter(&host_id_owned, protocols.as_deref())
             .await
             .map_err(Arc::new);
-        _ = proxy.send_event(UiEvent::Host(HostUiEvent::ModelFilterSetFinished {
+        proxy.send_event(UiEvent::Host(HostUiEvent::ModelFilterSetFinished {
             host_id: host_id_owned,
             result,
             reply_to,
@@ -424,8 +423,7 @@ pub(crate) fn on_model_filter_set_finished(
     let bridge_result = match result {
         Ok(()) => {
             app.append_log(format!("[{host_id}] model filter saved; re-syncing"));
-            _ = app
-                .proxy
+            app.proxy
                 .send_event(UiEvent::SyncRequested { reply_to: None });
             Ok(json!({ "host_id": host_id }))
         },

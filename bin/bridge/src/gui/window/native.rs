@@ -13,10 +13,10 @@ use wry::http::Response;
 use wry::http::header::CONTENT_TYPE;
 use wry::{NewWindowResponse, Rect, WebView, WebViewBuilder};
 
+use crate::gui::UiEventProxy;
 use crate::gui::assets::{self, Asset};
 use crate::gui::error::{GuiError, GuiResult, WindowError};
 use crate::gui::events::UiEvent;
-use crate::gui::UiEventProxy;
 
 #[cfg(target_os = "macos")]
 use winit::platform::macos::WindowAttributesMacOS;
@@ -41,9 +41,8 @@ pub struct SettingsWindow {
     webview: WebView,
 }
 
-/// Sized adapter that lets wry's `WebViewBuilder::build<W: HasWindowHandle>`
-/// accept a `&dyn Window` (which is unsized) — winit 0.31's `create_window`
-/// returns `Box<dyn Window>`, and wry needs a sized `HasWindowHandle` impl.
+// Why: winit 0.31's `create_window` returns an unsized `Box<dyn Window>`, but
+// wry's `WebViewBuilder::build` needs a sized `HasWindowHandle`.
 struct WindowRef<'a>(&'a dyn Window);
 
 impl raw_window_handle::HasWindowHandle for WindowRef<'_> {
@@ -111,7 +110,7 @@ impl SettingsWindow {
             .with_initialization_script(BRIDGE_BOOTSTRAP)
             .with_ipc_handler(move |req| {
                 let body = req.into_body();
-                let _ = ipc_proxy.send_event(UiEvent::IpcInbound(body));
+                ipc_proxy.send_event(UiEvent::IpcInbound(body));
             })
             .with_custom_protocol(SP_PROTOCOL.to_owned(), move |_id, request| {
                 serve_custom_asset(&request)
@@ -149,10 +148,8 @@ impl SettingsWindow {
         self.window.set_visible(false);
     }
 
-    /// Resize the child webview to match a new window surface size. Called
-    /// on `WindowEvent::Resized` — without this the webview stays at its
-    /// initial bounds and gets clipped or leaves margins as the window is
-    /// resized.
+    /// Must be driven from `WindowEvent::Resized`: the webview is a child view
+    /// with fixed bounds, so nothing resizes it otherwise.
     pub fn resize_webview(&self, size: PhysicalSize<u32>) {
         if let Err(e) = self.webview.set_bounds(Rect {
             position: LogicalPosition::new(0, 0).into(),
@@ -265,11 +262,21 @@ fn allow_navigation(target: &str, legacy_origin: Option<&str>) -> bool {
 }
 
 fn decode_icon() -> Option<Icon> {
-    let img = image::load_from_memory(crate::brand::brand().assets.window_icon_png)
-        .ok()?
-        .to_rgba8();
+    let img = match image::load_from_memory(crate::brand::brand().assets.window_icon_png) {
+        Ok(img) => img.to_rgba8(),
+        Err(e) => {
+            tracing::warn!(error = %e, "window icon PNG failed to decode; running without one");
+            return None;
+        },
+    };
     let (w, h) = img.dimensions();
-    RgbaIcon::new(img.into_raw(), w, h).ok().map(Into::into)
+    match RgbaIcon::new(img.into_raw(), w, h) {
+        Ok(icon) => Some(icon.into()),
+        Err(e) => {
+            tracing::warn!(error = %e, "window icon rejected by winit; running without one");
+            None
+        },
+    }
 }
 
 #[cfg(target_os = "macos")]

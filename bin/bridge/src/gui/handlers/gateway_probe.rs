@@ -88,7 +88,7 @@ pub(crate) fn spawn_probe(app: &GuiApp, reply_to: ReplyId) {
             },
             outcome = run_probe() => outcome,
         };
-        _ = proxy.send_event(UiEvent::GatewayProbeFinished { outcome, reply_to });
+        proxy.send_event(UiEvent::GatewayProbeFinished { outcome, reply_to });
     });
 }
 

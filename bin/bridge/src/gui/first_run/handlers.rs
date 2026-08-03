@@ -55,8 +55,7 @@ pub(crate) fn on_probe_result(app: &mut GuiApp, host_id: &str, snapshot: &HostAp
         .set_first_run_host(host_id, StepStatus::Generating, None);
     app.state.set_first_run_phase(FirstRunPhase::Installing);
     progress(app);
-    _ = app
-        .proxy
+    app.proxy
         .send_event(UiEvent::Host(HostUiEvent::ProfileGenerateRequested {
             host_id: host_id.to_owned(),
             reply_to: None,
@@ -85,8 +84,7 @@ pub(crate) fn on_generate_result(app: &mut GuiApp, host_id: &str, error: Option<
     app.state
         .set_first_run_host(host_id, StepStatus::Installing, None);
     progress(app);
-    _ = app
-        .proxy
+    app.proxy
         .send_event(UiEvent::Host(HostUiEvent::ProfileInstallRequested {
             host_id: host_id.to_owned(),
             path,
@@ -142,8 +140,7 @@ fn advance(app: &mut GuiApp) {
     app.state.set_first_run_phase(FirstRunPhase::Syncing);
     app.state.set_first_run_sync(StepStatus::Installing);
     progress(app);
-    _ = app
-        .proxy
+    app.proxy
         .send_event(UiEvent::SyncRequested { reply_to: None });
 }
 

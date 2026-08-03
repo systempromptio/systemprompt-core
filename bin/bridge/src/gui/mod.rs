@@ -46,11 +46,9 @@ use tokio::runtime::Handle;
 pub(crate) const PROBE_INTERVAL_SECS: u64 = 30;
 const PROXY_STATS_TICK_SECS: u64 = 1;
 
-/// Bridge from `send_event(UiEvent)` call sites to winit 0.31's payload-less
-/// proxy. Winit 0.31 removed generic user events — proxies only `wake_up()`
-/// the loop. We keep the ergonomic `send_event(UiEvent)` API by queuing the
-/// event ourselves and calling `wake_up`; the `ApplicationHandler::proxy_wake_up`
-/// hook drains the queue and dispatches each event.
+// Why: winit 0.31 removed generic user events — an `EventLoopProxy` can only
+// `wake_up()` the loop, carrying no payload, so the queue here is what actually
+// transports a `UiEvent`.
 #[derive(Clone, Debug)]
 pub(crate) struct UiEventProxy {
     proxy: EventLoopProxy,
@@ -65,10 +63,9 @@ impl UiEventProxy {
         }
     }
 
-    pub(crate) fn send_event(&self, event: UiEvent) -> Result<(), ()> {
+    pub(crate) fn send_event(&self, event: UiEvent) {
         self.queue.lock().push_back(event);
         self.proxy.wake_up();
-        Ok(())
     }
 
     fn drain(&self) -> Vec<UiEvent> {
@@ -78,9 +75,11 @@ impl UiEventProxy {
 }
 
 fn install_termination_handlers(proxy: UiEventProxy) {
-    _ = ctrlc::set_handler(move || {
-        _ = proxy.send_event(UiEvent::Quit);
-    });
+    if let Err(e) = ctrlc::set_handler(move || {
+        proxy.send_event(UiEvent::Quit);
+    }) {
+        tracing::warn!(error = %e, "ctrl-c handler not installed; quit signal unavailable");
+    }
 }
 
 #[tracing::instrument]
@@ -104,9 +103,7 @@ pub fn run() -> ExitCode {
     let bridge_proxy = proxy.clone();
     std::thread::spawn(move || {
         while let Ok(event) = rx.recv() {
-            if bridge_proxy.send_event(event).is_err() {
-                break;
-            }
+            bridge_proxy.send_event(event);
         }
     });
 
@@ -254,8 +251,7 @@ impl ApplicationHandler for GuiApp {
         }
         self.refresh_ui();
         dispatch::dispatch(self, event_loop, UiEvent::OpenSettings);
-        _ = self
-            .proxy
+        self.proxy
             .send_event(UiEvent::GatewayProbeRequested { reply_to: None });
 
         hosts::tick::request_initial_probe(self);
@@ -267,7 +263,12 @@ impl ApplicationHandler for GuiApp {
         }
     }
 
-    fn window_event(&mut self, _event_loop: &dyn ActiveEventLoop, id: WindowId, event: WindowEvent) {
+    fn window_event(
+        &mut self,
+        _event_loop: &dyn ActiveEventLoop,
+        id: WindowId,
+        event: WindowEvent,
+    ) {
         if let WindowEvent::ThemeChanged(theme) = &event {
             let label = match theme {
                 winit::window::Theme::Light => "light",
@@ -294,7 +295,7 @@ impl ApplicationHandler for GuiApp {
     fn about_to_wait(&mut self, event_loop: &dyn ActiveEventLoop) {
         if let Some(handles) = &self.tray {
             for ev in tray::drain(handles) {
-                _ = self.proxy.send_event(ev);
+                self.proxy.send_event(ev);
             }
         }
         let snap = self.state.snapshot();
@@ -303,16 +304,14 @@ impl ApplicationHandler for GuiApp {
                 .last_probe_at_unix
                 .is_none_or(|t| now_unix().saturating_sub(t) >= PROBE_INTERVAL_SECS);
         if needs_probe && !matches!(snap.gateway_status, GatewayStatus::Probing) {
-            _ = self
-                .proxy
+            self.proxy
                 .send_event(UiEvent::GatewayProbeRequested { reply_to: None });
         }
 
         if !self.did_initial_sync && snap.signed_in() && snap.pat_present && !snap.sync_in_flight {
             self.did_initial_sync = true;
             self.append_log("auto-sync on startup (rehydrating managed MCP registry)…");
-            _ = self
-                .proxy
+            self.proxy
                 .send_event(UiEvent::SyncRequested { reply_to: None });
         }
 
@@ -321,7 +320,7 @@ impl ApplicationHandler for GuiApp {
 
         if self.last_proxy_stats_tick.elapsed() >= Duration::from_secs(PROXY_STATS_TICK_SECS) {
             self.last_proxy_stats_tick = Instant::now();
-            _ = self.proxy.send_event(UiEvent::ProxyStatsTick);
+            self.proxy.send_event(UiEvent::ProxyStatsTick);
         }
 
         event_loop.set_control_flow(ControlFlow::wait_duration(Duration::from_secs(1)));

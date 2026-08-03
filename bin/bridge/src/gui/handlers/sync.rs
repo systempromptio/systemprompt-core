@@ -43,7 +43,7 @@ pub(crate) fn on_sync_requested(app: &mut GuiApp, reply_to: ReplyId) {
                 outcome.map_err(GuiError::from).map_err(Arc::new)
             }
         };
-        _ = proxy.send_event(UiEvent::SyncFinished { result, reply_to });
+        proxy.send_event(UiEvent::SyncFinished { result, reply_to });
     });
 }
 
@@ -124,8 +124,7 @@ pub(crate) fn on_sync_finished(
     }
     emit::emit_state(app);
     if succeeded {
-        _ = app
-            .proxy
+        app.proxy
             .send_event(UiEvent::McpAuthProbeRequested { reply_to: None });
     }
     finish_value(app, bridge_result, reply_to);
