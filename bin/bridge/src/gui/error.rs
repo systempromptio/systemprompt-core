@@ -52,7 +52,7 @@ pub enum GuiError {
 #[derive(Debug, Error)]
 pub enum WindowError {
     #[error(transparent)]
-    Os(#[from] winit::error::OsError),
+    Os(#[from] winit::error::RequestError),
     #[error(transparent)]
     Wry(#[from] wry::Error),
 }

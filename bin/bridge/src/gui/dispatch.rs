@@ -86,7 +86,7 @@ const fn ipc_kind(event: &UiEvent) -> Option<&'static str> {
         request_id = %uuid::Uuid::new_v4(),
     ),
 )]
-pub(crate) fn dispatch(app: &mut GuiApp, event_loop: &ActiveEventLoop, event: UiEvent) {
+pub(crate) fn dispatch(app: &mut GuiApp, event_loop: &dyn ActiveEventLoop, event: UiEvent) {
     tracing::trace!(?event, "ui dispatch");
     let event = match dispatch_window(app, event_loop, event) {
         Ok(()) => return,
@@ -109,7 +109,7 @@ pub(crate) fn dispatch(app: &mut GuiApp, event_loop: &ActiveEventLoop, event: Ui
 
 fn dispatch_window(
     app: &mut GuiApp,
-    event_loop: &ActiveEventLoop,
+    event_loop: &dyn ActiveEventLoop,
     event: UiEvent,
 ) -> Result<(), Box<UiEvent>> {
     match event {

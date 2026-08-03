@@ -11,7 +11,7 @@ use crate::gui::{GuiApp, window};
 use crate::obs::output::diag;
 
 #[tracing::instrument(level = "info", skip(app, event_loop))]
-pub(crate) fn on_open_settings(app: &mut GuiApp, event_loop: &ActiveEventLoop) {
+pub(crate) fn on_open_settings(app: &mut GuiApp, event_loop: &dyn ActiveEventLoop) {
     let legacy_origin = app.ensure_server().map(|s| {
         let port = s.port();
         format!("http://127.0.0.1:{port}")

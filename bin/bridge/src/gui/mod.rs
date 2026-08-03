@@ -24,11 +24,13 @@ pub mod state;
 pub mod tray;
 pub mod window;
 
+use std::collections::VecDeque;
 use std::process::ExitCode;
 use std::sync::Arc;
 use std::sync::mpsc::{Sender, channel};
 use std::time::{Duration, Instant};
 
+use parking_lot::Mutex;
 use winit::application::ApplicationHandler;
 use winit::event::{StartCause, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop, EventLoopProxy};
@@ -44,7 +46,38 @@ use tokio::runtime::Handle;
 pub(crate) const PROBE_INTERVAL_SECS: u64 = 30;
 const PROXY_STATS_TICK_SECS: u64 = 1;
 
-fn install_termination_handlers(proxy: EventLoopProxy<UiEvent>) {
+/// Bridge from `send_event(UiEvent)` call sites to winit 0.31's payload-less
+/// proxy. Winit 0.31 removed generic user events — proxies only `wake_up()`
+/// the loop. We keep the ergonomic `send_event(UiEvent)` API by queuing the
+/// event ourselves and calling `wake_up`; the `ApplicationHandler::proxy_wake_up`
+/// hook drains the queue and dispatches each event.
+#[derive(Clone, Debug)]
+pub(crate) struct UiEventProxy {
+    proxy: EventLoopProxy,
+    queue: Arc<Mutex<VecDeque<UiEvent>>>,
+}
+
+impl UiEventProxy {
+    pub(crate) fn new(proxy: EventLoopProxy) -> Self {
+        Self {
+            proxy,
+            queue: Arc::new(Mutex::new(VecDeque::new())),
+        }
+    }
+
+    pub(crate) fn send_event(&self, event: UiEvent) -> Result<(), ()> {
+        self.queue.lock().push_back(event);
+        self.proxy.wake_up();
+        Ok(())
+    }
+
+    fn drain(&self) -> Vec<UiEvent> {
+        let mut q = self.queue.lock();
+        std::mem::take(&mut *q).into_iter().collect()
+    }
+}
+
+fn install_termination_handlers(proxy: UiEventProxy) {
     _ = ctrlc::set_handler(move || {
         _ = proxy.send_event(UiEvent::Quit);
     });
@@ -54,7 +87,7 @@ fn install_termination_handlers(proxy: EventLoopProxy<UiEvent>) {
 pub fn run() -> ExitCode {
     let proxy_outcome = crate::proxy::start_default();
 
-    let event_loop = match EventLoop::<UiEvent>::with_user_event().build() {
+    let event_loop = match EventLoop::new() {
         Ok(el) => el,
         Err(e) => {
             diag(&format!("gui: failed to build event loop: {e}"));
@@ -63,7 +96,7 @@ pub fn run() -> ExitCode {
     };
     event_loop.set_control_flow(ControlFlow::Wait);
 
-    let proxy = event_loop.create_proxy();
+    let proxy = UiEventProxy::new(event_loop.create_proxy());
     install_termination_handlers(proxy.clone());
     emit::install_log_emitter(proxy.clone());
     let (tx, rx) = channel::<UiEvent>();
@@ -117,7 +150,7 @@ pub fn run() -> ExitCode {
         },
     }
 
-    if let Err(e) = event_loop.run_app(&mut app) {
+    if let Err(e) = event_loop.run_app(app) {
         diag(&format!("gui: event loop error: {e}"));
         return ExitCode::from(1);
     }
@@ -127,7 +160,7 @@ pub fn run() -> ExitCode {
 pub(crate) struct GuiApp {
     pub(crate) state: Arc<AppState>,
     pub(crate) tx: Sender<UiEvent>,
-    pub(crate) proxy: EventLoopProxy<UiEvent>,
+    pub(crate) proxy: UiEventProxy,
     pub(crate) tray: Option<tray::TrayHandles>,
     pub(crate) menu_bar: Option<menu::MenuBarHandles>,
     pub(crate) server: Option<Server>,
@@ -142,7 +175,7 @@ impl GuiApp {
     fn new(
         state: Arc<AppState>,
         tx: Sender<UiEvent>,
-        proxy: EventLoopProxy<UiEvent>,
+        proxy: UiEventProxy,
         runtime: Handle,
     ) -> Self {
         Self {
@@ -192,8 +225,8 @@ impl GuiApp {
     }
 }
 
-impl ApplicationHandler<UiEvent> for GuiApp {
-    fn new_events(&mut self, event_loop: &ActiveEventLoop, cause: StartCause) {
+impl ApplicationHandler for GuiApp {
+    fn new_events(&mut self, event_loop: &dyn ActiveEventLoop, cause: StartCause) {
         if matches!(cause, StartCause::Init) {
             return;
         }
@@ -203,7 +236,7 @@ impl ApplicationHandler<UiEvent> for GuiApp {
         }
     }
 
-    fn resumed(&mut self, event_loop: &ActiveEventLoop) {
+    fn can_create_surfaces(&mut self, event_loop: &dyn ActiveEventLoop) {
         if self.tray.is_none() {
             let snap = self.state.snapshot();
             match tray::build(&snap) {
@@ -228,11 +261,13 @@ impl ApplicationHandler<UiEvent> for GuiApp {
         hosts::tick::request_initial_probe(self);
     }
 
-    fn user_event(&mut self, event_loop: &ActiveEventLoop, event: UiEvent) {
-        dispatch::dispatch(self, event_loop, event);
+    fn proxy_wake_up(&mut self, event_loop: &dyn ActiveEventLoop) {
+        for event in self.proxy.drain() {
+            dispatch::dispatch(self, event_loop, event);
+        }
     }
 
-    fn window_event(&mut self, _event_loop: &ActiveEventLoop, id: WindowId, event: WindowEvent) {
+    fn window_event(&mut self, _event_loop: &dyn ActiveEventLoop, id: WindowId, event: WindowEvent) {
         if let WindowEvent::ThemeChanged(theme) = &event {
             let label = match theme {
                 winit::window::Theme::Light => "light",
@@ -249,7 +284,7 @@ impl ApplicationHandler<UiEvent> for GuiApp {
         }
     }
 
-    fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
+    fn about_to_wait(&mut self, event_loop: &dyn ActiveEventLoop) {
         if let Some(handles) = &self.tray {
             for ev in tray::drain(handles) {
                 _ = self.proxy.send_event(ev);

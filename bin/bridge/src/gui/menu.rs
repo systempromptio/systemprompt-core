@@ -91,7 +91,7 @@ pub fn install<S: std::hash::BuildHasher>(
     unsafe_code,
     reason = "raw window handle is required to attach Win32 menu bar to the GUI HWND"
 )]
-pub fn attach_to_window(handles: &MenuBarHandles, window: &Window) -> GuiResult<()> {
+pub fn attach_to_window(handles: &MenuBarHandles, window: &dyn Window) -> GuiResult<()> {
     use raw_window_handle::{HasWindowHandle, RawWindowHandle};
     let handle = window.window_handle().map_err(|e| {
         crate::gui::error::GuiError::Io(std::io::Error::other(format!(
@@ -111,7 +111,7 @@ pub fn attach_to_window(handles: &MenuBarHandles, window: &Window) -> GuiResult<
 #[cfg(target_os = "macos")]
 pub fn attach_to_window(
     _handles: &MenuBarHandles,
-    _window: &winit::window::Window,
+    _window: &dyn winit::window::Window,
 ) -> GuiResult<()> {
     Ok(())
 }

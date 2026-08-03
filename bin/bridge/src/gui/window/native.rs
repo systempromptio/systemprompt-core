@@ -6,8 +6,9 @@
 use std::borrow::Cow;
 
 use winit::dpi::{LogicalSize, PhysicalSize};
-use winit::event_loop::{ActiveEventLoop, EventLoopProxy};
-use winit::window::{Icon, Window, WindowAttributes, WindowId};
+use winit::event_loop::ActiveEventLoop;
+use winit::icon::{Icon, RgbaIcon};
+use winit::window::{Window, WindowAttributes, WindowId};
 use wry::http::Response;
 use wry::http::header::CONTENT_TYPE;
 use wry::{NewWindowResponse, WebView, WebViewBuilder};
@@ -15,9 +16,10 @@ use wry::{NewWindowResponse, WebView, WebViewBuilder};
 use crate::gui::assets::{self, Asset};
 use crate::gui::error::{GuiError, GuiResult, WindowError};
 use crate::gui::events::UiEvent;
+use crate::gui::UiEventProxy;
 
 #[cfg(target_os = "macos")]
-use winit::platform::macos::WindowAttributesExtMacOS;
+use winit::platform::macos::WindowAttributesMacOS;
 
 const DEFAULT_WIDTH: u32 = 1100;
 const DEFAULT_HEIGHT: u32 = 760;
@@ -35,8 +37,21 @@ const SP_INDEX_URL: &str = "https://sp.app/index.html";
 const SP_INDEX_URL: &str = "sp://app/index.html";
 
 pub struct SettingsWindow {
-    window: Window,
+    window: Box<dyn Window>,
     webview: WebView,
+}
+
+/// Sized adapter that lets wry's `WebViewBuilder::build<W: HasWindowHandle>`
+/// accept a `&dyn Window` (which is unsized) — winit 0.31's `create_window`
+/// returns `Box<dyn Window>`, and wry needs a sized `HasWindowHandle` impl.
+struct WindowRef<'a>(&'a dyn Window);
+
+impl raw_window_handle::HasWindowHandle for WindowRef<'_> {
+    fn window_handle(
+        &self,
+    ) -> Result<raw_window_handle::WindowHandle<'_>, raw_window_handle::HandleError> {
+        self.0.window_handle()
+    }
 }
 
 impl std::fmt::Debug for SettingsWindow {
@@ -50,20 +65,20 @@ impl SettingsWindow {
         self.window.id()
     }
 
-    pub const fn winit_window(&self) -> &Window {
-        &self.window
+    pub fn winit_window(&self) -> &dyn Window {
+        &*self.window
     }
 
     pub fn create(
-        event_loop: &ActiveEventLoop,
-        proxy: &EventLoopProxy<UiEvent>,
+        event_loop: &dyn ActiveEventLoop,
+        proxy: &UiEventProxy,
         legacy_origin: Option<&str>,
     ) -> GuiResult<Self> {
         let attrs = chrome_attributes(
-            Window::default_attributes()
+            WindowAttributes::default()
                 .with_title(crate::brand::brand().window_title)
-                .with_inner_size(LogicalSize::new(DEFAULT_WIDTH, DEFAULT_HEIGHT))
-                .with_min_inner_size(PhysicalSize::new(MIN_WIDTH, MIN_HEIGHT))
+                .with_surface_size(LogicalSize::new(DEFAULT_WIDTH, DEFAULT_HEIGHT))
+                .with_min_surface_size(PhysicalSize::new(MIN_WIDTH, MIN_HEIGHT))
                 .with_maximized(true)
                 .with_visible(false)
                 .with_window_icon(decode_icon()),
@@ -92,7 +107,7 @@ impl SettingsWindow {
             .with_initialization_script(BRIDGE_BOOTSTRAP)
             .with_ipc_handler(move |req| {
                 let body = req.into_body();
-                _ = ipc_proxy.send_event(UiEvent::IpcInbound(body));
+                let _ = ipc_proxy.send_event(UiEvent::IpcInbound(body));
             })
             .with_custom_protocol(SP_PROTOCOL.to_owned(), move |_id, request| {
                 serve_custom_asset(&request)
@@ -102,7 +117,7 @@ impl SettingsWindow {
                 super::open_external_url(&target);
                 NewWindowResponse::Deny
             })
-            .build(&window)
+            .build(&WindowRef(&*window))
             .map_err(|e| GuiError::Window {
                 context: "webview build".into(),
                 source: WindowError::Wry(e),
@@ -237,18 +252,20 @@ fn decode_icon() -> Option<Icon> {
         .ok()?
         .to_rgba8();
     let (w, h) = img.dimensions();
-    Icon::from_rgba(img.into_raw(), w, h).ok()
+    RgbaIcon::new(img.into_raw(), w, h).ok().map(Into::into)
 }
 
 #[cfg(target_os = "macos")]
 fn chrome_attributes(attrs: WindowAttributes) -> WindowAttributes {
-    attrs
-        .with_titlebar_transparent(true)
-        .with_title_hidden(true)
-        .with_fullsize_content_view(true)
+    attrs.with_platform_attributes(Box::new(
+        WindowAttributesMacOS::default()
+            .with_titlebar_transparent(true)
+            .with_title_hidden(true)
+            .with_fullsize_content_view(true),
+    ))
 }
 
 #[cfg(not(target_os = "macos"))]
-const fn chrome_attributes(attrs: WindowAttributes) -> WindowAttributes {
+fn chrome_attributes(attrs: WindowAttributes) -> WindowAttributes {
     attrs
 }

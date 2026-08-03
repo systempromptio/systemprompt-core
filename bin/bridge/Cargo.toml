@@ -101,15 +101,16 @@ core-foundation = "0.10"
 core-foundation-sys = "0.8"
 tray-icon = "0.24"
 muda = "0.19"
-winit = "0.30"
+winit = "0.31.0-beta.2"
 wry = { version = "0.55", default-features = false, features = ["os-webview", "protocol", "devtools"] }
 image = { version = "0.25", default-features = false, features = ["png"] }
+raw-window-handle = "0.6"
 
 [target.'cfg(target_os = "windows")'.dependencies]
 windows-native-keyring-store = "1"
 tray-icon = "0.24"
 muda = "0.19"
-winit = "0.30"
+winit = "0.31.0-beta.2"
 wry = { version = "0.55", default-features = false, features = ["os-webview", "protocol", "devtools"] }
 image = { version = "0.25", default-features = false, features = ["png"] }
 raw-window-handle = "0.6"
