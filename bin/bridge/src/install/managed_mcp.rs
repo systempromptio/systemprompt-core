@@ -107,25 +107,23 @@ fn write_policy_file(path: &Path, body: &str) -> Result<(), std::io::Error> {
     fs::write(path, body.as_bytes())
 }
 
-fn report_unwritable(path: &Path, err: &std::io::Error, body: &str) {
-    tracing::warn!(
-        target: "bridge::install::managed-mcp",
-        path = %path.display(),
-        error = %err,
-        file_body = %body,
-        "could not write Claude Code MCP policy — it needs administrator privileges, so MCP \
-         servers are being provisioned per-user instead and users remain free to add their \
-         own. To enforce the managed set, deploy `file_body` at `path` via MDM, Group Policy \
-         or `sudo`"
-    );
+/// True when the file already contains exactly `body`. Anything else — missing
+/// file, differing content, read error — returns false. Used to skip elevation
+/// when there is genuinely no work to do (idempotent syncs must not prompt).
+fn body_matches(path: &Path, body: &str) -> bool {
+    fs::read(path).is_ok_and(|bytes| bytes == body.as_bytes())
 }
 
 // Why: on Enforced the caller must not write per-user MCP config
 // (`managed-mcp.json` suppresses it); on Unenforced it must, or MCP is absent.
+// Declined = user cancelled the elevation prompt — treat like Unenforced for
+// the caller but logged distinctly so operators can see the intent.
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(crate) enum PolicyOutcome {
     Enforced,
     Unenforced,
+    #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+    Declined,
 }
 
 pub(crate) fn apply_policy() -> PolicyOutcome {
@@ -146,35 +144,161 @@ pub(crate) fn apply_policy() -> PolicyOutcome {
     let mcp_body = match render_managed_mcp(&servers) {
         Ok(b) => b,
         Err(e) => {
-            report_unwritable(&mcp_path, &e, "");
+            tracing::warn!(
+                target: "bridge::install::managed-mcp",
+                path = %mcp_path.display(),
+                error = %e,
+                "failed to render managed-mcp.json body",
+            );
             return PolicyOutcome::Unenforced;
         },
     };
-    if let Err(e) = write_policy_file(&mcp_path, &mcp_body) {
-        report_unwritable(&mcp_path, &e, &mcp_body);
-        return PolicyOutcome::Unenforced;
-    }
 
     let settings_path = dir.join(MANAGED_SETTINGS_FILE);
     let settings_body = match render_managed_settings(&settings_path, &servers) {
         Ok(b) => b,
         Err(e) => {
-            report_unwritable(&settings_path, &e, "");
+            tracing::warn!(
+                target: "bridge::install::managed-mcp",
+                path = %settings_path.display(),
+                error = %e,
+                "failed to render managed-settings.json body",
+            );
             return PolicyOutcome::Unenforced;
         },
     };
-    if let Err(e) = write_policy_file(&settings_path, &settings_body) {
-        report_unwritable(&settings_path, &e, &settings_body);
-        return PolicyOutcome::Unenforced;
+
+    // Diff-first: if both files are already exactly what we would write, skip
+    // the elevation entirely so idempotent syncs don't prompt.
+    if body_matches(&mcp_path, &mcp_body) && body_matches(&settings_path, &settings_body) {
+        return PolicyOutcome::Enforced;
     }
 
-    tracing::info!(
-        target: "bridge::install::managed-mcp",
-        path = %mcp_path.display(),
-        servers = servers.len(),
-        "Claude Code MCP policy applied — the CLI now has exclusive control over MCP servers"
+    match write_both(&mcp_path, &mcp_body, &settings_path, &settings_body) {
+        WriteOutcome::Ok => {
+            tracing::info!(
+                target: "bridge::install::managed-mcp",
+                path = %mcp_path.display(),
+                servers = servers.len(),
+                "Claude Code MCP policy applied — the CLI now has exclusive control over MCP servers"
+            );
+            PolicyOutcome::Enforced
+        },
+        WriteOutcome::Declined => {
+            tracing::warn!(
+                target: "bridge::install::managed-mcp",
+                "user declined the administrator authorization prompt; Claude Code MCP policy \
+                 was not written — per-plugin .mcp.json files remain in place"
+            );
+            PolicyOutcome::Declined
+        },
+        WriteOutcome::Failed(msg) => {
+            tracing::warn!(
+                target: "bridge::install::managed-mcp",
+                error = %msg,
+                "failed to write Claude Code MCP policy — falling back to per-plugin .mcp.json"
+            );
+            PolicyOutcome::Unenforced
+        },
+    }
+}
+
+enum WriteOutcome {
+    Ok,
+    #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+    Declined,
+    Failed(String),
+}
+
+#[cfg(target_os = "macos")]
+fn write_both(
+    mcp_path: &Path,
+    mcp_body: &str,
+    settings_path: &Path,
+    settings_body: &str,
+) -> WriteOutcome {
+    // Try the direct write first — CI, root shells, MDM-provisioned users
+    // are already privileged and shouldn't prompt at all.
+    let direct = write_policy_file(mcp_path, mcp_body).and_then(|()| {
+        write_policy_file(settings_path, settings_body)
+    });
+    if direct.is_ok() {
+        return WriteOutcome::Ok;
+    }
+    // Only real permission-denied errors should escalate — anything else
+    // (disk full, ENOSPC, etc.) is a real failure to report as-is.
+    if let Err(err) = &direct
+        && err.kind() != std::io::ErrorKind::PermissionDenied
+    {
+        return WriteOutcome::Failed(err.to_string());
+    }
+
+    // Elevated path: stage into a user-writable tempdir, then install.
+    let tmp = match stage_temp(mcp_body, settings_body) {
+        Ok(t) => t,
+        Err(e) => return WriteOutcome::Failed(format!("stage temp: {e}")),
+    };
+    let script = format!(
+        "set -e\n\
+         /bin/mkdir -p {dir}\n\
+         /usr/bin/install -m 0644 {tmp_mcp} {mcp}\n\
+         /usr/bin/install -m 0644 {tmp_settings} {settings}\n",
+        dir = shell_quote(&mcp_path.parent().unwrap_or(mcp_path).to_string_lossy()),
+        tmp_mcp = shell_quote(&tmp.mcp.to_string_lossy()),
+        mcp = shell_quote(&mcp_path.to_string_lossy()),
+        tmp_settings = shell_quote(&tmp.settings.to_string_lossy()),
+        settings = shell_quote(&settings_path.to_string_lossy()),
     );
-    PolicyOutcome::Enforced
+    let result = crate::install::elevate::run_privileged(
+        &script,
+        "Astound Bridge needs administrator privileges to install the Claude Code enterprise MCP policy.",
+    );
+    match result {
+        Ok(()) => WriteOutcome::Ok,
+        Err(crate::install::elevate::ElevationError::UserCancelled) => WriteOutcome::Declined,
+        Err(e) => WriteOutcome::Failed(e.to_string()),
+    }
+}
+
+#[cfg(not(target_os = "macos"))]
+fn write_both(
+    mcp_path: &Path,
+    mcp_body: &str,
+    settings_path: &Path,
+    settings_body: &str,
+) -> WriteOutcome {
+    if let Err(e) = write_policy_file(mcp_path, mcp_body) {
+        return WriteOutcome::Failed(e.to_string());
+    }
+    if let Err(e) = write_policy_file(settings_path, settings_body) {
+        return WriteOutcome::Failed(e.to_string());
+    }
+    WriteOutcome::Ok
+}
+
+#[cfg(target_os = "macos")]
+struct TempStaging {
+    _dir: tempfile::TempDir,
+    mcp: PathBuf,
+    settings: PathBuf,
+}
+
+#[cfg(target_os = "macos")]
+fn stage_temp(mcp_body: &str, settings_body: &str) -> Result<TempStaging, std::io::Error> {
+    let dir = tempfile::Builder::new()
+        .prefix("astound-install-")
+        .tempdir()?;
+    let mcp = dir.path().join(MANAGED_MCP_FILE);
+    let settings = dir.path().join(MANAGED_SETTINGS_FILE);
+    fs::write(&mcp, mcp_body.as_bytes())?;
+    fs::write(&settings, settings_body.as_bytes())?;
+    Ok(TempStaging { _dir: dir, mcp, settings })
+}
+
+#[cfg(target_os = "macos")]
+fn shell_quote(s: &str) -> String {
+    let escaped = s.replace('\'', r"'\''");
+    format!("'{escaped}'")
 }
 
 // Why: removes the files rather than writing an empty server map — an empty
@@ -183,33 +307,123 @@ pub(crate) fn apply_policy() -> PolicyOutcome {
 pub(crate) fn clear_policy() {
     let dir = policy_dir();
     let mcp_path = dir.join(MANAGED_MCP_FILE);
-    if let Err(e) = fs::remove_file(&mcp_path)
-        && e.kind() != std::io::ErrorKind::NotFound
-    {
-        tracing::warn!(
-            target: "bridge::install::managed-mcp",
-            path = %mcp_path.display(),
-            error = %e,
-            "could not remove the Claude Code MCP policy; it needs administrator privileges"
-        );
-    }
-
     let settings_path = dir.join(MANAGED_SETTINGS_FILE);
-    if !settings_path.exists() {
+
+    // Try the direct removal first (user is privileged, or files never existed).
+    let stripped_settings_body = if settings_path.exists() {
+        read_settings(&settings_path)
+            .and_then(|mut doc| {
+                doc.remove("allowedMcpServers");
+                doc.remove("allowManagedMcpServersOnly");
+                render_pretty(&Value::Object(doc))
+            })
+            .ok()
+    } else {
+        None
+    };
+
+    let mcp_exists = mcp_path.exists();
+    let direct_ok = clear_direct(&mcp_path, &settings_path, stripped_settings_body.as_deref());
+    if direct_ok || (!mcp_exists && stripped_settings_body.is_none()) {
         return;
     }
-    let stripped = read_settings(&settings_path).and_then(|mut doc| {
-        doc.remove("allowedMcpServers");
-        doc.remove("allowManagedMcpServersOnly");
-        let body = render_pretty(&Value::Object(doc))?;
-        write_policy_file(&settings_path, &body)
-    });
-    if let Err(e) = stripped {
-        tracing::warn!(
+
+    #[cfg(target_os = "macos")]
+    clear_elevated(&mcp_path, &settings_path, stripped_settings_body.as_deref());
+    #[cfg(not(target_os = "macos"))]
+    tracing::warn!(
+        target: "bridge::install::managed-mcp",
+        path = %mcp_path.display(),
+        "could not remove the Claude Code MCP policy — administrator privileges required"
+    );
+}
+
+fn clear_direct(
+    mcp_path: &Path,
+    settings_path: &Path,
+    stripped_settings_body: Option<&str>,
+) -> bool {
+    let mcp_ok = match fs::remove_file(mcp_path) {
+        Ok(()) => true,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => true,
+        Err(e) if e.kind() == std::io::ErrorKind::PermissionDenied => false,
+        Err(_) => false,
+    };
+    let settings_ok = match stripped_settings_body {
+        Some(body) => match write_policy_file(settings_path, body) {
+            Ok(()) => true,
+            Err(e) if e.kind() == std::io::ErrorKind::PermissionDenied => false,
+            Err(_) => false,
+        },
+        None => true,
+    };
+    mcp_ok && settings_ok
+}
+
+#[cfg(target_os = "macos")]
+fn clear_elevated(
+    mcp_path: &Path,
+    settings_path: &Path,
+    stripped_settings_body: Option<&str>,
+) {
+    let mut script = String::from("set -e\n");
+    if mcp_path.exists() {
+        script.push_str(&format!(
+            "/bin/rm -f {}\n",
+            shell_quote(&mcp_path.to_string_lossy())
+        ));
+    }
+    let tmp = if let Some(body) = stripped_settings_body {
+        let dir = match tempfile::Builder::new()
+            .prefix("astound-clear-")
+            .tempdir()
+        {
+            Ok(d) => d,
+            Err(e) => {
+                tracing::warn!(
+                    target: "bridge::install::managed-mcp",
+                    error = %e,
+                    "could not stage the stripped managed-settings.json for elevation",
+                );
+                return;
+            },
+        };
+        let staged = dir.path().join(MANAGED_SETTINGS_FILE);
+        if let Err(e) = fs::write(&staged, body.as_bytes()) {
+            tracing::warn!(
+                target: "bridge::install::managed-mcp",
+                error = %e,
+                "could not stage the stripped managed-settings.json for elevation",
+            );
+            return;
+        }
+        script.push_str(&format!(
+            "/usr/bin/install -m 0644 {} {}\n",
+            shell_quote(&staged.to_string_lossy()),
+            shell_quote(&settings_path.to_string_lossy()),
+        ));
+        Some(dir)
+    } else {
+        None
+    };
+    _ = tmp;
+    match crate::install::elevate::run_privileged(
+        &script,
+        "Astound Bridge needs administrator privileges to remove the Claude Code enterprise MCP policy.",
+    ) {
+        Ok(()) => tracing::info!(
             target: "bridge::install::managed-mcp",
-            path = %settings_path.display(),
+            "Claude Code MCP policy removed"
+        ),
+        Err(crate::install::elevate::ElevationError::UserCancelled) => tracing::warn!(
+            target: "bridge::install::managed-mcp",
+            "user declined the administrator authorization prompt; Claude Code MCP policy \
+             files were left in place"
+        ),
+        Err(e) => tracing::warn!(
+            target: "bridge::install::managed-mcp",
             error = %e,
-            "could not strip the MCP allowlist from managed settings"
-        );
+            "failed to remove Claude Code MCP policy"
+        ),
     }
 }

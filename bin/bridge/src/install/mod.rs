@@ -6,9 +6,12 @@
 mod apply;
 mod bootstrap;
 mod builders;
+#[cfg(target_os = "macos")]
+pub(crate) mod elevate;
 mod error;
 pub(crate) mod managed_mcp;
 pub(crate) mod mdm;
+pub mod proxy_service;
 mod schedule_apply;
 mod schedule_emit;
 mod summary;
@@ -21,6 +24,8 @@ pub use error::InstallError;
 #[cfg(target_os = "windows")]
 pub use mdm::windows_policy_values;
 pub use mdm::{is_uuid_like, snippet as mdm_snippet};
+#[cfg(target_os = "macos")]
+pub(crate) use schedule_apply::launchd_domain;
 pub use schedule_apply::{apply_schedule, remove_schedule};
 pub use schedule_emit::emit_schedule;
 pub use summary::{render_install_summary, render_uninstall_summary};
@@ -177,6 +182,13 @@ pub fn uninstall(purge: bool) -> Result<UninstallSummary, InstallError> {
         && let Err(e) = crate::integration::cowork_plugins::clear_all(&target)
     {
         diag(&format!("warning: Cowork enable-key cleanup failed: {e}"));
+    }
+
+    // Why: the plugin dirs are gone by now, but `~/.claude` still enables them
+    // and still carries their `hooks.json` — hooks that would keep firing at a
+    // loopback port this uninstall guarantees will never come up again.
+    if let Err(e) = crate::integration::claude_code_cli::clear_install() {
+        diag(&format!("warning: Claude Code CLI cleanup failed: {e}"));
     }
 
     let schedule = remove_schedule();

@@ -102,7 +102,6 @@ fn validate_gateway(gateway: &str) -> Result<(), String> {
 
 pub fn apply(gateway: &str, pubkey: Option<&str>) -> Result<Vec<String>, String> {
     use std::fs;
-    use std::process::Command;
 
     validate_gateway(gateway)?;
 
@@ -117,6 +116,14 @@ pub fn apply(gateway: &str, pubkey: Option<&str>) -> Result<Vec<String>, String>
     let dest_system = MANAGED_PREFS_PATH;
     let dest_user =
         format!("/Library/Managed Preferences/{user}/com.anthropic.claudefordesktop.plist");
+
+    // Idempotency: if the on-disk plist already matches, skip elevation.
+    // Only useful when we have permission to read it — Managed Preferences is
+    // world-readable so this works for the current user.
+    let existing_matches = fs::read(dest_system).is_ok_and(|b| b == plist.as_bytes())
+        && (user.is_empty()
+            || fs::read(&dest_user).is_ok_and(|b| b == plist.as_bytes()));
+
     let script = if user.is_empty() {
         format!(
             r#"set -e
@@ -136,20 +143,23 @@ mkdir -p "/Library/Managed Preferences" "/Library/Managed Preferences/{user}"
         )
     };
 
-    let status = Command::new("sudo")
-        .args(["sh", "-c", &script])
-        .status()
-        .map_err(|e| format!("sudo sh: {e}"))?;
+    let result = if existing_matches {
+        Ok(())
+    } else {
+        crate::install::elevate::run_privileged(
+            &script,
+            "Astound Bridge needs administrator privileges to install the Claude Desktop managed preferences.",
+        )
+        .map_err(|e| e.to_string())
+    };
     _ = fs::remove_file(&tmp_path);
-    if !status.success() {
-        return Err(format!(
-            "sudo direct-write exited with {}. Re-run `{} install --apply` and \
-             approve the sudo prompt, or try `--apply-mobileconfig` for the MDM/System-Settings \
-             path.",
-            status.code().unwrap_or(-1),
-            crate::brand::brand().binary_name
-        ));
-    }
+    result.map_err(|e| {
+        format!(
+            "{e} — re-run `{} install --apply` and approve the authorization prompt, or use \
+             `--apply-mobileconfig` for the System-Settings/MDM path.",
+            crate::brand::brand().binary_name,
+        )
+    })?;
 
     Ok(apply_summary(dest_system, &dest_user, &user, gateway))
 }
@@ -231,43 +241,32 @@ pub fn apply_mobileconfig(gateway: &str, pubkey: Option<&str>) -> Result<Vec<Str
 }
 
 pub fn remove_profile() -> Result<bool, String> {
-    use std::process::Command;
     let user = std::env::var("USER").unwrap_or_default();
     let user_path =
         format!("/Library/Managed Preferences/{user}/com.anthropic.claudefordesktop.plist");
     let sys_exists = Path::new(MANAGED_PREFS_PATH).exists();
     let user_exists = !user.is_empty() && Path::new(&user_path).exists();
 
-    _ = Command::new("sudo")
-        .args(["profiles", "remove", "-identifier", PAYLOAD_IDENTIFIER])
-        .status();
-
     if !sys_exists && !user_exists {
         return Ok(false);
     }
 
-    let script = if user_exists {
-        format!(
-            r#"rm -f "{MANAGED_PREFS_PATH}" "{user_path}"
+    let script = format!(
+        r#"set -e
+/usr/bin/profiles remove -identifier {PAYLOAD_IDENTIFIER} 2>/dev/null || true
+{rm_lines}
 /usr/bin/killall cfprefsd 2>/dev/null || true
-"#
-        )
-    } else {
-        format!(
-            r#"rm -f "{MANAGED_PREFS_PATH}"
-/usr/bin/killall cfprefsd 2>/dev/null || true
-"#
-        )
-    };
-    let status = Command::new("sudo")
-        .args(["sh", "-c", &script])
-        .status()
-        .map_err(|e| format!("sudo sh: {e}"))?;
-    if !status.success() {
-        return Err(format!(
-            "sudo direct-remove exited with {}",
-            status.code().unwrap_or(-1)
-        ));
-    }
+"#,
+        rm_lines = if user_exists {
+            format!(r#"rm -f "{MANAGED_PREFS_PATH}" "{user_path}""#)
+        } else {
+            format!(r#"rm -f "{MANAGED_PREFS_PATH}""#)
+        },
+    );
+    crate::install::elevate::run_privileged(
+        &script,
+        "Astound Bridge needs administrator privileges to remove the Claude Desktop managed preferences.",
+    )
+    .map_err(|e| e.to_string())?;
     Ok(true)
 }
