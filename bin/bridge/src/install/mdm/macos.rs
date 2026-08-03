@@ -207,7 +207,10 @@ pub fn apply_mobileconfig(gateway: &str, pubkey: Option<&str>) -> Result<Vec<Str
     fs::write(&out_path, mobileconfig.as_bytes())
         .map_err(|e| format!("write {}: {e}", out_path.display()))?;
 
-    let opened = Command::new("open").arg(&out_path).status();
+    // Why: `-g` opens System Settings without switching focus, avoiding a
+    // wry/muda/objc2 weak-ref teardown crash on the bridge window (see
+    // integration/claude_desktop/macos.rs::install_profile for the full story).
+    let opened = Command::new("open").arg("-g").arg(&out_path).status();
 
     let mut summary = Vec::with_capacity(5);
     summary.push(format!("wrote mobileconfig: {}", out_path.display()));

@@ -59,8 +59,11 @@ pub(super) fn write_profile(inputs: &ProfileGenInputs) -> std::io::Result<Genera
 
 pub(super) fn install_profile(generated_path: &str) -> std::io::Result<()> {
     if cfg!(target_os = "macos") {
+        // Why: see integration/claude_desktop/macos.rs::install_profile —
+        // `-g` prevents System Settings from stealing focus, which would
+        // trip a wry/muda/objc2 weak-ref teardown crash on the bridge window.
         std::process::Command::new("/usr/bin/open")
-            .arg(generated_path)
+            .args(["-g", generated_path])
             .status()?;
         return Ok(());
     }
