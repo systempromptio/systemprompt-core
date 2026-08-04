@@ -5,6 +5,8 @@ mod bootstrap;
 #[cfg(test)]
 mod builders;
 #[cfg(test)]
+mod elevation_script;
+#[cfg(test)]
 mod mdm_snippet;
 #[cfg(test)]
 mod pubkey;

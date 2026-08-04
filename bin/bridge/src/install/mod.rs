@@ -8,6 +8,7 @@ mod bootstrap;
 mod builders;
 #[cfg(target_os = "macos")]
 pub(crate) mod elevate;
+pub mod elevation_script;
 mod error;
 pub(crate) mod managed_mcp;
 pub(crate) mod mdm;
@@ -22,7 +23,7 @@ pub use builders::{InstallOptionsBuilder, UninstallSummaryBuilder};
 pub use error::InstallError;
 #[cfg(target_os = "windows")]
 pub use mdm::windows_policy_values;
-pub use mdm::{is_uuid_like, snippet as mdm_snippet};
+pub use mdm::{MdmError, is_uuid_like, snippet as mdm_snippet};
 #[cfg(target_os = "macos")]
 pub(crate) use schedule_apply::launchd_domain;
 pub use schedule_apply::{apply_schedule, remove_schedule};

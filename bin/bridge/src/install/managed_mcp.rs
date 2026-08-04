@@ -215,7 +215,6 @@ enum WriteOutcome {
     Failed(String),
 }
 
-#[cfg(target_os = "macos")]
 fn write_both(
     mcp_path: &Path,
     mcp_body: &str,
@@ -226,33 +225,36 @@ fn write_both(
     // users are already privileged and must not be prompted at all.
     let direct = write_policy_file(mcp_path, mcp_body)
         .and_then(|()| write_policy_file(settings_path, settings_body));
-    if direct.is_ok() {
-        return WriteOutcome::Ok;
+    match direct {
+        Ok(()) => WriteOutcome::Ok,
+        // Why: only permission-denied justifies escalating — anything else
+        // (ENOSPC and friends) is a real failure and elevation cannot fix it.
+        Err(err) if err.kind() == std::io::ErrorKind::PermissionDenied => {
+            write_elevated(mcp_path, mcp_body, settings_path, settings_body)
+        },
+        Err(err) => WriteOutcome::Failed(err.to_string()),
     }
-    // Why: only permission-denied justifies escalating — anything else
-    // (ENOSPC and friends) is a real failure and elevation cannot fix it.
-    if let Err(err) = &direct
-        && err.kind() != std::io::ErrorKind::PermissionDenied
-    {
-        return WriteOutcome::Failed(err.to_string());
-    }
+}
 
+#[cfg(target_os = "macos")]
+fn write_elevated(
+    mcp_path: &Path,
+    mcp_body: &str,
+    settings_path: &Path,
+    settings_body: &str,
+) -> WriteOutcome {
     // Why: stage into a user-writable tempdir first — the elevated shell can
     // read it, whereas a heredoc would embed the body in the script itself.
-    let tmp = match stage_temp(mcp_body, settings_body) {
+    let staging = match stage_temp(mcp_body, settings_body) {
         Ok(t) => t,
         Err(e) => return WriteOutcome::Failed(format!("stage temp: {e}")),
     };
-    let script = format!(
-        "set -e\n\
-         /bin/mkdir -p {dir}\n\
-         /usr/bin/install -m 0644 {tmp_mcp} {mcp}\n\
-         /usr/bin/install -m 0644 {tmp_settings} {settings}\n",
-        dir = shell_quote(&mcp_path.parent().unwrap_or(mcp_path).to_string_lossy()),
-        tmp_mcp = shell_quote(&tmp.mcp.to_string_lossy()),
-        mcp = shell_quote(&mcp_path.to_string_lossy()),
-        tmp_settings = shell_quote(&tmp.settings.to_string_lossy()),
-        settings = shell_quote(&settings_path.to_string_lossy()),
+    let script = super::elevation_script::write_policy_script(
+        mcp_path.parent().unwrap_or(mcp_path),
+        &staging.mcp,
+        mcp_path,
+        &staging.settings,
+        settings_path,
     );
     let result = crate::install::elevate::run_privileged(
         &script,
@@ -266,19 +268,10 @@ fn write_both(
 }
 
 #[cfg(not(target_os = "macos"))]
-fn write_both(
-    mcp_path: &Path,
-    mcp_body: &str,
-    settings_path: &Path,
-    settings_body: &str,
-) -> WriteOutcome {
-    if let Err(e) = write_policy_file(mcp_path, mcp_body) {
-        return WriteOutcome::Failed(e.to_string());
-    }
-    if let Err(e) = write_policy_file(settings_path, settings_body) {
-        return WriteOutcome::Failed(e.to_string());
-    }
-    WriteOutcome::Ok
+fn write_elevated(_: &Path, _: &str, _: &Path, _: &str) -> WriteOutcome {
+    WriteOutcome::Failed(
+        "administrator privileges required to write the policy directory".to_owned(),
+    )
 }
 
 #[cfg(target_os = "macos")]
@@ -302,12 +295,6 @@ fn stage_temp(mcp_body: &str, settings_body: &str) -> Result<TempStaging, std::i
         mcp,
         settings,
     })
-}
-
-#[cfg(target_os = "macos")]
-fn shell_quote(s: &str) -> String {
-    let escaped = s.replace('\'', r"'\''");
-    format!("'{escaped}'")
 }
 
 // Why: removes the files rather than writing an empty server map — an empty
@@ -365,45 +352,36 @@ fn clear_direct(
 }
 
 #[cfg(target_os = "macos")]
+fn stage_clear(body: &str) -> Result<(tempfile::TempDir, PathBuf), std::io::Error> {
+    let dir = tempfile::Builder::new()
+        .prefix("astound-clear-")
+        .tempdir()?;
+    let staged = dir.path().join(MANAGED_SETTINGS_FILE);
+    fs::write(&staged, body.as_bytes())?;
+    Ok((dir, staged))
+}
+
+#[cfg(target_os = "macos")]
 fn clear_elevated(mcp_path: &Path, settings_path: &Path, stripped_settings_body: Option<&str>) {
-    let mut script = String::from("set -e\n");
-    if mcp_path.exists() {
-        script.push_str(&format!(
-            "/bin/rm -f {}\n",
-            shell_quote(&mcp_path.to_string_lossy())
-        ));
-    }
-    let tmp = if let Some(body) = stripped_settings_body {
-        let dir = match tempfile::Builder::new().prefix("astound-clear-").tempdir() {
-            Ok(d) => d,
-            Err(e) => {
-                tracing::warn!(
-                    target: "bridge::install::managed-mcp",
-                    error = %e,
-                    "could not stage the stripped managed-settings.json for elevation",
-                );
-                return;
-            },
-        };
-        let staged = dir.path().join(MANAGED_SETTINGS_FILE);
-        if let Err(e) = fs::write(&staged, body.as_bytes()) {
+    // Why: the staging dir must outlive `run_privileged` — the elevated shell
+    // reads the staged file from it.
+    let staging = match stripped_settings_body.map(stage_clear).transpose() {
+        Ok(s) => s,
+        Err(e) => {
             tracing::warn!(
                 target: "bridge::install::managed-mcp",
                 error = %e,
                 "could not stage the stripped managed-settings.json for elevation",
             );
             return;
-        }
-        script.push_str(&format!(
-            "/usr/bin/install -m 0644 {} {}\n",
-            shell_quote(&staged.to_string_lossy()),
-            shell_quote(&settings_path.to_string_lossy()),
-        ));
-        Some(dir)
-    } else {
-        None
+        },
     };
-    _ = tmp;
+    let script = super::elevation_script::clear_policy_script(
+        mcp_path.exists().then_some(mcp_path),
+        staging
+            .as_ref()
+            .map(|(_, staged)| (staged.as_path(), settings_path)),
+    );
     match crate::install::elevate::run_privileged(
         &script,
         "Astound Bridge needs administrator privileges to remove the Claude Code enterprise MCP policy.",

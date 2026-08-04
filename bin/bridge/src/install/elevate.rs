@@ -26,7 +26,7 @@ use is_terminal::IsTerminal as _;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
-pub(crate) enum ElevationError {
+pub enum ElevationError {
     #[error("user cancelled the administrator authorization prompt")]
     UserCancelled,
     #[error("privileged command failed (exit {status:?}): {stderr}")]
@@ -38,8 +38,10 @@ pub(crate) enum ElevationError {
 // Why: `prompt` reaches the user only on the GUI path — sudo carries its own
 // on a TTY — so it must read as a standalone sentence. `UserCancelled` is a
 // decision, not a failure: callers surface it as "declined" rather than error.
+// The probe is stdin, not stdout: stdout redirected to a log must not push a
+// terminal session onto the osascript dialog path.
 pub(crate) fn run_privileged(script: &str, prompt: &str) -> Result<(), ElevationError> {
-    if std::io::stdout().is_terminal() {
+    if std::io::stdin().is_terminal() {
         sudo_direct(script)
     } else {
         osascript_admin(script, prompt)
@@ -62,6 +64,8 @@ fn sudo_direct(script: &str) -> Result<(), ElevationError> {
 }
 
 fn osascript_admin(script: &str, prompt: &str) -> Result<(), ElevationError> {
+    use super::elevation_script::applescript_escape;
+
     let applescript = format!(
         r#"do shell script "{}" with prompt "{}" with administrator privileges"#,
         applescript_escape(script),
@@ -82,31 +86,4 @@ fn osascript_admin(script: &str, prompt: &str) -> Result<(), ElevationError> {
         status: output.status.code(),
         stderr: stderr.into_owned(),
     })
-}
-
-fn applescript_escape(s: &str) -> String {
-    let mut out = String::with_capacity(s.len() + 4);
-    for c in s.chars() {
-        match c {
-            '\\' => out.push_str(r"\\"),
-            '"' => out.push_str(r#"\""#),
-            other => out.push(other),
-        }
-    }
-    out
-}
-
-#[cfg(test)]
-mod tests {
-    use super::applescript_escape;
-
-    #[test]
-    fn applescript_escape_quotes_and_backslashes() {
-        assert_eq!(applescript_escape(r#"echo "hi""#), r#"echo \"hi\""#);
-        assert_eq!(
-            applescript_escape(r"path\with\backslashes"),
-            r"path\\with\\backslashes"
-        );
-        assert_eq!(applescript_escape("plain"), "plain");
-    }
 }
