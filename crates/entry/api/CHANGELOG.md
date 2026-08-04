@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.29.0] - 2026-08-04
+
+### Added
+
+- `/health` reports `degraded` with `events: { "relay": "not_listening" }` when the cross-replica event relay has lost its listener. A replica in that state serves HTTP correctly while silently dropping every event originating on another replica, which previously showed as `healthy`.
+
+### Fixed
+
+- The event bridge takes the write pool rather than the read pool. `LISTEN`/`NOTIFY`, the outbox insert, and the retention prune all require the primary, so a deployment with a separate read URL pointed at a standby started a relay that could never listen. `write_pool()` falls back to the read pool when no write URL is configured, so a single-pool deployment is unaffected.
+
 ## [0.28.0] - 2026-07-31
 
 ### Breaking

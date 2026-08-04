@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.29.0] - 2026-08-04
+
+### Added
+
+- `systemprompt_events::is_listening` reports whether the cross-replica relay currently holds a listener. It reads `true` in a deployment that never starts a bridge, so the absence of a relay is not mistaken for a broken one, and flips to `false` only once a bridge has failed to establish `LISTEN` and has not recovered.
+- A listener that fails with SQLSTATE `25006` (`read_only_sql_transaction`) is named for what it is: the pool points at a read-only standby, and `LISTEN`/`NOTIFY` requires the primary. The error says which knob fixes it (`database_write_url`) rather than surfacing the raw driver message, which reads as a transient connection fault.
+
+### Changed
+
+- Listener reconnection backs off exponentially from 1s to a 60s cap and resets on success, instead of retrying every 5s forever. A relay pointed at a standby never recovers on its own, and the fixed interval turned a misconfiguration into a permanent once-per-5s error stream against the database.
+- Opening the listener is one fallible step rather than two: `PgListener::connect_with` and `LISTEN` shared a retry path but reported through separate branches that could drift.
+
 ## [0.21.1] - 2026-07-17
 
 ### Changed

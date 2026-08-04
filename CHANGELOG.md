@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.29.0] - 2026-08-04
+
+### Added
+
+- `/health` reports `degraded` with `events: { "relay": "not_listening" }` when the cross-replica event relay has lost its listener, backed by the new `systemprompt_events::is_listening`. A replica whose relay is down serves HTTP correctly while silently dropping every event raised on another replica — the one failure mode a health check exists to catch, and the one it previously called `healthy`. The flag reads `true` in a deployment that never starts a bridge, so no relay is not reported as a broken relay.
+- A listener rejected with SQLSTATE `25006` (`read_only_sql_transaction`) is diagnosed rather than relayed: the pool is a read-only standby, `LISTEN`/`NOTIFY` requires the primary, and the error names `database_write_url` as the fix. The raw driver message reads as a transient connection fault, which is exactly what it is not.
+
+### Fixed
+
+- Bridge (macOS): the elevated write of the Claude Code enterprise MCP policy no longer deletes its staged files before the privileged shell reads them, and the AppleScript credential-prompt path escapes newlines, so multi-line install scripts run instead of failing to compile. The elevation TTY probe reads stdin rather than stdout, so `bridge install > log` on a real terminal still uses `sudo`.
+- The event bridge takes the write pool rather than the read pool. `LISTEN`/`NOTIFY`, the outbox insert, and the retention prune all require the primary, so a deployment with a separate read URL aimed at a standby started a relay that could never establish itself. A single-pool deployment is unaffected — `write_pool()` falls back to the read pool when no write URL is configured.
+
+### Changed
+
+- Gateway upstream requests reuse one pooled HTTP client instead of opening a fresh connection pool and TLS handshake per call.
+- Bridge MDM policy application returns typed errors (`MdmError`) in place of formatted strings, and the per-install identity is a typed `InstallId` in both the port file and `/__bridge/whoami`. The serialized forms are unchanged.
+- Relay reconnection backs off exponentially from 1s to a 60s cap and resets on success, replacing a fixed 5s retry. A relay pointed at a standby never recovers on its own, so the old interval turned one misconfiguration into a permanent once-per-5s error stream against the database.
+
+- `GeoIP` enrichment reports a missing MaxMind database once per process instead of once per request. The reader is resolved when the analytics service is constructed and never changes, so the per-request line carried no information and drowned the debug stream on every deployment without geolocation data. The skips for loopback, unspecified, and private or link-local addresses drop from `debug` to `trace` for the same reason.
+
 ## [0.28.0] - 2026-07-31
 
 ### Breaking

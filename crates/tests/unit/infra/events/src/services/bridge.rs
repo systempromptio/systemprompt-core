@@ -122,6 +122,10 @@ async fn agui_event_relays_through_bridge_to_local_subscriber() {
         delivered,
         "AG-UI event routed on one replica must reach the local subscriber via the bridge"
     );
+    assert!(
+        systemprompt_events::is_listening(),
+        "a bridge that established its listener must report itself as listening"
+    );
 }
 
 #[tokio::test]
@@ -540,10 +544,14 @@ async fn bridge_reconnects_after_listener_connection_is_terminated() {
     );
 }
 
-// Paused time makes the 5-second retry back-off instantaneous, so several
-// connect-fail/sleep iterations run without any wall-clock cost.
+// Paused time makes the retry back-off instantaneous, so several
+// connect-fail/sleep iterations run without any wall-clock cost. 30s covers
+// the 1s/2s/4s/8s/16s ramp toward the cap. The bridge lock is held because
+// `is_listening` is process-global: a concurrently succeeding bridge would set
+// it back to true.
 #[tokio::test(start_paused = true)]
 async fn bridge_survives_listener_connect_failure_and_keeps_retrying() {
+    let _guard = BRIDGE_LOCK.lock().await;
     let db = closed_db_pool().await;
     let pool = (*db
         .pool_arc()
@@ -556,6 +564,11 @@ async fn bridge_survives_listener_connect_failure_and_keeps_retrying() {
     assert!(
         !handle.is_finished(),
         "the bridge must keep retrying when the listener cannot connect, not exit"
+    );
+    assert!(
+        !systemprompt_events::is_listening(),
+        "a bridge that cannot establish its listener must report itself as not listening so the \
+         health endpoint can surface the fault"
     );
     handle.abort();
     let err = handle

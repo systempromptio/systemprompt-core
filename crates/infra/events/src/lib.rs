@@ -83,5 +83,5 @@ pub use services::{
     A2A_BROADCASTER, A2ABroadcaster, AGUI_BROADCASTER, ANALYTICS_BROADCASTER, AgUiBroadcaster,
     AnalyticsBroadcaster, CONTEXT_BROADCASTER, ConnectionGuard, ContextBroadcaster, EventRouter,
     GenericBroadcaster, HEARTBEAT_INTERVAL, HEARTBEAT_JSON, OUTBOX_CHANNEL, OutboxChannel,
-    PostgresEventBridge, standard_keep_alive,
+    PostgresEventBridge, is_listening, standard_keep_alive,
 };

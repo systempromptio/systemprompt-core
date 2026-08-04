@@ -9,7 +9,7 @@ mod broadcaster;
 mod repository;
 mod routing;
 
-pub use bridge::PostgresEventBridge;
+pub use bridge::{PostgresEventBridge, is_listening};
 pub use broadcaster::{
     A2ABroadcaster, AgUiBroadcaster, AnalyticsBroadcaster, ConnectionGuard, ContextBroadcaster,
     GenericBroadcaster, HEARTBEAT_INTERVAL, HEARTBEAT_JSON, standard_keep_alive,

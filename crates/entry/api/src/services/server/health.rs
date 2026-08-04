@@ -256,10 +256,11 @@ pub async fn handle_health(
         .is_ok();
 
     let degraded_jobs = scheduler_health::degraded();
+    let relay_listening = systemprompt_events::is_listening();
 
     let (status, http_status) = if !db_healthy {
         ("unhealthy", StatusCode::SERVICE_UNAVAILABLE)
-    } else if degraded_jobs.is_empty() {
+    } else if degraded_jobs.is_empty() && relay_listening {
         ("healthy", StatusCode::OK)
     } else {
         ("degraded", StatusCode::OK)
@@ -268,6 +269,9 @@ pub async fn handle_health(
     let mut body = json!({ "status": status });
     if !degraded_jobs.is_empty() {
         body["scheduler"] = json!({ "degraded_jobs": degraded_jobs });
+    }
+    if !relay_listening {
+        body["events"] = json!({ "relay": "not_listening" });
     }
 
     (http_status, Json(body))

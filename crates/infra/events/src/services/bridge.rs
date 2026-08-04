@@ -17,6 +17,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 use sqlx::PgPool;
@@ -31,6 +32,27 @@ use systemprompt_models::{A2AEvent, AgUiEvent, AnalyticsEvent, SystemEvent};
 
 const OUTBOX_RETENTION: Duration = Duration::from_secs(3600);
 const PRUNE_INTERVAL: Duration = Duration::from_secs(300);
+const RETRY_MIN: Duration = Duration::from_secs(1);
+const RETRY_MAX: Duration = Duration::from_secs(60);
+
+// Why: Postgres `read_only_sql_transaction`, raised by `LISTEN` on a standby.
+const READ_ONLY_SQL_TRANSACTION: &str = "25006";
+
+static LISTENING: AtomicBool = AtomicBool::new(true);
+
+/// `false` once the relay has failed to establish a listener and has not
+/// recovered. Stays `true` in deployments that never start a bridge.
+#[must_use]
+pub fn is_listening() -> bool {
+    LISTENING.load(Ordering::Relaxed)
+}
+
+fn is_read_only_standby(err: &sqlx::Error) -> bool {
+    match err {
+        sqlx::Error::Database(db) => db.code().as_deref() == Some(READ_ONLY_SQL_TRANSACTION),
+        _ => false,
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct PostgresEventBridge {
@@ -51,24 +73,51 @@ impl PostgresEventBridge {
         })
     }
 
+    async fn open_listener(&self) -> Result<PgListener, sqlx::Error> {
+        let mut listener = PgListener::connect_with(&self.pool).await?;
+        listener.listen(OUTBOX_CHANNEL).await?;
+        Ok(listener)
+    }
+
+    fn report_listener_failure(err: &sqlx::Error, retry_in: Duration) {
+        let retry_in_secs = retry_in.as_secs();
+        if is_read_only_standby(err) {
+            error!(
+                error = %err,
+                channel = OUTBOX_CHANNEL,
+                retry_in_secs,
+                "event bridge: pool is a read-only standby; LISTEN/NOTIFY requires the primary. \
+                 Point the write pool (`database_write_url` secret, or `DATABASE_WRITE_URL` with \
+                 the env secrets source) at the primary and restart"
+            );
+        } else {
+            error!(
+                error = %err,
+                channel = OUTBOX_CHANNEL,
+                retry_in_secs,
+                "event bridge: failed to open Postgres listener; retrying"
+            );
+        }
+    }
+
     async fn run(self) {
         let mut prune_tick = tokio::time::interval(PRUNE_INTERVAL);
         prune_tick.tick().await;
+        let mut backoff = RETRY_MIN;
 
         loop {
-            let mut listener = match PgListener::connect_with(&self.pool).await {
+            let mut listener = match self.open_listener().await {
                 Ok(listener) => listener,
                 Err(e) => {
-                    error!(error = %e, "event bridge: failed to open Postgres listener; retrying");
-                    tokio::time::sleep(Duration::from_secs(5)).await;
+                    LISTENING.store(false, Ordering::Relaxed);
+                    Self::report_listener_failure(&e, backoff);
+                    tokio::time::sleep(backoff).await;
+                    backoff = (backoff * 2).min(RETRY_MAX);
                     continue;
                 },
             };
-            if let Err(e) = listener.listen(OUTBOX_CHANNEL).await {
-                error!(error = %e, channel = OUTBOX_CHANNEL, "event bridge: LISTEN failed; retrying");
-                tokio::time::sleep(Duration::from_secs(5)).await;
-                continue;
-            }
+            backoff = RETRY_MIN;
+            LISTENING.store(true, Ordering::Relaxed);
             info!(
                 channel = OUTBOX_CHANNEL,
                 "event bridge: listening for cross-replica events"
