@@ -27,7 +27,7 @@ pub struct PortRecord {
     pub schema: u32,
     pub port: u16,
     pub pid: u32,
-    pub install_id: String,
+    pub install_id: identity::InstallId,
     pub config_dir: String,
     pub bound_at_unix: u64,
     pub version: String,

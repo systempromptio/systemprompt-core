@@ -68,7 +68,7 @@ impl SettingsWindow {
         &*self.window
     }
 
-    pub fn create(
+    pub(crate) fn create(
         event_loop: &dyn ActiveEventLoop,
         proxy: &UiEventProxy,
         legacy_origin: Option<&str>,

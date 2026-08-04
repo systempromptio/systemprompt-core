@@ -16,9 +16,9 @@ pub enum InstallError {
     #[error("version sentinel write failed: {0}")]
     Sentinel(std::io::Error),
     #[error("apply failed: {0}")]
-    MdmApply(String),
+    MdmApply(crate::install::mdm::MdmError),
     #[error("apply --mobileconfig failed: {0}")]
-    MobileconfigApply(String),
+    MobileconfigApply(crate::install::mdm::MdmError),
     #[error("--apply-mobileconfig is only supported on macOS")]
     MobileconfigUnsupported,
     #[error("registering the scheduled sync job failed: {0}")]

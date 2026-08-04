@@ -167,7 +167,7 @@ fn rejection(body: String, reason: &'static str) -> Response<ProxyBody> {
         "x-systemprompt-bridge-reason",
         http::HeaderValue::from_static(reason),
     );
-    if let Ok(v) = http::HeaderValue::from_str(&crate::proxy::identity::install_id()) {
+    if let Ok(v) = http::HeaderValue::from_str(crate::proxy::identity::install_id().as_str()) {
         headers.insert("x-systemprompt-bridge-install", v);
     }
     if let Ok(v) = http::HeaderValue::from_str(&crate::proxy::identity::config_dir_display()) {

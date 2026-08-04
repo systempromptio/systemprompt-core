@@ -183,7 +183,7 @@ pub fn probe_identity(port: u16) -> PeerIdentity {
     }
     // Why: two installs that both failed to establish an id would otherwise
     // read as the same install and one would wrongly stand down.
-    if !crate::proxy::identity::is_known(&who.install_id) {
+    if !who.install_id.is_known() {
         return PeerIdentity::Unknown;
     }
     if who.is_ours() {

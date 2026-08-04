@@ -30,7 +30,29 @@ use serde::{Deserialize, Serialize};
 const INSTALL_ID_FILENAME: &str = "bridge-install.id";
 const UNKNOWN: &str = "unknown";
 
-static INSTALL_ID: OnceLock<String> = OnceLock::new();
+static INSTALL_ID: OnceLock<InstallId> = OnceLock::new();
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct InstallId(String);
+
+impl InstallId {
+    #[must_use]
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+
+    #[must_use]
+    pub fn is_known(&self) -> bool {
+        is_known(&self.0)
+    }
+}
+
+impl std::fmt::Display for InstallId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.0)
+    }
+}
 
 /// The wire shape of `/__bridge/whoami`.
 ///
@@ -41,7 +63,7 @@ static INSTALL_ID: OnceLock<String> = OnceLock::new();
 pub struct WhoAmI {
     pub schema: u32,
     pub product: String,
-    pub install_id: String,
+    pub install_id: InstallId,
     pub config_dir: String,
     pub port: u16,
     pub pid: u32,
@@ -67,7 +89,6 @@ impl WhoAmI {
         }
     }
 
-    /// Whether this record describes the install running in this process.
     #[must_use]
     pub fn is_ours(&self) -> bool {
         self.product == WHOAMI_PRODUCT && self.install_id == install_id()
@@ -107,14 +128,14 @@ pub fn config_dir_display() -> String {
 /// reporting `unknown` will read as the same install, so callers treat it as
 /// unidentified rather than matching — see [`WhoAmI::is_ours`] callers.
 #[must_use]
-pub fn install_id() -> String {
+pub fn install_id() -> InstallId {
     if let Some(id) = INSTALL_ID.get() {
         return id.clone();
     }
-    let id = load_or_mint().unwrap_or_else(|e| {
+    let id = InstallId(load_or_mint().unwrap_or_else(|e| {
         tracing::warn!(error = %e, "could not establish an install id; using {UNKNOWN}");
         UNKNOWN.to_owned()
-    });
+    }));
     _ = INSTALL_ID.set(id.clone());
     id
 }

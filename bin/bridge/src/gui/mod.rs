@@ -115,7 +115,7 @@ pub fn run() -> ExitCode {
         },
     };
     let app_state = AppState::new_loaded();
-    let mut app = GuiApp::new(app_state, tx, proxy, runtime);
+    let app = GuiApp::new(app_state, tx, proxy, runtime);
 
     match &proxy_outcome {
         crate::proxy::StartOutcome::Started(h) => {

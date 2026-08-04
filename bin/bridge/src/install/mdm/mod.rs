@@ -3,12 +3,15 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod error;
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]
 pub(crate) mod linux;
 #[cfg(target_os = "macos")]
 pub(super) mod macos;
 #[cfg(target_os = "windows")]
 mod windows;
+
+pub use error::MdmError;
 
 use crate::schedule::Os;
 
@@ -110,23 +113,23 @@ pub(crate) fn apply_mdm(
     os: Os,
     gateway: &str,
     pubkey: Option<&str>,
-) -> Result<Vec<String>, String> {
+) -> Result<Vec<String>, MdmError> {
     match os {
         #[cfg(target_os = "windows")]
-        Os::Windows => windows::apply(gateway, pubkey),
+        Os::Windows => windows::apply(gateway, pubkey).map_err(MdmError::Windows),
         #[cfg(not(target_os = "windows"))]
         Os::Windows => {
             _ = (gateway, pubkey);
-            Err("--apply on Windows must be run from a Windows binary".into())
+            Err(MdmError::WrongHostOs { os: "Windows" })
         },
         #[cfg(target_os = "macos")]
         Os::Mac => macos::apply(gateway, pubkey),
         #[cfg(not(target_os = "macos"))]
-        Os::Mac => Err("--apply on macOS must be run from a macOS binary".into()),
+        Os::Mac => Err(MdmError::WrongHostOs { os: "macOS" }),
         #[cfg(not(any(target_os = "macos", target_os = "windows")))]
         Os::Linux => linux::apply(gateway),
         #[cfg(any(target_os = "macos", target_os = "windows"))]
-        Os::Linux => Err("--apply on Linux must be run from a Linux binary".into()),
+        Os::Linux => Err(MdmError::WrongHostOs { os: "Linux" }),
     }
 }
 

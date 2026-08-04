@@ -13,6 +13,8 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use super::MdmError;
+
 fn markers() -> (String, String) {
     let bin = crate::brand::brand().binary_name;
     (
@@ -78,31 +80,39 @@ fn splice(existing: &str, block: &str) -> Option<String> {
     (replaced != existing).then_some(replaced)
 }
 
-fn write_atomic(path: &Path, contents: &str) -> Result<(), String> {
+fn io_error(action: &'static str, path: &Path) -> impl FnOnce(std::io::Error) -> MdmError {
+    let path = path.to_path_buf();
+    move |source| MdmError::Io {
+        action,
+        path,
+        source,
+    }
+}
+
+fn write_atomic(path: &Path, contents: &str) -> Result<(), MdmError> {
     if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent).map_err(|e| format!("create {}: {e}", parent.display()))?;
+        fs::create_dir_all(parent).map_err(io_error("create", parent))?;
     }
     let tmp = path.with_extension(format!("tmp.{}", std::process::id()));
-    fs::write(&tmp, contents).map_err(|e| format!("write {}: {e}", tmp.display()))?;
+    fs::write(&tmp, contents).map_err(io_error("write", &tmp))?;
     fs::rename(&tmp, path).map_err(|e| {
         _ = fs::remove_file(&tmp);
-        format!("rename onto {}: {e}", path.display())
+        io_error("rename onto", path)(e)
     })
 }
 
-fn read_or_empty(path: &Path) -> Result<String, String> {
+fn read_or_empty(path: &Path) -> Result<String, MdmError> {
     match fs::read_to_string(path) {
         Ok(s) => Ok(s),
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(String::new()),
-        Err(e) => Err(format!("read {}: {e}", path.display())),
+        Err(e) => Err(io_error("read", path)(e)),
     }
 }
 
-pub(super) fn apply(gateway: &str) -> Result<Vec<String>, String> {
-    let env_file =
-        env_file_path().ok_or_else(|| "cannot resolve the user's config directory".to_owned())?;
-    let key_path = crate::proxy::secret::secret_path()
-        .ok_or_else(|| "cannot resolve the loopback secret path".to_owned())?;
+pub(super) fn apply(gateway: &str) -> Result<Vec<String>, MdmError> {
+    let env_file = env_file_path().ok_or(MdmError::Resolve("the user's config directory"))?;
+    let key_path =
+        crate::proxy::secret::secret_path().ok_or(MdmError::Resolve("the loopback secret path"))?;
     write_atomic(&env_file, &env_file_body(gateway, &key_path))?;
 
     let mut lines = vec![format!(
@@ -110,8 +120,7 @@ pub(super) fn apply(gateway: &str) -> Result<Vec<String>, String> {
         env_file.display()
     )];
 
-    let profile =
-        profile_path().ok_or_else(|| "cannot resolve the user's home directory".to_owned())?;
+    let profile = profile_path().ok_or(MdmError::Resolve("the user's home directory"))?;
     let existing = read_or_empty(&profile)?;
     match splice(&existing, &profile_block(&env_file)) {
         Some(updated) => {
@@ -175,14 +184,13 @@ fn key_helper_body(key_path: &Path) -> String {
     )
 }
 
-fn apply_managed_settings(gateway: &str, key_path: &Path) -> Result<Vec<String>, String> {
-    let helper =
-        key_helper_path().ok_or_else(|| "cannot resolve the user's config directory".to_owned())?;
+fn apply_managed_settings(gateway: &str, key_path: &Path) -> Result<Vec<String>, MdmError> {
+    let helper = key_helper_path().ok_or(MdmError::Resolve("the user's config directory"))?;
     write_atomic(&helper, &key_helper_body(key_path))?;
     set_executable(&helper)?;
 
-    let settings_path = managed_settings_path()
-        .ok_or_else(|| "cannot resolve the managed settings path".to_owned())?;
+    let settings_path =
+        managed_settings_path().ok_or(MdmError::Resolve("the managed settings path"))?;
     let existing = read_or_empty(&settings_path)?;
     // Why: this file may already carry an organisation's own policy. Anything
     // the bridge does not own is preserved; refusing to parse is safer than
@@ -190,8 +198,10 @@ fn apply_managed_settings(gateway: &str, key_path: &Path) -> Result<Vec<String>,
     let mut root: serde_json::Map<String, serde_json::Value> = if existing.trim().is_empty() {
         serde_json::Map::new()
     } else {
-        serde_json::from_str(&existing)
-            .map_err(|e| format!("{} is not valid JSON: {e}", settings_path.display()))?
+        serde_json::from_str(&existing).map_err(|e| MdmError::Json {
+            path: settings_path.clone(),
+            source: e,
+        })?
     };
 
     let mut lines = vec![format!("wrote: {} (apiKeyHelper)", helper.display())];
@@ -201,10 +211,9 @@ fn apply_managed_settings(gateway: &str, key_path: &Path) -> Result<Vec<String>,
         .entry("env".to_owned())
         .or_insert_with(|| serde_json::Value::Object(serde_json::Map::new()));
     let Some(env) = env.as_object_mut() else {
-        return Err(format!(
-            "{}: \"env\" is present but is not an object",
-            settings_path.display()
-        ));
+        return Err(MdmError::EnvNotObject {
+            path: settings_path,
+        });
     };
     env.insert(
         "ANTHROPIC_BASE_URL".to_owned(),
@@ -229,8 +238,12 @@ fn apply_managed_settings(gateway: &str, key_path: &Path) -> Result<Vec<String>,
         serde_json::Value::String(helper.display().to_string()),
     );
 
-    let rendered = serde_json::to_string_pretty(&serde_json::Value::Object(root))
-        .map_err(|e| format!("render {}: {e}", settings_path.display()))?;
+    let rendered = serde_json::to_string_pretty(&serde_json::Value::Object(root)).map_err(|e| {
+        MdmError::Json {
+            path: settings_path.clone(),
+            source: e,
+        }
+    })?;
     write_atomic(&settings_path, &format!("{rendered}\n"))?;
     lines.push(format!(
         "wrote: {} (ANTHROPIC_BASE_URL, apiKeyHelper, model discovery)",
@@ -292,10 +305,9 @@ fn remove_managed_settings() -> Vec<String> {
     }
 }
 
-fn set_executable(path: &Path) -> Result<(), String> {
+fn set_executable(path: &Path) -> Result<(), MdmError> {
     use std::os::unix::fs::PermissionsExt as _;
-    fs::set_permissions(path, fs::Permissions::from_mode(0o700))
-        .map_err(|e| format!("chmod {}: {e}", path.display()))
+    fs::set_permissions(path, fs::Permissions::from_mode(0o700)).map_err(io_error("chmod", path))
 }
 
 pub(crate) fn remove() -> Vec<String> {

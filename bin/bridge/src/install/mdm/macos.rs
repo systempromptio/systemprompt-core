@@ -9,6 +9,8 @@
 use crate::install::xml;
 use std::path::Path;
 
+use super::MdmError;
+
 pub(crate) const PAYLOAD_IDENTIFIER: &str = "io.systemprompt.bridge.mdm";
 const INNER_PAYLOAD_IDENTIFIER: &str = "io.systemprompt.bridge.mdm.inference";
 pub(crate) const MANAGED_PREFS_PATH: &str =
@@ -87,20 +89,19 @@ fn managed_mcp_plist_block() -> String {
     out
 }
 
-fn validate_gateway(gateway: &str) -> Result<(), String> {
+fn validate_gateway(gateway: &str) -> Result<(), MdmError> {
     if gateway.starts_with("http://")
         && !gateway.contains("://127.0.0.1")
         && !gateway.contains("://localhost")
     {
-        return Err(format!(
-            "gateway url {gateway} uses http:// for a non-loopback host; \
-             Bridge rejects this. Use https:// or http://127.0.0.1:<port>."
-        ));
+        return Err(MdmError::InsecureGateway {
+            gateway: gateway.to_owned(),
+        });
     }
     Ok(())
 }
 
-pub fn apply(gateway: &str, pubkey: Option<&str>) -> Result<Vec<String>, String> {
+pub fn apply(gateway: &str, pubkey: Option<&str>) -> Result<Vec<String>, MdmError> {
     use std::fs;
 
     validate_gateway(gateway)?;
@@ -108,8 +109,11 @@ pub fn apply(gateway: &str, pubkey: Option<&str>) -> Result<Vec<String>, String>
     let plist = build_prefs_plist(gateway, pubkey);
     let tmp_path =
         std::env::temp_dir().join(format!("{}.prefs.plist", crate::brand::brand().binary_name));
-    fs::write(&tmp_path, plist.as_bytes())
-        .map_err(|e| format!("write {}: {e}", tmp_path.display()))?;
+    fs::write(&tmp_path, plist.as_bytes()).map_err(|e| MdmError::Io {
+        action: "write",
+        path: tmp_path.clone(),
+        source: e,
+    })?;
 
     let user = std::env::var("USER").unwrap_or_default();
     let tmp_str = tmp_path.to_string_lossy();
@@ -148,15 +152,11 @@ mkdir -p "/Library/Managed Preferences" "/Library/Managed Preferences/{user}"
             &script,
             "Astound Bridge needs administrator privileges to install the Claude Desktop managed preferences.",
         )
-        .map_err(|e| e.to_string())
     };
     _ = fs::remove_file(&tmp_path);
-    result.map_err(|e| {
-        format!(
-            "{e} — re-run `{} install --apply` and approve the authorization prompt, or use \
-             `--apply-mobileconfig` for the System-Settings/MDM path.",
-            crate::brand::brand().binary_name,
-        )
+    result.map_err(|e| MdmError::ApplyElevation {
+        binary: crate::brand::brand().binary_name,
+        source: e,
     })?;
 
     Ok(apply_summary(dest_system, &dest_user, &user, gateway))
@@ -201,7 +201,7 @@ fn apply_summary(
     summary
 }
 
-pub fn apply_mobileconfig(gateway: &str, pubkey: Option<&str>) -> Result<Vec<String>, String> {
+pub fn apply_mobileconfig(gateway: &str, pubkey: Option<&str>) -> Result<Vec<String>, MdmError> {
     use std::fs;
     use std::process::Command;
 
@@ -212,8 +212,11 @@ pub fn apply_mobileconfig(gateway: &str, pubkey: Option<&str>) -> Result<Vec<Str
         "{}.mobileconfig",
         crate::brand::brand().binary_name
     ));
-    fs::write(&out_path, mobileconfig.as_bytes())
-        .map_err(|e| format!("write {}: {e}", out_path.display()))?;
+    fs::write(&out_path, mobileconfig.as_bytes()).map_err(|e| MdmError::Io {
+        action: "write",
+        path: out_path.clone(),
+        source: e,
+    })?;
 
     // Why: `-g` opens System Settings without switching focus, avoiding a
     // wry/muda/objc2 weak-ref teardown crash on the bridge window (see
@@ -238,7 +241,7 @@ pub fn apply_mobileconfig(gateway: &str, pubkey: Option<&str>) -> Result<Vec<Str
     Ok(summary)
 }
 
-pub fn remove_profile() -> Result<bool, String> {
+pub fn remove_profile() -> Result<bool, MdmError> {
     let user = std::env::var("USER").unwrap_or_default();
     let user_path =
         format!("/Library/Managed Preferences/{user}/com.anthropic.claudefordesktop.plist");
@@ -264,7 +267,6 @@ pub fn remove_profile() -> Result<bool, String> {
     crate::install::elevate::run_privileged(
         &script,
         "Astound Bridge needs administrator privileges to remove the Claude Desktop managed preferences.",
-    )
-    .map_err(|e| e.to_string())?;
+    )?;
     Ok(true)
 }
