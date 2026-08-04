@@ -13,7 +13,13 @@ pub(crate) fn lookup_geoip(
     geoip_reader: Option<&GeoIpReader>,
 ) -> Option<(Option<String>, Option<String>, Option<String>)> {
     let Some(reader) = geoip_reader else {
-        tracing::debug!(ip = %ip_str, geoip_skip_reason = "no_reader", "GeoIP lookup skipped");
+        static NO_READER_NOTICE: std::sync::Once = std::sync::Once::new();
+        NO_READER_NOTICE.call_once(|| {
+            tracing::debug!(
+                geoip_skip_reason = "no_reader",
+                "GeoIP enrichment inactive: no MaxMind reader configured; location fields will be empty for all requests"
+            );
+        });
         return None;
     };
 
@@ -26,14 +32,14 @@ pub(crate) fn lookup_geoip(
     };
 
     if ip.is_loopback() || ip.is_unspecified() {
-        tracing::debug!(ip = %ip_str, geoip_skip_reason = "private_or_local_ip", "GeoIP lookup skipped");
+        tracing::trace!(ip = %ip_str, geoip_skip_reason = "private_or_local_ip", "GeoIP lookup skipped");
         return None;
     }
 
     if let std::net::IpAddr::V4(ipv4) = ip
         && (ipv4.is_private() || ipv4.is_link_local())
     {
-        tracing::debug!(ip = %ip_str, geoip_skip_reason = "private_or_local_ip", "GeoIP lookup skipped");
+        tracing::trace!(ip = %ip_str, geoip_skip_reason = "private_or_local_ip", "GeoIP lookup skipped");
         return None;
     }
 
