@@ -12,7 +12,7 @@ use async_trait::async_trait;
 use serde_json::Value;
 use systemprompt_models::wire::anthropic;
 
-use super::{OutboundAdapter, OutboundCtx, OutboundOutcome, PreparedBody, UpstreamError};
+use super::{OutboundAdapter, OutboundCtx, OutboundOutcome, PreparedBody};
 
 mod request;
 mod response;
@@ -52,24 +52,11 @@ impl OutboundAdapter for AnthropicOutbound {
         let passthrough = body.raw_lane;
         let url = format!("{}/messages", ctx.endpoint.trim_end_matches('/'));
 
-        let client = reqwest::Client::new();
-        let mut req = client.post(&url).body(body.bytes.clone());
+        let mut req = super::http_client().post(&url).body(body.bytes.clone());
         for (name, value) in request_headers(&ctx) {
             req = req.header(name, value);
         }
-        let upstream_response = req.send().await.map_err(|e| {
-            anyhow::Error::new(UpstreamError::Transport {
-                provider: ctx.route.provider.as_str().to_owned(),
-                source: e,
-            })
-        })?;
-
-        let status = upstream_response.status();
-        if !status.is_success() {
-            return Err(anyhow::Error::new(
-                UpstreamError::from_response(ctx.route.provider.as_str(), upstream_response).await,
-            ));
-        }
+        let upstream_response = super::send_checked(ctx.route.provider.as_str(), req).await?;
 
         let content_type = upstream_response
             .headers()

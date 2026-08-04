@@ -15,7 +15,7 @@ use serde_json::Value;
 use systemprompt_models::wire::gemini;
 
 use super::super::canonical_response::CanonicalResponse;
-use super::{OutboundAdapter, OutboundCtx, OutboundOutcome, PreparedBody, UpstreamError};
+use super::{OutboundAdapter, OutboundCtx, OutboundOutcome, PreparedBody};
 
 #[cfg(feature = "test-api")]
 pub mod test_api {
@@ -43,8 +43,7 @@ impl OutboundAdapter for GeminiOutbound {
         let path = gemini::upstream_path(ctx.upstream_model, ctx.request.stream);
         let url = format!("{}{path}", ctx.endpoint.trim_end_matches('/'));
 
-        let client = reqwest::Client::new();
-        let mut req = client
+        let mut req = super::http_client()
             .post(&url)
             .header(gemini::API_KEY_HEADER, ctx.api_key)
             .header("content-type", "application/json")
@@ -52,19 +51,7 @@ impl OutboundAdapter for GeminiOutbound {
         for (name, value) in &ctx.route.extra_headers {
             req = req.header(name.as_str(), value.as_str());
         }
-
-        let upstream_response = req.send().await.map_err(|e| {
-            anyhow::Error::new(UpstreamError::Transport {
-                provider: ctx.route.provider.as_str().to_owned(),
-                source: e,
-            })
-        })?;
-
-        if !upstream_response.status().is_success() {
-            return Err(anyhow::Error::new(
-                UpstreamError::from_response(ctx.route.provider.as_str(), upstream_response).await,
-            ));
-        }
+        let upstream_response = super::send_checked(ctx.route.provider.as_str(), req).await?;
 
         if ctx.request.stream {
             let stream = upstream_response.bytes_stream();

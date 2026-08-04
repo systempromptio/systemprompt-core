@@ -84,6 +84,31 @@ impl UpstreamError {
     }
 }
 
+// Why: one process-wide client — a client per request would open a fresh
+// connection pool and TLS handshake on every gateway call.
+pub(in crate::services::gateway) fn http_client() -> &'static reqwest::Client {
+    static CLIENT: std::sync::OnceLock<reqwest::Client> = std::sync::OnceLock::new();
+    CLIENT.get_or_init(reqwest::Client::new)
+}
+
+pub(in crate::services::gateway) async fn send_checked(
+    provider: &str,
+    req: reqwest::RequestBuilder,
+) -> Result<reqwest::Response> {
+    let response = req.send().await.map_err(|e| {
+        anyhow::Error::new(UpstreamError::Transport {
+            provider: provider.to_owned(),
+            source: e,
+        })
+    })?;
+    if !response.status().is_success() {
+        return Err(anyhow::Error::new(
+            UpstreamError::from_response(provider, response).await,
+        ));
+    }
+    Ok(response)
+}
+
 pub fn extract_upstream_message(body: &str) -> String {
     serde_json::from_str::<serde_json::Value>(body)
         .ok()
