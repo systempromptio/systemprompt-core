@@ -1,8 +1,9 @@
 //! The pre-flight validators the boot path calls before it trusts a database:
-//! connection liveness, table presence and column presence.
+//! connection liveness, primary-vs-standby, table presence and column presence.
 
 use systemprompt_database::{
     PostgresProvider, validate_column_exists, validate_database_connection, validate_table_exists,
+    validate_write_pool_is_primary,
 };
 
 use crate::services::db_helper::pool;
@@ -22,6 +23,17 @@ async fn a_live_pool_passes_the_connection_check() {
     validate_database_connection(&provider)
         .await
         .expect("a pool that answers must pass the pre-flight connection check");
+}
+
+#[tokio::test]
+async fn a_writable_primary_passes_the_standby_check() {
+    let Some(db) = pool().await else {
+        return;
+    };
+
+    validate_write_pool_is_primary(&db)
+        .await
+        .expect("a pool on a primary must not be rejected as a standby");
 }
 
 #[tokio::test]

@@ -15,6 +15,7 @@ use std::sync::Arc;
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_database::{
     Database, MigrationConfig, PoolConfig, install_extension_schemas_full,
+    validate_write_pool_is_primary,
 };
 use systemprompt_extension::ExtensionRegistry;
 use systemprompt_models::{AppPaths, Config};
@@ -55,6 +56,8 @@ pub(super) async fn init_core(
         )
         .await?,
     );
+
+    validate_write_pool_is_primary(&database).await?;
 
     let authz_audit_pool = database.write_pool_arc().ok();
     let authz_hook = systemprompt_security::authz::build_authz_hook(
