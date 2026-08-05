@@ -1,3 +1,5 @@
+//! `admin evals show` — inspect a run and its results.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -24,6 +26,8 @@ struct ResultRow {
     score: String,
     verdict: &'static str,
     repaired: bool,
+    replay_of: String,
+    repair_hint: String,
     rationale: String,
 }
 
@@ -48,6 +52,11 @@ pub(super) async fn execute(args: ShowArgs, ctx: &CommandContext) -> Result<Comm
                 .unwrap_or_default(),
             verdict: result.verdict.as_str(),
             repaired: result.repaired,
+            replay_of: result
+                .replay_of_result_id
+                .map(|id| id.as_str().to_owned())
+                .unwrap_or_default(),
+            repair_hint: result.repair_hint.unwrap_or_default(),
             rationale: result.rationale.unwrap_or_default(),
         })
         .collect();
@@ -60,6 +69,8 @@ pub(super) async fn execute(args: ShowArgs, ctx: &CommandContext) -> Result<Comm
             "score",
             "verdict",
             "repaired",
+            "replay_of",
+            "repair_hint",
             "rationale",
         ],
         &rows,

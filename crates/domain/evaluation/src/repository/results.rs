@@ -1,3 +1,5 @@
+//! Repository for evaluation results.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -28,11 +30,11 @@ impl EvalResultRepository {
             r#"
             INSERT INTO eval_results (
                 id, run_id, ai_request_id, case_id, provider, model,
-                overall_score, dimension_scores, verdict, rationale,
+                overall_score, dimension_scores, verdict, rationale, repair_hint,
                 prompt_excerpt, response_excerpt, judge_cost_microdollars,
                 repaired, replay_of_result_id, judge_ai_request_id
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
             "#,
             id.as_str(),
             params.run_id.as_str(),
@@ -44,6 +46,7 @@ impl EvalResultRepository {
             params.dimension_scores,
             params.verdict.as_str(),
             params.rationale.as_deref(),
+            params.repair_hint.as_deref(),
             params.prompt_excerpt.as_deref(),
             params.response_excerpt.as_deref(),
             params.judge_cost_microdollars,
@@ -63,7 +66,7 @@ impl EvalResultRepository {
         let rows = sqlx::query!(
             r#"
             SELECT id, run_id, ai_request_id, case_id, provider, model,
-                   overall_score, dimension_scores, verdict, rationale,
+                   overall_score, dimension_scores, verdict, rationale, repair_hint,
                    prompt_excerpt, response_excerpt, latency_ms,
                    cost_microdollars, judge_cost_microdollars, created_at,
                    repaired, replay_of_result_id, judge_ai_request_id
@@ -90,6 +93,7 @@ impl EvalResultRepository {
                     verdict: Verdict::from_str(&row.verdict)
                         .map_err(EvaluationError::JudgeParse)?,
                     rationale: row.rationale,
+                    repair_hint: row.repair_hint,
                     prompt_excerpt: row.prompt_excerpt,
                     response_excerpt: row.response_excerpt,
                     latency_ms: row.latency_ms,

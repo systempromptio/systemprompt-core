@@ -3,9 +3,9 @@
 //! deleted afterwards, so assertions never depend on shared-table state.
 
 use systemprompt_evaluation::{
-    EvalCaseRepository, EvalResultRepository, EvalRubricRepository, EvalRunRepository,
-    EvalRunKind, NewCaseParams, NewResultParams, NewRunParams, Rubric, RubricDimension,
-    SampleFilter, SamplingRepository, TriggerSource, Verdict,
+    EvalCaseRepository, EvalResultRepository, EvalRubricRepository, EvalRunKind, EvalRunRepository,
+    NewCaseParams, NewResultParams, NewRunParams, Rubric, RubricDimension, SampleFilter,
+    SamplingRepository, TriggerSource, Verdict,
 };
 use systemprompt_identifiers::{AiRequestId, EvalRubricId, UserId};
 use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_database_url, fixture_db_pool};
@@ -23,10 +23,7 @@ fn new_run_params() -> NewRunParams {
     }
 }
 
-async fn seed_ai_request(
-    pool: &systemprompt_database::DbPool,
-    actor_kind: &str,
-) -> AiRequestId {
+async fn seed_ai_request(pool: &systemprompt_database::DbPool, actor_kind: &str) -> AiRequestId {
     let id = format!("eval-test-{}", Uuid::new_v4());
     let write = pool.write_pool_arc().expect("write pool");
     sqlx::query(
@@ -157,6 +154,7 @@ async fn results_track_failures_and_repair() {
             dimension_scores: serde_json::json!([]),
             verdict: Verdict::Fail,
             rationale: Some("missed the point".to_owned()),
+            repair_hint: Some("cite the source".to_owned()),
             prompt_excerpt: None,
             response_excerpt: None,
             judge_cost_microdollars: 3,
@@ -167,12 +165,18 @@ async fn results_track_failures_and_repair() {
         .await
         .expect("insert");
 
-    let failures = results.failures_for_replay(&run_id).await.expect("failures");
+    let failures = results
+        .failures_for_replay(&run_id)
+        .await
+        .expect("failures");
     assert_eq!(failures.len(), 1);
     assert_eq!(failures[0].id, result_id);
 
     results.mark_repaired(&result_id).await.expect("repair");
-    let failures = results.failures_for_replay(&run_id).await.expect("failures");
+    let failures = results
+        .failures_for_replay(&run_id)
+        .await
+        .expect("failures");
     assert!(failures.is_empty());
 }
 

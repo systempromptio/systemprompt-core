@@ -1,3 +1,5 @@
+//! Scheduler loop that picks up and executes pending evaluation runs.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -177,6 +179,7 @@ fn result_params(
         dimension_scores: dimension_scores_json(&scored.verdict.dimension_scores),
         verdict: scored.outcome,
         rationale: Some(scored.verdict.rationale.clone()),
+        repair_hint: scored.verdict.repair_hint.clone().filter(|h| !h.is_empty()),
         prompt_excerpt: request.messages.first().map(|m| excerpt(&m.content)),
         response_excerpt: request.response_text.as_deref().map(excerpt),
         judge_cost_microdollars: scored.judge_cost_microdollars,

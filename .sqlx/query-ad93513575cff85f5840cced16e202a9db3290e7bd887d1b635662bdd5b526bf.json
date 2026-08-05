@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT id, run_id, ai_request_id, case_id, provider, model,\n                   overall_score, dimension_scores, verdict, rationale,\n                   prompt_excerpt, response_excerpt, latency_ms,\n                   cost_microdollars, judge_cost_microdollars, created_at,\n                   repaired, replay_of_result_id, judge_ai_request_id\n            FROM eval_results\n            WHERE run_id = $1\n            ORDER BY created_at\n            ",
+  "query": "\n            SELECT id, run_id, ai_request_id, case_id, provider, model,\n                   overall_score, dimension_scores, verdict, rationale, repair_hint,\n                   prompt_excerpt, response_excerpt, latency_ms,\n                   cost_microdollars, judge_cost_microdollars, created_at,\n                   repaired, replay_of_result_id, judge_ai_request_id\n            FROM eval_results\n            WHERE run_id = $1\n            ORDER BY created_at\n            ",
   "describe": {
     "columns": [
       {
@@ -115,6 +115,17 @@
       },
       {
         "ordinal": 10,
+        "name": "repair_hint",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval_results",
+            "name": "repair_hint"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
         "name": "prompt_excerpt",
         "type_info": "Text",
         "origin": {
@@ -125,7 +136,7 @@
         }
       },
       {
-        "ordinal": 11,
+        "ordinal": 12,
         "name": "response_excerpt",
         "type_info": "Text",
         "origin": {
@@ -136,7 +147,7 @@
         }
       },
       {
-        "ordinal": 12,
+        "ordinal": 13,
         "name": "latency_ms",
         "type_info": "Int4",
         "origin": {
@@ -147,7 +158,7 @@
         }
       },
       {
-        "ordinal": 13,
+        "ordinal": 14,
         "name": "cost_microdollars",
         "type_info": "Int8",
         "origin": {
@@ -158,7 +169,7 @@
         }
       },
       {
-        "ordinal": 14,
+        "ordinal": 15,
         "name": "judge_cost_microdollars",
         "type_info": "Int8",
         "origin": {
@@ -169,7 +180,7 @@
         }
       },
       {
-        "ordinal": 15,
+        "ordinal": 16,
         "name": "created_at",
         "type_info": "Timestamptz",
         "origin": {
@@ -180,7 +191,7 @@
         }
       },
       {
-        "ordinal": 16,
+        "ordinal": 17,
         "name": "repaired",
         "type_info": "Bool",
         "origin": {
@@ -191,7 +202,7 @@
         }
       },
       {
-        "ordinal": 17,
+        "ordinal": 18,
         "name": "replay_of_result_id",
         "type_info": "Text",
         "origin": {
@@ -202,7 +213,7 @@
         }
       },
       {
-        "ordinal": 18,
+        "ordinal": 19,
         "name": "judge_ai_request_id",
         "type_info": "Text",
         "origin": {
@@ -232,6 +243,7 @@
       true,
       true,
       true,
+      true,
       false,
       false,
       false,
@@ -240,5 +252,5 @@
       true
     ]
   },
-  "hash": "4e0f8082c01f92423b8a485706b42360546aa8c28d3073d5152e6ce889d0b231"
+  "hash": "ad93513575cff85f5840cced16e202a9db3290e7bd887d1b635662bdd5b526bf"
 }

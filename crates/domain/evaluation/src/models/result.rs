@@ -1,3 +1,5 @@
+//! Per-case evaluation result model.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -53,6 +55,7 @@ pub struct EvalResult {
     pub dimension_scores: Value,
     pub verdict: Verdict,
     pub rationale: Option<String>,
+    pub repair_hint: Option<String>,
     pub prompt_excerpt: Option<String>,
     pub response_excerpt: Option<String>,
     pub latency_ms: Option<i32>,
@@ -75,6 +78,7 @@ pub struct NewResultParams {
     pub dimension_scores: Value,
     pub verdict: Verdict,
     pub rationale: Option<String>,
+    pub repair_hint: Option<String>,
     pub prompt_excerpt: Option<String>,
     pub response_excerpt: Option<String>,
     pub judge_cost_microdollars: i64,
