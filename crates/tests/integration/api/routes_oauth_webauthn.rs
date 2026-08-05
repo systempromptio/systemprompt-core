@@ -39,6 +39,10 @@ fn ensure_config() {
     CONFIG_INSTALL.call_once(|| {
         let mut config = fixture_config("postgres://x");
         config.api_external_url = "http://localhost".to_owned();
+        // The register endpoints 403 before validation when registration is
+        // disabled; this file drives the validation paths, so enable it. The
+        // disabled-gate itself is covered in routes_oauth_webauthn_complete.
+        config.allow_registration = true;
         let _ = Config::install(config);
     });
 }
