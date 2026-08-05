@@ -5199,6 +5199,7 @@ dependencies = [
  "serde_json",
  "serde_yaml_ng",
  "systemprompt-agent",
+ "systemprompt-ai",
  "systemprompt-analytics",
  "systemprompt-config",
  "systemprompt-content",

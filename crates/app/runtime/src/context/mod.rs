@@ -12,11 +12,15 @@ use std::sync::{Arc, OnceLock};
 use tokio::task::JoinHandle;
 
 use systemprompt_agent::repository::A2ARepositories;
+use systemprompt_ai::repository::AiRepositories;
+use systemprompt_analytics::repository::AnalyticsRepositories;
 use systemprompt_analytics::{AnalyticsService, FingerprintRepository, GeoIpReader};
 use systemprompt_content::repository::ContentRepositories;
 use systemprompt_database::{DbPool, ServiceRepository};
 use systemprompt_extension::ExtensionRegistry;
+use systemprompt_files::FileRepository;
 use systemprompt_marketplace::MarketplaceFilter;
+use systemprompt_mcp::repository::McpSessionRepository;
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_models::services::SystemAdmin;
 use systemprompt_models::{AppPaths, Config, ContentConfigRaw, ContentRouting, RouteClassifier};
@@ -45,6 +49,10 @@ pub struct DataPlane {
     pub oauth_repositories: Arc<OAuthRepositories>,
     pub user_repository: Arc<UserRepository>,
     pub service_repository: Arc<ServiceRepository>,
+    pub ai_repositories: Arc<AiRepositories>,
+    pub analytics_repositories: Arc<AnalyticsRepositories>,
+    pub file_repository: Arc<FileRepository>,
+    pub mcp_session_repository: Arc<McpSessionRepository>,
 }
 
 #[derive(Clone)]
@@ -128,6 +136,10 @@ impl std::fmt::Debug for DataPlane {
             .field("oauth_repositories", &"OAuthRepositories")
             .field("user_repository", &"UserRepository")
             .field("service_repository", &"ServiceRepository")
+            .field("ai_repositories", &"AiRepositories")
+            .field("analytics_repositories", &"AnalyticsRepositories")
+            .field("file_repository", &"FileRepository")
+            .field("mcp_session_repository", &"McpSessionRepository")
             .finish()
     }
 }
@@ -271,6 +283,22 @@ impl AppContext {
 
     pub const fn service_repository(&self) -> &Arc<ServiceRepository> {
         &self.data.service_repository
+    }
+
+    pub const fn ai_repositories(&self) -> &Arc<AiRepositories> {
+        &self.data.ai_repositories
+    }
+
+    pub const fn analytics_repositories(&self) -> &Arc<AnalyticsRepositories> {
+        &self.data.analytics_repositories
+    }
+
+    pub const fn file_repository(&self) -> &Arc<FileRepository> {
+        &self.data.file_repository
+    }
+
+    pub const fn mcp_session_repository(&self) -> &Arc<McpSessionRepository> {
+        &self.data.mcp_session_repository
     }
 
     pub const fn route_classifier(&self) -> &Arc<RouteClassifier> {

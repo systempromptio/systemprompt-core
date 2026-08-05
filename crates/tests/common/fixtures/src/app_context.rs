@@ -177,6 +177,14 @@ fn fixture_app_context_assembled(
             )?),
             user_repository: Arc::new(systemprompt_users::UserRepository::new(pool)?),
             service_repository: Arc::new(systemprompt_database::ServiceRepository::new(pool)?),
+            ai_repositories: Arc::new(systemprompt_ai::repository::AiRepositories::new(pool)?),
+            analytics_repositories: Arc::new(
+                systemprompt_analytics::repository::AnalyticsRepositories::new(pool)?,
+            ),
+            file_repository: Arc::new(systemprompt_files::FileRepository::new(pool)?),
+            mcp_session_repository: Arc::new(
+                systemprompt_mcp::repository::McpSessionRepository::new(pool)?,
+            ),
         },
         ConfigPlane {
             config: Arc::new(config),

@@ -26,6 +26,7 @@ pub struct ContentRepositories {
     pub content: ContentRepository,
     pub search: SearchRepository,
     pub link: LinkRepository,
+    pub link_analytics: LinkAnalyticsRepository,
 }
 
 impl ContentRepositories {
@@ -34,6 +35,7 @@ impl ContentRepositories {
             content: ContentRepository::new(db)?,
             search: SearchRepository::new(db)?,
             link: LinkRepository::new(db)?,
+            link_analytics: LinkAnalyticsRepository::new(db)?,
         })
     }
 }

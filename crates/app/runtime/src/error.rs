@@ -14,12 +14,14 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_agent::AgentError;
+use systemprompt_ai::error::RepositoryError as AiRepositoryError;
 use systemprompt_analytics::AnalyticsError;
 use systemprompt_config::{ConfigError as ProfileConfigError, ProfileBootstrapError};
 use systemprompt_content::ContentError;
 use systemprompt_database::RepositoryError;
 use systemprompt_extension::LoaderError;
 use systemprompt_files::FilesError;
+use systemprompt_mcp::McpDomainError;
 use systemprompt_models::errors::ConfigError as ModelConfigError;
 use systemprompt_models::paths::PathError;
 use systemprompt_oauth::OauthError;
@@ -53,6 +55,12 @@ pub enum RuntimeError {
 
     #[error(transparent)]
     Analytics(#[from] AnalyticsError),
+
+    #[error(transparent)]
+    AiRepository(#[from] AiRepositoryError),
+
+    #[error(transparent)]
+    Mcp(#[from] McpDomainError),
 
     #[error(transparent)]
     Agent(#[from] AgentError),

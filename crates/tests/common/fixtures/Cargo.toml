@@ -15,6 +15,7 @@ systemprompt-provider-contracts = { workspace = true }
 systemprompt-extension = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 systemprompt-marketplace = { workspace = true }
+systemprompt-ai = { workspace = true }
 systemprompt-mcp = { workspace = true }
 systemprompt-models = { workspace = true }
 systemprompt-agent = { workspace = true }

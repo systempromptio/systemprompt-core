@@ -173,6 +173,10 @@ impl AppContextBuilder {
                 oauth_repositories: repositories.oauth,
                 user_repository: repositories.users,
                 service_repository: repositories.services,
+                ai_repositories: repositories.ai,
+                analytics_repositories: repositories.analytics,
+                file_repository: repositories.files,
+                mcp_session_repository: repositories.mcp_sessions,
             },
             ConfigPlane {
                 config,
@@ -202,6 +206,10 @@ struct RepositoryBundles {
     oauth: Arc<systemprompt_oauth::repository::OAuthRepositories>,
     users: Arc<systemprompt_users::UserRepository>,
     services: Arc<systemprompt_database::ServiceRepository>,
+    ai: Arc<systemprompt_ai::repository::AiRepositories>,
+    analytics: Arc<systemprompt_analytics::repository::AnalyticsRepositories>,
+    files: Arc<systemprompt_files::FileRepository>,
+    mcp_sessions: Arc<systemprompt_mcp::repository::McpSessionRepository>,
 }
 
 fn build_repositories(
@@ -223,5 +231,13 @@ fn build_repositories(
         )?),
         users: Arc::new(systemprompt_users::UserRepository::new(database)?),
         services: Arc::new(systemprompt_database::ServiceRepository::new(database)?),
+        ai: Arc::new(systemprompt_ai::repository::AiRepositories::new(database)?),
+        analytics: Arc::new(
+            systemprompt_analytics::repository::AnalyticsRepositories::new(database)?,
+        ),
+        files: Arc::new(systemprompt_files::FileRepository::new(database)?),
+        mcp_sessions: Arc::new(systemprompt_mcp::repository::McpSessionRepository::new(
+            database,
+        )?),
     })
 }

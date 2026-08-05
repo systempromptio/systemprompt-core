@@ -48,3 +48,31 @@ pub use session::{
 pub use tools::ToolAnalyticsRepository;
 pub use tools::list_queries::ToolListParams;
 pub use traffic::{NavigationQuery, PageQuery, TrafficAnalyticsRepository};
+
+use crate::error::Result;
+use systemprompt_database::DbPool;
+
+/// Bundle of the analytics repositories consumed outside this crate,
+/// constructed once at a composition root and cloned by consumers.
+///
+/// `FingerprintRepository` is deliberately absent: it degrades to `None` at
+/// boot when its table is unavailable, so the composition root owns that
+/// fallibility separately.
+#[derive(Debug, Clone)]
+pub struct AnalyticsRepositories {
+    pub sessions: SessionRepository,
+    pub costs: CostAnalyticsRepository,
+    pub engagement: EngagementRepository,
+    pub events: AnalyticsEventsRepository,
+}
+
+impl AnalyticsRepositories {
+    pub fn new(db: &DbPool) -> Result<Self> {
+        Ok(Self {
+            sessions: SessionRepository::new(db)?,
+            costs: CostAnalyticsRepository::new(db)?,
+            engagement: EngagementRepository::new(db)?,
+            events: AnalyticsEventsRepository::new(db)?,
+        })
+    }
+}

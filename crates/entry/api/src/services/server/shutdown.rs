@@ -152,10 +152,7 @@ pub(super) async fn drain(ctx: &AppContext, scheduler: Option<SchedulerHandle>) 
 async fn terminate_children(ctx: &AppContext) {
     let repo = ctx.service_repository();
 
-    tokio::join!(
-        terminate_agent_children(repo),
-        terminate_mcp_children(repo),
-    );
+    tokio::join!(terminate_agent_children(repo), terminate_mcp_children(repo),);
 }
 
 async fn terminate_agent_children(repo: &systemprompt_database::ServiceRepository) {

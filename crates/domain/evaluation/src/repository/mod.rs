@@ -17,3 +17,29 @@ pub use results::EvalResultRepository;
 pub use rubrics::EvalRubricRepository;
 pub use runs::EvalRunRepository;
 pub use sampling::SamplingRepository;
+
+use crate::error::Result;
+use systemprompt_database::DbPool;
+
+/// Bundle of the evaluation repositories, constructed once at a composition
+/// root (the scheduler job or a CLI command) and cloned by consumers.
+#[derive(Debug, Clone)]
+pub struct EvalRepositories {
+    pub runs: EvalRunRepository,
+    pub cases: EvalCaseRepository,
+    pub results: EvalResultRepository,
+    pub rubrics: EvalRubricRepository,
+    pub sampling: SamplingRepository,
+}
+
+impl EvalRepositories {
+    pub fn new(db: &DbPool) -> Result<Self> {
+        Ok(Self {
+            runs: EvalRunRepository::new(db)?,
+            cases: EvalCaseRepository::new(db)?,
+            results: EvalResultRepository::new(db)?,
+            rubrics: EvalRubricRepository::new(db)?,
+            sampling: SamplingRepository::new(db)?,
+        })
+    }
+}

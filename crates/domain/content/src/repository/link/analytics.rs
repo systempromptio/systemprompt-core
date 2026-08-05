@@ -18,7 +18,7 @@ use systemprompt_identifiers::{
     CampaignId, ContentId, ContextId, LinkClickId, LinkId, SessionId, TaskId, UserId,
 };
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct LinkAnalyticsRepository {
     pool: Arc<PgPool>,
     write_pool: Arc<PgPool>,
