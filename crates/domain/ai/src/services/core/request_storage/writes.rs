@@ -5,8 +5,9 @@
 
 use crate::error::AiError;
 use crate::models::AiRequestRecord;
-use crate::repository::{AiRequestRepository, InsertToolCallParams};
+use crate::repository::{AiRequestPayloadRepository, AiRequestRepository, InsertToolCallParams};
 use systemprompt_identifiers::{AiRequestId, SessionId, SessionSource, UserId};
+use systemprompt_models::ai::tools::McpTool;
 use systemprompt_traits::{AiSessionProvider, CreateAiSessionParams};
 use tracing::error;
 
@@ -62,6 +63,30 @@ pub(super) async fn store_tool_calls(
                 "Failed to store AI tool call"
             );
         }
+    }
+}
+
+pub(super) async fn store_offered_tools(
+    repo: &AiRequestPayloadRepository,
+    db_id: &AiRequestId,
+    tools: Option<&[McpTool]>,
+) {
+    let Some(tools) = tools.filter(|t| !t.is_empty()) else {
+        return;
+    };
+    let payload = match serde_json::to_value(tools) {
+        Ok(value) => value,
+        Err(e) => {
+            error!(error = %e, request_id = %db_id, "Failed to serialize offered tools");
+            return;
+        },
+    };
+    if let Err(e) = repo.upsert_offered_tools(db_id, &payload).await {
+        error!(
+            error = %e,
+            request_id = %db_id,
+            "Failed to store offered tools"
+        );
     }
 }
 

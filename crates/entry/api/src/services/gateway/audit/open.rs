@@ -65,8 +65,25 @@ impl GatewayAudit {
             tracing::warn!(error = %e, ai_request_id = %self.ctx.ai_request_id, "payload insert (request) failed");
         }
 
+        self.persist_offered_tools(capture.json.as_ref()).await;
         self.persist_request_messages(request).await;
         Ok(())
+    }
+
+    async fn persist_offered_tools(&self, request_json: Option<&serde_json::Value>) {
+        let Some(tools) = request_json
+            .and_then(|body| body.get("tools"))
+            .filter(|tools| tools.as_array().is_some_and(|t| !t.is_empty()))
+        else {
+            return;
+        };
+        if let Err(e) = self
+            .payloads
+            .upsert_offered_tools(&self.ctx.ai_request_id, tools)
+            .await
+        {
+            tracing::warn!(error = %e, ai_request_id = %self.ctx.ai_request_id, "offered tools upsert failed");
+        }
     }
 
     async fn persist_request_messages(&self, request: &CanonicalRequest) {

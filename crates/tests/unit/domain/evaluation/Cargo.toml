@@ -1,0 +1,22 @@
+[package]
+name = "systemprompt-evaluation-tests"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Unit tests for systemprompt-evaluation crate"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+systemprompt-test-fixtures = { workspace = true }
+systemprompt-evaluation = { workspace = true }
+systemprompt-database = { workspace = true }
+systemprompt-identifiers = { workspace = true }
+tokio = { workspace = true }
+chrono = { workspace = true }
+serde_json = { workspace = true }
+sqlx = { workspace = true }
+uuid = { workspace = true }

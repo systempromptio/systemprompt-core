@@ -25,6 +25,7 @@ systemprompt-agent = { workspace = true }
 systemprompt-ai = { workspace = true }
 systemprompt-analytics = { workspace = true }
 systemprompt-content = { workspace = true }
+systemprompt-evaluation = { workspace = true }
 systemprompt-events = { workspace = true }
 systemprompt-files = { workspace = true }
 systemprompt-logging = { workspace = true }

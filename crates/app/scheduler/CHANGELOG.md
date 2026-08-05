@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.29.0] - 2026-08-05
+
+### Added
+
+- `evaluation_loop` job: samples recent AI requests, judges them against a rubric via `systemprompt-evaluation`, and replays failures with the judge's repair hint (parameters: `sample_size`, `window_hours`, `rubric`, `judge_provider`, `judge_model`, `budget_microdollars`).
+
 ## [0.27.0] - 2026-07-29
 
 ### Breaking

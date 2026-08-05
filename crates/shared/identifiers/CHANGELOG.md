@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.29.0] - 2026-08-05
+
+### Added
+
+- Evaluation identifiers: `EvalRunId`, `EvalCaseId`, `EvalResultId`, `EvalPairId`, `EvalJudgeCallId`, `EvalRubricId`.
+
 ## [0.26.0] - 2026-07-28
 
 ### Added

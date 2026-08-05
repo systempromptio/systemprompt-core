@@ -50,6 +50,7 @@ members = [
     "unit/domain/ai",
     "unit/domain/analytics",
     "unit/domain/content",
+    "unit/domain/evaluation",
     "unit/domain/files",
     "unit/domain/mcp",
     "unit/domain/oauth",
@@ -239,6 +240,7 @@ systemprompt-users = { path = "../domain/users" }
 systemprompt-oauth = { path = "../domain/oauth" }
 systemprompt-files = { path = "../domain/files" }
 systemprompt-analytics = { path = "../domain/analytics" }
+systemprompt-evaluation = { path = "../domain/evaluation" }
 maxminddb = "0.30"
 systemprompt-content = { path = "../domain/content" }
 systemprompt-mcp = { path = "../domain/mcp" }

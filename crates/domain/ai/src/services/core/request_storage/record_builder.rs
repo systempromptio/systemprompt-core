@@ -40,6 +40,7 @@ pub(super) fn build_record(params: &BuildRecordParams<'_>) -> AiRequestRecord {
         AiRequestId::new(params.response.request_id.to_string()),
         user_id,
     )
+    .actor(params.context.actor().clone())
     .provider(&params.response.provider)
     .model(&params.response.model)
     .tokens(

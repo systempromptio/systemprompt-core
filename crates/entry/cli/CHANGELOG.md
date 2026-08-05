@@ -2,6 +2,10 @@
 
 ## [0.29.0] - 2026-08-05
 
+### Added
+
+- `admin evals` command group: `run` launches a judge pass over sampled traffic, `list`/`show` inspect runs and results, `replay` re-runs a run's failures, and `promote` copies an AI request into the golden case set.
+
 ### Changed
 
 - `analytics costs summary` widens an empty default window from 24h to 7d, then 30d, until it finds requests, and reports the widened range as `auto_widened_to` in the output. An explicit `--since` or `--until` pins the window and never widens.

@@ -9,7 +9,7 @@ use std::sync::Arc;
 
 use crate::models::RequestStatus;
 use crate::models::ai::AiRequest;
-use crate::repository::AiRequestRepository;
+use crate::repository::{AiRequestPayloadRepository, AiRequestRepository};
 use crate::services::config::ConfigValidator;
 use crate::services::providers::{AiProvider, ProviderClientParams, ProviderFactory};
 use crate::services::tooled::{ResponseSynthesizer, TooledExecutor};
@@ -75,7 +75,11 @@ impl AiService {
         let tool_discovery = Arc::new(ToolDiscovery::new(Arc::clone(&tool_provider)));
         let tooled_executor = TooledExecutor::new(Arc::clone(&tool_provider));
 
-        let storage = RequestStorage::new(AiRequestRepository::new(db_pool)?, session_provider);
+        let storage = RequestStorage::new(
+            AiRequestRepository::new(db_pool)?,
+            AiRequestPayloadRepository::new(db_pool)?,
+            session_provider,
+        );
 
         Ok(Self {
             providers,

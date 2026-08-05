@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.29.0] - 2026-08-05
+
+### Added
+
+- `AiRequestBuilder::with_system_prompt` sets the request's system prompt.
+
 ## [0.28.0] - 2026-07-31
 
 ### Breaking

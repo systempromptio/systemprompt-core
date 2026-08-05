@@ -8,6 +8,7 @@
 
 ### Added
 
+- Gateway audit extracts the offered tool definitions from the request body into `ai_request_payloads.offered_tools`, matching the in-process inference path.
 - `/health` reports `degraded` with `events: { "relay": "not_listening" }` when the cross-replica event relay has lost its listener. A replica in that state serves HTTP correctly while silently dropping every event originating on another replica, which previously showed as `healthy`.
 
 ### Fixed

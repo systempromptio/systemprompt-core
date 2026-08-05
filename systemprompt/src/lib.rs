@@ -22,10 +22,10 @@
 //! | `cli` | `systemprompt-cli` | The `systemprompt` CLI as a library entry point. |
 //! | `runtime` | `cli` + extension injection | `RuntimeBuilder` for embedding with custom extensions. |
 //! | `test-utils` | `cloud` | Enables `cloud` for test scaffolding; not for production. |
-//! | `full` | All of the above plus all domain crates (`agent`, `ai`, `mcp`, `oauth`, `users`, `content`, `analytics`, `scheduler`, `generator`, `files`) | Building a product binary. |
+//! | `full` | All of the above plus all domain crates (`agent`, `ai`, `mcp`, `oauth`, `users`, `content`, `analytics`, `evaluation`, `scheduler`, `generator`, `files`) | Building a product binary. |
 //!
 //! ```toml
-//! systemprompt = { version = "0.28.0", features = ["full"] }
+//! systemprompt = { version = "0.29.0", features = ["full"] }
 //! ```
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -217,6 +217,14 @@ pub mod content {
 #[cfg_attr(docsrs, doc(cfg(feature = "full")))]
 pub mod analytics {
     pub use systemprompt_analytics::*;
+}
+
+/// Evaluation framework: judge runs over production AI traffic, failure
+/// replay with repair hints, and the auto-improve loop.
+#[cfg(feature = "evaluation")]
+#[cfg_attr(docsrs, doc(cfg(feature = "evaluation")))]
+pub mod evaluation {
+    pub use systemprompt_evaluation::*;
 }
 
 /// The `MarketplaceFilter` trait, which gates per-user visibility of plugins,

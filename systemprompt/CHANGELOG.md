@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.29.0] - 2026-08-05
+
+### Added
+
+- `evaluation` feature flag exposing the new `systemprompt-evaluation` crate (judge runs, failure replay, auto-improve loop); included in `full`.
+
 ## [0.28.0] - 2026-07-31
 
 ### Breaking

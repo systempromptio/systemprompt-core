@@ -184,6 +184,11 @@ impl AiRequestBuilder {
         self
     }
 
+    pub fn with_system_prompt(mut self, system_prompt: impl Into<String>) -> Self {
+        self.system_prompt = Some(system_prompt.into());
+        self
+    }
+
     pub fn build(self) -> AiRequest {
         AiRequest {
             messages: self.messages,

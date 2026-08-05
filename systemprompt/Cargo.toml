@@ -65,6 +65,9 @@ cli = ["dep:systemprompt-cli"]
 # Runtime builder for embedding systemprompt as a library
 runtime = ["cli", "dep:systemprompt-extension"]
 
+# Evaluation framework (judge runs, replay, auto-improve loop)
+evaluation = ["dep:systemprompt-evaluation"]
+
 # Slack integration (inbound Events API / slash commands / interactivity).
 # Fully opt-in: excluded from `default` and `full`.
 slack = ["dep:systemprompt-slack"]
@@ -86,6 +89,7 @@ full = [
     "dep:systemprompt-users",
     "dep:systemprompt-content",
     "dep:systemprompt-analytics",
+    "evaluation",
     "dep:systemprompt-marketplace",
     "dep:systemprompt-scheduler",
     "dep:systemprompt-generator",
@@ -134,6 +138,7 @@ systemprompt-oauth = { workspace = true, optional = true }
 systemprompt-users = { workspace = true, optional = true }
 systemprompt-content = { workspace = true, optional = true }
 systemprompt-analytics = { workspace = true, optional = true }
+systemprompt-evaluation = { workspace = true, optional = true }
 systemprompt-marketplace = { workspace = true, optional = true }
 systemprompt-slack = { workspace = true, optional = true }
 systemprompt-teams = { workspace = true, optional = true }

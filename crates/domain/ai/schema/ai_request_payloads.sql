@@ -1,6 +1,7 @@
 CREATE TABLE IF NOT EXISTS ai_request_payloads (
     ai_request_id TEXT PRIMARY KEY,
     request_body JSONB,
+    offered_tools JSONB,
     response_body JSONB,
     request_excerpt TEXT,
     response_excerpt TEXT,

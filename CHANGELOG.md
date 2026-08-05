@@ -8,6 +8,9 @@
 
 ### Added
 
+- `systemprompt-evaluation`, a new domain crate: evaluation tables (`eval_runs`, `eval_cases`, `eval_results`, `eval_pairs`, `eval_judge_calls`, `eval_rubrics`), production-traffic sampling, a rubric-driven LLM judge, and failure replay with repair hints. Judge and replay traffic is attributed to a job actor and excluded from sampling.
+- `systemprompt admin evals` command group (`run`, `list`, `show`, `replay`, `promote`) and a scheduled `evaluation_loop` job driving the sample → judge → replay pass daily.
+- `ai_request_payloads.offered_tools` records the tool definitions offered to the model on both the gateway and in-process inference paths; previously only tool calls actually made were persisted.
 - `/health` reports `degraded` with `events: { "relay": "not_listening" }` when the cross-replica event relay has lost its listener, backed by the new `systemprompt_events::is_listening`. A replica whose relay is down serves HTTP correctly while silently dropping every event raised on another replica — the one failure mode a health check exists to catch, and the one it previously called `healthy`. The flag reads `true` in a deployment that never starts a bridge, so no relay is not reported as a broken relay.
 - A listener rejected with SQLSTATE `25006` (`read_only_sql_transaction`) is diagnosed rather than relayed: the pool is a read-only standby, `LISTEN`/`NOTIFY` requires the primary, and the error names `database_write_url` as the fix. The raw driver message reads as a transient connection fault, which is exactly what it is not.
 

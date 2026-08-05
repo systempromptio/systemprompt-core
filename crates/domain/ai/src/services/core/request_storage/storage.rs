@@ -8,7 +8,7 @@ use std::sync::Arc;
 use crate::error::AiError;
 use crate::models::RequestStatus;
 use crate::models::ai::{AiRequest, AiResponse};
-use crate::repository::AiRequestRepository;
+use crate::repository::{AiRequestPayloadRepository, AiRequestRepository};
 use systemprompt_models::RequestContext;
 use systemprompt_traits::{AnalyticsEventPublisher, DynAiSessionProvider};
 
@@ -16,7 +16,8 @@ use super::record_builder::{
     BuildRecordParams, build_record, extract_messages, extract_tool_calls,
 };
 use super::writes::{
-    store_messages, store_request, store_tool_calls, touch_session, update_session_usage,
+    store_messages, store_offered_tools, store_request, store_tool_calls, touch_session,
+    update_session_usage,
 };
 
 #[derive(Debug)]
@@ -32,6 +33,7 @@ pub struct StoreParams<'a> {
 #[derive(Clone)]
 pub struct RequestStorage {
     ai_request_repo: AiRequestRepository,
+    payload_repo: AiRequestPayloadRepository,
     session_provider: DynAiSessionProvider,
     event_publisher: Option<Arc<dyn AnalyticsEventPublisher>>,
 }
@@ -51,10 +53,12 @@ impl std::fmt::Debug for RequestStorage {
 impl RequestStorage {
     pub fn new(
         ai_request_repo: AiRequestRepository,
+        payload_repo: AiRequestPayloadRepository,
         session_provider: DynAiSessionProvider,
     ) -> Self {
         Self {
             ai_request_repo,
+            payload_repo,
             session_provider,
             event_publisher: None,
         }
@@ -90,6 +94,7 @@ impl RequestStorage {
 
         store_messages(&self.ai_request_repo, &db_id, messages).await;
         store_tool_calls(&self.ai_request_repo, &db_id, tool_calls).await;
+        store_offered_tools(&self.payload_repo, &db_id, params.request.tools.as_deref()).await;
 
         update_session_usage(
             self.session_provider.as_ref(),

@@ -10,6 +10,12 @@
 #      layer below it, never above. The `systemprompt` facade sits above entry
 #      and may depend on anything.
 #   2. No dependency cycles.
+#   3. No domain -> domain dependencies. Domain crates are peers: cross-domain
+#      capability flows through shared-layer traits (DynAiProvider,
+#      ToolProvider, provider-contracts), wired at app/entry composition
+#      layers. LEGACY_DOMAIN_EDGES below allowlists the edges that predate the
+#      rule and are being removed; deleting an edge deletes its entry, and any
+#      edge not in the list fails the gate.
 #
 # Layer membership is read from each crate's position on disk (crates/<layer>/),
 # so a crate moved between layers is re-classified automatically. Only normal
@@ -53,11 +59,23 @@ for name, pkg in pkgs.items():
         if d["name"] in local and d["name"] != name and d["kind"] in (None, "build"):
             deps[name].add(d["name"])
 
+LEGACY_DOMAIN_EDGES = {
+    # Debt under active removal; delete the entry with the edge.
+    ("systemprompt-mcp", "systemprompt-marketplace"),
+    ("systemprompt-agent", "systemprompt-analytics"),
+}
+
 violations = []
 for name in sorted(local):
     for dep in sorted(deps[name]):
         if ORDER[layer[dep]] > ORDER[layer[name]]:
             violations.append(f"  {name} ({layer[name]}) -> {dep} ({layer[dep]})")
+        elif (
+            layer[name] == "domain"
+            and layer[dep] == "domain"
+            and (name, dep) not in LEGACY_DOMAIN_EDGES
+        ):
+            violations.append(f"  {name} (domain) -> {dep} (domain): domain crates must not depend on each other")
 
 WHITE, GREY, BLACK = 0, 1, 2
 colour = defaultdict(int)
@@ -91,5 +109,5 @@ if violations or cycles:
     print(f"lint-layers: FAIL — {len(violations)} layer violation(s), {len(cycles)} cycle(s)")
     sys.exit(1)
 
-print(f"lint-layers: OK — {len(local)} crates, no upward dependencies, no cycles")
+print(f"lint-layers: OK — {len(local)} crates, no upward dependencies, no cycles, domain isolation holds")
 '

@@ -38,7 +38,12 @@ sqlx = { workspace = true }
 # URL parsing
 
 # Core libs - scheduler only depends on infrastructure modules
+systemprompt-ai = { workspace = true }
 systemprompt-analytics = { workspace = true }
+systemprompt-config = { workspace = true }
+systemprompt-evaluation = { workspace = true }
+systemprompt-loader = { workspace = true }
+systemprompt-mcp = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-extension = { workspace = true }
 systemprompt-identifiers = { workspace = true }

@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.29.0] - 2026-08-05
+
+### Added
+
+- `ai_request_payloads.offered_tools` stores the tool definitions offered to the model; `AiRequestPayloadRepository::upsert_offered_tools` writes it and the in-process storage path populates it from `AiRequest::tools`.
+
+### Fixed
+
+- The in-process storage path persists the request context's actor instead of unconditionally recording a user actor, so job-attributed inference (schedulers, evaluation judges) is stored with `actor_kind = 'job'`.
+
 ## [0.28.0] - 2026-07-31
 
 ### Added

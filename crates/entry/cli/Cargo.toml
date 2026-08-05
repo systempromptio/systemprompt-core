@@ -35,6 +35,7 @@ thiserror = { workspace = true }
 # systemprompt.io crates
 systemprompt-runtime = { workspace = true, features = ["geolocation"] }
 systemprompt-agent = { workspace = true }
+systemprompt-evaluation = { workspace = true }
 systemprompt-mcp = { workspace = true }
 systemprompt-api = { workspace = true }
 systemprompt-logging = { workspace = true }

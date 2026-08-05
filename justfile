@@ -85,7 +85,7 @@ sqlx-prepare-publish:
     for crate in crates/infra/database crates/infra/events crates/infra/logging crates/infra/security \
                  crates/domain/analytics crates/domain/agent crates/domain/oauth \
                  crates/domain/users crates/domain/content crates/domain/files \
-                 crates/domain/ai crates/domain/mcp crates/app/scheduler \
+                 crates/domain/ai crates/domain/mcp crates/domain/evaluation crates/app/scheduler \
                  crates/entry/cli; do
         echo "  Preparing $crate..."
         (cd "$crate" && cargo sqlx prepare)
@@ -110,7 +110,7 @@ sqlx-verify-offline:
     for crate in crates/infra/database crates/infra/events crates/infra/logging crates/infra/security \
                  crates/domain/analytics crates/domain/agent crates/domain/oauth crates/domain/users \
                  crates/domain/content crates/domain/files crates/domain/ai \
-                 crates/domain/mcp crates/app/scheduler \
+                 crates/domain/mcp crates/domain/evaluation crates/app/scheduler \
                  crates/entry/cli crates/entry/api; do
         echo "  Checking $crate..."
         (cd "$crate" && SQLX_OFFLINE=true cargo check --all-features)
