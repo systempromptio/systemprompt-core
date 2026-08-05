@@ -9,6 +9,7 @@ mod analytics_seeded_traffic_db;
 mod analytics_seeded_usage_db;
 mod analytics_show_seeded_db;
 mod analytics_table_output_db;
+mod costs_summary_widening;
 mod export_csv;
 mod output_format;
 mod overview;

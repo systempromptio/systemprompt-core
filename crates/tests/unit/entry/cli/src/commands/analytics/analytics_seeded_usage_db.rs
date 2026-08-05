@@ -301,3 +301,61 @@ async fn content_views_render_with_seeded_engagement_events() {
         analytics::execute(parse(&args), &ctx).await.unwrap();
     }
 }
+
+async fn seed_aged_ai_request(pool: &DbPool, age_days: i32, cost: i64) {
+    let user_id = unique_user_id("cliusagewiden");
+    let email = format!("{}@cliusagewiden.invalid", user_id.as_str());
+    seed_user_row(pool, &user_id, &email).await.unwrap();
+
+    sqlx::query(
+        "INSERT INTO ai_requests (id, request_id, user_id, provider, model, tokens_used, \
+         input_tokens, output_tokens, cost_microdollars, latency_ms, status, actor_kind, \
+         actor_id, created_at, completed_at) VALUES ($1, $2, $3, 'covprovider', 'covwiden', 10, \
+         5, 5, $4, 10, 'completed', 'user', $3, NOW() - ($5 || ' days')::interval, NOW())",
+    )
+    .bind(Uuid::new_v4().to_string())
+    .bind(Uuid::new_v4().to_string())
+    .bind(user_id.as_str())
+    .bind(cost)
+    .bind(age_days.to_string())
+    .execute(pool.pool_arc().unwrap().as_ref())
+    .await
+    .unwrap();
+}
+
+async fn costs_summary_csv(ctx: &CommandContext, extra: &[&str]) -> String {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("summary.csv");
+    let mut args = vec!["costs", "summary", "--export", path.to_str().unwrap()];
+    args.extend_from_slice(extra);
+    analytics::execute(parse(&args), ctx).await.unwrap();
+    std::fs::read_to_string(&path).unwrap()
+}
+
+#[tokio::test]
+async fn costs_summary_widens_past_an_empty_default_window() {
+    let pool = pool().await;
+    seed_aged_ai_request(&pool, 3, 4_000).await;
+    let ctx = ctx(&pool);
+
+    let widened = costs_summary_csv(&ctx, &[]).await;
+    let requests: i64 = csv_field(&widened, "total_requests").parse().unwrap();
+    assert!(
+        requests > 0,
+        "the default window must reach a row seeded 3 days ago: {widened}"
+    );
+
+    let narrow = costs_summary_csv(&ctx, &["--since", "24h"]).await;
+    assert!(
+        csv_field(&narrow, "auto_widened_to").is_empty(),
+        "an explicit --since must be honoured verbatim: {narrow}"
+    );
+}
+
+fn csv_field(csv: &str, name: &str) -> String {
+    let mut lines = csv.lines();
+    let header = lines.next().unwrap();
+    let row = lines.next().unwrap();
+    let idx = header.split(',').position(|h| h.trim() == name).unwrap();
+    row.split(',').nth(idx).unwrap().trim().to_owned()
+}

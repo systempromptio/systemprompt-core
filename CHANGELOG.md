@@ -14,6 +14,7 @@
 
 ### Changed
 
+- `analytics costs summary` widens an empty default window from 24h to 7d, then 30d, until it finds requests, and reports the widened range as `auto_widened_to` in the output. An explicit `--since` or `--until` pins the window and never widens.
 - Gateway upstream requests reuse one pooled HTTP client instead of opening a fresh connection pool and TLS handshake per call.
 - Bridge MDM policy application returns typed errors (`MdmError`) in place of formatted strings, and the per-install identity is a typed `InstallId` in both the port file and `/__bridge/whoami`. The serialized forms are unchanged.
 - Relay reconnection backs off exponentially from 1s to a 60s cap and resets on success, replacing a fixed 5s retry. A relay pointed at a standby never recovers on its own, so the old interval turned one misconfiguration into a permanent once-per-5s error stream against the database.

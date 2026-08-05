@@ -11,6 +11,7 @@ publish = false
 workspace = true
 
 [dependencies]
+systemprompt-analytics = { workspace = true }
 systemprompt-cli = { workspace = true }
 systemprompt-cloud = { workspace = true }
 systemprompt-extension = { workspace = true }

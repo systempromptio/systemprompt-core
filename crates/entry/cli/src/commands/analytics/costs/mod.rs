@@ -9,7 +9,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod breakdown;
-mod summary;
+pub mod summary;
 mod trends;
 
 use anyhow::Result;
@@ -54,6 +54,7 @@ pub struct CostSummaryOutput {
     pub total_tokens: i64,
     pub avg_cost_per_request_microdollars: f64,
     pub change_percent: Option<f64>,
+    pub auto_widened_to: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
