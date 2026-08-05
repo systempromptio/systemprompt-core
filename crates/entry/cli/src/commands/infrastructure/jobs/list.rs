@@ -51,9 +51,6 @@ fn job_info(name: &str, job: &dyn Job, configured: &HashSet<String>) -> JobInfo 
     }
 }
 
-/// Jobs the active profile actually schedules: enabled `scheduler.jobs`
-/// entries plus bootstrap jobs. Everything else never runs on its own,
-/// whatever its built-in cron default says.
 fn configured_job_names() -> HashSet<String> {
     let Ok(config) = systemprompt_loader::ConfigLoader::load() else {
         return HashSet::new();
