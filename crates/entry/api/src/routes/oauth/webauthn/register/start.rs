@@ -51,6 +51,7 @@ pub async fn start_register(
     State(state): State<OAuthState>,
     OAuthRepo(oauth_repo): OAuthRepo,
 ) -> Result<Response, OAuthHttpError> {
+    super::ensure_registration_enabled()?;
     params.validate().map_err(OAuthHttpError::invalid_request)?;
 
     let user_provider = Arc::clone(state.user_provider());

@@ -73,6 +73,7 @@ pub async fn finish_register(
     OAuthRepo(oauth_repo): OAuthRepo,
     Json(request): Json<FinishRegisterRequest>,
 ) -> Result<Response, OAuthHttpError> {
+    super::ensure_registration_enabled()?;
     request
         .validate()
         .map_err(OAuthHttpError::invalid_request)?;

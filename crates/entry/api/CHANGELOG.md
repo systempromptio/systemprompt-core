@@ -2,6 +2,10 @@
 
 ## [0.29.0] - 2026-08-04
 
+### Fixed
+
+- The WebAuthn registration endpoints (`register/start`, `register/finish`) honour `security.allow_registration` and return 403 `registration_disabled` when it is off. The flag previously hid the authorize page's register link but left the user-creating endpoints open.
+
 ### Added
 
 - `/health` reports `degraded` with `events: { "relay": "not_listening" }` when the cross-replica event relay has lost its listener. A replica in that state serves HTTP correctly while silently dropping every event originating on another replica, which previously showed as `healthy`.

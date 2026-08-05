@@ -13,6 +13,7 @@
 
 ### Fixed
 
+- The WebAuthn registration endpoints (`register/start`, `register/finish`) honour `security.allow_registration` and return 403 `registration_disabled` when it is off. The flag previously hid the authorize page's register link but left the user-creating endpoints open.
 - Bridge (macOS): the elevated write of the Claude Code enterprise MCP policy no longer deletes its staged files before the privileged shell reads them, and the AppleScript credential-prompt path escapes newlines, so multi-line install scripts run instead of failing to compile. The elevation TTY probe reads stdin rather than stdout, so `bridge install > log` on a real terminal still uses `sudo`.
 - The event bridge takes the write pool rather than the read pool. `LISTEN`/`NOTIFY`, the outbox insert, and the retention prune all require the primary, so a deployment with a separate read URL aimed at a standby started a relay that could never establish itself. A single-pool deployment is unaffected — `write_pool()` falls back to the read pool when no write URL is configured.
 
