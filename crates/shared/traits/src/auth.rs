@@ -88,9 +88,6 @@ pub trait UserProvider: Send + Sync {
         claims: &FederatedIdentityClaims,
     ) -> AuthResult<UserId>;
 
-    /// Moves an anonymous user's history onto `target` and deletes the
-    /// anonymous row, returning the number of rows transferred. Implementations
-    /// MUST refuse a non-anonymous `source`.
     async fn promote_anonymous(&self, source: &UserId, target: &UserId) -> AuthResult<u64>;
 }
 

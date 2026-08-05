@@ -28,8 +28,6 @@ pub use ai_request_payloads::{AiRequestPayload, AiRequestPayloadRepository, Upse
 pub use ai_requests::{AiRequestRepository, InsertToolCallParams};
 pub use ai_safety_findings::{AiSafetyFindingRepository, InsertSafetyFinding};
 
-/// Bundle of the AI-domain repositories, constructed once at a composition
-/// root and cloned by consumers.
 #[derive(Debug, Clone)]
 pub struct AiRepositories {
     pub requests: AiRequestRepository,

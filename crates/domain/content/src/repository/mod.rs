@@ -19,8 +19,6 @@ pub use search::SearchRepository;
 use crate::error::ContentError;
 use systemprompt_database::DbPool;
 
-/// Bundle of the content-domain repositories, constructed once at a
-/// composition root and cloned by consumers.
 #[derive(Debug, Clone)]
 pub struct ContentRepositories {
     pub content: ContentRepository,

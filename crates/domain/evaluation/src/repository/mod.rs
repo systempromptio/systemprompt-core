@@ -21,8 +21,6 @@ pub use sampling::SamplingRepository;
 use crate::error::Result;
 use systemprompt_database::DbPool;
 
-/// Bundle of the evaluation repositories, constructed once at a composition
-/// root (the scheduler job or a CLI command) and cloned by consumers.
 #[derive(Debug, Clone)]
 pub struct EvalRepositories {
     pub runs: EvalRunRepository,

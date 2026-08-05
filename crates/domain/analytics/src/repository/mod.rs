@@ -52,12 +52,6 @@ pub use traffic::{NavigationQuery, PageQuery, TrafficAnalyticsRepository};
 use crate::error::Result;
 use systemprompt_database::DbPool;
 
-/// Bundle of the analytics repositories consumed outside this crate,
-/// constructed once at a composition root and cloned by consumers.
-///
-/// `FingerprintRepository` is deliberately absent: it degrades to `None` at
-/// boot when its table is unavailable, so the composition root owns that
-/// fallibility separately.
 #[derive(Debug, Clone)]
 pub struct AnalyticsRepositories {
     pub sessions: SessionRepository,
