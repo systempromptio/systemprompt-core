@@ -153,14 +153,12 @@ pub(super) async fn fetch_ai_request_events(
                 user_id: Some(UserId::new(row.user_id)),
                 session_id: row.session_id.map(SessionId::new),
                 task_id: row.task_id.map(TaskId::new),
-                context_id: row.context_id.and_then(|s| {
-                    ContextId::try_new(&s)
-                        .map_err(|e| {
-                            tracing::warn!(error = %e, raw = %s, "Skipping non-UUID context_id from ai_requests row");
-                            e
-                        })
-                        .ok()
-                }),
+                context_id: ContextId::try_new(&row.context_id)
+                    .map_err(|e| {
+                        tracing::warn!(error = %e, raw = %row.context_id, "Skipping non-UUID context_id from ai_requests row");
+                        e
+                    })
+                    .ok(),
                 metadata: Some(metadata.to_string()),
             }
         })

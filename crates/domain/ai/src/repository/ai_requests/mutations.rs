@@ -168,8 +168,7 @@ impl AiRequestRepository {
         record: &AiRequestRecord,
     ) -> Result<AiRequestId, RepositoryError> {
         use systemprompt_identifiers::{
-            ContextId, GatewayConversationId, McpExecutionId, ProviderRequestId, SessionId, TaskId,
-            TraceId,
+            GatewayConversationId, McpExecutionId, ProviderRequestId, SessionId, TaskId, TraceId,
         };
 
         let status = record.status.as_str();
@@ -206,7 +205,7 @@ impl AiRequestRepository {
             record.user_id.as_str(),
             record.session_id.as_ref().map(SessionId::as_str),
             record.task_id.as_ref().map(TaskId::as_str),
-            record.context_id.as_ref().map(ContextId::as_str),
+            record.context_id.as_str(),
             record.gateway_conversation_id.as_ref().map(GatewayConversationId::as_str),
             record.provider_request_id.as_ref().map(ProviderRequestId::as_str),
             record.trace_id.as_ref().map(TraceId::as_str),

@@ -88,7 +88,8 @@ pub use service::{AsyncService, Service};
 pub use log_service::LogService;
 
 pub use context_provider::{
-    ContextProvider, ContextProviderError, ContextWithStats, DynContextProvider,
+    ContextMaterializer, ContextProvider, ContextProviderError, ContextWithStats,
+    DynContextMaterializer, DynContextProvider, EnsureContextParams,
 };
 
 pub use validation::{MetadataValidation, Validate, ValidationError, ValidationResult};

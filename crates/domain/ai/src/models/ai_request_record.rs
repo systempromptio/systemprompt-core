@@ -51,7 +51,7 @@ pub struct AiRequestRecord {
     pub actor: Actor,
     pub session_id: Option<SessionId>,
     pub task_id: Option<TaskId>,
-    pub context_id: Option<ContextId>,
+    pub context_id: ContextId,
     pub gateway_conversation_id: Option<GatewayConversationId>,
     pub provider_request_id: Option<ProviderRequestId>,
     pub trace_id: Option<TraceId>,
@@ -76,8 +76,12 @@ pub struct AiRequestRecord {
 }
 
 impl AiRequestRecord {
-    pub fn builder(request_id: AiRequestId, user_id: UserId) -> AiRequestRecordBuilder {
-        AiRequestRecordBuilder::new(request_id, user_id)
+    pub fn builder(
+        request_id: AiRequestId,
+        user_id: UserId,
+        context_id: ContextId,
+    ) -> AiRequestRecordBuilder {
+        AiRequestRecordBuilder::new(request_id, user_id, context_id)
     }
 }
 
@@ -88,7 +92,7 @@ pub struct AiRequestRecordBuilder {
     actor: Option<Actor>,
     session_id: Option<SessionId>,
     task_id: Option<TaskId>,
-    context_id: Option<ContextId>,
+    context_id: ContextId,
     gateway_conversation_id: Option<GatewayConversationId>,
     provider_request_id: Option<ProviderRequestId>,
     trace_id: Option<TraceId>,
@@ -107,14 +111,14 @@ pub struct AiRequestRecordBuilder {
 }
 
 impl AiRequestRecordBuilder {
-    pub fn new(request_id: AiRequestId, user_id: UserId) -> Self {
+    pub fn new(request_id: AiRequestId, user_id: UserId, context_id: ContextId) -> Self {
         Self {
             request_id,
             user_id,
             actor: None,
             session_id: None,
             task_id: None,
-            context_id: None,
+            context_id,
             gateway_conversation_id: None,
             provider_request_id: None,
             trace_id: None,
@@ -146,11 +150,6 @@ impl AiRequestRecordBuilder {
 
     pub fn task_id(mut self, task_id: TaskId) -> Self {
         self.task_id = Some(task_id);
-        self
-    }
-
-    pub fn context_id(mut self, context_id: ContextId) -> Self {
-        self.context_id = Some(context_id);
         self
     }
 

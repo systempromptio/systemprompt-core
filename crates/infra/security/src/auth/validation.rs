@@ -72,10 +72,13 @@ impl AuthValidationService {
         let session_id = claims.session_id.clone();
         let user_id = claims.user_id.clone();
 
+        let context_id = HeaderExtractor::extract_context_id(headers)
+            .unwrap_or_else(|| ContextId::derived_from_session(&session_id));
+
         RequestContext::new(
             session_id,
             HeaderExtractor::extract_trace_id(headers),
-            HeaderExtractor::extract_context_id(headers).unwrap_or_else(ContextId::generate),
+            context_id,
             HeaderExtractor::extract_agent_name(headers),
         )
         .with_actor(Actor::user(user_id))

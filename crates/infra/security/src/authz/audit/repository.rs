@@ -40,7 +40,7 @@ pub struct GovernanceDecisionRecord<'a> {
     /// RFC 8693 delegation lineage in outermost-first order. Empty for
     /// direct (non-delegated) tokens.
     pub act_chain: &'a [Actor],
-    pub context_id: Option<&'a str>,
+    pub context_id: &'a str,
     pub task_id: Option<&'a str>,
 }
 

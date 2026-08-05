@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS governance_decisions (
     actor_kind TEXT NOT NULL CHECK (actor_kind IN ('user', 'anonymous', 'system', 'job', 'mcp', 'agent')),
     actor_id TEXT NOT NULL CHECK (length(actor_id) > 0),
     act_chain JSONB NOT NULL DEFAULT '[]'::jsonb,
-    context_id TEXT,
+    context_id TEXT NOT NULL,
     task_id TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

@@ -40,6 +40,36 @@ impl ContextRepository {
         Ok(context_id)
     }
 
+    pub async fn ensure_context(
+        &self,
+        params: &systemprompt_traits::EnsureContextParams<'_>,
+        kind: ContextKind,
+    ) -> Result<(), RepositoryError> {
+        let context_id = params.context_id;
+        let user_id = params.user_id;
+        let session_id = params.session_id;
+        let name = params.name;
+        let now = Utc::now();
+
+        sqlx::query!(
+            "INSERT INTO user_contexts (context_id, user_id, session_id, name, kind, created_at, \
+             updated_at)
+             VALUES ($1, $2, $3, $4, $5, $6, $6)
+             ON CONFLICT (context_id) DO NOTHING",
+            context_id.as_str(),
+            user_id.as_str(),
+            session_id.map(SessionId::as_str),
+            name,
+            kind.as_str(),
+            now
+        )
+        .execute(&*self.write_pool)
+        .await
+        .map_err(RepositoryError::database)?;
+
+        Ok(())
+    }
+
     pub async fn get_or_create_cli_context(
         &self,
         user_id: &UserId,

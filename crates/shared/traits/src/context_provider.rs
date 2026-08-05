@@ -74,3 +74,27 @@ pub trait ContextProvider: Send + Sync {
 }
 
 pub type DynContextProvider = Arc<dyn ContextProvider>;
+
+/// Idempotent materialization of derived contexts.
+///
+/// Boundaries that mint a `ContextId` deterministically (session, evaluation
+/// run, probe) call this so the id resolves to a real `user_contexts` row and
+/// joins/audit queries see it. Existing rows are never modified.
+#[derive(Debug, Clone, Copy)]
+pub struct EnsureContextParams<'a> {
+    pub context_id: &'a ContextId,
+    pub user_id: &'a UserId,
+    pub session_id: Option<&'a SessionId>,
+    pub name: &'a str,
+    pub kind: &'a str,
+}
+
+#[async_trait]
+pub trait ContextMaterializer: Send + Sync {
+    async fn ensure_context(
+        &self,
+        params: EnsureContextParams<'_>,
+    ) -> Result<(), ContextProviderError>;
+}
+
+pub type DynContextMaterializer = Arc<dyn ContextMaterializer>;

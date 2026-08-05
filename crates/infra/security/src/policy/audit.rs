@@ -13,7 +13,7 @@
 
 use serde::Serialize;
 use sqlx::PgPool;
-use systemprompt_identifiers::{Actor, AgentId, PluginId, PolicyId, SessionId, UserId};
+use systemprompt_identifiers::{Actor, AgentId, ContextId, PluginId, PolicyId, SessionId, UserId};
 
 use super::types::AccessScope;
 use crate::authz::types::{Decision, DecisionTag};
@@ -158,6 +158,11 @@ pub async fn record_decision(pool: &PgPool, audit: &DecisionAudit) -> Result<(),
         serde_json::Value::Null
     });
 
+    let context_id = audit
+        .context_id
+        .as_deref()
+        .and_then(|s| ContextId::try_new(s).ok())
+        .unwrap_or_else(|| ContextId::derived_from_session(&audit.principal.session_id));
     let record = GovernanceDecisionRecord {
         id: &audit.id,
         actor: &actor,
@@ -171,7 +176,7 @@ pub async fn record_decision(pool: &PgPool, audit: &DecisionAudit) -> Result<(),
         evaluated_rules: &evaluated_rules,
         plugin_id: audit.target.plugin_id.as_ref().map(PluginId::as_str),
         act_chain: &audit.act_chain,
-        context_id: audit.context_id.as_deref(),
+        context_id: context_id.as_str(),
         task_id: None,
     };
 
