@@ -15,28 +15,19 @@ pub(super) fn execute() -> CommandOutput {
         tracing::error!(error = %e, "extension dependency cycle; using empty registry");
         ExtensionRegistry::new()
     });
+    let configured = configured_job_names();
     let mut seen_names: HashSet<String> = HashSet::new();
     let mut jobs: Vec<JobInfo> = Vec::new();
 
     for job in registry.all_jobs() {
         if seen_names.insert(job.name().to_owned()) {
-            jobs.push(JobInfo {
-                name: job.name().to_owned(),
-                description: job.description().to_owned(),
-                schedule: job.schedule().to_owned(),
-                enabled: job.enabled(),
-            });
+            jobs.push(job_info(job.name(), job.as_ref(), &configured));
         }
     }
 
     for job in inventory::iter::<&'static dyn Job> {
         if seen_names.insert(job.name().to_owned()) {
-            jobs.push(JobInfo {
-                name: job.name().to_owned(),
-                description: job.description().to_owned(),
-                schedule: job.schedule().to_owned(),
-                enabled: job.enabled(),
-            });
+            jobs.push(job_info(job.name(), *job, &configured));
         }
     }
 
@@ -44,8 +35,37 @@ pub(super) fn execute() -> CommandOutput {
     let output = JobListOutput { jobs, total };
 
     CommandOutput::table_of(
-        vec!["name", "description", "schedule", "enabled"],
+        vec!["name", "description", "schedule", "enabled", "scheduled"],
         &output.jobs,
     )
     .with_title("Available Jobs")
+}
+
+fn job_info(name: &str, job: &dyn Job, configured: &HashSet<String>) -> JobInfo {
+    JobInfo {
+        name: name.to_owned(),
+        description: job.description().to_owned(),
+        schedule: job.schedule().to_owned(),
+        enabled: job.enabled(),
+        scheduled: configured.contains(name),
+    }
+}
+
+/// Jobs the active profile actually schedules: enabled `scheduler.jobs`
+/// entries plus bootstrap jobs. Everything else never runs on its own,
+/// whatever its built-in cron default says.
+fn configured_job_names() -> HashSet<String> {
+    let Ok(config) = systemprompt_loader::ConfigLoader::load() else {
+        return HashSet::new();
+    };
+    let Some(scheduler) = config.scheduler else {
+        return HashSet::new();
+    };
+    scheduler
+        .jobs
+        .iter()
+        .filter(|job| job.enabled)
+        .map(|job| job.name.clone())
+        .chain(scheduler.bootstrap_jobs.iter().cloned())
+        .collect()
 }

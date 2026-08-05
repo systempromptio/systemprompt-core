@@ -13,6 +13,7 @@ pub struct JobInfo {
     pub description: String,
     pub schedule: String,
     pub enabled: bool,
+    pub scheduled: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
