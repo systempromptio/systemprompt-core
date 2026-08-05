@@ -1,7 +1,8 @@
 //! Handlers for task push-notification configuration.
 //!
 //! Implements the A2A set/get/list/delete operations for a task's push
-//! notification configs, backed by [`PushNotificationConfigRepository`].
+//! notification configs, backed by
+//! [`PushNotificationConfigRepository`](crate::repository::content::PushNotificationConfigRepository).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

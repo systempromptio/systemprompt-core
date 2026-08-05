@@ -24,7 +24,6 @@ workspace = true
 systemprompt-extension = { workspace = true }
 
 [dependencies]
-tokio = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 

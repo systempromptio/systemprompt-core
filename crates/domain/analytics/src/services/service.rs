@@ -32,6 +32,7 @@ impl std::fmt::Debug for AnalyticsService {
             .field("geoip_reader", &self.geoip_reader.is_some())
             .field("content_routing", &self.content_routing.is_some())
             .field("session_repo", &"SessionRepository")
+            .field("cost_repo", &"CostAnalyticsRepository")
             .finish()
     }
 }
