@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.29.0] - 2026-08-05
+
+### Changed
+
+- The RBAC middleware sources the marketplace attribute floor from `systemprompt_security::authz::member_attribute_floor`; the dependency on `systemprompt-marketplace` is removed.
+
 ## [0.28.0] - 2026-07-31
 
 ### Added

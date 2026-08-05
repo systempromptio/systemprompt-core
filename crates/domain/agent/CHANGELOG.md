@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.29.0] - 2026-08-05
+
+### Breaking
+
+- **Breaking:** `TaskRepository::new` and `A2ARepositories::new` take a `DynSessionUsageCounters`, and `AgentState::new` takes the constructed `TaskRepository`. Session task/message counters are injected through the `systemprompt-traits` seam and the dependency on `systemprompt-analytics` is removed; construct repositories at the composition root (`AppContext::session_usage()`) and pass them down.
+
 ## [0.26.0] - 2026-07-28
 
 ### Changed

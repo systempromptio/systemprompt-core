@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.29.0] - 2026-08-05
+
+### Added
+
+- `AppContext::session_usage()` exposes the analytics session repository as a `DynSessionUsageCounters` for wiring domain repositories that bump per-session counters without a direct analytics dependency.
+
 ## [0.27.0] - 2026-07-29
 
 ### Breaking

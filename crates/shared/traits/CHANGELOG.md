@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.29.0] - 2026-08-05
+
+### Added
+
+- `SessionUsageCounters` (and `DynSessionUsageCounters`): session-scoped task/message counter increments, implemented by the analytics session repository and injected into domain workflows at composition roots. Failures are logged by callers, never propagated.
+
 ## [0.28.0] - 2026-07-31
 
 ### Breaking

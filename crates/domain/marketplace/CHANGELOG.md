@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.29.0] - 2026-08-05
+
+### Breaking
+
+- **Breaking:** `MarketplaceService::{membership, active_access, member_attribute_floor}` are removed. The attribute floor now lives at `systemprompt_security::authz::member_attribute_floor`, which enforcement sites call directly with the `ServicesConfig`.
+
 ## [0.22.0] - 2026-07-21
 
 ### Breaking

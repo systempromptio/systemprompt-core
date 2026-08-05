@@ -13,7 +13,7 @@ An extension is a Rust type that implements the `Extension` trait and is registe
 ```toml
 # Cargo.toml
 [dependencies]
-systemprompt = { version = "0.28", features = ["core"] }
+systemprompt = { version = "0.29", features = ["core"] }
 ```
 
 The trait, the macro, and the value types are re-exported through the facade prelude:

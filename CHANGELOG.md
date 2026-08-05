@@ -5,11 +5,14 @@
 ### Breaking
 
 - **Breaking:** `systemprompt_analytics::models::cli` is renamed to `models::reporting`. Migrate by updating module-qualified imports; the glob re-exports at `models::*` are unchanged.
+- **Breaking:** the last domain→domain dependencies are removed and the layer-lint allowlist is empty. Session task/message counters flow through the new `systemprompt_traits::SessionUsageCounters` seam (agent no longer depends on analytics; wire `TaskRepository` at the composition root via `AppContext::session_usage()`), and the marketplace attribute floor is hoisted to `systemprompt_security::authz::member_attribute_floor` (mcp no longer depends on marketplace; `MarketplaceService::{membership, active_access, member_attribute_floor}` are removed).
 
 ### Added
 
 - `systemprompt-evaluation`, a new domain crate: evaluation tables (`eval_runs`, `eval_cases`, `eval_results`, `eval_pairs`, `eval_judge_calls`, `eval_rubrics`), production-traffic sampling, a rubric-driven LLM judge, and failure replay with repair hints. Judge and replay traffic is attributed to a job actor and excluded from sampling.
 - `systemprompt admin evals` command group (`run`, `list`, `show`, `replay`, `promote`) and a scheduled `evaluation_loop` job driving the sample → judge → replay pass daily.
+- `eval_results.repair_hint` persists the judge's proposed correction on every scored result, and `admin evals show` prints `replay_of` and `repair_hint` columns so the repair chain (failed result → hinted replay → re-judge) is readable without SQL.
+- `infra jobs list` gains a `scheduled` column derived from the active profile's `scheduler.jobs`/`bootstrap_jobs`: `enabled` says a job exists in the build, `scheduled` says it will actually run. A job like `evaluation_loop` with a built-in cron default but no profile entry now visibly reads `scheduled: false`.
 - `ai_request_payloads.offered_tools` records the tool definitions offered to the model on both the gateway and in-process inference paths; previously only tool calls actually made were persisted.
 - `/health` reports `degraded` with `events: { "relay": "not_listening" }` when the cross-replica event relay has lost its listener, backed by the new `systemprompt_events::is_listening`. A replica whose relay is down serves HTTP correctly while silently dropping every event raised on another replica — the one failure mode a health check exists to catch, and the one it previously called `healthy`. The flag reads `true` in a deployment that never starts a bridge, so no relay is not reported as a broken relay.
 - A listener rejected with SQLSTATE `25006` (`read_only_sql_transaction`) is diagnosed rather than relayed: the pool is a read-only standby, `LISTEN`/`NOTIFY` requires the primary, and the error names `database_write_url` as the fix. The raw driver message reads as a transient connection fault, which is exactly what it is not.

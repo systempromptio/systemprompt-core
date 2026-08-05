@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.29.0] - 2026-08-05
+
+### Added
+
+- `authz::member_attribute_floor` resolves the active marketplace from a `ServicesConfig` and, for member entities, exposes the declarative `access.attributes` bag as a defence-in-depth ABAC floor. Hoisted from `systemprompt-marketplace` so enforcement sites (the MCP RBAC middleware) no longer need a marketplace dependency.
+
 ## [0.28.0] - 2026-07-31
 
 ### Breaking
