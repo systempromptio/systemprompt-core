@@ -11,11 +11,11 @@
 
 use crate::services::shared::Result;
 use std::time::Duration;
-use systemprompt_database::DbPool;
 use systemprompt_models::net::AGENT_MONITOR_TCP_TIMEOUT;
 use tokio::net::TcpStream;
 use tokio::time::timeout;
 
+use crate::repository::agent_service::AgentServiceRepository;
 use crate::services::agent_orchestration::database::AgentDatabaseService;
 use crate::services::agent_orchestration::{OrchestrationResult, process};
 
@@ -25,10 +25,7 @@ pub struct AgentMonitor {
 }
 
 impl AgentMonitor {
-    pub fn new(db_pool: &DbPool) -> OrchestrationResult<Self> {
-        use crate::repository::agent_service::AgentServiceRepository;
-
-        let agent_service_repo = AgentServiceRepository::new(db_pool)?;
+    pub fn new(agent_service_repo: AgentServiceRepository) -> OrchestrationResult<Self> {
         let db_service = AgentDatabaseService::new(agent_service_repo)?;
 
         Ok(Self { db_service })

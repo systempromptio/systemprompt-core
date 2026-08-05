@@ -34,8 +34,9 @@ pub(super) async fn execute(
 }
 
 pub async fn execute_with_pool(args: CleanupSessionsArgs, pool: &DbPool) -> Result<CommandOutput> {
+    let repo = SessionRepository::new(pool)?;
+
     if args.dry_run {
-        let repo = SessionRepository::new(pool)?;
         let count = repo.count_inactive(args.hours).await?;
 
         let output = SessionCleanupOutput {
@@ -54,7 +55,7 @@ pub async fn execute_with_pool(args: CleanupSessionsArgs, pool: &DbPool) -> Resu
         ));
     }
 
-    let cleanup_service = SessionCleanupService::new(pool)?;
+    let cleanup_service = SessionCleanupService::new(repo);
     let closed_count = cleanup_service
         .cleanup_inactive_sessions(args.hours)
         .await?;

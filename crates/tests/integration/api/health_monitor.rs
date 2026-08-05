@@ -60,7 +60,7 @@ fn dead_pid() -> i32 {
 #[tokio::test]
 async fn monitor_lifecycle_start_stop_and_double_start() -> anyhow::Result<()> {
     let (pool, _ctx) = setup_ctx().await?;
-    let mut monitor = ProcessMonitor::new(&pool).expect("monitor");
+    let mut monitor = ProcessMonitor::new(ServiceRepository::new(&pool)?);
     assert!(!monitor.is_running());
 
     monitor.start();
@@ -81,7 +81,7 @@ async fn monitor_lifecycle_start_stop_and_double_start() -> anyhow::Result<()> {
 async fn monitor_drop_aborts_running_loop() -> anyhow::Result<()> {
     let (pool, _ctx) = setup_ctx().await?;
     let mut monitor =
-        ProcessMonitor::with_interval(&pool, Duration::from_secs(60)).expect("monitor");
+        ProcessMonitor::with_interval(ServiceRepository::new(&pool)?, Duration::from_secs(60));
     monitor.start();
     assert!(monitor.is_running());
     drop(monitor);
@@ -95,7 +95,7 @@ async fn health_check_all_counts_live_pid_as_healthy() -> anyhow::Result<()> {
     let own_pid = std::process::id() as i32;
     register_running(&pool, &name, "custom", Some(own_pid)).await?;
 
-    let monitor = ProcessMonitor::new(&pool).expect("monitor");
+    let monitor = ProcessMonitor::new(ServiceRepository::new(&pool)?);
     let summary = monitor.health_check_all().await?;
 
     assert!(summary.total_healthy() >= 1, "own PID should be healthy");
@@ -113,7 +113,7 @@ async fn health_check_all_counts_dead_pid_as_crashed() -> anyhow::Result<()> {
     let name = unique_name("hc-dead");
     register_running(&pool, &name, &module, Some(dead_pid())).await?;
 
-    let monitor = ProcessMonitor::new(&pool).expect("monitor");
+    let monitor = ProcessMonitor::new(ServiceRepository::new(&pool)?);
     let summary = monitor.health_check_all().await?;
 
     let health = summary.modules.get(&module).copied().unwrap_or_default();
@@ -129,7 +129,7 @@ async fn monitor_loop_marks_vanished_service_as_error() -> anyhow::Result<()> {
     register_running(&pool, &name, "custom", Some(dead_pid())).await?;
 
     let mut monitor =
-        ProcessMonitor::with_interval(&pool, Duration::from_millis(50)).expect("monitor");
+        ProcessMonitor::with_interval(ServiceRepository::new(&pool)?, Duration::from_millis(50));
     monitor.start();
 
     let repo = ServiceRepository::new(&pool)?;

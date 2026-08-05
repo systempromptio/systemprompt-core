@@ -7,8 +7,9 @@ use anyhow::Result;
 use clap::Args;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 use systemprompt_database::DbPool;
-use systemprompt_users::UserService;
+use systemprompt_users::{UserRepository, UserService};
 
 use super::types::{UserCountBreakdownOutput, UserCountOutput};
 use crate::CliConfig;
@@ -37,7 +38,7 @@ pub(super) async fn execute_with_pool(
     pool: &DbPool,
     _config: &CliConfig,
 ) -> Result<CommandOutput> {
-    let user_service = UserService::new(pool)?;
+    let user_service = UserService::new(Arc::new(UserRepository::new(pool)?));
 
     if args.breakdown {
         let breakdown = user_service.count_with_breakdown().await?;

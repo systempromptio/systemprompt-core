@@ -183,8 +183,8 @@ async fn seed_link(db: &DbPool) -> anyhow::Result<String> {
 async fn redirect_seeded_link_tracks_and_redirects() -> anyhow::Result<()> {
     let (db, ctx) = setup_ctx().await?;
     let short_code = seed_link(&db).await?;
-    let app =
-        content::redirect_router(ctx.db_pool()).layer(Extension(request_context("user_redirect")));
+    let app = content::redirect_router(ctx.content_repositories())
+        .layer(Extension(request_context("user_redirect")));
     let resp = app.oneshot(empty_get(&format!("/r/{short_code}"))).await?;
     assert_eq!(resp.status().as_u16(), 307, "{}", resp.status());
     Ok(())
@@ -194,7 +194,7 @@ async fn redirect_seeded_link_tracks_and_redirects() -> anyhow::Result<()> {
 async fn redirect_bot_session_skips_tracking() -> anyhow::Result<()> {
     let (db, ctx) = setup_ctx().await?;
     let short_code = seed_link(&db).await?;
-    let app = content::redirect_router(ctx.db_pool()).layer(Extension(bot_context()));
+    let app = content::redirect_router(ctx.content_repositories()).layer(Extension(bot_context()));
     let resp = app.oneshot(empty_get(&format!("/r/{short_code}"))).await?;
     assert_eq!(resp.status().as_u16(), 307, "{}", resp.status());
     Ok(())
@@ -203,8 +203,8 @@ async fn redirect_bot_session_skips_tracking() -> anyhow::Result<()> {
 #[tokio::test]
 async fn redirect_unknown_short_code_is_not_found() -> anyhow::Result<()> {
     let (_db, ctx) = setup_ctx().await?;
-    let app =
-        content::redirect_router(ctx.db_pool()).layer(Extension(request_context("user_redirect")));
+    let app = content::redirect_router(ctx.content_repositories())
+        .layer(Extension(request_context("user_redirect")));
     let resp = app.oneshot(empty_get("/r/does-not-exist")).await?;
     assert_eq!(resp.status().as_u16(), 404, "{}", resp.status());
     Ok(())

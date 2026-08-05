@@ -26,7 +26,7 @@ use systemprompt_test_fixtures::{
     ensure_test_bootstrap, fixture_config, fixture_db_pool, fixture_system_admin, fixture_user_id,
     install_test_signing_key,
 };
-use systemprompt_users::UserService;
+use systemprompt_users::{UserRepository, UserService};
 use tower::ServiceExt;
 
 async fn boot_server() -> anyhow::Result<axum::Router> {
@@ -52,14 +52,19 @@ async fn boot_server() -> anyhow::Result<axum::Router> {
 
     let ctx = Arc::new(AppContext::from_parts(
         {
-            let analytics_service = Arc::new(AnalyticsService::new(&pool, None, None)?);
+            let analytics_repositories =
+                Arc::new(systemprompt_analytics::repository::AnalyticsRepositories::new(&pool)?);
+            let analytics_service =
+                Arc::new(AnalyticsService::new(None, None, &analytics_repositories));
             let session_usage: systemprompt_traits::DynSessionUsageCounters =
                 Arc::new(analytics_service.session_repo().clone());
             DataPlane {
                 database: Arc::clone(&pool),
                 analytics_service,
                 fingerprint_repo: Some(Arc::new(FingerprintRepository::new(&pool)?)),
-                user_service: Some(Arc::new(UserService::new(&pool)?)),
+                user_service: Some(Arc::new(UserService::new(Arc::new(UserRepository::new(
+                    &pool,
+                )?)))),
                 a2a_repositories: Arc::new(systemprompt_agent::repository::A2ARepositories::new(
                     &pool,
                     session_usage,
@@ -72,6 +77,12 @@ async fn boot_server() -> anyhow::Result<axum::Router> {
                 ),
                 user_repository: Arc::new(systemprompt_users::UserRepository::new(&pool)?),
                 service_repository: Arc::new(systemprompt_database::ServiceRepository::new(&pool)?),
+                ai_repositories: Arc::new(systemprompt_ai::repository::AiRepositories::new(&pool)?),
+                analytics_repositories,
+                file_repository: Arc::new(systemprompt_files::FileRepository::new(&pool)?),
+                mcp_session_repository: Arc::new(
+                    systemprompt_mcp::repository::McpSessionRepository::new(&pool)?,
+                ),
             }
         },
         ConfigPlane {

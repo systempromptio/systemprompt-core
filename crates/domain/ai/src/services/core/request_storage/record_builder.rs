@@ -6,7 +6,7 @@
 use crate::models::ai::{AiRequest, AiResponse, MessageRole};
 use crate::models::{AiRequestRecord, AiRequestRecordBuilder, RequestStatus};
 use systemprompt_identifiers::{
-    AiRequestId, AiToolCallId, ContextId, McpExecutionId, SessionId, TaskId, TraceId, UserId,
+    AiRequestId, AiToolCallId, McpExecutionId, SessionId, TaskId, TraceId, UserId,
 };
 use systemprompt_models::RequestContext;
 
@@ -39,6 +39,7 @@ pub(super) fn build_record(params: &BuildRecordParams<'_>) -> AiRequestRecord {
     let mut builder = AiRequestRecordBuilder::new(
         AiRequestId::new(params.response.request_id.to_string()),
         user_id,
+        params.context.context_id().clone(),
     )
     .actor(params.context.actor().clone())
     .provider(&params.response.provider)
@@ -65,11 +66,6 @@ pub(super) fn build_record(params: &BuildRecordParams<'_>) -> AiRequestRecord {
 
     if let Some(task_id) = params.context.task_id() {
         builder = builder.task_id(TaskId::new(task_id.as_str()));
-    }
-
-    let context_id_str = params.context.context_id().as_str();
-    if !context_id_str.is_empty() {
-        builder = builder.context_id(ContextId::new(context_id_str));
     }
 
     let trace_id_str = params.context.trace_id().as_str();

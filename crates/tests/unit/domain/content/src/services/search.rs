@@ -6,7 +6,7 @@
 
 use systemprompt_content::SearchService;
 use systemprompt_content::models::{CreateContentParams, SearchFilters, SearchRequest};
-use systemprompt_content::repository::ContentRepository;
+use systemprompt_content::repository::{ContentRepository, SearchRepository};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{CategoryId, SourceId};
 use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_database_url, fixture_db_pool};
@@ -51,7 +51,10 @@ async fn search_without_filters_lists_recent_content() {
     )
     .await;
 
-    let service = SearchService::new(&pool).expect("service");
+    let service = SearchService::new(
+        SearchRepository::new(&pool).expect("search repo"),
+        ContentRepository::new(&pool).expect("content repo"),
+    );
     let response = service
         .search(&SearchRequest {
             query: String::new(),
@@ -75,7 +78,10 @@ async fn search_with_filter_but_no_category_returns_empty() {
     ensure_test_bootstrap();
     let pool = fixture_db_pool(&url).await.expect("pool");
 
-    let service = SearchService::new(&pool).expect("service");
+    let service = SearchService::new(
+        SearchRepository::new(&pool).expect("search repo"),
+        ContentRepository::new(&pool).expect("content repo"),
+    );
     let response = service
         .search(&SearchRequest {
             query: String::new(),
@@ -102,7 +108,10 @@ async fn search_by_category_returns_only_matching_rows() {
     let slug = format!("s-{}", Uuid::new_v4().simple());
     seed(&repo, &source, &category, &slug).await;
 
-    let service = SearchService::new(&pool).expect("service");
+    let service = SearchService::new(
+        SearchRepository::new(&pool).expect("search repo"),
+        ContentRepository::new(&pool).expect("content repo"),
+    );
 
     // Through the request API.
     let response = service

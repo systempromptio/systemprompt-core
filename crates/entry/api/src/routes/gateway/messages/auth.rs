@@ -5,6 +5,7 @@
 
 use axum::http::StatusCode;
 use std::collections::BTreeMap;
+use std::sync::Arc;
 use systemprompt_identifiers::{Actor, JwtToken, SessionId, TraceId, UserId};
 use systemprompt_runtime::AppContext;
 use systemprompt_users::{API_KEY_PREFIX, ApiKeyService};
@@ -144,12 +145,7 @@ async fn authenticate_api_key(
     session_id: &SessionId,
     ctx: &AppContext,
 ) -> Result<AuthedPrincipal, (StatusCode, String)> {
-    let service = ApiKeyService::new(ctx.db_pool()).map_err(|e| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            format!("API key service unavailable: {e}"),
-        )
-    })?;
+    let service = ApiKeyService::new(Arc::clone(ctx.user_repository()));
     let record = service.verify(credential).await.map_err(|e| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,

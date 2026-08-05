@@ -39,7 +39,7 @@ async fn sync_router_download_runs() -> anyhow::Result<()> {
 #[tokio::test]
 async fn engagement_router_batch_runs() -> anyhow::Result<()> {
     let ctx = ctx().await?;
-    let app = routes::engagement_router(&ctx)?.layer(Extension(request_context("u")));
+    let app = routes::engagement_router(&ctx).layer(Extension(request_context("u")));
     let resp = app
         .oneshot(json_post("/batch", serde_json::json!({ "events": [] })))
         .await?;
@@ -50,7 +50,7 @@ async fn engagement_router_batch_runs() -> anyhow::Result<()> {
 #[tokio::test]
 async fn engagement_router_single_runs() -> anyhow::Result<()> {
     let ctx = ctx().await?;
-    let app = routes::engagement_router(&ctx)?.layer(Extension(request_context("u")));
+    let app = routes::engagement_router(&ctx).layer(Extension(request_context("u")));
     let resp = app
         .oneshot(json_post(
             "/",
@@ -68,7 +68,7 @@ async fn engagement_router_single_runs() -> anyhow::Result<()> {
 #[tokio::test]
 async fn analytics_router_record_event() -> anyhow::Result<()> {
     let ctx = ctx().await?;
-    let app = routes::analytics_router(&ctx)?.layer(Extension(request_context("u")));
+    let app = routes::analytics_router(&ctx).layer(Extension(request_context("u")));
     let resp = app
         .oneshot(json_post(
             "/events",
@@ -86,7 +86,7 @@ async fn analytics_router_record_event() -> anyhow::Result<()> {
 #[tokio::test]
 async fn analytics_router_batch() -> anyhow::Result<()> {
     let ctx = ctx().await?;
-    let app = routes::analytics_router(&ctx)?.layer(Extension(request_context("u")));
+    let app = routes::analytics_router(&ctx).layer(Extension(request_context("u")));
     let resp = app
         .oneshot(json_post(
             "/events/batch",
@@ -208,8 +208,8 @@ async fn webhook_router_smoke() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn content_redirect_router_short_code_404() -> anyhow::Result<()> {
-    let (pool, _ctx) = setup_ctx().await?;
-    let app = routes::content::redirect_router(&pool);
+    let (_pool, ctx) = setup_ctx().await?;
+    let app = routes::content::redirect_router(ctx.content_repositories());
     let resp = app.oneshot(empty_get("/r/abcdef")).await?;
     assert!(resp.status().as_u16() >= 200);
     Ok(())

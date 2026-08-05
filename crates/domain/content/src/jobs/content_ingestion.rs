@@ -14,6 +14,7 @@ use systemprompt_models::{AppPaths, ContentConfigRaw, ContentSourceConfigRaw};
 use systemprompt_traits::JobResult;
 
 use crate::error::{ContentError, ContentResult};
+use crate::repository::ContentRepository;
 use crate::services::IngestionService;
 use crate::{IngestionOptions, IngestionReport, IngestionSource};
 
@@ -48,7 +49,10 @@ fn log_job_started() {
 }
 
 fn create_ingestion_service(db_pool: &DbPool) -> ContentResult<IngestionService> {
-    IngestionService::new(db_pool)
+    Ok(IngestionService::new(
+        db_pool,
+        ContentRepository::new(db_pool)?,
+    ))
 }
 
 fn get_enabled_sources(

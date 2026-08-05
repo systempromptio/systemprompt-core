@@ -5,8 +5,9 @@
 
 use anyhow::Result;
 use clap::Args;
+use std::sync::Arc;
 use systemprompt_database::DbPool;
-use systemprompt_users::UserService;
+use systemprompt_users::{UserRepository, UserService};
 
 use super::types::{UserListOutput, UserSummary};
 use crate::CliConfig;
@@ -30,7 +31,7 @@ pub(super) async fn execute_with_pool(
     pool: &DbPool,
     _config: &CliConfig,
 ) -> Result<CommandOutput> {
-    let user_service = UserService::new(pool)?;
+    let user_service = UserService::new(Arc::new(UserRepository::new(pool)?));
 
     let users = user_service.search(&args.query, args.limit).await?;
     let total = users.len() as i64;

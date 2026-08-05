@@ -10,7 +10,7 @@
 //! branch that matters for a linking flow (a bad or replayed link token must
 //! never attach a credential to an account).
 
-use std::sync::{Arc, Once};
+use std::sync::Once;
 
 use axum::Router;
 use axum::body::{Body, to_bytes};
@@ -43,10 +43,10 @@ async fn app() -> anyhow::Result<Router> {
     install_test_signing_key();
     let (_pool, ctx) = setup_ctx().await?;
     let state = OAuthState::new(
-        Arc::clone(ctx.db_pool()),
+        ctx.oauth_repositories().oauth.clone(),
         ctx.analytics_provider().expect("analytics"),
         ctx.user_provider().expect("user"),
-    )?;
+    );
     Ok(public_router().with_state(state))
 }
 
@@ -202,10 +202,10 @@ async fn the_assembled_oauth_router_serves_both_halves() -> anyhow::Result<()> {
     ensure_config();
     let (_pool, ctx) = setup_ctx().await?;
     let state = OAuthState::new(
-        Arc::clone(ctx.db_pool()),
+        ctx.oauth_repositories().oauth.clone(),
         ctx.analytics_provider().expect("analytics"),
         ctx.user_provider().expect("user"),
-    )?;
+    );
 
     // `router()` is the merge of the public and authenticated halves; nothing
     // in the suite builds it, so a route lost from the merge would go unnoticed.

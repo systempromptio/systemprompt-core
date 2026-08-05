@@ -174,6 +174,10 @@ impl UserProvider for StubUserProvider {
     ) -> AuthResult<UserId> {
         Ok(UserId::new("user_federated"))
     }
+
+    async fn promote_anonymous(&self, _source: &UserId, _target: &UserId) -> AuthResult<u64> {
+        Ok(0)
+    }
 }
 
 struct RecordingPublisher {

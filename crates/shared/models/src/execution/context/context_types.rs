@@ -76,21 +76,6 @@ pub struct ExecutionContext {
     pub tool_model_config: Option<ToolModelConfig>,
 }
 
-impl Default for ExecutionContext {
-    fn default() -> Self {
-        Self {
-            trace_id: TraceId::new(uuid::Uuid::new_v4().to_string()),
-            context_id: ContextId::generate(),
-            task_id: None,
-            ai_tool_call_id: None,
-            mcp_execution_id: None,
-            call_source: None,
-            agent_name: AgentName::system(),
-            tool_model_config: None,
-        }
-    }
-}
-
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
 pub struct ExecutionSettings {
     pub max_budget_cents: Option<i32>,

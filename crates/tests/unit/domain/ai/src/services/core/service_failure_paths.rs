@@ -149,8 +149,11 @@ async fn a_disabled_provider_entry_is_not_built() {
         &pool,
         &registry,
         &config,
-        Arc::new(NoopToolProvider::new()),
-        noop_session_provider(),
+        systemprompt_ai::AiServiceProviders {
+            tools: Arc::new(NoopToolProvider::new()),
+            sessions: noop_session_provider(),
+        },
+        &systemprompt_ai::repository::AiRepositories::new(&pool).expect("ai repositories"),
     )
     .expect("a disabled entry must not stop the service building");
 
@@ -188,8 +191,11 @@ async fn an_enabled_provider_with_no_registry_entry_is_skipped_rather_than_fatal
         &pool,
         &registry,
         &config,
-        Arc::new(NoopToolProvider::new()),
-        noop_session_provider(),
+        systemprompt_ai::AiServiceProviders {
+            tools: Arc::new(NoopToolProvider::new()),
+            sessions: noop_session_provider(),
+        },
+        &systemprompt_ai::repository::AiRepositories::new(&pool).expect("ai repositories"),
     )
     .expect("an unknown provider name must be skipped, not abort construction");
 
@@ -221,8 +227,11 @@ async fn a_default_provider_that_was_never_built_fails_construction() {
         &pool,
         &registry,
         &empty,
-        Arc::new(NoopToolProvider::new()),
-        noop_session_provider(),
+        systemprompt_ai::AiServiceProviders {
+            tools: Arc::new(NoopToolProvider::new()),
+            sessions: noop_session_provider(),
+        },
+        &systemprompt_ai::repository::AiRepositories::new(&pool).expect("ai repositories"),
     )
     .expect_err("a service with no enabled provider cannot serve anything");
     assert!(
@@ -238,8 +247,11 @@ async fn a_default_provider_that_was_never_built_fails_construction() {
         &pool,
         &registry,
         &mismatched,
-        Arc::new(NoopToolProvider::new()),
-        noop_session_provider(),
+        systemprompt_ai::AiServiceProviders {
+            tools: Arc::new(NoopToolProvider::new()),
+            sessions: noop_session_provider(),
+        },
+        &systemprompt_ai::repository::AiRepositories::new(&pool).expect("ai repositories"),
     )
     .expect_err("a default naming an unbuilt provider must fail construction");
     assert!(

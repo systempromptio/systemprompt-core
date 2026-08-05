@@ -4,7 +4,6 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use async_trait::async_trait;
-use systemprompt_database::DbPool;
 use systemprompt_identifiers::{FileId, UserId};
 use systemprompt_traits::{
     AiFilePersistenceProvider, AiGeneratedFile, AiProviderError, AiProviderResult,
@@ -12,7 +11,6 @@ use systemprompt_traits::{
 };
 
 use crate::config::FilesConfig;
-use crate::error::FilesResult;
 use crate::models::{File, FileMetadata};
 use crate::repository::{FileRepository, InsertFileRequest};
 
@@ -41,12 +39,6 @@ pub struct FilesAiPersistenceProvider {
 }
 
 impl FilesAiPersistenceProvider {
-    pub fn new(db: &DbPool) -> FilesResult<Self> {
-        Ok(Self {
-            repository: FileRepository::new(db)?,
-        })
-    }
-
     pub const fn from_repository(repository: FileRepository) -> Self {
         Self { repository }
     }

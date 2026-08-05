@@ -111,10 +111,7 @@ pub async fn read_artifact_resource(
         artifact_id: &artifact_id,
         artifact_type: &record.artifact_type,
         payload,
-        context_id: record
-            .context_id
-            .clone()
-            .unwrap_or_else(ContextId::generate),
+        context_id: record.context_id.clone().unwrap_or_else(ContextId::legacy),
         title: record.title.clone(),
     };
 

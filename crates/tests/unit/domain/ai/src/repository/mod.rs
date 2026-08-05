@@ -8,7 +8,7 @@ mod ai_safety_findings;
 
 use systemprompt_ai::models::AiRequestRecord;
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::{AiRequestId, UserId};
+use systemprompt_identifiers::{AiRequestId, ContextId, UserId};
 use systemprompt_test_fixtures::{
     ensure_test_bootstrap, fixture_database_url, fixture_db_pool, seed_user_row, unique_user_id,
 };
@@ -30,10 +30,14 @@ pub(crate) async fn seed_request(pool: &DbPool, user_id: &UserId) -> AiRequestId
         .await
         .expect("seed user");
     let repo = systemprompt_ai::repository::AiRequestRepository::new(pool).expect("repo");
-    let record = AiRequestRecord::builder(AiRequestId::generate(), user_id.clone())
-        .provider("anthropic")
-        .model("claude-3-opus")
-        .build();
+    let record = AiRequestRecord::builder(
+        AiRequestId::generate(),
+        user_id.clone(),
+        ContextId::generate(),
+    )
+    .provider("anthropic")
+    .model("claude-3-opus")
+    .build();
     repo.insert(&record).await.expect("insert request")
 }
 
@@ -42,14 +46,18 @@ pub(crate) fn user() -> UserId {
 }
 
 pub(crate) fn completed_record(user_id: &UserId) -> AiRequestRecord {
-    AiRequestRecord::builder(AiRequestId::generate(), user_id.clone())
-        .provider("anthropic")
-        .model("claude-3-opus")
-        .tokens(Some(100), Some(50))
-        .cache(true, Some(20), Some(10))
-        .streaming(false)
-        .cost(1_500)
-        .latency(420)
-        .completed()
-        .build()
+    AiRequestRecord::builder(
+        AiRequestId::generate(),
+        user_id.clone(),
+        ContextId::generate(),
+    )
+    .provider("anthropic")
+    .model("claude-3-opus")
+    .tokens(Some(100), Some(50))
+    .cache(true, Some(20), Some(10))
+    .streaming(false)
+    .cost(1_500)
+    .latency(420)
+    .completed()
+    .build()
 }

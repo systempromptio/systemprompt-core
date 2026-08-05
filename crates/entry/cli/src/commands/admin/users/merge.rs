@@ -5,7 +5,8 @@
 
 use anyhow::{Result, anyhow};
 use clap::Args;
-use systemprompt_users::{UserAdminService, UserService};
+use std::sync::Arc;
+use systemprompt_users::{UserAdminService, UserRepository, UserService};
 
 use super::types::UserMergeOutput;
 use crate::context::CommandContext;
@@ -32,7 +33,7 @@ pub(super) async fn execute(args: MergeArgs, ctx: &CommandContext) -> Result<Com
     }
 
     let pool = ctx.db_pool().await?;
-    let user_service = UserService::new(&pool)?;
+    let user_service = UserService::new(Arc::new(UserRepository::new(&pool)?));
     let admin_service = UserAdminService::new(user_service.clone());
 
     let source_user = admin_service

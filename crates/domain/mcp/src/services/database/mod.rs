@@ -24,16 +24,16 @@ pub struct DatabaseService {
 }
 
 impl DatabaseService {
-    pub fn new(
-        db_pool: &systemprompt_database::DbPool,
+    pub const fn new(
+        service_repo: ServiceRepository,
         app_paths: Arc<AppPaths>,
         registry: RegistryService,
-    ) -> McpDomainResult<Self> {
-        Ok(Self {
-            service_repo: ServiceRepository::new(db_pool)?,
+    ) -> Self {
+        Self {
+            service_repo,
             app_paths,
             registry,
-        })
+        }
     }
 
     pub fn app_paths(&self) -> &AppPaths {

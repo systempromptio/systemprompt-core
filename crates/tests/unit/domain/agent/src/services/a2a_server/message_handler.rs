@@ -7,7 +7,6 @@
 use std::sync::Arc;
 
 use systemprompt_agent::models::a2a::{Message, MessageRole, Part, TaskState, TextPart};
-use systemprompt_agent::repository::task::TaskRepository;
 use systemprompt_agent::services::a2a_server::processing::message::MessageProcessor;
 use systemprompt_identifiers::{ContextId, MessageId, TaskId};
 
@@ -41,12 +40,7 @@ async fn handle_message_with_runtime_completes_task_end_to_end() {
     let (ctx, _) = seed_context_and_task(&repos, &user, &session).await;
 
     let provider = Arc::new(StubAiProvider::new().with_text_stream(&["It is ", "42."]));
-    let processor = MessageProcessor::new(
-        &pool,
-        provider,
-        TaskRepository::new(&pool, crate::session_usage(&pool)).expect("task repo"),
-    )
-    .expect("processor");
+    let processor = MessageProcessor::new(Arc::new(repos.clone()), provider).expect("processor");
 
     let runtime = runtime_info("nonstream-agent");
     let request = request_context(&ctx, &session, &user, "nonstream-agent");
@@ -87,12 +81,7 @@ async fn handle_message_with_runtime_reuses_inbound_task_id() {
     let client_task_id = TaskId::generate();
 
     let provider = Arc::new(StubAiProvider::new().with_text_stream(&["continuing"]));
-    let processor = MessageProcessor::new(
-        &pool,
-        provider,
-        TaskRepository::new(&pool, crate::session_usage(&pool)).expect("task repo"),
-    )
-    .expect("processor");
+    let processor = MessageProcessor::new(Arc::new(repos.clone()), provider).expect("processor");
 
     let runtime = runtime_info("nonstream-agent");
     let request = request_context(&ctx, &session, &user, "nonstream-agent");
@@ -119,12 +108,7 @@ async fn handle_message_with_runtime_surfaces_model_stream_failure() {
     let client_task_id = TaskId::generate();
 
     let provider = Arc::new(StubAiProvider::new().failing_stream());
-    let processor = MessageProcessor::new(
-        &pool,
-        provider,
-        TaskRepository::new(&pool, crate::session_usage(&pool)).expect("task repo"),
-    )
-    .expect("processor");
+    let processor = MessageProcessor::new(Arc::new(repos.clone()), provider).expect("processor");
 
     let runtime = runtime_info("nonstream-agent");
     let request = request_context(&ctx, &session, &user, "nonstream-agent");
@@ -153,13 +137,9 @@ async fn handle_message_with_runtime_rejects_unowned_context() {
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let (user, session) = seed_user_and_session(&pool).await;
 
+    let repos = repos(&pool);
     let provider = Arc::new(StubAiProvider::new());
-    let processor = MessageProcessor::new(
-        &pool,
-        provider,
-        TaskRepository::new(&pool, crate::session_usage(&pool)).expect("task repo"),
-    )
-    .expect("processor");
+    let processor = MessageProcessor::new(Arc::new(repos.clone()), provider).expect("processor");
 
     let foreign_ctx = ContextId::generate();
     let runtime = runtime_info("nonstream-agent");

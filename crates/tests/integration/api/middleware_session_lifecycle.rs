@@ -33,7 +33,7 @@ async fn router() -> Result<(DbPool, Router)> {
     let _ = systemprompt_models::Config::install(fixture_config(&b.database_url));
     let (db, ctx) = setup_ctx().await?;
     install_test_signing_key();
-    let mw = SessionMiddleware::new(&ctx)?;
+    let mw = SessionMiddleware::new(&ctx);
     let app = Router::new()
         .route("/page", get(ok_handler))
         .layer(middleware::from_fn(move |req, next| {

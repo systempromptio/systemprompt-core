@@ -216,7 +216,7 @@ async fn generate_sitemap_emits_per_slug_urls_with_hreflang_alternates() {
     seed_two_locale_post(&db).await;
     install_config(boot);
 
-    generate_sitemap(db.clone(), &boot.app_paths)
+    generate_sitemap(content_repo(&db), &boot.app_paths)
         .await
         .expect("generate_sitemap");
 
@@ -268,7 +268,7 @@ async fn generate_sitemap_emits_parent_route_urls_for_each_locale() {
     seed_two_locale_post(&db).await;
     install_config(boot);
 
-    generate_sitemap(db.clone(), &boot.app_paths)
+    generate_sitemap(content_repo(&db), &boot.app_paths)
         .await
         .expect("generate_sitemap");
 
@@ -323,7 +323,7 @@ async fn generate_sitemap_excludes_non_public_rows() {
 
     install_config(boot);
 
-    generate_sitemap(db.clone(), &boot.app_paths)
+    generate_sitemap(content_repo(&db), &boot.app_paths)
         .await
         .expect("generate_sitemap");
 
@@ -341,4 +341,8 @@ async fn generate_sitemap_excludes_non_public_rows() {
         xml.contains("/blog</loc>"),
         "parent-route loc missing in:\n{xml}"
     );
+}
+
+fn content_repo(pool: &systemprompt_database::DbPool) -> systemprompt_content::ContentRepository {
+    systemprompt_content::ContentRepository::new(pool).expect("content repository")
 }

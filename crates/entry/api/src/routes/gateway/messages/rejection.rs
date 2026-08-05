@@ -57,7 +57,13 @@ pub fn build_rejection_record(
         return None;
     };
 
-    let mut builder = AiRequestRecord::builder(ai_request_id.clone(), user_id)
+    let context_id = partial.context_id.clone().unwrap_or_else(|| {
+        partial.session_id.as_ref().map_or_else(
+            systemprompt_identifiers::ContextId::legacy,
+            systemprompt_identifiers::ContextId::derived_from_session,
+        )
+    });
+    let mut builder = AiRequestRecord::builder(ai_request_id.clone(), user_id, context_id)
         .streaming(partial.is_streaming)
         .rejected();
     if let Some(provider) = &partial.provider {
@@ -68,9 +74,6 @@ pub fn build_rejection_record(
     }
     if let Some(s) = &partial.session_id {
         builder = builder.session_id(s.clone());
-    }
-    if let Some(c) = &partial.context_id {
-        builder = builder.context_id(c.clone());
     }
     if let Some(t) = &partial.trace_id {
         builder = builder.trace_id(t.clone());

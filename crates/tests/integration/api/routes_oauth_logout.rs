@@ -5,7 +5,7 @@
 //! and clearing the cookie), plus the missing-jti, non-UUID user, and
 //! out-of-range expiry error branches.
 
-use std::sync::{Arc, Once};
+use std::sync::Once;
 
 use axum::Router;
 use axum::body::Body;
@@ -79,10 +79,10 @@ async fn logout_app() -> anyhow::Result<Router> {
     ensure_config();
     let (_pool, ctx) = setup_ctx().await?;
     let state = OAuthState::new(
-        Arc::clone(ctx.db_pool()),
+        ctx.oauth_repositories().oauth.clone(),
         ctx.analytics_provider().expect("analytics"),
         ctx.user_provider().expect("user"),
-    )?;
+    );
     Ok(authenticated_router().with_state(state))
 }
 

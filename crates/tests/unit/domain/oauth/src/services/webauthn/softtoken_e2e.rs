@@ -77,6 +77,10 @@ impl UserProvider for SeedingUserProvider {
     ) -> AuthResult<UserId> {
         Ok(UserId::new(Uuid::new_v4().to_string()))
     }
+
+    async fn promote_anonymous(&self, _source: &UserId, _target: &UserId) -> AuthResult<u64> {
+        Ok(0)
+    }
 }
 
 fn origin() -> Url {

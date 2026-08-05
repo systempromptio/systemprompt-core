@@ -58,6 +58,7 @@ pub struct GatewayRequestContext {
 pub struct GatewayAudit {
     requests: Arc<AiRequestRepository>,
     payloads: Arc<AiRequestPayloadRepository>,
+    context_materializer: systemprompt_traits::DynContextMaterializer,
     pub ctx: GatewayRequestContext,
     served_model: Mutex<Option<String>>,
     started_at: Instant,
@@ -68,6 +69,7 @@ impl GatewayAudit {
         Self {
             requests: Arc::clone(&repos.requests),
             payloads: Arc::clone(&repos.payloads),
+            context_materializer: Arc::clone(&repos.context_materializer),
             ctx,
             served_model: Mutex::new(None),
             started_at: Instant::now(),

@@ -10,6 +10,7 @@
 use axum::extract::{Extension, Path, State};
 use axum::response::IntoResponse;
 use systemprompt_api::routes::content::links::redirect_handler;
+use systemprompt_content::repository::{ContentRepositories, LinkRepository};
 use systemprompt_content::{GenerateLinkParams, LinkGenerationService, LinkType};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{AgentName, ContextId, SessionId, TraceId, UserId};
@@ -34,8 +35,7 @@ fn ctx(session_id: &str) -> RequestContext {
 }
 
 async fn make_link(pool: &DbPool, target: &str) -> String {
-    LinkGenerationService::new(pool)
-        .expect("link service")
+    LinkGenerationService::new(LinkRepository::new(pool).expect("link repo"))
         .generate_link(GenerateLinkParams {
             target_url: target.to_owned(),
             link_type: LinkType::Redirect,
@@ -53,13 +53,17 @@ async fn make_link(pool: &DbPool, target: &str) -> String {
         .short_code
 }
 
+fn content_repos(pool: &systemprompt_database::DbPool) -> std::sync::Arc<ContentRepositories> {
+    std::sync::Arc::new(ContentRepositories::new(pool).expect("content repositories"))
+}
+
 #[tokio::test]
 async fn unknown_short_code_is_not_found() {
     let Some(pool) = pool().await else {
         return;
     };
     let response = redirect_handler(
-        State(pool),
+        State(content_repos(&pool)),
         Extension(ctx("sess-unknown")),
         Path(format!("nope{}", Uuid::new_v4().simple())),
     )
@@ -85,7 +89,7 @@ async fn a_known_short_code_redirects_to_its_target() {
     let code = make_link(&pool, &target).await;
 
     let response = redirect_handler(
-        State(pool),
+        State(content_repos(&pool)),
         Extension(ctx(&format!("sess-{}", Uuid::new_v4().simple()))),
         Path(code),
     )
@@ -117,9 +121,13 @@ async fn a_bot_session_still_redirects_but_is_not_tracked() {
 
     // Session ids prefixed `bot_` skip click tracking; the redirect itself must
     // be unaffected, otherwise crawlers would see a different site than users.
-    let response = redirect_handler(State(pool), Extension(ctx("bot_crawler-1")), Path(code))
-        .await
-        .into_response();
+    let response = redirect_handler(
+        State(content_repos(&pool)),
+        Extension(ctx("bot_crawler-1")),
+        Path(code),
+    )
+    .await
+    .into_response();
 
     assert_eq!(
         response.status(),
@@ -137,7 +145,7 @@ async fn the_same_code_can_be_followed_repeatedly() {
 
     for attempt in 0..3 {
         let response = redirect_handler(
-            State(pool.clone()),
+            State(content_repos(&pool)),
             Extension(ctx(&format!("sess-repeat-{attempt}"))),
             Path(code.clone()),
         )

@@ -68,7 +68,10 @@ pub use models::{
     SearchFilters, SearchRequest, SearchResponse, SearchResult, UpdateContentParams,
 };
 
-pub use repository::{ContentRepository, LinkAnalyticsRepository, SearchRepository};
+pub use repository::{
+    ContentRepositories, ContentRepository, LinkAnalyticsRepository, LinkRepository,
+    SearchRepository,
+};
 
 pub use services::{
     DefaultContentProvider, GenerateLinkParams, IngestionService, LinkAnalyticsService,

@@ -15,7 +15,6 @@ use std::sync::Arc;
 
 use axum::Router;
 use axum::routing::{get, post};
-use systemprompt_database::DbPool;
 use systemprompt_runtime::AppContext;
 
 pub use blog::{get_content_handler, get_content_markdown_handler, list_content_by_source_handler};
@@ -64,8 +63,10 @@ pub fn authenticated_router(ctx: &AppContext) -> Router {
         .with_state(ctx.clone())
 }
 
-pub fn redirect_router(db_pool: &DbPool) -> Router {
+pub fn redirect_router(
+    repositories: &Arc<systemprompt_content::repository::ContentRepositories>,
+) -> Router {
     Router::new()
         .route("/r/{short_code}", get(redirect_handler))
-        .with_state(Arc::clone(db_pool))
+        .with_state(Arc::clone(repositories))
 }

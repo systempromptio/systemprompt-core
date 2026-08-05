@@ -2,7 +2,7 @@
 //! exercise the routing and error mappings; happy paths require a full
 //! provisioned client + PKCE flow.
 
-use std::sync::{Arc, Once};
+use std::sync::Once;
 
 use axum::Router;
 use systemprompt_api::routes::oauth::{authenticated_router, public_router};
@@ -72,10 +72,10 @@ async fn public_app() -> anyhow::Result<Router> {
     ensure_config();
     let (_pool, ctx) = setup_ctx().await?;
     let state = OAuthState::new(
-        Arc::clone(ctx.db_pool()),
+        ctx.oauth_repositories().oauth.clone(),
         ctx.analytics_provider().expect("analytics"),
         ctx.user_provider().expect("user"),
-    )?;
+    );
     Ok(public_router().with_state(state))
 }
 
@@ -83,10 +83,10 @@ async fn authenticated_app() -> anyhow::Result<Router> {
     ensure_config();
     let (_pool, ctx) = setup_ctx().await?;
     let state = OAuthState::new(
-        Arc::clone(ctx.db_pool()),
+        ctx.oauth_repositories().oauth.clone(),
         ctx.analytics_provider().expect("analytics"),
         ctx.user_provider().expect("user"),
-    )?;
+    );
     Ok(authenticated_router().with_state(state))
 }
 
@@ -256,10 +256,10 @@ async fn register_client_applies_rfc7591_defaults_when_grant_and_response_types_
     req_ctx.auth.actor.user_id = user_id.clone();
 
     let state = OAuthState::new(
-        Arc::clone(ctx.db_pool()),
+        ctx.oauth_repositories().oauth.clone(),
         ctx.analytics_provider().expect("analytics"),
         ctx.user_provider().expect("user"),
-    )?;
+    );
     let app = systemprompt_api::routes::oauth::public_router()
         .with_state(state)
         .layer(Extension(req_ctx));
@@ -321,10 +321,10 @@ async fn register_client_echoes_native_application_type() -> anyhow::Result<()> 
     req_ctx.auth.actor.user_id = user_id.clone();
 
     let state = OAuthState::new(
-        Arc::clone(ctx.db_pool()),
+        ctx.oauth_repositories().oauth.clone(),
         ctx.analytics_provider().expect("analytics"),
         ctx.user_provider().expect("user"),
-    )?;
+    );
     let app = systemprompt_api::routes::oauth::public_router()
         .with_state(state)
         .layer(Extension(req_ctx));
@@ -407,10 +407,10 @@ async fn dcr_app() -> anyhow::Result<Router> {
     let mut req_ctx = super::common::request_context("ignored");
     req_ctx.auth.actor.user_id = user_id;
     let state = OAuthState::new(
-        Arc::clone(ctx.db_pool()),
+        ctx.oauth_repositories().oauth.clone(),
         ctx.analytics_provider().expect("analytics"),
         ctx.user_provider().expect("user"),
-    )?;
+    );
     Ok(systemprompt_api::routes::oauth::public_router()
         .with_state(state)
         .layer(Extension(req_ctx)))

@@ -48,8 +48,12 @@ macro_rules! pool_or_skip {
 async fn plane_debug_impls_flag_optional_members() {
     let (pool, url) = pool_or_skip!();
 
-    let analytics_service =
-        Arc::new(AnalyticsService::new(&pool, None, None).expect("analytics service"));
+    let analytics_service = Arc::new(AnalyticsService::new(
+        None,
+        None,
+        &systemprompt_analytics::repository::AnalyticsRepositories::new(&pool)
+            .expect("repositories"),
+    ));
     let session_usage: systemprompt_traits::DynSessionUsageCounters =
         Arc::new(analytics_service.session_repo().clone());
     let data = DataPlane {
@@ -74,6 +78,20 @@ async fn plane_debug_impls_flag_optional_members() {
         ),
         service_repository: Arc::new(
             systemprompt_database::ServiceRepository::new(&pool).expect("service repository"),
+        ),
+        ai_repositories: Arc::new(
+            systemprompt_ai::repository::AiRepositories::new(&pool).expect("ai repositories"),
+        ),
+        analytics_repositories: Arc::new(
+            systemprompt_analytics::repository::AnalyticsRepositories::new(&pool)
+                .expect("analytics repositories"),
+        ),
+        file_repository: Arc::new(
+            systemprompt_files::FileRepository::new(&pool).expect("file repository"),
+        ),
+        mcp_session_repository: Arc::new(
+            systemprompt_mcp::repository::McpSessionRepository::new(&pool)
+                .expect("mcp session repository"),
         ),
     };
     let dbg = format!("{data:?}");

@@ -7,7 +7,7 @@
 //! the issuer read from the live `Config` so it matches whichever config the
 //! shared `Once` installed first.
 
-use std::sync::{Arc, Once};
+use std::sync::Once;
 
 use axum::Router;
 use axum::body::{Body, to_bytes};
@@ -106,10 +106,10 @@ async fn token_app() -> anyhow::Result<Router> {
     install_test_signing_key();
     let (_pool, ctx) = setup_ctx().await?;
     let state = OAuthState::new(
-        Arc::clone(ctx.db_pool()),
+        ctx.oauth_repositories().oauth.clone(),
         ctx.analytics_provider().expect("analytics"),
         ctx.user_provider().expect("user"),
-    )?;
+    );
     Ok(public_router()
         .layer(middleware::from_fn(inject_context))
         .with_state(state))

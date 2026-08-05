@@ -25,7 +25,11 @@ fn app_paths() -> Arc<AppPaths> {
 }
 
 fn lifecycle(pool: &systemprompt_database::DbPool) -> AgentLifecycle {
-    AgentLifecycle::new(pool, app_paths()).expect("lifecycle")
+    AgentLifecycle::new(
+        AgentServiceRepository::new(pool).expect("repo"),
+        app_paths(),
+    )
+    .expect("lifecycle")
 }
 
 fn db_service(pool: &systemprompt_database::DbPool) -> AgentDatabaseService {
@@ -184,22 +188,24 @@ async fn free_function_verbs_cover_missing_agent_paths() {
     use systemprompt_agent::services::agent_orchestration::lifecycle as verbs;
 
     let name = unique_name("lc_free");
+    let repo = systemprompt_agent::repository::agent_service::AgentServiceRepository::new(&pool)
+        .expect("agent service repository");
     assert!(
-        verbs::start_agent(&pool, app_paths(), &name, None)
+        verbs::start_agent(repo.clone(), app_paths(), &name, None)
             .await
             .is_err()
     );
     assert!(
-        verbs::enable_agent(&pool, app_paths(), &name, None)
+        verbs::enable_agent(repo.clone(), app_paths(), &name, None)
             .await
             .is_err()
     );
     assert!(
-        verbs::restart_agent(&pool, app_paths(), &name, None)
+        verbs::restart_agent(repo.clone(), app_paths(), &name, None)
             .await
             .is_err()
     );
-    verbs::disable_agent(&pool, app_paths(), &name)
+    verbs::disable_agent(repo.clone(), app_paths(), &name)
         .await
         .expect("disable of an unregistered agent is a no-op removal");
 }

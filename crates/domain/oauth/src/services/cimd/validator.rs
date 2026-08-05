@@ -7,8 +7,6 @@ use super::fetcher::CimdFetcher;
 use crate::error::OauthResult as Result;
 use crate::models::cimd::ClientValidation;
 use crate::repository::oauth::OAuthRepository;
-use std::sync::Arc;
-use systemprompt_database::Database;
 use systemprompt_identifiers::ClientId;
 
 #[derive(Debug)]
@@ -18,9 +16,9 @@ pub struct ClientValidator {
 }
 
 impl ClientValidator {
-    pub fn new(db_pool: &Arc<Database>) -> Result<Self> {
+    pub fn new(dcr_repo: OAuthRepository) -> Result<Self> {
         Ok(Self {
-            dcr_repo: OAuthRepository::new(db_pool)?,
+            dcr_repo,
             cimd_fetcher: CimdFetcher::new()?,
         })
     }

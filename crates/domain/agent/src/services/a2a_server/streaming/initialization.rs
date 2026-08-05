@@ -64,9 +64,8 @@ fn create_processor(
     request_id: &NumberOrString,
 ) -> Result<MessageProcessor, ()> {
     MessageProcessor::new(
-        &state.db_pool,
+        Arc::clone(state.agent_state.repositories()),
         Arc::clone(&state.ai_service),
-        state.agent_state.repositories().tasks.clone(),
     )
     .map_err(|e| {
         tracing::error!(error = %e, "Failed to create MessageProcessor");

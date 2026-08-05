@@ -60,7 +60,7 @@ pub struct ExecutionMetadata {
 impl Default for ExecutionMetadata {
     fn default() -> Self {
         Self {
-            context_id: ContextId::generate(),
+            context_id: ContextId::legacy(),
             trace_id: TraceId::new("unset"),
             session_id: SessionId::new("unset"),
             user_id: UserId::new("unset"),

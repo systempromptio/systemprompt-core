@@ -6,6 +6,7 @@ use async_trait::async_trait;
 use http::HeaderMap;
 use systemprompt_identifiers::{SessionId, UserId};
 use systemprompt_oauth::OAuthState;
+use systemprompt_oauth::repository::OAuthRepository;
 use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_database_url, fixture_db_pool};
 use systemprompt_traits::{
     AnalyticsProvider, AnalyticsResult, AnalyticsSession, AuthResult, AuthUser, CreateSessionInput,
@@ -111,6 +112,10 @@ impl UserProvider for NullUsers {
     ) -> AuthResult<UserId> {
         Ok(UserId::new("user_state_fed"))
     }
+
+    async fn promote_anonymous(&self, _source: &UserId, _target: &UserId) -> AuthResult<u64> {
+        Ok(0)
+    }
 }
 
 struct NullFingerprints;
@@ -163,7 +168,12 @@ async fn base_state() -> Option<OAuthState> {
     let url = fixture_database_url().ok()?;
     ensure_test_bootstrap();
     let pool = fixture_db_pool(&url).await.expect("pool");
-    OAuthState::new(pool, Arc::new(NullAnalytics), Arc::new(NullUsers)).ok()
+    let repo = OAuthRepository::new(&pool).expect("oauth repo");
+    Some(OAuthState::new(
+        repo,
+        Arc::new(NullAnalytics),
+        Arc::new(NullUsers),
+    ))
 }
 
 #[tokio::test]
@@ -196,7 +206,6 @@ async fn builder_methods_attach_optional_providers() {
     assert!(state.fingerprint_provider().is_some());
     assert!(state.event_publisher().is_some());
     assert!(state.mcp_registry().is_some());
-    let _pool = state.db_pool();
     let _analytics = state.analytics_provider();
     let _users = state.user_provider();
 

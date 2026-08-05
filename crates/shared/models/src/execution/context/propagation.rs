@@ -172,13 +172,14 @@ impl ContextPropagation for RequestContext {
         let user_id = required_header(hdrs, headers::USER_ID)?;
         let agent_name = required_header(hdrs, headers::AGENT_NAME)?;
 
+        let session_id = SessionId::new(session_id.to_owned());
         let context_id = header_str(hdrs, headers::CONTEXT_ID)
             .filter(|s| !s.is_empty())
             .and_then(|s| ContextId::try_new(s).ok())
-            .unwrap_or_else(ContextId::generate);
+            .unwrap_or_else(|| ContextId::derived_from_session(&session_id));
 
         let ctx = Self::new(
-            SessionId::new(session_id.to_owned()),
+            session_id,
             TraceId::new(trace_id.to_owned()),
             context_id,
             AgentName::new(agent_name.to_owned()),

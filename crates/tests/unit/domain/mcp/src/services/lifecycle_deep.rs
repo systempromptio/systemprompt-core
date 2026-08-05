@@ -40,7 +40,11 @@ async fn make_lifecycle() -> Option<(LifecycleOrchestrator, systemprompt_databas
         AppPaths::from_profile(&paths, systemprompt_models::PathResolution::Canonicalize).ok()?,
     );
     let registry = RegistryService::new(fixture_user_id());
-    let database = DatabaseService::new(&db, Arc::clone(&app_paths), registry).expect("db service");
+    let database = DatabaseService::new(
+        systemprompt_database::ServiceRepository::new(&db).expect("service repository"),
+        Arc::clone(&app_paths),
+        registry,
+    );
     let lifecycle = LifecycleOrchestrator::new(
         ProcessService::new(),
         NetworkService::new(),

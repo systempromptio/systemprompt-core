@@ -9,15 +9,11 @@ async fn db() -> Option<systemprompt_database::DbPool> {
 }
 
 #[tokio::test]
-async fn proxy_health_new_succeeds() {
-    let Some(db) = db().await else { return };
-    drop(ProxyHealthCheck::new(&db).expect("ctor"));
-}
-
-#[tokio::test]
 async fn can_route_traffic_missing_service_returns_false() {
     let Some(db) = db().await else { return };
-    let p = ProxyHealthCheck::new(&db).unwrap();
+    let p = ProxyHealthCheck::new(
+        systemprompt_database::ServiceRepository::new(&db).expect("service repository"),
+    );
     let r = p
         .can_route_traffic(&format!("missing-{}", uuid::Uuid::new_v4().simple()), 65530)
         .await
@@ -29,7 +25,9 @@ async fn can_route_traffic_missing_service_returns_false() {
 async fn list_routable_services_excludes_service_with_unresponsive_port() {
     use systemprompt_database::{CreateServiceInput, ServiceRepository};
     let Some(db) = db().await else { return };
-    let p = ProxyHealthCheck::new(&db).unwrap();
+    let p = ProxyHealthCheck::new(
+        systemprompt_database::ServiceRepository::new(&db).expect("service repository"),
+    );
     let repo = ServiceRepository::new(&db).unwrap();
     let name = format!("ph-list-{}", uuid::Uuid::new_v4().simple());
     let port = 65510;
@@ -60,7 +58,9 @@ async fn list_routable_services_excludes_service_with_unresponsive_port() {
 async fn can_route_traffic_running_service_unreachable_port_returns_false() {
     use systemprompt_database::{CreateServiceInput, ServiceRepository};
     let Some(db) = db().await else { return };
-    let p = ProxyHealthCheck::new(&db).unwrap();
+    let p = ProxyHealthCheck::new(
+        systemprompt_database::ServiceRepository::new(&db).expect("service repository"),
+    );
     let repo = ServiceRepository::new(&db).unwrap();
     let name = format!("ph-run-{}", uuid::Uuid::new_v4().simple());
     let port = 65519;
@@ -82,7 +82,9 @@ async fn can_route_traffic_running_service_unreachable_port_returns_false() {
 async fn can_route_traffic_stopped_service_returns_false() {
     use systemprompt_database::{CreateServiceInput, ServiceRepository};
     let Some(db) = db().await else { return };
-    let p = ProxyHealthCheck::new(&db).unwrap();
+    let p = ProxyHealthCheck::new(
+        systemprompt_database::ServiceRepository::new(&db).expect("service repository"),
+    );
     let repo = ServiceRepository::new(&db).unwrap();
     let name = format!("ph-stop-{}", uuid::Uuid::new_v4().simple());
     let port = 65518;

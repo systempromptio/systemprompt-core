@@ -16,18 +16,20 @@ use crate::services::gateway::protocol::canonical::{CanonicalRequest, Role};
 
 impl GatewayAudit {
     fn build_record(&self) -> AiRequestRecord {
-        let mut record =
-            AiRequestRecord::builder(self.ctx.ai_request_id.clone(), self.ctx.user_id.clone())
-                .provider(self.ctx.provider.clone())
-                .model(self.ctx.model.clone())
-                .streaming(self.ctx.is_streaming);
+        let mut record = AiRequestRecord::builder(
+            self.ctx.ai_request_id.clone(),
+            self.ctx.user_id.clone(),
+            self.ctx.context_id.clone(),
+        )
+        .provider(self.ctx.provider.clone())
+        .model(self.ctx.model.clone())
+        .streaming(self.ctx.is_streaming);
         if let Some(s) = &self.ctx.session_id {
             record = record.session_id(s.clone());
         }
         if let Some(rm) = &self.ctx.requested_model {
             record = record.requested_model(rm.clone());
         }
-        record = record.context_id(self.ctx.context_id.clone());
         if let Some(g) = &self.ctx.gateway_conversation_id {
             record = record.gateway_conversation_id(g.clone());
         }
@@ -42,6 +44,24 @@ impl GatewayAudit {
 
     pub async fn open(&self, request: &CanonicalRequest, request_body: &Bytes) -> Result<()> {
         let record = self.build_record();
+
+        if let Err(e) = self
+            .context_materializer
+            .ensure_context(systemprompt_traits::EnsureContextParams {
+                context_id: &self.ctx.context_id,
+                user_id: &self.ctx.user_id,
+                session_id: self.ctx.session_id.as_ref(),
+                name: "Gateway conversation",
+                kind: "derived",
+            })
+            .await
+        {
+            tracing::warn!(
+                error = %e,
+                context_id = %self.ctx.context_id,
+                "Could not materialize the gateway context; storing the request anyway"
+            );
+        }
 
         self.requests
             .insert_with_id(&self.ctx.ai_request_id, &record)

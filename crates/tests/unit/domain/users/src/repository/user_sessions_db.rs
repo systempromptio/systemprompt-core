@@ -1,10 +1,11 @@
 //! DB-backed tests for user-session repository queries.
 
+use std::sync::Arc;
 use systemprompt_identifiers::{SessionId, UserId};
 use systemprompt_test_fixtures::{
     ensure_test_bootstrap, fixture_database_url, fixture_db_pool, seed_user_row, seed_user_session,
 };
-use systemprompt_users::UserService;
+use systemprompt_users::{UserRepository, UserService};
 use uuid::Uuid;
 
 struct Ctx {
@@ -19,7 +20,9 @@ async fn setup(prefix: &str) -> Option<Ctx> {
     let user_id = UserId::new(Uuid::new_v4().to_string());
     let email = format!("{prefix}-{}@sess.invalid", Uuid::new_v4().simple());
     seed_user_row(&pool, &user_id, &email).await.expect("user");
-    let service = UserService::new(&pool).expect("service");
+    let service = UserService::new(Arc::new(
+        UserRepository::new(&pool).expect("user repository"),
+    ));
     Some(Ctx { service, user_id })
 }
 

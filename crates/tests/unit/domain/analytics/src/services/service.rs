@@ -21,7 +21,12 @@ mod analytics_service_instance_tests {
         };
         ensure_test_bootstrap();
         let pool = fixture_db_pool(&url).await.expect("pool");
-        let service = AnalyticsService::new(&pool, None, None).expect("service");
+        let service = AnalyticsService::new(
+            None,
+            None,
+            &systemprompt_analytics::repository::AnalyticsRepositories::new(&pool)
+                .expect("repositories"),
+        );
 
         let debug = format!("{:?}", service);
         assert!(debug.contains("AnalyticsService"));
@@ -38,7 +43,12 @@ mod analytics_service_instance_tests {
         };
         ensure_test_bootstrap();
         let pool = fixture_db_pool(&url).await.expect("pool");
-        let service = AnalyticsService::new(&pool, None, None).expect("service");
+        let service = AnalyticsService::new(
+            None,
+            None,
+            &systemprompt_analytics::repository::AnalyticsRepositories::new(&pool)
+                .expect("repositories"),
+        );
 
         let mut request = Request::builder()
             .uri("https://example.com/page?utm_source=abc")

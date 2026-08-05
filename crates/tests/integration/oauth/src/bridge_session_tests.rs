@@ -102,7 +102,11 @@ async fn fresh_bridge_jwt_has_active_session() {
     ensure_runtime();
     let db = setup_test_db().await;
     let user_id = create_test_user(&db).await;
-    let analytics = AnalyticsService::new(&db, None, None).expect("analytics service");
+    let analytics = AnalyticsService::new(
+        None,
+        None,
+        &systemprompt_analytics::repository::AnalyticsRepositories::new(&db).expect("repositories"),
+    );
 
     let result = issue_bridge_access(
         &oauth_repo(&db),
@@ -139,7 +143,11 @@ async fn bridge_session_captures_request_analytics() {
     ensure_runtime();
     let db = setup_test_db().await;
     let user_id = create_test_user(&db).await;
-    let analytics = AnalyticsService::new(&db, None, None).expect("analytics service");
+    let analytics = AnalyticsService::new(
+        None,
+        None,
+        &systemprompt_analytics::repository::AnalyticsRepositories::new(&db).expect("repositories"),
+    );
 
     let caller_ip = "203.0.113.7".parse().ok();
     let result = issue_bridge_access(
@@ -183,7 +191,11 @@ async fn bridge_jwt_binds_supplied_session_id() {
     ensure_runtime();
     let db = setup_test_db().await;
     let user_id = create_test_user(&db).await;
-    let analytics = AnalyticsService::new(&db, None, None).expect("analytics service");
+    let analytics = AnalyticsService::new(
+        None,
+        None,
+        &systemprompt_analytics::repository::AnalyticsRepositories::new(&db).expect("repositories"),
+    );
 
     let supplied = SessionId::generate();
     let result = issue_bridge_access(
@@ -221,7 +233,11 @@ async fn repeated_mint_with_same_session_id_is_idempotent() {
     ensure_runtime();
     let db = setup_test_db().await;
     let user_id = create_test_user(&db).await;
-    let analytics = AnalyticsService::new(&db, None, None).expect("analytics service");
+    let analytics = AnalyticsService::new(
+        None,
+        None,
+        &systemprompt_analytics::repository::AnalyticsRepositories::new(&db).expect("repositories"),
+    );
 
     let supplied = SessionId::generate();
     let headers = exchange_headers_with_session(&supplied);

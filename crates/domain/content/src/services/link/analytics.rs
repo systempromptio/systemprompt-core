@@ -10,7 +10,6 @@ use crate::models::{
 };
 use crate::repository::{LinkAnalyticsRepository, LinkRepository};
 use chrono::Utc;
-use systemprompt_database::DbPool;
 use systemprompt_identifiers::{CampaignId, ContentId, LinkClickId, LinkId};
 
 const DEFAULT_JOURNEY_LIMIT: i64 = 50;
@@ -23,11 +22,11 @@ pub struct LinkAnalyticsService {
 }
 
 impl LinkAnalyticsService {
-    pub fn new(db: &DbPool) -> Result<Self, ContentError> {
-        Ok(Self {
-            link_repo: LinkRepository::new(db)?,
-            analytics_repo: LinkAnalyticsRepository::new(db)?,
-        })
+    pub const fn new(link_repo: LinkRepository, analytics_repo: LinkAnalyticsRepository) -> Self {
+        Self {
+            link_repo,
+            analytics_repo,
+        }
     }
 
     pub async fn track_click(&self, params: &TrackClickParams) -> Result<LinkClick, ContentError> {

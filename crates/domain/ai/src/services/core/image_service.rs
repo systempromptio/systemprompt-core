@@ -12,7 +12,6 @@ use crate::services::providers::image_provider_trait::{
 use crate::services::storage::{ImageStorage, StorageConfig};
 use std::collections::HashMap;
 use std::sync::Arc;
-use systemprompt_database::DbPool;
 use systemprompt_identifiers::{TraceId, UserId};
 use systemprompt_traits::{AiGeneratedFile, DynAiFilePersistenceProvider};
 use tracing::error;
@@ -41,12 +40,11 @@ impl std::fmt::Debug for ImageService {
 
 impl ImageService {
     pub fn new(
-        db_pool: &DbPool,
+        ai_request_repo: AiRequestRepository,
         storage_config: StorageConfig,
         file_provider: DynAiFilePersistenceProvider,
     ) -> Result<Self> {
         let storage = Arc::new(ImageStorage::new(storage_config)?);
-        let ai_request_repo = AiRequestRepository::new(db_pool)?;
 
         Ok(Self {
             providers: HashMap::new(),
@@ -58,14 +56,13 @@ impl ImageService {
     }
 
     pub fn with_providers(
-        db_pool: &DbPool,
+        ai_request_repo: AiRequestRepository,
         storage_config: StorageConfig,
         file_provider: DynAiFilePersistenceProvider,
         providers: HashMap<String, BoxedImageProvider>,
         default_provider: Option<String>,
     ) -> Result<Self> {
         let storage = Arc::new(ImageStorage::new(storage_config)?);
-        let ai_request_repo = AiRequestRepository::new(db_pool)?;
 
         Ok(Self {
             providers,

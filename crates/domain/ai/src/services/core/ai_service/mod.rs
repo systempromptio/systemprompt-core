@@ -14,4 +14,4 @@ mod stream_wrapper;
 mod streaming;
 mod tool_execution;
 
-pub use service::AiService;
+pub use service::{AiService, AiServiceProviders};

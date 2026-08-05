@@ -27,7 +27,11 @@ fn app_paths() -> Arc<AppPaths> {
 }
 
 fn lifecycle(pool: &systemprompt_database::DbPool) -> AgentLifecycle {
-    AgentLifecycle::new(pool, app_paths()).expect("lifecycle")
+    AgentLifecycle::new(
+        AgentServiceRepository::new(pool).expect("repo"),
+        app_paths(),
+    )
+    .expect("lifecycle")
 }
 
 fn db_service(pool: &systemprompt_database::DbPool) -> AgentDatabaseService {

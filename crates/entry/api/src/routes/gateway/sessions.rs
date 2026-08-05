@@ -42,7 +42,7 @@ pub async fn create_session(
         ));
     }
 
-    let record = ApiKeyService::new(ctx.db_pool())?
+    let record = ApiKeyService::new(Arc::clone(ctx.user_repository()))
         .verify(&presented)
         .await?
         .ok_or_else(|| ApiHttpError::unauthorized("Invalid or revoked API key"))?;

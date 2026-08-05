@@ -6,6 +6,7 @@
 
 use anyhow::Result;
 use clap::Args;
+use std::sync::Arc;
 use systemprompt_identifiers::UserId;
 use systemprompt_users::{DeviceCertService, EnrollDeviceCertServiceParams};
 
@@ -31,7 +32,7 @@ pub struct EnrollCertArgs {
 
 pub(super) async fn execute(args: EnrollCertArgs, ctx: &CommandContext) -> Result<CommandOutput> {
     let app = ctx.app_context().await?;
-    let service = DeviceCertService::new(app.db_pool())?;
+    let service = DeviceCertService::new(Arc::clone(app.user_repository()));
 
     let user_id = super::resolve_user_id(app.db_pool(), &args.user_id).await?;
 

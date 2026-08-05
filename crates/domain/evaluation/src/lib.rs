@@ -35,8 +35,8 @@ pub use models::{
     RubricDimension, SampleFilter, SampledRequest, TriggerSource, Verdict,
 };
 pub use repository::{
-    EvalCaseRepository, EvalJudgeCallRepository, EvalResultRepository, EvalRubricRepository,
-    EvalRunRepository, SamplingRepository,
+    EvalCaseRepository, EvalJudgeCallRepository, EvalRepositories, EvalResultRepository,
+    EvalRubricRepository, EvalRunRepository, SamplingRepository,
 };
 pub use services::{
     AutoImproveLoop, EvaluationService, JudgeService, LoopLimits, LoopReport, ReplayService,

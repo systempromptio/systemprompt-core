@@ -5,8 +5,9 @@
 
 use anyhow::{Result, anyhow};
 use clap::Args;
+use std::sync::Arc;
 use systemprompt_identifiers::SessionId;
-use systemprompt_users::{UserAdminService, UserService};
+use systemprompt_users::{UserAdminService, UserRepository, UserService};
 
 use crate::commands::admin::users::types::SessionEndOutput;
 use crate::context::CommandContext;
@@ -44,7 +45,7 @@ pub(super) async fn execute(args: EndArgs, ctx: &CommandContext) -> Result<Comma
     }
 
     let pool = ctx.db_pool().await?;
-    let user_service = UserService::new(&pool)?;
+    let user_service = UserService::new(Arc::new(UserRepository::new(&pool)?));
     let admin_service = UserAdminService::new(user_service.clone());
 
     if args.all {

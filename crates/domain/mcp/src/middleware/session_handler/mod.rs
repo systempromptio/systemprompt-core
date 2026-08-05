@@ -19,14 +19,11 @@ pub use session_store::PostgresSessionStore;
 use std::fmt;
 use std::sync::Arc;
 
+use crate::repository::McpSessionRepository;
 use rmcp::transport::streamable_http_server::session::SessionId;
 use rmcp::transport::streamable_http_server::session::local::{
     LocalSessionManager, LocalSessionManagerError,
 };
-use systemprompt_database::DbPool;
-use tokio::sync::RwLock;
-
-use crate::repository::McpSessionRepository;
 
 #[derive(Debug)]
 pub enum DatabaseSessionManagerError {
@@ -67,7 +64,7 @@ impl From<LocalSessionManagerError> for DatabaseSessionManagerError {
 
 pub struct DatabaseSessionHandler {
     local_manager: LocalSessionManager,
-    repository: Arc<RwLock<Option<McpSessionRepository>>>,
+    repository: Arc<McpSessionRepository>,
 }
 
 impl fmt::Debug for DatabaseSessionHandler {
@@ -80,31 +77,33 @@ impl fmt::Debug for DatabaseSessionHandler {
 }
 
 impl DatabaseSessionHandler {
-    pub fn new(db_pool: &DbPool) -> Self {
-        Self::with_timeouts(db_pool, crate::SessionTimeouts::default())
+    pub fn new(repository: Arc<McpSessionRepository>) -> Self {
+        Self::with_timeouts(repository, crate::SessionTimeouts::default())
     }
 
-    pub fn with_timeouts(db_pool: &DbPool, timeouts: crate::SessionTimeouts) -> Self {
+    pub fn with_timeouts(
+        repository: Arc<McpSessionRepository>,
+        timeouts: crate::SessionTimeouts,
+    ) -> Self {
         let mut local_manager = LocalSessionManager::default();
         let cfg = &mut local_manager.session_config;
         cfg.init_timeout = timeouts.init.or(cfg.init_timeout);
         cfg.keep_alive = timeouts.keep_alive.or(cfg.keep_alive);
         Self {
             local_manager,
-            repository: Arc::new(RwLock::new(McpSessionRepository::new(db_pool).ok())),
+            repository,
         }
     }
 
     async fn persist_create(&self, session_id: &SessionId) {
-        let repo_guard = self.repository.read().await;
-        if let Some(repo) = repo_guard.as_ref()
-            && let Err(e) = repo
-                .create(
-                    &systemprompt_identifiers::SessionId::new(session_id.as_ref()),
-                    None,
-                    None,
-                )
-                .await
+        if let Err(e) = self
+            .repository
+            .create(
+                &systemprompt_identifiers::SessionId::new(session_id.as_ref()),
+                None,
+                None,
+            )
+            .await
         {
             tracing::warn!(
                 session_id = %session_id,
@@ -115,13 +114,12 @@ impl DatabaseSessionHandler {
     }
 
     async fn persist_close(&self, session_id: &SessionId) {
-        let repo_guard = self.repository.read().await;
-        if let Some(repo) = repo_guard.as_ref()
-            && let Err(e) = repo
-                .close(&systemprompt_identifiers::SessionId::new(
-                    session_id.as_ref(),
-                ))
-                .await
+        if let Err(e) = self
+            .repository
+            .close(&systemprompt_identifiers::SessionId::new(
+                session_id.as_ref(),
+            ))
+            .await
         {
             tracing::warn!(
                 session_id = %session_id,
@@ -132,13 +130,12 @@ impl DatabaseSessionHandler {
     }
 
     pub(crate) async fn update_activity(&self, session_id: &SessionId) {
-        let repo_guard = self.repository.read().await;
-        if let Some(repo) = repo_guard.as_ref()
-            && let Err(e) = repo
-                .update_activity(&systemprompt_identifiers::SessionId::new(
-                    session_id.as_ref(),
-                ))
-                .await
+        if let Err(e) = self
+            .repository
+            .update_activity(&systemprompt_identifiers::SessionId::new(
+                session_id.as_ref(),
+            ))
+            .await
         {
             tracing::debug!(
                 session_id = %session_id,
@@ -149,27 +146,23 @@ impl DatabaseSessionHandler {
     }
 
     async fn check_db_session(&self, session_id: &SessionId) -> Option<bool> {
-        let repo_guard = self.repository.read().await;
-        if let Some(repo) = repo_guard.as_ref() {
-            match repo
-                .find_active(&systemprompt_identifiers::SessionId::new(
-                    session_id.as_ref(),
-                ))
-                .await
-            {
-                Ok(Some(_)) => Some(true),
-                Ok(None) => Some(false),
-                Err(e) => {
-                    tracing::warn!(
-                        session_id = %session_id,
-                        error = %e,
-                        "Failed to check session in database"
-                    );
-                    None
-                },
-            }
-        } else {
-            None
+        match self
+            .repository
+            .find_active(&systemprompt_identifiers::SessionId::new(
+                session_id.as_ref(),
+            ))
+            .await
+        {
+            Ok(Some(_)) => Some(true),
+            Ok(None) => Some(false),
+            Err(e) => {
+                tracing::warn!(
+                    session_id = %session_id,
+                    error = %e,
+                    "Failed to check session in database"
+                );
+                None
+            },
         }
     }
 }

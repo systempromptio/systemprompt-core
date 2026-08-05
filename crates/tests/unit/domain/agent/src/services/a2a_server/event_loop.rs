@@ -126,9 +126,8 @@ async fn spawn_loop_with(spec: LoopSpec<'_>) -> Option<Loop> {
 
     let processor = Arc::new(
         MessageProcessor::new(
-            &pool,
+            Arc::new(crate::repository::repos(&pool)),
             Arc::new(StubAiProvider::new()),
-            TaskRepository::new(&pool, crate::session_usage(&pool)).expect("task repo"),
         )
         .expect("processor"),
     );

@@ -17,6 +17,12 @@ use systemprompt_identifiers::{ContextId, UserId};
 pub enum ContextKind {
     User,
     CliSession,
+    Session,
+    Evaluation,
+    McpValidation,
+    CliProbe,
+    Derived,
+    Legacy,
 }
 
 impl ContextKind {
@@ -24,6 +30,12 @@ impl ContextKind {
         match self {
             Self::User => "user",
             Self::CliSession => "cli_session",
+            Self::Session => "session",
+            Self::Evaluation => "evaluation",
+            Self::McpValidation => "mcp_validation",
+            Self::CliProbe => "cli_probe",
+            Self::Derived => "derived",
+            Self::Legacy => "legacy",
         }
     }
 }
@@ -45,6 +57,12 @@ impl FromStr for ContextKind {
         match s {
             "user" => Ok(Self::User),
             "cli_session" => Ok(Self::CliSession),
+            "session" => Ok(Self::Session),
+            "evaluation" => Ok(Self::Evaluation),
+            "mcp_validation" => Ok(Self::McpValidation),
+            "cli_probe" => Ok(Self::CliProbe),
+            "derived" => Ok(Self::Derived),
+            "legacy" => Ok(Self::Legacy),
             other => Err(ParseContextKindError(other.to_owned())),
         }
     }

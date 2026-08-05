@@ -9,7 +9,7 @@ use crate::context::CommandContext;
 use crate::shared::CommandOutput;
 use anyhow::Result;
 use clap::Args;
-use systemprompt_content::LinkAnalyticsService;
+use systemprompt_content::{ContentRepositories, LinkAnalyticsService};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::LinkId;
 
@@ -34,7 +34,8 @@ pub async fn execute_with_pool(
     pool: &DbPool,
     _config: &CliConfig,
 ) -> Result<CommandOutput> {
-    let service = LinkAnalyticsService::new(pool)?;
+    let repositories = ContentRepositories::new(pool)?;
+    let service = LinkAnalyticsService::new(repositories.link, repositories.link_analytics);
 
     let link_id = LinkId::new(args.link_id.clone());
     let clicks = service

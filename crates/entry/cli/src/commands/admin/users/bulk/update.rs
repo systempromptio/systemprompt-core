@@ -7,7 +7,8 @@ use anyhow::{Result, anyhow};
 use clap::Args;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use systemprompt_users::UserService;
+use std::sync::Arc;
+use systemprompt_users::{UserRepository, UserService};
 
 use crate::commands::admin::users::types::BulkUpdateOutput;
 use crate::context::CommandContext;
@@ -82,7 +83,7 @@ pub(super) async fn execute(args: UpdateArgs, ctx: &CommandContext) -> Result<Co
     }
 
     let pool = ctx.db_pool().await?;
-    let user_service = UserService::new(&pool)?;
+    let user_service = UserService::new(Arc::new(UserRepository::new(&pool)?));
 
     let users = user_service
         .list_by_filter(

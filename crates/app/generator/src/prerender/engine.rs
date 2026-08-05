@@ -9,6 +9,7 @@
 use std::collections::HashSet;
 use std::path::PathBuf;
 
+use systemprompt_content::ContentRepository;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::LocaleCode;
 use systemprompt_models::AppPaths;
@@ -22,8 +23,12 @@ use crate::prerender::content::process_all_sources;
 use crate::prerender::context::{PrerenderContext, load_prerender_context};
 use crate::prerender::utils::{merge_json_data, render_components};
 
-pub async fn prerender_content(db_pool: DbPool, paths: &AppPaths) -> Result<()> {
-    let ctx = load_prerender_context(db_pool, paths).await?;
+pub async fn prerender_content(
+    db_pool: DbPool,
+    content_repo: ContentRepository,
+    paths: &AppPaths,
+) -> Result<()> {
+    let ctx = load_prerender_context(db_pool, content_repo, paths).await?;
     let total_rendered = process_all_sources(&ctx).await?;
     tracing::info!(items_rendered = total_rendered, "Prerendering completed");
     Ok(())
@@ -37,9 +42,10 @@ pub struct PagePrerenderResult {
 
 pub async fn prerender_pages(
     db_pool: DbPool,
+    content_repo: ContentRepository,
     paths: &AppPaths,
 ) -> Result<Vec<PagePrerenderResult>> {
-    let ctx = load_prerender_context(db_pool, paths).await?;
+    let ctx = load_prerender_context(db_pool, content_repo, paths).await?;
     prerender_pages_with_context(&ctx).await
 }
 

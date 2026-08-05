@@ -5,7 +5,8 @@
 
 use anyhow::{Result, anyhow};
 use clap::Args;
-use systemprompt_users::UserService;
+use std::sync::Arc;
+use systemprompt_users::{UserRepository, UserService};
 
 use super::types::UserCreatedOutput;
 use crate::context::CommandContext;
@@ -31,7 +32,7 @@ pub struct CreateArgs {
 
 pub(super) async fn execute(args: CreateArgs, ctx: &CommandContext) -> Result<CommandOutput> {
     let pool = ctx.db_pool().await?;
-    let user_service = UserService::new(&pool)?;
+    let user_service = UserService::new(Arc::new(UserRepository::new(&pool)?));
 
     if args.name.trim().is_empty() {
         return Err(anyhow!("Name cannot be empty"));

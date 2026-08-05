@@ -4,7 +4,7 @@
 use systemprompt_ai::models::{AiRequestRecord, RequestStatus};
 use systemprompt_ai::repository::ai_requests::UpdateCompletionParams;
 use systemprompt_ai::repository::{AiRequestRepository, InsertToolCallParams};
-use systemprompt_identifiers::{AiRequestId, AiToolCallId};
+use systemprompt_identifiers::{AiRequestId, AiToolCallId, ContextId};
 use uuid::Uuid;
 
 use super::{completed_record, pool, seed_request, user};
@@ -51,9 +51,10 @@ async fn rejection_without_a_resolved_provider_still_persists_a_row() {
     systemprompt_test_fixtures::seed_user_row(&pool, &uid, &email)
         .await
         .expect("seed");
-    let record = AiRequestRecord::builder(AiRequestId::generate(), uid.clone())
-        .rejected()
-        .build();
+    let record =
+        AiRequestRecord::builder(AiRequestId::generate(), uid.clone(), ContextId::generate())
+            .rejected()
+            .build();
 
     let id = repo.insert(&record).await.expect("rejection must persist");
 
@@ -73,9 +74,10 @@ async fn completed_request_without_a_provider_is_refused_by_the_database() {
     systemprompt_test_fixtures::seed_user_row(&pool, &uid, &email)
         .await
         .expect("seed");
-    let record = AiRequestRecord::builder(AiRequestId::generate(), uid.clone())
-        .completed()
-        .build();
+    let record =
+        AiRequestRecord::builder(AiRequestId::generate(), uid.clone(), ContextId::generate())
+            .completed()
+            .build();
 
     let err = repo
         .insert(&record)

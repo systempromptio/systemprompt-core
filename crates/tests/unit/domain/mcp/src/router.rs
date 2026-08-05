@@ -32,7 +32,14 @@ async fn router_serves_mcp_requests_with_logging_layers() {
         return;
     };
 
-    let router = create_router(NullHandler, &db, McpHttpConfig::default());
+    let router = create_router(
+        NullHandler,
+        std::sync::Arc::new(
+            systemprompt_mcp::repository::McpSessionRepository::new(&db)
+                .expect("mcp session repository"),
+        ),
+        McpHttpConfig::default(),
+    );
 
     let response = router
         .clone()
@@ -90,7 +97,14 @@ async fn router_honours_disabled_host_allow_list() {
         allowed_origins: vec!["http://ok.example".to_owned()],
         session: SessionTimeouts::default(),
     };
-    let router = create_router(NullHandler, &db, config);
+    let router = create_router(
+        NullHandler,
+        std::sync::Arc::new(
+            systemprompt_mcp::repository::McpSessionRepository::new(&db)
+                .expect("mcp session repository"),
+        ),
+        config,
+    );
 
     let response = router
         .oneshot(
@@ -118,7 +132,14 @@ async fn router_rejects_bodies_over_the_request_ceiling() {
         return;
     };
 
-    let router = create_router(NullHandler, &db, McpHttpConfig::default());
+    let router = create_router(
+        NullHandler,
+        std::sync::Arc::new(
+            systemprompt_mcp::repository::McpSessionRepository::new(&db)
+                .expect("mcp session repository"),
+        ),
+        McpHttpConfig::default(),
+    );
 
     let oversized = "x".repeat(MAX_REQUEST_BODY_BYTES + 1);
     let response = router

@@ -264,6 +264,7 @@ async fn mcp_snapshots(ctx: &Arc<AppContext>, probe_health: bool) -> Result<Vec<
     let health_by_name: HashMap<String, HealthStatus> = if probe_health {
         let manager = systemprompt_mcp::services::McpOrchestrator::new(
             Arc::clone(ctx.db_pool()),
+            (**ctx.service_repository()).clone(),
             Arc::clone(ctx.app_paths_arc()),
             ctx.mcp_registry().clone(),
         )?;

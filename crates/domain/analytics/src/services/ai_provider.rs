@@ -4,7 +4,6 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use async_trait::async_trait;
-use systemprompt_database::DbPool;
 use systemprompt_identifiers::SessionId;
 use systemprompt_traits::{
     AiProviderError, AiProviderResult, AiSessionProvider, CreateAiSessionParams,
@@ -18,12 +17,6 @@ pub struct AnalyticsAiSessionProvider {
 }
 
 impl AnalyticsAiSessionProvider {
-    pub fn new(pool: &DbPool) -> crate::Result<Self> {
-        Ok(Self {
-            session_repo: SessionRepository::new(pool)?,
-        })
-    }
-
     pub const fn from_repository(session_repo: SessionRepository) -> Self {
         Self { session_repo }
     }

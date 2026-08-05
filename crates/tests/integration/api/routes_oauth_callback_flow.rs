@@ -9,7 +9,7 @@
 //! Config with a unique `api_external_url` host so the redirect-URI lookup can
 //! never collide with a browser client seeded by another test.
 
-use std::sync::{Arc, Once, OnceLock};
+use std::sync::{Once, OnceLock};
 
 use axum::Router;
 use axum::body::Body;
@@ -70,10 +70,10 @@ async fn callback_app() -> anyhow::Result<Router> {
     install_test_signing_key();
     let (_pool, ctx) = setup_ctx().await?;
     let state = OAuthState::new(
-        Arc::clone(ctx.db_pool()),
+        ctx.oauth_repositories().oauth.clone(),
         ctx.analytics_provider().expect("analytics"),
         ctx.user_provider().expect("user"),
-    )?;
+    );
     Ok(public_router()
         .layer(middleware::from_fn(inject_context))
         .with_state(state))

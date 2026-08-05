@@ -1,7 +1,10 @@
 //! DB-backed tests for `UserAdminService` lookup, promotion, and demotion.
 
+use std::sync::Arc;
 use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_database_url, fixture_db_pool};
-use systemprompt_users::{DemoteResult, PromoteResult, UserAdminService, UserService};
+use systemprompt_users::{
+    DemoteResult, PromoteResult, UserAdminService, UserRepository, UserService,
+};
 use uuid::Uuid;
 
 struct Ctx {
@@ -13,7 +16,9 @@ async fn setup() -> Option<Ctx> {
     let url = fixture_database_url().ok()?;
     ensure_test_bootstrap();
     let pool = fixture_db_pool(&url).await.expect("pool");
-    let users = UserService::new(&pool).expect("service");
+    let users = UserService::new(Arc::new(
+        UserRepository::new(&pool).expect("user repository"),
+    ));
     Some(Ctx {
         admin: UserAdminService::new(users.clone()),
         users,

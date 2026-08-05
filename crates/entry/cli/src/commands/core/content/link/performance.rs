@@ -18,8 +18,11 @@ pub struct PerformanceArgs {
 }
 
 pub async fn execute(args: PerformanceArgs, ctx: &CommandContext) -> Result<CommandOutput> {
-    let pool = ctx.db_pool().await?;
-    let service = LinkAnalyticsService::new(&pool)?;
+    let repositories = ctx.app_context().await?.content_repositories();
+    let service = LinkAnalyticsService::new(
+        repositories.link.clone(),
+        repositories.link_analytics.clone(),
+    );
 
     let link_id = LinkId::new(args.link_id.clone());
     let performance = service

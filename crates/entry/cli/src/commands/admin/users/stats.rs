@@ -4,8 +4,9 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use anyhow::Result;
+use std::sync::Arc;
 use systemprompt_database::DbPool;
-use systemprompt_users::UserService;
+use systemprompt_users::{UserRepository, UserService};
 
 use super::types::UserStatsOutput;
 use crate::CliConfig;
@@ -17,7 +18,7 @@ pub(super) async fn execute(ctx: &CommandContext) -> Result<CommandOutput> {
 }
 
 pub(super) async fn execute_with_pool(pool: &DbPool, _config: &CliConfig) -> Result<CommandOutput> {
-    let user_service = UserService::new(pool)?;
+    let user_service = UserService::new(Arc::new(UserRepository::new(pool)?));
 
     let stats = user_service.get_stats().await?;
 

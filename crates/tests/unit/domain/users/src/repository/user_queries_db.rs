@@ -1,11 +1,12 @@
 //! DB-backed tests for user lookup, listing, stats, bulk, merge, and cleanup
 //! repository paths surfaced through `UserService`.
 
+use std::sync::Arc;
 use systemprompt_identifiers::{SessionId, UserId};
 use systemprompt_test_fixtures::{
     ensure_test_bootstrap, fixture_database_url, fixture_db_pool, seed_user_session,
 };
-use systemprompt_users::{UserError, UserRole, UserService, UserStatus};
+use systemprompt_users::{UserError, UserRepository, UserRole, UserService, UserStatus};
 use uuid::Uuid;
 
 struct Ctx {
@@ -17,7 +18,9 @@ async fn setup() -> Option<Ctx> {
     let url = fixture_database_url().ok()?;
     ensure_test_bootstrap();
     let pool = fixture_db_pool(&url).await.expect("pool");
-    let service = UserService::new(&pool).expect("service");
+    let service = UserService::new(Arc::new(
+        UserRepository::new(&pool).expect("user repository"),
+    ));
     Some(Ctx { service, pool })
 }
 
@@ -515,7 +518,9 @@ async fn concurrent_create_if_absent_on_one_identity_elects_a_single_winner() {
             let pool = ctx.pool.clone();
             let (name, email) = (name.clone(), email.clone());
             tokio::spawn(async move {
-                let service = UserService::new(&pool).expect("service");
+                let service = UserService::new(Arc::new(
+                    UserRepository::new(&pool).expect("user repository"),
+                ));
                 service.create_if_absent(&name, &email, None, None).await
             })
         })

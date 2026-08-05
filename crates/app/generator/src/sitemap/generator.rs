@@ -8,7 +8,6 @@ use chrono::Utc;
 use std::collections::HashMap;
 use std::path::Path;
 use systemprompt_content::ContentRepository;
-use systemprompt_database::DbPool;
 use systemprompt_identifiers::{LocaleCode, SourceId};
 use systemprompt_models::{AppPaths, Config, ContentConfigRaw, ContentSourceConfigRaw, WebConfig};
 use tokio::fs;
@@ -28,15 +27,18 @@ struct SitemapContext {
     web_dir: std::path::PathBuf,
 }
 
-pub async fn generate_sitemap(db_pool: DbPool, paths: &AppPaths) -> Result<()> {
-    let ctx = load_sitemap_context(db_pool, paths).await?;
+pub async fn generate_sitemap(content_repo: ContentRepository, paths: &AppPaths) -> Result<()> {
+    let ctx = load_sitemap_context(content_repo, paths).await?;
     let urls = collect_sitemap_urls(&ctx).await?;
     write_sitemap_files(&ctx.web_dir, &urls, &ctx.base_url).await?;
     tracing::info!(url_count = urls.len(), "Sitemap generation completed");
     Ok(())
 }
 
-async fn load_sitemap_context(db_pool: DbPool, paths: &AppPaths) -> Result<SitemapContext> {
+async fn load_sitemap_context(
+    content_repo: ContentRepository,
+    paths: &AppPaths,
+) -> Result<SitemapContext> {
     let global_config = Config::get()?;
     let config_path = paths.system().content_config();
 
@@ -63,8 +65,7 @@ async fn load_sitemap_context(db_pool: DbPool, paths: &AppPaths) -> Result<Sitem
     Ok(SitemapContext {
         config,
         web_config,
-        content_repo: ContentRepository::new(&db_pool)
-            .map_err(|e| PublishError::content("Failed to create content repository", e))?,
+        content_repo,
         base_url,
         web_dir,
     })

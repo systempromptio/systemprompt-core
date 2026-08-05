@@ -25,8 +25,11 @@ pub async fn execute(args: ListArgs, ctx: &CommandContext) -> Result<CommandOutp
         return Err(anyhow!("Either --campaign or --content must be specified"));
     }
 
-    let pool = ctx.db_pool().await?;
-    let service = LinkAnalyticsService::new(&pool)?;
+    let repositories = ctx.app_context().await?.content_repositories();
+    let service = LinkAnalyticsService::new(
+        repositories.link.clone(),
+        repositories.link_analytics.clone(),
+    );
 
     let links = if let Some(campaign) = &args.campaign {
         let campaign_id = CampaignId::new(campaign.clone());

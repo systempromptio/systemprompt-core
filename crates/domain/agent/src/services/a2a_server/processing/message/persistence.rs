@@ -4,11 +4,11 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::services::shared::{AgentServiceError, Result};
-use systemprompt_database::DbPool;
 use systemprompt_models::RequestContext;
 
 use crate::models::a2a::{Message, Task};
-use crate::repository::task::{TaskRepository, UpdateTaskAndSaveMessagesParams};
+use crate::repository::A2ARepositories;
+use crate::repository::task::UpdateTaskAndSaveMessagesParams;
 use crate::services::ArtifactPublishingService;
 use crate::services::a2a_server::streaming::{
     broadcast_artifact_created, broadcast_task_completed,
@@ -19,8 +19,7 @@ pub(super) struct PersistCompletedTaskParams<'a> {
     pub user_message: &'a Message,
     pub agent_message: &'a Message,
     pub context: &'a RequestContext,
-    pub task_repo: &'a TaskRepository,
-    pub db_pool: &'a DbPool,
+    pub repositories: &'a A2ARepositories,
     pub artifacts_already_published: bool,
 }
 
@@ -30,11 +29,11 @@ pub(super) async fn persist_completed_task(params: PersistCompletedTaskParams<'_
         user_message,
         agent_message,
         context,
-        task_repo,
-        db_pool,
+        repositories,
         artifacts_already_published,
     } = params;
-    let updated_task = task_repo
+    let updated_task = repositories
+        .tasks
         .update_task_and_save_messages(UpdateTaskAndSaveMessagesParams {
             task,
             user_message,
@@ -50,7 +49,11 @@ pub(super) async fn persist_completed_task(params: PersistCompletedTaskParams<'_
 
     if !artifacts_already_published && let Some(artifacts) = &task.artifacts {
         let context_id = &task.context_id;
-        let publishing_service = ArtifactPublishingService::new(db_pool, task_repo.clone())?;
+        let publishing_service = ArtifactPublishingService::new(
+            repositories.artifacts.clone(),
+            repositories.execution_steps.clone(),
+            repositories.tasks.clone(),
+        )?;
         for artifact in artifacts {
             publishing_service
                 .publish_from_a2a(artifact, &task.id, context_id)

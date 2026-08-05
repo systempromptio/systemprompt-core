@@ -60,11 +60,13 @@ impl Fixture {
     }
 
     fn service(&self) -> Result<AnalyticsService> {
+        let repositories =
+            systemprompt_analytics::repository::AnalyticsRepositories::new(&self.db)?;
         Ok(AnalyticsService::new(
-            &self.db,
             None,
             Some(Arc::new(HtmlRouting)),
-        )?)
+            &repositories,
+        ))
     }
 
     fn user_agent(&self, suffix: &str) -> String {

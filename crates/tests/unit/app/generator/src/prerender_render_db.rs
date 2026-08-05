@@ -242,7 +242,7 @@ async fn prerender_renders_item_html_with_toc_for_both_locales() {
     install_config(boot, "renderdbitems", false);
     install_templates(boot, true, false);
 
-    prerender_content(db.clone(), &boot.app_paths)
+    prerender_content(db.clone(), content_repo(&db), &boot.app_paths)
         .await
         .expect("prerender_content");
 
@@ -293,7 +293,7 @@ async fn prerender_renders_parent_list_route_with_index_content() {
     install_config(boot, "renderdblist", true);
     install_templates(boot, true, true);
 
-    prerender_content(db.clone(), &boot.app_paths)
+    prerender_content(db.clone(), content_repo(&db), &boot.app_paths)
         .await
         .expect("prerender_content");
 
@@ -331,7 +331,7 @@ async fn prerender_list_route_without_index_content_sets_flag_false() {
     install_config(boot, "renderdbnoindex", true);
     install_templates(boot, true, true);
 
-    prerender_content(db.clone(), &boot.app_paths)
+    prerender_content(db.clone(), content_repo(&db), &boot.app_paths)
         .await
         .expect("prerender_content");
 
@@ -358,7 +358,7 @@ async fn prerender_errors_with_template_not_found_for_item() {
     install_config(boot, "renderdbnotmpl", false);
     install_templates(boot, false, false);
 
-    let err = prerender_content(db.clone(), &boot.app_paths)
+    let err = prerender_content(db.clone(), content_repo(&db), &boot.app_paths)
         .await
         .expect_err("no template registered for content type 'article'");
 
@@ -384,7 +384,7 @@ async fn prerender_errors_with_template_not_found_for_list_route() {
     install_config(boot, "renderdbnolist", true);
     install_templates(boot, true, false);
 
-    let err = prerender_content(db.clone(), &boot.app_paths)
+    let err = prerender_content(db.clone(), content_repo(&db), &boot.app_paths)
         .await
         .expect_err("list template missing while parent route enabled");
 
@@ -410,7 +410,7 @@ async fn prerender_pages_renders_homepage_when_template_exists() {
     )
     .expect("write homepage template");
 
-    let results = prerender_pages(db.clone(), &boot.app_paths)
+    let results = prerender_pages(db.clone(), content_repo(&db), &boot.app_paths)
         .await
         .expect("prerender_pages");
 
@@ -425,4 +425,8 @@ async fn prerender_pages_renders_homepage_when_template_exists() {
         );
         assert!(!format!("{result:?}").is_empty());
     }
+}
+
+fn content_repo(pool: &systemprompt_database::DbPool) -> systemprompt_content::ContentRepository {
+    systemprompt_content::ContentRepository::new(pool).expect("content repository")
 }

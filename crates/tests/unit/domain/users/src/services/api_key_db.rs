@@ -1,6 +1,7 @@
 //! DB-backed tests for `ApiKeyService` issuance, verification, and revocation.
 
 use chrono::{Duration, Utc};
+use std::sync::Arc;
 use systemprompt_identifiers::UserId;
 use systemprompt_test_fixtures::{
     ensure_test_bootstrap, fixture_database_url, fixture_db_pool, seed_user_row,
@@ -24,7 +25,9 @@ async fn setup(prefix: &str) -> Option<Ctx> {
     let email = format!("{prefix}-{}@key.invalid", Uuid::new_v4().simple());
     seed_user_row(&pool, &user_id, &email).await.expect("user");
     Some(Ctx {
-        service: ApiKeyService::new(&pool).expect("service"),
+        service: ApiKeyService::new(Arc::new(
+            UserRepository::new(&pool).expect("user repository"),
+        )),
         repo: UserRepository::new(&pool).expect("repo"),
         user_id,
     })

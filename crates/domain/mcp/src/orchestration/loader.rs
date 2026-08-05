@@ -11,7 +11,7 @@
 use std::collections::HashMap;
 
 use crate::error::McpDomainResult;
-use systemprompt_database::DbPool;
+use systemprompt_database::ServiceRepository;
 use systemprompt_models::RequestContext;
 use systemprompt_models::ai::tools::McpTool;
 use tracing::{debug, error};
@@ -28,11 +28,11 @@ pub struct McpToolLoader {
 }
 
 impl McpToolLoader {
-    pub fn new(db_pool: &DbPool, registry: RegistryService) -> McpDomainResult<Self> {
-        Ok(Self {
-            service_manager: ServiceStateService::new(db_pool)?,
+    pub const fn new(service_repo: ServiceRepository, registry: RegistryService) -> Self {
+        Self {
+            service_manager: ServiceStateService::new(service_repo),
             registry,
-        })
+        }
     }
 
     pub async fn load_tools_for_servers(

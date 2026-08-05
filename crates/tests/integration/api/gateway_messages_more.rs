@@ -35,7 +35,13 @@ use super::common::setup_ctx;
 fn gw_repos(
     db: &systemprompt_database::DbPool,
 ) -> systemprompt_api::services::gateway::GatewayRepositories {
-    systemprompt_api::services::gateway::GatewayRepositories::new(db).expect("gateway repos")
+    systemprompt_api::services::gateway::GatewayRepositories::new(
+        db,
+        std::sync::Arc::new(systemprompt_agent::services::ContextProviderService::new(
+            systemprompt_agent::repository::ContextRepository::new(db).expect("context repository"),
+        )),
+    )
+    .expect("gateway repos")
 }
 
 fn header_map(pairs: &[(&str, &str)]) -> HeaderMap {
@@ -261,8 +267,9 @@ fn jwt_extractor(
     use systemprompt_traits::{AnalyticsProvider, UserProvider};
     let concrete = Arc::clone(ctx.analytics_service());
     let analytics: Arc<dyn AnalyticsProvider> = concrete;
-    let user_provider: Arc<dyn UserProvider> =
-        Arc::new(systemprompt_users::UserService::new(ctx.db_pool())?);
+    let user_provider: Arc<dyn UserProvider> = Arc::new(systemprompt_users::UserService::new(
+        Arc::clone(ctx.user_repository()),
+    ));
     let jti = JtiRevocationChecker::from_pool(ctx.db_pool())?;
     Ok(JwtContextExtractor::new(analytics, user_provider, jti))
 }
@@ -272,7 +279,7 @@ async fn authenticate_accepts_seeded_api_key() -> Result<()> {
     let (pool, ctx) = setup_ctx().await?;
     install_test_signing_key();
     let cred = seed_admin_credential(&pool, "auth-apikey@example.invalid").await?;
-    let service = ApiKeyService::new(ctx.db_pool())?;
+    let service = ApiKeyService::new(Arc::clone(ctx.user_repository()));
     let issued = service
         .issue(IssueApiKeyParams {
             user_id: &cred.user_id,
@@ -299,7 +306,7 @@ async fn authenticate_rejects_unissued_session_for_api_key() -> Result<()> {
     let (pool, ctx) = setup_ctx().await?;
     install_test_signing_key();
     let cred = seed_admin_credential(&pool, "auth-apikey-forged@example.invalid").await?;
-    let service = ApiKeyService::new(ctx.db_pool())?;
+    let service = ApiKeyService::new(Arc::clone(ctx.user_repository()));
     let issued = service
         .issue(IssueApiKeyParams {
             user_id: &cred.user_id,

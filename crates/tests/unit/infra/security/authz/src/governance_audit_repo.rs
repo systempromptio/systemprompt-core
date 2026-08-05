@@ -30,7 +30,7 @@ fn record<'a>(
         evaluated_rules: evaluated,
         plugin_id: None,
         act_chain: &[],
-        context_id: None,
+        context_id: "ctx_unit_test",
         task_id: None,
     }
 }

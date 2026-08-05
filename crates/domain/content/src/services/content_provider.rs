@@ -4,7 +4,6 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use async_trait::async_trait;
-use systemprompt_database::DbPool;
 use systemprompt_identifiers::LocaleCode;
 use systemprompt_traits::content::{ContentFilter, ContentItem, ContentProvider, ContentSummary};
 
@@ -18,11 +17,8 @@ pub struct DefaultContentProvider {
 }
 
 impl DefaultContentProvider {
-    pub fn new(db: &DbPool) -> Result<Self, ContentError> {
-        Ok(Self {
-            repo: ContentRepository::new(db)?,
-            search_repo: SearchRepository::new(db)?,
-        })
+    pub const fn new(repo: ContentRepository, search_repo: SearchRepository) -> Self {
+        Self { repo, search_repo }
     }
 }
 

@@ -5,7 +5,9 @@
 //! semantics, per-link click listings, and campaign/journey aggregates.
 
 use systemprompt_content::models::{CreateContentParams, LinkType, TrackClickParams};
-use systemprompt_content::repository::ContentRepository;
+use systemprompt_content::repository::{
+    ContentRepository, LinkAnalyticsRepository, LinkRepository,
+};
 use systemprompt_content::{GenerateLinkParams, LinkAnalyticsService, LinkGenerationService};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{CampaignId, ContentId, LinkId, SessionId, SourceId};
@@ -25,7 +27,7 @@ async fn seed_content(pool: &DbPool, source: &SourceId) -> ContentId {
 }
 
 async fn seed_link(pool: &DbPool, campaign: &CampaignId, content_id: Option<ContentId>) -> LinkId {
-    let svc = LinkGenerationService::new(pool).expect("gen");
+    let svc = LinkGenerationService::new(LinkRepository::new(pool).expect("link repo"));
     let link = svc
         .generate_link(GenerateLinkParams {
             target_url: format!("https://example.com/{}", Uuid::new_v4()),
@@ -61,8 +63,7 @@ fn track_params(link_id: &LinkId, session: &SessionId) -> TrackClickParams {
 }
 
 async fn cleanup(pool: &DbPool, link_id: &LinkId, source: Option<&SourceId>) {
-    LinkGenerationService::new(pool)
-        .expect("gen")
+    LinkGenerationService::new(LinkRepository::new(pool).expect("link repo"))
         .delete_link(link_id)
         .await
         .expect("delete link");
@@ -84,7 +85,10 @@ async fn track_click_first_then_repeat_updates_counters() {
     let pool = fixture_db_pool(&url).await.expect("pool");
     let campaign = CampaignId::new(format!("camp-{}", Uuid::new_v4()));
     let link_id = seed_link(&pool, &campaign, None).await;
-    let svc = LinkAnalyticsService::new(&pool).expect("svc");
+    let svc = LinkAnalyticsService::new(
+        LinkRepository::new(&pool).expect("link repo"),
+        LinkAnalyticsRepository::new(&pool).expect("analytics repo"),
+    );
 
     let session = SessionId::new(format!("sess-{}", Uuid::new_v4()));
 
@@ -134,7 +138,10 @@ async fn distinct_sessions_each_count_as_unique() {
     let pool = fixture_db_pool(&url).await.expect("pool");
     let campaign = CampaignId::new(format!("camp-{}", Uuid::new_v4()));
     let link_id = seed_link(&pool, &campaign, None).await;
-    let svc = LinkAnalyticsService::new(&pool).expect("svc");
+    let svc = LinkAnalyticsService::new(
+        LinkRepository::new(&pool).expect("link repo"),
+        LinkAnalyticsRepository::new(&pool).expect("analytics repo"),
+    );
 
     for _ in 0..3 {
         let session = SessionId::new(format!("sess-{}", Uuid::new_v4()));
@@ -164,7 +171,10 @@ async fn campaign_performance_aggregates_links() {
     let campaign = CampaignId::new(format!("camp-{}", Uuid::new_v4()));
     let link_a = seed_link(&pool, &campaign, None).await;
     let link_b = seed_link(&pool, &campaign, None).await;
-    let svc = LinkAnalyticsService::new(&pool).expect("svc");
+    let svc = LinkAnalyticsService::new(
+        LinkRepository::new(&pool).expect("link repo"),
+        LinkAnalyticsRepository::new(&pool).expect("analytics repo"),
+    );
 
     svc.track_click(&track_params(
         &link_a,
@@ -209,7 +219,10 @@ async fn journey_map_and_source_content_listing() {
     let content_id = seed_content(&pool, &source).await;
     let campaign = CampaignId::new(format!("camp-{}", Uuid::new_v4()));
     let link_id = seed_link(&pool, &campaign, Some(content_id.clone())).await;
-    let svc = LinkAnalyticsService::new(&pool).expect("svc");
+    let svc = LinkAnalyticsService::new(
+        LinkRepository::new(&pool).expect("link repo"),
+        LinkAnalyticsRepository::new(&pool).expect("analytics repo"),
+    );
 
     svc.track_click(&track_params(
         &link_id,
@@ -246,7 +259,10 @@ async fn performance_for_missing_link_is_none() {
     };
     ensure_test_bootstrap();
     let pool = fixture_db_pool(&url).await.expect("pool");
-    let svc = LinkAnalyticsService::new(&pool).expect("svc");
+    let svc = LinkAnalyticsService::new(
+        LinkRepository::new(&pool).expect("link repo"),
+        LinkAnalyticsRepository::new(&pool).expect("analytics repo"),
+    );
 
     let missing = LinkId::new(format!("missing-{}", Uuid::new_v4()));
     assert!(

@@ -34,9 +34,8 @@ pub(super) async fn handle_non_streaming_request(
             .await?;
 
             let message_processor = MessageProcessor::new(
-                &state.db_pool,
+                Arc::clone(state.agent_state.repositories()),
                 Arc::clone(&state.ai_service),
-                state.agent_state.repositories().tasks.clone(),
             )?;
 
             message_processor
@@ -55,9 +54,8 @@ pub(super) async fn handle_non_streaming_request(
             .await?;
 
             let message_processor = MessageProcessor::new(
-                &state.db_pool,
+                Arc::clone(state.agent_state.repositories()),
                 Arc::clone(&state.ai_service),
-                state.agent_state.repositories().tasks.clone(),
             )?;
 
             message_processor

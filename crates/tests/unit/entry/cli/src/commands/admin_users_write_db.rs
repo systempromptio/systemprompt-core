@@ -4,11 +4,12 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use clap::Parser;
+use std::sync::Arc;
 use systemprompt_cli::admin::users::{self, UsersCommands};
 use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
 use systemprompt_database::DbPool;
 use systemprompt_test_fixtures::{fixture_app_context, fixture_database_url, fixture_db_pool};
-use systemprompt_users::UserService;
+use systemprompt_users::{UserRepository, UserService};
 use uuid::Uuid;
 
 #[derive(Debug, Parser)]
@@ -51,7 +52,7 @@ fn unique(prefix: &str) -> (String, String) {
 #[tokio::test]
 async fn update_applies_every_field() {
     let pool = pool().await;
-    let service = UserService::new(&pool).unwrap();
+    let service = UserService::new(Arc::new(UserRepository::new(&pool).unwrap()));
     let (name, email) = unique("upd");
     let user = service
         .create(&name, &email, Some("Old Full"), Some("Old Disp"))
@@ -95,7 +96,7 @@ async fn update_applies_every_field() {
 #[tokio::test]
 async fn update_without_fields_errors() {
     let pool = pool().await;
-    let service = UserService::new(&pool).unwrap();
+    let service = UserService::new(Arc::new(UserRepository::new(&pool).unwrap()));
     let (name, email) = unique("updn");
     let user = service.create(&name, &email, None, None).await.unwrap();
 
@@ -122,7 +123,7 @@ async fn update_missing_user_errors() {
 #[tokio::test]
 async fn merge_transfers_and_deletes_source() {
     let pool = pool().await;
-    let service = UserService::new(&pool).unwrap();
+    let service = UserService::new(Arc::new(UserRepository::new(&pool).unwrap()));
     let (sn, se) = unique("mrgs");
     let (tn, te) = unique("mrgt");
     let source = service.create(&sn, &se, None, None).await.unwrap();
@@ -165,7 +166,7 @@ async fn merge_requires_confirmation() {
 #[tokio::test]
 async fn merge_same_user_errors() {
     let pool = pool().await;
-    let service = UserService::new(&pool).unwrap();
+    let service = UserService::new(Arc::new(UserRepository::new(&pool).unwrap()));
     let (n, e) = unique("mrgsame");
     let user = service.create(&n, &e, None, None).await.unwrap();
 
@@ -191,7 +192,7 @@ async fn merge_same_user_errors() {
 #[tokio::test]
 async fn merge_missing_users_errors() {
     let pool = pool().await;
-    let service = UserService::new(&pool).unwrap();
+    let service = UserService::new(Arc::new(UserRepository::new(&pool).unwrap()));
     let (n, e) = unique("mrgok");
     let target = service.create(&n, &e, None, None).await.unwrap();
 

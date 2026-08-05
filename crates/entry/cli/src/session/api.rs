@@ -7,11 +7,12 @@ use anyhow::{Context, Result};
 use chrono::Duration;
 use std::sync::Arc;
 use systemprompt_analytics::AnalyticsService;
+use systemprompt_analytics::repository::AnalyticsRepositories;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{SessionId, SessionSource, UserId};
 use systemprompt_oauth::services::SessionCreationService;
 use systemprompt_traits::{AnalyticsProvider, SessionAnalytics, UserProvider};
-use systemprompt_users::UserService;
+use systemprompt_users::{UserRepository, UserService};
 
 /// Lifetime of a CLI session row and of the admin token that names it. The two
 /// must agree, or the operator sees a mid-session 401.
@@ -30,12 +31,13 @@ pub async fn create_local_session_row(
     user: &UserId,
     ttl: Duration,
 ) -> Result<SessionId> {
-    let analytics: Arc<dyn AnalyticsProvider> = Arc::new(
-        AnalyticsService::new(db_pool, None, None)
-            .context("Failed to construct analytics service")?,
-    );
-    let users: Arc<dyn UserProvider> =
-        Arc::new(UserService::new(db_pool).context("Failed to construct user service")?);
+    let repositories = AnalyticsRepositories::new(db_pool)
+        .context("Failed to construct analytics repositories")?;
+    let analytics: Arc<dyn AnalyticsProvider> =
+        Arc::new(AnalyticsService::new(None, None, &repositories));
+    let user_repository =
+        Arc::new(UserRepository::new(db_pool).context("Failed to construct user repository")?);
+    let users: Arc<dyn UserProvider> = Arc::new(UserService::new(user_repository));
 
     SessionCreationService::new(analytics, users)
         .create_authenticated_session_with_ttl(

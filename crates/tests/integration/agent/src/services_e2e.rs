@@ -1,9 +1,9 @@
 use anyhow::Result;
 use chrono::Utc;
 use std::sync::Arc;
-use systemprompt_agent::repository::A2ARepositories;
 use systemprompt_agent::repository::execution::ExecutionStepRepository;
 use systemprompt_agent::repository::task::{RepoCreateTaskParams, TaskRepository};
+use systemprompt_agent::repository::{A2ARepositories, ContextRepository};
 use systemprompt_agent::services::context::ContextService;
 use systemprompt_agent::services::context_provider::ContextProviderService;
 use systemprompt_agent::services::execution_tracking::ExecutionTrackingService;
@@ -187,7 +187,7 @@ async fn context_service_load_history_for_empty_context_returns_empty() -> Resul
 #[tokio::test]
 async fn context_provider_service_lists_user_contexts() -> Result<()> {
     let fx = ServicesFixture::new().await?;
-    let svc = ContextProviderService::new(&fx.db)?;
+    let svc = ContextProviderService::new(ContextRepository::new(&fx.db)?);
     let listed = svc.list_contexts_with_stats(&fx.user_id).await?;
     assert!(listed.iter().any(|c| c.context_id == fx.context_id));
     fx.cleanup().await?;
@@ -365,7 +365,7 @@ async fn context_service_loads_history_with_messages() -> Result<()> {
 async fn context_provider_service_get_context_returns_data() -> Result<()> {
     use systemprompt_traits::ContextProvider;
     let fx = ServicesFixture::new().await?;
-    let svc = ContextProviderService::new(&fx.db)?;
+    let svc = ContextProviderService::new(ContextRepository::new(&fx.db)?);
     let ctx = svc.get_context(&fx.context_id, &fx.user_id).await?;
     assert_eq!(ctx.context_id, fx.context_id);
     fx.cleanup().await?;

@@ -6,11 +6,12 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use async_trait::async_trait;
-use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ContextId, SessionId, UserId};
-use systemprompt_traits::{ContextProvider, ContextProviderError, ContextWithStats};
+use systemprompt_traits::{
+    ContextMaterializer, ContextProvider, ContextProviderError, ContextWithStats,
+    EnsureContextParams,
+};
 
-use crate::error::AgentError;
 use crate::models::context::ContextKind;
 use crate::repository::ContextRepository;
 
@@ -20,10 +21,9 @@ pub struct ContextProviderService {
 }
 
 impl ContextProviderService {
-    pub fn new(db_pool: &DbPool) -> Result<Self, AgentError> {
-        Ok(Self {
-            repo: ContextRepository::new(db_pool)?,
-        })
+    #[must_use]
+    pub const fn new(repo: ContextRepository) -> Self {
+        Self { repo }
     }
 }
 
@@ -138,5 +138,23 @@ impl ContextProvider for ContextProviderService {
                 },
                 other => ContextProviderError::Database(other.to_string()),
             })
+    }
+}
+
+#[async_trait]
+impl ContextMaterializer for ContextProviderService {
+    async fn ensure_context(
+        &self,
+        params: EnsureContextParams<'_>,
+    ) -> Result<(), ContextProviderError> {
+        let kind = params
+            .kind
+            .parse::<ContextKind>()
+            .map_err(|e| ContextProviderError::Internal(e.to_string()))?;
+
+        self.repo
+            .ensure_context(&params, kind)
+            .await
+            .map_err(|e| ContextProviderError::Database(e.to_string()))
     }
 }

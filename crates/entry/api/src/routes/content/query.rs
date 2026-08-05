@@ -7,7 +7,7 @@ use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::{Extension, Json};
-use systemprompt_content::{ContentError, SearchRequest, SearchService};
+use systemprompt_content::{SearchRequest, SearchService};
 use systemprompt_models::RequestContext;
 use systemprompt_runtime::AppContext;
 
@@ -18,21 +18,15 @@ pub async fn query_handler(
 ) -> Response {
     log_search_start(&request.query);
 
-    let search_service = match SearchService::new(ctx.db_pool()) {
-        Ok(service) => service,
-        Err(e) => return handle_service_error(&e),
-    };
+    let repositories = ctx.content_repositories();
+    let search_service =
+        SearchService::new(repositories.search.clone(), repositories.content.clone());
 
     execute_search(&search_service, &request).await
 }
 
 fn log_search_start(query: &str) {
     tracing::info!(query = %query, "Searching");
-}
-
-fn handle_service_error(e: &ContentError) -> Response {
-    tracing::error!(error = %e, "Failed to create search service");
-    internal_error(&e.to_string())
 }
 
 async fn execute_search(service: &SearchService, request: &SearchRequest) -> Response {

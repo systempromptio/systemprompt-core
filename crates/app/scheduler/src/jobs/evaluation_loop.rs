@@ -9,10 +9,12 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use chrono::{Duration, Utc};
-use systemprompt_ai::AiService;
+use systemprompt_ai::{AiService, AiServiceProviders};
 use systemprompt_analytics::AnalyticsAiSessionProvider;
 use systemprompt_database::DbPool;
-use systemprompt_evaluation::{EvaluationService, RunRequest, SampleFilter, TriggerSource};
+use systemprompt_evaluation::{
+    EvalRepositories, EvaluationService, RunRequest, SampleFilter, TriggerSource,
+};
 use systemprompt_loader::ConfigLoader;
 use systemprompt_mcp::McpToolProvider;
 use systemprompt_models::ai::DynAiProvider;
@@ -58,7 +60,8 @@ impl Job for EvaluationLoopJob {
 
         let ai_service = build_ai_service(&db_pool, &app_context)?;
         let ai_provider: DynAiProvider = Arc::<AiService>::clone(&ai_service);
-        let evaluation = EvaluationService::new(&db_pool, ai_provider).map_err(internal)?;
+        let repositories = EvalRepositories::new(&db_pool).map_err(internal)?;
+        let evaluation = EvaluationService::new(repositories, ai_provider);
 
         let sample_size = ctx
             .get_parameter_parsed::<i64>("sample_size")?
@@ -121,16 +124,22 @@ fn build_ai_service(
         app_context.mcp_registry().clone(),
         &services_config.ai.mcp.resilience,
     ));
-    let session_provider = Arc::new(AnalyticsAiSessionProvider::new(db_pool)?);
+    let session_provider = Arc::new(AnalyticsAiSessionProvider::from_repository(
+        app_context.analytics_repositories().sessions.clone(),
+    ));
     Ok(Arc::new(
         AiService::new(
             db_pool,
             &profile.providers,
             &services_config.ai,
-            tool_provider,
-            session_provider,
+            AiServiceProviders {
+                tools: tool_provider,
+                sessions: session_provider,
+            },
+            app_context.ai_repositories(),
         )
-        .map_err(internal)?,
+        .map_err(internal)?
+        .with_context_materializer(app_context.context_materializer()),
     ))
 }
 

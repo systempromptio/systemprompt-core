@@ -34,11 +34,11 @@ pub struct IngestionService {
 }
 
 impl IngestionService {
-    pub fn new(db: &DbPool) -> Result<Self, ContentError> {
-        Ok(Self {
-            content_repo: ContentRepository::new(db)?,
+    pub fn new(db: &DbPool, content_repo: ContentRepository) -> Self {
+        Self {
+            content_repo,
             db_pool: Arc::clone(db),
-        })
+        }
     }
 
     pub async fn ingest_directory(

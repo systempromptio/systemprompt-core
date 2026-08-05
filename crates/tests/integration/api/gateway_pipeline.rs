@@ -37,7 +37,13 @@ use super::common::setup_ctx;
 fn gw_repos(
     db: &systemprompt_database::DbPool,
 ) -> systemprompt_api::services::gateway::GatewayRepositories {
-    systemprompt_api::services::gateway::GatewayRepositories::new(db).expect("gateway repos")
+    systemprompt_api::services::gateway::GatewayRepositories::new(
+        db,
+        std::sync::Arc::new(systemprompt_agent::services::ContextProviderService::new(
+            systemprompt_agent::repository::ContextRepository::new(db).expect("context repository"),
+        )),
+    )
+    .expect("gateway repos")
 }
 
 const API_KEY_ENV: &str = "ANTHROPIC_API_KEY";
@@ -654,7 +660,14 @@ async fn dispatch_against_jailbreak_upstream(
         &config,
         &registry,
         pool,
-        &systemprompt_api::services::gateway::GatewayRepositories::new(pool).expect("repos"),
+        &systemprompt_api::services::gateway::GatewayRepositories::new(
+            pool,
+            std::sync::Arc::new(systemprompt_agent::services::ContextProviderService::new(
+                systemprompt_agent::repository::ContextRepository::new(pool)
+                    .expect("context repository"),
+            )),
+        )
+        .expect("repos"),
         di,
     )
     .await

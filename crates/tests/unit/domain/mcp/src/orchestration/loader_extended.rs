@@ -31,7 +31,10 @@ fn ctx() -> RequestContext {
 async fn create_mcp_extensions_empty_returns_empty_vec() {
     let Some(db) = db().await else { return };
     let registry = RegistryService::new(fixture_user_id());
-    let loader = McpToolLoader::new(&db, registry).expect("ctor");
+    let loader = McpToolLoader::new(
+        systemprompt_database::ServiceRepository::new(&db).expect("service repository"),
+        registry,
+    );
 
     // The empty-slice fast path returns before consulting global Config.
     let result = loader
@@ -45,7 +48,10 @@ async fn create_mcp_extensions_empty_returns_empty_vec() {
 async fn load_server_tools_missing_service_errors_after_retries() {
     let Some(db) = db().await else { return };
     let registry = RegistryService::new(fixture_user_id());
-    let loader = McpToolLoader::new(&db, registry).expect("ctor");
+    let loader = McpToolLoader::new(
+        systemprompt_database::ServiceRepository::new(&db).expect("service repository"),
+        registry,
+    );
 
     let missing = format!("missing-{}", uuid::Uuid::new_v4().simple());
     let result = loader.load_server_tools(&missing, &ctx()).await;
@@ -64,7 +70,10 @@ async fn load_server_tools_missing_service_errors_after_retries() {
 async fn service_manager_accessor_returns_reference() {
     let Some(db) = db().await else { return };
     let registry = RegistryService::new(fixture_user_id());
-    let loader = McpToolLoader::new(&db, registry).expect("ctor");
+    let loader = McpToolLoader::new(
+        systemprompt_database::ServiceRepository::new(&db).expect("service repository"),
+        registry,
+    );
 
     let sm = loader.service_manager();
     // Drive a read-only method through the borrowed accessor.

@@ -85,7 +85,7 @@ pub async fn pat(ctx: AppContext, request: Request) -> Result<Json<AuthResponse>
     let pat_token = extract_bearer(request.headers())
         .ok_or_else(|| ApiHttpError::unauthorized("Missing Authorization: Bearer <pat>"))?;
 
-    let service = ApiKeyService::new(ctx.db_pool())?;
+    let service = ApiKeyService::new(Arc::clone(ctx.user_repository()));
     let record = service
         .verify(&pat_token)
         .await?
@@ -166,7 +166,7 @@ async fn mint_device_pat(
             ApiHttpError::unauthorized("exchange code invalid, expired, or already consumed")
         })?;
 
-    let service = ApiKeyService::new(ctx.db_pool())?;
+    let service = ApiKeyService::new(Arc::clone(ctx.user_repository()));
     let issued = service
         .issue(IssueApiKeyParams {
             user_id: &user_id,
@@ -231,7 +231,7 @@ pub async fn mtls(
         return Err(ApiHttpError::bad_request("missing device_cert_fingerprint"));
     }
 
-    let service = DeviceCertService::new(ctx.db_pool())?;
+    let service = DeviceCertService::new(Arc::clone(ctx.user_repository()));
     let record = service
         .verify(fingerprint)
         .await?

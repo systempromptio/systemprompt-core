@@ -12,7 +12,6 @@ use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
 use sha2::{Digest, Sha256};
 use std::path::PathBuf;
-use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ContextId, FileId, UserId};
 use tokio::fs;
 use tokio::io::AsyncWriteExt;
@@ -42,17 +41,14 @@ pub struct FileUploadService {
 }
 
 impl FileUploadService {
-    pub fn new(db_pool: &DbPool, files_config: FilesConfig) -> Result<Self, FileUploadError> {
-        let upload_config = *files_config.upload();
-        let file_repository =
-            FileRepository::new(db_pool).map_err(|e| FileUploadError::Database(e.to_string()))?;
-        let validator = FileValidator::new(upload_config);
+    pub const fn new(file_repository: FileRepository, files_config: FilesConfig) -> Self {
+        let validator = FileValidator::new(*files_config.upload());
 
-        Ok(Self {
+        Self {
             files_config,
             file_repository,
             validator,
-        })
+        }
     }
 
     pub const fn validator(&self) -> &FileValidator {

@@ -5,8 +5,7 @@
 
 use std::sync::Arc;
 
-use systemprompt_database::DbPool;
-use systemprompt_identifiers::{EvalCaseId, EvalRunId, UserId};
+use systemprompt_identifiers::{ContextId, EvalCaseId, EvalRunId, UserId};
 use systemprompt_models::ai::DynAiProvider;
 
 use crate::error::Result;
@@ -15,10 +14,10 @@ use crate::models::{
     SampleFilter, TriggerSource,
 };
 use crate::repository::{
-    EvalCaseRepository, EvalResultRepository, EvalRubricRepository, EvalRunRepository,
-    SamplingRepository,
+    EvalCaseRepository, EvalRepositories, EvalResultRepository, EvalRubricRepository,
+    EvalRunRepository, SamplingRepository,
 };
-use crate::services::judge::JudgeService;
+use crate::services::judge::{JudgeService, JudgeSpec};
 use crate::services::loop_runner::{AutoImproveLoop, LoopLimits, LoopReport};
 use crate::services::replay::ReplayService;
 use crate::services::sampler::SamplerService;
@@ -58,15 +57,22 @@ impl EvaluationService {
     /// `ai` must be the auditing provider (the `AiService` implementation):
     /// judge isolation and cost accounting depend on `generate` persisting
     /// every request to `ai_requests` with a job actor.
-    pub fn new(db: &DbPool, ai: DynAiProvider) -> Result<Self> {
-        Ok(Self {
+    pub fn new(repositories: EvalRepositories, ai: DynAiProvider) -> Self {
+        let EvalRepositories {
+            runs,
+            cases,
+            results,
+            rubrics,
+            sampling,
+        } = repositories;
+        Self {
             ai,
-            runs: EvalRunRepository::new(db)?,
-            cases: EvalCaseRepository::new(db)?,
-            results: EvalResultRepository::new(db)?,
-            rubrics: EvalRubricRepository::new(db)?,
-            sampling: SamplingRepository::new(db)?,
-        })
+            runs,
+            cases,
+            results,
+            rubrics,
+            sampling,
+        }
     }
 
     /// One full auto-improve pass; returns the run id and its report.
@@ -120,17 +126,21 @@ impl EvaluationService {
             })
             .await?;
 
+        let run_context = ContextId::derived_from_evaluation_run(&run_id);
         let judge = JudgeService::new(
             Arc::clone(&self.ai),
             self.sampling.clone(),
-            request.judge_provider,
-            request.judge_model,
-            request.created_by.clone(),
+            JudgeSpec {
+                provider: request.judge_provider,
+                model: request.judge_model,
+                created_by: request.created_by.clone(),
+                run_context: run_context.clone(),
+            },
         );
         let auto_improve = AutoImproveLoop {
             sampler: SamplerService::new(self.sampling.clone()),
             judge,
-            replay: ReplayService::new(Arc::clone(&self.ai), request.created_by),
+            replay: ReplayService::new(Arc::clone(&self.ai), request.created_by, run_context),
             runs: self.runs.clone(),
             results: self.results.clone(),
         };

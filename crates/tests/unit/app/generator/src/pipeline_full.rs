@@ -17,6 +17,7 @@ use systemprompt_generator::{
 use systemprompt_models::AppPaths;
 use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_database_url, fixture_db_pool};
 
+
 const WEB_CONFIG_YAML: &str = r##"
 paths:
   templates: ""
@@ -175,7 +176,7 @@ fn ensure_app_paths() -> AppPaths {
 async fn generate_sitemap_with_empty_sources_writes_sitemap_xml() {
     let paths = ensure_app_paths();
     let Some(db) = maybe_db().await else { return };
-    generate_sitemap(db, &paths).await.unwrap();
+    generate_sitemap(content_repo(&db), &paths).await.unwrap();
     assert!(paths.web().dist().join("sitemap.xml").exists());
 }
 
@@ -183,7 +184,7 @@ async fn generate_sitemap_with_empty_sources_writes_sitemap_xml() {
 async fn generate_feed_with_empty_sources_runs() {
     let paths = ensure_app_paths();
     let Some(db) = maybe_db().await else { return };
-    let _ = generate_feed(db, &paths).await;
+    let _ = generate_feed(content_repo(&db), &paths).await;
 }
 
 #[tokio::test]
@@ -191,7 +192,9 @@ async fn default_rss_feed_provider_full_config_constructs() {
     use systemprompt_provider_contracts::RssFeedProvider;
     let paths = ensure_app_paths();
     let Some(db) = maybe_db().await else { return };
-    let p = DefaultRssFeedProvider::new(db, &paths).await.unwrap();
+    let p = DefaultRssFeedProvider::new(content_repo(&db), &paths)
+        .await
+        .unwrap();
     assert_eq!(p.provider_id(), "default-rss");
     let _ = p.feed_specs().len();
     let _ = format!("{p:?}");
@@ -210,7 +213,7 @@ async fn prerender_content_with_empty_templates_dir_runs_engine() {
     let templates_dir = paths.web().root().join("templates");
     fs::create_dir_all(&templates_dir).expect("mkdir templates");
     let Some(db) = maybe_db().await else { return };
-    let _ = prerender_content(db, &paths).await;
+    let _ = prerender_content(db.clone(), content_repo(&db), &paths).await;
 }
 
 #[tokio::test]
@@ -219,7 +222,7 @@ async fn prerender_pages_with_empty_templates_dir_runs_engine() {
     let templates_dir = paths.web().root().join("templates");
     fs::create_dir_all(&templates_dir).expect("mkdir templates");
     let Some(db) = maybe_db().await else { return };
-    let _ = prerender_pages(db, &paths).await;
+    let _ = prerender_pages(db.clone(), content_repo(&db), &paths).await;
 }
 
 // The remaining tests share the same on-disk content/config.yaml. They
@@ -257,7 +260,9 @@ async fn generate_sitemap_with_source_writes_xml() {
     let dist = boot.app_paths.web().dist().to_path_buf();
     fs::create_dir_all(&dist).expect("mkdir dist");
     let Some(db) = maybe_db().await else { return };
-    generate_sitemap(db, &boot.app_paths).await.unwrap();
+    generate_sitemap(content_repo(&db), &boot.app_paths)
+        .await
+        .unwrap();
     assert!(dist.join("sitemap.xml").exists());
 }
 
@@ -266,7 +271,7 @@ async fn rss_provider_with_source_emits_feed_specs() {
     use systemprompt_provider_contracts::RssFeedProvider;
     let boot = install_content_with_source();
     let Some(db) = maybe_db().await else { return };
-    let p = DefaultRssFeedProvider::new(db, &boot.app_paths)
+    let p = DefaultRssFeedProvider::new(content_repo(&db), &boot.app_paths)
         .await
         .unwrap();
     let _ = p.feed_specs().len();
@@ -278,7 +283,7 @@ async fn generate_feed_with_source_runs_pipeline() {
     let dist = boot.app_paths.web().dist().to_path_buf();
     fs::create_dir_all(&dist).expect("mkdir dist");
     let Some(db) = maybe_db().await else { return };
-    let _ = generate_feed(db, &boot.app_paths).await;
+    let _ = generate_feed(content_repo(&db), &boot.app_paths).await;
 }
 
 #[tokio::test]
@@ -286,7 +291,7 @@ async fn rss_provider_fetch_items_for_unknown_source_errors() {
     use systemprompt_provider_contracts::{RssFeedContext, RssFeedProvider};
     let boot = install_content_with_source();
     let Some(db) = maybe_db().await else { return };
-    let p = DefaultRssFeedProvider::new(db, &boot.app_paths)
+    let p = DefaultRssFeedProvider::new(content_repo(&db), &boot.app_paths)
         .await
         .unwrap();
     let ctx = RssFeedContext {
@@ -302,7 +307,7 @@ async fn rss_provider_feed_metadata_returns_branding() {
     use systemprompt_provider_contracts::{RssFeedContext, RssFeedProvider};
     let boot = install_content_with_source();
     let Some(db) = maybe_db().await else { return };
-    let p = DefaultRssFeedProvider::new(db, &boot.app_paths)
+    let p = DefaultRssFeedProvider::new(content_repo(&db), &boot.app_paths)
         .await
         .unwrap();
     let ctx = RssFeedContext {
@@ -317,7 +322,7 @@ async fn rss_provider_fetch_items_for_blog_source_runs_repo() {
     use systemprompt_provider_contracts::{RssFeedContext, RssFeedProvider};
     let boot = install_content_with_source();
     let Some(db) = maybe_db().await else { return };
-    let p = DefaultRssFeedProvider::new(db, &boot.app_paths)
+    let p = DefaultRssFeedProvider::new(content_repo(&db), &boot.app_paths)
         .await
         .unwrap();
     let ctx = RssFeedContext {
@@ -325,4 +330,8 @@ async fn rss_provider_fetch_items_for_blog_source_runs_repo() {
         source_name: "blog",
     };
     let _ = p.fetch_items(&ctx, 5).await;
+}
+
+fn content_repo(pool: &systemprompt_database::DbPool) -> systemprompt_content::ContentRepository {
+    systemprompt_content::ContentRepository::new(pool).expect("content repository")
 }

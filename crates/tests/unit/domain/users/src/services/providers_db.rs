@@ -1,20 +1,23 @@
 //! DB-backed tests for the `UserProvider` and `RoleProvider` trait
 //! implementations on `UserService`, including closed-pool error mapping.
 
+use std::sync::Arc;
 use systemprompt_identifiers::UserId;
 use systemprompt_test_fixtures::{
     closed_db_pool, ensure_test_bootstrap, fixture_database_url, fixture_db_pool,
 };
 use systemprompt_traits::FederatedIdentityClaims;
 use systemprompt_traits::auth::AuthProviderError;
-use systemprompt_users::{RoleProvider, UserProvider, UserService};
+use systemprompt_users::{RoleProvider, UserProvider, UserRepository, UserService};
 use uuid::Uuid;
 
 async fn setup() -> Option<UserService> {
     let url = fixture_database_url().ok()?;
     ensure_test_bootstrap();
     let pool = fixture_db_pool(&url).await.expect("pool");
-    Some(UserService::new(&pool).expect("service"))
+    Some(UserService::new(Arc::new(
+        UserRepository::new(&pool).expect("user repository"),
+    )))
 }
 
 fn unique(prefix: &str) -> (String, String) {
@@ -189,7 +192,9 @@ async fn missing_user_maps_to_user_not_found() {
 async fn closed_pool_maps_to_internal_errors() {
     ensure_test_bootstrap();
     let pool = closed_db_pool().await;
-    let service = UserService::new(&pool).expect("service");
+    let service = UserService::new(Arc::new(
+        UserRepository::new(&pool).expect("user repository"),
+    ));
     let ghost = UserId::new(Uuid::new_v4().to_string());
 
     assert!(matches!(

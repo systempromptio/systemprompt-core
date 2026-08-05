@@ -9,7 +9,7 @@
 
 use anyhow::Result;
 use std::time::Duration;
-use systemprompt_database::{DbPool, ServiceRepository};
+use systemprompt_database::ServiceRepository;
 use systemprompt_scheduler::ProcessCleanup;
 use tokio::task::JoinHandle;
 use tracing::{info, warn};
@@ -22,16 +22,16 @@ pub struct ProcessMonitor {
 }
 
 impl ProcessMonitor {
-    pub fn new(db_pool: &DbPool) -> Result<Self> {
-        Self::with_interval(db_pool, Duration::from_secs(30))
+    pub const fn new(repository: ServiceRepository) -> Self {
+        Self::with_interval(repository, Duration::from_secs(30))
     }
 
-    pub fn with_interval(db_pool: &DbPool, interval: Duration) -> Result<Self> {
-        Ok(Self {
-            repository: ServiceRepository::new(db_pool)?,
+    pub const fn with_interval(repository: ServiceRepository, interval: Duration) -> Self {
+        Self {
+            repository,
             monitor_handle: None,
             check_interval: interval,
-        })
+        }
     }
 
     pub fn start(&mut self) {

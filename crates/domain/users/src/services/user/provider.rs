@@ -87,6 +87,13 @@ impl UserProvider for UserService {
             .map(|u| u.id)
             .map_err(|e| AuthProviderError::Internal(e.to_string()))
     }
+
+    async fn promote_anonymous(&self, source: &UserId, target: &UserId) -> AuthResult<u64> {
+        Self::promote_anonymous(self, source, target)
+            .await
+            .map(|result| result.total_rows)
+            .map_err(|e| AuthProviderError::Internal(e.to_string()))
+    }
 }
 
 #[async_trait]

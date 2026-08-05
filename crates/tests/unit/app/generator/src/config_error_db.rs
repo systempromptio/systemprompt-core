@@ -160,7 +160,7 @@ async fn generate_sitemap_malformed_content_config_is_parse_error() {
     let Some(db) = maybe_db().await else { return };
 
     write_content_config(boot, ": not yaml [");
-    let err = generate_sitemap(db, &boot.app_paths)
+    let err = generate_sitemap(content_repo(&db), &boot.app_paths)
         .await
         .expect_err("malformed content config");
     write_content_config(boot, MINIMAL_SOURCES_YAML);
@@ -177,7 +177,7 @@ async fn prerender_content_malformed_content_config_is_parse_error() {
     let Some(db) = maybe_db().await else { return };
 
     write_content_config(boot, "content_sources: [broken");
-    let err = prerender_content(db, &boot.app_paths)
+    let err = prerender_content(db.clone(), content_repo(&db), &boot.app_paths)
         .await
         .expect_err("malformed content config");
     write_content_config(boot, MINIMAL_SOURCES_YAML);
@@ -195,7 +195,7 @@ async fn prerender_content_missing_content_config_is_read_error() {
 
     let cfg = boot.services_path.join("content/config.yaml");
     let _ = fs::remove_file(&cfg);
-    let err = prerender_content(db, &boot.app_paths)
+    let err = prerender_content(db.clone(), content_repo(&db), &boot.app_paths)
         .await
         .expect_err("missing content config");
     write_content_config(boot, MINIMAL_SOURCES_YAML);
@@ -213,7 +213,7 @@ async fn prerender_content_malformed_web_config_is_web_config_error() {
 
     write_content_config(boot, MINIMAL_SOURCES_YAML);
     write_web_config(boot, "branding: [not a map");
-    let err = prerender_content(db, &boot.app_paths)
+    let err = prerender_content(db.clone(), content_repo(&db), &boot.app_paths)
         .await
         .expect_err("malformed web config");
     assert!(
@@ -289,7 +289,7 @@ async fn prerender_content_missing_templates_dir_is_config_error() {
     write_web_config(boot, &web_config_yaml_with_templates_path(""));
     let templates_dir = boot.app_paths.web().root().join("templates");
     let _ = fs::remove_dir_all(&templates_dir);
-    let err = prerender_content(db, &boot.app_paths)
+    let err = prerender_content(db.clone(), content_repo(&db), &boot.app_paths)
         .await
         .expect_err("missing templates dir");
     assert!(
@@ -325,7 +325,8 @@ async fn prerender_content_with_closed_pool_is_fetch_error() {
     );
     fs::create_dir_all(boot.app_paths.web().root().join("templates")).expect("mkdir templates");
 
-    let err = prerender_content(closed_db_pool().await, &boot.app_paths)
+    let closed = closed_db_pool().await;
+    let err = prerender_content(closed.clone(), content_repo(&closed), &boot.app_paths)
         .await
         .expect_err("closed pool must fail content fetch");
     write_content_config(boot, MINIMAL_SOURCES_YAML);
@@ -333,4 +334,8 @@ async fn prerender_content_with_closed_pool_is_fetch_error() {
         matches!(err, PublishError::FetchFailed { .. }),
         "unexpected error: {err:?}"
     );
+}
+
+fn content_repo(pool: &systemprompt_database::DbPool) -> systemprompt_content::ContentRepository {
+    systemprompt_content::ContentRepository::new(pool).expect("content repository")
 }

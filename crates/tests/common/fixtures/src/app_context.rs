@@ -156,15 +156,18 @@ fn fixture_app_context_assembled(
         systemprompt_models::PathResolution::Canonicalize,
     )?);
 
-    let analytics_service = Arc::new(AnalyticsService::new(pool, None, None)?);
+    let analytics_repositories =
+        Arc::new(systemprompt_analytics::repository::AnalyticsRepositories::new(pool)?);
+    let analytics_service = Arc::new(AnalyticsService::new(None, None, &analytics_repositories));
     let session_usage: systemprompt_traits::DynSessionUsageCounters =
         Arc::new(analytics_service.session_repo().clone());
+    let user_repository = Arc::new(systemprompt_users::UserRepository::new(pool)?);
     let ctx = AppContext::from_parts(
         DataPlane {
             database: Arc::clone(pool),
             analytics_service,
             fingerprint_repo: Some(Arc::new(FingerprintRepository::new(pool)?)),
-            user_service: Some(Arc::new(UserService::new(pool)?)),
+            user_service: Some(Arc::new(UserService::new(Arc::clone(&user_repository)))),
             a2a_repositories: Arc::new(systemprompt_agent::repository::A2ARepositories::new(
                 pool,
                 session_usage,
@@ -175,12 +178,10 @@ fn fixture_app_context_assembled(
             oauth_repositories: Arc::new(systemprompt_oauth::repository::OAuthRepositories::new(
                 pool,
             )?),
-            user_repository: Arc::new(systemprompt_users::UserRepository::new(pool)?),
+            user_repository,
             service_repository: Arc::new(systemprompt_database::ServiceRepository::new(pool)?),
             ai_repositories: Arc::new(systemprompt_ai::repository::AiRepositories::new(pool)?),
-            analytics_repositories: Arc::new(
-                systemprompt_analytics::repository::AnalyticsRepositories::new(pool)?,
-            ),
+            analytics_repositories,
             file_repository: Arc::new(systemprompt_files::FileRepository::new(pool)?),
             mcp_session_repository: Arc::new(
                 systemprompt_mcp::repository::McpSessionRepository::new(pool)?,

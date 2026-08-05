@@ -10,7 +10,7 @@
 use std::sync::Arc;
 use systemprompt_database::Database;
 use systemprompt_logging::CliService;
-use systemprompt_users::{PromoteResult, UserAdminService, UserService};
+use systemprompt_users::{PromoteResult, UserAdminService, UserRepository, UserService};
 
 use super::discovery::{discover_profiles, print_discovery_summary};
 use super::types::{CloudUser, SyncResult};
@@ -97,15 +97,16 @@ pub async fn sync_admin_to_database(
         },
     };
 
-    let user_service = match UserService::new(&db) {
-        Ok(s) => s,
+    let user_repository = match UserRepository::new(&db) {
+        Ok(repository) => Arc::new(repository),
         Err(e) => {
             return SyncResult::Failed {
                 profile: profile_name.to_owned(),
-                error: format!("Failed to create user service: {}", e),
+                error: format!("Failed to create user repository: {}", e),
             };
         },
     };
+    let user_service = UserService::new(user_repository);
 
     let admin_service = UserAdminService::new(user_service.clone());
 

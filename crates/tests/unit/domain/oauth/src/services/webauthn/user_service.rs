@@ -99,6 +99,10 @@ impl UserProvider for MockUserProvider {
     ) -> AuthResult<UserId> {
         Ok(unique_user_id("user"))
     }
+
+    async fn promote_anonymous(&self, _source: &UserId, _target: &UserId) -> AuthResult<u64> {
+        Ok(0)
+    }
 }
 
 fn make_test_user(id: &str, name: &str, email: &str) -> AuthUser {

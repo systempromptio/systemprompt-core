@@ -51,8 +51,15 @@ async fn live_setup(oauth_required: bool) -> Option<(Live, MockServer)> {
         )
         .ok()?,
     );
-    let database = DatabaseService::new(&db, app_paths, registry.clone()).expect("db service");
-    let loader = McpToolLoader::new(&db, registry.clone()).ok()?;
+    let database = DatabaseService::new(
+        systemprompt_database::ServiceRepository::new(&db).expect("service repository"),
+        app_paths,
+        registry.clone(),
+    );
+    let loader = McpToolLoader::new(
+        systemprompt_database::ServiceRepository::new(&db).expect("service repository"),
+        registry.clone(),
+    );
 
     Some((
         Live {
@@ -219,8 +226,10 @@ async fn create_mcp_extensions_empty_input_short_circuits() {
     let Ok(db) = fixture_db_pool(&url).await else {
         return;
     };
-    let loader = McpToolLoader::new(&db, RegistryService::new(UserId::new("owner-empty")))
-        .expect("loader builds");
+    let loader = McpToolLoader::new(
+        systemprompt_database::ServiceRepository::new(&db).expect("service repository"),
+        RegistryService::new(UserId::new("owner-empty")),
+    );
 
     let infos = loader
         .create_mcp_extensions(&[], "http://gw.example", &request_context("ldr-empty"))

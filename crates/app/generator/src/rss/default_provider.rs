@@ -6,7 +6,6 @@
 
 use async_trait::async_trait;
 use systemprompt_content::ContentRepository;
-use systemprompt_database::DbPool;
 use systemprompt_identifiers::{LocaleCode, SourceId};
 use systemprompt_models::{AppPaths, Config, ContentConfigRaw, WebConfig};
 use systemprompt_provider_contracts::{
@@ -38,13 +37,12 @@ impl std::fmt::Debug for DefaultRssFeedProvider {
 }
 
 impl DefaultRssFeedProvider {
-    pub async fn new(db_pool: DbPool, paths: &AppPaths) -> GeneratorResult<Self> {
+    pub async fn new(content_repo: ContentRepository, paths: &AppPaths) -> GeneratorResult<Self> {
         let content_config = load_content_config(paths).await?;
         let web_config = load_web_config(paths).await?;
 
         Ok(Self {
-            content_repo: ContentRepository::new(&db_pool)
-                .map_err(|e| PublishError::content("Failed to create content repository", e))?,
+            content_repo,
             content_config,
             web_config,
         })

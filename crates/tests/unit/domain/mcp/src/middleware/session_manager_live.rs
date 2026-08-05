@@ -41,7 +41,10 @@ async fn session_manager_drives_full_streamable_http_lifecycle() {
         return;
     };
 
-    let handler = DatabaseSessionHandler::new(&db);
+    let handler = DatabaseSessionHandler::new(std::sync::Arc::new(
+        systemprompt_mcp::repository::McpSessionRepository::new(&db)
+            .expect("mcp session repository"),
+    ));
     let (id, transport) = handler.create_session().await.expect("session created");
     let service = tokio::spawn(async move { Quiet.serve(transport).await });
 

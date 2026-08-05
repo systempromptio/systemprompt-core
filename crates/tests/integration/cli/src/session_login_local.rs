@@ -8,9 +8,10 @@
 //! profile, the same key the runtime resolves at boot, so a local profile never
 //! touches cloud credentials.
 
+use std::sync::Arc;
 use systemprompt_cli::admin::session::login_helpers::fetch_admin_user;
 use systemprompt_database::DbPool;
-use systemprompt_users::UserService;
+use systemprompt_users::{UserRepository, UserService};
 
 async fn get_db() -> Option<DbPool> {
     let url = systemprompt_test_fixtures::fixture_database_url().ok()?;
@@ -24,7 +25,7 @@ async fn fetch_admin_user_returns_bootstrapped_user_by_name() {
         return;
     };
 
-    let service = UserService::new(&db).expect("user service");
+    let service = UserService::new(Arc::new(UserRepository::new(&db).expect("user repository")));
 
     let unique = uuid::Uuid::new_v4();
     let username = format!("login_local_admin_{}", &unique.to_string()[..8]);

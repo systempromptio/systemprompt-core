@@ -61,6 +61,10 @@ impl UserProvider for NoopUserProvider {
     ) -> AuthResult<UserId> {
         Ok(unique_user_id("wa-flow"))
     }
+
+    async fn promote_anonymous(&self, _source: &UserId, _target: &UserId) -> AuthResult<u64> {
+        Ok(0)
+    }
 }
 
 fn test_config() -> WebAuthnConfig {

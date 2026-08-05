@@ -122,8 +122,11 @@ pub mod registry {
 
 pub(crate) mod state;
 
+use std::sync::Arc;
 use std::time::Duration;
 
+use crate::middleware::DatabaseSessionHandler;
+use crate::repository::McpSessionRepository;
 use axum::extract::Request;
 use axum::middleware::Next;
 use axum::response::Response;
@@ -131,9 +134,6 @@ use rmcp::ServerHandler;
 pub use rmcp::model::ProtocolVersion;
 use rmcp::transport::StreamableHttpService;
 use rmcp::transport::streamable_http_server::StreamableHttpServerConfig;
-use systemprompt_database::DbPool;
-
-use crate::middleware::DatabaseSessionHandler;
 
 /// Ceiling for inbound MCP POST bodies, above which the transport answers
 /// `413`.
@@ -225,7 +225,11 @@ async fn mcp_request_logger(req: Request, next: Next) -> Response {
     response
 }
 
-pub fn create_router<S>(server: S, db_pool: &DbPool, http: McpHttpConfig) -> axum::Router
+pub fn create_router<S>(
+    server: S,
+    session_repository: Arc<McpSessionRepository>,
+    http: McpHttpConfig,
+) -> axum::Router
 where
     S: ServerHandler + Clone + Send + Sync + 'static,
 {
@@ -243,12 +247,14 @@ where
     let mut config = host_policy
         .with_sse_keep_alive(session.keep_alive)
         .with_max_request_body_bytes(MAX_REQUEST_BODY_BYTES);
-    let session_store: std::sync::Arc<
+    let session_store: Arc<
         dyn rmcp::transport::streamable_http_server::session::store::SessionStore,
-    > = std::sync::Arc::new(middleware::PostgresSessionStore::new(db_pool));
+    > = Arc::new(middleware::PostgresSessionStore::new(Arc::clone(
+        &session_repository,
+    )));
     config.session_store = Some(session_store);
 
-    let session_manager = DatabaseSessionHandler::with_timeouts(db_pool, session);
+    let session_manager = DatabaseSessionHandler::with_timeouts(session_repository, session);
 
     let service =
         StreamableHttpService::new(move || Ok(server.clone()), session_manager.into(), config);

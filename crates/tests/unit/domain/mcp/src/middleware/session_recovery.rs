@@ -31,7 +31,10 @@ fn random_id() -> SessionId {
 #[tokio::test]
 async fn session_store_round_trip() {
     let Some(db) = db().await else { return };
-    let store = PostgresSessionStore::new(&db);
+    let store = PostgresSessionStore::new(std::sync::Arc::new(
+        systemprompt_mcp::repository::McpSessionRepository::new(&db)
+            .expect("mcp session repository"),
+    ));
     let id = random_id();
 
     store.store(&id, &sample_state()).await.unwrap();
@@ -44,14 +47,20 @@ async fn session_store_round_trip() {
 #[tokio::test]
 async fn session_store_load_unknown_returns_none() {
     let Some(db) = db().await else { return };
-    let store = PostgresSessionStore::new(&db);
+    let store = PostgresSessionStore::new(std::sync::Arc::new(
+        systemprompt_mcp::repository::McpSessionRepository::new(&db)
+            .expect("mcp session repository"),
+    ));
     assert!(store.load(&random_id()).await.unwrap().is_none());
 }
 
 #[tokio::test]
 async fn restore_session_recreates_local_worker() {
     let Some(db) = db().await else { return };
-    let handler = DatabaseSessionHandler::new(&db);
+    let handler = DatabaseSessionHandler::new(std::sync::Arc::new(
+        systemprompt_mcp::repository::McpSessionRepository::new(&db)
+            .expect("mcp session repository"),
+    ));
     let id = random_id();
 
     assert!(!handler.has_session(&id).await.unwrap());

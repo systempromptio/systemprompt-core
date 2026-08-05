@@ -4,13 +4,14 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use clap::Parser;
+use std::sync::Arc;
 use systemprompt_cli::admin::users::{self, UsersCommands};
 use systemprompt_cli::session::api::{DEFAULT_CLI_SESSION_HOURS, create_local_session_row};
 use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
 use systemprompt_database::DbPool;
 use systemprompt_runtime::DatabaseContext;
 use systemprompt_test_fixtures::{fixture_app_context, fixture_database_url, fixture_db_pool};
-use systemprompt_users::UserService;
+use systemprompt_users::{UserRepository, UserService};
 use uuid::Uuid;
 
 #[derive(Debug, Parser)]
@@ -64,7 +65,7 @@ fn unique(prefix: &str) -> (String, String) {
 #[tokio::test]
 async fn role_assign_replaces_roles() {
     let pool = pool().await;
-    let service = UserService::new(&pool).unwrap();
+    let service = UserService::new(Arc::new(UserRepository::new(&pool).unwrap()));
     let (n, e) = unique("assign");
     let user = service.create(&n, &e, None, None).await.unwrap();
 
@@ -103,7 +104,7 @@ async fn role_assign_unknown_user_errors() {
 #[tokio::test]
 async fn role_promote_then_repeat_reports_already_admin() {
     let pool = pool().await;
-    let service = UserService::new(&pool).unwrap();
+    let service = UserService::new(Arc::new(UserRepository::new(&pool).unwrap()));
     let (n, e) = unique("promote");
     let user = service.create(&n, &e, None, None).await.unwrap();
 
@@ -140,7 +141,7 @@ async fn role_promote_unknown_user_errors() {
 #[tokio::test]
 async fn role_demote_admin_and_non_admin_paths() {
     let pool = pool().await;
-    let service = UserService::new(&pool).unwrap();
+    let service = UserService::new(Arc::new(UserRepository::new(&pool).unwrap()));
     let (n, e) = unique("demote");
     let user = service.create(&n, &e, None, None).await.unwrap();
 
@@ -191,7 +192,7 @@ async fn role_commands_require_full_profile_context() {
 async fn delete_requires_confirmation() {
     let pool = pool().await;
     let ctx = ctx(&pool);
-    let service = UserService::new(&pool).unwrap();
+    let service = UserService::new(Arc::new(UserRepository::new(&pool).unwrap()));
     let (n, e) = unique("delconfirm");
     let user = service.create(&n, &e, None, None).await.unwrap();
 
@@ -230,7 +231,7 @@ async fn delete_of_an_unknown_reference_reports_not_found() {
 #[tokio::test]
 async fn delete_removes_user() {
     let pool = pool().await;
-    let service = UserService::new(&pool).unwrap();
+    let service = UserService::new(Arc::new(UserRepository::new(&pool).unwrap()));
     let (n, e) = unique("del");
     let user = service.create(&n, &e, None, None).await.unwrap();
 
@@ -256,7 +257,7 @@ async fn delete_unknown_user_errors() {
 #[tokio::test]
 async fn count_breakdown_reports_totals() {
     let pool = pool().await;
-    let service = UserService::new(&pool).unwrap();
+    let service = UserService::new(Arc::new(UserRepository::new(&pool).unwrap()));
     let (n, e) = unique("count");
     let user = service.create(&n, &e, None, None).await.unwrap();
 
@@ -272,7 +273,7 @@ async fn count_breakdown_reports_totals() {
 #[tokio::test]
 async fn session_list_recent_and_active_for_seeded_user() {
     let pool = pool().await;
-    let service = UserService::new(&pool).unwrap();
+    let service = UserService::new(Arc::new(UserRepository::new(&pool).unwrap()));
     let (n, e) = unique("seslist");
     let user = service.create(&n, &e, None, None).await.unwrap();
     create_local_session_row(
@@ -321,7 +322,7 @@ async fn session_cleanup_requires_confirmation() {
 #[tokio::test]
 async fn session_cleanup_deletes_old_anonymous_users() {
     let pool = pool().await;
-    let service = UserService::new(&pool).unwrap();
+    let service = UserService::new(Arc::new(UserRepository::new(&pool).unwrap()));
     let fingerprint = format!("fp-{}", Uuid::new_v4().simple());
     let anon = service.create_anonymous(&fingerprint).await.unwrap();
     sqlx::query("UPDATE users SET created_at = NOW() - INTERVAL '90 days' WHERE id = $1")

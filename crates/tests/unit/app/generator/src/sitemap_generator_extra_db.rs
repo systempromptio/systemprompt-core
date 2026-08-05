@@ -112,7 +112,7 @@ async fn generate_sitemap_skips_disabled_sources_and_disabled_sitemaps() {
     seed(&db, &SourceId::new(nos.as_str()), "nositemap-post", "en").await;
 
     install_config(boot, tag);
-    generate_sitemap(db.clone(), &boot.app_paths)
+    generate_sitemap(content_repo(&db), &boot.app_paths)
         .await
         .expect("generate_sitemap");
 
@@ -146,7 +146,7 @@ async fn generate_sitemap_excludes_unsupported_locales_from_alternates() {
     seed(&db, &SourceId::new(tag), "multi-locale-post", "de").await;
 
     install_config(boot, tag);
-    generate_sitemap(db.clone(), &boot.app_paths)
+    generate_sitemap(content_repo(&db), &boot.app_paths)
         .await
         .expect("generate_sitemap");
 
@@ -177,11 +177,16 @@ async fn generate_sitemap_with_closed_pool_is_fetch_error() {
     }
 
     install_config(boot, "smapextraclosed");
-    let err = generate_sitemap(closed_db_pool().await, &boot.app_paths)
+    let closed = closed_db_pool().await;
+    let err = generate_sitemap(content_repo(&closed), &boot.app_paths)
         .await
         .expect_err("closed pool must fail sitemap fetch");
     assert!(
         matches!(err, PublishError::FetchFailed { .. }),
         "unexpected error: {err:?}"
     );
+}
+
+fn content_repo(pool: &systemprompt_database::DbPool) -> systemprompt_content::ContentRepository {
+    systemprompt_content::ContentRepository::new(pool).expect("content repository")
 }

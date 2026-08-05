@@ -39,8 +39,8 @@ pub async fn execute(args: DeleteArgs, ctx: &CommandContext) -> Result<CommandOu
         &ctx.cli,
     )?;
 
-    let pool = ctx.db_pool().await?;
-    let service = LinkGenerationService::new(&pool)?;
+    let service =
+        LinkGenerationService::new(ctx.app_context().await?.content_repositories().link.clone());
 
     service
         .get_link_by_id(&link_id)

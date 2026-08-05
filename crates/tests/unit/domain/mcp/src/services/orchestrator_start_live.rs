@@ -158,8 +158,13 @@ async fn live_server(prefix: &str) -> Option<LiveServer> {
         .ok()?,
     );
     let repo = ServiceRepository::new(&db).ok()?;
-    let orchestrator =
-        McpOrchestrator::new(db, app_paths, RegistryService::new(fixture_user_id())).ok()?;
+    let orchestrator = McpOrchestrator::new(
+        db,
+        repo.clone(),
+        app_paths,
+        RegistryService::new(fixture_user_id()),
+    )
+    .ok()?;
 
     Some(LiveServer {
         orchestrator,

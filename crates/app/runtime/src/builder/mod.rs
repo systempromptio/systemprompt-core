@@ -140,6 +140,7 @@ impl AppContextBuilder {
             content_config,
             route_classifier,
             analytics_service,
+            analytics_repositories,
             fingerprint_repo,
         } = assembly::assemble_content_analytics(
             &config,
@@ -148,13 +149,15 @@ impl AppContextBuilder {
             self.show_startup_warnings,
         )?;
 
-        let user_service = Arc::new(UserService::new(&database)?);
+        let repositories = build_repositories(&database, analytics_repositories)?;
 
-        let repositories = build_repositories(&database, &analytics_service)?;
+        let user_service = Arc::new(UserService::new(Arc::clone(&repositories.users)));
 
         let system_admin =
             assembly::resolve_and_install_system_admin(&config, &user_service).await?;
         let mcp_registry = RegistryService::new(system_admin.id().clone());
+
+        ensure_legacy_context(&repositories, &system_admin).await?;
 
         let marketplace_filter = self
             .marketplace_filter
@@ -200,6 +203,27 @@ impl AppContextBuilder {
     }
 }
 
+async fn ensure_legacy_context(
+    repositories: &RepositoryBundles,
+    system_admin: &systemprompt_models::services::SystemAdmin,
+) -> RuntimeResult<()> {
+    repositories
+        .a2a
+        .contexts
+        .ensure_context(
+            &systemprompt_traits::EnsureContextParams {
+                context_id: &systemprompt_identifiers::ContextId::legacy(),
+                user_id: system_admin.id(),
+                session_id: None,
+                name: "Legacy (pre-context)",
+                kind: systemprompt_models::ContextKind::Legacy.as_str(),
+            },
+            systemprompt_models::ContextKind::Legacy,
+        )
+        .await
+        .map_err(|e| crate::error::RuntimeError::Internal(e.to_string()))
+}
+
 struct RepositoryBundles {
     a2a: Arc<systemprompt_agent::repository::A2ARepositories>,
     content: Arc<systemprompt_content::repository::ContentRepositories>,
@@ -214,10 +238,10 @@ struct RepositoryBundles {
 
 fn build_repositories(
     database: &systemprompt_database::DbPool,
-    analytics_service: &Arc<systemprompt_analytics::AnalyticsService>,
+    analytics: Arc<systemprompt_analytics::repository::AnalyticsRepositories>,
 ) -> RuntimeResult<RepositoryBundles> {
     let session_usage: systemprompt_traits::DynSessionUsageCounters =
-        Arc::new(analytics_service.session_repo().clone());
+        Arc::new(analytics.sessions.clone());
     Ok(RepositoryBundles {
         a2a: Arc::new(systemprompt_agent::repository::A2ARepositories::new(
             database,
@@ -232,9 +256,7 @@ fn build_repositories(
         users: Arc::new(systemprompt_users::UserRepository::new(database)?),
         services: Arc::new(systemprompt_database::ServiceRepository::new(database)?),
         ai: Arc::new(systemprompt_ai::repository::AiRepositories::new(database)?),
-        analytics: Arc::new(
-            systemprompt_analytics::repository::AnalyticsRepositories::new(database)?,
-        ),
+        analytics,
         files: Arc::new(systemprompt_files::FileRepository::new(database)?),
         mcp_sessions: Arc::new(systemprompt_mcp::repository::McpSessionRepository::new(
             database,

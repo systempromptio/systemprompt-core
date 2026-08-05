@@ -5,7 +5,8 @@
 
 use anyhow::{Result, anyhow};
 use clap::Args;
-use systemprompt_users::{UserAdminService, UserService};
+use std::sync::Arc;
+use systemprompt_users::{UserAdminService, UserRepository, UserService};
 
 use crate::commands::admin::users::types::RoleAssignOutput;
 use crate::context::CommandContext;
@@ -22,7 +23,7 @@ pub struct AssignArgs {
 
 pub(super) async fn execute(args: AssignArgs, ctx: &CommandContext) -> Result<CommandOutput> {
     let pool = ctx.db_pool().await?;
-    let user_service = UserService::new(&pool)?;
+    let user_service = UserService::new(Arc::new(UserRepository::new(&pool)?));
     let admin_service = UserAdminService::new(user_service.clone());
 
     if args.roles.is_empty() {

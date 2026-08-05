@@ -33,17 +33,17 @@ pub struct StreamState {
     pub context_provider: Arc<ContextProviderService>,
 }
 
-pub fn stream_router(ctx: &AppContext) -> anyhow::Result<Router> {
-    let context_provider = ContextProviderService::new(ctx.db_pool())?;
+pub fn stream_router(ctx: &AppContext) -> Router {
+    let context_provider = ContextProviderService::new(ctx.a2a_repositories().contexts.clone());
     let state = StreamState {
         context_provider: Arc::new(context_provider),
     };
 
-    Ok(Router::new()
+    Router::new()
         .route("/contexts", get(contexts::stream_context_state))
         .route("/agui", get(stream_agui_events))
         .route("/a2a", get(stream_a2a_events))
-        .with_state(state))
+        .with_state(state)
 }
 
 pub async fn stream_a2a_events(

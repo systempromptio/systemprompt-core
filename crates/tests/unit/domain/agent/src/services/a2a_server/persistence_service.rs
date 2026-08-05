@@ -2,8 +2,9 @@
 // create/update round trips, and persisting a completed task with messages —
 // including artifact publishing and the already-published skip.
 
+use std::sync::Arc;
+
 use systemprompt_agent::models::a2a::{Artifact, Message, MessageRole, Part, TaskState, TextPart};
-use systemprompt_agent::repository::task::TaskRepository;
 use systemprompt_agent::services::a2a_server::processing::persistence_service::{
     PersistCompletedTaskServiceParams, PersistenceService,
 };
@@ -85,10 +86,7 @@ async fn create_task_and_update_state_round_trip() {
     let (user, session) = seed_user_and_session(&pool).await;
     let (ctx, _) = seed_context_and_task(&repos, &user, &session).await;
 
-    let service = PersistenceService::new(
-        pool.clone(),
-        TaskRepository::new(&pool, crate::session_usage(&pool)).expect("task repo"),
-    );
+    let service = PersistenceService::new(Arc::new(crate::repository::repos(&pool)));
     let task_id = TaskId::generate();
     let task = PersistenceService::build_initial_task(task_id.clone(), ctx.clone(), "svc-agent");
     let request = request_context(&ctx, &session, &user, "svc-agent");
@@ -123,10 +121,7 @@ async fn persist_completed_task_saves_messages_and_publishes_artifacts() {
     let (user, session) = seed_user_and_session(&pool).await;
     let (ctx, task_id) = seed_context_and_task(&repos, &user, &session).await;
 
-    let service = PersistenceService::new(
-        pool.clone(),
-        TaskRepository::new(&pool, crate::session_usage(&pool)).expect("task repo"),
-    );
+    let service = PersistenceService::new(Arc::new(crate::repository::repos(&pool)));
     let request = request_context(&ctx, &session, &user, "svc-agent");
 
     let user_msg = message(&ctx, &task_id, MessageRole::User, "question");
@@ -164,10 +159,7 @@ async fn persist_completed_task_skips_publishing_when_already_published() {
     let (user, session) = seed_user_and_session(&pool).await;
     let (ctx, task_id) = seed_context_and_task(&repos, &user, &session).await;
 
-    let service = PersistenceService::new(
-        pool.clone(),
-        TaskRepository::new(&pool, crate::session_usage(&pool)).expect("task repo"),
-    );
+    let service = PersistenceService::new(Arc::new(crate::repository::repos(&pool)));
     let request = request_context(&ctx, &session, &user, "svc-agent");
 
     let user_msg = message(&ctx, &task_id, MessageRole::User, "q2");

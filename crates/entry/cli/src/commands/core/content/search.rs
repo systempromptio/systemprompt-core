@@ -8,7 +8,7 @@ use crate::cli_settings::CliConfig;
 use crate::shared::CommandOutput;
 use anyhow::Result;
 use clap::Args;
-use systemprompt_content::{SearchFilters, SearchRequest, SearchService};
+use systemprompt_content::{ContentRepositories, SearchFilters, SearchRequest, SearchService};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::CategoryId;
 
@@ -38,7 +38,8 @@ pub async fn execute_with_pool(
     pool: &DbPool,
     _config: &CliConfig,
 ) -> Result<CommandOutput> {
-    let service = SearchService::new(pool)?;
+    let repositories = ContentRepositories::new(pool)?;
+    let service = SearchService::new(repositories.search, repositories.content);
 
     let filters = args.category.as_ref().map(|cat| SearchFilters {
         category_id: Some(CategoryId::new(cat.clone())),

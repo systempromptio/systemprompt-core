@@ -23,7 +23,11 @@ async fn make_db_service() -> Option<(DatabaseService, systemprompt_database::Db
         AppPaths::from_profile(&paths, systemprompt_models::PathResolution::Canonicalize).ok()?,
     );
     let registry = RegistryService::new(fixture_user_id());
-    let svc = DatabaseService::new(&db, app_paths, registry).expect("db service");
+    let svc = DatabaseService::new(
+        systemprompt_database::ServiceRepository::new(&db).expect("service repository"),
+        app_paths,
+        registry,
+    );
     Some((svc, db))
 }
 

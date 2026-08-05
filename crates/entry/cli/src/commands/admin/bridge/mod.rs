@@ -17,9 +17,10 @@ use crate::context::CommandContext;
 use crate::shared::render_result;
 use anyhow::{Result, anyhow};
 use clap::Subcommand;
+use std::sync::Arc;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::UserId;
-use systemprompt_users::{UserAdminService, UserService};
+use systemprompt_users::{UserAdminService, UserRepository, UserService};
 
 pub(super) async fn resolve_user_id(pool: &DbPool, reference: &UserId) -> Result<UserId> {
     let reference = reference.as_str().trim();
@@ -27,7 +28,8 @@ pub(super) async fn resolve_user_id(pool: &DbPool, reference: &UserId) -> Result
         return Err(anyhow!("user_id cannot be empty"));
     }
 
-    let admin_service = UserAdminService::new(UserService::new(pool)?);
+    let admin_service =
+        UserAdminService::new(UserService::new(Arc::new(UserRepository::new(pool)?)));
     admin_service
         .find_user(reference)
         .await?

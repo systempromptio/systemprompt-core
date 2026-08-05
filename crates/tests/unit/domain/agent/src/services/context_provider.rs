@@ -2,6 +2,7 @@
 // lifecycle against a real database: create, list-with-stats, get, rename,
 // and delete, plus the NotFound mapping for lookups of unknown contexts.
 
+use systemprompt_agent::repository::ContextRepository;
 use systemprompt_agent::services::ContextProviderService;
 use systemprompt_identifiers::ContextId;
 use systemprompt_traits::{ContextProvider, ContextProviderError};
@@ -14,7 +15,8 @@ async fn context_lifecycle_roundtrip() {
         return;
     };
     let (user, session) = seed_user_and_session(&pool).await;
-    let provider = ContextProviderService::new(&pool).expect("provider");
+    let provider =
+        ContextProviderService::new(ContextRepository::new(&pool).expect("context repo"));
 
     let ctx_id = provider
         .create_context(&user, Some(&session), "provider ctx")
@@ -63,7 +65,8 @@ async fn unknown_context_lookups_map_to_not_found() {
         return;
     };
     let (user, _session) = seed_user_and_session(&pool).await;
-    let provider = ContextProviderService::new(&pool).expect("provider");
+    let provider =
+        ContextProviderService::new(ContextRepository::new(&pool).expect("context repo"));
     let ghost = ContextId::generate();
 
     let get = provider.get_context(&ghost, &user).await;

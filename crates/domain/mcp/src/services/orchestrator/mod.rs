@@ -8,7 +8,7 @@
 
 use crate::error::McpDomainResult;
 use std::sync::Arc;
-use systemprompt_database::DbPool;
+use systemprompt_database::{DbPool, ServiceRepository};
 use systemprompt_models::AppPaths;
 use systemprompt_traits::StartupEventSender;
 
@@ -56,13 +56,14 @@ impl McpOrchestrator {
     )]
     pub fn new(
         db_pool: DbPool,
+        service_repo: ServiceRepository,
         app_paths: Arc<AppPaths>,
         registry: RegistryService,
     ) -> McpDomainResult<Self> {
         let mut event_bus = EventBus::new(100);
 
         registry.validate()?;
-        let database = DatabaseService::new(&db_pool, Arc::clone(&app_paths), registry.clone())?;
+        let database = DatabaseService::new(service_repo, Arc::clone(&app_paths), registry.clone());
         let network = NetworkService::new();
         let process = ProcessService::new();
         let monitoring = MonitoringService::new();

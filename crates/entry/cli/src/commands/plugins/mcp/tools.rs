@@ -48,6 +48,7 @@ pub(super) async fn execute(args: ToolsArgs, ctx: &CommandContext) -> Result<Com
 
     let manager = McpOrchestrator::new(
         Arc::clone(ctx.db_pool()),
+        (**ctx.service_repository()).clone(),
         Arc::clone(ctx.app_paths_arc()),
         ctx.mcp_registry().clone(),
     )

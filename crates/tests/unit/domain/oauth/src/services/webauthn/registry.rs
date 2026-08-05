@@ -57,6 +57,10 @@ impl UserProvider for NoopUsers {
     ) -> AuthResult<UserId> {
         Ok(UserId::new("user_registry_fed"))
     }
+
+    async fn promote_anonymous(&self, _source: &UserId, _target: &UserId) -> AuthResult<u64> {
+        Ok(0)
+    }
 }
 
 #[tokio::test]

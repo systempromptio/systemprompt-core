@@ -5,7 +5,8 @@
 
 use anyhow::{Result, anyhow};
 use clap::Args;
-use systemprompt_users::{UserAdminService, UserService, UserStatus};
+use std::sync::Arc;
+use systemprompt_users::{UserAdminService, UserRepository, UserService, UserStatus};
 
 use super::list::StatusFilter;
 use super::types::UserUpdatedOutput;
@@ -35,7 +36,7 @@ pub struct UpdateArgs {
 
 pub(super) async fn execute(args: UpdateArgs, ctx: &CommandContext) -> Result<CommandOutput> {
     let pool = ctx.db_pool().await?;
-    let user_service = UserService::new(&pool)?;
+    let user_service = UserService::new(Arc::new(UserRepository::new(&pool)?));
     let admin_service = UserAdminService::new(user_service.clone());
 
     let existing = admin_service.find_user(&args.user).await?;

@@ -5,7 +5,7 @@
 use systemprompt_identifiers::{ClientId, UserId};
 use systemprompt_oauth::error::OauthError;
 use systemprompt_oauth::models::cimd::ClientValidation;
-use systemprompt_oauth::repository::{ClientRepository, CreateClientParams};
+use systemprompt_oauth::repository::{ClientRepository, CreateClientParams, OAuthRepository};
 use systemprompt_oauth::services::cimd::{CimdFetcher, ClientValidator};
 use systemprompt_oauth::services::hash_client_secret;
 use systemprompt_test_fixtures::{
@@ -17,7 +17,8 @@ async fn setup() -> Option<(systemprompt_database::DbPool, ClientValidator)> {
     let url = fixture_database_url().ok()?;
     ensure_test_bootstrap();
     let pool = fixture_db_pool(&url).await.expect("pool");
-    let validator = ClientValidator::new(&pool).expect("validator");
+    let validator =
+        ClientValidator::new(OAuthRepository::new(&pool).expect("oauth repo")).expect("validator");
     Some((pool, validator))
 }
 

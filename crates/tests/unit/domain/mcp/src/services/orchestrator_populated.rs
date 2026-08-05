@@ -45,7 +45,8 @@ async fn orchestrator_with_config(blocks: &[String]) -> Option<McpOrchestrator> 
         .ok()?,
     );
     let registry = RegistryService::new(fixture_user_id());
-    McpOrchestrator::new(db, app_paths, registry).ok()
+    let service_repo = ServiceRepository::new(&db).ok()?;
+    McpOrchestrator::new(db, service_repo, app_paths, registry).ok()
 }
 
 fn unique(prefix: &str) -> String {

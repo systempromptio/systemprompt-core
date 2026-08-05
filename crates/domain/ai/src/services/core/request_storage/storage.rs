@@ -10,7 +10,9 @@ use crate::models::RequestStatus;
 use crate::models::ai::{AiRequest, AiResponse};
 use crate::repository::{AiRequestPayloadRepository, AiRequestRepository};
 use systemprompt_models::RequestContext;
-use systemprompt_traits::{AnalyticsEventPublisher, DynAiSessionProvider};
+use systemprompt_traits::{
+    AnalyticsEventPublisher, DynAiSessionProvider, DynContextMaterializer, EnsureContextParams,
+};
 
 use super::record_builder::{
     BuildRecordParams, build_record, extract_messages, extract_tool_calls,
@@ -36,6 +38,7 @@ pub struct RequestStorage {
     payload_repo: AiRequestPayloadRepository,
     session_provider: DynAiSessionProvider,
     event_publisher: Option<Arc<dyn AnalyticsEventPublisher>>,
+    context_materializer: Option<DynContextMaterializer>,
 }
 
 impl std::fmt::Debug for RequestStorage {
@@ -61,11 +64,17 @@ impl RequestStorage {
             payload_repo,
             session_provider,
             event_publisher: None,
+            context_materializer: None,
         }
     }
 
     pub fn with_event_publisher(mut self, publisher: Arc<dyn AnalyticsEventPublisher>) -> Self {
         self.event_publisher = Some(publisher);
+        self
+    }
+
+    pub fn with_context_materializer(mut self, materializer: DynContextMaterializer) -> Self {
+        self.context_materializer = Some(materializer);
         self
     }
 
@@ -88,6 +97,24 @@ impl RequestStorage {
 
         if let Some(session_id) = session_id.as_ref() {
             touch_session(self.session_provider.as_ref(), session_id, &user_id).await;
+        }
+
+        if let Some(materializer) = self.context_materializer.as_ref()
+            && let Err(e) = materializer
+                .ensure_context(EnsureContextParams {
+                    context_id: &record.context_id,
+                    user_id: &user_id,
+                    session_id: session_id.as_ref(),
+                    name: params.context.agent_name().as_str(),
+                    kind: "derived",
+                })
+                .await
+        {
+            tracing::warn!(
+                error = %e,
+                context_id = %record.context_id,
+                "Could not materialize the derived context; storing the request anyway"
+            );
         }
 
         let db_id = store_request(&self.ai_request_repo, &record).await?;

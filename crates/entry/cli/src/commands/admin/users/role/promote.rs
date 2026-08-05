@@ -5,7 +5,8 @@
 
 use anyhow::{Result, anyhow};
 use clap::Args;
-use systemprompt_users::{PromoteResult, UserAdminService, UserService};
+use std::sync::Arc;
+use systemprompt_users::{PromoteResult, UserAdminService, UserRepository, UserService};
 
 use crate::commands::admin::users::types::RoleAssignOutput;
 use crate::context::CommandContext;
@@ -18,7 +19,7 @@ pub struct PromoteArgs {
 
 pub(super) async fn execute(args: PromoteArgs, ctx: &CommandContext) -> Result<CommandOutput> {
     let pool = ctx.db_pool().await?;
-    let user_service = UserService::new(&pool)?;
+    let user_service = UserService::new(Arc::new(UserRepository::new(&pool)?));
     let admin_service = UserAdminService::new(user_service);
 
     match admin_service.promote_to_admin(&args.identifier).await? {

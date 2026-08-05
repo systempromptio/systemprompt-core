@@ -138,6 +138,10 @@ impl UserProvider for MockUserProvider {
     ) -> AuthResult<UserId> {
         Ok(fixture_user_id())
     }
+
+    async fn promote_anonymous(&self, _source: &UserId, _target: &UserId) -> AuthResult<u64> {
+        Ok(0)
+    }
 }
 
 struct MockEventPublisher {

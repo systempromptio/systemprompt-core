@@ -5,7 +5,9 @@
 use std::collections::BTreeMap;
 
 use chrono::{Duration, Utc};
-use systemprompt_identifiers::{Actor, ClientId, ContextId, SessionId, TaskId, UserId};
+use systemprompt_identifiers::{
+    Actor, AgentName, ClientId, ContextId, SessionId, TaskId, TraceId, UserId,
+};
 use systemprompt_mcp::middleware::rbac::build_mcp_authz_request;
 use systemprompt_models::auth::{
     JwtAudience, JwtClaims, Permission, RateLimitTier, TokenType, UserType,
@@ -41,9 +43,14 @@ fn claims_with(roles: Vec<String>, attributes: BTreeMap<String, serde_json::Valu
 
 fn execution_with(context: &str, task: Option<&str>) -> ExecutionContext {
     ExecutionContext {
+        trace_id: TraceId::generate(),
         context_id: ContextId::new(context),
         task_id: task.map(TaskId::new),
-        ..ExecutionContext::default()
+        ai_tool_call_id: None,
+        mcp_execution_id: None,
+        call_source: None,
+        agent_name: AgentName::system(),
+        tool_model_config: None,
     }
 }
 

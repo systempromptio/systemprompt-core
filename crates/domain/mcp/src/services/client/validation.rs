@@ -128,7 +128,7 @@ async fn connect_and_validate(
     let context = RequestContext::new(
         SessionId::new(format!("mcp-validate-{service_name}")),
         TraceId::generate(),
-        ContextId::generate(),
+        ContextId::derived_from_mcp_validation(service_name),
         AgentName::system(),
     );
     let config = StreamableHttpClientTransportConfig::with_uri(url);

@@ -15,7 +15,7 @@ use systemprompt_config::{ProfileBootstrap, SecretsBootstrap};
 use systemprompt_database::{Database, DbPool};
 use systemprompt_logging::CliService;
 use systemprompt_oauth::services::plugin_token::{PluginTokenService, PluginTokenSubject};
-use systemprompt_users::UserService;
+use systemprompt_users::{UserRepository, UserService};
 
 use crate::shared::CommandOutput;
 
@@ -77,7 +77,7 @@ pub(super) async fn execute(args: IssuePluginTokenArgs) -> Result<CommandOutput>
         .context("Failed to connect to database")?;
     let db_pool = DbPool::from(Arc::new(db));
 
-    let user_service = UserService::new(&db_pool)?;
+    let user_service = UserService::new(Arc::new(UserRepository::new(&db_pool)?));
     let user = user_service
         .find_by_email(&email)
         .await

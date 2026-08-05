@@ -56,7 +56,8 @@ impl MessageProcessor {
 
         let context_id = &message.context_id;
 
-        self.context_repo
+        self.repositories
+            .contexts
             .get_context(context_id, context.user_id())
             .await
             .map_err(|e| {
@@ -142,7 +143,8 @@ impl MessageProcessor {
         context: &RequestContext,
     ) -> Result<()> {
         if let Err(e) = self
-            .task_repo
+            .repositories
+            .tasks
             .create_task(crate::repository::task::RepoCreateTaskParams {
                 task,
                 user_id: &UserId::new(context.user_id().as_str()),
@@ -171,7 +173,8 @@ impl MessageProcessor {
 
         let working_timestamp = chrono::Utc::now();
         if let Err(e) = self
-            .task_repo
+            .repositories
+            .tasks
             .update_task_state(&task.id, TaskState::Working, &working_timestamp)
             .await
         {
@@ -194,8 +197,7 @@ impl MessageProcessor {
                 user_message,
                 agent_message,
                 context,
-                task_repo: &self.task_repo,
-                db_pool: &self.db_pool,
+                repositories: &self.repositories,
                 artifacts_already_published: false,
             },
         )
@@ -209,7 +211,8 @@ impl MessageProcessor {
 
         let failed_timestamp = chrono::Utc::now();
         if let Err(update_err) = self
-            .task_repo
+            .repositories
+            .tasks
             .update_task_failed_with_error(&task.id, &error_msg, &failed_timestamp)
             .await
         {

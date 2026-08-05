@@ -24,6 +24,7 @@ use systemprompt_test_fixtures::{
 use crate::config_error_db::web_config_yaml_with_templates_path;
 use crate::ext_fixtures::{GEN_REQUIRED_ASSET_DEST, GEN_REQUIRED_ASSET_SOURCE};
 
+
 static SERIALIZE: Mutex<()> = Mutex::new(());
 
 fn content_config_yaml(source_id: &str) -> String {
@@ -161,7 +162,7 @@ async fn prerender_runs_fixture_components_extenders_and_enrichment() {
     )
     .expect("write template");
 
-    prerender_content(db.clone(), &boot.app_paths)
+    prerender_content(db.clone(), content_repo(&db), &boot.app_paths)
         .await
         .expect("prerender_content");
 
@@ -203,7 +204,7 @@ async fn prerender_pages_renders_fixture_page_with_provider_data() {
     )
     .expect("write covgenpage template");
 
-    let results = prerender_pages(db.clone(), &boot.app_paths)
+    let results = prerender_pages(db.clone(), content_repo(&db), &boot.app_paths)
         .await
         .expect("prerender_pages");
 
@@ -243,7 +244,7 @@ async fn prerender_empty_source_retries_then_renders_nothing() {
     let _ = repo.delete_by_source(&source_id).await;
 
     install_config(boot, "extpipeempty");
-    prerender_content(db.clone(), &boot.app_paths)
+    prerender_content(db.clone(), content_repo(&db), &boot.app_paths)
         .await
         .expect("empty source must complete without error");
     assert!(
@@ -275,7 +276,7 @@ async fn generate_sitemap_chunks_into_index_when_over_url_limit() {
     .expect("bulk insert 50001 rows");
 
     install_config(boot, "extpipebulk");
-    let result = generate_sitemap(db.clone(), &boot.app_paths).await;
+    let result = generate_sitemap(content_repo(&db), &boot.app_paths).await;
 
     sqlx::query("DELETE FROM markdown_content WHERE source_id = 'extpipebulk'")
         .execute(pool.as_ref())
@@ -349,4 +350,8 @@ async fn validate_build_skips_unparseable_sitemap_urls() {
     orch.validate_only()
         .await
         .expect("unparseable url is skipped, parseable root url resolves to index.html");
+}
+
+fn content_repo(pool: &systemprompt_database::DbPool) -> systemprompt_content::ContentRepository {
+    systemprompt_content::ContentRepository::new(pool).expect("content repository")
 }

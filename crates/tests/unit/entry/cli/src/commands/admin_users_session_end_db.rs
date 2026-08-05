@@ -3,12 +3,13 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use clap::Parser;
+use std::sync::Arc;
 use systemprompt_cli::admin::users::{self, UsersCommands};
 use systemprompt_cli::session::api::{DEFAULT_CLI_SESSION_HOURS, create_local_session_row};
 use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
 use systemprompt_database::DbPool;
 use systemprompt_test_fixtures::{fixture_app_context, fixture_database_url, fixture_db_pool};
-use systemprompt_users::UserService;
+use systemprompt_users::{UserRepository, UserService};
 use uuid::Uuid;
 
 #[derive(Debug, Parser)]
@@ -51,7 +52,7 @@ fn unique(prefix: &str) -> (String, String) {
 #[tokio::test]
 async fn end_specific_session_succeeds() {
     let pool = pool().await;
-    let service = UserService::new(&pool).unwrap();
+    let service = UserService::new(Arc::new(UserRepository::new(&pool).unwrap()));
     let (n, e) = unique("sesend");
     let user = service.create(&n, &e, None, None).await.unwrap();
     let session_id = create_local_session_row(
@@ -86,7 +87,7 @@ async fn end_unknown_session_reports_not_found() {
 #[tokio::test]
 async fn end_all_sessions_for_user() {
     let pool = pool().await;
-    let service = UserService::new(&pool).unwrap();
+    let service = UserService::new(Arc::new(UserRepository::new(&pool).unwrap()));
     let (n, e) = unique("sesall");
     let user = service.create(&n, &e, None, None).await.unwrap();
     create_local_session_row(

@@ -1,8 +1,9 @@
 //! DB-backed tests for `UserService` create/lookup/update/delete operations.
 
+use std::sync::Arc;
 use systemprompt_identifiers::UserId;
 use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_database_url, fixture_db_pool};
-use systemprompt_users::{UpdateUserParams, UserService, UserStatus};
+use systemprompt_users::{UpdateUserParams, UserRepository, UserService, UserStatus};
 use uuid::Uuid;
 
 struct Ctx {
@@ -13,7 +14,9 @@ async fn setup() -> Option<Ctx> {
     let url = fixture_database_url().ok()?;
     ensure_test_bootstrap();
     let pool = fixture_db_pool(&url).await.expect("pool");
-    let service = UserService::new(&pool).expect("service");
+    let service = UserService::new(Arc::new(
+        UserRepository::new(&pool).expect("user repository"),
+    ));
     Some(Ctx { service })
 }
 

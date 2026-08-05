@@ -86,9 +86,8 @@ pub struct AnalyticsMiddleware {
 
 impl AnalyticsMiddleware {
     pub fn new(app_context: &AppContext) -> anyhow::Result<Self> {
-        let db_pool = app_context.db_pool();
-        let session_repo = Arc::new(SessionRepository::new(db_pool)?);
-        let analytics_repo = Arc::new(AnalyticsRepository::new(db_pool)?);
+        let session_repo = Arc::new(app_context.analytics_repositories().sessions.clone());
+        let analytics_repo = Arc::new(AnalyticsRepository::new(app_context.db_pool())?);
         let route_classifier = Arc::clone(app_context.route_classifier());
 
         Ok(Self {

@@ -34,7 +34,13 @@ use super::common::setup_ctx;
 fn gw_repos(
     db: &systemprompt_database::DbPool,
 ) -> systemprompt_api::services::gateway::GatewayRepositories {
-    systemprompt_api::services::gateway::GatewayRepositories::new(db).expect("gateway repos")
+    systemprompt_api::services::gateway::GatewayRepositories::new(
+        db,
+        std::sync::Arc::new(systemprompt_agent::services::ContextProviderService::new(
+            systemprompt_agent::repository::ContextRepository::new(db).expect("context repository"),
+        )),
+    )
+    .expect("gateway repos")
 }
 
 async fn router_and_pool() -> Result<(Router, DbPool)> {

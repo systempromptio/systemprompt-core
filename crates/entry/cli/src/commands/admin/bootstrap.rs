@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use systemprompt_database::{Database, DbPool};
 use systemprompt_identifiers::UserId;
 use systemprompt_models::Config;
-use systemprompt_users::{User, UserRole, UserService, UserStatus};
+use systemprompt_users::{User, UserRepository, UserRole, UserService, UserStatus};
 
 use crate::CliConfig;
 use crate::shared::CommandOutput;
@@ -109,7 +109,7 @@ async fn connect_user_service() -> Result<UserService> {
         .await
         .context("Failed to connect to database")?,
     );
-    Ok(UserService::new(&database)?)
+    Ok(UserService::new(Arc::new(UserRepository::new(&database)?)))
 }
 
 async fn ensure_admin_role(user_service: &UserService, user: User) -> Result<User> {

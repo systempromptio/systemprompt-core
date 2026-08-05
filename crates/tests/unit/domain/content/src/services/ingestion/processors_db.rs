@@ -96,7 +96,7 @@ async fn ingest_runs_injected_frontmatter_processors() {
     let category = CategoryId::new("docs");
     let source = IngestionSource::new(&source_id, "docs", &category);
 
-    let service = IngestionService::new(&pool).expect("service");
+    let service = IngestionService::new(&pool, ContentRepository::new(&pool).expect("repo"));
     let report = service
         .ingest_directory(
             dir.path(),

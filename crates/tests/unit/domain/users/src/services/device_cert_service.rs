@@ -1,6 +1,7 @@
 //! DB-backed tests for `DeviceCertService` (enroll/verify/list/revoke plus
 //! fingerprint + label validation).
 
+use std::sync::Arc;
 use systemprompt_identifiers::{DeviceCertId, UserId};
 use systemprompt_test_fixtures::{
     ensure_test_bootstrap, fixture_database_url, fixture_db_pool, seed_user_row, unique_user_id,
@@ -19,7 +20,9 @@ async fn setup(prefix: &str) -> Option<Ctx> {
     let url = fixture_database_url().ok()?;
     ensure_test_bootstrap();
     let pool = fixture_db_pool(&url).await.expect("pool");
-    let service = DeviceCertService::new(&pool).expect("service");
+    let service = DeviceCertService::new(Arc::new(
+        UserRepository::new(&pool).expect("user repository"),
+    ));
     let repo = UserRepository::new(&pool).expect("repo");
     let user_id = unique_user_id(prefix);
     seed_user_row(

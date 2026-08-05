@@ -302,10 +302,13 @@ fn bridge_profile_routes(ctx: &AppContext, jwt_extractor: &Arc<JwtContextExtract
 
 pub fn gateway_router(ctx: &AppContext) -> Option<Router> {
     let jwt_extractor = build_jwt_extractor(ctx)?;
-    let gateway_repos = crate::services::gateway::GatewayRepositories::new(ctx.db_pool())
-        .inspect_err(|e| tracing::error!(error = %e, "Gateway repositories init failed"))
-        .ok()
-        .map(Arc::new)?;
+    let gateway_repos = crate::services::gateway::GatewayRepositories::new(
+        ctx.db_pool(),
+        ctx.context_materializer(),
+    )
+    .inspect_err(|e| tracing::error!(error = %e, "Gateway repositories init failed"))
+    .ok()
+    .map(Arc::new)?;
 
     Some(
         Router::new()

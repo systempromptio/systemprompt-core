@@ -9,14 +9,12 @@
 
 use crate::services::shared::{AgentServiceError, Result};
 use serde_json::json;
-use std::sync::Arc;
 
 use crate::models::a2a::{Artifact, Message, MessageRole, Part, TextPart};
 use crate::repository::content::ArtifactRepository;
 use crate::repository::execution::ExecutionStepRepository;
 use crate::repository::task::TaskRepository;
 use crate::services::{MessageService, SkillService};
-use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ContextId, McpExecutionId, MessageId, TaskId};
 use systemprompt_models::RequestContext;
 use systemprompt_models::execution::CallSource;
@@ -36,7 +34,7 @@ pub struct ArtifactPublishingService {
     artifact_repo: ArtifactRepository,
     skill_service: SkillService,
     message_service: MessageService,
-    execution_repo: Option<Arc<ExecutionStepRepository>>,
+    execution_repo: ExecutionStepRepository,
 }
 
 impl std::fmt::Debug for ArtifactPublishingService {
@@ -47,17 +45,13 @@ impl std::fmt::Debug for ArtifactPublishingService {
 }
 
 impl ArtifactPublishingService {
-    pub fn new(db_pool: &DbPool, task_repo: TaskRepository) -> Result<Self> {
-        let execution_repo = ExecutionStepRepository::new(db_pool)
-            .map(Arc::new)
-            .map_err(|e| {
-                tracing::debug!(error = %e, "ExecutionStepRepository not available, FK validation disabled");
-                e
-            })
-            .ok();
-
+    pub fn new(
+        artifact_repo: ArtifactRepository,
+        execution_repo: ExecutionStepRepository,
+        task_repo: TaskRepository,
+    ) -> Result<Self> {
         Ok(Self {
-            artifact_repo: ArtifactRepository::new(db_pool)?,
+            artifact_repo,
             skill_service: SkillService::new()?,
             message_service: MessageService::new(task_repo),
             execution_repo,
@@ -65,12 +59,11 @@ impl ArtifactPublishingService {
     }
 
     async fn execution_id_exists(&self, mcp_execution_id: &McpExecutionId) -> bool {
-        let Some(repo) = &self.execution_repo else {
-            tracing::warn!("ExecutionStepRepository not available for FK validation");
-            return false;
-        };
-
-        match repo.mcp_execution_id_exists(mcp_execution_id).await {
+        match self
+            .execution_repo
+            .mcp_execution_id_exists(mcp_execution_id)
+            .await
+        {
             Ok(exists) => exists,
             Err(e) => {
                 tracing::warn!(

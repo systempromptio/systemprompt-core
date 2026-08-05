@@ -7,7 +7,7 @@
 use super::xml::{RssChannel, RssItem, build_rss_xml};
 use std::path::Path;
 use std::sync::Arc;
-use systemprompt_database::DbPool;
+use systemprompt_content::ContentRepository;
 use systemprompt_models::{AppPaths, Config};
 use systemprompt_provider_contracts::{RssFeedContext, RssFeedProvider};
 use tokio::fs;
@@ -22,8 +22,8 @@ pub struct GeneratedFeed {
     pub item_count: usize,
 }
 
-pub async fn generate_feed(db_pool: DbPool, paths: &AppPaths) -> Result<()> {
-    let provider = DefaultRssFeedProvider::new(db_pool, paths).await?;
+pub async fn generate_feed(content_repo: ContentRepository, paths: &AppPaths) -> Result<()> {
+    let provider = DefaultRssFeedProvider::new(content_repo, paths).await?;
     let providers: Vec<Arc<dyn RssFeedProvider>> = vec![Arc::new(provider)];
     let feeds = generate_feed_with_providers(&providers).await?;
 

@@ -8,13 +8,13 @@ use std::sync::Arc;
 use crate::Result;
 use http::HeaderMap;
 
-use systemprompt_database::DbPool;
 use systemprompt_models::ContentRouting;
 use systemprompt_traits::{CreateSessionInput, ExtractSignals};
 
 use crate::GeoIpReader;
 use crate::repository::{
-    CostAnalyticsRepository, CreateSessionParams, SessionRecord, SessionRepository,
+    AnalyticsRepositories, CostAnalyticsRepository, CreateSessionParams, SessionRecord,
+    SessionRepository,
 };
 use crate::services::{SessionAnalytics, SessionAnalyticsBuilder};
 
@@ -39,16 +39,16 @@ impl std::fmt::Debug for AnalyticsService {
 
 impl AnalyticsService {
     pub fn new(
-        db_pool: &DbPool,
         geoip_reader: Option<GeoIpReader>,
         content_routing: Option<Arc<dyn ContentRouting>>,
-    ) -> Result<Self> {
-        Ok(Self {
+        repositories: &AnalyticsRepositories,
+    ) -> Self {
+        Self {
             geoip_reader,
             content_routing,
-            session_repo: SessionRepository::new(db_pool)?,
-            cost_repo: CostAnalyticsRepository::new(db_pool)?,
-        })
+            session_repo: repositories.sessions.clone(),
+            cost_repo: repositories.costs.clone(),
+        }
     }
 
     pub fn extract_analytics(

@@ -50,7 +50,7 @@ impl AgentState {
     }
 
     #[must_use]
-    pub fn repositories(&self) -> &A2ARepositories {
+    pub const fn repositories(&self) -> &Arc<A2ARepositories> {
         &self.repositories
     }
 }

@@ -1,6 +1,6 @@
 //! Task persistence for the processing pipeline.
 //!
-//! [`PersistenceService`] wraps [`TaskRepository`] to create tasks, update
+//! [`PersistenceService`] wraps the A2A repositories to create tasks, update
 //! their state, and persist a completed task together with its messages —
 //! publishing any attached artifacts unless they were already published
 //! upstream.
@@ -9,12 +9,13 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::services::shared::{AgentServiceError, Result};
-use systemprompt_database::DbPool;
+use std::sync::Arc;
 use systemprompt_identifiers::{SessionId, TaskId, TraceId, UserId};
 use systemprompt_models::{RequestContext, TaskMetadata};
 
 use crate::models::{Message, Task, TaskState, TaskStatus};
-use crate::repository::task::{TaskRepository, UpdateTaskAndSaveMessagesParams};
+use crate::repository::A2ARepositories;
+use crate::repository::task::UpdateTaskAndSaveMessagesParams;
 use crate::services::ArtifactPublishingService;
 
 #[derive(Debug)]
@@ -27,8 +28,7 @@ pub struct PersistCompletedTaskServiceParams<'a> {
 }
 
 pub struct PersistenceService {
-    db_pool: DbPool,
-    task_repo: TaskRepository,
+    repositories: Arc<A2ARepositories>,
 }
 
 impl std::fmt::Debug for PersistenceService {
@@ -38,8 +38,8 @@ impl std::fmt::Debug for PersistenceService {
 }
 
 impl PersistenceService {
-    pub const fn new(db_pool: DbPool, task_repo: TaskRepository) -> Self {
-        Self { db_pool, task_repo }
+    pub const fn new(repositories: Arc<A2ARepositories>) -> Self {
+        Self { repositories }
     }
 
     pub async fn create_task(
@@ -48,7 +48,8 @@ impl PersistenceService {
         context: &RequestContext,
         agent_name: &str,
     ) -> Result<()> {
-        self.task_repo
+        self.repositories
+            .tasks
             .create_task(crate::repository::task::RepoCreateTaskParams {
                 task,
                 user_id: &UserId::new(context.user_id().as_str()),
@@ -72,7 +73,8 @@ impl PersistenceService {
         state: TaskState,
         timestamp: &chrono::DateTime<chrono::Utc>,
     ) -> Result<()> {
-        self.task_repo
+        self.repositories
+            .tasks
             .update_task_state(task_id, state, timestamp)
             .await
             .map_err(|e| AgentServiceError::Internal(format!("Failed to update task state: {e}")))
@@ -90,7 +92,8 @@ impl PersistenceService {
             artifacts_already_published,
         } = params;
         let updated_task = self
-            .task_repo
+            .repositories
+            .tasks
             .update_task_and_save_messages(UpdateTaskAndSaveMessagesParams {
                 task,
                 user_message,
@@ -109,8 +112,11 @@ impl PersistenceService {
 
         if !artifacts_already_published && let Some(artifacts) = &task.artifacts {
             let context_id = &task.context_id;
-            let publishing_service =
-                ArtifactPublishingService::new(&self.db_pool, self.task_repo.clone())?;
+            let publishing_service = ArtifactPublishingService::new(
+                self.repositories.artifacts.clone(),
+                self.repositories.execution_steps.clone(),
+                self.repositories.tasks.clone(),
+            )?;
             for artifact in artifacts {
                 publishing_service
                     .publish_from_a2a(artifact, &task.id, context_id)

@@ -3,18 +3,15 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::error::OauthResult;
 use crate::repository::OAuthRepository;
 use crate::services::webauthn::{LinkStates, create_link_states};
 use std::sync::Arc;
-use systemprompt_database::DbPool;
 use systemprompt_traits::{
     AnalyticsProvider, FingerprintProvider, McpRegistryProvider, UserEventPublisher, UserProvider,
 };
 
 #[derive(Clone)]
 pub struct OAuthState {
-    db_pool: DbPool,
     oauth_repository: OAuthRepository,
     analytics_provider: Arc<dyn AnalyticsProvider>,
     user_provider: Arc<dyn UserProvider>,
@@ -27,7 +24,6 @@ pub struct OAuthState {
 impl std::fmt::Debug for OAuthState {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("OAuthState")
-            .field("db_pool", &"DbPool")
             .field("oauth_repository", &"OAuthRepository")
             .field("analytics_provider", &"<provider>")
             .field("user_provider", &"<provider>")
@@ -49,21 +45,21 @@ impl std::fmt::Debug for OAuthState {
 }
 
 impl OAuthState {
+    #[must_use]
     pub fn new(
-        db_pool: DbPool,
+        oauth_repository: OAuthRepository,
         analytics_provider: Arc<dyn AnalyticsProvider>,
         user_provider: Arc<dyn UserProvider>,
-    ) -> OauthResult<Self> {
-        Ok(Self {
-            oauth_repository: OAuthRepository::new(&db_pool)?,
-            db_pool,
+    ) -> Self {
+        Self {
+            oauth_repository,
             analytics_provider,
             user_provider,
             fingerprint_provider: None,
             event_publisher: None,
             mcp_registry: None,
             link_states: create_link_states(),
-        })
+        }
     }
 
     #[must_use]
@@ -86,10 +82,6 @@ impl OAuthState {
     pub fn with_event_publisher(mut self, publisher: Arc<dyn UserEventPublisher>) -> Self {
         self.event_publisher = Some(publisher);
         self
-    }
-
-    pub const fn db_pool(&self) -> &DbPool {
-        &self.db_pool
     }
 
     pub const fn oauth_repository(&self) -> &OAuthRepository {

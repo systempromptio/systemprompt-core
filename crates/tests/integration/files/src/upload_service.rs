@@ -43,8 +43,10 @@ async fn upload_service_new_and_is_enabled() {
     let _env = test_env();
     let files_config = FilesConfig::get().expect("FilesConfig::get").clone();
 
-    let service =
-        FileUploadService::new(&db, files_config).expect("FileUploadService::new should succeed");
+    let service = FileUploadService::new(
+        systemprompt_files::FileRepository::new(&db).expect("file repository"),
+        files_config,
+    );
     assert!(service.is_enabled(), "uploads should be enabled by default");
     let validator_ref = service.validator();
     let _ = format!("{validator_ref:?}");
@@ -63,7 +65,10 @@ async fn upload_service_uploads_png_successfully() {
     };
     let _env = test_env();
     let files_config = FilesConfig::get().expect("FilesConfig::get").clone();
-    let service = FileUploadService::new(&db, files_config).expect("service");
+    let service = FileUploadService::new(
+        systemprompt_files::FileRepository::new(&db).expect("file repository"),
+        files_config,
+    );
 
     let request = FileUploadRequest::builder(
         "image/png",
@@ -90,7 +95,10 @@ async fn upload_service_rejects_blocked_mime_type() {
     };
     let _env = test_env();
     let files_config = FilesConfig::get().expect("FilesConfig::get").clone();
-    let service = FileUploadService::new(&db, files_config).expect("service");
+    let service = FileUploadService::new(
+        systemprompt_files::FileRepository::new(&db).expect("file repository"),
+        files_config,
+    );
 
     let request = FileUploadRequest::builder(
         "application/x-msdownload",
@@ -111,7 +119,10 @@ async fn upload_service_rejects_oversized_base64() {
     };
     let _env = test_env();
     let files_config = FilesConfig::get().expect("FilesConfig::get").clone();
-    let service = FileUploadService::new(&db, files_config).expect("service");
+    let service = FileUploadService::new(
+        systemprompt_files::FileRepository::new(&db).expect("file repository"),
+        files_config,
+    );
 
     let huge = "A".repeat(120 * 1024 * 1024);
     let request = FileUploadRequest::builder("image/png", huge, unique_context_id("over")).build();
@@ -128,7 +139,10 @@ async fn upload_service_rejects_unknown_mime_type() {
     };
     let _env = test_env();
     let files_config = FilesConfig::get().expect("FilesConfig::get").clone();
-    let service = FileUploadService::new(&db, files_config).expect("service");
+    let service = FileUploadService::new(
+        systemprompt_files::FileRepository::new(&db).expect("file repository"),
+        files_config,
+    );
 
     let request = FileUploadRequest::builder(
         "application/x-totally-fake",

@@ -44,8 +44,7 @@ pub fn build_canceled_task(task_id: TaskId, context_id: ContextId) -> Task {
 }
 
 pub fn build_mock_task(task_id: TaskId) -> Task {
-    let mock_context_id = ContextId::generate();
-    TaskBuilder::new(mock_context_id)
+    TaskBuilder::new(ContextId::derived_from_task(&task_id))
         .with_task_id(task_id)
         .with_state(TaskState::Completed)
         .with_response_text("Task completed successfully.".to_owned())

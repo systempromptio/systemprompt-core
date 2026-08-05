@@ -7,8 +7,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_database::DbPool;
-
+use crate::repository::agent_service::AgentServiceRepository;
 use crate::services::agent_orchestration::database::AgentDatabaseService;
 use crate::services::agent_orchestration::{OrchestrationResult, process};
 
@@ -18,10 +17,7 @@ pub struct AgentReconciler {
 }
 
 impl AgentReconciler {
-    pub fn new(db_pool: &DbPool) -> OrchestrationResult<Self> {
-        use crate::repository::agent_service::AgentServiceRepository;
-
-        let agent_service_repo = AgentServiceRepository::new(db_pool)?;
+    pub fn new(agent_service_repo: AgentServiceRepository) -> OrchestrationResult<Self> {
         let db_service = AgentDatabaseService::new(agent_service_repo)?;
 
         Ok(Self { db_service })

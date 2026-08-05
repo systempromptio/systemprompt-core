@@ -19,8 +19,8 @@ pub struct ShowArgs {
 }
 
 pub async fn execute(args: ShowArgs, ctx: &CommandContext) -> Result<CommandOutput> {
-    let pool = ctx.db_pool().await?;
-    let service = LinkGenerationService::new(&pool)?;
+    let service =
+        LinkGenerationService::new(ctx.app_context().await?.content_repositories().link.clone());
 
     let link = service
         .get_link_by_short_code(&args.short_code)

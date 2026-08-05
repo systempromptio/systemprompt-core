@@ -4,7 +4,6 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::Result;
-use systemprompt_database::DbPool;
 
 use crate::repository::SessionRepository;
 
@@ -14,10 +13,8 @@ pub struct SessionCleanupService {
 }
 
 impl SessionCleanupService {
-    pub fn new(db_pool: &DbPool) -> Result<Self> {
-        Ok(Self {
-            session_repo: SessionRepository::new(db_pool)?,
-        })
+    pub const fn new(session_repo: SessionRepository) -> Self {
+        Self { session_repo }
     }
 
     pub async fn cleanup_inactive_sessions(&self, inactive_hours: i32) -> Result<u64> {

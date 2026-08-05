@@ -3,6 +3,8 @@
 // files dropped), role mapping, empty-message skipping, and artifact
 // serialization including the long-description truncation.
 
+use std::sync::Arc;
+
 use base64::Engine;
 use systemprompt_agent::models::a2a::{
     Artifact, ArtifactMetadata, DataPart, FileContent, FilePart, Message, MessageRole, Part,
@@ -139,10 +141,7 @@ async fn history_decodes_parts_and_serializes_artifacts() {
         artifact(&ctx, &task_id, None),
     ]);
 
-    let service = PersistenceService::new(
-        pool.clone(),
-        TaskRepository::new(&pool, crate::session_usage(&pool)).expect("task repo"),
-    );
+    let service = PersistenceService::new(Arc::new(crate::repository::repos(&pool)));
     service
         .persist_completed_task(PersistCompletedTaskServiceParams {
             task: &task,

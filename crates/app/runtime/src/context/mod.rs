@@ -265,6 +265,12 @@ impl AppContext {
         Arc::new(self.data.analytics_service.session_repo().clone())
     }
 
+    pub fn context_materializer(&self) -> systemprompt_traits::DynContextMaterializer {
+        Arc::new(systemprompt_agent::services::ContextProviderService::new(
+            self.data.a2a_repositories.contexts.clone(),
+        ))
+    }
+
     pub const fn a2a_repositories(&self) -> &Arc<A2ARepositories> {
         &self.data.a2a_repositories
     }

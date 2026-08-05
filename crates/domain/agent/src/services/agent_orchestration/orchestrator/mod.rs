@@ -21,7 +21,6 @@ use systemprompt_traits::{Phase, StartupEvent, StartupEventExt, StartupEventSend
 use tokio::sync::broadcast;
 use tokio::task::JoinHandle;
 
-use crate::repository::agent_service::AgentServiceRepository;
 use crate::services::agent_orchestration::database::AgentDatabaseService;
 use crate::services::agent_orchestration::event_bus::AgentEventBus;
 use crate::services::agent_orchestration::events::AgentEvent;
@@ -73,20 +72,18 @@ impl AgentOrchestrator {
     ) -> OrchestrationResult<Self> {
         tracing::debug!("Initializing Agent Orchestrator");
 
-        let db_pool = agent_state.db_pool();
-
-        let agent_repo = AgentServiceRepository::new(db_pool)?;
+        let agent_repo = agent_state.repositories().agent_services.clone();
 
         let event_bus = Arc::new(AgentEventBus::new(100));
 
-        let db_service = AgentDatabaseService::new(agent_repo)?;
-        let lifecycle = AgentLifecycle::new(db_pool, app_paths)
+        let db_service = AgentDatabaseService::new(agent_repo.clone())?;
+        let lifecycle = AgentLifecycle::new(agent_repo.clone(), app_paths)
             .map_err(|e| {
                 crate::services::agent_orchestration::OrchestrationError::Generic(e.to_string())
             })?
             .with_event_bus(Arc::clone(&event_bus));
-        let reconciler = AgentReconciler::new(db_pool)?;
-        let monitor = AgentMonitor::new(db_pool)?;
+        let reconciler = AgentReconciler::new(agent_repo.clone())?;
+        let monitor = AgentMonitor::new(agent_repo)?;
 
         let orchestrator = Self {
             db_service,

@@ -7,6 +7,7 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use systemprompt_content::ContentRepository;
 use systemprompt_database::DbPool;
 use systemprompt_extension::ExtensionRegistry;
 use systemprompt_models::{AppPaths, ContentConfigRaw, WebConfig};
@@ -31,7 +32,7 @@ pub(super) struct PrerenderAssets {
 
 pub(super) struct PrerenderContext {
     pub db_pool: DbPool,
-    pub content_repo: systemprompt_content::ContentRepository,
+    pub content_repo: ContentRepository,
     assets: Arc<PrerenderAssets>,
 }
 
@@ -62,14 +63,13 @@ static PRERENDER_ASSETS: OnceCell<Arc<PrerenderAssets>> = OnceCell::const_new();
 
 pub(super) async fn load_prerender_context(
     db_pool: DbPool,
+    content_repo: ContentRepository,
     paths: &AppPaths,
 ) -> GeneratorResult<PrerenderContext> {
     let assets = PRERENDER_ASSETS
         .get_or_try_init(|| async { load_prerender_assets(paths).await.map(Arc::new) })
         .await?;
 
-    let content_repo = systemprompt_content::ContentRepository::new(&db_pool)
-        .map_err(|e| PublishError::content("Failed to create content repository", e))?;
     Ok(PrerenderContext {
         db_pool,
         content_repo,

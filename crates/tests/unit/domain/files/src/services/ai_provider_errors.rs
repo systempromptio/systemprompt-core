@@ -25,7 +25,9 @@ fn params(metadata: serde_json::Value) -> InsertAiFileParams {
 
 #[tokio::test]
 async fn insert_file_rejects_non_object_metadata() {
-    let provider = FilesAiPersistenceProvider::new(&closed_db_pool().await).expect("provider");
+    let provider = FilesAiPersistenceProvider::from_repository(
+        systemprompt_files::FileRepository::new(&closed_db_pool().await).expect("file repository"),
+    );
 
     let err = provider
         .insert_file(params(serde_json::json!("not-an-object")))
@@ -44,7 +46,9 @@ async fn insert_file_rejects_non_object_metadata() {
 
 #[tokio::test]
 async fn closed_pool_maps_every_method_to_internal() {
-    let provider = FilesAiPersistenceProvider::new(&closed_db_pool().await).expect("provider");
+    let provider = FilesAiPersistenceProvider::from_repository(
+        systemprompt_files::FileRepository::new(&closed_db_pool().await).expect("file repository"),
+    );
     let file_id = FileId::new(uuid::Uuid::new_v4().to_string());
     let user = UserId::new("ai-closed-pool-user");
 
@@ -76,7 +80,9 @@ async fn closed_pool_maps_every_method_to_internal() {
 #[tokio::test]
 async fn storage_config_reflects_initialised_files_config() {
     let b = ensure_test_bootstrap();
-    let provider = FilesAiPersistenceProvider::new(&closed_db_pool().await).expect("provider");
+    let provider = FilesAiPersistenceProvider::from_repository(
+        systemprompt_files::FileRepository::new(&closed_db_pool().await).expect("file repository"),
+    );
 
     let config = provider.storage_config().expect("storage config");
     assert_eq!(
@@ -89,7 +95,9 @@ async fn storage_config_reflects_initialised_files_config() {
 #[tokio::test]
 async fn storage_config_without_global_config_is_configuration_error() {
     // No bootstrap: the process-global FilesConfig is uninitialised.
-    let provider = FilesAiPersistenceProvider::new(&closed_db_pool().await).expect("provider");
+    let provider = FilesAiPersistenceProvider::from_repository(
+        systemprompt_files::FileRepository::new(&closed_db_pool().await).expect("file repository"),
+    );
 
     let err = provider.storage_config().expect_err("config missing");
     match err {

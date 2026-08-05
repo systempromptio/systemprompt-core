@@ -9,7 +9,7 @@
 //! rejects an unparseable `client_id` and an unregistered third-party client,
 //! and issues a session for the first-party default.
 
-use std::sync::{Arc, Once};
+use std::sync::Once;
 
 use axum::Router;
 use axum::body::{Body, to_bytes};
@@ -38,10 +38,10 @@ async fn oauth_state() -> anyhow::Result<OAuthState> {
     install_test_signing_key();
     let (_pool, ctx) = setup_ctx().await?;
     Ok(OAuthState::new(
-        Arc::clone(ctx.db_pool()),
+        ctx.oauth_repositories().oauth.clone(),
         ctx.analytics_provider().expect("analytics"),
         ctx.user_provider().expect("user"),
-    )?)
+    ))
 }
 
 async fn userinfo_app() -> anyhow::Result<Router> {
@@ -77,10 +77,10 @@ async fn userinfo_missing_authorization_returns_invalid_request() -> anyhow::Res
     let (_pool, ctx) = setup_ctx().await?;
     ensure_config();
     let state = OAuthState::new(
-        Arc::clone(ctx.db_pool()),
+        ctx.oauth_repositories().oauth.clone(),
         ctx.analytics_provider().expect("analytics"),
         ctx.user_provider().expect("user"),
-    )?;
+    );
     let app = systemprompt_api::routes::oauth::authenticated_router().with_state(state);
     let resp = app.oneshot(get_userinfo(None)).await?;
     assert_eq!(resp.status(), StatusCode::BAD_REQUEST, "{}", resp.status());

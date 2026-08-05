@@ -16,7 +16,10 @@ async fn get_db() -> Option<DbPool> {
 #[tokio::test]
 async fn handler_new_succeeds() {
     let Some(db) = get_db().await else { return };
-    let handler = DatabaseSessionHandler::new(&db);
+    let handler = DatabaseSessionHandler::new(std::sync::Arc::new(
+        systemprompt_mcp::repository::McpSessionRepository::new(&db)
+            .expect("mcp session repository"),
+    ));
     let _ = format!("{handler:?}");
 }
 
@@ -27,14 +30,23 @@ async fn handler_with_timeouts_succeeds() {
         init: Some(std::time::Duration::from_secs(5)),
         keep_alive: Some(std::time::Duration::from_secs(30)),
     };
-    let handler = DatabaseSessionHandler::with_timeouts(&db, timeouts);
+    let handler = DatabaseSessionHandler::with_timeouts(
+        std::sync::Arc::new(
+            systemprompt_mcp::repository::McpSessionRepository::new(&db)
+                .expect("mcp session repository"),
+        ),
+        timeouts,
+    );
     let _ = format!("{handler:?}");
 }
 
 #[tokio::test]
 async fn create_then_close_session_lifecycle() {
     let Some(db) = get_db().await else { return };
-    let handler = DatabaseSessionHandler::new(&db);
+    let handler = DatabaseSessionHandler::new(std::sync::Arc::new(
+        systemprompt_mcp::repository::McpSessionRepository::new(&db)
+            .expect("mcp session repository"),
+    ));
 
     let (session_id, _transport) = handler
         .create_session()
@@ -60,7 +72,10 @@ async fn create_then_close_session_lifecycle() {
 #[tokio::test]
 async fn close_unknown_session_is_idempotent() {
     let Some(db) = get_db().await else { return };
-    let handler = DatabaseSessionHandler::new(&db);
+    let handler = DatabaseSessionHandler::new(std::sync::Arc::new(
+        systemprompt_mcp::repository::McpSessionRepository::new(&db)
+            .expect("mcp session repository"),
+    ));
 
     let fake: rmcp::transport::streamable_http_server::session::SessionId =
         format!("nonexistent-{}", uuid::Uuid::new_v4()).into();
@@ -70,7 +85,10 @@ async fn close_unknown_session_is_idempotent() {
 #[tokio::test]
 async fn has_session_returns_false_for_unknown() {
     let Some(db) = get_db().await else { return };
-    let handler = DatabaseSessionHandler::new(&db);
+    let handler = DatabaseSessionHandler::new(std::sync::Arc::new(
+        systemprompt_mcp::repository::McpSessionRepository::new(&db)
+            .expect("mcp session repository"),
+    ));
 
     let fake: rmcp::transport::streamable_http_server::session::SessionId =
         format!("nonexistent-{}", uuid::Uuid::new_v4()).into();

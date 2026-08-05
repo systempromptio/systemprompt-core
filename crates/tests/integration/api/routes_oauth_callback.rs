@@ -5,7 +5,7 @@
 //! dependency. We assert the error mapping for the no-browser-client,
 //! bad-code, and missing-state branches.
 
-use std::sync::{Arc, Once};
+use std::sync::Once;
 
 use axum::Router;
 use axum::body::Body;
@@ -90,10 +90,10 @@ async fn callback_app() -> anyhow::Result<Router> {
     ensure_config();
     let (_pool, ctx) = setup_ctx().await?;
     let state = OAuthState::new(
-        Arc::clone(ctx.db_pool()),
+        ctx.oauth_repositories().oauth.clone(),
         ctx.analytics_provider().expect("analytics"),
         ctx.user_provider().expect("user"),
-    )?;
+    );
     Ok(public_router()
         .layer(middleware::from_fn(inject_context))
         .with_state(state))

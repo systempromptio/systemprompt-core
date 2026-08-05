@@ -11,8 +11,6 @@
 
 use std::collections::HashSet;
 
-use systemprompt_database::DbPool;
-
 use super::config::GatewayPolicyConfig;
 use crate::error::RepositoryError;
 use crate::repository::AiGatewayPolicyRepository;
@@ -39,12 +37,6 @@ pub struct GatewayPolicyIngestionService {
 }
 
 impl GatewayPolicyIngestionService {
-    pub fn new(db: &DbPool) -> Result<Self, RepositoryError> {
-        Ok(Self {
-            repo: AiGatewayPolicyRepository::new(db)?,
-        })
-    }
-
     pub const fn from_repository(repo: AiGatewayPolicyRepository) -> Self {
         Self { repo }
     }

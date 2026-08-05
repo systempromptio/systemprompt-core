@@ -72,7 +72,7 @@ async fn pat_with_valid_key_issues_bridge_access() -> Result<()> {
     systemprompt_test_fixtures::seed_user_row(&pool, &user, &format!("pat-{uniq}@example.invalid"))
         .await?;
 
-    let service = ApiKeyService::new(ctx.db_pool())?;
+    let service = ApiKeyService::new(Arc::clone(ctx.user_repository()));
     let issued = service
         .issue(IssueApiKeyParams {
             user_id: &user,

@@ -32,7 +32,9 @@ async fn create_session_then_increment_usage_round_trip() {
     };
     ensure_test_bootstrap();
     let pool = fixture_db_pool(&url).await.expect("pool");
-    let provider = AnalyticsAiSessionProvider::new(&pool).expect("provider");
+    let provider = AnalyticsAiSessionProvider::from_repository(
+        SessionRepository::new(&pool).expect("session repository"),
+    );
 
     let sid = unique_session_id();
     provider
@@ -97,7 +99,9 @@ async fn from_repository_shares_the_backing_repo() {
 #[tokio::test]
 async fn create_session_maps_pool_failure_to_internal() {
     let pool = closed_db_pool().await;
-    let provider = AnalyticsAiSessionProvider::new(&pool).expect("provider");
+    let provider = AnalyticsAiSessionProvider::from_repository(
+        SessionRepository::new(&pool).expect("session repository"),
+    );
 
     let err = provider
         .create_session(CreateAiSessionParams {
@@ -114,7 +118,9 @@ async fn create_session_maps_pool_failure_to_internal() {
 #[tokio::test]
 async fn increment_ai_usage_maps_pool_failure_to_internal() {
     let pool = closed_db_pool().await;
-    let provider = AnalyticsAiSessionProvider::new(&pool).expect("provider");
+    let provider = AnalyticsAiSessionProvider::from_repository(
+        SessionRepository::new(&pool).expect("session repository"),
+    );
 
     let err = provider
         .increment_ai_usage(&unique_session_id(), 10, 500)

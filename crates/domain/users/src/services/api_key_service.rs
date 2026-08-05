@@ -6,8 +6,8 @@
 use chrono::{DateTime, Utc};
 use rand::Rng;
 use sha2::{Digest, Sha256};
+use std::sync::Arc;
 use subtle::ConstantTimeEq;
-use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ApiKeyId, UserId};
 
 use crate::error::{Result, UserError};
@@ -27,14 +27,12 @@ pub struct IssueApiKeyParams<'a> {
 
 #[derive(Debug, Clone)]
 pub struct ApiKeyService {
-    repository: UserRepository,
+    repository: Arc<UserRepository>,
 }
 
 impl ApiKeyService {
-    pub fn new(db: &DbPool) -> Result<Self> {
-        Ok(Self {
-            repository: UserRepository::new(db)?,
-        })
+    pub const fn new(repository: Arc<UserRepository>) -> Self {
+        Self { repository }
     }
 
     pub async fn issue(&self, params: IssueApiKeyParams<'_>) -> Result<NewApiKey> {

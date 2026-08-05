@@ -9,7 +9,7 @@ use super::common::{empty_get, json_post, request_context, setup_ctx};
 #[tokio::test]
 async fn record_event_runs_handler() -> anyhow::Result<()> {
     let (_pool, ctx) = setup_ctx().await?;
-    let app = analytics_router(&ctx)?.layer(Extension(request_context("user_analytics")));
+    let app = analytics_router(&ctx).layer(Extension(request_context("user_analytics")));
     let body = serde_json::json!({
         "event_type": "page_view",
         "url": "https://example.com/",
@@ -23,7 +23,7 @@ async fn record_event_runs_handler() -> anyhow::Result<()> {
 #[tokio::test]
 async fn record_event_rejects_bad_payload() -> anyhow::Result<()> {
     let (_pool, ctx) = setup_ctx().await?;
-    let app = analytics_router(&ctx)?.layer(Extension(request_context("user_analytics")));
+    let app = analytics_router(&ctx).layer(Extension(request_context("user_analytics")));
     let resp = app
         .oneshot(json_post("/events", serde_json::json!({"junk": true})))
         .await?;
@@ -35,7 +35,7 @@ async fn record_event_rejects_bad_payload() -> anyhow::Result<()> {
 #[tokio::test]
 async fn record_events_batch_accepts_empty_array() -> anyhow::Result<()> {
     let (_pool, ctx) = setup_ctx().await?;
-    let app = analytics_router(&ctx)?.layer(Extension(request_context("user_analytics")));
+    let app = analytics_router(&ctx).layer(Extension(request_context("user_analytics")));
     let body = serde_json::json!({ "events": [] });
     let resp = app.oneshot(json_post("/events/batch", body)).await?;
     assert!(resp.status().as_u16() >= 200);
@@ -45,7 +45,7 @@ async fn record_events_batch_accepts_empty_array() -> anyhow::Result<()> {
 #[tokio::test]
 async fn analytics_stream_route_executes() -> anyhow::Result<()> {
     let (_pool, ctx) = setup_ctx().await?;
-    let app = analytics_router(&ctx)?.layer(Extension(request_context("user_analytics")));
+    let app = analytics_router(&ctx).layer(Extension(request_context("user_analytics")));
     let resp = app.oneshot(empty_get("/stream")).await?;
     assert!(resp.status().as_u16() >= 200);
     Ok(())
@@ -54,7 +54,7 @@ async fn analytics_stream_route_executes() -> anyhow::Result<()> {
 #[tokio::test]
 async fn record_page_view_persists_created() -> anyhow::Result<()> {
     let (_pool, ctx) = setup_ctx().await?;
-    let app = analytics_router(&ctx)?.layer(Extension(request_context("user_analytics")));
+    let app = analytics_router(&ctx).layer(Extension(request_context("user_analytics")));
     let body = serde_json::json!({
         "event_type": "page_view",
         "page_url": "https://example.com/some/page",
@@ -74,7 +74,7 @@ async fn record_page_view_persists_created() -> anyhow::Result<()> {
 #[tokio::test]
 async fn record_page_exit_fans_out_engagement() -> anyhow::Result<()> {
     let (_pool, ctx) = setup_ctx().await?;
-    let app = analytics_router(&ctx)?.layer(Extension(request_context("user_analytics")));
+    let app = analytics_router(&ctx).layer(Extension(request_context("user_analytics")));
     // A page_exit event carrying time-on-page metrics triggers the engagement
     // fan-out branch in `record_event`.
     let body = serde_json::json!({
@@ -102,7 +102,7 @@ async fn record_page_exit_fans_out_engagement() -> anyhow::Result<()> {
 #[tokio::test]
 async fn record_events_batch_with_events_persists() -> anyhow::Result<()> {
     let (_pool, ctx) = setup_ctx().await?;
-    let app = analytics_router(&ctx)?.layer(Extension(request_context("user_analytics")));
+    let app = analytics_router(&ctx).layer(Extension(request_context("user_analytics")));
     let body = serde_json::json!({
         "events": [
             { "event_type": "page_view", "page_url": "https://example.com/a" },
@@ -128,7 +128,7 @@ async fn record_events_batch_with_events_persists() -> anyhow::Result<()> {
 #[tokio::test]
 async fn record_page_exit_without_time_skips_fanout() -> anyhow::Result<()> {
     let (_pool, ctx) = setup_ctx().await?;
-    let app = analytics_router(&ctx)?.layer(Extension(request_context("user_analytics")));
+    let app = analytics_router(&ctx).layer(Extension(request_context("user_analytics")));
     // time_on_page_ms == 0 means the fan-out early-returns; the event itself is
     // still recorded.
     let body = serde_json::json!({

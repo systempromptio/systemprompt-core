@@ -14,10 +14,8 @@ pub struct ProxyHealthCheck {
 }
 
 impl ProxyHealthCheck {
-    pub fn new(db_pool: &systemprompt_database::DbPool) -> McpDomainResult<Self> {
-        Ok(Self {
-            service_repo: ServiceRepository::new(db_pool)?,
-        })
+    pub const fn new(service_repo: ServiceRepository) -> Self {
+        Self { service_repo }
     }
 
     pub async fn can_route_traffic(&self, service_name: &str, port: u16) -> McpDomainResult<bool> {

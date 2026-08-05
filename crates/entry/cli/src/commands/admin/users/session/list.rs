@@ -5,8 +5,9 @@
 
 use anyhow::{Result, anyhow};
 use clap::Args;
+use std::sync::Arc;
 use systemprompt_database::DbPool;
-use systemprompt_users::{UserAdminService, UserService};
+use systemprompt_users::{UserAdminService, UserRepository, UserService};
 
 use crate::CliConfig;
 use crate::commands::admin::users::types::{SessionListOutput, SessionSummary};
@@ -34,7 +35,7 @@ pub(super) async fn execute_with_pool(
     pool: &DbPool,
     _config: &CliConfig,
 ) -> Result<CommandOutput> {
-    let user_service = UserService::new(pool)?;
+    let user_service = UserService::new(Arc::new(UserRepository::new(pool)?));
     let admin_service = UserAdminService::new(user_service.clone());
 
     let existing = admin_service.find_user(&args.user).await?;

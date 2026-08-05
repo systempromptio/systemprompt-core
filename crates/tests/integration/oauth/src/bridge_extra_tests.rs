@@ -88,8 +88,11 @@ async fn exchange_code_issued_and_consumed_once() {
         .expect("issue exchange code");
     assert!(!issued.code.is_empty());
 
-    let analytics =
-        systemprompt_analytics::AnalyticsService::new(&db, None, None).expect("analytics service");
+    let analytics = systemprompt_analytics::AnalyticsService::new(
+        None,
+        None,
+        &systemprompt_analytics::repository::AnalyticsRepositories::new(&db).expect("repositories"),
+    );
     let headers = http::HeaderMap::new();
     let result =
         exchange_bridge_session_code(&oauth_repo(&db), &analytics, &headers, None, &issued.code)
@@ -111,8 +114,11 @@ async fn exchange_code_issued_and_consumed_once() {
 async fn exchange_unknown_code_returns_none() {
     ensure_runtime();
     let db = setup_test_db().await;
-    let analytics =
-        systemprompt_analytics::AnalyticsService::new(&db, None, None).expect("analytics service");
+    let analytics = systemprompt_analytics::AnalyticsService::new(
+        None,
+        None,
+        &systemprompt_analytics::repository::AnalyticsRepositories::new(&db).expect("repositories"),
+    );
     let headers = http::HeaderMap::new();
     let result =
         exchange_bridge_session_code(&oauth_repo(&db), &analytics, &headers, None, "deadbeef")

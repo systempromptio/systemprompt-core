@@ -9,7 +9,7 @@ use std::sync::Arc;
 
 use systemprompt_agent::AgentState;
 use systemprompt_agent::services::a2a_server::run_standalone;
-use systemprompt_ai::AiService;
+use systemprompt_ai::{AiService, AiServiceProviders};
 use systemprompt_analytics::AnalyticsAiSessionProvider;
 use systemprompt_loader::ConfigLoader;
 use systemprompt_mcp::McpToolProvider;
@@ -51,19 +51,22 @@ pub(super) async fn execute(args: RunArgs) -> Result<()> {
         ctx.mcp_registry().clone(),
         &services_config.ai.mcp.resilience,
     ));
-    let session_provider = Arc::new(
-        AnalyticsAiSessionProvider::new(&db_pool)
-            .context("Failed to create analytics session provider")?,
-    );
+    let session_provider = Arc::new(AnalyticsAiSessionProvider::from_repository(
+        ctx.analytics_repositories().sessions.clone(),
+    ));
     let ai_service = Arc::new(
         AiService::new(
             &db_pool,
             &profile.providers,
             &services_config.ai,
-            tool_provider,
-            session_provider,
+            AiServiceProviders {
+                tools: tool_provider,
+                sessions: session_provider,
+            },
+            ctx.ai_repositories(),
         )
-        .context("Failed to create AI service")?,
+        .context("Failed to create AI service")?
+        .with_context_materializer(ctx.context_materializer()),
     );
 
     run_standalone(agent_state, ai_service, &args.agent_name, args.port)

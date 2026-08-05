@@ -9,7 +9,7 @@
 //! `reg_` prefix, so the tests exercise the missing/mis-scheme/wrong-prefix
 //! rejections plus the found/not-found branches.
 
-use std::sync::{Arc, Once};
+use std::sync::Once;
 
 use axum::Router;
 use axum::body::{Body, to_bytes};
@@ -53,10 +53,10 @@ async fn clients_app(user: UserId) -> anyhow::Result<Router> {
     install_test_signing_key();
     let (_pool, ctx) = setup_ctx().await?;
     let state = OAuthState::new(
-        Arc::clone(ctx.db_pool()),
+        ctx.oauth_repositories().oauth.clone(),
         ctx.analytics_provider().expect("analytics"),
         ctx.user_provider().expect("user"),
-    )?;
+    );
     let inject = move |mut req: Request<Body>, next: Next| {
         let ctx = ctx_for(&user);
         async move {

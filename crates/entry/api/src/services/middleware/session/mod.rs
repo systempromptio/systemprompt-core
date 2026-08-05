@@ -58,8 +58,8 @@ pub struct SessionMiddleware {
 const IGNORED_FORWARDED_WARN_INTERVAL_SECS: u64 = 3600;
 
 impl SessionMiddleware {
-    pub fn new(ctx: &AppContext) -> anyhow::Result<Self> {
-        let user_service = UserService::new(ctx.db_pool())?;
+    pub fn new(ctx: &AppContext) -> Self {
+        let user_service = UserService::new(Arc::clone(ctx.user_repository()));
         let concrete = Arc::clone(ctx.analytics_service());
         let analytics: Arc<dyn AnalyticsProvider> = concrete;
         let session_creation_service = Arc::new(SessionCreationService::new(
@@ -67,14 +67,14 @@ impl SessionMiddleware {
             Arc::new(user_service),
         ));
 
-        Ok(Self {
+        Self {
             analytics_service: Arc::clone(ctx.analytics_service()),
             session_creation_service,
             trusted_proxies: Arc::new(ctx.config().trusted_proxies.clone()),
             ignored_forwarded_warn: Arc::new(systemprompt_logging::LogThrottle::new(
                 IGNORED_FORWARDED_WARN_INTERVAL_SECS,
             )),
-        })
+        }
     }
 
     pub async fn handle(&self, mut request: Request, next: Next) -> Result<Response, ApiError> {
@@ -171,16 +171,15 @@ impl SessionMiddleware {
                 ApiError::internal_error("Service temporarily unavailable")
             })?;
 
-        Ok(RequestContext::new(
-            SessionId::new(format!("{session_prefix}_{}", Uuid::new_v4())),
-            trace_id,
-            ContextId::generate(),
-            AgentName::system(),
+        let session_id = SessionId::new(format!("{session_prefix}_{}", Uuid::new_v4()));
+        let context_id = ContextId::derived_from_session(&session_id);
+        Ok(
+            RequestContext::new(session_id, trace_id, context_id, AgentName::system())
+                .with_actor(systemprompt_identifiers::Actor::anonymous(user_id))
+                .with_user_type(UserType::Anon)
+                .with_tracked(false)
+                .with_fingerprint_hash(fingerprint),
         )
-        .with_actor(systemprompt_identifiers::Actor::anonymous(user_id))
-        .with_user_type(UserType::Anon)
-        .with_tracked(false)
-        .with_fingerprint_hash(fingerprint))
     }
 
     async fn tracked_context(
@@ -204,8 +203,8 @@ impl SessionMiddleware {
         let (session_id, user_id, jwt_token, jwt_cookie, fingerprint_hash) =
             self.resolve_session(token_result, meta).await?;
 
-        let context_id =
-            HeaderExtractor::extract_context_id(meta.headers).unwrap_or_else(ContextId::generate);
+        let context_id = HeaderExtractor::extract_context_id(meta.headers)
+            .unwrap_or_else(|| ContextId::derived_from_session(&session_id));
 
         let mut ctx = RequestContext::new(session_id, trace_id, context_id, AgentName::system())
             .with_actor(systemprompt_identifiers::Actor::user(user_id))

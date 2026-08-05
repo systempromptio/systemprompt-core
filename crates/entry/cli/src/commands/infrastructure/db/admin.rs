@@ -4,6 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use anyhow::{Context, Result, anyhow};
+use std::sync::Arc;
 use systemprompt_database::DatabaseAdminService;
 use systemprompt_logging::CliService;
 use systemprompt_runtime::AppContext;
@@ -34,7 +35,7 @@ pub(super) async fn execute_assign_admin(
     user: &str,
     config: &CliConfig,
 ) -> Result<()> {
-    let user_service = UserService::new(ctx.db_pool())?;
+    let user_service = UserService::new(Arc::clone(ctx.user_repository()));
     let user_admin = UserAdminService::new(user_service);
 
     if !config.is_json_output() {

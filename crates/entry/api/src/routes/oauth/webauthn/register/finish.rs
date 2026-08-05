@@ -140,23 +140,17 @@ async fn migrate_session_user(state: &OAuthState, session_id_str: &str, new_user
             if old_user_id == *new_user_id {
                 return;
             }
-            let user_service = match systemprompt_users::UserService::new(state.db_pool()) {
-                Ok(service) => service,
-                Err(e) => {
-                    tracing::error!(error = %e, "Failed to build user service for promotion");
-                    return;
-                },
-            };
-            match user_service
+            match state
+                .user_provider()
                 .promote_anonymous(&old_user_id, new_user_id)
                 .await
             {
-                Ok(result) => {
+                Ok(rows_transferred) => {
                     tracing::info!(
                         session_id = %session_id,
                         old_user_id = %old_user_id,
                         new_user_id = %new_user_id,
-                        rows_transferred = result.total_rows,
+                        rows_transferred,
                         "Promoted anonymous user history onto registered account"
                     );
                 },

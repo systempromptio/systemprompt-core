@@ -20,7 +20,7 @@ async fn ok_handler() -> &'static str {
 
 async fn app_with_session_mw() -> Result<Router> {
     let (_pool, ctx) = setup_ctx().await?;
-    let session_mw = SessionMiddleware::new(&ctx)?;
+    let session_mw = SessionMiddleware::new(&ctx);
     Ok(Router::new()
         .route("/health", get(ok_handler))
         .layer(middleware::from_fn(move |req, next| {

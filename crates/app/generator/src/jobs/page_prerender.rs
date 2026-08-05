@@ -6,6 +6,7 @@
 
 use async_trait::async_trait;
 use std::sync::Arc;
+use systemprompt_content::ContentRepository;
 use systemprompt_database::DbPool;
 use systemprompt_models::AppPaths;
 use systemprompt_provider_contracts::{Job, JobContext, JobResult, ProviderError, ProviderResult};
@@ -42,7 +43,9 @@ impl Job for PagePrerenderJob {
             .as_ref();
 
         tracing::info!("Job started");
-        let results = prerender_pages(db_pool, paths)
+        let content_repo = ContentRepository::new(&db_pool)
+            .map_err(|e| ProviderError::Configuration(e.to_string()))?;
+        let results = prerender_pages(db_pool, content_repo, paths)
             .await
             .map_err(|e| ProviderError::RenderFailed(e.to_string()))?;
         let pages_rendered = results.len() as u64;

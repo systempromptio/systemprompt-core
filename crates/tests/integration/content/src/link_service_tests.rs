@@ -3,6 +3,7 @@
 //! delegate to the underlying repository.
 
 use systemprompt_content::models::{LinkType, UtmParams};
+use systemprompt_content::repository::LinkRepository;
 use systemprompt_content::services::link::{GenerateLinkParams, LinkGenerationService};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::CampaignId;
@@ -13,19 +14,11 @@ async fn try_db() -> Option<DbPool> {
 }
 
 #[tokio::test]
-async fn service_new_succeeds() {
-    let Some(db) = try_db().await else {
-        return;
-    };
-    assert!(LinkGenerationService::new(&db).is_ok());
-}
-
-#[tokio::test]
 async fn generate_link_with_minimal_params_creates_row() {
     let Some(db) = try_db().await else {
         return;
     };
-    let svc = LinkGenerationService::new(&db).expect("service");
+    let svc = LinkGenerationService::new(LinkRepository::new(&db).expect("repo"));
     let params = GenerateLinkParams {
         target_url: "https://example.com/landing".to_owned(),
         link_type: LinkType::Redirect,
@@ -50,7 +43,7 @@ async fn generate_link_with_utm_persists_utm_json() {
     let Some(db) = try_db().await else {
         return;
     };
-    let svc = LinkGenerationService::new(&db).expect("service");
+    let svc = LinkGenerationService::new(LinkRepository::new(&db).expect("repo"));
     let utm = UtmParams {
         source: Some("twitter".to_owned()),
         medium: Some("social".to_owned()),
@@ -87,7 +80,7 @@ async fn generate_social_media_link_round_trips_through_get_by_short_code() {
     let Some(db) = try_db().await else {
         return;
     };
-    let svc = LinkGenerationService::new(&db).expect("service");
+    let svc = LinkGenerationService::new(LinkRepository::new(&db).expect("repo"));
     let link = svc
         .generate_social_media_link("https://example.com/post", "linkedin", "release-week", None)
         .await
@@ -108,7 +101,7 @@ async fn delete_link_via_service_removes_row() {
     let Some(db) = try_db().await else {
         return;
     };
-    let svc = LinkGenerationService::new(&db).expect("service");
+    let svc = LinkGenerationService::new(LinkRepository::new(&db).expect("repo"));
     let link = svc
         .generate_social_media_link("https://example.com/x", "x", "campaign-x", None)
         .await

@@ -7,6 +7,7 @@
 //! integration suite.
 
 use std::sync::Arc;
+use systemprompt_database::ServiceRepository;
 use systemprompt_mcp::services::orchestrator::McpOrchestrator;
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_models::AppPaths;
@@ -28,7 +29,8 @@ async fn make_orchestrator() -> Option<McpOrchestrator> {
         AppPaths::from_profile(&paths, systemprompt_models::PathResolution::Canonicalize).ok()?,
     );
     let registry = RegistryService::new(fixture_user_id());
-    McpOrchestrator::new(db, app_paths, registry).ok()
+    let service_repo = ServiceRepository::new(&db).ok()?;
+    McpOrchestrator::new(db, service_repo, app_paths, registry).ok()
 }
 
 #[tokio::test]

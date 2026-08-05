@@ -4,7 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::error::McpDomainResult;
-use systemprompt_database::{DbPool, ServiceRepository};
+use systemprompt_database::ServiceRepository;
 
 use super::models::McpServiceState;
 
@@ -14,10 +14,8 @@ pub struct ServiceStateService {
 }
 
 impl ServiceStateService {
-    pub fn new(db_pool: &DbPool) -> McpDomainResult<Self> {
-        Ok(Self {
-            service_repo: ServiceRepository::new(db_pool)?,
-        })
+    pub const fn new(service_repo: ServiceRepository) -> Self {
+        Self { service_repo }
     }
 
     pub async fn get_mcp_service(&self, name: &str) -> McpDomainResult<Option<McpServiceState>> {

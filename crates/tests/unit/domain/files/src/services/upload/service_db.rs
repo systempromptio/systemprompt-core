@@ -59,7 +59,10 @@ async fn upload_context_scoped_persists_file_and_row() {
         return;
     };
     let cfg = files_config(b, None);
-    let service = FileUploadService::new(&pool, cfg.clone()).expect("service");
+    let service = FileUploadService::new(
+        systemprompt_files::FileRepository::new(&pool).expect("file repository"),
+        cfg.clone(),
+    );
     assert!(service.is_enabled());
     assert!(service.validator().validate("image/png", 4).is_ok());
 
@@ -120,7 +123,10 @@ async fn upload_rejected_when_persistence_disabled() {
         b,
         Some("files:\n  upload:\n    persistence_mode: disabled\n"),
     );
-    let service = FileUploadService::new(&pool, cfg).expect("service");
+    let service = FileUploadService::new(
+        systemprompt_files::FileRepository::new(&pool).expect("file repository"),
+        cfg,
+    );
 
     assert!(!FileUploadService::is_enabled(&service));
 
@@ -137,7 +143,10 @@ async fn upload_rejects_oversized_base64_payload() {
         return;
     };
     let cfg = files_config(b, Some("files:\n  upload:\n    max_file_size_bytes: 16\n"));
-    let service = FileUploadService::new(&pool, cfg).expect("service");
+    let service = FileUploadService::new(
+        systemprompt_files::FileRepository::new(&pool).expect("file repository"),
+        cfg,
+    );
 
     let oversized = STANDARD.encode(vec![7_u8; 4096]);
     let expected_len = oversized.len();
@@ -158,7 +167,10 @@ async fn upload_rejects_invalid_base64() {
     let Some(pool) = live_pool(b).await else {
         return;
     };
-    let service = FileUploadService::new(&pool, files_config(b, None)).expect("service");
+    let service = FileUploadService::new(
+        systemprompt_files::FileRepository::new(&pool).expect("file repository"),
+        files_config(b, None),
+    );
 
     let request =
         FileUploadRequest::builder("image/png", "@@not-base64@@", ContextId::generate()).build();
@@ -176,7 +188,10 @@ async fn upload_user_library_scopes_path_to_user() {
         b,
         Some("files:\n  upload:\n    persistence_mode: user_library\n"),
     );
-    let service = FileUploadService::new(&pool, cfg).expect("service");
+    let service = FileUploadService::new(
+        systemprompt_files::FileRepository::new(&pool).expect("file repository"),
+        cfg,
+    );
 
     let user = UserId::new("upload-lib-user");
     let request = FileUploadRequest::builder("image/png", encoded_content(), ContextId::generate())
@@ -207,7 +222,10 @@ async fn upload_user_library_without_user_uses_anonymous() {
         b,
         Some("files:\n  upload:\n    persistence_mode: user_library\n"),
     );
-    let service = FileUploadService::new(&pool, cfg).expect("service");
+    let service = FileUploadService::new(
+        systemprompt_files::FileRepository::new(&pool).expect("file repository"),
+        cfg,
+    );
 
     let request =
         FileUploadRequest::builder("image/png", encoded_content(), ContextId::generate()).build();
@@ -232,7 +250,10 @@ async fn upload_rejects_user_id_with_traversal() {
         b,
         Some("files:\n  upload:\n    persistence_mode: user_library\n"),
     );
-    let service = FileUploadService::new(&pool, cfg).expect("service");
+    let service = FileUploadService::new(
+        systemprompt_files::FileRepository::new(&pool).expect("file repository"),
+        cfg,
+    );
 
     let request = FileUploadRequest::builder("image/png", encoded_content(), ContextId::generate())
         .with_user_id(UserId::new("../root"))
@@ -265,7 +286,10 @@ async fn upload_db_failure_removes_stored_file() {
     closed.close().await;
     let pool: DbPool = Arc::new(Database::from_pools(Arc::new(read), Some(Arc::new(closed))));
 
-    let service = FileUploadService::new(&pool, cfg.clone()).expect("service");
+    let service = FileUploadService::new(
+        systemprompt_files::FileRepository::new(&pool).expect("file repository"),
+        cfg.clone(),
+    );
     let context_id = ContextId::generate();
     let request =
         FileUploadRequest::builder("image/png", encoded_content(), context_id.clone()).build();
@@ -295,7 +319,10 @@ async fn upload_io_error_when_uploads_path_is_blocked() {
     std::fs::create_dir_all(cfg.files()).expect("mkdir files");
     std::fs::write(cfg.uploads(), b"blocker").expect("blocker at uploads root");
 
-    let service = FileUploadService::new(&pool, cfg).expect("service");
+    let service = FileUploadService::new(
+        systemprompt_files::FileRepository::new(&pool).expect("file repository"),
+        cfg,
+    );
     let request =
         FileUploadRequest::builder("image/png", encoded_content(), ContextId::generate()).build();
 

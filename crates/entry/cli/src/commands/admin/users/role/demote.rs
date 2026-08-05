@@ -5,7 +5,8 @@
 
 use anyhow::{Result, anyhow};
 use clap::Args;
-use systemprompt_users::{DemoteResult, UserAdminService, UserService};
+use std::sync::Arc;
+use systemprompt_users::{DemoteResult, UserAdminService, UserRepository, UserService};
 
 use crate::commands::admin::users::types::RoleAssignOutput;
 use crate::context::CommandContext;
@@ -18,7 +19,7 @@ pub struct DemoteArgs {
 
 pub(super) async fn execute(args: DemoteArgs, ctx: &CommandContext) -> Result<CommandOutput> {
     let pool = ctx.db_pool().await?;
-    let user_service = UserService::new(&pool)?;
+    let user_service = UserService::new(Arc::new(UserRepository::new(&pool)?));
     let admin_service = UserAdminService::new(user_service);
 
     match admin_service.demote_from_admin(&args.identifier).await? {

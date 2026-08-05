@@ -31,7 +31,7 @@ async fn open_agui(user: &UserId) -> anyhow::Result<Response<Body>> {
     let (_pool, ctx) = setup_ctx().await?;
     let mut req_ctx = request_context("ignored");
     req_ctx.auth.actor.user_id = user.clone();
-    Ok(stream_router(&ctx)?
+    Ok(stream_router(&ctx)
         .layer(Extension(req_ctx))
         .oneshot(empty_get("/agui"))
         .await?)
@@ -133,7 +133,7 @@ async fn the_a2a_stream_registers_on_its_own_broadcaster() -> anyhow::Result<()>
     let mut req_ctx = request_context("ignored");
     req_ctx.auth.actor.user_id = user.clone();
 
-    let resp = stream_router(&ctx)?
+    let resp = stream_router(&ctx)
         .layer(Extension(req_ctx))
         .oneshot(empty_get("/a2a"))
         .await?;

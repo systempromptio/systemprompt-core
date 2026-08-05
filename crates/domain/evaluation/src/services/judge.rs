@@ -36,6 +36,14 @@ pub struct ScoredVerdict {
     pub judge_cost_microdollars: i64,
 }
 
+#[derive(Debug, Clone)]
+pub struct JudgeSpec {
+    pub provider: String,
+    pub model: String,
+    pub created_by: UserId,
+    pub run_context: ContextId,
+}
+
 #[derive(Clone)]
 pub struct JudgeService {
     ai: DynAiProvider,
@@ -43,6 +51,7 @@ pub struct JudgeService {
     judge_provider: String,
     judge_model: String,
     created_by: UserId,
+    run_context: ContextId,
 }
 
 impl std::fmt::Debug for JudgeService {
@@ -58,19 +67,14 @@ impl JudgeService {
     /// `ai` must be the auditing provider (the `AiService` implementation):
     /// judge isolation and cost lookup depend on `generate` persisting the
     /// request to `ai_requests` with the job actor this service sets.
-    pub fn new(
-        ai: DynAiProvider,
-        sampling: SamplingRepository,
-        judge_provider: impl Into<String>,
-        judge_model: impl Into<String>,
-        created_by: UserId,
-    ) -> Self {
+    pub fn new(ai: DynAiProvider, sampling: SamplingRepository, spec: JudgeSpec) -> Self {
         Self {
             ai,
             sampling,
-            judge_provider: judge_provider.into(),
-            judge_model: judge_model.into(),
-            created_by,
+            judge_provider: spec.provider,
+            judge_model: spec.model,
+            created_by: spec.created_by,
+            run_context: spec.run_context,
         }
     }
 
@@ -105,7 +109,7 @@ impl JudgeService {
         let context = RequestContext::new(
             SessionId::generate(),
             TraceId::generate(),
-            ContextId::generate(),
+            self.run_context.clone(),
             AgentName::new(JUDGE_AGENT),
         )
         .with_actor(Actor::job(self.created_by.clone(), JUDGE_ACTOR_JOB));

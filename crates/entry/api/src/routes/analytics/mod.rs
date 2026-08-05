@@ -9,25 +9,26 @@
 mod events;
 mod stream;
 
-use anyhow::Result;
 use axum::Router;
 use axum::routing::{get, post};
 use std::sync::Arc;
-use systemprompt_analytics::{AnalyticsEventsRepository, EngagementRepository};
-use systemprompt_content::ContentRepository;
+use systemprompt_models::ContentRouting;
 use systemprompt_runtime::AppContext;
 
 pub use events::AnalyticsState;
 
-pub fn router(ctx: &AppContext) -> Result<Router> {
-    let state = AnalyticsState {
-        events: Arc::new(AnalyticsEventsRepository::new(ctx.db_pool())?),
-        content: Arc::new(ContentRepository::new(ctx.db_pool())?),
-        engagement: Arc::new(EngagementRepository::new(ctx.db_pool())?),
-        content_routing: ctx.content_routing(),
-    };
+pub fn router(ctx: &AppContext) -> Router {
+    routes().with_state(state(ctx, ctx.content_routing()))
+}
 
-    Ok(routes().with_state(state))
+fn state(ctx: &AppContext, content_routing: Option<Arc<dyn ContentRouting>>) -> AnalyticsState {
+    let analytics = ctx.analytics_repositories();
+    AnalyticsState {
+        events: Arc::new(analytics.events.clone()),
+        content: Arc::new(ctx.content_repositories().content.clone()),
+        engagement: Arc::new(analytics.engagement.clone()),
+        content_routing,
+    }
 }
 
 fn routes() -> Router<AnalyticsState> {
@@ -39,11 +40,7 @@ fn routes() -> Router<AnalyticsState> {
 
 #[cfg(feature = "test-api")]
 pub mod test_api {
-    use super::{
-        AnalyticsEventsRepository, AnalyticsState, ContentRepository, EngagementRepository, Router,
-        routes,
-    };
-    use anyhow::Result;
+    use super::{Router, routes, state};
     use std::sync::Arc;
     use systemprompt_models::ContentRouting;
     use systemprompt_runtime::AppContext;
@@ -51,13 +48,7 @@ pub mod test_api {
     pub fn router_with_routing(
         ctx: &AppContext,
         content_routing: Option<Arc<dyn ContentRouting>>,
-    ) -> Result<Router> {
-        let state = AnalyticsState {
-            events: Arc::new(AnalyticsEventsRepository::new(ctx.db_pool())?),
-            content: Arc::new(ContentRepository::new(ctx.db_pool())?),
-            engagement: Arc::new(EngagementRepository::new(ctx.db_pool())?),
-            content_routing,
-        };
-        Ok(routes().with_state(state))
+    ) -> Router {
+        routes().with_state(state(ctx, content_routing))
     }
 }

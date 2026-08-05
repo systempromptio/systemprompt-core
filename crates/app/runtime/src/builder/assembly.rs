@@ -23,6 +23,8 @@ pub(super) struct ContentAnalytics {
     pub(super) content_config: Option<Arc<ContentConfigRaw>>,
     pub(super) route_classifier: Arc<systemprompt_models::RouteClassifier>,
     pub(super) analytics_service: Arc<AnalyticsService>,
+    pub(super) analytics_repositories:
+        Arc<systemprompt_analytics::repository::AnalyticsRepositories>,
     pub(super) fingerprint_repo: Option<Arc<FingerprintRepository>>,
 }
 
@@ -38,11 +40,13 @@ pub(super) fn assemble_content_analytics(
     let route_classifier = Arc::new(systemprompt_models::RouteClassifier::new(
         content_routing.clone(),
     ));
+    let analytics_repositories =
+        Arc::new(systemprompt_analytics::repository::AnalyticsRepositories::new(database)?);
     let analytics_service = Arc::new(AnalyticsService::new(
-        database,
         geoip_reader.clone(),
         content_routing,
-    )?);
+        &analytics_repositories,
+    ));
 
     let fingerprint_repo = match FingerprintRepository::new(database) {
         Ok(repo) => Some(Arc::new(repo)),
@@ -57,6 +61,7 @@ pub(super) fn assemble_content_analytics(
         content_config,
         route_classifier,
         analytics_service,
+        analytics_repositories,
         fingerprint_repo,
     })
 }

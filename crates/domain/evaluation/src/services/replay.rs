@@ -18,6 +18,7 @@ const REPLAY_MAX_OUTPUT_TOKENS: u32 = 8192;
 pub struct ReplayService {
     ai: DynAiProvider,
     created_by: UserId,
+    run_context: ContextId,
 }
 
 impl std::fmt::Debug for ReplayService {
@@ -29,8 +30,12 @@ impl std::fmt::Debug for ReplayService {
 }
 
 impl ReplayService {
-    pub const fn new(ai: DynAiProvider, created_by: UserId) -> Self {
-        Self { ai, created_by }
+    pub const fn new(ai: DynAiProvider, created_by: UserId, run_context: ContextId) -> Self {
+        Self {
+            ai,
+            created_by,
+            run_context,
+        }
     }
 
     /// Re-executes a canonical prompt with the repair hint injected ahead of
@@ -41,7 +46,7 @@ impl ReplayService {
         let context = RequestContext::new(
             SessionId::generate(),
             TraceId::generate(),
-            ContextId::generate(),
+            self.run_context.clone(),
             AgentName::new(REPLAY_AGENT),
         )
         .with_actor(Actor::job(self.created_by.clone(), REPLAY_ACTOR_JOB));

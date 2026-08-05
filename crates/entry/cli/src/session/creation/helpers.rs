@@ -17,7 +17,7 @@ use systemprompt_identifiers::{ContextId, Email, ProfileName, SessionId, Session
 use systemprompt_models::Profile;
 use systemprompt_models::auth::{Permission, RateLimitTier, UserType};
 use systemprompt_security::{SessionGenerator, SessionParams};
-use systemprompt_users::UserService;
+use systemprompt_users::{UserRepository, UserService};
 
 use crate::session::resolution::ProfileContext;
 
@@ -51,7 +51,7 @@ pub(super) async fn get_or_create_admin(
     email: &str,
     context_type: &str,
 ) -> Result<systemprompt_users::User> {
-    let user_service = UserService::new(db_pool)?;
+    let user_service = UserService::new(Arc::new(UserRepository::new(db_pool)?));
 
     if let Some(user) = user_service
         .find_by_email(email)

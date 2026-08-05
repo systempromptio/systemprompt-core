@@ -3,8 +3,6 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::sync::Arc;
-
 use crate::services::shared::Result;
 use std::time::Duration;
 use systemprompt_traits::StartupEventSender;
@@ -64,10 +62,10 @@ impl AgentOrchestrator {
     }
 
     pub(super) fn start_health_monitoring(&mut self) {
-        let pool = Arc::clone(self.agent_state.db_pool());
+        let agent_service_repo = self.agent_state.repositories().agent_services.clone();
 
         let handle: JoinHandle<Result<()>> = tokio::spawn(async move {
-            let monitor = match AgentMonitor::new(&pool) {
+            let monitor = match AgentMonitor::new(agent_service_repo) {
                 Ok(m) => m,
                 Err(e) => {
                     tracing::error!(error = %e, "Failed to initialize health monitor");

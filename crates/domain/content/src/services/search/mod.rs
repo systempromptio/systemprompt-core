@@ -10,7 +10,6 @@
 use crate::error::ContentError;
 use crate::models::{SearchRequest, SearchResponse, SearchResult};
 use crate::repository::{ContentRepository, SearchRepository};
-use systemprompt_database::DbPool;
 use systemprompt_identifiers::CategoryId;
 
 const DEFAULT_SEARCH_LIMIT: i64 = 10;
@@ -22,11 +21,11 @@ pub struct SearchService {
 }
 
 impl SearchService {
-    pub fn new(db: &DbPool) -> Result<Self, ContentError> {
-        Ok(Self {
-            search_repo: SearchRepository::new(db)?,
-            content_repo: ContentRepository::new(db)?,
-        })
+    pub const fn new(search_repo: SearchRepository, content_repo: ContentRepository) -> Self {
+        Self {
+            search_repo,
+            content_repo,
+        }
     }
 
     pub async fn search(&self, request: &SearchRequest) -> Result<SearchResponse, ContentError> {

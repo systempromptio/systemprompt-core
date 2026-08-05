@@ -11,7 +11,7 @@
 mod provider;
 
 use std::collections::HashMap;
-use systemprompt_database::DbPool;
+use std::sync::Arc;
 use systemprompt_identifiers::{SessionId, UserId};
 
 use crate::error::{Result, UserError};
@@ -23,14 +23,12 @@ use crate::repository::{MergeResult, UpdateUserParams, UserRepository};
 
 #[derive(Debug, Clone)]
 pub struct UserService {
-    repository: UserRepository,
+    repository: Arc<UserRepository>,
 }
 
 impl UserService {
-    pub fn new(db: &DbPool) -> Result<Self> {
-        Ok(Self {
-            repository: UserRepository::new(db)?,
-        })
+    pub const fn new(repository: Arc<UserRepository>) -> Self {
+        Self { repository }
     }
 
     pub async fn find_by_id(&self, id: &UserId) -> Result<Option<User>> {

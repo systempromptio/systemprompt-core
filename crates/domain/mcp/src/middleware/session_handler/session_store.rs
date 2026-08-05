@@ -6,9 +6,7 @@
 //! teardown. Persisting the original `initialize` params in `mcp_sessions`
 //! lets the service transparently re-create a session whose in-memory worker
 //! was lost to a server restart or eviction — instead of returning
-//! `404 Session not found` and provoking a client reconnect storm. Persistence
-//! is best-effort: a missing repository or store error degrades to "no stored
-//! state", which simply falls back to the 404/re-initialize path.
+//! `404 Session not found` and provoking a client reconnect storm.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -18,25 +16,18 @@ use rmcp::model::InitializeRequestParams;
 use rmcp::transport::streamable_http_server::session::store::{
     SessionState, SessionStore, SessionStoreError,
 };
-use systemprompt_database::DbPool;
+use std::sync::Arc;
 use systemprompt_identifiers::SessionId;
 
 use crate::repository::McpSessionRepository;
 
 #[derive(Debug)]
 pub struct PostgresSessionStore {
-    repository: Option<McpSessionRepository>,
+    repository: Arc<McpSessionRepository>,
 }
 
 impl PostgresSessionStore {
-    pub fn new(db_pool: &DbPool) -> Self {
-        let repository = match McpSessionRepository::new(db_pool) {
-            Ok(repository) => Some(repository),
-            Err(error) => {
-                tracing::warn!(%error, "MCP session store disabled: repository unavailable");
-                None
-            },
-        };
+    pub const fn new(repository: Arc<McpSessionRepository>) -> Self {
         Self { repository }
     }
 }
@@ -44,10 +35,8 @@ impl PostgresSessionStore {
 #[async_trait]
 impl SessionStore for PostgresSessionStore {
     async fn load(&self, session_id: &str) -> Result<Option<SessionState>, SessionStoreError> {
-        let Some(repo) = self.repository.as_ref() else {
-            return Ok(None);
-        };
-        let Some(value) = repo
+        let Some(value) = self
+            .repository
             .find_initialize_params(&SessionId::new(session_id))
             .await
             .map_err(boxed)?
@@ -61,21 +50,17 @@ impl SessionStore for PostgresSessionStore {
     }
 
     async fn store(&self, session_id: &str, state: &SessionState) -> Result<(), SessionStoreError> {
-        let Some(repo) = self.repository.as_ref() else {
-            return Ok(());
-        };
         // JSON: protocol boundary — store the rmcp init params as JSONB.
         let value = serde_json::to_value(&state.initialize_params).map_err(boxed)?;
-        repo.store_initialize_params(&SessionId::new(session_id), &value)
+        self.repository
+            .store_initialize_params(&SessionId::new(session_id), &value)
             .await
             .map_err(boxed)
     }
 
     async fn delete(&self, session_id: &str) -> Result<(), SessionStoreError> {
-        let Some(repo) = self.repository.as_ref() else {
-            return Ok(());
-        };
-        repo.clear_initialize_params(&SessionId::new(session_id))
+        self.repository
+            .clear_initialize_params(&SessionId::new(session_id))
             .await
             .map_err(boxed)
     }

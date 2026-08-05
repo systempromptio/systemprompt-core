@@ -9,7 +9,7 @@
 //! This file's config installs `allow_registration: false`, so it also hosts
 //! the disabled-registration 403 gate tests for `register/start|finish`.
 
-use std::sync::{Arc, Once};
+use std::sync::Once;
 
 use axum::Router;
 use axum::body::{Body, to_bytes};
@@ -77,10 +77,10 @@ async fn webauthn_app() -> anyhow::Result<Router> {
     ensure_config();
     let (_pool, ctx) = setup_ctx().await?;
     let state = OAuthState::new(
-        Arc::clone(ctx.db_pool()),
+        ctx.oauth_repositories().oauth.clone(),
         ctx.analytics_provider().expect("analytics"),
         ctx.user_provider().expect("user"),
-    )?;
+    );
     Ok(public_router().with_state(state))
 }
 

@@ -40,11 +40,9 @@ pub enum StreamEvent {
     },
     Error(String),
 }
-use crate::repository::context::ContextRepository;
+use crate::repository::A2ARepositories;
 use crate::repository::execution::ExecutionStepRepository;
-use crate::repository::task::TaskRepository;
 use crate::services::{ContextService, SkillService};
-use systemprompt_database::DbPool;
 use systemprompt_identifiers::TaskId;
 use systemprompt_models::RequestContext;
 
@@ -68,10 +66,8 @@ pub struct ProcessMessageStreamParams<'a> {
 }
 
 pub struct MessageProcessor {
-    db_pool: DbPool,
+    repositories: Arc<A2ARepositories>,
     ai_service: Arc<dyn AiProvider>,
-    task_repo: TaskRepository,
-    context_repo: ContextRepository,
     context_service: ContextService,
     skill_service: Arc<SkillService>,
     execution_step_repo: Arc<ExecutionStepRepository>,
@@ -87,22 +83,18 @@ impl std::fmt::Debug for MessageProcessor {
 
 impl MessageProcessor {
     pub fn new(
-        db_pool: &DbPool,
+        repositories: Arc<A2ARepositories>,
         ai_service: Arc<dyn AiProvider>,
-        task_repo: TaskRepository,
     ) -> Result<Self> {
-        let context_repo = ContextRepository::new(db_pool)?;
-        let context_service = ContextService::new(task_repo.clone());
-        let execution_step_repo = Arc::new(ExecutionStepRepository::new(db_pool)?);
+        let context_service = ContextService::new(repositories.tasks.clone());
+        let execution_step_repo = Arc::new(repositories.execution_steps.clone());
         let skill_service = Arc::new(
             SkillService::new()?.with_execution_step_repo(Arc::clone(&execution_step_repo)),
         );
 
         Ok(Self {
-            db_pool: Arc::clone(db_pool),
+            repositories,
             ai_service,
-            task_repo,
-            context_repo,
             context_service,
             skill_service,
             execution_step_repo,
@@ -130,8 +122,7 @@ impl MessageProcessor {
             user_message: params.user_message,
             agent_message: params.agent_message,
             context: params.context,
-            task_repo: &self.task_repo,
-            db_pool: &self.db_pool,
+            repositories: &self.repositories,
             artifacts_already_published: params.artifacts_already_published,
         })
         .await

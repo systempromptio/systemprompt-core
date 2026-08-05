@@ -19,14 +19,20 @@ fn sample_state() -> SessionState {
 
 #[tokio::test]
 async fn load_surfaces_pool_error() {
-    let store = PostgresSessionStore::new(&closed_db_pool().await);
+    let store = PostgresSessionStore::new(std::sync::Arc::new(
+        systemprompt_mcp::repository::McpSessionRepository::new(&closed_db_pool().await)
+            .expect("mcp session repository"),
+    ));
     let err = store.load("sess-closed").await.expect_err("closed pool");
     assert!(err.to_string().to_lowercase().contains("pool"));
 }
 
 #[tokio::test]
 async fn store_surfaces_pool_error() {
-    let store = PostgresSessionStore::new(&closed_db_pool().await);
+    let store = PostgresSessionStore::new(std::sync::Arc::new(
+        systemprompt_mcp::repository::McpSessionRepository::new(&closed_db_pool().await)
+            .expect("mcp session repository"),
+    ));
     let err = store
         .store("sess-closed", &sample_state())
         .await
@@ -36,7 +42,10 @@ async fn store_surfaces_pool_error() {
 
 #[tokio::test]
 async fn delete_surfaces_pool_error() {
-    let store = PostgresSessionStore::new(&closed_db_pool().await);
+    let store = PostgresSessionStore::new(std::sync::Arc::new(
+        systemprompt_mcp::repository::McpSessionRepository::new(&closed_db_pool().await)
+            .expect("mcp session repository"),
+    ));
     let err = store.delete("sess-closed").await.expect_err("closed pool");
     assert!(err.to_string().to_lowercase().contains("pool"));
 }

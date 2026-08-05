@@ -69,8 +69,8 @@ pub async fn execute(args: GenerateArgs, ctx: &CommandContext) -> Result<Command
         return Err(anyhow!("URL is required"));
     }
 
-    let pool = ctx.db_pool().await?;
-    let service = LinkGenerationService::new(&pool)?;
+    let service =
+        LinkGenerationService::new(ctx.app_context().await?.content_repositories().link.clone());
 
     let has_utm = args.utm_source.is_some()
         || args.utm_medium.is_some()

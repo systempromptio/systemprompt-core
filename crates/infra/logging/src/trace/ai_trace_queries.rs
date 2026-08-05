@@ -53,7 +53,7 @@ pub(super) async fn fetch_task_info(pool: &Arc<PgPool>, task_id: &TaskId) -> Res
                 tracing::warn!(error = %e, raw = %row.context_id, "Non-UUID context_id from agent_tasks row");
                 e
             })
-            .unwrap_or_else(|_| ContextId::generate()),
+            .unwrap_or_else(|_| ContextId::legacy()),
         agent_name: row.agent_name,
         status: row.status,
         created_at: row.created_at,

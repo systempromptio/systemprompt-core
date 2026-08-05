@@ -113,7 +113,7 @@ pub async fn generate_anonymous_token(
 ) -> Result<Response, OAuthHttpError> {
     let client_id = req.client_id.clone();
 
-    let validator = ClientValidator::new(state.db_pool()).map_err(|e| {
+    let validator = ClientValidator::new(state.oauth_repository().clone()).map_err(|e| {
         OAuthHttpError::server_error(format!("Failed to create client validator: {e}"))
     })?;
 

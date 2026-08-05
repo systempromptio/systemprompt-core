@@ -5,7 +5,7 @@
 //! client-not-found, missing-scope, and invalid-scope error branches, plus
 //! both allow/deny POST decisions.
 
-use std::sync::{Arc, Once};
+use std::sync::Once;
 
 use axum::Router;
 use axum::body::{Body, to_bytes};
@@ -78,10 +78,10 @@ async fn consent_app() -> anyhow::Result<Router> {
     ensure_config();
     let (_pool, ctx) = setup_ctx().await?;
     let state = OAuthState::new(
-        Arc::clone(ctx.db_pool()),
+        ctx.oauth_repositories().oauth.clone(),
         ctx.analytics_provider().expect("analytics"),
         ctx.user_provider().expect("user"),
-    )?;
+    );
     Ok(authenticated_router().with_state(state))
 }
 

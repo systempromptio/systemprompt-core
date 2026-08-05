@@ -11,22 +11,35 @@ use systemprompt_ai::repository::{
     AiSafetyFindingRepository,
 };
 use systemprompt_database::DbPool;
+use systemprompt_traits::DynContextMaterializer;
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct GatewayRepositories {
     pub quota_buckets: AiQuotaBucketRepository,
     pub requests: Arc<AiRequestRepository>,
     pub payloads: Arc<AiRequestPayloadRepository>,
     pub safety_findings: AiSafetyFindingRepository,
+    pub context_materializer: DynContextMaterializer,
+}
+
+impl std::fmt::Debug for GatewayRepositories {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("GatewayRepositories")
+            .finish_non_exhaustive()
+    }
 }
 
 impl GatewayRepositories {
-    pub fn new(db: &DbPool) -> Result<Self, systemprompt_ai::error::RepositoryError> {
+    pub fn new(
+        db: &DbPool,
+        context_materializer: DynContextMaterializer,
+    ) -> Result<Self, systemprompt_ai::error::RepositoryError> {
         Ok(Self {
             quota_buckets: AiQuotaBucketRepository::new(db)?,
             requests: Arc::new(AiRequestRepository::new(db)?),
             payloads: Arc::new(AiRequestPayloadRepository::new(db)?),
             safety_findings: AiSafetyFindingRepository::new(db)?,
+            context_materializer,
         })
     }
 }

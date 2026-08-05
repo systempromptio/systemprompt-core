@@ -20,7 +20,7 @@ fn probe_context(server_name: &str) -> RequestContext {
     RequestContext::new(
         SessionId::new(format!("cli-{server_name}")),
         TraceId::generate(),
-        ContextId::generate(),
+        ContextId::derived_from_cli_probe(server_name),
         AgentName::system(),
     )
 }

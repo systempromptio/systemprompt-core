@@ -20,6 +20,7 @@ systemprompt-marketplace = { workspace = true }
 systemprompt-security = { workspace = true }
 systemprompt-config = { workspace = true }
 systemprompt-logging = { workspace = true }
+systemprompt-ai = { workspace = true }
 systemprompt-files = { workspace = true }
 systemprompt-analytics = { workspace = true }
 systemprompt-agent = { workspace = true }

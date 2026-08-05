@@ -9,7 +9,7 @@ use std::sync::Arc;
 
 use crate::models::RequestStatus;
 use crate::models::ai::AiRequest;
-use crate::repository::{AiRequestPayloadRepository, AiRequestRepository};
+use crate::repository::AiRepositories;
 use crate::services::config::ConfigValidator;
 use crate::services::providers::{AiProvider, ProviderClientParams, ProviderFactory};
 use crate::services::tooled::{ResponseSynthesizer, TooledExecutor};
@@ -43,14 +43,30 @@ impl std::fmt::Debug for AiService {
     }
 }
 
+#[derive(Clone)]
+pub struct AiServiceProviders {
+    pub tools: Arc<dyn ToolProvider>,
+    pub sessions: DynAiSessionProvider,
+}
+
+impl std::fmt::Debug for AiServiceProviders {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("AiServiceProviders").finish_non_exhaustive()
+    }
+}
+
 impl AiService {
     pub fn new(
         db_pool: &DbPool,
         registry: &ProviderRegistry,
         ai_config: &AiConfig,
-        tool_provider: Arc<dyn ToolProvider>,
-        session_provider: DynAiSessionProvider,
+        providers: AiServiceProviders,
+        repositories: &AiRepositories,
     ) -> Result<Self> {
+        let AiServiceProviders {
+            tools: tool_provider,
+            sessions: session_provider,
+        } = providers;
         let mut missing_env_vars = Vec::new();
         let providers = Self::build_providers(registry, ai_config, db_pool, &mut missing_env_vars)?;
         ConfigValidator::validate(ai_config, &providers, &missing_env_vars)?;
@@ -76,8 +92,8 @@ impl AiService {
         let tooled_executor = TooledExecutor::new(Arc::clone(&tool_provider));
 
         let storage = RequestStorage::new(
-            AiRequestRepository::new(db_pool)?,
-            AiRequestPayloadRepository::new(db_pool)?,
+            repositories.requests.clone(),
+            repositories.payloads.clone(),
             session_provider,
         );
 
@@ -92,6 +108,15 @@ impl AiService {
             default_model,
             default_max_output_tokens: ai_config.default_max_output_tokens.unwrap_or(8192),
         })
+    }
+
+    #[must_use]
+    pub fn with_context_materializer(
+        mut self,
+        materializer: systemprompt_traits::DynContextMaterializer,
+    ) -> Self {
+        self.storage = self.storage.with_context_materializer(materializer);
+        self
     }
 
     fn build_providers(

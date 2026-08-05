@@ -7,8 +7,14 @@ use systemprompt_identifiers::{AiRequestId, ContextId, GatewayConversationId};
 
 use crate::support::{minimal_request, seed_user, setup_db};
 
+fn materializer(db: &systemprompt_database::DbPool) -> systemprompt_traits::DynContextMaterializer {
+    std::sync::Arc::new(systemprompt_agent::services::ContextProviderService::new(
+        systemprompt_agent::repository::ContextRepository::new(db).expect("context repository"),
+    ))
+}
+
 fn gateway_repos(db: &systemprompt_database::DbPool) -> GatewayRepositories {
-    GatewayRepositories::new(db).expect("gateway repositories")
+    GatewayRepositories::new(db, materializer(db)).expect("gateway repositories")
 }
 
 #[tokio::test]

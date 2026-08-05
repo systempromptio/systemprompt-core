@@ -106,7 +106,7 @@ impl JwtContextExtractor {
             .and_then(|h| h.to_str().ok())
             .filter(|s| !s.is_empty())
             .and_then(|s| ContextId::try_new(s).ok())
-            .unwrap_or_else(ContextId::generate);
+            .unwrap_or_else(|| ContextId::derived_from_session(&jwt_context.session_id));
 
         let (trace_id, task_id, auth_token, agent_name) =
             extract_common_headers(&self.token_extractor, headers);
@@ -172,7 +172,9 @@ impl JwtContextExtractor {
                 })?,
                 None,
             ),
-            ContextIdSource::FromTask { task_id } => (ContextId::generate(), Some(task_id)),
+            ContextIdSource::FromTask { task_id } => {
+                (ContextId::derived_from_task(&task_id), Some(task_id))
+            },
         };
 
         let (trace_id, task_id_from_header, auth_token, agent_name) =

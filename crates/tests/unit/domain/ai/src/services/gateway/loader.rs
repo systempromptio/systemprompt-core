@@ -38,9 +38,12 @@ async fn missing_policies_file_is_a_noop() {
         return;
     };
     let dir = tempfile::tempdir().expect("tempdir");
-    let report = load_gateway_policies_from_yaml(&pool, dir.path())
-        .await
-        .expect("missing file is ok");
+    let report = load_gateway_policies_from_yaml(
+        &systemprompt_ai::repository::AiGatewayPolicyRepository::new(&pool).expect("repository"),
+        dir.path(),
+    )
+    .await
+    .expect("missing file is ok");
     assert_eq!(report.inserted, 0);
     assert_eq!(report.updated, 0);
     assert_eq!(report.deleted, 0);
@@ -56,9 +59,12 @@ async fn malformed_yaml_is_rejected_with_invalid_data() {
     let gateway_dir = dir.path().join("gateway");
     std::fs::create_dir_all(&gateway_dir).expect("mkdir");
     std::fs::write(gateway_dir.join("policies.yaml"), "policies: [").expect("write");
-    let err = load_gateway_policies_from_yaml(&pool, dir.path())
-        .await
-        .expect_err("must fail");
+    let err = load_gateway_policies_from_yaml(
+        &systemprompt_ai::repository::AiGatewayPolicyRepository::new(&pool).expect("repository"),
+        dir.path(),
+    )
+    .await
+    .expect_err("must fail");
     assert!(err.to_string().contains("policies.yaml"));
 }
 
@@ -75,9 +81,12 @@ async fn unknown_yaml_fields_are_rejected() {
         "policies: []\nextra_field: true\n",
     )
     .expect("write");
-    let err = load_gateway_policies_from_yaml(&pool, dir.path())
-        .await
-        .expect_err("deny_unknown_fields must reject");
+    let err = load_gateway_policies_from_yaml(
+        &systemprompt_ai::repository::AiGatewayPolicyRepository::new(&pool).expect("repository"),
+        dir.path(),
+    )
+    .await
+    .expect_err("deny_unknown_fields must reject");
     assert!(err.to_string().contains("extra_field"));
 }
 
@@ -89,7 +98,9 @@ async fn ingest_inserts_then_skips_without_override() {
     let name = unique_name("ingest-skip");
     let yaml = config_yaml(&[&name]);
     let cfg: GatewayPolicyConfig = serde_yaml::from_str(&yaml).expect("parse");
-    let service = GatewayPolicyIngestionService::new(&pool).expect("service");
+    let service = GatewayPolicyIngestionService::from_repository(
+        systemprompt_ai::repository::AiGatewayPolicyRepository::new(&pool).expect("repository"),
+    );
 
     let first = service
         .ingest_config(&cfg, GatewayPolicyIngestOptions::default())
@@ -113,7 +124,9 @@ async fn ingest_with_override_updates_existing_spec() {
         return;
     };
     let name = unique_name("ingest-override");
-    let service = GatewayPolicyIngestionService::new(&pool).expect("service");
+    let service = GatewayPolicyIngestionService::from_repository(
+        systemprompt_ai::repository::AiGatewayPolicyRepository::new(&pool).expect("repository"),
+    );
     let cfg: GatewayPolicyConfig = serde_yaml::from_str(&config_yaml(&[&name])).expect("parse");
     service
         .ingest_config(&cfg, GatewayPolicyIngestOptions::default())
@@ -160,7 +173,9 @@ async fn disabled_policy_is_upserted_but_not_served() {
     let name = unique_name("ingest-disabled");
     let yaml = format!("policies:\n  - name: {name}\n    enabled: false\n");
     let cfg: GatewayPolicyConfig = serde_yaml::from_str(&yaml).expect("parse");
-    let service = GatewayPolicyIngestionService::new(&pool).expect("service");
+    let service = GatewayPolicyIngestionService::from_repository(
+        systemprompt_ai::repository::AiGatewayPolicyRepository::new(&pool).expect("repository"),
+    );
     let report = service
         .ingest_config(&cfg, GatewayPolicyIngestOptions::default())
         .await
@@ -179,7 +194,9 @@ async fn empty_policy_name_fails_validation() {
     };
     let cfg: GatewayPolicyConfig =
         serde_yaml::from_str("policies:\n  - name: '  '\n").expect("parse");
-    let service = GatewayPolicyIngestionService::new(&pool).expect("service");
+    let service = GatewayPolicyIngestionService::from_repository(
+        systemprompt_ai::repository::AiGatewayPolicyRepository::new(&pool).expect("repository"),
+    );
     let err = service
         .ingest_config(&cfg, GatewayPolicyIngestOptions::default())
         .await
@@ -195,7 +212,9 @@ async fn duplicate_policy_names_fail_validation() {
     let name = unique_name("dup");
     let cfg: GatewayPolicyConfig =
         serde_yaml::from_str(&config_yaml(&[&name, &name])).expect("parse");
-    let service = GatewayPolicyIngestionService::new(&pool).expect("service");
+    let service = GatewayPolicyIngestionService::from_repository(
+        systemprompt_ai::repository::AiGatewayPolicyRepository::new(&pool).expect("repository"),
+    );
     let err = service
         .ingest_config(&cfg, GatewayPolicyIngestOptions::default())
         .await
@@ -217,7 +236,9 @@ async fn a_valid_policies_file_is_ingested_and_reconciles_the_table_to_it() {
     };
     let name = unique_name("loader-happy");
     let orphan = unique_name("loader-orphan");
-    let service = GatewayPolicyIngestionService::new(&pool).expect("service");
+    let service = GatewayPolicyIngestionService::from_repository(
+        systemprompt_ai::repository::AiGatewayPolicyRepository::new(&pool).expect("repository"),
+    );
     service
         .ingest_config(
             &serde_yaml::from_str(&config_yaml(&[&orphan])).expect("parse"),
@@ -231,9 +252,12 @@ async fn a_valid_policies_file_is_ingested_and_reconciles_the_table_to_it() {
     std::fs::create_dir_all(&gateway_dir).expect("mkdir");
     std::fs::write(gateway_dir.join("policies.yaml"), config_yaml(&[&name])).expect("write");
 
-    let report = load_gateway_policies_from_yaml(&pool, dir.path())
-        .await
-        .expect("valid file ingests");
+    let report = load_gateway_policies_from_yaml(
+        &systemprompt_ai::repository::AiGatewayPolicyRepository::new(&pool).expect("repository"),
+        dir.path(),
+    )
+    .await
+    .expect("valid file ingests");
     assert_eq!(report.inserted, 1, "the file's one policy must be inserted");
 
     let repo = systemprompt_ai::AiGatewayPolicyRepository::new(&pool).expect("repo");
@@ -250,9 +274,12 @@ async fn a_valid_policies_file_is_ingested_and_reconciles_the_table_to_it() {
     assert!(report.deleted >= 1, "the orphan sweep must be reported");
 
     // A second boot over the same file is idempotent, not a re-insert.
-    let again = load_gateway_policies_from_yaml(&pool, dir.path())
-        .await
-        .expect("second boot");
+    let again = load_gateway_policies_from_yaml(
+        &systemprompt_ai::repository::AiGatewayPolicyRepository::new(&pool).expect("repository"),
+        dir.path(),
+    )
+    .await
+    .expect("second boot");
     assert_eq!(again.inserted, 0);
     assert_eq!(again.updated + again.skipped, 1);
 }
@@ -268,9 +295,12 @@ async fn an_unreadable_policies_path_is_an_error_rather_than_a_silent_noop() {
     // must not mistake it for "no config".
     std::fs::create_dir_all(dir.path().join("gateway").join("policies.yaml")).expect("mkdir");
 
-    let err = load_gateway_policies_from_yaml(&pool, dir.path())
-        .await
-        .expect_err("an unreadable path must not be treated as an absent config");
+    let err = load_gateway_policies_from_yaml(
+        &systemprompt_ai::repository::AiGatewayPolicyRepository::new(&pool).expect("repository"),
+        dir.path(),
+    )
+    .await
+    .expect_err("an unreadable path must not be treated as an absent config");
     assert!(
         err.to_string().contains("gateway/policies.yaml"),
         "the error must name the file it failed to read, got {err}"

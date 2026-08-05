@@ -9,6 +9,7 @@
 
 use axum::extract::Request;
 use axum::http::{StatusCode, header};
+use std::sync::Arc;
 use systemprompt_api::routes::gateway::sessions::create_session;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::UserId;
@@ -16,7 +17,7 @@ use systemprompt_test_fixtures::{
     ensure_test_bootstrap, fixture_app_context, fixture_database_url, fixture_db_pool,
     seed_user_row,
 };
-use systemprompt_users::{API_KEY_PREFIX, ApiKeyService, IssueApiKeyParams};
+use systemprompt_users::{API_KEY_PREFIX, ApiKeyService, IssueApiKeyParams, UserRepository};
 use uuid::Uuid;
 
 struct Harness {
@@ -49,16 +50,17 @@ fn request_with(headers: &[(header::HeaderName, &str)]) -> Request {
 }
 
 async fn mint_key(pool: &DbPool, user_id: &UserId) -> String {
-    ApiKeyService::new(pool)
-        .expect("service")
-        .issue(IssueApiKeyParams {
-            user_id,
-            name: "gateway-mint",
-            expires_at: None,
-        })
-        .await
-        .expect("issue")
-        .secret
+    ApiKeyService::new(Arc::new(
+        UserRepository::new(pool).expect("user repository"),
+    ))
+    .issue(IssueApiKeyParams {
+        user_id,
+        name: "gateway-mint",
+        expires_at: None,
+    })
+    .await
+    .expect("issue")
+    .secret
 }
 
 #[tokio::test]
@@ -161,7 +163,9 @@ async fn revoked_api_key_no_longer_mints() {
     let Some(h) = harness().await else {
         return;
     };
-    let service = ApiKeyService::new(&h.pool).expect("service");
+    let service = ApiKeyService::new(Arc::new(
+        UserRepository::new(&h.pool).expect("user repository"),
+    ));
     let minted = service
         .issue(IssueApiKeyParams {
             user_id: &h.user_id,

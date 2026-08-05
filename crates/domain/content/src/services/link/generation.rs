@@ -12,7 +12,6 @@ use crate::error::ContentError;
 use crate::models::{CampaignLink, CreateLinkParams, DestinationType, LinkType, UtmParams};
 use crate::repository::LinkRepository;
 use chrono::{DateTime, Utc};
-use systemprompt_database::DbPool;
 use systemprompt_identifiers::{CampaignId, ContentId};
 
 mod utm_defaults {
@@ -53,10 +52,8 @@ pub struct LinkGenerationService {
 }
 
 impl LinkGenerationService {
-    pub fn new(db: &DbPool) -> Result<Self, ContentError> {
-        Ok(Self {
-            link_repo: LinkRepository::new(db)?,
-        })
+    pub const fn new(link_repo: LinkRepository) -> Self {
+        Self { link_repo }
     }
 
     pub async fn generate_link(

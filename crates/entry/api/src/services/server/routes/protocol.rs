@@ -9,7 +9,6 @@
 
 use axum::Router;
 use std::sync::Arc;
-use systemprompt_extension::LoaderError;
 use systemprompt_models::modules::ApiPaths;
 use systemprompt_oauth::OAuthState;
 use systemprompt_runtime::AppContext;
@@ -28,9 +27,7 @@ fn create_oauth_state(ctx: &AppContext) -> Option<OAuthState> {
     let users = ctx.user_provider()?;
     let mcp_registry: Arc<dyn systemprompt_traits::McpRegistryProvider> =
         Arc::new(ctx.mcp_registry().clone());
-    let state = OAuthState::new(Arc::clone(ctx.db_pool()), analytics, users)
-        .inspect_err(|e| tracing::error!(error = %e, "Failed to build OAuth state"))
-        .ok()?
+    let state = OAuthState::new(ctx.oauth_repositories().oauth.clone(), analytics, users)
         .with_mcp_registry(mcp_registry);
     Some(state)
 }
@@ -141,7 +138,7 @@ pub(super) fn mount_mcp_and_stream(
     public_middleware: &PublicContextMiddleware,
     user_middleware: &UserOnlyContextMiddleware,
     mcp_middleware: McpContextMiddleware,
-) -> Result<Router, LoaderError> {
+) -> Router {
     let rate_config = &ctx.config().rate_limits;
 
     router = router.nest(
@@ -169,15 +166,11 @@ pub(super) fn mount_mcp_and_stream(
     router = router.nest(
         ApiPaths::STREAM_BASE,
         crate::routes::stream::stream_router(ctx)
-            .map_err(|e| LoaderError::InitializationFailed {
-                extension: "stream".to_owned(),
-                message: e.to_string(),
-            })?
             .with_rate_limit(rate_config, rate_config.stream_per_second)
             .with_auth(user_middleware.clone(), AuthzPolicy::user()),
     );
 
-    Ok(router)
+    router
 }
 
 pub(super) fn mount_content_and_misc(
@@ -185,7 +178,7 @@ pub(super) fn mount_content_and_misc(
     ctx: &AppContext,
     public_middleware: &PublicContextMiddleware,
     user_middleware: &UserOnlyContextMiddleware,
-) -> Result<Router, LoaderError> {
+) -> Router {
     let rate_config = &ctx.config().rate_limits;
 
     let content = crate::routes::content::public_router(ctx)
@@ -199,7 +192,7 @@ pub(super) fn mount_content_and_misc(
     router = router.nest(ApiPaths::CONTENT_BASE, content);
 
     router = router.merge(
-        crate::routes::content::redirect_router(ctx.db_pool())
+        crate::routes::content::redirect_router(ctx.content_repositories())
             .with_rate_limit(rate_config, rate_config.content_per_second)
             .with_auth(*public_middleware, AuthzPolicy::public()),
     );
@@ -224,10 +217,6 @@ pub(super) fn mount_content_and_misc(
     router = router.nest(
         ApiPaths::ANALYTICS_BASE,
         crate::routes::analytics::router(ctx)
-            .map_err(|e| LoaderError::InitializationFailed {
-                extension: "analytics".to_owned(),
-                message: e.to_string(),
-            })?
             .with_rate_limit(rate_config, rate_config.content_per_second)
             .with_auth(user_middleware.clone(), AuthzPolicy::admin()),
     );
@@ -235,10 +224,6 @@ pub(super) fn mount_content_and_misc(
     router = router.nest(
         ApiPaths::TRACK_ENGAGEMENT,
         crate::routes::engagement::router(ctx)
-            .map_err(|e| LoaderError::InitializationFailed {
-                extension: "engagement".to_owned(),
-                message: e.to_string(),
-            })?
             .with_rate_limit(rate_config, rate_config.content_per_second)
             .with_auth(*public_middleware, AuthzPolicy::public()),
     );
@@ -268,5 +253,5 @@ pub(super) fn mount_content_and_misc(
         );
     }
 
-    Ok(router)
+    router
 }

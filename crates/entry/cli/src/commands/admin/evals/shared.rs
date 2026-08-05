@@ -6,9 +6,11 @@
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
-use systemprompt_ai::AiService;
+use systemprompt_ai::{AiService, AiServiceProviders};
 use systemprompt_analytics::AnalyticsAiSessionProvider;
-use systemprompt_evaluation::{EvaluationService, RunRequest, SampleFilter, TriggerSource};
+use systemprompt_evaluation::{
+    EvalRepositories, EvaluationService, RunRequest, SampleFilter, TriggerSource,
+};
 use systemprompt_identifiers::UserId;
 use systemprompt_loader::ConfigLoader;
 use systemprompt_mcp::McpToolProvider;
@@ -35,26 +37,30 @@ pub(super) async fn eval_context(ctx: &CommandContext) -> Result<EvalContext> {
         app_context.mcp_registry().clone(),
         &services_config.ai.mcp.resilience,
     ));
-    let session_provider = Arc::new(
-        AnalyticsAiSessionProvider::new(&db_pool)
-            .context("Failed to create analytics session provider")?,
-    );
+    let session_provider = Arc::new(AnalyticsAiSessionProvider::from_repository(
+        app_context.analytics_repositories().sessions.clone(),
+    ));
     let ai_service = Arc::new(
         AiService::new(
             &db_pool,
             &profile.providers,
             &services_config.ai,
-            tool_provider,
-            session_provider,
+            AiServiceProviders {
+                tools: tool_provider,
+                sessions: session_provider,
+            },
+            app_context.ai_repositories(),
         )
+        .map(|svc| svc.with_context_materializer(app_context.context_materializer()))
         .context("Failed to create AI service")?,
     );
 
     let default_provider = ai_service.default_provider().to_owned();
     let default_model = ai_service.default_model().to_owned();
     let ai_provider: DynAiProvider = ai_service;
-    let evaluation = EvaluationService::new(&db_pool, ai_provider)
-        .context("Failed to create evaluation service")?;
+    let repositories =
+        EvalRepositories::new(&db_pool).context("Failed to create evaluation repositories")?;
+    let evaluation = EvaluationService::new(repositories, ai_provider);
 
     Ok(EvalContext {
         evaluation,

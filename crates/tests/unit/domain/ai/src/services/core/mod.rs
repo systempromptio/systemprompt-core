@@ -100,8 +100,11 @@ pub(crate) fn service(pool: &DbPool, provider: &str, endpoint: String) -> AiServ
         pool,
         &registry,
         &config,
-        Arc::new(NoopToolProvider::new()),
-        noop_session_provider(),
+        systemprompt_ai::AiServiceProviders {
+            tools: Arc::new(NoopToolProvider::new()),
+            sessions: noop_session_provider(),
+        },
+        &systemprompt_ai::repository::AiRepositories::new(pool).expect("ai repositories"),
     )
     .expect("AiService builds")
 }

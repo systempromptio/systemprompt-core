@@ -110,7 +110,7 @@ async fn generate_feed_writes_xml_with_seeded_item() {
     );
     fs::create_dir_all(boot.app_paths.web().dist()).expect("mkdir dist");
 
-    generate_feed(db.clone(), &boot.app_paths)
+    generate_feed(content_repo(&db), &boot.app_paths)
         .await
         .expect("generate_feed");
 
@@ -145,7 +145,7 @@ async fn rss_provider_branding_falls_back_to_web_branding() {
     install_web_config(boot);
     install_content_config(boot, "blog", "rssbrandingnone", "");
 
-    let p = DefaultRssFeedProvider::new(db, &boot.app_paths)
+    let p = DefaultRssFeedProvider::new(content_repo(&db), &boot.app_paths)
         .await
         .expect("provider");
     let ctx = RssFeedContext {
@@ -172,7 +172,7 @@ async fn rss_provider_partial_branding_mixes_source_and_web_defaults() {
         "    branding:\n      name: \"Only Name\"",
     );
 
-    let p = DefaultRssFeedProvider::new(db, &boot.app_paths)
+    let p = DefaultRssFeedProvider::new(content_repo(&db), &boot.app_paths)
         .await
         .expect("provider");
     let ctx = RssFeedContext {
@@ -196,7 +196,7 @@ async fn rss_provider_feed_specs_skip_sources_without_enabled_sitemap() {
     install_web_config(boot);
     install_content_config(boot, "blog", "rssspecs", "");
 
-    let p = DefaultRssFeedProvider::new(db, &boot.app_paths)
+    let p = DefaultRssFeedProvider::new(content_repo(&db), &boot.app_paths)
         .await
         .expect("provider");
     let specs = p.feed_specs();
@@ -222,7 +222,7 @@ async fn rss_provider_fetch_items_maps_slug_through_url_pattern() {
     install_web_config(boot);
     install_content_config(boot, "blog", "rssfetchdb", "");
 
-    let p = DefaultRssFeedProvider::new(db.clone(), &boot.app_paths)
+    let p = DefaultRssFeedProvider::new(content_repo(&db), &boot.app_paths)
         .await
         .expect("provider");
     let ctx = RssFeedContext {
@@ -359,7 +359,7 @@ async fn rss_provider_missing_content_config_is_read_error() {
     let _boot = ensure_test_bootstrap();
     let Some(db) = maybe_db().await else { return };
     let tmp = tempfile::TempDir::new().unwrap();
-    let err = DefaultRssFeedProvider::new(db, &tempdir_paths(&tmp))
+    let err = DefaultRssFeedProvider::new(content_repo(&db), &tempdir_paths(&tmp))
         .await
         .expect_err("missing content config");
     assert!(
@@ -377,7 +377,7 @@ async fn rss_provider_malformed_content_config_is_parse_error() {
     let cfg = paths.system().content_config().to_path_buf();
     fs::create_dir_all(cfg.parent().unwrap()).unwrap();
     fs::write(&cfg, "content_sources: [broken").unwrap();
-    let err = DefaultRssFeedProvider::new(db, &paths)
+    let err = DefaultRssFeedProvider::new(content_repo(&db), &paths)
         .await
         .expect_err("malformed content config");
     assert!(
@@ -397,12 +397,10 @@ async fn rss_provider_fetch_items_with_closed_pool_is_render_failed() {
     install_web_config(boot);
     install_content_config(boot, "blog", "rssclosedsrc", "");
 
-    let p = DefaultRssFeedProvider::new(
-        systemprompt_test_fixtures::closed_db_pool().await,
-        &boot.app_paths,
-    )
-    .await
-    .expect("provider construction only reads config files");
+    let closed = systemprompt_test_fixtures::closed_db_pool().await;
+    let p = DefaultRssFeedProvider::new(content_repo(&closed), &boot.app_paths)
+        .await
+        .expect("provider construction only reads config files");
     let ctx = RssFeedContext {
         base_url: "https://example.com",
         source_name: "rssclosedsrc",
@@ -427,7 +425,7 @@ async fn rss_provider_fetch_items_defaults_url_pattern_without_sitemap() {
     install_web_config(boot);
     install_content_config(boot, "blog", "rssnositemap", "");
 
-    let p = DefaultRssFeedProvider::new(db.clone(), &boot.app_paths)
+    let p = DefaultRssFeedProvider::new(content_repo(&db), &boot.app_paths)
         .await
         .expect("provider");
     let ctx = RssFeedContext {
@@ -443,4 +441,8 @@ async fn rss_provider_fetch_items_defaults_url_pattern_without_sitemap() {
         items[0].link, "https://example.com/plain-slug-post",
         "source without sitemap must use the default slug pattern"
     );
+}
+
+fn content_repo(pool: &systemprompt_database::DbPool) -> systemprompt_content::ContentRepository {
+    systemprompt_content::ContentRepository::new(pool).expect("content repository")
 }

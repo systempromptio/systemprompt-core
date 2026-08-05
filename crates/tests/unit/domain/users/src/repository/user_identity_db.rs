@@ -1,10 +1,11 @@
 //! DB-backed tests for email canonicalisation, anonymous promotion, the
 //! transactional user merge, and federated sign-in account linking.
 
+use std::sync::Arc;
 use systemprompt_identifiers::UserId;
 use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_database_url, fixture_db_pool};
 use systemprompt_traits::FederatedIdentityClaims;
-use systemprompt_users::{UserError, UserService};
+use systemprompt_users::{UserError, UserRepository, UserService};
 use uuid::Uuid;
 
 struct Ctx {
@@ -16,7 +17,9 @@ async fn setup() -> Option<Ctx> {
     let url = fixture_database_url().ok()?;
     ensure_test_bootstrap();
     let pool = fixture_db_pool(&url).await.expect("pool");
-    let service = UserService::new(&pool).expect("service");
+    let service = UserService::new(Arc::new(
+        UserRepository::new(&pool).expect("user repository"),
+    ));
     Some(Ctx { service, pool })
 }
 

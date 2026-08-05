@@ -2,12 +2,13 @@
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
+use std::sync::Arc;
 use systemprompt_cli::cloud::auth::admin_user::{
     CloudUser, SyncResult, print_sync_results, sync_admin_to_database,
 };
 use systemprompt_database::DbPool;
 use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
-use systemprompt_users::UserService;
+use systemprompt_users::{UserRepository, UserService};
 use uuid::Uuid;
 
 fn unique_user(prefix: &str) -> CloudUser {
@@ -80,7 +81,7 @@ async fn missing_user_is_created_then_reported_admin_on_resync() {
 async fn existing_regular_user_is_promoted() {
     let url = fixture_database_url().unwrap();
     let pool = pool().await;
-    let service = UserService::new(&pool).unwrap();
+    let service = UserService::new(Arc::new(UserRepository::new(&pool).unwrap()));
 
     let user = unique_user("promoted");
     service

@@ -10,6 +10,7 @@ use axum::routing::{delete, post};
 use axum::{Json, Router};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 use systemprompt_identifiers::{ApiKeyId, UserId};
 use systemprompt_models::RequestContext;
 use systemprompt_runtime::AppContext;
@@ -73,7 +74,7 @@ async fn issue_key(
     Json(body): Json<IssueApiKeyRequest>,
 ) -> Result<impl IntoResponse, ApiHttpError> {
     let target_user = resolve_target_user(&req_ctx, body.target_user_id.as_deref());
-    let service = ApiKeyService::new(ctx.db_pool())?;
+    let service = ApiKeyService::new(Arc::clone(ctx.user_repository()));
 
     let issued = service
         .issue(IssueApiKeyParams {
@@ -100,7 +101,7 @@ async fn list_keys(
     State(ctx): State<AppContext>,
     Extension(req_ctx): Extension<RequestContext>,
 ) -> Result<Json<Vec<ApiKeyView>>, ApiHttpError> {
-    let service = ApiKeyService::new(ctx.db_pool())?;
+    let service = ApiKeyService::new(Arc::clone(ctx.user_repository()));
 
     let keys = service.list_for_user(req_ctx.user_id()).await?;
 
@@ -112,7 +113,7 @@ async fn revoke_key(
     Extension(req_ctx): Extension<RequestContext>,
     Path(key_id): Path<String>,
 ) -> Result<StatusCode, ApiHttpError> {
-    let service = ApiKeyService::new(ctx.db_pool())?;
+    let service = ApiKeyService::new(Arc::clone(ctx.user_repository()));
 
     let id = ApiKeyId::new(key_id);
     let revoked = service.revoke(&id, req_ctx.user_id()).await?;

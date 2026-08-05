@@ -4,6 +4,7 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use clap::Parser;
+use std::sync::Arc;
 use systemprompt_cli::admin::users::{self, UsersCommands};
 use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
 use systemprompt_database::DbPool;
@@ -11,7 +12,7 @@ use systemprompt_identifiers::SessionId;
 use systemprompt_test_fixtures::{
     fixture_app_context, fixture_database_url, fixture_db_pool, seed_user_session,
 };
-use systemprompt_users::UserService;
+use systemprompt_users::{UserRepository, UserService};
 use uuid::Uuid;
 
 #[derive(Debug, Parser)]
@@ -56,7 +57,7 @@ fn unique(prefix: &str) -> (String, String) {
 #[tokio::test]
 async fn show_finds_user_by_email_with_sessions_and_activity() {
     let pool = pool().await;
-    let service = UserService::new(&pool).unwrap();
+    let service = UserService::new(Arc::new(UserRepository::new(&pool).unwrap()));
     let (name, email) = unique("show");
     let user = service
         .create(&name, &email, Some("Full Name"), Some("Disp"))

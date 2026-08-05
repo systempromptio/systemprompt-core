@@ -3,7 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_database::DbPool;
+use std::sync::Arc;
 use systemprompt_identifiers::{DeviceCertId, UserId};
 
 use crate::error::{Result, UserError};
@@ -21,14 +21,12 @@ pub struct EnrollParams<'a> {
 
 #[derive(Debug, Clone)]
 pub struct DeviceCertService {
-    repository: UserRepository,
+    repository: Arc<UserRepository>,
 }
 
 impl DeviceCertService {
-    pub fn new(db: &DbPool) -> Result<Self> {
-        Ok(Self {
-            repository: UserRepository::new(db)?,
-        })
+    pub const fn new(repository: Arc<UserRepository>) -> Self {
+        Self { repository }
     }
 
     pub async fn enroll(&self, params: EnrollParams<'_>) -> Result<UserDeviceCert> {

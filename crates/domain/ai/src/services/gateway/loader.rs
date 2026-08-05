@@ -11,18 +11,17 @@
 
 use std::path::Path;
 
-use systemprompt_database::DbPool;
-
 use super::config::GatewayPolicyConfig;
 use super::ingestion::{GatewayPolicyIngestionService, IngestOptions, IngestReport};
 use crate::error::RepositoryError;
+use crate::repository::AiGatewayPolicyRepository;
 
 pub const GATEWAY_POLICIES_FILE: &str = "gateway/policies.yaml";
 
 /// `override_existing` and `delete_orphans` are both `true`: the YAML is the
 /// authoritative source, so every boot reconciles the DB to match it exactly.
 pub async fn load_from_yaml(
-    db: &DbPool,
+    repository: &AiGatewayPolicyRepository,
     services_path: &Path,
 ) -> Result<IngestReport, RepositoryError> {
     let path = services_path.join(GATEWAY_POLICIES_FILE);
@@ -49,7 +48,7 @@ pub async fn load_from_yaml(
             reason: err.to_string(),
         })?;
 
-    let service = GatewayPolicyIngestionService::new(db)?;
+    let service = GatewayPolicyIngestionService::from_repository(repository.clone());
     service
         .ingest_config(
             &cfg,

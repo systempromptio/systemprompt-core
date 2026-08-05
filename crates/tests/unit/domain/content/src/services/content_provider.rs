@@ -6,7 +6,7 @@
 
 use systemprompt_content::DefaultContentProvider;
 use systemprompt_content::models::CreateContentParams;
-use systemprompt_content::repository::ContentRepository;
+use systemprompt_content::repository::{ContentRepository, SearchRepository};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ContentId, SourceId};
 use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_database_url, fixture_db_pool};
@@ -49,7 +49,10 @@ async fn get_content_returns_full_item() {
 
     let id = seed(&repo, &source, &slug, "Hello World").await;
 
-    let provider = DefaultContentProvider::new(&pool).expect("provider");
+    let provider = DefaultContentProvider::new(
+        ContentRepository::new(&pool).expect("content repo"),
+        SearchRepository::new(&pool).expect("search repo"),
+    );
     let item = provider
         .find_content(&id)
         .await
@@ -76,7 +79,10 @@ async fn get_content_missing_returns_none() {
     };
     ensure_test_bootstrap();
     let pool = fixture_db_pool(&url).await.expect("pool");
-    let provider = DefaultContentProvider::new(&pool).expect("provider");
+    let provider = DefaultContentProvider::new(
+        ContentRepository::new(&pool).expect("content repo"),
+        SearchRepository::new(&pool).expect("search repo"),
+    );
 
     let missing = ContentId::new(format!("nope-{}", Uuid::new_v4()));
     let result = provider.find_content(&missing).await.expect("get_content");
@@ -96,7 +102,10 @@ async fn get_content_by_slug_round_trips() {
 
     let id = seed(&repo, &source, &slug, "Slug Title").await;
 
-    let provider = DefaultContentProvider::new(&pool).expect("provider");
+    let provider = DefaultContentProvider::new(
+        ContentRepository::new(&pool).expect("content repo"),
+        SearchRepository::new(&pool).expect("search repo"),
+    );
     let item = provider
         .find_content_by_slug(&slug)
         .await
@@ -121,7 +130,10 @@ async fn get_content_by_source_and_slug_round_trips() {
 
     let id = seed(&repo, &source, &slug, "Source Slug").await;
 
-    let provider = DefaultContentProvider::new(&pool).expect("provider");
+    let provider = DefaultContentProvider::new(
+        ContentRepository::new(&pool).expect("content repo"),
+        SearchRepository::new(&pool).expect("search repo"),
+    );
     let item = provider
         .find_content_by_source_and_slug(&source, &slug)
         .await
@@ -146,7 +158,10 @@ async fn list_content_by_source_returns_only_that_source() {
     let id_a = seed(&repo, &source, &format!("a-{}", Uuid::new_v4()), "A").await;
     let id_b = seed(&repo, &source, &format!("b-{}", Uuid::new_v4()), "B").await;
 
-    let provider = DefaultContentProvider::new(&pool).expect("provider");
+    let provider = DefaultContentProvider::new(
+        ContentRepository::new(&pool).expect("content repo"),
+        SearchRepository::new(&pool).expect("search repo"),
+    );
     let summaries = provider
         .list_content(ContentFilter {
             source_id: Some(source.clone()),
@@ -180,7 +195,10 @@ async fn list_content_unfiltered_respects_limit() {
     seed(&repo, &source, &format!("y-{}", Uuid::new_v4()), "Y").await;
     seed(&repo, &source, &format!("z-{}", Uuid::new_v4()), "Z").await;
 
-    let provider = DefaultContentProvider::new(&pool).expect("provider");
+    let provider = DefaultContentProvider::new(
+        ContentRepository::new(&pool).expect("content repo"),
+        SearchRepository::new(&pool).expect("search repo"),
+    );
     let summaries = provider
         .list_content(ContentFilter {
             limit: Some(2),
@@ -209,7 +227,10 @@ async fn search_finds_seeded_keyword() {
 
     seed(&repo, &source, &slug, &format!("Unique {token} Heading")).await;
 
-    let provider = DefaultContentProvider::new(&pool).expect("provider");
+    let provider = DefaultContentProvider::new(
+        ContentRepository::new(&pool).expect("content repo"),
+        SearchRepository::new(&pool).expect("search repo"),
+    );
     let results = provider.search(&token, Some(10)).await.expect("search");
 
     assert!(

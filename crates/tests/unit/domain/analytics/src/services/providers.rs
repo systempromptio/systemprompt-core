@@ -75,7 +75,12 @@ mod analytics_provider {
         };
         ensure_test_bootstrap();
         let pool = fixture_db_pool(&url).await.expect("pool");
-        let service = AnalyticsService::new(&pool, None, None).expect("service");
+        let service = AnalyticsService::new(
+            None,
+            None,
+            &systemprompt_analytics::repository::AnalyticsRepositories::new(&pool)
+                .expect("repositories"),
+        );
 
         let sid = unique_session_id();
         let fp = format!("fp-{}", Uuid::new_v4());
@@ -123,7 +128,12 @@ mod analytics_provider {
         };
         ensure_test_bootstrap();
         let pool = fixture_db_pool(&url).await.expect("pool");
-        let service = AnalyticsService::new(&pool, None, None).expect("service");
+        let service = AnalyticsService::new(
+            None,
+            None,
+            &systemprompt_analytics::repository::AnalyticsRepositories::new(&pool)
+                .expect("repositories"),
+        );
 
         let sid = unique_session_id();
         let fp = format!("fp-{}", Uuid::new_v4());
@@ -146,7 +156,12 @@ mod analytics_provider {
         };
         ensure_test_bootstrap();
         let pool = fixture_db_pool(&url).await.expect("pool");
-        let service = AnalyticsService::new(&pool, None, None).expect("service");
+        let service = AnalyticsService::new(
+            None,
+            None,
+            &systemprompt_analytics::repository::AnalyticsRepositories::new(&pool)
+                .expect("repositories"),
+        );
 
         let sid = unique_session_id();
         seed(&pool, &sid, &format!("fp-{}", Uuid::new_v4())).await;
@@ -177,7 +192,12 @@ mod analytics_provider {
     #[tokio::test]
     async fn every_analytics_error_arm_maps_to_internal() {
         let pool = closed_db_pool().await;
-        let service = AnalyticsService::new(&pool, None, None).expect("service");
+        let service = AnalyticsService::new(
+            None,
+            None,
+            &systemprompt_analytics::repository::AnalyticsRepositories::new(&pool)
+                .expect("repositories"),
+        );
         let sid = unique_session_id();
         let user = UserId::new("u".to_owned());
         let analytics = TraitSessionAnalytics::default();
