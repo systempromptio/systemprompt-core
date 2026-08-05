@@ -34,6 +34,12 @@ use wiremock::{Mock, MockServer, ResponseTemplate};
 
 use super::common::setup_ctx;
 
+fn gw_repos(
+    db: &systemprompt_database::DbPool,
+) -> systemprompt_api::services::gateway::GatewayRepositories {
+    systemprompt_api::services::gateway::GatewayRepositories::new(db).expect("gateway repos")
+}
+
 const API_KEY_ENV: &str = "ANTHROPIC_API_KEY";
 const API_KEY_SECRET: &str = "anthropic";
 const PROVIDER: &str = "anthropic";
@@ -225,7 +231,7 @@ async fn buffered_dispatch_returns_rendered_response_and_completes_audit() -> an
     let di = inputs(&cred, request, false);
     let request_id = di.ctx.ai_request_id.clone();
 
-    let resp = GatewayService::dispatch(&config, &registry, &pool, di)
+    let resp = GatewayService::dispatch(&config, &registry, &pool, &gw_repos(&pool), di)
         .await
         .expect("buffered dispatch succeeds");
     assert_eq!(resp.status(), http::StatusCode::OK);
@@ -268,7 +274,7 @@ async fn streaming_dispatch_taps_events_and_completes_audit() -> anyhow::Result<
     let di = inputs(&cred, request, true);
     let request_id = di.ctx.ai_request_id.clone();
 
-    let resp = GatewayService::dispatch(&config, &registry, &pool, di)
+    let resp = GatewayService::dispatch(&config, &registry, &pool, &gw_repos(&pool), di)
         .await
         .expect("streaming dispatch succeeds");
     assert_eq!(resp.status(), http::StatusCode::OK);
@@ -307,7 +313,7 @@ async fn missing_session_binding_is_pre_audit_error() -> anyhow::Result<()> {
     let mut di = inputs(&cred, request, false);
     di.ctx.session_id = None;
 
-    let err = GatewayService::dispatch(&config, &registry, &pool, di)
+    let err = GatewayService::dispatch(&config, &registry, &pool, &gw_repos(&pool), di)
         .await
         .expect_err("missing session binding must fail pre-audit");
     assert!(matches!(err, DispatchError::PreAudit(_)), "got {err:?}");
@@ -325,7 +331,7 @@ async fn unexposed_model_is_policy_denied() -> anyhow::Result<()> {
     let request = canonical_request("ghost-model-not-exposed", false);
     let di = inputs(&cred, request, false);
 
-    let err = GatewayService::dispatch(&config, &registry, &pool, di)
+    let err = GatewayService::dispatch(&config, &registry, &pool, &gw_repos(&pool), di)
         .await
         .expect_err("unexposed model must be denied");
     match err {
@@ -351,7 +357,7 @@ async fn route_provider_absent_from_registry_is_pre_audit_error() -> anyhow::Res
     let request = canonical_request(MODEL, false);
     let di = inputs(&cred, request, false);
 
-    let err = GatewayService::dispatch(&config, &registry, &pool, di)
+    let err = GatewayService::dispatch(&config, &registry, &pool, &gw_repos(&pool), di)
         .await
         .expect_err("route pointing at an unknown provider must fail");
     assert!(matches!(err, DispatchError::PreAudit(_)), "got {err:?}");
@@ -373,7 +379,7 @@ async fn missing_api_key_secret_is_pre_audit_error() -> anyhow::Result<()> {
     let request = canonical_request(MODEL, false);
     let di = inputs(&cred, request, false);
 
-    let err = GatewayService::dispatch(&config, &registry, &pool, di)
+    let err = GatewayService::dispatch(&config, &registry, &pool, &gw_repos(&pool), di)
         .await
         .expect_err("absent api key secret must fail pre-audit");
     assert!(matches!(err, DispatchError::PreAudit(_)), "got {err:?}");
@@ -401,7 +407,7 @@ async fn upstream_4xx_is_recorded_upstream_error() -> anyhow::Result<()> {
     let request = canonical_request(MODEL, false);
     let di = inputs(&cred, request, false);
 
-    let err = GatewayService::dispatch(&config, &registry, &pool, di)
+    let err = GatewayService::dispatch(&config, &registry, &pool, &gw_repos(&pool), di)
         .await
         .expect_err("upstream 400 must surface as a dispatch error");
     match err {
@@ -436,7 +442,7 @@ async fn upstream_5xx_is_recorded_upstream_error() -> anyhow::Result<()> {
     let request = canonical_request(MODEL, false);
     let di = inputs(&cred, request, false);
 
-    let err = GatewayService::dispatch(&config, &registry, &pool, di)
+    let err = GatewayService::dispatch(&config, &registry, &pool, &gw_repos(&pool), di)
         .await
         .expect_err("upstream 503 must surface as a dispatch error");
     assert!(matches!(err, DispatchError::Recorded(_)), "got {err:?}");
@@ -524,7 +530,7 @@ async fn buffered_dispatch_persists_request_and_response_safety_findings() -> an
     let di = inputs(&cred, request, false);
     let request_id = di.ctx.ai_request_id.clone();
 
-    let resp = GatewayService::dispatch(&config, &registry, &pool, di)
+    let resp = GatewayService::dispatch(&config, &registry, &pool, &gw_repos(&pool), di)
         .await
         .expect("scanned-but-unblocked dispatch succeeds");
     assert_eq!(resp.status(), http::StatusCode::OK);
@@ -568,7 +574,7 @@ async fn jailbreak_request_is_blocked_by_safety_policy_and_finding_persisted() -
     let di = inputs(&cred, request, false);
     let request_id = di.ctx.ai_request_id.clone();
 
-    let err = GatewayService::dispatch(&config, &registry, &pool, di)
+    let err = GatewayService::dispatch(&config, &registry, &pool, &gw_repos(&pool), di)
         .await
         .expect_err("blocked category must reject the dispatch");
     let findings = poll_findings(&pool, &request_id, 1).await;
@@ -644,9 +650,15 @@ async fn dispatch_against_jailbreak_upstream(
     let registry = provider_registry(&upstream.uri(), PROVIDER);
     let di = inputs(cred, canonical_request(MODEL, false), false);
     let request_id = di.ctx.ai_request_id.clone();
-    let resp = GatewayService::dispatch(&config, &registry, pool, di)
-        .await
-        .map_err(|e| anyhow::anyhow!("dispatch failed: {e:?}"))?;
+    let resp = GatewayService::dispatch(
+        &config,
+        &registry,
+        pool,
+        &systemprompt_api::services::gateway::GatewayRepositories::new(pool).expect("repos"),
+        di,
+    )
+    .await
+    .map_err(|e| anyhow::anyhow!("dispatch failed: {e:?}"))?;
     Ok((request_id, resp))
 }
 
@@ -727,7 +739,7 @@ async fn a_streaming_response_is_never_blocked() -> anyhow::Result<()> {
     let registry = provider_registry(&upstream.uri(), PROVIDER);
     let di = inputs(&cred, canonical_request(MODEL, true), true);
     let request_id = di.ctx.ai_request_id.clone();
-    let resp = GatewayService::dispatch(&config, &registry, &pool, di)
+    let resp = GatewayService::dispatch(&config, &registry, &pool, &gw_repos(&pool), di)
         .await
         .expect("streaming dispatch succeeds");
 

@@ -48,13 +48,33 @@ macro_rules! pool_or_skip {
 async fn plane_debug_impls_flag_optional_members() {
     let (pool, url) = pool_or_skip!();
 
+    let analytics_service =
+        Arc::new(AnalyticsService::new(&pool, None, None).expect("analytics service"));
+    let session_usage: systemprompt_traits::DynSessionUsageCounters =
+        Arc::new(analytics_service.session_repo().clone());
     let data = DataPlane {
         database: Arc::clone(&pool),
-        analytics_service: Arc::new(
-            AnalyticsService::new(&pool, None, None).expect("analytics service"),
-        ),
+        analytics_service,
         fingerprint_repo: None,
         user_service: None,
+        a2a_repositories: Arc::new(
+            systemprompt_agent::repository::A2ARepositories::new(&pool, session_usage)
+                .expect("a2a repositories"),
+        ),
+        content_repositories: Arc::new(
+            systemprompt_content::repository::ContentRepositories::new(&pool)
+                .expect("content repositories"),
+        ),
+        oauth_repositories: Arc::new(
+            systemprompt_oauth::repository::OauthRepositories::new(&pool)
+                .expect("oauth repositories"),
+        ),
+        user_repository: Arc::new(
+            systemprompt_users::UserRepository::new(&pool).expect("user repository"),
+        ),
+        service_repository: Arc::new(
+            systemprompt_database::ServiceRepository::new(&pool).expect("service repository"),
+        ),
     };
     let dbg = format!("{data:?}");
     assert!(dbg.contains("DataPlane"), "got: {dbg}");

@@ -132,11 +132,28 @@ async fn app_with_extensions(injected: Vec<Arc<dyn Extension>>) -> anyhow::Resul
         .map_err(|e| anyhow::anyhow!("registry: {e}"))?;
 
     let ctx = Arc::new(AppContext::from_parts(
-        DataPlane {
-            database: Arc::clone(&pool),
-            analytics_service: Arc::new(AnalyticsService::new(&pool, None, None)?),
-            fingerprint_repo: Some(Arc::new(FingerprintRepository::new(&pool)?)),
-            user_service: Some(Arc::new(UserService::new(&pool)?)),
+        {
+            let analytics_service = Arc::new(AnalyticsService::new(&pool, None, None)?);
+            let session_usage: systemprompt_traits::DynSessionUsageCounters =
+                Arc::new(analytics_service.session_repo().clone());
+            DataPlane {
+                database: Arc::clone(&pool),
+                analytics_service,
+                fingerprint_repo: Some(Arc::new(FingerprintRepository::new(&pool)?)),
+                user_service: Some(Arc::new(UserService::new(&pool)?)),
+                a2a_repositories: Arc::new(systemprompt_agent::repository::A2ARepositories::new(
+                    &pool,
+                    session_usage,
+                )?),
+                content_repositories: Arc::new(
+                    systemprompt_content::repository::ContentRepositories::new(&pool)?,
+                ),
+                oauth_repositories: Arc::new(
+                    systemprompt_oauth::repository::OauthRepositories::new(&pool)?,
+                ),
+                user_repository: Arc::new(systemprompt_users::UserRepository::new(&pool)?),
+                service_repository: Arc::new(systemprompt_database::ServiceRepository::new(&pool)?),
+            }
         },
         ConfigPlane {
             config: Arc::new(config),

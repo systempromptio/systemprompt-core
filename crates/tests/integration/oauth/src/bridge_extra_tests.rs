@@ -15,6 +15,10 @@ use systemprompt_oauth::services::{
 };
 use systemprompt_security::keys::authority;
 
+fn oauth_repo(db: &systemprompt_database::DbPool) -> systemprompt_oauth::OAuthRepository {
+    systemprompt_oauth::OAuthRepository::new(db).expect("oauth repo")
+}
+
 static AUTHORITY: Once = Once::new();
 
 fn ensure_runtime() {
@@ -79,7 +83,7 @@ async fn exchange_code_issued_and_consumed_once() {
     let db = setup_test_db().await;
     let user_id = create_test_user(&db).await;
 
-    let issued = issue_bridge_exchange_code(&db, &user_id)
+    let issued = issue_bridge_exchange_code(&oauth_repo(&db), &user_id)
         .await
         .expect("issue exchange code");
     assert!(!issued.code.is_empty());
@@ -87,17 +91,19 @@ async fn exchange_code_issued_and_consumed_once() {
     let analytics =
         systemprompt_analytics::AnalyticsService::new(&db, None, None).expect("analytics service");
     let headers = http::HeaderMap::new();
-    let result = exchange_bridge_session_code(&db, &analytics, &headers, None, &issued.code)
-        .await
-        .expect("consume code");
+    let result =
+        exchange_bridge_session_code(&oauth_repo(&db), &analytics, &headers, None, &issued.code)
+            .await
+            .expect("consume code");
     assert!(
         result.is_some(),
         "first consume must yield a BridgeAuthResult"
     );
 
-    let replay = exchange_bridge_session_code(&db, &analytics, &headers, None, &issued.code)
-        .await
-        .expect("replay returns None, not Err");
+    let replay =
+        exchange_bridge_session_code(&oauth_repo(&db), &analytics, &headers, None, &issued.code)
+            .await
+            .expect("replay returns None, not Err");
     assert!(replay.is_none(), "exchange code must be single-use");
 }
 
@@ -108,9 +114,10 @@ async fn exchange_unknown_code_returns_none() {
     let analytics =
         systemprompt_analytics::AnalyticsService::new(&db, None, None).expect("analytics service");
     let headers = http::HeaderMap::new();
-    let result = exchange_bridge_session_code(&db, &analytics, &headers, None, "deadbeef")
-        .await
-        .expect("not an error");
+    let result =
+        exchange_bridge_session_code(&oauth_repo(&db), &analytics, &headers, None, "deadbeef")
+            .await
+            .expect("not an error");
     assert!(result.is_none());
 }
 
@@ -120,12 +127,14 @@ async fn provision_oauth_client_is_idempotent() {
     let db = setup_test_db().await;
     let user_id = create_test_user(&db).await;
 
-    let first = provision_bridge_oauth_client(&db, &user_id, "http://example/token".into())
-        .await
-        .expect("provision first");
-    let second = provision_bridge_oauth_client(&db, &user_id, "http://example/token".into())
-        .await
-        .expect("provision second");
+    let first =
+        provision_bridge_oauth_client(&oauth_repo(&db), &user_id, "http://example/token".into())
+            .await
+            .expect("provision first");
+    let second =
+        provision_bridge_oauth_client(&oauth_repo(&db), &user_id, "http://example/token".into())
+            .await
+            .expect("provision second");
 
     assert_eq!(first.client_id, second.client_id);
     assert_ne!(

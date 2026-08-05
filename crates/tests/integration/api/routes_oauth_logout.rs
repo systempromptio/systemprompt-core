@@ -82,7 +82,7 @@ async fn logout_app() -> anyhow::Result<Router> {
         Arc::clone(ctx.db_pool()),
         ctx.analytics_provider().expect("analytics"),
         ctx.user_provider().expect("user"),
-    );
+    )?;
     Ok(authenticated_router().with_state(state))
 }
 

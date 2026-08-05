@@ -31,7 +31,7 @@ async fn make_orchestrator() -> Option<(LifecycleOrchestrator, McpServerConfig)>
         AppPaths::from_profile(&paths, systemprompt_models::PathResolution::Canonicalize).ok()?,
     );
     let registry = RegistryService::new(fixture_user_id());
-    let database = DatabaseService::new(db, Arc::clone(&app_paths), registry);
+    let database = DatabaseService::new(&db, Arc::clone(&app_paths), registry).expect("db service");
     let lifecycle = LifecycleOrchestrator::new(
         ProcessService::new(),
         NetworkService::new(),

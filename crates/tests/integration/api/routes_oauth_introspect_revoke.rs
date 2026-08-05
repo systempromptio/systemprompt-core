@@ -59,7 +59,7 @@ async fn oauth_app(user: UserId) -> anyhow::Result<Router> {
         Arc::clone(ctx.db_pool()),
         ctx.analytics_provider().expect("analytics"),
         ctx.user_provider().expect("user"),
-    );
+    )?;
     let inject = move |mut req: Request<Body>, next: Next| {
         let ctx = ctx_for(&user);
         async move {

@@ -31,6 +31,12 @@ use tower::ServiceExt;
 
 use super::common::setup_ctx;
 
+fn gw_repos(
+    db: &systemprompt_database::DbPool,
+) -> systemprompt_api::services::gateway::GatewayRepositories {
+    systemprompt_api::services::gateway::GatewayRepositories::new(db).expect("gateway repos")
+}
+
 async fn router_and_pool() -> Result<(Router, DbPool)> {
     let (pool, ctx) = setup_ctx().await?;
     install_test_signing_key();
@@ -243,8 +249,10 @@ async fn gateway_audit_mutators_write_their_columns() -> Result<()> {
     let id = AiRequestId::generate();
     seed_ai_request(&pool, &id, &cred.user_id, "upstream-model").await?;
 
-    let audit = GatewayAudit::new(&pool, gateway_ctx(&id, &cred.user_id, "upstream-model"))
-        .expect("audit opens");
+    let audit = GatewayAudit::new(
+        &gw_repos(&pool),
+        gateway_ctx(&id, &cred.user_id, "upstream-model"),
+    );
 
     audit.set_served_model("served-model").await;
     assert_eq!(model_column(&pool, &id).await?, "served-model");
@@ -271,8 +279,10 @@ async fn gateway_audit_set_served_model_noop_when_same() -> Result<()> {
     let cred = seed_admin_credential(&pool, "audit-noop@example.invalid").await?;
     let id = AiRequestId::generate();
     seed_ai_request(&pool, &id, &cred.user_id, "same-model").await?;
-    let audit =
-        GatewayAudit::new(&pool, gateway_ctx(&id, &cred.user_id, "same-model")).expect("audit");
+    let audit = GatewayAudit::new(
+        &gw_repos(&pool),
+        gateway_ctx(&id, &cred.user_id, "same-model"),
+    );
     audit.set_served_model("same-model").await;
     audit.set_served_model("").await;
     assert_eq!(model_column(&pool, &id).await?, "same-model");

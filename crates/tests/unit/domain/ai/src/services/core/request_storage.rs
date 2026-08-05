@@ -5,7 +5,7 @@ use std::sync::{Arc, Mutex};
 
 use systemprompt_ai::models::RequestStatus;
 use systemprompt_ai::models::ai::{AiMessage, AiRequest, AiResponse};
-use systemprompt_ai::repository::AiRequestRepository;
+use systemprompt_ai::repository::{AiRequestPayloadRepository, AiRequestRepository};
 use systemprompt_ai::services::core::request_storage::{RequestStorage, StoreParams};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{SessionId, UserId};
@@ -86,7 +86,11 @@ fn response(request_id: Uuid, content: &str) -> AiResponse {
 }
 
 fn storage(pool: &DbPool, provider: Arc<RecordingSessionProvider>) -> RequestStorage {
-    RequestStorage::new(AiRequestRepository::new(pool).expect("repo"), provider)
+    RequestStorage::new(
+        AiRequestRepository::new(pool).expect("repo"),
+        AiRequestPayloadRepository::new(pool).expect("payloads"),
+        provider,
+    )
 }
 
 async fn store(storage: &RequestStorage, request: &AiRequest, response: &AiResponse, cost: i64) {
@@ -226,6 +230,7 @@ async fn a_session_provider_that_fails_does_not_lose_the_audit_row() {
     let (user, ctx) = seeded_context(&pool).await;
     let storage = RequestStorage::new(
         AiRequestRepository::new(&pool).expect("repo"),
+        AiRequestPayloadRepository::new(&pool).expect("payloads"),
         Arc::new(FailingSessionProvider),
     );
 
@@ -425,6 +430,7 @@ async fn the_storage_debug_elides_the_analytics_publisher() {
     };
     let storage = RequestStorage::new(
         AiRequestRepository::new(&pool).expect("repo"),
+        AiRequestPayloadRepository::new(&pool).expect("payloads"),
         Arc::new(RecordingSessionProvider::default()),
     );
 

@@ -28,6 +28,7 @@ impl std::fmt::Debug for OAuthState {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("OAuthState")
             .field("db_pool", &"DbPool")
+            .field("oauth_repository", &"OAuthRepository")
             .field("analytics_provider", &"<provider>")
             .field("user_provider", &"<provider>")
             .field(

@@ -8,6 +8,12 @@ use systemprompt_api::services::gateway::quota::{
     PostUpdateParams, post_update_tokens, precheck_and_reserve,
 };
 use systemprompt_identifiers::UserId;
+
+fn quota_repo(
+    db: &systemprompt_database::DbPool,
+) -> systemprompt_ai::repository::AiQuotaBucketRepository {
+    systemprompt_ai::repository::AiQuotaBucketRepository::new(db).expect("quota repo")
+}
 use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_db_pool};
 
 async fn pool() -> systemprompt_database::DbPool {
@@ -26,7 +32,9 @@ fn window(window_seconds: i32) -> QuotaWindow {
 async fn precheck_with_empty_windows_returns_none() {
     let p = pool().await;
     let user = UserId::new(format!("quota-test-{}", uuid::Uuid::new_v4()));
-    let decision = precheck_and_reserve(&p, &user, &[]).await.expect("ok");
+    let decision = precheck_and_reserve(&p, &quota_repo(&p), &user, &[])
+        .await
+        .expect("ok");
     assert!(decision.is_none());
 }
 
@@ -38,7 +46,9 @@ async fn precheck_within_limit_allows() {
         max_requests: Some(100),
         ..window(60)
     }];
-    let decision = precheck_and_reserve(&p, &user, &windows).await.expect("ok");
+    let decision = precheck_and_reserve(&p, &quota_repo(&p), &user, &windows)
+        .await
+        .expect("ok");
     assert!(decision.is_none(), "expected allow, got {decision:?}");
 }
 
@@ -50,9 +60,13 @@ async fn precheck_over_limit_denies_second_call() {
         max_requests: Some(1),
         ..window(60)
     }];
-    let d1 = precheck_and_reserve(&p, &user, &windows).await.expect("ok");
+    let d1 = precheck_and_reserve(&p, &quota_repo(&p), &user, &windows)
+        .await
+        .expect("ok");
     assert!(d1.is_none());
-    let d2 = precheck_and_reserve(&p, &user, &windows).await.expect("ok");
+    let d2 = precheck_and_reserve(&p, &quota_repo(&p), &user, &windows)
+        .await
+        .expect("ok");
     let dec = d2.expect("expected denial");
     assert!(!dec.allow);
     assert_eq!(dec.window_seconds, 60);
@@ -72,11 +86,14 @@ async fn precheck_denies_once_the_cost_ceiling_is_spent() {
         ..window(3600)
     }];
 
-    let before = precheck_and_reserve(&p, &user, &windows).await.expect("ok");
+    let before = precheck_and_reserve(&p, &quota_repo(&p), &user, &windows)
+        .await
+        .expect("ok");
     assert!(before.is_none(), "no spend yet, must allow");
 
     post_update_tokens(
         &p,
+        &quota_repo(&p),
         PostUpdateParams {
             user_id: &user,
             windows: &windows,
@@ -87,7 +104,9 @@ async fn precheck_denies_once_the_cost_ceiling_is_spent() {
     )
     .await;
 
-    let after = precheck_and_reserve(&p, &user, &windows).await.expect("ok");
+    let after = precheck_and_reserve(&p, &quota_repo(&p), &user, &windows)
+        .await
+        .expect("ok");
     let dec = after.expect("spend exceeds the ceiling, must deny");
     assert!(!dec.allow);
     assert!(
@@ -108,7 +127,9 @@ async fn a_window_keyed_on_an_unresolvable_subject_is_skipped() {
     }];
     // No organization provider is registered in this binary, so the window
     // cannot resolve a subject and must not deny even with max_requests: 0.
-    let decision = precheck_and_reserve(&p, &user, &windows).await.expect("ok");
+    let decision = precheck_and_reserve(&p, &quota_repo(&p), &user, &windows)
+        .await
+        .expect("ok");
     assert!(decision.is_none(), "unresolvable subject must skip");
 }
 
@@ -118,6 +139,7 @@ async fn post_update_with_empty_windows_is_noop() {
     let user = UserId::new("quota-post-empty");
     post_update_tokens(
         &p,
+        &quota_repo(&p),
         PostUpdateParams {
             user_id: &user,
             windows: &[],
@@ -141,6 +163,7 @@ async fn post_update_increments_token_counts() {
     }];
     post_update_tokens(
         &p,
+        &quota_repo(&p),
         PostUpdateParams {
             user_id: &user,
             windows: &windows,

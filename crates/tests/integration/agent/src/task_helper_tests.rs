@@ -11,6 +11,14 @@ use systemprompt_models::RequestContext;
 use systemprompt_models::a2a::{Artifact, ArtifactMetadata};
 
 use crate::common::Fixture;
+use systemprompt_agent::repository::A2ARepositories;
+
+fn repos_for(f: &Fixture) -> Result<A2ARepositories> {
+    Ok(A2ARepositories::new(
+        &f.db,
+        crate::common::session_usage(&f.db)?,
+    )?)
+}
 
 fn request_context_with_ids(f: &Fixture) -> RequestContext {
     RequestContext::new(
@@ -28,7 +36,7 @@ async fn ensure_task_exists_reuses_when_task_id_already_set() -> Result<()> {
     let preset = TaskId::new(format!("preset_{}", f.tag));
     let mut ctx = request_context_with_ids(&f).with_task_id(preset.clone());
 
-    let result = ensure_task_exists(&f.db, &f.repo, &mut ctx, "tool-a", "server-a")
+    let result = ensure_task_exists(&repos_for(&f)?, &mut ctx, "tool-a", "server-a")
         .await
         .expect("ensure_task_exists ok");
 
@@ -43,7 +51,7 @@ async fn ensure_task_exists_creates_task_for_valid_context() -> Result<()> {
     let f = Fixture::new().await?;
     let mut ctx = request_context_with_ids(&f);
 
-    let result = ensure_task_exists(&f.db, &f.repo, &mut ctx, "tool-b", "server-b")
+    let result = ensure_task_exists(&repos_for(&f)?, &mut ctx, "tool-b", "server-b")
         .await
         .expect("ensure_task_exists ok");
 
@@ -76,7 +84,7 @@ async fn ensure_task_exists_falls_back_to_new_context_when_ownership_invalid() -
     )
     .with_actor(systemprompt_identifiers::Actor::user(f.user_id.clone()));
 
-    let result = ensure_task_exists(&f.db, &f.repo, &mut ctx, "tool-c", "server-c")
+    let result = ensure_task_exists(&repos_for(&f)?, &mut ctx, "tool-c", "server-c")
         .await
         .expect("ensure_task_exists ok");
 

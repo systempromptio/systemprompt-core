@@ -163,11 +163,7 @@ async fn base_state() -> Option<OAuthState> {
     let url = fixture_database_url().ok()?;
     ensure_test_bootstrap();
     let pool = fixture_db_pool(&url).await.expect("pool");
-    Some(OAuthState::new(
-        pool,
-        Arc::new(NullAnalytics),
-        Arc::new(NullUsers),
-    ))
+    OAuthState::new(pool, Arc::new(NullAnalytics), Arc::new(NullUsers)).ok()
 }
 
 #[tokio::test]

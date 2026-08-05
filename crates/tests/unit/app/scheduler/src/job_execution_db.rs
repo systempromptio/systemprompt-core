@@ -25,7 +25,8 @@ macro_rules! service_or_skip {
                 app_ctx,
                 ExtensionRegistry::new(),
                 systemprompt_models::SchedulerConfig::with_system_admin(),
-            ),
+            )
+            .expect("job execution service"),
             pool,
         )
     }};
@@ -270,11 +271,13 @@ mod dead_pool_recording {
         let Ok(app_ctx) = fixture_app_context(&closed, &url) else {
             return;
         };
-        let service = JobExecutionService::new(
+        let Ok(service) = JobExecutionService::new(
             app_ctx,
             ExtensionRegistry::new(),
             systemprompt_models::SchedulerConfig::with_system_admin(),
-        );
+        ) else {
+            return;
+        };
 
         // The job body and every recording query hit the closed pool; the run
         // still yields a report instead of propagating the DB failure.

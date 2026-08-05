@@ -1,6 +1,7 @@
 //! DB-backed tests for `services::database::state` helpers.
 
 use std::path::PathBuf;
+use systemprompt_database::ServiceRepository;
 use systemprompt_mcp::services::database::state::{
     get_binary_mtime, get_service_by_name, unregister_service,
 };
@@ -26,7 +27,8 @@ fn get_binary_mtime_existing_file_returns_some() {
 #[tokio::test]
 async fn get_service_by_name_missing_returns_none() {
     let Some(db) = db().await else { return };
-    let r = get_service_by_name(&db, &format!("svc-{}", uuid::Uuid::new_v4().simple()))
+    let svc_repo = ServiceRepository::new(&db).unwrap();
+    let r = get_service_by_name(&svc_repo, &format!("svc-{}", uuid::Uuid::new_v4().simple()))
         .await
         .unwrap();
     assert!(r.is_none());
@@ -35,7 +37,8 @@ async fn get_service_by_name_missing_returns_none() {
 #[tokio::test]
 async fn unregister_service_missing_no_panic() {
     let Some(db) = db().await else { return };
-    unregister_service(&db, &format!("svc-{}", uuid::Uuid::new_v4().simple()))
+    let svc_repo = ServiceRepository::new(&db).unwrap();
+    unregister_service(&svc_repo, &format!("svc-{}", uuid::Uuid::new_v4().simple()))
         .await
         .unwrap();
 }

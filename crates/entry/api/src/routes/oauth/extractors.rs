@@ -25,6 +25,6 @@ impl FromRequestParts<OAuthState> for OAuthRepo {
         _parts: &mut Parts,
         state: &OAuthState,
     ) -> Result<Self, Self::Rejection> {
-        Ok(OAuthRepo(state.oauth_repository().clone()))
+        Ok(Self(state.oauth_repository().clone()))
     }
 }

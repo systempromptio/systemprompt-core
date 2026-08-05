@@ -123,6 +123,11 @@ impl std::fmt::Debug for DataPlane {
             .field("analytics_service", &"AnalyticsService")
             .field("fingerprint_repo", &self.fingerprint_repo.is_some())
             .field("user_service", &self.user_service.is_some())
+            .field("a2a_repositories", &"A2ARepositories")
+            .field("content_repositories", &"ContentRepositories")
+            .field("oauth_repositories", &"OauthRepositories")
+            .field("user_repository", &"UserRepository")
+            .field("service_repository", &"ServiceRepository")
             .finish()
     }
 }

@@ -20,6 +20,12 @@ use systemprompt_identifiers::{AiRequestId, ContextId, UserId};
 
 use crate::support::{minimal_request, seed_user, setup_db};
 
+fn gateway_repos(
+    db: &systemprompt_database::DbPool,
+) -> systemprompt_api::services::gateway::GatewayRepositories {
+    systemprompt_api::services::gateway::GatewayRepositories::new(db).expect("gateway repositories")
+}
+
 fn usage(input: u32, output: u32) -> CanonicalUsage {
     CanonicalUsage {
         input_tokens: input,
@@ -61,7 +67,7 @@ async fn open_audit(db: &DbPool, user_id: UserId) -> (Arc<GatewayAudit>, AiReque
         is_streaming: true,
         wire_protocol: "anthropic-messages".to_string(),
     };
-    let audit = GatewayAudit::new(db, ctx).expect("audit ctor");
+    let audit = GatewayAudit::new(&gateway_repos(db), ctx);
     audit
         .open(&request, &Bytes::from_static(b"{\"stream\":true}"))
         .await
@@ -92,6 +98,7 @@ async fn wait_for_terminal_status(db: &DbPool, id: &AiRequestId) -> (String, Opt
 fn tap_ctx(db: &DbPool, ai_request_id: &AiRequestId, policy: GatewayPolicySpec) -> TapFinalizeCtx {
     TapFinalizeCtx {
         db: db.clone(),
+        repos: gateway_repos(db),
         policy,
         ai_request_id: ai_request_id.clone(),
     }

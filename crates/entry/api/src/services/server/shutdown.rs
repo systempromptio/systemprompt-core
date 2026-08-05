@@ -153,8 +153,8 @@ async fn terminate_children(ctx: &AppContext) {
     let repo = ctx.service_repository();
 
     tokio::join!(
-        terminate_agent_children(&repo),
-        terminate_mcp_children(&repo),
+        terminate_agent_children(repo),
+        terminate_mcp_children(repo),
     );
 }
 

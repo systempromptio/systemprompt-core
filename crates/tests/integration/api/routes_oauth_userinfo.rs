@@ -41,7 +41,7 @@ async fn oauth_state() -> anyhow::Result<OAuthState> {
         Arc::clone(ctx.db_pool()),
         ctx.analytics_provider().expect("analytics"),
         ctx.user_provider().expect("user"),
-    ))
+    )?)
 }
 
 async fn userinfo_app() -> anyhow::Result<Router> {
@@ -80,7 +80,7 @@ async fn userinfo_missing_authorization_returns_invalid_request() -> anyhow::Res
         Arc::clone(ctx.db_pool()),
         ctx.analytics_provider().expect("analytics"),
         ctx.user_provider().expect("user"),
-    );
+    )?;
     let app = systemprompt_api::routes::oauth::authenticated_router().with_state(state);
     let resp = app.oneshot(get_userinfo(None)).await?;
     assert_eq!(resp.status(), StatusCode::BAD_REQUEST, "{}", resp.status());

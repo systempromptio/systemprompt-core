@@ -46,7 +46,7 @@ async fn app() -> anyhow::Result<Router> {
         Arc::clone(ctx.db_pool()),
         ctx.analytics_provider().expect("analytics"),
         ctx.user_provider().expect("user"),
-    );
+    )?;
     Ok(public_router().with_state(state))
 }
 
@@ -205,7 +205,7 @@ async fn the_assembled_oauth_router_serves_both_halves() -> anyhow::Result<()> {
         Arc::clone(ctx.db_pool()),
         ctx.analytics_provider().expect("analytics"),
         ctx.user_provider().expect("user"),
-    );
+    )?;
 
     // `router()` is the merge of the public and authenticated halves; nothing
     // in the suite builds it, so a route lost from the merge would go unnoticed.

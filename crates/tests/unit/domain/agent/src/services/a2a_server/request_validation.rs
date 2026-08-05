@@ -102,7 +102,7 @@ async fn validate_message_context_requires_user_id() {
         return;
     };
     let ctx = ContextId::generate();
-    let err = validate_message_context(&user_message(&ctx), None, &pool)
+    let err = validate_message_context(&user_message(&ctx), None, &repos(&pool).contexts)
         .await
         .expect_err("missing user must be rejected");
     assert!(err.contains("authentication required"), "got: {err}");
@@ -115,9 +115,13 @@ async fn validate_message_context_rejects_placeholder_user_id() {
     };
     let ctx = ContextId::generate();
     let placeholder = UserId::new("missing-user-id");
-    let err = validate_message_context(&user_message(&ctx), Some(&placeholder), &pool)
-        .await
-        .expect_err("placeholder user must be rejected");
+    let err = validate_message_context(
+        &user_message(&ctx),
+        Some(&placeholder),
+        &repos(&pool).contexts,
+    )
+    .await
+    .expect_err("placeholder user must be rejected");
     assert!(err.contains("Authentication required"), "got: {err}");
 }
 
@@ -128,9 +132,10 @@ async fn validate_message_context_rejects_foreign_context() {
     };
     let stranger = UserId::new("u-stranger");
     let ctx = ContextId::generate();
-    let err = validate_message_context(&user_message(&ctx), Some(&stranger), &pool)
-        .await
-        .expect_err("unowned context must be rejected");
+    let err =
+        validate_message_context(&user_message(&ctx), Some(&stranger), &repos(&pool).contexts)
+            .await
+            .expect_err("unowned context must be rejected");
     assert!(err.contains("Context validation failed"), "got: {err}");
 }
 
@@ -143,7 +148,7 @@ async fn validate_message_context_accepts_owned_context() {
     let (user, session) = seed_user_and_session(&pool).await;
     let (ctx, _) = seed_context_and_task(&repos, &user, &session).await;
 
-    validate_message_context(&user_message(&ctx), Some(&user), &pool)
+    validate_message_context(&user_message(&ctx), Some(&user), &repos.contexts)
         .await
         .expect("owned context must validate");
 }

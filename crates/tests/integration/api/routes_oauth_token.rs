@@ -102,7 +102,7 @@ async fn token_app() -> anyhow::Result<Router> {
         Arc::clone(ctx.db_pool()),
         ctx.analytics_provider().expect("analytics"),
         ctx.user_provider().expect("user"),
-    );
+    )?;
     let router = public_router()
         .layer(middleware::from_fn(inject_context))
         .with_state(state);

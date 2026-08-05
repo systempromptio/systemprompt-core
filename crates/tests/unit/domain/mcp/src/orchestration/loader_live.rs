@@ -51,7 +51,7 @@ async fn live_setup(oauth_required: bool) -> Option<(Live, MockServer)> {
         )
         .ok()?,
     );
-    let database = DatabaseService::new(db.clone(), app_paths, registry.clone());
+    let database = DatabaseService::new(&db, app_paths, registry.clone()).expect("db service");
     let loader = McpToolLoader::new(&db, registry.clone()).ok()?;
 
     Some((

@@ -11,7 +11,6 @@ use std::sync::{Arc, Mutex};
 use async_trait::async_trait;
 use systemprompt_agent::AgentState;
 use systemprompt_agent::models::AgentRuntimeInfo;
-use systemprompt_agent::repository::task::TaskRepository;
 use systemprompt_agent::services::a2a_server::auth::{AgentOAuthConfig, AgentOAuthState};
 use systemprompt_agent::services::a2a_server::handlers::AgentHandlerState;
 use systemprompt_database::DbPool;
@@ -293,12 +292,14 @@ pub(crate) fn make_agent_state(pool: &DbPool) -> Arc<AgentState> {
     systemprompt_test_fixtures::ensure_test_bootstrap();
     let url = systemprompt_test_fixtures::fixture_database_url().expect("url");
     let config = Arc::new(systemprompt_test_fixtures::fixture_config(&url));
-    let task_repo = TaskRepository::new(pool, crate::session_usage(pool)).expect("task repo");
+    let repos =
+        systemprompt_agent::repository::A2ARepositories::new(pool, crate::session_usage(pool))
+            .expect("repositories");
     Arc::new(AgentState::new(
         Arc::clone(pool),
         config,
         stub_jwt(),
-        task_repo,
+        Arc::new(repos),
     ))
 }
 

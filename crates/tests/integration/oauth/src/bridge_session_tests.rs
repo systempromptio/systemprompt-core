@@ -15,6 +15,10 @@ use systemprompt_models::auth::JwtAudience;
 use systemprompt_models::config::RateLimitConfig;
 use systemprompt_oauth::services::issue_bridge_access;
 use systemprompt_security::keys::authority;
+
+fn oauth_repo(db: &systemprompt_database::DbPool) -> systemprompt_oauth::OAuthRepository {
+    systemprompt_oauth::OAuthRepository::new(db).expect("oauth repo")
+}
 use systemprompt_traits::AnalyticsProvider;
 
 static AUTHORITY: Once = Once::new();
@@ -100,9 +104,15 @@ async fn fresh_bridge_jwt_has_active_session() {
     let user_id = create_test_user(&db).await;
     let analytics = AnalyticsService::new(&db, None, None).expect("analytics service");
 
-    let result = issue_bridge_access(&db, &analytics, &exchange_request_headers(), None, &user_id)
-        .await
-        .expect("mint bridge access");
+    let result = issue_bridge_access(
+        &oauth_repo(&db),
+        &analytics,
+        &exchange_request_headers(),
+        None,
+        &user_id,
+    )
+    .await
+    .expect("mint bridge access");
 
     let session_id = SessionId::new(
         result
@@ -133,7 +143,7 @@ async fn bridge_session_captures_request_analytics() {
 
     let caller_ip = "203.0.113.7".parse().ok();
     let result = issue_bridge_access(
-        &db,
+        &oauth_repo(&db),
         &analytics,
         &exchange_request_headers(),
         caller_ip,
@@ -177,7 +187,7 @@ async fn bridge_jwt_binds_supplied_session_id() {
 
     let supplied = SessionId::generate();
     let result = issue_bridge_access(
-        &db,
+        &oauth_repo(&db),
         &analytics,
         &exchange_headers_with_session(&supplied),
         None,
@@ -218,10 +228,10 @@ async fn repeated_mint_with_same_session_id_is_idempotent() {
 
     // The bridge re-mints hourly with its stable session id; both mints must
     // succeed (idempotent upsert), not fail on the existing primary key.
-    issue_bridge_access(&db, &analytics, &headers, None, &user_id)
+    issue_bridge_access(&oauth_repo(&db), &analytics, &headers, None, &user_id)
         .await
         .expect("first mint");
-    issue_bridge_access(&db, &analytics, &headers, None, &user_id)
+    issue_bridge_access(&oauth_repo(&db), &analytics, &headers, None, &user_id)
         .await
         .expect("re-mint with the same session id must not fail");
 

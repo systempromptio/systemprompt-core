@@ -75,7 +75,7 @@ async fn public_app() -> anyhow::Result<Router> {
         Arc::clone(ctx.db_pool()),
         ctx.analytics_provider().expect("analytics"),
         ctx.user_provider().expect("user"),
-    );
+    )?;
     Ok(public_router().with_state(state))
 }
 
@@ -86,7 +86,7 @@ async fn authenticated_app() -> anyhow::Result<Router> {
         Arc::clone(ctx.db_pool()),
         ctx.analytics_provider().expect("analytics"),
         ctx.user_provider().expect("user"),
-    );
+    )?;
     Ok(authenticated_router().with_state(state))
 }
 
@@ -259,7 +259,7 @@ async fn register_client_applies_rfc7591_defaults_when_grant_and_response_types_
         Arc::clone(ctx.db_pool()),
         ctx.analytics_provider().expect("analytics"),
         ctx.user_provider().expect("user"),
-    );
+    )?;
     let app = systemprompt_api::routes::oauth::public_router()
         .with_state(state)
         .layer(Extension(req_ctx));
@@ -324,7 +324,7 @@ async fn register_client_echoes_native_application_type() -> anyhow::Result<()> 
         Arc::clone(ctx.db_pool()),
         ctx.analytics_provider().expect("analytics"),
         ctx.user_provider().expect("user"),
-    );
+    )?;
     let app = systemprompt_api::routes::oauth::public_router()
         .with_state(state)
         .layer(Extension(req_ctx));
@@ -410,7 +410,7 @@ async fn dcr_app() -> anyhow::Result<Router> {
         Arc::clone(ctx.db_pool()),
         ctx.analytics_provider().expect("analytics"),
         ctx.user_provider().expect("user"),
-    );
+    )?;
     Ok(systemprompt_api::routes::oauth::public_router()
         .with_state(state)
         .layer(Extension(req_ctx)))

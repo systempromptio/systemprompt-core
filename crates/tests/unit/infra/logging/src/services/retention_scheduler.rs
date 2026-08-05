@@ -13,7 +13,7 @@ async fn scheduler_disabled_short_circuits_ok() {
     };
     let mut config = RetentionConfig::default();
     config.enabled = false;
-    let s = RetentionScheduler::new(config, db);
+    let s = RetentionScheduler::new(config, &db).expect("retention scheduler");
     s.start().await.expect("disabled scheduler returns Ok");
 }
 
@@ -28,7 +28,7 @@ async fn scheduler_enabled_starts_cron_job() {
     let mut config = RetentionConfig::default();
     config.enabled = true;
     config.schedule = "0 0 0 * * *".to_owned();
-    let s = RetentionScheduler::new(config, db);
+    let s = RetentionScheduler::new(config, &db).expect("retention scheduler");
     s.start().await.expect("enabled scheduler installs job");
 }
 
@@ -43,7 +43,7 @@ async fn scheduler_rejects_invalid_cron_schedule() {
     let mut config = RetentionConfig::default();
     config.enabled = true;
     config.schedule = "not a cron expression".to_owned();
-    let s = RetentionScheduler::new(config, db);
+    let s = RetentionScheduler::new(config, &db).expect("retention scheduler");
     s.start()
         .await
         .expect_err("invalid schedule must fail job creation");
@@ -78,7 +78,8 @@ async fn scheduled_cleanup_deletes_logs_older_than_retention() {
     let mut config = RetentionConfig::default();
     config.enabled = true;
     config.schedule = "* * * * * *".to_owned();
-    RetentionScheduler::new(config, db)
+    RetentionScheduler::new(config, &db)
+        .expect("retention scheduler")
         .start()
         .await
         .expect("scheduler starts");

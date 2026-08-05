@@ -1,11 +1,15 @@
-use std::sync::Arc;
-
 use bytes::Bytes;
 use futures::future::join_all;
-use systemprompt_api::services::gateway::{GatewayAudit, GatewayRequestContext};
+use systemprompt_api::services::gateway::{
+    GatewayAudit, GatewayRepositories, GatewayRequestContext,
+};
 use systemprompt_identifiers::{AiRequestId, ContextId, GatewayConversationId};
 
 use crate::support::{minimal_request, seed_user, setup_db};
+
+fn gateway_repos(db: &systemprompt_database::DbPool) -> GatewayRepositories {
+    GatewayRepositories::new(db).expect("gateway repositories")
+}
 
 #[tokio::test]
 async fn gateway_audit_open_is_atomic_under_concurrent_same_request_id() {
@@ -25,7 +29,7 @@ async fn gateway_audit_open_is_atomic_under_concurrent_same_request_id() {
     const N: usize = 8;
     let mut handles = Vec::with_capacity(N);
     for _ in 0..N {
-        let db_cloned = Arc::clone(&db);
+        let repos_cloned = gateway_repos(&db);
         let ctx = GatewayRequestContext {
             ai_request_id: ai_request_id.clone(),
             user_id: user_id.clone(),
@@ -43,7 +47,7 @@ async fn gateway_audit_open_is_atomic_under_concurrent_same_request_id() {
         let req_clone = request.clone();
         let body_clone = body.clone();
         handles.push(tokio::spawn(async move {
-            let audit = GatewayAudit::new(&db_cloned, ctx).expect("audit ctor");
+            let audit = GatewayAudit::new(&repos_cloned, ctx);
             audit.open(&req_clone, &body_clone).await
         }));
     }
@@ -117,7 +121,7 @@ async fn gateway_audit_open_persists_derived_context_id() {
         is_streaming: false,
         wire_protocol: "anthropic-messages".to_string(),
     };
-    let audit = GatewayAudit::new(&db, ctx).expect("audit ctor");
+    let audit = GatewayAudit::new(&gateway_repos(&db), ctx);
     audit
         .open(&request, &Bytes::from_static(b"{}"))
         .await

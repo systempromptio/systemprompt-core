@@ -40,7 +40,7 @@ async fn make_lifecycle() -> Option<(LifecycleOrchestrator, systemprompt_databas
         AppPaths::from_profile(&paths, systemprompt_models::PathResolution::Canonicalize).ok()?,
     );
     let registry = RegistryService::new(fixture_user_id());
-    let database = DatabaseService::new(db.clone(), Arc::clone(&app_paths), registry);
+    let database = DatabaseService::new(&db, Arc::clone(&app_paths), registry).expect("db service");
     let lifecycle = LifecycleOrchestrator::new(
         ProcessService::new(),
         NetworkService::new(),
@@ -152,7 +152,7 @@ async fn cleanup_stale_services_marks_dead_port_rows_stopped() {
     .await
     .unwrap();
 
-    cleanup_stale_services(&db).await.unwrap();
+    cleanup_stale_services(&repo).await.unwrap();
     repo.delete_service(&name).await.unwrap();
 }
 
@@ -175,7 +175,7 @@ async fn sync_database_state_marks_unhealthy_crashed() {
     .unwrap();
 
     let config = make_config(&name, port);
-    sync_database_state(&db, &[config]).await.unwrap();
+    sync_database_state(&repo, &[config]).await.unwrap();
     repo.delete_service(&name).await.unwrap();
 }
 
@@ -197,7 +197,7 @@ async fn reconcile_running_processes_reports_dead_ports() {
     .await
     .unwrap();
 
-    let discrepancies = reconcile_running_processes(&db).await.unwrap();
+    let discrepancies = reconcile_running_processes(&repo).await.unwrap();
     assert!(
         discrepancies.iter().any(|d| d.contains(&name)),
         "a running service on a dead port is reported as a discrepancy"
@@ -222,7 +222,7 @@ async fn repair_inconsistencies_marks_pidless_running_as_stopped() {
     })
     .await
     .unwrap();
-    repair_database_inconsistencies(&db).await.unwrap();
+    repair_database_inconsistencies(&repo).await.unwrap();
     repo.delete_service(&name).await.unwrap();
 }
 
@@ -243,7 +243,7 @@ async fn delete_crashed_services_runs() {
     })
     .await
     .unwrap();
-    delete_crashed_services(&db).await.unwrap();
+    delete_crashed_services(&repo).await.unwrap();
 }
 
 #[tokio::test]

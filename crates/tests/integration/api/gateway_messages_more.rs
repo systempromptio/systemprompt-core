@@ -32,6 +32,12 @@ use systemprompt_users::{ApiKeyService, IssueApiKeyParams};
 
 use super::common::setup_ctx;
 
+fn gw_repos(
+    db: &systemprompt_database::DbPool,
+) -> systemprompt_api::services::gateway::GatewayRepositories {
+    systemprompt_api::services::gateway::GatewayRepositories::new(db).expect("gateway repos")
+}
+
 fn header_map(pairs: &[(&str, &str)]) -> HeaderMap {
     use axum::http::HeaderName;
     let mut h = HeaderMap::new();
@@ -389,7 +395,14 @@ async fn persist_rejection_writes_audit_row() -> Result<()> {
     partial.model = Some("claude-test".to_owned());
     partial.body = Some(bytes::Bytes::from_static(b"{\"model\":\"claude-test\"}"));
 
-    persist_rejection(&ctx, &id, &partial, StatusCode::FORBIDDEN, "policy denied").await;
+    persist_rejection(
+        &gw_repos(ctx.db_pool()),
+        &id,
+        &partial,
+        StatusCode::FORBIDDEN,
+        "policy denied",
+    )
+    .await;
 
     assert!(
         audit_row_exists(&pool, &id).await?,
@@ -411,7 +424,7 @@ async fn persist_rejection_writes_an_audit_row_when_routing_never_resolved() -> 
     partial.user_id = Some(cred.user_id.clone());
 
     persist_rejection(
-        &ctx,
+        &gw_repos(ctx.db_pool()),
         &id,
         &partial,
         StatusCode::PAYMENT_REQUIRED,

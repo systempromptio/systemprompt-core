@@ -22,6 +22,10 @@ systemprompt-config = { workspace = true }
 systemprompt-logging = { workspace = true }
 systemprompt-files = { workspace = true }
 systemprompt-analytics = { workspace = true }
+systemprompt-agent = { workspace = true }
+systemprompt-content = { workspace = true }
+systemprompt-oauth = { workspace = true }
+systemprompt-users = { workspace = true }
 systemprompt-mcp = { workspace = true }
 systemprompt-test-fixtures = { workspace = true }
 systemprompt-database = { workspace = true }

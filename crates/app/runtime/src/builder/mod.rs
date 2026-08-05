@@ -150,21 +150,7 @@ impl AppContextBuilder {
 
         let user_service = Arc::new(UserService::new(&database)?);
 
-        let session_usage: systemprompt_traits::DynSessionUsageCounters =
-            Arc::new(analytics_service.session_repo().clone());
-        let a2a_repositories = Arc::new(systemprompt_agent::repository::A2ARepositories::new(
-            &database,
-            session_usage,
-        )?);
-        let content_repositories = Arc::new(
-            systemprompt_content::repository::ContentRepositories::new(&database)?,
-        );
-        let oauth_repositories = Arc::new(systemprompt_oauth::repository::OauthRepositories::new(
-            &database,
-        )?);
-        let user_repository = Arc::new(systemprompt_users::UserRepository::new(&database)?);
-        let service_repository =
-            Arc::new(systemprompt_database::ServiceRepository::new(&database)?);
+        let repositories = build_repositories(&database, &analytics_service)?;
 
         let system_admin =
             assembly::resolve_and_install_system_admin(&config, &user_service).await?;
@@ -182,11 +168,11 @@ impl AppContextBuilder {
                 analytics_service,
                 fingerprint_repo,
                 user_service: Some(user_service),
-                a2a_repositories,
-                content_repositories,
-                oauth_repositories,
-                user_repository,
-                service_repository,
+                a2a_repositories: repositories.a2a,
+                content_repositories: repositories.content,
+                oauth_repositories: repositories.oauth,
+                user_repository: repositories.users,
+                service_repository: repositories.services,
             },
             ConfigPlane {
                 config,
@@ -208,4 +194,34 @@ impl AppContextBuilder {
             },
         ))
     }
+}
+
+struct RepositoryBundles {
+    a2a: Arc<systemprompt_agent::repository::A2ARepositories>,
+    content: Arc<systemprompt_content::repository::ContentRepositories>,
+    oauth: Arc<systemprompt_oauth::repository::OauthRepositories>,
+    users: Arc<systemprompt_users::UserRepository>,
+    services: Arc<systemprompt_database::ServiceRepository>,
+}
+
+fn build_repositories(
+    database: &systemprompt_database::DbPool,
+    analytics_service: &Arc<systemprompt_analytics::AnalyticsService>,
+) -> RuntimeResult<RepositoryBundles> {
+    let session_usage: systemprompt_traits::DynSessionUsageCounters =
+        Arc::new(analytics_service.session_repo().clone());
+    Ok(RepositoryBundles {
+        a2a: Arc::new(systemprompt_agent::repository::A2ARepositories::new(
+            database,
+            session_usage,
+        )?),
+        content: Arc::new(systemprompt_content::repository::ContentRepositories::new(
+            database,
+        )?),
+        oauth: Arc::new(systemprompt_oauth::repository::OauthRepositories::new(
+            database,
+        )?),
+        users: Arc::new(systemprompt_users::UserRepository::new(database)?),
+        services: Arc::new(systemprompt_database::ServiceRepository::new(database)?),
+    })
 }

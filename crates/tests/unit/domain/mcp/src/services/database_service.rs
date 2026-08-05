@@ -8,7 +8,7 @@ use systemprompt_models::AppPaths;
 use systemprompt_models::profile::PathsConfig;
 use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool, fixture_user_id};
 
-async fn make_db_service() -> Option<DatabaseService> {
+async fn make_db_service() -> Option<(DatabaseService, systemprompt_database::DbPool)> {
     let url = fixture_database_url().ok()?;
     let db = fixture_db_pool(&url).await.ok()?;
     let paths = PathsConfig {
@@ -23,12 +23,13 @@ async fn make_db_service() -> Option<DatabaseService> {
         AppPaths::from_profile(&paths, systemprompt_models::PathResolution::Canonicalize).ok()?,
     );
     let registry = RegistryService::new(fixture_user_id());
-    Some(DatabaseService::new(db, app_paths, registry))
+    let svc = DatabaseService::new(&db, app_paths, registry).expect("db service");
+    Some((svc, db))
 }
 
 #[tokio::test]
 async fn get_service_by_name_missing_returns_none() {
-    let Some(svc) = make_db_service().await else {
+    let Some((svc, _db)) = make_db_service().await else {
         return;
     };
     let r = svc
@@ -40,7 +41,7 @@ async fn get_service_by_name_missing_returns_none() {
 
 #[tokio::test]
 async fn cleanup_stale_services_runs() {
-    let Some(svc) = make_db_service().await else {
+    let Some((svc, _db)) = make_db_service().await else {
         return;
     };
     svc.cleanup_stale_services().await.unwrap();
@@ -48,7 +49,7 @@ async fn cleanup_stale_services_runs() {
 
 #[tokio::test]
 async fn delete_crashed_services_runs() {
-    let Some(svc) = make_db_service().await else {
+    let Some((svc, _db)) = make_db_service().await else {
         return;
     };
     svc.delete_crashed_services().await.unwrap();
@@ -56,7 +57,7 @@ async fn delete_crashed_services_runs() {
 
 #[tokio::test]
 async fn sync_state_empty_runs() {
-    let Some(svc) = make_db_service().await else {
+    let Some((svc, _db)) = make_db_service().await else {
         return;
     };
     svc.sync_state(&[]).await.unwrap();
@@ -67,10 +68,10 @@ async fn delete_disabled_services_removes_only_the_disabled_service() {
     use crate::harness::internal_mcp_config;
     use systemprompt_database::{CreateServiceInput, ServiceRepository};
 
-    let Some(svc) = make_db_service().await else {
+    let Some((svc, _db)) = make_db_service().await else {
         return;
     };
-    let repo = ServiceRepository::new(svc.db_pool()).unwrap();
+    let repo = ServiceRepository::new(&_db).unwrap();
     let keep = format!("dbsvc-keep-{}", uuid::Uuid::new_v4().simple());
     let drop_name = format!("dbsvc-drop-{}", uuid::Uuid::new_v4().simple());
     for (name, port) in [(&keep, 65512u16), (&drop_name, 65511u16)] {
@@ -105,7 +106,7 @@ async fn delete_disabled_services_removes_only_the_disabled_service() {
 
 #[tokio::test]
 async fn get_running_servers_errors_when_registry_not_validated() {
-    let Some(svc) = make_db_service().await else {
+    let Some((svc, _db)) = make_db_service().await else {
         return;
     };
     let r = svc.get_running_servers().await;
@@ -114,7 +115,7 @@ async fn get_running_servers_errors_when_registry_not_validated() {
 
 #[tokio::test]
 async fn update_service_status_missing_no_panic() {
-    let Some(svc) = make_db_service().await else {
+    let Some((svc, _db)) = make_db_service().await else {
         return;
     };
     svc.update_service_status(
@@ -127,7 +128,7 @@ async fn update_service_status_missing_no_panic() {
 
 #[tokio::test]
 async fn clear_service_pid_missing_no_panic() {
-    let Some(svc) = make_db_service().await else {
+    let Some((svc, _db)) = make_db_service().await else {
         return;
     };
     svc.clear_service_pid(&format!("missing-{}", uuid::Uuid::new_v4().simple()))
@@ -137,7 +138,7 @@ async fn clear_service_pid_missing_no_panic() {
 
 #[tokio::test]
 async fn unregister_missing_no_panic() {
-    let Some(svc) = make_db_service().await else {
+    let Some((svc, _db)) = make_db_service().await else {
         return;
     };
     svc.unregister_service(&format!("missing-{}", uuid::Uuid::new_v4().simple()))
@@ -147,18 +148,17 @@ async fn unregister_missing_no_panic() {
 
 #[tokio::test]
 async fn accessors() {
-    let Some(svc) = make_db_service().await else {
+    let Some((svc, _db)) = make_db_service().await else {
         return;
     };
     let _ = svc.app_paths();
-    let _ = svc.db_pool();
     let _ = svc.clone();
     let _ = format!("{svc:?}");
 }
 
 #[tokio::test]
 async fn register_existing_process_creates_running_row_with_pid() {
-    let Some(svc) = make_db_service().await else {
+    let Some((svc, _db)) = make_db_service().await else {
         return;
     };
     let name = format!("adopt-{}", uuid::Uuid::new_v4().simple());
