@@ -12,7 +12,7 @@ use crate::Result;
 use chrono::{DateTime, Utc};
 use systemprompt_identifiers::{ContextId, UserId};
 
-use crate::models::cli::{
+use crate::models::reporting::{
     ContextGroupRow, ContextSummaryRow, CostBreakdownRow, CostSummaryRow, PreviousCostRow,
     RecentContextRow,
 };

@@ -14,7 +14,9 @@ use std::sync::Arc;
 use systemprompt_database::DbPool;
 use systemprompt_models::ContextKind;
 
-use crate::models::cli::{OverviewAgentRow, OverviewCostRow, OverviewRequestRow, OverviewToolRow};
+use crate::models::reporting::{
+    OverviewAgentRow, OverviewCostRow, OverviewRequestRow, OverviewToolRow,
+};
 
 #[derive(Debug)]
 pub struct OverviewAnalyticsRepository {

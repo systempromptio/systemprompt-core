@@ -14,7 +14,7 @@ use std::sync::Arc;
 use systemprompt_database::DbPool;
 use systemprompt_models::ContextKind;
 
-use crate::models::cli::{ConversationListRow, GatewaySessionListRow, TimestampRow};
+use crate::models::reporting::{ConversationListRow, GatewaySessionListRow, TimestampRow};
 
 #[derive(Debug)]
 pub struct ConversationAnalyticsRepository {

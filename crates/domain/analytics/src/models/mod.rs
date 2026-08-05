@@ -1,17 +1,18 @@
-//! Public DTO/row types for the analytics crate. Submodules are split by
-//! domain (engagement, events, fingerprint, funnel) plus a `cli` family of
-//! row structs used by `systemprompt-cli` reports.
+//! Public DTO/row types for the analytics crate.
+//!
+//! Submodules are split by domain (engagement, events, fingerprint, funnel)
+//! plus a `reporting` family of row structs consumed by report frontends such
+//! as `systemprompt-cli`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-pub mod cli;
 mod engagement;
 mod events;
 mod fingerprint;
 mod funnel;
+pub mod reporting;
 
-pub use cli::*;
 pub use engagement::{CreateEngagementEventInput, EngagementEvent, EngagementOptionalMetrics};
 pub use events::{
     AnalyticsEventBatchResponse, AnalyticsEventCreated, AnalyticsEventType, ConversionEventData,
@@ -23,6 +24,7 @@ pub use funnel::{
     CreateFunnelInput, CreateFunnelStepInput, Funnel, FunnelMatchType, FunnelProgress, FunnelStats,
     FunnelStep, FunnelStepStats, FunnelWithSteps,
 };
+pub use reporting::*;
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};

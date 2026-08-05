@@ -8,7 +8,7 @@ use chrono::{DateTime, Utc};
 use clap::Args;
 use std::path::{Path, PathBuf};
 use systemprompt_analytics::ToolAnalyticsRepository;
-use systemprompt_analytics::models::cli::{
+use systemprompt_analytics::models::reporting::{
     ToolAgentUsageRow, ToolErrorRow, ToolStatusBreakdownRow, ToolSummaryRow,
 };
 use systemprompt_logging::CliService;

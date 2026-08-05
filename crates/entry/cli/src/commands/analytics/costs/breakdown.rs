@@ -7,7 +7,7 @@ use anyhow::Result;
 use clap::{Args, ValueEnum};
 use std::path::PathBuf;
 use systemprompt_analytics::CostAnalyticsRepository;
-use systemprompt_analytics::models::cli::CostBreakdownRow;
+use systemprompt_analytics::models::reporting::CostBreakdownRow;
 use systemprompt_logging::CliService;
 use systemprompt_runtime::DatabaseContext;
 

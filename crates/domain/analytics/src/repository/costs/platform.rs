@@ -11,7 +11,7 @@ use super::CostAnalyticsRepository;
 use crate::Result;
 use chrono::{DateTime, Utc};
 
-use crate::models::cli::{CostBreakdownRow, CostSummaryRow, CostTrendRow, PreviousCostRow};
+use crate::models::reporting::{CostBreakdownRow, CostSummaryRow, CostTrendRow, PreviousCostRow};
 
 impl CostAnalyticsRepository {
     pub async fn get_summary(

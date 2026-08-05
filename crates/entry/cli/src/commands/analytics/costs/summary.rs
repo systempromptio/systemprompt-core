@@ -9,7 +9,7 @@ use clap::Args;
 use std::future::Future;
 use std::path::PathBuf;
 use systemprompt_analytics::CostAnalyticsRepository;
-use systemprompt_analytics::models::cli::CostSummaryRow;
+use systemprompt_analytics::models::reporting::CostSummaryRow;
 use systemprompt_logging::CliService;
 use systemprompt_runtime::DatabaseContext;
 

@@ -7,7 +7,7 @@
 use std::cell::RefCell;
 
 use chrono::{DateTime, Duration, Utc};
-use systemprompt_analytics::models::cli::CostSummaryRow;
+use systemprompt_analytics::models::reporting::CostSummaryRow;
 use systemprompt_cli::analytics::costs::summary::resolve_window;
 
 fn assert_spans(actual: Duration, expected: Duration) {

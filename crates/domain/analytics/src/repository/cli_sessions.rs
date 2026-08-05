@@ -14,7 +14,7 @@ use std::sync::Arc;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::UserId;
 
-use crate::models::cli::{LiveSessionRow, SessionStatsRow, SessionTrendRow};
+use crate::models::reporting::{LiveSessionRow, SessionStatsRow, SessionTrendRow};
 
 #[derive(Debug)]
 pub struct CliSessionAnalyticsRepository {

@@ -2,6 +2,10 @@
 
 ## [0.29.0] - 2026-08-04
 
+### Breaking
+
+- **Breaking:** the `models::cli` module is renamed to `models::reporting`. Migrate by updating module-qualified imports; the glob re-exports at `models::*` are unchanged.
+
 ### Changed
 
 - The `geoip_skip_reason = "no_reader"` line is logged once per process rather than once per request. Whether a `GeoIP` reader exists is fixed when the analytics service is constructed, so repeating it for every request added no information and buried the rest of the debug stream on any deployment without a MaxMind database. The one-shot message names the consequence — location fields stay empty for all requests — and drops the per-request IP field, which was meaningless for a condition that applies to every address.

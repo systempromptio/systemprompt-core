@@ -15,7 +15,7 @@ use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
 
-use crate::models::cli::{
+use crate::models::reporting::{
     BotTotalsRow, BotTypeRow, DeviceRow, GeoRow, TrafficNavigationRow, TrafficPageRow,
     TrafficSourceRow,
 };

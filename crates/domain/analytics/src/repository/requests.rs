@@ -14,7 +14,7 @@ use std::sync::Arc;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::UserId;
 
-use crate::models::cli::{ModelUsageRow, RequestListRow, RequestStatsRow, RequestTrendRow};
+use crate::models::reporting::{ModelUsageRow, RequestListRow, RequestStatsRow, RequestTrendRow};
 
 #[derive(Debug)]
 pub struct RequestAnalyticsRepository {

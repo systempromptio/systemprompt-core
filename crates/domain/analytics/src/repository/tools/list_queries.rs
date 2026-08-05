@@ -8,7 +8,7 @@ use crate::Result;
 use chrono::{DateTime, Utc};
 
 use super::ToolAnalyticsRepository;
-use crate::models::cli::ToolListRow;
+use crate::models::reporting::ToolListRow;
 
 #[derive(Debug)]
 pub struct ToolListParams<'a> {

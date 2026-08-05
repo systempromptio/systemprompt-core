@@ -11,7 +11,7 @@ use systemprompt_database::DbPool;
 
 use systemprompt_identifiers::{ContentId, SourceId};
 
-use crate::models::cli::{ContentStatsRow, ContentTrendRow, TopContentRow};
+use crate::models::reporting::{ContentStatsRow, ContentTrendRow, TopContentRow};
 
 #[derive(Debug)]
 pub struct ContentAnalyticsRepository {

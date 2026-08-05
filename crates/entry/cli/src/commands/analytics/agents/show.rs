@@ -8,7 +8,7 @@ use chrono::{DateTime, Utc};
 use clap::Args;
 use std::path::{Path, PathBuf};
 use systemprompt_analytics::AgentAnalyticsRepository;
-use systemprompt_analytics::models::cli::{
+use systemprompt_analytics::models::reporting::{
     AgentErrorRow, AgentHourlyRow, AgentStatusBreakdownRow, AgentSummaryRow,
 };
 use systemprompt_logging::CliService;

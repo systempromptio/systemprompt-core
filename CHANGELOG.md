@@ -2,6 +2,10 @@
 
 ## [0.29.0] - 2026-08-04
 
+### Breaking
+
+- **Breaking:** `systemprompt_analytics::models::cli` is renamed to `models::reporting`. Migrate by updating module-qualified imports; the glob re-exports at `models::*` are unchanged.
+
 ### Added
 
 - `/health` reports `degraded` with `events: { "relay": "not_listening" }` when the cross-replica event relay has lost its listener, backed by the new `systemprompt_events::is_listening`. A replica whose relay is down serves HTTP correctly while silently dropping every event raised on another replica — the one failure mode a health check exists to catch, and the one it previously called `healthy`. The flag reads `true` in a deployment that never starts a bridge, so no relay is not reported as a broken relay.

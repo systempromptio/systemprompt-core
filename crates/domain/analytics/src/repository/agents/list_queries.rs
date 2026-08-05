@@ -7,7 +7,7 @@ use crate::Result;
 use chrono::{DateTime, Utc};
 
 use super::AgentAnalyticsRepository;
-use crate::models::cli::AgentListRow;
+use crate::models::reporting::AgentListRow;
 
 impl AgentAnalyticsRepository {
     pub async fn list_agents(
