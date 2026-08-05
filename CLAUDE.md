@@ -1,361 +1,92 @@
 # systemprompt.io Core
 
-The core platform engine for systemprompt.io - a multi-tenant AI agent platform with A2A protocol support, MCP integration, and cloud deployment.
+Core platform engine for systemprompt.io — a multi-tenant AI agent platform with A2A protocol support, MCP integration, and cloud deployment.
 
 ## Architecture
 
-```
-systemprompt-core/
-├── crates/
-│   ├── shared/           # Foundation layer (no dependencies on other layers)
-│   │   ├── models/       # systemprompt-models - Core data types
-│   │   ├── traits/       # systemprompt-traits - Core interfaces
-│   │   ├── identifiers/  # systemprompt-identifiers - Typed IDs
-│   │   ├── extension/    # systemprompt-extension - Extension framework
-│   │   ├── provider-contracts/  # Provider trait definitions
-│   │   ├── client/       # HTTP API client
-│   │   └── template-provider/   # Template traits
-│   │
-│   ├── infra/            # Infrastructure layer
-│   │   ├── database/     # systemprompt-database - SQLx abstraction
-│   │   ├── events/       # systemprompt-events - Event bus, SSE
-│   │   ├── security/     # systemprompt-security - JWT, auth
-│   │   ├── config/       # systemprompt-config - Config loading
-│   │   ├── logging/      # systemprompt-logging - Tracing setup
-│   │   ├── loader/       # systemprompt-loader - File/module discovery
-│   │   └── cloud/        # systemprompt-cloud - Cloud API, tenants
-│   │
-│   ├── domain/           # Business logic layer
-│   │   ├── users/        # systemprompt-users - User management
-│   │   ├── oauth/        # systemprompt-oauth - OAuth2/OIDC
-│   │   ├── files/        # systemprompt-files - File storage
-│   │   ├── analytics/    # systemprompt-analytics - Metrics
-│   │   ├── content/      # systemprompt-content - Content management
-│   │   ├── ai/           # systemprompt-ai - LLM integration
-│   │   ├── mcp/          # systemprompt-mcp - MCP protocol
-│   │   ├── agent/        # systemprompt-agent - A2A protocol
-│   │   └── templates/    # systemprompt-templates - Template registry
-│   │
-│   ├── app/              # Application services layer
-│   │   ├── runtime/      # systemprompt-runtime - AppContext, lifecycle
-│   │   ├── scheduler/    # systemprompt-scheduler - Job scheduling
-│   │   └── generator/    # systemprompt-generator - Static site gen
-│   │
-│   ├── entry/            # Application boundaries
-│   │   ├── api/          # systemprompt-api - HTTP server
-│   │   └── cli/          # systemprompt-cli - CLI application
-│   │
-│   └── tests/            # Separate test workspace (excluded from main)
-│
-├── systemprompt/         # Facade crate - re-exports with feature flags
-├── defaults/             # Default templates, assets, web content
-├── documentation/        # External evaluation pack (committed, RFI/procurement-safe)
-└── internal/             # Local-only dev docs (gitignored)
-    ├── guides/          # Architecture, boundaries, standards, release, runbooks
-    ├── audits/          # Crate-by-crate compliance audits
-    ├── reports/         # Codebase evaluations, test roadmaps
-    └── legal/           # License compliance / SBOM
-```
-
-## Dependency Flow
+Five layers under `crates/`; dependencies flow downward only, no cycles:
 
 ```
-Entry (api, cli) → App (runtime, scheduler) → Domain (agent, ai, mcp...) → Infra (database, events...) → Shared (models, traits)
+entry (api, cli) → app (runtime, scheduler, generator) → domain → infra → shared
 ```
 
-**Rule**: Dependencies flow downward only. No circular dependencies.
+- **shared** — models, traits, identifiers (typed IDs), extension framework, provider-contracts, client, template-provider
+- **infra** — database (SQLx), events, security (JWT/authz), config, logging, loader, cloud
+- **domain** — users, oauth, files, analytics, content, ai, mcp, agent, templates, marketplace, slack, teams, evaluation. Domain crates are **peers**: no domain→domain deps (see Rust Standards)
+- **app** — runtime (`AppContext`), scheduler, generator
+- **entry** — api (HTTP server), cli
+- `systemprompt/` — facade crate re-exporting everything behind feature flags (`core`, `database`, `api`, `cli`, `full`)
+- `crates/tests/` — separate test workspace, excluded from the main workspace
 
 ## Documentation Layout
 
-Two buckets, kept strictly separate:
+- **`documentation/`** — external evaluation pack: committed, neutral, safe to cite in an RFI/security review. Nothing internal (repo names, CI secrets, work-plans).
+- **`internal/`** — local-only engineering docs, gitignored (`guides/`, `audits/`, `reports/`, `legal/`). Never deep-link into `internal/` from a committed file.
 
-- **`documentation/`** — the **external** evaluation pack: neutral, stable, committed, and safe to cite in an RFI / procurement / security review. No internal repo names, CI secrets, version-drift snapshots, or work-plans. Flat layout (security/RFI material at the top level). Anything here must read cleanly for an external consumer.
-- **`internal/`** — **local-only** engineering docs, **gitignored** (a few force-added files aside). Organised by purpose: `guides/` (architecture, boundaries, standards, release process, bridge build/release, runbooks), `audits/`, `reports/` (codebase evaluations, test roadmaps, deployment-scenario work), `legal/` (license/SBOM).
+New docs: external-consumer material → `documentation/`; anything about how we build/release/audit → `internal/`.
 
-When adding docs: external-consumer material → `documentation/`; anything about *how we build, release, audit, or evaluate* → `internal/` (use `git add -f` only if a specific internal file must be shared). Never deep-link from a committed file into `internal/` — external readers cannot see it.
+Key guides: `internal/guides/architecture.md` (crate taxonomy), `boundaries.md` (module boundaries), `cloud.md`, `rust.md` (mirrors the `rust-coding-standards` skill), `bridge/`.
 
 ## Repository Hygiene
 
-This is a world-class, public, code-only repository. **Only code and proper
-public-facing files belong in git**: source, `Cargo.toml`/`build.rs`,
-`README.md`, `CHANGELOG.md`, schema/migration `*.sql`, and legitimate test
-fixtures (proptest/fuzz seeds, protocol specs). Everything else stays out.
+Public, code-only repository. In git: source, `Cargo.toml`/`build.rs`, `README.md`, `CHANGELOG.md`, schema/migration `*.sql`, legitimate test fixtures. **Never committed**: status/plan/report/summary/guide/progress/findings docs, coverage trackers, scratch notes, build output. `ci/` and `internal/` are gitignored.
 
-**Never committed** (these are local-only dev artefacts): status reports,
-test-planning stubs, coverage trackers, implementation guides, scratch notes, or
-any process doc (`*STATUS*`, `*PLAN*`, `*REPORT*`, `*SUMMARY*`, `*GUIDE*`,
-`*PROGRESS*`, `*FINDINGS*`), and build/tooling output. The `ci/` scripts and
-`internal/` tree are local-only and `.gitignore`d.
-
-**No new folders — or process docs — are added to git without explicit user
-approval.** Before any commit, sweep the staged tree
-(`git ls-files | grep -iE '(status|plan|report|summary|guide|progress|findings)'`
-and `git ls-files 'crates/**/*.md' | grep -vE '/(README|CHANGELOG)\.md$'`) and
-confirm nothing stray slipped in. Never `git add` a directory you did not create
-as part of an approved change.
-
-## Key Documentation
-
-| Document | Purpose |
-|----------|---------|
-| `internal/guides/architecture.md` | Full crate taxonomy, extension framework, paths |
-| `internal/guides/boundaries.md` | Module boundary rules, acceptable patterns |
-| `internal/guides/cloud.md` | Cloud deployment and tenant management |
-| `internal/guides/rust.md` | Rust coding standards (mirrors the `rust-coding-standards` skill) |
-| `internal/guides/bridge/` | Bridge build, release, versioning, per-OS reference |
-| `documentation/` | External evaluation pack (security, compliance, stability, RFI) |
+No new folders or process docs enter git without explicit user approval. Before any commit, sweep the staged tree:
+`git ls-files | grep -iE '(status|plan|report|summary|guide|progress|findings)'` and `git ls-files 'crates/**/*.md' | grep -vE '/(README|CHANGELOG)\.md$'`.
 
 ## Rust Standards
 
-**MANDATORY**: the marketplace skill `rust-coding-standards` is the canonical source of truth. `internal/guides/rust.md` and this file mirror it — when they diverge, the skill wins. Key rules:
+**MANDATORY**: the marketplace skill `rust-coding-standards` is canonical; `internal/guides/rust.md` and this file mirror it — when they diverge, the skill wins.
 
-- **Inline `//` comments**: banned for WHAT-comments. Permitted ONLY when encoding a non-obvious *why* (hidden constraint, subtle invariant, bug-workaround), and even then only in *genuinely exceptional* cases — the default is no comment. If the "why" is derivable from the code, types, or a well-named function, write none. Never narrate "what we just changed", recount protocol/format trivia, or paint a consumer-facing picture — that belongs in a `//!` module head if anywhere. A file dense with why-comments means the bar has slipped.
-- **`///` rustdoc**: one uniform rule across **all** production crates incl. `entry/*` (entry is not special). NOT applied mechanically per pub item. Real `//!` blocks live on `lib.rs` and significant `pub mod` files (purpose, public surface, feature matrix, error model) everywhere. Per-item `///` is added only where it captures non-obvious value — paraphrasing the function name and signature is a code smell. `///` is banned only inside `crates/tests/**`.
-- **Typed identifiers**: zero raw String IDs in struct fields or service args — use wrappers from `systemprompt_identifiers`. Construct via `Id::new(s)`, `Id::try_new(s)?`, or `Id::generate()`. Never `.into()` or `::from()` at call sites.
-- **Repository pattern**: services never run SQL directly. All queries via compile-time verified macros (`sqlx::query!()`, `sqlx::query_as!()`, `sqlx::query_scalar!()`). Runtime `sqlx::query(_)` is permitted ONLY in `crates/infra/database/src/admin/**`, `crates/infra/database/src/services/postgres/{introspection,query_executor,transaction,ext,mod}.rs`, and `crates/entry/cli/src/commands/admin/setup/**` (bootstrap DDL — `CREATE USER` / `CREATE DATABASE` / `GRANT` run before the target database exists; DDL cannot bind parameters) where dynamic SQL is the contract.
-- **Errors**: `thiserror`-derived enums in published library crates (`shared/*`, `infra/*`, `domain/*`, `app/*`, `systemprompt` facade). `anyhow::Error` is forbidden in public signatures of library crates; permitted only in `entry/cli`, `entry/api`, `build.rs`, and tests.
-- **Async traits**: native `async fn` by default. `#[async_trait]` only when the trait must be `dyn`-compatible — document the reason on the trait.
-- **Logging**: all logging via `tracing` with structured fields. `println!` / `eprintln!` / `dbg!` banned in libraries; carve-outs are the CLI display sinks in `crates/infra/logging/services/cli/**` and `crates/infra/database/src/services/display.rs`, plus `cargo:rerun-if-changed=` directives in build scripts.
-- **No domain→domain dependencies**: domain crates are peers. Cross-domain capability flows through shared-layer traits (`DynAiProvider`, `ToolProvider`, `SessionUsageCounters`, provider-contracts) or logic hoisted into infra (e.g. `member_attribute_floor` in `systemprompt-security`), wired at app/entry composition roots. Enforced by `just lint-layers`; the allowlist in `scripts/lint-layers.sh` is empty by design.
-- **Repository construction**: repositories are constructed once at composition roots (the `AppContext` builder, router-scoped state, or an owning service's ctor that stores the repo as a field) and injected; consumers reach them via `AppContext` accessors (`a2a_repositories()`, `content_repositories()`, `oauth_repositories()`, `user_repository()`, `service_repository()`) or the owning struct's field. Ad-hoc `Repo::new(&pool)` inside handler/method bodies is lint-gated by `just lint-repo-construction` (`scripts/lint-repo-construction.sh`; CLI one-shot commands and per-tick job bodies are exempt).
-- **No legacy code, backwards-compat shims, dual code paths, or `Option<T>` migration stubs**: land the new code AND delete the old form in the same PR.
-- **Naming**: `*Service` by default, `*Handler` only for HTTP/RPC handlers, `*Orchestrator` for cross-domain workflows. Avoid `*Manager`.
-- **Schema DDL & migrations**: schema DDL lives in `{crate}/schema/*.sql`, embedded via `include_str!()` in `extension.rs`. Migration SQL lives in `{crate}/schema/migrations/NNN_<name>.sql`, discovered by the crate's `build.rs` (`systemprompt_extension::build::emit_migrations()`) and returned via the `extension_migrations!()` macro — never inline SQL string constants or a hand-written `Migration::new(...)` list. Pre-merge: `just lint-extensions`.
+- **Inline `//` comments**: banned for WHAT-comments. Permitted only for a non-obvious *why* (hidden constraint, invariant, bug-workaround), and rarely — the default is no comment.
+- **`///` rustdoc**: uniform across all production crates incl. `entry/*`. `//!` blocks on `lib.rs` and significant `pub mod` files; per-item `///` only where it adds non-obvious value — paraphrasing the signature is a smell. `///` is banned inside `crates/tests/**`.
+- **Typed identifiers**: no raw String IDs in struct fields or service args — use `systemprompt_identifiers` wrappers. Construct via `Id::new(s)` / `Id::try_new(s)?` / `Id::generate()`; never `.into()` or `::from()` at call sites (convention, reviewer-enforced).
+- **Repository pattern**: services never run SQL directly; all queries via compile-time macros (`sqlx::query!` family). Runtime `sqlx::query(_)` only in `infra/database/src/admin/**`, `infra/database/src/services/postgres/{introspection,query_executor,transaction,ext,mod}.rs`, and `entry/cli/src/commands/admin/setup/**` (bootstrap DDL).
+- **Repository construction**: repositories are built once at composition roots (the `AppContext` builder, router-scoped state, or an owning service's ctor that stores them as fields) and injected. Consumers use the `AppContext` repository accessors (`a2a_repositories()`, `content_repositories()`, … — see `crates/app/runtime/src/context/mod.rs`) or the owning struct's field. Ad-hoc `Repo::new(&pool)` in handler/method bodies is gated by `just lint-repo-construction` (CLI one-shot commands and job bodies are exempt).
+- **Errors**: `thiserror` enums in library crates; `anyhow` only in `entry/cli`, `entry/api`, `build.rs`, and tests.
+- **Async traits**: native `async fn`; `#[async_trait]` only for `dyn`-compatibility, documented on the trait.
+- **Logging**: `tracing` with structured fields. `println!`/`eprintln!`/`dbg!` banned in libraries (carve-outs: CLI display sinks in `infra/logging/services/cli/**`, `infra/database/src/services/display.rs`, `cargo:` build-script directives).
+- **No domain→domain deps**: cross-domain capability flows through shared-layer traits (`DynAiProvider`, `ToolProvider`, `SessionUsageCounters`, provider-contracts) or infra, wired at app/entry composition roots. Enforced by `just lint-layers`; its allowlist is empty by design.
+- **No legacy code**: no shims, dual paths, or `Option<T>` migration stubs — land the new form and delete the old in the same PR.
+- **Naming**: `*Service` default, `*Handler` for HTTP/RPC handlers, `*Orchestrator` for cross-domain workflows. Avoid `*Manager`.
+- **Schema DDL & migrations**: DDL in `{crate}/schema/*.sql` embedded via `include_str!()` in `extension.rs`; migrations in `{crate}/schema/migrations/NNN_<name>.sql`, discovered by `build.rs` (`systemprompt_extension::build::emit_migrations()`) and returned via `extension_migrations!()`. Never inline SQL constants or hand-written migration lists. Gate: `just lint-extensions`.
 
-Run after changes: `cargo +nightly fmt --all && cargo clippy --workspace --all-targets --all-features -- -D warnings && just doc-check && just file-size`.
-
-`just doc-check` builds rustdoc with warnings as errors across **both** workspaces. `--workspace` stops at the manifest it is invoked from, so a bare `cargo doc` leaves the 86 crates under `crates/tests/` unchecked — and CI cannot cover them, because they carry no `.sqlx` cache and need the live database that `crates/tests/.cargo/config.toml` points at.
-
-### Typed Identifiers
-
-Canonical construction forms for IDs declared via `define_id!`:
-
-```rust
-// 1. Known string value (literal, parsed input, DB row, function arg)
-let id = AgentId::new("agent_one");
-let id = AgentId::new(s);
-
-// 2. Mint a fresh UUID (only for IDs declared with the `generate` flag)
-let id = SessionId::generate();
-
-// 3. Validated / non_empty IDs in fallible contexts
-let id = TenantId::try_new(s)?;
-```
-
-Disallowed for typed IDs in normal code (these compile but hide the type at the call site):
-
-```rust
-let id: AgentId = "agent_one".into();   // ❌
-let id = AgentId::from("agent_one");    // ❌
-```
-
-The macro-generated `From` / `TryFrom` impls remain on the type — they are required for generic `Into<T>` bounds and for serde. The rule is about call-site idiom only.
-
-This is a convention, not a hard-enforced lint — a clippy/dylint rule was evaluated and rejected as too brittle. Reviewers should call out violations.
-
-## Facade Crate (`systemprompt/`)
-
-Re-exports all functionality with feature flags:
-
-| Feature | Includes |
-|---------|----------|
-| `core` (default) | traits, models, identifiers, extension |
-| `database` | Database abstraction |
-| `api` | HTTP server, AppContext (requires core + database) |
-| `cli` | CLI entry point |
-| `full` | Everything: all domain modules + CLI |
-
-```rust
-// Using the facade
-use systemprompt::prelude::*;
-use systemprompt::database::DbPool;
-```
+Run after changes: `cargo +nightly fmt --all && cargo clippy --workspace --all-targets --all-features -- -D warnings && just doc-check && just file-size`. `just doc-check` covers **both** workspaces — a bare `cargo doc --workspace` misses `crates/tests/`.
 
 ## Extension Framework
 
-Extensions use the `inventory` crate for compile-time registration:
-
-```rust
-use systemprompt::extension::prelude::*;
-
-struct MyExtension;
-impl Extension for MyExtension {
-    fn metadata(&self) -> ExtensionMetadata { ... }
-    fn schemas(&self) -> Vec<SchemaDefinition> { ... }
-    fn router(&self) -> Option<ExtensionRouter> { ... }
-}
-
-register_extension!(MyExtension);
-```
-
-**Key traits**: `Extension`, `SchemaExtensionTyped`, `ApiExtensionTyped`, `JobExtensionTyped`, `ProviderExtensionTyped`
+Extensions register at compile time via `inventory` (`register_extension!`); implement `Extension` (`metadata()`, `schemas()`, `router()`, `migrations()`). Key traits: `Extension`, `SchemaExtensionTyped`, `ApiExtensionTyped`, `JobExtensionTyped`, `ProviderExtensionTyped`.
 
 ## Configuration
 
-Profiles are the primary source of truth. Environment variables are a scoped
-escape hatch, not a general fallback: profile YAML may interpolate `${VAR}`, and
-a small set of sanctioned overrides exists for cloud/subprocess boots
-(`SYSTEMPROMPT_SYSTEM_ADMIN`, `SYSTEMPROMPT_SERVICES_PATH`,
-`SYSTEMPROMPT_SKILLS_PATH`, `SYSTEMPROMPT_CONFIG_PATH`, the secrets `env` source,
-and the Fly/subprocess secret-injection path). Outside these, there are no env
-fallbacks — config comes from the profile:
+Profiles (`.systemprompt/profiles/<name>/profile.yaml`) are the source of truth: database URL, server host/port, paths, secrets path. Env vars are a scoped escape hatch only — profile YAML may interpolate `${VAR}`, plus a small sanctioned set for cloud/subprocess boots (`SYSTEMPROMPT_SYSTEM_ADMIN`, `SYSTEMPROMPT_SERVICES_PATH`, `SYSTEMPROMPT_SKILLS_PATH`, `SYSTEMPROMPT_CONFIG_PATH`, the secrets `env` source, Fly secret injection). No other env fallbacks.
 
-```yaml
-# .systemprompt/profiles/local/profile.yaml
-name: local
-database:
-  type: postgres
-  url: postgresql://user:pass@localhost:5432/db
-server:
-  host: 127.0.0.1
-  port: 8080
-paths:
-  system: /var/www/html/myapp
-  services: /var/www/html/myapp/services
-secrets:
-  secrets_path: ../secrets/local.secrets.json
-```
+Bootstrap: ProfileBootstrap → SecretsBootstrap → CredentialsBootstrap → Config → AppContext.
 
-**Bootstrap sequence**: ProfileBootstrap → SecretsBootstrap → CredentialsBootstrap → Config → AppContext
-
-## CLI Commands
+## Building, Running & Schema Validation
 
 ```bash
-# Services
-systemprompt infra services start --all
-systemprompt infra services status
-systemprompt infra services stop --all
-
-# Database
-systemprompt infra db status
-systemprompt infra db migrate
-systemprompt infra db query "SELECT * FROM users LIMIT 10"
-
-# Agents
-systemprompt admin agents list
-systemprompt admin agents status my-agent
-
-# Cloud
-systemprompt cloud auth login
-systemprompt cloud tenant create
-systemprompt cloud deploy
+cargo build --workspace        # online: sqlx macros validate against the live dev DB
+just build-offline             # offline: committed .sqlx cache, no DB required
 ```
 
-## Database Pattern
+**Core has no runnable local profile** — nothing here to `start` or `migrate` against. Running and end-to-end validation happen in **`../systemprompt-template`** (always kept in sync with core):
 
-```rust
-use systemprompt_database::DbPool;
+1. Point the template at local core via `[patch.crates-io]` (never bump its version pins just to validate).
+2. Use the template's recipes: `just build` = offline CLI build → `infra db migrate` → online sqlx-validated build; `just start` migrates before serving. Schema changes cannot deadlock or drift its DB.
 
-pub struct UserRepository {
-    pool: DbPool,
-}
-
-impl UserRepository {
-    pub fn new(pool: DbPool) -> Self {
-        Self { pool }
-    }
-
-    pub async fn find_by_id(&self, id: &UserId) -> Result<Option<User>> {
-        sqlx::query_as!(User, "SELECT * FROM users WHERE id = $1", id.as_str())
-            .fetch_optional(self.pool.as_ref())
-            .await
-            .map_err(Into::into)
-    }
-}
-```
-
-## A2A Protocol
-
-Core types in `crates/domain/agent/`:
-- **Message**: `role`, `parts`, `messageId`, `contextId`
-- **Task**: `id`, `contextId`, `status`, `history`, `artifacts`
-- **TaskState**: Pending → Submitted → Working → Completed/Failed/Canceled
-
-## MCP Protocol
-
-MCP implementation in `crates/domain/mcp/`:
-- Server lifecycle management
-- Tool/resource discovery
-- Transport protocols (stdio, SSE)
-
-## Key Files
-
-| File | Purpose |
-|------|---------|
-| `crates/entry/cli/src/main.rs` | CLI entry point |
-| `crates/entry/api/src/main.rs` | API server entry |
-| `crates/app/runtime/src/context.rs` | AppContext definition |
-| `crates/shared/models/src/config.rs` | Config struct |
-| `crates/shared/extension/src/lib.rs` | Extension trait |
+**Schema-change gotcha in core**: `.cargo/config.toml` (and `crates/tests/.cargo/config.toml`) pin live `DATABASE_URL`s, so after adding a migration the dev DBs are behind the code and online `cargo check` fails at the sqlx macro. Apply the new `schema/migrations/*.sql` to those DBs (or run the template flow) first; `just check-offline` / `just build-offline` always work.
 
 ## Testing
 
-Tests are in a separate workspace at `crates/tests/` (64 crates, ~12k tests),
-excluded from the main workspace. The suite runs **sharded** under
-`cargo-nextest` — an 11-shard split shared by CI and the `just` recipes below, so
-each shard compiles and links a bounded slice of the workspace and the whole
-suite runs comfortably both locally and on CI's matrix. The shard definitions
-live in `scripts/test-shard.sh`, the single source of truth for both.
-
-Each shard runs against a **fresh, freshly-migrated database** — never the dev
-`systemprompt-web` DB (its web-project triggers break core tests). The recipes
-drop+recreate the target DB (override with `TEST_DATABASE_URL`; default is a
-disposable `systemprompt_test`).
+Separate workspace at `crates/tests/`, run **sharded** under `cargo-nextest`. Shard definitions live in `scripts/test-shard.sh` (single source of truth for CI and the recipes; `scripts/test-shard.sh --list` prints the current groups). Each shard runs against a fresh, freshly-migrated database — never the `systemprompt-web` dev DB (its triggers break core tests). Override the target with `TEST_DATABASE_URL`; the default is a disposable `systemprompt_test`.
 
 ```bash
-# One-time: install the prebuilt nextest binary (no compile)
-just install-nextest
-
-# Run one shard (bounded compile + run memory, fresh migrated DB).
-# Groups: shared infra domain app-runtime app-scheduler app-generator entry-api entry-cli bridge integration edge
-just test-shard shared
-
-# Run all 11 shards sequentially (each against its own fresh DB)
-just test-all-shards
-
-# Iterate on a single crate
-just unit-test-crate systemprompt-agent-tests
-
-# Line-coverage summary for the workspace (instrumented rebuild)
-just coverage
+just install-nextest                        # one-time, prebuilt binary
+just test-shard domain                      # one shard, fresh migrated DB
+just test-all-shards                        # all shards sequentially
+just unit-test-crate systemprompt-agent-tests   # iterate on one crate
+just coverage                               # line-coverage summary
 ```
 
-The whole-workspace `just unit-test` / `just test-rust --workspace` forms still
-exist for ad-hoc runs, but `test-shard` / `test-all-shards` are the supported
-path — they bound per-shard compile and run memory and match CI exactly.
-
-## Building
-
-```bash
-# Debug build
-cargo build --workspace
-
-# Release build
-cargo build --release --workspace
-
-# Specific crate
-cargo build -p systemprompt-cli
-```
-
-### Running & schema validation (via the local template)
-
-Core is a library/CLI workspace with **no runnable local profile** — there is
-nothing here to `start` or `migrate` against. Running and end-to-end
-validation happen in **`../systemprompt-template`**, which is always kept in
-sync with core:
-
-1. Point the template at the local core with `[patch.crates-io]` (never bump
-   its version pins just to validate — see the release flow for real bumps).
-2. Use the template's recipes: its `just build` compiles the CLI offline
-   against committed `.sqlx` queries, runs `infra db migrate`, and only then
-   does the online sqlx-validated build; `just start` migrates before serving.
-   A schema change in core can therefore never deadlock or drift the
-   template's DB.
-
-**Schema-change gotcha for core's own compile**: core's `.cargo/config.toml`
-(and `crates/tests/.cargo/config.toml`) pin live `DATABASE_URL`s, so the sqlx
-macros validate against long-lived dev databases at compile time. After
-adding a migration, those DBs are behind the code and `cargo check` fails
-until the migration is applied — run the template flow above (or apply the
-new `schema/migrations/*.sql` manually) before the next online build.
-`just check-offline` / `just build-offline` always work regardless.
+`test-shard` / `test-all-shards` are the supported path — they bound compile/run memory and match CI exactly.
