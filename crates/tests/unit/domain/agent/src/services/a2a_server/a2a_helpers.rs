@@ -323,7 +323,6 @@ pub(crate) fn make_handler_state(
     let config = Arc::new(RwLock::new(agent_config("test_agent")));
 
     Arc::new(AgentHandlerState {
-        db_pool: Arc::clone(pool),
         config,
         oauth_state,
         agent_state,

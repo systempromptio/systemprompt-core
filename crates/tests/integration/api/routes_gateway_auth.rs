@@ -194,7 +194,7 @@ async fn provision_oauth_client_without_bearer_is_unauthorized() -> Result<()> {
     let extractor = Arc::new(JwtContextExtractor::new(
         ctx.analytics_provider().expect("analytics provider"),
         ctx.user_provider().expect("user provider"),
-        JtiRevocationChecker::from_pool(ctx.db_pool())?,
+        JtiRevocationChecker::from_repository(ctx.oauth_repositories().oauth.clone()),
     ));
     let err = auth::provision_oauth_client(extractor, (*ctx).clone(), no_auth_request())
         .await
@@ -209,7 +209,7 @@ fn jwt_extractor(
     Ok(Arc::new(JwtContextExtractor::new(
         ctx.analytics_provider().expect("analytics provider"),
         ctx.user_provider().expect("user provider"),
-        JtiRevocationChecker::from_pool(ctx.db_pool())?,
+        JtiRevocationChecker::from_repository(ctx.oauth_repositories().oauth.clone()),
     )))
 }
 

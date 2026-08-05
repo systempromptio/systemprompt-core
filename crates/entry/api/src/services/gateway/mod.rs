@@ -28,11 +28,11 @@ pub mod pricing;
 pub mod protocol;
 pub mod quota;
 pub mod registry;
-pub mod repositories;
 pub mod service;
 pub mod signature_cache;
 pub mod stream_tap;
 
+pub use crate::repository::gateway::GatewayRepositories;
 pub use audit::{GatewayAudit, GatewayRequestContext};
 pub use captures::{CapturedToolUse, CapturedUsage};
 pub use protocol::{
@@ -40,5 +40,4 @@ pub use protocol::{
     OutboundAdapterRegistration, OutboundCtx, OutboundOutcome,
 };
 pub use registry::{GatewayUpstreamRegistry, SafetyScannerRegistry};
-pub use repositories::GatewayRepositories;
 pub use service::{DispatchInputs, GatewayService, REQUEST_ID_HEADER};

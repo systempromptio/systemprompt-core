@@ -11,9 +11,7 @@
 use std::sync::{Arc, RwLock};
 use std::time::{Duration, Instant};
 
-use anyhow::Result;
 use systemprompt_ai::repository::AiGatewayPolicyRepository;
-use systemprompt_database::DbPool;
 
 pub use systemprompt_ai::{GatewayPolicySpec, QuotaWindow, SafetyConfig};
 
@@ -38,14 +36,11 @@ struct CachedEntry {
 }
 
 impl PolicyResolver {
-    pub fn new(db: &DbPool) -> Result<Self> {
-        Ok(Self {
-            repo: Arc::new(
-                AiGatewayPolicyRepository::new(db)
-                    .map_err(|e| anyhow::anyhow!("policy repo init: {e}"))?,
-            ),
+    pub fn from_repository(repo: AiGatewayPolicyRepository) -> Self {
+        Self {
+            repo: Arc::new(repo),
             cache: Arc::new(RwLock::new(None)),
-        })
+        }
     }
 
     pub async fn resolve(&self) -> GatewayPolicySpec {

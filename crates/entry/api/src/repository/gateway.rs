@@ -7,8 +7,8 @@
 use std::sync::Arc;
 
 use systemprompt_ai::repository::{
-    AiQuotaBucketRepository, AiRequestPayloadRepository, AiRequestRepository,
-    AiSafetyFindingRepository,
+    AiGatewayPolicyRepository, AiQuotaBucketRepository, AiRequestPayloadRepository,
+    AiRequestRepository, AiSafetyFindingRepository,
 };
 use systemprompt_database::DbPool;
 use systemprompt_traits::DynContextMaterializer;
@@ -19,6 +19,7 @@ pub struct GatewayRepositories {
     pub requests: Arc<AiRequestRepository>,
     pub payloads: Arc<AiRequestPayloadRepository>,
     pub safety_findings: AiSafetyFindingRepository,
+    pub gateway_policies: AiGatewayPolicyRepository,
     pub context_materializer: DynContextMaterializer,
 }
 
@@ -39,6 +40,7 @@ impl GatewayRepositories {
             requests: Arc::new(AiRequestRepository::new(db)?),
             payloads: Arc::new(AiRequestPayloadRepository::new(db)?),
             safety_findings: AiSafetyFindingRepository::new(db)?,
+            gateway_policies: AiGatewayPolicyRepository::new(db)?,
             context_materializer,
         })
     }

@@ -23,7 +23,7 @@ pub(super) async fn execute(
 ) -> Result<CommandOutput> {
     let config = &ctx.cli;
     let app = ctx.app_context().await?;
-    let service_mgmt = ServiceManagementService::new(app.db_pool())?;
+    let service_mgmt = ServiceManagementService::new(app.service_repository().as_ref().clone());
 
     let mcp_stopped = if target.mcp {
         if !config.is_json_output() {

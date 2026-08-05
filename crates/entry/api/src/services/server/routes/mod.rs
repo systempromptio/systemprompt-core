@@ -17,7 +17,6 @@ use std::sync::Arc;
 use systemprompt_extension::LoaderError;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::{AppContext as AppContextTrait, StartupEventSender};
-use systemprompt_users::BannedIpRepository;
 
 use crate::services::middleware::authz::AuthzPolicy;
 use crate::services::middleware::{
@@ -85,12 +84,12 @@ pub(super) fn configure_routes(
         events,
     ));
 
-    let banned_ip_repo = Arc::new(BannedIpRepository::new(ctx.db_pool()).map_err(|e| {
+    let banned_ip_repo = crate::repository::banned_ips(ctx.db_pool()).map_err(|e| {
         LoaderError::InitializationFailed {
             extension: "ip_ban_middleware".to_owned(),
             message: e.to_string(),
         }
-    })?);
+    })?;
     let trusted_proxies = Arc::new(ctx.config().trusted_proxies.clone());
 
     router = router.layer(axum::middleware::from_fn(move |req, next| {
@@ -115,12 +114,8 @@ fn build_jwt_extractor(ctx: &AppContext) -> Result<JwtContextExtractor, LoaderEr
             extension: "jwt".to_owned(),
             message: "UserProvider is required for JWT validation".to_owned(),
         })?;
-    let jti_revocation = JtiRevocationChecker::from_pool(ctx.db_pool()).map_err(|e| {
-        LoaderError::InitializationFailed {
-            extension: "jti_revocation".to_owned(),
-            message: e.to_string(),
-        }
-    })?;
+    let jti_revocation =
+        JtiRevocationChecker::from_repository(ctx.oauth_repositories().oauth.clone());
     Ok(JwtContextExtractor::new(
         analytics,
         user_provider,

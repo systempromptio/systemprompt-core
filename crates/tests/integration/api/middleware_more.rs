@@ -251,7 +251,9 @@ async fn ip_ban_middleware_blocks_seeded_ip() -> Result<()> {
 #[tokio::test]
 async fn jti_revocation_checker_fails_closed_on_revoked() -> Result<()> {
     let (pool, _ctx) = setup_ctx().await?;
-    let checker = JtiRevocationChecker::from_pool(&pool)?;
+    let checker = JtiRevocationChecker::from_repository(
+        systemprompt_oauth::repository::OAuthRepository::new(&pool)?,
+    );
 
     assert!(
         checker.ensure_not_revoked("").await.is_ok(),

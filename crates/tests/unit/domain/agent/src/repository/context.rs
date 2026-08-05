@@ -327,3 +327,38 @@ async fn get_or_create_cli_context_keeps_profiles_separate() {
         .expect("profile b");
     assert_ne!(a, b, "different profiles must not share a context row");
 }
+
+#[tokio::test]
+async fn ensure_context_is_idempotent_and_never_clobbers_an_existing_row() {
+    let Some(pool) = try_pool().await else {
+        return;
+    };
+    let (user_id, session_id) = seed_user_and_session(&pool).await;
+    let repo = ctx_repo(&pool).await;
+
+    let context_id = ContextId::derived_from_session(&session_id);
+    let params = systemprompt_traits::EnsureContextParams {
+        context_id: &context_id,
+        user_id: &user_id,
+        session_id: Some(&session_id),
+        name: "derived-name",
+        kind: ContextKind::Session.as_str(),
+    };
+    repo.ensure_context(&params, ContextKind::Session)
+        .await
+        .expect("first ensure");
+    let ctx = repo.get_context(&context_id, &user_id).await.expect("get");
+    assert_eq!(ctx.name, "derived-name");
+
+    repo.update_context_name(&context_id, &user_id, "user-renamed")
+        .await
+        .expect("rename");
+    repo.ensure_context(&params, ContextKind::Session)
+        .await
+        .expect("second ensure");
+    let ctx = repo.get_context(&context_id, &user_id).await.expect("get");
+    assert_eq!(
+        ctx.name, "user-renamed",
+        "ensure_context must never overwrite an existing row"
+    );
+}

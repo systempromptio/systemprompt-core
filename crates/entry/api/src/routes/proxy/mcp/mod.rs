@@ -130,8 +130,8 @@ pub(in crate::routes) async fn get_mcp_server_scopes_from_resource(
 }
 
 pub fn router(ctx: &AppContext) -> Router {
-    let repo = match ToolUsageRepository::new(ctx.db_pool()) {
-        Ok(r) => Arc::new(r),
+    let repo = match crate::repository::tool_usage(ctx.db_pool()) {
+        Ok(r) => r,
         Err(e) => {
             tracing::error!(error = %e, "Failed to initialize MCP tool usage repository");
             return Router::new();

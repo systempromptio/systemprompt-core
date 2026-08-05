@@ -116,7 +116,6 @@ async fn build_state(permits: usize) -> anyhow::Result<Arc<AgentHandlerState>> {
     let ai_service: Arc<dyn AiProvider> = Arc::new(MockAiProvider::default());
 
     Ok(Arc::new(AgentHandlerState {
-        db_pool,
         config: Arc::new(RwLock::new(fixture_agent_config())),
         oauth_state,
         agent_state,

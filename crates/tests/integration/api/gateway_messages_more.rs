@@ -270,7 +270,7 @@ fn jwt_extractor(
     let user_provider: Arc<dyn UserProvider> = Arc::new(systemprompt_users::UserService::new(
         Arc::clone(ctx.user_repository()),
     ));
-    let jti = JtiRevocationChecker::from_pool(ctx.db_pool())?;
+    let jti = JtiRevocationChecker::from_repository(ctx.oauth_repositories().oauth.clone());
     Ok(JwtContextExtractor::new(analytics, user_provider, jti))
 }
 

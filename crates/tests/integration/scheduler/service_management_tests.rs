@@ -16,14 +16,6 @@ async fn try_pool() -> Option<DbPool> {
 }
 
 #[tokio::test]
-async fn service_management_service_new_succeeds() {
-    let Some(pool) = try_pool().await else {
-        return;
-    };
-    assert!(ServiceManagementService::new(&pool).is_ok());
-}
-
-#[tokio::test]
 async fn get_services_by_type_surfaces_seeded_service() {
     let Some(pool) = try_pool().await else {
         return;
@@ -40,7 +32,9 @@ async fn get_services_by_type_surfaces_seeded_service() {
     .await
     .expect("seed service");
 
-    let svc = ServiceManagementService::new(&pool).expect("svc");
+    let svc = ServiceManagementService::new(
+        systemprompt_database::ServiceRepository::new(&pool).expect("service repository"),
+    );
     let services = svc.get_services_by_type("mcp").await.expect("query");
     assert!(
         services.iter().any(|s| s.name == name),
@@ -59,7 +53,9 @@ async fn get_running_services_with_pid_returns_only_running() {
     let Some(pool) = try_pool().await else {
         return;
     };
-    let svc = ServiceManagementService::new(&pool).expect("svc");
+    let svc = ServiceManagementService::new(
+        systemprompt_database::ServiceRepository::new(&pool).expect("service repository"),
+    );
     let services = svc.get_running_services_with_pid().await.expect("query");
     assert!(
         services.iter().all(|s| s.status == "running"),
@@ -72,7 +68,9 @@ async fn cleanup_stale_entries_runs() {
     let Some(pool) = try_pool().await else {
         return;
     };
-    let svc = ServiceManagementService::new(&pool).expect("svc");
+    let svc = ServiceManagementService::new(
+        systemprompt_database::ServiceRepository::new(&pool).expect("service repository"),
+    );
     let cleaned = svc.cleanup_stale_entries().await.expect("cleanup");
     let _ = cleaned;
 }
@@ -82,7 +80,9 @@ async fn mark_service_stopped_for_unknown_succeeds() {
     let Some(pool) = try_pool().await else {
         return;
     };
-    let svc = ServiceManagementService::new(&pool).expect("svc");
+    let svc = ServiceManagementService::new(
+        systemprompt_database::ServiceRepository::new(&pool).expect("service repository"),
+    );
     let result = svc
         .mark_service_stopped("nonexistent-service-name-zzz")
         .await;

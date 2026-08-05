@@ -122,13 +122,8 @@ fn build_jwt_extractor(ctx: &AppContext) -> Option<Arc<JwtContextExtractor>> {
         tracing::warn!("Gateway router: user provider unavailable — gateway disabled");
         return None;
     };
-    let jti_revocation = match JtiRevocationChecker::from_pool(ctx.db_pool()) {
-        Ok(checker) => checker,
-        Err(e) => {
-            tracing::warn!(error = %e, "Gateway router: JTI revocation unavailable — gateway disabled");
-            return None;
-        },
-    };
+    let jti_revocation =
+        JtiRevocationChecker::from_repository(ctx.oauth_repositories().oauth.clone());
     Some(Arc::new(JwtContextExtractor::new(
         analytics,
         user_provider,

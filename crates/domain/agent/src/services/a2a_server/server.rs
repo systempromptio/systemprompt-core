@@ -23,7 +23,6 @@ use super::handlers::{AgentHandlerState, handle_agent_card, handle_agent_request
 use crate::state::AgentState;
 
 pub struct Server {
-    db_pool: DbPool,
     config: Arc<RwLock<AgentConfig>>,
     oauth_state: Arc<AgentOAuthState>,
     agent_state: Arc<AgentState>,
@@ -35,7 +34,6 @@ pub struct Server {
 impl std::fmt::Debug for Server {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Server")
-            .field("db_pool", &"<DbPool>")
             .field("config", &"Arc<RwLock<AgentConfig>>")
             .field("oauth_state", &"Arc<AgentOAuthState>")
             .field("agent_state", &"Arc<AgentState>")
@@ -87,7 +85,6 @@ impl Server {
         oauth_state = oauth_state.with_jwt_provider(Arc::clone(agent_state.jwt_provider()));
 
         Ok(Self {
-            db_pool,
             config: Arc::new(RwLock::new(config)),
             oauth_state: Arc::new(oauth_state),
             agent_state,
@@ -99,7 +96,6 @@ impl Server {
 
     pub fn create_router(&self) -> Router {
         let state = Arc::new(AgentHandlerState {
-            db_pool: Arc::clone(&self.db_pool),
             config: Arc::clone(&self.config),
             oauth_state: Arc::clone(&self.oauth_state),
             agent_state: Arc::clone(&self.agent_state),

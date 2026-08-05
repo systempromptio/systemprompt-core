@@ -37,7 +37,6 @@ fn handler_state(pool: &DbPool) -> Arc<AgentHandlerState> {
         JwtAudience::standard(),
     ));
     Arc::new(AgentHandlerState {
-        db_pool: Arc::clone(pool),
         config: Arc::new(RwLock::new(agent_config("card_mw_agent"))),
         oauth_state,
         agent_state: make_agent_state(pool),

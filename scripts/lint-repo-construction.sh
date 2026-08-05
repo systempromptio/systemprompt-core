@@ -9,17 +9,27 @@
 #
 #   1. Pattern-exempt (structural):
 #      - crates/*/*/src/repository/**       bundles and sub-repo construction
+#        (this includes crates/entry/api/src/repository/**, the entry-layer
+#        composition modules for router state)
 #      - crates/app/runtime/src/builder/**  the AppContext composition root
 #      - crates/entry/cli/src/**            one-shot command bodies
 #      - **/jobs/**                         per-tick scheduler job bodies
 #
-#   2. The explicit file list below: composition-root constructors that
-#      construct-and-store the repository as a field (service/router state
-#      built once). Adding a file here requires justification in review —
-#      the default for new code is to take the repository from AppContext
-#      (`a2a_repositories()`, `content_repositories()`, `oauth_repositories()`,
-#      `user_repository()`, `service_repository()`) or from the owning
+#   2. The explicit file list below. Every entry is structurally unable to use
+#      an AppContext accessor and carries its reason. Adding a file requires
+#      justification in review — the default for new code is to take the
+#      repository from AppContext (`a2a_repositories()`,
+#      `content_repositories()`, `oauth_repositories()`, `ai_repositories()`,
+#      `analytics_repositories()`, `user_repository()`, `service_repository()`,
+#      `file_repository()`, `mcp_session_repository()`) or from the owning
 #      service's stored field.
+#
+# Bundle constructors (`*Repositories::new(`) never match the regex — the
+# plural suffix is the sanctioned composition form, not a gap to close.
+#
+# The allowlist is checked for staleness: an entry whose file is gone or no
+# longer constructs a repository fails the gate, so dead entries cannot
+# accumulate.
 #
 # The test workspace (crates/tests/**) is out of scope: fixtures construct
 # repositories freely.
@@ -29,62 +39,21 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 ALLOWED_FILES=(
-  # app: generator/scheduler context structs that construct-and-store at build
-  crates/app/generator/src/prerender/context.rs
-  crates/app/generator/src/rss/default_provider.rs
-  crates/app/generator/src/sitemap/generator.rs
-  crates/app/scheduler/src/services/job_execution.rs
-  crates/app/scheduler/src/services/scheduling/mod.rs
-  crates/app/scheduler/src/services/service_management.rs
-  # domain: service constructors that store the repo as a field
-  crates/domain/agent/src/services/a2a_server/processing/message/mod.rs
-  crates/domain/agent/src/services/agent_orchestration/lifecycle/mod.rs
-  crates/domain/agent/src/services/agent_orchestration/monitor.rs
-  crates/domain/agent/src/services/agent_orchestration/orchestrator/mod.rs
-  crates/domain/agent/src/services/agent_orchestration/reconciler.rs
-  crates/domain/agent/src/services/artifact_publishing.rs
-  crates/domain/agent/src/services/context_provider.rs
-  crates/domain/ai/src/services/core/ai_service/service.rs
-  crates/domain/ai/src/services/core/image_service.rs
-  crates/domain/ai/src/services/gateway/ingestion.rs
-  crates/domain/analytics/src/services/ai_provider.rs
-  crates/domain/analytics/src/services/service.rs
-  crates/domain/analytics/src/services/session_cleanup.rs
-  crates/domain/content/src/services/content_provider.rs
-  crates/domain/content/src/services/ingestion/mod.rs
-  crates/domain/content/src/services/link/analytics.rs
-  crates/domain/content/src/services/link/generation.rs
-  crates/domain/content/src/services/search/mod.rs
-  crates/domain/evaluation/src/services/evaluation_service.rs
-  crates/domain/files/src/services/ai_provider.rs
-  crates/domain/files/src/services/upload/service.rs
-  crates/domain/mcp/src/middleware/session_handler/mod.rs
-  crates/domain/mcp/src/middleware/session_handler/session_store.rs
-  crates/domain/mcp/src/orchestration/state.rs
-  crates/domain/mcp/src/services/database/mod.rs
-  crates/domain/mcp/src/services/monitoring/proxy_health.rs
-  crates/domain/oauth/src/services/cimd/validator.rs
-  crates/domain/oauth/src/state.rs
-  crates/domain/users/src/services/api_key_service.rs
-  crates/domain/users/src/services/device_cert_service.rs
-  crates/domain/users/src/services/user/mod.rs
-  # entry/api: router-scoped state and service structs built once
-  crates/entry/api/src/routes/analytics/mod.rs
-  crates/entry/api/src/routes/engagement/mod.rs
-  crates/entry/api/src/routes/proxy/mcp/mod.rs
-  crates/entry/api/src/services/gateway/policy.rs
-  crates/entry/api/src/services/gateway/repositories.rs
-  crates/entry/api/src/services/health/monitor.rs
-  crates/entry/api/src/services/middleware/analytics/mod.rs
-  crates/entry/api/src/services/middleware/jwt/revocation.rs
-  crates/entry/api/src/services/proxy/audit/mod.rs
-  crates/entry/api/src/services/server/routes/mod.rs
-  # infra: outbox/logging services that construct-and-store
+  # infra sits below app/runtime and cannot name AppContext; each of these is
+  # the composition root for its own repository.
   crates/infra/events/src/services/bridge.rs
   crates/infra/events/src/services/routing.rs
   crates/infra/logging/src/services/database_log.rs
   crates/infra/logging/src/services/maintenance.rs
   crates/infra/logging/src/services/retention/scheduler.rs
+  # scheduler-owned repos (SchedulerRepository, JobRepository,
+  # LoggingRepository) have exactly one consuming crate; an AppContext
+  # accessor for them is not warranted.
+  crates/app/scheduler/src/services/job_execution.rs
+  crates/app/scheduler/src/services/scheduling/mod.rs
+  # the logging AnalyticsRepository is an infra repo with no AppContext
+  # accessor; the middleware constructs-and-stores it once at server build.
+  crates/entry/api/src/services/middleware/analytics/mod.rs
 )
 
 declare -A allowed
@@ -92,7 +61,10 @@ for f in "${ALLOWED_FILES[@]}"; do
   allowed["$f"]=1
 done
 
+pattern='\b[A-Z][A-Za-z0-9_]*Repository::new('
+
 fail=0
+declare -A seen
 while IFS= read -r file; do
   case "$file" in
     crates/tests/*) continue ;;
@@ -101,15 +73,27 @@ while IFS= read -r file; do
     crates/entry/cli/src/*) continue ;;
     */jobs/*) continue ;;
   esac
-  if ! grep -q '\b[A-Z][A-Za-z0-9_]*Repository::new(' "$file"; then
+  if ! grep -q "$pattern" "$file"; then
     continue
   fi
-  if [[ -z "${allowed[$file]:-}" ]]; then
+  if [[ -n "${allowed[$file]:-}" ]]; then
+    seen["$file"]=1
+  else
     echo "lint-repo-construction: ad-hoc repository construction in $file"
-    grep -n '\b[A-Z][A-Za-z0-9_]*Repository::new(' "$file" | sed 's/^/  /'
+    grep -n "$pattern" "$file" | sed 's/^/  /'
     fail=1
   fi
 done < <(git ls-files 'crates/*/*/src/**/*.rs')
+
+for f in "${ALLOWED_FILES[@]}"; do
+  if [[ ! -f "$f" ]]; then
+    echo "lint-repo-construction: stale allowlist entry (file missing): $f"
+    fail=1
+  elif [[ -z "${seen[$f]:-}" ]]; then
+    echo "lint-repo-construction: stale allowlist entry (no repository construction): $f"
+    fail=1
+  fi
+done
 
 if [[ "$fail" -ne 0 ]]; then
   echo

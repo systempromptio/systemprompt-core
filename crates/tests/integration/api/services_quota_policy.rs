@@ -178,7 +178,9 @@ async fn post_update_increments_token_counts() {
 #[tokio::test]
 async fn policy_resolver_falls_back_when_empty() {
     let p = pool().await;
-    let resolver = PolicyResolver::new(&p).expect("resolver");
+    let resolver = PolicyResolver::from_repository(
+        systemprompt_ai::repository::AiGatewayPolicyRepository::new(&p).expect("policy repo"),
+    );
     let _spec1 = resolver.resolve().await;
     // Second call hits the in-memory cache path.
     let _spec2 = resolver.resolve().await;

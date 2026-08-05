@@ -146,7 +146,7 @@ impl GatewayService {
             "Gateway request dispatched"
         );
 
-        let resolver = PolicyResolver::new(db).map_err(DispatchError::PreAudit)?;
+        let resolver = PolicyResolver::from_repository(repos.gateway_policies.clone());
         let policy = resolver.resolve().await;
 
         let audit = open_audit(repos, &ctx, &request, &raw_body, &identity_headers).await?;

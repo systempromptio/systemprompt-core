@@ -14,7 +14,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_database::{DbPool, ServiceConfig, ServiceRepository};
+use systemprompt_database::{ServiceConfig, ServiceRepository};
 use systemprompt_models::subprocess::{AGENT_NAME_ENV, MCP_SERVICE_ID_ENV, live_pid_is_subprocess};
 use tracing::warn;
 
@@ -58,10 +58,8 @@ pub struct ServiceManagementService {
 }
 
 impl ServiceManagementService {
-    pub fn new(db_pool: &DbPool) -> SchedulerResult<Self> {
-        Ok(Self {
-            service_repo: ServiceRepository::new(db_pool)?,
-        })
+    pub const fn new(service_repo: ServiceRepository) -> Self {
+        Self { service_repo }
     }
 
     pub async fn get_services_by_type(

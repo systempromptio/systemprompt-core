@@ -56,14 +56,8 @@ pub mod test_api {
     ) -> Result<axum::response::Response<axum::body::Body>, String> {
         let invocation = super::jsonrpc::parse_tool_call(request_body)
             .ok_or_else(|| "request body is not a tools/call".to_owned())?;
-        let repo = systemprompt_mcp::repository::ToolUsageRepository::new(pool)
-            .map_err(|e| e.to_string())?;
-        let audit = super::McpAudit::new(
-            std::sync::Arc::new(repo),
-            context,
-            server_name.to_owned(),
-            invocation,
-        );
+        let repo = crate::repository::tool_usage(pool).map_err(|e| e.to_string())?;
+        let audit = super::McpAudit::new(repo, context, server_name.to_owned(), invocation);
         super::tap::record(response, audit).await
     }
 }

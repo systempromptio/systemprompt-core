@@ -1,5 +1,7 @@
 use std::collections::HashSet;
-use systemprompt_identifiers::{ContextId, DbValue, GatewayConversationId, ToDbValue};
+use systemprompt_identifiers::{
+    ContextId, DbValue, EvalRunId, GatewayConversationId, SessionId, TaskId, ToDbValue,
+};
 
 #[test]
 fn generate_produces_uuid_format() {
@@ -133,4 +135,75 @@ fn to_db_value_owned_and_ref() {
     let id = ContextId::try_new(uuid).unwrap();
     assert!(matches!(id.to_db_value(), DbValue::String(ref s) if s == uuid));
     assert!(matches!((&id).to_db_value(), DbValue::String(ref s) if s == uuid));
+}
+
+#[test]
+fn derived_from_session_is_pinned_to_its_namespace_forever() {
+    let ctx = ContextId::derived_from_session(&SessionId::new("sess-1"));
+    assert_eq!(
+        ctx.as_str(),
+        "0cb9c4c8-6b84-5c1a-b6e6-a148690fa761",
+        "a different value re-homes every historical session-derived context"
+    );
+    assert_eq!(
+        ctx,
+        ContextId::derived_from_session(&SessionId::new("sess-1"))
+    );
+    assert_ne!(
+        ctx,
+        ContextId::derived_from_session(&SessionId::new("sess-2"))
+    );
+}
+
+#[test]
+fn derived_from_evaluation_run_is_pinned_and_deterministic() {
+    let ctx = ContextId::derived_from_evaluation_run(&EvalRunId::new("run-1"));
+    assert_eq!(ctx.as_str(), "6bcd29eb-7ce3-5eeb-a8a4-3f986aab216e");
+    assert_ne!(
+        ctx,
+        ContextId::derived_from_evaluation_run(&EvalRunId::new("run-2"))
+    );
+}
+
+#[test]
+fn derived_from_cli_probe_is_pinned_and_deterministic() {
+    let ctx = ContextId::derived_from_cli_probe("server-a");
+    assert_eq!(ctx.as_str(), "f85364b9-1f5b-527b-935f-22e274e31de7");
+    assert_ne!(ctx, ContextId::derived_from_cli_probe("server-b"));
+}
+
+#[test]
+fn derived_from_mcp_validation_is_pinned_and_deterministic() {
+    let ctx = ContextId::derived_from_mcp_validation("svc-a");
+    assert_eq!(ctx.as_str(), "c16920e8-3662-5e00-b45f-373ff2ee14e3");
+    assert_ne!(ctx, ContextId::derived_from_mcp_validation("svc-b"));
+}
+
+#[test]
+fn derived_from_task_is_pinned_and_deterministic() {
+    let ctx = ContextId::derived_from_task(&TaskId::new("task-1"));
+    assert_eq!(ctx.as_str(), "d305f9fe-290a-5ca5-856a-b1f69f08c495");
+    assert_ne!(ctx, ContextId::derived_from_task(&TaskId::new("task-2")));
+}
+
+#[test]
+fn the_legacy_context_is_a_fixed_parseable_uuid() {
+    let a = ContextId::legacy();
+    assert_eq!(a.as_str(), "00000000-0000-0000-0000-4c4547414359");
+    uuid::Uuid::parse_str(a.as_str()).expect("legacy context must be a valid UUID");
+    assert_eq!(a, ContextId::legacy());
+}
+
+#[test]
+fn every_derivation_namespace_is_disjoint_for_the_same_key() {
+    let key = "same-key";
+    let ids = [
+        ContextId::derived_from_session(&SessionId::new(key)),
+        ContextId::derived_from_evaluation_run(&EvalRunId::new(key)),
+        ContextId::derived_from_cli_probe(key),
+        ContextId::derived_from_mcp_validation(key),
+        ContextId::derived_from_task(&TaskId::new(key)),
+    ];
+    let unique: HashSet<&str> = ids.iter().map(ContextId::as_str).collect();
+    assert_eq!(unique.len(), ids.len());
 }

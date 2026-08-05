@@ -12,6 +12,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod error;
+pub mod repository;
 pub mod routes;
 pub mod services;
 

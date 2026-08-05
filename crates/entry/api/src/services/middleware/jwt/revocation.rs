@@ -11,9 +11,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
-use systemprompt_database::DbPool;
 use systemprompt_models::execution::context::ContextExtractionError;
-use systemprompt_oauth::OauthResult;
 use systemprompt_oauth::repository::{JtiRevocationCache, OAuthRepository};
 
 #[derive(Clone)]
@@ -30,11 +28,11 @@ impl std::fmt::Debug for JtiRevocationChecker {
 }
 
 impl JtiRevocationChecker {
-    pub fn from_pool(db: &DbPool) -> OauthResult<Self> {
-        Ok(Self {
-            repo: Arc::new(OAuthRepository::new(db)?),
+    pub fn from_repository(repo: OAuthRepository) -> Self {
+        Self {
+            repo: Arc::new(repo),
             cache: Arc::new(JtiRevocationCache::new()),
-        })
+        }
     }
 
     pub async fn ensure_not_revoked(&self, jti: &str) -> Result<(), ContextExtractionError> {
