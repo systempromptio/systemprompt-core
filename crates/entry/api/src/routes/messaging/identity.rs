@@ -12,7 +12,7 @@
 
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::FederatedIdentityClaims;
-use systemprompt_users::{User, UserRepository};
+use systemprompt_users::User;
 
 use super::MessagingError;
 
@@ -27,8 +27,7 @@ pub async fn resolve_or_link_user(
     issuer: &str,
     external_user_id: &str,
 ) -> Result<User, MessagingError> {
-    let repo =
-        UserRepository::new(ctx.db_pool()).map_err(|e| MessagingError::Identity(e.to_string()))?;
+    let repo = ctx.user_repository();
     let claims = FederatedIdentityClaims {
         email: None,
         email_verified: false,

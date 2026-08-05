@@ -22,19 +22,29 @@ pub use systemprompt_traits::RepositoryError;
 
 use crate::error::AgentError;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct A2ARepositories {
     db_pool: DbPool,
     pub agent_services: agent_service::AgentServiceRepository,
     pub tasks: task::TaskRepository,
+    pub contexts: ContextRepository,
+    pub context_notifications: context::ContextNotificationRepository,
+    pub artifacts: content::ArtifactRepository,
     pub execution_steps: execution::ExecutionStepRepository,
     pub push_notification_configs: content::PushNotificationConfigRepository,
 }
 
 impl A2ARepositories {
-    pub fn new(db: &DbPool) -> Result<Self, AgentError> {
+    pub fn new(
+        db: &DbPool,
+        session_usage: systemprompt_traits::DynSessionUsageCounters,
+    ) -> Result<Self, AgentError> {
         let agent_services = agent_service::AgentServiceRepository::new(db)?;
-        let tasks = task::TaskRepository::new(db)?;
+        let tasks = task::TaskRepository::new(db, session_usage)?;
+        let contexts = ContextRepository::new(db)?;
+        let context_notifications = context::ContextNotificationRepository::new(db)
+            .map_err(|e| AgentError::Init(e.to_string()))?;
+        let artifacts = content::ArtifactRepository::new(db)?;
         let execution_steps = execution::ExecutionStepRepository::new(db)?;
         let push_notification_configs = content::PushNotificationConfigRepository::new(db)?;
 
@@ -42,6 +52,9 @@ impl A2ARepositories {
             db_pool: Arc::clone(db),
             agent_services,
             tasks,
+            contexts,
+            context_notifications,
+            artifacts,
             execution_steps,
             push_notification_configs,
         })

@@ -51,6 +51,7 @@ use rejection::persist_rejection;
 pub(super) struct RequestContext<'a> {
     pub jwt_extractor: &'a JwtContextExtractor,
     pub ctx: &'a AppContext,
+    pub repos: &'a crate::services::gateway::GatewayRepositories,
     pub profile: &'a Profile,
     pub ai_request_id: &'a AiRequestId,
 }
@@ -59,6 +60,7 @@ pub async fn handle(
     inbound: Arc<dyn InboundAdapter>,
     jwt_extractor: Arc<JwtContextExtractor>,
     ctx: AppContext,
+    repos: Arc<crate::services::gateway::GatewayRepositories>,
     request: Request<Body>,
 ) -> Response<Body> {
     let ai_request_id = AiRequestId::generate();
@@ -67,6 +69,7 @@ pub async fn handle(
         inbound: Arc::clone(&inbound),
         jwt_extractor: &jwt_extractor,
         ctx: &ctx,
+        repos: &repos,
         ai_request_id: &ai_request_id,
         partial: &mut partial,
     };
@@ -85,7 +88,7 @@ pub async fn handle(
                 "Gateway request rejected",
             );
             if persist {
-                persist_rejection(&ctx, &ai_request_id, &partial, status, &message).await;
+                persist_rejection(&repos, &ai_request_id, &partial, status, &message).await;
             }
             let body = inbound.render_error(status, &message);
             Response::builder()
@@ -118,6 +121,7 @@ struct HandleInner<'a> {
     inbound: Arc<dyn InboundAdapter>,
     jwt_extractor: &'a JwtContextExtractor,
     ctx: &'a AppContext,
+    repos: &'a crate::services::gateway::GatewayRepositories,
     ai_request_id: &'a AiRequestId,
     partial: &'a mut RejectionPartial,
 }
@@ -132,6 +136,7 @@ impl HandleInner<'_> {
         let request_ctx = RequestContext {
             jwt_extractor: self.jwt_extractor,
             ctx: self.ctx,
+            repos: self.repos,
             profile,
             ai_request_id: self.ai_request_id,
         };

@@ -50,6 +50,7 @@ pub struct ProxyTarget<'a> {
 pub struct ProxyEngine {
     client_pool: ClientPool,
     session_cache: SessionCache,
+    tool_usage_repo: Option<Arc<systemprompt_mcp::repository::ToolUsageRepository>>,
 }
 
 impl Default for ProxyEngine {
@@ -63,7 +64,17 @@ impl ProxyEngine {
         Self {
             client_pool: ClientPool::new(),
             session_cache: Arc::new(RwLock::new(HashMap::new())),
+            tool_usage_repo: None,
         }
+    }
+
+    #[must_use]
+    pub fn with_tool_usage_repo(
+        mut self,
+        repo: Arc<systemprompt_mcp::repository::ToolUsageRepository>,
+    ) -> Self {
+        self.tool_usage_repo = Some(repo);
+        self
     }
 
     pub async fn proxy_request(

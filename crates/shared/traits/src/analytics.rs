@@ -155,6 +155,16 @@ pub trait AnalyticsProvider: Send + Sync {
     async fn mark_session_converted(&self, session_id: &SessionId) -> AnalyticsResult<()>;
 }
 
+/// Session-scoped usage counters bumped by domain workflows (task and message
+/// creation). Fire-and-forget at the call sites: failures are logged, never
+/// propagated into the owning workflow.
+#[async_trait]
+pub trait SessionUsageCounters: Send + Sync {
+    async fn increment_task_count(&self, session_id: &SessionId) -> AnalyticsResult<()>;
+
+    async fn increment_message_count(&self, session_id: &SessionId) -> AnalyticsResult<()>;
+}
+
 #[async_trait]
 pub trait FingerprintProvider: Send + Sync {
     async fn count_active_sessions(&self, fingerprint: &str) -> AnalyticsResult<i64>;
@@ -173,3 +183,5 @@ pub trait FingerprintProvider: Send + Sync {
 pub type DynAnalyticsProvider = Arc<dyn AnalyticsProvider>;
 
 pub type DynFingerprintProvider = Arc<dyn FingerprintProvider>;
+
+pub type DynSessionUsageCounters = Arc<dyn SessionUsageCounters>;

@@ -36,6 +36,7 @@ use super::signature_cache::ThoughtSignatureCache;
 #[derive(Debug)]
 pub struct TapFinalizeCtx {
     pub db: DbPool,
+    pub repos: crate::services::gateway::GatewayRepositories,
     pub policy: GatewayPolicySpec,
     pub ai_request_id: AiRequestId,
 }
@@ -306,6 +307,7 @@ fn finalize(audit: Arc<GatewayAudit>, summary: Summary, ctx: TapFinalizeCtx, ori
                 };
                 quota::post_update_tokens(
                     &ctx.db,
+                    &ctx.repos.quota_buckets,
                     quota::PostUpdateParams {
                         user_id: &audit.ctx.user_id,
                         windows: &ctx.policy.quota_windows,
@@ -316,7 +318,7 @@ fn finalize(audit: Arc<GatewayAudit>, summary: Summary, ctx: TapFinalizeCtx, ori
                 )
                 .await;
                 run_response_safety_scan(
-                    &ctx.db,
+                    &ctx.repos.safety_findings,
                     &ctx.ai_request_id,
                     &summary.response,
                     &ctx.policy.safety,

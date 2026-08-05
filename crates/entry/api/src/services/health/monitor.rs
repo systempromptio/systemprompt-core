@@ -16,26 +16,22 @@ use tracing::{info, warn};
 
 #[derive(Debug)]
 pub struct ProcessMonitor {
-    db_pool: DbPool,
+    repository: ServiceRepository,
     monitor_handle: Option<JoinHandle<()>>,
     check_interval: Duration,
 }
 
 impl ProcessMonitor {
-    pub const fn new(db_pool: DbPool) -> Self {
-        Self {
-            db_pool,
-            monitor_handle: None,
-            check_interval: Duration::from_secs(30),
-        }
+    pub fn new(db_pool: &DbPool) -> Result<Self> {
+        Self::with_interval(db_pool, Duration::from_secs(30))
     }
 
-    pub const fn with_interval(db_pool: DbPool, interval: Duration) -> Self {
-        Self {
-            db_pool,
+    pub fn with_interval(db_pool: &DbPool, interval: Duration) -> Result<Self> {
+        Ok(Self {
+            repository: ServiceRepository::new(db_pool)?,
             monitor_handle: None,
             check_interval: interval,
-        }
+        })
     }
 
     pub fn start(&mut self) {
@@ -46,10 +42,10 @@ impl ProcessMonitor {
 
         info!("Starting centralized process monitoring");
 
-        let db_pool_clone = std::sync::Arc::clone(&self.db_pool);
+        let repository = self.repository.clone();
         let interval = self.check_interval;
 
-        let handle = tokio::spawn(async move { Self::monitor_loop(db_pool_clone, interval).await });
+        let handle = tokio::spawn(async move { Self::monitor_loop(repository, interval).await });
 
         self.monitor_handle = Some(handle);
         info!("Centralized process monitoring started");
@@ -67,7 +63,7 @@ impl ProcessMonitor {
         self.monitor_handle.is_some()
     }
 
-    async fn monitor_loop(db_pool: DbPool, check_interval: Duration) {
+    async fn monitor_loop(repository: ServiceRepository, check_interval: Duration) {
         info!(
             interval_secs = check_interval.as_secs(),
             "Process monitor loop started"
@@ -78,14 +74,13 @@ impl ProcessMonitor {
         loop {
             interval.tick().await;
 
-            if let Err(e) = Self::perform_monitoring_cycle(&db_pool).await {
+            if let Err(e) = Self::perform_monitoring_cycle(&repository).await {
                 warn!(error = %e, "Monitoring cycle failed");
             }
         }
     }
 
-    async fn perform_monitoring_cycle(db_pool: &DbPool) -> Result<()> {
-        let repository = ServiceRepository::new(db_pool)?;
+    async fn perform_monitoring_cycle(repository: &ServiceRepository) -> Result<()> {
         let services = repository.list_running_services_with_pid().await?;
 
         if services.is_empty() {
@@ -135,8 +130,7 @@ impl ProcessMonitor {
     pub async fn health_check_all(&self) -> Result<HealthSummary> {
         info!("Running health check on all services");
 
-        let repository = ServiceRepository::new(&self.db_pool)?;
-        let services = repository.list_running_services_with_pid().await?;
+        let services = self.repository.list_running_services_with_pid().await?;
 
         let mut summary = HealthSummary::default();
 

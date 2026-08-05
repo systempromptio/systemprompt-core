@@ -5,16 +5,15 @@
 
 use crate::repository::task::TaskRepository;
 use rmcp::ErrorData as McpError;
-use systemprompt_database::DbPool;
 use systemprompt_identifiers::TaskId;
 use systemprompt_models::Config;
 
 pub async fn complete_task(
-    db_pool: &DbPool,
+    task_repo: &TaskRepository,
     task_id: &TaskId,
     jwt_token: &str,
 ) -> Result<(), McpError> {
-    if let Err(e) = trigger_task_completion_broadcast(db_pool, task_id, jwt_token).await {
+    if let Err(e) = trigger_task_completion_broadcast(task_repo, task_id, jwt_token).await {
         tracing::error!(
             task_id = %task_id.as_str(),
             error = ?e,
@@ -26,14 +25,10 @@ pub async fn complete_task(
 }
 
 async fn trigger_task_completion_broadcast(
-    db_pool: &DbPool,
+    task_repo: &TaskRepository,
     task_id: &TaskId,
     jwt_token: &str,
 ) -> Result<(), McpError> {
-    let task_repo = TaskRepository::new(db_pool).map_err(|e| {
-        McpError::internal_error(format!("Failed to create task repository: {e}"), None)
-    })?;
-
     let task_info = task_repo
         .get_task_context_info(task_id)
         .await

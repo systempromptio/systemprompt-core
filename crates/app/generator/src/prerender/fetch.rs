@@ -25,9 +25,7 @@ pub(super) async fn fetch_content_for_source(
     source_id: &SourceId,
     locale: &LocaleCode,
 ) -> GeneratorResult<Vec<Content>> {
-    let repo = ContentRepository::new(&ctx.db_pool)
-        .map_err(|e| PublishError::content("Failed to create content repository", e))?;
-    fetch_with_retries(&repo, source_id, source_name, locale).await
+    fetch_with_retries(&ctx.content_repo, source_id, source_name, locale).await
 }
 
 async fn fetch_with_retries(
@@ -138,11 +136,8 @@ pub(super) async fn fetch_popular_ids(
         return Ok(Vec::new());
     }
 
-    let content_repo = ContentRepository::new(&ctx.db_pool).map_err(|e| {
-        PublishError::content("Failed to create content repository for popular IDs", e)
-    })?;
-
-    let ids = content_repo
+    let ids = ctx
+        .content_repo
         .get_popular_content_ids(source_id, 30, 20)
         .await
         .map_err(|e| PublishError::content("Failed to get popular content IDs", e))?;

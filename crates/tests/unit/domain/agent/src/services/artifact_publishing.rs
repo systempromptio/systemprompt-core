@@ -4,6 +4,7 @@
 
 use systemprompt_agent::models::a2a::{Artifact, ArtifactMetadata, Part, TextPart};
 use systemprompt_agent::repository::content::ArtifactRepository;
+use systemprompt_agent::repository::task::TaskRepository;
 use systemprompt_agent::services::artifact_publishing::{
     ArtifactPublishingService, PublishFromMcpParams,
 };
@@ -19,7 +20,11 @@ use crate::repository::{repos, seed_context_and_task, seed_user_and_session, try
 async fn publishing_service(pool: &systemprompt_database::DbPool) -> ArtifactPublishingService {
     ensure_test_bootstrap();
     let _skills = crate::SKILLS_FIXTURE_LOCK.read().await;
-    ArtifactPublishingService::new(pool).expect("publishing service")
+    ArtifactPublishingService::new(
+        pool,
+        TaskRepository::new(pool, crate::session_usage(pool)).expect("task repo"),
+    )
+    .expect("publishing service")
 }
 
 fn artifact(

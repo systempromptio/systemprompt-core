@@ -24,7 +24,7 @@ fn extract_trace_id(ctx: &RequestContext) -> Option<String> {
     (!trace_id.as_str().is_empty()).then(|| trace_id.to_string())
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ToolUsageRepository {
     pool: Arc<PgPool>,
     write_pool: Arc<PgPool>,

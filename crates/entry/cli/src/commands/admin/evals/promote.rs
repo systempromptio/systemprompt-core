@@ -1,3 +1,5 @@
+//! `admin evals promote` — promote an AI request into the golden case set.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

@@ -19,6 +19,16 @@
 #[cfg(test)]
 pub(crate) static SKILLS_FIXTURE_LOCK: tokio::sync::RwLock<()> = tokio::sync::RwLock::const_new(());
 
+
+#[cfg(test)]
+pub(crate) fn session_usage(
+    db: &systemprompt_database::DbPool,
+) -> systemprompt_traits::DynSessionUsageCounters {
+    std::sync::Arc::new(
+        systemprompt_analytics::SessionRepository::new(db).expect("session repository"),
+    )
+}
+
 #[cfg(test)]
 mod error;
 

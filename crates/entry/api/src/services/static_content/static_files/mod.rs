@@ -25,7 +25,6 @@ use std::sync::Arc;
 use super::config::StaticContentMatcher;
 use cache::serve_cached_file;
 use responses::{not_found_response, not_prerendered_response};
-use systemprompt_content::ContentRepository;
 use systemprompt_files::FilesConfig;
 use systemprompt_identifiers::{LocaleCode, SourceId};
 use systemprompt_models::{RouteClassifier, RouteType};
@@ -186,13 +185,7 @@ async fn serve_content_page(
         .await;
     }
 
-    let Ok(content_repo) = ContentRepository::new(ctx.db_pool()) else {
-        return (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            axum::response::Html("Database connection error"),
-        )
-            .into_response();
-    };
+    let content_repo = &ctx.content_repositories().content;
 
     let source_id = SourceId::new(req.source_id);
     match content_repo

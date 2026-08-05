@@ -14,6 +14,7 @@ use std::sync::Arc;
 use crate::models::a2a::{Artifact, Message, MessageRole, Part, TextPart};
 use crate::repository::content::ArtifactRepository;
 use crate::repository::execution::ExecutionStepRepository;
+use crate::repository::task::TaskRepository;
 use crate::services::{MessageService, SkillService};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ContextId, McpExecutionId, MessageId, TaskId};
@@ -46,7 +47,7 @@ impl std::fmt::Debug for ArtifactPublishingService {
 }
 
 impl ArtifactPublishingService {
-    pub fn new(db_pool: &DbPool) -> Result<Self> {
+    pub fn new(db_pool: &DbPool, task_repo: TaskRepository) -> Result<Self> {
         let execution_repo = ExecutionStepRepository::new(db_pool)
             .map(Arc::new)
             .map_err(|e| {
@@ -58,7 +59,7 @@ impl ArtifactPublishingService {
         Ok(Self {
             artifact_repo: ArtifactRepository::new(db_pool)?,
             skill_service: SkillService::new()?,
-            message_service: MessageService::new(db_pool)?,
+            message_service: MessageService::new(task_repo),
             execution_repo,
         })
     }

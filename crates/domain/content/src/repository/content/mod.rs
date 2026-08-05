@@ -17,7 +17,7 @@ use std::sync::Arc;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{CategoryId, ContentId, LocaleCode, SourceId};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ContentRepository {
     pool: Arc<PgPool>,
     write_pool: Arc<PgPool>,

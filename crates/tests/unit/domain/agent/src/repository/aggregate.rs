@@ -6,7 +6,7 @@ async fn new_constructs_all_sub_repositories() {
     let Some(pool) = try_pool().await else {
         return;
     };
-    let repos = A2ARepositories::new(&pool).expect("repos");
+    let repos = A2ARepositories::new(&pool, crate::session_usage(&pool)).expect("repos");
     // db_pool accessor returns the same underlying pool.
     let _ = repos.db_pool();
     // Each sub-repository is reachable.
@@ -21,7 +21,7 @@ async fn debug_format_contains_type_name() {
     let Some(pool) = try_pool().await else {
         return;
     };
-    let repos = A2ARepositories::new(&pool).expect("repos");
+    let repos = A2ARepositories::new(&pool, crate::session_usage(&pool)).expect("repos");
     let dbg = format!("{repos:?}");
     assert!(dbg.contains("A2ARepositories"));
 }

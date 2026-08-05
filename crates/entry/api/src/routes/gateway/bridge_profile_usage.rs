@@ -43,8 +43,7 @@ pub async fn handle(
         .map_err(|e| (StatusCode::UNAUTHORIZED, e.to_string()))?;
 
     let user_id = UserId::new(claims.user_id.to_string());
-    let repo = CostAnalyticsRepository::new(ctx.db_pool())
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    let repo = ctx.analytics_service().cost_repo();
 
     let now = Utc::now();
     let d1_start = now - Duration::days(1);
@@ -52,9 +51,9 @@ pub async fn handle(
     let d30_start = now - Duration::days(30);
 
     let (d1, d7, d30) = tokio::try_join!(
-        window(&repo, &user_id, d1_start, now, Duration::days(1)),
-        window(&repo, &user_id, d7_start, now, Duration::days(7)),
-        window(&repo, &user_id, d30_start, now, Duration::days(30)),
+        window(repo, &user_id, d1_start, now, Duration::days(1)),
+        window(repo, &user_id, d7_start, now, Duration::days(7)),
+        window(repo, &user_id, d30_start, now, Duration::days(30)),
     )
     .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
@@ -79,7 +78,7 @@ pub async fn handle(
         })
         .collect();
 
-    let conversations = conversation_summary(&repo, &user_id, d30_start, now)
+    let conversations = conversation_summary(repo, &user_id, d30_start, now)
         .await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 

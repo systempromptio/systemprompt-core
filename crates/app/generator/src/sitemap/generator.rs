@@ -23,7 +23,7 @@ const SLUG_PLACEHOLDER: &str = "{slug}";
 struct SitemapContext {
     config: ContentConfigRaw,
     web_config: WebConfig,
-    db_pool: DbPool,
+    content_repo: ContentRepository,
     base_url: String,
     web_dir: std::path::PathBuf,
 }
@@ -63,7 +63,8 @@ async fn load_sitemap_context(db_pool: DbPool, paths: &AppPaths) -> Result<Sitem
     Ok(SitemapContext {
         config,
         web_config,
-        db_pool,
+        content_repo: ContentRepository::new(&db_pool)
+            .map_err(|e| PublishError::content("Failed to create content repository", e))?,
         base_url,
         web_dir,
     })
@@ -92,7 +93,7 @@ async fn collect_source_urls(
     tracing::debug!(source = %source_name, "Processing source");
 
     let mut urls = fetch_urls_from_database(FetchParams {
-        db_pool: &ctx.db_pool,
+        content_repo: &ctx.content_repo,
         web_config: &ctx.web_config,
         source_id: source.source_id.as_str(),
         url_pattern: &sitemap_config.url_pattern,
@@ -231,7 +232,7 @@ async fn write_sitemap_index(
 }
 
 struct FetchParams<'a> {
-    db_pool: &'a DbPool,
+    content_repo: &'a ContentRepository,
     web_config: &'a WebConfig,
     source_id: &'a str,
     url_pattern: &'a str,
@@ -241,8 +242,7 @@ struct FetchParams<'a> {
 }
 
 async fn fetch_urls_from_database(params: FetchParams<'_>) -> Result<Vec<SitemapUrl>> {
-    let repo = ContentRepository::new(params.db_pool)
-        .map_err(|e| PublishError::content("Failed to create content repository", e))?;
+    let repo = params.content_repo;
 
     let source_id = SourceId::new(params.source_id);
     let pairs = repo

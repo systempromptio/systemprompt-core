@@ -12,7 +12,10 @@ use systemprompt_cli::analytics::costs::summary::resolve_window;
 
 fn assert_spans(actual: Duration, expected: Duration) {
     let drift = (actual - expected).num_milliseconds().abs();
-    assert!(drift < 1000, "expected a {expected:?} window, got {actual:?}");
+    assert!(
+        drift < 1000,
+        "expected a {expected:?} window, got {actual:?}"
+    );
 }
 
 fn row(requests: i64) -> CostSummaryRow {

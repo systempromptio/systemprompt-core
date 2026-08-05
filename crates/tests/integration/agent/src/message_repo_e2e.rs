@@ -1,6 +1,7 @@
 use anyhow::Result;
 use systemprompt_agent::models::a2a::{Message, MessageRole, Part, TextPart};
 use systemprompt_agent::repository::context::message::MessageRepository;
+use systemprompt_agent::repository::task::TaskRepository;
 use systemprompt_agent::services::{MessageService, PersistMessagesParams};
 use systemprompt_identifiers::{ContextId, MessageId, TaskId};
 use systemprompt_models::a2a::TaskState;
@@ -36,7 +37,10 @@ async fn message_repository_new_succeeds() -> Result<()> {
 #[tokio::test]
 async fn message_repository_get_by_task_returns_persisted() -> Result<()> {
     let fx = Fixture::new().await?;
-    let svc = MessageService::new(&fx.db)?;
+    let svc = MessageService::new(TaskRepository::new(
+        &fx.db,
+        crate::common::session_usage(&fx.db)?,
+    )?);
     let repo = MessageRepository::new(&fx.db)?;
     let task_id = fx.insert_task(TaskState::Working).await?;
 
@@ -64,7 +68,10 @@ async fn message_repository_get_by_task_returns_persisted() -> Result<()> {
 #[tokio::test]
 async fn message_repository_get_by_context_aggregates_tasks() -> Result<()> {
     let fx = Fixture::new().await?;
-    let svc = MessageService::new(&fx.db)?;
+    let svc = MessageService::new(TaskRepository::new(
+        &fx.db,
+        crate::common::session_usage(&fx.db)?,
+    )?);
     let repo = MessageRepository::new(&fx.db)?;
     let t1 = fx.insert_task(TaskState::Working).await?;
     let t2 = fx.insert_task(TaskState::Working).await?;
@@ -98,7 +105,10 @@ async fn message_repository_get_by_context_aggregates_tasks() -> Result<()> {
 #[tokio::test]
 async fn message_repository_next_sequence_advances() -> Result<()> {
     let fx = Fixture::new().await?;
-    let svc = MessageService::new(&fx.db)?;
+    let svc = MessageService::new(TaskRepository::new(
+        &fx.db,
+        crate::common::session_usage(&fx.db)?,
+    )?);
     let repo = MessageRepository::new(&fx.db)?;
     let task_id = fx.insert_task(TaskState::Working).await?;
     let before = repo.get_next_sequence_number(&task_id).await?;

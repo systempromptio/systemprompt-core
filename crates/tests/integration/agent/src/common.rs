@@ -1,9 +1,11 @@
 use anyhow::{Context, Result};
 use systemprompt_agent::repository::task::{RepoCreateTaskParams, TaskRepository};
+use systemprompt_analytics::SessionRepository;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ContextId, SessionId, TaskId, TraceId, UserId};
 use systemprompt_models::a2a::{Task, TaskState, TaskStatus};
 use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
+use systemprompt_traits::DynSessionUsageCounters;
 use tokio::sync::{Mutex, MutexGuard, OnceCell};
 use uuid::Uuid;
 
@@ -67,7 +69,7 @@ impl Fixture {
             .execute(&pool)
             .await?;
 
-        let repo = TaskRepository::new(&db)?;
+        let repo = TaskRepository::new(&db, session_usage(&db)?)?;
 
         Ok(Self {
             pool,
@@ -133,4 +135,8 @@ impl Fixture {
             .await?;
         Ok(())
     }
+}
+
+pub fn session_usage(db: &DbPool) -> Result<DynSessionUsageCounters> {
+    Ok(std::sync::Arc::new(SessionRepository::new(db)?))
 }

@@ -143,8 +143,12 @@ lint-comments:
 lint-layers:
     ./scripts/lint-layers.sh
 
+# Reject ad-hoc Repository::new() outside composition roots
+lint-repo-construction:
+    ./scripts/lint-repo-construction.sh
+
 # Check without building
-check: lint-schema lint-extensions lint-comments lint-test-value lint-layers
+check: lint-schema lint-extensions lint-comments lint-test-value lint-layers lint-repo-construction
     cargo check --workspace
 
 # Check offline (uses cached .sqlx metadata, no database required)

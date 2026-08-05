@@ -68,7 +68,7 @@ impl ProxyEngine {
             .await
             .map_err(|source| ProxyError::BodyExtractionFailed { source })?;
 
-        let audit = build_audit(&ctx, &req_ctx, service_name, &body);
+        let audit = build_audit(self.tool_usage_repo.as_ref(), &req_ctx, service_name, &body);
         let outbound = outbound_headers(&incoming_headers, target.headers);
 
         let method = RequestBuilder::parse_method(&method_str)
@@ -111,24 +111,22 @@ pub(super) fn outbound_headers(
 }
 
 fn build_audit(
-    ctx: &AppContext,
+    repo: Option<&std::sync::Arc<ToolUsageRepository>>,
     req_ctx: &RequestContext,
     service_name: &str,
     body: &[u8],
 ) -> Option<McpAudit> {
     let invocation = parse_tool_call(body)?;
-    match ToolUsageRepository::new(ctx.db_pool()) {
-        Ok(repo) => Some(McpAudit::new(
-            std::sync::Arc::new(repo),
-            req_ctx.clone(),
-            service_name.to_owned(),
-            invocation,
-        )),
-        Err(e) => {
-            tracing::warn!(service = %service_name, error = %e, "Tool-usage repository unavailable; external MCP call not audited");
-            None
-        },
-    }
+    let Some(repo) = repo else {
+        tracing::warn!(service = %service_name, "Tool-usage repository unavailable; external MCP call not audited");
+        return None;
+    };
+    Some(McpAudit::new(
+        std::sync::Arc::clone(repo),
+        req_ctx.clone(),
+        service_name.to_owned(),
+        invocation,
+    ))
 }
 
 pub(super) fn map_resolve_error(service_name: &str, error: McpDomainError) -> ProxyError {

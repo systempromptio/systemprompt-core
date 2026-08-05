@@ -3,6 +3,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::error::OauthResult;
+use crate::repository::OAuthRepository;
 use crate::services::webauthn::{LinkStates, create_link_states};
 use std::sync::Arc;
 use systemprompt_database::DbPool;
@@ -13,6 +15,7 @@ use systemprompt_traits::{
 #[derive(Clone)]
 pub struct OAuthState {
     db_pool: DbPool,
+    oauth_repository: OAuthRepository,
     analytics_provider: Arc<dyn AnalyticsProvider>,
     user_provider: Arc<dyn UserProvider>,
     fingerprint_provider: Option<Arc<dyn FingerprintProvider>>,
@@ -49,8 +52,9 @@ impl OAuthState {
         db_pool: DbPool,
         analytics_provider: Arc<dyn AnalyticsProvider>,
         user_provider: Arc<dyn UserProvider>,
-    ) -> Self {
-        Self {
+    ) -> OauthResult<Self> {
+        Ok(Self {
+            oauth_repository: OAuthRepository::new(&db_pool)?,
             db_pool,
             analytics_provider,
             user_provider,
@@ -58,7 +62,7 @@ impl OAuthState {
             event_publisher: None,
             mcp_registry: None,
             link_states: create_link_states(),
-        }
+        })
     }
 
     #[must_use]
@@ -85,6 +89,10 @@ impl OAuthState {
 
     pub const fn db_pool(&self) -> &DbPool {
         &self.db_pool
+    }
+
+    pub const fn oauth_repository(&self) -> &OAuthRepository {
+        &self.oauth_repository
     }
 
     pub fn analytics_provider(&self) -> &Arc<dyn AnalyticsProvider> {

@@ -12,22 +12,19 @@ use systemprompt_runtime::AppContext;
 use super::error::LoadEventError;
 use super::types::{AgUiWebhookData, WebhookRequest};
 use super::validation::validate_json_serializable;
-use systemprompt_agent::repository::content::ArtifactRepository;
-use systemprompt_agent::repository::context::ContextRepository;
-use systemprompt_agent::repository::execution::ExecutionStepRepository;
-use systemprompt_agent::repository::task::TaskRepository;
+use systemprompt_agent::repository::A2ARepositories;
 
 pub(super) async fn load_event_data(
     app_context: &AppContext,
     request: &WebhookRequest,
 ) -> Result<AgUiWebhookData, LoadEventError> {
-    let db = app_context.db_pool();
+    let repos = app_context.a2a_repositories();
 
     match request.event_type.as_str() {
-        "task_completed" => load_task_completed(db, request).await,
-        "artifact_created" => load_artifact_created(db, request).await,
-        "message_received" => load_message_received(db, request).await,
-        "context_updated" => load_context_updated(db, request).await,
+        "task_completed" => load_task_completed(repos, request).await,
+        "artifact_created" => load_artifact_created(repos, request).await,
+        "message_received" => load_message_received(repos, request).await,
+        "context_updated" => load_context_updated(repos, request).await,
         "execution_step" => load_execution_step(request),
         "task_created" => load_task_created(request),
         other => Err(LoadEventError::UnknownEventType(other.to_owned())),
@@ -35,12 +32,12 @@ pub(super) async fn load_event_data(
 }
 
 async fn load_task_completed(
-    db: &systemprompt_database::DbPool,
+    repos: &A2ARepositories,
     request: &WebhookRequest,
 ) -> Result<AgUiWebhookData, LoadEventError> {
-    let task_repo = TaskRepository::new(db)?;
-    let artifact_repo = ArtifactRepository::new(db)?;
-    let step_repo = ExecutionStepRepository::new(db)?;
+    let task_repo = &repos.tasks;
+    let artifact_repo = &repos.artifacts;
+    let step_repo = &repos.execution_steps;
 
     let task_id = TaskId::new(&request.entity_id);
     let timestamp = chrono::Utc::now();
@@ -104,10 +101,10 @@ async fn load_task_completed(
 }
 
 async fn load_artifact_created(
-    db: &systemprompt_database::DbPool,
+    repos: &A2ARepositories,
     request: &WebhookRequest,
 ) -> Result<AgUiWebhookData, LoadEventError> {
-    let artifact_repo = ArtifactRepository::new(db)?;
+    let artifact_repo = &repos.artifacts;
 
     let artifact_id = systemprompt_identifiers::ArtifactId::new(&request.entity_id);
     let artifact = artifact_repo
@@ -129,10 +126,10 @@ async fn load_artifact_created(
 }
 
 async fn load_message_received(
-    db: &systemprompt_database::DbPool,
+    repos: &A2ARepositories,
     request: &WebhookRequest,
 ) -> Result<AgUiWebhookData, LoadEventError> {
-    let task_repo = TaskRepository::new(db)?;
+    let task_repo = &repos.tasks;
     let exists = task_repo
         .message_exists(&MessageId::new(request.entity_id.clone()))
         .await?;
@@ -153,10 +150,10 @@ async fn load_message_received(
 }
 
 async fn load_context_updated(
-    db: &systemprompt_database::DbPool,
+    repos: &A2ARepositories,
     request: &WebhookRequest,
 ) -> Result<AgUiWebhookData, LoadEventError> {
-    let context_repo = ContextRepository::new(db)?;
+    let context_repo = &repos.contexts;
     let context_id = request.context_id.clone();
     let user_id = UserId::new(request.user_id.clone());
 

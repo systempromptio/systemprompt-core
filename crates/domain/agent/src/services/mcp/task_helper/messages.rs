@@ -4,14 +4,14 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::models::a2a::{Artifact, Message, MessageRole, Part, TextPart};
+use crate::repository::task::TaskRepository;
 use crate::services::MessageService;
 use rmcp::ErrorData as McpError;
-use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ContextId, MessageId, SessionId, TaskId, TraceId, UserId};
 
 #[derive(Debug)]
 pub struct SaveMessagesForToolExecutionParams<'a> {
-    pub db_pool: &'a DbPool,
+    pub task_repo: &'a TaskRepository,
     pub task_id: &'a TaskId,
     pub context_id: &'a ContextId,
     pub tool_name: &'a str,
@@ -26,7 +26,7 @@ pub async fn save_messages_for_tool_execution(
     params: SaveMessagesForToolExecutionParams<'_>,
 ) -> Result<(), McpError> {
     let SaveMessagesForToolExecutionParams {
-        db_pool,
+        task_repo,
         task_id,
         context_id,
         tool_name,
@@ -36,9 +36,7 @@ pub async fn save_messages_for_tool_execution(
         session_id,
         trace_id,
     } = params;
-    let message_service = MessageService::new(db_pool).map_err(|e| {
-        McpError::internal_error(format!("Failed to create message service: {e}"), None)
-    })?;
+    let message_service = MessageService::new(task_repo.clone());
 
     let user_message = Message {
         role: MessageRole::User,

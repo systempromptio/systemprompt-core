@@ -13,9 +13,6 @@ use axum::response::{IntoResponse, Response};
 use axum::{Extension, Json};
 use serde::Deserialize;
 
-use systemprompt_agent::repository::content::ArtifactRepository;
-use systemprompt_agent::repository::context::ContextRepository;
-use systemprompt_agent::repository::task::TaskRepository;
 use systemprompt_identifiers::{ArtifactId, ContextId, TaskId, UserId};
 use systemprompt_mcp::services::ui_renderer::MCP_APP_MIME_TYPE;
 use systemprompt_mcp::services::ui_renderer::registry::{
@@ -40,12 +37,12 @@ pub async fn list_artifacts_by_context(
 
     let context_id_typed = ContextId::new(&context_id);
 
-    let context_repo = ContextRepository::new(app_context.db_pool())?;
+    let context_repo = app_context.a2a_repositories().contexts.clone();
     context_repo
         .validate_context_ownership(&context_id_typed, req_ctx.user_id())
         .await?;
 
-    let artifact_repo = ArtifactRepository::new(app_context.db_pool())?;
+    let artifact_repo = app_context.a2a_repositories().artifacts.clone();
     let artifacts = artifact_repo
         .get_artifacts_by_context(&context_id_typed)
         .await?;
@@ -67,12 +64,12 @@ pub async fn list_artifacts_by_task(
 
     let task_id_typed = TaskId::new(&task_id);
 
-    let task_repo = TaskRepository::new(app_context.db_pool())?;
+    let task_repo = app_context.a2a_repositories().tasks.clone();
     task_repo
         .validate_task_ownership(&task_id_typed, req_ctx.user_id())
         .await?;
 
-    let artifact_repo = ArtifactRepository::new(app_context.db_pool())?;
+    let artifact_repo = app_context.a2a_repositories().artifacts.clone();
     let artifacts = artifact_repo.get_artifacts_by_task(&task_id_typed).await?;
 
     tracing::debug!(
@@ -90,7 +87,7 @@ pub async fn get_artifact(
 ) -> Result<impl IntoResponse, ApiHttpError> {
     tracing::debug!(artifact_id = %artifact_id, "Retrieving artifact");
 
-    let artifact_repo = ArtifactRepository::new(app_context.db_pool())?;
+    let artifact_repo = app_context.a2a_repositories().artifacts.clone();
 
     let artifact_id_typed = ArtifactId::new(&artifact_id);
     artifact_repo
@@ -115,7 +112,7 @@ pub async fn list_artifacts_by_user(
 
     tracing::debug!(user_id = %user_id, "Listing artifacts by user");
 
-    let artifact_repo = ArtifactRepository::new(app_context.db_pool())?;
+    let artifact_repo = app_context.a2a_repositories().artifacts.clone();
 
     let user_id_typed = UserId::new(user_id);
     let artifacts = artifact_repo
@@ -137,7 +134,7 @@ pub async fn get_artifact_ui(
 ) -> Result<Response, ApiHttpError> {
     tracing::debug!(artifact_id = %artifact_id, "Rendering artifact as MCP App UI");
 
-    let artifact_repo = ArtifactRepository::new(app_context.db_pool())?;
+    let artifact_repo = app_context.a2a_repositories().artifacts.clone();
     let artifact_id_typed = ArtifactId::new(&artifact_id);
 
     artifact_repo

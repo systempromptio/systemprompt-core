@@ -36,6 +36,7 @@ pub(super) async fn execute(args: StatusArgs, ctx: &CommandContext) -> Result<Co
         Arc::clone(app.db_pool()),
         Arc::new(app.config().clone()),
         jwt_provider,
+        Arc::clone(app.a2a_repositories()),
     ));
 
     let orchestrator = AgentOrchestrator::new(agent_state, Arc::clone(app.app_paths_arc()), None)

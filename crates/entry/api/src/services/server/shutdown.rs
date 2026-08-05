@@ -150,15 +150,7 @@ pub(super) async fn drain(ctx: &AppContext, scheduler: Option<SchedulerHandle>) 
 }
 
 async fn terminate_children(ctx: &AppContext) {
-    use systemprompt_database::ServiceRepository;
-
-    let repo = match ServiceRepository::new(ctx.db_pool()) {
-        Ok(repo) => repo,
-        Err(e) => {
-            tracing::warn!(error = %e, "Cannot reach service registry to terminate children");
-            return;
-        },
-    };
+    let repo = ctx.service_repository();
 
     tokio::join!(
         terminate_agent_children(&repo),

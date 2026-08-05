@@ -71,14 +71,13 @@ async fn resolve_subject<'a>(
 
 pub async fn precheck_and_reserve(
     db: &DbPool,
+    repo: &AiQuotaBucketRepository,
     user_id: &UserId,
     windows: &[QuotaWindow],
 ) -> Result<Option<QuotaDecision>> {
     if windows.is_empty() {
         return Ok(None);
     }
-    let repo =
-        AiQuotaBucketRepository::new(db).map_err(|e| anyhow::anyhow!("quota repo init: {e}"))?;
     let pool = db
         .pool_arc()
         .map_err(|e| anyhow::anyhow!("quota pool init: {e}"))?;
@@ -144,17 +143,14 @@ pub struct PostUpdateParams<'a> {
     pub cost_microdollars: i64,
 }
 
-pub async fn post_update_tokens(db: &DbPool, params: PostUpdateParams<'_>) {
+pub async fn post_update_tokens(
+    db: &DbPool,
+    repo: &AiQuotaBucketRepository,
+    params: PostUpdateParams<'_>,
+) {
     if params.windows.is_empty() {
         return;
     }
-    let repo = match AiQuotaBucketRepository::new(db) {
-        Ok(r) => r,
-        Err(e) => {
-            tracing::warn!(error = %e, "quota repo init failed in post_update");
-            return;
-        },
-    };
     let pool = match db.pool_arc() {
         Ok(p) => p,
         Err(e) => {

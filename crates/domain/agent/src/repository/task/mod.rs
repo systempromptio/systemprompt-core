@@ -31,10 +31,9 @@ pub use task_updates::UpdateTaskAndSaveMessagesParams;
 use crate::models::a2a::{Task, TaskState};
 use sqlx::PgPool;
 use std::sync::Arc;
-use systemprompt_analytics::SessionRepository;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{SessionId, TraceId, UserId};
-use systemprompt_traits::RepositoryError;
+use systemprompt_traits::{DynSessionUsageCounters, RepositoryError};
 
 #[expect(
     missing_debug_implementations,
@@ -53,7 +52,7 @@ pub struct TaskRepository {
     pool: Arc<PgPool>,
     write_pool: Arc<PgPool>,
     db_pool: DbPool,
-    pub(crate) sessions: SessionRepository,
+    pub(crate) sessions: DynSessionUsageCounters,
 }
 
 impl std::fmt::Debug for TaskRepository {
@@ -67,14 +66,15 @@ impl std::fmt::Debug for TaskRepository {
 }
 
 impl TaskRepository {
-    pub fn new(db: &DbPool) -> Result<Self, crate::error::AgentError> {
+    pub fn new(
+        db: &DbPool,
+        sessions: DynSessionUsageCounters,
+    ) -> Result<Self, crate::error::AgentError> {
         let pool = db
             .pool_arc()
             .map_err(|e| crate::error::AgentError::Init(e.to_string()))?;
         let write_pool = db
             .write_pool_arc()
-            .map_err(|e| crate::error::AgentError::Init(e.to_string()))?;
-        let sessions = SessionRepository::new(db)
             .map_err(|e| crate::error::AgentError::Init(e.to_string()))?;
         Ok(Self {
             pool,

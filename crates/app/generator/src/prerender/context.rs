@@ -31,6 +31,7 @@ pub(super) struct PrerenderAssets {
 
 pub(super) struct PrerenderContext {
     pub db_pool: DbPool,
+    pub content_repo: systemprompt_content::ContentRepository,
     assets: Arc<PrerenderAssets>,
 }
 
@@ -67,8 +68,11 @@ pub(super) async fn load_prerender_context(
         .get_or_try_init(|| async { load_prerender_assets(paths).await.map(Arc::new) })
         .await?;
 
+    let content_repo = systemprompt_content::ContentRepository::new(&db_pool)
+        .map_err(|e| PublishError::content("Failed to create content repository", e))?;
     Ok(PrerenderContext {
         db_pool,
+        content_repo,
         assets: Arc::clone(assets),
     })
 }

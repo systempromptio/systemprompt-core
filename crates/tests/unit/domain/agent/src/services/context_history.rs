@@ -8,6 +8,7 @@ use systemprompt_agent::models::a2a::{
     Artifact, ArtifactMetadata, DataPart, FileContent, FilePart, Message, MessageRole, Part,
     TaskState, TextPart,
 };
+use systemprompt_agent::repository::task::TaskRepository;
 use systemprompt_agent::services::ContextService;
 use systemprompt_agent::services::a2a_server::processing::persistence_service::{
     PersistCompletedTaskServiceParams, PersistenceService,
@@ -138,7 +139,10 @@ async fn history_decodes_parts_and_serializes_artifacts() {
         artifact(&ctx, &task_id, None),
     ]);
 
-    let service = PersistenceService::new(pool.clone());
+    let service = PersistenceService::new(
+        pool.clone(),
+        TaskRepository::new(&pool, crate::session_usage(&pool)).expect("task repo"),
+    );
     service
         .persist_completed_task(PersistCompletedTaskServiceParams {
             task: &task,
@@ -150,11 +154,12 @@ async fn history_decodes_parts_and_serializes_artifacts() {
         .await
         .expect("persist");
 
-    let history = ContextService::new(&pool)
-        .expect("service")
-        .load_conversation_history(&ctx)
-        .await
-        .expect("history");
+    let history = ContextService::new(
+        TaskRepository::new(&pool, crate::session_usage(&pool)).expect("task repo"),
+    )
+    .load_conversation_history(&ctx)
+    .await
+    .expect("history");
 
     let user_entry = history
         .iter()
@@ -183,10 +188,11 @@ async fn history_for_unknown_context_is_empty() {
     let Some(pool) = try_pool().await else {
         return;
     };
-    let history = ContextService::new(&pool)
-        .expect("service")
-        .load_conversation_history(&ContextId::generate())
-        .await
-        .expect("history");
+    let history = ContextService::new(
+        TaskRepository::new(&pool, crate::session_usage(&pool)).expect("task repo"),
+    )
+    .load_conversation_history(&ContextId::generate())
+    .await
+    .expect("history");
     assert!(history.is_empty());
 }

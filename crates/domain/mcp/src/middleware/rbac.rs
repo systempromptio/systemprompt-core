@@ -12,12 +12,12 @@ use rmcp::service::RequestContext as McpContext;
 use rmcp::{ErrorData as McpError, RoleServer};
 use systemprompt_identifiers::{Actor, McpServerId, TraceId, UserId};
 use systemprompt_loader::ConfigLoader;
-use systemprompt_marketplace::MarketplaceService;
 use systemprompt_models::RequestContext;
 use systemprompt_models::auth::{AuthenticatedUser, JwtClaims};
 use systemprompt_models::execution::context::ExecutionContext;
 use systemprompt_security::authz::{
     AuthzContext, AuthzDecision, AuthzRequest, EntityKind, EntityRef, SharedAuthzHook,
+    member_attribute_floor,
 };
 
 use super::{extract_bearer_token, extract_request_context};
@@ -155,8 +155,7 @@ pub async fn enforce_rbac_from_registry(
 
     let act_chain = extract_act_chain(&claims);
 
-    let floor = MarketplaceService::new(&services_config)
-        .member_attribute_floor(EntityKind::McpServer, server_name);
+    let floor = member_attribute_floor(&services_config, EntityKind::McpServer, server_name);
     let authz_request = build_mcp_authz_request(
         server_name,
         &claims,

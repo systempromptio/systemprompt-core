@@ -15,7 +15,6 @@ use serde::Serialize;
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::net::IpAddr;
-use systemprompt_database::DbPool;
 use systemprompt_identifiers::{
     ClientId, PolicyVersion, SessionId, SessionSource, TraceId, UserId, headers,
 };
@@ -52,14 +51,14 @@ pub struct BridgeAccessRequest<'a> {
 }
 
 pub async fn issue_bridge_access(
-    pool: &DbPool,
+    repo: &OAuthRepository,
     analytics: &dyn AnalyticsProvider,
     request_headers: &HeaderMap,
     caller_ip: Option<IpAddr>,
     user_id: &UserId,
 ) -> Result<BridgeAuthResult> {
     issue_bridge_access_with(
-        pool,
+        repo,
         analytics,
         BridgeAccessRequest {
             request_headers,
@@ -74,7 +73,7 @@ pub async fn issue_bridge_access(
 }
 
 pub async fn issue_bridge_access_with(
-    pool: &DbPool,
+    repo: &OAuthRepository,
     analytics: &dyn AnalyticsProvider,
     request: BridgeAccessRequest<'_>,
 ) -> Result<BridgeAuthResult> {
@@ -87,7 +86,6 @@ pub async fn issue_bridge_access_with(
         ttl_seconds,
     } = request;
 
-    let repo = OAuthRepository::new(pool)?;
     let auth_user = repo.get_authenticated_user(user_id).await?;
 
     let global_config = Config::get()?;
@@ -211,14 +209,13 @@ pub struct BridgeExchangeCode {
 }
 
 pub async fn issue_bridge_exchange_code(
-    pool: &DbPool,
+    repo: &OAuthRepository,
     user_id: &UserId,
 ) -> Result<BridgeExchangeCode> {
     let code = generate_exchange_code();
     let code_hash = hash_exchange_code(&code);
     let expires_at = Utc::now() + ChronoDuration::seconds(EXCHANGE_CODE_TTL_SECONDS);
 
-    let repo = OAuthRepository::new(pool)?;
     repo.create_bridge_exchange_code(CreateExchangeCodeParams {
         code_hash: &code_hash,
         user_id,
@@ -230,18 +227,17 @@ pub async fn issue_bridge_exchange_code(
 }
 
 pub async fn exchange_bridge_session_code(
-    pool: &DbPool,
+    repo: &OAuthRepository,
     analytics: &dyn AnalyticsProvider,
     request_headers: &HeaderMap,
     caller_ip: Option<IpAddr>,
     code: &str,
 ) -> Result<Option<BridgeAuthResult>> {
     let code_hash = hash_exchange_code(code);
-    let repo = OAuthRepository::new(pool)?;
     let Some(user_id) = repo.consume_bridge_exchange_code(&code_hash).await? else {
         return Ok(None);
     };
-    let result = issue_bridge_access(pool, analytics, request_headers, caller_ip, &user_id).await?;
+    let result = issue_bridge_access(repo, analytics, request_headers, caller_ip, &user_id).await?;
     Ok(Some(result))
 }
 

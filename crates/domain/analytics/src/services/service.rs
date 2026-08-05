@@ -13,7 +13,9 @@ use systemprompt_models::ContentRouting;
 use systemprompt_traits::{CreateSessionInput, ExtractSignals};
 
 use crate::GeoIpReader;
-use crate::repository::{CreateSessionParams, SessionRecord, SessionRepository};
+use crate::repository::{
+    CostAnalyticsRepository, CreateSessionParams, SessionRecord, SessionRepository,
+};
 use crate::services::{SessionAnalytics, SessionAnalyticsBuilder};
 
 #[derive(Clone)]
@@ -21,6 +23,7 @@ pub struct AnalyticsService {
     geoip_reader: Option<GeoIpReader>,
     content_routing: Option<Arc<dyn ContentRouting>>,
     session_repo: SessionRepository,
+    cost_repo: CostAnalyticsRepository,
 }
 
 impl std::fmt::Debug for AnalyticsService {
@@ -43,6 +46,7 @@ impl AnalyticsService {
             geoip_reader,
             content_routing,
             session_repo: SessionRepository::new(db_pool)?,
+            cost_repo: CostAnalyticsRepository::new(db_pool)?,
         })
     }
 
@@ -111,6 +115,10 @@ impl AnalyticsService {
         self.session_repo
             .find_recent_by_fingerprint(fingerprint, max_age_seconds)
             .await
+    }
+
+    pub const fn cost_repo(&self) -> &CostAnalyticsRepository {
+        &self.cost_repo
     }
 
     pub const fn session_repo(&self) -> &SessionRepository {

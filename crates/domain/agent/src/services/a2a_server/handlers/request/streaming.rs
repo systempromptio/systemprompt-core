@@ -44,8 +44,12 @@ pub(super) async fn handle_streaming_request(
     if let A2aRequestParams::SendStreamingMessage(params) = request {
         tracing::info!("Matched SendStreamingMessage, calling create_sse_stream");
 
-        if let Err(err) =
-            validate_message_context(&params.message, Some(context.user_id()), &state.db_pool).await
+        if let Err(err) = validate_message_context(
+            &params.message,
+            Some(context.user_id()),
+            &state.agent_state.repositories().contexts,
+        )
+        .await
         {
             tracing::error!(error = %err, "Context validation failed for streaming request");
 

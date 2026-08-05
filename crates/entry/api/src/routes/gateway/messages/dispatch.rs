@@ -84,6 +84,7 @@ pub(super) async fn dispatch_to_provider(
         gateway_config,
         &rc.profile.providers,
         rc.ctx.db_pool(),
+        rc.repos,
         DispatchInputs {
             request: gateway_request,
             raw_body: body_bytes,

@@ -26,7 +26,7 @@ pub struct McpSessionRecord {
     pub expires_at: DateTime<Utc>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct McpSessionRepository {
     pool: Arc<PgPool>,
     write_pool: Arc<PgPool>,

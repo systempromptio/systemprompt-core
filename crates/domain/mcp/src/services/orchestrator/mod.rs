@@ -62,11 +62,7 @@ impl McpOrchestrator {
         let mut event_bus = EventBus::new(100);
 
         registry.validate()?;
-        let database = DatabaseService::new(
-            Arc::clone(&db_pool),
-            Arc::clone(&app_paths),
-            registry.clone(),
-        );
+        let database = DatabaseService::new(&db_pool, Arc::clone(&app_paths), registry.clone())?;
         let network = NetworkService::new();
         let process = ProcessService::new();
         let monitoring = MonitoringService::new();

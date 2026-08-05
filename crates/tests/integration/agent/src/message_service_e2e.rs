@@ -1,5 +1,6 @@
 use anyhow::Result;
 use systemprompt_agent::models::a2a::{Message, MessageRole, Part, TextPart};
+use systemprompt_agent::repository::task::TaskRepository;
 use systemprompt_agent::services::{
     CreateToolExecutionMessageParams, MessageService, PersistMessagesParams,
 };
@@ -38,7 +39,10 @@ fn request_context(fx: &Fixture) -> RequestContext {
 #[tokio::test]
 async fn message_service_new_succeeds() -> Result<()> {
     let fx = Fixture::new().await?;
-    let svc = MessageService::new(&fx.db)?;
+    let svc = MessageService::new(TaskRepository::new(
+        &fx.db,
+        crate::common::session_usage(&fx.db)?,
+    )?);
     let dbg = format!("{:?}", svc);
     assert!(dbg.contains("MessageService"));
     fx.cleanup().await?;
@@ -48,7 +52,10 @@ async fn message_service_new_succeeds() -> Result<()> {
 #[tokio::test]
 async fn persist_messages_empty_returns_empty_vec() -> Result<()> {
     let fx = Fixture::new().await?;
-    let svc = MessageService::new(&fx.db)?;
+    let svc = MessageService::new(TaskRepository::new(
+        &fx.db,
+        crate::common::session_usage(&fx.db)?,
+    )?);
     let task_id = fx.insert_task(TaskState::Working).await?;
     let seqs = svc
         .persist_messages(PersistMessagesParams {
@@ -68,7 +75,10 @@ async fn persist_messages_empty_returns_empty_vec() -> Result<()> {
 #[tokio::test]
 async fn persist_messages_returns_sequential_numbers() -> Result<()> {
     let fx = Fixture::new().await?;
-    let svc = MessageService::new(&fx.db)?;
+    let svc = MessageService::new(TaskRepository::new(
+        &fx.db,
+        crate::common::session_usage(&fx.db)?,
+    )?);
     let task_id = fx.insert_task(TaskState::Working).await?;
     let msgs = vec![
         make_message("first", &fx.context_id, &task_id),
@@ -95,7 +105,10 @@ async fn persist_messages_returns_sequential_numbers() -> Result<()> {
 #[tokio::test]
 async fn create_tool_execution_message_returns_id_and_sequence() -> Result<()> {
     let fx = Fixture::new().await?;
-    let svc = MessageService::new(&fx.db)?;
+    let svc = MessageService::new(TaskRepository::new(
+        &fx.db,
+        crate::common::session_usage(&fx.db)?,
+    )?);
     let task_id = fx.insert_task(TaskState::Working).await?;
     let ctx = request_context(&fx);
     let args = serde_json::json!({"path": "/tmp/x", "n": 7});
@@ -117,7 +130,10 @@ async fn create_tool_execution_message_returns_id_and_sequence() -> Result<()> {
 #[tokio::test]
 async fn create_tool_execution_message_works_without_pretty_args() -> Result<()> {
     let fx = Fixture::new().await?;
-    let svc = MessageService::new(&fx.db)?;
+    let svc = MessageService::new(TaskRepository::new(
+        &fx.db,
+        crate::common::session_usage(&fx.db)?,
+    )?);
     let task_id = fx.insert_task(TaskState::Working).await?;
     let ctx = request_context(&fx);
     let args = serde_json::json!(null);

@@ -39,6 +39,7 @@ pub(crate) async fn agent_orchestrator(ctx: &Arc<AppContext>) -> Result<AgentOrc
         Arc::clone(ctx.db_pool()),
         Arc::new(ctx.config().clone()),
         jwt_provider,
+        Arc::clone(ctx.a2a_repositories()),
     ));
     AgentOrchestrator::new(agent_state, Arc::clone(ctx.app_paths_arc()), None)
         .await

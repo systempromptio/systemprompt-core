@@ -1,3 +1,5 @@
+//! Evaluation case model captured from sampled traffic.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

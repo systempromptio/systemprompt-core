@@ -3,8 +3,6 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::sync::Arc;
-
 use axum::extract::{Extension, Path, State};
 use axum::response::Response;
 use systemprompt_identifiers::ContextId;
@@ -12,7 +10,6 @@ use systemprompt_runtime::AppContext;
 
 use super::super::responses::{api_error_response, single_response};
 use super::is_valid_context_id;
-use systemprompt_agent::repository::context::ContextRepository;
 use systemprompt_models::{ApiError, ApiErrorExt};
 
 pub async fn get_context(
@@ -29,16 +26,7 @@ pub async fn get_context(
         );
     }
 
-    let db_pool = Arc::clone(ctx.db_pool());
-    let context_repo = match ContextRepository::new(&db_pool) {
-        Ok(repo) => repo,
-        Err(e) => {
-            return api_error_response(
-                ApiError::internal_error(format!("Database error: {e}"))
-                    .with_request_context(&req_ctx),
-            );
-        },
-    };
+    let context_repo = &ctx.a2a_repositories().contexts;
     let user_id = &req_ctx.auth.actor.user_id;
     let context_id = ContextId::new(&context_id_str);
 

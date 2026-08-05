@@ -59,11 +59,9 @@ for name, pkg in pkgs.items():
         if d["name"] in local and d["name"] != name and d["kind"] in (None, "build"):
             deps[name].add(d["name"])
 
-LEGACY_DOMAIN_EDGES = {
-    # Debt under active removal; delete the entry with the edge.
-    ("systemprompt-mcp", "systemprompt-marketplace"),
-    ("systemprompt-agent", "systemprompt-analytics"),
-}
+# Empty by design: adding an edge here requires a written justification in the
+# commit that adds it. Cross-domain capability flows through shared-layer traits.
+LEGACY_DOMAIN_EDGES = set()
 
 violations = []
 for name in sorted(local):

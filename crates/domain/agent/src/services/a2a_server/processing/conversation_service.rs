@@ -10,7 +10,6 @@
 
 use crate::services::shared::{AgentServiceError, Result};
 use base64::Engine;
-use systemprompt_database::DbPool;
 use systemprompt_identifiers::ContextId;
 use systemprompt_models::{
     AiContentPart, AiMessage, MessageRole, is_supported_audio, is_supported_image,
@@ -23,20 +22,21 @@ use crate::repository::task::TaskRepository;
 
 #[derive(Debug)]
 pub struct ConversationService {
-    db_pool: DbPool,
+    task_repo: TaskRepository,
 }
 
 impl ConversationService {
-    pub const fn new(db_pool: DbPool) -> Self {
-        Self { db_pool }
+    #[must_use]
+    pub const fn new(task_repo: TaskRepository) -> Self {
+        Self { task_repo }
     }
 
     pub async fn load_conversation_history(
         &self,
         context_id: &ContextId,
     ) -> Result<Vec<AiMessage>> {
-        let task_repo = TaskRepository::new(&self.db_pool)?;
-        let tasks = task_repo
+        let tasks = self
+            .task_repo
             .list_tasks_by_context(context_id)
             .await
             .map_err(|e| {

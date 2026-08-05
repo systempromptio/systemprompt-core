@@ -6,7 +6,6 @@
 
 use crate::services::shared::{AgentServiceError, Result};
 use base64::Engine;
-use systemprompt_database::DbPool;
 use systemprompt_models::{
     AiContentPart, AiMessage, MessageRole, is_supported_audio, is_supported_image,
     is_supported_text, is_supported_video,
@@ -21,10 +20,9 @@ pub struct ContextService {
 }
 
 impl ContextService {
-    pub fn new(db_pool: &DbPool) -> Result<Self> {
-        Ok(Self {
-            task_repo: TaskRepository::new(db_pool)?,
-        })
+    #[must_use]
+    pub const fn new(task_repo: TaskRepository) -> Self {
+        Self { task_repo }
     }
 
     pub async fn load_conversation_history(

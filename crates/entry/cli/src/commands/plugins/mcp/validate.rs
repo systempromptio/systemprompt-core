@@ -47,10 +47,10 @@ pub(super) async fn execute(args: ValidateArgs, ctx: &CommandContext) -> Result<
         .context("Failed to initialize application context")?;
 
     let database = DatabaseService::new(
-        Arc::clone(app.db_pool()),
+        app.db_pool(),
         Arc::clone(app.app_paths_arc()),
         app.mcp_registry().clone(),
-    );
+    )?;
 
     let server_arg = args.server.or(args.service);
 

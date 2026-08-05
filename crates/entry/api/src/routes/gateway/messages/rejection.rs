@@ -11,7 +11,6 @@ use systemprompt_ai::repository::{
     AiRequestPayloadRepository, AiRequestRepository, UpsertPayloadParams,
 };
 use systemprompt_identifiers::AiRequestId;
-use systemprompt_runtime::AppContext;
 
 use super::extract::RejectionPartial;
 
@@ -23,27 +22,19 @@ use super::extract::RejectionPartial;
     )
 )]
 pub async fn persist_rejection(
-    ctx: &AppContext,
+    repos: &crate::services::gateway::GatewayRepositories,
     ai_request_id: &AiRequestId,
     partial: &RejectionPartial,
     status: StatusCode,
     message: &str,
 ) {
-    let repo = match AiRequestRepository::new(ctx.db_pool()) {
-        Ok(r) => r,
-        Err(e) => {
-            tracing::warn!(error = %e, "rejection audit: repo unavailable");
-            return;
-        },
-    };
-
     let Some(record) = build_rejection_record(ai_request_id, partial) else {
         return;
     };
-    write_rejection_record(&repo, ai_request_id, &record, status, message).await;
+    write_rejection_record(&repos.requests, ai_request_id, &record, status, message).await;
 
     if let Some(body) = partial.body.as_ref() {
-        write_rejection_payload(ctx, ai_request_id, body).await;
+        write_rejection_payload(&repos.payloads, ai_request_id, body).await;
     }
 }
 
@@ -110,14 +101,11 @@ async fn write_rejection_record(
     }
 }
 
-async fn write_rejection_payload(ctx: &AppContext, ai_request_id: &AiRequestId, body: &Bytes) {
-    let payloads = match AiRequestPayloadRepository::new(ctx.db_pool()) {
-        Ok(p) => p,
-        Err(e) => {
-            tracing::warn!(error = %e, "rejection audit: payload repo unavailable");
-            return;
-        },
-    };
+async fn write_rejection_payload(
+    payloads: &AiRequestPayloadRepository,
+    ai_request_id: &AiRequestId,
+    body: &Bytes,
+) {
     let bytes_len = body.len().min(i32::MAX as usize) as i32;
     let sha256 = crate::services::gateway::audit::payload::digest_hex(body);
     let body_json = serde_json::from_slice::<serde_json::Value>(body).ok();

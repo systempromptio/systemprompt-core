@@ -136,9 +136,15 @@ fn build_jwt_extractor(ctx: &AppContext) -> Option<Arc<JwtContextExtractor>> {
     )))
 }
 
-fn inference_routes(ctx: &AppContext, jwt_extractor: &Arc<JwtContextExtractor>) -> Router {
+fn inference_routes(
+    ctx: &AppContext,
+    jwt_extractor: &Arc<JwtContextExtractor>,
+    repos: &Arc<crate::services::gateway::GatewayRepositories>,
+) -> Router {
     let ctx_messages = ctx.clone();
     let ctx_responses = ctx.clone();
+    let repos_messages = Arc::clone(repos);
+    let repos_responses = Arc::clone(repos);
     let jwt_messages = Arc::clone(jwt_extractor);
     let jwt_responses = Arc::clone(jwt_extractor);
     let anthropic_inbound: Arc<dyn InboundAdapter> = Arc::new(AnthropicMessagesInbound);
@@ -150,8 +156,9 @@ fn inference_routes(ctx: &AppContext, jwt_extractor: &Arc<JwtContextExtractor>) 
             post(move |request| {
                 let extractor = Arc::clone(&jwt_messages);
                 let context = ctx_messages.clone();
+                let repos = Arc::clone(&repos_messages);
                 let inbound = Arc::clone(&anthropic_inbound);
-                async move { messages::handle(inbound, extractor, context, request).await }
+                async move { messages::handle(inbound, extractor, context, repos, request).await }
             }),
         )
         .route(
@@ -159,8 +166,9 @@ fn inference_routes(ctx: &AppContext, jwt_extractor: &Arc<JwtContextExtractor>) 
             post(move |request| {
                 let extractor = Arc::clone(&jwt_responses);
                 let context = ctx_responses.clone();
+                let repos = Arc::clone(&repos_responses);
                 let inbound = Arc::clone(&responses_inbound);
-                async move { messages::handle(inbound, extractor, context, request).await }
+                async move { messages::handle(inbound, extractor, context, repos, request).await }
             }),
         )
 }
@@ -294,10 +302,14 @@ fn bridge_profile_routes(ctx: &AppContext, jwt_extractor: &Arc<JwtContextExtract
 
 pub fn gateway_router(ctx: &AppContext) -> Option<Router> {
     let jwt_extractor = build_jwt_extractor(ctx)?;
+    let gateway_repos = crate::services::gateway::GatewayRepositories::new(ctx.db_pool())
+        .inspect_err(|e| tracing::error!(error = %e, "Gateway repositories init failed"))
+        .ok()
+        .map(Arc::new)?;
 
     Some(
         Router::new()
-            .merge(inference_routes(ctx, &jwt_extractor))
+            .merge(inference_routes(ctx, &jwt_extractor, &gateway_repos))
             .merge(bridge_auth_routes(ctx, &jwt_extractor))
             .merge(bridge_profile_routes(ctx, &jwt_extractor))
             .route(

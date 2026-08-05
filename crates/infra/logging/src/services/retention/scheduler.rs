@@ -3,7 +3,6 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::sync::Arc;
 
 use super::policies::RetentionConfig;
 use crate::models::LoggingError;
@@ -15,13 +14,17 @@ use tokio_cron_scheduler::{Job, JobScheduler};
 #[derive(Debug)]
 pub struct RetentionScheduler {
     config: RetentionConfig,
-    db_pool: DbPool,
+    repo: LoggingRepository,
 }
 
 impl RetentionScheduler {
-    #[must_use]
-    pub const fn new(config: RetentionConfig, db_pool: DbPool) -> Self {
-        Self { config, db_pool }
+    pub fn new(config: RetentionConfig, db_pool: &DbPool) -> Result<Self, LoggingError> {
+        Ok(Self {
+            config,
+            repo: LoggingRepository::new(db_pool)?
+                .with_database(true)
+                .with_terminal(false),
+        })
     }
 
     pub async fn start(self) -> Result<(), LoggingError> {
@@ -32,7 +35,7 @@ impl RetentionScheduler {
 
         log_scheduler_starting(&self.config.schedule);
         let scheduler = JobScheduler::new().await?;
-        let job = create_retention_job(self.config, self.db_pool)?;
+        let job = create_retention_job(self.config, self.repo)?;
         scheduler.add(job).await?;
         scheduler.start().await?;
         log_scheduler_started();
@@ -52,15 +55,18 @@ fn log_scheduler_started() {
     tracing::info!("Log retention scheduler started successfully");
 }
 
-fn create_retention_job(config: RetentionConfig, db_pool: DbPool) -> Result<Job, LoggingError> {
+fn create_retention_job(
+    config: RetentionConfig,
+    repo: LoggingRepository,
+) -> Result<Job, LoggingError> {
     let schedule = config.schedule.clone();
 
     Job::new_async(schedule.as_str(), move |_uuid, _lock| {
         let config = config.clone();
-        let db_pool = Arc::clone(&db_pool);
+        let repo = repo.clone();
 
         Box::pin(async move {
-            if let Err(e) = execute_retention_cleanup(config, db_pool).await {
+            if let Err(e) = execute_retention_cleanup(config, &repo).await {
                 tracing::error!(error = %e, "Retention cleanup failed");
             }
         })
@@ -70,19 +76,12 @@ fn create_retention_job(config: RetentionConfig, db_pool: DbPool) -> Result<Job,
 
 async fn execute_retention_cleanup(
     config: RetentionConfig,
-    db_pool: DbPool,
+    repo: &LoggingRepository,
 ) -> Result<(), LoggingError> {
     log_cleanup_starting();
-    let repo = create_logging_repository(&db_pool)?;
-    let total_deleted = apply_all_policies(&repo, &config.policies).await;
+    let total_deleted = apply_all_policies(repo, &config.policies).await;
     log_cleanup_completed(total_deleted);
     Ok(())
-}
-
-fn create_logging_repository(db_pool: &DbPool) -> Result<LoggingRepository, LoggingError> {
-    Ok(LoggingRepository::new(db_pool)?
-        .with_database(true)
-        .with_terminal(false))
 }
 
 async fn apply_all_policies(

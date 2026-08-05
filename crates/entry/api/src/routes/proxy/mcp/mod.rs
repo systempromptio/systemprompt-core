@@ -130,8 +130,6 @@ pub(in crate::routes) async fn get_mcp_server_scopes_from_resource(
 }
 
 pub fn router(ctx: &AppContext) -> Router {
-    let engine = ProxyEngine::new();
-
     let repo = match ToolUsageRepository::new(ctx.db_pool()) {
         Ok(r) => Arc::new(r),
         Err(e) => {
@@ -139,6 +137,7 @@ pub fn router(ctx: &AppContext) -> Router {
             return Router::new();
         },
     };
+    let engine = ProxyEngine::new().with_tool_usage_repo(Arc::clone(&repo));
 
     let state = McpState {
         ctx: ctx.clone(),

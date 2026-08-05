@@ -57,12 +57,16 @@ fn is_read_only_standby(err: &sqlx::Error) -> bool {
 #[derive(Debug, Clone)]
 pub struct PostgresEventBridge {
     pool: PgPool,
+    outbox: EventOutboxRepository,
 }
 
 impl PostgresEventBridge {
     #[must_use]
-    pub const fn new(pool: PgPool) -> Self {
-        Self { pool }
+    pub fn new(pool: PgPool) -> Self {
+        Self {
+            outbox: EventOutboxRepository::new(pool.clone()),
+            pool,
+        }
     }
 
     /// Abort the returned handle to stop the relay.
@@ -143,9 +147,8 @@ impl PostgresEventBridge {
     }
 
     async fn deliver(&self, row_id: &str) {
-        let repo = EventOutboxRepository::new(self.pool.clone());
         let id = EventOutboxId::new(row_id);
-        let row = match repo.find(&id).await {
+        let row = match self.outbox.find(&id).await {
             Ok(Some(row)) => row,
             Ok(None) => {
                 debug!(row_id, "event bridge: outbox row already pruned; skipping");
@@ -203,8 +206,7 @@ impl PostgresEventBridge {
         let cutoff = chrono::Utc::now()
             - chrono::Duration::from_std(OUTBOX_RETENTION)
                 .unwrap_or_else(|_| chrono::Duration::seconds(3600));
-        let repo = EventOutboxRepository::new(self.pool.clone());
-        match repo.prune(cutoff).await {
+        match self.outbox.prune(cutoff).await {
             Ok(deleted) => {
                 if deleted > 0 {
                     debug!(deleted, "event bridge: pruned expired outbox rows");

@@ -45,6 +45,7 @@ use super::REQUEST_ID_HEADER;
 pub(super) struct FinalizeCtx {
     pub(super) audit: Arc<GatewayAudit>,
     pub(super) db: DbPool,
+    pub(super) repos: crate::services::gateway::GatewayRepositories,
     pub(super) ai_request_id: AiRequestId,
     pub(super) policy: GatewayPolicySpec,
     pub(super) inbound: Arc<dyn InboundAdapter>,
@@ -86,6 +87,7 @@ pub(super) async fn finalize(outcome: OutboundOutcome, fctx: FinalizeCtx) -> Res
     let FinalizeCtx {
         audit,
         db,
+        repos,
         ai_request_id,
         policy,
         inbound,
@@ -93,6 +95,7 @@ pub(super) async fn finalize(outcome: OutboundOutcome, fctx: FinalizeCtx) -> Res
     } = fctx;
     let tap_ctx = stream_tap::TapFinalizeCtx {
         db,
+        repos,
         policy,
         ai_request_id,
     };
@@ -140,8 +143,13 @@ async fn finalize_buffered(
         return buffered_response(body, content_type);
     }
     let safety = tap_ctx.policy.safety.clone();
-    let findings =
-        run_response_safety_scan(&tap_ctx.db, &tap_ctx.ai_request_id, &canonical, &safety).await;
+    let findings = run_response_safety_scan(
+        &tap_ctx.repos.safety_findings,
+        &tap_ctx.ai_request_id,
+        &canonical,
+        &safety,
+    )
+    .await;
     let blocked = findings
         .iter()
         .find(|f| safety.block_response_categories.contains(&f.category))
@@ -231,6 +239,7 @@ async fn buffered_completion(
     };
     quota::post_update_tokens(
         &ctx.db,
+        &ctx.repos.quota_buckets,
         quota::PostUpdateParams {
             user_id: &audit.ctx.user_id,
             windows: &ctx.policy.quota_windows,
@@ -241,12 +250,18 @@ async fn buffered_completion(
     )
     .await;
     if !response_scanned {
-        run_response_safety_scan(&ctx.db, &ctx.ai_request_id, &canonical, &ctx.policy.safety).await;
+        run_response_safety_scan(
+            &ctx.repos.safety_findings,
+            &ctx.ai_request_id,
+            &canonical,
+            &ctx.policy.safety,
+        )
+        .await;
     }
 }
 
 pub(super) async fn run_request_safety_scan(
-    db: &DbPool,
+    safety_repo: &AiSafetyFindingRepository,
     ai_request_id: &AiRequestId,
     request: &CanonicalRequest,
     safety: &SafetyConfig,
@@ -266,7 +281,7 @@ pub(super) async fn run_request_safety_scan(
     }
     dedupe_findings(&mut findings);
     if !findings.is_empty() {
-        persist_findings(db, ai_request_id, &findings).await;
+        persist_findings(safety_repo, ai_request_id, &findings).await;
     }
     findings
 }
@@ -287,7 +302,7 @@ pub fn dedupe_findings(findings: &mut Vec<Finding>) {
 }
 
 pub(in crate::services::gateway) async fn run_response_safety_scan(
-    db: &DbPool,
+    safety_repo: &AiSafetyFindingRepository,
     ai_request_id: &AiRequestId,
     response: &CanonicalResponse,
     safety: &SafetyConfig,
@@ -303,19 +318,16 @@ pub(in crate::services::gateway) async fn run_response_safety_scan(
     }
     dedupe_findings(&mut findings);
     if !findings.is_empty() {
-        persist_findings(db, ai_request_id, &findings).await;
+        persist_findings(safety_repo, ai_request_id, &findings).await;
     }
     findings
 }
 
-async fn persist_findings(db: &DbPool, ai_request_id: &AiRequestId, findings: &[Finding]) {
-    let repo = match AiSafetyFindingRepository::new(db) {
-        Ok(r) => r,
-        Err(e) => {
-            tracing::warn!(error = %e, "safety findings repo init failed");
-            return;
-        },
-    };
+async fn persist_findings(
+    repo: &AiSafetyFindingRepository,
+    ai_request_id: &AiRequestId,
+    findings: &[Finding],
+) {
     for f in findings {
         let params = InsertSafetyFinding {
             ai_request_id,

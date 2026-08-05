@@ -8,7 +8,6 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::{Extension, Json};
 use serde_json::json;
-use systemprompt_database::DbPool;
 use systemprompt_events::EventRouter;
 use systemprompt_models::{AgUiEventBuilder, CustomPayload, GenericCustomPayload};
 use systemprompt_runtime::{AppContext, create_request_span};
@@ -16,7 +15,6 @@ use systemprompt_runtime::{AppContext, create_request_span};
 use super::event_loader::load_event_data;
 use super::types::WebhookRequest;
 use crate::error::ApiHttpError;
-use systemprompt_agent::repository::context::ContextRepository;
 
 fn record_task_span(req_ctx: &systemprompt_models::RequestContext, request: &WebhookRequest) {
     let span = create_request_span(req_ctx);
@@ -31,7 +29,7 @@ fn record_task_span(req_ctx: &systemprompt_models::RequestContext, request: &Web
 }
 
 async fn authorize_broadcast(
-    db: &DbPool,
+    repos: &systemprompt_agent::repository::A2ARepositories,
     req_ctx: &systemprompt_models::RequestContext,
     request: &WebhookRequest,
 ) -> Result<(), Response> {
@@ -50,19 +48,7 @@ async fn authorize_broadcast(
             .into_response());
     }
 
-    let context_repo = match ContextRepository::new(db) {
-        Ok(repo) => repo,
-        Err(e) => {
-            return Err((
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(json!({
-                    "error": "Database error",
-                    "message": format!("{e}")
-                })),
-            )
-                .into_response());
-        },
-    };
+    let context_repo = &repos.contexts;
     if let Err(e) = context_repo
         .validate_context_ownership(&request.context_id, authenticated_user_id)
         .await
@@ -89,7 +75,9 @@ pub async fn broadcast_context_event(
     let start_time = std::time::Instant::now();
     record_task_span(&req_ctx, &request);
 
-    if let Err(response) = authorize_broadcast(app_context.db_pool(), &req_ctx, &request).await {
+    if let Err(response) =
+        authorize_broadcast(app_context.a2a_repositories(), &req_ctx, &request).await
+    {
         return Ok(response);
     }
 

@@ -20,7 +20,7 @@ use std::sync::Arc;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{CampaignId, ContentId, LinkId};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct LinkRepository {
     pool: Arc<PgPool>,
     write_pool: Arc<PgPool>,

@@ -16,6 +16,7 @@ mod single;
 
 use crate::models::a2a::Task;
 use crate::repository::content::ArtifactRepository;
+use crate::repository::execution::ExecutionStepRepository;
 use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
@@ -25,8 +26,8 @@ use systemprompt_traits::RepositoryError;
 #[derive(Debug, Clone)]
 pub struct TaskConstructor {
     pool: Arc<PgPool>,
-    db_pool: DbPool,
     artifact_repo: ArtifactRepository,
+    execution_step_repo: ExecutionStepRepository,
 }
 
 impl TaskConstructor {
@@ -35,10 +36,11 @@ impl TaskConstructor {
             .pool_arc()
             .map_err(|e| crate::error::AgentError::Init(e.to_string()))?;
         let artifact_repo = ArtifactRepository::new(db)?;
+        let execution_step_repo = ExecutionStepRepository::new(db)?;
         Ok(Self {
             pool,
-            db_pool: Arc::clone(db),
             artifact_repo,
+            execution_step_repo,
         })
     }
 
@@ -50,8 +52,8 @@ impl TaskConstructor {
         &self.artifact_repo
     }
 
-    pub(crate) const fn db_pool(&self) -> &DbPool {
-        &self.db_pool
+    pub(crate) const fn execution_step_repo(&self) -> &ExecutionStepRepository {
+        &self.execution_step_repo
     }
 
     pub async fn construct_task_from_task_id(

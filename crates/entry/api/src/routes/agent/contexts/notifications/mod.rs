@@ -9,7 +9,6 @@
 mod error;
 mod handlers;
 
-use std::sync::Arc;
 
 use axum::Json;
 use axum::extract::{Path, State};
@@ -18,7 +17,6 @@ use axum::response::{IntoResponse, Response};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use systemprompt_agent::repository::context::ContextRepository;
-use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ContextId, UserId};
 use systemprompt_runtime::AppContext;
 
@@ -40,14 +38,13 @@ pub async fn handle_context_notification(
     State(app_context): State<AppContext>,
     Json(notification): Json<A2aNotification>,
 ) -> Result<Response, ApiHttpError> {
-    let db = app_context.db_pool();
-
-    let ctx_repo = ContextRepository::new(db)?;
+    let repos = app_context.a2a_repositories();
+    let ctx_repo = &repos.contexts;
     let context_id = ContextId::new(context_id);
 
     tracing::debug!(context_id = %context_id, method = %notification.method, "Received notification for context");
 
-    let user_id = match resolve_context_user(&ctx_repo, &context_id).await {
+    let user_id = match resolve_context_user(ctx_repo, &context_id).await {
         Ok(uid) => uid,
         Err(response) => return Ok(response),
     };
@@ -70,7 +67,7 @@ pub async fn handle_context_notification(
         .to_owned();
 
     let notification_id = persist_notification(
-        Arc::clone(db),
+        &repos.context_notifications,
         context_id.as_str(),
         &agent_id,
         &notification,
@@ -80,7 +77,14 @@ pub async fn handle_context_notification(
 
     process_notification(app_context.clone(), &notification).await?;
 
-    broadcast_and_mark(db, &context_id, &user_id, &notification, notification_id).await;
+    broadcast_and_mark(
+        &repos.context_notifications,
+        &context_id,
+        &user_id,
+        &notification,
+        notification_id,
+    )
+    .await;
 
     Ok((
         StatusCode::OK,
@@ -124,7 +128,7 @@ async fn resolve_context_user(
 }
 
 async fn broadcast_and_mark(
-    db: &DbPool,
+    notifications_repo: &systemprompt_agent::repository::context::ContextNotificationRepository,
     context_id: &ContextId,
     user_id: &UserId,
     notification: &A2aNotification,
@@ -133,7 +137,7 @@ async fn broadcast_and_mark(
     let broadcast_count = broadcast_notification(context_id.as_str(), user_id, notification).await;
     tracing::debug!(broadcast_count = %broadcast_count, context_id = %context_id, "Broadcasted notification to streams");
 
-    if let Err(e) = mark_notification_broadcasted(Arc::clone(db), notification_id).await {
+    if let Err(e) = mark_notification_broadcasted(notifications_repo, notification_id).await {
         tracing::error!(error = %e, notification_id = %notification_id, "Failed to mark notification as broadcasted");
     }
 }

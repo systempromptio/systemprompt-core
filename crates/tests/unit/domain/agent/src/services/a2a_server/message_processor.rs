@@ -7,6 +7,7 @@
 use std::sync::Arc;
 
 use systemprompt_agent::models::a2a::{Message, MessageRole, Part, TaskState, TextPart};
+use systemprompt_agent::repository::task::TaskRepository;
 use systemprompt_agent::services::a2a_server::processing::TaskBuilder;
 use systemprompt_agent::services::a2a_server::processing::message::{
     MessageProcessor, PersistCompletedTaskOnProcessorParams, ProcessMessageStreamParams,
@@ -40,7 +41,12 @@ async fn new_constructs_against_pool() {
     systemprompt_test_fixtures::ensure_test_bootstrap();
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let provider = Arc::new(StubAiProvider::new());
-    MessageProcessor::new(&pool, provider).expect("processor constructs");
+    MessageProcessor::new(
+        &pool,
+        provider,
+        TaskRepository::new(&pool, crate::session_usage(&pool)).expect("task repo"),
+    )
+    .expect("processor constructs");
 }
 
 #[tokio::test]
@@ -55,7 +61,12 @@ async fn process_message_stream_emits_text_and_complete() {
     let (ctx, task_id) = seed_context_and_task(&repos, &user, &session).await;
 
     let provider = Arc::new(StubAiProvider::new().with_text_stream(&["one ", "two"]));
-    let processor = MessageProcessor::new(&pool, provider).expect("processor");
+    let processor = MessageProcessor::new(
+        &pool,
+        provider,
+        TaskRepository::new(&pool, crate::session_usage(&pool)).expect("task repo"),
+    )
+    .expect("processor");
 
     let runtime = runtime_info("stream-agent");
     let request = request_context(&ctx, &session, &user, "stream-agent");
@@ -102,7 +113,12 @@ async fn persist_completed_task_updates_existing_row() {
     let (ctx, task_id) = seed_context_and_task(&repos, &user, &session).await;
 
     let provider = Arc::new(StubAiProvider::new());
-    let processor = MessageProcessor::new(&pool, provider).expect("processor");
+    let processor = MessageProcessor::new(
+        &pool,
+        provider,
+        TaskRepository::new(&pool, crate::session_usage(&pool)).expect("task repo"),
+    )
+    .expect("processor");
 
     let request = request_context(&ctx, &session, &user, "persist-agent");
     let user_msg = user_message(&ctx, &task_id, "question");
@@ -144,7 +160,12 @@ async fn process_message_stream_provider_failure_emits_error() {
     let (ctx, task_id) = seed_context_and_task(&repos, &user, &session).await;
 
     let provider = Arc::new(StubAiProvider::new().failing_stream());
-    let processor = MessageProcessor::new(&pool, provider).expect("processor");
+    let processor = MessageProcessor::new(
+        &pool,
+        provider,
+        TaskRepository::new(&pool, crate::session_usage(&pool)).expect("task repo"),
+    )
+    .expect("processor");
 
     let runtime = runtime_info("fail-agent");
     let request = request_context(&ctx, &session, &user, "fail-agent");

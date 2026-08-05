@@ -15,8 +15,6 @@ use tokio::sync::mpsc::Sender;
 use crate::models::a2a::jsonrpc::NumberOrString;
 use crate::models::a2a::protocol::PushNotificationConfig;
 use crate::models::a2a::{Task, TaskState, TaskStatus};
-use crate::repository::content::PushNotificationConfigRepository;
-use crate::repository::context::ContextRepository;
 use crate::repository::task::TaskRepository;
 use crate::services::a2a_server::errors::classify_database_error;
 use crate::services::a2a_server::handlers::AgentHandlerState;
@@ -31,21 +29,10 @@ pub(super) async fn validate_context(
     tx: &Sender<Event>,
     request_id: &NumberOrString,
 ) -> Result<(), ()> {
-    let context_repo = ContextRepository::new(&state.db_pool).map_err(|e| {
-        tracing::error!(error = %e, "Failed to create ContextRepository");
-        if tx
-            .try_send(create_jsonrpc_error_event(
-                -32603,
-                &format!("Failed to initialize context repository: {e}"),
-                request_id,
-            ))
-            .is_err()
-        {
-            tracing::trace!("Failed to send error event, channel closed");
-        }
-    })?;
-
-    context_repo
+    state
+        .agent_state
+        .repositories()
+        .contexts
         .get_context(context_id, user_id)
         .await
         .map_err(|e| {
@@ -89,19 +76,7 @@ pub(super) async fn persist_initial_task(
         request_id,
     } = input;
 
-    let task_repo = TaskRepository::new(&state.db_pool).map_err(|e| {
-        tracing::error!(error = %e, "Failed to create TaskRepository");
-        if tx
-            .try_send(create_jsonrpc_error_event(
-                -32603,
-                &format!("Failed to initialize task repository: {e}"),
-                request_id,
-            ))
-            .is_err()
-        {
-            tracing::trace!("Failed to send error event, channel closed");
-        }
-    })?;
+    let task_repo = state.agent_state.repositories().tasks.clone();
     let metadata = TaskMetadata::new_agent_message(agent_name.to_owned());
 
     let task = Task {
@@ -166,13 +141,7 @@ pub(super) async fn save_push_notification_config(
 
     tracing::info!(url = %config.url, "Push notification callback registered");
 
-    let config_repo = match PushNotificationConfigRepository::new(&state.db_pool) {
-        Ok(repo) => repo,
-        Err(e) => {
-            tracing::warn!(task_id = %task_id, error = %e, "Failed to create PushNotificationConfigRepository");
-            return;
-        },
-    };
+    let config_repo = &state.agent_state.repositories().push_notification_configs;
 
     match config_repo.add_config(task_id, config).await {
         Ok(_) => tracing::info!(task_id = %task_id, "Push notification config saved"),

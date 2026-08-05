@@ -5,7 +5,7 @@
 
 use std::sync::Arc;
 
-use systemprompt_database::{ServiceConfig, ServiceRepository};
+use systemprompt_database::ServiceConfig;
 use systemprompt_mcp::services::McpOrchestrator;
 use systemprompt_runtime::AppContext;
 
@@ -33,11 +33,7 @@ impl ServiceResolver {
         service_name: &str,
         ctx: &AppContext,
     ) -> Result<ServiceConfig, ProxyError> {
-        let service_repo =
-            ServiceRepository::new(ctx.db_pool()).map_err(|e| ProxyError::DatabaseError {
-                service: service_name.to_owned(),
-                source: e,
-            })?;
+        let service_repo = ctx.service_repository();
 
         let service = match service_repo.find_service_by_name(service_name).await {
             Ok(svc) => svc,

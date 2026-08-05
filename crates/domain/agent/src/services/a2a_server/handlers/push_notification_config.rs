@@ -17,7 +17,6 @@ use crate::models::a2a::protocol::{
     DeleteTaskPushNotificationConfigRequest, GetTaskPushNotificationConfigRequest,
     SetTaskPushNotificationConfigRequest,
 };
-use crate::repository::content::PushNotificationConfigRepository;
 use crate::services::a2a_server::handlers::AgentHandlerState;
 
 pub async fn handle_set_push_notification_config(
@@ -26,23 +25,7 @@ pub async fn handle_set_push_notification_config(
 ) -> Result<(StatusCode, Json<serde_json::Value>), (StatusCode, Json<serde_json::Value>)> {
     tracing::info!(task_id = %request.task_id, "Setting push notification config");
 
-    let repo = match PushNotificationConfigRepository::new(&state.db_pool) {
-        Ok(repo) => repo,
-        Err(e) => {
-            tracing::error!(task_id = %request.task_id, error = %e, "Failed to create repository");
-            return Err((
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(json!({
-                    "jsonrpc": "2.0",
-                    "error": {
-                        "code": -32603,
-                        "message": "Failed to create repository",
-                        "data": format!("{e}")
-                    }
-                })),
-            ));
-        },
-    };
+    let repo = &state.agent_state.repositories().push_notification_configs;
 
     match repo.add_config(&request.task_id, &request.config).await {
         Ok(config_id) => {
@@ -84,23 +67,7 @@ pub async fn handle_get_push_notification_config(
 ) -> Result<(StatusCode, Json<serde_json::Value>), (StatusCode, Json<serde_json::Value>)> {
     tracing::info!(task_id = %request.task_id, "Getting push notification config");
 
-    let repo = match PushNotificationConfigRepository::new(&state.db_pool) {
-        Ok(repo) => repo,
-        Err(e) => {
-            tracing::error!(task_id = %request.task_id, error = %e, "Failed to create repository");
-            return Err((
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(json!({
-                    "jsonrpc": "2.0",
-                    "error": {
-                        "code": -32603,
-                        "message": "Failed to create repository",
-                        "data": format!("{e}")
-                    }
-                })),
-            ));
-        },
-    };
+    let repo = &state.agent_state.repositories().push_notification_configs;
 
     match repo.list_configs(&request.task_id).await {
         Ok(configs) => Ok((
@@ -136,23 +103,7 @@ pub async fn handle_list_push_notification_configs(
 ) -> Result<(StatusCode, Json<serde_json::Value>), (StatusCode, Json<serde_json::Value>)> {
     tracing::info!(task_id = %task_id, "Listing push notification configs");
 
-    let repo = match PushNotificationConfigRepository::new(&state.db_pool) {
-        Ok(repo) => repo,
-        Err(e) => {
-            tracing::error!(task_id = %task_id, error = %e, "Failed to create repository");
-            return Err((
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(json!({
-                    "jsonrpc": "2.0",
-                    "error": {
-                        "code": -32603,
-                        "message": "Failed to create repository",
-                        "data": format!("{e}")
-                    }
-                })),
-            ));
-        },
-    };
+    let repo = &state.agent_state.repositories().push_notification_configs;
     match repo.list_configs(&task_id).await {
         Ok(configs) => {
             let total = configs.len() as u32;
@@ -192,23 +143,7 @@ pub async fn handle_delete_push_notification_config(
 ) -> Result<(StatusCode, Json<serde_json::Value>), (StatusCode, Json<serde_json::Value>)> {
     tracing::info!(task_id = %request.task_id, "Deleting push notification config");
 
-    let repo = match PushNotificationConfigRepository::new(&state.db_pool) {
-        Ok(repo) => repo,
-        Err(e) => {
-            tracing::error!(task_id = %request.task_id, error = %e, "Failed to create repository");
-            return Err((
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(json!({
-                    "jsonrpc": "2.0",
-                    "error": {
-                        "code": -32603,
-                        "message": "Failed to create repository",
-                        "data": format!("{e}")
-                    }
-                })),
-            ));
-        },
-    };
+    let repo = &state.agent_state.repositories().push_notification_configs;
     match repo.delete_all_for_task(&request.task_id).await {
         Ok(count) => {
             tracing::info!(task_id = %request.task_id, deleted = count, "Successfully deleted configs");

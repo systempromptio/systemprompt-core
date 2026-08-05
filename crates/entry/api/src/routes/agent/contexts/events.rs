@@ -13,7 +13,6 @@ use systemprompt_identifiers::ContextId;
 use systemprompt_models::{ContextEvent, RequestContext};
 use systemprompt_runtime::AppContext;
 
-use systemprompt_agent::repository::context::ContextRepository;
 
 pub async fn forward_event(
     Extension(request_context): Extension<RequestContext>,
@@ -21,23 +20,10 @@ pub async fn forward_event(
     Path(context_id): Path<String>,
     Json(event): Json<ContextEvent>,
 ) -> Response {
-    let db = app_context.db_pool();
     let user_id = request_context.user_id();
     let context_id_typed = ContextId::new(&context_id);
 
-    let context_repo = match ContextRepository::new(db) {
-        Ok(repo) => repo,
-        Err(e) => {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(json!({
-                    "error": "Database error",
-                    "message": format!("{e}")
-                })),
-            )
-                .into_response();
-        },
-    };
+    let context_repo = &app_context.a2a_repositories().contexts;
     if let Err(e) = context_repo
         .validate_context_ownership(&context_id_typed, user_id)
         .await

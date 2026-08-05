@@ -80,6 +80,7 @@ pub struct JobExecutionService {
     ctx: Arc<AppContext>,
     registry: ExtensionRegistry,
     scheduler_config: SchedulerConfig,
+    job_repo: JobRepository,
 }
 
 impl std::fmt::Debug for JobExecutionService {
@@ -90,17 +91,18 @@ impl std::fmt::Debug for JobExecutionService {
 }
 
 impl JobExecutionService {
-    #[must_use]
-    pub const fn new(
+    pub fn new(
         ctx: Arc<AppContext>,
         registry: ExtensionRegistry,
         scheduler_config: SchedulerConfig,
-    ) -> Self {
-        Self {
+    ) -> SchedulerResult<Self> {
+        let job_repo = JobRepository::new(ctx.db_pool())?;
+        Ok(Self {
             ctx,
             registry,
             scheduler_config,
-        }
+            job_repo,
+        })
     }
 
     pub fn resolve_job_names(&self, selection: &JobSelection) -> SchedulerResult<Vec<String>> {
@@ -233,13 +235,7 @@ impl JobExecutionService {
     }
 
     async fn record_run(&self, report: &JobRunReport) {
-        let repo = match JobRepository::new(self.ctx.db_pool()) {
-            Ok(repo) => repo,
-            Err(e) => {
-                tracing::warn!(job = %report.job_name, error = %e, "could not open scheduler repo to record manual run");
-                return;
-            },
-        };
+        let repo = &self.job_repo;
 
         let next_run = match repo.find_job(&report.job_name).await {
             Ok(Some(job)) => job.next_run,

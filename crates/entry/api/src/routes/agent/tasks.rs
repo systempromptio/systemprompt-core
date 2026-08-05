@@ -11,8 +11,6 @@ use serde::Deserialize;
 use systemprompt_identifiers::{ContextId, TaskId, UserId};
 
 use systemprompt_agent::models::a2a::TaskState;
-use systemprompt_agent::repository::context::ContextRepository;
-use systemprompt_agent::repository::task::TaskRepository;
 use systemprompt_models::RequestContext;
 use systemprompt_runtime::AppContext;
 
@@ -33,12 +31,12 @@ pub async fn list_tasks_by_context(
 
     let context_id_typed = ContextId::new(&context_id);
 
-    let context_repo = ContextRepository::new(app_context.db_pool())?;
+    let context_repo = app_context.a2a_repositories().contexts.clone();
     context_repo
         .validate_context_ownership(&context_id_typed, req_ctx.user_id())
         .await?;
 
-    let task_repo = TaskRepository::new(app_context.db_pool())?;
+    let task_repo = app_context.a2a_repositories().tasks.clone();
     let tasks = task_repo.list_tasks_by_context(&context_id_typed).await?;
 
     tracing::debug!(context_id = %context_id, count = %tasks.len(), "Tasks listed");
@@ -52,7 +50,7 @@ pub async fn get_task(
 ) -> Result<impl IntoResponse, ApiHttpError> {
     tracing::debug!(task_id = %task_id, "Retrieving task");
 
-    let task_repo = TaskRepository::new(app_context.db_pool())?;
+    let task_repo = app_context.a2a_repositories().tasks.clone();
 
     let task_id_typed = TaskId::new(&task_id);
     task_repo
@@ -77,7 +75,7 @@ pub async fn list_tasks_by_user(
 
     tracing::debug!(user_id = %user_id, "Listing tasks");
 
-    let task_repo = TaskRepository::new(app_context.db_pool())?;
+    let task_repo = app_context.a2a_repositories().tasks.clone();
 
     let task_state = params.status.as_ref().and_then(|s| match s.as_str() {
         "submitted" => Some(TaskState::Submitted),
@@ -111,7 +109,7 @@ pub async fn get_messages_by_task(
 ) -> Result<impl IntoResponse, ApiHttpError> {
     tracing::debug!(task_id = %task_id, "Retrieving messages");
 
-    let task_repo = TaskRepository::new(app_context.db_pool())?;
+    let task_repo = app_context.a2a_repositories().tasks.clone();
 
     let task_id_typed = TaskId::new(&task_id);
     task_repo
@@ -131,7 +129,7 @@ pub async fn delete_task(
 ) -> Result<impl IntoResponse, ApiHttpError> {
     tracing::debug!(task_id = %task_id, "Deleting task");
 
-    let task_repo = TaskRepository::new(app_context.db_pool())?;
+    let task_repo = app_context.a2a_repositories().tasks.clone();
 
     let task_id_typed = TaskId::new(&task_id);
     task_repo

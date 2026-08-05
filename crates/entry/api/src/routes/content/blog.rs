@@ -12,7 +12,7 @@ use axum::http::StatusCode;
 use axum::http::header::LINK;
 use axum::response::{IntoResponse, Response};
 use axum::{Extension, Json};
-use systemprompt_content::{Content, ContentRepository};
+use systemprompt_content::Content;
 use systemprompt_identifiers::{LocaleCode, SourceId};
 use systemprompt_models::RequestContext;
 use systemprompt_models::api::{MarkdownFrontmatter, MarkdownResponse};
@@ -24,21 +24,7 @@ pub async fn list_content_by_source_handler(
     State(ctx): State<AppContext>,
     Path(source_id): Path<String>,
 ) -> impl IntoResponse {
-    let content_service = match ContentRepository::new(ctx.db_pool()) {
-        Ok(svc) => svc,
-        Err(e) => {
-            tracing::error!(
-                error = %e,
-                source_id = %source_id,
-                "list_content_by_source: ContentRepository init failed"
-            );
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(serde_json::json!({"error": e.to_string()})),
-            )
-                .into_response();
-        },
-    };
+    let content_service = &ctx.content_repositories().content;
 
     let source_id = SourceId::new(source_id);
     match content_service
@@ -67,22 +53,7 @@ pub async fn get_content_handler(
     accepted_format: Option<Extension<AcceptedFormat>>,
     Path((source_id, slug)): Path<(String, String)>,
 ) -> Response {
-    let content_service = match ContentRepository::new(ctx.db_pool()) {
-        Ok(svc) => svc,
-        Err(e) => {
-            tracing::error!(
-                error = %e,
-                source_id = %source_id,
-                slug = %slug,
-                "get_content: ContentRepository init failed"
-            );
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(serde_json::json!({"error": e.to_string()})),
-            )
-                .into_response();
-        },
-    };
+    let content_service = &ctx.content_repositories().content;
 
     let source_id_typed = SourceId::new(source_id.clone());
     match content_service
@@ -142,22 +113,7 @@ pub async fn get_content_markdown_handler(
     Extension(_req_ctx): Extension<RequestContext>,
     Path((source_id, slug)): Path<(String, String)>,
 ) -> impl IntoResponse {
-    let content_service = match ContentRepository::new(ctx.db_pool()) {
-        Ok(svc) => svc,
-        Err(e) => {
-            tracing::error!(
-                error = %e,
-                source_id = %source_id,
-                slug = %slug,
-                "get_content_markdown: ContentRepository init failed"
-            );
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(serde_json::json!({"error": e.to_string()})),
-            )
-                .into_response();
-        },
-    };
+    let content_service = &ctx.content_repositories().content;
 
     let slug = slug.trim_end_matches(".md");
     let source_id = SourceId::new(source_id);

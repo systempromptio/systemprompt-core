@@ -1,3 +1,5 @@
+//! `admin evals run` — start an evaluation run.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

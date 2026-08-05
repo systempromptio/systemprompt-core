@@ -30,7 +30,7 @@ pub(crate) async fn try_pool() -> Option<DbPool> {
 }
 
 pub(crate) fn repos(pool: &DbPool) -> A2ARepositories {
-    A2ARepositories::new(pool).expect("repositories")
+    A2ARepositories::new(pool, crate::session_usage(pool)).expect("repositories")
 }
 
 // Seeds a user + session and returns their ids.

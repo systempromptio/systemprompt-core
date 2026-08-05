@@ -7,6 +7,7 @@ use serde_json::json;
 use systemprompt_agent::models::a2a::{
     DataPart, FileContent, FilePart, Message, MessageRole, Part, TextPart,
 };
+use systemprompt_agent::repository::task::TaskRepository;
 use systemprompt_agent::services::message::{MessageService, PersistMessageInTxParams};
 use systemprompt_database::DatabaseProvider;
 use systemprompt_identifiers::{ContextId, MessageId, SessionId, TaskId, TraceId, UserId};
@@ -81,7 +82,9 @@ async fn persist_in_tx_round_trips_all_part_kinds_and_metadata() {
     let r = repos(&pool);
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let (context_id, task_id) = seed_context_and_task(&r, &user_id, &session_id).await;
-    let svc = MessageService::new(&pool).expect("message service");
+    let svc = MessageService::new(
+        TaskRepository::new(&pool, crate::session_usage(&pool)).expect("task repo"),
+    );
     let trace_id = TraceId::generate();
     let message_id = MessageId::generate();
     let message = rich_message(&context_id, &task_id, &message_id);
@@ -146,7 +149,9 @@ async fn repersisting_same_message_id_replaces_instead_of_duplicating() {
     let r = repos(&pool);
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let (context_id, task_id) = seed_context_and_task(&r, &user_id, &session_id).await;
-    let svc = MessageService::new(&pool).expect("message service");
+    let svc = MessageService::new(
+        TaskRepository::new(&pool, crate::session_usage(&pool)).expect("task repo"),
+    );
     let trace_id = TraceId::generate();
     let message_id = MessageId::generate();
 
@@ -208,7 +213,9 @@ async fn sequence_numbers_in_tx_increase_per_task() {
     let r = repos(&pool);
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let (context_id, task_id) = seed_context_and_task(&r, &user_id, &session_id).await;
-    let svc = MessageService::new(&pool).expect("message service");
+    let svc = MessageService::new(
+        TaskRepository::new(&pool, crate::session_usage(&pool)).expect("task repo"),
+    );
     let trace_id = TraceId::generate();
 
     for expected in 0..=2 {

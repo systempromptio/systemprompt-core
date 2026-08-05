@@ -63,7 +63,12 @@ fn create_processor(
     tx: &Sender<Event>,
     request_id: &NumberOrString,
 ) -> Result<MessageProcessor, ()> {
-    MessageProcessor::new(&state.db_pool, Arc::clone(&state.ai_service)).map_err(|e| {
+    MessageProcessor::new(
+        &state.db_pool,
+        Arc::clone(&state.ai_service),
+        state.agent_state.repositories().tasks.clone(),
+    )
+    .map_err(|e| {
         tracing::error!(error = %e, "Failed to create MessageProcessor");
         if tx
             .try_send(create_jsonrpc_error_event(

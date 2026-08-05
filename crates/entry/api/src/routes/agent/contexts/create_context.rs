@@ -3,15 +3,12 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::sync::Arc;
-
 use axum::Json;
 use axum::extract::{Extension, State};
 use axum::response::Response;
 
 use super::super::responses::{api_error_response, single_response_created};
 use systemprompt_agent::models::context::{ContextKind, CreateContextRequest};
-use systemprompt_agent::repository::context::ContextRepository;
 use systemprompt_events::EventRouter;
 use systemprompt_models::{ApiError, ApiErrorExt, SystemEventBuilder};
 use systemprompt_runtime::AppContext;
@@ -21,13 +18,7 @@ pub async fn create_context(
     State(ctx): State<AppContext>,
     Json(request): Json<CreateContextRequest>,
 ) -> Response {
-    let db_pool = Arc::clone(ctx.db_pool());
-    let context_repo = match ContextRepository::new(&db_pool) {
-        Ok(repo) => repo,
-        Err(e) => {
-            return api_error_response(ApiError::internal_error(format!("Database error: {e}")));
-        },
-    };
+    let context_repo = &ctx.a2a_repositories().contexts;
     let user_id = &req_ctx.auth.actor.user_id;
 
     let context_name = match request.name.as_deref().map(str::trim) {

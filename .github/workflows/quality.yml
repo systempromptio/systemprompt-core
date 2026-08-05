@@ -59,6 +59,7 @@ jobs:
       - run: just lint-test-value
       - run: just lint-no-untyped-admin
       - run: just lint-layers
+      - run: just lint-repo-construction
       - run: just machete
 
   msrv:

@@ -86,10 +86,13 @@ impl std::fmt::Debug for MessageProcessor {
 }
 
 impl MessageProcessor {
-    pub fn new(db_pool: &DbPool, ai_service: Arc<dyn AiProvider>) -> Result<Self> {
-        let task_repo = TaskRepository::new(db_pool)?;
+    pub fn new(
+        db_pool: &DbPool,
+        ai_service: Arc<dyn AiProvider>,
+        task_repo: TaskRepository,
+    ) -> Result<Self> {
         let context_repo = ContextRepository::new(db_pool)?;
-        let context_service = ContextService::new(db_pool)?;
+        let context_service = ContextService::new(task_repo.clone());
         let execution_step_repo = Arc::new(ExecutionStepRepository::new(db_pool)?);
         let skill_service = Arc::new(
             SkillService::new()?.with_execution_step_repo(Arc::clone(&execution_step_repo)),

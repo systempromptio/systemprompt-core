@@ -38,7 +38,9 @@ async fn seed_task(pool: &DbPool) -> (UserId, ContextId, TaskId) {
         .await
         .unwrap();
 
-    let repos = A2ARepositories::new(pool).unwrap();
+    let session_usage: systemprompt_traits::DynSessionUsageCounters =
+        std::sync::Arc::new(systemprompt_analytics::SessionRepository::new(pool).unwrap());
+    let repos = A2ARepositories::new(pool, session_usage).unwrap();
     let ctx_repo = ContextRepository::new(pool).unwrap();
     let context_id = ctx_repo
         .create_context(

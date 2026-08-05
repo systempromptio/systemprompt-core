@@ -1,5 +1,6 @@
 use std::sync::Arc;
 use systemprompt_agent::AgentState;
+use systemprompt_agent::repository::task::TaskRepository;
 use systemprompt_test_fixtures::{fixture_config, fixture_database_url, fixture_db_pool};
 use systemprompt_traits::{
     AgentJwtClaims, GenerateTokenParams, JwtProviderError, JwtResult, JwtValidationProvider,
@@ -27,7 +28,8 @@ async fn make_state() -> AgentState {
     let url = fixture_database_url().expect("DATABASE_URL");
     let pool = fixture_db_pool(&url).await.expect("pool");
     let config = Arc::new(fixture_config(&url));
-    AgentState::new(pool, config, stub_jwt())
+    let task_repo = TaskRepository::new(&pool, crate::session_usage(&pool)).expect("task repo");
+    AgentState::new(pool, config, stub_jwt(), task_repo)
 }
 
 #[tokio::test]

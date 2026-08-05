@@ -139,8 +139,7 @@ async fn verify_database_registration(
     ctx: &AppContext,
     events: Option<&StartupEventSender>,
 ) -> Result<()> {
-    use systemprompt_database::ServiceRepository;
-    let service_repo = ServiceRepository::new(ctx.db_pool())?;
+    let service_repo = ctx.service_repository();
 
     let mut verification_failed = Vec::new();
 
@@ -194,10 +193,9 @@ async fn cleanup_stale_service_entries(
     ctx: &AppContext,
     events: Option<&StartupEventSender>,
 ) -> Result<u64> {
-    use systemprompt_database::ServiceRepository;
     use systemprompt_models::subprocess::{AGENT_NAME_ENV, MCP_SERVICE_ID_ENV};
 
-    let repo = ServiceRepository::new(ctx.db_pool())?;
+    let repo = ctx.service_repository();
     let mut deleted_count = 0u64;
 
     let mcp_services = repo.list_mcp_services().await?;

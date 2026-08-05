@@ -70,7 +70,7 @@ pub(super) async fn execute(args: RunArgs, ctx: &CommandContext) -> Result<Comma
                 .unwrap_or_else(systemprompt_models::SchedulerConfig::with_system_admin)
         },
     );
-    let service = JobExecutionService::new(app, registry, scheduler_config);
+    let service = JobExecutionService::new(app, registry, scheduler_config)?;
     let batch = service.run_jobs(&selection, &parameters).await?;
 
     let jobs_run: Vec<JobRunOutput> = batch.runs.into_iter().map(into_output).collect();

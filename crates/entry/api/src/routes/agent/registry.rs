@@ -28,19 +28,13 @@ pub async fn handle_agent_registry(
                 .into_response();
         },
     };
-    let service_repo = match ServiceRepository::new(ctx.db_pool()) {
-        Ok(repo) => repo,
-        Err(e) => {
-            return ApiError::internal_error(format!("Failed to create service repository: {e}"))
-                .into_response();
-        },
-    };
+    let service_repo = ctx.service_repository();
     let api_external_url = &ctx.config().api_external_url;
 
     match registry.list_agents().await {
         Ok(agents) => {
             let mut agent_cards =
-                build_agent_cards(&registry, &service_repo, api_external_url, agents).await;
+                build_agent_cards(&registry, service_repo, api_external_url, agents).await;
             sort_default_first(&mut agent_cards);
             CollectionResponse::new(agent_cards).into_response()
         },

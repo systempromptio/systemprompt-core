@@ -124,9 +124,15 @@ async fn spawn_loop_with(spec: LoopSpec<'_>) -> Option<Loop> {
         TaskId::generate()
     };
 
-    let processor =
-        Arc::new(MessageProcessor::new(&pool, Arc::new(StubAiProvider::new())).expect("processor"));
-    let task_repo = TaskRepository::new(&pool).expect("task repo");
+    let processor = Arc::new(
+        MessageProcessor::new(
+            &pool,
+            Arc::new(StubAiProvider::new()),
+            TaskRepository::new(&pool, crate::session_usage(&pool)).expect("task repo"),
+        )
+        .expect("processor"),
+    );
+    let task_repo = TaskRepository::new(&pool, crate::session_usage(&pool)).expect("task repo");
     let request = request_context(&ctx, &session, &user, "loop-agent");
 
     let (sse_tx, sse_rx) = mpsc::channel::<Event>(64);

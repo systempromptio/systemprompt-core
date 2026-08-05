@@ -43,6 +43,7 @@ pub(super) async fn execute(args: RunArgs) -> Result<()> {
         Arc::clone(&db_pool),
         Arc::new(ctx.config().clone()),
         jwt_provider,
+        Arc::clone(ctx.a2a_repositories()),
     ));
 
     let tool_provider = Arc::new(McpToolProvider::new(

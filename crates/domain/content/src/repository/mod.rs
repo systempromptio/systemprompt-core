@@ -15,3 +15,25 @@ pub mod search;
 pub use content::ContentRepository;
 pub use link::{LinkAnalyticsRepository, LinkRepository};
 pub use search::SearchRepository;
+
+use crate::error::ContentError;
+use systemprompt_database::DbPool;
+
+/// Bundle of the content-domain repositories, constructed once at a
+/// composition root and cloned by consumers.
+#[derive(Debug, Clone)]
+pub struct ContentRepositories {
+    pub content: ContentRepository,
+    pub search: SearchRepository,
+    pub link: LinkRepository,
+}
+
+impl ContentRepositories {
+    pub fn new(db: &DbPool) -> Result<Self, ContentError> {
+        Ok(Self {
+            content: ContentRepository::new(db)?,
+            search: SearchRepository::new(db)?,
+            link: LinkRepository::new(db)?,
+        })
+    }
+}

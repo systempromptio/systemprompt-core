@@ -1,4 +1,5 @@
 use anyhow::Result;
+use systemprompt_agent::repository::task::TaskRepository;
 use systemprompt_agent::services::a2a_server::processing::conversation_service::ConversationService;
 use systemprompt_identifiers::ContextId;
 use uuid::Uuid;
@@ -8,7 +9,10 @@ use crate::common::Fixture;
 #[tokio::test]
 async fn conversation_service_load_empty_context_returns_empty() -> Result<()> {
     let fx = Fixture::new().await?;
-    let svc = ConversationService::new(fx.db.clone());
+    let svc = ConversationService::new(TaskRepository::new(
+        &fx.db,
+        crate::common::session_usage(&fx.db)?,
+    )?);
 
     // Use a fresh context id not in DB
     let unknown = ContextId::new(Uuid::new_v4().to_string());
@@ -22,7 +26,10 @@ async fn conversation_service_load_empty_context_returns_empty() -> Result<()> {
 #[tokio::test]
 async fn conversation_service_load_with_tasks_returns_history() -> Result<()> {
     let fx = Fixture::new().await?;
-    let svc = ConversationService::new(fx.db.clone());
+    let svc = ConversationService::new(TaskRepository::new(
+        &fx.db,
+        crate::common::session_usage(&fx.db)?,
+    )?);
 
     use systemprompt_models::a2a::TaskState;
     let _task1 = fx.insert_task(TaskState::Completed).await?;
@@ -39,7 +46,10 @@ async fn conversation_service_load_with_tasks_returns_history() -> Result<()> {
 #[tokio::test]
 async fn conversation_service_debug_impl() -> Result<()> {
     let fx = Fixture::new().await?;
-    let svc = ConversationService::new(fx.db.clone());
+    let svc = ConversationService::new(TaskRepository::new(
+        &fx.db,
+        crate::common::session_usage(&fx.db)?,
+    )?);
     let dbg = format!("{:?}", svc);
     assert!(dbg.contains("ConversationService"));
     fx.cleanup().await?;
@@ -55,8 +65,14 @@ async fn conversation_service_with_persisted_messages_returns_history() -> Resul
 
     let fx = Fixture::new().await?;
     let task_id = fx.insert_task(TaskState::Working).await?;
-    let msg_svc = MessageService::new(&fx.db)?;
-    let conv_svc = ConversationService::new(fx.db.clone());
+    let msg_svc = MessageService::new(TaskRepository::new(
+        &fx.db,
+        crate::common::session_usage(&fx.db)?,
+    )?);
+    let conv_svc = ConversationService::new(TaskRepository::new(
+        &fx.db,
+        crate::common::session_usage(&fx.db)?,
+    )?);
 
     let msgs = vec![
         Message {
@@ -131,7 +147,10 @@ async fn conversation_service_with_artifacts_in_history() -> Result<()> {
         .create_artifact(&task_id, &fx.context_id, &artifact)
         .await?;
 
-    let conv_svc = ConversationService::new(fx.db.clone());
+    let conv_svc = ConversationService::new(TaskRepository::new(
+        &fx.db,
+        crate::common::session_usage(&fx.db)?,
+    )?);
     let history = conv_svc.load_conversation_history(&fx.context_id).await?;
     assert!(history.iter().any(|m| m.content.contains("ResultArt")));
 
@@ -148,8 +167,14 @@ async fn conversation_service_with_file_parts_in_message() -> Result<()> {
 
     let fx = Fixture::new().await?;
     let task_id = fx.insert_task(TaskState::Working).await?;
-    let msg_svc = MessageService::new(&fx.db)?;
-    let conv_svc = ConversationService::new(fx.db.clone());
+    let msg_svc = MessageService::new(TaskRepository::new(
+        &fx.db,
+        crate::common::session_usage(&fx.db)?,
+    )?);
+    let conv_svc = ConversationService::new(TaskRepository::new(
+        &fx.db,
+        crate::common::session_usage(&fx.db)?,
+    )?);
 
     // base64 of "hello world"
     let b64 = "aGVsbG8gd29ybGQ=".to_string();

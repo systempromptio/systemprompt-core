@@ -115,6 +115,7 @@ impl GatewayService {
         config: &GatewayConfig,
         registry: &ProviderRegistry,
         db: &DbPool,
+        repos: &super::GatewayRepositories,
         inputs: DispatchInputs,
     ) -> Result<Response<Body>, DispatchError> {
         let DispatchInputs {
@@ -148,13 +149,13 @@ impl GatewayService {
         let resolver = PolicyResolver::new(db).map_err(DispatchError::PreAudit)?;
         let policy = resolver.resolve().await;
 
-        let audit = open_audit(db, &ctx, &request, &raw_body, &identity_headers).await?;
+        let audit = open_audit(repos, &ctx, &request, &raw_body, &identity_headers).await?;
 
         if let Some(descriptor) = upstream.route_match_descriptor.as_deref() {
             audit.set_route_match(descriptor).await;
         }
 
-        enforce_quota(db, &ctx.user_id, &policy.quota_windows, &audit).await?;
+        enforce_quota(db, repos, &ctx.user_id, &policy.quota_windows, &audit).await?;
         enforce_request_guards(db, &ctx.user_id, &upstream, &request, &audit).await?;
 
         // Why: the payload is built before the scan so governance inspects the
@@ -178,7 +179,7 @@ impl GatewayService {
         // across both — a denied request never reaches the scanners, and so
         // produces exactly one audit row and one 403.
         enforce_governance(db, &ctx, &request, &audit).await?;
-        enforce_request_safety(db, &ai_request_id, &request, &policy.safety, &audit).await?;
+        enforce_request_safety(repos, &ai_request_id, &request, &policy.safety, &audit).await?;
 
         let outcome =
             send_to_upstream(&upstream, &request, &prepared, &forward_headers, &audit).await?;
@@ -188,6 +189,7 @@ impl GatewayService {
             FinalizeCtx {
                 audit: Arc::clone(&audit),
                 db: db.clone(),
+                repos: repos.clone(),
                 ai_request_id: ai_request_id.clone(),
                 policy,
                 inbound,
@@ -205,16 +207,13 @@ struct UpstreamRelay<'a> {
 }
 
 async fn open_audit(
-    db: &DbPool,
+    repos: &super::GatewayRepositories,
     ctx: &GatewayRequestContext,
     request: &CanonicalRequest,
     raw_body: &Bytes,
     identity_headers: &[(String, String)],
 ) -> Result<Arc<GatewayAudit>, DispatchError> {
-    let audit = Arc::new(
-        GatewayAudit::new(db, ctx.clone())
-            .map_err(|e| DispatchError::PreAudit(anyhow!("audit init failed: {e}")))?,
-    );
+    let audit = Arc::new(GatewayAudit::new(repos, ctx.clone()));
     if let Err(e) = audit.open(request, raw_body).await {
         tracing::error!(error = %e, "audit open failed — proceeding without audit row");
     }
@@ -379,11 +378,12 @@ fn strip_caller_identity(request: &mut CanonicalRequest) {
 
 async fn enforce_quota(
     db: &DbPool,
+    repos: &super::GatewayRepositories,
     user_id: &UserId,
     quota_windows: &[QuotaWindow],
     audit: &GatewayAudit,
 ) -> Result<(), DispatchError> {
-    let reservation = quota::precheck_and_reserve(db, user_id, quota_windows)
+    let reservation = quota::precheck_and_reserve(db, &repos.quota_buckets, user_id, quota_windows)
         .await
         .map_err(DispatchError::Recorded)?;
     let Some(decision) = reservation else {
@@ -596,13 +596,14 @@ async fn enforce_governance(
 }
 
 async fn enforce_request_safety(
-    db: &DbPool,
+    repos: &super::GatewayRepositories,
     ai_request_id: &AiRequestId,
     request: &CanonicalRequest,
     safety: &SafetyConfig,
     audit: &GatewayAudit,
 ) -> Result<(), DispatchError> {
-    let findings = run_request_safety_scan(db, ai_request_id, request, safety).await;
+    let findings =
+        run_request_safety_scan(&repos.safety_findings, ai_request_id, request, safety).await;
     let Some(finding) = findings.iter().find(|f| {
         safety.block_categories.contains(&f.category) && blocks_at_phase(f.phase, safety.history)
     }) else {

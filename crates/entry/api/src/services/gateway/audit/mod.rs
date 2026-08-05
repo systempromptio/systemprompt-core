@@ -26,7 +26,6 @@ use std::time::Instant;
 use anyhow::Result;
 use systemprompt_ai::models::RequestStatus;
 use systemprompt_ai::repository::{AiRequestPayloadRepository, AiRequestRepository};
-use systemprompt_database::DbPool;
 use systemprompt_identifiers::{
     AiRequestId, ContextId, GatewayConversationId, SessionId, TraceId, UserId,
 };
@@ -65,19 +64,14 @@ pub struct GatewayAudit {
 }
 
 impl GatewayAudit {
-    pub fn new(
-        db: &DbPool,
-        ctx: GatewayRequestContext,
-    ) -> Result<Self, systemprompt_ai::error::RepositoryError> {
-        let requests = Arc::new(AiRequestRepository::new(db)?);
-        let payloads = Arc::new(AiRequestPayloadRepository::new(db)?);
-        Ok(Self {
-            requests,
-            payloads,
+    pub fn new(repos: &super::GatewayRepositories, ctx: GatewayRequestContext) -> Self {
+        Self {
+            requests: Arc::clone(&repos.requests),
+            payloads: Arc::clone(&repos.payloads),
             ctx,
             served_model: Mutex::new(None),
             started_at: Instant::now(),
-        })
+        }
     }
 
     pub async fn set_served_model(&self, model: &str) {

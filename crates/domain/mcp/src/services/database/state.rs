@@ -30,12 +30,11 @@ pub fn get_binary_mtime_for_service(paths: &AppPaths, service_name: &str) -> Opt
 }
 
 pub async fn register_service(
-    db_pool: &systemprompt_database::DbPool,
+    repo: &ServiceRepository,
     paths: &AppPaths,
     config: &McpServerConfig,
     pid: u32,
 ) -> McpDomainResult<String> {
-    let repo = ServiceRepository::new(db_pool)?;
     let binary_mtime = get_binary_mtime_for_service(paths, &config.name);
 
     tracing::debug!(
@@ -69,18 +68,16 @@ pub async fn register_service(
 }
 
 pub async fn unregister_service(
-    db_pool: &systemprompt_database::DbPool,
+    repo: &ServiceRepository,
     service_name: &str,
 ) -> McpDomainResult<()> {
-    let repo = ServiceRepository::new(db_pool)?;
     repo.delete_service(service_name).await.map_err(Into::into)
 }
 
 pub async fn get_service_by_name(
-    db_pool: &systemprompt_database::DbPool,
+    repo: &ServiceRepository,
     name: &str,
 ) -> McpDomainResult<Option<ServiceInfo>> {
-    let repo = ServiceRepository::new(db_pool)?;
     let result = repo.find_service_by_name(name).await?;
 
     Ok(result.map(|r| ServiceInfo {
@@ -93,10 +90,9 @@ pub async fn get_service_by_name(
 }
 
 pub async fn get_running_servers(
-    db_pool: &systemprompt_database::DbPool,
+    repo: &ServiceRepository,
     registry: &crate::services::registry::RegistryService,
 ) -> McpDomainResult<Vec<McpServerConfig>> {
-    let repo = ServiceRepository::new(db_pool)?;
     let all_services = repo.list_mcp_services().await?;
 
     registry.validate()?;
@@ -114,13 +110,11 @@ pub async fn get_running_servers(
 }
 
 pub async fn register_existing_process(
-    db_pool: &systemprompt_database::DbPool,
+    repo: &ServiceRepository,
     paths: &AppPaths,
     config: &McpServerConfig,
     pid: u32,
 ) -> McpDomainResult<String> {
-    let repo = ServiceRepository::new(db_pool)?;
-
     let binary_mtime = get_binary_mtime_for_service(paths, &config.name);
 
     repo.create_service(CreateServiceInput {

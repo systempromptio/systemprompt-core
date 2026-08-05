@@ -12,10 +12,10 @@ pub use messages::{SaveMessagesForToolExecutionParams, save_messages_for_tool_ex
 
 use crate::models::a2a::{Task, TaskState, TaskStatus};
 use crate::models::context::ContextKind;
+use crate::repository::A2ARepositories;
 use crate::repository::context::ContextRepository;
 use crate::repository::task::TaskRepository;
 use rmcp::ErrorData as McpError;
-use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ContextId, TaskId};
 use systemprompt_models::TaskMetadata;
 use systemprompt_models::execution::context::RequestContext;
@@ -27,7 +27,7 @@ pub struct TaskResult {
 }
 
 pub async fn ensure_task_exists(
-    db_pool: &DbPool,
+    repos: &A2ARepositories,
     request_context: &mut RequestContext,
     tool_name: &str,
     mcp_server_name: &str,
@@ -40,14 +40,10 @@ pub async fn ensure_task_exists(
         });
     }
 
-    let context_repo = ContextRepository::new(db_pool).map_err(|e| {
-        McpError::internal_error(format!("Failed to create context repository: {e}"), None)
-    })?;
-
-    let context_id = resolve_context_id(&context_repo, request_context).await?;
+    let context_id = resolve_context_id(&repos.contexts, request_context).await?;
 
     create_mcp_task(CreateMcpTaskParams {
-        db_pool,
+        task_repo: &repos.tasks,
         request_context,
         context_id: &context_id,
         tool_name,
@@ -149,7 +145,7 @@ async fn validate_or_replace_context(
 }
 
 struct CreateMcpTaskParams<'a> {
-    db_pool: &'a DbPool,
+    task_repo: &'a TaskRepository,
     request_context: &'a mut RequestContext,
     context_id: &'a ContextId,
     tool_name: &'a str,
@@ -158,16 +154,12 @@ struct CreateMcpTaskParams<'a> {
 
 async fn create_mcp_task(params: CreateMcpTaskParams<'_>) -> Result<TaskResult, McpError> {
     let CreateMcpTaskParams {
-        db_pool,
+        task_repo,
         request_context,
         context_id,
         tool_name,
         mcp_server_name,
     } = params;
-
-    let task_repo = TaskRepository::new(db_pool).map_err(|e| {
-        McpError::internal_error(format!("Failed to create task repository: {e}"), None)
-    })?;
 
     let task_id = TaskId::generate();
 

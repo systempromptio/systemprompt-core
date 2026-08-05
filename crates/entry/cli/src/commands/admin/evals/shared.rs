@@ -1,3 +1,5 @@
+//! Shared lookup and rendering helpers for the admin evals commands.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

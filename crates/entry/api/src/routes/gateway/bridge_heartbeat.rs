@@ -14,7 +14,7 @@ use axum::http::{HeaderMap, StatusCode};
 use chrono::{DateTime, Utc};
 use serde::Deserialize;
 use systemprompt_identifiers::{JwtToken, SessionId};
-use systemprompt_oauth::repository::{BridgeSessionRepository, UpsertBridgeSession};
+use systemprompt_oauth::repository::UpsertBridgeSession;
 use systemprompt_runtime::AppContext;
 
 use super::messages::extract_credential;
@@ -53,12 +53,7 @@ pub async fn handle(
         .await
         .map_err(|e| (StatusCode::UNAUTHORIZED, e.to_string()))?;
 
-    let repo = BridgeSessionRepository::new(ctx.db_pool()).map_err(|e| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            format!("bridge session repo unavailable: {e}"),
-        )
-    })?;
+    let repo = &ctx.oauth_repositories().bridge_sessions;
 
     repo.upsert(UpsertBridgeSession {
         session_id: payload.session_id,

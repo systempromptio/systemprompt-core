@@ -17,6 +17,7 @@ use systemprompt_traits::RepositoryError;
 use crate::models::a2a::protocol::PushNotificationConfig;
 use crate::models::database_rows::PushNotificationConfigRow;
 
+#[derive(Clone)]
 pub struct PushNotificationConfigRepository {
     pool: Arc<PgPool>,
     write_pool: Arc<PgPool>,

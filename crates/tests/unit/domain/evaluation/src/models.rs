@@ -8,7 +8,11 @@ use systemprompt_identifiers::AiRequestId;
 
 #[test]
 fn run_kind_round_trips() {
-    for kind in [EvalRunKind::Judge, EvalRunKind::Replay, EvalRunKind::Pairwise] {
+    for kind in [
+        EvalRunKind::Judge,
+        EvalRunKind::Replay,
+        EvalRunKind::Pairwise,
+    ] {
         assert_eq!(EvalRunKind::from_str(kind.as_str()).expect("kind"), kind);
     }
     assert!(EvalRunKind::from_str("nope").is_err());
@@ -22,7 +26,10 @@ fn verdict_round_trips() {
         Verdict::Fail,
         Verdict::Skipped,
     ] {
-        assert_eq!(Verdict::from_str(verdict.as_str()).expect("verdict"), verdict);
+        assert_eq!(
+            Verdict::from_str(verdict.as_str()).expect("verdict"),
+            verdict
+        );
     }
     assert!(Verdict::from_str("nope").is_err());
 }

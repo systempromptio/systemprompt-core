@@ -29,6 +29,8 @@ fn create_oauth_state(ctx: &AppContext) -> Option<OAuthState> {
     let mcp_registry: Arc<dyn systemprompt_traits::McpRegistryProvider> =
         Arc::new(ctx.mcp_registry().clone());
     let state = OAuthState::new(Arc::clone(ctx.db_pool()), analytics, users)
+        .inspect_err(|e| tracing::error!(error = %e, "Failed to build OAuth state"))
+        .ok()?
         .with_mcp_registry(mcp_registry);
     Some(state)
 }

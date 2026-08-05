@@ -3,7 +3,7 @@ use chrono::Utc;
 use std::sync::Arc;
 use systemprompt_agent::repository::A2ARepositories;
 use systemprompt_agent::repository::execution::ExecutionStepRepository;
-use systemprompt_agent::repository::task::RepoCreateTaskParams;
+use systemprompt_agent::repository::task::{RepoCreateTaskParams, TaskRepository};
 use systemprompt_agent::services::context::ContextService;
 use systemprompt_agent::services::context_provider::ContextProviderService;
 use systemprompt_agent::services::execution_tracking::ExecutionTrackingService;
@@ -77,7 +77,7 @@ impl ServicesFixture {
     }
 
     async fn insert_task(&self) -> Result<TaskId> {
-        let repos = A2ARepositories::new(&self.db)?;
+        let repos = A2ARepositories::new(&self.db, crate::common::session_usage(&self.db)?)?;
         let task_id = TaskId::new(format!("svc_task_{}_{}", self.tag, Uuid::new_v4().simple()));
         let task = Task {
             id: task_id.clone(),
@@ -174,7 +174,10 @@ async fn execution_tracking_service_full_lifecycle() -> Result<()> {
 #[tokio::test]
 async fn context_service_load_history_for_empty_context_returns_empty() -> Result<()> {
     let fx = ServicesFixture::new().await?;
-    let svc = ContextService::new(&fx.db)?;
+    let svc = ContextService::new(TaskRepository::new(
+        &fx.db,
+        crate::common::session_usage(&fx.db)?,
+    )?);
     let history = svc.load_conversation_history(&fx.context_id).await?;
     assert!(history.is_empty());
     fx.cleanup().await?;
@@ -198,7 +201,10 @@ async fn message_service_persists_messages_for_task() -> Result<()> {
     use systemprompt_identifiers::MessageId;
 
     let fx = ServicesFixture::new().await?;
-    let svc = MessageService::new(&fx.db)?;
+    let svc = MessageService::new(TaskRepository::new(
+        &fx.db,
+        crate::common::session_usage(&fx.db)?,
+    )?);
 
     let task_id = fx.insert_task().await?;
     let messages = vec![
@@ -249,7 +255,10 @@ async fn message_service_persist_empty_list_returns_empty() -> Result<()> {
     use systemprompt_agent::services::message::{MessageService, PersistMessagesParams};
 
     let fx = ServicesFixture::new().await?;
-    let svc = MessageService::new(&fx.db)?;
+    let svc = MessageService::new(TaskRepository::new(
+        &fx.db,
+        crate::common::session_usage(&fx.db)?,
+    )?);
     let task_id = fx.insert_task().await?;
 
     let seqs = svc
@@ -274,7 +283,10 @@ async fn message_service_creates_tool_execution_message() -> Result<()> {
     use systemprompt_models::RequestContext;
 
     let fx = ServicesFixture::new().await?;
-    let svc = MessageService::new(&fx.db)?;
+    let svc = MessageService::new(TaskRepository::new(
+        &fx.db,
+        crate::common::session_usage(&fx.db)?,
+    )?);
     let task_id = fx.insert_task().await?;
 
     use systemprompt_identifiers::AgentName;
@@ -310,8 +322,14 @@ async fn context_service_loads_history_with_messages() -> Result<()> {
 
     let fx = ServicesFixture::new().await?;
     let task_id = fx.insert_task().await?;
-    let msg_svc = MessageService::new(&fx.db)?;
-    let context_svc = ContextService::new(&fx.db)?;
+    let msg_svc = MessageService::new(TaskRepository::new(
+        &fx.db,
+        crate::common::session_usage(&fx.db)?,
+    )?);
+    let context_svc = ContextService::new(TaskRepository::new(
+        &fx.db,
+        crate::common::session_usage(&fx.db)?,
+    )?);
 
     msg_svc
         .persist_messages(PersistMessagesParams {

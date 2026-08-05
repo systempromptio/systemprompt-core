@@ -18,7 +18,6 @@ use std::sync::Arc;
 use systemprompt_identifiers::{JwtToken, headers};
 use systemprompt_models::Config;
 use systemprompt_models::auth::BEARER_PREFIX;
-use systemprompt_oauth::OAuthRepository;
 use systemprompt_oauth::services::{
     BridgeAuthResult, BridgeOAuthClient, exchange_bridge_session_code, hash_exchange_code,
     issue_bridge_access, provision_bridge_oauth_client,
@@ -95,7 +94,7 @@ pub async fn pat(ctx: AppContext, request: Request) -> Result<Json<AuthResponse>
     let analytics = require_analytics(&ctx)?;
     let caller_ip = client_ip_from_request(&request);
     let result = issue_bridge_access(
-        ctx.db_pool(),
+        &ctx.oauth_repositories().oauth,
         analytics.as_ref(),
         request.headers(),
         caller_ip,
@@ -118,7 +117,7 @@ pub async fn session(
 
     let analytics = require_analytics(&ctx)?;
     let result = exchange_bridge_session_code(
-        ctx.db_pool(),
+        &ctx.oauth_repositories().oauth,
         analytics.as_ref(),
         &headers,
         caller_ip,
@@ -159,7 +158,7 @@ async fn mint_device_pat(
     code: &str,
     device_name: &str,
 ) -> Result<String, ApiHttpError> {
-    let repo = OAuthRepository::new(ctx.db_pool())?;
+    let repo = &ctx.oauth_repositories().oauth;
     let user_id = repo
         .consume_bridge_exchange_code(&hash_exchange_code(code))
         .await?
@@ -193,8 +192,12 @@ pub async fn provision_oauth_client(
 
     let token_endpoint = build_token_endpoint(request.headers())?;
 
-    let result =
-        provision_bridge_oauth_client(ctx.db_pool(), &claims.user_id, token_endpoint).await?;
+    let result = provision_bridge_oauth_client(
+        &ctx.oauth_repositories().oauth,
+        &claims.user_id,
+        token_endpoint,
+    )
+    .await?;
 
     Ok(Json(result))
 }
@@ -236,7 +239,7 @@ pub async fn mtls(
 
     let analytics = require_analytics(&ctx)?;
     let result = issue_bridge_access(
-        ctx.db_pool(),
+        &ctx.oauth_repositories().oauth,
         analytics.as_ref(),
         &headers,
         caller_ip,

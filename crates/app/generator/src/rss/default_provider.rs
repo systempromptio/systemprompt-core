@@ -21,7 +21,7 @@ use crate::templates::load_web_config;
 const DEFAULT_MAX_ITEMS: i64 = 20;
 
 pub struct DefaultRssFeedProvider {
-    db_pool: DbPool,
+    content_repo: ContentRepository,
     content_config: ContentConfigRaw,
     web_config: WebConfig,
 }
@@ -43,7 +43,8 @@ impl DefaultRssFeedProvider {
         let web_config = load_web_config(paths).await?;
 
         Ok(Self {
-            db_pool,
+            content_repo: ContentRepository::new(&db_pool)
+                .map_err(|e| PublishError::content("Failed to create content repository", e))?,
             content_config,
             web_config,
         })
@@ -144,9 +145,7 @@ impl RssFeedProvider for DefaultRssFeedProvider {
             .as_ref()
             .map_or("/{slug}", |s| s.url_pattern.as_str());
 
-        let repo = ContentRepository::new(&self.db_pool).map_err(|e| {
-            ProviderError::Configuration(format!("Failed to create content repository: {e}"))
-        })?;
+        let repo = &self.content_repo;
 
         let source_id = SourceId::new(ctx.source_name);
         let content_items = repo

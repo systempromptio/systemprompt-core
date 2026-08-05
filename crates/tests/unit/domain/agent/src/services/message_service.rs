@@ -2,6 +2,7 @@
 // synthetic tool-execution messages, and sequence-number allocation.
 
 use systemprompt_agent::models::a2a::{Message, MessageRole, Part, TextPart};
+use systemprompt_agent::repository::task::TaskRepository;
 use systemprompt_agent::services::message::{
     CreateToolExecutionMessageParams, MessageService, PersistMessagesParams,
 };
@@ -43,7 +44,9 @@ async fn persist_messages_empty_returns_empty() {
     let Some(pool) = try_pool().await else {
         return;
     };
-    let svc = MessageService::new(&pool).expect("service");
+    let svc = MessageService::new(
+        TaskRepository::new(&pool, crate::session_usage(&pool)).expect("task repo"),
+    );
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let r = repos(&pool);
     let (ctx, tid) = seed_context_and_task(&r, &user_id, &session_id).await;
@@ -70,7 +73,9 @@ async fn persist_messages_assigns_increasing_sequence_numbers() {
     let Some(pool) = try_pool().await else {
         return;
     };
-    let svc = MessageService::new(&pool).expect("service");
+    let svc = MessageService::new(
+        TaskRepository::new(&pool, crate::session_usage(&pool)).expect("task repo"),
+    );
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let r = repos(&pool);
     let (ctx, tid) = seed_context_and_task(&r, &user_id, &session_id).await;
@@ -105,7 +110,9 @@ async fn create_tool_execution_message_persists_synthetic_user_message() {
     let Some(pool) = try_pool().await else {
         return;
     };
-    let svc = MessageService::new(&pool).expect("service");
+    let svc = MessageService::new(
+        TaskRepository::new(&pool, crate::session_usage(&pool)).expect("task repo"),
+    );
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let r = repos(&pool);
     let (ctx, tid) = seed_context_and_task(&r, &user_id, &session_id).await;
@@ -143,7 +150,9 @@ async fn persist_messages_then_next_sequence_continues() {
     let Some(pool) = try_pool().await else {
         return;
     };
-    let svc = MessageService::new(&pool).expect("service");
+    let svc = MessageService::new(
+        TaskRepository::new(&pool, crate::session_usage(&pool)).expect("task repo"),
+    );
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let r = repos(&pool);
     let (ctx, tid) = seed_context_and_task(&r, &user_id, &session_id).await;

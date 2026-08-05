@@ -11,9 +11,8 @@
 use std::collections::HashMap;
 
 use systemprompt_identifiers::{SessionId, TraceId, UserId};
-use systemprompt_logging::{LogActor, LogEntry, LogLevel, LoggingRepository};
+use systemprompt_logging::{LogActor, LogEntry, LogLevel};
 use systemprompt_models::auth::UserStatus;
-use systemprompt_users::UserRepository;
 use tracing::{debug, warn};
 
 use super::SchedulerService;
@@ -41,7 +40,7 @@ impl ResolvedOwners {
 
 impl SchedulerService {
     pub(super) async fn resolve_owners(&self, emit_logs: bool) -> SchedulerResult<ResolvedOwners> {
-        let users = UserRepository::new(&self.db_pool)?;
+        let users = &self.user_repository;
         let system_admin_id = self.app_context.system_admin().id();
         let mut map = HashMap::with_capacity(self.config.jobs.len());
         let mut skipped = Vec::new();
@@ -73,13 +72,7 @@ impl SchedulerService {
     }
 
     async fn persist_skipped_owner_errors(&self, skipped: &[SkippedJob]) {
-        let repository = match LoggingRepository::new(&self.db_pool) {
-            Ok(repository) => repository.with_database(true),
-            Err(error) => {
-                warn!(error = %error, "could not open logging repository to record skipped scheduler jobs");
-                return;
-            },
-        };
+        let repository = &self.logging_repository;
         let system_admin_id = self.app_context.system_admin().id().clone();
         for job in skipped {
             let actor = LogActor::new(

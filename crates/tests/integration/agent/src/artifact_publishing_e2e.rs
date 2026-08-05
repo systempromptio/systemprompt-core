@@ -1,5 +1,6 @@
 use anyhow::Result;
 use systemprompt_agent::models::a2a::{Artifact, Part, TextPart};
+use systemprompt_agent::repository::task::TaskRepository;
 use systemprompt_agent::services::artifact_publishing::{
     ArtifactPublishingService, PublishFromMcpParams,
 };
@@ -32,7 +33,10 @@ async fn artifact_publishing_publish_from_a2a_succeeds() -> Result<()> {
     ensure_test_bootstrap();
     let fx = Fixture::new().await?;
     let task_id = fx.insert_task(TaskState::Working).await?;
-    let svc = ArtifactPublishingService::new(&fx.db)?;
+    let svc = ArtifactPublishingService::new(
+        &fx.db,
+        TaskRepository::new(&fx.db, crate::common::session_usage(&fx.db)?)?,
+    )?;
 
     let artifact = make_artifact(&fx.context_id, &task_id);
     svc.publish_from_a2a(&artifact, &task_id, &fx.context_id)
@@ -47,7 +51,10 @@ async fn artifact_publishing_publish_from_mcp_agentic_skips_messages() -> Result
     ensure_test_bootstrap();
     let fx = Fixture::new().await?;
     let task_id = fx.insert_task(TaskState::Working).await?;
-    let svc = ArtifactPublishingService::new(&fx.db)?;
+    let svc = ArtifactPublishingService::new(
+        &fx.db,
+        TaskRepository::new(&fx.db, crate::common::session_usage(&fx.db)?)?,
+    )?;
 
     let artifact = make_artifact(&fx.context_id, &task_id);
     let mut ctx = RequestContext::new(
@@ -79,7 +86,10 @@ async fn artifact_publishing_publish_from_mcp_direct_creates_messages() -> Resul
     ensure_test_bootstrap();
     let fx = Fixture::new().await?;
     let task_id = fx.insert_task(TaskState::Working).await?;
-    let svc = ArtifactPublishingService::new(&fx.db)?;
+    let svc = ArtifactPublishingService::new(
+        &fx.db,
+        TaskRepository::new(&fx.db, crate::common::session_usage(&fx.db)?)?,
+    )?;
 
     let artifact = make_artifact(&fx.context_id, &task_id);
     let mut ctx = RequestContext::new(
@@ -110,7 +120,10 @@ async fn artifact_publishing_publish_from_mcp_direct_creates_messages() -> Resul
 async fn artifact_publishing_debug_impl() -> Result<()> {
     ensure_test_bootstrap();
     let fx = Fixture::new().await?;
-    let svc = ArtifactPublishingService::new(&fx.db)?;
+    let svc = ArtifactPublishingService::new(
+        &fx.db,
+        TaskRepository::new(&fx.db, crate::common::session_usage(&fx.db)?)?,
+    )?;
     let dbg = format!("{:?}", svc);
     assert!(dbg.contains("ArtifactPublishingService"));
     fx.cleanup().await?;

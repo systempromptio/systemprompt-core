@@ -15,7 +15,7 @@ use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct CostAnalyticsRepository {
     pool: Arc<PgPool>,
 }

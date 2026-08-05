@@ -150,6 +150,22 @@ impl AppContextBuilder {
 
         let user_service = Arc::new(UserService::new(&database)?);
 
+        let session_usage: systemprompt_traits::DynSessionUsageCounters =
+            Arc::new(analytics_service.session_repo().clone());
+        let a2a_repositories = Arc::new(systemprompt_agent::repository::A2ARepositories::new(
+            &database,
+            session_usage,
+        )?);
+        let content_repositories = Arc::new(
+            systemprompt_content::repository::ContentRepositories::new(&database)?,
+        );
+        let oauth_repositories = Arc::new(systemprompt_oauth::repository::OauthRepositories::new(
+            &database,
+        )?);
+        let user_repository = Arc::new(systemprompt_users::UserRepository::new(&database)?);
+        let service_repository =
+            Arc::new(systemprompt_database::ServiceRepository::new(&database)?);
+
         let system_admin =
             assembly::resolve_and_install_system_admin(&config, &user_service).await?;
         let mcp_registry = RegistryService::new(system_admin.id().clone());
@@ -166,6 +182,11 @@ impl AppContextBuilder {
                 analytics_service,
                 fingerprint_repo,
                 user_service: Some(user_service),
+                a2a_repositories,
+                content_repositories,
+                oauth_repositories,
+                user_repository,
+                service_repository,
             },
             ConfigPlane {
                 config,

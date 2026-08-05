@@ -14,7 +14,7 @@ use std::sync::Arc;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::CategoryId;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct SearchRepository {
     pool: Arc<PgPool>,
 }

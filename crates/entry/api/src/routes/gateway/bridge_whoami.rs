@@ -16,7 +16,6 @@ use axum::http::{HeaderMap, StatusCode};
 use serde::Serialize;
 use systemprompt_identifiers::{JwtToken, UserId};
 use systemprompt_runtime::AppContext;
-use systemprompt_users::UserRepository;
 
 use super::messages::extract_credential;
 use crate::services::middleware::JwtContextExtractor;
@@ -46,8 +45,7 @@ pub async fn handle(
         .await
         .map_err(|e| (StatusCode::UNAUTHORIZED, e.to_string()))?;
 
-    let repo = UserRepository::new(ctx.db_pool())
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    let repo = ctx.user_repository();
 
     let user = repo
         .find_by_id(&claims.user_id)

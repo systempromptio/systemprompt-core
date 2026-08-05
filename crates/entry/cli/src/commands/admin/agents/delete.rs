@@ -186,6 +186,7 @@ async fn build_orchestrator(ctx: &CommandContext) -> Result<Option<AgentOrchestr
         Arc::clone(app.db_pool()),
         Arc::new(app.config().clone()),
         jwt_provider,
+        Arc::clone(app.a2a_repositories()),
     ));
 
     Ok(

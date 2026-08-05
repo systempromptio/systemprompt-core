@@ -11,7 +11,7 @@ use uuid::Uuid;
 use crate::models::a2a::{Message, MessageRole, Part, TextPart};
 use crate::repository::context::message::PersistMessageWithTxParams;
 use crate::repository::task::TaskRepository;
-use systemprompt_database::{DatabaseProvider, DatabaseTransaction, DbPool};
+use systemprompt_database::{DatabaseProvider, DatabaseTransaction};
 use systemprompt_identifiers::{ContextId, MessageId, TaskId};
 use systemprompt_models::RequestContext;
 
@@ -68,10 +68,9 @@ impl std::fmt::Debug for MessageService {
 }
 
 impl MessageService {
-    pub fn new(db_pool: &DbPool) -> Result<Self> {
-        Ok(Self {
-            task_repo: TaskRepository::new(db_pool)?,
-        })
+    #[must_use]
+    pub const fn new(task_repo: TaskRepository) -> Self {
+        Self { task_repo }
     }
 
     pub async fn persist_message_in_tx(&self, params: PersistMessageInTxParams<'_>) -> Result<i32> {

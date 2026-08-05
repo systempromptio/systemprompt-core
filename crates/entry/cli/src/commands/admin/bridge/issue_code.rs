@@ -23,7 +23,7 @@ pub(super) async fn execute(args: IssueCodeArgs, ctx: &CommandContext) -> Result
 
     let user_id = super::resolve_user_id(app.db_pool(), &args.user_id).await?;
 
-    let issued = issue_bridge_exchange_code(app.db_pool(), &user_id).await?;
+    let issued = issue_bridge_exchange_code(&app.oauth_repositories().oauth, &user_id).await?;
 
     let output = ExchangeCodeIssuedOutput {
         user_id: user_id.clone(),

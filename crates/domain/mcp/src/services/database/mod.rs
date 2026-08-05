@@ -18,22 +18,22 @@ use systemprompt_models::AppPaths;
 
 #[derive(Debug, Clone)]
 pub struct DatabaseService {
-    db_pool: systemprompt_database::DbPool,
+    service_repo: ServiceRepository,
     app_paths: Arc<AppPaths>,
     registry: RegistryService,
 }
 
 impl DatabaseService {
-    pub const fn new(
-        db_pool: systemprompt_database::DbPool,
+    pub fn new(
+        db_pool: &systemprompt_database::DbPool,
         app_paths: Arc<AppPaths>,
         registry: RegistryService,
-    ) -> Self {
-        Self {
-            db_pool,
+    ) -> McpDomainResult<Self> {
+        Ok(Self {
+            service_repo: ServiceRepository::new(db_pool)?,
             app_paths,
             registry,
-        }
+        })
     }
 
     pub fn app_paths(&self) -> &AppPaths {
@@ -45,50 +45,52 @@ impl DatabaseService {
         config: &McpServerConfig,
         pid: u32,
     ) -> McpDomainResult<String> {
-        state::register_service(&self.db_pool, &self.app_paths, config, pid).await
+        state::register_service(&self.service_repo, &self.app_paths, config, pid).await
     }
 
     pub async fn unregister_service(&self, service_name: &str) -> McpDomainResult<()> {
-        state::unregister_service(&self.db_pool, service_name).await
+        state::unregister_service(&self.service_repo, service_name).await
     }
 
     pub async fn get_service_by_name(&self, name: &str) -> McpDomainResult<Option<ServiceInfo>> {
-        state::get_service_by_name(&self.db_pool, name).await
+        state::get_service_by_name(&self.service_repo, name).await
     }
 
     pub async fn get_running_servers(&self) -> McpDomainResult<Vec<McpServerConfig>> {
-        state::get_running_servers(&self.db_pool, &self.registry).await
+        state::get_running_servers(&self.service_repo, &self.registry).await
     }
 
     pub async fn update_service_status(&self, name: &str, status: &str) -> McpDomainResult<()> {
-        let repo = ServiceRepository::new(&self.db_pool)?;
-        repo.update_service_status(name, status)
+        self.service_repo
+            .update_service_status(name, status)
             .await
             .map_err(Into::into)
     }
 
     pub async fn clear_service_pid(&self, name: &str) -> McpDomainResult<()> {
-        let repo = ServiceRepository::new(&self.db_pool)?;
-        repo.clear_service_pid(name).await.map_err(Into::into)
+        self.service_repo
+            .clear_service_pid(name)
+            .await
+            .map_err(Into::into)
     }
 
     pub async fn cleanup_stale_services(&self) -> McpDomainResult<()> {
-        sync::cleanup_stale_services(&self.db_pool).await
+        sync::cleanup_stale_services(&self.service_repo).await
     }
 
     pub async fn delete_crashed_services(&self) -> McpDomainResult<()> {
-        sync::delete_crashed_services(&self.db_pool).await
+        sync::delete_crashed_services(&self.service_repo).await
     }
 
     pub async fn sync_state(&self, servers: &[McpServerConfig]) -> McpDomainResult<()> {
-        sync::sync_database_state(&self.db_pool, servers).await
+        sync::sync_database_state(&self.service_repo, servers).await
     }
 
     pub async fn delete_disabled_services(
         &self,
         enabled_servers: &[McpServerConfig],
     ) -> McpDomainResult<usize> {
-        sync::delete_disabled_services(&self.db_pool, enabled_servers).await
+        sync::delete_disabled_services(&self.service_repo, enabled_servers).await
     }
 
     pub async fn register_existing_process(
@@ -96,11 +98,7 @@ impl DatabaseService {
         config: &McpServerConfig,
         pid: u32,
     ) -> McpDomainResult<String> {
-        state::register_existing_process(&self.db_pool, &self.app_paths, config, pid).await
-    }
-
-    pub const fn db_pool(&self) -> &systemprompt_database::DbPool {
-        &self.db_pool
+        state::register_existing_process(&self.service_repo, &self.app_paths, config, pid).await
     }
 }
 

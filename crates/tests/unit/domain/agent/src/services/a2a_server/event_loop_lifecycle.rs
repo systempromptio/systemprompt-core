@@ -83,7 +83,7 @@ async fn emit_run_started_moves_task_to_working_and_emits_status_frame() {
     let r = repos(&pool);
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let (context_id, task_id) = seed_context_and_task(&r, &user_id, &session_id).await;
-    let task_repo = TaskRepository::new(&pool).expect("task repo");
+    let task_repo = TaskRepository::new(&pool, crate::session_usage(&pool)).expect("task repo");
     let webhook_context = WebhookContext::new(user_id.clone(), "tok");
     let (tx, mut rx) = mpsc::channel::<Event>(8);
     let request_id = RequestId::Number(7);
@@ -129,7 +129,7 @@ async fn emit_run_started_still_updates_task_when_sse_channel_closed() {
     let r = repos(&pool);
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let (context_id, task_id) = seed_context_and_task(&r, &user_id, &session_id).await;
-    let task_repo = TaskRepository::new(&pool).expect("task repo");
+    let task_repo = TaskRepository::new(&pool, crate::session_usage(&pool)).expect("task repo");
     let webhook_context = WebhookContext::new(user_id.clone(), "tok");
     let (tx, rx) = mpsc::channel::<Event>(1);
     drop(rx);
@@ -164,7 +164,7 @@ async fn stream_creation_error_marks_task_failed_and_broadcasts_run_error() {
     let r = repos(&pool);
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let (context_id, task_id) = seed_context_and_task(&r, &user_id, &session_id).await;
-    let task_repo = TaskRepository::new(&pool).expect("task repo");
+    let task_repo = TaskRepository::new(&pool, crate::session_usage(&pool)).expect("task repo");
     let webhook_context = WebhookContext::new(user_id.clone(), "tok");
 
     handle_stream_creation_error(

@@ -5,7 +5,6 @@
 
 use crate::models::a2a::{Artifact, Message, MessageRole, Part, Task, TaskStatus};
 use crate::models::{MessagePart, TaskMessage, TaskRow};
-use crate::repository::execution::ExecutionStepRepository;
 use systemprompt_identifiers::{
     AgentName, ContextId, MessageId, SessionId, TaskId, TraceId, UserId,
 };
@@ -195,9 +194,8 @@ async fn load_execution_steps(
     constructor: &TaskConstructor,
     task_id: &TaskId,
 ) -> Result<Option<Vec<ExecutionStep>>, RepositoryError> {
-    let step_repo = ExecutionStepRepository::new(constructor.db_pool())?;
-
-    let steps = step_repo
+    let steps = constructor
+        .execution_step_repo()
         .list_by_task(task_id)
         .await
         .map_err(|e| RepositoryError::Internal(e.to_string()))?;

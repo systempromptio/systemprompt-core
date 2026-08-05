@@ -26,14 +26,20 @@ pub struct PersistCompletedTaskServiceParams<'a> {
     pub artifacts_already_published: bool,
 }
 
-#[derive(Debug)]
 pub struct PersistenceService {
     db_pool: DbPool,
+    task_repo: TaskRepository,
+}
+
+impl std::fmt::Debug for PersistenceService {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("PersistenceService").finish_non_exhaustive()
+    }
 }
 
 impl PersistenceService {
-    pub const fn new(db_pool: DbPool) -> Self {
-        Self { db_pool }
+    pub const fn new(db_pool: DbPool, task_repo: TaskRepository) -> Self {
+        Self { db_pool, task_repo }
     }
 
     pub async fn create_task(
@@ -42,9 +48,7 @@ impl PersistenceService {
         context: &RequestContext,
         agent_name: &str,
     ) -> Result<()> {
-        let task_repo = TaskRepository::new(&self.db_pool)?;
-
-        task_repo
+        self.task_repo
             .create_task(crate::repository::task::RepoCreateTaskParams {
                 task,
                 user_id: &UserId::new(context.user_id().as_str()),
@@ -68,8 +72,7 @@ impl PersistenceService {
         state: TaskState,
         timestamp: &chrono::DateTime<chrono::Utc>,
     ) -> Result<()> {
-        let task_repo = TaskRepository::new(&self.db_pool)?;
-        task_repo
+        self.task_repo
             .update_task_state(task_id, state, timestamp)
             .await
             .map_err(|e| AgentServiceError::Internal(format!("Failed to update task state: {e}")))
@@ -86,9 +89,8 @@ impl PersistenceService {
             context,
             artifacts_already_published,
         } = params;
-        let task_repo = TaskRepository::new(&self.db_pool)?;
-
-        let updated_task = task_repo
+        let updated_task = self
+            .task_repo
             .update_task_and_save_messages(UpdateTaskAndSaveMessagesParams {
                 task,
                 user_message,
@@ -107,7 +109,8 @@ impl PersistenceService {
 
         if !artifacts_already_published && let Some(artifacts) = &task.artifacts {
             let context_id = &task.context_id;
-            let publishing_service = ArtifactPublishingService::new(&self.db_pool)?;
+            let publishing_service =
+                ArtifactPublishingService::new(&self.db_pool, self.task_repo.clone())?;
             for artifact in artifacts {
                 publishing_service
                     .publish_from_a2a(artifact, &task.id, context_id)

@@ -11,15 +11,18 @@ use std::sync::{Arc, OnceLock};
 
 use tokio::task::JoinHandle;
 
+use systemprompt_agent::repository::A2ARepositories;
 use systemprompt_analytics::{AnalyticsService, FingerprintRepository, GeoIpReader};
-use systemprompt_database::DbPool;
+use systemprompt_content::repository::ContentRepositories;
+use systemprompt_database::{DbPool, ServiceRepository};
 use systemprompt_extension::ExtensionRegistry;
 use systemprompt_marketplace::MarketplaceFilter;
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_models::services::SystemAdmin;
 use systemprompt_models::{AppPaths, Config, ContentConfigRaw, ContentRouting, RouteClassifier};
+use systemprompt_oauth::repository::OauthRepositories;
 use systemprompt_security::authz::SharedAuthzHook;
-use systemprompt_users::UserService;
+use systemprompt_users::{UserRepository, UserService};
 
 mod context_loaders;
 
@@ -37,6 +40,11 @@ pub struct DataPlane {
     pub analytics_service: Arc<AnalyticsService>,
     pub fingerprint_repo: Option<Arc<FingerprintRepository>>,
     pub user_service: Option<Arc<UserService>>,
+    pub a2a_repositories: Arc<A2ARepositories>,
+    pub content_repositories: Arc<ContentRepositories>,
+    pub oauth_repositories: Arc<OauthRepositories>,
+    pub user_repository: Arc<UserRepository>,
+    pub service_repository: Arc<ServiceRepository>,
 }
 
 #[derive(Clone)]
@@ -230,6 +238,34 @@ impl AppContext {
 
     pub const fn analytics_service(&self) -> &Arc<AnalyticsService> {
         &self.data.analytics_service
+    }
+
+    /// Session usage counters backed by the analytics session repository, for
+    /// wiring repositories (e.g. the agent `TaskRepository`) that bump
+    /// per-session counters without depending on the analytics crate.
+    #[must_use]
+    pub fn session_usage(&self) -> systemprompt_traits::DynSessionUsageCounters {
+        Arc::new(self.data.analytics_service.session_repo().clone())
+    }
+
+    pub const fn a2a_repositories(&self) -> &Arc<A2ARepositories> {
+        &self.data.a2a_repositories
+    }
+
+    pub const fn content_repositories(&self) -> &Arc<ContentRepositories> {
+        &self.data.content_repositories
+    }
+
+    pub const fn oauth_repositories(&self) -> &Arc<OauthRepositories> {
+        &self.data.oauth_repositories
+    }
+
+    pub const fn user_repository(&self) -> &Arc<UserRepository> {
+        &self.data.user_repository
+    }
+
+    pub const fn service_repository(&self) -> &Arc<ServiceRepository> {
+        &self.data.service_repository
     }
 
     pub const fn route_classifier(&self) -> &Arc<RouteClassifier> {

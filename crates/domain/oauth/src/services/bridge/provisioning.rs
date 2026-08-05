@@ -4,7 +4,6 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use serde::Serialize;
-use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ClientId, UserId};
 
 use crate::error::OauthResult as Result;
@@ -29,11 +28,10 @@ pub struct BridgeOAuthClient {
 }
 
 pub async fn provision_bridge_oauth_client(
-    pool: &DbPool,
+    repo: &OAuthRepository,
     user_id: &UserId,
     token_endpoint: String,
 ) -> Result<BridgeOAuthClient> {
-    let repo = OAuthRepository::new(pool)?;
     let client_id = bridge_hook_client_id(user_id);
     let secret = generate_client_secret();
     let secret_hash = hash_client_secret(&secret)?;

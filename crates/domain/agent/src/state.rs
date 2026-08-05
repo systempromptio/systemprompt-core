@@ -8,11 +8,14 @@ use systemprompt_database::DbPool;
 use systemprompt_models::Config;
 use systemprompt_traits::DynJwtValidationProvider;
 
+use crate::repository::A2ARepositories;
+
 #[derive(Clone)]
 pub struct AgentState {
     db_pool: DbPool,
     config: Arc<Config>,
     jwt_provider: DynJwtValidationProvider,
+    repositories: Arc<A2ARepositories>,
 }
 
 impl AgentState {
@@ -21,11 +24,13 @@ impl AgentState {
         db_pool: DbPool,
         config: Arc<Config>,
         jwt_provider: DynJwtValidationProvider,
+        repositories: Arc<A2ARepositories>,
     ) -> Self {
         Self {
             db_pool,
             config,
             jwt_provider,
+            repositories,
         }
     }
 
@@ -43,6 +48,11 @@ impl AgentState {
     pub fn jwt_provider(&self) -> &DynJwtValidationProvider {
         &self.jwt_provider
     }
+
+    #[must_use]
+    pub fn repositories(&self) -> &A2ARepositories {
+        &self.repositories
+    }
 }
 
 impl std::fmt::Debug for AgentState {
@@ -51,6 +61,7 @@ impl std::fmt::Debug for AgentState {
             .field("db_pool", &"<DbPool>")
             .field("config", &"<Arc<Config>>")
             .field("jwt_provider", &"<DynJwtValidationProvider>")
+            .field("repositories", &"<A2ARepositories>")
             .finish()
     }
 }

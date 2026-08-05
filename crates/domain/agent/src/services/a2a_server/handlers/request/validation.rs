@@ -9,7 +9,7 @@ use systemprompt_identifiers::UserId;
 pub async fn validate_message_context(
     message: &crate::models::a2a::Message,
     user_id: Option<&UserId>,
-    db_pool: &systemprompt_database::DbPool,
+    context_repo: &crate::repository::ContextRepository,
 ) -> Result<(), String> {
     let context_id = &message.context_id;
 
@@ -25,8 +25,6 @@ pub async fn validate_message_context(
         );
     }
 
-    let context_repo = crate::repository::ContextRepository::new(db_pool)
-        .map_err(|e| format!("Failed to create context repository: {e}"))?;
     context_repo
         .validate_context_ownership(context_id, user_id)
         .await
