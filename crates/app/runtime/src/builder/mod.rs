@@ -199,7 +199,7 @@ impl AppContextBuilder {
 struct RepositoryBundles {
     a2a: Arc<systemprompt_agent::repository::A2ARepositories>,
     content: Arc<systemprompt_content::repository::ContentRepositories>,
-    oauth: Arc<systemprompt_oauth::repository::OauthRepositories>,
+    oauth: Arc<systemprompt_oauth::repository::OAuthRepositories>,
     users: Arc<systemprompt_users::UserRepository>,
     services: Arc<systemprompt_database::ServiceRepository>,
 }
@@ -218,7 +218,7 @@ fn build_repositories(
         content: Arc::new(systemprompt_content::repository::ContentRepositories::new(
             database,
         )?),
-        oauth: Arc::new(systemprompt_oauth::repository::OauthRepositories::new(
+        oauth: Arc::new(systemprompt_oauth::repository::OAuthRepositories::new(
             database,
         )?),
         users: Arc::new(systemprompt_users::UserRepository::new(database)?),

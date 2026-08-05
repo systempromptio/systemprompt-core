@@ -336,3 +336,26 @@ cargo build --release --workspace
 # Specific crate
 cargo build -p systemprompt-cli
 ```
+
+### Running & schema validation (via the local template)
+
+Core is a library/CLI workspace with **no runnable local profile** — there is
+nothing here to `start` or `migrate` against. Running and end-to-end
+validation happen in **`../systemprompt-template`**, which is always kept in
+sync with core:
+
+1. Point the template at the local core with `[patch.crates-io]` (never bump
+   its version pins just to validate — see the release flow for real bumps).
+2. Use the template's recipes: its `just build` compiles the CLI offline
+   against committed `.sqlx` queries, runs `infra db migrate`, and only then
+   does the online sqlx-validated build; `just start` migrates before serving.
+   A schema change in core can therefore never deadlock or drift the
+   template's DB.
+
+**Schema-change gotcha for core's own compile**: core's `.cargo/config.toml`
+(and `crates/tests/.cargo/config.toml`) pin live `DATABASE_URL`s, so the sqlx
+macros validate against long-lived dev databases at compile time. After
+adding a migration, those DBs are behind the code and `cargo check` fails
+until the migration is applied — run the template flow above (or apply the
+new `schema/migrations/*.sql` manually) before the next online build.
+`just check-offline` / `just build-offline` always work regardless.

@@ -66,7 +66,7 @@ async fn plane_debug_impls_flag_optional_members() {
                 .expect("content repositories"),
         ),
         oauth_repositories: Arc::new(
-            systemprompt_oauth::repository::OauthRepositories::new(&pool)
+            systemprompt_oauth::repository::OAuthRepositories::new(&pool)
                 .expect("oauth repositories"),
         ),
         user_repository: Arc::new(

@@ -33,13 +33,13 @@ use systemprompt_database::DbPool;
 /// Bundle of the OAuth-domain repositories, constructed once at a composition
 /// root and cloned by consumers.
 #[derive(Debug, Clone)]
-pub struct OauthRepositories {
+pub struct OAuthRepositories {
     pub oauth: OAuthRepository,
     pub bridge_host_prefs: BridgeHostPrefsRepository,
     pub bridge_sessions: BridgeSessionRepository,
 }
 
-impl OauthRepositories {
+impl OAuthRepositories {
     pub fn new(db: &DbPool) -> OauthResult<Self> {
         Ok(Self {
             oauth: OAuthRepository::new(db)?,

@@ -172,7 +172,7 @@ fn fixture_app_context_assembled(
             content_repositories: Arc::new(
                 systemprompt_content::repository::ContentRepositories::new(pool)?,
             ),
-            oauth_repositories: Arc::new(systemprompt_oauth::repository::OauthRepositories::new(
+            oauth_repositories: Arc::new(systemprompt_oauth::repository::OAuthRepositories::new(
                 pool,
             )?),
             user_repository: Arc::new(systemprompt_users::UserRepository::new(pool)?),

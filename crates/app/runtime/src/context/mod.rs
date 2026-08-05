@@ -20,7 +20,7 @@ use systemprompt_marketplace::MarketplaceFilter;
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_models::services::SystemAdmin;
 use systemprompt_models::{AppPaths, Config, ContentConfigRaw, ContentRouting, RouteClassifier};
-use systemprompt_oauth::repository::OauthRepositories;
+use systemprompt_oauth::repository::OAuthRepositories;
 use systemprompt_security::authz::SharedAuthzHook;
 use systemprompt_users::{UserRepository, UserService};
 
@@ -42,7 +42,7 @@ pub struct DataPlane {
     pub user_service: Option<Arc<UserService>>,
     pub a2a_repositories: Arc<A2ARepositories>,
     pub content_repositories: Arc<ContentRepositories>,
-    pub oauth_repositories: Arc<OauthRepositories>,
+    pub oauth_repositories: Arc<OAuthRepositories>,
     pub user_repository: Arc<UserRepository>,
     pub service_repository: Arc<ServiceRepository>,
 }
@@ -125,7 +125,7 @@ impl std::fmt::Debug for DataPlane {
             .field("user_service", &self.user_service.is_some())
             .field("a2a_repositories", &"A2ARepositories")
             .field("content_repositories", &"ContentRepositories")
-            .field("oauth_repositories", &"OauthRepositories")
+            .field("oauth_repositories", &"OAuthRepositories")
             .field("user_repository", &"UserRepository")
             .field("service_repository", &"ServiceRepository")
             .finish()
@@ -261,7 +261,7 @@ impl AppContext {
         &self.data.content_repositories
     }
 
-    pub const fn oauth_repositories(&self) -> &Arc<OauthRepositories> {
+    pub const fn oauth_repositories(&self) -> &Arc<OAuthRepositories> {
         &self.data.oauth_repositories
     }
 

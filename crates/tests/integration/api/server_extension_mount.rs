@@ -149,7 +149,7 @@ async fn app_with_extensions(injected: Vec<Arc<dyn Extension>>) -> anyhow::Resul
                     systemprompt_content::repository::ContentRepositories::new(&pool)?,
                 ),
                 oauth_repositories: Arc::new(
-                    systemprompt_oauth::repository::OauthRepositories::new(&pool)?,
+                    systemprompt_oauth::repository::OAuthRepositories::new(&pool)?,
                 ),
                 user_repository: Arc::new(systemprompt_users::UserRepository::new(&pool)?),
                 service_repository: Arc::new(systemprompt_database::ServiceRepository::new(&pool)?),
