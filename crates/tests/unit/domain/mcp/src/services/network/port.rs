@@ -66,7 +66,7 @@ fn test_find_available_port_high_range() {
 async fn test_prepare_port_unused() {
     use systemprompt_mcp::services::network::port::prepare_port;
 
-    let result = prepare_port(59989).await;
+    let result = prepare_port(59989, "systemprompt").await;
     result.expect("expected success");
 }
 
@@ -82,7 +82,7 @@ async fn test_wait_for_port_release_already_free() {
 async fn test_cleanup_port_processes_no_processes() {
     use systemprompt_mcp::services::network::port::cleanup_port_processes;
 
-    let result = cleanup_port_processes(59987).await;
+    let result = cleanup_port_processes(59987, "systemprompt").await;
     result.expect("expected success");
 }
 

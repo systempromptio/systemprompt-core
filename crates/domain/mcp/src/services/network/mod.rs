@@ -26,8 +26,8 @@ impl NetworkService {
         Self
     }
 
-    pub async fn prepare_port(&self, port: u16) -> McpDomainResult<()> {
-        port::prepare_port(port).await
+    pub async fn prepare_port(&self, port: u16, service_name: &str) -> McpDomainResult<()> {
+        port::prepare_port(port, service_name).await
     }
 
     pub fn is_port_responsive(port: u16) -> bool {
@@ -41,9 +41,10 @@ impl NetworkService {
     pub async fn wait_for_port_release_with_retry(
         &self,
         port: u16,
+        service_name: &str,
         max_attempts: u32,
     ) -> McpDomainResult<()> {
-        port::wait_for_port_release_with_retry(port, max_attempts).await
+        port::wait_for_port_release_with_retry(port, service_name, max_attempts).await
     }
 
     pub const fn cleanup_port_resources(port: u16) {

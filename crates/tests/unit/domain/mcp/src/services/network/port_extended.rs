@@ -75,6 +75,6 @@ async fn wait_for_port_release_bound_port_times_out() {
 
 #[tokio::test]
 async fn wait_for_port_release_with_retry_free_port_ok() {
-    let result = wait_for_port_release_with_retry(59778, 2).await;
+    let result = wait_for_port_release_with_retry(59778, "systemprompt", 2).await;
     result.expect("free port releases with retry");
 }

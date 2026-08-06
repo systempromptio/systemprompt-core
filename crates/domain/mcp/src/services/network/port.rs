@@ -25,16 +25,37 @@ pub const POST_KILL_DELAY_MS: u64 = 500;
 // loopback while still failing fast and loud.
 const PORT_PROBE_TIMEOUT: Duration = Duration::from_secs(1);
 
-pub async fn prepare_port(port: u16) -> McpDomainResult<()> {
-    tracing::debug!(port = port, "Preparing port");
+pub async fn prepare_port(port: u16, service_name: &str) -> McpDomainResult<()> {
+    tracing::debug!(port = port, service = %service_name, "Preparing port");
 
     if is_port_in_use(port) {
-        tracing::debug!(port = port, "Port is in use, cleaning up");
-        cleanup_port_processes(port).await?;
+        tracing::debug!(port = port, service = %service_name, "Port is in use, cleaning up");
+        cleanup_port_processes(port, service_name).await?;
     }
 
-    tracing::debug!(port = port, "Port is ready");
+    tracing::debug!(port = port, service = %service_name, "Port is ready");
     Ok(())
+}
+
+enum PortHolder {
+    Ours,
+    Caller,
+    Foreign,
+}
+
+fn classify_port_holder(pid: u32, service_name: &str) -> PortHolder {
+    if pid == std::process::id() {
+        return PortHolder::Caller;
+    }
+    if systemprompt_models::subprocess::live_pid_is_subprocess(
+        pid,
+        systemprompt_models::subprocess::MCP_SERVICE_ID_ENV,
+        service_name,
+    ) {
+        PortHolder::Ours
+    } else {
+        PortHolder::Foreign
+    }
 }
 
 /// Returns `true` only if a TCP handshake to `127.0.0.1:port` completes within
@@ -79,7 +100,7 @@ pub fn is_port_responsive(port: u16) -> bool {
 }
 
 #[cfg(unix)]
-pub async fn cleanup_port_processes(port: u16) -> McpDomainResult<()> {
+pub async fn cleanup_port_processes(port: u16, service_name: &str) -> McpDomainResult<()> {
     use nix::sys::signal::{self, Signal};
     use nix::unistd::Pid;
 
@@ -92,30 +113,46 @@ pub async fn cleanup_port_processes(port: u16) -> McpDomainResult<()> {
             ))
         })?;
 
-    if !output.stdout.is_empty() {
-        let pids = String::from_utf8_lossy(&output.stdout);
-        let self_pid = std::process::id() as i32;
-        for pid_str in pids.lines() {
-            if let Ok(pid) = pid_str.trim().parse::<i32>() {
-                // Why: Never signal ourselves: `lsof` can return this process when it
-                // holds the port, and killing the caller is never the intent.
-                if pid <= 0 || pid == self_pid {
-                    continue;
-                }
-                tracing::debug!(port = port, pid = pid, "Stopping process on port");
+    if output.stdout.is_empty() {
+        return Ok(());
+    }
 
-                if let Err(e) = signal::kill(Pid::from_raw(pid), Signal::SIGTERM) {
-                    tracing::warn!(pid = pid, error = %e, "Failed to send SIGTERM to port process");
-                }
-
-                tokio::time::sleep(Duration::from_millis(100)).await;
-
-                if let Err(e) = signal::kill(Pid::from_raw(pid), Signal::SIGKILL) {
-                    tracing::warn!(pid = pid, error = %e, "Failed to send SIGKILL to port process");
-                }
-            }
+    let pids = String::from_utf8_lossy(&output.stdout);
+    let mut signalled = false;
+    for pid_str in pids.lines() {
+        let Ok(pid) = pid_str.trim().parse::<u32>() else {
+            continue;
+        };
+        let Ok(raw) = i32::try_from(pid) else {
+            continue;
+        };
+        match classify_port_holder(pid, service_name) {
+            PortHolder::Caller => continue,
+            PortHolder::Foreign => {
+                return Err(crate::error::McpDomainError::PortOwnedByForeignProcess {
+                    port,
+                    pid,
+                    service: service_name.to_owned(),
+                });
+            },
+            PortHolder::Ours => {},
         }
 
+        tracing::debug!(port = port, pid = pid, service = %service_name, "Stopping our stale process on port");
+        signalled = true;
+
+        if let Err(e) = signal::kill(Pid::from_raw(raw), Signal::SIGTERM) {
+            tracing::warn!(pid = pid, error = %e, "Failed to send SIGTERM to port process");
+        }
+
+        tokio::time::sleep(Duration::from_millis(100)).await;
+
+        if let Err(e) = signal::kill(Pid::from_raw(raw), Signal::SIGKILL) {
+            tracing::warn!(pid = pid, error = %e, "Failed to send SIGKILL to port process");
+        }
+    }
+
+    if signalled {
         tokio::time::sleep(Duration::from_millis(200)).await;
     }
 
@@ -123,44 +160,62 @@ pub async fn cleanup_port_processes(port: u16) -> McpDomainResult<()> {
 }
 
 #[cfg(windows)]
-pub async fn cleanup_port_processes(port: u16) -> McpDomainResult<()> {
+pub async fn cleanup_port_processes(port: u16, service_name: &str) -> McpDomainResult<()> {
     let output = Command::new("netstat")
         .args(["-ano", "-p", "TCP"])
         .output()
         .map_err(|e| {
             crate::error::McpDomainError::Internal(format!(
-                "{}: {e}",
-                format!("failed to run `netstat -ano -p TCP` for port {port}")
+                "failed to run `netstat -ano -p TCP` for port {port}: {e}"
             ))
         })?;
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     let port_pattern = format!(":{port} ");
+    let mut signalled = false;
 
     for line in stdout.lines() {
-        if line.contains(&port_pattern) {
-            if let Some(pid_str) = line.split_whitespace().last() {
-                if pid_str.parse::<u32>().is_ok() {
-                    tracing::debug!(port = port, pid = %pid_str, "Stopping process on port");
+        if !line.contains(&port_pattern) {
+            continue;
+        }
+        let Some(pid_str) = line.split_whitespace().last() else {
+            continue;
+        };
+        let Ok(pid) = pid_str.parse::<u32>() else {
+            continue;
+        };
+        match classify_port_holder(pid, service_name) {
+            PortHolder::Caller => continue,
+            PortHolder::Foreign => {
+                return Err(crate::error::McpDomainError::PortOwnedByForeignProcess {
+                    port,
+                    pid,
+                    service: service_name.to_owned(),
+                });
+            },
+            PortHolder::Ours => {},
+        }
 
-                    if let Err(e) = Command::new("taskkill").args(["/PID", pid_str]).output() {
-                        tracing::warn!(pid = %pid_str, error = %e, "Failed to send taskkill to port process");
-                    }
+        tracing::debug!(port = port, pid = pid, service = %service_name, "Stopping our stale process on port");
+        signalled = true;
 
-                    tokio::time::sleep(Duration::from_millis(100)).await;
+        if let Err(e) = Command::new("taskkill").args(["/PID", pid_str]).output() {
+            tracing::warn!(pid = pid, error = %e, "Failed to send taskkill to port process");
+        }
 
-                    if let Err(e) = Command::new("taskkill")
-                        .args(["/PID", pid_str, "/F"])
-                        .output()
-                    {
-                        tracing::warn!(pid = %pid_str, error = %e, "Failed to force taskkill port process");
-                    }
-                }
-            }
+        tokio::time::sleep(Duration::from_millis(100)).await;
+
+        if let Err(e) = Command::new("taskkill")
+            .args(["/PID", pid_str, "/F"])
+            .output()
+        {
+            tracing::warn!(pid = pid, error = %e, "Failed to force taskkill port process");
         }
     }
 
-    tokio::time::sleep(Duration::from_millis(200)).await;
+    if signalled {
+        tokio::time::sleep(Duration::from_millis(200)).await;
+    }
 
     Ok(())
 }
@@ -186,6 +241,7 @@ pub async fn wait_for_port_release(port: u16) -> McpDomainResult<()> {
 
 pub async fn wait_for_port_release_with_retry(
     port: u16,
+    service_name: &str,
     max_cleanup_attempts: u32,
 ) -> McpDomainResult<()> {
     for cleanup_attempt in 1..=max_cleanup_attempts {
@@ -195,12 +251,13 @@ pub async fn wait_for_port_release_with_retry(
 
         tracing::debug!(
             port = port,
+            service = %service_name,
             attempt = cleanup_attempt,
             max_attempts = max_cleanup_attempts,
             "Port still in use, attempting cleanup"
         );
 
-        cleanup_port_processes(port).await?;
+        cleanup_port_processes(port, service_name).await?;
 
         match wait_for_port_release(port).await {
             Ok(()) => return Ok(()),

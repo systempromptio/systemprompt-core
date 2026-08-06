@@ -205,9 +205,8 @@ fn extract_user_permissions(
     })?;
 
     let claims =
-        validate_jwt_token(token, &config.jwt_issuer, &config.jwt_audiences).map_err(|e| {
+        validate_jwt_token(token, &config.jwt_issuer, &config.jwt_audiences).inspect_err(|e| {
             error!(error = %e, "JWT validation failed");
-            crate::error::McpDomainError::Internal(format!("JWT validation failed: {e}"))
         })?;
 
     Ok(claims.get_permissions())

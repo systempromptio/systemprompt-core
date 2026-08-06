@@ -77,6 +77,17 @@ pub enum AuthError {
     },
 }
 
+impl AuthError {
+    #[must_use]
+    pub fn is_issuer_mismatch(&self) -> bool {
+        matches!(
+            self,
+            Self::InvalidToken(inner)
+                if matches!(inner.kind(), jsonwebtoken::errors::ErrorKind::InvalidIssuer)
+        )
+    }
+}
+
 #[derive(Debug, Error)]
 pub enum JwtError {
     #[error("jwt encoding failed: {0}")]

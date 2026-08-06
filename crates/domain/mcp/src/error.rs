@@ -30,11 +30,29 @@ domain_error! {
         #[error("Port unavailable: {port} - {message}")]
         PortUnavailable { port: u16, message: String },
 
+        #[error(
+            "port {port} for MCP server {service} is held by process {pid}, which this \
+             installation did not spawn; another systemprompt installation or an unrelated \
+             service owns it. Free the port or move this installation's MCP ports with \
+             `admin config services set --port-offset`"
+        )]
+        PortOwnedByForeignProcess { port: u16, pid: u32, service: String },
+
         #[error("Configuration error: {0}")]
         Configuration(String),
 
         #[error("Authentication required for {0}")]
         AuthRequired(String),
+
+        #[error(
+            "token issuer does not match `{expected}`; the token predates a change to \
+             `security.issuer`. Re-authenticate with \
+             `systemprompt admin session login --force-new`"
+        )]
+        TokenIssuerMismatch { expected: String },
+
+        #[error("token rejected: {0}")]
+        TokenRejected(#[from] systemprompt_security::AuthError),
 
         #[error("External MCP auth unavailable for {server}: {message}")]
         ExternalAuthUnavailable { server: String, message: String },

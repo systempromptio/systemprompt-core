@@ -23,7 +23,9 @@ async fn prepare_port_is_a_no_op_while_this_process_still_holds_the_port() {
 
     // The reclaim sweep skips this process's own pid, so the listener survives
     // the call — killing the caller is never the intent.
-    let result = NetworkService::new().prepare_port(port).await;
+    let result = NetworkService::new()
+        .prepare_port(port, "systemprompt")
+        .await;
     let still_held = NetworkService::is_port_responsive(port);
     drop(listener);
 
@@ -63,7 +65,7 @@ async fn wait_for_port_release_with_retry_gives_up_on_a_port_that_stays_bound() 
     let (listener, port) = held_port();
 
     let result = NetworkService::new()
-        .wait_for_port_release_with_retry(port, 2)
+        .wait_for_port_release_with_retry(port, "systemprompt", 2)
         .await;
     drop(listener);
 
@@ -80,7 +82,7 @@ async fn wait_for_port_release_with_retry_succeeds_for_a_released_port() {
     drop(listener);
 
     NetworkService::new()
-        .wait_for_port_release_with_retry(port, 2)
+        .wait_for_port_release_with_retry(port, "systemprompt", 2)
         .await
         .expect("a released port passes on the first attempt");
 

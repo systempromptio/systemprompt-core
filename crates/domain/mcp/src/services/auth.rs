@@ -5,6 +5,7 @@
 
 use crate::error::{McpDomainError, McpDomainResult};
 use systemprompt_models::auth::{JwtAudience, JwtClaims};
+use systemprompt_security::AuthError;
 use systemprompt_security::jwt::{ValidationPolicy, decode_rs256_claims};
 
 pub fn validate_jwt_token(
@@ -13,5 +14,14 @@ pub fn validate_jwt_token(
     audiences: &[JwtAudience],
 ) -> McpDomainResult<JwtClaims> {
     let policy = ValidationPolicy::issuer_scoped(issuer, audiences);
-    decode_rs256_claims(token, &policy).map_err(|e| McpDomainError::Internal(e.to_string()))
+    decode_rs256_claims(token, &policy).map_err(|e| classify_auth_error(e, issuer))
+}
+
+fn classify_auth_error(error: AuthError, issuer: &str) -> McpDomainError {
+    if error.is_issuer_mismatch() {
+        return McpDomainError::TokenIssuerMismatch {
+            expected: issuer.to_owned(),
+        };
+    }
+    McpDomainError::TokenRejected(error)
 }

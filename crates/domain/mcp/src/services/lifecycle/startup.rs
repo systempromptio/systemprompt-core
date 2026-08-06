@@ -38,11 +38,14 @@ pub async fn start_server(
 
     ProcessService::verify_binary(manager.app_paths(), config)?;
 
-    manager.network().prepare_port(config.port).await?;
+    manager
+        .network()
+        .prepare_port(config.port, &config.name)
+        .await?;
 
     manager
         .network()
-        .wait_for_port_release_with_retry(config.port, MAX_PORT_CLEANUP_ATTEMPTS)
+        .wait_for_port_release_with_retry(config.port, &config.name, MAX_PORT_CLEANUP_ATTEMPTS)
         .await?;
 
     let pid = ProcessService::spawn_server(manager.app_paths(), config)?;

@@ -171,7 +171,7 @@ async fn invalid_jwt_fails_permission_extraction() {
         .load_tools_for_servers(std::slice::from_ref(&live.server_name), &context)
         .await
         .expect_err("garbage JWT rejected");
-    assert!(err.to_string().contains("JWT validation failed"));
+    assert!(err.to_string().contains("token rejected"));
 }
 
 #[tokio::test]
