@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::MarketplaceId;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Settings {
     #[serde(default = "default_agent_port_range")]
     pub agent_port_range: (u16, u16),

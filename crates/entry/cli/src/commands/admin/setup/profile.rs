@@ -41,6 +41,7 @@ pub(super) struct ProfileBuildParams<'a> {
     pub bin_path: Option<&'a Path>,
     pub secrets: &'a SecretsData,
     pub default_provider: Option<&'a ProviderId>,
+    pub port_offset: u16,
 }
 
 pub(super) fn build(params: &ProfileBuildParams<'_>) -> Result<Profile> {
@@ -51,6 +52,7 @@ pub(super) fn build(params: &ProfileBuildParams<'_>) -> Result<Profile> {
         bin_path,
         secrets,
         default_provider,
+        port_offset,
     } = *params;
     let ctx = ProjectContext::new(project_root.to_path_buf());
     let runtime_env = determine_environment(env_name);
@@ -93,6 +95,7 @@ pub(super) fn build(params: &ProfileBuildParams<'_>) -> Result<Profile> {
         providers: sections::providers(secrets),
         gateway: Some(sections::gateway(secrets, default_provider)),
         governance: Some(governance),
+        services: systemprompt_models::profile::ServicesProfileConfig { port_offset },
         system_admin: SystemAdminConfig {
             username: "admin".to_owned(),
         },

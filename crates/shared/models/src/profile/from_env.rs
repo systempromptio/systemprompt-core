@@ -46,6 +46,7 @@ impl Profile {
             providers: crate::profile::ProviderRegistry::default(),
             gateway: None,
             governance: None,
+            services: crate::profile::ServicesProfileConfig::default(),
         })
     }
 }

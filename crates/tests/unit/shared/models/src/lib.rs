@@ -236,6 +236,9 @@ mod events_builders;
 mod mcp_apps;
 
 #[cfg(test)]
+mod services_port_offset;
+
+#[cfg(test)]
 mod services_validation;
 
 #[cfg(test)]

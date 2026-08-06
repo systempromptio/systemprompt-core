@@ -120,6 +120,19 @@ pub struct RuntimeSetOutput {
     pub message: String,
 }
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema)]
+pub struct ServicesConfigOutput {
+    pub port_offset: u16,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct ServicesSetOutput {
+    pub field: String,
+    pub old_value: String,
+    pub new_value: String,
+    pub message: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct SecurityConfigOutput {
     pub jwt_issuer: String,

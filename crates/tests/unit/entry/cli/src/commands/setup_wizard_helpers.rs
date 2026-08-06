@@ -14,6 +14,7 @@ fn args() -> SetupArgs {
         docker: true,
         db_host: "db.example.com".to_owned(),
         db_port: 5433,
+        port_offset: 0,
         db_user: None,
         db_password: None,
         db_name: None,

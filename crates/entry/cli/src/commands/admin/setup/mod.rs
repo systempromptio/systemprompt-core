@@ -69,6 +69,13 @@ pub struct SetupArgs {
 
     #[arg(
         long,
+        default_value = "0",
+        help = "Shift every locally-bound MCP and agent port by this amount"
+    )]
+    pub port_offset: u16,
+
+    #[arg(
+        long,
         env = "SYSTEMPROMPT_DB_USER",
         help = "PostgreSQL user (default: systemprompt_`<env>`)"
     )]

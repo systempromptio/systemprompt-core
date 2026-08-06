@@ -184,6 +184,14 @@ impl ConfigLoader {
             merged.settings.config_path = Some(val);
         }
 
+        if let Ok(profile) = ProfileBootstrap::get()
+            && !profile.services.is_identity()
+        {
+            merged
+                .apply_port_offset(profile.services.port_offset)
+                .map_err(|e| ConfigLoadError::Validation(e.to_string()))?;
+        }
+
         merged
             .validate()
             .map_err(|e| ConfigLoadError::Validation(e.to_string()))?;

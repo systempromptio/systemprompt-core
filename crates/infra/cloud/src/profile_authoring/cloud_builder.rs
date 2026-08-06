@@ -138,6 +138,7 @@ impl CloudProfileBuilder {
             providers: ProviderRegistry::default(),
             gateway: None,
             governance: Some(webhook_governance(&internal_url)),
+            services: systemprompt_models::profile::ServicesProfileConfig::default(),
             system_admin: SystemAdminConfig {
                 username: "admin".to_owned(),
             },

@@ -23,6 +23,7 @@ pub mod runtime;
 pub mod secret;
 pub mod security;
 pub mod server;
+pub mod services;
 pub mod show;
 pub mod types;
 pub mod validate;
@@ -55,6 +56,9 @@ pub enum ConfigCommands {
 
     #[command(subcommand, about = "Security configuration")]
     Security(security::SecurityCommands),
+
+    #[command(subcommand, about = "Services configuration")]
+    Services(services::ServicesCommands),
 
     #[command(subcommand, about = "Paths configuration")]
     Paths(paths::PathsCommands),
@@ -102,6 +106,7 @@ pub async fn execute(command: ConfigCommands, ctx: &CommandContext) -> Result<()
         ConfigCommands::Server(ref cmd) => server::execute(cmd, &ctx.cli),
         ConfigCommands::Runtime(cmd) => runtime::execute(cmd, &ctx.cli),
         ConfigCommands::Security(ref cmd) => security::execute(cmd, &ctx.cli),
+        ConfigCommands::Services(ref cmd) => services::execute(cmd, &ctx.cli),
         ConfigCommands::Paths(cmd) => paths::execute(cmd, &ctx.cli),
         ConfigCommands::Provider(cmd) => provider::execute(cmd, &ctx.cli),
         ConfigCommands::Gateway(ref cmd) => gateway::execute(cmd, &ctx.cli).await,

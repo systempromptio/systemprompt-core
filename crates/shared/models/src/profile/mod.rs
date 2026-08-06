@@ -22,6 +22,7 @@ mod runtime;
 mod secrets;
 mod security;
 mod server;
+mod services;
 mod site;
 mod style;
 mod validation;
@@ -59,6 +60,7 @@ pub use security::{
 pub use server::{
     ContentNegotiationConfig, FrameOptions, ReferrerPolicy, SecurityHeadersConfig, ServerConfig,
 };
+pub use services::ServicesProfileConfig;
 pub use site::SiteConfig;
 pub use style::ProfileStyle;
 
@@ -144,6 +146,9 @@ pub struct Profile {
 
     #[serde(default)]
     pub governance: Option<GovernanceConfig>,
+
+    #[serde(default)]
+    pub services: ServicesProfileConfig,
 }
 
 impl Profile {

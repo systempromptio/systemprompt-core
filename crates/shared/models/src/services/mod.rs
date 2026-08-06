@@ -61,17 +61,11 @@ pub use systemprompt_provider_contracts::{BrandingConfig, WebConfig};
 pub use teams::{TeamsAppConfig, TeamsAuthzConfig};
 
 use crate::errors::ConfigValidationError;
-use crate::mcp::Deployment;
+use crate::mcp::{Deployment, McpServerType};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use systemprompt_identifiers::{ExternalAgentId, MarketplaceId};
 
-/// The single canonical shape of a services config file.
-///
-/// A root config file and an include file deserialize into the same struct.
-/// `settings` is meaningful only at the root; the loader rejects an include
-/// that sets it (`ConfigLoadError::IncludeMustNotSetGlobalSettings`) rather
-/// than silently ignoring the value.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ServicesConfig {
@@ -104,6 +98,42 @@ pub struct ServicesConfig {
 }
 
 impl ServicesConfig {
+    pub fn apply_port_offset(&mut self, offset: u16) -> Result<(), ConfigValidationError> {
+        if offset == 0 {
+            return Ok(());
+        }
+
+        let shift = |port: u16, what: &str| {
+            port.checked_add(offset).ok_or_else(|| {
+                ConfigValidationError::invalid_field(format!(
+                    "{what} port {port} shifted by services.port_offset {offset} exceeds 65535"
+                ))
+            })
+        };
+
+        for (name, agent) in &mut self.agents {
+            agent.port = shift(agent.port, &format!("Agent '{name}'"))?;
+        }
+
+        for (name, mcp) in &mut self.mcp_servers {
+            if mcp.server_type == McpServerType::External {
+                continue;
+            }
+            mcp.port = shift(mcp.port, &format!("MCP server '{name}'"))?;
+        }
+
+        self.settings.agent_port_range = (
+            shift(self.settings.agent_port_range.0, "agent_port_range lower")?,
+            shift(self.settings.agent_port_range.1, "agent_port_range upper")?,
+        );
+        self.settings.mcp_port_range = (
+            shift(self.settings.mcp_port_range.0, "mcp_port_range lower")?,
+            shift(self.settings.mcp_port_range.1, "mcp_port_range upper")?,
+        );
+
+        Ok(())
+    }
+
     pub fn validate(&self) -> Result<(), ConfigValidationError> {
         self.validate_ports()?;
         self.validate_single_default_agent()?;
