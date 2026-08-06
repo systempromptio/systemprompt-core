@@ -528,4 +528,3 @@ async fn link_list_requires_a_filter_flag() {
     .unwrap_err();
     assert!(err.to_string().contains("--campaign or --content"));
 }
-

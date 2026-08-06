@@ -3,11 +3,11 @@
 use base64::prelude::*;
 use chrono::Utc;
 use std::path::PathBuf;
-use systemprompt_cloud::CloudCredentials;
 use systemprompt_cloud::cli_session::{
     CliSession, CliSessionBuilder, SessionIdentity, SessionKey, SessionStore,
 };
 use systemprompt_cloud::tenants::{NewCloudTenantParams, StoredTenant, TenantStore};
+use systemprompt_cloud::{CloudCredentials, SessionBinding};
 use systemprompt_identifiers::{
     CloudAuthToken, ContextId, Email, ProfileName, SessionId, SessionToken, TenantId,
 };
@@ -90,7 +90,10 @@ pub fn build_session_for(
     context: &str,
 ) -> CliSession {
     CliSessionBuilder::new(
-        ProfileName::new(profile),
+        SessionBinding::new(
+            ProfileName::new(profile),
+            "http://localhost:8080".to_owned(),
+        ),
         SessionToken::new(token),
         SessionId::new(format!("sid-{profile}")),
         ContextId::new(context),

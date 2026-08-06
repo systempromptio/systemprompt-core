@@ -2,6 +2,7 @@
 
 use chrono::{Duration, Utc};
 use std::path::PathBuf;
+use systemprompt_cloud::SessionBinding;
 use systemprompt_cloud::cli_session::{
     CliSession, CliSessionBuilder, LOCAL_SESSION_KEY, SessionIdentity, SessionKey,
 };
@@ -15,7 +16,10 @@ const TEST_CONTEXT_ID_B: &str = "00000000-0000-4000-8000-000000000002";
 
 fn create_test_builder() -> CliSessionBuilder {
     CliSessionBuilder::new(
-        ProfileName::new("test-profile"),
+        SessionBinding::new(
+            ProfileName::new("test-profile"),
+            "http://localhost:8080".to_owned(),
+        ),
         SessionToken::new("test-token"),
         SessionId::new("session-123"),
         ContextId::new(TEST_CONTEXT_ID_A),
@@ -178,7 +182,10 @@ fn test_cli_session_has_valid_credentials_true() {
 #[test]
 fn test_cli_session_has_valid_credentials_false_empty_token() {
     let session = CliSessionBuilder::new(
-        ProfileName::new("profile"),
+        SessionBinding::new(
+            ProfileName::new("profile"),
+            "http://localhost:8080".to_owned(),
+        ),
         SessionToken::new(""),
         SessionId::new("session"),
         ContextId::new(TEST_CONTEXT_ID_A),
@@ -368,7 +375,7 @@ fn test_cli_session_load_from_path_invalid_json() {
 #[test]
 fn test_cli_session_builder_method() {
     let builder = CliSession::builder(
-        ProfileName::new("p"),
+        SessionBinding::new(ProfileName::new("p"), "http://localhost:8080".to_owned()),
         SessionToken::new("t"),
         SessionId::new("s"),
         ContextId::new(TEST_CONTEXT_ID_A),

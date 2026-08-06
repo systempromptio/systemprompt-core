@@ -39,7 +39,10 @@ pub(super) fn execute(profile_name: &str) -> Result<CommandOutput> {
     store.set_active_with_profile_path(&session_key, profile_name, profile_config_path);
     store.save(&sessions_dir)?;
 
-    let message = if store.get_valid_session(&session_key).is_some() {
+    let message = if store
+        .get_valid_session(&session_key, &new_profile.security.issuer)
+        .is_some()
+    {
         format!("Switched to profile '{}'", profile_name)
     } else {
         format!(

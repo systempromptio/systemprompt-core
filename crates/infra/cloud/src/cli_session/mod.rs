@@ -13,7 +13,7 @@ mod store;
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::TenantId;
 
-pub use session::{CliSession, CliSessionBuilder, SessionIdentity};
+pub use session::{CliSession, CliSessionBuilder, SessionBinding, SessionIdentity};
 pub use store::SessionStore;
 
 pub const LOCAL_SESSION_KEY: &str = "local";

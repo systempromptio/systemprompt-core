@@ -35,11 +35,11 @@ pub fn clear_all_sessions() -> Result<()> {
     Ok(())
 }
 
-pub fn get_session_for_key(session_key: &SessionKey) -> Result<Option<CliSession>> {
+pub fn get_session_for_key(session_key: &SessionKey, issuer: &str) -> Result<Option<CliSession>> {
     let sessions_dir = ResolvedPaths::discover().sessions_dir();
 
     let store = SessionStore::load_or_create(&sessions_dir)?;
-    Ok(store.get_valid_session(session_key).cloned())
+    Ok(store.get_valid_session(session_key, issuer).cloned())
 }
 
 pub fn load_session_store() -> Result<SessionStore> {

@@ -9,7 +9,7 @@ use anyhow::{Context, Result};
 use chrono::Duration as ChronoDuration;
 use systemprompt_agent::repository::context::ContextRepository;
 use systemprompt_cloud::{
-    CliSession, CloudCredentials, CredentialsBootstrap, SessionIdentity, SessionKey,
+    CliSession, CloudCredentials, CredentialsBootstrap, SessionBinding, SessionIdentity, SessionKey,
 };
 use systemprompt_config::SecretsBootstrap;
 use systemprompt_database::{Database, DbPool};
@@ -142,6 +142,7 @@ pub(super) fn build_cli_session(
     session_key: &SessionKey,
     components: SessionComponents,
     admin_user: &systemprompt_users::User,
+    issuer: &str,
 ) -> Result<CliSession> {
     let profile_name = ProfileName::try_new(profile_ctx.name)
         .map_err(|e| anyhow::anyhow!("Invalid profile name: {}", e))?;
@@ -149,7 +150,7 @@ pub(super) fn build_cli_session(
         Email::try_new(&admin_user.email).map_err(|e| anyhow::anyhow!("Invalid email: {}", e))?;
 
     Ok(CliSession::builder(
-        profile_name,
+        SessionBinding::new(profile_name, issuer.to_owned()),
         components.session_token,
         components.session_id,
         components.context_id,

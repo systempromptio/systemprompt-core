@@ -9,7 +9,7 @@ use systemprompt_cli::plugins::mcp::call_client::{
     ToolCallParams, convert_content, execute_tool_call, list_available_tools,
 };
 use systemprompt_cli::session::CliSessionContext;
-use systemprompt_cloud::{CliSession, SessionIdentity};
+use systemprompt_cloud::{CliSession, SessionBinding, SessionIdentity};
 use systemprompt_identifiers::{ContextId, Email, ProfileName, SessionId, SessionToken, UserId};
 use systemprompt_models::auth::UserType;
 use systemprompt_models::services::SystemAdminConfig;
@@ -21,7 +21,7 @@ use systemprompt_models::{
 
 fn session_ctx() -> CliSessionContext {
     let session = CliSession::builder(
-        ProfileName::new("test"),
+        SessionBinding::new(ProfileName::new("test"), "http://localhost:8080".to_owned()),
         SessionToken::new("tok"),
         SessionId::generate(),
         ContextId::generate(),
@@ -93,6 +93,7 @@ fn minimal_profile() -> Profile {
         providers: systemprompt_models::profile::ProviderRegistry::default(),
         gateway: None,
         governance: None,
+        services: Default::default(),
         system_admin: SystemAdminConfig {
             username: "admin".to_string(),
         },

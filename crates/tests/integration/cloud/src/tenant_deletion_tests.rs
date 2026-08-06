@@ -17,7 +17,11 @@ async fn removing_session_for_b_does_not_touch_a() {
     assert_eq!(removed.session_token.as_str(), "token-b-v1");
 
     assert!(store.get_session(&fx.key_b()).is_none());
-    assert!(store.get_valid_session(&fx.key_a()).is_some());
+    assert!(
+        store
+            .get_valid_session(&fx.key_a(), "http://localhost:8080")
+            .is_some()
+    );
 }
 
 #[tokio::test]
@@ -30,8 +34,8 @@ async fn removing_active_tenant_clears_active_session_lookup() {
 
     // active_key still holds the storage key but no live session resolves.
     assert!(
-        store.active_session().is_none(),
-        "active_session() must not resurrect a removed tenant"
+        store.active_session_for_profile_discovery().is_none(),
+        "active_session_for_profile_discovery() must not resurrect a removed tenant"
     );
 }
 

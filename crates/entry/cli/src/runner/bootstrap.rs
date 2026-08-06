@@ -104,7 +104,7 @@ fn get_active_session_profile_path() -> Option<PathBuf> {
         return Some(path);
     }
 
-    if let Some(session) = store.active_session()
+    if let Some(session) = store.active_session_for_profile_discovery()
         && let Some(path) = &session.profile_path
         && path.exists()
     {

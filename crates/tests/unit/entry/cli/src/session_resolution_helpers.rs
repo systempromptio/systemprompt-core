@@ -10,7 +10,7 @@ use systemprompt_cli::session::resolution::helpers::{
     extract_profile_name, resolve_profile_path_from_session, resolve_profile_path_without_session,
     try_session_from_env,
 };
-use systemprompt_cloud::{CliSession, SessionIdentity, SessionKey, SessionStore};
+use systemprompt_cloud::{CliSession, SessionBinding, SessionIdentity, SessionKey, SessionStore};
 use systemprompt_identifiers::{ContextId, Email, ProfileName, SessionId, SessionToken, UserId};
 use systemprompt_models::auth::UserType;
 use systemprompt_models::services::SystemAdminConfig;
@@ -75,6 +75,7 @@ fn make_profile() -> Profile {
         providers: systemprompt_models::profile::ProviderRegistry::default(),
         gateway: None,
         governance: None,
+        services: Default::default(),
         system_admin: SystemAdminConfig {
             username: "admin".to_string(),
         },
@@ -93,7 +94,10 @@ fn remote_env() -> EnvOverrides {
 
 fn session(profile_name: &str) -> CliSession {
     CliSession::builder(
-        ProfileName::new(profile_name),
+        SessionBinding::new(
+            ProfileName::new(profile_name),
+            "http://localhost:8080".to_owned(),
+        ),
         SessionToken::new("tok"),
         SessionId::generate(),
         ContextId::generate(),

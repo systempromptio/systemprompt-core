@@ -63,7 +63,7 @@ pub(super) fn determine_execution_target() -> Result<ExecutionTarget> {
         .clone();
 
     let session_key = SessionKey::Tenant(tenant_id.clone());
-    let session = load_session_for_key(&session_key)?;
+    let session = load_session_for_key(&session_key, &profile.security.issuer)?;
 
     tracing::info!(
         hostname = %hostname,
@@ -90,13 +90,16 @@ fn resolve_tenant(tenant: &systemprompt_identifiers::TenantId) -> Result<StoredT
         .with_context(|| format!("Tenant '{}' not found in local tenant store", tenant))
 }
 
-fn load_session_for_key(session_key: &SessionKey) -> Result<systemprompt_cloud::CliSession> {
+fn load_session_for_key(
+    session_key: &SessionKey,
+    issuer: &str,
+) -> Result<systemprompt_cloud::CliSession> {
     let sessions_dir = ResolvedPaths::discover().sessions_dir();
 
     let store = SessionStore::load_or_create(&sessions_dir)?;
 
     store
-        .get_valid_session(session_key)
+        .get_valid_session(session_key, issuer)
         .cloned()
         .context("No active session. Run 'systemprompt admin session login'.")
 }

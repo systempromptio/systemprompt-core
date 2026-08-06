@@ -4,13 +4,16 @@
 
 use chrono::{Duration, Utc};
 use systemprompt_cli::admin::session::show::{missing_active_session, session_info};
-use systemprompt_cloud::{CliSession, SessionIdentity};
+use systemprompt_cloud::{CliSession, SessionBinding, SessionIdentity};
 use systemprompt_identifiers::{ContextId, Email, ProfileName, SessionId, SessionToken, UserId};
 use systemprompt_models::auth::UserType;
 
 fn session(profile: &str) -> CliSession {
     CliSession::builder(
-        ProfileName::new(profile),
+        SessionBinding::new(
+            ProfileName::new(profile),
+            "http://localhost:8080".to_owned(),
+        ),
         SessionToken::new("tok"),
         SessionId::generate(),
         ContextId::generate(),

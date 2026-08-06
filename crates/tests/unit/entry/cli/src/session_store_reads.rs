@@ -16,8 +16,8 @@ fn the_store_loads_or_initialises_without_error() {
 
     // Every record the store returns must round-trip through its own lookup.
     let key = SessionKey::from_tenant_id(None);
-    let looked_up = store.get_valid_session(&key);
-    let via_helper = get_session_for_key(&key).unwrap();
+    let looked_up = store.get_valid_session(&key, "http://localhost:8080");
+    let via_helper = get_session_for_key(&key, "http://localhost:8080").unwrap();
 
     assert_eq!(looked_up.is_some(), via_helper.is_some());
 }
@@ -27,5 +27,9 @@ fn an_unknown_tenant_key_resolves_to_no_session() {
     let tenant = systemprompt_identifiers::TenantId::new("cov_absent_tenant");
     let key = SessionKey::Tenant(tenant);
 
-    assert!(get_session_for_key(&key).unwrap().is_none());
+    assert!(
+        get_session_for_key(&key, "http://localhost:8080")
+            .unwrap()
+            .is_none()
+    );
 }

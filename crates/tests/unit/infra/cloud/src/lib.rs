@@ -49,6 +49,8 @@ mod provisioning_wait;
 #[cfg(test)]
 mod secrets_env;
 #[cfg(test)]
+mod session_issuer;
+#[cfg(test)]
 mod session_key;
 #[cfg(test)]
 mod session_store;

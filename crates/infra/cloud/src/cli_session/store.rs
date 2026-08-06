@@ -45,16 +45,32 @@ impl SessionStore {
     }
 
     #[must_use]
-    pub fn get_valid_session(&self, key: &SessionKey) -> Option<&CliSession> {
+    pub fn get_valid_session(&self, key: &SessionKey, issuer: &str) -> Option<&CliSession> {
         self.sessions
             .get(&key.as_storage_key())
-            .filter(|s| !s.is_expired() && s.has_valid_credentials())
+            .filter(|s| Self::is_usable(s, issuer))
     }
 
-    pub fn get_valid_session_mut(&mut self, key: &SessionKey) -> Option<&mut CliSession> {
+    pub fn get_valid_session_mut(
+        &mut self,
+        key: &SessionKey,
+        issuer: &str,
+    ) -> Option<&mut CliSession> {
         self.sessions
             .get_mut(&key.as_storage_key())
-            .filter(|s| !s.is_expired() && s.has_valid_credentials())
+            .filter(|s| Self::is_usable(s, issuer))
+    }
+
+    fn is_usable(session: &CliSession, issuer: &str) -> bool {
+        if !session.matches_issuer(issuer) {
+            tracing::info!(
+                stored_issuer = %session.issuer,
+                current_issuer = %issuer,
+                "Stored CLI session was minted under a different issuer; discarding it"
+            );
+            return false;
+        }
+        !session.is_expired() && session.has_valid_credentials()
     }
 
     #[must_use]
@@ -116,10 +132,14 @@ impl SessionStore {
         })
     }
 
+    /// The active session without an issuer check, for resolving which profile
+    /// to load. Never use it to authorize a request — the issuer is unknown
+    /// until that profile is read, so the result may carry a stale token.
     #[must_use]
-    pub fn active_session(&self) -> Option<&CliSession> {
+    pub fn active_session_for_profile_discovery(&self) -> Option<&CliSession> {
         self.active_session_key()
-            .and_then(|key| self.get_valid_session(&key))
+            .and_then(|key| self.sessions.get(&key.as_storage_key()))
+            .filter(|s| !s.is_expired() && s.has_valid_credentials())
     }
 
     pub fn prune_expired(&mut self) -> usize {

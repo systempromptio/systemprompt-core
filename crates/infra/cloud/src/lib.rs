@@ -70,7 +70,9 @@ pub use api_client::{
 pub use checkout::{
     CheckoutCallbackResult, CheckoutTemplates, run_checkout_callback_flow, wait_for_provisioning,
 };
-pub use cli_session::{CliSession, LOCAL_SESSION_KEY, SessionIdentity, SessionKey, SessionStore};
+pub use cli_session::{
+    CliSession, LOCAL_SESSION_KEY, SessionBinding, SessionIdentity, SessionKey, SessionStore,
+};
 pub use constants::api::{PRODUCTION_URL, SANDBOX_URL};
 pub use credentials::CloudCredentials;
 pub use credentials_bootstrap::{CredentialsBootstrap, CredentialsBootstrapError};

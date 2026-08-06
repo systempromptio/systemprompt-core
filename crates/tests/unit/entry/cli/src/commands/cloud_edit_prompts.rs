@@ -76,6 +76,7 @@ fn make_profile() -> Profile {
         providers: systemprompt_models::profile::ProviderRegistry::default(),
         gateway: None,
         governance: None,
+        services: Default::default(),
         system_admin: SystemAdminConfig {
             username: "admin".to_string(),
         },

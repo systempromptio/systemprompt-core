@@ -73,6 +73,7 @@ fn make_profile(services: &Path) -> Profile {
         providers: ProviderRegistry::default_seed().unwrap(),
         gateway: None,
         governance: None,
+        services: Default::default(),
         system_admin: SystemAdminConfig {
             username: "admin".to_string(),
         },

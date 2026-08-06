@@ -6,7 +6,7 @@
 
 use systemprompt_agent::repository::context::ContextRepository;
 use systemprompt_cli::session::resolution::helpers::revalidate_context;
-use systemprompt_cloud::{CliSession, SessionIdentity};
+use systemprompt_cloud::{CliSession, SessionBinding, SessionIdentity};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ContextId, Email, ProfileName, SessionId, SessionToken, UserId};
 use systemprompt_models::auth::UserType;
@@ -33,7 +33,10 @@ async fn seeded_identity(pool: &DbPool, prefix: &str) -> (UserId, SessionId) {
 
 fn session_for(user_id: &UserId, session_id: SessionId, context_id: ContextId) -> CliSession {
     CliSession::builder(
-        ProfileName::new("ctxdb"),
+        SessionBinding::new(
+            ProfileName::new("ctxdb"),
+            "http://localhost:8080".to_owned(),
+        ),
         SessionToken::new("token"),
         session_id,
         context_id,

@@ -98,7 +98,7 @@ fn exchange_headers_with_session(session_id: &SessionId) -> HeaderMap {
 }
 
 #[tokio::test]
-async fn fresh_bridge_jwt_has_active_session() {
+async fn fresh_bridge_jwt_has_active_session_for_profile_discovery() {
     ensure_runtime();
     let db = setup_test_db().await;
     let user_id = create_test_user(&db).await;

@@ -21,12 +21,29 @@ use systemprompt_models::auth::UserType;
 use super::{LOCAL_SESSION_KEY, SessionKey};
 use crate::error::{CloudError, CloudResult};
 
-const CURRENT_VERSION: u32 = 5;
-const MIN_SUPPORTED_VERSION: u32 = 5;
+const CURRENT_VERSION: u32 = 6;
+const MIN_SUPPORTED_VERSION: u32 = 6;
 const SESSION_DURATION_HOURS: i64 = 24;
 
-/// Bundled so every builder call carries the full triple — there is no default
-/// that silently elevates an unbound session to admin.
+/// The profile a session belongs to, paired with the issuer its token was
+/// minted under. The two always travel together — a session is only reusable
+/// when both still match the loaded profile.
+#[derive(Debug, Clone)]
+pub struct SessionBinding {
+    pub profile_name: ProfileName,
+    pub issuer: String,
+}
+
+impl SessionBinding {
+    #[must_use]
+    pub const fn new(profile_name: ProfileName, issuer: String) -> Self {
+        Self {
+            profile_name,
+            issuer,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct SessionIdentity {
     pub user_id: UserId,
@@ -54,6 +71,7 @@ pub struct CliSession {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub profile_path: Option<PathBuf>,
     pub session_token: SessionToken,
+    pub issuer: String,
     pub session_id: SessionId,
     pub context_id: ContextId,
     pub user_id: UserId,
@@ -70,16 +88,18 @@ pub struct CliSessionBuilder {
     profile_name: ProfileName,
     profile_path: Option<PathBuf>,
     session_token: SessionToken,
+    issuer: String,
     session_id: SessionId,
     context_id: ContextId,
     user_id: UserId,
     user_email: Email,
     user_type: UserType,
+    ttl: Duration,
 }
 
 impl CliSessionBuilder {
     pub fn new(
-        profile_name: ProfileName,
+        binding: SessionBinding,
         session_token: SessionToken,
         session_id: SessionId,
         context_id: ContextId,
@@ -87,9 +107,11 @@ impl CliSessionBuilder {
     ) -> Self {
         Self {
             tenant_key: None,
-            profile_name,
+            profile_name: binding.profile_name,
             profile_path: None,
             session_token,
+            issuer: binding.issuer,
+            ttl: Duration::hours(SESSION_DURATION_HOURS),
             session_id,
             context_id,
             user_id: identity.user_id,
@@ -120,15 +142,22 @@ impl CliSessionBuilder {
     }
 
     #[must_use]
+    pub const fn with_ttl(mut self, ttl: Duration) -> Self {
+        self.ttl = ttl;
+        self
+    }
+
+    #[must_use]
     pub fn build(self) -> CliSession {
         let now = Utc::now();
-        let expires_at = now + Duration::hours(SESSION_DURATION_HOURS);
+        let expires_at = now + self.ttl;
         CliSession {
             version: CURRENT_VERSION,
             tenant_key: self.tenant_key,
             profile_name: self.profile_name,
             profile_path: self.profile_path,
             session_token: self.session_token,
+            issuer: self.issuer,
             session_id: self.session_id,
             context_id: self.context_id,
             user_id: self.user_id,
@@ -143,19 +172,18 @@ impl CliSessionBuilder {
 
 impl CliSession {
     pub fn builder(
-        profile_name: ProfileName,
+        binding: SessionBinding,
         session_token: SessionToken,
         session_id: SessionId,
         context_id: ContextId,
         identity: SessionIdentity,
     ) -> CliSessionBuilder {
-        CliSessionBuilder::new(
-            profile_name,
-            session_token,
-            session_id,
-            context_id,
-            identity,
-        )
+        CliSessionBuilder::new(binding, session_token, session_id, context_id, identity)
+    }
+
+    #[must_use]
+    pub fn matches_issuer(&self, issuer: &str) -> bool {
+        self.issuer == issuer
     }
 
     pub const fn context_id(&self) -> &ContextId {

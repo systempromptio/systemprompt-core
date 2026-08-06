@@ -1,5 +1,6 @@
 use chrono::{Duration, Utc};
 use std::path::PathBuf;
+use systemprompt_cloud::SessionBinding;
 use systemprompt_cloud::cli_session::{
     CliSession, CliSessionBuilder, LOCAL_SESSION_KEY, SessionIdentity, SessionKey, SessionStore,
 };
@@ -13,7 +14,10 @@ const TEST_CONTEXT_ID_B: &str = "00000000-0000-4000-8000-000000000002";
 
 fn test_builder(profile: &str) -> CliSessionBuilder {
     CliSessionBuilder::new(
-        ProfileName::new(profile),
+        SessionBinding::new(
+            ProfileName::new(profile),
+            "http://localhost:8080".to_owned(),
+        ),
         SessionToken::new("token-abc"),
         SessionId::new("sid-001"),
         ContextId::new(TEST_CONTEXT_ID_A),
@@ -111,7 +115,11 @@ fn get_valid_session_returns_fresh_session() {
     let key = SessionKey::Local;
     store.upsert_session(&key, build_session("active"));
 
-    assert!(store.get_valid_session(&key).is_some());
+    assert!(
+        store
+            .get_valid_session(&key, "http://localhost:8080")
+            .is_some()
+    );
 }
 
 #[test]
@@ -120,7 +128,11 @@ fn get_valid_session_returns_none_for_expired() {
     let key = SessionKey::Local;
     store.upsert_session(&key, build_expired_session("expired"));
 
-    assert!(store.get_valid_session(&key).is_none());
+    assert!(
+        store
+            .get_valid_session(&key, "http://localhost:8080")
+            .is_none()
+    );
 }
 
 #[test]
@@ -128,7 +140,10 @@ fn get_valid_session_returns_none_for_empty_token() {
     let mut store = SessionStore::new();
     let key = SessionKey::Local;
     let session = CliSessionBuilder::new(
-        ProfileName::new("no-creds"),
+        SessionBinding::new(
+            ProfileName::new("no-creds"),
+            "http://localhost:8080".to_owned(),
+        ),
         SessionToken::new(""),
         SessionId::new("sid"),
         ContextId::new(TEST_CONTEXT_ID_A),
@@ -141,7 +156,11 @@ fn get_valid_session_returns_none_for_empty_token() {
     .build();
     store.upsert_session(&key, session);
 
-    assert!(store.get_valid_session(&key).is_none());
+    assert!(
+        store
+            .get_valid_session(&key, "http://localhost:8080")
+            .is_none()
+    );
 }
 
 #[test]
@@ -150,7 +169,9 @@ fn get_valid_session_mut_returns_mutable_ref() {
     let key = SessionKey::Local;
     store.upsert_session(&key, build_session("mutable"));
 
-    let session = store.get_valid_session_mut(&key).unwrap();
+    let session = store
+        .get_valid_session_mut(&key, "http://localhost:8080")
+        .unwrap();
     session.set_context_id(ContextId::new(TEST_CONTEXT_ID_B));
 
     let retrieved = store.get_session(&key).unwrap();
@@ -163,7 +184,11 @@ fn get_valid_session_mut_returns_none_for_expired() {
     let key = SessionKey::Local;
     store.upsert_session(&key, build_expired_session("old"));
 
-    assert!(store.get_valid_session_mut(&key).is_none());
+    assert!(
+        store
+            .get_valid_session_mut(&key, "http://localhost:8080")
+            .is_none()
+    );
 }
 
 #[test]
@@ -277,7 +302,7 @@ fn active_session_returns_valid_session() {
     store.upsert_session(&key, build_session("active"));
     store.set_active(&key);
 
-    let session = store.active_session();
+    let session = store.active_session_for_profile_discovery();
     assert!(session.is_some());
     assert_eq!(session.unwrap().profile_name.as_str(), "active");
 }
@@ -289,7 +314,7 @@ fn active_session_returns_none_when_expired() {
     store.upsert_session(&key, build_expired_session("stale"));
     store.set_active(&key);
 
-    assert!(store.active_session().is_none());
+    assert!(store.active_session_for_profile_discovery().is_none());
 }
 
 #[test]
@@ -298,7 +323,7 @@ fn active_session_returns_none_when_no_active_key() {
     let key = SessionKey::Local;
     store.upsert_session(&key, build_session("exists"));
 
-    assert!(store.active_session().is_none());
+    assert!(store.active_session_for_profile_discovery().is_none());
 }
 
 #[test]
@@ -498,7 +523,10 @@ fn serde_roundtrip_preserves_all_fields() {
     let mut store = SessionStore::new();
     let key = SessionKey::Tenant(TenantId::new("serde-test"));
     let session = CliSessionBuilder::new(
-        ProfileName::new("serde-prof"),
+        SessionBinding::new(
+            ProfileName::new("serde-prof"),
+            "http://localhost:8080".to_owned(),
+        ),
         SessionToken::new("token-abc"),
         SessionId::new("sid-001"),
         ContextId::new(TEST_CONTEXT_ID_A),
@@ -579,12 +607,12 @@ fn active_session_with_tenant_key() {
     store.upsert_session(&key, build_tenant_session("t-prof", "active-tenant"));
     store.set_active(&key);
 
-    let session = store.active_session().unwrap();
+    let session = store.active_session_for_profile_discovery().unwrap();
     assert_eq!(session.profile_name.as_str(), "t-prof");
 }
 
 #[test]
-fn switching_active_session() {
+fn switching_active_session_for_profile_discovery() {
     let mut store = SessionStore::new();
     let local_key = SessionKey::Local;
     let tenant_key = SessionKey::Tenant(TenantId::new("switched"));
@@ -594,13 +622,21 @@ fn switching_active_session() {
 
     store.set_active(&local_key);
     assert_eq!(
-        store.active_session().unwrap().profile_name.as_str(),
+        store
+            .active_session_for_profile_discovery()
+            .unwrap()
+            .profile_name
+            .as_str(),
         "local"
     );
 
     store.set_active(&tenant_key);
     assert_eq!(
-        store.active_session().unwrap().profile_name.as_str(),
+        store
+            .active_session_for_profile_discovery()
+            .unwrap()
+            .profile_name
+            .as_str(),
         "tenant"
     );
 }

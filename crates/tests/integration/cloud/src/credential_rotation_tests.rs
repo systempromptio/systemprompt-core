@@ -31,7 +31,9 @@ async fn rotating_session_token_invalidates_previous_handle() {
     store.save(&fx.sessions_dir).expect("save");
 
     let reloaded = SessionStore::load(&fx.sessions_dir).expect("reload");
-    let current = reloaded.get_valid_session(&fx.key_a()).expect("current");
+    let current = reloaded
+        .get_valid_session(&fx.key_a(), "http://localhost:8080")
+        .expect("current");
     assert_eq!(current.session_token.as_str(), "token-v2");
     assert_ne!(
         current.session_token.as_str(),
@@ -74,7 +76,9 @@ async fn expired_session_is_filtered_by_valid_lookup() {
     store.upsert_session(&fx.key_a(), session);
 
     assert!(
-        store.get_valid_session(&fx.key_a()).is_none(),
+        store
+            .get_valid_session(&fx.key_a(), "http://localhost:8080")
+            .is_none(),
         "expired session must not satisfy a valid lookup"
     );
     // The raw get is still present until prune is invoked.
@@ -99,7 +103,11 @@ async fn empty_token_session_is_treated_as_invalid() {
     );
     store.upsert_session(&fx.key_a(), session);
 
-    assert!(store.get_valid_session(&fx.key_a()).is_none());
+    assert!(
+        store
+            .get_valid_session(&fx.key_a(), "http://localhost:8080")
+            .is_none()
+    );
 }
 
 #[tokio::test]

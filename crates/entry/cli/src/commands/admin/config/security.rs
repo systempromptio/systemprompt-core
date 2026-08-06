@@ -133,6 +133,14 @@ pub(super) fn execute_set(args: &SetArgs, config: &CliConfig) -> Result<()> {
             .collect();
 
     save_profile(&profile, profile_path)?;
+
+    if args.jwt_issuer.is_some() {
+        crate::session::clear_session()?;
+        CliService::info(
+            "Cleared the stored CLI session: its token was minted under the previous issuer.",
+        );
+    }
+
     render_changes(&changes, config);
     Ok(())
 }

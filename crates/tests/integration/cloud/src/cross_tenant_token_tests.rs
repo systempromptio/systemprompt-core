@@ -12,7 +12,9 @@ async fn tenant_a_session_does_not_satisfy_tenant_b_lookup() {
     let fx = TenantFixture::new();
     let store = seeded_session_store(&fx);
 
-    let a = store.get_valid_session(&fx.key_a()).expect("A session");
+    let a = store
+        .get_valid_session(&fx.key_a(), "http://localhost:8080")
+        .expect("A session");
     assert!(a.is_valid_for_tenant(&fx.key_a()));
     assert!(
         !a.is_valid_for_tenant(&fx.key_b()),
@@ -27,7 +29,9 @@ async fn unknown_tenant_lookup_returns_none() {
 
     let missing = SessionKey::Tenant(TenantId::new("tenant-ghost"));
     assert!(
-        store.get_valid_session(&missing).is_none(),
+        store
+            .get_valid_session(&missing, "http://localhost:8080")
+            .is_none(),
         "lookup for an unminted tenant must return None"
     );
 }
@@ -46,7 +50,7 @@ async fn local_session_does_not_satisfy_tenant_request() {
     store.save(&fx.sessions_dir).expect("save");
     let store = SessionStore::load(&fx.sessions_dir).expect("reload");
 
-    let got = store.get_valid_session(&fx.key_a());
+    let got = store.get_valid_session(&fx.key_a(), "http://localhost:8080");
     assert!(
         got.is_none(),
         "local-only session must not authorise tenant A"
@@ -86,7 +90,7 @@ async fn upsert_under_b_does_not_overwrite_a() {
     store.upsert_session(&fx.key_b(), build_session_b(&fx));
 
     let a_before = store
-        .get_valid_session(&fx.key_a())
+        .get_valid_session(&fx.key_a(), "http://localhost:8080")
         .unwrap()
         .session_token
         .clone();
@@ -101,7 +105,7 @@ async fn upsert_under_b_does_not_overwrite_a() {
     store.upsert_session(&fx.key_b(), new_b);
 
     let a_after = store
-        .get_valid_session(&fx.key_a())
+        .get_valid_session(&fx.key_a(), "http://localhost:8080")
         .unwrap()
         .session_token
         .clone();
@@ -111,7 +115,7 @@ async fn upsert_under_b_does_not_overwrite_a() {
         "A token must survive B rotation"
     );
     let b_after = store
-        .get_valid_session(&fx.key_b())
+        .get_valid_session(&fx.key_b(), "http://localhost:8080")
         .unwrap()
         .session_token
         .clone();

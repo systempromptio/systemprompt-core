@@ -72,7 +72,10 @@ async fn get_session_for_loaded_profile(
     let sessions_dir = ResolvedPaths::discover().sessions_dir();
     let mut store = SessionStore::load_or_create(&sessions_dir)?;
 
-    if let Some(mut session) = store.get_valid_session(&session_key).cloned() {
+    if let Some(mut session) = store
+        .get_valid_session(&session_key, &profile.security.issuer)
+        .cloned()
+    {
         session.touch();
 
         if let Some(refreshed) = try_validate_context(&mut session, &profile_name).await {
@@ -134,7 +137,7 @@ async fn try_session_from_active_key(ctx: &CommandContext) -> Result<Option<CliS
 
     let active_profile = store.active_profile_name.as_deref();
 
-    let profile_path = if let Some(session) = store.active_session() {
+    let profile_path = if let Some(session) = store.active_session_for_profile_discovery() {
         match resolve_profile_path_from_session(session, active_profile)? {
             Some(path) => path,
             None => return Ok(None),

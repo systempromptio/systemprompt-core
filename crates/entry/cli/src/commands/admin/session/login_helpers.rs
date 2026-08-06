@@ -9,7 +9,7 @@ use std::sync::Arc;
 use anyhow::{Context, Result};
 
 use systemprompt_cloud::{
-    CliSession, CredentialsBootstrap, SessionIdentity, SessionKey, SessionStore,
+    CliSession, CredentialsBootstrap, SessionBinding, SessionIdentity, SessionKey, SessionStore,
 };
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ContextId, SessionId, UserId};
@@ -22,12 +22,13 @@ use crate::shared::CommandOutput;
 pub(super) async fn try_use_existing_session(
     sessions_dir: &Path,
     session_key: &SessionKey,
+    issuer: &str,
     args: &LoginArgs,
     db_pool: &DbPool,
 ) -> Result<Option<CommandOutput>> {
     let mut store = SessionStore::load_or_create(sessions_dir)?;
 
-    let Some(session) = store.get_valid_session(session_key) else {
+    let Some(session) = store.get_valid_session(session_key, issuer) else {
         if !args.token_only {
             CliService::info("No valid session found, creating new session...");
         }
@@ -146,6 +147,8 @@ pub(super) struct SessionStoreParams<'a> {
     pub session_key: &'a SessionKey,
     pub profile_path: &'a str,
     pub session_token: systemprompt_identifiers::SessionToken,
+    pub issuer: &'a str,
+    pub ttl: chrono::Duration,
     pub session_id: SessionId,
     pub context_id: ContextId,
     pub user_id: UserId,
@@ -159,6 +162,8 @@ pub(super) fn save_session_to_store(params: SessionStoreParams<'_>) -> Result<()
         session_key,
         profile_path,
         session_token,
+        issuer,
+        ttl,
         session_id,
         context_id,
         user_id,
@@ -180,12 +185,13 @@ pub(super) fn save_session_to_store(params: SessionStoreParams<'_>) -> Result<()
         .map_err(|e| anyhow::anyhow!("Invalid email: {}", e))?;
 
     let cli_session = CliSession::builder(
-        profile_name,
+        SessionBinding::new(profile_name, issuer.to_owned()),
         session_token,
         session_id,
         context_id,
         SessionIdentity::new(user_id, email, user_type),
     )
+    .with_ttl(ttl)
     .with_session_key(session_key)
     .with_profile_path(profile_path)
     .build();

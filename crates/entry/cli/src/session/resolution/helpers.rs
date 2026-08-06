@@ -9,7 +9,7 @@ use std::sync::Arc;
 use anyhow::{Context, Result};
 use systemprompt_agent::repository::context::ContextRepository;
 use systemprompt_cloud::{
-    CliSession, CredentialsBootstrap, SessionIdentity, SessionKey, SessionStore,
+    CliSession, CredentialsBootstrap, SessionBinding, SessionIdentity, SessionKey, SessionStore,
 };
 use systemprompt_config::{ProfileBootstrap, SecretsBootstrap};
 use systemprompt_database::{Database, DbPool};
@@ -36,7 +36,7 @@ pub fn try_session_from_env(profile: &Profile, env: &EnvOverrides) -> Option<Cli
     let profile_name = ProfileName::new("remote");
     let email = Email::new("remote@cli.local");
     let session = CliSession::builder(
-        profile_name,
+        SessionBinding::new(profile_name, profile.security.issuer.clone()),
         SessionToken::new(auth_token),
         session_id,
         context_id,

@@ -13,12 +13,16 @@ async fn switching_active_key_changes_resolved_session() {
     let mut store = seeded_session_store(&fx);
 
     store.set_active(&fx.key_a());
-    let active_a = store.active_session().expect("active A");
+    let active_a = store
+        .active_session_for_profile_discovery()
+        .expect("active A");
     assert_eq!(active_a.session_token.as_str(), "token-a-v1");
     assert_eq!(active_a.tenant_key.as_ref().unwrap().as_str(), "tenant-a");
 
     store.set_active(&fx.key_b());
-    let active_b = store.active_session().expect("active B");
+    let active_b = store
+        .active_session_for_profile_discovery()
+        .expect("active B");
     assert_eq!(active_b.session_token.as_str(), "token-b-v1");
     assert_eq!(active_b.tenant_key.as_ref().unwrap().as_str(), "tenant-b");
 }
@@ -29,12 +33,18 @@ async fn switching_active_does_not_mutate_other_sessions() {
     let mut store = seeded_session_store(&fx);
 
     store.set_active(&fx.key_a());
-    let snapshot_b_before = store.get_valid_session(&fx.key_b()).cloned().unwrap();
+    let snapshot_b_before = store
+        .get_valid_session(&fx.key_b(), "http://localhost:8080")
+        .cloned()
+        .unwrap();
 
     store.set_active(&fx.key_b());
     store.set_active(&fx.key_a());
 
-    let snapshot_b_after = store.get_valid_session(&fx.key_b()).cloned().unwrap();
+    let snapshot_b_after = store
+        .get_valid_session(&fx.key_b(), "http://localhost:8080")
+        .cloned()
+        .unwrap();
     assert_eq!(
         snapshot_b_before.session_token.as_str(),
         snapshot_b_after.session_token.as_str()
@@ -70,7 +80,9 @@ async fn active_session_round_trips_through_disk() {
     store.save(&fx.sessions_dir).expect("save");
 
     let reloaded = systemprompt_cloud::SessionStore::load(&fx.sessions_dir).expect("reload");
-    let active = reloaded.active_session().expect("active");
+    let active = reloaded
+        .active_session_for_profile_discovery()
+        .expect("active");
     assert_eq!(active.tenant_key.as_ref().unwrap().as_str(), "tenant-b");
     assert_eq!(reloaded.active_profile_name.as_deref(), Some("profile-b"));
 }

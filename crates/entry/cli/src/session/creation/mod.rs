@@ -77,6 +77,7 @@ pub(super) async fn create_local_session(
             context_id,
         },
         &admin_user,
+        &profile.security.issuer,
     )
 }
 
@@ -144,5 +145,6 @@ pub(super) async fn create_session_for_tenant(
             context_id,
         },
         &admin_user,
+        &profile.security.issuer,
     )
 }

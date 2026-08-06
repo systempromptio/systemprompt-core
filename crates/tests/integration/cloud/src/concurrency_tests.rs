@@ -34,7 +34,9 @@ async fn concurrent_tenants_in_separate_stores_do_not_interfere() {
                     "00000000-0000-4000-8000-00000000000a",
                 );
                 store.upsert_session(&fx.key_a(), session);
-                let live = store.get_valid_session(&fx.key_a()).unwrap();
+                let live = store
+                    .get_valid_session(&fx.key_a(), "http://localhost:8080")
+                    .unwrap();
                 assert!(
                     live.session_token.as_str().starts_with("a-token-"),
                     "tenant A must never observe a non-A token"
@@ -56,7 +58,9 @@ async fn concurrent_tenants_in_separate_stores_do_not_interfere() {
                     "00000000-0000-4000-8000-00000000000b",
                 );
                 store.upsert_session(&fx.key_b(), session);
-                let live = store.get_valid_session(&fx.key_b()).unwrap();
+                let live = store
+                    .get_valid_session(&fx.key_b(), "http://localhost:8080")
+                    .unwrap();
                 assert!(
                     live.session_token.as_str().starts_with("b-token-"),
                     "tenant B must never observe a non-B token"
@@ -115,8 +119,12 @@ async fn shared_store_under_mutex_keeps_per_tenant_keys_distinct() {
     }
 
     let guard = store.lock().await;
-    let a = guard.get_valid_session(&key_a).expect("A present");
-    let b = guard.get_valid_session(&key_b).expect("B present");
+    let a = guard
+        .get_valid_session(&key_a, "http://localhost:8080")
+        .expect("A present");
+    let b = guard
+        .get_valid_session(&key_b, "http://localhost:8080")
+        .expect("B present");
     assert!(
         a.session_token.as_str().starts_with("a-"),
         "tenant A storage key must never hold a B-token, got {}",

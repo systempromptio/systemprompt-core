@@ -78,7 +78,7 @@ async fn cleanup_sessions_dry_run_counts_without_closing() {
 }
 
 #[tokio::test]
-async fn cleanup_sessions_closes_inactive_session() {
+async fn cleanup_sessions_closes_inactive_session_for_profile_discovery() {
     let pool = pool().await;
     let id = seed_session(&pool, Utc::now() - Duration::hours(48)).await;
 

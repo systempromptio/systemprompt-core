@@ -87,8 +87,14 @@ pub async fn login_for_profile(
     let db_pool = DbPool::from(Arc::new(db));
 
     if !args.force_new
-        && let Some(output) =
-            try_use_existing_session(&sessions_dir, &session_key, args, &db_pool).await?
+        && let Some(output) = try_use_existing_session(
+            &sessions_dir,
+            &session_key,
+            &profile.security.issuer,
+            args,
+            &db_pool,
+        )
+        .await?
     {
         return Ok(output);
     }
@@ -123,6 +129,8 @@ pub async fn login_for_profile(
         session_key: &session_key,
         profile_path,
         session_token: session_token.clone(),
+        issuer: &profile.security.issuer,
+        ttl: chrono::Duration::hours(args.duration_hours),
         session_id: session_id.clone(),
         context_id,
         user_id: admin_user.id.clone(),
