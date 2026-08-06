@@ -34,8 +34,14 @@ pub(super) fn load_secrets() -> Result<ResolvedSecrets> {
         )
     })?;
 
+    // Session creation INSERTs, so it must land on the primary. On a
+    // read/write-split deployment `database_url` is the read pool and may be
+    // a standby; prefer the write URL whenever one is configured.
     Ok(ResolvedSecrets {
-        database_url: secrets.database_url.clone(),
+        database_url: secrets
+            .database_write_url
+            .clone()
+            .unwrap_or_else(|| secrets.database_url.clone()),
     })
 }
 
