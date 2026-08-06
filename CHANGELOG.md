@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.30.0] - 2026-08-06
+
+### Breaking
+
+- **Breaking:** `cloud tenant create` provisions a Docker `PostgreSQL` container per tenant instead of one shared `systemprompt-postgres-shared` container holding a database per tenant. `SharedContainerConfig`, `TenantDatabaseMapping`, `load_shared_config`, `save_shared_config`, `stop_shared_container`, `ensure_admin_role`, `create_database_for_tenant`, and `drop_database_for_tenant` are removed in favour of `TenantContainer` and the `start_project` / `remove_project` lifecycle. A tenant created against the shared container is not migrated — recreate it.
+- **Breaking:** `StoredTenant::new_local_shared` is renamed to `new_local_docker`, `StoredTenant::shared_container_db` to `docker_project`, and `uses_shared_container` to `uses_managed_container`. The field now names a compose project rather than a database inside a shared server.
+- **Breaking:** `SessionStore::get_valid_session` and `get_valid_session_mut` take the current `security.issuer`, and `active_session` is replaced by `active_session_for_profile_discovery`, which performs no issuer check and must not be used to authorize a request. Migrate by passing `profile.security.issuer` at each reuse site.
+- **Breaking:** `CliSession` gains an `issuer` field and its on-disk version moves to 6; a version-5 `index.json` entry is rejected rather than migrated, so the next command mints a fresh session. `CliSession::builder` and `CliSessionBuilder::new` take a `SessionBinding` in place of a bare `ProfileName`.
+- **Breaking:** `NetworkService::prepare_port`, `wait_for_port_release_with_retry`, and `port::cleanup_port_processes` take the MCP server name. Migrate by passing `config.name`.
+- **Breaking:** `services::Settings` rejects unknown fields. A services config that spells the settings keys in camelCase (`mcpPortRange`, `agentPortRange`, `autoStartEnabled`, `schemaValidationMode`) now fails to load instead of silently falling back to the defaults. Migrate by renaming them to snake_case.
+
+### Added
+
+- `profile.services.port_offset` shifts every locally-bound MCP and agent port, and both port ranges, when the services config is loaded. The manifests under `services/` are tracked config, so a second installation on one host previously had no way to resolve a port collision without editing a shared file. Set it with `admin config services set --port-offset` or `admin setup --port-offset`; the existing port-range and conflict validators police the shifted values.
+- `McpDomainError::PortOwnedByForeignProcess` names the port, the holding PID, and the MCP server when a port is held by a process this installation did not spawn.
+- `McpDomainError::TokenIssuerMismatch` and `TokenRejected` replace the stringified `Internal` error that every MCP JWT failure previously collapsed into, and `AuthError::is_issuer_mismatch` reports an `iss` claim mismatch that `jsonwebtoken` reports only inside `InvalidToken`.
+
+### Fixed
+
+- Starting an MCP server no longer reclaims its port by killing whatever holds it. Port cleanup signals a PID only once `/proc/<pid>/environ` identifies it as this installation's child of that service — the same identity check shutdown already applied — and fails otherwise. Two installations on one host previously terminated each other's MCP servers, and a surviving foreign listener silently answered tool calls meant for the local one.
+- A CLI session is bound to the issuer its token was minted under and is discarded when `security.issuer` changes, on both the explicit `admin session login` path and the implicit path every other command uses. `admin config security set --jwt-issuer` clears the stored session rather than leaving a token that every MCP call rejects until `admin session logout` is run by hand.
+- `admin session login --duration-hours` sets the stored session's expiry as well as the token's. The file entry was fixed at 24 hours, so it could outlive or fall short of the token it held.
+- `cloud tenant create` no longer rewrites the PostgreSQL superuser password when run a second time, which invalidated the stored `database_url` of every tenant created before it.
+
 ## [0.29.0] - 2026-08-04
 
 ### Breaking
