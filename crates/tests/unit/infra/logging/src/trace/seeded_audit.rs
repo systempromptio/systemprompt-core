@@ -95,9 +95,9 @@ impl AuditSeed {
         let rejected_id = format!("{}_rejected", self.request_id);
         sqlx::query(
             "INSERT INTO ai_requests \
-             (id, request_id, user_id, trace_id, actor_kind, actor_id, status, error_message, \
+             (id, request_id, user_id, context_id, trace_id, actor_kind, actor_id, status, error_message, \
               cost_microdollars) \
-             VALUES ($1, $1, $2, $3, 'user', $2, 'rejected', 'HTTP 402: credit exhausted', 0)",
+             VALUES ($1, $1, $2, '00000000-0000-0000-0000-00000000c0de', $3, 'user', $2, 'rejected', 'HTTP 402: credit exhausted', 0)",
         )
         .bind(&rejected_id)
         .bind(&self.user_id)

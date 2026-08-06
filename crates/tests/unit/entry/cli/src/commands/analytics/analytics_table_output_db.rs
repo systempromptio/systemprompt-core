@@ -79,9 +79,9 @@ async fn seed(pool: &DbPool) {
     .unwrap();
 
     sqlx::query(
-        "INSERT INTO ai_requests (id, request_id, user_id, provider, model, tokens_used, \
+        "INSERT INTO ai_requests (id, request_id, user_id, context_id, provider, model, tokens_used, \
          input_tokens, output_tokens, cost_microdollars, latency_ms, status, actor_kind, \
-         actor_id, created_at, completed_at) VALUES ($1, $2, $3, 'covprovider', 'covtablemodel', \
+         actor_id, created_at, completed_at) VALUES ($1, $2, $3, '00000000-0000-0000-0000-00000000c0de', 'covprovider', 'covtablemodel', \
          120, 60, 60, 3000, 210, 'completed', 'user', $3, NOW(), NOW())",
     )
     .bind(Uuid::new_v4().to_string())

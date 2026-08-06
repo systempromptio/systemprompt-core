@@ -129,10 +129,10 @@ impl Seed {
 
         sqlx::query(
             "INSERT INTO ai_requests \
-             (id, request_id, user_id, provider, model, requested_model, actor_kind, actor_id, \
+             (id, request_id, user_id, context_id, provider, model, requested_model, actor_kind, actor_id, \
               task_id, trace_id, status, mcp_execution_id, input_tokens, output_tokens, \
               cost_microdollars, latency_ms) \
-             VALUES ($1, $1, $2, 'openai', 'gpt-4', 'gpt-4o', 'user', $2, $3, $4, 'completed', \
+             VALUES ($1, $1, $2, '00000000-0000-0000-0000-00000000c0de', 'openai', 'gpt-4', 'gpt-4o', 'user', $2, $3, $4, 'completed', \
               $5, 17, 29, 1234, 44)",
         )
         .bind(&self.request_id)

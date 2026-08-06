@@ -328,8 +328,8 @@ async fn insert_ai_request(pool: &sqlx::PgPool, trace_id: &str, status: &str) {
     let id = uuid::Uuid::new_v4().simple().to_string();
     sqlx::query!(
         "INSERT INTO ai_requests \
-         (id, request_id, user_id, provider, model, actor_kind, actor_id, trace_id, status) \
-         VALUES ($1, $2, 'u', 'test', 'test', 'user', 'u', $3, $4)",
+         (id, request_id, user_id, context_id, provider, model, actor_kind, actor_id, trace_id, status) \
+         VALUES ($1, $2, 'u', '00000000-0000-0000-0000-00000000c0de', 'test', 'test', 'user', 'u', $3, $4)",
         id.as_str(),
         id.as_str(),
         trace_id,

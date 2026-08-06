@@ -3974,6 +3974,35 @@ dependencies = [
 ]
 
 [[package]]
+name = "systemprompt-ai"
+version = "0.29.0"
+dependencies = [
+ "async-trait",
+ "base64 0.22.1",
+ "chrono",
+ "futures",
+ "inventory",
+ "regex",
+ "reqwest",
+ "rmcp",
+ "serde",
+ "serde_json",
+ "serde_yaml_ng",
+ "sqlx",
+ "systemprompt-config",
+ "systemprompt-database",
+ "systemprompt-extension",
+ "systemprompt-identifiers",
+ "systemprompt-models",
+ "systemprompt-provider-contracts",
+ "systemprompt-traits",
+ "thiserror 2.0.19",
+ "tokio",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
 name = "systemprompt-analytics"
 version = "0.29.0"
 dependencies = [
@@ -4372,12 +4401,14 @@ dependencies = [
  "serde_json",
  "serde_yaml_ng",
  "systemprompt-agent",
+ "systemprompt-ai",
  "systemprompt-analytics",
  "systemprompt-config",
  "systemprompt-content",
  "systemprompt-database",
  "systemprompt-extension",
  "systemprompt-files",
+ "systemprompt-identifiers",
  "systemprompt-loader",
  "systemprompt-logging",
  "systemprompt-marketplace",
@@ -4442,6 +4473,7 @@ dependencies = [
  "sha2 0.11.0",
  "sqlx",
  "systemprompt-agent",
+ "systemprompt-ai",
  "systemprompt-analytics",
  "systemprompt-config",
  "systemprompt-content",

@@ -85,9 +85,9 @@ async fn seed_ai_requests(pool: &DbPool) -> String {
 
     for (tokens, cost, latency) in [(100, 2_000, 250), (250, 5_000, 400)] {
         sqlx::query(
-            "INSERT INTO ai_requests (id, request_id, user_id, provider, model, tokens_used, \
+            "INSERT INTO ai_requests (id, request_id, user_id, context_id, provider, model, tokens_used, \
              input_tokens, output_tokens, cost_microdollars, latency_ms, status, actor_kind, \
-             actor_id, created_at, completed_at) VALUES ($1, $2, $3, 'covprovider', $4, $5, $5, \
+             actor_id, created_at, completed_at) VALUES ($1, $2, $3, '00000000-0000-0000-0000-00000000c0de', 'covprovider', $4, $5, $5, \
              $5, $6, $7, 'completed', 'user', $3, NOW(), NOW())",
         )
         .bind(Uuid::new_v4().to_string())
@@ -308,9 +308,9 @@ async fn seed_aged_ai_request(pool: &DbPool, age_days: i32, cost: i64) {
     seed_user_row(pool, &user_id, &email).await.unwrap();
 
     sqlx::query(
-        "INSERT INTO ai_requests (id, request_id, user_id, provider, model, tokens_used, \
+        "INSERT INTO ai_requests (id, request_id, user_id, context_id, provider, model, tokens_used, \
          input_tokens, output_tokens, cost_microdollars, latency_ms, status, actor_kind, \
-         actor_id, created_at, completed_at) VALUES ($1, $2, $3, 'covprovider', 'covwiden', 10, \
+         actor_id, created_at, completed_at) VALUES ($1, $2, $3, '00000000-0000-0000-0000-00000000c0de', 'covprovider', 'covwiden', 10, \
          5, 5, $4, 10, 'completed', 'user', $3, NOW() - ($5 || ' days')::interval, NOW())",
     )
     .bind(Uuid::new_v4().to_string())

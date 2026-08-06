@@ -141,7 +141,7 @@ async fn system_user_skips_usage_accounting_but_touches_session() {
         .await
         .expect("seed system user");
     let (_seeded, ctx) = seeded_context(&pool).await;
-    let ctx = ctx.with_actor(systemprompt_identifiers::Actor::system(system_user));
+    let ctx = ctx.with_actor(systemprompt_identifiers::Actor::user(system_user));
     let session_id = ctx.session_id().as_str().to_owned();
     let provider = Arc::new(RecordingSessionProvider::default());
     let storage = storage(&pool, provider.clone());

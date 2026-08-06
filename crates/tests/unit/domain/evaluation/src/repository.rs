@@ -27,8 +27,8 @@ async fn seed_ai_request(pool: &systemprompt_database::DbPool, actor_kind: &str)
     let id = format!("eval-test-{}", Uuid::new_v4());
     let write = pool.write_pool_arc().expect("write pool");
     sqlx::query(
-        "INSERT INTO ai_requests (id, request_id, user_id, provider, model, status, actor_kind, actor_id)
-         VALUES ($1, $1, 'system', 'anthropic', 'claude-sonnet-5', 'completed', $2, 'system')",
+        "INSERT INTO ai_requests (id, request_id, user_id, context_id, provider, model, status, actor_kind, actor_id)
+         VALUES ($1, $1, 'system', '00000000-0000-0000-0000-00000000c0de', 'anthropic', 'claude-sonnet-5', 'completed', $2, 'system')",
     )
     .bind(&id)
     .bind(actor_kind)

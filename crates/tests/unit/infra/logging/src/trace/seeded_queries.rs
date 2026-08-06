@@ -164,9 +164,9 @@ impl Seed {
         let id = uuid::Uuid::new_v4().simple().to_string();
         sqlx::query(
             "INSERT INTO ai_requests \
-             (id, request_id, user_id, provider, model, actor_kind, actor_id, trace_id, status, \
+             (id, request_id, user_id, context_id, provider, model, actor_kind, actor_id, trace_id, status, \
               mcp_execution_id, input_tokens, output_tokens, cost_microdollars, latency_ms) \
-             VALUES ($1, $2, $3, 'openai', 'gpt-4', 'user', $3, $4, 'completed', $5, 10, 20, 5, 30)",
+             VALUES ($1, $2, $3, '00000000-0000-0000-0000-00000000c0de', 'openai', 'gpt-4', 'user', $3, $4, 'completed', $5, 10, 20, 5, 30)",
         )
         .bind(&id)
         .bind(&id)

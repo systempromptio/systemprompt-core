@@ -13,9 +13,9 @@ async fn insert_ai_request(pool: &DbPool, user_id: &str, provider: &str, model: 
     sqlx::query(
         r"
         INSERT INTO ai_requests
-            (id, request_id, user_id, provider, model, tokens_used,
+            (id, request_id, user_id, context_id, provider, model, tokens_used,
              cost_microdollars, latency_ms, status, actor_kind, actor_id)
-        VALUES ($1, $2, $3, $4, $5, 100, 2500, 40, 'completed', 'user', $3)
+        VALUES ($1, $2, $3, '00000000-0000-0000-0000-00000000c0de', $4, $5, 100, 2500, 40, 'completed', 'user', $3)
         ",
     )
     .bind(Uuid::new_v4().to_string())
@@ -33,9 +33,9 @@ async fn insert_rejected_ai_request(pool: &DbPool, user_id: &str) {
     sqlx::query(
         r"
         INSERT INTO ai_requests
-            (id, request_id, user_id, tokens_used,
+            (id, request_id, user_id, context_id, tokens_used,
              cost_microdollars, latency_ms, status, actor_kind, actor_id)
-        VALUES ($1, $2, $3, 0, 0, 0, 'rejected', 'user', $3)
+        VALUES ($1, $2, $3, '00000000-0000-0000-0000-00000000c0de', 0, 0, 0, 'rejected', 'user', $3)
         ",
     )
     .bind(Uuid::new_v4().to_string())

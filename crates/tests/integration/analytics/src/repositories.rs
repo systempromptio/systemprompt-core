@@ -125,9 +125,9 @@ impl Fixture {
     async fn insert_ai_request(&self, model: &str, cost: i64, tokens: i64) -> Result<()> {
         let id = format!("req_{}_{}", self.tag, Uuid::new_v4().simple());
         sqlx::query(
-            "INSERT INTO ai_requests (id, request_id, user_id, provider, model, \
+            "INSERT INTO ai_requests (id, request_id, user_id, context_id, provider, model, \
              cost_microdollars, tokens_used, status, created_at, updated_at, actor_kind, \
-             actor_id, latency_ms) VALUES ($1, $2, $3, 'p', $4, $5, $6, 'completed', $7, $7, \
+             actor_id, latency_ms) VALUES ($1, $2, $3, '00000000-0000-0000-0000-00000000c0de', 'p', $4, $5, $6, 'completed', $7, $7, \
              'user', $3, 100)",
         )
         .bind(&id)
@@ -145,8 +145,8 @@ impl Fixture {
     async fn insert_rejected_ai_request(&self) -> Result<()> {
         let id = format!("rej_{}_{}", self.tag, Uuid::new_v4().simple());
         sqlx::query(
-            "INSERT INTO ai_requests (id, request_id, user_id, cost_microdollars, tokens_used, \
-             status, created_at, updated_at, actor_kind, actor_id) VALUES ($1, $2, $3, 0, 0, \
+            "INSERT INTO ai_requests (id, request_id, user_id, context_id, cost_microdollars, tokens_used, \
+             status, created_at, updated_at, actor_kind, actor_id) VALUES ($1, $2, $3, '00000000-0000-0000-0000-00000000c0de', 0, 0, \
              'rejected', $4, $4, 'user', $3)",
         )
         .bind(&id)

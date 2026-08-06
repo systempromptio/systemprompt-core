@@ -207,8 +207,8 @@ async fn seed_ai_request(
 ) -> Result<()> {
     let pg = pool.pool_arc().map_err(|e| anyhow::anyhow!("pool: {e}"))?;
     sqlx::query(
-        "INSERT INTO ai_requests (id, request_id, user_id, provider, model, cost_microdollars, \
-         cache_hit, is_streaming, status, actor_kind, actor_id) VALUES ($1, $1, $2, 'anthropic', \
+        "INSERT INTO ai_requests (id, request_id, user_id, context_id, provider, model, cost_microdollars, \
+         cache_hit, is_streaming, status, actor_kind, actor_id) VALUES ($1, $1, $2, '00000000-0000-0000-0000-00000000c0de', 'anthropic', \
          $3, 0, false, false, 'pending', 'user', $2)",
     )
     .bind(id.as_str())

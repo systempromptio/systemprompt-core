@@ -102,9 +102,9 @@ impl Fixture {
         let id = format!("req_{}_{}", self.tag, Uuid::new_v4().simple());
         let created_at = self.window_start + Duration::minutes(offset_minutes);
         sqlx::query(
-            "INSERT INTO ai_requests (id, request_id, user_id, task_id, provider, model, \
+            "INSERT INTO ai_requests (id, request_id, user_id, context_id, task_id, provider, model, \
              cost_microdollars, tokens_used, status, created_at, updated_at, actor_kind, \
-             actor_id) VALUES ($1, $2, $3, $4, 'test-provider', 'test-model', $5, $6, \
+             actor_id) VALUES ($1, $2, $3, '00000000-0000-0000-0000-00000000c0de', $4, 'test-provider', 'test-model', $5, $6, \
              'completed', $7, $7, 'user', $3)",
         )
         .bind(&id)

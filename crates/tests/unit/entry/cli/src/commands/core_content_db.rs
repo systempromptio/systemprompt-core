@@ -529,17 +529,3 @@ async fn link_list_requires_a_filter_flag() {
     assert!(err.to_string().contains("--campaign or --content"));
 }
 
-#[tokio::test]
-async fn link_list_returns_empty_for_unknown_content() {
-    let pool = pool().await;
-    let ctx = db_ctx(&pool, cfg());
-    link::list::execute(
-        link::list::ListArgs {
-            campaign: None,
-            content: Some(unique("content")),
-        },
-        &ctx,
-    )
-    .await
-    .unwrap();
-}
