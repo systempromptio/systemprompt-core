@@ -100,10 +100,23 @@ async fn start_postgres_container(compose_path: &Path) -> Result<bool> {
     let compose_path_str = compose_path
         .to_str()
         .ok_or_else(|| anyhow::anyhow!("Invalid compose path"))?;
+    let project = compose_path
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .ok_or_else(|| anyhow::anyhow!("Invalid compose path"))?
+        .to_owned();
 
     let docker = DockerCli::new();
     let status = docker
-        .status(&["compose", "-f", compose_path_str, "up", "-d"])
+        .status(&[
+            "compose",
+            "-p",
+            &project,
+            "-f",
+            compose_path_str,
+            "up",
+            "-d",
+        ])
         .map_err(|_e| anyhow::anyhow!("Failed to execute docker compose. Is Docker running?"))?;
 
     if !status.success() {
@@ -112,7 +125,7 @@ async fn start_postgres_container(compose_path: &Path) -> Result<bool> {
     }
 
     let spinner = CliService::spinner("Waiting for PostgreSQL to be ready...");
-    match wait_for_postgres_healthy(&docker, compose_path, 60).await {
+    match wait_for_postgres_healthy(&docker, &project, compose_path, 60).await {
         Ok(()) => {
             spinner.finish_and_clear();
             Ok(true)

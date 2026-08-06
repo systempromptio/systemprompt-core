@@ -1,15 +1,14 @@
 //! Local tenant creation flows.
 //!
-//! [`create_local_tenant`] provisions a database inside the shared Docker
-//! `PostgreSQL` container (starting it if needed); [`create_external_tenant`]
-//! registers a user-supplied database after validating the connection. Both
-//! then scaffold a local profile.
+//! [`create_local_tenant`] provisions a Docker `PostgreSQL` container owned by
+//! that tenant alone; [`create_external_tenant`] registers a user-supplied
+//! database after validating the connection. Both then scaffold a local
+//! profile.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use anyhow::{Context, Result, anyhow, bail};
-use std::fs;
+use anyhow::{Context, Result, bail};
 use systemprompt_cloud::{DockerCli, ProjectContext, StoredTenant};
 use systemprompt_logging::CliService;
 
@@ -21,11 +20,8 @@ use crate::cloud::profile::{
 use crate::interactive::Prompter;
 
 use super::super::docker::{
-    SHARED_ADMIN_USER, SHARED_PORT, SHARED_VOLUME_NAME, SharedContainerConfig, check_volume_exists,
-    create_database_for_tenant, ensure_admin_role, generate_admin_password,
-    generate_shared_postgres_compose, get_container_password, is_shared_container_running,
-    load_shared_config, nanoid, new_local_tenant_id, remove_shared_volume, save_shared_config,
-    wait_for_postgres_healthy,
+    TenantContainer, generate_admin_password, is_project_running, nanoid, new_local_tenant_id,
+    remove_project, start_project,
 };
 
 use super::sanitize_database_name;
@@ -39,48 +35,35 @@ pub async fn create_local_tenant(prompter: &dyn Prompter) -> Result<StoredTenant
         bail!("Tenant name cannot be empty");
     }
 
-    let unique_suffix = nanoid();
-    let db_name = format!("{}_{}", sanitize_database_name(&name), unique_suffix);
+    let project = format!("{}_{}", sanitize_database_name(&name), nanoid());
 
-    let ctx = ProjectContext::discover();
-    let docker_dir = ctx.docker_dir();
-    fs::create_dir_all(&docker_dir).context("Failed to create docker directory")?;
+    let port: u16 = prompter
+        .input_with_default("PostgreSQL port", "5432")?
+        .parse()
+        .context("PostgreSQL port must be a number")?;
 
     let docker = DockerCli::new();
 
-    let shared_config = load_shared_config()?;
-    let container_running = is_shared_container_running(&docker);
-
-    let (config, needs_start) =
-        resolve_container_state(&docker, shared_config, container_running, prompter)?;
-
-    let compose_path = docker_dir.join("shared.yaml");
-
-    if needs_start {
-        start_container(&docker, &config, &compose_path).await?;
+    if is_project_running(&docker, &project) {
+        bail!("A container for project '{project}' is already running");
     }
 
-    let spinner = CliService::spinner("Verifying admin role...");
-    ensure_admin_role(&docker, &config.admin_password)?;
+    let container = TenantContainer::new(project.clone(), generate_admin_password(), port);
+
+    let spinner = CliService::spinner("Starting PostgreSQL container...");
+    let started = start_project(&docker, &container).await;
     spinner.finish_and_clear();
 
-    let spinner = CliService::spinner(&format!("Creating database '{}'...", db_name));
-    create_database_for_tenant(&docker, &config.admin_password, config.port, &db_name)?;
-    spinner.finish_and_clear();
-    CliService::success(&format!("Database '{}' created", db_name));
+    if let Err(e) = started {
+        remove_project(&docker, &project).ok();
+        return Err(e);
+    }
+    CliService::success(&format!("PostgreSQL container '{project}' is ready"));
 
-    let database_url = format!(
-        "postgres://{}:{}@localhost:{}/{}",
-        SHARED_ADMIN_USER, config.admin_password, config.port, db_name
-    );
+    let database_url = container.database_url();
 
     let id = new_local_tenant_id();
-    let tenant =
-        StoredTenant::new_local_shared(id, name.clone(), database_url.clone(), db_name.clone());
-
-    let mut updated_config = config;
-    updated_config.add_tenant(tenant.id.clone(), db_name);
-    save_shared_config(&updated_config)?;
+    let tenant = StoredTenant::new_local_docker(id, name.clone(), database_url.clone(), project);
 
     setup_local_profile(&tenant, &name, &database_url, prompter).await?;
 
@@ -117,116 +100,6 @@ pub async fn create_external_tenant(prompter: &dyn Prompter) -> Result<StoredTen
     setup_local_profile(&tenant, &name, &database_url, prompter).await?;
 
     Ok(tenant)
-}
-
-pub fn resolve_container_state(
-    docker: &DockerCli,
-    shared_config: Option<SharedContainerConfig>,
-    container_running: bool,
-    prompter: &dyn Prompter,
-) -> Result<(SharedContainerConfig, bool)> {
-    match (shared_config, container_running) {
-        (Some(config), true) => {
-            CliService::info("Using existing shared PostgreSQL container");
-            Ok((config, false))
-        },
-        (Some(config), false) => {
-            CliService::info("Shared container config found, restarting container...");
-            Ok((config, true))
-        },
-        (None, true) => {
-            CliService::info("Found existing shared PostgreSQL container.");
-
-            let use_existing = prompter.confirm("Use existing container?", true)?;
-
-            if !use_existing {
-                bail!(
-                    "To create a new container, first stop the existing one:\n  docker stop \
-                     systemprompt-postgres-shared && docker rm systemprompt-postgres-shared"
-                );
-            }
-
-            let spinner = CliService::spinner("Connecting to container...");
-            let password = get_container_password(docker)
-                .ok_or_else(|| anyhow!("Could not retrieve password from container"))?;
-            spinner.finish_and_clear();
-
-            CliService::success("Connected to existing container");
-            let config = SharedContainerConfig::new(password, SHARED_PORT);
-            Ok((config, false))
-        },
-        (None, false) => {
-            handle_orphaned_volume(docker, prompter)?;
-
-            CliService::info("Creating new shared PostgreSQL container...");
-            let password = generate_admin_password();
-            let config = SharedContainerConfig::new(password, SHARED_PORT);
-            Ok((config, true))
-        },
-    }
-}
-
-pub fn handle_orphaned_volume(docker: &DockerCli, prompter: &dyn Prompter) -> Result<()> {
-    if !check_volume_exists(docker) {
-        return Ok(());
-    }
-
-    CliService::warning("PostgreSQL data volume exists but no container or configuration found.");
-    CliService::info(&format!(
-        "Volume '{}' contains data from a previous installation.",
-        SHARED_VOLUME_NAME
-    ));
-
-    let reset = prompter.confirm(
-        "Reset volume? (This will delete existing database data)",
-        false,
-    )?;
-
-    if reset {
-        let spinner = CliService::spinner("Removing orphaned volume...");
-        remove_shared_volume(docker)?;
-        spinner.finish_and_clear();
-        CliService::success("Volume removed");
-    } else {
-        bail!(
-            "Cannot create container with orphaned volume.\nEither reset the volume or remove it \
-             manually:\n  docker volume rm {}",
-            SHARED_VOLUME_NAME
-        );
-    }
-
-    Ok(())
-}
-
-async fn start_container(
-    docker: &DockerCli,
-    config: &SharedContainerConfig,
-    compose_path: &std::path::Path,
-) -> Result<()> {
-    let compose_content = generate_shared_postgres_compose(&config.admin_password, config.port);
-    fs::write(compose_path, &compose_content)
-        .with_context(|| format!("Failed to write {}", compose_path.display()))?;
-    CliService::success(&format!("Created: {}", compose_path.display()));
-
-    CliService::info("Starting shared PostgreSQL container...");
-    let compose_path_str = compose_path
-        .to_str()
-        .ok_or_else(|| anyhow!("Invalid compose path"))?;
-
-    let status = docker
-        .status(&["compose", "-f", compose_path_str, "up", "-d"])
-        .context("Failed to execute docker compose. Is Docker running?")?;
-
-    if !status.success() {
-        bail!("Failed to start PostgreSQL container. Is Docker running?");
-    }
-
-    let spinner = CliService::spinner("Waiting for PostgreSQL to be ready...");
-    wait_for_postgres_healthy(docker, compose_path, 60).await?;
-    spinner.finish_and_clear();
-    CliService::success("Shared PostgreSQL container is ready");
-
-    Ok(())
 }
 
 async fn setup_local_profile(

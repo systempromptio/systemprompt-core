@@ -1,130 +1,141 @@
-//! Lifecycle of the shared Docker `PostgreSQL` container for local tenants.
+//! Lifecycle of a tenant's own Docker `PostgreSQL` container.
 //!
-//! Wraps `docker` invocations to inspect, start, health-check, and tear down
-//! the shared container and its volume, and generates the compose file and
-//! credentials used to bring it up.
+//! Each local tenant owns a compose project under `.systemprompt/docker/`, so
+//! two installations on one host never share a container, a volume, or a role.
+//! Wraps `docker compose` to bring a project up, health-check it, and tear it
+//! down with its volume.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use anyhow::{Context, Result, anyhow, bail};
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::time::Duration;
 use systemprompt_cloud::{DockerCli, ProjectContext};
-use systemprompt_logging::CliService;
 
-use super::config::{SHARED_CONTAINER_NAME, SHARED_VOLUME_NAME, shared_config_path};
+const LOCAL_DB_USER: &str = "systemprompt";
+const LOCAL_DB_NAME: &str = "systemprompt";
 
-pub fn is_shared_container_running(docker: &DockerCli) -> bool {
-    let filter = format!("name={}", SHARED_CONTAINER_NAME);
-    let output = docker.output(&["ps", "-q", "-f", &filter]);
+#[derive(Debug, Clone)]
+pub struct TenantContainer {
+    pub project: String,
+    pub password: String,
+    pub port: u16,
+}
 
-    match output {
+impl TenantContainer {
+    #[must_use]
+    pub const fn new(project: String, password: String, port: u16) -> Self {
+        Self {
+            project,
+            password,
+            port,
+        }
+    }
+
+    #[must_use]
+    pub fn compose_path(&self) -> PathBuf {
+        ProjectContext::discover()
+            .docker_dir()
+            .join(format!("{}.yaml", self.project))
+    }
+
+    #[must_use]
+    pub fn database_url(&self) -> String {
+        format!(
+            "postgres://{}:{}@localhost:{}/{}",
+            LOCAL_DB_USER, self.password, self.port, LOCAL_DB_NAME
+        )
+    }
+}
+
+pub fn compose_path_for_project(project: &str) -> PathBuf {
+    ProjectContext::discover()
+        .docker_dir()
+        .join(format!("{project}.yaml"))
+}
+
+pub fn is_project_running(docker: &DockerCli, project: &str) -> bool {
+    let filter = format!("label=com.docker.compose.project={project}");
+    match docker.output(&["ps", "-q", "-f", &filter]) {
         Ok(out) => !String::from_utf8_lossy(&out.stdout).trim().is_empty(),
         Err(e) => {
-            tracing::debug!(error = %e, "Failed to check shared container status");
+            tracing::debug!(error = %e, project = %project, "Failed to check container status");
             false
         },
     }
 }
 
-pub fn get_container_password(docker: &DockerCli) -> Option<String> {
-    let output = docker.output(&[
-        "inspect",
-        SHARED_CONTAINER_NAME,
-        "--format",
-        "{{range .Config.Env}}{{println .}}{{end}}",
-    ]);
-
-    match output {
-        Ok(out) if out.status.success() => {
-            let env_vars = String::from_utf8_lossy(&out.stdout);
-            for line in env_vars.lines() {
-                if let Some(password) = line.strip_prefix("POSTGRES_PASSWORD=") {
-                    return Some(password.to_owned());
-                }
-            }
-            None
-        },
-        Ok(_out) => {
-            tracing::debug!("Docker inspect returned non-success exit code");
-            None
-        },
-        Err(e) => {
-            tracing::debug!(error = %e, "Failed to inspect container");
-            None
-        },
+pub async fn start_project(docker: &DockerCli, container: &TenantContainer) -> Result<()> {
+    let compose_path = container.compose_path();
+    if let Some(parent) = compose_path.parent() {
+        fs::create_dir_all(parent).context("Failed to create docker directory")?;
     }
-}
 
-pub fn check_volume_exists(docker: &DockerCli) -> bool {
-    let filter = format!("name={}", SHARED_VOLUME_NAME);
-    let output = docker.output(&["volume", "ls", "-q", "-f", &filter]);
+    fs::write(
+        &compose_path,
+        generate_postgres_compose(&container.password, container.port),
+    )
+    .with_context(|| format!("Failed to write {}", compose_path.display()))?;
 
-    match output {
-        Ok(out) => !String::from_utf8_lossy(&out.stdout).trim().is_empty(),
-        Err(e) => {
-            tracing::debug!(error = %e, "Failed to check volume existence");
-            false
-        },
-    }
-}
+    let compose_path_str = compose_path
+        .to_str()
+        .ok_or_else(|| anyhow!("Invalid compose path"))?;
 
-pub fn remove_shared_volume(docker: &DockerCli) -> Result<()> {
     let status = docker
-        .status(&["volume", "rm", SHARED_VOLUME_NAME])
-        .context("Failed to remove PostgreSQL volume")?;
+        .status(&[
+            "compose",
+            "-p",
+            &container.project,
+            "-f",
+            compose_path_str,
+            "up",
+            "-d",
+        ])
+        .context("Failed to execute docker compose. Is Docker running?")?;
 
     if !status.success() {
-        bail!(
-            "Failed to remove volume '{}'. Is a container still using it?",
-            SHARED_VOLUME_NAME
-        );
+        bail!("Failed to start PostgreSQL container. Is Docker running?");
     }
 
-    Ok(())
+    wait_for_postgres_healthy(docker, &container.project, &compose_path, 60).await
 }
 
-pub fn stop_shared_container(docker: &DockerCli) -> Result<()> {
-    let ctx = ProjectContext::discover();
-    let compose_path = ctx.docker_dir().join("shared.yaml");
+pub fn remove_project(docker: &DockerCli, project: &str) -> Result<()> {
+    let compose_path = compose_path_for_project(project);
 
     if compose_path.exists() {
         let compose_path_str = compose_path
             .to_str()
             .ok_or_else(|| anyhow!("Invalid compose path"))?;
 
-        CliService::info("Stopping shared PostgreSQL container...");
         let status = docker
-            .status(&["compose", "-f", compose_path_str, "down", "-v"])
-            .context("Failed to stop shared container")?;
+            .status(&[
+                "compose",
+                "-p",
+                project,
+                "-f",
+                compose_path_str,
+                "down",
+                "-v",
+            ])
+            .context("Failed to stop tenant container")?;
 
         if !status.success() {
-            CliService::warning("Failed to stop container via compose, trying direct stop");
+            bail!("Failed to remove container for project '{project}'");
         }
+
+        fs::remove_file(&compose_path)
+            .with_context(|| format!("Failed to remove {}", compose_path.display()))?;
     }
 
-    let filter = format!("name={}", SHARED_CONTAINER_NAME);
-    let output = docker.output(&["ps", "-aq", "-f", &filter])?;
-
-    let container_id = String::from_utf8_lossy(&output.stdout).trim().to_owned();
-    if !container_id.is_empty() {
-        docker.status(&["stop", &container_id])?;
-        docker.status(&["rm", &container_id])?;
-    }
-
-    let config_path = shared_config_path();
-    if config_path.exists() {
-        fs::remove_file(&config_path)?;
-    }
-
-    CliService::success("Shared PostgreSQL container removed");
     Ok(())
 }
 
 pub async fn wait_for_postgres_healthy(
     docker: &DockerCli,
+    project: &str,
     compose_path: &Path,
     timeout_secs: u64,
 ) -> Result<()> {
@@ -137,6 +148,8 @@ pub async fn wait_for_postgres_healthy(
         let output = docker
             .output(&[
                 "compose",
+                "-p",
+                project,
                 "-f",
                 compose_path_str,
                 "ps",
@@ -154,7 +167,8 @@ pub async fn wait_for_postgres_healthy(
         if start.elapsed().as_secs() > timeout_secs {
             bail!(
                 "Timeout waiting for PostgreSQL to become healthy.\nCheck logs with: docker \
-                 compose -f {} logs",
+                 compose -p {} -f {} logs",
+                project,
                 compose_path.display()
             );
         }
@@ -163,43 +177,33 @@ pub async fn wait_for_postgres_healthy(
     }
 }
 
-pub(in crate::commands::cloud) fn generate_shared_postgres_compose(
-    password: &str,
-    port: u16,
-) -> String {
+fn generate_postgres_compose(password: &str, port: u16) -> String {
     format!(
-        r#"# systemprompt.io Shared PostgreSQL Container
+        r#"# systemprompt.io tenant PostgreSQL container
 # Generated by: systemprompt cloud tenant create
-# Manage: docker compose -f .systemprompt/docker/shared.yaml up/down
+# Manage with the project name this file was created under.
 
 services:
   postgres:
     image: postgres:18-alpine
-    container_name: {container_name}
     restart: unless-stopped
     environment:
-      POSTGRES_USER: {admin_user}
+      POSTGRES_USER: {LOCAL_DB_USER}
       POSTGRES_PASSWORD: {password}
-      POSTGRES_DB: postgres
+      POSTGRES_DB: {LOCAL_DB_NAME}
     ports:
       - "{port}:5432"
     volumes:
-      - {volume_name}:/var/lib/postgresql
+      - postgres_data:/var/lib/postgresql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U {admin_user}"]
+      test: ["CMD-SHELL", "pg_isready -U {LOCAL_DB_USER} -d {LOCAL_DB_NAME}"]
       interval: 5s
       timeout: 5s
       retries: 5
 
 volumes:
-  {volume_name}:
-    name: {volume_name}
-"#,
-        container_name = SHARED_CONTAINER_NAME,
-        admin_user = super::config::SHARED_ADMIN_USER,
-        password = password,
-        port = port,
-        volume_name = SHARED_VOLUME_NAME
+  postgres_data: {{}}
+"#
     )
 }
 
@@ -217,7 +221,7 @@ pub(in crate::commands::cloud) fn nanoid() -> String {
     let timestamp = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map_or(1, |d| d.as_millis());
-    format!("{:x}", timestamp)
+    format!("{timestamp:x}")
 }
 
 #[must_use]

@@ -73,7 +73,7 @@ pub struct StoredTenant {
     pub external_db_access: bool,
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub shared_container_db: Option<String>,
+    pub docker_project: Option<String>,
 }
 
 impl StoredTenant {
@@ -89,7 +89,7 @@ impl StoredTenant {
             internal_database_url: None,
             tenant_type: TenantType::default(),
             external_db_access: false,
-            shared_container_db: None,
+            docker_project: None,
         }
     }
 
@@ -105,16 +105,16 @@ impl StoredTenant {
             internal_database_url: None,
             tenant_type: TenantType::Local,
             external_db_access: false,
-            shared_container_db: None,
+            docker_project: None,
         }
     }
 
     #[must_use]
-    pub const fn new_local_shared(
+    pub const fn new_local_docker(
         id: TenantId,
         name: String,
         database_url: String,
-        shared_container_db: String,
+        docker_project: String,
     ) -> Self {
         Self {
             id,
@@ -126,7 +126,7 @@ impl StoredTenant {
             internal_database_url: None,
             tenant_type: TenantType::Local,
             external_db_access: false,
-            shared_container_db: Some(shared_container_db),
+            docker_project: Some(docker_project),
         }
     }
 
@@ -142,7 +142,7 @@ impl StoredTenant {
             internal_database_url: Some(params.internal_database_url),
             tenant_type: TenantType::Cloud,
             external_db_access: params.external_db_access,
-            shared_container_db: None,
+            docker_project: None,
         }
     }
 
@@ -158,13 +158,13 @@ impl StoredTenant {
             internal_database_url: Some(info.database_url.clone()),
             tenant_type: TenantType::Cloud,
             external_db_access: info.external_db_access,
-            shared_container_db: None,
+            docker_project: None,
         }
     }
 
     #[must_use]
-    pub const fn uses_shared_container(&self) -> bool {
-        self.shared_container_db.is_some()
+    pub const fn uses_managed_container(&self) -> bool {
+        self.docker_project.is_some()
     }
 
     #[must_use]

@@ -1,7 +1,7 @@
 //! Additional unit tests for `StoredTenant` methods not exercised in
 //! `tenants.rs`: `update_from_tenant_info`, `is_database_url_masked`,
-//! `has_missing_credentials`, `uses_shared_container`,
-//! `get_local_database_url`, and `new_local_shared`.
+//! `has_missing_credentials`, `uses_managed_container`,
+//! `get_local_database_url`, and `new_local_docker`.
 
 use systemprompt_cloud::{StoredTenant, TenantInfo, TenantType};
 use systemprompt_identifiers::TenantId;
@@ -23,8 +23,8 @@ fn make_tenant_info(id: &str, db_url: &str) -> TenantInfo {
 }
 
 #[test]
-fn new_local_shared_sets_correct_fields() {
-    let tenant = StoredTenant::new_local_shared(
+fn new_local_docker_sets_correct_fields() {
+    let tenant = StoredTenant::new_local_docker(
         TenantId::new("local-sh"),
         "Shared Tenant".to_string(),
         "postgres://localhost/shared".to_string(),
@@ -38,7 +38,7 @@ fn new_local_shared_sets_correct_fields() {
         Some("postgres://localhost/shared".to_string())
     );
     assert_eq!(
-        tenant.shared_container_db,
+        tenant.docker_project,
         Some("systemprompt-postgres-local".to_string())
     );
     assert_eq!(tenant.tenant_type, TenantType::Local);
@@ -47,30 +47,30 @@ fn new_local_shared_sets_correct_fields() {
 }
 
 #[test]
-fn uses_shared_container_true_when_set() {
-    let tenant = StoredTenant::new_local_shared(
+fn uses_managed_container_true_when_set() {
+    let tenant = StoredTenant::new_local_docker(
         TenantId::new("id"),
         "name".to_string(),
         "postgres://x".to_string(),
         "container".to_string(),
     );
-    assert!(tenant.uses_shared_container());
+    assert!(tenant.uses_managed_container());
 }
 
 #[test]
-fn uses_shared_container_false_when_none() {
+fn uses_managed_container_false_when_none() {
     let tenant = StoredTenant::new_local(
         TenantId::new("id"),
         "name".to_string(),
         "postgres://x".to_string(),
     );
-    assert!(!tenant.uses_shared_container());
+    assert!(!tenant.uses_managed_container());
 }
 
 #[test]
-fn uses_shared_container_false_for_cloud_tenant() {
+fn uses_managed_container_false_for_cloud_tenant() {
     let tenant = StoredTenant::new(TenantId::new("id"), "name".to_string());
-    assert!(!tenant.uses_shared_container());
+    assert!(!tenant.uses_managed_container());
 }
 
 #[test]

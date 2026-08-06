@@ -195,16 +195,14 @@ use std::process::{ExitStatus, Output};
 use std::sync::Mutex;
 
 use systemprompt_cli::ScriptedPrompter;
-use systemprompt_cli::cloud::tenant::docker::SharedContainerConfig;
+use systemprompt_cli::cloud::tenant::docker::{TenantContainer, container};
 use systemprompt_cli::cloud::tenant::{
     TenantCancelArgs, TenantDeleteArgs, TenantRotateArgs, choose_tenant_operation,
-    handle_orphaned_volume, resolve_container_state,
 };
 use systemprompt_cloud::{CommandRunner, CommandSpec, DockerCli};
 
 enum Resp {
     Out(i32, &'static str),
-    Status(i32),
 }
 
 struct StubRunner {
@@ -235,17 +233,12 @@ impl CommandRunner for StubRunner {
                 stdout: stdout.as_bytes().to_vec(),
                 stderr: Vec::new(),
             }),
-            Resp::Status(code) => Ok(Output {
-                status: ExitStatus::from_raw(code << 8),
-                stdout: Vec::new(),
-                stderr: Vec::new(),
-            }),
         }
     }
 
     fn status(&self, spec: &CommandSpec) -> io::Result<ExitStatus> {
         match self.next(spec) {
-            Resp::Out(code, _) | Resp::Status(code) => Ok(ExitStatus::from_raw(code << 8)),
+            Resp::Out(code, _) => Ok(ExitStatus::from_raw(code << 8)),
         }
     }
 
@@ -255,86 +248,21 @@ impl CommandRunner for StubRunner {
 }
 
 #[test]
-fn container_state_reuses_running_container_with_config() {
-    let docker = StubRunner::docker(vec![]);
-    let prompter = ScriptedPrompter::new(Vec::<String>::new());
-    let config = SharedContainerConfig::new("pw".to_owned(), 5432);
-    let (resolved, needs_start) =
-        resolve_container_state(&docker, Some(config), true, &prompter).expect("reuse");
-    assert!(!needs_start);
-    assert_eq!(resolved.admin_password, "pw");
+fn each_tenant_gets_its_own_compose_project() {
+    let a = TenantContainer::new("acme_01".to_owned(), "pw-a".to_owned(), 5432);
+    let b = TenantContainer::new("acme_02".to_owned(), "pw-b".to_owned(), 5433);
+
+    assert_ne!(a.compose_path(), b.compose_path());
+    assert_ne!(a.database_url(), b.database_url());
 }
 
 #[test]
-fn container_state_restarts_stopped_container_with_config() {
-    let docker = StubRunner::docker(vec![]);
-    let prompter = ScriptedPrompter::new(Vec::<String>::new());
-    let config = SharedContainerConfig::new("pw".to_owned(), 5432);
-    let (_, needs_start) =
-        resolve_container_state(&docker, Some(config), false, &prompter).expect("restart");
-    assert!(needs_start);
-}
+fn is_project_running_is_scoped_to_the_named_project() {
+    let running = StubRunner::docker(vec![Resp::Out(0, "container-id\n")]);
+    assert!(container::is_project_running(&running, "acme_01"));
 
-#[test]
-fn container_state_adopts_existing_container_password() {
-    let docker = StubRunner::docker(vec![Resp::Out(
-        0,
-        "POSTGRES_USER=admin\nPOSTGRES_PASSWORD=found-pw\n",
-    )]);
-    let prompter = ScriptedPrompter::new(["y"]);
-    let (config, needs_start) =
-        resolve_container_state(&docker, None, true, &prompter).expect("adopt");
-    assert!(!needs_start);
-    assert_eq!(config.admin_password, "found-pw");
-}
-
-#[test]
-fn container_state_rejects_existing_container_when_declined() {
-    let docker = StubRunner::docker(vec![]);
-    let prompter = ScriptedPrompter::new(["n"]);
-    let err = resolve_container_state(&docker, None, true, &prompter).expect_err("declined");
-    assert!(err.to_string().contains("docker stop"));
-}
-
-#[test]
-fn container_state_errors_when_password_unavailable() {
-    let docker = StubRunner::docker(vec![Resp::Out(0, "POSTGRES_USER=admin\n")]);
-    let prompter = ScriptedPrompter::new(["y"]);
-    let err = resolve_container_state(&docker, None, true, &prompter).expect_err("no password");
-    assert!(err.to_string().contains("password"));
-}
-
-#[test]
-fn container_state_creates_fresh_container_without_volume() {
-    let docker = StubRunner::docker(vec![Resp::Out(0, "")]);
-    let prompter = ScriptedPrompter::new(Vec::<String>::new());
-    let (config, needs_start) =
-        resolve_container_state(&docker, None, false, &prompter).expect("fresh");
-    assert!(needs_start);
-    assert!(!config.admin_password.is_empty());
-}
-
-#[test]
-fn orphaned_volume_reset_removes_volume() {
-    let docker = StubRunner::docker(vec![Resp::Out(0, "vol-id\n"), Resp::Status(0)]);
-    let prompter = ScriptedPrompter::new(["y"]);
-    handle_orphaned_volume(&docker, &prompter).expect("volume reset");
-}
-
-#[test]
-fn orphaned_volume_kept_blocks_creation() {
-    let docker = StubRunner::docker(vec![Resp::Out(0, "vol-id\n")]);
-    let prompter = ScriptedPrompter::new(["n"]);
-    let err = handle_orphaned_volume(&docker, &prompter).expect_err("kept volume blocks");
-    assert!(err.to_string().contains("docker volume rm"));
-}
-
-#[test]
-fn orphaned_volume_remove_failure_bubbles() {
-    let docker = StubRunner::docker(vec![Resp::Out(0, "vol-id\n"), Resp::Status(1)]);
-    let prompter = ScriptedPrompter::new(["y"]);
-    let err = handle_orphaned_volume(&docker, &prompter).expect_err("rm failed");
-    assert!(err.to_string().contains("Failed to remove volume"));
+    let absent = StubRunner::docker(vec![Resp::Out(0, "")]);
+    assert!(!container::is_project_running(&absent, "acme_01"));
 }
 
 #[test]
@@ -410,30 +338,30 @@ async fn tenant_delete_interactive_confirm_local() {
 }
 
 #[tokio::test]
-async fn tenant_delete_shared_container_without_config_warns() {
+async fn tenant_delete_removes_a_managed_container_tenant() {
     let env = enter().await;
-    let shared = systemprompt_cloud::StoredTenant::new_local_shared(
-        TenantId::new("t-shared"),
-        "Shared Local".to_owned(),
-        "postgres://u:p@localhost:5432/shared_db".to_owned(),
-        "shared_db".to_owned(),
+    let managed = systemprompt_cloud::StoredTenant::new_local_docker(
+        TenantId::new("t-managed"),
+        "Managed Local".to_owned(),
+        "postgres://u:p@localhost:5432/systemprompt".to_owned(),
+        "managed_project".to_owned(),
     );
     let tenants_path = env.root().join(".systemprompt/tenants.json");
     let mut store = TenantStore::load_from_path(&tenants_path).expect("load tenants");
-    store.tenants.push(shared);
+    store.tenants.push(managed);
     store
         .save_to_path(&tenants_path)
-        .expect("seed shared tenant");
+        .expect("seed managed tenant");
 
     cloud::execute(
         tenant_cmd(TenantCommands::Delete(TenantDeleteArgs {
-            id: Some("t-shared".to_owned()),
+            id: Some("t-managed".to_owned()),
             yes: true,
         })),
         &json_ctx(),
     )
     .await
-    .expect("delete shared tenant without config");
+    .expect("delete managed tenant");
 }
 
 #[tokio::test]

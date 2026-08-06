@@ -21,11 +21,10 @@ mod validation;
 
 pub use cancel::cancel_subscription;
 pub use create::{
-    create_cloud_tenant, create_external_tenant, create_local_tenant, handle_orphaned_volume,
-    resolve_container_state, swap_to_external_host,
+    create_cloud_tenant, create_external_tenant, create_local_tenant, swap_to_external_host,
 };
 pub use delete::delete_tenant;
-pub(in crate::commands::cloud) use docker::wait_for_postgres_healthy;
+pub(in crate::commands::cloud) use docker::container::wait_for_postgres_healthy;
 pub use edit::edit_tenant;
 pub use list::list_tenants;
 pub use rotate::rotate_credentials;

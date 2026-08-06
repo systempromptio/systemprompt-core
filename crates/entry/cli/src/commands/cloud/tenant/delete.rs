@@ -1,8 +1,7 @@
 //! `cloud tenant delete` command.
 //!
 //! Removes a tenant from the store, cancelling its cloud subscription via the
-//! API or dropping its shared-container database for local tenants, and tears
-//! down the shared `PostgreSQL` container once the last local tenant is gone.
+//! API or tearing down its own Docker `PostgreSQL` project for local tenants.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -14,9 +13,7 @@ use systemprompt_cloud::{
 use systemprompt_identifiers::TenantId;
 use systemprompt_logging::CliService;
 
-use super::docker::{
-    drop_database_for_tenant, load_shared_config, save_shared_config, stop_shared_container,
-};
+use super::docker::{compose_path_for_project, remove_project};
 use super::select::{get_credentials, select_tenant};
 use crate::cli_settings::CliConfig;
 use crate::cloud::tenant::TenantDeleteArgs;
@@ -58,8 +55,8 @@ pub async fn delete_tenant(
 
     if is_cloud {
         delete_cloud_tenant(&tenant_id, config).await?;
-    } else if tenant.uses_shared_container() {
-        cleanup_shared_container_tenant(&tenant, prompter, config)?;
+    } else if tenant.uses_managed_container() {
+        cleanup_managed_container_tenant(&tenant, prompter, config)?;
     }
 
     store.tenants.retain(|t| t.id != tenant_id.as_str());
@@ -135,60 +132,41 @@ async fn delete_cloud_tenant(tenant_id: &TenantId, config: &CliConfig) -> Result
     Ok(())
 }
 
-fn cleanup_shared_container_tenant(
+fn cleanup_managed_container_tenant(
     tenant: &StoredTenant,
     prompter: &dyn Prompter,
     config: &CliConfig,
 ) -> Result<()> {
-    let Some(ref db_name) = tenant.shared_container_db else {
+    let Some(ref project) = tenant.docker_project else {
         return Ok(());
     };
 
-    let Some(mut shared_config) = load_shared_config()? else {
-        CliService::warning("Shared container config not found, skipping database cleanup");
-        return Ok(());
+    let should_remove = if config.is_interactive() {
+        prompter.confirm(
+            &format!("Remove the PostgreSQL container and data for '{project}'?"),
+            true,
+        )?
+    } else {
+        true
     };
 
-    let docker = DockerCli::new();
-
-    let spinner = CliService::spinner(&format!("Dropping database '{}'...", db_name));
-    match drop_database_for_tenant(
-        &docker,
-        &shared_config.admin_password,
-        shared_config.port,
-        db_name,
-    ) {
-        Ok(()) => {
-            spinner.finish_and_clear();
-            CliService::success(&format!("Database '{}' dropped", db_name));
-        },
-        Err(e) => {
-            spinner.finish_and_clear();
-            CliService::warning(&format!("Failed to drop database '{}': {}", db_name, e));
-        },
+    if !should_remove {
+        CliService::info(&format!(
+            "Container kept. Remove manually with 'docker compose -p {} -f {} down -v'",
+            project,
+            compose_path_for_project(project).display()
+        ));
+        return Ok(());
     }
 
-    shared_config.remove_tenant(tenant.id.as_str());
-    save_shared_config(&shared_config)?;
+    let docker = DockerCli::new();
+    let spinner = CliService::spinner(&format!("Removing container '{project}'..."));
+    let removed = remove_project(&docker, project);
+    spinner.finish_and_clear();
 
-    if shared_config.tenant_databases.is_empty() {
-        let should_remove = if config.is_interactive() {
-            prompter.confirm(
-                "No local tenants remain. Remove shared PostgreSQL container?",
-                true,
-            )?
-        } else {
-            false
-        };
-
-        if should_remove {
-            stop_shared_container(&docker)?;
-        } else {
-            CliService::info(
-                "Shared container kept. Remove manually with 'docker compose -f \
-                 .systemprompt/docker/shared.yaml down -v'",
-            );
-        }
+    match removed {
+        Ok(()) => CliService::success(&format!("Container '{project}' removed")),
+        Err(e) => CliService::warning(&format!("Failed to remove container '{project}': {e}")),
     }
 
     Ok(())

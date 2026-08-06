@@ -61,30 +61,45 @@ impl CommandRunner for ScriptedHealth {
 async fn a_healthy_container_returns_immediately() {
     let docker = ScriptedHealth::docker(vec![Some("healthy")]);
 
-    wait_for_postgres_healthy(&docker, std::path::Path::new("/tmp/shared.yaml"), 30)
-        .await
-        .unwrap();
+    wait_for_postgres_healthy(
+        &docker,
+        "acme_ff",
+        std::path::Path::new("/tmp/acme_ff.yaml"),
+        30,
+    )
+    .await
+    .unwrap();
 }
 
 #[tokio::test]
 async fn a_container_that_never_reports_healthy_times_out() {
     let docker = ScriptedHealth::docker(vec![Some("starting"), Some("starting")]);
 
-    let err = wait_for_postgres_healthy(&docker, std::path::Path::new("/tmp/shared.yaml"), 0)
-        .await
-        .unwrap_err();
+    let err = wait_for_postgres_healthy(
+        &docker,
+        "acme_ff",
+        std::path::Path::new("/tmp/acme_ff.yaml"),
+        0,
+    )
+    .await
+    .unwrap_err();
 
     assert!(err.to_string().contains("Timeout waiting for PostgreSQL"));
-    assert!(err.to_string().contains("/tmp/shared.yaml"));
+    assert!(err.to_string().contains("/tmp/acme_ff.yaml"));
 }
 
 #[tokio::test]
 async fn a_docker_spawn_failure_is_surfaced() {
     let docker = ScriptedHealth::docker(vec![None]);
 
-    let err = wait_for_postgres_healthy(&docker, std::path::Path::new("/tmp/shared.yaml"), 30)
-        .await
-        .unwrap_err();
+    let err = wait_for_postgres_healthy(
+        &docker,
+        "acme_ff",
+        std::path::Path::new("/tmp/acme_ff.yaml"),
+        30,
+    )
+    .await
+    .unwrap_err();
 
     assert!(err.to_string().contains("Failed to check container health"));
 }

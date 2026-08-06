@@ -43,7 +43,7 @@ fn stored_tenant_json_matches_legacy_string_schema() {
     );
     assert_eq!(roundtripped.tenant_type, tenant.tenant_type);
     assert_eq!(roundtripped.external_db_access, tenant.external_db_access);
-    assert_eq!(roundtripped.shared_container_db, tenant.shared_container_db);
+    assert_eq!(roundtripped.docker_project, tenant.docker_project);
 }
 
 #[test]

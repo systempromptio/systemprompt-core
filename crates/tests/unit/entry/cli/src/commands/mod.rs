@@ -47,7 +47,6 @@ mod cloud_profile_steps;
 mod cloud_profile_templates;
 mod cloud_prompts;
 mod cloud_tenant_docker_health;
-mod cloud_tenant_local_state;
 mod config_paths_table_output_fs;
 mod config_secret;
 mod core_artifacts_db;
