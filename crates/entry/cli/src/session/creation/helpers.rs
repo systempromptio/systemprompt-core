@@ -12,7 +12,7 @@ use systemprompt_cloud::{
     CliSession, CloudCredentials, CredentialsBootstrap, SessionBinding, SessionIdentity, SessionKey,
 };
 use systemprompt_config::SecretsBootstrap;
-use systemprompt_database::{Database, DbPool};
+use systemprompt_database::{Database, DbPool, PoolConfig};
 use systemprompt_identifiers::{ContextId, Email, ProfileName, SessionId, SessionToken};
 use systemprompt_models::Profile;
 use systemprompt_models::auth::{Permission, RateLimitTier, UserType};
@@ -23,6 +23,7 @@ use crate::session::resolution::ProfileContext;
 
 pub(super) struct ResolvedSecrets {
     pub database_url: String,
+    pub database_write_url: Option<String>,
 }
 
 pub(super) fn load_secrets() -> Result<ResolvedSecrets> {
@@ -34,21 +35,21 @@ pub(super) fn load_secrets() -> Result<ResolvedSecrets> {
         )
     })?;
 
-    // Session creation INSERTs, so it must land on the primary. On a
-    // read/write-split deployment `database_url` is the read pool and may be
-    // a standby; prefer the write URL whenever one is configured.
     Ok(ResolvedSecrets {
-        database_url: secrets
-            .database_write_url
-            .clone()
-            .unwrap_or_else(|| secrets.database_url.clone()),
+        database_url: secrets.database_url.clone(),
+        database_write_url: secrets.database_write_url.clone(),
     })
 }
 
-pub(super) async fn connect_database(url: &str) -> Result<DbPool> {
-    let db = Database::new_postgres(url)
-        .await
-        .context("Failed to connect to database")?;
+pub(super) async fn connect_database(secrets: &ResolvedSecrets) -> Result<DbPool> {
+    let db = Database::from_config_with_write(
+        "postgres",
+        &secrets.database_url,
+        secrets.database_write_url.as_deref(),
+        &PoolConfig::default(),
+    )
+    .await
+    .context("Failed to connect to database")?;
     Ok(DbPool::from(Arc::new(db)))
 }
 

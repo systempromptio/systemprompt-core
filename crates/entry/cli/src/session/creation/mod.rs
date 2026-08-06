@@ -42,7 +42,7 @@ pub(super) async fn create_local_session(
         CliService::key_value("Profile", profile_ctx.name);
     }
 
-    let db_pool = connect_database(&secrets.database_url).await?;
+    let db_pool = connect_database(&secrets).await?;
     let admin_user =
         resolve_admin_with_fallback(&db_pool, &user_email, session_email_hint, "local").await?;
 
@@ -114,7 +114,7 @@ pub(super) async fn create_session_for_tenant(
         CliService::key_value("User", user_email);
     }
 
-    let db_pool = connect_database(&secrets.database_url).await?;
+    let db_pool = connect_database(&secrets).await?;
     let admin_user =
         resolve_tenant_admin_with_fallback(&db_pool, creds, user_email, session_email_hint).await?;
 
