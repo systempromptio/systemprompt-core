@@ -69,7 +69,11 @@ impl HostApp for CodexCliHost {
 
     fn install_action_label(&self) -> &'static str {
         if cfg!(target_os = "macos") {
-            "loaded into managed preferences (com.openai.codex)"
+            // Why: on macOS the install only hands the profile to System
+            // Settings, which holds it until the user approves it. Claiming it
+            // had loaded made every subsequent "profile not installed" read as
+            // a contradiction rather than as the accurate report it was.
+            "offered to System Settings — approve it under General › Device Management"
         } else if cfg!(target_os = "windows") {
             "merged into %USERPROFILE%\\.codex\\managed_config.toml"
         } else {

@@ -57,6 +57,24 @@ pub(super) fn write_profile(inputs: &ProfileGenInputs) -> std::io::Result<Genera
     }
 }
 
+// Why: `open` only *offers* a `.mobileconfig` — macOS parks it in System
+// Settings until the user approves it, and since macOS 11 nothing short of MDM
+// can apply one unattended. The `-g` below then means the approval sheet never
+// comes forward. Without this notice the app logs a successful install, the
+// payload silently never lands, and the next probe truthfully reports it
+// missing — each part behaving reasonably, combining into total silence.
+#[cfg(target_os = "macos")]
+fn notify_profile_pending() {
+    crate::gui::window::notify_user(
+        &format!("{} needs approval", crate::brand::brand().app_name),
+        "Approve the Codex configuration profile in System Settings → General → Device \
+         Management to finish installing it.",
+    );
+}
+
+#[cfg(not(target_os = "macos"))]
+fn notify_profile_pending() {}
+
 pub(super) fn install_profile(generated_path: &str) -> std::io::Result<()> {
     if cfg!(target_os = "macos") {
         // Why: see integration/claude_desktop/macos.rs::install_profile —
@@ -65,6 +83,7 @@ pub(super) fn install_profile(generated_path: &str) -> std::io::Result<()> {
         std::process::Command::new("/usr/bin/open")
             .args(["-g", generated_path])
             .status()?;
+        notify_profile_pending();
         return Ok(());
     }
 

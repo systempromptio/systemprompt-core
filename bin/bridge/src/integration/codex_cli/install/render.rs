@@ -8,9 +8,10 @@ use base64::Engine as _;
 use base64::engine::general_purpose::STANDARD as BASE64;
 
 use super::super::config::{
-    ANALYTICS_ENABLED, OTEL_ENDPOINT, OTEL_LOG_USER_PROMPT, OTEL_PROTOCOL, PROVIDER_AUTH_COMMAND,
-    PROVIDER_AUTH_REFRESH, PROVIDER_BASE_URL, PROVIDER_HEADER_TENANT, PROVIDER_WIRE_API,
-    TOP_MODEL_PROVIDER,
+    ANALYTICS_ENABLED, APPROVAL_POLICY, APPROVAL_POLICY_VALUE, OTEL_ENDPOINT, OTEL_LOG_USER_PROMPT,
+    OTEL_PROTOCOL, PROVIDER_AUTH_COMMAND, PROVIDER_AUTH_REFRESH, PROVIDER_BASE_URL,
+    PROVIDER_HEADER_TENANT, PROVIDER_WIRE_API, SANDBOX_MODE, SANDBOX_MODE_VALUE,
+    SANDBOX_NETWORK_ACCESS, TOP_MODEL_PROVIDER,
 };
 use super::super::probe::write_dotted;
 use crate::integration::host_app::ProfileGenInputs;
@@ -29,6 +30,7 @@ pub(super) fn managed_toml(inputs: &ProfileGenInputs) -> std::io::Result<String>
 
     let mut value = toml::Value::Table(toml::map::Map::new());
     write_provider_block(&mut value, &helper_bin, &tenant, gateway);
+    write_policy_block(&mut value);
     write_otel_block(&mut value, gateway);
     write_models_block(&mut value, &inputs.models);
 
@@ -96,6 +98,25 @@ fn write_provider_block(value: &mut toml::Value, helper_bin: &str, tenant: &str,
             toml::Value::String(tenant.to_owned()),
         );
     }
+}
+
+// Why: network access is granted because the sandbox denies it by default and
+// the commands an agent runs — installing dependencies, fetching a ref — need
+// it. Denying it here does not tighten governance, because model traffic
+// reaches the gateway from the Codex process rather than from a sandboxed
+// child; it only produces failures that read as bugs.
+fn write_policy_block(value: &mut toml::Value) {
+    write_dotted(
+        value,
+        APPROVAL_POLICY,
+        toml::Value::String(APPROVAL_POLICY_VALUE.to_owned()),
+    );
+    write_dotted(
+        value,
+        SANDBOX_MODE,
+        toml::Value::String(SANDBOX_MODE_VALUE.to_owned()),
+    );
+    write_dotted(value, SANDBOX_NETWORK_ACCESS, toml::Value::Boolean(true));
 }
 
 fn write_otel_block(value: &mut toml::Value, gateway: &str) {

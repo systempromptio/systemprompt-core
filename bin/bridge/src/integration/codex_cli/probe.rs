@@ -14,7 +14,44 @@ pub(super) struct DomainRead {
     pub keys: BTreeMap<String, String>,
 }
 
+// Why: macOS writes these plists in the binary format, so this shells out —
+// `plutil` is the only reader guaranteed present, and adding a plist parser to
+// read one string out of one file is not worth the dependency.
+#[cfg(target_os = "macos")]
+fn read_macos_managed() -> Option<DomainRead> {
+    use base64::Engine as _;
+
+    for path in config::macos_managed_prefs_paths() {
+        if !path.exists() {
+            continue;
+        }
+        let out = std::process::Command::new("/usr/bin/plutil")
+            .args(["-extract", "config_toml_base64", "raw", "-o", "-"])
+            .arg(&path)
+            .output()
+            .ok()?;
+        if !out.status.success() {
+            continue;
+        }
+        let encoded = String::from_utf8_lossy(&out.stdout);
+        let Ok(decoded) = base64::engine::general_purpose::STANDARD.decode(encoded.trim()) else {
+            continue;
+        };
+        let Ok(text) = String::from_utf8(decoded) else {
+            continue;
+        };
+        if let Some(read) = parse_into_keys(&text, &path.display().to_string()) {
+            return Some(read);
+        }
+    }
+    None
+}
+
 pub(super) fn read_config() -> DomainRead {
+    #[cfg(target_os = "macos")]
+    if let Some(read) = read_macos_managed() {
+        return read;
+    }
     let managed = config::managed_config_path();
     if managed.exists()
         && let Ok(text) = std::fs::read_to_string(&managed)

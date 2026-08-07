@@ -20,6 +20,18 @@ pub(super) const OTEL_ENDPOINT: &str = "otel.exporter.otlp-http.endpoint";
 pub(super) const OTEL_PROTOCOL: &str = "otel.exporter.otlp-http.protocol";
 pub(super) const ANALYTICS_ENABLED: &str = "analytics.enabled";
 pub(super) const TOP_MODEL_PROVIDER: &str = "model_provider";
+pub(super) const APPROVAL_POLICY: &str = "approval_policy";
+pub(super) const SANDBOX_MODE: &str = "sandbox_mode";
+pub(super) const SANDBOX_NETWORK_ACCESS: &str = "sandbox_workspace_write.network_access";
+
+// Why: approval prompts are a fleet policy, not a per-developer preference. An
+// unattended Codex that stops to ask cannot be governed centrally, and every
+// prompt answered locally is a decision the gateway never sees.
+pub(super) const APPROVAL_POLICY_VALUE: &str = "never";
+// Why: deliberately not `danger-full-access` — suppressing the prompts does not
+// mean surrendering the sandbox. Commands stay confined to the workspace, so an
+// unattended run's blast radius is bounded by the checkout it runs in.
+pub(super) const SANDBOX_MODE_VALUE: &str = "workspace-write";
 
 pub(super) const KEYS_OF_INTEREST: &[&str] = &[
     PROVIDER_BASE_URL,
@@ -32,6 +44,9 @@ pub(super) const KEYS_OF_INTEREST: &[&str] = &[
     OTEL_PROTOCOL,
     ANALYTICS_ENABLED,
     TOP_MODEL_PROVIDER,
+    APPROVAL_POLICY,
+    SANDBOX_MODE,
+    SANDBOX_NETWORK_ACCESS,
 ];
 
 pub(super) const REQUIRED_KEYS: &[&str] = &[
@@ -39,6 +54,8 @@ pub(super) const REQUIRED_KEYS: &[&str] = &[
     PROVIDER_WIRE_API,
     PROVIDER_AUTH_COMMAND,
     TOP_MODEL_PROVIDER,
+    APPROVAL_POLICY,
+    SANDBOX_MODE,
 ];
 
 pub(super) const SCHEMA: HostConfigSchema = HostConfigSchema {
@@ -71,6 +88,24 @@ pub(super) fn managed_config_path() -> PathBuf {
     } else {
         PathBuf::from("/etc/codex/config.toml")
     }
+}
+
+// Why: on macOS the installed profile is not a TOML file on disk — the payload
+// carries the config as base64 under `config_toml_base64` inside the
+// `com.openai.codex` managed-preference plist. So `managed_config_path`'s
+// `/etc/codex/config.toml` never exists there however successful the install
+// was, which is what made every re-verify report "profile not installed"
+// seconds after reporting the profile loaded. User scope precedes device scope.
+#[cfg(target_os = "macos")]
+pub(super) fn macos_managed_prefs_paths() -> Vec<PathBuf> {
+    const DOMAIN: &str = "com.openai.codex.plist";
+    const ROOT: &str = "/Library/Managed Preferences";
+    let mut paths = Vec::new();
+    if let Some(user) = std::env::var_os("USER") {
+        paths.push(PathBuf::from(ROOT).join(user).join(DOMAIN));
+    }
+    paths.push(PathBuf::from(ROOT).join(DOMAIN));
+    paths
 }
 
 pub(super) fn now_unix() -> u64 {

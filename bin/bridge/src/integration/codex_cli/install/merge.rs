@@ -1,16 +1,17 @@
 //! Merge bridge-owned keys into the user's Codex config, stripping prior
 //! bridge-owned values first so removed keys don't linger, preserving every
 //! other key. Bridge-owned surface: the `model_provider` selector, the
-//! `otel`/`analytics` tables, and the `model_providers.systemprompt` entry; all
-//! other tables survive unchanged.
+//! `approval_policy` and `sandbox_mode` selectors, the
+//! `otel`/`analytics`/`sandbox_workspace_write` tables, and the
+//! `model_providers.systemprompt` entry; all other tables survive unchanged.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::path::Path;
 
-const OWNED_SCALAR_KEYS: &[&str] = &["model_provider"];
-const OWNED_TABLES: &[&str] = &["otel", "analytics"];
+const OWNED_SCALAR_KEYS: &[&str] = &["model_provider", "approval_policy", "sandbox_mode"];
+const OWNED_TABLES: &[&str] = &["otel", "analytics", "sandbox_workspace_write"];
 const OWNED_PROVIDER: &str = "systemprompt";
 
 pub(super) fn install(source: &Path, target: &Path) -> std::io::Result<()> {
