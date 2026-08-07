@@ -257,7 +257,7 @@ fn resolve_route(uri: &http::Uri, gateway_base: &ValidatedUrl) -> RouteResolutio
         // every /mcp/<name> a 404 for the life of the process. A miss re-reads
         // the fragment once before answering — the sync process publishes into
         // its own memory, not this one's.
-        crate::mcp_registry::rehydrate_from_disk();
+        mcp_registry::rehydrate_from_disk();
         return mcp_registry::snapshot().get(name).map_or_else(
             || RouteResolution::UnknownMcp(name.to_owned()),
             |entry| {
