@@ -66,6 +66,15 @@ async fn execute_with_pool_inner(
         .map(|r| {
             let input = r.input_tokens.unwrap_or(0);
             let output = r.output_tokens.unwrap_or(0);
+            let cached = r.cache_read_tokens.unwrap_or(0) + r.cache_creation_tokens.unwrap_or(0);
+            // Why: prompt-cached clients (Claude Code always) carry ~40k+
+            // tokens per turn in the cache columns; hiding them made the
+            // tokens and cost columns look mutually impossible.
+            let tokens = if cached > 0 {
+                format!("{input}+{cached}c/{output}")
+            } else {
+                format!("{input}/{output}")
+            };
             let cost_dollars = r.cost_microdollars as f64 / 1_000_000.0;
 
             RequestListRow {
@@ -75,7 +84,7 @@ async fn execute_with_pool_inner(
                 actor: format!("{}:{}", r.actor_kind, r.actor_id),
                 provider: r.provider.unwrap_or_else(|| "-".to_owned()),
                 model: r.model.unwrap_or_else(|| "-".to_owned()),
-                tokens: format!("{input}/{output}"),
+                tokens,
                 cost: format!("${cost_dollars:.6}"),
                 latency_ms: r.latency_ms.map(i64::from),
                 status: r.status,

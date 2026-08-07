@@ -44,7 +44,10 @@ pub struct ListArgs {
     #[arg(long, help = "Only show traces with MCP tool calls")]
     pub has_mcp: bool,
 
-    #[arg(long, help = "Include system and untracked traces")]
+    #[arg(
+        long,
+        help = "Include system, untracked, and log-only traces (bridge housekeeping)"
+    )]
     pub all: bool,
 }
 

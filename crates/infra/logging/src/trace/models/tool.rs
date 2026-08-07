@@ -60,8 +60,12 @@ pub struct AuditLookupResult {
     pub requested_model: Option<String>,
     pub input_tokens: Option<i32>,
     pub output_tokens: Option<i32>,
+    pub cache_read_tokens: Option<i32>,
+    pub cache_creation_tokens: Option<i32>,
     pub cost_microdollars: i64,
     pub latency_ms: Option<i32>,
+    pub status: String,
+    pub error_message: Option<String>,
     pub task_id: Option<TaskId>,
     pub trace_id: Option<TraceId>,
 }

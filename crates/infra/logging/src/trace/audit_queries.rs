@@ -19,8 +19,12 @@ struct AuditRow {
     requested_model: Option<String>,
     input_tokens: Option<i32>,
     output_tokens: Option<i32>,
+    cache_read_tokens: Option<i32>,
+    cache_creation_tokens: Option<i32>,
     cost_microdollars: i64,
     latency_ms: Option<i32>,
+    status: String,
+    error_message: Option<String>,
     task_id: Option<TaskId>,
     trace_id: Option<TraceId>,
 }
@@ -69,8 +73,12 @@ async fn find_audit_by_request_id(
         r#"
         SELECT id as "id!: AiRequestId", provider, model,
             requested_model,
-            input_tokens, output_tokens, cost_microdollars as "cost_microdollars!",
+            input_tokens, output_tokens,
+            cache_read_tokens, cache_creation_tokens,
+            cost_microdollars as "cost_microdollars!",
             latency_ms,
+            status as "status!",
+            error_message,
             task_id as "task_id: TaskId",
             trace_id as "trace_id: TraceId"
         FROM ai_requests WHERE id = $1 OR id LIKE $2 LIMIT 1
@@ -94,8 +102,12 @@ async fn find_audit_by_task_id(
         r#"
         SELECT id as "id!: AiRequestId", provider, model,
             requested_model,
-            input_tokens, output_tokens, cost_microdollars as "cost_microdollars!",
+            input_tokens, output_tokens,
+            cache_read_tokens, cache_creation_tokens,
+            cost_microdollars as "cost_microdollars!",
             latency_ms,
+            status as "status!",
+            error_message,
             task_id as "task_id: TaskId",
             trace_id as "trace_id: TraceId"
         FROM ai_requests WHERE task_id = $1 OR task_id LIKE $2
@@ -120,8 +132,12 @@ async fn find_audit_by_trace_id(
         r#"
         SELECT id as "id!: AiRequestId", provider, model,
             requested_model,
-            input_tokens, output_tokens, cost_microdollars as "cost_microdollars!",
+            input_tokens, output_tokens,
+            cache_read_tokens, cache_creation_tokens,
+            cost_microdollars as "cost_microdollars!",
             latency_ms,
+            status as "status!",
+            error_message,
             task_id as "task_id: TaskId",
             trace_id as "trace_id: TraceId"
         FROM ai_requests WHERE trace_id = $1 OR trace_id LIKE $2
@@ -144,8 +160,12 @@ fn audit_row_to_result(r: AuditRow) -> AuditLookupResult {
         requested_model: r.requested_model,
         input_tokens: r.input_tokens,
         output_tokens: r.output_tokens,
+        cache_read_tokens: r.cache_read_tokens,
+        cache_creation_tokens: r.cache_creation_tokens,
         cost_microdollars: r.cost_microdollars,
         latency_ms: r.latency_ms,
+        status: r.status,
+        error_message: r.error_message,
         task_id: r.task_id,
         trace_id: r.trace_id,
     }

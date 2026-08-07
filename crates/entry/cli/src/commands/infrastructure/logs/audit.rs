@@ -25,11 +25,16 @@ pub struct AuditArgs {
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct AuditOutput {
     pub request_id: AiRequestId,
+    pub status: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error_message: Option<String>,
     pub provider: Option<String>,
     pub model: Option<String>,
     pub requested_model: Option<String>,
     pub input_tokens: i32,
     pub output_tokens: i32,
+    pub cache_read_tokens: i32,
+    pub cache_creation_tokens: i32,
     pub cost_dollars: f64,
     pub latency_ms: i64,
     pub task_id: Option<TaskId>,
@@ -69,11 +74,15 @@ async fn execute_with_pool_inner(
 
     let output = AuditOutput {
         request_id,
+        status: row.status,
+        error_message: row.error_message,
         provider: row.provider,
         model: row.model,
         requested_model: row.requested_model,
         input_tokens: row.input_tokens.unwrap_or(0),
         output_tokens: row.output_tokens.unwrap_or(0),
+        cache_read_tokens: row.cache_read_tokens.unwrap_or(0),
+        cache_creation_tokens: row.cache_creation_tokens.unwrap_or(0),
         cost_dollars: row.cost_microdollars as f64 / 1_000_000.0,
         latency_ms: i64::from(row.latency_ms.unwrap_or(0)),
         task_id: row.task_id,
@@ -103,7 +112,14 @@ async fn execute_with_pool_inner(
 
 #[must_use]
 pub fn build_audit(output: &AuditOutput) -> CommandOutput {
-    CommandOutput::card_value("AI Request Audit", output)
+    // Why: audit is the richest single view; a failed request must announce
+    // itself in the title, not hide behind zero token counts.
+    let title = if output.status == "completed" {
+        "AI Request Audit".to_owned()
+    } else {
+        format!("AI Request Audit — {}", output.status.to_uppercase())
+    };
+    CommandOutput::card_value(title, output)
 }
 
 #[must_use]

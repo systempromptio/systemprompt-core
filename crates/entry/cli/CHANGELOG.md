@@ -12,6 +12,9 @@
 
 ### Fixed
 
+- `infra logs request list` includes cache tokens in the tokens column (`10+42000c/600`). Prompt-cached clients carry tens of thousands of tokens per turn in the cache columns; hiding them made the tokens and cost columns look mutually impossible.
+- `infra logs audit` reports `status`, `error_message`, and both cache-token counts, and a non-completed request announces itself in the card title. A failed request previously audited as `0/0` tokens and `$0` with nothing indicating failure.
+- `infra logs trace list` excludes log-only traces (no AI requests, no MCP calls, no agent) by default; `--all` includes them. Bridge housekeeping endpoints mint one such trace every few seconds per connected bridge, burying real conversations pages deep.
 - A CLI session is bound to the issuer its token was minted under and is discarded when `security.issuer` changes, on both `admin session login` and the implicit path every other command uses; `admin config security set --jwt-issuer` clears the stored session rather than leaving a token every MCP call rejects.
 - `admin session login --duration-hours` sets the stored session's expiry as well as the token's; the file entry was fixed at 24 hours.
 

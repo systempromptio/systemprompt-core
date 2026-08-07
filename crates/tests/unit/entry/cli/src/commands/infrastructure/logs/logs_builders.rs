@@ -26,10 +26,13 @@ fn logs_summary_returns_card() {
 fn audit_returns_card() {
     let audit: AuditOutput = serde_json::from_value(serde_json::json!({
         "request_id": "req_abc123",
+        "status": "completed",
         "provider": "anthropic",
         "model": "claude",
         "input_tokens": 10,
         "output_tokens": 20,
+        "cache_read_tokens": 42000,
+        "cache_creation_tokens": 0,
         "cost_dollars": 0.0001,
         "latency_ms": 42,
         "task_id": null,

@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.30.0] - 2026-08-07
+
+### Breaking
+
+- **Breaking:** `AiRequestListItem` gains `cache_read_tokens` and `cache_creation_tokens`; `AuditLookupResult` gains those two plus `status` and `error_message`. Struct literals need the new fields; the queries populate them from the existing `ai_requests` columns.
+
+### Changed
+
+- `list_traces` with `include_system` unset also excludes zero-content traces (no AI requests, no MCP calls, no agent). Bridge housekeeping endpoints mint a log-only trace every few seconds per connected bridge; `TraceListFilter::include_system` remains the escape hatch.
+
 ## [0.25.0] - 2026-07-27
 
 ### Added
