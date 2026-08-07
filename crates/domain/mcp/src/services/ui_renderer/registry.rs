@@ -73,8 +73,8 @@ pub fn resolve_artifact_type(artifact: &Artifact) -> &str {
         .find_map(|part| match part {
             Part::Data(data) => data
                 .data
-                .get("artifact_type")
-                .or_else(|| data.data.get("x-artifact-type"))
+                .get("x-artifact-type")
+                .or_else(|| data.data.get("artifact_type"))
                 .and_then(serde_json::Value::as_str),
             Part::Text(_) | Part::File(_) => None,
         })

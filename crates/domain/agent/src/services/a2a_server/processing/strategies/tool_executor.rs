@@ -10,7 +10,7 @@ use systemprompt_identifiers::AiToolCallId;
 use systemprompt_models::{McpTool, RequestContext, ToolCall};
 
 use super::ExecutionContext;
-use super::plan_executor::ToolExecutorTrait;
+use super::plan_executor::{ToolExecutorTrait, ToolOutcome};
 
 #[derive(Debug)]
 pub struct ContextToolExecutor {
@@ -25,7 +25,7 @@ impl ToolExecutorTrait for ContextToolExecutor {
         arguments: Value,
         tools: &[McpTool],
         ctx: &RequestContext,
-    ) -> Result<Value> {
+    ) -> Result<ToolOutcome> {
         let tool_call = ToolCall {
             ai_tool_call_id: AiToolCallId::new(format!("call_{}", tool_name)),
             name: tool_name.to_owned(),
@@ -65,8 +65,15 @@ impl ToolExecutorTrait for ContextToolExecutor {
             )));
         }
 
-        result.structured_content.ok_or_else(|| {
+        let output = result.structured_content.ok_or_else(|| {
             AgentServiceError::Internal(format!("Tool {tool_name} returned no structured_content"))
+        })?;
+        Ok(ToolOutcome {
+            output,
+            meta: result
+                .meta
+                .as_ref()
+                .and_then(|m| serde_json::to_value(m).ok()),
         })
     }
 }

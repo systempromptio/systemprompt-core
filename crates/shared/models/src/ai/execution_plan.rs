@@ -76,6 +76,8 @@ pub struct ToolCallResult {
     pub arguments: Value,
     pub success: bool,
     pub output: Value,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub meta: Option<Value>,
     pub error: Option<String>,
     pub duration_ms: u64,
 }
@@ -92,9 +94,16 @@ impl ToolCallResult {
             arguments,
             success: true,
             output,
+            meta: None,
             error: None,
             duration_ms,
         }
+    }
+
+    #[must_use]
+    pub fn with_meta(mut self, meta: Option<Value>) -> Self {
+        self.meta = meta;
+        self
     }
 
     pub fn failure(
@@ -108,6 +117,7 @@ impl ToolCallResult {
             arguments,
             success: false,
             output: Value::Null,
+            meta: None,
             error: Some(error.into()),
             duration_ms,
         }

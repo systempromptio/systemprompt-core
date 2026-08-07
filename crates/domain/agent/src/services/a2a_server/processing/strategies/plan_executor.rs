@@ -31,7 +31,15 @@ pub trait ToolExecutorTrait: Send + Sync {
         arguments: Value,
         tools: &[McpTool],
         ctx: &RequestContext,
-    ) -> Result<Value>;
+    ) -> Result<ToolOutcome>;
+}
+
+/// A completed tool call: the structured output plus the wire `_meta` the
+/// artifact transformer needs to identify the stored artifact.
+#[derive(Debug, Clone)]
+pub struct ToolOutcome {
+    pub output: Value,
+    pub meta: Option<Value>,
 }
 
 pub async fn execute_tools_sequentially(
@@ -170,18 +178,19 @@ fn resolve_call_arguments(call: &PlannedToolCall, state: &ExecutionState) -> Val
 fn finish_tool_call(
     tool_name: &str,
     arguments: Value,
-    result: Result<Value>,
+    result: Result<ToolOutcome>,
     duration_ms: u64,
 ) -> ToolCallResult {
     match result {
-        Ok(output) => {
+        Ok(outcome) => {
             tracing::info!(
                 tool_name = %tool_name,
                 duration_ms = duration_ms,
                 "Tool completed successfully"
             );
 
-            ToolCallResult::success(tool_name.to_owned(), arguments, output, duration_ms)
+            ToolCallResult::success(tool_name.to_owned(), arguments, outcome.output, duration_ms)
+                .with_meta(outcome.meta)
         },
         Err(e) => {
             let error_msg = e.to_string();
@@ -252,6 +261,10 @@ pub fn convert_to_call_tool_results(state: &ExecutionState) -> Vec<CallToolResul
                 CallToolResult::error(vec![ContentBlock::text(text_content)])
             };
             result.structured_content = Some(r.output.clone());
+            result.meta = r
+                .meta
+                .as_ref()
+                .and_then(|m| serde_json::from_value(m.clone()).ok());
             result
         })
         .collect()

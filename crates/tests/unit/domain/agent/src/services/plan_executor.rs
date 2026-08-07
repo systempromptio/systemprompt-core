@@ -1,6 +1,6 @@
 use serde_json::Value;
 use systemprompt_agent::services::a2a_server::processing::strategies::plan_executor::{
-    ToolExecutorTrait, convert_to_call_tool_results, convert_to_tool_calls,
+    ToolExecutorTrait, ToolOutcome, convert_to_call_tool_results, convert_to_tool_calls,
     execute_tools_sequentially, execute_tools_with_templates, format_results_for_response,
 };
 use systemprompt_agent::services::shared::Result;
@@ -18,8 +18,13 @@ impl ToolExecutorTrait for AlwaysOkExecutor {
         arguments: Value,
         _tools: &[McpTool],
         _ctx: &RequestContext,
-    ) -> Result<Value> {
-        Ok(serde_json::json!({"echo_tool": tool_name, "args": arguments}))
+    ) -> Result<ToolOutcome> {
+        Ok(ToolOutcome {
+            output: serde_json::json!({"echo_tool": tool_name, "args": arguments}),
+            meta: Some(serde_json::json!({
+                "io.systemprompt/execution": {"artifact_id": "art-1", "mcp_execution_id": "exec-1"}
+            })),
+        })
     }
 }
 
@@ -32,7 +37,7 @@ impl ToolExecutorTrait for AlwaysFailExecutor {
         _arguments: Value,
         _tools: &[McpTool],
         _ctx: &RequestContext,
-    ) -> Result<Value> {
+    ) -> Result<ToolOutcome> {
         Err(systemprompt_agent::services::shared::AgentServiceError::Internal("boom".to_string()))
     }
 }
@@ -88,6 +93,23 @@ fn convert_to_call_tool_results_maps_success_and_failure() {
     assert_eq!(results.len(), 2);
     assert_eq!(results[0].is_error, Some(false));
     assert_eq!(results[1].is_error, Some(true));
+}
+
+#[tokio::test]
+async fn executed_tools_keep_the_wire_meta_for_the_artifact_transformer() {
+    let calls = vec![call("with_meta")];
+    let state = execute_tools_sequentially(&calls, &[], &ctx(), &AlwaysOkExecutor)
+        .await
+        .expect("ok");
+    let results = convert_to_call_tool_results(&state);
+    let meta = results[0]
+        .meta
+        .as_ref()
+        .expect("meta survives reconstruction");
+    assert!(
+        meta.0.contains_key("io.systemprompt/execution"),
+        "the execution meta key reaches the artifact transformer"
+    );
 }
 
 #[test]

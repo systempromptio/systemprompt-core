@@ -76,6 +76,17 @@ fn resolve_artifact_type_falls_through_envelope_to_x_artifact_type() {
 }
 
 #[test]
+fn resolve_artifact_type_prefers_x_artifact_type_over_serde_tag() {
+    let artifact = make_artifact(
+        "cli",
+        vec![data_part(
+            serde_json::json!({"x-artifact-type": "list", "artifact_type": "table", "items": []}),
+        )],
+    );
+    assert_eq!(resolve_artifact_type(&artifact), "list");
+}
+
+#[test]
 fn resolve_artifact_type_envelope_without_data_tag_stays_envelope() {
     let artifact = make_artifact("cli", vec![]);
     assert_eq!(resolve_artifact_type(&artifact), "cli");

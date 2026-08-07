@@ -71,7 +71,7 @@ async fn a_successful_tool_call_returns_its_structured_content() {
         .expect("the tool succeeded");
 
     assert_eq!(
-        value,
+        value.output,
         serde_json::json!({"rows": 3}),
         "the caller receives the structured payload, not the text block"
     );

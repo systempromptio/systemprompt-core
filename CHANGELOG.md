@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.30.1] - 2026-08-07
+
+### Fixed
+
+- Agent planned-strategy tool calls no longer fail artifact transformation with `Missing required field: _meta["io.systemprompt/execution"]`: the executor threads the tool result's wire `_meta` through the execution state to the transformer.
+
 ## [0.30.0] - 2026-08-07
 
 ### Breaking

@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.30.1] - 2026-08-07
+
+### Fixed
+
+- Planned-strategy tool execution preserves the tool result's `_meta` when rebuilding the wire result, so the artifact transformer can read `_meta["io.systemprompt/execution"]` instead of failing every planned tool call with a missing-field error. `ToolExecutorTrait::execute_tool` now returns a `ToolOutcome` carrying the structured output and the wire meta.
+
 ## [0.30.0] - 2026-08-07
 
 ### Breaking

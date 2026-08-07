@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.30.1] - 2026-08-07
+
+### Added
+
+- `ai::ToolCallResult` carries the tool result's wire `_meta` (`meta` field + `with_meta`), so execution state can reconstruct a faithful `CallToolResult`.
+
 ## [0.30.0] - 2026-08-07
 
 ### Breaking
