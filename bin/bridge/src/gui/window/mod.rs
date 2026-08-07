@@ -31,8 +31,8 @@ pub fn open_external_url(url: &str) {
 /// than exiting. `display notification` is posted by Notification Center
 /// instead, and returns immediately.
 pub fn notify_user(title: &str, message: &str) {
-    // Both shells below are quote-delimited; dropping quotes from the interpolated
-    // text keeps the command well-formed without a shell-specific escaper.
+    // Why: both shells below are quote-delimited; dropping quotes from the
+    // interpolated text keeps the command well-formed without an escaper.
     let title = title.replace(['"', '\''], "");
     let message = message.replace(['"', '\''], "");
     tracing::warn!(title = %title, message = %message, "notifying user");
@@ -43,8 +43,6 @@ pub fn notify_user(title: &str, message: &str) {
                 "display notification \"{message}\" with title \"{title}\""
             ))
             .status(),
-        // Windows renders this reliably from any session, so a modal is fine and
-        // is the clearer signal; it blocks until the user dismisses it.
         target_os = "windows" => Command::new("powershell")
             .args(["-NoProfile", "-Command"])
             .arg(format!(

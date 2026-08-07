@@ -218,16 +218,13 @@ fn read_running_instance() -> Option<RunningInstance> {
     Some(RunningInstance { port, token })
 }
 
-/// Ask the instance recorded in the sidecar to bring its window forward.
-///
-/// Returns `true` only when that instance *accepts* the request (`204 No
-/// Content` from `handle_focus`, which it sends once the event is queued to a
-/// live event loop). A successful `write_all` is not evidence: the sidecar
-/// outlives a killed process, and once the OS recycles the recorded port an
-/// unrelated listener accepts the bytes and discards them. That false positive
-/// is what let a double-click report "focused its window" while nothing appeared
-/// on screen. On any failure the sidecar is deleted, so the next launch treats
-/// the singleton as vacant instead of inheriting the same lie.
+// Why: true only when the instance *accepts* the request (204 from
+// handle_focus, sent once the event is queued to a live event loop). A
+// successful write_all is not evidence: the sidecar outlives a killed process,
+// and a recycled port means an unrelated listener accepts and discards the
+// bytes — the false positive that let a double-click report "focused its
+// window" while nothing appeared. On failure the sidecar is deleted so the
+// next launch treats the singleton as vacant.
 pub(crate) fn ping_focus_running_instance() -> bool {
     let Some(instance) = read_running_instance() else {
         return false;
@@ -258,7 +255,7 @@ fn focus_handshake(instance: &RunningInstance) -> bool {
     if stream.write_all(request.as_bytes()).is_err() {
         return false;
     }
-    // The reply is a bare status line; 16 bytes covers "HTTP/1.1 204 No…".
+    // Why: the reply is a bare status line; 16 bytes covers "HTTP/1.1 204 No…".
     let mut buf = [0_u8; 16];
     let mut filled = 0;
     while filled < buf.len() {

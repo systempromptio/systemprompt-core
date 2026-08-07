@@ -18,12 +18,11 @@ pub(crate) fn cmd_gui() -> ExitCode {
                 );
                 return ExitCode::SUCCESS;
             }
-            // The lock is held (flock/named mutex release on process death, so the
-            // holder is alive) but it never confirmed the focus request — it is
-            // wedged, or was started without a GUI. Starting a second GUI would
-            // race the proxy and loopback ports, so refuse; but say so visibly,
-            // because on a Finder/Explorer launch this is the difference between
-            // an explanation and an app that appears to do nothing at all.
+            // Why: the lock holder is alive (flock releases on process death)
+            // but never confirmed the focus request — it is wedged or GUI-less.
+            // A second GUI would race the proxy and loopback ports, so refuse
+            // visibly: on a Finder launch this is the difference between an
+            // explanation and an app that appears to do nothing.
             let app = crate::brand::brand().app_name;
             crate::obs::output::diag(
                 "gui: another bridge instance holds the lock but did not answer the focus \
