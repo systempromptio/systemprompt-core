@@ -133,7 +133,7 @@ async fn dispatch_command(command: Option<args::Commands>, ctx: &CommandContext)
         Some(args::Commands::Cloud(cmd)) => cloud::execute(cmd, ctx).await?,
         Some(args::Commands::Analytics(cmd)) => analytics::execute(cmd, ctx).await?,
         Some(args::Commands::Web(cmd)) => web::execute(cmd, ctx)?,
-        Some(args::Commands::Plugins(cmd)) => plugins::execute(cmd, ctx).await?,
+        Some(args::Commands::Plugins(cmd)) => Box::pin(plugins::execute(cmd, ctx)).await?,
         Some(args::Commands::Build(cmd)) => {
             crate::commands::build::execute(cmd, ctx)?;
         },
