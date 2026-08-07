@@ -182,6 +182,7 @@ fn tool_result(output: Value) -> ToolCallResult {
         arguments: json!({}),
         success: true,
         output,
+        meta: None,
         error: None,
         duration_ms: 1,
     }
