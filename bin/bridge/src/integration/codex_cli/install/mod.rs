@@ -73,7 +73,7 @@ fn notify_profile_pending() {
 }
 
 #[cfg(not(target_os = "macos"))]
-fn notify_profile_pending() {}
+const fn notify_profile_pending() {}
 
 pub(super) fn install_profile(generated_path: &str) -> std::io::Result<()> {
     if cfg!(target_os = "macos") {
