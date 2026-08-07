@@ -404,8 +404,24 @@ async fn list_traces_derives_status_for_non_agent_traces() {
     assert_eq!(status_of(&ai_pending), Some("running"));
     assert_eq!(status_of(&mcp_ok), Some("completed"));
     assert_eq!(status_of(&mcp_timeout), Some("failed"));
-    assert_eq!(status_of(&log_err), Some("failed"));
-    assert_eq!(status_of(&log_info), Some("completed"));
+    assert_eq!(
+        status_of(&log_err),
+        None,
+        "log-only traces are bridge housekeeping noise and stay hidden by default"
+    );
+    assert_eq!(status_of(&log_info), None);
+
+    let all = svc
+        .list_traces(&TraceListFilter::new(1000).with_include_system(true))
+        .await
+        .unwrap();
+    let all_by_id: std::collections::HashMap<String, String> = all
+        .into_iter()
+        .map(|i| (i.trace_id.as_str().to_owned(), i.status))
+        .collect();
+    let all_status_of = |id: &str| all_by_id.get(id).map(String::as_str);
+    assert_eq!(all_status_of(&log_err), Some("failed"));
+    assert_eq!(all_status_of(&log_info), Some("completed"));
 
     assert!(
         !by_id.values().any(|s| s == "unknown"),

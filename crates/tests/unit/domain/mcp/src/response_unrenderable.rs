@@ -137,7 +137,7 @@ async fn the_result_meta_names_the_ui_resource_even_when_rendering_failed() {
         "hosts that prefer resources/read are given a ui:// uri: {uri}"
     );
     assert!(
-        uri.contains("unrenderable-tool"),
+        uri.contains("unrenderable-server"),
         "the uri is scoped to the server that produced it: {uri}"
     );
 }
