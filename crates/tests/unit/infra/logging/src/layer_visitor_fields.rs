@@ -89,7 +89,10 @@ async fn the_visitor_preserves_scalar_field_types_and_strips_ansi_from_messages(
         wait_for_rows(&raw, &trace_id, 2).await;
     }
 
-    assert_eq!(wait_for_rows(&raw, &trace_id, 2).await, 2);
+    // Why: while the TRACE-level layer is active, the poll queries' own sqlx
+    // events also persist under this span's trace, so the total row count is
+    // machine-speed dependent — only the two authored events are asserted.
+    assert!(wait_for_rows(&raw, &trace_id, 2).await >= 2);
 
     let (_, metadata, _) = row_for_message(&raw, &trace_id, "scalars")
         .await
