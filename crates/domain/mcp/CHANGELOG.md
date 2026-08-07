@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.30.1] - 2026-08-07
+
+### Fixed
+
+- `resolve_artifact_type` reads the canonical `x-artifact-type` tag before the `artifact_type` serde envelope tag when falling through a `cli` envelope, matching the agent-side type inference.
+
 ## [0.30.0] - 2026-08-07
 
 ### Breaking

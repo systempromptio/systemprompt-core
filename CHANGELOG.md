@@ -5,6 +5,7 @@
 ### Fixed
 
 - Agent planned-strategy tool calls no longer fail artifact transformation with `Missing required field: _meta["io.systemprompt/execution"]`: the executor threads the tool result's wire `_meta` through the execution state to the transformer.
+- UI renderer type resolution reads the canonical `x-artifact-type` tag before the `artifact_type` serde envelope tag when falling through a `cli` envelope, matching the agent-side type inference; a bare artifact carrying only the canonical tag now resolves identically on both paths.
 
 ## [0.30.0] - 2026-08-07
 
