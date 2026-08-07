@@ -20,6 +20,7 @@ mod run;
 pub mod status;
 pub mod sync;
 mod uninstall;
+pub mod update;
 pub mod validate;
 pub mod whoami;
 
@@ -50,6 +51,7 @@ pub fn run_with_args(args: &[String]) -> ExitCode {
         Some("install") => install::cmd_install(args),
         Some("__install-claude-policy") => install_claude_policy::cmd(args),
         Some("sync") => sync::cmd_sync(args),
+        Some("update") => update::cmd_update(args),
         Some("oauth-client") => oauth_client::cmd_oauth_client(args),
         Some("validate") => validate::cmd_validate(),
         Some("uninstall") => uninstall::cmd_uninstall(args),
@@ -61,7 +63,7 @@ pub fn run_with_args(args: &[String]) -> ExitCode {
             output::print_str(&format!(
                 "{} {} ({}, {})\n",
                 crate::brand::brand().binary_name,
-                env!("CARGO_PKG_VERSION"),
+                crate::brand::brand().version,
                 diagnostics::short_sha(),
                 diagnostics::GIT_COMMIT_DATE,
             ));

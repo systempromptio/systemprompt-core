@@ -76,6 +76,9 @@ export const bridge = {
   openExternalUrl:      (url)               => invoke("openExternalUrl", { url }),
   diagnosticsExportBundle: ()               => invoke("diagnostics.exportBundle"),
   diagnosticsInfo:      ()                  => invoke("diagnostics.info"),
+  updateCheck:          ()                  => invoke("update.check"),
+  updateInstall:        ()                  => invoke("update.install"),
+  updateRestart:        ()                  => invoke("update.restart"),
   cancel:               (scope)             => invoke("cancel", { scope: scope ?? "all" }),
   quit:                 ()                  => invoke("quit"),
 };

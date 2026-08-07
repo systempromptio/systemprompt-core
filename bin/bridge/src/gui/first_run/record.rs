@@ -70,7 +70,7 @@ pub fn write(state: &FirstRunState) {
     }
     let record = FirstRunRecord {
         completed_at: chrono::Utc::now().to_rfc3339(),
-        app_version: env!("CARGO_PKG_VERSION").to_owned(),
+        app_version: crate::brand::brand().version.to_owned(),
         hosts: state
             .hosts
             .iter()

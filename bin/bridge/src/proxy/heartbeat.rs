@@ -74,7 +74,7 @@ async fn send_one(
 
     let payload = HeartbeatPayload {
         session_id: session.session_id().as_str(),
-        bridge_version: env!("CARGO_PKG_VERSION"),
+        bridge_version: crate::brand::brand().version,
         os: std::env::consts::OS,
         hostname: hostname_or_unknown(),
         last_activity_at: session.last_activity(),

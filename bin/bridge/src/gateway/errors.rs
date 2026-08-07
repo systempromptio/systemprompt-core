@@ -67,6 +67,10 @@ pub enum GatewayError {
         status: reqwest::StatusCode,
         endpoint: &'static str,
     },
+    #[error("release manifest fetch failed: {0}")]
+    ReleaseFetch(Box<reqwest::Error>),
+    #[error("malformed release manifest response: {0}")]
+    ReleaseDecode(Box<reqwest::Error>),
     #[error("serialize: {0}")]
     Serialize(#[from] serde_json::Error),
 }

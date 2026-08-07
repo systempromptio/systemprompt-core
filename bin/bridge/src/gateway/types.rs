@@ -44,3 +44,16 @@ pub struct WhoamiResponse {
     #[serde(flatten)]
     pub extra: BTreeMap<String, serde_json::Value>,
 }
+
+/// One platform's newest published build, as advertised by
+/// `GET /v1/bridge/latest`. `sha256` is the digest the updater must reproduce
+/// over the downloaded bytes before it will install them.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ReleaseManifest {
+    pub version: String,
+    pub sha256: String,
+    #[serde(default)]
+    pub size: u64,
+    #[serde(default)]
+    pub notes_url: Option<String>,
+}

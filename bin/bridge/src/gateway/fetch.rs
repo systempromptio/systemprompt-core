@@ -11,7 +11,7 @@ use systemprompt_models::api::cloud::BridgeProfileUsage;
 use crate::auth::types::BridgeProfile;
 use crate::gateway::errors::GatewayError;
 use crate::gateway::manifest::SignedManifest;
-use crate::gateway::types::WhoamiResponse;
+use crate::gateway::types::{ReleaseManifest, WhoamiResponse};
 use crate::gateway::{GatewayClient, record_span};
 
 impl GatewayClient {
@@ -257,5 +257,40 @@ impl GatewayClient {
             });
         }
         Ok(())
+    }
+
+    /// The newest build the gateway publishes for `platform`.
+    ///
+    /// Resolving "latest" server-side is deliberate: it keeps staged rollouts
+    /// and version pinning a gateway config change rather than a client release.
+    #[tracing::instrument(
+        level = "debug",
+        skip(self, bearer),
+        fields(endpoint = "bridge-latest", platform, status, latency_ms)
+    )]
+    pub async fn fetch_latest_release(
+        &self,
+        bearer: &str,
+        platform: &str,
+    ) -> Result<ReleaseManifest, GatewayError> {
+        let url = self.url(&format!("/v1/bridge/latest?platform={platform}"));
+        let started = Instant::now();
+        let resp = self
+            .http()
+            .get(&url)
+            .bearer_auth(bearer)
+            .send()
+            .await
+            .map_err(|e| GatewayError::ReleaseFetch(Box::new(e)))?;
+        record_span(&resp, started);
+        if !resp.status().is_success() {
+            return Err(GatewayError::HttpStatus {
+                status: resp.status(),
+                endpoint: "bridge-latest",
+            });
+        }
+        resp.json::<ReleaseManifest>()
+            .await
+            .map_err(|e| GatewayError::ReleaseDecode(Box::new(e)))
     }
 }

@@ -277,7 +277,7 @@ fn initialize_body() -> Value {
         "params": {
             "protocolVersion": MCP_PROTOCOL_VERSION,
             "capabilities": {},
-            "clientInfo": { "name": "systemprompt-bridge-probe", "version": env!("CARGO_PKG_VERSION") },
+            "clientInfo": { "name": "systemprompt-bridge-probe", "version": crate::brand::brand().version },
         },
     })
 }

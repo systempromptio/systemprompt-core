@@ -25,7 +25,7 @@ pub fn render() -> String {
         out,
         "{} {}",
         crate::brand::brand().binary_name,
-        env!("CARGO_PKG_VERSION")
+        crate::brand::brand().version
     );
     _ = writeln!(out, "commit:    {GIT_SHA}");
     _ = writeln!(out, "branch:    {GIT_BRANCH}");

@@ -41,6 +41,12 @@ pub struct BrandAssets {
 pub struct Brand {
     pub app_name: &'static str,
     pub binary_name: &'static str,
+    /// The *shipped* version, which is the downstream binary crate's
+    /// `CARGO_PKG_VERSION` — not this library's. A white-label build releases on
+    /// its own cadence (`bridge-v0.1.6`) while linking a differently-versioned
+    /// core, so `env!("CARGO_PKG_VERSION")` expanded here would report the
+    /// library version to users and to the updater's comparison.
+    pub version: &'static str,
     pub vendor: &'static str,
     pub config_dir: &'static str,
     pub config_file: &'static str,
@@ -85,6 +91,7 @@ impl Brand {
     pub const SYSTEMPROMPT: Self = Self {
         app_name: "Systemprompt Bridge",
         binary_name: "systemprompt-bridge",
+        version: env!("CARGO_PKG_VERSION"),
         vendor: "Systemprompt",
         config_dir: "systemprompt",
         config_file: "systemprompt-bridge.toml",

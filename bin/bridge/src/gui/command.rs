@@ -235,6 +235,18 @@ fn sync_dispatch(
             send(app, UiEvent::ValidateRequested { reply_to: reply_id });
             CommandOutcome::Async
         },
+        "update.check" => {
+            send(app, UiEvent::UpdateCheckRequested { reply_to: reply_id });
+            CommandOutcome::Async
+        },
+        "update.install" => {
+            send(app, UiEvent::UpdateInstallRequested { reply_to: reply_id });
+            CommandOutcome::Async
+        },
+        "update.restart" => {
+            send(app, UiEvent::UpdateRestartRequested);
+            CommandOutcome::Sync(Ok(Value::Null))
+        },
         "cancel" => match parse::<CancelArgs>(args) {
             Ok(a) => match cancel_scope(a.scope.as_deref()) {
                 Ok(scope) => {
@@ -351,7 +363,7 @@ fn diagnostics_dispatch(app: &GuiApp, cmd: &str, reply_id: ReplyId) -> Option<Co
             CommandOutcome::Async
         },
         "diagnostics.info" => CommandOutcome::Sync(Ok(json!({
-            "version": env!("CARGO_PKG_VERSION"),
+            "version": crate::brand::brand().version,
             "git_sha": crate::cli::diagnostics::short_sha(),
             "git_sha_full": crate::cli::diagnostics::GIT_SHA,
             "build_date": crate::cli::diagnostics::GIT_COMMIT_DATE,

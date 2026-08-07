@@ -120,7 +120,7 @@ pub fn attach_to_window(
 fn about_metadata() -> muda::AboutMetadata {
     muda::AboutMetadata {
         name: Some(crate::brand::brand().app_name.into()),
-        version: Some(env!("CARGO_PKG_VERSION").into()),
+        version: Some(crate::brand::brand().version.into()),
         ..Default::default()
     }
 }

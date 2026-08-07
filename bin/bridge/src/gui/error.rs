@@ -22,6 +22,9 @@ pub enum GuiError {
     #[error("gateway: {0}")]
     Gateway(#[from] crate::gateway::GatewayError),
 
+    #[error("update: {0}")]
+    Update(#[from] crate::update::UpdateError),
+
     #[error("profile: {context}: {source}")]
     Profile {
         context: String,

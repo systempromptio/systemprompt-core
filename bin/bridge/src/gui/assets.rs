@@ -22,7 +22,6 @@ const FONT_INTER_BOLD: &[u8] = include_bytes!("../../assets/fonts/Inter-Bold.wof
 const FONT_OPENSANS_REGULAR: &[u8] = include_bytes!("../../assets/fonts/OpenSans-Regular.woff2");
 const FONT_OPENSANS_BOLD: &[u8] = include_bytes!("../../assets/fonts/OpenSans-Bold.woff2");
 
-const VERSION: &str = env!("CARGO_PKG_VERSION");
 const GIT_SHA_FULL: &str = env!("VERGEN_GIT_SHA");
 const BUILD_DATE: &str = env!("VERGEN_GIT_COMMIT_DATE");
 
@@ -72,7 +71,7 @@ impl Asset {
 pub fn render_index() -> String {
     let brand = crate::brand::brand();
     let html = HTML
-        .replace("__VERSION__", VERSION)
+        .replace("__VERSION__", brand.version)
         .replace("__GIT_SHA__", git_sha_short())
         .replace("__BUILD_DATE__", BUILD_DATE)
         .replace("__ICON_SVG__", brand.assets.icon_svg)

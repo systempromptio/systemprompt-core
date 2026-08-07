@@ -96,7 +96,7 @@ pub fn write(port: u16) -> std::io::Result<()> {
         install_id: identity::install_id(),
         config_dir: identity::config_dir_display(),
         bound_at_unix: identity::now_unix(),
-        version: env!("CARGO_PKG_VERSION").to_owned(),
+        version: crate::brand::brand().version.to_owned(),
     };
     let body = serde_json::to_vec_pretty(&record).map_err(std::io::Error::other)?;
     fs::write(&path, &body)?;

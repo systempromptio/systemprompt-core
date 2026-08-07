@@ -84,7 +84,7 @@ impl WhoAmI {
             config_dir: config_dir_display(),
             port,
             pid: std::process::id(),
-            version: env!("CARGO_PKG_VERSION").to_owned(),
+            version: crate::brand::brand().version.to_owned(),
             started_at_unix,
         }
     }

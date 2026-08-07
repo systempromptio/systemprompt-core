@@ -20,7 +20,7 @@ mod override_rule;
 mod route;
 mod state;
 
-pub use config::{GatewayConfig, GatewayConfigSpec};
+pub use config::{BridgeReleasesSpec, GatewayConfig, GatewayConfigSpec};
 pub use error::{GatewayProfileError, GatewayResult};
 pub use override_rule::{OverrideRuleAction, SystemPromptRule};
 pub use route::{

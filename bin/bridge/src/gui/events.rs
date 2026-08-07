@@ -102,6 +102,28 @@ pub enum UiEvent {
         reply_to: ReplyId,
     },
 
+    UpdateCheckRequested {
+        reply_to: ReplyId,
+    },
+    UpdateCheckFinished {
+        result: Result<Value, Arc<GuiError>>,
+        reply_to: ReplyId,
+    },
+    UpdateInstallRequested {
+        reply_to: ReplyId,
+    },
+    UpdateInstallFinished {
+        result: Result<Value, Arc<GuiError>>,
+        reply_to: ReplyId,
+    },
+    /// Download progress, forwarded from the streaming callback so the state
+    /// mutation happens on the UI thread like every other state change.
+    UpdateProgress {
+        version: String,
+        percent: u8,
+    },
+    UpdateRestartRequested,
+
     AgentUninstall {
         host_id: String,
         reply_to: ReplyId,

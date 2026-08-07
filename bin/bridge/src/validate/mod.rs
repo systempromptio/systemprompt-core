@@ -71,7 +71,7 @@ fn check_binary(report: &mut Report) {
         &format!(
             "{} v{} ({}-{})",
             crate::brand::brand().binary_name,
-            env!("CARGO_PKG_VERSION"),
+            crate::brand::brand().version,
             std::env::consts::OS,
             std::env::consts::ARCH
         ),

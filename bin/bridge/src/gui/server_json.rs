@@ -62,6 +62,7 @@ struct StatePayload<'a> {
     proxy_stats: ProxyStatsPayload,
     mcp_auth: &'a [McpServerAuth],
     mcp_auth_probe_in_flight: bool,
+    update: &'a crate::update::UpdateUiState,
 
     sign_in_label: &'static str,
     sign_in_hint: &'static str,
@@ -95,6 +96,7 @@ impl<'a> From<&'a AppStateSnapshot> for StatePayload<'a> {
             proxy_stats: ProxyStatsPayload::current(),
             mcp_auth: &snap.mcp_auth,
             mcp_auth_probe_in_flight: snap.mcp_auth_probe_in_flight,
+            update: &snap.update,
 
             sign_in_label: crate::brand::brand().sign_in_label,
             sign_in_hint: crate::brand::brand().sign_in_hint,

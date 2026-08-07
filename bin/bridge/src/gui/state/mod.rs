@@ -112,6 +112,10 @@ pub struct AppStateSnapshot {
     /// MCP auth probe results; populated by the probe, not by `reload`.
     pub mcp_auth: Vec<McpServerAuth>,
     pub mcp_auth_probe_in_flight: bool,
+
+    /// Self-update progress; populated by the update check and install, not by
+    /// `reload`.
+    pub update: crate::update::UpdateUiState,
 }
 
 impl AppStateSnapshot {
@@ -367,6 +371,30 @@ impl AppState {
         let mut guard = self.inner.write();
         guard.mcp_auth = results;
         guard.mcp_auth_probe_in_flight = false;
+    }
+
+
+    pub fn set_update_state(&self, state: crate::update::UpdateUiState) {
+        let mut guard = self.inner.write();
+        guard.update = state;
+    }
+
+    /// Records download progress without disturbing a state that has already
+    /// moved on — a late chunk callback must not drag `Installing` back to
+    /// `Downloading`.
+    pub fn set_update_progress(&self, version: &str, percent: u8) {
+        let mut guard = self.inner.write();
+        if matches!(
+            guard.update,
+            crate::update::UpdateUiState::Available { .. }
+                | crate::update::UpdateUiState::Downloading { .. }
+        ) && guard.update.version() == Some(version)
+        {
+            guard.update = crate::update::UpdateUiState::Downloading {
+                version: version.to_owned(),
+                percent,
+            };
+        }
     }
 
 

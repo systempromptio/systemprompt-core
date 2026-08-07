@@ -31,6 +31,9 @@ const fn request_kind(event: &UiEvent) -> Option<&'static str> {
         UiEvent::GatewayProbeRequested { .. } => "GatewayProbeRequested",
         UiEvent::McpAuthProbeRequested { .. } => "McpAuthProbeRequested",
         UiEvent::ProfileFetchRequested { .. } => "ProfileFetchRequested",
+        UiEvent::UpdateCheckRequested { .. } => "UpdateCheckRequested",
+        UiEvent::UpdateInstallRequested { .. } => "UpdateInstallRequested",
+        UiEvent::UpdateRestartRequested => "UpdateRestartRequested",
         _ => return None,
     })
 }
@@ -47,6 +50,9 @@ const fn finish_kind(event: &UiEvent) -> Option<&'static str> {
         UiEvent::GatewayProbeFinished { .. } => "GatewayProbeFinished",
         UiEvent::McpAuthProbeFinished { .. } => "McpAuthProbeFinished",
         UiEvent::ProfileFetchFinished { .. } => "ProfileFetchFinished",
+        UiEvent::UpdateCheckFinished { .. } => "UpdateCheckFinished",
+        UiEvent::UpdateInstallFinished { .. } => "UpdateInstallFinished",
+        UiEvent::UpdateProgress { .. } => "UpdateProgress",
         _ => return None,
     })
 }
@@ -164,6 +170,15 @@ fn dispatch_request(app: &mut GuiApp, event: UiEvent) -> Result<(), Box<UiEvent>
         UiEvent::ProfileFetchRequested { reply_to } => {
             handlers::profile::on_profile_fetch_requested(app, reply_to);
         },
+        UiEvent::UpdateCheckRequested { reply_to } => {
+            handlers::update::on_update_check_requested(app, reply_to);
+        },
+        UiEvent::UpdateInstallRequested { reply_to } => {
+            handlers::update::on_update_install_requested(app, reply_to);
+        },
+        UiEvent::UpdateRestartRequested => {
+            handlers::update::on_update_restart_requested(app);
+        },
         other => return Err(Box::new(other)),
     }
     Ok(())
@@ -197,6 +212,15 @@ fn dispatch_finished(app: &mut GuiApp, event: UiEvent) -> Result<(), Box<UiEvent
         },
         UiEvent::ProfileFetchFinished { result, reply_to } => {
             handlers::profile::on_profile_fetch_finished(app, result, reply_to);
+        },
+        UiEvent::UpdateCheckFinished { result, reply_to } => {
+            handlers::update::on_update_check_finished(app, result, reply_to);
+        },
+        UiEvent::UpdateInstallFinished { result, reply_to } => {
+            handlers::update::on_update_install_finished(app, result, reply_to);
+        },
+        UiEvent::UpdateProgress { version, percent } => {
+            handlers::update::on_update_progress(app, &version, percent);
         },
         other => return Err(Box::new(other)),
     }

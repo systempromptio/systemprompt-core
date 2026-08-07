@@ -53,7 +53,7 @@ pub(super) fn write_version_sentinel(
     let sentinel = meta.join(paths::VERSION_SENTINEL);
     let payload = VersionSentinel {
         binary: binary.display().to_string(),
-        binary_version: env!("CARGO_PKG_VERSION"),
+        binary_version: crate::brand::brand().version,
         installed_at: current_iso8601(),
         gateway_url,
     };

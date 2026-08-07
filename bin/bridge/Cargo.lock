@@ -4601,6 +4601,7 @@ dependencies = [
  "raw-window-handle",
  "reqwest",
  "security-framework",
+ "semver",
  "serde",
  "serde_jcs",
  "serde_json",

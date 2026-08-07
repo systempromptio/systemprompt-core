@@ -47,6 +47,7 @@ pub mod schedule;
 pub(crate) mod single_instance;
 pub mod sync;
 pub(crate) mod sysproc;
+pub mod update;
 pub mod validate;
 #[cfg(target_os = "windows")]
 pub(crate) mod winproc;
@@ -113,6 +114,10 @@ Commands (plugin + MCP sync):
                              plugin-scoped hook tokens
     status                              Show locally-stashed creds (no secret echo)
     rotate                              Force re-provision; new client_secret minted
+  update                     Install the newest build the gateway publishes, verifying
+                             its checksum (and, on macOS, its signature) first
+    [--check]                             Report only; exit 1 if an update is available
+    [--yes]                               Skip the confirmation prompt
   validate                   End-to-end self-check (paths, gateway, creds, signatures)
   doctor                     Diagnose common bridge failure modes (config, creds, gateway,
                              loopback secret, pinned pubkey) with one line per check
@@ -150,6 +155,10 @@ pub fn run_with_brand(brand: &'static brand::Brand) -> ExitCode {
     obs::tracing_init::init();
     activity::install_persistent_writer();
     purge_legacy_agents_state();
+    // Must run before anything else touches the install directory: on Windows
+    // this deletes the binary the previous version was renamed to, which only
+    // becomes possible once that process has exited.
+    update::sweep_leftovers();
     cli::run()
 }
 

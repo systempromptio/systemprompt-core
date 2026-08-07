@@ -46,6 +46,44 @@ pub struct GatewayConfigSpec {
     pub inference_path_prefix: String,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub system_prompt_overrides: Vec<SystemPromptRule>,
+    /// Where the desktop bridge's self-updater is served from. Absent means the
+    /// update endpoints report "not configured" and bridges simply never see an
+    /// update — never an error the user has to act on.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bridge_releases: Option<BridgeReleasesSpec>,
+}
+
+/// Release feed for the desktop bridge self-updater.
+///
+/// The bridge cannot reach these assets itself — the repository is private —
+/// so the gateway resolves and proxies them. Keeping the resolution here is
+/// also what makes staged rollouts a config change rather than a client
+/// release.
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct BridgeReleasesSpec {
+    /// Source repository as `owner/name`.
+    pub repo: String,
+    /// Environment variable holding the GitHub token used to read releases and
+    /// download assets. Named rather than inlined so the token never lands in
+    /// a config file or a profile dump.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub token_env: Option<String>,
+    /// Release tags to consider. Bridge releases are tagged separately from the
+    /// server's, so an unfiltered "latest release" would pick the wrong one.
+    #[serde(default = "default_tag_prefix")]
+    pub tag_prefix: String,
+    /// Pins every bridge to one version instead of tracking the newest release.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pinned_version: Option<String>,
+    /// Platform slug (`macos`, `windows`, `linux-x86_64`, `linux-aarch64`) to
+    /// release asset filename. A platform absent here has no published build.
+    #[serde(default)]
+    pub assets: std::collections::BTreeMap<String, String>,
+}
+
+fn default_tag_prefix() -> String {
+    "bridge-v".to_owned()
 }
 
 impl Default for GatewayConfigSpec {
@@ -58,6 +96,7 @@ impl Default for GatewayConfigSpec {
             auth_scheme: default_auth_scheme(),
             inference_path_prefix: default_inference_path_prefix(),
             system_prompt_overrides: Vec::new(),
+            bridge_releases: None,
         }
     }
 }
@@ -81,6 +120,7 @@ impl GatewayConfigSpec {
             auth_scheme,
             inference_path_prefix,
             system_prompt_overrides,
+            bridge_releases,
         } = self;
 
         GatewayConfig {
@@ -91,6 +131,7 @@ impl GatewayConfigSpec {
             auth_scheme,
             inference_path_prefix,
             system_prompt_overrides,
+            bridge_releases,
         }
     }
 }
@@ -110,6 +151,7 @@ pub struct GatewayConfig {
     pub auth_scheme: String,
     pub inference_path_prefix: String,
     pub system_prompt_overrides: Vec<SystemPromptRule>,
+    pub bridge_releases: Option<BridgeReleasesSpec>,
 }
 
 impl Default for GatewayConfig {
@@ -122,6 +164,7 @@ impl Default for GatewayConfig {
             auth_scheme: default_auth_scheme(),
             inference_path_prefix: default_inference_path_prefix(),
             system_prompt_overrides: Vec::new(),
+            bridge_releases: None,
         }
     }
 }
@@ -308,6 +351,7 @@ impl GatewayConfig {
             auth_scheme: self.auth_scheme.clone(),
             inference_path_prefix: self.inference_path_prefix.clone(),
             system_prompt_overrides: self.system_prompt_overrides.clone(),
+            bridge_releases: self.bridge_releases.clone(),
         }
     }
 }

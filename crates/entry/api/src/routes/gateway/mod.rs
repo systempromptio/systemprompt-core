@@ -20,6 +20,7 @@ pub mod bridge_heartbeat;
 pub mod bridge_manifest;
 pub mod bridge_plugin_file;
 pub mod bridge_profile_usage;
+pub mod bridge_release;
 pub mod bridge_whoami;
 pub mod messages;
 pub mod models;
@@ -231,10 +232,26 @@ fn bridge_profile_routes(ctx: &AppContext, jwt_extractor: &Arc<JwtContextExtract
     let jwt_host_model_filter = Arc::clone(jwt_extractor);
     let jwt_profile_usage = Arc::clone(jwt_extractor);
     let jwt_heartbeat = Arc::clone(jwt_extractor);
+    let jwt_release_latest = Arc::clone(jwt_extractor);
+    let jwt_release_download = Arc::clone(jwt_extractor);
 
     Router::new()
         .route("/bridge/pubkey", get(bridge::pubkey))
         .route("/bridge/profile", get(bridge::profile))
+        .route(
+            "/bridge/latest",
+            get(move |headers, query| {
+                let extractor = Arc::clone(&jwt_release_latest);
+                async move { bridge_release::latest(extractor, headers, query).await }
+            }),
+        )
+        .route(
+            "/bridge/download/{platform}",
+            get(move |headers, path| {
+                let extractor = Arc::clone(&jwt_release_download);
+                async move { bridge_release::download(extractor, headers, path).await }
+            }),
+        )
         .route(
             "/bridge/whoami",
             get(move |headers| {
