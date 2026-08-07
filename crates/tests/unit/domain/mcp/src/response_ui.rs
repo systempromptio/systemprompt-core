@@ -6,7 +6,7 @@
 use rmcp::model::{CallToolResult, ResourceContents};
 use systemprompt_identifiers::{AgentName, ContextId, McpExecutionId, SessionId, TraceId};
 use systemprompt_mcp::repository::McpArtifactRepository;
-use systemprompt_mcp::{ClientProfile, McpResponseBuilder};
+use systemprompt_mcp::{ClientProfile, McpResponseBuilder, ToolIdentity};
 use systemprompt_models::RequestContext;
 use systemprompt_models::artifacts::{
     CardSection, CliArtifact, Column, ColumnType, PresentationCardArtifact, TableArtifact,
@@ -39,10 +39,16 @@ async fn build(artifact: CliArtifact, repo: &McpArtifactRepository) -> CallToolR
     let context = ctx();
     let exec_id = McpExecutionId::new(format!("exec-{}", uuid::Uuid::new_v4().simple()));
 
-    McpResponseBuilder::new(artifact, "systemprompt", &context, &exec_id, &ui_client())
-        .build("summary", repo, "cli", Some("User Directory".to_owned()))
-        .await
-        .expect("response builds")
+    McpResponseBuilder::new(
+        artifact,
+        ToolIdentity::new("systemprompt", "cli_execute"),
+        &context,
+        &exec_id,
+        &ui_client(),
+    )
+    .build("summary", repo, "cli", Some("User Directory".to_owned()))
+    .await
+    .expect("response builds")
 }
 
 fn ui_resource(result: &CallToolResult) -> (String, String) {

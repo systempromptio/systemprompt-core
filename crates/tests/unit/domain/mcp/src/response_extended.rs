@@ -1,5 +1,5 @@
 use systemprompt_identifiers::{AgentName, ContextId, McpExecutionId, SessionId, TraceId};
-use systemprompt_mcp::{ClientProfile, McpResponseBuilder};
+use systemprompt_mcp::{ClientProfile, McpResponseBuilder, ToolIdentity};
 use systemprompt_models::RequestContext;
 use systemprompt_models::artifacts::cli::CliArtifact;
 use systemprompt_models::artifacts::{DashboardArtifact, ListArtifact, TextArtifact};
@@ -40,7 +40,13 @@ fn builder_new_exec_id_in_debug() {
     let exec_id = McpExecutionId::generate();
     let exec_id_str = exec_id.to_string();
     let t = TextArtifact::new("data");
-    let builder = McpResponseBuilder::new(t, "tool-x", &c, &exec_id, &ClientProfile::unknown());
+    let builder = McpResponseBuilder::new(
+        t,
+        ToolIdentity::new("server-x", "tool-x"),
+        &c,
+        &exec_id,
+        &ClientProfile::unknown(),
+    );
     let debug = format!("{builder:?}");
     assert!(debug.contains(&exec_id_str));
 }
@@ -68,8 +74,13 @@ fn builder_debug_contains_tool_name() {
     let c = ctx();
     let exec_id = McpExecutionId::generate();
     let t = TextArtifact::new("payload");
-    let builder =
-        McpResponseBuilder::new(t, "my-custom-tool", &c, &exec_id, &ClientProfile::unknown());
+    let builder = McpResponseBuilder::new(
+        t,
+        ToolIdentity::new("custom-server", "my-custom-tool"),
+        &c,
+        &exec_id,
+        &ClientProfile::unknown(),
+    );
     let debug = format!("{builder:?}");
     assert!(debug.contains("my-custom-tool"));
 }
@@ -103,7 +114,13 @@ fn builder_new_with_owned_string_tool() {
     let exec_id = McpExecutionId::generate();
     let t = TextArtifact::new("val");
     let tool_name = "dynamic-tool".to_owned();
-    let builder = McpResponseBuilder::new(t, tool_name, &c, &exec_id, &ClientProfile::unknown());
+    let builder = McpResponseBuilder::new(
+        t,
+        ToolIdentity::new("dynamic-server", tool_name),
+        &c,
+        &exec_id,
+        &ClientProfile::unknown(),
+    );
     let debug = format!("{builder:?}");
     assert!(debug.contains("dynamic-tool"));
 }

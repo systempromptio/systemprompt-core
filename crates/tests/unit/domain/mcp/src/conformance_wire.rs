@@ -7,7 +7,7 @@
 use rmcp::model::{CallToolResult, ProtocolVersion};
 use systemprompt_identifiers::{AgentName, ContextId, McpExecutionId, SessionId, TraceId};
 use systemprompt_mcp::repository::McpArtifactRepository;
-use systemprompt_mcp::{ClientProfile, McpOutputSchema, McpResponseBuilder};
+use systemprompt_mcp::{ClientProfile, McpOutputSchema, McpResponseBuilder, ToolIdentity};
 use systemprompt_models::RequestContext;
 use systemprompt_models::artifacts::{
     CliArtifact, Column, ColumnType, TableArtifact, TextArtifact,
@@ -76,10 +76,16 @@ async fn build(client: &ClientProfile, artifact: CliArtifact) -> Option<CallTool
     let title = artifact.artifact_title();
 
     Some(
-        McpResponseBuilder::new(artifact, "systemprompt", &context, &exec_id, client)
-            .build("summary line", &repo, &artifact_type, title)
-            .await
-            .expect("response builds"),
+        McpResponseBuilder::new(
+            artifact,
+            ToolIdentity::new("systemprompt", "conformance_tool"),
+            &context,
+            &exec_id,
+            client,
+        )
+        .build("summary line", &repo, &artifact_type, title)
+        .await
+        .expect("response builds"),
     )
 }
 
