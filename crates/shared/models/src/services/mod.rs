@@ -6,6 +6,7 @@
 pub mod agent_config;
 pub mod ai;
 pub mod artifacts;
+pub mod bridge_policy;
 pub mod external_agent;
 pub mod frontmatter;
 pub mod hooks;
@@ -34,6 +35,7 @@ pub use ai::{
     ModelLimits, ModelPricing, ResilienceSettings, SamplingConfig,
 };
 pub use artifacts::{ARTIFACT_CONFIG_FILENAME, DEFAULT_ARTIFACT_CONTENT_FILE, DiskArtifactConfig};
+pub use bridge_policy::BridgePolicyConfig;
 pub use external_agent::{ExternalAgentConfig, ExternalAgentKind};
 pub use frontmatter::{Frontmatter, split_frontmatter, strip_frontmatter};
 pub use hooks::{
@@ -95,6 +97,8 @@ pub struct ServicesConfig {
     pub slack_apps: HashMap<String, SlackAppConfig>,
     #[serde(default)]
     pub teams_apps: HashMap<String, TeamsAppConfig>,
+    #[serde(default)]
+    pub bridge_policy: Option<BridgePolicyConfig>,
 }
 
 impl ServicesConfig {

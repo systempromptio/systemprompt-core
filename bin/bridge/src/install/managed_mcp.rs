@@ -90,6 +90,7 @@ fn read_settings(path: &Path) -> Result<Map<String, Value>, std::io::Error> {
 fn render_managed_settings(
     path: &Path,
     servers: &Map<String, Value>,
+    allow_claude_ai_connectors: bool,
 ) -> Result<String, std::io::Error> {
     let mut doc = read_settings(path)?;
     doc.insert(
@@ -97,6 +98,13 @@ fn render_managed_settings(
         Value::Array(allowlist_entries(servers)),
     );
     doc.insert("allowManagedMcpServersOnly".to_owned(), Value::Bool(true));
+    // Why: the key must be removed (not set false) when policy withdraws it —
+    // leaving a stale `true` behind would keep connectors enabled forever.
+    if allow_claude_ai_connectors {
+        doc.insert("allowAllClaudeAiMcps".to_owned(), Value::Bool(true));
+    } else {
+        doc.remove("allowAllClaudeAiMcps");
+    }
     render_pretty(&Value::Object(doc))
 }
 
@@ -125,7 +133,7 @@ pub(crate) enum PolicyOutcome {
     Declined,
 }
 
-pub(crate) fn apply_policy() -> PolicyOutcome {
+pub(crate) fn apply_policy(allow_claude_ai_connectors: bool) -> PolicyOutcome {
     let dir = policy_dir();
     let servers = match server_map() {
         Ok(s) => s,
@@ -154,18 +162,19 @@ pub(crate) fn apply_policy() -> PolicyOutcome {
     };
 
     let settings_path = dir.join(MANAGED_SETTINGS_FILE);
-    let settings_body = match render_managed_settings(&settings_path, &servers) {
-        Ok(b) => b,
-        Err(e) => {
-            tracing::warn!(
-                target: "bridge::install::managed-mcp",
-                path = %settings_path.display(),
-                error = %e,
-                "failed to render managed-settings.json body",
-            );
-            return PolicyOutcome::Unenforced;
-        },
-    };
+    let settings_body =
+        match render_managed_settings(&settings_path, &servers, allow_claude_ai_connectors) {
+            Ok(b) => b,
+            Err(e) => {
+                tracing::warn!(
+                    target: "bridge::install::managed-mcp",
+                    path = %settings_path.display(),
+                    error = %e,
+                    "failed to render managed-settings.json body",
+                );
+                return PolicyOutcome::Unenforced;
+            },
+        };
 
     // Why: diff-first — if both files already match, skip elevation entirely so
     // idempotent syncs don't prompt.
@@ -312,6 +321,7 @@ pub(crate) fn clear_policy() {
             .and_then(|mut doc| {
                 doc.remove("allowedMcpServers");
                 doc.remove("allowManagedMcpServersOnly");
+                doc.remove("allowAllClaudeAiMcps");
                 render_pretty(&Value::Object(doc))
             })
             .ok()

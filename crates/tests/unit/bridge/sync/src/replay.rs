@@ -51,6 +51,7 @@ fn canonical_payload_includes_not_before_in_position() {
         enabled_hosts: vec![],
         host_model_protocols: Default::default(),
         artifacts: vec![],
+        allow_claude_ai_connectors: false,
         signature: ManifestSignature::new("ignored"),
     };
     let p = canonical_payload(&m).unwrap();

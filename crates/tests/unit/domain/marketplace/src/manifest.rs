@@ -348,6 +348,7 @@ fn sample_view<'a>(
         enabled_hosts: &[],
         host_model_protocols: &EMPTY_HOST_MODEL_PROTOCOLS,
         artifacts: &[],
+        allow_claude_ai_connectors: false,
     }
 }
 

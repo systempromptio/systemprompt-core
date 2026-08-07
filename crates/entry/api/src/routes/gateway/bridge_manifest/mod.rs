@@ -45,6 +45,8 @@ pub async fn manifest(
 
     let (manifest_version, issued_at, not_before) = build_version()?;
 
+    let (candidate, allow_claude_ai_connectors) =
+        assemble_candidate(&ctx, profile, &claims.user_id).await?;
     let MarketplaceCandidate {
         plugins,
         skills,
@@ -56,7 +58,7 @@ pub async fn manifest(
         // deliberately excluded from CanonicalView so the signed payload stays
         // byte-identical.
         ..
-    } = assemble_candidate(&ctx, profile, &claims.user_id).await?;
+    } = candidate;
 
     let PerUserContext {
         user,
@@ -81,6 +83,7 @@ pub async fn manifest(
         enabled_hosts: &enabled_hosts,
         host_model_protocols: &host_model_protocols,
         artifacts: &artifacts,
+        allow_claude_ai_connectors,
     };
 
     let signature = sign_canonical(&canonical)?;
@@ -101,6 +104,7 @@ pub async fn manifest(
         enabled_hosts,
         host_model_protocols,
         artifacts,
+        allow_claude_ai_connectors,
         signature,
     }))
 }
@@ -109,11 +113,14 @@ async fn assemble_candidate(
     ctx: &AppContext,
     profile: &systemprompt_models::Profile,
     user_id: &UserId,
-) -> Result<MarketplaceCandidate, (StatusCode, String)> {
+) -> Result<(MarketplaceCandidate, bool), (StatusCode, String)> {
     let services = bridge_data::load_services_config().map_err(|e| {
         tracing::warn!(error = %e, "manifest: services config load failed");
         (StatusCode::INTERNAL_SERVER_ERROR, format!("services: {e}"))
     })?;
+    let allow_claude_ai_connectors = services
+        .bridge_policy
+        .is_some_and(|p| p.allow_claude_ai_connectors);
 
     ManifestService::assemble_candidate(
         &services,
@@ -123,6 +130,7 @@ async fn assemble_candidate(
         user_id,
     )
     .await
+    .map(|candidate| (candidate, allow_claude_ai_connectors))
     .map_err(|e| {
         tracing::warn!(error = %e, "manifest: candidate assembly failed");
         (StatusCode::INTERNAL_SERVER_ERROR, format!("manifest: {e}"))

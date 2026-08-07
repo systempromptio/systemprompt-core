@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.24.0] - 2026-08-07
+
+### Added
+
+- The signed manifest carries `allow_claude_ai_connectors` (from the instance's `bridge_policy:` services config). When set, the Claude Code managed-MCP policy writes `allowAllClaudeAiMcps: true` alongside the managed server allowlist, so claude.ai first-party connectors keep working under `managed-mcp.json`; when withdrawn, the key is removed rather than left stale, and `clear_policy` removes it too.
+
 ## [0.23.0] - 2026-08-06
 
 ### Changed

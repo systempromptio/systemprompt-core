@@ -60,6 +60,11 @@ pub struct SignedManifest {
     /// artifacts in [`crate::artifacts`].
     #[serde(default)]
     pub artifacts: Vec<ArtifactEntry>,
+    /// Instructs the bridge's Claude Code managed-MCP policy to emit
+    /// `allowAllClaudeAiMcps`, re-allowing claude.ai first-party connectors
+    /// that `managed-mcp.json` would otherwise suppress.
+    #[serde(default)]
+    pub allow_claude_ai_connectors: bool,
     /// Detached ed25519 signature of the canonicalised payload (every
     /// field above this one). Always present on the wire even for
     /// unsigned manifests, where it is the empty string.

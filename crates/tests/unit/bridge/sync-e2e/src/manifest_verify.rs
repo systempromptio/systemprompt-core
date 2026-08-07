@@ -43,6 +43,7 @@ fn manifest(signature: &str) -> SignedManifest {
         enabled_hosts: vec![],
         host_model_protocols: std::collections::BTreeMap::default(),
         artifacts: vec![],
+        allow_claude_ai_connectors: false,
         signature: ManifestSignature::new(signature),
     }
 }

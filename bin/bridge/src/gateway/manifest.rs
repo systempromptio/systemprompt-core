@@ -95,6 +95,7 @@ pub struct SignedManifestBuilder {
     enabled_hosts: Vec<String>,
     host_model_protocols: std::collections::BTreeMap<String, Vec<String>>,
     artifacts: Vec<ArtifactEntry>,
+    allow_claude_ai_connectors: bool,
 }
 
 impl SignedManifestBuilder {
@@ -123,7 +124,14 @@ impl SignedManifestBuilder {
             enabled_hosts: Vec::new(),
             host_model_protocols: std::collections::BTreeMap::new(),
             artifacts: Vec::new(),
+            allow_claude_ai_connectors: false,
         }
+    }
+
+    #[must_use]
+    pub const fn with_allow_claude_ai_connectors(mut self, allow: bool) -> Self {
+        self.allow_claude_ai_connectors = allow;
+        self
     }
 
     #[must_use]
@@ -213,6 +221,7 @@ impl SignedManifestBuilder {
             enabled_hosts: self.enabled_hosts,
             host_model_protocols: self.host_model_protocols,
             artifacts: self.artifacts,
+            allow_claude_ai_connectors: self.allow_claude_ai_connectors,
             signature: self.signature,
         }
     }
@@ -235,6 +244,7 @@ struct CanonicalView<'a> {
     enabled_hosts: &'a [String],
     host_model_protocols: &'a std::collections::BTreeMap<String, Vec<String>>,
     artifacts: &'a [ArtifactEntry],
+    allow_claude_ai_connectors: bool,
 }
 
 pub fn canonical_payload(m: &SignedManifest) -> Result<String, ManifestError> {
@@ -254,6 +264,7 @@ pub fn canonical_payload(m: &SignedManifest) -> Result<String, ManifestError> {
         enabled_hosts: &m.enabled_hosts,
         host_model_protocols: &m.host_model_protocols,
         artifacts: &m.artifacts,
+        allow_claude_ai_connectors: m.allow_claude_ai_connectors,
     };
     serde_jcs::to_string(&view).map_err(ManifestError::CanonicalSerialize)
 }

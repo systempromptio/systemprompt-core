@@ -42,6 +42,10 @@ pub(super) fn merge_into(
         target.scheduler = include.scheduler;
     }
 
+    if include.bridge_policy.is_some() && target.bridge_policy.is_none() {
+        target.bridge_policy = include.bridge_policy;
+    }
+
     if !include.ai.providers.is_empty() {
         if target.ai.providers.is_empty() {
             target.ai = include.ai;

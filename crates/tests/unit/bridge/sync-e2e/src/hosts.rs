@@ -203,6 +203,7 @@ fn manifest(enabled_hosts: Vec<String>, populated: bool, suffix: &str) -> Signed
         enabled_hosts,
         host_model_protocols: std::collections::BTreeMap::default(),
         artifacts,
+        allow_claude_ai_connectors: false,
         signature: ManifestSignature::new("unused-when-allow-unsigned"),
     }
 }

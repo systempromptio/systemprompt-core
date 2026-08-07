@@ -42,6 +42,7 @@ pub struct CanonicalView<'a> {
     pub enabled_hosts: &'a [String],
     pub host_model_protocols: &'a std::collections::BTreeMap<String, Vec<String>>,
     pub artifacts: &'a [ArtifactEntry],
+    pub allow_claude_ai_connectors: bool,
 }
 
 #[derive(Debug, Default, Clone, Copy)]

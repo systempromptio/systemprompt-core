@@ -47,6 +47,7 @@ fn manifest_with(
         enabled_hosts,
         host_model_protocols: Default::default(),
         artifacts: vec![],
+        allow_claude_ai_connectors: false,
         signature: ManifestSignature::new("ignored"),
     }
 }

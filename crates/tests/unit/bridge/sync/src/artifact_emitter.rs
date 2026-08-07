@@ -42,6 +42,7 @@ fn manifest(artifacts: Vec<ArtifactEntry>) -> SignedManifest {
         enabled_hosts: vec!["cowork".into()],
         host_model_protocols: Default::default(),
         artifacts,
+        allow_claude_ai_connectors: false,
         signature: ManifestSignature::new(""),
     }
 }

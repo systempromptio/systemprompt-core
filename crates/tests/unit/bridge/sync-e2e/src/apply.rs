@@ -307,6 +307,7 @@ fn run_once_applies_full_manifest_end_to_end() {
             enabled_hosts: vec!["claude-code".into()],
             host_model_protocols: Default::default(),
             artifacts: vec![],
+            allow_claude_ai_connectors: false,
             signature: ManifestSignature::new("unused-when-allow-unsigned"),
         };
 
@@ -451,6 +452,7 @@ fn run_once_empty_manifest_writes_no_plugins() {
             enabled_hosts: vec!["claude-code".into()],
             host_model_protocols: Default::default(),
             artifacts: vec![],
+            allow_claude_ai_connectors: false,
             signature: ManifestSignature::new(""),
         };
 
@@ -504,6 +506,7 @@ fn run_once_surfaces_plugin_file_404_as_apply_failure() {
             enabled_hosts: vec![],
             host_model_protocols: Default::default(),
             artifacts: vec![],
+            allow_claude_ai_connectors: false,
             signature: ManifestSignature::new(""),
         };
 
@@ -555,6 +558,7 @@ fn manifest_with(servers: Vec<ManagedMcpServer>, enabled_hosts: Vec<String>) -> 
         enabled_hosts,
         host_model_protocols: Default::default(),
         artifacts: vec![],
+        allow_claude_ai_connectors: false,
         signature: ManifestSignature::new(""),
     }
 }
@@ -726,6 +730,7 @@ fn manifest_of(plugins: Vec<PluginEntry>, hooks: Vec<HookEntry>) -> SignedManife
         enabled_hosts: vec![],
         host_model_protocols: Default::default(),
         artifacts: vec![],
+        allow_claude_ai_connectors: false,
         signature: ManifestSignature::new(""),
     }
 }

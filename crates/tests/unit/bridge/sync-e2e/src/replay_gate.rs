@@ -50,6 +50,7 @@ fn manifest(now: chrono::DateTime<chrono::Utc>, not_before: &str) -> SignedManif
         enabled_hosts: vec![],
         host_model_protocols: Default::default(),
         artifacts: vec![],
+        allow_claude_ai_connectors: false,
         signature: ManifestSignature::new(""),
     }
 }

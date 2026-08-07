@@ -121,7 +121,7 @@ fn apply_install(ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError> {
 
     // Why: `managed-mcp.json` suppresses plugin-provided servers, so writing both
     // it and per-plugin `.mcp.json` files leaves the latter inert and misleading.
-    let enforced = crate::install::managed_mcp::apply_policy()
+    let enforced = crate::install::managed_mcp::apply_policy(manifest.allow_claude_ai_connectors)
         == crate::install::managed_mcp::PolicyOutcome::Enforced;
 
     let mut ids = Vec::with_capacity(manifest.plugins.len());

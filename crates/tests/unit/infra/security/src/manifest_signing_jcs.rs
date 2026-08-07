@@ -121,6 +121,7 @@ fn sample_manifest() -> SignedManifest {
             starred: true,
             sha256: Sha256Digest::try_new(FAKE_SHA_A).unwrap(),
         }],
+        allow_claude_ai_connectors: false,
         signature: ManifestSignature::new(""),
     }
 }
