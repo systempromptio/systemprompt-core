@@ -52,6 +52,24 @@ export class SpRailProfile extends SpElement {
     if (!this.logoutError) { this.menuOpen = false; }
   }
 
+  // Why: the rail is a scroll container (`.sp-rail { overflow-y: auto }`), so
+  // the absolutely-positioned menu opening upward gets clipped into the rail's
+  // scroll overflow on short windows — leaving "Log out" rendered but
+  // unreachable. Re-anchor the menu to the viewport (fixed) so no ancestor
+  // overflow can ever swallow it; the stylesheet's absolute placement remains
+  // only as a fallback for the frame this runs in.
+  afterRender() {
+    const menu = this.querySelector(".sp-rail-profile__menu");
+    const trigger = this.querySelector(".sp-rail-profile__trigger");
+    if (!menu || !trigger) { return; }
+    const r = trigger.getBoundingClientRect();
+    menu.style.position = "fixed";
+    menu.style.left = `${Math.max(4, r.left)}px`;
+    menu.style.right = "auto";
+    menu.style.bottom = `${Math.max(4, window.innerHeight - r.top + 4)}px`;
+    menu.style.minWidth = `${Math.max(140, r.width)}px`;
+  }
+
   render() {
     const id = (this.snapshot && this.snapshot.verified_identity) || null;
     const signedIn = !!(id && (id.email || id.user_id));
