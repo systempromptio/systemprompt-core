@@ -11,6 +11,8 @@
 
 ### Fixed
 
+- A `/mcp/<name>` registry miss re-reads `mcp-servers.json` before answering 404. On a fresh install the proxy starts before the first sync writes the fragment, and the sync publishes into its own process memory — so every managed MCP request 404'd for the life of the proxy and the session came up with zero tools.
+- The loopback proxy injects an SSE comment frame every 15 s into proxied `text/event-stream` responses. An MCP session rides a long-lived stream; when its socket died silently, the host app queued tool calls against it until a TCP timeout fired minutes later — observed as ~147 s stalls in Cowork against a healthy upstream. Keepalives make a dead connection fail fast so the host reconnects in seconds.
 - The Codex host declares `ApiSurface::OpenAi`. `accepted_surfaces` sat at the trait's empty default, so no model protocol was negotiated, `host_model_view` offered no compatible models, and the `x-inference-protocol` header was skipped — the host synced its MCP and plugin half but silently installed no model provider profile.
 - macOS: the Codex probe reads the installed profile from managed preferences (`config_toml_base64` in the `com.openai.codex` plist, user scope before device scope) instead of the Linux `/etc/codex/config.toml`, which never exists there — a successful install no longer re-verifies as "profile not installed". `install --apply-mobileconfig` also tells the user the profile must be approved in System Settings, since `open -g` parks the payload there without ever surfacing the approval sheet, and `install_action_label` no longer claims the profile was already loaded.
 

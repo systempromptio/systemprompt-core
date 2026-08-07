@@ -7,6 +7,7 @@ pub mod dispatch;
 pub mod forward;
 pub mod heartbeat;
 pub mod identity;
+pub mod keepalive;
 pub mod mcp_probe;
 pub mod portfile;
 pub mod secret;

@@ -21,7 +21,7 @@ use crate::mcp_registry;
 use crate::proxy::server::ProxyStats;
 use crate::proxy::session::{self, SessionContext};
 use crate::proxy::token_cache::TokenCache;
-use crate::proxy::usage;
+use crate::proxy::{keepalive, usage};
 
 const HOP_BY_HOP: &[&str] = &[
     "host",
@@ -216,7 +216,15 @@ pub(crate) async fn forward(
         .map_ok(Frame::data)
         .map_err(std::io::Error::other);
     let wrapped = usage::wrap_response_stream(&content_type, tap_enabled, stats, upstream_stream);
-    let body: ProxyBody = StreamBody::new(wrapped).boxed();
+    let body: ProxyBody = if content_type.contains("text/event-stream") {
+        StreamBody::new(keepalive::SseKeepalive::new(
+            Box::pin(wrapped),
+            keepalive::SSE_KEEPALIVE_INTERVAL,
+        ))
+        .boxed()
+    } else {
+        StreamBody::new(wrapped).boxed()
+    };
 
     Ok(response_builder.body(body)?)
 }
@@ -238,8 +246,19 @@ enum RouteResolution {
 
 fn resolve_route(uri: &http::Uri, gateway_base: &ValidatedUrl) -> RouteResolution {
     if let Some(name) = parse_mcp_path(uri.path()) {
-        let registry = mcp_registry::snapshot();
-        return registry.get(name).map_or_else(
+        if let Some(entry) = mcp_registry::snapshot().get(name) {
+            return RouteResolution::Mcp(Route {
+                url: entry.url.as_str().to_owned(),
+                extra_headers: entry.headers.clone(),
+            });
+        }
+        // Why: on a fresh install the proxy can start before the first sync
+        // writes mcp-servers.json, leaving the boot-time rehydrate empty and
+        // every /mcp/<name> a 404 for the life of the process. A miss re-reads
+        // the fragment once before answering — the sync process publishes into
+        // its own memory, not this one's.
+        crate::mcp_registry::rehydrate_from_disk();
+        return mcp_registry::snapshot().get(name).map_or_else(
             || RouteResolution::UnknownMcp(name.to_owned()),
             |entry| {
                 RouteResolution::Mcp(Route {
