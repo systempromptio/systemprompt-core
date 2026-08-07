@@ -135,8 +135,7 @@
     }
 
     function showFallback(result) {
-      const structured = (result && result.structuredContent) || result || {};
-      const payload = structured.artifact || structured;
+      const payload = (result && result.structuredContent) || result || {};
       const wrapper = document.createElement('div');
       wrapper.className = 'fallback';
       const pre = document.createElement('pre');

@@ -38,11 +38,14 @@ fn base_ctx() -> RequestContext {
 
 fn valid_tool_result() -> CallToolResult {
     serde_json::from_value(json!({
-        "structuredContent": {
-            "artifact_id": "art-trh-1",
-            "mcp_execution_id": "exec-trh-1",
-            "artifact": {"x-artifact-type": "text", "value": "hello"},
-            "_metadata": {"skill_id": "skill-1", "skill_name": "writer"}
+        "structuredContent": {"x-artifact-type": "text", "value": "hello"},
+        "_meta": {
+            "io.systemprompt/execution": {
+                "artifact_id": "art-trh-1",
+                "mcp_execution_id": "exec-trh-1",
+                "skill_id": "skill-1",
+                "skill_name": "writer"
+            }
         }
     }))
     .expect("build CallToolResult")

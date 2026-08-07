@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.30.0] - 2026-08-07
+
+### Breaking
+
+- **Breaking:** `parse_tool_response` and `McpToA2aTransformer::transform_from_json` are removed. `parse_wire_result` takes the whole `CallToolResult`, reading the artifact payload from `structuredContent` and provenance from `_meta["io.systemprompt/execution"]`. Migrate by passing the tool result instead of its `structured_content` field.
+
 ## [0.29.0] - 2026-08-05
 
 ### Breaking

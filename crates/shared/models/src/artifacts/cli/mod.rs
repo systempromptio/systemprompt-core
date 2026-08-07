@@ -124,6 +124,15 @@ impl CliArtifact {
     }
 
     #[must_use]
+    pub fn text_body(&self) -> Option<String> {
+        match self {
+            Self::Text { artifact } => Some(artifact.content.clone()),
+            Self::CopyPasteText { artifact } => Some(artifact.content.clone()),
+            _ => None,
+        }
+    }
+
+    #[must_use]
     pub const fn table(artifact: TableArtifact) -> Self {
         Self::Table { artifact }
     }

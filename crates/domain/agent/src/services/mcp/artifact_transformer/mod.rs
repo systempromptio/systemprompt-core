@@ -1,7 +1,8 @@
 //! Transformation of MCP tool results into renderable A2A [`Artifact`]s.
 //!
-//! [`McpToA2aTransformer`] parses a tool's `structured_content` (or raw JSON),
-//! infers the
+//! [`McpToA2aTransformer`] parses a live tool result — typed
+//! `structured_content` plus execution provenance under the
+//! `io.systemprompt/execution` `_meta` key — infers the
 //! [`ArtifactType`](systemprompt_models::artifacts::types::ArtifactType),
 //! builds parts and rendering metadata, and computes a stable fingerprint over
 //! the tool name and arguments. The `metadata_builder`, `parts_builder`, and
@@ -21,6 +22,7 @@ use rmcp::model::CallToolResult;
 use serde::Deserialize;
 use serde_json::{Value as JsonValue, json};
 use systemprompt_identifiers::{ArtifactId, McpExecutionId, SkillId};
+use systemprompt_models::artifacts::EXECUTION_META_KEY;
 
 pub use metadata_builder::{BuildMetadataParams, build_metadata};
 pub use parts_builder::build_parts;
@@ -43,34 +45,54 @@ pub struct ParsedToolResponse {
     pub metadata: ParsedMetadata,
 }
 
-pub fn parse_tool_response(
-    structured_content: &JsonValue,
+#[derive(Debug, Deserialize)]
+struct WireExecutionMeta {
+    artifact_id: ArtifactId,
+    mcp_execution_id: McpExecutionId,
+    skill_id: Option<SkillId>,
+    skill_name: Option<String>,
+    execution_id: Option<String>,
+}
+
+pub fn parse_wire_result(
+    tool_result: &CallToolResult,
 ) -> Result<ParsedToolResponse, ArtifactError> {
-    if structured_content.is_null() {
-        return Err(RowParseError::MissingField {
-            field: "structured_content (received null)".to_owned(),
-        }
-        .into());
-    }
+    let artifact = tool_result
+        .structured_content
+        .as_ref()
+        .filter(|v| !v.is_null())
+        .ok_or_else(|| RowParseError::MissingField {
+            field: "structured_content".to_owned(),
+        })?;
 
-    if let Some(obj) = structured_content.as_object()
-        && obj.is_empty()
-    {
-        return Err(RowParseError::MissingField {
-            field: "structured_content (received empty object {})".to_owned(),
-        }
-        .into());
-    }
+    let exec_value = tool_result
+        .meta
+        .as_ref()
+        .and_then(|m| m.0.get(EXECUTION_META_KEY))
+        .ok_or_else(|| RowParseError::MissingField {
+            field: format!("_meta[\"{EXECUTION_META_KEY}\"]"),
+        })?;
 
-    serde_json::from_value(structured_content.clone()).map_err(|e| {
-        let actual_keys = structured_content
+    let exec: WireExecutionMeta = serde_json::from_value(exec_value.clone()).map_err(|e| {
+        let actual_keys = exec_value
             .as_object()
             .map_or_else(Vec::new, |o| o.keys().cloned().collect());
         ArtifactError::InvalidSchema {
-            expected: "ToolResponse {artifact_id, mcp_execution_id, artifact, _metadata}",
+            expected: "execution meta {artifact_id, mcp_execution_id, ...}",
             actual_keys,
             source: e,
         }
+    })?;
+
+    Ok(ParsedToolResponse {
+        artifact_id: exec.artifact_id,
+        mcp_execution_id: exec.mcp_execution_id,
+        artifact: artifact.clone(),
+        metadata: ParsedMetadata {
+            skill_id: exec.skill_id,
+            skill_name: exec.skill_name,
+            execution_id: exec.execution_id,
+        },
     })
 }
 
@@ -158,16 +180,6 @@ pub struct TransformParams<'a> {
     pub tool_arguments: Option<&'a JsonValue>,
 }
 
-#[derive(Debug)]
-pub struct TransformFromJsonParams<'a> {
-    pub tool_name: &'a str,
-    pub tool_result_json: &'a JsonValue,
-    pub output_schema: Option<&'a JsonValue>,
-    pub context_id: &'a str,
-    pub task_id: &'a str,
-    pub tool_arguments: Option<&'a JsonValue>,
-}
-
 #[derive(Debug, Copy, Clone)]
 pub struct McpToA2aTransformer;
 
@@ -181,37 +193,7 @@ impl McpToA2aTransformer {
             task_id,
             tool_arguments,
         } = params;
-        let structured_content =
-            tool_result
-                .structured_content
-                .as_ref()
-                .ok_or_else(|| RowParseError::MissingField {
-                    field: "structured_content".to_owned(),
-                })?;
-
-        let parsed = parse_tool_response(structured_content)?;
-        transform_parsed(TransformParsedParams {
-            tool_name,
-            parsed,
-            output_schema: *output_schema,
-            context_id,
-            task_id,
-            tool_arguments: *tool_arguments,
-        })
-    }
-
-    pub fn transform_from_json(
-        params: &TransformFromJsonParams<'_>,
-    ) -> Result<Artifact, ArtifactError> {
-        let TransformFromJsonParams {
-            tool_name,
-            tool_result_json,
-            output_schema,
-            context_id,
-            task_id,
-            tool_arguments,
-        } = params;
-        let parsed = parse_tool_response(tool_result_json)?;
+        let parsed = parse_wire_result(tool_result)?;
         transform_parsed(TransformParsedParams {
             tool_name,
             parsed,

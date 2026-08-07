@@ -128,14 +128,11 @@ fn execution_metadata_chained_setters_match_builder() {
 }
 
 #[test]
-fn execution_metadata_to_meta_and_schema_are_objects() {
+fn execution_metadata_to_object_and_schema_are_objects() {
     let meta = ExecutionMetadata::with_request(&ctx());
 
-    let rmcp_meta = meta.to_meta().expect("serializes to an object");
-    assert_eq!(
-        rmcp_meta.0.get("context_id").and_then(|v| v.as_str()),
-        Some(CTX)
-    );
+    let fields = meta.to_object().expect("serializes to an object");
+    assert_eq!(fields.get("context_id").and_then(|v| v.as_str()), Some(CTX));
 
     let schema = ExecutionMetadata::schema();
     assert!(schema["properties"].get("context_id").is_some());

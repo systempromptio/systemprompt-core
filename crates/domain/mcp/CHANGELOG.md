@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.30.0] - 2026-08-07
+
+### Breaking
+
+- **Breaking:** `McpToolExecutor::execute` and `McpResponseBuilder::new` take a `&ClientProfile` describing the negotiated client. Migrate by building one inside `call_tool` with `client_profile_from_peer(&context)`, or from persisted `initialize` params with `client_profile_from_stored`.
+- **Breaking:** tool results are shaped per client. The embedded `ui://` resource and `io.systemprompt/ui-resource-uri` are sent only to hosts that negotiated the `io.modelcontextprotocol/ui` extension; `structuredContent` only to clients on protocol `2025-06-18` or later; any other client — including one whose `initialize` declaration is unknown — receives text content only, with the artifact body folded into the text block.
+- **Breaking:** `structuredContent` and the advertised `outputSchema` carry the tool's typed output directly instead of the `ToolResponse` envelope, and execution provenance (including `artifact_id` and `mcp_execution_id`) moves to `_meta["io.systemprompt/execution"]`. Bare snake_case `_meta` keys are gone — MCP reserves unprefixed `_meta` keys. Migrate consumers by reading the payload from `structuredContent` and identifiers from the meta key.
+
+### Added
+
+- `McpOutputSchema::text_body` names the plain-text body of an output; text-bearing artifacts provide it so text-only clients receive the data, and other outputs fall back to pretty-printed JSON under the summary.
+
 ## [0.29.0] - 2026-08-05
 
 ### Changed

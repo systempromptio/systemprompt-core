@@ -32,7 +32,7 @@ pub use dashboard::{
 };
 pub use list::{ListArtifact, ListItem};
 pub use message::{MessageArtifact, NoticeLine};
-pub use metadata::{ExecutionMetadata, ToolResponse};
+pub use metadata::{EXECUTION_META_KEY, ExecutionMetadata, ToolResponse};
 pub use research::{ResearchArtifact, SourceCitation};
 pub use table::{Column, TableArtifact, TableHints, TableResponse};
 pub use text::TextArtifact;

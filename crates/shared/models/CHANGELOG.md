@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.30.0] - 2026-08-07
+
+### Breaking
+
+- **Breaking:** `ExecutionMetadata::to_meta` is replaced by `to_object`, which returns the bare field map. On the wire the fields now travel under the new `artifacts::EXECUTION_META_KEY` (`io.systemprompt/execution`); `ToolResponse` remains the storage envelope for persisted artifacts and no longer appears on the wire.
+
+### Added
+
+- `mcp::ClientProfile` captures what a client declared during `initialize` — protocol version, implementation name, negotiated extensions — with `supports_ui` and `supports_structured_content` deciding which wire pieces it can accept.
+- `CliArtifact::text_body` returns the plain-text body of text-bearing variants.
+- `services::BridgePolicyConfig` (`bridge_policy:` in a services YAML) and `SignedManifest::allow_claude_ai_connectors` carry the instance policy that re-allows claude.ai first-party connectors under the bridge's managed-MCP enforcement. The field is `#[serde(default)]`, so manifests from older servers still verify.
+
+### Changed
+
+- `text/html;profile=mcp-app` is defined once as `mcp::MCP_APP_MIME_TYPE`; `mcp::apps::RESOURCE_MIME_TYPE` aliases it.
+
 ## [0.29.0] - 2026-08-05
 
 ### Added

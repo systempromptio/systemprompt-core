@@ -3,7 +3,7 @@
 //! database — only the pure helpers are covered here.
 
 use systemprompt_identifiers::{AgentName, ContextId, McpExecutionId, SessionId, TraceId};
-use systemprompt_mcp::McpResponseBuilder;
+use systemprompt_mcp::{ClientProfile, McpResponseBuilder};
 use systemprompt_models::RequestContext;
 use systemprompt_models::artifacts::TextArtifact;
 
@@ -44,7 +44,8 @@ fn builder_new_records_tool_name_in_debug() {
     let ctx = test_request_context();
     let exec_id = McpExecutionId::generate();
     let text = TextArtifact::new("payload");
-    let builder = McpResponseBuilder::new(text, "my-tool", &ctx, &exec_id);
+    let builder =
+        McpResponseBuilder::new(text, "my-tool", &ctx, &exec_id, &ClientProfile::unknown());
     let debug = format!("{:?}", builder);
     assert!(debug.contains("my-tool"));
     assert!(debug.contains("McpResponseBuilder"));
@@ -55,7 +56,13 @@ fn builder_new_accepts_string_tool_name() {
     let ctx = test_request_context();
     let exec_id = McpExecutionId::generate();
     let text = TextArtifact::new("payload");
-    let _ = McpResponseBuilder::new(text, String::from("dynamic-tool"), &ctx, &exec_id);
+    let _ = McpResponseBuilder::new(
+        text,
+        String::from("dynamic-tool"),
+        &ctx,
+        &exec_id,
+        &ClientProfile::unknown(),
+    );
 }
 
 #[test]

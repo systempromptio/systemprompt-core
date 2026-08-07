@@ -51,16 +51,18 @@ impl ArtifactBuilder {
         let mut artifacts = Vec::new();
 
         for (index, result) in self.tool_results.iter().enumerate() {
-            if let Some(structured_content) =
-                result.structured_content.as_ref().filter(|v| !v.is_null())
+            if result
+                .structured_content
+                .as_ref()
+                .is_some_and(|v| !v.is_null())
                 && let Some(tool_call) = self.tool_calls.get(index)
             {
                 let output_schema = self.get_output_schema(&tool_call.name);
 
-                let mut artifact = McpToA2aTransformer::transform_from_json(
-                    &crate::services::mcp::artifact_transformer::TransformFromJsonParams {
+                let mut artifact = McpToA2aTransformer::transform(
+                    &crate::services::mcp::artifact_transformer::TransformParams {
                         tool_name: &tool_call.name,
-                        tool_result_json: structured_content,
+                        tool_result: result,
                         output_schema,
                         context_id: self.context_id.as_str(),
                         task_id: self.task_id.as_str(),

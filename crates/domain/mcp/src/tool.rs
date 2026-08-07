@@ -23,6 +23,7 @@ use serde_json::Value as JsonValue;
 use std::sync::Arc;
 use systemprompt_identifiers::McpExecutionId;
 use systemprompt_models::RequestContext;
+use systemprompt_models::mcp::ClientProfile;
 
 pub trait McpToolHandler: Send + Sync {
     type Input: DeserializeOwned + JsonSchema + Send;
@@ -82,6 +83,7 @@ impl McpToolExecutor {
         handler: &H,
         request: &CallToolRequestParams,
         ctx: &RequestContext,
+        client: &ClientProfile,
     ) -> Result<CallToolResult, McpError> {
         let started_at = Utc::now();
 
@@ -122,18 +124,21 @@ impl McpToolExecutor {
         }
         .await;
 
-        let response = match result {
+        let (response, output_value) = match result {
             Ok((output, summary)) => {
                 let title = output.artifact_title();
                 let artifact_type = output.artifact_type_name();
-                McpResponseBuilder::new(output, handler.tool_name(), ctx, &exec_id)
-                    .build(summary, &self.artifact_repo, &artifact_type, title)
-                    .await
+                let output_value = serde_json::to_value(&output).ok();
+                let response =
+                    McpResponseBuilder::new(output, handler.tool_name(), ctx, &exec_id, client)
+                        .build(summary, &self.artifact_repo, &artifact_type, title)
+                        .await;
+                (response, output_value)
             },
-            Err(ref e) => Err(e.clone()),
+            Err(ref e) => (Err(e.clone()), None),
         };
 
-        let execution_result = Self::build_execution_result(&response, started_at);
+        let execution_result = Self::build_execution_result(&response, output_value, started_at);
         self.record_completion(handler.tool_name(), &exec_id, &execution_result)
             .await;
 
@@ -142,14 +147,12 @@ impl McpToolExecutor {
 
     fn build_execution_result(
         response: &Result<CallToolResult, McpError>,
+        output_value: Option<JsonValue>,
         started_at: chrono::DateTime<Utc>,
     ) -> ToolExecutionResult {
         let completed_at = Utc::now();
         ToolExecutionResult {
-            output: response
-                .as_ref()
-                .ok()
-                .and_then(|r| r.structured_content.clone()),
+            output: response.as_ref().ok().and(output_value),
             output_schema: None,
             status: if response.is_ok() {
                 ExecutionStatus::Success.as_str().to_owned()

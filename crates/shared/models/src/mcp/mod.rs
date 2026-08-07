@@ -11,6 +11,7 @@
 pub mod apps;
 mod call_tool_result_ext;
 pub mod capabilities;
+pub mod client_profile;
 pub mod deployment;
 pub mod registry;
 pub mod registry_trait;
@@ -28,6 +29,7 @@ pub use capabilities::{
     McpResourceUiMeta, ToolVisibility, default_visibility, model_only_visibility,
     visibility_to_json,
 };
+pub use client_profile::ClientProfile;
 pub use deployment::{
     Deployment, DeploymentConfig, ExternalAuth, McpServerType, OAuthRequirement, Settings,
 };

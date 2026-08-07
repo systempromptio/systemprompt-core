@@ -7,7 +7,9 @@ use schemars::JsonSchema;
 use serde::Serialize;
 use systemprompt_identifiers::{AgentName, ContextId, McpExecutionId, SessionId, TraceId, UserId};
 use systemprompt_mcp::repository::McpArtifactRepository;
-use systemprompt_mcp::{McpOutputSchema, McpResponseBuilder, UI_RESOURCE_URI_META_KEY};
+use systemprompt_mcp::{
+    ClientProfile, McpOutputSchema, McpResponseBuilder, UI_RESOURCE_URI_META_KEY,
+};
 use systemprompt_models::RequestContext;
 use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
 
@@ -19,6 +21,14 @@ struct UnrenderableArtifact {
 impl McpOutputSchema for UnrenderableArtifact {
     fn artifact_type() -> &'static str {
         "no_renderer_is_registered_for_this"
+    }
+}
+
+fn ui_client() -> ClientProfile {
+    ClientProfile {
+        protocol_version: Some(rmcp::model::ProtocolVersion::V_2025_06_18),
+        client_name: Some("test-host".to_owned()),
+        extensions: [systemprompt_models::mcp::EXTENSION_ID.to_owned()].into(),
     }
 }
 
@@ -53,6 +63,7 @@ async fn an_artifact_with_no_renderer_still_produces_a_successful_result() {
         "unrenderable-tool",
         &ctx,
         &exec_id,
+        &ui_client(),
     )
     .build(
         "summary for the model",
@@ -103,6 +114,7 @@ async fn the_result_meta_names_the_ui_resource_even_when_rendering_failed() {
         "unrenderable-tool",
         &ctx,
         &exec_id,
+        &ui_client(),
     )
     .build(
         "summary",

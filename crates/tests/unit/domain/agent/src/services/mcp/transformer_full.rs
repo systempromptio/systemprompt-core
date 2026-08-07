@@ -1,32 +1,43 @@
-// Full-path tests for McpToA2aTransformer::transform / transform_from_json,
-// which the helper-level transformer tests do not exercise.
+// Full-path tests for McpToA2aTransformer::transform over the wire shape:
+// typed structuredContent plus execution provenance under the
+// io.systemprompt/execution _meta key.
 
-use rmcp::model::CallToolResult;
+use rmcp::model::{CallToolResult, MetaObject};
 use serde_json::json;
 use systemprompt_agent::models::a2a::Part;
 use systemprompt_agent::services::mcp::artifact_transformer::{
-    McpToA2aTransformer, TransformFromJsonParams, TransformParams,
+    McpToA2aTransformer, TransformParams,
 };
+use systemprompt_models::artifacts::EXECUTION_META_KEY;
 
-fn valid_tool_response() -> serde_json::Value {
-    json!({
-        "artifact_id": "art-xform-1",
-        "mcp_execution_id": "exec-xform-1",
-        "artifact": {"x-artifact-type": "text", "value": "hello"},
-        "_metadata": {
+fn wire_result(artifact: serde_json::Value, exec_meta: serde_json::Value) -> CallToolResult {
+    let mut result = CallToolResult::success(vec![]);
+    result.structured_content = Some(artifact);
+    let mut meta = serde_json::Map::new();
+    meta.insert(EXECUTION_META_KEY.to_owned(), exec_meta);
+    result.meta = Some(MetaObject(meta));
+    result
+}
+
+fn valid_result() -> CallToolResult {
+    wire_result(
+        json!({"x-artifact-type": "text", "value": "hello"}),
+        json!({
+            "artifact_id": "art-xform-1",
+            "mcp_execution_id": "exec-xform-1",
             "skill_id": "skill-7",
             "skill_name": "writer",
             "execution_id": "exec-ref-1"
-        }
-    })
+        }),
+    )
 }
 
 #[test]
-fn transform_from_json_builds_artifact() {
-    let body = valid_tool_response();
-    let artifact = McpToA2aTransformer::transform_from_json(&TransformFromJsonParams {
+fn transform_builds_artifact() {
+    let result = valid_result();
+    let artifact = McpToA2aTransformer::transform(&TransformParams {
         tool_name: "writer-tool",
-        tool_result_json: &body,
+        tool_result: &result,
         output_schema: None,
         context_id: "00000000-0000-4000-8000-000000000001",
         task_id: "task-xform",
@@ -62,43 +73,25 @@ fn transform_from_json_builds_artifact() {
 }
 
 #[test]
-fn transform_from_json_missing_type_errors() {
-    let body = json!({
-        "artifact_id": "art-2",
-        "mcp_execution_id": "exec-2",
-        "artifact": {"no": "type-hint"},
-        "_metadata": {}
-    });
-    let result = McpToA2aTransformer::transform_from_json(&TransformFromJsonParams {
+fn transform_missing_type_errors() {
+    let result = wire_result(
+        json!({"no": "type-hint"}),
+        json!({"artifact_id": "art-2", "mcp_execution_id": "exec-2"}),
+    );
+    let outcome = McpToA2aTransformer::transform(&TransformParams {
         tool_name: "mystery",
-        tool_result_json: &body,
+        tool_result: &result,
         output_schema: None,
         context_id: "00000000-0000-4000-8000-000000000001",
         task_id: "t",
         tool_arguments: None,
     });
-    assert!(result.is_err());
+    assert!(outcome.is_err());
 }
 
 #[test]
-fn transform_from_json_invalid_envelope_errors() {
-    let body = json!({"not": "an envelope"});
-    let result = McpToA2aTransformer::transform_from_json(&TransformFromJsonParams {
-        tool_name: "tool",
-        tool_result_json: &body,
-        output_schema: None,
-        context_id: "00000000-0000-4000-8000-000000000001",
-        task_id: "t",
-        tool_arguments: None,
-    });
-    assert!(result.is_err());
-}
-
-#[test]
-fn transform_from_call_tool_result_with_structured_content() {
-    let mut result = CallToolResult::success(vec![]);
-    result.structured_content = Some(valid_tool_response());
-
+fn transform_with_schema_type_hint() {
+    let result = valid_result();
     let artifact = McpToA2aTransformer::transform(&TransformParams {
         tool_name: "writer-tool",
         tool_result: &result,
@@ -127,17 +120,33 @@ fn transform_without_structured_content_errors() {
 }
 
 #[test]
-fn transform_from_json_falls_back_to_metadata_execution_id() {
-    // mcp_execution_id empty -> falls back to _metadata.execution_id.
-    let body = json!({
-        "artifact_id": "art-3",
-        "mcp_execution_id": "",
-        "artifact": {"x-artifact-type": "list", "items": []},
-        "_metadata": {"execution_id": "fallback-exec"}
+fn transform_without_execution_meta_errors() {
+    let mut result = CallToolResult::success(vec![]);
+    result.structured_content = Some(json!({"x-artifact-type": "text", "value": "v"}));
+    let outcome = McpToA2aTransformer::transform(&TransformParams {
+        tool_name: "tool",
+        tool_result: &result,
+        output_schema: None,
+        context_id: "00000000-0000-4000-8000-000000000001",
+        task_id: "t",
+        tool_arguments: None,
     });
-    let artifact = McpToA2aTransformer::transform_from_json(&TransformFromJsonParams {
+    assert!(outcome.is_err());
+}
+
+#[test]
+fn transform_falls_back_to_meta_execution_id() {
+    let result = wire_result(
+        json!({"x-artifact-type": "list", "items": []}),
+        json!({
+            "artifact_id": "art-3",
+            "mcp_execution_id": "",
+            "execution_id": "fallback-exec"
+        }),
+    );
+    let artifact = McpToA2aTransformer::transform(&TransformParams {
         tool_name: "lister",
-        tool_result_json: &body,
+        tool_result: &result,
         output_schema: None,
         context_id: "00000000-0000-4000-8000-000000000001",
         task_id: "t",

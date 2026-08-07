@@ -28,7 +28,7 @@ fn result_null_struct() -> CallToolResult {
 
 fn result_invalid_struct() -> CallToolResult {
     let mut r = CallToolResult::success(vec![ContentBlock::text("text".to_string())]);
-    // Missing artifact_id / artifact / _metadata — parse_tool_response will fail.
+    // No execution _meta on the result — parse_wire_result will fail.
     r.structured_content = Some(serde_json::json!({"unrelated": "field"}));
     r
 }

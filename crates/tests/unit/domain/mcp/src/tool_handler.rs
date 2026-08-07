@@ -11,7 +11,7 @@ use schemars::JsonSchema;
 use serde::Deserialize;
 use systemprompt_identifiers::{AgentName, ContextId, McpExecutionId, SessionId, TraceId, UserId};
 use systemprompt_mcp::repository::{McpArtifactRepository, ToolUsageRepository};
-use systemprompt_mcp::{McpToolExecutor, McpToolHandler};
+use systemprompt_mcp::{ClientProfile, McpToolExecutor, McpToolHandler};
 use systemprompt_models::RequestContext;
 use systemprompt_models::artifacts::TextArtifact;
 use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
@@ -145,7 +145,9 @@ async fn execute_success_records_and_returns_result() {
 
     let ctx = test_ctx();
     let request = echo_request("hi there");
-    let result = exec.execute(&EchoHandler, &request, &ctx).await;
+    let result = exec
+        .execute(&EchoHandler, &request, &ctx, &ClientProfile::unknown())
+        .await;
 
     let call_result = result.expect("execute should succeed");
     assert_ne!(call_result.is_error, Some(true));
@@ -173,7 +175,9 @@ async fn execute_handler_error_propagates() {
     );
     let request = CallToolRequestParams::new("always-fails".to_owned()).with_arguments(map);
 
-    let result = exec.execute(&FailingHandler, &request, &ctx).await;
+    let result = exec
+        .execute(&FailingHandler, &request, &ctx, &ClientProfile::unknown())
+        .await;
     let err = result.expect_err("handler returns Err");
     assert!(err.message.contains("boom"));
 }
@@ -193,7 +197,9 @@ async fn execute_input_parse_error_returns_invalid_params() {
     let ctx = test_ctx();
     // Missing required "message" field -> parse_input fails.
     let request = CallToolRequestParams::new("echo".to_owned());
-    let result = exec.execute(&EchoHandler, &request, &ctx).await;
+    let result = exec
+        .execute(&EchoHandler, &request, &ctx, &ClientProfile::unknown())
+        .await;
     let err = result.expect_err("parse should fail");
     assert!(err.message.to_lowercase().contains("invalid"));
 }

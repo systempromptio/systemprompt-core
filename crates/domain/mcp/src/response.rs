@@ -1,12 +1,23 @@
-//! MCP tool-response assembly with output-schema validation logging.
+//! Client-aware MCP tool-response assembly.
 //!
-//! Every response carries its artifact three ways: the text summary for the
-//! model, `structured_content` for programmatic consumers, and — for MCP Apps
-//! hosts — server-rendered HTML as an embedded `ui://` resource, with
-//! [`UI_RESOURCE_URI_META_KEY`] on the result `_meta` naming that same
-//! resource for hosts that prefer to `resources/read` it. Rendering is
-//! presentational, so a renderer failure drops the resource rather than
-//! failing the tool call.
+//! Every tool output is persisted as an artifact, then shaped for the wire
+//! according to the negotiated [`ClientProfile`]:
+//!
+//! - Hosts that negotiated the MCP Apps UI extension receive the embedded
+//!   `ui://` resource and [`UI_RESOURCE_URI_META_KEY`] alongside the text
+//!   summary.
+//! - Clients on protocol `2025-06-18` or later receive `structuredContent`
+//!   holding the tool's typed output directly, matching the advertised output
+//!   schema.
+//! - Everything else — including clients whose declaration is unknown —
+//!   receives only text content, with the artifact body folded into the text
+//!   block so the data still arrives.
+//!
+//! Execution provenance travels under the single reverse-DNS `_meta` key
+//! [`EXECUTION_META_KEY`](systemprompt_models::artifacts::EXECUTION_META_KEY);
+//! MCP reserves unprefixed `_meta` keys, so no bare field ever reaches the
+//! wire. Rendering is presentational: a renderer failure drops the embedded
+//! resource rather than failing the tool call.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -23,8 +34,8 @@ use serde::Serialize;
 use serde_json::Value as JsonValue;
 use systemprompt_identifiers::{ArtifactId, McpExecutionId};
 use systemprompt_models::RequestContext;
-use systemprompt_models::artifacts::{ExecutionMetadata, ToolResponse};
-use systemprompt_models::mcp::McpResourceUiMeta;
+use systemprompt_models::artifacts::{EXECUTION_META_KEY, ExecutionMetadata, ToolResponse};
+use systemprompt_models::mcp::{ClientProfile, McpResourceUiMeta};
 
 pub const UI_RESOURCE_URI_META_KEY: &str = "io.systemprompt/ui-resource-uri";
 
@@ -33,6 +44,7 @@ pub struct McpResponseBuilder<T: Serialize + JsonSchema> {
     tool_name: String,
     ctx: RequestContext,
     mcp_execution_id: McpExecutionId,
+    client: ClientProfile,
 }
 
 impl<T: Serialize + JsonSchema> std::fmt::Debug for McpResponseBuilder<T> {
@@ -40,6 +52,7 @@ impl<T: Serialize + JsonSchema> std::fmt::Debug for McpResponseBuilder<T> {
         f.debug_struct("McpResponseBuilder")
             .field("tool_name", &self.tool_name)
             .field("mcp_execution_id", &self.mcp_execution_id)
+            .field("client", &self.client)
             .finish_non_exhaustive()
     }
 }
@@ -50,12 +63,14 @@ impl<T: Serialize + JsonSchema + McpOutputSchema> McpResponseBuilder<T> {
         tool_name: impl Into<String>,
         ctx: &RequestContext,
         exec_id: &McpExecutionId,
+        client: &ClientProfile,
     ) -> Self {
         Self {
             output,
             tool_name: tool_name.into(),
             ctx: ctx.clone(),
             mcp_execution_id: exec_id.clone(),
+            client: client.clone(),
         }
     }
 
@@ -77,34 +92,34 @@ impl<T: Serialize + JsonSchema + McpOutputSchema> McpResponseBuilder<T> {
             .with_execution(exec_id.to_string())
             .build();
 
-        let meta_for_artifact = metadata.to_meta().map(|m| JsonValue::Object(m.0));
-        let meta_for_result = metadata.to_meta();
+        let structured_output = serde_json::to_value(&self.output).map_err(|e| {
+            tracing::error!(error = %e, tool = %tool_name, "Failed to serialize tool output");
+            McpError::internal_error(format!("Serialization error: {e}"), None)
+        })?;
+        let text_body = self.output.text_body();
 
-        let tool_response =
-            ToolResponse::new(artifact_id.clone(), exec_id.clone(), self.output, metadata);
-
-        let structured_content = tool_response.to_json().map_err(|e| {
+        let stored_envelope = ToolResponse::new(
+            artifact_id.clone(),
+            exec_id.clone(),
+            self.output,
+            metadata.clone(),
+        )
+        .to_json()
+        .map_err(|e| {
             tracing::error!(error = %e, tool = %tool_name, "Failed to serialize tool response");
             McpError::internal_error(format!("Serialization error: {e}"), None)
         })?;
 
-        log_schema_validation(
-            &tool_name,
-            &artifact_id,
-            &structured_content,
-            &T::validated_schema(),
-        );
-
         let create_artifact = CreateMcpArtifact {
             artifact_id: artifact_id.clone(),
-            mcp_execution_id: exec_id,
+            mcp_execution_id: exec_id.clone(),
             context_id: Some(self.ctx.context_id().clone()),
             user_id: (!self.ctx.is_anonymous()).then(|| self.ctx.user_id().clone()),
             server_name: tool_name,
             artifact_type: artifact_type_str,
             title,
-            data: structured_content.clone(),
-            metadata: meta_for_artifact,
+            data: stored_envelope,
+            metadata: metadata.to_object().map(JsonValue::Object),
             expires_at: None,
         };
 
@@ -115,24 +130,95 @@ impl<T: Serialize + JsonSchema + McpOutputSchema> McpResponseBuilder<T> {
 
         tracing::info!(artifact_id = %artifact_id, server = %create_artifact.server_name, "Artifact persisted");
 
-        let ui_resource_uri =
-            artifact_resource_uri(&create_artifact.server_name, &create_artifact.artifact_id);
+        let shape = WireShape {
+            client: &self.client,
+            summary: summary_str,
+            text_body,
+            structured_output,
+            metadata: &metadata,
+        };
+        Ok(shape.into_result(&create_artifact, &self.ctx).await)
+    }
+}
 
-        let mut content = vec![ContentBlock::text(summary_str)];
-        if let Some(block) = ui_resource_block(&create_artifact, &self.ctx, &ui_resource_uri).await
-        {
+struct WireShape<'a> {
+    client: &'a ClientProfile,
+    summary: String,
+    text_body: Option<String>,
+    structured_output: JsonValue,
+    metadata: &'a ExecutionMetadata,
+}
+
+impl WireShape<'_> {
+    async fn into_result(
+        self,
+        artifact: &CreateMcpArtifact,
+        ctx: &RequestContext,
+    ) -> CallToolResult {
+        let include_ui = self.client.supports_ui();
+        let include_structured = self.client.supports_structured_content();
+        let uri = artifact_resource_uri(&artifact.server_name, &artifact.artifact_id);
+
+        let mut content = vec![ContentBlock::text(self.text_block(
+            include_ui,
+            include_structured,
+        ))];
+        if include_ui && let Some(block) = ui_resource_block(artifact, ctx, &uri).await {
             content.push(block);
         }
 
         let mut result = CallToolResult::success(content);
-        result.structured_content = Some(structured_content);
-
-        let mut meta_map = meta_for_result.map_or_else(serde_json::Map::new, |m| m.0);
-        meta_map.insert(UI_RESOURCE_URI_META_KEY.to_owned(), ui_resource_uri.into());
-        result = result.with_meta(Some(MetaObject(meta_map)));
-
-        Ok(result)
+        if include_structured {
+            result.structured_content = Some(self.structured_output);
+        }
+        if include_ui || include_structured {
+            result = result.with_meta(wire_meta(
+                self.metadata,
+                &artifact.artifact_id,
+                &artifact.mcp_execution_id,
+                &uri,
+            ));
+        }
+        result
     }
+
+    fn text_block(&self, include_ui: bool, include_structured: bool) -> String {
+        let summary = &self.summary;
+        if include_ui || (include_structured && self.text_body.is_none()) {
+            return summary.clone();
+        }
+        if let Some(body) = &self.text_body {
+            return format!("{summary}\n\n{body}");
+        }
+        let pretty = serde_json::to_string_pretty(&self.structured_output)
+            .unwrap_or_else(|_| self.structured_output.to_string());
+        format!("{summary}\n\n```json\n{pretty}\n```")
+    }
+}
+
+fn wire_meta(
+    metadata: &ExecutionMetadata,
+    artifact_id: &ArtifactId,
+    exec_id: &McpExecutionId,
+    ui_resource_uri: &str,
+) -> Option<MetaObject> {
+    let mut fields = metadata.to_object()?;
+    fields.insert(
+        "artifact_id".to_owned(),
+        JsonValue::String(artifact_id.to_string()),
+    );
+    fields.insert(
+        "mcp_execution_id".to_owned(),
+        JsonValue::String(exec_id.to_string()),
+    );
+
+    let mut meta = serde_json::Map::new();
+    meta.insert(EXECUTION_META_KEY.to_owned(), JsonValue::Object(fields));
+    meta.insert(
+        UI_RESOURCE_URI_META_KEY.to_owned(),
+        JsonValue::String(ui_resource_uri.to_owned()),
+    );
+    Some(MetaObject(meta))
 }
 
 async fn ui_resource_block(
@@ -174,52 +260,6 @@ async fn ui_resource_block(
             meta: Some(MetaObject(ui_meta.to_meta_map())),
         },
     ))
-}
-
-fn log_schema_validation(
-    tool_name: &str,
-    artifact_id: &ArtifactId,
-    structured_content: &JsonValue,
-    output_schema: &JsonValue,
-) {
-    let Some(content_obj) = structured_content.as_object() else {
-        return;
-    };
-    let content_keys: Vec<&String> = content_obj.keys().collect();
-
-    let Some(schema_props) = output_schema.get("properties").and_then(|p| p.as_object()) else {
-        tracing::debug!(
-            tool = %tool_name,
-            artifact_id = %artifact_id,
-            ?content_keys,
-            "MCP response built (no schema properties to validate against)"
-        );
-        return;
-    };
-
-    let schema_keys: Vec<&String> = schema_props.keys().collect();
-    let extra_keys: Vec<&&String> = content_keys
-        .iter()
-        .filter(|k| !schema_props.contains_key(k.as_str()))
-        .collect();
-
-    if !extra_keys.is_empty() {
-        tracing::error!(
-            tool = %tool_name,
-            ?content_keys,
-            ?schema_keys,
-            ?extra_keys,
-            "structured_content has keys not in output_schema"
-        );
-    }
-
-    tracing::debug!(
-        tool = %tool_name,
-        artifact_id = %artifact_id,
-        ?content_keys,
-        schema_valid = extra_keys.is_empty(),
-        "MCP response validation"
-    );
 }
 
 impl<T: Serialize + JsonSchema> McpResponseBuilder<T> {

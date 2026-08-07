@@ -8,7 +8,7 @@ use serde_json::Value as JsonValue;
 use systemprompt_models::artifacts::{
     AudioArtifact, ChartArtifact, CliArtifact, CopyPasteTextArtifact, DashboardArtifact,
     ImageArtifact, ListArtifact, PresentationCardArtifact, TableArtifact, TextArtifact,
-    ToolResponse, VideoArtifact,
+    VideoArtifact,
 };
 
 pub trait McpOutputSchema: JsonSchema {
@@ -22,11 +22,15 @@ pub trait McpOutputSchema: JsonSchema {
         None
     }
 
+    fn text_body(&self) -> Option<String> {
+        None
+    }
+
     fn validated_schema() -> JsonValue
     where
         Self: Sized,
     {
-        let root_schema = schemars::schema_for!(ToolResponse<Self>);
+        let root_schema = schemars::schema_for!(Self);
 
         let mut schema = match serde_json::to_value(&root_schema) {
             Ok(v) => v,
@@ -71,6 +75,24 @@ macro_rules! impl_mcp_output_with_optional_title {
     };
 }
 
+macro_rules! impl_mcp_output_text {
+    ($ty:ty, $name:expr) => {
+        impl McpOutputSchema for $ty {
+            fn artifact_type() -> &'static str {
+                $name
+            }
+
+            fn artifact_title(&self) -> Option<String> {
+                self.title.clone()
+            }
+
+            fn text_body(&self) -> Option<String> {
+                Some(self.content.clone())
+            }
+        }
+    };
+}
+
 macro_rules! impl_mcp_output_with_required_title {
     ($ty:ty, $name:expr) => {
         impl McpOutputSchema for $ty {
@@ -99,12 +121,16 @@ macro_rules! impl_mcp_output_delegated {
             fn artifact_title(&self) -> Option<String> {
                 self.title()
             }
+
+            fn text_body(&self) -> Option<String> {
+                self.text_body()
+            }
         }
     };
 }
 
-impl_mcp_output_with_optional_title!(TextArtifact, TextArtifact::ARTIFACT_TYPE_STR);
-impl_mcp_output_with_optional_title!(
+impl_mcp_output_text!(TextArtifact, TextArtifact::ARTIFACT_TYPE_STR);
+impl_mcp_output_text!(
     CopyPasteTextArtifact,
     CopyPasteTextArtifact::ARTIFACT_TYPE_STR
 );

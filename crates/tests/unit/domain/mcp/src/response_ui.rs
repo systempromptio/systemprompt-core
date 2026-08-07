@@ -5,8 +5,8 @@
 
 use rmcp::model::{CallToolResult, ResourceContents};
 use systemprompt_identifiers::{AgentName, ContextId, McpExecutionId, SessionId, TraceId};
-use systemprompt_mcp::McpResponseBuilder;
 use systemprompt_mcp::repository::McpArtifactRepository;
+use systemprompt_mcp::{ClientProfile, McpResponseBuilder};
 use systemprompt_models::RequestContext;
 use systemprompt_models::artifacts::{
     CardSection, CliArtifact, Column, ColumnType, PresentationCardArtifact, TableArtifact,
@@ -16,6 +16,14 @@ use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
 async fn db() -> Option<systemprompt_database::DbPool> {
     let url = fixture_database_url().ok()?;
     fixture_db_pool(&url).await.ok()
+}
+
+fn ui_client() -> ClientProfile {
+    ClientProfile {
+        protocol_version: Some(rmcp::model::ProtocolVersion::V_2025_06_18),
+        client_name: Some("test-host".to_owned()),
+        extensions: [systemprompt_models::mcp::EXTENSION_ID.to_owned()].into(),
+    }
 }
 
 fn ctx() -> RequestContext {
@@ -31,7 +39,7 @@ async fn build(artifact: CliArtifact, repo: &McpArtifactRepository) -> CallToolR
     let context = ctx();
     let exec_id = McpExecutionId::new(format!("exec-{}", uuid::Uuid::new_v4().simple()));
 
-    McpResponseBuilder::new(artifact, "systemprompt", &context, &exec_id)
+    McpResponseBuilder::new(artifact, "systemprompt", &context, &exec_id, &ui_client())
         .build("summary", repo, "cli", Some("User Directory".to_owned()))
         .await
         .expect("response builds")
@@ -148,10 +156,7 @@ async fn structured_content_still_accompanies_the_rendered_resource() {
         .as_ref()
         .expect("structured content preserved");
     assert_eq!(
-        structured
-            .get("artifact")
-            .and_then(|a| a.get("artifact_type"))
-            .and_then(|t| t.as_str()),
+        structured.get("artifact_type").and_then(|t| t.as_str()),
         Some("table")
     );
 }

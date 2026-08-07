@@ -32,7 +32,7 @@ use systemprompt_models::a2a::Artifact;
 use systemprompt_models::artifacts::ArtifactType;
 use systemprompt_models::mcp::{McpResourceUiMeta, ToolVisibility};
 
-pub const MCP_APP_MIME_TYPE: &str = "text/html;profile=mcp-app";
+pub use systemprompt_models::mcp::MCP_APP_MIME_TYPE;
 
 #[derive(Debug, Clone)]
 pub struct UiResource {

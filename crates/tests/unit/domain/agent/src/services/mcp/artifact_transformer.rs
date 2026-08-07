@@ -1,7 +1,8 @@
 //! Unit tests for MCP artifact transformer
 //!
 //! Tests cover:
-//! - parse_tool_response — valid JSON, null input, empty object, missing fields
+//! - parse_wire_result — valid wire results, missing structuredContent, missing
+//!   or malformed execution meta
 //! - calculate_fingerprint — deterministic hashing, distinct inputs produce
 //!   distinct hashes
 //! - infer_type — schema x-artifact-type, tabular/form/chart schema, data-level
@@ -10,30 +11,46 @@
 //! - build_parts — JSON object input, content array with text/image/resource,
 //!   error on invalid
 
+use rmcp::model::{CallToolResult, MetaObject};
 use serde_json::json;
 use systemprompt_agent::services::mcp::artifact_transformer::{
     BuildMetadataParams, build_metadata, build_parts, calculate_fingerprint, infer_type,
-    parse_tool_response,
+    parse_wire_result,
 };
 use systemprompt_models::artifacts::types::ArtifactType;
-use systemprompt_models::artifacts::{CliArtifact, TextArtifact};
+use systemprompt_models::artifacts::{CliArtifact, EXECUTION_META_KEY, TextArtifact};
+
+fn wire_result(
+    artifact: Option<serde_json::Value>,
+    exec_meta: Option<serde_json::Value>,
+) -> CallToolResult {
+    let mut result = CallToolResult::success(vec![]);
+    result.structured_content = artifact;
+    if let Some(exec) = exec_meta {
+        let mut meta = serde_json::Map::new();
+        meta.insert(EXECUTION_META_KEY.to_owned(), exec);
+        result.meta = Some(MetaObject(meta));
+    }
+    result
+}
 
 #[test]
-fn parse_tool_response_valid_complete() {
-    let input = json!({
-        "artifact_id": "art-001",
-        "mcp_execution_id": "exec-001",
-        "artifact": {"key": "value"},
-        "_metadata": {
+fn parse_wire_result_valid_complete() {
+    let result = wire_result(
+        Some(json!({"key": "value"})),
+        Some(json!({
+            "artifact_id": "art-001",
+            "mcp_execution_id": "exec-001",
             "skill_id": "skill-1",
             "skill_name": "test-skill",
             "execution_id": "exec-ref"
-        }
-    });
+        })),
+    );
 
-    let parsed = parse_tool_response(&input).expect("should parse");
+    let parsed = parse_wire_result(&result).expect("should parse");
     assert_eq!(parsed.artifact_id.as_str(), "art-001");
     assert_eq!(parsed.mcp_execution_id.as_str(), "exec-001");
+    assert_eq!(parsed.artifact, json!({"key": "value"}));
     assert_eq!(
         parsed.metadata.skill_id.as_ref().map(|s| s.as_str()),
         Some("skill-1")
@@ -43,15 +60,13 @@ fn parse_tool_response_valid_complete() {
 }
 
 #[test]
-fn parse_tool_response_minimal_metadata() {
-    let input = json!({
-        "artifact_id": "art-002",
-        "mcp_execution_id": "exec-002",
-        "artifact": {"data": 42},
-        "_metadata": {}
-    });
+fn parse_wire_result_minimal_meta() {
+    let result = wire_result(
+        Some(json!({"data": 42})),
+        Some(json!({"artifact_id": "art-002", "mcp_execution_id": "exec-002"})),
+    );
 
-    let parsed = parse_tool_response(&input).expect("should parse");
+    let parsed = parse_wire_result(&result).expect("should parse");
     assert_eq!(parsed.artifact_id.as_str(), "art-002");
     assert!(parsed.metadata.skill_id.is_none());
     assert!(parsed.metadata.skill_name.is_none());
@@ -59,80 +74,51 @@ fn parse_tool_response_minimal_metadata() {
 }
 
 #[test]
-fn parse_tool_response_null_input_returns_error() {
-    let result = parse_tool_response(&json!(null));
-    assert!(result.is_err());
+fn parse_wire_result_missing_structured_content_errors() {
+    let result = wire_result(
+        None,
+        Some(json!({"artifact_id": "a", "mcp_execution_id": "e"})),
+    );
+    assert!(parse_wire_result(&result).is_err());
 }
 
 #[test]
-fn parse_tool_response_empty_object_returns_error() {
-    let result = parse_tool_response(&json!({}));
-    assert!(result.is_err());
+fn parse_wire_result_null_structured_content_errors() {
+    let result = wire_result(
+        Some(json!(null)),
+        Some(json!({"artifact_id": "a", "mcp_execution_id": "e"})),
+    );
+    assert!(parse_wire_result(&result).is_err());
 }
 
 #[test]
-fn parse_tool_response_missing_artifact_id_returns_error() {
-    let input = json!({
-        "mcp_execution_id": "exec-003",
-        "artifact": {},
-        "_metadata": {}
-    });
-
-    let result = parse_tool_response(&input);
-    assert!(result.is_err());
+fn parse_wire_result_missing_meta_errors() {
+    let result = wire_result(Some(json!({"key": "value"})), None);
+    assert!(parse_wire_result(&result).is_err());
 }
 
 #[test]
-fn parse_tool_response_missing_mcp_execution_id_returns_error() {
-    let input = json!({
-        "artifact_id": "art-003",
-        "artifact": {},
-        "_metadata": {}
-    });
-
-    let result = parse_tool_response(&input);
-    assert!(result.is_err());
+fn parse_wire_result_missing_artifact_id_errors() {
+    let result = wire_result(
+        Some(json!({"key": "value"})),
+        Some(json!({"mcp_execution_id": "exec-003"})),
+    );
+    assert!(parse_wire_result(&result).is_err());
 }
 
 #[test]
-fn parse_tool_response_missing_metadata_returns_error() {
-    let input = json!({
-        "artifact_id": "art-004",
-        "mcp_execution_id": "exec-004",
-        "artifact": {}
-    });
-
-    let result = parse_tool_response(&input);
-    assert!(result.is_err());
+fn parse_wire_result_missing_mcp_execution_id_errors() {
+    let result = wire_result(
+        Some(json!({"key": "value"})),
+        Some(json!({"artifact_id": "art-003"})),
+    );
+    assert!(parse_wire_result(&result).is_err());
 }
 
 #[test]
-fn parse_tool_response_string_input_returns_error() {
-    let result = parse_tool_response(&json!("just a string"));
-    assert!(result.is_err());
-}
-
-#[test]
-fn parse_tool_response_array_input_returns_error() {
-    let result = parse_tool_response(&json!([1, 2, 3]));
-    assert!(result.is_err());
-}
-
-#[test]
-fn parse_tool_response_artifact_can_be_nested_object() {
-    let input = json!({
-        "artifact_id": "art-005",
-        "mcp_execution_id": "exec-005",
-        "artifact": {
-            "rows": [{"id": 1, "name": "Alice"}, {"id": 2, "name": "Bob"}],
-            "total": 2
-        },
-        "_metadata": {}
-    });
-
-    let parsed = parse_tool_response(&input).expect("should parse");
-    assert!(parsed.artifact.is_object());
-    assert_eq!(parsed.artifact["total"], 2);
+fn parse_wire_result_non_object_meta_errors() {
+    let result = wire_result(Some(json!({"key": "value"})), Some(json!("just a string")));
+    assert!(parse_wire_result(&result).is_err());
 }
 
 #[test]

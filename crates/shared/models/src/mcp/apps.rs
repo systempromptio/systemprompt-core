@@ -18,14 +18,14 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::capabilities::ToolVisibility;
+use super::capabilities::{MCP_APP_MIME_TYPE, ToolVisibility};
 use rmcp::model::{ContentBlock, Implementation};
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
 pub const EXTENSION_ID: &str = "io.modelcontextprotocol/ui";
 
-pub const RESOURCE_MIME_TYPE: &str = "text/html;profile=mcp-app";
+pub const RESOURCE_MIME_TYPE: &str = MCP_APP_MIME_TYPE;
 
 pub const LATEST_PROTOCOL_VERSION: &str = "2026-01-26";
 

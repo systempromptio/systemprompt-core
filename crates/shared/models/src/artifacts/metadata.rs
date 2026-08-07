@@ -4,7 +4,9 @@
 //! artifact — context, trace, session, user, agent, and the optional tool/skill
 //! that emitted it — and is derived from a [`RequestContext`] via
 //! [`ExecutionMetadataBuilder`]. [`ToolResponse`] wraps an artifact with this
-//! metadata and its persisted ids for return across the MCP boundary.
+//! metadata and its persisted ids; it is the storage envelope for
+//! `mcp_artifacts.data` rows and never appears on the wire, where provenance
+//! travels under the [`EXECUTION_META_KEY`] `_meta` key instead.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -18,6 +20,10 @@ use systemprompt_identifiers::{
 };
 
 use crate::execution::context::RequestContext;
+
+/// Reverse-DNS `_meta` key holding execution provenance on the wire; MCP
+/// reserves unprefixed `_meta` keys, so the fields must never appear bare.
+pub const EXECUTION_META_KEY: &str = "io.systemprompt/execution";
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ExecutionMetadata {
@@ -175,7 +181,7 @@ impl ExecutionMetadata {
         }
     }
 
-    pub fn to_meta(&self) -> Option<rmcp::model::MetaObject> {
+    pub fn to_object(&self) -> Option<serde_json::Map<String, JsonValue>> {
         serde_json::to_value(self)
             .map_err(|e| {
                 tracing::warn!(error = %e, "ExecutionMetadata serialization failed");
@@ -183,7 +189,6 @@ impl ExecutionMetadata {
             })
             .ok()
             .and_then(|v| v.as_object().cloned())
-            .map(rmcp::model::MetaObject)
     }
 }
 

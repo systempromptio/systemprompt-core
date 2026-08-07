@@ -35,6 +35,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub(crate) mod capabilities;
+pub(crate) mod client_profile;
 pub(crate) mod error;
 pub(crate) mod extension;
 pub(crate) mod jobs;
@@ -73,6 +74,7 @@ pub use capabilities::{
     WEBSITE_URL, build_extension_capabilities, default_tool_visibility, mcp_apps_ui_extension,
     model_only_visibility, tool_ui_meta, visibility_to_json,
 };
+pub use client_profile::{client_profile_from_peer, client_profile_from_stored};
 pub use progress::{ProgressCallback, create_progress_callback};
 pub use repository::{CreateMcpArtifact, McpArtifactRecord, McpArtifactRepository};
 pub use resources::{
@@ -83,6 +85,7 @@ pub use response::{McpResponseBuilder, UI_RESOURCE_URI_META_KEY};
 pub use schema::McpOutputSchema;
 pub use services::ui_renderer::templates::html::artifact_shell_template;
 pub use services::ui_renderer::{artifact_resource_uri, parse_artifact_resource_uri};
+pub use systemprompt_models::mcp::ClientProfile;
 pub use tool::{McpToolExecutor, McpToolHandler};
 
 pub use systemprompt_models::mcp::{

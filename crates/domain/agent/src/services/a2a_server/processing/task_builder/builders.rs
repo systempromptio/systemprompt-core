@@ -13,7 +13,7 @@ use super::history::{BuildHistoryParams, build_history};
 use crate::models::a2a::{
     Artifact, DataPart, Message, MessageRole, Part, Task, TaskState, TaskStatus, TextPart,
 };
-use crate::services::mcp::parse_tool_response;
+use crate::services::mcp::parse_wire_result;
 use serde_json::json;
 use systemprompt_identifiers::{ContextId, MessageId, TaskId};
 use systemprompt_models::a2a::{ArtifactMetadata, TaskMetadata, agent_names};
@@ -157,8 +157,7 @@ fn build_artifacts(
             let call_id = tool_call.ai_tool_call_id.as_ref();
             let is_error = result.is_error?;
 
-            let structured_content = result.structured_content.as_ref()?;
-            let parsed = parse_tool_response(structured_content)
+            let parsed = parse_wire_result(result)
                 .map_err(|e| {
                     tracing::debug!(tool_name = %tool_name, error = %e, "Failed to parse tool response, skipping artifact");
                     e
