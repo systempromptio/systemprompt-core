@@ -27,6 +27,7 @@ fn gateway_with(routes: Vec<GatewayRoute>) -> GatewayConfig {
         auth_scheme: "bearer".to_owned(),
         inference_path_prefix: "/v1".to_owned(),
         system_prompt_overrides: Vec::new(),
+        bridge_releases: None,
     }
 }
 
