@@ -24,7 +24,17 @@ fn emit_vergen() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+/// Copy `src` over `dst`, declaring every path copied as a build input.
+///
+/// The per-path `rerun-if-changed` is load-bearing, not belt-and-braces. Naming
+/// only the tree root re-runs this script when a file directly inside it
+/// changes, but cargo does not walk nested subdirectories — so adding
+/// `i18n/en-GB/bridge.ftl` to an overlay left a warm `target/` serving the
+/// previous manifest, and the new catalog silently never reached the binary
+/// (shipped that way in bridge-v0.1.2). Declaring each file *and* each
+/// directory catches additions, edits, and deletions at any depth.
 fn copy_tree(src: &std::path::Path, dst: &std::path::Path) {
+    println!("cargo:rerun-if-changed={}", src.display());
     for entry in std::fs::read_dir(src).expect("read_dir web asset source") {
         let entry = entry.expect("read web asset dir entry");
         let from = entry.path();
@@ -33,6 +43,7 @@ fn copy_tree(src: &std::path::Path, dst: &std::path::Path) {
             std::fs::create_dir_all(&to).expect("create staged asset subdir");
             copy_tree(&from, &to);
         } else {
+            println!("cargo:rerun-if-changed={}", from.display());
             std::fs::copy(&from, &to).expect("copy web asset into OUT_DIR");
         }
     }
@@ -46,6 +57,12 @@ fn stage_web_assets() {
     // .cargo/config.toml) and those files win over the staged core copies.
     let out_dir = std::env::var("OUT_DIR").expect("OUT_DIR set by cargo");
     let staged = std::path::Path::new(&out_dir).join("web");
+    // Stage from empty. Copying over a previous staging dir leaves files that
+    // have since been deleted from core's web/ or from the overlay, and they
+    // stay in the generated manifest as assets no source tree still declares.
+    if staged.exists() {
+        std::fs::remove_dir_all(&staged).expect("clear staged web dir");
+    }
     std::fs::create_dir_all(&staged).expect("create staged web dir");
     copy_tree(std::path::Path::new("web"), &staged);
     println!("cargo:rerun-if-changed=web");

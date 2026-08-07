@@ -7,7 +7,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::fs;
-use std::io::Write as _;
+use std::io::{Read as _, Write as _};
 use std::net::TcpStream;
 use std::path::PathBuf;
 use std::time::Duration;
@@ -218,27 +218,56 @@ fn read_running_instance() -> Option<RunningInstance> {
     Some(RunningInstance { port, token })
 }
 
+/// Ask the instance recorded in the sidecar to bring its window forward.
+///
+/// Returns `true` only when that instance *accepts* the request (`204 No
+/// Content` from `handle_focus`, which it sends once the event is queued to a
+/// live event loop). A successful `write_all` is not evidence: the sidecar
+/// outlives a killed process, and once the OS recycles the recorded port an
+/// unrelated listener accepts the bytes and discards them. That false positive
+/// is what let a double-click report "focused its window" while nothing appeared
+/// on screen. On any failure the sidecar is deleted, so the next launch treats
+/// the singleton as vacant instead of inheriting the same lie.
 pub(crate) fn ping_focus_running_instance() -> bool {
     let Some(instance) = read_running_instance() else {
         return false;
     };
-    let addr = format!("127.0.0.1:{}", instance.port);
-    let Ok(parsed) = addr.parse() else {
+    if focus_handshake(&instance) {
+        return true;
+    }
+    clear_running_port();
+    false
+}
+
+fn focus_handshake(instance: &RunningInstance) -> bool {
+    let Ok(parsed) = format!("127.0.0.1:{}", instance.port).parse() else {
         return false;
     };
-    let Ok(stream) = TcpStream::connect_timeout(&parsed, Duration::from_millis(250)) else {
+    let Ok(mut stream) = TcpStream::connect_timeout(&parsed, Duration::from_millis(250)) else {
         return false;
     };
     _ = stream.set_write_timeout(Some(Duration::from_millis(250)));
-    _ = stream.set_read_timeout(Some(Duration::from_millis(250)));
-    let mut stream = stream;
-    let body = "";
+    // Why: the peer only replies after the winit event loop has taken the
+    // FocusWindow event, so allow more read time than connect/write.
+    _ = stream.set_read_timeout(Some(Duration::from_secs(2)));
     let request = format!(
         "POST /api/focus_window?t={} HTTP/1.1\r\nHost: localhost\r\nContent-Length: \
-         {}\r\nConnection: close\r\n\r\n{}",
+         0\r\nConnection: close\r\n\r\n",
         instance.token,
-        body.len(),
-        body,
     );
-    stream.write_all(request.as_bytes()).is_ok()
+    if stream.write_all(request.as_bytes()).is_err() {
+        return false;
+    }
+    // The reply is a bare status line; 16 bytes covers "HTTP/1.1 204 No…".
+    let mut buf = [0_u8; 16];
+    let mut filled = 0;
+    while filled < buf.len() {
+        match stream.read(&mut buf[filled..]) {
+            Ok(0) => break,
+            Ok(n) => filled = filled.saturating_add(n),
+            Err(_) => return false,
+        }
+    }
+    buf.get(..filled)
+        .is_some_and(|got| got.starts_with(b"HTTP/1.1 204"))
 }

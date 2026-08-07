@@ -18,6 +18,49 @@ pub fn open_external_url(url: &str) {
     open_target(url);
 }
 
+/// Tell the user something on a path that has no terminal and no window.
+///
+/// Why: a bundle launched from Finder/Explorer discards stderr, so a failure
+/// that exits before any window exists is otherwise completely silent — the app
+/// just appears not to start.
+///
+/// macOS deliberately uses a notification, not `display alert`. An alert is
+/// drawn by the *current application*, and `osascript` spawned from a process
+/// with no UI session has none: the alert never renders and `osascript` blocks
+/// forever, which would leave an invisible hung process behind — strictly worse
+/// than exiting. `display notification` is posted by Notification Center
+/// instead, and returns immediately.
+pub fn notify_user(title: &str, message: &str) {
+    // Both shells below are quote-delimited; dropping quotes from the interpolated
+    // text keeps the command well-formed without a shell-specific escaper.
+    let title = title.replace(['"', '\''], "");
+    let message = message.replace(['"', '\''], "");
+    tracing::warn!(title = %title, message = %message, "notifying user");
+    let spawned = std::cfg_select! {
+        target_os = "macos" => Command::new("/usr/bin/osascript")
+            .arg("-e")
+            .arg(format!(
+                "display notification \"{message}\" with title \"{title}\""
+            ))
+            .status(),
+        // Windows renders this reliably from any session, so a modal is fine and
+        // is the clearer signal; it blocks until the user dismisses it.
+        target_os = "windows" => Command::new("powershell")
+            .args(["-NoProfile", "-Command"])
+            .arg(format!(
+                "Add-Type -AssemblyName System.Windows.Forms; \
+                 [System.Windows.Forms.MessageBox]::Show('{message}', '{title}')"
+            ))
+            .status(),
+        _ => Command::new("notify-send")
+            .args(["--urgency=critical", &title, &message])
+            .status(),
+    };
+    if let Err(e) = spawned {
+        tracing::error!(error = %e, "failed to notify user");
+    }
+}
+
 fn open_target(target: &str) {
     let program = std::cfg_select! {
         target_os = "macos"   => "/usr/bin/open",
