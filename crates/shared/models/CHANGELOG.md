@@ -5,6 +5,7 @@
 ### Breaking
 
 - **Breaking:** `ExecutionMetadata::to_meta` is replaced by `to_object`, which returns the bare field map. On the wire the fields now travel under the new `artifacts::EXECUTION_META_KEY` (`io.systemprompt/execution`); `ToolResponse` remains the storage envelope for persisted artifacts and no longer appears on the wire.
+- **Breaking:** `ToolResponse::schema()` is removed. The storage envelope must not be advertised as a tool's wire schema — advertise the typed artifact's schema via `McpOutputSchema::validated_schema()` instead.
 
 ### Added
 
@@ -15,6 +16,10 @@
 ### Changed
 
 - `text/html;profile=mcp-app` is defined once as `mcp::MCP_APP_MIME_TYPE`; `mcp::apps::RESOURCE_MIME_TYPE` aliases it.
+
+### Fixed
+
+- `GatewayConfig::validate` costs a rewrite route by its `upstream_model` rather than by pattern-matching the catalog. A route such as `model_pattern: gemini-*` rewritten to a priced `gpt-oss-120b` dispatches every request to that one model and bills correctly at runtime, but was rejected at boot with `RouteReachesNoPricedModel`; an unpriced or catalog-absent upstream model is still rejected.
 
 ## [0.29.0] - 2026-08-05
 
