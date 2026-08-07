@@ -143,6 +143,7 @@ fn signing_view(m: &SignedManifest) -> serde_json::Value {
         "enabled_hosts": m.enabled_hosts,
         "host_model_protocols": m.host_model_protocols,
         "artifacts": m.artifacts,
+        "allow_claude_ai_connectors": m.allow_claude_ai_connectors,
     })
 }
 

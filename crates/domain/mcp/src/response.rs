@@ -159,10 +159,9 @@ impl WireShape<'_> {
         let include_structured = self.client.supports_structured_content();
         let uri = artifact_resource_uri(&artifact.server_name, &artifact.artifact_id);
 
-        let mut content = vec![ContentBlock::text(self.text_block(
-            include_ui,
-            include_structured,
-        ))];
+        let mut content = vec![ContentBlock::text(
+            self.text_block(include_ui, include_structured),
+        )];
         if include_ui && let Some(block) = ui_resource_block(artifact, ctx, &uri).await {
             content.push(block);
         }

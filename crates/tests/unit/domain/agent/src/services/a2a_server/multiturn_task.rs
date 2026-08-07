@@ -3,12 +3,11 @@
 //! Target: crates/domain/agent/src/services/a2a_server/processing/task_builder/
 //! builders.rs
 
-use rmcp::model::{CallToolResult, ContentBlock};
+use rmcp::model::{CallToolResult, ContentBlock, MetaObject};
 use systemprompt_agent::models::a2a::{Message, MessageRole, Part, TaskState, TextPart};
 use systemprompt_agent::services::a2a_server::processing::task_builder::{
     BuildMultiturnTaskParams, build_multiturn_task,
 };
-use rmcp::model::MetaObject;
 use systemprompt_identifiers::{AiToolCallId, ContextId, MessageId, TaskId};
 use systemprompt_models::ToolCall;
 use systemprompt_models::artifacts::EXECUTION_META_KEY;
