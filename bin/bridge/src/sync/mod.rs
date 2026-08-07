@@ -122,10 +122,27 @@ pub async fn run_once(
 
     let location = paths::org_plugins_effective().ok_or(SyncError::PathUnresolvable)?;
     if !location.path.is_dir() {
-        return Err(SyncError::PathMissing {
-            bin: crate::brand::brand().binary_name,
-            path: location.path.display().to_string(),
-        });
+        // Why: only the macOS system path needs `sudo install --apply` — the
+        // per-user location (Windows/Linux) is writable by this process, so a
+        // missing directory on a fresh install is provisioned here instead of
+        // bouncing the user to a sudo command that does not apply to their OS.
+        match location.scope {
+            paths::Scope::User => {
+                fs::create_dir_all(&location.path).map_err(|e| {
+                    SyncError::Network(format!(
+                        "could not create org-plugins directory at {}: {e}",
+                        location.path.display()
+                    ))
+                })?;
+                tracing::info!(path = %location.path.display(), "provisioned per-user org-plugins directory");
+            },
+            paths::Scope::System => {
+                return Err(SyncError::PathMissing {
+                    bin: crate::brand::brand().binary_name,
+                    path: location.path.display().to_string(),
+                });
+            },
+        }
     }
 
     let meta = paths::bridge_metadata_dir().ok_or(SyncError::PathUnresolvable)?;
