@@ -217,6 +217,27 @@ fn bridge_auth_routes(ctx: &AppContext, jwt_extractor: &Arc<JwtContextExtractor>
         .route("/auth/bridge/capabilities", get(auth::capabilities))
 }
 
+fn bridge_release_routes(jwt_extractor: &Arc<JwtContextExtractor>) -> Router {
+    let jwt_latest = Arc::clone(jwt_extractor);
+    let jwt_download = Arc::clone(jwt_extractor);
+
+    Router::new()
+        .route(
+            "/bridge/latest",
+            get(move |headers, query| {
+                let extractor = Arc::clone(&jwt_latest);
+                async move { bridge_release::latest(extractor, headers, query).await }
+            }),
+        )
+        .route(
+            "/bridge/download/{platform}",
+            get(move |headers, path| {
+                let extractor = Arc::clone(&jwt_download);
+                async move { bridge_release::download(extractor, headers, path).await }
+            }),
+        )
+}
+
 fn bridge_profile_routes(ctx: &AppContext, jwt_extractor: &Arc<JwtContextExtractor>) -> Router {
     let ctx_whoami = ctx.clone();
     let ctx_manifest = ctx.clone();
@@ -232,26 +253,9 @@ fn bridge_profile_routes(ctx: &AppContext, jwt_extractor: &Arc<JwtContextExtract
     let jwt_host_model_filter = Arc::clone(jwt_extractor);
     let jwt_profile_usage = Arc::clone(jwt_extractor);
     let jwt_heartbeat = Arc::clone(jwt_extractor);
-    let jwt_release_latest = Arc::clone(jwt_extractor);
-    let jwt_release_download = Arc::clone(jwt_extractor);
-
     Router::new()
         .route("/bridge/pubkey", get(bridge::pubkey))
         .route("/bridge/profile", get(bridge::profile))
-        .route(
-            "/bridge/latest",
-            get(move |headers, query| {
-                let extractor = Arc::clone(&jwt_release_latest);
-                async move { bridge_release::latest(extractor, headers, query).await }
-            }),
-        )
-        .route(
-            "/bridge/download/{platform}",
-            get(move |headers, path| {
-                let extractor = Arc::clone(&jwt_release_download);
-                async move { bridge_release::download(extractor, headers, path).await }
-            }),
-        )
         .route(
             "/bridge/whoami",
             get(move |headers| {
@@ -327,6 +331,7 @@ pub fn gateway_router(ctx: &AppContext) -> Option<Router> {
             .merge(inference_routes(ctx, &jwt_extractor, &gateway_repos))
             .merge(bridge_auth_routes(ctx, &jwt_extractor))
             .merge(bridge_profile_routes(ctx, &jwt_extractor))
+            .merge(bridge_release_routes(&jwt_extractor))
             .route(
                 "/otel",
                 post(|request| async move { otel::handle(request).await }),

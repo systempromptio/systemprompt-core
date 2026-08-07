@@ -193,9 +193,9 @@ pub fn installed_path() -> Result<std::path::PathBuf, UpdateError> {
 pub fn spawn_installed(installed: &std::path::Path) -> Result<(), UpdateError> {
     let mut command = if cfg!(target_os = "macos") && installed.extension().is_some_and(|e| e == "app")
     {
-        // `open -n` hands the bundle to launchd, which gives the new instance a
-        // proper session; spawning Contents/MacOS/<bin> directly leaves it
-        // parented to a dying process and without one.
+        // Why: `open -n` hands the bundle to launchd, which gives the new
+        // instance a proper session — spawning Contents/MacOS/<bin> directly
+        // leaves it parented to a dying process and without one.
         let mut c = std::process::Command::new("/usr/bin/open");
         c.arg("-n").arg(installed);
         c

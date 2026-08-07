@@ -34,8 +34,8 @@ pub(crate) fn on_update_check_finished(
             app.state.set_update_state(state);
         },
         Err(e) => {
-            // A failed check is not worth a toast — the network is allowed to be
-            // down — so it stays a log line and leaves the button as it was.
+            // Why: the network is allowed to be down, so a failed check stays a
+            // log line and leaves the button as it was rather than raising a toast.
             tracing::debug!(error = %e, "update check failed");
         },
     }
@@ -117,21 +117,21 @@ pub(crate) fn on_update_install_finished(
     reply(app, reply_to, result, "update install");
 }
 
-/// Launches the newly-installed build and quits this one.
-///
-/// The new process must be started before this one exits: on Windows the
-/// displaced `.old` binary cannot be swept until this process releases its
-/// image lock, and the sweep runs at the new process's startup.
+// Why: the new process must start before this one exits — on Windows the
+// displaced `.old` binary cannot be swept until this process releases its image
+// lock, and the sweep runs at the new process's startup.
 pub(crate) fn on_update_restart_requested(app: &GuiApp) {
     let installed = match update::installed_path() {
         Ok(p) => p,
         Err(e) => {
             tracing::error!(error = %e, "update: cannot resolve the installed path to relaunch");
+            app.append_log(format!("restart failed: {e}"));
             return;
         },
     };
     if let Err(e) = update::spawn_installed(&installed) {
         tracing::error!(error = %e, "update: relaunch failed; leaving this instance running");
+        app.append_log(format!("restart failed: {e}; the update is installed — reopen manually"));
         return;
     }
     crate::gui::handlers::quit::on_quit();
@@ -148,9 +148,9 @@ async fn install(
     on_progress: &(dyn Fn(update::DownloadProgress) + Send + Sync),
 ) -> Result<Value, GuiError> {
     let (client, bearer) = client_and_bearer()?;
-    // Re-check rather than trusting the version the button was rendered with:
-    // the manifest carries the digest, and a release published in between would
-    // otherwise be installed without the user having agreed to it.
+    // Why: re-checked rather than trusting the version the button was rendered
+    // with — the manifest carries the digest, and a release published in between
+    // would otherwise be installed without the user having agreed to it.
     let (_, manifest) = update::check(&client, &bearer).await?;
     if manifest.version != version {
         return Err(update::UpdateError::VersionChanged {

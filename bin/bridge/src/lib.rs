@@ -155,9 +155,9 @@ pub fn run_with_brand(brand: &'static brand::Brand) -> ExitCode {
     obs::tracing_init::init();
     activity::install_persistent_writer();
     purge_legacy_agents_state();
-    // Must run before anything else touches the install directory: on Windows
-    // this deletes the binary the previous version was renamed to, which only
-    // becomes possible once that process has exited.
+    // Why: must run before anything else touches the install directory — on
+    // Windows this deletes the binary the previous version was renamed to, which
+    // only becomes possible once that process has exited.
     update::sweep_leftovers();
     cli::run()
 }

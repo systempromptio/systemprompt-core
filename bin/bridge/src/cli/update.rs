@@ -18,8 +18,8 @@ use crate::obs::output::diag;
 use crate::update::{self, UpdateStatus};
 use crate::{auth, config};
 
-/// Exit code for `--check` when a newer build exists, so the command is usable
-/// as a cron or config-management probe.
+// Why: a distinct exit code makes `--check` usable as a cron or
+// config-management probe.
 const EXIT_UPDATE_AVAILABLE: u8 = 1;
 
 #[derive(Debug, Default)]
@@ -135,8 +135,8 @@ async fn install(
     }
 }
 
-/// Percentage ticks on a terminal, silence when redirected — a progress bar in
-/// a CI log or a cron mail is noise.
+// Why: silent when stderr is redirected — a progress bar in a CI log or a cron
+// mail is noise.
 fn progress_reporter() -> Box<dyn Fn(update::DownloadProgress) + Send + Sync> {
     if !std::io::stderr().is_terminal() {
         return Box::new(|_| {});

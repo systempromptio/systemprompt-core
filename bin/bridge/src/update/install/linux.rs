@@ -30,8 +30,8 @@ pub(super) fn apply(staged: &Path) -> Result<PathBuf, UpdateError> {
     result.map(|()| target)
 }
 
-/// Shells out to `tar` rather than linking an archive crate — it is present on
-/// every supported distribution, and this mirrors `scripts/install-bridge.sh`.
+// Why: shells out to `tar` rather than linking an archive crate — it is present
+// on every supported distribution, and this mirrors `scripts/install-bridge.sh`.
 fn unpack(archive: &Path, into: &Path) -> Result<PathBuf, UpdateError> {
     let out = Command::new("tar")
         .arg("-xzf")
@@ -68,9 +68,9 @@ fn find_binary(dir: &Path, name: &str) -> Option<PathBuf> {
     subdirs.iter().find_map(|d| find_binary(d, name))
 }
 
-/// Write beside the target then rename over it. Overwriting a running binary in
-/// place fails with `ETXTBSY`, which is exactly the upgrade case; the rename is
-/// atomic and the running process keeps its original inode.
+// Why: writes beside the target then renames over it — overwriting a running
+// binary in place fails with `ETXTBSY`, which is exactly the upgrade case. The
+// rename is atomic and the running process keeps its original inode.
 fn swap(new_binary: &Path, target: &Path) -> Result<(), UpdateError> {
     let staged_next = crate::fsutil::temp_path_for(target);
     std::fs::copy(new_binary, &staged_next).map_err(|e| UpdateError::io(&staged_next, e))?;

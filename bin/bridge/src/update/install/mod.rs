@@ -52,9 +52,8 @@ pub(crate) fn sweep_leftovers() {
     }
 }
 
-/// Whether this process can replace `path`, checked by writing rather than by
-/// inspecting permission bits — the bits do not account for macOS SIP, a
-/// read-only mount, or an install owned by another user.
+// Why: checked by writing rather than by inspecting permission bits — the bits
+// do not account for macOS SIP, a read-only mount, or another user's install.
 pub(crate) fn probe_writable(path: &Path, hint: &str) -> Result<(), UpdateError> {
     let parent = path.parent().unwrap_or_else(|| Path::new("."));
     let probe = crate::fsutil::temp_path_for(&parent.join(".update-probe"));
@@ -72,8 +71,8 @@ pub(crate) fn probe_writable(path: &Path, hint: &str) -> Result<(), UpdateError>
     }
 }
 
-/// Where the running install lives: the enclosing `.app` on macOS, the
-/// executable itself elsewhere.
+// Why: the unit that gets replaced differs by platform — the enclosing `.app`
+// on macOS, the executable itself elsewhere.
 pub(crate) fn installed_path() -> Result<PathBuf, UpdateError> {
     let exe = running_exe()?;
     #[cfg(target_os = "macos")]
@@ -81,7 +80,7 @@ pub(crate) fn installed_path() -> Result<PathBuf, UpdateError> {
         Ok(exe
             .ancestors()
             .find(|p| p.extension().is_some_and(|e| e == "app"))
-            .map_or(exe.clone(), Path::to_path_buf))
+            .map_or_else(|| exe.clone(), Path::to_path_buf))
     }
     #[cfg(not(target_os = "macos"))]
     {
@@ -89,8 +88,8 @@ pub(crate) fn installed_path() -> Result<PathBuf, UpdateError> {
     }
 }
 
-/// The running executable, resolved through symlinks so the swap lands on the
-/// real file rather than on a link into it.
+// Why: resolved through symlinks so the swap lands on the real file rather than
+// replacing a link into it.
 pub(crate) fn running_exe() -> Result<PathBuf, UpdateError> {
     let exe = std::env::current_exe().map_err(|e| UpdateError::LocateInstall {
         what: "executable",

@@ -39,11 +39,8 @@ pub(super) fn apply(staged: &Path) -> Result<PathBuf, UpdateError> {
     result.map(|()| bundle)
 }
 
-/// Walks up from the running executable to the enclosing `.app`.
-///
-/// The layout is `Foo.app/Contents/MacOS/foo`, but searching for the extension
-/// rather than counting components keeps this correct if the bundle gains a
-/// level.
+// Why: searches for the `.app` extension rather than counting path components,
+// so it stays correct if the bundle layout ever gains a level.
 fn running_bundle() -> Result<PathBuf, UpdateError> {
     let exe = running_exe()?;
     exe.ancestors()
@@ -58,9 +55,9 @@ fn running_bundle() -> Result<PathBuf, UpdateError> {
         })
 }
 
-/// `ditto -x -k` rather than an unzip crate: it preserves the symlinks, code
-/// signature, and extended attributes that a `.app` bundle's signature covers.
-/// A naive unzip strips them and the result fails Gatekeeper.
+// Why: `ditto -x -k` rather than an unzip crate — it preserves the symlinks,
+// code signature, and extended attributes a bundle's signature covers. A naive
+// unzip strips them and the result fails Gatekeeper.
 fn unpack(archive: &Path, into: &Path) -> Result<PathBuf, UpdateError> {
     let out = Command::new("/usr/bin/ditto")
         .arg("-x")
@@ -83,9 +80,9 @@ fn unpack(archive: &Path, into: &Path) -> Result<PathBuf, UpdateError> {
         .ok_or_else(|| UpdateError::Unpack("the archive contains no .app bundle".to_owned()))
 }
 
-/// Refuses anything Gatekeeper would refuse, before it replaces a working
-/// install. `--deep --strict` checks nested code, and the `spctl` assessment is
-/// what actually decides whether the swapped-in app will launch.
+// Why: refuses anything Gatekeeper would refuse, before a working install is
+// replaced. `--deep --strict` covers nested code, and the `spctl` assessment is
+// what actually decides whether the swapped-in app will launch.
 fn verify_signature(bundle: &Path) -> Result<(), UpdateError> {
     let codesign = Command::new("/usr/bin/codesign")
         .arg("--verify")
@@ -119,9 +116,8 @@ fn verify_signature(bundle: &Path) -> Result<(), UpdateError> {
     Ok(())
 }
 
-/// Move the old bundle aside, `ditto` the new one into place, then delete the
-/// old one — so a failure mid-copy can put the working app back rather than
-/// leaving a half-written bundle.
+// Why: the old bundle moves aside before the new one is written, so a failure
+// mid-copy can restore the working app instead of leaving a half-written bundle.
 fn swap(new_bundle: &Path, target: &Path) -> Result<(), UpdateError> {
     let backup = crate::fsutil::temp_path_for(target);
     std::fs::rename(target, &backup).map_err(|e| UpdateError::io(target, e))?;

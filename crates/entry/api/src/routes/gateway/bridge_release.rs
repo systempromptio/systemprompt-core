@@ -24,8 +24,8 @@ use systemprompt_config::ProfileBootstrap;
 use super::messages::extract_credential;
 use crate::services::middleware::JwtContextExtractor;
 
-/// GitHub caps a release listing at 100; bridge releases are infrequent enough
-/// that the newest matching tag is always well inside the first page.
+// Why: GitHub caps a release listing at 100, and bridge releases are infrequent
+// enough that the newest matching tag is always well inside the first page.
 const RELEASE_PAGE_SIZE: u8 = 30;
 
 #[derive(Debug, Deserialize)]
@@ -33,9 +33,10 @@ pub struct LatestQuery {
     pub platform: String,
 }
 
-/// Mirrors `ReleaseManifest` in the bridge's gateway client. Keep the two in
-/// lockstep — this is a wire contract with an already-shipped binary, so a
-/// renamed field silently breaks every bridge in the field.
+/// Mirrors `ReleaseManifest` in the bridge's gateway client.
+///
+/// Keep the two in lockstep: this is a wire contract with an already-shipped
+/// binary, so a renamed field silently breaks every bridge in the field.
 #[derive(Debug, Serialize)]
 pub struct ReleaseManifest {
     pub version: String,
@@ -135,8 +136,8 @@ pub async fn download(
             )
         })?;
 
-    // `Accept: application/octet-stream` on the asset *API* url is what makes
-    // GitHub serve bytes; without it the response is the asset's JSON metadata.
+    // Why: `Accept: application/octet-stream` on the asset *API* url is what
+    // makes GitHub serve bytes — without it the response is JSON metadata.
     let upstream = github(&spec, &asset.url)
         .header(header::ACCEPT, "application/octet-stream")
         .send()
@@ -150,8 +151,8 @@ pub async fn download(
         ));
     }
 
-    // Streamed rather than buffered: these are tens of megabytes and the
-    // gateway should not hold one per updating client in memory.
+    // Why: streamed rather than buffered — these are tens of megabytes and the
+    // gateway must not hold one per updating client in memory.
     let body = Body::from_stream(upstream.bytes_stream());
     Ok((
         StatusCode::OK,
@@ -204,8 +205,8 @@ fn releases_spec() -> Result<BridgeReleasesSpec, (StatusCode, String)> {
         })
 }
 
-/// The pinned release if one is configured, else the newest non-draft,
-/// non-prerelease tag carrying the bridge prefix.
+// Why: bridge releases are tagged separately from the server's, so an
+// unfiltered "latest release" would pick the wrong one.
 async fn resolve_release(spec: &BridgeReleasesSpec) -> Result<GhRelease, (StatusCode, String)> {
     if let Some(pinned) = spec.pinned_version.as_deref() {
         let tag = format!("{}{pinned}", spec.tag_prefix);
@@ -232,10 +233,8 @@ async fn resolve_release(spec: &BridgeReleasesSpec) -> Result<GhRelease, (Status
         })
 }
 
-/// Reads the digest out of the release's `SHA256SUMS`, which the release
-/// workflow generates and cosign-signs. Taken from there rather than computed
-/// here so the value the updater enforces is the one that was signed at
-/// publish time.
+// Why: taken from the release's cosign-signed SHA256SUMS rather than computed
+// here, so the digest the updater enforces is the one signed at publish time.
 async fn asset_digest(
     spec: &BridgeReleasesSpec,
     release: &GhRelease,
@@ -269,8 +268,8 @@ async fn asset_digest(
     })
 }
 
-/// `sha256sum` output is `<hex>␠[␠*]<name>`; the second space or the `*` marks
-/// binary mode, and both appear in the files this reads.
+// Why: `sha256sum` output is `<hex>␠[␠*]<name>` — the second space or the `*`
+// marks binary mode, and both forms appear in the files this reads.
 fn parse_sha256sums(body: &str, asset_name: &str) -> Option<String> {
     body.lines().find_map(|line| {
         let (digest, name) = line.split_once(char::is_whitespace)?;
@@ -301,7 +300,7 @@ async fn fetch_json<T: serde::de::DeserializeOwned>(
 fn github(spec: &BridgeReleasesSpec, url: &str) -> reqwest::RequestBuilder {
     let mut req = reqwest::Client::new()
         .get(url)
-        // GitHub rejects requests without one.
+        // Why: GitHub rejects requests that send no User-Agent.
         .header(header::USER_AGENT, "systemprompt-gateway")
         .header("X-GitHub-Api-Version", "2022-11-28");
     if let Some(token) = spec.token_env.as_deref().and_then(|k| std::env::var(k).ok()) {

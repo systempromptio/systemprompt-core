@@ -14,8 +14,8 @@ use crate::gateway::GatewayClient;
 use crate::gateway::types::ReleaseManifest;
 use crate::update::error::UpdateError;
 
-/// A binary is tens of megabytes and the shared gateway client caps requests at
-/// 30s, which a download on a slow link will exceed long before it stalls.
+// Why: a binary is tens of megabytes and the shared gateway client caps
+// requests at 30s, which a slow link exceeds long before the transfer stalls.
 const DOWNLOAD_TIMEOUT: Duration = Duration::from_mins(15);
 
 #[derive(Debug, Clone, Copy)]
