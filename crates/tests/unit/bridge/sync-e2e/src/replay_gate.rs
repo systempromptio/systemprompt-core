@@ -209,15 +209,15 @@ fn a_not_before_outside_the_skew_window_is_rejected() {
 }
 
 #[test]
-fn a_missing_org_plugins_directory_fails_with_the_provisioning_hint() {
+fn a_missing_per_user_org_plugins_directory_is_provisioned_on_sync() {
     let now = chrono::Utc::now();
     let (_server, sandbox) = serve(&manifest(now, &now.to_rfc3339()));
     fs::remove_dir_all(&sandbox.org_plugins).unwrap();
 
-    let err = run_gated(&sandbox).expect_err("missing plugin dir must fail");
+    run_gated(&sandbox).expect("a missing per-user plugin dir is provisioned, not fatal");
     assert!(
-        err.contains("does not exist") && err.contains("install --apply"),
-        "error carries the provisioning hint: {err}"
+        sandbox.org_plugins.is_dir(),
+        "sync creates the per-user org-plugins directory on first boot"
     );
 }
 
