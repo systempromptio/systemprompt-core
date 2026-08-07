@@ -98,8 +98,14 @@ impl HostApp for CodexCliHost {
         "https://developers.openai.com/codex/app"
     }
 
+    // Why: the gateway serves Codex over `/v1/responses`, not
+    // `/v1/chat/completions`. Leaving this at the trait's empty default made
+    // `effective_surfaces` yield nothing, so no model protocol was ever
+    // negotiated, no compatible models were offered, and the profile writer had
+    // nothing to install — the host synced its MCP half and silently skipped the
+    // model half.
     fn accepted_surfaces(&self) -> &'static [systemprompt_models::profile::ApiSurface] {
-        &[]
+        &[systemprompt_models::profile::ApiSurface::OpenAi]
     }
 }
 
