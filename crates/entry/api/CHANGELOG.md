@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.30.0] - 2026-08-07
+
+### Added
+
+- The signed bridge manifest carries `allow_claude_ai_connectors`, read from the services config's `bridge_policy:` block at manifest assembly, so an instance can re-allow claude.ai first-party connectors under the bridge's managed-MCP enforcement.
+
 ## [0.29.0] - 2026-08-04
 
 ### Fixed

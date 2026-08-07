@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.30.0] - 2026-08-06
+## [0.30.0] - 2026-08-07
 
 ### Breaking
 
@@ -11,6 +11,7 @@
 - **Breaking:** `NetworkService::prepare_port`, `wait_for_port_release_with_retry`, and `port::cleanup_port_processes` take the MCP server name. Migrate by passing `config.name`.
 - **Breaking:** MCP tool results are shaped per negotiated client. `McpToolExecutor::execute` and `McpResponseBuilder::new` take a `&ClientProfile` (build it with `client_profile_from_peer` inside `call_tool`); the embedded `ui://` resource is sent only to hosts that negotiated the `io.modelcontextprotocol/ui` extension, `structuredContent` only to clients on protocol `2025-06-18` or later, and any other client receives text content only, with the artifact body folded into the text block.
 - **Breaking:** `structuredContent` and the advertised `outputSchema` carry the tool's typed output directly instead of the `ToolResponse` envelope, and execution provenance (including `artifact_id` and `mcp_execution_id`) moves under the single reverse-DNS `_meta` key `io.systemprompt/execution` — bare snake_case `_meta` keys are removed, as MCP reserves unprefixed keys. `ExecutionMetadata::to_meta` is replaced by `to_object`; `parse_tool_response` and `McpToA2aTransformer::transform_from_json` are replaced by `parse_wire_result` over the whole `CallToolResult`. Persisted artifacts keep the envelope shape; no data migration.
+- **Breaking:** `ToolResponse::schema()` is removed — the storage envelope must not be advertised as a tool's wire schema, and downstream servers doing so made claude.ai's client-side validation reject every typed `structuredContent` with `-32602`. Advertise `McpOutputSchema::validated_schema()` instead.
 - **Breaking:** `services::Settings` rejects unknown fields. A services config that spells the settings keys in camelCase (`mcpPortRange`, `agentPortRange`, `autoStartEnabled`, `schemaValidationMode`) now fails to load instead of silently falling back to the defaults. Migrate by renaming them to snake_case.
 
 ### Added
@@ -29,6 +30,8 @@
 - A CLI session is bound to the issuer its token was minted under and is discarded when `security.issuer` changes, on both the explicit `admin session login` path and the implicit path every other command uses. `admin config security set --jwt-issuer` clears the stored session rather than leaving a token that every MCP call rejects until `admin session logout` is run by hand.
 - `admin session login --duration-hours` sets the stored session's expiry as well as the token's. The file entry was fixed at 24 hours, so it could outlive or fall short of the token it held.
 - `cloud tenant create` no longer rewrites the PostgreSQL superuser password when run a second time, which invalidated the stored `database_url` of every tenant created before it.
+- `GatewayConfig::validate` costs a rewrite route by its `upstream_model` rather than by pattern-matching the catalog: a route such as `model_pattern: gemini-*` rewritten to a priced `gpt-oss-120b` bills correctly at runtime but was rejected at boot with `RouteReachesNoPricedModel`, blocking deploys. An unpriced or catalog-absent upstream model is still rejected.
+- Bridge (Codex): the Codex host declares `ApiSurface::OpenAi`, so a model protocol is actually negotiated and the managed model-provider profile installs instead of silently doing nothing; the macOS probe reads the installed profile from managed preferences rather than the Linux `/etc/codex/config.toml`; `install --apply-mobileconfig` tells the user the profile still needs approval in System Settings; and the provider profile pins `approval_policy = "never"` with `sandbox_mode = "workspace-write"` for unattended runs.
 
 ## [0.29.0] - 2026-08-04
 

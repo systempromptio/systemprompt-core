@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.30.0] - 2026-08-07
+
+### Added
+
+- A services-config include's `bridge_policy:` block merges into the target when the target declares none, so an instance policy declared once flows through composed configs.
+- `profile.services.port_offset` is applied when the services config is loaded, shifting every locally-bound MCP and agent port and both port ranges; the existing port-range and conflict validators police the shifted values.
+
 ## [0.25.0] - 2026-07-27
 
 ### Added

@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.30.0] - 2026-08-07
+
+### Breaking
+
+- **Breaking:** `StoredTenant::new_local_shared` is renamed to `new_local_docker`, `shared_container_db` to `docker_project`, and `uses_shared_container` to `uses_managed_container`; the field names a compose project rather than a database inside a shared server. `SharedContainerConfig`, `TenantDatabaseMapping`, and the shared-container helpers are removed in favour of `TenantContainer` with the `start_project` / `remove_project` lifecycle.
+- **Breaking:** `SessionStore::get_valid_session` and `get_valid_session_mut` take the current `security.issuer`, and `active_session` is replaced by `active_session_for_profile_discovery`, which performs no issuer check and must not be used to authorize a request.
+- **Breaking:** `CliSession` gains an `issuer` field and its on-disk version moves to 6; a version-5 `index.json` entry is rejected rather than migrated, so the next command mints a fresh session. `CliSession::builder` and `CliSessionBuilder::new` take a `SessionBinding` in place of a bare `ProfileName`.
+
 ## [0.27.0] - 2026-07-29
 
 ### Fixed

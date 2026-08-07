@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.30.0] - 2026-08-07
+
+### Added
+
+- `AuthError::is_issuer_mismatch` reports an `iss` claim mismatch, which `jsonwebtoken` reports only inside `InvalidToken`.
+
 ## [0.29.0] - 2026-08-05
 
 ### Added

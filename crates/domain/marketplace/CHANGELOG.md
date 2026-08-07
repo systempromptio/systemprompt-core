@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.30.0] - 2026-08-07
+
+### Breaking
+
+- **Breaking:** `CanonicalView` gains `allow_claude_ai_connectors`, so the instance's connector policy is part of the signed manifest canonical form. A manifest signed without it still verifies — the field defaults off.
+
 ## [0.29.0] - 2026-08-05
 
 ### Breaking

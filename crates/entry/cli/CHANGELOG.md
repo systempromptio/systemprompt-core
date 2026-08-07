@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.30.0] - 2026-08-07
+
+### Breaking
+
+- **Breaking:** `cloud tenant create` provisions a Docker PostgreSQL container per tenant instead of one shared `systemprompt-postgres-shared` container holding a database per tenant. A tenant created against the shared container is not migrated — recreate it. It also no longer rewrites the PostgreSQL superuser password on a second run, which invalidated the stored `database_url` of every tenant created before it.
+
+### Added
+
+- `admin config services set --port-offset` and `admin setup --port-offset` set `profile.services.port_offset`, shifting every locally-bound MCP and agent port so two installations on one host can coexist without editing tracked service manifests.
+
+### Fixed
+
+- A CLI session is bound to the issuer its token was minted under and is discarded when `security.issuer` changes, on both `admin session login` and the implicit path every other command uses; `admin config security set --jwt-issuer` clears the stored session rather than leaving a token every MCP call rejects.
+- `admin session login --duration-hours` sets the stored session's expiry as well as the token's; the file entry was fixed at 24 hours.
+
 ## [0.29.0] - 2026-08-05
 
 ### Added

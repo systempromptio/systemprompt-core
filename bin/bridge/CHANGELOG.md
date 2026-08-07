@@ -5,6 +5,12 @@
 ### Added
 
 - The signed manifest carries `allow_claude_ai_connectors` (from the instance's `bridge_policy:` services config). When set, the Claude Code managed-MCP policy writes `allowAllClaudeAiMcps: true` alongside the managed server allowlist, so claude.ai first-party connectors keep working under `managed-mcp.json`; when withdrawn, the key is removed rather than left stale, and `clear_policy` removes it too.
+- The Codex provider profile pins approval and sandbox policy: `approval_policy = "never"` with `sandbox_mode = "workspace-write"` (network access enabled), so an unattended managed Codex neither stops to ask nor gains full-disk access.
+
+### Fixed
+
+- The Codex host declares `ApiSurface::OpenAi`. `accepted_surfaces` sat at the trait's empty default, so no model protocol was negotiated, `host_model_view` offered no compatible models, and the `x-inference-protocol` header was skipped — the host synced its MCP and plugin half but silently installed no model provider profile.
+- macOS: the Codex probe reads the installed profile from managed preferences (`config_toml_base64` in the `com.openai.codex` plist, user scope before device scope) instead of the Linux `/etc/codex/config.toml`, which never exists there — a successful install no longer re-verifies as "profile not installed". `install --apply-mobileconfig` also tells the user the profile must be approved in System Settings, since `open -g` parks the payload there without ever surfacing the approval sheet, and `install_action_label` no longer claims the profile was already loaded.
 
 ## [0.23.0] - 2026-08-06
 
