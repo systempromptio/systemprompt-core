@@ -11,7 +11,7 @@
 
 use crate::models::{ExecutionStatus, ToolExecutionRequest, ToolExecutionResult};
 use crate::repository::{McpArtifactRepository, ToolUsageRepository};
-use crate::response::McpResponseBuilder;
+use crate::response::{McpResponseBuilder, ToolIdentity};
 use crate::schema::McpOutputSchema;
 use chrono::Utc;
 use rmcp::ErrorData as McpError;
@@ -48,6 +48,40 @@ pub trait McpToolHandler: Send + Sync {
 
     fn output_schema(&self) -> JsonValue {
         Self::Output::validated_schema()
+    }
+
+    /// Whether this tool only reads state. Advertised as the MCP
+    /// `readOnlyHint` annotation, which lets a host serve cached results when
+    /// the transport stalls instead of rendering an empty panel.
+    fn read_only(&self) -> bool {
+        false
+    }
+
+    /// The canonical `tools/list` entry for this handler: name, description,
+    /// both schemas, the `readOnlyHint` annotation, and the UI meta. Servers
+    /// hand-rolling `Tool` values drift from the wire contract; build them
+    /// here.
+    fn tool_definition(&self, server_name: &str) -> rmcp::model::Tool {
+        let input_obj = self.input_schema().as_object().cloned().unwrap_or_default();
+        let output_obj = self
+            .output_schema()
+            .as_object()
+            .cloned()
+            .unwrap_or_default();
+
+        let mut tool = rmcp::model::Tool::default();
+        tool.name = self.tool_name().to_owned().into();
+        tool.description = Some(self.description().to_owned().into());
+        tool.input_schema = Arc::new(input_obj);
+        tool.output_schema = Some(Arc::new(output_obj));
+        tool.annotations = self
+            .read_only()
+            .then(|| rmcp::model::ToolAnnotations::new().read_only(true));
+        tool.meta = Some(rmcp::model::MetaObject(crate::capabilities::tool_ui_meta(
+            server_name,
+            &crate::capabilities::default_tool_visibility(),
+        )));
+        tool
     }
 
     fn handle(
@@ -129,10 +163,10 @@ impl McpToolExecutor {
                 let title = output.artifact_title();
                 let artifact_type = output.artifact_type_name();
                 let output_value = serde_json::to_value(&output).ok();
-                let response =
-                    McpResponseBuilder::new(output, handler.tool_name(), ctx, &exec_id, client)
-                        .build(summary, &self.artifact_repo, &artifact_type, title)
-                        .await;
+                let identity = ToolIdentity::new(&self.server_name, handler.tool_name());
+                let response = McpResponseBuilder::new(output, identity, ctx, &exec_id, client)
+                    .build(summary, &self.artifact_repo, &artifact_type, title)
+                    .await;
                 (response, output_value)
             },
             Err(ref e) => (Err(e.clone()), None),

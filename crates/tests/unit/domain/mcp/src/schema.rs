@@ -151,6 +151,107 @@ fn every_validated_schema_is_an_object_schema() {
     }
 }
 
+/// The drift gate: the outputSchema a tool advertises and the
+/// structuredContent it serializes come from the SAME type via two different
+/// derives (schemars vs serde). A `skip_serializing_if` the schema still
+/// marks required — or any other disagreement between the two views — makes
+/// every client-side validator reject the payload. Serialize minimal
+/// (None/empty) instances of every artifact and validate each against its own
+/// advertised schema.
+#[test]
+fn minimal_payloads_of_every_artifact_validate_against_their_advertised_schema() {
+    use systemprompt_models::artifacts::{Column, NoticeLine};
+
+    fn assert_valid<T: McpOutputSchema + serde::Serialize>(value: &T, label: &str) {
+        let schema = <T as McpOutputSchema>::validated_schema();
+        let validator = jsonschema::validator_for(&schema)
+            .unwrap_or_else(|e| panic!("{label}: schema does not compile: {e}"));
+        let payload = serde_json::to_value(value).expect(label);
+        if let Err(e) = validator.validate(&payload) {
+            panic!("{label}: payload does not match its advertised schema: {e}\n{payload}");
+        }
+    }
+
+    assert_valid(&TextArtifact::new(""), "text");
+    assert_valid(&CopyPasteTextArtifact::new(""), "copy_paste_text");
+    assert_valid(&AudioArtifact::new("https://example.com/a.mp3"), "audio");
+    assert_valid(&DashboardArtifact::new(""), "dashboard");
+    assert_valid(&PresentationCardArtifact::new(""), "presentation_card");
+    assert_valid(
+        &TableArtifact::new(vec![Column::new(
+            "c",
+            systemprompt_models::artifacts::ColumnType::String,
+        )]),
+        "table",
+    );
+    assert_valid(&ListArtifact::new(), "list");
+    assert_valid(
+        &ChartArtifact::new("", systemprompt_models::artifacts::ChartType::Bar),
+        "chart",
+    );
+    assert_valid(&ImageArtifact::new("https://example.com/i.png"), "image");
+    assert_valid(&VideoArtifact::new("https://example.com/v.mp4"), "video");
+
+    let cli_variants: Vec<(CliArtifact, &str)> = vec![
+        (CliArtifact::text(TextArtifact::new("")), "cli:text"),
+        (
+            CliArtifact::table(TableArtifact::new(vec![Column::new(
+                "c",
+                systemprompt_models::artifacts::ColumnType::String,
+            )])),
+            "cli:table",
+        ),
+        (CliArtifact::list(ListArtifact::new()), "cli:list"),
+        (
+            CliArtifact::copy_paste_text(CopyPasteTextArtifact::new("")),
+            "cli:copy_paste_text",
+        ),
+        (
+            CliArtifact::dashboard(DashboardArtifact::new("")),
+            "cli:dashboard",
+        ),
+        (
+            CliArtifact::chart(ChartArtifact::new(
+                "",
+                systemprompt_models::artifacts::ChartType::Bar,
+            )),
+            "cli:chart",
+        ),
+        (
+            CliArtifact::audio(AudioArtifact::new("https://example.com/a.mp3")),
+            "cli:audio",
+        ),
+        (
+            CliArtifact::image(ImageArtifact::new("https://example.com/i.png")),
+            "cli:image",
+        ),
+        (
+            CliArtifact::video(VideoArtifact::new("https://example.com/v.mp4")),
+            "cli:video",
+        ),
+        (
+            CliArtifact::presentation_card(PresentationCardArtifact::new("")),
+            "cli:card",
+        ),
+        (
+            CliArtifact::message(systemprompt_models::artifacts::MessageArtifact::new(vec![
+                NoticeLine::new("info", "m"),
+            ])),
+            "cli:message",
+        ),
+    ];
+    let schema = <CliArtifact as McpOutputSchema>::validated_schema();
+    let validator = jsonschema::validator_for(&schema).expect("CliArtifact schema compiles");
+    for (artifact, label) in &cli_variants {
+        let payload = serde_json::to_value(artifact).expect(label);
+        if let Err(e) = validator.validate(&payload) {
+            panic!(
+                "{label}: payload does not match the advertised CliArtifact schema: {e}\n{payload}"
+            );
+        }
+    }
+}
+
 #[test]
 fn artifact_type_name_default_returns_static_str() {
     let text = TextArtifact::new("hello");

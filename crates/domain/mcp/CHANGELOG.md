@@ -6,14 +6,17 @@
 
 - **Breaking:** `McpToolExecutor::execute` and `McpResponseBuilder::new` take a `&ClientProfile` describing the negotiated client. Migrate by building one inside `call_tool` with `client_profile_from_peer(&context)`, or from persisted `initialize` params with `client_profile_from_stored`.
 - **Breaking:** tool results are shaped per client. The embedded `ui://` resource and `io.systemprompt/ui-resource-uri` are sent only to hosts that negotiated the `io.modelcontextprotocol/ui` extension; `structuredContent` only to clients on protocol `2025-06-18` or later; any other client — including one whose `initialize` declaration is unknown — receives text content only, with the artifact body folded into the text block.
+- **Breaking:** `McpResponseBuilder::new` takes a `ToolIdentity` naming the server and the tool instead of a bare tool name. Migrate by passing `ToolIdentity::new(server_name, tool_name)`.
 - **Breaking:** `structuredContent` and the advertised `outputSchema` carry the tool's typed output directly instead of the `ToolResponse` envelope, and execution provenance (including `artifact_id` and `mcp_execution_id`) moves to `_meta["io.systemprompt/execution"]`. Bare snake_case `_meta` keys are gone — MCP reserves unprefixed `_meta` keys. Migrate consumers by reading the payload from `structuredContent` and identifiers from the meta key.
 
 ### Added
 
 - `McpOutputSchema::text_body` names the plain-text body of an output; text-bearing artifacts provide it so text-only clients receive the data, and other outputs fall back to pretty-printed JSON under the summary.
+- `McpToolHandler::read_only` (default `false`) advertises the MCP `readOnlyHint` annotation, and `McpToolHandler::tool_definition` builds the canonical `tools/list` entry — name, description, both schemas, the annotation, and the UI meta — so servers stop hand-rolling `Tool` values that drift from the wire contract.
 
 ### Fixed
 
+- Artifact `ui://` resource URIs name the MCP server that minted them instead of the tool, so hosts that validate the URI authority against the connector name can resolve the resource. A migration repairs previously persisted `mcp_artifacts` rows from the execution record.
 - `McpOutputSchema::validated_schema` guarantees an **object schema**: `"type": "object"` is inserted at the root when schemars omits it. The MCP spec requires a tool's `outputSchema` to be an object schema, and Claude Desktop enforces it strictly — a tagged-enum output (`CliArtifact`) previously advertised a bare `oneOf` with no `type`, and the client parked the entire server at connect time on the first such tool. Sound for every implementor: tagged-enum variants all serialize as objects.
 
 ## [0.29.0] - 2026-08-05
