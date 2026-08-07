@@ -5,6 +5,8 @@
 ### Added
 
 - The signed manifest carries `allow_claude_ai_connectors` (from the instance's `bridge_policy:` services config). When set, the Claude Code managed-MCP policy writes `allowAllClaudeAiMcps: true` alongside the managed server allowlist, so claude.ai first-party connectors keep working under `managed-mcp.json`; when withdrawn, the key is removed rather than left stale, and `clear_policy` removes it too.
+- Self-update from the gateway. `update` (with `--check` and `--yes`) checks `/v1/bridge/latest`, streams the artifact while hashing, verifies the SHA-256 before anything executes, then swaps per platform: macOS unpacks the zipped `.app` with `ditto` and re-verifies `codesign` + `spctl` before replacing the bundle; Windows renames the running exe aside and sweeps the leftover at next start; Linux writes beside the target and renames over it. Every path rolls back on failure. The GUI rail profile button becomes "Click here to update" when a build is available and "Restart to finish updating" once installed; `--check` exits non-zero when a build is available, for cron probes. Version comparison is semver, not string ordering.
+- `Brand` carries the downstream crate's version, and the footer, rail, `--version`, diagnostics, and heartbeat `bridge_version` all read it. `env!("CARGO_PKG_VERSION")` expanded inside this library, so every white-label build reported core's version instead of its own — the updater would have compared the wrong numbers.
 - The Codex provider profile pins approval and sandbox policy: `approval_policy = "never"` with `sandbox_mode = "workspace-write"` (network access enabled), so an unattended managed Codex neither stops to ask nor gains full-disk access.
 
 ### Fixed

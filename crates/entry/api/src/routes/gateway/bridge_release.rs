@@ -17,9 +17,9 @@ use axum::extract::{Path, Query};
 use axum::http::{HeaderMap, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use serde::{Deserialize, Serialize};
+use systemprompt_config::ProfileBootstrap;
 use systemprompt_identifiers::JwtToken;
 use systemprompt_models::profile::BridgeReleasesSpec;
-use systemprompt_config::ProfileBootstrap;
 
 use super::messages::extract_credential;
 use crate::services::middleware::JwtContextExtractor;
@@ -270,7 +270,7 @@ async fn asset_digest(
 
 // Why: `sha256sum` output is `<hex>␠[␠*]<name>` — the second space or the `*`
 // marks binary mode, and both forms appear in the files this reads.
-fn parse_sha256sums(body: &str, asset_name: &str) -> Option<String> {
+pub fn parse_sha256sums(body: &str, asset_name: &str) -> Option<String> {
     body.lines().find_map(|line| {
         let (digest, name) = line.split_once(char::is_whitespace)?;
         let name = name.trim_start_matches([' ', '*']);
@@ -303,46 +303,12 @@ fn github(spec: &BridgeReleasesSpec, url: &str) -> reqwest::RequestBuilder {
         // Why: GitHub rejects requests that send no User-Agent.
         .header(header::USER_AGENT, "systemprompt-gateway")
         .header("X-GitHub-Api-Version", "2022-11-28");
-    if let Some(token) = spec.token_env.as_deref().and_then(|k| std::env::var(k).ok()) {
+    if let Some(token) = spec
+        .token_env
+        .as_deref()
+        .and_then(|k| std::env::var(k).ok())
+    {
         req = req.bearer_auth(token);
     }
     req
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    const SUMS: &str = "\
-e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  systemprompt-internal-bridge-macos.zip
-5891b5b522d5df086d0ff0b110fbd9d21bb4fc7163af34d08286a2e846f6be03 *systemprompt-internal-bridge-windows.exe
-";
-
-    #[test]
-    fn reads_a_two_space_entry() {
-        assert_eq!(
-            parse_sha256sums(SUMS, "systemprompt-internal-bridge-macos.zip"),
-            Some("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855".to_owned())
-        );
-    }
-
-    /// Binary-mode entries carry a `*` before the name.
-    #[test]
-    fn reads_a_binary_mode_entry() {
-        assert_eq!(
-            parse_sha256sums(SUMS, "systemprompt-internal-bridge-windows.exe"),
-            Some("5891b5b522d5df086d0ff0b110fbd9d21bb4fc7163af34d08286a2e846f6be03".to_owned())
-        );
-    }
-
-    #[test]
-    fn a_missing_asset_is_none() {
-        assert_eq!(parse_sha256sums(SUMS, "not-published.tar.gz"), None);
-    }
-
-    /// A prefix match must not satisfy a different asset's lookup.
-    #[test]
-    fn names_must_match_exactly() {
-        assert_eq!(parse_sha256sums(SUMS, "systemprompt-internal-bridge"), None);
-    }
 }

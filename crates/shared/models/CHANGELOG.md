@@ -11,6 +11,7 @@
 
 - `mcp::ClientProfile` captures what a client declared during `initialize` — protocol version, implementation name, negotiated extensions — with `supports_ui` and `supports_structured_content` deciding which wire pieces it can accept.
 - `CliArtifact::text_body` returns the plain-text body of text-bearing variants.
+- `gateway.bridge_releases` (`BridgeReleasesSpec`) configures the desktop-bridge self-updater feed: source repo, token env-var name, tag prefix, optional pinned version, and the platform→asset map. Absent means the update endpoints report "not configured" and bridges never see an update.
 - `services::BridgePolicyConfig` (`bridge_policy:` in a services YAML) and `SignedManifest::allow_claude_ai_connectors` carry the instance policy that re-allows claude.ai first-party connectors under the bridge's managed-MCP enforcement. The field is `#[serde(default)]`, so manifests from older servers still verify.
 
 ### Changed

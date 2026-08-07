@@ -5,6 +5,7 @@
 ### Added
 
 - The signed bridge manifest carries `allow_claude_ai_connectors`, read from the services config's `bridge_policy:` block at manifest assembly, so an instance can re-allow claude.ai first-party connectors under the bridge's managed-MCP enforcement.
+- `/v1/bridge/latest` and `/v1/bridge/download/{platform}` serve the bridge self-updater from the `gateway.bridge_releases` feed. Release assets live in a private repo the bridge holds no credential for, so the gateway resolves and proxies them; the advertised digest is read from the release's signed SHA256SUMS, never recomputed. An unconfigured gateway answers 404.
 
 ## [0.29.0] - 2026-08-04
 
