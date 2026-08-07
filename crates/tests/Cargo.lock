@@ -7276,6 +7276,7 @@ dependencies = [
  "sha2 0.11.0",
  "systemprompt-bridge",
  "systemprompt-identifiers",
+ "systemprompt-models",
  "temp-env",
  "tempfile",
  "tokio",
