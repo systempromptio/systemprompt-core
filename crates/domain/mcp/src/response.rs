@@ -39,9 +39,24 @@ use systemprompt_models::mcp::{ClientProfile, McpResourceUiMeta};
 
 pub const UI_RESOURCE_URI_META_KEY: &str = "io.systemprompt/ui-resource-uri";
 
+#[derive(Clone, Debug)]
+pub struct ToolIdentity {
+    server_name: String,
+    tool_name: String,
+}
+
+impl ToolIdentity {
+    pub fn new(server_name: impl Into<String>, tool_name: impl Into<String>) -> Self {
+        Self {
+            server_name: server_name.into(),
+            tool_name: tool_name.into(),
+        }
+    }
+}
+
 pub struct McpResponseBuilder<T: Serialize + JsonSchema> {
     output: T,
-    tool_name: String,
+    identity: ToolIdentity,
     ctx: RequestContext,
     mcp_execution_id: McpExecutionId,
     client: ClientProfile,
@@ -50,7 +65,7 @@ pub struct McpResponseBuilder<T: Serialize + JsonSchema> {
 impl<T: Serialize + JsonSchema> std::fmt::Debug for McpResponseBuilder<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("McpResponseBuilder")
-            .field("tool_name", &self.tool_name)
+            .field("identity", &self.identity)
             .field("mcp_execution_id", &self.mcp_execution_id)
             .field("client", &self.client)
             .finish_non_exhaustive()
@@ -60,14 +75,14 @@ impl<T: Serialize + JsonSchema> std::fmt::Debug for McpResponseBuilder<T> {
 impl<T: Serialize + JsonSchema + McpOutputSchema> McpResponseBuilder<T> {
     pub fn new(
         output: T,
-        tool_name: impl Into<String>,
+        identity: ToolIdentity,
         ctx: &RequestContext,
         exec_id: &McpExecutionId,
         client: &ClientProfile,
     ) -> Self {
         Self {
             output,
-            tool_name: tool_name.into(),
+            identity,
             ctx: ctx.clone(),
             mcp_execution_id: exec_id.clone(),
             client: client.clone(),
@@ -84,7 +99,10 @@ impl<T: Serialize + JsonSchema + McpOutputSchema> McpResponseBuilder<T> {
         let artifact_id = ArtifactId::generate();
         let summary_str = summary.into();
         let artifact_type_str = artifact_type.into();
-        let tool_name = self.tool_name;
+        let ToolIdentity {
+            server_name,
+            tool_name,
+        } = self.identity;
         let exec_id = self.mcp_execution_id;
 
         let metadata = ExecutionMetadata::builder(&self.ctx)
@@ -115,7 +133,7 @@ impl<T: Serialize + JsonSchema + McpOutputSchema> McpResponseBuilder<T> {
             mcp_execution_id: exec_id.clone(),
             context_id: Some(self.ctx.context_id().clone()),
             user_id: (!self.ctx.is_anonymous()).then(|| self.ctx.user_id().clone()),
-            server_name: tool_name,
+            server_name,
             artifact_type: artifact_type_str,
             title,
             data: stored_envelope,
