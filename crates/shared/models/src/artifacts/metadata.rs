@@ -220,15 +220,3 @@ impl<T: Serialize + JsonSchema> ToolResponse<T> {
         serde_json::to_value(self)
     }
 }
-
-impl<T: JsonSchema> ToolResponse<T> {
-    pub fn schema() -> JsonValue {
-        match serde_json::to_value(schemars::schema_for!(Self)) {
-            Ok(v) => v,
-            Err(e) => {
-                tracing::error!(error = %e, "ToolResponse schema serialization failed");
-                JsonValue::Null
-            },
-        }
-    }
-}
