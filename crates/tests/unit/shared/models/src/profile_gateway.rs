@@ -1051,6 +1051,46 @@ fn validate_accepts_an_image_model_priced_per_image() {
     );
 }
 
+/// A rewrite route dispatches every request to its `upstream_model`, so the
+/// pattern never has to match a catalog id — only the upstream model's rates
+/// matter. The production shape: `gemini-*` rewritten to a priced
+/// `gpt-oss-120b`.
+#[test]
+fn validate_accepts_a_rewrite_route_whose_upstream_model_is_priced() {
+    let registry = priced_registry(vec![priced_model("gpt-oss-120b", token_rates(0.35, 0.75))]);
+    let mut r = route("gemini-*");
+    r.upstream_model = Some("gpt-oss-120b".to_owned());
+    assert!(enabled_gateway(vec![r]).validate(&registry).is_ok());
+}
+
+#[test]
+fn validate_rejects_a_rewrite_route_whose_upstream_model_is_unpriced() {
+    let registry = priced_registry(vec![priced_model("gpt-oss-120b", ModelPricing::default())]);
+    let mut r = route("gemini-*");
+    r.upstream_model = Some("gpt-oss-120b".to_owned());
+    let err = enabled_gateway(vec![r])
+        .validate(&registry)
+        .expect_err("an unpriced upstream model must not boot");
+    assert!(
+        matches!(err, GatewayProfileError::RouteModelUnpriced { ref model, .. } if model == "gpt-oss-120b"),
+        "unexpected: {err}"
+    );
+}
+
+#[test]
+fn validate_rejects_a_rewrite_route_whose_upstream_model_is_not_in_the_catalog() {
+    let registry = priced_registry(vec![priced_model("gpt-oss-120b", token_rates(0.35, 0.75))]);
+    let mut r = route("gemini-*");
+    r.upstream_model = Some("absent-model".to_owned());
+    let err = enabled_gateway(vec![r])
+        .validate(&registry)
+        .expect_err("an upstream model missing from the catalog must not boot");
+    assert!(
+        matches!(err, GatewayProfileError::RouteReachesNoPricedModel { ref pattern, .. } if pattern == "gemini-*"),
+        "unexpected: {err}"
+    );
+}
+
 #[test]
 fn validate_skips_pricing_checks_when_the_gateway_is_disabled() {
     let registry = priced_registry(vec![priced_model("claude-opus-5", ModelPricing::default())]);

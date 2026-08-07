@@ -295,10 +295,12 @@ impl GatewayConfig {
     ///
     /// A route-level `pricing:` override covers everything the route dispatches
     /// (it is what `pricing::resolve` prefers), so it short-circuits the check.
-    /// Otherwise every registry model the pattern can reach must carry usable
-    /// rates — and the pattern must reach at least one, which is what catches a
-    /// glob route pointed at a catalog that has fallen behind the models
-    /// actually in use.
+    /// A route with an `upstream_model` rewrite dispatches every request to
+    /// that one model regardless of the pattern, so that model's rates are the
+    /// ones that must be usable. Otherwise every registry model the pattern can
+    /// reach must carry usable rates — and the pattern must reach at least one,
+    /// which is what catches a glob route pointed at a catalog that has fallen
+    /// behind the models actually in use.
     fn validate_route_pricing(
         &self,
         registry: &ProviderRegistry,
@@ -321,6 +323,20 @@ impl GatewayConfig {
         let Some(entry) = route.resolve(registry) else {
             return Ok(());
         };
+        if let Some(upstream) = route.upstream_model.as_deref() {
+            return match entry.find_model(upstream) {
+                Some(model) if model.pricing.is_billable() => Ok(()),
+                Some(model) => Err(GatewayProfileError::RouteModelUnpriced {
+                    route: route_id,
+                    model: model.id.as_str().to_owned(),
+                }),
+                None => Err(GatewayProfileError::RouteReachesNoPricedModel {
+                    route: route_id,
+                    pattern: route.model_pattern.clone(),
+                    provider: route.provider.as_str().to_owned(),
+                }),
+            };
+        }
         let mut reached = 0usize;
         for model in entry.models.iter().filter(|m| route.matches(m.id.as_str())) {
             reached += 1;
