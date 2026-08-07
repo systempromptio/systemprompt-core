@@ -109,7 +109,8 @@ pub(crate) fn on_update_install_finished(
         Err(e) => {
             let message = format!("{e}");
             app.append_log(format!("update failed: {message}"));
-            app.state.set_update_state(UpdateUiState::Failed { message });
+            app.state
+                .set_update_state(UpdateUiState::Failed { message });
         },
     }
     app.refresh_ui();
@@ -131,7 +132,9 @@ pub(crate) fn on_update_restart_requested(app: &GuiApp) {
     };
     if let Err(e) = update::spawn_installed(&installed) {
         tracing::error!(error = %e, "update: relaunch failed; leaving this instance running");
-        app.append_log(format!("restart failed: {e}; the update is installed — reopen manually"));
+        app.append_log(format!(
+            "restart failed: {e}; the update is installed — reopen manually"
+        ));
         return;
     }
     crate::gui::handlers::quit::on_quit();

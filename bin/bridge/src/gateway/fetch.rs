@@ -262,7 +262,8 @@ impl GatewayClient {
     /// The newest build the gateway publishes for `platform`.
     ///
     /// Resolving "latest" server-side is deliberate: it keeps staged rollouts
-    /// and version pinning a gateway config change rather than a client release.
+    /// and version pinning a gateway config change rather than a client
+    /// release.
     #[tracing::instrument(
         level = "debug",
         skip(self, bearer),

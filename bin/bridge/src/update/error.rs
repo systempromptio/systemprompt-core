@@ -34,7 +34,8 @@ pub enum UpdateError {
     #[error("could not resolve the staging directory")]
     NoStagingDir,
     /// The installed binary or bundle is somewhere this process may not write —
-    /// a per-machine install, or a macOS app still running from the mounted dmg.
+    /// a per-machine install, or a macOS app still running from the mounted
+    /// dmg.
     #[error("{path} is not writable; {hint}")]
     NotWritable { path: PathBuf, hint: String },
     #[error("could not locate the running {what}: {detail}")]

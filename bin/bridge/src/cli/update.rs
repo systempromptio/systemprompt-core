@@ -1,7 +1,7 @@
 //! `update` command: check for, and install, a newer bridge build.
 //!
-//! The only update path on Linux, where the bridge is CLI-only, and a scriptable
-//! equivalent of the GUI button elsewhere.
+//! The only update path on Linux, where the bridge is CLI-only, and a
+//! scriptable equivalent of the GUI button elsewhere.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -209,7 +209,8 @@ mod tests {
         assert!(matches!(
             parse(&argv(&["-y"])),
             Ok(Args {
-                assume_yes: true, ..
+                assume_yes: true,
+                ..
             })
         ));
     }

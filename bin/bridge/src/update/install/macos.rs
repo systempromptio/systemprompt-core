@@ -117,7 +117,8 @@ fn verify_signature(bundle: &Path) -> Result<(), UpdateError> {
 }
 
 // Why: the old bundle moves aside before the new one is written, so a failure
-// mid-copy can restore the working app instead of leaving a half-written bundle.
+// mid-copy can restore the working app instead of leaving a half-written
+// bundle.
 fn swap(new_bundle: &Path, target: &Path) -> Result<(), UpdateError> {
     let backup = crate::fsutil::temp_path_for(target);
     std::fs::rename(target, &backup).map_err(|e| UpdateError::io(target, e))?;

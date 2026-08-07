@@ -140,7 +140,16 @@ mod tests {
 
     #[test]
     fn fraction_is_clamped_and_safe_at_zero_total() {
-        assert!((DownloadProgress { received: 5, total: 0 }.fraction() - 0.0).abs() < f64::EPSILON);
+        assert!(
+            (DownloadProgress {
+                received: 5,
+                total: 0
+            }
+            .fraction()
+                - 0.0)
+                .abs()
+                < f64::EPSILON
+        );
         assert!(
             (DownloadProgress {
                 received: 99,

@@ -31,7 +31,8 @@ pub(super) fn apply(staged: &Path) -> Result<PathBuf, UpdateError> {
 }
 
 // Why: shells out to `tar` rather than linking an archive crate — it is present
-// on every supported distribution, and this mirrors `scripts/install-bridge.sh`.
+// on every supported distribution, and this mirrors
+// `scripts/install-bridge.sh`.
 fn unpack(archive: &Path, into: &Path) -> Result<PathBuf, UpdateError> {
     let out = Command::new("tar")
         .arg("-xzf")
