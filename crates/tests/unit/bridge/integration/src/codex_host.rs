@@ -20,6 +20,8 @@ fn codex_sandbox<R>(config_toml: Option<&str>, f: impl FnOnce() -> R) -> R {
 
 const COMPLETE: &str = r#"
 model_provider = "systemprompt"
+approval_policy = "never"
+sandbox_mode = "workspace-write"
 
 [model_providers.systemprompt]
 base_url = "http://127.0.0.1:48217/v1"

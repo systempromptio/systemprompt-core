@@ -12,6 +12,10 @@
 
 - `McpOutputSchema::text_body` names the plain-text body of an output; text-bearing artifacts provide it so text-only clients receive the data, and other outputs fall back to pretty-printed JSON under the summary.
 
+### Fixed
+
+- `McpOutputSchema::validated_schema` guarantees an **object schema**: `"type": "object"` is inserted at the root when schemars omits it. The MCP spec requires a tool's `outputSchema` to be an object schema, and Claude Desktop enforces it strictly — a tagged-enum output (`CliArtifact`) previously advertised a bare `oneOf` with no `type`, and the client parked the entire server at connect time on the first such tool. Sound for every implementor: tagged-enum variants all serialize as objects.
+
 ## [0.29.0] - 2026-08-05
 
 ### Changed

@@ -2,8 +2,9 @@
 
 use systemprompt_mcp::McpOutputSchema;
 use systemprompt_models::artifacts::{
-    AudioArtifact, ChartArtifact, CopyPasteTextArtifact, DashboardArtifact, ImageArtifact,
-    ListArtifact, PresentationCardArtifact, TableArtifact, TextArtifact, VideoArtifact,
+    AudioArtifact, ChartArtifact, CliArtifact, CopyPasteTextArtifact, DashboardArtifact,
+    ImageArtifact, ListArtifact, PresentationCardArtifact, TableArtifact, TextArtifact,
+    VideoArtifact,
 };
 
 #[test]
@@ -115,6 +116,38 @@ fn validated_schema_for_each_artifact() {
     for schema in &schemas {
         assert!(schema.is_object(), "schema should be a JSON object");
         assert!(schema.get("x-artifact-type").is_some());
+    }
+}
+
+/// The MCP spec requires a tool's `outputSchema` root to carry
+/// `"type": "object"`, and Claude Desktop parks the entire server on the
+/// first tool that violates it. `CliArtifact` is the case that regressed:
+/// a tagged enum whose schemars output is a bare `oneOf` with no `type`.
+#[test]
+fn every_validated_schema_is_an_object_schema() {
+    let schemas = [
+        <CliArtifact as McpOutputSchema>::validated_schema(),
+        <TextArtifact as McpOutputSchema>::validated_schema(),
+        <CopyPasteTextArtifact as McpOutputSchema>::validated_schema(),
+        <AudioArtifact as McpOutputSchema>::validated_schema(),
+        <DashboardArtifact as McpOutputSchema>::validated_schema(),
+        <PresentationCardArtifact as McpOutputSchema>::validated_schema(),
+        <TableArtifact as McpOutputSchema>::validated_schema(),
+        <ListArtifact as McpOutputSchema>::validated_schema(),
+        <ChartArtifact as McpOutputSchema>::validated_schema(),
+        <ImageArtifact as McpOutputSchema>::validated_schema(),
+        <VideoArtifact as McpOutputSchema>::validated_schema(),
+    ];
+    for schema in &schemas {
+        assert_eq!(
+            schema.get("type").and_then(|t| t.as_str()),
+            Some("object"),
+            "outputSchema root must be an object schema: {}",
+            schema
+                .get("x-artifact-type")
+                .and_then(|v| v.as_str())
+                .unwrap_or("?")
+        );
     }
 }
 
