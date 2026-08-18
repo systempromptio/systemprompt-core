@@ -53,8 +53,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # ubuntu-22.04 pins the oldest supported runner glibc (2.35) so the
+          # shipped binary runs on Debian 12 / Ubuntu 22.04 era distributions.
           - target: x86_64-unknown-linux-gnu
-            runner: ubuntu-latest
+            runner: ubuntu-22.04
             asset: systemprompt-bridge-x86_64-unknown-linux-gnu
           - target: aarch64-apple-darwin
             runner: macos-14
