@@ -95,7 +95,7 @@ impl SamplingRepository {
             filter.provider.as_deref(),
             filter.model.as_deref(),
             filter.ids.as_deref(),
-            filter.context_id.as_ref().map(|c| c.as_str()),
+            filter.context_id.as_ref().map(ContextId::as_str),
             filter.limit
         )
         .fetch_all(self.pool.as_ref())
@@ -139,7 +139,7 @@ impl SamplingRepository {
             filter.provider.as_deref(),
             filter.model.as_deref(),
             filter.ids.as_deref(),
-            filter.context_id.as_ref().map(|c| c.as_str()),
+            filter.context_id.as_ref().map(ContextId::as_str),
             filter.limit
         )
         .fetch_all(self.pool.as_ref())
