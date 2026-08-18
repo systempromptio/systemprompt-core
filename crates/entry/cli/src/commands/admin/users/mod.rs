@@ -104,66 +104,24 @@ pub async fn execute(cmd: UsersCommands, ctx: &CommandContext) -> Result<()> {
         bail!("Write operations require full profile context");
     }
 
-    match cmd {
-        UsersCommands::List(args) => {
-            let result = list::execute(args, ctx).await?;
-            render_result(&result, &ctx.cli);
-            Ok(())
-        },
-        UsersCommands::Show(args) => {
-            let result = show::execute(args, ctx).await?;
-            render_result(&result, &ctx.cli);
-            Ok(())
-        },
-        UsersCommands::Search(args) => {
-            let result = search::execute(args, ctx).await?;
-            render_result(&result, &ctx.cli);
-            Ok(())
-        },
-        UsersCommands::Create(args) => {
-            let result = create::execute(args, ctx).await?;
-            render_result(&result, &ctx.cli);
-            Ok(())
-        },
-        UsersCommands::Update(args) => {
-            let result = update::execute(args, ctx).await?;
-            render_result(&result, &ctx.cli);
-            Ok(())
-        },
-        UsersCommands::Delete(args) => {
-            let result = delete::execute(args, ctx).await?;
-            render_result(&result, &ctx.cli);
-            Ok(())
-        },
-        UsersCommands::Count(args) => {
-            let result = count::execute(args, ctx).await?;
-            render_result(&result, &ctx.cli);
-            Ok(())
-        },
-        UsersCommands::Export(args) => {
-            let result = export::execute(args, ctx).await?;
-            render_result(&result, &ctx.cli);
-            Ok(())
-        },
-        UsersCommands::Stats => {
-            let result = stats::execute(ctx).await?;
-            render_result(&result, &ctx.cli);
-            Ok(())
-        },
-        UsersCommands::Merge(args) => {
-            let result = merge::execute(args, ctx).await?;
-            render_result(&result, &ctx.cli);
-            Ok(())
-        },
-        UsersCommands::Bulk(cmd) => bulk::execute(cmd, ctx).await,
-        UsersCommands::Role(cmd) => role::execute(cmd, ctx).await,
-        UsersCommands::Session(cmd) => session::execute(cmd, ctx).await,
-        UsersCommands::Ban(cmd) => ban::execute(cmd, ctx).await,
-        UsersCommands::Webauthn(cmd) => webauthn::execute(cmd, ctx).await,
-        UsersCommands::ApiKey(cmd) => {
-            let result = apikey::execute(cmd, ctx).await?;
-            render_result(&result, &ctx.cli);
-            Ok(())
-        },
-    }
+    let output = match cmd {
+        UsersCommands::Bulk(cmd) => return bulk::execute(cmd, ctx).await,
+        UsersCommands::Role(cmd) => return role::execute(cmd, ctx).await,
+        UsersCommands::Session(cmd) => return session::execute(cmd, ctx).await,
+        UsersCommands::Ban(cmd) => return ban::execute(cmd, ctx).await,
+        UsersCommands::Webauthn(cmd) => return webauthn::execute(cmd, ctx).await,
+        UsersCommands::List(args) => list::execute(args, ctx).await?,
+        UsersCommands::Show(args) => show::execute(args, ctx).await?,
+        UsersCommands::Search(args) => search::execute(args, ctx).await?,
+        UsersCommands::Create(args) => create::execute(args, ctx).await?,
+        UsersCommands::Update(args) => update::execute(args, ctx).await?,
+        UsersCommands::Delete(args) => delete::execute(args, ctx).await?,
+        UsersCommands::Count(args) => count::execute(args, ctx).await?,
+        UsersCommands::Export(args) => export::execute(args, ctx).await?,
+        UsersCommands::Stats => stats::execute(ctx).await?,
+        UsersCommands::Merge(args) => merge::execute(args, ctx).await?,
+        UsersCommands::ApiKey(cmd) => apikey::execute(cmd, ctx).await?,
+    };
+    render_result(&output, &ctx.cli);
+    Ok(())
 }
