@@ -69,11 +69,30 @@ pub enum SafetyHistoryMode {
     Block,
 }
 
+/// Phrase-list tuning for the builtin `heuristic` scanner. Ignored when an
+/// extension registers its own scanner under the name `heuristic`, which
+/// shadows the builtin wholesale.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(deny_unknown_fields)]
+pub struct HeuristicConfig {
+    /// Replaces the builtin phrase list entirely when set.
+    #[serde(default)]
+    pub phrases: Option<Vec<String>>,
+    /// Appended to whichever base list is in effect.
+    #[serde(default)]
+    pub extra_phrases: Vec<String>,
+    /// Drops the builtin list, leaving only `phrases`/`extra_phrases`.
+    #[serde(default)]
+    pub disable_builtin: bool,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(deny_unknown_fields)]
 pub struct SafetyConfig {
     #[serde(default)]
     pub scanners: Vec<String>,
+    #[serde(default)]
+    pub heuristic: HeuristicConfig,
     #[serde(default)]
     pub block_categories: Vec<String>,
     /// Response-phase categories that deny the reply instead of merely

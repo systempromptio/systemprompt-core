@@ -89,3 +89,63 @@ fn default_enabled_is_true() {
     let cfg: GatewayPolicyConfig = serde_yaml::from_str(yaml).expect("parses");
     assert!(cfg.policies[0].enabled);
 }
+
+#[test]
+fn heuristic_scanner_with_empty_effective_list_is_rejected() {
+    use systemprompt_ai::HeuristicConfig;
+    let mut spec = GatewayPolicySpec::default();
+    spec.safety.scanners = vec!["heuristic".to_owned()];
+    spec.safety.heuristic = HeuristicConfig {
+        disable_builtin: true,
+        ..HeuristicConfig::default()
+    };
+    let cfg = GatewayPolicyConfig {
+        policies: vec![GatewayPolicyEntry {
+            name: "strict".to_owned(),
+            enabled: true,
+            spec,
+        }],
+    };
+    let err = cfg
+        .validate()
+        .expect_err("empty phrase list must be rejected");
+    assert!(err.to_string().contains("heuristic"), "{err}");
+}
+
+#[test]
+fn heuristic_scanner_with_custom_phrases_validates() {
+    use systemprompt_ai::HeuristicConfig;
+    let mut spec = GatewayPolicySpec::default();
+    spec.safety.scanners = vec!["heuristic".to_owned()];
+    spec.safety.heuristic = HeuristicConfig {
+        phrases: Some(vec!["duck".to_owned()]),
+        ..HeuristicConfig::default()
+    };
+    let cfg = GatewayPolicyConfig {
+        policies: vec![GatewayPolicyEntry {
+            name: "strict".to_owned(),
+            enabled: true,
+            spec,
+        }],
+    };
+    cfg.validate().expect("custom phrase list must validate");
+}
+
+#[test]
+fn yaml_parses_heuristic_block() {
+    let yaml = r#"
+policies:
+  - name: guarded
+    spec:
+      safety:
+        scanners: [heuristic]
+        heuristic:
+          extra_phrases: [duck]
+"#;
+    let cfg: GatewayPolicyConfig = serde_yaml::from_str(yaml).expect("yaml parses");
+    assert_eq!(
+        cfg.policies[0].spec.safety.heuristic.extra_phrases,
+        vec!["duck"]
+    );
+    cfg.validate().expect("validates");
+}

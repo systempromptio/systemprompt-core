@@ -9,6 +9,7 @@ use systemprompt_models::wire::canonical::{CanonicalRequest, CanonicalResponse, 
 use super::{
     Finding, PHASE_REQUEST, PHASE_REQUEST_HISTORY, PHASE_RESPONSE, SafetyScanner, Severity,
 };
+use crate::services::gateway::spec::HeuristicConfig;
 
 const JAILBREAK_PHRASES: &[&str] = &[
     "ignore previous instructions",
@@ -23,8 +24,38 @@ const JAILBREAK_PHRASES: &[&str] = &[
 
 const EXCERPT_CAP: usize = 240;
 
-#[derive(Debug, Clone, Copy, Default)]
-pub struct HeuristicScanner;
+#[derive(Debug, Clone)]
+pub struct HeuristicScanner {
+    phrases: Vec<String>,
+}
+
+impl Default for HeuristicScanner {
+    fn default() -> Self {
+        Self::new(&HeuristicConfig::default())
+    }
+}
+
+impl HeuristicScanner {
+    #[must_use]
+    pub fn new(config: &HeuristicConfig) -> Self {
+        Self {
+            phrases: effective_phrases(config),
+        }
+    }
+}
+
+pub fn effective_phrases(config: &HeuristicConfig) -> Vec<String> {
+    let base: Vec<String> = match (&config.phrases, config.disable_builtin) {
+        (Some(list), _) => list.clone(),
+        (None, true) => Vec::new(),
+        (None, false) => JAILBREAK_PHRASES.iter().map(|p| (*p).to_owned()).collect(),
+    };
+    base.into_iter()
+        .chain(config.extra_phrases.iter().cloned())
+        .map(|p| p.to_ascii_lowercase())
+        .filter(|p| !p.trim().is_empty())
+        .collect()
+}
 
 #[async_trait]
 impl SafetyScanner for HeuristicScanner {
@@ -35,15 +66,15 @@ impl SafetyScanner for HeuristicScanner {
     async fn scan_request(&self, req: &CanonicalRequest) -> Vec<Finding> {
         let mut findings = Vec::new();
         if let Some(sys) = &req.system {
-            scan_text(PHASE_REQUEST, sys, &mut findings);
+            scan_text(&self.phrases, PHASE_REQUEST, sys, &mut findings);
         }
         if let Some(text) = req.latest_message_text(Role::User) {
-            scan_text(PHASE_REQUEST, &text, &mut findings);
+            scan_text(&self.phrases, PHASE_REQUEST, &text, &mut findings);
         }
         // Why: each leaf is its own unit — concatenating them would let two
         // unrelated strings splice into a match neither one contains.
         for leaf in req.forwarded_surface.leaves() {
-            scan_text(PHASE_REQUEST, &leaf.value, &mut findings);
+            scan_text(&self.phrases, PHASE_REQUEST, &leaf.value, &mut findings);
         }
         findings
     }
@@ -51,7 +82,7 @@ impl SafetyScanner for HeuristicScanner {
     async fn scan_request_history(&self, req: &CanonicalRequest) -> Vec<Finding> {
         let mut findings = Vec::new();
         for unit in history_units(req) {
-            scan_text(PHASE_REQUEST_HISTORY, &unit, &mut findings);
+            scan_text(&self.phrases, PHASE_REQUEST_HISTORY, &unit, &mut findings);
         }
         findings
     }
@@ -59,7 +90,7 @@ impl SafetyScanner for HeuristicScanner {
     async fn scan_response_final(&self, response: &CanonicalResponse) -> Vec<Finding> {
         let mut findings = Vec::new();
         for unit in response.content_units() {
-            scan_text(PHASE_RESPONSE, &unit, &mut findings);
+            scan_text(&self.phrases, PHASE_RESPONSE, &unit, &mut findings);
         }
         findings
     }
@@ -78,10 +109,10 @@ fn history_units(req: &CanonicalRequest) -> Vec<String> {
     units
 }
 
-fn scan_text(phase: &'static str, text: &str, out: &mut Vec<Finding>) {
+fn scan_text(phrases: &[String], phase: &'static str, text: &str, out: &mut Vec<Finding>) {
     let lower = text.to_ascii_lowercase();
-    for phrase in JAILBREAK_PHRASES {
-        if let Some(idx) = lower.find(phrase) {
+    for phrase in phrases {
+        if let Some(idx) = lower.find(phrase.as_str()) {
             let end = (idx + phrase.len() + 80).min(text.len());
             let start = idx.saturating_sub(40);
             let excerpt = text[start..end]

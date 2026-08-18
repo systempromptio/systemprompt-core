@@ -23,8 +23,8 @@ use axum::response::Response;
 use http::HeaderValue;
 use systemprompt_ai::repository::AiSafetyFindingRepository;
 use systemprompt_ai::{
-    Finding, InsertSafetyFinding, OverrideAction, OverrideContext, OverrideEngine, SafetyConfig,
-    SafetyHistoryMode,
+    Finding, HeuristicScanner, InsertSafetyFinding, OverrideAction, OverrideContext,
+    OverrideEngine, SafetyConfig, SafetyHistoryMode, SafetyScanner,
 };
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{AiRequestId, ModelId, ProviderId};
@@ -270,7 +270,7 @@ pub(super) async fn run_request_safety_scan(
     let scan_history = safety.history != SafetyHistoryMode::Off;
     let mut findings = Vec::new();
     for name in &safety.scanners {
-        if let Some(scanner) = registry.get(name) {
+        if let Some(scanner) = resolve_scanner(registry, name, safety) {
             findings.extend(scanner.scan_request(request).await);
             if scan_history {
                 findings.extend(scanner.scan_request_history(request).await);
@@ -284,6 +284,24 @@ pub(super) async fn run_request_safety_scan(
         persist_findings(safety_repo, ai_request_id, &findings).await;
     }
     findings
+}
+
+// Why: an extension registration named `heuristic` shadows the builtin (and
+// the policy's `heuristic` config block is then ignored); the builtin is
+// constructed per policy so each policy's phrase list applies.
+fn resolve_scanner(
+    registry: &SafetyScannerRegistry,
+    name: &str,
+    safety: &SafetyConfig,
+) -> Option<Arc<dyn SafetyScanner>> {
+    if let Some(scanner) = registry.get(name) {
+        return Some(Arc::clone(scanner));
+    }
+    if name == "heuristic" {
+        let scanner: Arc<dyn SafetyScanner> = Arc::new(HeuristicScanner::new(&safety.heuristic));
+        return Some(scanner);
+    }
+    None
 }
 
 /// A scanner reports one finding per match, so a message tripping two jailbreak
@@ -310,7 +328,7 @@ pub(in crate::services::gateway) async fn run_response_safety_scan(
     let registry = SafetyScannerRegistry::global();
     let mut findings = Vec::new();
     for name in &safety.scanners {
-        if let Some(scanner) = registry.get(name) {
+        if let Some(scanner) = resolve_scanner(registry, name, safety) {
             findings.extend(scanner.scan_response_final(response).await);
         } else {
             tracing::warn!(scanner = %name, "Unknown safety scanner in policy — skipped");

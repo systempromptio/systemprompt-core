@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.31.0] - 2026-08-18
+
+### Changed
+
+- `GET /v1/bridge/manifest` returns a `SignedManifestEnvelope`: the JCS-canonical manifest string as `payload` plus the signature over those exact bytes, making manifest fields forward-compatible for older bridges.
+- The builtin `heuristic` safety scanner is constructed per policy from `safety.heuristic`, so each policy's phrase list applies; extension scanners registered under the same name still shadow it.
+
 ## [0.30.0] - 2026-08-07
 
 ### Added

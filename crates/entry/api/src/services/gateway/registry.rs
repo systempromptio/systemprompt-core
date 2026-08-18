@@ -11,7 +11,7 @@ use super::protocol::outbound::gemini::GeminiOutbound;
 use super::protocol::outbound::openai_chat::OpenAiChatOutbound;
 use super::protocol::outbound::openai_responses::OpenAiResponsesOutbound;
 use super::protocol::outbound::{OutboundAdapter, OutboundAdapterRegistration};
-use systemprompt_ai::{HeuristicScanner, NullScanner, SafetyScanner, SafetyScannerRegistration};
+use systemprompt_ai::{NullScanner, SafetyScanner, SafetyScannerRegistration};
 use systemprompt_models::profile::WireProtocol;
 
 pub struct GatewayUpstreamRegistry {
@@ -101,14 +101,16 @@ impl SafetyScannerRegistry {
         self.entries.keys().map(String::as_str).collect()
     }
 
+    // Why: the builtin `heuristic` scanner is NOT registered here — it is
+    // constructed per policy from `SafetyConfig.heuristic` at scan time, and
+    // only when no extension registration shadows the name.
     pub(super) fn build() -> Self {
         let mut entries: HashMap<String, Arc<dyn SafetyScanner>> = HashMap::new();
-        entries.insert("heuristic".to_owned(), Arc::new(HeuristicScanner));
         entries.insert("null".to_owned(), Arc::new(NullScanner));
 
         for registration in inventory::iter::<SafetyScannerRegistration> {
             let name = registration.name.to_owned();
-            if entries.contains_key(&name) {
+            if entries.contains_key(&name) || name == "heuristic" {
                 tracing::warn!(
                     name = %registration.name,
                     "Extension-registered safety scanner shadows a built-in"

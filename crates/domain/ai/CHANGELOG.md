@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.31.0] - 2026-08-18
+
+### Breaking
+
+- **Breaking:** `HeuristicScanner` is constructed from configuration: `HeuristicScanner::new(&HeuristicConfig)` (or `Default` for the builtin phrase list) replaces the unit struct. Migrate by constructing it with the policy's `safety.heuristic` block.
+
+### Added
+
+- `SafetyConfig::heuristic` (`HeuristicConfig { phrases, extra_phrases, disable_builtin }`) tunes the builtin heuristic scanner's phrase list per policy; `effective_phrases` computes the resulting list, and `GatewayPolicyConfig::validate` rejects a policy that enables the scanner with an empty effective list. An extension registration named `heuristic` shadows the builtin and its config block is then ignored.
+
 ## [0.29.0] - 2026-08-05
 
 ### Added

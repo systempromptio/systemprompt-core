@@ -56,6 +56,17 @@ impl GatewayPolicyConfig {
                     reason: format!("duplicate policy name '{}'", policy.name),
                 });
             }
+            let safety = &policy.spec.safety;
+            if safety.scanners.iter().any(|s| s == "heuristic")
+                && crate::services::gateway::safety::effective_phrases(&safety.heuristic).is_empty()
+            {
+                return Err(RepositoryError::InvalidData {
+                    field: format!("policies[{idx}].spec.safety.heuristic"),
+                    reason: "heuristic scanner is enabled but its effective phrase list is \
+                             empty — set phrases/extra_phrases or remove the scanner"
+                        .to_owned(),
+                });
+            }
         }
         Ok(())
     }

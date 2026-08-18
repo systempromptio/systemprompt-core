@@ -42,16 +42,16 @@ fn every_enumerated_tag_resolves_to_an_adapter() {
 }
 
 #[test]
-fn the_safety_registry_carries_both_built_in_scanners() {
+fn the_safety_registry_carries_null_but_not_the_heuristic() {
     let registry = SafetyScannerRegistry::global();
 
     assert!(
-        registry.get("heuristic").is_some(),
-        "the heuristic scanner backs the default safety policy"
-    );
-    assert!(
         registry.get("null").is_some(),
         "the null scanner is how a deployment opts out explicitly"
+    );
+    assert!(
+        registry.get("heuristic").is_none(),
+        "the builtin heuristic is constructed per policy from SafetyConfig, not registered;          a registry entry named heuristic would mean an extension shadows it"
     );
 }
 
@@ -71,7 +71,6 @@ fn every_named_safety_scanner_resolves() {
     let registry = SafetyScannerRegistry::global();
 
     let names = registry.names();
-    assert!(names.contains(&"heuristic"), "{names:?}");
     assert!(names.contains(&"null"), "{names:?}");
     for name in names {
         assert!(registry.get(name).is_some(), "{name}");

@@ -113,5 +113,5 @@ macro_rules! register_safety_scanner {
     };
 }
 
-pub use heuristic::HeuristicScanner;
+pub use heuristic::{HeuristicScanner, effective_phrases};
 pub use null::NullScanner;

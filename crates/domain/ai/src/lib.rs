@@ -61,7 +61,7 @@ pub use services::core::{AiService, AiServiceProviders, ImageService};
 
 pub use services::gateway::{
     Finding, GATEWAY_POLICIES_FILE, GatewayPolicyConfig, GatewayPolicyEntry,
-    GatewayPolicyIngestionService, GatewayPolicySpec, HeuristicScanner,
+    GatewayPolicyIngestionService, GatewayPolicySpec, HeuristicConfig, HeuristicScanner,
     IngestOptions as GatewayPolicyIngestOptions, IngestReport as GatewayPolicyIngestReport,
     NullScanner, OverrideAction, OverrideContext, OverrideContextBuilder, OverrideEngine,
     OverrideError, OverrideResolution, OverrideSource, PHASE_REQUEST, PHASE_REQUEST_HISTORY,
