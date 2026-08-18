@@ -118,9 +118,10 @@ pub async fn run_once(
     allow_tofu: bool,
 ) -> Result<SyncSummary, SyncError> {
     let fetch = manifest::fetch_authenticated_manifest().await?;
-    manifest::verify_signature(&fetch, allow_unsigned, allow_tofu).await?;
+    let synced = manifest::verify_and_decode(&fetch, allow_unsigned, allow_tofu).await?;
 
     let location = paths::org_plugins_effective().ok_or(SyncError::PathUnresolvable)?;
+    check_cowork_scope(&synced, &location)?;
     if !location.path.is_dir() {
         // Why: only the macOS system path needs `sudo install --apply` — the
         // per-user location (Windows/Linux) is writable by this process, so a
@@ -157,22 +158,51 @@ pub async fn run_once(
                 return Err(SyncError::from(e));
             },
         };
-        check_replay(&last_state, &fetch.manifest.manifest_version)?;
-        check_skew(&fetch.manifest.not_before, now)?;
+        check_replay(&last_state, &synced.manifest_version)?;
+        check_skew(&synced.not_before, now)?;
     }
 
-    let report = apply::apply_manifest(
-        &fetch.client,
-        fetch.bearer.expose(),
-        &fetch.manifest,
-        &location,
-    )
-    .await
-    .map_err(SyncError::ApplyFailed)?;
+    let report = apply::apply_manifest(&fetch.client, fetch.bearer.expose(), &synced, &location)
+        .await
+        .map_err(SyncError::ApplyFailed)?;
 
-    persist_last_sync(&last_sync_path, &fetch.manifest, &report, now);
+    persist_last_sync(&last_sync_path, &synced, &report, now);
 
-    Ok(build_summary(&fetch.manifest, report))
+    Ok(build_summary(&synced, report))
+}
+
+// Why: on Windows, Cowork scans only the system org-plugins path. Writing the
+// user-scope fallback there succeeds but is invisible to Cowork, so a sync
+// that targets the cowork host from a non-elevated process must fail loudly
+// instead of reporting success. Other platforms either have no fallback
+// (macOS) or no Cowork desktop app, and the gateway enables all known hosts
+// by default, so the check cannot be platform-neutral.
+#[cfg(target_os = "windows")]
+fn check_cowork_scope(
+    manifest: &SignedManifest,
+    location: &paths::OrgPluginsLocation,
+) -> Result<(), SyncError> {
+    if manifest.enabled_hosts.iter().any(|h| h == "cowork")
+        && let paths::FallbackReason::SystemUnwritable { system_path } = &location.reason
+    {
+        return Err(SyncError::CoworkNeedsElevation {
+            bin: crate::brand::brand().binary_name,
+            system_path: system_path.display().to_string(),
+        });
+    }
+    Ok(())
+}
+
+#[cfg(not(target_os = "windows"))]
+#[expect(
+    clippy::unnecessary_wraps,
+    reason = "signature must match the windows variant so run_once stays cfg-free"
+)]
+const fn check_cowork_scope(
+    _manifest: &SignedManifest,
+    _location: &paths::OrgPluginsLocation,
+) -> Result<(), SyncError> {
+    Ok(())
 }
 
 fn persist_last_sync(

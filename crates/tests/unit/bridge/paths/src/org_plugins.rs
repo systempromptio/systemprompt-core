@@ -142,4 +142,60 @@ fn an_unwritable_system_root_falls_back_to_the_user_scope() {
 
     assert!(matches!(target.scope, Scope::User), "{target:?}");
     assert_eq!(target.path, data.path().join("Claude").join("org-plugins"));
+    match &target.reason {
+        systemprompt_bridge::config::paths::FallbackReason::SystemUnwritable { system_path } => {
+            assert_eq!(
+                *system_path,
+                system.path().join("Claude").join("org-plugins")
+            );
+        },
+        other => panic!("expected SystemUnwritable, got {other:?}"),
+    }
+}
+
+#[cfg(not(any(target_os = "macos", target_os = "windows")))]
+#[test]
+fn a_writable_system_root_is_preferred() {
+    use systemprompt_bridge::config::paths::{
+        FallbackReason, Scope, org_plugins_effective, org_plugins_install_target,
+    };
+
+    let _guard = env_lock();
+    let data = tempfile::TempDir::new().expect("data dir");
+    let system = tempfile::TempDir::new().expect("system dir");
+    let system_root = system.path().join("Claude").join("org-plugins");
+    std::fs::create_dir_all(&system_root).expect("writable system root");
+
+    let prev_xdg = std::env::var_os("XDG_DATA_HOME");
+    let prev_system = std::env::var_os("SP_BRIDGE_ORG_PLUGINS_SYSTEM");
+    set_xdg(&data.path().display().to_string());
+    unsafe {
+        std::env::set_var("SP_BRIDGE_ORG_PLUGINS_SYSTEM", &system_root);
+    }
+
+    let target = org_plugins_install_target().expect("a target always resolves");
+    let effective = org_plugins_effective().expect("a location always resolves");
+
+    match prev_xdg {
+        Some(v) => set_xdg_os(&v),
+        None => clear_xdg(),
+    }
+    match prev_system {
+        Some(v) => unsafe { std::env::set_var("SP_BRIDGE_ORG_PLUGINS_SYSTEM", v) },
+        None => unsafe { std::env::remove_var("SP_BRIDGE_ORG_PLUGINS_SYSTEM") },
+    }
+
+    for loc in [&target, &effective] {
+        assert!(matches!(loc.scope, Scope::System), "{loc:?}");
+        assert_eq!(loc.path, system_root);
+        assert!(matches!(loc.reason, FallbackReason::Preferred), "{loc:?}");
+    }
+}
+
+#[cfg(target_os = "macos")]
+#[test]
+fn macos_effective_reason_is_preferred() {
+    use systemprompt_bridge::config::paths::FallbackReason;
+    let loc = org_plugins_effective().expect("system path resolves on macOS");
+    assert!(matches!(loc.reason, FallbackReason::Preferred));
 }

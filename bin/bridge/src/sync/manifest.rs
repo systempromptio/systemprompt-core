@@ -8,7 +8,9 @@ use crate::auth::secret::Secret;
 use crate::config;
 use crate::gateway::GatewayClient;
 use crate::gateway::errors::GatewayError;
-use crate::gateway::manifest::{SignedManifest, SignedManifestVerify};
+use crate::gateway::manifest::{
+    ManifestError, SignedManifest, SignedManifestEnvelope, decode_payload, verify_envelope,
+};
 use crate::ids::PinnedPubKey;
 
 fn map_gateway_error(err: GatewayError, endpoint: &'static str) -> SyncError {
@@ -20,14 +22,29 @@ fn map_gateway_error(err: GatewayError, endpoint: &'static str) -> SyncError {
                 status: status.as_u16(),
             }
         },
+        GatewayError::ManifestDecode(e) if e.is_decode() => SyncError::ManifestShape(e.to_string()),
         other => SyncError::Network(other.to_string()),
+    }
+}
+
+fn map_manifest_error(err: ManifestError) -> SyncError {
+    match err {
+        ManifestError::SchemaTooNew {
+            required,
+            supported,
+        } => SyncError::SchemaTooNew {
+            required,
+            supported,
+        },
+        ManifestError::PayloadParse(e) => SyncError::ManifestShape(e.to_string()),
+        other => SyncError::SignatureFailed(other.to_string()),
     }
 }
 
 pub(super) struct ManifestFetch {
     pub client: GatewayClient,
     pub bearer: Secret,
-    pub manifest: SignedManifest,
+    pub envelope: SignedManifestEnvelope,
 }
 
 pub(super) async fn fetch_authenticated_manifest() -> Result<ManifestFetch, SyncError> {
@@ -42,7 +59,7 @@ pub(super) async fn fetch_authenticated_manifest() -> Result<ManifestFetch, Sync
     };
 
     let client = GatewayClient::new(gateway);
-    let manifest = client
+    let envelope = client
         .fetch_manifest(bearer.expose())
         .await
         .map_err(|e| map_gateway_error(e, "manifest"))?;
@@ -50,23 +67,20 @@ pub(super) async fn fetch_authenticated_manifest() -> Result<ManifestFetch, Sync
     Ok(ManifestFetch {
         client,
         bearer,
-        manifest,
+        envelope,
     })
 }
 
-pub(super) async fn verify_signature(
+pub(super) async fn verify_and_decode(
     fetch: &ManifestFetch,
     allow_unsigned: bool,
     allow_tofu: bool,
-) -> Result<(), SyncError> {
-    if allow_unsigned {
-        return Ok(());
+) -> Result<SignedManifest, SyncError> {
+    if !allow_unsigned {
+        let pubkey = resolve_pubkey(&fetch.client, allow_tofu).await?;
+        verify_envelope(&fetch.envelope, pubkey.as_str()).map_err(map_manifest_error)?;
     }
-    let pubkey = resolve_pubkey(&fetch.client, allow_tofu).await?;
-    fetch
-        .manifest
-        .verify(pubkey.as_str())
-        .map_err(|e| SyncError::SignatureFailed(e.to_string()))
+    decode_payload(&fetch.envelope).map_err(map_manifest_error)
 }
 
 async fn resolve_pubkey(

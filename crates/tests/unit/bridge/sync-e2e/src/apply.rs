@@ -20,13 +20,11 @@ use std::path::{Path, PathBuf};
 
 use sha2::{Digest, Sha256};
 use systemprompt_bridge::gateway::manifest::{
-    AgentEntry, AgentId, AgentName, HookEntry, ManagedMcpServer, PluginEntry, PluginFile,
-    SignedManifest, SkillEntry, UserInfo, ValidatedUrl,
+    AgentEntry, AgentId, AgentName, HookEntry, MANIFEST_SCHEMA_VERSION, ManagedMcpServer,
+    PluginEntry, PluginFile, SignedManifest, SkillEntry, UserInfo, ValidatedUrl,
 };
 use systemprompt_bridge::gateway::manifest_version::ManifestVersion;
-use systemprompt_bridge::ids::{
-    ManagedMcpServerName, ManifestSignature, Sha256Digest, SkillId, SkillName,
-};
+use systemprompt_bridge::ids::{ManagedMcpServerName, Sha256Digest, SkillId, SkillName};
 use systemprompt_bridge::mcp_registry::normalize_key;
 use systemprompt_bridge::sync::run_once;
 use systemprompt_identifiers::HookId;
@@ -214,7 +212,10 @@ fn sandbox(gateway_uri: &str, pat_file: &Path, pubkey: Option<&str>) -> SandboxD
 }
 
 fn manifest_json(m: &SignedManifest) -> serde_json::Value {
-    serde_json::to_value(m).unwrap()
+    serde_json::json!({
+        "payload": serde_json::to_string(m).unwrap(),
+        "signature": "",
+    })
 }
 
 fn with_sandbox<F>(
@@ -277,6 +278,7 @@ fn run_once_applies_full_manifest_end_to_end() {
         let server = MockServer::start().await;
 
         let m = SignedManifest {
+            min_schema_version: MANIFEST_SCHEMA_VERSION,
             manifest_version: version(),
             issued_at: "2026-05-01T12:00:00+00:00".into(),
             not_before: "2026-05-01T12:00:00+00:00".into(),
@@ -308,7 +310,6 @@ fn run_once_applies_full_manifest_end_to_end() {
             host_model_protocols: Default::default(),
             artifacts: vec![],
             allow_claude_ai_connectors: false,
-            signature: ManifestSignature::new("unused-when-allow-unsigned"),
         };
 
         pat_mock().mount(&server).await;
@@ -437,6 +438,7 @@ fn run_once_empty_manifest_writes_no_plugins() {
         let server = MockServer::start().await;
 
         let m = SignedManifest {
+            min_schema_version: MANIFEST_SCHEMA_VERSION,
             manifest_version: version(),
             issued_at: "2026-05-01T12:00:00+00:00".into(),
             not_before: "2026-05-01T12:00:00+00:00".into(),
@@ -453,7 +455,6 @@ fn run_once_empty_manifest_writes_no_plugins() {
             host_model_protocols: Default::default(),
             artifacts: vec![],
             allow_claude_ai_connectors: false,
-            signature: ManifestSignature::new(""),
         };
 
         pat_mock().mount(&server).await;
@@ -491,6 +492,7 @@ fn run_once_surfaces_plugin_file_404_as_apply_failure() {
         let server = MockServer::start().await;
 
         let m = SignedManifest {
+            min_schema_version: MANIFEST_SCHEMA_VERSION,
             manifest_version: version(),
             issued_at: "2026-05-01T12:00:00+00:00".into(),
             not_before: "2026-05-01T12:00:00+00:00".into(),
@@ -507,7 +509,6 @@ fn run_once_surfaces_plugin_file_404_as_apply_failure() {
             host_model_protocols: Default::default(),
             artifacts: vec![],
             allow_claude_ai_connectors: false,
-            signature: ManifestSignature::new(""),
         };
 
         pat_mock().mount(&server).await;
@@ -543,6 +544,7 @@ fn run_once_surfaces_plugin_file_404_as_apply_failure() {
 
 fn manifest_with(servers: Vec<ManagedMcpServer>, enabled_hosts: Vec<String>) -> SignedManifest {
     SignedManifest {
+        min_schema_version: MANIFEST_SCHEMA_VERSION,
         manifest_version: version(),
         issued_at: "2026-05-01T12:00:00+00:00".into(),
         not_before: "2026-05-01T12:00:00+00:00".into(),
@@ -559,7 +561,6 @@ fn manifest_with(servers: Vec<ManagedMcpServer>, enabled_hosts: Vec<String>) -> 
         host_model_protocols: Default::default(),
         artifacts: vec![],
         allow_claude_ai_connectors: false,
-        signature: ManifestSignature::new(""),
     }
 }
 
@@ -715,6 +716,7 @@ fn serve_plugins(m: &SignedManifest, files: &[(&str, &str, &[u8])], label: &str)
 
 fn manifest_of(plugins: Vec<PluginEntry>, hooks: Vec<HookEntry>) -> SignedManifest {
     SignedManifest {
+        min_schema_version: MANIFEST_SCHEMA_VERSION,
         manifest_version: version(),
         issued_at: "2026-05-01T12:00:00+00:00".into(),
         not_before: "2026-05-01T12:00:00+00:00".into(),
@@ -731,7 +733,6 @@ fn manifest_of(plugins: Vec<PluginEntry>, hooks: Vec<HookEntry>) -> SignedManife
         host_model_protocols: Default::default(),
         artifacts: vec![],
         allow_claude_ai_connectors: false,
-        signature: ManifestSignature::new(""),
     }
 }
 

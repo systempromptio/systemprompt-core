@@ -1,5 +1,5 @@
-//! Signed-manifest verification: direct `SignedManifestVerify` branches with a
-//! real ed25519 keypair, plus the `run_once` verify path — pinned-pubkey
+//! Signed-manifest envelope verification: direct `verify_envelope` branches
+//! with a real ed25519 keypair, plus the `run_once` verify path — pinned-pubkey
 //! success, missing-pin refusal, and trust-on-first-use pubkey fetch.
 
 use std::ffi::OsString;
@@ -10,7 +10,8 @@ use base64::Engine as _;
 use base64::engine::general_purpose::STANDARD as B64;
 use ed25519_dalek::{Signer, SigningKey};
 use systemprompt_bridge::gateway::manifest::{
-    ManifestError, SignedManifest, SignedManifestVerify, canonical_payload,
+    MANIFEST_SCHEMA_VERSION, ManifestError, SignedManifest, SignedManifestEnvelope, decode_payload,
+    verify_envelope,
 };
 use systemprompt_bridge::gateway::manifest_version::ManifestVersion;
 use systemprompt_bridge::ids::ManifestSignature;
@@ -26,8 +27,9 @@ fn pubkey_b64(key: &SigningKey) -> String {
     B64.encode(key.verifying_key().to_bytes())
 }
 
-fn manifest(signature: &str) -> SignedManifest {
+fn manifest() -> SignedManifest {
     SignedManifest {
+        min_schema_version: MANIFEST_SCHEMA_VERSION,
         manifest_version: ManifestVersion::try_new("2026-07-02T00:00:00Z-cafecafe").unwrap(),
         issued_at: "2026-07-02T00:00:00+00:00".into(),
         not_before: "2026-07-02T00:00:00+00:00".into(),
@@ -44,43 +46,77 @@ fn manifest(signature: &str) -> SignedManifest {
         host_model_protocols: std::collections::BTreeMap::default(),
         artifacts: vec![],
         allow_claude_ai_connectors: false,
+    }
+}
+
+fn signed_envelope(key: &SigningKey) -> SignedManifestEnvelope {
+    let payload = serde_json::to_string(&manifest()).unwrap();
+    let sig = key.sign(payload.as_bytes());
+    SignedManifestEnvelope {
+        payload,
+        signature: ManifestSignature::new(B64.encode(sig.to_bytes())),
+    }
+}
+
+fn envelope_with_signature(signature: &str) -> SignedManifestEnvelope {
+    SignedManifestEnvelope {
+        payload: serde_json::to_string(&manifest()).unwrap(),
         signature: ManifestSignature::new(signature),
     }
 }
 
-fn signed_manifest(key: &SigningKey) -> SignedManifest {
-    let unsigned = manifest("");
-    let payload = canonical_payload(&unsigned).unwrap();
-    let sig = key.sign(payload.as_bytes());
-    manifest(&B64.encode(sig.to_bytes()))
+#[test]
+fn verify_accepts_a_correctly_signed_envelope() {
+    let key = signing_key();
+    let env = signed_envelope(&key);
+    verify_envelope(&env, &pubkey_b64(&key)).unwrap();
+    let decoded = decode_payload(&env).unwrap();
+    assert_eq!(decoded.user_id, fixture_user_id());
 }
 
 #[test]
-fn verify_accepts_a_correctly_signed_manifest() {
+fn verify_survives_unknown_fields_in_payload() {
     let key = signing_key();
-    let m = signed_manifest(&key);
-    m.verify(&pubkey_b64(&key)).unwrap();
+    let mut value = serde_json::to_value(manifest()).unwrap();
+    value["future_field"] = serde_json::json!("added by a newer gateway");
+    let payload = value.to_string();
+    let sig = key.sign(payload.as_bytes());
+    let env = SignedManifestEnvelope {
+        payload,
+        signature: ManifestSignature::new(B64.encode(sig.to_bytes())),
+    };
+    verify_envelope(&env, &pubkey_b64(&key)).expect("unknown fields must not break the signature");
+    decode_payload(&env).expect("unknown fields must not break decoding");
+}
+
+#[test]
+fn verify_rejects_tampered_payload() {
+    let key = signing_key();
+    let mut env = signed_envelope(&key);
+    env.payload = env.payload.replace("cafecafe", "deadbeef");
+    let err = verify_envelope(&env, &pubkey_b64(&key)).unwrap_err();
+    assert!(matches!(err, ManifestError::Verify(_)), "got {err:?}");
 }
 
 #[test]
 fn verify_rejects_signature_from_a_different_key() {
-    let m = signed_manifest(&signing_key());
+    let env = signed_envelope(&signing_key());
     let other = SigningKey::from_bytes(&[7u8; 32]);
-    let err = m.verify(&pubkey_b64(&other)).unwrap_err();
+    let err = verify_envelope(&env, &pubkey_b64(&other)).unwrap_err();
     assert!(matches!(err, ManifestError::Verify(_)), "got {err:?}");
 }
 
 #[test]
 fn verify_rejects_bad_pubkey_base64() {
-    let m = signed_manifest(&signing_key());
-    let err = m.verify("!!!not-base64!!!").unwrap_err();
+    let env = signed_envelope(&signing_key());
+    let err = verify_envelope(&env, "!!!not-base64!!!").unwrap_err();
     assert!(matches!(err, ManifestError::PubkeyBase64(_)), "got {err:?}");
 }
 
 #[test]
 fn verify_rejects_wrong_pubkey_length() {
-    let m = signed_manifest(&signing_key());
-    let err = m.verify(&B64.encode([1u8; 16])).unwrap_err();
+    let env = signed_envelope(&signing_key());
+    let err = verify_envelope(&env, &B64.encode([1u8; 16])).unwrap_err();
     assert!(
         matches!(err, ManifestError::PubkeyLength(16)),
         "got {err:?}"
@@ -90,8 +126,8 @@ fn verify_rejects_wrong_pubkey_length() {
 #[test]
 fn verify_rejects_bad_signature_base64() {
     let key = signing_key();
-    let m = manifest("%%%bad%%%");
-    let err = m.verify(&pubkey_b64(&key)).unwrap_err();
+    let env = envelope_with_signature("%%%bad%%%");
+    let err = verify_envelope(&env, &pubkey_b64(&key)).unwrap_err();
     assert!(
         matches!(err, ManifestError::SignatureBase64(_)),
         "got {err:?}"
@@ -101,8 +137,8 @@ fn verify_rejects_bad_signature_base64() {
 #[test]
 fn verify_rejects_wrong_signature_length() {
     let key = signing_key();
-    let m = manifest(&B64.encode([1u8; 10]));
-    let err = m.verify(&pubkey_b64(&key)).unwrap_err();
+    let env = envelope_with_signature(&B64.encode([1u8; 10]));
+    let err = verify_envelope(&env, &pubkey_b64(&key)).unwrap_err();
     assert!(
         matches!(err, ManifestError::SignatureLength(10)),
         "got {err:?}"
@@ -187,7 +223,7 @@ fn block_on<F: std::future::Future>(fut: F) -> F::Output {
         .block_on(fut)
 }
 
-async fn mount_gateway(server: &MockServer, m: &SignedManifest, pubkey: Option<&str>) {
+async fn mount_gateway(server: &MockServer, env: &SignedManifestEnvelope, pubkey: Option<&str>) {
     Mock::given(method("POST"))
         .and(path("/v1/auth/bridge/pat"))
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
@@ -198,7 +234,7 @@ async fn mount_gateway(server: &MockServer, m: &SignedManifest, pubkey: Option<&
         .await;
     Mock::given(method("GET"))
         .and(path("/v1/bridge/manifest"))
-        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::to_value(m).unwrap()))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::to_value(env).unwrap()))
         .mount(server)
         .await;
     if let Some(pk) = pubkey {
@@ -215,10 +251,10 @@ async fn mount_gateway(server: &MockServer, m: &SignedManifest, pubkey: Option<&
 #[test]
 fn run_once_verifies_against_pinned_pubkey() {
     let key = signing_key();
-    let m = signed_manifest(&key);
+    let env = signed_envelope(&key);
     let (server, dirs) = block_on(async {
         let server = MockServer::start().await;
-        mount_gateway(&server, &m, None).await;
+        mount_gateway(&server, &env, None).await;
         let dirs = sandbox(&server.uri(), Some(&pubkey_b64(&key)));
         (server, dirs)
     });
@@ -230,10 +266,10 @@ fn run_once_verifies_against_pinned_pubkey() {
 #[test]
 fn run_once_without_pin_or_tofu_refuses_to_sync() {
     let key = signing_key();
-    let m = signed_manifest(&key);
+    let env = signed_envelope(&key);
     let (server, dirs) = block_on(async {
         let server = MockServer::start().await;
-        mount_gateway(&server, &m, None).await;
+        mount_gateway(&server, &env, None).await;
         let dirs = sandbox(&server.uri(), None);
         (server, dirs)
     });
@@ -249,11 +285,11 @@ fn run_once_without_pin_or_tofu_refuses_to_sync() {
 #[test]
 fn run_once_tofu_fetches_and_persists_pubkey() {
     let key = signing_key();
-    let m = signed_manifest(&key);
+    let env = signed_envelope(&key);
     let pk = pubkey_b64(&key);
     let (server, dirs) = block_on(async {
         let server = MockServer::start().await;
-        mount_gateway(&server, &m, Some(&pk)).await;
+        mount_gateway(&server, &env, Some(&pk)).await;
         let dirs = sandbox(&server.uri(), None);
         (server, dirs)
     });
@@ -270,11 +306,11 @@ fn run_once_tofu_fetches_and_persists_pubkey() {
 
 #[test]
 fn run_once_tofu_rejects_wrong_key_signature() {
-    let m = signed_manifest(&signing_key());
+    let env = signed_envelope(&signing_key());
     let wrong = pubkey_b64(&SigningKey::from_bytes(&[9u8; 32]));
     let (server, dirs) = block_on(async {
         let server = MockServer::start().await;
-        mount_gateway(&server, &m, Some(&wrong)).await;
+        mount_gateway(&server, &env, Some(&wrong)).await;
         let dirs = sandbox(&server.uri(), None);
         (server, dirs)
     });

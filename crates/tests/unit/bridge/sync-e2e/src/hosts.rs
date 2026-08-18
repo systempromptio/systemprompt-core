@@ -10,10 +10,10 @@ use std::path::{Path, PathBuf};
 
 use sha2::{Digest, Sha256};
 use systemprompt_bridge::gateway::manifest::{
-    ArtifactEntry, PluginEntry, PluginFile, SignedManifest, UserInfo,
+    ArtifactEntry, MANIFEST_SCHEMA_VERSION, PluginEntry, PluginFile, SignedManifest, UserInfo,
 };
 use systemprompt_bridge::gateway::manifest_version::ManifestVersion;
-use systemprompt_bridge::ids::{LibraryArtifactId, ManifestSignature, PluginId, Sha256Digest};
+use systemprompt_bridge::ids::{LibraryArtifactId, PluginId, Sha256Digest};
 use systemprompt_bridge::sync::run_once;
 use systemprompt_test_fixtures::fixture_user_id;
 use wiremock::matchers::{method, path};
@@ -182,6 +182,7 @@ fn manifest(enabled_hosts: Vec<String>, populated: bool, suffix: &str) -> Signed
         (vec![], vec![])
     };
     SignedManifest {
+        min_schema_version: MANIFEST_SCHEMA_VERSION,
         manifest_version: version(suffix),
         issued_at: "2026-07-01T12:00:00+00:00".into(),
         not_before: "2026-07-01T12:00:00+00:00".into(),
@@ -204,7 +205,6 @@ fn manifest(enabled_hosts: Vec<String>, populated: bool, suffix: &str) -> Signed
         host_model_protocols: std::collections::BTreeMap::default(),
         artifacts,
         allow_claude_ai_connectors: false,
-        signature: ManifestSignature::new("unused-when-allow-unsigned"),
     }
 }
 
@@ -226,7 +226,9 @@ async fn mount_gateway(server: &MockServer, m: &SignedManifest) {
     }
     Mock::given(method("GET"))
         .and(path("/v1/bridge/manifest"))
-        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::to_value(m).unwrap()))
+        .respond_with(ResponseTemplate::new(200).set_body_json(
+            serde_json::json!({"payload": serde_json::to_string(m).unwrap(), "signature": ""}),
+        ))
         .mount(server)
         .await;
 }

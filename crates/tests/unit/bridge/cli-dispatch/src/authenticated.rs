@@ -196,28 +196,32 @@ fn sync_through_dispatch_applies_the_manifest_and_writes_the_sentinel() {
             })))
             .mount(&server)
             .await;
+        let manifest_payload = serde_json::json!({
+            "manifest_version": "2026-05-01T12:00:00Z-deadbeef",
+            "issued_at": "2026-05-01T12:00:00+00:00",
+            "not_before": "2026-05-01T12:00:00+00:00",
+            "user_id": "00000000-0000-4000-8000-00000000fee1",
+            "user": {
+                "id": "00000000-0000-4000-8000-00000000fee1",
+                "name": "alice",
+                "email": "alice@example.com",
+                "roles": [],
+            },
+            "plugins": [],
+            "skills": [],
+            "agents": [],
+            "hooks": [],
+            "managed_mcp_servers": [],
+            "revocations": [],
+            "enabled_hosts": [],
+            "host_model_protocols": {},
+            "artifacts": [],
+        })
+        .to_string();
         Mock::given(method("GET"))
             .and(path("/v1/bridge/manifest"))
             .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
-                "manifest_version": "2026-05-01T12:00:00Z-deadbeef",
-                "issued_at": "2026-05-01T12:00:00+00:00",
-                "not_before": "2026-05-01T12:00:00+00:00",
-                "user_id": "00000000-0000-4000-8000-00000000fee1",
-                "user": {
-                    "id": "00000000-0000-4000-8000-00000000fee1",
-                    "name": "alice",
-                    "email": "alice@example.com",
-                    "roles": [],
-                },
-                "plugins": [],
-                "skills": [],
-                "agents": [],
-                "hooks": [],
-                "managed_mcp_servers": [],
-                "revocations": [],
-                "enabled_hosts": [],
-                "host_model_protocols": {},
-                "artifacts": [],
+                "payload": manifest_payload,
                 "signature": "unused-when-allow-unsigned",
             })))
             .mount(&server)

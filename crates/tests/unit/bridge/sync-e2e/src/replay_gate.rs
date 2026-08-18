@@ -7,9 +7,8 @@ use std::ffi::OsString;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use systemprompt_bridge::gateway::manifest::SignedManifest;
+use systemprompt_bridge::gateway::manifest::{MANIFEST_SCHEMA_VERSION, SignedManifest};
 use systemprompt_bridge::gateway::manifest_version::ManifestVersion;
-use systemprompt_bridge::ids::ManifestSignature;
 use systemprompt_bridge::sync::run_once;
 use systemprompt_test_fixtures::fixture_user_id;
 use wiremock::matchers::{method, path};
@@ -35,6 +34,7 @@ fn fresh_version(now: chrono::DateTime<chrono::Utc>) -> ManifestVersion {
 
 fn manifest(now: chrono::DateTime<chrono::Utc>, not_before: &str) -> SignedManifest {
     SignedManifest {
+        min_schema_version: MANIFEST_SCHEMA_VERSION,
         manifest_version: fresh_version(now),
         issued_at: not_before.to_owned(),
         not_before: not_before.to_owned(),
@@ -51,7 +51,6 @@ fn manifest(now: chrono::DateTime<chrono::Utc>, not_before: &str) -> SignedManif
         host_model_protocols: Default::default(),
         artifacts: vec![],
         allow_claude_ai_connectors: false,
-        signature: ManifestSignature::new(""),
     }
 }
 
@@ -72,9 +71,9 @@ fn serve(m: &SignedManifest) -> (MockServer, Sandbox) {
             .await;
         Mock::given(method("GET"))
             .and(path("/v1/bridge/manifest"))
-            .respond_with(
-                ResponseTemplate::new(200).set_body_json(serde_json::to_value(m).unwrap()),
-            )
+            .respond_with(ResponseTemplate::new(200).set_body_json(
+                serde_json::json!({"payload": serde_json::to_string(m).unwrap(), "signature": ""}),
+            ))
             .mount(&server)
             .await;
         let sandbox = build_sandbox(&server.uri());

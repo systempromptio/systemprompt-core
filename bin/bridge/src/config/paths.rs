@@ -20,12 +20,25 @@ pub const MCP_SERVERS_FRAGMENT: &str = "mcp-servers.json";
 pub struct OrgPluginsLocation {
     pub path: PathBuf,
     pub scope: Scope,
+    pub reason: FallbackReason,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Scope {
     System,
     User,
+}
+
+/// Why the resolved location was chosen.
+///
+/// `SystemUnwritable` records that the preferred system path exists in
+/// principle but this process cannot write there — on Windows that path is
+/// the only one Cowork scans, so callers syncing the Cowork host must treat
+/// it as fatal rather than a fallback.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum FallbackReason {
+    Preferred,
+    SystemUnwritable { system_path: PathBuf },
 }
 
 #[cfg(target_os = "macos")]
@@ -86,22 +99,28 @@ pub fn org_plugins_effective() -> Option<OrgPluginsLocation> {
         return org_plugins_system().map(|path| OrgPluginsLocation {
             path,
             scope: Scope::System,
+            reason: FallbackReason::Preferred,
         });
     }
     #[cfg(not(target_os = "macos"))]
     {
-        if let Some(path) = org_plugins_system()
+        let system = org_plugins_system();
+        if let Some(path) = system.clone()
             && path.is_dir()
             && can_create_in(&path)
         {
             return Some(OrgPluginsLocation {
                 path,
                 scope: Scope::System,
+                reason: FallbackReason::Preferred,
             });
         }
         org_plugins_user().map(|path| OrgPluginsLocation {
             path,
             scope: Scope::User,
+            reason: system.map_or(FallbackReason::Preferred, |system_path| {
+                FallbackReason::SystemUnwritable { system_path }
+            }),
         })
     }
 }
@@ -113,21 +132,27 @@ pub fn org_plugins_install_target() -> Option<OrgPluginsLocation> {
         return org_plugins_system().map(|path| OrgPluginsLocation {
             path,
             scope: Scope::System,
+            reason: FallbackReason::Preferred,
         });
     }
     #[cfg(not(target_os = "macos"))]
     {
-        if let Some(path) = org_plugins_system()
+        let system = org_plugins_system();
+        if let Some(path) = system.clone()
             && probe_writable(&path)
         {
             return Some(OrgPluginsLocation {
                 path,
                 scope: Scope::System,
+                reason: FallbackReason::Preferred,
             });
         }
         org_plugins_user().map(|path| OrgPluginsLocation {
             path,
             scope: Scope::User,
+            reason: system.map_or(FallbackReason::Preferred, |system_path| {
+                FallbackReason::SystemUnwritable { system_path }
+            }),
         })
     }
 }

@@ -18,8 +18,8 @@
 //!   bundle contract, consumed by both the manifest and byte-serving paths.
 //! - [`scope_to_marketplace`] / [`active_marketplace`]: marketplace scoping of
 //!   the catalogue lists.
-//! - [`ManifestService`] / [`CanonicalView`]: assemble a scoped, filtered
-//!   [`MarketplaceCandidate`] and sign the canonical view.
+//! - [`ManifestService`]: assemble a scoped, filtered [`MarketplaceCandidate`]
+//!   and seal the manifest into its signed envelope.
 //! - [`MarketplaceFilter`] / [`MarketplaceCandidate`] / [`AllowAllFilter`]: the
 //!   per-user filtering contract applied before signing.
 //! - [`render_marketplace_json`] / [`render_marketplace_list`]: JSON
@@ -62,7 +62,7 @@ pub use candidate::MarketplaceCandidate;
 pub use catalog::{CatalogContent, plugin_bundles, plugin_bundles_cached};
 pub use error::{MarketplaceError, MarketplaceFilterError};
 pub use filter::{AllowAllFilter, MarketplaceFilter};
-pub use manifest::{CanonicalView, ManifestService};
+pub use manifest::ManifestService;
 pub use registry::{MarketplaceFilterRegistration, discover_filters};
 pub use scope::{active_marketplace, scope_to_marketplace};
 pub use service::MarketplaceService;

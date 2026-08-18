@@ -10,7 +10,7 @@ use systemprompt_models::api::cloud::BridgeProfileUsage;
 
 use crate::auth::types::BridgeProfile;
 use crate::gateway::errors::GatewayError;
-use crate::gateway::manifest::SignedManifest;
+use crate::gateway::manifest::SignedManifestEnvelope;
 use crate::gateway::types::{ReleaseManifest, WhoamiResponse};
 use crate::gateway::{GatewayClient, record_span};
 
@@ -53,7 +53,10 @@ impl GatewayClient {
         skip(self, bearer),
         fields(endpoint = "manifest", status, latency_ms)
     )]
-    pub async fn fetch_manifest(&self, bearer: &str) -> Result<SignedManifest, GatewayError> {
+    pub async fn fetch_manifest(
+        &self,
+        bearer: &str,
+    ) -> Result<SignedManifestEnvelope, GatewayError> {
         let url = self.url("/v1/bridge/manifest");
         let started = Instant::now();
         let resp = self
@@ -70,7 +73,7 @@ impl GatewayClient {
                 endpoint: "manifest",
             });
         }
-        resp.json::<SignedManifest>()
+        resp.json::<SignedManifestEnvelope>()
             .await
             .map_err(|e| GatewayError::ManifestDecode(Box::new(e)))
     }

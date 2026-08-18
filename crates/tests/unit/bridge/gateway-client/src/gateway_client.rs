@@ -4,6 +4,7 @@
 //! hits, builds a `GatewayClient` pointed at the mock's URI, and asserts both
 //! the success-decode path and the relevant `GatewayError` variant on failure.
 
+use systemprompt_bridge::gateway::manifest::decode_payload;
 use systemprompt_bridge::gateway::{GatewayClient, GatewayError};
 use systemprompt_identifiers::ValidatedUrl;
 use wiremock::matchers::{header, method, path};
@@ -16,7 +17,7 @@ fn client(server: &MockServer) -> GatewayClient {
 const BEARER: &str = "test-bearer-token";
 
 fn manifest_json() -> serde_json::Value {
-    serde_json::json!({
+    let payload = serde_json::json!({
         "manifest_version": "2026-06-03T00:00:00Z-deadbeef",
         "issued_at": "2026-06-03T00:00:00Z",
         "not_before": "2026-06-03T00:00:00Z",
@@ -24,7 +25,10 @@ fn manifest_json() -> serde_json::Value {
         "tenant_id": null,
         "plugins": [],
         "managed_mcp_servers": [],
-        "revocations": [],
+        "revocations": []
+    });
+    serde_json::json!({
+        "payload": payload.to_string(),
         "signature": ""
     })
 }
@@ -137,7 +141,9 @@ async fn fetch_manifest_ok() {
         .mount(&server)
         .await;
 
-    let manifest = client(&server).fetch_manifest(BEARER).await.unwrap();
+    let envelope = client(&server).fetch_manifest(BEARER).await.unwrap();
+    assert!(envelope.signature.as_str().is_empty());
+    let manifest = decode_payload(&envelope).unwrap();
     assert_eq!(manifest.user_id.as_str(), "user_abc");
     assert!(manifest.plugins.is_empty());
 }

@@ -34,10 +34,9 @@ pub fn canonicalize<T: Serialize>(value: &T) -> ManifestSigningResult<String> {
     serde_jcs::to_string(value).map_err(|e| ManifestSigningError::Canonicalize(e.to_string()))
 }
 
-pub fn sign_value<T: Serialize>(value: &T) -> ManifestSigningResult<String> {
-    let canonical = canonicalize(value)?;
+pub fn sign_bytes(payload: &[u8]) -> ManifestSigningResult<String> {
     let key = signing_key()?;
-    let sig = key.sign(canonical.as_bytes());
+    let sig = key.sign(payload);
     Ok(base64::engine::general_purpose::STANDARD.encode(sig.to_bytes()))
 }
 

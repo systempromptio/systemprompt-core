@@ -89,6 +89,7 @@ pub async fn run_checks() -> (Vec<Check>, bool) {
     }
     checks.push(auth::check_pinned_pubkey());
     checks.push(marketplace::check_marketplace());
+    checks.extend(cowork::check_cowork_scope());
     checks.extend(cowork::check_cowork_enable());
     checks.extend(cowork::check_plugin_installation_preference());
     checks.extend(cowork::check_personal_session_sentinel());

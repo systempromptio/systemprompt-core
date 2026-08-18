@@ -1,21 +1,22 @@
-//! Canonical manifest view and assembly/signing service.
+//! Manifest assembly and sealing service.
 //!
-//! [`CanonicalView`] is the JCS-canonicalised payload that is signed and then
-//! verified bridge-side. [`ManifestService`] assembles a scoped, filtered
-//! [`MarketplaceCandidate`] from the on-disk catalogue and signs a built view.
+//! [`ManifestService`] assembles a scoped, filtered [`MarketplaceCandidate`]
+//! from the on-disk catalogue and seals a built [`SignedManifest`] into a
+//! [`SignedManifestEnvelope`]: the manifest's JCS-canonical serialization
+//! carried verbatim as the envelope payload, signed byte-for-byte. The bridge
+//! verifies over those exact bytes before parsing, so there is no second
+//! canonical view to keep in sync with the manifest struct.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::path::Path;
 
-use serde::Serialize;
-use systemprompt_identifiers::{TenantId, UserId};
+use systemprompt_identifiers::UserId;
 use systemprompt_models::bridge::ids::{LibraryArtifactId, ManifestSignature};
 use systemprompt_models::bridge::manifest::{
-    AgentEntry, ArtifactEntry, HookEntry, ManagedMcpServer, PluginEntry, SkillEntry, UserInfo,
+    ArtifactEntry, SignedManifest, SignedManifestEnvelope,
 };
-use systemprompt_models::bridge::manifest_version::ManifestVersion;
 use systemprompt_models::services::ServicesConfig;
 use systemprompt_security::manifest_signing;
 
@@ -24,26 +25,6 @@ use crate::catalog::{CatalogContent, artifact_owners, load_hooks, load_plugins};
 use crate::error::MarketplaceError;
 use crate::filter::MarketplaceFilter;
 use crate::scope::{active_marketplace, scope_to_marketplace};
-
-#[derive(Debug, Serialize)]
-pub struct CanonicalView<'a> {
-    pub manifest_version: &'a ManifestVersion,
-    pub issued_at: &'a str,
-    pub not_before: &'a str,
-    pub user_id: &'a UserId,
-    pub tenant_id: Option<&'a TenantId>,
-    pub user: Option<&'a UserInfo>,
-    pub plugins: &'a [PluginEntry],
-    pub skills: &'a [SkillEntry],
-    pub agents: &'a [AgentEntry],
-    pub hooks: &'a [HookEntry],
-    pub managed_mcp_servers: &'a [ManagedMcpServer],
-    pub revocations: &'a [String],
-    pub enabled_hosts: &'a [String],
-    pub host_model_protocols: &'a std::collections::BTreeMap<String, Vec<String>>,
-    pub artifacts: &'a [ArtifactEntry],
-    pub allow_claude_ai_connectors: bool,
-}
 
 #[derive(Debug, Default, Clone, Copy)]
 pub struct ManifestService;
@@ -96,10 +77,15 @@ impl ManifestService {
         Ok(filtered)
     }
 
-    pub fn sign(view: &CanonicalView<'_>) -> Result<ManifestSignature, MarketplaceError> {
-        let signature = manifest_signing::sign_value(view)
+    pub fn seal(manifest: &SignedManifest) -> Result<SignedManifestEnvelope, MarketplaceError> {
+        let payload = manifest_signing::canonicalize(manifest)
             .map_err(|e| MarketplaceError::Signing(e.to_string()))?;
-        Ok(ManifestSignature::new(signature))
+        let signature = manifest_signing::sign_bytes(payload.as_bytes())
+            .map_err(|e| MarketplaceError::Signing(e.to_string()))?;
+        Ok(SignedManifestEnvelope {
+            payload,
+            signature: ManifestSignature::new(signature),
+        })
     }
 }
 

@@ -1,20 +1,24 @@
-//! ed25519 verification of signed gateway manifests.
+//! ed25519 verification and decoding of signed gateway manifest envelopes.
+//!
+//! The gateway serves a [`SignedManifestEnvelope`] whose `payload` is the
+//! exact canonical string it signed. Verification runs over those raw bytes
+//! before any deserialisation, so manifest fields this bridge does not know
+//! about can never break the signature — schema compatibility is negotiated
+//! separately via `min_schema_version`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use base64::Engine;
 use ed25519_dalek::{Signature, Verifier, VerifyingKey};
-use serde::Serialize;
 
 pub use systemprompt_models::bridge::manifest::{
-    AgentEntry, ArtifactEntry, HookEntry, ManagedMcpServer, PluginEntry, PluginFile,
-    SignedManifest, SkillEntry, UserInfo,
+    AgentEntry, ArtifactEntry, HookEntry, MANIFEST_SCHEMA_VERSION, ManagedMcpServer, PluginEntry,
+    PluginFile, SignedManifest, SignedManifestEnvelope, SkillEntry, UserInfo,
 };
 pub use systemprompt_models::bridge::manifest_version::ManifestVersion;
 pub use systemprompt_models::services::PluginComponentRef;
 
-use crate::ids::ManifestSignature;
 pub use systemprompt_identifiers::{AgentId, AgentName, TenantId, UserId, ValidatedUrl};
 
 #[derive(Debug, thiserror::Error)]
@@ -35,46 +39,57 @@ pub enum ManifestError {
     SignatureLengthMismatch,
     #[error("signature verification failed: {0}")]
     Verify(ed25519_dalek::SignatureError),
-    #[error("canonical serialize: {0}")]
-    CanonicalSerialize(serde_json::Error),
+    #[error("manifest payload parse: {0}")]
+    PayloadParse(serde_json::Error),
+    #[error(
+        "manifest requires schema {required} but this bridge supports up to {supported}; \
+         upgrade the bridge"
+    )]
+    SchemaTooNew { required: u32, supported: u32 },
 }
 
-// Why: the orphan rule forbids an inherent impl on the foreign
-// `SignedManifest`.
-pub trait SignedManifestVerify {
-    fn verify(&self, pubkey_b64: &str) -> Result<(), ManifestError>;
-}
-
-impl SignedManifestVerify for SignedManifest {
-    fn verify(&self, pubkey_b64: &str) -> Result<(), ManifestError> {
-        let pubkey_bytes = base64::engine::general_purpose::STANDARD
-            .decode(pubkey_b64.trim())
-            .map_err(ManifestError::PubkeyBase64)?;
-        if pubkey_bytes.len() != 32 {
-            return Err(ManifestError::PubkeyLength(pubkey_bytes.len()));
-        }
-        let arr: [u8; 32] = pubkey_bytes
-            .as_slice()
-            .try_into()
-            .map_err(|_len| ManifestError::PubkeyLengthMismatch)?;
-        let key = VerifyingKey::from_bytes(&arr).map_err(ManifestError::PubkeyParse)?;
-
-        let sig_bytes = base64::engine::general_purpose::STANDARD
-            .decode(self.signature.as_str().trim())
-            .map_err(ManifestError::SignatureBase64)?;
-        if sig_bytes.len() != 64 {
-            return Err(ManifestError::SignatureLength(sig_bytes.len()));
-        }
-        let sig_arr: [u8; 64] = sig_bytes
-            .as_slice()
-            .try_into()
-            .map_err(|_len| ManifestError::SignatureLengthMismatch)?;
-        let signature = Signature::from_bytes(&sig_arr);
-
-        let payload = canonical_payload(self)?;
-        key.verify(payload.as_bytes(), &signature)
-            .map_err(ManifestError::Verify)
+pub fn verify_envelope(
+    envelope: &SignedManifestEnvelope,
+    pubkey_b64: &str,
+) -> Result<(), ManifestError> {
+    let pubkey_bytes = base64::engine::general_purpose::STANDARD
+        .decode(pubkey_b64.trim())
+        .map_err(ManifestError::PubkeyBase64)?;
+    if pubkey_bytes.len() != 32 {
+        return Err(ManifestError::PubkeyLength(pubkey_bytes.len()));
     }
+    let arr: [u8; 32] = pubkey_bytes
+        .as_slice()
+        .try_into()
+        .map_err(|_len| ManifestError::PubkeyLengthMismatch)?;
+    let key = VerifyingKey::from_bytes(&arr).map_err(ManifestError::PubkeyParse)?;
+
+    let sig_bytes = base64::engine::general_purpose::STANDARD
+        .decode(envelope.signature.as_str().trim())
+        .map_err(ManifestError::SignatureBase64)?;
+    if sig_bytes.len() != 64 {
+        return Err(ManifestError::SignatureLength(sig_bytes.len()));
+    }
+    let sig_arr: [u8; 64] = sig_bytes
+        .as_slice()
+        .try_into()
+        .map_err(|_len| ManifestError::SignatureLengthMismatch)?;
+    let signature = Signature::from_bytes(&sig_arr);
+
+    key.verify(envelope.payload.as_bytes(), &signature)
+        .map_err(ManifestError::Verify)
+}
+
+pub fn decode_payload(envelope: &SignedManifestEnvelope) -> Result<SignedManifest, ManifestError> {
+    let manifest: SignedManifest =
+        serde_json::from_str(&envelope.payload).map_err(ManifestError::PayloadParse)?;
+    if manifest.min_schema_version > MANIFEST_SCHEMA_VERSION {
+        return Err(ManifestError::SchemaTooNew {
+            required: manifest.min_schema_version,
+            supported: MANIFEST_SCHEMA_VERSION,
+        });
+    }
+    Ok(manifest)
 }
 
 #[derive(Debug)]
@@ -83,7 +98,6 @@ pub struct SignedManifestBuilder {
     issued_at: String,
     not_before: String,
     user_id: UserId,
-    signature: ManifestSignature,
     tenant_id: Option<TenantId>,
     user: Option<UserInfo>,
     plugins: Vec<PluginEntry>,
@@ -105,14 +119,12 @@ impl SignedManifestBuilder {
         issued_at: impl Into<String>,
         not_before: impl Into<String>,
         user_id: impl Into<UserId>,
-        signature: impl Into<ManifestSignature>,
     ) -> Self {
         Self {
             manifest_version,
             issued_at: issued_at.into(),
             not_before: not_before.into(),
             user_id: user_id.into(),
-            signature: signature.into(),
             tenant_id: None,
             user: None,
             plugins: Vec::new(),
@@ -206,6 +218,7 @@ impl SignedManifestBuilder {
     #[must_use]
     pub fn build(self) -> SignedManifest {
         SignedManifest {
+            min_schema_version: MANIFEST_SCHEMA_VERSION,
             manifest_version: self.manifest_version,
             issued_at: self.issued_at,
             not_before: self.not_before,
@@ -222,49 +235,6 @@ impl SignedManifestBuilder {
             host_model_protocols: self.host_model_protocols,
             artifacts: self.artifacts,
             allow_claude_ai_connectors: self.allow_claude_ai_connectors,
-            signature: self.signature,
         }
     }
-}
-
-#[derive(Serialize)]
-struct CanonicalView<'a> {
-    manifest_version: &'a ManifestVersion,
-    issued_at: &'a str,
-    not_before: &'a str,
-    user_id: &'a UserId,
-    tenant_id: Option<&'a TenantId>,
-    user: Option<&'a UserInfo>,
-    plugins: &'a [PluginEntry],
-    skills: &'a [SkillEntry],
-    agents: &'a [AgentEntry],
-    hooks: &'a [HookEntry],
-    managed_mcp_servers: &'a [ManagedMcpServer],
-    revocations: &'a [String],
-    enabled_hosts: &'a [String],
-    host_model_protocols: &'a std::collections::BTreeMap<String, Vec<String>>,
-    artifacts: &'a [ArtifactEntry],
-    allow_claude_ai_connectors: bool,
-}
-
-pub fn canonical_payload(m: &SignedManifest) -> Result<String, ManifestError> {
-    let view = CanonicalView {
-        manifest_version: &m.manifest_version,
-        issued_at: &m.issued_at,
-        not_before: &m.not_before,
-        user_id: &m.user_id,
-        tenant_id: m.tenant_id.as_ref(),
-        user: m.user.as_ref(),
-        plugins: &m.plugins,
-        skills: &m.skills,
-        agents: &m.agents,
-        hooks: &m.hooks,
-        managed_mcp_servers: &m.managed_mcp_servers,
-        revocations: &m.revocations,
-        enabled_hosts: &m.enabled_hosts,
-        host_model_protocols: &m.host_model_protocols,
-        artifacts: &m.artifacts,
-        allow_claude_ai_connectors: m.allow_claude_ai_connectors,
-    };
-    serde_jcs::to_string(&view).map_err(ManifestError::CanonicalSerialize)
 }

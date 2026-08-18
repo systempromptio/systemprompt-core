@@ -4,12 +4,10 @@ use std::path::{Path, PathBuf};
 
 use systemprompt_bridge::gateway::GatewayClient;
 use systemprompt_bridge::gateway::manifest::{
-    ManagedMcpServer, SignedManifest, SkillEntry, ValidatedUrl,
+    MANIFEST_SCHEMA_VERSION, ManagedMcpServer, SignedManifest, SkillEntry, ValidatedUrl,
 };
 use systemprompt_bridge::gateway::manifest_version::ManifestVersion;
-use systemprompt_bridge::ids::{
-    ManagedMcpServerName, ManifestSignature, Sha256Digest, SkillId, SkillName,
-};
+use systemprompt_bridge::ids::{ManagedMcpServerName, Sha256Digest, SkillId, SkillName};
 use systemprompt_bridge::integration::codex_cli::CodexCliSync;
 use systemprompt_bridge::sync::{HostSync, HostSyncCtx};
 use systemprompt_test_fixtures::fixture_user_id;
@@ -32,6 +30,7 @@ fn manifest_with(
     enabled_hosts: Vec<String>,
 ) -> SignedManifest {
     SignedManifest {
+        min_schema_version: MANIFEST_SCHEMA_VERSION,
         manifest_version: version(),
         issued_at: "2026-04-30T12:00:00+00:00".into(),
         not_before: "2026-04-30T12:00:00+00:00".into(),
@@ -48,7 +47,6 @@ fn manifest_with(
         host_model_protocols: Default::default(),
         artifacts: vec![],
         allow_claude_ai_connectors: false,
-        signature: ManifestSignature::new("ignored"),
     }
 }
 

@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.31.0] - 2026-08-18
+
+### Breaking
+
+- **Breaking:** `CanonicalView` and `ManifestService::sign` are removed in favour of `ManifestService::seal`, which canonicalises a `SignedManifest` once and returns the signed `SignedManifestEnvelope`. Migrate by building the full manifest and sealing it.
+
 ## [0.30.0] - 2026-08-07
 
 ### Breaking

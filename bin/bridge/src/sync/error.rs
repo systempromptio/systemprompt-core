@@ -20,8 +20,29 @@ pub enum SyncError {
     },
     #[error("{0}")]
     Network(String),
-    #[error("manifest signature verification failed: {0}")]
+    #[error(
+        "manifest signature verification failed: {0}. The payload does not match the pinned \
+         pubkey — the manifest was tampered with, or the pinned pubkey is wrong."
+    )]
     SignatureFailed(String),
+    #[error(
+        "manifest requires schema {required} but this bridge supports up to {supported} — \
+         upgrade the bridge to sync against this gateway"
+    )]
+    SchemaTooNew { required: u32, supported: u32 },
+    #[error(
+        "gateway returned a manifest this bridge cannot parse ({0}) — the gateway and bridge \
+         versions are out of step; upgrade whichever is older"
+    )]
+    ManifestShape(String),
+    #[error(
+        "Cowork reads {system_path} but this process cannot write there — re-run `{bin} sync` \
+         elevated (administrator), or disable the Cowork host for this user"
+    )]
+    CoworkNeedsElevation {
+        bin: &'static str,
+        system_path: String,
+    },
     #[error("org-plugins directory not resolvable")]
     PathUnresolvable,
     #[error(
@@ -60,6 +81,8 @@ impl SyncError {
             Self::ManifestSkew { .. } => ExitCode::from(7),
             Self::PubkeyNotPinned => ExitCode::from(8),
             Self::ReplayStateCorrupt(_) => ExitCode::from(9),
+            Self::SchemaTooNew { .. } | Self::ManifestShape(_) => ExitCode::from(11),
+            Self::CoworkNeedsElevation { .. } => ExitCode::from(12),
         }
     }
 }

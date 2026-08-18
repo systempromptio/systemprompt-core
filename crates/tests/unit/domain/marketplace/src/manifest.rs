@@ -1,11 +1,12 @@
 use std::collections::{BTreeMap, BTreeSet};
-use std::sync::{LazyLock, Once};
+use std::sync::Once;
 
 use base64::Engine;
 use ed25519_dalek::{Signature, VerifyingKey};
 use systemprompt_config::SecretsBootstrap;
-use systemprompt_marketplace::{AllowAllFilter, CanonicalView, ManifestService};
+use systemprompt_marketplace::{AllowAllFilter, ManifestService};
 use systemprompt_models::bridge::ids::LibraryArtifactId;
+use systemprompt_models::bridge::manifest::{MANIFEST_SCHEMA_VERSION, SignedManifest};
 use systemprompt_models::bridge::manifest_version::ManifestVersion;
 use systemprompt_security::manifest_signing;
 use systemprompt_test_fixtures::fixture_user_id;
@@ -16,8 +17,6 @@ use crate::helpers::{
 };
 
 static INIT_SECRETS: Once = Once::new();
-static EMPTY_HOST_MODEL_PROTOCOLS: LazyLock<BTreeMap<String, Vec<String>>> =
-    LazyLock::new(BTreeMap::new);
 
 fn ensure_bootstrap() {
     INIT_SECRETS.call_once(|| {
@@ -328,32 +327,30 @@ async fn assemble_candidate_keeps_artifact_owned_by_enabled_plugin() {
     );
 }
 
-fn sample_view<'a>(
-    version: &'a ManifestVersion,
-    user_id: &'a systemprompt_identifiers::UserId,
-) -> CanonicalView<'a> {
-    CanonicalView {
-        manifest_version: version,
-        issued_at: "2026-05-29T00:00:00Z",
-        not_before: "2026-05-29T00:00:00Z",
-        user_id,
+fn sample_manifest(version: &ManifestVersion) -> SignedManifest {
+    SignedManifest {
+        min_schema_version: MANIFEST_SCHEMA_VERSION,
+        manifest_version: version.clone(),
+        issued_at: "2026-05-29T00:00:00Z".to_owned(),
+        not_before: "2026-05-29T00:00:00Z".to_owned(),
+        user_id: fixture_user_id(),
         tenant_id: None,
         user: None,
-        plugins: &[],
-        skills: &[],
-        agents: &[],
-        hooks: &[],
-        managed_mcp_servers: &[],
-        revocations: &[],
-        enabled_hosts: &[],
-        host_model_protocols: &EMPTY_HOST_MODEL_PROTOCOLS,
-        artifacts: &[],
+        plugins: vec![],
+        skills: vec![],
+        agents: vec![],
+        hooks: vec![],
+        managed_mcp_servers: vec![],
+        revocations: vec![],
+        enabled_hosts: vec![],
+        host_model_protocols: BTreeMap::new(),
+        artifacts: vec![],
         allow_claude_ai_connectors: false,
     }
 }
 
 #[test]
-fn sign_round_trips_against_published_pubkey() {
+fn seal_round_trips_against_published_pubkey() {
     ensure_bootstrap();
     let pubkey_b64 = match manifest_signing::pubkey_b64() {
         Ok(k) => k,
@@ -365,12 +362,10 @@ fn sign_round_trips_against_published_pubkey() {
 
     let version =
         ManifestVersion::try_new("2026-05-29T00:00:00Z-deadbeef").expect("valid manifest version");
-    let user = fixture_user_id();
-    let view = sample_view(&version, &user);
+    let manifest = sample_manifest(&version);
 
-    let signature = ManifestService::sign(&view).expect("sign canonical view");
+    let envelope = ManifestService::seal(&manifest).expect("seal manifest");
 
-    let canonical = manifest_signing::canonicalize(&view).expect("canonicalize view");
     let pubkey_bytes: [u8; 32] = base64::engine::general_purpose::STANDARD
         .decode(&pubkey_b64)
         .expect("decode pubkey")
@@ -378,19 +373,25 @@ fn sign_round_trips_against_published_pubkey() {
         .expect("32-byte ed25519 pubkey");
     let verifying_key = VerifyingKey::from_bytes(&pubkey_bytes).expect("valid verifying key");
     let sig_bytes: [u8; 64] = base64::engine::general_purpose::STANDARD
-        .decode(signature.as_str())
+        .decode(envelope.signature.as_str())
         .expect("decode signature")
         .try_into()
         .expect("64-byte ed25519 signature");
     let sig = Signature::from_bytes(&sig_bytes);
 
     verifying_key
-        .verify_strict(canonical.as_bytes(), &sig)
+        .verify_strict(envelope.payload.as_bytes(), &sig)
         .expect("signature verifies against published pubkey");
+
+    let decoded: SignedManifest =
+        serde_json::from_str(&envelope.payload).expect("payload decodes back to a manifest");
+    assert_eq!(decoded.user_id, manifest.user_id);
+    assert_eq!(decoded.manifest_version.as_str(), version.as_str());
+    assert_eq!(decoded.min_schema_version, MANIFEST_SCHEMA_VERSION);
 }
 
 #[test]
-fn sign_is_deterministic_for_identical_views() {
+fn seal_is_deterministic_for_identical_manifests() {
     ensure_bootstrap();
     if manifest_signing::pubkey_b64().is_err() {
         eprintln!("skipping: secrets bootstrap unavailable in this env");
@@ -399,13 +400,13 @@ fn sign_is_deterministic_for_identical_views() {
 
     let version =
         ManifestVersion::try_new("2026-05-29T00:00:00Z-deadbeef").expect("valid manifest version");
-    let user = fixture_user_id();
-    let first = ManifestService::sign(&sample_view(&version, &user)).expect("first sign");
-    let second = ManifestService::sign(&sample_view(&version, &user)).expect("second sign");
+    let first = ManifestService::seal(&sample_manifest(&version)).expect("first seal");
+    let second = ManifestService::seal(&sample_manifest(&version)).expect("second seal");
 
+    assert_eq!(first.payload, second.payload);
     assert_eq!(
-        first.as_str(),
-        second.as_str(),
-        "identical canonical views must produce identical signatures",
+        first.signature.as_str(),
+        second.signature.as_str(),
+        "identical manifests must produce identical signatures",
     );
 }

@@ -1,12 +1,9 @@
 use std::fs;
 
-use systemprompt_bridge::gateway::manifest::{SignedManifest, canonical_payload};
 use systemprompt_bridge::gateway::manifest_version::ManifestVersion;
-use systemprompt_bridge::ids::ManifestSignature;
 use systemprompt_bridge::sync::{
     LastSyncState, ReplayStateError, SyncError, check_replay, check_skew, read_last_sync,
 };
-use systemprompt_test_fixtures::fixture_user_id;
 
 fn tempdir() -> std::path::PathBuf {
     let mut p = std::env::temp_dir();
@@ -31,35 +28,6 @@ fn last(v: &str) -> LastSyncState {
         last_applied_manifest_version: Some(version(v)),
         ..LastSyncState::default()
     }
-}
-
-#[test]
-fn canonical_payload_includes_not_before_in_position() {
-    let m = SignedManifest {
-        manifest_version: version("2026-04-27T12:00:00Z-cafebabe"),
-        issued_at: "2026-04-27T12:00:00+00:00".into(),
-        not_before: "2026-04-27T12:00:00+00:00".into(),
-        user_id: fixture_user_id(),
-        tenant_id: None,
-        user: None,
-        plugins: vec![],
-        skills: vec![],
-        agents: vec![],
-        hooks: vec![],
-        managed_mcp_servers: vec![],
-        revocations: vec![],
-        enabled_hosts: vec![],
-        host_model_protocols: Default::default(),
-        artifacts: vec![],
-        allow_claude_ai_connectors: false,
-        signature: ManifestSignature::new("ignored"),
-    };
-    let p = canonical_payload(&m).unwrap();
-    assert!(p.contains(r#""not_before":"2026-04-27T12:00:00+00:00""#));
-    let nb_pos = p.find(r#""not_before""#).unwrap();
-    let uid_pos = p.find(r#""user_id""#).unwrap();
-    let issued_pos = p.find(r#""issued_at""#).unwrap();
-    assert!(issued_pos < nb_pos && nb_pos < uid_pos);
 }
 
 #[test]

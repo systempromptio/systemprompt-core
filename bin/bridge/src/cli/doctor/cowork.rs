@@ -11,6 +11,35 @@ fn cowork_possible() -> bool {
     paths::cowork3p_sessions_root().is_some()
 }
 
+// Why: only Windows both runs Cowork and has a writability fallback — macOS
+// always resolves the system path and Linux has no Cowork desktop app, so the
+// scope check would only ever produce noise off-Windows.
+#[cfg(target_os = "windows")]
+pub fn check_cowork_scope() -> Option<Check> {
+    if !cowork_possible() {
+        return None;
+    }
+    let location = paths::org_plugins_effective()?;
+    match &location.reason {
+        paths::FallbackReason::Preferred => None,
+        paths::FallbackReason::SystemUnwritable { system_path } => Some(Check::fail(
+            "cowork org-plugins scope",
+            format!(
+                "sync writes to {} but Cowork only reads {} — re-run `{} sync` elevated \
+                 (administrator) so plugins land where Cowork scans",
+                location.path.display(),
+                system_path.display(),
+                crate::brand::brand().binary_name,
+            ),
+        )),
+    }
+}
+
+#[cfg(not(target_os = "windows"))]
+pub const fn check_cowork_scope() -> Option<Check> {
+    None
+}
+
 pub fn check_cowork_enable() -> Option<Check> {
     use crate::integration::cowork_plugins::{
         COWORK_SETTINGS_FILE, enabled_plugins_key, resolve_target,

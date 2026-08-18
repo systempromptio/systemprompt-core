@@ -14,9 +14,10 @@ use axum::http::{HeaderMap, StatusCode};
 use chrono::{Duration, Utc};
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_identifiers::{JwtToken, UserId};
-use systemprompt_marketplace::{CanonicalView, ManifestService, MarketplaceCandidate};
-use systemprompt_models::bridge::ids::ManifestSignature;
-use systemprompt_models::bridge::manifest::{SignedManifest, UserInfo};
+use systemprompt_marketplace::{ManifestService, MarketplaceCandidate};
+use systemprompt_models::bridge::manifest::{
+    MANIFEST_SCHEMA_VERSION, SignedManifest, SignedManifestEnvelope, UserInfo,
+};
 use systemprompt_models::bridge::manifest_version::ManifestVersion;
 use systemprompt_runtime::AppContext;
 
@@ -33,7 +34,7 @@ pub async fn manifest(
     jwt_extractor: Arc<JwtContextExtractor>,
     ctx: AppContext,
     headers: HeaderMap,
-) -> Result<Json<SignedManifest>, (StatusCode, String)> {
+) -> Result<Json<SignedManifestEnvelope>, (StatusCode, String)> {
     let claims = authenticate(&jwt_extractor, &headers).await?;
     let profile = profile_bootstrap()?;
     let tenant_id = profile
@@ -54,9 +55,8 @@ pub async fn manifest(
         hooks,
         managed_mcp_servers,
         artifacts,
-        // Why: marketplace_id/access/artifact_owners are filter context,
-        // deliberately excluded from CanonicalView so the signed payload stays
-        // byte-identical.
+        // Why: marketplace_id/access/artifact_owners are filter context, not
+        // part of the wire manifest.
         ..
     } = candidate;
 
@@ -67,28 +67,8 @@ pub async fn manifest(
         host_model_protocols,
     } = load_per_user_context(&ctx, &claims.user_id).await;
 
-    let canonical = CanonicalView {
-        manifest_version: &manifest_version,
-        issued_at: &issued_at,
-        not_before: &not_before,
-        user_id: &claims.user_id,
-        tenant_id: tenant_id.as_ref(),
-        user: user.as_ref(),
-        plugins: &plugins,
-        skills: &skills,
-        agents: &agents,
-        hooks: &hooks,
-        managed_mcp_servers: &managed_mcp_servers,
-        revocations: &revocations,
-        enabled_hosts: &enabled_hosts,
-        host_model_protocols: &host_model_protocols,
-        artifacts: &artifacts,
-        allow_claude_ai_connectors,
-    };
-
-    let signature = sign_canonical(&canonical)?;
-
-    Ok(Json(SignedManifest {
+    let manifest = SignedManifest {
+        min_schema_version: MANIFEST_SCHEMA_VERSION,
         manifest_version,
         issued_at,
         not_before,
@@ -105,8 +85,9 @@ pub async fn manifest(
         host_model_protocols,
         artifacts,
         allow_claude_ai_connectors,
-        signature,
-    }))
+    };
+
+    seal_manifest(&manifest).map(Json)
 }
 
 async fn assemble_candidate(
@@ -192,10 +173,10 @@ async fn load_per_user_context(ctx: &AppContext, user_id: &UserId) -> PerUserCon
     }
 }
 
-fn sign_canonical(
-    canonical: &CanonicalView<'_>,
-) -> Result<ManifestSignature, (StatusCode, String)> {
-    ManifestService::sign(canonical).map_err(|e| {
+fn seal_manifest(
+    manifest: &SignedManifest,
+) -> Result<SignedManifestEnvelope, (StatusCode, String)> {
+    ManifestService::seal(manifest).map_err(|e| {
         tracing::error!(error = %e, "manifest signing failed");
         (
             StatusCode::INTERNAL_SERVER_ERROR,

@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.31.0] - 2026-08-18
+
+### Breaking
+
+- **Breaking:** `manifest_signing::sign_value` is removed. Migrate by composing `manifest_signing::canonicalize` with the new `manifest_signing::sign_bytes`, which signs the exact bytes the verifier receives.
+
 ## [0.30.0] - 2026-08-07
 
 ### Added

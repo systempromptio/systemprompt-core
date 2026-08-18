@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.31.0] - 2026-08-18
+
+### Breaking
+
+- **Breaking:** `bridge::manifest::SignedManifest` no longer carries a `signature` field; the manifest endpoint returns the new `SignedManifestEnvelope { payload, signature }`, where `payload` is the manifest's JCS-canonical JSON signed byte-for-byte. Migrate by verifying the signature over `payload` before deserialising it.
+
+### Added
+
+- `bridge::manifest::MANIFEST_SCHEMA_VERSION` and `SignedManifest::min_schema_version` declare the oldest schema level that can safely consume a manifest, so consumers refuse with an upgrade message instead of a signature error when a semantic break lands.
+
 ## [0.30.1] - 2026-08-07
 
 ### Added

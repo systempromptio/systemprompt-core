@@ -3,4 +3,4 @@
 #[cfg(test)]
 mod builder;
 #[cfg(test)]
-mod canonical_payload;
+mod envelope;

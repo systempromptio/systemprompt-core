@@ -1,8 +1,10 @@
 use std::path::PathBuf;
 
-use systemprompt_bridge::gateway::manifest::{ArtifactEntry, SignedManifest};
+use systemprompt_bridge::gateway::manifest::{
+    ArtifactEntry, MANIFEST_SCHEMA_VERSION, SignedManifest,
+};
 use systemprompt_bridge::gateway::manifest_version::ManifestVersion;
-use systemprompt_bridge::ids::{LibraryArtifactId, ManifestSignature, Sha256Digest};
+use systemprompt_bridge::ids::{LibraryArtifactId, Sha256Digest};
 use systemprompt_bridge::integration::cowork_artifacts::CoworkArtifactsSync;
 use systemprompt_bridge::integration::cowork_artifacts::emit::{
     active_sinks, resolve_artifacts_dir, write_artifacts,
@@ -27,6 +29,7 @@ fn artifact(id: &str, version: &str) -> ArtifactEntry {
 
 fn manifest(artifacts: Vec<ArtifactEntry>) -> SignedManifest {
     SignedManifest {
+        min_schema_version: MANIFEST_SCHEMA_VERSION,
         manifest_version: ManifestVersion::try_new("2026-05-01T12:00:00Z-deadbeef").unwrap(),
         issued_at: "2026-05-01T12:00:00+00:00".into(),
         not_before: "2026-05-01T12:00:00+00:00".into(),
@@ -43,7 +46,6 @@ fn manifest(artifacts: Vec<ArtifactEntry>) -> SignedManifest {
         host_model_protocols: Default::default(),
         artifacts,
         allow_claude_ai_connectors: false,
-        signature: ManifestSignature::new(""),
     }
 }
 

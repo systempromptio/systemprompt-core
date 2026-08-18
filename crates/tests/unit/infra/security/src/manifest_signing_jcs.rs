@@ -1,9 +1,9 @@
 use std::sync::Once;
 
 use systemprompt_bridge::gateway::manifest::{
-    AgentEntry, AgentId, AgentName, ArtifactEntry, ManagedMcpServer, PluginEntry, PluginFile,
-    SignedManifest, SignedManifestVerify, SkillEntry, TenantId, UserInfo, ValidatedUrl,
-    canonical_payload,
+    AgentEntry, AgentId, AgentName, ArtifactEntry, MANIFEST_SCHEMA_VERSION, ManagedMcpServer,
+    PluginEntry, PluginFile, SignedManifest, SignedManifestEnvelope, SkillEntry, TenantId,
+    UserInfo, ValidatedUrl, verify_envelope,
 };
 use systemprompt_bridge::gateway::manifest_version::ManifestVersion;
 use systemprompt_bridge::ids::{
@@ -43,6 +43,7 @@ fn ensure_bootstrap() {
 
 fn sample_manifest() -> SignedManifest {
     SignedManifest {
+        min_schema_version: MANIFEST_SCHEMA_VERSION,
         manifest_version: ManifestVersion::try_new("2026-04-27T00:00:00Z-deadbeef")
             .expect("valid manifest version"),
         issued_at: "2026-04-27T00:00:00Z".into(),
@@ -122,49 +123,32 @@ fn sample_manifest() -> SignedManifest {
             sha256: Sha256Digest::try_new(FAKE_SHA_A).unwrap(),
         }],
         allow_claude_ai_connectors: false,
-        signature: ManifestSignature::new(""),
     }
 }
 
-fn signing_view(m: &SignedManifest) -> serde_json::Value {
-    serde_json::json!({
-        "manifest_version": m.manifest_version,
-        "issued_at": m.issued_at,
-        "not_before": m.not_before,
-        "user_id": m.user_id,
-        "tenant_id": m.tenant_id,
-        "user": m.user,
-        "plugins": m.plugins,
-        "skills": m.skills,
-        "agents": m.agents,
-        "hooks": m.hooks,
-        "managed_mcp_servers": m.managed_mcp_servers,
-        "revocations": m.revocations,
-        "enabled_hosts": m.enabled_hosts,
-        "host_model_protocols": m.host_model_protocols,
-        "artifacts": m.artifacts,
-        "allow_claude_ai_connectors": m.allow_claude_ai_connectors,
-    })
+fn sealed_envelope(manifest: &SignedManifest) -> SignedManifestEnvelope {
+    let payload = manifest_signing::canonicalize(manifest).expect("canonicalize manifest");
+    let signature = manifest_signing::sign_bytes(payload.as_bytes()).expect("sign payload bytes");
+    SignedManifestEnvelope {
+        payload,
+        signature: ManifestSignature::new(signature),
+    }
 }
 
 #[test]
-fn canonical_bytes_match_between_signer_and_verifier() {
+fn canonicalize_is_deterministic() {
     let manifest = sample_manifest();
 
-    let verifier_bytes = canonical_payload(&manifest).expect("verifier canonical_payload");
-    let signer_bytes =
-        manifest_signing::canonicalize(&signing_view(&manifest)).expect("signer canonicalize");
+    let first = manifest_signing::canonicalize(&manifest).expect("first canonicalize");
+    let second = manifest_signing::canonicalize(&manifest).expect("second canonicalize");
 
-    assert_eq!(
-        verifier_bytes, signer_bytes,
-        "JCS canonical bytes diverged between signer view and verifier view"
-    );
+    assert_eq!(first, second, "JCS canonical bytes must be deterministic");
 }
 
 #[test]
 fn jcs_output_sorts_keys_alphabetically() {
     let manifest = sample_manifest();
-    let bytes = canonical_payload(&manifest).expect("canonical_payload");
+    let bytes = manifest_signing::canonicalize(&manifest).expect("canonicalize");
 
     let agents = bytes.find("\"agents\"").expect("agents key present");
     let issued = bytes.find("\"issued_at\"").expect("issued_at key present");
@@ -189,7 +173,7 @@ fn jcs_output_sorts_keys_alphabetically() {
 }
 
 #[test]
-fn sign_value_round_trips_through_verifier() {
+fn sign_bytes_round_trips_through_verifier() {
     ensure_bootstrap();
     let pubkey = match manifest_signing::pubkey_b64() {
         Ok(k) => k,
@@ -199,18 +183,12 @@ fn sign_value_round_trips_through_verifier() {
         },
     };
 
-    let mut manifest = sample_manifest();
-    let view = signing_view(&manifest);
-    let signature = manifest_signing::sign_value(&view).expect("sign_value");
-    manifest.signature = ManifestSignature::new(signature);
-
-    manifest
-        .verify(&pubkey)
-        .expect("signature must verify against published pubkey");
+    let envelope = sealed_envelope(&sample_manifest());
+    verify_envelope(&envelope, &pubkey).expect("signature must verify against published pubkey");
 }
 
 #[test]
-fn tamper_with_user_id_breaks_signature() {
+fn tamper_with_payload_breaks_signature() {
     ensure_bootstrap();
     let pubkey = match manifest_signing::pubkey_b64() {
         Ok(k) => k,
@@ -220,13 +198,14 @@ fn tamper_with_user_id_breaks_signature() {
         },
     };
 
-    let mut manifest = sample_manifest();
-    let signature = manifest_signing::sign_value(&signing_view(&manifest)).expect("sign_value");
-    manifest.signature = ManifestSignature::new(signature);
-    manifest.user_id = unique_user_id("tampered");
+    let mut envelope = sealed_envelope(&sample_manifest());
+    let tampered_user = unique_user_id("tampered");
+    envelope.payload = envelope
+        .payload
+        .replace(fixture_user_id().as_str(), tampered_user.as_str());
 
-    let result = manifest.verify(&pubkey);
-    assert!(result.is_err(), "tampered manifest must fail verification");
+    let result = verify_envelope(&envelope, &pubkey);
+    assert!(result.is_err(), "tampered payload must fail verification");
 }
 
 #[test]

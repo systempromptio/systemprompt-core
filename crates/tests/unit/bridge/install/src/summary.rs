@@ -1,4 +1,4 @@
-use systemprompt_bridge::config::paths::{OrgPluginsLocation, Scope};
+use systemprompt_bridge::config::paths::{FallbackReason, OrgPluginsLocation, Scope};
 use systemprompt_bridge::install::{
     CredentialsOutcome, InstallSummary, ManagedProfileOutcome, MdmDisplay, ScheduleApplied,
     ScheduleDisplay, ScheduleEmit, ScheduleRemoval, UninstallSummary, render_install_summary,
@@ -12,6 +12,7 @@ fn install_summary_with_mdm_snippet_renders_all_parts() {
         location: OrgPluginsLocation {
             path: "/opt/plugins".into(),
             scope: Scope::User,
+            reason: FallbackReason::Preferred,
         },
         binary: "/usr/bin/systemprompt-bridge".into(),
         mdm: MdmDisplay::Snippet {
@@ -36,6 +37,7 @@ fn install_summary_with_applied_policy_renders_lines() {
         location: OrgPluginsLocation {
             path: "/opt/plugins".into(),
             scope: Scope::User,
+            reason: FallbackReason::Preferred,
         },
         binary: "/usr/bin/systemprompt-bridge".into(),
         mdm: MdmDisplay::Applied {
@@ -55,6 +57,7 @@ fn install_summary_with_schedule_renders_template() {
         location: OrgPluginsLocation {
             path: "/opt/plugins".into(),
             scope: Scope::User,
+            reason: FallbackReason::Preferred,
         },
         binary: "/usr/bin/systemprompt-bridge".into(),
         mdm: MdmDisplay::Snippet {
@@ -79,6 +82,7 @@ fn install_summary_system_scope_renders_system_wide() {
         location: OrgPluginsLocation {
             path: "/opt/plugins".into(),
             scope: Scope::System,
+            reason: FallbackReason::Preferred,
         },
         binary: "/usr/bin/systemprompt-bridge".into(),
         mdm: MdmDisplay::Snippet {
@@ -128,6 +132,7 @@ fn install_summary_with_applied_schedule_renders_registration() {
         location: OrgPluginsLocation {
             path: "/opt/plugins".into(),
             scope: Scope::User,
+            reason: FallbackReason::Preferred,
         },
         binary: "/usr/bin/systemprompt-bridge".into(),
         mdm: MdmDisplay::Snippet {

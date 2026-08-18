@@ -38,8 +38,20 @@ async fn fetch_manifest(
 ) -> anyhow::Result<(StatusCode, serde_json::Value)> {
     let resp = app.oneshot(authed_get("/bridge/manifest", token)).await?;
     let status = resp.status();
-    let body = read_json(resp).await?;
-    Ok((status, body))
+    let envelope = read_json(resp).await?;
+    if status != StatusCode::OK {
+        return Ok((status, envelope));
+    }
+    anyhow::ensure!(
+        envelope["signature"]
+            .as_str()
+            .is_some_and(|s| !s.is_empty()),
+        "envelope signature missing: {envelope}"
+    );
+    let payload = envelope["payload"]
+        .as_str()
+        .ok_or_else(|| anyhow::anyhow!("envelope payload missing: {envelope}"))?;
+    Ok((status, serde_json::from_str(payload)?))
 }
 
 #[tokio::test]
@@ -51,10 +63,6 @@ async fn manifest_with_seeded_catalog_is_signed_and_lists_plugin_and_skill() -> 
 
     assert_eq!(body["user_id"].as_str(), Some(cred.user_id.as_str()));
     assert_eq!(body["user"]["email"].as_str(), Some(cred.email.as_str()));
-    assert!(
-        body["signature"].as_str().is_some_and(|s| !s.is_empty()),
-        "signature missing: {body}"
-    );
     assert!(
         body["manifest_version"].as_str().is_some(),
         "manifest_version missing: {body}"

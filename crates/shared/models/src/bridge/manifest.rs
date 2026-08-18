@@ -1,11 +1,15 @@
 //! Signed manifest wire format.
 //!
-//! [`SignedManifest`] is the JSON document the gateway returns from
-//! `GET /v1/bridge/manifest` and the bridge consumes to drive its
-//! plugin / skill / agent / managed-MCP sync. Every public type in
-//! this module is part of that wire contract — the gateway server
-//! (in `crates/entry/api`) emits these structs and the bridge
-//! deserialises them, so any change here is a wire-format change.
+//! `GET /v1/bridge/manifest` returns a [`SignedManifestEnvelope`]: the
+//! JCS-canonical serialization of a [`SignedManifest`] carried verbatim as
+//! `payload`, plus a detached ed25519 signature over those exact bytes. The
+//! bridge verifies the signature against the raw `payload` string *before*
+//! deserialising it, so fields added to [`SignedManifest`] in newer gateways
+//! never invalidate the signature on older bridges — unknown fields are
+//! simply ignored at parse time. Semantic breaks that an older bridge cannot
+//! safely ignore are declared by raising `min_schema_version` above
+//! [`MANIFEST_SCHEMA_VERSION`] of the consuming bridge, which then refuses
+//! with an upgrade message instead of a signature error.
 //!
 //! Signing, signature verification, and manifest construction live in
 //! the bridge crate (`bin/bridge/src/gateway/manifest.rs`) alongside
@@ -30,8 +34,25 @@ use crate::services::hooks::{HookCategory, HookEvent};
 use crate::services::plugin::{PluginComponentRef, PluginHooksRef};
 use systemprompt_identifiers::{AgentId, AgentName, HookId, TenantId, UserId, ValidatedUrl};
 
+/// Schema level this build of the codebase emits and understands.
+pub const MANIFEST_SCHEMA_VERSION: u32 = 1;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SignedManifestEnvelope {
+    /// JCS-canonical [`SignedManifest`] JSON, signed byte-for-byte. Consumers
+    /// must verify the signature over this exact string before parsing it.
+    pub payload: String,
+    /// Detached ed25519 signature over `payload`; the empty string on
+    /// unsigned installations.
+    pub signature: ManifestSignature,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SignedManifest {
+    /// Oldest schema level that can safely consume this manifest. Additive
+    /// fields leave it unchanged; only semantic breaks raise it.
+    #[serde(default)]
+    pub min_schema_version: u32,
     pub manifest_version: ManifestVersion,
     pub issued_at: String,
     pub not_before: String,
@@ -65,10 +86,6 @@ pub struct SignedManifest {
     /// that `managed-mcp.json` would otherwise suppress.
     #[serde(default)]
     pub allow_claude_ai_connectors: bool,
-    /// Detached ed25519 signature of the canonicalised payload (every
-    /// field above this one). Always present on the wire even for
-    /// unsigned manifests, where it is the empty string.
-    pub signature: ManifestSignature,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

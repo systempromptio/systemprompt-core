@@ -1,11 +1,9 @@
 use systemprompt_bridge::gateway::manifest::{
-    AgentEntry, AgentId, AgentName, HookEntry, ManagedMcpServer, PluginEntry, PluginFile,
-    SignedManifestBuilder, SkillEntry, UserInfo, ValidatedUrl, canonical_payload,
+    AgentEntry, AgentId, AgentName, HookEntry, MANIFEST_SCHEMA_VERSION, ManagedMcpServer,
+    PluginEntry, PluginFile, SignedManifestBuilder, SkillEntry, UserInfo, ValidatedUrl,
 };
 use systemprompt_bridge::gateway::manifest_version::ManifestVersion;
-use systemprompt_bridge::ids::{
-    ManagedMcpServerName, ManifestSignature, PluginId, Sha256Digest, SkillId, SkillName,
-};
+use systemprompt_bridge::ids::{ManagedMcpServerName, PluginId, Sha256Digest, SkillId, SkillName};
 use systemprompt_identifiers::HookId;
 use systemprompt_models::services::hooks::{HookCategory, HookEvent};
 use systemprompt_test_fixtures::fixture_user_id;
@@ -22,7 +20,6 @@ fn builder(version_suffix: &str) -> SignedManifestBuilder {
         "2026-04-22T00:00:00Z",
         "2026-04-22T00:00:00Z",
         fixture_user_id(),
-        ManifestSignature::new("sig"),
     )
 }
 
@@ -131,7 +128,7 @@ fn minimal_build_preserves_constructor_fields() {
     assert_eq!(manifest.issued_at, "2026-04-22T00:00:00Z");
     assert_eq!(manifest.not_before, "2026-04-22T00:00:00Z");
     assert_eq!(manifest.user_id, fixture_user_id());
-    assert_eq!(manifest.signature.as_str(), "sig");
+    assert_eq!(manifest.min_schema_version, MANIFEST_SCHEMA_VERSION);
     assert_eq!(
         manifest.manifest_version.as_str(),
         "2026-04-22T00:00:00Z-01aaaaaa"
@@ -245,41 +242,4 @@ fn all_setters_round_trip_together() {
     assert_eq!(manifest.enabled_hosts.len(), 1);
     assert!(manifest.tenant_id.is_some());
     assert!(manifest.user.is_some());
-}
-
-#[test]
-fn canonical_payload_of_builder_manifest_is_deterministic() {
-    let manifest = builder("0caaaaaa")
-        .with_enabled_hosts(vec!["claude-desktop".into()])
-        .with_tenant_id("tenant-abc")
-        .build();
-
-    let first = canonical_payload(&manifest).expect("canonical payload ok");
-    let second = canonical_payload(&manifest).expect("canonical payload ok");
-
-    assert_eq!(first, second);
-}
-
-#[test]
-fn canonical_payload_differs_when_tenant_id_differs() {
-    let with_one = builder("0daaaaaa").with_tenant_id("tenant-one").build();
-    let with_two = builder("0daaaaaa").with_tenant_id("tenant-two").build();
-
-    let payload_one = canonical_payload(&with_one).expect("canonical payload ok");
-    let payload_two = canonical_payload(&with_two).expect("canonical payload ok");
-
-    assert_ne!(payload_one, payload_two);
-}
-
-#[test]
-fn canonical_payload_differs_when_enabled_hosts_differ() {
-    let with_host = builder("0eaaaaaa")
-        .with_enabled_hosts(vec!["claude-desktop".into()])
-        .build();
-    let without_host = builder("0eaaaaaa").build();
-
-    let payload_with = canonical_payload(&with_host).expect("canonical payload ok");
-    let payload_without = canonical_payload(&without_host).expect("canonical payload ok");
-
-    assert_ne!(payload_with, payload_without);
 }
