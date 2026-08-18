@@ -18,7 +18,7 @@ use crate::models::{CanonicalMessage, SampleFilter, SampleMode, SampledRequest};
 
 struct SampledRow {
     id: String,
-    context_id: String,
+    context_id: ContextId,
     provider: String,
     model: String,
     system_prompt_override: Option<String>,
@@ -53,7 +53,7 @@ impl SamplingRepository {
             let (messages, response_text) = self.load_messages(&id).await?;
             sampled.push(SampledRequest {
                 ai_request_id: id,
-                context_id: ContextId::new(row.context_id),
+                context_id: row.context_id,
                 provider: row.provider,
                 model: row.model,
                 system_prompt_override: row.system_prompt_override,
@@ -73,7 +73,7 @@ impl SamplingRepository {
         let rows = sqlx::query_as!(
             SampledRow,
             r#"
-            SELECT r.id, r.context_id, r.provider AS "provider!", r.model AS "model!",
+            SELECT r.id, r.context_id AS "context_id: ContextId", r.provider AS "provider!", r.model AS "model!",
                    r.system_prompt_override, r.latency_ms, r.cost_microdollars,
                    r.created_at, p.offered_tools, p.prepared_body_sha256
             FROM ai_requests r
@@ -95,7 +95,7 @@ impl SamplingRepository {
             filter.provider.as_deref(),
             filter.model.as_deref(),
             filter.ids.as_deref(),
-            filter.context_id.as_deref(),
+            filter.context_id.as_ref().map(|c| c.as_str()),
             filter.limit
         )
         .fetch_all(self.pool.as_ref())
@@ -107,7 +107,7 @@ impl SamplingRepository {
         let rows = sqlx::query_as!(
             SampledRow,
             r#"
-            SELECT latest.id AS "id!", latest.context_id AS "context_id!",
+            SELECT latest.id AS "id!", latest.context_id AS "context_id!: ContextId",
                    latest.provider AS "provider!", latest.model AS "model!",
                    latest.system_prompt_override, latest.latency_ms,
                    latest.cost_microdollars AS "cost_microdollars!",
@@ -139,7 +139,7 @@ impl SamplingRepository {
             filter.provider.as_deref(),
             filter.model.as_deref(),
             filter.ids.as_deref(),
-            filter.context_id.as_deref(),
+            filter.context_id.as_ref().map(|c| c.as_str()),
             filter.limit
         )
         .fetch_all(self.pool.as_ref())

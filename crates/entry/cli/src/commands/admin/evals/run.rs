@@ -7,6 +7,7 @@ use anyhow::Result;
 use chrono::{Duration, Utc};
 use clap::Args;
 use systemprompt_evaluation::{SampleFilter, SampleMode};
+use systemprompt_identifiers::ContextId;
 
 use super::shared::{eval_context, run_request};
 use crate::context::CommandContext;
@@ -52,8 +53,12 @@ pub struct RunArgs {
     )]
     pub conversations: bool,
 
-    #[arg(long, help = "Only sample requests from this context")]
-    pub context_id: Option<String>,
+    #[arg(long, help = "Only sample requests from this context", value_parser = parse_context_id)]
+    pub context_id: Option<ContextId>,
+}
+
+fn parse_context_id(raw: &str) -> Result<ContextId, String> {
+    ContextId::try_new(raw.to_owned()).map_err(|e| e.to_string())
 }
 
 pub(super) async fn execute(args: RunArgs, ctx: &CommandContext) -> Result<CommandOutput> {

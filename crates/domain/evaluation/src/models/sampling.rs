@@ -26,7 +26,7 @@ pub struct SampleFilter {
     pub provider: Option<String>,
     pub model: Option<String>,
     pub ids: Option<Vec<String>>,
-    pub context_id: Option<String>,
+    pub context_id: Option<ContextId>,
     pub mode: SampleMode,
     pub limit: i64,
 }
@@ -65,8 +65,8 @@ impl SampleFilter {
     }
 
     #[must_use]
-    pub fn context_id(mut self, context_id: impl Into<String>) -> Self {
-        self.context_id = Some(context_id.into());
+    pub fn context_id(mut self, context_id: ContextId) -> Self {
+        self.context_id = Some(context_id);
         self
     }
 
