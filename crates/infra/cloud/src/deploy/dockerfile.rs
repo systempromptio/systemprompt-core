@@ -61,13 +61,13 @@ impl<'a> DockerfileBuilder<'a> {
 # Built by: systemprompt cloud profile create
 # Used by: systemprompt cloud deploy
 
-FROM debian:bookworm-slim
+FROM debian:trixie-slim
 
 # Install runtime dependencies
 RUN apt-get update && apt-get install -y \
     ca-certificates \
     curl \
-    libssl3 \
+    libssl3t64 \
     libpq5 \
     lsof \
     && rm -rf /var/lib/apt/lists/*

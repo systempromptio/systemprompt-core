@@ -24,7 +24,7 @@ use crate::shared::profile::generate_oauth_at_rest_pepper;
 /// `profile_path`, so re-authoring carries it forward instead of wiping it.
 pub fn existing_geoip_database(profile_path: &Path) -> Option<String> {
     let content = std::fs::read_to_string(profile_path).ok()?;
-    match Profile::from_yaml(&content, profile_path) {
+    let geoip = match Profile::from_yaml(&content, profile_path) {
         Ok(profile) => profile.paths.geoip_database,
         Err(e) => {
             tracing::warn!(
@@ -34,7 +34,16 @@ pub fn existing_geoip_database(profile_path: &Path) -> Option<String> {
             );
             None
         },
+    }?;
+    if !geoip.starts_with(container::APP) {
+        tracing::warn!(
+            geoip_database = %geoip,
+            container_root = container::APP,
+            "geoip_database points outside the container app root; the container must provide \
+             this path or profile validation will fail at boot"
+        );
     }
+    Some(geoip)
 }
 
 pub fn save_profile(profile: &Profile, profile_path: &Path) -> Result<()> {

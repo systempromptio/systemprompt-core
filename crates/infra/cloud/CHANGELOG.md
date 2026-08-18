@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.31.0] - 2026-08-18
+
+### Changed
+
+- The generated deploy image is based on `debian:trixie-slim` (glibc 2.40) with `libssl3t64`, so a `systemprompt` binary built on a glibc 2.39 host no longer fails at container start.
+
 ## [0.30.0] - 2026-08-07
 
 ### Breaking
