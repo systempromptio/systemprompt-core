@@ -8,6 +8,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod apikey;
 mod ban;
 mod bulk;
 mod count;
@@ -78,6 +79,13 @@ pub enum UsersCommands {
 
     #[command(subcommand, about = "WebAuthn credential management commands")]
     Webauthn(webauthn::WebauthnCommands),
+
+    #[command(
+        subcommand,
+        name = "api-key",
+        about = "Personal access token (sp-live-) management"
+    )]
+    ApiKey(apikey::ApiKeyCommands),
 }
 
 pub async fn execute(cmd: UsersCommands, ctx: &CommandContext) -> Result<()> {
@@ -90,6 +98,7 @@ pub async fn execute(cmd: UsersCommands, ctx: &CommandContext) -> Result<()> {
                 | UsersCommands::Merge(_)
                 | UsersCommands::Bulk(_)
                 | UsersCommands::Webauthn(_)
+                | UsersCommands::ApiKey(_)
         )
     {
         bail!("Write operations require full profile context");
@@ -151,5 +160,10 @@ pub async fn execute(cmd: UsersCommands, ctx: &CommandContext) -> Result<()> {
         UsersCommands::Session(cmd) => session::execute(cmd, ctx).await,
         UsersCommands::Ban(cmd) => ban::execute(cmd, ctx).await,
         UsersCommands::Webauthn(cmd) => webauthn::execute(cmd, ctx).await,
+        UsersCommands::ApiKey(cmd) => {
+            let result = apikey::execute(cmd, ctx).await?;
+            render_result(&result, &ctx.cli);
+            Ok(())
+        },
     }
 }

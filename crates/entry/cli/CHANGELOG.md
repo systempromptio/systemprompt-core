@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.31.0] - 2026-08-18
+
+### Added
+
+- `admin users api-key issue|list|revoke` mints, lists, and revokes `sp-live-` personal access tokens directly against the database, with the secret printed once — no identity provider or admin HTTP session required.
+- `admin evals run --conversations` judges one transcript per context instead of individual requests; `--context-id` scopes sampling to a single context.
+
+### Changed
+
+- Cloud profile authoring drops a `paths.geoip_database` value pointing outside the container app root instead of carrying a host-local path into the cloud profile.
+
 ## [0.30.0] - 2026-08-07
 
 ### Breaking
