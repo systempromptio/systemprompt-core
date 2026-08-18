@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.31.0] - 2026-08-18
+
+### Breaking
+
+- **Breaking:** The bridge manifest wire format moves to a signed envelope: `GET /v1/bridge/manifest` returns `{ payload, signature }` where `payload` is the manifest's JCS-canonical JSON and the signature covers those exact bytes. Verification runs before deserialisation, so fields added in newer gateways no longer break signature checks on older bridges; a manifest whose `min_schema_version` exceeds the bridge's supported level is refused with an explicit upgrade message. A 0.31.0 gateway requires a 0.25.0+ bridge and vice versa.
+- **Breaking:** `HeuristicScanner` is constructed from the new `SafetyConfig::heuristic` block (`phrases`, `extra_phrases`, `disable_builtin`), making the builtin jailbreak phrase list configurable per gateway policy without an extension. `manifest_signing::sign_value`, `ManifestService::sign`, and `CanonicalView` are removed — see the crate CHANGELOGs for migration.
+- **Breaking:** `SampledRequest` gains a `context_id` field.
+
+### Added
+
+- `ai_requests.synthetic` flags seeded or demo rows; cost dashboards and evaluation sampling exclude them.
+- `admin users api-key issue|list|revoke` mints personal access tokens directly against the database, decoupling bridge login from any external identity provider.
+- `admin evals run --conversations` judges whole conversations (the latest request per context, whose stored transcript carries every prior turn) instead of isolated requests.
+
+### Fixed
+
+- Released Linux bridge binaries are built against glibc 2.35 (`ubuntu-22.04`), so they run on Debian 12 / Ubuntu 22.04-era distributions instead of failing with `GLIBC_2.39 not found`.
+- Generated cloud deploy images use `debian:trixie-slim`, matching binaries built on current hosts; cloud profile authoring no longer carries a host-local `geoip_database` path into the container profile.
+- On Windows, a sync that targets the Cowork host from a non-elevated process fails with explicit elevation guidance instead of silently writing plugins to a per-user directory Cowork never scans; `doctor` reports the same condition.
+
 ## [0.30.1] - 2026-08-07
 
 ### Fixed
