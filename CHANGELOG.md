@@ -1,5 +1,31 @@
 # Changelog
 
+## [0.32.0] - 2026-08-18
+
+### Breaking
+
+- **Breaking:** `rmcp` moves from 3.0.0 to 3.1.3. `rmcp` types are part of the public API (`ClientProfile::protocol_version`, the re-exported `CallToolResult`, and the facade's `rmcp` re-export), so downstream crates must build against the same `rmcp` minor.
+- **Breaking:** `execute_tool_call` takes an optional `SharedElicitationDelegate`; `McpClient::call_tool` is unchanged and `call_tool_with_elicitation` accepts a delegate. Migrate direct `execute_tool_call` callers by passing `None`.
+
+### Added
+
+- MCP protocol `2026-07-28` is fully supported alongside every earlier version back to `2024-11-05`: legacy clients keep the `initialize` handshake and `Mcp-Session-Id` sessions, while `2026-07-28` clients are served statelessly with per-request `_meta` negotiation and `server/discover`, per SEP-2567/SEP-2575.
+- The advertised protocol version is pinned to `2026-07-28` explicitly instead of tracking the SDK's `LATEST`, so an `rmcp` bump can no longer move the advertised version silently; `mcp_supported_protocol_versions` exposes the full supported set.
+- The `io.modelcontextprotocol/tasks` extension (SEP-2663) is declared by hosted servers and the outbound client; task handles returned from `tools/call` are polled to completion via `tasks/get` with the server's `pollIntervalMs`/`ttlMs` hints, and `TaskManager`, `TaskContext`, and `TaskOptions` are re-exported for server binaries.
+- SEP-2322 multi-round-trip requests are driven on the client: `input_required` responses are fulfilled through the local handler, and elicitation (form and URL modes) is routed through a new `ElicitationDelegate` seam — the elicitation capability is only advertised when a delegate is installed, and requests received without one are declined.
+- Streamable HTTP operation headers (`Mcp-Method`, `Mcp-Name`; SEP-2243) are emitted on outbound `2026-07-28` requests, logged on inbound requests, and forwarded across the internal MCP proxy.
+- `tools/list` pagination cursors are followed to exhaustion instead of reading only the first page.
+- Resource list and read results carry SEP-2549 `ttlMs`/`cacheScope`: the static artifact-viewer template is publicly cacheable for an hour; rendered artifact reads are private and always revalidated.
+- Wire conformance is validated against the vendored official `2025-11-25` and `2026-07-28` schemas in addition to `2025-03-26` and `2025-06-18`.
+
+### Changed
+
+- Roots, sampling, and MCP logging remain unimplemented and unadvertised; SEP-2577 deprecates all three, so no support will be added.
+
+### Fixed
+
+- The internal MCP proxy streams response bodies and preserves upstream response headers (previously it buffered the whole body and dropped every header, breaking SSE responses through the proxy hop); hop-by-hop headers are stripped per RFC 9110, and request bodies over the 4 MiB transport limit are rejected with `413`.
+
 ## [0.31.0] - 2026-08-18
 
 ### Breaking

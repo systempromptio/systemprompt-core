@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.32.0] - 2026-08-18
+
+### Breaking
+
+- **Breaking:** built against `rmcp` 3.1.3; re-exported `rmcp` types follow. Migrate by building against the same `rmcp` minor.
+- **Breaking:** `execute_tool_call` takes an optional `SharedElicitationDelegate` as its final argument. Migrate by passing `None`, or use `McpClient::call_tool`, which is unchanged.
+
+### Added
+
+- Protocol `2026-07-28` support with backward compatibility: `mcp_protocol_version` is pinned to `2026-07-28`, `mcp_supported_protocol_versions` exposes the full negotiable set, and `create_router` serves legacy sessions and stateless `2026-07-28` requests from the same service.
+- `ElicitationDelegate` / `SharedElicitationDelegate` route server elicitation requests (form and URL modes) to a human; the elicitation capability is only advertised when a delegate is installed, and requests received without one are declined.
+- The `io.modelcontextprotocol/tasks` extension is declared in `build_extension_capabilities` and the outbound client capabilities; task handles from `tools/call` are polled to completion, and `TaskManager`, `TaskContext`, and `TaskOptions` are re-exported for server binaries.
+- `Mcp-Method`/`Mcp-Name` operation headers are logged on inbound requests and forwarded across `create_proxy_router`.
+- `tools/list` pagination cursors are followed to exhaustion.
+- Resource list/read results carry SEP-2549 `ttlMs` and `cacheScope`.
+
+### Fixed
+
+- `create_proxy_router` streams response bodies and preserves upstream response headers instead of buffering the body and dropping every header; hop-by-hop headers are stripped and oversized request bodies are rejected with `413`.
+
 ## [0.30.1] - 2026-08-07
 
 ### Fixed

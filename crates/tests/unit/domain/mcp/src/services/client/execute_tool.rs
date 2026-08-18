@@ -109,6 +109,7 @@ async fn execute_tool_call_returns_tool_result() {
         "scripted",
         "echo",
         Some(serde_json::json!({"message": "hi"})),
+        None,
     )
     .await
     .expect("tool call succeeds");
@@ -131,7 +132,7 @@ async fn execute_tool_call_surfaces_jsonrpc_error() {
     )
     .await;
 
-    let err = execute_tool_call(transport(&server), "scripted", "missing", None)
+    let err = execute_tool_call(transport(&server), "scripted", "missing", None, None)
         .await
         .expect_err("jsonrpc error surfaces");
 

@@ -886,6 +886,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "darling"
+version = "0.24.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "88490bf1b990d87eaaa7ac8aa887f629a08e7359765b4911faf63c3763347d23"
+dependencies = [
+ "darling_core 0.24.0",
+ "darling_macro 0.24.0",
+]
+
+[[package]]
 name = "darling_core"
 version = "0.20.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -913,6 +923,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "darling_core"
+version = "0.24.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "084e274f91c482280130e1e34e0b8d6e66776a060d7b6de7b84289ca778868c4"
+dependencies = [
+ "ident_case",
+ "proc-macro2",
+ "quote",
+ "strsim",
+ "syn 3.0.2",
+]
+
+[[package]]
 name = "darling_macro"
 version = "0.20.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -932,6 +955,17 @@ dependencies = [
  "darling_core 0.23.0",
  "quote",
  "syn 2.0.119",
+]
+
+[[package]]
+name = "darling_macro"
+version = "0.24.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "68f5792fa0d41cd2325ce0ffa64f0a340eaebd4971a3a0c5e1ffd2cc488a355e"
+dependencies = [
+ "darling_core 0.24.0",
+ "quote",
+ "syn 3.0.2",
 ]
 
 [[package]]
@@ -1175,7 +1209,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -1934,7 +1968,7 @@ checksum = "3640c1c38b8e4e43584d8df18be5fc6b0aa314ce6ebf51b53313d4306cca8e46"
 dependencies = [
  "hermit-abi",
  "libc",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -2215,7 +2249,7 @@ version = "0.50.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7957b9740744892f114936ab4a57b3f487491bbeafaf8083688b16841a4240e5"
 dependencies = [
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -2791,7 +2825,7 @@ dependencies = [
  "once_cell",
  "socket2",
  "tracing",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -3114,18 +3148,20 @@ dependencies = [
 
 [[package]]
 name = "rmcp"
-version = "3.0.0"
+version = "3.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fcd2b6dd3b18129368955f32661a7718969e8c152c7d8866434c09cf15a512e0"
+checksum = "5f17072af977b0f86f714dbd64b3d37d0715bb63064f9d13483f0a1775813374"
 dependencies = [
  "async-trait",
  "base64 0.23.0",
  "bytes",
  "chrono",
  "futures",
+ "hmac 0.13.0",
  "http",
  "http-body",
  "http-body-util",
+ "indexmap",
  "pastey 0.2.3",
  "pin-project-lite",
  "rand 0.10.2",
@@ -3133,6 +3169,7 @@ dependencies = [
  "schemars",
  "serde",
  "serde_json",
+ "sha2 0.11.0",
  "sse-stream",
  "thiserror 2.0.19",
  "tokio",
@@ -3140,20 +3177,21 @@ dependencies = [
  "tokio-util",
  "tower-service",
  "tracing",
+ "url",
  "uuid",
 ]
 
 [[package]]
 name = "rmcp-macros"
-version = "3.0.0"
+version = "3.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e1aa4b9345795260a43fc23d6d05e096407c8b953903f673af7c4404b49fb2d6"
+checksum = "54817231d63a35330d5c3a5782a4a166fbe3b914a9faab440d3dd8bd37971890"
 dependencies = [
- "darling 0.23.0",
+ "darling 0.24.0",
  "proc-macro2",
  "quote",
  "serde_json",
- "syn 2.0.119",
+ "syn 3.0.2",
 ]
 
 [[package]]
@@ -3247,7 +3285,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys 0.12.1",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -3938,7 +3976,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-agent"
-version = "0.30.1"
+version = "0.32.0"
 dependencies = [
  "async-trait",
  "axum",
@@ -3975,7 +4013,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-ai"
-version = "0.30.1"
+version = "0.32.0"
 dependencies = [
  "async-trait",
  "base64 0.22.1",
@@ -4004,7 +4042,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-analytics"
-version = "0.30.1"
+version = "0.32.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -4041,7 +4079,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-cloud"
-version = "0.30.1"
+version = "0.32.0"
 dependencies = [
  "async-stream",
  "axum",
@@ -4069,7 +4107,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-config"
-version = "0.30.1"
+version = "0.32.0"
 dependencies = [
  "base64 0.22.1",
  "rand 0.10.2",
@@ -4088,7 +4126,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-content"
-version = "0.30.1"
+version = "0.32.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -4115,7 +4153,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-database"
-version = "0.30.1"
+version = "0.32.0"
 dependencies = [
  "async-trait",
  "base64 0.22.1",
@@ -4140,7 +4178,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-events"
-version = "0.30.1"
+version = "0.32.0"
 dependencies = [
  "axum",
  "chrono",
@@ -4158,7 +4196,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-extension"
-version = "0.30.1"
+version = "0.32.0"
 dependencies = [
  "async-trait",
  "axum",
@@ -4175,7 +4213,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-files"
-version = "0.30.1"
+version = "0.32.0"
 dependencies = [
  "async-trait",
  "base64 0.22.1",
@@ -4204,7 +4242,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-identifiers"
-version = "0.30.1"
+version = "0.32.0"
 dependencies = [
  "chrono",
  "schemars",
@@ -4217,7 +4255,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-loader"
-version = "0.30.1"
+version = "0.32.0"
 dependencies = [
  "serde",
  "serde_yaml_ng",
@@ -4230,7 +4268,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-logging"
-version = "0.30.1"
+version = "0.32.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -4256,7 +4294,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-marketplace"
-version = "0.30.1"
+version = "0.32.0"
 dependencies = [
  "async-trait",
  "hex",
@@ -4275,7 +4313,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-mcp"
-version = "0.30.1"
+version = "0.32.0"
 dependencies = [
  "async-trait",
  "axum",
@@ -4312,7 +4350,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-models"
-version = "0.30.1"
+version = "0.32.0"
 dependencies = [
  "async-trait",
  "axum",
@@ -4344,7 +4382,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-oauth"
-version = "0.30.1"
+version = "0.32.0"
 dependencies = [
  "base64 0.22.1",
  "bcrypt",
@@ -4377,7 +4415,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-provider-contracts"
-version = "0.30.1"
+version = "0.32.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -4392,7 +4430,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-runtime"
-version = "0.30.1"
+version = "0.32.0"
 dependencies = [
  "axum",
  "indicatif",
@@ -4425,7 +4463,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-security"
-version = "0.30.1"
+version = "0.32.0"
 dependencies = [
  "async-trait",
  "axum",
@@ -4497,7 +4535,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-traits"
-version = "0.30.1"
+version = "0.32.0"
 dependencies = [
  "async-trait",
  "axum",
@@ -4517,7 +4555,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-users"
-version = "0.30.1"
+version = "0.32.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -4555,7 +4593,7 @@ dependencies = [
  "getrandom 0.4.3",
  "once_cell",
  "rustix 1.1.4",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -5298,7 +5336,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]

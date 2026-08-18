@@ -110,8 +110,15 @@ pub use systemprompt_models::mcp::{
     McpProvider, McpRegistry, McpServerState,
 };
 
+// Why: pinned to a named constant, not `ProtocolVersion::LATEST`, so the
+// version we advertise cannot move silently on an rmcp bump; bumping it is a
+// deliberate release decision with wire-conformance coverage.
 pub fn mcp_protocol_version() -> String {
-    ProtocolVersion::LATEST.to_string()
+    ProtocolVersion::V_2026_07_28.to_string()
+}
+
+pub const fn mcp_supported_protocol_versions() -> &'static [ProtocolVersion] {
+    ProtocolVersion::KNOWN_VERSIONS
 }
 
 pub fn mcp_protocol_version_str() -> &'static str {
@@ -135,6 +142,7 @@ use axum::middleware::Next;
 use axum::response::Response;
 use rmcp::ServerHandler;
 pub use rmcp::model::ProtocolVersion;
+pub use rmcp::task_manager::{TaskContext, TaskManager, TaskOptions};
 use rmcp::transport::StreamableHttpService;
 use rmcp::transport::streamable_http_server::StreamableHttpServerConfig;
 
@@ -190,6 +198,16 @@ async fn mcp_request_logger(req: Request, next: Next) -> Response {
         .get("mcp-session-id")
         .and_then(|v| v.to_str().ok())
         .map(String::from);
+    let mcp_method = req
+        .headers()
+        .get("mcp-method")
+        .and_then(|v| v.to_str().ok())
+        .map(String::from);
+    let mcp_name = req
+        .headers()
+        .get("mcp-name")
+        .and_then(|v| v.to_str().ok())
+        .map(String::from);
     let has_auth = req.headers().get("authorization").is_some();
     let proxy_verified = req
         .headers()
@@ -206,6 +224,8 @@ async fn mcp_request_logger(req: Request, next: Next) -> Response {
         %method,
         %uri,
         session_id = ?session_id,
+        mcp_method = ?mcp_method,
+        mcp_name = ?mcp_name,
         has_auth,
         proxy_verified,
         accept = ?accept,

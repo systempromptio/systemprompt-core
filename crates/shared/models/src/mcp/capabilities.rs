@@ -19,6 +19,8 @@ pub enum McpExtensionId {
     McpAppsUi,
     #[serde(rename = "io.modelcontextprotocol/enterprise-managed-authorization")]
     EnterpriseManagedAuth,
+    #[serde(rename = "io.modelcontextprotocol/tasks")]
+    Tasks,
     #[serde(untagged)]
     Custom(String),
 }
@@ -30,6 +32,7 @@ impl McpExtensionId {
             Self::EnterpriseManagedAuth => {
                 "io.modelcontextprotocol/enterprise-managed-authorization"
             },
+            Self::Tasks => "io.modelcontextprotocol/tasks",
             Self::Custom(s) => s,
         }
     }

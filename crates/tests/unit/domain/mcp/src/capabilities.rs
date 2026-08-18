@@ -24,7 +24,8 @@ fn test_build_extension_capabilities_contains_apps_ui_key() {
     let caps = build_extension_capabilities();
     let (expected_key, _) = mcp_apps_ui_extension();
     assert!(caps.contains_key(&expected_key));
-    assert_eq!(caps.len(), 1);
+    assert!(caps.contains_key("io.modelcontextprotocol/tasks"));
+    assert_eq!(caps.len(), 2);
 }
 
 #[test]

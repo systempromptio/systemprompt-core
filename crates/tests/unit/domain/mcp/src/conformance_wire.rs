@@ -16,16 +16,19 @@ use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
 
 const SCHEMA_2025_06_18: &str = include_str!("../schemas/2025-06-18.schema.json");
 const SCHEMA_2025_03_26: &str = include_str!("../schemas/2025-03-26.schema.json");
+const SCHEMA_2025_11_25: &str = include_str!("../schemas/2025-11-25.schema.json");
+const SCHEMA_2026_07_28: &str = include_str!("../schemas/2026-07-28.schema.json");
 
 fn call_tool_result_validator(schema_doc: &str) -> jsonschema::Validator {
     let mut doc: serde_json::Value =
         serde_json::from_str(schema_doc).expect("vendored schema parses");
-    doc.as_object_mut()
-        .expect("schema document is an object")
-        .insert(
-            "$ref".to_owned(),
-            serde_json::json!("#/definitions/CallToolResult"),
-        );
+    let obj = doc.as_object_mut().expect("schema document is an object");
+    let pointer = if obj.contains_key("definitions") {
+        "#/definitions/CallToolResult"
+    } else {
+        "#/$defs/CallToolResult"
+    };
+    obj.insert("$ref".to_owned(), serde_json::json!(pointer));
     jsonschema::validator_for(&doc).expect("vendored schema compiles")
 }
 
@@ -229,6 +232,65 @@ async fn ui_client_gets_embedded_resource_and_prefixed_meta() {
         validator.validate(&json).is_ok(),
         "2025-06-18 schema rejects: {json}"
     );
+}
+
+fn modern_client() -> ClientProfile {
+    ClientProfile {
+        protocol_version: Some(ProtocolVersion::V_2025_11_25),
+        client_name: Some("modern-host".to_owned()),
+        extensions: std::collections::BTreeSet::new(),
+    }
+}
+
+fn stateless_ui_client() -> ClientProfile {
+    ClientProfile {
+        protocol_version: Some(ProtocolVersion::V_2026_07_28),
+        client_name: Some("stateless-apps-host".to_owned()),
+        extensions: [systemprompt_models::mcp::EXTENSION_ID.to_owned()].into(),
+    }
+}
+
+#[tokio::test]
+async fn v2025_11_25_client_result_validates_against_official_schema() {
+    let Some(result) = build(&modern_client(), table()).await else {
+        return;
+    };
+
+    assert!(result.structured_content.is_some());
+    assert_meta_keys_are_prefixed(&result);
+
+    let json = serde_json::to_value(&result).expect("serializes");
+    let validator = call_tool_result_validator(SCHEMA_2025_11_25);
+    assert!(
+        validator.validate(&json).is_ok(),
+        "2025-11-25 schema rejects: {json}"
+    );
+}
+
+#[tokio::test]
+async fn v2026_07_28_stateless_client_result_validates_against_official_schema() {
+    let Some(result) = build(&stateless_ui_client(), table()).await else {
+        return;
+    };
+
+    assert!(has_embedded_resource(&result));
+    assert!(result.structured_content.is_some());
+    assert_meta_keys_are_prefixed(&result);
+
+    let json = serde_json::to_value(&result).expect("serializes");
+    let validator = call_tool_result_validator(SCHEMA_2026_07_28);
+    assert!(
+        validator.validate(&json).is_ok(),
+        "2026-07-28 schema rejects: {json}"
+    );
+}
+
+#[test]
+fn advertised_protocol_version_is_pinned_not_sdk_latest() {
+    assert_eq!(systemprompt_mcp::mcp_protocol_version(), "2026-07-28");
+    let supported = systemprompt_mcp::mcp_supported_protocol_versions();
+    assert!(supported.contains(&ProtocolVersion::V_2024_11_05));
+    assert!(supported.contains(&ProtocolVersion::V_2026_07_28));
 }
 
 #[tokio::test]

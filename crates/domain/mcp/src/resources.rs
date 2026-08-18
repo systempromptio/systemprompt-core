@@ -5,8 +5,8 @@
 
 use rmcp::ErrorData as McpError;
 use rmcp::model::{
-    Icon, ListResourcesResult, MetaObject, ReadResourceRequestParams, ReadResourceResult, Resource,
-    ResourceContents,
+    CacheScope, Icon, ListResourcesResult, MetaObject, ReadResourceRequestParams,
+    ReadResourceResult, Resource, ResourceContents,
 };
 
 use crate::capabilities::WEBSITE_URL;
@@ -17,6 +17,11 @@ use crate::services::ui_renderer::{
 };
 use systemprompt_identifiers::{ArtifactId, ContextId};
 use systemprompt_models::mcp::McpResourceUiMeta;
+
+// Why: the viewer template only changes when the server binary is redeployed,
+// so intermediaries may share it (SEP-2549 `public`); rendered artifacts are
+// per-user data and must revalidate every read (`private`, ttl 0).
+const STATIC_TEMPLATE_TTL_MS: u64 = 3_600_000;
 
 #[derive(Debug)]
 pub struct ArtifactViewerConfig<'a> {
@@ -40,6 +45,8 @@ pub fn build_artifact_viewer_resource(config: &ArtifactViewerConfig<'_>) -> List
     resource.icons.clone_from(&config.icons);
 
     ListResourcesResult::with_all_items(vec![resource])
+        .with_ttl_ms(STATIC_TEMPLATE_TTL_MS)
+        .with_cache_scope(CacheScope::Public)
 }
 
 pub fn read_artifact_viewer_resource(
@@ -71,7 +78,9 @@ pub fn read_artifact_viewer_resource(
         meta: Some(meta),
     };
 
-    Ok(ReadResourceResult::new(vec![contents]))
+    Ok(ReadResourceResult::new(vec![contents])
+        .with_ttl_ms(STATIC_TEMPLATE_TTL_MS)
+        .with_cache_scope(CacheScope::Public))
 }
 
 pub async fn read_artifact_resource(
@@ -130,7 +139,9 @@ pub async fn read_artifact_resource(
         meta: Some(MetaObject(ui_meta.to_meta_map())),
     };
 
-    Ok(ReadResourceResult::new(vec![contents]))
+    Ok(ReadResourceResult::new(vec![contents])
+        .with_ttl_ms(0)
+        .with_cache_scope(CacheScope::Private))
 }
 
 #[must_use]

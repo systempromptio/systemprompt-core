@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.32.0] - 2026-08-18
+
+### Added
+
+- `McpExtensionId::Tasks` names the `io.modelcontextprotocol/tasks` extension.
+
+### Changed
+
+- Built against `rmcp` 3.1.3; the re-exported `CallToolResult` and related types follow.
+
 ## [0.31.0] - 2026-08-18
 
 ### Breaking

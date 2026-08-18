@@ -21,6 +21,10 @@ pub fn build_extension_capabilities() -> BTreeMap<String, serde_json::Map<String
     let mut map = BTreeMap::new();
     let (key, value) = mcp_apps_ui_extension();
     map.insert(key, value);
+    map.insert(
+        McpExtensionId::Tasks.as_str().to_owned(),
+        serde_json::Map::new(),
+    );
     map
 }
 
