@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.31.0] - 2026-08-18
+
+### Changed
+
+- Platform and per-user cost aggregations exclude `ai_requests` rows flagged `synthetic`, so seeded demo traffic no longer inflates spend dashboards.
+
 ## [0.29.0] - 2026-08-04
 
 ### Breaking

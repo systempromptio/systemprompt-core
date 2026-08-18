@@ -32,7 +32,8 @@ impl CostAnalyticsRepository {
                 SUM(cost_microdollars)::bigint as "cost",
                 SUM(tokens_used)::bigint as "tokens"
             FROM ai_requests
-            WHERE created_at >= $1 AND created_at < $2 AND user_id = $3
+            WHERE created_at >= $1 AND created_at < $2
+              AND NOT synthetic AND user_id = $3
             "#,
             start,
             end,
@@ -54,7 +55,8 @@ impl CostAnalyticsRepository {
             r#"
             SELECT SUM(cost_microdollars)::bigint as "cost"
             FROM ai_requests
-            WHERE created_at >= $1 AND created_at < $2 AND user_id = $3
+            WHERE created_at >= $1 AND created_at < $2
+              AND NOT synthetic AND user_id = $3
             "#,
             start,
             end,
@@ -81,7 +83,8 @@ impl CostAnalyticsRepository {
                 COUNT(*)::bigint as "requests!",
                 COALESCE(SUM(tokens_used), 0)::bigint as "tokens!"
             FROM ai_requests
-            WHERE created_at >= $1 AND created_at < $2 AND user_id = $4
+            WHERE created_at >= $1 AND created_at < $2
+              AND NOT synthetic AND user_id = $4
               AND model IS NOT NULL
             GROUP BY model
             ORDER BY SUM(cost_microdollars) DESC NULLS LAST
@@ -111,6 +114,7 @@ impl CostAnalyticsRepository {
                 COUNT(*)::bigint as "ai_requests!"
             FROM ai_requests
             WHERE created_at >= $1 AND created_at < $2
+              AND NOT synthetic
               AND user_id = $3
               AND context_id IS NOT NULL
             "#,
@@ -139,6 +143,7 @@ impl CostAnalyticsRepository {
                 COUNT(*)::bigint as "ai_requests!"
             FROM ai_requests
             WHERE created_at >= $1 AND created_at < $2
+              AND NOT synthetic
               AND user_id = $3
               AND context_id IS NOT NULL
               AND model IS NOT NULL
@@ -173,6 +178,7 @@ impl CostAnalyticsRepository {
             FROM ai_requests r
             LEFT JOIN agent_tasks at ON at.task_id = r.task_id
             WHERE r.created_at >= $1 AND r.created_at < $2
+                  AND NOT r.synthetic
               AND r.user_id = $3
               AND r.context_id IS NOT NULL
             GROUP BY COALESCE(at.agent_name, 'unattributed')

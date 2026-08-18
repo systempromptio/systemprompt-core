@@ -28,6 +28,7 @@ impl CostAnalyticsRepository {
                 SUM(tokens_used)::bigint as "tokens"
             FROM ai_requests
             WHERE created_at >= $1 AND created_at < $2
+              AND NOT synthetic
             "#,
             start,
             end
@@ -48,6 +49,7 @@ impl CostAnalyticsRepository {
             SELECT SUM(cost_microdollars)::bigint as "cost"
             FROM ai_requests
             WHERE created_at >= $1 AND created_at < $2
+              AND NOT synthetic
             "#,
             start,
             end
@@ -73,6 +75,7 @@ impl CostAnalyticsRepository {
                 COALESCE(SUM(tokens_used), 0)::bigint as "tokens!"
             FROM ai_requests
             WHERE created_at >= $1 AND created_at < $2
+              AND NOT synthetic
               AND model IS NOT NULL
             GROUP BY model
             ORDER BY SUM(cost_microdollars) DESC NULLS LAST
@@ -103,6 +106,7 @@ impl CostAnalyticsRepository {
                 COALESCE(SUM(tokens_used), 0)::bigint as "tokens!"
             FROM ai_requests
             WHERE created_at >= $1 AND created_at < $2
+              AND NOT synthetic
               AND provider IS NOT NULL
             GROUP BY provider
             ORDER BY SUM(cost_microdollars) DESC NULLS LAST
@@ -135,6 +139,7 @@ impl CostAnalyticsRepository {
                 FROM ai_requests r
                 INNER JOIN agent_tasks at ON at.task_id = r.task_id
                 WHERE r.created_at >= $1 AND r.created_at < $2
+                  AND NOT r.synthetic
                   AND at.agent_name IS NOT NULL
                 GROUP BY at.agent_name
                 ORDER BY SUM(r.cost_microdollars) DESC NULLS LAST
@@ -150,6 +155,7 @@ impl CostAnalyticsRepository {
                 FROM ai_requests r
                 LEFT JOIN agent_tasks at ON at.task_id = r.task_id
                 WHERE r.created_at >= $1 AND r.created_at < $2
+                  AND NOT r.synthetic
                   AND (r.task_id IS NULL OR at.agent_name IS NULL)
                 HAVING COUNT(*) > 0
             )
@@ -177,6 +183,7 @@ impl CostAnalyticsRepository {
                 tokens_used
             FROM ai_requests
             WHERE created_at >= $1 AND created_at < $2
+              AND NOT synthetic
             ORDER BY created_at
             "#,
             start,
