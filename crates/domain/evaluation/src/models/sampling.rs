@@ -5,9 +5,19 @@
 
 use chrono::{DateTime, Utc};
 use serde_json::Value;
-use systemprompt_identifiers::AiRequestId;
+use systemprompt_identifiers::{AiRequestId, ContextId};
 
 use super::case::{CanonicalMessage, CanonicalPrompt};
+
+/// `Request` grades every completed row independently; `Conversation` grades
+/// one transcript per `context_id` — the latest completed row, whose stored
+/// messages already carry the whole conversation-so-far.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum SampleMode {
+    #[default]
+    Request,
+    Conversation,
+}
 
 #[derive(Debug, Clone, Default)]
 pub struct SampleFilter {
@@ -16,6 +26,8 @@ pub struct SampleFilter {
     pub provider: Option<String>,
     pub model: Option<String>,
     pub ids: Option<Vec<String>>,
+    pub context_id: Option<String>,
+    pub mode: SampleMode,
     pub limit: i64,
 }
 
@@ -51,12 +63,25 @@ impl SampleFilter {
         self.ids = Some(ids);
         self
     }
+
+    #[must_use]
+    pub fn context_id(mut self, context_id: impl Into<String>) -> Self {
+        self.context_id = Some(context_id.into());
+        self
+    }
+
+    #[must_use]
+    pub const fn mode(mut self, mode: SampleMode) -> Self {
+        self.mode = mode;
+        self
+    }
 }
 
 /// A completed production request hydrated with everything the judge needs.
 #[derive(Debug, Clone)]
 pub struct SampledRequest {
     pub ai_request_id: AiRequestId,
+    pub context_id: ContextId,
     pub provider: String,
     pub model: String,
     pub system_prompt_override: Option<String>,

@@ -6,7 +6,7 @@
 use anyhow::Result;
 use chrono::{Duration, Utc};
 use clap::Args;
-use systemprompt_evaluation::SampleFilter;
+use systemprompt_evaluation::{SampleFilter, SampleMode};
 
 use super::shared::{eval_context, run_request};
 use crate::context::CommandContext;
@@ -44,6 +44,16 @@ pub struct RunArgs {
 
     #[arg(long, help = "Abort once judge spend reaches this many microdollars")]
     pub budget_microdollars: Option<i64>,
+
+    #[arg(
+        long,
+        help = "Judge whole conversations (latest request per context) instead of individual \
+                requests"
+    )]
+    pub conversations: bool,
+
+    #[arg(long, help = "Only sample requests from this context")]
+    pub context_id: Option<String>,
 }
 
 pub(super) async fn execute(args: RunArgs, ctx: &CommandContext) -> Result<CommandOutput> {
@@ -56,6 +66,12 @@ pub(super) async fn execute(args: RunArgs, ctx: &CommandContext) -> Result<Comma
     }
     if let Some(model) = args.model {
         filter = filter.model(model);
+    }
+    if let Some(context_id) = args.context_id {
+        filter = filter.context_id(context_id);
+    }
+    if args.conversations {
+        filter = filter.mode(SampleMode::Conversation);
     }
 
     let request = run_request(

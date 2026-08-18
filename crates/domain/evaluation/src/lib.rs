@@ -32,7 +32,7 @@ pub use extension::EvaluationExtension;
 pub use models::{
     CanonicalMessage, CanonicalPrompt, DimensionScore, EvalCase, EvalResult, EvalRun, EvalRunKind,
     EvalRunStatus, JudgeVerdict, NewCaseParams, NewResultParams, NewRunParams, Rubric,
-    RubricDimension, SampleFilter, SampledRequest, TriggerSource, Verdict,
+    RubricDimension, SampleFilter, SampleMode, SampledRequest, TriggerSource, Verdict,
 };
 pub use repository::{
     EvalCaseRepository, EvalJudgeCallRepository, EvalRepositories, EvalResultRepository,

@@ -13,4 +13,4 @@ pub use case::{CanonicalMessage, CanonicalPrompt, EvalCase, NewCaseParams};
 pub use result::{EvalResult, NewResultParams, Verdict};
 pub use rubric::{DimensionScore, JudgeVerdict, Rubric, RubricDimension};
 pub use run::{EvalRun, EvalRunKind, EvalRunStatus, NewRunParams, TriggerSource};
-pub use sampling::{SampleFilter, SampledRequest};
+pub use sampling::{SampleFilter, SampleMode, SampledRequest};

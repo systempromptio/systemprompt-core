@@ -7,13 +7,27 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::AiRequestId;
+use systemprompt_identifiers::{AiRequestId, ContextId};
 
 use crate::error::Result;
-use crate::models::{CanonicalMessage, SampleFilter, SampledRequest};
+use crate::models::{CanonicalMessage, SampleFilter, SampleMode, SampledRequest};
+
+struct SampledRow {
+    id: String,
+    context_id: String,
+    provider: String,
+    model: String,
+    system_prompt_override: Option<String>,
+    latency_ms: Option<i32>,
+    cost_microdollars: i64,
+    created_at: DateTime<Utc>,
+    offered_tools: Option<serde_json::Value>,
+    prepared_body_sha256: Option<String>,
+}
 
 #[derive(Debug, Clone)]
 pub struct SamplingRepository {
@@ -28,32 +42,10 @@ impl SamplingRepository {
     }
 
     pub async fn sample(&self, filter: &SampleFilter) -> Result<Vec<SampledRequest>> {
-        let rows = sqlx::query!(
-            r#"
-            SELECT r.id, r.provider AS "provider!", r.model AS "model!",
-                   r.system_prompt_override, r.latency_ms, r.cost_microdollars,
-                   r.created_at, p.offered_tools, p.prepared_body_sha256
-            FROM ai_requests r
-            LEFT JOIN ai_request_payloads p ON p.ai_request_id = r.id
-            WHERE r.status = 'completed'
-              AND r.actor_kind <> 'job'
-              AND ($1::timestamptz IS NULL OR r.created_at >= $1)
-              AND ($2::timestamptz IS NULL OR r.created_at < $2)
-              AND ($3::text IS NULL OR r.provider = $3)
-              AND ($4::text IS NULL OR r.model = $4)
-              AND ($5::text[] IS NULL OR r.id = ANY($5))
-            ORDER BY r.created_at DESC
-            LIMIT $6
-            "#,
-            filter.since,
-            filter.until,
-            filter.provider.as_deref(),
-            filter.model.as_deref(),
-            filter.ids.as_deref(),
-            filter.limit
-        )
-        .fetch_all(self.pool.as_ref())
-        .await?;
+        let rows = match filter.mode {
+            SampleMode::Request => self.sample_requests(filter).await?,
+            SampleMode::Conversation => self.sample_conversations(filter).await?,
+        };
 
         let mut sampled = Vec::with_capacity(rows.len());
         for row in rows {
@@ -61,6 +53,7 @@ impl SamplingRepository {
             let (messages, response_text) = self.load_messages(&id).await?;
             sampled.push(SampledRequest {
                 ai_request_id: id,
+                context_id: ContextId::new(row.context_id),
                 provider: row.provider,
                 model: row.model,
                 system_prompt_override: row.system_prompt_override,
@@ -74,6 +67,84 @@ impl SamplingRepository {
             });
         }
         Ok(sampled)
+    }
+
+    async fn sample_requests(&self, filter: &SampleFilter) -> Result<Vec<SampledRow>> {
+        let rows = sqlx::query_as!(
+            SampledRow,
+            r#"
+            SELECT r.id, r.context_id, r.provider AS "provider!", r.model AS "model!",
+                   r.system_prompt_override, r.latency_ms, r.cost_microdollars,
+                   r.created_at, p.offered_tools, p.prepared_body_sha256
+            FROM ai_requests r
+            LEFT JOIN ai_request_payloads p ON p.ai_request_id = r.id
+            WHERE r.status = 'completed'
+              AND r.actor_kind <> 'job'
+              AND NOT r.synthetic
+              AND ($1::timestamptz IS NULL OR r.created_at >= $1)
+              AND ($2::timestamptz IS NULL OR r.created_at < $2)
+              AND ($3::text IS NULL OR r.provider = $3)
+              AND ($4::text IS NULL OR r.model = $4)
+              AND ($5::text[] IS NULL OR r.id = ANY($5))
+              AND ($6::text IS NULL OR r.context_id = $6)
+            ORDER BY r.created_at DESC
+            LIMIT $7
+            "#,
+            filter.since,
+            filter.until,
+            filter.provider.as_deref(),
+            filter.model.as_deref(),
+            filter.ids.as_deref(),
+            filter.context_id.as_deref(),
+            filter.limit
+        )
+        .fetch_all(self.pool.as_ref())
+        .await?;
+        Ok(rows)
+    }
+
+    async fn sample_conversations(&self, filter: &SampleFilter) -> Result<Vec<SampledRow>> {
+        let rows = sqlx::query_as!(
+            SampledRow,
+            r#"
+            SELECT latest.id AS "id!", latest.context_id AS "context_id!",
+                   latest.provider AS "provider!", latest.model AS "model!",
+                   latest.system_prompt_override, latest.latency_ms,
+                   latest.cost_microdollars AS "cost_microdollars!",
+                   latest.created_at AS "created_at!",
+                   latest.offered_tools, latest.prepared_body_sha256
+            FROM (
+                SELECT DISTINCT ON (r.context_id)
+                       r.id, r.context_id, r.provider, r.model,
+                       r.system_prompt_override, r.latency_ms, r.cost_microdollars,
+                       r.created_at, p.offered_tools, p.prepared_body_sha256
+                FROM ai_requests r
+                LEFT JOIN ai_request_payloads p ON p.ai_request_id = r.id
+                WHERE r.status = 'completed'
+                  AND r.actor_kind <> 'job'
+                  AND NOT r.synthetic
+                  AND ($1::timestamptz IS NULL OR r.created_at >= $1)
+                  AND ($2::timestamptz IS NULL OR r.created_at < $2)
+                  AND ($3::text IS NULL OR r.provider = $3)
+                  AND ($4::text IS NULL OR r.model = $4)
+                  AND ($5::text[] IS NULL OR r.id = ANY($5))
+                  AND ($6::text IS NULL OR r.context_id = $6)
+                ORDER BY r.context_id, r.created_at DESC
+            ) latest
+            ORDER BY latest.created_at DESC
+            LIMIT $7
+            "#,
+            filter.since,
+            filter.until,
+            filter.provider.as_deref(),
+            filter.model.as_deref(),
+            filter.ids.as_deref(),
+            filter.context_id.as_deref(),
+            filter.limit
+        )
+        .fetch_all(self.pool.as_ref())
+        .await?;
+        Ok(rows)
     }
 
     /// Cost as persisted by the audit path, looked up by the provider-facing

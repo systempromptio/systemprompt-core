@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.31.0] - 2026-08-18
+
+### Breaking
+
+- **Breaking:** `SampledRequest` gains a `context_id` field. Migrate struct literals by populating it from the sampled row.
+
+### Added
+
+- `SampleMode::Conversation` samples one transcript per `context_id` — the latest completed request, whose stored messages carry the whole conversation — so the judge grades conversations instead of isolated turns; `SampleFilter` gains `mode` and `context_id`.
+
+### Changed
+
+- Sampling excludes `ai_requests` rows flagged `synthetic`.
+
 ## [0.29.0] - 2026-08-05
 
 ### Added

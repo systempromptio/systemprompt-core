@@ -4,7 +4,7 @@ use chrono::Utc;
 use systemprompt_evaluation::{
     CanonicalMessage, EvalRunKind, JudgeVerdict, SampleFilter, SampledRequest, Verdict,
 };
-use systemprompt_identifiers::AiRequestId;
+use systemprompt_identifiers::{AiRequestId, ContextId};
 
 #[test]
 fn run_kind_round_trips() {
@@ -86,6 +86,7 @@ fn sample_filter_builder_sets_fields() {
 fn canonical_prompt_carries_request_identity() {
     let request = SampledRequest {
         ai_request_id: AiRequestId::new("req-1"),
+        context_id: ContextId::new("00000000-0000-0000-0000-00000000c0de"),
         provider: "anthropic".to_owned(),
         model: "claude-sonnet-5".to_owned(),
         system_prompt_override: Some("be terse".to_owned()),

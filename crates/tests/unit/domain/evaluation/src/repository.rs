@@ -5,7 +5,7 @@
 use systemprompt_evaluation::{
     EvalCaseRepository, EvalResultRepository, EvalRubricRepository, EvalRunKind, EvalRunRepository,
     NewCaseParams, NewResultParams, NewRunParams, Rubric, RubricDimension, SampleFilter,
-    SamplingRepository, TriggerSource, Verdict,
+    SampleMode, SamplingRepository, TriggerSource, Verdict,
 };
 use systemprompt_identifiers::{AiRequestId, EvalRubricId, UserId};
 use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_database_url, fixture_db_pool};
@@ -257,4 +257,121 @@ async fn cases_promote_and_toggle() {
     assert!(listed.iter().all(|c| c.id != case_id));
 
     delete_ai_request(&pool, &request).await;
+}
+
+struct ContextSeed<'a> {
+    context_id: &'a str,
+    minutes_ago: i64,
+    synthetic: bool,
+}
+
+async fn seed_context_request(
+    pool: &systemprompt_database::DbPool,
+    seed: ContextSeed<'_>,
+) -> AiRequestId {
+    let id = format!("eval-test-{}", Uuid::new_v4());
+    let write = pool.write_pool_arc().expect("write pool");
+    sqlx::query(
+        "INSERT INTO ai_requests (id, request_id, user_id, context_id, provider, model, status, actor_kind, actor_id, synthetic, created_at)
+         VALUES ($1, $1, 'system', $2, 'anthropic', 'claude-sonnet-5', 'completed', 'user', 'system', $3, NOW() - ($4::int * INTERVAL '1 minute'))",
+    )
+    .bind(&id)
+    .bind(seed.context_id)
+    .bind(seed.synthetic)
+    .bind(i32::try_from(seed.minutes_ago).expect("minutes"))
+    .execute(write.as_ref())
+    .await
+    .expect("seed request");
+    AiRequestId::new(id)
+}
+
+#[tokio::test]
+async fn conversation_sampling_returns_latest_row_per_context() {
+    let Ok(url) = fixture_database_url() else {
+        return;
+    };
+    ensure_test_bootstrap();
+    let pool = fixture_db_pool(&url).await.expect("pool");
+    let sampling = SamplingRepository::new(&pool).expect("repo");
+
+    let ctx_a = Uuid::new_v4().to_string();
+    let ctx_b = Uuid::new_v4().to_string();
+    let mut seeded = Vec::new();
+    let a_old = seed_context_request(
+        &pool,
+        ContextSeed {
+            context_id: &ctx_a,
+            minutes_ago: 30,
+            synthetic: false,
+        },
+    )
+    .await;
+    let a_latest = seed_context_request(
+        &pool,
+        ContextSeed {
+            context_id: &ctx_a,
+            minutes_ago: 5,
+            synthetic: false,
+        },
+    )
+    .await;
+    let a_synthetic = seed_context_request(
+        &pool,
+        ContextSeed {
+            context_id: &ctx_a,
+            minutes_ago: 1,
+            synthetic: true,
+        },
+    )
+    .await;
+    let b_latest = seed_context_request(
+        &pool,
+        ContextSeed {
+            context_id: &ctx_b,
+            minutes_ago: 10,
+            synthetic: false,
+        },
+    )
+    .await;
+    seeded.extend([
+        a_old.clone(),
+        a_latest.clone(),
+        a_synthetic.clone(),
+        b_latest.clone(),
+    ]);
+
+    let ids: Vec<String> = seeded.iter().map(|r| r.as_str().to_owned()).collect();
+    let filter = SampleFilter::with_limit(10)
+        .ids(ids)
+        .mode(SampleMode::Conversation);
+    let sampled = sampling.sample(&filter).await.expect("sample");
+
+    assert_eq!(sampled.len(), 2, "one row per context: {sampled:?}");
+    let sampled_ids: Vec<&str> = sampled.iter().map(|r| r.ai_request_id.as_str()).collect();
+    assert!(sampled_ids.contains(&a_latest.as_str()), "{sampled_ids:?}");
+    assert!(sampled_ids.contains(&b_latest.as_str()), "{sampled_ids:?}");
+    assert!(
+        !sampled_ids.contains(&a_synthetic.as_str()),
+        "synthetic rows must be excluded: {sampled_ids:?}"
+    );
+    let a_row = sampled
+        .iter()
+        .find(|r| r.ai_request_id == a_latest)
+        .expect("context A row");
+    assert_eq!(a_row.context_id.as_str(), ctx_a);
+
+    let scoped = sampling
+        .sample(
+            &SampleFilter::with_limit(10)
+                .context_id(ctx_a.clone())
+                .mode(SampleMode::Conversation),
+        )
+        .await
+        .expect("scoped sample");
+    assert_eq!(scoped.len(), 1);
+    assert_eq!(scoped[0].ai_request_id, a_latest);
+
+    for id in &seeded {
+        delete_ai_request(&pool, id).await;
+    }
 }
