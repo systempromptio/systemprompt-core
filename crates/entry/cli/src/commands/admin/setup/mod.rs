@@ -12,7 +12,7 @@ pub mod ai_config;
 pub mod catalog;
 pub mod common;
 pub mod ddl;
-mod docker;
+pub mod docker;
 pub mod docker_compose;
 mod docker_database;
 pub mod postgres;

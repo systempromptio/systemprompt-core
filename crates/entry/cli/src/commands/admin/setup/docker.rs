@@ -9,7 +9,9 @@ use systemprompt_cloud::constants::docker::{COMPOSE_PATH, container_name};
 use systemprompt_logging::CliService;
 
 use super::SetupArgs;
-use super::common::{PostgresConfig, enable_extensions, generate_password, test_connection};
+use super::common::{
+    PostgresConfig, detect_postgresql, enable_extensions, generate_password, test_connection,
+};
 use super::docker_compose::{
     create_compose_files_if_missing, is_compose_available, is_container_running,
     is_docker_available, start_compose, wait_for_postgres_ready,
@@ -17,10 +19,19 @@ use super::docker_compose::{
 use super::docker_database::create_database_in_docker;
 use crate::interactive::Prompter;
 
-pub(super) async fn setup_docker_postgres_non_interactive(
+pub async fn setup_docker_postgres_non_interactive(
     config: &PostgresConfig,
     env_name: &str,
 ) -> Result<PostgresConfig> {
+    if test_connection(config).await {
+        CliService::success(&format!(
+            "Reusing PostgreSQL already listening at {}:{}",
+            config.host, config.port
+        ));
+        enable_extensions(config).await?;
+        return Ok(config.clone());
+    }
+
     if !is_docker_available() {
         anyhow::bail!("Docker is not installed or not in PATH.");
     }
@@ -30,16 +41,16 @@ pub(super) async fn setup_docker_postgres_non_interactive(
 
     let compose_dir = std::env::current_dir()?.join(COMPOSE_PATH);
     let container = container_name(env_name);
-    create_compose_files_if_missing(&compose_dir, &container, config.port)?;
 
     if is_container_running(&container) {
-        if !test_connection(config).await {
-            create_database_in_docker(config, &container).await?;
-        }
+        create_compose_files_if_missing(&compose_dir, &container, config.port)?;
+        create_database_in_docker(config, &container).await?;
         enable_extensions(config).await?;
         return Ok(config.clone());
     }
 
+    ensure_port_free(config)?;
+    create_compose_files_if_missing(&compose_dir, &container, config.port)?;
     start_compose(config, &compose_dir, &container)?;
     wait_for_postgres_ready(config, &container);
     enable_extensions(config).await?;
@@ -91,6 +102,15 @@ pub(super) async fn setup_docker_postgres_interactive(
         database,
     };
 
+    if test_connection(&config).await {
+        CliService::success(&format!(
+            "Reusing PostgreSQL already listening at {}:{}",
+            config.host, config.port
+        ));
+        enable_extensions(&config).await?;
+        return Ok(config);
+    }
+
     let compose_dir = std::env::current_dir()?.join(COMPOSE_PATH);
     let container = container_name(env_name);
     create_compose_files_if_missing(&compose_dir, &container, port)?;
@@ -120,6 +140,7 @@ pub(super) async fn setup_docker_postgres_interactive(
         }
     }
 
+    ensure_port_free(&config)?;
     start_compose(&config, &compose_dir, &container)?;
 
     wait_for_postgres_ready(&config, &container);
@@ -127,4 +148,17 @@ pub(super) async fn setup_docker_postgres_interactive(
     enable_extensions(&config).await?;
 
     Ok(config)
+}
+
+fn ensure_port_free(config: &PostgresConfig) -> Result<()> {
+    if detect_postgresql(&config.host, config.port) {
+        anyhow::bail!(
+            "Port {}:{} is already in use by a server that does not accept the configured \
+             credentials. Reuse that database (fix the credentials) or stop whatever is bound to \
+             the port, then re-run setup.",
+            config.host,
+            config.port
+        );
+    }
+    Ok(())
 }

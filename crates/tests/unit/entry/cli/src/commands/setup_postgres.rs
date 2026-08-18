@@ -348,6 +348,62 @@ fn interactive_superuser_empty_password_is_error() {
 }
 
 #[test]
+fn docker_non_interactive_reuses_reachable_database_without_compose() {
+    let Some(db) = db_url() else { return };
+    let dir = tempfile::tempdir().expect("tempdir");
+    std::env::set_current_dir(dir.path()).expect("chdir");
+
+    let config = PostgresConfig {
+        host: db.host,
+        port: db.port,
+        user: db.user,
+        password: db.password,
+        database: db.database,
+    };
+    let result = runtime()
+        .block_on(
+            systemprompt_cli::admin::setup::docker::setup_docker_postgres_non_interactive(
+                &config, "covtest",
+            ),
+        )
+        .expect("reachable database is reused as-is");
+    assert_eq!(result.database, config.database);
+    assert!(!dir.path().join("infrastructure/docker").exists());
+}
+
+#[test]
+fn docker_non_interactive_refuses_occupied_port() {
+    use systemprompt_cli::admin::setup::docker_compose::{
+        is_compose_available, is_docker_available,
+    };
+    if !is_docker_available() || !is_compose_available() {
+        return;
+    }
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind");
+    let port = listener.local_addr().expect("addr").port();
+    let dir = tempfile::tempdir().expect("tempdir");
+    std::env::set_current_dir(dir.path()).expect("chdir");
+
+    let config = PostgresConfig {
+        host: "127.0.0.1".to_owned(),
+        port,
+        user: "cov_wrong_user".to_owned(),
+        password: "cov_wrong_pw".to_owned(),
+        database: "cov_wrong_db".to_owned(),
+    };
+    let err = runtime()
+        .block_on(
+            systemprompt_cli::admin::setup::docker::setup_docker_postgres_non_interactive(
+                &config,
+                "covtestport",
+            ),
+        )
+        .unwrap_err();
+    assert!(err.to_string().contains("already in use"));
+    assert!(!dir.path().join("infrastructure/docker").exists());
+}
+
+#[test]
 fn compose_files_are_rendered() {
     let dir = tempfile::tempdir().expect("tempdir");
     create_compose_files_if_missing(dir.path(), "cov_pg", 5544).expect("compose files written");

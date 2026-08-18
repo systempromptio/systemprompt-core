@@ -41,7 +41,7 @@ pub(super) async fn setup_postgres(
     config: &CliConfig,
     env_name: &str,
 ) -> Result<PostgresConfig> {
-    if !config.is_interactive() {
+    if args.yes || !config.is_interactive() {
         return postgres::setup_non_interactive(args, env_name, config).await;
     }
     postgres::setup_interactive(args, prompter, env_name, config).await
