@@ -10,8 +10,8 @@
 use anyhow::Result;
 use systemprompt_runtime::DatabaseContext;
 
+use super::admin;
 use super::commands::DbCommands;
-use super::{admin, admin_squash};
 use crate::cli_settings::CliConfig;
 
 pub(super) async fn dispatch_profile_migration(
@@ -57,20 +57,6 @@ pub(super) async fn dispatch_profile_migration(
         )
         .await
         .map(|()| None),
-        DbCommands::MigrateSquash {
-            extension,
-            through,
-            apply,
-        } => admin_squash::execute_squash(
-            config,
-            admin_squash::SquashArgs {
-                extension: &extension,
-                through,
-                apply,
-            },
-        )
-        .await
-        .map(|()| None),
         other => Ok(Some(other)),
     }
 }
@@ -91,21 +77,6 @@ pub(super) async fn dispatch_standalone_migration(
                 .await
                 .map(|()| None)
         },
-        DbCommands::MigrateSquash {
-            extension,
-            through,
-            apply,
-        } => admin_squash::execute_squash_standalone(
-            db_ctx,
-            config,
-            admin_squash::SquashArgs {
-                extension: &extension,
-                through,
-                apply,
-            },
-        )
-        .await
-        .map(|()| None),
         DbCommands::MigrateRepair {
             extension,
             apply,

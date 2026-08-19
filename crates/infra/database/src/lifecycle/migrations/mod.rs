@@ -1,7 +1,7 @@
 //! Extension migration runner backed by the `extension_migrations`
-//! bookkeeping table. [`MigrationService`] applies, reverts, inspects, and
-//! squashes per-extension migration history; reverts live in [`down`],
-//! status/plan queries in [`status`], squash in [`squash`].
+//! bookkeeping table. [`MigrationService`] applies, reverts, and inspects
+//! per-extension migration history; reverts live in [`down`], status/plan
+//! queries in [`status`], fresh-install baseline stamping in [`stamp`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -10,12 +10,12 @@ mod down;
 mod exec;
 mod mark_applied;
 mod repair;
-mod squash;
+mod stamp;
 mod status;
 
 pub use mark_applied::MarkAppliedOutcome;
 pub use repair::RepairResult;
-pub use squash::SquashPlan;
+pub use stamp::FreshnessCheck;
 pub use status::{
     AppliedMigration, ChecksumDrift, ExtensionMigrationStatus, MigrationResult, MigrationStatus,
     PendingMigration,

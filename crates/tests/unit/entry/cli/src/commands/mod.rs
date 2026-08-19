@@ -66,7 +66,6 @@ mod core_plugins_fs;
 mod core_plugins_list_fs;
 mod core_skills_hooks_fs;
 mod db_helpers;
-mod db_squash_followup;
 mod dispatchers_invalid_input_fs;
 mod dispatchers_table_output_fs;
 mod infrastructure;

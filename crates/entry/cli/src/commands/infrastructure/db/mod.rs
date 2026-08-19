@@ -5,7 +5,7 @@
 //! routed to the profile or standalone dispatcher depending on whether the
 //! invocation is database-scoped, and the remaining subcommands share the
 //! context's pool. Subcommands cover ad-hoc queries, schema introspection,
-//! migration apply/down/repair/squash, and the schema doctor.
+//! migration apply/down/repair, and the schema doctor.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -18,7 +18,6 @@ mod admin_migrate_plan;
 mod admin_migrate_repair;
 mod admin_migrate_status;
 mod admin_migrations;
-pub mod admin_squash;
 mod commands;
 mod dispatch;
 mod doctor;
@@ -67,7 +66,6 @@ pub async fn execute(cmd: DbCommands, ctx: &CommandContext) -> Result<()> {
         DbCommands::Info => schema::execute_info(&admin_service, config).await,
         DbCommands::Migrate { .. }
         | DbCommands::MigrateDown { .. }
-        | DbCommands::MigrateSquash { .. }
         | DbCommands::MigrateRepair { .. }
         | DbCommands::MigrateMarkApplied { .. } => {
             bail!("migration command was not consumed by the migration dispatcher")

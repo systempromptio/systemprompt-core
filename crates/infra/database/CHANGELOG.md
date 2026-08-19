@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.32.0] - 2026-08-19
+
+### Breaking
+
+- **Breaking:** The migration-squash machinery is removed: `MigrationService::squash`, `SquashPlan`, and the filesystem `squash_baseline` module (`SquashBaselineService`, `SquashBaselineError`). The declarative schema is the baseline; migrate by deleting squash workflows.
+
+### Added
+
+- Fresh installs are stamped instead of migrated: `MigrationService::assess_freshness` (`FreshnessCheck`) detects a database with no tracking history and none of the extension's tables, and `stamp_all_migrations` records every defined migration without executing its SQL — the structural/dependent DDL alone produces the target schema.
+
 ## [0.27.0] - 2026-07-29
 
 ### Breaking

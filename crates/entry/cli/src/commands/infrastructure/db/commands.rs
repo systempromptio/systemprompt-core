@@ -42,25 +42,6 @@ pub enum DbCommands {
         #[arg(help = "Number of migrations to revert")]
         count: u32,
     },
-    #[command(
-        about = "Squash an extension's migrations 1..=N into a baseline at version 0 (dry-run by \
-                 default)"
-    )]
-    MigrateSquash {
-        #[arg(long, help = "Extension ID whose migrations should be squashed")]
-        extension: String,
-        #[arg(
-            long,
-            help = "Squash migrations with version 1..=through into the baseline"
-        )]
-        through: u32,
-        #[arg(
-            long,
-            help = "Apply the squash (write baseline file + rewrite DB rows). Without this flag, \
-                    the command is a dry-run."
-        )]
-        apply: bool,
-    },
     #[command(about = "Show migration status and history")]
     Migrations {
         #[command(subcommand)]

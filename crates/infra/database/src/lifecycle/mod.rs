@@ -18,8 +18,9 @@ pub use installation::{
     install_extension_schemas_with_config,
 };
 pub use migrations::{
-    AppliedMigration, ChecksumDrift, ExtensionMigrationStatus, MarkAppliedOutcome, MigrationConfig,
-    MigrationResult, MigrationService, MigrationStatus, PendingMigration, RepairResult, SquashPlan,
+    AppliedMigration, ChecksumDrift, ExtensionMigrationStatus, FreshnessCheck, MarkAppliedOutcome,
+    MigrationConfig, MigrationResult, MigrationService, MigrationStatus, PendingMigration,
+    RepairResult,
 };
 pub use validation::{
     validate_column_exists, validate_database_connection, validate_table_exists,

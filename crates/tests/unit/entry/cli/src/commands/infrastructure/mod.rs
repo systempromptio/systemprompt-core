@@ -5,7 +5,6 @@ mod db_commands_db;
 mod db_migrate_fresh_db;
 mod db_migrate_repair_db;
 mod db_migration_drift_db;
-mod db_squash_dispatch_db;
 mod jobs_cleanup_history_db;
 mod jobs_logs_app_ctx;
 mod jobs_toggle_db;

@@ -9,6 +9,7 @@
 - **Breaking:** `cloud auth logout` now clears all local cloud state — `credentials.json`, `tenants.json`, and tenant-scoped CLI sessions (local sessions survive) — via the new `clear_cloud_state` helper. Activity telemetry (`POST /api/v1/activity` on login/logout) is removed.
 - **Breaking:** `rmcp` moves from 3.0.0 to 3.1.3. `rmcp` types are part of the public API (`ClientProfile::protocol_version`, the re-exported `CallToolResult`, and the facade's `rmcp` re-export), so downstream crates must build against the same `rmcp` minor.
 - **Breaking:** `execute_tool_call` takes an optional `SharedElicitationDelegate`; `McpClient::call_tool` is unchanged and `call_tool_with_elicitation` accepts a delegate. Migrate direct `execute_tool_call` callers by passing `None`.
+- **Breaking:** `infra db migrate-squash` and the squash-baseline machinery (`MigrationService::squash`, `SquashPlan`, `SquashBaselineService`) are removed. Fresh installs are stamped instead: a database with no migration history and none of an extension's tables records every defined migration as applied without executing it, since the declarative schema already produces the target shape.
 
 ### Added
 

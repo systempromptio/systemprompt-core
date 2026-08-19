@@ -4,6 +4,9 @@
 //! Installation runs globally in three phases — structural DDL, then
 //! migrations, then dependent DDL — so a legacy database reaches its target
 //! shape before any `CREATE INDEX`/`VIEW` references a migration-added column.
+//! A fresh database (no migration history, no owned tables) skips migration
+//! execution entirely: the declarative schema is the baseline, and every
+//! defined migration is stamped as applied without running.
 //! A session-scoped advisory lock serialises concurrent boots. See
 //! `instructions/information/migrations.md`.
 //!
@@ -88,16 +91,32 @@ async fn run_install(
 
     validate_table_ownership(&prepared, schema_extensions)?;
 
+    let mut fresh_extensions: std::collections::HashSet<String> = std::collections::HashSet::new();
+    for (ext, p) in schema_extensions.iter().zip(&prepared) {
+        if ext.has_migrations()
+            && migration_service
+                .assess_freshness(&p.extension_id, &p.owned_tables)
+                .await?
+                .is_fresh()
+        {
+            fresh_extensions.insert(p.extension_id.clone());
+        }
+    }
+
     for p in &prepared {
         execute_statements_transactional(db, &p.structural, &p.extension_id).await?;
     }
 
     for ext in schema_extensions {
         if ext.has_migrations() {
-            debug!(extension = %ext.id(), "Running pending migrations");
-            migration_service
-                .run_pending_migrations(ext.as_ref())
-                .await?;
+            if fresh_extensions.contains(ext.id()) {
+                migration_service.stamp_all_migrations(ext.as_ref()).await?;
+            } else {
+                debug!(extension = %ext.id(), "Running pending migrations");
+                migration_service
+                    .run_pending_migrations(ext.as_ref())
+                    .await?;
+            }
         }
     }
 

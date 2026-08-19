@@ -19,8 +19,8 @@ mod down_migration;
 mod migration_plan_status;
 
 #[cfg(test)]
-#[path = "../squash.rs"]
-mod squash;
+#[path = "../fresh_install_stamp.rs"]
+mod fresh_install_stamp;
 
 #[cfg(test)]
 #[path = "../advisory_lock.rs"]

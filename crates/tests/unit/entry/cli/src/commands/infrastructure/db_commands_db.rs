@@ -140,33 +140,6 @@ async fn migrate_mark_applied_rejects_unknown_extension() {
 }
 
 #[tokio::test]
-async fn migrate_squash_dry_run_and_unknown_extension() {
-    let pool = pool().await;
-    let ctx = ctx(&pool);
-
-    let err = db::execute(
-        parse(&[
-            "migrate-squash",
-            "--extension",
-            "no-such-extension",
-            "--through",
-            "1",
-        ]),
-        &ctx,
-    )
-    .await
-    .unwrap_err();
-    assert!(err.to_string().contains("not found in registry"));
-
-    let result = db::execute(
-        parse(&["migrate-squash", "--extension", "logging", "--through", "1"]),
-        &ctx,
-    )
-    .await;
-    assert!(result.is_ok() || !result.unwrap_err().to_string().is_empty());
-}
-
-#[tokio::test]
 async fn migrate_down_rejects_unknown_extension() {
     let pool = pool().await;
     let ctx = ctx(&pool);

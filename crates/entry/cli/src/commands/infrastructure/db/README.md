@@ -44,7 +44,6 @@ alias sp="./target/debug/systemprompt --non-interactive"
 | `infra db info` | Show database information | `Card` | No (DB only) |
 | `infra db migrate` | Run database migrations | `Text` | No (DB only) |
 | `infra db migrate-down <extension> <count>` | Revert the most recently applied migrations for an extension | `Text` | No (DB only) |
-| `infra db migrate-squash` | Squash an extension's migrations into a baseline at version 0 | `Text` | No (DB only) |
 | `infra db migrations status` | Show migration status | `Table` | No (DB only) |
 | `infra db migrations history <extension>` | Show migration history for an extension | `Table` | No (DB only) |
 | `infra db migrate-plan [extension]` | Show pending migrations (dry-run / plan) | `Text` | No (DB only) |
@@ -304,26 +303,6 @@ sp --json infra db migrate-down users 2
 |----------|----------|-------------|
 | `<extension>` | Yes | Extension whose migrations to revert |
 | `<count>` | Yes | Number of migrations to revert |
-
-**Artifact Type:** `Text`
-
----
-
-### db migrate-squash
-
-Squash an extension's migrations `1..=N` into a single baseline at version 0. Dry-run by default; pass `--apply` to write.
-
-```bash
-sp infra db migrate-squash --extension mcp --through 12
-sp infra db migrate-squash --extension mcp --through 12 --apply
-```
-
-**Optional Flags:**
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--extension` | | Extension to squash |
-| `--through` | | Highest migration version to fold into the baseline |
-| `--apply` | `false` | Write the squash (omit for a dry-run) |
 
 **Artifact Type:** `Text`
 

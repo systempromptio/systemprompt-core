@@ -2,7 +2,7 @@
 //!
 //! These structures back the JSON and table renderings of every database
 //! subcommand: status, schema introspection, query/execute results, and the
-//! full migration toolchain (status, plan, history, repair, squash).
+//! full migration toolchain (status, plan, history, repair).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -153,21 +153,6 @@ pub struct ExtensionMigrationStatus {
 pub struct MigrationHistoryOutput {
     pub extension_id: String,
     pub migrations: Vec<AppliedMigrationInfo>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DbSquashOutput {
-    pub extension_id: String,
-    pub through: u32,
-    pub baseline_name: String,
-    pub baseline_checksum: String,
-    pub source_versions: Vec<u32>,
-    pub already_applied_versions: Vec<u32>,
-    pub baseline_path: String,
-    pub baseline_path_written: bool,
-    pub applied: bool,
-    pub message: String,
-    pub follow_up: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

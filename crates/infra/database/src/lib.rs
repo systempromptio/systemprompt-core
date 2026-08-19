@@ -19,9 +19,6 @@
 //!   extension-supplied DDL.
 //! - [`DatabaseAdminService`], [`QueryExecutor`], [`AdminSql`],
 //!   [`SafeIdentifier`] — admin/introspection layer used by the CLI.
-//! - [`SquashBaselineService`] — locates an extension's source crate in the
-//!   workspace layout and writes squashed migration baselines; filesystem-only,
-//!   with its own [`SquashBaselineError`].
 //! - [`resilience`] — domain-agnostic resilience primitives
 //!   ([`resilience::ResilienceGuard`], [`resilience::CircuitBreaker`],
 //!   [`resilience::Bulkhead`], [`resilience::retry_async`]) wrapping outbound
@@ -61,7 +58,6 @@ pub mod repository;
 pub mod resilience;
 pub mod scope;
 pub mod services;
-pub mod squash_baseline;
 
 pub use extension::DatabaseExtension;
 
@@ -82,16 +78,15 @@ pub use systemprompt_models::RequestScope;
 
 pub use error::{DatabaseResult, RepositoryError};
 pub use lifecycle::{
-    AppliedMigration, ChecksumDrift, ExtensionMigrationStatus, MarkAppliedOutcome, MigrationConfig,
-    MigrationResult, MigrationService, MigrationStatus, PendingMigration, RepairResult, SquashPlan,
-    install_extension_schemas, install_extension_schemas_full,
+    AppliedMigration, ChecksumDrift, ExtensionMigrationStatus, FreshnessCheck, MarkAppliedOutcome,
+    MigrationConfig, MigrationResult, MigrationService, MigrationStatus, PendingMigration,
+    RepairResult, install_extension_schemas, install_extension_schemas_full,
     install_extension_schemas_with_config, validate_column_exists, validate_database_connection,
     validate_table_exists, validate_write_pool_is_primary,
 };
 pub use repository::{
     CleanupRepository, CreateServiceInput, PgDbPool, ServiceConfig, ServiceRepository,
 };
-pub use squash_baseline::{SquashBaselineError, SquashBaselineService};
 
 pub use admin::{
     AdminSql, AdminSqlError, DEFAULT_READONLY_ROW_LIMIT, DatabaseAdminService, IdentifierError,

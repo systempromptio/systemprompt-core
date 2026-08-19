@@ -216,42 +216,6 @@ async fn the_profile_dispatcher_rejects_unknown_extensions_by_name() {
     .await
     .expect_err("unknown extension");
     assert!(mark.to_string().contains("no_such_extension"), "got {mark}");
-
-    let squash = db::execute(
-        parse(&[
-            "migrate-squash",
-            "--extension",
-            "no_such_extension",
-            "--through",
-            "1",
-        ]),
-        &ctx(&app, false),
-    )
-    .await
-    .expect_err("unknown extension");
-    assert!(
-        squash.to_string().contains("not found in registry"),
-        "got {squash}"
-    );
-}
-
-#[tokio::test]
-async fn a_squash_dry_run_reports_a_plan_without_rewriting_the_ledger() {
-    let (pool, app) = app().await;
-    let before = applied_migration_count(&pool).await;
-
-    db::execute(
-        parse(&["migrate-squash", "--extension", "logging", "--through", "1"]),
-        &ctx(&app, false),
-    )
-    .await
-    .expect("dry-run squash");
-
-    assert_eq!(
-        applied_migration_count(&pool).await,
-        before,
-        "a squash dry run must not rewrite the ledger"
-    );
 }
 
 #[tokio::test]

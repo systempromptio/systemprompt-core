@@ -4,9 +4,7 @@
 //! database-facing public signatures, including the dyn-safe
 //! `DatabaseProvider` / `DatabaseTransaction` trait surfaces. It composes
 //! `sqlx::Error` and `serde_json::Error` via `#[from]`; runtime invariant
-//! failures are routed through `RepositoryError::InvalidState`. The
-//! filesystem-only [`crate::squash_baseline`] module carries its own error
-//! type.
+//! failures are routed through `RepositoryError::InvalidState`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
