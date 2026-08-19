@@ -28,6 +28,28 @@ use crate::services::middleware::JwtContextExtractor;
 
 pub(super) const KNOWN_HOSTS: &[&str] = &["claude-code", "claude-desktop", "cowork", "codex-cli"];
 
+/// Hosts the operator has enabled on this installation.
+///
+/// A host is instance-enabled unless the `external_agents` catalog carries an
+/// entry for it with `enabled: false`. Catalog ids are `snake_case`
+/// (`codex_cli`) while host ids are kebab-case (`codex-cli`); the underscore
+/// substitution is the whole mapping.
+pub fn instance_enabled_hosts(
+    services: &systemprompt_models::services::ServicesConfig,
+) -> Vec<String> {
+    KNOWN_HOSTS
+        .iter()
+        .filter(|host| {
+            services
+                .external_agents
+                .iter()
+                .find(|(id, _)| id.as_str().replace('_', "-") == **host)
+                .is_none_or(|(_, agent)| agent.enabled)
+        })
+        .map(|s| (*s).to_owned())
+        .collect()
+}
+
 #[derive(Debug, Deserialize)]
 pub struct EnabledHostsRequest {
     pub host_id: String,
@@ -62,6 +84,17 @@ pub async fn set_enabled_host(
             StatusCode::BAD_REQUEST,
             format!("unknown host: {}", body.host_id),
         ));
+    }
+
+    if body.enabled {
+        let services = bridge_data::load_services_config()
+            .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("services: {e}")))?;
+        if !instance_enabled_hosts(&services).contains(&body.host_id) {
+            return Err((
+                StatusCode::UNPROCESSABLE_ENTITY,
+                format!("host '{}' is disabled on this installation", body.host_id),
+            ));
+        }
     }
 
     bridge_data::upsert_host_pref(&ctx, &claims.user_id, &body.host_id, body.enabled)

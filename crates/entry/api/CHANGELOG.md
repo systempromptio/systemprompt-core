@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.32.0] - 2026-08-19
+
+### Changed
+
+- `GET /v1/bridge/manifest` and `POST /v1/bridge/enabled-hosts` respect instance-level host gating: a host whose `external_agents` catalog entry sets `enabled: false` is omitted from the manifest's enabled hosts and cannot be enabled per-user (the endpoint returns `422`).
+
 ## [0.31.0] - 2026-08-18
 
 ### Changed

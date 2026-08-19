@@ -40,15 +40,6 @@ pub(super) fn chown_to_sudo_user_if_root(path: &Path) {
     }
 }
 
-#[expect(
-    clippy::unnecessary_wraps,
-    clippy::missing_const_for_fn,
-    reason = "signature parity with the Windows sibling, which performs fallible icacls work"
-)]
-pub(super) fn grant_user_modify(_path: &Path) -> std::io::Result<()> {
-    Ok(())
-}
-
 fn lookup_uid_gid(user: &str) -> Option<(u32, u32)> {
     let output = std::process::Command::new("/usr/bin/id")
         .arg("-u")

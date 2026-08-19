@@ -21,14 +21,10 @@ use systemprompt_models::bridge::manifest::{
 use systemprompt_models::bridge::manifest_version::ManifestVersion;
 use systemprompt_runtime::AppContext;
 
-use super::bridge::KNOWN_HOSTS;
+use super::bridge::instance_enabled_hosts;
 use super::bridge_data;
 use super::messages::extract_credential;
 use crate::services::middleware::JwtContextExtractor;
-
-fn default_enabled_hosts() -> Vec<String> {
-    KNOWN_HOSTS.iter().map(|s| (*s).to_owned()).collect()
-}
 
 pub async fn manifest(
     jwt_extractor: Arc<JwtContextExtractor>,
@@ -46,8 +42,14 @@ pub async fn manifest(
 
     let (manifest_version, issued_at, not_before) = build_version()?;
 
+    let services = bridge_data::load_services_config().map_err(|e| {
+        tracing::warn!(error = %e, "manifest: services config load failed");
+        (StatusCode::INTERNAL_SERVER_ERROR, format!("services: {e}"))
+    })?;
+    let instance_hosts = instance_enabled_hosts(&services);
+
     let (candidate, allow_claude_ai_connectors) =
-        assemble_candidate(&ctx, profile, &claims.user_id).await?;
+        assemble_candidate(&ctx, profile, &claims.user_id, services).await?;
     let MarketplaceCandidate {
         plugins,
         skills,
@@ -65,7 +67,7 @@ pub async fn manifest(
         revocations,
         enabled_hosts,
         host_model_protocols,
-    } = load_per_user_context(&ctx, &claims.user_id).await;
+    } = load_per_user_context(&ctx, &claims.user_id, instance_hosts).await;
 
     let manifest = SignedManifest {
         min_schema_version: MANIFEST_SCHEMA_VERSION,
@@ -94,11 +96,8 @@ async fn assemble_candidate(
     ctx: &AppContext,
     profile: &systemprompt_models::Profile,
     user_id: &UserId,
+    services: systemprompt_models::services::ServicesConfig,
 ) -> Result<(MarketplaceCandidate, bool), (StatusCode, String)> {
-    let services = bridge_data::load_services_config().map_err(|e| {
-        tracing::warn!(error = %e, "manifest: services config load failed");
-        (StatusCode::INTERNAL_SERVER_ERROR, format!("services: {e}"))
-    })?;
     let allow_claude_ai_connectors = services
         .bridge_policy
         .is_some_and(|p| p.allow_claude_ai_connectors);
@@ -125,7 +124,11 @@ struct PerUserContext {
     host_model_protocols: std::collections::BTreeMap<String, Vec<String>>,
 }
 
-async fn load_per_user_context(ctx: &AppContext, user_id: &UserId) -> PerUserContext {
+async fn load_per_user_context(
+    ctx: &AppContext,
+    user_id: &UserId,
+    instance_hosts: Vec<String>,
+) -> PerUserContext {
     let user = match bridge_data::load_user(ctx, user_id).await {
         Ok(u) => u,
         Err(e) => {
@@ -143,14 +146,17 @@ async fn load_per_user_context(ctx: &AppContext, user_id: &UserId) -> PerUserCon
     };
 
     let enabled_hosts = match bridge_data::load_enabled_hosts(ctx, user_id).await {
-        Ok(rows) if rows.is_empty() => default_enabled_hosts(),
-        Ok(rows) => rows,
+        Ok(rows) if rows.is_empty() => instance_hosts,
+        Ok(rows) => instance_hosts
+            .into_iter()
+            .filter(|h| rows.iter().any(|r| r == h))
+            .collect(),
         Err(e) => {
             tracing::warn!(
                 error = %e,
-                "manifest: enabled_hosts load failed; defaulting to all known hosts"
+                "manifest: enabled_hosts load failed; defaulting to instance-enabled hosts"
             );
-            default_enabled_hosts()
+            instance_hosts
         },
     };
 

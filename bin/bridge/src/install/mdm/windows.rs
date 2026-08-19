@@ -81,13 +81,17 @@ fn elevated_write(value: &str) -> Result<(), String> {
         path = %path.display(),
         "managed MCP server list drifted; requesting elevation to update HKLM policy"
     );
-    crate::integration::claude_desktop::elevate::elevate_and_install(&path.to_string_lossy())
-        .map_err(|e| {
-            format!(
-                "the MCP connector list could not be updated: {e}. Re-run the Bridge as \
+    let job = crate::integration::claude_desktop::elevate::ElevatedJob {
+        reg_path: Some(path.to_string_lossy().into_owned()),
+        org_plugins:
+            crate::integration::claude_desktop::elevate::ElevatedJob::org_plugins_for_current_user(),
+    };
+    crate::integration::claude_desktop::elevate::elevate_and_run(&dir, &job).map_err(|e| {
+        format!(
+            "the MCP connector list could not be updated: {e}. Re-run the Bridge as \
                  Administrator to apply it."
-            )
-        })
+        )
+    })
 }
 
 pub(super) fn remove_policy() -> Result<bool, String> {

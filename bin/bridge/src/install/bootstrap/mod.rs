@@ -33,13 +33,6 @@ pub(super) fn bootstrap_directory(loc: &OrgPluginsLocation) -> std::io::Result<(
     fs::create_dir_all(&meta)?;
     os::chown_to_sudo_user_if_root(&loc.path);
     os::chown_to_sudo_user_if_root(&meta);
-    if let Err(e) = os::grant_user_modify(&loc.path) {
-        tracing::warn!(
-            path = %loc.path.display(),
-            error = %e,
-            "could not widen org-plugins ACL to grant user Modify; unelevated sync may fail"
-        );
-    }
     Ok(())
 }
 

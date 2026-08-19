@@ -36,8 +36,9 @@ pub enum SyncError {
     )]
     ManifestShape(String),
     #[error(
-        "Cowork reads {system_path} but this process cannot write there — re-run `{bin} sync` \
-         elevated (administrator), or disable the Cowork host for this user"
+        "Cowork reads {system_path} but this process cannot write there — re-run `{bin} install \
+         --apply` and approve the single administrator prompt (it provisions the Claude policy \
+         and grants you write access to org-plugins), or disable the Cowork host for this user"
     )]
     CoworkNeedsElevation {
         bin: &'static str,

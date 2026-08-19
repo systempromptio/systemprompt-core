@@ -25,6 +25,7 @@
 ### Changed
 
 - Roots, sampling, and MCP logging remain unimplemented and unadvertised; SEP-2577 deprecates all three, so no support will be added.
+- The bridge manifest and per-user enabled-hosts respect instance-level host gating: a host disabled in the `external_agents` catalog is omitted from the manifest and cannot be enabled per-user. On Windows, `bridge install --apply` provisions the Claude policy keys and the org-plugins directory ACL in one elevated step, so unelevated `bridge sync` no longer needs its own grant.
 
 ### Fixed
 
