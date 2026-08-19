@@ -4825,16 +4825,13 @@ dependencies = [
 name = "systemprompt-cloud"
 version = "0.32.0"
 dependencies = [
- "async-stream",
  "axum",
  "base64 0.22.1",
  "chrono",
  "clap",
- "futures",
  "ipnet",
  "open",
  "reqwest",
- "reqwest-eventsource",
  "serde",
  "serde_json",
  "systemprompt-extension",

@@ -45,9 +45,6 @@ tokio = { workspace = true }
 open = { workspace = true }
 urlencoding = { workspace = true }
 tracing = { workspace = true }
-futures = { workspace = true }
-reqwest-eventsource = { workspace = true }
-async-stream = { workspace = true }
 
 # CLI
 clap = { workspace = true }
