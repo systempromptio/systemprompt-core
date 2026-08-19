@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.32.1] - 2026-08-19
+
+### Fixed
+
+- `admin bootstrap` synthesized `{name}@localhost` as the default admin email, which the typed `Email` identifier rejects (the domain needs a dot) — every fresh local profile then failed `admin session login` with "Invalid email". The default is now `{name}@localhost.localdomain`, and a provided `--email` is validated at bootstrap instead of failing later at login.
+
 ## [0.32.0] - 2026-08-18
 
 ### Breaking

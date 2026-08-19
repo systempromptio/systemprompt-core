@@ -46,7 +46,9 @@ pub async fn execute(args: BootstrapArgs, _config: &CliConfig) -> Result<Command
         .email
         .clone()
         .filter(|e| !e.trim().is_empty())
-        .unwrap_or_else(|| format!("{name}@localhost"));
+        .unwrap_or_else(|| format!("{name}@localhost.localdomain"));
+    systemprompt_identifiers::Email::try_new(&email)
+        .map_err(|e| anyhow!("invalid admin email '{email}': {e}"))?;
 
     let user_service = connect_user_service().await?;
 
