@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.32.0] - 2026-08-19
+
+### Fixed
+
+- The base `ai_quota_buckets.sql` schema declares the post-migration shape (subject-keyed, with cost columns), so fresh installs match a migrated database instead of relying on migration 019 to rewrite the table.
+
 ## [0.31.0] - 2026-08-18
 
 ### Breaking

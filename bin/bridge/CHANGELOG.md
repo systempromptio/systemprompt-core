@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.26.0] - 2026-08-19
+
+### Added
+
+- MCP protocol 2026-07-28 with dual-lifecycle compatibility (rmcp 3.1.3). The bridge's proxied MCP path serves 2026-07-28 clients statelessly with per-request `_meta` negotiation and `server/discover`, while legacy clients keep the initialize handshake and sessions. The internal MCP proxy streams response bodies with preserved headers, follows `tools/list` pagination cursors, and forwards SEP-2243 operation headers.
+- Per-instance host gating: a host whose `external_agents` catalog entry sets `enabled: false` is omitted from the signed manifest's enabled hosts and cannot be enabled per-user (the gateway answers 422).
+
+### Changed
+
+- Windows: `bridge install --apply` provisions the Claude policy keys and the org-plugins directory ACL in one elevated job, replacing the sync-time `icacls` grant.
+
+## [0.25.0] - 2026-08-18
+
+### Breaking
+
+- **Breaking:** the gateway signs manifests as a `SignedManifestEnvelope { payload, signature }`, where `payload` is the manifest's JCS-canonical JSON signed byte-for-byte. The bridge verifies over those exact bytes before deserialising, so fields added by newer gateways no longer break older bridges. `min_schema_version` declares the oldest schema that can safely consume a manifest and is refused with an explicit upgrade message, replacing the opaque signature error on version skew. Both `CanonicalView` copies are deleted.
+
+### Fixed
+
+- Windows: a sync targeting the Cowork host from a process that cannot write the system org-plugins path now fails with elevation guidance instead of silently writing to a per-user directory Cowork never scans; `doctor` reports the same condition.
+
 ## [0.24.0] - 2026-08-07
 
 ### Added
