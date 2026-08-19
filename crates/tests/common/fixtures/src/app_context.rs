@@ -67,7 +67,9 @@ pub fn fixture_config(database_url: &str) -> Config {
         trusted_proxies: vec![],
         is_cloud: false,
         system_admin_username: "admin".to_string(),
-        system_admin_email: None,
+        system_admin_email: Some(systemprompt_identifiers::Email::new(
+            "admin@localhost.localdomain",
+        )),
         content_negotiation: ContentNegotiationConfig::default(),
         security_headers: SecurityHeadersConfig::default(),
         allow_registration: false,

@@ -39,6 +39,10 @@ fn sandbox_vars(home: &TempDir) -> Vec<(&'static str, Option<String>)> {
         ("XDG_CACHE_HOME", Some(format!("{root}/.cache"))),
         ("XDG_DATA_HOME", Some(format!("{root}/.data"))),
         ("XDG_STATE_HOME", Some(format!("{root}/.state"))),
+        (
+            "SP_BRIDGE_ORG_PLUGINS_SYSTEM",
+            Some(format!("{root}/.system-org-plugins")),
+        ),
         ("SP_BRIDGE_PAT", None),
         ("SP_BRIDGE_CONFIG", None),
         ("SP_BRIDGE_GATEWAY_URL", None),
@@ -80,9 +84,7 @@ fn write_cowork_state(root: &Path) {
 
 fn write_org_plugin(root: &Path) {
     let plugin = root
-        .join(".data")
-        .join("Claude")
-        .join("org-plugins")
+        .join(".system-org-plugins")
         .join("systemprompt-managed")
         .join(".claude-plugin");
     fs::create_dir_all(&plugin).unwrap();
