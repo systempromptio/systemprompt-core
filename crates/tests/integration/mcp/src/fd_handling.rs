@@ -11,7 +11,7 @@ use systemprompt_mcp::services::process::ProcessService;
 
 use crate::common::spawn_tcp_accept_loop;
 
-const SUBPROCESS_LOOKUPS: usize = 200;
+const SUBPROCESS_LOOKUPS: usize = 64;
 
 fn count_open_fds() -> usize {
     fs::read_dir("/proc/self/fd")

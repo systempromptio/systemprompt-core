@@ -145,7 +145,13 @@ const fn hex_upper(nibble: u8) -> char {
 
 fn launch_browser(url: &str) -> std::io::Result<()> {
     let (program, args) = browser_command(url);
-    Command::new(program).args(args).spawn().map(|_| ())
+    Command::new(program)
+        .args(args)
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .spawn()
+        .map(|_| ())
 }
 
 #[cfg(target_os = "macos")]
