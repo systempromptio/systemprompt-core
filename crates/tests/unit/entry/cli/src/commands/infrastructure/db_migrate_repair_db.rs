@@ -139,3 +139,47 @@ async fn repair_dry_run_reports_tampered_checksum_drift() {
     .unwrap();
     assert_eq!(checksum, original);
 }
+
+#[tokio::test]
+async fn reconcile_only_rewrites_checksum_in_place() {
+    let pool = pool().await;
+
+    let Some((ext, version, original)) = tamper_checksum(&pool).await else {
+        return;
+    };
+
+    let dry_run = db::execute(
+        parse(&["migrate-repair", &ext, "--reconcile-only"]),
+        &ctx(&pool, OutputFormat::Table),
+    )
+    .await;
+
+    let apply_run = db::execute(
+        parse(&[
+            "migrate-repair",
+            &ext,
+            "--reconcile-only",
+            "--apply",
+            "--json",
+        ]),
+        &ctx(&pool, OutputFormat::Json),
+    )
+    .await;
+
+    let (checksum,): (String,) = sqlx::query_as(
+        "SELECT checksum FROM extension_migrations WHERE extension_id = $1 AND version = $2",
+    )
+    .bind(&ext)
+    .bind(version)
+    .fetch_one(pool.pool_arc().unwrap().as_ref())
+    .await
+    .unwrap();
+
+    dry_run.unwrap();
+    apply_run.unwrap();
+    assert_eq!(
+        checksum, original,
+        "reconcile must rewrite the tampered checksum back to the file's current checksum"
+    );
+    assert_ne!(checksum, "cov-tampered-checksum");
+}

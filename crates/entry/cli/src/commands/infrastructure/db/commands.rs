@@ -68,8 +68,8 @@ pub enum DbCommands {
         json: bool,
     },
     #[command(
-        about = "Repair migration checksum drift — re-applies edited migrations in place (no data \
-                 loss)",
+        about = "Repair migration checksum drift — re-applies edited migrations in place, or with \
+                 --reconcile-only rewrites stored checksums without executing SQL",
         name = "migrate-repair"
     )]
     MigrateRepair {
@@ -81,6 +81,12 @@ pub enum DbCommands {
                     drift."
         )]
         apply: bool,
+        #[arg(
+            long,
+            help = "Rewrite stored checksums to match the current migration files without \
+                    executing any SQL (for already-applied edited migrations)"
+        )]
+        reconcile_only: bool,
         #[arg(long, help = "Emit JSON instead of a text table")]
         json: bool,
     },

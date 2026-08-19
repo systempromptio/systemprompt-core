@@ -12,3 +12,5 @@ pub use extension::{
     install_extension_schemas, install_extension_schemas_full,
     install_extension_schemas_with_config,
 };
+
+pub(crate) use extension::lock::BootstrapLockGuard;

@@ -32,7 +32,7 @@ pub(super) fn execute(profile_name: &str) -> Result<CommandOutput> {
     let session_key = SessionKey::from_tenant_id(new_tenant_id.as_ref());
 
     let sessions_dir = paths.sessions_dir();
-    let mut store = SessionStore::load_or_create(&sessions_dir)?;
+    let mut store = SessionStore::load_or_reset(&sessions_dir);
 
     let previous_profile = store.active_profile_name.clone();
 

@@ -79,7 +79,7 @@ pub(super) fn resolve_profile(
             .map_err(|e| anyhow::anyhow!("{}", e));
     }
 
-    let session_profile_path = get_active_session_profile_path();
+    let session_profile_path = get_active_session_profile_path()?;
 
     resolve_profile_path(
         cli_profile_override,
@@ -92,26 +92,28 @@ pub(super) fn resolve_profile(
     )
 }
 
-fn get_active_session_profile_path() -> Option<PathBuf> {
+fn get_active_session_profile_path() -> Result<Option<PathBuf>> {
     let paths = ResolvedPaths::discover();
     let sessions_dir = paths.sessions_dir();
 
-    let store = SessionStore::load(&sessions_dir)?;
+    let Some(store) = SessionStore::load(&sessions_dir)? else {
+        return Ok(None);
+    };
 
     if let Some(profile_name) = store.active_profile_name.as_deref()
         && let Some(path) = resolve_profile_path_by_name(&paths, profile_name)
     {
-        return Some(path);
+        return Ok(Some(path));
     }
 
     if let Some(session) = store.active_session_for_profile_discovery()
         && let Some(path) = &session.profile_path
         && path.exists()
     {
-        return Some(path.clone());
+        return Ok(Some(path.clone()));
     }
 
-    None
+    Ok(None)
 }
 
 fn resolve_profile_path_by_name(paths: &ResolvedPaths, name: &str) -> Option<PathBuf> {

@@ -3,10 +3,11 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::exec::execute_statements_transactional;
+use super::exec::{TrackingWrite, execute_statements_transactional};
 use super::{MigrationResult, MigrationService};
 use crate::services::SqlExecutor;
 use systemprompt_extension::{Extension, LoaderError, Migration};
+use systemprompt_identifiers::ToDbValue;
 use tracing::info;
 
 impl MigrationService<'_> {
@@ -98,23 +99,17 @@ impl MigrationService<'_> {
                 ),
             }
         })?;
-        execute_statements_transactional(self.db, &statements, ext_id, migration).await?;
-
-        self.delete_migration_record(ext_id, version).await
-    }
-
-    async fn delete_migration_record(&self, ext_id: &str, version: u32) -> Result<(), LoaderError> {
-        self.db
-            .execute(
-                &"DELETE FROM extension_migrations WHERE extension_id = $1 AND version = $2",
-                &[&ext_id, &version],
-            )
-            .await
-            .map_err(|e| LoaderError::MigrationFailed {
-                extension: ext_id.to_owned(),
-                message: format!("Failed to delete migration record {version}: {e}"),
-            })?;
-
-        Ok(())
+        let delete_params: [&dyn ToDbValue; 2] = [&ext_id, &version];
+        execute_statements_transactional(
+            self.db,
+            &statements,
+            ext_id,
+            migration,
+            Some(TrackingWrite {
+                sql: "DELETE FROM extension_migrations WHERE extension_id = $1 AND version = $2",
+                params: &delete_params,
+            }),
+        )
+        .await
     }
 }

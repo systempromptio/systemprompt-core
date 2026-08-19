@@ -92,7 +92,9 @@ fn the_issuer_survives_a_save_and_reload() {
     let dir = TempDir::new().expect("temp dir");
     store_holding(ISSUER).save(dir.path()).expect("save store");
 
-    let reloaded = SessionStore::load(dir.path()).expect("reload store");
+    let reloaded = SessionStore::load(dir.path())
+        .unwrap()
+        .expect("reload store");
 
     assert!(
         reloaded
@@ -137,7 +139,7 @@ fn a_version_5_entry_is_rejected_rather_than_migrated() {
     .expect("seed a pre-issuer store");
 
     assert!(
-        SessionStore::load(dir.path()).is_none(),
+        SessionStore::load(dir.path()).unwrap().is_none(),
         "an entry with no recorded issuer cannot be checked and must not be adopted"
     );
 }

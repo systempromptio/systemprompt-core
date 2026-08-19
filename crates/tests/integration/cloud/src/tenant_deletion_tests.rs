@@ -46,7 +46,9 @@ async fn tenant_deletion_persists_through_disk_round_trip() {
     store.remove_session(&fx.key_a());
     store.save(&fx.sessions_dir).expect("save");
 
-    let reloaded = SessionStore::load(&fx.sessions_dir).expect("reload");
+    let reloaded = SessionStore::load(&fx.sessions_dir)
+        .unwrap()
+        .expect("reload");
     assert!(reloaded.get_session(&fx.key_a()).is_none());
     assert!(reloaded.get_session(&fx.key_b()).is_some());
 

@@ -24,9 +24,7 @@ pub(super) fn execute(_config: &CliConfig) -> CommandOutput {
 fn collect_sessions(paths: &ResolvedPaths) -> Vec<SessionInfo> {
     let sessions_dir = paths.sessions_dir();
 
-    let Ok(store) = SessionStore::load_or_create(&sessions_dir) else {
-        return Vec::new();
-    };
+    let store = SessionStore::load_or_reset(&sessions_dir);
 
     let active_key = store.active_key.clone();
     let active_profile = store.active_profile_name.clone();
@@ -126,7 +124,7 @@ pub fn missing_active_session(
 
 fn collect_routing_info(paths: &ResolvedPaths) -> Option<RoutingInfo> {
     let sessions_dir = paths.sessions_dir();
-    let store = SessionStore::load_or_create(&sessions_dir).ok()?;
+    let store = SessionStore::load_or_reset(&sessions_dir);
     let active_key = store.active_session_key()?;
 
     let session = store.sessions.get(&active_key.as_storage_key());

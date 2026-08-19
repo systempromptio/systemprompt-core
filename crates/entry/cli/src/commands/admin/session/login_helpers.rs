@@ -26,7 +26,7 @@ pub(super) async fn try_use_existing_session(
     args: &LoginArgs,
     db_pool: &DbPool,
 ) -> Result<Option<CommandOutput>> {
-    let mut store = SessionStore::load_or_create(sessions_dir)?;
+    let mut store = SessionStore::load_or_reset(sessions_dir);
 
     let Some(session) = store.get_valid_session(session_key, issuer) else {
         if !args.token_only {
@@ -170,7 +170,7 @@ pub(super) fn save_session_to_store(params: SessionStoreParams<'_>) -> Result<()
         user_email,
         user_type,
     } = params;
-    let mut store = SessionStore::load_or_create(sessions_dir)?;
+    let mut store = SessionStore::load_or_reset(sessions_dir);
 
     let profile_dir = Path::new(profile_path).parent();
     let profile_name_str = profile_dir

@@ -86,6 +86,16 @@ pub enum CloudError {
         path: String,
     },
 
+    #[error(
+        "Session store at {path} is stale or corrupt and cannot be parsed.\n\nRun: systemprompt \
+         admin session switch <profile> to reset it"
+    )]
+    SessionStoreCorrupted {
+        path: String,
+        #[source]
+        source: serde_json::Error,
+    },
+
     #[error("OAuth flow failed: {message}")]
     OAuthFlow { message: String },
 

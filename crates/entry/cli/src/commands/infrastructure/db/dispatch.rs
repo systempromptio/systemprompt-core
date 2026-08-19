@@ -32,12 +32,14 @@ pub(super) async fn dispatch_profile_migration(
         DbCommands::MigrateRepair {
             extension,
             apply,
+            reconcile_only,
             json,
         } => admin::execute_migrate_repair(
             config,
             admin::RepairArgs {
                 extension: extension.as_deref(),
                 apply,
+                reconcile_only,
                 json,
             },
         )
@@ -80,6 +82,7 @@ pub(super) async fn dispatch_standalone_migration(
         DbCommands::MigrateRepair {
             extension,
             apply,
+            reconcile_only,
             json,
         } => admin::execute_migrate_repair_standalone(
             db_ctx,
@@ -87,6 +90,7 @@ pub(super) async fn dispatch_standalone_migration(
             admin::RepairArgs {
                 extension: extension.as_deref(),
                 apply,
+                reconcile_only,
                 json,
             },
         )

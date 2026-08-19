@@ -459,7 +459,7 @@ fn save_and_load_roundtrip() {
     store.active_profile_name = Some("saved".to_string());
     store.save(&dir).unwrap();
 
-    let loaded = SessionStore::load(&dir).unwrap();
+    let loaded = SessionStore::load(&dir).unwrap().unwrap();
     assert_eq!(loaded.len(), 1);
     assert_eq!(loaded.active_key, Some(LOCAL_SESSION_KEY.to_string()));
     assert_eq!(loaded.active_profile_name, Some("saved".to_string()));
@@ -470,7 +470,7 @@ fn load_returns_none_for_missing_dir() {
     let temp_dir = TempDir::new().unwrap();
     let dir = temp_dir.path().join("nonexistent");
 
-    assert!(SessionStore::load(&dir).is_none());
+    assert!(SessionStore::load(&dir).unwrap().is_none());
 }
 
 #[test]
@@ -639,4 +639,60 @@ fn switching_active_session_for_profile_discovery() {
             .as_str(),
         "tenant"
     );
+}
+
+#[test]
+fn load_errors_on_corrupt_store() {
+    let temp_dir = TempDir::new().unwrap();
+    let dir = temp_dir.path().join("sessions");
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(dir.join("index.json"), "{not valid json").unwrap();
+
+    let err = SessionStore::load(&dir).unwrap_err();
+    assert!(matches!(
+        err,
+        systemprompt_cloud::CloudError::SessionStoreCorrupted { .. }
+    ));
+    assert!(err.to_string().contains("admin session switch"));
+
+    assert!(SessionStore::load_or_create(&dir).is_err());
+}
+
+#[test]
+fn load_or_reset_replaces_corrupt_store() {
+    let temp_dir = TempDir::new().unwrap();
+    let dir = temp_dir.path().join("sessions");
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(dir.join("index.json"), "garbage").unwrap();
+
+    let store = SessionStore::load_or_reset(&dir);
+    assert!(store.is_empty());
+    assert!(store.active_key.is_none());
+}
+
+#[test]
+fn load_tolerates_missing_optional_fields() {
+    let temp_dir = TempDir::new().unwrap();
+    let dir = temp_dir.path().join("sessions");
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(dir.join("index.json"), r#"{"sessions": {}}"#).unwrap();
+
+    let store = SessionStore::load(&dir).unwrap().unwrap();
+    assert_eq!(store.version, 1);
+    assert!(store.is_empty());
+    assert!(store.active_key.is_none());
+}
+
+#[test]
+fn load_rejects_future_store_version() {
+    let temp_dir = TempDir::new().unwrap();
+    let dir = temp_dir.path().join("sessions");
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(dir.join("index.json"), r#"{"version": 99, "sessions": {}}"#).unwrap();
+
+    let err = SessionStore::load(&dir).unwrap_err();
+    assert!(matches!(
+        err,
+        systemprompt_cloud::CloudError::SessionVersionMismatch { actual: 99, .. }
+    ));
 }

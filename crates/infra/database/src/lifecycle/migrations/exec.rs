@@ -7,6 +7,14 @@
 use crate::services::DatabaseProvider;
 use std::collections::HashSet;
 use systemprompt_extension::{Extension, LoaderError, Migration};
+use systemprompt_identifiers::ToDbValue;
+
+/// A tracking-table write committed in the same transaction as the migration
+/// statements, so the SQL and its bookkeeping row can never diverge.
+pub(super) struct TrackingWrite<'a> {
+    pub sql: &'a str,
+    pub params: &'a [&'a dyn ToDbValue],
+}
 
 fn alter_table_targets(sql: &str) -> Result<Vec<String>, String> {
     let parsed = pg_query::parse(sql).map_err(|e| e.to_string())?;
@@ -29,8 +37,9 @@ pub(super) async fn execute_statements_transactional(
     statements: &[String],
     ext_id: &str,
     migration: &Migration,
+    tracking: Option<TrackingWrite<'_>>,
 ) -> Result<(), LoaderError> {
-    if statements.is_empty() {
+    if statements.is_empty() && tracking.is_none() {
         return Ok(());
     }
 
@@ -64,6 +73,23 @@ pub(super) async fn execute_statements_transactional(
                 ),
             });
         }
+    }
+
+    if let Some(write) = tracking
+        && let Err(e) = tx.execute(&write.sql, write.params).await
+    {
+        let rollback_note = match tx.rollback().await {
+            Ok(()) => String::new(),
+            Err(rb) => format!(" (rollback also failed: {rb})"),
+        };
+        return Err(LoaderError::MigrationFailed {
+            extension: ext_id.to_owned(),
+            message: format!(
+                "Migration {ver} ({name}) tracking write failed: {e}{rollback_note}",
+                ver = migration.version,
+                name = migration.name,
+            ),
+        });
     }
 
     tx.commit()

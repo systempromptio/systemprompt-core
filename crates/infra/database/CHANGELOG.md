@@ -9,6 +9,13 @@
 ### Added
 
 - Fresh installs are stamped instead of migrated: `MigrationService::assess_freshness` (`FreshnessCheck`) detects a database with no tracking history and none of the extension's tables, and `stamp_all_migrations` records every defined migration without executing its SQL — the structural/dependent DDL alone produces the target schema.
+- `MigrationService::reconcile_drift` rewrites the stored checksum of a drifted migration without executing any SQL, for migrations whose schema effects are already in place.
+
+### Changed
+
+- `MigrationService::repair_drift` re-executes each drifted migration and rewrites its stored checksum inside a single transaction instead of deleting the tracking row first; a failed re-apply now rolls back to the tracked, drifted state instead of leaving the migration untracked and re-run on every boot. `RepairResult::migrations_run` counts only genuinely pending migrations.
+- The checksum-drift error recommends `migrate-repair --reconcile-only --apply` for already-applied edited migrations, with plain `--apply` reserved for deliberately re-executing SQL.
+- Migration application, revert, and repair record their tracking-table write in the same transaction as the migration statements, and repair holds the bootstrap advisory lock.
 
 ## [0.27.0] - 2026-07-29
 

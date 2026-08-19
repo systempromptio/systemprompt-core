@@ -35,12 +35,18 @@ pub fn clear_cloud_state(cloud_paths: &CloudPaths) -> CloudResult<ClearedCloudSt
     }
 
     let sessions_dir = cloud_paths.resolve(CloudPath::SessionsDir);
-    if let Some(mut store) = SessionStore::load(&sessions_dir) {
-        let removed = store.remove_tenant_sessions();
-        if removed > 0 {
-            store.save(&sessions_dir)?;
-            cleared.tenant_sessions_removed = removed;
-        }
+    match SessionStore::load(&sessions_dir) {
+        Ok(Some(mut store)) => {
+            let removed = store.remove_tenant_sessions();
+            if removed > 0 {
+                store.save(&sessions_dir)?;
+                cleared.tenant_sessions_removed = removed;
+            }
+        },
+        Ok(None) => {},
+        Err(e) => {
+            tracing::warn!(error = %e, "Skipping session cleanup for unreadable session store");
+        },
     }
 
     Ok(cleared)

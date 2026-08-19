@@ -26,6 +26,7 @@ use super::types::{MigrateRepairOutput, MigrationDriftInfo};
 pub(super) struct RepairArgs<'a> {
     pub extension: Option<&'a str>,
     pub apply: bool,
+    pub reconcile_only: bool,
     pub json: bool,
 }
 
@@ -74,6 +75,7 @@ async fn run_migrate_repair(
     let RepairArgs {
         extension,
         apply,
+        reconcile_only,
         json,
     } = args;
     let extensions = select_extensions(registry, extension)?;
@@ -83,35 +85,34 @@ async fn run_migrate_repair(
     let mut migrations_run = 0usize;
 
     for ext in &extensions {
-        if apply {
+        let drift = if apply && reconcile_only {
+            let result = migration_service
+                .reconcile_drift(ext.as_ref())
+                .await
+                .map_err(|e| anyhow!("Failed to reconcile migration checksums: {}", e))?;
+            result.repaired
+        } else if apply {
             let result = migration_service
                 .repair_drift(ext.as_ref())
                 .await
                 .map_err(|e| anyhow!("Failed to repair migrations: {}", e))?;
             migrations_run += result.migrations_run;
-            for d in result.repaired {
-                drift_rows.push(MigrationDriftInfo {
-                    extension_id: d.extension_id,
-                    version: d.version,
-                    name: d.name,
-                    stored_checksum: d.stored_checksum,
-                    current_checksum: d.current_checksum,
-                });
-            }
+            result.repaired
         } else {
             let status = migration_service
                 .status(ext.as_ref())
                 .await
                 .map_err(|e| anyhow!("Failed to get migration status: {}", e))?;
-            for d in status.drift {
-                drift_rows.push(MigrationDriftInfo {
-                    extension_id: d.extension_id,
-                    version: d.version,
-                    name: d.name,
-                    stored_checksum: d.stored_checksum,
-                    current_checksum: d.current_checksum,
-                });
-            }
+            status.drift
+        };
+        for d in drift {
+            drift_rows.push(MigrationDriftInfo {
+                extension_id: d.extension_id,
+                version: d.version,
+                name: d.name,
+                stored_checksum: d.stored_checksum,
+                current_checksum: d.current_checksum,
+            });
         }
     }
 
@@ -123,6 +124,7 @@ async fn run_migrate_repair(
 
     let output = MigrateRepairOutput {
         applied: apply,
+        reconcile_only,
         drift: drift_rows,
         migrations_run,
     };
@@ -161,7 +163,13 @@ fn render_repair_text(output: &MigrateRepairOutput) {
     }
     CliService::info("");
 
-    if output.applied {
+    if output.applied && output.reconcile_only {
+        CliService::success(&format!(
+            "Reconciled {} drifted migration(s): stored checksums rewritten, no SQL executed. \
+             Drift: 0",
+            output.drift.len()
+        ));
+    } else if output.applied {
         CliService::success(&format!(
             "Repaired {} drifted migration(s); {} migration(s) re-applied. Drift: 0",
             output.drift.len(),
@@ -169,7 +177,8 @@ fn render_repair_text(output: &MigrateRepairOutput) {
         ));
     } else {
         CliService::warning(&format!(
-            "{} migration(s) drifted. Re-run with --apply to repair.",
+            "{} migration(s) drifted. Re-run with --reconcile-only --apply to rewrite stored \
+             checksums without executing SQL, or --apply to re-execute the edited migrations.",
             output.drift.len()
         ));
     }

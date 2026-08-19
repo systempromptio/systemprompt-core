@@ -8,6 +8,14 @@
 - **Breaking:** `cloud auth logout` clears `credentials.json`, `tenants.json`, and tenant-scoped CLI sessions; login/logout no longer post activity telemetry.
 - **Breaking:** `infra db migrate-squash` is removed with the squash-baseline machinery; fresh installs stamp all defined migrations as applied instead of executing them.
 
+### Added
+
+- `infra db migrate-repair --reconcile-only` rewrites the stored checksums of drifted migrations without executing any SQL (dry-run without `--apply`); JSON output reports the mode.
+
+### Fixed
+
+- A session store that exists but cannot be parsed now fails profile resolution with a message naming the store file and `admin session switch <profile>`, instead of silently falling back to profile discovery and reporting "Multiple profiles found". `admin session switch`, `session login`, and the session display commands still recover over a corrupt store.
+
 ## [0.31.0] - 2026-08-18
 
 ### Added

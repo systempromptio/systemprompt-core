@@ -199,6 +199,7 @@ pub struct MigrateStatusRow {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MigrateRepairOutput {
     pub applied: bool,
+    pub reconcile_only: bool,
     pub drift: Vec<MigrationDriftInfo>,
     pub migrations_run: usize,
 }

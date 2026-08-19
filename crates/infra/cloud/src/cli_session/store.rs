@@ -12,17 +12,25 @@ use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::TenantId;
 
 use super::{CliSession, LOCAL_SESSION_KEY, SessionKey};
-use crate::error::CloudResult;
+use crate::error::{CloudError, CloudResult};
 
 const STORE_VERSION: u32 = 1;
 
+const fn default_store_version() -> u32 {
+    STORE_VERSION
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SessionStore {
+    #[serde(default = "default_store_version")]
     pub version: u32,
+    #[serde(default)]
     pub sessions: HashMap<String, CliSession>,
+    #[serde(default)]
     pub active_key: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub active_profile_name: Option<String>,
+    #[serde(default = "Utc::now")]
     pub updated_at: DateTime<Utc>,
 }
 
@@ -201,31 +209,49 @@ impl SessionStore {
         self.sessions.is_empty()
     }
 
-    #[must_use]
-    pub fn load(sessions_dir: &Path) -> Option<Self> {
+    /// `Ok(None)` means the store file does not exist; a store that exists but
+    /// cannot be parsed is an error, never silently discarded — degrading a
+    /// stale store into "no store" sends resolution down ambiguous profile
+    /// discovery and masks the real fault.
+    pub fn load(sessions_dir: &Path) -> CloudResult<Option<Self>> {
         let index_path = sessions_dir.join("index.json");
         let content = match fs::read_to_string(&index_path) {
             Ok(c) => c,
-            Err(e) => {
-                tracing::debug!(error = %e, "No session store found");
-                return None;
-            },
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+            Err(e) => return Err(e.into()),
         };
-        match serde_json::from_str(&content) {
-            Ok(store) => Some(store),
-            Err(e) => {
-                tracing::warn!(error = %e, "Failed to parse session store");
-                None
-            },
+        let store: Self =
+            serde_json::from_str(&content).map_err(|e| CloudError::SessionStoreCorrupted {
+                path: index_path.display().to_string(),
+                source: e,
+            })?;
+        if store.version > STORE_VERSION {
+            return Err(CloudError::SessionVersionMismatch {
+                min: STORE_VERSION,
+                max: STORE_VERSION,
+                actual: store.version,
+                path: index_path.display().to_string(),
+            });
         }
+        Ok(Some(store))
     }
 
-    #[expect(
-        clippy::unnecessary_wraps,
-        reason = "Preserves the existing public signature for callers using `?`"
-    )]
     pub fn load_or_create(sessions_dir: &Path) -> CloudResult<Self> {
-        Ok(Self::load(sessions_dir).unwrap_or_else(Self::new))
+        Ok(Self::load(sessions_dir)?.unwrap_or_else(Self::new))
+    }
+
+    /// Lenient variant for recovery commands (`admin session switch`, login)
+    /// that overwrite the store anyway — a corrupt store must not block its
+    /// own reset.
+    #[must_use]
+    pub fn load_or_reset(sessions_dir: &Path) -> Self {
+        match Self::load(sessions_dir) {
+            Ok(store) => store.unwrap_or_else(Self::new),
+            Err(e) => {
+                tracing::warn!(error = %e, "Resetting unreadable session store");
+                Self::new()
+            },
+        }
     }
 
     pub fn save(&self, sessions_dir: &Path) -> CloudResult<()> {

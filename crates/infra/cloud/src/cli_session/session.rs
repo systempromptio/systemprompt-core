@@ -77,8 +77,10 @@ pub struct CliSession {
     pub user_id: UserId,
     pub user_email: Email,
     pub user_type: UserType,
+    #[serde(default = "Utc::now")]
     pub created_at: DateTime<Utc>,
     pub expires_at: DateTime<Utc>,
+    #[serde(default = "Utc::now")]
     pub last_used: DateTime<Utc>,
 }
 

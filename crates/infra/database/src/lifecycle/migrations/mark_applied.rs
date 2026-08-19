@@ -2,11 +2,10 @@
 //!
 //! Recovers the partial-state case where a migration's schema changes are
 //! present in the database but no row exists in `extension_migrations` to
-//! track them. Distinct from [`super::repair::repair_drift`], which deletes
-//! and re-applies migrations whose stored checksum has drifted: that path
-//! requires the migration to be idempotent and re-executable. Here, the
-//! operator asserts the migration is already applied; the service only
-//! computes the current checksum and writes the tracking row.
+//! track them. Distinct from checksum-drift repair, which reconciles rows
+//! that already exist: here, the operator asserts the migration is already
+//! applied; the service only computes the current checksum and writes the
+//! tracking row.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

@@ -6,9 +6,16 @@
 
 - **Breaking:** The signup path is removed: the `checkout` module (Paddle checkout + provisioning watcher), `tenants::provisioning` (`TenantProvisioningService`, `swap_to_external_host`), the checkout/provisioning SSE streams, and the `create_checkout` / `get_plans` / `report_activity` / `restart_tenant` / `retry_provision` / `unset_secret` / `set_external_db_access` / `list_secrets` / custom-domain / `cancel_subscription` API methods. The `CheckoutFlow`, `SseStream`, and `ProvisioningFailed` error variants and the `constants::checkout` / `constants::regions` modules are gone.
 
+- **Breaking:** `SessionStore::load` returns `CloudResult<Option<Self>>`: a missing store file is `Ok(None)` and an unparseable one is the new `CloudError::SessionStoreCorrupted`, which names the file and the `admin session switch` recovery command. `load_or_create` now propagates that error instead of silently substituting an empty store. Migrate by handling the error, or use the new `load_or_reset` in flows that overwrite the store anyway.
+
 ### Added
 
+- `SessionStore::load_or_reset` returns a fresh store when the on-disk one is missing or unreadable, for recovery flows that rewrite it.
 - `clear_cloud_state` removes `credentials.json`, `tenants.json`, and tenant-scoped CLI sessions in one call; `SessionStore::remove_tenant_sessions` deletes every tenant-keyed session while local sessions survive.
+
+### Fixed
+
+- Older session stores missing `version`, `sessions`, `active_key`, or `updated_at` now parse via serde defaults instead of failing outright, and a store written by a newer CLI is rejected with `SessionVersionMismatch` rather than misread.
 
 ## [0.31.0] - 2026-08-18
 

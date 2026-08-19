@@ -48,7 +48,9 @@ async fn local_session_does_not_satisfy_tenant_request() {
     );
     store.upsert_session(&SessionKey::Local, local);
     store.save(&fx.sessions_dir).expect("save");
-    let store = SessionStore::load(&fx.sessions_dir).expect("reload");
+    let store = SessionStore::load(&fx.sessions_dir)
+        .unwrap()
+        .expect("reload");
 
     let got = store.get_valid_session(&fx.key_a(), "http://localhost:8080");
     assert!(

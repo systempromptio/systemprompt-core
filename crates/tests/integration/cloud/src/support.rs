@@ -138,5 +138,7 @@ pub fn seeded_session_store(fx: &TenantFixture) -> SessionStore {
     store.upsert_session(&fx.key_b(), build_session_b(fx));
     store.save(&fx.sessions_dir).expect("save session store");
 
-    SessionStore::load(&fx.sessions_dir).expect("reload session store")
+    SessionStore::load(&fx.sessions_dir)
+        .unwrap()
+        .expect("reload session store")
 }

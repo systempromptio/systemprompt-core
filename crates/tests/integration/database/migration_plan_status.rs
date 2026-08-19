@@ -329,8 +329,8 @@ async fn repair_drift_reconciles_tampered_checksum() {
     assert_eq!(repaired.repaired[0].version, 1);
     assert_eq!(repaired.repaired[0].stored_checksum, "tampered");
     assert_eq!(
-        repaired.migrations_run, 1,
-        "the drifted migration is re-applied"
+        repaired.migrations_run, 0,
+        "drifted migrations are re-applied in place, not counted as pending runs"
     );
 
     let after = svc.status(&ext).await.expect("status after repair");
@@ -364,4 +364,138 @@ impl Extension for SingleMigrationExt {
     fn migrations(&self) -> Vec<Migration> {
         vec![Migration::new(1, "first", self.m1)]
     }
+}
+
+async fn install_tampered_insert_ext(
+    pool: &PgPool,
+    suffix: &str,
+) -> (
+    Arc<Database>,
+    SingleMigrationExt,
+    &'static str,
+    &'static str,
+) {
+    let table: &'static str = leak_str(format!("repair_ins_{suffix}"));
+    let ext_id: &'static str = leak_str(format!("repair-ins-{suffix}"));
+    let schema_sql: &'static str = leak_str(format!(
+        "CREATE TABLE IF NOT EXISTS {table} (id TEXT PRIMARY KEY);"
+    ));
+    let m1: &'static str = leak_str(format!("INSERT INTO {table} (id) VALUES ('seed');"));
+
+    let ext = SingleMigrationExt {
+        id: ext_id,
+        schema_sql,
+        table,
+        m1,
+    };
+
+    let mut registry = ExtensionRegistry::new();
+    registry
+        .register(Arc::new(SingleMigrationExt {
+            id: ext_id,
+            schema_sql,
+            table,
+            m1,
+        }))
+        .expect("register");
+
+    let db = Database::new_postgres(&database_url())
+        .await
+        .expect("connect to test postgres");
+    let db_arc = Arc::new(db);
+    install_extension_schemas(&registry, db_arc.as_ref())
+        .await
+        .expect("install");
+
+    query(sqlx::AssertSqlSafe(format!(
+        "INSERT INTO {table} (id) VALUES ('seed') ON CONFLICT DO NOTHING"
+    )))
+    .execute(pool)
+    .await
+    .expect("seed row");
+
+    query(
+        "UPDATE extension_migrations SET checksum = 'tampered' WHERE extension_id = $1 AND \
+         version = 1",
+    )
+    .bind(ext_id)
+    .execute(pool)
+    .await
+    .expect("tamper checksum");
+
+    (db_arc, ext, table, ext_id)
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn failed_reapply_keeps_tracking_row() {
+    let url = database_url();
+    let db = Database::new_postgres(&url)
+        .await
+        .expect("connect to test postgres");
+    let pool: PgPool = db.pool_arc().expect("pg pool").as_ref().clone();
+
+    let suffix = fresh_suffix();
+    let (db_arc, ext, table, ext_id) = install_tampered_insert_ext(&pool, &suffix).await;
+    let _cleanup = Cleanup {
+        pool: pool.clone(),
+        tables: vec![table],
+        extension_ids: vec![ext_id],
+    };
+
+    let svc = MigrationService::new(db_arc.write());
+
+    svc.repair_drift(&ext)
+        .await
+        .expect_err("re-applying a non-idempotent INSERT must fail on the duplicate key");
+
+    let after = svc.status(&ext).await.expect("status after failed repair");
+    assert_eq!(
+        after.applied.len(),
+        1,
+        "the tracking row must survive a failed re-apply"
+    );
+    assert_eq!(after.applied[0].checksum, "tampered");
+    assert_eq!(after.drift.len(), 1, "drift is still reported, not lost");
+    assert!(
+        after.pending.is_empty(),
+        "a failed re-apply must never turn an applied migration into a pending one"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn reconcile_drift_rewrites_checksum_without_executing_sql() {
+    let url = database_url();
+    let db = Database::new_postgres(&url)
+        .await
+        .expect("connect to test postgres");
+    let pool: PgPool = db.pool_arc().expect("pg pool").as_ref().clone();
+
+    let suffix = fresh_suffix();
+    let (db_arc, ext, table, ext_id) = install_tampered_insert_ext(&pool, &suffix).await;
+    let _cleanup = Cleanup {
+        pool: pool.clone(),
+        tables: vec![table],
+        extension_ids: vec![ext_id],
+    };
+
+    let svc = MigrationService::new(db_arc.write());
+
+    let result = svc.reconcile_drift(&ext).await.expect("reconcile_drift");
+    assert_eq!(result.repaired.len(), 1);
+    assert_eq!(result.migrations_run, 0);
+
+    let after = svc.status(&ext).await.expect("status after reconcile");
+    assert!(after.drift.is_empty(), "checksum rewritten in place");
+    assert_eq!(after.applied.len(), 1);
+
+    let count: i64 =
+        sqlx::query_scalar(sqlx::AssertSqlSafe(format!("SELECT COUNT(*) FROM {table}")))
+            .fetch_one(&pool)
+            .await
+            .expect("count rows");
+    assert_eq!(
+        count, 1,
+        "reconcile must not execute the migration SQL (the INSERT would have failed or added a \
+         row)"
+    );
 }

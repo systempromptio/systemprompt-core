@@ -2,17 +2,29 @@
 //!
 //! When an already-applied migration file is edited in place, its stored
 //! checksum stops matching the file and the runner refuses to proceed.
-//! [`MigrationService::repair_drift`] reconciles the `extension_migrations`
-//! tracking table by dropping the drifted rows and re-applying those
-//! migrations — every migration is idempotent (guarded seeds or
-//! `CREATE ... IF NOT EXISTS`), so re-running them re-records the current
-//! checksum without touching real data.
+//! [`MigrationService::repair_drift`] re-executes each drifted migration and
+//! rewrites its stored checksum in the same transaction; the tracking row is
+//! never deleted, so a failed re-apply rolls back to "drifted but tracked"
+//! instead of leaving the migration untracked and crash-looping the next
+//! boot. Re-applying requires the migration SQL to be re-executable against
+//! the current schema — a later migration may have invalidated that, in which
+//! case [`MigrationService::reconcile_drift`] rewrites the stored checksum
+//! without executing any SQL. `no_transaction` migrations cannot be repaired
+//! atomically: a mid-SQL failure leaves the row tracked with the old
+//! checksum, which still reports as drift rather than crash-looping.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use super::exec::{TrackingWrite, check_cross_extension_alters, execute_statements_transactional};
 use super::{ChecksumDrift, MigrationService};
-use systemprompt_extension::{Extension, LoaderError};
+use crate::lifecycle::installation::BootstrapLockGuard;
+use crate::services::SqlExecutor;
+use systemprompt_extension::{Extension, LoaderError, Migration};
+use systemprompt_identifiers::ToDbValue;
+
+const UPDATE_CHECKSUM_SQL: &str =
+    "UPDATE extension_migrations SET checksum = $3 WHERE extension_id = $1 AND version = $2";
 
 #[derive(Debug, Default, Clone)]
 pub struct RepairResult {
@@ -25,34 +37,150 @@ impl MigrationService<'_> {
         &self,
         extension: &dyn Extension,
     ) -> Result<RepairResult, LoaderError> {
-        let ext_id = extension.metadata().id;
         let status = self.status(extension).await?;
 
         if status.drift.is_empty() {
             return Ok(RepairResult::default());
         }
 
-        for drift in &status.drift {
-            self.db
-                .execute(
-                    &"DELETE FROM extension_migrations WHERE extension_id = $1 AND version = $2",
-                    &[&drift.extension_id, &drift.version],
-                )
-                .await
-                .map_err(|e| LoaderError::MigrationFailed {
-                    extension: ext_id.to_owned(),
-                    message: format!(
-                        "Failed to drop drifted migration record {} ('{}'): {e}",
-                        drift.version, drift.name
-                    ),
-                })?;
-        }
-
-        let result = self.run_pending_migrations(extension).await?;
+        let guard = BootstrapLockGuard::acquire(self.db).await?;
+        let outcome = self.reapply_drifted(extension, &status.drift).await;
+        let pending = match outcome {
+            Ok(()) => self.run_pending_migrations(extension).await,
+            Err(e) => Err(e),
+        };
+        guard.release().await;
+        let result = pending?;
 
         Ok(RepairResult {
             repaired: status.drift,
             migrations_run: result.migrations_run,
         })
+    }
+
+    pub async fn reconcile_drift(
+        &self,
+        extension: &dyn Extension,
+    ) -> Result<RepairResult, LoaderError> {
+        let status = self.status(extension).await?;
+
+        if status.drift.is_empty() {
+            return Ok(RepairResult::default());
+        }
+
+        let guard = BootstrapLockGuard::acquire(self.db).await?;
+        let mut outcome = Ok(());
+        for drift in &status.drift {
+            if let Err(e) = self.rewrite_checksum(drift).await {
+                outcome = Err(e);
+                break;
+            }
+        }
+        guard.release().await;
+        outcome?;
+
+        Ok(RepairResult {
+            repaired: status.drift,
+            migrations_run: 0,
+        })
+    }
+
+    async fn rewrite_checksum(&self, drift: &ChecksumDrift) -> Result<(), LoaderError> {
+        self.db
+            .execute(
+                &UPDATE_CHECKSUM_SQL,
+                &[&drift.extension_id, &drift.version, &drift.current_checksum],
+            )
+            .await
+            .map_err(|e| LoaderError::MigrationFailed {
+                extension: drift.extension_id.clone(),
+                message: format!(
+                    "Failed to rewrite checksum for migration {} ('{}'): {e}",
+                    drift.version, drift.name
+                ),
+            })?;
+        Ok(())
+    }
+
+    async fn reapply_drifted(
+        &self,
+        extension: &dyn Extension,
+        drift: &[ChecksumDrift],
+    ) -> Result<(), LoaderError> {
+        let ext_id = extension.metadata().id;
+        let migrations = extension.migrations();
+
+        for d in drift {
+            let migration = migrations
+                .iter()
+                .find(|m| m.version == d.version)
+                .ok_or_else(|| LoaderError::MigrationFailed {
+                    extension: ext_id.to_owned(),
+                    message: format!(
+                        "Drifted migration {} ('{}') is no longer declared by extension \
+                         '{ext_id}'",
+                        d.version, d.name
+                    ),
+                })?;
+            self.reapply_one(extension, migration, d).await?;
+        }
+
+        Ok(())
+    }
+
+    async fn reapply_one(
+        &self,
+        extension: &dyn Extension,
+        migration: &Migration,
+        drift: &ChecksumDrift,
+    ) -> Result<(), LoaderError> {
+        let ext_id = extension.metadata().id;
+
+        check_cross_extension_alters(extension, migration)?;
+
+        tracing::info!(
+            extension = %ext_id,
+            version = migration.version,
+            name = %migration.name,
+            no_transaction = migration.no_transaction,
+            "Re-applying drifted migration"
+        );
+
+        let update_params: [&dyn ToDbValue; 3] =
+            [&drift.extension_id, &drift.version, &drift.current_checksum];
+
+        if migration.no_transaction {
+            SqlExecutor::execute_statements_parsed(self.db, migration.sql)
+                .await
+                .map_err(|e| LoaderError::MigrationFailed {
+                    extension: ext_id.to_owned(),
+                    message: format!(
+                        "Failed to re-apply drifted migration {} ({}): {e}",
+                        migration.version, migration.name
+                    ),
+                })?;
+            self.rewrite_checksum(drift).await
+        } else {
+            let statements = SqlExecutor::parse_sql_statements(migration.sql).map_err(|e| {
+                LoaderError::MigrationFailed {
+                    extension: ext_id.to_owned(),
+                    message: format!(
+                        "Failed to parse migration {} ({}): {e}",
+                        migration.version, migration.name
+                    ),
+                }
+            })?;
+            execute_statements_transactional(
+                self.db,
+                &statements,
+                ext_id,
+                migration,
+                Some(TrackingWrite {
+                    sql: UPDATE_CHECKSUM_SQL,
+                    params: &update_params,
+                }),
+            )
+            .await
+        }
     }
 }

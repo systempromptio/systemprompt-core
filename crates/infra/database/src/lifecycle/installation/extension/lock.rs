@@ -19,12 +19,12 @@ const BOOTSTRAP_ADVISORY_LOCK_KEY: i64 = 0x73_70_72_6F_6D_70_74_01;
 // lock can release it. The guard pins one [`PoolConnection`] for the install's
 // lifetime so acquire and release run on the same session. Non-Postgres
 // providers skip locking — bootstrap concurrency is a Postgres-only concern.
-pub(super) struct BootstrapLockGuard {
+pub(crate) struct BootstrapLockGuard {
     conn: Option<PoolConnection<Postgres>>,
 }
 
 impl BootstrapLockGuard {
-    pub(super) async fn acquire(db: &dyn DatabaseProvider) -> Result<Self, LoaderError> {
+    pub(crate) async fn acquire(db: &dyn DatabaseProvider) -> Result<Self, LoaderError> {
         let Some(pool) = db.get_postgres_pool() else {
             return Ok(Self { conn: None });
         };
@@ -53,7 +53,7 @@ impl BootstrapLockGuard {
         Ok(Self { conn: Some(conn) })
     }
 
-    pub(super) async fn release(mut self) {
+    pub(crate) async fn release(mut self) {
         if let Some(mut conn) = self.conn.take()
             && let Err(e) =
                 sqlx::query_scalar!("SELECT pg_advisory_unlock($1)", BOOTSTRAP_ADVISORY_LOCK_KEY)

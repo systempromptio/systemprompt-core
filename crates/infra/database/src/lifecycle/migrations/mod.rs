@@ -22,10 +22,14 @@ pub use status::{
 };
 
 use crate::services::{DatabaseProvider, SqlExecutor};
-use exec::{check_cross_extension_alters, execute_statements_transactional};
+use exec::{TrackingWrite, check_cross_extension_alters, execute_statements_transactional};
 use std::collections::HashSet;
 use systemprompt_extension::{Extension, LoaderError, Migration};
+use systemprompt_identifiers::ToDbValue;
 use tracing::{debug, info, warn};
+
+const RECORD_MIGRATION_SQL: &str = "INSERT INTO extension_migrations (id, extension_id, version, \
+                                    name, checksum) VALUES ($1, $2, $3, $4, $5)";
 
 #[derive(Debug, Default, Clone, Copy)]
 pub struct MigrationConfig {
@@ -191,9 +195,12 @@ impl<'a> MigrationService<'a> {
             extension: ext_id.to_owned(),
             message: format!(
                 "Migration {ver} ('{name}') has been edited since it was applied (stored checksum \
-                 {stored_checksum}, current {current_checksum}). Refusing to proceed. Run \
-                 `systemprompt infra db migrate-repair --apply` to reconcile the tracking table, \
-                 or pass --allow-checksum-drift to bypass the check without fixing it.",
+                 {stored_checksum}, current {current_checksum}). Refusing to proceed. If the \
+                 database schema already matches the edited file, run `systemprompt infra db \
+                 migrate-repair --reconcile-only --apply` to rewrite the stored checksum without \
+                 executing any SQL. To re-execute the edited migration, run `systemprompt infra \
+                 db migrate-repair --apply`. Passing --allow-checksum-drift bypasses the check \
+                 without fixing it.",
                 ver = migration.version,
                 name = migration.name,
             ),
@@ -217,6 +224,11 @@ impl<'a> MigrationService<'a> {
             "Running migration"
         );
 
+        let id = format!("{}_{:03}", ext_id, migration.version);
+        let checksum = migration.checksum();
+        let record_params: [&dyn ToDbValue; 5] =
+            [&id, &ext_id, &migration.version, &migration.name, &checksum];
+
         if migration.no_transaction {
             SqlExecutor::execute_statements_parsed(self.db, migration.sql)
                 .await
@@ -226,6 +238,13 @@ impl<'a> MigrationService<'a> {
                         "Failed to execute migration {} ({}): {e}",
                         migration.version, migration.name
                     ),
+                })?;
+            self.db
+                .execute(&RECORD_MIGRATION_SQL, &record_params)
+                .await
+                .map_err(|e| LoaderError::MigrationFailed {
+                    extension: ext_id.to_owned(),
+                    message: format!("Failed to record migration: {e}"),
                 })?;
         } else {
             let statements = SqlExecutor::parse_sql_statements(migration.sql).map_err(|e| {
@@ -237,33 +256,18 @@ impl<'a> MigrationService<'a> {
                     ),
                 }
             })?;
-            execute_statements_transactional(self.db, &statements, ext_id, migration).await?;
-        }
-
-        self.record_migration(ext_id, migration).await?;
-
-        Ok(())
-    }
-
-    async fn record_migration(
-        &self,
-        ext_id: &str,
-        migration: &Migration,
-    ) -> Result<(), LoaderError> {
-        let id = format!("{}_{:03}", ext_id, migration.version);
-        let checksum = migration.checksum();
-
-        self.db
-            .execute(
-                &"INSERT INTO extension_migrations (id, extension_id, version, name, checksum) \
-                  VALUES ($1, $2, $3, $4, $5)",
-                &[&id, &ext_id, &migration.version, &migration.name, &checksum],
+            execute_statements_transactional(
+                self.db,
+                &statements,
+                ext_id,
+                migration,
+                Some(TrackingWrite {
+                    sql: RECORD_MIGRATION_SQL,
+                    params: &record_params,
+                }),
             )
-            .await
-            .map_err(|e| LoaderError::MigrationFailed {
-                extension: ext_id.to_owned(),
-                message: format!("Failed to record migration: {e}"),
-            })?;
+            .await?;
+        }
 
         Ok(())
     }

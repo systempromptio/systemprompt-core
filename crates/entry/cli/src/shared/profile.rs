@@ -39,6 +39,9 @@ pub enum ProfileResolutionError {
          session switch <profile>'"
     )]
     MultipleProfilesFound { profiles: Vec<String> },
+
+    #[error(transparent)]
+    SessionStoreCorrupt(#[from] systemprompt_cloud::CloudError),
 }
 
 pub fn resolve_profile_path(
@@ -143,8 +146,8 @@ fn resolve_profile_by_name(name: &str) -> Result<Option<PathBuf>, ProfileResolut
 
     {
         let paths = crate::paths::ResolvedPaths::discover().sessions_dir();
-        if let Ok(store) = systemprompt_cloud::SessionStore::load_or_create(&paths)
-            && let Some(session) = store.find_by_profile_name(name)
+        let store = systemprompt_cloud::SessionStore::load_or_create(&paths)?;
+        if let Some(session) = store.find_by_profile_name(name)
             && let Some(ref profile_path) = session.profile_path
             && profile_path.exists()
         {

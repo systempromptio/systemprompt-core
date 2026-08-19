@@ -25,6 +25,7 @@ impl CloudError {
             Self::CredentialsNotInitialized => "Credentials bootstrap not initialised",
             Self::CredentialsAlreadyInitialized => "Credentials bootstrap already initialised",
             Self::SessionVersionMismatch { .. } => "CLI session file is out of date",
+            Self::SessionStoreCorrupted { .. } => "CLI session store is stale or corrupt",
             Self::OAuthFlow { .. } => "OAuth login flow failed",
             Self::Deploy { .. } => "Cloud deploy failed",
             Self::Dockerfile { .. } => "Dockerfile validation failed",
@@ -59,6 +60,9 @@ impl CloudError {
                 "Restart the process to re-run the bootstrap sequence"
             },
             Self::SessionVersionMismatch { .. } => "Delete the session file and re-authenticate",
+            Self::SessionStoreCorrupted { .. } => {
+                "Run 'systemprompt admin session switch <profile>' to reset the session store"
+            },
             Self::OAuthFlow { .. } => "Re-run the OAuth login flow",
             Self::Dockerfile { .. } => {
                 "Regenerate the Dockerfile with 'systemprompt cloud profile create'"

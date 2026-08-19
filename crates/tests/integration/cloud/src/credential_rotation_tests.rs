@@ -30,7 +30,9 @@ async fn rotating_session_token_invalidates_previous_handle() {
     store.upsert_session(&fx.key_a(), rotated);
     store.save(&fx.sessions_dir).expect("save");
 
-    let reloaded = SessionStore::load(&fx.sessions_dir).expect("reload");
+    let reloaded = SessionStore::load(&fx.sessions_dir)
+        .unwrap()
+        .expect("reload");
     let current = reloaded
         .get_valid_session(&fx.key_a(), "http://localhost:8080")
         .expect("current");

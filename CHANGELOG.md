@@ -30,6 +30,8 @@
 ### Fixed
 
 - The internal MCP proxy streams response bodies and preserves upstream response headers (previously it buffered the whole body and dropped every header, breaking SSE responses through the proxy hop); hop-by-hop headers are stripped per RFC 9110, and request bodies over the 4 MiB transport limit are rejected with `413`.
+- `infra db migrate-repair --apply` no longer deletes the migration tracking row before re-applying: the re-execution and checksum rewrite happen in one transaction, so a failed re-apply rolls back to the tracked, drifted state instead of crash-looping the next boot as a failing pending migration. Repair also holds the bootstrap advisory lock, and the new `--reconcile-only` mode rewrites stored checksums without executing any SQL — the recommended remedy for already-applied edited migrations.
+- A CLI session store that exists but cannot be parsed fails profile resolution with a message naming the store file and `admin session switch <profile>`, instead of silently degrading into profile discovery and reporting "Multiple profiles found"; older stores missing newer fields keep parsing via serde defaults, and the recovery commands themselves still work over a corrupt store.
 
 ## [0.31.0] - 2026-08-18
 

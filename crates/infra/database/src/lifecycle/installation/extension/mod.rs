@@ -13,7 +13,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-mod lock;
+pub(crate) mod lock;
 mod validation;
 
 use systemprompt_extension::{Extension, ExtensionRegistry, LoaderError};
