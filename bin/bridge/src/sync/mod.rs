@@ -120,7 +120,19 @@ pub async fn run_once(
     let fetch = manifest::fetch_authenticated_manifest().await?;
     let synced = manifest::verify_and_decode(&fetch, allow_unsigned, allow_tofu).await?;
 
-    let location = paths::org_plugins_effective().ok_or(SyncError::PathUnresolvable)?;
+    #[cfg_attr(
+        not(target_os = "windows"),
+        expect(unused_mut, reason = "only the windows heal path reassigns it")
+    )]
+    let mut location = paths::org_plugins_effective().ok_or(SyncError::PathUnresolvable)?;
+    #[cfg(target_os = "windows")]
+    if let Err(err) = check_cowork_scope(&synced, &location) {
+        match heal_cowork_scope().await {
+            Some(healed) => location = healed,
+            None => return Err(err),
+        }
+    }
+    #[cfg(not(target_os = "windows"))]
     check_cowork_scope(&synced, &location)?;
     if !location.path.is_dir() {
         // Why: only the macOS system path needs `sudo install --apply` — the
@@ -191,6 +203,49 @@ fn check_cowork_scope(
         });
     }
     Ok(())
+}
+
+// Why: the double-click GUI flow has no CLI step, so the sync itself must be
+// able to raise the single administrator prompt that provisions org-plugins.
+// One attempt per process: a declined prompt must not re-fire from the GUI
+// auto-sync, tray retries, or a `sync --watch` loop.
+#[cfg(target_os = "windows")]
+async fn heal_cowork_scope() -> Option<paths::OrgPluginsLocation> {
+    use std::sync::atomic::{AtomicBool, Ordering};
+    static ATTEMPTED: AtomicBool = AtomicBool::new(false);
+    if ATTEMPTED.swap(true, Ordering::SeqCst) {
+        return None;
+    }
+    let org =
+        crate::integration::claude_desktop::elevate::ElevatedJob::org_plugins_for_current_user()?;
+    let stage_dir = std::env::temp_dir().join(crate::brand::brand().working_dir_name);
+    if let Err(e) = fs::create_dir_all(&stage_dir) {
+        tracing::warn!(error = %e, "could not create staging dir for org-plugins provisioning");
+        return None;
+    }
+    tracing::info!(
+        path = %org.path.display(),
+        "requesting one-time administrator approval to provision org-plugins for Cowork"
+    );
+    let job = crate::integration::claude_desktop::elevate::ElevatedJob {
+        reg_path: None,
+        org_plugins: Some(org),
+    };
+    let outcome = tokio::task::spawn_blocking(move || {
+        crate::integration::claude_desktop::elevate::elevate_and_run(&stage_dir, &job)
+    })
+    .await;
+    match outcome {
+        Ok(Ok(())) => paths::org_plugins_effective().filter(|l| l.scope == paths::Scope::System),
+        Ok(Err(e)) => {
+            tracing::warn!(error = %e, "org-plugins provisioning was not completed");
+            None
+        },
+        Err(e) => {
+            tracing::warn!(error = %e, "org-plugins provisioning task failed");
+            None
+        },
+    }
 }
 
 #[cfg(not(target_os = "windows"))]

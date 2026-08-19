@@ -105,9 +105,11 @@ pub fn org_plugins_effective() -> Option<OrgPluginsLocation> {
     #[cfg(not(target_os = "macos"))]
     {
         let system = org_plugins_system();
+        // Why: the system leaf may not exist yet — sync creates it on first
+        // write — so a missing directory must not force user scope for a
+        // process (e.g. elevated) that could create it.
         if let Some(path) = system.clone()
-            && path.is_dir()
-            && can_create_in(&path)
+            && probe_writable(&path)
         {
             return Some(OrgPluginsLocation {
                 path,

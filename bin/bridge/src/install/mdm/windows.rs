@@ -124,9 +124,9 @@ pub(super) fn apply(gateway: &str, pubkey: Option<&str>) -> Result<Vec<String>, 
     let values = super::windows_policy_values(gateway, pubkey, org_uuid.as_deref());
     let mut summary = Vec::with_capacity(values.len() + 2);
     summary.push(format!("registry key: {key}"));
-    for (name, kind, data) in values {
+    for (name, kind, data) in &values {
         let status = crate::winproc::reg_command()
-            .args(["add", key, "/v", name, "/t", kind, "/d", &data, "/f"])
+            .args(["add", key, "/v", name, "/t", kind, "/d", data, "/f"])
             .status()
             .map_err(|e| format!("reg add {name}: {e}"))?;
         if !status.success() {
@@ -154,12 +154,26 @@ pub(super) fn apply(gateway: &str, pubkey: Option<&str>) -> Result<Vec<String>, 
             },
         }
     }
-    if !elevated {
-        summary.push(
-            "warning: not running elevated — policy applied per-user (HKCU). Re-run from an \
-             elevated shell to install machine-wide (HKLM)."
-                .into(),
-        );
+    let org_job =
+        crate::integration::claude_desktop::elevate::ElevatedJob::org_plugins_for_current_user();
+    if elevated {
+        if let Some(org) = org_job {
+            crate::integration::claude_desktop::elevate::provision_org_plugins(
+                &org.path,
+                &org.grant_user,
+            )
+            .map_err(|e| format!("org-plugins provisioning failed: {e}"))?;
+            summary.push(format!(
+                "provisioned {} with a Modify grant for {}",
+                org.path.display(),
+                org.grant_user
+            ));
+        }
+    } else {
+        match stage_elevated_apply(&values, org_job) {
+            Ok(msg) => summary.push(msg),
+            Err(e) => summary.push(format!("warning: {e}")),
+        }
     }
     if gateway.starts_with("http://") && !gateway.contains("://127.0.0.1") {
         summary.push(
@@ -168,4 +182,34 @@ pub(super) fn apply(gateway: &str, pubkey: Option<&str>) -> Result<Vec<String>, 
     }
     summary.push("Fully quit Bridge (tray icon → Quit) and relaunch to pick up new policy.".into());
     Ok(summary)
+}
+
+// Why: the error shown when Cowork sync cannot write org-plugins tells the
+// user to re-run `install --apply` and approve ONE administrator prompt — this
+// is the step that makes that promise true: one UAC pass writes the HKLM
+// policy and grants the invoking user Modify on org-plugins.
+fn stage_elevated_apply(
+    values: &[(&'static str, &'static str, String)],
+    org_plugins: Option<crate::integration::claude_desktop::elevate::OrgPluginsJob>,
+) -> Result<String, String> {
+    let dir = std::env::temp_dir().join(crate::brand::brand().working_dir_name);
+    std::fs::create_dir_all(&dir).map_err(|e| format!("create staging dir: {e}"))?;
+    let entries: Vec<(&str, String)> = values.iter().map(|(n, _, d)| (*n, d.clone())).collect();
+    let body = crate::integration::claude_desktop::reg_profile::render_reg_values(true, &entries);
+    let path = dir.join("bridge-policy-apply.reg");
+    std::fs::write(&path, body).map_err(|e| format!("stage policy profile: {e}"))?;
+    let job = crate::integration::claude_desktop::elevate::ElevatedJob {
+        reg_path: Some(path.to_string_lossy().into_owned()),
+        org_plugins,
+    };
+    crate::integration::claude_desktop::elevate::elevate_and_run(&dir, &job)
+        .map(|()| {
+            "elevated step complete: HKLM policy written and org-plugins provisioned".to_owned()
+        })
+        .map_err(|e| {
+            format!(
+                "elevated step did not complete ({e}); policy applied per-user (HKCU) and \
+                 org-plugins was not provisioned — Cowork sync may fail"
+            )
+        })
 }

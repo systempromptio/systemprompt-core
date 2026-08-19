@@ -33,6 +33,28 @@ impl std::fmt::Debug for HostAppRegistration {
 
 inventory::collect!(HostAppRegistration);
 
+/// Removes a host from the registry by `id()`.
+///
+/// Shadowing can only replace a host; a white-label crate whose install must
+/// not offer one at all suppresses it instead, and every surface — onboarding
+/// cards, first-run provisioning, GUI payloads, doctor — stops seeing it.
+#[derive(Debug, Clone, Copy)]
+pub struct HostAppSuppression {
+    pub id: &'static str,
+}
+
+inventory::collect!(HostAppSuppression);
+
+/// Remove a host id from the compile-time host registry.
+#[macro_export]
+macro_rules! suppress_host_app {
+    ($id:expr $(,)?) => {
+        ::inventory::submit! {
+            $crate::integration::registry::HostAppSuppression { id: $id }
+        }
+    };
+}
+
 /// Register a [`HostApp`] into the compile-time host registry.
 ///
 /// Pass a zero-sized `'static` host value (e.g. a unit-struct instance). An
@@ -64,9 +86,13 @@ static REGISTRY: LazyLock<Vec<&'static dyn HostApp>> = LazyLock::new(|| {
             .cmp(&a.priority)
             .then_with(|| a.app.id().cmp(b.app.id()))
     });
+    let suppressed: BTreeSet<&'static str> = inventory::iter::<HostAppSuppression>()
+        .map(|s| s.id)
+        .collect();
     let mut seen: BTreeSet<&'static str> = BTreeSet::new();
     let mut v: Vec<&'static dyn HostApp> = regs
         .into_iter()
+        .filter(|r| !suppressed.contains(r.app.id()))
         .filter(|r| seen.insert(r.app.id()))
         .map(|r| r.app)
         .collect();

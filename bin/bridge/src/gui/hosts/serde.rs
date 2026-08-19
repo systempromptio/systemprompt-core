@@ -87,11 +87,17 @@ pub(crate) fn single_host_payload<'a>(
 }
 
 pub(crate) fn payload(snap: &AppStateSnapshot) -> HostsPayload<'_> {
-    let entries = crate::integration::host_apps()
+    // Why: the last-sync manifest is the instance's host gate. Before the
+    // first sync it is empty and every registered host stays visible;
+    // afterwards hosts the instance disabled are dropped from the GUI.
+    let mut entries: Vec<HostEntryPayload<'_>> = crate::integration::host_apps()
         .iter()
         .copied()
         .map(|host| build_entry(snap, host))
         .collect();
+    if !snap.enabled_hosts.is_empty() {
+        entries.retain(|e| e.enabled);
+    }
     HostsPayload {
         host_apps: entries,
         local_proxy: &snap.hosts.local_proxy,

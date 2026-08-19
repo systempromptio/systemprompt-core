@@ -89,7 +89,10 @@ export class SpSetupAgents extends SpElement {
     if (this.firstRun && this.firstRun.active) {
       return this._renderFirstRun();
     }
-    const hosts = (this.snapshot && this.snapshot.host_apps) || [];
+    const all = (this.snapshot && this.snapshot.host_apps) || [];
+    // The last-sync manifest gates hosts: once any host is enabled, hide the
+    // instance-disabled ones (host.changed merges can re-add them).
+    const hosts = all.some((h) => h.enabled) ? all.filter((h) => h.enabled) : all;
     if (hosts.length === 0) {
       return `<div class="sp-u-muted">${escapeHtml(t("setup-agents-empty") || "No agents detected on this device.")}</div>`;
     }

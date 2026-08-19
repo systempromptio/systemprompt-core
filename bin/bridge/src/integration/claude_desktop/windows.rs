@@ -108,10 +108,11 @@ pub(super) fn install_profile(path: &str) -> std::io::Result<()> {
             tracing::error!(error = %e, path, "managed Claude policy write failed");
             std::io::Error::other(e.to_string())
         })?;
-        if let Some(org) = super::elevate::ElevatedJob::org_plugins_for_current_user()
-            && let Err(e) = super::elevate::provision_org_plugins(&org.path, &org.grant_user)
-        {
-            tracing::warn!(error = %e, "org-plugins provisioning failed; unelevated sync may fail");
+        if let Some(org) = super::elevate::ElevatedJob::org_plugins_for_current_user() {
+            super::elevate::provision_org_plugins(&org.path, &org.grant_user).map_err(|e| {
+                tracing::error!(error = %e, "org-plugins provisioning failed");
+                std::io::Error::other(format!("org-plugins provisioning failed: {e}"))
+            })?;
         }
     } else {
         let stage_dir = std::path::Path::new(path)
