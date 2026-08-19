@@ -1046,16 +1046,14 @@ async fn run_down_migrations_reverts_the_applied_version_in_a_transaction() {
         events.contains(&"commit".to_owned()),
         "a successful revert must commit: {events:?}"
     );
-    // `delete_migration_record` is the only non-transactional `execute` the
-    // revert issues, so its presence is the ledger delete.
     assert_eq!(
-        events.iter().filter(|e| *e == "execute").count(),
-        1,
-        "the ledger row must be deleted after the down SQL runs: {events:?}"
+        events.iter().filter(|e| e.starts_with("tx_execute")).count(),
+        2,
+        "the down SQL and the ledger delete must both run inside the transaction: {events:?}"
     );
     assert!(
-        events.iter().position(|e| e == "commit") < events.iter().position(|e| e == "execute"),
-        "the ledger delete must follow the committed down SQL, not precede it: {events:?}"
+        !events.iter().any(|e| e == "execute"),
+        "the ledger delete must not be a separate autocommit statement: {events:?}"
     );
 }
 
@@ -1108,12 +1106,17 @@ async fn run_down_migrations_reverts_newest_first_and_honours_the_count() {
         "the runner must revert every version the query returned"
     );
 
-    let deletes = log
-        .snapshot()
-        .into_iter()
-        .filter(|e| e == "execute")
-        .count();
-    assert_eq!(deletes, 2, "one ledger delete per reverted migration");
+    let events = log.snapshot();
+    assert_eq!(
+        events.iter().filter(|e| *e == "commit").count(),
+        2,
+        "one committed transaction per reverted migration: {events:?}"
+    );
+    assert_eq!(
+        events.iter().filter(|e| e.starts_with("tx_execute")).count(),
+        4,
+        "each revert carries its down SQL and its ledger delete in-transaction: {events:?}"
+    );
 }
 
 #[tokio::test]

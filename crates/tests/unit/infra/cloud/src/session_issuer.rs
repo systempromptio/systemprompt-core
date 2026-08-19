@@ -138,9 +138,11 @@ fn a_version_5_entry_is_rejected_rather_than_migrated() {
     )
     .expect("seed a pre-issuer store");
 
+    let err = SessionStore::load(dir.path())
+        .expect_err("an entry with no recorded issuer cannot be checked and must not be adopted");
     assert!(
-        SessionStore::load(dir.path()).unwrap().is_none(),
-        "an entry with no recorded issuer cannot be checked and must not be adopted"
+        err.to_string().contains("admin session switch"),
+        "the rejection must name the recovery command, got: {err}"
     );
 }
 
