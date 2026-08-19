@@ -42,21 +42,21 @@ pub struct BootstrapOutput {
 pub async fn execute(args: BootstrapArgs, _config: &CliConfig) -> Result<CommandOutput> {
     let name = resolve_admin_name(args.name.as_deref())?;
 
-    let email = args
-        .email
-        .clone()
-        .filter(|e| !e.trim().is_empty())
-        .unwrap_or_else(|| format!("{name}@localhost.localdomain"));
-    systemprompt_identifiers::Email::try_new(&email)
-        .map_err(|e| anyhow!("invalid admin email '{email}': {e}"))?;
+    let email = resolve_admin_email(args.email.as_deref())?;
 
     let user_service = connect_user_service().await?;
 
     let (user, created) = if let Some(existing) = user_service.find_by_name(&name).await? {
         (existing, false)
     } else {
+        let Some(email) = email else {
+            return Err(anyhow!(
+                "No admin email configured for '{name}'. Set `system_admin.email` in the profile \
+                 or pass --email."
+            ));
+        };
         let created = user_service
-            .create(&name, &email, Some(&args.full_name), None)
+            .create(&name, email.as_str(), Some(&args.full_name), None)
             .await?;
         (created, true)
     };
@@ -74,6 +74,15 @@ pub async fn execute(args: BootstrapArgs, _config: &CliConfig) -> Result<Command
     let user = ensure_admin_role(&user_service, user).await?;
 
     Ok(build_output(user, created))
+}
+
+fn resolve_admin_email(requested: Option<&str>) -> Result<Option<systemprompt_identifiers::Email>> {
+    match requested.map(str::trim).filter(|e| !e.is_empty()) {
+        Some(e) => systemprompt_identifiers::Email::try_new(e)
+            .map(Some)
+            .map_err(|err| anyhow!("invalid --email '{e}': {err}")),
+        None => Ok(Config::get()?.system_admin_email.clone()),
+    }
 }
 
 fn resolve_admin_name(requested: Option<&str>) -> Result<String> {

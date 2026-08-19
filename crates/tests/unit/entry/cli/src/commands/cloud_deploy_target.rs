@@ -71,6 +71,7 @@ fn profile(cloud: Option<CloudConfig>) -> Profile {
         services: Default::default(),
         system_admin: SystemAdminConfig {
             username: "admin".to_string(),
+            email: None,
         },
     }
 }

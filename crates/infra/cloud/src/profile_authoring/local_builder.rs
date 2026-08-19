@@ -5,7 +5,7 @@
 
 use std::path::Path;
 
-use systemprompt_identifiers::TenantId;
+use systemprompt_identifiers::{Email, TenantId};
 use systemprompt_loader::ExtensionLoader;
 use systemprompt_models::profile::{
     ProviderRegistry, SecretsConfig, SecretsSource, SecretsValidationMode,
@@ -117,6 +117,7 @@ impl LocalProfileBuilder {
             services: systemprompt_models::profile::ServicesProfileConfig::default(),
             system_admin: SystemAdminConfig {
                 username: "admin".to_owned(),
+                email: Some(Email::new("admin@localhost.localdomain")),
             },
         }
     }

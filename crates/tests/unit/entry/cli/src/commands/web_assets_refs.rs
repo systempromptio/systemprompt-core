@@ -72,6 +72,7 @@ fn profile_with_services(services: &Path) -> Profile {
         services: Default::default(),
         system_admin: SystemAdminConfig {
             username: "admin".to_string(),
+            email: None,
         },
     }
 }

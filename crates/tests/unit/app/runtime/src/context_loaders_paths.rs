@@ -52,6 +52,7 @@ fn fixture_config(geoip: Option<String>) -> Config {
         security_headers: SecurityHeadersConfig::default(),
         allow_registration: false,
         system_admin_username: "admin".to_string(),
+        system_admin_email: None,
     }
 }
 

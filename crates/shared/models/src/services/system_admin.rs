@@ -14,7 +14,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use serde::{Deserialize, Serialize};
-use systemprompt_identifiers::UserId;
+use systemprompt_identifiers::{Email, UserId};
 
 /// Profile-supplied configuration for the platform owner. Must resolve at
 /// startup to an active user row carrying the `admin` role; the platform
@@ -23,6 +23,12 @@ use systemprompt_identifiers::UserId;
 #[serde(deny_unknown_fields)]
 pub struct SystemAdminConfig {
     pub username: String,
+
+    /// Email `admin bootstrap` uses when it first creates the owner row.
+    /// Absent on already-bootstrapped installs; creation without it (or
+    /// `--email`) is refused rather than synthesized.
+    #[serde(default)]
+    pub email: Option<Email>,
 }
 
 /// Resolved system-admin handle threaded through `AppContext`. Holds the

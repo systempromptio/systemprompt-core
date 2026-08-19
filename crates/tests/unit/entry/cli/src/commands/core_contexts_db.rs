@@ -381,6 +381,7 @@ fn minimal_profile() -> systemprompt_models::Profile {
         services: Default::default(),
         system_admin: SystemAdminConfig {
             username: "admin".to_string(),
+            email: None,
         },
     }
 }

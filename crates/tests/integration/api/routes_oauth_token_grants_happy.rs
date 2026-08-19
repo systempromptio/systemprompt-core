@@ -74,6 +74,7 @@ fn ensure_config() {
             trusted_proxies: vec![],
             is_cloud: false,
             system_admin_username: "admin".to_owned(),
+            system_admin_email: None,
             content_negotiation: ContentNegotiationConfig::default(),
             security_headers: SecurityHeadersConfig::default(),
             allow_registration: false,

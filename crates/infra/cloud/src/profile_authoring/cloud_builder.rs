@@ -3,7 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_identifiers::TenantId;
+use systemprompt_identifiers::{Email, TenantId};
 use systemprompt_models::profile::{
     ProviderRegistry, SecretsConfig, SecretsSource, SecretsValidationMode, TrustedIssuer,
 };
@@ -141,6 +141,7 @@ impl CloudProfileBuilder {
             services: systemprompt_models::profile::ServicesProfileConfig::default(),
             system_admin: SystemAdminConfig {
                 username: "admin".to_owned(),
+                email: Some(Email::new("admin@localhost.localdomain")),
             },
         }
     }

@@ -60,6 +60,7 @@ fn test_config() -> Config {
         trusted_proxies: vec![],
         is_cloud: false,
         system_admin_username: "admin".to_string(),
+        system_admin_email: None,
         content_negotiation: ContentNegotiationConfig::default(),
         security_headers: SecurityHeadersConfig::default(),
         allow_registration: false,

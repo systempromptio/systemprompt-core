@@ -74,6 +74,7 @@ fn test_config() -> Config {
         security_headers: Default::default(),
         allow_registration: false,
         system_admin_username: "admin".to_string(),
+        system_admin_email: None,
     }
 }
 

@@ -38,6 +38,7 @@ impl Profile {
             rate_limits: rate_limits_from_env(),
             system_admin: SystemAdminConfig {
                 username: require_env("SYSTEM_ADMIN_USERNAME")?,
+                email: system_admin_email_from_env()?,
             },
             runtime: runtime_config_from_env()?,
             cloud: None,
@@ -57,6 +58,20 @@ fn get_env(key: &str) -> Option<String> {
 
 fn require_env(name: &'static str) -> ProfileResult<String> {
     std::env::var(name).map_err(|_e| ProfileError::MissingEnvVar { name })
+}
+
+fn system_admin_email_from_env() -> ProfileResult<Option<systemprompt_identifiers::Email>> {
+    get_env("SYSTEM_ADMIN_EMAIL")
+        .filter(|v| !v.trim().is_empty())
+        .map(|v| {
+            systemprompt_identifiers::Email::try_new(v.trim()).map_err(|e| {
+                ProfileError::InvalidEnvVar {
+                    name: "SYSTEM_ADMIN_EMAIL",
+                    message: e.to_string(),
+                }
+            })
+        })
+        .transpose()
 }
 
 fn site_config_from_env() -> ProfileResult<SiteConfig> {

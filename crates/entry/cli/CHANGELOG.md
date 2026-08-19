@@ -4,7 +4,7 @@
 
 ### Fixed
 
-- `admin bootstrap` synthesized `{name}@localhost` as the default admin email, which the typed `Email` identifier rejects (the domain needs a dot) — every fresh local profile then failed `admin session login` with "Invalid email". The default is now `{name}@localhost.localdomain`, and a provided `--email` is validated at bootstrap instead of failing later at login.
+- `admin bootstrap` synthesized `{name}@localhost` as the default admin email, which the typed `Email` identifier rejects (the domain needs a dot) — every fresh local profile then failed `admin session login` with "Invalid email". Synthesis is removed: the owner email is explicit configuration read from the profile's new `system_admin.email` (or a validated `--email`), and creating the owner row without one is refused with guidance. Already-bootstrapped installs are unaffected — the email is only required when the user row is first created. `admin setup` and the profile builders write `system_admin.email` into generated profiles.
 
 ## [0.32.0] - 2026-08-18
 

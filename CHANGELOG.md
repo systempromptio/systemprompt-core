@@ -4,7 +4,7 @@
 
 ### Fixed
 
-- `admin bootstrap` synthesized `{name}@localhost` as the default system-admin email, which the typed `Email` identifier rejects (the domain needs a dot) — every fresh local profile then failed `admin session login` out of the box. The default is now `{name}@localhost.localdomain`, and a provided `--email` is validated at bootstrap instead of failing later at login.
+- `admin bootstrap` synthesized `{name}@localhost` as the default system-admin email, which the typed `Email` identifier rejects (the domain needs a dot) — every fresh local profile then failed `admin session login` out of the box. Synthesis is removed: the owner email is explicit configuration via the profile's new `system_admin.email` (typed, validated at parse; `SYSTEM_ADMIN_EMAIL` for env-built profiles) or a validated `--email`, and creating the owner row without one is refused with guidance. Generated profiles (`admin setup`, the profile builders) write `system_admin.email: admin@localhost.localdomain` explicitly; already-bootstrapped installs are unaffected.
 - The bridge's browser launch (`xdg-open`/`open`/`cmd start`) no longer inherits the bridge's stdio, so the spawned browser cannot hold the bridge's pipes open or interleave output.
 
 ## [0.32.0] - 2026-08-18

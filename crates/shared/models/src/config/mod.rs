@@ -82,6 +82,7 @@ pub struct Config {
     pub security_headers: SecurityHeadersConfig,
     pub allow_registration: bool,
     pub system_admin_username: String,
+    pub system_admin_email: Option<systemprompt_identifiers::Email>,
 }
 
 impl Config {

@@ -181,6 +181,7 @@ fn build_config(profile: &Profile, paths: BuildConfigPaths) -> ConfigResult<Conf
         security_headers: profile.server.security_headers.clone(),
         allow_registration: profile.security.allow_registration,
         system_admin_username,
+        system_admin_email: profile.system_admin.email.clone(),
     })
 }
 

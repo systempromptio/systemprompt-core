@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.32.1] - 2026-08-19
+
+### Added
+
+- `SystemAdminConfig::email` (`system_admin.email`, typed `Email`, optional in YAML): the explicit owner email `admin bootstrap` uses when it first creates the owner row, replacing the synthesized `{name}@localhost` fallback. Mirrored on runtime `Config` as `system_admin_email`; `Profile::from_env` reads `SYSTEM_ADMIN_EMAIL`.
+
 ## [0.32.0] - 2026-08-18
 
 ### Breaking

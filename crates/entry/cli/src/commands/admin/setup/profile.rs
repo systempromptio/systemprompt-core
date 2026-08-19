@@ -98,6 +98,9 @@ pub(super) fn build(params: &ProfileBuildParams<'_>) -> Result<Profile> {
         services: systemprompt_models::profile::ServicesProfileConfig { port_offset },
         system_admin: SystemAdminConfig {
             username: "admin".to_owned(),
+            email: Some(systemprompt_identifiers::Email::new(
+                "admin@localhost.localdomain",
+            )),
         },
     };
 

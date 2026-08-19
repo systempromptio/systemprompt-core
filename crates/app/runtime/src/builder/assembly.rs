@@ -72,6 +72,7 @@ pub(super) async fn resolve_and_install_system_admin(
 ) -> RuntimeResult<Arc<SystemAdmin>> {
     let cfg = SystemAdminConfig {
         username: config.system_admin_username.clone(),
+        email: config.system_admin_email.clone(),
     };
     let resolved = resolve_system_admin(&cfg, users.as_ref()).await?;
     systemprompt_logging::install_log_attribution(resolved.clone());
