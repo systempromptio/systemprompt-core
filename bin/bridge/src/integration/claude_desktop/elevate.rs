@@ -16,19 +16,15 @@ use serde::{Deserialize, Serialize};
 use crate::config::store::write_managed_claude_policy;
 use crate::winproc::{ElevationOutcome, run_elevated};
 
-/// Everything the elevated child must do, staged by the unelevated parent.
 #[derive(Debug, Serialize, Deserialize)]
 pub(crate) struct ElevatedJob {
-    /// Staged `.reg` profile whose values go to
-    /// `HKLM\SOFTWARE\Policies\Claude`.
     pub reg_path: Option<String>,
     pub org_plugins: Option<OrgPluginsJob>,
 }
 
-/// Provision the system org-plugins directory and grant the invoking user
-/// Modify on it. `grant_user` is captured by the UNELEVATED parent — the
-/// elevated child may run as a different admin account, so it must never
-/// re-read `%USERNAME%` itself.
+// Why: `grant_user` is captured by the UNELEVATED parent — the elevated
+// child may run as a different admin account, so it must never re-read
+// `%USERNAME%` itself.
 #[derive(Debug, Serialize, Deserialize)]
 pub(crate) struct OrgPluginsJob {
     pub path: PathBuf,
@@ -107,9 +103,6 @@ fn write_from_reg(reg_path: &str) -> Result<(), String> {
     write_managed_claude_policy(true, &entries).map_err(|e| e.to_string())
 }
 
-/// Create the system org-plugins directory and grant `grant_user` Modify on
-/// it so subsequent unelevated syncs can publish plugin bundles. Idempotent:
-/// `create_dir_all` and `icacls /grant:r` both converge on the same state.
 pub(crate) fn provision_org_plugins(path: &Path, grant_user: &str) -> Result<(), String> {
     std::fs::create_dir_all(path)
         .map_err(|e| format!("create org-plugins dir {}: {e}", path.display()))?;
