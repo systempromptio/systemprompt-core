@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.32.2] - 2026-08-19
+
+### Fixed
+
+- Gateway request logs record the client-visible path including the router prefix instead of the stripped nested path.
+
 ## [0.32.0] - 2026-08-19
 
 ### Changed

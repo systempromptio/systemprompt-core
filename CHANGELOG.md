@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.32.2] - 2026-08-19
+
+### Added
+
+- `admin setup` accepts `--admin-email` and writes it as `system_admin.email` in the generated profile.
+
+### Changed
+
+- The bridge no longer honours a `GATEWAY_URL` environment override; the gateway URL comes from the config file.
+
+### Fixed
+
+- Gateway request logs record the client-visible path including the router prefix instead of the stripped nested path.
+
 ## [0.32.1] - 2026-08-19
 
 ### Fixed

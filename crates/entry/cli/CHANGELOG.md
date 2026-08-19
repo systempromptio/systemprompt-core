@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.32.2] - 2026-08-19
+
+### Added
+
+- `admin setup --admin-email <address>` sets the generated profile's `system_admin.email`; the default remains `admin@localhost.localdomain`.
+
 ## [0.32.1] - 2026-08-19
 
 ### Fixed
