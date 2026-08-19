@@ -107,18 +107,6 @@ pub struct CloudTenantSecrets {
     pub gemini_api_key: Option<String>,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-pub struct SetExternalDbAccessRequest {
-    pub enabled: bool,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ExternalDbAccessResponse {
-    pub tenant_id: systemprompt_identifiers::TenantId,
-    pub external_db_access: bool,
-    pub database_url: String,
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RotateCredentialsResponse {
     pub status: String,

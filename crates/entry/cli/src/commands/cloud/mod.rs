@@ -1,23 +1,18 @@
 //! `cloud` command tree for systemprompt.io Cloud.
 //!
 //! Routes [`CloudCommands`] to the auth, init, tenant, profile, deploy,
-//! backup, status, restart, secrets, dockerfile, db, and domain subcommands,
-//! and declares each command's profile/secret requirements via
-//! [`DescribeCommand`].
+//! backup, status, and dockerfile subcommands, and declares each command's
+//! profile/secret requirements via [`DescribeCommand`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod auth;
 pub mod backup;
-pub mod db;
 pub mod deploy;
 pub mod doctor;
-pub mod domain;
 pub mod init;
 pub mod profile;
-mod restart;
-pub mod secrets;
 mod status;
 pub mod templates;
 pub mod tenant;
@@ -33,10 +28,7 @@ use clap::Subcommand;
 
 #[derive(Debug, Subcommand)]
 pub enum CloudCommands {
-    #[command(
-        subcommand,
-        about = "Authentication (login, logout, whoami, admin-user)"
-    )]
+    #[command(subcommand, about = "Authentication (login, logout, whoami)")]
     Auth(auth::AuthCommands),
 
     #[command(about = "Initialize project structure")]
@@ -94,35 +86,15 @@ pub enum CloudCommands {
     #[command(about = "Check cloud deployment status")]
     Status,
 
-    #[command(about = "Restart tenant machine")]
-    Restart {
-        #[arg(long)]
-        tenant: Option<String>,
-
-        #[arg(short = 'y', long, help = "Skip confirmation prompts")]
-        yes: bool,
-    },
-
-    #[command(subcommand, about = "Manage secrets for cloud tenant")]
-    Secrets(secrets::SecretsCommands),
-
     #[command(about = "Generate Dockerfile based on discovered extensions")]
     Dockerfile,
-
-    #[command(subcommand, about = "Cloud database operations")]
-    Db(db::CloudDbCommands),
-
-    #[command(subcommand, about = "Manage custom domain and TLS certificates")]
-    Domain(domain::DomainCommands),
 }
 
 impl DescribeCommand for CloudCommands {
     fn descriptor(&self) -> CommandDescriptor {
         match self {
-            Self::Deploy { .. } | Self::Secrets { .. } => CommandDescriptor::PROFILE_AND_SECRETS,
-            Self::Backup { .. } | Self::Status | Self::Restart { .. } | Self::Domain { .. } => {
-                CommandDescriptor::PROFILE_ONLY
-            },
+            Self::Deploy { .. } => CommandDescriptor::PROFILE_AND_SECRETS,
+            Self::Backup { .. } | Self::Status => CommandDescriptor::PROFILE_ONLY,
             _ => CommandDescriptor::NONE,
         }
     }
@@ -174,18 +146,7 @@ pub async fn execute(cmd: CloudCommands, ctx: &CommandContext) -> Result<()> {
             crate::shared::render_result(&result, &ctx.cli);
             Ok(())
         },
-        CloudCommands::Restart { tenant, yes } => {
-            let result = restart::execute(tenant, yes, ctx.prompter(), &ctx.cli).await?;
-            crate::shared::render_result(&result, &ctx.cli);
-            Ok(())
-        },
-        CloudCommands::Secrets(cmd) => secrets::execute(cmd, ctx).await,
         CloudCommands::Dockerfile => execute_dockerfile(&ctx.cli),
-        CloudCommands::Db(cmd) => match ctx.database_url() {
-            Some(database_url) => db::execute_with_database_url(cmd, database_url, ctx).await,
-            None => db::execute(cmd, ctx).await,
-        },
-        CloudCommands::Domain(cmd) => domain::execute(cmd, ctx).await,
     }
 }
 

@@ -1,19 +1,14 @@
 //! Tenant creation flows for the `cloud tenant create` command.
 //!
-//! Routes to the cloud-subscription flow ([`create_cloud_tenant`]) or one of
-//! the local flows ([`create_local_tenant`] for a tenant-owned Docker
-//! container, [`create_external_tenant`] for a user-supplied database).
+//! Routes to [`create_local_tenant`] for a tenant-owned Docker container or
+//! [`create_external_tenant`] for a user-supplied database.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-mod cloud;
 mod local;
-pub mod progress;
 
-pub use cloud::create_cloud_tenant;
 pub use local::{create_external_tenant, create_local_tenant};
-pub use systemprompt_cloud::tenants::swap_to_external_host;
 
 fn sanitize_database_name(name: &str) -> String {
     let sanitized: String = name

@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.32.0] - 2026-08-18
+
+### Breaking
+
+- **Breaking:** `CheckoutSessionId` and `TransactionId` are removed with the cloud signup path; `PriceId` remains.
+
 ## [0.29.0] - 2026-08-05
 
 ### Added

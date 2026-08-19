@@ -16,10 +16,7 @@ use std::path::{Path, PathBuf};
 use chrono::Utc;
 use serde_json::json;
 use systemprompt_cli::cloud::auth::AuthCommands;
-use systemprompt_cli::cloud::secrets::SecretsCommands;
-use systemprompt_cli::cloud::tenant::{
-    TenantCancelArgs, TenantCommands, TenantDeleteArgs, TenantRotateArgs,
-};
+use systemprompt_cli::cloud::tenant::{TenantCommands, TenantDeleteArgs, TenantRotateArgs};
 use systemprompt_cli::cloud::{self, CloudCommands};
 use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
 use systemprompt_cloud::tenants::{NewCloudTenantParams, StoredTenant, TenantStore};
@@ -40,7 +37,6 @@ pub(super) struct Harness {
     _tmp: TempDir,
     root: PathBuf,
     server: MockServer,
-    profile_ready: bool,
 }
 
 static HARNESS: OnceCell<Harness> = OnceCell::const_new();
@@ -65,11 +61,9 @@ async fn build_harness() -> Harness {
     let _ = CredentialsBootstrap::try_init().await;
 
     let profile_path = root.join(".systemprompt/profiles/local/profile.yaml");
-    let profile_ready = if ProfileBootstrap::is_initialized() {
-        true
-    } else {
-        ProfileBootstrap::init_from_path(&profile_path).is_ok()
-    };
+    if !ProfileBootstrap::is_initialized() {
+        let _ = ProfileBootstrap::init_from_path(&profile_path);
+    }
 
     server.reset().await;
     if let Some(prev) = prev {
@@ -80,7 +74,6 @@ async fn build_harness() -> Harness {
         _tmp: tmp,
         root,
         server,
-        profile_ready,
     }
 }
 
@@ -261,18 +254,11 @@ governance:
 
 mod batch3_auth;
 mod batch3_profile;
-mod batch3_restart;
-mod batch3_secrets;
 mod batch3_tenant;
-mod batch3_validation;
-mod db_cmds;
 mod doctor_deploy;
-mod domain_cmds;
 mod init_cmds;
 mod login_flows;
 mod profile_cmds;
-mod secrets_cmds;
-mod sync_cmds;
 mod tenant_flows;
 mod tenant_sync;
 
@@ -285,10 +271,6 @@ pub(super) struct Env {
 impl Env {
     pub(super) fn server(&self) -> &'static MockServer {
         &self.harness.server
-    }
-
-    pub(super) fn profile_ready(&self) -> bool {
-        self.harness.profile_ready
     }
 }
 
@@ -574,74 +556,6 @@ async fn tenant_rotate_local_tenant_rejected() {
 }
 
 #[tokio::test]
-async fn tenant_cancel_requires_interactive() {
-    let _env = enter().await;
-    let err = cloud::execute(
-        CloudCommands::Tenant {
-            command: Some(TenantCommands::Cancel(TenantCancelArgs {
-                id: Some(TENANT_ID.to_owned()),
-            })),
-        },
-        &json_ctx(),
-    )
-    .await
-    .expect_err("cancel needs interactive");
-    assert!(err.to_string().contains("interactive"));
-}
-
-#[tokio::test]
-async fn restart_cloud_tenant_calls_api() {
-    let env = enter().await;
-    Mock::given(method("POST"))
-        .and(path(format!("/api/v1/tenants/{TENANT_ID}/restart")))
-        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
-            "status": "restarting"
-        })))
-        .mount(env.server())
-        .await;
-
-    cloud::execute(
-        CloudCommands::Restart {
-            tenant: Some(TENANT_ID.to_owned()),
-            yes: true,
-        },
-        &json_ctx(),
-    )
-    .await
-    .expect("restart");
-}
-
-#[tokio::test]
-async fn restart_without_yes_errors_non_interactive() {
-    let _env = enter().await;
-    let err = cloud::execute(
-        CloudCommands::Restart {
-            tenant: Some(TENANT_ID.to_owned()),
-            yes: false,
-        },
-        &json_ctx(),
-    )
-    .await
-    .expect_err("restart needs --yes");
-    assert!(err.to_string().contains("--yes"));
-}
-
-#[tokio::test]
-async fn restart_local_tenant_rejected() {
-    let _env = enter().await;
-    let err = cloud::execute(
-        CloudCommands::Restart {
-            tenant: Some(OTHER_TENANT_ID.to_owned()),
-            yes: true,
-        },
-        &json_ctx(),
-    )
-    .await
-    .expect_err("local tenant cannot restart");
-    assert!(err.to_string().contains("cloud tenants"));
-}
-
-#[tokio::test]
 async fn auth_whoami_reports_identity() {
     let env = enter().await;
     mount_list_tenants(env.server()).await;
@@ -675,116 +589,8 @@ async fn auth_logout_removes_credentials_file() {
 }
 
 #[tokio::test]
-async fn secrets_set_pushes_to_cloud() {
-    let env = enter().await;
-    if !env.profile_ready() {
-        return;
-    }
-    Mock::given(method("PUT"))
-        .and(path(format!("/api/v1/tenants/{TENANT_ID}/secrets")))
-        .respond_with(ResponseTemplate::new(204))
-        .mount(env.server())
-        .await;
-
-    cloud::execute(
-        CloudCommands::Secrets(SecretsCommands::Set {
-            key_values: vec!["CUSTOM_SECRET=value".to_owned()],
-        }),
-        &json_ctx(),
-    )
-    .await
-    .expect("secrets set");
-}
-
-#[tokio::test]
-async fn secrets_set_rejects_only_system_managed() {
-    let env = enter().await;
-    if !env.profile_ready() {
-        return;
-    }
-    let err = cloud::execute(
-        CloudCommands::Secrets(SecretsCommands::Set {
-            key_values: vec!["FLY_APP_NAME=x".to_owned()],
-        }),
-        &json_ctx(),
-    )
-    .await
-    .expect_err("all keys system-managed");
-    assert!(err.to_string().contains("system-managed"));
-}
-
-#[tokio::test]
-async fn secrets_sync_pushes_profile_secrets() {
-    let env = enter().await;
-    if !env.profile_ready() {
-        return;
-    }
-    Mock::given(method("PUT"))
-        .and(path(format!("/api/v1/tenants/{TENANT_ID}/secrets")))
-        .respond_with(ResponseTemplate::new(204))
-        .mount(env.server())
-        .await;
-
-    cloud::execute(CloudCommands::Secrets(SecretsCommands::Sync), &json_ctx())
-        .await
-        .expect("secrets sync");
-}
-
-#[tokio::test]
-async fn secrets_unset_removes_key() {
-    let env = enter().await;
-    if !env.profile_ready() {
-        return;
-    }
-    Mock::given(method("DELETE"))
-        .and(path(format!(
-            "/api/v1/tenants/{TENANT_ID}/secrets/CUSTOM_SECRET"
-        )))
-        .respond_with(ResponseTemplate::new(204))
-        .mount(env.server())
-        .await;
-
-    cloud::execute(
-        CloudCommands::Secrets(SecretsCommands::Unset {
-            keys: vec!["CUSTOM_SECRET".to_owned()],
-        }),
-        &json_ctx(),
-    )
-    .await
-    .expect("secrets unset");
-}
-
-#[tokio::test]
-async fn secrets_cleanup_removes_system_managed() {
-    let env = enter().await;
-    if !env.profile_ready() {
-        return;
-    }
-    Mock::given(method("DELETE"))
-        .and(path(format!(
-            "/api/v1/tenants/{TENANT_ID}/secrets/SYSTEMPROMPT_API_URL"
-        )))
-        .respond_with(ResponseTemplate::new(204))
-        .mount(env.server())
-        .await;
-
-    cloud::execute(
-        CloudCommands::Secrets(SecretsCommands::Cleanup),
-        &json_ctx(),
-    )
-    .await
-    .expect("secrets cleanup");
-}
-
-#[tokio::test]
 async fn login_post_token_persists_credentials_and_tenants() {
     let env = enter().await;
-    Mock::given(method("POST"))
-        .and(path("/api/v1/activity"))
-        .respond_with(ResponseTemplate::new(204))
-        .mount(env.server())
-        .await;
-
     let creds_path = get_cloud_paths().resolve(CloudPath::Credentials);
     let tenants_path = get_cloud_paths().resolve(CloudPath::Tenants);
     std::fs::remove_file(&creds_path).expect("remove seeded credentials");
@@ -793,7 +599,6 @@ async fn login_post_token_persists_credentials_and_tenants() {
     let output = systemprompt_cli::cloud::auth::complete_login(
         &env.server().uri(),
         FAR_FUTURE_JWT.to_owned(),
-        &json_ctx().cli,
     )
     .await
     .expect("post-token login");
@@ -818,76 +623,8 @@ async fn login_post_token_fails_on_rejected_token() {
     let err = systemprompt_cli::cloud::auth::complete_login(
         &env.server().uri(),
         FAR_FUTURE_JWT.to_owned(),
-        &json_ctx().cli,
     )
     .await
     .expect_err("rejected token fails");
     assert!(!err.to_string().is_empty());
-}
-
-#[tokio::test]
-async fn admin_user_sync_creates_then_reports_existing_admin() {
-    let Some(database_url) = crate::full_bootstrap::database_url() else {
-        return;
-    };
-    let _env = enter().await;
-
-    let email = format!(
-        "harness-admin-{}-{}@example.com",
-        std::process::id(),
-        Utc::now().timestamp_micros()
-    );
-    let user = systemprompt_cli::cloud::auth::admin_user::CloudUser {
-        email: email.clone(),
-        name: Some("Harness Admin".to_owned()),
-    };
-
-    let first = systemprompt_cli::cloud::auth::admin_user::sync_admin_to_database(
-        &user,
-        &database_url,
-        "harness-profile",
-    )
-    .await;
-    assert!(
-        matches!(
-            first,
-            systemprompt_cli::cloud::auth::admin_user::SyncResult::Created { .. }
-        ),
-        "first sync should create the admin: {first:?}"
-    );
-
-    let second = systemprompt_cli::cloud::auth::admin_user::sync_admin_to_database(
-        &user,
-        &database_url,
-        "harness-profile",
-    )
-    .await;
-    assert!(
-        matches!(
-            second,
-            systemprompt_cli::cloud::auth::admin_user::SyncResult::AlreadyAdmin { .. }
-                | systemprompt_cli::cloud::auth::admin_user::SyncResult::Promoted { .. }
-        ),
-        "second sync should find the existing admin: {second:?}"
-    );
-    systemprompt_cli::cloud::auth::admin_user::print_sync_results(&[first, second]);
-}
-
-#[tokio::test]
-async fn admin_user_sync_reports_connection_failure() {
-    let _env = enter().await;
-    let user = systemprompt_cli::cloud::auth::admin_user::CloudUser {
-        email: "unreachable@example.com".to_owned(),
-        name: None,
-    };
-    let result = systemprompt_cli::cloud::auth::admin_user::sync_admin_to_database(
-        &user,
-        "postgres://nobody:nothing@127.0.0.1:1/void",
-        "dead-profile",
-    )
-    .await;
-    assert!(matches!(
-        result,
-        systemprompt_cli::cloud::auth::admin_user::SyncResult::ConnectionFailed { .. }
-    ));
 }

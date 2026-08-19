@@ -188,39 +188,6 @@ async fn tenant_post_retries_once_after_401() {
 }
 
 #[tokio::test]
-async fn tenant_put_retries_once_after_401() {
-    let server = MockServer::start().await;
-    token_mock(&server).await;
-
-    Mock::given(method("PUT"))
-        .and(path("/api/v1/tenants/t-ext/external-db-access"))
-        .respond_with(ResponseTemplate::new(401))
-        .up_to_n_times(1)
-        .with_priority(1)
-        .mount(&server)
-        .await;
-    Mock::given(method("PUT"))
-        .and(path("/api/v1/tenants/t-ext/external-db-access"))
-        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
-            "data": {
-                "tenant_id": "t-ext",
-                "external_db_access": true,
-                "database_url": "postgres://u:p@db/demo"
-            }
-        })))
-        .with_priority(2)
-        .mount(&server)
-        .await;
-
-    let client = CloudApiClient::new(&server.uri(), "op").unwrap();
-    let response = client
-        .set_external_db_access(&TenantId::new("t-ext"), true)
-        .await
-        .expect("put retry should succeed");
-    assert!(response.external_db_access);
-}
-
-#[tokio::test]
 async fn tenant_put_no_content_retries_once_after_401() {
     let server = MockServer::start().await;
     token_mock(&server).await;
@@ -256,23 +223,28 @@ async fn tenant_post_empty_retries_once_after_401() {
     token_mock(&server).await;
 
     Mock::given(method("POST"))
-        .and(path("/api/v1/tenants/t-restart/restart"))
+        .and(path("/api/v1/tenants/t-rot/rotate-credentials"))
         .respond_with(ResponseTemplate::new(401))
         .up_to_n_times(1)
         .with_priority(1)
         .mount(&server)
         .await;
     Mock::given(method("POST"))
-        .and(path("/api/v1/tenants/t-restart/restart"))
-        .respond_with(ResponseTemplate::new(200).set_body_json(json!({ "status": "restarting" })))
+        .and(path("/api/v1/tenants/t-rot/rotate-credentials"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "status": "rotated",
+            "message": "ok",
+            "internal_database_url": "postgres://u:p@internal/db",
+            "external_database_url": "postgres://u:p@external/db"
+        })))
         .with_priority(2)
         .mount(&server)
         .await;
 
     let client = CloudApiClient::new(&server.uri(), "op").unwrap();
     let response = client
-        .restart_tenant(&TenantId::new("t-restart"))
+        .rotate_credentials(&TenantId::new("t-rot"))
         .await
-        .expect("restart retry should succeed");
-    assert_eq!(response.status, "restarting");
+        .expect("rotate retry should succeed");
+    assert_eq!(response.status, "rotated");
 }

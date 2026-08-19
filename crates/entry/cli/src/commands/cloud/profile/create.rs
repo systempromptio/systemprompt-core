@@ -20,7 +20,7 @@ use systemprompt_identifiers::TenantId;
 
 use super::CreateArgs;
 use super::api_keys::{ApiKeys, collect_api_keys};
-use super::create_setup::{get_cloud_user, handle_local_tenant_setup};
+use super::create_setup::handle_local_tenant_setup;
 use super::create_tenant::{get_tenants_by_type, select_tenant, select_tenant_type};
 use super::profile_steps::{
     ensure_profile_dirs, ensure_unmasked_credentials, report_profile_validation,
@@ -43,7 +43,6 @@ pub(super) async fn execute(
     let name = &args.name;
     CliService::section(&format!("Create Profile: {}", name));
 
-    let cloud_user = get_cloud_user()?;
     let ctx = ProjectContext::discover();
     let profile_dir = ctx.profile_dir(name);
 
@@ -86,8 +85,7 @@ pub(super) async fn execute(
         let db_url = tenant
             .get_local_database_url()
             .ok_or_else(|| anyhow::anyhow!("Tenant database URL is required"))?;
-        handle_local_tenant_setup(prompter, &cloud_user, db_url, &tenant.name, &profile_path)
-            .await?;
+        handle_local_tenant_setup(prompter, db_url, &tenant.name, &profile_path).await?;
     }
 
     render_next_steps(&tenant, &profile_path);

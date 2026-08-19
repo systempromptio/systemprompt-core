@@ -100,55 +100,26 @@ async fn tenant_edit_unknown_id_errors() {
 #[tokio::test]
 async fn tenant_create_requires_interactive() {
     let _env = enter().await;
-    let err = cloud::execute(
-        tenant_cmd(TenantCommands::Create {
-            region: "iad".to_owned(),
-        }),
-        &json_ctx(),
-    )
-    .await
-    .expect_err("create needs interactive");
+    let err = cloud::execute(tenant_cmd(TenantCommands::Create), &json_ctx())
+        .await
+        .expect_err("create needs interactive");
     assert!(err.to_string().contains("interactive"));
-}
-
-#[tokio::test]
-async fn tenant_create_cloud_unavailable_without_release_build() {
-    let _env = enter().await;
-    let ctx = interactive_ctx(["1"]);
-    let result = cloud::execute(
-        tenant_cmd(TenantCommands::Create {
-            region: "iad".to_owned(),
-        }),
-        &ctx,
-    )
-    .await;
-    let _ = result;
 }
 
 #[tokio::test]
 async fn tenant_create_external_rejects_empty_inputs() {
     let _env = enter().await;
 
-    let ctx = interactive_ctx(["0", "1", "ext-tenant", ""]);
-    let err = cloud::execute(
-        tenant_cmd(TenantCommands::Create {
-            region: "iad".to_owned(),
-        }),
-        &ctx,
-    )
-    .await
-    .expect_err("empty database url");
+    let ctx = interactive_ctx(["1", "ext-tenant", ""]);
+    let err = cloud::execute(tenant_cmd(TenantCommands::Create), &ctx)
+        .await
+        .expect_err("empty database url");
     assert!(err.to_string().contains("Database URL"));
 
-    let ctx = interactive_ctx(["0", "1", "ext-tenant", "postgres://u:p@127.0.0.1:1/void"]);
-    let err = cloud::execute(
-        tenant_cmd(TenantCommands::Create {
-            region: "iad".to_owned(),
-        }),
-        &ctx,
-    )
-    .await
-    .expect_err("unreachable database");
+    let ctx = interactive_ctx(["1", "ext-tenant", "postgres://u:p@127.0.0.1:1/void"]);
+    let err = cloud::execute(tenant_cmd(TenantCommands::Create), &ctx)
+        .await
+        .expect_err("unreachable database");
     assert!(err.to_string().contains("connect"));
 }
 
@@ -162,7 +133,6 @@ async fn tenant_create_external_full_flow() {
     }
 
     let ctx = interactive_ctx([
-        "0",
         "1",
         "ext-tenant",
         url.as_str(),
@@ -172,14 +142,9 @@ async fn tenant_create_external_full_flow() {
         "n",
         "n",
     ]);
-    cloud::execute(
-        tenant_cmd(TenantCommands::Create {
-            region: "iad".to_owned(),
-        }),
-        &ctx,
-    )
-    .await
-    .expect("external tenant create");
+    cloud::execute(tenant_cmd(TenantCommands::Create), &ctx)
+        .await
+        .expect("external tenant create");
 
     let store = TenantStore::load_from_path(&env.root().join(".systemprompt/tenants.json"))
         .expect("reload tenants");
@@ -197,7 +162,7 @@ use std::sync::Mutex;
 use systemprompt_cli::ScriptedPrompter;
 use systemprompt_cli::cloud::tenant::docker::{TenantContainer, container};
 use systemprompt_cli::cloud::tenant::{
-    TenantCancelArgs, TenantDeleteArgs, TenantRotateArgs, choose_tenant_operation,
+    TenantDeleteArgs, TenantRotateArgs, choose_tenant_operation,
 };
 use systemprompt_cloud::{CommandRunner, CommandSpec, DockerCli};
 
@@ -412,40 +377,6 @@ async fn tenant_show_interactive_picker() {
     cloud::execute(tenant_cmd(TenantCommands::Show { id: None }), &ctx)
         .await
         .expect("interactive show");
-}
-
-#[tokio::test]
-async fn tenant_cancel_aborts_on_name_mismatch() {
-    let _env = enter().await;
-    let ctx = interactive_ctx(["0", "wrong-name"]);
-    cloud::execute(
-        tenant_cmd(TenantCommands::Cancel(TenantCancelArgs { id: None })),
-        &ctx,
-    )
-    .await
-    .expect("aborted cancellation");
-}
-
-#[tokio::test]
-async fn tenant_cancel_confirmed_calls_api() {
-    let env = enter().await;
-    wiremock::Mock::given(wiremock::matchers::method("POST"))
-        .and(wiremock::matchers::path(format!(
-            "/api/v1/tenants/{TENANT_ID}/subscription/cancel"
-        )))
-        .respond_with(wiremock::ResponseTemplate::new(200).set_body_json(serde_json::Value::Null))
-        .mount(env.server())
-        .await;
-
-    let ctx = interactive_ctx(["Harness Prod"]);
-    cloud::execute(
-        tenant_cmd(TenantCommands::Cancel(TenantCancelArgs {
-            id: Some(TENANT_ID.to_owned()),
-        })),
-        &ctx,
-    )
-    .await
-    .expect("confirmed cancellation");
 }
 
 #[tokio::test]

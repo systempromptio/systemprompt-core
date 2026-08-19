@@ -116,8 +116,7 @@ async fn dispatch_command(command: Option<args::Commands>, ctx: &CommandContext)
                 args::Commands::Core(_)
                 | args::Commands::Infra(_)
                 | args::Commands::Admin(_)
-                | args::Commands::Analytics(_)
-                | args::Commands::Cloud(cloud::CloudCommands::Db(_)),
+                | args::Commands::Analytics(_),
             ) => {},
             Some(_) => bail!(
                 "This command requires full profile initialization. Remove --database-url flag."

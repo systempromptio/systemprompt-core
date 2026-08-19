@@ -26,9 +26,7 @@ mod cloud_harness;
 #[cfg(test)]
 mod cloud_profile_templates;
 #[cfg(test)]
-mod cloud_tenant_helpers;
 #[cfg(test)]
-mod cloud_tenant_validation;
 #[cfg(test)]
 mod presentation_renderer;
 #[cfg(test)]

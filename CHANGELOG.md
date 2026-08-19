@@ -4,6 +4,9 @@
 
 ### Breaking
 
+- **Breaking:** The systemprompt.io Cloud signup path is removed from the CLI and the `systemprompt-cloud` crate: the Paddle checkout flow, the SSE/polling provisioning watcher, and the cloud variant of `cloud tenant create` (with its `--region` flag) are gone — `cloud tenant create` now only creates local Docker or external-database tenants and no longer requires a cloud login. `cloud tenant cancel`, `cloud secrets`, `cloud restart`, `cloud domain`, and `cloud db` are removed with their control-plane API methods; `cloud deploy` still provisions profile secrets to the tenant internally. The corresponding wire types (`Checkout*`, `Provisioning*`, custom-domain, external-db-access, activity) and the `CheckoutSessionId`/`TransactionId` identifiers are deleted.
+- **Breaking:** `cloud auth admin-user` and the login-time side effect that projected the cloud OAuth user as an admin into every local profile database are removed. The single mechanism for the system-admin invariant is `system_admin.username` in the profile plus `systemprompt admin bootstrap`, enforced at startup by AppContext.
+- **Breaking:** `cloud auth logout` now clears all local cloud state — `credentials.json`, `tenants.json`, and tenant-scoped CLI sessions (local sessions survive) — via the new `clear_cloud_state` helper. Activity telemetry (`POST /api/v1/activity` on login/logout) is removed.
 - **Breaking:** `rmcp` moves from 3.0.0 to 3.1.3. `rmcp` types are part of the public API (`ClientProfile::protocol_version`, the re-exported `CallToolResult`, and the facade's `rmcp` re-export), so downstream crates must build against the same `rmcp` minor.
 - **Breaking:** `execute_tool_call` takes an optional `SharedElicitationDelegate`; `McpClient::call_tool` is unchanged and `call_tool_with_elicitation` accepts a delegate. Migrate direct `execute_tool_call` callers by passing `None`.
 

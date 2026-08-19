@@ -1,8 +1,7 @@
 //! Interactive OAuth login against systemprompt.io Cloud.
 //!
-//! Runs the provider-selection prompt and browser OAuth flow, persists the
-//! returned credentials and tenant list to the local cloud config paths, and
-//! syncs the authenticated admin user into all profiles.
+//! Runs the provider-selection prompt and browser OAuth flow, then persists
+//! the returned credentials and tenant list to the local cloud config paths.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -13,7 +12,6 @@ use systemprompt_cloud::{
     UserMeResponse, get_cloud_paths, run_oauth_flow,
 };
 use systemprompt_logging::CliService;
-use systemprompt_models::modules::ApiPaths;
 
 use crate::cli_settings::CliConfig;
 use crate::cloud::templates::{AUTH_ERROR_HTML, AUTH_SUCCESS_HTML};
@@ -30,10 +28,7 @@ pub(super) async fn execute(
     config: &CliConfig,
 ) -> Result<CommandOutput> {
     if !config.is_interactive() {
-        return Err(anyhow!(
-            "OAuth login requires interactive mode.\n\nAlternatives:\n- Set \
-             SYSTEMPROMPT_CLOUD_TOKEN environment variable"
-        ));
+        return Err(anyhow!("OAuth login requires interactive mode."));
     }
 
     let api_url = environment.api_url();
@@ -64,14 +59,10 @@ pub(super) async fn execute(
     };
     let token = run_oauth_flow(api_url, provider, templates).await?;
 
-    complete_login(api_url, token, config).await
+    complete_login(api_url, token).await
 }
 
-pub async fn complete_login(
-    api_url: &str,
-    token: String,
-    config: &CliConfig,
-) -> Result<CommandOutput> {
+pub async fn complete_login(api_url: &str, token: String) -> Result<CommandOutput> {
     let cloud_paths = get_cloud_paths();
 
     let spinner = CliService::spinner("Verifying token...");
@@ -95,24 +86,6 @@ pub async fn complete_login(
     CliService::key_value("Tenants synced to", &tenants_path.display().to_string());
 
     CliService::success("Logged in successfully");
-
-    let activity_user_id = systemprompt_identifiers::UserId::new(response.user.id.clone());
-    if let Err(e) = client
-        .report_activity(ApiPaths::ACTIVITY_EVENT_LOGIN, &activity_user_id)
-        .await
-    {
-        tracing::debug!(error = %e, "Failed to report login activity");
-    }
-
-    CliService::section("Syncing Admin User to Profiles");
-    if let Some(cloud_user) = crate::cloud::auth::admin_user::CloudUser::from_credentials()? {
-        let verbose = config.should_show_verbose();
-        let results =
-            crate::cloud::auth::admin_user::sync_admin_to_all_profiles(&cloud_user, verbose).await;
-        crate::cloud::auth::admin_user::print_sync_results(&results);
-    } else {
-        CliService::warning("Could not load cloud user for admin sync");
-    }
 
     print_login_result(&response);
 

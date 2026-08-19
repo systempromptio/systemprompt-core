@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.32.0] - 2026-08-18
+
+### Breaking
+
+- **Breaking:** The signup path is removed: the `checkout` module (Paddle checkout + provisioning watcher), `tenants::provisioning` (`TenantProvisioningService`, `swap_to_external_host`), the checkout/provisioning SSE streams, and the `create_checkout` / `get_plans` / `report_activity` / `restart_tenant` / `retry_provision` / `unset_secret` / `set_external_db_access` / `list_secrets` / custom-domain / `cancel_subscription` API methods. The `CheckoutFlow`, `SseStream`, and `ProvisioningFailed` error variants and the `constants::checkout` / `constants::regions` modules are gone.
+
+### Added
+
+- `clear_cloud_state` removes `credentials.json`, `tenants.json`, and tenant-scoped CLI sessions in one call; `SessionStore::remove_tenant_sessions` deletes every tenant-keyed session while local sessions survive.
+
 ## [0.31.0] - 2026-08-18
 
 ### Changed

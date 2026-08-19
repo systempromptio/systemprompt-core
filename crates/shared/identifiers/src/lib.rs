@@ -93,7 +93,7 @@ pub use ai::{
 };
 pub use auth::{ApiKeyId, ApiKeySecret, CloudAuthToken, DeviceCertId, JwtToken, SessionToken};
 pub use client::{ClientId, ClientType};
-pub use cloud::{CheckoutSessionId, PriceId, TransactionId};
+pub use cloud::PriceId;
 pub use connection::ConnectionId;
 pub use content::{CategoryId, ContentId, FileId, SkillId, SourceId, TagId};
 pub use context::ContextId;

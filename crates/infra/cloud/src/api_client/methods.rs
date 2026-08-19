@@ -2,12 +2,11 @@
 //!
 //! Two flavours live here:
 //!
-//! - `get` / `post` / `post_no_response` send the operator JWT (`self.token`)
-//!   verbatim as a bearer. These are used by control-plane endpoints in
-//!   `endpoints.rs`.
-//! - `tenant_get` / `tenant_post` / `tenant_put` / `tenant_delete` /
-//!   `tenant_post_empty` / `tenant_put_no_content` first acquire a short-lived
-//!   access token via RFC 8693 token-exchange against the tenant deployment's
+//! - `get` sends the operator JWT (`self.token`) verbatim as a bearer. It is
+//!   used by control-plane endpoints in `endpoints.rs`.
+//! - `tenant_get` / `tenant_post` / `tenant_delete` / `tenant_post_empty` /
+//!   `tenant_put_no_content` first acquire a short-lived access token via RFC
+//!   8693 token-exchange against the tenant deployment's
 //!   `/api/v1/core/oauth/token` endpoint, cache it for the lifetime of this
 //!   client, and retry exactly once after clearing the cache on a 401.
 //!
@@ -46,38 +45,6 @@ impl CloudApiClient {
             .send()
             .await?;
         self.handle_response(response).await
-    }
-
-    pub(super) async fn post<T: DeserializeOwned, B: Serialize + Sync>(
-        &self,
-        path: &str,
-        body: &B,
-    ) -> CloudResult<T> {
-        let url = format!("{}{}", self.api_url, path);
-        let response = self
-            .client
-            .post(&url)
-            .header("Authorization", format!("Bearer {}", self.token))
-            .json(body)
-            .send()
-            .await?;
-        self.handle_response(response).await
-    }
-
-    pub(super) async fn post_no_response<B: Serialize + Sync>(
-        &self,
-        path: &str,
-        body: &B,
-    ) -> CloudResult<()> {
-        let url = format!("{}{}", self.api_url, path);
-        let response = self
-            .client
-            .post(&url)
-            .header("Authorization", format!("Bearer {}", self.token))
-            .json(body)
-            .send()
-            .await?;
-        self.handle_no_content_response(response).await
     }
 
     async fn tenant_access_token(&self) -> CloudResult<String> {
@@ -168,31 +135,6 @@ impl CloudApiClient {
             let bearer = self.tenant_access_token().await?;
             self.client
                 .post(&url)
-                .header("Authorization", format!("Bearer {bearer}"))
-                .json(body)
-                .send()
-                .await
-                .map_err(CloudError::from)
-        };
-        let response = send().await?;
-        if response.status() == reqwest::StatusCode::UNAUTHORIZED {
-            self.invalidate_tenant_token().await;
-            let retry = send().await?;
-            return self.handle_response(retry).await;
-        }
-        self.handle_response(response).await
-    }
-
-    pub(super) async fn tenant_put<T: DeserializeOwned, B: Serialize + Sync>(
-        &self,
-        path: &str,
-        body: &B,
-    ) -> CloudResult<T> {
-        let url = format!("{}{}", self.api_url, path);
-        let send = || async {
-            let bearer = self.tenant_access_token().await?;
-            self.client
-                .put(&url)
                 .header("Authorization", format!("Bearer {bearer}"))
                 .json(body)
                 .send()

@@ -63,13 +63,9 @@ async fn complete_login_persists_customer_account_tenant() {
     )
     .await;
 
-    complete_login(
-        &env.server().uri(),
-        FAR_FUTURE_JWT.to_owned(),
-        &json_ctx().cli,
-    )
-    .await
-    .expect("login with a fully populated cloud account");
+    complete_login(&env.server().uri(), FAR_FUTURE_JWT.to_owned())
+        .await
+        .expect("login with a fully populated cloud account");
 
     let store = stored_tenants();
     assert_eq!(store.tenants.len(), 1);
@@ -93,13 +89,9 @@ async fn complete_login_without_tenants_writes_empty_store() {
     )
     .await;
 
-    complete_login(
-        &env.server().uri(),
-        FAR_FUTURE_JWT.to_owned(),
-        &json_ctx().cli,
-    )
-    .await
-    .expect("login for an account with no tenants");
+    complete_login(&env.server().uri(), FAR_FUTURE_JWT.to_owned())
+        .await
+        .expect("login for an account with no tenants");
 
     assert!(stored_tenants().tenants.is_empty());
 }

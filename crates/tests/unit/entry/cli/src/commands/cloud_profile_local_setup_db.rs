@@ -9,16 +9,8 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use systemprompt_cli::ScriptedPrompter;
-use systemprompt_cli::cloud::auth::admin_user::CloudUser;
 use systemprompt_cli::cloud::profile::handle_local_tenant_setup;
 use systemprompt_test_fixtures::fixture_database_url;
-
-fn user() -> CloudUser {
-    CloudUser {
-        email: "setup@local.test".to_owned(),
-        name: Some("Setup Tester".to_owned()),
-    }
-}
 
 #[tokio::test]
 async fn a_reachable_database_offers_migrations_and_accepts_a_decline() {
@@ -26,7 +18,7 @@ async fn a_reachable_database_offers_migrations_and_accepts_a_decline() {
     let prompter = ScriptedPrompter::new(["no"]);
     let profile_path = std::path::Path::new("/nonexistent/profile.yaml");
 
-    handle_local_tenant_setup(&prompter, &user(), &url, "local", profile_path)
+    handle_local_tenant_setup(&prompter, &url, "local", profile_path)
         .await
         .unwrap();
 }
@@ -38,7 +30,6 @@ async fn an_unreachable_database_without_a_compose_file_only_warns() {
 
     handle_local_tenant_setup(
         &prompter,
-        &user(),
         "postgres://nobody:nothing@127.0.0.1:1/absent",
         "tenant_without_compose_fixture",
         profile_path,

@@ -80,12 +80,6 @@ impl ApiPaths {
     pub const MARKETPLACE_BASE: &'static str = "/api/v1/marketplace";
 
     pub const CLOUD_TENANTS: &'static str = "/api/v1/tenants";
-    pub const CLOUD_CHECKOUT: &'static str = "/api/v1/checkout";
-    pub const CLOUD_CHECKOUT_PLANS: &'static str = "/api/v1/checkout/plans";
-    pub const CLOUD_ACTIVITY: &'static str = "/api/v1/activity";
-
-    pub const ACTIVITY_EVENT_LOGIN: &'static str = "cloud_login";
-    pub const ACTIVITY_EVENT_LOGOUT: &'static str = "cloud_logout";
 
     pub fn tenant(tenant_id: &TenantId) -> String {
         format!("{}/{}", Self::CLOUD_TENANTS, tenant_id.as_str())
@@ -107,45 +101,13 @@ impl ApiPaths {
         format!("{}/{}/deploy", Self::CLOUD_TENANTS, tenant_id.as_str())
     }
 
-    pub fn tenant_events(tenant_id: &TenantId) -> String {
-        format!("{}/{}/events", Self::CLOUD_TENANTS, tenant_id.as_str())
-    }
-
-    pub fn tenant_restart(tenant_id: &TenantId) -> String {
-        format!("{}/{}/restart", Self::CLOUD_TENANTS, tenant_id.as_str())
-    }
-
-    pub fn tenant_retry_provision(tenant_id: &TenantId) -> String {
-        format!(
-            "{}/{}/retry-provision",
-            Self::CLOUD_TENANTS,
-            tenant_id.as_str()
-        )
-    }
-
     pub fn tenant_secrets(tenant_id: &TenantId) -> String {
         format!("{}/{}/secrets", Self::CLOUD_TENANTS, tenant_id.as_str())
-    }
-
-    pub fn tenant_external_db_access(tenant_id: &TenantId) -> String {
-        format!(
-            "{}/{}/external-db-access",
-            Self::CLOUD_TENANTS,
-            tenant_id.as_str()
-        )
     }
 
     pub fn tenant_rotate_credentials(tenant_id: &TenantId) -> String {
         format!(
             "{}/{}/rotate-credentials",
-            Self::CLOUD_TENANTS,
-            tenant_id.as_str()
-        )
-    }
-
-    pub fn tenant_subscription_cancel(tenant_id: &TenantId) -> String {
-        format!(
-            "{}/{}/subscription/cancel",
             Self::CLOUD_TENANTS,
             tenant_id.as_str()
         )
@@ -165,13 +127,5 @@ impl ApiPaths {
 
     pub fn agent_endpoint(agent_id: &AgentId) -> String {
         format!("{}/{}/", Self::AGENTS_BASE, agent_id.as_str())
-    }
-
-    pub fn tenant_custom_domain(tenant_id: &TenantId) -> String {
-        format!(
-            "{}/{}/custom-domain",
-            Self::CLOUD_TENANTS,
-            tenant_id.as_str()
-        )
     }
 }

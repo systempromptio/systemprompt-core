@@ -2,7 +2,7 @@
 //! container paths, `api` DB hosts, `paths` entrypoint/dockerignore/compose,
 //! `credentials::VALIDATION_TTL_SECS`, and `profile` token expiry values.
 
-use systemprompt_cloud::constants::{api, container, credentials, paths, profile};
+use systemprompt_cloud::constants::{container, credentials, paths, profile};
 
 #[test]
 fn container_app_root_non_empty() {
@@ -63,21 +63,6 @@ fn container_templates_non_empty() {
 #[test]
 fn container_assets_non_empty() {
     assert!(!container::ASSETS.is_empty());
-}
-
-#[test]
-fn api_db_production_host_contains_systemprompt() {
-    assert!(api::DB_PRODUCTION_HOST.contains("systemprompt.io"));
-}
-
-#[test]
-fn api_db_sandbox_host_contains_sandbox() {
-    assert!(api::DB_SANDBOX_HOST.contains("sandbox"));
-}
-
-#[test]
-fn api_db_hosts_are_distinct() {
-    assert_ne!(api::DB_PRODUCTION_HOST, api::DB_SANDBOX_HOST);
 }
 
 #[test]

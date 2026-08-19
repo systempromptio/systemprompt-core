@@ -2,6 +2,10 @@
 
 ## [0.32.0] - 2026-08-18
 
+### Breaking
+
+- **Breaking:** The cloud signup/management wire types are removed from `api::cloud`: `Checkout*`, `ProvisioningEvent(_Type)`, `ActivityRequest`/`ActivityData`, `CustomDomainResponse`/`DnsInstructions`/`SetCustomDomainRequest`, `SetExternalDbAccessRequest`/`ExternalDbAccessResponse`, `ListSecretsResponse`, and `CloudLogEntry`/`CloudLogsResponse`. `ApiPaths` loses the checkout/activity constants and the `tenant_events`/`tenant_restart`/`tenant_retry_provision`/`tenant_external_db_access`/`tenant_subscription_cancel`/`tenant_custom_domain` helpers.
+
 ### Added
 
 - `McpExtensionId::Tasks` names the `io.modelcontextprotocol/tasks` extension.

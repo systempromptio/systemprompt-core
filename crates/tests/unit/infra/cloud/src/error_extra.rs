@@ -105,36 +105,6 @@ fn test_oauth_flow() {
 }
 
 #[test]
-fn test_checkout_flow() {
-    let err = CloudError::CheckoutFlow {
-        message: "timeout".to_string(),
-    };
-    assert!(err.to_string().contains("timeout"));
-    assert_eq!(err.user_message(), "Cloud checkout flow failed");
-    assert!(err.recovery_hint().contains("checkout"));
-}
-
-#[test]
-fn test_sse_stream() {
-    let err = CloudError::SseStream {
-        message: "connection reset".to_string(),
-    };
-    assert!(err.to_string().contains("connection reset"));
-    assert_eq!(err.user_message(), "Cloud SSE stream failed");
-    assert!(err.recovery_hint().contains("polling"));
-}
-
-#[test]
-fn test_provisioning_failed() {
-    let err = CloudError::ProvisioningFailed {
-        message: "db unavailable".to_string(),
-    };
-    assert!(err.to_string().contains("db unavailable"));
-    assert_eq!(err.user_message(), "Tenant provisioning failed");
-    assert!(err.recovery_hint().contains("status"));
-}
-
-#[test]
 fn test_unauthorized() {
     let err = CloudError::Unauthorized;
     assert!(err.to_string().contains("Authentication failed"));

@@ -12,10 +12,9 @@
 //!   cloud credentials.
 //! - [`StoredTenant`] / [`TenantStore`] — persistent tenants index.
 //! - [`CliSession`] / [`SessionStore`] — multi-tenant CLI sessions.
-//! - [`run_oauth_flow`] / [`run_checkout_callback_flow`] — browser-driven OAuth
-//!   and Paddle checkout flows.
-//! - [`wait_for_provisioning`] — SSE + polling watcher for tenant provisioning
-//!   state.
+//! - [`run_oauth_flow`] — browser-driven OAuth login flow.
+//! - [`clear_cloud_state`] — logout cleanup of credentials, tenants, and
+//!   tenant-scoped sessions.
 //! - [`CloudPaths`] — XDG-aware discovery of credentials, sessions, tenants,
 //!   and project files.
 //! - [`profile_authoring`] — pure [`Profile`](systemprompt_models::Profile)
@@ -47,7 +46,6 @@
 pub mod api_client;
 pub mod auth;
 mod callback_listener;
-pub mod checkout;
 pub mod cli_session;
 pub mod constants;
 pub mod credentials;
@@ -55,6 +53,7 @@ pub mod credentials_bootstrap;
 pub mod deploy;
 pub mod docker;
 pub mod error;
+pub mod logout;
 pub mod oauth;
 pub mod paths;
 pub mod profile_authoring;
@@ -63,12 +62,8 @@ pub mod tenants;
 pub mod trusted_proxies;
 
 pub use api_client::{
-    CheckoutEvent, CheckoutResponse, CloudApiClient, DeployResponse, ListSecretsResponse, Plan,
-    ProvisioningEvent, ProvisioningEventType, RegistryToken, StatusResponse, SubscriptionStatus,
-    Tenant, TenantInfo, TenantSecrets, TenantStatus, UserInfo, UserMeResponse,
-};
-pub use checkout::{
-    CheckoutCallbackResult, CheckoutTemplates, run_checkout_callback_flow, wait_for_provisioning,
+    CloudApiClient, DeployResponse, RegistryToken, StatusResponse, SubscriptionStatus, Tenant,
+    TenantInfo, TenantSecrets, TenantStatus, UserInfo, UserMeResponse,
 };
 pub use cli_session::{
     CliSession, LOCAL_SESSION_KEY, SessionBinding, SessionIdentity, SessionKey, SessionStore,
@@ -79,6 +74,7 @@ pub use credentials_bootstrap::{CredentialsBootstrap, CredentialsBootstrapError}
 pub use deploy::DockerfileBuilder;
 pub use docker::{CommandRunner, CommandSpec, DockerCli, SystemCommandRunner};
 pub use error::{CloudError, CloudResult};
+pub use logout::{ClearedCloudState, clear_cloud_state};
 pub use oauth::{OAuthTemplates, run_oauth_flow};
 pub use paths::{
     CloudPath, CloudPaths, DiscoveredProject, ProfilePath, ProjectContext, ProjectPath,

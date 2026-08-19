@@ -15,7 +15,7 @@ use systemprompt_logging::CliService;
 use crate::cloud::init::ensure_project_scaffolding;
 use crate::cloud::profile::templates::validate_connection;
 use crate::cloud::profile::{
-    collect_api_keys, create_profile_for_tenant, get_cloud_user, handle_local_tenant_setup,
+    collect_api_keys, create_profile_for_tenant, handle_local_tenant_setup,
 };
 use crate::interactive::Prompter;
 
@@ -120,9 +120,8 @@ async fn setup_local_profile(
     let ctx = ProjectContext::discover();
     ensure_project_scaffolding(ctx.root())?;
 
-    let cloud_user = get_cloud_user()?;
     let profile_path = ctx.profile_dir(&profile.name).join("profile.yaml");
-    handle_local_tenant_setup(prompter, &cloud_user, database_url, name, &profile_path).await?;
+    handle_local_tenant_setup(prompter, database_url, name, &profile_path).await?;
 
     Ok(())
 }

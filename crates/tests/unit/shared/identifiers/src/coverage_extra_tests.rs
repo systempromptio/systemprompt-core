@@ -3,11 +3,10 @@
 //! funnel, events, connection, and gateway-boot IDs.
 
 use systemprompt_identifiers::{
-    AccessTokenId, AuthorizationCode, ChallengeId, CheckoutSessionId, ConnectionId, DbValue,
-    DepartmentName, EngagementEventId, EventOutboxId, FunnelId, FunnelProgressId, HookId,
-    MarketplaceId, ModelId, PluginId, PolicyId, PolicyVersion, PriceId, ProviderId, RefreshTokenId,
-    RouteId, SecretName, SecretPatternId, SectionId, TenantId, ToDbValue, TransactionId,
-    WebhookEndpointId,
+    AccessTokenId, AuthorizationCode, ChallengeId, ConnectionId, DbValue, DepartmentName,
+    EngagementEventId, EventOutboxId, FunnelId, FunnelProgressId, HookId, MarketplaceId, ModelId,
+    PluginId, PolicyId, PolicyVersion, PriceId, ProviderId, RefreshTokenId, RouteId, SecretName,
+    SecretPatternId, SectionId, TenantId, ToDbValue, WebhookEndpointId,
 };
 
 macro_rules! basic_id_tests {
@@ -59,9 +58,7 @@ macro_rules! basic_id_tests {
     };
 }
 
-basic_id_tests!(checkout_session_id, CheckoutSessionId, "cs_test_123");
 basic_id_tests!(price_id, PriceId, "price_abc");
-basic_id_tests!(transaction_id, TransactionId, "txn_42");
 basic_id_tests!(refresh_token_id, RefreshTokenId, "rt_xyz");
 basic_id_tests!(access_token_id, AccessTokenId, "at_xyz");
 basic_id_tests!(authorization_code, AuthorizationCode, "code_abc");

@@ -1,13 +1,12 @@
 //! `cloud tenant` subcommand: manage local and cloud tenants.
 //!
 //! Exposes [`TenantCommands`] (create, list, show, delete, edit, rotate
-//! credentials, cancel) with an interactive operation menu when no subcommand
+//! credentials) with an interactive operation menu when no subcommand
 //! is supplied. Persists tenant records through the cloud `TenantStore`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-mod cancel;
 pub mod create;
 mod create_flow;
 pub(super) mod delete;
@@ -17,12 +16,8 @@ mod list;
 mod rotate;
 pub mod select;
 mod show;
-mod validation;
 
-pub use cancel::cancel_subscription;
-pub use create::{
-    create_cloud_tenant, create_external_tenant, create_local_tenant, swap_to_external_host,
-};
+pub use create::{create_external_tenant, create_local_tenant};
 pub use delete::delete_tenant;
 pub(in crate::commands::cloud) use docker::container::wait_for_postgres_healthy;
 pub use edit::edit_tenant;
@@ -30,7 +25,6 @@ pub use list::list_tenants;
 pub use rotate::rotate_credentials;
 pub use select::{get_credentials, resolve_tenant_id, select_tenant};
 pub use show::show_tenant;
-pub use validation::{check_build_ready, validate_ai_config};
 
 use anyhow::Result;
 use clap::{Args, Subcommand};
@@ -44,11 +38,8 @@ use create_flow::tenant_create;
 
 #[derive(Debug, Subcommand)]
 pub enum TenantCommands {
-    #[command(about = "Create a new tenant (local or cloud)")]
-    Create {
-        #[arg(long, default_value = "iad")]
-        region: String,
-    },
+    #[command(about = "Create a new tenant")]
+    Create,
 
     #[command(
         about = "List all tenants",
@@ -68,9 +59,6 @@ pub enum TenantCommands {
 
     #[command(about = "Rotate database credentials")]
     RotateCredentials(TenantRotateArgs),
-
-    #[command(about = "Cancel subscription and destroy tenant (IRREVERSIBLE)")]
-    Cancel(TenantCancelArgs),
 }
 
 #[derive(Debug, Args)]
@@ -87,11 +75,6 @@ pub struct TenantDeleteArgs {
 
     #[arg(short = 'y', long, help = "Skip confirmation prompts")]
     pub yes: bool,
-}
-
-#[derive(Debug, Args)]
-pub struct TenantCancelArgs {
-    pub id: Option<String>,
 }
 
 pub async fn execute(cmd: Option<TenantCommands>, ctx: &CommandContext) -> Result<()> {
@@ -114,9 +97,7 @@ pub async fn execute(cmd: Option<TenantCommands>, ctx: &CommandContext) -> Resul
 
 async fn execute_command(cmd: TenantCommands, ctx: &CommandContext) -> Result<bool> {
     match cmd {
-        TenantCommands::Create { region } => tenant_create(&region, ctx.prompter(), &ctx.cli)
-            .await
-            .map(|()| true),
+        TenantCommands::Create => tenant_create(ctx.prompter(), &ctx.cli).await.map(|()| true),
         TenantCommands::List => {
             let result = list_tenants(ctx.prompter(), &ctx.cli).await?;
             render_result(&result, &ctx.cli);
@@ -145,11 +126,6 @@ async fn execute_command(cmd: TenantCommands, ctx: &CommandContext) -> Result<bo
                 &ctx.cli,
             )
             .await?;
-            render_result(&result, &ctx.cli);
-            Ok(false)
-        },
-        TenantCommands::Cancel(args) => {
-            let result = cancel_subscription(args, ctx.prompter(), &ctx.cli).await?;
             render_result(&result, &ctx.cli);
             Ok(false)
         },
@@ -194,9 +170,7 @@ pub fn choose_tenant_operation(
     let selection = prompter.select("Tenant operation", &operations)?;
 
     let cmd = match selection {
-        0 => Some(TenantCommands::Create {
-            region: "iad".to_owned(),
-        }),
+        0 => Some(TenantCommands::Create),
         1 => Some(TenantCommands::List),
         2 | 3 if !has_tenants => {
             CliService::warning("No tenants configured");

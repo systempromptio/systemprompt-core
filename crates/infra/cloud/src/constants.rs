@@ -1,9 +1,9 @@
 //! Compile-time constants for the cloud layer: container paths, callback ports
 //! and timeouts, API endpoints, deploy regions, and on-disk file/profile names.
 //!
-//! Grouped into submodules by concern (`oauth`, `checkout`, `credentials`,
-//! `docker`, `api`, `regions`, `paths`, `profile`, `env_vars`); path-name and
-//! storage constants are re-exported from `systemprompt_models`.
+//! Grouped into submodules by concern (`oauth`, `credentials`, `docker`,
+//! `api`, `paths`, `profile`, `env_vars`); path-name and storage constants
+//! are re-exported from `systemprompt_models`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -32,12 +32,6 @@ pub const CALLBACK_TIMEOUT_SECS: u64 = 300;
 pub mod oauth {
     pub const CALLBACK_PORT: u16 = 8765;
     pub const CALLBACK_TIMEOUT_SECS: u64 = super::CALLBACK_TIMEOUT_SECS;
-}
-
-pub mod checkout {
-    pub const CALLBACK_PORT: u16 = 8766;
-    pub const CALLBACK_TIMEOUT_SECS: u64 = super::CALLBACK_TIMEOUT_SECS;
-    pub const PROVISIONING_POLL_INTERVAL_MS: u64 = 2000;
 }
 
 pub mod credentials {
@@ -80,21 +74,6 @@ pub mod docker {
 pub mod api {
     pub const PRODUCTION_URL: &str = "https://api.systemprompt.io";
     pub const SANDBOX_URL: &str = "https://api-sandbox.systemprompt.io";
-    pub const DB_PRODUCTION_HOST: &str = "db.systemprompt.io";
-    pub const DB_SANDBOX_HOST: &str = "db-sandbox.systemprompt.io";
-}
-
-pub mod regions {
-    pub const AVAILABLE: &[(&str, &str)] = &[
-        ("iad", "US East (Virginia)"),
-        ("lhr", "Europe (London)"),
-        ("fra", "Europe (Frankfurt)"),
-        ("ams", "Europe (Amsterdam)"),
-        ("sin", "Asia (Singapore)"),
-        ("nrt", "Asia (Tokyo)"),
-        ("syd", "Australia (Sydney)"),
-        ("gru", "South America (São Paulo)"),
-    ];
 }
 
 pub mod paths {

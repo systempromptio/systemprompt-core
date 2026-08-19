@@ -1,8 +1,7 @@
 //! Unit tests for constants module
 
 use systemprompt_cloud::constants::{
-    api, checkout, cli_session, credentials, docker, env_vars, oauth, paths, profile, regions,
-    tenants,
+    api, cli_session, credentials, docker, env_vars, oauth, paths, profile, tenants,
 };
 
 #[test]
@@ -30,26 +29,6 @@ fn test_oauth_callback_port() {
 fn test_oauth_callback_timeout() {
     assert_eq!(oauth::CALLBACK_TIMEOUT_SECS, 300);
     assert_eq!(oauth::CALLBACK_TIMEOUT_SECS, 5 * 60);
-}
-
-#[test]
-fn test_checkout_callback_port() {
-    assert_eq!(checkout::CALLBACK_PORT, 8766);
-}
-
-#[test]
-fn test_checkout_callback_timeout() {
-    assert_eq!(checkout::CALLBACK_TIMEOUT_SECS, 300);
-}
-
-#[test]
-fn test_checkout_provisioning_poll_interval() {
-    assert_eq!(checkout::PROVISIONING_POLL_INTERVAL_MS, 2000);
-}
-
-#[test]
-fn test_oauth_and_checkout_ports_are_different() {
-    assert_ne!(oauth::CALLBACK_PORT, checkout::CALLBACK_PORT);
 }
 
 #[test]
@@ -115,42 +94,6 @@ fn test_docker_container_name_format() {
     let name = docker::container_name("test");
     assert!(name.starts_with(docker::CONTAINER_NAME_PREFIX));
     assert!(name.ends_with("-test"));
-}
-
-#[test]
-fn test_regions_available_not_empty() {
-    assert!(!regions::AVAILABLE.is_empty());
-}
-
-#[test]
-fn test_regions_available_has_iad() {
-    let has_iad = regions::AVAILABLE.iter().any(|(code, _)| *code == "iad");
-    assert!(has_iad);
-}
-
-#[test]
-fn test_regions_available_has_lhr() {
-    let has_lhr = regions::AVAILABLE.iter().any(|(code, _)| *code == "lhr");
-    assert!(has_lhr);
-}
-
-#[test]
-fn test_regions_available_all_have_descriptions() {
-    for (code, desc) in regions::AVAILABLE {
-        assert!(!code.is_empty(), "Region code should not be empty");
-        assert!(!desc.is_empty(), "Region description should not be empty");
-    }
-}
-
-#[test]
-fn test_regions_available_codes_are_lowercase() {
-    for (code, _) in regions::AVAILABLE {
-        assert_eq!(
-            *code,
-            code.to_lowercase(),
-            "Region code should be lowercase"
-        );
-    }
 }
 
 #[test]

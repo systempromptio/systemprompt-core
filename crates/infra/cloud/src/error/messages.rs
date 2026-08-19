@@ -26,9 +26,6 @@ impl CloudError {
             Self::CredentialsAlreadyInitialized => "Credentials bootstrap already initialised",
             Self::SessionVersionMismatch { .. } => "CLI session file is out of date",
             Self::OAuthFlow { .. } => "OAuth login flow failed",
-            Self::CheckoutFlow { .. } => "Cloud checkout flow failed",
-            Self::SseStream { .. } => "Cloud SSE stream failed",
-            Self::ProvisioningFailed { .. } => "Tenant provisioning failed",
             Self::Deploy { .. } => "Cloud deploy failed",
             Self::Dockerfile { .. } => "Dockerfile validation failed",
             Self::Docker { .. } => "Docker command failed",
@@ -63,9 +60,6 @@ impl CloudError {
             },
             Self::SessionVersionMismatch { .. } => "Delete the session file and re-authenticate",
             Self::OAuthFlow { .. } => "Re-run the OAuth login flow",
-            Self::CheckoutFlow { .. } => "Re-run the checkout flow",
-            Self::SseStream { .. } => "Retry the operation; the server falls back to polling",
-            Self::ProvisioningFailed { .. } => "Inspect 'systemprompt cloud status' for details",
             Self::Dockerfile { .. } => {
                 "Regenerate the Dockerfile with 'systemprompt cloud profile create'"
             },

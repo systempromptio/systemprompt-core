@@ -89,15 +89,6 @@ pub enum CloudError {
     #[error("OAuth flow failed: {message}")]
     OAuthFlow { message: String },
 
-    #[error("Checkout flow failed: {message}")]
-    CheckoutFlow { message: String },
-
-    #[error("SSE stream error: {message}")]
-    SseStream { message: String },
-
-    #[error("Provisioning failed: {message}")]
-    ProvisioningFailed { message: String },
-
     #[error("{message}")]
     Deploy {
         message: String,

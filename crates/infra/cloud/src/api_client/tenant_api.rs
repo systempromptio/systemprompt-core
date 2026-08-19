@@ -9,9 +9,8 @@ use systemprompt_models::modules::ApiPaths;
 
 use super::CloudApiClient;
 use super::types::{
-    ApiResponse, CustomDomainResponse, DeployResponse, ExternalDbAccessResponse,
-    ListSecretsResponse, RegistryToken, RotateCredentialsResponse, SetCustomDomainRequest,
-    SetExternalDbAccessRequest, SetSecretsRequest, StatusResponse, TenantSecrets, TenantStatus,
+    ApiResponse, DeployResponse, RegistryToken, RotateCredentialsResponse, SetSecretsRequest,
+    TenantSecrets, TenantStatus,
 };
 use crate::error::CloudResult;
 
@@ -55,16 +54,6 @@ impl CloudApiClient {
         self.tenant_delete(&ApiPaths::tenant(tenant_id)).await
     }
 
-    pub async fn restart_tenant(&self, tenant_id: &TenantId) -> CloudResult<StatusResponse> {
-        self.tenant_post_empty(&ApiPaths::tenant_restart(tenant_id))
-            .await
-    }
-
-    pub async fn retry_provision(&self, tenant_id: &TenantId) -> CloudResult<StatusResponse> {
-        self.tenant_post_empty(&ApiPaths::tenant_retry_provision(tenant_id))
-            .await
-    }
-
     pub async fn set_secrets(
         &self,
         tenant_id: &TenantId,
@@ -77,66 +66,11 @@ impl CloudApiClient {
         Ok(keys)
     }
 
-    pub async fn unset_secret(&self, tenant_id: &TenantId, key: &str) -> CloudResult<()> {
-        let path = format!("{}/{}", ApiPaths::tenant_secrets(tenant_id), key);
-        self.tenant_delete(&path).await
-    }
-
-    pub async fn set_external_db_access(
-        &self,
-        tenant_id: &TenantId,
-        enabled: bool,
-    ) -> CloudResult<ExternalDbAccessResponse> {
-        let request = SetExternalDbAccessRequest { enabled };
-        let response: ApiResponse<ExternalDbAccessResponse> = self
-            .tenant_put(&ApiPaths::tenant_external_db_access(tenant_id), &request)
-            .await?;
-        Ok(response.data)
-    }
-
     pub async fn rotate_credentials(
         &self,
         tenant_id: &TenantId,
     ) -> CloudResult<RotateCredentialsResponse> {
         self.tenant_post_empty(&ApiPaths::tenant_rotate_credentials(tenant_id))
-            .await
-    }
-
-    pub async fn list_secrets(&self, tenant_id: &TenantId) -> CloudResult<ListSecretsResponse> {
-        self.tenant_get(&ApiPaths::tenant_secrets(tenant_id)).await
-    }
-
-    pub async fn set_custom_domain(
-        &self,
-        tenant_id: &TenantId,
-        domain: &str,
-    ) -> CloudResult<CustomDomainResponse> {
-        let request = SetCustomDomainRequest {
-            domain: domain.to_owned(),
-        };
-        let response: ApiResponse<CustomDomainResponse> = self
-            .tenant_post(&ApiPaths::tenant_custom_domain(tenant_id), &request)
-            .await?;
-        Ok(response.data)
-    }
-
-    pub async fn get_custom_domain(
-        &self,
-        tenant_id: &TenantId,
-    ) -> CloudResult<CustomDomainResponse> {
-        let response: ApiResponse<CustomDomainResponse> = self
-            .tenant_get(&ApiPaths::tenant_custom_domain(tenant_id))
-            .await?;
-        Ok(response.data)
-    }
-
-    pub async fn delete_custom_domain(&self, tenant_id: &TenantId) -> CloudResult<()> {
-        self.tenant_delete(&ApiPaths::tenant_custom_domain(tenant_id))
-            .await
-    }
-
-    pub async fn cancel_subscription(&self, tenant_id: &TenantId) -> CloudResult<()> {
-        self.tenant_post_empty(&ApiPaths::tenant_subscription_cancel(tenant_id))
             .await
     }
 }

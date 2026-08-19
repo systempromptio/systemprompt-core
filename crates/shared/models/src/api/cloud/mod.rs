@@ -3,20 +3,13 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-mod domain;
-mod provisioning;
 mod tenant;
 mod usage;
 
-pub use domain::{CustomDomainResponse, DnsInstructions, SetCustomDomainRequest};
-pub use provisioning::{
-    ActivityData, ActivityRequest, CheckoutEvent, CheckoutRequest, CheckoutResponse,
-    DeployResponse, ProvisioningEvent, ProvisioningEventType,
-};
 pub use tenant::{
     CloudEnterpriseLicenseInfo, CloudPlan, CloudPlanInfo, CloudTenant, CloudTenantInfo,
-    CloudTenantSecrets, CloudTenantStatus, CloudTenantStatusResponse, ExternalDbAccessResponse,
-    RotateCredentialsResponse, SetExternalDbAccessRequest, SubscriptionStatus,
+    CloudTenantSecrets, CloudTenantStatus, CloudTenantStatusResponse, RotateCredentialsResponse,
+    SubscriptionStatus,
 };
 pub use usage::{
     BridgeProfileUsage, ConversationGroup, ConversationSummary, ModelShare,
@@ -89,26 +82,15 @@ pub struct CloudStatusResponse {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SetSecretsRequest {
-    pub secrets: HashMap<String, String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct CloudLogEntry {
-    pub timestamp: String,
-    pub message: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub level: Option<String>,
+pub struct DeployResponse {
+    pub status: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub app_url: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CloudLogsResponse {
-    pub logs: Vec<CloudLogEntry>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct ListSecretsResponse {
-    pub keys: Vec<String>,
+pub struct SetSecretsRequest {
+    pub secrets: HashMap<String, String>,
 }
 
 pub type ApiResponse<T> = CloudApiResponse<T>;
@@ -124,6 +106,4 @@ pub type TenantStatus = CloudTenantStatusResponse;
 pub type TenantSecrets = CloudTenantSecrets;
 pub type ListResponse<T> = CloudListResponse<T>;
 pub type StatusResponse = CloudStatusResponse;
-pub type LogEntry = CloudLogEntry;
-pub type LogsResponse = CloudLogsResponse;
 pub type EnterpriseLicenseInfo = CloudEnterpriseLicenseInfo;

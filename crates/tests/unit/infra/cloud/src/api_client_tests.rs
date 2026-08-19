@@ -4,7 +4,6 @@
 use serde_json::json;
 use systemprompt_cloud::CloudApiClient;
 use systemprompt_cloud::error::CloudError;
-use systemprompt_identifiers::{PriceId, UserId};
 use wiremock::matchers::{header, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -83,104 +82,6 @@ async fn list_tenants_returns_parsed_data_array() {
 
     let client = CloudApiClient::new(&server.uri(), "t").unwrap();
     let _ = client.list_tenants().await;
-}
-
-#[tokio::test]
-async fn get_plans_returns_plans() {
-    let server = MockServer::start().await;
-    Mock::given(method("GET"))
-        .and(path("/api/v1/checkout/plans"))
-        .respond_with(ResponseTemplate::new(200).set_body_json(json!([])))
-        .mount(&server)
-        .await;
-
-    let client = CloudApiClient::new(&server.uri(), "t").unwrap();
-    let plans = client.get_plans().await.expect("plans");
-    assert!(plans.is_empty());
-}
-
-#[tokio::test]
-async fn create_checkout_posts_request() {
-    let server = MockServer::start().await;
-    Mock::given(method("POST"))
-        .and(path("/api/v1/checkout"))
-        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
-            "checkout_url": "https://stripe.test/x",
-            "session_id": "cs_test"
-        })))
-        .mount(&server)
-        .await;
-
-    let client = CloudApiClient::new(&server.uri(), "t").unwrap();
-    let _ = client
-        .create_checkout(&PriceId::new("price_x"), "iad", Some("http://redir"))
-        .await;
-}
-
-#[tokio::test]
-async fn create_checkout_without_redirect() {
-    let server = MockServer::start().await;
-    Mock::given(method("POST"))
-        .and(path("/api/v1/checkout"))
-        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
-            "checkout_url": "https://x",
-            "session_id": "cs"
-        })))
-        .mount(&server)
-        .await;
-
-    let client = CloudApiClient::new(&server.uri(), "t").unwrap();
-    let _ = client
-        .create_checkout(&PriceId::new("p"), "lhr", None)
-        .await;
-}
-
-#[tokio::test]
-async fn report_activity_no_content_response() {
-    let server = MockServer::start().await;
-    Mock::given(method("POST"))
-        .and(path("/api/v1/activity"))
-        .respond_with(ResponseTemplate::new(204))
-        .mount(&server)
-        .await;
-
-    let client = CloudApiClient::new(&server.uri(), "t").unwrap();
-    client
-        .report_activity("login", &UserId::new("u1"))
-        .await
-        .expect("report_activity should succeed against the 204 mock");
-}
-
-#[tokio::test]
-async fn report_activity_200_also_ok() {
-    let server = MockServer::start().await;
-    Mock::given(method("POST"))
-        .and(path("/api/v1/activity"))
-        .respond_with(ResponseTemplate::new(200).set_body_string(""))
-        .mount(&server)
-        .await;
-
-    let client = CloudApiClient::new(&server.uri(), "t").unwrap();
-    client
-        .report_activity("e", &UserId::new("u2"))
-        .await
-        .expect("report_activity should succeed against the 200 mock");
-}
-
-#[tokio::test]
-async fn report_activity_failure_propagates() {
-    let server = MockServer::start().await;
-    Mock::given(method("POST"))
-        .and(path("/api/v1/activity"))
-        .respond_with(ResponseTemplate::new(500).set_body_string(""))
-        .mount(&server)
-        .await;
-
-    let client = CloudApiClient::new(&server.uri(), "t").unwrap();
-    let _ = client
-        .report_activity("e", &UserId::new("u3"))
-        .await
-        .unwrap_err();
 }
 
 #[tokio::test]

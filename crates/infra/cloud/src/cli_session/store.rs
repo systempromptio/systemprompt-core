@@ -83,6 +83,24 @@ impl SessionStore {
         self.updated_at = Utc::now();
     }
 
+    pub fn remove_tenant_sessions(&mut self) -> usize {
+        let before = self.sessions.len();
+        self.sessions.retain(|key, _| key == LOCAL_SESSION_KEY);
+        let removed = before - self.sessions.len();
+        if removed > 0 {
+            if self
+                .active_key
+                .as_deref()
+                .is_some_and(|key| key != LOCAL_SESSION_KEY)
+            {
+                self.active_key = None;
+                self.active_profile_name = None;
+            }
+            self.updated_at = Utc::now();
+        }
+        removed
+    }
+
     pub fn remove_session(&mut self, key: &SessionKey) -> Option<CliSession> {
         let storage_key = key.as_storage_key();
         let removed = self.sessions.remove(&storage_key);

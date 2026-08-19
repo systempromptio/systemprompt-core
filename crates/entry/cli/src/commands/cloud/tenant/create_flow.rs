@@ -1,28 +1,20 @@
 //! Interactive `cloud tenant create` workflow.
 //!
-//! Prompts for the tenant type and database source, creates the tenant via
-//! the matching constructor, persists it to the tenant store, and renders the
-//! result.
+//! Prompts for the database source, creates the tenant via the matching
+//! constructor, persists it to the tenant store, and renders the result.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use anyhow::Result;
-use systemprompt_cloud::{CloudCredentials, CloudPath, StoredTenant, TenantStore, get_cloud_paths};
+use systemprompt_cloud::{CloudPath, StoredTenant, TenantStore, get_cloud_paths};
 use systemprompt_logging::CliService;
 
-use super::{
-    check_build_ready, create_cloud_tenant, create_external_tenant, create_local_tenant,
-    get_credentials,
-};
+use super::{create_external_tenant, create_local_tenant};
 use crate::cli_settings::CliConfig;
 use crate::interactive::Prompter;
 
-pub(super) async fn tenant_create(
-    default_region: &str,
-    prompter: &dyn Prompter,
-    config: &CliConfig,
-) -> Result<()> {
+pub(super) async fn tenant_create(prompter: &dyn Prompter, config: &CliConfig) -> Result<()> {
     if !config.is_interactive() {
         return Err(anyhow::anyhow!(
             "Tenant creation requires interactive mode.\nUse specific tenant type commands in \
@@ -32,46 +24,12 @@ pub(super) async fn tenant_create(
 
     CliService::section("Create Tenant");
 
-    let creds = get_credentials()?;
-
-    let Some(tenant) = prompt_and_create_tenant(&creds, default_region, prompter).await? else {
-        return Ok(());
-    };
+    let tenant = create_local_or_external_tenant(prompter).await?;
 
     persist_tenant(&tenant)?;
     render_created_tenant(&tenant);
 
     Ok(())
-}
-
-async fn prompt_and_create_tenant(
-    creds: &CloudCredentials,
-    default_region: &str,
-    prompter: &dyn Prompter,
-) -> Result<Option<StoredTenant>> {
-    let build_result = check_build_ready();
-    let cloud_option = match &build_result {
-        Ok(()) => "Cloud (requires subscription at systemprompt.io)".to_owned(),
-        Err(_) => "Cloud (unavailable - release build required)".to_owned(),
-    };
-
-    let options = vec![
-        "Local (creates PostgreSQL container automatically)".to_owned(),
-        cloud_option,
-    ];
-
-    let selection = prompter.select("Tenant type", &options)?;
-
-    match selection {
-        0 => Ok(Some(create_local_or_external_tenant(prompter).await?)),
-        _ if build_result.is_err() => {
-            render_build_required(&build_result);
-            Ok(None)
-        },
-        _ => Ok(Some(
-            create_cloud_tenant(creds, default_region, prompter).await?,
-        )),
-    }
 }
 
 async fn create_local_or_external_tenant(prompter: &dyn Prompter) -> Result<StoredTenant> {
@@ -85,18 +43,6 @@ async fn create_local_or_external_tenant(prompter: &dyn Prompter) -> Result<Stor
     match db_selection {
         0 => create_local_tenant(prompter).await,
         _ => create_external_tenant(prompter).await,
-    }
-}
-
-fn render_build_required(build_result: &Result<(), String>) {
-    CliService::warning("Cloud tenant creation requires a release build.");
-    CliService::info("");
-    CliService::info("Run the following command to build:");
-    CliService::info("  cargo build --release --workspace");
-    CliService::info("");
-    if let Err(err) = build_result {
-        CliService::info("Specific issue:");
-        CliService::error(err);
     }
 }
 

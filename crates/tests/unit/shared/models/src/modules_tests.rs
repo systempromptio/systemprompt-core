@@ -34,20 +34,6 @@ fn api_paths_tenant_deploy() {
 }
 
 #[test]
-fn api_paths_tenant_events() {
-    let id = TenantId::new("t4");
-    let path = ApiPaths::tenant_events(&id);
-    assert!(path.ends_with("/events"));
-}
-
-#[test]
-fn api_paths_tenant_restart() {
-    let id = TenantId::new("t5");
-    let path = ApiPaths::tenant_restart(&id);
-    assert!(path.ends_with("/restart"));
-}
-
-#[test]
 fn api_paths_tenant_secrets() {
     let id = TenantId::new("t6");
     let path = ApiPaths::tenant_secrets(&id);
@@ -66,27 +52,6 @@ fn api_paths_tenant_rotate_credentials() {
     let id = TenantId::new("t8");
     let path = ApiPaths::tenant_rotate_credentials(&id);
     assert!(path.ends_with("/rotate-credentials"));
-}
-
-#[test]
-fn api_paths_tenant_subscription_cancel() {
-    let id = TenantId::new("t9");
-    let path = ApiPaths::tenant_subscription_cancel(&id);
-    assert!(path.ends_with("/subscription/cancel"));
-}
-
-#[test]
-fn api_paths_tenant_custom_domain() {
-    let id = TenantId::new("t10");
-    let path = ApiPaths::tenant_custom_domain(&id);
-    assert!(path.ends_with("/custom-domain"));
-}
-
-#[test]
-fn api_paths_tenant_external_db_access() {
-    let id = TenantId::new("t11");
-    let path = ApiPaths::tenant_external_db_access(&id);
-    assert!(path.ends_with("/external-db-access"));
 }
 
 #[test]

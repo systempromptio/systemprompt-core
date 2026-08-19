@@ -1,5 +1,5 @@
-//! Loopback listener for the browser-driven OAuth and checkout callback
-//! servers. Binds with `SO_REUSEADDR` so an immediately re-run flow does not
+//! Loopback listener for the browser-driven OAuth callback server.
+//! Binds with `SO_REUSEADDR` so an immediately re-run flow does not
 //! fail with `AddrInUse` while the previous run's connections sit in
 //! `TIME_WAIT` on the fixed callback port.
 //!

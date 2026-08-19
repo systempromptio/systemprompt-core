@@ -4,7 +4,6 @@
 //! - Low-level HTTP verbs live in `methods.rs`.
 //! - Top-level endpoints live in `endpoints.rs`; tenant-scoped endpoints in
 //!   `tenant_api.rs`.
-//! - SSE stream subscriptions live in `streams.rs`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -12,13 +11,11 @@
 mod client;
 mod endpoints;
 mod methods;
-mod streams;
 mod tenant_api;
 mod types;
 
 pub use client::CloudApiClient;
 pub use types::{
-    CheckoutEvent, CheckoutResponse, DeployResponse, ListSecretsResponse, Plan, ProvisioningEvent,
-    ProvisioningEventType, RegistryToken, RotateCredentialsResponse, StatusResponse,
-    SubscriptionStatus, Tenant, TenantInfo, TenantSecrets, TenantStatus, UserInfo, UserMeResponse,
+    DeployResponse, RegistryToken, RotateCredentialsResponse, StatusResponse, SubscriptionStatus,
+    Tenant, TenantInfo, TenantSecrets, TenantStatus, UserInfo, UserMeResponse,
 };

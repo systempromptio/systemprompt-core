@@ -25,8 +25,8 @@ fn parse(args: &[&str]) -> CloudCommands {
 }
 
 #[test]
-fn deploy_and_secrets_need_a_profile_and_secrets() {
-    for args in [vec!["deploy"], vec!["secrets", "sync"]] {
+fn deploy_needs_a_profile_and_secrets() {
+    for args in [vec!["deploy"]] {
         let desc = parse(&args).descriptor();
         assert!(desc.profile(), "{args:?} should load a profile");
         assert!(desc.secrets(), "{args:?} should resolve secrets");
@@ -34,13 +34,8 @@ fn deploy_and_secrets_need_a_profile_and_secrets() {
 }
 
 #[test]
-fn status_restart_backup_and_domain_need_a_profile_only() {
-    for args in [
-        vec!["status"],
-        vec!["restart"],
-        vec!["backup"],
-        vec!["domain", "status"],
-    ] {
+fn status_and_backup_need_a_profile_only() {
+    for args in [vec!["status"], vec!["backup"]] {
         let desc = parse(&args).descriptor();
         assert!(desc.profile(), "{args:?} should load a profile");
         assert!(
@@ -66,13 +61,10 @@ fn init_and_dockerfile_need_no_bootstrap() {
 fn resolving_secrets_always_implies_loading_a_profile() {
     for args in [
         vec!["status"],
-        vec!["restart"],
         vec!["backup"],
         vec!["init"],
         vec!["dockerfile"],
         vec!["deploy"],
-        vec!["secrets", "sync"],
-        vec!["domain", "status"],
         vec!["auth", "status"],
     ] {
         let desc = parse(&args).descriptor();

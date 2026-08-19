@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.32.0] - 2026-08-18
+
+### Breaking
+
+- **Breaking:** `cloud secrets`, `cloud restart`, `cloud domain`, `cloud db`, `cloud tenant cancel`, `cloud auth admin-user`, and the cloud (subscription) variant of `cloud tenant create` are removed. `cloud tenant create` loses `--region`, creates only local Docker or external-database tenants, and no longer requires a cloud login; after migrations it points at `systemprompt admin bootstrap` instead of auto-syncing the cloud user as admin.
+- **Breaking:** `cloud auth logout` clears `credentials.json`, `tenants.json`, and tenant-scoped CLI sessions; login/logout no longer post activity telemetry.
+
 ## [0.31.0] - 2026-08-18
 
 ### Added

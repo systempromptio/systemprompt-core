@@ -9,7 +9,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use super::args::Commands;
-use crate::commands::{admin, cloud, core, infrastructure};
+use crate::commands::{admin, core, infrastructure};
 
 pub(super) enum DbUrlRouting {
     /// Dispatchable against the supplied connection alone, with no profile.
@@ -41,8 +41,7 @@ impl Commands {
                 ),
             )
             | Self::Admin(admin::AdminCommands::Users(_))
-            | Self::Analytics(_)
-            | Self::Cloud(cloud::CloudCommands::Db(_)) => DbUrlRouting::Direct,
+            | Self::Analytics(_) => DbUrlRouting::Direct,
 
             _ => DbUrlRouting::Unsupported,
         }
