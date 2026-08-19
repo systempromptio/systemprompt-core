@@ -70,7 +70,21 @@ fn gateway_log_actor(resp: &Response) -> Option<LogActor> {
 
 async fn log_gateway_request(req: Request, next: Next) -> Response {
     let method = req.method().clone();
-    let path = req.uri().path().to_owned();
+    // The router is nested under GATEWAY_BASE, so req.uri() has the prefix
+    // already stripped; log the path the client actually requested.
+    let path = req
+        .extensions()
+        .get::<axum::extract::OriginalUri>()
+        .map_or_else(
+            || {
+                format!(
+                    "{}{}",
+                    systemprompt_models::ApiPaths::GATEWAY_BASE,
+                    req.uri().path()
+                )
+            },
+            |orig| orig.path().to_owned(),
+        );
     let started = Instant::now();
     let resp = next.run(req).await;
     let status = resp.status().as_u16();

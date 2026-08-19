@@ -30,7 +30,9 @@ pub(super) fn default_gateway_url() -> ValidatedUrl {
 
 #[must_use]
 pub fn gateway_url_or_default(cfg: &Config) -> ValidatedUrl {
-    cfg.gateway_url.clone().unwrap_or_else(default_gateway_url)
+    let url = cfg.gateway_url.clone().unwrap_or_else(default_gateway_url);
+    tracing::debug!(gateway = %url, "gateway resolved");
+    url
 }
 
 #[must_use]

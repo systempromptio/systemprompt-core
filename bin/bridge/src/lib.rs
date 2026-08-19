@@ -129,12 +129,10 @@ Commands (plugin + MCP sync):
 Env overrides:
   {config_env}           Path to {config_file}
   {pat_env}              Inline PAT (overrides file-based [pat])
-  {gateway_env}      Override gateway_url
 ",
         config_file = b.config_file,
         config_env = b.env("CONFIG"),
         pat_env = b.env("PAT"),
-        gateway_env = b.env("GATEWAY_URL"),
     )
 }
 

@@ -30,7 +30,6 @@ fn sandbox<R>(f: impl FnOnce(&Path) -> R) -> R {
         ("XDG_STATE_HOME", Some(root)),
         ("SP_BRIDGE_CONFIG", None),
         ("SP_BRIDGE_PAT", None),
-        ("SP_BRIDGE_GATEWAY_URL", None),
     ];
     let path = dir.path().to_path_buf();
     temp_env::with_vars(vars, || f(&path))

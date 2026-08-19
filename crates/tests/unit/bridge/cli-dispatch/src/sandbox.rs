@@ -50,13 +50,24 @@ impl Sandbox {
             ("XDG_CACHE_HOME", p(self.home.path())),
             ("SP_BRIDGE_CONFIG", None),
             ("SP_BRIDGE_PAT", None),
-            ("SP_BRIDGE_GATEWAY_URL", None),
             ("SUDO_USER", None),
         ]
     }
 
     pub fn run<R>(&self, f: impl FnOnce() -> R) -> R {
         temp_env::with_vars(self.vars(), f)
+    }
+
+    // The gateway env override was removed from the bridge, so tests point it
+    // at a mock server the same way an operator would: through the config toml.
+    pub fn write_gateway(&self, url: &str) {
+        let dir = self.config.path().join("systemprompt");
+        std::fs::create_dir_all(&dir).expect("config dir");
+        std::fs::write(
+            dir.join("systemprompt-bridge.toml"),
+            format!("gateway_url = \"{url}\"\n"),
+        )
+        .expect("write gateway config");
     }
 }
 

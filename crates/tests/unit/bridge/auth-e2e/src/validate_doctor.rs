@@ -6,6 +6,13 @@ use wiremock::{Mock, MockServer, ResponseTemplate};
 
 fn sandbox_vars(home: &TempDir, gateway: &str) -> Vec<(&'static str, Option<String>)> {
     let root = home.path().to_string_lossy().into_owned();
+    let dir = home.path().join(".config").join("systemprompt");
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(
+        dir.join("systemprompt-bridge.toml"),
+        format!("gateway_url = \"{gateway}\"\n"),
+    )
+    .unwrap();
     vec![
         ("HOME", Some(root.clone())),
         ("XDG_CONFIG_HOME", Some(format!("{root}/.config"))),
@@ -13,7 +20,6 @@ fn sandbox_vars(home: &TempDir, gateway: &str) -> Vec<(&'static str, Option<Stri
         ("XDG_DATA_HOME", Some(format!("{root}/.data"))),
         ("SP_BRIDGE_PAT", None),
         ("SP_BRIDGE_CONFIG", None),
-        ("SP_BRIDGE_GATEWAY_URL", Some(gateway.to_owned())),
     ]
 }
 

@@ -115,6 +115,13 @@ pub struct SetupArgs {
     )]
     pub default_provider: Option<String>,
 
+    #[arg(
+        long,
+        env = "SYSTEMPROMPT_ADMIN_EMAIL",
+        help = "Email for the generated system admin (default: admin@localhost.localdomain)"
+    )]
+    pub admin_email: Option<String>,
+
     #[arg(long, help = "Run database migrations after setup")]
     pub migrate: bool,
 
@@ -162,6 +169,7 @@ impl SetupArgs {
         self.openai_key = none_if_blank(self.openai_key);
         self.github_token = none_if_blank(self.github_token);
         self.default_provider = none_if_blank(self.default_provider);
+        self.admin_email = none_if_blank(self.admin_email);
         self
     }
 }

@@ -16,7 +16,6 @@ fn sandbox_vars(home: &TempDir) -> Vec<(&'static str, Option<String>)> {
         ("XDG_DATA_HOME", Some(format!("{root}/.data"))),
         ("SP_BRIDGE_PAT", None),
         ("SP_BRIDGE_CONFIG", None),
-        ("SP_BRIDGE_GATEWAY_URL", None),
     ]
 }
 

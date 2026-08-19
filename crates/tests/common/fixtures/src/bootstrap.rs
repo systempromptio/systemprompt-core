@@ -395,6 +395,7 @@ rate_limits:
     anon: 0.5
 system_admin:
   username: testadmin
+  email: testadmin@localhost.localdomain
 runtime:
   environment: development
   log_level: quiet

@@ -175,6 +175,7 @@ fn write_configuration(
         secrets: &secrets_data,
         default_provider: primary_provider.as_ref(),
         port_offset: args.port_offset,
+        admin_email: args.admin_email.as_deref(),
     })?;
     let profile_path = profile::default_path(&systemprompt_dir, env_name);
     if should_write(&profile_path, args.force, config) {

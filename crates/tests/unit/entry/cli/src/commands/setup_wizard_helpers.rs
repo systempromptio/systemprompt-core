@@ -23,6 +23,7 @@ fn args() -> SetupArgs {
         openai_key: None,
         github_token: None,
         default_provider: None,
+        admin_email: None,
         migrate: false,
         no_migrate: true,
         dry_run: false,

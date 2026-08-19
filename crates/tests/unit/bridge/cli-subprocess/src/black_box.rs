@@ -38,16 +38,22 @@ struct Sandbox {
 fn sandbox(gateway: Option<&str>) -> Sandbox {
     let home = TempDir::new().unwrap();
     let root = home.path().to_string_lossy().into_owned();
-    let mut vars = vec![
+    if let Some(g) = gateway {
+        let dir = home.path().join(".config").join("systemprompt");
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(
+            dir.join("systemprompt-bridge.toml"),
+            format!("gateway_url = \"{g}\"\n"),
+        )
+        .unwrap();
+    }
+    let vars = vec![
         ("HOME", root.clone()),
         ("XDG_CONFIG_HOME", format!("{root}/.config")),
         ("XDG_CACHE_HOME", format!("{root}/.cache")),
         ("XDG_DATA_HOME", format!("{root}/.data")),
         ("XDG_STATE_HOME", format!("{root}/.state")),
     ];
-    if let Some(g) = gateway {
-        vars.push(("SP_BRIDGE_GATEWAY_URL", g.to_owned()));
-    }
     Sandbox { _home: home, vars }
 }
 
@@ -57,7 +63,6 @@ fn run_bridge(sandbox: &Sandbox, args: &[&str]) -> Option<Output> {
     cmd.args(args);
     cmd.env_remove("SP_BRIDGE_PAT");
     cmd.env_remove("SP_BRIDGE_CONFIG");
-    cmd.env_remove("SP_BRIDGE_GATEWAY_URL");
     for (k, v) in &sandbox.vars {
         cmd.env(k, v);
     }

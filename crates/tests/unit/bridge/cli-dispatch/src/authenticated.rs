@@ -66,8 +66,8 @@ fn use_headless_keystore() {
 fn use_headless_keystore() {}
 
 fn authenticated<R>(gw: &Gateway, sb: &Sandbox, f: impl FnOnce() -> R) -> R {
+    sb.write_gateway(&gw.uri);
     let mut vars = sb.vars();
-    vars.push(("SP_BRIDGE_GATEWAY_URL", Some(gw.uri.clone())));
     vars.push((
         "SP_BRIDGE_PAT",
         Some("sp-live-testprefix.secretsecretsecretsecretsecret012345".to_owned()),
@@ -160,8 +160,8 @@ fn a_gateway_that_rejects_the_pat_leaves_no_oauth_client_behind() {
 
     use_headless_keystore();
     let sb = Sandbox::new();
+    sb.write_gateway(&uri);
     let mut vars = sb.vars();
-    vars.push(("SP_BRIDGE_GATEWAY_URL", Some(uri)));
     vars.push((
         "SP_BRIDGE_PAT",
         Some("sp-live-testprefix.secretsecretsecretsecretsecret012345".to_owned()),
@@ -229,8 +229,8 @@ fn sync_through_dispatch_applies_the_manifest_and_writes_the_sentinel() {
     });
 
     let sb = Sandbox::new();
+    sb.write_gateway(&uri);
     let mut vars = sb.vars();
-    vars.push(("SP_BRIDGE_GATEWAY_URL", Some(uri)));
     vars.push((
         "SP_BRIDGE_PAT",
         Some("sp-live-testprefix.secretsecretsecretsecretsecret012345".to_owned()),
@@ -280,8 +280,8 @@ fn a_sync_whose_manifest_is_refused_leaves_no_sentinel() {
     });
 
     let sb = Sandbox::new();
+    sb.write_gateway(&uri);
     let mut vars = sb.vars();
-    vars.push(("SP_BRIDGE_GATEWAY_URL", Some(uri)));
     vars.push((
         "SP_BRIDGE_PAT",
         Some("sp-live-testprefix.secretsecretsecretsecretsecret012345".to_owned()),
