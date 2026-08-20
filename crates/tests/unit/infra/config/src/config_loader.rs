@@ -36,6 +36,7 @@ fn base_config() -> Config {
         api_internal_url: "http://127.0.0.1".to_string(),
         api_external_url: "http://127.0.0.1".to_string(),
         jwt_issuer: "https://issuer.test".to_string(),
+        login_page_url: None,
         jwt_access_token_expiration: 3600,
         jwt_refresh_token_expiration: 86_400,
         jwt_audiences: Vec::new(),
