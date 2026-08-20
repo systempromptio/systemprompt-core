@@ -144,7 +144,10 @@ fn authorize_query_string(params: &AuthorizeQuery) -> String {
         ("scope", params.scope.as_deref()),
         ("state", params.state.as_deref()),
         ("code_challenge", params.code_challenge.as_deref()),
-        ("code_challenge_method", params.code_challenge_method.as_deref()),
+        (
+            "code_challenge_method",
+            params.code_challenge_method.as_deref(),
+        ),
         ("resource", params.resource.as_deref()),
     ];
     for (key, value) in optional {
