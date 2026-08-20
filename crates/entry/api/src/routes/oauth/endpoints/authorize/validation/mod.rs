@@ -186,11 +186,11 @@ fn validate_display_and_prompt(params: &AuthorizeQuery) -> Result<(), String> {
     if let Some(prompt) = &params.prompt {
         for prompt_value in prompt.split_whitespace() {
             match prompt_value {
-                "none" | "login" | "consent" | "select_account" => {},
+                "none" | "login" | "consent" | "select_account" | "passkey" => {},
                 _ => {
                     return Err(format!(
                         "Unsupported prompt value '{prompt_value}'. Supported values: none, \
-                         login, consent, select_account."
+                         login, consent, select_account, passkey."
                     ));
                 },
             }

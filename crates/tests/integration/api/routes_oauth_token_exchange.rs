@@ -80,6 +80,7 @@ fn ensure_config() {
             content_negotiation: ContentNegotiationConfig::default(),
             security_headers: SecurityHeadersConfig::default(),
             allow_registration: false,
+            login_page_url: None,
         });
     });
 }

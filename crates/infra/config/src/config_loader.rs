@@ -180,6 +180,7 @@ fn build_config(profile: &Profile, paths: BuildConfigPaths) -> ConfigResult<Conf
         content_negotiation: profile.server.content_negotiation.clone(),
         security_headers: profile.server.security_headers.clone(),
         allow_registration: profile.security.allow_registration,
+        login_page_url: profile.security.login_page_url.clone(),
         system_admin_username,
         system_admin_email: profile.system_admin.email.clone(),
     })

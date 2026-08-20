@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.33.0] - 2026-08-20
+
+### Breaking
+
+- **Breaking:** `Config` and `SecurityConfig` gain a `login_page_url: Option<String>` field. Migrate by adding `login_page_url: None` to any struct-literal construction.
+
+### Added
+
+- `security.login_page_url` profile setting (env: `LOGIN_PAGE_URL`): when set, the OAuth authorize endpoint redirects to the configured deployment-owned sign-in page with the original query string instead of rendering the built-in WebAuthn form.
+- The authorize endpoint accepts `prompt=passkey` to bypass the configured login page and render the built-in WebAuthn form.
+
+### Fixed
+
+- `tools/list` results from hosted MCP servers now carry the SEP-2549 cache metadata (`ttlMs`, `cacheScope`) required by protocol `2026-07-28`, matching the resource list/read stamps shipped in 0.32.0. Tool and resource-template list results are built through the shared `build_tool_list_result` / `build_resource_template_list_result` helpers so the stamp cannot be dropped per-endpoint.
+
 ## [0.32.2] - 2026-08-19
 
 ### Added

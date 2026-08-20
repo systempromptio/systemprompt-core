@@ -9,23 +9,8 @@ use std::path::PathBuf;
 use crate::auth::JwtAudience;
 use serde::{Deserialize, Serialize};
 
-/// Audiences the gateway's grant paths require to be present in
-/// [`SecurityConfig::allowed_resource_audiences`].
-///
-/// These are not RFC 8707 external resource URIs — they are the gateway's own
-/// internal protocol audiences that hardcoded scope guards depend on. The
-/// `client_credentials` grant rejects any `hook:*` scope that is not paired
-/// with `audience=hook`, so a profile that does not opt into the `"hook"`
-/// audience cannot mint plugin hook tokens for the bridge. Profile validation
-/// rejects bootstrap if any entry here is missing, so the error surfaces at
-/// the operator's YAML edit rather than at a downstream tenant's first call.
 pub const GATEWAY_REQUIRED_RESOURCE_AUDIENCES: &[&str] = &["hook"];
 
-/// The resource audiences every generated profile must opt into.
-///
-/// Returns [`GATEWAY_REQUIRED_RESOURCE_AUDIENCES`] as owned strings, so the
-/// setup wizard and the env-driven cloud bootstrap seed the same audiences and
-/// pass [`crate::profile::Profile::validate`] from one source of truth.
 #[must_use]
 pub fn default_resource_audiences() -> Vec<String> {
     GATEWAY_REQUIRED_RESOURCE_AUDIENCES
@@ -42,8 +27,6 @@ fn default_signing_key_path() -> PathBuf {
     PathBuf::from("signing_key.pem")
 }
 
-/// Default ID-JAG lifetime in seconds; short by design (draft §6) to bound
-/// replay.
 pub const DEFAULT_ID_JAG_TTL_SECS: i64 = 300;
 
 const fn default_id_jag_ttl_secs() -> i64 {
@@ -71,6 +54,12 @@ pub struct SecurityConfig {
     #[serde(default = "default_allow_registration")]
     pub allow_registration: bool,
 
+    // Why: when set, the OAuth authorize endpoint 302s to this
+    // deployment-owned sign-in page (carrying the original query) instead of
+    // rendering the built-in WebAuthn form; prompt=passkey opts back in.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub login_page_url: Option<String>,
+
     #[serde(default = "default_signing_key_path")]
     pub signing_key_path: PathBuf,
 
@@ -93,16 +82,12 @@ pub struct TrustedIssuer {
     pub jwks_uri: String,
     pub audience: String,
 
-    /// Accepted JOSE `typ` header values; empty accepts any.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub typ_allowlist: Vec<String>,
 
-    /// `client_id`/`azp` values accepted on the EMA consume path; empty accepts
-    /// any.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub allowed_client_ids: Vec<String>,
 
-    /// Whether this issuer's `id_token` may seed the EMA ID-JAG issuance path.
     #[serde(default)]
     pub can_issue_id_jag: bool,
 }

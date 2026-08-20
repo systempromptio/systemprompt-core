@@ -81,6 +81,7 @@ pub struct Config {
     pub content_negotiation: ContentNegotiationConfig,
     pub security_headers: SecurityHeadersConfig,
     pub allow_registration: bool,
+    pub login_page_url: Option<String>,
     pub system_admin_username: String,
     pub system_admin_email: Option<systemprompt_identifiers::Email>,
 }

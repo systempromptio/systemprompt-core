@@ -164,6 +164,7 @@ fn security_config_from_env() -> ProfileResult<SecurityConfig> {
         audiences,
         allowed_resource_audiences: super::default_resource_audiences(),
         allow_registration,
+        login_page_url: get_env("LOGIN_PAGE_URL"),
         signing_key_path: std::path::PathBuf::from("signing_key.pem"),
         trusted_issuers: Vec::new(),
         id_jag_ttl_secs: super::security::DEFAULT_ID_JAG_TTL_SECS,

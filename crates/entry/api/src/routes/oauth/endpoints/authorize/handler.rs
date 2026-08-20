@@ -99,6 +99,66 @@ fn resolve_self_origins(base: &RequestBaseUrl) -> Result<SelfOrigins, OAuthHttpE
     Ok(SelfOrigins::new(primary_origin, base.origin().clone()))
 }
 
+fn wants_passkey_form(params: &AuthorizeQuery) -> bool {
+    params
+        .prompt
+        .as_deref()
+        .is_some_and(|p| p.split_whitespace().any(|v| v == "passkey"))
+}
+
+fn login_page_redirect(params: &AuthorizeQuery) -> Option<Response> {
+    let login_page_url = Config::get().ok()?.login_page_url.clone()?;
+    let target = login_page_redirect_target(&login_page_url, params)?;
+    Some(axum::response::Redirect::to(&target).into_response())
+}
+
+// Why: the configured URL is operator-controlled, but a typo'd relative or
+// non-http value would strand every sign-in — fall back to the built-in form
+// instead of redirecting into the void.
+#[must_use]
+pub fn login_page_redirect_target(login_page_url: &str, params: &AuthorizeQuery) -> Option<String> {
+    if wants_passkey_form(params) {
+        return None;
+    }
+    match reqwest::Url::parse(login_page_url) {
+        Ok(url) if matches!(url.scheme(), "http" | "https") => {},
+        _ => {
+            tracing::error!(
+                login_page_url = %login_page_url,
+                "security.login_page_url is not an absolute http(s) URL; rendering built-in form"
+            );
+            return None;
+        },
+    }
+    let query = authorize_query_string(params);
+    Some(format!("{login_page_url}?{query}"))
+}
+
+fn authorize_query_string(params: &AuthorizeQuery) -> String {
+    let mut pairs: Vec<(&str, &str)> = vec![
+        ("response_type", params.response_type.as_str()),
+        ("client_id", params.client_id.as_str()),
+    ];
+    let optional = [
+        ("redirect_uri", params.redirect_uri.as_deref()),
+        ("scope", params.scope.as_deref()),
+        ("state", params.state.as_deref()),
+        ("code_challenge", params.code_challenge.as_deref()),
+        ("code_challenge_method", params.code_challenge_method.as_deref()),
+        ("resource", params.resource.as_deref()),
+    ];
+    for (key, value) in optional {
+        if let Some(value) = value {
+            pairs.push((key, value));
+        }
+    }
+    pairs
+        .iter()
+        .map(|(k, v)| format!("{k}={}", urlencoding::encode(v)))
+        .collect::<Vec<_>>()
+        .join("&")
+}
+
 async fn render_webauthn_form(
     repo: &OAuthRepository,
     params: &AuthorizeQuery,
@@ -163,6 +223,10 @@ pub async fn handle_authorize_get(
                 state = ?params.state,
                 "Authorization request validated"
             );
+
+            if let Some(redirect) = login_page_redirect(&params) {
+                return Ok(redirect);
+            }
 
             render_webauthn_form(&repo, &params, &csrf_token, &resolved_scope).await
         },

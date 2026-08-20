@@ -1,4 +1,5 @@
 mod authorize;
+mod authorize_login_redirect;
 mod authorize_validation;
 mod client_config;
 mod client_config_validation;

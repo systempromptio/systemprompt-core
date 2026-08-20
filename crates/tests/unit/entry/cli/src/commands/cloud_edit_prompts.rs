@@ -64,6 +64,7 @@ fn make_profile() -> Profile {
             audiences: vec![JwtAudience::Api],
             allowed_resource_audiences: vec![],
             allow_registration: true,
+            login_page_url: None,
             signing_key_path: PathBuf::from("/tmp/test-signing-key.pem"),
             trusted_issuers: vec![],
             id_jag_ttl_secs: systemprompt_models::profile::DEFAULT_ID_JAG_TTL_SECS,

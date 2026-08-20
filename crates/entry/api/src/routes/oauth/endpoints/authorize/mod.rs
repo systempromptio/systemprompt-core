@@ -12,7 +12,7 @@ mod handler;
 pub mod response_builder;
 pub mod validation;
 
-pub use handler::{handle_authorize_get, handle_authorize_post};
+pub use handler::{handle_authorize_get, handle_authorize_post, login_page_redirect_target};
 
 use serde::Deserialize;
 use systemprompt_identifiers::ClientId;

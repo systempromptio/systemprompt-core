@@ -77,6 +77,7 @@ fn test_config() -> Config {
         content_negotiation: Default::default(),
         security_headers: Default::default(),
         allow_registration: false,
+        login_page_url: None,
         system_admin_username: "admin".to_string(),
         system_admin_email: None,
     }

@@ -65,6 +65,7 @@ fn security_config(issuer: &str, trusted_issuers: Vec<TrustedIssuer>) -> Securit
         audiences: JwtAudience::standard(),
         allowed_resource_audiences: default_resource_audiences(),
         allow_registration: true,
+        login_page_url: None,
         signing_key_path: std::path::PathBuf::from("signing_key.pem"),
         trusted_issuers,
         id_jag_ttl_secs: systemprompt_models::profile::DEFAULT_ID_JAG_TTL_SECS,
