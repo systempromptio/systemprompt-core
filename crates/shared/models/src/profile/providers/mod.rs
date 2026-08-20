@@ -46,9 +46,6 @@ pub struct ProviderModel {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub aliases: Vec<ModelId>,
 
-    /// Vendor-side model name to send upstream when it differs from
-    /// [`Self::id`] (the external-facing name). `None` forwards `id`
-    /// unchanged.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub upstream_model: Option<String>,
 
@@ -79,13 +76,8 @@ impl ProviderModel {
 pub struct ProviderEntry {
     pub name: ProviderId,
 
-    /// The wire codec the gateway speaks to reach this provider. Selects the
-    /// outbound adapter only — never which client API advertises these models.
     pub wire: WireProtocol,
 
-    /// The client API family these models are advertised under. Required and
-    /// without a default: advertising a backend vendor as Anthropic must mean
-    /// literally writing `surface: anthropic`, not falling through a default.
     pub surface: ApiSurface,
 
     pub endpoint: String,
@@ -133,23 +125,12 @@ impl ProviderRegistry {
             .any(|p| p.find_model(requested).is_some())
     }
 
-    /// The one place the advertisement rule is applied to the registry.
-    ///
-    /// A `surface: backend` provider (e.g. `minimax`) can never leak into a
-    /// client catalog through a hand-rolled flatten. Routing/admin paths that
-    /// must still see backend providers iterate `self.providers` directly.
     pub fn advertised_providers(&self) -> impl Iterator<Item = &ProviderEntry> {
         self.providers
             .iter()
             .filter(|entry| entry.surface.is_advertised())
     }
 
-    /// An empty `surfaces` slice means the full catalog.
-    ///
-    /// A gateway front door (e.g. Cowork in Anthropic mode) rejects its whole
-    /// config if advertised models include a name from another vendor family,
-    /// so a caller scopes the list to its own surface; routes may still
-    /// proxy those names to a different provider underneath.
     #[must_use]
     pub fn advertised_model_ids(&self, surfaces: &[ApiSurface]) -> Vec<String> {
         self.advertised_providers()

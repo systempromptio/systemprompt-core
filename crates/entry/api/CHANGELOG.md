@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.33.0] - 2026-08-20
+
+### Added
+
+- The OAuth authorize endpoint redirects to `security.login_page_url` (when configured) with the original query string instead of rendering the built-in WebAuthn form; `prompt=passkey` bypasses the redirect and renders the built-in form.
+
 ## [0.32.2] - 2026-08-19
 
 ### Fixed

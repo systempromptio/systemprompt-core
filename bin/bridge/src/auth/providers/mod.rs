@@ -64,8 +64,6 @@ impl AuthFailedSource {
 #[async_trait]
 pub trait AuthProvider: Send + Sync {
     fn name(&self) -> &'static str;
-    /// Minted JWT binds to `session_id` to match the `x-session-id` the bridge
-    /// presents.
     async fn authenticate(&self, session_id: &SessionId) -> Result<HelperOutput, AuthError>;
 }
 
@@ -77,11 +75,6 @@ pub struct AuthProviderRegistration {
 
 inventory::collect!(AuthProviderRegistration);
 
-/// Register an [`AuthProvider`] into the credential chain.
-///
-/// `factory` builds the provider from config; a higher `priority` (default 0)
-/// runs earlier, so a white-label crate can insert its own credential source
-/// ahead of the built-ins without editing core.
 #[macro_export]
 macro_rules! register_auth_provider {
     ($factory:expr, priority = $p:expr $(,)?) => {

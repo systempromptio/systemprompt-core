@@ -32,19 +32,9 @@ use crate::authz::error::AuthzError;
 pub struct RuleType(Cow<'static, str>);
 
 impl RuleType {
-    /// Rule targeting one user by id.
     pub const USER: Self = Self(Cow::Borrowed("user"));
-    /// Rule targeting every holder of a role.
     pub const ROLE: Self = Self(Cow::Borrowed("role"));
 
-    /// Mints an extension-owned dimension slug.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`AuthzError::InvalidRuleType`] when the slug is empty, is not
-    /// lowercase `snake_case`, or collides with a core built-in. The shape
-    /// requirement keeps dimensions from independent extensions from
-    /// colliding with each other or with `user` / `role`.
     pub fn extension(slug: impl Into<Cow<'static, str>>) -> Result<Self, AuthzError> {
         let slug = slug.into();
         let well_formed = !slug.is_empty()

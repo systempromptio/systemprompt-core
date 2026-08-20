@@ -70,8 +70,6 @@ impl AuthzContext {
         }
     }
 
-    /// `kind` must be dotted-namespaced (e.g. `"acme.order_submission"`) so
-    /// kinds from independent extensions cannot collide.
     #[must_use]
     pub fn extension(kind: impl Into<Cow<'static, str>>, payload: serde_json::Value) -> Self {
         Self {
@@ -109,12 +107,6 @@ impl AuthzContext {
 
     pub const MARKETPLACE_FLOOR_KEY: &'static str = "marketplace.attribute_floor";
 
-    /// The floor is an opaque tenant-namespaced bag the ABAC hook interprets;
-    /// core copies it verbatim. Keyed under [`MARKETPLACE_FLOOR_KEY`] so it
-    /// never collides with the typed `model` / `tool` payload entries, and
-    /// `kind` plus any existing payload are preserved.
-    ///
-    /// [`MARKETPLACE_FLOOR_KEY`]: Self::MARKETPLACE_FLOOR_KEY
     #[must_use]
     pub fn with_marketplace_floor(&self, floor: &BTreeMap<String, serde_json::Value>) -> Self {
         let mut payload = match self.payload.clone() {
@@ -152,34 +144,17 @@ pub struct AuthzRequest {
     pub user_id: UserId,
     #[serde(default)]
     pub roles: Vec<String>,
-    /// Opaque ABAC attribute bag forwarded from `JwtClaims.attributes`.
-    /// Tenants namespace keys (e.g. `"acme.desk"`, `"boeing.clearance"`);
-    /// core never interprets values.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub attributes: BTreeMap<String, serde_json::Value>,
     pub trace_id: TraceId,
-    /// Attested session this authorization request was made under, when the
-    /// enforcement site has one (gateway path). Threaded into the audit row's
-    /// `session_id` column; non-session paths (server-attach RBAC, MCP) leave
-    /// it `None`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub session_id: Option<SessionId>,
     #[serde(default)]
     pub context: AuthzContext,
-    /// A2A conversation the enforcement site is acting within, when it has
-    /// one (gateway-derived conversation, MCP tool-call execution context,
-    /// messaging). Threaded into the audit row's `context_id` column so agent
-    /// conversations reconstruct by key instead of user+time-window joins.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub context_id: Option<ContextId>,
-    /// A2A task the enforcement site is acting within, when one exists
-    /// (internal agent tool-calls). Threaded into the audit row's `task_id`
-    /// column.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub task_id: Option<TaskId>,
-    /// RFC 8693 delegation lineage forwarded from
-    /// `RequestContext.auth.act_chain`. Empty when no token-exchange chain
-    /// is present.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub act_chain: Vec<Actor>,
 }

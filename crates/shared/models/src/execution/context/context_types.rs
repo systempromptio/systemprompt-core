@@ -19,20 +19,10 @@ pub struct AuthContext {
     pub auth_token: JwtToken,
     pub actor: Actor,
     pub user_type: UserType,
-    /// RFC 8693 actor (`act`) chain in outermost-first order: index 0 is
-    /// the most recent delegate that requested the current token, and the
-    /// last entry is the original delegating principal. Empty for direct
-    /// (non-delegated) tokens.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub act_chain: Vec<Actor>,
-    /// JWT `jti`. Empty for anonymous / system contexts. Carried forward so
-    /// the JTI-revocation tower layer can consult the revocation list without
-    /// re-decoding the bearer.
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub jti: String,
-    /// JWT `exp` (unix seconds). Zero for anonymous / system contexts.
-    /// Required by `POST /oauth/logout` to write the revocation row with the
-    /// token's natural lifetime.
     #[serde(default, skip_serializing_if = "is_zero_i64")]
     pub token_exp: i64,
 }

@@ -29,11 +29,8 @@ use std::sync::OnceLock;
 pub struct BrandAssets {
     pub icon_svg: &'static str,
     pub logo_svg: &'static str,
-    /// Doubles as the non-macOS tray icon source.
     pub window_icon_png: &'static [u8],
     pub tray_icon_png: &'static [u8],
-    /// Appended last to the GUI `<head>` so its `:root` overrides win the
-    /// cascade; empty for the default brand.
     pub theme_css: &'static str,
 }
 
@@ -41,42 +38,22 @@ pub struct BrandAssets {
 pub struct Brand {
     pub app_name: &'static str,
     pub binary_name: &'static str,
-    /// The *shipped* version, which is the downstream binary crate's
-    /// `CARGO_PKG_VERSION` — not this library's. A white-label build releases
-    /// on its own cadence (`bridge-v0.1.6`) while linking a
-    /// differently-versioned core, so `env!("CARGO_PKG_VERSION")` expanded
-    /// here would report the library version to users and to the updater's
-    /// comparison.
     pub version: &'static str,
     pub vendor: &'static str,
     pub config_dir: &'static str,
     pub config_file: &'static str,
     pub pat_file: &'static str,
-    /// Working/state/cache/log leaf directory. Branding it isolates white-label
-    /// builds from each other on disk.
     pub working_dir_name: &'static str,
-    /// User-facing default Cowork workspace folder, created under the user's
-    /// home (`~/<workspace_dir_name>`) and pushed as a pre-trusted
-    /// `allowedWorkspaceFolders` entry so the agent gets a real writable
-    /// working directory without folder prompts. Empty string ⇒ emit no
-    /// default folder.
     pub workspace_dir_name: &'static str,
     pub keyring_service: &'static str,
     pub env_prefix: &'static str,
     pub default_gateway_url: &'static str,
-    /// Gateway-relative consent-page path the session flow opens. Part of the
-    /// deployment routing contract — must match where the gateway mounts it.
     pub device_link_path: &'static str,
     pub tray_tooltip: &'static str,
     pub window_title: &'static str,
     pub app_menu_name: &'static str,
-    /// A full button label, not just the identity-provider name (e.g. "Sign in
-    /// with Salesforce" for a Salesforce-federated gateway).
     pub sign_in_label: &'static str,
     pub sign_in_hint: &'static str,
-    /// launchd `Label` and plist basename for the scheduled sync (reverse-DNS).
-    /// Brand-scoped so two white-label bridges on one Mac register distinct
-    /// agents instead of clobbering each other.
     pub schedule_label: &'static str,
     pub schedule_unit: &'static str,
     pub schedule_task_name: &'static str,
@@ -123,7 +100,6 @@ impl Brand {
 
 static BRAND: OnceLock<&'static Brand> = OnceLock::new();
 
-/// First writer wins; returns whether this call installed the brand.
 pub fn set_brand(brand: &'static Brand) -> bool {
     BRAND.set(brand).is_ok()
 }

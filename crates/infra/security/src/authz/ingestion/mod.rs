@@ -90,12 +90,6 @@ impl AccessControlIngestionService {
         self.ingest_config(&cfg, options).await
     }
 
-    /// `entity_match` globs are resolved against rows **already present** in
-    /// `access_control_entities` for the rule's kind — entity bootstrap
-    /// (publish pipeline, gateway reconciliation) must therefore run before
-    /// ingestion, or a glob has nothing to expand over. Glob resolution reads
-    /// on the same transaction as the subsequent writes, so a concurrent writer
-    /// cannot insert a matching entity between the read and the commit.
     pub async fn ingest_config(
         &self,
         cfg: &AccessControlConfig,

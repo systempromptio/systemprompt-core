@@ -63,11 +63,6 @@ pub struct ModelLimits {
     #[serde(default)]
     pub max_output_tokens: u32,
 
-    /// Maximum extended-thinking / reasoning budget (in tokens) the upstream
-    /// accepts for this model. `None` means the provider validates the budget
-    /// itself (Anthropic) or maps it to an effort bucket (`OpenAI`); set it for
-    /// providers that reject an out-of-range numeric budget (Gemini: 24576 for
-    /// flash, 32768 for pro). The gateway clamps the requested budget to this.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub max_thinking_budget: Option<u32>,
 }
@@ -80,15 +75,9 @@ pub struct ModelPricing {
     #[serde(default)]
     pub output_per_million: f64,
 
-    /// Rate for tokens served from an existing prompt cache. Typically a
-    /// fraction of [`Self::input_per_million`] (0.1x on Anthropic). Left at
-    /// `0.0` a cache-heavy agent loop — where nearly every input token is a
-    /// cache read — bills as free.
     #[serde(default)]
     pub cache_read_per_million: f64,
 
-    /// Rate for tokens written into the prompt cache (Anthropic's 5-minute
-    /// tier, 1.25x input). The 1-hour 2x tier is not modelled separately.
     #[serde(default)]
     pub cache_write_per_million: f64,
 
@@ -97,9 +86,6 @@ pub struct ModelPricing {
 }
 
 impl ModelPricing {
-    /// Whether these rates can produce a non-zero bill. Token models need both
-    /// a read and a write side; an image model prices per image instead and is
-    /// legitimately zero on both token rates.
     #[must_use]
     pub fn is_billable(&self) -> bool {
         if self.per_image_cents.is_some_and(|c| c > 0.0) {
@@ -132,7 +118,6 @@ pub struct AiProviderConfig {
     #[serde(default = "default_true")]
     pub enabled: bool,
 
-    /// Overrides the provider client's built-in default model when non-empty.
     #[serde(default)]
     pub default_model: String,
 
@@ -142,8 +127,6 @@ pub struct AiProviderConfig {
     #[serde(default)]
     pub google_search_enabled: bool,
 
-    /// Resilience policy applied to outbound AI provider calls (timeouts,
-    /// retry, circuit breaker, bulkhead).
     #[serde(default)]
     pub resilience: ResilienceSettings,
 }

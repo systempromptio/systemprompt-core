@@ -54,9 +54,6 @@ impl std::fmt::Debug for EvaluationService {
 }
 
 impl EvaluationService {
-    /// `ai` must be the auditing provider (the `AiService` implementation):
-    /// judge isolation and cost accounting depend on `generate` persisting
-    /// every request to `ai_requests` with a job actor.
     pub fn new(repositories: EvalRepositories, ai: DynAiProvider) -> Self {
         let EvalRepositories {
             runs,
@@ -75,12 +72,10 @@ impl EvaluationService {
         }
     }
 
-    /// One full auto-improve pass; returns the run id and its report.
     pub async fn run_judge(&self, request: RunRequest) -> Result<(EvalRunId, LoopReport)> {
         self.run_with_kind(EvalRunKind::Judge, request).await
     }
 
-    /// Re-runs a previous run's failing requests as a new replay-kind run.
     pub async fn replay_failures(
         &self,
         source_run: &EvalRunId,

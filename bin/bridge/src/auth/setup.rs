@@ -210,8 +210,6 @@ fn resolve_gateway(path: &Path, gateway_url_override: Option<&str>) -> String {
         .unwrap_or_else(|| crate::brand::brand().default_gateway_url.to_owned())
 }
 
-/// Writes no `[pat]` section — the session flow stores no long-lived secret;
-/// the proxy mints short-lived JWTs from the cached device-link credential.
 pub fn session_setup(gateway_url: Option<&str>) -> Result<PathLayout, SetupError> {
     let paths = resolve_paths()?;
     ensure_dir(&paths.config_dir)?;

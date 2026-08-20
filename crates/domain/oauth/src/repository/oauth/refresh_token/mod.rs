@@ -19,11 +19,6 @@ pub struct RefreshTokenParams<'a> {
     pub user_id: &'a UserId,
     pub scope: &'a str,
     pub expires_at: i64,
-    /// Family-identifier shared by every refresh token derived from the same
-    /// initial authorization-code exchange. When `None`, the family is seeded
-    /// from `token_id` (first issuance). Subsequent rotations carry the parent
-    /// token's family forward so a single auth-code-replay or refresh-token-
-    /// replay detection can invalidate every descendant.
     pub family_id: Option<&'a str>,
 }
 

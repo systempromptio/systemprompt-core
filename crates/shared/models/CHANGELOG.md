@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.33.0] - 2026-08-20
+
+### Breaking
+
+- **Breaking:** `SecurityConfig` (and `Config`) gain a `login_page_url: Option<String>` field. Migrate by adding `login_page_url: None` to struct-literal constructions.
+
 ## [0.32.1] - 2026-08-19
 
 ### Added

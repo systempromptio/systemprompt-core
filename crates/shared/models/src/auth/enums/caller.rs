@@ -28,11 +28,6 @@ pub enum UserType {
 }
 
 impl UserType {
-    /// Derives the caller type from a permission set, the single source of
-    /// truth for the permission → type mapping. The precedence is
-    /// privilege-descending (`Admin` wins over `User`, etc.); the hook scopes
-    /// resolve to `Service` so a hook principal is never silently downgraded
-    /// to `Anon`.
     pub fn from_permissions(permissions: &[Permission]) -> Self {
         let has = |p: Permission| permissions.contains(&p);
         if has(Permission::Admin) {

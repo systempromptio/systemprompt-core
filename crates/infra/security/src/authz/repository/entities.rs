@@ -10,9 +10,6 @@ use crate::authz::error::AuthzResult;
 use crate::authz::types::{EntityKind, EntityRow};
 
 impl AccessControlRepository {
-    /// `Ok(None)` means the entity has no catalog row at all (publish-pipeline
-    /// bootstrap gap) — the resolver turns this into
-    /// [`crate::authz::DenyReason::UnknownEntity`].
     pub async fn get_entity(
         &self,
         entity_type: EntityKind,
@@ -41,9 +38,6 @@ impl AccessControlRepository {
         }))
     }
 
-    /// Overwrites `default_included` and `source` on conflict so the most
-    /// recent bootstrap pass wins — the publish pipeline is the source of
-    /// truth and runs ahead of YAML grant ingestion.
     pub async fn upsert_entity(
         &self,
         entity_type: EntityKind,
@@ -70,9 +64,6 @@ impl AccessControlRepository {
         Ok(())
     }
 
-    /// One statement for the whole batch, instead of `ids.len()` awaits of
-    /// [`Self::upsert_entity`]; all rows share one `default_included` and
-    /// `source`.
     pub async fn upsert_entities(
         &self,
         entity_type: EntityKind,

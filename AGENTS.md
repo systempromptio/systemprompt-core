@@ -33,10 +33,10 @@ Facade (1)     systemprompt (re-exports with feature gates)
 ```toml
 # Full installation
 [dependencies]
-systemprompt = { version = "0.32", features = ["full"] }
+systemprompt = { version = "0.33", features = ["full"] }
 
 # Selective (pick what you need)
-systemprompt = { version = "0.32", features = ["core", "database", "mcp"] }
+systemprompt = { version = "0.33", features = ["core", "database", "mcp"] }
 ```
 
 Requires PostgreSQL 18+ at runtime.

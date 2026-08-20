@@ -18,8 +18,6 @@ use super::apply::ApplyError;
 pub struct HostSyncCtx<'a> {
     pub manifest: &'a SignedManifest,
     pub org_plugins_root: &'a Path,
-    /// MCP server names per plugin id, recovered from each bundle's stripped
-    /// `.mcp.json`; emitters re-project them through the bridge proxy.
     pub plugin_mcp_servers: &'a std::collections::BTreeMap<String, Vec<String>>,
     pub client: &'a GatewayClient,
     pub bearer: &'a str,
@@ -53,13 +51,6 @@ impl std::fmt::Debug for HostSyncRegistration {
 
 inventory::collect!(HostSyncRegistration);
 
-/// Register a [`HostSync`] emitter into the compile-time sync registry.
-///
-/// Pass a zero-sized `'static` emitter value. An optional `priority = N`
-/// (default 0) orders registrations; when the same concrete emitter type is
-/// registered more than once, the highest-priority copy wins and the rest are
-/// deduped away. Distinct emitter types coexist even when they share a
-/// `host_id()` — as the Cowork plugins and artifacts emitters do.
 #[macro_export]
 macro_rules! register_host_sync {
     ($e:expr, priority = $p:expr $(,)?) => {

@@ -105,9 +105,6 @@ impl WebAuthnService {
         })
     }
 
-    /// Hard cap on pending challenges per kind. Acts as a defence against
-    /// unbounded growth between [`Self::cleanup_expired_states`] sweeps if an
-    /// attacker initiates many half-finished `WebAuthn` ceremonies.
     pub const MAX_PENDING_CHALLENGES: usize = 10_000;
 
     pub async fn cleanup_expired_states(&self) -> Result<()> {

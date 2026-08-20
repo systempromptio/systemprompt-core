@@ -98,9 +98,6 @@ impl AccessControlRepository {
         Ok(out)
     }
 
-    /// Fails with a foreign-key violation if no entity catalog row exists for
-    /// `(entity_type, entity_id)` — register the entity via
-    /// [`Self::upsert_entity`] first.
     pub async fn upsert_rule(&self, params: UpsertRuleParams<'_>) -> AuthzResult<AccessRule> {
         let id = RuleId::generate();
         let rule_type_str = params.rule_type.to_string();
@@ -137,7 +134,6 @@ impl AccessControlRepository {
         })
     }
 
-    /// `None` clears the operator note.
     pub async fn set_justification(
         &self,
         rule_id: &RuleId,

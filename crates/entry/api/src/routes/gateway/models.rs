@@ -95,12 +95,6 @@ pub async fn list(
     }))
 }
 
-/// Resolve the `x-inference-protocol` selection header into API surfaces.
-///
-/// An absent or empty header yields the full catalog (empty slice); an
-/// unrecognised tag, or `backend` (never a client surface), is a
-/// misconfiguration and fails with `400` rather than silently widening or
-/// leaking the advertised set.
 pub fn surfaces_from_header(headers: &HeaderMap) -> Result<Vec<ApiSurface>, (StatusCode, String)> {
     let Some(raw) = headers
         .get(INFERENCE_PROTOCOL)

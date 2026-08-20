@@ -37,9 +37,6 @@ impl ApiSurface {
         }
     }
 
-    /// `backend` parses here (it is a valid declared surface) but callers that
-    /// resolve a *client* selection must reject it: a backend provider is never
-    /// a front door.
     #[must_use]
     pub fn from_tag(tag: &str) -> Option<Self> {
         match tag {
@@ -51,11 +48,6 @@ impl ApiSurface {
         }
     }
 
-    /// The single definition of the advertisement rule.
-    ///
-    /// Every host-facing catalog (`/v1/models`, `/v1/bridge/profile`, the admin
-    /// profile page) derives its exclusion of backend providers from here
-    /// rather than re-checking the variant per call site.
     #[must_use]
     pub const fn is_advertised(self) -> bool {
         !matches!(self, Self::Backend)

@@ -12,12 +12,8 @@ use super::args::Commands;
 use crate::commands::{admin, core, infrastructure};
 
 pub(super) enum DbUrlRouting {
-    /// Dispatchable against the supplied connection alone, with no profile.
     Direct,
-    /// Establishes its own context (setup wizard, bootstrap, session); the flag
-    /// is ignored so the command runs its normal path.
     ProfileDriven,
-    /// Cannot run without full profile bootstrap; rejected before connecting.
     Unsupported,
 }
 

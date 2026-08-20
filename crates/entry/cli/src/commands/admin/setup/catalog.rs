@@ -22,9 +22,6 @@ use super::secrets::SecretsData;
 struct ProviderDefault {
     name: &'static str,
     route_pattern: &'static str,
-    /// Codex sends `openai` aliases (`gpt-5.4-mini`) the real API rejects; the
-    /// `openai` default rewrites them to a concrete model rather than passing
-    /// through.
     default_upstream: Option<&'static str>,
     present: fn(&SecretsData) -> bool,
 }

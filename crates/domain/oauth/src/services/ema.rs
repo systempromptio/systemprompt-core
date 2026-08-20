@@ -26,14 +26,6 @@ pub struct EnterprisePrincipal {
 }
 
 impl EnterprisePrincipal {
-    /// Claims for the federated linker, with the email marked verified.
-    ///
-    /// The linker refuses to attach an identity to a pre-existing account that
-    /// owns the same email unless the upstream asserted `email_verified`, which
-    /// an ID-JAG has no claim for. The assertion itself carries that weight: it
-    /// is RS256-signed by a `kid` resolved from a configured trusted issuer's
-    /// JWKS, and that issuer is separately marked `can_issue_id_jag`. There is
-    /// no weaker path here, so an email this principal carries is verified.
     fn verified_claims(&self) -> FederatedIdentityClaims {
         FederatedIdentityClaims {
             email_verified: self.email.is_some(),
@@ -52,8 +44,6 @@ pub struct LinkedSubject {
     pub permissions: Vec<Permission>,
 }
 
-/// Link an ID-JAG's enterprise identity to a local account, provisioning one on
-/// first sight.
 pub async fn link_enterprise_principal(
     state: &OAuthState,
     principal: &EnterprisePrincipal,

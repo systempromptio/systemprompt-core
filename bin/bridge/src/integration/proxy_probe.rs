@@ -140,21 +140,12 @@ pub fn probe(url: Option<&str>) -> ProxyHealth {
 /// our port has been reading as healthy.
 #[derive(Debug, Clone)]
 pub enum PeerIdentity {
-    /// This install's own proxy.
     Ours(WhoAmI),
-    /// A bridge proxy belonging to a different install.
     Foreign(WhoAmI),
-    /// Something is listening but did not identify itself — an unrelated
-    /// service, or a bridge predating the identity endpoint.
     Unknown,
-    /// Nothing is listening.
     Unreachable,
 }
 
-/// Asks whoever holds `port` to identify itself.
-///
-/// Deliberately blocking and dependency-free, like the rest of this module, so
-/// the bind loop in `proxy::start_default` can call it before a runtime exists.
 #[must_use]
 pub fn probe_identity(port: u16) -> PeerIdentity {
     let addr = format!("127.0.0.1:{port}");
@@ -202,8 +193,6 @@ pub enum PortMatch {
     Unparseable,
 }
 
-/// Lives here rather than under `cli::doctor` because proxy startup reports the
-/// same mismatch, and one classifier keeps the two messages from drifting.
 #[must_use]
 pub fn classify_configured_port(configured_url: &str, actual: u16) -> PortMatch {
     let Ok((host, port)) = parse_host_port(configured_url) else {

@@ -30,7 +30,6 @@ pub struct ServiceOAuthConfig {
     pub required: bool,
     pub scopes: Vec<String>,
     pub audience: String,
-    /// Service declares the MCP Enterprise-Managed Authorization extension.
     pub ema: bool,
 }
 

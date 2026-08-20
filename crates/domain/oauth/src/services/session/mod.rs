@@ -109,15 +109,6 @@ impl SessionCreationService {
         }
     }
 
-    /// Resolves the persisted users row for an unauthenticated caller without
-    /// creating a `user_sessions` row. The fingerprint derives from the
-    /// request analytics; repeated calls with the same fingerprint return the
-    /// same row by virtue of `UserProvider::create_anonymous`'s
-    /// `ON CONFLICT (email) DO UPDATE` upsert.
-    ///
-    /// Used by the session middleware for skip-tracked and bot-classified
-    /// traffic, where the analytics/session-row write is intentionally
-    /// suppressed but downstream handlers still need an FK-valid `user_id`.
     pub async fn ensure_anonymous_user(
         &self,
         analytics: &SessionAnalytics,
@@ -161,9 +152,6 @@ impl SessionCreationService {
         .await
     }
 
-    /// `ttl` must match the lifetime of the credential that will name this
-    /// session: a row that expires before its token fails attestation while the
-    /// token still verifies.
     pub async fn create_authenticated_session_with_ttl(
         &self,
         user_id: &UserId,

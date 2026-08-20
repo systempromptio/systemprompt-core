@@ -48,11 +48,6 @@ impl<'a> FilteringVisitor<'a> {
         self.write_value(field.name(), &debug_str);
     }
 
-    /// Writes a primitive field verbatim, bypassing the name-based redaction in
-    /// [`Self::write_value`]. A number or bool cannot carry a secret, and
-    /// blanking one only destroys operational data — a delete count named
-    /// `oauth_tokens` matched the `token` substring and rendered as
-    /// `[REDACTED]`.
     fn write_scalar(&mut self, field: &Field, value: impl fmt::Display) {
         if self.result.is_err() {
             return;

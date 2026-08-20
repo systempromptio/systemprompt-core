@@ -158,9 +158,6 @@ impl SessionStore {
         })
     }
 
-    /// The active session without an issuer check, for resolving which profile
-    /// to load. Never use it to authorize a request — the issuer is unknown
-    /// until that profile is read, so the result may carry a stale token.
     #[must_use]
     pub fn active_session_for_profile_discovery(&self) -> Option<&CliSession> {
         self.active_session_key()
@@ -209,10 +206,6 @@ impl SessionStore {
         self.sessions.is_empty()
     }
 
-    /// `Ok(None)` means the store file does not exist; a store that exists but
-    /// cannot be parsed is an error, never silently discarded — degrading a
-    /// stale store into "no store" sends resolution down ambiguous profile
-    /// discovery and masks the real fault.
     pub fn load(sessions_dir: &Path) -> CloudResult<Option<Self>> {
         let index_path = sessions_dir.join("index.json");
         let content = match fs::read_to_string(&index_path) {
@@ -240,9 +233,6 @@ impl SessionStore {
         Ok(Self::load(sessions_dir)?.unwrap_or_else(Self::new))
     }
 
-    /// Lenient variant for recovery commands (`admin session switch`, login)
-    /// that overwrite the store anyway — a corrupt store must not block its
-    /// own reset.
     #[must_use]
     pub fn load_or_reset(sessions_dir: &Path) -> Self {
         match Self::load(sessions_dir) {

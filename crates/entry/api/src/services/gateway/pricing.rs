@@ -74,12 +74,6 @@ fn registry_pricing(
         .map(|m| m.pricing)
 }
 
-/// Bills each of the four token counts at its own rate.
-///
-/// Cache reads and writes are not priced at the input rate — and for an agent
-/// loop resending a large cached system prompt they are the bulk of the tokens,
-/// so pricing on `input + output` alone understates the bill by an order of
-/// magnitude.
 #[must_use]
 pub fn cost_microdollars(pricing: ModelPricing, tokens: CostTokens) -> i64 {
     let rate = |count: u32, per_million: f64| (f64::from(count) / 1_000_000.0) * per_million;

@@ -30,7 +30,6 @@ pub struct Activity {
     pub kind: String,
     #[serde(default)]
     pub id: Option<String>,
-    /// Base URL of the channel's Bot Connector — replies POST back here.
     #[serde(rename = "serviceUrl")]
     pub service_url: String,
     #[serde(default)]
@@ -44,7 +43,6 @@ pub struct Activity {
 #[derive(Debug, Clone, Deserialize)]
 pub struct ActivityAccount {
     pub id: String,
-    /// Entra (Azure AD) object id of the user, when the channel supplies it.
     #[serde(rename = "aadObjectId", default)]
     pub aad_object_id: Option<TeamsUserId>,
 }
@@ -74,9 +72,6 @@ pub struct NormalizedInbound {
     pub conversation_id: TeamsConversationId,
     pub teams_user_id: TeamsUserId,
     pub text: String,
-    /// Routing key looked up against `TeamsAppConfig.routing`: the leading
-    /// `/command` token when the message is a command, otherwise the
-    /// conversation id.
     pub routing_key: String,
     pub service_url: String,
     pub activity_id: Option<String>,
@@ -92,11 +87,6 @@ impl Activity {
         }
     }
 
-    /// Collapse the activity into a [`NormalizedInbound`].
-    ///
-    /// Fails with [`TeamsError::MalformedActivity`] when the activity is not a
-    /// dispatchable surface or is missing a tenant the governed-identity
-    /// mapping requires.
     pub fn normalize(self) -> TeamsResult<NormalizedInbound> {
         let surface = self.surface().ok_or_else(|| {
             TeamsError::MalformedActivity(format!("unhandled type '{}'", self.kind))

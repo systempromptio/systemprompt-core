@@ -34,23 +34,16 @@ use crate::services::hooks::{HookCategory, HookEvent};
 use crate::services::plugin::{PluginComponentRef, PluginHooksRef};
 use systemprompt_identifiers::{AgentId, AgentName, HookId, TenantId, UserId, ValidatedUrl};
 
-/// Schema level this build of the codebase emits and understands.
 pub const MANIFEST_SCHEMA_VERSION: u32 = 1;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SignedManifestEnvelope {
-    /// JCS-canonical [`SignedManifest`] JSON, signed byte-for-byte. Consumers
-    /// must verify the signature over this exact string before parsing it.
     pub payload: String,
-    /// Detached ed25519 signature over `payload`; the empty string on
-    /// unsigned installations.
     pub signature: ManifestSignature,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SignedManifest {
-    /// Oldest schema level that can safely consume this manifest. Additive
-    /// fields leave it unchanged; only semantic breaks raise it.
     #[serde(default)]
     pub min_schema_version: u32,
     pub manifest_version: ManifestVersion,
@@ -71,19 +64,10 @@ pub struct SignedManifest {
     pub revocations: Vec<String>,
     #[serde(default)]
     pub enabled_hosts: Vec<String>,
-    /// Optional per-host wire-protocol filter, keyed by host id. A present
-    /// entry overrides the host's built-in default `accepted_protocols`; an
-    /// empty value means "all models" (no restriction). An absent entry leaves
-    /// the host on its default.
     #[serde(default)]
     pub host_model_protocols: BTreeMap<String, Vec<String>>,
-    /// Cowork global-library HTML documents — distinct from the in-chat MCP
-    /// artifacts in [`crate::artifacts`].
     #[serde(default)]
     pub artifacts: Vec<ArtifactEntry>,
-    /// Instructs the bridge's Claude Code managed-MCP policy to emit
-    /// `allowAllClaudeAiMcps`, re-allowing claude.ai first-party connectors
-    /// that `managed-mcp.json` would otherwise suppress.
     #[serde(default)]
     pub allow_claude_ai_connectors: bool,
 }

@@ -23,10 +23,6 @@ pub enum GatewayState {
 }
 
 impl GatewayState {
-    /// The resolved runtime config, or `None` if the loader did not run.
-    /// A `None` here is a bootstrap-ordering bug; the log line is the
-    /// signal — production read paths fall through to the same "gateway
-    /// absent" path they already handle.
     #[must_use]
     pub fn resolved(&self) -> Option<&GatewayConfig> {
         match self {

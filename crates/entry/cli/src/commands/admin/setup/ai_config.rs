@@ -55,8 +55,6 @@ pub(super) fn reconcile(
     Ok(())
 }
 
-/// Custom providers (e.g. `minimax`) and every field other than the standard
-/// providers' `enabled` flag are left untouched.
 pub fn apply_ai_defaults(doc: &mut Value, default_provider: &str, present: &[&str]) -> Result<()> {
     let ai = doc
         .get_mut("ai")

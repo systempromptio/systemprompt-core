@@ -43,11 +43,6 @@ pub mod test_api {
         super::events::is_sensitive_key(key)
     }
 
-    /// Runs the behavioural-detection input collection directly.
-    ///
-    /// Lets the per-query success and fallback branches (fingerprint stats,
-    /// session timeline) be exercised deterministically without racing the
-    /// fire-and-forget task the middleware spawns.
     pub async fn collect_analysis_input(
         session_repo: &Arc<SessionRepository>,
         session_id: SessionId,

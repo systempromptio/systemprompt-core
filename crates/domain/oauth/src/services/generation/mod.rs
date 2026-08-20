@@ -53,11 +53,6 @@ impl Default for JwtConfig {
     }
 }
 
-/// Mint a delegated access token carrying an RFC 8693 `act` claim chain.
-///
-/// `act` is the outermost actor that requested this exchange (typically the
-/// authenticated client). Any pre-existing `act` chain inside the subject
-/// token is preserved by chaining it underneath the new outer actor.
 #[expect(
     clippy::too_many_arguments,
     reason = "JWT minting needs the full set of claim-shaping inputs; bundling into a struct \

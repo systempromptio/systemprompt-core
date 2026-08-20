@@ -181,11 +181,6 @@ fn pid_is_agent_child(pid: u32, service_name: &str) -> bool {
     )
 }
 
-/// Identity-gated [`terminate_gracefully`].
-///
-/// Refuses to signal a PID that no longer names this agent (recycled/stale): a
-/// PID that fails the marker check is left untouched and reported as
-/// terminated, so the caller clears the stale registry row and respawns.
 pub async fn terminate_gracefully_verified(
     pid: u32,
     service_name: &str,
@@ -211,11 +206,6 @@ pub fn kill_process(pid: u32) -> bool {
     terminate_process(pid).is_ok()
 }
 
-/// SIGKILL `pid` only if it still names this agent.
-///
-/// A dead PID, or a recycled one that is no longer ours, counts as already-gone
-/// (`true`) and is left unsignalled — so the caller proceeds with registry
-/// cleanup without ever killing a stranger.
 pub fn kill_process_verified(pid: u32, service_name: &str) -> bool {
     if !process_exists(pid) {
         return true;

@@ -35,12 +35,6 @@ pub fn discover_filters() -> Vec<&'static MarketplaceFilterRegistration> {
     all
 }
 
-/// Register a [`crate::MarketplaceFilter`] implementation with the runtime.
-///
-/// ```ignore
-/// use systemprompt_marketplace::register_marketplace_filter;
-/// register_marketplace_filter!(MyFilter::new, priority = 100);
-/// ```
 #[macro_export]
 macro_rules! register_marketplace_filter {
     ($factory:expr, priority = $priority:expr $(,)?) => {

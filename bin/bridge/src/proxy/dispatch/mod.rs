@@ -299,11 +299,6 @@ fn header_str(req: &Request<Incoming>, name: http::header::HeaderName) -> String
         .to_owned()
 }
 
-/// Where one bridge asks another "whose proxy are you?".
-///
-/// A path of its own rather than a richer `/healthz`: that endpoint is a
-/// liveness contract with a byte-level parser and a pinned body, and
-/// `/__bridge/` cannot collide with `/v1/*`, `/mcp/*`, `/otel*` or an MCP slug.
 pub const WHOAMI_PATH: &str = "/__bridge/whoami";
 
 fn is_unauthenticated_path(method: &Method, path: &str) -> bool {

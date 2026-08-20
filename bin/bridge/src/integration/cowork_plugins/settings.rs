@@ -53,11 +53,6 @@ pub fn enable_plugin(
     Ok(report)
 }
 
-/// Reconciles every `@{marketplace}` key to exactly `plugins`.
-///
-/// Stale keys are removed and missing ones inserted as `true`. Keys under other
-/// marketplaces (the user's own choices) are preserved verbatim. Returns
-/// whether anything changed.
 pub fn reconcile_marketplace(
     root: &mut Map<String, Value>,
     plugins: &[&str],

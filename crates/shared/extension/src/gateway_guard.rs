@@ -17,10 +17,7 @@ use std::sync::Arc;
 #[derive(Debug, Clone)]
 pub struct GatewayGuardRequest<'a> {
     pub user_id: &'a str,
-    /// The model id as the client asked for it.
     pub model: &'a str,
-    /// The resolved route id, i.e. the `gateway_route` entity an
-    /// `access_control_rules` row would name. `None` when no route matched.
     pub route_id: Option<&'a str>,
     pub provider: &'a str,
     pub streaming: bool,
@@ -29,10 +26,8 @@ pub struct GatewayGuardRequest<'a> {
 /// How a guard denial maps onto the HTTP response.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub enum GatewayDenyKind {
-    /// A retryable limit (429 with `retry-after`).
     #[default]
     Quota,
-    /// An entitlement denial (403) — retrying will never help.
     Forbidden,
 }
 
@@ -65,7 +60,6 @@ impl GatewayDenyReason {
 /// A policy consulted on every gateway request after the quota precheck.
 #[async_trait::async_trait]
 pub trait GatewayRequestGuard: Send + Sync {
-    /// Return `Err` to deny the request.
     async fn check(
         &self,
         pool: &sqlx::PgPool,
@@ -82,7 +76,6 @@ pub struct GatewayRequestGuardRegistration {
 
 inventory::collect!(GatewayRequestGuardRegistration);
 
-/// Register a [`GatewayRequestGuard`] implementation with the gateway.
 #[macro_export]
 macro_rules! register_gateway_guard {
     ($guard_type:ty) => {
@@ -103,8 +96,6 @@ macro_rules! register_gateway_guard {
     };
 }
 
-/// Run every registered guard in turn; the first denial wins. Returns `Ok(())`
-/// when no guards are registered.
 pub async fn run_gateway_guards(
     pool: &sqlx::PgPool,
     request: &GatewayGuardRequest<'_>,

@@ -170,12 +170,6 @@ fn active_broadcaster() -> Arc<dyn WebhookBroadcaster> {
     Arc::clone(GLOBAL_BROADCASTER.get_or_init(default_broadcaster))
 }
 
-/// Test-only seam.
-///
-/// Installs `broadcaster` as the process-wide implementation returned by every
-/// subsequent `broadcast_*` call. Subsequent calls to `install_for_test` are
-/// no-ops — the first caller wins (matching the
-/// `RsaSigningKey::install_for_test` / `Config::install` pattern).
 pub fn install_for_test(broadcaster: Arc<dyn WebhookBroadcaster>) {
     drop(GLOBAL_BROADCASTER.set(broadcaster));
 }

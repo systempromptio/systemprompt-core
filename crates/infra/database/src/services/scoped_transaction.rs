@@ -19,7 +19,6 @@ use crate::scope::scope_providers;
 
 use super::transaction::BoxFuture;
 
-/// Begin a transaction and apply every registered provider's settings to it.
 pub async fn begin_scoped(
     pool: &PgPool,
     scope: &RequestScope,

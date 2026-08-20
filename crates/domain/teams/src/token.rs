@@ -36,9 +36,6 @@ impl CachedToken {
         }
     }
 
-    /// Whether the cached token is still usable at `now_unix`. The expiry is
-    /// exclusive: a token whose skew-adjusted expiry equals `now_unix` is
-    /// already stale.
     #[must_use]
     pub const fn is_valid(&self, now_unix: i64) -> bool {
         self.expires_at_unix > now_unix
@@ -93,9 +90,6 @@ impl TokenProvider {
         }
     }
 
-    /// Return a valid access token, minting a fresh one when the cache is empty
-    /// or within the refresh window. `now_unix` is injected so expiry handling
-    /// is testable.
     pub async fn token(&self, now_unix: i64) -> TeamsResult<String> {
         if let Some(cached) = self.cached_valid(now_unix) {
             return Ok(cached);

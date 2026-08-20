@@ -39,11 +39,6 @@ fn sentinel_path() -> Option<PathBuf> {
     paths::bridge_metadata_dir().map(|d| d.join(paths::FIRST_RUN_SENTINEL))
 }
 
-/// The recorded run, or `None` if first use has not happened yet.
-///
-/// A corrupt or unreadable sentinel reads as `None`, so the run repeats. That
-/// is the safe direction: provisioning is idempotent, and treating a damaged
-/// file as "already done" is what leaves the app broken.
 #[must_use]
 pub fn read() -> Option<FirstRunRecord> {
     let bytes = fs::read(sentinel_path()?).ok()?;
@@ -54,9 +49,6 @@ pub fn read() -> Option<FirstRunRecord> {
         .ok()
 }
 
-/// Record the run. Written even when some hosts failed — otherwise the flow
-/// re-runs on every subsequent sign-in. Failures are kept here and surfaced as
-/// per-host retries.
 pub fn write(state: &FirstRunState) {
     let Some(path) = sentinel_path() else {
         tracing::warn!("no metadata dir; first-run sentinel not written");

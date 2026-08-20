@@ -186,20 +186,10 @@ pub struct CanonicalRequest {
     pub code_execution: bool,
     pub presence_penalty: Option<f32>,
     pub frequency_penalty: Option<f32>,
-    /// Every string in the bytes the gateway is about to forward upstream.
-    ///
-    /// The canonical form is lossy, so content the gateway relays can be
-    /// invisible to a scanner reading only that form. The gateway fills this
-    /// from the prepared outbound body before any scan runs, which is what
-    /// makes the scan surface a superset of the forwarded surface. Callers
-    /// that never send through the gateway leave it empty.
     pub forwarded_surface: ForwardedSurface,
 }
 
 impl CanonicalRequest {
-    /// The broadest inspection surface a scanner can ask for, and the one a
-    /// blocking scanner should use: it covers content the canonical model
-    /// cannot represent but the provider will still receive.
     pub fn flatten_text(&self) -> String {
         let mut out = String::new();
         if let Some(sys) = &self.system {
@@ -239,11 +229,6 @@ impl CanonicalRequest {
         if out.is_empty() { None } else { Some(out) }
     }
 
-    /// Flattens the newest message of `role`, ignoring every earlier one.
-    ///
-    /// Distinct from [`Self::flatten_message_text`], which concatenates every
-    /// message of the role: a safety scanner that judges the latter re-reads
-    /// what the caller already sent on previous turns.
     pub fn latest_message_text(&self, role: Role) -> Option<String> {
         let msg = self.messages.iter().rev().find(|m| m.role == role)?;
         let mut out = String::new();
@@ -253,10 +238,6 @@ impl CanonicalRequest {
         if out.is_empty() { None } else { Some(out) }
     }
 
-    /// Detectors that slide a window over their input need this rather than
-    /// [`Self::flatten_text`], whose concatenation lets two unrelated messages
-    /// splice into a match neither one contains. Each surface leaf is its own
-    /// unit for the same reason.
     pub fn message_units(&self) -> Vec<String> {
         let mut units = Vec::with_capacity(self.messages.len() + self.forwarded_surface.len() + 1);
         if let Some(sys) = &self.system {

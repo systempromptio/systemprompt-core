@@ -56,9 +56,6 @@ impl std::fmt::Debug for MarketplaceSourceRegistration {
 
 inventory::collect!(MarketplaceSourceRegistration);
 
-/// Register a [`MarketplaceSource`] into the compile-time marketplace registry.
-/// An optional `priority = N` (default 0) makes this source's items shadow a
-/// built-in item of the same id within its category.
 #[macro_export]
 macro_rules! register_marketplace_source {
     ($e:expr, priority = $p:expr $(,)?) => {

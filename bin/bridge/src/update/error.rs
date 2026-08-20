@@ -27,15 +27,10 @@ pub enum UpdateError {
     Download(Box<reqwest::Error>),
     #[error("gateway rejected the download: status={status}")]
     DownloadStatus { status: reqwest::StatusCode },
-    /// The downloaded bytes did not match the manifest digest. Treated as
-    /// hostile, never as a transient error to retry around.
     #[error("checksum mismatch: expected {expected}, got {actual}")]
     ChecksumMismatch { expected: String, actual: String },
     #[error("could not resolve the staging directory")]
     NoStagingDir,
-    /// The installed binary or bundle is somewhere this process may not write —
-    /// a per-machine install, or a macOS app still running from the mounted
-    /// dmg.
     #[error("{path} is not writable; {hint}")]
     NotWritable { path: PathBuf, hint: String },
     #[error("could not locate the running {what}: {detail}")]
@@ -51,8 +46,6 @@ pub enum UpdateError {
     },
     #[error("relaunch failed: {0}")]
     Relaunch(std::io::Error),
-    /// A release was published between the check and the install, so the bytes
-    /// on offer are no longer the ones the user agreed to.
     #[error("the published version changed from {expected} to {actual} mid-install; try again")]
     VersionChanged { expected: String, actual: String },
 }

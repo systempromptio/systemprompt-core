@@ -108,9 +108,6 @@ fn authorize(request: &Request, config: &SiteAuthConfig) -> AuthOutcome {
     }
 }
 
-/// The bridge device-link carries its loopback callback in `?redirect=...`, so
-/// dropping the query strands the post-login bounce on a page whose extractor
-/// then 400s.
 #[must_use]
 pub fn login_redirect(login_path: &str, uri: &http::Uri) -> String {
     let target = uri

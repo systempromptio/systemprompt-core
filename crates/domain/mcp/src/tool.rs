@@ -15,7 +15,7 @@ use crate::response::{McpResponseBuilder, ToolIdentity};
 use crate::schema::McpOutputSchema;
 use chrono::Utc;
 use rmcp::ErrorData as McpError;
-use rmcp::model::{CallToolRequestParams, CallToolResult};
+use rmcp::model::{CacheScope, CallToolRequestParams, CallToolResult, ListToolsResult, Tool};
 use schemars::JsonSchema;
 use serde::Serialize;
 use serde::de::DeserializeOwned;
@@ -24,6 +24,18 @@ use std::sync::Arc;
 use systemprompt_identifiers::McpExecutionId;
 use systemprompt_models::RequestContext;
 use systemprompt_models::mcp::ClientProfile;
+
+// Why: a server's tool list is baked into its binary and identical for every
+// caller, so intermediaries may share it (SEP-2549 `public`) until the next
+// redeploy — the same rationale as the static artifact-viewer template.
+const TOOL_LIST_TTL_MS: u64 = 3_600_000;
+
+#[must_use]
+pub fn build_tool_list_result(tools: Vec<Tool>) -> ListToolsResult {
+    ListToolsResult::with_all_items(tools)
+        .with_ttl_ms(TOOL_LIST_TTL_MS)
+        .with_cache_scope(CacheScope::Public)
+}
 
 pub trait McpToolHandler: Send + Sync {
     type Input: DeserializeOwned + JsonSchema + Send;
@@ -50,18 +62,11 @@ pub trait McpToolHandler: Send + Sync {
         Self::Output::validated_schema()
     }
 
-    /// Whether this tool only reads state. Advertised as the MCP
-    /// `readOnlyHint` annotation, which lets a host serve cached results when
-    /// the transport stalls instead of rendering an empty panel.
     fn read_only(&self) -> bool {
         false
     }
 
-    /// The canonical `tools/list` entry for this handler: name, description,
-    /// both schemas, the `readOnlyHint` annotation, and the UI meta. Servers
-    /// hand-rolling `Tool` values drift from the wire contract; build them
-    /// here.
-    fn tool_definition(&self, server_name: &str) -> rmcp::model::Tool {
+    fn tool_definition(&self, server_name: &str) -> Tool {
         let input_obj = self.input_schema().as_object().cloned().unwrap_or_default();
         let output_obj = self
             .output_schema()
@@ -69,7 +74,7 @@ pub trait McpToolHandler: Send + Sync {
             .cloned()
             .unwrap_or_default();
 
-        let mut tool = rmcp::model::Tool::default();
+        let mut tool = Tool::default();
         tool.name = self.tool_name().to_owned().into();
         tool.description = Some(self.description().to_owned().into());
         tool.input_schema = Arc::new(input_obj);

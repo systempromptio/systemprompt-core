@@ -104,12 +104,6 @@ pub fn install_id_path() -> Option<PathBuf> {
     )
 }
 
-/// The config directory this install reads and writes, for humans.
-///
-/// Quoted back to a rejected caller so the operator can see *which* of their
-/// installs answered. That does expose a username to anything on loopback; the
-/// alternative is a 403 nobody can act on, which is what this whole change is
-/// fixing.
 #[must_use]
 pub fn config_dir_display() -> String {
     crate::basedirs::config_dir().map_or_else(
@@ -122,11 +116,6 @@ pub fn config_dir_display() -> String {
     )
 }
 
-/// Stable per-install id, minted on first use.
-///
-/// Falls back to `unknown` when there is no config directory. Two installs both
-/// reporting `unknown` will read as the same install, so callers treat it as
-/// unidentified rather than matching — see [`WhoAmI::is_ours`] callers.
 #[must_use]
 pub fn install_id() -> InstallId {
     if let Some(id) = INSTALL_ID.get() {

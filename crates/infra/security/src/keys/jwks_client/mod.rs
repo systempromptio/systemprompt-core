@@ -29,12 +29,6 @@ pub const MIN_CACHE_TTL: Duration = Duration::from_secs(30);
 pub const MAX_CACHE_TTL: Duration = Duration::from_secs(3600);
 pub const DEFAULT_CACHE_CAPACITY: usize = 32;
 
-/// Minimum interval between unknown-`kid`-triggered JWKS refetches for a
-/// single issuer.
-///
-/// Caps the `DoS` amplification when an attacker spams tokens with random
-/// `kid` headers; legitimate rotations are still picked up after at most
-/// this delay (well under any sane rotation window).
 pub const DEFAULT_MIN_REFRESH_INTERVAL: Duration = Duration::from_secs(10);
 
 pub(super) const WELLKNOWN_JWKS_PATH: &str = "/.well-known/jwks.json";
@@ -110,9 +104,6 @@ impl JwksClient {
         self
     }
 
-    /// Override the per-issuer minimum interval between unknown-`kid`
-    /// refetches. Set to `Duration::ZERO` to disable the `DoS` guard (tests
-    /// only — production callers should keep the default).
     #[must_use]
     pub const fn with_min_refresh_interval(mut self, interval: Duration) -> Self {
         self.min_refresh_interval = interval;

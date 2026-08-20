@@ -124,8 +124,6 @@ fn resolve_targets(
     validate_delete_targets(requested, &available)
 }
 
-/// Resolves the delete target set: a specific agent when `requested` is
-/// given (which must exist), otherwise every available agent.
 pub fn validate_delete_targets(
     requested: Option<String>,
     available: &[String],

@@ -19,8 +19,6 @@ pub(crate) struct PluginApplyOutcome {
     pub removed: Vec<String>,
     pub malformed: Vec<String>,
     pub host_failures: Vec<HostFailure>,
-    /// MCP server names per plugin, recovered from each bundle's `.mcp.json`
-    /// before it is stripped from the Cowork-visible tree.
     pub mcp_servers_by_plugin: BTreeMap<String, Vec<String>>,
 }
 

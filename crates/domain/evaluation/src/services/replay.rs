@@ -38,9 +38,6 @@ impl ReplayService {
         }
     }
 
-    /// Re-executes a canonical prompt with the repair hint injected ahead of
-    /// the final user turn, so the model sees the corrective instruction in
-    /// the position a system hint would occupy at serve time.
     pub async fn replay(&self, prompt: &CanonicalPrompt, repair_hint: &str) -> Result<AiResponse> {
         let messages = build_messages(&prompt.messages, repair_hint)?;
         let context = RequestContext::new(

@@ -81,13 +81,6 @@ struct RegistrationCtx<'a> {
     owners: &'a HashMap<String, UserId>,
 }
 
-/// The check [`SchedulerService::start`] enforces at boot, exposed so
-/// authoring-time tooling rejects what the server rejects.
-///
-/// Membership is tested against the `inventory` catalog alone — the only
-/// catalog dispatch resolves against, so a name carried solely by an
-/// [`systemprompt_extension::ExtensionRegistry`] entry genuinely cannot run and
-/// must be reported.
 #[must_use]
 pub fn unknown_job_names(config: &SchedulerConfig) -> Vec<String> {
     let registered: HashSet<&'static str> = inventory::iter::<&'static dyn JobTrait>
@@ -149,9 +142,6 @@ impl SchedulerService {
         })
     }
 
-    /// A job whose explicit `owner` does not resolve to an active user is
-    /// skipped rather than aborting the scheduler; the skipped set rides back
-    /// in [`SchedulerStartup::degraded`] for the health signal.
     pub async fn start(self) -> SchedulerResult<SchedulerStartup> {
         if !self.config.enabled {
             info!("Scheduler is disabled");
@@ -212,11 +202,6 @@ impl SchedulerService {
         }
     }
 
-    /// An inventory job absent from `scheduler.jobs` is silently never
-    /// scheduled; surface each one at boot so a dead pipeline (e.g. bot
-    /// classification jobs missing from a deployed profile) is visible.
-    /// Jobs that opt out via [`JobTrait::schedulable`] are inline steps of a
-    /// pipeline job and are expected to have no entry of their own.
     fn warn_unscheduled_jobs(
         &self,
         registered_jobs: &HashMap<&'static str, &'static dyn JobTrait>,

@@ -35,7 +35,6 @@ pub(crate) struct HostEntryPayload<'a> {
     pub models_checked: bool,
     pub compatible_models_available: bool,
     pub unconfigured_providers: Vec<String>,
-    /// Wire-protocol filter in force; empty means "all models".
     pub model_protocols: Vec<String>,
     pub model_protocols_overridden: bool,
 }

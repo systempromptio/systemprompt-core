@@ -17,9 +17,7 @@ use crate::repository::AiGatewayPolicyRepository;
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct IngestOptions {
-    /// When `false`, an already-present policy is left untouched.
     pub override_existing: bool,
-    /// When `true`, policies in the DB but absent from the config are deleted.
     pub delete_orphans: bool,
 }
 

@@ -41,8 +41,6 @@ impl CloudProfileBuilder {
         }
     }
 
-    /// Carries forward an operator's hand-set `paths.geoip_database` so
-    /// re-authoring a cloud profile does not silently disable `GeoIP`.
     #[must_use]
     pub fn with_geoip_database(mut self, geoip_database: Option<String>) -> Self {
         self.geoip_database = geoip_database;

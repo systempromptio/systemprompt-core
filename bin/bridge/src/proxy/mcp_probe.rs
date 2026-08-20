@@ -33,18 +33,14 @@ pub enum McpAuthState {
     Unknown,
     NoServers,
     Authenticated,
-    /// Proxy 403 — presented loopback secret rejected.
     LoopbackMismatch,
-    /// Gateway 401 — injected bridge JWT rejected.
     GatewayUnauthorized,
-    /// Proxy 404 — slug not in the proxy's live registry.
     NotRegistered,
     UpstreamError,
     ProxyUnreachable,
     ProtocolError,
 }
 
-/// Returns one synthetic `NoServers` entry when the registry is empty.
 #[must_use]
 pub async fn probe_all() -> Vec<McpServerAuth> {
     let registry = crate::mcp_registry::snapshot();
@@ -124,8 +120,6 @@ async fn probe_one(client: &reqwest::Client, slug: &str) -> McpServerAuth {
     probe_endpoint(client, slug, &url, &bearer).await
 }
 
-/// `url` and `bearer` are injected so callers can drive the probe against any
-/// endpoint without touching global proxy state.
 pub async fn probe_endpoint(
     client: &reqwest::Client,
     slug: &str,

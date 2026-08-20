@@ -77,11 +77,6 @@ pub fn resolve_client_ip(
     Some(peer_ip)
 }
 
-/// Detects a proxy missing from `trusted_proxies`.
-///
-/// An untrusted private-range peer presenting `X-Forwarded-For` near-certainly
-/// means the server is deployed behind an unlisted proxy — real clients never
-/// connect from those ranges in a cloud deployment.
 #[must_use]
 pub fn forwarded_headers_ignored(headers: &HeaderMap, peer_ip: IpAddr, trusted: &[IpNet]) -> bool {
     !is_trusted(peer_ip, trusted)

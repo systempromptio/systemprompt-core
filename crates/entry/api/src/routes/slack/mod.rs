@@ -39,8 +39,6 @@ use verify::{bot_token, resolve_app, verify_any_app, verify_app};
 
 const ISSUER: &str = "https://slack.com";
 
-/// Router for the Slack inbound surface, mounted under `ApiPaths::SLACK_BASE`
-/// with no JWT middleware (requests are authenticated by Slack signature).
 pub fn slack_router() -> Router<AppContext> {
     Router::new()
         .route("/events", post(handle_events))

@@ -60,11 +60,6 @@ pub fn tap(
     Body::from_stream(tapped)
 }
 
-/// Relays an upstream byte stream unchanged while accounting for what passes.
-///
-/// The client receives the provider's own SSE frames; a decoded copy feeds the
-/// same accumulator the translating tap uses, so audit, cost, quota, and the
-/// response-phase safety scan behave identically on both lanes.
 pub fn tap_raw(
     upstream: BoxStream<'static, Result<Bytes, String>>,
     audit: Arc<GatewayAudit>,

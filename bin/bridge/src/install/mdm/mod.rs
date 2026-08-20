@@ -209,12 +209,6 @@ pub(crate) fn managed_mcp_servers_json() -> Option<String> {
     serde_json::to_string(&entries).ok()
 }
 
-/// Operator-facing MDM configuration example for `os`.
-///
-/// The active brand's gateway URL and default workspace folder are substituted
-/// in. Rendered by the installer when it cannot apply policy directly
-/// (unelevated / no MDM channel); `None` for `gateway_url` falls back to the
-/// public placeholder host.
 #[expect(
     clippy::literal_string_with_formatting_args,
     reason = "{gateway} is a template placeholder consumed by str::replace, not a fmt arg"

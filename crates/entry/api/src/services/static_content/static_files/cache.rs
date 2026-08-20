@@ -23,9 +23,6 @@ pub const CACHE_METADATA: &str = "public, max-age=3600";
 const CONTENT_HASH_MIN_LEN: usize = 8;
 const CONTENT_HASH_MAX_LEN: usize = 32;
 
-/// The hash predicate is deliberately conservative: a missed hash costs one
-/// conditional request, whereas a false positive pins a mutable URL in client
-/// and CDN caches for a year.
 pub fn asset_cache_policy(path: &Path) -> &'static str {
     let hashed = path
         .file_name()

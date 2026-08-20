@@ -56,8 +56,6 @@ pub struct HealthCheckResult {
 #[derive(Debug, Clone)]
 pub struct HealthCheckDetails {
     pub service_name: String,
-    /// `None` when the tool list was never enumerated (OAuth-gated or
-    /// accessor-backed servers), as distinct from `Some(0)`.
     pub tools_available: Option<usize>,
     pub requires_auth: bool,
     pub validation_type: String,

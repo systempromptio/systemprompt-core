@@ -20,7 +20,6 @@ impl RequestScope {
         Self::default()
     }
 
-    /// Insert or replace the value for `key`.
     pub fn insert(&mut self, key: impl Into<String>, value: impl Into<String>) {
         let key = key.into();
         let value = value.into();

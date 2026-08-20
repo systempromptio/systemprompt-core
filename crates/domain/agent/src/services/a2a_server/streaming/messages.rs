@@ -55,10 +55,6 @@ pub async fn create_sse_stream(
     create_sse_stream_with_registry(params, AgentRegistry::new()).await
 }
 
-/// Sibling of [`create_sse_stream`] taking the agent-registry snapshot as an
-/// argument instead of resolving the global [`ConfigLoader`] registry.
-///
-/// [`ConfigLoader`]: systemprompt_loader::ConfigLoader
 pub async fn create_sse_stream_with_registry(
     params: CreateSseStreamParams,
     registry: AgentResult<AgentRegistry>,

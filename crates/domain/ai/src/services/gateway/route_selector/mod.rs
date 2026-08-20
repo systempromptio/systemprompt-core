@@ -55,14 +55,6 @@ pub struct RouteSelectorRegistration {
 
 inventory::collect!(RouteSelectorRegistration);
 
-/// Register a [`RouteSelector`] implementation with the gateway.
-///
-/// ```ignore
-/// use systemprompt_ai::register_route_selector;
-/// register_route_selector!(TokenBudgetSelector::new, name = "token-budget");
-/// ```
-///
-/// `$factory` is any `fn() -> Arc<dyn RouteSelector>`.
 #[macro_export]
 macro_rules! register_route_selector {
     ($factory:expr, name = $name:expr $(,)?) => {
@@ -103,9 +95,6 @@ impl RouteSelectorEngine {
         !self.selectors.is_empty()
     }
 
-    /// Runs each registered selector in registration order; the first to return
-    /// a replacement route wins. Returns the replacement and the selector's
-    /// name (for the audit descriptor), or `None` when no selector re-routes.
     pub async fn refine(
         &self,
         matched: &GatewayRoute,

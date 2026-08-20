@@ -62,17 +62,8 @@ pub struct Finding {
 pub trait SafetyScanner: Send + Sync {
     fn name(&self) -> &'static str;
 
-    /// Judges the newest turn of `req`. Findings belong at [`PHASE_REQUEST`]
-    /// and deny the request when their category is blocked by policy.
-    ///
-    /// A request carries the whole conversation, so a scanner that reads all of
-    /// it here denies every later turn once a single finding lands. Earlier
-    /// turns belong in [`Self::scan_request_history`].
     async fn scan_request(&self, req: &CanonicalRequest) -> Vec<Finding>;
 
-    /// Judges the turns preceding the newest one. Findings belong at
-    /// [`PHASE_REQUEST_HISTORY`] and are recorded without denying the request
-    /// unless policy sets `SafetyConfig::history` to `block`.
     async fn scan_request_history(&self, _req: &CanonicalRequest) -> Vec<Finding> {
         Vec::new()
     }
@@ -93,14 +84,6 @@ pub struct SafetyScannerRegistration {
 
 inventory::collect!(SafetyScannerRegistration);
 
-/// Register a [`SafetyScanner`] implementation with the gateway.
-///
-/// ```ignore
-/// use systemprompt_ai::register_safety_scanner;
-/// register_safety_scanner!(SecretsScanner::new, name = "secrets");
-/// ```
-///
-/// `$factory` is any `fn() -> Arc<dyn SafetyScanner>`.
 #[macro_export]
 macro_rules! register_safety_scanner {
     ($factory:expr, name = $name:expr $(,)?) => {

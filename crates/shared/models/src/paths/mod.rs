@@ -32,7 +32,6 @@ use systemprompt_extension::AssetPaths;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PathResolution {
     Canonicalize,
-    /// Take absolute paths verbatim without touching the filesystem.
     Lexical,
 }
 

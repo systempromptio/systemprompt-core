@@ -66,7 +66,6 @@ struct OpenExternalUrlArgs {
 struct HostModelFilterArgs {
     #[serde(rename = "hostId")]
     host_id: String,
-    /// `None` clears the override; `Some([])` means "all models".
     #[serde(default)]
     protocols: Option<Vec<String>>,
 }

@@ -52,16 +52,11 @@ pub struct PolicyConfig {
 /// The ordered policy chain declaration.
 #[derive(Debug, Clone)]
 pub struct GovernanceConfig {
-    /// `governance.enabled: false` switches the whole chain off in one key,
-    /// leaving the per-policy declarations below intact so the configuration
-    /// survives being turned back on.
     pub enabled: bool,
     pub policies: Vec<PolicyConfig>,
 }
 
 impl GovernanceConfig {
-    /// The four built-in policies, enabled, with default parameters, in
-    /// first-deny-wins order: cheap-and-fatal checks before stateful ones.
     #[must_use]
     pub fn defaults() -> Self {
         let policies = ["secret_scan", "scope_check", "tool_blocklist", "rate_limit"]
@@ -78,7 +73,6 @@ impl GovernanceConfig {
         }
     }
 
-    /// Strict parse of a YAML document.
     pub fn parse(yaml: &str) -> Result<Self, GovernanceConfigError> {
         let root: YamlValue = serde_yaml::from_str(yaml)?;
         let governance = root.get("governance");
@@ -114,8 +108,6 @@ impl GovernanceConfig {
         })
     }
 
-    /// `Ok(None)` when the file is simply absent — the one failure that is a
-    /// legitimate deployment, not a mistake.
     fn read(path: &Path) -> Result<Option<Self>, GovernanceConfigError> {
         match std::fs::read_to_string(path) {
             Ok(text) => Self::parse(&text).map(Some),
@@ -124,23 +116,10 @@ impl GovernanceConfig {
         }
     }
 
-    /// Boot-time check, for callers that can still refuse to start.
-    ///
-    /// Why: [`Self::load`] cannot fail, so a typo in the policy chain reaches
-    /// the runtime as silently-restored defaults — which for governance means
-    /// *more* enforcement than was asked for, and for an operator who edited
-    /// the file to relax a policy, the exact opposite of their intent. Calling
-    /// this once during startup converts that into a refusal to boot, while
-    /// leaving the request path unable to die on a config read.
     pub fn validate(path: &Path) -> Result<(), GovernanceConfigError> {
         Self::read(path).map(|_| ())
     }
 
-    /// Lenient load for the request path: every failure falls back to
-    /// [`Self::defaults`] and logs, because a governance deployment that
-    /// failed closed on a config typo would block every tool call in the
-    /// installation. Pair with [`Self::validate`] at startup to catch the typo
-    /// before it gets this far.
     #[must_use]
     pub fn load(path: &Path) -> Self {
         match Self::read(path) {

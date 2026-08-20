@@ -14,9 +14,6 @@ use systemprompt_identifiers::{SessionId, ValidatedUrl};
 #[derive(Debug)]
 pub struct MtlsProvider {
     base_url: ValidatedUrl,
-    /// `mtls.cert_keystore_ref` verbatim. On Linux this is the device
-    /// certificate's path; elsewhere its presence alone means "mTLS is
-    /// configured".
     cert_ref: Option<String>,
     env_configured: bool,
 }

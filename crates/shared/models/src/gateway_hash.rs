@@ -14,10 +14,6 @@
 const FNV_OFFSET: u64 = 0xcbf2_9ce4_8422_2325;
 const FNV_PRIME: u64 = 0x0000_0100_0000_01b3;
 
-/// Hash an ordered list of labelled byte segments with FNV-1a 64.
-///
-/// Each segment is mixed in as `label || 0x00 || len_le_u32 || bytes || 0xFF`
-/// so that distinct segment boundaries cannot collide.
 #[must_use]
 pub fn fnv1a_segments(parts: &[(&str, &[u8])]) -> u64 {
     let mut hash = FNV_OFFSET;

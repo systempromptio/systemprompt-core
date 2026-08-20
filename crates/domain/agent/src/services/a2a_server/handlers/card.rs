@@ -30,10 +30,6 @@ pub async fn handle_agent_card(State(state): State<Arc<AgentHandlerState>>) -> i
     agent_card_response(AgentRegistry::new(), &agent_name, &base_url).await
 }
 
-/// Sibling of [`handle_agent_card`] taking the agent-registry snapshot as an
-/// argument instead of resolving the global [`ConfigLoader`] registry.
-///
-/// [`ConfigLoader`]: systemprompt_loader::ConfigLoader
 pub async fn agent_card_response(
     registry: AgentResult<AgentRegistry>,
     agent_name: &str,

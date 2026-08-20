@@ -46,8 +46,6 @@ pub struct DimensionScore {
 }
 
 impl JudgeVerdict {
-    /// JSON schema the judge request is constrained with; keep in sync with
-    /// the `Deserialize` shape above.
     #[must_use]
     pub fn response_schema() -> serde_json::Value {
         serde_json::json!({

@@ -35,11 +35,7 @@ struct IssOnly {
 pub struct SubjectIdentity {
     pub scope: Vec<Permission>,
     pub prior_act: Option<ActClaim>,
-    /// Set only on the EMA path, where the ID-JAG names the employee the token
-    /// must be issued for. Every other subject type delegates the OAuth
-    /// client owner's identity instead and leaves this `None`.
     pub principal: Option<EnterprisePrincipal>,
-    /// Resource the ID-JAG pins the exchange to, when it carries one.
     pub bound_resource: Option<String>,
 }
 

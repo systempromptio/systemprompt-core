@@ -70,8 +70,6 @@ impl SessionContext {
     }
 }
 
-/// Stable conversation-prefix hash from a request body; `None` when no first
-/// turn is parseable (the gateway then derives the id itself).
 #[must_use]
 pub fn derive_gateway_conversation_id(body: &[u8]) -> Option<u64> {
     let probe: PrefixProbe = serde_json::from_slice(body).ok()?;

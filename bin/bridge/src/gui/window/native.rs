@@ -148,8 +148,6 @@ impl SettingsWindow {
         self.window.set_visible(false);
     }
 
-    /// Must be driven from `WindowEvent::Resized`: the webview is a child view
-    /// with fixed bounds, so nothing resizes it otherwise.
     pub fn resize_webview(&self, size: PhysicalSize<u32>) {
         if let Err(e) = self.webview.set_bounds(Rect {
             position: LogicalPosition::new(0, 0).into(),

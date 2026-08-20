@@ -22,12 +22,6 @@ pub use error::UpdateError;
 use crate::gateway::GatewayClient;
 use crate::gateway::types::ReleaseManifest;
 
-/// The artifact key this build asks the gateway for. Matches the release
-/// workflow's build matrix; `None` where we publish nothing.
-///
-/// Written as one match over the target constants rather than `cfg` blocks so
-/// every platform compiles the same shape — a `cfg`-per-arm version reads as
-/// "always returns `Some`" on macOS and Windows, which is a lint and a lie.
 #[must_use]
 pub fn platform_slug() -> Option<&'static str> {
     match (std::env::consts::OS, std::env::consts::ARCH) {
@@ -42,9 +36,9 @@ pub fn platform_slug() -> Option<&'static str> {
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 #[serde(tag = "state", rename_all = "snake_case")]
 pub enum UpdateStatus {
-    /// Nothing newer is published. Also covers a local build *ahead* of the
-    /// gateway, which is normal on a development machine.
-    Current { version: String },
+    Current {
+        version: String,
+    },
     Available {
         version: String,
         #[serde(skip_serializing_if = "Option::is_none")]
@@ -64,7 +58,6 @@ impl UpdateStatus {
 #[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
 #[serde(tag = "phase", rename_all = "snake_case")]
 pub enum UpdateUiState {
-    /// No check has completed yet. The button shows nothing.
     #[default]
     Unknown,
     Current,
@@ -80,7 +73,6 @@ pub enum UpdateUiState {
     Installing {
         version: String,
     },
-    /// Swapped in; the GUI offers a restart rather than forcing one.
     Ready {
         version: String,
     },
@@ -90,8 +82,6 @@ pub enum UpdateUiState {
 }
 
 impl UpdateUiState {
-    /// The version this state refers to, so a progress update can be matched to
-    /// the release that started it.
     #[must_use]
     pub fn version(&self) -> Option<&str> {
         match self {
@@ -116,11 +106,6 @@ impl From<&UpdateStatus> for UpdateUiState {
     }
 }
 
-/// Compares the gateway's newest published build against this one.
-///
-/// Both versions must parse as semver; a malformed version on either side is an
-/// error rather than a silent "no update", so a broken manifest is visible
-/// instead of quietly pinning every client forever.
 pub async fn check(
     client: &GatewayClient,
     bearer: &str,
@@ -155,10 +140,6 @@ fn compare(local: &str, manifest: &ReleaseManifest) -> Result<UpdateStatus, Upda
     }
 }
 
-/// Downloads, verifies, and swaps in the build described by `manifest`.
-///
-/// Returns the path that now holds the new build. Does **not** relaunch — the
-/// caller decides, because the GUI wants a restart and the CLI does not.
 pub async fn apply(
     client: &GatewayClient,
     bearer: &str,
@@ -174,22 +155,14 @@ pub async fn apply(
     Ok(installed)
 }
 
-/// Housekeeping for swap leftovers, called once at startup. Only Windows
-/// leaves any: it renames the running exe aside because it cannot overwrite it.
 pub fn sweep_leftovers() {
     install::sweep_leftovers();
 }
 
-/// Where the running install lives — the `.app` bundle on macOS, the executable
-/// elsewhere. This is what [`spawn_installed`] relaunches after a swap.
 pub fn installed_path() -> Result<std::path::PathBuf, UpdateError> {
     install::installed_path()
 }
 
-/// Starts the freshly-installed build as a detached process.
-///
-/// The caller exits immediately afterwards; on Windows in particular the old
-/// process must release its image lock before the leftover can be swept.
 pub fn spawn_installed(installed: &std::path::Path) -> Result<(), UpdateError> {
     let mut command =
         if cfg!(target_os = "macos") && installed.extension().is_some_and(|e| e == "app") {
@@ -239,7 +212,6 @@ mod tests {
         ));
     }
 
-    /// Normal on a development machine, and must not offer a downgrade.
     #[test]
     fn local_ahead_of_gateway_is_current() {
         assert!(matches!(
@@ -248,7 +220,6 @@ mod tests {
         ));
     }
 
-    /// The case a lexical string compare gets wrong.
     #[test]
     fn patch_ten_is_newer_than_patch_nine() {
         assert!(matches!(

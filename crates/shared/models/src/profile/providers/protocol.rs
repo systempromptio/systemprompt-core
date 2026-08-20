@@ -49,9 +49,6 @@ impl WireProtocol {
         }
     }
 
-    /// The *implied* default surface only — the authoritative one is the
-    /// explicit [`super::ProviderEntry::surface`] field, which can advertise a
-    /// provider under a different family or none at all (`backend`).
     #[must_use]
     pub const fn surface(self) -> ApiSurface {
         match self {

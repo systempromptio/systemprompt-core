@@ -56,9 +56,6 @@ impl StepStatus {
         }
     }
 
-    /// Terminal statuses take no further action. The re-probe that
-    /// `on_profile_install_finished` fires would otherwise re-enter the
-    /// orchestrator and restart the host's chain forever.
     pub const fn is_terminal(self) -> bool {
         matches!(self, Self::Done | Self::Failed | Self::Skipped)
     }
@@ -74,15 +71,12 @@ pub struct FirstRunHost {
 
 #[derive(Debug, Clone, Default)]
 pub struct FirstRunState {
-    /// A run is in flight. While true the wizard refuses to finish.
     pub active: bool,
-    /// A run has completed at some point on this machine (sentinel present).
     pub done: bool,
     pub phase: FirstRunPhase,
     pub hosts: Vec<FirstRunHost>,
     pub sync: StepStatus,
     pub error: Option<String>,
-    /// When the run began, for the watchdog. Zero when no run has started.
     pub started_at_unix: u64,
 }
 

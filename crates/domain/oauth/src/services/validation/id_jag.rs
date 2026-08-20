@@ -9,11 +9,8 @@ use systemprompt_identifiers::ClientId;
 
 pub const ID_JAG_TOKEN_TYPE: &str = "urn:ietf:params:oauth:token-type:id-jag";
 
-/// Mandatory JOSE `typ` header of an ID-JAG (draft §3).
 pub const ID_JAG_TYP: &str = "oauth-id-jag+jwt";
 
-/// Authorization-grant profile an EMA client looks for in authorization-server
-/// metadata to know it should present an ID-JAG rather than redirect the user.
 pub const ID_JAG_GRANT_PROFILE: &str = "urn:ietf:params:oauth:grant-profile:id-jag";
 
 pub const DEFAULT_LEEWAY_SECS: i64 = 60;
@@ -39,7 +36,6 @@ pub struct IdJagClaims {
 }
 
 impl IdJagClaims {
-    /// `client_id`, falling back to `azp` (draft permits either).
     #[must_use]
     pub fn bound_client(&self) -> Option<&ClientId> {
         self.client_id.as_ref().or(self.azp.as_ref())
@@ -79,7 +75,6 @@ pub fn validate_typ(typ: Option<&str>) -> Result<(), IdJagError> {
 pub struct ClaimPolicy<'a> {
     pub expected_audience: &'a str,
     pub authenticated_client: &'a str,
-    /// Empty means any client (still bound to `authenticated_client`).
     pub allowed_client_ids: &'a [String],
     pub now: i64,
     pub leeway: i64,
@@ -121,12 +116,6 @@ pub fn validate_claims(claims: &IdJagClaims, policy: &ClaimPolicy<'_>) -> Result
     Ok(())
 }
 
-/// Resolve the resource the exchanged access token may target.
-///
-/// An ID-JAG carrying a `resource` claim pins the grant to that resource: the
-/// request may either omit `resource` or name the same one. An ID-JAG without
-/// the claim leaves the choice to the request, which the caller still filters
-/// through its own resource allowlist.
 pub fn resolve_bound_resource<'a>(
     bound: Option<&'a str>,
     requested: Option<&'a str>,

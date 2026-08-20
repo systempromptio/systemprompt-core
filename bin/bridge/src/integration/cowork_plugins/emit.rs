@@ -55,8 +55,6 @@ pub struct EmitReport {
     pub enabled: bool,
 }
 
-/// `None` means no Cowork install detected; callers treat it as a no-op, not an
-/// error.
 #[must_use]
 pub fn resolve_target() -> Option<CoworkTarget> {
     if let Some(configured) = configured_session_org_dir() {

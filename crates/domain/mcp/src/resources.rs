@@ -5,8 +5,8 @@
 
 use rmcp::ErrorData as McpError;
 use rmcp::model::{
-    CacheScope, Icon, ListResourcesResult, MetaObject, ReadResourceRequestParams,
-    ReadResourceResult, Resource, ResourceContents,
+    CacheScope, Icon, ListResourceTemplatesResult, ListResourcesResult, MetaObject,
+    ReadResourceRequestParams, ReadResourceResult, Resource, ResourceContents,
 };
 
 use crate::capabilities::WEBSITE_URL;
@@ -45,6 +45,13 @@ pub fn build_artifact_viewer_resource(config: &ArtifactViewerConfig<'_>) -> List
     resource.icons.clone_from(&config.icons);
 
     ListResourcesResult::with_all_items(vec![resource])
+        .with_ttl_ms(STATIC_TEMPLATE_TTL_MS)
+        .with_cache_scope(CacheScope::Public)
+}
+
+#[must_use]
+pub fn build_resource_template_list_result() -> ListResourceTemplatesResult {
+    ListResourceTemplatesResult::with_all_items(Vec::new())
         .with_ttl_ms(STATIC_TEMPLATE_TTL_MS)
         .with_cache_scope(CacheScope::Public)
 }

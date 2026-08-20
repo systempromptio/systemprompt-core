@@ -142,8 +142,6 @@ impl Database {
         pool.begin().await.map_err(Into::into)
     }
 
-    /// Begin a write transaction with the request's connection scope applied
-    /// — see [`crate::scope`].
     pub async fn begin_scoped(
         &self,
         scope: &systemprompt_models::RequestScope,

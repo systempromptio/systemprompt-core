@@ -88,9 +88,6 @@ impl BridgeHostPrefsRepository {
             .collect())
     }
 
-    /// Set or clear a host's wire-protocol override. `Some(list)` upserts the
-    /// override (an empty list means "all models"); `None` removes it so the
-    /// host falls back to its built-in default.
     pub async fn set_model_protocols(
         &self,
         user_id: &UserId,

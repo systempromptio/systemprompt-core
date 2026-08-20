@@ -24,8 +24,6 @@ struct AppSeed {
 }
 
 impl AccessControlIngestionService {
-    /// Seed `slack_workspace` allow-rules from each enabled Slack app's
-    /// `authz.allowed_roles`.
     pub async fn ingest_slack_apps(
         &self,
         apps: &HashMap<String, SlackAppConfig>,
@@ -43,8 +41,6 @@ impl AccessControlIngestionService {
             .await
     }
 
-    /// Seed `teams_tenant` allow-rules from each enabled Teams app's
-    /// `authz.allowed_roles`.
     pub async fn ingest_teams_apps(
         &self,
         apps: &HashMap<String, TeamsAppConfig>,

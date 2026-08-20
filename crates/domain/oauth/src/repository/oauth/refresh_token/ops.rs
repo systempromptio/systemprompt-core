@@ -40,9 +40,6 @@ impl OAuthRepository {
         Ok(())
     }
 
-    /// Returns the family regardless of whether the token has been consumed —
-    /// callers use this to revoke the family on replay. `None` means the
-    /// token does not exist.
     pub async fn find_refresh_token_family(
         &self,
         token_id: &RefreshTokenId,
@@ -57,7 +54,6 @@ impl OAuthRepository {
         Ok(result)
     }
 
-    /// Deletes both active and consumed-tombstone rows for the family.
     pub async fn revoke_refresh_token_family(&self, family_id: &str) -> OauthResult<u64> {
         let result = sqlx::query!(
             "DELETE FROM oauth_refresh_tokens WHERE family_id = $1",
@@ -98,10 +94,6 @@ impl OAuthRepository {
         Ok((UserId::new(row.user_id), row.scope))
     }
 
-    /// Atomically claim a refresh token for rotation. Race-loser receives
-    /// [`OauthError::TokenInvalid`]. If the unclaimable token is a replay
-    /// (already consumed), its family is revoked transparently before the
-    /// error is returned (RFC 6819 §5.2.2.3 refresh-token-rotation).
     pub async fn consume_refresh_token(
         &self,
         token_id: &RefreshTokenId,
@@ -188,9 +180,6 @@ impl OAuthRepository {
         Ok(result.rows_affected() > 0)
     }
 
-    /// Live tokens (`consumed_at` IS NULL, `expires_at` >= now) and
-    /// recently-consumed tombstones (still within their original expiry
-    /// window) are preserved so replay detection retains evidence.
     pub async fn cleanup_expired_refresh_tokens(&self) -> OauthResult<u64> {
         let now = Utc::now();
 

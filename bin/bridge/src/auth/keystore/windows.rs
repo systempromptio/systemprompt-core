@@ -128,8 +128,6 @@ fn cert_encoded_bytes(ctx: *const CERT_CONTEXT) -> Vec<u8> {
     }
 }
 
-/// `cert_ref` is Linux-only (a certificate path); the Windows store addresses
-/// certificates by SHA-256 thumbprint, so it is ignored here.
 pub fn platform_source(_cert_ref: CertRef<'_>) -> Box<dyn DeviceCertSource> {
     Box::new(WindowsKeystore::new())
 }

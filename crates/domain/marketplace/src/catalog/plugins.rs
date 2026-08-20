@@ -146,11 +146,6 @@ pub fn load_plugins(
     Ok(out)
 }
 
-/// Artifact id to the ids of the selected plugins that ship it.
-///
-/// Selection is many-to-many — one artifact may be included by several
-/// plugins — so a per-user filter that drops a plugin must drop only the
-/// artifacts left with no surviving owner.
 pub fn artifact_owners(
     services: &ServicesConfig,
     artifacts: &[ArtifactEntry],
@@ -182,11 +177,6 @@ pub fn artifact_owners(
     Ok(out)
 }
 
-/// Single source of truth for "does this plugin ship this artifact".
-///
-/// Shared by the manifest's owner map above and the bundle assembler. Selection
-/// is a distribution gate — an artifact reaches a client only through a plugin
-/// that selects it — so the two callers must not drift.
 #[must_use]
 pub fn selects_artifact(config: &PluginConfig, artifact_id: &LibraryArtifactId) -> bool {
     let artifact_id = artifact_id.as_str();

@@ -156,12 +156,6 @@ fn evaluate_extension_config(
         .map_err(|e| ExtConfigError::Validate(e.to_string()))
 }
 
-/// Run every config-bearing extension's `validate_config` against the resolved
-/// service config under `services_path` and collect the results.
-///
-/// This is the same per-extension load-and-validate the serve boot path runs;
-/// both paths funnel through `evaluate_extension_config` so they cannot drift.
-/// `Err` indicates the extension registry could not be discovered at all.
 pub fn validate_extension_configs(
     services_path: &Path,
 ) -> Result<Vec<ExtensionConfigOutcome>, String> {

@@ -34,8 +34,6 @@ pub fn run() -> ExitCode {
     run_with_args(&args)
 }
 
-/// Dispatches the command tree over an explicit argv, so callers other than
-/// process start (tests, embedders) can drive the same tree.
 pub fn run_with_args(args: &[String]) -> ExitCode {
     if args.len() == 1 && args::should_default_to_gui() {
         return gui::cmd_gui();

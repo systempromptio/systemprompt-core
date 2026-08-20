@@ -24,15 +24,11 @@ pub struct ProtectedResourceMetadata {
     pub bearer_methods_supported: Vec<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub resource_documentation: Option<String>,
-    /// MCP extensions the resource requires of a client, by extension id.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub mcp_extensions_supported: Vec<McpExtensionId>,
 }
 
 impl ProtectedResourceMetadata {
-    /// Whether the resource requires the Enterprise-Managed Authorization
-    /// flow — an IdP-issued ID-JAG rather than an interactive authorization
-    /// redirect the client may have no user present to complete.
     #[must_use]
     pub fn requires_enterprise_managed_auth(&self) -> bool {
         self.mcp_extensions_supported

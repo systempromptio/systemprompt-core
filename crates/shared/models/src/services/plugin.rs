@@ -106,10 +106,8 @@ pub struct PluginConfig {
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct PluginHooksRef {
-    /// Emit the built-in govern + track HTTP hooks into this plugin.
     #[serde(default)]
     pub governance: bool,
-    /// Ids of custom hooks from `services/hooks/<id>/` to materialise here.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub include: Vec<String>,
 }

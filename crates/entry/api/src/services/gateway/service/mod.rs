@@ -62,10 +62,7 @@ pub struct DispatchInputs {
     pub raw_body: Bytes,
     pub ctx: GatewayRequestContext,
     pub inbound: Arc<dyn InboundAdapter>,
-    /// Caller headers cleared for verbatim relay to the upstream.
     pub forward_headers: Vec<(String, String)>,
-    /// Caller headers that identify the client, user, or session. Recorded on
-    /// the audit row and never sent upstream.
     pub identity_headers: Vec<(String, String)>,
 }
 
@@ -631,12 +628,6 @@ async fn enforce_request_safety(
     ))
 }
 
-/// Whether a finding raised at `phase` may deny the request.
-///
-/// A blocked category found in an earlier turn would otherwise deny every
-/// remaining turn of the conversation, including the turns that carry nothing
-/// objectionable — and a tool call the policy layer already refused is replayed
-/// into the scan surface for the rest of the session.
 pub fn blocks_at_phase(phase: &str, history: SafetyHistoryMode) -> bool {
     match phase {
         PHASE_REQUEST => true,

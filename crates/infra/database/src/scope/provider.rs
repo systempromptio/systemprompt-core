@@ -27,9 +27,6 @@ pub struct ScopeSetting {
 }
 
 impl ScopeSetting {
-    /// Build a setting, validating that `key` is a dotted custom-GUC name
-    /// (`app.current_org` style): dot-separated identifiers of ASCII
-    /// alphanumerics and underscores, not starting with a digit.
     pub fn new(key: impl Into<String>, value: impl Into<String>) -> Result<Self, ScopeError> {
         let key = key.into();
         if !is_custom_guc_name(&key) {
@@ -76,8 +73,6 @@ fn is_custom_guc_name(key: &str) -> bool {
 /// from the inventory registry, so the trait must be dyn-compatible.
 #[async_trait::async_trait]
 pub trait ConnectionScopeProvider: Send + Sync {
-    /// Settings to apply after `BEGIN` on a scoped transaction. Return an
-    /// empty vec when the scope carries nothing this provider handles.
     async fn scope_settings(&self, scope: &RequestScope) -> Result<Vec<ScopeSetting>, ScopeError>;
 }
 

@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.33.0] - 2026-08-20
+
+### Added
+
+- `security.login_page_url` is read from the profile (env: `LOGIN_PAGE_URL`) into `Config`.
+
 ## [0.23.0] - 2026-07-23
 
 ### Added

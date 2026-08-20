@@ -23,14 +23,6 @@ struct BootstrapCtx<'a> {
 }
 
 impl SchedulerService {
-    /// Runs the configured `bootstrap_jobs` once, serially, at startup —
-    /// independent of the cron schedule used by [`Self::start`].
-    ///
-    /// Every name is validated against the inventory catalog first; an unknown
-    /// name fails loud with [`crate::error::SchedulerError::UnknownJob`] rather
-    /// than being silently skipped. A bootstrap job needs only to appear in
-    /// `bootstrap_jobs`: its owner defaults to the system admin when it has no
-    /// `jobs` entry, since a run-once boot task is not a recurring opt-in.
     pub async fn run_bootstrap_jobs(
         &self,
         events: Option<&StartupEventSender>,

@@ -49,8 +49,6 @@ pub struct ProxyContext {
     pub client: reqwest::Client,
     pub token_cache: Arc<TokenCache>,
     pub session: Arc<SessionContext>,
-    /// The port actually bound, so a request handler can report it without
-    /// consulting the process-global handle — which is unset under test.
     pub port: u16,
     pub started_at_unix: u64,
 }
@@ -61,12 +59,6 @@ impl ProxyContext {
     }
 }
 
-/// Binds `port` and starts serving on it.
-///
-/// Kept as a wrapper over [`try_bind`] + [`start_with_listener`] for callers
-/// that want one fixed port. `start_default` does not use it: it has to try
-/// several ports, and every failed attempt through here would spawn another
-/// heartbeat loop before discovering the bind failed.
 pub fn start(
     rt: &Runtime,
     port: u16,
@@ -78,11 +70,6 @@ pub fn start(
     start_with_listener(rt, listener, runtime_config, token_cache, session)
 }
 
-/// Starts serving on an already-bound listener.
-///
-/// Everything expensive or global — the secret, the upstream client, the
-/// heartbeat loop — happens here, after the port is already won, so a caller
-/// racing several candidate ports pays for none of it until one succeeds.
 pub fn start_with_listener(
     rt: &Runtime,
     listener: TcpListener,
@@ -174,7 +161,6 @@ async fn run_listener(listener: TcpListener, ctx: ProxyContext) {
     }
 }
 
-/// Binds loopback on `port`, IPv4 first. Port `0` asks the OS to choose.
 pub async fn try_bind(port: u16) -> std::io::Result<TcpListener> {
     let v4: SocketAddr = SocketAddr::from(([127u8, 0, 0, 1], port));
     if let Ok(l) = TcpListener::bind(v4).await {

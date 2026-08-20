@@ -29,9 +29,6 @@ pub struct TapState {
     usage: CanonicalUsage,
     blocks: Vec<BlockAccumulator>,
     final_stop_reason: Option<CanonicalStopReason>,
-    /// Whether a real `UsageDelta` arrived. A `message_start` snapshot carries
-    /// small non-zero placeholders, so token counts alone cannot distinguish
-    /// "billed usage reported" from "never reported".
     saw_usage_delta: bool,
     pub(super) final_bytes: BytesMut,
     pub(super) error: Option<String>,

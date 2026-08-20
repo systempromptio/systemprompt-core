@@ -37,17 +37,8 @@ pub enum UpstreamError {
         provider: String,
         status: u16,
         message: String,
-        /// The provider's error response verbatim.
-        ///
-        /// Claude Code recovers from several upstream rejections by matching on
-        /// the error's own wording and then disabling the rejected capability
-        /// for the rest of the conversation. Re-wrapping the error in the
-        /// gateway's envelope defeats that even when the status code survives,
-        /// so the original bytes are carried here and relayed unchanged.
         body: bytes::Bytes,
-        /// `retry-after` as sent by the provider, when present.
         retry_after: Option<String>,
-        /// The provider's own request id, for correlating with their support.
         request_id: Option<String>,
     },
     #[error("{provider} request failed: {source}")]
@@ -59,8 +50,6 @@ pub enum UpstreamError {
 }
 
 impl UpstreamError {
-    /// Builds a [`UpstreamError::Status`] from a non-success upstream response,
-    /// preserving the body and the headers a client needs to retry correctly.
     pub async fn from_response(provider: &str, response: reqwest::Response) -> Self {
         let status = response.status().as_u16();
         let header = |name: &str| {
@@ -124,11 +113,7 @@ pub struct OutboundCtx<'a> {
     pub request: &'a CanonicalRequest,
     pub upstream_model: &'a str,
     pub model_limits: Option<ModelLimits>,
-    /// Inbound headers cleared for verbatim relay, already stripped of every
-    /// header that identifies the client, user, or session.
     pub forward_headers: &'a [(String, String)],
-    /// The caller's request body, set only when the caller's wire protocol
-    /// matches the upstream's and the bytes can be relayed untouched.
     pub raw_body: Option<&'a bytes::Bytes>,
 }
 
@@ -139,16 +124,11 @@ pub struct OutboundCtx<'a> {
 pub enum OutboundOutcome {
     Buffered(Box<CanonicalResponse>),
     Streaming(BoxStream<'static, Result<CanonicalEvent, String>>),
-    /// A non-streaming response relayed byte-for-byte, with a canonical parse
-    /// alongside it purely so audit, cost, and safety keep working.
     RawBuffered {
         body: bytes::Bytes,
         content_type: Option<String>,
         canonical: Box<CanonicalResponse>,
     },
-    /// A streaming response relayed byte-for-byte. Usage accounting reads a
-    /// copy of the frames as they pass; the bytes the client receives are the
-    /// provider's own.
     RawStreaming {
         content_type: Option<String>,
         stream: BoxStream<'static, Result<bytes::Bytes, String>>,
@@ -169,9 +149,6 @@ pub struct PreparedBody {
 // `Arc<dyn OutboundAdapter>`, so the trait must stay dyn-compatible.
 #[async_trait]
 pub trait OutboundAdapter: Send + Sync {
-    /// Kept separate from [`OutboundAdapter::send`], and sync and pure, so the
-    /// gateway can have governance inspect the same bytes the socket will
-    /// carry before it commits to sending them.
     fn build_body(&self, ctx: &OutboundCtx<'_>) -> Result<PreparedBody>;
 
     async fn send(&self, ctx: OutboundCtx<'_>, body: &PreparedBody) -> Result<OutboundOutcome>;

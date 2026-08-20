@@ -104,10 +104,6 @@ impl JobContext {
         }
     }
 
-    /// Enforcement consent from the job's configuration. Jobs whose actions
-    /// are destructive or outward-facing (e.g. banning IPs) must take those
-    /// actions only when this is `true`; otherwise they observe and log.
-    /// Defaults to `false` so a job never enforces without explicit opt-in.
     #[must_use]
     pub const fn enforce(&self) -> bool {
         self.enforce
@@ -170,9 +166,6 @@ impl JobContext {
         self.parameters.get(key)
     }
 
-    /// Parse a parameter as `T`. `Ok(None)` when the key is absent; an error
-    /// when the value is present but unparseable, so a mistyped override
-    /// fails the run instead of silently falling back to the default.
     pub fn get_parameter_parsed<T: std::str::FromStr>(
         &self,
         key: &str,
@@ -215,13 +208,6 @@ pub trait Job: Send + Sync + 'static {
         true
     }
 
-    /// Whether this job is meant to carry its own `scheduler.jobs` cron entry.
-    ///
-    /// Return `false` for a job that exists only as an inline step of a larger
-    /// pipeline job. Scheduling such a step independently would duplicate work
-    /// the pipeline already does, so the scheduler stops warning that it has no
-    /// cron entry — a warning that is otherwise the right signal for a job that
-    /// really has fallen out of a deployed profile.
     fn schedulable(&self) -> bool {
         true
     }

@@ -1047,7 +1047,10 @@ async fn run_down_migrations_reverts_the_applied_version_in_a_transaction() {
         "a successful revert must commit: {events:?}"
     );
     assert_eq!(
-        events.iter().filter(|e| e.starts_with("tx_execute")).count(),
+        events
+            .iter()
+            .filter(|e| e.starts_with("tx_execute"))
+            .count(),
         2,
         "the down SQL and the ledger delete must both run inside the transaction: {events:?}"
     );
@@ -1113,7 +1116,10 @@ async fn run_down_migrations_reverts_newest_first_and_honours_the_count() {
         "one committed transaction per reverted migration: {events:?}"
     );
     assert_eq!(
-        events.iter().filter(|e| e.starts_with("tx_execute")).count(),
+        events
+            .iter()
+            .filter(|e| e.starts_with("tx_execute"))
+            .count(),
         4,
         "each revert carries its down SQL and its ledger delete in-transaction: {events:?}"
     );

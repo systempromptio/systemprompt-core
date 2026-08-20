@@ -52,7 +52,6 @@ pub(super) fn series_color(index: usize) -> String {
     format!("var(--mcpui-series-{})", index % SERIES_SLOTS + 1)
 }
 
-/// Render `spec` as a `<figure>` holding an inline SVG and a legend.
 pub fn render(spec: &ChartSpec<'_>, aria_label: &str) -> String {
     let plot = if spec.is_empty() {
         empty_plot()

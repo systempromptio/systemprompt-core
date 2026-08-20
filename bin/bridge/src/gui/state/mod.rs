@@ -98,23 +98,16 @@ pub struct AppStateSnapshot {
     pub verified_identity: Option<VerifiedIdentity>,
     pub last_probe_at_unix: Option<u64>,
     pub agents_onboarded: bool,
-    /// One-time post-link provisioning: progress while running, and whether it
-    /// has ever completed on this machine.
     pub first_run: crate::gui::first_run::state::FirstRunState,
     pub enabled_hosts: Vec<String>,
-    /// Per-host synced override; empty value means "all models", absent keeps
-    /// the default.
     pub host_model_protocols: std::collections::BTreeMap<String, Vec<String>>,
     pub provider_health: Vec<crate::auth::types::ProviderHealth>,
 
     pub hosts: HostsState,
 
-    /// MCP auth probe results; populated by the probe, not by `reload`.
     pub mcp_auth: Vec<McpServerAuth>,
     pub mcp_auth_probe_in_flight: bool,
 
-    /// Self-update progress; populated by the update check and install, not by
-    /// `reload`.
     pub update: crate::update::UpdateUiState,
 }
 
@@ -379,9 +372,6 @@ impl AppState {
         guard.update = state;
     }
 
-    /// Records download progress without disturbing a state that has already
-    /// moved on — a late chunk callback must not drag `Installing` back to
-    /// `Downloading`.
     pub fn set_update_progress(&self, version: &str, percent: u8) {
         let mut guard = self.inner.write();
         if matches!(

@@ -17,14 +17,6 @@ use regex::Regex;
 
 pub const DEFAULT_MIN_LEN: usize = 32;
 
-/// Measured entropy as a fraction of the token length's ceiling.
-///
-/// Why: Shannon entropy is bounded by the number of symbols actually sampled,
-/// so a raw bits-per-byte threshold is far laxer on a 32-char token (ceiling
-/// 5.0) than on a 128-char one (ceiling 6.0). Dividing by that ceiling makes
-/// one number mean the same thing at every length. 0.80 sits below the
-/// measured floor (0.816 over 1000 samples) for random base64 key material of
-/// 24 bytes and up, and above base64-encoded English prose.
 pub const DEFAULT_THRESHOLD: f64 = 0.80;
 
 const TOKEN_DELIMITERS: &str = "\"'`()[]{}<>,;:";

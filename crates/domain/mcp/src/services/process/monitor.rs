@@ -30,9 +30,6 @@ async fn is_port_responsive(port: u16) -> McpDomainResult<bool> {
     }
 }
 
-/// Unlike [`utils::process_exists`], rejects zombies: a reaped-but-unwaited
-/// child still answers `kill(pid, 0)` yet runs no code, so a liveness probe
-/// must report it dead.
 pub fn is_process_running(pid: u32) -> bool {
     utils::process_exists(pid) && !systemprompt_models::subprocess::is_zombie(pid)
 }

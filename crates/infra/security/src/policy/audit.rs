@@ -24,10 +24,6 @@ use crate::authz::{GovernanceDecisionRecord, insert_governance_decision};
 pub enum ChainEntryResult {
     Pass,
     Fail,
-    /// Switched off by config, either per-policy or by the master switch. Kept
-    /// distinct from [`ChainEntryResult::Skip`] so a reader can tell a chain
-    /// that was never armed from one that stopped early: both leave a policy
-    /// unevaluated, but only one of them means the installation is unguarded.
     Disabled,
     Skip,
 }
@@ -39,23 +35,13 @@ pub struct ChainEntryOutcome {
     #[serde(flatten)]
     pub result: ChainEntryResult,
     pub detail: String,
-    /// Wall-clock cost of evaluating this policy. Zero for entries that never
-    /// ran (disabled, skipped-after-deny, or synthesized outcomes).
     pub duration_ms: f64,
 }
 
 #[derive(Debug, Serialize, Clone)]
 pub struct PrincipalSnapshot {
     pub user_id: UserId,
-    /// The credential's session, attested against `user_sessions` — the same
-    /// class of evidence as `ai_requests.session_id`, so the inference and
-    /// tool-call halves of the audit spine join on comparable ids. Prefixed
-    /// `unattested_` when the lookup failed.
     pub session_id: SessionId,
-    /// The `session_id` the hook payload carried: the agent's own local
-    /// conversation label. Useful for correlating one agent run, but the
-    /// server never issued it, so it is recorded here rather than in the
-    /// attested column.
     pub agent_session: Option<SessionId>,
     pub agent_id: Option<AgentId>,
     pub agent_scope: AccessScope,
@@ -72,7 +58,6 @@ pub struct ApproverStamp {
     pub user_id: UserId,
     pub username: String,
     pub decided_at: chrono::DateTime<chrono::Utc>,
-    /// `"approved"` or `"denied"`.
     pub action: &'static str,
 }
 
@@ -87,12 +72,7 @@ pub enum AuditOrigin {
 
 #[derive(Debug, Serialize, Clone)]
 pub struct DecisionAudit {
-    /// The `governance_decisions.id` this blob will land under. Minted by the
-    /// caller (not the repository) so surfaces that saw the decision live can
-    /// hand out the same id as a trace link.
     pub id: String,
-    /// Identity of the call this row judged, shared by every row that judged
-    /// the same one. `id` distinguishes evaluations; this groups them.
     pub call_id: String,
     pub origin: AuditOrigin,
     pub decision: Decision,
@@ -101,14 +81,8 @@ pub struct DecisionAudit {
     pub chain: Vec<ChainEntryOutcome>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub approver: Option<ApproverStamp>,
-    /// RFC 8693 delegation lineage in outermost-first order. Empty for
-    /// direct (non-delegated) tokens.
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub act_chain: Vec<Actor>,
-    /// The conversational context the call belongs to, when the enforcement
-    /// point knows one. The MCP webhook does not; the gateway does, and
-    /// without it an inference decision cannot be joined back to the request
-    /// it judged.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub context_id: Option<String>,
 }
@@ -124,9 +98,6 @@ fn allow_policy_label(chain: &[ChainEntryOutcome]) -> &'static str {
     "default_allow"
 }
 
-/// Persist one governed-call decision: derive the flat columns (`policy` is
-/// the first [`ChainEntryResult::Fail`] entry) and write the blob through the
-/// canonical `governance_decisions` insert.
 pub async fn record_decision(pool: &PgPool, audit: &DecisionAudit) -> Result<(), sqlx::Error> {
     let actor = Actor::from_tool_name(
         audit.principal.user_id.clone(),

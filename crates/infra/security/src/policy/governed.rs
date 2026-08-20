@@ -11,10 +11,8 @@
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::McpToolName;
 
-/// Name a submitted prompt is audited under, standing where a tool name would.
 pub const PROMPT_TARGET_NAME: &str = "user_prompt";
 
-/// Name an unidentifiable target is audited under.
 pub const UNKNOWN_TARGET_NAME: &str = "unknown";
 
 /// Untyped MCP tool input wrapped at the protocol boundary.
@@ -128,10 +126,6 @@ impl GovernedInput {
         }
     }
 
-    /// Every string the payload contains, paired with its dotted path.
-    ///
-    /// Scanners walk this rather than the raw JSON so that the path a finding
-    /// reports is defined once here, not reconstructed by each scanner.
     #[must_use]
     pub fn strings(&self) -> Vec<GovernedString<'_>> {
         match self {

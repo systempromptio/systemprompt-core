@@ -34,13 +34,6 @@ inventory::collect!(PolicyRegistration);
 #[doc(hidden)]
 pub use inventory;
 
-/// Register a governance policy factory at static-init time.
-///
-/// ```ignore
-/// systemprompt_security::register_governance_policy!("my_policy", |params| {
-///     Box::new(MyPolicy::from_yaml(params))
-/// });
-/// ```
 #[macro_export]
 macro_rules! register_governance_policy {
     ($id:expr, $factory:expr) => {

@@ -164,8 +164,6 @@ pub fn check_loopback_secret() -> Check {
     }
 }
 
-/// A baked-vs-live loopback secret mismatch is the silent `403 bad loopback
-/// secret` failure mode this surfaces.
 #[must_use]
 pub fn check_host_profile_secrets() -> Option<Check> {
     use crate::integration::ProfileState;
@@ -232,11 +230,6 @@ pub fn check_pinned_pubkey() -> Check {
     }
 }
 
-/// Reports which credential backend the hook-token path resolved to.
-///
-/// Worth its own line because a headless host silently tiering down to
-/// process memory explains, on its own, why `hook token mint` below reports no
-/// provisioned client in this process.
 pub fn check_credential_store() -> Check {
     match plugin_oauth::credential_backend() {
         plugin_oauth::SecretBackend::Keyring => Check::ok(

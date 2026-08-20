@@ -35,17 +35,6 @@ fn extract_stored_transports(passkey_json: &serde_json::Value) -> Vec<String> {
         )
 }
 
-/// Re-injects stored lowercase transport hints into an opaque serialized
-/// `Passkey` value.
-///
-/// Values are re-cased to the exact variant casing that `webauthn_rs`'s
-/// case-sensitive `AuthenticatorTransport` deserialization expects
-/// (`internal` → `Internal`, `usb` → `Usb`, `nfc` → `Nfc`, `ble` → `Ble`,
-/// `hybrid` → `Hybrid`; anything else passes through lowercased).
-///
-/// This casing map is load-bearing: it compensates for the mismatch between
-/// the lowercase transports persisted alongside the credential and the casing
-/// `webauthn_rs` accepts, and altering it invalidates stored passkeys.
 pub fn normalize_transport_casing(
     passkey_json: &mut serde_json::Value,
     stored_transports: &[String],

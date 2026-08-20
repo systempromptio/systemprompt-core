@@ -155,7 +155,6 @@ fn extension_of(path: &Path) -> Option<&str> {
     path.extension().and_then(std::ffi::OsStr::to_str)
 }
 
-/// Matched case-insensitively.
 pub fn from_extension(ext: &str) -> Option<&'static str> {
     lookup(ext).map(|(_, essence, _)| *essence)
 }
@@ -195,9 +194,6 @@ pub fn extension_for(mime: &str) -> Option<&'static str> {
         .and_then(|(exts, _, _)| exts.first().copied())
 }
 
-/// Comparing a client-supplied `Content-Type` against an allowlist or a
-/// blocklist without this admits `text/javascript; charset=utf-8` past a
-/// blocklist holding `text/javascript`.
 pub fn essence_of(mime: &str) -> String {
     mime.split(';')
         .next()

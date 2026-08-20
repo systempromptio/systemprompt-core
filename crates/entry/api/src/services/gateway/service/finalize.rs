@@ -304,9 +304,6 @@ fn resolve_scanner(
     None
 }
 
-/// A scanner reports one finding per match, so a message tripping two jailbreak
-/// phrases writes two otherwise identical rows before any conversation
-/// repetition is involved.
 #[cfg_attr(
     not(feature = "test-api"),
     expect(

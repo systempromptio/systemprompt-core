@@ -48,8 +48,6 @@ pub enum ReplyTarget {
 /// Slack- or Teams-specific type.
 #[derive(Debug, Clone)]
 pub struct MessagingInbound {
-    /// Stable platform tag (`"slack"` / `"teams"`), used in the derived
-    /// `ContextId` and the authz context kind.
     pub platform: &'static str,
     pub issuer: String,
     pub org_id: String,
@@ -57,18 +55,13 @@ pub struct MessagingInbound {
     pub external_user_id: String,
     pub text: String,
     pub agent_name: AgentName,
-    /// The authz target — the workspace/tenant entity, config-seedable from
-    /// `allowed_roles`.
     pub entity: EntityRef,
     pub reply: ReplyTarget,
 }
 
 #[derive(Debug, Clone)]
 pub enum DispatchOutcome {
-    /// Authorized; the agent's reply text (may be empty if the agent produced
-    /// no message).
     Replied(String),
-    /// Authorization denied; the reason is surfaced as an ephemeral refusal.
     Denied(String),
 }
 
@@ -87,10 +80,6 @@ pub enum MessagingError {
 }
 
 impl MessagingError {
-    /// The reply-surface rendering of a dispatch failure. Production keeps the
-    /// message opaque; under `test-api` the error text is appended, because the
-    /// spawned pipeline's `tracing::error!` is invisible to an asserting test
-    /// and an opaque card makes a CI failure unreproducible.
     #[must_use]
     pub fn user_message(&self) -> String {
         let opaque = "Sorry — something went wrong handling that.";
@@ -102,11 +91,6 @@ impl MessagingError {
     }
 }
 
-/// Run the shared inbound pipeline.
-///
-/// Links the platform sender to a governed identity, authorizes against the
-/// workspace/tenant entity, mints a per-user A2A token, dispatches a blocking
-/// `message/send` through the proxy, and returns the agent's reply.
 pub async fn dispatch_messaging(
     ctx: &AppContext,
     inbound: MessagingInbound,

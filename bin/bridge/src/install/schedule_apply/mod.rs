@@ -13,9 +13,6 @@ use crate::schedule::{self, Os};
 use std::fs;
 use std::path::{Path, PathBuf};
 
-/// Registers the sync job for the running OS. `os` is the caller's declared
-/// target and must match [`Os::current`] — a Windows task cannot be created
-/// from a Mac.
 pub fn apply_schedule(os: Os, binary: &Path) -> Result<ScheduleApplied, InstallError> {
     if !same_os(os, Os::current()) {
         return Err(InstallError::ScheduleOsMismatch);
@@ -215,8 +212,6 @@ fn systemctl(args: &[&str]) -> Result<(), InstallError> {
     )))
 }
 
-/// Removes the registration written by [`apply_schedule`]. Reports rather than
-/// fails: an uninstall must not abort because no job was ever registered.
 pub fn remove_schedule() -> ScheduleRemoval {
     remove_current()
 }

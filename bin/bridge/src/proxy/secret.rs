@@ -117,8 +117,6 @@ pub fn verify(presented: &str, expected: &ProxySecret) -> bool {
     constant_time_eq(presented.as_bytes(), expected.as_str().as_bytes())
 }
 
-/// `<empty>` for the empty string, so an unauthenticated caller is
-/// distinguishable from a genuine secret mismatch.
 #[must_use]
 pub fn fingerprint(s: &str) -> String {
     use sha2::{Digest as _, Sha256};
@@ -129,8 +127,6 @@ pub fn fingerprint(s: &str) -> String {
     format!("{:08x}", u32::from_be_bytes([d[0], d[1], d[2], d[3]]))
 }
 
-/// Restarting the client cannot help — only rewriting the profile with the live
-/// secret does.
 #[must_use]
 pub fn reapply_hint() -> String {
     let bin = crate::brand::brand().binary_name;

@@ -117,18 +117,6 @@ pub fn force_kill(pid: u32) -> McpDomainResult<()> {
     Ok(())
 }
 
-/// Graceful-then-forced termination gated on identity.
-///
-/// Signals `pid` only once its `/proc/<pid>/environ` still carries this
-/// server's spawn markers (`SYSTEMPROMPT_SUBPROCESS=1` +
-/// `MCP_SERVICE_ID=<service_name>`). Every site that signals a PID it believes
-/// is "our MCP server `<name>`" must route through here. Registry and
-/// port-discovered PIDs outlive the processes that minted them and are recycled
-/// by the kernel; a recycled PID that fails the marker check is left untouched,
-/// so `kill`/`kill(-pid)` can never reach an unrelated process (or, via the
-/// group, an unrelated session leader). Use the bare [`terminate_gracefully`] /
-/// [`force_kill`] only for port-reclamation, where there is no service identity
-/// to verify against.
 pub async fn terminate_gracefully_verified(pid: u32, service_name: &str) -> McpDomainResult<()> {
     if !process_exists(pid) {
         return Ok(());

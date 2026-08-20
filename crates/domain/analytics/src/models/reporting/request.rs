@@ -40,9 +40,7 @@ pub struct RequestTrendRow {
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct RequestListRow {
     pub id: AiRequestId,
-    /// `None` for a request rejected before routing resolved a provider.
     pub provider: Option<String>,
-    /// `None` for a request rejected before a model was read.
     pub model: Option<String>,
     pub input_tokens: Option<i32>,
     pub output_tokens: Option<i32>,

@@ -187,9 +187,6 @@ impl AppContext {
         AppContextBuilder::new()
     }
 
-    /// Assembles a context directly from pre-built planes, bypassing the
-    /// [`AppContextBuilder`] bootstrap. Intended for tests and embedders that
-    /// own the construction of the individual handles.
     #[must_use]
     pub const fn from_parts(
         data: DataPlane,
@@ -257,9 +254,6 @@ impl AppContext {
         &self.data.analytics_service
     }
 
-    /// Session usage counters backed by the analytics session repository, for
-    /// wiring repositories (e.g. the agent `TaskRepository`) that bump
-    /// per-session counters without depending on the analytics crate.
     #[must_use]
     pub fn session_usage(&self) -> systemprompt_traits::DynSessionUsageCounters {
         Arc::new(self.data.analytics_service.session_repo().clone())

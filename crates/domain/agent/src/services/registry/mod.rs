@@ -220,11 +220,6 @@ fn load_agent_skills(agent: &AgentConfig) -> Vec<crate::models::a2a::AgentSkill>
     load_agent_skills_from_dir(agent, Path::new(&skills_path))
 }
 
-/// Resolves each id in `agent.metadata.skills` against the on-disk skill
-/// catalog under `skills_dir`.
-/// Unresolvable skills are dropped with a `tracing::warn!` rather than failing
-/// the card. The dependency-injected (testable) variant of
-/// [`load_agent_skills`].
 #[doc(hidden)]
 pub fn load_agent_skills_from_dir(
     agent: &AgentConfig,

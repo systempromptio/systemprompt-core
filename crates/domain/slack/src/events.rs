@@ -37,7 +37,6 @@ pub struct SlackEvent {
     pub text: Option<String>,
     #[serde(default)]
     pub ts: Option<String>,
-    /// Set on bot-authored messages; used to drop the bot's own echoes.
     #[serde(default)]
     pub bot_id: Option<String>,
 }
@@ -96,11 +95,7 @@ pub struct NormalizedInbound {
     pub channel_id: SlackChannelId,
     pub slack_user_id: SlackUserId,
     pub text: String,
-    /// Routing key looked up against `SlackAppConfig.routing`: the slash
-    /// command (`/ask`) for commands, otherwise the channel id.
     pub routing_key: String,
-    /// Slack-provided reply URL (commands/interactivity); `None` for events,
-    /// which reply via `chat.postMessage`.
     pub response_url: Option<String>,
 }
 

@@ -42,12 +42,6 @@ pub fn portfile_path() -> Option<PathBuf> {
     )
 }
 
-/// The last port this install bound, if the record is still ours to trust.
-///
-/// A record is discarded rather than surfaced when it is missing, unparseable,
-/// from a future schema, or carries a different install id — the last of which
-/// happens when a config directory is copied between machines, where the port
-/// inside it means nothing.
 #[must_use]
 pub fn read() -> Option<PortRecord> {
     let path = portfile_path()?;
@@ -114,11 +108,6 @@ pub fn write(port: u16) -> std::io::Result<()> {
     Ok(())
 }
 
-/// Removes our own record on a clean shutdown.
-///
-/// Guarded on pid so a sibling that took over the file after we crashed keeps
-/// its own record — deleting that would send the next reader back to the
-/// default port and straight into the collision this module exists to avoid.
 pub fn clear() {
     let Some(path) = portfile_path() else {
         return;

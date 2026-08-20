@@ -50,11 +50,6 @@ impl ProxyDatabaseLayer {
         }
     }
 
-    /// Attaches the database sink, idempotently: the first pool wins and repeat
-    /// attaches are ignored. Repeats are expected — `init_logging` is reached
-    /// from more than one entry point during a single startup — so
-    /// `get_or_init` keeps this silent and avoids spawning a second writer
-    /// task.
     pub fn attach(&self, db_pool: DbPool) {
         self.inner.get_or_init(|| DatabaseLayer::new(db_pool));
     }

@@ -21,8 +21,6 @@ use systemprompt_identifiers::{
 
 use crate::execution::context::RequestContext;
 
-/// Reverse-DNS `_meta` key holding execution provenance on the wire; MCP
-/// reserves unprefixed `_meta` keys, so the fields must never appear bare.
 pub const EXECUTION_META_KEY: &str = "io.systemprompt/execution";
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]

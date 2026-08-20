@@ -12,8 +12,6 @@ use systemprompt_models::content_config::{
     ContentConfigRaw, ContentSourceConfigRaw, IndexingConfig, SitemapConfig,
 };
 
-/// Fails when `category_id` is not declared in the config, listing the
-/// declared categories in the error.
 pub fn ensure_category_exists(config: &ContentConfigRaw, category_id: &str) -> Result<()> {
     if config.categories.contains_key(category_id) {
         return Ok(());

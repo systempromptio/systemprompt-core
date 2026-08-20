@@ -52,10 +52,6 @@ pub struct AuthUser {
 #[derive(Debug, Clone, Default)]
 pub struct FederatedIdentityClaims {
     pub email: Option<String>,
-    /// Whether the upstream `IdP` has asserted `email_verified=true` for this
-    /// subject. When `false`, callers must refuse to link the federated
-    /// identity to a local account that owns the same email — a hostile
-    /// upstream could otherwise claim arbitrary accounts.
     pub email_verified: bool,
     pub name: Option<String>,
     pub preferred_username: Option<String>,
@@ -76,11 +72,6 @@ pub trait UserProvider: Send + Sync {
     async fn create_anonymous(&self, fingerprint: &str) -> AuthResult<AuthUser>;
     async fn assign_roles(&self, user_id: &UserId, roles: &[String]) -> AuthResult<()>;
 
-    /// Resolve an externally-issued identity (`issuer`, `external_sub`) to a
-    /// stable local `UserId`. On first touch creates a new `users` row plus a
-    /// `federated_identities` mapping; subsequent calls advance `last_seen_at`
-    /// and return the existing id. Implementations MUST perform both writes
-    /// in a single transaction.
     async fn find_or_create_federated(
         &self,
         issuer: &str,

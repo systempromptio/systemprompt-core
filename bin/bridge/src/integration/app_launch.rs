@@ -10,28 +10,17 @@ use std::process::Command;
 
 use crate::integration::host_app::AppInstallState;
 
-/// Everything the platform detectors need to find one host application.
-///
-/// Grouped into a struct rather than passed positionally: the Windows path
-/// needs four of these at once and stringly-typed positional arguments made the
-/// call sites unreadable.
 #[derive(Debug, Clone, Copy)]
 #[expect(
     dead_code,
     reason = "each target_os arm reads a different subset of these fields"
 )]
 pub(crate) struct AppLocator<'a> {
-    /// macOS `.app` bundle name, without the extension.
     pub macos_name: &'a str,
-    /// Windows Start-menu display name.
     pub windows_name: &'a str,
-    /// Windows install paths to test directly, in priority order.
     pub windows_candidates: &'a [PathBuf],
-    /// Linux executable name to look for on `PATH`.
     pub linux_bin: &'a str,
-    /// Windows MSIX package family name, when the host ships as a package.
     pub msix_family: Option<&'a str>,
-    /// Application ID within `msix_family`.
     pub msix_app_id: &'a str,
 }
 
@@ -227,14 +216,10 @@ fn start_menu_present_cached(display_name: &str) -> Option<bool> {
 
     // Why: Get-StartApps cold-starts powershell (seconds per call); the cache
     // holds probes to at most one spawn per TTL.
-    /// Cached probe verdict (`None` = inconclusive) and when it was taken.
     type Verdict = (Option<bool>, Instant);
 
     static CACHE: OnceLock<Mutex<HashMap<String, Verdict>>> = OnceLock::new();
-    /// A completed Get-StartApps run answered the question; hold it.
     const CONCLUSIVE_TTL: Duration = Duration::from_secs(300);
-    /// A timeout says nothing. Expire it inside one probe interval so the next
-    /// tick retries instead of pinning the host to a wrong badge for minutes.
     const INCONCLUSIVE_TTL: Duration = Duration::from_secs(15);
 
     let cache = CACHE.get_or_init(|| Mutex::new(HashMap::new()));

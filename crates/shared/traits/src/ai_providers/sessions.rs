@@ -23,8 +23,6 @@ pub struct CreateAiSessionParams<'a> {
 
 #[async_trait]
 pub trait AiSessionProvider: Send + Sync {
-    /// Must be an idempotent upsert: callers invoke it unconditionally to
-    /// guarantee the session row exists before FK-dependent inserts.
     async fn create_session(&self, params: CreateAiSessionParams<'_>) -> AiProviderResult<()>;
 
     async fn increment_ai_usage(

@@ -69,8 +69,6 @@ pub async fn capture_device_link_code(base_url: &ValidatedUrl) -> Result<String,
     capture_on(server, base_url).await
 }
 
-/// Opens the consent page against an already-bound callback listener and waits
-/// for the browser to come back to it.
 pub async fn capture_on(
     server: LoopbackServer,
     base_url: &ValidatedUrl,
@@ -94,13 +92,6 @@ pub async fn capture_on(
     Ok(captured.code)
 }
 
-/// The device-link consent URL, optionally carrying a loopback `callback`.
-///
-/// Exposed so the CLI's browserless path can print the same URL this module
-/// would have opened, and have the user complete the identical SSO flow on a
-/// machine that does have a browser. That path passes `None`: nothing is
-/// listening on this machine's loopback, so the consent page displays the code
-/// instead of redirecting a browser at a dead port.
 #[must_use]
 pub fn device_link_url(base: &str, callback: Option<&str>) -> String {
     build_auth_url(base, callback)

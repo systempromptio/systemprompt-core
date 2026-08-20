@@ -44,9 +44,7 @@ pub struct AiRequest {
     pub gateway_conversation_id: Option<GatewayConversationId>,
     pub provider_request_id: Option<ProviderRequestId>,
     pub trace_id: Option<TraceId>,
-    /// `None` for a request rejected before routing resolved a provider.
     pub provider: Option<String>,
-    /// `None` for a request rejected before a model was read.
     pub model: Option<String>,
     pub temperature: Option<f64>,
     pub top_p: Option<f64>,

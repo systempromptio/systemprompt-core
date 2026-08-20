@@ -140,12 +140,6 @@ pub struct PolicyContext<'a> {
     pub session_id: &'a SessionId,
     pub user_id: &'a UserId,
     pub input: &'a GovernedInput,
-    /// Identity of the logical call, stable across every evaluation of it.
-    ///
-    /// One call is legitimately evaluated more than once — an enforcement point
-    /// behind another still has to run the chain, because it is reachable by
-    /// callers that never passed the first. A policy that accumulates state
-    /// uses this to tell "the same call again" from "another call".
     pub call_id: &'a CallId,
 }
 

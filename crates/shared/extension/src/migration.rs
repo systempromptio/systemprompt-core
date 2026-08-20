@@ -3,19 +3,6 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-/// Expand to the body of
-/// [`Extension::migrations`](crate::Extension::migrations), generated from
-/// `schema/migrations/NNN_<name>.sql` files by
-/// [`build::emit_migrations`](crate::build::emit_migrations).
-///
-/// The using crate must have a `build.rs` that calls
-/// `systemprompt_extension::build::emit_migrations()`.
-///
-/// ```rust,ignore
-/// fn migrations(&self) -> Vec<Migration> {
-///     extension_migrations!()
-/// }
-/// ```
 #[macro_export]
 macro_rules! extension_migrations {
     () => {
@@ -60,9 +47,6 @@ impl Migration {
         }
     }
 
-    /// Constructor for migrations that must run outside an implicit
-    /// transaction — e.g. `CREATE INDEX CONCURRENTLY`, which Postgres rejects
-    /// inside a transaction block.
     #[must_use]
     pub fn new_no_transaction(version: u32, name: impl Into<String>, sql: &'static str) -> Self {
         Self {

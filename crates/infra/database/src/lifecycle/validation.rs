@@ -12,14 +12,6 @@ pub async fn validate_database_connection(db: &dyn DatabaseProvider) -> Database
     })
 }
 
-/// Rejects a write pool that resolves to a streaming-replication standby.
-///
-/// Every write path — schema installation, extension seeds, the job scheduler,
-/// log persistence, and `LISTEN`/`NOTIFY` on the event bridge — goes through
-/// [`Database::write`], which falls back to the read pool when no separate
-/// write URL is configured. A read URL aimed at a replica therefore turns into
-/// a slow, opaque boot failure: DDL stalls, then jobs die on `25006`. Failing
-/// here names the cause instead.
 pub async fn validate_write_pool_is_primary(db: &Database) -> DatabaseResult<()> {
     if !db.write().is_postgres() {
         return Ok(());

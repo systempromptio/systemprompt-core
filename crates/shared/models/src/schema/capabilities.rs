@@ -33,11 +33,7 @@ pub struct SchemaFeatures {
     pub definitions: bool,
     pub additional_properties: bool,
     pub const_values: bool,
-    /// `exclusiveMinimum` / `exclusiveMaximum` numeric bounds. Gemini's
-    /// OpenAPI-subset parser rejects these; Anthropic and `OpenAI` accept them.
     pub exclusive_bounds: bool,
-    /// `propertyNames` / `patternProperties` object constraints. Rejected by
-    /// Gemini's parser; accepted by Anthropic and `OpenAI`.
     pub property_names: bool,
 }
 

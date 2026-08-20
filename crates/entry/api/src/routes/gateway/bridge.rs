@@ -28,12 +28,6 @@ use crate::services::middleware::JwtContextExtractor;
 
 pub(super) const KNOWN_HOSTS: &[&str] = &["claude-code", "claude-desktop", "cowork", "codex-cli"];
 
-/// Hosts the operator has enabled on this installation.
-///
-/// A host is instance-enabled unless the `external_agents` catalog carries an
-/// entry for it with `enabled: false`. Catalog ids are `snake_case`
-/// (`codex_cli`) while host ids are kebab-case (`codex-cli`); the underscore
-/// substitution is the whole mapping.
 pub fn instance_enabled_hosts(
     services: &systemprompt_models::services::ServicesConfig,
 ) -> Vec<String> {
@@ -110,9 +104,6 @@ pub async fn set_enabled_host(
 #[derive(Debug, Deserialize)]
 pub struct HostModelFilterRequest {
     pub host_id: String,
-    /// API-surface tags the host should advertise. `None` clears the override
-    /// (host falls back to its built-in default); `Some(empty)` means "all
-    /// models" (no restriction).
     #[serde(default)]
     pub model_protocols: Option<Vec<String>>,
 }
@@ -233,11 +224,6 @@ pub async fn profile() -> Result<Json<BridgeProfileResponse>, (StatusCode, Strin
     Ok(Json(response))
 }
 
-/// Normalise a tenant id to a canonical RFC-4122 UUID for the outbound header.
-///
-/// Codex CLI threads this into the outbound `x-tenant` header, where downstream
-/// tenant attribution expects a canonical RFC-4122 UUID, not the internal
-/// `local_`-prefixed form. Only this bridge-facing handler peels the prefix.
 pub fn canonicalize_org_uuid(tenant_id: &TenantId) -> String {
     let raw = tenant_id.as_str();
     let suffix = raw.strip_prefix("local_").unwrap_or(raw);

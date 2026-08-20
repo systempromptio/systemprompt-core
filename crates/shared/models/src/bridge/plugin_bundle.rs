@@ -16,10 +16,6 @@ use serde::{Deserialize, Serialize};
 
 pub const PLUGIN_MANIFEST_RELPATH: &str = ".claude-plugin/plugin.json";
 
-/// Manifest directory names accepted on a host, in preference order.
-///
-/// Cowork historically materialised the manifest under both the dotted and the
-/// undotted directory, so both are honoured when probing an installed bundle.
 pub const PLUGIN_MANIFEST_DIRS: &[&str] = &[".claude-plugin", "claude-plugin"];
 
 pub const PLUGIN_MANIFEST_FILE: &str = "plugin.json";

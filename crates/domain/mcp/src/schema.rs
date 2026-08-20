@@ -26,16 +26,6 @@ pub trait McpOutputSchema: JsonSchema {
         None
     }
 
-    /// The schema a tool advertises as its MCP `outputSchema`.
-    ///
-    /// The MCP spec requires an `outputSchema` to be an **object schema** —
-    /// its root must carry `"type": "object"` — and Claude Desktop enforces
-    /// this strictly, parking the whole server on the first tool that
-    /// violates it. schemars omits the keyword for a tagged enum (it emits a
-    /// bare `oneOf`), so it is inserted here when absent. That is sound for
-    /// every implementor of this trait: the struct artifacts are object
-    /// schemas already, and the tagged-enum artifacts serialize each variant
-    /// as an object.
     fn validated_schema() -> JsonValue
     where
         Self: Sized,

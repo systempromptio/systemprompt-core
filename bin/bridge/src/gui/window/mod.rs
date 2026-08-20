@@ -18,18 +18,6 @@ pub fn open_external_url(url: &str) {
     open_target(url);
 }
 
-/// Tell the user something on a path that has no terminal and no window.
-///
-/// Why: a bundle launched from Finder/Explorer discards stderr, so a failure
-/// that exits before any window exists is otherwise completely silent — the app
-/// just appears not to start.
-///
-/// macOS deliberately uses a notification, not `display alert`. An alert is
-/// drawn by the *current application*, and `osascript` spawned from a process
-/// with no UI session has none: the alert never renders and `osascript` blocks
-/// forever, which would leave an invisible hung process behind — strictly worse
-/// than exiting. `display notification` is posted by Notification Center
-/// instead, and returns immediately.
 pub fn notify_user(title: &str, message: &str) {
     // Why: both shells below are quote-delimited; dropping quotes from the
     // interpolated text keeps the command well-formed without an escaper.

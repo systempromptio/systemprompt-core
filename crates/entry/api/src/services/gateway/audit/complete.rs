@@ -29,8 +29,6 @@ impl GatewayAudit {
             .unwrap_or_else(|| self.ctx.model.clone())
     }
 
-    /// Returns the computed request cost in microdollars so callers can feed
-    /// quota accounting without recomputing pricing.
     pub async fn complete(
         &self,
         usage: CapturedUsage,

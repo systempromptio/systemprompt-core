@@ -52,10 +52,6 @@ impl CatalogContent {
         })
     }
 
-    /// Memoized [`load`](Self::load): reuses the cached catalogue while the
-    /// fingerprint of the services config and the on-disk skills tree is
-    /// unchanged, so the bridge's per-file sync requests stop re-reading and
-    /// re-parsing every skill on each call.
     pub fn load_cached(
         services: &ServicesConfig,
         services_root: &Path,

@@ -27,9 +27,6 @@ pub enum RequestStatus {
     Pending,
     Completed,
     Failed,
-    /// Refused before routing resolved a provider, so `provider` and `model`
-    /// may be absent. The only status the routing constraint permits them
-    /// under.
     Rejected,
 }
 
@@ -56,14 +53,8 @@ pub struct AiRequestRecord {
     pub provider_request_id: Option<ProviderRequestId>,
     pub trace_id: Option<TraceId>,
     pub mcp_execution_id: Option<McpExecutionId>,
-    /// `None` when the request was rejected before routing resolved a provider.
     pub provider: Option<String>,
-    /// The model actually served, after route rewrite and any upstream
-    /// substitution (set from the provider response via `set_served_model`).
-    /// `None` when the request was rejected before a model was read.
     pub model: Option<String>,
-    /// The model the client requested on the wire, before route rewrite. `None`
-    /// for non-gateway requests.
     pub requested_model: Option<String>,
     pub max_tokens: Option<i32>,
     pub tokens: TokenInfo,

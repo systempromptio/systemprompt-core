@@ -14,12 +14,8 @@ use super::{BundleFile, PluginBundle};
 use crate::error::MarketplaceError;
 
 enum McpReference<'a> {
-    /// Defined and `enabled: true` — projected into `.mcp.json`.
     Enabled(&'a ManagedMcpServer),
-    /// Defined but `enabled: false` — omitted until re-enabled, no warning.
     Disabled,
-    /// Not defined in `services.mcp_servers`; a genuine misconfiguration.
-    /// Unreachable once `validate_plugin_bindings` has run, kept defensively.
     Unknown,
 }
 

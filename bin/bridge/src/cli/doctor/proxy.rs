@@ -8,13 +8,6 @@ use crate::integration::proxy_probe::{self, PeerIdentity, PortMatch};
 
 use super::Check;
 
-/// A proxy that is not listening is the single most common cause of "Claude
-/// Code cannot reach the gateway", so it is reported as a warning with the
-/// command that fixes it rather than left to be inferred.
-///
-/// It also asks *who* is listening. A liveness probe alone reports any process
-/// that speaks HTTP as healthy, which is how a foreign bridge holding this
-/// port has been passing this check while rejecting every real request.
 #[must_use]
 pub fn check_proxy_listening() -> Check {
     let port = crate::proxy::resolved_port();
@@ -63,11 +56,6 @@ pub fn check_proxy_listening() -> Check {
     }
 }
 
-/// Catches the mismatch that produces "bad loopback secret": a host configured
-/// for one port while the proxy serves another.
-///
-/// Reports only. Rewriting managed policy files as a side effect of a
-/// diagnostic would be a surprising amount of authority for `doctor` to take.
 #[must_use]
 pub fn check_proxy_client_config() -> Vec<Check> {
     let actual = crate::proxy::resolved_port();
@@ -106,8 +94,6 @@ pub fn check_proxy_client_config() -> Vec<Check> {
     checks
 }
 
-/// Linux-only: the proxy has no GUI to own its lifecycle, so the systemd user
-/// service written by `install --apply-schedule` is what survives a reboot.
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]
 #[must_use]
 pub fn check_proxy_service() -> Option<Check> {

@@ -20,8 +20,6 @@ use thiserror::Error;
 
 static PLATFORM_OWNER: OnceLock<SystemAdmin> = OnceLock::new();
 
-/// On a repeat call the argument is dropped; the first-installed value is
-/// returned.
 pub fn install_log_attribution(admin: SystemAdmin) -> &'static SystemAdmin {
     PLATFORM_OWNER.get_or_init(|| admin)
 }

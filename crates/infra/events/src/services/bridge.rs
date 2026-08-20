@@ -40,8 +40,6 @@ const READ_ONLY_SQL_TRANSACTION: &str = "25006";
 
 static LISTENING: AtomicBool = AtomicBool::new(true);
 
-/// `false` once the relay has failed to establish a listener and has not
-/// recovered. Stays `true` in deployments that never start a bridge.
 #[must_use]
 pub fn is_listening() -> bool {
     LISTENING.load(Ordering::Relaxed)
@@ -69,7 +67,6 @@ impl PostgresEventBridge {
         }
     }
 
-    /// Abort the returned handle to stop the relay.
     pub fn start(self) -> JoinHandle<()> {
         EventRouter::install_relay(self.pool.clone());
         tokio::spawn(async move {

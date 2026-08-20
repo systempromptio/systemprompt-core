@@ -42,12 +42,6 @@ where
     s.boxed()
 }
 
-/// Relays the upstream SSE byte stream unchanged.
-///
-/// Used when the caller and the upstream speak the same wire protocol: decoding
-/// to [`CanonicalEvent`] and re-rendering would drop any event type or field
-/// the canonical model does not describe, and the client is entitled to the
-/// frames the provider actually sent. Usage accounting reads a copy downstream.
 pub(in crate::services::gateway) fn raw_sse_stream<S>(
     stream: S,
 ) -> futures_util::stream::BoxStream<'static, Result<bytes::Bytes, String>>
@@ -57,11 +51,6 @@ where
     stream.map(|chunk| chunk.map_err(|e| e.to_string())).boxed()
 }
 
-/// Incremental Anthropic SSE decoder for callers that also need the raw bytes.
-///
-/// The byte-passthrough lane still has to account for usage and record a
-/// response snapshot, so it feeds a copy of every chunk through this decoder
-/// while the untouched chunk continues to the client.
 #[derive(Debug, Default)]
 pub(in crate::services::gateway) struct SseDecoder {
     buf: Vec<u8>,

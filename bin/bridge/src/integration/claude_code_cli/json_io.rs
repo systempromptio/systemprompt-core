@@ -46,9 +46,6 @@ pub(super) fn read_json_object(path: &Path) -> Result<Map<String, Value>, ApplyE
     Ok(read_optional_object(path)?.unwrap_or_default())
 }
 
-/// An absent or non-object value at `key` is normalised to an empty object, so
-/// the `None` arm is unreachable; callers treat `None` as "leave the file
-/// untouched" rather than panicking.
 pub fn object_entry<'a>(
     root: &'a mut Map<String, Value>,
     key: &'static str,

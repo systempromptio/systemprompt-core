@@ -25,9 +25,6 @@ pub struct AuthenticatedUser {
     pub permissions: Vec<Permission>,
     #[serde(default)]
     pub roles: Vec<String>,
-    /// Opaque ABAC attribute bag forwarded into `JwtClaims.attributes` and
-    /// onward to `AuthzRequest.attributes`. Tenant-defined, namespaced
-    /// keys; core never interprets values.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub attributes: BTreeMap<String, serde_json::Value>,
 }

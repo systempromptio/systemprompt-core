@@ -14,8 +14,6 @@ pub struct ProfileGenInputs {
     pub api_key: String,
     pub models: Vec<String>,
     pub organization_uuid: Option<String>,
-    /// Written into `inferenceCustomHeaders`; carries `x-inference-protocol` so
-    /// the gateway scopes `/v1/models` to the host's wire protocol.
     pub headers: BTreeMap<String, String>,
 }
 
@@ -27,10 +25,7 @@ pub struct ProfileGenInputs {
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum StaleReason {
-    /// The baked secret is not the one the live proxy verifies against.
     LoopbackSecret,
-    /// The baked base URL points at a port the proxy no longer holds — usually
-    /// because another install had taken the default one and this proxy moved.
     ProxyPort,
 }
 
@@ -38,15 +33,9 @@ pub enum StaleReason {
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum ProfileState {
     Absent,
-    Partial {
-        missing_required: Vec<String>,
-    },
+    Partial { missing_required: Vec<String> },
     Installed,
-    /// All required keys present, but the profile cannot authenticate as
-    /// written — every request 403s until it is re-applied.
-    Stale {
-        reason: StaleReason,
-    },
+    Stale { reason: StaleReason },
 }
 
 impl ProfileState {
@@ -55,14 +44,6 @@ impl ProfileState {
         matches!(self, Self::Installed)
     }
 
-    /// Both freshness arguments follow the same rule: `Some(false)` downgrades
-    /// an otherwise complete profile to [`Self::Stale`], while `None` — the
-    /// host bakes no such value, or the live one is unknown — never downgrades.
-    /// Staleness is asserted only on a definite mismatch, because a false
-    /// "re-apply required" trains people to ignore the real one.
-    ///
-    /// A wrong secret is checked first: if both are wrong, re-applying fixes
-    /// both, and the secret is the more familiar diagnosis.
     #[must_use]
     pub fn classify(
         required: &[&str],
@@ -81,11 +62,6 @@ impl ProfileState {
         }
     }
 
-    /// Compares a profile's baked base URL against the port the proxy actually
-    /// holds.
-    ///
-    /// Returns `None` for anything that is not a loopback URL we can parse: a
-    /// deliberately remote gateway is not this check's business.
     #[must_use]
     pub fn endpoint_freshness(configured_url: Option<&str>) -> Option<bool> {
         use crate::integration::proxy_probe::{PortMatch, classify_configured_port};
@@ -213,13 +189,10 @@ pub trait HostApp: Send + Sync + 'static {
         ConfigFormat::Json
     }
 
-    /// Official download page; empty means no download action is offered.
     fn download_url(&self) -> &'static str {
         ""
     }
 
-    /// API surfaces whose provider models this host can use; empty means no
-    /// restriction.
     fn accepted_surfaces(&self) -> &'static [ApiSurface] {
         &[]
     }
@@ -236,8 +209,6 @@ pub struct HostModelView {
     pub unconfigured_providers: Vec<String>,
 }
 
-/// Empty `accepted` means no restriction. Preserves model order and drops
-/// duplicates across providers.
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 #[must_use]
 pub fn host_model_view(
@@ -268,10 +239,6 @@ pub fn host_model_view(
     view
 }
 
-/// A synced per-host override wins over the host's built-in default.
-///
-/// An empty result means "all models"; an unrecognised override tag is dropped
-/// rather than failing the whole host.
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 #[must_use]
 pub fn effective_surfaces(

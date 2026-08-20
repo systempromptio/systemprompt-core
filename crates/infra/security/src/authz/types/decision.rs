@@ -24,8 +24,6 @@ pub enum MatchedBy {
     RoleAllow {
         role: String,
     },
-    /// Allowed by a rule on an extension-declared subject dimension
-    /// (`rule_type` outside core's `user` / `role`), e.g. a department grant.
     AttributeAllow {
         rule_type: RuleType,
         value: String,
@@ -62,9 +60,6 @@ pub enum DenyReason {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         justification: Option<String>,
     },
-    /// Denied by a rule on an extension-declared subject dimension. `value` is
-    /// the dimension value the subject holds that the rule named, e.g.
-    /// `rule_type = "department"`, `value = "engineering"`.
     #[error("{rule_type} {value} denied for {entity}")]
     AttributeDeny {
         entity: EntityRef,
@@ -89,10 +84,6 @@ pub enum DenyReason {
     UnknownEntity { entity: EntityRef },
     #[error("authz hook unavailable for policy {policy}")]
     HookUnavailable { policy: String },
-    /// Deny issued by an extension authz hook (via `register_authz_hook!`
-    /// or `AppContextBuilder::with_authz_hook`). The outer
-    /// `AuthzDecision::Deny.policy` carries the policy identifier
-    /// (e.g. `"abac.itar"`); `detail` is the human-readable reason.
     #[error("{detail}")]
     PolicyViolation {
         policy: String,

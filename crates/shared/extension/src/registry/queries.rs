@@ -62,9 +62,6 @@ impl ExtensionRegistry {
             .collect()
     }
 
-    /// Schema-bearing extensions in dependency (topological) order — the
-    /// single ordering authority for schema installation. `enabled_extensions`
-    /// already preserves `sorted_extensions` topo order, so this only filters.
     #[must_use]
     pub fn enabled_schema_extensions(&self, disabled_ids: &[String]) -> Vec<Arc<dyn Extension>> {
         self.enabled_extensions(disabled_ids)
@@ -168,10 +165,6 @@ impl ExtensionRegistry {
             .collect()
     }
 
-    /// Every job declared via [`crate::Extension::jobs`], for CLI/plugin
-    /// attribution. This is the introspection manifest, **not** the scheduler's
-    /// runtime catalog — the scheduler discovers runnable jobs from `inventory`
-    /// (`submit_job!`), which can differ from what extensions declare here.
     #[must_use]
     pub fn all_jobs(&self) -> Vec<Arc<dyn Job>> {
         self.sorted_extensions
@@ -180,8 +173,6 @@ impl ExtensionRegistry {
             .collect()
     }
 
-    /// Look up a declared job by name in the introspection manifest (see
-    /// [`Self::all_jobs`]); not the scheduler's runtime lookup.
     #[must_use]
     pub fn job_by_name(&self, name: &str) -> Option<Arc<dyn Job>> {
         self.sorted_extensions

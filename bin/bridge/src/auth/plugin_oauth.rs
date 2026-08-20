@@ -104,8 +104,6 @@ static BACKEND: OnceLock<SecretBackend> = OnceLock::new();
 static MEMORY_SECRETS: LazyLock<Mutex<HashMap<String, String>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
 
-/// The backend in use, for `doctor` to report. Resolves the store on first
-/// call.
 pub fn credential_backend() -> SecretBackend {
     resolve_backend()
 }
@@ -454,8 +452,6 @@ fn gateway_aligned_endpoint(raw: &str, gateway: &str) -> String {
     rebuilt
 }
 
-/// `bearer` is whatever credential the proxy authenticated the caller with —
-/// in practice the bridge JWT, not a PAT.
 pub async fn mint_or_refresh_plugin_token(
     gateway: &GatewayClient,
     bearer: &BearerToken,

@@ -60,15 +60,6 @@ impl UserRepository {
         Ok(row)
     }
 
-    /// Inserts the user, yielding `None` when one already holds that name or
-    /// email.
-    ///
-    /// `create` is the right call when the caller owns the identity it is
-    /// minting. This one is for the auto-provisioning paths, where several
-    /// processes resolve the *same* well-known identity — the local-trial
-    /// `admin` — and would otherwise each read "absent" and then race to
-    /// insert it, leaving every loser with a unique-violation the caller can
-    /// only tell apart by matching on the driver's error text.
     pub async fn create_if_absent(
         &self,
         name: &str,

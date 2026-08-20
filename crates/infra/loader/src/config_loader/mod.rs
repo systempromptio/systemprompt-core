@@ -61,26 +61,10 @@ impl ConfigLoader {
         Ok(Self::new(config_path))
     }
 
-    /// Loads the active profile's services configuration.
-    ///
-    /// The result is cached for the lifetime of the process, keyed by the
-    /// resolved configuration path. Boot alone calls this dozens of times —
-    /// startup validation, the scheduler, the agent registry, and every MCP
-    /// deployment accessor — and each uncached call re-read the YAML, re-walked
-    /// the skills/plugins/marketplaces trees, and re-validated the whole file.
-    /// Configuration is fixed for the life of a deployment, so an edit requires
-    /// a restart to take effect.
     pub fn load() -> ConfigLoadResult<ServicesConfig> {
         Self::for_active_profile()?.run_cached()
     }
 
-    /// Re-reads and re-validates the active profile's services configuration,
-    /// bypassing the [`Self::load`] cache and refreshing it with the result.
-    ///
-    /// Required by any command that validates its own write: the agent
-    /// create/edit/delete commands each load the configuration to resolve their
-    /// target before writing, so a cached [`Self::load`] afterwards would
-    /// return the pre-write state and the validation would silently pass.
     pub fn reload() -> ConfigLoadResult<ServicesConfig> {
         Self::for_active_profile()?.run_uncached()
     }
@@ -92,14 +76,11 @@ impl ConfigLoader {
         Ok(config)
     }
 
-    /// [`Self::load`] against an explicit path, sharing the same process-wide
-    /// cache.
     #[cfg(any(test, feature = "expose-internals"))]
     pub fn load_cached_from_path(path: &Path) -> ConfigLoadResult<ServicesConfig> {
         Self::new(path.to_path_buf()).run_cached()
     }
 
-    /// [`Self::reload`] against an explicit path.
     #[cfg(any(test, feature = "expose-internals"))]
     pub fn reload_from_path(path: &Path) -> ConfigLoadResult<ServicesConfig> {
         Self::new(path.to_path_buf()).run_uncached()

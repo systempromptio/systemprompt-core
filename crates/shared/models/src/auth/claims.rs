@@ -34,20 +34,9 @@ pub struct ActClaim {
     pub act: Box<Option<Self>>,
 }
 
-/// Maximum delegation-chain depth accepted by the platform. RFC 8693
-/// does not bound `act` recursion; the cap protects audit storage and
-/// makes "ever-growing delegation lineage" rejectable at decode time.
 pub const MAX_ACT_CHAIN_DEPTH: usize = 16;
 
 impl ActClaim {
-    /// Walk the `act` chain and return reconstructed [`Actor`] values in
-    /// outermost-first order: index 0 is the most recent delegate
-    /// (i.e. `self`), and the last element is the original delegating
-    /// principal. The chain is truncated at [`MAX_ACT_CHAIN_DEPTH`].
-    ///
-    /// Every link is reconstructed as [`Actor::user`] with the `sub`
-    /// claim as the [`UserId`]; `ActorKind` cannot be discerned from a
-    /// bare RFC 8693 `act` chain, so we default to `User`.
     #[must_use]
     pub fn flatten_to_chain(&self) -> Vec<Actor> {
         let mut chain = Vec::new();
@@ -62,9 +51,6 @@ impl ActClaim {
         chain
     }
 
-    /// Count nodes in the delegation chain without allocating. Returns
-    /// `MAX_ACT_CHAIN_DEPTH + 1` if the chain exceeds the cap so callers
-    /// can short-circuit with a single comparison.
     #[must_use]
     pub fn depth(&self) -> usize {
         let mut depth = 0usize;
@@ -101,9 +87,6 @@ pub struct JwtClaims {
     pub aud: Vec<JwtAudience>,
     pub jti: String,
 
-    /// PBAC scope: the `Permission` set this principal is granted. Enforced
-    /// at every route via `with_auth(scope)`; the first element is the
-    /// privilege level used by [`UserType::from_permissions`].
     #[serde(
         serialize_with = "serialize_scope",
         deserialize_with = "deserialize_scope"
@@ -114,20 +97,9 @@ pub struct JwtClaims {
     pub email: String,
     pub user_type: UserType,
 
-    /// RBAC attribute: role strings minted from the user row at OAuth
-    /// issuance. Consumed by `authz::resolver::resolve` for the core RBAC
-    /// check against `access_control_rules` (`rule_type = role`) and
-    /// forwarded into every `AuthzDecisionHook::evaluate` call. The only
-    /// first-class identity vector core inspects; everything else is
-    /// extension-defined via [`attributes`](Self::attributes).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub roles: Vec<String>,
 
-    /// Opaque ABAC attribute bag. The token issuer mints whatever
-    /// namespaced facts the extension authz hook needs (e.g.
-    /// `"acme.desk": "fixed-income"`, `"boeing.clearance": "ts/sci"`).
-    /// Core never interprets values — keys SHOULD be dotted-namespaced.
-    /// Forwarded verbatim into `AuthzRequest.attributes`.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub attributes: BTreeMap<String, serde_json::Value>,
 
@@ -138,16 +110,9 @@ pub struct JwtClaims {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub session_id: Option<SessionId>,
 
-    /// Rate-limit attribute: minted from `UserType::rate_tier` so the tier is
-    /// committed at issuance rather than re-derived per request. Read at the
-    /// rate-limit middleware via `RequestContext::rate_limit_tier()`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub rate_limit_tier: Option<RateLimitTier>,
 
-    /// Hook attribute: the plugin id this token was minted for. Validated by
-    /// the hook-token validator in `systemprompt_security::auth::hook_token` —
-    /// a hook request whose `plugin_id` claim disagrees with the URL path's
-    /// `plugin_id` is rejected.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub plugin_id: Option<String>,
 

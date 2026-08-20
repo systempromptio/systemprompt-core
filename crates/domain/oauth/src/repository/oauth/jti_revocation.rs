@@ -52,11 +52,6 @@ impl OAuthRepository {
         Ok(revoked)
     }
 
-    /// Admin "kick user" — caller passes the max expiry across the user's
-    /// outstanding access tokens. The middleware sees a revoked jti per row
-    /// inserted. For revoking a *fleet* of jtis (rotation across many active
-    /// sessions) the caller is expected to assemble the list of jtis from
-    /// session history first; this method is a thin transactional batch.
     pub async fn revoke_jtis_for_user(
         &self,
         user_id: Uuid,
@@ -90,10 +85,7 @@ impl OAuthRepository {
 
 #[derive(Debug, Clone, Copy)]
 enum CacheEntry {
-    /// Negative result with insertion instant — expires after
-    /// [`NEGATIVE_TTL_SECONDS`].
     NotRevoked { inserted_at: Instant },
-    /// Revocation is monotonic, so this entry is held until the LRU evicts it.
     Revoked,
 }
 
@@ -124,8 +116,6 @@ impl JtiRevocationCache {
         }
     }
 
-    /// `None` → not in cache (caller must hit the DB).
-    /// `Some(true)` → revoked. `Some(false)` → fresh negative.
     pub fn peek(&self, jti: &str) -> Option<bool> {
         let mut guard = self.cache.lock().ok()?;
         match guard.get(jti).copied()? {

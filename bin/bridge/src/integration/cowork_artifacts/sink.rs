@@ -67,8 +67,6 @@ pub struct StoredArtifactSummary {
     pub description: Option<String>,
 }
 
-/// Missing or unreadable store yields an empty map; foreign entries (preserved
-/// verbatim on write) that don't match the record shape are skipped.
 #[must_use]
 pub fn read_library_store(target_dir: &Path) -> BTreeMap<String, StoredArtifactSummary> {
     let Some(store) = std::fs::read(target_dir.join(LIBRARY_STORE_FILE))
@@ -90,11 +88,8 @@ pub fn read_library_store(target_dir: &Path) -> BTreeMap<String, StoredArtifactS
 }
 
 pub trait ArtifactSink: Send + Sync {
-    /// Guards the idempotency check against a half-written or externally
-    /// removed store that the `version.json` match alone would skip.
     fn is_materialized(&self, target_dir: &Path) -> bool;
 
-    /// Entries in the store not owned by this sync are preserved.
     fn write(&self, target_dir: &Path, artifacts: &[ArtifactEntry]) -> Result<(), ApplyError>;
 }
 

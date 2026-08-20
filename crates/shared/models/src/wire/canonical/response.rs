@@ -55,9 +55,6 @@ impl CanonicalUsageUpdate {
             && self.cache_creation_tokens.is_none()
     }
 
-    /// Overwrite every count this update states, leaving the rest as they were,
-    /// and rederive the total. A stated zero overwrites — it is a real report,
-    /// which is the whole distinction this type exists to carry.
     pub const fn apply_to(&self, usage: &mut CanonicalUsage) {
         if let Some(v) = self.input_tokens {
             usage.input_tokens = v;
@@ -157,21 +154,10 @@ pub struct CanonicalResponse {
     pub grounding: Option<Grounding>,
     pub code_execution: Option<CodeExecutionOutput>,
     pub raw_finish_reason: Option<String>,
-    /// Every string in the bytes the client receives.
-    ///
-    /// The canonical form is lossy in the same way it is on the request side,
-    /// so the gateway fills this from the rendered response body — buffered
-    /// bytes directly, streamed bytes via
-    /// [`sse_string_leaves`](crate::wire::inspect::sse_string_leaves) — before
-    /// any response scan runs. Callers that never serve through the gateway
-    /// leave it empty.
     pub received_surface: ForwardedSurface,
 }
 
 impl CanonicalResponse {
-    /// Each content block and each surface leaf is its own unit: concatenating
-    /// them would let two unrelated strings splice into a match neither one
-    /// contains.
     pub fn content_units(&self) -> Vec<String> {
         let mut units = Vec::with_capacity(self.content.len() + self.received_surface.len());
         for part in &self.content {

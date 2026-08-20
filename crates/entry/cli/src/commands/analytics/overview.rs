@@ -195,8 +195,6 @@ async fn fetch_overview_data(
     })
 }
 
-/// Percentage change from `previous` to `current`; `None` when the previous
-/// period had no data.
 #[must_use]
 pub fn calculate_change(current: i64, previous: i64) -> Option<f64> {
     (previous != 0).then(|| ((current - previous) as f64 / previous as f64) * 100.0)

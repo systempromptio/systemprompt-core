@@ -99,12 +99,6 @@ impl Default for SurfaceBudget {
     }
 }
 
-/// Collects every string in `body`, including object keys. Invalid JSON yields
-/// an empty, non-truncated surface — the caller rejects such a body separately
-/// rather than having this guess at its content.
-///
-/// The walk is iterative: a recursive one over caller-controlled JSON is a
-/// stack-overflow primitive well inside the 8 MiB body limit.
 #[must_use]
 pub fn string_leaves(body: &[u8], budget: SurfaceBudget) -> ForwardedSurface {
     let Ok(root) = serde_json::from_slice::<Value>(body) else {
@@ -116,12 +110,6 @@ pub fn string_leaves(body: &[u8], budget: SurfaceBudget) -> ForwardedSurface {
     surface
 }
 
-/// Collects every string in a stream of SSE frames, merging the frames into one
-/// surface under a single shared budget.
-///
-/// A frame whose `data:` payload is not JSON contributes nothing and does not
-/// stop the walk: one malformed frame in a stream must not blind the scanner to
-/// every other frame the client received.
 #[must_use]
 pub fn sse_string_leaves(frames: &[u8], budget: SurfaceBudget) -> ForwardedSurface {
     let mut surface = ForwardedSurface::default();

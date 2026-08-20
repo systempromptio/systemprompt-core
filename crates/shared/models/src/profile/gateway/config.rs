@@ -29,15 +29,8 @@ pub struct GatewayConfigSpec {
     pub enabled: bool,
     #[serde(default)]
     pub routes: Vec<GatewayRoute>,
-    /// Authorizes the synthetic catch-all route, but a model is only
-    /// *dispatched* to it when [`Self::allow_unlisted_models`] is also set; see
-    /// [`GatewayConfig::is_model_exposed`].
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub default_provider: Option<ProviderId>,
-    /// Closed allowlist when `false` (the default): a model matching no route
-    /// and absent from the registry is denied (`403`) rather than silently
-    /// billed against `default_provider`. Set `true` only to let the default
-    /// provider absorb arbitrary model strings.
     #[serde(default)]
     pub allow_unlisted_models: bool,
     #[serde(default = "default_auth_scheme")]
@@ -46,9 +39,6 @@ pub struct GatewayConfigSpec {
     pub inference_path_prefix: String,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub system_prompt_overrides: Vec<SystemPromptRule>,
-    /// Where the desktop bridge's self-updater is served from. Absent means the
-    /// update endpoints report "not configured" and bridges simply never see an
-    /// update — never an error the user has to act on.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub bridge_releases: Option<BridgeReleasesSpec>,
 }
@@ -62,22 +52,13 @@ pub struct GatewayConfigSpec {
 #[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct BridgeReleasesSpec {
-    /// Source repository as `owner/name`.
     pub repo: String,
-    /// Environment variable holding the GitHub token used to read releases and
-    /// download assets. Named rather than inlined so the token never lands in
-    /// a config file or a profile dump.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub token_env: Option<String>,
-    /// Release tags to consider. Bridge releases are tagged separately from the
-    /// server's, so an unfiltered "latest release" would pick the wrong one.
     #[serde(default = "default_tag_prefix")]
     pub tag_prefix: String,
-    /// Pins every bridge to one version instead of tracking the newest release.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub pinned_version: Option<String>,
-    /// Platform slug (`macos`, `windows`, `linux-x86_64`, `linux-aarch64`) to
-    /// release asset filename. A platform absent here has no published build.
     #[serde(default)]
     pub assets: std::collections::BTreeMap<String, String>,
 }
@@ -184,9 +165,6 @@ impl GatewayConfig {
             .chain(self.synthesize_default_route(registry).map(Cow::Owned))
     }
 
-    /// Selects the first candidate route whose model glob **and** request-shape
-    /// predicates match. A route without a `when` block matches on model name
-    /// alone, so omitting predicates preserves the prior model-only behaviour.
     #[must_use]
     pub fn resolve_route<'a>(
         &'a self,
@@ -227,10 +205,6 @@ impl GatewayConfig {
         Some(route)
     }
 
-    /// Closed-allowlist posture: a model matching no explicit route and not a
-    /// registered provider model is dispatchable only when `default_provider`
-    /// is set **and** [`Self::allow_unlisted_models`] opts in. Otherwise it
-    /// is denied before dispatch rather than silently billed.
     #[must_use]
     pub fn is_model_exposed(&self, registry: &ProviderRegistry, model: &str) -> bool {
         if self.find_route(model).is_some() || registry.contains_model(model) {
@@ -289,18 +263,6 @@ impl GatewayConfig {
         Ok(())
     }
 
-    /// Uncosted AI is a configuration bug, not a runtime warning: a route that
-    /// dispatches real inference must resolve to real rates, or the request is
-    /// billed at zero and the gap is invisible until someone reads the ledger.
-    ///
-    /// A route-level `pricing:` override covers everything the route dispatches
-    /// (it is what `pricing::resolve` prefers), so it short-circuits the check.
-    /// A route with an `upstream_model` rewrite dispatches every request to
-    /// that one model regardless of the pattern, so that model's rates are the
-    /// ones that must be usable. Otherwise every registry model the pattern can
-    /// reach must carry usable rates — and the pattern must reach at least one,
-    /// which is what catches a glob route pointed at a catalog that has fallen
-    /// behind the models actually in use.
     fn validate_route_pricing(
         &self,
         registry: &ProviderRegistry,

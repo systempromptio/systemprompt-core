@@ -51,14 +51,6 @@ pub struct ArtifactThemeRegistration {
 
 inventory::collect!(ArtifactThemeRegistration);
 
-/// Register an [`ArtifactTheme`] for every artifact this binary renders.
-///
-/// ```ignore
-/// use systemprompt_mcp::register_artifact_theme;
-/// register_artifact_theme!(brand_theme, name = "acme");
-/// ```
-///
-/// `$factory` is any `fn() -> ArtifactTheme`.
 #[macro_export]
 macro_rules! register_artifact_theme {
     ($factory:expr, name = $name:expr $(,)?) => {

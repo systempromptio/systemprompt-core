@@ -12,9 +12,7 @@ use std::time::Duration;
 
 #[derive(Debug, Clone, Copy)]
 pub struct RetryConfig {
-    /// Counts the first try, so `1` disables retries.
     pub max_attempts: u32,
-    /// Doubles each subsequent attempt.
     pub base_delay: Duration,
     pub max_delay: Duration,
     pub jitter: bool,
@@ -33,7 +31,6 @@ impl Default for RetryConfig {
 
 #[derive(Debug, Clone, Copy)]
 pub struct BreakerConfig {
-    /// Consecutive (not cumulative) failures that trip the breaker open.
     pub failure_threshold: u32,
     pub open_cooldown: Duration,
     pub half_open_max_probes: u32,
@@ -62,9 +59,7 @@ impl Default for BulkheadConfig {
 
 #[derive(Debug, Clone, Copy)]
 pub struct ResilienceConfig {
-    /// Per-attempt (not whole-call) timeout; non-streaming only.
     pub request_timeout: Duration,
-    /// Max gap between two chunks before a stream is aborted.
     pub stream_idle_timeout: Duration,
     pub retry: RetryConfig,
     pub breaker: BreakerConfig,

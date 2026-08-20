@@ -107,14 +107,6 @@ const ERROR_TYPE_INVALID_REQUEST: &str = "invalid_request_error";
 
 const POLICY_DENIAL_PREFIX: &str = "blocked by systemprompt governance";
 
-/// Renders a governance denial as `400 invalid_request_error`, not `403`.
-///
-/// Claude Code and other Anthropic-SDK clients treat any 403 on `/v1/messages`
-/// as an expired credential: they discard the body and tell the operator to
-/// re-login, so the reason never reaches the person who needs it. `400
-/// invalid_request_error` is the shape those clients surface verbatim, which is
-/// what a policy denial needs — the request was refused on its content, and no
-/// amount of re-authenticating will change that.
 #[cfg_attr(
     not(feature = "test-api"),
     expect(
@@ -130,9 +122,6 @@ pub fn build_policy_denial(message: &str) -> Response<Body> {
     )
 }
 
-/// Names the gateway as the source. Without it the deny reads as an upstream
-/// Anthropic error, which is exactly how the secret-scan false positive that
-/// prompted this was misdiagnosed.
 #[must_use]
 #[cfg_attr(
     not(feature = "test-api"),
@@ -148,7 +137,6 @@ pub fn policy_denial_message(message: &str) -> String {
     format!("{POLICY_DENIAL_PREFIX}: {message}")
 }
 
-/// The Anthropic error `type` conventionally paired with a status code.
 #[must_use]
 #[cfg_attr(
     not(feature = "test-api"),

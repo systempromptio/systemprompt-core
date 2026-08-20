@@ -44,11 +44,6 @@ pub struct RuleBasedHook {
 }
 
 impl RuleBasedHook {
-    /// Binds the extension subject-attribute providers registered via
-    /// [`register_subject_attribute_provider!
-    /// `][crate::register_subject_attribute_provider]
-    /// once, at construction, so every evaluation resolves the same ladder the
-    /// access matrix renders.
     #[must_use]
     pub fn new(pool: Arc<PgPool>, sink: Arc<dyn AuthzAuditSink>) -> Self {
         let providers = discover_subject_providers(&AuthzHookContext {

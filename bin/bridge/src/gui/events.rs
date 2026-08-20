@@ -116,8 +116,6 @@ pub enum UiEvent {
         result: Result<Value, Arc<GuiError>>,
         reply_to: ReplyId,
     },
-    /// Download progress, forwarded from the streaming callback so the state
-    /// mutation happens on the UI thread like every other state change.
     UpdateProgress {
         version: String,
         percent: u8,
@@ -137,7 +135,6 @@ pub enum UiEvent {
         reply_to: ReplyId,
     },
     SetupComplete,
-    /// Begin one-time provisioning after the first device link.
     FirstRunStart,
 
     Host(HostUiEvent),

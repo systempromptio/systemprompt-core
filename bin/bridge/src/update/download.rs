@@ -21,8 +21,6 @@ const DOWNLOAD_TIMEOUT: Duration = Duration::from_mins(15);
 #[derive(Debug, Clone, Copy)]
 pub struct DownloadProgress {
     pub received: u64,
-    /// From the manifest, so progress is reportable before the first byte and
-    /// does not depend on the server sending Content-Length.
     pub total: u64,
 }
 
@@ -41,12 +39,6 @@ impl DownloadProgress {
     }
 }
 
-/// Streams the platform artifact to the staging directory, hashing as it goes,
-/// and returns its path.
-///
-/// The digest is checked before this returns and a mismatch deletes the file —
-/// nothing downstream ever sees unverified bytes, because everything downstream
-/// executes them.
 pub async fn download_verified(
     client: &GatewayClient,
     bearer: &str,

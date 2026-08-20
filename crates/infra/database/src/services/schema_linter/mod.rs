@@ -101,11 +101,6 @@ impl fmt::Display for LintError {
     }
 }
 
-/// The single source of truth for which tables an extension *owns*.
-///
-/// Ownership is derived from the declarative schema, never hand-authored. A
-/// parse failure yields an empty list — the linter reports the parse error
-/// separately.
 #[must_use]
 pub fn created_table_names(sql: &str) -> Vec<String> {
     let Ok(parsed) = pg_query::parse(sql) else {
@@ -122,8 +117,6 @@ pub fn created_table_names(sql: &str) -> Vec<String> {
         .collect()
 }
 
-/// `source` is not read; it is the label stamped into error messages (typically
-/// the schema table name or the file path).
 pub fn lint_declarative_schema(sql: &str, source: &str) -> Result<(), Vec<LintError>> {
     let parsed = match pg_query::parse(sql) {
         Ok(p) => p,

@@ -26,15 +26,12 @@ pub fn active_sinks() -> &'static [&'static dyn ArtifactSink] {
     &[&FileSink, &SeedStaging]
 }
 
-/// `None` means no Cowork install detected; callers treat it as a no-op.
 #[must_use]
 pub fn resolve_artifacts_dir() -> Option<PathBuf> {
     let target = resolve_target()?;
     Some(target.session_org_dir.join(paths::COWORK_ARTIFACTS_SUBDIR))
 }
 
-/// Hashes only identity fields, independent of the sink's on-disk rendering,
-/// so a sink swap does not force a rewrite.
 #[must_use]
 pub fn artifacts_version(artifacts: &[ArtifactEntry]) -> String {
     let mut sorted: Vec<&ArtifactEntry> = artifacts.iter().collect();

@@ -18,11 +18,6 @@ type HmacSha256 = Hmac<Sha256>;
 
 pub const MAX_TIMESTAMP_SKEW_SECS: i64 = 60 * 5;
 
-/// Verify a Slack signature against the raw request body.
-///
-/// `timestamp` is the `X-Slack-Request-Timestamp` header (unix seconds as
-/// sent), `signature` is the `X-Slack-Signature` header (`v0=...`), and
-/// `now_unix` is the current unix time — injected so the check is testable.
 pub fn verify_slack_signature(
     signing_secret: &[u8],
     timestamp: &str,
@@ -54,8 +49,6 @@ pub fn verify_slack_signature(
         .map_err(|e| SlackError::Signature(format!("HMAC mismatch: {e}")))
 }
 
-/// Compute the `v0=<hex>` signature for a body — used by tests and to mirror
-/// Slack's own algorithm in fixtures.
 #[must_use]
 #[expect(
     clippy::expect_used,

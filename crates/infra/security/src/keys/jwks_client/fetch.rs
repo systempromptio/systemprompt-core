@@ -28,11 +28,6 @@ impl JwksClient {
         self.fetch_and_resolve(issuer, &url, kid).await
     }
 
-    /// Same as [`Self::fetch`], but takes an explicit JWKS URI (as configured
-    /// on a trusted issuer entry) rather than deriving
-    /// `<issuer>/.well-known/jwks.json`. The cache key remains the `issuer`
-    /// so two trusted issuers cannot collide even when they share the same
-    /// JWKS document host.
     pub async fn fetch_at(
         &self,
         issuer: &str,

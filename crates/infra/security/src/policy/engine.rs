@@ -66,15 +66,6 @@ impl std::fmt::Debug for GovernanceEngine {
 }
 
 impl GovernanceEngine {
-    /// The process-wide engine, built on first use from the active profile's
-    /// `<services>/governance/config.yaml`.
-    ///
-    /// The path is resolved here rather than through an `init()` seam because
-    /// a `OnceLock` seeded before the profile bootstrap completed would pin
-    /// the built-in defaults permanently, silently dropping every operator
-    /// policy. Resolving lazily means the first caller — whenever that is —
-    /// sees the configured chain. A profile that cannot be read falls back to
-    /// [`GovernanceConfig::defaults`], matching [`GovernanceConfig::load`].
     pub fn global() -> &'static Self {
         static ENGINE: LazyLock<GovernanceEngine> = LazyLock::new(|| {
             let config = governance_config_path()
@@ -84,12 +75,6 @@ impl GovernanceEngine {
         &ENGINE
     }
 
-    /// Instantiate the chain from `config` against the inventory registry.
-    ///
-    /// Configured ids with no registered factory are logged and skipped.
-    /// Registered policies absent from the config are appended `enabled:
-    /// false`, so the audit trace shows them as skipped rather than omitting
-    /// them.
     #[must_use]
     pub fn from_config(config: &GovernanceConfig) -> Self {
         if !config.enabled {
@@ -141,20 +126,12 @@ impl GovernanceEngine {
         }
     }
 
-    /// The instantiated chain in evaluation order, for dashboards and UI
-    /// projections.
     pub fn policies(&self) -> impl Iterator<Item = (&PolicyConfig, &dyn GovernancePolicy)> {
         self.entries
             .iter()
             .map(|e| (&e.config, e.instance.as_ref()))
     }
 
-    /// Run the chain first-deny-wins, tracing every entry.
-    ///
-    /// Entries switched off by config record a
-    /// [`ChainEntryResult::Disabled`] and entries after the first deny a
-    /// [`ChainEntryResult::Skip`], both with zero duration; an empty or
-    /// all-pass chain allows with [`MatchedBy::DefaultIncluded`].
     #[must_use]
     pub fn evaluate(&self, ctx: &PolicyContext<'_>) -> Evaluation {
         if !self.enabled {

@@ -35,24 +35,12 @@ pub struct ServerConfig {
     #[serde(default)]
     pub security_headers: SecurityHeadersConfig,
 
-    /// Stable identifier for this replica. Empty/unset resolves to the
-    /// OS hostname (or a generated short id) at config build time.
     #[serde(default)]
     pub instance_id: Option<String>,
 
-    /// Global cap on concurrent A2A SSE streams for this replica.
     #[serde(default = "default_max_concurrent_streams")]
     pub max_concurrent_streams: usize,
 
-    /// CIDR ranges whose immediate-peer requests are allowed to set
-    /// `X-Forwarded-For`, `X-Real-IP`, and `CF-Connecting-IP`. Empty
-    /// means the platform treats every connection as direct and ignores
-    /// those headers — the only safe default behind no proxy. Each entry
-    /// is a CIDR string (e.g. `10.0.0.0/8`, `192.168.1.0/24`,
-    /// `2001:db8::/32`). Single addresses without a `/` are accepted as
-    /// `/32` (IPv4) or `/128` (IPv6). Invalid entries fail profile load —
-    /// a silently-dropped proxy would demote a trusted hop to hostile and
-    /// break client-IP resolution with no boot-time signal.
     #[serde(
         default,
         deserialize_with = "deserialize_trusted_proxies",

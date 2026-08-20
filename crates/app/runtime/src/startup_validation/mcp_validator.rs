@@ -31,14 +31,6 @@ pub(super) fn validate_mcp_manifests(
     merge_mcp_errors(report, mcp_errors);
 }
 
-/// Resolve every enabled Internal MCP deployment against `resolve` and collect
-/// a [`ValidationError`] for each binary whose manifest cannot be located.
-///
-/// External servers (reached at their endpoint) and, on cloud, `dev_only`
-/// servers are skipped. `resolve` maps a deployment binary to `Ok(())` when its
-/// manifest exists or `Err(reason)` otherwise; the serve boot path binds it to
-/// the extension registry, tests bind a stub so the branch matrix is drivable
-/// without a manifest tree.
 pub fn collect_manifest_errors<F>(
     services_config: &ServicesConfig,
     is_cloud: bool,
@@ -80,11 +72,6 @@ where
     mcp_errors
 }
 
-/// Fold collected MCP manifest errors into `report`.
-///
-/// Appends to the existing `mcp` domain report when the domain-validation pass
-/// already produced one and creates a fresh `mcp` domain otherwise. A no-op
-/// when `mcp_errors` is empty.
 pub fn merge_mcp_errors(report: &mut StartupValidationReport, mcp_errors: Vec<ValidationError>) {
     if mcp_errors.is_empty() {
         return;

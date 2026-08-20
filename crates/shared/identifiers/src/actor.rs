@@ -29,9 +29,6 @@ impl Actor {
         }
     }
 
-    /// Unauthenticated traffic that has already been bound to a real
-    /// (typically ephemeral) `anonymous_*` user row. The `user_id` is the
-    /// provisioned row's id, not a sentinel.
     #[must_use]
     pub const fn anonymous(user_id: UserId) -> Self {
         Self {
@@ -40,9 +37,6 @@ impl Actor {
         }
     }
 
-    /// Platform-originated work (bootstrap jobs, scheduler tick, internal
-    /// fallbacks). The caller passes the resolved system-admin user id;
-    /// no sentinel is fabricated inside the constructor.
     #[must_use]
     pub const fn system(user_id: UserId) -> Self {
         Self {
@@ -71,9 +65,6 @@ impl Actor {
         }
     }
 
-    /// A configured agent (Claude Code session, autonomous agent, etc.)
-    /// acting on the user's behalf. The agent is the surface; the user is
-    /// the accountable principal.
     #[must_use]
     pub fn agent(user_id: UserId, agent_id: impl Into<String>) -> Self {
         Self {

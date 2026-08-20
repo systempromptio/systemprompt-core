@@ -141,9 +141,6 @@ impl ServiceColumns {
         }
     }
 
-    /// Display width of a row's interior, i.e. everything strictly between the
-    /// two outer box-drawing glyphs. Every line of the table is framed against
-    /// this one number so the borders, title, header, and rows cannot drift.
     const fn interior_width(&self) -> usize {
         (self.name + 2) + (self.service_type + 2) + (self.port + 2) + (self.status + 2) + 3
     }
@@ -170,11 +167,6 @@ pub fn render_service_table(title: &str, services: &[ServiceTableEntry]) {
     render_service_table_into(&mut std::io::stdout(), title, services).ok();
 }
 
-/// Renders the service-status table into `out`.
-///
-/// Split from [`render_service_table`] so the frame geometry is assertable: the
-/// stdout entry point above discards the result, which is why an off-by-two in
-/// the top border went unnoticed.
 pub fn render_service_table_into(
     out: &mut impl Write,
     title: &str,

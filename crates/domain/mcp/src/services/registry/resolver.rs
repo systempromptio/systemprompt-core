@@ -93,8 +93,6 @@ impl RegistryService {
         Ok(enabled)
     }
 
-    /// Exposes deployment-config validation through the registry handle so
-    /// callers don't reach into `DeploymentService` directly.
     #[expect(
         clippy::unused_self,
         reason = "registry-scoped entry-point over DeploymentService::validate_config"

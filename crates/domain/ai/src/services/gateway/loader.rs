@@ -18,8 +18,6 @@ use crate::repository::AiGatewayPolicyRepository;
 
 pub const GATEWAY_POLICIES_FILE: &str = "gateway/policies.yaml";
 
-/// `override_existing` and `delete_orphans` are both `true`: the YAML is the
-/// authoritative source, so every boot reconciles the DB to match it exactly.
 pub async fn load_from_yaml(
     repository: &AiGatewayPolicyRepository,
     services_path: &Path,

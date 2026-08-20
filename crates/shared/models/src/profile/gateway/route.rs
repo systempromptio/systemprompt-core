@@ -39,9 +39,6 @@ pub struct GatewayRoute {
     pub extra_headers: HashMap<String, String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub pricing: Option<ModelPricing>,
-    /// Optional request-shape predicates. Absent (`None`) preserves the
-    /// model-only matching behaviour; present narrows the route to requests
-    /// whose attributes satisfy every set predicate.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub when: Option<RouteMatch>,
 }
@@ -51,9 +48,6 @@ impl GatewayRoute {
         match_pattern(&self.model_pattern, model)
     }
 
-    /// Model-glob match plus, when a [`RouteMatch`] is present, every set
-    /// request-shape predicate. A route without a `when` block matches purely
-    /// on model name, exactly as [`Self::matches`].
     pub fn matches_request(&self, request: &CanonicalRequest) -> bool {
         self.matches(&request.model)
             && self
@@ -62,10 +56,6 @@ impl GatewayRoute {
                 .is_none_or(|w| w.matches_request(request))
     }
 
-    /// Returns the requested name verbatim when the route carries no
-    /// `upstream_model` rewrite. For the synthesized `*` default route this
-    /// passthrough is intentional — see
-    /// `GatewayConfig::synthesize_default_route`.
     pub fn effective_upstream_model<'a>(&'a self, requested: &'a str) -> &'a str {
         self.upstream_model.as_deref().unwrap_or(requested)
     }
@@ -108,8 +98,6 @@ pub struct RouteMatch {
 }
 
 impl RouteMatch {
-    /// True when every set predicate holds for `request`; absent predicates are
-    /// ignored.
     #[must_use]
     pub fn matches_request(&self, request: &CanonicalRequest) -> bool {
         self.requires_tools
@@ -130,8 +118,6 @@ impl RouteMatch {
             })
     }
 
-    /// Names of the predicates that are set, in declaration order — the basis
-    /// for the route-match audit descriptor.
     #[must_use]
     pub fn matched_predicates(&self) -> Vec<&'static str> {
         let mut out = Vec::new();
@@ -159,9 +145,6 @@ impl RouteMatch {
         out
     }
 
-    /// Rejects predicate combinations that can never match: a zero `min_tools`
-    /// (vacuous), and `requires_tools: false` paired with a positive
-    /// `min_tools` (contradiction).
     pub const fn validate(&self) -> GatewayResult<()> {
         if matches!(self.min_tools, Some(0)) {
             return Err(GatewayProfileError::RouteMatchZeroMinTools);

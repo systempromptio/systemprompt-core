@@ -141,9 +141,6 @@ pub fn run() -> ExitCode {
     run_with_brand(&brand::Brand::SYSTEMPROMPT)
 }
 
-/// The brand is installed *before* any logging, panic-hook, or path resolution
-/// so on-disk directories and chrome reflect it from the first line of output.
-/// Call once at process start, before [`run`].
 #[must_use]
 pub fn run_with_brand(brand: &'static brand::Brand) -> ExitCode {
     brand::set_brand(brand);

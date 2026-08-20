@@ -16,8 +16,6 @@ pub struct ServiceStatus {
     pub pid: Option<u32>,
     pub health: String,
     pub uptime_seconds: Option<i64>,
-    /// `None` when the tool list was never enumerated — see
-    /// [`HealthCheckDetails::tools_available`](crate::services::monitoring::health::HealthCheckDetails::tools_available).
     pub tools_count: Option<usize>,
     pub latency_ms: Option<u32>,
     pub auth_required: bool,
@@ -31,7 +29,6 @@ pub struct McpServiceStatus {
     pub endpoint: Option<String>,
     pub health: HealthStatus,
     pub pid: Option<u32>,
-    /// `None` when the tool list was never enumerated.
     pub tools_count: Option<usize>,
     pub latency_ms: Option<u32>,
     pub auth_required: bool,

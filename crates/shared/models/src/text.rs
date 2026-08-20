@@ -9,12 +9,6 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-/// Split `text` into chunks each under `limit` bytes, breaking on line
-/// boundaries.
-///
-/// A chunk never splits a line. An empty input yields a single empty chunk
-/// (callers render it as one empty block). A single line longer than `limit`
-/// is emitted whole rather than cut mid-line.
 #[must_use]
 pub fn chunk_text(text: &str, limit: usize) -> Vec<String> {
     if text.is_empty() {

@@ -38,9 +38,6 @@ use crate::routes::messaging::{
 
 const ISSUER: &str = "https://api.botframework.com";
 
-/// Router for the Teams inbound surface, mounted under `ApiPaths::TEAMS_BASE`
-/// with no JWT middleware (requests are authenticated by the Bot Connector
-/// activity token).
 pub fn teams_router() -> Router<AppContext> {
     Router::new().route("/messages", post(handle_messages))
 }

@@ -56,7 +56,6 @@ pub enum HostUiEvent {
     },
     ModelFilterSetRequested {
         host_id: String,
-        /// `None` clears the override; `Some([])` means "all models".
         protocols: Option<Vec<String>>,
         reply_to: ReplyId,
     },

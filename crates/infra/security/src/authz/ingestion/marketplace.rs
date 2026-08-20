@@ -16,10 +16,6 @@ use super::upsert::{Target, UpsertOutcome, upsert_marketplace_entity_row, upsert
 use super::{AccessControlIngestionService, IngestOptions, IngestReport};
 
 impl AccessControlIngestionService {
-    /// Only `access.roles` and `access.default_included` cross the boundary —
-    /// the opaque `access.attributes` bag is never ingested; it is forwarded
-    /// verbatim to extension ABAC hooks elsewhere. Marketplaces with no roles
-    /// are skipped entirely (no entity row is written for them here).
     pub async fn ingest_marketplace_access(
         &self,
         marketplaces: &HashMap<MarketplaceId, MarketplaceConfig>,

@@ -62,8 +62,6 @@ pub enum StartupEvent {
         name: String,
         port: u16,
         startup_time: Duration,
-        /// `None` when the server's tool list was never enumerated, e.g. an
-        /// OAuth-gated server validated by reachability alone.
         tools: Option<usize>,
     },
     McpServerFailed {
@@ -123,11 +121,6 @@ pub enum StartupEvent {
         name: String,
         schedule: String,
     },
-    /// `scheduled` is the number of jobs with a `scheduler.jobs` entry, i.e.
-    /// what will actually run; `available` is the number compiled into the
-    /// binary and discovered via inventory. The two are reported separately
-    /// because `available` alone reads as a deployment's job count when it is
-    /// really a build capability.
     SchedulerReady {
         scheduled: usize,
         available: usize,

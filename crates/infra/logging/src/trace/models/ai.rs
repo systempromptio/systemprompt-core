@@ -48,9 +48,7 @@ pub struct AiRequestListItem {
     pub user_id: UserId,
     pub actor_kind: String,
     pub actor_id: String,
-    /// `None` for a request rejected before routing resolved a provider.
     pub provider: Option<String>,
-    /// `None` for a request rejected before a model was read.
     pub model: Option<String>,
     pub input_tokens: Option<i32>,
     pub output_tokens: Option<i32>,
@@ -67,9 +65,7 @@ pub struct AiRequestDetail {
     pub user_id: UserId,
     pub actor_kind: String,
     pub actor_id: String,
-    /// `None` for a request rejected before routing resolved a provider.
     pub provider: Option<String>,
-    /// `None` for a request rejected before a model was read.
     pub model: Option<String>,
     pub input_tokens: Option<i32>,
     pub output_tokens: Option<i32>,
@@ -112,9 +108,7 @@ pub struct ModelStatsRow {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AiRequestInfo {
     pub id: AiRequestId,
-    /// `None` for a request rejected before routing resolved a provider.
     pub provider: Option<String>,
-    /// `None` for a request rejected before a model was read.
     pub model: Option<String>,
     pub max_tokens: Option<i32>,
     pub input_tokens: Option<i32>,

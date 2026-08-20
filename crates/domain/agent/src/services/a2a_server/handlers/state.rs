@@ -16,9 +16,6 @@ pub struct AgentHandlerState {
     pub oauth_state: Arc<AgentOAuthState>,
     pub agent_state: Arc<AgentState>,
     pub ai_service: Arc<dyn AiProvider>,
-    /// Global cap on concurrently active A2A SSE streams. A permit is held
-    /// for the whole lifetime of each spawned stream task; exhaustion bounds
-    /// process memory under load rather than spawning tasks without limit.
     pub stream_semaphore: Arc<Semaphore>,
 }
 

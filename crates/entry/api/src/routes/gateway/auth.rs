@@ -131,8 +131,6 @@ pub async fn session(
     Ok(Json(result.into()))
 }
 
-/// The PAT is returned exactly once; the bridge stores it and refreshes JWTs
-/// silently from then on, with no recurring browser consent.
 pub async fn session_pat(
     ctx: AppContext,
     Json(body): Json<SessionPatBody>,

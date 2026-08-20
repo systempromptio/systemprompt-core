@@ -14,8 +14,6 @@ use systemprompt_oauth::services::SessionCreationService;
 use systemprompt_traits::{AnalyticsProvider, SessionAnalytics, UserProvider};
 use systemprompt_users::{UserRepository, UserService};
 
-/// Lifetime of a CLI session row and of the admin token that names it. The two
-/// must agree, or the operator sees a mid-session 401.
 pub const DEFAULT_CLI_SESSION_HOURS: i64 = 24;
 
 // Why: the public `POST /oauth/session` endpoint must not accept a

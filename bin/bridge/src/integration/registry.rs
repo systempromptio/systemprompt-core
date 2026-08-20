@@ -45,7 +45,6 @@ pub struct HostAppSuppression {
 
 inventory::collect!(HostAppSuppression);
 
-/// Remove a host id from the compile-time host registry.
 #[macro_export]
 macro_rules! suppress_host_app {
     ($id:expr $(,)?) => {
@@ -55,11 +54,6 @@ macro_rules! suppress_host_app {
     };
 }
 
-/// Register a [`HostApp`] into the compile-time host registry.
-///
-/// Pass a zero-sized `'static` host value (e.g. a unit-struct instance). An
-/// optional `priority = N` (default 0) lets a registration shadow a built-in
-/// sharing the same `id()`: the highest priority wins.
 #[macro_export]
 macro_rules! register_host_app {
     ($e:expr, priority = $p:expr $(,)?) => {

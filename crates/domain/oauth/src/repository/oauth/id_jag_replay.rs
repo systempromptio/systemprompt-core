@@ -9,8 +9,6 @@ use crate::error::OauthResult;
 use chrono::{DateTime, Utc};
 
 impl OAuthRepository {
-    /// Records `jti` and returns `true` only on its first presentation; `false`
-    /// signals a replay that must be rejected.
     pub async fn consume_id_jag_jti(
         &self,
         jti: &str,

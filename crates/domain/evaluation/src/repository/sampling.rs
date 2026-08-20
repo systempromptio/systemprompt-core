@@ -147,8 +147,6 @@ impl SamplingRepository {
         Ok(rows)
     }
 
-    /// Cost as persisted by the audit path, looked up by the provider-facing
-    /// `request_id` (the UUID on `AiResponse`), not the row's primary key.
     pub async fn request_cost(&self, request_id: &str) -> Result<i64> {
         let cost = sqlx::query_scalar!(
             "SELECT cost_microdollars FROM ai_requests WHERE request_id = $1",
@@ -159,8 +157,6 @@ impl SamplingRepository {
         Ok(cost.unwrap_or(0))
     }
 
-    /// Splits the stored transcript into the prompt (everything up to the
-    /// last assistant message) and the response (that last assistant message).
     async fn load_messages(
         &self,
         id: &AiRequestId,

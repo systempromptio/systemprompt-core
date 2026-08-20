@@ -19,11 +19,6 @@ pub struct AuthChallenge {
 }
 
 impl AuthChallenge {
-    /// Parse a `WWW-Authenticate` header value.
-    ///
-    /// Only the `Bearer` scheme is recognised; any other scheme yields an empty
-    /// challenge rather than an error, since a server offering something else
-    /// is simply one we cannot satisfy.
     #[must_use]
     pub fn parse(header: &str) -> Self {
         let Some(params) = header
@@ -111,13 +106,9 @@ pub enum McpTransportError {
     )]
     AuthorizationRequired {
         reason: String,
-        /// Resource identifier from the RFC 9728 metadata, when readable.
         resource: Option<String>,
-        /// The `resource_metadata` URL the challenge advertised.
         metadata_url: Option<String>,
-        /// Authorization servers the resource delegates to.
         authorization_servers: Vec<String>,
-        /// The resource requires an IdP-issued ID-JAG, not a redirect.
         enterprise_managed: bool,
     },
 }

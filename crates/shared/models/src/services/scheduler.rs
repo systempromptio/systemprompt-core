@@ -20,21 +20,8 @@ pub struct JobConfig {
     pub enabled: bool,
     #[serde(default)]
     pub schedule: Option<String>,
-    /// Opt-in for destructive job actions (e.g. automated IP bans, retention
-    /// deletes). When `false` — the default — such jobs run in
-    /// observe-and-log mode, reporting would-delete counts.
     #[serde(default)]
     pub enforce: bool,
-    /// String-valued parameters passed to the job on every run (scheduled,
-    /// bootstrap, and manual). Core jobs read:
-    ///
-    /// | Job | Key | Default |
-    /// |---|---|---|
-    /// | `cleanup_empty_contexts` | `retention_hours` | 24 |
-    /// | `database_cleanup` | `log_retention_days` | 30 |
-    /// | `cleanup_inactive_sessions` | `inactive_hours` | 1 |
-    /// | `mcp_session_cleanup` | `retention_days` | 7 |
-    /// | `cleanup_anonymous_users` | `retention_days` | 30 |
     #[serde(default)]
     pub parameters: HashMap<String, String>,
 }
@@ -44,9 +31,6 @@ const fn default_true() -> bool {
 }
 
 impl JobConfig {
-    /// A job with no explicit `owner` runs as the profile `system_admin`,
-    /// resolved per-environment at scheduler start. Set one with
-    /// [`Self::with_owner`] only for a job that must run as a specific user.
     #[must_use]
     pub fn new(name: impl Into<String>) -> Self {
         Self {
@@ -114,11 +98,6 @@ fn default_bootstrap_jobs() -> Vec<String> {
 }
 
 impl SchedulerConfig {
-    /// The built-in core job set. The four cleanup jobs
-    /// (`cleanup_anonymous_users`, `cleanup_empty_contexts`,
-    /// `cleanup_inactive_sessions`, `database_cleanup`) have no human
-    /// originator, so they carry no explicit `owner` and run as the profile
-    /// `system_admin` resolved per-environment at scheduler start.
     #[must_use]
     pub fn with_system_admin() -> Self {
         Self {

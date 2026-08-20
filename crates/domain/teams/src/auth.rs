@@ -33,7 +33,6 @@ const JWKS_TTL_SECS: i64 = 24 * 60 * 60;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct ActivityClaims {
-    /// The Bot Connector service URL the token is bound to.
     #[serde(default)]
     pub serviceurl: Option<String>,
 }
@@ -95,9 +94,6 @@ impl ActivityTokenVerifier {
         }
     }
 
-    /// Validate a bearer token against the channel's `service_url`, returning
-    /// the extracted claims. `now_unix` drives the JWKS cache TTL (token
-    /// expiry is checked against the system clock with a tolerance window).
     pub async fn verify(
         &self,
         token: &str,
@@ -157,11 +153,6 @@ impl ActivityTokenVerifier {
     }
 }
 
-/// Validate a token against a known signing key, audience, and `service_url`.
-///
-/// This is the network-free core of [`ActivityTokenVerifier::verify`],
-/// separated so the cryptographic and claim checks are testable without
-/// fetching the JWKS.
 pub fn validate_token(
     token: &str,
     key: &DecodingKey,

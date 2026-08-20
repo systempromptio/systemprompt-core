@@ -59,16 +59,12 @@ pub struct BundleContent<'a> {
     pub agents: &'a [AgentEntry],
     pub mcp_servers: &'a [ManagedMcpServer],
     pub disabled_mcp_servers: &'a BTreeSet<String>,
-    /// First-class catalogue entities, selected many-to-many by plugin spec —
-    /// not owned by any one skill.
     pub artifacts: &'a [ArtifactEntry],
     pub plugins_root: &'a Path,
 }
 
 const HOOKS_RELPATH: &str = "./hooks/hooks.json";
 
-/// A spec whose references resolve to nothing still yields a manifest-only
-/// bundle, not an error; callers must gate that with [`bundle_has_content`].
 pub fn build_plugin_bundle(
     config: &PluginConfig,
     content: &BundleContent<'_>,

@@ -35,9 +35,6 @@ pub struct IssuedPluginToken {
 pub struct PluginTokenService;
 
 impl PluginTokenService {
-    /// `session_id` must name a persisted `user_sessions` row for `subject`
-    /// that outlives `duration_days`: the governance webhook attests the claim
-    /// on every hook call, so an unpersisted id fails on all of them.
     pub fn issue(
         subject: PluginTokenSubject,
         issuer: &str,

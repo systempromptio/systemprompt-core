@@ -61,18 +61,6 @@ pub fn discover_authz_hook(ctx: &AuthzHookContext) -> Option<SharedAuthzHook> {
     }
 }
 
-/// Register an extension authz hook factory at static-init time.
-///
-/// The factory receives a borrowed [`AuthzHookContext`] (pool + audit sink)
-/// and returns the constructed hook. Wire alongside `register_extension!`
-/// in the extension's `extension.rs`:
-///
-/// ```ignore
-/// systemprompt_security::register_authz_hook!(|ctx| {
-///     std::sync::Arc::new(MyHook::new(ctx.pool.clone(), ctx.sink.clone()))
-///         as systemprompt_security::authz::SharedAuthzHook
-/// });
-/// ```
 #[macro_export]
 macro_rules! register_authz_hook {
     ($factory:expr) => {

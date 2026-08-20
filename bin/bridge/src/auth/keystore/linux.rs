@@ -20,8 +20,6 @@ impl LinuxKeystore {
         }
     }
 
-    /// The env var wins over `mtls.cert_keystore_ref` so setups that predate
-    /// the config key keep working unchanged.
     fn resolve(&self) -> Result<String, KeystoreError> {
         let cert_env = crate::brand::brand().env("DEVICE_CERT");
         if let Ok(from_env) = env::var(&cert_env)

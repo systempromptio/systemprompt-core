@@ -23,9 +23,6 @@ pub struct MarketplaceCandidate {
     pub hooks: Vec<HookEntry>,
     pub managed_mcp_servers: Vec<ManagedMcpServer>,
     pub artifacts: Vec<ArtifactEntry>,
-    /// Artifact id to the plugins that ship it. Artifacts carry no access rule
-    /// of their own, so a filter gates them through this map: an artifact
-    /// survives only while at least one owning plugin does.
     pub artifact_owners: BTreeMap<LibraryArtifactId, BTreeSet<PluginId>>,
     pub marketplace_id: Option<MarketplaceId>,
     pub access: Option<MarketplaceAccess>,
@@ -79,9 +76,6 @@ impl MarketplaceCandidate {
         self
     }
 
-    /// Drops artifacts whose every owning plugin was filtered away. Enforced
-    /// centrally after filtering rather than left to each `MarketplaceFilter`,
-    /// so a filter that only removes plugins cannot leak their artifacts.
     pub fn prune_orphaned_artifacts(&mut self) {
         let surviving: BTreeSet<&PluginId> = self.plugins.iter().map(|p| &p.id).collect();
         let owners = &self.artifact_owners;

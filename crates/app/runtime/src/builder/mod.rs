@@ -62,8 +62,6 @@ impl AppContextBuilder {
         Self::default()
     }
 
-    /// Supplies an explicit extension registry. When unset, `build()`
-    /// discovers extensions via inventory ([`ExtensionRegistry::discover`]).
     #[must_use]
     pub fn with_extensions(mut self, registry: ExtensionRegistry) -> Self {
         self.extension_registry = Some(registry);
@@ -76,27 +74,18 @@ impl AppContextBuilder {
         self
     }
 
-    /// Supplies an explicit marketplace filter. When unset, `build()` selects
-    /// the highest-priority inventory-registered filter, falling back to an
-    /// allow-all filter when none succeeds.
     #[must_use]
     pub fn with_marketplace_filter(mut self, filter: Arc<dyn MarketplaceFilter>) -> Self {
         self.marketplace_filter = Some(filter);
         self
     }
 
-    /// Install / migrate extension schemas as part of `build()`. Off by
-    /// default so admin tools (`db doctor`, repair scripts) can open a
-    /// connection without mutating the schema. `serve` turns this on.
     #[must_use]
     pub const fn with_migrations(mut self, install: bool) -> Self {
         self.install_schemas = install;
         self
     }
 
-    /// Supplies an extension-built authz decision hook. The hook is wired
-    /// only when `profile.governance.authz.hook.mode = extension`; pairing
-    /// this call with any other mode is a bootstrap error.
     #[must_use]
     pub fn with_authz_hook<H>(mut self, hook: H) -> Self
     where

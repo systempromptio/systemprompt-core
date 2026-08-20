@@ -50,8 +50,6 @@ pub fn snapshot() -> Arc<McpRegistry> {
     slot().load_full()
 }
 
-/// Lets the proxy serve `/mcp/<name>` at boot without waiting for a
-/// credentialed sync.
 pub fn rehydrate_from_disk() {
     let Some(meta_dir) = crate::config::paths::bridge_metadata_dir() else {
         return;

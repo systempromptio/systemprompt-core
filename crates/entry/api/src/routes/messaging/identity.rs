@@ -16,12 +16,6 @@ use systemprompt_users::User;
 
 use super::MessagingError;
 
-/// Resolve the platform sender to a governed user, linking on first contact.
-///
-/// The chat platform has already verified the request signature/token, so the
-/// `external_user_id` is trusted; no upstream email is asserted, so the minted
-/// account carries a synthetic local email and the default `user` role until an
-/// operator grants more.
 pub async fn resolve_or_link_user(
     ctx: &AppContext,
     issuer: &str,

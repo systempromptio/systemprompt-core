@@ -103,15 +103,6 @@ pub struct UiRendererRegistration {
 
 inventory::collect!(UiRendererRegistration);
 
-/// Register a [`UiRenderer`] implementation, replacing the built-in for its
-/// artifact type if there is one.
-///
-/// ```ignore
-/// use systemprompt_mcp::register_ui_renderer;
-/// register_ui_renderer!(BrandTableRenderer::new, name = "brand-table");
-/// ```
-///
-/// `$factory` is any `fn() -> R where R: UiRenderer + 'static`.
 #[macro_export]
 macro_rules! register_ui_renderer {
     ($factory:expr, name = $name:expr $(,)?) => {

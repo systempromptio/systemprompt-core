@@ -27,8 +27,6 @@ pub enum FrameOptions {
 }
 
 impl FrameOptions {
-    /// `X-Frame-Options` value for this policy. `None` for [`Self::AllowAll`]:
-    /// the header has no allow-all value, so absence is the mechanism.
     #[must_use]
     pub const fn header_value(self) -> Option<&'static str> {
         match self {

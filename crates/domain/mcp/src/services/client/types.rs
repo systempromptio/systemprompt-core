@@ -12,9 +12,6 @@ pub struct McpConnectionResult {
     pub error_message: Option<String>,
     pub connection_time_ms: u32,
     pub server_info: Option<McpProtocolInfo>,
-    /// `None` when the tool list was never enumerated — an OAuth-gated server
-    /// is probed for reachability only, so zero tools and an unmeasured count
-    /// must not collapse to the same value.
     pub tools_count: Option<usize>,
     pub validation_type: String,
 }

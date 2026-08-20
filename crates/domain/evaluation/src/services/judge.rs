@@ -64,9 +64,6 @@ impl std::fmt::Debug for JudgeService {
 }
 
 impl JudgeService {
-    /// `ai` must be the auditing provider (the `AiService` implementation):
-    /// judge isolation and cost lookup depend on `generate` persisting the
-    /// request to `ai_requests` with the job actor this service sets.
     pub fn new(ai: DynAiProvider, sampling: SamplingRepository, spec: JudgeSpec) -> Self {
         Self {
             ai,

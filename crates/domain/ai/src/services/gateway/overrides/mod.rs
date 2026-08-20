@@ -165,14 +165,6 @@ pub struct SystemPromptOverrideRegistration {
 
 inventory::collect!(SystemPromptOverrideRegistration);
 
-/// Register a [`SystemPromptOverride`] implementation with the gateway.
-///
-/// ```ignore
-/// use systemprompt_ai::register_system_prompt_override;
-/// register_system_prompt_override!(TenantPromptOverride::new, name = "tenant-prompt");
-/// ```
-///
-/// `$factory` is any `fn() -> Arc<dyn SystemPromptOverride>`.
 #[macro_export]
 macro_rules! register_system_prompt_override {
     ($factory:expr, name = $name:expr $(,)?) => {

@@ -23,10 +23,6 @@ static INTERPOLATION_REGEX: LazyLock<Regex> = LazyLock::new(|| {
         .expect("INTERPOLATION_REGEX is a valid regex - this is a compile-time constant")
 });
 
-/// Reads an environment variable, treating empty as absent.
-///
-/// Returns `Some` only when the variable is present and non-empty, so a
-/// blank override never masks a downstream default.
 #[must_use]
 pub fn read_env_optional(name: &str) -> Option<String> {
     match std::env::var(name) {
@@ -35,11 +31,6 @@ pub fn read_env_optional(name: &str) -> Option<String> {
     }
 }
 
-/// Normalizes an optional env- or flag-sourced value, treating blank as absent.
-///
-/// clap `env =` args materialize as `Some("")` when the variable is exported
-/// empty — container platforms export blank defaults for unfilled template
-/// variables — so presence checks must not read that as a configured value.
 #[must_use]
 pub fn none_if_blank(value: Option<String>) -> Option<String> {
     value.filter(|v| !v.trim().is_empty())
@@ -50,13 +41,6 @@ pub fn contains_placeholder(input: &str) -> bool {
     INTERPOLATION_REGEX.is_match(input)
 }
 
-/// Replaces every `${VAR}` / `${VAR:-default}` occurrence in `input` using
-/// `lookup`.
-///
-/// Resolution order per placeholder: `lookup(var)`, then the inline `:-default`
-/// if present, otherwise the literal placeholder is left untouched. A single
-/// pass; transitive resolution (a resolved value that itself contains a
-/// placeholder) is the caller's concern.
 #[must_use]
 pub fn interpolate(input: &str, lookup: &impl Fn(&str) -> Option<String>) -> String {
     INTERPOLATION_REGEX

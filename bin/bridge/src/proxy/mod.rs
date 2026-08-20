@@ -87,8 +87,6 @@ fn runtime() -> std::io::Result<&'static Arc<Runtime>> {
         .ok_or_else(|| std::io::Error::other("runtime init lost the race"))
 }
 
-/// The last port in the fallback range. Beyond it we ask the OS for anything
-/// free, which works but cannot be persisted — see [`portfile`].
 pub const MAX_CANDIDATE_PORT: u16 = DEFAULT_PROXY_PORT + 9;
 
 /// What happened when this process tried to own a loopback port.
@@ -111,7 +109,6 @@ pub enum StartOutcome {
 }
 
 impl StartOutcome {
-    /// The port serving this install, however it got there.
     #[must_use]
     pub const fn port(&self) -> Option<u16> {
         match self {
@@ -127,11 +124,6 @@ impl StartOutcome {
     }
 }
 
-/// Ports to try, best first.
-///
-/// The persisted port leads so a bridge that had to move stays where it is —
-/// otherwise it would oscillate between ports on every restart and no written
-/// client config could ever be right.
 #[must_use]
 pub fn candidate_ports() -> Vec<u16> {
     let mut ports = Vec::with_capacity(11);
@@ -290,13 +282,6 @@ pub fn mcp_url(slug: &str) -> String {
     format!("{}/mcp/{slug}", loopback_origin())
 }
 
-/// The port this install's proxy is on, from wherever the truth lives.
-///
-/// In the proxy process the handle is authoritative and free. Everywhere else —
-/// `doctor`, `install --apply`, `sync`, each its own process — the handle is
-/// unset, so the answer comes from the file the proxy wrote. Falling straight
-/// back to the constant, as this used to, is what made a moved proxy invisible
-/// to every command that needed to know about it.
 #[must_use]
 pub fn resolved_port() -> u16 {
     if let Some(h) = handle() {

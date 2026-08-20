@@ -121,9 +121,6 @@ fn default_auth_scheme() -> String {
 }
 
 impl ExternalAuth {
-    /// The value to send on [`Self::header`] for `bearer`: `"{scheme}
-    /// {token}"`, or the raw token when `scheme` is empty (providers that
-    /// expect a bare credential, e.g. an `X-Api-Key`).
     pub fn header_value(&self, bearer: &str) -> String {
         if self.scheme.trim().is_empty() {
             bearer.to_owned()
@@ -194,9 +191,6 @@ pub struct OAuthRequirement {
     pub scopes: Vec<Permission>,
     pub audience: JwtAudience,
     pub client_id: Option<ClientId>,
-    /// Declares the MCP Enterprise-Managed Authorization extension on this
-    /// server's protected-resource metadata, telling clients to redeem an
-    /// IdP-issued ID-JAG instead of running their own authorization redirect.
     #[serde(default)]
     pub ema: bool,
 }

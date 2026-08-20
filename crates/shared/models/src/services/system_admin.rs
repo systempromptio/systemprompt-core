@@ -24,9 +24,6 @@ use systemprompt_identifiers::{Email, UserId};
 pub struct SystemAdminConfig {
     pub username: String,
 
-    /// Email `admin bootstrap` uses when it first creates the owner row.
-    /// Absent on already-bootstrapped installs; creation without it (or
-    /// `--email`) is refused rather than synthesized.
     #[serde(default)]
     pub email: Option<Email>,
 }

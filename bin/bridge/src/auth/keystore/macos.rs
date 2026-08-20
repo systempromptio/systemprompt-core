@@ -58,8 +58,6 @@ impl DeviceCertSource for MacOsKeystore {
     }
 }
 
-/// `cert_ref` is Linux-only (a certificate path); the Keychain addresses
-/// certificates by label, so it is ignored here.
 pub fn platform_source(_cert_ref: CertRef<'_>) -> Box<dyn DeviceCertSource> {
     Box::new(MacOsKeystore::new())
 }

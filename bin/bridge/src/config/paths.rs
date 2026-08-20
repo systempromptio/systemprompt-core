@@ -11,7 +11,6 @@ fn org_plugins_system_override() -> Option<PathBuf> {
     std::env::var_os(crate::brand::brand().env("ORG_PLUGINS_SYSTEM")).map(PathBuf::from)
 }
 pub const LAST_SYNC_SENTINEL: &str = "last-sync.json";
-/// Marks that first-use provisioning has run on this machine.
 pub const FIRST_RUN_SENTINEL: &str = "first-run.json";
 pub const USER_FRAGMENT: &str = "user.json";
 pub const MCP_SERVERS_FRAGMENT: &str = "mcp-servers.json";

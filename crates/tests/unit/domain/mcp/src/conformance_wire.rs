@@ -7,7 +7,9 @@
 use rmcp::model::{CallToolResult, ProtocolVersion};
 use systemprompt_identifiers::{AgentName, ContextId, McpExecutionId, SessionId, TraceId};
 use systemprompt_mcp::repository::McpArtifactRepository;
-use systemprompt_mcp::{ClientProfile, McpOutputSchema, McpResponseBuilder, ToolIdentity};
+use systemprompt_mcp::{
+    ClientProfile, McpOutputSchema, McpResponseBuilder, McpToolHandler, ToolIdentity,
+};
 use systemprompt_models::RequestContext;
 use systemprompt_models::artifacts::{
     CliArtifact, Column, ColumnType, TableArtifact, TextArtifact,
@@ -19,17 +21,21 @@ const SCHEMA_2025_03_26: &str = include_str!("../schemas/2025-03-26.schema.json"
 const SCHEMA_2025_11_25: &str = include_str!("../schemas/2025-11-25.schema.json");
 const SCHEMA_2026_07_28: &str = include_str!("../schemas/2026-07-28.schema.json");
 
-fn call_tool_result_validator(schema_doc: &str) -> jsonschema::Validator {
+fn result_validator(schema_doc: &str, definition: &str) -> jsonschema::Validator {
     let mut doc: serde_json::Value =
         serde_json::from_str(schema_doc).expect("vendored schema parses");
     let obj = doc.as_object_mut().expect("schema document is an object");
     let pointer = if obj.contains_key("definitions") {
-        "#/definitions/CallToolResult"
+        format!("#/definitions/{definition}")
     } else {
-        "#/$defs/CallToolResult"
+        format!("#/$defs/{definition}")
     };
     obj.insert("$ref".to_owned(), serde_json::json!(pointer));
     jsonschema::validator_for(&doc).expect("vendored schema compiles")
+}
+
+fn call_tool_result_validator(schema_doc: &str) -> jsonschema::Validator {
+    result_validator(schema_doc, "CallToolResult")
 }
 
 fn unknown_client() -> ClientProfile {
@@ -302,4 +308,120 @@ async fn text_artifact_plain_result_carries_body_without_json_dump() {
     let json = serde_json::to_value(&result).expect("serializes");
     let text = json["content"][0]["text"].as_str().expect("text block");
     assert_eq!(text, "summary line\n\nbody of the report");
+}
+
+// SEP-2549 gate: protocol 2026-07-28 requires ttlMs/cacheScope/resultType on
+// every cacheable result (tools/list, resources/list, resources/templates/list,
+// resources/read). The core builders must stamp them; a hand-rolled
+// with_all_items result must fail the schema — that omission is exactly what
+// made Cowork park every gateway connector.
+
+struct ConformanceTool;
+
+impl McpToolHandler for ConformanceTool {
+    type Input = ConformanceInput;
+    type Output = TextArtifact;
+
+    fn tool_name(&self) -> &'static str {
+        "conformance_tool"
+    }
+
+    fn description(&self) -> &'static str {
+        "Schema-conformance fixture tool"
+    }
+
+    async fn handle(
+        &self,
+        _input: Self::Input,
+        _ctx: &RequestContext,
+        _exec_id: &systemprompt_identifiers::McpExecutionId,
+    ) -> Result<(Self::Output, String), systemprompt_mcp::McpError> {
+        Ok((TextArtifact::new("ok"), "ok".to_owned()))
+    }
+}
+
+#[derive(serde::Deserialize, schemars::JsonSchema)]
+struct ConformanceInput {
+    #[expect(dead_code, reason = "schema-only fixture; never deserialized")]
+    message: String,
+}
+
+fn assert_validates(json: &serde_json::Value, definition: &str) {
+    for (label, schema_doc) in [
+        ("2025-06-18", SCHEMA_2025_06_18),
+        ("2025-11-25", SCHEMA_2025_11_25),
+        ("2026-07-28", SCHEMA_2026_07_28),
+    ] {
+        let validator = result_validator(schema_doc, definition);
+        assert!(
+            validator.validate(json).is_ok(),
+            "{label} {definition} schema rejects: {json}"
+        );
+    }
+}
+
+#[test]
+fn stamped_tool_list_result_validates_against_all_schemas() {
+    let tool = ConformanceTool.tool_definition("systemprompt");
+    let result = systemprompt_mcp::build_tool_list_result(vec![tool]);
+    let json = serde_json::to_value(&result).expect("serializes");
+
+    assert_eq!(json["resultType"], "complete");
+    assert!(json["ttlMs"].is_u64());
+    assert!(json["cacheScope"].is_string());
+    assert_validates(&json, "ListToolsResult");
+}
+
+#[test]
+fn unstamped_tool_list_result_is_rejected_by_2026_07_28_schema() {
+    let tool = ConformanceTool.tool_definition("systemprompt");
+    let bare = rmcp::model::ListToolsResult::with_all_items(vec![tool]);
+    let json = serde_json::to_value(&bare).expect("serializes");
+
+    let validator = result_validator(SCHEMA_2026_07_28, "ListToolsResult");
+    assert!(
+        validator.validate(&json).is_err(),
+        "2026-07-28 schema must require ttlMs/cacheScope on tools/list: {json}"
+    );
+}
+
+#[test]
+fn artifact_viewer_resource_list_validates_against_all_schemas() {
+    let result =
+        systemprompt_mcp::build_artifact_viewer_resource(&systemprompt_mcp::ArtifactViewerConfig {
+            server_name: "systemprompt",
+            title: "Viewer",
+            description: "Conformance fixture viewer",
+            template: "<html></html>",
+            icons: None,
+        });
+    let json = serde_json::to_value(&result).expect("serializes");
+
+    assert_eq!(json["resultType"], "complete");
+    assert!(json["ttlMs"].is_u64());
+    assert_validates(&json, "ListResourcesResult");
+}
+
+#[test]
+fn resource_template_list_result_validates_against_all_schemas() {
+    let result = systemprompt_mcp::build_resource_template_list_result();
+    let json = serde_json::to_value(&result).expect("serializes");
+
+    assert_eq!(json["resultType"], "complete");
+    assert!(json["ttlMs"].is_u64());
+    assert!(json["cacheScope"].is_string());
+    assert_validates(&json, "ListResourceTemplatesResult");
+}
+
+#[test]
+fn read_viewer_resource_result_validates_against_all_schemas() {
+    let request = rmcp::model::ReadResourceRequestParams::new("ui://systemprompt/artifact-viewer");
+    let result =
+        systemprompt_mcp::read_artifact_viewer_resource(&request, "systemprompt", "<html></html>")
+            .expect("viewer resource reads");
+    let json = serde_json::to_value(&result).expect("serializes");
+
+    assert_eq!(json["resultType"], "complete");
+    assert!(json["ttlMs"].is_u64());
+    assert_validates(&json, "ReadResourceResult");
 }

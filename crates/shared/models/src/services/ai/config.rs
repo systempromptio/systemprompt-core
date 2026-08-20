@@ -79,29 +79,24 @@ fn default_mcp_resilience() -> ResilienceSettings {
 /// primitives in `systemprompt-database`.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct ResilienceSettings {
-    /// Per-attempt (not whole-call) timeout; non-streaming only.
     #[serde(default = "default_request_timeout")]
     pub request_timeout_ms: u64,
 
     #[serde(default = "default_resilience_connect_timeout")]
     pub connect_timeout_ms: u64,
 
-    /// Max gap between two chunks before a stream is aborted.
     #[serde(default = "default_stream_idle_timeout")]
     pub stream_idle_timeout_ms: u64,
 
-    /// Counts the first try, so `1` disables retries.
     #[serde(default = "default_retry_attempts")]
     pub retry_attempts: u32,
 
-    /// Doubles each subsequent attempt.
     #[serde(default = "default_retry_base_delay")]
     pub retry_base_delay_ms: u64,
 
     #[serde(default = "default_retry_max_delay")]
     pub retry_max_delay_ms: u64,
 
-    /// Consecutive (not cumulative) failures that trip the breaker open.
     #[serde(default = "default_breaker_threshold")]
     pub breaker_failure_threshold: u32,
 

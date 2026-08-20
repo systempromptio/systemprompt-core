@@ -39,8 +39,6 @@ pub struct PresentationCardResponse {
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct CardSection {
     pub heading: String,
-    /// Plain text serializes as a JSON string; structured data serializes as
-    /// real nested JSON so machine consumers never double-decode.
     pub content: JsonValue,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub icon: Option<String>,
@@ -64,8 +62,6 @@ impl CardSection {
         }
     }
 
-    /// Terminal/HTML display form: strings render verbatim, everything else
-    /// as compact JSON.
     #[must_use]
     pub fn content_display(&self) -> String {
         match &self.content {

@@ -32,10 +32,6 @@ pub enum InboundParseError {
 pub trait InboundAdapter: Send + Sync + std::fmt::Debug {
     fn wire_name(&self) -> &'static str;
 
-    /// A rebuild from [`CanonicalRequest`] silently drops beta-gated fields
-    /// (`context_management`, `output_config`, …) that clients pair with an
-    /// `anthropic-beta` header, so a same-protocol route forwards the original
-    /// bytes instead.
     fn passthrough_wire(&self) -> Option<WireProtocol> {
         None
     }
@@ -44,9 +40,6 @@ pub trait InboundAdapter: Send + Sync + std::fmt::Debug {
     fn render_response(&self, response: &CanonicalResponse) -> Bytes;
     fn render_event(&self, event: &CanonicalEvent, model: &str) -> Option<Bytes>;
 
-    /// For wires whose terminal frame must embed fully-accumulated content the
-    /// per-event [`CanonicalEvent`] does not carry; `None` falls back to
-    /// [`InboundAdapter::render_event`].
     fn render_terminal_event(
         &self,
         event: &CanonicalEvent,

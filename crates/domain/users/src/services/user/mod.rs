@@ -252,9 +252,6 @@ impl UserService {
         self.repository.merge_users(source_id, target_id).await
     }
 
-    /// Moves an anonymous visitor's history onto the account they registered,
-    /// then deletes the anonymous row. Refuses non-anonymous sources so a
-    /// mis-wired caller cannot merge two registered accounts.
     pub async fn promote_anonymous(
         &self,
         source_id: &UserId,

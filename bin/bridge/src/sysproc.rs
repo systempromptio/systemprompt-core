@@ -79,12 +79,6 @@ mod windows {
         out
     }
 
-    /// Best-effort full image path for a PID.
-    ///
-    /// `None` for processes we may not open (System, other users, protected
-    /// processes). Callers must treat that as "unknown", not "no path" —
-    /// `PROCESS_QUERY_LIMITED_INFORMATION` is the least privilege that works
-    /// and still fails on parts of the process table.
     fn image_path(pid: u32) -> Option<String> {
         const MAX_PATH_LONG: usize = 32_768;
 

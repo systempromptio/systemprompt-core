@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.33.0] - 2026-08-20
+
+### Added
+
+- `build_tool_list_result` and `build_resource_template_list_result` helpers construct list results with the protocol-appropriate SEP-2549 cache metadata applied.
+
+### Fixed
+
+- `tools/list` results were missing the SEP-2549 `ttlMs`/`cacheScope` cache metadata required by protocol `2026-07-28`; tool and resource-template list results are now stamped like the resource list/read results.
+
 ## [0.32.0] - 2026-08-18
 
 ### Breaking

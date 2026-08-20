@@ -15,11 +15,6 @@ use systemprompt_identifiers::Actor;
 use crate::authz::types::DecisionTag;
 use crate::policy::types::AccessScope;
 
-/// Prometheus counter incremented whenever a `governance_decisions` INSERT
-/// fails.
-///
-/// Exposed as a `pub const` so alert rules and dashboards can reference the
-/// metric by symbol rather than re-typing the literal.
 pub const AUDIT_WRITE_FAILED_TOTAL: &str = "governance_audit_write_failed_total";
 
 #[derive(Debug)]
@@ -37,8 +32,6 @@ pub struct GovernanceDecisionRecord<'a> {
     // payload shape is documented in CHANGELOG and rendered by the dashboard.
     pub evaluated_rules: &'a serde_json::Value,
     pub plugin_id: Option<&'a str>,
-    /// RFC 8693 delegation lineage in outermost-first order. Empty for
-    /// direct (non-delegated) tokens.
     pub act_chain: &'a [Actor],
     pub context_id: &'a str,
     pub task_id: Option<&'a str>,

@@ -42,9 +42,6 @@ impl Os {
     }
 }
 
-/// The brand-scoped identifier the scheduler registers this job under: a
-/// reverse-DNS launchd label, a Task Scheduler task name, or a systemd unit
-/// basename.
 #[must_use]
 pub fn schedule_label(os: Os) -> &'static str {
     let brand = brand();
@@ -81,10 +78,6 @@ pub fn template_filename(os: Os) -> String {
     }
 }
 
-/// Splits the combined Linux template into its `.service` and `.timer` bodies,
-/// which systemd requires as two separate unit files.
-///
-/// Returns `None` if the timer section marker is absent.
 #[must_use]
 pub fn split_systemd_unit(rendered: &str) -> Option<(String, String)> {
     let timer_start = rendered.match_indices("# === ").find_map(|(idx, _)| {
@@ -99,12 +92,6 @@ pub fn split_systemd_unit(rendered: &str) -> Option<(String, String)> {
     Some((format!("{service}\n"), format!("{timer}\n")))
 }
 
-/// The systemd user unit that keeps the loopback inference proxy running.
-///
-/// Deliberately separate from [`template`] and [`split_systemd_unit`], whose
-/// contract is one label and one (service, timer) pair — a third section has no
-/// representation there. Linux-only: macOS and Windows run the proxy inside the
-/// GUI process.
 #[must_use]
 pub fn proxy_unit_name() -> String {
     format!("{}-proxy", brand().binary_name)

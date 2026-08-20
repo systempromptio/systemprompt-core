@@ -57,15 +57,10 @@ pub struct SessionAnalytics {
     pub utm_term: Option<String>,
     pub is_bot: bool,
     pub is_ai_crawler: bool,
-    /// Whether the session pipeline should suppress the analytics write.
-    /// Broader than `is_bot`: also covers bot IP ranges, datacenter ranges,
-    /// high-risk countries, and spam referrers.
     pub skip_tracking: bool,
 }
 
 impl SessionAnalytics {
-    /// Returns the client-supplied fingerprint when present, else derives a
-    /// stable one from the user agent and locale.
     pub fn compute_fingerprint(&self) -> String {
         use xxhash_rust::xxh64::xxh64;
 

@@ -78,15 +78,15 @@ pub use client_profile::{client_profile_from_peer, client_profile_from_stored};
 pub use progress::{ProgressCallback, create_progress_callback};
 pub use repository::{CreateMcpArtifact, McpArtifactRecord, McpArtifactRepository};
 pub use resources::{
-    ArtifactViewerConfig, build_artifact_viewer_resource, default_server_icons,
-    read_artifact_resource, read_artifact_viewer_resource,
+    ArtifactViewerConfig, build_artifact_viewer_resource, build_resource_template_list_result,
+    default_server_icons, read_artifact_resource, read_artifact_viewer_resource,
 };
 pub use response::{McpResponseBuilder, ToolIdentity, UI_RESOURCE_URI_META_KEY};
 pub use schema::McpOutputSchema;
 pub use services::ui_renderer::templates::html::artifact_shell_template;
 pub use services::ui_renderer::{artifact_resource_uri, parse_artifact_resource_uri};
 pub use systemprompt_models::mcp::ClientProfile;
-pub use tool::{McpToolExecutor, McpToolHandler};
+pub use tool::{McpToolExecutor, McpToolHandler, build_tool_list_result};
 
 pub use systemprompt_models::mcp::{
     Deployment, DeploymentConfig, ERROR, McpAuthState, McpServerConfig, OAuthRequirement, RUNNING,
@@ -146,12 +146,6 @@ pub use rmcp::task_manager::{TaskContext, TaskManager, TaskOptions};
 use rmcp::transport::StreamableHttpService;
 use rmcp::transport::streamable_http_server::StreamableHttpServerConfig;
 
-/// Ceiling for inbound MCP POST bodies, above which the transport answers
-/// `413`.
-///
-/// Stated explicitly rather than inherited from rmcp so the limit our servers
-/// enforce cannot move under us on an SDK bump; tool-call payloads that need
-/// more than this belong in the file store, not the JSON-RPC envelope.
 pub const MAX_REQUEST_BODY_BYTES: usize = 4 * 1024 * 1024;
 
 #[derive(Debug, Clone)]

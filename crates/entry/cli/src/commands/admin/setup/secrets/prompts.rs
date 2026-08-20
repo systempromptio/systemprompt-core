@@ -16,8 +16,6 @@ use systemprompt_logging::CliService;
 use super::SecretsData;
 use crate::interactive::Prompter;
 
-/// Returns `None` for the "enter multiple keys" path; that default is resolved
-/// later from the keys actually present, not at selection time.
 pub fn select_provider_keys(
     prompter: &dyn Prompter,
     secrets: &mut SecretsData,

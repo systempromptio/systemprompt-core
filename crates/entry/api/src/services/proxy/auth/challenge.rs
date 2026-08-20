@@ -57,12 +57,6 @@ pub(super) struct ChallengeRequest<'a> {
 pub struct OAuthChallengeBuilder;
 
 impl OAuthChallengeBuilder {
-    /// Build the `resource_metadata` URL advertised in the WWW-Authenticate
-    /// header. Host-derives the base from the incoming request so the 401
-    /// challenge agrees with the body of
-    /// `/.well-known/oauth-protected-resource` — both must reflect
-    /// whichever identity the client dialled in on (127.0.0.1 vs localhost
-    /// vs configured public host), or the OAuth flow fails to round-trip.
     pub fn resource_metadata_url(
         headers: &HeaderMap,
         configured_api_external_url: &str,

@@ -56,25 +56,10 @@ pub struct ResolveInput<'a> {
     pub user_roles: &'a [String],
     pub default_included: Option<bool>,
     pub parents: &'a [ResolveParent<'a>],
-    /// The user's values for each extension-declared dimension, gathered by
-    /// [`gather_subject_attributes`][super::subject::gather_subject_attributes].
     pub attributes: &'a SubjectAttributes,
-    /// Extension dimensions to interleave into the precedence ladder. Passed
-    /// in rather than read from the inventory so `resolve` stays pure and
-    /// unit-testable; pass `&[]` for core-only `user > role` behaviour.
     pub dimensions: &'a [SubjectDimension],
 }
 
-/// Resolves a decision with parent inheritance on the crate-head deny-overrides
-/// model.
-///
-/// A child deny overrides a parent allow, a nearer rule overrides a farther one
-/// within the same precedence band, and a parent grant cascades to the child
-/// only when the child declares no rules at all — a child that declares any
-/// rule owns its decision and is closed to roles it does not name. An unknown
-/// child entity (`default_included == None`) yields
-/// [`DenyReason::UnknownEntity`] unless a rule or a parent's `default_included`
-/// grants access.
 #[must_use]
 pub fn resolve(input: ResolveInput<'_>) -> Decision {
     let ResolveInput {

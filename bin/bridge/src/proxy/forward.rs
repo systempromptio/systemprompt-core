@@ -64,9 +64,6 @@ pub enum ForwardError {
 }
 
 impl ForwardError {
-    /// An auth failure is the bridge's own inability to obtain a credential,
-    /// not a broken upstream, so it must not masquerade as `502`. `503`
-    /// tells the caller the condition is local and retryable.
     pub const fn status(&self) -> StatusCode {
         match self {
             Self::Auth(_) | Self::AuthTimeout => StatusCode::SERVICE_UNAVAILABLE,
@@ -78,8 +75,6 @@ impl ForwardError {
         }
     }
 
-    /// Names the real cause: a plugin hook author reading `bad gateway` cannot
-    /// discover that the host simply has no credential store.
     pub fn client_detail(&self) -> String {
         format!("{self}\n")
     }

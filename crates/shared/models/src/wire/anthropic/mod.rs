@@ -72,9 +72,6 @@ fn identity_lower(lower: &str) -> bool {
     IDENTITY_NAMES.contains(&lower) || IDENTITY_PREFIXES.iter().any(|p| lower.starts_with(p))
 }
 
-/// Both the canonical lane and the byte-passthrough lane strip
-/// `metadata.user_id` through this one function, so which lane a request takes
-/// never changes what identity leaves the gateway.
 pub fn strip_user_id(obj: &mut Map<String, Value>) {
     let Some(metadata) = obj.get_mut("metadata") else {
         return;

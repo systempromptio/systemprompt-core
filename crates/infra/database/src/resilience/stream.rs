@@ -9,9 +9,6 @@ use std::time::Duration;
 use futures_util::{Stream, StreamExt};
 use tokio::sync::OwnedSemaphorePermit;
 
-/// `permit` is held until the stream ends, so a streaming response counts
-/// against the dependency's concurrency limit for its whole lifetime, not just
-/// until the first chunk.
 pub fn guarded_stream<S, T, E>(
     inner: S,
     idle_timeout: Duration,

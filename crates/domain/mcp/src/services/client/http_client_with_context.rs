@@ -44,8 +44,6 @@ impl HttpClientWithContext {
         Self::build(context, true, HashMap::new())
     }
 
-    /// Turn a 401's `WWW-Authenticate` challenge into a typed error, enriched
-    /// with whatever its RFC 9728 metadata says about how to authorize.
     async fn authorization_error(&self, header: &str) -> McpTransportError {
         let challenge = AuthChallenge::parse(header);
         let metadata_url = challenge.resource_metadata.clone();
@@ -71,13 +69,6 @@ impl HttpClientWithContext {
         }
     }
 
-    /// Read the RFC 9728 metadata a challenge points at.
-    ///
-    /// The URL comes from the peer, so it goes through the outbound guard
-    /// before it is dialled. An unreadable document downgrades the challenge
-    /// rather than replacing it — the 401 stands on its own — but each failure
-    /// is logged, since a metadata endpoint that never answers is a
-    /// misconfiguration the operator cannot otherwise see.
     async fn fetch_protected_resource(
         &self,
         metadata_url: &str,
@@ -128,10 +119,6 @@ impl HttpClientWithContext {
         }
     }
 
-    /// Client for a third-party external MCP server: the systemprompt JWT and
-    /// `x-systemprompt-*` context headers are withheld so nothing internal
-    /// reaches the third party; only `outbound_headers` (the resolved per-user
-    /// bearer plus any static configured headers) are sent.
     pub fn external(
         context: RequestContext,
         outbound_headers: HashMap<HeaderName, HeaderValue>,
@@ -139,8 +126,6 @@ impl HttpClientWithContext {
         Self::build(context, false, outbound_headers)
     }
 
-    /// Client that forwards the systemprompt context and credential (internal /
-    /// managed servers) while also sending any static configured headers.
     pub fn forwarding(
         context: RequestContext,
         outbound_headers: HashMap<HeaderName, HeaderValue>,

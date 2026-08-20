@@ -41,21 +41,6 @@ pub const MCP_SERVICE_ID_ENV: &str = "MCP_SERVICE_ID";
 
 type SpawnReply = Sender<std::io::Result<u32>>;
 
-/// Spawns `cmd` as a detached child that the kernel terminates if this process
-/// dies, and returns its PID.
-///
-/// Every child is spawned on one dedicated thread. That is load-bearing, not
-/// tidiness: `PR_SET_PDEATHSIG` is delivered when the *thread* that forked
-/// exits, not when the process does. Forking from a tokio worker would tie a
-/// live agent's lifetime to whichever worker happened to poll the spawn, and a
-/// worker exiting early would kill a healthy child. This thread is created once
-/// and never joined, so the signal fires only on real process death.
-///
-/// The child's `Child` handle is dropped without waiting, so it is never
-/// reaped here — see [`is_zombie`], which liveness probes must consult.
-///
-/// On non-Linux targets this is a plain spawn: there is no parent-death signal,
-/// so a supervisor that dies without draining leaves the child running.
 pub fn spawn_supervised(cmd: Command) -> std::io::Result<u32> {
     let sender = spawner()
         .as_ref()
@@ -107,13 +92,6 @@ fn spawn_on_this_thread(cmd: &mut Command) -> std::io::Result<u32> {
     Ok(pid)
 }
 
-/// Asks the kernel to `SIGTERM` the child when this thread dies, closing the
-/// window in which a `SIGKILL`ed or panicking supervisor strands its children.
-///
-/// This is the only `unsafe` in the crate graph. It buys an unconditional
-/// guarantee: the alternative — having each child arm its own death signal at
-/// startup — is safe code but only protects children that cooperate, and MCP
-/// server binaries come from extension crates this repo does not own.
 #[cfg(target_os = "linux")]
 #[expect(
     unsafe_code,
@@ -146,14 +124,6 @@ fn arm_parent_death_signal(cmd: &mut Command) {
     }
 }
 
-/// Convert an OS process id into the signed form `kill(2)` expects, rejecting
-/// any value that would target more than that single process.
-///
-/// A `u32` above `i32::MAX` wraps to a negative `i32`, and `kill(2)` reads a
-/// negative pid as a *process group* — `-1` broadcasts to **every** process the
-/// caller may signal, and `0` means the caller's own group. Routing every pid
-/// through this guard turns those cases into a no-op (`None`) instead of
-/// letting a single-PID request escalate into a group or session-wide kill.
 #[must_use]
 pub fn signalable_pid(pid: u32) -> Option<i32> {
     if pid == 0 {
@@ -180,14 +150,6 @@ pub fn environ_identifies_child(environ: &[u8], name_key: &str, service_name: &s
     has_marker && has_name
 }
 
-/// Confirm a *live* PID still names this installation's child by reading its
-/// `/proc/<pid>/environ` and matching the spawn markers.
-///
-/// Fail-closed: an unreadable environ — or any non-Linux target, where
-/// `/proc` does not exist — yields `false`, so an unverified PID is never
-/// signalled. Callers must use this before any `kill`/`kill(-pid)` on a PID
-/// loaded from the persisted service registry, because those PIDs outlive the
-/// processes that minted them and are recycled by the kernel.
 #[cfg(target_os = "linux")]
 #[must_use]
 pub fn live_pid_is_subprocess(pid: u32, name_key: &str, service_name: &str) -> bool {
@@ -212,12 +174,6 @@ pub fn live_pid_is_subprocess(pid: u32, _name_key: &str, service_name: &str) -> 
     false
 }
 
-/// Reports whether `pid` is a zombie — terminated but not yet reaped.
-///
-/// The supervisor never reaps the children it spawns (their `Child` handle is
-/// forgotten), so a terminated child still answers `kill(pid, 0)`; liveness and
-/// shutdown probes must consult this to avoid treating a dead child as alive.
-/// Non-Linux targets have no `/proc` and always return `false`.
 #[cfg(target_os = "linux")]
 #[must_use]
 pub fn is_zombie(pid: u32) -> bool {

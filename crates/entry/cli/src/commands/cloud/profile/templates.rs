@@ -20,8 +20,6 @@ use systemprompt_cloud::deploy::DockerfileBuilder;
 
 use crate::shared::profile::generate_oauth_at_rest_pepper;
 
-/// An operator's hand-set `paths.geoip_database` from an existing profile at
-/// `profile_path`, so re-authoring carries it forward instead of wiping it.
 pub fn existing_geoip_database(profile_path: &Path) -> Option<String> {
     let content = std::fs::read_to_string(profile_path).ok()?;
     let geoip = match Profile::from_yaml(&content, profile_path) {

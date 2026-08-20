@@ -41,9 +41,6 @@ static COMPILED: LazyLock<Vec<(usize, Regex)>> = LazyLock::new(|| {
         .collect()
 });
 
-/// Number of built-in patterns whose regex compiled. Pinned equal to
-/// `SECRET_PATTERNS.len()` by the test suite so a broken expression cannot
-/// silently disable a pattern.
 #[must_use]
 pub fn compiled_pattern_count() -> usize {
     COMPILED.len()
@@ -69,8 +66,6 @@ fn scan_str(s: &str, entropy: &EntropyConfig) -> Option<(&'static SecretPattern,
     })
 }
 
-/// String-level entry point for callers with no policy configuration to hand —
-/// the gateway safety scanners. Uses [`EntropyConfig::default`].
 #[must_use]
 pub fn scan_str_for_secret(text: &str) -> Option<String> {
     scan_str(text, &DEFAULT_ENTROPY).map(|(_, redacted)| redacted)
@@ -91,8 +86,6 @@ pub fn detect_secrets(input: &GovernedInput) -> Option<SecretHit> {
     detect_secrets_with(input, &DEFAULT_ENTROPY)
 }
 
-/// [`detect_secrets`] under an operator-supplied entropy configuration. The
-/// vendor pattern list is not tunable and applies either way.
 #[must_use]
 pub fn detect_secrets_with(input: &GovernedInput, entropy: &EntropyConfig) -> Option<SecretHit> {
     input.strings().into_iter().find_map(|s| {
