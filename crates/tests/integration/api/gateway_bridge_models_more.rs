@@ -30,6 +30,7 @@ use systemprompt_test_fixtures::{install_test_signing_key, seed_admin_credential
 use tower::ServiceExt;
 
 use super::common::setup_ctx;
+use systemprompt_security::policy::types::AccessScope;
 
 fn gw_repos(
     db: &systemprompt_database::DbPool,
@@ -193,6 +194,7 @@ fn gateway_ctx(id: &AiRequestId, user: &UserId, upstream_model: &str) -> Gateway
             GatewayConversationId::try_new("ctx_00112233aabbccdd".to_owned()).expect("id"),
         ),
         trace_id: Some(TraceId::generate()),
+        access_scope: AccessScope::Unknown,
         provider: "anthropic".to_owned(),
         requested_model: Some("claude-test".to_owned()),
         model: upstream_model.to_owned(),

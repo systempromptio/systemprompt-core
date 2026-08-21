@@ -6,6 +6,7 @@ use systemprompt_api::services::gateway::{
 use systemprompt_identifiers::{AiRequestId, ContextId, GatewayConversationId};
 
 use crate::support::{minimal_request, seed_user, setup_db};
+use systemprompt_security::policy::types::AccessScope;
 
 fn materializer(db: &systemprompt_database::DbPool) -> systemprompt_traits::DynContextMaterializer {
     std::sync::Arc::new(systemprompt_agent::services::ContextProviderService::new(
@@ -43,6 +44,7 @@ async fn gateway_audit_open_is_atomic_under_concurrent_same_request_id() {
             context_id: context_id.clone(),
             gateway_conversation_id: Some(gw_conv.clone()),
             trace_id: None,
+            access_scope: AccessScope::Unknown,
             provider: "anthropic".to_string(),
             requested_model: Some("claude-requested".to_string()),
             model: "claude-test".to_string(),
@@ -120,6 +122,7 @@ async fn gateway_audit_open_persists_derived_context_id() {
         context_id: context_id.clone(),
         gateway_conversation_id: Some(gw_conv.clone()),
         trace_id: None,
+        access_scope: AccessScope::Unknown,
         provider: "anthropic".to_string(),
         requested_model: Some("claude-requested".to_string()),
         model: "claude-test".to_string(),

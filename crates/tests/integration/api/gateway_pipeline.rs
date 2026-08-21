@@ -33,6 +33,7 @@ use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 use super::common::setup_ctx;
+use systemprompt_security::policy::types::AccessScope;
 
 fn gw_repos(
     db: &systemprompt_database::DbPool,
@@ -151,6 +152,7 @@ fn dispatch_ctx(cred: &AuthedFixture, model: &str, stream: bool) -> GatewayReque
             .expect("valid conversation id"),
         ),
         trace_id: Some(TraceId::generate()),
+        access_scope: AccessScope::Unknown,
         provider: PROVIDER.to_owned(),
         requested_model: Some(model.to_owned()),
         model: model.to_owned(),
