@@ -29,6 +29,7 @@ use systemprompt_ai::repository::{AiRequestPayloadRepository, AiRequestRepositor
 use systemprompt_identifiers::{
     AiRequestId, ContextId, GatewayConversationId, SessionId, TraceId, UserId,
 };
+use systemprompt_security::policy::types::AccessScope;
 
 #[derive(Debug, Clone)]
 pub struct GatewayRequestContext {
@@ -38,6 +39,9 @@ pub struct GatewayRequestContext {
     pub context_id: ContextId,
     pub gateway_conversation_id: Option<GatewayConversationId>,
     pub trace_id: Option<TraceId>,
+    // Why: governance policies read the caller's tier; an API key carries no
+    // roles and is therefore `Unknown`.
+    pub access_scope: AccessScope,
     pub provider: String,
     pub model: String,
     pub requested_model: Option<String>,

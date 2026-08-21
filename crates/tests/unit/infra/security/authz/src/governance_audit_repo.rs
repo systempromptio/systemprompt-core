@@ -32,6 +32,7 @@ fn record<'a>(
         act_chain: &[],
         context_id: "ctx_unit_test",
         task_id: None,
+        trace_id: None,
     }
 }
 

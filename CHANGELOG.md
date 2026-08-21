@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.34.0] - 2026-08-21
+
+### Breaking
+
+- **Breaking:** `GovernanceDecisionRecord` gains `trace_id: Option<&str>`. Migrate by adding `trace_id: None` to any struct-literal construction, or pass the request's trace id where one is in scope.
+- **Breaking:** `DecisionAudit` gains `trace_id: Option<String>`. Migrate by adding `trace_id: None` to any struct-literal construction.
+- **Breaking:** `GatewayRequestContext` gains `access_scope: AccessScope`. Migrate by passing `AuthedPrincipal::access_scope()`, or `AccessScope::Unknown` to preserve the previous value.
+
+### Added
+
+- `governance_decisions.trace_id`, indexed, with migration `013_governance_decisions_trace_id.sql`. Enforcement sites without a session (MCP, server-attach RBAC) used to write the trace id into `session_id` so the trace explorer had something to join on, which let a session id that happened to look like a trace id join the wrong rows with no constraint against it. The migration backfills history from the `evaluated_rules` audit blob, where the id was already recorded, so no correlation is lost.
+- `AccessScope::from_roles`, resolving a permission tier from role names — the same vocabulary the authz webhook resolves from the database, so token-derived and DB-derived scopes agree.
+- `AuthedPrincipal::access_scope()`, resolving the tier a gateway credential asserts. An API key carries no roles and resolves to `Unknown` rather than inheriting a tier it never proved.
+- `idx_governance_decisions_policy_created` and `idx_governance_decisions_tool_name` are now declared in core's schema. They were previously created out-of-tree by a downstream web migration guarded with `to_regclass`, which meant a fresh database whose core tables appeared after that migration did not get them until a later run.
+
+### Fixed
+
+- Gateway prompt governance no longer evaluates with `AccessScope::Unknown`. The scope now comes from the caller's credential. Both scope-shaped policies are inert on a `Prompt` target, so this changed no decision today — it closes the hole that would have opened the moment `tool_use` blocks inside a request body became governed, where the scope check would have passed by default.
+- Gateway governance decisions now persist their `trace_id`, so an inference decision is correlatable to its request without the `session_id` overload.
+
 ## [0.33.0] - 2026-08-20
 
 ### Breaking

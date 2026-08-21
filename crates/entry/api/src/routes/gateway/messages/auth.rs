@@ -8,6 +8,7 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 use systemprompt_identifiers::{Actor, JwtToken, SessionId, TraceId, UserId};
 use systemprompt_runtime::AppContext;
+use systemprompt_security::policy::types::AccessScope;
 use systemprompt_users::{API_KEY_PREFIX, ApiKeyService};
 
 use crate::services::middleware::JwtContextExtractor;
@@ -87,6 +88,15 @@ impl AuthedPrincipal {
         match self {
             Self::Jwt(p) => &p.attested_session,
             Self::ApiKey(p) => &p.attested_session,
+        }
+    }
+
+    // Why: an API key asserts no roles, so it resolves to `Unknown` rather
+    // than inheriting a tier it never proved.
+    pub fn access_scope(&self) -> AccessScope {
+        match self {
+            Self::Jwt(p) => AccessScope::from_roles(&p.roles),
+            Self::ApiKey(_) => AccessScope::Unknown,
         }
     }
 

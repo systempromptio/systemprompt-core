@@ -34,6 +34,7 @@ fn sample_audit() -> DecisionAudit {
         approver: None,
         act_chain: Vec::new(),
         context_id: None,
+        trace_id: None,
     }
 }
 

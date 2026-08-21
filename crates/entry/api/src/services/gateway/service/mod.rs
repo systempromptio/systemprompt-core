@@ -44,7 +44,6 @@ use systemprompt_identifiers::{CallId, SessionId};
 use systemprompt_models::services::ai::ModelLimits;
 use systemprompt_models::wire::inspect;
 use systemprompt_security::authz::types::Decision;
-use systemprompt_security::policy::types::AccessScope;
 use systemprompt_security::policy::{
     AgentScope, AuditOrigin, AuditTarget, ChainEntryResult, DecisionAudit, Evaluation,
     GovernanceEngine, GovernedInput, GovernedTarget, PolicyContext, PrincipalSnapshot,
@@ -466,7 +465,7 @@ async fn record_governance_decision(
             session_id,
             agent_session: None,
             agent_id: None,
-            agent_scope: AccessScope::Unknown,
+            agent_scope: ctx.access_scope,
         },
         target: AuditTarget {
             tool_name: GovernedTarget::Prompt.as_str().to_owned(),
@@ -476,6 +475,7 @@ async fn record_governance_decision(
         approver: None,
         act_chain: Vec::new(),
         context_id: Some(ctx.context_id.as_str().to_owned()),
+        trace_id: ctx.trace_id.as_ref().map(|t| t.as_str().to_owned()),
     };
     match db.write_pool_arc() {
         Ok(pool) => {
@@ -525,11 +525,7 @@ fn evaluate_prompt(ctx: &GatewayRequestContext, request: &CanonicalRequest) -> P
         agent_scope: AgentScope::User {
             user_id: ctx.user_id.clone(),
         },
-        // Why: the gateway context carries no permission tier. Both
-        // scope-shaped policies are inert on a Prompt target, so this is not a
-        // live gap today — but it would become one if a future change governed
-        // `tool_use` blocks inside a request body.
-        access_scope: AccessScope::Unknown,
+        access_scope: ctx.access_scope,
         session_id: &session_id,
         user_id: &ctx.user_id,
         input: &input,

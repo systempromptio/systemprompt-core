@@ -85,6 +85,10 @@ pub struct DecisionAudit {
     pub act_chain: Vec<Actor>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub context_id: Option<String>,
+    // Why: persisted to the `trace_id` column so the trace explorer joins on
+    // a real key.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub trace_id: Option<String>,
 }
 
 // Why: an allow because nothing ran and an allow because everything passed are
@@ -149,6 +153,7 @@ pub async fn record_decision(pool: &PgPool, audit: &DecisionAudit) -> Result<(),
         act_chain: &audit.act_chain,
         context_id: context_id.as_str(),
         task_id: None,
+        trace_id: audit.trace_id.as_deref(),
     };
 
     insert_governance_decision(pool, &record).await
