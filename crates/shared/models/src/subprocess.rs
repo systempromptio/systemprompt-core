@@ -190,6 +190,6 @@ pub fn is_zombie(pid: u32) -> bool {
 
 #[cfg(not(target_os = "linux"))]
 #[must_use]
-pub fn is_zombie(_pid: u32) -> bool {
+pub const fn is_zombie(_pid: u32) -> bool {
     false
 }

@@ -67,7 +67,7 @@ pub(super) fn get_process_memory() -> Option<serde_json::Value> {
 }
 
 #[cfg(not(target_os = "linux"))]
-pub(super) fn get_process_memory() -> Option<serde_json::Value> {
+pub(super) const fn get_process_memory() -> Option<serde_json::Value> {
     None
 }
 
