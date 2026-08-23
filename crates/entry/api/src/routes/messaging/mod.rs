@@ -58,9 +58,9 @@ pub struct MessagingInbound {
     pub agent_name: AgentName,
     pub entity: EntityRef,
     pub reply: ReplyTarget,
-    /// Verified profile claims for the sender, when the platform route could
-    /// read them. Empty claims mean "unlinked": the sender resolves to a
-    /// role-less first-touch user, which no rule grants anything to.
+    // Why: empty claims mean "unlinked" -- the sender resolves to a role-less
+    // first-touch user, which no rule grants anything to. A platform route that
+    // cannot read a profile must pass empty rather than guess.
     pub claims: FederatedIdentityClaims,
 }
 

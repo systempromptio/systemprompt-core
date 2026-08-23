@@ -63,6 +63,7 @@ fn slack_app(workspace: &str, roles: &[&str], enabled: bool) -> SlackAppConfig {
         routing: BTreeMap::new(),
         authz: SlackAuthzConfig {
             allowed_roles: roles.iter().map(|r| (*r).to_owned()).collect(),
+            link_by_workspace_email: false,
         },
     }
 }

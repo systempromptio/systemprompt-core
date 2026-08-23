@@ -12,6 +12,7 @@ use systemprompt_api::routes::messaging::{
     DispatchOutcome, MessagingError, MessagingInbound, ReplyTarget, dispatch_messaging,
 };
 use systemprompt_identifiers::{AgentName, SlackWorkspaceId};
+use systemprompt_traits::FederatedIdentityClaims;
 use systemprompt_security::authz::{DenyAllHook, EntityRef};
 use systemprompt_test_fixtures::{
     TEST_SLACK_WORKSPACE_ID, agent_error_response_json, agent_reply_response_json,
@@ -37,6 +38,7 @@ fn inbound(external_user_id: &str, text: &str) -> MessagingInbound {
         reply: ReplyTarget::Channel {
             id: "C_TEST".to_owned(),
         },
+        claims: FederatedIdentityClaims::default(),
     }
 }
 

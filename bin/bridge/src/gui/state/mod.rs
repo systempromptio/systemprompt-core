@@ -112,13 +112,10 @@ pub struct AppStateSnapshot {
 }
 
 impl AppStateSnapshot {
-    /// Has a signed manifest ever been synced to this install?
-    ///
-    /// Deliberately not `!enabled_hosts.is_empty()`: an instance may disable
-    /// every host, and that empty list is a real answer from a good manifest,
-    /// not a missing one. Anything gating on the instance's host policy must
-    /// ask this instead. Backed by the last-sync record, which is the only
-    /// thing that sets `last_sync_summary`.
+    // Why: deliberately not `!enabled_hosts.is_empty()` -- an instance may
+    // disable every host, and that empty list is a real answer from a good
+    // manifest, not a missing one. Anything gating on the instance's host
+    // policy must ask this instead.
     pub const fn manifest_synced(&self) -> bool {
         self.last_sync_summary.is_some()
     }
@@ -456,9 +453,9 @@ impl AppState {
             snap.verified_identity = None;
         }
 
-        // The last-sync record is the manifest's own footprint; it is not
-        // scoped to the org-plugins directory and must be read even when that
-        // directory does not resolve, or the host gate loses its authority.
+        // Why: the last-sync record is the manifest's own footprint, not the
+        // org-plugins directory's, so it must be read even when that directory
+        // does not resolve or the host gate silently loses its authority.
         if let Some(meta) = paths::bridge_metadata_dir()
             && let Ok(bytes) = std::fs::read(meta.join(paths::LAST_SYNC_SENTINEL))
             && let Ok(record) = serde_json::from_slice::<LastSyncRecord>(&bytes)

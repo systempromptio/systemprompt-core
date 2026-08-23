@@ -31,7 +31,6 @@ fn sentinel_path() -> Option<PathBuf> {
     paths::bridge_metadata_dir().map(|d| d.join(paths::ONBOARDED_SENTINEL))
 }
 
-/// Has the user completed the setup wizard on this install?
 #[must_use]
 pub fn is_complete() -> bool {
     let Some(path) = sentinel_path() else {
@@ -47,8 +46,8 @@ pub fn is_complete() -> bool {
         .is_ok()
 }
 
-/// Records that setup finished. Best-effort: a metadata directory we cannot
-/// write is a reason to re-show the wizard next launch, not to fail the click.
+// Why: best-effort -- a metadata directory we cannot write is a reason to
+// re-show the wizard next launch, not to fail the click.
 pub fn mark_complete() {
     let Some(path) = sentinel_path() else {
         tracing::warn!("no metadata dir; onboarding sentinel not written");
