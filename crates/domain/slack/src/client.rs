@@ -12,6 +12,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use serde_json::{Value, json};
+use systemprompt_identifiers::SlackUserId;
 use systemprompt_models::net::validate_outbound_url;
 
 use crate::error::{SlackError, SlackResult};
@@ -100,14 +101,14 @@ impl SlackClient {
     // Why: a sender whose workspace profile cannot be read is simply unlinked —
     // the caller degrades to empty claims. Returning the profile rather than a
     // resolved identity keeps this crate out of the user model.
-    pub async fn user_info(&self, user_id: &str) -> SlackResult<SlackUserProfile> {
+    pub async fn user_info(&self, user_id: &SlackUserId) -> SlackResult<SlackUserProfile> {
         validate_outbound_url(&self.users_info_url)
             .map_err(|e| SlackError::OutboundUrl(e.to_string()))?;
         let resp = self
             .http
             .get(&self.users_info_url)
             .bearer_auth(&self.bot_token)
-            .query(&[("user", user_id)])
+            .query(&[("user", user_id.as_str())])
             .send()
             .await?;
         let payload = Self::parse_ok(resp).await?;

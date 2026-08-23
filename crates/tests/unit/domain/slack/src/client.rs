@@ -8,6 +8,7 @@
 //! network call.
 
 use serde_json::{Value, json};
+use systemprompt_identifiers::SlackUserId;
 use systemprompt_slack::SlackError;
 use systemprompt_slack::client::SlackClient;
 use wiremock::matchers::{body_partial_json, header, method, path};
@@ -211,7 +212,7 @@ async fn user_info_reads_a_confirmed_workspace_email() {
         .await;
 
     let profile = users_info_client(&server)
-        .user_info("U1")
+        .user_info(&SlackUserId::new("U1"))
         .await
         .expect("users.info succeeds on ok:true");
     assert_eq!(profile.email.as_deref(), Some("ada@example.com"));
@@ -232,7 +233,7 @@ async fn user_info_reports_an_unconfirmed_email_as_unconfirmed() {
         .await;
 
     let profile = users_info_client(&server)
-        .user_info("U1")
+        .user_info(&SlackUserId::new("U1"))
         .await
         .expect("a missing is_email_confirmed is not an error");
     assert!(
@@ -254,7 +255,7 @@ async fn user_info_surfaces_ok_false_as_outbound_error() {
         .await;
 
     let err = users_info_client(&server)
-        .user_info("U1")
+        .user_info(&SlackUserId::new("U1"))
         .await
         .expect_err("ok:false is an error");
     assert!(
@@ -272,7 +273,7 @@ async fn user_info_rejects_a_blocked_host_before_any_request() {
     )
     .with_users_info_url("http://169.254.169.254/api/users.info");
     let err = client
-        .user_info("U1")
+        .user_info(&SlackUserId::new("U1"))
         .await
         .expect_err("SSRF guard blocks the link-local metadata host");
     assert!(

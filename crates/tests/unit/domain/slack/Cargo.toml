@@ -12,6 +12,7 @@ workspace = true
 
 [dependencies]
 systemprompt-slack = { workspace = true, features = ["test"] }
+systemprompt-identifiers = { workspace = true }
 systemprompt-models = { workspace = true }
 systemprompt-runtime = { workspace = true }
 systemprompt-extension = { workspace = true }

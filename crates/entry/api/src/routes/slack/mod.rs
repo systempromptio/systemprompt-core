@@ -31,6 +31,7 @@ use axum::extract::State;
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::routing::post;
+use systemprompt_identifiers::SlackUserId;
 use systemprompt_models::services::SlackAppConfig;
 use systemprompt_runtime::AppContext;
 use systemprompt_security::authz::EntityRef;
@@ -208,7 +209,8 @@ fn spawn_reply(ctx: AppContext, inbound: MessagingInbound, app: &SlackAppConfig)
     tokio::spawn(async move {
         let mut inbound = inbound;
         if link_by_email && let Some(token) = bot_token.clone() {
-            inbound.claims = workspace_claims(&token, &inbound.external_user_id).await;
+            inbound.claims =
+                workspace_claims(&token, &SlackUserId::new(inbound.external_user_id.clone())).await;
         }
         let (text, ephemeral) = match dispatch_messaging(&ctx, inbound.clone()).await {
             Ok(DispatchOutcome::Replied(reply)) => (non_empty(reply), false),
@@ -245,7 +247,7 @@ fn spawn_reply(ctx: AppContext, inbound: MessagingInbound, app: &SlackAppConfig)
 // yields empty claims — the sender stays unlinked and lands on a role-less
 // user. Treating an unconfirmed address as verified would let anyone who can
 // set it in Slack claim the account that owns it.
-async fn workspace_claims(bot_token: &str, slack_user_id: &str) -> FederatedIdentityClaims {
+async fn workspace_claims(bot_token: &str, slack_user_id: &SlackUserId) -> FederatedIdentityClaims {
     match SlackClient::new(http_client(), bot_token.to_owned())
         .user_info(slack_user_id)
         .await
@@ -258,11 +260,14 @@ async fn workspace_claims(bot_token: &str, slack_user_id: &str) -> FederatedIden
             roles: Vec::new(),
         },
         Ok(_) => {
-            tracing::debug!(slack_user_id, "slack profile carries no confirmed email");
+            tracing::debug!(
+                slack_user_id = slack_user_id.as_str(),
+                "slack profile carries no confirmed email"
+            );
             FederatedIdentityClaims::default()
         },
         Err(err) => {
-            tracing::warn!(error = %err, slack_user_id, "slack users.info lookup failed");
+            tracing::warn!(error = %err, slack_user_id = slack_user_id.as_str(), "slack users.info lookup failed");
             FederatedIdentityClaims::default()
         },
     }
