@@ -38,6 +38,13 @@ domain_error! {
         )]
         PortOwnedByForeignProcess { port: u16, pid: u32, service: String },
 
+        #[error(
+            "port {port} for MCP server {service} is held by process {pid}, whose identity \
+             this platform cannot verify, so it will not be signalled. Stop it by hand, or \
+             move this installation's MCP ports with `admin config services set --port-offset`"
+        )]
+        PortHolderUnverifiable { port: u16, pid: u32, service: String },
+
         #[error("Configuration error: {0}")]
         Configuration(String),
 

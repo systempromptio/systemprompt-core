@@ -1,5 +1,13 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+
+- The instance host gate no longer fails open before the first sync. `enabled_hosts` comes from the last signed manifest, which does not exist on a fresh install, so `gui/hosts/serde.rs` skipped the filter entirely and the GUI offered every host the build registers — including ones the installation disables. `HostsPayload` now carries `hosts_gated`, so surfaces that offer to *act* on a host can withhold the action until the gate is authoritative. It reads a new `AppStateSnapshot::manifest_synced()`, deliberately **not** `!enabled_hosts.is_empty()`: an instance may disable every host, and that empty list is a real answer from a good manifest rather than a missing one — gating on emptiness would have pinned such an install on "checking" forever.
+- The last-sync record is read even when the org-plugins directory does not resolve. It was nested inside that branch in `reload_into`, though nothing it restores — `last_sync_summary`, `enabled_hosts`, `host_model_protocols` — depends on the directory, so a machine without one silently lost the manifest's host gate and model protocols.
+- `agents_onboarded` is durable. It lived only in the in-memory snapshot, so finishing setup bought nothing beyond the current process: the next launch re-derived "needs setup" from whether any host still reported an installed profile, and a user who had completed setup was put back through it after uninstalling the last profile or probing it stale. `setup.complete` now writes an `onboarded.json` sentinel beside `first-run.json`, `reload_into` reads it, and `auth::setup::clean` removes it alongside the first-run record.
+
 ## [0.27.0] - 2026-08-23
 
 ### Changed

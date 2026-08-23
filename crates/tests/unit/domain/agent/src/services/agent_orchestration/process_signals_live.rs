@@ -1,14 +1,18 @@
 // Signal escalation and the identity gate, driven with real processes.
 //
 // The escalation path (SIGTERM ignored, SIGKILL applied) needs a process that
-// traps TERM; the identity gate reads `/proc/<pid>/environ`, so the process
-// must carry this agent's spawn markers rather than the test process's own pid
-// being registered under an agent name.
+// traps TERM; the identity gate reads the live process's environment, so the
+// process must carry this agent's spawn markers rather than the test process's
+// own pid being registered under an agent name.
 //
 // The processes are deliberately orphaned rather than kept as direct children:
 // a killed child this process has not `wait`ed on lingers as a zombie, which
 // still answers `kill(pid, 0)`, so `terminate_gracefully` could never observe
 // it die. Orphans are reparented to the init reaper and disappear for real.
+//
+// The orphan is this crate's own test binary re-executing an ignored helper,
+// not `sleep`: macOS withholds the environment of Apple's hardened-runtime
+// binaries, so a `/bin/sleep` orphan could never be identified as ours there.
 
 use std::process::Command;
 use std::time::{Duration, Instant};
@@ -22,10 +26,28 @@ use systemprompt_agent::services::agent_orchestration::process::{
 // orphan's pid. The background job's stdout is redirected away from the
 // captured pipe: an orphan holding that pipe open keeps `output()` blocked for
 // as long as it lives.
-fn spawn_orphan(service_name: &str, script: &str) -> Option<u32> {
+const MARKER_HELPER: &str = "services::agent_orchestration::process_signals_live::marker_helper";
+
+#[test]
+#[ignore = "re-executed as an orphaned process by the identity-gate tests"]
+fn marker_helper() {
+    systemprompt_test_fixtures::announce_helper_ready();
+    std::thread::sleep(Duration::from_secs(600));
+}
+
+fn spawn_orphan(service_name: &str, wrap: impl FnOnce(&str) -> String) -> Option<u32> {
+    let helper = systemprompt_test_fixtures::helper(MARKER_HELPER);
+
     let output = Command::new("sh")
         .arg("-c")
-        .arg(format!("{script} >/dev/null 2>&1 & echo $!"))
+        .arg(format!(
+            "{} >/dev/null 2>&1 & echo $!",
+            wrap(helper.command())
+        ))
+        .env(
+            systemprompt_test_fixtures::HELPER_READY_ENV,
+            helper.ready_path(),
+        )
         .env(systemprompt_models::subprocess::SUBPROCESS_MARKER_ENV, "1")
         .env(
             systemprompt_models::subprocess::AGENT_NAME_ENV,
@@ -39,6 +61,8 @@ fn spawn_orphan(service_name: &str, script: &str) -> Option<u32> {
         .parse()
         .ok()?;
 
+    helper.await_ready();
+
     let deadline = Instant::now() + Duration::from_secs(5);
     while Instant::now() < deadline {
         if process_exists(pid) {
@@ -50,12 +74,12 @@ fn spawn_orphan(service_name: &str, script: &str) -> Option<u32> {
 }
 
 fn spawn_marked_agent(service_name: &str) -> Option<u32> {
-    spawn_orphan(service_name, "sleep 600")
+    spawn_orphan(service_name, str::to_owned)
 }
 
-// SIG_IGN survives exec, so the exec'd `sleep` inherits the ignored TERM.
+// SIG_IGN survives exec, so the exec'd helper inherits the ignored TERM.
 fn spawn_term_deaf_agent(service_name: &str) -> Option<u32> {
-    spawn_orphan(service_name, "( trap '' TERM; exec sleep 600 )")
+    spawn_orphan(service_name, |cmd| format!("( trap '' TERM; exec {cmd} )"))
 }
 
 fn unique_service(prefix: &str) -> String {

@@ -35,12 +35,15 @@ pub fn is_process_running(pid: u32) -> bool {
 }
 
 pub fn get_process_info(pid: u32) -> McpDomainResult<Option<ProcessInfo>> {
+    // Why: `command` is the one spelling both `ps` implementations accept —
+    // BSD `ps` on macOS rejects the GNU-only `cmd` keyword outright, which made
+    // every lookup here return `None` on that platform.
     let output = Command::new("ps")
-        .args(["-p", &pid.to_string(), "-o", "pid,ppid,cmd"])
+        .args(["-p", &pid.to_string(), "-o", "pid,ppid,command"])
         .output()
         .map_err(|e| {
             crate::error::McpDomainError::Internal(format!(
-                "failed to run `ps -p {pid} -o pid,ppid,cmd`: {e}"
+                "failed to run `ps -p {pid} -o pid,ppid,command`: {e}"
             ))
         })?;
 

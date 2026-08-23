@@ -41,11 +41,15 @@ enum PortHolder {
     Ours,
     Caller,
     Foreign,
+    Unverifiable,
 }
 
 fn classify_port_holder(pid: u32, service_name: &str) -> PortHolder {
     if pid == std::process::id() {
         return PortHolder::Caller;
+    }
+    if !systemprompt_models::subprocess::identity_verification_supported() {
+        return PortHolder::Unverifiable;
     }
     if systemprompt_models::subprocess::live_pid_is_subprocess(
         pid,
@@ -128,6 +132,13 @@ pub async fn cleanup_port_processes(port: u16, service_name: &str) -> McpDomainR
                     service: service_name.to_owned(),
                 });
             },
+            PortHolder::Unverifiable => {
+                return Err(crate::error::McpDomainError::PortHolderUnverifiable {
+                    port,
+                    pid,
+                    service: service_name.to_owned(),
+                });
+            },
             PortHolder::Ours => {},
         }
 
@@ -181,6 +192,13 @@ pub async fn cleanup_port_processes(port: u16, service_name: &str) -> McpDomainR
             PortHolder::Caller => continue,
             PortHolder::Foreign => {
                 return Err(crate::error::McpDomainError::PortOwnedByForeignProcess {
+                    port,
+                    pid,
+                    service: service_name.to_owned(),
+                });
+            },
+            PortHolder::Unverifiable => {
+                return Err(crate::error::McpDomainError::PortHolderUnverifiable {
                     port,
                     pid,
                     service: service_name.to_owned(),

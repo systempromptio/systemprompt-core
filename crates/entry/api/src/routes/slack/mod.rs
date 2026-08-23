@@ -13,6 +13,11 @@
 //! looked up by workspace id, and the signing secret / bot token are read from
 //! the profile secret store. No `AppContext` wiring, no registry struct, no DB.
 //!
+//! When the app sets `authz.link_by_workspace_email`, the sender's profile is
+//! read with `users.info` inside the spawned task — after the ack, never on the
+//! 3-second path — so a confirmed workspace email can attach them to the
+//! systemprompt account that already owns it.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -26,10 +31,12 @@ use axum::extract::State;
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::routing::post;
+use systemprompt_models::services::SlackAppConfig;
 use systemprompt_runtime::AppContext;
 use systemprompt_security::authz::EntityRef;
 use systemprompt_slack::client::SlackClient;
 use systemprompt_slack::events::{EventsApiEnvelope, InteractionPayload, SlashCommand};
+use systemprompt_traits::FederatedIdentityClaims;
 
 use crate::routes::messaging::{
     DispatchOutcome, MessagingInbound, ReplyTarget, dispatch_messaging, http_client,
@@ -87,8 +94,9 @@ async fn handle_events(State(ctx): State<AppContext>, headers: HeaderMap, body: 
                 reply: ReplyTarget::Channel {
                     id: channel.as_str().to_owned(),
                 },
+                claims: FederatedIdentityClaims::default(),
             };
-            spawn_reply(ctx, inbound, bot_token(&app));
+            spawn_reply(ctx, inbound, &app);
             StatusCode::OK.into_response()
         },
     }
@@ -128,8 +136,9 @@ async fn handle_commands(
             },
             |url| ReplyTarget::Url { url },
         ),
+        claims: FederatedIdentityClaims::default(),
     };
-    spawn_reply(ctx, inbound, bot_token(&app));
+    spawn_reply(ctx, inbound, &app);
     StatusCode::OK.into_response()
 }
 
@@ -185,15 +194,22 @@ async fn handle_interactivity(
         agent_name: agent,
         entity: EntityRef::SlackWorkspace(payload.team.id),
         reply,
+        claims: FederatedIdentityClaims::default(),
     };
-    spawn_reply(ctx, inbound, bot_token(&app));
+    spawn_reply(ctx, inbound, &app);
     StatusCode::OK.into_response()
 }
 
 // Why: Dispatch in the background and post the rendered reply. Spawned so the
 // route can ack Slack within its 3-second timeout.
-fn spawn_reply(ctx: AppContext, inbound: MessagingInbound, bot_token: Option<String>) {
+fn spawn_reply(ctx: AppContext, inbound: MessagingInbound, app: &SlackAppConfig) {
+    let bot_token = bot_token(app);
+    let link_by_email = app.authz.link_by_workspace_email;
     tokio::spawn(async move {
+        let mut inbound = inbound;
+        if link_by_email && let Some(token) = bot_token.clone() {
+            inbound.claims = workspace_claims(&token, &inbound.external_user_id).await;
+        }
         let (text, ephemeral) = match dispatch_messaging(&ctx, inbound.clone()).await {
             Ok(DispatchOutcome::Replied(reply)) => (non_empty(reply), false),
             Ok(DispatchOutcome::Denied(reason)) => (format!("⛔ {reason}"), true),
@@ -223,6 +239,33 @@ fn spawn_reply(ctx: AppContext, inbound: MessagingInbound, bot_token: Option<Str
             tracing::error!(error = %err, "failed to post slack reply");
         }
     });
+}
+
+// Why: a profile that cannot be read, or an email Slack has not confirmed,
+// yields empty claims — the sender stays unlinked and lands on a role-less
+// user. Treating an unconfirmed address as verified would let anyone who can
+// set it in Slack claim the account that owns it.
+async fn workspace_claims(bot_token: &str, slack_user_id: &str) -> FederatedIdentityClaims {
+    match SlackClient::new(http_client(), bot_token.to_owned())
+        .user_info(slack_user_id)
+        .await
+    {
+        Ok(profile) if profile.email_confirmed => FederatedIdentityClaims {
+            email: profile.email,
+            email_verified: true,
+            name: profile.display_name,
+            preferred_username: None,
+            roles: Vec::new(),
+        },
+        Ok(_) => {
+            tracing::debug!(slack_user_id, "slack profile carries no confirmed email");
+            FederatedIdentityClaims::default()
+        },
+        Err(err) => {
+            tracing::warn!(error = %err, slack_user_id, "slack users.info lookup failed");
+            FederatedIdentityClaims::default()
+        },
+    }
 }
 
 fn non_empty(text: String) -> String {

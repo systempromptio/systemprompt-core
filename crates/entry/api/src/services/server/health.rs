@@ -90,24 +90,23 @@ pub fn human_bytes(bytes: i64) -> String {
 }
 
 // Why: `nix::sys::statvfs` surfaces `libc::fsblkcnt_t` (block counts) and
-// `c_ulong` (fragment size). Those alias to `u64` on Linux but `u32` on Darwin,
-// so passing them straight into `saturating_mul` type-checks on Linux and
-// fails on macOS. Widening every field to `u64` makes the arithmetic portable;
-// the conversion is a no-op on Linux, which is what the `allow` covers.
-#[cfg_attr(
-    not(target_os = "macos"),
-    expect(
-        clippy::useless_conversion,
-        reason = "no-op on Linux (fsblkcnt_t == u64); required on macOS where fsblkcnt_t == u32"
-    )
-)]
+// `c_ulong` (fragment size), and those alias to different widths per target —
+// `u64` throughout on Linux, a mix on Darwin — so the arithmetic below only
+// type-checks once every field is widened. Doing the widening behind a generic
+// bound rather than a concrete `u64::from` keeps it a no-op where the field is
+// already `u64` without tripping `useless_conversion` on the targets where it
+// is, which a per-platform lint attribute could only chase after the fact.
+fn widen(value: impl Into<u64>) -> u64 {
+    value.into()
+}
+
 fn get_disk_usage() -> Option<serde_json::Value> {
     let stat = nix::sys::statvfs::statvfs(".").ok()?;
 
-    let block_size = u64::from(stat.fragment_size());
-    let total = u64::from(stat.blocks()).saturating_mul(block_size);
-    let available = u64::from(stat.blocks_available()).saturating_mul(block_size);
-    let free = u64::from(stat.blocks_free()).saturating_mul(block_size);
+    let block_size = widen(stat.fragment_size());
+    let total = widen(stat.blocks()).saturating_mul(block_size);
+    let available = widen(stat.blocks_available()).saturating_mul(block_size);
+    let free = widen(stat.blocks_free()).saturating_mul(block_size);
     let used = total.saturating_sub(free);
 
     let usage_pct = if total > 0 {

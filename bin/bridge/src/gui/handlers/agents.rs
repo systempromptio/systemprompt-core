@@ -100,6 +100,10 @@ pub(crate) fn on_setup_complete(app: &mut GuiApp) {
         return;
     }
     app.state.set_agents_onboarded(true);
+    // Durable, so the wizard stays away across restarts. Without this the flag
+    // lived only in the snapshot and the next launch re-derived "needs setup"
+    // from whether any host still reported an installed profile.
+    crate::gui::onboarding::mark_complete();
     app.append_log("setup marked complete by user");
     emit::emit_state(app);
 }

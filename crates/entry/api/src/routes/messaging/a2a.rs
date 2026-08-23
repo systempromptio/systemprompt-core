@@ -19,7 +19,7 @@ use systemprompt_agent::models::a2a::{
 use systemprompt_identifiers::{ContextId, MessageId, SessionId, TraceId};
 use systemprompt_models::RequestContext;
 use systemprompt_models::a2a::methods;
-use systemprompt_models::auth::{AuthenticatedUser, JwtAudience, Permission};
+use systemprompt_models::auth::{AuthenticatedUser, BaseRoles, JwtAudience, Permission};
 use systemprompt_oauth::services::{JwtConfig, JwtSigningParams, generate_jwt};
 use systemprompt_runtime::AppContext;
 use systemprompt_users::User;
@@ -30,6 +30,19 @@ use super::{MessagingError, MessagingInbound};
 
 const MAX_A2A_RESPONSE_BYTES: usize = 1024 * 1024;
 
+// Why: the sender drives the agent with the permissions their systemprompt
+// account actually holds. A hardcoded `a2a`-only scope cannot reach an
+// admin-scoped MCP server, so every downstream tool call would fail; granting
+// `admin` unconditionally would hand it to anyone who can type in Slack.
+pub(super) fn permissions_for(roles: &[String]) -> Vec<Permission> {
+    let held = if roles.iter().any(|role| role == BaseRoles::ADMIN) {
+        Permission::Admin
+    } else {
+        Permission::User
+    };
+    vec![Permission::A2a, held]
+}
+
 pub(super) fn authenticated_user(user: &User) -> Result<AuthenticatedUser, MessagingError> {
     let id = uuid::Uuid::parse_str(user.id.as_str())
         .map_err(|e| MessagingError::Token(format!("user id is not a uuid: {e}")))?;
@@ -37,7 +50,7 @@ pub(super) fn authenticated_user(user: &User) -> Result<AuthenticatedUser, Messa
         id,
         username: user.name.clone(),
         email: user.email.clone(),
-        permissions: vec![Permission::A2a],
+        permissions: permissions_for(&user.roles),
         roles: user.roles.clone(),
         attributes: std::collections::BTreeMap::new(),
     })
@@ -48,9 +61,12 @@ pub(super) fn mint_a2a_token(
     authed: &AuthenticatedUser,
     session_id: &SessionId,
 ) -> Result<String, MessagingError> {
+    // Why: `mcp` rides alongside `a2a` because the agent forwards this very
+    // token to the MCP servers it is assigned; a token audienced only for a2a
+    // is rejected at the MCP door before any authz rule is consulted.
     let config = JwtConfig {
-        permissions: vec![Permission::A2a],
-        audience: vec![JwtAudience::A2a],
+        permissions: authed.permissions.clone(),
+        audience: vec![JwtAudience::A2a, JwtAudience::Mcp],
         expires_in_hours: Some(1),
         resource: None,
         plugin_id: None,

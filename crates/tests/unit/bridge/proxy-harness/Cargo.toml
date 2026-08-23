@@ -24,5 +24,7 @@ hyper-util = { version = "0.1", features = ["server", "tokio"] }
 arc-swap = "1"
 keyring-core = { workspace = true }
 
-[target."cfg(all(unix, not(target_os = \"macos\")))".dependencies]
+# The kernel keyring backs the headless credential store on Linux CI; other
+# targets use `keyring_core::mock` and must not build this Linux-only crate.
+[target.'cfg(target_os = "linux")'.dependencies]
 linux-keyutils-keyring-store = { workspace = true }

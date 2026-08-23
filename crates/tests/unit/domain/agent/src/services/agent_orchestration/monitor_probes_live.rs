@@ -13,13 +13,9 @@ use wiremock::{Mock, MockServer, ResponseTemplate};
 // name as 8000 + (digits % 1000), so reaching a real listener means binding a
 // port in that window and naming the agent after its offset.
 fn listener_in_derived_range() -> Option<(std::net::TcpListener, String)> {
-    for offset in 0..1000u16 {
-        let port = 8000 + offset;
-        if let Ok(listener) = std::net::TcpListener::bind(("127.0.0.1", port)) {
-            return Some((listener, format!("agent{offset}")));
-        }
-    }
-    None
+    let listener = systemprompt_test_fixtures::bind_in_range(8000..9000)?;
+    let offset = listener.local_addr().ok()?.port() - 8000;
+    Some((listener, format!("agent{offset}")))
 }
 
 async fn card_server(body: serde_json::Value) -> MockServer {

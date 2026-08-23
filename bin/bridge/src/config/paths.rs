@@ -12,6 +12,7 @@ fn org_plugins_system_override() -> Option<PathBuf> {
 }
 pub const LAST_SYNC_SENTINEL: &str = "last-sync.json";
 pub const FIRST_RUN_SENTINEL: &str = "first-run.json";
+pub const ONBOARDED_SENTINEL: &str = "onboarded.json";
 pub const USER_FRAGMENT: &str = "user.json";
 pub const MCP_SERVERS_FRAGMENT: &str = "mcp-servers.json";
 

@@ -101,6 +101,7 @@ pub fn clean() -> Result<CleanReport, SetupError> {
     remove_managed_mcp_fragment()?;
     if let Some(dir) = crate::config::paths::bridge_metadata_dir() {
         remove_if_exists(&dir.join(crate::config::paths::FIRST_RUN_SENTINEL))?;
+        remove_if_exists(&dir.join(crate::config::paths::ONBOARDED_SENTINEL))?;
     }
     if let Err(e) = crate::auth::cache::clear() {
         return Err(SetupError::Io(format!("clear token cache: {e}")));

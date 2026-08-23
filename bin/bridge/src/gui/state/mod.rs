@@ -112,6 +112,17 @@ pub struct AppStateSnapshot {
 }
 
 impl AppStateSnapshot {
+    /// Has a signed manifest ever been synced to this install?
+    ///
+    /// Deliberately not `!enabled_hosts.is_empty()`: an instance may disable
+    /// every host, and that empty list is a real answer from a good manifest,
+    /// not a missing one. Anything gating on the instance's host policy must
+    /// ask this instead. Backed by the last-sync record, which is the only
+    /// thing that sets `last_sync_summary`.
+    pub const fn manifest_synced(&self) -> bool {
+        self.last_sync_summary.is_some()
+    }
+
     pub const fn signed_in(&self) -> bool {
         self.gateway_status.is_reachable() && self.verified_identity.is_some()
     }
@@ -411,6 +422,7 @@ impl AppState {
         snap.gateway_url = config::gateway_url_or_default(&cfg).to_string();
 
         snap.first_run.done = crate::gui::first_run::record::read().is_some();
+        snap.agents_onboarded = crate::gui::onboarding::is_complete();
 
         if let Ok(s) = setup::status() {
             snap.config_file = s.paths.config_file.display().to_string();
@@ -444,21 +456,23 @@ impl AppState {
             snap.verified_identity = None;
         }
 
+        // The last-sync record is the manifest's own footprint; it is not
+        // scoped to the org-plugins directory and must be read even when that
+        // directory does not resolve, or the host gate loses its authority.
+        if let Some(meta) = paths::bridge_metadata_dir()
+            && let Ok(bytes) = std::fs::read(meta.join(paths::LAST_SYNC_SENTINEL))
+            && let Ok(record) = serde_json::from_slice::<LastSyncRecord>(&bytes)
+        {
+            let when = record.synced_at.as_deref().unwrap_or("unknown");
+            let manifest_version = record.manifest_version.as_deref().unwrap_or("?");
+            snap.last_sync_summary = Some(format!("{when} (manifest {manifest_version})"));
+            snap.enabled_hosts = record.enabled_hosts;
+            snap.host_model_protocols = record.host_model_protocols;
+        }
+
         if let Some(loc) = loc {
             snap.plugin_count = count_plugin_dirs(&loc.path);
             snap.malformed_plugin_count = count_malformed_plugin_dirs(&loc.path);
-
-            if let Some(meta) = paths::bridge_metadata_dir()
-                && let Ok(bytes) = std::fs::read(meta.join(paths::LAST_SYNC_SENTINEL))
-                && let Ok(record) = serde_json::from_slice::<LastSyncRecord>(&bytes)
-            {
-                let when = record.synced_at.as_deref().unwrap_or("unknown");
-                let manifest_version = record.manifest_version.as_deref().unwrap_or("?");
-                snap.last_sync_summary = Some(format!("{when} (manifest {manifest_version})"));
-                snap.enabled_hosts = record.enabled_hosts;
-                snap.host_model_protocols = record.host_model_protocols;
-            }
-
             snap.skill_count = counters::count_skills_across_plugins(&loc.path);
             snap.agent_count = counters::count_agents_across_plugins(&loc.path);
         }

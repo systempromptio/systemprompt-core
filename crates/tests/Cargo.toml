@@ -208,9 +208,11 @@ wiremock = "0.6"
 webauthn-rs = { version = "0.5", features = ["danger-allow-state-serialisation"] }
 webauthn-authenticator-rs = { version = "0.5", default-features = false, features = ["softtoken"] }
 keyring-core = "1"
-# Headless credential store for the bridge OAuth suites: the kernel keyring needs
-# no Secret Service daemon, so these tests run on a bare CI box. Installed before
-# the first entry so the bridge's own lazy platform-store bootstrap stands down.
+# Headless credential store for the bridge OAuth suites on Linux: the kernel
+# keyring needs no Secret Service daemon, so these tests run on a bare CI box.
+# Installed before the first entry so the bridge's own lazy platform-store
+# bootstrap stands down. Consumers depend on it only under
+# `cfg(target_os = "linux")`; elsewhere `keyring_core::mock` plays the same role.
 linux-keyutils-keyring-store = "1"
 tar = "0.4"
 flate2 = "1.1"

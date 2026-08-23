@@ -26,6 +26,7 @@ use serde_json::json;
 use systemprompt_identifiers::{AgentName, ContextId, SessionId, TraceId};
 use systemprompt_runtime::AppContext;
 use systemprompt_security::authz::{AuthzContext, AuthzDecision, AuthzRequest, EntityRef};
+use systemprompt_traits::FederatedIdentityClaims;
 
 use a2a::{authenticated_user, build_a2a_request, mint_a2a_token, run_agent};
 use identity::resolve_or_link_user;
@@ -57,6 +58,10 @@ pub struct MessagingInbound {
     pub agent_name: AgentName,
     pub entity: EntityRef,
     pub reply: ReplyTarget,
+    /// Verified profile claims for the sender, when the platform route could
+    /// read them. Empty claims mean "unlinked": the sender resolves to a
+    /// role-less first-touch user, which no rule grants anything to.
+    pub claims: FederatedIdentityClaims,
 }
 
 #[derive(Debug, Clone)]
@@ -95,7 +100,13 @@ pub async fn dispatch_messaging(
     ctx: &AppContext,
     inbound: MessagingInbound,
 ) -> Result<DispatchOutcome, MessagingError> {
-    let user = resolve_or_link_user(ctx, &inbound.issuer, &inbound.external_user_id).await?;
+    let user = resolve_or_link_user(
+        ctx,
+        &inbound.issuer,
+        &inbound.external_user_id,
+        &inbound.claims,
+    )
+    .await?;
     let authed = authenticated_user(&user)?;
 
     let context_id =
@@ -131,9 +142,15 @@ pub async fn dispatch_messaging(
 #[cfg(feature = "test-api")]
 pub mod test_api {
     use systemprompt_agent::models::a2a::Task;
+    use systemprompt_models::auth::Permission;
 
     #[must_use]
     pub fn reply_text(task: Option<&Task>) -> String {
         super::a2a::reply_text(task)
+    }
+
+    #[must_use]
+    pub fn permissions_for(roles: &[String]) -> Vec<Permission> {
+        super::a2a::permissions_for(roles)
     }
 }

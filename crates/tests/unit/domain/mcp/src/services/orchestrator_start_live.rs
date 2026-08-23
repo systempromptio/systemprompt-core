@@ -96,14 +96,8 @@ fn install_stub_binary(bootstrap: &TestBootstrap, name: &str) -> PathBuf {
 // Internal MCP servers are validated against the 5000-5999 range, so an
 // ephemeral port would be rejected by config validation before any spawn.
 fn free_port() -> u16 {
-    for port in 5000..6000u16 {
-        if let Ok(listener) = std::net::TcpListener::bind(("127.0.0.1", port)) {
-            let port = listener.local_addr().expect("addr").port();
-            drop(listener);
-            return port;
-        }
-    }
-    panic!("no free port in the internal MCP range 5000-5999");
+    systemprompt_test_fixtures::free_port_in_range(5000..6000)
+        .expect("no free port in the internal MCP range 5000-5999")
 }
 
 fn unique(prefix: &str) -> String {

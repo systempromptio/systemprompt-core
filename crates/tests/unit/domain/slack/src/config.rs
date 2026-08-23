@@ -27,6 +27,28 @@ fn deserializes_full_config() {
 }
 
 #[test]
+fn workspace_email_linking_is_off_unless_asked_for() {
+    let app = parse(FULL);
+    assert!(
+        !app.authz.link_by_workspace_email,
+        "an app that never asked for users:read.email must not link by email"
+    );
+
+    let opted_in = parse(
+        r#"
+workspace_id: "T1"
+signing_secret_ref: "s"
+bot_token_ref: "b"
+default_agent: "a"
+authz:
+  allowed_roles: ["admin"]
+  link_by_workspace_email: true
+"#,
+    );
+    assert!(opted_in.authz.link_by_workspace_email);
+}
+
+#[test]
 fn enabled_defaults_true() {
     let app = parse(
         r#"

@@ -145,3 +145,6 @@ ci/
 Screenshot*.png
 !crates/entry/api/src/services/gateway/audit/
 !crates/entry/api/src/services/proxy/audit/
+
+# rustc internal compiler error dumps
+rustc-ice-*.txt

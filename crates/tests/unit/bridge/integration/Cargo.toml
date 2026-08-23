@@ -23,4 +23,8 @@ tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 wiremock = { workspace = true }
 sha2 = { workspace = true }
 keyring-core = { workspace = true }
+
+# The kernel keyring backs the headless credential store on Linux CI; other
+# targets use `keyring_core::mock` and must not build this Linux-only crate.
+[target.'cfg(target_os = "linux")'.dependencies]
 linux-keyutils-keyring-store = { workspace = true }

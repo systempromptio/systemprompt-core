@@ -213,7 +213,17 @@ pub fn get_process_name_by_pid(pid: u32) -> Option<String> {
         return None;
     }
 
-    let name = String::from_utf8_lossy(&output.stdout).trim().to_owned();
+    let raw = String::from_utf8_lossy(&output.stdout);
+    // Why: `comm` is a bare command name under GNU `ps` but the executable's
+    // full path under BSD `ps` on macOS. Callers compare the result against a
+    // configured server name, so an unnormalised path never matched there and
+    // every by-name port lookup silently returned `None`.
+    let name = std::path::Path::new(raw.trim())
+        .file_name()
+        .and_then(std::ffi::OsStr::to_str)
+        .unwrap_or_else(|| raw.trim())
+        .to_owned();
+
     if name.is_empty() { None } else { Some(name) }
 }
 

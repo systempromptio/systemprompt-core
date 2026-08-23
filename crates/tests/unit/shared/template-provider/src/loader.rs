@@ -524,6 +524,10 @@ mod filesystem_loader_tests {
         );
     }
 
+    // APFS validates filenames as UTF-8 and refuses this one outright with
+    // EILSEQ, so the loader's invalid-encoding branch is unreachable from a
+    // real filesystem on macOS — the bad name cannot be created to begin with.
+    #[cfg(target_os = "linux")]
     #[tokio::test]
     async fn load_directory_non_utf8_stem_fails_invalid_encoding() {
         use std::ffi::OsStr;
@@ -551,13 +555,18 @@ mod filesystem_loader_tests {
         use std::os::unix::fs::PermissionsExt;
 
         let dir = TempDir::new().unwrap();
-        let sub = dir.path().join("templates");
+        // Why: the loader canonicalises before reporting a path, and on macOS
+        // the temp root arrives as `/var/...` while its canonical form is
+        // `/private/var/...`. Canonicalising the root here keeps the expected
+        // path in the same form the error carries; it is a no-op on Linux.
+        let root = std::fs::canonicalize(dir.path()).unwrap();
+        let sub = root.join("templates");
         fs::create_dir(&sub).await.unwrap();
         let locked = sub.join("locked.html");
         fs::write(&locked, "<p>secret</p>").await.unwrap();
         std::fs::set_permissions(&locked, std::fs::Permissions::from_mode(0)).unwrap();
 
-        let loader = FileSystemLoader::with_path(dir.path());
+        let loader = FileSystemLoader::with_path(&root);
         let err = loader
             .load_directory(PathBuf::from("templates").as_path())
             .await

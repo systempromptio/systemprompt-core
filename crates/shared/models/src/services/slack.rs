@@ -1,8 +1,9 @@
 //! Declarative configuration for Slack apps.
 //!
 //! Each app describes one Slack workspace: the secret references for its
-//! signing secret and bot token, the agent it routes to, and the roles
-//! permitted to drive it. Secrets are never inlined — only references resolved
+//! signing secret and bot token, the agent it routes to, the roles permitted to
+//! drive it, and whether senders are linked to existing accounts by their
+//! workspace email. Secrets are never inlined — only references resolved
 //! through the profile's secret source at boot. This type lives in `models`
 //! (not the `slack` domain crate) so it can be embedded in
 //! [`super::ServicesConfig`] without a dependency cycle, mirroring
@@ -40,6 +41,12 @@ pub struct SlackAppConfig {
 pub struct SlackAuthzConfig {
     #[serde(default)]
     pub allowed_roles: Vec<String>,
+    /// Attach the sender to the systemprompt account holding the same email as
+    /// their Slack workspace profile, instead of minting a role-less user on
+    /// first contact. Requires the `users:read.email` bot scope; an app that
+    /// does not hold it must leave this off and link identities explicitly.
+    #[serde(default)]
+    pub link_by_workspace_email: bool,
 }
 
 const fn default_enabled() -> bool {

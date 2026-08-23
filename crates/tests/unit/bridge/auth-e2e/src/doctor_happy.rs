@@ -15,11 +15,26 @@ use wiremock::{Mock, MockServer, ResponseTemplate};
 
 const PERSONAL_SESSION_UUID: &str = "00000000-0000-4000-8000-000000000001";
 
-fn use_keyutils_store() {
+// The bridge's own lazy platform-store bootstrap must stand down before the
+// first entry is created, so a headless store is installed here instead. Linux
+// CI gets the kernel keyring, which needs no Secret Service daemon; elsewhere
+// the in-memory mock plays the same role without reaching for the platform
+// keychain, which would prompt or fail on a developer's machine.
+#[cfg(target_os = "linux")]
+fn use_headless_keystore() {
     static ONCE: std::sync::Once = std::sync::Once::new();
     ONCE.call_once(|| {
-        let store = linux_keyutils_keyring_store::Store::new().unwrap();
-        keyring_core::set_default_store(store);
+        keyring_core::set_default_store(
+            linux_keyutils_keyring_store::Store::new().expect("keyutils store"),
+        );
+    });
+}
+
+#[cfg(not(target_os = "linux"))]
+fn use_headless_keystore() {
+    static ONCE: std::sync::Once = std::sync::Once::new();
+    ONCE.call_once(|| {
+        keyring_core::set_default_store(keyring_core::mock::Store::new().expect("mock store"));
     });
 }
 
@@ -139,7 +154,7 @@ fn status_of<'a>(checks: &'a [doctor::Check], name: &str) -> &'a doctor::Check {
 
 #[test]
 fn fully_provisioned_sandbox_yields_no_failing_checks() {
-    use_keyutils_store();
+    use_headless_keystore();
     let home = TempDir::new().unwrap();
     let root = home.path().to_path_buf();
 
@@ -214,7 +229,7 @@ fn fully_provisioned_sandbox_yields_no_failing_checks() {
 
 #[test]
 fn hook_token_mint_rejection_is_reported_as_failure() {
-    use_keyutils_store();
+    use_headless_keystore();
     let home = TempDir::new().unwrap();
     let root = home.path().to_path_buf();
 

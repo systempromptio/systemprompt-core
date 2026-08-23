@@ -8,7 +8,6 @@
 //! identity guard that keeps the caller from signalling itself.
 
 use std::net::TcpListener;
-use std::process::Child;
 use std::sync::Arc;
 
 use systemprompt_database::{CreateServiceInput, ServiceRepository};
@@ -131,30 +130,13 @@ async fn sweep_stale(config: &McpServerConfig, database: &DatabaseService) -> us
         .expect("stale-binary sweep")
 }
 
-fn spawn_marked_child(service_name: &str) -> Child {
-    let child = std::process::Command::new("sleep")
-        .arg("30")
-        .env("SYSTEMPROMPT_SUBPROCESS", "1")
-        .env("MCP_SERVICE_ID", service_name)
-        .spawn()
-        .expect("spawn sleep");
-    await_environ(child.id(), service_name);
-    child
-}
+const MARKER_HELPER: &str = "services::orchestrator::process_cleanup::marker_helper";
 
-// `spawn` returns between fork and exec; `/proc/<pid>/environ` still shows the
-// parent's environment until exec completes, so an identity-verified signal
-// would be skipped and the assertion under test would race the scheduler.
-fn await_environ(pid: u32, marker: &str) {
-    for _ in 0..500 {
-        if let Ok(environ) = std::fs::read(format!("/proc/{pid}/environ"))
-            && String::from_utf8_lossy(&environ).contains(marker)
-        {
-            return;
-        }
-        std::thread::sleep(std::time::Duration::from_millis(10));
-    }
-    panic!("child {pid} never exposed {marker} in its environ");
+#[test]
+#[ignore = "re-executed as a child process by rebuilt_binary_kills_the_running_process"]
+fn marker_helper() {
+    systemprompt_test_fixtures::announce_helper_ready();
+    std::thread::sleep(std::time::Duration::from_secs(30));
 }
 
 #[tokio::test]
@@ -163,10 +145,10 @@ async fn rebuilt_binary_kills_the_running_process_and_drops_the_row() {
     let name = unique("stalebin");
     let current = write_binary(fx.bootstrap, &name);
 
-    let mut child = spawn_marked_child(&name);
+    let mut marked = systemprompt_test_fixtures::spawn_marked_child(MARKER_HELPER, &name);
     seed_row(
         &fx.repo,
-        &running_row(&name, Some(current - 3600), child.id()),
+        &running_row(&name, Some(current - 3600), marked.pid()),
     )
     .await;
 
@@ -181,7 +163,7 @@ async fn rebuilt_binary_kills_the_running_process_and_drops_the_row() {
     );
     assert!(row.is_none(), "the stale service is unregistered");
     assert!(
-        !child.wait().expect("child reaped").success(),
+        !marked.child.wait().expect("child reaped").success(),
         "the process running the old binary is terminated"
     );
 }

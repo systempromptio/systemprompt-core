@@ -42,12 +42,8 @@ fn unique(prefix: &str) -> String {
 // Internal MCP servers are validated against the 5000-5999 range, so an
 // ephemeral port would be rejected by config validation before any probe runs.
 fn listener_in_mcp_range() -> std::net::TcpListener {
-    for port in 5000..6000u16 {
-        if let Ok(listener) = std::net::TcpListener::bind(("127.0.0.1", port)) {
-            return listener;
-        }
-    }
-    panic!("no free port in the internal MCP range 5000-5999");
+    systemprompt_test_fixtures::bind_in_range(5000..6000)
+        .expect("no free port in the internal MCP range 5000-5999")
 }
 
 fn dead_port() -> u16 {

@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.36.0] - 2026-08-23
+
+### Breaking
+
+- **Breaking:** `McpDomainError` gains a `PortHolderUnverifiable { port, pid, service }` variant. Migrate by adding an arm to any exhaustive `match` over the enum.
+
+### Added
+
+- `classify_port_holder` distinguishes a port holder whose identity cannot be established from one established as foreign, and `cleanup_port_processes` reports the two separately. The old message blamed "another systemprompt installation or an unrelated service" for what was, on a platform without an identity check, simply unknown.
+
+### Fixed
+
+- Port reclamation works on macOS. Every holder used to classify as foreign there, so a `SIGKILL`ed server's own orphaned MCP child kept its port and the next start failed with `PortOwnedByForeignProcess` instead of reclaiming it.
+- `get_process_info` returned `None` for every pid on macOS: it asked `ps` for the GNU-only `cmd` output keyword, which BSD `ps` rejects outright, so the command failed and the result was read as "no such process". It now asks for `command`, accepted by both.
+- `find_process_on_port_with_name` never matched on macOS, silently skipping the by-name port cleanup the orchestrator's rebuild path depends on. `ps -o comm=` yields a bare command name under GNU `ps` but a full executable path under BSD `ps`; the value is now normalised to the file name before it is compared with the configured server name.
+
 ## [0.33.0] - 2026-08-20
 
 ### Added

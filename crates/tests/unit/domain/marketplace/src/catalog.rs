@@ -845,7 +845,10 @@ fn load_artifacts_unparseable_config_is_skipped_not_fatal() {
     );
 }
 
-#[cfg(unix)]
+// Only Linux: APFS validates filenames as UTF-8 and refuses this one with
+// EILSEQ, so on macOS the skip-the-bad-directory branch cannot be reached from
+// a real filesystem — the directory can never be created in the first place.
+#[cfg(target_os = "linux")]
 fn non_utf8_dir(parent: &std::path::Path) -> std::path::PathBuf {
     use std::os::unix::ffi::OsStrExt;
     let name = std::ffi::OsStr::from_bytes(b"bad-\xff-name");
@@ -854,7 +857,7 @@ fn non_utf8_dir(parent: &std::path::Path) -> std::path::PathBuf {
     path
 }
 
-#[cfg(unix)]
+#[cfg(target_os = "linux")]
 #[test]
 fn load_skills_non_utf8_dir_name_is_skipped() {
     let dir = tempfile::tempdir().expect("temp dir");
@@ -882,7 +885,7 @@ fn load_skills_non_utf8_dir_name_is_skipped() {
     );
 }
 
-#[cfg(unix)]
+#[cfg(target_os = "linux")]
 #[test]
 fn load_hooks_non_utf8_dir_name_is_skipped() {
     let dir = tempfile::tempdir().expect("temp dir");
@@ -910,7 +913,7 @@ fn load_hooks_non_utf8_dir_name_is_skipped() {
     );
 }
 
-#[cfg(unix)]
+#[cfg(target_os = "linux")]
 #[test]
 fn load_artifacts_non_utf8_dir_name_is_skipped() {
     let dir = tempfile::tempdir().expect("temp dir");

@@ -7,6 +7,11 @@
 //! (`https://slack.com` / the Teams Entra issuer) namespaces the external id so
 //! a Slack user and a Teams user with a colliding raw id never alias.
 //!
+//! The claims are supplied by the platform route, which is the only layer that
+//! can read the sender's profile. A route that reads nothing passes empty
+//! claims and the sender lands on a fresh, role-less user — never on an
+//! existing account.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -20,16 +25,10 @@ pub async fn resolve_or_link_user(
     ctx: &AppContext,
     issuer: &str,
     external_user_id: &str,
+    claims: &FederatedIdentityClaims,
 ) -> Result<User, MessagingError> {
     let repo = ctx.user_repository();
-    let claims = FederatedIdentityClaims {
-        email: None,
-        email_verified: false,
-        name: None,
-        preferred_username: None,
-        roles: Vec::new(),
-    };
-    repo.find_or_create_federated(issuer, external_user_id, &claims)
+    repo.find_or_create_federated(issuer, external_user_id, claims)
         .await
         .map_err(|e| MessagingError::Identity(e.to_string()))
 }

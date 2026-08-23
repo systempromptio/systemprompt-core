@@ -96,6 +96,7 @@ async fn handle_messages(
         reply: ReplyTarget::Channel {
             id: normalized.conversation_id.as_str().to_owned(),
         },
+        claims: systemprompt_traits::FederatedIdentityClaims::default(),
     };
     let reply = TeamsReply {
         service_url: normalized.service_url,

@@ -5,13 +5,14 @@
 //! `pub`. None of this touches the network or the database — the router-driven
 //! handlers are covered by the integration suite.
 
-use systemprompt_api::routes::messaging::test_api::reply_text;
+use systemprompt_api::routes::messaging::test_api::{permissions_for, reply_text};
 use systemprompt_api::routes::messaging::{
     DispatchOutcome, MessagingError, MessagingInbound, ReplyTarget,
 };
 use systemprompt_api::routes::slack::test_api::{parse_form, slash_command_from_form};
 use systemprompt_identifiers::{AgentName, ContextId, MessageId, SlackWorkspaceId};
 use systemprompt_models::a2a::{Message, MessageRole, Part, Task, TextPart};
+use systemprompt_models::auth::Permission;
 use systemprompt_security::authz::EntityRef;
 
 #[test]
@@ -91,6 +92,7 @@ fn messaging_inbound_constructs_and_clones() {
         reply: ReplyTarget::Url {
             url: "https://hooks.slack.com/r".to_owned(),
         },
+        claims: systemprompt_traits::FederatedIdentityClaims::default(),
     };
     let cloned = inbound.clone();
     assert_eq!(cloned.platform, "slack");
@@ -130,4 +132,26 @@ fn messaging_error_display_is_descriptive() {
         MessagingError::Response("junk".to_owned()).to_string(),
         "malformed agent response: junk"
     );
+}
+
+#[test]
+fn an_admin_role_mints_an_admin_scoped_token() {
+    let permissions = permissions_for(&["admin".to_owned()]);
+    assert_eq!(permissions, vec![Permission::A2a, Permission::Admin]);
+}
+
+#[test]
+fn every_other_role_set_stays_below_admin() {
+    for roles in [vec![], vec!["user".to_owned()], vec!["Admin".to_owned()]] {
+        let permissions = permissions_for(&roles);
+        assert_eq!(
+            permissions,
+            vec![Permission::A2a, Permission::User],
+            "roles {roles:?} must not reach admin"
+        );
+        assert!(
+            !permissions.iter().any(|p| p.implies(&Permission::Admin)),
+            "roles {roles:?} must not imply admin"
+        );
+    }
 }

@@ -19,4 +19,8 @@ tempfile = { workspace = true }
 temp-env = { workspace = true }
 serde_json = { workspace = true }
 keyring-core = { workspace = true }
+
+# The kernel keyring backs the headless credential store on Linux CI; other
+# targets use `keyring_core::mock` and must not build this Linux-only crate.
+[target.'cfg(target_os = "linux")'.dependencies]
 linux-keyutils-keyring-store = { workspace = true }

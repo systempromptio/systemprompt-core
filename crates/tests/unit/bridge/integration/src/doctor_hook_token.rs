@@ -12,11 +12,26 @@ use tempfile::TempDir;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
-fn use_keyutils_store() {
+// The bridge's own lazy platform-store bootstrap must stand down before the
+// first entry is created, so a headless store is installed here instead. Linux
+// CI gets the kernel keyring, which needs no Secret Service daemon; elsewhere
+// the in-memory mock plays the same role without reaching for the platform
+// keychain, which would prompt or fail on a developer's machine.
+#[cfg(target_os = "linux")]
+fn use_headless_keystore() {
     static ONCE: std::sync::Once = std::sync::Once::new();
     ONCE.call_once(|| {
-        let store = linux_keyutils_keyring_store::Store::new().unwrap();
-        keyring_core::set_default_store(store);
+        keyring_core::set_default_store(
+            linux_keyutils_keyring_store::Store::new().expect("keyutils store"),
+        );
+    });
+}
+
+#[cfg(not(target_os = "linux"))]
+fn use_headless_keystore() {
+    static ONCE: std::sync::Once = std::sync::Once::new();
+    ONCE.call_once(|| {
+        keyring_core::set_default_store(keyring_core::mock::Store::new().expect("mock store"));
     });
 }
 
@@ -28,7 +43,7 @@ fn check_with_endpoint(
     client_id: &str,
     token_status: u16,
 ) -> systemprompt_bridge::cli::doctor::Check {
-    use_keyutils_store();
+    use_headless_keystore();
     let temp = TempDir::new().unwrap();
     temp_env::with_var("XDG_CACHE_HOME", Some(temp.path().as_os_str()), || {
         let rt = tokio::runtime::Builder::new_current_thread()

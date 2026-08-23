@@ -1,42 +1,29 @@
 use std::net::TcpListener;
 use std::process::{Child, Command};
+use std::time::Duration;
 
 use systemprompt_mcp::services::process::cleanup::{
     cleanup_port_processes, force_kill, terminate_gracefully, terminate_gracefully_verified,
 };
 
-fn spawn_sleeper(envs: &[(&str, &str)]) -> Child {
+fn spawn_sleeper() -> Child {
     let mut cmd = Command::new("sleep");
     cmd.arg("30");
-    for (k, v) in envs {
-        cmd.env(k, v);
-    }
-    let child = cmd.spawn().expect("spawn sleep");
-    if !envs.is_empty() {
-        await_environ(child.id(), envs[envs.len() - 1].1);
-    }
-    child
+    cmd.spawn().expect("spawn sleep")
 }
 
-/// `spawn` returns between `fork` and `exec`, and the new environment only
-/// becomes visible in `/proc/<pid>/environ` at `exec`. Reading it before then
-/// yields the parent's environment, so an identity-verified signal is correctly
-/// skipped and the assertion under test races the scheduler.
-fn await_environ(pid: u32, marker: &str) {
-    for _ in 0..500 {
-        if let Ok(environ) = std::fs::read(format!("/proc/{pid}/environ"))
-            && String::from_utf8_lossy(&environ).contains(marker)
-        {
-            return;
-        }
-        std::thread::sleep(std::time::Duration::from_millis(10));
-    }
-    panic!("child {pid} never exposed {marker} in its environ");
+const MARKER_HELPER: &str = "services::process::cleanup_live::marker_helper";
+
+#[test]
+#[ignore = "re-executed as a child process by the verified-termination tests"]
+fn marker_helper() {
+    systemprompt_test_fixtures::announce_helper_ready();
+    std::thread::sleep(Duration::from_secs(30));
 }
 
 #[test]
 fn terminate_gracefully_sigterms_live_child() {
-    let mut child = spawn_sleeper(&[]);
+    let mut child = spawn_sleeper();
     let pid = child.id();
 
     terminate_gracefully(pid).expect("signal ok");
@@ -47,7 +34,7 @@ fn terminate_gracefully_sigterms_live_child() {
 
 #[test]
 fn force_kill_sigkills_live_child() {
-    let mut child = spawn_sleeper(&[]);
+    let mut child = spawn_sleeper();
     let pid = child.id();
 
     force_kill(pid).expect("kill ok");
@@ -58,35 +45,32 @@ fn force_kill_sigkills_live_child() {
 
 #[tokio::test]
 async fn verified_termination_kills_marked_subprocess() {
-    let mut child = spawn_sleeper(&[
-        ("SYSTEMPROMPT_SUBPROCESS", "1"),
-        ("MCP_SERVICE_ID", "cleanup-live-test"),
-    ]);
-    let pid = child.id();
+    let mut marked =
+        systemprompt_test_fixtures::spawn_marked_child(MARKER_HELPER, "cleanup-live-test");
+    let pid = marked.pid();
 
     terminate_gracefully_verified(pid, "cleanup-live-test")
         .await
         .expect("verified termination ok");
 
-    let status = child.wait().expect("child reaped");
+    let status = marked.child.wait().expect("child reaped");
     assert!(!status.success());
 }
 
 #[tokio::test]
 async fn verified_termination_skips_child_with_wrong_service_marker() {
-    let mut child = spawn_sleeper(&[
-        ("SYSTEMPROMPT_SUBPROCESS", "1"),
-        ("MCP_SERVICE_ID", "some-other-service"),
-    ]);
-    let pid = child.id();
+    let mut marked =
+        systemprompt_test_fixtures::spawn_marked_child(MARKER_HELPER, "some-other-service");
+    let pid = marked.pid();
 
     terminate_gracefully_verified(pid, "cleanup-live-test")
         .await
         .expect("skip is ok");
 
-    assert!(child.try_wait().expect("try_wait").is_none());
-    child.kill().expect("cleanup child");
-    child.wait().expect("reap child");
+    assert!(
+        marked.child.try_wait().expect("try_wait").is_none(),
+        "a child whose marker names another service is left running"
+    );
 }
 
 #[tokio::test]

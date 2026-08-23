@@ -3,7 +3,6 @@
 //! PID, and the restart clean-state sweep.
 
 use std::path::PathBuf;
-use std::process::Command;
 use std::sync::Arc;
 use systemprompt_database::{CreateServiceInput, ServiceRepository};
 use systemprompt_mcp::services::database::DatabaseService;
@@ -157,6 +156,15 @@ async fn health_check_non_mcp_listener_marks_service_error() {
     assert_eq!(status, "error");
 }
 
+const MARKER_HELPER: &str = "services::lifecycle_live::marker_helper";
+
+#[test]
+#[ignore = "re-executed as a child process by stop_server_terminates_registered_live_child"]
+fn marker_helper() {
+    systemprompt_test_fixtures::announce_helper_ready();
+    std::thread::sleep(std::time::Duration::from_secs(30));
+}
+
 #[tokio::test]
 async fn stop_server_terminates_registered_live_child_and_finalizes_row() {
     let Some((life, db)) = make_lifecycle().await else {
@@ -165,15 +173,10 @@ async fn stop_server_terminates_registered_live_child_and_finalizes_row() {
 
     let name = format!("stop-live-{}", uuid::Uuid::new_v4().simple());
     let port = 65401;
-    let mut child = Command::new("sleep")
-        .arg("30")
-        .env("SYSTEMPROMPT_SUBPROCESS", "1")
-        .env("MCP_SERVICE_ID", &name)
-        .spawn()
-        .expect("spawn sleep");
+    let mut marked = systemprompt_test_fixtures::spawn_marked_child(MARKER_HELPER, &name);
 
     let repo = seed_service(&db, &name, port).await;
-    repo.update_service_pid(&name, i32::try_from(child.id()).unwrap())
+    repo.update_service_pid(&name, i32::try_from(marked.pid()).unwrap())
         .await
         .unwrap();
 
@@ -184,7 +187,7 @@ async fn stop_server_terminates_registered_live_child_and_finalizes_row() {
 
     assert_eq!(row.status, "stopped");
     assert!(row.pid.is_none());
-    assert!(!child.wait().expect("child reaped").success());
+    assert!(!marked.child.wait().expect("child reaped").success());
 }
 
 #[tokio::test]

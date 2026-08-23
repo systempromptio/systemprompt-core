@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.36.0] - 2026-08-23
+
+### Breaking
+
+- **Breaking:** `McpDomainError` gains a `PortHolderUnverifiable { port, pid, service }` variant, returned where a port holder's identity cannot be established at all rather than where it was established as somebody else's. Migrate by adding an arm to any exhaustive `match` over the enum.
+
+### Added
+
+- Inbound Slack senders can be resolved to the account that already owns their workspace email. `SlackAuthzConfig` gains `link_by_workspace_email` (default off), `SlackClient::user_info` reads the sender's profile through `users.info`, and the Slack route fills `MessagingInbound::claims` with it — after the 3-second ack, never on the acknowledgement path. Only an email Slack reports as confirmed is treated as verified, so an address a sender can set at will cannot claim an existing account. Requires the `users:read.email` bot scope; a failed lookup degrades to empty claims, which means "unlinked", never "granted".
+- `MessagingInbound` carries `FederatedIdentityClaims`, and `resolve_or_link_user` takes them as a parameter. A platform route that reads no profile passes empty claims and its senders land on a fresh, role-less user exactly as before.
+
+- Child supervision now verifies identities on macOS. `live_pid_is_subprocess` and `is_zombie` read the target process through `sysctl(KERN_PROCARGS2)` and `proc_pidinfo` instead of returning a fail-closed `false`, so the six places that gate a signal on "is this still our child" — MCP port reclamation, verified termination for MCP and agent children, startup reconciliation, server shutdown, and scheduler service management — now do their job on Darwin as they always have on Linux. No new dependency: `libc` was already linked for `cfg(unix)`.
+- `subprocess::identity_verification_supported` reports whether the running platform can establish a child's identity at all, so callers can distinguish "not ours" from "unknowable here" without repeating `cfg` attributes.
+- `subprocess::environ_from_procargs2` parses the Darwin argument-and-environment blob. It skips `argv` by count rather than scanning past it, because entries are matched whole: a command line such as `env MCP_SERVICE_ID=files …` would otherwise read as a marked environment and get an unrelated process signalled.
+
+### Fixed
+
+- A Slack or Teams sender could never use an MCP server. The messaging pipeline minted its A2A token with `aud=[a2a]` and `permissions=[a2a]`, but an MCP server requires its configured audience (`mcp`) and a scope implying the one it declares — and `Permission::A2a` implies nothing above itself — so every tool call an agent made on the sender's behalf was rejected at the MCP door. The token is now audienced `[a2a, mcp]` and carries the permissions the sender's own account holds: `Admin` for a user with the `admin` role, `User` for everyone else. A non-admin's token is strictly weaker than the blanket `a2a` scope it replaces.
+
+- A `SIGKILL`ed server on macOS left its MCP children reparented to `launchd` and still holding their ports, and the next start could not reclaim them: with no identity check, every port holder classified as foreign and startup failed with `PortOwnedByForeignProcess` — "another systemprompt installation or an unrelated service owns it" — when the holder was in fact this installation's own child, days old. Startup now recognises and reclaims it. Orphans can still be *created* on macOS, which has no `prctl(PR_SET_PDEATHSIG)` equivalent that survives `execve`; the module documents that split rather than implying supervision is whole there.
+- `get_process_info` returned `None` for every pid on macOS. It asked `ps` for the `cmd` output keyword, which is GNU-only — BSD `ps` rejects it outright — so the command failed and the result was read as "no such process". It now asks for `command`, which both implementations accept.
+- `find_process_on_port_with_name` never matched on macOS, silently skipping the by-name port cleanup that `rebuild`/`restart` depends on. `ps -o comm=` yields a bare command name under GNU `ps` but the executable's full path under BSD `ps`, and the result was compared against a configured server name unchanged; it is now normalised to the file name on both.
+
 ## [0.35.0] - 2026-08-23
 
 ### Fixed

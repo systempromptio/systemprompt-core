@@ -16,6 +16,7 @@ pub mod hosts;
 pub mod ipc;
 pub mod ipc_runtime;
 pub mod menu;
+pub mod onboarding;
 pub mod server;
 pub mod server_json;
 pub mod server_marketplace;

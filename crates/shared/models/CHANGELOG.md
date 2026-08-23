@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.36.0] - 2026-08-23
+
+### Added
+
+- macOS backend for `subprocess`: `live_pid_is_subprocess` and `is_zombie` now read the target process through `sysctl(KERN_PROCARGS2)` and `proc_pidinfo` rather than returning a fail-closed `false`, so a child spawned by this installation can be recognised — and therefore reclaimed — on Darwin. A child running under Apple's hardened runtime withholds its environment and still never verifies; the `darwin` module documents that gap.
+- `subprocess::identity_verification_supported`, reporting whether the running platform can establish a child's identity at all, so callers can distinguish "not ours" from "unknowable here".
+- `subprocess::environ_from_procargs2`, the pure parse of the Darwin argument-and-environment blob. It skips `argv` by count rather than scanning past it: entries are matched whole, so a command line such as `env MCP_SERVICE_ID=files …` would otherwise read as a marked environment.
+
+### Changed
+
+- `subprocess` is now a module directory with one file per platform backend. Every public path is unchanged.
+- The module documentation no longer claims child supervision is Linux-only. Identity and reap checks work on Linux and macOS; parent-death prevention remains `prctl(PR_SET_PDEATHSIG)` and therefore Linux-only, since macOS offers no equivalent that survives `execve` and the alternatives need cooperation from child binaries this supervisor does not control.
+
 ## [0.33.0] - 2026-08-20
 
 ### Breaking

@@ -13,6 +13,16 @@ use crate::integration::{GeneratedProfile, HostAppSnapshot, ProxyHealth};
 pub(crate) struct HostsPayload<'a> {
     pub host_apps: Vec<HostEntryPayload<'a>>,
     pub local_proxy: &'a ProxyHealth,
+    /// Is the instance's host gate authoritative yet? The gate comes from the
+    /// last signed manifest, which does not exist before the first sync — so on
+    /// a fresh install `host_apps` is every host this build registers, not the
+    /// subset this installation permits. Surfaces that offer to *act* on a host
+    /// must fail closed while this is false.
+    ///
+    /// Read from `manifest_synced`, never from `enabled_hosts` being non-empty:
+    /// an instance may legitimately disable every host, and that empty list is
+    /// a real answer, not a missing one.
+    pub hosts_gated: bool,
     pub agents_onboarded: bool,
     pub first_run: crate::gui::first_run::serde::FirstRunPayload<'a>,
 }
@@ -99,6 +109,7 @@ pub(crate) fn payload(snap: &AppStateSnapshot) -> HostsPayload<'_> {
     }
     HostsPayload {
         host_apps: entries,
+        hosts_gated: snap.manifest_synced(),
         local_proxy: &snap.hosts.local_proxy,
         agents_onboarded: snap.agents_onboarded,
         first_run: crate::gui::first_run::serde::build(&snap.first_run),

@@ -1,8 +1,9 @@
 //! Wiremock coverage for the outbound Slack Web API client.
 //!
-//! `SlackClient::with_base_url` (the `test` seam) points
-//! `chat.postMessage` at a loopback mock so the outbound request, bearer auth,
-//! and the `{"ok": false}` logical-failure branch are all observable. The SSRF
+//! `SlackClient::with_base_url` / `with_users_info_url` (the `test` seam) point
+//! `chat.postMessage` and `users.info` at a loopback mock so the outbound
+//! request, bearer auth, and the `{"ok": false}` logical-failure branch are all
+//! observable. The SSRF
 //! guard runs before any request, so a blocked host fails closed without a
 //! network call.
 
@@ -179,5 +180,103 @@ async fn unreachable_endpoint_surfaces_the_transport_error() {
     assert!(
         matches!(err, SlackError::Http(_)),
         "expected Http transport error, got {err:?}"
+    );
+}
+
+fn users_info_client(server: &MockServer) -> SlackClient {
+    SlackClient::with_base_url(
+        reqwest::Client::new(),
+        "xoxb-test",
+        "https://slack.com/api/chat.postMessage",
+    )
+    .with_users_info_url(format!("{}/api/users.info", server.uri()))
+}
+
+#[tokio::test]
+async fn user_info_reads_a_confirmed_workspace_email() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/api/users.info"))
+        .and(header("authorization", "Bearer xoxb-test"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "ok": true,
+            "user": {
+                "id": "U1",
+                "is_email_confirmed": true,
+                "profile": { "email": "ada@example.com", "real_name": "Ada" }
+            }
+        })))
+        .expect(1)
+        .mount(&server)
+        .await;
+
+    let profile = users_info_client(&server)
+        .user_info("U1")
+        .await
+        .expect("users.info succeeds on ok:true");
+    assert_eq!(profile.email.as_deref(), Some("ada@example.com"));
+    assert!(profile.email_confirmed);
+    assert_eq!(profile.display_name.as_deref(), Some("Ada"));
+}
+
+#[tokio::test]
+async fn user_info_reports_an_unconfirmed_email_as_unconfirmed() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/api/users.info"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "ok": true,
+            "user": { "id": "U1", "profile": { "email": "ada@example.com" } }
+        })))
+        .mount(&server)
+        .await;
+
+    let profile = users_info_client(&server)
+        .user_info("U1")
+        .await
+        .expect("a missing is_email_confirmed is not an error");
+    assert!(
+        !profile.email_confirmed,
+        "an absent confirmation flag must never read as confirmed"
+    );
+}
+
+#[tokio::test]
+async fn user_info_surfaces_ok_false_as_outbound_error() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/api/users.info"))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .set_body_json(json!({ "ok": false, "error": "missing_scope" })),
+        )
+        .mount(&server)
+        .await;
+
+    let err = users_info_client(&server)
+        .user_info("U1")
+        .await
+        .expect_err("ok:false is an error");
+    assert!(
+        matches!(err, SlackError::Outbound(ref e) if e == "missing_scope"),
+        "expected Outbound(missing_scope), got {err:?}"
+    );
+}
+
+#[tokio::test]
+async fn user_info_rejects_a_blocked_host_before_any_request() {
+    let client = SlackClient::with_base_url(
+        reqwest::Client::new(),
+        "xoxb-test",
+        "https://slack.com/api/chat.postMessage",
+    )
+    .with_users_info_url("http://169.254.169.254/api/users.info");
+    let err = client
+        .user_info("U1")
+        .await
+        .expect_err("SSRF guard blocks the link-local metadata host");
+    assert!(
+        matches!(err, SlackError::OutboundUrl(_)),
+        "expected OutboundUrl, got {err:?}"
     );
 }

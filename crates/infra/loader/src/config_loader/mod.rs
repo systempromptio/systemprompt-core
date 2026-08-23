@@ -87,7 +87,7 @@ impl ConfigLoader {
     }
 
     fn run_cached(&self) -> ConfigLoadResult<ServicesConfig> {
-        let key = fs::canonicalize(&self.config_path).unwrap_or_else(|_| self.config_path.clone());
+        let key = self.cache_key();
 
         if let Some(cached) = cache_read(&key) {
             return Ok(cached);
@@ -96,6 +96,22 @@ impl ConfigLoader {
         let config = self.run()?;
         cache_store(key, &config);
         Ok(config)
+    }
+
+    // Why: canonicalising the file itself makes the cache key depend on the file
+    // still existing — `fs::canonicalize` fails once it is removed and the key
+    // silently falls back to the uncanonicalised path, missing the entry at the
+    // exact moment the cache is meant to cover for the missing file. Only the
+    // directory is resolved, which survives the file's removal and still folds
+    // away symlinked roots (on macOS `/var` vs `/private/var`).
+    fn cache_key(&self) -> PathBuf {
+        let Some(parent) = self.config_path.parent() else {
+            return self.config_path.clone();
+        };
+        let Some(name) = self.config_path.file_name() else {
+            return self.config_path.clone();
+        };
+        fs::canonicalize(parent).map_or_else(|_| self.config_path.clone(), |dir| dir.join(name))
     }
 
     pub fn load_from_path(path: &Path) -> ConfigLoadResult<ServicesConfig> {
