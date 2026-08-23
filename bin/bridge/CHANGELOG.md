@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.27.0] - 2026-08-23
+
+### Changed
+
+- The gateway URL comes from the config file only; the `GATEWAY_URL` environment override is gone.
+
+### Fixed
+
+- Windows: a sync that finds the Cowork org-plugins directory out of scope raises a single elevation prompt to provision it and retries, instead of failing outright. One attempt per process, so a declined prompt is not re-fired by the GUI auto-sync, tray retries, or `sync --watch`.
+- A browser launched by the bridge no longer inherits the bridge's stdio.
+
 ## [0.26.0] - 2026-08-19
 
 ### Added

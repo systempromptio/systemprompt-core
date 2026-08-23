@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.35.0] - 2026-08-23
+
+### Fixed
+
+- The non-Linux halves of `is_zombie` and `get_process_memory` are `const fn`, clearing `missing_const_for_fn` under `-D warnings` on macOS. Callers are unaffected.
+- `bin/bridge` pins `systemprompt-identifiers` and `systemprompt-models` by version as well as by path, so the 0.34.0 workspace bump left it requiring `^0.33.0` against a 0.34.0 path dependency and the bridge and test workspaces failed to resolve. Both pins now move with the workspace.
+
+### Removed
+
+- The CLI help-tree smoke tests no longer assert `cloud db`, `cloud domain`, `cloud restart`, `cloud secrets`, and `cloud tenant cancel`. Those subcommands were deleted in the 0.32.0 cloud cleanup; the tests outlived them and had been failing the nightly Coverage workflow ever since. `cloud backup`, `cloud doctor`, and the surviving `cloud tenant` leaves are covered in their place.
+
 ## [0.34.0] - 2026-08-21
 
 ### Breaking

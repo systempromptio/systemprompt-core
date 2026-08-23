@@ -347,24 +347,16 @@ fn cloud_status_help() {
     assert_help_ok(&["cloud", "status"]);
 }
 #[test]
-fn cloud_restart_help() {
-    assert_help_ok(&["cloud", "restart"]);
-}
-#[test]
-fn cloud_secrets_help() {
-    assert_help_ok(&["cloud", "secrets"]);
-}
-#[test]
 fn cloud_dockerfile_help() {
     assert_help_ok(&["cloud", "dockerfile"]);
 }
 #[test]
-fn cloud_db_help() {
-    assert_help_ok(&["cloud", "db"]);
+fn cloud_backup_help() {
+    assert_help_ok(&["cloud", "backup"]);
 }
 #[test]
-fn cloud_domain_help() {
-    assert_help_ok(&["cloud", "domain"]);
+fn cloud_doctor_help() {
+    assert_help_ok(&["cloud", "doctor"]);
 }
 
 // ---------- infra ----------
@@ -801,12 +793,20 @@ fn cloud_tenant_delete_help() {
     assert_help_ok(&["cloud", "tenant", "delete"]);
 }
 #[test]
-fn cloud_tenant_cancel_help() {
-    assert_help_ok(&["cloud", "tenant", "cancel"]);
-}
-#[test]
 fn cloud_tenant_rotate_credentials_help() {
     assert_help_ok(&["cloud", "tenant", "rotate-credentials"]);
+}
+#[test]
+fn cloud_tenant_list_help() {
+    assert_help_ok(&["cloud", "tenant", "list"]);
+}
+#[test]
+fn cloud_tenant_show_help() {
+    assert_help_ok(&["cloud", "tenant", "show"]);
+}
+#[test]
+fn cloud_tenant_edit_help() {
+    assert_help_ok(&["cloud", "tenant", "edit"]);
 }
 
 #[test]
