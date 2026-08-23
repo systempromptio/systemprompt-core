@@ -29,7 +29,7 @@ Every user gets exactly the catalogue they are entitled to, signed. This crate r
 
 ```toml
 [dependencies]
-systemprompt-marketplace = "0.35"
+systemprompt-marketplace = "0.36"
 ```
 
 ```rust,ignore
