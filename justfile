@@ -139,6 +139,11 @@ lint-extensions:
 lint-comments:
     ./scripts/lint-inline-comments.sh
 
+# Reject inline `#[cfg(test)] mod tests` — tests belong in crates/tests/.
+# Covers bin/bridge, which no root `--workspace` invocation reaches.
+lint-inline-tests:
+    ./scripts/lint-inline-tests.sh
+
 # Reject upward crate dependencies and cycles in the layer stack
 lint-layers:
     ./scripts/lint-layers.sh
@@ -152,7 +157,7 @@ check-release-tag:
     ./scripts/check-release-tag.sh
 
 # Check without building
-check: lint-schema lint-extensions lint-comments lint-test-value lint-layers lint-repo-construction
+check: lint-schema lint-extensions lint-comments lint-inline-tests lint-test-value lint-layers lint-repo-construction
     cargo check --workspace
 
 # Check offline (uses cached .sqlx metadata, no database required)

@@ -68,6 +68,7 @@ members = [
     "unit/entry/cli",
     # Unit tests - bridge binary
     "unit/bridge/manifest",
+    "unit/bridge/update",
     "unit/bridge/gateway-client",
     "unit/bridge/mcp-probe",
     "unit/bridge/paths",

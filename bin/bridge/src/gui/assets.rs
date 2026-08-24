@@ -112,19 +112,3 @@ pub fn lookup_path(path: &str) -> Option<Asset> {
         _ => None,
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::lookup_path;
-
-    #[test]
-    fn nested_assets_resolve_by_url_path() {
-        assert!(lookup_path("/assets/css/main.css").is_some());
-        assert!(lookup_path("/assets/js/index.js").is_some());
-    }
-
-    #[test]
-    fn unknown_asset_is_none() {
-        assert!(lookup_path("/assets/css/missing.css").is_none());
-    }
-}

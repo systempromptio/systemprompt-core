@@ -60,6 +60,7 @@ jobs:
       - run: just lint-schema
       - run: just lint-extensions
       - run: just lint-comments
+      - run: just lint-inline-tests
       - run: just lint-raw-ids
       - run: just check-headers
       - run: just lint-sqlx

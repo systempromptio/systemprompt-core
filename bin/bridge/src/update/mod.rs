@@ -16,7 +16,7 @@ mod download;
 mod error;
 mod install;
 
-pub use download::{DownloadProgress, download_verified};
+pub use download::{DownloadProgress, download_verified, hex_lower};
 pub use error::UpdateError;
 
 use crate::gateway::GatewayClient;
@@ -117,7 +117,8 @@ pub async fn check(
     Ok((status, manifest))
 }
 
-fn compare(local: &str, manifest: &ReleaseManifest) -> Result<UpdateStatus, UpdateError> {
+#[doc(hidden)]
+pub fn compare(local: &str, manifest: &ReleaseManifest) -> Result<UpdateStatus, UpdateError> {
     let remote_version = semver::Version::parse(&manifest.version).map_err(|source| {
         UpdateError::BadRemoteVersion {
             version: manifest.version.clone(),
@@ -229,66 +230,4 @@ fn automatic_enabled() -> bool {
         .as_ref()
         .and_then(|u| u.automatic)
         .unwrap_or(true)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn manifest(version: &str) -> ReleaseManifest {
-        ReleaseManifest {
-            version: version.to_owned(),
-            sha256: "0".repeat(64),
-            size: 1,
-            notes_url: None,
-        }
-    }
-
-    #[test]
-    fn newer_remote_is_available() {
-        assert!(matches!(
-            compare("0.1.6", &manifest("0.1.7")),
-            Ok(UpdateStatus::Available { ref version, .. }) if version == "0.1.7"
-        ));
-    }
-
-    #[test]
-    fn equal_version_is_current() {
-        assert!(matches!(
-            compare("0.1.6", &manifest("0.1.6")),
-            Ok(UpdateStatus::Current { .. })
-        ));
-    }
-
-    #[test]
-    fn local_ahead_of_gateway_is_current() {
-        assert!(matches!(
-            compare("0.2.0", &manifest("0.1.6")),
-            Ok(UpdateStatus::Current { .. })
-        ));
-    }
-
-    #[test]
-    fn patch_ten_is_newer_than_patch_nine() {
-        assert!(matches!(
-            compare("0.1.9", &manifest("0.1.10")),
-            Ok(UpdateStatus::Available { .. })
-        ));
-    }
-
-    #[test]
-    fn prerelease_is_older_than_its_release() {
-        assert!(matches!(
-            compare("0.1.7-rc.1", &manifest("0.1.7")),
-            Ok(UpdateStatus::Available { .. })
-        ));
-    }
-
-    #[test]
-    fn malformed_remote_version_is_an_error() {
-        assert!(matches!(
-            compare("0.1.6", &manifest("latest")),
-            Err(UpdateError::BadRemoteVersion { .. })
-        ));
-    }
 }

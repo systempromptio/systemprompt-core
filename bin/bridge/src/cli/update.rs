@@ -22,13 +22,15 @@ use crate::{auth, config};
 // config-management probe.
 const EXIT_UPDATE_AVAILABLE: u8 = 1;
 
-#[derive(Debug, Default)]
-struct Args {
-    check_only: bool,
-    assume_yes: bool,
+#[doc(hidden)]
+#[derive(Debug, Default, Clone, Copy)]
+pub struct Args {
+    pub check_only: bool,
+    pub assume_yes: bool,
 }
 
-fn parse(argv: &[String]) -> Result<Args, String> {
+#[doc(hidden)]
+pub fn parse(argv: &[String]) -> Result<Args, String> {
     let mut args = Args::default();
     for arg in argv.iter().skip(2) {
         match arg.as_str() {
@@ -173,50 +175,4 @@ fn confirm(version: &str) -> bool {
         return false;
     }
     matches!(answer.trim().to_ascii_lowercase().as_str(), "y" | "yes")
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn argv(rest: &[&str]) -> Vec<String> {
-        let mut v = vec!["bridge".to_owned(), "update".to_owned()];
-        v.extend(rest.iter().map(|s| (*s).to_owned()));
-        v
-    }
-
-    #[test]
-    fn bare_update_installs_interactively() {
-        let args = parse(&argv(&[]));
-        assert!(matches!(
-            args,
-            Ok(Args {
-                check_only: false,
-                assume_yes: false
-            })
-        ));
-    }
-
-    #[test]
-    fn flags_parse() {
-        assert!(matches!(
-            parse(&argv(&["--check"])),
-            Ok(Args {
-                check_only: true,
-                ..
-            })
-        ));
-        assert!(matches!(
-            parse(&argv(&["-y"])),
-            Ok(Args {
-                assume_yes: true,
-                ..
-            })
-        ));
-    }
-
-    #[test]
-    fn unknown_flag_is_rejected() {
-        assert!(parse(&argv(&["--force"])).is_err());
-    }
 }
