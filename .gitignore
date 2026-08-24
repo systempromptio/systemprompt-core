@@ -103,6 +103,9 @@ audit/
 # Internal documentation (local-only: dev guides, audits, evaluations, legal)
 internal/
 
+# Local-only tech-debt / findings register
+/issue.md
+
 # Assets (local-only, not part of the published tree)
 /assets/
 
