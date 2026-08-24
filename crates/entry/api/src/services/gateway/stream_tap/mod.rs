@@ -255,8 +255,16 @@ pub const fn classify(
 }
 
 fn finalize(audit: Arc<GatewayAudit>, summary: Summary, ctx: TapFinalizeCtx, origin: &'static str) {
-    if let Some(conversation) = &audit.ctx.gateway_conversation_id {
-        ThoughtSignatureCache::global().store_from_response(conversation, &summary.response);
+    match &audit.ctx.gateway_conversation_id {
+        Some(conversation) => {
+            ThoughtSignatureCache::global().store_from_response(conversation, &summary.response);
+        },
+        None => {
+            ThoughtSignatureCache::note_uncacheable_response(
+                &summary.response,
+                "no_conversation_id",
+            );
+        },
     }
     tokio::spawn(async move {
         if let Some(model) = summary.served_model.as_deref() {

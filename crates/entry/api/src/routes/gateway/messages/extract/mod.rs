@@ -113,8 +113,6 @@ pub(super) async fn extract_request_context(
 
     let (gateway_conversation_id, context_id) =
         derive_conversation(header_gateway_conversation, &gateway_request, partial)?;
-    ThoughtSignatureCache::global().hydrate_request(&gateway_conversation_id, &mut gateway_request);
-
     let route = gateway_config
         .resolve_route(&rc.profile.providers, &gateway_request)
         .ok_or_else(|| {
@@ -124,6 +122,17 @@ pub(super) async fn extract_request_context(
             )
         })?;
     partial.provider = Some(route.provider.as_str().to_owned());
+
+    let wire = rc
+        .profile
+        .providers
+        .find_provider(route.provider.as_str())
+        .map(|p| p.wire);
+    ThoughtSignatureCache::global().hydrate_request(
+        &gateway_conversation_id,
+        &mut gateway_request,
+        wire,
+    );
 
     let upstream_model = route
         .effective_upstream_model(&gateway_request.model)

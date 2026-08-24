@@ -12,6 +12,11 @@
 
 - **Breaking:** `SignedManifest` gains a `min_bridge_version: Option<String>` field. Migrate by adding `min_bridge_version: None` to any struct literal; code that builds manifests through `SignedManifestBuilder` is unaffected.
 
+### Fixed
+
+- A Gemini `tool_use` block replayed without its `thoughtSignature` is now counted under `gateway_signature_hydration_total` and logged. The signature is omitted from the outbound request when absent and the upstream rejects the turn, which previously surfaced as a bare provider error with nothing recording the cause. Hydration behaviour is unchanged — the request is still forwarded.
+- A response carrying signed `tool_use` blocks that cannot be cached, because the request had no gateway conversation id, is counted under `gateway_signature_capture_skipped_total` and logged. This is the point at which a later turn in the conversation is guaranteed to miss.
+
 
 ## [0.36.0] - 2026-08-23
 

@@ -188,8 +188,11 @@ fn spawn_buffered_completion(
     tap_ctx: stream_tap::TapFinalizeCtx,
     response_scanned: bool,
 ) {
-    if let Some(conversation) = &audit.ctx.gateway_conversation_id {
-        ThoughtSignatureCache::global().store_from_response(conversation, &canonical);
+    match &audit.ctx.gateway_conversation_id {
+        Some(conversation) => {
+            ThoughtSignatureCache::global().store_from_response(conversation, &canonical);
+        },
+        None => ThoughtSignatureCache::note_uncacheable_response(&canonical, "no_conversation_id"),
     }
     tokio::spawn(buffered_completion(
         canonical,

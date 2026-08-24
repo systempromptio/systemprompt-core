@@ -26,6 +26,8 @@ bytes = { workspace = true }
 sha2 = { workspace = true }
 hex = { workspace = true }
 ipnet = "2.10"
+metrics = { workspace = true }
+metrics-util = { workspace = true }
 systemprompt-traits = { workspace = true }
 anyhow = { workspace = true }
 sqlx = { workspace = true }

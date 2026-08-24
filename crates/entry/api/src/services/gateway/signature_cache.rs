@@ -12,18 +12,29 @@
 //! inbound requests are client-supplied: without the scope, a caller could
 //! read another conversation's cached signatures by guessing ids.
 //!
+//! The cache is process-local, so every miss is a real failure mode: a cold
+//! process after a restart, or a request routed to a replica that did not serve
+//! the prior turn, leaves the block unsigned. `thought_signature` is omitted
+//! from the outbound wire when absent, and Gemini then rejects the turn — so
+//! misses are counted under `gateway_signature_hydration_total` and warned,
+//! but only when the resolved upstream is [`WireProtocol::Gemini`]; for every
+//! other wire the absent signature is expected and carries no signal.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::collections::HashMap;
-use std::sync::{Mutex, OnceLock};
+use std::sync::{Mutex, OnceLock, PoisonError};
 use std::time::{Duration, Instant};
 
 use systemprompt_identifiers::GatewayConversationId;
+use systemprompt_models::profile::WireProtocol;
 use systemprompt_models::wire::canonical::{CanonicalContent, CanonicalRequest, CanonicalResponse};
 
 const TTL: Duration = Duration::from_hours(1);
 const MAX_ENTRIES: usize = 10_000;
+const HYDRATION_TOTAL: &str = "gateway_signature_hydration_total";
+const CAPTURE_SKIPPED_TOTAL: &str = "gateway_signature_capture_skipped_total";
 
 struct Entry {
     signature: String,
@@ -64,9 +75,7 @@ impl ThoughtSignatureCache {
 
     pub fn store(&self, conversation: &GatewayConversationId, tool_use_id: &str, signature: &str) {
         let key = (conversation.clone(), tool_use_id.to_owned());
-        let Ok(mut entries) = self.entries.lock() else {
-            return;
-        };
+        let mut entries = self.entries.lock().unwrap_or_else(PoisonError::into_inner);
         let now = Instant::now();
         if !entries.contains_key(&key) && entries.len() >= self.max_entries {
             entries.retain(|_, e| e.expires_at > now);
@@ -95,7 +104,7 @@ impl ThoughtSignatureCache {
     ) -> Option<String> {
         let key = (conversation.clone(), tool_use_id.to_owned());
         let now = Instant::now();
-        let mut entries = self.entries.lock().ok()?;
+        let mut entries = self.entries.lock().unwrap_or_else(PoisonError::into_inner);
         let entry = entries.get_mut(&key)?;
         if entry.expires_at <= now {
             entries.remove(&key);
@@ -128,7 +137,10 @@ impl ThoughtSignatureCache {
         &self,
         conversation: &GatewayConversationId,
         request: &mut CanonicalRequest,
+        wire: Option<WireProtocol>,
     ) {
+        let model = request.model.clone();
+        let signatures_required = wire == Some(WireProtocol::Gemini);
         for message in &mut request.messages {
             for content in &mut message.content {
                 let CanonicalContent::ToolUse { id, signature, .. } = content else {
@@ -136,17 +148,68 @@ impl ThoughtSignatureCache {
                 };
                 match signature {
                     Some(sig) => self.store(conversation, id, sig),
-                    None => {
-                        if let Some(cached) = self.lookup(conversation, id) {
-                            tracing::debug!(
-                                tool_use_id = %id,
-                                "re-injected cached thought signature into tool_use block"
-                            );
+                    None => match self.lookup(conversation, id) {
+                        Some(cached) => {
                             *signature = Some(cached);
-                        }
+                            if signatures_required {
+                                metrics::counter!(HYDRATION_TOTAL, "outcome" => "hit").increment(1);
+                            }
+                        },
+                        None => {
+                            if signatures_required {
+                                metrics::counter!(HYDRATION_TOTAL, "outcome" => "miss")
+                                    .increment(1);
+                                tracing::warn!(
+                                    conversation = %conversation,
+                                    tool_use_id = %id,
+                                    model = %model,
+                                    "no cached thought signature for tool_use; upstream may reject the turn"
+                                );
+                            }
+                        },
                     },
                 }
             }
         }
+    }
+
+    #[cfg(feature = "test-api")]
+    #[expect(
+        clippy::panic,
+        reason = "test-only seam, compiled out unless `test-api` is enabled"
+    )]
+    pub fn poison_lock(&self) {
+        let _guard = self.entries.lock().unwrap_or_else(PoisonError::into_inner);
+        panic!("poisoning the signature cache lock");
+    }
+
+    #[must_use]
+    pub fn signed_tool_use_count(response: &CanonicalResponse) -> usize {
+        response
+            .content
+            .iter()
+            .filter(|c| {
+                matches!(
+                    c,
+                    CanonicalContent::ToolUse {
+                        signature: Some(_),
+                        ..
+                    }
+                )
+            })
+            .count()
+    }
+
+    pub fn note_uncacheable_response(response: &CanonicalResponse, reason: &'static str) {
+        let signed = Self::signed_tool_use_count(response);
+        if signed == 0 {
+            return;
+        }
+        metrics::counter!(CAPTURE_SKIPPED_TOTAL, "reason" => reason).increment(1);
+        tracing::warn!(
+            reason,
+            signed_tool_use_blocks = signed,
+            "thought signatures could not be cached; a later turn in this conversation will miss"
+        );
     }
 }
