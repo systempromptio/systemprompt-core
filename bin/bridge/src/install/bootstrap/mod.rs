@@ -26,6 +26,21 @@ struct VersionSentinel<'a> {
     gateway_url: Option<&'a str>,
 }
 
+#[derive(Debug, serde::Deserialize)]
+pub struct InstallRecord {
+    pub binary: String,
+    pub binary_version: String,
+    pub installed_at: String,
+    #[serde(default)]
+    pub gateway_url: Option<String>,
+}
+
+#[must_use]
+pub fn read_install_record() -> Option<InstallRecord> {
+    let path = paths::bridge_metadata_dir()?.join(paths::VERSION_SENTINEL);
+    serde_json::from_slice(&fs::read(path).ok()?).ok()
+}
+
 pub(super) fn bootstrap_directory(loc: &OrgPluginsLocation) -> std::io::Result<()> {
     fs::create_dir_all(&loc.path)?;
     let meta = paths::bridge_metadata_dir()

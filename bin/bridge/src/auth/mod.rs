@@ -35,7 +35,7 @@ pub async fn acquire_bearer(
     cfg: &config::Config,
     session_id: &SessionId,
 ) -> Result<HelperOutput, ChainError> {
-    if let Some(out) = cache::read_valid() {
+    if let Some(out) = read_cached(cfg, 30, None) {
         return Ok(out);
     }
     run_chain(cfg, true, session_id).await
@@ -45,7 +45,7 @@ pub async fn obtain_live_token(
     cfg: &config::Config,
     session_id: &SessionId,
 ) -> Option<HelperOutput> {
-    if let Some(out) = cache::read_valid() {
+    if let Some(out) = read_cached(cfg, 30, None) {
         return Some(out);
     }
     mint_fresh(cfg, session_id).await.ok()
@@ -56,12 +56,20 @@ pub async fn read_or_refresh(
     threshold_secs: u64,
     session_id: &SessionId,
 ) -> Option<HelperOutput> {
-    if let Some(out) = cache::read_with_threshold(threshold_secs)
-        && cached_session_matches(&out, session_id)
-    {
+    if let Some(out) = read_cached(cfg, threshold_secs, Some(session_id)) {
         return Some(out);
     }
     mint_fresh(cfg, session_id).await.ok()
+}
+
+fn read_cached(
+    cfg: &config::Config,
+    threshold_secs: u64,
+    session_id: Option<&SessionId>,
+) -> Option<HelperOutput> {
+    let gateway = config::gateway_url_or_default(cfg);
+    cache::read_with_threshold(&gateway, threshold_secs)
+        .filter(|out| session_id.is_none_or(|id| cached_session_matches(out, id)))
 }
 
 fn cached_session_matches(out: &HelperOutput, session_id: &SessionId) -> bool {
@@ -156,7 +164,7 @@ async fn run_chain(
     let result = evaluate_chain(&providers, preferred, session_id).await;
     if write_cache
         && let Ok(out) = result.as_ref()
-        && let Err(e) = cache::write(out)
+        && let Err(e) = cache::write(&config::gateway_url_or_default(cfg), out)
     {
         diag(&format!("cache write failed (continuing): {e}"));
     }

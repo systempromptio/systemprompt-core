@@ -31,7 +31,7 @@ use systemprompt_identifiers::HookId;
 use systemprompt_models::services::PluginHooksRef;
 use systemprompt_models::services::hooks::{HookCategory, HookEvent};
 use systemprompt_test_fixtures::fixture_user_id;
-use wiremock::matchers::{method, path, path_regex};
+use wiremock::matchers::{header, method, path, path_regex};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 const PLUGIN_FILE_BODY: &[u8] = br#"{"name":"acme-plugin","version":"1.0.0"}"#;
@@ -279,6 +279,7 @@ fn run_once_applies_full_manifest_end_to_end() {
 
         let m = SignedManifest {
             min_schema_version: MANIFEST_SCHEMA_VERSION,
+            min_bridge_version: None,
             manifest_version: version(),
             issued_at: "2026-05-01T12:00:00+00:00".into(),
             not_before: "2026-05-01T12:00:00+00:00".into(),
@@ -439,6 +440,7 @@ fn run_once_empty_manifest_writes_no_plugins() {
 
         let m = SignedManifest {
             min_schema_version: MANIFEST_SCHEMA_VERSION,
+            min_bridge_version: None,
             manifest_version: version(),
             issued_at: "2026-05-01T12:00:00+00:00".into(),
             not_before: "2026-05-01T12:00:00+00:00".into(),
@@ -493,6 +495,7 @@ fn run_once_surfaces_plugin_file_404_as_apply_failure() {
 
         let m = SignedManifest {
             min_schema_version: MANIFEST_SCHEMA_VERSION,
+            min_bridge_version: None,
             manifest_version: version(),
             issued_at: "2026-05-01T12:00:00+00:00".into(),
             not_before: "2026-05-01T12:00:00+00:00".into(),
@@ -545,6 +548,7 @@ fn run_once_surfaces_plugin_file_404_as_apply_failure() {
 fn manifest_with(servers: Vec<ManagedMcpServer>, enabled_hosts: Vec<String>) -> SignedManifest {
     SignedManifest {
         min_schema_version: MANIFEST_SCHEMA_VERSION,
+        min_bridge_version: None,
         manifest_version: version(),
         issued_at: "2026-05-01T12:00:00+00:00".into(),
         not_before: "2026-05-01T12:00:00+00:00".into(),
@@ -717,6 +721,7 @@ fn serve_plugins(m: &SignedManifest, files: &[(&str, &str, &[u8])], label: &str)
 fn manifest_of(plugins: Vec<PluginEntry>, hooks: Vec<HookEntry>) -> SignedManifest {
     SignedManifest {
         min_schema_version: MANIFEST_SCHEMA_VERSION,
+        min_bridge_version: None,
         manifest_version: version(),
         issued_at: "2026-05-01T12:00:00+00:00".into(),
         not_before: "2026-05-01T12:00:00+00:00".into(),
@@ -1065,4 +1070,137 @@ fn a_plugin_json_that_is_not_an_object_is_left_alone() {
         );
     }
     let _ = (&b.server, &b.pat_dir);
+}
+
+fn empty_manifest() -> SignedManifest {
+    SignedManifest {
+        min_schema_version: MANIFEST_SCHEMA_VERSION,
+        min_bridge_version: None,
+        manifest_version: version(),
+        issued_at: "2026-05-01T12:00:00+00:00".into(),
+        not_before: "2026-05-01T12:00:00+00:00".into(),
+        user_id: fixture_user_id(),
+        tenant_id: None,
+        user: None,
+        plugins: vec![],
+        skills: vec![],
+        agents: vec![],
+        hooks: vec![],
+        managed_mcp_servers: vec![],
+        revocations: vec![],
+        enabled_hosts: vec!["claude-code".into()],
+        host_model_protocols: Default::default(),
+        artifacts: vec![],
+        allow_claude_ai_connectors: false,
+    }
+}
+
+const STALE_TOKEN: &str = "stale-rejected-token";
+
+fn seed_stale_cache(dirs: &SandboxDirs, gateway: &str) {
+    let config_file_os: OsString = dirs.config_file.clone().into();
+    temp_env::with_vars(
+        [
+            ("SP_BRIDGE_CONFIG", Some(&config_file_os)),
+            ("XDG_CONFIG_HOME", Some(&dirs.config_home)),
+            ("XDG_CACHE_HOME", Some(&dirs.cache_home)),
+            ("XDG_DATA_HOME", Some(&dirs.data_home)),
+            ("XDG_STATE_HOME", Some(&dirs.state_home)),
+            ("HOME", Some(&dirs.home)),
+        ],
+        || {
+            let url = systemprompt_identifiers::ValidatedUrl::try_new(gateway).unwrap();
+            systemprompt_bridge::auth::cache::write(
+                &url,
+                &systemprompt_bridge::auth::types::HelperOutput {
+                    token: systemprompt_bridge::ids::BearerToken::new(STALE_TOKEN),
+                    ttl: 3600,
+                    headers: std::collections::HashMap::new(),
+                },
+            )
+            .unwrap();
+        },
+    );
+}
+
+#[test]
+fn a_rejected_cached_token_is_discarded_and_sync_recovers_on_a_fresh_mint() {
+    let rt = setup_runtime();
+    let (server, dirs, pat_dir) = rt.block_on(async {
+        let server = MockServer::start().await;
+        let m = empty_manifest();
+
+        pat_mock().mount(&server).await;
+        Mock::given(method("GET"))
+            .and(path("/v1/bridge/manifest"))
+            .and(header("authorization", format!("Bearer {STALE_TOKEN}")))
+            .respond_with(ResponseTemplate::new(401))
+            .mount(&server)
+            .await;
+        Mock::given(method("GET"))
+            .and(path("/v1/bridge/manifest"))
+            .and(header("authorization", "Bearer test-bearer-token"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(manifest_json(&m)))
+            .mount(&server)
+            .await;
+
+        let pat_dir = fresh_dir("pat-401-recover");
+        let pat_file = pat_dir.join("pat.txt");
+        fs::write(&pat_file, "sp-live-test-pat").unwrap();
+
+        let dirs = sandbox(&server.uri(), &pat_file, None);
+        (server, dirs, pat_dir)
+    });
+    let _ = (&server, &pat_dir);
+
+    seed_stale_cache(&dirs, &server.uri());
+    let summary = run_sync(&dirs).expect("a rejected cached token must not wedge sync");
+    assert_eq!(summary.plugin_count, 0);
+
+    let sent = rt.block_on(server.received_requests()).unwrap_or_default();
+    let bearers: Vec<String> = sent
+        .iter()
+        .filter(|r| r.url.path() == "/v1/bridge/manifest")
+        .filter_map(|r| r.headers.get("authorization"))
+        .filter_map(|v| v.to_str().ok().map(str::to_owned))
+        .collect();
+    assert_eq!(
+        bearers,
+        vec![
+            format!("Bearer {STALE_TOKEN}"),
+            "Bearer test-bearer-token".to_owned()
+        ],
+        "the stale token must actually be tried and rejected first, or this test \
+         passes without exercising the retry at all"
+    );
+}
+
+#[test]
+fn sync_fails_only_when_a_freshly_minted_token_is_also_rejected() {
+    let rt = setup_runtime();
+    let (server, dirs, pat_dir) = rt.block_on(async {
+        let server = MockServer::start().await;
+
+        pat_mock().mount(&server).await;
+        Mock::given(method("GET"))
+            .and(path("/v1/bridge/manifest"))
+            .respond_with(ResponseTemplate::new(401))
+            .mount(&server)
+            .await;
+
+        let pat_dir = fresh_dir("pat-401-terminal");
+        let pat_file = pat_dir.join("pat.txt");
+        fs::write(&pat_file, "sp-live-test-pat").unwrap();
+
+        let dirs = sandbox(&server.uri(), &pat_file, None);
+        (server, dirs, pat_dir)
+    });
+    let _ = (&server, &pat_dir);
+
+    seed_stale_cache(&dirs, &server.uri());
+    let err = run_sync(&dirs).expect_err("a revoked credential must still surface");
+    assert!(
+        err.contains("rejected credentials"),
+        "the user is told their access is the problem: {err}"
+    );
 }

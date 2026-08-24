@@ -443,7 +443,8 @@ impl AppState {
         snap.enabled_hosts.clear();
         snap.host_model_protocols.clear();
         if crate::auth::has_credential_source(&cfg) {
-            snap.cached_token = cache::read_valid().map(|out| CachedToken {
+            let gateway = config::gateway_url_or_default(&cfg);
+            snap.cached_token = cache::read_valid(&gateway).map(|out| CachedToken {
                 ttl_seconds: out.ttl,
                 length: out.token.len(),
             });

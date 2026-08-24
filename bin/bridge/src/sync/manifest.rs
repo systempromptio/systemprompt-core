@@ -36,6 +36,9 @@ fn map_manifest_error(err: ManifestError) -> SyncError {
             required,
             supported,
         },
+        ManifestError::BridgeTooOld { local, required } => {
+            SyncError::BridgeTooOld { local, required }
+        },
         ManifestError::PayloadParse(e) => SyncError::ManifestShape(e.to_string()),
         other => SyncError::SignatureFailed(other.to_string()),
     }
@@ -50,25 +53,47 @@ pub(super) struct ManifestFetch {
 pub(super) async fn fetch_authenticated_manifest() -> Result<ManifestFetch, SyncError> {
     let cfg = config::load();
     let gateway = config::gateway_url_or_default(&cfg);
+    let client = GatewayClient::new(gateway.clone());
 
-    let bearer = match crate::auth::cache::read_valid() {
-        Some(out) => out.token,
-        None => fetch_fresh_token().await.ok_or(SyncError::NoCredential {
-            bin: crate::brand::brand().binary_name,
-        })?,
+    let no_credential = || SyncError::NoCredential {
+        bin: crate::brand::brand().binary_name,
     };
 
-    let client = GatewayClient::new(gateway);
-    let envelope = client
-        .fetch_manifest(bearer.expose())
-        .await
-        .map_err(|e| map_gateway_error(e, "manifest"))?;
+    let cached = crate::auth::cache::read_valid(&gateway).map(|out| out.token);
+    let was_cached = cached.is_some();
+    let mut bearer = match cached {
+        Some(token) => token,
+        None => fetch_fresh_token().await.ok_or_else(no_credential)?,
+    };
+
+    let mut envelope = client.fetch_manifest(bearer.expose()).await;
+
+    // Why: a rejected cached token outlives every re-login until its TTL
+    // lapses, wedging the install permanently; dropping it and minting once
+    // is the only way out that does not require the user to run `logout`.
+    if is_unauthorized(&envelope) && was_cached {
+        tracing::warn!("gateway refused the cached token; discarding it and re-authenticating");
+        if let Err(e) = crate::auth::cache::clear() {
+            tracing::warn!(error = %e, "failed to clear the rejected token cache");
+        }
+        bearer = fetch_fresh_token().await.ok_or_else(no_credential)?;
+        envelope = client.fetch_manifest(bearer.expose()).await;
+    }
+
+    let envelope = envelope.map_err(|e| map_gateway_error(e, "manifest"))?;
 
     Ok(ManifestFetch {
         client,
         bearer,
         envelope,
     })
+}
+
+const fn is_unauthorized<T>(result: &Result<T, GatewayError>) -> bool {
+    matches!(
+        result,
+        Err(GatewayError::HttpStatus { status, .. }) if matches!(status.as_u16(), 401 | 403)
+    )
 }
 
 pub(super) async fn verify_and_decode(
@@ -112,6 +137,7 @@ async fn fetch_fresh_token() -> Option<Secret> {
     use crate::auth::providers::AuthError;
     use systemprompt_identifiers::SessionId;
     let cfg = config::load();
+    let gateway = config::gateway_url_or_default(&cfg);
     let session_id = SessionId::generate();
     let chain = crate::auth::provider_chain(&cfg);
     let mut not_configured: Vec<&'static str> = Vec::new();
@@ -119,7 +145,7 @@ async fn fetch_fresh_token() -> Option<Secret> {
     for p in &chain {
         match p.authenticate(&session_id).await {
             Ok(out) => {
-                if let Err(e) = crate::auth::cache::write(&out) {
+                if let Err(e) = crate::auth::cache::write(&gateway, &out) {
                     tracing::warn!(error = %e, "failed to cache fresh token; will re-authenticate next call");
                 }
                 return Some(out.token);

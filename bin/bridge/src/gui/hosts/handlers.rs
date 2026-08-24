@@ -397,14 +397,15 @@ pub(crate) fn on_model_filter_set_requested(
 
 async fn push_model_filter(host_id: &str, protocols: Option<&[String]>) -> GuiResult<()> {
     let cfg = config::load();
-    let bearer = crate::auth::cache::read_valid().ok_or_else(|| GuiError::Profile {
-        context: "model filter".into(),
-        source: std::io::Error::new(
-            std::io::ErrorKind::PermissionDenied,
-            "not signed in; cannot update host model filter",
-        ),
-    })?;
     let gateway_base = config::gateway_url_or_default(&cfg);
+    let bearer =
+        crate::auth::cache::read_valid(&gateway_base).ok_or_else(|| GuiError::Profile {
+            context: "model filter".into(),
+            source: std::io::Error::new(
+                std::io::ErrorKind::PermissionDenied,
+                "not signed in; cannot update host model filter",
+            ),
+        })?;
     GatewayClient::new(gateway_base)
         .set_host_model_filter(bearer.token.expose(), host_id, protocols)
         .await

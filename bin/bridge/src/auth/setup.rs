@@ -48,6 +48,7 @@ pub fn login(token: &str, gateway_url: Option<&str>) -> Result<PathLayout, Setup
     ensure_dir(&paths.config_dir)?;
     write_pat_file(&paths.pat_file, token)?;
     write_config_file(&paths.config_file, &paths.pat_file, gateway_url)?;
+    invalidate_cached_token()?;
     tracing::info!(config_file = %paths.config_file.display(), "login: PAT and config written");
     Ok(paths)
 }
@@ -61,6 +62,7 @@ pub fn set_gateway_url(gateway_url: &str) -> Result<PathLayout, SetupError> {
     let paths = resolve_paths()?;
     ensure_dir(&paths.config_dir)?;
     write_config_file(&paths.config_file, &paths.pat_file, Some(trimmed))?;
+    invalidate_cached_token()?;
     Ok(paths)
 }
 
@@ -204,6 +206,10 @@ fn read_existing_gateway(path: &Path) -> Option<String> {
     None
 }
 
+fn invalidate_cached_token() -> Result<(), SetupError> {
+    crate::auth::cache::clear().map_err(|e| SetupError::Io(format!("clear token cache: {e}")))
+}
+
 fn resolve_gateway(path: &Path, gateway_url_override: Option<&str>) -> String {
     gateway_url_override
         .map(str::to_owned)
@@ -215,12 +221,15 @@ pub fn session_setup(gateway_url: Option<&str>) -> Result<PathLayout, SetupError
     let paths = resolve_paths()?;
     ensure_dir(&paths.config_dir)?;
     let gateway = resolve_gateway(&paths.config_file, gateway_url);
-    let contents = format!(
-        "# Written by `{bin}` sign-in. Edit gateway_url if you move the \
-         server.\ngateway_url = \"{gateway}\"\n\n[session]\nenabled = true\n",
-        bin = crate::brand::brand().binary_name,
-    );
-    atomic_write(&paths.config_file, contents.as_bytes(), false)?;
+    let mut session = toml::map::Map::new();
+    session.insert("enabled".to_owned(), toml::Value::Boolean(true));
+    merge_config_file(
+        &paths.config_file,
+        &gateway,
+        "session",
+        toml::Value::Table(session),
+    )?;
+    invalidate_cached_token()?;
     tracing::info!(config_file = %paths.config_file.display(), "session setup: config written");
     Ok(paths)
 }
@@ -231,11 +240,44 @@ fn write_config_file(
     gateway_url_override: Option<&str>,
 ) -> Result<(), SetupError> {
     let gateway = resolve_gateway(path, gateway_url_override);
+    let mut pat = toml::map::Map::new();
+    pat.insert(
+        "file".to_owned(),
+        toml::Value::String(pat_file.to_string_lossy().into_owned()),
+    );
+    merge_config_file(path, &gateway, "pat", toml::Value::Table(pat))
+}
 
-    let pat_path_str = pat_file.to_string_lossy().replace('\\', "\\\\");
+const CREDENTIAL_SECTIONS: [&str; 2] = ["pat", "session"];
+
+fn merge_config_file(
+    path: &Path,
+    gateway: &str,
+    section: &str,
+    value: toml::Value,
+) -> Result<(), SetupError> {
+    let existing = fs::read_to_string(path).unwrap_or_default();
+    let mut doc: toml::Table = toml::from_str(&existing)
+        .map_err(|e| SetupError::Io(format!("parse {}: {e}", path.display())))?;
+
+    doc.insert(
+        "gateway_url".to_owned(),
+        toml::Value::String(gateway.to_owned()),
+    );
+    // Why: the PAT and interactive-session providers are mutually exclusive
+    // credentials; leaving the previous one behind would let the auth chain
+    // silently fall back to the identity the user just replaced.
+    for other in CREDENTIAL_SECTIONS {
+        if other != section {
+            doc.remove(other);
+        }
+    }
+    doc.insert(section.to_owned(), value);
+
+    let body = toml::to_string_pretty(&doc)
+        .map_err(|e| SetupError::Io(format!("serialize {}: {e}", path.display())))?;
     let contents = format!(
-        "# Written by `{bin} login`. Edit gateway_url if you move the \
-         server.\ngateway_url = \"{gateway}\"\n\n[pat]\nfile = \"{pat_path_str}\"\n",
+        "# Written by `{bin} login`. Edit gateway_url if you move the server.\n{body}",
         bin = crate::brand::brand().binary_name,
     );
     atomic_write(path, contents.as_bytes(), false)

@@ -84,7 +84,7 @@ async fn build_profile(snapshot: AppStateSnapshot) -> Result<Value, GuiError> {
     let gateway_url = config::gateway_url_or_default(&cfg);
     let client = GatewayClient::new(gateway_url.clone());
 
-    let bearer_value = crate::auth::cache::read_valid().map(|out| out.token);
+    let bearer_value = crate::auth::cache::read_valid(&gateway_url).map(|out| out.token);
     let bearer = bearer_value
         .as_ref()
         .map(|s| s.expose().to_owned())

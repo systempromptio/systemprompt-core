@@ -140,14 +140,16 @@ async fn check_gateway(report: &mut Report) {
 }
 
 fn check_cached_token(report: &mut Report) {
-    match cache::read_valid() {
+    let gateway = config::gateway_url_or_default(&config::load());
+    match cache::read_valid(&gateway) {
         Some(out) => report.ok(
             "cached token",
             &format!("ttl={}s, len={}", out.ttl, out.token.len()),
         ),
         None => report.warn(
             "cached token",
-            "absent or expired — helper will probe providers on next run",
+            "absent, expired, or minted for another gateway — helper will probe \
+             providers on next run",
         ),
     }
 }

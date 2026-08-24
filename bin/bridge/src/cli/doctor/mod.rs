@@ -72,9 +72,12 @@ pub(super) fn cmd_doctor() -> ExitCode {
 
 pub async fn run_checks() -> (Vec<Check>, bool) {
     let cfg = config::load();
-    let mut checks: Vec<Check> = Vec::new();
-    checks.push(auth::check_config_file());
-    checks.push(auth::check_credential_source(&cfg));
+    let mut checks: Vec<Check> = vec![
+        auth::check_config_file(),
+        auth::check_credential_source(&cfg),
+        auth::check_cached_gateway(&cfg),
+        auth::check_install_record(&cfg),
+    ];
     let bearer = auth::check_mint_jwt(&cfg, &mut checks).await;
     let client = auth::check_gateway_reachable(&cfg, &mut checks).await;
     auth::check_whoami(&client, bearer.as_ref(), &mut checks).await;

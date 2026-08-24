@@ -4,7 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod apply;
-mod bootstrap;
+pub mod bootstrap;
 mod builders;
 #[cfg(target_os = "macos")]
 pub(crate) mod elevate;

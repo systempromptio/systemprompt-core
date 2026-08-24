@@ -105,7 +105,7 @@ async fn run_session_login(
         }
     };
 
-    let client = GatewayClient::new(base);
+    let client = GatewayClient::new(base.clone());
     if keep_signed_in {
         let req = SessionPatRequest {
             code,
@@ -130,7 +130,7 @@ async fn run_session_login(
         tokio::task::spawn_blocking(move || setup::session_setup(gw.as_deref()))
             .await
             .map_err(|e| setup::SetupError::Io(format!("session setup join: {e}")))??;
-        if let Err(e) = crate::auth::cache::write(&out) {
+        if let Err(e) = crate::auth::cache::write(&base, &out) {
             crate::obs::output::diag(&format!("session cache write failed (continuing): {e}"));
         }
     }

@@ -1,4 +1,10 @@
-//! On-disk cache for minted credentials keyed by gateway identity.
+//! On-disk cache for minted credentials, scoped to the gateway that issued
+//! them.
+//!
+//! A cached JWT is only ever replayed against the same gateway URL it was
+//! minted for. Repointing the bridge, or logging in again, leaves the previous
+//! entry unusable: it is refused on read and deleted, so a stale token can
+//! never outlive the credential that produced it.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -8,6 +14,7 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
+use systemprompt_identifiers::ValidatedUrl;
 
 const CACHE_FILE: &str = "cache.json";
 
@@ -15,6 +22,7 @@ const CACHE_FILE: &str = "cache.json";
 struct CacheEntry {
     output: HelperOutput,
     expires_at: u64,
+    gateway: ValidatedUrl,
 }
 
 #[must_use]
@@ -27,20 +35,43 @@ fn cache_path() -> Option<PathBuf> {
 }
 
 #[must_use]
-pub fn read_valid() -> Option<HelperOutput> {
-    read_with_threshold(30)
+pub fn read_valid(gateway: &ValidatedUrl) -> Option<HelperOutput> {
+    read_with_threshold(gateway, 30)
 }
 
 #[must_use]
-pub fn read_with_threshold(min_remaining_secs: u64) -> Option<HelperOutput> {
+pub fn read_with_threshold(
+    gateway: &ValidatedUrl,
+    min_remaining_secs: u64,
+) -> Option<HelperOutput> {
+    let entry = read_entry()?;
+    if &entry.gateway != gateway {
+        tracing::warn!(
+            cached = %entry.gateway,
+            configured = %gateway,
+            "discarding a cached token minted for a different gateway",
+        );
+        discard();
+        return None;
+    }
+    let now = SystemTime::now().duration_since(UNIX_EPOCH).ok()?.as_secs();
+    is_still_valid(entry.expires_at, now, min_remaining_secs).then_some(entry.output)
+}
+
+#[must_use]
+pub fn cached_gateway() -> Option<ValidatedUrl> {
+    read_entry().map(|entry| entry.gateway)
+}
+
+fn read_entry() -> Option<CacheEntry> {
     let path = cache_path()?;
     let bytes = fs::read(&path).ok()?;
-    let entry: CacheEntry = serde_json::from_slice(&bytes).ok()?;
-    let now = SystemTime::now().duration_since(UNIX_EPOCH).ok()?.as_secs();
-    if is_still_valid(entry.expires_at, now, min_remaining_secs) {
-        Some(entry.output)
-    } else {
-        None
+    serde_json::from_slice(&bytes).ok()
+}
+
+fn discard() {
+    if let Err(e) = clear() {
+        tracing::warn!(error = %e, "failed to discard the stale token cache");
     }
 }
 
@@ -60,7 +91,7 @@ pub fn clear() -> std::io::Result<()> {
     }
 }
 
-pub fn write(output: &HelperOutput) -> std::io::Result<()> {
+pub fn write(gateway: &ValidatedUrl, output: &HelperOutput) -> std::io::Result<()> {
     let Some(path) = cache_path() else {
         return Ok(());
     };
@@ -73,6 +104,7 @@ pub fn write(output: &HelperOutput) -> std::io::Result<()> {
     let entry = CacheEntry {
         output: output.clone(),
         expires_at: now.saturating_add(output.ttl),
+        gateway: gateway.clone(),
     };
     let json = serde_json::to_vec(&entry)?;
     fs::write(&path, json)?;
