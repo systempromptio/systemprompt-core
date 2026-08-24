@@ -184,6 +184,53 @@ pub fn spawn_installed(installed: &std::path::Path) -> Result<(), UpdateError> {
         .map_err(UpdateError::Relaunch)
 }
 
+
+pub async fn run_automatic(gateway: &ValidatedUrl, bearer: &str) {
+    if !automatic_enabled() {
+        tracing::warn!(
+            "a newer bridge is required but automatic updates are disabled by policy; \
+             update manually",
+        );
+        return;
+    }
+    let client = GatewayClient::new(gateway.clone());
+    let (status, manifest) = match check(&client, bearer).await {
+        Ok(pair) => pair,
+        Err(e) => {
+            tracing::error!(error = %e, "automatic update: could not read the release manifest");
+            return;
+        },
+    };
+    if matches!(status, UpdateStatus::Current { .. }) {
+        tracing::warn!(
+            local = %crate::brand::brand().version,
+            "the gateway reports this bridge as unsupported but offers no newer release",
+        );
+        return;
+    }
+    tracing::info!(version = %manifest.version, "automatic update: installing");
+    let installed = match apply(&client, bearer, &manifest, &|_| {}).await {
+        Ok(path) => path,
+        Err(e) => {
+            tracing::error!(error = %e, "automatic update: install failed");
+            return;
+        },
+    };
+    if let Err(e) = spawn_installed(&installed) {
+        tracing::error!(error = %e, "automatic update: relaunch failed; update is staged on disk");
+        return;
+    }
+    tracing::info!(version = %manifest.version, "automatic update: relaunched");
+}
+
+fn automatic_enabled() -> bool {
+    crate::config::load()
+        .update
+        .as_ref()
+        .and_then(|u| u.automatic)
+        .unwrap_or(true)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -244,50 +291,4 @@ mod tests {
             Err(UpdateError::BadRemoteVersion { .. })
         ));
     }
-}
-
-pub async fn run_automatic(gateway: &ValidatedUrl, bearer: &str) {
-    if !automatic_enabled() {
-        tracing::warn!(
-            "a newer bridge is required but automatic updates are disabled by policy; \
-             update manually",
-        );
-        return;
-    }
-    let client = GatewayClient::new(gateway.clone());
-    let (status, manifest) = match check(&client, bearer).await {
-        Ok(pair) => pair,
-        Err(e) => {
-            tracing::error!(error = %e, "automatic update: could not read the release manifest");
-            return;
-        },
-    };
-    if matches!(status, UpdateStatus::Current { .. }) {
-        tracing::warn!(
-            local = %crate::brand::brand().version,
-            "the gateway reports this bridge as unsupported but offers no newer release",
-        );
-        return;
-    }
-    tracing::info!(version = %manifest.version, "automatic update: installing");
-    let installed = match apply(&client, bearer, &manifest, &|_| {}).await {
-        Ok(path) => path,
-        Err(e) => {
-            tracing::error!(error = %e, "automatic update: install failed");
-            return;
-        },
-    };
-    if let Err(e) = spawn_installed(&installed) {
-        tracing::error!(error = %e, "automatic update: relaunch failed; update is staged on disk");
-        return;
-    }
-    tracing::info!(version = %manifest.version, "automatic update: relaunched");
-}
-
-fn automatic_enabled() -> bool {
-    crate::config::load()
-        .update
-        .as_ref()
-        .and_then(|u| u.automatic)
-        .unwrap_or(true)
 }
