@@ -330,6 +330,7 @@ async fn assemble_candidate_keeps_artifact_owned_by_enabled_plugin() {
 fn sample_manifest(version: &ManifestVersion) -> SignedManifest {
     SignedManifest {
         min_schema_version: MANIFEST_SCHEMA_VERSION,
+        min_bridge_version: None,
         manifest_version: version.clone(),
         issued_at: "2026-05-29T00:00:00Z".to_owned(),
         not_before: "2026-05-29T00:00:00Z".to_owned(),

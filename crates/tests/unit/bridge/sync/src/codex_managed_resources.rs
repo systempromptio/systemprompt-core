@@ -31,6 +31,7 @@ fn manifest_with(
 ) -> SignedManifest {
     SignedManifest {
         min_schema_version: MANIFEST_SCHEMA_VERSION,
+        min_bridge_version: None,
         manifest_version: version(),
         issued_at: "2026-04-30T12:00:00+00:00".into(),
         not_before: "2026-04-30T12:00:00+00:00".into(),

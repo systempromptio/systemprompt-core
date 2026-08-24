@@ -44,6 +44,7 @@ fn ensure_bootstrap() {
 fn sample_manifest() -> SignedManifest {
     SignedManifest {
         min_schema_version: MANIFEST_SCHEMA_VERSION,
+        min_bridge_version: None,
         manifest_version: ManifestVersion::try_new("2026-04-27T00:00:00Z-deadbeef")
             .expect("valid manifest version"),
         issued_at: "2026-04-27T00:00:00Z".into(),

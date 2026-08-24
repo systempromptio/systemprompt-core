@@ -167,6 +167,7 @@ single_use_lifetimes = "warn"
 tokio = { version = "1.53", features = ["rt-multi-thread", "net", "io-util", "time", "sync", "macros"] }
 tokio-test = "0.4"
 anyhow = "1.0"
+semver = "1"
 thiserror = "2.0"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "registry"] }

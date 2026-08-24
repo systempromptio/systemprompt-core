@@ -15,6 +15,7 @@ use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 pub use systemprompt_models::bridge::manifest::{
     AgentEntry, ArtifactEntry, HookEntry, MANIFEST_SCHEMA_VERSION, ManagedMcpServer, PluginEntry,
     PluginFile, SignedManifest, SignedManifestEnvelope, SkillEntry, UserInfo,
+    bridge_version_is_supported,
 };
 pub use systemprompt_models::bridge::manifest_version::ManifestVersion;
 pub use systemprompt_models::services::PluginComponentRef;
@@ -46,6 +47,8 @@ pub enum ManifestError {
          upgrade the bridge"
     )]
     SchemaTooNew { required: u32, supported: u32 },
+    #[error("bridge {local} is older than the {required} this gateway requires")]
+    BridgeTooOld { local: String, required: String },
 }
 
 pub fn verify_envelope(
@@ -87,6 +90,15 @@ pub fn decode_payload(envelope: &SignedManifestEnvelope) -> Result<SignedManifes
         return Err(ManifestError::SchemaTooNew {
             required: manifest.min_schema_version,
             supported: MANIFEST_SCHEMA_VERSION,
+        });
+    }
+    let local = crate::brand::brand().version;
+    if let Some(required) = manifest.min_bridge_version.as_deref()
+        && !bridge_version_is_supported(local, required)
+    {
+        return Err(ManifestError::BridgeTooOld {
+            local: local.to_owned(),
+            required: required.to_owned(),
         });
     }
     Ok(manifest)
@@ -219,6 +231,7 @@ impl SignedManifestBuilder {
     pub fn build(self) -> SignedManifest {
         SignedManifest {
             min_schema_version: MANIFEST_SCHEMA_VERSION,
+            min_bridge_version: None,
             manifest_version: self.manifest_version,
             issued_at: self.issued_at,
             not_before: self.not_before,

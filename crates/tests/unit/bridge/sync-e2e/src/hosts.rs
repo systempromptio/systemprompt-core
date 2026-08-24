@@ -183,6 +183,7 @@ fn manifest(enabled_hosts: Vec<String>, populated: bool, suffix: &str) -> Signed
     };
     SignedManifest {
         min_schema_version: MANIFEST_SCHEMA_VERSION,
+        min_bridge_version: None,
         manifest_version: version(suffix),
         issued_at: "2026-07-01T12:00:00+00:00".into(),
         not_before: "2026-07-01T12:00:00+00:00".into(),

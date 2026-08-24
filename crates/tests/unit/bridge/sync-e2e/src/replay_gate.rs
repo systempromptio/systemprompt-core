@@ -35,6 +35,7 @@ fn fresh_version(now: chrono::DateTime<chrono::Utc>) -> ManifestVersion {
 fn manifest(now: chrono::DateTime<chrono::Utc>, not_before: &str) -> SignedManifest {
     SignedManifest {
         min_schema_version: MANIFEST_SCHEMA_VERSION,
+        min_bridge_version: None,
         manifest_version: fresh_version(now),
         issued_at: not_before.to_owned(),
         not_before: not_before.to_owned(),

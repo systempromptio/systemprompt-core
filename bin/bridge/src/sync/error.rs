@@ -36,6 +36,11 @@ pub enum SyncError {
     )]
     ManifestShape(String),
     #[error(
+        "this bridge is {local} but the gateway requires {required} or newer — update the \
+         bridge to sync against it"
+    )]
+    BridgeTooOld { local: String, required: String },
+    #[error(
         "Cowork reads {system_path} but this process cannot write there — re-run `{bin} install \
          --apply` and approve the single administrator prompt (it provisions the Claude policy \
          and grants you write access to org-plugins), or disable the Cowork host for this user"
@@ -82,7 +87,9 @@ impl SyncError {
             Self::ManifestSkew { .. } => ExitCode::from(7),
             Self::PubkeyNotPinned => ExitCode::from(8),
             Self::ReplayStateCorrupt(_) => ExitCode::from(9),
-            Self::SchemaTooNew { .. } | Self::ManifestShape(_) => ExitCode::from(11),
+            Self::SchemaTooNew { .. } | Self::ManifestShape(_) | Self::BridgeTooOld { .. } => {
+                ExitCode::from(11)
+            },
             Self::CoworkNeedsElevation { .. } => ExitCode::from(12),
         }
     }

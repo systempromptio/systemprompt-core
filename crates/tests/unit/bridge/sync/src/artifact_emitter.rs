@@ -30,6 +30,7 @@ fn artifact(id: &str, version: &str) -> ArtifactEntry {
 fn manifest(artifacts: Vec<ArtifactEntry>) -> SignedManifest {
     SignedManifest {
         min_schema_version: MANIFEST_SCHEMA_VERSION,
+        min_bridge_version: None,
         manifest_version: ManifestVersion::try_new("2026-05-01T12:00:00Z-deadbeef").unwrap(),
         issued_at: "2026-05-01T12:00:00+00:00".into(),
         not_before: "2026-05-01T12:00:00+00:00".into(),

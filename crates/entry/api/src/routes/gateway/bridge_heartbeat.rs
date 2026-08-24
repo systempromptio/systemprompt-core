@@ -12,8 +12,9 @@ use std::sync::Arc;
 use axum::Json;
 use axum::http::{HeaderMap, StatusCode};
 use chrono::{DateTime, Utc};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{JwtToken, SessionId};
+use systemprompt_models::bridge::manifest::{MIN_BRIDGE_VERSION, bridge_version_is_supported};
 use systemprompt_oauth::repository::UpsertBridgeSession;
 use systemprompt_runtime::AppContext;
 
@@ -36,12 +37,18 @@ pub struct BridgeHeartbeatRequest {
     pub tokens_out_total: i64,
 }
 
+#[derive(Debug, Serialize)]
+pub struct BridgeHeartbeatResponse {
+    pub min_bridge_version: String,
+    pub compatible: bool,
+}
+
 pub async fn handle(
     jwt_extractor: Arc<JwtContextExtractor>,
     ctx: AppContext,
     headers: HeaderMap,
     Json(payload): Json<BridgeHeartbeatRequest>,
-) -> Result<StatusCode, (StatusCode, String)> {
+) -> Result<Json<BridgeHeartbeatResponse>, (StatusCode, String)> {
     let credential = extract_credential(&headers).ok_or_else(|| {
         (
             StatusCode::UNAUTHORIZED,
@@ -54,6 +61,16 @@ pub async fn handle(
         .map_err(|e| (StatusCode::UNAUTHORIZED, e.to_string()))?;
 
     let repo = &ctx.oauth_repositories().bridge_sessions;
+
+    let compatible = bridge_version_is_supported(&payload.bridge_version, MIN_BRIDGE_VERSION);
+    if !compatible {
+        tracing::warn!(
+            bridge_version = %payload.bridge_version,
+            min_bridge_version = %MIN_BRIDGE_VERSION,
+            hostname = %payload.hostname,
+            "bridge below the supported floor checked in",
+        );
+    }
 
     repo.upsert(UpsertBridgeSession {
         session_id: payload.session_id,
@@ -74,5 +91,8 @@ pub async fn handle(
         )
     })?;
 
-    Ok(StatusCode::NO_CONTENT)
+    Ok(Json(BridgeHeartbeatResponse {
+        min_bridge_version: MIN_BRIDGE_VERSION.to_owned(),
+        compatible,
+    }))
 }

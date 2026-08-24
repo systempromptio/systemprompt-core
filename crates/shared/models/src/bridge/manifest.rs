@@ -36,6 +36,24 @@ use systemprompt_identifiers::{AgentId, AgentName, HookId, TenantId, UserId, Val
 
 pub const MANIFEST_SCHEMA_VERSION: u32 = 1;
 
+// Why: not tied to the release version, and never swept by a version-bump
+// script. Raising it strands every client below it until they update, so it
+// moves only when the gateway makes a change an older bridge cannot handle.
+pub const MIN_BRIDGE_VERSION: &str = "0.28.0";
+
+#[must_use]
+pub fn bridge_version_is_supported(reported: &str, floor: &str) -> bool {
+    match (
+        semver::Version::parse(reported),
+        semver::Version::parse(floor),
+    ) {
+        (Ok(reported), Ok(floor)) => reported >= floor,
+        // Why: an unparseable version is almost always a local dev build;
+        // refusing those would make the gateway untestable against a work tree.
+        _ => true,
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SignedManifestEnvelope {
     pub payload: String,
@@ -46,6 +64,8 @@ pub struct SignedManifestEnvelope {
 pub struct SignedManifest {
     #[serde(default)]
     pub min_schema_version: u32,
+    #[serde(default)]
+    pub min_bridge_version: Option<String>,
     pub manifest_version: ManifestVersion,
     pub issued_at: String,
     pub not_before: String,

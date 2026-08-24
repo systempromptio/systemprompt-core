@@ -30,6 +30,7 @@ fn pubkey_b64(key: &SigningKey) -> String {
 fn manifest() -> SignedManifest {
     SignedManifest {
         min_schema_version: MANIFEST_SCHEMA_VERSION,
+        min_bridge_version: None,
         manifest_version: ManifestVersion::try_new("2026-07-02T00:00:00Z-cafecafe").unwrap(),
         issued_at: "2026-07-02T00:00:00+00:00".into(),
         not_before: "2026-07-02T00:00:00+00:00".into(),

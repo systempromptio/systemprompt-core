@@ -104,7 +104,23 @@ async fn send_one(
             status: status.as_u16(),
         });
     }
+    if let Ok(body) = response.json::<HeartbeatResponse>().await
+        && !body.compatible
+    {
+        tracing::warn!(
+            local = %crate::brand::brand().version,
+            required = %body.min_bridge_version,
+            "gateway reports this bridge as unsupported",
+        );
+        crate::update::run_automatic(gateway_base, token.token.expose()).await;
+    }
     Ok(())
+}
+
+#[derive(Debug, serde::Deserialize)]
+struct HeartbeatResponse {
+    min_bridge_version: String,
+    compatible: bool,
 }
 
 fn i64_saturating(value: u64) -> i64 {
