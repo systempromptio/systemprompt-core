@@ -25,10 +25,8 @@
 
 ## [0.35.0] - 2026-08-23
 
-### Fixed
-
-- The non-Linux halves of `is_zombie` and `get_process_memory` are `const fn`, clearing `missing_const_for_fn` under `-D warnings` on macOS. Callers are unaffected.
-- `bin/bridge` pins `systemprompt-identifiers` and `systemprompt-models` by version as well as by path, so the 0.34.0 workspace bump left it requiring `^0.33.0` against a 0.34.0 path dependency and the bridge and test workspaces failed to resolve. Both pins now move with the workspace.
+Carries no library change: the `const fn` and `bin/bridge` pin fixes previously
+listed here shipped in 0.34.0, and are recorded under that version.
 
 ### Removed
 
@@ -53,6 +51,8 @@
 
 - Gateway prompt governance no longer evaluates with `AccessScope::Unknown`. The scope now comes from the caller's credential. Both scope-shaped policies are inert on a `Prompt` target, so this changed no decision today — it closes the hole that would have opened the moment `tool_use` blocks inside a request body became governed, where the scope check would have passed by default.
 - Gateway governance decisions now persist their `trace_id`, so an inference decision is correlatable to its request without the `session_id` overload.
+- The non-Linux halves of `is_zombie` and `get_process_memory` are `const fn`, clearing `missing_const_for_fn` under `-D warnings` on macOS. Callers are unaffected.
+- `bin/bridge` pins `systemprompt-identifiers` and `systemprompt-models` by version as well as by path, so the 0.34.0 workspace bump left it requiring `^0.33.0` against a 0.34.0 path dependency and the bridge and test workspaces failed to resolve. Both pins now move with the workspace.
 
 ## [0.33.0] - 2026-08-20
 
