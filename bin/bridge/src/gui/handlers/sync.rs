@@ -90,6 +90,16 @@ pub(crate) fn on_sync_finished(
                     ErrorScope::Marketplace,
                     ErrorCode::Unauthorized,
                 )
+            } else if let Some(sync::SyncError::BridgeTooOld { local, required }) = sync_err {
+                (
+                    "failed",
+                    i18n::t_args(
+                        "sync-bridge-too-old",
+                        &[("local", local), ("required", required)],
+                    ),
+                    ErrorScope::Marketplace,
+                    ErrorCode::Conflict,
+                )
             } else if let Some(sync::SyncError::GatewayUnauthorized {
                 endpoint, status, ..
             }) = sync_err

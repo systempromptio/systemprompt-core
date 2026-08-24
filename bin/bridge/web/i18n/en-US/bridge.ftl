@@ -26,8 +26,24 @@ sync-in-flight = syncing
 sync-cancel = Cancel
 sync-cancelled = Sync cancelled.
 sync-failure = Sync failed: { $error }
-sync-no-credentials = Sync failed: no credentials configured. Run `systemprompt-bridge login <sp-live-...>` with a PAT, then try again.
-sync-gateway-unauthorized = Sync failed: gateway rejected the cached credentials (HTTP { $status } from { $endpoint }). Run `systemprompt-bridge login` with a fresh PAT.
+sync-no-credentials = Sync failed: not signed in. Sign in to this gateway, then try again.
+sync-gateway-unauthorized = Sync failed: the gateway rejected a freshly issued credential (HTTP { $status } from { $endpoint }). Your access may have been revoked — sign in again, or ask an administrator to check your account.
+sync-bridge-too-old = Sync failed: this bridge is { $local } but the gateway requires { $required } or newer. Updating now — the app will restart.
+sync-reauthenticate = Re-authenticate
+
+gateway-set-empty = Enter a gateway URL.
+gateway-set-failure = Could not save the gateway: { $error }
+gateway-saving = Saving gateway { $url }…
+gateway-saved = Gateway saved.
+
+# Sign-in ---------------------------------------------------------------------
+login-pat-empty = Enter a personal access token.
+login-saving = Signing in…
+login-pull-manifest = Signed in — fetching your plugins…
+logout-running = Signing out…
+logout-success = Signed out.
+logout-failure = Sign-out failed: { $error }
+validate-running = Running validation…
 
 # Gateway ---------------------------------------------------------------------
 gateway-unreachable = offline

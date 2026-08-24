@@ -34,6 +34,20 @@
   word-break: break-word;
 }
 
+.sp-toast__action {
+  background: transparent;
+  border: 1px solid currentColor;
+  border-radius: var(--sp-radius-sm, 4px);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  padding: var(--sp-space-1) var(--sp-space-2);
+  white-space: nowrap;
+  opacity: 0.9;
+}
+
+.sp-toast__action:hover { opacity: 1; }
+
 .sp-toast__close {
   background: transparent;
   border: 0;

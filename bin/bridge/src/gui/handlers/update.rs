@@ -12,6 +12,7 @@ use crate::gui::events::{ReplyId, UiEvent};
 use crate::gui::ipc::{BridgeError, ErrorCode, ErrorScope, IpcReplyPayload};
 use crate::gui::{GuiApp, emit};
 use crate::update::{self, UpdateUiState};
+use systemprompt_identifiers::SessionId;
 
 #[tracing::instrument(level = "info", skip(app))]
 pub(crate) fn on_update_check_requested(app: &GuiApp, reply_to: ReplyId) {
@@ -141,7 +142,7 @@ pub(crate) fn on_update_restart_requested(app: &GuiApp) {
 }
 
 async fn check() -> Result<Value, GuiError> {
-    let (client, bearer) = client_and_bearer()?;
+    let (client, bearer) = client_and_bearer().await?;
     let (status, _) = update::check(&client, &bearer).await?;
     Ok(serde_json::to_value(UpdateUiState::from(&status)).unwrap_or(Value::Null))
 }
@@ -150,7 +151,7 @@ async fn install(
     version: &str,
     on_progress: &(dyn Fn(update::DownloadProgress) + Send + Sync),
 ) -> Result<Value, GuiError> {
-    let (client, bearer) = client_and_bearer()?;
+    let (client, bearer) = client_and_bearer().await?;
     // Why: re-checked rather than trusting the version the button was rendered
     // with — the manifest carries the digest, and a release published in between
     // would otherwise be installed without the user having agreed to it.
@@ -166,10 +167,13 @@ async fn install(
     Ok(json!({ "version": manifest.version, "path": path.display().to_string() }))
 }
 
-fn client_and_bearer() -> Result<(crate::gateway::GatewayClient, String), GuiError> {
+async fn client_and_bearer() -> Result<(crate::gateway::GatewayClient, String), GuiError> {
     let cfg = crate::config::load();
     let gateway_url = crate::config::gateway_url_or_default(&cfg);
-    let bearer = crate::auth::cache::read_valid()
+    // Why: the updater is the escape hatch from a bad install, so it must not
+    // be gated on a cache that a bad install is exactly what poisons.
+    let bearer = crate::auth::obtain_live_token(&cfg, &SessionId::generate())
+        .await
         .map(|out| out.token.expose().to_owned())
         .ok_or(GuiError::NotAuthenticated)?;
     Ok((crate::gateway::GatewayClient::new(gateway_url), bearer))
