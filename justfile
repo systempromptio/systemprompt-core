@@ -147,6 +147,10 @@ lint-layers:
 lint-repo-construction:
     ./scripts/lint-repo-construction.sh
 
+# Every released version in CHANGELOG.md must carry its v<version> tag
+check-release-tag:
+    ./scripts/check-release-tag.sh
+
 # Check without building
 check: lint-schema lint-extensions lint-comments lint-test-value lint-layers lint-repo-construction
     cargo check --workspace

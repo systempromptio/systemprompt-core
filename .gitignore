@@ -119,6 +119,7 @@ scripts/*
 !scripts/check-sqlx.sh
 !scripts/check-http-errors.sh
 !scripts/lint-layers.sh
+!scripts/check-release-tag.sh
 
 # Local-only review notes
 review/
