@@ -20,6 +20,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # `just lint` covers bin/bridge, whose keyring backend pulls
+      # libdbus-sys through pkg-config; ubuntu-latest no longer ships
+      # libdbus-1-dev.
+      - run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: nightly-2026-06-03
