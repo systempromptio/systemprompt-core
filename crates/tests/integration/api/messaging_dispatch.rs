@@ -12,13 +12,13 @@ use systemprompt_api::routes::messaging::{
     DispatchOutcome, MessagingError, MessagingInbound, ReplyTarget, dispatch_messaging,
 };
 use systemprompt_identifiers::{AgentName, SlackWorkspaceId};
-use systemprompt_traits::FederatedIdentityClaims;
 use systemprompt_security::authz::{DenyAllHook, EntityRef};
 use systemprompt_test_fixtures::{
     TEST_SLACK_WORKSPACE_ID, agent_error_response_json, agent_reply_response_json,
     ensure_messaging_bootstrap, fixture_app_context, fixture_app_context_with_hook,
     fixture_db_pool, install_test_signing_key, seed_agent_backend, test_messaging_agent,
 };
+use systemprompt_traits::FederatedIdentityClaims;
 use uuid::Uuid;
 use wiremock::matchers::method;
 use wiremock::{Mock, MockServer, ResponseTemplate};
