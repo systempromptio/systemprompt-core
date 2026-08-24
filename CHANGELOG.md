@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.37.0] - 2026-08-24
+
+### Added
+
+- `systemprompt_models::bridge::manifest::MIN_BRIDGE_VERSION` declares the oldest bridge a build of the gateway will serve, and `bridge_version_is_supported` compares a reported version against it. The floor is compiled into the gateway binary rather than configured, so a deployment always carries its own answer. It is raised deliberately, not with the release version: bumping it strands every client below it until they update.
+- The signed manifest carries `min_bridge_version`, so the floor a bridge enforces is signed rather than taken from an unauthenticated response. A gateway that omits it is treated as declaring no floor.
+- `POST /v1/bridge/heartbeat` returns `{ min_bridge_version, compatible }` instead of `204 No Content`. It already received `bridge_version` and discarded it; a bridge below the floor is now logged with its version and hostname, which is the only fleet-wide view of client versions that exists. Older bridges ignore the body.
+
+### Changed
+
+- **Breaking:** `SignedManifest` gains a `min_bridge_version: Option<String>` field. Migrate by adding `min_bridge_version: None` to any struct literal; code that builds manifests through `SignedManifestBuilder` is unaffected.
+
+
 ## [0.36.0] - 2026-08-23
 
 ### Breaking

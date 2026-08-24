@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.29.0] - 2026-08-24
+
+### Fixed
+
+- Signing in no longer leaves the previous credential in charge. `login`, `set_gateway_url`, and the interactive sign-in wrote the new credential but never cleared the cached JWT, and every reader consulted that cache first — so a token the gateway had already rejected kept being sent until its TTL lapsed, and neither re-signing in through the app nor `login --code` on the command line changed anything. All three now discard the cached token.
+- A cached token is scoped to the gateway that issued it. The cache was documented as keyed by gateway identity but was a single unkeyed file, so repointing the bridge replayed the previous gateway's token at the new one. A token minted elsewhere is now refused and deleted on read.
+- A credential the gateway rejects is discarded and re-minted once, and sync continues. A 401 or 403 on the manifest was terminal, which turned one bad token into a permanently wedged install. The error now surfaces only when a freshly minted credential is also refused, and says so.
+- Signing in preserves the rest of the configuration. The config file was rewritten from scratch on every login, silently dropping `[sync] pinned_pubkey` — which quietly re-enabled trust-on-first-use — along with `[claude]`, `[cowork]`, `[mtls]`, and `deployment_organization_uuid`. Only the keys a sign-in owns are now replaced.
+- `doctor` no longer reports that the gateway accepted credentials on the strength of a cached token it never presented. It also reports whether the cached token was minted for the configured gateway, and whether host launchers point at the running binary and version.
+- Nine interface strings resolved to their own identifier, so sign-out, sign-in progress, gateway saving, and validation showed raw slugs such as `logout-success`. A test now fails when a string the code asks for is missing from the catalogue.
+
+### Added
+
+- The bridge refuses to sync against a gateway that requires a newer bridge, naming both versions, and updates itself to meet the floor. The update runs through the existing signature- and digest-verified download path. Set `automatic = false` under `[update]` to disable it; the key is also readable from managed policy.
+- An unauthorized sync error offers a Re-authenticate action rather than printing a command line to a desktop user.
+
+
 ## [0.28.0] - 2026-08-23
 
 ### Fixed
