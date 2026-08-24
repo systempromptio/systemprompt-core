@@ -160,16 +160,18 @@ check-offline:
     SQLX_OFFLINE=true cargo check --workspace
 
 # Format code (nightly: rustfmt.toml uses unstable options).
-# Covers the separate `crates/tests` workspace too — `--all` stops at the
-# manifest it is invoked from, so the test workspace must be formatted explicitly.
+# Covers the separate `crates/tests` and `bin/bridge` workspaces too — `--all`
+# stops at the manifest it is invoked from, so each must be named explicitly.
 fmt:
     cargo +nightly fmt --all
     cd crates/tests && cargo +nightly fmt --all
+    cargo +nightly fmt --manifest-path bin/bridge/Cargo.toml --all
 
-# Check formatting without making changes (main + test workspace).
+# Check formatting without making changes (main + test + bridge workspaces).
 format-check:
     cargo +nightly fmt --all -- --check
     cd crates/tests && cargo +nightly fmt --all -- --check
+    cargo +nightly fmt --manifest-path bin/bridge/Cargo.toml --all -- --check
 
 # Build rustdoc with warnings as errors (main + test workspace).
 # `--workspace` stops at the manifest it is invoked from, so the 86 test
@@ -187,8 +189,15 @@ doc-check:
 # The separate `crates/tests` workspace is clippied by `just style-check` (it
 # needs a live database for its `query!` fixtures, which CI's lint job lacks);
 # CI compiles it in the dedicated Test job instead.
-lint:
+lint: lint-bridge
     cargo clippy --workspace --all-targets --all-features -- -D warnings
+
+# `bin/bridge` is its own workspace, so the root `--workspace` clippy above
+# never sees it. Without this it is linted only by `release-sign.yml` on a
+# `bridge-v*` tag — which is after every other gate has passed and the release
+# is already being cut.
+lint-bridge:
+    cargo clippy --manifest-path bin/bridge/Cargo.toml -p systemprompt-bridge --all-targets -- -D warnings
 
 # Reject unverified sqlx::query calls outside the allowlist
 lint-sqlx:

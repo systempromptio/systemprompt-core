@@ -25,6 +25,10 @@ jobs:
           toolchain: nightly-2026-06-03
           components: clippy
       - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            .
+            bin/bridge
       - uses: extractions/setup-just@v2
       - run: just lint
 
