@@ -10,7 +10,8 @@ use std::fs;
 use std::path::PathBuf;
 use std::time::{Duration, SystemTime};
 
-use systemprompt_bridge::integration::cowork_plugins::{PERSONAL_SESSION_UUID, pick_target};
+use systemprompt_bridge::cowork_compat::PERSONAL_SESSION_UUID;
+use systemprompt_bridge::integration::cowork_plugins::pick_target;
 
 const PERSONAL: &str = PERSONAL_SESSION_UUID;
 const REAL_ORG: &str = "f8e4d915-1111-2222-3333-444444444444";

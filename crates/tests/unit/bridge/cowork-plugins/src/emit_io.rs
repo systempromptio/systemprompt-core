@@ -8,8 +8,9 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use systemprompt_bridge::cowork_compat::PERSONAL_SESSION_UUID;
 use systemprompt_bridge::integration::cowork_plugins::{
-    CoworkTarget, PERSONAL_SESSION_UUID, apply_enable, clear_all, resolve_target,
+    CoworkTarget, apply_enable, clear_all, resolve_target,
 };
 use tempfile::tempdir;
 

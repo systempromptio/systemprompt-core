@@ -91,7 +91,9 @@ pub use agent::{AgentId, AgentName, ExternalAgentId};
 pub use ai::{
     AiGatewayPolicyId, AiQuotaBucketId, AiRequestId, AiSafetyFindingId, ConfigId, MessageId,
 };
-pub use auth::{ApiKeyId, ApiKeySecret, CloudAuthToken, DeviceCertId, JwtToken, SessionToken};
+pub use auth::{
+    ApiKeyId, ApiKeySecret, CloudAuthToken, DeviceCertId, DeviceId, JwtToken, SessionToken,
+};
 pub use client::{ClientId, ClientType};
 pub use cloud::PriceId;
 pub use connection::ConnectionId;
@@ -104,7 +106,7 @@ pub use evaluation::{
 pub use events::EventOutboxId;
 pub use execution::{ArtifactId, ExecutionStepId, LogId, TokenId};
 pub use funnel::{EngagementEventId, FunnelId, FunnelProgressId};
-pub use gateway_boot::{DepartmentName, ModelId, ProviderId, RouteId, SecretName};
+pub use gateway_boot::{DepartmentId, DepartmentName, ModelId, ProviderId, RouteId, SecretName};
 pub use gateway_conversation::GatewayConversationId;
 pub use hook::HookId;
 pub use jobs::{JobName, ScheduledJobId};

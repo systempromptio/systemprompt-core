@@ -214,7 +214,7 @@ pub fn check_plugin_installation_preference() -> Option<Check> {
 
 // Why: Cowork may bump PERSONAL_SESSION_UUID, which we hard-code.
 pub fn check_personal_session_sentinel() -> Option<Check> {
-    use crate::integration::cowork_plugins::PERSONAL_SESSION_UUID;
+    use crate::cowork_compat::PERSONAL_SESSION_UUID;
 
     let root = paths::cowork3p_sessions_root()?;
     if !root.is_dir() {
@@ -269,7 +269,7 @@ pub fn check_personal_session_sentinel() -> Option<Check> {
             format!(
                 "{n} Cowork org dir(s) under {} but none matches PERSONAL_SESSION_UUID \
                  ({PERSONAL_SESSION_UUID}) — Cowork may have bumped the constant; update \
-                 bin/bridge/src/integration/cowork_plugins/emit.rs to whatever literal Cowork now \
+                 bin/bridge/src/cowork_compat.rs to whatever literal Cowork now \
                  hard-codes (search app.asar for the new value)",
                 root.display()
             ),

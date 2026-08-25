@@ -11,9 +11,7 @@ use std::{fs, io};
 
 use crate::config::paths;
 
-// Why: Cowork's fixed sentinel for the personal org-session dir; if it ever
-// changes, `pick_target` falls back to mtime.
-pub const PERSONAL_SESSION_UUID: &str = "00000000-0000-4000-8000-000000000001";
+use crate::cowork_compat::PERSONAL_SESSION_UUID;
 
 pub(super) const ORG_PROVISIONED_MARKETPLACE: &str = "org-provisioned";
 

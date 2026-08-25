@@ -4,9 +4,9 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::error::McpDomainResult;
-use std::process::Command;
 use std::time::Duration;
 
+pub use super::ps::ProcessInfo;
 use super::utils;
 
 const HEALTH_CHECK_TIMEOUT_SECS: u64 = 5;
@@ -35,57 +35,5 @@ pub fn is_process_running(pid: u32) -> bool {
 }
 
 pub fn get_process_info(pid: u32) -> McpDomainResult<Option<ProcessInfo>> {
-    // Why: `command` is the one spelling both `ps` implementations accept —
-    // BSD `ps` on macOS rejects the GNU-only `cmd` keyword outright, which made
-    // every lookup here return `None` on that platform.
-    let output = Command::new("ps")
-        .args(["-p", &pid.to_string(), "-o", "pid,ppid,command"])
-        .output()
-        .map_err(|e| {
-            crate::error::McpDomainError::Internal(format!(
-                "failed to run `ps -p {pid} -o pid,ppid,command`: {e}"
-            ))
-        })?;
-
-    if !output.status.success() {
-        return Ok(None);
-    }
-
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    let lines: Vec<&str> = stdout.lines().collect();
-
-    if lines.len() < 2 {
-        return Ok(None);
-    }
-
-    let parts: Vec<&str> = lines[1].split_whitespace().collect();
-    if parts.len() < 3 {
-        return Ok(None);
-    }
-
-    let pid: u32 = parts[0].parse().map_err(|_e| {
-        crate::error::McpDomainError::Internal(format!("Invalid PID: {}", parts[0]))
-    })?;
-    let parent_pid: u32 = parts[1].parse().map_err(|_e| {
-        crate::error::McpDomainError::Internal(format!("Invalid PPID: {}", parts[1]))
-    })?;
-
-    if pid == 0 {
-        return Err(crate::error::McpDomainError::Internal(
-            "PID cannot be 0".to_owned(),
-        ));
-    }
-
-    Ok(Some(ProcessInfo {
-        pid,
-        ppid: parent_pid,
-        command: parts[2..].join(" "),
-    }))
-}
-
-#[derive(Debug, Clone)]
-pub struct ProcessInfo {
-    pub pid: u32,
-    pub ppid: u32,
-    pub command: String,
+    super::ps::process_info(pid)
 }

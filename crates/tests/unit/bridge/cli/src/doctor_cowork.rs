@@ -2,7 +2,7 @@ use systemprompt_bridge::cli::doctor::cowork::{
     check_cowork_enable, check_personal_session_sentinel, check_plugin_installation_preference,
 };
 use systemprompt_bridge::cli::doctor::{Check, Status};
-use systemprompt_bridge::integration::cowork_plugins::PERSONAL_SESSION_UUID;
+use systemprompt_bridge::cowork_compat::PERSONAL_SESSION_UUID;
 use tempfile::TempDir;
 
 struct Env {

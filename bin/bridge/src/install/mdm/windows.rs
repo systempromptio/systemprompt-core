@@ -11,10 +11,9 @@ pub(super) fn refresh_managed_mcp_servers() -> Result<String, String> {
 }
 
 pub(super) fn write_managed_mcp_servers_value(value: &str) -> Result<String, String> {
-    // Why: Cowork >= 1.22209 ignores HKCU entirely once HKLM\SOFTWARE\Policies\
-    // Claude exists, and HKLM writes need elevation — hence the drift-only UAC.
-    let hkcu = r"HKCU\SOFTWARE\Policies\Claude";
-    let key = r"HKLM\SOFTWARE\Policies\Claude";
+    // Why: HKLM writes need elevation — hence the drift-only UAC.
+    let hkcu = crate::cowork_compat::HKCU_POLICY_KEY;
+    let key = crate::cowork_compat::HKLM_POLICY_KEY;
     if !crate::winproc::is_elevated() {
         _ = crate::winproc::reg_command()
             .args(["delete", hkcu, "/v", "managedMcpServers", "/f"])
@@ -96,14 +95,14 @@ fn elevated_write(value: &str) -> Result<(), String> {
 
 pub(super) fn remove_policy() -> Result<bool, String> {
     let hkcu = crate::winproc::reg_command()
-        .args(["delete", r"HKCU\SOFTWARE\Policies\Claude", "/f"])
+        .args(["delete", crate::cowork_compat::HKCU_POLICY_KEY, "/f"])
         .status()
         .map(|s| s.success())
         .map_err(|e| format!("reg delete HKCU Policies\\Claude: {e}"))?;
     let hklm = crate::winproc::reg_command()
         .args([
             "delete",
-            r"HKLM\SOFTWARE\Policies\Claude",
+            crate::cowork_compat::HKLM_POLICY_KEY,
             "/v",
             "managedMcpServers",
             "/f",

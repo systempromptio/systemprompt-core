@@ -22,7 +22,7 @@ use windows_sys::Win32::System::Registry::{
 
 use super::{ConfigStore, ConfigStoreError, ManagedPolicyRead};
 
-const POLICY_SUBKEY: &str = r"SOFTWARE\Policies\Claude";
+use crate::cowork_compat::POLICY_SUBKEY;
 
 pub(super) struct WindowsRegistryStore;
 

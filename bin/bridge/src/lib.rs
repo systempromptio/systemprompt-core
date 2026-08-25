@@ -24,6 +24,7 @@ pub mod basedirs;
 pub mod brand;
 pub mod cli;
 pub mod config;
+pub mod cowork_compat;
 pub mod fsutil;
 pub mod gateway;
 #[cfg(any(target_os = "windows", target_os = "macos"))]
