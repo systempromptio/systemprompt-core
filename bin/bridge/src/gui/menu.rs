@@ -109,6 +109,10 @@ pub fn attach_to_window(handles: &MenuBarHandles, window: &dyn Window) -> GuiRes
 }
 
 #[cfg(target_os = "macos")]
+#[expect(
+    clippy::unnecessary_wraps,
+    reason = "mirrors the Windows implementation, which attaches the menu bar to the HWND and can fail"
+)]
 pub fn attach_to_window(
     _handles: &MenuBarHandles,
     _window: &dyn winit::window::Window,

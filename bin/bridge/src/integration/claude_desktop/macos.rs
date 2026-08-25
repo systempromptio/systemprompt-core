@@ -109,14 +109,14 @@ pub(super) fn install_profile(path: &str) -> std::io::Result<()> {
 
 fn candidates(domain: &str) -> Vec<PathBuf> {
     let mut out = Vec::new();
-    if let Ok(user) = std::env::var("USER") {
-        if !user.is_empty() {
-            out.push(
-                PathBuf::from(MANAGED_PREFS_ROOT)
-                    .join(&user)
-                    .join(format!("{domain}.plist")),
-            );
-        }
+    if let Ok(user) = std::env::var("USER")
+        && !user.is_empty()
+    {
+        out.push(
+            PathBuf::from(MANAGED_PREFS_ROOT)
+                .join(&user)
+                .join(format!("{domain}.plist")),
+        );
     }
     out.push(PathBuf::from(MANAGED_PREFS_ROOT).join(format!("{domain}.plist")));
     out
@@ -165,6 +165,10 @@ fn format_plist_value(value: &serde_json::Value) -> String {
     }
 }
 
+#[expect(
+    clippy::literal_string_with_formatting_args,
+    reason = "these braces are template placeholders substituted with str::replace, not format args"
+)]
 fn render_profile(inputs: &ProfileGenInputs, payload_uuid: &str, profile_uuid: &str) -> String {
     let models = if inputs.models.is_empty() {
         super::shared::default_models()

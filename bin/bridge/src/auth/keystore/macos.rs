@@ -7,12 +7,12 @@ use super::{CertRef, DeviceCert, DeviceCertSource, KeystoreError, sha256_der};
 use security_framework::item::{ItemClass, ItemSearchOptions, Limit, Reference, SearchResult};
 use std::env;
 
-pub struct MacOsKeystore {
+pub(crate) struct MacOsKeystore {
     label: Option<String>,
 }
 
 impl MacOsKeystore {
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self {
             label: env::var(crate::brand::brand().env("DEVICE_CERT_LABEL")).ok(),
         }

@@ -33,6 +33,13 @@ pub(crate) const fn os_label(os: Os) -> &'static str {
 }
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
+#[cfg_attr(
+    target_os = "macos",
+    expect(
+        clippy::unnecessary_wraps,
+        reason = "only the Windows branch is fallible; the signature stays uniform so callers need no cfg"
+    )
+)]
 pub(crate) fn refresh_managed_mcp_servers() -> Result<String, String> {
     #[cfg(target_os = "windows")]
     {
@@ -50,6 +57,13 @@ pub(crate) fn remove_windows_policy() -> Result<bool, String> {
 }
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
+#[cfg_attr(
+    target_os = "macos",
+    expect(
+        clippy::unnecessary_wraps,
+        reason = "only the Windows branch is fallible; the signature stays uniform so callers need no cfg"
+    )
+)]
 fn write_empty_managed_mcp_servers() -> Result<String, String> {
     #[cfg(target_os = "windows")]
     {

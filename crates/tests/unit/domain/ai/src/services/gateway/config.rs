@@ -12,6 +12,7 @@ fn single_named_policy_validates() {
         policies: vec![GatewayPolicyEntry {
             name: "default".into(),
             enabled: true,
+            priority: 0,
             spec: GatewayPolicySpec::default(),
         }],
     };
@@ -24,6 +25,7 @@ fn empty_name_is_rejected() {
         policies: vec![GatewayPolicyEntry {
             name: "  ".into(),
             enabled: true,
+            priority: 0,
             spec: GatewayPolicySpec::default(),
         }],
     };
@@ -39,11 +41,13 @@ fn duplicate_names_are_rejected() {
             GatewayPolicyEntry {
                 name: "p1".into(),
                 enabled: true,
+                priority: 0,
                 spec: GatewayPolicySpec::default(),
             },
             GatewayPolicyEntry {
                 name: "p1".into(),
                 enabled: true,
+                priority: 0,
                 spec: GatewayPolicySpec::default(),
             },
         ],
@@ -103,6 +107,7 @@ fn heuristic_scanner_with_empty_effective_list_is_rejected() {
         policies: vec![GatewayPolicyEntry {
             name: "strict".to_owned(),
             enabled: true,
+            priority: 0,
             spec,
         }],
     };
@@ -125,6 +130,7 @@ fn heuristic_scanner_with_custom_phrases_validates() {
         policies: vec![GatewayPolicyEntry {
             name: "strict".to_owned(),
             enabled: true,
+            priority: 0,
             spec,
         }],
     };

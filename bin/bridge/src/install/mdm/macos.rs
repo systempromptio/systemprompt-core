@@ -28,6 +28,10 @@ fn loopback_api_key() -> String {
         .unwrap_or_default()
 }
 
+#[expect(
+    clippy::literal_string_with_formatting_args,
+    reason = "these braces are template placeholders substituted with str::replace, not format args"
+)]
 pub fn build_prefs_plist(gateway: &str, pubkey: Option<&str>) -> String {
     let pubkey_block = pubkey
         .map(|pk| PREFS_PUBKEY_LINE_TMPL.replace("{pubkey}", &xml::escape(pk)))
@@ -39,6 +43,10 @@ pub fn build_prefs_plist(gateway: &str, pubkey: Option<&str>) -> String {
         .replace("{pubkey_block}", &pubkey_block)
 }
 
+#[expect(
+    clippy::literal_string_with_formatting_args,
+    reason = "these braces are template placeholders substituted with str::replace, not format args"
+)]
 pub fn build_mobileconfig(gateway: &str, pubkey: Option<&str>) -> String {
     let pubkey_block = pubkey
         .map(|pk| MOBILECONFIG_PUBKEY_LINE_TMPL.replace("{pubkey}", &xml::escape(pk)))
@@ -101,7 +109,7 @@ fn validate_gateway(gateway: &str) -> Result<(), MdmError> {
     Ok(())
 }
 
-pub fn apply(gateway: &str, pubkey: Option<&str>) -> Result<Vec<String>, MdmError> {
+pub(crate) fn apply(gateway: &str, pubkey: Option<&str>) -> Result<Vec<String>, MdmError> {
     use std::fs;
 
     validate_gateway(gateway)?;
@@ -201,7 +209,10 @@ fn apply_summary(
     summary
 }
 
-pub fn apply_mobileconfig(gateway: &str, pubkey: Option<&str>) -> Result<Vec<String>, MdmError> {
+pub(crate) fn apply_mobileconfig(
+    gateway: &str,
+    pubkey: Option<&str>,
+) -> Result<Vec<String>, MdmError> {
     use std::fs;
     use std::process::Command;
 
@@ -241,7 +252,7 @@ pub fn apply_mobileconfig(gateway: &str, pubkey: Option<&str>) -> Result<Vec<Str
     Ok(summary)
 }
 
-pub fn remove_profile() -> Result<bool, MdmError> {
+pub(crate) fn remove_profile() -> Result<bool, MdmError> {
     let user = std::env::var("USER").unwrap_or_default();
     let user_path =
         format!("/Library/Managed Preferences/{user}/com.anthropic.claudefordesktop.plist");
@@ -253,11 +264,11 @@ pub fn remove_profile() -> Result<bool, MdmError> {
     }
 
     let script = format!(
-        r#"set -e
+        r"set -e
 /usr/bin/profiles remove -identifier {PAYLOAD_IDENTIFIER} 2>/dev/null || true
 {rm_lines}
 /usr/bin/killall cfprefsd 2>/dev/null || true
-"#,
+",
         rm_lines = if user_exists {
             format!(r#"rm -f "{MANAGED_PREFS_PATH}" "{user_path}""#)
         } else {

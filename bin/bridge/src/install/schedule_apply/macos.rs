@@ -13,6 +13,8 @@ use crate::schedule::{self, Os};
 // Why: launchd addresses the per-user domain as `gui/<uid>`.
 fn gui_domain() -> String {
     #![allow(unsafe_code, reason = "libc::getuid is the only way to read the uid")]
+    // SAFETY: getuid() is always safe; it reads the caller's real uid and cannot
+    // fail.
     format!("gui/{}", unsafe { libc::getuid() })
 }
 

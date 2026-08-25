@@ -93,6 +93,13 @@ pub fn org_plugins_user() -> Option<PathBuf> {
 }
 
 #[must_use]
+#[cfg_attr(
+    target_os = "macos",
+    expect(
+        clippy::needless_return,
+        reason = "the macOS branch is the whole body; the return keeps the cfg arms symmetric"
+    )
+)]
 pub fn org_plugins_effective() -> Option<OrgPluginsLocation> {
     #[cfg(target_os = "macos")]
     {
@@ -128,6 +135,13 @@ pub fn org_plugins_effective() -> Option<OrgPluginsLocation> {
 }
 
 #[must_use]
+#[cfg_attr(
+    target_os = "macos",
+    expect(
+        clippy::needless_return,
+        reason = "the macOS branch is the whole body; the return keeps the cfg arms symmetric"
+    )
+)]
 pub fn org_plugins_install_target() -> Option<OrgPluginsLocation> {
     #[cfg(target_os = "macos")]
     {

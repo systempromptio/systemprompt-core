@@ -3,7 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-pub fn escape(s: &str) -> String {
+pub(crate) fn escape(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
     for c in s.chars() {
         match c {
@@ -18,7 +18,7 @@ pub fn escape(s: &str) -> String {
     out
 }
 
-pub fn stable_uuid(seed: &str) -> String {
+pub(crate) fn stable_uuid(seed: &str) -> String {
     use sha2::{Digest, Sha256};
     let digest = Sha256::digest(seed.as_bytes());
     let b = &digest[..16];

@@ -12,8 +12,8 @@
 //!   shell script … with administrator privileges`, which produces the native
 //!   macOS credential dialog (the same one System Preferences uses).
 //!
-//! Callers hand this module a plain `/bin/sh` script; escaping for AppleScript
-//! is our problem.
+//! Callers hand this module a plain `/bin/sh` script; escaping for
+//! `AppleScript` is our problem.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

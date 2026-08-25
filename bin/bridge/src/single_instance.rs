@@ -20,7 +20,7 @@ pub(crate) enum SingletonResult {
 
 pub(crate) struct SingletonGuard {
     #[cfg(unix)]
-    _file: std::fs::File,
+    _file: fs::File,
     #[cfg(windows)]
     _handle: windows::MutexHandle,
 }
@@ -58,13 +58,10 @@ mod unix {
             Ok(p) => p,
             Err(e) => return SingletonResult::Error(e),
         };
-        if let Some(parent) = path.parent() {
-            if let Err(e) = std::fs::create_dir_all(parent) {
-                return SingletonResult::Error(format!(
-                    "create lock dir {}: {e}",
-                    parent.display()
-                ));
-            }
+        if let Some(parent) = path.parent()
+            && let Err(e) = fs::create_dir_all(parent)
+        {
+            return SingletonResult::Error(format!("create lock dir {}: {e}", parent.display()));
         }
         let mut file = match OpenOptions::new()
             .create(true)
@@ -144,7 +141,11 @@ mod windows {
 }
 
 #[cfg(unix)]
-pub fn lock_path() -> Result<PathBuf, String> {
+#[expect(
+    clippy::unnecessary_wraps,
+    reason = "mirrors the fallible windows lock_path so the shared sidecar_path call site stays cfg-agnostic"
+)]
+pub(crate) fn lock_path() -> Result<PathBuf, String> {
     let base = crate::basedirs::data_local_dir()
         .or_else(crate::basedirs::home_dir)
         .unwrap_or_else(std::env::temp_dir);

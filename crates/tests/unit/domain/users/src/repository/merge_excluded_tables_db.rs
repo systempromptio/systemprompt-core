@@ -3,10 +3,10 @@ use systemprompt_users::MERGE_EXCLUDED_SECURITY_TABLES;
 
 #[tokio::test]
 async fn excluded_security_tables_cascade_from_users() {
-    ensure_test_bootstrap().await;
-    let Some(url) = fixture_database_url() else {
+    let Ok(url) = fixture_database_url() else {
         return;
     };
+    ensure_test_bootstrap();
     let pool = fixture_db_pool(&url).await.expect("pool");
     let pg = pool.pool_arc().expect("pg pool");
 
