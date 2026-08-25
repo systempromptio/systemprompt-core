@@ -256,7 +256,7 @@ fn focus_handshake(instance: &RunningInstance) -> bool {
         return false;
     }
     // Why: the reply is a bare status line; 16 bytes covers "HTTP/1.1 204 No…".
-    let mut buf = [0_u8; 16];
+    let mut buf = [0u8; 16];
     let mut filled = 0;
     while filled < buf.len() {
         match stream.read(&mut buf[filled..]) {

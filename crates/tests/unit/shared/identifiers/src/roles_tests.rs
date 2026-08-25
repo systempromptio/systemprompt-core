@@ -16,10 +16,16 @@ fn role_id_serde_transparent_json() {
 }
 
 #[test]
-fn role_id_from_str_and_string_equal() {
-    let a: RoleId = "admin".into();
-    let b: RoleId = String::from("admin").into();
+fn role_id_accepts_equal_values_from_str_and_string() {
+    let a = RoleId::new("admin");
+    let b = RoleId::new(String::from("admin"));
     assert_eq!(a, b);
+}
+
+#[test]
+fn role_id_try_new_rejects_empty() {
+    assert!(RoleId::try_new("").is_err());
+    assert!(RoleId::try_new("admin").is_ok());
 }
 
 #[test]

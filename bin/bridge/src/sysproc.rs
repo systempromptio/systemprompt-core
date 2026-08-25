@@ -135,7 +135,7 @@ mod macos {
             return Vec::new();
         }
         let count = (needed as usize) / std::mem::size_of::<libc::pid_t>();
-        let mut pids = vec![0_i32; count + 32];
+        let mut pids = vec![0i32; count + 32];
         let bytes = i32::try_from(pids.len() * std::mem::size_of::<libc::pid_t>()).unwrap_or(0);
         // SAFETY: `pids` is a live buffer of `bytes` length that the call fills with
         // pids.
@@ -152,7 +152,7 @@ mod macos {
         }
         let n = (written as usize) / std::mem::size_of::<libc::pid_t>();
         let mut out = Vec::with_capacity(n);
-        let mut buf = vec![0_u8; PATH_MAX_BYTES];
+        let mut buf = vec![0u8; PATH_MAX_BYTES];
         for &pid in pids.iter().take(n) {
             if pid <= 0 {
                 continue;

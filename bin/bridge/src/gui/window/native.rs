@@ -288,6 +288,6 @@ fn chrome_attributes(attrs: WindowAttributes) -> WindowAttributes {
 }
 
 #[cfg(not(target_os = "macos"))]
-fn chrome_attributes(attrs: WindowAttributes) -> WindowAttributes {
+const fn chrome_attributes(attrs: WindowAttributes) -> WindowAttributes {
     attrs
 }

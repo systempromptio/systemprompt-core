@@ -192,10 +192,8 @@ fn dispatch_finished(app: &mut GuiApp, event: UiEvent) -> Result<(), Box<UiEvent
         UiEvent::ValidateFinished { report, reply_to } => {
             handlers::validate::on_validate_finished(app, report, reply_to);
         },
-        UiEvent::LoginFinished { result, reply_to } => {
-            handlers::auth::on_login_finished(app, result, reply_to);
-        },
-        UiEvent::SessionLoginFinished { result, reply_to } => {
+        UiEvent::LoginFinished { result, reply_to }
+        | UiEvent::SessionLoginFinished { result, reply_to } => {
             handlers::auth::on_login_finished(app, result, reply_to);
         },
         UiEvent::LogoutFinished { result, reply_to } => {
