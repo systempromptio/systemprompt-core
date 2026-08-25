@@ -188,6 +188,7 @@ format-check:
 # covers the main workspace alone.
 doc-check:
     RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --all-features
+    RUSTDOCFLAGS="-D warnings" cargo doc --manifest-path bin/bridge/Cargo.toml --no-deps
     cd crates/tests && RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps
 
 # Run clippy linter with strict settings (main workspace).
@@ -203,6 +204,11 @@ lint: lint-bridge
 # is already being cut.
 lint-bridge:
     cargo clippy --manifest-path bin/bridge/Cargo.toml -p systemprompt-bridge --all-targets -- -D warnings
+
+# The bridge mirrors the root [workspace.lints] tables by hand (standalone
+# workspace, no inheritance). Fail when the copies drift.
+lint-bridge-lints-sync:
+    ./scripts/lint-bridge-lints-sync.sh
 
 # Reject unverified sqlx::query calls outside the allowlist
 lint-sqlx:
@@ -285,7 +291,7 @@ hack:
 
 # Flag source files exceeding 300 lines (excludes target/, tests/, and `//!` doc heads)
 file-size:
-    @find crates -name '*.rs' -not -path '*/target/*' -not -path '*/tests/*' | xargs -r awk '!/^\/\/!/ {n[FILENAME]++} END {for (f in n) if (n[f]>300) print n[f], f}'
+    @find crates bin/bridge/src -name '*.rs' -not -path '*/target/*' -not -path '*/tests/*' | xargs -r awk '!/^\/\/!/ {n[FILENAME]++} END {for (f in n) if (n[f]>300) print n[f], f}'
 
 # Verify every production file has a doc head + BSL-1.1 license reference
 check-headers:

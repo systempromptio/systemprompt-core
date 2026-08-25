@@ -24,7 +24,10 @@ jobs:
       - uses: dtolnay/rust-toolchain@nightly
         with:
           components: rustfmt
-      - run: cargo fmt --all -- --check
+      - uses: extractions/setup-just@v2
+      # `just format-check` covers all three workspaces (root, crates/tests,
+      # bin/bridge); a bare root `cargo fmt` leaves the bridge unchecked.
+      - run: just format-check
 
   build:
     name: Build

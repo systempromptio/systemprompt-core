@@ -36,6 +36,27 @@ jobs:
       - uses: extractions/setup-just@v2
       - run: just lint
 
+  bridge-native:
+    # The bridge's GUI, winproc, and keystore backends are cfg-gated to
+    # Windows/macOS; the ubuntu lint job configures them out, so without this
+    # job that code is first compiled on a bridge-v* release tag.
+    name: Bridge clippy (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly-2026-06-03
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: bin/bridge
+      - run: cargo clippy --manifest-path bin/bridge/Cargo.toml --all-targets --all-features --locked -- -D warnings
+
   docs:
     name: Rustdoc (warnings as errors)
     runs-on: ubuntu-latest
@@ -43,9 +64,16 @@ jobs:
       RUSTDOCFLAGS: "-D warnings"
     steps:
       - uses: actions/checkout@v4
+      # bin/bridge's linux keyring backend pulls libdbus-sys via pkg-config.
+      - run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            .
+            bin/bridge
       - run: cargo doc --workspace --no-deps --all-features
+      - run: cargo doc --manifest-path bin/bridge/Cargo.toml --no-deps
 
   source-gates:
     name: Schema / SQL / comment / header / typed-ID linters
@@ -68,6 +96,7 @@ jobs:
       - run: just lint-test-value
       - run: just lint-no-untyped-admin
       - run: just lint-layers
+      - run: just lint-bridge-lints-sync
       - run: just lint-repo-construction
       - run: just check-release-tag
       - run: just machete
@@ -77,9 +106,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # bin/bridge's linux keyring backend pulls libdbus-sys via pkg-config.
+      - run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config
       - uses: dtolnay/rust-toolchain@1.94.0
       - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            .
+            bin/bridge
       - run: cargo check --workspace
+      - run: cargo check --manifest-path bin/bridge/Cargo.toml
 
   file-size:
     name: Source file size guard
