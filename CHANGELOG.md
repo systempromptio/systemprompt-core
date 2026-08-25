@@ -18,6 +18,7 @@
 ### Changed
 
 - **Breaking:** `Id::new` is `Id::new_unchecked` on **validated** typed identifiers (those declared with the `validated` arm, such as `ContextId` and `GatewayConversationId`). It panics when the value fails its format rule, which the old name hid behind an infallible-looking constructor; parse untrusted input with `try_new`. Identifiers declared `non_empty` keep `new` — their only precondition is non-emptiness.
+- `RoleId` is declared `non_empty`, so it gains `try_new` for parsing untrusted input. The access-control endpoints take a role id straight off the request body and must be able to reject an empty one; the arm keeps the infallible `new`, so existing call sites are unaffected.
 - **Breaking:** `MarketplaceCandidate::new` is replaced by `into_manifest_parts() -> (ManifestEntries, FilterContext)`, and `EntryKeepSets` holds typed entry ids instead of `HashSet<String>`, so a kind mismatch is a compile error rather than an empty filter result.
 - **Breaking:** `MessagingInbound.claims: FederatedIdentityClaims` is now `sender: SenderIdentity`. Call `sender.claims()` for the previous value; match on `Linked`/`Unlinked` to distinguish a verified sender from a first-touch one.
 - **Breaking:** `SafetyScannerRegistry::get(name)` is `create(name, &SafetyConfig)` and returns an owned scanner, so a scanner can be built per request against that request's policy instead of shared across all of them.
