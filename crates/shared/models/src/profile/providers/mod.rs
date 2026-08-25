@@ -25,7 +25,7 @@ use std::collections::{HashMap, HashSet};
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{ModelId, ProviderId, SecretName};
 
-use crate::services::ai::{ModelCapabilities, ModelLimits, ModelPricing};
+use crate::services::ai::{ModelCapabilities, ModelGovernance, ModelLimits, ModelPricing};
 
 pub use error::{ProviderRegistryError, ProviderRegistryResult};
 pub use protocol::WireProtocol;
@@ -57,6 +57,9 @@ pub struct ProviderModel {
 
     #[serde(default)]
     pub limits: ModelLimits,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub governance: Option<ModelGovernance>,
 }
 
 impl ProviderModel {
@@ -89,12 +92,25 @@ pub struct ProviderEntry {
 
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub models: Vec<ProviderModel>,
+
+    #[serde(default)]
+    pub governance: ModelGovernance,
 }
 
 impl ProviderEntry {
     #[must_use]
     pub fn find_model(&self, requested: &str) -> Option<&ProviderModel> {
         self.models.iter().find(|m| m.matches(requested))
+    }
+
+    /// Governance posture for `requested`: the model's own block when declared,
+    /// otherwise the provider-level default (an unlisted model inherits the
+    /// provider's posture).
+    #[must_use]
+    pub fn effective_governance(&self, requested: &str) -> ModelGovernance {
+        self.find_model(requested)
+            .and_then(|m| m.governance)
+            .unwrap_or(self.governance)
     }
 }
 

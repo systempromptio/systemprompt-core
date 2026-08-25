@@ -16,6 +16,7 @@ fn model(id: &str, aliases: &[&str]) -> ProviderModel {
     ProviderModel {
         id: ModelId::new(id),
         aliases: aliases.iter().map(|a| ModelId::new(*a)).collect(),
+        governance: None,
         upstream_model: None,
         pricing: Default::default(),
         capabilities: Default::default(),
@@ -49,6 +50,7 @@ fn provider_with_surface(
         surface,
         endpoint: "https://example.invalid/v1".to_owned(),
         api_key_secret: SecretName::new(secret),
+        governance: Default::default(),
         extra_headers: Default::default(),
         models,
     }

@@ -17,6 +17,7 @@ fn route(pattern: &str, provider: &str) -> GatewayRoute {
         extra_headers: HashMap::new(),
         pricing: None,
         when: None,
+        requires: None,
     };
     r.ensure_id();
     r

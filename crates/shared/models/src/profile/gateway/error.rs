@@ -45,6 +45,17 @@ pub enum GatewayProfileError {
     },
 
     #[error(
+        "gateway route '{route}' requires [{requirements}] but can dispatch model '{model}', \
+         whose provider/model governance does not declare them — annotate the provider or model \
+         with `governance:` or drop the route requirement"
+    )]
+    RouteGovernanceUnsatisfied {
+        route: String,
+        model: String,
+        requirements: String,
+    },
+
+    #[error(
         "gateway route '{route}' can dispatch model '{model}', which has no usable `pricing:` \
          (input_per_million and output_per_million must both be non-zero, or per_image_cents set)"
     )]

@@ -43,9 +43,9 @@ pub struct ProviderCatalogService;
 
 impl ProviderCatalogService {
     pub fn upsert_provider(registry: &mut ProviderRegistry, spec: ProviderSpec) {
-        let models = registry
+        let (models, governance) = registry
             .find_provider(spec.name.as_str())
-            .map(|p| p.models.clone())
+            .map(|p| (p.models.clone(), p.governance))
             .unwrap_or_default();
         registry
             .providers
@@ -58,6 +58,7 @@ impl ProviderCatalogService {
             api_key_secret: spec.api_key_secret,
             extra_headers: spec.extra_headers,
             models,
+            governance,
         });
     }
 
@@ -92,6 +93,7 @@ impl ProviderCatalogService {
             pricing: ModelPricing::default(),
             capabilities: ModelCapabilities::default(),
             limits: ModelLimits::default(),
+            governance: None,
         });
         Ok(())
     }

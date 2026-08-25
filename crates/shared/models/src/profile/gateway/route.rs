@@ -41,6 +41,8 @@ pub struct GatewayRoute {
     pub pricing: Option<ModelPricing>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub when: Option<RouteMatch>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub requires: Option<RouteRequirements>,
 }
 
 impl GatewayRoute {
@@ -155,6 +157,47 @@ impl RouteMatch {
             return Err(GatewayProfileError::RouteMatchContradictoryTools);
         }
         Ok(())
+    }
+}
+
+/// Governance demands a route places on its *target*, not on the request:
+/// `european: true` restricts the route to providers/models whose effective
+/// [`ModelGovernance`](crate::services::ai::ModelGovernance) declares
+/// `european`, and `no_retain: true` likewise. Checked at boot for every model
+/// the route can reach, and re-checked at dispatch so a selector-refined route
+/// or unlisted model cannot bypass it.
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct RouteRequirements {
+    #[serde(default)]
+    pub european: bool,
+    #[serde(default)]
+    pub no_retain: bool,
+}
+
+impl RouteRequirements {
+    #[must_use]
+    pub fn unmet(&self, governance: crate::services::ai::ModelGovernance) -> Vec<&'static str> {
+        let mut out = Vec::new();
+        if self.european && !governance.european {
+            out.push("european");
+        }
+        if self.no_retain && !governance.no_retain {
+            out.push("no_retain");
+        }
+        out
+    }
+
+    #[must_use]
+    pub fn declared(&self) -> Vec<&'static str> {
+        let mut out = Vec::new();
+        if self.european {
+            out.push("european");
+        }
+        if self.no_retain {
+            out.push("no_retain");
+        }
+        out
     }
 }
 

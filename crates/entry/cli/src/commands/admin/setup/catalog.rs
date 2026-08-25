@@ -66,6 +66,7 @@ pub fn build_routes(secrets: &SecretsData) -> Vec<GatewayRoute> {
                 extra_headers: HashMap::new(),
                 pricing: None,
                 when: None,
+                requires: None,
             };
             route.ensure_id();
             route

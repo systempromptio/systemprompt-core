@@ -53,6 +53,7 @@ fn route(provider: &str) -> GatewayRoute {
         extra_headers: extra,
         pricing: None,
         when: None,
+        requires: None,
     }
 }
 

@@ -101,6 +101,7 @@ fn route(id: &str) -> systemprompt_models::profile::GatewayRoute {
         extra_headers: std::collections::HashMap::new(),
         pricing: None,
         when: None,
+        requires: None,
     }
 }
 

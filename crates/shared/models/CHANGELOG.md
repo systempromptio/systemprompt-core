@@ -1,5 +1,12 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- `ModelGovernance` (`european`, `no_retain`): a data-governance posture declared on a provider entry (`ProviderEntry::governance`) or per model (`ProviderModel::governance`), resolved by `ProviderEntry::effective_governance`.
+- `RouteRequirements` on `GatewayRoute::requires`: a route can demand `european` and/or `no_retain` of its target; `GatewayConfig::validate` rejects a route whose reachable provider/model does not satisfy the requirement (`GatewayProfileError::RouteGovernanceUnsatisfied`).
+
 ## [0.38.0] - 2026-08-25
 
 ### Added

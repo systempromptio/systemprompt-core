@@ -149,6 +149,7 @@ pub fn add_route(profile: &mut Profile, args: &RouteAddArgs) -> Result<String> {
         extra_headers: HashMap::new(),
         pricing: None,
         when: None,
+        requires: None,
     };
     route.ensure_id();
     let spec = spec_mut(profile)?;

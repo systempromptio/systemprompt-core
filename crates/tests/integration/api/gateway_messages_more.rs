@@ -233,6 +233,7 @@ fn gateway_route() -> systemprompt_models::profile::GatewayRoute {
         extra_headers: std::collections::HashMap::new(),
         pricing: None,
         when: None,
+        requires: None,
     };
     route.ensure_id();
     route

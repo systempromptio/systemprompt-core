@@ -44,6 +44,7 @@ fn route() -> GatewayRoute {
         extra_headers: HashMap::new(),
         pricing: None,
         when: None,
+        requires: None,
     }
 }
 

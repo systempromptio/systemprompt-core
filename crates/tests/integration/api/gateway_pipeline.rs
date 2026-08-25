@@ -68,10 +68,12 @@ fn provider_registry(endpoint: &str, provider: &str) -> ProviderRegistry {
             surface: ApiSurface::Anthropic,
             endpoint: endpoint.to_owned(),
             api_key_secret: SecretName::new(API_KEY_SECRET),
+            governance: Default::default(),
             extra_headers: HashMap::new(),
             models: vec![ProviderModel {
                 id: ModelId::new(MODEL),
                 aliases: Vec::new(),
+                governance: None,
                 upstream_model: None,
                 pricing: Default::default(),
                 capabilities: Default::default(),
@@ -90,6 +92,7 @@ fn gateway_config(route_provider: &str) -> GatewayConfig {
         extra_headers: HashMap::new(),
         pricing: None,
         when: None,
+        requires: None,
     };
     route.ensure_id();
     GatewayConfig {

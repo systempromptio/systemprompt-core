@@ -32,7 +32,7 @@ pub use agent_config::{
 };
 pub use ai::{
     AiConfig, AiProviderConfig, HistoryConfig, McpConfig, ModelCapabilities, ModelDefinition,
-    ModelLimits, ModelPricing, ResilienceSettings, SamplingConfig,
+    ModelGovernance, ModelLimits, ModelPricing, ResilienceSettings, SamplingConfig,
 };
 pub use artifacts::{ARTIFACT_CONFIG_FILENAME, DEFAULT_ARTIFACT_CONTENT_FILE, DiskArtifactConfig};
 pub use bridge_policy::BridgePolicyConfig;

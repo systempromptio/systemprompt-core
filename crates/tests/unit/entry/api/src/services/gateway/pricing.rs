@@ -15,6 +15,7 @@ fn route(pattern: &str, provider: &str, pricing: Option<ModelPricing>) -> Gatewa
         extra_headers: Default::default(),
         pricing,
         when: None,
+        requires: None,
     }
 }
 
@@ -64,10 +65,12 @@ fn registry_pricing_used_when_no_route_override() {
             surface: ApiSurface::Anthropic,
             endpoint: "https://api.anthropic.com".to_owned(),
             api_key_secret: SecretName::new("anthropic"),
+            governance: Default::default(),
             extra_headers: Default::default(),
             models: vec![ProviderModel {
                 id: ModelId::new("claude-sonnet-4-rare"),
                 aliases: Vec::new(),
+                governance: None,
                 upstream_model: None,
                 pricing: custom,
                 capabilities: Default::default(),
@@ -95,10 +98,12 @@ fn resolve_falls_back_to_configured_model_when_served_alias_unknown() {
             surface: ApiSurface::OpenAi,
             endpoint: "https://api.openai.com/v1".to_owned(),
             api_key_secret: SecretName::new("openai"),
+            governance: Default::default(),
             extra_headers: Default::default(),
             models: vec![ProviderModel {
                 id: ModelId::new("gpt-5-mini"),
                 aliases: Vec::new(),
+                governance: None,
                 upstream_model: None,
                 pricing: custom,
                 capabilities: Default::default(),

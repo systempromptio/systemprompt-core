@@ -24,6 +24,7 @@ pub use config::{BridgeReleasesSpec, GatewayConfig, GatewayConfigSpec};
 pub use error::{GatewayProfileError, GatewayResult};
 pub use override_rule::{OverrideRuleAction, SystemPromptRule};
 pub use route::{
-    GatewayRoute, ResponseFormatKind, RouteMatch, slugify_pattern, synthesize_route_id,
+    GatewayRoute, ResponseFormatKind, RouteMatch, RouteRequirements, slugify_pattern,
+    synthesize_route_id,
 };
 pub use state::GatewayState;

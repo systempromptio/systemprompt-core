@@ -13,4 +13,7 @@ pub mod config;
 pub mod model;
 
 pub use config::{AiConfig, HistoryConfig, McpConfig, ResilienceSettings, SamplingConfig};
-pub use model::{AiProviderConfig, ModelCapabilities, ModelDefinition, ModelLimits, ModelPricing};
+pub use model::{
+    AiProviderConfig, ModelCapabilities, ModelDefinition, ModelGovernance, ModelLimits,
+    ModelPricing,
+};

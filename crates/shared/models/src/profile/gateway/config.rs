@@ -200,6 +200,7 @@ impl GatewayConfig {
             extra_headers: HashMap::new(),
             pricing: None,
             when: None,
+            requires: None,
         };
         route.ensure_id();
         Some(route)
@@ -249,6 +250,7 @@ impl GatewayConfig {
                 when.validate()?;
             }
             self.validate_route_pricing(registry, route)?;
+            validate_route_governance(registry, route)?;
         }
         for rule in &self.system_prompt_overrides {
             rule.validate()?;
@@ -332,4 +334,38 @@ impl GatewayConfig {
             bridge_releases: self.bridge_releases.clone(),
         }
     }
+}
+
+fn validate_route_governance(
+    registry: &ProviderRegistry,
+    route: &GatewayRoute,
+) -> GatewayResult<()> {
+    let Some(requires) = route.requires.as_ref() else {
+        return Ok(());
+    };
+    if requires.declared().is_empty() {
+        return Ok(());
+    }
+    let Some(entry) = route.resolve(registry) else {
+        return Ok(());
+    };
+    let mut check = |model_id: &str| -> GatewayResult<()> {
+        let unmet = requires.unmet(entry.effective_governance(model_id));
+        if unmet.is_empty() {
+            Ok(())
+        } else {
+            Err(GatewayProfileError::RouteGovernanceUnsatisfied {
+                route: route.id.as_str().to_owned(),
+                model: model_id.to_owned(),
+                requirements: unmet.join(","),
+            })
+        }
+    };
+    if let Some(upstream) = route.upstream_model.as_deref() {
+        return check(upstream);
+    }
+    for model in entry.models.iter().filter(|m| route.matches(m.id.as_str())) {
+        check(model.id.as_str())?;
+    }
+    Ok(())
 }

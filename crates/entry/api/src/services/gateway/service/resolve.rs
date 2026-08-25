@@ -57,7 +57,6 @@ pub(super) async fn resolve_upstream<'a>(
         let predicates = w.matched_predicates();
         (!predicates.is_empty()).then(|| format!("when:{}", predicates.join(",")))
     });
-
     let engine = RouteSelectorEngine::global();
     let (route, selector) = if engine.has_selectors() {
         match engine.refine(matched.as_ref(), request).await {
@@ -68,13 +67,19 @@ pub(super) async fn resolve_upstream<'a>(
         (matched, None)
     };
 
-    let route_match_descriptor = (declarative.is_some() || selector.is_some()).then(|| {
-        [declarative, selector]
-            .into_iter()
-            .flatten()
-            .collect::<Vec<_>>()
-            .join(";")
+    let governance = route.requires.as_ref().and_then(|r| {
+        let declared = r.declared();
+        (!declared.is_empty()).then(|| format!("requires:{}", declared.join(",")))
     });
+
+    let route_match_descriptor =
+        (declarative.is_some() || selector.is_some() || governance.is_some()).then(|| {
+            [declarative, selector, governance]
+                .into_iter()
+                .flatten()
+                .collect::<Vec<_>>()
+                .join(";")
+        });
 
     let provider = route.resolve(registry).ok_or_else(|| {
         DispatchError::PreAudit(anyhow!(
@@ -83,6 +88,30 @@ pub(super) async fn resolve_upstream<'a>(
             route.provider.as_str()
         ))
     })?;
+
+    if let Some(requires) = route.requires.as_ref() {
+        let upstream = route.effective_upstream_model(&request.model);
+        let unmet = requires.unmet(provider.effective_governance(upstream));
+        if !unmet.is_empty() {
+            tracing::warn!(
+                ai_request_id = %ai_request_id,
+                route = %route.id.as_str(),
+                model = %upstream,
+                requirements = %unmet.join(","),
+                "Gateway denied: route governance requirements unmet by resolved provider/model"
+            );
+            return Err(DispatchError::PreAudit(
+                PolicyDenied(format!(
+                    "route '{}' requires [{}] which provider '{}' does not satisfy for model '{}'",
+                    route.id.as_str(),
+                    unmet.join(","),
+                    route.provider.as_str(),
+                    upstream
+                ))
+                .into(),
+            ));
+        }
+    }
 
     let secrets = systemprompt_config::SecretsBootstrap::get()
         .map_err(|e| DispatchError::PreAudit(anyhow!("Secrets not available: {e}")))?;

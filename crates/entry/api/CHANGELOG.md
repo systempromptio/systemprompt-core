@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- Gateway dispatch enforces route `requires:` governance (`european`/`no_retain`): an unsatisfied requirement is denied pre-dispatch with a policy audit record, and the route-match descriptor carries `requires:<flags>`.
+
 ## [0.38.0] - 2026-08-25
 
 ### Added

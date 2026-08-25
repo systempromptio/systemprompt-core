@@ -80,10 +80,12 @@ fn registry(name: &str) -> ProviderRegistry {
             surface: ApiSurface::Anthropic,
             endpoint: "https://example.test/v1".to_owned(),
             api_key_secret: SecretName::new("test"),
+            governance: Default::default(),
             extra_headers: HashMap::new(),
             models: vec![ProviderModel {
                 id: ModelId::new("any"),
                 aliases: Vec::new(),
+                governance: None,
                 upstream_model: None,
                 pricing: Default::default(),
                 capabilities: Default::default(),

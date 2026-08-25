@@ -5,10 +5,10 @@ use systemprompt_identifiers::{ModelId, ProviderId, RouteId, SecretName};
 use systemprompt_models::profile::{
     ApiSurface, GatewayConfig, GatewayConfigSpec, GatewayProfileError, GatewayRoute, GatewayState,
     OverrideRuleAction, ProviderEntry, ProviderModel, ProviderRegistry, ResponseFormatKind,
-    RouteMatch, SystemPromptRule, WireProtocol, default_resource_audiences, slugify_pattern,
-    synthesize_route_id,
+    RouteMatch, RouteRequirements, SystemPromptRule, WireProtocol, default_resource_audiences,
+    slugify_pattern, synthesize_route_id,
 };
-use systemprompt_models::services::ModelPricing;
+use systemprompt_models::services::{ModelGovernance, ModelPricing};
 use systemprompt_models::wire::canonical::{
     CanonicalContent, CanonicalMessage, CanonicalRequest, CanonicalTool, ReasoningEffort,
     ResponseFormat, Role, ThinkingConfig,
@@ -48,6 +48,7 @@ fn route(pattern: &str) -> GatewayRoute {
         extra_headers: HashMap::new(),
         pricing: None,
         when: None,
+        requires: None,
     }
 }
 
@@ -80,6 +81,7 @@ fn route_finds_matching_model() {
             extra_headers: HashMap::new(),
             pricing: None,
             when: None,
+            requires: None,
         }],
         ..GatewayConfig::default()
     };
@@ -155,10 +157,12 @@ fn registry_with_endpoint(endpoint: &str) -> ProviderRegistry {
             surface: ApiSurface::Anthropic,
             endpoint: endpoint.to_owned(),
             api_key_secret: SecretName::new("test"),
+            governance: Default::default(),
             extra_headers: HashMap::new(),
             models: vec![ProviderModel {
                 id: ModelId::new("any"),
                 aliases: Vec::new(),
+                governance: None,
                 upstream_model: None,
                 pricing: Default::default(),
                 capabilities: Default::default(),
@@ -254,6 +258,7 @@ fn provider_entry(name: &str, endpoint: &str, models: Vec<ProviderModel>) -> Pro
         surface: ApiSurface::Anthropic,
         endpoint: endpoint.to_owned(),
         api_key_secret: SecretName::new(name),
+        governance: Default::default(),
         extra_headers: HashMap::new(),
         models,
     }
@@ -266,6 +271,7 @@ fn model(id: &str) -> ProviderModel {
     ProviderModel {
         id: ModelId::new(id),
         aliases: Vec::new(),
+        governance: None,
         upstream_model: None,
         pricing: ModelPricing {
             input_per_million: 3.0,
@@ -315,6 +321,7 @@ fn route_to(pattern: &str, provider: &str) -> GatewayRoute {
         extra_headers: HashMap::new(),
         pricing: None,
         when: None,
+        requires: None,
     };
     r.ensure_id();
     r
@@ -942,6 +949,7 @@ fn priced_registry(models: Vec<ProviderModel>) -> ProviderRegistry {
             surface: ApiSurface::Anthropic,
             endpoint: "https://api.anthropic.com/v1".to_owned(),
             api_key_secret: SecretName::new("test"),
+            governance: Default::default(),
             extra_headers: HashMap::new(),
             models,
         }],
@@ -952,6 +960,7 @@ fn priced_model(id: &str, pricing: ModelPricing) -> ProviderModel {
     ProviderModel {
         id: ModelId::new(id),
         aliases: Vec::new(),
+        governance: None,
         upstream_model: None,
         pricing,
         capabilities: Default::default(),
@@ -1098,4 +1107,73 @@ fn validate_skips_pricing_checks_when_the_gateway_is_disabled() {
     let mut gw = enabled_gateway(vec![route("claude-*")]);
     gw.enabled = false;
     assert!(gw.validate(&registry).is_ok());
+}
+
+fn requires_no_retain() -> RouteRequirements {
+    RouteRequirements {
+        european: false,
+        no_retain: true,
+    }
+}
+
+#[test]
+fn validate_rejects_governance_route_over_unannotated_provider() {
+    let registry = priced_registry(vec![priced_model("claude-opus-5", token_rates(5.0, 25.0))]);
+    let mut r = route("claude-*");
+    r.id = RouteId::new("gov");
+    r.requires = Some(requires_no_retain());
+    match enabled_gateway(vec![r]).validate(&registry) {
+        Err(GatewayProfileError::RouteGovernanceUnsatisfied {
+            route,
+            model,
+            requirements,
+        }) => {
+            assert_eq!(route, "gov");
+            assert_eq!(model, "claude-opus-5");
+            assert_eq!(requirements, "no_retain");
+        },
+        other => panic!("expected RouteGovernanceUnsatisfied, got {other:?}"),
+    }
+}
+
+#[test]
+fn validate_accepts_governance_route_when_provider_declares_it() {
+    let mut registry = priced_registry(vec![priced_model("claude-opus-5", token_rates(5.0, 25.0))]);
+    registry.providers[0].governance = ModelGovernance {
+        european: false,
+        no_retain: true,
+    };
+    let mut r = route("claude-*");
+    r.requires = Some(requires_no_retain());
+    assert!(enabled_gateway(vec![r]).validate(&registry).is_ok());
+}
+
+#[test]
+fn model_governance_overrides_provider_default() {
+    let mut registry = priced_registry(vec![
+        priced_model("claude-opus-5", token_rates(5.0, 25.0)),
+        priced_model("claude-eu", token_rates(3.0, 15.0)),
+    ]);
+    registry.providers[0].models[1].governance = Some(ModelGovernance {
+        european: true,
+        no_retain: true,
+    });
+    let entry = &registry.providers[0];
+    assert!(!entry.effective_governance("claude-opus-5").european);
+    assert!(entry.effective_governance("claude-eu").european);
+    assert!(entry.effective_governance("unlisted").no_retain == entry.governance.no_retain);
+}
+
+#[test]
+fn requirements_unmet_lists_only_failing_flags() {
+    let requires = RouteRequirements {
+        european: true,
+        no_retain: true,
+    };
+    let gov = ModelGovernance {
+        european: true,
+        no_retain: false,
+    };
+    assert_eq!(requires.unmet(gov), vec!["no_retain"]);
+    assert_eq!(requires.declared(), vec!["european", "no_retain"]);
 }
