@@ -64,7 +64,6 @@ fn marketplace(id: &MarketplaceId, access: MarketplaceAccess) -> MarketplaceConf
         license: "MIT".to_owned(),
         visibility: MarketplaceVisibility::Public,
         plugins: PluginComponentRef::default(),
-        skills: PluginComponentRef::default(),
         mcp_servers: PluginComponentRef::default(),
         agents: PluginComponentRef::default(),
         artifacts: PluginComponentRef::default(),

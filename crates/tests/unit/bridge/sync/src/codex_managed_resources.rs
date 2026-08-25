@@ -48,6 +48,7 @@ fn manifest_with(
         host_model_protocols: Default::default(),
         artifacts: vec![],
         allow_claude_ai_connectors: false,
+        diagnostics: Vec::new(),
     }
 }
 

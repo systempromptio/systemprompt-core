@@ -42,6 +42,7 @@ systemprompt-logging = { workspace = true }
 systemprompt-users = { workspace = true }
 systemprompt-oauth = { workspace = true }
 systemprompt-database = { workspace = true }
+systemprompt-marketplace = { workspace = true }
 systemprompt-content = { workspace = true }
 systemprompt-files = { workspace = true }
 systemprompt-scheduler = { workspace = true }

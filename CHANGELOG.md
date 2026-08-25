@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.38.0] - 2026-08-25
+
+### Added
+
+- The signed manifest carries an optional `diagnostics` array naming configuration gaps that silently reduce what a sync installs — for example a plugin `skills.include` entry that resolves to nothing. Older bridges ignore the field.
+- The bridge workspace is held to the same continuous gates as the main workspace: formatting, rustdoc with warnings as errors, the MSRV check, the file-size report, and a native Windows/macOS clippy pass now cover `bin/bridge` on every pull request, and a new gate fails when the bridge's mirrored lint tables drift from the root workspace's.
+- `systemprompt core marketplace explain` dry-runs manifest assembly and reports, per catalogue entry, whether it is delivered and — when it is not — the stage that dropped it (disk scan, parse, disabled, marketplace scope, plugin selection, access filter, orphan prune) and why. `ManifestService::assemble_candidate_traced` is the seam behind it; the production path pays nothing.
+- Config validation closes the gap that let a registered skill silently ship nothing: a `plugin.skills.include` entry naming an unknown skill is now a load error (it was the only component reference never validated), an unknown entry in a skills/agents `exclude` list warns, a marketplace including a disabled plugin warns, and `settings.default_marketplace_id` pointing at a disabled marketplace is an error.
+- `systemprompt core plugins validate` resolves a plugin's skill references against each skill's *declared id* instead of its directory name, and warns when a referenced skill is disabled.
+
+### Changed
+
+- **Breaking:** `SignedManifest` gains a `diagnostics: Vec<String>` field. Migrate by adding `diagnostics: Vec::new()` to any struct literal; `SignedManifestBuilder` is unaffected.
+- **Breaking:** manifest skills are now derived, never configured. `MarketplaceConfig` no longer has a `skills` component reference — the manifest's skills array is the union of skills the enabled, marketplace-included plugins actually ship (plugin `skills` refs plus their included agents' skill refs), mirroring how artifacts are already gated, so it cannot diverge from what plugin bundles deliver. `MarketplaceConfig` now rejects unknown fields, so a stale `skills:` block in marketplace YAML is a parse error. A catalogue skill no plugin selects is dropped from the manifest with a warning; the marketplace ABAC attribute floor derives skill membership the same way.
+- **Breaking:** skill ids are canonically snake_case (lowercase alphanumeric plus underscores, 3–64 chars) and must equal the skill's directory name. The lossy catalogue-side hyphen-to-underscore derivation is deleted; an empty config id falls back to the directory name verbatim, and a mismatched id/directory pair is a catalogue error. The bundle layout and SKILL.md `name` keep the kebab-case projection Claude Code's skill contract expects — snake ids contain no hyphens, so the projection is injective and two ids can never collide on a bundle path. Kebab-form ids in skill configs are now load errors.
+- **Breaking:** a duplicate skill or plugin id across on-disk catalogue directories is now a hard loader error, matching the existing duplicate-marketplace behaviour, instead of silently keeping the first directory scanned. A root-config declaration still shadows an on-disk descriptor of the same id.
+- With at least one enabled marketplace configured, an unresolvable active-marketplace selection now fails manifest assembly closed (`MarketplaceError::NoDefault`) instead of assembling unscoped; disabled marketplaces no longer count toward selection. A skill directory without a `config.yaml` and a disabled skill are now logged when skipped.
+
 ## [0.37.0] - 2026-08-24
 
 ### Added

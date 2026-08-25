@@ -57,6 +57,7 @@ pub async fn manifest(
         hooks,
         managed_mcp_servers,
         artifacts,
+        diagnostics,
         // Why: marketplace_id/access/artifact_owners are filter context, not
         // part of the wire manifest.
         ..
@@ -88,6 +89,7 @@ pub async fn manifest(
         host_model_protocols,
         artifacts,
         allow_claude_ai_connectors,
+        diagnostics,
     };
 
     seal_manifest(&manifest).map(Json)

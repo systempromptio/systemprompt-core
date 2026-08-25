@@ -92,14 +92,10 @@ pub fn build_agent_command(params: BuildAgentCommandParams<'_>) -> Command {
     if let Ok(home) = std::env::var("HOME") {
         command.env("HOME", home);
     }
-    // Why: SSRF guard allowlist (see
-    // systemprompt_models::net::TRUSTED_HTTP_HOSTS_ENV). The agent child
-    // re-validates outbound URLs when it loads the profile catalog, so the
-    // operator's process-wide trust assertion must travel with it — env_clear
-    // would otherwise leave the child running with an empty allowlist and
-    // reject sealed-network hostnames the parent already accepted.
-    if let Ok(trusted) = std::env::var(systemprompt_models::net::TRUSTED_HTTP_HOSTS_ENV) {
-        command.env(systemprompt_models::net::TRUSTED_HTTP_HOSTS_ENV, trusted);
+    if let Some((key, value)) =
+        systemprompt_models::net::trusted_hosts_env_entry(|name| std::env::var(name).ok())
+    {
+        command.env(key, value);
     }
     command
         .env("SYSTEMPROMPT_PROFILE", profile_path)
@@ -119,23 +115,7 @@ pub fn build_agent_command(params: BuildAgentCommandParams<'_>) -> Command {
         command.env("FLY_APP_NAME", fly_app);
     }
 
-    place_in_own_process_group(&mut command);
+    systemprompt_models::subprocess::place_in_own_process_group(&mut command);
 
     command
-}
-
-#[cfg(unix)]
-fn place_in_own_process_group(command: &mut Command) {
-    use std::os::unix::process::CommandExt;
-    // Why: pgid 0 makes the child its own group leader (pgid == pid), so the
-    // supervisor can signal the whole group on shutdown and reach any a2a
-    // children the agent spawns, not just the agent itself.
-    command.process_group(0);
-}
-
-#[cfg(windows)]
-fn place_in_own_process_group(command: &mut Command) {
-    use std::os::windows::process::CommandExt;
-    const CREATE_NEW_PROCESS_GROUP: u32 = 0x0000_0200;
-    command.creation_flags(CREATE_NEW_PROCESS_GROUP);
 }

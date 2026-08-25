@@ -68,6 +68,16 @@ pub fn trusted_http_hosts_from_env() -> Vec<String> {
         .unwrap_or_default()
 }
 
+// Why: spawned children re-validate outbound URLs when they load the profile
+// catalog, so the operator's process-wide trust assertion must travel with
+// them — env_clear would otherwise leave a child running with an empty
+// allowlist and reject sealed-network hostnames the parent already accepted.
+pub fn trusted_hosts_env_entry(
+    lookup: impl Fn(&str) -> Option<String>,
+) -> Option<(String, String)> {
+    lookup(TRUSTED_HTTP_HOSTS_ENV).map(|trusted| (TRUSTED_HTTP_HOSTS_ENV.to_owned(), trusted))
+}
+
 pub fn validate_outbound_url(url: &str) -> Result<url::Url, OutboundUrlError> {
     let no_trust: [&str; 0] = [];
     validate_outbound_url_with_trust(url, &no_trust)

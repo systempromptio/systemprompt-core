@@ -139,10 +139,18 @@ fn validate_skill_refs(
     warnings: &mut Vec<String>,
 ) {
     if plugin.skills.source == systemprompt_models::ComponentSource::Explicit {
+        let skills = declared_skills(skills_path);
         for skill_id in &plugin.skills.include {
-            let skill_dir = skills_path.join(skill_id);
-            if !skill_dir.exists() {
-                errors.push(format!("Referenced skill '{}' not found", skill_id));
+            match skills.get(skill_id.as_str()) {
+                None => errors.push(format!(
+                    "Referenced skill '{}' does not exist (no skill declares that id)",
+                    skill_id
+                )),
+                Some(false) => warnings.push(format!(
+                    "Referenced skill '{}' is disabled and will not be delivered",
+                    skill_id
+                )),
+                Some(true) => {},
             }
         }
     }
@@ -152,6 +160,33 @@ fn validate_skill_refs(
     {
         warnings.push("Skills directory does not exist".to_owned());
     }
+}
+
+fn declared_skills(skills_path: &Path) -> std::collections::HashMap<String, bool> {
+    let mut skills = std::collections::HashMap::new();
+    let Ok(entries) = std::fs::read_dir(skills_path) else {
+        return skills;
+    };
+    for entry in entries.flatten() {
+        let dir = entry.path();
+        if !dir.is_dir() {
+            continue;
+        }
+        let Ok(content) = std::fs::read_to_string(dir.join("config.yaml")) else {
+            continue;
+        };
+        let Ok(config) = serde_yaml::from_str::<systemprompt_models::DiskSkillConfig>(&content)
+        else {
+            continue;
+        };
+        let id = if config.id.as_str().is_empty() {
+            entry.file_name().to_string_lossy().into_owned()
+        } else {
+            config.id.as_str().to_owned()
+        };
+        skills.insert(id, config.enabled);
+    }
+    skills
 }
 
 fn validate_scripts(

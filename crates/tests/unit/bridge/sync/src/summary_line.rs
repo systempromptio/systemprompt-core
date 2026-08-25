@@ -14,6 +14,7 @@ fn summary() -> SyncSummary {
         removed: vec![],
         malformed: vec![],
         host_failures: vec![],
+        diagnostics: vec![],
     }
 }
 
@@ -26,7 +27,7 @@ fn a_clean_sync_renders_ok_with_every_count() {
         "{line}"
     );
     assert!(
-        line.contains("3 skills, 1 agents, 4 hooks, 5 MCP"),
+        line.contains("3 skills installed, 1 agents, 4 hooks, 5 MCP"),
         "{line}"
     );
     assert!(
@@ -112,4 +113,16 @@ fn the_unsafe_flag_warnings_run_without_a_pinned_pubkey() {
         pinned.is_none(),
         "the tofu warning path is the one exercised when nothing is pinned"
     );
+}
+
+#[test]
+fn gateway_diagnostics_are_appended_to_the_summary_line() {
+    let mut s = summary();
+    s.diagnostics = vec![
+        "skill 'crm_leads' is in the marketplace scope but no enabled plugin includes it"
+            .to_owned(),
+    ];
+    let line = s.one_line();
+    assert!(line.contains("1 gateway diagnostic(s):"), "{line}");
+    assert!(line.contains("crm_leads"), "{line}");
 }

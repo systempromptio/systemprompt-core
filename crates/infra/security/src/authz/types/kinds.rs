@@ -147,6 +147,20 @@ pub enum EntityKind {
 }
 
 impl EntityKind {
+    pub const ALL: &'static [Self] = &[
+        Self::GatewayRoute,
+        Self::McpServer,
+        Self::Plugin,
+        Self::Agent,
+        Self::Marketplace,
+        Self::Skill,
+        Self::Hook,
+        Self::SlackWorkspace,
+        Self::SlackChannel,
+        Self::TeamsTenant,
+        Self::TeamsConversation,
+    ];
+
     pub const fn as_str(self) -> &'static str {
         match self {
             Self::GatewayRoute => "gateway_route",

@@ -41,17 +41,8 @@ pub fn build_environment(
             env.push((inherited.to_owned(), value));
         }
     }
-    // Why: SSRF guard allowlist (see
-    // systemprompt_models::net::TRUSTED_HTTP_HOSTS_ENV). The MCP child
-    // re-validates outbound URLs when it loads the profile catalog,
-    // so the operator's process-wide trust assertion must travel with it —
-    // env_clear would otherwise leave the child running with an empty allowlist
-    // and reject sealed-network hostnames the parent already accepted.
-    if let Some(trusted) = lookup(systemprompt_models::net::TRUSTED_HTTP_HOSTS_ENV) {
-        env.push((
-            systemprompt_models::net::TRUSTED_HTTP_HOSTS_ENV.to_owned(),
-            trusted,
-        ));
+    if let Some(entry) = systemprompt_models::net::trusted_hosts_env_entry(&lookup) {
+        env.push(entry);
     }
 
     env.push((
@@ -204,7 +195,7 @@ pub fn spawn_server(paths: &AppPaths, config: &McpServerConfig) -> McpDomainResu
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::from(log_file))
         .stdin(std::process::Stdio::null());
-    place_in_own_process_group(&mut child_command);
+    systemprompt_models::subprocess::place_in_own_process_group(&mut child_command);
 
     let pid = systemprompt_models::subprocess::spawn_supervised(child_command).map_err(|e| {
         crate::error::McpDomainError::Internal(format!(
@@ -214,22 +205,6 @@ pub fn spawn_server(paths: &AppPaths, config: &McpServerConfig) -> McpDomainResu
     })?;
 
     Ok(pid)
-}
-
-#[cfg(unix)]
-fn place_in_own_process_group(command: &mut Command) {
-    use std::os::unix::process::CommandExt;
-    // Why: pgid 0 makes the child its own group leader (pgid == pid), so the
-    // supervisor can signal the whole group on shutdown rather than orphaning
-    // any helper processes the server spawns.
-    command.process_group(0);
-}
-
-#[cfg(windows)]
-fn place_in_own_process_group(command: &mut Command) {
-    use std::os::windows::process::CommandExt;
-    const CREATE_NEW_PROCESS_GROUP: u32 = 0x0000_0200;
-    command.creation_flags(CREATE_NEW_PROCESS_GROUP);
 }
 
 pub fn verify_binary(paths: &AppPaths, config: &McpServerConfig) -> McpDomainResult<()> {

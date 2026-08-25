@@ -64,6 +64,7 @@ pub(super) fn discover_skills(
         return Ok(());
     };
 
+    let mut discovered: std::collections::HashSet<String> = std::collections::HashSet::new();
     for entry in read_catalog(&skills_dir)? {
         let entry = next_entry(&skills_dir, entry)?;
         let Some((config_path, content)) = read_entry_config(&entry.path(), SKILL_CONFIG_FILENAME)?
@@ -78,7 +79,14 @@ pub(super) fn discover_skills(
             })?;
 
         let key = disk.id.as_str().to_owned();
+        if !discovered.insert(key.clone()) {
+            return Err(ConfigLoadError::DuplicateSkill(key));
+        }
         if merged.skills.skills.contains_key(&key) {
+            tracing::debug!(
+                skill = %key,
+                "skill declared in the services config shadows its on-disk descriptor"
+            );
             continue;
         }
         merged.skills.skills.insert(key, skill_from_disk(disk));
@@ -109,6 +117,7 @@ pub(super) fn discover_plugins(
         return Ok(());
     };
 
+    let mut discovered: std::collections::HashSet<String> = std::collections::HashSet::new();
     for entry in read_catalog(&plugins_dir)? {
         let entry = next_entry(&plugins_dir, entry)?;
         let Some((config_path, content)) = read_entry_config(&entry.path(), "config.yaml")? else {
@@ -122,7 +131,14 @@ pub(super) fn discover_plugins(
             })?;
 
         let id = file.plugin.id.as_str().to_owned();
+        if !discovered.insert(id.clone()) {
+            return Err(ConfigLoadError::DuplicatePlugin(id));
+        }
         if merged.plugins.contains_key(&id) {
+            tracing::debug!(
+                plugin = %id,
+                "plugin declared in the services config shadows its on-disk descriptor"
+            );
             continue;
         }
         merged.plugins.insert(id, file.plugin);

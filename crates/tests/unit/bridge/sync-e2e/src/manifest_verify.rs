@@ -47,6 +47,7 @@ fn manifest() -> SignedManifest {
         host_model_protocols: std::collections::BTreeMap::default(),
         artifacts: vec![],
         allow_claude_ai_connectors: false,
+        diagnostics: Vec::new(),
     }
 }
 
@@ -322,4 +323,77 @@ fn run_once_tofu_rejects_wrong_key_signature() {
         err.to_lowercase().contains("signature"),
         "unexpected error: {err}"
     );
+}
+
+#[test]
+fn decode_reports_bridge_too_old_before_shape_errors() {
+    let env = SignedManifestEnvelope {
+        payload: r#"{"min_bridge_version":"999.0.0","plugins":42}"#.to_owned(),
+        signature: ManifestSignature::new("irrelevant"),
+    };
+    match decode_payload(&env) {
+        Err(ManifestError::BridgeTooOld { required, .. }) => assert_eq!(required, "999.0.0"),
+        other => panic!("an out-of-date bridge must be told to update, got {other:?}"),
+    }
+}
+
+#[test]
+fn decode_reports_schema_too_new_before_shape_errors() {
+    let env = SignedManifestEnvelope {
+        payload: format!(
+            r#"{{"min_schema_version":{},"plugins":42}}"#,
+            MANIFEST_SCHEMA_VERSION + 1
+        ),
+        signature: ManifestSignature::new("irrelevant"),
+    };
+    match decode_payload(&env) {
+        Err(ManifestError::SchemaTooNew {
+            required,
+            supported,
+        }) => {
+            assert_eq!(required, MANIFEST_SCHEMA_VERSION + 1);
+            assert_eq!(supported, MANIFEST_SCHEMA_VERSION);
+        },
+        other => panic!("a newer schema must be reported as such, got {other:?}"),
+    }
+}
+
+#[test]
+fn decode_still_reports_shape_errors_without_version_floors() {
+    let env = SignedManifestEnvelope {
+        payload: r#"{"plugins":42}"#.to_owned(),
+        signature: ManifestSignature::new("irrelevant"),
+    };
+    assert!(
+        matches!(decode_payload(&env), Err(ManifestError::PayloadParse(_))),
+        "garbage with satisfiable version floors stays a parse error"
+    );
+}
+
+#[test]
+fn version_floor_is_checked_against_the_compat_line_not_the_brand_display_version() {
+    use systemprompt_bridge::brand::COMPAT_VERSION;
+    let accepted = SignedManifestEnvelope {
+        payload: serde_json::to_string(&SignedManifest {
+            min_bridge_version: Some(COMPAT_VERSION.to_owned()),
+            ..manifest()
+        })
+        .unwrap(),
+        signature: ManifestSignature::new("irrelevant"),
+    };
+    decode_payload(&accepted)
+        .expect("a floor equal to the core bridge crate version must be accepted");
+
+    let rejected = SignedManifestEnvelope {
+        payload: serde_json::to_string(&SignedManifest {
+            min_bridge_version: Some("999.0.0".to_owned()),
+            ..manifest()
+        })
+        .unwrap(),
+        signature: ManifestSignature::new("irrelevant"),
+    };
+    match decode_payload(&rejected) {
+        Err(ManifestError::BridgeTooOld { local, .. }) => assert_eq!(local, COMPAT_VERSION),
+        other => panic!("expected BridgeTooOld carrying the compat line, got {other:?}"),
+    }
 }

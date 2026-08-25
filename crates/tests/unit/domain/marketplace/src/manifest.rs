@@ -44,7 +44,6 @@ async fn assemble_candidate_scopes_to_active_marketplace() {
     let dir = tempfile::tempdir().expect("temp services root");
     let mut mp = marketplace("market");
     mp.access = access(true, &["eng"]);
-    mp.skills = include(&[]);
     let config = config_with(vec![mp]);
 
     let candidate = ManifestService::assemble_candidate(
@@ -347,6 +346,7 @@ fn sample_manifest(version: &ManifestVersion) -> SignedManifest {
         host_model_protocols: BTreeMap::new(),
         artifacts: vec![],
         allow_claude_ai_connectors: false,
+        diagnostics: Vec::new(),
     }
 }
 
@@ -409,5 +409,143 @@ fn seal_is_deterministic_for_identical_manifests() {
         first.signature.as_str(),
         second.signature.as_str(),
         "identical manifests must produce identical signatures",
+    );
+}
+
+#[tokio::test]
+async fn manifest_skills_are_derived_from_plugin_selection() {
+    let _guard = warn_subscriber_guard();
+    let dir = tempfile::tempdir().expect("temp services root");
+    crate::helpers::write_skill_on_disk(dir.path(), "shipped_skill");
+    crate::helpers::write_skill_on_disk(dir.path(), "orphan_skill");
+
+    let config =
+        crate::helpers::config_with_plugins(vec![crate::helpers::plugin_shipping_artifacts(
+            "owner-plugin",
+            "shipped_skill",
+            &[],
+        )]);
+
+    let candidate = ManifestService::assemble_candidate(
+        &config,
+        dir.path(),
+        "https://api.example.com",
+        &AllowAllFilter,
+        &fixture_user_id(),
+    )
+    .await
+    .expect("assemble candidate");
+
+    assert_eq!(
+        candidate
+            .skills
+            .iter()
+            .map(|s| s.id.as_str())
+            .collect::<Vec<_>>(),
+        vec!["shipped_skill"],
+        "manifest skills are exactly what the enabled plugins ship; the orphan is dropped",
+    );
+}
+
+#[tokio::test]
+async fn orphan_skill_drop_is_traced_at_plugin_selection() {
+    use systemprompt_marketplace::{ManifestTrace, TraceKind, TraceStage};
+
+    let _guard = warn_subscriber_guard();
+    let dir = tempfile::tempdir().expect("temp services root");
+    crate::helpers::write_skill_on_disk(dir.path(), "orphan_skill");
+    let config = crate::helpers::config_with_plugins(vec![]);
+
+    let mut trace = ManifestTrace::default();
+    let candidate = ManifestService::assemble_candidate_traced(
+        &config,
+        dir.path(),
+        "https://api.example.com",
+        &AllowAllFilter,
+        &fixture_user_id(),
+        &mut trace,
+    )
+    .await
+    .expect("assemble candidate traced");
+
+    assert!(candidate.skills.is_empty());
+    assert!(
+        trace.events.iter().any(|e| e.kind == TraceKind::Skill
+            && e.id == "orphan_skill"
+            && e.stage == TraceStage::PluginSelection),
+        "trace records the plugin-selection drop: {:?}",
+        trace.events,
+    );
+}
+
+#[tokio::test]
+async fn disabled_skill_skip_is_traced() {
+    use systemprompt_marketplace::{ManifestTrace, TraceKind, TraceStage};
+
+    let dir = tempfile::tempdir().expect("temp services root");
+    let skill_dir = dir.path().join("skills").join("off_skill");
+    std::fs::create_dir_all(&skill_dir).expect("create skill dir");
+    std::fs::write(
+        skill_dir.join("config.yaml"),
+        "id: off_skill\nname: Off\ndescription: d\nenabled: false\n",
+    )
+    .expect("write config");
+    let config = crate::helpers::config_with_plugins(vec![]);
+
+    let mut trace = ManifestTrace::default();
+    ManifestService::assemble_candidate_traced(
+        &config,
+        dir.path(),
+        "https://api.example.com",
+        &AllowAllFilter,
+        &fixture_user_id(),
+        &mut trace,
+    )
+    .await
+    .expect("assemble candidate traced");
+
+    assert!(
+        trace.events.iter().any(|e| e.kind == TraceKind::Skill
+            && e.id == "off_skill"
+            && e.stage == TraceStage::Disabled),
+        "trace records the disabled skip: {:?}",
+        trace.events,
+    );
+}
+
+#[tokio::test]
+async fn assembly_fails_closed_when_active_marketplace_is_unresolvable() {
+    let dir = tempfile::tempdir().expect("temp services root");
+    let config = config_with(vec![marketplace("alpha"), marketplace("beta")]);
+
+    let err = ManifestService::assemble_candidate(
+        &config,
+        dir.path(),
+        "https://api.example.com",
+        &AllowAllFilter,
+        &fixture_user_id(),
+    )
+    .await
+    .expect_err("two enabled marketplaces without a default must not fall open unscoped");
+    assert!(err.to_string().to_lowercase().contains("default"), "{err}");
+}
+
+#[tokio::test]
+async fn disabled_marketplaces_do_not_block_resolution() {
+    let dir = tempfile::tempdir().expect("temp services root");
+    let mut off = marketplace("off-market");
+    off.enabled = false;
+    let candidate = ManifestService::assemble_candidate(
+        &config_with(vec![marketplace("on-market"), off]),
+        dir.path(),
+        "https://api.example.com",
+        &AllowAllFilter,
+        &fixture_user_id(),
+    )
+    .await
+    .expect("a single enabled marketplace resolves without a default selector");
+    assert_eq!(
+        candidate.marketplace_id.as_ref().map(|id| id.as_str()),
+        Some("on-market"),
     );
 }

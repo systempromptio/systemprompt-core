@@ -10,7 +10,7 @@ use systemprompt_models::services::{ComponentSource, PluginConfig};
 
 use super::{BundleFile, PluginBundle};
 
-pub(super) fn resolve_agents(config: &PluginConfig, agents: &[AgentEntry]) -> Vec<AgentId> {
+pub(crate) fn resolve_agents(config: &PluginConfig, agents: &[AgentEntry]) -> Vec<AgentId> {
     match config.agents.source {
         ComponentSource::Explicit => config
             .agents

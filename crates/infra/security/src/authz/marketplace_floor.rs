@@ -25,23 +25,27 @@ pub fn member_attribute_floor<'a>(
     if config.access.attributes.is_empty() {
         return None;
     }
-    is_member(config, kind, id).then_some(&config.access.attributes)
+    is_member(services, config, kind, id).then_some(&config.access.attributes)
 }
 
 fn active_marketplace(services: &ServicesConfig) -> Option<&MarketplaceConfig> {
-    match services.marketplaces.len() {
-        0 => None,
-        1 => services.marketplaces.values().next(),
-        _ => {
-            let id = services.settings.default_marketplace_id.as_ref()?;
-            services.marketplaces.get(id)
-        },
+    let mut enabled = services.marketplaces.values().filter(|m| m.enabled);
+    let first = enabled.next()?;
+    if enabled.next().is_none() {
+        return Some(first);
     }
+    let id = services.settings.default_marketplace_id.as_ref()?;
+    services.marketplaces.get(id).filter(|m| m.enabled)
 }
 
-fn is_member(config: &MarketplaceConfig, kind: EntityKind, id: &str) -> bool {
+fn is_member(
+    services: &ServicesConfig,
+    config: &MarketplaceConfig,
+    kind: EntityKind,
+    id: &str,
+) -> bool {
     let include = match kind {
-        EntityKind::Skill => &config.skills.include,
+        EntityKind::Skill => return services.marketplace_skill_members(config).contains(id),
         EntityKind::Agent => &config.agents.include,
         EntityKind::McpServer => &config.mcp_servers.include,
         EntityKind::Plugin => &config.plugins.include,

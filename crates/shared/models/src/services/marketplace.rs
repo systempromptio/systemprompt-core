@@ -49,7 +49,15 @@ pub struct MarketplaceConfigFile {
     pub marketplace: MarketplaceConfig,
 }
 
+/// Marketplace manifest configuration.
+///
+/// Skills are deliberately absent: a marketplace selects plugins, and skills
+/// follow the plugins that ship them. A marketplace-level skill list would be
+/// a second source of truth that can silently diverge from what plugin
+/// bundles actually deliver, so `deny_unknown_fields` rejects a stale
+/// `skills:` block outright.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct MarketplaceConfig {
     pub id: MarketplaceId,
     pub name: String,
@@ -66,8 +74,6 @@ pub struct MarketplaceConfig {
 
     #[serde(default)]
     pub plugins: PluginComponentRef,
-    #[serde(default)]
-    pub skills: PluginComponentRef,
     #[serde(default)]
     pub mcp_servers: PluginComponentRef,
     #[serde(default)]

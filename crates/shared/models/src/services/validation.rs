@@ -24,22 +24,34 @@ impl ServicesConfig {
     pub(super) fn validate_default_marketplace_selector(
         &self,
     ) -> Result<(), ConfigValidationError> {
-        if self.marketplaces.len() > 1 && self.settings.default_marketplace_id.is_none() {
+        let enabled_count = self.marketplaces.values().filter(|m| m.enabled).count();
+        if enabled_count > 1 && self.settings.default_marketplace_id.is_none() {
             return Err(ConfigValidationError::business_rule(format!(
-                "{} marketplaces are configured but settings.default_marketplace_id is unset; set \
-                 it to select the active marketplace",
-                self.marketplaces.len()
+                "{enabled_count} enabled marketplaces are configured but \
+                 settings.default_marketplace_id is unset; set it to select the active \
+                 marketplace"
             )));
         }
 
-        if let Some(id) = &self.settings.default_marketplace_id
-            && !self.marketplaces.keys().any(|k| k.as_str() == id.as_str())
-        {
-            return Err(ConfigValidationError::unknown_reference(format!(
-                "settings.default_marketplace_id '{}' does not match any configured \
+        if let Some(id) = &self.settings.default_marketplace_id {
+            let Some(marketplace) = self
+                .marketplaces
+                .iter()
+                .find(|(k, _)| k.as_str() == id.as_str())
+                .map(|(_, m)| m)
+            else {
+                return Err(ConfigValidationError::unknown_reference(format!(
+                    "settings.default_marketplace_id '{}' does not match any configured \
                      marketplace",
-                id.as_str()
-            )));
+                    id.as_str()
+                )));
+            };
+            if !marketplace.enabled {
+                return Err(ConfigValidationError::business_rule(format!(
+                    "settings.default_marketplace_id '{}' selects a disabled marketplace",
+                    id.as_str()
+                )));
+            }
         }
 
         Ok(())
@@ -59,12 +71,13 @@ impl ServicesConfig {
             }
         }
 
-        for skill_ref in &marketplace.skills.include {
-            let exists = self.skills.skills.keys().any(|k| k.as_str() == skill_ref);
-            if !exists {
-                return Err(ConfigValidationError::unknown_reference(format!(
-                    "Marketplace '{name}': skills.include references unknown skill '{skill_ref}'"
-                )));
+        for plugin_ref in &marketplace.plugins.include {
+            if self.plugins.get(plugin_ref).is_some_and(|p| !p.enabled) {
+                tracing::warn!(
+                    marketplace = name,
+                    plugin = plugin_ref,
+                    "Marketplace includes a disabled plugin; it will ship nothing"
+                );
             }
         }
 
@@ -93,6 +106,37 @@ impl ServicesConfig {
         plugin_name: &str,
         plugin: &PluginConfig,
     ) -> Result<(), ConfigValidationError> {
+        if plugin.skills.source == super::ComponentSource::Explicit {
+            for skill_ref in &plugin.skills.include {
+                if !self.skills.skills.contains_key(skill_ref) {
+                    return Err(ConfigValidationError::unknown_reference(format!(
+                        "Plugin '{plugin_name}': skills.include references unknown skill \
+                         '{skill_ref}'"
+                    )));
+                }
+            }
+        }
+
+        for skill_ref in &plugin.skills.exclude {
+            if !self.skills.skills.contains_key(skill_ref) {
+                tracing::warn!(
+                    plugin = plugin_name,
+                    skill = skill_ref,
+                    "Plugin skills.exclude references unknown skill; the entry excludes nothing"
+                );
+            }
+        }
+
+        for agent_ref in &plugin.agents.exclude {
+            if !self.agents.contains_key(agent_ref) {
+                tracing::warn!(
+                    plugin = plugin_name,
+                    agent = agent_ref,
+                    "Plugin agents.exclude references unknown agent; the entry excludes nothing"
+                );
+            }
+        }
+
         for mcp_ref in &plugin.mcp_servers.include {
             if !self.mcp_servers.contains_key(mcp_ref) {
                 return Err(ConfigValidationError::unknown_reference(format!(
@@ -110,17 +154,31 @@ impl ServicesConfig {
             }
         }
 
-        self.validate_skills()?;
-
         Ok(())
     }
 
-    fn validate_skills(&self) -> Result<(), ConfigValidationError> {
+    pub(super) fn validate_skills(&self) -> Result<(), ConfigValidationError> {
         for (key, skill) in &self.skills.skills {
             if !skill.id.as_str().is_empty() && skill.id.as_str() != key.as_str() {
                 return Err(ConfigValidationError::invalid_field(format!(
                     "Skill map key '{}' does not match skill id '{}'",
                     key, skill.id
+                )));
+            }
+
+            let id = key.as_str();
+            if id.len() < 3 || id.len() > 64 {
+                return Err(ConfigValidationError::invalid_field(format!(
+                    "Skill '{key}': id must be between 3 and 64 characters"
+                )));
+            }
+            if !id
+                .chars()
+                .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_')
+            {
+                return Err(ConfigValidationError::invalid_field(format!(
+                    "Skill '{key}': id must be lowercase alphanumeric with underscores only \
+                     (snake_case)"
                 )));
             }
 

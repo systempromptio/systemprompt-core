@@ -116,6 +116,22 @@ fn spawn_on_this_thread(cmd: &mut Command) -> std::io::Result<u32> {
     Ok(pid)
 }
 
+// Why: pgid 0 makes the child its own group leader (pgid == pid), so the
+// supervisor can signal the whole group on shutdown and reach any helper
+// processes the child spawns, not just the child itself.
+#[cfg(unix)]
+pub fn place_in_own_process_group(command: &mut Command) {
+    use std::os::unix::process::CommandExt;
+    command.process_group(0);
+}
+
+#[cfg(windows)]
+pub fn place_in_own_process_group(command: &mut Command) {
+    use std::os::windows::process::CommandExt;
+    const CREATE_NEW_PROCESS_GROUP: u32 = 0x0000_0200;
+    command.creation_flags(CREATE_NEW_PROCESS_GROUP);
+}
+
 #[must_use]
 pub const fn identity_verification_supported() -> bool {
     cfg!(any(target_os = "linux", target_os = "macos"))

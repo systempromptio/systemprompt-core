@@ -62,7 +62,6 @@ mod resolution {
             license: "BSL-1.0".into(),
             visibility: MarketplaceVisibility::Public,
             plugins: PluginComponentRef::default(),
-            skills: PluginComponentRef::default(),
             mcp_servers: PluginComponentRef::default(),
             agents: PluginComponentRef::default(),
             artifacts: PluginComponentRef::default(),
@@ -105,15 +104,45 @@ mod resolution {
 
     #[test]
     fn covers_every_membership_kind() {
+        use systemprompt_identifiers::PluginId;
+        use systemprompt_models::services::{ComponentSource, PluginConfig};
+
         let mut mp = marketplace("market");
-        mp.skills = include(&["skill-a"]);
         mp.agents = include(&["agent-a"]);
         mp.mcp_servers = include(&["mcp-a"]);
         mp.plugins = include(&["plugin-a"]);
         mp.access
             .attributes
             .insert("tier".to_owned(), serde_json::json!("gold"));
-        let config = config_with(vec![mp]);
+        let mut config = config_with(vec![mp]);
+        config.plugins.insert(
+            "plugin-a".to_owned(),
+            PluginConfig {
+                id: PluginId::new("plugin-a"),
+                name: "plugin-a".to_owned(),
+                description: String::new(),
+                version: "1.0.0".to_owned(),
+                enabled: true,
+                author: PluginAuthor {
+                    name: "test".into(),
+                    email: "test@example.com".into(),
+                },
+                keywords: vec![],
+                license: "BSL-1.0".to_owned(),
+                category: "demo".to_owned(),
+                skills: PluginComponentRef {
+                    source: ComponentSource::Explicit,
+                    include: vec!["skill-a".to_owned()],
+                    ..Default::default()
+                },
+                agents: PluginComponentRef::default(),
+                mcp_servers: PluginComponentRef::default(),
+                content_sources: PluginComponentRef::default(),
+                artifacts: PluginComponentRef::default(),
+                hooks: Default::default(),
+                scripts: vec![],
+            },
+        );
 
         for (kind, id) in [
             (EntityKind::Skill, "skill-a"),

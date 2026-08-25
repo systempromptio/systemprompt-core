@@ -311,6 +311,7 @@ fn run_once_applies_full_manifest_end_to_end() {
             host_model_protocols: Default::default(),
             artifacts: vec![],
             allow_claude_ai_connectors: false,
+            diagnostics: Vec::new(),
         };
 
         pat_mock().mount(&server).await;
@@ -347,7 +348,18 @@ fn run_once_applies_full_manifest_end_to_end() {
     let summary = run_sync(&dirs).expect("run_once should succeed");
 
     assert_eq!(summary.plugin_count, 2);
-    assert_eq!(summary.skill_count, 1);
+    assert_eq!(
+        summary.skill_count, 0,
+        "skill_count reports skills the plugin bundles install, not the manifest list"
+    );
+    assert!(
+        summary
+            .diagnostics
+            .iter()
+            .any(|d| d.contains("plugin bundles install only 0")),
+        "a manifest listing skills no bundle delivers carries a diagnostic: {:?}",
+        summary.diagnostics
+    );
     assert_eq!(summary.agent_count, 1);
     assert_eq!(summary.hook_count, 1);
     assert_eq!(summary.mcp_count, 1);
@@ -457,6 +469,7 @@ fn run_once_empty_manifest_writes_no_plugins() {
             host_model_protocols: Default::default(),
             artifacts: vec![],
             allow_claude_ai_connectors: false,
+            diagnostics: Vec::new(),
         };
 
         pat_mock().mount(&server).await;
@@ -512,6 +525,7 @@ fn run_once_surfaces_plugin_file_404_as_apply_failure() {
             host_model_protocols: Default::default(),
             artifacts: vec![],
             allow_claude_ai_connectors: false,
+            diagnostics: Vec::new(),
         };
 
         pat_mock().mount(&server).await;
@@ -565,6 +579,7 @@ fn manifest_with(servers: Vec<ManagedMcpServer>, enabled_hosts: Vec<String>) -> 
         host_model_protocols: Default::default(),
         artifacts: vec![],
         allow_claude_ai_connectors: false,
+        diagnostics: Vec::new(),
     }
 }
 
@@ -738,6 +753,7 @@ fn manifest_of(plugins: Vec<PluginEntry>, hooks: Vec<HookEntry>) -> SignedManife
         host_model_protocols: Default::default(),
         artifacts: vec![],
         allow_claude_ai_connectors: false,
+        diagnostics: Vec::new(),
     }
 }
 
@@ -1092,6 +1108,7 @@ fn empty_manifest() -> SignedManifest {
         host_model_protocols: Default::default(),
         artifacts: vec![],
         allow_claude_ai_connectors: false,
+        diagnostics: Vec::new(),
     }
 }
 
@@ -1200,7 +1217,15 @@ fn sync_fails_only_when_a_freshly_minted_token_is_also_rejected() {
     seed_stale_cache(&dirs, &server.uri());
     let err = run_sync(&dirs).expect_err("a revoked credential must still surface");
     assert!(
-        err.contains("rejected credentials"),
-        "the user is told their access is the problem: {err}"
+        err.contains("rejected both the cached credential and a freshly minted replacement"),
+        "the user is told a fresh credential was also refused: {err}"
+    );
+    assert!(
+        err.contains("HTTP 401 from manifest"),
+        "the status and endpoint are named: {err}"
+    );
+    assert!(
+        err.contains(".pat"),
+        "the PAT file the bridge actually read is named: {err}"
     );
 }

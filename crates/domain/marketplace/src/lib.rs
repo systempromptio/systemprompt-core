@@ -53,12 +53,13 @@ mod manifest;
 mod registry;
 mod scope;
 mod service;
+pub mod trace;
 mod view;
 
 pub use bundle::{
     BundleContent, BundleFile, PluginBundle, build_plugin_bundle, bundle_has_content,
 };
-pub use candidate::MarketplaceCandidate;
+pub use candidate::{EntryKeepSets, MarketplaceCandidate};
 pub use catalog::{CatalogContent, plugin_bundles, plugin_bundles_cached};
 pub use error::{MarketplaceError, MarketplaceFilterError};
 pub use filter::{AllowAllFilter, MarketplaceFilter};
@@ -66,4 +67,5 @@ pub use manifest::ManifestService;
 pub use registry::{MarketplaceFilterRegistration, discover_filters};
 pub use scope::{active_marketplace, scope_to_marketplace};
 pub use service::MarketplaceService;
+pub use trace::{ManifestTrace, NoopTrace, TraceEvent, TraceKind, TraceSink, TraceStage};
 pub use view::{render_marketplace_json, render_marketplace_list};

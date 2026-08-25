@@ -235,6 +235,96 @@ fn new_leaves_marketplace_fields_unset() {
     assert!(!c.is_empty());
 }
 
+fn keep(
+    plugins: &[&str],
+    skills: &[&str],
+    agents: &[&str],
+    hooks: &[&str],
+    mcp_servers: &[&str],
+) -> systemprompt_marketplace::EntryKeepSets {
+    let set = |ids: &[&str]| ids.iter().map(|s| (*s).to_owned()).collect();
+    systemprompt_marketplace::EntryKeepSets {
+        plugins: set(plugins),
+        skills: set(skills),
+        agents: set(agents),
+        hooks: set(hooks),
+        mcp_servers: set(mcp_servers),
+    }
+}
+
+#[test]
+fn retain_entries_shrinks_every_entry_list() {
+    let mut c = MarketplaceCandidate::new(
+        vec![plugin("p1"), plugin("p2")],
+        vec![skill("s1"), skill("s2")],
+        vec![agent("a1"), agent("a2")],
+        vec![hook("h1"), hook("h2")],
+        vec![mcp_server("m1"), mcp_server("m2")],
+        vec![],
+    );
+    c.retain_entries(&keep(&["p1"], &["s2"], &["a1"], &["h2"], &["m1"]));
+
+    assert_eq!(c.plugins.len(), 1);
+    assert_eq!(c.plugins[0].id.as_str(), "p1");
+    assert_eq!(c.skills.len(), 1);
+    assert_eq!(c.skills[0].id.as_str(), "s2");
+    assert_eq!(c.agents.len(), 1);
+    assert_eq!(c.agents[0].id.as_str(), "a1");
+    assert_eq!(c.hooks.len(), 1);
+    assert_eq!(c.hooks[0].id.as_str(), "h2");
+    assert_eq!(c.managed_mcp_servers.len(), 1);
+    assert_eq!(c.managed_mcp_servers[0].name.as_str(), "m1");
+}
+
+#[test]
+fn retain_entries_prunes_artifacts_of_dropped_plugins() {
+    use std::collections::{BTreeMap, BTreeSet};
+    use systemprompt_models::bridge::ids::{LibraryArtifactId, PluginId};
+
+    let owners: BTreeMap<LibraryArtifactId, BTreeSet<PluginId>> = [
+        (
+            LibraryArtifactId::try_new("kept-artifact").expect("valid id"),
+            BTreeSet::from([PluginId::try_new("p1").expect("valid id")]),
+        ),
+        (
+            LibraryArtifactId::try_new("orphaned-artifact").expect("valid id"),
+            BTreeSet::from([PluginId::try_new("p2").expect("valid id")]),
+        ),
+    ]
+    .into();
+    let mut c = MarketplaceCandidate::new(
+        vec![plugin("p1"), plugin("p2")],
+        vec![],
+        vec![],
+        vec![],
+        vec![],
+        vec![artifact("kept-artifact"), artifact("orphaned-artifact")],
+    )
+    .with_artifact_owners(owners);
+
+    c.retain_entries(&keep(&["p1"], &[], &[], &[], &[]));
+
+    assert_eq!(c.artifacts.len(), 1);
+    assert_eq!(c.artifacts[0].id.as_str(), "kept-artifact");
+}
+
+#[test]
+fn retain_entries_leaves_assembly_context_untouched() {
+    let mut c =
+        MarketplaceCandidate::new(vec![plugin("p1")], vec![], vec![], vec![], vec![], vec![])
+            .with_marketplace(MarketplaceId::new("test-market"), None);
+    c.diagnostics.push("assembly warning".to_owned());
+
+    c.retain_entries(&keep(&[], &[], &[], &[], &[]));
+
+    assert!(c.plugins.is_empty());
+    assert_eq!(
+        c.marketplace_id.as_ref().map(|id| id.as_str()),
+        Some("test-market"),
+    );
+    assert_eq!(c.diagnostics, vec!["assembly warning".to_owned()]);
+}
+
 #[test]
 fn filter_error_variants_debug() {
     let variants = [

@@ -33,6 +33,23 @@ pub enum EntityRef {
 
 impl EntityRef {
     #[must_use]
+    pub fn from_kind_and_id(kind: EntityKind, id: &str) -> Self {
+        match kind {
+            EntityKind::GatewayRoute => Self::GatewayRoute(RouteId::new(id)),
+            EntityKind::McpServer => Self::McpServer(McpServerId::new(id)),
+            EntityKind::Plugin => Self::Plugin(PluginId::new(id)),
+            EntityKind::Agent => Self::Agent(AgentId::new(id)),
+            EntityKind::Marketplace => Self::Marketplace(MarketplaceId::new(id)),
+            EntityKind::Skill => Self::Skill(SkillId::new(id)),
+            EntityKind::Hook => Self::Hook(HookId::new(id)),
+            EntityKind::SlackWorkspace => Self::SlackWorkspace(SlackWorkspaceId::new(id)),
+            EntityKind::SlackChannel => Self::SlackChannel(SlackChannelId::new(id)),
+            EntityKind::TeamsTenant => Self::TeamsTenant(TeamsTenantId::new(id)),
+            EntityKind::TeamsConversation => Self::TeamsConversation(TeamsConversationId::new(id)),
+        }
+    }
+
+    #[must_use]
     pub const fn kind(&self) -> EntityKind {
         match self {
             Self::GatewayRoute(_) => EntityKind::GatewayRoute,

@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- `MarketplaceCandidate::retain_entries` shrinks the five entry lists to per-kind `EntryKeepSets` allow-lists and prunes artifacts whose owning plugins were all dropped, so filters no longer rebuild the candidate field by field.
+
 ## [0.31.0] - 2026-08-18
 
 ### Breaking

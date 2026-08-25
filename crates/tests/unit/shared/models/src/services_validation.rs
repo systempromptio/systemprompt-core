@@ -245,3 +245,86 @@ fn matching_default_marketplace_selector_passes() {
     );
     assert!(parse(&yaml).validate().is_ok());
 }
+
+fn skill_yaml(id: &str) -> String {
+    format!(
+        r"
+    {id}:
+      id: {id}
+      name: Skill
+      description: Test skill
+      enabled: true
+"
+    )
+}
+
+#[test]
+fn plugin_referencing_unknown_skill_is_rejected() {
+    let yaml = format!(
+        "plugins:{}",
+        plugin_yaml("demo-plugin", false, "{}", "{}")
+            .replace("skills: {}", "skills:\n      include: [ghost_skill]")
+    );
+    let err = parse(&yaml).validate().unwrap_err();
+    assert!(err.to_string().contains("unknown skill 'ghost_skill'"), "{err}");
+}
+
+#[test]
+fn plugin_referencing_known_skill_passes() {
+    let yaml = format!(
+        "skills:\n  skills:{}\nplugins:{}",
+        skill_yaml("real_skill"),
+        plugin_yaml("demo-plugin", false, "{}", "{}")
+            .replace("skills: {}", "skills:\n      include: [real_skill]")
+    );
+    assert!(parse(&yaml).validate().is_ok());
+}
+
+#[test]
+fn hyphenated_skill_id_is_rejected() {
+    let yaml = format!("skills:\n  skills:{}", skill_yaml("bad-skill"));
+    let err = parse(&yaml).validate().unwrap_err();
+    assert!(err.to_string().contains("snake_case"), "{err}");
+}
+
+#[test]
+fn snake_skill_id_passes() {
+    let yaml = format!("skills:\n  skills:{}", skill_yaml("good_skill"));
+    assert!(parse(&yaml).validate().is_ok());
+}
+
+#[test]
+fn skills_are_validated_without_any_plugin() {
+    let yaml = format!("skills:\n  skills:{}", skill_yaml("bad-skill"));
+    assert!(parse(&yaml).validate().is_err());
+}
+
+#[test]
+fn marketplace_skills_block_is_rejected_at_parse() {
+    let yaml = format!(
+        "marketplaces:{}",
+        marketplace_yaml("market", "    skills:\n      include: [anything]\n")
+    );
+    let err = serde_yaml::from_str::<ServicesConfig>(&yaml).unwrap_err();
+    assert!(err.to_string().contains("skills"), "{err}");
+}
+
+#[test]
+fn default_marketplace_selector_must_be_enabled() {
+    let yaml = format!(
+        "settings:\n  default_marketplace_id: market-a\nmarketplaces:{}",
+        marketplace_yaml("market-a", "    enabled: false\n")
+    );
+    let err = parse(&yaml).validate().unwrap_err();
+    assert!(err.to_string().contains("disabled marketplace"), "{err}");
+}
+
+#[test]
+fn single_enabled_marketplace_needs_no_selector() {
+    let yaml = format!(
+        "marketplaces:{}{}",
+        marketplace_yaml("market-a", ""),
+        marketplace_yaml("market-b", "    enabled: false\n")
+    );
+    assert!(parse(&yaml).validate().is_ok());
+}

@@ -1,9 +1,9 @@
 //! `core` command group: the platform's primary domain commands.
 //!
 //! Dispatches the [`CoreCommands`] subgroups — artifacts, content, files,
-//! contexts, skills, plugins, and hooks. On a `--database-url` invocation only
-//! the content and files subgroups are served; the rest require a full
-//! profile context.
+//! contexts, skills, plugins, marketplace, and hooks. On a `--database-url`
+//! invocation only the content and files subgroups are served; the rest require
+//! a full profile context.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -13,6 +13,7 @@ pub mod content;
 pub mod contexts;
 pub mod files;
 pub mod hooks;
+pub mod marketplace;
 pub mod plugins;
 pub mod skills;
 
@@ -41,6 +42,9 @@ pub enum CoreCommands {
     #[command(subcommand, about = "Plugin management and marketplace generation")]
     Plugins(plugins::PluginsCommands),
 
+    #[command(subcommand, about = "Marketplace manifest diagnostics")]
+    Marketplace(marketplace::MarketplaceCommands),
+
     #[command(subcommand, about = "Hook validation and inspection")]
     Hooks(hooks::HooksCommands),
 }
@@ -58,6 +62,7 @@ pub async fn execute(cmd: CoreCommands, ctx: &CommandContext) -> Result<()> {
         CoreCommands::Contexts(cmd) => contexts::execute(cmd, ctx).await,
         CoreCommands::Skills(cmd) => skills::execute(cmd, ctx),
         CoreCommands::Plugins(cmd) => plugins::execute(cmd, ctx),
+        CoreCommands::Marketplace(cmd) => marketplace::execute(cmd, ctx).await,
         CoreCommands::Hooks(cmd) => hooks::execute(cmd, ctx),
     }
 }

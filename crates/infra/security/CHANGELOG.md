@@ -1,5 +1,12 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- `authz::EntityRef::from_kind_and_id` constructs the typed reference for an `EntityKind` and raw id string.
+- `authz::EntityKind::ALL` lists every entity kind.
+
 ## [0.31.0] - 2026-08-18
 
 ### Breaking

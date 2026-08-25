@@ -22,7 +22,7 @@ use systemprompt_models::services::ServicesConfig;
 use crate::bundle::BundleContent;
 use crate::catalog::fingerprint::hash_dir_metadata;
 use crate::catalog::{
-    disabled_mcp_server_names, load_agents, load_artifacts, load_managed_mcp_servers, load_skills,
+    disabled_mcp_server_names, load_agents, load_artifacts, load_managed_mcp_servers,
 };
 use crate::error::MarketplaceError;
 
@@ -42,8 +42,22 @@ impl CatalogContent {
         services_root: &Path,
         api_external_url: &str,
     ) -> Result<Self, MarketplaceError> {
+        Self::load_traced(
+            services,
+            services_root,
+            api_external_url,
+            &mut crate::trace::NoopTrace,
+        )
+    }
+
+    pub fn load_traced(
+        services: &ServicesConfig,
+        services_root: &Path,
+        api_external_url: &str,
+        trace: &mut dyn crate::trace::TraceSink,
+    ) -> Result<Self, MarketplaceError> {
         Ok(Self {
-            skills: load_skills(services_root)?,
+            skills: crate::catalog::load_skills_traced(services_root, trace)?,
             agents: load_agents(services, api_external_url),
             managed_mcp_servers: load_managed_mcp_servers(services, api_external_url)?,
             disabled_mcp_servers: disabled_mcp_server_names(services),

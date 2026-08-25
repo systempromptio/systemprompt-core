@@ -168,7 +168,7 @@ async fn fetch_manifest_401_maps_to_http_status() {
 }
 
 #[tokio::test]
-async fn fetch_manifest_malformed_body_maps_to_decode() {
+async fn fetch_manifest_malformed_body_maps_to_envelope_shape_with_snippet() {
     let server = MockServer::start().await;
     Mock::given(method("GET"))
         .and(path("/v1/bridge/manifest"))
@@ -177,10 +177,35 @@ async fn fetch_manifest_malformed_body_maps_to_decode() {
         .await;
 
     let err = client(&server).fetch_manifest(BEARER).await.unwrap_err();
-    assert!(
-        matches!(err, GatewayError::ManifestDecode(_)),
-        "expected ManifestDecode, got {err:?}"
-    );
+    match err {
+        GatewayError::ManifestEnvelopeShape { snippet, .. } => {
+            assert_eq!(snippet, "{ not a manifest }");
+        },
+        other => panic!("expected ManifestEnvelopeShape, got {other:?}"),
+    }
+}
+
+#[tokio::test]
+async fn fetch_manifest_html_body_names_the_shape_mismatch() {
+    let server = MockServer::start().await;
+    let html = format!("<html>{}</html>", "x".repeat(500));
+    Mock::given(method("GET"))
+        .and(path("/v1/bridge/manifest"))
+        .respond_with(ResponseTemplate::new(200).set_body_string(html))
+        .mount(&server)
+        .await;
+
+    let err = client(&server).fetch_manifest(BEARER).await.unwrap_err();
+    match err {
+        GatewayError::ManifestEnvelopeShape { snippet, .. } => {
+            assert_eq!(
+                snippet.chars().count(),
+                120,
+                "snippet is capped so a proxy error page cannot flood the log"
+            );
+        },
+        other => panic!("expected ManifestEnvelopeShape, got {other:?}"),
+    }
 }
 
 #[tokio::test]

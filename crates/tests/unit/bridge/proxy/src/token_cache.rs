@@ -119,3 +119,44 @@ async fn refresh_failure_propagates() {
     let msg = format!("{err}");
     assert!(msg.contains("authentication"), "got: {msg}");
 }
+
+#[test]
+fn external_credential_change_invalidates_the_cached_token() {
+    let temp = tempfile::tempdir().expect("temp config dir");
+    temp_env::with_var("XDG_CONFIG_HOME", Some(temp.path().as_os_str()), || {
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .expect("runtime");
+        rt.block_on(async {
+            let paths = systemprompt_bridge::auth::setup::resolve_paths().expect("paths");
+            std::fs::create_dir_all(&paths.config_dir).expect("config dir");
+            std::fs::write(&paths.pat_file, "sp-live-a.b").expect("write pat");
+
+            let counter = Arc::new(AtomicUsize::new(0));
+            let cache = TokenCache::new(counting_refresh(Arc::clone(&counter), 3600))
+                .with_stamp_check_interval(std::time::Duration::ZERO);
+
+            cache.current(300).await.expect("first mint");
+            cache.current(300).await.expect("unchanged files hit cache");
+            assert_eq!(counter.load(Ordering::SeqCst), 1, "no change, no re-mint");
+
+            let file = std::fs::OpenOptions::new()
+                .write(true)
+                .open(&paths.pat_file)
+                .expect("reopen pat");
+            file.set_modified(std::time::SystemTime::now() + std::time::Duration::from_secs(2))
+                .expect("bump mtime");
+
+            cache
+                .current(300)
+                .await
+                .expect("stale stamp re-mints from disk");
+            assert_eq!(
+                counter.load(Ordering::SeqCst),
+                2,
+                "an external login (PAT mtime change) must invalidate the in-memory token"
+            );
+        });
+    });
+}

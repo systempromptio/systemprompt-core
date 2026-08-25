@@ -14,20 +14,6 @@ use systemprompt_security::authz::types::EntityKind;
 use super::LintArgs;
 use crate::CliConfig;
 
-const ALL_KINDS: &[EntityKind] = &[
-    EntityKind::GatewayRoute,
-    EntityKind::McpServer,
-    EntityKind::Plugin,
-    EntityKind::Agent,
-    EntityKind::Marketplace,
-    EntityKind::Skill,
-    EntityKind::Hook,
-    EntityKind::SlackWorkspace,
-    EntityKind::SlackChannel,
-    EntityKind::TeamsTenant,
-    EntityKind::TeamsConversation,
-];
-
 pub(super) async fn run(_args: LintArgs, _config: &CliConfig) -> Result<(String, bool)> {
     let ctx = AppContext::new().await?;
     let repo =
@@ -37,7 +23,7 @@ pub(super) async fn run(_args: LintArgs, _config: &CliConfig) -> Result<(String,
     let mut unknown_total = 0usize;
     let mut unreachable_total = 0usize;
 
-    for kind in ALL_KINDS {
+    for kind in EntityKind::ALL {
         let catalog = repo
             .list_entities(*kind)
             .await

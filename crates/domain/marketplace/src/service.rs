@@ -42,13 +42,30 @@ impl<'a> MarketplaceService<'a> {
     }
 
     fn active_entry(&self) -> Option<(&'a MarketplaceId, &'a MarketplaceConfig)> {
-        match self.services.marketplaces.len() {
-            0 => None,
-            1 => self.services.marketplaces.iter().next(),
-            _ => {
-                let id = self.services.settings.default_marketplace_id.as_ref()?;
-                self.services.marketplaces.get_key_value(id)
-            },
+        let mut enabled = self
+            .services
+            .marketplaces
+            .iter()
+            .filter(|(_, config)| config.enabled);
+        let first = enabled.next()?;
+        if enabled.next().is_none() {
+            return Some(first);
+        }
+        let id = self.services.settings.default_marketplace_id.as_ref()?;
+        self.services
+            .marketplaces
+            .get_key_value(id)
+            .filter(|(_, config)| config.enabled)
+    }
+
+    // Why: with at least one enabled marketplace configured, an unresolvable
+    // selection must fail closed rather than assemble unscoped.
+    pub fn resolve_active(&self) -> Result<Option<&'a MarketplaceConfig>, MarketplaceError> {
+        let any_enabled = self.services.marketplaces.values().any(|m| m.enabled);
+        match self.active_entry() {
+            Some((_, config)) => Ok(Some(config)),
+            None if any_enabled => Err(MarketplaceError::NoDefault),
+            None => Ok(None),
         }
     }
 

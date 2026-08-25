@@ -12,8 +12,16 @@ use systemprompt_models::bridge::manifest::SkillEntry;
 use systemprompt_models::services::{DiskSkillConfig, SKILL_CONFIG_FILENAME, strip_frontmatter};
 
 use crate::error::MarketplaceError;
+use crate::trace::{NoopTrace, TraceEvent, TraceKind, TraceSink, TraceStage};
 
 pub fn load_skills(services_root: &Path) -> Result<Vec<SkillEntry>, MarketplaceError> {
+    load_skills_traced(services_root, &mut NoopTrace)
+}
+
+pub fn load_skills_traced(
+    services_root: &Path,
+    trace: &mut dyn TraceSink,
+) -> Result<Vec<SkillEntry>, MarketplaceError> {
     let skills_dir = services_root.join("skills");
     if !skills_dir.is_dir() {
         return Ok(Vec::new());
@@ -33,6 +41,16 @@ pub fn load_skills(services_root: &Path) -> Result<Vec<SkillEntry>, MarketplaceE
         };
         let config_path = path.join(SKILL_CONFIG_FILENAME);
         if !config_path.exists() {
+            tracing::warn!(
+                skill_dir = %path.display(),
+                "manifest: skill directory has no config.yaml; skipping"
+            );
+            trace.record(TraceEvent {
+                kind: TraceKind::Skill,
+                id: dir_name.to_owned(),
+                stage: TraceStage::DiskScan,
+                reason: "skill directory has no config.yaml".to_owned(),
+            });
             continue;
         }
         entries.push((dir_name.to_owned(), path));
@@ -43,13 +61,30 @@ pub fn load_skills(services_root: &Path) -> Result<Vec<SkillEntry>, MarketplaceE
     for (dir_name, skill_dir) in entries {
         match build_skill_entry(&dir_name, &skill_dir) {
             Ok(Some(entry)) => out.push(entry),
-            Ok(None) => {},
+            Ok(None) => {
+                tracing::info!(
+                    skill_dir = %skill_dir.display(),
+                    "manifest: skill is disabled; skipping"
+                );
+                trace.record(TraceEvent {
+                    kind: TraceKind::Skill,
+                    id: dir_name,
+                    stage: TraceStage::Disabled,
+                    reason: "skill config sets enabled: false".to_owned(),
+                });
+            },
             Err(e) => {
                 tracing::warn!(
                     skill_dir = %skill_dir.display(),
                     error = %e,
                     "manifest: failed to build skill entry; skipping"
                 );
+                trace.record(TraceEvent {
+                    kind: TraceKind::Skill,
+                    id: dir_name,
+                    stage: TraceStage::Parse,
+                    reason: e.to_string(),
+                });
             },
         }
     }
@@ -70,13 +105,13 @@ fn build_skill_entry(
         return Ok(None);
     }
 
-    let id = if config.id.as_str().is_empty() {
-        SkillId::try_new(dir_name.replace('-', "_"))
-            .map_err(|e| MarketplaceError::Catalog(e.to_string()))?
-    } else {
-        SkillId::try_new(config.id.as_str())
-            .map_err(|e| MarketplaceError::Catalog(e.to_string()))?
-    };
+    if !config.id.as_str().is_empty() && config.id.as_str() != dir_name {
+        return Err(MarketplaceError::Catalog(format!(
+            "skill id '{}' does not match its directory name '{dir_name}'",
+            config.id.as_str()
+        )));
+    }
+    let id = SkillId::try_new(dir_name).map_err(|e| MarketplaceError::Catalog(e.to_string()))?;
     let display_name = if config.name.is_empty() {
         dir_name.replace('_', " ")
     } else {

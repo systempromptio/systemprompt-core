@@ -82,18 +82,23 @@ fn t_args_multiple_placeables_all_substituted() {
     assert_eq!(
         t_args(
             "sync-gateway-unauthorized",
-            &[("status", "401"), ("endpoint", "https://gw.example/api")]
+            &[
+                ("status", "401"),
+                ("endpoint", "https://gw.example/api"),
+                ("gateway", "https://gw.example"),
+            ]
         ),
-        "Sync failed: the gateway rejected a freshly issued credential (HTTP 401 from https://gw.example/api). Your access may have been revoked — sign in again, or ask an administrator to check your account."
+        "Sync failed: https://gw.example rejected a freshly issued credential (HTTP 401 from https://gw.example/api). Your access may have been revoked — sign in again, or ask an administrator to check your account."
     );
 }
 
 #[test]
 fn t_args_multiple_placeables_one_unmatched() {
-    // Only `status` is supplied; `endpoint` has no matching arg and is dropped.
+    // Only `status` is supplied; `gateway` and `endpoint` have no matching args
+    // and are dropped.
     assert_eq!(
         t_args("sync-gateway-unauthorized", &[("status", "403")]),
-        "Sync failed: the gateway rejected a freshly issued credential (HTTP 403 from ). Your access may have been revoked — sign in again, or ask an administrator to check your account."
+        "Sync failed:  rejected a freshly issued credential (HTTP 403 from ). Your access may have been revoked — sign in again, or ask an administrator to check your account."
     );
 }
 
@@ -102,9 +107,13 @@ fn t_args_arg_order_independent() {
     assert_eq!(
         t_args(
             "sync-gateway-unauthorized",
-            &[("endpoint", "https://gw.example/api"), ("status", "401")]
+            &[
+                ("gateway", "https://gw.example"),
+                ("endpoint", "https://gw.example/api"),
+                ("status", "401"),
+            ]
         ),
-        "Sync failed: the gateway rejected a freshly issued credential (HTTP 401 from https://gw.example/api). Your access may have been revoked — sign in again, or ask an administrator to check your account."
+        "Sync failed: https://gw.example rejected a freshly issued credential (HTTP 401 from https://gw.example/api). Your access may have been revoked — sign in again, or ask an administrator to check your account."
     );
 }
 

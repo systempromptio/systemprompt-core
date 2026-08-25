@@ -178,7 +178,6 @@ fn valid_marketplace(id: &str) -> MarketplaceConfig {
         license: "MIT".to_owned(),
         visibility: MarketplaceVisibility::Public,
         plugins: PluginComponentRef::default(),
-        skills: PluginComponentRef::default(),
         mcp_servers: PluginComponentRef::default(),
         agents: PluginComponentRef::default(),
         artifacts: PluginComponentRef::default(),

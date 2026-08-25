@@ -88,24 +88,24 @@ fn discover_skills_from_disk() {
 
     let skills_dir = services_dir.join("skills");
     write_skill_config(
-        &skills_dir.join("auto-skill-one"),
-        "auto-skill-one",
+        &skills_dir.join("auto_skill_one"),
+        "auto_skill_one",
         "Auto Skill One",
     );
     write_skill_config(
-        &skills_dir.join("auto-skill-two"),
-        "auto-skill-two",
+        &skills_dir.join("auto_skill_two"),
+        "auto_skill_two",
         "Auto Skill Two",
     );
 
     let config = ConfigLoader::load_from_path(&config_path).expect("should load");
     assert!(
-        config.skills.skills.contains_key("auto-skill-one"),
-        "auto-skill-one should be discovered"
+        config.skills.skills.contains_key("auto_skill_one"),
+        "auto_skill_one should be discovered"
     );
     assert!(
-        config.skills.skills.contains_key("auto-skill-two"),
-        "auto-skill-two should be discovered"
+        config.skills.skills.contains_key("auto_skill_two"),
+        "auto_skill_two should be discovered"
     );
 }
 
@@ -165,8 +165,8 @@ skills:
   enabled: true
   auto_discover: false
   skills:
-    my-skill:
-      id: my-skill
+    my_skill:
+      id: my_skill
       name: Explicit Skill
       description: Explicitly defined skill
       enabled: true
@@ -179,10 +179,10 @@ skills:
     std::fs::write(&config_path, explicit_skill_yaml).expect("write config");
 
     let skills_dir = services_dir.join("skills");
-    write_skill_config(&skills_dir.join("my-skill"), "my-skill", "Disk Skill Name");
+    write_skill_config(&skills_dir.join("my_skill"), "my_skill", "Disk Skill Name");
 
     let config = ConfigLoader::load_from_path(&config_path).expect("should load");
-    let skill = config.skills.skills.get("my-skill").expect("skill present");
+    let skill = config.skills.skills.get("my_skill").expect("skill present");
     assert_eq!(
         skill.name, "Explicit Skill",
         "explicit definition must win over disk"
@@ -392,8 +392,8 @@ fn discover_multiple_plugins_and_skills() {
 
     for i in 1..=3 {
         write_skill_config(
-            &skills_dir.join(format!("skill-{i}")),
-            &format!("skill-{i}"),
+            &skills_dir.join(format!("skill_{i}")),
+            &format!("skill_{i}"),
             &format!("Skill {i}"),
         );
         write_plugin_config(
@@ -416,7 +416,7 @@ fn discover_skills_malformed_yaml_errors() {
     let config_path = config_dir.join("services.yaml");
     std::fs::write(&config_path, base_config()).expect("write config");
 
-    let skill_dir = temp.path().join("skills").join("broken-skill");
+    let skill_dir = temp.path().join("skills").join("broken_skill");
     std::fs::create_dir_all(&skill_dir).expect("create skill dir");
     std::fs::write(skill_dir.join("config.yaml"), "id: : : not valid: yaml")
         .expect("write malformed skill config");
@@ -425,7 +425,7 @@ fn discover_skills_malformed_yaml_errors() {
     let err = result.expect_err("malformed skill config.yaml must surface a parse error");
     let msg = format!("{err:#}");
     assert!(
-        msg.contains("broken-skill") || msg.to_lowercase().contains("yaml"),
+        msg.contains("broken_skill") || msg.to_lowercase().contains("yaml"),
         "expected a YAML parse error naming the offending file, got: {msg}"
     );
 }
@@ -485,4 +485,46 @@ fn discover_skips_missing_parent_no_panic() {
     assert!(config.skills.skills.is_empty());
     assert!(config.plugins.is_empty());
     assert!(config.marketplaces.is_empty());
+}
+
+#[test]
+fn duplicate_skill_via_disk_discovery_errors() {
+    let temp = TempDir::new().expect("tempdir");
+    let config_dir = temp.path().join("config");
+    std::fs::create_dir_all(&config_dir).expect("create config dir");
+    let config_path = config_dir.join("services.yaml");
+    std::fs::write(&config_path, base_config()).expect("write config");
+
+    let skills_dir = temp.path().join("skills");
+    write_skill_config(&skills_dir.join("dup-a"), "dup_skill", "Dup A");
+    write_skill_config(&skills_dir.join("dup-b"), "dup_skill", "Dup B");
+
+    let result = ConfigLoader::load_from_path(&config_path);
+    assert!(result.is_err(), "duplicate skill ids from disk must error");
+    let msg = format!("{:#}", result.unwrap_err());
+    assert!(
+        msg.contains("dup_skill") && msg.contains("duplicate skill"),
+        "expected duplicate skill error, got: {msg}"
+    );
+}
+
+#[test]
+fn duplicate_plugin_via_disk_discovery_errors() {
+    let temp = TempDir::new().expect("tempdir");
+    let config_dir = temp.path().join("config");
+    std::fs::create_dir_all(&config_dir).expect("create config dir");
+    let config_path = config_dir.join("services.yaml");
+    std::fs::write(&config_path, base_config()).expect("write config");
+
+    let plugins_dir = temp.path().join("plugins");
+    write_plugin_config(&plugins_dir.join("dup-a"), "dup-plugin", "Dup A");
+    write_plugin_config(&plugins_dir.join("dup-b"), "dup-plugin", "Dup B");
+
+    let result = ConfigLoader::load_from_path(&config_path);
+    assert!(result.is_err(), "duplicate plugin ids from disk must error");
+    let msg = format!("{:#}", result.unwrap_err());
+    assert!(
+        msg.contains("dup-plugin") && msg.contains("duplicate plugin"),
+        "expected duplicate plugin error, got: {msg}"
+    );
 }

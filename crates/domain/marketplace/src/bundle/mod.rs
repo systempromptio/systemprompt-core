@@ -45,6 +45,9 @@ mod artifacts;
 mod mcp;
 mod skills;
 
+pub(crate) use agents::resolve_agents;
+pub(crate) use skills::resolve_skill_ids;
+
 #[derive(Debug, Clone)]
 pub struct BundleFile {
     pub bytes: Vec<u8>,
@@ -71,7 +74,7 @@ pub fn build_plugin_bundle(
 ) -> Result<PluginBundle, MarketplaceError> {
     let mut bundle = PluginBundle::new();
 
-    let agent_ids = agents::resolve_agents(config, content.agents);
+    let agent_ids = resolve_agents(config, content.agents);
     skills::append_skill_files(config, content, &agent_ids, &mut bundle);
     agents::append_agent_files(content.agents, &agent_ids, &mut bundle);
     artifacts::append_artifact_files(config, content, &mut bundle);

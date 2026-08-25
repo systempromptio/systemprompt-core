@@ -90,6 +90,8 @@ pub struct SignedManifest {
     pub artifacts: Vec<ArtifactEntry>,
     #[serde(default)]
     pub allow_claude_ai_connectors: bool,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub diagnostics: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

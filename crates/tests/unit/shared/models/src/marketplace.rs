@@ -23,7 +23,6 @@ fn marketplace(id: &str, refs: PluginComponentRef) -> MarketplaceConfig {
         license: "MIT".to_string(),
         visibility: MarketplaceVisibility::Public,
         plugins: refs,
-        skills: PluginComponentRef::default(),
         mcp_servers: PluginComponentRef::default(),
         agents: PluginComponentRef::default(),
         artifacts: PluginComponentRef::default(),

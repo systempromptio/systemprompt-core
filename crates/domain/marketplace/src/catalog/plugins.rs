@@ -30,14 +30,14 @@ use systemprompt_models::services::{ComponentSource, PluginConfig, ServicesConfi
 use crate::bundle::{BundleContent, PluginBundle, build_plugin_bundle, bundle_has_content};
 use crate::catalog::fingerprint::hash_dir_metadata;
 use crate::error::MarketplaceError;
-use crate::scope::{active_marketplace, scope_to_marketplace};
+use crate::scope::scope_to_marketplace;
 
 pub fn plugin_bundles(
     services: &ServicesConfig,
     content: &BundleContent<'_>,
 ) -> Result<BTreeMap<PluginId, PluginBundle>, MarketplaceError> {
     let mut out = BTreeMap::new();
-    for config in selected_configs(services) {
+    for config in selected_configs(services)? {
         let bundle = match build_plugin_bundle(config, content) {
             Ok(bundle) => bundle,
             Err(e) => {
@@ -151,7 +151,7 @@ pub fn artifact_owners(
     artifacts: &[ArtifactEntry],
 ) -> Result<BTreeMap<LibraryArtifactId, BTreeSet<PluginId>>, MarketplaceError> {
     let mut out: BTreeMap<LibraryArtifactId, BTreeSet<PluginId>> = BTreeMap::new();
-    for config in selected_configs(services) {
+    for config in selected_configs(services)? {
         let selected: Vec<LibraryArtifactId> = match config.artifacts.source {
             ComponentSource::Explicit => config
                 .artifacts
@@ -190,14 +190,31 @@ pub fn selects_artifact(config: &PluginConfig, artifact_id: &LibraryArtifactId) 
     }
 }
 
-fn selected_configs(services: &ServicesConfig) -> Vec<&PluginConfig> {
+pub(crate) fn selected_configs(
+    services: &ServicesConfig,
+) -> Result<Vec<&PluginConfig>, MarketplaceError> {
     let enabled: Vec<&PluginConfig> = services.plugins.values().filter(|p| p.enabled).collect();
-    let mut scoped = match active_marketplace(services) {
+    let active = crate::MarketplaceService::new(services).resolve_active()?;
+    let mut scoped = match active {
         Some(mp) => scope_to_marketplace(enabled, &mp.plugins.include, |c| c.id.as_str()),
         None => enabled,
     };
     scoped.sort_by(|a, b| a.id.as_str().cmp(b.id.as_str()));
-    scoped
+    Ok(scoped)
+}
+
+pub(crate) fn selected_skill_ids(
+    services: &ServicesConfig,
+    content: &BundleContent<'_>,
+) -> Result<BTreeSet<systemprompt_models::bridge::ids::SkillId>, MarketplaceError> {
+    let mut out = BTreeSet::new();
+    for config in selected_configs(services)? {
+        let agent_ids = crate::bundle::resolve_agents(config, content.agents);
+        out.extend(crate::bundle::resolve_skill_ids(
+            config, content, &agent_ids,
+        ));
+    }
+    Ok(out)
 }
 
 fn hash_entry(

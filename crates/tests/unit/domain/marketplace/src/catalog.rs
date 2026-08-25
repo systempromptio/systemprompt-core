@@ -148,7 +148,7 @@ fn load_skills_no_skills_dir_returns_empty() {
 #[test]
 fn load_skills_dir_with_valid_skill() {
     let dir = tempfile::tempdir().expect("temp dir");
-    let skill_dir = dir.path().join("skills").join("my-skill");
+    let skill_dir = dir.path().join("skills").join("my_skill");
     fs::create_dir_all(&skill_dir).expect("create skill dir");
     fs::write(
         skill_dir.join("config.yaml"),
@@ -196,7 +196,7 @@ fn load_skills_sorted_alphabetically() {
 #[test]
 fn load_skills_reads_content_file_strips_frontmatter_and_hashes() {
     let dir = tempfile::tempdir().expect("temp dir");
-    let skill_dir = dir.path().join("skills").join("my-skill");
+    let skill_dir = dir.path().join("skills").join("my_skill");
     fs::create_dir_all(&skill_dir).expect("create skill dir");
     fs::write(
         skill_dir.join("config.yaml"),
@@ -255,7 +255,7 @@ fn load_skills_empty_name_derives_display_from_dir() {
 #[test]
 fn load_skills_missing_content_file_yields_empty_instructions() {
     let dir = tempfile::tempdir().expect("temp dir");
-    let skill_dir = dir.path().join("skills").join("bare-skill");
+    let skill_dir = dir.path().join("skills").join("bare_skill");
     fs::create_dir_all(&skill_dir).expect("create skill dir");
     fs::write(
         skill_dir.join("config.yaml"),
@@ -719,7 +719,7 @@ fn load_skills_stray_file_and_config_less_dir_are_ignored() {
 #[test]
 fn load_skills_empty_id_derives_id_from_dir_name() {
     let dir = tempfile::tempdir().expect("temp dir");
-    let skill_dir = dir.path().join("skills").join("derive-me");
+    let skill_dir = dir.path().join("skills").join("derive_me");
     fs::create_dir_all(&skill_dir).expect("create skill dir");
     fs::write(
         skill_dir.join("config.yaml"),
@@ -731,7 +731,7 @@ fn load_skills_empty_id_derives_id_from_dir_name() {
     assert_eq!(
         skills[0].id.as_str(),
         "derive_me",
-        "an empty id falls back to the dir name with dashes turned to underscores",
+        "an empty id falls back to the dir name verbatim",
     );
 }
 

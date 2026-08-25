@@ -27,4 +27,5 @@ pub use mcp::{disabled_mcp_server_names, load_managed_mcp_servers};
 pub use plugins::{
     artifact_owners, load_plugins, plugin_bundles, plugin_bundles_cached, selects_artifact,
 };
-pub use skills::load_skills;
+pub(crate) use plugins::{selected_configs, selected_skill_ids};
+pub use skills::{load_skills, load_skills_traced};

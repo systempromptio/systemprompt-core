@@ -92,7 +92,7 @@ fn validate_plugin_flags_id_mismatch_and_missing_refs() {
     assert!(
         out.errors
             .iter()
-            .any(|e| e.contains("Referenced skill 'alpha_skill' not found"))
+            .any(|e| e.contains("Referenced skill 'alpha_skill' does not exist"))
     );
     assert!(
         out.warnings
@@ -108,7 +108,13 @@ fn validate_plugin_checks_scripts_and_passes_when_complete() {
         format!("{PLUGIN_YAML}  scripts:\n    - name: run.sh\n      source: scripts/run.sh\n");
     write_plugin_dir(tmp.path(), "demo", &yaml);
     let skills = tempfile::tempdir().unwrap();
-    fs::create_dir_all(skills.path().join("alpha_skill")).unwrap();
+    let skill_dir = skills.path().join("alpha_skill");
+    fs::create_dir_all(&skill_dir).unwrap();
+    fs::write(
+        skill_dir.join("config.yaml"),
+        "id: alpha_skill\nname: Alpha\ndescription: d\nenabled: true\n",
+    )
+    .unwrap();
 
     let out = validate::validate_plugin("demo", tmp.path(), skills.path());
     assert!(!out.valid);
@@ -522,4 +528,43 @@ fn generate_plugin_without_an_override_writes_under_the_storage_path() {
     let expected = root.path().join("storage/files/plugins/demo");
     assert!(expected.join(".claude-plugin/plugin.json").exists());
     assert!(result.marketplace_path.ends_with("plugins/demo"));
+}
+
+#[test]
+fn validate_plugin_resolves_declared_skill_id_not_directory_name() {
+    let tmp = tempfile::tempdir().unwrap();
+    write_plugin_dir(tmp.path(), "demo", PLUGIN_YAML);
+    let skills = tempfile::tempdir().unwrap();
+    let skill_dir = skills.path().join("some-directory");
+    fs::create_dir_all(&skill_dir).unwrap();
+    fs::write(
+        skill_dir.join("config.yaml"),
+        "id: alpha_skill\nname: Alpha\ndescription: d\nenabled: true\n",
+    )
+    .unwrap();
+
+    let out = validate::validate_plugin("demo", tmp.path(), skills.path());
+    assert!(
+        !out.errors.iter().any(|e| e.contains("alpha_skill")),
+        "the declared id resolves even though the directory is named differently: {:?}",
+        out.errors
+    );
+
+    let disabled = skills.path().join("beta-directory");
+    fs::create_dir_all(&disabled).unwrap();
+    fs::write(
+        disabled.join("config.yaml"),
+        "id: beta_skill\nname: Beta\ndescription: d\nenabled: false\n",
+    )
+    .unwrap();
+    let yaml = PLUGIN_YAML.replace("[alpha_skill]", "[beta_skill]");
+    write_plugin_dir(tmp.path(), "demo2", &yaml.replace("id: demo", "id: demo2"));
+    let out = validate::validate_plugin("demo2", tmp.path(), skills.path());
+    assert!(
+        out.warnings
+            .iter()
+            .any(|w| w.contains("beta_skill") && w.contains("disabled")),
+        "a disabled skill reference warns: {:?}",
+        out.warnings
+    );
 }

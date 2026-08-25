@@ -20,7 +20,6 @@ pub fn marketplace(id: &str) -> MarketplaceConfig {
         license: "BSL-1.0".into(),
         visibility: MarketplaceVisibility::Public,
         plugins: Default::default(),
-        skills: Default::default(),
         mcp_servers: Default::default(),
         agents: Default::default(),
         artifacts: Default::default(),

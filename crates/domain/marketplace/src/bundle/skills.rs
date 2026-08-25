@@ -2,6 +2,11 @@
 //! catalogue and laying them out as `skills/<kebab>/SKILL.md` plus auxiliary
 //! files (`scripts/`, `references/`, …).
 //!
+//! Skill ids are canonically `snake_case`; the bundle layout and the SKILL.md
+//! `name` use the kebab-case projection Claude Code's skill contract expects.
+//! Snake ids contain no hyphens, so the projection is injective — two distinct
+//! ids can never collide on a bundle path.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -49,7 +54,7 @@ pub(super) fn append_skill_files(
     }
 }
 
-fn resolve_skill_ids(
+pub(crate) fn resolve_skill_ids(
     config: &PluginConfig,
     content: &BundleContent<'_>,
     agent_ids: &[AgentId],
