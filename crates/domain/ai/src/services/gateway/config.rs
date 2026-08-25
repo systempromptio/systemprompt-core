@@ -35,6 +35,8 @@ pub struct GatewayPolicyEntry {
     #[serde(default = "default_enabled")]
     pub enabled: bool,
     #[serde(default)]
+    pub priority: i32,
+    #[serde(default)]
     pub spec: GatewayPolicySpec,
 }
 

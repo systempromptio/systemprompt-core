@@ -23,6 +23,7 @@ pub struct GatewayPolicyRow {
     pub name: String,
     pub spec: Value,
     pub enabled: bool,
+    pub priority: i32,
 }
 
 impl AiGatewayPolicyRepository {
@@ -39,10 +40,10 @@ impl AiGatewayPolicyRepository {
     pub async fn list_for_global(&self) -> Result<Vec<GatewayPolicyRow>, RepositoryError> {
         let rows = sqlx::query!(
             r#"
-            SELECT id as "id!: AiGatewayPolicyId", name, spec, enabled
+            SELECT id as "id!: AiGatewayPolicyId", name, spec, enabled, priority
             FROM ai_gateway_policies
             WHERE enabled = TRUE
-            ORDER BY name ASC
+            ORDER BY priority ASC, name ASC
             "#,
         )
         .fetch_all(self.pool.as_ref())
@@ -55,6 +56,7 @@ impl AiGatewayPolicyRepository {
                 name: r.name,
                 spec: r.spec,
                 enabled: r.enabled,
+                priority: r.priority,
             })
             .collect())
     }
@@ -64,22 +66,25 @@ impl AiGatewayPolicyRepository {
         name: &str,
         spec: &Value,
         enabled: bool,
+        priority: i32,
     ) -> Result<AiGatewayPolicyId, RepositoryError> {
         let id = AiGatewayPolicyId::generate();
         let row = sqlx::query!(
             r#"
-            INSERT INTO ai_gateway_policies (id, name, spec, enabled, created_at, updated_at)
-            VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            INSERT INTO ai_gateway_policies (id, name, spec, enabled, priority, created_at, updated_at)
+            VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
             ON CONFLICT (name) DO UPDATE
             SET spec = EXCLUDED.spec,
                 enabled = EXCLUDED.enabled,
+                priority = EXCLUDED.priority,
                 updated_at = CURRENT_TIMESTAMP
             RETURNING id as "id!: AiGatewayPolicyId"
             "#,
             id.as_str(),
             name,
             spec,
-            enabled
+            enabled,
+            priority
         )
         .fetch_one(self.write_pool.as_ref())
         .await?;

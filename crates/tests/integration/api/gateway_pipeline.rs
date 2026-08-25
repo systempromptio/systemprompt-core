@@ -457,12 +457,11 @@ async fn upstream_5xx_is_recorded_upstream_error() -> anyhow::Result<()> {
     Ok(())
 }
 
-// Why: see `install_response_block_policy` — the last policy row by name wins,
-// so these fixtures must sort after any baseline row already in the database.
 async fn install_safety_policy(pool: &DbPool, name: &str) -> anyhow::Result<()> {
     let pg = pool.pool_arc().map_err(anyhow::Error::msg)?;
     sqlx::query(
-        "INSERT INTO ai_gateway_policies (id, name, spec, enabled) VALUES ($1, $2, $3, TRUE)",
+        "INSERT INTO ai_gateway_policies (id, name, spec, enabled, priority) VALUES ($1, $2, $3, \
+         TRUE, 100)",
     )
     .bind(format!("gwpol_{}", uuid::Uuid::new_v4().simple()))
     .bind(name)
@@ -511,7 +510,7 @@ async fn buffered_dispatch_persists_request_and_response_safety_findings() -> an
     install_provider_api_key();
     let (pool, _ctx) = setup_ctx().await?;
     let cred = seed_admin_credential(&pool, "gw-safety@example.invalid").await?;
-    let policy_name = format!("zz-safety-{}", uuid::Uuid::new_v4().simple());
+    let policy_name = format!("gw-safety-{}", uuid::Uuid::new_v4().simple());
     install_safety_policy(&pool, &policy_name).await?;
 
     let upstream = MockServer::start().await;
@@ -570,7 +569,7 @@ async fn jailbreak_request_is_blocked_by_safety_policy_and_finding_persisted() -
     install_provider_api_key();
     let (pool, _ctx) = setup_ctx().await?;
     let cred = seed_admin_credential(&pool, "gw-safety-block@example.invalid").await?;
-    let policy_name = format!("zz-block-{}", uuid::Uuid::new_v4().simple());
+    let policy_name = format!("gw-block-{}", uuid::Uuid::new_v4().simple());
     install_safety_policy(&pool, &policy_name).await?;
 
     let config = gateway_config(PROVIDER);
@@ -606,9 +605,6 @@ async fn jailbreak_request_is_blocked_by_safety_policy_and_finding_persisted() -
     Ok(())
 }
 
-// Why: `list_for_global` orders `ORDER BY name ASC` and `merge` lets the last
-// row win, so a policy fixture must sort after any baseline row the target
-// database was seeded with — hence the `zz-` prefix on the names below.
 async fn install_response_block_policy(
     pool: &DbPool,
     name: &str,
@@ -616,7 +612,8 @@ async fn install_response_block_policy(
 ) -> anyhow::Result<()> {
     let pg = pool.pool_arc().map_err(anyhow::Error::msg)?;
     sqlx::query(
-        "INSERT INTO ai_gateway_policies (id, name, spec, enabled) VALUES ($1, $2, $3, TRUE)",
+        "INSERT INTO ai_gateway_policies (id, name, spec, enabled, priority) VALUES ($1, $2, $3, \
+         TRUE, 100)",
     )
     .bind(format!("gwpol_{}", uuid::Uuid::new_v4().simple()))
     .bind(name)
@@ -682,7 +679,7 @@ async fn buffered_response_in_a_blocked_category_is_not_served() -> anyhow::Resu
     install_provider_api_key();
     let (pool, _ctx) = setup_ctx().await?;
     let cred = seed_admin_credential(&pool, "gw-resp-block@example.invalid").await?;
-    let policy_name = format!("zz-resp-block-{}", uuid::Uuid::new_v4().simple());
+    let policy_name = format!("gw-resp-block-{}", uuid::Uuid::new_v4().simple());
     install_response_block_policy(&pool, &policy_name, &["jailbreak"]).await?;
 
     let (request_id, resp) = dispatch_against_jailbreak_upstream(&pool, &cred).await?;
@@ -712,7 +709,7 @@ async fn the_same_response_is_served_intact_when_no_category_blocks() -> anyhow:
     install_provider_api_key();
     let (pool, _ctx) = setup_ctx().await?;
     let cred = seed_admin_credential(&pool, "gw-resp-audit@example.invalid").await?;
-    let policy_name = format!("zz-resp-audit-{}", uuid::Uuid::new_v4().simple());
+    let policy_name = format!("gw-resp-audit-{}", uuid::Uuid::new_v4().simple());
     install_response_block_policy(&pool, &policy_name, &[]).await?;
 
     let (request_id, resp) = dispatch_against_jailbreak_upstream(&pool, &cred).await?;
@@ -738,7 +735,7 @@ async fn a_streaming_response_is_never_blocked() -> anyhow::Result<()> {
     install_provider_api_key();
     let (pool, _ctx) = setup_ctx().await?;
     let cred = seed_admin_credential(&pool, "gw-resp-stream@example.invalid").await?;
-    let policy_name = format!("zz-resp-stream-{}", uuid::Uuid::new_v4().simple());
+    let policy_name = format!("gw-resp-stream-{}", uuid::Uuid::new_v4().simple());
     install_response_block_policy(&pool, &policy_name, &["jailbreak"]).await?;
 
     let upstream = MockServer::start().await;

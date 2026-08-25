@@ -1,7 +1,10 @@
 //! Resolution and caching of the effective gateway policy.
 //!
-//! [`PolicyResolver`] loads the global policy rows, merges them into a single
-//! [`GatewayPolicySpec`], and caches the result for a short TTL; a DB error or
+//! [`PolicyResolver`] loads the global policy rows in ascending
+//! `(priority, name)` order and merges them into a single
+//! [`GatewayPolicySpec`] — each non-empty section overrides the previous, so
+//! the highest-priority row wins. The result is cached for a short TTL; a DB
+//! error or
 //! a malformed spec degrades to a permissive policy rather than failing the
 //! request.
 //!

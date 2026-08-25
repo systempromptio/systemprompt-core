@@ -62,7 +62,9 @@ impl GatewayPolicyIngestionService {
                     field: format!("policies.{}.spec", entry.name),
                     reason: err.to_string(),
                 })?;
-            self.repo.upsert(&entry.name, &spec, entry.enabled).await?;
+            self.repo
+                .upsert(&entry.name, &spec, entry.enabled, entry.priority)
+                .await?;
             if already_present {
                 report.updated += 1;
             } else {
