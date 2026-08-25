@@ -20,7 +20,7 @@ pub use banned_ip::{
     BanDuration, BanIpParams, BanIpWithMetadataParams, BannedIp, BannedIpRepository,
 };
 pub use device_cert::EnrollDeviceCertParams;
-pub use user::{MergeResult, UpdateUserParams};
+pub use user::{MERGE_EXCLUDED_SECURITY_TABLES, MergeResult, UpdateUserParams};
 
 use crate::error::Result;
 use sqlx::PgPool;

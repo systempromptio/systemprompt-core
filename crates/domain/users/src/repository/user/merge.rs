@@ -16,11 +16,25 @@ pub struct MergeResult {
     pub total_rows: u64,
 }
 
+// Why: `merge_users` transfers data rows only. Rows in these credential and
+// auth-state tables are bound to the source identity and die with it via FK
+// CASCADE when the source row is deleted. A new table holding credentials or
+// auth state belongs on this list, not in a `transfer_*` helper.
+pub const MERGE_EXCLUDED_SECURITY_TABLES: &[&str] = &[
+    "oauth_auth_codes",
+    "oauth_refresh_tokens",
+    "oauth_clients",
+    "webauthn_credentials",
+    "webauthn_challenges",
+    "webauthn_setup_tokens",
+    "user_api_keys",
+    "user_device_certs",
+    "bridge_sessions",
+    "bridge_exchange_codes",
+    "federated_identities",
+];
+
 impl UserRepository {
-    // Why: security artifacts (oauth tokens/codes, webauthn, API keys, device
-    // certs, bridge auth state, federated links) are deliberately NOT rekeyed
-    // — they are bound to the source identity and die with it via FK CASCADE
-    // when the source row is deleted. Only data rows transfer.
     pub async fn merge_users(&self, source_id: &UserId, target_id: &UserId) -> Result<MergeResult> {
         let mut conn = self.write_pool.acquire().await?;
         let mut tx = conn.begin().await?;

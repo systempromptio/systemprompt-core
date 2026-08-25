@@ -51,7 +51,8 @@ pub use models::{
 };
 pub use repository::{
     BanDuration, BanIpParams, BanIpWithMetadataParams, BannedIp, BannedIpRepository,
-    CreateApiKeyParams, EnrollDeviceCertParams, MergeResult, UserRepository,
+    CreateApiKeyParams, EnrollDeviceCertParams, MERGE_EXCLUDED_SECURITY_TABLES, MergeResult,
+    UserRepository,
 };
 pub use services::{
     API_KEY_PREFIX, ApiKeyService, DemoteResult, DeviceCertService, EnrollDeviceCertServiceParams,
