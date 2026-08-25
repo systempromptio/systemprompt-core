@@ -168,15 +168,15 @@ check-offline:
 # Covers the separate `crates/tests` and `bin/bridge` workspaces too — `--all`
 # stops at the manifest it is invoked from, so each must be named explicitly.
 fmt:
-    cargo +nightly fmt --all
-    cd crates/tests && cargo +nightly fmt --all
-    cargo +nightly fmt --manifest-path bin/bridge/Cargo.toml --all
+    cargo fmt --all
+    cd crates/tests && cargo fmt --all
+    cargo fmt --manifest-path bin/bridge/Cargo.toml --all
 
 # Check formatting without making changes (main + test + bridge workspaces).
 format-check:
-    cargo +nightly fmt --all -- --check
-    cd crates/tests && cargo +nightly fmt --all -- --check
-    cargo +nightly fmt --manifest-path bin/bridge/Cargo.toml --all -- --check
+    cargo fmt --all -- --check
+    cd crates/tests && cargo fmt --all -- --check
+    cargo fmt --manifest-path bin/bridge/Cargo.toml --all -- --check
 
 # Build rustdoc with warnings as errors (main + test workspace).
 # `--workspace` stops at the manifest it is invoked from, so the 86 test
@@ -308,7 +308,7 @@ style-check:
     echo "🎨 Running style checks..."
     echo ""
     echo "1️⃣  Checking code formatting..."
-    cargo +nightly fmt --all -- --check
+    cargo fmt --all -- --check
     echo ""
     echo "2️⃣  Running clippy linter..."
     cargo clippy --workspace --all-targets --all-features -- -D warnings
@@ -320,7 +320,7 @@ style-check:
     ./scripts/check-http-errors.sh
     echo ""
     echo "5️⃣  Checking the test workspace (fmt + clippy + compile)..."
-    (cd crates/tests && cargo +nightly fmt --all -- --check)
+    (cd crates/tests && cargo fmt --all -- --check)
     (cd crates/tests && cargo clippy --workspace --all-targets --all-features -- -D warnings)
     (cd crates/tests && cargo test --workspace --no-run)
     echo ""
