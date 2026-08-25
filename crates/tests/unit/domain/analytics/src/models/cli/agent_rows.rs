@@ -135,7 +135,7 @@ mod agent_row_tests {
     fn conversation_list_row_stores_values() {
         let now = Utc::now();
         let row = ConversationListRow {
-            context_id: ContextId::new(TEST_CONTEXT_ID_A.to_string()),
+            context_id: ContextId::new_unchecked(TEST_CONTEXT_ID_A.to_string()),
             name: Some("Support Chat".to_string()),
             task_count: 5,
             message_count: 25,

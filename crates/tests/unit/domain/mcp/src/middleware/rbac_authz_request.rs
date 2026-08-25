@@ -44,7 +44,7 @@ fn claims_with(roles: Vec<String>, attributes: BTreeMap<String, serde_json::Valu
 fn execution_with(context: &str, task: Option<&str>) -> ExecutionContext {
     ExecutionContext {
         trace_id: TraceId::generate(),
-        context_id: ContextId::new(context),
+        context_id: ContextId::new_unchecked(context),
         task_id: task.map(TaskId::new),
         ai_tool_call_id: None,
         mcp_execution_id: None,
@@ -76,7 +76,9 @@ fn forwards_roles_and_attributes_from_claims() {
     assert!(matches!(req.entity, EntityRef::McpServer(_)));
     assert_eq!(
         req.context_id,
-        Some(ContextId::new("22222222-2222-4222-8222-222222222222"))
+        Some(ContextId::new_unchecked(
+            "22222222-2222-4222-8222-222222222222"
+        ))
     );
     assert_eq!(req.task_id, Some(TaskId::new("task-7")));
 }
@@ -93,7 +95,9 @@ fn tool_call_without_task_forwards_context_only() {
     );
     assert_eq!(
         req.context_id,
-        Some(ContextId::new("22222222-2222-4222-8222-222222222222"))
+        Some(ContextId::new_unchecked(
+            "22222222-2222-4222-8222-222222222222"
+        ))
     );
     assert!(req.task_id.is_none());
 }

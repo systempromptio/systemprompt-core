@@ -39,7 +39,9 @@ fn request_with_trace(route: &str, trace: &str) -> AuthzRequest {
         trace_id: TraceId::new(trace),
         session_id: None,
         context: AuthzContext::none(),
-        context_id: Some(ContextId::new("55555555-5555-4555-8555-555555555555")),
+        context_id: Some(ContextId::new_unchecked(
+            "55555555-5555-4555-8555-555555555555",
+        )),
         task_id: Some(TaskId::new("task-55")),
         act_chain: Vec::new(),
     }

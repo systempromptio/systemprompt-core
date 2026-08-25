@@ -11,7 +11,7 @@ fn test_request_context() -> RequestContext {
     RequestContext::new(
         SessionId::new("s"),
         TraceId::new("t"),
-        ContextId::new("00000000-0000-4000-8000-000000000001"),
+        ContextId::new_unchecked("00000000-0000-4000-8000-000000000001"),
         AgentName::new("a"),
     )
 }

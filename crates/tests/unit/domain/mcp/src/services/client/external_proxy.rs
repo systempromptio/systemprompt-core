@@ -51,7 +51,7 @@ fn context() -> RequestContext {
     RequestContext::new(
         SessionId::generate(),
         TraceId::generate(),
-        ContextId::new(uuid::Uuid::new_v4().to_string()),
+        ContextId::new_unchecked(uuid::Uuid::new_v4().to_string()),
         AgentName::new("external-proxy-test"),
     )
 }

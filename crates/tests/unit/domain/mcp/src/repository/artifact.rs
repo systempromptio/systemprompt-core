@@ -17,7 +17,9 @@ fn full_artifact(id: &ArtifactId, server: &str) -> CreateMcpArtifact {
     CreateMcpArtifact {
         artifact_id: id.clone(),
         mcp_execution_id: McpExecutionId::new(unique("exec")),
-        context_id: Some(ContextId::new("00000000-0000-4000-8000-000000000abc")),
+        context_id: Some(ContextId::new_unchecked(
+            "00000000-0000-4000-8000-000000000abc",
+        )),
         user_id: Some(UserId::new("11111111-1111-4111-8111-111111111abc")),
         server_name: server.to_owned(),
         artifact_type: "document".to_owned(),
@@ -120,7 +122,9 @@ async fn save_then_find_round_trips_all_fields() {
     assert_eq!(found.metadata, Some(serde_json::json!({"k": "v"})));
     assert_eq!(
         found.context_id,
-        Some(ContextId::new("00000000-0000-4000-8000-000000000abc"))
+        Some(ContextId::new_unchecked(
+            "00000000-0000-4000-8000-000000000abc"
+        ))
     );
     assert!(found.expires_at.is_none());
 }

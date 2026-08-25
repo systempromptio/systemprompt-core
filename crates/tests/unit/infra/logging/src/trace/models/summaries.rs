@@ -18,7 +18,7 @@ fn test_trace_event_creation() {
         user_id: Some("user-123".to_string().into()),
         session_id: Some("session-456".to_string().into()),
         task_id: Some("task-789".to_string().into()),
-        context_id: Some(ContextId::new(TEST_CTX)),
+        context_id: Some(ContextId::new_unchecked(TEST_CTX)),
         metadata: Some(r#"{"key": "value"}"#.to_string()),
     };
 
@@ -27,7 +27,7 @@ fn test_trace_event_creation() {
     assert_eq!(event.user_id, Some("user-123".to_string().into()));
     assert_eq!(event.session_id, Some("session-456".to_string().into()));
     assert_eq!(event.task_id, Some("task-789".to_string().into()));
-    assert_eq!(event.context_id, Some(ContextId::new(TEST_CTX)));
+    assert_eq!(event.context_id, Some(ContextId::new_unchecked(TEST_CTX)));
     event.metadata.expect("event.metadata should be present");
 }
 

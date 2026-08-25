@@ -37,12 +37,12 @@ const LEGACY_CONTEXT_UUID: &str = "00000000-0000-0000-0000-4c4547414359";
 
 impl ContextId {
     pub fn generate() -> Self {
-        Self::new(uuid::Uuid::new_v4().to_string())
+        Self::new_unchecked(uuid::Uuid::new_v4().to_string())
     }
 
     #[must_use]
     pub fn derived_from_gateway_conversation(gw: &GatewayConversationId) -> Self {
-        Self::new(
+        Self::new_unchecked(
             uuid::Uuid::new_v5(&GATEWAY_CONVERSATION_NAMESPACE, gw.as_str().as_bytes()).to_string(),
         )
     }
@@ -50,40 +50,46 @@ impl ContextId {
     #[must_use]
     pub fn derived_from_messaging(platform: &str, org: &str, channel: &str) -> Self {
         let key = format!("{platform}:{org}:{channel}");
-        Self::new(uuid::Uuid::new_v5(&MESSAGING_NAMESPACE, key.as_bytes()).to_string())
+        Self::new_unchecked(uuid::Uuid::new_v5(&MESSAGING_NAMESPACE, key.as_bytes()).to_string())
     }
 
     #[must_use]
     pub fn derived_from_session(session_id: &SessionId) -> Self {
-        Self::new(
+        Self::new_unchecked(
             uuid::Uuid::new_v5(&SESSION_NAMESPACE, session_id.as_str().as_bytes()).to_string(),
         )
     }
 
     #[must_use]
     pub fn derived_from_evaluation_run(run_id: &EvalRunId) -> Self {
-        Self::new(uuid::Uuid::new_v5(&EVALUATION_NAMESPACE, run_id.as_str().as_bytes()).to_string())
+        Self::new_unchecked(
+            uuid::Uuid::new_v5(&EVALUATION_NAMESPACE, run_id.as_str().as_bytes()).to_string(),
+        )
     }
 
     #[must_use]
     pub fn derived_from_cli_probe(server_name: &str) -> Self {
-        Self::new(uuid::Uuid::new_v5(&CLI_PROBE_NAMESPACE, server_name.as_bytes()).to_string())
+        Self::new_unchecked(
+            uuid::Uuid::new_v5(&CLI_PROBE_NAMESPACE, server_name.as_bytes()).to_string(),
+        )
     }
 
     #[must_use]
     pub fn derived_from_mcp_validation(service_name: &str) -> Self {
-        Self::new(
+        Self::new_unchecked(
             uuid::Uuid::new_v5(&MCP_VALIDATION_NAMESPACE, service_name.as_bytes()).to_string(),
         )
     }
 
     #[must_use]
     pub fn derived_from_task(task_id: &TaskId) -> Self {
-        Self::new(uuid::Uuid::new_v5(&TASK_NAMESPACE, task_id.as_str().as_bytes()).to_string())
+        Self::new_unchecked(
+            uuid::Uuid::new_v5(&TASK_NAMESPACE, task_id.as_str().as_bytes()).to_string(),
+        )
     }
 
     #[must_use]
     pub fn legacy() -> Self {
-        Self::new(LEGACY_CONTEXT_UUID)
+        Self::new_unchecked(LEGACY_CONTEXT_UUID)
     }
 }

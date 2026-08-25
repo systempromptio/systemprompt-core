@@ -224,7 +224,7 @@ fn test_record_click_params_with_context_id() {
         SessionId::new("session"),
         clicked_at,
     )
-    .with_context_id(Some(ContextId::new(TEST_CONTEXT_ID_A)));
+    .with_context_id(Some(ContextId::new_unchecked(TEST_CONTEXT_ID_A)));
 
     assert_eq!(
         params.context_id.as_ref().unwrap().as_str(),
@@ -377,7 +377,7 @@ fn test_track_click_params_with_user_id() {
 #[test]
 fn test_track_click_params_with_context_id() {
     let params = TrackClickParams::new(LinkId::new("link"), SessionId::new("session"))
-        .with_context_id(Some(ContextId::new(TEST_CONTEXT_ID_A)));
+        .with_context_id(Some(ContextId::new_unchecked(TEST_CONTEXT_ID_A)));
 
     assert_eq!(
         params.context_id.as_ref().unwrap().as_str(),
@@ -397,7 +397,7 @@ fn test_track_click_params_with_task_id() {
 fn test_track_click_params_full_builder() {
     let params = TrackClickParams::new(LinkId::new("full-link"), SessionId::new("full-session"))
         .with_user_id(Some(fixture_user_id()))
-        .with_context_id(Some(ContextId::new(TEST_CONTEXT_ID_B)))
+        .with_context_id(Some(ContextId::new_unchecked(TEST_CONTEXT_ID_B)))
         .with_task_id(Some(TaskId::new("t")))
         .with_referrer_page(Some("/ref".to_string()))
         .with_referrer_url(Some("https://ref.com".to_string()))

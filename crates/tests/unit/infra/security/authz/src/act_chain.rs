@@ -66,7 +66,9 @@ fn authz_request_carries_context_and_task_through_serde() {
     use systemprompt_identifiers::{ContextId, TaskId};
 
     let mut req = request_with_chain(Vec::new());
-    req.context_id = Some(ContextId::new("66666666-6666-4666-8666-666666666666"));
+    req.context_id = Some(ContextId::new_unchecked(
+        "66666666-6666-4666-8666-666666666666",
+    ));
     req.task_id = Some(TaskId::new("task-66"));
     let wire = serde_json::to_string(&req).expect("serialize");
     let parsed: AuthzRequest = serde_json::from_str(&wire).expect("deserialize");

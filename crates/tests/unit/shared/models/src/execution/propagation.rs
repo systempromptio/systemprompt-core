@@ -12,7 +12,7 @@ fn base_context() -> RequestContext {
     RequestContext::new(
         SessionId::new("sess-1"),
         TraceId::new("trace-1"),
-        ContextId::new(FIXED_CONTEXT),
+        ContextId::new_unchecked(FIXED_CONTEXT),
         AgentName::new("agent-one"),
     )
 }
@@ -174,7 +174,7 @@ fn invalid_header_value_is_skipped_not_panicked() {
     let ctx = RequestContext::new(
         SessionId::new("sess\nbad"),
         TraceId::new("trace-1"),
-        ContextId::new(FIXED_CONTEXT),
+        ContextId::new_unchecked(FIXED_CONTEXT),
         AgentName::new("agent-one"),
     );
     let hdrs = ctx.to_headers();

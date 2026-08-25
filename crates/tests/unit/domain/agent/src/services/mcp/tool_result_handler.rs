@@ -31,7 +31,7 @@ fn base_ctx() -> RequestContext {
     RequestContext::new(
         SessionId::new("trh-session"),
         TraceId::new("trh-trace"),
-        ContextId::new(CTX_UUID),
+        ContextId::new_unchecked(CTX_UUID),
         AgentName::new("trh-agent"),
     )
 }
@@ -56,7 +56,7 @@ fn rejects_unauthenticated_caller() {
     let ctx = base_ctx();
     let tr = valid_tool_result();
     let task_id = TaskId::new("task-trh-1");
-    let context_id = ContextId::new(CTX_UUID);
+    let context_id = ContextId::new_unchecked(CTX_UUID);
     let args = json!({});
     let p = ProcessToolResultParams {
         tool_name: "writer-tool",
@@ -79,7 +79,7 @@ fn rejects_system_caller() {
         .with_user_type(UserType::Service);
     let tr = valid_tool_result();
     let task_id = TaskId::new("task-trh-2");
-    let context_id = ContextId::new(CTX_UUID);
+    let context_id = ContextId::new_unchecked(CTX_UUID);
     let args = json!({});
     let p = ProcessToolResultParams {
         tool_name: "writer-tool",
@@ -100,7 +100,7 @@ fn transforms_authenticated_tool_result() {
     let ctx = base_ctx().with_user(authed_user());
     let tr = valid_tool_result();
     let task_id = TaskId::new("task-trh-3");
-    let context_id = ContextId::new(CTX_UUID);
+    let context_id = ContextId::new_unchecked(CTX_UUID);
     let args = json!({"q": 1});
     let p = ProcessToolResultParams {
         tool_name: "writer-tool",
@@ -127,7 +127,7 @@ fn missing_structured_content_errors() {
     let ctx = base_ctx().with_user(authed_user());
     let tr: CallToolResult = serde_json::from_value(json!({"content": []})).expect("build");
     let task_id = TaskId::new("task-trh-4");
-    let context_id = ContextId::new(CTX_UUID);
+    let context_id = ContextId::new_unchecked(CTX_UUID);
     let args = json!({});
     let p = ProcessToolResultParams {
         tool_name: "writer-tool",

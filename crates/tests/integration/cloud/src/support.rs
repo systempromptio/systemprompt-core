@@ -96,7 +96,7 @@ pub fn build_session_for(
         ),
         SessionToken::new(token),
         SessionId::new(format!("sid-{profile}")),
-        ContextId::new(context),
+        ContextId::new_unchecked(context),
         SessionIdentity::new(
             fixture_user_id(),
             Email::new(format!("{profile}@example.com")),

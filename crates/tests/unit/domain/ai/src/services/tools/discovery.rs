@@ -93,7 +93,7 @@ mod tool_discovery_tests {
         RequestContext::new(
             SessionId::new("test-session".to_string()),
             TraceId::new("test-trace".to_string()),
-            ContextId::new(TEST_CONTEXT_ID_A),
+            ContextId::new_unchecked(TEST_CONTEXT_ID_A),
             AgentName::new("test-agent".to_string()),
         )
     }

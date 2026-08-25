@@ -22,7 +22,7 @@ fn create_test_builder() -> CliSessionBuilder {
         ),
         SessionToken::new("test-token"),
         SessionId::new("session-123"),
-        ContextId::new(TEST_CONTEXT_ID_A),
+        ContextId::new_unchecked(TEST_CONTEXT_ID_A),
         SessionIdentity::new(
             fixture_user_id(),
             Email::new("test@example.com"),
@@ -135,7 +135,7 @@ fn test_cli_session_set_context_id() {
     let original_last_used = session.last_used;
 
     std::thread::sleep(std::time::Duration::from_millis(10));
-    session.set_context_id(ContextId::new(TEST_CONTEXT_ID_B));
+    session.set_context_id(ContextId::new_unchecked(TEST_CONTEXT_ID_B));
 
     assert_eq!(session.context_id.as_str(), TEST_CONTEXT_ID_B);
     assert!(session.last_used > original_last_used);
@@ -188,7 +188,7 @@ fn test_cli_session_has_valid_credentials_false_empty_token() {
         ),
         SessionToken::new(""),
         SessionId::new("session"),
-        ContextId::new(TEST_CONTEXT_ID_A),
+        ContextId::new_unchecked(TEST_CONTEXT_ID_A),
         SessionIdentity::new(
             fixture_user_id(),
             Email::new("test@example.com"),
@@ -378,7 +378,7 @@ fn test_cli_session_builder_method() {
         SessionBinding::new(ProfileName::new("p"), "http://localhost:8080".to_owned()),
         SessionToken::new("t"),
         SessionId::new("s"),
-        ContextId::new(TEST_CONTEXT_ID_A),
+        ContextId::new_unchecked(TEST_CONTEXT_ID_A),
         SessionIdentity::new(
             fixture_user_id(),
             Email::new("test@example.com"),

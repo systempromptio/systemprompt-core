@@ -43,6 +43,6 @@ crate::define_id!(GatewayConversationId, validated, schema, validate);
 impl GatewayConversationId {
     #[must_use]
     pub fn from_prefix_hash(hash: u64) -> Self {
-        Self::new(format!("{PREFIX}{hash:016x}"))
+        Self::new_unchecked(format!("{PREFIX}{hash:016x}"))
     }
 }

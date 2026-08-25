@@ -22,7 +22,7 @@ fn cache() -> ThoughtSignatureCache {
 const GEMINI: Option<WireProtocol> = Some(WireProtocol::Gemini);
 
 fn conv() -> GatewayConversationId {
-    GatewayConversationId::new("ctx_00000000000000aa")
+    GatewayConversationId::new_unchecked("ctx_00000000000000aa")
 }
 
 fn tool_use(id: &str, signature: Option<&str>) -> CanonicalContent {
@@ -185,7 +185,7 @@ fn response_signatures_survive_a_stripped_replay() {
 fn signatures_are_scoped_to_their_conversation() {
     let cache = cache();
     cache.store(&conv(), "call_1", "sig-a");
-    let other = GatewayConversationId::new("ctx_00000000000000bb");
+    let other = GatewayConversationId::new_unchecked("ctx_00000000000000bb");
     assert_eq!(cache.lookup(&other, "call_1"), None);
     let mut request = request_with(vec![tool_use("call_1", None)]);
     cache.hydrate_request(&other, &mut request, GEMINI);

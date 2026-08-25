@@ -22,7 +22,7 @@ fn minimal_artifact() -> Artifact {
         extensions: vec![],
         metadata: ArtifactMetadata::new(
             "text".to_string(),
-            ContextId::new(CONTEXT_ID_1),
+            ContextId::new_unchecked(CONTEXT_ID_1),
             TaskId::new("task-art"),
         ),
     }
@@ -33,7 +33,7 @@ fn context_state_event_artifact_created_context_id() {
     let event = ContextStateEvent::ArtifactCreated {
         artifact: minimal_artifact(),
         task_id: TaskId::new("task-art"),
-        context_id: ContextId::new(CONTEXT_ID_1),
+        context_id: ContextId::new_unchecked(CONTEXT_ID_1),
         timestamp: Utc::now(),
     };
     assert_eq!(event.context_id(), Some(CONTEXT_ID_1));
@@ -45,7 +45,7 @@ fn context_state_event_artifact_created_serialize() {
     let event = ContextStateEvent::ArtifactCreated {
         artifact: minimal_artifact(),
         task_id: TaskId::new("task-serial"),
-        context_id: ContextId::new(CONTEXT_ID_2),
+        context_id: ContextId::new_unchecked(CONTEXT_ID_2),
         timestamp: Utc::now(),
     };
     let json = serde_json::to_string(&event).unwrap();
@@ -58,7 +58,7 @@ fn context_state_event_skill_loaded_has_context_id() {
     let ctx = RequestContext::new(
         SessionId::new("sess-1"),
         TraceId::new("trace-1"),
-        ContextId::new(CONTEXT_ID_1),
+        ContextId::new_unchecked(CONTEXT_ID_1),
         AgentName::new("test-agent"),
     );
     let event = ContextStateEvent::SkillLoaded {
@@ -77,7 +77,7 @@ fn context_state_event_skill_loaded_no_tool_name() {
     let ctx = RequestContext::new(
         SessionId::new("sess-2"),
         TraceId::new("trace-2"),
-        ContextId::new(CONTEXT_ID_2),
+        ContextId::new_unchecked(CONTEXT_ID_2),
         AgentName::new("test-agent"),
     );
     let event = ContextStateEvent::SkillLoaded {
@@ -94,7 +94,7 @@ fn context_state_event_skill_loaded_no_tool_name() {
 #[test]
 fn context_state_event_tool_execution_with_artifact() {
     let event = ContextStateEvent::ToolExecutionCompleted {
-        context_id: ContextId::new(CONTEXT_ID_1),
+        context_id: ContextId::new_unchecked(CONTEXT_ID_1),
         execution_id: McpExecutionId::new("exec-with-art"),
         tool_name: "fetch_data".to_string(),
         server_name: "data-server".to_string(),
@@ -111,7 +111,7 @@ fn context_state_event_tool_execution_with_artifact() {
 #[test]
 fn context_state_event_tool_execution_without_output() {
     let event = ContextStateEvent::ToolExecutionCompleted {
-        context_id: ContextId::new(CONTEXT_ID_1),
+        context_id: ContextId::new_unchecked(CONTEXT_ID_1),
         execution_id: McpExecutionId::new("exec-no-out"),
         tool_name: "void_tool".to_string(),
         server_name: "srv".to_string(),
@@ -126,9 +126,9 @@ fn context_state_event_tool_execution_without_output() {
 #[test]
 fn context_state_event_context_created_serialize() {
     let event = ContextStateEvent::ContextCreated {
-        context_id: ContextId::new(CONTEXT_ID_1),
+        context_id: ContextId::new_unchecked(CONTEXT_ID_1),
         context: UserContext {
-            context_id: ContextId::new(CONTEXT_ID_1),
+            context_id: ContextId::new_unchecked(CONTEXT_ID_1),
             name: "My Context".to_string(),
             kind: ContextKind::User,
             created_at: Utc::now(),
@@ -145,7 +145,7 @@ fn context_state_event_context_created_serialize() {
 #[test]
 fn context_state_event_current_agent_none_name() {
     let event = ContextStateEvent::CurrentAgent {
-        context_id: ContextId::new(CONTEXT_ID_2),
+        context_id: ContextId::new_unchecked(CONTEXT_ID_2),
         agent_name: None,
         timestamp: Utc::now(),
     };
@@ -159,7 +159,7 @@ fn context_state_event_task_status_changed_timestamp() {
     let now = Utc::now();
     let event = ContextStateEvent::TaskStatusChanged {
         task: systemprompt_agent::Task::default(),
-        context_id: ContextId::new(CONTEXT_ID_1),
+        context_id: ContextId::new_unchecked(CONTEXT_ID_1),
         timestamp: now,
     };
     assert_eq!(event.timestamp(), now);

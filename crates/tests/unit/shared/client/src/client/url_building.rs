@@ -166,7 +166,9 @@ async fn test_get_context_builds_correct_url() {
 
     let client = SystempromptClient::new(&mock_server.uri()).unwrap();
     let context = client
-        .get_context(&ContextId::new("00000000-0000-4000-8000-000000000abc"))
+        .get_context(&ContextId::new_unchecked(
+            "00000000-0000-4000-8000-000000000abc",
+        ))
         .await
         .expect("get_context should succeed");
 
@@ -187,7 +189,9 @@ async fn test_list_tasks_builds_correct_url() {
 
     let client = SystempromptClient::new(&mock_server.uri()).unwrap();
     let tasks = client
-        .list_tasks(&ContextId::new("00000000-0000-4000-8000-000000000001"))
+        .list_tasks(&ContextId::new_unchecked(
+            "00000000-0000-4000-8000-000000000001",
+        ))
         .await
         .expect("list_tasks should succeed");
 
@@ -208,7 +212,9 @@ async fn test_list_artifacts_builds_correct_url() {
 
     let client = SystempromptClient::new(&mock_server.uri()).unwrap();
     let artifacts = client
-        .list_artifacts(&ContextId::new("00000000-0000-4000-8000-000000000002"))
+        .list_artifacts(&ContextId::new_unchecked(
+            "00000000-0000-4000-8000-000000000002",
+        ))
         .await
         .expect("list_artifacts should succeed");
 
@@ -284,7 +290,7 @@ async fn test_send_message_builds_correct_url_and_envelope() {
     let result = client
         .send_message(
             "my-agent",
-            &ContextId::new("00000000-0000-4000-8000-000000000001"),
+            &ContextId::new_unchecked("00000000-0000-4000-8000-000000000001"),
             message,
         )
         .await
@@ -319,7 +325,7 @@ async fn test_send_message_requires_auth_header_when_token_set() {
     client
         .send_message(
             "agent-x",
-            &ContextId::new("00000000-0000-4000-8000-0000000000c1"),
+            &ContextId::new_unchecked("00000000-0000-4000-8000-0000000000c1"),
             serde_json::json!({}),
         )
         .await
@@ -341,7 +347,7 @@ async fn test_update_context_name_builds_correct_url() {
     let client = SystempromptClient::new(&mock_server.uri()).unwrap();
     client
         .update_context_name(
-            &ContextId::new("00000000-0000-4000-8000-000000000999"),
+            &ContextId::new_unchecked("00000000-0000-4000-8000-000000000999"),
             "Renamed",
         )
         .await

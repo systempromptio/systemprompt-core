@@ -8,7 +8,7 @@ fn ctx() -> RequestContext {
     RequestContext::new(
         SessionId::new("session-1"),
         TraceId::new("trace-1"),
-        ContextId::new("00000000-0000-4000-8000-000000000002"),
+        ContextId::new_unchecked("00000000-0000-4000-8000-000000000002"),
         AgentName::new("test-agent"),
     )
 }

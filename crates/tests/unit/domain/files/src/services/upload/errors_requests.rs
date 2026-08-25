@@ -110,7 +110,7 @@ fn test_file_upload_error_display_path_validation() {
 
 #[test]
 fn test_file_upload_request_builder_new() {
-    let context_id = ContextId::new(TEST_CONTEXT_ID_A);
+    let context_id = ContextId::new_unchecked(TEST_CONTEXT_ID_A);
     let builder = FileUploadRequestBuilder::new("image/png", "base64data==", context_id);
     let debug_str = format!("{:?}", builder);
     assert!(debug_str.contains("FileUploadRequestBuilder"));
@@ -118,7 +118,7 @@ fn test_file_upload_request_builder_new() {
 
 #[test]
 fn test_file_upload_request_builder_build() {
-    let context_id = ContextId::new(TEST_CONTEXT_ID_A);
+    let context_id = ContextId::new_unchecked(TEST_CONTEXT_ID_A);
     let request = FileUploadRequestBuilder::new("image/png", "base64data==", context_id).build();
 
     assert_eq!(request.mime_type, "image/png");
@@ -132,7 +132,7 @@ fn test_file_upload_request_builder_build() {
 
 #[test]
 fn test_file_upload_request_builder_with_name() {
-    let context_id = ContextId::new(TEST_CONTEXT_ID_A);
+    let context_id = ContextId::new_unchecked(TEST_CONTEXT_ID_A);
     let request = FileUploadRequestBuilder::new("image/png", "base64data==", context_id)
         .with_name("myfile.png")
         .build();
@@ -142,7 +142,7 @@ fn test_file_upload_request_builder_with_name() {
 
 #[test]
 fn test_file_upload_request_builder_with_user_id() {
-    let context_id = ContextId::new(TEST_CONTEXT_ID_A);
+    let context_id = ContextId::new_unchecked(TEST_CONTEXT_ID_A);
     let user_id = fixture_user_id();
     let request = FileUploadRequestBuilder::new("image/png", "base64data==", context_id)
         .with_user_id(user_id)
@@ -154,7 +154,7 @@ fn test_file_upload_request_builder_with_user_id() {
 
 #[test]
 fn test_file_upload_request_builder_with_session_id() {
-    let context_id = ContextId::new(TEST_CONTEXT_ID_A);
+    let context_id = ContextId::new_unchecked(TEST_CONTEXT_ID_A);
     let session_id = SessionId::new("sess_xyz");
     let request = FileUploadRequestBuilder::new("image/png", "base64data==", context_id)
         .with_session_id(session_id)
@@ -169,7 +169,7 @@ fn test_file_upload_request_builder_with_session_id() {
 
 #[test]
 fn test_file_upload_request_builder_with_trace_id() {
-    let context_id = ContextId::new(TEST_CONTEXT_ID_A);
+    let context_id = ContextId::new_unchecked(TEST_CONTEXT_ID_A);
     let trace_id = TraceId::new("trace_def");
     let request = FileUploadRequestBuilder::new("image/png", "base64data==", context_id)
         .with_trace_id(trace_id)
@@ -184,7 +184,7 @@ fn test_file_upload_request_builder_with_trace_id() {
 
 #[test]
 fn test_file_upload_request_builder_full_chain() {
-    let context_id = ContextId::new(TEST_CONTEXT_ID_A);
+    let context_id = ContextId::new_unchecked(TEST_CONTEXT_ID_A);
     let user_id = fixture_user_id();
     let session_id = SessionId::new("sess_xyz");
     let trace_id = TraceId::new("trace_def");
@@ -207,7 +207,7 @@ fn test_file_upload_request_builder_full_chain() {
 
 #[test]
 fn test_file_upload_request_builder_static_method() {
-    let context_id = ContextId::new(TEST_CONTEXT_ID_B);
+    let context_id = ContextId::new_unchecked(TEST_CONTEXT_ID_B);
     let request = FileUploadRequest::builder("image/jpeg", "jpegdata==", context_id).build();
 
     assert_eq!(request.mime_type, "image/jpeg");
@@ -216,7 +216,7 @@ fn test_file_upload_request_builder_static_method() {
 
 #[test]
 fn test_file_upload_request_clone() {
-    let context_id = ContextId::new(TEST_CONTEXT_ID_A);
+    let context_id = ContextId::new_unchecked(TEST_CONTEXT_ID_A);
     let request = FileUploadRequest::builder("image/png", "data==", context_id)
         .with_name("test.png")
         .build();
@@ -229,7 +229,7 @@ fn test_file_upload_request_clone() {
 
 #[test]
 fn test_file_upload_request_debug() {
-    let context_id = ContextId::new(TEST_CONTEXT_ID_A);
+    let context_id = ContextId::new_unchecked(TEST_CONTEXT_ID_A);
     let request = FileUploadRequest::builder("image/png", "data==", context_id).build();
 
     let debug_str = format!("{:?}", request);

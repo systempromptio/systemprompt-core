@@ -86,7 +86,7 @@ fn sample_filter_builder_sets_fields() {
 fn canonical_prompt_carries_request_identity() {
     let request = SampledRequest {
         ai_request_id: AiRequestId::new("req-1"),
-        context_id: ContextId::new("00000000-0000-0000-0000-00000000c0de"),
+        context_id: ContextId::new_unchecked("00000000-0000-0000-0000-00000000c0de"),
         provider: "anthropic".to_owned(),
         model: "claude-sonnet-5".to_owned(),
         system_prompt_override: Some("be terse".to_owned()),

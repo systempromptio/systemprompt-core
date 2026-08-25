@@ -71,7 +71,7 @@ impl From<&UserContextWithStats> for ContextSummary {
 impl From<ContextWithStats> for ContextSummary {
     fn from(c: ContextWithStats) -> Self {
         Self {
-            context_id: ContextId::new(c.context_id),
+            context_id: ContextId::new_unchecked(c.context_id),
             name: c.name,
             created_at: c.created_at,
             updated_at: c.updated_at,
@@ -84,7 +84,7 @@ impl From<ContextWithStats> for ContextSummary {
 impl From<&ContextWithStats> for ContextSummary {
     fn from(c: &ContextWithStats) -> Self {
         Self {
-            context_id: ContextId::new(&c.context_id),
+            context_id: ContextId::new_unchecked(&c.context_id),
             name: c.name.clone(),
             created_at: c.created_at,
             updated_at: c.updated_at,

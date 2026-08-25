@@ -11,7 +11,7 @@ use systemprompt_test_fixtures::unique_user_id;
 
 fn agui_event() -> systemprompt_models::AgUiEvent {
     AgUiEventBuilder::run_started(
-        ContextId::new("00000000-0000-4000-8000-000000000001"),
+        ContextId::new_unchecked("00000000-0000-4000-8000-000000000001"),
         TaskId::new("local-task"),
         None,
     )
@@ -20,7 +20,7 @@ fn agui_event() -> systemprompt_models::AgUiEvent {
 fn a2a_event() -> systemprompt_models::A2AEvent {
     A2AEventBuilder::task_status_update(
         TaskId::new("local-task"),
-        ContextId::new("00000000-0000-4000-8000-000000000001"),
+        ContextId::new_unchecked("00000000-0000-4000-8000-000000000001"),
         TaskState::Working,
         None,
     )

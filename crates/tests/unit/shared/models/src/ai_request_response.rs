@@ -17,7 +17,7 @@ fn request_context() -> RequestContext {
     RequestContext::new(
         SessionId::new("sess-air"),
         TraceId::new("trace-air"),
-        ContextId::new("00000000-0000-4000-8000-0000000000aa"),
+        ContextId::new_unchecked("00000000-0000-4000-8000-0000000000aa"),
         AgentName::new("air-agent"),
     )
 }

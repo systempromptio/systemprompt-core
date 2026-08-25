@@ -25,7 +25,7 @@ fn test_context() -> RequestContext {
     RequestContext::new(
         SessionId::new("sess-media"),
         TraceId::new("trace-media"),
-        ContextId::new(TEST_CONTEXT_ID),
+        ContextId::new_unchecked(TEST_CONTEXT_ID),
         AgentName::new("media-agent"),
     )
 }

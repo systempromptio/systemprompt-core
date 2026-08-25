@@ -46,7 +46,7 @@ pub async fn execute_with_pool(
     let repo = ArtifactRepository::new(pool)?;
 
     let artifacts = if let Some(ref ctx_id) = args.context {
-        let context_id = ContextId::new(ctx_id);
+        let context_id = ContextId::new_unchecked(ctx_id);
         repo.get_artifacts_by_context(&context_id)
             .await
             .context("Failed to fetch artifacts by context")?

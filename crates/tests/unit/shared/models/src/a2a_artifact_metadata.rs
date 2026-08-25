@@ -4,7 +4,7 @@ use systemprompt_models::a2a::artifact_metadata::ArtifactMetadata;
 use systemprompt_traits::validation::Validate;
 
 fn ctx() -> ContextId {
-    ContextId::new("00000000-0000-4000-8000-000000000001")
+    ContextId::new_unchecked("00000000-0000-4000-8000-000000000001")
 }
 
 fn task() -> TaskId {

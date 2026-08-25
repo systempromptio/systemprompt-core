@@ -222,7 +222,7 @@ mod tooled_executor_tests {
         RequestContext::new(
             SessionId::new("sess-exec"),
             TraceId::new("trace-exec"),
-            ContextId::new("00000000-0000-4000-8000-0000000000ee"),
+            ContextId::new_unchecked("00000000-0000-4000-8000-0000000000ee"),
             AgentName::new("exec-agent"),
         )
     }

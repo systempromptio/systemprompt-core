@@ -212,7 +212,7 @@ async fn test_get_context_returns_data_field() {
 
     let client = SystempromptClient::new(&mock_server.uri()).unwrap();
     let context = client
-        .get_context(&systemprompt_identifiers::ContextId::new(
+        .get_context(&systemprompt_identifiers::ContextId::new_unchecked(
             "00000000-0000-4000-8000-000000000088",
         ))
         .await
@@ -270,7 +270,7 @@ async fn test_list_artifacts_returns_json_values() {
 
     let client = SystempromptClient::new(&mock_server.uri()).unwrap();
     let artifacts = client
-        .list_artifacts(&systemprompt_identifiers::ContextId::new(
+        .list_artifacts(&systemprompt_identifiers::ContextId::new_unchecked(
             "00000000-0000-4000-8000-0000000000b1",
         ))
         .await

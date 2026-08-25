@@ -20,7 +20,7 @@ fn minimal_message() -> Message {
             text: "hello".to_string(),
         })],
         message_id: MessageId::new("msg-test"),
-        context_id: ContextId::new("00000000-0000-4000-8000-000000000001"),
+        context_id: ContextId::new_unchecked("00000000-0000-4000-8000-000000000001"),
         task_id: None,
         reference_task_ids: None,
         metadata: None,

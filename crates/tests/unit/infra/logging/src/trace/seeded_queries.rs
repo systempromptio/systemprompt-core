@@ -301,7 +301,7 @@ async fn mcp_trace_queries_map_seeded_rows() {
 
     let svc = AiTraceService::new(std::sync::Arc::new(seed.pool.clone()));
     let task_id = TaskId::new(seed.task_id.clone());
-    let ctx_id = ContextId::new(seed.context_id.clone());
+    let ctx_id = ContextId::new_unchecked(seed.context_id.clone());
 
     let executions = svc.get_mcp_executions(&task_id, &ctx_id).await.unwrap();
     assert_eq!(executions.len(), 1);

@@ -57,7 +57,7 @@ impl E2EFixture {
         let user_id = UserId::new(format!("e2e_user_{tag}"));
         let session_id = SessionId::new(format!("e2e_session_{tag}"));
         let trace_id = TraceId::new(format!("e2e_trace_{tag}"));
-        let context_id = ContextId::new(Uuid::new_v4().to_string());
+        let context_id = ContextId::new_unchecked(Uuid::new_v4().to_string());
 
         sqlx::query("INSERT INTO users (id, name, email) VALUES ($1, $2, $3)")
             .bind(user_id.as_str())

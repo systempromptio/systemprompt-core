@@ -17,7 +17,7 @@ fn session_minted_under(issuer: &str) -> CliSession {
         SessionBinding::new(ProfileName::new("local"), issuer.to_owned()),
         SessionToken::new("token-abc"),
         SessionId::new("sid-001"),
-        ContextId::new(CONTEXT_ID),
+        ContextId::new_unchecked(CONTEXT_ID),
         SessionIdentity::new(
             fixture_user_id(),
             Email::new("test@example.com"),
@@ -170,7 +170,7 @@ fn a_builder_ttl_pins_the_entry_to_the_tokens_own_lifetime() {
         SessionBinding::new(ProfileName::new("local"), ISSUER.to_owned()),
         SessionToken::new("token-abc"),
         SessionId::new("sid-001"),
-        ContextId::new(CONTEXT_ID),
+        ContextId::new_unchecked(CONTEXT_ID),
         SessionIdentity::new(
             fixture_user_id(),
             Email::new("test@example.com"),

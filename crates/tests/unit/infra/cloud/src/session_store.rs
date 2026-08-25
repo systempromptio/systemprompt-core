@@ -20,7 +20,7 @@ fn test_builder(profile: &str) -> CliSessionBuilder {
         ),
         SessionToken::new("token-abc"),
         SessionId::new("sid-001"),
-        ContextId::new(TEST_CONTEXT_ID_A),
+        ContextId::new_unchecked(TEST_CONTEXT_ID_A),
         SessionIdentity::new(
             fixture_user_id(),
             Email::new("test@example.com"),
@@ -146,7 +146,7 @@ fn get_valid_session_returns_none_for_empty_token() {
         ),
         SessionToken::new(""),
         SessionId::new("sid"),
-        ContextId::new(TEST_CONTEXT_ID_A),
+        ContextId::new_unchecked(TEST_CONTEXT_ID_A),
         SessionIdentity::new(
             fixture_user_id(),
             Email::new("test@example.com"),
@@ -172,7 +172,7 @@ fn get_valid_session_mut_returns_mutable_ref() {
     let session = store
         .get_valid_session_mut(&key, "http://localhost:8080")
         .unwrap();
-    session.set_context_id(ContextId::new(TEST_CONTEXT_ID_B));
+    session.set_context_id(ContextId::new_unchecked(TEST_CONTEXT_ID_B));
 
     let retrieved = store.get_session(&key).unwrap();
     assert_eq!(retrieved.context_id.as_str(), TEST_CONTEXT_ID_B);
@@ -529,7 +529,7 @@ fn serde_roundtrip_preserves_all_fields() {
         ),
         SessionToken::new("token-abc"),
         SessionId::new("sid-001"),
-        ContextId::new(TEST_CONTEXT_ID_A),
+        ContextId::new_unchecked(TEST_CONTEXT_ID_A),
         SessionIdentity::new(
             fixture_user_id(),
             Email::new("serde@test.com"),

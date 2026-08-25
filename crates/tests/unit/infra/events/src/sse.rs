@@ -13,7 +13,7 @@ const TEST_CONTEXT_ID_B: &str = "00000000-0000-4000-8000-000000000002";
 
 fn test_agui_event() -> AgUiEvent {
     AgUiEventBuilder::run_started(
-        ContextId::new(TEST_CONTEXT_ID_A),
+        ContextId::new_unchecked(TEST_CONTEXT_ID_A),
         TaskId::new("test-task"),
         None,
     )
@@ -22,7 +22,7 @@ fn test_agui_event() -> AgUiEvent {
 fn test_a2a_event() -> A2AEvent {
     A2AEventBuilder::task_status_update(
         TaskId::new("test-task"),
-        ContextId::new(TEST_CONTEXT_ID_A),
+        ContextId::new_unchecked(TEST_CONTEXT_ID_A),
         TaskState::Working,
         Some("test message".to_string()),
     )
@@ -264,12 +264,12 @@ fn test_context_event_a2a_to_sse_succeeds() {
 #[test]
 fn test_multiple_agui_events_serialize_independently() {
     let event1 = AgUiEventBuilder::run_started(
-        ContextId::new(TEST_CONTEXT_ID_A),
+        ContextId::new_unchecked(TEST_CONTEXT_ID_A),
         TaskId::new("task-1"),
         None,
     );
     let event2 = AgUiEventBuilder::run_started(
-        ContextId::new(TEST_CONTEXT_ID_B),
+        ContextId::new_unchecked(TEST_CONTEXT_ID_B),
         TaskId::new("task-2"),
         None,
     );

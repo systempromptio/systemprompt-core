@@ -47,7 +47,7 @@ impl Fixture {
         let session_id = SessionId::new(format!("test_session_{tag}"));
         let trace_id = TraceId::new(format!("test_trace_{tag}"));
         // ContextId is `validated, schema` and requires a UUID v4 string.
-        let context_id = ContextId::new(Uuid::new_v4().to_string());
+        let context_id = ContextId::new_unchecked(Uuid::new_v4().to_string());
 
         sqlx::query("INSERT INTO users (id, name, email) VALUES ($1, $2, $3)")
             .bind(user_id.as_str())

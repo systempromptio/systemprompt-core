@@ -97,7 +97,7 @@ impl ContextRepository {
         .map_err(RepositoryError::database)?;
 
         match adopted {
-            Some(context_id) => Ok(ContextId::new(context_id)),
+            Some(context_id) => Ok(ContextId::new_unchecked(context_id)),
             None => {
                 self.create_context(user_id, Some(session_id), name, ContextKind::CliSession)
                     .await

@@ -74,7 +74,7 @@ fn artifact_table_truncates_long_ids() {
 fn context_table_marks_active_row_and_truncates_id() {
     let contexts = vec![
         ContextSummary {
-            id: ContextId::new("aaaabbbb-cccc-4ddd-8eee-ffff00001111"),
+            id: ContextId::new_unchecked("aaaabbbb-cccc-4ddd-8eee-ffff00001111"),
             name: "active one".to_owned(),
             task_count: 3,
             message_count: 7,
@@ -84,7 +84,7 @@ fn context_table_marks_active_row_and_truncates_id() {
             is_active: true,
         },
         ContextSummary {
-            id: ContextId::new("eeeeffff-0000-4111-8222-333344445555"),
+            id: ContextId::new_unchecked("eeeeffff-0000-4111-8222-333344445555"),
             name: "other".to_owned(),
             task_count: 0,
             message_count: 0,

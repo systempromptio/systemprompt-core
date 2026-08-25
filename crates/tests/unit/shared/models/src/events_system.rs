@@ -11,7 +11,8 @@ const CTX: &str = "00000000-0000-4000-8000-00000000e001";
 
 #[test]
 fn context_created_serializes_with_screaming_tag_and_flattened_payload() {
-    let event = SystemEventBuilder::context_created(ContextId::new(CTX), "My Context".to_owned());
+    let event =
+        SystemEventBuilder::context_created(ContextId::new_unchecked(CTX), "My Context".to_owned());
 
     assert_eq!(
         event.event_type(),
@@ -25,19 +26,20 @@ fn context_created_serializes_with_screaming_tag_and_flattened_payload() {
 
 #[test]
 fn context_updated_omits_absent_name() {
-    let event = SystemEventBuilder::context_updated(ContextId::new(CTX), None);
+    let event = SystemEventBuilder::context_updated(ContextId::new_unchecked(CTX), None);
 
     let json = serde_json::to_value(&event).unwrap();
     assert_eq!(json["type"], "CONTEXT_UPDATED");
     assert!(json.get("name").is_none());
 
-    let named = SystemEventBuilder::context_updated(ContextId::new(CTX), Some("N".to_owned()));
+    let named =
+        SystemEventBuilder::context_updated(ContextId::new_unchecked(CTX), Some("N".to_owned()));
     assert_eq!(serde_json::to_value(&named).unwrap()["name"], "N");
 }
 
 #[test]
 fn context_deleted_and_heartbeat_round_trip() {
-    let deleted = SystemEventBuilder::context_deleted(ContextId::new(CTX));
+    let deleted = SystemEventBuilder::context_deleted(ContextId::new_unchecked(CTX));
     let json = serde_json::to_string(&deleted).unwrap();
     let back: SystemEvent = serde_json::from_str(&json).unwrap();
     assert!(matches!(back, SystemEvent::ContextDeleted { .. }));
@@ -61,7 +63,7 @@ fn connected_event_carries_connection_id() {
 #[test]
 fn contexts_snapshot_serializes_summaries() {
     let stats = ContextWithStats {
-        context_id: ContextId::new(CTX),
+        context_id: ContextId::new_unchecked(CTX),
         user_id: systemprompt_identifiers::UserId::new("user-1"),
         name: "ctx".to_owned(),
         created_at: Utc::now(),

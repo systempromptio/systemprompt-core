@@ -227,7 +227,7 @@ fn event_type_all_variants_as_str() {
 
 #[test]
 fn builder_run_started() {
-    let ctx = ContextId::new(TEST_CONTEXT_ID_A);
+    let ctx = ContextId::new_unchecked(TEST_CONTEXT_ID_A);
     let task = TaskId::new("task-1");
     let event = AgUiEventBuilder::run_started(ctx, task, Some(json!({"prompt": "hello"})));
     assert_eq!(event.event_type(), AgUiEventType::RunStarted);
@@ -235,7 +235,7 @@ fn builder_run_started() {
 
 #[test]
 fn builder_run_started_no_input() {
-    let ctx = ContextId::new(TEST_CONTEXT_ID_A);
+    let ctx = ContextId::new_unchecked(TEST_CONTEXT_ID_A);
     let task = TaskId::new("task-1");
     let event = AgUiEventBuilder::run_started(ctx, task, None);
     assert_eq!(event.event_type(), AgUiEventType::RunStarted);
@@ -243,7 +243,7 @@ fn builder_run_started_no_input() {
 
 #[test]
 fn builder_run_finished() {
-    let ctx = ContextId::new(TEST_CONTEXT_ID_A);
+    let ctx = ContextId::new_unchecked(TEST_CONTEXT_ID_A);
     let task = TaskId::new("task-1");
     let event = AgUiEventBuilder::run_finished(ctx, task, Some(json!("done")));
     assert_eq!(event.event_type(), AgUiEventType::RunFinished);
@@ -372,7 +372,7 @@ fn event_timestamp_is_populated() {
 
 #[test]
 fn event_serde_roundtrip_run_started() {
-    let ctx = ContextId::new(TEST_CONTEXT_ID_A);
+    let ctx = ContextId::new_unchecked(TEST_CONTEXT_ID_A);
     let task = TaskId::new("task-1");
     let event = AgUiEventBuilder::run_started(ctx, task, Some(json!({"key": "val"})));
     let json_str = serde_json::to_string(&event).unwrap();
@@ -411,7 +411,7 @@ fn event_serde_roundtrip_state_snapshot() {
 
 #[test]
 fn event_serde_run_started_has_type_field() {
-    let ctx = ContextId::new(TEST_CONTEXT_ID_A);
+    let ctx = ContextId::new_unchecked(TEST_CONTEXT_ID_A);
     let task = TaskId::new("task-1");
     let event = AgUiEventBuilder::run_started(ctx, task, None);
     let json_val = serde_json::to_value(&event).unwrap();
@@ -448,7 +448,7 @@ fn message_role_serializes_lowercase() {
 #[test]
 fn run_started_payload_serde() {
     let payload = RunStartedPayload {
-        thread_id: ContextId::new(TEST_CONTEXT_ID_A),
+        thread_id: ContextId::new_unchecked(TEST_CONTEXT_ID_A),
         run_id: TaskId::new("task"),
         input: Some(json!("hi")),
     };
@@ -461,7 +461,7 @@ fn run_started_payload_serde() {
 #[test]
 fn run_finished_payload_serde() {
     let payload = RunFinishedPayload {
-        thread_id: ContextId::new(TEST_CONTEXT_ID_A),
+        thread_id: ContextId::new_unchecked(TEST_CONTEXT_ID_A),
         run_id: TaskId::new("task"),
         result: None,
     };

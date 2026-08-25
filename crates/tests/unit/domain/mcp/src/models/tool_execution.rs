@@ -12,7 +12,7 @@ fn create_test_execution() -> ToolExecution {
         mcp_execution_id: McpExecutionId::new("exec-123".to_string()),
         tool_name: "test-tool".to_string(),
         server_name: "test-server".to_string(),
-        context_id: Some(ContextId::new(TEST_CONTEXT_ID_A.to_string())),
+        context_id: Some(ContextId::new_unchecked(TEST_CONTEXT_ID_A.to_string())),
         ai_tool_call_id: Some(AiToolCallId::new("call-789".to_string())),
         user_id: fixture_user_id(),
         status: "success".to_string(),

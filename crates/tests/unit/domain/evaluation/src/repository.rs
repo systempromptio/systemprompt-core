@@ -363,7 +363,9 @@ async fn conversation_sampling_returns_latest_row_per_context() {
     let scoped = sampling
         .sample(
             &SampleFilter::with_limit(10)
-                .context_id(systemprompt_identifiers::ContextId::new(ctx_a.clone()))
+                .context_id(systemprompt_identifiers::ContextId::new_unchecked(
+                    ctx_a.clone(),
+                ))
                 .mode(SampleMode::Conversation),
         )
         .await

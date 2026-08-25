@@ -142,7 +142,7 @@ async fn message_repository_get_by_unknown_task_empty() -> Result<()> {
 async fn message_repository_get_by_unknown_context_empty() -> Result<()> {
     let fx = Fixture::new().await?;
     let repo = MessageRepository::new(&fx.db)?;
-    let unknown = ContextId::new(Uuid::new_v4().to_string());
+    let unknown = ContextId::new_unchecked(Uuid::new_v4().to_string());
     let msgs = repo.get_messages_by_context(&unknown).await?;
     assert!(msgs.is_empty());
     fx.cleanup().await?;

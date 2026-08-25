@@ -54,7 +54,7 @@ impl ContextRepository {
         })?;
 
         Ok(UserContext {
-            context_id: ContextId::new(row.context_id),
+            context_id: ContextId::new_unchecked(row.context_id),
             user_id: UserId::new(row.user_id),
             name: row.name,
             kind: row.kind,
@@ -85,7 +85,7 @@ impl ContextRepository {
         Ok(rows
             .into_iter()
             .map(|r| UserContext {
-                context_id: ContextId::new(r.context_id),
+                context_id: ContextId::new_unchecked(r.context_id),
                 user_id: UserId::new(r.user_id),
                 name: r.name,
                 kind: r.kind,
@@ -125,7 +125,7 @@ impl ContextRepository {
         Ok(rows
             .into_iter()
             .map(|r| UserContextWithStats {
-                context_id: ContextId::new(r.context_id),
+                context_id: ContextId::new_unchecked(r.context_id),
                 user_id: UserId::new(r.user_id),
                 name: r.name,
                 kind: r.kind,
@@ -159,7 +159,7 @@ impl ContextRepository {
         .map_err(RepositoryError::database)?;
 
         Ok(row.map(|r| UserContext {
-            context_id: ContextId::new(r.context_id),
+            context_id: ContextId::new_unchecked(r.context_id),
             user_id: UserId::new(r.user_id),
             name: r.name,
             kind: r.kind,
@@ -217,7 +217,7 @@ impl ContextRepository {
 
         for row in context_updates {
             events.push(ContextStateEvent::ContextUpdated {
-                context_id: ContextId::new(row.context_id),
+                context_id: ContextId::new_unchecked(row.context_id),
                 name: row.name,
                 timestamp: row.updated_at,
             });

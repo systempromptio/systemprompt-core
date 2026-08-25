@@ -65,7 +65,7 @@ pub async fn execute(args: UploadArgs, ctx: &CommandContext) -> Result<CommandOu
         .and_then(|n| n.to_str())
         .map(String::from);
 
-    let context_id = ContextId::new(args.context);
+    let context_id = ContextId::new_unchecked(args.context);
 
     let request = FileUploadRequest {
         name: filename,

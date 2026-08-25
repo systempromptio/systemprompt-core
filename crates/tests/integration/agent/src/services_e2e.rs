@@ -48,7 +48,7 @@ impl ServicesFixture {
         let user_id = UserId::new(format!("svc_user_{tag}"));
         let session_id = SessionId::new(format!("svc_session_{tag}"));
         let trace_id = TraceId::new(format!("svc_trace_{tag}"));
-        let context_id = ContextId::new(Uuid::new_v4().to_string());
+        let context_id = ContextId::new_unchecked(Uuid::new_v4().to_string());
 
         sqlx::query("INSERT INTO users (id, name, email) VALUES ($1, $2, $3)")
             .bind(user_id.as_str())

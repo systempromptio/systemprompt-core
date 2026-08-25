@@ -10,7 +10,7 @@ const TEST_CTX: &str = "00000000-0000-4000-8000-000000000001";
 fn test_task_info_creation() {
     let task = TaskInfo {
         task_id: "task-123".to_string().into(),
-        context_id: ContextId::new(TEST_CTX),
+        context_id: ContextId::new_unchecked(TEST_CTX),
         agent_name: Some("test-agent".to_string()),
         status: "completed".to_string(),
         created_at: Utc::now(),
@@ -32,7 +32,7 @@ fn test_task_info_creation() {
 fn test_task_info_minimal() {
     let task = TaskInfo {
         task_id: "task-min".to_string().into(),
-        context_id: ContextId::new(TEST_CTX),
+        context_id: ContextId::new_unchecked(TEST_CTX),
         agent_name: None,
         status: "pending".to_string(),
         created_at: Utc::now(),
@@ -51,7 +51,7 @@ fn test_task_info_minimal() {
 fn test_task_info_with_error() {
     let task = TaskInfo {
         task_id: "task-err".to_string().into(),
-        context_id: ContextId::new(TEST_CTX),
+        context_id: ContextId::new_unchecked(TEST_CTX),
         agent_name: Some("error-agent".to_string()),
         status: "failed".to_string(),
         created_at: Utc::now(),
@@ -72,7 +72,7 @@ fn test_task_info_with_error() {
 fn test_task_info_serialize() {
     let task = TaskInfo {
         task_id: "ser".to_string().into(),
-        context_id: ContextId::new(TEST_CTX),
+        context_id: ContextId::new_unchecked(TEST_CTX),
         agent_name: None,
         status: "pending".to_string(),
         created_at: Utc::now(),

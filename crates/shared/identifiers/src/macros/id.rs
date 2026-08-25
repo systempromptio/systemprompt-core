@@ -53,6 +53,10 @@ macro_rules! define_id {
                 Ok(Self(value))
             }
 
+            // Why: keeps the plain name where the validated arms use
+            // `new_unchecked` — the only precondition here is non-emptiness,
+            // which a caller can see at the call site, rather than a format
+            // rule that untrusted input plausibly violates.
             pub fn new(value: impl Into<String>) -> Self {
                 Self::try_new(value).expect(concat!(stringify!($name), " cannot be empty"))
             }
@@ -81,7 +85,10 @@ macro_rules! define_id {
                 Ok(Self(value))
             }
 
-            pub fn new(value: impl Into<String>) -> Self {
+            // Why: panics when `value` fails validation — callers must hold a
+            // known-valid value (a constant, or one already validated). Parse
+            // untrusted input with `try_new`.
+            pub fn new_unchecked(value: impl Into<String>) -> Self {
                 Self::try_new(value).expect(concat!(stringify!($name), " validation failed"))
             }
 
@@ -109,7 +116,10 @@ macro_rules! define_id {
                 Ok(Self(value))
             }
 
-            pub fn new(value: impl Into<String>) -> Self {
+            // Why: panics when `value` fails validation — callers must hold a
+            // known-valid value (a constant, or one already validated). Parse
+            // untrusted input with `try_new`.
+            pub fn new_unchecked(value: impl Into<String>) -> Self {
                 Self::try_new(value).expect(concat!(stringify!($name), " validation failed"))
             }
 

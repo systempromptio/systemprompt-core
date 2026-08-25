@@ -62,7 +62,9 @@ impl RemoteCliExecutor {
             context_id: if request.context.is_empty() {
                 None
             } else {
-                Some(systemprompt_identifiers::ContextId::new(request.context))
+                Some(systemprompt_identifiers::ContextId::new_unchecked(
+                    request.context,
+                ))
             },
         };
 
