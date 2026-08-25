@@ -21,8 +21,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@nightly
+      - uses: dtolnay/rust-toolchain@master
         with:
+          toolchain: nightly-2026-06-03
           components: rustfmt
       - uses: extractions/setup-just@v2
       # `just format-check` covers all three workspaces (root, crates/tests,
