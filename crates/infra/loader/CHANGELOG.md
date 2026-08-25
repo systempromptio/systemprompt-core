@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.38.0] - 2026-08-25
+
+### Changed
+
+- A duplicate skill or plugin id across on-disk catalogue directories is a load error rather than a silent first-wins, and a root-config declaration shadowing an on-disk descriptor is logged.
+
 ## [0.30.0] - 2026-08-07
 
 ### Added

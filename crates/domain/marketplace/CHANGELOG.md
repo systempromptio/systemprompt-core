@@ -1,10 +1,16 @@
 # Changelog
 
-## [Unreleased]
+## [0.38.0] - 2026-08-25
 
 ### Added
 
 - `MarketplaceCandidate::retain_entries` shrinks the five entry lists to per-kind `EntryKeepSets` allow-lists and prunes artifacts whose owning plugins were all dropped, so filters no longer rebuild the candidate field by field.
+- `MarketplaceCandidate::keep_sets` resolves the five entry kinds concurrently through one `EntryKeepSets`, so a filter runs two queries rather than one per entry.
+
+### Changed
+
+- **Breaking:** `MarketplaceCandidate::new` is replaced by `into_manifest_parts() -> (ManifestEntries, FilterContext)`, which splits the wire payload from the filter context by type instead of by convention.
+- **Breaking:** `EntryKeepSets` holds typed entry ids instead of `HashSet<String>`, so a kind mismatch fails to compile rather than silently matching nothing.
 
 ## [0.31.0] - 2026-08-18
 

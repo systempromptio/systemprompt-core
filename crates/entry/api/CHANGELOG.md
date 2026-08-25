@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.38.0] - 2026-08-25
+
+### Added
+
+- `PreparedDispatch`/`GovernedDispatch`/`ScannedDispatch` in `services/gateway/service/stages.rs` make the dispatch order — build wire payload, govern, scan, send — reachable only in sequence.
+
+### Changed
+
+- **Breaking:** `SafetyScannerRegistry::get(name)` is `create(name, &SafetyConfig)` and returns an owned scanner. `heuristic` is a registered built-in rather than a special case in `finalize`, `names()` is sorted, and an extension registering under a built-in's name is rejected and logged instead of silently shadowing it.
+
 ## [0.33.0] - 2026-08-20
 
 ### Added

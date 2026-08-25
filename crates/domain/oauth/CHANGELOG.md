@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.38.0] - 2026-08-25
+
+### Added
+
+- `OAuthRepository::mint_authorization_code` generates the code, resolves the deployment's default roles when `scope` is `None`, and stores the result, so every sign-in route mints codes the token endpoint treats identically.
+
 ## [0.28.0] - 2026-07-31
 
 ### Breaking

@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.38.0] - 2026-08-25
+
+### Added
+
+- `text::floor_char_boundary` truncates to a char boundary without panicking on a multi-byte split.
+
+### Changed
+
+- `mime` resolves canonical extensions from a `CANONICAL_EXTENSIONS` table instead of a special-cased branch, so a type and its extension are declared together.
+
 ## [0.36.0] - 2026-08-23
 
 ### Added

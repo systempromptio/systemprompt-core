@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.38.0] - 2026-08-25
+
+### Changed
+
+- The BSD/GNU `ps` divergence lives in `services/process/ps.rs`; `monitor` and `pid` delegate to it rather than each shelling out with their own flags.
+
 ## [0.36.0] - 2026-08-23
 
 ### Breaking

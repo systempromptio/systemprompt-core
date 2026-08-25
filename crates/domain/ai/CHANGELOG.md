@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.38.0] - 2026-08-25
+
+### Added
+
+- `GatewayPolicyRow` and the `policies.yaml` schema carry an integer `priority`; `AiGatewayPolicyRepository::upsert` persists it and `list_for_global` orders by `(priority ASC, name ASC)`.
+- `ScannerFactory` builds a safety scanner per request from that request's `SafetyConfig`, with a blanket impl for `Fn`.
+
+### Changed
+
+- **Breaking:** `AiGatewayPolicyRepository::upsert` takes a `priority: i32` argument. Pass `0` to keep the previous ordering-by-name behaviour.
+
 ## [0.32.0] - 2026-08-19
 
 ### Fixed

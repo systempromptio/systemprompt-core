@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.38.0] - 2026-08-25
+
+### Added
+
+- `MERGE_EXCLUDED_SECURITY_TABLES` names the credential and auth-state tables `merge_users` deliberately leaves behind, and a test asserts each carries an `ON DELETE CASCADE` foreign key to `users`.
+
+### Changed
+
+- **Breaking:** the `users.name` `UNIQUE` constraint is dropped (migration `010`). Display names are not identities and collide legitimately; `find_by_name` orders by `created_at ASC` and takes the first row so the lookup stays deterministic.
+
 ## [0.27.0] - 2026-07-29
 
 ### Breaking

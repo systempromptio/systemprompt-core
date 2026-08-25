@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.38.0] - 2026-08-25
+
+### Added
+
+- `DeviceId` identifies an enrolled device.
+
+### Changed
+
+- **Breaking:** `Id::new` is `Id::new_unchecked` on identifiers declared with the `validated` arm — it panics when the value fails its format rule, which the old name hid. Parse untrusted input with `try_new`. Identifiers declared `non_empty` keep `new`.
+
 ## [0.32.0] - 2026-08-18
 
 ### Breaking

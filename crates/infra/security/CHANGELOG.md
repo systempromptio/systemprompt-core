@@ -1,11 +1,19 @@
 # Changelog
 
-## [Unreleased]
+## [0.38.0] - 2026-08-25
 
 ### Added
 
 - `authz::EntityRef::from_kind_and_id` constructs the typed reference for an `EntityKind` and raw id string.
 - `authz::EntityKind::ALL` lists every entity kind.
+- `authz::allowed_ids` and `BulkKeepQuery` resolve every entity a subject may see in two queries instead of one per entity, and `AccessControlRepository::list_entities_bulk` backs them.
+- `authz::SubjectRef` is the subject-side counterpart to `EntityRef`, tagging a rule's subject as a user, role, or department.
+- `authz::MarketplaceParent` and `load_marketplace_parent` follow the marketplace parent cascade when deriving the ABAC attribute floor.
+
+### Changed
+
+- `MemberScope` makes `EntityKind` matching exhaustive where a `_ => false` arm previously swallowed every unhandled kind, so adding a kind is now a compile error rather than a silent deny.
+- `EntityKind` implements `sqlx::Type`, letting entity queries decode the column directly.
 
 ## [0.31.0] - 2026-08-18
 

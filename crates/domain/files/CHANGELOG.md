@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.38.0] - 2026-08-25
+
+### Changed
+
+- A malformed stored `context_id` is warned about and dropped when reading file content rows, instead of being constructed unchecked.
+
 ## [0.27.0] - 2026-07-29
 
 ### Added

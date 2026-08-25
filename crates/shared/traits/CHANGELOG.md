@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.38.0] - 2026-08-25
+
+### Changed
+
+- **Breaking:** `MessagingInbound.claims: FederatedIdentityClaims` is now `sender: SenderIdentity`. Call `sender.claims()` for the previous value; match `Linked`/`Unlinked` to tell a platform-verified sender from a first-touch one.
+
 ## [0.29.0] - 2026-08-05
 
 ### Added
