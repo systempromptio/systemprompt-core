@@ -3,7 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::str::FromStr;
+use std::collections::HashMap;
 
 use super::AccessControlRepository;
 use crate::authz::error::AuthzResult;
@@ -15,9 +15,10 @@ impl AccessControlRepository {
         entity_type: EntityKind,
         entity_id: &str,
     ) -> AuthzResult<Option<EntityRow>> {
-        let row = sqlx::query!(
+        let row = sqlx::query_as!(
+            EntityRow,
             r#"
-            SELECT entity_type, entity_id, default_included, source
+            SELECT entity_type AS "kind: EntityKind", entity_id AS id, default_included, source
             FROM access_control_entities
             WHERE entity_type = $1 AND entity_id = $2
             "#,
@@ -26,16 +27,30 @@ impl AccessControlRepository {
         )
         .fetch_optional(&*self.pool)
         .await?;
+        Ok(row)
+    }
 
-        let Some(row) = row else {
-            return Ok(None);
-        };
-        Ok(Some(EntityRow {
-            kind: EntityKind::from_str(&row.entity_type)?,
-            id: row.entity_id,
-            default_included: row.default_included,
-            source: row.source,
-        }))
+    pub async fn list_entities_bulk(
+        &self,
+        entity_type: EntityKind,
+        entity_ids: &[String],
+    ) -> AuthzResult<HashMap<String, EntityRow>> {
+        if entity_ids.is_empty() {
+            return Ok(HashMap::new());
+        }
+        let rows = sqlx::query_as!(
+            EntityRow,
+            r#"
+            SELECT entity_type AS "kind: EntityKind", entity_id AS id, default_included, source
+            FROM access_control_entities
+            WHERE entity_type = $1 AND entity_id = ANY($2)
+            "#,
+            entity_type.as_str(),
+            entity_ids,
+        )
+        .fetch_all(&*self.pool)
+        .await?;
+        Ok(rows.into_iter().map(|row| (row.id.clone(), row)).collect())
     }
 
     pub async fn upsert_entity(
@@ -96,9 +111,10 @@ impl AccessControlRepository {
     }
 
     pub async fn list_entities(&self, entity_type: EntityKind) -> AuthzResult<Vec<EntityRow>> {
-        let rows = sqlx::query!(
+        let rows = sqlx::query_as!(
+            EntityRow,
             r#"
-            SELECT entity_type, entity_id, default_included, source
+            SELECT entity_type AS "kind: EntityKind", entity_id AS id, default_included, source
             FROM access_control_entities
             WHERE entity_type = $1
             ORDER BY entity_id
@@ -107,16 +123,6 @@ impl AccessControlRepository {
         )
         .fetch_all(&*self.pool)
         .await?;
-
-        let mut out = Vec::with_capacity(rows.len());
-        for row in rows {
-            out.push(EntityRow {
-                kind: EntityKind::from_str(&row.entity_type)?,
-                id: row.entity_id,
-                default_included: row.default_included,
-                source: row.source,
-            });
-        }
-        Ok(out)
+        Ok(rows)
     }
 }

@@ -50,7 +50,8 @@ pub async fn manifest(
 
     let (candidate, allow_claude_ai_connectors) =
         assemble_candidate(&ctx, profile, &claims.user_id, services).await?;
-    let MarketplaceCandidate {
+    let (entries, _filter_context) = candidate.into_manifest_parts();
+    let systemprompt_marketplace::ManifestEntries {
         plugins,
         skills,
         agents,
@@ -58,10 +59,7 @@ pub async fn manifest(
         managed_mcp_servers,
         artifacts,
         diagnostics,
-        // Why: marketplace_id/access/artifact_owners are filter context, not
-        // part of the wire manifest.
-        ..
-    } = candidate;
+    } = entries;
 
     let PerUserContext {
         user,

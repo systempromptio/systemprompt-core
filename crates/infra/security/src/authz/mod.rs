@@ -35,6 +35,7 @@ pub mod extension;
 pub mod gateway_entities;
 pub mod hook;
 pub mod ingestion;
+pub mod keep;
 pub mod marketplace_floor;
 pub mod registry;
 pub mod repository;
@@ -55,7 +56,8 @@ pub use extension::AuthzExtension;
 pub use gateway_entities::reconcile_gateway_entities;
 pub use hook::{AllowAllHook, AuthzDecisionHook, DenyAllHook, SharedAuthzHook, WebhookHook};
 pub use ingestion::{AccessControlIngestionService, IngestOptions, IngestReport};
-pub use marketplace_floor::member_attribute_floor;
+pub use keep::{BulkKeepQuery, allowed_ids};
+pub use marketplace_floor::{MarketplaceParent, load_marketplace_parent, member_attribute_floor};
 pub use registry::{AuthzHookContext, AuthzHookRegistration, discover_authz_hook};
 pub use repository::{AccessControlRepository, UpsertRuleParams};
 pub use resolver::{ResolveInput, ResolveParent, resolve};
@@ -68,5 +70,5 @@ pub use subject::{
 };
 pub use types::{
     Access, AccessRule, AuthzContext, AuthzDecision, AuthzRequest, Decision, DecisionTag,
-    DenyReason, EntityKind, EntityRef, EntityRow, MatchedBy, RuleType,
+    DenyReason, EntityKind, EntityRef, EntityRow, MatchedBy, RuleType, SubjectRef,
 };

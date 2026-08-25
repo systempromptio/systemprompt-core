@@ -8,6 +8,9 @@
 //!    [`AuthzRequest`] / [`AuthzDecision`] are the webhook wire format sent to
 //!    and parsed back from extension hook handlers.
 //!
+//! [`EntityRef::from_kind_and_id`] is the one polymorphic constructor for
+//! entity references; [`SubjectRef`] is its counterpart on the subject side.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -16,9 +19,11 @@ mod entity_ref;
 mod kinds;
 mod request;
 mod rule;
+mod subject_ref;
 
 pub use decision::{Decision, DecisionTag, DenyReason, MatchedBy};
 pub use entity_ref::EntityRef;
 pub use kinds::{Access, EntityKind, RuleType};
 pub use request::{AuthzContext, AuthzDecision, AuthzRequest};
 pub use rule::{AccessRule, EntityRow};
+pub use subject_ref::SubjectRef;
