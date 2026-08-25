@@ -10,6 +10,7 @@
 
 mod finalize;
 mod resolve;
+mod stages;
 
 pub(super) use self::finalize::run_response_safety_scan;
 
@@ -25,30 +26,19 @@ use anyhow::{Result, anyhow};
 use axum::body::Body;
 use axum::response::Response;
 use bytes::Bytes;
-use systemprompt_ai::{PHASE_REQUEST, PHASE_REQUEST_HISTORY, SafetyConfig, SafetyHistoryMode};
+use systemprompt_ai::{PHASE_REQUEST, PHASE_REQUEST_HISTORY, SafetyHistoryMode};
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::{AiRequestId, UserId};
+use systemprompt_identifiers::UserId;
 use systemprompt_models::profile::{GatewayConfig, ProviderRegistry};
 
-use self::finalize::{
-    FinalizeCtx, apply_system_prompt_override, attach_request_id, finalize, run_request_safety_scan,
-};
+use self::finalize::{FinalizeCtx, attach_request_id, finalize};
 use self::resolve::{ResolvedUpstream, resolve_upstream};
+use self::stages::{GovernedDispatch, PreparedDispatch, ScannedDispatch, UpstreamRelay};
 use super::audit::{GatewayAudit, GatewayRequestContext};
 use super::policy::{PolicyResolver, QuotaWindow};
 use super::protocol::canonical::CanonicalRequest;
 use super::protocol::inbound::InboundAdapter;
-use super::protocol::outbound::{OutboundCtx, OutboundOutcome, PreparedBody};
 use super::quota;
-use systemprompt_identifiers::{CallId, SessionId};
-use systemprompt_models::services::ai::ModelLimits;
-use systemprompt_models::wire::inspect;
-use systemprompt_security::authz::types::Decision;
-use systemprompt_security::policy::{
-    AgentScope, AuditOrigin, AuditTarget, ChainEntryResult, DecisionAudit, Evaluation,
-    GovernanceEngine, GovernedInput, GovernedTarget, PolicyContext, PrincipalSnapshot,
-    record_decision,
-};
 
 pub const REQUEST_ID_HEADER: &str = "x-systemprompt-request-id";
 
@@ -115,7 +105,7 @@ impl GatewayService {
         inputs: DispatchInputs,
     ) -> Result<Response<Body>, DispatchError> {
         let DispatchInputs {
-            mut request,
+            request,
             raw_body,
             ctx,
             inbound,
@@ -154,13 +144,10 @@ impl GatewayService {
         enforce_quota(db, repos, &ctx.user_id, &policy.quota_windows, &audit).await?;
         enforce_request_guards(db, &ctx.user_id, &upstream, &request, &audit).await?;
 
-        // Why: the payload is built before the scan so governance inspects the
-        // exact bytes that will go on the wire. Scanning the canonical form and
-        // sending something derived from it separately is how the two drift.
-        let prepared = prepare_payload(
+        let prepared = PreparedDispatch::build(
             config,
             &upstream,
-            &mut request,
+            request,
             &audit,
             UpstreamRelay {
                 raw_body: &raw_body,
@@ -168,17 +155,12 @@ impl GatewayService {
             },
         )
         .await?;
-        audit.set_prepared_body_digest(&prepared.body.bytes).await;
-        attach_forwarded_surface(&mut request, &prepared, &ai_request_id);
+        let governed = GovernedDispatch::enforce(prepared, db, &ctx, &audit).await?;
+        let scanned =
+            ScannedDispatch::enforce(governed, repos, &ai_request_id, &policy.safety, &audit)
+                .await?;
 
-        // Why: governance runs before the scanner plane so first-deny-wins holds
-        // across both — a denied request never reaches the scanners, and so
-        // produces exactly one audit row and one 403.
-        enforce_governance(db, &ctx, &request, &audit).await?;
-        enforce_request_safety(repos, &ai_request_id, &request, &policy.safety, &audit).await?;
-
-        let outcome =
-            send_to_upstream(&upstream, &request, &prepared, &forward_headers, &audit).await?;
+        let outcome = scanned.send(&upstream, &forward_headers, &audit).await?;
 
         let response = finalize(
             outcome,
@@ -189,17 +171,12 @@ impl GatewayService {
                 ai_request_id: ai_request_id.clone(),
                 policy,
                 inbound,
-                request_model: request.model.clone(),
+                request_model: scanned.request_model().to_owned(),
             },
         )
         .await;
         Ok(attach_request_id(response, &ai_request_id))
     }
-}
-
-struct UpstreamRelay<'a> {
-    raw_body: &'a Bytes,
-    inbound: &'a dyn InboundAdapter,
 }
 
 async fn open_audit(
@@ -213,11 +190,8 @@ async fn open_audit(
     if let Err(e) = audit.open(request, raw_body).await {
         tracing::error!(error = %e, "audit open failed — proceeding without audit row");
     }
-    // Why: these headers identify the client, user, and any spawning agent.
-    // They are recorded here, against the audit row's request id, and then
-    // dropped before the upstream send so a third-party provider never receives
-    // them. Emitted on the trace rather than as an `ai_requests` column because
-    // the attribution they add is per-agent, not per-request.
+    // Why: identity headers are recorded against the audit row, then dropped
+    // before the upstream send so a third-party provider never receives them.
     if !identity_headers.is_empty() {
         tracing::info!(
             ai_request_id = %ctx.ai_request_id,
@@ -227,149 +201,6 @@ async fn open_audit(
         );
     }
     Ok(audit)
-}
-
-#[derive(Clone, Copy)]
-struct CtxParts<'a> {
-    upstream_model: &'a str,
-    model_limits: Option<ModelLimits>,
-    forward_headers: &'a [(String, String)],
-    raw_body: Option<&'a Bytes>,
-}
-
-struct Prepared {
-    upstream_model: String,
-    model_limits: Option<ModelLimits>,
-    body: PreparedBody,
-}
-
-async fn prepare_payload(
-    config: &GatewayConfig,
-    upstream: &ResolvedUpstream<'_>,
-    request: &mut CanonicalRequest,
-    audit: &GatewayAudit,
-    relay: UpstreamRelay<'_>,
-) -> Result<Prepared, DispatchError> {
-    let upstream_model = upstream
-        .route
-        .effective_upstream_model(&request.model)
-        .to_owned();
-    let override_descriptor =
-        apply_system_prompt_override(config, &upstream.provider.name, &upstream_model, request)
-            .await;
-    if let Some(descriptor) = &override_descriptor {
-        audit.set_system_prompt_override(descriptor).await;
-    }
-    let model_limits = upstream
-        .provider
-        .find_model(&upstream_model)
-        .map(|m| m.limits);
-    // Why: an applied override rewrote the canonical request, so the caller's
-    // original bytes no longer describe what the gateway decided to send.
-    let raw_body = (override_descriptor.is_none()
-        && relay.inbound.passthrough_wire() == Some(upstream.provider.wire))
-    .then_some(relay.raw_body);
-    // Why: unconditional, because an adapter may decline the raw lane and fall
-    // back to the canonical build. Stripping only when the lane was rejected up
-    // front would leave that fallback forwarding the identity.
-    strip_caller_identity(request);
-
-    let ctx = outbound_ctx(
-        upstream,
-        request,
-        CtxParts {
-            upstream_model: &upstream_model,
-            model_limits,
-            forward_headers: &[],
-            raw_body,
-        },
-    );
-    let body = upstream
-        .adapter
-        .build_body(&ctx)
-        .map_err(DispatchError::Recorded)?;
-    Ok(Prepared {
-        upstream_model,
-        model_limits,
-        body,
-    })
-}
-
-fn attach_forwarded_surface(
-    request: &mut CanonicalRequest,
-    prepared: &Prepared,
-    ai_request_id: &AiRequestId,
-) {
-    let surface = inspect::string_leaves(&prepared.body.bytes, inspect::SurfaceBudget::default());
-    if surface.truncated() {
-        tracing::warn!(
-            ai_request_id = %ai_request_id,
-            leaves = surface.len(),
-            "Gateway inspection surface truncated — part of the forwarded body was not scanned"
-        );
-    }
-    request.forwarded_surface = surface;
-}
-
-fn outbound_ctx<'a>(
-    upstream: &'a ResolvedUpstream<'a>,
-    request: &'a CanonicalRequest,
-    parts: CtxParts<'a>,
-) -> OutboundCtx<'a> {
-    OutboundCtx {
-        route: upstream.route.as_ref(),
-        endpoint: &upstream.provider.endpoint,
-        api_key: upstream.api_key,
-        request,
-        upstream_model: parts.upstream_model,
-        model_limits: parts.model_limits,
-        forward_headers: parts.forward_headers,
-        raw_body: parts.raw_body,
-    }
-}
-
-async fn send_to_upstream(
-    upstream: &ResolvedUpstream<'_>,
-    request: &CanonicalRequest,
-    prepared: &Prepared,
-    forward_headers: &[(String, String)],
-    audit: &GatewayAudit,
-) -> Result<OutboundOutcome, DispatchError> {
-    let ctx = outbound_ctx(
-        upstream,
-        request,
-        CtxParts {
-            upstream_model: &prepared.upstream_model,
-            model_limits: prepared.model_limits,
-            forward_headers,
-            raw_body: None,
-        },
-    );
-    match upstream.adapter.send(ctx, &prepared.body).await {
-        Ok(o) => Ok(o),
-        Err(e) => {
-            audit_upstream_failure(audit, upstream.provider.name.as_str(), &request.model, &e)
-                .await;
-            Err(DispatchError::Recorded(e))
-        },
-    }
-}
-
-// Why: `metadata.user_id` is an end-user identifier meant for the provider the
-// caller chose, so it must not reach a different wire's upstream. The
-// passthrough lane applies the same rule to the raw body in
-// `normalize_raw_body`.
-fn strip_caller_identity(request: &mut CanonicalRequest) {
-    let Some(metadata) = request.metadata.as_mut() else {
-        return;
-    };
-    let Some(obj) = metadata.as_object_mut() else {
-        return;
-    };
-    obj.remove("user_id");
-    if obj.is_empty() {
-        request.metadata = None;
-    }
 }
 
 async fn enforce_quota(
@@ -446,205 +277,10 @@ async fn enforce_request_guards(
     Err(DispatchError::Recorded(inner))
 }
 
-// Why: written on allow as well as on deny — the chain trace is the product,
-// not just the refusals.
-async fn record_governance_decision(
-    db: &DbPool,
-    ctx: &GatewayRequestContext,
-    evaluation: Evaluation,
-    call_id: CallId,
-    session_id: SessionId,
-) {
-    let decision_audit = DecisionAudit {
-        id: uuid::Uuid::new_v4().to_string(),
-        call_id: call_id.as_str().to_owned(),
-        origin: AuditOrigin::Governed,
-        decision: evaluation.decision,
-        principal: PrincipalSnapshot {
-            user_id: ctx.user_id.clone(),
-            session_id,
-            agent_session: None,
-            agent_id: None,
-            agent_scope: ctx.access_scope,
-        },
-        target: AuditTarget {
-            tool_name: GovernedTarget::Prompt.as_str().to_owned(),
-            plugin_id: None,
-        },
-        chain: evaluation.chain,
-        approver: None,
-        act_chain: Vec::new(),
-        context_id: Some(ctx.context_id.as_str().to_owned()),
-        trace_id: ctx.trace_id.as_ref().map(|t| t.as_str().to_owned()),
-    };
-    match db.write_pool_arc() {
-        Ok(pool) => {
-            if let Err(e) = record_decision(&pool, &decision_audit).await {
-                tracing::error!(
-                    target: "governance.audit.write_failed",
-                    error = %e,
-                    ai_request_id = %ctx.ai_request_id,
-                    "gateway governance audit write failed; row dropped"
-                );
-            }
-        },
-        Err(e) => tracing::error!(
-            target: "governance.audit.write_failed",
-            error = %e,
-            ai_request_id = %ctx.ai_request_id,
-            "no write pool for the gateway governance decision; row dropped"
-        ),
-    }
-}
-
-struct PromptEvaluation {
-    evaluation: Evaluation,
-    call_id: CallId,
-    session_id: SessionId,
-}
-
-fn evaluate_prompt(ctx: &GatewayRequestContext, request: &CanonicalRequest) -> PromptEvaluation {
-    // Why: `flatten_text` includes the forwarded surface attached just above,
-    // so the chain scans exactly the bytes that will go on the wire — operator
-    // `extra_patterns` included, which the hardcoded safety scanner cannot do.
-    let input = GovernedInput::prompt(request.flatten_text());
-    // Why: the bucket key is `session_id:user_id`. A sessionless inference call
-    // needs a *stable* placeholder — minting one per request would give every
-    // call its own bucket and silently disable rate limiting.
-    let session_id = ctx.session_id.clone().unwrap_or_else(SessionId::system);
-    // Why: the engine's idempotency contract is per-call_id, and the ai-request
-    // id is the one identifier stable across re-evaluations of this call. It is
-    // what stops the rate limiter charging twice.
-    let call_id = CallId::new(ctx.ai_request_id.as_str());
-
-    // Why: the same engine instance the MCP governance webhook uses — the rate
-    // limiter's buckets are instance-scoped, so a second engine would give
-    // inference its own budget and silently double every operator limit.
-    let evaluation = GovernanceEngine::global().evaluate(&PolicyContext {
-        target: GovernedTarget::Prompt,
-        agent_scope: AgentScope::User {
-            user_id: ctx.user_id.clone(),
-        },
-        access_scope: ctx.access_scope,
-        session_id: &session_id,
-        user_id: &ctx.user_id,
-        input: &input,
-        call_id: &call_id,
-    });
-
-    PromptEvaluation {
-        evaluation,
-        call_id,
-        session_id,
-    }
-}
-
-async fn enforce_governance(
-    db: &DbPool,
-    ctx: &GatewayRequestContext,
-    request: &CanonicalRequest,
-    audit: &GatewayAudit,
-) -> Result<(), DispatchError> {
-    let PromptEvaluation {
-        evaluation,
-        call_id,
-        session_id,
-    } = evaluate_prompt(ctx, request);
-
-    let denied = match &evaluation.decision {
-        Decision::Allow { .. } => None,
-        Decision::Deny { reason } => Some(reason.to_string()),
-    };
-    let policy = evaluation
-        .chain
-        .iter()
-        .find(|e| e.result == ChainEntryResult::Fail)
-        .map_or_else(
-            || "default_allow".to_owned(),
-            |e| e.policy_id.as_str().to_owned(),
-        );
-
-    record_governance_decision(db, ctx, evaluation, call_id, session_id).await;
-
-    let Some(reason) = denied else {
-        return Ok(());
-    };
-    tracing::warn!(
-        ai_request_id = %ctx.ai_request_id,
-        user_id = %ctx.user_id,
-        policy = %policy,
-        reason = %reason,
-        "Gateway request denied by governance policy"
-    );
-    if let Err(e) = audit.fail(&reason).await {
-        tracing::warn!(error = %e, "governance-deny audit fail failed");
-    }
-    Err(DispatchError::Recorded(
-        GovernanceDenied {
-            policy,
-            message: reason,
-        }
-        .into(),
-    ))
-}
-
-async fn enforce_request_safety(
-    repos: &super::GatewayRepositories,
-    ai_request_id: &AiRequestId,
-    request: &CanonicalRequest,
-    safety: &SafetyConfig,
-    audit: &GatewayAudit,
-) -> Result<(), DispatchError> {
-    let findings =
-        run_request_safety_scan(&repos.safety_findings, ai_request_id, request, safety).await;
-    let Some(finding) = findings.iter().find(|f| {
-        safety.block_categories.contains(&f.category) && blocks_at_phase(f.phase, safety.history)
-    }) else {
-        return Ok(());
-    };
-    let msg = format!(
-        "request blocked by safety policy: category '{}'",
-        finding.category
-    );
-    tracing::warn!(
-        ai_request_id = %ai_request_id,
-        category = %finding.category,
-        scanner = %finding.scanner,
-        "Gateway blocked request by safety policy"
-    );
-    if let Err(e) = audit.fail(&msg).await {
-        tracing::warn!(error = %e, "safety-block audit fail failed");
-    }
-    Err(DispatchError::Recorded(
-        SafetyBlocked {
-            category: finding.category.clone(),
-            message: msg,
-        }
-        .into(),
-    ))
-}
-
 pub fn blocks_at_phase(phase: &str, history: SafetyHistoryMode) -> bool {
     match phase {
         PHASE_REQUEST => true,
         PHASE_REQUEST_HISTORY => history == SafetyHistoryMode::Block,
         _ => false,
-    }
-}
-
-async fn audit_upstream_failure(
-    audit: &GatewayAudit,
-    provider: &str,
-    model: &str,
-    error: &anyhow::Error,
-) {
-    tracing::warn!(
-        provider = %provider,
-        model = %model,
-        error = %error,
-        "gateway upstream call failed"
-    );
-    if let Err(audit_err) = audit.fail(&error.to_string()).await {
-        tracing::warn!(error = %audit_err, "upstream audit fail failed");
     }
 }
