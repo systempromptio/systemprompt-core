@@ -34,6 +34,13 @@ pub struct BrandAssets {
     pub theme_css: &'static str,
 }
 
+// Why: protocol compatibility is negotiated on the core bridge library's
+// version line, never a white-label brand's own (a branded 0.1.x would read as
+// ancient against the gateway's MIN_BRIDGE_VERSION and be rejected outright).
+// `Brand::version` stays the display/update/asset version; this constant is
+// what the manifest floor check and the heartbeat report.
+pub const COMPAT_VERSION: &str = env!("CARGO_PKG_VERSION");
+
 #[derive(Debug, Clone, Copy)]
 pub struct Brand {
     pub app_name: &'static str,

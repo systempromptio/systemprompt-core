@@ -11,7 +11,7 @@ mod manifest;
 mod replay;
 
 pub use apply::{ApplyError, HostFailure, PLUGIN_INSTALLATION_PREFERENCE, TomlError};
-pub use error::SyncError;
+pub use error::{CredentialRejection, SyncError};
 pub(crate) use hash::{safe_id_segment, sha256_hex};
 pub use host_sync::{HostSync, HostSyncCtx};
 pub use replay::{
@@ -39,6 +39,7 @@ pub struct SyncSummary {
     pub removed: Vec<String>,
     pub malformed: Vec<String>,
     pub host_failures: Vec<HostFailure>,
+    pub diagnostics: Vec<String>,
 }
 
 impl SyncSummary {
@@ -73,9 +74,18 @@ impl SyncSummary {
                 detail,
             )
         };
+        let diagnostics_suffix = if self.diagnostics.is_empty() {
+            String::new()
+        } else {
+            format!(
+                " — {} gateway diagnostic(s): {}",
+                self.diagnostics.len(),
+                self.diagnostics.join("; "),
+            )
+        };
         format!(
-            "{status} ({}): {} plugins ({} new, {} updated, {} removed), {} skills, {} agents, {} \
-             hooks, {} MCP — manifest {}{}{}",
+            "{status} ({}): {} plugins ({} new, {} updated, {} removed), {} skills installed, {} \
+             agents, {} hooks, {} MCP — manifest {}{}{}{}",
             self.identity,
             self.plugin_count,
             self.installed.len(),
@@ -88,6 +98,7 @@ impl SyncSummary {
             self.manifest_version,
             malformed_suffix,
             host_suffix,
+            diagnostics_suffix,
         )
     }
 }
@@ -305,11 +316,24 @@ fn build_summary(manifest: &SignedManifest, report: apply::ApplyReport) -> SyncS
         .user
         .as_ref()
         .map_or_else(|| manifest.user_id.to_string(), |u| u.email.clone());
+    let bundled_skills = bundled_skill_count(manifest);
+    let mut diagnostics = manifest.diagnostics.clone();
+    if bundled_skills < manifest.skills.len() {
+        diagnostics.push(format!(
+            "manifest lists {} skill(s) but plugin bundles install only {}; a skill in the \
+             marketplace scope is missing from every plugin's skills.include",
+            manifest.skills.len(),
+            bundled_skills,
+        ));
+    }
+    for d in &diagnostics {
+        tracing::warn!(diagnostic = %d, "sync: gateway diagnostic");
+    }
     SyncSummary {
         identity,
         manifest_version: manifest.manifest_version.to_string(),
         plugin_count: manifest.plugins.len(),
-        skill_count: manifest.skills.len(),
+        skill_count: bundled_skills,
         agent_count: manifest.agents.len(),
         hook_count: manifest.hooks.len(),
         mcp_count: manifest.managed_mcp_servers.len(),
@@ -318,7 +342,22 @@ fn build_summary(manifest: &SignedManifest, report: apply::ApplyReport) -> SyncS
         removed: report.removed,
         malformed: report.malformed,
         host_failures: report.host_failures,
+        diagnostics,
     }
+}
+
+fn bundled_skill_count(manifest: &SignedManifest) -> usize {
+    let mut dirs = std::collections::BTreeSet::new();
+    for plugin in &manifest.plugins {
+        for file in &plugin.files {
+            if let Some(rest) = file.path.strip_prefix("skills/")
+                && let Some((dir, _)) = rest.split_once('/')
+            {
+                dirs.insert(dir.to_owned());
+            }
+        }
+    }
+    dirs.len()
 }
 
 #[derive(Serialize)]

@@ -12,6 +12,7 @@ use crate::gui::hosts::events::{HostUiEvent, ProbeCause};
 use crate::gui::ipc::{BridgeError, ErrorCode, ErrorScope, IpcReplyPayload};
 use crate::gui::state::CancelScope;
 use crate::gui::{GuiApp, server_json};
+use crate::ids::HostId;
 
 #[derive(Debug)]
 pub enum CommandOutcome {
@@ -41,7 +42,7 @@ struct SessionLoginArgs {
 #[derive(Debug, Deserialize)]
 struct HostIdArgs {
     #[serde(rename = "hostId")]
-    host_id: String,
+    host_id: HostId,
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -53,7 +54,7 @@ struct CancelArgs {
 #[derive(Debug, Deserialize)]
 struct HostInstallArgs {
     #[serde(rename = "hostId")]
-    host_id: String,
+    host_id: HostId,
     path: String,
 }
 
@@ -65,7 +66,7 @@ struct OpenExternalUrlArgs {
 #[derive(Debug, Deserialize)]
 struct HostModelFilterArgs {
     #[serde(rename = "hostId")]
-    host_id: String,
+    host_id: HostId,
     #[serde(default)]
     protocols: Option<Vec<String>>,
 }

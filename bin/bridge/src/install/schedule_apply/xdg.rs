@@ -3,11 +3,10 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::fs;
 use std::path::{Path, PathBuf};
 
-use super::{
-    InstallError, ScheduleRemoval, home, proxy_registration, remove_if_present, write,
-};
+use super::{InstallError, ScheduleRemoval, home, write};
 use crate::schedule::{self, Os};
 
 pub(super) fn register(
@@ -25,15 +24,15 @@ pub(super) fn register(
     write(&service_path, &service)?;
     write(&timer_path, &timer)?;
 
-    let proxy_unit = schedule::proxy_job_name(os);
+    let proxy_unit = schedule::proxy_unit_name();
+    let proxy_path = dir.join(format!("{proxy_unit}.service"));
+    write(&proxy_path, &schedule::proxy_template(binary))?;
+
     let mut lines = vec![
         format!("wrote: {}", service_path.display()),
         format!("wrote: {}", timer_path.display()),
+        format!("wrote: {}", proxy_path.display()),
     ];
-    if let Some((proxy_path, body)) = proxy_registration(os, binary, &dir) {
-        write(&proxy_path, &body)?;
-        lines.push(format!("wrote: {}", proxy_path.display()));
-    }
 
     // Why: activation needs a systemd user bus, which containers and
     // systemd-less WSL distros lack; the written units still stand.
@@ -62,20 +61,6 @@ fn activate(unit: &str, proxy_unit: &str) -> Result<(), InstallError> {
     systemctl(&["enable", "--now", &format!("{proxy_unit}.service")])
 }
 
-pub(super) fn ensure_proxy(os: Os, binary: &Path) -> Result<bool, InstallError> {
-    let dir = home()?.join(".config").join("systemd").join("user");
-    let Some((path, body)) = proxy_registration(os, binary, &dir) else {
-        return Ok(false);
-    };
-    let unit = format!("{}.service", schedule::proxy_job_name(os));
-    if std::fs::read_to_string(&path).ok().as_deref() != Some(body.as_str()) {
-        write(&path, &body)?;
-        systemctl(&["daemon-reload"])?;
-    }
-    systemctl(&["enable", "--now", &unit])?;
-    Ok(true)
-}
-
 fn systemctl(args: &[&str]) -> Result<(), InstallError> {
     let status = std::process::Command::new("systemctl")
         .arg("--user")
@@ -94,7 +79,7 @@ fn systemctl(args: &[&str]) -> Result<(), InstallError> {
 
 pub(super) fn remove_current() -> ScheduleRemoval {
     let unit = schedule::schedule_label(Os::Linux);
-    let proxy_unit = schedule::proxy_job_name(Os::Linux);
+    let proxy_unit = schedule::proxy_unit_name();
     let Ok(home) = home() else {
         return ScheduleRemoval::Failed("cannot resolve the user's home directory".into());
     };
@@ -115,5 +100,12 @@ pub(super) fn remove_current() -> ScheduleRemoval {
             ScheduleRemoval::Removed(format!("{unit} + {proxy_unit}"))
         },
         Err(e) => ScheduleRemoval::Failed(format!("remove under {}: {e}", dir.display())),
+    }
+}
+
+fn remove_if_present(path: &Path) -> std::io::Result<()> {
+    match fs::remove_file(path) {
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        other => other,
     }
 }

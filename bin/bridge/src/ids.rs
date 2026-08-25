@@ -218,6 +218,7 @@ bridge_define_token!(LoopbackSecret);
 bridge_define_token!(ProxySecret);
 bridge_define_token!(PinnedPubKey);
 
+bridge_define_id!(HostId);
 bridge_define_id!(PrefsDomain, non_empty);
 bridge_define_id!(PrefsKey, non_empty);
 bridge_define_id!(ModelId, non_empty);

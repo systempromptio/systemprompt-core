@@ -60,6 +60,7 @@ pub(crate) fn on_sync_finished(
     app.state.set_sync_in_flight(false);
     app.state.clear_cancel(CancelScope::Sync);
     let succeeded = result.is_ok();
+    let mut auth_failure = false;
     let bridge_result = match result {
         Ok(summary) => {
             let line = summary.one_line();
@@ -76,6 +77,12 @@ pub(crate) fn on_sync_finished(
                 GuiError::Sync(e) => Some(e),
                 _ => None,
             };
+            auth_failure = matches!(
+                sync_err,
+                Some(
+                    sync::SyncError::NoCredential { .. } | sync::SyncError::GatewayUnauthorized(_)
+                )
+            );
             let (phase, line, scope, code) = if cancelled {
                 (
                     "cancelled",
@@ -100,16 +107,17 @@ pub(crate) fn on_sync_finished(
                     ErrorScope::Marketplace,
                     ErrorCode::Conflict,
                 )
-            } else if let Some(sync::SyncError::GatewayUnauthorized {
-                endpoint, status, ..
-            }) = sync_err
-            {
-                let status_s = status.to_string();
+            } else if let Some(sync::SyncError::GatewayUnauthorized(rejection)) = sync_err {
+                let status_s = rejection.status.to_string();
                 (
                     "failed",
                     i18n::t_args(
                         "sync-gateway-unauthorized",
-                        &[("endpoint", *endpoint), ("status", &status_s)],
+                        &[
+                            ("endpoint", rejection.endpoint),
+                            ("status", &status_s),
+                            ("gateway", &rejection.gateway),
+                        ],
                     ),
                     ErrorScope::Marketplace,
                     ErrorCode::Unauthorized,
@@ -136,6 +144,11 @@ pub(crate) fn on_sync_finished(
     if succeeded {
         app.proxy
             .send_event(UiEvent::McpAuthProbeRequested { reply_to: None });
+    }
+    // Why: only a user-initiated sync (reply_to set) may raise the settings
+    // window for re-auth; a background sync popping a window would steal focus.
+    if auth_failure && reply_to.is_some() && !app.state.first_run_active() {
+        app.proxy.send_event(UiEvent::OpenSettings);
     }
     finish_value(app, bridge_result, reply_to);
 }

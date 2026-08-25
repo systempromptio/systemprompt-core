@@ -14,6 +14,7 @@ use crate::gui::events::{ReplyId, UiEvent};
 use crate::gui::hosts::events::{HostUiEvent, ProbeCause};
 use crate::gui::ipc::{BridgeError, ErrorCode, ErrorScope, IpcReplyPayload};
 use crate::gui::{GuiApp, emit};
+use crate::ids::HostId;
 use crate::integration::{
     GeneratedProfile, HostAppSnapshot, ProfileGenInputs, ProfileState, ProxyHealth,
     find_host_by_id, proxy_probe,
@@ -21,11 +22,11 @@ use crate::integration::{
 
 pub(crate) fn on_probe_requested(
     app: &GuiApp,
-    host_id: &str,
+    host_id: &HostId,
     cause: ProbeCause,
     reply_to: ReplyId,
 ) {
-    let Some(host) = find_host_by_id(host_id) else {
+    let Some(host) = find_host_by_id(host_id.as_str()) else {
         if cause == ProbeCause::Manual {
             app.append_log(format!("probe requested for unknown host '{host_id}'"));
         }
@@ -39,7 +40,7 @@ pub(crate) fn on_probe_requested(
     };
     if cause == ProbeCause::Manual {
         app.append_log(format!("[{host_id}] re-verifying profile and process"));
-    } else if !app.state.mark_host_probing(host_id) {
+    } else if !app.state.mark_host_probing(host_id.as_str()) {
         if let Some(id) = reply_to {
             let err = BridgeError::new(
                 ErrorScope::Host,
@@ -50,7 +51,7 @@ pub(crate) fn on_probe_requested(
         }
         return;
     }
-    let host_id_owned = host_id.to_owned();
+    let host_id_owned = host_id.clone();
     let proxy = app.proxy.clone();
     app.runtime.spawn(async move {
         let Ok(snap) = tokio::task::spawn_blocking(move || Box::new(host.probe())).await else {
@@ -67,7 +68,7 @@ pub(crate) fn on_probe_requested(
 
 pub(crate) fn on_probe_finished(
     app: &mut GuiApp,
-    host_id: &str,
+    host_id: &HostId,
     cause: ProbeCause,
     snapshot: &HostAppSnapshot,
     reply_to: ReplyId,
@@ -77,9 +78,10 @@ pub(crate) fn on_probe_finished(
         .state
         .snapshot()
         .hosts
-        .get(host_id)
+        .get(host_id.as_str())
         .and_then(|s| s.snapshot.clone());
-    app.state.apply_host_snapshot(host_id, snapshot.clone());
+    app.state
+        .apply_host_snapshot(host_id.as_str(), snapshot.clone());
     app.refresh_ui();
     emit::emit_host_changed(app, host_id);
     let log_line = match cause {
@@ -90,7 +92,7 @@ pub(crate) fn on_probe_finished(
         app.append_log(line);
     }
     let snap = app.state.snapshot();
-    let value = crate::gui::server_json::single_host_value(&snap, host_id);
+    let value = crate::gui::server_json::single_host_value(&snap, host_id.as_str());
     if app.state.first_run_active() {
         crate::gui::first_run::handlers::on_probe_result(app, host_id, snapshot);
     }
@@ -98,7 +100,7 @@ pub(crate) fn on_probe_finished(
 }
 
 fn state_change_line(
-    host_id: &str,
+    host_id: &HostId,
     prev: Option<&HostAppSnapshot>,
     next: &HostAppSnapshot,
 ) -> Option<String> {
@@ -186,8 +188,8 @@ pub(crate) fn on_proxy_probe_finished(app: &mut GuiApp, health: ProxyHealth, rep
     finish(app, Ok(json!({ "health": value })), reply_to);
 }
 
-pub(crate) fn on_profile_generate_requested(app: &GuiApp, host_id: &str, reply_to: ReplyId) {
-    let Some(host) = find_host_by_id(host_id) else {
+pub(crate) fn on_profile_generate_requested(app: &GuiApp, host_id: &HostId, reply_to: ReplyId) {
+    let Some(host) = find_host_by_id(host_id.as_str()) else {
         app.append_log(format!("generate requested for unknown host '{host_id}'"));
         let err = BridgeError::new(
             ErrorScope::Host,
@@ -198,7 +200,7 @@ pub(crate) fn on_profile_generate_requested(app: &GuiApp, host_id: &str, reply_t
         return;
     };
     app.append_log(format!("Generating profile for {}…", host.display_name()));
-    let host_id_owned = host_id.to_owned();
+    let host_id_owned = host_id.clone();
     let overrides = app.state.snapshot().host_model_protocols;
     let proxy = app.proxy.clone();
     app.runtime.spawn(async move {
@@ -215,7 +217,7 @@ pub(crate) fn on_profile_generate_requested(app: &GuiApp, host_id: &str, reply_t
 
 pub(crate) fn on_profile_generate_finished(
     app: &mut GuiApp,
-    host_id: &str,
+    host_id: &HostId,
     result: Result<GeneratedProfile, Arc<GuiError>>,
     reply_to: ReplyId,
 ) {
@@ -226,7 +228,7 @@ pub(crate) fn on_profile_generate_finished(
                 p.path, p.bytes
             ));
             let response = json!({ "path": p.path, "bytes": p.bytes });
-            app.state.set_last_generated_profile(host_id, p);
+            app.state.set_last_generated_profile(host_id.as_str(), p);
             Ok(response)
         },
         Err(e) => {
@@ -263,11 +265,11 @@ fn needs_elevation_notice(host: &dyn crate::integration::HostApp) -> bool {
 
 pub(crate) fn on_profile_install_requested(
     app: &GuiApp,
-    host_id: &str,
+    host_id: &HostId,
     path: String,
     reply_to: ReplyId,
 ) {
-    let Some(host) = find_host_by_id(host_id) else {
+    let Some(host) = find_host_by_id(host_id.as_str()) else {
         app.append_log(format!("install requested for unknown host '{host_id}'"));
         let err = BridgeError::new(
             ErrorScope::Host,
@@ -285,7 +287,7 @@ pub(crate) fn on_profile_install_requested(
              approve it to continue."
         ));
     }
-    let host_id_owned = host_id.to_owned();
+    let host_id_owned = host_id.clone();
     let path_clone = path.clone();
     let proxy = app.proxy.clone();
     app.runtime.spawn(async move {
@@ -315,11 +317,11 @@ pub(crate) fn on_profile_install_requested(
 
 pub(crate) fn on_profile_install_finished(
     app: &mut GuiApp,
-    host_id: &str,
+    host_id: &HostId,
     result: Result<String, Arc<GuiError>>,
     reply_to: ReplyId,
 ) {
-    let action = find_host_by_id(host_id).map_or(
+    let action = find_host_by_id(host_id.as_str()).map_or(
         "installed",
         crate::integration::host_app::HostApp::install_action_label,
     );
@@ -346,7 +348,7 @@ pub(crate) fn on_profile_install_finished(
     };
     app.proxy
         .send_event(UiEvent::Host(HostUiEvent::ProbeRequested {
-            host_id: host_id.to_owned(),
+            host_id: host_id.clone(),
             cause: ProbeCause::Manual,
             reply_to: None,
         }));
@@ -359,11 +361,11 @@ pub(crate) fn on_profile_install_finished(
 
 pub(crate) fn on_model_filter_set_requested(
     app: &GuiApp,
-    host_id: &str,
+    host_id: &HostId,
     protocols: Option<Vec<String>>,
     reply_to: ReplyId,
 ) {
-    if find_host_by_id(host_id).is_none() {
+    if find_host_by_id(host_id.as_str()).is_none() {
         let err = BridgeError::new(
             ErrorScope::Host,
             ErrorCode::NotFound,
@@ -381,7 +383,7 @@ pub(crate) fn on_model_filter_set_requested(
         },
         None => app.append_log(format!("[{host_id}] model filter cleared (host default)")),
     }
-    let host_id_owned = host_id.to_owned();
+    let host_id_owned = host_id.clone();
     let proxy = app.proxy.clone();
     app.runtime.spawn(async move {
         let result = push_model_filter(&host_id_owned, protocols.as_deref())
@@ -395,7 +397,7 @@ pub(crate) fn on_model_filter_set_requested(
     });
 }
 
-async fn push_model_filter(host_id: &str, protocols: Option<&[String]>) -> GuiResult<()> {
+async fn push_model_filter(host_id: &HostId, protocols: Option<&[String]>) -> GuiResult<()> {
     let cfg = config::load();
     let gateway_base = config::gateway_url_or_default(&cfg);
     let bearer =
@@ -407,7 +409,7 @@ async fn push_model_filter(host_id: &str, protocols: Option<&[String]>) -> GuiRe
             ),
         })?;
     GatewayClient::new(gateway_base)
-        .set_host_model_filter(bearer.token.expose(), host_id, protocols)
+        .set_host_model_filter(bearer.token.expose(), host_id.as_str(), protocols)
         .await
         .map_err(|e| GuiError::Profile {
             context: "host model filter".into(),
@@ -417,7 +419,7 @@ async fn push_model_filter(host_id: &str, protocols: Option<&[String]>) -> GuiRe
 
 pub(crate) fn on_model_filter_set_finished(
     app: &GuiApp,
-    host_id: &str,
+    host_id: &HostId,
     result: Result<(), Arc<GuiError>>,
     reply_to: ReplyId,
 ) {

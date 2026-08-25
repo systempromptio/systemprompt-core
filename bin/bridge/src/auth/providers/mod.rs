@@ -50,6 +50,7 @@ impl AuthFailedSource {
                         | G::UnsafePath(_)
                         | G::PubkeyDecode(_)
                         | G::ManifestDecode(_)
+                        | G::ManifestEnvelopeShape { .. }
                         | G::WhoamiDecode(_)
                         | G::ProfileDecode(_)
                         | G::AuthDecode(_)

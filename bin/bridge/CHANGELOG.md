@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.30.0] - 2026-08-25
+
+### Added
+
+- The credentials-rejected sync error names the gateway URL, the JWT identity it presented, the config and PAT file paths it read, and whether `XDG_CONFIG_HOME` or the config override variable redirected them — so a CLI and a desktop app resolving different credential directories is visible in the error itself. It also distinguishes a rejected cached token from a rejected freshly minted one.
+- A sign-in performed outside the running app (for example `login --code` in a terminal) is picked up without a restart: the proxy re-reads credentials when the PAT or config file changes on disk.
+- A user-initiated sync that fails with a credential error opens the settings window for re-authentication instead of ending in a toast.
+- The sync summary reports gateway diagnostics carried in the manifest and counts the skills the plugin bundles actually install, with a warning when the manifest lists more skills than any bundle delivers.
+- `HostId` is a typed identifier; host ids in GUI events and handlers are no longer raw strings.
+
+### Fixed
+
+- White-label bridges are no longer rejected by the gateway's bridge-version floor. The manifest floor check and the heartbeat report now use the core bridge library's version (`brand::COMPAT_VERSION`) instead of the brand's own display version, whose independent numbering read as ancient against `min_bridge_version`.
+
+### Changed
+
+- A manifest response the bridge cannot parse is reported with the schema and bridge version floors when the payload carries them — an out-of-date bridge is told to update instead of seeing a decode error — and otherwise with a bounded snippet of the response body.
+
 ## [0.29.0] - 2026-08-24
 
 ### Fixed

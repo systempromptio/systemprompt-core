@@ -1,8 +1,5 @@
 //! Task Scheduler registration for the sync job.
 //!
-//! No proxy supervisor is registered here: on Windows the desktop GUI runs at
-//! logon and owns the loopback proxy's lifecycle.
-//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -49,12 +46,6 @@ pub(super) fn register(
         path,
         vec![format!("scheduled task: {task} (logon + every 30m)")],
     ))
-}
-
-// Why: always `false` — the desktop GUI runs at logon and owns the proxy here,
-// so a second supervisor would only fight it for the port.
-pub(super) const fn ensure_proxy(_os: Os, _binary: &Path) -> Result<bool, InstallError> {
-    Ok(false)
 }
 
 pub(super) fn remove_current() -> ScheduleRemoval {

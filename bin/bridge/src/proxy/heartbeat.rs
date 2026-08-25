@@ -74,7 +74,7 @@ async fn send_one(
 
     let payload = HeartbeatPayload {
         session_id: session.session_id().as_str(),
-        bridge_version: crate::brand::brand().version,
+        bridge_version: crate::brand::COMPAT_VERSION,
         os: std::env::consts::OS,
         hostname: hostname_or_unknown(),
         last_activity_at: session.last_activity(),
@@ -108,7 +108,7 @@ async fn send_one(
         && !body.compatible
     {
         tracing::warn!(
-            local = %crate::brand::brand().version,
+            local = %crate::brand::COMPAT_VERSION,
             required = %body.min_bridge_version,
             "gateway reports this bridge as unsupported",
         );

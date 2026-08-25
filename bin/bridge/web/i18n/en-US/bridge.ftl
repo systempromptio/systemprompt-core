@@ -27,7 +27,7 @@ sync-cancel = Cancel
 sync-cancelled = Sync cancelled.
 sync-failure = Sync failed: { $error }
 sync-no-credentials = Sync failed: not signed in. Sign in to this gateway, then try again.
-sync-gateway-unauthorized = Sync failed: the gateway rejected a freshly issued credential (HTTP { $status } from { $endpoint }). Your access may have been revoked — sign in again, or ask an administrator to check your account.
+sync-gateway-unauthorized = Sync failed: { $gateway } rejected a freshly issued credential (HTTP { $status } from { $endpoint }). Your access may have been revoked — sign in again, or ask an administrator to check your account.
 sync-bridge-too-old = Sync failed: this bridge is { $local } but the gateway requires { $required } or newer. Updating now — the app will restart.
 sync-reauthenticate = Re-authenticate
 

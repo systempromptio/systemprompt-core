@@ -73,9 +73,16 @@ impl GatewayClient {
                 endpoint: "manifest",
             });
         }
-        resp.json::<SignedManifestEnvelope>()
+        let body = resp
+            .text()
             .await
-            .map_err(|e| GatewayError::ManifestDecode(Box::new(e)))
+            .map_err(|e| GatewayError::ManifestDecode(Box::new(e)))?;
+        serde_json::from_str::<SignedManifestEnvelope>(&body).map_err(|source| {
+            GatewayError::ManifestEnvelopeShape {
+                snippet: body.chars().take(120).collect(),
+                source,
+            }
+        })
     }
 
     #[tracing::instrument(

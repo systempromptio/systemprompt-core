@@ -51,9 +51,9 @@ pub(crate) fn emit_gateway_changed(app: &GuiApp) {
     send_emit(app, "gateway.changed", &value);
 }
 
-pub(crate) fn emit_host_changed(app: &GuiApp, host_id: &str) {
+pub(crate) fn emit_host_changed(app: &GuiApp, host_id: &crate::ids::HostId) {
     let snap = app.state.snapshot();
-    let value = crate::gui::server_json::single_host_value(&snap, host_id);
+    let value = crate::gui::server_json::single_host_value(&snap, host_id.as_str());
     send_emit(app, "host.changed", &value);
 }
 

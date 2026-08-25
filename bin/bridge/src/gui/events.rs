@@ -11,6 +11,7 @@ use crate::auth::secret::Secret;
 use crate::gui::error::GuiError;
 use crate::gui::hosts::events::HostUiEvent;
 use crate::gui::state::{CancelScope, GatewayProbeOutcome};
+use crate::ids::HostId;
 use crate::proxy::mcp_probe::McpServerAuth;
 use crate::sync::SyncSummary;
 use crate::validate::ValidationReport;
@@ -123,15 +124,15 @@ pub enum UiEvent {
     UpdateRestartRequested,
 
     AgentUninstall {
-        host_id: String,
+        host_id: HostId,
         reply_to: ReplyId,
     },
     AgentOpenConfig {
-        host_id: String,
+        host_id: HostId,
         reply_to: ReplyId,
     },
     AgentOpen {
-        host_id: String,
+        host_id: HostId,
         reply_to: ReplyId,
     },
     SetupComplete,

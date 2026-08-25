@@ -26,7 +26,7 @@ pub(crate) fn maybe_probe(app: &GuiApp) {
         }
         app.proxy
             .send_event(UiEvent::Host(HostUiEvent::ProbeRequested {
-                host_id: id.to_owned(),
+                host_id: crate::ids::HostId::new(id),
                 cause: ProbeCause::Tick,
                 reply_to: None,
             }));
@@ -47,7 +47,7 @@ pub(crate) fn request_initial_probe(app: &GuiApp) {
     for host in crate::integration::host_apps() {
         app.proxy
             .send_event(UiEvent::Host(HostUiEvent::ProbeRequested {
-                host_id: host.id().to_owned(),
+                host_id: crate::ids::HostId::new(host.id()),
                 cause: ProbeCause::Tick,
                 reply_to: None,
             }));

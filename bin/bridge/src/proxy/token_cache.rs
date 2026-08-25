@@ -17,6 +17,28 @@ use crate::proxy::forward::{ForwardError, ForwardResult};
 use crate::{auth, config};
 
 const REFRESH_TIMEOUT: Duration = Duration::from_secs(10);
+const STAMP_CHECK_INTERVAL: Duration = Duration::from_secs(5);
+
+#[derive(Clone, PartialEq, Eq)]
+struct CredentialStamp {
+    pat_mtime: Option<std::time::SystemTime>,
+    config_mtime: Option<std::time::SystemTime>,
+}
+
+impl CredentialStamp {
+    fn capture() -> Self {
+        let pat = auth::setup::resolve_paths().ok().map(|p| p.pat_file);
+        Self {
+            pat_mtime: mtime(pat),
+            config_mtime: mtime(config::config_path()),
+        }
+    }
+}
+
+fn mtime(path: Option<std::path::PathBuf>) -> Option<std::time::SystemTime> {
+    path.and_then(|p| std::fs::metadata(p).ok())
+        .and_then(|m| m.modified().ok())
+}
 
 pub type RefreshFn =
     Arc<dyn Fn(u64) -> Pin<Box<dyn Future<Output = Option<HelperOutput>> + Send>> + Send + Sync>;
@@ -24,6 +46,8 @@ pub type RefreshFn =
 struct CachedEntry {
     token: HelperOutput,
     minted_at: Instant,
+    stamp: CredentialStamp,
+    stamp_checked_at: Instant,
 }
 
 #[expect(
@@ -34,6 +58,7 @@ pub struct TokenCache {
     cached: Mutex<Option<CachedEntry>>,
     refresh_lock: Mutex<()>,
     refresh: RefreshFn,
+    stamp_check_interval: Duration,
 }
 
 impl TokenCache {
@@ -43,7 +68,14 @@ impl TokenCache {
             cached: Mutex::new(None),
             refresh_lock: Mutex::new(()),
             refresh,
+            stamp_check_interval: STAMP_CHECK_INTERVAL,
         }
+    }
+
+    #[must_use]
+    pub const fn with_stamp_check_interval(mut self, interval: Duration) -> Self {
+        self.stamp_check_interval = interval;
+        self
     }
 
     #[must_use]
@@ -89,6 +121,8 @@ impl TokenCache {
         *guard = Some(CachedEntry {
             token: token.clone(),
             minted_at: Instant::now(),
+            stamp: CredentialStamp::capture(),
+            stamp_checked_at: Instant::now(),
         });
         Ok(token)
     }
@@ -106,14 +140,26 @@ impl TokenCache {
         reason = "guard scope is the whole function; entry borrows from it"
     )]
     async fn peek_fresh(&self, refresh_threshold_secs: u64) -> Option<HelperOutput> {
-        let guard = self.cached.lock().await;
-        let entry = guard.as_ref()?;
+        let mut guard = self.cached.lock().await;
+        let entry = guard.as_mut()?;
         let age_secs = entry.minted_at.elapsed().as_secs();
-        if age_secs.saturating_add(refresh_threshold_secs) < entry.token.ttl {
-            tracing::debug!(cached_age_secs = age_secs, "token cache hit");
-            Some(entry.token.clone())
-        } else {
-            None
+        if age_secs.saturating_add(refresh_threshold_secs) >= entry.token.ttl {
+            return None;
         }
+        // Why: an external `login` rewrites the PAT/config on disk but cannot
+        // reach this in-memory cache; without the mtime check the old JWT is
+        // served until its TTL lapses and every sync 401s against fresh disk
+        // credentials.
+        if entry.stamp_checked_at.elapsed() >= self.stamp_check_interval {
+            let current = CredentialStamp::capture();
+            if current != entry.stamp {
+                tracing::info!("credentials changed on disk; discarding cached token");
+                *guard = None;
+                return None;
+            }
+            entry.stamp_checked_at = Instant::now();
+        }
+        tracing::debug!(cached_age_secs = age_secs, "token cache hit");
+        Some(entry.token.clone())
     }
 }

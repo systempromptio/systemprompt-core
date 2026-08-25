@@ -10,10 +10,11 @@ use serde_json::json;
 use crate::gui::events::ReplyId;
 use crate::gui::ipc::{BridgeError, ErrorCode, ErrorScope, IpcReplyPayload};
 use crate::gui::{GuiApp, emit, window};
+use crate::ids::HostId;
 use crate::integration::find_host_by_id;
 
-pub(crate) fn on_uninstall(app: &GuiApp, host_id: &str, reply_to: ReplyId) {
-    let result = find_host_by_id(host_id).map_or_else(
+pub(crate) fn on_uninstall(app: &GuiApp, host_id: &HostId, reply_to: ReplyId) {
+    let result = find_host_by_id(host_id.as_str()).map_or_else(
         || {
             app.append_log(format!("uninstall: unknown host {host_id}"));
             Err(BridgeError::new(
@@ -35,8 +36,8 @@ pub(crate) fn on_uninstall(app: &GuiApp, host_id: &str, reply_to: ReplyId) {
     finish(app, result, reply_to);
 }
 
-pub(crate) fn on_open_config(app: &GuiApp, host_id: &str, reply_to: ReplyId) {
-    let result = find_host_by_id(host_id).map_or_else(
+pub(crate) fn on_open_config(app: &GuiApp, host_id: &HostId, reply_to: ReplyId) {
+    let result = find_host_by_id(host_id.as_str()).map_or_else(
         || {
             app.append_log(format!("open-config: unknown host {host_id}"));
             Err(BridgeError::new(
@@ -70,8 +71,8 @@ pub(crate) fn on_open_config(app: &GuiApp, host_id: &str, reply_to: ReplyId) {
     finish(app, result, reply_to);
 }
 
-pub(crate) fn on_open(app: &GuiApp, host_id: &str, reply_to: ReplyId) {
-    let result = find_host_by_id(host_id).map_or_else(
+pub(crate) fn on_open(app: &GuiApp, host_id: &HostId, reply_to: ReplyId) {
+    let result = find_host_by_id(host_id.as_str()).map_or_else(
         || {
             app.append_log(format!("open: unknown host {host_id}"));
             Err(BridgeError::new(

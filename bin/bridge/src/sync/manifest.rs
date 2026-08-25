@@ -13,17 +13,75 @@ use crate::gateway::manifest::{
 };
 use crate::ids::PinnedPubKey;
 
-fn map_gateway_error(err: GatewayError, endpoint: &'static str) -> SyncError {
+struct RejectedCredential<'a> {
+    credential: &'static str,
+    token: Option<&'a Secret>,
+}
+
+fn map_gateway_error(
+    err: GatewayError,
+    endpoint: &'static str,
+    rejected: &RejectedCredential<'_>,
+) -> SyncError {
     match err {
         GatewayError::HttpStatus { status, .. } if matches!(status.as_u16(), 401 | 403) => {
-            SyncError::GatewayUnauthorized {
-                bin: crate::brand::brand().binary_name,
-                endpoint,
-                status: status.as_u16(),
-            }
+            unauthorized(endpoint, status.as_u16(), rejected)
         },
         GatewayError::ManifestDecode(e) if e.is_decode() => SyncError::ManifestShape(e.to_string()),
+        e @ GatewayError::ManifestEnvelopeShape { .. } => SyncError::ManifestShape(e.to_string()),
         other => SyncError::Network(other.to_string()),
+    }
+}
+
+fn unauthorized(
+    endpoint: &'static str,
+    status: u16,
+    rejected: &RejectedCredential<'_>,
+) -> SyncError {
+    let cfg = config::load();
+    let identity = rejected
+        .token
+        .and_then(|t| crate::auth::jwt::decode_unverified(t.expose()))
+        .and_then(|c| c.display_label())
+        .map(|label| format!(" for {label}"))
+        .unwrap_or_default();
+    let (config_file, pat_file) = match crate::auth::setup::resolve_paths() {
+        Ok(p) => (
+            p.config_file.display().to_string(),
+            p.pat_file.display().to_string(),
+        ),
+        Err(_) => ("<unresolvable>".to_owned(), "<unresolvable>".to_owned()),
+    };
+    SyncError::GatewayUnauthorized(Box::new(super::error::CredentialRejection {
+        bin: crate::brand::brand().binary_name,
+        endpoint,
+        status,
+        gateway: config::gateway_url_or_default(&cfg).to_string(),
+        credential: rejected.credential,
+        identity,
+        config_file,
+        pat_file,
+        override_note: credential_dir_override_note(),
+    }))
+}
+
+fn credential_dir_override_note() -> String {
+    let mut overrides = Vec::new();
+    let config_env = crate::brand::brand().env("CONFIG");
+    if std::env::var_os(&config_env).is_some() {
+        overrides.push(config_env);
+    }
+    if crate::basedirs::config_home_override().is_some() {
+        overrides.push("XDG_CONFIG_HOME".to_owned());
+    }
+    if overrides.is_empty() {
+        String::new()
+    } else {
+        format!(
+            " — note the credential location for this process is redirected by {}; a bridge \
+             launched from the desktop resolves the default location instead",
+            overrides.join(" and ")
+        )
     }
 }
 
@@ -80,7 +138,21 @@ pub(super) async fn fetch_authenticated_manifest() -> Result<ManifestFetch, Sync
         envelope = client.fetch_manifest(bearer.expose()).await;
     }
 
-    let envelope = envelope.map_err(|e| map_gateway_error(e, "manifest"))?;
+    let credential = if was_cached {
+        "both the cached credential and a freshly minted replacement"
+    } else {
+        "a freshly issued credential"
+    };
+    let envelope = envelope.map_err(|e| {
+        map_gateway_error(
+            e,
+            "manifest",
+            &RejectedCredential {
+                credential,
+                token: Some(&bearer),
+            },
+        )
+    })?;
 
     Ok(ManifestFetch {
         client,
@@ -119,10 +191,16 @@ async fn resolve_pubkey(
         return Err(SyncError::PubkeyNotPinned);
     }
     tracing::info!("first-run trust-on-first-use: fetching manifest pubkey from gateway");
-    let fetched = client
-        .fetch_pubkey()
-        .await
-        .map_err(|e| map_gateway_error(e, "pubkey"))?;
+    let fetched = client.fetch_pubkey().await.map_err(|e| {
+        map_gateway_error(
+            e,
+            "pubkey",
+            &RejectedCredential {
+                credential: "the request",
+                token: None,
+            },
+        )
+    })?;
     if let Err(e) = config::persist_pinned_pubkey(&fetched) {
         tracing::warn!(error = %e, "failed to persist pinned pubkey; next run will re-trust on first use");
     }

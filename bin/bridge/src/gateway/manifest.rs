@@ -84,24 +84,36 @@ pub fn verify_envelope(
 }
 
 pub fn decode_payload(envelope: &SignedManifestEnvelope) -> Result<SignedManifest, ManifestError> {
-    let manifest: SignedManifest =
-        serde_json::from_str(&envelope.payload).map_err(ManifestError::PayloadParse)?;
-    if manifest.min_schema_version > MANIFEST_SCHEMA_VERSION {
-        return Err(ManifestError::SchemaTooNew {
-            required: manifest.min_schema_version,
-            supported: MANIFEST_SCHEMA_VERSION,
-        });
+    // Why: the version floors are checked from a lenient probe BEFORE the full
+    // parse — a payload shaped for a newer bridge often fails the full parse,
+    // and reporting that as a shape error hides the actual fix (update).
+    #[derive(serde::Deserialize)]
+    struct VersionProbe {
+        #[serde(default)]
+        min_schema_version: Option<u32>,
+        #[serde(default)]
+        min_bridge_version: Option<String>,
     }
-    let local = crate::brand::brand().version;
-    if let Some(required) = manifest.min_bridge_version.as_deref()
-        && !bridge_version_is_supported(local, required)
-    {
-        return Err(ManifestError::BridgeTooOld {
-            local: local.to_owned(),
-            required: required.to_owned(),
-        });
+    let local = crate::brand::COMPAT_VERSION;
+    if let Ok(probe) = serde_json::from_str::<VersionProbe>(&envelope.payload) {
+        if let Some(required) = probe.min_schema_version
+            && required > MANIFEST_SCHEMA_VERSION
+        {
+            return Err(ManifestError::SchemaTooNew {
+                required,
+                supported: MANIFEST_SCHEMA_VERSION,
+            });
+        }
+        if let Some(required) = probe.min_bridge_version.as_deref()
+            && !bridge_version_is_supported(local, required)
+        {
+            return Err(ManifestError::BridgeTooOld {
+                local: local.to_owned(),
+                required: required.to_owned(),
+            });
+        }
     }
-    Ok(manifest)
+    serde_json::from_str(&envelope.payload).map_err(ManifestError::PayloadParse)
 }
 
 #[derive(Debug)]
@@ -248,6 +260,7 @@ impl SignedManifestBuilder {
             host_model_protocols: self.host_model_protocols,
             artifacts: self.artifacts,
             allow_claude_ai_connectors: self.allow_claude_ai_connectors,
+            diagnostics: Vec::new(),
         }
     }
 }

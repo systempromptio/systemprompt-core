@@ -4,6 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod cache;
+pub mod jwt;
 pub mod keystore;
 pub mod loopback;
 pub mod plugin_oauth;

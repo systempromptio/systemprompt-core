@@ -15,6 +15,14 @@ pub enum GatewayError {
     ManifestFetch(Box<reqwest::Error>),
     #[error("malformed manifest response: {0}")]
     ManifestDecode(Box<reqwest::Error>),
+    #[error(
+        "manifest response is not a signed envelope this bridge understands ({source}); response \
+         starts with: {snippet}"
+    )]
+    ManifestEnvelopeShape {
+        snippet: String,
+        source: serde_json::Error,
+    },
     #[error("refused unsafe path: {0}")]
     UnsafePath(String),
     #[error("plugin fetch {plugin_id}:{path} failed: {source}")]

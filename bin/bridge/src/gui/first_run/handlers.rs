@@ -11,6 +11,7 @@
 use crate::gui::events::UiEvent;
 use crate::gui::hosts::events::HostUiEvent;
 use crate::gui::{GuiApp, emit, first_run};
+use crate::ids::HostId;
 use crate::integration::{AppInstallState, HostAppSnapshot};
 
 use super::state::{FirstRunPhase, StepStatus};
@@ -30,12 +31,12 @@ pub(crate) fn on_start(app: &mut GuiApp) {
     crate::gui::hosts::tick::request_initial_probe(app);
 }
 
-pub(crate) fn on_probe_result(app: &mut GuiApp, host_id: &str, snapshot: &HostAppSnapshot) {
+pub(crate) fn on_probe_result(app: &mut GuiApp, host_id: &HostId, snapshot: &HostAppSnapshot) {
     if app
         .state
         .snapshot()
         .first_run
-        .host(host_id)
+        .host(host_id.as_str())
         .is_none_or(|h| h.status != StepStatus::Probing)
     {
         return;
@@ -43,7 +44,7 @@ pub(crate) fn on_probe_result(app: &mut GuiApp, host_id: &str, snapshot: &HostAp
 
     if snapshot.app_installed == AppInstallState::NotInstalled {
         app.state
-            .set_first_run_host(host_id, StepStatus::Skipped, None);
+            .set_first_run_host(host_id.as_str(), StepStatus::Skipped, None);
         app.append_log(format!(
             "[{host_id}] not installed on this machine — skipped"
         ));
@@ -52,17 +53,17 @@ pub(crate) fn on_probe_result(app: &mut GuiApp, host_id: &str, snapshot: &HostAp
     }
 
     app.state
-        .set_first_run_host(host_id, StepStatus::Generating, None);
+        .set_first_run_host(host_id.as_str(), StepStatus::Generating, None);
     app.state.set_first_run_phase(FirstRunPhase::Installing);
     progress(app);
     app.proxy
         .send_event(UiEvent::Host(HostUiEvent::ProfileGenerateRequested {
-            host_id: host_id.to_owned(),
+            host_id: host_id.clone(),
             reply_to: None,
         }));
 }
 
-pub(crate) fn on_generate_result(app: &mut GuiApp, host_id: &str, error: Option<String>) {
+pub(crate) fn on_generate_result(app: &mut GuiApp, host_id: &HostId, error: Option<String>) {
     if let Some(err) = error {
         fail_host(app, host_id, err);
         return;
@@ -71,7 +72,7 @@ pub(crate) fn on_generate_result(app: &mut GuiApp, host_id: &str, error: Option<
         .state
         .snapshot()
         .hosts
-        .get(host_id)
+        .get(host_id.as_str())
         .and_then(|h| h.last_generated_profile.as_ref().map(|p| p.path.clone()));
     let Some(path) = path else {
         fail_host(
@@ -82,23 +83,23 @@ pub(crate) fn on_generate_result(app: &mut GuiApp, host_id: &str, error: Option<
         return;
     };
     app.state
-        .set_first_run_host(host_id, StepStatus::Installing, None);
+        .set_first_run_host(host_id.as_str(), StepStatus::Installing, None);
     progress(app);
     app.proxy
         .send_event(UiEvent::Host(HostUiEvent::ProfileInstallRequested {
-            host_id: host_id.to_owned(),
+            host_id: host_id.clone(),
             path,
             reply_to: None,
         }));
 }
 
-pub(crate) fn on_install_result(app: &mut GuiApp, host_id: &str, error: Option<String>) {
+pub(crate) fn on_install_result(app: &mut GuiApp, host_id: &HostId, error: Option<String>) {
     if let Some(err) = error {
         fail_host(app, host_id, err);
         return;
     }
     app.state
-        .set_first_run_host(host_id, StepStatus::Done, None);
+        .set_first_run_host(host_id.as_str(), StepStatus::Done, None);
     advance(app);
 }
 
@@ -126,9 +127,9 @@ pub(crate) fn on_sync_result(app: &mut GuiApp, succeeded: bool) {
     emit::emit_state(app);
 }
 
-fn fail_host(app: &mut GuiApp, host_id: &str, error: String) {
+fn fail_host(app: &mut GuiApp, host_id: &HostId, error: String) {
     app.state
-        .set_first_run_host(host_id, StepStatus::Failed, Some(error));
+        .set_first_run_host(host_id.as_str(), StepStatus::Failed, Some(error));
     advance(app);
 }
 
