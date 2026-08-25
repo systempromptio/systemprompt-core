@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.39.0] - 2026-08-25
+
+### Fixed
+
+- `ProviderCatalogService::upsert_provider` preserves a provider's declared `governance` posture across an upsert. It already carried the model list forward; dropping the posture would have silently downgraded a route's residency guarantee on the next catalogue write.
+
 ## [0.33.0] - 2026-08-20
 
 ### Added

@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.39.0] - 2026-08-25
+
+### Added
+
+- Providers and models declare a data-governance posture in the profile registry — `ProviderEntry::governance` and a per-model `ProviderModel::governance` override, resolved by `ProviderEntry::effective_governance`. The two flags are `european` (the inference happens under EU jurisdiction) and `no_retain` (the contract forbids training on or retaining the payload). Both keys default to absent, so an existing registry is unchanged.
+- Gateway routes demand that posture of their *target* through a `requires:` block. `GatewayConfig::validate` refuses at boot any route whose reachable provider/model cannot satisfy the demand, and dispatch re-checks the resolved target — selector-refined routes and models absent from the registry included — denying with a policy audit record rather than relying on the boot check alone. The route-match descriptor carries `requires:<flags>`, so an allowed request records which governance demand it met.
+
+### Changed
+
+- **Breaking:** `GatewayRoute` gains `requires: Option<RouteRequirements>`, `ProviderEntry` gains `governance: ModelGovernance`, and `ProviderModel` gains `governance: Option<ModelGovernance>`. None of the three is `#[non_exhaustive]`, so struct-literal construction breaks; add `requires: None`, `governance: ModelGovernance::default()` and `governance: None` respectively. Builders and deserialization are unaffected.
+- **Breaking:** `GatewayProfileError` gains a `RouteGovernanceUnsatisfied` variant, so an exhaustive match over it no longer compiles.
+- **Forward-incompatible profiles:** the new `requires:` and `governance:` keys are `#[serde(default)]`, so a 0.38 profile still loads on 0.39. The reverse does not hold — `GatewayRoute` and the provider structs carry `deny_unknown_fields`, so a profile written by 0.39 that uses either key is rejected by a 0.38 binary. Roll the binaries forward before the profiles.
+
 ## [0.38.0] - 2026-08-25
 
 ### Added

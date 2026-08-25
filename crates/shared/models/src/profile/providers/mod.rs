@@ -103,9 +103,6 @@ impl ProviderEntry {
         self.models.iter().find(|m| m.matches(requested))
     }
 
-    /// Governance posture for `requested`: the model's own block when declared,
-    /// otherwise the provider-level default (an unlisted model inherits the
-    /// provider's posture).
     #[must_use]
     pub fn effective_governance(&self, requested: &str) -> ModelGovernance {
         self.find_model(requested)

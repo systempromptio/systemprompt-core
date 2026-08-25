@@ -89,7 +89,9 @@ pub struct ModelPricing {
 ///
 /// Used by gateway routes that require residency (`european`) or a
 /// no-train/no-retain clause (`no_retain`) before dispatching classified
-/// traffic.
+/// traffic. A model declares its own posture only to override the provider's;
+/// a model absent from the registry inherits the provider's, so adding a model
+/// never silently weakens what its provider already guarantees.
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ModelGovernance {

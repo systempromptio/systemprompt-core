@@ -49,7 +49,7 @@ This crate handles all content-related functionality:
 
 ```toml
 [dependencies]
-systemprompt-content = "0.38"
+systemprompt-content = "0.39"
 ```
 
 ```rust

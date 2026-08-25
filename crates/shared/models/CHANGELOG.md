@@ -1,11 +1,17 @@
 # Changelog
 
-## [Unreleased]
+## [0.39.0] - 2026-08-25
 
 ### Added
 
 - `ModelGovernance` (`european`, `no_retain`): a data-governance posture declared on a provider entry (`ProviderEntry::governance`) or per model (`ProviderModel::governance`), resolved by `ProviderEntry::effective_governance`.
 - `RouteRequirements` on `GatewayRoute::requires`: a route can demand `european` and/or `no_retain` of its target; `GatewayConfig::validate` rejects a route whose reachable provider/model does not satisfy the requirement (`GatewayProfileError::RouteGovernanceUnsatisfied`).
+
+### Changed
+
+- **Breaking:** the three new fields land on structs that are not `#[non_exhaustive]`, so struct-literal construction breaks. Add `requires: None` to `GatewayRoute`, `governance: ModelGovernance::default()` to `ProviderEntry`, and `governance: None` to `ProviderModel`. Deserialization is unaffected — every new key is `#[serde(default)]`.
+- **Breaking:** `GatewayProfileError::RouteGovernanceUnsatisfied` is a new variant, so an exhaustive match over the enum no longer compiles.
+- A profile that uses `requires:` or `governance:` is rejected by a 0.38 binary: the parent structs carry `deny_unknown_fields`. The compatibility is one-way — 0.38 profiles load on 0.39, not the reverse.
 
 ## [0.38.0] - 2026-08-25
 

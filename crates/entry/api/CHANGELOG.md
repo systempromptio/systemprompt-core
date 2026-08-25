@@ -1,10 +1,10 @@
 # Changelog
 
-## [Unreleased]
+## [0.39.0] - 2026-08-25
 
 ### Added
 
-- Gateway dispatch enforces route `requires:` governance (`european`/`no_retain`): an unsatisfied requirement is denied pre-dispatch with a policy audit record, and the route-match descriptor carries `requires:<flags>`.
+- Gateway dispatch enforces route `requires:` governance (`european`/`no_retain`): an unsatisfied requirement is denied pre-dispatch with a policy audit record, and the route-match descriptor carries `requires:<flags>`. The dispatch-time check is what covers selector-refined routes and models absent from the registry, which the boot-time validation in `systemprompt-models` cannot see.
 
 ## [0.38.0] - 2026-08-25
 
