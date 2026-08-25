@@ -59,7 +59,7 @@ mod unix {
             Err(e) => return SingletonResult::Error(e),
         };
         if let Some(parent) = path.parent()
-            && let Err(e) = fs::create_dir_all(parent)
+            && let Err(e) = std::fs::create_dir_all(parent)
         {
             return SingletonResult::Error(format!("create lock dir {}: {e}", parent.display()));
         }

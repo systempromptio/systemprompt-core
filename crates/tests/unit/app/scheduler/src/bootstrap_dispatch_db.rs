@@ -487,7 +487,7 @@ mod bootstrap_owner_arms {
         let email = format!("{owner_name}@test.invalid");
         sqlx::query!(
             "INSERT INTO users (id, name, email, status) VALUES ($1, $2, $3, 'active')
-             ON CONFLICT (name) DO UPDATE SET status = 'active'",
+             ON CONFLICT (id) DO UPDATE SET status = 'active'",
             owner_id,
             owner_name,
             email,
