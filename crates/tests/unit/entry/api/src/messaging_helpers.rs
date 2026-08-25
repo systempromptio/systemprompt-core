@@ -92,7 +92,7 @@ fn messaging_inbound_constructs_and_clones() {
         reply: ReplyTarget::Url {
             url: "https://hooks.slack.com/r".to_owned(),
         },
-        claims: systemprompt_traits::FederatedIdentityClaims::default(),
+        sender: systemprompt_traits::SenderIdentity::Unlinked,
     };
     let cloned = inbound.clone();
     assert_eq!(cloned.platform, "slack");

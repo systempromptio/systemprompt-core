@@ -18,7 +18,7 @@ use systemprompt_test_fixtures::{
     ensure_messaging_bootstrap, fixture_app_context, fixture_app_context_with_hook,
     fixture_db_pool, install_test_signing_key, seed_agent_backend, test_messaging_agent,
 };
-use systemprompt_traits::FederatedIdentityClaims;
+use systemprompt_traits::SenderIdentity;
 use uuid::Uuid;
 use wiremock::matchers::method;
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -38,7 +38,7 @@ fn inbound(external_user_id: &str, text: &str) -> MessagingInbound {
         reply: ReplyTarget::Channel {
             id: "C_TEST".to_owned(),
         },
-        claims: FederatedIdentityClaims::default(),
+        sender: SenderIdentity::Unlinked,
     }
 }
 

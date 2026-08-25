@@ -58,6 +58,31 @@ pub struct FederatedIdentityClaims {
     pub roles: Vec<String>,
 }
 
+/// Whether an inbound chat-platform sender resolves to a linkable identity.
+///
+/// This is the identity-linking rule, stated once: a sender is `Linked` only
+/// when the platform verified the claims (for Slack, a workspace profile with
+/// a confirmed email — an unconfirmed address would let anyone who can set it
+/// claim the account that owns it). Anything less is `Unlinked`, whose empty
+/// claims land the sender on a fresh, role-less first-touch user that no rule
+/// grants anything to — never on an existing account.
+#[derive(Debug, Clone, Default)]
+pub enum SenderIdentity {
+    Linked(FederatedIdentityClaims),
+    #[default]
+    Unlinked,
+}
+
+impl SenderIdentity {
+    #[must_use]
+    pub fn claims(&self) -> FederatedIdentityClaims {
+        match self {
+            Self::Linked(claims) => claims.clone(),
+            Self::Unlinked => FederatedIdentityClaims::default(),
+        }
+    }
+}
+
 #[async_trait]
 pub trait UserProvider: Send + Sync {
     async fn find_by_id(&self, id: &UserId) -> AuthResult<Option<AuthUser>>;

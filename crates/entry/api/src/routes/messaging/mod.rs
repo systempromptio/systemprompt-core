@@ -26,7 +26,7 @@ use serde_json::json;
 use systemprompt_identifiers::{AgentName, ContextId, SessionId, TraceId};
 use systemprompt_runtime::AppContext;
 use systemprompt_security::authz::{AuthzContext, AuthzDecision, AuthzRequest, EntityRef};
-use systemprompt_traits::FederatedIdentityClaims;
+use systemprompt_traits::SenderIdentity;
 
 use a2a::{authenticated_user, build_a2a_request, mint_a2a_token, run_agent};
 use identity::resolve_or_link_user;
@@ -58,10 +58,7 @@ pub struct MessagingInbound {
     pub agent_name: AgentName,
     pub entity: EntityRef,
     pub reply: ReplyTarget,
-    // Why: empty claims mean "unlinked" -- the sender resolves to a role-less
-    // first-touch user, which no rule grants anything to. A platform route that
-    // cannot read a profile must pass empty rather than guess.
-    pub claims: FederatedIdentityClaims,
+    pub sender: SenderIdentity,
 }
 
 #[derive(Debug, Clone)]
@@ -104,7 +101,7 @@ pub async fn dispatch_messaging(
         ctx,
         &inbound.issuer,
         &inbound.external_user_id,
-        &inbound.claims,
+        &inbound.sender.claims(),
     )
     .await?;
     let authed = authenticated_user(&user)?;
