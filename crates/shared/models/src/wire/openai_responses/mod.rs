@@ -19,6 +19,21 @@ mod response;
 mod slot;
 mod streaming;
 
+use crate::wire::canonical::CanonicalStopReason;
+
+// Why: Responses has no finish-reason field: tool use is signalled by a
+// `function_call` output item, truncation by `incomplete_details.reason`.
+fn derive_stop_reason(has_tool_use: bool, incomplete_reason: Option<&str>) -> CanonicalStopReason {
+    if has_tool_use {
+        return CanonicalStopReason::ToolUse;
+    }
+    match incomplete_reason {
+        Some("max_output_tokens") => CanonicalStopReason::MaxTokens,
+        Some(_) => CanonicalStopReason::Other,
+        None => CanonicalStopReason::EndTurn,
+    }
+}
+
 pub use request::build_request_body;
 pub use response::parse_response_object;
 pub use streaming::sse_to_canonical_events;

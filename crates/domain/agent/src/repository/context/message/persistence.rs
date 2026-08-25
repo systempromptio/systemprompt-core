@@ -137,7 +137,7 @@ pub async fn persist_message_with_tx(
         session_id,
         trace_id,
     } = params;
-    let metadata_json = serde_json::to_string(&message.metadata)?;
+    let metadata_json = super::jsonb_param(&message.metadata)?;
 
     let delete_parts_query: &str = "DELETE FROM message_parts WHERE message_id = $1";
     tx.execute(&delete_parts_query, &[&message.message_id.as_str()])
@@ -164,8 +164,6 @@ pub async fn persist_message_with_tx(
     let session_id_str = session_id.as_str();
     let trace_id_str = trace_id.as_str();
 
-    // Why: `metadata` is a jsonb column; bind the JSON string with an explicit
-    // ::jsonb cast so the Postgres protocol does not reject the text OID.
     let insert_query: &str = "INSERT INTO task_messages (task_id, message_id, client_message_id, \
                               role, context_id, user_id, session_id, trace_id, sequence_number, \
                               metadata, reference_task_ids) VALUES ($1, $2, $3, $4, $5, $6, $7, \

@@ -32,7 +32,9 @@ use crate::bridge::ids::{
 use crate::bridge::manifest_version::ManifestVersion;
 use crate::services::hooks::{HookCategory, HookEvent};
 use crate::services::plugin::{PluginComponentRef, PluginHooksRef};
-use systemprompt_identifiers::{AgentId, AgentName, HookId, TenantId, UserId, ValidatedUrl};
+use systemprompt_identifiers::{
+    AgentId, AgentName, HookId, McpServerId, TenantId, UserId, ValidatedUrl,
+};
 
 pub const MANIFEST_SCHEMA_VERSION: u32 = 1;
 
@@ -136,6 +138,36 @@ pub struct ArtifactEntry {
     pub sha256: Sha256Digest,
 }
 
+// Why: field names and casing must track Cowork's native `create_artifact`
+// input, so a consumer can read a bundle's `artifacts/<id>.json` and the
+// bridge's staged library records with one parser.
+#[derive(Debug, Serialize)]
+pub struct CoworkLibraryArtifactRecord<'a> {
+    pub id: &'a str,
+    pub name: &'a str,
+    pub description: &'a str,
+    pub version: &'a str,
+    pub content: &'a str,
+    #[serde(rename = "isStarred")]
+    pub is_starred: bool,
+    #[serde(rename = "mcpTools")]
+    pub mcp_tools: &'a [String],
+}
+
+impl<'a> From<&'a ArtifactEntry> for CoworkLibraryArtifactRecord<'a> {
+    fn from(a: &'a ArtifactEntry) -> Self {
+        Self {
+            id: a.id.as_str(),
+            name: &a.name,
+            description: &a.description,
+            version: &a.version,
+            content: &a.content,
+            is_starred: a.starred,
+            mcp_tools: &a.mcp_tools,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SkillEntry {
     pub id: SkillId,
@@ -191,7 +223,9 @@ pub struct HookEntry {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(from = "ManagedMcpServerWire")]
 pub struct ManagedMcpServer {
+    pub id: McpServerId,
     pub name: ManagedMcpServerName,
     pub url: ValidatedUrl,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -202,4 +236,39 @@ pub struct ManagedMcpServer {
     pub oauth: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_policy: Option<BTreeMap<ToolName, ToolPolicy>>,
+}
+
+// Why: manifests signed before the `id` field existed carry only `name`, so
+// deserialization derives an absent id from it.
+#[derive(Deserialize)]
+struct ManagedMcpServerWire {
+    #[serde(default)]
+    id: Option<McpServerId>,
+    name: ManagedMcpServerName,
+    url: ValidatedUrl,
+    #[serde(default)]
+    transport: Option<String>,
+    #[serde(default)]
+    headers: Option<BTreeMap<String, String>>,
+    #[serde(default)]
+    oauth: Option<bool>,
+    #[serde(default)]
+    tool_policy: Option<BTreeMap<ToolName, ToolPolicy>>,
+}
+
+impl From<ManagedMcpServerWire> for ManagedMcpServer {
+    fn from(wire: ManagedMcpServerWire) -> Self {
+        let id = wire
+            .id
+            .unwrap_or_else(|| McpServerId::new(wire.name.as_str()));
+        Self {
+            id,
+            name: wire.name,
+            url: wire.url,
+            transport: wire.transport,
+            headers: wire.headers,
+            oauth: wire.oauth,
+            tool_policy: wire.tool_policy,
+        }
+    }
 }

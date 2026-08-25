@@ -120,6 +120,7 @@ impl JobExecutionService {
                         names.push(job.name().to_owned());
                     }
                 }
+                names.sort_unstable();
                 Ok(names)
             },
             JobSelection::Tag(tag) => {

@@ -6,7 +6,7 @@
 
 use std::collections::BTreeSet;
 
-use systemprompt_identifiers::ValidatedUrl;
+use systemprompt_identifiers::{McpServerId, ValidatedUrl};
 use systemprompt_models::bridge::ids::ManagedMcpServerName;
 use systemprompt_models::bridge::manifest::ManagedMcpServer;
 use systemprompt_models::mcp::Deployment;
@@ -46,6 +46,8 @@ pub fn load_managed_mcp_servers(
         let mcp_name = ManagedMcpServerName::try_new(name.clone())
             .map_err(|e| MarketplaceError::Catalog(e.to_string()))?;
         out.push(ManagedMcpServer {
+            id: McpServerId::try_new(name.clone())
+                .map_err(|e| MarketplaceError::Catalog(e.to_string()))?,
             name: mcp_name,
             url,
             transport: Some("http".to_owned()),

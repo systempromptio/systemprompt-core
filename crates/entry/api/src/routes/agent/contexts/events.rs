@@ -21,7 +21,16 @@ pub async fn forward_event(
     Json(event): Json<ContextEvent>,
 ) -> Response {
     let user_id = request_context.user_id();
-    let context_id_typed = ContextId::new(&context_id);
+    let context_id_typed = match ContextId::try_new(&context_id) {
+        Ok(id) => id,
+        Err(e) => {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(json!({"error": format!("invalid context id: {e}")})),
+            )
+                .into_response();
+        },
+    };
 
     let context_repo = &app_context.a2a_repositories().contexts;
     if let Err(e) = context_repo

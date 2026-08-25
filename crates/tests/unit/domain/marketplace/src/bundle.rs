@@ -47,6 +47,7 @@ fn skill_entry_at(id: &str, description: &str, instructions: &str, file_path: &s
 
 fn mcp_server(name: &str, url: &str) -> ManagedMcpServer {
     ManagedMcpServer {
+        id: systemprompt_identifiers::McpServerId::new(name),
         name: ManagedMcpServerName::try_new(name).expect("mcp name"),
         url: ValidatedUrl::try_new(url).expect("mcp url"),
         transport: Some("http".to_owned()),

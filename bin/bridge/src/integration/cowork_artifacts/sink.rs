@@ -10,9 +10,9 @@
 //! - [`SeedStaging`] drops one record per artifact into a staging dir for the
 //!   first-run `create_artifact` seed skill to consume.
 //!
-//! The record shape mirrors Cowork's `create_artifact` input. Store paths and
-//! field names live only here — writers use `LibraryArtifactRecord`, readers
-//! (the GUI listing) use [`StoredArtifactSummary`] via [`read_library_store`].
+//! Store paths live only here — writers use `CoworkLibraryArtifactRecord`,
+//! readers (the GUI listing) use [`StoredArtifactSummary`] via
+//! [`read_library_store`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -20,7 +20,8 @@
 use std::collections::BTreeMap;
 use std::path::Path;
 
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
+use systemprompt_models::bridge::manifest::CoworkLibraryArtifactRecord;
 
 use crate::gateway::manifest::ArtifactEntry;
 use crate::sync::apply::ApplyError;
@@ -30,36 +31,8 @@ pub const LIBRARY_STORE_FILE: &str = "library.json";
 
 pub const STAGING_SUBDIR: &str = "staging";
 
-// Why: field names and casing must track Cowork's native library-entry shape.
-#[derive(Debug, Serialize)]
-struct LibraryArtifactRecord<'a> {
-    id: &'a str,
-    name: &'a str,
-    description: &'a str,
-    version: &'a str,
-    content: &'a str,
-    #[serde(rename = "isStarred")]
-    is_starred: bool,
-    #[serde(rename = "mcpTools")]
-    mcp_tools: &'a [String],
-}
-
-impl<'a> From<&'a ArtifactEntry> for LibraryArtifactRecord<'a> {
-    fn from(a: &'a ArtifactEntry) -> Self {
-        Self {
-            id: a.id.as_str(),
-            name: &a.name,
-            description: &a.description,
-            version: &a.version,
-            content: &a.content,
-            is_starred: a.starred,
-            mcp_tools: &a.mcp_tools,
-        }
-    }
-}
-
 /// Read-side view of a store entry; field names shared with
-/// `LibraryArtifactRecord`.
+/// `CoworkLibraryArtifactRecord`.
 #[derive(Debug, Deserialize)]
 pub struct StoredArtifactSummary {
     pub name: String,
@@ -108,12 +81,10 @@ impl ArtifactSink for FileSink {
             .and_then(|bytes| serde_json::from_slice(&bytes).ok())
             .unwrap_or_default();
         for artifact in artifacts {
-            let record =
-                serde_json::to_value(LibraryArtifactRecord::from(artifact)).map_err(|e| {
-                    ApplyError::Serialize {
-                        what: "artifact record".into(),
-                        source: e,
-                    }
+            let record = serde_json::to_value(CoworkLibraryArtifactRecord::from(artifact))
+                .map_err(|e| ApplyError::Serialize {
+                    what: "artifact record".into(),
+                    source: e,
                 })?;
             store.insert(artifact.id.as_str().to_owned(), record);
         }
@@ -147,12 +118,10 @@ impl ArtifactSink for SeedStaging {
                 );
                 continue;
             }
-            let bytes =
-                serde_json::to_vec_pretty(&LibraryArtifactRecord::from(artifact)).map_err(|e| {
-                    ApplyError::Serialize {
-                        what: "artifact record".into(),
-                        source: e,
-                    }
+            let bytes = serde_json::to_vec_pretty(&CoworkLibraryArtifactRecord::from(artifact))
+                .map_err(|e| ApplyError::Serialize {
+                    what: "artifact record".into(),
+                    source: e,
                 })?;
             let path = dir.join(format!("{id}.json"));
             crate::fsutil::atomic_write_0600(&path, &bytes).map_err(|e| ApplyError::Io {

@@ -12,6 +12,14 @@
 //! - Tool providers return [`tool::ToolProviderError`].
 //! - All other providers return [`error::ProviderError`].
 //!
+//! # `#[async_trait]`
+//!
+//! Every async trait in this crate — and the provider-style traits modelled on
+//! them across the workspace — uses `#[async_trait]` rather than native
+//! async-fn-in-trait because each is consumed as a trait object (`dyn`, held
+//! in registries or behind `Arc`), and a native `async fn` makes a trait
+//! non-dyn-compatible.
+//!
 //! # Feature flags
 //!
 //! This crate currently exposes no Cargo feature flags — all trait

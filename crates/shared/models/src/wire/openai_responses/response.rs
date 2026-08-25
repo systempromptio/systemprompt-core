@@ -156,23 +156,14 @@ pub fn parse_response_object(value: &Value, fallback_model: &str) -> CanonicalRe
     }
 }
 
-// Why: Responses has no finish-reason field: tool use is signalled by a
-// `function_call` output item, truncation by `incomplete_details.reason`.
 fn buffered_stop_reason(
     content: &[CanonicalContent],
     incomplete_reason: Option<&str>,
 ) -> CanonicalStopReason {
-    if content
+    let has_tool_use = content
         .iter()
-        .any(|c| matches!(c, CanonicalContent::ToolUse { .. }))
-    {
-        return CanonicalStopReason::ToolUse;
-    }
-    match incomplete_reason {
-        Some("max_output_tokens") => CanonicalStopReason::MaxTokens,
-        Some(_) => CanonicalStopReason::Other,
-        None => CanonicalStopReason::EndTurn,
-    }
+        .any(|c| matches!(c, CanonicalContent::ToolUse { .. }));
+    super::derive_stop_reason(has_tool_use, incomplete_reason)
 }
 
 fn collect_output_item(

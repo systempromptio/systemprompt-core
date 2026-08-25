@@ -12,7 +12,7 @@ fn a_written_port_reads_back() {
         let record = portfile::read().expect("the record reads back");
         assert_eq!(record.port, 48219);
         assert_eq!(record.pid, std::process::id());
-        assert_eq!(record.install_id, identity::install_id());
+        assert!(record.install_id.same_install(&identity::install_id()));
         assert_eq!(portfile::preferred_port(), Some(48219));
     });
 }

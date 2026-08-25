@@ -144,6 +144,14 @@ const ALIASES: &[(&str, &str)] = &[
     ("audio/x-m4a", "audio/mp4"),
 ];
 
+// Why: canonical extension for the MIME types several `TABLE` rows share;
+// every other type takes the first extension of its unique row.
+const CANONICAL_EXTENSIONS: &[(&str, &str)] = &[
+    (OCTET_STREAM, "bin"),
+    ("text/plain", "txt"),
+    ("audio/mp4", "m4a"),
+];
+
 fn lookup(ext: &str) -> Option<&'static (&'static [&'static str], &'static str, &'static str)> {
     let lower = ext.to_ascii_lowercase();
     TABLE
@@ -182,16 +190,16 @@ pub fn extension_for(mime: &str) -> Option<&'static str> {
         .find(|(alias, _)| *alias == essence)
         .map_or(essence.as_str(), |(_, canonical)| *canonical);
 
-    // Why: several concrete rows (exe/msi, appimage, sig) share octet-stream as
-    // their essence; taking the first would name an unknown upload `.exe`.
-    if resolved == OCTET_STREAM {
-        return Some("bin");
-    }
-
-    TABLE
+    CANONICAL_EXTENSIONS
         .iter()
-        .find(|(_, e, _)| *e == resolved)
-        .and_then(|(exts, _, _)| exts.first().copied())
+        .find(|(e, _)| *e == resolved)
+        .map(|(_, ext)| *ext)
+        .or_else(|| {
+            TABLE
+                .iter()
+                .find(|(_, e, _)| *e == resolved)
+                .and_then(|(exts, _, _)| exts.first().copied())
+        })
 }
 
 pub fn essence_of(mime: &str) -> String {

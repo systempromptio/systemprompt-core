@@ -37,11 +37,12 @@ pub fn truncate_with_ellipsis(text: &str, max_len: usize) -> String {
     }
 
     let truncated_len = max_len.saturating_sub(3);
-    let boundary = find_char_boundary(text, truncated_len);
+    let boundary = floor_char_boundary(text, truncated_len);
     format!("{}...", &text[..boundary])
 }
 
-const fn find_char_boundary(s: &str, target: usize) -> usize {
+#[must_use]
+pub const fn floor_char_boundary(s: &str, target: usize) -> usize {
     if target >= s.len() {
         return s.len();
     }

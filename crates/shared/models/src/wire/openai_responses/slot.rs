@@ -36,20 +36,12 @@ pub(super) enum SlotKindMatch {
     Reasoning,
 }
 
-// Why: Responses has no finish-reason field: tool use is signalled by a
-// `function_call` output item, truncation by `incomplete_details.reason`.
 pub(super) fn stop_reason(
     items: &[ItemSlot],
     incomplete_reason: Option<&str>,
 ) -> CanonicalStopReason {
-    if items.iter().any(|s| matches!(s.kind, SlotKind::Function)) {
-        return CanonicalStopReason::ToolUse;
-    }
-    match incomplete_reason {
-        Some("max_output_tokens") => CanonicalStopReason::MaxTokens,
-        Some(_) => CanonicalStopReason::Other,
-        None => CanonicalStopReason::EndTurn,
-    }
+    let has_tool_use = items.iter().any(|s| matches!(s.kind, SlotKind::Function));
+    super::derive_stop_reason(has_tool_use, incomplete_reason)
 }
 
 pub(super) fn lookup_canonical(

@@ -51,7 +51,12 @@ impl PublicContextMiddleware {
         if let Some(context_id) = headers.get("x-context-id")
             && let Ok(id) = context_id.to_str()
         {
-            req_ctx.execution.context_id = ContextId::new(id.to_owned());
+            match ContextId::try_new(id.to_owned()) {
+                Ok(parsed) => req_ctx.execution.context_id = parsed,
+                Err(e) => {
+                    tracing::warn!(error = %e, "ignoring malformed x-context-id header");
+                },
+            }
         }
 
         if let Some(agent_name) = headers.get("x-agent-name")

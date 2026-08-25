@@ -43,7 +43,8 @@ pub use hooks::{
     HookMatcher, HookType,
 };
 pub use marketplace::{
-    MarketplaceAccess, MarketplaceConfig, MarketplaceConfigFile, MarketplaceVisibility,
+    MarketplaceAccess, MarketplaceConfig, MarketplaceConfigFile, MarketplaceMemberKind,
+    MarketplaceVisibility,
 };
 pub use mcp::McpServerSummary;
 pub use plugin::{

@@ -98,9 +98,6 @@ impl SlackClient {
         Self::check_ok(resp).await
     }
 
-    // Why: a sender whose workspace profile cannot be read is simply unlinked —
-    // the caller degrades to empty claims. Returning the profile rather than a
-    // resolved identity keeps this crate out of the user model.
     pub async fn user_info(&self, user_id: &SlackUserId) -> SlackResult<SlackUserProfile> {
         validate_outbound_url(&self.users_info_url)
             .map_err(|e| SlackError::OutboundUrl(e.to_string()))?;

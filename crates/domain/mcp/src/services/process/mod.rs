@@ -7,6 +7,7 @@
 pub mod cleanup;
 pub mod monitor;
 pub mod pid;
+mod ps;
 pub mod spawner;
 pub mod utils;
 

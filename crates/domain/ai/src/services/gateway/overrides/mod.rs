@@ -149,8 +149,6 @@ pub enum OverrideError {
     Failed { name: &'static str, message: String },
 }
 
-// Why: #[async_trait] is required — overrides are held as trait objects in the
-// engine registry, so the trait must stay dyn-compatible.
 #[async_trait]
 pub trait SystemPromptOverride: Send + Sync {
     fn name(&self) -> &'static str;

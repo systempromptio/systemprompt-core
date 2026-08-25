@@ -260,7 +260,13 @@ impl ToolUsageRepository {
         )
         .fetch_optional(&*self.pool)
         .await?;
-        Ok(result.flatten().map(ContextId::new))
+        Ok(result.flatten().and_then(|c| match ContextId::try_new(c) {
+            Ok(id) => Some(id),
+            Err(e) => {
+                tracing::warn!(error = %e, "stored context_id is malformed; dropping");
+                None
+            },
+        }))
     }
 
     pub async fn list_tool_stats(&self, limit: i64) -> McpDomainResult<Vec<ToolStats>> {

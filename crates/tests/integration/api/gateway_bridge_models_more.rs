@@ -10,6 +10,7 @@ use anyhow::Result;
 use axum::Router;
 use axum::body::Body;
 use axum::http::{HeaderMap, HeaderValue, Request, StatusCode, header};
+use systemprompt_ai::SafetyConfig;
 use systemprompt_api::routes::gateway::bridge::canonicalize_org_uuid;
 use systemprompt_api::routes::gateway::gateway_router;
 use systemprompt_api::routes::gateway::models::{humanize_model_id, surfaces_from_header};
@@ -174,14 +175,12 @@ fn upstream_registry_serves_builtin_wire_adapters() {
 }
 
 #[test]
-fn safety_scanner_registry_carries_null_but_not_the_builtin_heuristic() {
+fn safety_scanner_registry_carries_the_builtins() {
     let registry = SafetyScannerRegistry::global();
-    assert!(registry.get("null").is_some());
-    assert!(
-        registry.get("heuristic").is_none(),
-        "the builtin heuristic is constructed per policy from SafetyConfig, not registered"
-    );
-    assert!(registry.get("missing-scanner").is_none());
+    let safety = SafetyConfig::default();
+    assert!(registry.create("null", &safety).is_some());
+    assert!(registry.create("heuristic", &safety).is_some());
+    assert!(registry.create("missing-scanner", &safety).is_none());
 }
 
 fn gateway_ctx(id: &AiRequestId, user: &UserId, upstream_model: &str) -> GatewayRequestContext {

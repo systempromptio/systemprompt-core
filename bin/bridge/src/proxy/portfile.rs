@@ -61,7 +61,7 @@ pub fn read() -> Option<PortRecord> {
         return None;
     }
     let ours = identity::install_id();
-    if record.install_id != ours {
+    if !record.install_id.same_install(&ours) {
         tracing::debug!(
             path = %path.display(),
             recorded = %record.install_id,

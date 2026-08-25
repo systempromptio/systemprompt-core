@@ -148,19 +148,11 @@ pub(super) fn mount_mcp_and_stream(
             .with_auth(*public_middleware, AuthzPolicy::public()),
     );
 
-    // Why: MCP routes admit Anon at the route gate so the proxy handler
-    // (services/proxy/auth.rs) can emit an RFC 9728-compliant
-    // `WWW-Authenticate: Bearer resource_metadata="…"` challenge with the
-    // path-scoped resource URL. A coarser `restricted_to([User, Admin, Mcp,
-    // Service])` gate here collapses the response to a generic 403 and breaks
-    // spec-compliant MCP clients (Cowork, Claude Code, etc.), which only
-    // start their OAuth discovery handshake on a 401 carrying the challenge.
-    // The proxy is the single auth boundary for `/api/v1/mcp/*`.
     router = router.nest(
         ApiPaths::MCP_BASE,
         crate::routes::proxy::mcp::router(ctx)
             .with_rate_limit(rate_config, rate_config.mcp_per_second)
-            .with_auth(mcp_middleware, AuthzPolicy::public()),
+            .with_auth(mcp_middleware, AuthzPolicy::deferred_to_handler()),
     );
 
     router = router.nest(

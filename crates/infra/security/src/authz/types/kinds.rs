@@ -206,3 +206,31 @@ impl fmt::Display for EntityKind {
         f.write_str(self.as_str())
     }
 }
+
+impl sqlx::Type<sqlx::Postgres> for EntityKind {
+    fn type_info() -> <sqlx::Postgres as sqlx::Database>::TypeInfo {
+        <str as sqlx::Type<sqlx::Postgres>>::type_info()
+    }
+
+    fn compatible(ty: &<sqlx::Postgres as sqlx::Database>::TypeInfo) -> bool {
+        <str as sqlx::Type<sqlx::Postgres>>::compatible(ty)
+    }
+}
+
+impl<'q> sqlx::Encode<'q, sqlx::Postgres> for EntityKind {
+    fn encode_by_ref(
+        &self,
+        buf: &mut <sqlx::Postgres as sqlx::Database>::ArgumentBuffer,
+    ) -> Result<sqlx::encode::IsNull, sqlx::error::BoxDynError> {
+        <&str as sqlx::Encode<'q, sqlx::Postgres>>::encode(self.as_str(), buf)
+    }
+}
+
+impl<'r> sqlx::Decode<'r, sqlx::Postgres> for EntityKind {
+    fn decode(
+        value: <sqlx::Postgres as sqlx::Database>::ValueRef<'r>,
+    ) -> Result<Self, sqlx::error::BoxDynError> {
+        let raw = <&str as sqlx::Decode<'r, sqlx::Postgres>>::decode(value)?;
+        Ok(Self::from_str(raw)?)
+    }
+}

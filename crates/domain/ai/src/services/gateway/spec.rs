@@ -58,9 +58,7 @@ pub enum SafetyHistoryMode {
     Block,
 }
 
-/// Phrase-list tuning for the builtin `heuristic` scanner. Ignored when an
-/// extension registers its own scanner under the name `heuristic`, which
-/// shadows the builtin wholesale.
+/// Phrase-list tuning for the builtin `heuristic` scanner.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(deny_unknown_fields)]
 pub struct HeuristicConfig {

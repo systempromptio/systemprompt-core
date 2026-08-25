@@ -145,8 +145,6 @@ pub struct PreparedBody {
     pub raw_lane: bool,
 }
 
-// Why: #[async_trait] is required — the upstream registry stores adapters as
-// `Arc<dyn OutboundAdapter>`, so the trait must stay dyn-compatible.
 #[async_trait]
 pub trait OutboundAdapter: Send + Sync {
     fn build_body(&self, ctx: &OutboundCtx<'_>) -> Result<PreparedBody>;

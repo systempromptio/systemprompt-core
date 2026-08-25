@@ -221,20 +221,13 @@ fn clip(value: &str, limit: usize) -> (String, bool) {
         return (value.to_owned(), false);
     }
     let half = limit / 2;
-    let head_end = floor_boundary(value, half);
+    let head_end = crate::text::floor_char_boundary(value, half);
     let tail_start = ceil_boundary(value, value.len() - half);
     let mut out = String::with_capacity(limit + 1);
     out.push_str(&value[..head_end]);
     out.push('\n');
     out.push_str(&value[tail_start..]);
     (out, true)
-}
-
-const fn floor_boundary(s: &str, mut index: usize) -> usize {
-    while index > 0 && !s.is_char_boundary(index) {
-        index -= 1;
-    }
-    index
 }
 
 const fn ceil_boundary(s: &str, mut index: usize) -> usize {

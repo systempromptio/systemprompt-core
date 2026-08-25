@@ -266,7 +266,10 @@ fn plugin_referencing_unknown_skill_is_rejected() {
             .replace("skills: {}", "skills:\n      include: [ghost_skill]")
     );
     let err = parse(&yaml).validate().unwrap_err();
-    assert!(err.to_string().contains("unknown skill 'ghost_skill'"), "{err}");
+    assert!(
+        err.to_string().contains("unknown skill 'ghost_skill'"),
+        "{err}"
+    );
 }
 
 #[test]

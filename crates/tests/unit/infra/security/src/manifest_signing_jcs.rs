@@ -103,6 +103,7 @@ fn sample_manifest() -> SignedManifest {
         }],
         hooks: vec![],
         managed_mcp_servers: vec![ManagedMcpServer {
+            id: systemprompt_identifiers::McpServerId::new("github"),
             name: ManagedMcpServerName::try_new("github").unwrap(),
             url: ValidatedUrl::try_from("https://mcp.example.com/github").unwrap(),
             transport: Some("http".into()),

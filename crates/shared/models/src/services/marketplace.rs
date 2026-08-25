@@ -15,6 +15,19 @@ const fn default_true() -> bool {
     true
 }
 
+/// The membership lists a [`MarketplaceConfig`] declares directly.
+///
+/// Skills are deliberately absent: a marketplace selects plugins, and skill
+/// membership is derived from what those plugins ship
+/// (`ServicesConfig::marketplace_skill_members`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MarketplaceMemberKind {
+    Plugins,
+    Agents,
+    McpServers,
+    Artifacts,
+}
+
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "lowercase")]
 pub enum MarketplaceVisibility {
@@ -86,6 +99,16 @@ pub struct MarketplaceConfig {
 }
 
 impl MarketplaceConfig {
+    #[must_use]
+    pub const fn members(&self, kind: MarketplaceMemberKind) -> &PluginComponentRef {
+        match kind {
+            MarketplaceMemberKind::Plugins => &self.plugins,
+            MarketplaceMemberKind::Agents => &self.agents,
+            MarketplaceMemberKind::McpServers => &self.mcp_servers,
+            MarketplaceMemberKind::Artifacts => &self.artifacts,
+        }
+    }
+
     pub fn validate(&self, key: &str) -> Result<(), ConfigValidationError> {
         let id_str = self.id.as_str();
         if id_str.len() < 3 || id_str.len() > 50 {

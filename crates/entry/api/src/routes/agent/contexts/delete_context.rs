@@ -27,7 +27,11 @@ pub async fn delete_context(
 
     let context_repo = &ctx.a2a_repositories().contexts;
     let user_id = &req_ctx.auth.actor.user_id;
-    let context_id = ContextId::new(&context_id_str);
+    let Ok(context_id) = ContextId::try_new(&context_id_str) else {
+        return api_error_response(ApiError::bad_request(
+            "Invalid context ID. Please select or create a valid conversation.",
+        ));
+    };
 
     match context_repo.delete_context(&context_id, user_id).await {
         Ok(()) => {

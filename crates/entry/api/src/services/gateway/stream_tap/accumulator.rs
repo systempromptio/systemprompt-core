@@ -178,11 +178,6 @@ fn build_response(state: &TapState) -> CanonicalResponse {
     }
 }
 
-// Why: an update states only the counts its frame reported, so applying it
-// overwrites those and leaves the rest — a `message_delta` carrying just
-// `output_tokens` must not zero the input and cache counts `message_start`
-// established. A count the frame does state wins even at zero, so a stale
-// `message_start` estimate cannot survive a real later report.
 const fn apply_usage(state: &mut TapState, update: &CanonicalUsageUpdate) {
     state.saw_usage_delta = true;
     update.apply_to(&mut state.usage);

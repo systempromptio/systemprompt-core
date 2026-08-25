@@ -55,7 +55,9 @@ async fn list_all_names_includes_disabled() {
         return;
     };
     let name = unique_name();
-    repo.upsert(&name, &json!({}), false, 0).await.expect("upsert");
+    repo.upsert(&name, &json!({}), false, 0)
+        .await
+        .expect("upsert");
     let names = repo.list_all_names().await.expect("list");
     assert!(names.contains(&name));
 }
@@ -66,7 +68,9 @@ async fn delete_by_name_removes_policy() {
         return;
     };
     let name = unique_name();
-    repo.upsert(&name, &json!({}), true, 0).await.expect("upsert");
+    repo.upsert(&name, &json!({}), true, 0)
+        .await
+        .expect("upsert");
     repo.delete_by_name(&name).await.expect("delete");
     let names = repo.list_all_names().await.expect("list");
     assert!(!names.contains(&name));
@@ -80,7 +84,9 @@ async fn upsert_persists_priority_and_orders_ascending() {
     let low = unique_name();
     let high = unique_name();
     repo.upsert(&low, &json!({}), true, 10).await.expect("low");
-    repo.upsert(&high, &json!({}), true, 20).await.expect("high");
+    repo.upsert(&high, &json!({}), true, 20)
+        .await
+        .expect("high");
 
     let rows = repo.list_for_global().await.expect("list");
     let low_at = rows.iter().position(|r| r.name == low).expect("low row");
@@ -96,7 +102,9 @@ async fn upsert_updates_priority_on_conflict() {
         return;
     };
     let name = unique_name();
-    repo.upsert(&name, &json!({}), true, 5).await.expect("insert");
+    repo.upsert(&name, &json!({}), true, 5)
+        .await
+        .expect("insert");
     repo.upsert(&name, &json!({}), true, 42)
         .await
         .expect("update");

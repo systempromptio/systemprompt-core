@@ -105,7 +105,13 @@ impl FileRepository {
                     user_id: row.user_id.map(UserId::new),
                     session_id: row.session_id.map(SessionId::new),
                     trace_id: row.trace_id.map(TraceId::new),
-                    context_id: row.context_id.map(ContextId::new),
+                    context_id: row.context_id.and_then(|c| match ContextId::try_new(c) {
+                        Ok(id) => Some(id),
+                        Err(e) => {
+                            tracing::warn!(error = %e, "stored context_id is malformed; dropping");
+                            None
+                        },
+                    }),
                     created_at: row.created_at,
                     updated_at: row.updated_at,
                     deleted_at: row.deleted_at,

@@ -488,7 +488,7 @@ async fn create_if_absent_yields_the_row_once_and_none_to_every_later_caller() {
         .expect("a conflicting insert is not an error");
     assert!(
         second.is_none(),
-        "the name is taken, so nothing is inserted"
+        "the email is taken, so nothing is inserted"
     );
 
     let by_email = ctx
@@ -503,7 +503,7 @@ async fn create_if_absent_yields_the_row_once_and_none_to_every_later_caller() {
 }
 
 // The local-trial admin is provisioned by whichever CLI process gets there
-// first, so several arrive at the insert together and `users.name` is UNIQUE.
+// first, so several arrive at the insert together and `users.email` is UNIQUE.
 // The plain `create` path fails every loser with a unique violation.
 #[tokio::test]
 async fn concurrent_create_if_absent_on_one_identity_elects_a_single_winner() {

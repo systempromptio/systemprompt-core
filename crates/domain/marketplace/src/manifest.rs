@@ -86,14 +86,15 @@ impl ManifestService {
         let selected_artifacts: BTreeSet<LibraryArtifactId> = owners.keys().cloned().collect();
         let artifacts = gate_artifacts_by_plugin(artifacts, &selected_artifacts, trace);
 
-        let mut candidate = MarketplaceCandidate::new(
+        let mut candidate = MarketplaceCandidate {
             plugins,
             skills,
             agents,
             hooks,
             managed_mcp_servers,
             artifacts,
-        )
+            ..MarketplaceCandidate::default()
+        }
         .with_artifact_owners(owners);
         if let Some(mp) = active {
             candidate = candidate.with_marketplace(mp.id.clone(), Some(mp.access.clone()));

@@ -40,7 +40,8 @@ pub async fn handle_context_notification(
 ) -> Result<Response, ApiHttpError> {
     let repos = app_context.a2a_repositories();
     let ctx_repo = &repos.contexts;
-    let context_id = ContextId::new(context_id);
+    let context_id = ContextId::try_new(context_id)
+        .map_err(|e| ApiHttpError::bad_request(format!("invalid context id: {e}")))?;
 
     tracing::debug!(context_id = %context_id, method = %notification.method, "Received notification for context");
 
@@ -68,7 +69,7 @@ pub async fn handle_context_notification(
 
     let notification_id = persist_notification(
         &repos.context_notifications,
-        context_id.as_str(),
+        &context_id,
         &agent_id,
         &notification,
     )

@@ -172,8 +172,6 @@ pub fn probe_identity(port: u16) -> PeerIdentity {
     if who.product != crate::proxy::identity::WHOAMI_PRODUCT {
         return PeerIdentity::Unknown;
     }
-    // Why: two installs that both failed to establish an id would otherwise
-    // read as the same install and one would wrongly stand down.
     if !who.install_id.is_known() {
         return PeerIdentity::Unknown;
     }

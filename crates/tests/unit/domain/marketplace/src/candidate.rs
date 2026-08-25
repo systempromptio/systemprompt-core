@@ -6,6 +6,26 @@ use systemprompt_models::bridge::manifest::{
 use systemprompt_models::services::MarketplaceAccess;
 
 use crate::plugin;
+use systemprompt_models::bridge::manifest::PluginEntry;
+
+fn candidate(
+    plugins: Vec<PluginEntry>,
+    skills: Vec<SkillEntry>,
+    agents: Vec<AgentEntry>,
+    hooks: Vec<HookEntry>,
+    managed_mcp_servers: Vec<ManagedMcpServer>,
+    artifacts: Vec<ArtifactEntry>,
+) -> MarketplaceCandidate {
+    MarketplaceCandidate {
+        plugins,
+        skills,
+        agents,
+        hooks,
+        managed_mcp_servers,
+        artifacts,
+        ..MarketplaceCandidate::default()
+    }
+}
 
 fn skill(id: &str) -> SkillEntry {
     use systemprompt_models::bridge::ids::{Sha256Digest, SkillId, SkillName};
@@ -87,6 +107,7 @@ fn mcp_server(name: &str) -> ManagedMcpServer {
     use systemprompt_identifiers::ValidatedUrl;
     use systemprompt_models::bridge::ids::ManagedMcpServerName;
     ManagedMcpServer {
+        id: systemprompt_identifiers::McpServerId::new(name),
         name: ManagedMcpServerName::try_new(name).expect("valid mcp name"),
         url: ValidatedUrl::try_new(format!("https://api.example.com/mcp/{name}"))
             .expect("valid url"),
@@ -104,7 +125,7 @@ fn default_candidate_is_empty() {
 
 #[test]
 fn candidate_with_only_skills_is_not_empty() {
-    let c = MarketplaceCandidate::new(
+    let c = candidate(
         vec![],
         vec![skill("my-skill")],
         vec![],
@@ -119,7 +140,7 @@ fn candidate_with_only_skills_is_not_empty() {
 
 #[test]
 fn candidate_with_only_agents_is_not_empty() {
-    let c = MarketplaceCandidate::new(
+    let c = candidate(
         vec![],
         vec![],
         vec![agent("my-agent")],
@@ -134,7 +155,7 @@ fn candidate_with_only_agents_is_not_empty() {
 
 #[test]
 fn candidate_with_only_hooks_is_not_empty() {
-    let c = MarketplaceCandidate::new(
+    let c = candidate(
         vec![],
         vec![],
         vec![],
@@ -149,7 +170,7 @@ fn candidate_with_only_hooks_is_not_empty() {
 
 #[test]
 fn candidate_with_only_mcp_is_not_empty() {
-    let c = MarketplaceCandidate::new(
+    let c = candidate(
         vec![],
         vec![],
         vec![],
@@ -168,7 +189,7 @@ fn candidate_with_only_mcp_is_not_empty() {
 
 #[test]
 fn candidate_with_only_plugins_is_not_empty() {
-    let c = MarketplaceCandidate::new(
+    let c = candidate(
         vec![plugin("my-plugin")],
         vec![],
         vec![],
@@ -183,7 +204,7 @@ fn candidate_with_only_plugins_is_not_empty() {
 
 #[test]
 fn candidate_with_only_artifacts_is_not_empty() {
-    let c = MarketplaceCandidate::new(
+    let c = candidate(
         vec![],
         vec![],
         vec![],
@@ -228,8 +249,8 @@ fn with_marketplace_none_access_is_allowed() {
 }
 
 #[test]
-fn new_leaves_marketplace_fields_unset() {
-    let c = MarketplaceCandidate::new(vec![plugin("p")], vec![], vec![], vec![], vec![], vec![]);
+fn entry_lists_leave_marketplace_fields_unset() {
+    let c = candidate(vec![plugin("p")], vec![], vec![], vec![], vec![], vec![]);
     assert!(c.marketplace_id.is_none());
     assert!(c.access.is_none());
     assert!(!c.is_empty());
@@ -242,19 +263,26 @@ fn keep(
     hooks: &[&str],
     mcp_servers: &[&str],
 ) -> systemprompt_marketplace::EntryKeepSets {
-    let set = |ids: &[&str]| ids.iter().map(|s| (*s).to_owned()).collect();
+    use systemprompt_identifiers::{AgentId, HookId, McpServerId};
+    use systemprompt_models::bridge::ids::{PluginId, SkillId};
     systemprompt_marketplace::EntryKeepSets {
-        plugins: set(plugins),
-        skills: set(skills),
-        agents: set(agents),
-        hooks: set(hooks),
-        mcp_servers: set(mcp_servers),
+        plugins: plugins
+            .iter()
+            .map(|s| PluginId::try_new(*s).expect("valid plugin id"))
+            .collect(),
+        skills: skills
+            .iter()
+            .map(|s| SkillId::try_new(*s).expect("valid skill id"))
+            .collect(),
+        agents: agents.iter().map(|s| AgentId::new(*s)).collect(),
+        hooks: hooks.iter().map(|s| HookId::new(*s)).collect(),
+        mcp_servers: mcp_servers.iter().map(|s| McpServerId::new(*s)).collect(),
     }
 }
 
 #[test]
 fn retain_entries_shrinks_every_entry_list() {
-    let mut c = MarketplaceCandidate::new(
+    let mut c = candidate(
         vec![plugin("p1"), plugin("p2")],
         vec![skill("s1"), skill("s2")],
         vec![agent("a1"), agent("a2")],
@@ -292,7 +320,7 @@ fn retain_entries_prunes_artifacts_of_dropped_plugins() {
         ),
     ]
     .into();
-    let mut c = MarketplaceCandidate::new(
+    let mut c = candidate(
         vec![plugin("p1"), plugin("p2")],
         vec![],
         vec![],
@@ -310,9 +338,8 @@ fn retain_entries_prunes_artifacts_of_dropped_plugins() {
 
 #[test]
 fn retain_entries_leaves_assembly_context_untouched() {
-    let mut c =
-        MarketplaceCandidate::new(vec![plugin("p1")], vec![], vec![], vec![], vec![], vec![])
-            .with_marketplace(MarketplaceId::new("test-market"), None);
+    let mut c = candidate(vec![plugin("p1")], vec![], vec![], vec![], vec![], vec![])
+        .with_marketplace(MarketplaceId::new("test-market"), None);
     c.diagnostics.push("assembly warning".to_owned());
 
     c.retain_entries(&keep(&[], &[], &[], &[], &[]));

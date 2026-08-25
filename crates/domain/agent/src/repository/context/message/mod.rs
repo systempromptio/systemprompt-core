@@ -12,6 +12,13 @@ mod parts;
 mod persistence;
 mod queries;
 
+// Why: these writes go through the generic text-parameter transaction API, so
+// jsonb columns take a serialised string bound through an explicit `::jsonb`
+// cast — binding the text OID directly is rejected by the Postgres protocol.
+pub(crate) fn jsonb_param<T: serde::Serialize>(value: &T) -> Result<String, serde_json::Error> {
+    serde_json::to_string(value)
+}
+
 use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_database::DbPool;

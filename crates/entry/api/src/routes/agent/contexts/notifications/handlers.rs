@@ -16,14 +16,14 @@ use super::error::NotificationError;
 
 pub(super) async fn persist_notification(
     repo: &ContextNotificationRepository,
-    context: &str,
+    context: &ContextId,
     agent: &str,
     notification: &A2aNotification,
 ) -> Result<i32, NotificationError> {
     let notification_data = serde_json::to_value(notification)?;
     let id = repo
         .insert(
-            &ContextId::new(context),
+            context,
             &AgentId::new(agent),
             &notification.method,
             &notification_data,

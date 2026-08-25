@@ -32,7 +32,7 @@ const UNKNOWN: &str = "unknown";
 
 static INSTALL_ID: OnceLock<InstallId> = OnceLock::new();
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct InstallId(String);
 
@@ -45,6 +45,13 @@ impl InstallId {
     #[must_use]
     pub fn is_known(&self) -> bool {
         is_known(&self.0)
+    }
+
+    // Why: not `PartialEq` — two installs that both failed to establish an id
+    // must never read as the same install, or one would wrongly stand down.
+    #[must_use]
+    pub fn same_install(&self, other: &Self) -> bool {
+        self.is_known() && other.is_known() && self.0 == other.0
     }
 }
 
@@ -91,7 +98,7 @@ impl WhoAmI {
 
     #[must_use]
     pub fn is_ours(&self) -> bool {
-        self.product == WHOAMI_PRODUCT && self.install_id == install_id()
+        self.product == WHOAMI_PRODUCT && self.install_id.same_install(&install_id())
     }
 }
 

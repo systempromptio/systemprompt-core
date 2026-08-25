@@ -89,6 +89,18 @@ impl AuthzPolicy {
         Self { allowed }
     }
 
+    // Why: admits every caller, `Anon` included — the downstream handler is
+    // the auth boundary for the group: it resolves per-service requirements
+    // this coarse gate cannot see (per-server `oauth.required`, the MCP
+    // session-cache fallback) and answers unauthenticated callers with the
+    // RFC 9728 `WWW-Authenticate` challenge that spec-compliant MCP clients
+    // need to start OAuth discovery. A deny here would replace that 401
+    // challenge with a generic 403.
+    #[must_use]
+    pub const fn deferred_to_handler() -> Self {
+        Self::public()
+    }
+
     fn permits(self, user_type: UserType) -> bool {
         self.allowed.contains(&user_type)
     }

@@ -50,14 +50,10 @@ fn plugin(id: &str) -> PluginEntry {
 
 #[cfg(test)]
 fn sample_candidate() -> MarketplaceCandidate {
-    MarketplaceCandidate::new(
-        vec![plugin("alpha"), plugin("beta")],
-        vec![],
-        vec![],
-        vec![],
-        vec![],
-        vec![],
-    )
+    MarketplaceCandidate {
+        plugins: vec![plugin("alpha"), plugin("beta")],
+        ..MarketplaceCandidate::default()
+    }
 }
 
 #[tokio::test]

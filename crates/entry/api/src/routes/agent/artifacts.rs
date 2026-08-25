@@ -35,7 +35,8 @@ pub async fn list_artifacts_by_context(
 ) -> Result<impl IntoResponse, ApiHttpError> {
     tracing::debug!(context_id = %context_id, "Listing artifacts by context");
 
-    let context_id_typed = ContextId::new(&context_id);
+    let context_id_typed = ContextId::try_new(&context_id)
+        .map_err(|e| ApiHttpError::bad_request(format!("invalid context id: {e}")))?;
 
     let context_repo = app_context.a2a_repositories().contexts.clone();
     context_repo

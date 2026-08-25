@@ -95,6 +95,7 @@ fn hook() -> HookEntry {
 
 fn mcp(name: &str, url: &str) -> ManagedMcpServer {
     ManagedMcpServer {
+        id: systemprompt_identifiers::McpServerId::new(name),
         name: ManagedMcpServerName::try_new(name).unwrap(),
         url: ValidatedUrl::try_new(url).unwrap(),
         transport: Some("http".into()),

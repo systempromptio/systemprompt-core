@@ -31,6 +31,7 @@ pub(super) fn execute() -> CommandOutput {
         }
     }
 
+    jobs.sort_by(|a, b| a.name.cmp(&b.name));
     let total = jobs.len();
     let output = JobListOutput { jobs, total };
 

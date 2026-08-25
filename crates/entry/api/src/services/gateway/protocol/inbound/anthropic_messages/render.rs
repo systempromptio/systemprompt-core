@@ -172,8 +172,6 @@ fn render_tool_use_block_start(id: &str, name: &str, signature: Option<&str>) ->
     Value::Object(obj)
 }
 
-// Why: a count the upstream frame never stated must be omitted, not rendered
-// as `null` or as a zero the client would read as a real report.
 fn render_usage(usage: &CanonicalUsageUpdate) -> Map<String, Value> {
     let mut out = Map::new();
     let mut put = |key: &str, v: Option<u32>| {

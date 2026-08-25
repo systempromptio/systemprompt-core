@@ -140,9 +140,6 @@ fn convert_message_delta(value: &Value, msg_id: &str) -> Vec<CanonicalEvent> {
     events
 }
 
-// Why: a `message_delta` states only the counts it knows — often
-// `output_tokens` alone — so an absent field must stay absent rather than
-// become a zero that overwrites what `message_start` already established.
 fn usage_update_from_value(u: &Value) -> CanonicalUsageUpdate {
     let field = |name: &str| u.get(name).and_then(Value::as_u64).map(|v| v as u32);
     CanonicalUsageUpdate {

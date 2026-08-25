@@ -73,13 +73,7 @@ pub fn truncate_for_tool_input(input: &str) -> String {
     if input.len() <= TOOL_INPUT_CAP {
         input.to_owned()
     } else {
-        // Why: `&input[..TOOL_INPUT_CAP]` panics when the cap lands inside a
-        // multi-byte UTF-8 codepoint. Walk back to the nearest char boundary
-        // before slicing so non-ASCII tool inputs cannot crash audit logging.
-        let mut cut = TOOL_INPUT_CAP;
-        while cut > 0 && !input.is_char_boundary(cut) {
-            cut -= 1;
-        }
+        let cut = systemprompt_models::text::floor_char_boundary(input, TOOL_INPUT_CAP);
         let head = &input[..cut];
         format!("{head}...<truncated {} bytes>", input.len() - cut)
     }
