@@ -67,19 +67,7 @@ pub(super) async fn resolve_upstream<'a>(
         (matched, None)
     };
 
-    let governance = route.requires.as_ref().and_then(|r| {
-        let declared = r.declared();
-        (!declared.is_empty()).then(|| format!("requires:{}", declared.join(",")))
-    });
-
-    let route_match_descriptor =
-        (declarative.is_some() || selector.is_some() || governance.is_some()).then(|| {
-            [declarative, selector, governance]
-                .into_iter()
-                .flatten()
-                .collect::<Vec<_>>()
-                .join(";")
-        });
+    let route_match_descriptor = describe_route_match(&route, declarative, selector);
 
     let provider = route.resolve(registry).ok_or_else(|| {
         DispatchError::PreAudit(anyhow!(
@@ -89,29 +77,7 @@ pub(super) async fn resolve_upstream<'a>(
         ))
     })?;
 
-    if let Some(requires) = route.requires.as_ref() {
-        let upstream = route.effective_upstream_model(&request.model);
-        let unmet = requires.unmet(provider.effective_governance(upstream));
-        if !unmet.is_empty() {
-            tracing::warn!(
-                ai_request_id = %ai_request_id,
-                route = %route.id.as_str(),
-                model = %upstream,
-                requirements = %unmet.join(","),
-                "Gateway denied: route governance requirements unmet by resolved provider/model"
-            );
-            return Err(DispatchError::PreAudit(
-                PolicyDenied(format!(
-                    "route '{}' requires [{}] which provider '{}' does not satisfy for model '{}'",
-                    route.id.as_str(),
-                    unmet.join(","),
-                    route.provider.as_str(),
-                    upstream
-                ))
-                .into(),
-            ));
-        }
-    }
+    enforce_route_requirements(&route, provider, &request.model, ai_request_id)?;
 
     let secrets = systemprompt_config::SecretsBootstrap::get()
         .map_err(|e| DispatchError::PreAudit(anyhow!("Secrets not available: {e}")))?;
@@ -141,4 +107,57 @@ pub(super) async fn resolve_upstream<'a>(
         adapter,
         route_match_descriptor,
     })
+}
+
+fn describe_route_match(
+    route: &GatewayRoute,
+    declarative: Option<String>,
+    selector: Option<String>,
+) -> Option<String> {
+    let governance = route.requires.as_ref().and_then(|r| {
+        let declared = r.declared();
+        (!declared.is_empty()).then(|| format!("requires:{}", declared.join(",")))
+    });
+
+    (declarative.is_some() || selector.is_some() || governance.is_some()).then(|| {
+        [declarative, selector, governance]
+            .into_iter()
+            .flatten()
+            .collect::<Vec<_>>()
+            .join(";")
+    })
+}
+
+fn enforce_route_requirements(
+    route: &GatewayRoute,
+    provider: &ProviderEntry,
+    requested_model: &str,
+    ai_request_id: &AiRequestId,
+) -> Result<(), DispatchError> {
+    let Some(requires) = route.requires.as_ref() else {
+        return Ok(());
+    };
+    let upstream = route.effective_upstream_model(requested_model);
+    let unmet = requires.unmet(provider.effective_governance(upstream));
+    if unmet.is_empty() {
+        return Ok(());
+    }
+
+    tracing::warn!(
+        ai_request_id = %ai_request_id,
+        route = %route.id.as_str(),
+        model = %upstream,
+        requirements = %unmet.join(","),
+        "Gateway denied: route governance requirements unmet by resolved provider/model"
+    );
+    Err(DispatchError::PreAudit(
+        PolicyDenied(format!(
+            "route '{}' requires [{}] which provider '{}' does not satisfy for model '{}'",
+            route.id.as_str(),
+            unmet.join(","),
+            route.provider.as_str(),
+            upstream
+        ))
+        .into(),
+    ))
 }

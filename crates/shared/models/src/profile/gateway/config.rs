@@ -349,7 +349,7 @@ fn validate_route_governance(
     let Some(entry) = route.resolve(registry) else {
         return Ok(());
     };
-    let mut check = |model_id: &str| -> GatewayResult<()> {
+    let check = |model_id: &str| -> GatewayResult<()> {
         let unmet = requires.unmet(entry.effective_governance(model_id));
         if unmet.is_empty() {
             Ok(())

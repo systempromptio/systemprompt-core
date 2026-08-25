@@ -85,9 +85,11 @@ pub struct ModelPricing {
     pub per_image_cents: Option<f64>,
 }
 
-/// Contractual/data-governance posture of a provider or model, used by
-/// gateway routes that require residency (`european`) or a no-train/no-retain
-/// clause (`no_retain`) before dispatching classified traffic.
+/// Contractual/data-governance posture of a provider or model.
+///
+/// Used by gateway routes that require residency (`european`) or a
+/// no-train/no-retain clause (`no_retain`) before dispatching classified
+/// traffic.
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ModelGovernance {

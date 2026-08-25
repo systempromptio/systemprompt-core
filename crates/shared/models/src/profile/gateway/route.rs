@@ -160,7 +160,8 @@ impl RouteMatch {
     }
 }
 
-/// Governance demands a route places on its *target*, not on the request:
+/// Governance demands a route places on its *target*, not on the request.
+///
 /// `european: true` restricts the route to providers/models whose effective
 /// [`ModelGovernance`](crate::services::ai::ModelGovernance) declares
 /// `european`, and `no_retain: true` likewise. Checked at boot for every model
