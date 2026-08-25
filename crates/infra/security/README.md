@@ -170,7 +170,7 @@ Ed25519 signing for bridge manifests, keyed independently of the JWT signing key
 
 ```toml
 [dependencies]
-systemprompt-security = "0.37"
+systemprompt-security = "0.38"
 ```
 
 ### Token Extraction
