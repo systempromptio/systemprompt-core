@@ -23,6 +23,8 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use systemprompt_models::wire::canonical::{CanonicalRequest, CanonicalResponse};
 
+use super::spec::SafetyConfig;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Severity {
     Low,
@@ -56,8 +58,6 @@ pub struct Finding {
     pub scanner: &'static str,
 }
 
-// Why: #[async_trait] is required — scanners are selected by policy and held as
-// trait objects, so the trait must stay dyn-compatible.
 #[async_trait]
 pub trait SafetyScanner: Send + Sync {
     fn name(&self) -> &'static str;
@@ -71,11 +71,26 @@ pub trait SafetyScanner: Send + Sync {
     async fn scan_response_final(&self, response: &CanonicalResponse) -> Vec<Finding>;
 }
 
+/// Constructs a scanner for one policy's [`SafetyConfig`], so per-policy
+/// configuration (such as the heuristic phrase list) applies at scan time.
+pub trait ScannerFactory: Send + Sync {
+    fn create(&self, safety: &SafetyConfig) -> Arc<dyn SafetyScanner>;
+}
+
+impl<F> ScannerFactory for F
+where
+    F: Fn(&SafetyConfig) -> Arc<dyn SafetyScanner> + Send + Sync,
+{
+    fn create(&self, safety: &SafetyConfig) -> Arc<dyn SafetyScanner> {
+        self(safety)
+    }
+}
+
 /// Compile-time registration of a [`SafetyScanner`] implementation.
 ///
 /// The gateway's scanner registry seeds its built-ins, then folds in every
 /// `inventory`-collected registration. A registration whose `name` collides
-/// with a built-in shadows it (with a warning at registry build time).
+/// with a built-in is rejected at registry build time.
 #[derive(Debug, Clone, Copy)]
 pub struct SafetyScannerRegistration {
     pub name: &'static str,

@@ -30,7 +30,7 @@ pub use route_selector::{
 };
 pub use safety::{
     Finding, HeuristicScanner, NullScanner, PHASE_REQUEST, PHASE_REQUEST_HISTORY, PHASE_RESPONSE,
-    SafetyScanner, SafetyScannerRegistration, Severity,
+    SafetyScanner, SafetyScannerRegistration, ScannerFactory, Severity,
 };
 pub use spec::{
     GatewayPolicySpec, HeuristicConfig, QuotaWindow, SafetyConfig, SafetyHistoryMode,

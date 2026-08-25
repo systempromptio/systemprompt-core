@@ -11,7 +11,10 @@ use super::protocol::outbound::gemini::GeminiOutbound;
 use super::protocol::outbound::openai_chat::OpenAiChatOutbound;
 use super::protocol::outbound::openai_responses::OpenAiResponsesOutbound;
 use super::protocol::outbound::{OutboundAdapter, OutboundAdapterRegistration};
-use systemprompt_ai::{NullScanner, SafetyScanner, SafetyScannerRegistration};
+use systemprompt_ai::{
+    HeuristicScanner, NullScanner, SafetyConfig, SafetyScanner, SafetyScannerRegistration,
+    ScannerFactory,
+};
 use systemprompt_models::profile::WireProtocol;
 
 pub struct GatewayUpstreamRegistry {
@@ -76,8 +79,10 @@ impl GatewayUpstreamRegistry {
 }
 
 pub struct SafetyScannerRegistry {
-    entries: HashMap<String, Arc<dyn SafetyScanner>>,
+    entries: HashMap<String, Arc<dyn ScannerFactory>>,
 }
+
+const BUILTIN_SCANNER_NAMES: &[&str] = &["null", "heuristic"];
 
 impl std::fmt::Debug for SafetyScannerRegistry {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -93,30 +98,41 @@ impl SafetyScannerRegistry {
         REGISTRY.get_or_init(Self::build)
     }
 
-    pub fn get(&self, name: &str) -> Option<&Arc<dyn SafetyScanner>> {
-        self.entries.get(name)
+    pub fn create(&self, name: &str, safety: &SafetyConfig) -> Option<Arc<dyn SafetyScanner>> {
+        self.entries.get(name).map(|factory| factory.create(safety))
     }
 
     pub fn names(&self) -> Vec<&str> {
-        self.entries.keys().map(String::as_str).collect()
+        let mut names: Vec<&str> = self.entries.keys().map(String::as_str).collect();
+        names.sort_unstable();
+        names
     }
 
-    // Why: the builtin `heuristic` scanner is NOT registered here — it is
-    // constructed per policy from `SafetyConfig.heuristic` at scan time, and
-    // only when no extension registration shadows the name.
     pub(super) fn build() -> Self {
-        let mut entries: HashMap<String, Arc<dyn SafetyScanner>> = HashMap::new();
-        entries.insert("null".to_owned(), Arc::new(NullScanner));
+        fn null_factory(_: &SafetyConfig) -> Arc<dyn SafetyScanner> {
+            Arc::new(NullScanner)
+        }
+        fn heuristic_factory(safety: &SafetyConfig) -> Arc<dyn SafetyScanner> {
+            Arc::new(HeuristicScanner::new(&safety.heuristic))
+        }
+
+        let mut entries: HashMap<String, Arc<dyn ScannerFactory>> = HashMap::new();
+        entries.insert("null".to_owned(), Arc::new(null_factory));
+        entries.insert("heuristic".to_owned(), Arc::new(heuristic_factory));
 
         for registration in inventory::iter::<SafetyScannerRegistration> {
             let name = registration.name.to_owned();
-            if entries.contains_key(&name) || name == "heuristic" {
-                tracing::warn!(
+            if BUILTIN_SCANNER_NAMES.contains(&name.as_str()) {
+                tracing::error!(
                     name = %registration.name,
-                    "Extension-registered safety scanner shadows a built-in"
+                    "Extension-registered safety scanner uses a built-in name; registration \
+                     rejected"
                 );
+                continue;
             }
-            entries.insert(name, (registration.factory)());
+            let factory = registration.factory;
+            let config_blind: Arc<dyn ScannerFactory> = Arc::new(move |_: &SafetyConfig| factory());
+            entries.insert(name, config_blind);
         }
 
         Self { entries }

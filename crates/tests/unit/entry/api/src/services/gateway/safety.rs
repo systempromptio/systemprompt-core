@@ -6,8 +6,8 @@
 use std::sync::Arc;
 
 use systemprompt_ai::{
-    Finding, HeuristicScanner, NullScanner, SafetyScanner, SafetyScannerRegistration, Severity,
-    register_safety_scanner,
+    Finding, HeuristicScanner, NullScanner, SafetyConfig, SafetyScanner, SafetyScannerRegistration,
+    Severity, register_safety_scanner,
 };
 use systemprompt_api::services::gateway::protocol::canonical::{
     CanonicalContent, CanonicalMessage, CanonicalRequest, Role,
@@ -91,18 +91,18 @@ fn severity_as_str() {
 }
 
 #[test]
-fn registry_does_not_carry_the_builtin_heuristic() {
-    assert!(
-        SafetyScannerRegistry::global().get("heuristic").is_none(),
-        "the builtin heuristic is constructed per policy from SafetyConfig"
-    );
+fn registry_creates_the_builtin_heuristic_per_policy() {
+    let scanner = SafetyScannerRegistry::global()
+        .create("heuristic", &SafetyConfig::default())
+        .expect("heuristic is built in");
+    assert_eq!(scanner.name(), "heuristic");
 }
 
 #[test]
 fn registry_returns_none_for_unknown_scanner() {
     assert!(
         SafetyScannerRegistry::global()
-            .get("does_not_exist")
+            .create("does_not_exist", &SafetyConfig::default())
             .is_none()
     );
 }
@@ -111,7 +111,7 @@ fn registry_returns_none_for_unknown_scanner() {
 async fn registry_resolves_registered_extension_scanner() {
     let registry = SafetyScannerRegistry::global();
     let scanner = registry
-        .get("stub_secrets")
+        .create("stub_secrets", &SafetyConfig::default())
         .expect("extension scanner is collected via inventory");
     let findings = scanner.scan_request(&req_with("anything")).await;
     assert_eq!(findings.len(), 1);
@@ -310,7 +310,7 @@ mod dedup {
 #[test]
 fn registry_resolves_the_null_scanner_by_name() {
     let scanner = SafetyScannerRegistry::global()
-        .get("null")
+        .create("null", &SafetyConfig::default())
         .expect("null is built in");
     assert_eq!(scanner.name(), "null");
 }
