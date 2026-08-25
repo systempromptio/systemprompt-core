@@ -16,9 +16,47 @@ use systemprompt_identifiers::{AuthorizationCode, ClientId, UserId};
 
 mod params;
 
-pub use params::{AuthCodeParams, AuthCodeValidationResult};
+pub use params::{AuthCodeParams, AuthCodeValidationResult, MintAuthCodeParams};
 
 impl OAuthRepository {
+    // Why: `scope: None` falls back to the deployment's default roles, so
+    // every sign-in route mints codes the token endpoint treats identically.
+    pub async fn mint_authorization_code(
+        &self,
+        params: MintAuthCodeParams<'_>,
+    ) -> OauthResult<AuthorizationCode> {
+        let scope = params.scope.map_or_else(
+            || {
+                let default_roles = Self::get_default_roles();
+                if default_roles.is_empty() {
+                    "user".to_owned()
+                } else {
+                    default_roles.join(" ")
+                }
+            },
+            str::to_owned,
+        );
+        let code = AuthorizationCode::new(crate::services::generate_secure_token("auth_code"));
+
+        let mut builder = AuthCodeParams::builder(
+            &code,
+            params.client_id,
+            params.user_id,
+            params.redirect_uri,
+            &scope,
+        );
+        if let (Some(challenge), Some(method)) = (
+            params.code_challenge.filter(|s| !s.is_empty()),
+            params.code_challenge_method.filter(|s| !s.is_empty()),
+        ) {
+            builder = builder.with_pkce(challenge, method);
+        }
+        if let Some(resource) = params.resource {
+            builder = builder.with_resource(resource);
+        }
+        self.store_authorization_code(builder.build()).await?;
+        Ok(code)
+    }
     pub async fn store_authorization_code(&self, params: AuthCodeParams<'_>) -> OauthResult<()> {
         let expires_at = Utc::now() + chrono::Duration::seconds(600);
         let now = Utc::now();

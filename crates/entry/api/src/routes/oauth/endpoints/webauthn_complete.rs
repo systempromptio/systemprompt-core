@@ -18,12 +18,12 @@ use std::sync::Arc;
 use crate::routes::oauth::OAuthHttpError;
 use crate::routes::oauth::extractors::OAuthRepo;
 use crate::services::request_base_url::RequestBaseUrl;
-use systemprompt_identifiers::{AuthorizationCode, ClientId, UserId};
+use systemprompt_identifiers::{ClientId, UserId};
 use systemprompt_models::oauth::OAuthServerConfig;
 use systemprompt_oauth::OAuthState;
-use systemprompt_oauth::repository::{AuthCodeParams, OAuthRepository};
+use systemprompt_oauth::repository::{MintAuthCodeParams, OAuthRepository};
+use systemprompt_oauth::services::is_browser_request;
 use systemprompt_oauth::services::webauthn::WebAuthnRegistry;
-use systemprompt_oauth::services::{generate_secure_token, is_browser_request};
 
 #[derive(Debug, Deserialize)]
 pub struct WebAuthnCompleteQuery {
@@ -96,8 +96,21 @@ pub async fn handle_webauthn_complete(
         return Err(OAuthHttpError::access_denied("User not found"));
     }
 
-    let authorization_code = generate_secure_token("auth_code");
-    store_authorization_code(&repo, &authorization_code, &params).await?;
+    let client_id = params
+        .client_id
+        .as_ref()
+        .ok_or_else(|| OAuthHttpError::invalid_request("client_id is required"))?;
+    let authorization_code = repo
+        .mint_authorization_code(MintAuthCodeParams {
+            client_id,
+            user_id: &params.user_id,
+            redirect_uri: &redirect_uri,
+            scope: params.scope.as_deref(),
+            code_challenge: params.code_challenge.as_deref(),
+            code_challenge_method: params.code_challenge_method.as_deref(),
+            resource: params.resource.as_deref(),
+        })
+        .await?;
 
     // Why: RFC 9207: the authorization response carries `iss` so the client can
     // bind the code to this issuer. Derive it the same way discovery does, so
@@ -107,58 +120,10 @@ pub async fn handle_webauthn_complete(
     Ok(create_successful_response(
         &headers,
         &redirect_uri,
-        &authorization_code,
+        authorization_code.as_str(),
         &params,
         &issuer,
     ))
-}
-
-async fn store_authorization_code(
-    repo: &OAuthRepository,
-    code_str: &str,
-    query: &WebAuthnCompleteQuery,
-) -> Result<(), OAuthHttpError> {
-    let client_id = query
-        .client_id
-        .as_ref()
-        .ok_or_else(|| OAuthHttpError::invalid_request("client_id is required"))?;
-    let redirect_uri = query
-        .redirect_uri
-        .as_ref()
-        .ok_or_else(|| OAuthHttpError::invalid_request("redirect_uri is required"))?;
-    let scope = query.scope.as_ref().map_or_else(
-        || {
-            let default_roles = OAuthRepository::get_default_roles();
-            if default_roles.is_empty() {
-                "user".to_owned()
-            } else {
-                default_roles.join(" ")
-            }
-        },
-        Clone::clone,
-    );
-
-    let code = AuthorizationCode::new(code_str);
-
-    let mut builder =
-        AuthCodeParams::builder(&code, client_id, &query.user_id, redirect_uri, &scope);
-
-    if let (Some(challenge), Some(method)) = (
-        query.code_challenge.as_deref(),
-        query
-            .code_challenge_method
-            .as_deref()
-            .filter(|s| !s.is_empty()),
-    ) {
-        builder = builder.with_pkce(challenge, method);
-    }
-
-    if let Some(resource) = query.resource.as_deref() {
-        builder = builder.with_resource(resource);
-    }
-
-    repo.store_authorization_code(builder.build()).await?;
-    Ok(())
 }
 
 #[derive(Debug, Serialize)]

@@ -14,7 +14,7 @@ mod scopes;
 mod state_binding;
 mod user;
 
-pub use auth_code::{AuthCodeParams, AuthCodeValidationResult};
+pub use auth_code::{AuthCodeParams, AuthCodeValidationResult, MintAuthCodeParams};
 pub use jti_revocation::JtiRevocationCache;
 pub use refresh_token::RefreshTokenParams;
 pub use state_binding::{StateBindingParams, StateBindingRow};

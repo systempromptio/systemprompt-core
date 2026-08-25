@@ -19,8 +19,8 @@ pub use client::{
 };
 pub use exchange_code::CreateExchangeCodeParams;
 pub use oauth::{
-    AuthCodeParams, AuthCodeValidationResult, JtiRevocationCache, OAuthRepository,
-    RefreshTokenParams, StateBindingParams, StateBindingRow,
+    AuthCodeParams, AuthCodeValidationResult, JtiRevocationCache, MintAuthCodeParams,
+    OAuthRepository, RefreshTokenParams, StateBindingParams, StateBindingRow,
 };
 pub use setup_token::{
     CreateSetupTokenParams, SetupTokenPurpose, SetupTokenRecord, TokenValidationResult,
