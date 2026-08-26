@@ -1,0 +1,206 @@
+# Nightly gate: apply the mechanical coding-standards fixes to `next`, run the
+# full pre-release cycle against it, and fast-forward `main` only if every gate
+# is green.
+#
+# `next` is the feeder branch — every agent and every local session commits and
+# pushes there without running a gate. `main` is protected and release-only: it
+# moves only through the promote job below, so its tip is always a commit that
+# passed the whole cycle.
+#
+# The heavy gates live in ci.yml / quality.yml / supply-chain.yml and are called
+# from here with an explicit `ref`. A scheduled run always uses the workflow
+# files as they exist on the default branch, so the *gate definitions* come from
+# protected `main` while the *code under test* comes from `next`.
+name: Nightly
+
+on:
+  schedule:
+    # 02:17 UTC — before the 06:23 coverage run, so a promoted `main` is what
+    # coverage measures.
+    - cron: "17 2 * * *"
+  workflow_dispatch:
+    inputs:
+      autofix:
+        description: "Commit mechanical fixes (fmt, clippy --fix) back to next"
+        type: boolean
+        default: true
+      promote:
+        description: "Fast-forward main when every gate is green"
+        type: boolean
+        default: true
+
+concurrency:
+  group: nightly
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+  SQLX_OFFLINE: "true"
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # 1. Mechanical fixes. Anything rustfmt or clippy can rewrite on its own is
+  #    applied and pushed straight back to `next`, so an agent never has to run
+  #    the formatter to land work. Judgement-requiring failures are NOT fixed
+  #    here — they fail the gate below and hold `main` back.
+  # ---------------------------------------------------------------------------
+  autofix:
+    name: Auto-fix coding standards
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: write
+    outputs:
+      sha: ${{ steps.result.outputs.sha }}
+      changed: ${{ steps.result.outputs.changed }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: next
+          fetch-depth: 0
+
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly-2026-06-03
+          components: rustfmt
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+      - uses: extractions/setup-just@v2
+
+      - name: Install system dependencies
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq libdbus-1-dev pkg-config
+
+      - name: rustfmt (all three workspaces)
+        if: inputs.autofix != false
+        run: just fmt
+
+      # clippy --fix only applies machine-applicable suggestions. If it rewrites
+      # something into a broken state the gate jobs below catch it and `main` is
+      # not promoted, so this is safe to run unattended.
+      - name: clippy --fix (machine-applicable only)
+        if: inputs.autofix != false
+        continue-on-error: true
+        run: |
+          cargo clippy --fix --allow-dirty --allow-staged \
+            --workspace --all-targets --all-features || true
+          cargo clippy --fix --allow-dirty --allow-staged \
+            --manifest-path bin/bridge/Cargo.toml --all-targets || true
+      - name: rustfmt again (clippy --fix reflows code)
+        if: inputs.autofix != false
+        run: just fmt
+
+      - name: Commit and push to next
+        id: result
+        run: |
+          set -euo pipefail
+          git config user.name  "systemprompt-nightly[bot]"
+          git config user.email "nightly@systemprompt.io"
+          if [ -n "$(git status --porcelain)" ]; then
+            git status --porcelain
+            git add -A
+            git commit \
+              -m "style: apply the nightly mechanical coding-standards fixes" \
+              -m "rustfmt across all three workspaces plus clippy's machine-applicable suggestions. No judgement calls are made here."
+            git push origin HEAD:next
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "no mechanical fixes needed"
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+  # ---------------------------------------------------------------------------
+  # 2. The pre-release cycle, against the post-autofix commit.
+  # ---------------------------------------------------------------------------
+  ci:
+    name: Gate
+    needs: autofix
+    uses: ./.github/workflows/ci.yml
+    with:
+      ref: ${{ needs.autofix.outputs.sha }}
+
+  quality:
+    name: Gate
+    needs: autofix
+    uses: ./.github/workflows/quality.yml
+    with:
+      ref: ${{ needs.autofix.outputs.sha }}
+
+  supply-chain:
+    name: Gate
+    needs: autofix
+    uses: ./.github/workflows/supply-chain.yml
+    with:
+      ref: ${{ needs.autofix.outputs.sha }}
+
+  # ---------------------------------------------------------------------------
+  # 3. Promote. A fast-forward only — if `main` has drifted ahead of `next` the
+  #    push is refused rather than forced, because that means someone bypassed
+  #    the branch protection and the divergence needs a human.
+  # ---------------------------------------------------------------------------
+  promote:
+    name: Promote next to main
+    needs: [autofix, ci, quality, supply-chain]
+    if: ${{ inputs.promote != false }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Fast-forward main to the gated commit
+        run: |
+          set -euo pipefail
+          SHA="${{ needs.autofix.outputs.sha }}"
+          git fetch origin next
+          if git merge-base --is-ancestor "$SHA" HEAD; then
+            echo "main already contains $SHA — nothing to promote."
+            exit 0
+          fi
+          if ! git merge-base --is-ancestor HEAD "$SHA"; then
+            echo "::error::main has diverged from next; $SHA is not a fast-forward."
+            echo "Someone pushed to main directly. Reconcile by hand."
+            exit 1
+          fi
+          git push origin "$SHA:main"
+          echo "promoted $SHA to main"
+
+      - name: Summary
+        run: |
+          {
+            echo "### Nightly promoted \`next\` → \`main\`"
+            echo
+            echo "- commit: \`${{ needs.autofix.outputs.sha }}\`"
+            echo "- mechanical fixes committed: \`${{ needs.autofix.outputs.changed }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # ---------------------------------------------------------------------------
+  # 4. Report when the cycle held `main` back, so a red night is visible without
+  #    reading the run.
+  # ---------------------------------------------------------------------------
+  report:
+    name: Report a held-back main
+    needs: [autofix, ci, quality, supply-chain]
+    if: failure()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Summarise
+        run: |
+          {
+            echo "### Nightly gate failed — \`main\` was NOT promoted"
+            echo
+            echo "\`next\` is at \`${{ needs.autofix.outputs.sha }}\`."
+            echo "Mechanical fixes were applied where possible; what remains needs a person."
+            echo
+            echo "| gate | result |"
+            echo "|---|---|"
+            echo "| CI | ${{ needs.ci.result }} |"
+            echo "| Quality | ${{ needs.quality.result }} |"
+            echo "| Supply Chain | ${{ needs['supply-chain'].result }} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit 1

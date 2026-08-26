@@ -1,13 +1,23 @@
 name: Quality
 
 on:
-  push:
-    branches: [main]
+  workflow_call:
+    inputs:
+      ref:
+        description: "Commit SHA or branch to gate. Defaults to the triggering ref."
+        type: string
+        required: false
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Commit SHA or branch to gate. Defaults to the triggering ref."
+        type: string
+        required: false
   pull_request:
-    branches: [main]
+    branches: [main, next]
 
 concurrency:
-  group: quality-${{ github.ref }}
+  group: quality-${{ inputs.ref || github.ref }}
   cancel-in-progress: true
 
 env:
@@ -20,6 +30,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
       # `just lint` covers bin/bridge, whose keyring backend pulls
       # libdbus-sys through pkg-config; ubuntu-latest no longer ships
       # libdbus-1-dev.
@@ -48,6 +60,8 @@ jobs:
         os: [windows-latest, macos-latest]
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: nightly-2026-06-03
@@ -64,6 +78,8 @@ jobs:
       RUSTDOCFLAGS: "-D warnings"
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
       # bin/bridge's linux keyring backend pulls libdbus-sys via pkg-config.
       - run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config
       - uses: dtolnay/rust-toolchain@stable
@@ -80,6 +96,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
       - run: sudo apt-get update && sudo apt-get install -y ripgrep
       - uses: extractions/setup-just@v2
       - uses: taiki-e/install-action@v2
@@ -106,6 +124,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
       # bin/bridge's linux keyring backend pulls libdbus-sys via pkg-config.
       - run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config
       - uses: dtolnay/rust-toolchain@1.94.0
@@ -122,5 +142,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
       - uses: extractions/setup-just@v2
       - run: just file-size

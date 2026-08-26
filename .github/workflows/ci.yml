@@ -1,13 +1,23 @@
 name: CI
 
 on:
-  push:
-    branches: [main]
+  workflow_call:
+    inputs:
+      ref:
+        description: "Commit SHA or branch to gate. Defaults to the triggering ref."
+        type: string
+        required: false
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Commit SHA or branch to gate. Defaults to the triggering ref."
+        type: string
+        required: false
   pull_request:
-    branches: [main]
+    branches: [main, next]
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ inputs.ref || github.ref }}
   cancel-in-progress: true
 
 env:
@@ -21,6 +31,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: nightly-2026-06-03
@@ -35,6 +47,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - run: cargo build --workspace --locked
@@ -44,6 +58,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - name: Verify offline sqlx cache is current
@@ -94,6 +110,8 @@ jobs:
           --health-retries 10
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
 
       - name: Runner resources
         run: |

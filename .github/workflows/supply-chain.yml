@@ -1,15 +1,25 @@
 name: Supply Chain
 
 on:
-  push:
-    branches: [main]
+  workflow_call:
+    inputs:
+      ref:
+        description: "Commit SHA or branch to gate. Defaults to the triggering ref."
+        type: string
+        required: false
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Commit SHA or branch to gate. Defaults to the triggering ref."
+        type: string
+        required: false
   pull_request:
-    branches: [main]
+    branches: [main, next]
   schedule:
     - cron: "17 6 * * *"
 
 concurrency:
-  group: supply-chain-${{ github.ref }}
+  group: supply-chain-${{ inputs.ref || github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -21,6 +31,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: nightly-2026-06-03
