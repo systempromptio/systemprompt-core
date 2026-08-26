@@ -146,4 +146,3 @@ just coverage                               # line-coverage summary
 ```
 
 `test-shard` / `test-all-shards` are the supported path — they bound compile/run memory and match CI exactly.
-
