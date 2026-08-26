@@ -6,7 +6,7 @@
 use anyhow::{Result, anyhow};
 use clap::Args;
 use std::sync::Arc;
-use systemprompt_users::{UserAdminService, UserRepository, UserService};
+use systemprompt_users::{UserAdminService, UserRepository, UserRole, UserService};
 
 use crate::commands::admin::users::types::RoleAssignOutput;
 use crate::context::CommandContext;
@@ -28,6 +28,18 @@ pub(super) async fn execute(args: AssignArgs, ctx: &CommandContext) -> Result<Co
 
     if args.roles.is_empty() {
         return Err(anyhow!("At least one role must be specified"));
+    }
+    // Why: roles are a closed set. An unknown string would be written verbatim
+    // and gate nothing — `--roles platform_admin` used to "succeed" while
+    // granting no access at all.
+    for role in &args.roles {
+        if role.parse::<UserRole>().is_err() {
+            return Err(anyhow!(
+                "Unknown role '{role}'. Valid roles: admin, user, anonymous. \
+                 (\"Platform admin\" is not a role — it is the admin role plus membership in \
+                 the platform organization, managed by the deployment, not by this command.)"
+            ));
+        }
     }
 
     let existing = admin_service.find_user(&args.user).await?;

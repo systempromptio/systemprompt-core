@@ -24,7 +24,10 @@ pub enum RoleCommands {
         about = "Promote a user to the admin role",
         long_about = "Promote a user to the admin role.\n\nThis command operates only on the \
                       built-in 'admin' role. To assign other roles use:\n  systemprompt admin \
-                      users role assign <USER_ID> --roles <ROLE>..."
+                      users role assign <USER_ID> --roles <ROLE>...\n\nNote: on deployments \
+                      that gate a platform-admin console on organization membership, the role \
+                      is only half of it — membership in the platform organization is granted \
+                      by the deployment (at boot, or via its own tooling), not by this command."
     )]
     Promote(promote::PromoteArgs),
 
