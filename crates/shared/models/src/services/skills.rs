@@ -77,6 +77,11 @@ pub struct DiskSkillConfig {
     pub tags: Vec<String>,
     #[serde(default)]
     pub category: Option<String>,
+    /// Host ids this skill targets (e.g. "cowork", "codex"). Empty = every
+    /// host. Consumed by the plugin-bundle projector (Claude-family surface)
+    /// and the bridge's per-host emitters.
+    #[serde(default)]
+    pub hosts: Vec<String>,
 }
 
 impl DiskSkillConfig {
