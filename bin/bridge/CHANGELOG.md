@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.31.0] - 2026-08-26
+
+### Added
+
+- Host-targeted skills: skills carrying a `hosts:` list are delivered only to the hosts they name.
+
+### Fixed
+
+- The minted-JWT cache is credential-scoped: entries carry a fingerprint of the PAT that minted them and are discarded when the PAT on disk changes, so two identities against one gateway no longer share a slot.
+- `logout` removes `last-sync.json` and `user.json`; the sync replay guard no longer compares the next account's first manifest against the previous account's version.
+- A freshly minted token the gateway refuses is cleared from the cache instead of being replayed as valid on the next run.
+
 ## [0.30.0] - 2026-08-25
 
 ### Added

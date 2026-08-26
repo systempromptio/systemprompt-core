@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.40.0] - 2026-08-26
+
+### Added
+
+- Skills declare where they belong: a skill config may carry an optional `hosts:` list (`cowork`, `claude-desktop`, `claude-code`, `codex`); empty keeps the everywhere behaviour. The plugin bundle drops skills targeted at none of the Claude-family hosts, and the Codex managed-resources emitter skips skills not targeted at `codex` — every host's picker stops listing every other host's setup skill.
+
+### Changed
+
+- **Breaking:** `CanonicalRequest::flatten_text` is replaced by `flatten_parts`, which returns `(path, text)` pairs (`system`, `messages[i].<role>`, `forwarded.<leaf.path>`), and `GovernedInput::Prompt` carries those parts. A secret-scan denial now names the leaf that matched instead of blaming an anonymous `prompt.text` blob.
+- `admin users role assign` rejects roles outside the closed `UserRole` enum (`admin`/`user`/`anonymous`); previously any string was written verbatim into `users.roles` and gated nothing. `admin bootstrap` and `role promote` help text no longer claims to produce a platform admin.
+
+### Fixed
+
+- The secret-scan entropy backstop exonerates `sha256/384/512`-prefixed tokens only when the payload decodes to exactly the algorithm's digest length, so forwarded surfaces carrying SRI hashes stop being denied while a smuggled credential behind a digest prefix still is. `entropy_from_yaml` reports unknown keys and mistyped values at error level instead of silently falling back.
+- OAuth `issue_bridge_access` adopts a client-supplied session id only when that session already belongs to the requesting user; after a user switch the bridge no longer mints a token bound to the previous account's session (which the gateway's attestation then rejected on every call).
+- The streamable-http MCP transport receives the bare token — sites that pre-formatted `Bearer <jwt>` were sending `Bearer Bearer <jwt>`, rejected by strict validators such as the MCP proxy.
+- `admin session login` is exempt from the database-scoped guard (as `admin users` already was): cloud login against a profile with `external_db_access` is the command that mints the token remote routing needs, and the guard had made it circular. Auth hints name the real subcommand, `systemprompt cloud auth login`.
+- Bridge: the minted-JWT cache is credential-scoped (entries carry a fingerprint of the PAT that minted them and are discarded when the PAT changes), `logout` removes `last-sync.json` and `user.json`, and a freshly minted token the gateway refuses is cleared instead of replayed as valid.
+
 ## [0.39.0] - 2026-08-25
 
 ### Added

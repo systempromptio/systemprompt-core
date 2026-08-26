@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.40.0] - 2026-08-26
+
+### Changed
+
+- Secret-scan denials carry per-part provenance from `GovernedInput::Prompt { parts }` — a denial names the leaf that matched (`system`, `messages[i].<role>`, `forwarded.<leaf.path>`) instead of `prompt.text`.
+
 ## [0.39.0] - 2026-08-25
 
 ### Added

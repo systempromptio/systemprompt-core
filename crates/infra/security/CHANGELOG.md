@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.40.0] - 2026-08-26
+
+### Changed
+
+- **Breaking:** `GovernedInput::Prompt` carries `(path, text)` parts, so secret-scan denials report the true source leaf. Constructed via `CanonicalRequest::flatten_parts`.
+
+### Fixed
+
+- The entropy backstop exonerates `sha256/384/512`-prefixed tokens only when the payload decodes to exactly the digest length — SRI hashes pass, smuggled credentials behind a digest prefix still deny. The structured-payload discriminator retries base64 after a short alphanumeric prefix.
+- `entropy_from_yaml` reports unknown keys and mistyped values at error level instead of silently falling back to defaults.
+
 ## [0.38.0] - 2026-08-25
 
 ### Added

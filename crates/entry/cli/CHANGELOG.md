@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.40.0] - 2026-08-26
+
+### Changed
+
+- `admin users role assign` rejects roles outside the closed `UserRole` enum; previously any string was written verbatim into `users.roles` and gated nothing. `admin bootstrap` and `role promote` help text no longer claims to produce a platform admin.
+
+### Fixed
+
+- `admin session login` is exempt from the database-scoped guard, un-breaking cloud session login against profiles with `external_db_access`; auth hints name `systemprompt cloud auth login`.
+- MCP streamable-http config passes the bare token to `auth_header` (no more doubled `Bearer` prefix).
+
 ## [0.39.0] - 2026-08-25
 
 ### Changed

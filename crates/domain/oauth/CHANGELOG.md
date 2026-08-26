@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.40.0] - 2026-08-26
+
+### Fixed
+
+- `issue_bridge_access` adopts a client-supplied session id only when the session already belongs to the requesting user; otherwise a fresh session id is minted. A user switch no longer produces tokens bound to the previous account's session.
+
 ## [0.38.0] - 2026-08-25
 
 ### Added

@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.40.0] - 2026-08-26
+
+### Fixed
+
+- Error and warning hints that said `systemprompt cloud login` now name the real subcommand, `systemprompt cloud auth login`.
+
 ## [0.32.0] - 2026-08-18
 
 ### Breaking
