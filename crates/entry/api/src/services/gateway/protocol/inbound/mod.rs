@@ -3,13 +3,14 @@
 //! The [`InboundAdapter`] trait parses a request body into a
 //! [`CanonicalRequest`] and renders canonical responses, streaming events, and
 //! errors back in the caller's protocol. Implementations cover the Anthropic
-//! Messages and `OpenAI` Responses surfaces; [`InboundParseError`] reports
-//! malformed or unsupported inputs.
+//! Messages, `OpenAI` Responses, and `OpenAI` Chat Completions surfaces;
+//! [`InboundParseError`] reports malformed or unsupported inputs.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod anthropic_messages;
+pub mod openai_chat;
 pub mod openai_responses;
 
 use bytes::Bytes;

@@ -95,7 +95,7 @@ fn write_marketplace_tree(manifest: &SignedManifest) -> Result<(), ApplyError> {
             .map_err(|e| io_err("create plugin source", &plugin_dir, e))?;
         write_marketplace_json(&root)?;
         write_plugin_json(&plugin_dir, &version)?;
-        for skill in &manifest.skills {
+        for skill in manifest.skills.iter().filter(|s| targets_codex(s)) {
             write_skill(&plugin_dir, skill)?;
         }
     }
@@ -257,8 +257,20 @@ fn read_existing_version(plugin_dir: &Path) -> Option<String> {
     value.get("version")?.as_str().map(str::to_owned)
 }
 
+
+// Why: skills may target specific hosts; an empty list means every host. The
+// Codex surface must skip skills aimed elsewhere (e.g. hosts: [cowork]), or
+// the Cowork setup skill shows up in a host that cannot run it.
+fn targets_codex(skill: &SkillEntry) -> bool {
+    skill.hosts.is_empty() || skill.hosts.iter().any(|h| h == "codex" || h == "codex-cli")
+}
+
 fn bundle_version(manifest: &SignedManifest) -> String {
-    let mut skills: Vec<&SkillEntry> = manifest.skills.iter().collect();
+    let mut skills: Vec<&SkillEntry> = manifest
+        .skills
+        .iter()
+        .filter(|s| targets_codex(s))
+        .collect();
     skills.sort_by(|a, b| a.id.as_str().cmp(b.id.as_str()));
 
     let mut buf = String::new();

@@ -33,7 +33,7 @@ fn prompt_target_names_no_tool() {
 
 #[test]
 fn prompt_and_tool_arguments_report_distinct_locations() {
-    let prompt = GovernedInput::prompt("hello".to_owned());
+    let prompt = GovernedInput::prompt_text("hello".to_owned());
     let args = GovernedInput::tool_arguments(McpToolInput::new(json!({ "prompt": "hello" })));
 
     assert_eq!(prompt.location_kind(), "prompt");
@@ -54,11 +54,54 @@ fn a_tool_argument_named_prompt_is_not_a_prompt_submission() {
 
 #[test]
 fn prompt_text_is_the_only_string_a_prompt_carries() {
-    let prompt = GovernedInput::prompt("my key is AKIA".to_owned());
+    let prompt = GovernedInput::prompt_text("my key is AKIA".to_owned());
     assert_eq!(
         paths(&prompt),
         vec![("text".to_owned(), "my key is AKIA".to_owned())]
     );
+}
+
+// Why: this is the contract that stops a hit in a forwarded tool description
+// being blamed on the user's message — each part keeps the path it arrived
+// with, and a scanner reports against that path.
+#[test]
+fn prompt_parts_keep_their_source_paths() {
+    let prompt = GovernedInput::prompt_parts([
+        ("system".to_owned(), "be helpful".to_owned()),
+        ("messages[0].user".to_owned(), "weather in Kyiv".to_owned()),
+        (
+            "forwarded.tools[2].description".to_owned(),
+            "sha384-payload".to_owned(),
+        ),
+    ]);
+    assert_eq!(prompt.location_kind(), "prompt");
+    assert_eq!(
+        paths(&prompt),
+        vec![
+            ("system".to_owned(), "be helpful".to_owned()),
+            ("messages[0].user".to_owned(), "weather in Kyiv".to_owned()),
+            (
+                "forwarded.tools[2].description".to_owned(),
+                "sha384-payload".to_owned()
+            ),
+        ]
+    );
+}
+
+#[test]
+fn a_secret_in_a_forwarded_part_is_reported_at_that_part() {
+    let prompt = GovernedInput::prompt_parts([
+        (
+            "messages[0].user".to_owned(),
+            "tell me the weather".to_owned(),
+        ),
+        (
+            "forwarded.messages[0].content".to_owned(),
+            "token ghp_AbCdEfGhIjKlMnOpQrStUvWxYz0123456789".to_owned(),
+        ),
+    ]);
+    let hit = systemprompt_security::policy::detect_secrets(&prompt).expect("must fire");
+    assert_eq!(hit.path, "forwarded.messages[0].content");
 }
 
 #[test]
@@ -92,7 +135,7 @@ fn a_bare_string_payload_has_an_empty_path() {
 #[test]
 fn governed_input_serde_roundtrip() {
     for input in [
-        GovernedInput::prompt("hi".to_owned()),
+        GovernedInput::prompt_text("hi".to_owned()),
         GovernedInput::tool_arguments(McpToolInput::new(json!({ "a": 1 }))),
     ] {
         let s = serde_json::to_string(&input).unwrap();

@@ -350,11 +350,12 @@ struct PromptEvaluation {
 }
 
 fn evaluate_prompt(ctx: &GatewayRequestContext, request: &CanonicalRequest) -> PromptEvaluation {
-    // Why: `flatten_text` includes the forwarded surface `PreparedDispatch`
+    // Why: `flatten_parts` includes the forwarded surface `PreparedDispatch`
     // attached, so the chain scans exactly the bytes that will go on the wire
     // — operator `extra_patterns` included, which the hardcoded safety scanner
-    // cannot do.
-    let input = GovernedInput::prompt(request.flatten_text());
+    // cannot do — and each part keeps its source path, so a denial names the
+    // leaf that actually matched instead of blaming `prompt.text`.
+    let input = GovernedInput::prompt_parts(request.flatten_parts());
     // Why: the bucket key is `session_id:user_id`. A sessionless inference call
     // needs a *stable* placeholder — minting one per request would give every
     // call its own bucket and silently disable rate limiting.

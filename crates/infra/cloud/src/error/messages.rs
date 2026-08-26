@@ -39,14 +39,16 @@ impl CloudError {
     pub const fn recovery_hint(&self) -> &'static str {
         match self {
             Self::NotAuthenticated | Self::TokenExpired | Self::Unauthorized => {
-                "Run 'systemprompt cloud login' to authenticate"
+                "Run 'systemprompt cloud auth login' to authenticate"
             },
             Self::JwtDecode | Self::CredentialsCorrupted { .. } => {
-                "Run 'systemprompt cloud login' to re-authenticate"
+                "Run 'systemprompt cloud auth login' to re-authenticate"
             },
             Self::TenantsNotSynced
             | Self::TenantsStoreCorrupted { .. }
-            | Self::TenantsStoreInvalid { .. } => "Run 'systemprompt cloud login' to sync tenants",
+            | Self::TenantsStoreInvalid { .. } => {
+                "Run 'systemprompt cloud auth login' to sync tenants"
+            },
             Self::ApiError { .. } | Self::HttpStatus { .. } | Self::ApiValidationFailed { .. } => {
                 "Check the error message and try again"
             },
@@ -54,7 +56,7 @@ impl CloudError {
             Self::Io(_) => "Check file permissions and disk space",
             Self::Json(_) => "Inspect the JSON file referenced in the error message",
             Self::InvalidCredentials { .. } | Self::CredentialsFileNotFound { .. } => {
-                "Run 'systemprompt cloud login' to refresh credentials"
+                "Run 'systemprompt cloud auth login' to refresh credentials"
             },
             Self::CredentialsNotInitialized | Self::CredentialsAlreadyInitialized => {
                 "Restart the process to re-run the bootstrap sequence"

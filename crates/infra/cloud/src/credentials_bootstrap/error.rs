@@ -24,7 +24,7 @@ pub enum CredentialsBootstrapError {
     #[error("Cloud credentials file invalid: {message}")]
     InvalidCredentials { message: String },
 
-    #[error("Cloud token has expired. Run 'systemprompt cloud login' to refresh")]
+    #[error("Cloud token has expired. Run 'systemprompt cloud auth login' to refresh")]
     TokenExpired,
 
     #[error("Cloud API validation failed: {message}")]

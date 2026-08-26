@@ -77,7 +77,7 @@ impl CloudCredentials {
 
         if creds.expires_within(Duration::hours(1)) {
             CliService::warning(
-                "Cloud token will expire soon. Consider running 'systemprompt cloud login' to \
+                "Cloud token will expire soon. Consider running 'systemprompt cloud auth login' to \
                  refresh.",
             );
         }

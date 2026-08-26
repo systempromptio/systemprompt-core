@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.40.0] - 2026-08-26
+
+### Added
+
+- `SkillConfig` gains an optional `hosts` targeting list consumed by the marketplace bundle emitters.
+
+### Changed
+
+- **Breaking:** `CanonicalRequest::flatten_text` is replaced by `flatten_parts`, returning `(path, text)` pairs (`system`, `messages[i].<role>`, `forwarded.<leaf.path>`) so governance can attribute matches to their true source.
+
 ## [0.39.0] - 2026-08-25
 
 ### Added

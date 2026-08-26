@@ -22,7 +22,12 @@ pub async fn root() -> Json<RootResponse> {
     Json(RootResponse {
         service: "systemprompt-gateway",
         version: env!("CARGO_PKG_VERSION"),
-        endpoints: vec!["/v1/models", "/v1/messages"],
+        endpoints: vec![
+            "/v1/models",
+            "/v1/messages",
+            "/v1/responses",
+            "/v1/chat/completions",
+        ],
     })
 }
 
@@ -51,15 +56,30 @@ pub struct ModelsResponse {
 /// absent value returns the whole catalog rather than failing: discovery has a
 /// three-second budget and treats any non-success as "no models", so a strict
 /// parse would cost the developer their picker entries over a cosmetic input.
-#[derive(Debug, Default, Clone, Copy, serde::Deserialize)]
+#[derive(Debug, Default, Clone, serde::Deserialize)]
 pub struct ListQuery {
     pub limit: Option<usize>,
+    pub format: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct OpenAiModelEntry {
+    pub id: String,
+    pub object: &'static str,
+    pub created: u64,
+    pub owned_by: &'static str,
+}
+
+#[derive(Debug, Serialize)]
+pub struct OpenAiModelsResponse {
+    pub object: &'static str,
+    pub data: Vec<OpenAiModelEntry>,
 }
 
 pub async fn list(
     headers: HeaderMap,
     axum::extract::Query(query): axum::extract::Query<ListQuery>,
-) -> Result<Json<ModelsResponse>, (StatusCode, String)> {
+) -> Result<axum::response::Response, (StatusCode, String)> {
     let profile = ProfileBootstrap::get().map_err(|e| {
         (
             StatusCode::SERVICE_UNAVAILABLE,
@@ -84,15 +104,36 @@ pub async fn list(
         },
         _ => false,
     };
+
+    if query.format.as_deref() == Some("openai") {
+        let data = entries
+            .into_iter()
+            .map(|e| OpenAiModelEntry {
+                id: e.id,
+                object: "model",
+                created: 0,
+                owned_by: "systemprompt",
+            })
+            .collect();
+        return Ok(axum::response::IntoResponse::into_response(Json(
+            OpenAiModelsResponse {
+                object: "list",
+                data,
+            },
+        )));
+    }
+
     let first_id = entries.first().map(|e| e.id.clone());
     let last_id = entries.last().map(|e| e.id.clone());
 
-    Ok(Json(ModelsResponse {
-        data: entries,
-        has_more,
-        first_id,
-        last_id,
-    }))
+    Ok(axum::response::IntoResponse::into_response(Json(
+        ModelsResponse {
+            data: entries,
+            has_more,
+            first_id,
+            last_id,
+        },
+    )))
 }
 
 pub fn surfaces_from_header(headers: &HeaderMap) -> Result<Vec<ApiSurface>, (StatusCode, String)> {

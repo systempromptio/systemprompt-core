@@ -40,6 +40,7 @@ fn skill(id: &str) -> SkillEntry {
         )
         .expect("valid zero digest"),
         instructions: String::new(),
+        hosts: Vec::new(),
     }
 }
 

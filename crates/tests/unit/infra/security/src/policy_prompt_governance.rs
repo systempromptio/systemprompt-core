@@ -51,7 +51,7 @@ fn operator_extra_patterns_deny_an_inference_prompt() {
         UserId::new("u-prompt-extra"),
         CallId::generate(),
     );
-    let input = GovernedInput::prompt("here is my key XDEMO-1234 please use it".to_owned());
+    let input = GovernedInput::prompt_text("here is my key XDEMO-1234 please use it".to_owned());
 
     let evaluation = e.evaluate(&prompt_ctx(&input, &session, &user, &call));
 
@@ -71,7 +71,7 @@ fn a_clean_inference_prompt_is_allowed() {
         UserId::new("u-prompt-clean"),
         CallId::generate(),
     );
-    let input = GovernedInput::prompt("summarise the quarterly report".to_owned());
+    let input = GovernedInput::prompt_text("summarise the quarterly report".to_owned());
 
     let evaluation = e.evaluate(&prompt_ctx(&input, &session, &user, &call));
 
@@ -92,7 +92,7 @@ fn tool_shaped_policies_still_appear_in_a_prompt_chain_trace() {
         UserId::new("u-prompt-chain"),
         CallId::generate(),
     );
-    let input = GovernedInput::prompt("hello".to_owned());
+    let input = GovernedInput::prompt_text("hello".to_owned());
 
     let evaluation = e.evaluate(&prompt_ctx(&input, &session, &user, &call));
 
@@ -141,7 +141,7 @@ fn re_evaluating_one_prompt_charges_the_limiter_once() {
          window_secs: 60\n",
     );
     let (session, user) = (SessionId::generate(), UserId::new("u-prompt-idem"));
-    let input = GovernedInput::prompt("hello".to_owned());
+    let input = GovernedInput::prompt_text("hello".to_owned());
     let call = CallId::generate();
 
     for _ in 0..5 {

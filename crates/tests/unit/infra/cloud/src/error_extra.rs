@@ -43,7 +43,10 @@ fn test_invalid_credentials_display() {
     assert!(s.contains("Cloud credentials file invalid"));
     assert!(s.contains("bad shape"));
     assert_eq!(err.user_message(), "Stored credentials are invalid");
-    assert!(err.recovery_hint().contains("systemprompt cloud login"));
+    assert!(
+        err.recovery_hint()
+            .contains("systemprompt cloud auth login")
+    );
 }
 
 #[test]
@@ -57,7 +60,10 @@ fn test_credentials_file_not_found_display() {
     assert!(err.is_missing_credentials_file());
     assert!(err.is_local_mode_recoverable());
     assert_eq!(err.user_message(), "Credentials file is missing");
-    assert!(err.recovery_hint().contains("systemprompt cloud login"));
+    assert!(
+        err.recovery_hint()
+            .contains("systemprompt cloud auth login")
+    );
 }
 
 #[test]

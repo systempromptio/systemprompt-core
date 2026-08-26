@@ -36,6 +36,7 @@ fn skill_entry(id: &str, description: &str, instructions: &str) -> SkillEntry {
         tags: vec![],
         sha256: zero_digest(),
         instructions: instructions.to_owned(),
+        hosts: Vec::new(),
     }
 }
 

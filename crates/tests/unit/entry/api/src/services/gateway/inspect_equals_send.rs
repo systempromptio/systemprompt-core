@@ -97,7 +97,10 @@ fn a_secret_the_canonical_parse_drops_is_still_in_the_inspection_surface() {
     let raw = raw_body_hiding_a_secret();
 
     assert!(
-        !request.flatten_text().contains(LEAKED_KEY),
+        !request
+            .flatten_parts()
+            .iter()
+            .any(|(_, text)| text.contains(LEAKED_KEY)),
         "precondition: the canonical form must not contain the secret, or this \
          test would pass for the wrong reason"
     );
@@ -110,10 +113,16 @@ fn a_secret_the_canonical_parse_drops_is_still_in_the_inspection_surface() {
     let mut governed = request;
     governed.forwarded_surface = string_leaves(&prepared.bytes, SurfaceBudget::default());
 
+    let forwarded_hit = governed
+        .flatten_parts()
+        .into_iter()
+        .find(|(_, text)| text.contains(LEAKED_KEY));
+    let (path, _) = forwarded_hit.expect(
+        "a credential that will be forwarded must be visible to a scanner reading flatten_parts",
+    );
     assert!(
-        governed.flatten_text().contains(LEAKED_KEY),
-        "a credential that will be forwarded must be visible to a scanner \
-         reading flatten_text"
+        path.starts_with("forwarded."),
+        "the hit must be attributed to the forwarded surface, got {path}"
     );
     assert!(
         governed

@@ -34,6 +34,16 @@ const BINARY_EXTS: &[&str] = &[
     "woff2", "eot", "zip", "tar", "gz", "bz2", "7z", "rar", "pdf", "doc", "docx", "xls", "xlsx",
 ];
 
+// Why: the plugin bundle is the Claude-family skill surface (Cowork, Claude
+// Desktop, Claude Code all read org-plugins); other hosts get skills from
+// their own manifest emitters. A skill targeted at none of these hosts —
+// e.g. hosts: [codex] — must not appear in the Claude skill picker.
+const BUNDLE_HOSTS: &[&str] = &["cowork", "claude-desktop", "claude-code"];
+
+fn targets_bundle_hosts(hosts: &[String]) -> bool {
+    hosts.is_empty() || hosts.iter().any(|h| BUNDLE_HOSTS.contains(&h.as_str()))
+}
+
 pub(super) fn append_skill_files(
     config: &PluginConfig,
     content: &BundleContent<'_>,
@@ -41,7 +51,11 @@ pub(super) fn append_skill_files(
     bundle: &mut PluginBundle,
 ) {
     let selected = resolve_skill_ids(config, content, agent_ids);
-    for skill in content.skills.iter().filter(|s| selected.contains(&s.id)) {
+    for skill in content
+        .skills
+        .iter()
+        .filter(|s| selected.contains(&s.id) && targets_bundle_hosts(&s.hosts))
+    {
         let kebab = skill.id.as_str().replace('_', "-");
         bundle.insert(
             format!("skills/{kebab}/SKILL.md"),

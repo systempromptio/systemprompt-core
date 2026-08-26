@@ -178,6 +178,8 @@ pub struct SkillEntry {
     pub tags: Vec<String>,
     pub sha256: Sha256Digest,
     pub instructions: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub hosts: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

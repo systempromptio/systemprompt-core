@@ -17,7 +17,7 @@ pub fn get_credentials() -> Result<CloudCredentials> {
         return CredentialsBootstrap::require()
             .map_err(|e| {
                 anyhow!(
-                    "Credentials required. Run 'systemprompt cloud login': {}",
+                    "Credentials required. Run 'systemprompt cloud auth login': {}",
                     e
                 )
             })?
@@ -31,7 +31,7 @@ pub fn get_credentials() -> Result<CloudCredentials> {
     if creds_path.exists() {
         CloudCredentials::load_from_path(&creds_path).map_err(Into::into)
     } else {
-        bail!("Not logged in. Run 'systemprompt cloud login' first.")
+        bail!("Not logged in. Run 'systemprompt cloud auth login' first.")
     }
 }
 

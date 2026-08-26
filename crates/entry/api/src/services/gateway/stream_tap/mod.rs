@@ -56,6 +56,7 @@ pub fn tap(
         request_model,
         audit,
         finalize_ctx: Some(finalize_ctx),
+        message_stop_rendered: false,
     };
     Body::from_stream(tapped)
 }
@@ -146,6 +147,12 @@ struct TappedStream {
     request_model: String,
     audit: Arc<GatewayAudit>,
     finalize_ctx: Option<TapFinalizeCtx>,
+    // Why: providers signal the end of a message more than once (Anthropic's
+    // message_delta + message_stop, OpenAI's finish_reason chunk + [DONE]);
+    // only the first may drive the adapter's terminal render or wires that
+    // emit a closing frame (chat's [DONE], responses' response.completed)
+    // would close the stream twice.
+    message_stop_rendered: bool,
 }
 
 impl Stream for TappedStream {
@@ -166,15 +173,16 @@ impl Stream for TappedStream {
                     return Poll::Ready(Some(Err(err)));
                 },
                 Poll::Ready(Some(Ok(event))) => {
-                    let terminal = matches!(
-                        event,
-                        CanonicalEvent::ContentBlockStop { .. }
-                            | CanonicalEvent::MessageStop { .. }
-                    );
+                    let is_message_stop = matches!(event, CanonicalEvent::MessageStop { .. });
+                    let terminal = matches!(event, CanonicalEvent::ContentBlockStop { .. })
+                        || (is_message_stop && !self.message_stop_rendered);
                     let snap = self.state.lock().map_or(None, |mut s| {
                         accumulate_event(&mut s, &event);
                         terminal.then(|| snapshot(&s))
                     });
+                    if is_message_stop {
+                        self.message_stop_rendered = true;
+                    }
                     let rendered = snap
                         .as_ref()
                         .and_then(|snapshot| {

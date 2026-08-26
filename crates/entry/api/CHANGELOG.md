@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.40.0] - 2026-08-26
+
+### Added
+
+- OpenAI Chat Completions inbound surface: `POST /v1/chat/completions` (canonical parse + `chat.completion` / SSE render + OpenAI error envelopes), `/v1/models?format=openai`, and a byte-preserving raw outbound lane for chat-to-chat relays. `stream_tap` renders terminal frames exactly once when a provider emits `MessageStop` more than once.
+
+### Changed
+
+- Secret-scan denials carry per-part provenance from `GovernedInput::Prompt { parts }` — a denial names the leaf that matched (`system`, `messages[i].<role>`, `forwarded.<leaf.path>`) instead of `prompt.text`.
+
 ## [0.39.0] - 2026-08-25
 
 ### Added

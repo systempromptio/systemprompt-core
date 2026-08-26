@@ -24,6 +24,8 @@ const TOKEN_CHARSET_EXTRA: &str = "+/=_-";
 const ENTROPY_CEILING_SYMBOLS: usize = 64;
 
 const MIN_STRUCTURED_LEN: usize = 16;
+const MAX_PAYLOAD_PREFIX_LEN: usize = 10;
+const DIGEST_LENGTHS: [(&str, usize); 3] = [("sha256", 32), ("sha384", 48), ("sha512", 64)];
 const MAX_FIELD_NUMBER: u64 = 64;
 const MAX_NESTING_DEPTH: u32 = 4;
 const MIN_NESTED_PAYLOAD_LEN: usize = 4;
@@ -71,7 +73,25 @@ fn is_credential_shaped(token: &str, config: &EntropyConfig) -> bool {
         && token.chars().any(|c| c.is_ascii_digit())
         && entropy_ratio(token) >= config.threshold
         && !config.allowlist.iter().any(|re| re.is_match(token))
+        && !is_verified_digest(token)
         && !is_structured_payload(token)
+}
+
+// Why: an SRI hash (`sha384-<base64>`) is public integrity metadata, not key
+// material, but its payload is dense base64 that clears every entropy check.
+// The exoneration is length-verified rather than prefix-trusted: a credential
+// smuggled behind a `sha384-` prefix decodes to the wrong byte count and is
+// still reported.
+fn is_verified_digest(token: &str) -> bool {
+    let Some((prefix, payload)) = token.split_once('-') else {
+        return false;
+    };
+    DIGEST_LENGTHS
+        .iter()
+        .find(|(algo, _)| algo.eq_ignore_ascii_case(prefix))
+        .is_some_and(|&(_, digest_len)| {
+            decode_base64(payload).is_some_and(|bytes| bytes.len() == digest_len)
+        })
 }
 
 fn shannon_entropy(s: &str) -> f64 {
@@ -101,8 +121,21 @@ fn entropy_ratio(s: &str) -> f64 {
 }
 
 fn is_structured_payload(token: &str) -> bool {
-    decode_base64(token).is_some_and(|bytes| {
+    decoded_payload(token).is_some_and(|bytes| {
         bytes.len() >= MIN_STRUCTURED_LEN && (is_mostly_text(&bytes) || is_protobuf(&bytes, 0))
+    })
+}
+
+// Why: a `name-<base64>` token never decodes as a whole — the prefix is not
+// base64 — which used to defeat the structured-payload discriminator for
+// exactly the prefixed-payload shapes it exists to exonerate. A short
+// alphanumeric prefix is stripped and the remainder given the same chance.
+fn decoded_payload(token: &str) -> Option<Vec<u8>> {
+    decode_base64(token).or_else(|| {
+        let (prefix, payload) = token.split_once('-')?;
+        let plausible_prefix = prefix.len() <= MAX_PAYLOAD_PREFIX_LEN
+            && prefix.chars().all(|c| c.is_ascii_alphanumeric());
+        plausible_prefix.then(|| decode_base64(payload)).flatten()
     })
 }
 

@@ -142,5 +142,6 @@ fn build_skill_entry(
         tags: config.tags,
         sha256,
         instructions,
+        hosts: config.hosts,
     }))
 }

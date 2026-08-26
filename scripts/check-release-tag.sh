@@ -3,9 +3,9 @@
 #
 # 0.34.0 was published to crates.io and never tagged. Nothing noticed: the
 # build, clippy, every shard and the whole of CI pass against a missing tag,
-# and `scripts/release.sh` tags before it publishes, so a gap only appears when
-# a release goes out by hand on the pre-bumped path -- exactly where the tag is
-# a separate manual step. The cost lands later, when the only way left to answer
+# and under the next-branch flow the tag is always a separate manual step --
+# cut on `main` after the release PR merges, before publishing.
+# The cost lands later, when the only way left to answer
 # "which commit is this published version?" is to download the .crate and diff
 # it against candidate commits.
 #

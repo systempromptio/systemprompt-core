@@ -45,7 +45,7 @@ pub(super) async fn execute(
     let target = resolve_deploy_target(&profile)?;
     let hostname = target.hostname.ok_or_else(|| {
         anyhow!(
-            "Tenant {} has no hostname. Run 'systemprompt cloud login' to refresh tenants.",
+            "Tenant {} has no hostname. Run 'systemprompt cloud auth login' to refresh tenants.",
             target.tenant_id
         )
     })?;

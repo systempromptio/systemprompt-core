@@ -206,7 +206,7 @@ impl CredentialsBootstrap {
 
         if creds.expires_within(Duration::hours(1)) {
             tracing::warn!(
-                "Cloud token will expire soon. Consider running 'systemprompt cloud login' to \
+                "Cloud token will expire soon. Consider running 'systemprompt cloud auth login' to \
                  refresh."
             );
         }

@@ -190,20 +190,26 @@ pub struct CanonicalRequest {
 }
 
 impl CanonicalRequest {
-    pub fn flatten_text(&self) -> String {
-        let mut out = String::new();
-        if let Some(sys) = &self.system {
-            push_with_sep(&mut out, sys);
+    pub fn flatten_parts(&self) -> Vec<(String, String)> {
+        let mut parts = Vec::with_capacity(self.messages.len() + self.forwarded_surface.len() + 1);
+        if let Some(sys) = &self.system
+            && !sys.is_empty()
+        {
+            parts.push(("system".to_owned(), sys.clone()));
         }
-        for msg in &self.messages {
+        for (index, msg) in self.messages.iter().enumerate() {
+            let mut out = String::new();
             for part in &msg.content {
                 flatten_part(&mut out, part);
             }
+            if !out.is_empty() {
+                parts.push((format!("messages[{index}].{}", msg.role.as_str()), out));
+            }
         }
         for leaf in self.forwarded_surface.leaves() {
-            push_with_sep(&mut out, &leaf.value);
+            parts.push((format!("forwarded.{}", leaf.path), leaf.value.clone()));
         }
-        out
+        parts
     }
 
     pub fn derived_gateway_conversation_id(&self) -> Option<GatewayConversationId> {

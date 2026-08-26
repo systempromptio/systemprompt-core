@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.40.0] - 2026-08-26
+
+### Fixed
+
+- The streamable-http transport's `auth_header` receives the bare token; pre-formatted `Bearer <jwt>` values were sent as `Bearer Bearer <jwt>` and rejected by strict validators.
+
 ## [0.38.0] - 2026-08-25
 
 ### Changed

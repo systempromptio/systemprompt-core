@@ -1,7 +1,7 @@
 //! LLM gateway router and its access log.
 //!
-//! [`gateway_router`] assembles the bridge-facing surface: the `/messages`
-//! and `/responses` proxy endpoints (each bound to an
+//! [`gateway_router`] assembles the bridge-facing surface: the `/messages`,
+//! `/responses`, and `/chat/completions` proxy endpoints (each bound to an
 //! [`InboundAdapter`]), the
 //! `/auth/bridge/*` credential-exchange routes ([`auth`]), the `/bridge/*`
 //! manifest and heartbeat routes, the unauthenticated `/otel` ingest
@@ -41,6 +41,7 @@ use systemprompt_traits::AppContext as _;
 
 use crate::services::gateway::protocol::inbound::InboundAdapter;
 use crate::services::gateway::protocol::inbound::anthropic_messages::AnthropicMessagesInbound;
+use crate::services::gateway::protocol::inbound::openai_chat::OpenAiChatInbound;
 use crate::services::gateway::protocol::inbound::openai_responses::OpenAiResponsesInbound;
 use crate::services::middleware::{JtiRevocationChecker, JwtContextExtractor};
 
@@ -153,12 +154,16 @@ fn inference_routes(
 ) -> Router {
     let ctx_messages = ctx.clone();
     let ctx_responses = ctx.clone();
+    let ctx_chat = ctx.clone();
     let repos_messages = Arc::clone(repos);
     let repos_responses = Arc::clone(repos);
+    let repos_chat = Arc::clone(repos);
     let jwt_messages = Arc::clone(jwt_extractor);
     let jwt_responses = Arc::clone(jwt_extractor);
+    let jwt_chat = Arc::clone(jwt_extractor);
     let anthropic_inbound: Arc<dyn InboundAdapter> = Arc::new(AnthropicMessagesInbound);
     let responses_inbound: Arc<dyn InboundAdapter> = Arc::new(OpenAiResponsesInbound);
+    let chat_inbound: Arc<dyn InboundAdapter> = Arc::new(OpenAiChatInbound);
 
     Router::new()
         .route(
@@ -178,6 +183,16 @@ fn inference_routes(
                 let context = ctx_responses.clone();
                 let repos = Arc::clone(&repos_responses);
                 let inbound = Arc::clone(&responses_inbound);
+                async move { messages::handle(inbound, extractor, context, repos, request).await }
+            }),
+        )
+        .route(
+            "/chat/completions",
+            post(move |request| {
+                let extractor = Arc::clone(&jwt_chat);
+                let context = ctx_chat.clone();
+                let repos = Arc::clone(&repos_chat);
+                let inbound = Arc::clone(&chat_inbound);
                 async move { messages::handle(inbound, extractor, context, repos, request).await }
             }),
         )

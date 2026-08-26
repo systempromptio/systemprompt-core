@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.40.0] - 2026-08-26
+
+### Added
+
+- Skill configs may declare an optional `hosts:` list (`cowork`, `claude-desktop`, `claude-code`, `codex`). The plugin bundle drops skills targeted at none of the Claude-family hosts; an empty list keeps the everywhere behaviour.
+
 ## [0.38.0] - 2026-08-25
 
 ### Added

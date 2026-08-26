@@ -40,7 +40,7 @@ pub use audit::{
 pub use config::{GovernanceConfig, GovernanceConfigError, PolicyConfig};
 pub use engine::{Evaluation, GovernanceEngine};
 pub use governed::{
-    GovernedInput, GovernedString, GovernedTarget, McpToolInput, PROMPT_TARGET_NAME,
+    GovernedInput, GovernedString, GovernedTarget, McpToolInput, PROMPT_TARGET_NAME, PromptPart,
     UNKNOWN_TARGET_NAME,
 };
 pub use registry::{PolicyFactory, PolicyRegistration};

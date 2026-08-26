@@ -77,6 +77,8 @@ pub struct DiskSkillConfig {
     pub tags: Vec<String>,
     #[serde(default)]
     pub category: Option<String>,
+    #[serde(default)]
+    pub hosts: Vec<String>,
 }
 
 impl DiskSkillConfig {

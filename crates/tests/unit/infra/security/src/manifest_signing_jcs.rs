@@ -77,6 +77,7 @@ fn sample_manifest() -> SignedManifest {
             tags: vec!["a".into(), "b".into()],
             sha256: Sha256Digest::try_new(FAKE_SHA_C).unwrap(),
             instructions: "do the thing".into(),
+            hosts: Vec::new(),
         }],
         agents: vec![AgentEntry {
             id: AgentId::new("agent_one"),
