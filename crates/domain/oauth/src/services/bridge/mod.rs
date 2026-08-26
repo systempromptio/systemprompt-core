@@ -90,12 +90,38 @@ pub async fn issue_bridge_access_with(
 
     let global_config = Config::get()?;
 
-    let session_id = request_headers
+    // Why: a client-supplied session id keeps ONE user's session continuous
+    // across token refreshes — it must never let a client attach itself to a
+    // session it does not own. After a user switch the bridge can replay the
+    // previous account's session header; adopting it would mint a token whose
+    // session row belongs to someone else, which the gateway's attestation
+    // then rejects on every call ("session user mismatch"). Adopt only a
+    // session this user already owns; anything else gets a fresh id.
+    let requested_session = request_headers
         .get(headers::SESSION_ID)
         .and_then(|v| v.to_str().ok())
         .map(str::trim)
         .filter(|s| !s.is_empty())
-        .map_or_else(SessionId::generate, SessionId::new);
+        .map(SessionId::new);
+    let session_id = match requested_session {
+        Some(requested) => match analytics.find_session_by_id(&requested).await {
+            Ok(Some(existing)) if existing.user_id.as_ref() == Some(user_id) => requested,
+            Ok(None) => requested,
+            Ok(Some(_)) => {
+                tracing::warn!(
+                    session_id = %requested,
+                    user_id = %user_id,
+                    "requested session belongs to a different user; minting a fresh session",
+                );
+                SessionId::generate()
+            },
+            Err(e) => {
+                tracing::warn!(error = %e, "session ownership lookup failed; minting a fresh session");
+                SessionId::generate()
+            },
+        },
+        None => SessionId::generate(),
+    };
     let trace_id = TraceId::generate();
     let policy_version = PolicyVersion::unversioned();
 
