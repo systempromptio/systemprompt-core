@@ -37,10 +37,15 @@ sessions and repository admins alike. That is deliberate: it is the mechanism,
 not a convention you could talk your way around.
 
 ```
-next   ← every agent, every session, every commit. Push freely.
+next   ← the repo's DEFAULT branch. Every agent, every session. Push freely.
   ↓ nightly: auto-fix → full gate cycle → promote (only if green)
 main   ← protected, release-only. Tagged. Never pushed to directly.
 ```
+
+`next` is the GitHub default, so a fresh clone lands on it and you are in the
+right place without doing anything. Protection is pinned to `main` **by name**,
+not to "whichever branch is default" — moving the default does not move the
+protection with it.
 
 **Do not run the pre-release gate cycle to land ordinary work.** The full
 cycle — `format-check`, workspace clippy, `doc-check`, `machete`, `deny`,

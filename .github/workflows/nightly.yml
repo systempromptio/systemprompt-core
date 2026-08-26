@@ -7,9 +7,10 @@
 # passed the whole cycle.
 #
 # The heavy gates live in ci.yml / quality.yml / supply-chain.yml and are called
-# from here with an explicit `ref`. A scheduled run always uses the workflow
-# files as they exist on the default branch, so the *gate definitions* come from
-# protected `main` while the *code under test* comes from `next`.
+# from here with an explicit `ref`. `next` is the repository's default branch,
+# which is what a `schedule:` trigger fires from, so both the gate definitions
+# and the code under test come from `next`. A change to these workflows
+# therefore takes effect on the very next run, without waiting to be promoted.
 name: Nightly
 
 on:
