@@ -113,17 +113,17 @@ pub fn resolve_deploy_target(profile: &systemprompt_models::Profile) -> Result<D
 
     let creds = get_credentials()?;
     if creds.is_token_expired() {
-        bail!("Token expired. Run 'systemprompt cloud login' to refresh.");
+        bail!("Token expired. Run 'systemprompt cloud auth login' to refresh.");
     }
 
     let cloud_paths = get_cloud_paths();
     let tenants_path = cloud_paths.resolve(CloudPath::Tenants);
     let tenant_store = TenantStore::load_from_path(&tenants_path)
-        .context("Tenants not synced. Run 'systemprompt cloud login'")?;
+        .context("Tenants not synced. Run 'systemprompt cloud auth login'")?;
 
     let tenant = tenant_store.find_tenant(&tenant_id).ok_or_else(|| {
         anyhow!(
-            "Tenant {} not found. Run 'systemprompt cloud login'",
+            "Tenant {} not found. Run 'systemprompt cloud auth login'",
             tenant_id
         )
     })?;

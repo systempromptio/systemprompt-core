@@ -13,7 +13,7 @@ fn test_not_authenticated_display() {
     let error = CloudError::NotAuthenticated;
     let msg = error.to_string();
     assert!(msg.contains("Authentication required"));
-    assert!(msg.contains("systemprompt cloud login"));
+    assert!(msg.contains("systemprompt cloud auth login"));
 }
 
 #[test]
@@ -21,7 +21,7 @@ fn test_token_expired_display() {
     let error = CloudError::TokenExpired;
     let msg = error.to_string();
     assert!(msg.contains("Token expired"));
-    assert!(msg.contains("systemprompt cloud login"));
+    assert!(msg.contains("systemprompt cloud auth login"));
 }
 
 #[test]
@@ -43,7 +43,7 @@ fn test_tenants_not_synced_display() {
     let error = CloudError::TenantsNotSynced;
     let msg = error.to_string();
     assert!(msg.contains("Tenants not synced"));
-    assert!(msg.contains("systemprompt cloud login"));
+    assert!(msg.contains("systemprompt cloud auth login"));
 }
 
 #[test]
@@ -119,39 +119,39 @@ fn test_user_message_tenants_store_invalid() {
 #[test]
 fn test_recovery_hint_not_authenticated() {
     let error = CloudError::NotAuthenticated;
-    assert!(error.recovery_hint().contains("systemprompt cloud login"));
+    assert!(error.recovery_hint().contains("systemprompt cloud auth login"));
 }
 
 #[test]
 fn test_recovery_hint_token_expired() {
     let error = CloudError::TokenExpired;
-    assert!(error.recovery_hint().contains("systemprompt cloud login"));
+    assert!(error.recovery_hint().contains("systemprompt cloud auth login"));
 }
 
 #[test]
 fn test_recovery_hint_jwt_decode() {
     let error = CloudError::JwtDecode;
-    assert!(error.recovery_hint().contains("systemprompt cloud login"));
+    assert!(error.recovery_hint().contains("systemprompt cloud auth login"));
 }
 
 #[test]
 fn test_recovery_hint_credentials_corrupted() {
     let json_error = serde_json::from_str::<serde_json::Value>("bad").unwrap_err();
     let error = CloudError::CredentialsCorrupted { source: json_error };
-    assert!(error.recovery_hint().contains("systemprompt cloud login"));
+    assert!(error.recovery_hint().contains("systemprompt cloud auth login"));
 }
 
 #[test]
 fn test_recovery_hint_tenants_not_synced() {
     let error = CloudError::TenantsNotSynced;
-    assert!(error.recovery_hint().contains("systemprompt cloud login"));
+    assert!(error.recovery_hint().contains("systemprompt cloud auth login"));
 }
 
 #[test]
 fn test_recovery_hint_tenants_store_corrupted() {
     let json_error = serde_json::from_str::<serde_json::Value>("bad").unwrap_err();
     let error = CloudError::TenantsStoreCorrupted { source: json_error };
-    assert!(error.recovery_hint().contains("systemprompt cloud login"));
+    assert!(error.recovery_hint().contains("systemprompt cloud auth login"));
 }
 
 #[test]
@@ -159,7 +159,7 @@ fn test_recovery_hint_tenants_store_invalid() {
     let error = CloudError::TenantsStoreInvalid {
         message: "test".to_string(),
     };
-    assert!(error.recovery_hint().contains("systemprompt cloud login"));
+    assert!(error.recovery_hint().contains("systemprompt cloud auth login"));
 }
 
 #[test]

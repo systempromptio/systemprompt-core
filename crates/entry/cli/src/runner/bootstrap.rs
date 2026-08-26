@@ -142,7 +142,7 @@ pub(super) async fn init_credentials_gracefully(announce: bool) -> Result<()> {
                 tracing::warn!(
                     error = %e,
                     "Cloud credentials unavailable; continuing in local-only mode. \
-                     Cloud commands will require 'systemprompt cloud login'."
+                     Cloud commands will require 'systemprompt cloud auth login'."
                 );
             } else {
                 tracing::debug!(
@@ -200,7 +200,7 @@ pub(super) fn validate_cloud_credentials(env: &crate::environment::ExecutionEnvi
         Ok(Some(creds)) => {
             if creds.is_token_expired() {
                 CliService::warning(
-                    "Cloud token has expired. Run 'systemprompt cloud login' to refresh.",
+                    "Cloud token has expired. Run 'systemprompt cloud auth login' to refresh.",
                 );
             }
         },
@@ -209,7 +209,7 @@ pub(super) fn validate_cloud_credentials(env: &crate::environment::ExecutionEnvi
                 tracing::debug!("Cloud credentials not present; running in local-only mode");
             } else {
                 CliService::error(
-                    "Cloud credentials not found. Run 'systemprompt cloud login' to register.",
+                    "Cloud credentials not found. Run 'systemprompt cloud auth login' to register.",
                 );
             }
         },

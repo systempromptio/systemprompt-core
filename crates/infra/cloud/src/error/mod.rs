@@ -21,25 +21,25 @@ pub type CloudResult<T> = Result<T, CloudError>;
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum CloudError {
-    #[error("Authentication required.\n\nRun: systemprompt cloud login")]
+    #[error("Authentication required.\n\nRun: systemprompt cloud auth login")]
     NotAuthenticated,
 
-    #[error("Token expired.\n\nRun: systemprompt cloud login")]
+    #[error("Token expired.\n\nRun: systemprompt cloud auth login")]
     TokenExpired,
 
     #[error("JWT decode error")]
     JwtDecode,
 
-    #[error("Credentials file corrupted.\n\nRun: systemprompt cloud login")]
+    #[error("Credentials file corrupted.\n\nRun: systemprompt cloud auth login")]
     CredentialsCorrupted {
         #[source]
         source: serde_json::Error,
     },
 
-    #[error("Tenants not synced.\n\nRun: systemprompt cloud login")]
+    #[error("Tenants not synced.\n\nRun: systemprompt cloud auth login")]
     TenantsNotSynced,
 
-    #[error("Tenants store corrupted.\n\nRun: systemprompt cloud login")]
+    #[error("Tenants store corrupted.\n\nRun: systemprompt cloud auth login")]
     TenantsStoreCorrupted {
         #[source]
         source: serde_json::Error,
@@ -116,7 +116,7 @@ pub enum CloudError {
         source: Option<Box<dyn std::error::Error + Send + Sync>>,
     },
 
-    #[error("Authentication failed. Please run 'systemprompt cloud login' again.")]
+    #[error("Authentication failed. Please run 'systemprompt cloud auth login' again.")]
     Unauthorized,
 
     #[error("Request failed with status {status}: {body}")]

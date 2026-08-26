@@ -74,7 +74,15 @@ pub enum AdminCommands {
 }
 
 pub async fn execute(cmd: AdminCommands, ctx: &CommandContext) -> Result<()> {
-    if ctx.is_database_scoped() && !matches!(cmd, AdminCommands::Users(_)) {
+    // Why: Session is exempt alongside Users — `session login` against a cloud
+    // profile with external_db_access runs exactly in this database-scoped
+    // mode (profile + secrets + external DB URL, no local /app paths), and it
+    // is the command that mints the token remote routing needs. Refusing it
+    // here made cloud login circular: the error told the operator to run the
+    // very command being refused.
+    if ctx.is_database_scoped()
+        && !matches!(cmd, AdminCommands::Users(_) | AdminCommands::Session(_))
+    {
         return Err(crate::shared::database_scoped_command_error());
     }
 

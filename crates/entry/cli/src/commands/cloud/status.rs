@@ -178,7 +178,7 @@ fn render_profile(profile_info: Option<&ProfileInfo>) {
 fn render_credentials(credentials_info: &CredentialsInfo, tenant_statuses: &[TenantStatusInfo]) {
     if !credentials_info.authenticated {
         CliService::key_value("Authenticated", "No (not initialized)");
-        CliService::info("Run 'systemprompt cloud login' to authenticate");
+        CliService::info("Run 'systemprompt cloud auth login' to authenticate");
         return;
     }
     CliService::key_value("Authenticated", "Yes");
