@@ -9,6 +9,8 @@ on:
         required: false
   pull_request:
     branches: [main, next]
+  push:
+    branches: [main]
   schedule:
     - cron: "17 6 * * *"
 
