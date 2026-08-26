@@ -31,70 +31,42 @@ Key guides: `internal/guides/architecture.md` (crate taxonomy), `boundaries.md` 
 
 **All work lands on `next`. Never push to `main`.**
 
-`main` is protected by a ruleset that requires a pull request and grants **no
-bypass to anyone** — a direct `git push origin main` is refused for agents,
-sessions and repository admins alike. That is deliberate: it is the mechanism,
-not a convention you could talk your way around.
+`next` is the repository's default branch, so a fresh clone starts there. `main`
+is protected by a ruleset that requires a pull request and grants **no bypass to
+anyone** — a direct `git push origin main` is refused for agents, sessions and
+repository admins alike. Protection is pinned to `main` by name, so moving the
+default branch does not move it.
 
 ```
-next   ← the repo's DEFAULT branch. Every agent, every session. Push freely.
-  ↓ nightly: auto-fix → full gate cycle → promote (only if green)
+next   ← default branch. Every agent, every session. Push freely, no gates.
+  ↓ `just gate` when you are ready, then `just promote` to open the release PR
 main   ← protected, release-only. Tagged. Never pushed to directly.
 ```
 
-`next` is the GitHub default, so a fresh clone lands on it and you are in the
-right place without doing anything. Protection is pinned to `main` **by name**,
-not to "whichever branch is default" — moving the default does not move the
-protection with it.
+**Nothing runs the pre-release cycle for you.** There is no scheduled job, no
+bot that rewrites your code, and nothing gating a push to `next`. Commit and
+push to `next` as often as you like; the gates run when a person decides to run
+them.
 
-**Do not run the pre-release gate cycle to land ordinary work.** The full
-cycle — `format-check`, workspace clippy, `doc-check`, `machete`, `deny`,
-`lint-extensions`, `sqlx-verify-offline` and all 13 shards — is expensive and
-runs **once nightly** (02:17 UTC, `.github/workflows/nightly.yml`), not on your
-push. Committing and pushing to `next` without gating is the intended workflow.
+Releasing is three deliberate steps:
 
-What the nightly does, in order:
+1. `just gate [REF]` — dispatches every gate workflow (CI, Quality, Supply
+   Chain) against the ref, defaulting to the tip of `next`, and waits. The heavy
+   compile happens on runners, not your machine.
+2. `just promote [SHA]` — freezes that commit on the `promote` ref and **opens**
+   the release pull request onto `main`. It does not merge; the gates re-run on
+   the PR, and you merge it.
+3. Tag `main` once merged. Tags are not covered by the ruleset.
 
-1. **Auto-fixes the mechanical standards** — `just fmt` across all three
-   workspaces plus clippy's machine-applicable suggestions — and commits the
-   result straight back to `next`. **Do not spend a turn on formatting**; it is
-   applied for you. Anything needing judgement is not touched.
-2. **Runs the whole cycle** (CI, Quality, Supply Chain) against that commit.
-3. **Promotes `next` → `main`** by merging a pull request, but only when every
-   gate is green. A failure leaves `main` at its last good commit and the run
-   reports what is still broken.
+The commit is frozen on `promote` rather than the PR being headed at `next`
+because a PR headed at `next` merges whatever `next` points at *when you merge
+it* — anything pushed in the meantime would ride along ungated. This is not
+hypothetical: it happened once and put an ungated commit on `main`.
 
-So the standard obligations still hold — your commit should compile and its own
+So the ordinary obligations still hold — your commit should compile and its own
 tests should pass, and the coding standards below are not optional — but
-*proving* it across the whole workspace is the nightly's job, not yours. A red
-nightly is the highest-priority work the next morning: `main` is frozen until
-it is green.
-
-**Getting something onto `main` deliberately** — a release, or a fix that
-cannot wait for tonight — is `just promote [SHA]`. It freezes the commit on the
-`promote` ref, opens the pull request from there and merges it, which is the
-only route `main` accepts. It defaults to the tip of `next`, prints what it is
-about to promote and asks before doing it. It does **not** gate: run the cycle
-first, locally or with `gh workflow run ci.yml -f ref=<sha>` (and the same for
-`quality.yml`).
-
-Two mechanics worth knowing, because both have already bitten:
-
-- **Promotion is a merge, not a fast-forward.** GitHub Actions is not an
-  installable app on this org, so the nightly cannot be granted a ruleset bypass
-  to push `main` directly; it merges a pull request instead. `main` therefore
-  carries merge commits and is *not* an ancestor-descendant match with `next` —
-  `git merge-base --is-ancestor` between them reads as diverged, which is
-  expected. The merge commit's tree still equals the gated `next` tree.
-- **The nightly depends on one org setting**: Actions must be allowed to create
-  pull requests (`can_approve_pull_request_reviews`). If that is turned off the
-  promote job fails with "GitHub Actions is not permitted to create or approve
-  pull requests" and `main` silently stops moving. The org-wide default token
-  permission is deliberately left at `read`; every job declares what it needs.
-
-Releasing is a separate, deliberate act (see `internal/release.md`), run on
-demand from a green `main` — never nightly, because crates.io versions are
-immutable.
+*proving* it across the whole workspace is release work, not something to do on
+every change.
 
 ## Repository Hygiene
 
@@ -120,7 +92,7 @@ No new folders or process docs enter git without explicit user approval. Before 
 - **Naming**: `*Service` default, `*Handler` for HTTP/RPC handlers, `*Orchestrator` for cross-domain workflows. Avoid `*Manager`.
 - **Schema DDL & migrations**: DDL in `{crate}/schema/*.sql` embedded via `include_str!()` in `extension.rs`; migrations in `{crate}/schema/migrations/NNN_<name>.sql`, discovered by `build.rs` (`systemprompt_extension::build::emit_migrations()`) and returned via `extension_migrations!()`. Never inline SQL constants or hand-written migration lists. Gate: `just lint-extensions`.
 
-After changes, check what you touched — typically `cargo clippy -p <crate> --all-targets` and the crate's tests. Do **not** run the full gate cycle to land work; the nightly does that (see Branching & Release Flow) and auto-applies formatting, so `cargo fmt` is not your turn to spend. When you do need the whole cycle locally — preparing a release, or chasing a red nightly — it is `just format-check && cargo clippy --workspace --all-targets --all-features -- -D warnings && just doc-check && just file-size`, and `just doc-check` covers **both** workspaces (a bare `cargo doc --workspace` misses `crates/tests/`).
+After changes, check what you touched — typically `cargo clippy -p <crate> --all-targets` and the crate's tests. Do **not** run the full gate cycle to land work — that is release work (see Branching & Release Flow), run deliberately with `just gate`. When you do need the whole cycle locally — preparing a release, or chasing a failed gate — it is `just format-check && cargo clippy --workspace --all-targets --all-features -- -D warnings && just doc-check && just file-size`, and `just doc-check` covers **both** workspaces (a bare `cargo doc --workspace` misses `crates/tests/`).
 
 ## Extension Framework
 
