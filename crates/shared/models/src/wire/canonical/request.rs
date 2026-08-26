@@ -190,10 +190,6 @@ pub struct CanonicalRequest {
 }
 
 impl CanonicalRequest {
-    /// Every text surface of the request as `(path, text)` pairs: the system
-    /// prompt, each message, and each forwarded-surface leaf of the outbound
-    /// body. The path names where the text came from, so a scanner finding
-    /// something can report the true source instead of one anonymous blob.
     pub fn flatten_parts(&self) -> Vec<(String, String)> {
         let mut parts = Vec::with_capacity(self.messages.len() + self.forwarded_surface.len() + 1);
         if let Some(sys) = &self.system

@@ -125,7 +125,7 @@ fn report_entropy_block_typos(block: &YamlValue) {
         if mistyped {
             tracing::error!(
                 key = %name,
-                "secret_scan: `entropy.{name}` has the wrong type; the built-in \
+                "secret_scan: entropy key has the wrong type; the built-in \
                  default is used instead"
             );
         }

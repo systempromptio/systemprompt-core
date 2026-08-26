@@ -40,8 +40,7 @@ fn skill_entry(id: &str, description: &str, instructions: &str) -> SkillEntry {
     }
 }
 
-fn skill_entry_at(id: &str, description: &str, instructions: &str,
-        hosts: Vec::new(), file_path: &str) -> SkillEntry {
+fn skill_entry_at(id: &str, description: &str, instructions: &str, file_path: &str) -> SkillEntry {
     let mut e = skill_entry(id, description, instructions);
     e.file_path = file_path.to_owned();
     e
