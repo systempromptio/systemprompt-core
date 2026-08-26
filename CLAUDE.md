@@ -27,6 +27,48 @@ New docs: external-consumer material → `documentation/`; anything about how we
 
 Key guides: `internal/guides/architecture.md` (crate taxonomy), `boundaries.md` (module boundaries), `cloud.md`, `rust.md` (mirrors the `rust-coding-standards` skill), `bridge/`.
 
+## Branching & Release Flow
+
+**All work lands on `next`. Never push to `main`.**
+
+`main` is protected by a ruleset that requires a pull request and grants **no
+bypass to anyone** — a direct `git push origin main` is refused for agents,
+sessions and repository admins alike. That is deliberate: it is the mechanism,
+not a convention you could talk your way around.
+
+```
+next   ← every agent, every session, every commit. Push freely.
+  ↓ nightly: auto-fix → full gate cycle → promote (only if green)
+main   ← protected, release-only. Tagged. Never pushed to directly.
+```
+
+**Do not run the pre-release gate cycle to land ordinary work.** The full
+cycle — `format-check`, workspace clippy, `doc-check`, `machete`, `deny`,
+`lint-extensions`, `sqlx-verify-offline` and all 13 shards — is expensive and
+runs **once nightly** (02:17 UTC, `.github/workflows/nightly.yml`), not on your
+push. Committing and pushing to `next` without gating is the intended workflow.
+
+What the nightly does, in order:
+
+1. **Auto-fixes the mechanical standards** — `just fmt` across all three
+   workspaces plus clippy's machine-applicable suggestions — and commits the
+   result straight back to `next`. **Do not spend a turn on formatting**; it is
+   applied for you. Anything needing judgement is not touched.
+2. **Runs the whole cycle** (CI, Quality, Supply Chain) against that commit.
+3. **Promotes `next` → `main`** by merging a pull request, but only when every
+   gate is green. A failure leaves `main` at its last good commit and the run
+   reports what is still broken.
+
+So the standard obligations still hold — your commit should compile and its own
+tests should pass, and the coding standards below are not optional — but
+*proving* it across the whole workspace is the nightly's job, not yours. A red
+nightly is the highest-priority work the next morning: `main` is frozen until
+it is green.
+
+Releasing is a separate, deliberate act (see `internal/release.md`), run on
+demand from a green `main` — never nightly, because crates.io versions are
+immutable.
+
 ## Repository Hygiene
 
 Public, code-only repository. In git: source, `Cargo.toml`/`build.rs`, `README.md`, `CHANGELOG.md`, schema/migration `*.sql`, legitimate test fixtures. **Never committed**: status/plan/report/summary/guide/progress/findings docs, coverage trackers, scratch notes, build output. `ci/` and `internal/` are gitignored.
@@ -51,7 +93,7 @@ No new folders or process docs enter git without explicit user approval. Before 
 - **Naming**: `*Service` default, `*Handler` for HTTP/RPC handlers, `*Orchestrator` for cross-domain workflows. Avoid `*Manager`.
 - **Schema DDL & migrations**: DDL in `{crate}/schema/*.sql` embedded via `include_str!()` in `extension.rs`; migrations in `{crate}/schema/migrations/NNN_<name>.sql`, discovered by `build.rs` (`systemprompt_extension::build::emit_migrations()`) and returned via `extension_migrations!()`. Never inline SQL constants or hand-written migration lists. Gate: `just lint-extensions`.
 
-Run after changes: `cargo +nightly fmt --all && cargo clippy --workspace --all-targets --all-features -- -D warnings && just doc-check && just file-size`. `just doc-check` covers **both** workspaces — a bare `cargo doc --workspace` misses `crates/tests/`.
+After changes, check what you touched — typically `cargo clippy -p <crate> --all-targets` and the crate's tests. Do **not** run the full gate cycle to land work; the nightly does that (see Branching & Release Flow) and auto-applies formatting, so `cargo fmt` is not your turn to spend. When you do need the whole cycle locally — preparing a release, or chasing a red nightly — it is `just format-check && cargo clippy --workspace --all-targets --all-features -- -D warnings && just doc-check && just file-size`, and `just doc-check` covers **both** workspaces (a bare `cargo doc --workspace` misses `crates/tests/`).
 
 ## Extension Framework
 

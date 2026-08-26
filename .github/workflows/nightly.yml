@@ -1,6 +1,5 @@
 # Nightly gate: apply the mechanical coding-standards fixes to `next`, run the
-# full pre-release cycle against it, and fast-forward `main` only if every gate
-# is green.
+# full pre-release cycle against it, and move `main` only if every gate is green.
 #
 # `next` is the feeder branch — every agent and every local session commits and
 # pushes there without running a gate. `main` is protected and release-only: it
@@ -25,7 +24,7 @@ on:
         type: boolean
         default: true
       promote:
-        description: "Fast-forward main when every gate is green"
+        description: "Move main to the gated commit when every gate is green"
         type: boolean
         default: true
 
@@ -170,18 +169,25 @@ jobs:
             exit 0
           fi
 
+          # `gh pr create` has no --json flag: it prints the URL. Ask for the
+          # number separately rather than trying to capture it from the create.
           NUM=$(gh pr list --base main --head next --state open \
                   --json number --jq '.[0].number // empty')
           if [ -z "$NUM" ]; then
-            NUM=$(gh pr create --base main --head next \
-                    --title "Promote next to main" \
-                    --body "Opened by the Nightly workflow after CI, Quality and Supply Chain all passed against \`$SHA\`." \
-                    --json number --jq .number 2>/dev/null \
-                  || gh pr list --base main --head next --state open --json number --jq '.[0].number')
+            gh pr create --base main --head next \
+              --title "Promote next to main" \
+              --body "Opened by the Nightly workflow after every gate passed against \`$SHA\`."
+            NUM=$(gh pr list --base main --head next --state open \
+                    --json number --jq '.[0].number // empty')
           fi
-
+          if [ -z "$NUM" ]; then
+            echo "::error::could not open or find a next -> main pull request"
+            exit 1
+          fi
           echo "merging PR #$NUM"
-          gh pr merge "$NUM" --merge --admin
+          # No --admin: the ruleset requires 0 approvals, so an ordinary merge
+          # satisfies it. --admin would need admin rights GITHUB_TOKEN lacks.
+          gh pr merge "$NUM" --merge
           echo "promoted $SHA to main via PR #$NUM"
 
       - name: Summary
