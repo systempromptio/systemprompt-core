@@ -1,10 +1,13 @@
 //! On-disk cache for minted credentials, scoped to the gateway that issued
-//! them.
+//! them and the credential that minted them.
 //!
 //! A cached JWT is only ever replayed against the same gateway URL it was
-//! minted for. Repointing the bridge, or logging in again, leaves the previous
-//! entry unusable: it is refused on read and deleted, so a stale token can
-//! never outlive the credential that produced it.
+//! minted for, and only while the on-disk PAT is still the one that minted
+//! it. Repointing the bridge, logging in again — including a login performed
+//! by a different process that never touched this cache file — leaves the
+//! previous entry unusable: it is refused on read and deleted, so a stale
+//! token can never outlive the credential that produced it, and two
+//! identities against the same gateway can never share one slot.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -23,6 +26,20 @@ struct CacheEntry {
     output: HelperOutput,
     expires_at: u64,
     gateway: ValidatedUrl,
+    // Why: fingerprint of the PAT on disk when the token was minted (None in
+    // session mode). Entries from before this field carry None and are
+    // discarded once a PAT exists — one extra mint, never a stale identity.
+    #[serde(default)]
+    credential_fingerprint: Option<String>,
+}
+
+#[must_use]
+fn current_credential_fingerprint() -> Option<String> {
+    let paths = crate::auth::setup::resolve_paths().ok()?;
+    let pat = fs::read(&paths.pat_file).ok()?;
+    let mut hex = crate::sync::sha256_hex(&pat);
+    hex.truncate(16);
+    Some(hex)
 }
 
 #[must_use]
@@ -50,6 +67,13 @@ pub fn read_with_threshold(
             cached = %entry.gateway,
             configured = %gateway,
             "discarding a cached token minted for a different gateway",
+        );
+        discard();
+        return None;
+    }
+    if entry.credential_fingerprint != current_credential_fingerprint() {
+        tracing::warn!(
+            "discarding a cached token minted by a different credential than the one on disk",
         );
         discard();
         return None;
@@ -105,6 +129,7 @@ pub fn write(gateway: &ValidatedUrl, output: &HelperOutput) -> std::io::Result<(
         output: output.clone(),
         expires_at: now.saturating_add(output.ttl),
         gateway: gateway.clone(),
+        credential_fingerprint: current_credential_fingerprint(),
     };
     let json = serde_json::to_vec(&entry)?;
     fs::write(&path, json)?;

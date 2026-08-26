@@ -138,6 +138,16 @@ pub(super) async fn fetch_authenticated_manifest() -> Result<ManifestFetch, Sync
         envelope = client.fetch_manifest(bearer.expose()).await;
     }
 
+    // Why: minting writes the token to the cache before the gateway has seen
+    // it. A fresh token the gateway then refuses (revoked PAT, deleted user)
+    // must not be left behind as a "valid" cache entry, or the next run
+    // replays a known-bad credential before rediscovering the same refusal.
+    if is_unauthorized(&envelope)
+        && let Err(e) = crate::auth::cache::clear()
+    {
+        tracing::warn!(error = %e, "failed to clear the refused token from the cache");
+    }
+
     let credential = if was_cached {
         "both the cached credential and a freshly minted replacement"
     } else {

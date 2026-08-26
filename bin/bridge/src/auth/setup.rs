@@ -71,6 +71,7 @@ pub fn logout() -> Result<PathLayout, SetupError> {
     let paths = resolve_paths()?;
     remove_if_exists(&paths.pat_file)?;
     remove_managed_mcp_fragment()?;
+    remove_sync_state()?;
     if let Err(e) = crate::auth::cache::clear() {
         return Err(SetupError::Io(format!("clear token cache: {e}")));
     }
@@ -101,6 +102,7 @@ pub fn clean() -> Result<CleanReport, SetupError> {
     let config_removed = paths.config_file.exists();
     remove_if_exists(&paths.config_file)?;
     remove_managed_mcp_fragment()?;
+    remove_sync_state()?;
     if let Some(dir) = crate::config::paths::bridge_metadata_dir() {
         remove_if_exists(&dir.join(crate::config::paths::FIRST_RUN_SENTINEL))?;
         remove_if_exists(&dir.join(crate::config::paths::ONBOARDED_SENTINEL))?;
@@ -347,6 +349,19 @@ fn remove_managed_mcp_fragment() -> Result<(), SetupError> {
         return Ok(());
     };
     remove_if_exists(&meta_dir.join(crate::config::paths::MCP_SERVERS_FRAGMENT))
+}
+
+// Why: last-sync.json and user.json describe the identity that just logged
+// out. Left behind, the replay guard compares the NEXT account's first
+// manifest against the previous account's version and can wedge it as a
+// replay, and the user fragment keeps naming the old identity until a sync
+// happens to overwrite it.
+fn remove_sync_state() -> Result<(), SetupError> {
+    let Some(meta_dir) = crate::config::paths::bridge_metadata_dir() else {
+        return Ok(());
+    };
+    remove_if_exists(&meta_dir.join(crate::config::paths::LAST_SYNC_SENTINEL))?;
+    remove_if_exists(&meta_dir.join(crate::config::paths::USER_FRAGMENT))
 }
 
 fn strip_pat_section(input: &str) -> String {
