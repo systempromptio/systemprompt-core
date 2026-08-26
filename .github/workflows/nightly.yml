@@ -136,9 +136,13 @@ jobs:
       ref: ${{ needs.autofix.outputs.sha }}
 
   # ---------------------------------------------------------------------------
-  # 3. Promote. A fast-forward only — if `main` has drifted ahead of `next` the
-  #    push is refused rather than forced, because that means someone bypassed
-  #    the branch protection and the divergence needs a human.
+  # 3. Promote, by opening and merging a pull request.
+  #
+  #    `main` requires a pull request and grants no bypass to anyone — that is
+  #    what stops every human and agent pushing to it directly, and it applies
+  #    to repository admins too. A merge is therefore the only way in, including
+  #    for this job; GITHUB_TOKEN needs no special standing to merge, only to
+  #    open the PR and call the merge API.
   # ---------------------------------------------------------------------------
   promote:
     name: Promote next to main
@@ -147,28 +151,38 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
         with:
           ref: main
           fetch-depth: 0
 
-      - name: Fast-forward main to the gated commit
+      - name: Open or reuse the promotion PR, then merge it
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ needs.autofix.outputs.sha }}
         run: |
           set -euo pipefail
-          SHA="${{ needs.autofix.outputs.sha }}"
-          git fetch origin next
-          if git merge-base --is-ancestor "$SHA" HEAD; then
+          git fetch origin next main
+          if git merge-base --is-ancestor "$SHA" origin/main; then
             echo "main already contains $SHA — nothing to promote."
             exit 0
           fi
-          if ! git merge-base --is-ancestor HEAD "$SHA"; then
-            echo "::error::main has diverged from next; $SHA is not a fast-forward."
-            echo "Someone pushed to main directly. Reconcile by hand."
-            exit 1
+
+          NUM=$(gh pr list --base main --head next --state open \
+                  --json number --jq '.[0].number // empty')
+          if [ -z "$NUM" ]; then
+            NUM=$(gh pr create --base main --head next \
+                    --title "Promote next to main" \
+                    --body "Opened by the Nightly workflow after CI, Quality and Supply Chain all passed against \`$SHA\`." \
+                    --json number --jq .number 2>/dev/null \
+                  || gh pr list --base main --head next --state open --json number --jq '.[0].number')
           fi
-          git push origin "$SHA:main"
-          echo "promoted $SHA to main"
+
+          echo "merging PR #$NUM"
+          gh pr merge "$NUM" --merge --admin
+          echo "promoted $SHA to main via PR #$NUM"
 
       - name: Summary
         run: |
