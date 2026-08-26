@@ -262,11 +262,7 @@ fn read_existing_version(plugin_dir: &Path) -> Option<String> {
 // Codex surface must skip skills aimed elsewhere (e.g. hosts: [cowork]), or
 // the Cowork setup skill shows up in a host that cannot run it.
 fn targets_codex(skill: &SkillEntry) -> bool {
-    skill.hosts.is_empty()
-        || skill
-            .hosts
-            .iter()
-            .any(|h| h == "codex" || h == "codex-cli")
+    skill.hosts.is_empty() || skill.hosts.iter().any(|h| h == "codex" || h == "codex-cli")
 }
 
 fn bundle_version(manifest: &SignedManifest) -> String {

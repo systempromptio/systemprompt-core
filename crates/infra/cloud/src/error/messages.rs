@@ -46,7 +46,9 @@ impl CloudError {
             },
             Self::TenantsNotSynced
             | Self::TenantsStoreCorrupted { .. }
-            | Self::TenantsStoreInvalid { .. } => "Run 'systemprompt cloud auth login' to sync tenants",
+            | Self::TenantsStoreInvalid { .. } => {
+                "Run 'systemprompt cloud auth login' to sync tenants"
+            },
             Self::ApiError { .. } | Self::HttpStatus { .. } | Self::ApiValidationFailed { .. } => {
                 "Check the error message and try again"
             },

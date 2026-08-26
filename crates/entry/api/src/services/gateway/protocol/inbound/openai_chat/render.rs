@@ -151,7 +151,10 @@ pub(super) fn render_chunk(
 ) -> Bytes {
     let mut chunk = Map::new();
     chunk.insert("id".into(), Value::String(STREAM_CHUNK_ID.into()));
-    chunk.insert("object".into(), Value::String("chat.completion.chunk".into()));
+    chunk.insert(
+        "object".into(),
+        Value::String("chat.completion.chunk".into()),
+    );
     chunk.insert("created".into(), Value::from(current_unix_ts()));
     chunk.insert("model".into(), Value::String(model.to_owned()));
     chunk.insert(

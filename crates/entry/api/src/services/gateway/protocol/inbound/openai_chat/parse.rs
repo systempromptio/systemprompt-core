@@ -269,7 +269,12 @@ fn flatten_content_text(value: Option<&Value>) -> String {
 }
 
 fn parse_tool(value: &Value) -> Option<CanonicalTool> {
-    if value.get("type").and_then(Value::as_str).unwrap_or("function") != "function" {
+    if value
+        .get("type")
+        .and_then(Value::as_str)
+        .unwrap_or("function")
+        != "function"
+    {
         return None;
     }
     let function = value.get("function")?;
@@ -330,7 +335,10 @@ fn parse_response_format(value: &Value) -> Option<ResponseFormat> {
                     .and_then(Value::as_str)
                     .unwrap_or("response")
                     .to_owned(),
-                schema: spec.get("schema").cloned().unwrap_or(Value::Object(Map::new())),
+                schema: spec
+                    .get("schema")
+                    .cloned()
+                    .unwrap_or(Value::Object(Map::new())),
                 strict: spec.get("strict").and_then(Value::as_bool).unwrap_or(false),
             })
         },

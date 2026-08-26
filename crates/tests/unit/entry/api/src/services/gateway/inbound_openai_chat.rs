@@ -79,7 +79,9 @@ fn parse_assistant_tool_calls_and_tool_result_round_trip() {
     );
     assert_eq!(req.messages.len(), 3);
     match &req.messages[1].content[0] {
-        CanonicalContent::ToolUse { id, name, input, .. } => {
+        CanonicalContent::ToolUse {
+            id, name, input, ..
+        } => {
             assert_eq!(id, "call_1");
             assert_eq!(name, "get_weather");
             assert_eq!(input["city"], "Berlin");
@@ -107,7 +109,10 @@ fn parse_tool_message_without_call_id_fails() {
             br#"{"model":"m","messages":[{"role":"tool","content":"x"}]}"#,
         ))
         .expect_err("should fail");
-    assert!(matches!(err, InboundParseError::MissingField("tool_call_id")));
+    assert!(matches!(
+        err,
+        InboundParseError::MissingField("tool_call_id")
+    ));
 }
 
 #[test]
