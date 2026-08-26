@@ -149,7 +149,6 @@ async fn every_other_admin_group_is_refused_under_a_database_scope() {
         vec!["agents", "list"],
         vec!["config", "show"],
         vec!["keys", "generate"],
-        vec!["session", "list"],
     ] {
         let err = admin::execute(parse(&args), &ctx).await.unwrap_err();
         assert!(
@@ -157,6 +156,14 @@ async fn every_other_admin_group_is_refused_under_a_database_scope() {
             "{args:?}: {err:#}"
         );
     }
+
+    // Why: `admin session` is exempt from the database-scoped guard (like
+    // `admin users`): `session login` against a cloud profile with
+    // external_db_access is the command that mints the token remote routing
+    // needs, so refusing it made cloud login circular.
+    admin::execute(parse(&["session", "list"]), &ctx)
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
