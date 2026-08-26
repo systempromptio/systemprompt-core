@@ -16,6 +16,8 @@ use systemprompt_models::wire::openai_chat as codec;
 
 use super::{OutboundAdapter, OutboundCtx, OutboundOutcome, PreparedBody};
 
+mod raw;
+
 #[cfg(feature = "test-api")]
 pub mod test_api {
     pub use systemprompt_models::wire::openai_chat::{
@@ -29,6 +31,14 @@ pub struct OpenAiChatOutbound;
 #[async_trait]
 impl OutboundAdapter for OpenAiChatOutbound {
     fn build_body(&self, ctx: &OutboundCtx<'_>) -> Result<PreparedBody> {
+        if let Some(raw) = ctx.raw_body
+            && let Some(bytes) = raw::normalize_raw_body(raw, ctx)
+        {
+            return Ok(PreparedBody {
+                bytes,
+                raw_lane: true,
+            });
+        }
         Ok(PreparedBody {
             bytes: bytes::Bytes::from(
                 serde_json::to_vec(&codec::build_request_body(

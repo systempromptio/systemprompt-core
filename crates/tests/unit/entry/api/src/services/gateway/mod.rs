@@ -6,6 +6,7 @@ mod inbound_anthropic;
 mod inbound_anthropic_deep;
 mod inbound_anthropic_render;
 mod inbound_openai;
+mod inbound_openai_chat;
 mod inbound_openai_deep;
 mod inbound_openai_render;
 mod inbound_trait_defaults;
