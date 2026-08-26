@@ -2,7 +2,7 @@
 //!
 //! [`OpenAiChatInbound`] parses Chat Completions request bodies into the
 //! canonical request model and renders canonical responses, streaming chunks,
-//! and errors back in Chat Completions format. This is the surface OpenCode,
+//! and errors back in Chat Completions format. This is the surface `OpenCode`,
 //! VS Code Copilot BYOK, and other OpenAI-SDK clients speak.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.

@@ -207,6 +207,7 @@ fn disk_skill_config_content_file_default_and_explicit() {
         file: String::new(),
         tags: vec![],
         category: None,
+        hosts: vec![],
     };
     assert_eq!(cfg.content_file(), "index.md");
 
@@ -227,6 +228,7 @@ fn skill_summary_from_disk_config_file_path_logic() {
         file: String::new(),
         tags: vec!["a".to_owned(), "b".to_owned()],
         category: None,
+        hosts: vec![],
     };
     let sum: SkillSummary = (&cfg).into();
     assert_eq!(sum.skill_id, cfg.id);
@@ -252,6 +254,7 @@ fn skill_detail_from_disk_config_carries_category_and_blank_preview() {
         file: "x.md".to_owned(),
         tags: vec!["t".to_owned()],
         category: Some("dev".to_owned()),
+        hosts: vec![],
     };
     let det: SkillDetail = (&cfg).into();
     assert_eq!(det.category.as_deref(), Some("dev"));

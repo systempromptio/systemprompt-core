@@ -4,7 +4,7 @@
 //! block — both come from the accumulated response snapshot the stream tap
 //! maintains, because the per-event [`CanonicalEvent`] does not hold complete
 //! usage. The stream closes with the `data: [DONE]` sentinel every Chat
-//! Completions client waits for; without it OpenCode and Copilot treat the
+//! Completions client waits for; without it `OpenCode` and Copilot treat the
 //! turn as aborted.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -35,7 +35,7 @@ pub fn render_terminal_event_frame(
     let reason = finish_reason(stop_reason.or(snapshot.stop_reason));
     let final_chunk = render_chunk(
         &snapshot.model,
-        json!({}),
+        &json!({}),
         Some(reason),
         Some(usage_object(&snapshot.usage)),
     );

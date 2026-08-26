@@ -140,12 +140,12 @@ pub fn render_event_frame(event: &CanonicalEvent, model: &str) -> Option<Bytes> 
         | CanonicalEvent::UsageDelta(_)
         | CanonicalEvent::MessageStop { .. } => return None,
     };
-    Some(render_chunk(model, delta, None, None))
+    Some(render_chunk(model, &delta, None, None))
 }
 
 pub(super) fn render_chunk(
     model: &str,
-    delta: Value,
+    delta: &Value,
     finish: Option<&str>,
     usage: Option<Value>,
 ) -> Bytes {
