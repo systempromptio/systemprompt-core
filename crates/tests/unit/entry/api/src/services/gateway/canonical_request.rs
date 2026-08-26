@@ -1,4 +1,4 @@
-//! Unit tests for `CanonicalRequest` helpers — `flatten_text`,
+//! Unit tests for `CanonicalRequest` helpers — `flatten_parts`,
 //! `flatten_message_text`, and `derived_gateway_conversation_id`.
 
 use serde_json::json;
@@ -46,25 +46,38 @@ fn assistant(text: &str) -> CanonicalMessage {
 }
 
 #[test]
-fn flatten_text_joins_system_and_messages_with_newlines() {
+fn flatten_parts_names_system_and_each_message() {
     let r = req_with(vec![user("hello"), assistant("hi")], Some("be helpful"));
-    assert_eq!(r.flatten_text(), "be helpful\nhello\nhi");
+    assert_eq!(
+        r.flatten_parts(),
+        vec![
+            ("system".to_owned(), "be helpful".to_owned()),
+            ("messages[0].user".to_owned(), "hello".to_owned()),
+            ("messages[1].assistant".to_owned(), "hi".to_owned()),
+        ]
+    );
 }
 
 #[test]
-fn flatten_text_skips_empty_system() {
+fn flatten_parts_skips_empty_system() {
     let r = req_with(vec![user("hello")], Some(""));
-    assert_eq!(r.flatten_text(), "hello");
+    assert_eq!(
+        r.flatten_parts(),
+        vec![("messages[0].user".to_owned(), "hello".to_owned())]
+    );
 }
 
 #[test]
-fn flatten_text_handles_no_system() {
+fn flatten_parts_handles_no_system() {
     let r = req_with(vec![user("hello")], None);
-    assert_eq!(r.flatten_text(), "hello");
+    assert_eq!(
+        r.flatten_parts(),
+        vec![("messages[0].user".to_owned(), "hello".to_owned())]
+    );
 }
 
 #[test]
-fn flatten_text_renders_tool_use_as_bracketed() {
+fn flatten_parts_renders_tool_use_as_bracketed() {
     let mut r = req_with(vec![user("call it")], None);
     r.messages.push(CanonicalMessage {
         role: Role::Assistant,
@@ -75,14 +88,19 @@ fn flatten_text_renders_tool_use_as_bracketed() {
             signature: None,
         }],
     });
-    let s = r.flatten_text();
+    let s = r
+        .flatten_parts()
+        .into_iter()
+        .map(|(_, text)| text)
+        .collect::<Vec<_>>()
+        .join("\n");
     assert!(s.contains("call it"));
     assert!(s.contains("[tool_use:search"));
     assert!(s.contains("rust"));
 }
 
 #[test]
-fn flatten_text_skips_images() {
+fn flatten_parts_skips_images() {
     use systemprompt_api::services::gateway::protocol::canonical::ImageSource;
     let r = req_with(
         vec![CanonicalMessage {
@@ -97,7 +115,10 @@ fn flatten_text_skips_images() {
         }],
         None,
     );
-    assert_eq!(r.flatten_text(), "look");
+    assert_eq!(
+        r.flatten_parts(),
+        vec![("messages[0].user".to_owned(), "look".to_owned())]
+    );
 }
 
 #[test]

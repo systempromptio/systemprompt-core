@@ -140,23 +140,39 @@ mod stop_reason_mapping {
     }
 }
 
-mod flatten_text {
+mod flatten_parts {
+    use systemprompt_models::wire::inspect::{SurfaceBudget, string_leaves};
+
     use super::*;
 
-    #[test]
-    fn empty_request_flattens_to_empty() {
-        assert_eq!(empty_request().flatten_text(), "");
+    fn joined(req: &CanonicalRequest) -> String {
+        req.flatten_parts()
+            .into_iter()
+            .map(|(_, text)| text)
+            .collect::<Vec<_>>()
+            .join("\n")
     }
 
     #[test]
-    fn system_prompt_leads_the_flattened_text() {
+    fn empty_request_yields_no_parts() {
+        assert!(empty_request().flatten_parts().is_empty());
+    }
+
+    #[test]
+    fn system_prompt_is_its_own_named_part() {
         let mut req = empty_request();
         req.system = Some("you are helpful".to_owned());
         req.messages = vec![msg(
             Role::User,
             vec![CanonicalContent::Text("hi".to_owned())],
         )];
-        assert_eq!(req.flatten_text(), "you are helpful\nhi");
+        assert_eq!(
+            req.flatten_parts(),
+            vec![
+                ("system".to_owned(), "you are helpful".to_owned()),
+                ("messages[0].user".to_owned(), "hi".to_owned()),
+            ]
+        );
     }
 
     #[test]
@@ -173,7 +189,7 @@ mod flatten_text {
                 CanonicalContent::Text("after".to_owned()),
             ],
         )];
-        assert_eq!(req.flatten_text(), "before\nafter");
+        assert_eq!(joined(&req), "before\nafter");
     }
 
     #[test]
@@ -188,7 +204,10 @@ mod flatten_text {
                 encrypted_content: None,
             }],
         )];
-        assert_eq!(req.flatten_text(), "pondering");
+        assert_eq!(
+            req.flatten_parts(),
+            vec![("messages[0].assistant".to_owned(), "pondering".to_owned())]
+        );
     }
 
     #[test]
@@ -203,7 +222,7 @@ mod flatten_text {
                 signature: None,
             }],
         )];
-        let text = req.flatten_text();
+        let text = joined(&req);
         assert!(text.contains("[tool_use:search"));
         assert!(text.contains("rust"));
     }
@@ -221,7 +240,7 @@ mod flatten_text {
                 meta: None,
             }],
         )];
-        assert_eq!(req.flatten_text(), "result body");
+        assert_eq!(joined(&req), "result body");
     }
 
     #[test]
@@ -234,7 +253,42 @@ mod flatten_text {
                 CanonicalContent::Text("only".to_owned()),
             ],
         )];
-        assert_eq!(req.flatten_text(), "only");
+        assert_eq!(joined(&req), "only");
+    }
+
+    #[test]
+    fn message_that_flattens_to_nothing_yields_no_part() {
+        let mut req = empty_request();
+        req.messages = vec![msg(
+            Role::User,
+            vec![CanonicalContent::Image(ImageSource::Url {
+                url: "https://x".to_owned(),
+                detail: Some(ImageDetail::Auto),
+            })],
+        )];
+        assert!(req.flatten_parts().is_empty());
+    }
+
+    #[test]
+    fn forwarded_surface_leaves_keep_their_body_paths() {
+        let mut req = empty_request();
+        req.messages = vec![msg(
+            Role::User,
+            vec![CanonicalContent::Text("hi".to_owned())],
+        )];
+        let body = json!({"tools": [{"description": "does things"}]});
+        req.forwarded_surface = string_leaves(
+            serde_json::to_vec(&body).expect("body").as_slice(),
+            SurfaceBudget::default(),
+        );
+        let parts = req.flatten_parts();
+        assert_eq!(parts[0], ("messages[0].user".to_owned(), "hi".to_owned()));
+        let (path, _) = parts
+            .iter()
+            .find(|(_, value)| value == "does things")
+            .expect("the forwarded leaf must be present");
+        assert!(path.starts_with("forwarded."), "got path {path}");
+        assert!(path.contains("tools"), "got path {path}");
     }
 }
 
@@ -386,7 +440,7 @@ mod message_units {
     use super::*;
 
     #[test]
-    fn keeps_each_message_separate_where_flatten_text_joins_them() {
+    fn keeps_each_message_separate_where_flatten_parts_names_them() {
         let mut req = empty_request();
         req.system = Some("sys".to_owned());
         req.messages = vec![
@@ -395,7 +449,11 @@ mod message_units {
         ];
 
         assert_eq!(req.message_units(), vec!["sys", "one", "two"]);
-        assert_eq!(req.flatten_text(), "sys\none\ntwo");
+        let paths: Vec<String> = req.flatten_parts().into_iter().map(|(p, _)| p).collect();
+        assert_eq!(
+            paths,
+            vec!["system", "messages[0].user", "messages[1].user"]
+        );
     }
 
     #[test]

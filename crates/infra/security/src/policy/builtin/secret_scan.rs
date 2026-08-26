@@ -34,14 +34,18 @@ struct SecretScan {
     entropy: EntropyConfig,
 }
 
-// Why: an absent block, an absent key, or a key of the wrong shape each fall
-// back to the built-in default — a typo must not silently disable credential
-// detection.
+const ENTROPY_KEYS: [&str; 4] = ["enabled", "min_len", "threshold", "allowlist"];
+
+// Why: an absent block or an absent key falls back to the built-in default,
+// but an unknown key or a value of the wrong shape is reported at error level
+// — a typo must not silently reconfigure credential detection into something
+// other than what the operator wrote.
 fn entropy_from_yaml(v: &YamlValue) -> EntropyConfig {
     let defaults = EntropyConfig::default();
     let Some(block) = v.get("entropy") else {
         return defaults;
     };
+    report_entropy_block_typos(block);
     let allowlist = block
         .get("allowlist")
         .and_then(YamlValue::as_sequence)
@@ -77,6 +81,54 @@ fn entropy_from_yaml(v: &YamlValue) -> EntropyConfig {
             .and_then(YamlValue::as_f64)
             .unwrap_or(defaults.threshold),
         allowlist,
+    }
+}
+
+fn report_entropy_block_typos(block: &YamlValue) {
+    let Some(map) = block.as_mapping() else {
+        tracing::error!(
+            "secret_scan: `entropy` is not a mapping; the block is ignored and \
+             built-in defaults apply"
+        );
+        return;
+    };
+    for key in map.keys() {
+        let name = key.as_str().unwrap_or("<non-string>");
+        if !ENTROPY_KEYS.contains(&name) {
+            tracing::error!(
+                key = %name,
+                "secret_scan: unknown `entropy` key ignored; valid keys are \
+                 enabled, min_len, threshold, allowlist"
+            );
+        }
+    }
+    let wrong_shape = [
+        (
+            "enabled",
+            map.get("enabled").is_some_and(|v| v.as_bool().is_none()),
+        ),
+        (
+            "min_len",
+            map.get("min_len").is_some_and(|v| v.as_u64().is_none()),
+        ),
+        (
+            "threshold",
+            map.get("threshold").is_some_and(|v| v.as_f64().is_none()),
+        ),
+        (
+            "allowlist",
+            map.get("allowlist")
+                .is_some_and(|v| v.as_sequence().is_none()),
+        ),
+    ];
+    for (name, mistyped) in wrong_shape {
+        if mistyped {
+            tracing::error!(
+                key = %name,
+                "secret_scan: `entropy.{name}` has the wrong type; the built-in \
+                 default is used instead"
+            );
+        }
     }
 }
 

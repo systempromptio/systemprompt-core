@@ -90,7 +90,18 @@ impl GovernedTarget {
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum GovernedInput {
     ToolArguments { arguments: McpToolInput },
-    Prompt { text: String },
+    Prompt { parts: Vec<PromptPart> },
+}
+
+/// One text surface of a governed prompt submission, named by its source.
+///
+/// The path is where the text came from — `system`, `messages[2].user`,
+/// `forwarded.tools[0].description` — so a finding is reported against its
+/// true source, not an anonymous blob.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PromptPart {
+    pub path: String,
+    pub value: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -106,8 +117,23 @@ impl GovernedInput {
     }
 
     #[must_use]
-    pub const fn prompt(text: String) -> Self {
-        Self::Prompt { text }
+    pub fn prompt_parts(parts: impl IntoIterator<Item = (String, String)>) -> Self {
+        Self::Prompt {
+            parts: parts
+                .into_iter()
+                .map(|(path, value)| PromptPart { path, value })
+                .collect(),
+        }
+    }
+
+    #[must_use]
+    pub fn prompt_text(text: String) -> Self {
+        Self::Prompt {
+            parts: vec![PromptPart {
+                path: PROMPT_PATH.to_owned(),
+                value: text,
+            }],
+        }
     }
 
     #[must_use]
@@ -134,10 +160,13 @@ impl GovernedInput {
                 collect_strings(arguments.as_value(), &mut String::new(), &mut out);
                 out
             },
-            Self::Prompt { text } => vec![GovernedString {
-                path: PROMPT_PATH.to_owned(),
-                value: text,
-            }],
+            Self::Prompt { parts } => parts
+                .iter()
+                .map(|part| GovernedString {
+                    path: part.path.clone(),
+                    value: &part.value,
+                })
+                .collect(),
         }
     }
 }

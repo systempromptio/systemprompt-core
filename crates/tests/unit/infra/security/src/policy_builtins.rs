@@ -62,7 +62,7 @@ fn args(v: serde_json::Value) -> GovernedInput {
 
 #[test]
 fn a_prefixless_base64_key_is_caught_by_the_entropy_detector() {
-    let input = GovernedInput::prompt(
+    let input = GovernedInput::prompt_text(
         "PHL+ERIbxzlQOeiiRybQwgV7GvYmIclsJe1zsFIyuuM here is my api key".to_owned(),
     );
     let hit = detect_secrets(&input).expect("entropy detector must fire");
@@ -78,7 +78,8 @@ const PROTOBUF_TOOL_PAYLOAD: &str =
 
 #[test]
 fn a_serialised_protobuf_payload_is_not_reported_as_a_credential() {
-    let input = GovernedInput::prompt(format!("tool returned {PROTOBUF_TOOL_PAYLOAD} for you"));
+    let input =
+        GovernedInput::prompt_text(format!("tool returned {PROTOBUF_TOOL_PAYLOAD} for you"));
     assert!(
         detect_secrets(&input).is_none(),
         "structured tool output must not read as key material"
@@ -101,7 +102,7 @@ fn the_entropy_allowlist_suppresses_a_named_token_shape() {
         allowlist: vec![regex::Regex::new("^PHL").expect("test regex compiles")],
         ..EntropyConfig::default()
     };
-    let input = GovernedInput::prompt(text.to_owned());
+    let input = GovernedInput::prompt_text(text.to_owned());
     assert!(detect_secrets(&input).is_some(), "unconfigured, it fires");
     assert!(
         detect_secrets_with(&input, &config).is_none(),
@@ -115,12 +116,12 @@ fn disabling_the_entropy_heuristic_leaves_the_vendor_patterns_live() {
         enabled: false,
         ..EntropyConfig::default()
     };
-    let prefixless = GovernedInput::prompt(
+    let prefixless = GovernedInput::prompt_text(
         "PHL+ERIbxzlQOeiiRybQwgV7GvYmIclsJe1zsFIyuuM here is my api key".to_owned(),
     );
     assert!(detect_secrets_with(&prefixless, &config).is_none());
 
-    let vendor = GovernedInput::prompt("AKIAIOSFODNN7EXAMPLE".to_owned());
+    let vendor = GovernedInput::prompt_text("AKIAIOSFODNN7EXAMPLE".to_owned());
     let hit = detect_secrets_with(&vendor, &config).expect("vendor patterns are not tunable");
     assert_eq!(hit.pattern.id, "aws-access-key");
 }
@@ -130,7 +131,7 @@ fn an_absent_entropy_block_keeps_the_built_in_behaviour() {
     let yaml = "governance:\n  policies:\n    - id: secret_scan\n      enabled: true\n";
     let engine = engine(yaml);
     let call = Call::new("u1");
-    let input = GovernedInput::prompt(
+    let input = GovernedInput::prompt_text(
         "PHL+ERIbxzlQOeiiRybQwgV7GvYmIclsJe1zsFIyuuM here is my api key".to_owned(),
     );
     let target = tool("read_file");
@@ -147,7 +148,7 @@ fn a_configured_entropy_allowlist_reaches_the_policy() {
                 entropy:\n        allowlist:\n          - '^PHL'\n";
     let engine = engine(yaml);
     let call = Call::new("u1");
-    let input = GovernedInput::prompt(
+    let input = GovernedInput::prompt_text(
         "PHL+ERIbxzlQOeiiRybQwgV7GvYmIclsJe1zsFIyuuM here is my api key".to_owned(),
     );
     let target = tool("read_file");
@@ -182,7 +183,7 @@ fn full_length_vendor_keys_match_their_patterns() {
         ),
     ];
     for (text, id) in cases {
-        let input = GovernedInput::prompt(text.to_owned());
+        let input = GovernedInput::prompt_text(text.to_owned());
         let hit = detect_secrets(&input);
         assert!(
             matches!(&hit, Some(h) if h.pattern.id == id),
@@ -220,6 +221,63 @@ fn shas_uuids_and_identifiers_do_not_trip_the_entropy_detector() {
             "false positive on: {text}"
         );
     }
+}
+
+// Why: SRI integrity hashes are public metadata that ride along in page
+// markup and tool content; each is dense base64 behind an `algo-` prefix and
+// used to deny every request whose forwarded surface carried one.
+#[test]
+fn sri_integrity_hashes_do_not_trip_the_entropy_detector() {
+    for text in [
+        "sha256-47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=",
+        "sha384-+mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG",
+        "sha512-z4PhNX7vuL3xVChQ1m2AB9Yg5AULVxXcg/SpIdNs6c5H0NE8XYXysP+DGNKHfuwvY7kxvUdBeoGlODJ6+SfaPg==",
+        "integrity=\"sha384-+mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG\"",
+    ] {
+        assert!(
+            scan_str_for_secret(text).is_none(),
+            "false positive on: {text}"
+        );
+    }
+}
+
+// Why: the digest exoneration is length-verified, not prefix-trusted — a
+// credential smuggled behind `sha384-` decodes to the wrong byte count and
+// must still be reported.
+#[test]
+fn a_digest_prefix_with_a_wrong_length_payload_still_denies() {
+    let smuggled = "sha384-PHL+ERIbxzlQOeiiRybQwgV7GvYmIclsJe1zsFIyuuM";
+    let hit = scan_str_for_secret(smuggled);
+    assert!(
+        hit.is_some(),
+        "a 32-byte payload behind a sha384 prefix is not a sha384 digest"
+    );
+}
+
+#[test]
+fn a_mixed_alphabet_credential_shaped_token_still_denies() {
+    let token = "PHL+ERIbxzlQOeii-RybQwgV7GvYmIclsJe1zsFIyuuM";
+    assert!(
+        scan_str_for_secret(token).is_some(),
+        "mixing base64 alphabets must not launder a credential-shaped token"
+    );
+}
+
+#[test]
+fn a_mistyped_entropy_tunable_falls_back_to_the_default_loudly() {
+    let yaml = "governance:\n  policies:\n    - id: secret_scan\n      enabled: true\n      \
+                entropy:\n        threshold: not-a-number\n";
+    let engine = engine(yaml);
+    let call = Call::new("u1");
+    let input = GovernedInput::prompt_text(
+        "PHL+ERIbxzlQOeiiRybQwgV7GvYmIclsJe1zsFIyuuM here is my api key".to_owned(),
+    );
+    let target = tool("read_file");
+    let evaluation = engine.evaluate(&call.ctx(&target, AccessScope::Unknown, &input));
+    assert!(
+        matches!(evaluation.decision, Decision::Deny { .. }),
+        "a typo must fall back to the default threshold, not disable detection"
+    );
 }
 
 // --- secret_scan policy ---
@@ -300,7 +358,7 @@ fn scope_check_admin_scope_short_circuits_to_allow() {
 fn scope_check_allows_prompt_targets() {
     let e = engine("governance:\n  policies:\n    - id: scope_check\n");
     let call = Call::new("u-prompt");
-    let input = GovernedInput::prompt("hello".to_owned());
+    let input = GovernedInput::prompt_text("hello".to_owned());
     let evaluation = e.evaluate(&call.ctx(&GovernedTarget::Prompt, AccessScope::Unknown, &input));
     assert!(matches!(evaluation.decision, Decision::Allow { .. }));
 }
