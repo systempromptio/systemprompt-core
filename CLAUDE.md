@@ -65,6 +65,20 @@ tests should pass, and the coding standards below are not optional — but
 nightly is the highest-priority work the next morning: `main` is frozen until
 it is green.
 
+Two mechanics worth knowing, because both have already bitten:
+
+- **Promotion is a merge, not a fast-forward.** GitHub Actions is not an
+  installable app on this org, so the nightly cannot be granted a ruleset bypass
+  to push `main` directly; it merges a pull request instead. `main` therefore
+  carries merge commits and is *not* an ancestor-descendant match with `next` —
+  `git merge-base --is-ancestor` between them reads as diverged, which is
+  expected. The merge commit's tree still equals the gated `next` tree.
+- **The nightly depends on one org setting**: Actions must be allowed to create
+  pull requests (`can_approve_pull_request_reviews`). If that is turned off the
+  promote job fails with "GitHub Actions is not permitted to create or approve
+  pull requests" and `main` silently stops moving. The org-wide default token
+  permission is deliberately left at `read`; every job declares what it needs.
+
 Releasing is a separate, deliberate act (see `internal/release.md`), run on
 demand from a green `main` — never nightly, because crates.io versions are
 immutable.
