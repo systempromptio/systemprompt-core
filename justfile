@@ -1549,3 +1549,37 @@ webauthn-admin EMAIL="admin@localhost":
     fi
 
     $CLI admin users webauthn generate-setup-token --email "{{EMAIL}}"
+
+# Promote a gated commit from `next` onto the protected `main`.
+#
+# `main` refuses direct pushes — a pull request is the only way in — so this
+# freezes the commit on the `promote` ref, opens the PR from there, and merges
+# it. Freezing matters: a PR whose head is `next` would merge whatever `next`
+# points at when the merge runs, so anything pushed in the meantime would ride
+# along ungated.
+#
+# The nightly does this for you after a full green cycle. Running it by hand
+# promotes WITHOUT that cycle, so gate the commit first — either locally, or
+# with `gh workflow run ci.yml -f ref=<sha>` and the same for quality.yml.
+promote SHA="":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    REPO=$(gh repo view --json nameWithOwner --jq .nameWithOwner)
+    SHA="{{SHA}}"; [ -n "$SHA" ] || SHA=$(git rev-parse origin/next)
+    SHA=$(git rev-parse "$SHA")
+    git fetch -q origin main
+    if git merge-base --is-ancestor "$SHA" origin/main; then
+        echo "main already contains ${SHA:0:9} — nothing to promote."; exit 0
+    fi
+    echo "Promoting ${SHA:0:9} to main on $REPO"
+    git log --oneline origin/main.."$SHA" | sed 's/^/    /'
+    read -rp "This bypasses the nightly gate. Continue? [y/N] " ok
+    [ "$ok" = "y" ] || { echo "aborted"; exit 1; }
+    git push --force origin "$SHA:refs/heads/promote"
+    NUM=$(gh pr list --base main --head promote --state open --json number --jq '.[0].number // empty')
+    if [ -z "$NUM" ]; then
+        NUM=$(gh api -X POST "repos/$REPO/pulls" -f title="Promote next to main" \
+                -f head=promote -f base=main -f body="Manual promotion of $SHA." --jq .number)
+    fi
+    gh api -X PUT "repos/$REPO/pulls/$NUM/merge" -f merge_method=merge --jq '.message'
+    echo "promoted ${SHA:0:9} to main via PR #$NUM"

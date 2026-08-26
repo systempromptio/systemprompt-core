@@ -70,6 +70,14 @@ tests should pass, and the coding standards below are not optional — but
 nightly is the highest-priority work the next morning: `main` is frozen until
 it is green.
 
+**Getting something onto `main` deliberately** — a release, or a fix that
+cannot wait for tonight — is `just promote [SHA]`. It freezes the commit on the
+`promote` ref, opens the pull request from there and merges it, which is the
+only route `main` accepts. It defaults to the tip of `next`, prints what it is
+about to promote and asks before doing it. It does **not** gate: run the cycle
+first, locally or with `gh workflow run ci.yml -f ref=<sha>` (and the same for
+`quality.yml`).
+
 Two mechanics worth knowing, because both have already bitten:
 
 - **Promotion is a merge, not a fast-forward.** GitHub Actions is not an
