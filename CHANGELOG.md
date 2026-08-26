@@ -4,6 +4,7 @@
 
 ### Added
 
+- The gateway speaks OpenAI Chat Completions inbound: `POST /v1/chat/completions` parses Chat Completions bodies into the canonical request (system/developer folding, tool calls and results, data-URI images, `response_format`, `reasoning_effort` including `minimal`, both max-token fields) and renders `chat.completion` objects, chunked SSE with a final usage-bearing chunk and the `[DONE]` sentinel, and OpenAI error envelopes — so OpenAI-SDK clients (OpenCode, VS Code Copilot BYOK) connect directly. `/v1/models?format=openai` serves the OpenAI list shape for clients that cannot send the inference-protocol header, and a byte-preserving raw outbound lane covers chat-to-chat relays (model rewrite, output clamp, forced `stream_options.include_usage`, caller-identity strip).
 - Skills declare where they belong: a skill config may carry an optional `hosts:` list (`cowork`, `claude-desktop`, `claude-code`, `codex`); empty keeps the everywhere behaviour. The plugin bundle drops skills targeted at none of the Claude-family hosts, and the Codex managed-resources emitter skips skills not targeted at `codex` — every host's picker stops listing every other host's setup skill.
 
 ### Changed
