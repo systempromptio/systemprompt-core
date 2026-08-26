@@ -59,9 +59,6 @@ pub struct ModelsResponse {
 #[derive(Debug, Default, Clone, serde::Deserialize)]
 pub struct ListQuery {
     pub limit: Option<usize>,
-    /// `format=openai` renders the `OpenAI` `{"object":"list"}` shape for
-    /// clients (OpenCode, Copilot BYOK) that cannot send the
-    /// inference-protocol header.
     pub format: Option<String>,
 }
 

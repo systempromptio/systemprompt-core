@@ -34,7 +34,7 @@ const BINARY_EXTS: &[&str] = &[
     "woff2", "eot", "zip", "tar", "gz", "bz2", "7z", "rar", "pdf", "doc", "docx", "xls", "xlsx",
 ];
 
-// The plugin bundle is the Claude-family skill surface (Cowork, Claude
+// Why: the plugin bundle is the Claude-family skill surface (Cowork, Claude
 // Desktop, Claude Code all read org-plugins); other hosts get skills from
 // their own manifest emitters. A skill targeted at none of these hosts —
 // e.g. hosts: [codex] — must not appear in the Claude skill picker.
