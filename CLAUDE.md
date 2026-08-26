@@ -25,7 +25,7 @@ entry (api, cli) → app (runtime, scheduler, generator) → domain → infra �
 
 New docs: external-consumer material → `documentation/`; anything about how we build/release/audit → `internal/`.
 
-Key guides: `internal/guides/architecture.md` (crate taxonomy), `boundaries.md` (module boundaries), `cloud.md`, `rust.md` (mirrors the `rust-coding-standards` skill), `bridge/`.
+Key guides: `internal/guides/architecture.md` (crate taxonomy), `boundaries.md` (module boundaries), `cloud.md`, `rust.md` (mirrors the `rust-coding-standards` skill), `bridge/`; releases: `internal/release-flow.md` (canonical) + `internal/release.md` (reference/friction log).
 
 ## Branching & Release Flow
 
@@ -57,6 +57,11 @@ Releasing is three deliberate steps:
    the release pull request onto `main`. It does not merge; the gates re-run on
    the PR, and you merge it.
 3. Tag `main` once merged. Tags are not covered by the ruleset.
+
+The full release cycle — publishing to crates.io, the bridge, and landing all
+four downstream repos (`template`, `demo`, `internal`, `astound`) — is
+`internal/release-flow.md` (canonical process, parallel lanes) plus
+`internal/release.md` (version-string reference and cumulative friction log).
 
 The commit is frozen on `promote` rather than the PR being headed at `next`
 because a PR headed at `next` merges whatever `next` points at *when you merge

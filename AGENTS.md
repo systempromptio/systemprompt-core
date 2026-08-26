@@ -89,6 +89,27 @@ just build && just setup-local <api-key> && just start
 
 Then walk through `/demo/` scripts to see the governance pipeline in action. For the crate API surface, read `src/` and the published docs at [docs.rs/systemprompt-core](https://docs.rs/systemprompt-core).
 
+## Branching & Release Cycle
+
+If you are an agent working in this repository:
+
+- **All work lands on `next`** — the default branch. Push freely; no gates run
+  automatically.
+- **`main` is protected and release-only.** A ruleset requires a pull request
+  and grants no bypass to anyone; a direct `git push origin main` is refused
+  for agents and admins alike. Never target `main`.
+- Releases are deliberate: `just gate` runs the CI/Quality/Supply Chain
+  workflows against a `next` commit on remote runners; `just promote` freezes
+  that gated commit on the `promote` ref and opens the release PR onto `main`.
+  After merge, `main` is tagged (`vX.Y.Z`) and the workspace is published to
+  crates.io.
+- Downstream repos (`systemprompt-template`, `systemprompt-demo`, and private
+  forks) follow the same `next`/`main` convention and re-pin to each published
+  core release.
+
+Your commit should compile and its own tests should pass, but the full
+workspace gate cycle is release work — do not run it per change.
+
 ## Licensing
 
 **BSL-1.1** (Business Source License 1.1)

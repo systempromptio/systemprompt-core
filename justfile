@@ -118,13 +118,14 @@ sqlx-verify-offline:
     echo ""
     echo "All crates verified for offline compilation!"
 
-# Cut a new patch/minor/major release: bump → sync → tag → push → publish.
-# The release script itself is gitignored (release credentials and machine-specific
-# paths live there); this recipe is the discoverable entry point used by the docs.
+# Prepare the release bump commit on `next`: bump → sync pins/snippets → amend.
+# Tagging, publishing, and main all happen later, via `just gate` → `just promote`
+# → merge → tag → publish (canonical flow: internal/release-flow.md). The script
+# itself is gitignored; this recipe is the discoverable entry point.
 release BUMP="patch":
     @[ "{{BUMP}}" = "patch" ] || [ "{{BUMP}}" = "minor" ] || [ "{{BUMP}}" = "major" ] || \
         { echo "usage: just release [patch|minor|major]"; exit 2; }
-    @[ -x scripts/release.sh ] || { echo "scripts/release.sh missing — see instructions/information/crates-publishing.md"; exit 1; }
+    @[ -x scripts/release.sh ] || { echo "scripts/release.sh missing — see internal/release-flow.md"; exit 1; }
     ./scripts/release.sh {{BUMP}}
 
 # Reject imperative SQL in declarative schema files
