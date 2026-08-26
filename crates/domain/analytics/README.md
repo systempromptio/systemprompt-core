@@ -50,13 +50,13 @@ This crate provides:
 
 ```toml
 [dependencies]
-systemprompt-analytics = "0.39"
+systemprompt-analytics = "0.40"
 ```
 
 Optional `geolocation` feature enables MaxMind GeoIP enrichment via `maxminddb`:
 
 ```toml
-systemprompt-analytics = { version = "0.39", features = ["geolocation"] }
+systemprompt-analytics = { version = "0.40", features = ["geolocation"] }
 ```
 
 ## Module Layout

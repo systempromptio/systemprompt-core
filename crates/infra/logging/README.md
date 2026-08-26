@@ -56,7 +56,7 @@ The `cli` submodule under `services/` provides `banners`, `display`, `macros`, `
 
 ```toml
 [dependencies]
-systemprompt-logging = "0.39"
+systemprompt-logging = "0.40"
 ```
 
 ```rust
