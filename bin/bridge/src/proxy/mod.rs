@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+pub mod comms;
 pub mod dispatch;
 pub mod forward;
 pub mod heartbeat;

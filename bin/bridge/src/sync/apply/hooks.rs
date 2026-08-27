@@ -47,6 +47,14 @@ pub(super) fn write_hooks_json(
     Ok(())
 }
 
+// Why: The hook shells out to this binary rather than a shipped script: a
+// script would have to be portable across macOS, Linux and Windows and would
+// need to locate the inbox the same way the proxy does.
+fn comms_drain_command() -> Option<String> {
+    let exe = std::env::current_exe().ok()?;
+    Some(format!("\"{}\" comms-drain", exe.display()))
+}
+
 fn build_hooks_file(
     plugin: &PluginEntry,
     hook_pool: &[ManifestHookEntry],
@@ -61,7 +69,15 @@ fn build_hooks_file(
     let mut body = if plugin.hooks.governance {
         let govern_url = format!("{origin}/api/public/hooks/govern?plugin_id={plugin_id}");
         let track_url = format!("{origin}/api/public/hooks/track?plugin_id={plugin_id}");
-        HooksFile::new(govern_url, &track_url, &authorization)
+        let mut file = HooksFile::new(govern_url, &track_url, &authorization);
+        // Why: The comms hooks ride with the governance owner for the same reason
+        // the governance hooks do: Claude Code runs plugin hooks
+        // session-globally, so one owner means one drain per boundary rather
+        // than one per installed plugin.
+        if let Some(command) = comms_drain_command() {
+            file.append_comms_hooks(&command);
+        }
+        file
     } else {
         HooksFile::empty()
     };

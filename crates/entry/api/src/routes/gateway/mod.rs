@@ -21,6 +21,7 @@ pub mod bridge_manifest;
 pub mod bridge_plugin_file;
 pub mod bridge_profile_usage;
 pub mod bridge_release;
+pub mod bridge_stream;
 pub mod bridge_whoami;
 pub mod messages;
 pub mod models;
@@ -272,16 +273,12 @@ fn bridge_profile_routes(ctx: &AppContext, jwt_extractor: &Arc<JwtContextExtract
     let ctx_manifest = ctx.clone();
     let ctx_enabled_hosts = ctx.clone();
     let ctx_host_model_filter = ctx.clone();
-    let ctx_profile_usage = ctx.clone();
-    let ctx_heartbeat = ctx.clone();
     let ctx_plugin_file = ctx.clone();
     let jwt_plugin_file = Arc::clone(jwt_extractor);
     let jwt_whoami = Arc::clone(jwt_extractor);
     let jwt_manifest = Arc::clone(jwt_extractor);
     let jwt_enabled_hosts = Arc::clone(jwt_extractor);
     let jwt_host_model_filter = Arc::clone(jwt_extractor);
-    let jwt_profile_usage = Arc::clone(jwt_extractor);
-    let jwt_heartbeat = Arc::clone(jwt_extractor);
     Router::new()
         .route("/bridge/pubkey", get(bridge::pubkey))
         .route("/bridge/profile", get(bridge::profile))
@@ -327,6 +324,15 @@ fn bridge_profile_routes(ctx: &AppContext, jwt_extractor: &Arc<JwtContextExtract
                 }
             }),
         )
+}
+
+fn bridge_session_routes(ctx: &AppContext, jwt_extractor: &Arc<JwtContextExtractor>) -> Router {
+    let ctx_profile_usage = ctx.clone();
+    let ctx_heartbeat = ctx.clone();
+    let jwt_profile_usage = Arc::clone(jwt_extractor);
+    let jwt_heartbeat = Arc::clone(jwt_extractor);
+    let jwt_stream = Arc::clone(jwt_extractor);
+    Router::new()
         .route(
             "/bridge/profile/usage",
             get(move |headers| {
@@ -341,6 +347,13 @@ fn bridge_profile_routes(ctx: &AppContext, jwt_extractor: &Arc<JwtContextExtract
                 let extractor = Arc::clone(&jwt_heartbeat);
                 let context = ctx_heartbeat.clone();
                 async move { bridge_heartbeat::handle(extractor, context, headers, body).await }
+            }),
+        )
+        .route(
+            "/bridge/stream",
+            get(move |headers| {
+                let extractor = Arc::clone(&jwt_stream);
+                async move { bridge_stream::handle(extractor, headers).await }
             }),
         )
 }
@@ -360,6 +373,7 @@ pub fn gateway_router(ctx: &AppContext) -> Option<Router> {
             .merge(inference_routes(ctx, &jwt_extractor, &gateway_repos))
             .merge(bridge_auth_routes(ctx, &jwt_extractor))
             .merge(bridge_profile_routes(ctx, &jwt_extractor))
+            .merge(bridge_session_routes(ctx, &jwt_extractor))
             .merge(bridge_release_routes(&jwt_extractor))
             .route(
                 "/otel",
