@@ -9,11 +9,32 @@
 //! Configurable via:
 //! ```yaml
 //! - id: require_approval
-//!   patterns: ["channel_post", "note_add"]
+//!   patterns:
+//!   - channel_post                 # every call to a matching tool holds
+//!   - tool: email_send             # or narrowed by the call's own arguments
+//!     name: external_recipient
+//!     when:
+//!     - path: to
+//!       op: domain_suffix
+//!       values: ["systemprompt.io"]
+//!       negate: true
+//!       match: any
 //!   exempt_scopes: ["admin"]
 //!   hold_seconds: 60
 //!   expiry_seconds: 900
 //! ```
+//!
+//! A bare string behaves exactly as it always has, so an existing config is
+//! unchanged. See [`rules`] for the conditional form and its two opposite
+//! failure directions.
+//!
+//! Conditions are safe here only because [`PolicyContext::call_id`] is derived
+//! from a digest of the arguments. `evaluate` is contractually idempotent per
+//! call id, and a verdict that depends on arguments would break that contract
+//! under any id scheme that ignored them — the same id could yield `Pending`
+//! one round and `Allow` the next. A retry carrying different arguments derives
+//! a different id and addresses a different approval row, so an approval
+//! granted on one payload can never be seen by a call carrying another.
 //!
 //! `patterns` default to **empty**, unlike `tool_blocklist`. The rest of this
 //! module's config layer fails toward more enforcement on a bad read, which is
@@ -33,6 +54,11 @@ use std::borrow::Cow;
 use serde_yaml::Value as YamlValue;
 use systemprompt_identifiers::PolicyId;
 
+mod operators;
+mod rules;
+
+use rules::{Rule, Verdict};
+
 use super::super::config::GovernanceConfig;
 use super::super::registry::PolicyRegistration;
 use super::super::types::{AccessScope, GovernancePolicy, PolicyContext};
@@ -40,14 +66,8 @@ use crate::authz::types::{Decision, MatchedBy, PendingReason};
 
 pub(crate) const ID: &str = "require_approval";
 
-/// Default seconds a held call blocks before handing the wait back to the
-/// client as an MRTR round. Short enough to stay well inside any sane HTTP
-/// read timeout, long enough that a watching admin usually resolves it in the
-/// first round.
 const DEFAULT_HOLD_SECONDS: u64 = 60;
 
-/// Default seconds before an unanswered request is abandoned. Ten MRTR rounds
-/// at the default hold is the client-side ceiling; this is the server-side one.
 const DEFAULT_EXPIRY_SECONDS: u64 = 900;
 
 /// The timing half of the `require_approval` config, for the enforcement point.
@@ -67,9 +87,6 @@ impl Default for ApprovalSettings {
 }
 
 impl ApprovalSettings {
-    /// Reads the timings from the `require_approval` entry of an already-loaded
-    /// governance config, so the enforcement point and the chain cannot drift
-    /// onto two different files.
     #[must_use]
     pub fn from_governance_config(config: &GovernanceConfig) -> Self {
         config
@@ -79,8 +96,6 @@ impl ApprovalSettings {
             .map_or_else(Self::default, |p| Self::from_params(&p.params))
     }
 
-    /// Reads the timings straight from one policy entry's params, for an
-    /// enforcement point that already holds the [`PolicyConfig`] it matched.
     #[must_use]
     pub fn from_params(v: &YamlValue) -> Self {
         let default = Self::default();
@@ -99,19 +114,18 @@ fn positive_u64(v: &YamlValue, key: &str) -> Option<u64> {
 
 #[derive(Debug)]
 struct RequireApproval {
-    patterns: Vec<String>,
+    rules: Vec<Rule>,
     exempt_scopes: Vec<AccessScope>,
 }
 
 impl RequireApproval {
     fn from_yaml(v: &YamlValue) -> Self {
-        let patterns = string_list(v, "patterns");
         let exempt_scopes = string_list(v, "exempt_scopes")
             .iter()
             .filter_map(|s| parse_scope(s))
             .collect();
         Self {
-            patterns,
+            rules: rules::compile(v),
             exempt_scopes,
         }
     }
@@ -168,20 +182,25 @@ impl GovernancePolicy for RequireApproval {
         if self.exempt_scopes.contains(&ctx.access_scope) {
             return allow(Cow::Borrowed("Caller scope is exempt from approval"));
         }
-        let Some(rule) = self
-            .patterns
-            .iter()
-            .find(|p| tool.as_str().contains(p.as_str()))
-        else {
-            return allow(Cow::Borrowed("Tool does not require approval"));
-        };
-
-        Decision::Pending {
-            reason: PendingReason::ApprovalRequired {
-                tool: tool.clone(),
-                rule: rule.clone(),
-            },
+        // Why: computed at most once per call, and only once a tool name has
+        // actually matched — the overwhelming majority of calls match nothing
+        // and must not pay for a walk of their own arguments.
+        let mut scalars = None;
+        for rule in &self.rules {
+            if !rule.matches_tool(tool.as_str()) {
+                continue;
+            }
+            let scalars = scalars.get_or_insert_with(|| ctx.input.scalars());
+            if let Verdict::Hold(rule) = rule.evaluate(scalars) {
+                return Decision::Pending {
+                    reason: PendingReason::ApprovalRequired {
+                        tool: tool.clone(),
+                        rule,
+                    },
+                };
+            }
         }
+        allow(Cow::Borrowed("Tool does not require approval"))
     }
 }
 

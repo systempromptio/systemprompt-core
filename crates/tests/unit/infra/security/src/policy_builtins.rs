@@ -577,6 +577,240 @@ governance:
         );
     }
 
+    const EXTERNAL_ONLY: &str = r#"
+governance:
+  policies:
+  - id: require_approval
+    enabled: true
+    patterns:
+    - channel_post
+    - tool: email_send
+      name: external_recipient
+      when:
+      - path: to
+        op: domain_suffix
+        values: ["systemprompt.io"]
+        negate: true
+        match: any
+    - tool: crm_lead_write
+      name: high_value_deal
+      when:
+      - path: expected_revenue
+        op: gt
+        value: 50000
+    exempt_scopes: ['admin']
+"#;
+
+    fn verdict(yaml: &str, name: &str, arguments: serde_json::Value) -> Decision {
+        let call = Call::new("sales");
+        let input = args(arguments);
+        let target = tool(name);
+        engine(yaml)
+            .evaluate(&call.ctx(&target, AccessScope::User, &input))
+            .decision
+    }
+
+    fn held_rule(decision: &Decision) -> String {
+        match decision {
+            Decision::Pending { reason } => format!("{reason:?}"),
+            other => panic!("expected a hold, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn a_bare_pattern_still_ignores_arguments_entirely() {
+        // The backward-compatibility guarantee: adding conditions to the schema
+        // must not change what a string entry does, however rich the payload.
+        let decision = verdict(
+            EXTERNAL_ONLY,
+            "mcp__odoo__channel_post",
+            serde_json::json!({"to": ["anyone@systemprompt.io"], "expected_revenue": 1}),
+        );
+        assert!(held_rule(&decision).contains("channel_post"));
+    }
+
+    #[test]
+    fn every_recipient_internal_runs_unattended() {
+        let decision = verdict(
+            EXTERNAL_ONLY,
+            "mcp__email__email_send",
+            serde_json::json!({"to": ["a@systemprompt.io", "b@mail.systemprompt.io"]}),
+        );
+        assert!(
+            matches!(decision, Decision::Allow { .. }),
+            "internal-only mail must not pull in a second human, got {decision:?}"
+        );
+    }
+
+    #[test]
+    fn one_external_recipient_holds_and_names_which() {
+        let decision = verdict(
+            EXTERNAL_ONLY,
+            "mcp__email__email_send",
+            serde_json::json!({"to": ["a@systemprompt.io", "x@gmail.com"]}),
+        );
+        let rule = held_rule(&decision);
+        assert!(rule.contains("external_recipient"), "got {rule}");
+        assert!(
+            rule.contains("to[1]"),
+            "the approver must see which recipient tripped it, got {rule}"
+        );
+    }
+
+    #[test]
+    fn a_scalar_field_matches_the_same_rule_as_an_array() {
+        // Index erasure: a tool accepting `string | string[]` must not need two
+        // rules, and must not silently escape the one that exists.
+        let decision = verdict(
+            EXTERNAL_ONLY,
+            "mcp__email__email_send",
+            serde_json::json!({"to": "x@gmail.com"}),
+        );
+        assert!(held_rule(&decision).contains("external_recipient"));
+    }
+
+    #[test]
+    fn a_lookalike_domain_does_not_pass_as_internal() {
+        // `ends_with("systemprompt.io")` would accept this. Dotted-label
+        // matching is the whole point of the operator.
+        let decision = verdict(
+            EXTERNAL_ONLY,
+            "mcp__email__email_send",
+            serde_json::json!({"to": ["evil@systemprompt.io.attacker.com"]}),
+        );
+        assert!(held_rule(&decision).contains("external_recipient"));
+    }
+
+    #[test]
+    fn a_display_name_cannot_launder_an_external_address() {
+        let decision = verdict(
+            EXTERNAL_ONLY,
+            "mcp__email__email_send",
+            serde_json::json!({"to": ["\"systemprompt.io\" <attacker@evil.com>"]}),
+        );
+        assert!(
+            held_rule(&decision).contains("external_recipient"),
+            "the domain comes from the addr-spec, never the display name"
+        );
+    }
+
+    #[test]
+    fn an_internal_address_with_a_display_name_and_odd_case_is_allowed() {
+        let decision = verdict(
+            EXTERNAL_ONLY,
+            "mcp__email__email_send",
+            serde_json::json!({"to": ["Ed Burton <Ed@SystemPrompt.IO>"]}),
+        );
+        assert!(matches!(decision, Decision::Allow { .. }), "{decision:?}");
+    }
+
+    #[test]
+    fn a_numeric_condition_holds_only_above_its_threshold() {
+        let over = verdict(
+            EXTERNAL_ONLY,
+            "mcp__odoo__crm_lead_write",
+            serde_json::json!({"expected_revenue": 75000}),
+        );
+        assert!(held_rule(&over).contains("high_value_deal"));
+
+        let under = verdict(
+            EXTERNAL_ONLY,
+            "mcp__odoo__crm_lead_write",
+            serde_json::json!({"expected_revenue": 25000}),
+        );
+        assert!(matches!(under, Decision::Allow { .. }), "{under:?}");
+    }
+
+    #[test]
+    fn a_missing_path_fails_closed() {
+        let decision = verdict(
+            EXTERNAL_ONLY,
+            "mcp__email__email_send",
+            serde_json::json!({"subject": "no recipients here"}),
+        );
+        assert!(held_rule(&decision).contains("fail-closed"));
+    }
+
+    #[test]
+    fn an_empty_recipient_list_is_not_vacuously_internal() {
+        // Under `match: any` an empty set trivially matches nothing, which
+        // would read as "all recipients are internal". It must hold instead.
+        let decision = verdict(
+            EXTERNAL_ONLY,
+            "mcp__email__email_send",
+            serde_json::json!({"to": []}),
+        );
+        assert!(held_rule(&decision).contains("fail-closed"));
+    }
+
+    #[test]
+    fn a_value_the_operator_cannot_compare_fails_closed() {
+        let decision = verdict(
+            EXTERNAL_ONLY,
+            "mcp__odoo__crm_lead_write",
+            serde_json::json!({"expected_revenue": "75000"}),
+        );
+        assert!(held_rule(&decision).contains("fail-closed"));
+    }
+
+    #[test]
+    fn a_malformed_rule_is_dropped_without_taking_its_siblings_with_it() {
+        // The opposite failure direction from the tests above, and deliberately
+        // so: a config typo must not conjure a hold nobody configured.
+        const BROKEN: &str = r"
+governance:
+  policies:
+  - id: require_approval
+    enabled: true
+    patterns:
+    - note_add
+    - tool: email_send
+      when: 'not a list'
+    exempt_scopes: ['admin']
+";
+        assert!(
+            held_rule(&verdict(
+                BROKEN,
+                "mcp__odoo__note_add",
+                serde_json::json!({})
+            ))
+            .contains("note_add")
+        );
+        assert!(matches!(
+            verdict(
+                BROKEN,
+                "mcp__email__email_send",
+                serde_json::json!({"to": ["x@gmail.com"]})
+            ),
+            Decision::Allow { .. }
+        ));
+    }
+
+    #[test]
+    fn the_same_call_evaluates_identically_every_round() {
+        // MRTR retries re-enter with the same derived call id. A verdict that
+        // drifted between rounds would never converge on one approval row.
+        let call = Call::new("sales");
+        let input = args(serde_json::json!({"to": ["a@systemprompt.io", "x@gmail.com"]}));
+        let target = tool("mcp__email__email_send");
+        let engine = engine(EXTERNAL_ONLY);
+        let first = format!(
+            "{:?}",
+            engine
+                .evaluate(&call.ctx(&target, AccessScope::User, &input))
+                .decision
+        );
+        for _ in 0..3 {
+            let again = format!(
+                "{:?}",
+                engine
+                    .evaluate(&call.ctx(&target, AccessScope::User, &input))
+                    .decision
+            );
+            assert_eq!(first, again);
+        }
+    }
+
     #[test]
     fn an_unmatched_tool_runs_unattended() {
         let call = Call::new("sales");
