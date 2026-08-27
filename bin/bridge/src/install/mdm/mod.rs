@@ -169,7 +169,7 @@ pub fn windows_policy_values(
     // Why: omitted by default so Cowork keeps its own unrestricted egress. A
     // pinned allowlist here left agents with no internet at all; it is now an
     // explicit opt-in for regulated deployments.
-    if let Some(hosts) = egress::cowork_egress_allowed_hosts() {
+    if let Some(hosts) = cowork_egress_allowed_hosts() {
         values.push((
             "coworkEgressAllowedHosts",
             "REG_SZ",
