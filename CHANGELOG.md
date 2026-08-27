@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Changed
+
+- **Breaking:** the minimum supported Rust version is now 1.96, raised from 1.94, and `bin/bridge` declares it explicitly for the first time. The bridge already required newer than it claimed — its `vergen-gitcl` build dependency needs 1.95, and the 10.x line has since moved to 1.96 — so the declared 1.94 was not a promise the tree could keep. The MSRV job never caught it because it never tested the MSRV: `rust-toolchain.toml` pins a nightly, a toolchain file outranks rustup's default, and the job's bare `cargo check` therefore ran that nightly rather than the toolchain it had just installed. It now pins `RUSTUP_TOOLCHAIN` and asserts the running compiler matches the manifests before checking anything.
+
 ### Fixed
 
 - The outbound MCP client negotiates protocol `2026-07-28`, so a server will hand it an `InputRequiredResult`. rmcp's default is `ProtocolVersion::LATEST` — `2025-11-25` — and a server refuses to send `resultType: "input_required"` to a peer that negotiated below `2026-07-28`, so every MRTR (SEP-2322) round arrived as an error and no MCP tool could ask a human for anything through this client. Servers that do not speak `2026-07-28` negotiate down as before.

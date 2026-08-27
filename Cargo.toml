@@ -53,7 +53,7 @@ resolver = "2"
 
 [workspace.package]
 edition = "2024"
-rust-version = "1.94"
+rust-version = "1.96"
 authors = ["Edward Burton"]
 license = "BUSL-1.1"
 version = "0.40.0"

@@ -3,7 +3,7 @@
 # workspace, plus a bridge-specific disallowed-types policy.
 
 avoid-breaking-exported-api = false
-msrv = "1.94"
+msrv = "1.96"
 
 cognitive-complexity-threshold = 65
 type-complexity-threshold = 250

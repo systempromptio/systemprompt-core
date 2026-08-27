@@ -116,20 +116,40 @@ jobs:
       - run: just machete
 
   msrv:
-    name: MSRV check (Rust 1.94)
+    name: MSRV check (Rust 1.96)
     runs-on: ubuntu-latest
+    # `rust-toolchain.toml` pins nightly and a toolchain FILE outrides rustup's
+    # default, so installing 1.96.0 and running a bare `cargo check` silently
+    # checked the nightly instead — this job passed for its whole life without
+    # ever testing the MSRV, and hid a real breach (vergen needs >= 1.95 while
+    # the manifests claimed 1.94). RUSTUP_TOOLCHAIN outranks the file; the
+    # assertion below is what stops that regressing quietly a second time.
+    env:
+      RUSTUP_TOOLCHAIN: "1.96.0"
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.ref || github.ref }}
       # bin/bridge's linux keyring backend pulls libdbus-sys via pkg-config.
       - run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config
-      - uses: dtolnay/rust-toolchain@1.94.0
+      - uses: dtolnay/rust-toolchain@1.96.0
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: |
             .
             bin/bridge
+      - name: Assert the toolchain under test really is the MSRV
+        run: |
+          want="$(grep -m1 '^rust-version' Cargo.toml | cut -d'"' -f2)"
+          got="$(rustc --version | cut -d' ' -f2)"
+          echo "manifest rust-version=$want  rustc in use=$got"
+          case "$got" in
+            "$want"|"$want".*) ;;
+            *) echo "::error::MSRV job is running rustc $got, not the declared $want — this job proves nothing"; exit 1 ;;
+          esac
+          bridge="$(grep -m1 '^rust-version' bin/bridge/Cargo.toml | cut -d'"' -f2)"
+          test "$bridge" = "$want" || {
+            echo "::error::bin/bridge declares rust-version $bridge but the root declares $want"; exit 1; }
       - run: cargo check --workspace
       - run: cargo check --manifest-path bin/bridge/Cargo.toml
 

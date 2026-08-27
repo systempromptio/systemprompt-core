@@ -4,6 +4,7 @@
 name = "systemprompt-bridge"
 version = "0.31.0"
 edition = "2024"
+rust-version = "1.96"
 authors = ["Edward Burton"]
 license = "BUSL-1.1"
 description = "Credential helper + plugin/MCP sync agent that bridges multiple coding agents (Claude Desktop, Codex CLI) to the systemprompt.io gateway."
