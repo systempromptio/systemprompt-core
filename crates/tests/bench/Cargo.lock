@@ -4436,6 +4436,7 @@ dependencies = [
  "systemprompt-identifiers",
  "systemprompt-models",
  "thiserror 2.0.19",
+ "tokio",
  "tracing",
  "url",
  "uuid",

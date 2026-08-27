@@ -3,6 +3,7 @@ target/
 **/target/
 **/*.rs.bk
 **/*.profraw
+**/test-results/
 **/*.cov-bak
 
 # Bridge release packaging artifact

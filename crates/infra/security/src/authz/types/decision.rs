@@ -126,17 +126,9 @@ pub enum PendingReason {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "decision", rename_all = "lowercase")]
 pub enum Decision {
-    Allow {
-        matched_by: MatchedBy,
-    },
-    Deny {
-        reason: DenyReason,
-    },
-    /// Held awaiting a human decision. Terminal only for the chain — the
-    /// enforcement point resolves it into an eventual allow or deny.
-    Pending {
-        reason: PendingReason,
-    },
+    Allow { matched_by: MatchedBy },
+    Deny { reason: DenyReason },
+    Pending { reason: PendingReason },
 }
 
 impl Decision {

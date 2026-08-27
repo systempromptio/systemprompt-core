@@ -64,7 +64,7 @@ fn stamp_request_metadata(
     let ClientJsonRpcMessage::Request(request) = message else {
         return;
     };
-    // The negotiated version, as rmcp resolved it at `initialize` and now
+    // Why: The negotiated version, as rmcp resolved it at `initialize` and now
     // echoes on every request. Reading it back rather than assuming a version
     // is what keeps an older or third-party server unaffected, and it
     // guarantees the header and the `_meta` field agree — the server rejects a

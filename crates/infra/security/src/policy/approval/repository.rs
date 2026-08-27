@@ -92,12 +92,6 @@ pub struct ApprovalVerdict<'a> {
     pub note: Option<&'a str>,
 }
 
-/// Binds an approval to the exact payload it authorises.
-///
-/// Why: the approver sees one set of arguments, but MRTR means the client
-/// sends the call again to collect the result. Without this, a retry could
-/// swap the payload after approval and ride the approved row. The digest is
-/// taken over the canonical serialisation, so key order cannot change it.
 #[must_use]
 pub fn args_digest(arguments: &serde_json::Value) -> String {
     let canonical = canonicalize(arguments);
@@ -106,8 +100,6 @@ pub fn args_digest(arguments: &serde_json::Value) -> String {
     hex(&hasher.finalize())
 }
 
-/// Lowercase hex of a digest. `GenericArray` has no `LowerHex`, and pulling a
-/// hex crate in for sixteen characters of formatting is not worth a dependency.
 pub(crate) fn hex(bytes: &[u8]) -> String {
     const DIGITS: [char; 16] = [
         '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f',
@@ -123,7 +115,7 @@ pub(crate) fn hex(bytes: &[u8]) -> String {
 fn canonicalize(value: &serde_json::Value) -> String {
     match value {
         serde_json::Value::Object(map) => {
-            // BTreeMap ordering: serde_json preserves insertion order unless
+            // Why: BTreeMap ordering: serde_json preserves insertion order unless
             // the `preserve_order` feature is off, so sort explicitly rather
             // than relying on which way that feature happens to be set.
             let mut keys: Vec<&String> = map.keys().collect();
@@ -160,11 +152,6 @@ impl ApprovalRepository {
         Self { pool }
     }
 
-    /// Opens an approval for a call, or returns the one already open for it.
-    ///
-    /// `ON CONFLICT DO NOTHING` rather than an upsert: a retried MRTR round
-    /// must not reset `expires_at` or wipe a decision that has already been
-    /// taken between rounds.
     pub async fn open(&self, req: &NewApprovalRequest<'_>) -> Result<ApprovalRequest, sqlx::Error> {
         let digest = args_digest(req.arguments);
         let expires_at = Utc::now()
@@ -227,9 +214,6 @@ impl ApprovalRepository {
         }))
     }
 
-    /// Everything still awaiting a human, newest first. Expired-but-unswept
-    /// rows are filtered out here so the console never offers a button that
-    /// cannot do anything.
     pub async fn list_pending(&self, limit: i64) -> Result<Vec<ApprovalRequest>, sqlx::Error> {
         let rows = sqlx::query!(
             "SELECT call_id, tool_name, server_name, arguments, args_digest, requested_by,
@@ -267,9 +251,6 @@ impl ApprovalRepository {
             .collect())
     }
 
-    /// Records a human decision. Returns `Ok(None)` when the row was already
-    /// resolved or has expired, so a double-click cannot overwrite the first
-    /// decision and a late click cannot revive an abandoned call.
     pub async fn resolve(
         &self,
         call_id: &str,
@@ -307,7 +288,6 @@ impl ApprovalRepository {
         }
     }
 
-    /// Sweeps rows nobody answered in time. Idempotent.
     pub async fn expire_due(&self) -> Result<u64, sqlx::Error> {
         let result = sqlx::query!(
             "UPDATE approval_requests

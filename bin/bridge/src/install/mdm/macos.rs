@@ -28,11 +28,6 @@ fn loopback_api_key() -> String {
         .unwrap_or_default()
 }
 
-/// Renders `{egress_block}` for the two payload templates.
-///
-/// Empty when no allowlist is configured, which omits the key and leaves
-/// Cowork's unrestricted default in force. See
-/// [`super::egress::cowork_egress_allowed_hosts`].
 fn egress_plist_block(indent: &str) -> String {
     super::egress::cowork_egress_allowed_hosts()
         .map(|hosts| super::egress::macos_plist_block(&hosts, indent))

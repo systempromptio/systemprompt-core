@@ -15,34 +15,17 @@ use std::time::Duration;
 
 use super::repository::{ApprovalRepository, ApprovalRequest, ApprovalStatus};
 
-/// How often the waiter re-reads the row. Fast enough that an approval feels
-/// immediate to whoever clicked it, slow enough that a held call costs ~2
-/// queries a second.
 const POLL_INTERVAL: Duration = Duration::from_millis(500);
 
 /// How a wait ended.
 #[derive(Debug, Clone)]
 pub enum ApprovalOutcome {
-    /// A human approved it. Carries the row so the caller can stamp the
-    /// approver into the audit.
     Approved(Box<ApprovalRequest>),
-    /// A human refused it.
     Denied(Box<ApprovalRequest>),
-    /// Nobody answered within `expires_at`; the call is abandoned.
     Expired(Box<ApprovalRequest>),
-    /// Nobody answered within this round's `hold_seconds`, but the approval is
-    /// still open. The caller should hand the wait back to the client and
-    /// re-enter on retry.
     StillPending(Box<ApprovalRequest>),
 }
 
-/// Polls one approval until it resolves, `hold` elapses, or it expires.
-///
-/// A transient read error does not end the wait: the approval is the durable
-/// state, and failing the call on a blip would turn a recoverable database
-/// hiccup into a refused tool call. Errors are logged and retried until the
-/// hold budget runs out, at which point the call falls back to `StillPending`
-/// and the client retries.
 pub async fn wait_for_decision(
     repo: &ApprovalRepository,
     call_id: &str,
@@ -65,7 +48,7 @@ pub async fn wait_for_decision(
                         return ApprovalOutcome::Expired(Box::new(request));
                     },
                     ApprovalStatus::Pending => {
-                        // The sweep job may not have run; the deadline on the
+                        // Why: The sweep job may not have run; the deadline on the
                         // row is what actually decides, not the status column.
                         if request.expires_at <= chrono::Utc::now() {
                             return ApprovalOutcome::Expired(Box::new(request));

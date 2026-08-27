@@ -26,9 +26,6 @@ pub enum ChainEntryResult {
     Fail,
     Disabled,
     Skip,
-    /// The policy neither passed nor failed the call: it requires a human to
-    /// authorise it. Distinct from `Fail` so a dashboard can tell a call that
-    /// was refused from one that was merely waiting.
     Hold,
 }
 
