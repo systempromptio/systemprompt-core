@@ -21,15 +21,19 @@ use std::sync::Arc;
 use axum::body::Body;
 use axum::response::Response;
 use http::HeaderValue;
-use systemprompt_ai::repository::AiSafetyFindingRepository;
-use systemprompt_ai::{
-    Finding, InsertSafetyFinding, OverrideAction, OverrideContext, OverrideEngine, SafetyConfig,
-    SafetyHistoryMode,
-};
+use systemprompt_ai::{OverrideAction, OverrideContext, OverrideEngine};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{AiRequestId, ModelId, ProviderId};
 use systemprompt_models::profile::GatewayConfig;
 use systemprompt_models::wire::inspect::{SurfaceBudget, string_leaves};
+
+mod safety;
+
+#[cfg(feature = "test-api")]
+pub use self::safety::dedupe_findings;
+pub(in crate::services::gateway) use self::safety::{
+    run_request_safety_scan, run_response_safety_scan,
+};
 
 use super::super::audit::GatewayAudit;
 use super::super::policy::GatewayPolicySpec;
@@ -37,7 +41,6 @@ use super::super::protocol::canonical::CanonicalRequest;
 use super::super::protocol::canonical_response::CanonicalResponse;
 use super::super::protocol::inbound::InboundAdapter;
 use super::super::protocol::outbound::OutboundOutcome;
-use super::super::registry::SafetyScannerRegistry;
 use super::super::signature_cache::ThoughtSignatureCache;
 use super::super::{parse, quota, stream_tap};
 use super::REQUEST_ID_HEADER;
@@ -260,86 +263,6 @@ async fn buffered_completion(
             &ctx.policy.safety,
         )
         .await;
-    }
-}
-
-pub(super) async fn run_request_safety_scan(
-    safety_repo: &AiSafetyFindingRepository,
-    ai_request_id: &AiRequestId,
-    request: &CanonicalRequest,
-    safety: &SafetyConfig,
-) -> Vec<Finding> {
-    let registry = SafetyScannerRegistry::global();
-    let scan_history = safety.history != SafetyHistoryMode::Off;
-    let mut findings = Vec::new();
-    for name in &safety.scanners {
-        if let Some(scanner) = registry.create(name, safety) {
-            findings.extend(scanner.scan_request(request).await);
-            if scan_history {
-                findings.extend(scanner.scan_request_history(request).await);
-            }
-        } else {
-            tracing::warn!(scanner = %name, "Unknown safety scanner in policy — skipped");
-        }
-    }
-    dedupe_findings(&mut findings);
-    if !findings.is_empty() {
-        persist_findings(safety_repo, ai_request_id, &findings).await;
-    }
-    findings
-}
-
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(
-        unreachable_pub,
-        reason = "re-exported via `test_api` only when the feature is on"
-    )
-)]
-pub fn dedupe_findings(findings: &mut Vec<Finding>) {
-    let mut seen = std::collections::HashSet::new();
-    findings.retain(|f| seen.insert((f.phase, f.category.clone(), f.scanner)));
-}
-
-pub(in crate::services::gateway) async fn run_response_safety_scan(
-    safety_repo: &AiSafetyFindingRepository,
-    ai_request_id: &AiRequestId,
-    response: &CanonicalResponse,
-    safety: &SafetyConfig,
-) -> Vec<Finding> {
-    let registry = SafetyScannerRegistry::global();
-    let mut findings = Vec::new();
-    for name in &safety.scanners {
-        if let Some(scanner) = registry.create(name, safety) {
-            findings.extend(scanner.scan_response_final(response).await);
-        } else {
-            tracing::warn!(scanner = %name, "Unknown safety scanner in policy — skipped");
-        }
-    }
-    dedupe_findings(&mut findings);
-    if !findings.is_empty() {
-        persist_findings(safety_repo, ai_request_id, &findings).await;
-    }
-    findings
-}
-
-async fn persist_findings(
-    repo: &AiSafetyFindingRepository,
-    ai_request_id: &AiRequestId,
-    findings: &[Finding],
-) {
-    for f in findings {
-        let params = InsertSafetyFinding {
-            ai_request_id,
-            phase: f.phase,
-            severity: f.severity.as_str(),
-            category: &f.category,
-            scanner: f.scanner,
-            excerpt: f.excerpt.as_deref(),
-        };
-        if let Err(e) = repo.insert(params).await {
-            tracing::warn!(error = %e, "safety finding insert failed");
-        }
     }
 }
 

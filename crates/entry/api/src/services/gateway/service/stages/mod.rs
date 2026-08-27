@@ -11,24 +11,25 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod governance;
+mod outbound;
+
 use bytes::Bytes;
 use systemprompt_ai::SafetyConfig;
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::{AiRequestId, CallId, SessionId};
+use systemprompt_identifiers::AiRequestId;
 use systemprompt_models::profile::GatewayConfig;
 use systemprompt_models::services::ai::ModelLimits;
 use systemprompt_models::wire::inspect;
 use systemprompt_security::authz::types::Decision;
-use systemprompt_security::policy::{
-    AgentScope, AuditOrigin, AuditTarget, ChainEntryResult, DecisionAudit, Evaluation,
-    GovernanceEngine, GovernedInput, GovernedTarget, PolicyContext, PrincipalSnapshot,
-    record_decision,
-};
+use systemprompt_security::policy::ChainEntryResult;
 
+use self::governance::{PromptEvaluation, evaluate_prompt, record_governance_decision};
+use self::outbound::{CtxParts, audit_upstream_failure, outbound_ctx, strip_caller_identity};
 use super::super::audit::{GatewayAudit, GatewayRequestContext};
 use super::super::protocol::canonical::CanonicalRequest;
 use super::super::protocol::inbound::InboundAdapter;
-use super::super::protocol::outbound::{OutboundCtx, OutboundOutcome, PreparedBody};
+use super::super::protocol::outbound::{OutboundOutcome, PreparedBody};
 use super::finalize::{apply_system_prompt_override, run_request_safety_scan};
 use super::resolve::ResolvedUpstream;
 use super::{DispatchError, GovernanceDenied, SafetyBlocked, blocks_at_phase};
@@ -252,160 +253,5 @@ impl ScannedDispatch {
                 Err(DispatchError::Recorded(e))
             },
         }
-    }
-}
-
-#[derive(Clone, Copy)]
-struct CtxParts<'a> {
-    upstream_model: &'a str,
-    model_limits: Option<ModelLimits>,
-    forward_headers: &'a [(String, String)],
-    raw_body: Option<&'a Bytes>,
-}
-
-fn outbound_ctx<'a>(
-    upstream: &'a ResolvedUpstream<'a>,
-    request: &'a CanonicalRequest,
-    parts: CtxParts<'a>,
-) -> OutboundCtx<'a> {
-    OutboundCtx {
-        route: upstream.route.as_ref(),
-        endpoint: &upstream.provider.endpoint,
-        api_key: upstream.api_key,
-        request,
-        upstream_model: parts.upstream_model,
-        model_limits: parts.model_limits,
-        forward_headers: parts.forward_headers,
-        raw_body: parts.raw_body,
-    }
-}
-
-// Why: `metadata.user_id` is an end-user identifier meant for the provider the
-// caller chose, so it must not reach a different wire's upstream. Stripped
-// unconditionally on the canonical form because an adapter may decline the raw
-// lane and fall back to the canonical build; the passthrough lane applies the
-// same rule to the raw body in `normalize_raw_body`.
-fn strip_caller_identity(request: &mut CanonicalRequest) {
-    let Some(metadata) = request.metadata.as_mut() else {
-        return;
-    };
-    let Some(obj) = metadata.as_object_mut() else {
-        return;
-    };
-    obj.remove("user_id");
-    if obj.is_empty() {
-        request.metadata = None;
-    }
-}
-
-// Why: written on allow as well as on deny — the chain trace is the product,
-// not just the refusals.
-async fn record_governance_decision(
-    db: &DbPool,
-    ctx: &GatewayRequestContext,
-    evaluation: Evaluation,
-    call_id: CallId,
-    session_id: SessionId,
-) {
-    let decision_audit = DecisionAudit {
-        id: uuid::Uuid::new_v4().to_string(),
-        call_id: call_id.as_str().to_owned(),
-        origin: AuditOrigin::Governed,
-        decision: evaluation.decision,
-        principal: PrincipalSnapshot {
-            user_id: ctx.user_id.clone(),
-            session_id,
-            agent_session: None,
-            agent_id: None,
-            agent_scope: ctx.access_scope,
-        },
-        target: AuditTarget {
-            tool_name: GovernedTarget::Prompt.as_str().to_owned(),
-            plugin_id: None,
-        },
-        chain: evaluation.chain,
-        approver: None,
-        act_chain: Vec::new(),
-        context_id: Some(ctx.context_id.as_str().to_owned()),
-        trace_id: ctx.trace_id.as_ref().map(|t| t.as_str().to_owned()),
-    };
-    match db.write_pool_arc() {
-        Ok(pool) => {
-            if let Err(e) = record_decision(&pool, &decision_audit).await {
-                tracing::error!(
-                    target: "governance.audit.write_failed",
-                    error = %e,
-                    ai_request_id = %ctx.ai_request_id,
-                    "gateway governance audit write failed; row dropped"
-                );
-            }
-        },
-        Err(e) => tracing::error!(
-            target: "governance.audit.write_failed",
-            error = %e,
-            ai_request_id = %ctx.ai_request_id,
-            "no write pool for the gateway governance decision; row dropped"
-        ),
-    }
-}
-
-struct PromptEvaluation {
-    evaluation: Evaluation,
-    call_id: CallId,
-    session_id: SessionId,
-}
-
-fn evaluate_prompt(ctx: &GatewayRequestContext, request: &CanonicalRequest) -> PromptEvaluation {
-    // Why: `flatten_parts` includes the forwarded surface `PreparedDispatch`
-    // attached, so the chain scans exactly the bytes that will go on the wire
-    // — operator `extra_patterns` included, which the hardcoded safety scanner
-    // cannot do — and each part keeps its source path, so a denial names the
-    // leaf that actually matched instead of blaming `prompt.text`.
-    let input = GovernedInput::prompt_parts(request.flatten_parts());
-    // Why: the bucket key is `session_id:user_id`. A sessionless inference call
-    // needs a *stable* placeholder — minting one per request would give every
-    // call its own bucket and silently disable rate limiting.
-    let session_id = ctx.session_id.clone().unwrap_or_else(SessionId::system);
-    // Why: the engine's idempotency contract is per-call_id, and the ai-request
-    // id is the one identifier stable across re-evaluations of this call. It is
-    // what stops the rate limiter charging twice.
-    let call_id = CallId::new(ctx.ai_request_id.as_str());
-
-    // Why: the same engine instance the MCP governance webhook uses — the rate
-    // limiter's buckets are instance-scoped, so a second engine would give
-    // inference its own budget and silently double every operator limit.
-    let evaluation = GovernanceEngine::global().evaluate(&PolicyContext {
-        target: GovernedTarget::Prompt,
-        agent_scope: AgentScope::User {
-            user_id: ctx.user_id.clone(),
-        },
-        access_scope: ctx.access_scope,
-        session_id: &session_id,
-        user_id: &ctx.user_id,
-        input: &input,
-        call_id: &call_id,
-    });
-
-    PromptEvaluation {
-        evaluation,
-        call_id,
-        session_id,
-    }
-}
-
-async fn audit_upstream_failure(
-    audit: &GatewayAudit,
-    provider: &str,
-    model: &str,
-    error: &anyhow::Error,
-) {
-    tracing::warn!(
-        provider = %provider,
-        model = %model,
-        error = %error,
-        "gateway upstream call failed"
-    );
-    if let Err(audit_err) = audit.fail(&error.to_string()).await {
-        tracing::warn!(error = %audit_err, "upstream audit fail failed");
     }
 }
