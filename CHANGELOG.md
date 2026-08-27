@@ -1,5 +1,12 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+
+- The outbound MCP client negotiates protocol `2026-07-28`, so a server will hand it an `InputRequiredResult`. rmcp's default is `ProtocolVersion::LATEST` — `2025-11-25` — and a server refuses to send `resultType: "input_required"` to a peer that negotiated below `2026-07-28`, so every MRTR (SEP-2322) round arrived as an error and no MCP tool could ask a human for anything through this client. Servers that do not speak `2026-07-28` negotiate down as before.
+- `HttpClientWithContext` restates the negotiated protocol version and the client's capabilities in each request's `_meta` (SEP-2575). A stateless server has no session to remember them from and rejects any non-initialize request that omits them, before the request reaches a handler; rmcp sets the `MCP-Protocol-Version` header but never the matching `_meta` fields. The version is read back from that header rather than assumed, so it always agrees with it and older servers are untouched. This also settles the SEP-2243 `Mcp-Method` / `Mcp-Name` headers, which rmcp derives from the negotiated version once it is `2026-07-28`.
+
 ## [0.40.0] - 2026-08-26
 
 ### Added

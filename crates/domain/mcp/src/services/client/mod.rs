@@ -16,7 +16,7 @@
 
 use crate::error::McpDomainResult;
 use rmcp::handler::client::progress::ProgressDispatcher;
-use rmcp::model::{ClientInfo, Implementation, ProgressNotificationParam};
+use rmcp::model::{ClientInfo, Implementation, ProgressNotificationParam, ProtocolVersion};
 use rmcp::service::NotificationContext;
 use rmcp::transport::streamable_http_client::{
     StreamableHttpClientTransport, StreamableHttpClientTransportConfig,
@@ -119,12 +119,13 @@ impl McpClient {
         context: &systemprompt_models::RequestContext,
     ) -> McpDomainResult<Vec<McpTool>> {
         let service_id = server_config.name.as_str();
-        let transport = build_transport(server_config, context).await?;
+        let transport = build_transport(server_config, context, false).await?;
 
         let client_info = ClientInfo::new(
             capabilities::client_capabilities(false),
             Implementation::new("systemprompt-mcp-client", "1.0.0"),
-        );
+        )
+        .with_protocol_version(ProtocolVersion::V_2026_07_28);
 
         let client = client_info.serve(transport).await?;
         let all_tools = client.list_all_tools().await?;
@@ -189,7 +190,7 @@ impl McpClient {
         elicitation: Option<SharedElicitationDelegate>,
     ) -> McpDomainResult<systemprompt_models::CallToolResult> {
         let service_name = server_config.name.as_str();
-        let transport = build_transport(server_config, context).await?;
+        let transport = build_transport(server_config, context, elicitation.is_some()).await?;
         execute_tool_call(transport, service_name, &name, arguments, elicitation).await
     }
 }
@@ -197,6 +198,7 @@ impl McpClient {
 async fn build_transport(
     server_config: &systemprompt_models::mcp::McpServerConfig,
     context: &systemprompt_models::RequestContext,
+    with_elicitation: bool,
 ) -> McpDomainResult<StreamableHttpClientTransport<HttpClientWithContext>> {
     let raw_url = server_config.call_url(&Config::get()?.api_server_url);
     let url = if server_config.is_external() {
@@ -217,6 +219,7 @@ async fn build_transport(
             &server_config.name,
         )?;
         HttpClientWithContext::external(context.clone(), outbound)
+            .with_client_capabilities(capabilities::client_capabilities(with_elicitation))
     } else {
         if server_config.oauth.required {
             let user_token = context.auth_token();
@@ -233,6 +236,7 @@ async fn build_transport(
         let outbound =
             external_auth::static_outbound_headers(&server_config.headers, &server_config.name)?;
         HttpClientWithContext::forwarding(context.clone(), outbound)
+            .with_client_capabilities(capabilities::client_capabilities(with_elicitation))
     };
 
     Ok(StreamableHttpClientTransport::with_client(
@@ -248,10 +252,17 @@ pub async fn execute_tool_call(
     arguments: Option<serde_json::Value>,
     elicitation: Option<SharedElicitationDelegate>,
 ) -> McpDomainResult<systemprompt_models::CallToolResult> {
+    // Why: rmcp's default is `ProtocolVersion::LATEST`, which is 2025-11-25 —
+    // BELOW the 2026-07-28 that MRTR requires. A server refuses to hand an
+    // `InputRequiredResult` to a peer that negotiated lower, so with the
+    // default every `input_required` round became an error and no tool could
+    // ever ask a human for anything through this client. Servers that do not
+    // speak 2026-07-28 negotiate down as usual.
     let client_info = ClientInfo::new(
         capabilities::client_capabilities(elicitation.is_some()),
         Implementation::new("systemprompt-ai-mcp-client", "1.0.0"),
-    );
+    )
+    .with_protocol_version(ProtocolVersion::V_2026_07_28);
 
     let mut handler = McpClientHandler::new(client_info);
     if let Some(delegate) = elicitation {
