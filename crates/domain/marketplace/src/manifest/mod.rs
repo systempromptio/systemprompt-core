@@ -1,0 +1,137 @@
+//! Manifest assembly and sealing service.
+//!
+//! [`ManifestService`] assembles a scoped, filtered [`MarketplaceCandidate`]
+//! from the on-disk catalogue and seals a built [`SignedManifest`] into a
+//! [`SignedManifestEnvelope`]: the manifest's JCS-canonical serialization
+//! carried verbatim as the envelope payload, signed byte-for-byte. The bridge
+//! verifies over those exact bytes before parsing, so there is no second
+//! canonical view to keep in sync with the manifest struct.
+//!
+//! Manifest skills are derived, never configured: the skills array is the
+//! union of skills the enabled, marketplace-included plugins actually ship
+//! (plugin `skills` refs plus their included agents' skill refs), so it cannot
+//! diverge from what the plugin bundles deliver.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
+mod diagnostics;
+mod scoping;
+
+use std::collections::BTreeSet;
+use std::path::Path;
+
+use systemprompt_identifiers::UserId;
+use systemprompt_models::bridge::ids::{LibraryArtifactId, ManifestSignature};
+use systemprompt_models::bridge::manifest::{SignedManifest, SignedManifestEnvelope};
+use systemprompt_models::services::ServicesConfig;
+use systemprompt_security::manifest_signing;
+
+use crate::candidate::MarketplaceCandidate;
+use crate::catalog::{CatalogContent, artifact_owners, load_hooks, load_plugins};
+use crate::error::MarketplaceError;
+use crate::filter::MarketplaceFilter;
+use crate::service::MarketplaceService;
+use crate::trace::{NoopTrace, TraceSink, TraceStage};
+use diagnostics::{plugin_inclusion_diagnostics, record_removed, snapshot};
+use scoping::{gate_artifacts_by_plugin, gate_skills_by_plugin, prune_traced, scope_all};
+
+#[derive(Debug, Default, Clone, Copy)]
+pub struct ManifestService;
+
+impl ManifestService {
+    pub async fn assemble_candidate(
+        services: &ServicesConfig,
+        services_root: &Path,
+        api_external_url: &str,
+        filter: &dyn MarketplaceFilter,
+        user_id: &UserId,
+    ) -> Result<MarketplaceCandidate, MarketplaceError> {
+        Self::assemble_candidate_traced(
+            services,
+            services_root,
+            api_external_url,
+            filter,
+            user_id,
+            &mut NoopTrace,
+        )
+        .await
+    }
+
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "assemble_candidate's parameter list plus the trace sink; a wrapper struct \
+                  would only relocate the same fan-in"
+    )]
+    pub async fn assemble_candidate_traced(
+        services: &ServicesConfig,
+        services_root: &Path,
+        api_external_url: &str,
+        filter: &dyn MarketplaceFilter,
+        user_id: &UserId,
+        trace: &mut dyn TraceSink,
+    ) -> Result<MarketplaceCandidate, MarketplaceError> {
+        let catalog =
+            CatalogContent::load_traced(services, services_root, api_external_url, trace)?;
+        let hooks = load_hooks(services_root)?;
+        let plugins = load_plugins(services, &catalog.as_content())?;
+        let selected_skills = crate::catalog::selected_skill_ids(services, &catalog.as_content())?;
+        let (skills, agents, managed_mcp_servers, artifacts) = catalog.into_parts();
+
+        let active = MarketplaceService::new(services).resolve_active()?;
+        let (agents, managed_mcp_servers, artifacts) =
+            scope_all(active, agents, managed_mcp_servers, artifacts, trace);
+
+        let mut diagnostics = plugin_inclusion_diagnostics(services, &skills, &agents)?;
+        let skills = gate_skills_by_plugin(skills, &selected_skills, trace);
+
+        let owners = artifact_owners(services, &artifacts)?;
+        let selected_artifacts: BTreeSet<LibraryArtifactId> = owners.keys().cloned().collect();
+        let artifacts = gate_artifacts_by_plugin(artifacts, &selected_artifacts, trace);
+
+        let mut candidate = MarketplaceCandidate {
+            plugins,
+            skills,
+            agents,
+            hooks,
+            managed_mcp_servers,
+            artifacts,
+            ..MarketplaceCandidate::default()
+        }
+        .with_artifact_owners(owners);
+        if let Some(mp) = active {
+            candidate = candidate.with_marketplace(mp.id.clone(), Some(mp.access.clone()));
+        }
+
+        for d in &diagnostics {
+            tracing::warn!(diagnostic = %d, "marketplace: manifest diagnostic");
+        }
+
+        let pre_filter = snapshot(&candidate);
+        let mut filtered = filter.filter(user_id, candidate).await?;
+        record_removed(
+            &pre_filter,
+            &snapshot(&filtered),
+            TraceStage::AccessFilter,
+            "removed by the per-user marketplace filter",
+            trace,
+        );
+
+        prune_traced(&mut filtered, trace);
+
+        diagnostics.extend(std::mem::take(&mut filtered.diagnostics));
+        filtered.diagnostics = diagnostics;
+        Ok(filtered)
+    }
+
+    pub fn seal(manifest: &SignedManifest) -> Result<SignedManifestEnvelope, MarketplaceError> {
+        let payload = manifest_signing::canonicalize(manifest)
+            .map_err(|e| MarketplaceError::Signing(e.to_string()))?;
+        let signature = manifest_signing::sign_bytes(payload.as_bytes())
+            .map_err(|e| MarketplaceError::Signing(e.to_string()))?;
+        Ok(SignedManifestEnvelope {
+            payload,
+            signature: ManifestSignature::new(signature),
+        })
+    }
+}

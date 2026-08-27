@@ -15,6 +15,7 @@ mod merge;
 pub(super) mod operations;
 mod session;
 mod stats;
+mod updates;
 
 pub use merge::{MERGE_EXCLUDED_SECURITY_TABLES, MergeResult};
 pub use operations::UpdateUserParams;

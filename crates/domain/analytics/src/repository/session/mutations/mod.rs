@@ -14,6 +14,9 @@ use sqlx::PgPool;
 use systemprompt_identifiers::{SessionId, UserId};
 
 use super::types::CreateSessionParams;
+mod geo;
+
+pub(super) use geo::{backfill_session_geo, count_sessions_missing_geo};
 
 pub(super) async fn update_activity(pool: &PgPool, session_id: &SessionId) -> Result<()> {
     let id = session_id.as_str();
@@ -165,73 +168,6 @@ pub(super) async fn migrate_user_sessions(
     .execute(pool)
     .await?;
     Ok(result.rows_affected())
-}
-
-pub(super) async fn backfill_session_geo(
-    pool: &PgPool,
-    geoip_reader: Option<&crate::GeoIpReader>,
-    batch_size: i64,
-) -> Result<u64> {
-    let mut updated = 0u64;
-    let mut last_session_id = String::new();
-
-    loop {
-        let rows = sqlx::query!(
-            r#"
-            SELECT session_id, ip_address as "ip_address!"
-            FROM user_sessions
-            WHERE country IS NULL AND ip_address IS NOT NULL AND session_id > $1
-            ORDER BY session_id
-            LIMIT $2
-            "#,
-            last_session_id,
-            batch_size
-        )
-        .fetch_all(pool)
-        .await?;
-
-        let Some(last) = rows.last() else {
-            break;
-        };
-        last_session_id = last.session_id.clone();
-
-        for row in &rows {
-            let Some((country, region, city)) =
-                crate::services::extractor::geoip::lookup_geoip(&row.ip_address, geoip_reader)
-            else {
-                continue;
-            };
-            let result = sqlx::query!(
-                r#"
-                UPDATE user_sessions
-                SET country = $2, region = $3, city = $4
-                WHERE session_id = $1 AND country IS NULL
-                "#,
-                row.session_id,
-                country,
-                region,
-                city
-            )
-            .execute(pool)
-            .await?;
-            updated += result.rows_affected();
-        }
-    }
-
-    Ok(updated)
-}
-
-pub(super) async fn count_sessions_missing_geo(pool: &PgPool) -> Result<i64> {
-    let count = sqlx::query_scalar!(
-        r#"
-        SELECT COUNT(*) as "count!"
-        FROM user_sessions
-        WHERE country IS NULL AND ip_address IS NOT NULL
-        "#
-    )
-    .fetch_one(pool)
-    .await?;
-    Ok(count)
 }
 
 pub(super) async fn create_session(pool: &PgPool, params: &CreateSessionParams<'_>) -> Result<()> {
