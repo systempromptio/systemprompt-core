@@ -1,0 +1,244 @@
+//! Meta, gateway, auth and sync command dispatch.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
+use serde_json::{Value, json};
+
+use crate::gui::events::{ReplyId, UiEvent};
+use crate::gui::ipc::{BridgeError, ErrorCode, ErrorScope};
+use crate::gui::state::CancelScope;
+use crate::gui::{GuiApp, server_json};
+
+use super::args::{CancelArgs, GatewaySetArgs, LoginArgs, OpenExternalUrlArgs, SessionLoginArgs};
+use super::{CommandOutcome, parse, send};
+
+fn is_safe_external_url(url: &str) -> bool {
+    url.starts_with("https://")
+}
+
+pub(super) fn meta_dispatch(
+    app: &GuiApp,
+    cmd: &str,
+    args: &Value,
+    _reply_id: ReplyId,
+) -> Option<CommandOutcome> {
+    Some(match cmd {
+        "state.snapshot" => {
+            CommandOutcome::Sync(Ok(server_json::snapshot_value(&app.state.snapshot())))
+        },
+        "marketplace.list" => CommandOutcome::Sync(Ok(marketplace_listing(app))),
+        "setup.complete" => {
+            send(app, UiEvent::SetupComplete);
+            CommandOutcome::Sync(Ok(json!({})))
+        },
+        "openConfigFolder" => {
+            send(app, UiEvent::OpenConfigFolder);
+            CommandOutcome::Sync(Ok(json!({})))
+        },
+        "openExternalUrl" => open_external_url(args.clone()),
+        "quit" => {
+            send(app, UiEvent::Quit);
+            CommandOutcome::Sync(Ok(json!({})))
+        },
+        _ => return None,
+    })
+}
+
+pub(super) fn gateway_dispatch(
+    app: &GuiApp,
+    cmd: &str,
+    args: Value,
+    reply_id: ReplyId,
+) -> Option<CommandOutcome> {
+    Some(match cmd {
+        "gateway.set" => match parse::<GatewaySetArgs>(args) {
+            Ok(a) if a.url.trim().is_empty() => CommandOutcome::Sync(Err(BridgeError::new(
+                ErrorScope::Gateway,
+                ErrorCode::InvalidArgs,
+                "gateway url is empty",
+            ))),
+            Ok(a) => {
+                send(
+                    app,
+                    UiEvent::SetGatewayRequested {
+                        url: a.url,
+                        reply_to: reply_id,
+                    },
+                );
+                CommandOutcome::Async
+            },
+            Err(e) => CommandOutcome::Sync(Err(e)),
+        },
+        "gateway.probe" => {
+            send(app, UiEvent::GatewayProbeRequested { reply_to: reply_id });
+            CommandOutcome::Async
+        },
+        "mcp.auth.probe" => {
+            send(app, UiEvent::McpAuthProbeRequested { reply_to: reply_id });
+            CommandOutcome::Async
+        },
+        _ => return None,
+    })
+}
+
+pub(super) fn auth_dispatch(
+    app: &GuiApp,
+    cmd: &str,
+    args: Value,
+    reply_id: ReplyId,
+) -> Option<CommandOutcome> {
+    Some(match cmd {
+        "login" => match parse::<LoginArgs>(args) {
+            Ok(a) if a.token.expose().trim().is_empty() => CommandOutcome::Sync(Err(
+                BridgeError::new(ErrorScope::Identity, ErrorCode::InvalidArgs, "PAT is empty"),
+            )),
+            Ok(a) => {
+                send(
+                    app,
+                    UiEvent::LoginRequested {
+                        token: a.token,
+                        gateway: a.gateway,
+                        reply_to: reply_id,
+                    },
+                );
+                CommandOutcome::Async
+            },
+            Err(e) => CommandOutcome::Sync(Err(e)),
+        },
+        "session.login" => match parse::<SessionLoginArgs>(args) {
+            Ok(a) => {
+                send(
+                    app,
+                    UiEvent::SessionLoginRequested {
+                        gateway: a.gateway,
+                        keep_signed_in: a.keep_signed_in,
+                        reply_to: reply_id,
+                    },
+                );
+                CommandOutcome::Async
+            },
+            Err(e) => CommandOutcome::Sync(Err(e)),
+        },
+        "logout" => {
+            send(app, UiEvent::LogoutRequested { reply_to: reply_id });
+            CommandOutcome::Async
+        },
+        "profile.fetch" => {
+            send(app, UiEvent::ProfileFetchRequested { reply_to: reply_id });
+            CommandOutcome::Async
+        },
+        _ => return None,
+    })
+}
+
+pub(super) fn sync_dispatch(
+    app: &GuiApp,
+    cmd: &str,
+    args: Value,
+    reply_id: ReplyId,
+) -> Option<CommandOutcome> {
+    Some(match cmd {
+        "sync" => {
+            send(app, UiEvent::SyncRequested { reply_to: reply_id });
+            CommandOutcome::Async
+        },
+        "validate" => {
+            send(app, UiEvent::ValidateRequested { reply_to: reply_id });
+            CommandOutcome::Async
+        },
+        "update.check" => {
+            send(app, UiEvent::UpdateCheckRequested { reply_to: reply_id });
+            CommandOutcome::Async
+        },
+        "update.install" => {
+            send(app, UiEvent::UpdateInstallRequested { reply_to: reply_id });
+            CommandOutcome::Async
+        },
+        "update.restart" => {
+            send(app, UiEvent::UpdateRestartRequested);
+            CommandOutcome::Sync(Ok(Value::Null))
+        },
+        "cancel" => match parse::<CancelArgs>(args) {
+            Ok(a) => match cancel_scope(a.scope.as_deref()) {
+                Ok(scope) => {
+                    send(
+                        app,
+                        UiEvent::CancelInFlight {
+                            scope,
+                            reply_to: reply_id,
+                        },
+                    );
+                    CommandOutcome::Async
+                },
+                Err(e) => CommandOutcome::Sync(Err(e)),
+            },
+            Err(e) => CommandOutcome::Sync(Err(e)),
+        },
+        _ => return None,
+    })
+}
+
+fn cancel_scope(label: Option<&str>) -> Result<Option<CancelScope>, BridgeError> {
+    Ok(match label {
+        None | Some("all") => None,
+        Some("sync") => Some(CancelScope::Sync),
+        Some("login") => Some(CancelScope::Login),
+        Some("gateway" | "gateway-probe") => Some(CancelScope::GatewayProbe),
+        Some(other) => {
+            return Err(BridgeError::invalid_args(format!(
+                "unknown cancel scope: {other}"
+            )));
+        },
+    })
+}
+
+fn open_external_url(args: Value) -> CommandOutcome {
+    match parse::<OpenExternalUrlArgs>(args) {
+        Ok(a) if !is_safe_external_url(&a.url) => CommandOutcome::Sync(Err(
+            BridgeError::invalid_args(format!("refusing to open non-https url: {}", a.url)),
+        )),
+        Ok(a) => match opener::open(&a.url) {
+            Ok(()) => CommandOutcome::Sync(Ok(json!({}))),
+            Err(e) => CommandOutcome::Sync(Err(BridgeError::new(
+                ErrorScope::Internal,
+                ErrorCode::Internal,
+                format!("open url failed: {e}"),
+            ))),
+        },
+        Err(e) => CommandOutcome::Sync(Err(e)),
+    }
+}
+
+pub(super) fn diagnostics_dispatch(
+    app: &GuiApp,
+    cmd: &str,
+    reply_id: ReplyId,
+) -> Option<CommandOutcome> {
+    Some(match cmd {
+        "diagnostics.openLogDirectory" | "openLogFolder" => {
+            send(app, UiEvent::OpenLogDirectory { reply_to: reply_id });
+            CommandOutcome::Async
+        },
+        "diagnostics.exportBundle" => {
+            send(app, UiEvent::ExportDiagnosticBundle { reply_to: reply_id });
+            CommandOutcome::Async
+        },
+        "diagnostics.info" => CommandOutcome::Sync(Ok(json!({
+            "version": crate::brand::brand().version,
+            "git_sha": crate::cli::diagnostics::short_sha(),
+            "git_sha_full": crate::cli::diagnostics::GIT_SHA,
+            "build_date": crate::cli::diagnostics::GIT_COMMIT_DATE,
+            "build_timestamp": crate::cli::diagnostics::BUILD_TIMESTAMP,
+            "branch": crate::cli::diagnostics::GIT_BRANCH,
+            "rendered": crate::cli::diagnostics::render(),
+        }))),
+        _ => return None,
+    })
+}
+
+fn marketplace_listing(app: &GuiApp) -> Value {
+    let snap = app.state.snapshot();
+    let listing = crate::gui::server_marketplace::build_listing(&snap.mcp_auth);
+    crate::gui::server_marketplace::listing_to_value(&listing).unwrap_or(Value::Null)
+}

@@ -4,150 +4,29 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod builder;
+mod cancel;
 mod counters;
+mod first_run;
 mod jwt;
+mod reload;
+mod types;
 
 pub use builder::AppStateSnapshotBuilder;
+pub use cancel::CancelScope;
+pub use jwt::decode_jwt_identity_unverified;
+pub use types::{
+    AppStateSnapshot, CachedToken, GatewayProbeOutcome, GatewayStatus, VerifiedIdentity,
+};
 
 use std::sync::Arc;
 use std::time::SystemTime;
 
 use parking_lot::RwLock;
-use serde::Deserialize;
-use systemprompt_identifiers::{TenantId, UserId};
-use tokio_util::sync::CancellationToken;
-
-pub use jwt::decode_jwt_identity_unverified;
-
-use crate::auth::{cache, setup};
-use crate::config::{self, paths};
-
-use crate::gui::hosts::state::HostsState;
 
 use crate::integration::{HostAppSnapshot, ProxyHealth};
 use crate::proxy::mcp_probe::McpServerAuth;
 use crate::validate::ValidationReport;
-
-use counters::{count_malformed_plugin_dirs, count_plugin_dirs};
-
-#[derive(Debug, Deserialize)]
-struct LastSyncRecord {
-    #[serde(default)]
-    synced_at: Option<String>,
-    #[serde(default)]
-    manifest_version: Option<String>,
-    #[serde(default)]
-    enabled_hosts: Vec<String>,
-    #[serde(default)]
-    host_model_protocols: std::collections::BTreeMap<String, Vec<String>>,
-}
-
-#[derive(Debug, Clone, Default)]
-pub enum GatewayStatus {
-    #[default]
-    Unknown,
-    Probing,
-    Reachable {
-        latency_ms: u64,
-    },
-    Unreachable {
-        reason: String,
-    },
-}
-
-impl GatewayStatus {
-    pub const fn is_reachable(&self) -> bool {
-        matches!(self, Self::Reachable { .. })
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct VerifiedIdentity {
-    pub email: Option<String>,
-    pub user_id: Option<UserId>,
-    pub tenant_id: Option<TenantId>,
-    pub exp_unix: Option<u64>,
-    pub verified_at_unix: u64,
-}
-
-#[derive(Debug, Clone)]
-pub struct GatewayProbeOutcome {
-    pub status: GatewayStatus,
-    pub identity: Option<VerifiedIdentity>,
-    pub at_unix: u64,
-    pub provider_health: Vec<crate::auth::types::ProviderHealth>,
-}
-
-#[derive(Debug, Clone, Default)]
-pub struct AppStateSnapshot {
-    pub gateway_url: String,
-    pub config_file: String,
-    pub pat_file: String,
-    pub config_present: bool,
-    pub pat_present: bool,
-    pub last_sync_summary: Option<String>,
-    pub skill_count: Option<usize>,
-    pub agent_count: Option<usize>,
-    pub plugins_dir: Option<String>,
-    pub sync_in_flight: bool,
-    pub last_validation: Option<ValidationReport>,
-    pub cached_token: Option<CachedToken>,
-    pub plugin_count: Option<usize>,
-    pub malformed_plugin_count: Option<usize>,
-    pub gateway_status: GatewayStatus,
-    pub verified_identity: Option<VerifiedIdentity>,
-    pub last_probe_at_unix: Option<u64>,
-    pub agents_onboarded: bool,
-    pub first_run: crate::gui::first_run::state::FirstRunState,
-    pub enabled_hosts: Vec<String>,
-    pub host_model_protocols: std::collections::BTreeMap<String, Vec<String>>,
-    pub provider_health: Vec<crate::auth::types::ProviderHealth>,
-
-    pub hosts: HostsState,
-
-    pub mcp_auth: Vec<McpServerAuth>,
-    pub mcp_auth_probe_in_flight: bool,
-
-    pub update: crate::update::UpdateUiState,
-}
-
-impl AppStateSnapshot {
-    // Why: deliberately not `!enabled_hosts.is_empty()` -- an instance may
-    // disable every host, and that empty list is a real answer from a good
-    // manifest, not a missing one. Anything gating on the instance's host
-    // policy must ask this instead.
-    pub const fn manifest_synced(&self) -> bool {
-        self.last_sync_summary.is_some()
-    }
-
-    pub const fn signed_in(&self) -> bool {
-        self.gateway_status.is_reachable() && self.verified_identity.is_some()
-    }
-
-    pub fn builder() -> AppStateSnapshotBuilder {
-        AppStateSnapshotBuilder::default()
-    }
-}
-
-#[derive(Debug, Clone, Copy)]
-pub struct CachedToken {
-    pub ttl_seconds: u64,
-    pub length: usize,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum CancelScope {
-    Sync,
-    Login,
-    GatewayProbe,
-}
-
-#[derive(Debug, Default)]
-struct CancelTokens {
-    sync: Option<CancellationToken>,
-    login: Option<CancellationToken>,
-    gateway_probe: Option<CancellationToken>,
-}
+use cancel::CancelTokens;
 
 #[derive(Debug)]
 pub struct AppState {
@@ -158,68 +37,11 @@ pub struct AppState {
 impl AppState {
     pub fn new_loaded() -> Arc<Self> {
         let mut snap = AppStateSnapshot::default();
-        Self::reload_into(&mut snap);
+        reload::reload_into(&mut snap);
         Arc::new(Self {
             inner: RwLock::new(snap),
             cancels: RwLock::new(CancelTokens::default()),
         })
-    }
-
-    pub fn install_cancel(&self, scope: CancelScope) -> CancellationToken {
-        let token = CancellationToken::new();
-        let prev = {
-            let mut guard = self.cancels.write();
-            let prev = match scope {
-                CancelScope::Sync => guard.sync.replace(token.clone()),
-                CancelScope::Login => guard.login.replace(token.clone()),
-                CancelScope::GatewayProbe => guard.gateway_probe.replace(token.clone()),
-            };
-            drop(guard);
-            prev
-        };
-        if let Some(prev) = prev {
-            prev.cancel();
-        }
-        token
-    }
-
-    pub fn clear_cancel(&self, scope: CancelScope) {
-        let mut guard = self.cancels.write();
-        match scope {
-            CancelScope::Sync => guard.sync = None,
-            CancelScope::Login => guard.login = None,
-            CancelScope::GatewayProbe => guard.gateway_probe = None,
-        }
-        drop(guard);
-    }
-
-    pub fn cancel_scope(&self, scope: CancelScope) -> bool {
-        let taken = {
-            let mut guard = self.cancels.write();
-            match scope {
-                CancelScope::Sync => guard.sync.take(),
-                CancelScope::Login => guard.login.take(),
-                CancelScope::GatewayProbe => guard.gateway_probe.take(),
-            }
-        };
-        taken.is_some_and(|token| {
-            token.cancel();
-            true
-        })
-    }
-
-    pub fn cancel_all(&self) {
-        let mut guard = self.cancels.write();
-        for token in [
-            guard.sync.take(),
-            guard.login.take(),
-            guard.gateway_probe.take(),
-        ]
-        .into_iter()
-        .flatten()
-        {
-            token.cancel();
-        }
     }
 
     pub fn snapshot(&self) -> AppStateSnapshot {
@@ -228,7 +50,7 @@ impl AppState {
 
     pub fn reload(&self) {
         let mut guard = self.inner.write();
-        Self::reload_into(&mut guard);
+        reload::reload_into(&mut guard);
     }
 
     pub fn set_sync_in_flight(&self, flag: bool) {
@@ -257,57 +79,6 @@ impl AppState {
 
     pub fn set_agents_onboarded(&self, flag: bool) {
         self.inner.write().agents_onboarded = flag;
-    }
-
-    pub fn first_run_active(&self) -> bool {
-        self.inner.read().first_run.active
-    }
-
-    pub fn begin_first_run(&self, hosts: &[(String, String)]) {
-        use crate::gui::first_run::state::{FirstRunHost, FirstRunPhase, StepStatus};
-        let mut guard = self.inner.write();
-        guard.first_run.active = true;
-        guard.first_run.phase = FirstRunPhase::Probing;
-        guard.first_run.sync = StepStatus::Pending;
-        guard.first_run.error = None;
-        guard.first_run.started_at_unix = now_unix();
-        guard.first_run.hosts = hosts
-            .iter()
-            .map(|(id, name)| FirstRunHost {
-                host_id: id.clone(),
-                display_name: name.clone(),
-                status: StepStatus::Probing,
-                error: None,
-            })
-            .collect();
-    }
-
-    pub fn set_first_run_host(
-        &self,
-        host_id: &str,
-        status: crate::gui::first_run::state::StepStatus,
-        error: Option<String>,
-    ) {
-        let mut guard = self.inner.write();
-        if let Some(host) = guard.first_run.host_mut(host_id) {
-            host.status = status;
-            host.error = error;
-        }
-    }
-
-    pub fn set_first_run_phase(&self, phase: crate::gui::first_run::state::FirstRunPhase) {
-        self.inner.write().first_run.phase = phase;
-    }
-
-    pub fn set_first_run_sync(&self, status: crate::gui::first_run::state::StepStatus) {
-        self.inner.write().first_run.sync = status;
-    }
-
-    pub fn finish_first_run(&self, phase: crate::gui::first_run::state::FirstRunPhase) {
-        let mut guard = self.inner.write();
-        guard.first_run.phase = phase;
-        guard.first_run.active = false;
-        guard.first_run.done = true;
     }
 
     pub fn apply_host_snapshot(&self, host_id: &str, snap: HostAppSnapshot) {
@@ -412,68 +183,6 @@ impl AppState {
                     .filter(|s| !s.is_empty())
                     .cloned()
             })
-    }
-
-    fn reload_into(snap: &mut AppStateSnapshot) {
-        let cfg = config::load();
-        snap.gateway_url = config::gateway_url_or_default(&cfg).to_string();
-
-        snap.first_run.done = crate::gui::first_run::record::read().is_some();
-        snap.agents_onboarded = crate::gui::onboarding::is_complete();
-
-        if let Ok(s) = setup::status() {
-            snap.config_file = s.paths.config_file.display().to_string();
-            snap.pat_file = s.paths.pat_file.display().to_string();
-            snap.config_present = s.config_present;
-            snap.pat_present = s.pat_present;
-        } else {
-            snap.config_file.clear();
-            snap.pat_file.clear();
-            snap.config_present = false;
-            snap.pat_present = false;
-        }
-
-        let loc = paths::org_plugins_effective();
-        snap.plugins_dir = loc.as_ref().map(|l| l.path.display().to_string());
-        snap.last_sync_summary = None;
-        snap.skill_count = None;
-        snap.agent_count = None;
-        snap.plugin_count = None;
-        snap.malformed_plugin_count = None;
-        snap.enabled_hosts.clear();
-        snap.host_model_protocols.clear();
-        if crate::auth::has_credential_source(&cfg) {
-            let gateway = config::gateway_url_or_default(&cfg);
-            snap.cached_token = cache::read_valid(&gateway).map(|out| CachedToken {
-                ttl_seconds: out.ttl,
-                length: out.token.len(),
-            });
-        } else {
-            _ = cache::clear();
-            snap.cached_token = None;
-            snap.verified_identity = None;
-        }
-
-        // Why: the last-sync record is the manifest's own footprint, not the
-        // org-plugins directory's, so it must be read even when that directory
-        // does not resolve or the host gate silently loses its authority.
-        if let Some(meta) = paths::bridge_metadata_dir()
-            && let Ok(bytes) = std::fs::read(meta.join(paths::LAST_SYNC_SENTINEL))
-            && let Ok(record) = serde_json::from_slice::<LastSyncRecord>(&bytes)
-        {
-            let when = record.synced_at.as_deref().unwrap_or("unknown");
-            let manifest_version = record.manifest_version.as_deref().unwrap_or("?");
-            snap.last_sync_summary = Some(format!("{when} (manifest {manifest_version})"));
-            snap.enabled_hosts = record.enabled_hosts;
-            snap.host_model_protocols = record.host_model_protocols;
-        }
-
-        if let Some(loc) = loc {
-            snap.plugin_count = count_plugin_dirs(&loc.path);
-            snap.malformed_plugin_count = count_malformed_plugin_dirs(&loc.path);
-            snap.skill_count = counters::count_skills_across_plugins(&loc.path);
-            snap.agent_count = counters::count_agents_across_plugins(&loc.path);
-        }
     }
 }
 

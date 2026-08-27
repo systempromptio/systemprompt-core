@@ -11,6 +11,7 @@ pub mod identity;
 pub mod keepalive;
 pub mod mcp_probe;
 pub mod portfile;
+mod runtime;
 pub mod secret;
 pub mod server;
 pub mod session;
@@ -20,12 +21,11 @@ pub mod usage;
 use std::sync::{Arc, OnceLock};
 use std::time::Duration;
 
-use tokio::runtime::Runtime;
-
-use crate::config::{self, RuntimeConfig, SharedRuntimeConfig};
 use crate::integration::proxy_probe::PeerIdentity;
 use crate::obs::output::diag;
 
+use runtime::runtime;
+pub use runtime::{block_on, reload_runtime_config, runtime_config, runtime_handle};
 pub use server::{ProxyHandle, ProxyStats};
 
 pub const DEFAULT_PROXY_PORT: u16 = 48217;
@@ -36,57 +36,6 @@ use token_cache::TokenCache;
 
 static HANDLE: OnceLock<ProxyHandle> = OnceLock::new();
 static RESOLVED_PORT: OnceLock<u16> = OnceLock::new();
-static RUNTIME: OnceLock<Arc<Runtime>> = OnceLock::new();
-static RUNTIME_CONFIG: OnceLock<SharedRuntimeConfig> = OnceLock::new();
-static TOKEN_CACHE: OnceLock<Arc<TokenCache>> = OnceLock::new();
-
-#[must_use]
-pub fn runtime_config() -> SharedRuntimeConfig {
-    Arc::clone(RUNTIME_CONFIG.get_or_init(config::shared_from_loaded))
-}
-
-fn swap_runtime_config(next: RuntimeConfig) {
-    runtime_config().store(Arc::new(next));
-    if let Some(cache) = TOKEN_CACHE.get() {
-        let cache = Arc::clone(cache);
-        if let Ok(rt) = runtime() {
-            rt.spawn(async move { cache.invalidate().await });
-        }
-    }
-    tracing::info!(target: "bridge::config", "runtime config swapped");
-}
-
-pub fn reload_runtime_config() {
-    swap_runtime_config(RuntimeConfig::from_loaded());
-}
-
-fn worker_thread_count() -> usize {
-    std::thread::available_parallelism().map_or(2, |n| (n.get() / 2).max(2))
-}
-
-pub fn runtime_handle() -> std::io::Result<tokio::runtime::Handle> {
-    runtime().map(|rt| rt.handle().clone())
-}
-
-pub fn block_on<F: Future>(fut: F) -> std::io::Result<F::Output> {
-    runtime().map(|rt| rt.block_on(fut))
-}
-
-fn runtime() -> std::io::Result<&'static Arc<Runtime>> {
-    if let Some(rt) = RUNTIME.get() {
-        return Ok(rt);
-    }
-    let rt = tokio::runtime::Builder::new_multi_thread()
-        .worker_threads(worker_thread_count())
-        .thread_name("bridge-rt")
-        .enable_all()
-        .build()?;
-    let arc = Arc::new(rt);
-    RUNTIME.set(arc).ok();
-    RUNTIME
-        .get()
-        .ok_or_else(|| std::io::Error::other("runtime init lost the race"))
-}
 
 pub const MAX_CANDIDATE_PORT: u16 = DEFAULT_PROXY_PORT + 9;
 
@@ -218,7 +167,7 @@ pub fn start_default() -> StartOutcome {
     let token_cache = Arc::new(TokenCache::default_for_runtime(
         session_context.session_id().clone(),
     ));
-    _ = TOKEN_CACHE.set(Arc::clone(&token_cache));
+    runtime::remember_token_cache(&token_cache);
 
     let handle = match server::start_with_listener(
         rt,
