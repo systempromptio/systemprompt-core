@@ -290,9 +290,24 @@ machete:
 hack:
     cargo hack --workspace --feature-powerset --depth 2 check
 
-# Flag source files exceeding 300 lines (excludes target/, tests/, and `//!` doc heads)
+# Reject source files exceeding 300 lines (excludes target/, tests/, and `//!` doc heads).
+#
+# This used to print and exit 0 — awk returns 0 whether or not it matched — so
+# the CI job named after it was green while 49 files were over the limit. It is
+# a gate now: it prints the offenders largest-first and fails.
 file-size:
-    @find crates bin/bridge/src -name '*.rs' -not -path '*/target/*' -not -path '*/tests/*' | xargs -r awk '!/^\/\/!/ {n[FILENAME]++} END {for (f in n) if (n[f]>300) print n[f], f}'
+    #!/usr/bin/env bash
+    set -euo pipefail
+    over=$(find crates bin/bridge/src -name '*.rs' -not -path '*/target/*' -not -path '*/tests/*' \
+        | xargs -r awk '!/^\/\/!/ {n[FILENAME]++} END {for (f in n) if (n[f]>300) print n[f], f}' \
+        | sort -rn)
+    if [ -n "$over" ]; then
+        echo "$over"
+        echo
+        echo "file-size: $(echo "$over" | wc -l) file(s) over the 300-line limit." >&2
+        exit 1
+    fi
+    echo "file-size: no source file exceeds 300 lines"
 
 # Verify every production file has a doc head + BSL-1.1 license reference
 check-headers:
