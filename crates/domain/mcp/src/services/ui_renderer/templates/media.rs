@@ -44,7 +44,7 @@ impl UiRenderer for AudioRenderer {
     {artist_html}
     <div class="media-frame">
         {artwork_html}
-        <audio class="media-element" src="{src}"{type_attr}{flags}></audio>
+        <audio class="media-element" src="{src}"{type_attr}{flags}>Your browser cannot play this audio. <a href="{src}">Download the file</a> instead.</audio>
     </div>
 </div>"#,
             title = html_escape(title),
@@ -98,7 +98,7 @@ impl UiRenderer for VideoRenderer {
             r#"<div class="container">
     <h1 class="mcp-app-title">{title}</h1>
     <div class="media-frame">
-        <video class="media-element" src="{src}"{type_attr}{poster}{flags}></video>
+        <video class="media-element" src="{src}"{type_attr}{poster}{flags}>Your browser cannot play this video. <a href="{src}">Download the file</a> instead.</video>
     </div>
     {caption_html}
 </div>"#,
@@ -135,7 +135,11 @@ fn media_resource(title: &str, body: &str, csp: CspPolicy) -> UiResource {
         .add_style(base_styles())
         .add_style(media_styles())
         .body(body)
-        .add_script(mcp_app_bridge_script())
+        .add_script(&format!(
+            "{bridge}\n{app}",
+            bridge = mcp_app_bridge_script(),
+            app = include_str!("assets/js/media.js"),
+        ))
         .build();
 
     UiResource::new(html).with_csp(csp)
@@ -167,7 +171,11 @@ struct Playback {
 impl Playback {
     fn to_attributes(self) -> String {
         let mut flags = String::new();
-        if self.controls {
+        // Why: `controls: false` with no autoplay renders an element with no
+        // affordance and no script to drive it — indistinguishable from a
+        // broken artifact. Controls are forced back on unless the media plays
+        // by itself.
+        if self.controls || !self.autoplay {
             flags.push_str(" controls");
         }
         if self.autoplay {

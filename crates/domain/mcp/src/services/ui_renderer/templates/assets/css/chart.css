@@ -31,13 +31,13 @@
 
 .chart-tick {
     fill: var(--mcpui-ink-faint);
-    font-size: 11px;
+    font-size: var(--mcpui-chart-tick-size);
     font-variant-numeric: tabular-nums;
 }
 
 .chart-axis-label {
     fill: var(--mcpui-ink-dim);
-    font-size: 11px;
+    font-size: var(--mcpui-chart-tick-size);
     font-weight: 600;
     letter-spacing: var(--mcpui-tracking-wide);
     text-transform: uppercase;
@@ -47,11 +47,17 @@
     transition: opacity var(--mcpui-duration) var(--mcpui-ease);
 }
 
-.chart-svg:hover .chart-bar {
+/* Dim the other bars only while one is actually hovered or focused. Keying
+ * this off `.chart-svg:hover` dimmed everything whenever the pointer entered
+ * the SVG at all, including its empty margin, and gave keyboard users no
+ * emphasis ever. */
+.chart-svg:has(.chart-bar:hover) .chart-bar,
+.chart-svg:has(.chart-bar:focus-visible) .chart-bar {
     opacity: 0.55;
 }
 
-.chart-svg .chart-bar:hover {
+.chart-svg .chart-bar:hover,
+.chart-svg .chart-bar:focus-visible {
     opacity: 1;
 }
 
@@ -79,14 +85,14 @@
 
 .chart-value {
     fill: var(--mcpui-ink-dim);
-    font-size: 10px;
+    font-size: var(--mcpui-chart-value-size);
     font-variant-numeric: tabular-nums;
     text-anchor: middle;
 }
 
 .chart-empty {
     fill: var(--mcpui-ink-faint);
-    font-size: 12px;
+    font-size: var(--mcpui-chart-empty-size);
     text-anchor: middle;
 }
 

@@ -117,12 +117,15 @@ impl CliArtifact {
             Self::Dashboard { artifact } => Some(artifact.title.clone()),
             Self::Audio { artifact } => artifact.title.clone(),
             Self::PresentationCard { artifact } => Some(artifact.title.clone()),
-            Self::Table { .. }
-            | Self::List { .. }
-            | Self::Chart { .. }
-            | Self::Image { .. }
-            | Self::Video { .. }
-            | Self::Message { .. } => None,
+            Self::Table { artifact } => artifact.title.clone(),
+            // Why: chart has always carried a required `title`, and returning
+            // None here meant the renderer headed every chart with the literal
+            // word "Chart" while the author's title sat unread in the payload.
+            Self::Chart { artifact } => Some(artifact.title.clone()),
+            // Why: List carries no title of its own — only its items do.
+            Self::List { .. } | Self::Image { .. } | Self::Video { .. } | Self::Message { .. } => {
+                None
+            },
         }
     }
 

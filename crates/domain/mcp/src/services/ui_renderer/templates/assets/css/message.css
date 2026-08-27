@@ -27,6 +27,8 @@
 
 .notice-text {
     white-space: pre-wrap;
+    /* pre-wrap alone will not break a long path or hash. */
+    overflow-wrap: anywhere;
     color: var(--mcpui-ink);
 }
 

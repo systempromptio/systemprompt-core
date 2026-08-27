@@ -18,6 +18,78 @@ use serde_json::Value as JsonValue;
 use systemprompt_models::a2a::Artifact;
 use systemprompt_models::artifacts::ArtifactType;
 
+#[derive(Debug, Clone, serde::Serialize)]
+struct TableColumn {
+    key: String,
+    header: String,
+    #[serde(rename = "type")]
+    kind: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    align: Option<String>,
+}
+
+impl TableColumn {
+    fn from_key(key: impl Into<String>) -> Self {
+        let key = key.into();
+        Self {
+            header: humanize(&key),
+            key,
+            kind: "string".to_owned(),
+            align: None,
+        }
+    }
+
+    fn from_json(value: &JsonValue) -> Option<Self> {
+        if let Some(name) = value.as_str() {
+            return Some(Self::from_key(name));
+        }
+
+        let key = value.get("name").and_then(JsonValue::as_str)?;
+        let header = value
+            .get("label")
+            .or_else(|| value.get("header"))
+            .and_then(JsonValue::as_str)
+            .map_or_else(|| humanize(key), ToOwned::to_owned);
+        let kind = value
+            .get("column_type")
+            .or_else(|| value.get("type"))
+            .and_then(JsonValue::as_str)
+            .unwrap_or("string")
+            .to_owned();
+
+        let align = value
+            .get("align")
+            .and_then(JsonValue::as_str)
+            .map(ToOwned::to_owned);
+
+        Some(Self {
+            key: key.to_owned(),
+            header,
+            kind,
+            align,
+        })
+    }
+}
+
+fn humanize(key: &str) -> String {
+    let mut out = String::with_capacity(key.len());
+    for (i, word) in key.split(['_', '-']).filter(|w| !w.is_empty()).enumerate() {
+        if i > 0 {
+            out.push(' ');
+        }
+        let mut chars = word.chars();
+        if let Some(first) = chars.next() {
+            if i == 0 {
+                out.extend(first.to_uppercase());
+            } else {
+                out.push(first);
+            }
+            out.push_str(chars.as_str());
+        }
+    }
+    if out.is_empty() { key.to_owned() } else { out }
+}
+
 #[derive(Debug, Clone, Copy, Default)]
 pub struct TableRenderer;
 
@@ -26,8 +98,8 @@ impl TableRenderer {
         Self
     }
 
-    fn extract_table_data(artifact: &Artifact) -> (Vec<String>, Vec<Vec<JsonValue>>) {
-        let mut columns = Vec::new();
+    fn extract_table_data(artifact: &Artifact) -> (Vec<TableColumn>, Vec<Vec<JsonValue>>) {
+        let mut columns: Vec<TableColumn> = Vec::new();
         let mut rows = Vec::new();
 
         for part in &artifact.parts {
@@ -40,27 +112,20 @@ impl TableRenderer {
                     .and_then(JsonValue::as_array)
             {
                 if let Some(cols) = obj.get("columns").and_then(JsonValue::as_array) {
-                    columns = cols
-                        .iter()
-                        .filter_map(|c| {
-                            c.as_str().map(String::from).or_else(|| {
-                                c.get("name").and_then(|n| n.as_str()).map(String::from)
-                            })
-                        })
-                        .collect();
+                    columns = cols.iter().filter_map(TableColumn::from_json).collect();
                 }
 
                 if columns.is_empty()
                     && let Some(first_obj) = data_arr.first().and_then(JsonValue::as_object)
                 {
-                    columns = first_obj.keys().cloned().collect();
+                    columns = first_obj.keys().map(TableColumn::from_key).collect();
                 }
 
                 for item in data_arr {
                     if let Some(row_obj) = item.as_object() {
                         let row: Vec<JsonValue> = columns
                             .iter()
-                            .map(|k| row_obj.get(k).cloned().unwrap_or(JsonValue::Null))
+                            .map(|c| row_obj.get(&c.key).cloned().unwrap_or(JsonValue::Null))
                             .collect();
                         rows.push(row);
                     } else if let Some(row_arr) = item.as_array() {
@@ -72,7 +137,7 @@ impl TableRenderer {
 
         if columns.is_empty() && !rows.is_empty() {
             columns = (0..rows[0].len())
-                .map(|i| format!("Column {}", i + 1))
+                .map(|i| TableColumn::from_key(format!("column_{}", i + 1)))
                 .collect();
         }
 

@@ -67,6 +67,18 @@ async fn audio_render_full_payload_includes_artist_artwork_and_flags() {
     assert!(!resource.html.contains(" muted"));
 }
 
+/// The `<audio>`/`<video>` start tag on its own.
+///
+/// These assertions used to run against the whole document, which also
+/// contains the renderer's stylesheet and script — so a comment mentioning
+/// "controls" or "autoplay" could fail a test about the element's attributes.
+fn media_tag<'a>(html: &'a str, tag: &str) -> &'a str {
+    let open = format!("<{tag} ");
+    let start = html.find(&open).expect("media element present");
+    let end = html[start..].find('>').expect("start tag closes") + start;
+    &html[start..=end]
+}
+
 #[tokio::test]
 async fn audio_render_minimal_payload_falls_back_to_artifact_title() {
     let artifact = media_artifact(
@@ -84,8 +96,9 @@ async fn audio_render_minimal_payload_falls_back_to_artifact_title() {
     assert!(!resource.html.contains(r#"<p class="mcp-app-description">"#));
     assert!(!resource.html.contains(r#"<img class="media-artwork""#));
     assert!(!resource.html.contains(" type="));
-    assert!(resource.html.contains(" controls"));
-    assert!(!resource.html.contains("autoplay"));
+    let tag = media_tag(&resource.html, "audio");
+    assert!(tag.contains(" controls"));
+    assert!(!tag.contains("autoplay"));
 }
 
 #[tokio::test]
@@ -139,8 +152,12 @@ async fn video_render_full_payload_includes_poster_caption_and_muted() {
     );
     assert!(resource.html.contains(r#" type="video/mp4""#));
     assert!(resource.html.contains("Q3 launch &amp; recap"));
-    assert!(resource.html.contains(" autoplay loop muted"));
-    assert!(!resource.html.contains(" controls"));
+    let tag = media_tag(&resource.html, "video");
+    assert!(tag.contains(" autoplay loop muted"));
+    // Declared `controls: false` is honoured here only because the clip
+    // autoplays; without autoplay the renderer forces controls back on rather
+    // than emit a player with no way to start it.
+    assert!(!tag.contains(" controls"));
 }
 
 #[tokio::test]

@@ -83,22 +83,39 @@ fn render_text(artifact: &Artifact, presentation: Presentation, csp: CspPolicy) 
         .or_else(|| artifact.title.clone())
         .unwrap_or_else(|| "Text".to_owned());
 
-    let formatted_text = match presentation {
-        Presentation::Prose => format_prose(&text),
-        Presentation::Preformatted => format!("<pre><code>{}</code></pre>", html_escape(&text)),
+    // Why: `.text-content-mono` existed in text.css from the start and was applied
+    // by nothing, so the copy-paste variant rendered in the body font with the
+    // browser's default monospace inside the <pre> — its whole intended
+    // treatment was dead code.
+    let language = payload_language(artifact);
+    let (formatted_text, content_class) = match presentation {
+        Presentation::Prose => (format_prose(&text), "text-content"),
+        Presentation::Preformatted => (
+            format!(
+                "<pre><code{lang_class}>{body}</code></pre>",
+                lang_class = language.as_ref().map_or_else(String::new, |l| format!(
+                    r#" class="language-{}""#,
+                    html_escape(l)
+                )),
+                body = html_escape(&text),
+            ),
+            "text-content text-content-mono",
+        ),
     };
 
     let body = format!(
         r#"<div class="container">
     {title_html}
     {description_html}
-    <div class="text-content" id="text-content">
+    {language_html}
+    <div class="{content_class}" id="text-content">
         {text}
     </div>
     <div class="text-actions">
-        <button class="copy-btn" id="copy-btn" title="Copy to clipboard">
-            <span class="copy-icon">📋</span> Copy
+        <button type="button" class="copy-btn" id="copy-btn">
+            <span class="copy-icon" aria-hidden="true">📋</span> Copy
         </button>
+        <span class="copy-status" id="copy-status" role="status" aria-live="polite"></span>
     </div>
 </div>"#,
         title_html = if title.is_empty() {
@@ -113,6 +130,11 @@ fn render_text(artifact: &Artifact, presentation: Presentation, csp: CspPolicy) 
                 r#"<p class="mcp-app-description">{}</p>"#,
                 html_escape(d)
             )),
+        language_html = language.as_ref().map_or_else(String::new, |l| format!(
+            r#"<p class="text-language">{}</p>"#,
+            html_escape(l)
+        )),
+        content_class = content_class,
         text = formatted_text,
     );
 
@@ -172,4 +194,13 @@ fn format_prose(text: &str) -> String {
 
 const fn text_styles() -> &'static str {
     include_str!("assets/css/text.css")
+}
+
+fn payload_language(artifact: &Artifact) -> Option<String> {
+    artifact.parts.iter().find_map(|part| {
+        part.as_data()?
+            .get("language")?
+            .as_str()
+            .map(ToOwned::to_owned)
+    })
 }

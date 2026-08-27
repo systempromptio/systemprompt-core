@@ -9,14 +9,12 @@ use systemprompt_models::artifacts::types::ChartType;
 
 const DOUGHNUT_INNER: f64 = 0.58;
 
-pub(super) fn plot(spec: &ChartSpec<'_>) -> String {
-    let Some(values) = spec.datasets.first().map(|set| set.data.as_slice()) else {
-        return String::new();
-    };
+pub(super) fn plot(spec: &ChartSpec<'_>) -> Option<String> {
+    let values = spec.datasets.first().map(|set| set.data.as_slice())?;
 
     let total: f64 = values.iter().filter(|v| v.is_finite() && **v > 0.0).sum();
     if total <= 0.0 {
-        return String::new();
+        return None;
     }
 
     let cx = VIEW_W / 2.0;
@@ -71,10 +69,16 @@ pub(super) fn plot(spec: &ChartSpec<'_>) -> String {
         String::new()
     };
 
-    format!(
+    // Why: Every value was non-finite or non-positive despite a positive total, so
+    // there is still nothing to draw.
+    if slices.is_empty() {
+        return None;
+    }
+
+    Some(format!(
         "        <g class=\"chart-series\">\n{}\n        </g>{center}",
         slices.join("\n")
-    )
+    ))
 }
 
 #[derive(Debug, Clone, Copy)]

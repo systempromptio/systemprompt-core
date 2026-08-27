@@ -75,7 +75,6 @@
 .item-description {
     flex-basis: 100%;
     margin-top: var(--mcpui-space-1);
-    padding-left: 2rem;
     max-width: 68ch;
     color: var(--mcpui-ink-dim);
     font-size: var(--mcpui-text-sm);
@@ -97,4 +96,61 @@
     letter-spacing: var(--mcpui-tracking-wide);
     text-transform: uppercase;
     font-variant-numeric: tabular-nums;
+}
+
+.list-empty {
+    padding: var(--mcpui-space-6) var(--mcpui-space-4);
+    text-align: center;
+    color: var(--mcpui-ink-dim);
+    border: 1px solid var(--mcpui-border);
+    border-radius: var(--mcpui-radius-card);
+    background: var(--mcpui-surface);
+}
+
+.item-category {
+    margin-left: var(--mcpui-space-2);
+    padding: 0.1em 0.5em;
+    border-radius: var(--mcpui-radius-pill);
+    background: var(--mcpui-accent-wash);
+    color: var(--mcpui-ink-dim);
+    font-size: var(--mcpui-text-xs);
+    letter-spacing: var(--mcpui-tracking-wide);
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+/* The row carries a hover treatment, so it has to be as wide as the text it
+ * highlights; a long unbroken token used to push past it. */
+.item-title,
+.item-link,
+.item-description {
+    overflow-wrap: anywhere;
+}
+
+/* Only a row that actually has a link gets the hover affordance — the styling
+ * used to imply the whole row was clickable when only the anchor was. */
+.list-item:not(.is-linked):hover { background: transparent; }
+.list-item:not(.is-linked):hover::before { opacity: 0; }
+
+/* Stretch the anchor over the row so the whole thing is the hit target. */
+.list-item.is-linked .item-link::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+}
+
+.list-item.is-linked:focus-within {
+    background: var(--mcpui-accent-wash);
+}
+
+.list-item.is-linked:focus-within::before { opacity: 1; }
+
+/* The description sits under the title, so its indent has to match the icon
+ * slot's width rather than a value picked independently of it. */
+.item-description {
+    padding-left: 0;
+}
+
+.list-item:has(.item-icon) .item-description {
+    padding-left: calc(1.5rem + var(--mcpui-space-2));
 }

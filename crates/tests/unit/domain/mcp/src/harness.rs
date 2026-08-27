@@ -1,9 +1,26 @@
 //! Shared fixtures for config-driven MCP tests.
 //!
-//! Writes `mcp_servers` / `agents` entries into the bootstrap services config
-//! (re-read on every `ConfigLoader::load()`), and scripts a wiremock MCP
-//! endpoint that answers the streamable-HTTP handshake plus `tools/list` and
-//! `tools/call`.
+//! Writes `mcp_servers` / `agents` entries into the bootstrap services config,
+//! and scripts a wiremock MCP endpoint that answers the streamable-HTTP
+//! handshake plus `tools/list` and `tools/call`.
+//!
+//! **Run this crate under `cargo nextest`, never `cargo test`.** Two pieces of
+//! process-global state make one process per test mandatory, and both fail
+//! quietly rather than loudly:
+//!
+//! * `ConfigLoader::load()` memoises the parsed config per process and does not
+//!   re-read the file — only `reload()` bypasses that cache. Every test here
+//!   writes to the same bootstrap path, so the first write freezes the cache
+//!   and every later test reads someone else's config.
+//! * `ProfileBootstrap`'s `PROFILE` is a `OnceLock` with no reset. The first
+//!   `TestBootstrap` in a process wins permanently, and every later fixture
+//!   directory is unreachable no matter what is written into it.
+//!
+//! The second is why a `reload()` here would not be enough, and why
+//! `--test-threads=1` is not enough either. Under `cargo test` the failures
+//! read as ordinary assertion failures (`startup failure surfaces: 0`) rather
+//! than as the fixture never having been seen — which is exactly how they get
+//! misdiagnosed as real regressions.
 
 use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId, TraceId, UserId};
 use systemprompt_models::RequestContext;

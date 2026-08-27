@@ -98,7 +98,7 @@ impl UiRenderer for FormRenderer {
             <button type="reset" class="reset-btn">Reset</button>
         </div>
     </form>
-    <div id="form-message" class="form-message" style="display: none;"></div>
+    <div id="form-message" class="form-message" role="status" aria-live="polite" style="display: none;"></div>
 </div>"#,
             title_html = if title.is_empty() {
                 String::new()

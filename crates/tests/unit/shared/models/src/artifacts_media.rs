@@ -9,7 +9,7 @@ use serde_json::json;
 use systemprompt_identifiers::{AgentName, ContextId, SessionId, SkillId, SourceId, TraceId};
 use systemprompt_models::artifacts::audio::AudioArtifact;
 use systemprompt_models::artifacts::card::{
-    CardCta, CardSection, PresentationCardArtifact, PresentationCardResponse,
+    CardCta, CardSection, CardTheme, CtaVariant, PresentationCardArtifact, PresentationCardResponse,
 };
 use systemprompt_models::artifacts::chart::{ChartArtifact, ChartDataset};
 use systemprompt_models::artifacts::dashboard::{DashboardArtifact, DashboardHints, LayoutMode};
@@ -298,11 +298,11 @@ fn card_section_structured_content_serializes_as_nested_json() {
 
 #[test]
 fn card_cta_builder() {
-    let cta = CardCta::new("id", "Label", "msg", "primary").with_icon("arrow");
+    let cta = CardCta::new("id", "Label", "msg", CtaVariant::Primary).with_icon("arrow");
     assert_eq!(cta.id, "id");
     assert_eq!(cta.label, "Label");
     assert_eq!(cta.message, "msg");
-    assert_eq!(cta.variant, "primary");
+    assert_eq!(cta.variant, CtaVariant::Primary);
     assert_eq!(cta.icon.as_deref(), Some("arrow"));
 }
 
@@ -310,7 +310,7 @@ fn card_cta_builder() {
 fn card_new_defaults_theme() {
     let c = PresentationCardArtifact::new("My Card");
     assert_eq!(c.title, "My Card");
-    assert_eq!(c.theme, "gradient");
+    assert_eq!(c.theme, CardTheme::Gradient);
     assert_eq!(c.artifact_type, "presentation_card");
     assert!(c.subtitle.is_none());
     assert!(c.sections.is_empty());
@@ -327,16 +327,16 @@ fn card_builder_chain() {
         .with_subtitle("sub")
         .with_sections(vec![CardSection::new("h", "c")])
         .add_section(CardSection::new("h2", "c2"))
-        .with_ctas(vec![CardCta::new("i", "l", "m", "v")])
-        .add_cta(CardCta::new("i2", "l2", "m2", "v2"))
-        .with_theme("dark")
+        .with_ctas(vec![CardCta::new("i", "l", "m", CtaVariant::Primary)])
+        .add_cta(CardCta::new("i2", "l2", "m2", CtaVariant::Danger))
+        .with_theme(CardTheme::Muted)
         .with_request(&test_context())
         .with_execution_id("exec-9")
         .with_skill(SkillId::new("sk"), "Skill");
     assert_eq!(c.subtitle.as_deref(), Some("sub"));
     assert_eq!(c.sections.len(), 2);
     assert_eq!(c.ctas.len(), 2);
-    assert_eq!(c.theme, "dark");
+    assert_eq!(c.theme, CardTheme::Muted);
     assert_eq!(c.execution_id.as_deref(), Some("exec-9"));
     assert_eq!(c.skill_id, Some(SkillId::new("sk")));
     assert_eq!(c.skill_name.as_deref(), Some("Skill"));
@@ -356,11 +356,11 @@ fn card_serde_skips_empty_ctas() {
 
 #[test]
 fn card_schema_carries_theme_hint() {
-    let c = PresentationCardArtifact::new("Card").with_theme("neon");
+    let c = PresentationCardArtifact::new("Card").with_theme(CardTheme::Plain);
     let s = c.to_schema();
     assert_eq!(s["x-artifact-type"], "presentation_card");
     assert_eq!(s["required"], json!(["title", "sections"]));
-    assert_eq!(s["x-presentation-hints"]["theme"], "neon");
+    assert_eq!(s["x-presentation-hints"]["theme"], "plain");
 }
 
 #[test]
@@ -376,8 +376,8 @@ fn card_response_default_and_serde() {
         title: "T".to_owned(),
         subtitle: Some("s".to_owned()),
         sections: vec![CardSection::new("h", "c")],
-        ctas: vec![CardCta::new("i", "l", "m", "v")],
-        theme: "gradient".to_owned(),
+        ctas: vec![CardCta::new("i", "l", "m", CtaVariant::Primary)],
+        theme: CardTheme::Gradient,
         execution_id: Some("e".to_owned()),
         skill_id: Some(SkillId::new("sk")),
         skill_name: Some("S".to_owned()),

@@ -74,6 +74,27 @@ impl ImageRenderer {
 
         data
     }
+
+    fn render_empty(&self, title: &str) -> UiResource {
+        let body = format!(
+            r#"<div class="container">
+    {title_html}
+    <p class="image-empty">No image to show.</p>
+</div>"#,
+            title_html = if title.is_empty() {
+                String::new()
+            } else {
+                format!(r#"<h1 class="mcp-app-title">{}</h1>"#, html_escape(title))
+            },
+        );
+        let html = HtmlBuilder::new(title)
+            .add_style(base_styles())
+            .add_style(image_styles())
+            .body(&body)
+            .add_script(mcp_app_bridge_script())
+            .build();
+        UiResource::new(html).with_csp(self.csp_policy())
+    }
 }
 
 #[derive(Default)]
@@ -104,17 +125,25 @@ impl UiRenderer for ImageRenderer {
             (None, None) => String::new(),
         };
 
+        // Why: No part yielded a source, so there is nothing to zoom into. This
+        // used to emit src="" and leave the browser's broken-image glyph as
+        // the only explanation.
+        if image_data.src.is_empty() {
+            return Ok(self.render_empty(title));
+        }
+
         let body = format!(
             r#"<div class="container">
     {title_html}
     {description_html}
     <figure class="image-figure">
-        <div class="image-wrapper">
-            <img src="{src}" alt="{alt}" class="artifact-image"{size_attrs} loading="lazy">
+        <div class="image-wrapper is-loading skeleton">
+            <img src="{src}" alt="{alt}" class="artifact-image"{size_attrs} decoding="async">
             <div class="image-controls">
-                <button class="control-btn zoom-in" title="Zoom in">+</button>
-                <button class="control-btn zoom-out" title="Zoom out">−</button>
-                <button class="control-btn zoom-reset" title="Reset zoom">⟲</button>
+                <button class="control-btn zoom-in" type="button" aria-label="Zoom in"><span aria-hidden="true">+</span></button>
+                <button class="control-btn zoom-out" type="button" aria-label="Zoom out"><span aria-hidden="true">−</span></button>
+                <button class="control-btn zoom-reset" type="button" aria-label="Reset zoom"><span aria-hidden="true">⟲</span></button>
+                <span class="zoom-status" id="zoom-status" role="status" aria-live="polite"></span>
             </div>
         </div>
         {caption_html}

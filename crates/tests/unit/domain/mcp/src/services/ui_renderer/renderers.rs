@@ -881,15 +881,28 @@ async fn dashboard_renderer_sections_sorted_by_order() {
 }
 
 #[tokio::test]
-async fn dashboard_renderer_rejects_mismatched_section_data() {
+async fn dashboard_renderer_isolates_mismatched_section_data() {
     let renderer = DashboardRenderer::new();
-    let dashboard = DashboardArtifact::new("Broken").add_section(
-        DashboardSection::new("m", "Metrics", SectionType::MetricsCards)
-            .with_data(serde_json::json!({"metrics": [{"label": "x", "value": 1}]}))
-            .unwrap(),
-    );
-    let result = renderer.render(&dashboard_artifact(&dashboard)).await;
-    assert!(result.is_err());
+    let dashboard = DashboardArtifact::new("Broken")
+        .add_section(
+            DashboardSection::new("m", "Metrics", SectionType::MetricsCards)
+                .with_data(serde_json::json!({"metrics": [{"label": "x", "value": 1}]}))
+                .unwrap(),
+        )
+        .add_section(text_section("ok", "Still Here", "readable"));
+
+    let result = renderer
+        .render(&dashboard_artifact(&dashboard))
+        .await
+        .expect("a bad section must not fail the whole dashboard");
+
+    // The bad section reports itself in place...
+    assert!(result.html.contains("error-message"));
+    assert!(result.html.contains("Metrics"));
+    // ...and every good section beside it still renders. Failing the whole
+    // render meant one malformed payload blanked the entire dashboard.
+    assert!(result.html.contains("Still Here"));
+    assert!(result.html.contains("readable"));
 }
 
 #[tokio::test]

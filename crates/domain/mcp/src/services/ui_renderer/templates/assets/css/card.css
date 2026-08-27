@@ -105,3 +105,81 @@
     background: color-mix(in oklab, var(--mcpui-accent) 86%, var(--mcpui-ink));
     color: var(--mcpui-accent-ink);
 }
+
+.card-cta-status {
+    flex-basis: 100%;
+    margin-top: var(--mcpui-space-2);
+    font-size: var(--mcpui-text-sm);
+    color: var(--mcpui-ink-dim);
+}
+
+.card-cta-status[data-tone="success"] { color: var(--mcpui-success); }
+.card-cta-status[data-tone="error"]   { color: var(--mcpui-danger); }
+
+.card-cta:disabled {
+    opacity: 0.6;
+    cursor: progress;
+}
+
+/* A "secondary" CTA was accepted by the model and had no rule here, so the
+ * email draft's Discard button rendered as unstyled default chrome. */
+.card-cta-secondary {
+    border: 1px solid var(--mcpui-border-strong);
+    background: var(--mcpui-surface);
+    color: var(--mcpui-ink);
+}
+
+.card-cta-secondary:hover:not(:disabled) {
+    border-color: var(--mcpui-accent-rim);
+    background: var(--mcpui-accent-wash);
+}
+
+.card-cta-danger {
+    border: 1px solid transparent;
+    background: var(--mcpui-danger);
+    color: var(--mcpui-surface);
+}
+
+.card-cta-danger:hover:not(:disabled) {
+    background: color-mix(in oklab, var(--mcpui-danger) 86%, black);
+}
+
+.card-theme-plain .card-header {
+    background: var(--mcpui-surface);
+}
+
+.card-theme-muted .card-header {
+    background: var(--mcpui-surface-sunken);
+    color: var(--mcpui-ink-dim);
+}
+
+/* An email body or a long URL is exactly what a card section carries. */
+.card-section-content {
+    overflow-wrap: anywhere;
+}
+
+.card-section-list {
+    margin: 0;
+    padding-left: var(--mcpui-space-4);
+}
+
+.card-section-pairs {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: var(--mcpui-space-1) var(--mcpui-space-3);
+    margin: 0;
+}
+
+.card-section-pairs dt {
+    color: var(--mcpui-ink-dim);
+}
+
+.card-section-pairs dd {
+    margin: 0;
+}
+
+/* The section heading is an <h2> now, not a styled div; keep the same look. */
+.card-section-heading {
+    font-size: var(--mcpui-text-sm);
+    font-weight: 600;
+}

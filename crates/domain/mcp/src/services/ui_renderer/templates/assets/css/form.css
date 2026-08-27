@@ -125,3 +125,25 @@ select.form-input {
     border-left-color: var(--mcpui-info);
     background: var(--mcpui-info-wash);
 }
+
+.form-field-inline {
+    display: flex;
+    align-items: center;
+    gap: var(--mcpui-space-2);
+}
+
+.form-label-inline {
+    margin: 0;
+    text-transform: none;
+    letter-spacing: normal;
+}
+
+/* Two buttons must be able to wrap rather than overflow a narrow frame. */
+.form-actions {
+    flex-wrap: wrap;
+}
+
+.submit-btn:disabled {
+    opacity: 0.6;
+    cursor: progress;
+}

@@ -91,6 +91,13 @@ impl FormField {
         )
     }
 
+    fn default_str(&self) -> String {
+        self.default_value
+            .as_ref()
+            .and_then(JsonValue::as_str)
+            .map_or_else(String::new, html_escape)
+    }
+
     fn render_input(&self, required_attr: &str, placeholder_attr: &str) -> String {
         match self.field_type.as_str() {
             "textarea" => format!(
@@ -98,11 +105,7 @@ impl FormField {
                 name = html_escape(&self.name),
                 required = required_attr,
                 placeholder = placeholder_attr,
-                value = self
-                    .default_value
-                    .as_ref()
-                    .and_then(JsonValue::as_str)
-                    .unwrap_or(""),
+                value = self.default_str(),
             ),
             "select" => self.render_select(required_attr),
             "checkbox" => {
@@ -112,8 +115,9 @@ impl FormField {
                     .and_then(JsonValue::as_bool)
                     .unwrap_or(false);
                 format!(
-                    r#"<input type="checkbox" name="{name}" id="{name}" class="form-checkbox"{checked}>"#,
+                    r#"<input type="checkbox" name="{name}" id="{name}" class="form-checkbox"{required}{checked}>"#,
                     name = html_escape(&self.name),
+                    required = required_attr,
                     checked = if checked { " checked" } else { "" },
                 )
             },
@@ -122,42 +126,31 @@ impl FormField {
                 name = html_escape(&self.name),
                 required = required_attr,
                 placeholder = placeholder_attr,
-                value = self
-                    .default_value
-                    .as_ref()
-                    .map_or_else(String::new, ToString::to_string),
+                // Why: A JSON string default would otherwise render its own quotes
+                // into the attribute; a number formats as itself.
+                value = self.default_value.as_ref().map_or_else(String::new, |v| {
+                    v.as_str().map_or_else(|| v.to_string(), html_escape)
+                }),
             ),
             "email" => format!(
                 r#"<input type="email" name="{name}" id="{name}" class="form-input"{required}{placeholder} value="{value}">"#,
                 name = html_escape(&self.name),
                 required = required_attr,
                 placeholder = placeholder_attr,
-                value = self
-                    .default_value
-                    .as_ref()
-                    .and_then(JsonValue::as_str)
-                    .unwrap_or(""),
+                value = self.default_str(),
             ),
             "date" => format!(
                 r#"<input type="date" name="{name}" id="{name}" class="form-input"{required} value="{value}">"#,
                 name = html_escape(&self.name),
                 required = required_attr,
-                value = self
-                    .default_value
-                    .as_ref()
-                    .and_then(JsonValue::as_str)
-                    .unwrap_or(""),
+                value = self.default_str(),
             ),
             _ => format!(
                 r#"<input type="text" name="{name}" id="{name}" class="form-input"{required}{placeholder} value="{value}">"#,
                 name = html_escape(&self.name),
                 required = required_attr,
                 placeholder = placeholder_attr,
-                value = self
-                    .default_value
-                    .as_ref()
-                    .and_then(JsonValue::as_str)
-                    .unwrap_or(""),
+                value = self.default_str(),
             ),
         }
     }
@@ -170,11 +163,28 @@ impl FormField {
 
         let input_html = self.render_input(required_attr, &placeholder_attr);
 
+        // Why: The asterisk is colour and glyph only; the hidden word is what a
+        // screen reader announces.
         let required_mark = if self.required {
-            r#"<span class="required-mark">*</span>"#
+            r#"<span class="required-mark" aria-hidden="true">*</span><span class="visually-hidden"> (required)</span>"#
         } else {
             ""
         };
+
+        // Why: A checkbox reads as its label's sibling, not its caption: the shared
+        // block-level label put every checkbox on the line below its own text.
+        if self.field_type == "checkbox" {
+            return format!(
+                r#"<div class="form-field form-field-inline">
+    {input}
+    <label for="{name}" class="form-label form-label-inline">{label}{required_mark}</label>
+</div>"#,
+                name = html_escape(&self.name),
+                label = html_escape(&self.label),
+                required_mark = required_mark,
+                input = input_html,
+            );
+        }
 
         format!(
             r#"<div class="form-field">

@@ -98,7 +98,9 @@ pub fn html_escape(s: &str) -> String {
 }
 
 pub fn json_to_js_literal(value: &serde_json::Value) -> String {
-    serde_json::to_string(value).unwrap_or_else(|_| "null".to_owned())
+    serde_json::to_string(value)
+        .unwrap_or_else(|_| "null".to_owned())
+        .replace("</", "<\\/")
 }
 
 pub const fn base_styles() -> &'static str {

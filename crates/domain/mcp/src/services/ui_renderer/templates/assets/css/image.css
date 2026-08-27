@@ -17,7 +17,9 @@
     display: block;
     max-width: 100%;
     height: auto;
-    transform-origin: top left;
+    /* Centre the origin so zooming grows around the middle of the frame
+     * rather than pushing the subject down and to the right. */
+    transform-origin: center center;
     transition: transform var(--mcpui-duration) var(--mcpui-ease);
 }
 
@@ -61,4 +63,40 @@
     color: var(--mcpui-ink-dim);
     font-size: var(--mcpui-text-sm);
     text-align: center;
+}
+
+.image-empty {
+    padding: var(--mcpui-space-6) var(--mcpui-space-4);
+    text-align: center;
+    color: var(--mcpui-ink-dim);
+    border: 1px solid var(--mcpui-border);
+    border-radius: var(--mcpui-radius-card);
+    background: var(--mcpui-surface);
+}
+
+.zoom-status {
+    font-size: var(--mcpui-text-xs);
+    color: var(--mcpui-ink-dim);
+    font-variant-numeric: tabular-nums;
+}
+
+.control-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+/* Held until the image decodes, so the frame does not sit visibly empty and
+ * then jump. Removed by image.js on load. */
+.image-wrapper.is-loading {
+    min-height: 12rem;
+    min-width: 12rem;
+}
+
+.image-wrapper.is-loading .artifact-image { visibility: hidden; }
+
+.image-wrapper.is-loading::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
 }

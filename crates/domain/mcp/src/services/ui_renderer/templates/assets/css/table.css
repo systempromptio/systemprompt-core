@@ -143,3 +143,17 @@
     opacity: 0.45;
     cursor: not-allowed;
 }
+
+/* A filter that matches nothing used to leave an empty bordered box with no
+ * explanation, which reads as a failure rather than a result. */
+.data-table td.table-empty {
+    padding: var(--mcpui-space-6) var(--mcpui-space-4);
+    text-align: center;
+    color: var(--mcpui-ink-dim);
+    border-bottom: none;
+}
+
+.data-table th.sortable:focus-visible {
+    outline: 2px solid var(--mcpui-accent);
+    outline-offset: -2px;
+}

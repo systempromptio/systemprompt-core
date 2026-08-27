@@ -88,6 +88,14 @@
   --mcpui-text-2xl: 1.5rem;
   --mcpui-text-figure: clamp(1.5rem, 1.1rem + 1.6vw, 2rem);
 
+  /* Chart type is sized in the SVG user space, which scales with the plot, so
+   * these are absolute rather than steps on the text scale above. They are
+   * tokens all the same: as literals in chart.css they were the one piece of
+   * type no ArtifactTheme could reach. */
+  --mcpui-chart-tick-size:  11px;
+  --mcpui-chart-value-size: 10px;
+  --mcpui-chart-empty-size: 12px;
+
   --mcpui-leading-tight:   1.2;
   --mcpui-leading-normal:  1.55;
   --mcpui-tracking-tight:  -0.015em;
