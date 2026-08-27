@@ -110,6 +110,28 @@ impl AuthzDecisionHook for RuleBasedHook {
         let authz_decision = match decision {
             Decision::Allow { .. } => AuthzDecision::Allow,
             Decision::Deny { reason } => AuthzDecision::Deny { reason, policy },
+            // Why: the rule resolver answers "may this subject reach this
+            // entity", which has no third answer — only the governance chain's
+            // `require_approval` returns `Pending`, and it never runs here. A
+            // hold reaching this plane means a policy was mounted where it
+            // cannot be honoured, so it degrades to a deny rather than an
+            // allow.
+            Decision::Pending { reason } => {
+                tracing::error!(
+                    %reason,
+                    "a governance hold reached the rule-based resolver, which cannot park a \
+                     request; refusing it"
+                );
+                AuthzDecision::Deny {
+                    reason: DenyReason::PolicyViolation {
+                        policy: "require_approval".to_owned(),
+                        detail: std::borrow::Cow::Borrowed(
+                            "approval required, but this enforcement point cannot hold a request",
+                        ),
+                    },
+                    policy,
+                }
+            },
         };
         self.sink
             .record(&req, &authz_decision, AuthzSource::RuleBased)

@@ -61,6 +61,8 @@ serde_json = { workspace = true }
 serde_yaml = { workspace = true }
 sqlx = { workspace = true }
 metrics = { workspace = true }
+# `time` only: the approval waiter polls a held call on an interval.
+tokio = { workspace = true }
 
 # systemprompt.io dependencies
 systemprompt-models = { workspace = true }

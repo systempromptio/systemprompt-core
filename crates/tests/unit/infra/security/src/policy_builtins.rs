@@ -525,3 +525,176 @@ fn entry_detail(evaluation: &systemprompt_security::policy::Evaluation, id: &str
         .map(|e| e.detail.clone())
         .unwrap_or_default()
 }
+
+mod require_approval {
+    use super::{Call, args, engine, tool};
+    use systemprompt_security::authz::types::Decision;
+    use systemprompt_security::policy::types::AccessScope;
+    use systemprompt_security::policy::{ApprovalSettings, ChainEntryResult, GovernanceConfig};
+
+    const HOLDS_NOTE_ADD: &str = r"
+governance:
+  policies:
+  - id: require_approval
+    enabled: true
+    patterns: ['note_add', 'channel_post']
+    exempt_scopes: ['admin']
+";
+
+    #[test]
+    fn a_matching_tool_is_held_not_denied() {
+        let call = Call::new("sales");
+        let input = args(serde_json::json!({"body": "hi"}));
+        let target = tool("mcp__odoo__note_add");
+        let evaluation =
+            engine(HOLDS_NOTE_ADD).evaluate(&call.ctx(&target, AccessScope::User, &input));
+
+        assert!(
+            matches!(evaluation.decision, Decision::Pending { .. }),
+            "expected a hold, got {:?}",
+            evaluation.decision
+        );
+    }
+
+    #[test]
+    fn a_hold_is_traced_as_hold_rather_than_fail() {
+        let call = Call::new("sales");
+        let input = args(serde_json::json!({}));
+        let target = tool("mcp__odoo__channel_post");
+        let evaluation =
+            engine(HOLDS_NOTE_ADD).evaluate(&call.ctx(&target, AccessScope::User, &input));
+
+        // Why assert this separately: the audit row's `policy` column is
+        // resolved by finding the Hold entry. If a hold were traced as Fail it
+        // would be indistinguishable from a denial in every dashboard.
+        assert!(
+            evaluation
+                .chain
+                .iter()
+                .any(|e| e.result == ChainEntryResult::Hold),
+            "expected a Hold entry in the trace, got {:?}",
+            evaluation.chain
+        );
+    }
+
+    #[test]
+    fn an_unmatched_tool_runs_unattended() {
+        let call = Call::new("sales");
+        let input = args(serde_json::json!({}));
+        let target = tool("mcp__odoo__lead_search");
+        let evaluation =
+            engine(HOLDS_NOTE_ADD).evaluate(&call.ctx(&target, AccessScope::User, &input));
+
+        assert!(matches!(evaluation.decision, Decision::Allow { .. }));
+    }
+
+    #[test]
+    fn an_exempt_scope_is_never_held() {
+        let call = Call::new("admin");
+        let input = args(serde_json::json!({}));
+        let target = tool("mcp__odoo__note_add");
+        let evaluation =
+            engine(HOLDS_NOTE_ADD).evaluate(&call.ctx(&target, AccessScope::Admin, &input));
+
+        // The approver must not be able to hold their own call — that would be
+        // a rubber stamp rather than a control.
+        assert!(matches!(evaluation.decision, Decision::Allow { .. }));
+    }
+
+    #[test]
+    fn an_unconfigured_policy_holds_nothing() {
+        // The whole module's config layer fails toward MORE enforcement on a
+        // bad read. This stage must not: a hold with nobody watching blocks a
+        // call indefinitely, so no patterns means no holds.
+        let yaml = "
+governance:
+  policies:
+  - id: require_approval
+    enabled: true
+";
+        let call = Call::new("sales");
+        let input = args(serde_json::json!({}));
+        let target = tool("mcp__odoo__note_add");
+        let evaluation = engine(yaml).evaluate(&call.ctx(&target, AccessScope::User, &input));
+
+        assert!(matches!(evaluation.decision, Decision::Allow { .. }));
+    }
+
+    #[test]
+    fn defaults_do_not_enable_the_holding_stage() {
+        assert!(
+            !GovernanceConfig::defaults()
+                .policies
+                .iter()
+                .any(|p| p.id == "require_approval" && p.enabled),
+            "require_approval must never be enabled by a fallback config read"
+        );
+    }
+
+    #[test]
+    fn timings_come_from_the_policy_entry() {
+        let config = GovernanceConfig::parse(
+            "
+governance:
+  policies:
+  - id: require_approval
+    enabled: true
+    hold_seconds: 5
+    expiry_seconds: 60
+",
+        )
+        .unwrap();
+        let settings = ApprovalSettings::from_governance_config(&config);
+        assert_eq!(settings.hold_seconds, 5);
+        assert_eq!(settings.expiry_seconds, 60);
+    }
+
+    #[test]
+    fn a_zero_timing_falls_back_to_the_default() {
+        // Zero means "hold for no time" / "expire instantly", which is a typo
+        // rather than an intent worth honouring.
+        let config = GovernanceConfig::parse(
+            "
+governance:
+  policies:
+  - id: require_approval
+    enabled: true
+    hold_seconds: 0
+",
+        )
+        .unwrap();
+        let settings = ApprovalSettings::from_governance_config(&config);
+        assert_eq!(
+            settings.hold_seconds,
+            ApprovalSettings::default().hold_seconds
+        );
+    }
+}
+
+mod approval_digest {
+    use systemprompt_security::policy::args_digest;
+
+    #[test]
+    fn key_order_does_not_change_the_digest() {
+        // The digest binds an approval to the payload it authorised. If key
+        // order moved it, an identical retry would look like a different call
+        // and be re-held forever.
+        let a = serde_json::json!({"body": "hi", "lead_id": 7});
+        let b = serde_json::json!({"lead_id": 7, "body": "hi"});
+        assert_eq!(args_digest(&a), args_digest(&b));
+    }
+
+    #[test]
+    fn a_changed_value_changes_the_digest() {
+        let approved = serde_json::json!({"body": "hi", "lead_id": 7});
+        let swapped = serde_json::json!({"body": "hi", "lead_id": 8});
+        assert_ne!(args_digest(&approved), args_digest(&swapped));
+    }
+
+    #[test]
+    fn array_order_is_significant() {
+        let a = serde_json::json!({"to": ["a@x.com", "b@x.com"]});
+        let b = serde_json::json!({"to": ["b@x.com", "a@x.com"]});
+        assert_ne!(args_digest(&a), args_digest(&b));
+    }
+}

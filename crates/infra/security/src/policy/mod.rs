@@ -9,8 +9,9 @@
 //!   ([`GovernanceConfig`]).
 //! - [`registry`] — inventory registration
 //!   ([`crate::register_governance_policy!`]); the [`builtin`] policies (secret
-//!   scan, scope check, blocklist, rate limit) self-register here.
-//! - [`engine`] — [`GovernanceEngine`], the traced first-deny-wins evaluator.
+//!   scan, scope check, blocklist, rate limit, require approval) self-register
+//!   here.
+//! - [`engine`] — [`GovernanceEngine`], the traced first-halt-wins evaluator.
 //! - [`audit`] — [`DecisionAudit`], the typed blob persisted through
 //!   [`record_decision`] into `governance_decisions`.
 //! - [`secrets`] — the shared credential scanner.
@@ -24,6 +25,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+pub mod approval;
 pub mod audit;
 pub mod builtin;
 pub mod config;
@@ -33,10 +35,15 @@ pub mod registry;
 pub mod secrets;
 pub mod types;
 
+pub use approval::{
+    ApprovalOutcome, ApprovalRepository, ApprovalRequest, ApprovalStatus, ApprovalVerdict,
+    NewApprovalRequest, args_digest, wait_for_decision,
+};
 pub use audit::{
     ApproverStamp, AuditOrigin, AuditTarget, ChainEntryOutcome, ChainEntryResult, DecisionAudit,
     PrincipalSnapshot, record_decision,
 };
+pub use builtin::ApprovalSettings;
 pub use config::{GovernanceConfig, GovernanceConfigError, PolicyConfig};
 pub use engine::{Evaluation, GovernanceEngine};
 pub use governed::{

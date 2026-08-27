@@ -58,6 +58,18 @@ impl Extension for AuthzExtension {
                 "policy".into(),
                 "reason".into(),
             ]),
+            SchemaDefinition::new(
+                "approval_requests",
+                include_str!("../../schema/approval_requests.sql"),
+            )
+            .with_required_columns(vec![
+                "call_id".into(),
+                "tool_name".into(),
+                "args_digest".into(),
+                "requested_by".into(),
+                "status".into(),
+                "expires_at".into(),
+            ]),
         ]
     }
 

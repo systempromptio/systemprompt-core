@@ -70,5 +70,5 @@ pub use subject::{
 };
 pub use types::{
     Access, AccessRule, AuthzContext, AuthzDecision, AuthzRequest, Decision, DecisionTag,
-    DenyReason, EntityKind, EntityRef, EntityRow, MatchedBy, RuleType, SubjectRef,
+    DenyReason, EntityKind, EntityRef, EntityRow, MatchedBy, PendingReason, RuleType, SubjectRef,
 };

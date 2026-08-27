@@ -2,7 +2,7 @@ use systemprompt_identifiers::{AgentId, PluginId, PolicyId, SessionId, SkillId, 
 use systemprompt_security::authz::types::{Decision, EntityRef, MatchedBy};
 use systemprompt_security::policy::types::AccessScope;
 use systemprompt_security::policy::{
-    AuditOrigin, AuditTarget, ChainEntryOutcome, ChainEntryResult, DecisionAudit,
+    ApproverStamp, AuditOrigin, AuditTarget, ChainEntryOutcome, ChainEntryResult, DecisionAudit,
     PrincipalSnapshot, record_decision,
 };
 
@@ -285,4 +285,69 @@ async fn agentless_audit_records_a_user_actor() {
         row.actor_kind, "user",
         "with no agent the actor is the user, derived from the tool name"
     );
+}
+
+#[tokio::test]
+async fn an_approved_allow_names_the_policy_that_held_it() {
+    let Some(pool) = pool().await else {
+        return;
+    };
+    // Why this matters beyond tidiness: the demo's audit replay reads the flat
+    // `policy` column. An allow that a human authorised, reported as
+    // `default_allow`, is indistinguishable from one nothing enforced.
+    let mut audit = unique_audit();
+    audit.chain = vec![ChainEntryOutcome {
+        policy_id: PolicyId::new("require_approval"),
+        result: ChainEntryResult::Pass,
+        detail: "Approved by a human".to_owned(),
+        duration_ms: 0.0,
+    }];
+    audit.approver = Some(ApproverStamp {
+        user_id: UserId::new("admin-1"),
+        username: "ed".to_owned(),
+        decided_at: chrono::Utc::now(),
+        action: "approved",
+    });
+
+    record_decision(&pg(&pool), &audit)
+        .await
+        .expect("insert should succeed");
+
+    let row = fetch(&pool, &audit.id).await;
+    assert_eq!(row.decision, "allow");
+    assert_eq!(row.policy, "require_approval");
+    assert_eq!(
+        row.reason, "",
+        "an approval is still an allow, not a refusal"
+    );
+    assert_eq!(
+        row.evaluated_rules
+            .get("approver")
+            .and_then(|a| a.get("username"))
+            .and_then(serde_json::Value::as_str),
+        Some("ed"),
+        "the approver must survive into the audit blob"
+    );
+}
+
+#[tokio::test]
+async fn an_unapproved_allow_still_reports_default_allow() {
+    let Some(pool) = pool().await else {
+        return;
+    };
+    // The new label must not leak into ordinary allows.
+    let mut audit = unique_audit();
+    audit.chain = vec![ChainEntryOutcome {
+        policy_id: PolicyId::new("require_approval"),
+        result: ChainEntryResult::Pass,
+        detail: "Tool does not require approval".to_owned(),
+        duration_ms: 0.0,
+    }];
+    audit.approver = None;
+
+    record_decision(&pg(&pool), &audit)
+        .await
+        .expect("insert should succeed");
+
+    assert_eq!(fetch(&pool, &audit.id).await.policy, "default_allow");
 }

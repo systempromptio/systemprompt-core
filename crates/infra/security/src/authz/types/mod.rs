@@ -21,7 +21,7 @@ mod request;
 mod rule;
 mod subject_ref;
 
-pub use decision::{Decision, DecisionTag, DenyReason, MatchedBy};
+pub use decision::{Decision, DecisionTag, DenyReason, MatchedBy, PendingReason};
 pub use entity_ref::EntityRef;
 pub use kinds::{Access, EntityKind, RuleType};
 pub use request::{AuthzContext, AuthzDecision, AuthzRequest};

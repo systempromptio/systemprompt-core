@@ -26,6 +26,10 @@ pub enum ChainEntryResult {
     Fail,
     Disabled,
     Skip,
+    /// The policy neither passed nor failed the call: it requires a human to
+    /// authorise it. Distinct from `Fail` so a dashboard can tell a call that
+    /// was refused from one that was merely waiting.
+    Hold,
 }
 
 /// One traced chain entry: which policy, what it decided, and what it cost.
@@ -102,6 +106,20 @@ fn allow_policy_label(chain: &[ChainEntryOutcome]) -> &'static str {
     "default_allow"
 }
 
+// Why: by the same argument, an allow because a *human authorised it* is a
+// third thing again, and the one an audit reader most needs to tell apart. It
+// carries an approver, so the policy that held it is named rather than
+// collapsed into `default_allow` — otherwise an approved call is reported as
+// though nothing enforced it.
+fn approved_policy_label(audit: &DecisionAudit) -> Option<String> {
+    audit.approver.as_ref()?;
+    audit
+        .chain
+        .iter()
+        .find(|e| e.result == ChainEntryResult::Pass)
+        .map(|e| e.policy_id.as_str().to_owned())
+}
+
 pub async fn record_decision(pool: &PgPool, audit: &DecisionAudit) -> Result<(), sqlx::Error> {
     let actor = Actor::from_tool_name(
         audit.principal.user_id.clone(),
@@ -112,7 +130,8 @@ pub async fn record_decision(pool: &PgPool, audit: &DecisionAudit) -> Result<(),
         Decision::Allow { .. } => (
             DecisionTag::Allow,
             String::new(),
-            allow_policy_label(&audit.chain).to_owned(),
+            approved_policy_label(audit)
+                .unwrap_or_else(|| allow_policy_label(&audit.chain).to_owned()),
         ),
         Decision::Deny { reason } => {
             let policy_str = audit
@@ -121,6 +140,14 @@ pub async fn record_decision(pool: &PgPool, audit: &DecisionAudit) -> Result<(),
                 .find(|e| e.result == ChainEntryResult::Fail)
                 .map_or_else(|| "unknown".to_owned(), |e| e.policy_id.as_str().to_owned());
             (DecisionTag::Deny, reason.to_string(), policy_str)
+        },
+        Decision::Pending { reason } => {
+            let policy_str = audit
+                .chain
+                .iter()
+                .find(|e| e.result == ChainEntryResult::Hold)
+                .map_or_else(|| "unknown".to_owned(), |e| e.policy_id.as_str().to_owned());
+            (DecisionTag::Pending, reason.to_string(), policy_str)
         },
     };
     let evaluated_rules = serde_json::to_value(audit).unwrap_or_else(|e| {

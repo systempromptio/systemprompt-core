@@ -109,11 +109,34 @@ pub enum DenyReason {
     },
 }
 
+/// Why a governed call was held for a human decision instead of being
+/// allowed or denied outright.
+///
+/// A `Pending` verdict is *not* a refusal: the chain has found nothing wrong
+/// with the call, only that policy requires a named human to authorise it
+/// before it runs. The enforcement point is responsible for parking the call
+/// and resuming it — see the `require_approval` policy.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Error)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum PendingReason {
+    #[error("tool {tool} requires human approval (matched {rule})")]
+    ApprovalRequired { tool: McpToolName, rule: String },
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "decision", rename_all = "lowercase")]
 pub enum Decision {
-    Allow { matched_by: MatchedBy },
-    Deny { reason: DenyReason },
+    Allow {
+        matched_by: MatchedBy,
+    },
+    Deny {
+        reason: DenyReason,
+    },
+    /// Held awaiting a human decision. Terminal only for the chain — the
+    /// enforcement point resolves it into an eventual allow or deny.
+    Pending {
+        reason: PendingReason,
+    },
 }
 
 impl Decision {
@@ -122,6 +145,7 @@ impl Decision {
         match self {
             Self::Allow { .. } => DecisionTag::Allow,
             Self::Deny { .. } => DecisionTag::Deny,
+            Self::Pending { .. } => DecisionTag::Pending,
         }
     }
 }
@@ -138,6 +162,7 @@ impl Decision {
 pub enum DecisionTag {
     Allow,
     Deny,
+    Pending,
 }
 
 impl DecisionTag {
@@ -146,6 +171,7 @@ impl DecisionTag {
         match self {
             Self::Allow => "allow",
             Self::Deny => "deny",
+            Self::Pending => "pending",
         }
     }
 }

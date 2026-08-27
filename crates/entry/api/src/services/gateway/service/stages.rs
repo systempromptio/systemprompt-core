@@ -133,6 +133,12 @@ impl GovernedDispatch {
         let denied = match &evaluation.decision {
             Decision::Allow { .. } => None,
             Decision::Deny { reason } => Some(reason.to_string()),
+            // Why: a held call needs somewhere to park and something to wake
+            // it. The MCP enforcement point has both; an inference request on
+            // this path has neither, so the only safe reading of "a human must
+            // authorise this" here is a refusal. Failing open would turn the
+            // strictest verdict in the chain into the weakest.
+            Decision::Pending { reason } => Some(reason.to_string()),
         };
         let policy = evaluation
             .chain
