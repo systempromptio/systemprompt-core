@@ -3,6 +3,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod delta;
+
 use core::fmt::Display;
 
 use futures_util::stream::BoxStream;
@@ -10,10 +12,10 @@ use futures_util::{Stream, StreamExt};
 // JSON: protocol boundary — OpenAI Responses wire format is dynamic JSON.
 use serde_json::Value;
 
-use super::slot::{ItemSlot, ResponsesStreamState, SlotKind, SlotKindMatch, lookup_canonical};
-use crate::wire::canonical::{
-    CanonicalEvent, CanonicalUsage, CanonicalUsageUpdate, ContentBlockKind,
-};
+use delta::{DeltaShape, emit_delta, handle_completed, handle_error, handle_item_done};
+
+use super::slot::{ItemSlot, ResponsesStreamState, SlotKind, SlotKindMatch};
+use crate::wire::canonical::{CanonicalEvent, CanonicalUsage, ContentBlockKind};
 
 pub fn sse_to_canonical_events<S, E>(
     stream: S,
@@ -195,121 +197,4 @@ fn handle_item_added(
         index: canonical_index,
         block,
     }));
-}
-
-#[derive(Clone, Copy)]
-enum DeltaShape {
-    Text,
-    ToolUse,
-    Thinking,
-}
-
-fn emit_delta(
-    state: &ResponsesStreamState,
-    value: &Value,
-    want: SlotKindMatch,
-    events: &mut Vec<Result<CanonicalEvent, String>>,
-    shape: DeltaShape,
-) {
-    let output_index = value
-        .get("output_index")
-        .and_then(Value::as_i64)
-        .unwrap_or(-1);
-    let Some(idx) = lookup_canonical(&state.items, output_index, want) else {
-        return;
-    };
-    let delta = value.get("delta").and_then(Value::as_str).unwrap_or("");
-    if delta.is_empty() {
-        return;
-    }
-    let event = match shape {
-        DeltaShape::Text => CanonicalEvent::TextDelta {
-            index: idx,
-            text: delta.to_owned(),
-        },
-        DeltaShape::ToolUse => CanonicalEvent::ToolUseDelta {
-            index: idx,
-            partial_json: delta.to_owned(),
-        },
-        DeltaShape::Thinking => CanonicalEvent::ThinkingDelta {
-            index: idx,
-            text: delta.to_owned(),
-        },
-    };
-    events.push(Ok(event));
-}
-
-fn handle_item_done(
-    state: &ResponsesStreamState,
-    value: &Value,
-    events: &mut Vec<Result<CanonicalEvent, String>>,
-) {
-    let output_index = value
-        .get("output_index")
-        .and_then(Value::as_i64)
-        .unwrap_or(-1);
-    if let Some(slot) = state.items.iter().find(|s| s.output_index == output_index) {
-        if let Some(encrypted) = value
-            .get("item")
-            .and_then(|i| i.get("encrypted_content"))
-            .and_then(Value::as_str)
-        {
-            events.push(Ok(CanonicalEvent::EncryptedContentDelta {
-                index: slot.canonical_index,
-                data: encrypted.to_owned(),
-            }));
-        }
-        events.push(Ok(CanonicalEvent::ContentBlockStop {
-            index: slot.canonical_index,
-        }));
-    }
-}
-
-fn handle_completed(
-    state: &ResponsesStreamState,
-    value: &Value,
-    events: &mut Vec<Result<CanonicalEvent, String>>,
-    incomplete: bool,
-) {
-    let response = value.get("response").unwrap_or(&Value::Null);
-    let id = response
-        .get("id")
-        .and_then(Value::as_str)
-        .filter(|s| !s.is_empty())
-        .map_or_else(|| state.response_id.clone(), str::to_owned);
-    if let Some(usage) = response.get("usage") {
-        let pull = |key: &str| usage.get(key).and_then(Value::as_u64).map(|v| v as u32);
-        events.push(Ok(CanonicalEvent::UsageDelta(CanonicalUsageUpdate {
-            input_tokens: pull("input_tokens"),
-            output_tokens: pull("output_tokens"),
-            cache_read_tokens: usage
-                .get("input_tokens_details")
-                .and_then(|d| d.get("cached_tokens"))
-                .and_then(Value::as_u64)
-                .map(|v| v as u32),
-            cache_creation_tokens: None,
-        })));
-    }
-    let incomplete_reason = incomplete
-        .then(|| {
-            response
-                .get("incomplete_details")
-                .and_then(|d| d.get("reason"))
-                .and_then(Value::as_str)
-        })
-        .flatten();
-    events.push(Ok(CanonicalEvent::MessageStop {
-        id,
-        stop_reason: Some(super::slot::stop_reason(&state.items, incomplete_reason)),
-    }));
-}
-
-fn handle_error(value: &Value, events: &mut Vec<Result<CanonicalEvent, String>>) {
-    let msg = value
-        .get("error")
-        .and_then(|e| e.get("message"))
-        .and_then(Value::as_str)
-        .unwrap_or("upstream error")
-        .to_owned();
-    events.push(Ok(CanonicalEvent::Error(msg)));
 }
