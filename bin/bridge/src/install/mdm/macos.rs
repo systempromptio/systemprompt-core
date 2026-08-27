@@ -28,6 +28,17 @@ fn loopback_api_key() -> String {
         .unwrap_or_default()
 }
 
+/// Renders `{egress_block}` for the two payload templates.
+///
+/// Empty when no allowlist is configured, which omits the key and leaves
+/// Cowork's unrestricted default in force. See
+/// [`super::egress::cowork_egress_allowed_hosts`].
+fn egress_plist_block(indent: &str) -> String {
+    super::egress::cowork_egress_allowed_hosts()
+        .map(|hosts| super::egress::macos_plist_block(&hosts, indent))
+        .unwrap_or_default()
+}
+
 #[expect(
     clippy::literal_string_with_formatting_args,
     reason = "these braces are template placeholders substituted with str::replace, not format args"
@@ -39,6 +50,7 @@ pub fn build_prefs_plist(gateway: &str, pubkey: Option<&str>) -> String {
     PREFS_PLIST_TMPL
         .replace("{gateway_esc}", &xml::escape(gateway))
         .replace("{api_key_esc}", &xml::escape(&loopback_api_key()))
+        .replace("{egress_block}", &egress_plist_block("  "))
         .replace("{managed_mcp_block}", &managed_mcp_plist_block())
         .replace("{pubkey_block}", &pubkey_block)
 }
@@ -58,6 +70,7 @@ pub fn build_mobileconfig(gateway: &str, pubkey: Option<&str>) -> String {
         .replace("{outer_uuid}", &xml::stable_uuid(PAYLOAD_IDENTIFIER))
         .replace("{gateway_esc}", &xml::escape(gateway))
         .replace("{api_key_esc}", &xml::escape(&loopback_api_key()))
+        .replace("{egress_block}", &egress_plist_block("      "))
         .replace("{managed_mcp_block}", &managed_mcp_plist_block())
         .replace("{pubkey_block}", &pubkey_block)
 }

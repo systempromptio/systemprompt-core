@@ -20,4 +20,13 @@ Format: .mobileconfig (managed preference)
   <string>true</string>
   <key>disableDeploymentModeChooser</key>
   <string>true</string>
+  <!-- Optional. Omit for unrestricted egress (the default). Loopback-only is
+       the air-gapped/regulated posture; apply it with
+       `install --apply --egress-allowed-hosts loopback` so the Bridge keeps
+       this payload in step.
+  <key>coworkEgressAllowedHosts</key>
+  <array>
+    <string>127.0.0.1</string>
+  </array>
+  -->
 </dict>

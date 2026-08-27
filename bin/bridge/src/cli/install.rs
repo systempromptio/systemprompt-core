@@ -35,6 +35,12 @@ pub(super) fn cmd_install(args: &[String]) -> ExitCode {
     let apply = has_flag(args, "--apply");
     let apply_mobileconfig = has_flag(args, "--apply-mobileconfig");
     let apply_schedule = has_flag(args, "--apply-schedule");
+    // Why: recorded process-globally rather than threaded through InstallOptions
+    // because the MDM payload renderers are reached from `--print-mdm` too, which
+    // carries no options struct.
+    _ = install::set_egress_allowed_hosts(
+        parse_opt_flag(args, "--egress-allowed-hosts").as_deref(),
+    );
     match install::install(&install::InstallOptions {
         print_mdm,
         emit_schedule_template: emit_sched,

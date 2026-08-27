@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- Cowork egress is unrestricted by default. `install --apply` no longer writes `coworkEgressAllowedHosts` into the Windows policy key or either macOS payload; the key is omitted so Cowork's own default applies. Pinning it to loopback (added in 0.29.0) meant a stock install had no internet access at all — every web fetch failed as an organization egress block. The lockdown is now an explicit opt-in via `install --apply --egress-allowed-hosts loopback` or `<PREFIX>_EGRESS_ALLOWED_HOSTS`, which also accepts a comma-separated host list. The printed MDM snippets carry it commented out.
+
 ## [0.31.0] - 2026-08-26
 
 ### Added
