@@ -59,7 +59,8 @@ pub(super) async fn create_local_session(
         resolve_local_admin(&db_pool, &profile.system_admin.username).await?
     } else {
         let user_email = resolve_credentialed_user_email(session_email_hint).await?;
-        resolve_admin_with_fallback(&db_pool, &user_email, session_email_hint, "local").await?
+        resolve_admin_with_fallback(&db_pool, user_email.as_str(), session_email_hint, "local")
+            .await?
     };
 
     if config.is_interactive() {

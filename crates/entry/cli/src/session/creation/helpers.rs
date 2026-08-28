@@ -1,5 +1,20 @@
 //! Helpers minting CLI session rows and their analytics context.
 //!
+//! A local install's admin is resolved by **name**, never by email. An email is
+//! an attribute of a person, not a key: the local-trial path used to look up
+//! the literal `admin@localhost.dev`, which forced a migration to write that
+//! same string into `users.email` so the two would meet, and the address was
+//! then displayed as the operator's identity — including on the bridge
+//! device-link consent screen, immediately above a button that mints a durable
+//! personal access token. `system_admin.username` is the key the runtime
+//! already resolves on, so resolving by it agrees with the runtime by
+//! construction and leaves `email` free to hold something true. That path
+//! deliberately does not provision: on a local install a missing admin means
+//! bootstrap has not run, and inventing one is what produced the fabricated
+//! identity in the first place. Every address returned by
+//! `resolve_credentialed_user_email` comes from a session hint or from cloud
+//! credentials — real data either way.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -167,22 +182,6 @@ pub(super) fn build_cli_session(
     .build())
 }
 
-/// Resolves the admin of a local install by **name**, never by email.
-///
-/// Why: an email is an attribute of a person, not a key. The local-trial path
-/// used to resolve the admin by looking up the literal `admin@localhost.dev`,
-/// which forced a migration to write that same string into `users.email` so the
-/// two would meet. The address was then displayed as the operator's identity —
-/// including on the bridge device-link consent screen, immediately above a
-/// button that mints a durable personal access token.
-///
-/// `system_admin.username` is the key the runtime already resolves on
-/// (`resolve_system_admin`), so this agrees with it by construction and leaves
-/// `email` free to hold something true.
-///
-/// Deliberately does not provision. On a local install a missing admin means
-/// bootstrap has not run, and inventing one is what produced the fabricated
-/// identity in the first place.
 pub(super) async fn resolve_local_admin(
     db_pool: &DbPool,
     admin_name: &str,
@@ -213,16 +212,11 @@ pub(super) async fn resolve_local_admin(
     Ok(user)
 }
 
-/// Resolves the session email for profiles backed by real credentials.
-///
-/// The local-trial branch that returned a hardcoded address is gone; that path
-/// now goes through [`resolve_local_admin`]. Every address returned here comes
-/// from a session hint or from cloud credentials — real data either way.
 pub(super) async fn resolve_credentialed_user_email(
     session_email_hint: Option<&str>,
-) -> Result<String> {
+) -> Result<Email> {
     if let Some(email) = session_email_hint {
-        return Ok(email.to_owned());
+        return Email::try_new(email).context("session email hint is not a valid email address");
     }
 
     CredentialsBootstrap::try_init()
@@ -235,7 +229,7 @@ pub(super) async fn resolve_credentialed_user_email(
              login' to authenticate."
         )
     })?;
-    Ok(creds.user_email.as_str().to_owned())
+    Ok(creds.user_email.clone())
 }
 
 pub(super) async fn resolve_admin_with_fallback(

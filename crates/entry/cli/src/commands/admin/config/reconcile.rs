@@ -93,7 +93,7 @@ async fn try_reconcile(profile: &Profile, profile_path: &str) -> anyhow::Result<
     let roles_yaml = Path::new(&profile.paths.services).join(ROLES_YAML_RELATIVE);
     if roles_yaml.exists() {
         let svc = AccessControlIngestionService::new(&database)?;
-        svc.ingest_config_from_yaml_path_with_registry(
+        svc.ingest_config_from_yaml_path(
             &roles_yaml,
             IngestOptions {
                 override_existing: true,
