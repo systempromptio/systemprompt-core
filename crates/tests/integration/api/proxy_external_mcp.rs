@@ -422,8 +422,9 @@ async fn internal_registry_server_forwards_to_backend_with_context_headers() -> 
             .headers
             .get("x-agent-name")
             .and_then(|v| v.to_str().ok()),
-        Some(h.int_name.as_str()),
-        "agent name is rewritten to the resolved service"
+        Some("proxy-test-agent"),
+        "the caller's agent name reaches the backend; the reverse proxy does not \
+         substitute the callee server's name for it"
     );
     Ok(())
 }
