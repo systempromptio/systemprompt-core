@@ -39,6 +39,7 @@ const fn scope_label(scope: CancelScope) -> &'static str {
     match scope {
         CancelScope::Sync => "sync",
         CancelScope::Login => "login",
+        CancelScope::SetGateway => "set gateway",
         CancelScope::GatewayProbe => "gateway probe",
     }
 }

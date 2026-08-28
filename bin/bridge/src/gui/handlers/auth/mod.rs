@@ -120,7 +120,7 @@ pub(crate) fn on_set_gateway_requested(app: &GuiApp, gateway: &str, reply_to: Re
     }
     app.append_log(i18n::t_args("gateway-saving", &[("url", &trimmed)]));
     let proxy = app.proxy.clone();
-    let token = app.state.install_cancel(CancelScope::Login);
+    let token = app.state.install_cancel(CancelScope::SetGateway);
     app.runtime.spawn(async move {
         let task = tokio::task::spawn_blocking(move || {
             setup::set_gateway_url(&trimmed)
@@ -150,7 +150,7 @@ pub(crate) fn on_set_gateway_finished(
     result: Result<(), Arc<GuiError>>,
     reply_to: ReplyId,
 ) {
-    app.state.clear_cancel(CancelScope::Login);
+    app.state.clear_cancel(CancelScope::SetGateway);
     let bridge_result = match result {
         Ok(()) => {
             app.append_log(i18n::t("gateway-saved"));

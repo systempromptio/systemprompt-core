@@ -11,6 +11,13 @@ use super::AppState;
 pub enum CancelScope {
     Sync,
     Login,
+    /// Saving the gateway URL.
+    ///
+    /// Why: its own scope, not `Login`. The gateway field's blur fires
+    /// `gateway.set` as the sign-in button is clicked, so sharing a scope let
+    /// each one destroy the other's token — the sign-in that followed became
+    /// uncancellable and its Cancel button silently did nothing.
+    SetGateway,
     GatewayProbe,
 }
 
@@ -18,6 +25,7 @@ pub enum CancelScope {
 pub(super) struct CancelTokens {
     sync: Option<CancellationToken>,
     login: Option<CancellationToken>,
+    set_gateway: Option<CancellationToken>,
     gateway_probe: Option<CancellationToken>,
 }
 
@@ -29,6 +37,7 @@ impl AppState {
             let prev = match scope {
                 CancelScope::Sync => guard.sync.replace(token.clone()),
                 CancelScope::Login => guard.login.replace(token.clone()),
+                CancelScope::SetGateway => guard.set_gateway.replace(token.clone()),
                 CancelScope::GatewayProbe => guard.gateway_probe.replace(token.clone()),
             };
             drop(guard);
@@ -45,6 +54,7 @@ impl AppState {
         match scope {
             CancelScope::Sync => guard.sync = None,
             CancelScope::Login => guard.login = None,
+            CancelScope::SetGateway => guard.set_gateway = None,
             CancelScope::GatewayProbe => guard.gateway_probe = None,
         }
         drop(guard);
@@ -56,6 +66,7 @@ impl AppState {
             match scope {
                 CancelScope::Sync => guard.sync.take(),
                 CancelScope::Login => guard.login.take(),
+                CancelScope::SetGateway => guard.set_gateway.take(),
                 CancelScope::GatewayProbe => guard.gateway_probe.take(),
             }
         };
