@@ -239,6 +239,38 @@ async fn probes_stay_available_when_the_ban_list_is_unreachable() -> Result<()> 
 }
 
 #[tokio::test]
+async fn static_content_stays_served_when_the_ban_list_is_unreachable() -> Result<()> {
+    let (pool, _ctx) = setup_ctx().await?;
+    let repo = Arc::new(BannedIpRepository::new(&pool)?);
+    pool.pool_arc()?.close().await;
+
+    let app = ban_app(&repo).merge(Router::new().route("/page", get(|| async { "ok" })));
+
+    let resp = app
+        .oneshot(req_from("/page", Some("9.9.9.9")))
+        .await
+        .expect("response");
+
+    assert_eq!(
+        resp.status(),
+        StatusCode::OK,
+        "static content is merged after the ban layer, so a database outage must not take the public site down"
+    );
+
+    let api = ban_app(&repo);
+    let denied = api
+        .oneshot(req_from("/x", Some("9.9.9.9")))
+        .await
+        .expect("response");
+    assert_eq!(
+        denied.headers().get("X-Blocked-Reason").unwrap(),
+        "ip-ban-unavailable",
+        "API routes stay fail-closed"
+    );
+    Ok(())
+}
+
+#[tokio::test]
 async fn ip_ban_middleware_blocks_seeded_ip() -> Result<()> {
     let (pool, _ctx) = setup_ctx().await?;
     let repo = Arc::new(BannedIpRepository::new(&pool)?);

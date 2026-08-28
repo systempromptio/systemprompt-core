@@ -8,6 +8,11 @@
 //! address or an unreachable ban list denies the request rather than admitting
 //! it, so a database outage cannot silently disable IP banning.
 //!
+//! The static content router is out of scope: it is merged after this layer is
+//! applied, so public pages and assets are served without a ban-list lookup. A
+//! database fault must not take the public site down, and static content
+//! carries no privileged data worth banning an address from.
+//!
 //! Liveness and metrics probes are exempt. They are unauthenticated, carry no
 //! caller identity worth banning, and orchestrators recycle pods on a failed
 //! probe — denying them during an outage would convert a transient database

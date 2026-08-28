@@ -6,6 +6,10 @@
 
 - Rate limiting buckets a caller by identity rather than by a header the caller controls. The per-route limiter keyed on `tower_governor`'s `SmartIpKeyExtractor`, which reads the first parseable value from `X-Forwarded-For` with no trusted-proxy check — so a caller who varied that header landed in a fresh token bucket on every request and was not limited at all. Requests carrying a signature-verified identity are now bucketed by that identity; everything else is bucketed by the client address resolved through `trusted_proxies`, the same resolver the IP-ban gate uses, and a caller whose address cannot be resolved is refused rather than admitted.
 
+### Changed
+
+- The static content router is merged after the IP-ban layer rather than beneath it, so serving a public page or asset no longer costs a ban-list query. The gate is fail-closed by design, and layering it around the whole tree meant a database fault returned `403` for every visitor to the public site while the exempt health probes kept the pod reporting healthy. Static content carries no privileged data and banning an address from reading a public page buys little against that failure mode; API routes are unchanged and still refuse when the ban list is unreachable.
+
 ### Removed
 
 - **Breaking:** `rate_limits.tier_multipliers` is removed from the profile schema, along with the `admin config rate-limits` `tier`, `compare` and `docs` subcommands, `--tier`/`--multiplier` on `set`, and `--tier` on `reset`. The per-tier limiter those keys configured was never mounted, so the values scaled nothing, the startup warnings about them described an effect that did not exist, and the CLI's per-tier "effective limits" tables — including their JSON output — reported numbers no limiter enforced. Migrate by deleting the `tier_multipliers` block from your profile YAML; `deny_unknown_fields` means a profile that still carries it will fail to load.

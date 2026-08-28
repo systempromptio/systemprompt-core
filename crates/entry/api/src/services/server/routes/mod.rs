@@ -5,6 +5,10 @@
 //! well-known endpoints, static content, and the global IP-ban and metrics
 //! layers. Each surface is gated with its `AuthzPolicy` at mount time.
 //!
+//! The static router is merged after the IP-ban layer is applied, so public
+//! pages and assets are served without a ban-list lookup; only the API routes
+//! are gated. Metrics stay outermost and still measure static responses.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -84,12 +88,6 @@ pub(super) fn configure_routes(
             .with_auth(public_middleware, AuthzPolicy::public()),
     );
 
-    router = router.merge(static_setup::build_static_router(
-        ctx,
-        public_middleware,
-        events,
-    ));
-
     let banned_ip_repo = crate::repository::banned_ips(ctx.db_pool()).map_err(|e| {
         LoaderError::InitializationFailed {
             extension: "ip_ban_middleware".to_owned(),
@@ -103,6 +101,12 @@ pub(super) fn configure_routes(
         let proxies = Arc::clone(&trusted_proxies);
         async move { ip_ban_middleware(req, next, repo, proxies).await }
     }));
+
+    router = router.merge(static_setup::build_static_router(
+        ctx,
+        public_middleware,
+        events,
+    ));
 
     Ok(router.layer(axum::middleware::from_fn(super::metrics::track_metrics)))
 }
