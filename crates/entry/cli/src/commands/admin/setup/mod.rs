@@ -118,7 +118,7 @@ pub struct SetupArgs {
     #[arg(
         long,
         env = "SYSTEMPROMPT_ADMIN_EMAIL",
-        help = "Email for the generated system admin (default: admin@localhost.localdomain)"
+        help = "Email identifying the platform admin on sign-in and consent screens; required non-interactively"
     )]
     pub admin_email: Option<String>,
 
