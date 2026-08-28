@@ -11,12 +11,10 @@ use super::AppState;
 pub enum CancelScope {
     Sync,
     Login,
-    /// Saving the gateway URL.
-    ///
-    /// Why: its own scope, not `Login`. The gateway field's blur fires
-    /// `gateway.set` as the sign-in button is clicked, so sharing a scope let
-    /// each one destroy the other's token — the sign-in that followed became
-    /// uncancellable and its Cancel button silently did nothing.
+    // Why: saving the gateway gets its own scope, not `Login`. The gateway
+    // field's blur fires `gateway.set` as the sign-in button is clicked, so
+    // sharing a scope let each one destroy the other's token — the sign-in
+    // that followed became uncancellable and its Cancel button did nothing.
     SetGateway,
     GatewayProbe,
 }

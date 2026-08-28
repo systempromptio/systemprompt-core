@@ -172,13 +172,10 @@ impl SettingsWindow {
         self.focus_webview();
     }
 
-    /// Move input focus into the child webview.
-    ///
-    /// Why: the page is a *child* WebView2/WKWebView window
-    /// (`build_as_child`), so focusing the host frame alone leaves the page
-    /// itself unfocused — it renders inactive and swallows clicks and keys.
-    /// The sign-in flow hands the foreground to a browser, and coming back is
-    /// exactly the case that reproduces it.
+    // Why: the page is a *child* WebView2/WKWebView window (`build_as_child`),
+    // so focusing the host frame alone leaves the page itself unfocused — it
+    // renders inactive and swallows clicks and keys. The sign-in flow hands the
+    // foreground to a browser, and coming back is exactly what reproduces it.
     pub fn focus_webview(&self) {
         if let Err(e) = self.webview.focus() {
             tracing::warn!(error = %e, "webview focus failed");
