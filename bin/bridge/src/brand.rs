@@ -31,6 +31,7 @@ pub struct BrandAssets {
     pub logo_svg: &'static str,
     pub window_icon_png: &'static [u8],
     pub tray_icon_png: &'static [u8],
+    pub app_icon_ico: &'static [u8],
     pub theme_css: &'static str,
 }
 
@@ -64,6 +65,9 @@ pub struct Brand {
     pub schedule_label: &'static str,
     pub schedule_unit: &'static str,
     pub schedule_task_name: &'static str,
+    pub autostart_label: &'static str,
+    pub autostart_task_name: &'static str,
+    pub aumid: &'static str,
     pub assets: BrandAssets,
 }
 
@@ -95,11 +99,15 @@ impl Brand {
         schedule_label: "io.systemprompt.bridge-sync",
         schedule_unit: "systemprompt-bridge-sync",
         schedule_task_name: "SystempromptBridgeSync",
+        autostart_label: "io.systemprompt.bridge-gui",
+        autostart_task_name: "SystempromptBridgeGui",
+        aumid: "io.systemprompt.bridge",
         assets: BrandAssets {
             icon_svg: include_str!("../assets/icon.svg"),
             logo_svg: include_str!("../assets/logo.svg"),
             window_icon_png: include_bytes!("../assets/window-icon-1024.png"),
             tray_icon_png: include_bytes!("../assets/tray-icon.png"),
+            app_icon_ico: include_bytes!("../assets/app-icon.ico"),
             theme_css: "",
         },
     };

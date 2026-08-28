@@ -205,3 +205,14 @@ fn render_headers_xml(headers: &std::collections::BTreeMap<String, String>) -> S
     out.push_str("        </dict>\n");
     out
 }
+
+pub(super) fn remove_profile() -> std::io::Result<crate::integration::host_app::ProfileRemoval> {
+    Ok(
+        crate::integration::host_app::ProfileRemoval::ManualStepRequired {
+            instruction:
+                "Remove the Claude Desktop configuration profile under System Settings \u{203a} \
+                      General \u{203a} Device Management."
+                    .to_owned(),
+        },
+    )
+}

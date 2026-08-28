@@ -49,6 +49,46 @@ pub fn remove_schedule() -> ScheduleRemoval {
     platform::remove_current()
 }
 
+// Why: not a convenience. The bridge's value is a loopback proxy that governs
+// agent traffic, so a session where nobody remembered to open the app is a
+// session where agents ran ungoverned.
+pub fn apply_gui_autostart(binary: &Path) -> Result<Vec<String>, InstallError> {
+    let rendered = schedule::autostart_template(Os::current(), binary);
+    platform::register_autostart(&rendered)
+}
+
+pub fn remove_gui_autostart() -> ScheduleRemoval {
+    platform::remove_autostart()
+}
+
+#[must_use]
+pub fn gui_autostart_status() -> ScheduleStatus {
+    platform::autostart_status()
+}
+
+/// Whether the periodic sync job is registered with the host scheduler.
+///
+/// `Unknown` is a real answer, not a failure: the Settings pane previously
+/// hardcoded "manual", which became a lie the moment a schedule was installed,
+/// and guessing is how it got there.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "snake_case", tag = "state")]
+pub enum ScheduleStatus {
+    Installed,
+    NotInstalled,
+    Unknown,
+}
+
+#[must_use]
+pub fn schedule_status() -> ScheduleStatus {
+    platform::schedule_registered()
+}
+
+#[must_use]
+pub fn schedule_label() -> &'static str {
+    schedule::schedule_label(Os::current())
+}
+
 const fn same_os(a: Os, b: Os) -> bool {
     matches!(
         (a, b),

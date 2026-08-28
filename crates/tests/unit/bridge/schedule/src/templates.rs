@@ -195,3 +195,52 @@ fn linux_install_hint_mentions_systemctl() {
     assert!(!hint.is_empty());
     assert!(hint.contains("systemctl"));
 }
+
+#[test]
+fn windows_autostart_task_launches_the_gui_at_logon() {
+    let xml = schedule::autostart_template(Os::Windows, binary());
+    assert!(xml.contains("<LogonTrigger>"));
+    assert!(xml.contains("<Arguments>gui</Arguments>"));
+    assert!(xml.contains(BINARY));
+}
+
+#[test]
+fn windows_autostart_task_has_no_repeating_trigger() {
+    let xml = schedule::autostart_template(Os::Windows, binary());
+    assert!(!xml.contains("<TimeTrigger>"));
+    assert!(!xml.contains("<Repetition>"));
+}
+
+// The Task Scheduler default is to skip a task on battery, which would silently
+// leave a laptop's agents ungoverned for the whole session.
+#[test]
+fn windows_autostart_task_still_runs_on_battery() {
+    let xml = schedule::autostart_template(Os::Windows, binary());
+    assert!(xml.contains("<DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries>"));
+    assert!(xml.contains("<StopIfGoingOnBatteries>false</StopIfGoingOnBatteries>"));
+}
+
+#[test]
+fn mac_autostart_agent_launches_the_gui_at_load() {
+    let plist = schedule::autostart_template(Os::Mac, binary());
+    assert!(plist.contains("<string>gui</string>"));
+    assert!(plist.contains("<key>RunAtLoad</key>"));
+    assert!(plist.contains(schedule::autostart_label(Os::Mac)));
+}
+
+#[test]
+fn the_autostart_label_never_collides_with_the_sync_schedule() {
+    for os in [Os::Mac, Os::Windows, Os::Linux] {
+        assert_ne!(schedule::autostart_label(os), schedule::schedule_label(os));
+    }
+}
+
+#[test]
+fn autostart_templates_leave_no_unsubstituted_placeholders() {
+    for os in [Os::Mac, Os::Windows, Os::Linux] {
+        let rendered = schedule::autostart_template(os, binary());
+        assert!(!rendered.contains("{binary}"));
+        assert!(!rendered.contains("{label}"));
+        assert!(!rendered.contains("{app}"));
+    }
+}

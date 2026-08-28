@@ -109,6 +109,30 @@ pub fn proxy_template(binary: &Path) -> String {
 }
 
 #[must_use]
+pub fn autostart_label(os: Os) -> &'static str {
+    let brand = brand();
+    match os {
+        Os::Windows => brand.autostart_task_name,
+        Os::Mac | Os::Linux => brand.autostart_label,
+    }
+}
+
+#[expect(
+    clippy::literal_string_with_formatting_args,
+    reason = "{binary}/{label}/{app} are template placeholders consumed by str::replace, not fmt args"
+)]
+#[must_use]
+pub fn autostart_template(os: Os, binary: &Path) -> String {
+    let tmpl = match os {
+        Os::Windows => TASK_SCHEDULER_AUTOSTART_TMPL,
+        Os::Mac | Os::Linux => LAUNCHD_AUTOSTART_TMPL,
+    };
+    tmpl.replace("{binary}", &binary.display().to_string())
+        .replace("{label}", autostart_label(os))
+        .replace("{app}", brand().app_name)
+}
+
+#[must_use]
 pub fn install_hint(os: Os) -> String {
     let brand = brand();
     let filename = template_filename(os);
@@ -134,3 +158,6 @@ const LAUNCHD_PLIST_TMPL: &str = include_str!("templates/launchd.plist.tmpl");
 const TASK_SCHEDULER_XML_TMPL: &str = include_str!("templates/task-scheduler.xml.tmpl");
 const SYSTEMD_UNIT_TMPL: &str = include_str!("templates/systemd.unit.tmpl");
 const SYSTEMD_PROXY_TMPL: &str = include_str!("templates/systemd.proxy.tmpl");
+const LAUNCHD_AUTOSTART_TMPL: &str = include_str!("templates/launchd.autostart.plist.tmpl");
+const TASK_SCHEDULER_AUTOSTART_TMPL: &str =
+    include_str!("templates/task-scheduler.autostart.xml.tmpl");

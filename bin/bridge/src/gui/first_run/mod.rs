@@ -16,6 +16,22 @@ pub mod state;
 
 const TIMEOUT_SECS: u64 = 300;
 
+// Why: closing hides to the tray. On Windows the difference between "minimised"
+// and "a zombie in Task Manager" is entirely whether anyone said so, and it
+// only needs saying once.
+pub(crate) fn notify_closed_to_tray() {
+    if record::tray_notice_shown() {
+        return;
+    }
+    record::mark_tray_notice_shown();
+    let app = crate::brand::brand().app_name;
+    crate::gui::window::notify_user(
+        &format!("{app} is still running"),
+        "It keeps governing your agents from the notification area. Quit it from the tray menu to \
+         stop.",
+    );
+}
+
 pub(crate) fn should_run(app: &crate::gui::GuiApp) -> bool {
     record::read().is_none() && !app.state.snapshot().first_run.active
 }
@@ -38,6 +54,6 @@ pub(crate) fn tick(app: &mut crate::gui::GuiApp) {
             );
         }
     }
-    app.append_log("First use: setup timed out; continuing with what succeeded.");
+    app.append_log_warn("First use: setup timed out; continuing with what succeeded.");
     handlers::on_sync_result(app, false);
 }

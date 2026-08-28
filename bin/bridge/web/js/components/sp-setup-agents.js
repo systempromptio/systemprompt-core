@@ -1,6 +1,9 @@
 import { SpElement, reactive, escapeHtml } from "/assets/js/components/sp-element.js";
 import { bridge } from "/assets/js/bridge.js";
 import { t } from "/assets/js/i18n.js";
+import { announce } from "/assets/js/utils/announce.js";
+import { repairHost } from "/assets/js/utils/host-actions.js";
+import { notifyOk, notifyErr } from "/assets/js/utils/notify.js";
 
 export class SpSetupAgents extends SpElement {
   constructor() {
@@ -11,20 +14,16 @@ export class SpSetupAgents extends SpElement {
       const id = trigger.dataset.hostId;
       if (!id) { return; }
       trigger.disabled = true;
-      let stage = "generate";
+      const name = trigger.dataset.hostName || id;
       try {
-        const gen = await bridge.hostProfileGenerate(id);
-        const path = gen && (gen.path || gen.profile_path);
-        if (!path) {
-          throw new Error("generate did not return a path");
-        }
-        stage = "install";
-        await bridge.hostProfileInstall(id, path);
+        const path = await repairHost(id);
+        notifyOk(t("toast-agent-added", { name, path: path || "" })
+          || `${name} added — wrote ${path || ""}. Restart ${name} to pick it up.`);
       } catch (e) {
-        console.warn(`install-host (${stage})`, e);
-        const msg = (e && e.message) || String(e);
-        trigger.dataset.failedStage = stage;
-        trigger.title = `${stage} failed: ${msg}`;
+        // The stage is the one thing the wizard knows that the drawer does not:
+        // generating a profile and installing it fail for different reasons.
+        trigger.dataset.failedStage = e.stage || "install";
+        notifyErr(e, t(`setup-install-stage-${e.stage || "install"}`) || (e.stage || "install"));
         trigger.disabled = false;
       }
     });
@@ -32,7 +31,6 @@ export class SpSetupAgents extends SpElement {
 
   onConnect() {
     this.classList.add("sp-setup-agent-list");
-    this.setAttribute("aria-live", "polite");
     bridge.stateSnapshot().then((s) => {
       this.snapshot = s;
       // A late-mounting component would otherwise show nothing until the next
@@ -54,6 +52,11 @@ export class SpSetupAgents extends SpElement {
 
   _renderFirstRun() {
     const fr = this.firstRun;
+    // One line for the run, not one live region around a list that repaints
+    // every tick.
+    const done = (fr.hosts || []).filter((h) => h.status === "done").length;
+    const total = (fr.hosts || []).length;
+    announce(t("setup-agents-progress", { done, total }) || `${done} of ${total} agents set up`);
     const glyphs = {
       pending: "·", probing: "…", generating: "…", installing: "…",
       done: "✓", failed: "✗", skipped: "–",
@@ -69,7 +72,7 @@ export class SpSetupAgents extends SpElement {
             <div class="sp-setup-agent__name">${escapeHtml(glyphs[h.status] || "·")} ${escapeHtml(h.display_name)}</div>
             <div class="sp-setup-agent__desc">${escapeHtml(detail)}</div>
           </div>
-          ${failed ? `<button type="button" class="sp-btn-ghost" data-action="install-host" data-host-id="${escapeHtml(h.host_id)}">Retry</button>` : ""}
+          ${failed ? `<button type="button" class="sp-btn-ghost" data-action="install-host" data-host-id="${escapeHtml(h.host_id)}" data-host-name="${escapeHtml(h.display_name)}">Retry</button>` : ""}
         </div>
       `;
     }).join("");
@@ -100,14 +103,16 @@ export class SpSetupAgents extends SpElement {
       const installed = host.snapshot?.profile_state?.kind === "installed";
       const suffix = host.kind === "cli_tool" ? " · CLI" : " · Desktop";
       const cls = installed ? "sp-btn-ghost" : "sp-btn-primary";
-      const label = installed ? "Installed ✓" : "Install profile";
+      const label = installed
+        ? (t("setup-agents-installed") || "Installed")
+        : (t("setup-agents-install") || "Install profile");
       return `
         <div class="sp-setup-agent" data-state="${installed ? "installed" : "absent"}">
           <div class="sp-setup-agent__meta">
             <div class="sp-setup-agent__name">${escapeHtml(host.display_name + suffix)}</div>
             <div class="sp-setup-agent__desc">${escapeHtml(host.description || "")}</div>
           </div>
-          <button type="button" class="${cls}" ${installed ? "disabled" : ""} data-action="install-host" data-host-id="${escapeHtml(host.id)}">${escapeHtml(label)}</button>
+          <button type="button" class="${cls}" ${installed ? "disabled" : ""} data-action="install-host" data-host-id="${escapeHtml(host.id)}" data-host-name="${escapeHtml(host.display_name)}">${escapeHtml(label)}</button>
         </div>
       `;
     }).join("");

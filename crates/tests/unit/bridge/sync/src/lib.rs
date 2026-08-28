@@ -14,3 +14,5 @@ mod error_display;
 mod replay;
 #[cfg(test)]
 mod summary_line;
+#[cfg(test)]
+mod summary_serde;

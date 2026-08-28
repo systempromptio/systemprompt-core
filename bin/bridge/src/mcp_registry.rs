@@ -16,6 +16,8 @@ use crate::gateway::manifest::ManagedMcpServer;
 pub struct McpUpstream {
     pub url: ValidatedUrl,
     pub headers: BTreeMap<String, String>,
+    pub display_name: String,
+    pub transport: Option<String>,
 }
 
 pub type McpRegistry = HashMap<String, McpUpstream>;
@@ -34,6 +36,8 @@ pub(crate) fn publish(servers: &[ManagedMcpServer]) {
             McpUpstream {
                 url: s.url.clone(),
                 headers: s.headers.clone().unwrap_or_default(),
+                display_name: s.name.as_str().to_owned(),
+                transport: s.transport.clone(),
             },
         );
     }

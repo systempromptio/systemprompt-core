@@ -1,0 +1,164 @@
+{
+  "gateway_url": "https://internal.systemprompt.io",
+  "config_file": "C:\\Users\\ejb50\\AppData\\Roaming\\systemprompt-internal\\systemprompt-internal-bridge.toml",
+  "pat_file": "C:\\Users\\ejb50\\AppData\\Roaming\\systemprompt-internal\\systemprompt-internal-bridge.pat",
+  "config_present": true,
+  "pat_present": true,
+  "plugins_dir": "C:\\Users\\ejb50\\Systemprompt\\org-plugins",
+  "last_sync_summary": null,
+  "skill_count": 0,
+  "agent_count": 0,
+  "plugin_count": 0,
+  "sync_in_flight": false,
+  "cached_token": null,
+  "gateway_status": {
+    "state": "unreachable",
+    "reason": "connection refused (os error 111)"
+  },
+  "verified_identity": {
+    "email": "admin@localhost.dev",
+    "user_id": "user_1",
+    "tenant_id": "tenant_1",
+    "exp_unix": 1787909417,
+    "verified_at_unix": 1787905757
+  },
+  "signed_in": true,
+  "last_probe_at_unix": 1787905757,
+  "proxy_stats": {
+    "forwarded_total": 128,
+    "messages_total": 96,
+    "tokens_in_total": 41233,
+    "tokens_out_total": 8801,
+    "last_status": 200,
+    "last_latency_ms": 221,
+    "last_forwarded_at_unix": 1787905787
+  },
+  "mcp_auth": [],
+  "mcp_auth_probe_in_flight": false,
+  "update": {
+    "state": "idle"
+  },
+  "sign_in_label": "Sign in with systemprompt",
+  "sign_in_hint": "Opens your browser — sign in there with your Odoo email and password.",
+  "host_apps": [
+    {
+      "id": "claude-desktop",
+      "display_name": "Claude Desktop",
+      "kind": "desktop_app",
+      "description": "Anthropic's desktop client",
+      "icon": "claude-desktop",
+      "config_format": "reg",
+      "download_url": "https://claude.ai/download",
+      "install_action_label": "imported into Windows Registry",
+      "probe_in_flight": true,
+      "enabled": true,
+      "last_generated_profile": null,
+      "compatible_models": [],
+      "models_checked": false,
+      "compatible_models_available": false,
+      "unconfigured_providers": [],
+      "model_protocols": [
+        "anthropic"
+      ],
+      "model_protocols_overridden": false
+    },
+    {
+      "id": "codex-cli",
+      "display_name": "Codex CLI",
+      "kind": "cli_tool",
+      "description": "OpenAI's terminal coding agent",
+      "icon": "codex-cli",
+      "config_format": "toml",
+      "download_url": "https://github.com/openai/codex",
+      "install_action_label": "written to config file",
+      "probe_in_flight": true,
+      "enabled": true,
+      "last_generated_profile": null,
+      "compatible_models": [],
+      "models_checked": false,
+      "compatible_models_available": false,
+      "unconfigured_providers": [],
+      "model_protocols": [
+        "anthropic"
+      ],
+      "model_protocols_overridden": false
+    }
+  ],
+  "local_proxy": {
+    "url": "http://127.0.0.1:48217",
+    "state": "Refused",
+    "http_status": null,
+    "latency_ms": 1,
+    "error": "No connection could be made because the target machine actively refused it. (os error 10061)",
+    "probed_at_unix": 1787905787
+  },
+  "hosts_gated": false,
+  "agents_onboarded": false,
+  "first_run": {
+    "active": false,
+    "done": true,
+    "phase": "done",
+    "sync": "done",
+    "error": null,
+    "hosts": []
+  },
+  "__fail": [
+    "marketplace.list",
+    "sync",
+    "gateway.probe",
+    "profile.fetch",
+    "host.probe"
+  ],
+  "__latencyMs": 700,
+  "last_validation": {
+    "lines": [
+      {
+        "level": "info",
+        "label": "binary",
+        "value": "systemprompt-bridge v0.31.0 (windows-x86_64)"
+      },
+      {
+        "level": "ok",
+        "label": "org-plugins path",
+        "value": "C:\\ProgramData\\systemprompt\\org-plugins (scope: system)"
+      },
+      {
+        "level": "ok",
+        "label": "metadata dir",
+        "value": "C:\\ProgramData\\systemprompt\\bridge"
+      },
+      {
+        "level": "ok",
+        "label": "last sync",
+        "value": "unknown"
+      },
+      {
+        "level": "fail",
+        "label": "gateway /health",
+        "value": "connection refused"
+      }
+    ],
+    "any_failed": true
+  },
+  "last_validation_at_unix": 1787905637,
+  "malformed_plugin_count": 0,
+  "provider_health": [
+    {
+      "name": "anthropic",
+      "surface": "messages",
+      "configured": true,
+      "models": [
+        "claude-opus-4-6",
+        "claude-sonnet-4-6"
+      ]
+    },
+    {
+      "name": "openai",
+      "surface": "chat",
+      "configured": false,
+      "models": [],
+      "config_issue": "no API key configured for this provider"
+    }
+  ],
+  "last_sync_report": null
+}

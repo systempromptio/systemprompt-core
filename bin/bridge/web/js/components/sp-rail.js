@@ -1,9 +1,11 @@
 import { SpElement, reactive, escapeHtml } from "/assets/js/components/sp-element.js";
 import { bridge } from "/assets/js/bridge.js";
-import { TAB_DEFS, TAB_GLYPHS, readInitialTab, persistTab } from "/assets/js/utils/rail-tabs.js";
+import { TAB_DEFS, TAB_GLYPHS, readInitialTab, persistTab, shortcut } from "/assets/js/utils/rail-tabs.js";
 import { onBridgeEvent } from "/assets/js/events/bridge-events.js";
+import { handleRovingKey } from "/assets/js/utils/roving.js";
 
-const ARROW_KEYS = new Set(["ArrowDown", "ArrowUp", "Home", "End"]);
+export const panelId = (name) => `sp-panel-${name}`;
+export const tabId = (name) => `sp-tab-${name}`;
 
 export class SpRail extends SpElement {
   constructor() {
@@ -16,14 +18,20 @@ export class SpRail extends SpElement {
       const total = e.detail && e.detail.total;
       if (typeof total === "number") { this.marketplaceCount = total; }
     };
-    this._onRailKey = (e) => this._handleRailKey(e);
-    this.registerAction("activate-tab", (trigger) => this.activateTab(trigger.dataset.tab));
+    this._onRailKey = (e) => {
+      const tabs = Array.from(this.querySelectorAll(".sp-rail-tab"));
+      const cur = tabs.findIndex((tab) => tab.dataset.tab === this.activeTab);
+      handleRovingKey(e, tabs, cur, { onMove: (el) => this.activateTab(el.dataset.tab) });
+    };
+    this.registerAction("activate-tab", (trigger) =>
+      this.activateTab(trigger.dataset.tab, { moveFocus: true }));
   }
 
   onConnect() {
     this.classList.add("sp-rail");
     this.setAttribute("role", "tablist");
     this.setAttribute("aria-label", "Sections");
+    this.setAttribute("aria-orientation", "vertical");
     this.dataset.activeReady = "false";
     this.bridgeSubscribe("state.changed", (s) => {
       this.agentCount = ((s && s.host_apps) || []).filter((h) => h.enabled === true).length;
@@ -43,30 +51,23 @@ export class SpRail extends SpElement {
     this.removeEventListener("keydown", this._onRailKey);
   }
 
-  activateTab(name) {
+  activateTab(name, { moveFocus = false } = {}) {
+    const changed = this.activeTab !== name;
     this.activeTab = name;
     persistTab(name);
-    document.dispatchEvent(new CustomEvent("crumb:set", { detail: { name } }));
-  }
-
-  _handleRailKey(e) {
-    if (!ARROW_KEYS.has(e.key)) { return; }
-    const tabs = Array.from(this.querySelectorAll(".sp-rail-tab"));
-    if (tabs.length === 0) { return; }
-    const cur = tabs.findIndex((t) => t.dataset.tab === this.activeTab);
-    let next = cur;
-    if (e.key === "ArrowDown") { next = cur < 0 ? 0 : (cur + 1) % tabs.length; }
-    else if (e.key === "ArrowUp") { next = cur < 0 ? tabs.length - 1 : (cur - 1 + tabs.length) % tabs.length; }
-    else if (e.key === "Home") { next = 0; }
-    else { next = tabs.length - 1; }
-    e.preventDefault();
-    const target = tabs[next];
-    if (target) { this.activateTab(target.dataset.tab); target.focus(); }
+    if (changed || moveFocus) { this._focusPanel = moveFocus; }
   }
 
   afterRender() {
     for (const panel of document.querySelectorAll(".sp-tab__panel")) {
       panel.hidden = panel.dataset.tab !== this.activeTab;
+    }
+    // Why: without this the keyboard user who picks a tab is left on the rail
+    // and has to traverse every remaining tab to reach the content they chose.
+    if (this._focusPanel) {
+      this._focusPanel = false;
+      const panel = document.getElementById(panelId(this.activeTab));
+      if (panel) { panel.focus(); }
     }
     requestAnimationFrame(() => this._syncIndicator());
   }
@@ -92,11 +93,11 @@ export class SpRail extends SpElement {
       ? `<span class="sp-rail-tab__count" hidden></span>`
       : `<span class="sp-rail-tab__count">${escapeHtml(count)}</span>`;
     return `
-      <button class="sp-rail-tab" data-tab="${def.name}" role="tab" aria-selected="${selected ? "true" : "false"}" tabindex="${selected ? "0" : "-1"}" type="button" data-action="activate-tab">
+      <button class="sp-rail-tab" id="${tabId(def.name)}" data-tab="${def.name}" role="tab" aria-selected="${selected ? "true" : "false"}" aria-controls="${panelId(def.name)}" tabindex="${selected ? "0" : "-1"}" type="button" data-action="activate-tab">
         <span class="sp-rail-tab__glyph" aria-hidden="true">${TAB_GLYPHS[def.name]}</span>
         <span class="sp-rail-tab__label" data-l10n-id="${def.l10n}">${escapeHtml(def.label)}</span>
         ${countNode}
-        <span class="sp-rail-tab__shortcut" aria-hidden="true">${escapeHtml(def.shortcut)}</span>
+        <span class="sp-rail-tab__shortcut" aria-hidden="true">${escapeHtml(shortcut(def.key))}</span>
       </button>
     `;
   }

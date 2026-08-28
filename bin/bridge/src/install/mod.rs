@@ -27,7 +27,10 @@ pub use mdm::{
     MdmError, cowork_egress_allowed_hosts, is_uuid_like, set_egress_allowed_hosts,
     snippet as mdm_snippet,
 };
-pub use schedule_apply::{apply_schedule, remove_schedule};
+pub use schedule_apply::{
+    ScheduleStatus, apply_gui_autostart, apply_schedule, gui_autostart_status,
+    remove_gui_autostart, remove_schedule, schedule_label, schedule_status,
+};
 pub use schedule_emit::emit_schedule;
 pub use summary::{render_install_summary, render_uninstall_summary};
 

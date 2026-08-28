@@ -12,7 +12,7 @@ pub(crate) fn handle_inbound(app: &GuiApp, raw: &str) {
     let req: IpcRequest = match serde_json::from_str(raw) {
         Ok(r) => r,
         Err(e) => {
-            app.append_log(format!("ipc: bad request: {e}"));
+            app.append_log_error(format!("ipc: bad request: {e}"));
             return;
         },
     };

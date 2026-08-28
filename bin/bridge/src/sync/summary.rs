@@ -6,7 +6,7 @@
 use crate::gateway::manifest::SignedManifest;
 use crate::sync::apply::{self, HostFailure};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct SyncSummary {
     pub identity: String,
     pub manifest_version: String,

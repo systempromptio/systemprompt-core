@@ -1,4 +1,5 @@
 import { t } from "/assets/js/i18n.js";
+import { escapeHtml } from "/assets/js/components/sp-element.js";
 
 export function probeView(snap) {
   const status = (snap && snap.gateway_status) || { state: "unknown" };
@@ -20,10 +21,12 @@ export function probeErrorMessage(snap) {
   const status = snap.gateway_status || { state: "unknown" };
   const verified = snap.verified_identity && snap.verified_identity.user_id;
   if (status.state === "reachable" && snap.pat_present && !verified) {
-    return "Token rejected by gateway. Issue a fresh PAT and try again.";
+    return t("setup-token-rejected")
+      || "The gateway rejected that personal access token. Issue a fresh one and try again.";
   }
   if (status.state === "unreachable" && snap.pat_present) {
-    return `Gateway unreachable: ${status.reason || "unknown error"}`;
+    const reason = status.reason || "unknown error";
+    return t("setup-gateway-unreachable-reason", { reason }) || `Gateway unreachable: ${reason}`;
   }
   return "";
 }
@@ -42,23 +45,18 @@ export function patLinkFor(gateway) {
   return "#";
 }
 
-function escapeHtml(s) {
-  if (s == null) { return ""; }
-  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
-}
-
 export function renderGatewayForm(state) {
   const probe = probeView(state.snapshot);
   const link = patLinkFor(state.gateway);
   const linkDisabled = link === "#";
-  const editBtn = state.patSaved ? `<button class="sp-btn-ghost" type="button" data-action="edit-pat">Edit</button>` : "";
+  const editBtn = state.patSaved ? `<button class="sp-btn-ghost" type="button" data-action="edit-pat" data-l10n-id="setup-pat-edit">Edit</button>` : "";
   const errBlock = state.error ? `<span class="sp-setup__error">${escapeHtml(state.error)}</span>` : "";
-  const btnLabel = state.pending ? (t("setup-connecting") || "Connecting…") : "Connect";
+  const btnLabel = state.pending ? (t("setup-connecting") || "Connecting…") : (t("setup-connect") || "Connect");
   const snap = state.snapshot || {};
-  const signInLabel = snap.sign_in_label || "Sign in to your gateway";
-  const signInHint = snap.sign_in_hint || "Opens your browser to sign in on the gateway; this device is linked automatically.";
+  const signInLabel = snap.sign_in_label || t("setup-sign-in-default") || "Sign in to your gateway";
+  const signInHint = snap.sign_in_hint || t("setup-sign-in-hint") || "Opens your browser to sign in on the gateway; this device is linked automatically.";
   const signInBusy = state.signingIn;
-  const signInText = signInBusy ? t("setup-signing-in") : signInLabel;
+  const signInText = signInBusy ? (t("setup-signing-in") || "Waiting for your browser…") : signInLabel;
   const keepChecked = state.keepSignedIn === false ? "" : "checked";
   // The device-link flow round-trips through the gateway's browser login, so an
   // unreachable gateway can only ever fail — gate the button and say why rather
@@ -67,17 +65,17 @@ export function renderGatewayForm(state) {
   const signInDisabled = signInBusy || state.pending || !reachable;
   const gateReason = reachable || signInBusy || state.pending
     ? ""
-    : `<p class="sp-setup__hint sp-setup__hint--gate">${escapeHtml(t("setup-gateway-required"))}</p>`;
+    : `<p class="sp-setup__hint sp-setup__hint--gate">${escapeHtml(t("setup-gateway-required") || "Check the gateway URL under Advanced, then try again.")}</p>`;
   const cancelBtn = signInBusy
     ? `<button class="sp-btn-ghost" type="button" data-action="cancel-sign-in">
-        <span class="sp-btn__label">${escapeHtml(t("setup-sign-in-cancel"))}</span>
+        <span class="sp-btn__label">${escapeHtml(t("setup-sign-in-cancel") || "Cancel")}</span>
       </button>`
     : "";
   return `
     <div class="sp-setup__field">
       <label for="setup-gateway" data-l10n-id="setup-gateway-label">Gateway URL</label>
-      <input id="setup-gateway" type="url" placeholder="http://127.0.0.1:8080" autocomplete="off" spellcheck="false" data-input="gateway" />
-      <div class="sp-setup__status">
+      <input id="setup-gateway" type="url" placeholder="http://127.0.0.1:8080" data-l10n-placeholder="setup-gateway-placeholder" autocomplete="off" spellcheck="false" data-input="gateway" />
+      <div class="sp-setup__status" role="status" aria-live="polite">
         <span class="sp-dot ${probe.dot}" aria-hidden="true"></span>
         <span class="${probe.muted ? "sp-u-muted" : ""}">${escapeHtml(probe.text)}</span>
       </div>
@@ -90,18 +88,18 @@ export function renderGatewayForm(state) {
       ${gateReason}
       <label class="sp-setup__keep">
         <input id="setup-keep" type="checkbox" ${keepChecked} ${signInBusy ? "disabled" : ""} data-input="keep" />
-        <span>Keep me signed in on this device</span>
+        <span data-l10n-id="setup-keep-signed-in">Keep me signed in on this device</span>
       </label>
       <p class="sp-setup__hint">${escapeHtml(signInHint)}</p>
     </div>
     <details class="sp-setup__advanced">
-      <summary>Use a personal access token instead</summary>
+      <summary data-l10n-id="setup-pat-summary">Use a personal access token instead</summary>
       <div class="sp-setup__field">
         <label for="setup-pat" data-l10n-id="setup-pat-label">Personal access token</label>
-        <input id="setup-pat" type="password" placeholder="sp-live-…" autocomplete="off" spellcheck="false" data-input="pat" />
+        <input id="setup-pat" type="password" placeholder="sp-live-…" data-l10n-placeholder="setup-pat-placeholder" autocomplete="off" spellcheck="false" data-input="pat" />
         <p class="sp-setup__hint">
           <span data-l10n-id="setup-pat-hint">Don't have one yet?</span>
-          <a class="sp-setup__pat-link ${linkDisabled ? "is-disabled" : ""}" href="${escapeHtml(link)}" target="_blank" rel="noopener noreferrer" aria-disabled="${linkDisabled}">Open the gateway login →</a>
+          <a class="sp-setup__pat-link ${linkDisabled ? "is-disabled" : ""}" href="${escapeHtml(link)}" target="_blank" rel="noopener noreferrer" aria-disabled="${linkDisabled}" data-l10n-id="setup-pat-open-login">Open the gateway login →</a>
           ${editBtn}
         </p>
       </div>

@@ -1,5 +1,6 @@
 import { SpElement, reactive, escapeHtml } from "/assets/js/components/sp-element.js";
 import { bridge } from "/assets/js/bridge.js";
+import { notifyErr } from "/assets/js/utils/notify.js";
 
 function hostState(snap) {
   if (snap.sync_in_flight) { return "running"; }
@@ -37,7 +38,7 @@ export class SpFooter extends SpElement {
       const url = el && el.dataset && el.dataset.href;
       if (!url) { return; }
       if (ev && typeof ev.preventDefault === "function") { ev.preventDefault(); }
-      bridge.openExternalUrl(url).catch((e) => console.warn("open url failed", url, e));
+      bridge.openExternalUrl(url).catch((e) => notifyErr(e, url));
     });
   }
 

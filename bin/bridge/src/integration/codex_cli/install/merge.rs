@@ -49,6 +49,42 @@ pub(super) fn install(source: &Path, target: &Path) -> std::io::Result<()> {
     Ok(())
 }
 
+// Why: the inverse of `install` — take the bridge-owned surface back out and
+// leave every other key exactly where it was.
+pub(super) fn uninstall(target: &Path) -> std::io::Result<bool> {
+    let existing_text = match std::fs::read_to_string(target) {
+        Ok(s) => s,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(false),
+        Err(e) => return Err(e),
+    };
+    let mut value: toml::Value = toml::from_str(&existing_text)
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
+    let before = value.clone();
+    strip_owned(&mut value);
+    if value == before {
+        return Ok(false);
+    }
+
+    let empty = matches!(&value, toml::Value::Table(t) if t.is_empty());
+    if empty {
+        std::fs::remove_file(target)?;
+        return Ok(true);
+    }
+    let rendered = toml::to_string_pretty(&value)
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
+    let tmp = target.with_extension(format!(
+        "{}.tmp.{}",
+        target
+            .extension()
+            .and_then(|s| s.to_str())
+            .unwrap_or("toml"),
+        std::process::id()
+    ));
+    std::fs::write(&tmp, rendered)?;
+    std::fs::rename(&tmp, target)?;
+    Ok(true)
+}
+
 fn strip_owned(target: &mut toml::Value) {
     let toml::Value::Table(top) = target else {
         return;

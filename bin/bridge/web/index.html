@@ -7,7 +7,7 @@
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="/assets/css/main.css">
 </head>
-<body class="is-setup-mode is-platform-__PLATFORM__" data-setup-step="connect">
+<body class="is-setup-mode is-platform-__PLATFORM__" data-platform-display="__PLATFORM_DISPLAY__" data-setup-step="connect">
   <a href="#main" class="sp-skip-link">Skip to content</a>
 
   <template id="tpl-mkt-glyph-plugins"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M18 13v4a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4V7a4 4 0 0 1 4-4h6"/><path d="M9 13h6"/><path d="M9 17h4"/></svg></template>
@@ -30,12 +30,13 @@
     </div>
 
     <div class="sp-topbar__center">
-      <sp-crumb></sp-crumb>
+      <sp-governance-strip variant="compact"></sp-governance-strip>
     </div>
 
     <div class="sp-topbar__right">
       <sp-agent-presence class="sp-agent__presence" aria-label="Connected agents"></sp-agent-presence>
       <sp-sync-pill data-state="idle" title="Sync status"></sp-sync-pill>
+      <sp-topbar-menu></sp-topbar-menu>
     </div>
   </header>
 
@@ -43,23 +44,37 @@
     <sp-rail data-version="v__VERSION__"></sp-rail>
 
     <div class="sp-content sp-scroll">
-      <section class="sp-tab__panel" data-tab="profile" role="tabpanel" hidden>
-        <sp-profile></sp-profile>
+      <section class="sp-tab__panel" id="sp-panel-home" data-tab="home"
+        role="tabpanel" aria-labelledby="sp-tab-home" tabindex="-1" hidden>
+        <sp-home></sp-home>
       </section>
 
-      <section class="sp-tab__panel" data-tab="marketplace" role="tabpanel" hidden>
-        <sp-marketplace></sp-marketplace>
-      </section>
-
-      <section class="sp-tab__panel" data-tab="agents" role="tabpanel" hidden>
-        <p class="sp-tab__lede sp-u-muted" data-l10n-id="agents-lede">
-          systemprompt bridge routes any number of coding agents through a single local proxy.
-          Install the configuration profile for each agent you want governed; they all run simultaneously.
-        </p>
+      <section class="sp-tab__panel" id="sp-panel-agents" data-tab="agents"
+        role="tabpanel" aria-labelledby="sp-tab-agents" tabindex="-1" hidden>
         <sp-hosts-list></sp-hosts-list>
       </section>
 
-      <section class="sp-tab__panel" data-tab="status" role="tabpanel" hidden>
+      <section class="sp-tab__panel" id="sp-panel-activity" data-tab="activity"
+        role="tabpanel" aria-labelledby="sp-tab-activity" tabindex="-1" hidden>
+        <header class="sp-tab__header">
+          <h1 data-l10n-id="nav-activity">Activity</h1>
+        </header>
+        <sp-request-stream></sp-request-stream>
+        <sp-activity-log></sp-activity-log>
+      </section>
+
+      <section class="sp-tab__panel" id="sp-panel-marketplace" data-tab="marketplace"
+        role="tabpanel" aria-labelledby="sp-tab-marketplace" tabindex="-1" hidden>
+        <sp-marketplace></sp-marketplace>
+      </section>
+
+      <section class="sp-tab__panel" id="sp-panel-account" data-tab="account"
+        role="tabpanel" aria-labelledby="sp-tab-account" tabindex="-1" hidden>
+        <sp-profile></sp-profile>
+      </section>
+
+      <section class="sp-tab__panel" id="sp-panel-status" data-tab="status"
+        role="tabpanel" aria-labelledby="sp-tab-status" tabindex="-1" hidden>
         <header class="sp-tab__header">
           <h1 data-l10n-id="status-heading">Status</h1>
           <sp-overall-badge></sp-overall-badge>
@@ -71,7 +86,7 @@
               <h2 data-l10n-id="status-cloud-heading">systemprompt cloud</h2>
               <p class="sp-status-group__caption" data-l10n-id="status-cloud-caption">The hosted control plane systemprompt bridge talks to. Identity and PAT live here.</p>
             </div>
-            <span class="sp-badge sp-badge--muted" data-section-badge>checking…</span>
+            <span class="sp-badge sp-badge--muted" data-section-badge data-l10n-id="status-badge-checking">checking…</span>
           </header>
           <sp-cloud-status></sp-cloud-status>
         </section>
@@ -80,9 +95,9 @@
           <header class="sp-status-group__header">
             <div>
               <h2 data-l10n-id="status-proxy-heading">Local proxy</h2>
-              <p class="sp-status-group__caption" data-l10n-id="status-proxy-caption">The 127.0.0.1 endpoint host apps call instead of the Anthropic API.</p>
+              <p class="sp-status-group__caption" data-l10n-id="status-proxy-caption">The 127.0.0.1 endpoint agents call instead of the Anthropic API.</p>
             </div>
-            <span class="sp-badge sp-badge--muted" data-section-badge>checking…</span>
+            <span class="sp-badge sp-badge--muted" data-section-badge data-l10n-id="status-badge-checking">checking…</span>
           </header>
           <sp-proxy-status></sp-proxy-status>
         </section>
@@ -93,9 +108,20 @@
               <h2 data-l10n-id="status-mcp-heading">MCP servers</h2>
               <p class="sp-status-group__caption" data-l10n-id="status-mcp-caption">Whether managed MCP servers authenticate end-to-end through the proxy, and the tools they expose.</p>
             </div>
-            <span class="sp-badge sp-badge--muted" data-section-badge>checking…</span>
+            <span class="sp-badge sp-badge--muted" data-section-badge data-l10n-id="status-badge-checking">checking…</span>
           </header>
           <sp-mcp-auth-status></sp-mcp-auth-status>
+        </section>
+
+        <section class="sp-status-group" data-group="setup-health">
+          <header class="sp-status-group__header">
+            <div>
+              <h2 data-l10n-id="status-health-heading">Setup health</h2>
+              <p class="sp-status-group__caption" data-l10n-id="status-health-caption">Every check the bridge runs on this machine, failures first. Empty when there is nothing to fix.</p>
+            </div>
+            <span class="sp-badge sp-badge--muted" data-section-badge data-l10n-id="status-badge-checking">checking…</span>
+          </header>
+          <sp-setup-health></sp-setup-health>
         </section>
 
         <section class="sp-status-group" data-group="agents-summary">
@@ -104,22 +130,21 @@
               <h2 data-l10n-id="status-agents-heading">Agents</h2>
               <p class="sp-status-group__caption"><span data-l10n-id="status-agents-caption-prefix">Coding agents routed through systemprompt bridge. Manage them in the</span> <a href="#" data-jump-tab="agents" data-l10n-id="status-agents-tab-link">Agents tab</a>.</p>
             </div>
-            <span class="sp-badge sp-badge--muted" data-section-badge>checking…</span>
+            <span class="sp-badge sp-badge--muted" data-section-badge data-l10n-id="status-badge-checking">checking…</span>
           </header>
           <sp-agents-summary></sp-agents-summary>
         </section>
 
       </section>
 
-      <section class="sp-tab__panel" data-tab="settings" role="tabpanel" hidden>
+      <section class="sp-tab__panel" id="sp-panel-settings" data-tab="settings"
+        role="tabpanel" aria-labelledby="sp-tab-settings" tabindex="-1" hidden>
         <header class="sp-tab__header">
           <h1 data-l10n-id="settings-heading">Settings</h1>
         </header>
         <sp-settings></sp-settings>
       </section>
     </div>
-
-    <sp-activity-log></sp-activity-log>
   </main>
 
   <sp-setup id="setup" class="sp-setup" aria-labelledby="setup-heading" data-version="__VERSION__" data-platform="__PLATFORM__" data-platform-display="__PLATFORM_DISPLAY__">
@@ -134,6 +159,7 @@
     data-build-date="__BUILD_DATE__"
   ></sp-footer>
 
+  <sp-agent-drawer></sp-agent-drawer>
   <sp-toast></sp-toast>
 
   <script type="module" src="/assets/js/index.js" defer></script>

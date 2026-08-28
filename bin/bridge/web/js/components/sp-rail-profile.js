@@ -1,6 +1,8 @@
 import { SpElement, reactive, escapeHtml } from "/assets/js/components/sp-element.js";
 import { bridge } from "/assets/js/bridge.js";
+import { notifyOk, notifyErr } from "/assets/js/utils/notify.js";
 import { t } from "/assets/js/i18n.js";
+import { handleRovingKey, syncRoving } from "/assets/js/utils/roving.js";
 import { logout } from "/assets/js/services/session-service.js";
 
 const VERSION = (() => {
@@ -31,20 +33,35 @@ export class SpRailProfile extends SpElement {
     this._onDocKey = (e) => {
       if (e.key === "Escape" && this.menuOpen) { this.menuOpen = false; }
     };
+    // role="menu" is a claim that arrow keys work. They did not, and nothing
+    // moved focus into the menu or back to the trigger.
+    this._onMenuKey = (e) => {
+      if (!this.menuOpen) { return; }
+      const items = this._menuItems();
+      const cur = items.indexOf(document.activeElement);
+      handleRovingKey(e, items, cur);
+    };
     // Capture phase: the rail itself scrolls, and a scroll event on it does not
     // bubble to window.
     this._onReposition = () => {
       if (this.menuOpen) { this._positionMenu(); }
     };
-    this.registerAction("toggle-menu", () => { this.menuOpen = !this.menuOpen; });
+    this.registerAction("toggle-menu", () => {
+      this.menuOpen = !this.menuOpen;
+      this._needsMenuFocus = this.menuOpen;
+      if (!this.menuOpen) { this._returnFocusToTrigger(); }
+    });
     this.registerAction("logout", () => this._onLogout());
     this.registerAction("update-install", () => this._onUpdateInstall());
-    this.registerAction("update-restart", () => { bridge.updateRestart().catch((e) => console.warn("restart failed", e)); });
+    this.registerAction("update-restart", () => {
+      notifyOk(t("toast-update-restarting") || "Restarting to finish the update…");
+      bridge.updateRestart().catch((e) => notifyErr(e, t("rail-profile-restart-cta") || "Restart to finish updating"));
+    });
     this.registerAction("open-external", (el, ev) => {
       const url = el && el.dataset && el.dataset.href;
       if (!url) { return; }
       if (ev && typeof ev.preventDefault === "function") { ev.preventDefault(); }
-      bridge.openExternalUrl(url).catch((e) => console.warn("open url failed", url, e));
+      bridge.openExternalUrl(url).catch((e) => notifyErr(e, url));
     });
   }
 
@@ -60,7 +77,6 @@ export class SpRailProfile extends SpElement {
 
   onConnect() {
     this.classList.add("sp-rail-profile");
-    this.setAttribute("aria-label", "Profile and workspace");
     if (!this._baseVersion) {
       this._baseVersion = this.dataset.version || VERSION || "";
     }
@@ -68,6 +84,7 @@ export class SpRailProfile extends SpElement {
     this.bridgeSubscribe("state.changed", (s) => { this.snapshot = s; this._maybeCheck(); });
     document.addEventListener("pointerdown", this._onDocPointer);
     document.addEventListener("keydown", this._onDocKey);
+    this.addEventListener("keydown", this._onMenuKey);
     window.addEventListener("resize", this._onReposition);
     window.addEventListener("scroll", this._onReposition, true);
     this._recheckTimer = setInterval(() => { this._checkedAt = 0; this._maybeCheck(); }, RECHECK_MS);
@@ -96,8 +113,21 @@ export class SpRailProfile extends SpElement {
     bridge.updateCheck().catch((e) => console.debug("update check failed", e));
   }
 
+  _menuItems() {
+    return Array.from(this.querySelectorAll(".sp-rail-profile__menu-item"));
+  }
+
+  _returnFocusToTrigger() {
+    const trigger = this.querySelector('[data-action="toggle-menu"]');
+    if (trigger && trigger.isConnected) { trigger.focus(); }
+  }
+
   afterRender() {
     this._positionMenu();
+    const items = this._menuItems();
+    if (items.length === 0) { return; }
+    syncRoving(items, 0);
+    if (this._needsMenuFocus) { this._needsMenuFocus = false; items[0].focus(); }
   }
 
   // Why: the rail is a scroll container (`.sp-rail { overflow-y: auto }`), so
@@ -129,7 +159,7 @@ export class SpRailProfile extends SpElement {
     this.menuOpen = false;
     // Progress and failure both arrive on `state.changed`, so nothing to do
     // with the resolved value here.
-    bridge.updateInstall().catch((e) => console.warn("update install failed", e));
+    bridge.updateInstall().catch((e) => notifyErr(e, t("rail-profile-update-cta") || "Click here to update"));
   }
 
   /// The subtitle doubles as the update progress line; when nothing is
@@ -156,7 +186,7 @@ export class SpRailProfile extends SpElement {
     // action; the identity and Log out stay reachable through the menu, because
     // this is the only place either is offered.
     const cta = u.phase === "available"
-      ? { action: "update-install", label: `${t("rail-profile-update-cta") || "Click here to update"}`, sub: `v${u.version}` }
+      ? { action: "update-install", label: `${t("rail-profile-update-cta") || "Click here to update" || "Click here to update"}`, sub: `v${u.version}` }
       : u.phase === "ready"
         ? { action: "update-restart", label: t("rail-profile-restart-cta") || "Restart to finish updating", sub: `v${u.version}` }
         : null;
@@ -195,10 +225,19 @@ export class SpRailProfile extends SpElement {
       `
       : "";
 
+    // Why: the visible identity lives in `.sp-rail-profile__meta`, which the
+    // icon-only breakpoint sets to `display: none` -- that removes it from the
+    // accessibility tree, not just from view, leaving the button unnamed. The
+    // name has to be on the button itself.
+    const triggerLabel = signedIn
+      ? `${t("rail-profile-aria") || "Account and workspace"} \u2014 ${idLabel}`
+      : (t("rail-profile-aria") || "Account and workspace");
+
     return `
       ${ctaMarkup}
       <button class="sp-rail-profile__trigger${this._updateBusy ? " is-busy" : ""}" type="button" data-action="toggle-menu"
               ${signedIn ? "" : "disabled"}
+              aria-label="${escapeHtml(triggerLabel)}"
               aria-haspopup="menu" aria-expanded="${open ? "true" : "false"}">
         <span class="sp-avatar__mark" aria-hidden="true"><span>${escapeHtml(initials(id && (id.email || id.user_id)))}</span></span>
         <span class="sp-rail-profile__meta">

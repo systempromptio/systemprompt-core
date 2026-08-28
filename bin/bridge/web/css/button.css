@@ -5,16 +5,16 @@ input[type="text"] {
   user-select: text;
   background: var(--sp-bg-elev-2);
   color: var(--sp-text);
-  border: 1px solid var(--sp-line);
+  border: 1px solid var(--sp-line-control);
   border-radius: var(--sp-corners-sm);
   padding: var(--sp-space-2-5) var(--sp-space-3);
   font: inherit;
-  outline: none;
   transition: border-color 0.15s, box-shadow 0.15s;
 }
-input:focus {
-  border-color: var(--sp-accent);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--sp-accent) 25%, transparent);
+input:focus-visible {
+  border-color: var(--sp-focus);
+  outline: var(--sp-focus-width) solid var(--sp-focus);
+  outline-offset: var(--sp-focus-offset);
 }
 
 .sp-row { display: flex; gap: var(--sp-space-2); margin: var(--sp-space-1-5) 0 var(--sp-space-3-5); flex-wrap: wrap; }
@@ -31,6 +31,17 @@ button {
 }
 button:hover    { border-color: color-mix(in srgb, var(--sp-line) 60%, var(--sp-accent) 40%); }
 button:disabled { opacity: 0.5; cursor: not-allowed; }
+/* The base selector carried no focus style at all, so every ghost and secondary
+   button in the app -- Repair, Verify, Add, Open, Re-check, Sign out, Re-check,
+   Change gateway, Open log folder, Export diagnostic bundle -- was invisible
+   under the keyboard. Anything more specific overrides this deliberately. */
+button:focus-visible,
+summary:focus-visible,
+a:focus-visible,
+[tabindex]:focus-visible {
+  outline: var(--sp-focus-width) solid var(--sp-focus);
+  outline-offset: var(--sp-focus-offset);
+}
 
 button.sp-btn-primary {
   position: relative;
@@ -41,14 +52,14 @@ button.sp-btn-primary {
   background: linear-gradient(180deg, var(--sp-accent) 0%, var(--sp-accent-deep) 100%);
   border: 1px solid color-mix(in srgb, var(--sp-accent-deep) 70%, oklch(0 0 0) 30%);
   border-radius: var(--sp-corners-sm);
-  color: oklch(0.20 0.04 50);
+  color: var(--sp-on-accent);
   font-weight: 700;
   letter-spacing: 0.01em;
   padding: var(--sp-space-3) var(--sp-space-4);
   box-shadow:
     0 1px 0 oklch(1 0 0 / 0.30) inset,
     0 -1px 0 oklch(0 0 0 / 0.18) inset,
-    0 2px 8px oklch(0.67 0.18 50 / 0.20),
+    0 2px 8px color-mix(in oklch, var(--sp-accent-hover) 20%, transparent),
     0 1px 2px oklch(0 0 0 / 0.20);
   transition: filter 0.15s ease, box-shadow 0.2s ease, border-color 0.15s ease;
 }
@@ -57,23 +68,23 @@ button.sp-btn-primary:hover {
   box-shadow:
     0 1px 0 oklch(1 0 0 / 0.35) inset,
     0 -1px 0 oklch(0 0 0 / 0.18) inset,
-    0 4px 12px oklch(0.67 0.18 50 / 0.30),
+    0 4px 12px color-mix(in oklch, var(--sp-accent-hover) 30%, transparent),
     0 2px 4px oklch(0 0 0 / 0.25);
 }
 button.sp-btn-primary:focus-visible {
-  outline: none;
+  outline: var(--sp-focus-width) solid var(--sp-focus);
+  outline-offset: var(--sp-focus-offset);
   box-shadow:
     0 1px 0 oklch(1 0 0 / 0.30) inset,
     0 -1px 0 oklch(0 0 0 / 0.18) inset,
-    0 0 0 3px oklch(0.70 0.17 51 / 0.45),
-    0 2px 8px oklch(0.67 0.18 50 / 0.20);
+    0 2px 8px var(--sp-accent-soft);
 }
 button.sp-btn-primary:active {
   filter: brightness(0.96);
   box-shadow:
     0 1px 0 oklch(1 0 0 / 0.18) inset,
     0 1px 4px oklch(0 0 0 / 0.30),
-    0 0 0 0 oklch(0.67 0.18 50 / 0);
+    0 0 0 0 transparent;
 }
 button.sp-btn-primary:disabled,
 button.sp-btn-primary[disabled] {
@@ -98,8 +109,8 @@ input[type="checkbox"] {
   height: 16px;
   flex: none;
   margin: 0;
-  border: 1px solid var(--sp-line);
-  border-radius: 4px;
+  border: 1px solid var(--sp-line-control);
+  border-radius: var(--sp-corners-xs);
   background: var(--sp-bg-elev-2);
   cursor: pointer;
   position: relative;
@@ -119,14 +130,23 @@ input[type="checkbox"]:checked::after {
   top: 1px;
   width: 5px;
   height: 9px;
-  border: solid oklch(0.20 0.04 50);
+  border: solid var(--sp-on-accent);
   border-width: 0 2px 2px 0;
   transform: rotate(45deg);
 }
-input[type="checkbox"]:focus,
 input[type="checkbox"]:focus-visible {
-  outline: none;
-  border-color: var(--sp-accent);
-  box-shadow: 0 0 0 3px var(--sp-accent-ring);
+  border-color: var(--sp-focus);
+  outline: var(--sp-focus-width) solid var(--sp-focus);
+  outline-offset: var(--sp-focus-offset);
 }
 input[type="checkbox"]:disabled { opacity: 0.5; cursor: not-allowed; }
+
+button.sp-btn-danger {
+  background: var(--sp-toast-bg-error);
+  border-color: var(--sp-err);
+  color: var(--sp-text);
+  border-radius: var(--sp-corners-sm);
+}
+button.sp-btn-danger:hover { border-color: var(--sp-err); filter: brightness(1.12); }
+button.sp-btn-ghost--danger { color: var(--sp-err); }
+button.sp-btn-ghost--danger:hover { border-color: var(--sp-err); }

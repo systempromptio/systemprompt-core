@@ -28,6 +28,9 @@ path = "src/main.rs"
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order", "raw_value"] }
 toml = "1.1"
+# Comment- and layout-preserving TOML mutation. The config file is operator-
+# editable, so a settings write must not reformat it or drop unknown keys.
+toml_edit = "0.25"
 time = { version = "0.3", features = ["serde", "formatting", "parsing"] }
 chrono = { version = "0.4", default-features = false, features = ["clock", "std", "serde"] }
 dirs = "6"
@@ -64,8 +67,8 @@ ctrlc = "3"
 is-terminal = "0.4"
 rand = "0.10"
 tempfile = "3"
-systemprompt-identifiers = { path = "../../crates/shared/identifiers", version = "0.40.0", default-features = false }
-systemprompt-models = { path = "../../crates/shared/models", version = "0.40.0", default-features = false }
+systemprompt-identifiers = { path = "../../crates/shared/identifiers", version = "0.41.0", default-features = false }
+systemprompt-models = { path = "../../crates/shared/models", version = "0.41.0", default-features = false }
 hostname = "0.4"
 ts-rs = { version = "12", optional = true }
 # Why: OAuth client_secret moves off disk into the OS keystore. We link
@@ -85,6 +88,9 @@ keyring-core = "1"
 [features]
 default = []
 dev-stub-host = []
+# Compiles the `dev-web` HTTP preview of the GUI web tree. Dev only; never in
+# a shipped build, which is why it is not in `default`.
+dev-preview = []
 ts-export = ["dep:ts-rs"]
 
 [target.'cfg(unix)'.dependencies]
@@ -116,10 +122,14 @@ tray-icon = "0.24"
 muda = "0.19"
 winit = "0.31.0-beta.2"
 wry = { version = "0.55", default-features = false, features = ["os-webview", "protocol", "devtools"] }
-image = { version = "0.25", default-features = false, features = ["png"] }
+image = { version = "0.25", default-features = false, features = ["png", "ico"] }
 raw-window-handle = "0.6"
+# Why: `windows-sys` is raw FFI with no WinRT projection, so it can set the
+# AUMID but cannot raise a toast; this is the smallest crate that can.
+tauri-winrt-notification = "0.8"
 windows-sys = { version = "0.61", features = [
     "Win32_Foundation",
+    "Win32_Graphics_Dwm",
     "Win32_Security",
     "Win32_Security_Cryptography",
     "Win32_Storage_FileSystem",

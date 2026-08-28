@@ -9,6 +9,7 @@ use crate::config;
 use crate::gateway::GatewayClient;
 use crate::gui::events::{ReplyId, UiEvent};
 use crate::gui::ipc::{BridgeError, ErrorCode, ErrorScope, IpcReplyPayload};
+use crate::gui::notify::Signal;
 use crate::gui::state::{
     CancelScope, GatewayProbeOutcome, GatewayStatus, decode_jwt_identity_unverified, now_unix,
 };
@@ -57,6 +58,7 @@ pub(crate) fn on_gateway_probe_finished(
     app.state.clear_cancel(CancelScope::GatewayProbe);
     app.state.apply_probe(outcome);
     app.refresh_ui();
+    announce(app);
     emit::emit_gateway_changed(app);
     emit::emit_state(app);
 
@@ -71,6 +73,41 @@ pub(crate) fn on_gateway_probe_finished(
         Err(err) => IpcReplyPayload::err(err),
     };
     emit::send_reply_payload(app, id, &payload);
+}
+
+// Why: a laptop that wakes to a dead gateway is governing nothing, and the tray
+// dot alone is easy to miss.
+const SESSION_EXPIRY_WARN_SECS: u64 = 24 * 60 * 60;
+
+fn announce(app: &mut GuiApp) {
+    let snap = app.state.snapshot();
+    let app_name = crate::brand::brand().app_name;
+    match &snap.gateway_status {
+        GatewayStatus::Unreachable { reason } => {
+            let reason = reason.clone();
+            app.signal_raised(
+                Signal::GatewayUnreachable,
+                &format!("{app_name} cannot reach the gateway"),
+                &format!("Agent traffic is ungoverned until it comes back: {reason}"),
+            );
+        },
+        _ => app.signal_cleared(Signal::GatewayUnreachable),
+    }
+
+    let expiring = snap
+        .verified_identity
+        .as_ref()
+        .and_then(|id| id.exp_unix)
+        .is_some_and(|exp| exp.saturating_sub(now_unix()) <= SESSION_EXPIRY_WARN_SECS);
+    if expiring {
+        app.signal_raised(
+            Signal::SessionExpiring,
+            &format!("{app_name} session expires soon"),
+            "Sign in again from the account menu to keep syncing without interruption.",
+        );
+    } else {
+        app.signal_cleared(Signal::SessionExpiring);
+    }
 }
 
 pub(crate) fn spawn_probe(app: &GuiApp, reply_to: ReplyId) {

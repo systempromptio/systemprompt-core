@@ -39,6 +39,17 @@ build-bridge TARGET="":
         cargo build --manifest-path bin/bridge/Cargo.toml --release
     fi
 
+# Serve the bridge GUI's web tree over HTTP so a browser can render it.
+#
+# The desktop webview is Windows/macOS only and reads its assets over a wry
+# custom protocol, so this is the only way to see the GUI on Linux. Assets come
+# off disk: edit CSS/JS/HTML and refresh, no rebuild between edits. Drive it
+# with ?fixture=<name> — see bin/bridge/web/dev/fixtures and
+# bin/bridge/README.md § Developing the GUI.
+bridge-preview PORT="4310":
+    cargo run --manifest-path bin/bridge/Cargo.toml --features dev-preview \
+        --bin systemprompt-bridge -- dev-web --port {{PORT}}
+
 # Build systemprompt-bridge for all supported release targets
 build-bridge-all:
     just build-bridge aarch64-apple-darwin
@@ -158,7 +169,7 @@ check-release-tag:
     ./scripts/check-release-tag.sh
 
 # Check without building
-check: lint-schema lint-extensions lint-comments lint-inline-tests lint-test-value lint-layers lint-repo-construction lint-bridge-css-tokens
+check: lint-schema lint-extensions lint-comments lint-inline-tests lint-test-value lint-layers lint-repo-construction lint-bridge-css-tokens lint-bridge-i18n lint-bridge-js-imports
     cargo check --workspace
 
 # Check offline (uses cached .sqlx metadata, no database required)
@@ -200,11 +211,40 @@ lint: lint-bridge
     cargo clippy --workspace --all-targets --all-features -- -D warnings
 
 # `bin/bridge` is its own workspace, so the root `--workspace` clippy above
-# never sees it. Without this it is linted only by `release-sign.yml` on a
-# `bridge-v*` tag — which is after every other gate has passed and the release
-# is already being cut.
+# never sees it.
+#
+# This lints the HOST target only. On Linux that configures out `src/gui/**`
+# entirely (`lib.rs` gates `pub mod gui` on windows/macos), along with winproc,
+# the Windows registry store, the keystore backends and the Windows/macOS
+# scheduler code — so a green run here says nothing about any of them. CI does
+# cover them, natively on both platforms, in quality.yml's `bridge-native`
+# matrix; locally, use `just lint-bridge-native`.
 lint-bridge:
+    #!/usr/bin/env bash
+    set -euo pipefail
     cargo clippy --manifest-path bin/bridge/Cargo.toml -p systemprompt-bridge --all-targets -- -D warnings
+    if [ "$(uname -s)" = "Linux" ]; then
+        echo "note: src/gui/** and the Windows/macOS-only modules were configured out of that run."
+        echo "note: run 'just lint-bridge-native' before calling desktop work done."
+    fi
+
+# Lint the bridge code the host target configures out. On Linux this is the
+# Windows cfg set via a cross-target check (clippy does not link, so no mingw
+# toolchain is needed); macOS cannot be linted from Linux at all, because ring
+# and objc2-exception-helper build scripts need a real cc — CI's `bridge-native`
+# job covers that on a mac runner.
+lint-bridge-native:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ "$(uname -s)" = "Linux" ]; then
+        rustup target add x86_64-pc-windows-gnu
+        cargo clippy --manifest-path bin/bridge/Cargo.toml -p systemprompt-bridge \
+            --all-targets --target x86_64-pc-windows-gnu -- -D warnings
+        echo "note: macOS-only code is unlinted here; quality.yml's bridge-native job covers it."
+    else
+        cargo clippy --manifest-path bin/bridge/Cargo.toml -p systemprompt-bridge \
+            --all-targets -- -D warnings
+    fi
 
 # The bridge mirrors the root [workspace.lints] tables by hand (standalone
 # workspace, no inheritance). Fail when the copies drift.
@@ -216,6 +256,20 @@ lint-bridge-lints-sync:
 # applying. Fail on it instead.
 lint-bridge-css-tokens:
     ./scripts/lint-bridge-css-tokens.sh
+
+# `t()` returns undefined for a key the catalogue does not carry, so an id that
+# exists in the tree and not in bridge.ftl renders the English fallback -- and a
+# `t()` written without one renders the string "undefined". Both are invisible
+# until a user reports it, which is how `status-cloud-reach-label` shipped.
+lint-bridge-i18n:
+    ./scripts/lint-bridge-i18n.sh
+
+# The web tree is plain ES modules -- no bundler, no type checker -- so a helper
+# used without importing it is not a build error, it is a ReferenceError at
+# first render that takes the whole pane down. `sp-profile.js` and
+# `sp-activity-log.js` both shipped calling `t(...)` with no `import { t }`.
+lint-bridge-js-imports:
+    ./scripts/lint-bridge-js-imports.sh
 
 # Reject unverified sqlx::query calls outside the allowlist
 lint-sqlx:

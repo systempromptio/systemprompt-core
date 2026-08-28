@@ -33,6 +33,12 @@ pub(super) struct HostIdArgs {
     pub(super) host_id: HostId,
 }
 
+#[derive(Debug, Deserialize)]
+pub(super) struct SettingsSetArgs {
+    pub(super) key: String,
+    pub(super) value: serde_json::Value,
+}
+
 #[derive(Debug, Default, Deserialize)]
 #[serde(default)]
 pub(super) struct CancelArgs {
@@ -57,4 +63,10 @@ pub(super) struct HostModelFilterArgs {
     pub(super) host_id: HostId,
     #[serde(default)]
     pub(super) protocols: Option<Vec<String>>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+#[serde(default)]
+pub(super) struct RecentArgs {
+    pub(super) limit: Option<usize>,
 }

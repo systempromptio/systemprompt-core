@@ -81,6 +81,7 @@ fn elevated_write(value: &str) -> Result<(), String> {
         "managed MCP server list drifted; requesting elevation to update HKLM policy"
     );
     let job = crate::integration::claude_desktop::elevate::ElevatedJob {
+        clear_values: Vec::new(),
         reg_path: Some(path.to_string_lossy().into_owned()),
         org_plugins:
             crate::integration::claude_desktop::elevate::ElevatedJob::org_plugins_for_current_user(),
@@ -198,6 +199,7 @@ fn stage_elevated_apply(
     let path = dir.join("bridge-policy-apply.reg");
     std::fs::write(&path, body).map_err(|e| format!("stage policy profile: {e}"))?;
     let job = crate::integration::claude_desktop::elevate::ElevatedJob {
+        clear_values: Vec::new(),
         reg_path: Some(path.to_string_lossy().into_owned()),
         org_plugins,
     };

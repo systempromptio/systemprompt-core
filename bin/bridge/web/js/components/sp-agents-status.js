@@ -1,7 +1,7 @@
 import { SpElement, reactive, escapeHtml } from "/assets/js/components/sp-element.js";
 import { bridge } from "/assets/js/bridge.js";
 import { t } from "/assets/js/i18n.js";
-import { fmtDuration } from "/assets/js/utils/format.js";
+import { fmtDurationLong } from "/assets/js/utils/format.js";
 
 const TOKEN_WARN_SECONDS = 600;
 
@@ -54,16 +54,16 @@ function tokenPill(snap) {
     return { state: "err", text: t("agents-status-token-missing") || "no token" };
   }
   const ttl = Number(token.ttl_seconds);
-  const ttlText = fmtDuration(ttl);
+  const ttlText = fmtDurationLong(ttl);
   if (ttl < TOKEN_WARN_SECONDS) {
     return {
       state: "warn",
-      text: t("agents-status-token-expiring", { ttl: ttlText }) || `JWT expires in ${ttlText}`,
+      text: t("agents-status-token-expiring", { ttl: ttlText }) || `Session expires in ${ttlText}`,
     };
   }
   return {
     state: "ok",
-    text: t("agents-status-token-ok", { ttl: ttlText }) || `JWT ok · expires in ${ttlText}`,
+    text: t("agents-status-token-ok", { ttl: ttlText }) || `Session valid · expires in ${ttlText}`,
   };
 }
 
@@ -107,7 +107,7 @@ export class SpAgentsStatus extends SpElement {
       >${escapeHtml(view.text)}</button>
     `;
     return `
-      <div class="sp-agents-status" role="group" aria-label="Bridge status">
+      <div class="sp-agents-status" role="group" data-l10n-aria="agents-status-group-aria" aria-label="Bridge status">
         ${pill("cloud", cloud)}
         ${pill("proxy", proxy)}
         ${pill("token", token)}

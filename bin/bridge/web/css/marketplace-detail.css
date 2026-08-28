@@ -46,9 +46,8 @@
 .sp-mkt-detail__section { margin-top: var(--sp-space-4); }
 .sp-mkt-detail__section h3 {
   font-family: var(--sp-font-display);
-  font-size: 10.5px;
-  text-transform: uppercase;
-  letter-spacing: 1.4px;
+  font-size: 11px;
+  letter-spacing: 0.4px;
   color: var(--sp-muted);
   margin: 0 0 var(--sp-space-2);
   font-weight: 600;

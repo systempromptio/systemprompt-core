@@ -7,6 +7,8 @@ pub mod args;
 pub mod clean;
 pub mod comms_drain;
 pub mod credential_helper;
+#[cfg(feature = "dev-preview")]
+mod dev_web;
 pub mod diagnostics;
 pub mod doctor;
 mod gui;
@@ -59,6 +61,8 @@ pub fn run_with_args(args: &[String]) -> ExitCode {
         Some("diagnostics") => diagnostics::cmd_diagnostics(),
         Some("doctor") => doctor::cmd_doctor(),
         Some("gui") => gui::cmd_gui(),
+        #[cfg(feature = "dev-preview")]
+        Some("dev-web") => dev_web::cmd_dev_web(args),
         Some("--version" | "-V" | "version") => {
             output::print_str(&format!(
                 "{} {} ({}, {})\n",

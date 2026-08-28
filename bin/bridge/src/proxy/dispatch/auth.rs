@@ -9,8 +9,8 @@ use hyper::body::Incoming;
 use hyper::{Method, Request, Response, StatusCode};
 
 use crate::proxy::forward::ProxyBody;
-use crate::proxy::secret;
 use crate::proxy::server::ProxyContext;
+use crate::proxy::{requests, secret};
 
 use super::{owned_response, simple_response};
 
@@ -37,9 +37,10 @@ pub(super) fn reject_non_loopback(log: &RequestLog<'_>, host_hdr: &str) -> Respo
         peer = %peer,
         "reject: non-loopback host"
     );
-    crate::activity::activity_log().append(format!(
+    crate::activity::activity_log().append_warn(format!(
         "proxy: {method} {path} → 403 (non-loopback host: {host_hdr}) [{req_id}]"
     ));
+    record_denial(log, format!("non-loopback host: {host_hdr}"));
     simple_response(StatusCode::FORBIDDEN, "forbidden: non-loopback host\n")
 }
 
@@ -100,7 +101,7 @@ pub(super) fn verify_loopback_secret(
             remediation = %remediation,
             "reject: stale loopback secret"
         );
-        crate::activity::activity_log().append(format!(
+        crate::activity::activity_log().append_warn(format!(
             "proxy: {method} {path} → 403 (stale secret; presented_fp={presented_fp} \
              expected_fp={expected_fp}; secret_path={secret_path}; {remediation}) [{req_id}]"
         ));
@@ -115,6 +116,7 @@ pub(super) fn verify_loopback_secret(
     } else {
         "secret-mismatch"
     };
+    record_denial(log, reason.to_owned());
     Some(rejection(body, reason))
 }
 
@@ -174,4 +176,21 @@ fn rejection(body: String, reason: &'static str) -> Response<ProxyBody> {
         headers.insert("x-systemprompt-bridge-config-dir", v);
     }
     resp
+}
+
+// Why: these two rejections are the only allow/deny verdict the bridge itself
+// makes. Recording them is what lets the request stream show a refusal instead
+// of silently omitting the requests that never reached the gateway.
+fn record_denial(log: &RequestLog<'_>, reason: String) {
+    requests::request_log().record(requests::NewRequest {
+        req_id: log.req_id,
+        agent: &super::agent_label(log.user_agent),
+        method: log.method.as_str(),
+        path: log.path,
+        verdict: requests::LocalVerdict::Denied,
+        deny_reason: Some(reason),
+        status: Some(StatusCode::FORBIDDEN.as_u16()),
+        latency_ms: None,
+        upstream_request_id: None,
+    });
 }

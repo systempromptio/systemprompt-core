@@ -165,14 +165,9 @@ pub fn session_setup(gateway_url: Option<&str>) -> Result<PathLayout, SetupError
     let paths = resolve_paths()?;
     ensure_dir(&paths.config_dir)?;
     let gateway = resolve_gateway(&paths.config_file, gateway_url);
-    let mut session = toml::map::Map::new();
-    session.insert("enabled".to_owned(), toml::Value::Boolean(true));
-    merge_config_file(
-        &paths.config_file,
-        &gateway,
-        "session",
-        toml::Value::Table(session),
-    )?;
+    merge_config_file(&paths.config_file, &gateway, "session", |doc| {
+        crate::config::write::set(doc, &["session", "enabled"], true);
+    })?;
     invalidate_cached_token()?;
     tracing::info!(config_file = %paths.config_file.display(), "session setup: config written");
     Ok(paths)

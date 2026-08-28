@@ -4,6 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod comms;
+pub mod decisions;
 pub mod dispatch;
 pub mod forward;
 pub mod heartbeat;
@@ -11,6 +12,7 @@ pub mod identity;
 pub mod keepalive;
 pub mod mcp_probe;
 pub mod portfile;
+pub mod requests;
 mod runtime;
 pub mod secret;
 pub mod server;

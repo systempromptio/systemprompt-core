@@ -86,10 +86,34 @@ export class SpElement extends HTMLElement {
         if (fn) { fn.call(this, trigger, e); }
       }
     });
+    // Only click was bound, so a `data-action` on anything but a real <button>
+    // was mouse-only -- which is how the whole marketplace pane, both its
+    // category rail and its item list, became unreachable by keyboard.
+    this.addEventListener("keydown", (e) => {
+      if (e.key !== "Enter" && e.key !== " ") { return; }
+      const trigger = e.target.closest("[data-action]");
+      if (!trigger || !this.contains(trigger)) { return; }
+      const tag = trigger.tagName;
+      if (tag === "BUTTON" || tag === "A" || tag === "SUMMARY" || tag === "INPUT") { return; }
+      const fn = this._handlers[trigger.dataset.action];
+      if (!fn) { return; }
+      e.preventDefault();
+      fn.call(this, trigger, e);
+    });
     this.addEventListener("input", (e) => {
       const trigger = e.target.closest("[data-input]");
       if (trigger && this.contains(trigger)) {
         const fn = this._handlers[`input:${trigger.dataset.input}`];
+        if (fn) { fn.call(this, trigger, e); }
+      }
+    });
+    // `change` is what a checkbox and a committed text field report. `input`
+    // fires on every keystroke, which is the wrong moment to write anything to
+    // disk and the wrong moment to call a form dirty.
+    this.addEventListener("change", (e) => {
+      const trigger = e.target.closest("[data-change]");
+      if (trigger && this.contains(trigger)) {
+        const fn = this._handlers[`change:${trigger.dataset.change}`];
         if (fn) { fn.call(this, trigger, e); }
       }
     });

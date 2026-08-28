@@ -8,7 +8,8 @@ use crate::config;
 use crate::config::paths::{self, Scope};
 use crate::gateway::GatewayClient;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "lowercase")]
 pub enum CheckLevel {
     Ok,
     Warn,
@@ -16,14 +17,14 @@ pub enum CheckLevel {
     Info,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct CheckLine {
     pub level: CheckLevel,
     pub label: String,
     pub value: String,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct ValidationReport {
     pub lines: Vec<CheckLine>,
     pub any_failed: bool,

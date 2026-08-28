@@ -12,34 +12,68 @@ use crate::gui::ipc::{BridgeError, ErrorCode, ErrorScope, IpcReplyPayload};
 use crate::gui::{GuiApp, emit, window};
 use crate::ids::HostId;
 use crate::integration::find_host_by_id;
+use crate::integration::host_app::ProfileRemoval;
 
 pub(crate) fn on_uninstall(app: &GuiApp, host_id: &HostId, reply_to: ReplyId) {
     let result = find_host_by_id(host_id.as_str()).map_or_else(
         || {
-            app.append_log(format!("uninstall: unknown host {host_id}"));
+            app.append_log_error(format!("uninstall: unknown host {host_id}"));
             Err(BridgeError::new(
                 ErrorScope::Host,
                 ErrorCode::NotFound,
                 format!("unknown host: {host_id}"),
             ))
         },
-        |host| {
-            app.append_log(format!(
-                "uninstall requested for {} (not yet implemented; remove {} keys \
-                 manually)",
-                host.display_name(),
-                crate::brand::brand().binary_name
-            ));
-            Ok(json!({ "queued": true }))
+        |host| match host.remove_profile() {
+            Ok(ProfileRemoval::Removed { path }) => {
+                app.append_log(format!(
+                    "[{host_id}] removed from {}",
+                    path.as_deref().unwrap_or("its configuration")
+                ));
+                Ok(json!({ "removed": true, "path": path }))
+            },
+            Ok(ProfileRemoval::NothingToRemove) => {
+                app.append_log(format!("[{host_id}] had no settings left to remove"));
+                Ok(json!({ "removed": false }))
+            },
+            Ok(ProfileRemoval::ManualStepRequired { instruction }) => {
+                app.append_log_warn(format!(
+                    "[{host_id}] removal needs a manual step: {instruction}"
+                ));
+                Ok(json!({ "removed": false, "instruction": instruction }))
+            },
+            Err(e) => {
+                app.append_log_error(format!("[{host_id}] removal failed: {e}"));
+                Err(BridgeError::new(
+                    ErrorScope::Host,
+                    if e.kind() == std::io::ErrorKind::PermissionDenied {
+                        ErrorCode::Unauthorized
+                    } else {
+                        ErrorCode::Internal
+                    },
+                    format!("could not remove {}: {e}", host.display_name()),
+                ))
+            },
         },
     );
+    // Why: the removal changed what is on disk, so the row must not keep
+    // reporting the profile it no longer has.
+    if result.is_ok() {
+        app.proxy.send_event(crate::gui::events::UiEvent::Host(
+            crate::gui::hosts::events::HostUiEvent::ProbeRequested {
+                host_id: host_id.clone(),
+                cause: crate::gui::hosts::events::ProbeCause::Manual,
+                reply_to: None,
+            },
+        ));
+    }
     finish(app, result, reply_to);
 }
 
 pub(crate) fn on_open_config(app: &GuiApp, host_id: &HostId, reply_to: ReplyId) {
     let result = find_host_by_id(host_id.as_str()).map_or_else(
         || {
-            app.append_log(format!("open-config: unknown host {host_id}"));
+            app.append_log_error(format!("open-config: unknown host {host_id}"));
             Err(BridgeError::new(
                 ErrorScope::Host,
                 ErrorCode::NotFound,
@@ -54,7 +88,7 @@ pub(crate) fn on_open_config(app: &GuiApp, host_id: &HostId, reply_to: ReplyId) 
                         "open-config: no resolved config path for {}",
                         host.display_name()
                     );
-                    app.append_log(&msg);
+                    app.append_log_error(&msg);
                     Err(BridgeError::new(ErrorScope::Host, ErrorCode::NotFound, msg))
                 },
                 |path| {
@@ -74,7 +108,7 @@ pub(crate) fn on_open_config(app: &GuiApp, host_id: &HostId, reply_to: ReplyId) 
 pub(crate) fn on_open(app: &GuiApp, host_id: &HostId, reply_to: ReplyId) {
     let result = find_host_by_id(host_id.as_str()).map_or_else(
         || {
-            app.append_log(format!("open: unknown host {host_id}"));
+            app.append_log_error(format!("open: unknown host {host_id}"));
             Err(BridgeError::new(
                 ErrorScope::Host,
                 ErrorCode::NotFound,
@@ -88,7 +122,7 @@ pub(crate) fn on_open(app: &GuiApp, host_id: &HostId, reply_to: ReplyId) {
             },
             Err(err) => {
                 let msg = format!("open host {} failed: {err}", host.display_name());
-                app.append_log(&msg);
+                app.append_log_error(&msg);
                 Err(BridgeError::new(ErrorScope::Host, ErrorCode::Internal, msg))
             },
         },

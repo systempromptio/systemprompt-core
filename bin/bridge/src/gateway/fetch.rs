@@ -6,7 +6,7 @@
 
 use std::time::Instant;
 
-use systemprompt_models::api::cloud::BridgeProfileUsage;
+use systemprompt_models::api::cloud::{BridgeGovernanceDecisions, BridgeProfileUsage};
 
 use crate::auth::types::BridgeProfile;
 use crate::gateway::errors::GatewayError;
@@ -243,6 +243,37 @@ impl GatewayClient {
         resp.json::<BridgeProfileUsage>()
             .await
             .map_err(|e| GatewayError::ProfileUsageDecode(Box::new(e)))
+    }
+
+    #[tracing::instrument(
+        level = "debug",
+        skip(self, bearer),
+        fields(endpoint = "decisions", status, latency_ms)
+    )]
+    pub async fn fetch_decisions(
+        &self,
+        bearer: &str,
+        since_unix: u64,
+    ) -> Result<BridgeGovernanceDecisions, GatewayError> {
+        let url = self.url(&format!("/v1/bridge/decisions?since={since_unix}"));
+        let started = Instant::now();
+        let resp = self
+            .http()
+            .get(&url)
+            .bearer_auth(bearer)
+            .send()
+            .await
+            .map_err(|e| GatewayError::DecisionsFetch(Box::new(e)))?;
+        record_span(&resp, started);
+        if !resp.status().is_success() {
+            return Err(GatewayError::HttpStatus {
+                status: resp.status(),
+                endpoint: "decisions",
+            });
+        }
+        resp.json::<BridgeGovernanceDecisions>()
+            .await
+            .map_err(|e| GatewayError::DecisionsDecode(Box::new(e)))
     }
 
     #[tracing::instrument(

@@ -34,6 +34,9 @@ const fn request_kind(event: &UiEvent) -> Option<&'static str> {
         UiEvent::UpdateCheckRequested { .. } => "UpdateCheckRequested",
         UiEvent::UpdateInstallRequested { .. } => "UpdateInstallRequested",
         UiEvent::UpdateRestartRequested => "UpdateRestartRequested",
+        UiEvent::AutostartToggleRequested => "AutostartToggleRequested",
+        UiEvent::SettingsReadRequested { .. } => "SettingsReadRequested",
+        UiEvent::SettingsWriteRequested { .. } => "SettingsWriteRequested",
         _ => return None,
     })
 }
@@ -178,6 +181,19 @@ fn dispatch_request(app: &mut GuiApp, event: UiEvent) -> Result<(), Box<UiEvent>
         },
         UiEvent::UpdateRestartRequested => {
             handlers::update::on_update_restart_requested(app);
+        },
+        UiEvent::AutostartToggleRequested => {
+            handlers::settings_write::on_autostart_toggled(app);
+        },
+        UiEvent::SettingsReadRequested { reply_to } => {
+            handlers::settings_write::on_settings_read(app, reply_to);
+        },
+        UiEvent::SettingsWriteRequested {
+            key,
+            value,
+            reply_to,
+        } => {
+            handlers::settings_write::on_settings_write(app, &key, &value, reply_to);
         },
         other => return Err(Box::new(other)),
     }

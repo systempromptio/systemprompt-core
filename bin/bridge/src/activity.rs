@@ -34,10 +34,22 @@ struct LogState {
     entries: VecDeque<LogEntry>,
 }
 
+/// Severity carried on every activity line so the GUI never has to guess it
+/// from the wording.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum LogLevel {
+    #[default]
+    Info,
+    Warn,
+    Error,
+}
+
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct LogEntry {
     pub id: u64,
     pub ts_unix: u64,
+    pub level: LogLevel,
     pub line: String,
 }
 
@@ -59,6 +71,18 @@ impl ActivityLog {
     }
 
     pub fn append(&self, line: impl Into<String>) {
+        self.append_at(LogLevel::Info, line);
+    }
+
+    pub fn append_warn(&self, line: impl Into<String>) {
+        self.append_at(LogLevel::Warn, line);
+    }
+
+    pub fn append_error(&self, line: impl Into<String>) {
+        self.append_at(LogLevel::Error, line);
+    }
+
+    pub fn append_at(&self, level: LogLevel, line: impl Into<String>) {
         let entry = {
             let mut g = self.inner.lock();
             let id = g.next_id;
@@ -66,6 +90,7 @@ impl ActivityLog {
             let entry = LogEntry {
                 id,
                 ts_unix: now_unix(),
+                level,
                 line: line.into(),
             };
             if g.entries.len() == LOG_CAPACITY {

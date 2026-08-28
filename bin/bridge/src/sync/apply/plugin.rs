@@ -22,7 +22,7 @@ pub(crate) struct PluginApplyOutcome {
     pub mcp_servers_by_plugin: BTreeMap<String, Vec<String>>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct HostFailure {
     pub host_id: String,
     pub error: String,

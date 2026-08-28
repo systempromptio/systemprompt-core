@@ -224,7 +224,8 @@ pub async fn run_automatic(gateway: &ValidatedUrl, bearer: &str) {
     tracing::info!(version = %manifest.version, "automatic update: relaunched");
 }
 
-fn automatic_enabled() -> bool {
+#[must_use]
+pub fn automatic_enabled() -> bool {
     crate::config::load()
         .update
         .as_ref()

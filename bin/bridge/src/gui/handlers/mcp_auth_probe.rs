@@ -6,8 +6,9 @@
 use serde_json::json;
 
 use crate::gui::events::{ReplyId, UiEvent};
+use crate::gui::notify::Signal;
 use crate::gui::{GuiApp, emit};
-use crate::proxy::mcp_probe::{self, McpServerAuth};
+use crate::proxy::mcp_probe::{self, McpAuthState, McpServerAuth};
 
 #[tracing::instrument(level = "info", skip(app))]
 pub(crate) fn on_mcp_auth_probe_requested(app: &mut GuiApp, reply_to: ReplyId) {
@@ -35,7 +36,29 @@ pub(crate) fn on_mcp_auth_probe_finished(
     results: Vec<McpServerAuth>,
     reply_to: ReplyId,
 ) {
+    let broken: Vec<String> = results
+        .iter()
+        .filter(|r| {
+            matches!(
+                r.state,
+                McpAuthState::GatewayUnauthorized | McpAuthState::NotRegistered
+            )
+        })
+        .map(|r| r.id.clone())
+        .collect();
     app.state.apply_mcp_auth(results);
+    if broken.is_empty() {
+        app.signal_cleared(Signal::McpAuthBroken);
+    } else {
+        app.signal_raised(
+            Signal::McpAuthBroken,
+            &format!(
+                "{} cannot authenticate to MCP",
+                crate::brand::brand().app_name
+            ),
+            &format!("Affected servers: {}", broken.join(", ")),
+        );
+    }
     app.refresh_ui();
     emit::emit_mcp_changed(app);
     emit::emit_state(app);

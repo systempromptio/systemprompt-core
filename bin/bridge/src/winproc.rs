@@ -23,8 +23,21 @@ use windows_sys::Win32::System::Console::{ATTACH_PARENT_PROCESS, AttachConsole, 
 use windows_sys::Win32::System::Threading::{
     GetCurrentProcess, GetExitCodeProcess, INFINITE, OpenProcessToken, WaitForSingleObject,
 };
-use windows_sys::Win32::UI::Shell::{SEE_MASK_NOCLOSEPROCESS, SHELLEXECUTEINFOW, ShellExecuteExW};
+use windows_sys::Win32::UI::Shell::{
+    SEE_MASK_NOCLOSEPROCESS, SHELLEXECUTEINFOW, SetCurrentProcessExplicitAppUserModelID,
+    ShellExecuteExW,
+};
 use windows_sys::Win32::UI::WindowsAndMessaging::SW_HIDE;
+
+pub(crate) fn set_app_user_model_id(aumid: &str) {
+    let wide: Vec<u16> = aumid.encode_utf16().chain(std::iter::once(0)).collect();
+    // SAFETY: `wide` is a NUL-terminated UTF-16 buffer alive for the call, which
+    // copies it.
+    let hr = unsafe { SetCurrentProcessExplicitAppUserModelID(wide.as_ptr()) };
+    if hr < 0 {
+        tracing::debug!(hr, "SetCurrentProcessExplicitAppUserModelID rejected");
+    }
+}
 
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 const DETACHED_PROCESS: u32 = 0x0000_0008;

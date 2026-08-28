@@ -25,6 +25,8 @@ pub mod brand;
 pub mod cli;
 pub mod config;
 pub mod cowork_compat;
+#[cfg(feature = "dev-preview")]
+pub mod dev_preview;
 pub mod fsutil;
 pub mod gateway;
 #[cfg(any(target_os = "windows", target_os = "macos"))]
@@ -50,6 +52,8 @@ pub mod sync;
 pub(crate) mod sysproc;
 pub mod update;
 pub mod validate;
+pub mod web_assets;
+pub mod window_state;
 #[cfg(target_os = "windows")]
 pub(crate) mod winproc;
 
@@ -131,6 +135,9 @@ Commands (plugin + MCP sync):
                              loopback secret, pinned pubkey) with one line per check
   uninstall                  Reverse install (metadata + staging)
     [--purge]                             Also remove stored PAT/credentials
+  dev-web [--port N]         (dev builds only) Serve the GUI web tree over HTTP
+    [--web-root DIR]         so a browser can render it on a machine with no
+                             webview. See bin/bridge/README.md.
   gui                        Launch the native settings UI (Windows + macOS)
   help                       Show this help
 

@@ -4,12 +4,11 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use serde::Deserialize;
-use std::fmt::Write as _;
-use std::{env, fs};
+use std::env;
 
 use systemprompt_identifiers::ValidatedUrl;
 
-use super::{Config, DEFAULT_GATEWAY, config_path};
+use super::{Config, DEFAULT_GATEWAY};
 use crate::ids::PinnedPubKey;
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -65,30 +64,6 @@ fn read_policy_pubkey_native() -> Option<String> {
     }
 }
 
-pub fn persist_pinned_pubkey(pubkey: &str) -> std::io::Result<()> {
-    let path = config_path().ok_or_else(|| {
-        std::io::Error::new(std::io::ErrorKind::NotFound, "config path unresolvable")
-    })?;
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent)?;
-    }
-    let existing = fs::read_to_string(&path).unwrap_or_default();
-    let (before, _after) = strip_section(&existing, "[sync]");
-    let mut next = before.trim_end().to_owned();
-    if !next.is_empty() {
-        next.push_str("\n\n");
-    }
-    _ = writeln!(next, "[sync]\npinned_pubkey = \"{pubkey}\"");
-    fs::write(&path, next)
-}
-
-fn strip_section<'a>(input: &'a str, header: &str) -> (&'a str, &'a str) {
-    if let Some(start) = input.find(header) {
-        let rest = &input[start..];
-        let next_hdr = rest[header.len()..]
-            .find("\n[")
-            .map(|i| start + header.len() + i + 1);
-        return (&input[..start], next_hdr.map_or("", |i| &input[i..]));
-    }
-    (input, "")
+pub fn persist_pinned_pubkey(pubkey: &str) -> Result<(), super::ConfigWriteError> {
+    super::write::edit(|doc| super::write::set(doc, &["sync", "pinned_pubkey"], pubkey))
 }

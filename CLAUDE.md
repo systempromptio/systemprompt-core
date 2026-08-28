@@ -132,6 +132,11 @@ just build-offline             # offline: committed .sqlx cache, no DB required
 
 **Schema-change gotcha in core**: `.cargo/config.toml` (and `crates/tests/.cargo/config.toml`) pin live `DATABASE_URL`s, so after adding a migration the dev DBs are behind the code and online `cargo check` fails at the sqlx macro. Apply the new `schema/migrations/*.sql` to those DBs (or run the template flow) first; `just check-offline` / `just build-offline` always work.
 
+The bridge GUI's web tree (`bin/bridge/web/`) cannot be seen on Linux — the
+webview is Windows/macOS only. Use `just bridge-preview` to serve it over HTTP
+with mocked IPC and fixture states; see `bin/bridge/README.md` § Developing the
+GUI.
+
 ## Testing
 
 Separate workspace at `crates/tests/`, run **sharded** under `cargo-nextest`. Shard definitions live in `scripts/test-shard.sh` (single source of truth for CI and the recipes; `scripts/test-shard.sh --list` prints the current groups). Each shard runs against a fresh, freshly-migrated database — never the `systemprompt-web` dev DB (its triggers break core tests). Override the target with `TEST_DATABASE_URL`; the default is a disposable `systemprompt_test`.

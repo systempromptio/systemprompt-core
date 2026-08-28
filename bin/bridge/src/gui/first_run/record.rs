@@ -83,3 +83,27 @@ pub fn write(state: &FirstRunState) {
         Err(e) => tracing::warn!(error = %e, "first-run: sentinel serialize failed"),
     }
 }
+
+fn tray_notice_path() -> Option<PathBuf> {
+    paths::bridge_metadata_dir().map(|d| d.join(paths::TRAY_NOTICE_SENTINEL))
+}
+
+#[must_use]
+pub fn tray_notice_shown() -> bool {
+    tray_notice_path().is_some_and(|p| p.exists())
+}
+
+pub fn mark_tray_notice_shown() {
+    let Some(path) = tray_notice_path() else {
+        return;
+    };
+    if let Some(parent) = path.parent()
+        && let Err(e) = fs::create_dir_all(parent)
+    {
+        tracing::debug!(error = %e, "tray-notice sentinel parent mkdir failed");
+        return;
+    }
+    if let Err(e) = fs::write(&path, b"{}") {
+        tracing::debug!(error = %e, "tray-notice sentinel write failed");
+    }
+}

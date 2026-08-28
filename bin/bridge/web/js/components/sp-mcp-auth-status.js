@@ -47,7 +47,7 @@ function toolsBlock(srv) {
   if (!srv.tools || srv.tools.length === 0) {
     return `<p class="sp-kpi-card__label">Authenticated — no tools exposed.</p>`;
   }
-  const chips = srv.tools.map((t) => `<span class="sp-chip">${escapeHtml(t)}</span>`).join("");
+  const chips = srv.tools.map((tool) => `<span class="sp-chip">${escapeHtml(tool)}</span>`).join("");
   return `<p class="sp-kpi-card__label">Tools (${srv.tools.length})</p><div class="sp-chip-list sp-kpi-card__chips">${chips}</div>`;
 }
 

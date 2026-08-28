@@ -16,7 +16,7 @@ sp-marketplace {
   flex: 1;
   min-height: 0;
   box-shadow: var(--sp-shadow-1), var(--sp-shadow-inner-glow);
-  background-image: linear-gradient(180deg, oklch(0.21 0.01 48) 0%, oklch(0.18 0.01 45) 100%);
+  background-image: linear-gradient(180deg, var(--sp-bg-elev-1) 0%, var(--sp-bg) 100%);
 }
 .sp-mkt-cats, .sp-mkt-list, .sp-mkt-detail {
   background: var(--sp-bg-elev-1);
@@ -31,13 +31,20 @@ sp-marketplace {
 .sp-mkt-cats { padding: var(--sp-space-3-5) var(--sp-space-2-5) var(--sp-space-2-5); gap: var(--sp-space-0-5); }
 .sp-mkt-cats__label {
   font-family: var(--sp-font-display);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
-  letter-spacing: 1.6px;
-  text-transform: uppercase;
+  letter-spacing: 0.4px;
   color: var(--sp-muted);
   padding: var(--sp-space-1) var(--sp-space-3) var(--sp-space-2);
   user-select: none;
+}
+.sp-mkt-cats > li[role="presentation"] { display: block; }
+/* Now a <button>, so the button base styling has to be neutralised here. */
+button.sp-mkt-cat {
+  width: 100%;
+  background: none;
+  font-family: inherit;
+  text-align: left;
 }
 .sp-mkt-cat {
   position: relative;
@@ -56,9 +63,8 @@ sp-marketplace {
 }
 .sp-mkt-cat:hover { background: var(--sp-bg-elev-2); color: var(--sp-text); }
 .sp-mkt-cat:focus-visible {
-  outline: none;
-  border-color: var(--sp-accent-ring);
-  box-shadow: 0 0 0 3px var(--sp-accent-soft);
+  outline: var(--sp-focus-width) solid var(--sp-focus);
+  outline-offset: var(--sp-focus-offset);
 }
 .sp-mkt-cat[aria-selected="true"] {
   background: var(--sp-accent-soft);
@@ -73,7 +79,7 @@ sp-marketplace {
   width: 2px;
   background: var(--sp-accent);
   border-radius: 0 2px 2px 0;
-  box-shadow: 0 0 8px oklch(0.70 0.17 51 / 0.6);
+  box-shadow: 0 0 8px color-mix(in oklch, var(--sp-accent) 60%, transparent);
 }
 .sp-mkt-cat__glyph {
   display: inline-flex;
@@ -87,7 +93,7 @@ sp-marketplace {
 }
 .sp-mkt-cat__glyph svg { width: 14px; height: 14px; display: block; }
 .sp-mkt-cat:hover .sp-mkt-cat__glyph { color: var(--sp-text); }
-.sp-mkt-cat[aria-selected="true"] .sp-mkt-cat__glyph { color: var(--sp-accent); transform: scale(1.05); }
+.sp-mkt-cat[aria-selected="true"] .sp-mkt-cat__glyph { color: var(--sp-accent-text); transform: scale(1.05); }
 .sp-mkt-cat__name { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sp-mkt-cat[aria-selected="true"] .sp-mkt-cat__name { font-weight: 600; }
 .sp-mkt-cat__count {
@@ -106,19 +112,21 @@ sp-marketplace {
               color var(--sp-dur-fast) var(--sp-ease-out),
               opacity var(--sp-dur-fast) var(--sp-ease-out);
 }
+/* This was --sp-muted at opacity 0.6, which measures 3.03:1 -- below the 4.5:1
+   the count needs as text. The zero state is carried by the missing pill
+   background alone. */
 .sp-mkt-cat__count.is-zero {
   background: transparent;
   color: var(--sp-muted);
-  opacity: 0.6;
 }
 .sp-mkt-cat[aria-selected="true"] .sp-mkt-cat__count {
   background: var(--sp-accent);
   border-color: transparent;
-  color: oklch(0.18 0.04 50);
+  color: var(--sp-on-accent);
 }
 .sp-mkt-cat[aria-selected="true"] .sp-mkt-cat__count.is-zero {
   background: transparent;
-  color: var(--sp-accent);
+  color: var(--sp-accent-text);
   opacity: 0.85;
   border-color: var(--sp-accent-ring);
 }

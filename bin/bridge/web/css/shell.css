@@ -1,7 +1,16 @@
+/* Two columns. The activity log used to hold a permanent third at
+   clamp(280px, 26vw, 360px) on every pane, to show the word "Ready." and three
+   counters; it is a pane of its own now.
+
+   The rail track is content-sized rather than a fixed number, because a fixed
+   number is only ever correct for the language it was measured in -- and a
+   navigation rail that ellipsises its own labels is the defect. `fit-content`
+   grows to the longest label (plus its count and shortcut chips, which are in
+   the measurement) and stops at --sp-rail-max. */
 .sp-shell {
   flex: 1;
   display: grid;
-  grid-template-columns: 220px minmax(0, 1fr) clamp(280px, 26vw, 360px);
+  grid-template-columns: fit-content(var(--sp-rail-max)) minmax(0, 1fr);
   gap: 0;
   min-height: 0;
 }
@@ -60,7 +69,7 @@ body:not(.is-setup-mode) .sp-setup { display: none; }
    this the value sets the column's minimum width and pushes the grid wider
    than the pane. */
 .sp-kv { display: flex; flex-direction: column; gap: var(--sp-space-1); margin-bottom: var(--sp-space-3); min-width: 0; }
-.sp-kv label { font-size: 11px; color: var(--sp-muted); text-transform: uppercase; letter-spacing: 1px; }
+.sp-kv label { font-size: 12px; color: var(--sp-muted); letter-spacing: 0.4px; }
 .sp-value    { font-size: 14px; min-width: 0; overflow-wrap: anywhere; }
 .sp-u-muted    { color: var(--sp-muted); }
 .sp-u-mono     {

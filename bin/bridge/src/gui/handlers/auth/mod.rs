@@ -31,7 +31,7 @@ pub(crate) fn on_login_requested(
     if trimmed.is_empty() {
         let msg = i18n::t("login-pat-empty");
         let err = BridgeError::new(ErrorScope::Identity, ErrorCode::InvalidArgs, msg.clone());
-        app.append_log(msg);
+        app.append_log_error(msg);
         finish_unit(app, Err(err), reply_to);
         return;
     }
@@ -84,13 +84,18 @@ pub(crate) fn on_login_finished(
         },
         Err(e) => {
             let raw = e.to_string();
-            let key = if raw.contains("login cancelled") {
+            let cancelled = raw.contains("login cancelled");
+            let key = if cancelled {
                 "login-cancelled"
             } else {
                 "login-failure"
             };
             let line = i18n::t_args(key, &[("error", &raw)]);
-            app.append_log(&line);
+            if cancelled {
+                app.append_log(&line);
+            } else {
+                app.append_log_error(&line);
+            }
             app.state.reload();
             app.refresh_ui();
             Err(BridgeError::new(
@@ -109,7 +114,7 @@ pub(crate) fn on_set_gateway_requested(app: &GuiApp, gateway: &str, reply_to: Re
     if trimmed.is_empty() {
         let msg = i18n::t("gateway-set-empty");
         let err = BridgeError::new(ErrorScope::Gateway, ErrorCode::InvalidArgs, msg.clone());
-        app.append_log(msg);
+        app.append_log_error(msg);
         finish_unit(app, Err(err), reply_to);
         return;
     }
@@ -156,7 +161,7 @@ pub(crate) fn on_set_gateway_finished(
         },
         Err(e) => {
             let line = i18n::t_args("gateway-set-failure", &[("error", &e.to_string())]);
-            app.append_log(&line);
+            app.append_log_error(&line);
             app.state.reload();
             Err(BridgeError::new(
                 ErrorScope::Gateway,
@@ -204,7 +209,7 @@ pub(crate) fn on_logout_finished(
         },
         Err(e) => {
             let line = i18n::t_args("logout-failure", &[("error", &e.to_string())]);
-            app.append_log(&line);
+            app.append_log_error(&line);
             Err(BridgeError::new(
                 ErrorScope::Identity,
                 ErrorCode::Internal,

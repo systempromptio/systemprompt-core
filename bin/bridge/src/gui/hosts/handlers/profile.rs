@@ -21,7 +21,7 @@ use super::finish;
 
 pub(crate) fn on_profile_generate_requested(app: &GuiApp, host_id: &HostId, reply_to: ReplyId) {
     let Some(host) = find_host_by_id(host_id.as_str()) else {
-        app.append_log(format!("generate requested for unknown host '{host_id}'"));
+        app.append_log_error(format!("generate requested for unknown host '{host_id}'"));
         let err = BridgeError::new(
             ErrorScope::Host,
             ErrorCode::NotFound,
@@ -64,7 +64,7 @@ pub(crate) fn on_profile_generate_finished(
         },
         Err(e) => {
             let line = format!("[{host_id}] profile generation failed: {e}");
-            app.append_log(&line);
+            app.append_log_error(&line);
             Err(BridgeError::new(
                 ErrorScope::Host,
                 ErrorCode::Internal,
@@ -101,7 +101,7 @@ pub(crate) fn on_profile_install_requested(
     reply_to: ReplyId,
 ) {
     let Some(host) = find_host_by_id(host_id.as_str()) else {
-        app.append_log(format!("install requested for unknown host '{host_id}'"));
+        app.append_log_error(format!("install requested for unknown host '{host_id}'"));
         let err = BridgeError::new(
             ErrorScope::Host,
             ErrorCode::NotFound,
@@ -173,7 +173,7 @@ pub(crate) fn on_profile_install_finished(
                     format!("[{host_id}] profile install failed: {e}"),
                 ),
             };
-            app.append_log(&line);
+            app.append_log_error(&line);
             Err(BridgeError::new(ErrorScope::Host, code, line))
         },
     };

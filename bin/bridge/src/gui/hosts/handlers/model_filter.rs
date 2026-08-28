@@ -92,7 +92,7 @@ pub(crate) fn on_model_filter_set_finished(
         },
         Err(e) => {
             let line = format!("[{host_id}] model filter update failed: {e}");
-            app.append_log(&line);
+            app.append_log_error(&line);
             Err(BridgeError::new(
                 ErrorScope::Host,
                 ErrorCode::Internal,

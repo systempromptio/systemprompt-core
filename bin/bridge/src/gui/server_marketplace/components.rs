@@ -45,6 +45,9 @@ pub(super) fn list_skills(dir: &Path) -> Vec<MarketplaceItem> {
             path: entry.path().display().to_string(),
             summary,
             readme: body,
+            version: None,
+            author: None,
+            homepage: None,
             change: None,
             children: Vec::new(),
             extra,
@@ -86,6 +89,9 @@ pub(super) fn list_agents(dir: &Path) -> Vec<MarketplaceItem> {
             path: path.display().to_string(),
             summary,
             readme: body,
+            version: None,
+            author: None,
+            homepage: None,
             change: None,
             children: Vec::new(),
             extra,
@@ -117,6 +123,9 @@ pub(super) fn list_artifacts() -> Vec<MarketplaceItem> {
                 path: store_path.clone(),
                 summary: record.description,
                 readme: None,
+                version: None,
+                author: None,
+                homepage: None,
                 change: None,
                 children: Vec::new(),
                 extra: MarketplaceExtra::None,
@@ -137,20 +146,28 @@ pub(super) fn list_registry_mcp(mcp_auth: &[McpServerAuth]) -> Vec<MarketplaceIt
             .find(|s| s.id == *slug)
             .map(|s| s.tools.clone())
             .unwrap_or_default();
+        let upstream_url = upstream.url.as_str().to_owned();
         out.push(MarketplaceItem {
             id: slug.clone(),
-            name: slug.clone(),
+            name: upstream.display_name.clone(),
             source: "tenant",
-            path: upstream.url.as_str().to_owned(),
-            summary: Some(proxy_url.clone()),
+            path: upstream_url.clone(),
+            summary: None,
             readme: None,
+            version: None,
+            author: None,
+            homepage: None,
             change: None,
             children: Vec::new(),
             extra: MarketplaceExtra::Mcp(McpServerEntry {
-                url: Some(proxy_url),
+                proxy_url: Some(proxy_url),
+                upstream_url: Some(upstream_url),
                 command: None,
                 args: Vec::new(),
-                transport: Some("http".to_owned()),
+                transport: upstream
+                    .transport
+                    .clone()
+                    .or_else(|| Some("http".to_owned())),
                 tools,
             }),
         });

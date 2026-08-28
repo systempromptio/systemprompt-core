@@ -1,7 +1,10 @@
 import { SpElement, reactive, escapeHtml } from "/assets/js/components/sp-element.js";
 import { bridge } from "/assets/js/bridge.js";
 import { t } from "/assets/js/i18n.js";
+import { handleRovingKey } from "/assets/js/utils/roving.js";
+import { shortcut } from "/assets/js/utils/rail-tabs.js";
 import { MKT_KINDS, createListingFetcher } from "/assets/js/services/marketplace-service.js";
+import { runAction } from "/assets/js/utils/action.js";
 import "/assets/js/components/sp-marketplace-list.js";
 import "/assets/js/components/sp-marketplace-detail.js";
 
@@ -12,6 +15,15 @@ const KIND_LABEL = {
   mcp: "MCP servers",
   agents: "Agents",
   artifacts: "Artifacts",
+};
+
+const KIND_L10N = {
+  plugins: "marketplace-cat-plugins",
+  skills: "marketplace-cat-skills",
+  hooks: "marketplace-cat-hooks",
+  mcp: "marketplace-cat-mcp",
+  agents: "marketplace-cat-agents",
+  artifacts: "marketplace-cat-artifacts",
 };
 
 const KIND_GLYPH = {
@@ -33,6 +45,19 @@ function diffSummary(diff) {
   return parts.join(", ");
 }
 
+// The footer used to report the snapshot's counts while the list beside it
+// reported the listing's, and the two disagreed on screen. Once the listing is
+// loaded it is the only source; before that the snapshot's line is labelled as
+// what it is.
+function listingSummary(listing) {
+  const parts = [];
+  for (const k of MKT_KINDS) {
+    const n = ((listing && listing[k]) || []).length;
+    if (n) { parts.push(`${n} ${k}`); }
+  }
+  return parts.length ? parts.join(", ") : t("marketplace-empty-generic") || "Nothing here yet";
+}
+
 function badgeView(snap) {
   if (!snap.signed_in) { return { text: t("marketplace-badge-signin") || "sign in", cls: "sp-badge--warn" }; }
   if (snap.sync_in_flight) { return { text: t("marketplace-badge-syncing") || "syncing", cls: "sp-badge--warn" }; }
@@ -48,24 +73,48 @@ export class SpMarketplace extends SpElement {
     this.kind = "plugins";
     this.selectedId = null;
     this.search = "";
-    this._fetcher = createListingFetcher();
+    this.listingState = "idle";
+    this._fetcher = createListingFetcher(() => this._applyFetcher());
     this.registerAction("select-kind", (trigger) => {
       this.kind = trigger.dataset.kind;
       this.selectedId = null;
     });
-    this.registerAction("sync", async () => {
-      try { await bridge.sync(); } catch (e) { console.warn(e); }
-    });
-    this.registerAction("validate", async () => {
-      try { await bridge.validate(); } catch (e) { console.warn(e); }
-    });
-    this.registerAction("open-folder", async () => {
-      try { await bridge.openConfigFolder(); } catch (e) { console.warn(e); }
-    });
+
+    this._onCatKey = (e) => {
+      const cats = Array.from(this.querySelectorAll(".sp-mkt-cat"));
+      const cur = cats.findIndex((el) => el.dataset.kind === this.kind);
+      handleRovingKey(e, cats, cur, {
+        onMove: (target) => { this.kind = target.dataset.kind; this.selectedId = null; },
+      });
+    };
+    this.registerAction("sync", (trigger) => runAction(trigger, {
+      run: () => bridge.sync(),
+      success: t("toast-sync-started") || "Sync started.",
+      context: t("sync-button") || "Sync now",
+    }));
+    this.registerAction("validate", (trigger) => runAction(trigger, {
+      run: () => bridge.validate(),
+      success: t("toast-validate-ok") || "Configuration validated.",
+      context: t("marketplace-action-validate") || "Re-check",
+    }));
+    this.registerAction("open-folder", (trigger) => runAction(trigger, {
+      run: () => bridge.openConfigFolder(),
+      success: t("toast-folder-opened") || "Opened the configuration folder.",
+      context: t("marketplace-action-open-folder") || "Open folder",
+    }));
     this.registerAction("input:search", (trigger) => {
       this.search = trigger.value || "";
       this.selectedId = null;
       this._pushChildState();
+    });
+    this.addEventListener("mkt-refresh", () => { this._fetcher.refresh(); });
+    this.addEventListener("mkt-sync", (e) => {
+      runAction(null, {
+        run: () => bridge.sync(),
+        success: t("toast-sync-started") || "Sync started.",
+        context: t("sync-button") || "Sync now",
+      });
+      e.stopPropagation();
     });
     this.addEventListener("mkt-select", (e) => {
       this.selectedId = e.detail.id;
@@ -82,13 +131,19 @@ export class SpMarketplace extends SpElement {
   }
 
   onConnect() {
+    this.addEventListener("keydown", this._onCatKey);
     bridge.stateSnapshot().then((s) => { this.snapshot = s; this._maybeFetch(s); }).catch((e) => console.warn("snapshot failed", e));
     this.bridgeSubscribe("state.changed", (s) => { this.snapshot = s; this._maybeFetch(s); });
   }
 
-  async _maybeFetch(snap) {
-    const next = await this._fetcher.maybeFetch(snap);
-    if (next) { this.listing = next; }
+  _maybeFetch(snap) {
+    this._fetcher.maybeFetch(snap);
+  }
+
+  _applyFetcher() {
+    this.listing = this._fetcher.listing;
+    this.listingState = this._fetcher.state;
+    this._pushChildState();
   }
 
   afterRender() {
@@ -104,6 +159,9 @@ export class SpMarketplace extends SpElement {
       list.search = this.search;
       list.selectedId = this.selectedId;
       list.kind = this.kind;
+      list.state = this._fetcher.state;
+      list.error = this._fetcher.error || "";
+      list.reason = this._fetcher.reason || "";
     }
     if (detail) {
       detail.selected = items.find((it) => it.id === this.selectedId) || null;
@@ -120,17 +178,26 @@ export class SpMarketplace extends SpElement {
   render() {
     const snap = this.snapshot || {};
     const badge = badgeView(snap);
+    // A count of 0 next to a pane that has not loaded is a claim, not a fact.
+    const loaded = this._fetcher.state === "ok";
     const counts = MKT_KINDS.reduce((acc, k) => {
-      acc[k] = (this.listing && this.listing[k] || []).length;
+      acc[k] = loaded ? (this.listing && this.listing[k] || []).length : null;
       return acc;
     }, {});
-    const cats = MKT_KINDS.map((k) => `
-      <li class="sp-mkt-cat" data-kind="${k}" role="tab" aria-selected="${this.kind === k ? "true" : "false"}" tabindex="0" data-action="select-kind">
-        <span class="sp-mkt-cat__glyph" aria-hidden="true">${KIND_GLYPH[k]}</span>
-        <span class="sp-mkt-cat__name" data-l10n-id="marketplace-cat-${k}">${escapeHtml(KIND_LABEL[k])}</span>
-        <span class="sp-mkt-cat__count ${counts[k] === 0 ? "is-zero" : ""}">${counts[k]}</span>
-      </li>
-    `).join("");
+    // A real <button>: role="tab" on an <li> alongside an aria-hidden <li> label
+    // is not a valid tablist, and every tab carried tabindex="0" with no key
+    // handler, so the rail was five tab stops that did nothing.
+    const cats = MKT_KINDS.map((k) => {
+      const selected = this.kind === k;
+      return `
+      <li role="presentation">
+        <button class="sp-mkt-cat" type="button" data-kind="${k}" role="tab" id="sp-mkt-cat-${k}" aria-controls="sp-mkt-items" aria-selected="${selected ? "true" : "false"}" tabindex="${selected ? "0" : "-1"}" data-action="select-kind">
+          <span class="sp-mkt-cat__glyph" aria-hidden="true">${KIND_GLYPH[k]}</span>
+          <span class="sp-mkt-cat__name" data-l10n-id="${KIND_L10N[k]}">${escapeHtml(KIND_LABEL[k])}</span>
+          <span class="sp-mkt-cat__count ${counts[k] === 0 ? "is-zero" : ""}">${counts[k] === null ? "—" : counts[k]}</span>
+        </button>
+      </li>`;
+    }).join("");
     const syncDisabled = snap.sync_in_flight || !snap.signed_in;
     const mktState = snap.last_sync_summary ? "ok" : "never";
     const diff = (this.listing && this.listing.last_sync_diff) || null;
@@ -141,7 +208,7 @@ export class SpMarketplace extends SpElement {
         <span class="sp-badge ${badge.cls}">${escapeHtml(badge.text)}</span>
       </header>
       <div class="sp-mkt">
-        <ul class="sp-mkt-cats" role="tablist" aria-label="Marketplace categories">
+        <ul class="sp-mkt-cats" role="tablist" aria-orientation="vertical" data-l10n-aria="marketplace-categories-aria" aria-label="Marketplace categories">
           <li class="sp-mkt-cats__label" aria-hidden="true" data-l10n-id="marketplace-categories">Categories</li>
           ${cats}
         </ul>
@@ -149,7 +216,7 @@ export class SpMarketplace extends SpElement {
           <label class="sp-mkt-search__wrap">
             <svg class="sp-mkt-search__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
             <input id="mkt-search" class="sp-mkt-search" type="search" placeholder="Search…" data-l10n-placeholder="marketplace-search-placeholder" autocomplete="off" spellcheck="false" data-input="search" />
-            <span class="sp-mkt-search__kbd" aria-hidden="true">⌘F</span>
+            <span class="sp-mkt-search__kbd" aria-hidden="true">${escapeHtml(shortcut("F"))}</span>
           </label>
           <sp-marketplace-list></sp-marketplace-list>
         </div>
@@ -161,7 +228,7 @@ export class SpMarketplace extends SpElement {
         <button class="sp-btn-ghost" type="button" data-l10n-id="marketplace-action-open-folder" data-action="open-folder">Open folder</button>
         <span class="sp-mkt-actions__meta" data-state="${mktState}" title="${escapeHtml(snap.last_sync_summary || "—")}">
           <span class="sp-dot" aria-hidden="true"></span>
-          <span data-l10n-id="last-sync-never">${escapeHtml(snap.last_sync_summary || "never synced")}</span>
+          <span>${escapeHtml(loaded ? listingSummary(this.listing) : (snap.last_sync_summary || t("last-sync-never")))}</span>
           ${diffLine ? `<span class="sp-mkt-actions__diff">· ${escapeHtml(diffLine)}</span>` : ""}
         </span>
       </footer>
@@ -169,5 +236,5 @@ export class SpMarketplace extends SpElement {
   }
 }
 
-reactive(SpMarketplace.prototype, ["snapshot", "listing", "kind"]);
+reactive(SpMarketplace.prototype, ["snapshot", "listing", "kind", "listingState"]);
 customElements.define("sp-marketplace", SpMarketplace);

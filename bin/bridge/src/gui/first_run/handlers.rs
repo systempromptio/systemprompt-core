@@ -118,11 +118,11 @@ pub(crate) fn on_sync_result(app: &mut GuiApp, succeeded: bool) {
     });
     let state = app.state.snapshot().first_run;
     first_run::record::write(&state);
-    app.append_log(if usable {
-        "First use: setup complete."
+    if usable {
+        app.append_log("First use: setup complete.");
     } else {
-        "First use: setup failed — see the errors above, then retry."
-    });
+        app.append_log_error("First use: setup failed — see the errors above, then retry.");
+    }
     progress(app);
     emit::emit_state(app);
 }

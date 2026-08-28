@@ -3,7 +3,6 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-pub mod assets;
 pub mod command;
 pub mod dispatch;
 pub mod emit;
@@ -16,6 +15,7 @@ pub mod hosts;
 pub mod ipc;
 pub mod ipc_runtime;
 pub mod menu;
+pub mod notify;
 pub mod onboarding;
 pub mod server;
 pub mod server_json;
@@ -23,11 +23,12 @@ pub mod server_marketplace;
 pub mod server_util;
 pub mod state;
 pub mod tray;
+pub mod webview2;
 pub mod window;
 
 mod app;
 
-use std::collections::VecDeque;
+use std::collections::{HashSet, VecDeque};
 use std::process::ExitCode;
 use std::sync::Arc;
 use std::sync::mpsc::{Sender, channel};
@@ -97,6 +98,7 @@ pub fn run() -> ExitCode {
     let proxy = UiEventProxy::new(event_loop.create_proxy());
     install_termination_handlers(proxy.clone());
     emit::install_log_emitter(proxy.clone());
+    emit::install_request_emitter(proxy.clone());
     let (tx, rx) = channel::<UiEvent>();
 
     let bridge_proxy = proxy.clone();
@@ -158,13 +160,17 @@ pub(crate) struct GuiApp {
     pub(crate) tx: Sender<UiEvent>,
     pub(crate) proxy: UiEventProxy,
     pub(crate) tray: Option<tray::TrayHandles>,
+    #[cfg(target_os = "macos")]
     pub(crate) menu_bar: Option<menu::MenuBarHandles>,
     pub(crate) server: Option<Server>,
     pub(crate) runtime: Handle,
     pub(crate) settings_window: Option<SettingsWindow>,
     pub(crate) last_proxy_stats_tick: Instant,
+    pub(crate) last_event_loop_pass: Instant,
+    pub(crate) last_saved_geometry: Option<crate::window_state::WindowGeometry>,
     pub(crate) last_state_hash: Option<u64>,
     pub(crate) did_initial_sync: bool,
+    pub(crate) active_signals: HashSet<notify::Signal>,
 }
 
 impl GuiApp {
@@ -179,13 +185,17 @@ impl GuiApp {
             tx,
             proxy,
             tray: None,
+            #[cfg(target_os = "macos")]
             menu_bar: None,
             server: None,
             runtime,
             settings_window: None,
             last_proxy_stats_tick: Instant::now(),
+            last_event_loop_pass: Instant::now(),
+            last_saved_geometry: None,
             last_state_hash: None,
             did_initial_sync: false,
+            active_signals: HashSet::new(),
         }
     }
 
@@ -218,5 +228,21 @@ impl GuiApp {
     )]
     pub(crate) fn append_log(&self, line: impl Into<String>) {
         crate::activity::activity_log().append(line);
+    }
+
+    #[expect(
+        clippy::unused_self,
+        reason = "method form keeps the app.append_log(..) call sites uniform across handlers"
+    )]
+    pub(crate) fn append_log_warn(&self, line: impl Into<String>) {
+        crate::activity::activity_log().append_warn(line);
+    }
+
+    #[expect(
+        clippy::unused_self,
+        reason = "method form keeps the app.append_log(..) call sites uniform across handlers"
+    )]
+    pub(crate) fn append_log_error(&self, line: impl Into<String>) {
+        crate::activity::activity_log().append_error(line);
     }
 }

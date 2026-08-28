@@ -14,17 +14,16 @@ use wry::http::header::CONTENT_TYPE;
 use wry::{NewWindowResponse, Rect, WebView, WebViewBuilder};
 
 use crate::gui::UiEventProxy;
-use crate::gui::assets::{self, Asset};
 use crate::gui::error::{GuiError, GuiResult, WindowError};
 use crate::gui::events::UiEvent;
+use crate::web_assets::{self, Asset};
+use crate::window_state::{self as geometry, MIN_HEIGHT, MIN_WIDTH, WindowGeometry};
 
 #[cfg(target_os = "macos")]
 use winit::platform::macos::WindowAttributesMacOS;
 
 const DEFAULT_WIDTH: u32 = 1100;
 const DEFAULT_HEIGHT: u32 = 760;
-const MIN_WIDTH: u32 = 800;
-const MIN_HEIGHT: u32 = 600;
 const BG_RGBA: (u8, u8, u8, u8) = (15, 17, 21, 255);
 
 const SP_PROTOCOL: &str = "sp";
@@ -73,14 +72,24 @@ impl SettingsWindow {
         proxy: &UiEventProxy,
         legacy_origin: Option<&str>,
     ) -> GuiResult<Self> {
-        let attrs = chrome_attributes(
+        let mut attrs = chrome_attributes(
             WindowAttributes::default()
                 .with_title(crate::brand::brand().window_title)
                 .with_surface_size(LogicalSize::new(DEFAULT_WIDTH, DEFAULT_HEIGHT))
-                .with_min_surface_size(PhysicalSize::new(MIN_WIDTH, MIN_HEIGHT))
+                .with_min_surface_size(LogicalSize::new(MIN_WIDTH, MIN_HEIGHT))
                 .with_visible(false)
                 .with_window_icon(decode_icon()),
         );
+
+        let restored = geometry::load().and_then(|saved| {
+            let areas = work_areas(event_loop);
+            geometry::restore(saved, &areas)
+        });
+        if let Some(geom) = restored {
+            attrs = attrs
+                .with_position(LogicalPosition::new(geom.x, geom.y))
+                .with_surface_size(LogicalSize::new(geom.width, geom.height));
+        }
 
         let window = event_loop
             .create_window(attrs)
@@ -88,6 +97,14 @@ impl SettingsWindow {
                 context: "create_window".into(),
                 source: WindowError::Os(e),
             })?;
+
+        // Why: the web UI follows `prefers-color-scheme` and has a real light
+        // theme, so pinning the title bar dark would reproduce the mismatch
+        // this call exists to fix, with the colours swapped.
+        super::set_immersive_dark(&*window, super::prefers_dark(&*window));
+        if restored.is_some_and(|g| g.maximized) {
+            window.set_maximized(true);
+        }
 
         let nav_legacy: Option<String> = legacy_origin.map(str::to_owned);
         let ipc_proxy = proxy.clone();
@@ -102,7 +119,7 @@ impl SettingsWindow {
             .with_url(SP_INDEX_URL)
             .with_background_color(BG_RGBA)
             .with_accept_first_mouse(true)
-            .with_devtools(true)
+            .with_devtools(cfg!(debug_assertions))
             .with_bounds(Rect {
                 position: LogicalPosition::new(0, 0).into(),
                 size: PhysicalSize::new(initial_size.width, initial_size.height).into(),
@@ -121,9 +138,18 @@ impl SettingsWindow {
                 NewWindowResponse::Deny
             })
             .build_as_child(&WindowRef(&*window))
-            .map_err(|e| GuiError::Window {
-                context: "webview build".into(),
-                source: WindowError::Wry(e),
+            .map_err(|e| {
+                // Why: `windows_subsystem = "windows"` means a failure here has
+                // no console to print to. Without this the app simply does not
+                // appear — the commonest cause being a missing WebView2 runtime.
+                super::alert_user(
+                    &format!("{} could not start", crate::brand::brand().app_name),
+                    &format!("The embedded browser failed to initialise: {e}"),
+                );
+                GuiError::Window {
+                    context: "webview build".into(),
+                    source: WindowError::Wry(e),
+                }
             })?;
 
         window.set_visible(true);
@@ -155,6 +181,21 @@ impl SettingsWindow {
         }) {
             tracing::warn!(error = %e, "webview set_bounds failed");
         }
+    }
+
+    #[must_use]
+    pub fn current_geometry(&self) -> Option<WindowGeometry> {
+        let scale = self.window.scale_factor();
+        let pos = self.window.outer_position().ok()?.to_logical::<i32>(scale);
+        let size = self.window.surface_size().to_logical::<u32>(scale);
+        let (width, height) = geometry::clamp_size(size.width, size.height);
+        Some(WindowGeometry {
+            x: pos.x,
+            y: pos.y,
+            width,
+            height,
+            maximized: self.window.is_maximized(),
+        })
     }
 
     pub fn evaluate_script(&self, script: &str) {
@@ -192,6 +233,29 @@ const BRIDGE_BOOTSTRAP: &str = r#"
 })();
 "#;
 
+fn work_areas(event_loop: &dyn ActiveEventLoop) -> Vec<geometry::WorkArea> {
+    event_loop
+        .available_monitors()
+        .map(|monitor| {
+            let scale = monitor.scale_factor();
+            let pos = monitor
+                .position()
+                .map_or(LogicalPosition::new(0, 0), |p| p.to_logical::<i32>(scale));
+            let size = monitor
+                .current_video_mode()
+                .map_or(LogicalSize::new(DEFAULT_WIDTH, DEFAULT_HEIGHT), |m| {
+                    m.size().to_logical::<u32>(scale)
+                });
+            geometry::WorkArea {
+                x: pos.x,
+                y: pos.y,
+                width: size.width,
+                height: size.height,
+            }
+        })
+        .collect()
+}
+
 fn serve_custom_asset(request: &http::Request<Vec<u8>>) -> Response<Cow<'static, [u8]>> {
     let uri = request.uri();
     let host_match = uri.host().is_none_or(|h| h == SP_HOST);
@@ -202,7 +266,7 @@ fn serve_custom_asset(request: &http::Request<Vec<u8>>) -> Response<Cow<'static,
     if path.is_empty() || path == "/" {
         "/index.html".clone_into(&mut path);
     }
-    assets::lookup_path(&path).map_or_else(
+    web_assets::lookup_path(&path).map_or_else(
         || {
             tracing::warn!(%path, "GUI asset not found; serving 404");
             not_found()

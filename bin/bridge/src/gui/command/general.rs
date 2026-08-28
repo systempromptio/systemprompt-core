@@ -10,11 +10,25 @@ use crate::gui::ipc::{BridgeError, ErrorCode, ErrorScope};
 use crate::gui::state::CancelScope;
 use crate::gui::{GuiApp, server_json};
 
-use super::args::{CancelArgs, GatewaySetArgs, LoginArgs, OpenExternalUrlArgs, SessionLoginArgs};
+use super::args::{
+    CancelArgs, GatewaySetArgs, LoginArgs, OpenExternalUrlArgs, RecentArgs, SessionLoginArgs,
+    SettingsSetArgs,
+};
 use super::{CommandOutcome, parse, send};
 
 fn is_safe_external_url(url: &str) -> bool {
     url.starts_with("https://")
+}
+
+const DEFAULT_RECENT_LIMIT: usize = 500;
+const MAX_RECENT_LIMIT: usize = 2000;
+
+fn recent_limit(args: &Value) -> usize {
+    parse::<RecentArgs>(args.clone())
+        .ok()
+        .and_then(|a| a.limit)
+        .unwrap_or(DEFAULT_RECENT_LIMIT)
+        .min(MAX_RECENT_LIMIT)
 }
 
 pub(super) fn meta_dispatch(
@@ -28,6 +42,12 @@ pub(super) fn meta_dispatch(
             CommandOutcome::Sync(Ok(server_json::snapshot_value(&app.state.snapshot())))
         },
         "marketplace.list" => CommandOutcome::Sync(Ok(marketplace_listing(app))),
+        "activity.recent" => CommandOutcome::Sync(Ok(json!({
+            "entries": crate::activity::activity_log().snapshot_recent(recent_limit(args)),
+        }))),
+        "requests.recent" => CommandOutcome::Sync(Ok(json!({
+            "entries": crate::proxy::requests::request_log().snapshot_recent(recent_limit(args)),
+        }))),
         "setup.complete" => {
             send(app, UiEvent::SetupComplete);
             CommandOutcome::Sync(Ok(json!({})))
@@ -158,6 +178,24 @@ pub(super) fn sync_dispatch(
         "update.restart" => {
             send(app, UiEvent::UpdateRestartRequested);
             CommandOutcome::Sync(Ok(Value::Null))
+        },
+        "settings.get" => {
+            send(app, UiEvent::SettingsReadRequested { reply_to: reply_id });
+            CommandOutcome::Async
+        },
+        "settings.set" => match parse::<SettingsSetArgs>(args) {
+            Ok(a) => {
+                send(
+                    app,
+                    UiEvent::SettingsWriteRequested {
+                        key: a.key,
+                        value: a.value,
+                        reply_to: reply_id,
+                    },
+                );
+                CommandOutcome::Async
+            },
+            Err(e) => CommandOutcome::Sync(Err(e)),
         },
         "cancel" => match parse::<CancelArgs>(args) {
             Ok(a) => match cancel_scope(a.scope.as_deref()) {

@@ -86,6 +86,58 @@ The authoritative build commands are the `build-bridge*` recipes in the root `ju
 
 ---
 
+## Developing the GUI
+
+The webview is Windows/macOS only — `mod gui` is `#[cfg(any(target_os = "windows",
+target_os = "macos"))]`, wry is not even a Linux dependency, and `gui` on Linux
+prints *"gui not supported on this platform"*. Assets never travel over HTTP
+either: they reach the webview through a wry custom protocol (`sp://app/…`).
+Front-end work here used to mean editing blind and shipping to Windows to look
+at it.
+
+`dev-web` serves the same web tree over plain HTTP so any browser — or
+Playwright — can render it:
+
+```bash
+just bridge-preview            # http://127.0.0.1:4310
+just bridge-preview 4399       # another port
+```
+
+- **Assets come off disk, not the embedded manifest.** Edit CSS, JS or
+  `index.html` and refresh; there is no rebuild between edits. Only changing
+  Rust needs one.
+- **The shell is the real one.** The page is `web_assets::render_index()`, so it
+  gets the same `__PLATFORM__` / `__LOGO_SVG__` / `__VERSION__` substitution and
+  brand-theme injection the shipped app gets, and cannot quietly drift from it.
+- **`?fixture=<name>` picks the state.** `web/dev/mock-ipc.js` stands in for the
+  native IPC and answers `state.snapshot` from `web/dev/fixtures/*.json`. Write
+  commands mutate the fixture in memory, so flows are clickable, not stills:
+  pressing Repair really does generate, install, re-probe and settle the row.
+  A switcher across the bottom of the page moves between fixtures.
+- Add a state by dropping another JSON file in `web/dev/fixtures/`. It is one
+  `state.snapshot` reply — the shape is `StatePayload` in
+  `src/gui/server_json.rs` with `HostsPayload` (`src/gui/hosts/serde.rs`)
+  flattened in.
+
+All of it is behind the `dev-preview` cargo feature, which is not in `default`,
+and `build.rs` drops `web/dev/` from the staged tree — so neither the command
+nor the mock exists in a shipped binary.
+
+To review every state at once, the branded repo screenshots them and builds a
+contact sheet:
+
+```bash
+just bridge-shots              # in systemprompt-internal
+# → playwright/bridge-shots/index.html
+```
+
+That runs `playwright/tests/bridge-agents.spec.ts`, which also asserts the
+structural things a screenshot cannot: no page errors, no horizontal overflow,
+the drawer's Escape/focus contract, and that an agent with no profile is offered
+under *Add agent* rather than listed with a status.
+
+---
+
 ## Runtime environment
 
 | Variable | Purpose |

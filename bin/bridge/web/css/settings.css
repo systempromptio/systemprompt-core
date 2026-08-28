@@ -9,5 +9,66 @@
 }
 .sp-kv__grid > * { min-width: 0; }
 .sp-settings__note { font-size: 12px; margin: var(--sp-space-1-5) 0 0; }
-.sp-settings__note a { color: var(--sp-accent); }
+.sp-settings__note a { color: var(--sp-accent-text); }
 
+.sp-settings__prefs { gap: var(--sp-space-4); }
+.sp-settings__pref {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-space-2);
+  font-size: 12px;
+  color: var(--sp-muted);
+  cursor: pointer;
+}
+.sp-settings__pref:hover { color: var(--sp-text); }
+
+.sp-select {
+  font: inherit;
+  color: var(--sp-text);
+  background: var(--sp-bg-elev-2);
+  border: 1px solid var(--sp-line-control);
+  border-radius: var(--sp-corners-sm);
+  padding: var(--sp-space-2) var(--sp-space-3);
+  min-width: 0;
+  max-width: 22ch;
+  cursor: pointer;
+}
+.sp-select:focus-visible {
+  border-color: var(--sp-focus);
+  outline: var(--sp-focus-width) solid var(--sp-focus);
+  outline-offset: var(--sp-focus-offset);
+}
+
+/* A config file we cannot parse blocks every save, so it is stated at the top
+   of the pane rather than discovered by a failing button. */
+.sp-settings__banner {
+  margin: 0;
+  padding: var(--sp-space-3) var(--sp-space-3-5);
+  border: 1px solid var(--sp-warn);
+  border-left-width: 3px;
+  border-radius: var(--sp-corners-sm);
+  background: color-mix(in oklch, var(--sp-warn) 12%, transparent);
+  color: var(--sp-text);
+}
+
+.sp-settings__section { display: flex; flex-direction: column; gap: var(--sp-space-3); }
+.sp-settings__section h2 {
+  margin: 0;
+  font-size: var(--sp-text-sm);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--sp-muted-strong);
+}
+
+.sp-settings__inline { display: flex; align-items: center; gap: var(--sp-space-2-5); flex-wrap: wrap; }
+.sp-settings__inline .sp-input { flex: 1 1 22ch; min-width: 0; }
+.sp-settings__inline .sp-value { flex: 1 1 auto; min-width: 0; }
+
+.sp-settings__error { margin: var(--sp-space-2) 0 0; color: var(--sp-danger); font-size: var(--sp-text-sm); }
+
+/* The provenance badge sits under the key it describes, not stretched across
+   the row -- it qualifies one value. */
+.sp-settings__section .sp-badge { justify-self: start; width: fit-content; }
+.sp-settings__pref.is-unavailable { color: var(--sp-muted); cursor: not-allowed; opacity: 0.72; }
+.sp-settings__pref.is-unavailable:hover { color: var(--sp-muted); }

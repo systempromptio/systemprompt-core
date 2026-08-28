@@ -8,14 +8,14 @@ mod profile;
 pub mod redaction;
 mod runtime;
 pub mod store;
+pub mod write;
 
 pub use runtime::{RuntimeConfig, SharedRuntimeConfig, shared_from_loaded};
 
 use serde::Deserialize;
-use std::fmt::Write as _;
+use std::env;
 use std::path::PathBuf;
 use std::sync::{LazyLock, Once};
-use std::{env, fs};
 
 use systemprompt_identifiers::ValidatedUrl;
 
@@ -24,6 +24,7 @@ use crate::ids::{KeystoreRef, PinnedPubKey};
 pub use self::profile::{
     ClaudeConfig, gateway_url_or_default, persist_pinned_pubkey, pinned_pubkey, policy_pubkey,
 };
+pub use self::write::ConfigWriteError;
 
 static DEFAULT_GATEWAY: LazyLock<ValidatedUrl> = LazyLock::new(|| {
     ValidatedUrl::try_new(crate::brand::brand().default_gateway_url).unwrap_or_else(|_| {
@@ -92,12 +93,16 @@ pub struct SyncConfig {
 
 impl Config {
     pub fn load() -> Self {
-        let path = config_path();
-        let mut cfg: Self = path
-            .as_ref()
-            .and_then(|p| fs::read_to_string(p).ok())
-            .and_then(|s| toml::from_str(&s).ok())
-            .unwrap_or_default();
+        let mut cfg = match read() {
+            Ok(cfg) => cfg,
+            Err(e) => {
+                static WARN_ONCE: Once = Once::new();
+                WARN_ONCE.call_once(|| {
+                    tracing::warn!(error = %e, "config unreadable; falling back to defaults");
+                });
+                Self::default()
+            },
+        };
 
         if cfg.gateway_url.is_none() {
             cfg.gateway_url = Some(DEFAULT_GATEWAY.clone());
@@ -155,21 +160,43 @@ pub fn config_path() -> Option<PathBuf> {
     Some(base.join(brand.config_dir).join(brand.config_file))
 }
 
-pub fn ensure_gateway_url(url: &str) -> std::io::Result<()> {
-    let path = config_path().ok_or_else(|| {
-        std::io::Error::new(std::io::ErrorKind::NotFound, "config path unresolvable")
-    })?;
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent)?;
-    }
-    let existing = fs::read_to_string(&path).unwrap_or_default();
-    if existing.contains("gateway_url") {
-        return Ok(());
-    }
-    let mut next = existing;
-    if !next.is_empty() && !next.ends_with('\n') {
-        next.push('\n');
-    }
-    _ = writeln!(next, "gateway_url = \"{url}\"");
-    fs::write(&path, next)
+#[derive(Debug, thiserror::Error)]
+pub enum ConfigReadError {
+    #[error("config path unresolvable on this platform")]
+    PathUnresolvable,
+    #[error("read {path}: {source}")]
+    Read {
+        path: PathBuf,
+        source: std::io::Error,
+    },
+    #[error("{path} is not valid TOML: {source}")]
+    Malformed {
+        path: PathBuf,
+        source: toml::de::Error,
+    },
+}
+
+pub fn read() -> Result<Config, ConfigReadError> {
+    let path = config_path().ok_or(ConfigReadError::PathUnresolvable)?;
+    let Some(body) =
+        crate::fsutil::read_optional(&path).map_err(|source| ConfigReadError::Read {
+            path: path.clone(),
+            source,
+        })?
+    else {
+        return Ok(Config::default());
+    };
+    toml::from_str(&body).map_err(|source| ConfigReadError::Malformed { path, source })
+}
+
+pub fn ensure_gateway_url(url: &str) -> Result<(), ConfigWriteError> {
+    write::edit(|doc| write::set_if_absent(doc, &["gateway_url"], url))
+}
+
+pub fn set_update_automatic(enabled: bool) -> Result<(), ConfigWriteError> {
+    write::edit(|doc| write::set(doc, &["update", "automatic"], enabled))
+}
+
+pub fn set_session_enabled(enabled: bool) -> Result<(), ConfigWriteError> {
+    write::edit(|doc| write::set(doc, &["session", "enabled"], enabled))
 }

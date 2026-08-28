@@ -1,10 +1,11 @@
 .sp-rail {
   position: relative;
+  min-width: var(--sp-rail-min);
   display: flex;
   flex-direction: column;
   padding: var(--sp-space-3-5) var(--sp-space-2-5);
   border-right: 1px solid var(--sp-line);
-  background: oklch(0.20 0.01 48 / 0.6);
+  background: color-mix(in oklch, var(--sp-bg-elev-1) 60%, transparent);
   box-shadow: var(--sp-shadow-inner-glow);
   overflow-y: auto;
   --sp-rail-active-y: 0px;
@@ -19,7 +20,7 @@
   height: var(--sp-rail-active-h);
   background: linear-gradient(180deg, var(--sp-accent) 0%, var(--sp-accent-deep) 100%);
   border-radius: 0 3px 3px 0;
-  box-shadow: 0 0 12px oklch(0.70 0.17 51 / 0.55);
+  box-shadow: 0 0 12px color-mix(in oklch, var(--sp-accent) 55%, transparent);
   transform: translateY(var(--sp-rail-active-y));
   transition: transform var(--sp-dur-normal) var(--sp-ease-spring),
               height var(--sp-dur-normal) var(--sp-ease-spring),
@@ -37,10 +38,9 @@
 }
 .sp-rail-section__label {
   font-family: var(--sp-font-display);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
-  letter-spacing: 1.6px;
-  text-transform: uppercase;
+  letter-spacing: 0.4px;
   color: var(--sp-muted);
   padding: var(--sp-space-2) var(--sp-space-3) var(--sp-space-1);
   user-select: none;
@@ -67,15 +67,14 @@
 }
 .sp-rail-tab:hover { color: var(--sp-text); background: var(--sp-bg-elev-2); }
 .sp-rail-tab:focus-visible {
-  outline: none;
-  border-color: var(--sp-accent-ring);
-  box-shadow: 0 0 0 3px var(--sp-accent-soft);
+  outline: var(--sp-focus-width) solid var(--sp-focus);
+  outline-offset: var(--sp-focus-offset);
 }
 .sp-rail-tab[aria-selected="true"] {
   color: var(--sp-text);
   background: var(--sp-accent-soft);
 }
-.sp-rail-tab[aria-selected="true"] .sp-rail-tab__glyph { color: var(--sp-accent); }
+.sp-rail-tab[aria-selected="true"] .sp-rail-tab__glyph { color: var(--sp-accent-text); }
 .sp-rail-tab[aria-selected="true"] .sp-rail-tab__label { font-weight: 600; }
 
 .sp-rail-tab__glyph {
@@ -91,7 +90,7 @@
 .sp-rail-tab__glyph svg { width: 16px; height: 16px; display: block; }
 .sp-rail-tab:hover .sp-rail-tab__glyph { color: var(--sp-text); }
 
-.sp-rail-tab__label { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sp-rail-tab__label { font-weight: 500; white-space: nowrap; }
 
 .sp-rail-tab__count {
   font-size: 10.5px;
@@ -112,7 +111,7 @@
 .sp-rail-tab[aria-selected="true"] .sp-rail-tab__count {
   background: var(--sp-accent);
   border-color: transparent;
-  color: oklch(0.18 0.04 50);
+  color: var(--sp-on-accent);
 }
 .sp-rail-tab__count[data-bump="true"] { animation: badge-bump 380ms var(--sp-ease-spring); }
 .sp-rail-tab .sp-rail-tab__shortcut {
@@ -173,7 +172,7 @@
   background: var(--sp-accent, var(--sp-bg-elev-2));
   border: 1px solid var(--sp-accent, var(--sp-line));
   border-radius: var(--sp-corners-sm);
-  color: var(--sp-accent-fg, #fff);
+  color: var(--sp-accent-fg);
   font: inherit;
   text-align: left;
   cursor: pointer;
@@ -184,11 +183,11 @@
 .sp-rail-profile__cta-label {
   display: block;
   font-weight: 600;
-  font-size: var(--sp-text-sm, 13px);
+  font-size: var(--sp-text-sm);
 }
 .sp-rail-profile__cta-sub {
   display: block;
-  font-size: var(--sp-text-xs, 11px);
+  font-size: var(--sp-text-xs);
   opacity: 0.8;
 }
 /* Download and install are not cancellable, so the trigger reads as inert
@@ -197,7 +196,7 @@
   opacity: 0.7;
 }
 .sp-rail-profile__trigger:not(:disabled):hover {
-  border-color: var(--sp-line-strong, var(--sp-line));
+  border-color: var(--sp-line-control);
   background: var(--sp-bg-elev-2, var(--sp-bg-elev-1));
 }
 .sp-rail-profile__caret {
@@ -240,7 +239,7 @@
   margin: var(--sp-space-1) 0 0;
   padding: 0 var(--sp-space-2);
   font-size: 11px;
-  color: var(--sp-danger, var(--sp-muted));
+  color: var(--sp-danger);
 }
 .sp-rail-profile__meta {
   display: flex;

@@ -6,3 +6,5 @@ mod access_denied;
 mod redaction;
 #[cfg(test)]
 mod round_trip;
+#[cfg(test)]
+mod writer;

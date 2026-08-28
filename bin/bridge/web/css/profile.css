@@ -59,10 +59,9 @@ sp-profile {
 .sp-profile-card > header h2 {
   min-width: 0;
   font-family: var(--sp-font-display);
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 1.4px;
+  letter-spacing: 0.4px;
   margin: 0;
   color: var(--sp-muted);
 }
@@ -154,9 +153,8 @@ sp-profile {
 
 .sp-profile-dl dt {
   font-family: var(--sp-font-display);
-  font-size: 10.5px;
-  text-transform: uppercase;
-  letter-spacing: 1px;
+  font-size: 11px;
+  letter-spacing: 0.4px;
   color: var(--sp-muted);
   align-self: center;
   font-weight: 600;
@@ -206,11 +204,10 @@ sp-profile {
 
 .sp-profile-tile__label {
   font-family: var(--sp-font-display);
-  font-size: 10px;
+  font-size: 11px;
   white-space: nowrap;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 1.4px;
+  letter-spacing: 0.4px;
   color: var(--sp-muted);
 }
 
@@ -240,7 +237,7 @@ sp-profile {
   font-size: 10.5px;
   font-weight: 600;
   letter-spacing: 0.4px;
-  color: var(--sp-accent);
+  color: var(--sp-accent-text);
   font-variant-numeric: tabular-nums;
   margin-top: var(--sp-space-0-5);
 }
@@ -280,11 +277,11 @@ sp-profile {
   font-size: 10.5px;
   font-weight: 700;
   letter-spacing: 0.4px;
-  color: var(--sp-accent);
+  color: var(--sp-accent-text);
   text-align: center;
 }
 
-.sp-profile-model[data-rank="1"] .sp-profile-model__rank { color: var(--sp-accent); }
+.sp-profile-model[data-rank="1"] .sp-profile-model__rank { color: var(--sp-accent-text); }
 .sp-profile-model[data-rank="2"] .sp-profile-model__rank,
 .sp-profile-model[data-rank="3"] .sp-profile-model__rank { color: var(--sp-accent-deep); }
 
@@ -298,7 +295,7 @@ sp-profile {
 }
 
 .sp-profile-model__share {
-  color: var(--sp-accent);
+  color: var(--sp-accent-text);
   text-align: right;
   font-weight: 600;
 }
@@ -350,10 +347,9 @@ sp-profile {
 
 .sp-profile-group__label {
   font-family: var(--sp-font-display);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 1.4px;
+  letter-spacing: 0.4px;
   color: var(--sp-muted);
   margin-bottom: var(--sp-space-2);
 }
@@ -494,9 +490,8 @@ sp-profile {
 .sp-profile-card--plan summary {
   cursor: pointer;
   font-family: var(--sp-font-display);
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 1.2px;
+  font-size: 12px;
+  letter-spacing: 0.4px;
   font-weight: 600;
   color: var(--sp-muted);
   padding: var(--sp-space-2) 0;
@@ -504,7 +499,7 @@ sp-profile {
   transition: color var(--sp-dur-fast) var(--sp-ease-out);
 }
 
-.sp-profile-card--plan summary:hover { color: var(--sp-accent); }
+.sp-profile-card--plan summary:hover { color: var(--sp-accent-text); }
 
 .sp-profile-error {
   background: var(--sp-bg-elev-1);

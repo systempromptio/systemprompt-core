@@ -61,12 +61,26 @@ pub(crate) fn on_sync_finished(
     app.state.clear_cancel(CancelScope::Sync);
     let succeeded = result.is_ok();
     let mut auth_failure = false;
+    let mut structured = None;
     let bridge_result = match result {
         Ok(summary) => {
             let line = summary.one_line();
             tracing::info!(summary = %line, "sync completed");
             app.append_log(&line);
+            if !summary.host_failures.is_empty() {
+                let hosts: Vec<&str> = summary
+                    .host_failures
+                    .iter()
+                    .map(|f| f.host_id.as_str())
+                    .collect();
+                crate::gui::window::notify_user(
+                    &format!("{} synced with failures", crate::brand::brand().app_name),
+                    &format!("These agents did not update: {}", hosts.join(", ")),
+                );
+                app.append_log_warn(format!("These agents did not update: {}", hosts.join(", ")));
+            }
             emit::emit_sync_progress(app, "completed", Some(&line));
+            structured = Some(summary);
             Ok(json!({ "summary": line }))
         },
         Err(msg) => {
@@ -130,12 +144,21 @@ pub(crate) fn on_sync_finished(
                     ErrorCode::Internal,
                 )
             };
-            app.append_log(&line);
+            if cancelled {
+                app.append_log(&line);
+            } else {
+                app.append_log_error(&line);
+            }
             emit::emit_sync_progress(app, phase, Some(&line));
             Err(BridgeError::new(scope, code, line))
         },
     };
     app.state.reload();
+    // Why: `reload` re-derives `last_sync_summary` from the on-disk sentinel, so
+    // the structured report has to be stored after it, not before.
+    if let Some(summary) = structured {
+        app.state.set_last_sync_report(summary);
+    }
     app.refresh_ui();
     if app.state.first_run_active() {
         crate::gui::first_run::handlers::on_sync_result(app, succeeded);

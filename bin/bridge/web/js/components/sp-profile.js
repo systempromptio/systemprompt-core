@@ -1,5 +1,7 @@
 import { SpElement, reactive, escapeHtml } from "/assets/js/components/sp-element.js";
 import { bridge } from "/assets/js/bridge.js";
+import { fmtDurationLong } from "/assets/js/utils/format.js";
+import { t } from "/assets/js/i18n.js";
 
 function fmtNumber(n) {
   if (n == null) { return "—"; }
@@ -32,9 +34,9 @@ function fmtDelta(curr, prev) {
 
 function fmtRelTime(iso) {
   if (!iso) { return "—"; }
-  const t = Date.parse(iso);
-  if (!Number.isFinite(t)) { return "—"; }
-  const diffSec = Math.floor((Date.now() - t) / 1000);
+  const parsed = Date.parse(iso);
+  if (!Number.isFinite(parsed)) { return "—"; }
+  const diffSec = Math.floor((Date.now() - parsed) / 1000);
   if (diffSec < 60) { return `${diffSec}s ago`; }
   if (diffSec < 3600) { return `${Math.floor(diffSec / 60)}m ago`; }
   if (diffSec < 86400) { return `${Math.floor(diffSec / 3600)}h ago`; }
@@ -90,7 +92,7 @@ export class SpProfile extends SpElement {
     try {
       this.profile = await bridge.profileFetch();
     } catch (e) {
-      this.error = (e && e.message) || "profile fetch failed";
+      this.error = (e && e.message) || (t("profile-fetch-failed") || "Could not load your profile.");
       this.profile = null;
     } finally {
       this.loading = false;
@@ -120,7 +122,7 @@ export class SpProfile extends SpElement {
       return this._skeleton();
     }
     if (!this.profile) {
-      return `<section class="sp-profile-empty"><p>Sign in to see your profile.</p></section>`;
+      return `<section class="sp-profile-empty"><p data-l10n-id="profile-signed-out">Sign in to see your profile.</p></section>`;
     }
     return `
       <div class="sp-profile-grid">
@@ -140,16 +142,16 @@ export class SpProfile extends SpElement {
     const claims = decodeJwtClaims(cached && cached.preview);
     const issuer = claims && claims.iss;
     const rows = [
-      ["email", id.email],
-      ["name", id.display_name],
-      ["user_id", id.user_id],
-      ["tenant_id", id.tenant_id],
-      ["provider", id.provider],
-      ["roles", Array.isArray(id.roles) && id.roles.length ? id.roles.join(", ") : null],
-      ["jwt issuer", issuer],
-      ["jwt expires", fmtExp(id.exp_unix)],
-      ["gateway", this.profile.gateway],
-      ["token", cached ? `${cached.length} bytes · ttl ${cached.ttl_seconds}s` : "—"],
+      [t("profile-id-email") || "Email", id.email],
+      [t("profile-id-name") || "Name", id.display_name],
+      [t("profile-id-user") || "User ID", id.user_id],
+      [t("profile-id-tenant") || "Organization ID", id.tenant_id],
+      [t("profile-id-provider") || "Signed in with", id.provider],
+      [t("profile-id-roles") || "Roles", Array.isArray(id.roles) && id.roles.length ? id.roles.join(", ") : null],
+      [t("profile-id-issuer") || "Issued by", issuer],
+      [t("profile-id-expires") || "Session expires", fmtExp(id.exp_unix)],
+      [t("profile-id-gateway") || "Gateway", this.profile.gateway],
+      [t("profile-id-token") || "Session token", cached ? (t("profile-token-value", { ttl: fmtDurationLong(cached.ttl_seconds) }) || `expires in ${fmtDurationLong(cached.ttl_seconds)}`) : null],
     ].filter(([, v]) => v != null && v !== "");
     return `
       <article class="sp-profile-card sp-profile-card--identity">
@@ -169,7 +171,7 @@ export class SpProfile extends SpElement {
       return `
         <article class="sp-profile-card sp-profile-card--usage" data-state="empty">
           <header><h2 data-l10n-id="profile-section-usage">Token usage</h2></header>
-          <p class="sp-u-muted">No usage reported yet.</p>
+          <p class="sp-u-muted" data-l10n-id="profile-usage-empty">No usage reported yet.</p>
         </article>
       `;
     }
@@ -189,9 +191,9 @@ export class SpProfile extends SpElement {
       <article class="sp-profile-card sp-profile-card--usage">
         <header><h2 data-l10n-id="profile-section-usage">Token usage</h2></header>
         <div class="sp-profile-tiles">
-          ${tile("24h", u.d1)}
-          ${tile("7 days", u.d7)}
-          ${tile("30 days", u.d30)}
+          ${tile(t("profile-window-24h") || "Last 24 hours", u.d1)}
+          ${tile(t("profile-window-7d") || "Last 7 days", u.d7)}
+          ${tile(t("profile-window-30d") || "Last 30 days", u.d30)}
         </div>
       </article>
     `;
@@ -203,7 +205,7 @@ export class SpProfile extends SpElement {
       return `
         <article class="sp-profile-card sp-profile-card--models" data-state="empty">
           <header><h2 data-l10n-id="profile-section-models">Favorite models</h2></header>
-          <p class="sp-u-muted">No model usage in the last 30 days.</p>
+          <p class="sp-u-muted" data-l10n-id="profile-models-empty">No model usage in the last 30 days.</p>
         </article>
       `;
     }
@@ -230,7 +232,7 @@ export class SpProfile extends SpElement {
       return `
         <article class="sp-profile-card sp-profile-card--conversations" data-state="empty">
           <header><h2 data-l10n-id="profile-section-conversations">Conversations</h2></header>
-          <p class="sp-u-muted">No conversations recorded yet.</p>
+          <p class="sp-u-muted" data-l10n-id="profile-conversations-empty">No conversations recorded yet.</p>
         </article>
       `;
     }
@@ -246,7 +248,7 @@ export class SpProfile extends SpElement {
               </li>
             `).join("")}
           </ul>
-        ` : `<p class="sp-u-muted">none</p>`}
+        ` : `<p class="sp-u-muted" data-l10n-id="profile-none">none</p>`}
       </div>
     `;
     const recent = (c.recent || []).slice(0, 5).map((r) => `
@@ -265,12 +267,12 @@ export class SpProfile extends SpElement {
           <span class="sp-profile-card__count">${escapeHtml(fmtNumber(c.total_conversations))} total · ${escapeHtml(fmtNumber(c.total_ai_requests))} requests</span>
         </header>
         <div class="sp-profile-groups">
-          ${groups("By model", c.by_model)}
-          ${groups("By agent", c.by_agent)}
+          ${groups(t("profile-group-by-model") || "By model", c.by_model)}
+          ${groups(t("profile-group-by-agent") || "By agent", c.by_agent)}
         </div>
         ${recent ? `
           <div class="sp-profile-recent-wrap">
-            <div class="sp-profile-group__label">Recent</div>
+            <div class="sp-profile-group__label" data-l10n-id="profile-group-recent">Recent</div>
             <ul class="sp-profile-recents">${recent}</ul>
           </div>
         ` : ""}
@@ -284,10 +286,10 @@ export class SpProfile extends SpElement {
       return "";
     }
     const rows = [
-      ["auth scheme", bp.auth_scheme],
-      ["inference gateway", bp.inference_gateway_base_url],
-      ["organization", bp.organization_uuid],
-      ["allowed models", Array.isArray(bp.models) && bp.models.length ? `${bp.models.length} models` : null],
+      [t("profile-plan-auth-scheme") || "Sign-in method", bp.auth_scheme],
+      [t("profile-plan-gateway") || "Inference gateway", bp.inference_gateway_base_url],
+      [t("profile-plan-organization") || "Organization", bp.organization_uuid],
+      [t("profile-plan-models") || "Allowed models", Array.isArray(bp.models) && bp.models.length ? `${bp.models.length} models` : null],
     ].filter(([, v]) => v != null && v !== "");
     return `
       <article class="sp-profile-card sp-profile-card--plan">
@@ -308,10 +310,10 @@ export class SpProfile extends SpElement {
   _skeleton() {
     return `
       <div class="sp-profile-grid">
-        <article class="sp-profile-card sp-profile-card--identity" data-state="probing"><header><h2>Identity</h2></header><p class="sp-u-muted">loading…</p></article>
-        <article class="sp-profile-card sp-profile-card--usage" data-state="probing"><header><h2>Token usage</h2></header><p class="sp-u-muted">loading…</p></article>
-        <article class="sp-profile-card sp-profile-card--models" data-state="probing"><header><h2>Favourite models</h2></header><p class="sp-u-muted">loading…</p></article>
-        <article class="sp-profile-card sp-profile-card--conversations" data-state="probing"><header><h2>Conversations</h2></header><p class="sp-u-muted">loading…</p></article>
+        <article class="sp-profile-card sp-profile-card--identity" data-state="probing"><header><h2 data-l10n-id="profile-section-identity">Identity</h2></header><p class="sp-u-muted" data-l10n-id="profile-loading">loading…</p></article>
+        <article class="sp-profile-card sp-profile-card--usage" data-state="probing"><header><h2 data-l10n-id="profile-section-usage">Token usage</h2></header><p class="sp-u-muted" data-l10n-id="profile-loading">loading…</p></article>
+        <article class="sp-profile-card sp-profile-card--models" data-state="probing"><header><h2 data-l10n-id="profile-section-models">Favorite models</h2></header><p class="sp-u-muted" data-l10n-id="profile-loading">loading…</p></article>
+        <article class="sp-profile-card sp-profile-card--conversations" data-state="probing"><header><h2 data-l10n-id="profile-section-conversations">Conversations</h2></header><p class="sp-u-muted" data-l10n-id="profile-loading">loading…</p></article>
       </div>
     `;
   }

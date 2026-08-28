@@ -58,7 +58,13 @@ impl AppState {
     }
 
     pub fn set_validation(&self, report: ValidationReport) {
-        self.inner.write().last_validation = Some(report);
+        let mut guard = self.inner.write();
+        guard.last_validation = Some(report);
+        guard.last_validation_at_unix = Some(now_unix());
+    }
+
+    pub fn set_last_sync_report(&self, summary: crate::sync::SyncSummary) {
+        self.inner.write().last_sync_report = Some(summary);
     }
 
     pub fn mark_probing(&self) {

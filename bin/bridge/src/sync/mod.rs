@@ -160,6 +160,7 @@ async fn heal_cowork_scope() -> Option<paths::OrgPluginsLocation> {
         "requesting one-time administrator approval to provision org-plugins for Cowork"
     );
     let job = crate::integration::claude_desktop::elevate::ElevatedJob {
+        clear_values: Vec::new(),
         reg_path: None,
         org_plugins: Some(org),
     };

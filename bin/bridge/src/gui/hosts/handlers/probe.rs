@@ -24,7 +24,7 @@ pub(crate) fn on_probe_requested(
 ) {
     let Some(host) = find_host_by_id(host_id.as_str()) else {
         if cause == ProbeCause::Manual {
-            app.append_log(format!("probe requested for unknown host '{host_id}'"));
+            app.append_log_error(format!("probe requested for unknown host '{host_id}'"));
         }
         let err = BridgeError::new(
             ErrorScope::Host,

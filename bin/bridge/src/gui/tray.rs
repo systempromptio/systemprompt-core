@@ -5,12 +5,14 @@
 
 use std::collections::HashMap;
 
-use muda::{Menu, MenuEvent, MenuId, MenuItem, PredefinedMenuItem};
+use muda::{CheckMenuItem, Menu, MenuEvent, MenuId, MenuItem, PredefinedMenuItem};
 use tray_icon::{Icon, MouseButton, TrayIcon, TrayIconBuilder, TrayIconEvent};
 
 use super::error::{GuiError, GuiResult};
 use super::events::UiEvent;
 use super::state::{AppStateSnapshot, GatewayStatus};
+use crate::i18n;
+use crate::install::ScheduleStatus;
 
 pub struct TrayHandles {
     pub tray: TrayIcon,
@@ -19,6 +21,7 @@ pub struct TrayHandles {
     pub identity_item: MenuItem,
     pub last_sync_item: MenuItem,
     pub sync_item: MenuItem,
+    pub autostart_item: CheckMenuItem,
     pub logout_item: MenuItem,
     pub icon_normal: Icon,
     pub icon_alert: Icon,
@@ -39,12 +42,21 @@ pub enum TrayStatus {
     Alert,
 }
 
-fn tray_icon_png() -> &'static [u8] {
+// Why: the notification area draws at 16px. macOS wants the flat monochrome
+// template; Windows wants the 16x16 frame the .ico already carries, not a
+// 1024px app icon resampled down to a smudge.
+fn tray_image() -> Result<image::RgbaImage, image::ImageError> {
     let assets = crate::brand::brand().assets;
     if cfg!(target_os = "macos") {
-        assets.tray_icon_png
-    } else {
-        assets.window_icon_png
+        return Ok(image::load_from_memory(assets.tray_icon_png)?.to_rgba8());
+    }
+    let reader = image::codecs::ico::IcoDecoder::new(std::io::Cursor::new(assets.app_icon_ico));
+    match reader {
+        Ok(decoder) => Ok(image::DynamicImage::from_decoder(decoder)?.to_rgba8()),
+        Err(e) => {
+            tracing::warn!(error = %e, "app icon ICO undecodable; falling back to the window icon");
+            Ok(image::load_from_memory(assets.window_icon_png)?.to_rgba8())
+        },
     }
 }
 
@@ -53,21 +65,31 @@ pub fn build(initial: &AppStateSnapshot) -> GuiResult<TrayHandles> {
 
     let identity_item = MenuItem::new(format_identity(initial), false, None);
     let last_sync_item = MenuItem::new(format_last_sync(initial), false, None);
-    let sync_item = MenuItem::new("Sync now", true, None);
-    let validate_item = MenuItem::new("Validate setup", true, None);
-    let open_settings_item = MenuItem::new("Open settings…", true, None);
-    let open_folder_item = MenuItem::new("Open config folder", true, None);
-    let logout_item = MenuItem::new("Sign out", is_signed_in(initial), None);
-    let quit_item = MenuItem::new("Quit", true, None);
+    let sync_item = MenuItem::new(i18n::t("tray-sync-now"), true, None);
+    let validate_item = MenuItem::new(i18n::t("tray-validate"), true, None);
+    let update_item = MenuItem::new(i18n::t("tray-check-updates"), true, None);
+    let open_settings_item = MenuItem::new(i18n::t("tray-open-settings"), true, None);
+    let open_folder_item = MenuItem::new(i18n::t("tray-open-config"), true, None);
+    let autostart = crate::install::gui_autostart_status();
+    let autostart_item = CheckMenuItem::new(
+        i18n::t("tray-autostart"),
+        autostart != ScheduleStatus::Unknown,
+        autostart == ScheduleStatus::Installed,
+        None,
+    );
+    let logout_item = MenuItem::new(i18n::t("tray-sign-out"), is_signed_in(initial), None);
+    let quit_item = MenuItem::new(i18n::t("tray-quit"), true, None);
 
     menu.append(&identity_item)?;
     menu.append(&last_sync_item)?;
     menu.append(&PredefinedMenuItem::separator())?;
     menu.append(&sync_item)?;
     menu.append(&validate_item)?;
+    menu.append(&update_item)?;
     menu.append(&PredefinedMenuItem::separator())?;
     menu.append(&open_settings_item)?;
     menu.append(&open_folder_item)?;
+    menu.append(&autostart_item)?;
     menu.append(&PredefinedMenuItem::separator())?;
     menu.append(&logout_item)?;
     menu.append(&quit_item)?;
@@ -80,6 +102,14 @@ pub fn build(initial: &AppStateSnapshot) -> GuiResult<TrayHandles> {
     bindings.insert(
         validate_item.id().clone(),
         UiEvent::ValidateRequested { reply_to: None },
+    );
+    bindings.insert(
+        update_item.id().clone(),
+        UiEvent::UpdateCheckRequested { reply_to: None },
+    );
+    bindings.insert(
+        autostart_item.id().clone(),
+        UiEvent::AutostartToggleRequested,
     );
     bindings.insert(open_settings_item.id().clone(), UiEvent::OpenSettings);
     bindings.insert(open_folder_item.id().clone(), UiEvent::OpenConfigFolder);
@@ -95,7 +125,7 @@ pub fn build(initial: &AppStateSnapshot) -> GuiResult<TrayHandles> {
     let tray = TrayIconBuilder::new()
         .with_menu(Box::new(menu.clone()))
         .with_menu_on_left_click(false)
-        .with_tooltip(crate::brand::brand().tray_tooltip)
+        .with_tooltip(tooltip(initial))
         .with_icon(icon_normal.clone())
         .with_icon_as_template(cfg!(target_os = "macos"))
         .build()?;
@@ -107,6 +137,7 @@ pub fn build(initial: &AppStateSnapshot) -> GuiResult<TrayHandles> {
         identity_item,
         last_sync_item,
         sync_item,
+        autostart_item,
         logout_item,
         icon_normal,
         icon_alert,
@@ -120,10 +151,21 @@ pub fn refresh(handles: &mut TrayHandles, snap: &AppStateSnapshot) {
     handles.sync_item.set_enabled(!snap.sync_in_flight);
     handles.logout_item.set_enabled(is_signed_in(snap));
     if snap.sync_in_flight {
-        handles.sync_item.set_text("Syncing…");
+        handles.sync_item.set_text(i18n::t("tray-syncing"));
     } else {
-        handles.sync_item.set_text("Sync now");
+        handles.sync_item.set_text(i18n::t("tray-sync-now"));
     }
+    // Why: a tick box cannot say "I could not ask the scheduler". Greying it out
+    // is the difference between a box the user has not ticked and one that will
+    // silently refuse to tick.
+    let autostart = crate::install::gui_autostart_status();
+    handles
+        .autostart_item
+        .set_enabled(autostart != ScheduleStatus::Unknown);
+    handles
+        .autostart_item
+        .set_checked(autostart == ScheduleStatus::Installed);
+    _ = handles.tray.set_tooltip(Some(tooltip(snap)));
     let target = match snap.gateway_status {
         GatewayStatus::Unreachable { .. } => TrayStatus::Alert,
         _ => TrayStatus::Normal,
@@ -161,6 +203,10 @@ pub fn drain(handles: &TrayHandles) -> Vec<UiEvent> {
     out
 }
 
+fn tooltip(snap: &AppStateSnapshot) -> String {
+    format!("{}\n{}", format_identity(snap), format_last_sync(snap))
+}
+
 const fn is_signed_in(snap: &AppStateSnapshot) -> bool {
     snap.pat_present || snap.verified_identity.is_some()
 }
@@ -196,17 +242,19 @@ fn format_last_sync(snap: &AppStateSnapshot) -> String {
 }
 
 fn decode_icon() -> GuiResult<Icon> {
-    let img = image::load_from_memory(tray_icon_png())?.to_rgba8();
+    let img = tray_image()?;
     let (w, h) = img.dimensions();
     Icon::from_rgba(img.into_raw(), w, h).map_err(GuiError::from)
 }
 
 fn decode_alert_icon() -> GuiResult<Icon> {
-    let mut img = image::load_from_memory(tray_icon_png())?.to_rgba8();
+    let mut img = tray_image()?;
     let (w, h) = img.dimensions();
     let dot_radius = (w.min(h) / 4).max(3);
-    let cx = w.saturating_sub(dot_radius);
-    let cy = h.saturating_sub(dot_radius);
+    // Why: centring the dot on the corner pixel clipped half of it outside the
+    // bitmap, which at 16px left an ambiguous smear rather than an alert.
+    let cx = w.saturating_sub(dot_radius).saturating_sub(1);
+    let cy = h.saturating_sub(dot_radius).saturating_sub(1);
     for y in 0..h {
         for x in 0..w {
             let dx = x as i32 - cx as i32;

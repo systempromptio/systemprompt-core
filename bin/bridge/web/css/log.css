@@ -1,5 +1,5 @@
 .sp-log {
-  background: oklch(0.10 0.01 45);
+  background: var(--sp-log-bg);
   border: 1px solid var(--sp-line);
   border-radius: 10px;
   padding: var(--sp-space-3);
@@ -7,7 +7,7 @@
   font-family: var(--sp-font-mono);
   font-size: 12px;
   color: var(--sp-muted-strong);
-  max-height: 260px;
+  max-height: none;
   -webkit-user-select: text;
   user-select: text;
 }

@@ -1,6 +1,7 @@
 import { SpElement, reactive, escapeHtml } from "/assets/js/components/sp-element.js";
 import { bridge } from "/assets/js/bridge.js";
 import { t } from "/assets/js/i18n.js";
+import { announce } from "/assets/js/utils/announce.js";
 
 function classify(snap) {
   if (snap.sync_in_flight) {
@@ -25,7 +26,6 @@ export class SpSyncPill extends SpElement {
 
   onConnect() {
     this.classList.add("sp-sync-pill");
-    this.setAttribute("aria-live", "polite");
     bridge.stateSnapshot().then((s) => { this.snapshot = s; }).catch((e) => console.warn("snapshot failed", e));
     this.bridgeSubscribe("state.changed", (s) => { this.snapshot = s; });
     this.bridgeSubscribe("sync.progress", (p) => { this.progress = p; });
@@ -49,8 +49,9 @@ export class SpSyncPill extends SpElement {
   render() {
     const snap = this.snapshot || {};
     const v = classify(snap);
+    announce(v.text);
     const cancel = snap.sync_in_flight
-      ? `<button type="button" class="sp-sync-pill__cancel" data-l10n-id="sync-cancel" aria-label="Cancel sync" data-action="cancel-sync">Cancel</button>`
+      ? `<button type="button" class="sp-sync-pill__cancel" data-l10n-id="sync-cancel" data-l10n-aria="sync-cancel-aria" aria-label="Cancel sync" data-action="cancel-sync">Cancel</button>`
       : "";
     return `
       <span class="sp-sync-pill__dot" aria-hidden="true"></span>

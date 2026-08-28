@@ -6,25 +6,19 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use super::SetupError;
-use super::files::atomic_write;
-use std::fs;
+use crate::config::write;
 use std::path::Path;
+use toml_edit::{DocumentMut, Item};
 
 const CREDENTIAL_SECTIONS: [&str; 2] = ["pat", "session"];
 
 fn read_existing_gateway(path: &Path) -> Option<String> {
-    let contents = fs::read_to_string(path).ok()?;
-    for line in contents.lines() {
-        let t = line.trim();
-        if let Some(rest) = t.strip_prefix("gateway_url") {
-            let rest = rest.trim().trim_start_matches('=').trim();
-            let rest = rest.trim_matches('"').trim_matches('\'');
-            if !rest.is_empty() {
-                return Some(rest.to_owned());
-            }
-        }
-    }
-    None
+    let contents = crate::fsutil::read_optional(path).ok().flatten()?;
+    let doc: DocumentMut = contents.parse().ok()?;
+    let value = write::get(&doc, &["gateway_url"])
+        .and_then(Item::as_str)?
+        .trim();
+    (!value.is_empty()).then(|| value.to_owned())
 }
 
 pub(super) fn resolve_gateway(path: &Path, gateway_url_override: Option<&str>) -> String {
@@ -40,43 +34,30 @@ pub(super) fn write_config_file(
     gateway_url_override: Option<&str>,
 ) -> Result<(), SetupError> {
     let gateway = resolve_gateway(path, gateway_url_override);
-    let mut pat = toml::map::Map::new();
-    pat.insert(
-        "file".to_owned(),
-        toml::Value::String(pat_file.to_string_lossy().into_owned()),
-    );
-    merge_config_file(path, &gateway, "pat", toml::Value::Table(pat))
+    let pat_file = pat_file.to_string_lossy().into_owned();
+    merge_config_file(path, &gateway, "pat", |doc| {
+        write::set(doc, &["pat", "file"], pat_file.as_str());
+    })
 }
 
 pub(super) fn merge_config_file(
     path: &Path,
     gateway: &str,
     section: &str,
-    value: toml::Value,
+    fill: impl FnOnce(&mut DocumentMut),
 ) -> Result<(), SetupError> {
-    let existing = fs::read_to_string(path).unwrap_or_default();
-    let mut doc: toml::Table = toml::from_str(&existing)
-        .map_err(|e| SetupError::Io(format!("parse {}: {e}", path.display())))?;
-
-    doc.insert(
-        "gateway_url".to_owned(),
-        toml::Value::String(gateway.to_owned()),
-    );
-    // Why: the PAT and interactive-session providers are mutually exclusive
-    // credentials; leaving the previous one behind would let the auth chain
-    // silently fall back to the identity the user just replaced.
-    for other in CREDENTIAL_SECTIONS {
-        if other != section {
-            doc.remove(other);
+    write::edit_file(path, |doc| {
+        write::set(doc, &["gateway_url"], gateway);
+        // Why: the PAT and interactive-session providers are mutually exclusive
+        // credentials; leaving the previous one behind would let the auth chain
+        // silently fall back to the identity the user just replaced.
+        for other in CREDENTIAL_SECTIONS {
+            if other != section {
+                write::remove(doc, &[other]);
+            }
         }
-    }
-    doc.insert(section.to_owned(), value);
-
-    let body = toml::to_string_pretty(&doc)
-        .map_err(|e| SetupError::Io(format!("serialize {}: {e}", path.display())))?;
-    let contents = format!(
-        "# Written by `{bin} login`. Edit gateway_url if you move the server.\n{body}",
-        bin = crate::brand::brand().binary_name,
-    );
-    atomic_write(path, contents.as_bytes(), false)
+        write::remove(doc, &[section]);
+        fill(doc);
+    })
+    .map_err(|e| SetupError::Io(e.to_string()))
 }
