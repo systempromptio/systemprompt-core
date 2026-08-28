@@ -113,7 +113,7 @@ pub(crate) fn provision_org_plugins(path: &Path, grant_user: &str) -> Result<(),
     std::fs::create_dir_all(path)
         .map_err(|e| format!("create org-plugins dir {}: {e}", path.display()))?;
     let grant_arg = format!("{grant_user}:(OI)(CI)M");
-    let output = std::process::Command::new("icacls")
+    let output = crate::winproc::no_window(&mut std::process::Command::new("icacls"))
         .arg(path.to_string_lossy().into_owned())
         .arg("/grant:r")
         .arg(&grant_arg)

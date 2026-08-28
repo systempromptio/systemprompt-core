@@ -175,7 +175,10 @@ pub fn spawn_installed(installed: &std::path::Path) -> Result<(), UpdateError> {
             c.arg("-n").arg(installed);
             c
         } else {
-            std::process::Command::new(installed)
+            let mut c = std::process::Command::new(installed);
+            #[cfg(target_os = "windows")]
+            crate::winproc::no_window(&mut c);
+            c
         };
     command
         .spawn()

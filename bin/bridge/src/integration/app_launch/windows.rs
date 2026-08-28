@@ -131,18 +131,15 @@ pub(super) fn start_menu_present_cached(display_name: &str) -> Option<bool> {
 }
 
 fn start_menu_present(display_name: &str) -> Option<bool> {
-    use std::os::windows::process::CommandExt;
     use std::time::{Duration, Instant};
 
-    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
     const PROBE_TIMEOUT: Duration = Duration::from_secs(10);
     let script = format!(
         "if (Get-StartApps | Where-Object {{ $_.Name -eq '{name}' }}) {{ exit 0 }} else {{ exit 2 }}",
         name = ps_single_quote(display_name),
     );
-    let Ok(mut child) = Command::new("powershell")
+    let Ok(mut child) = crate::winproc::no_window(&mut Command::new("powershell"))
         .args(["-NoProfile", "-NonInteractive", "-Command", &script])
-        .creation_flags(CREATE_NO_WINDOW)
         .spawn()
     else {
         return None;
@@ -171,26 +168,18 @@ fn start_menu_present(display_name: &str) -> Option<bool> {
 }
 
 pub(super) fn msix_launch(family: &str, app_id: &str) -> io::Result<()> {
-    use std::os::windows::process::CommandExt;
-
-    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
     run(
-        Command::new("cmd")
-            .args([
-                "/C",
-                "start",
-                "",
-                &format!(r"shell:AppsFolder\{family}!{app_id}"),
-            ])
-            .creation_flags(CREATE_NO_WINDOW),
+        crate::winproc::no_window(&mut Command::new("cmd")).args([
+            "/C",
+            "start",
+            "",
+            &format!(r"shell:AppsFolder\{family}!{app_id}"),
+        ]),
         family,
     )
 }
 
 pub(super) fn start_menu_launch(display_name: &str) -> io::Result<()> {
-    use std::os::windows::process::CommandExt;
-
-    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
     let script = format!(
         "$ErrorActionPreference='Stop'; \
          $a = Get-StartApps | Where-Object {{ $_.Name -eq '{name}' }} | Select-Object -First 1; \
@@ -198,9 +187,8 @@ pub(super) fn start_menu_launch(display_name: &str) -> io::Result<()> {
          Start-Process ('shell:AppsFolder\\' + $a.AppID); exit 0",
         name = ps_single_quote(display_name),
     );
-    let status = Command::new("powershell")
+    let status = crate::winproc::no_window(&mut Command::new("powershell"))
         .args(["-NoProfile", "-NonInteractive", "-Command", &script])
-        .creation_flags(CREATE_NO_WINDOW)
         .status()?;
     if status.success() {
         Ok(())

@@ -51,7 +51,12 @@ pub(crate) fn open_app(loc: &AppLocator<'_>) -> io::Result<()> {
     }
     if let Some(path) = loc.windows_candidates.iter().find(|p| p.exists()) {
         return run(
-            Command::new("cmd").args(["/C", "start", "", &path.to_string_lossy()]),
+            crate::winproc::no_window(&mut Command::new("cmd")).args([
+                "/C",
+                "start",
+                "",
+                &path.to_string_lossy(),
+            ]),
             loc.windows_name,
         );
     }

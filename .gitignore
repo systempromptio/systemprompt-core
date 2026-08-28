@@ -127,6 +127,7 @@ scripts/*
 !scripts/lint-bridge-css-tokens.sh
 !scripts/lint-bridge-i18n.sh
 !scripts/lint-bridge-js-imports.sh
+!scripts/lint-bridge-no-window.sh
 
 # Local-only review notes
 review/

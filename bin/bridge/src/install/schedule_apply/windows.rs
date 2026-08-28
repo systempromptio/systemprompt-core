@@ -24,7 +24,7 @@ pub(super) fn register(
 
     // Why: without `/F` schtasks duplicates rather than replaces a task of the
     // same name.
-    let status = Command::new("schtasks")
+    let status = crate::winproc::no_window(&mut Command::new("schtasks"))
         .args(["/Create", "/TN", task, "/XML"])
         .arg(&path)
         .arg("/F")
@@ -59,7 +59,7 @@ pub(super) fn register_autostart(rendered: &str) -> Result<Vec<String>, InstallE
         path: path.display().to_string(),
         source: e,
     })?;
-    let status = Command::new("schtasks")
+    let status = crate::winproc::no_window(&mut Command::new("schtasks"))
         .args(["/Create", "/TN", task, "/XML"])
         .arg(&path)
         .arg("/F")
@@ -77,7 +77,7 @@ pub(super) fn register_autostart(rendered: &str) -> Result<Vec<String>, InstallE
 
 pub(super) fn remove_autostart() -> ScheduleRemoval {
     let task = schedule::autostart_label(Os::Windows);
-    match Command::new("schtasks")
+    match crate::winproc::no_window(&mut Command::new("schtasks"))
         .args(["/Delete", "/TN", task, "/F"])
         .status()
     {
@@ -89,7 +89,7 @@ pub(super) fn remove_autostart() -> ScheduleRemoval {
 
 pub(super) fn autostart_status() -> super::ScheduleStatus {
     let task = schedule::autostart_label(Os::Windows);
-    match Command::new("schtasks")
+    match crate::winproc::no_window(&mut Command::new("schtasks"))
         .args(["/Query", "/TN", task])
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
@@ -106,7 +106,7 @@ pub(super) fn autostart_status() -> super::ScheduleStatus {
 
 pub(super) fn schedule_registered() -> super::ScheduleStatus {
     let task = schedule::schedule_label(Os::Windows);
-    match Command::new("schtasks")
+    match crate::winproc::no_window(&mut Command::new("schtasks"))
         .args(["/Query", "/TN", task])
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
@@ -122,7 +122,7 @@ pub(super) fn schedule_registered() -> super::ScheduleStatus {
 
 pub(super) fn remove_current() -> ScheduleRemoval {
     let task = schedule::schedule_label(Os::Windows);
-    match Command::new("schtasks")
+    match crate::winproc::no_window(&mut Command::new("schtasks"))
         .args(["/Delete", "/TN", task, "/F"])
         .status()
     {

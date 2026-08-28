@@ -136,13 +136,14 @@ const fn hex_upper(nibble: u8) -> char {
 
 fn launch_browser(url: &str) -> std::io::Result<()> {
     let (program, args) = browser_command(url);
-    Command::new(program)
-        .args(args)
+    let mut cmd = Command::new(program);
+    cmd.args(args)
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
-        .spawn()
-        .map(|_| ())
+        .stderr(std::process::Stdio::null());
+    #[cfg(target_os = "windows")]
+    crate::winproc::no_window(&mut cmd);
+    cmd.spawn().map(|_| ())
 }
 
 #[cfg(target_os = "macos")]

@@ -113,7 +113,11 @@ fn open_target(target: &str) {
         _                     => &[],
     };
     tracing::info!(target = %target, program, "opening external target");
-    match Command::new(program).args(prefix).arg(target).spawn() {
+    let mut cmd = Command::new(program);
+    cmd.args(prefix).arg(target);
+    #[cfg(target_os = "windows")]
+    crate::winproc::no_window(&mut cmd);
+    match cmd.spawn() {
         Ok(_) => {},
         Err(e) => tracing::error!(target = %target, program, error = %e, "failed to spawn opener"),
     }

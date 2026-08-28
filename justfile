@@ -169,7 +169,7 @@ check-release-tag:
     ./scripts/check-release-tag.sh
 
 # Check without building
-check: lint-schema lint-extensions lint-comments lint-inline-tests lint-test-value lint-layers lint-repo-construction lint-bridge-css-tokens lint-bridge-i18n lint-bridge-js-imports
+check: lint-schema lint-extensions lint-comments lint-inline-tests lint-test-value lint-layers lint-repo-construction lint-bridge-css-tokens lint-bridge-i18n lint-bridge-js-imports lint-bridge-no-window
     cargo check --workspace
 
 # Check offline (uses cached .sqlx metadata, no database required)
@@ -270,6 +270,13 @@ lint-bridge-i18n:
 # `sp-activity-log.js` both shipped calling `t(...)` with no `import { t }`.
 lint-bridge-js-imports:
     ./scripts/lint-bridge-js-imports.sh
+
+# The bridge owns no console (`windows_subsystem = "windows"`), so a console
+# child spawned without CREATE_NO_WINDOW gets its own window and the foreground.
+# The tray redraw asked `schtasks` on every 30s probe tick, flashing a console at
+# the user twice a minute and eating their keystrokes.
+lint-bridge-no-window:
+    ./scripts/lint-bridge-no-window.sh
 
 # Reject unverified sqlx::query calls outside the allowlist
 lint-sqlx:
