@@ -3,20 +3,16 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::borrow::Cow;
-
 use winit::dpi::{LogicalPosition, LogicalSize, PhysicalSize};
 use winit::event_loop::ActiveEventLoop;
 use winit::icon::{Icon, RgbaIcon};
 use winit::window::{Window, WindowAttributes, WindowId};
-use wry::http::Response;
-use wry::http::header::CONTENT_TYPE;
 use wry::{NewWindowResponse, Rect, WebView, WebViewBuilder};
 
+use super::native_protocol::{BRIDGE_BOOTSTRAP, serve_custom_asset};
 use crate::gui::UiEventProxy;
 use crate::gui::error::{GuiError, GuiResult, WindowError};
 use crate::gui::events::UiEvent;
-use crate::web_assets::{self, Asset};
 use crate::window_state::{self as geometry, MIN_HEIGHT, MIN_WIDTH, WindowGeometry};
 
 #[cfg(target_os = "macos")]
@@ -27,7 +23,7 @@ const DEFAULT_HEIGHT: u32 = 760;
 const BG_RGBA: (u8, u8, u8, u8) = (15, 17, 21, 255);
 
 const SP_PROTOCOL: &str = "sp";
-const SP_HOST: &str = "app";
+pub(super) const SP_HOST: &str = "app";
 // Why: `.app` is HSTS-preloaded in Chromium, so WebView2 upgrades an http
 // origin's subresources to https, past wry's interception filter.
 #[cfg(any(target_os = "windows", target_os = "android"))]
@@ -205,33 +201,6 @@ impl SettingsWindow {
     }
 }
 
-const BRIDGE_BOOTSTRAP: &str = r#"
-(function () {
-  if (window.__bridge && window.__bridge.__installed) { return; }
-  const pending = new Map();
-  const subs = new Map();
-  const bridge = {
-    __installed: true,
-    pending,
-    subs,
-    reply(id, payload) {
-      const p = pending.get(id);
-      if (!p) { return; }
-      pending.delete(id);
-      if (payload && payload.ok) { p.resolve(payload.value); }
-      else { p.reject(payload && payload.error ? payload.error : { scope: "internal", code: "internal", message: "no payload" }); }
-    },
-    emit(channel, payload) {
-      const set = subs.get(channel);
-      if (!set) { return; }
-      for (const cb of Array.from(set)) {
-        try { cb(payload); } catch (e) { console.error("bridge subscriber threw", e); }
-      }
-    },
-  };
-  window.__bridge = bridge;
-})();
-"#;
 
 fn work_areas(event_loop: &dyn ActiveEventLoop) -> Vec<geometry::WorkArea> {
     event_loop
@@ -256,52 +225,6 @@ fn work_areas(event_loop: &dyn ActiveEventLoop) -> Vec<geometry::WorkArea> {
         .collect()
 }
 
-fn serve_custom_asset(request: &http::Request<Vec<u8>>) -> Response<Cow<'static, [u8]>> {
-    let uri = request.uri();
-    let host_match = uri.host().is_none_or(|h| h == SP_HOST);
-    if !host_match {
-        return not_found();
-    }
-    let mut path = uri.path().to_owned();
-    if path.is_empty() || path == "/" {
-        "/index.html".clone_into(&mut path);
-    }
-    web_assets::lookup_path(&path).map_or_else(
-        || {
-            tracing::warn!(%path, "GUI asset not found; serving 404");
-            not_found()
-        },
-        asset_response,
-    )
-}
-
-fn asset_response(asset: Asset) -> Response<Cow<'static, [u8]>> {
-    let mut response = Response::new(asset.body);
-    _ = response.headers_mut().insert(
-        CONTENT_TYPE,
-        http::HeaderValue::from_str(asset.content_type)
-            .unwrap_or_else(|_| http::HeaderValue::from_static("application/octet-stream")),
-    );
-    _ = response.headers_mut().insert(
-        http::header::CACHE_CONTROL,
-        http::HeaderValue::from_static("no-store, must-revalidate"),
-    );
-    _ = response.headers_mut().insert(
-        http::header::X_CONTENT_TYPE_OPTIONS,
-        http::HeaderValue::from_static("nosniff"),
-    );
-    response
-}
-
-fn not_found() -> Response<Cow<'static, [u8]>> {
-    let mut response = Response::new(Cow::Borrowed::<'static, [u8]>(b"not found"));
-    *response.status_mut() = http::StatusCode::NOT_FOUND;
-    _ = response.headers_mut().insert(
-        CONTENT_TYPE,
-        http::HeaderValue::from_static("text/plain; charset=utf-8"),
-    );
-    response
-}
 
 fn allow_navigation(target: &str, legacy_origin: Option<&str>) -> bool {
     if target.starts_with("sp://")

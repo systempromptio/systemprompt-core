@@ -4,6 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod native;
+mod native_protocol;
 
 pub use crate::window_state as geometry;
 

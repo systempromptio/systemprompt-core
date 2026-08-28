@@ -9,6 +9,7 @@ use std::collections::BTreeMap;
 mod macos_managed_prefs;
 #[cfg(target_os = "windows")]
 mod windows_registry;
+mod windows_registry_write;
 
 #[derive(Debug, thiserror::Error)]
 pub enum ConfigStoreError {
@@ -55,7 +56,7 @@ pub(crate) fn write_managed_claude_policy(
     elevated: bool,
     entries: &[(String, String)],
 ) -> Result<(), ConfigStoreError> {
-    windows_registry::write_managed_policy_values(elevated, entries)
+    windows_registry_write::write_managed_policy_values(elevated, entries)
 }
 
 #[cfg(target_os = "windows")]
@@ -63,7 +64,7 @@ pub(crate) fn clear_managed_claude_policy(
     elevated: bool,
     names: &[&str],
 ) -> Result<usize, ConfigStoreError> {
-    windows_registry::delete_managed_policy_values(elevated, names)
+    windows_registry_write::delete_managed_policy_values(elevated, names)
 }
 
 #[cfg(target_os = "windows")]
