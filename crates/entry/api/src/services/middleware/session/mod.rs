@@ -10,14 +10,6 @@
 //! *to that user*. An existence-only check would let a signed token borrow
 //! another user's live session for analytics attribution.
 //!
-//! Establishing a session reads and writes the database, so it is bounded by
-//! [`SESSION_ESTABLISH_TIMEOUT`] and degrades rather than fails. A request that
-//! cannot be given a session is served with an untracked, actor-less context
-//! instead of a 500: the alternative is that a database fault takes the public
-//! site down, and a page view is worth more than the analytics row describing
-//! it. Nothing is escalated by the degraded context — it carries no auth token
-//! and no user, so every gate above `public` still refuses it.
-//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -35,7 +27,6 @@ use axum::response::Response;
 use ipnet::IpNet;
 use std::net::SocketAddr;
 use std::sync::Arc;
-use std::time::Duration;
 use systemprompt_analytics::{AnalyticsService, SessionAnalytics};
 use systemprompt_identifiers::{AgentName, ContextId, SessionId, UserId};
 use systemprompt_models::api::ApiError;
@@ -62,17 +53,9 @@ pub struct SessionMiddleware {
     session_creation_service: Arc<SessionCreationService>,
     trusted_proxies: Arc<Vec<IpNet>>,
     ignored_forwarded_warn: Arc<systemprompt_logging::LogThrottle>,
-    degraded_warn: Arc<systemprompt_logging::LogThrottle>,
 }
 
 const IGNORED_FORWARDED_WARN_INTERVAL_SECS: u64 = 3600;
-const DEGRADED_WARN_INTERVAL_SECS: u64 = 60;
-
-// Why: the pool's own acquire timeout is 30s, which is a page load nobody
-// waits for and, per connection a browser opens, a site that reads as hung
-// rather than degraded. A healthy anonymous-user lookup is single-digit
-// milliseconds, so this leaves a hundredfold margin before we give up on it.
-const SESSION_ESTABLISH_TIMEOUT: Duration = Duration::from_secs(2);
 
 impl SessionMiddleware {
     pub fn new(ctx: &AppContext) -> Self {
@@ -90,9 +73,6 @@ impl SessionMiddleware {
             trusted_proxies: Arc::new(ctx.config().trusted_proxies.clone()),
             ignored_forwarded_warn: Arc::new(systemprompt_logging::LogThrottle::new(
                 IGNORED_FORWARDED_WARN_INTERVAL_SECS,
-            )),
-            degraded_warn: Arc::new(systemprompt_logging::LogThrottle::new(
-                DEGRADED_WARN_INTERVAL_SECS,
             )),
         }
     }
@@ -142,9 +122,14 @@ impl SessionMiddleware {
 
         let trace_id = HeaderExtractor::extract_trace_id(headers);
 
-        let (req_ctx, jwt_cookie) = self
-            .establish_or_degrade(should_skip, trace_id, &meta, uri.path())
-            .await;
+        let (req_ctx, jwt_cookie) = if should_skip {
+            (
+                self.anonymous_context("untracked", trace_id, &meta).await?,
+                None,
+            )
+        } else {
+            self.tracked_context(trace_id, &meta).await?
+        };
 
         tracing::debug!(
             path = %uri.path(),
@@ -169,64 +154,6 @@ impl SessionMiddleware {
         }
 
         Ok(response)
-    }
-
-    async fn establish_or_degrade(
-        &self,
-        should_skip: bool,
-        trace_id: systemprompt_identifiers::TraceId,
-        meta: &RequestMeta<'_>,
-        path: &str,
-    ) -> (RequestContext, Option<String>) {
-        let establish = async {
-            if should_skip {
-                Ok((
-                    self.anonymous_context("untracked", trace_id.clone(), meta)
-                        .await?,
-                    None,
-                ))
-            } else {
-                self.tracked_context(trace_id.clone(), meta).await
-            }
-        };
-
-        match tokio::time::timeout(SESSION_ESTABLISH_TIMEOUT, establish).await {
-            Ok(Ok(established)) => established,
-            Ok(Err(e)) => {
-                self.warn_degraded(path, &e.message);
-                (Self::degraded_context(trace_id), None)
-            },
-            Err(_) => {
-                self.warn_degraded(
-                    path,
-                    "timed out establishing a session; the database did not answer",
-                );
-                (Self::degraded_context(trace_id), None)
-            },
-        }
-    }
-
-    fn warn_degraded(&self, path: &str, reason: &str) {
-        if self.degraded_warn.allow() {
-            tracing::warn!(
-                path,
-                reason,
-                "serving without a session; page views are not being attributed until the \
-                 database recovers"
-            );
-        }
-    }
-
-    // Why: no actor and no auth token, so the `unset` user this leaves in
-    // place cannot be mistaken for an identity and every gate above `public`
-    // still refuses the request. `is_tracked` is false, which is what keeps
-    // the analytics sinks from recording a visit they cannot attribute.
-    fn degraded_context(trace_id: systemprompt_identifiers::TraceId) -> RequestContext {
-        let session_id = SessionId::new(format!("degraded_{}", Uuid::new_v4()));
-        let context_id = ContextId::derived_from_session(&session_id);
-        RequestContext::new(session_id, trace_id, context_id, AgentName::system())
-            .with_user_type(UserType::Anon)
-            .with_tracked(false)
     }
 
     async fn anonymous_context(
