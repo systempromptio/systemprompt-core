@@ -90,14 +90,23 @@ pub fn render_index_from(source: &str) -> String {
         .replace("__LOGO_SVG__", brand.assets.logo_svg)
         .replace("__PLATFORM_DISPLAY__", PLATFORM_DISPLAY)
         .replace("__PLATFORM__", PLATFORM_SLUG);
-    if brand.assets.theme_css.is_empty() {
-        html
-    } else {
-        let style = format!(
+    // Why: both of these have to land before the module scripts run — the
+    // brand tokens so the first paint is already branded, and the force-dark
+    // flag so `theme.js` never resolves the OS preference in the first place.
+    let mut head = String::new();
+    if !brand.assets.theme_css.is_empty() {
+        head.push_str(&format!(
             "<style id=\"brand-theme\">{}</style>",
             brand.assets.theme_css
-        );
-        html.replacen("</head>", &format!("{style}</head>"), 1)
+        ));
+    }
+    if brand.force_dark {
+        head.push_str("<script>window.__SP_FORCE_DARK__ = true;</script>");
+    }
+    if head.is_empty() {
+        html
+    } else {
+        html.replacen("</head>", &format!("{head}</head>"), 1)
     }
 }
 

@@ -94,10 +94,13 @@ impl SettingsWindow {
                 source: WindowError::Os(e),
             })?;
 
-        // Why: the web UI follows `prefers-color-scheme` and has a real light
-        // theme, so pinning the title bar dark would reproduce the mismatch
-        // this call exists to fix, with the colours swapped.
-        super::set_immersive_dark(&*window, super::prefers_dark(&*window));
+        // Why: the title bar has to agree with the page under it. The web UI
+        // follows `prefers-color-scheme` and has a real light theme, so pinning
+        // the title bar dark would reproduce the mismatch this call exists to
+        // fix, with the colours swapped — unless the brand has pinned the page
+        // itself dark, in which case the OS preference is the mismatch.
+        let dark = crate::brand::brand().force_dark || super::prefers_dark(&*window);
+        super::set_immersive_dark(&*window, dark);
         if restored.is_some_and(|g| g.maximized) {
             window.set_maximized(true);
         }
@@ -154,7 +157,9 @@ impl SettingsWindow {
         #[cfg(debug_assertions)]
         webview.open_devtools();
 
-        Ok(Self { window, webview })
+        let this = Self { window, webview };
+        this.focus_webview();
+        Ok(this)
     }
 
     pub fn open_devtools(&self) {
@@ -164,6 +169,20 @@ impl SettingsWindow {
     pub fn focus(&self) {
         self.window.set_visible(true);
         self.window.focus_window();
+        self.focus_webview();
+    }
+
+    /// Move input focus into the child webview.
+    ///
+    /// Why: the page is a *child* WebView2/WKWebView window
+    /// (`build_as_child`), so focusing the host frame alone leaves the page
+    /// itself unfocused — it renders inactive and swallows clicks and keys.
+    /// The sign-in flow hands the foreground to a browser, and coming back is
+    /// exactly the case that reproduces it.
+    pub fn focus_webview(&self) {
+        if let Err(e) = self.webview.focus() {
+            tracing::warn!(error = %e, "webview focus failed");
+        }
     }
 
     pub fn hide(&self) {

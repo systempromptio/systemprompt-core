@@ -3,7 +3,7 @@ import { bridge } from "/assets/js/bridge.js";
 import { runAction } from "/assets/js/utils/action.js";
 import { notifyErr, notifyOk } from "/assets/js/utils/notify.js";
 import { t } from "/assets/js/i18n.js";
-import { themePreference, contrastPreference, setTheme, setContrast } from "/assets/js/theme.js";
+import { themePreference, contrastPreference, setTheme, setContrast, forcedDark } from "/assets/js/theme.js";
 
 /**
  * Inline validation for the gateway field. The wizard's own validation lived
@@ -215,12 +215,13 @@ export class SpSettings extends SpElement {
         </div>
       </div>
       <div class="sp-kv__grid">
+        ${forcedDark() ? "" : `
         <div class="sp-kv">
           <label for="settings-theme" data-l10n-id="settings-theme-label">Appearance</label>
           <select id="settings-theme" class="sp-select" data-change="theme">
             ${themeOptions.map(([v, text]) => `<option value="${v}" ${theme === v ? "selected" : ""}>${escapeHtml(text)}</option>`).join("")}
           </select>
-        </div>
+        </div>`}
         <div class="sp-kv">
           <label for="settings-contrast" data-l10n-id="settings-contrast-label">Contrast</label>
           <select id="settings-contrast" class="sp-select" data-change="contrast">

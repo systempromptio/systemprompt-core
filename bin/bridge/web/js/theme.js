@@ -24,7 +24,16 @@ function store(key, value) {
   } catch (_) { /* private mode: the preference is simply not remembered */ }
 }
 
-export function themePreference() { return stored(STORAGE_THEME) || "system"; }
+// Why: a brand that ships one dark palette pins the GUI dark (Brand::force_dark,
+// injected into <head> before this module loads). Answering here rather than in
+// apply() means the stored override, the OS query and the settings UI all agree
+// there is only one theme, instead of offering a choice that does nothing.
+export function forcedDark() { return window.__SP_FORCE_DARK__ === true; }
+
+export function themePreference() {
+  if (forcedDark()) { return "dark"; }
+  return stored(STORAGE_THEME) || "system";
+}
 export function contrastPreference() { return stored(STORAGE_CONTRAST) || "system"; }
 
 function apply() {

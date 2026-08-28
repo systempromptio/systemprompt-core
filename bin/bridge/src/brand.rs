@@ -68,6 +68,13 @@ pub struct Brand {
     pub autostart_label: &'static str,
     pub autostart_task_name: &'static str,
     pub aumid: &'static str,
+    // Why: a white-label brand whose palette is a single dark surface has no
+    // light theme to offer, so following the OS colour scheme hands it a
+    // half-light window — a light title bar over its own dark page, or a light
+    // page its brand tokens were never written for. Such a brand pins the GUI
+    // dark here; brands that do ship both themes leave this `false` and keep
+    // following the OS.
+    pub force_dark: bool,
     pub assets: BrandAssets,
 }
 
@@ -102,6 +109,7 @@ impl Brand {
         autostart_label: "io.systemprompt.bridge-gui",
         autostart_task_name: "SystempromptBridgeGui",
         aumid: "io.systemprompt.bridge",
+        force_dark: false,
         assets: BrandAssets {
             icon_svg: include_str!("../assets/icon.svg"),
             logo_svg: include_str!("../assets/logo.svg"),
