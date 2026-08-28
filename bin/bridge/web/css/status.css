@@ -69,7 +69,7 @@
 
 .sp-kpi-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr));
   gap: var(--sp-space-3);
 }
 .sp-kpi-card {
@@ -191,7 +191,7 @@
 .sp-kpi-card details[open] > summary::after { content: " ▾"; }
 .sp-kpi-card__details {
   display: grid;
-  grid-template-columns: max-content 1fr;
+  grid-template-columns: max-content minmax(0, 1fr);
   gap: var(--sp-space-1-5) var(--sp-space-3);
   padding: var(--sp-space-2) 0 var(--sp-space-1);
   font-size: 12px;

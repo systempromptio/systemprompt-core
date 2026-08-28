@@ -1,21 +1,37 @@
 .sp-shell {
   flex: 1;
   display: grid;
-  grid-template-columns: 220px minmax(0, 1fr) 360px;
+  grid-template-columns: 220px minmax(0, 1fr) clamp(280px, 26vw, 360px);
   gap: 0;
   min-height: 0;
 }
 body.is-setup-mode .sp-shell { display: none; }
 body:not(.is-setup-mode) .sp-setup { display: none; }
 
+/* The one scroll container for the pane area. Panes below must not add their
+   own -- a scroller inside a scroller gives you two bars and a scroll position
+   that depends on which one the pointer happened to be over.
+
+   `container-type: inline-size` is what lets panes reflow on the width they
+   actually get (window minus rail minus activity column) instead of on the
+   window width.
+
+   Nothing inside here may rely on `position: fixed` escaping to the viewport.
+   Between the containment and the scroll mask, a fixed descendant still lays
+   out against the viewport but is clipped out of the paint entirely -- measured
+   as fully invisible, not merely faded. Overlays (the toast host, and any
+   drawer or popover) must be mounted at body level, not inside a pane. */
 .sp-content {
   padding: var(--sp-space-6) var(--sp-space-6);
-  overflow-y: auto;
   min-width: 0;
   min-height: 0;
   display: flex;
   flex-direction: column;
+  container: sp-pane / inline-size;
 }
+/* The marketplace pane owns its own three columns and scrolls each of them, so
+   the pane area itself must not scroll while it is the visible tab. */
+.sp-content:has(.sp-tab__panel[data-tab="marketplace"]:not([hidden])) { overflow: hidden; }
 .sp-tab__panel:has(sp-marketplace) { overflow: hidden; }
 .sp-tab__panel { display: flex; flex-direction: column; gap: var(--sp-space-6); min-height: 0; flex: 1; }
 .sp-tab__panel[hidden] { display: none; }
@@ -24,13 +40,19 @@ body:not(.is-setup-mode) .sp-setup { display: none; }
   align-items: center;
   justify-content: space-between;
   gap: var(--sp-space-3);
-  margin: 0;
+  flex-wrap: wrap;
+  margin: 0 0 var(--sp-space-5);
+  padding-bottom: var(--sp-space-3);
+  border-bottom: 1px solid var(--sp-line-soft);
 }
 .sp-tab__header h1 {
+  font-family: var(--sp-font-display);
   font-size: 22px;
   font-weight: 700;
   letter-spacing: -0.01em;
+  color: var(--sp-text);
   margin: 0;
+  min-width: 0;
 }
 
 .sp-kv { display: flex; flex-direction: column; gap: var(--sp-space-1); margin-bottom: var(--sp-space-3); }

@@ -302,12 +302,16 @@ export class SpProfile extends SpElement {
     `;
   }
 
+  // The modifier classes matter here as much as in the real render: without
+  // them the placeholders occupy one track each and the grid visibly relays out
+  // the moment the data lands.
   _skeleton() {
     return `
       <div class="sp-profile-grid">
-        <article class="sp-profile-card" data-state="probing"><header><h2>Identity</h2></header><p class="sp-u-muted">loading…</p></article>
-        <article class="sp-profile-card" data-state="probing"><header><h2>Token usage</h2></header><p class="sp-u-muted">loading…</p></article>
-        <article class="sp-profile-card" data-state="probing"><header><h2>Conversations</h2></header><p class="sp-u-muted">loading…</p></article>
+        <article class="sp-profile-card sp-profile-card--identity" data-state="probing"><header><h2>Identity</h2></header><p class="sp-u-muted">loading…</p></article>
+        <article class="sp-profile-card sp-profile-card--usage" data-state="probing"><header><h2>Token usage</h2></header><p class="sp-u-muted">loading…</p></article>
+        <article class="sp-profile-card sp-profile-card--models" data-state="probing"><header><h2>Favourite models</h2></header><p class="sp-u-muted">loading…</p></article>
+        <article class="sp-profile-card sp-profile-card--conversations" data-state="probing"><header><h2>Conversations</h2></header><p class="sp-u-muted">loading…</p></article>
       </div>
     `;
   }

@@ -52,12 +52,22 @@
   --sp-space-3-5:   0.875rem;
   --sp-space-4:     1rem;
   --sp-space-4-5:   1.125rem;
+  --sp-space-5:     1.25rem;
   --sp-space-6:     1.5rem;
   --sp-space-7:     1.75rem;
   --sp-space-8:     2rem;
   --sp-space-10:    2.5rem;
 
   --sp-radius-md:           0.5rem;
+
+  /* Overflow design language. The bar floats over the content rather than
+     occupying a gutter of its own, so a pane's measure does not change when it
+     becomes scrollable. See scroll.css. */
+  --sp-scroll-size:         10px;
+  --sp-scroll-thumb:        oklch(0.70 0.17 51 / 0.14);
+  --sp-scroll-thumb-hover:  oklch(0.70 0.17 51 / 0.45);
+  --sp-scroll-thumb-active: var(--sp-accent-ring);
+  --sp-scroll-fade:         2.5rem;
 
   --sp-z-toast:             9999;
 
@@ -85,5 +95,8 @@
   --sp-text:          oklch(0.99 0.01 80);
   --sp-muted:         oklch(0.82 0.01 60);
   --sp-muted-strong:  oklch(0.92 0.01 60);
+
+  --sp-scroll-thumb:        oklch(0.75 0.17 51 / 0.32);
+  --sp-scroll-thumb-hover:  oklch(0.78 0.17 51 / 0.70);
 }
 

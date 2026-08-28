@@ -158,7 +158,7 @@ check-release-tag:
     ./scripts/check-release-tag.sh
 
 # Check without building
-check: lint-schema lint-extensions lint-comments lint-inline-tests lint-test-value lint-layers lint-repo-construction
+check: lint-schema lint-extensions lint-comments lint-inline-tests lint-test-value lint-layers lint-repo-construction lint-bridge-css-tokens
     cargo check --workspace
 
 # Check offline (uses cached .sqlx metadata, no database required)
@@ -210,6 +210,12 @@ lint-bridge:
 # workspace, no inheritance). Fail when the copies drift.
 lint-bridge-lints-sync:
     ./scripts/lint-bridge-lints-sync.sh
+
+# An undefined `var(--sp-*)` in the bridge UI drops the whole declaration
+# silently — no console error, no build failure, just a rule that stops
+# applying. Fail on it instead.
+lint-bridge-css-tokens:
+    ./scripts/lint-bridge-css-tokens.sh
 
 # Reject unverified sqlx::query calls outside the allowlist
 lint-sqlx:

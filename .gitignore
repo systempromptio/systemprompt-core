@@ -124,6 +124,7 @@ scripts/*
 !scripts/check-http-errors.sh
 !scripts/lint-layers.sh
 !scripts/check-release-tag.sh
+!scripts/lint-bridge-css-tokens.sh
 
 # Local-only review notes
 review/
