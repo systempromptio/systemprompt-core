@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- Establishing a session is bounded and degrades instead of failing. It reads and writes the database, and it runs as a global layer over every route including static content, so a database fault held each request for the pool's full 30-second acquire timeout and then returned `500` — for a public page view as much as for an API call. A request whose session cannot be established within two seconds is now served with an untracked, actor-less context and a throttled warning naming the path, rather than refused. Nothing is escalated by that context: it carries no auth token and no user, so every gate above `public` still refuses it, and `is_tracked` is false so the analytics sinks record no visit they cannot attribute. The healthy path is unchanged — a page view still mints a real session and is still attributed. Measured against the live site with Postgres stopped: a page went from `500` after 30s to `200` in 2s.
+
 ## [0.41.0] - 2026-08-28
 
 ### Added
