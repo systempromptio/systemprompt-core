@@ -91,11 +91,11 @@ Every layer in this path obtains the resources it needs from a single shared con
 
 ## AppContext and the bootstrap order
 
-`AppContext` (`crates/app/runtime/src/context.rs:41`) is the application-wide runtime container. It holds the config, database pool, extension registry, analytics service, route classifier, MCP registry, the authorization hook, and other shared handles. Every field is an `Arc` (or an `Arc`-internal handle such as `DbPool`), so cloning the context is a reference-count bump, not a deep copy. The HTTP server, the scheduler, and CLI commands all clone it freely into handlers, jobs, and spawned tasks.
+`AppContext` (`crates/app/runtime/src/context/:41`) is the application-wide runtime container. It holds the config, database pool, extension registry, analytics service, route classifier, MCP registry, the authorization hook, and other shared handles. Every field is an `Arc` (or an `Arc`-internal handle such as `DbPool`), so cloning the context is a reference-count bump, not a deep copy. The HTTP server, the scheduler, and CLI commands all clone it freely into handlers, jobs, and spawned tasks.
 
 Some handles are optional — `geoip_reader`, `content_config`, `fingerprint_repo`, and `user_service` are `None` when the corresponding resource is absent or failed to initialise, and callers degrade rather than assume presence.
 
-The context is assembled by `AppContextBuilder::build` (`crates/app/runtime/src/builder.rs:97`), which owns a fixed bootstrap order. The configuration half of that order runs earlier, in `infra/config`:
+The context is assembled by `AppContextBuilder::build` (`crates/app/runtime/src/builder/:97`), which owns a fixed bootstrap order. The configuration half of that order runs earlier, in `infra/config`:
 
 ```
 ProfileBootstrap  →  SecretsBootstrap  →  CredentialsBootstrap  →  Config  →  AppContext

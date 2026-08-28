@@ -27,14 +27,14 @@ Every JWT is validated by `AuthValidationService` (`crates/infra/security/src/au
 | Key identifier | `kid` is required; the matching decoding key is resolved by `kid`. A missing or unknown `kid` is rejected. | `validation.rs:95` |
 | Time claims | `exp`, `nbf`, and `iat` are validated with a pinned 30-second leeway (set explicitly in code rather than inherited from the library default). | `validation.rs:100` |
 | Delegation chain | The `act` (actor) delegation chain depth is capped; a token whose chain exceeds the maximum is rejected. | `validation.rs:114` |
-| User type | The principal's `user_type` is re-derived from the permission set and a disagreeing claim is rejected, catching forged or mis-minted tokens that signature checks alone would pass. | `crates/entry/api/src/services/middleware/jwt/token.rs:91` |
-| Revocation | A JTI revocation check backed by the database (with a negative cache) runs on each request and fails closed: a lookup error returns 401, not an allow. | `crates/entry/api/src/services/middleware/jti_revocation.rs:67` |
+| User type | The principal's `user_type` is re-derived from the permission set and a disagreeing claim is rejected, catching forged or mis-minted tokens that signature checks alone would pass. | `crates/infra/security/src/jwt/decode.rs:43` |
+| Revocation | A JTI revocation check backed by the database (with a negative cache) runs on each request and fails closed: a lookup error returns 401, not an allow. | `crates/entry/api/src/services/middleware/jwt/revocation.rs:38` |
 
 The RS256 pin is the mitigation for the RUSTSEC-2023-0071 RSA timing class: the validator never enters a non-RS256 verification path, and there is no algorithm flexibility to exploit.
 
 ### Open item: audience is not enforced at the primary extractor
 
-The `aud` claim is set when a token is minted and is shown in operator tooling, but the primary API JWT extractor sets `validate_aud = false` (`crates/entry/api/src/services/middleware/jwt/token.rs:35`; the agent JWT path does the same). A token minted for one surface (for example `aud=[api]`) is accepted on routes nominally scoped to other surfaces. The MCP RBAC path does perform an audience check, so MCP is partially defended, but the main extractor is not.
+The `aud` claim is validated on every first-party token, and validation is not optional: `decode_rs256_claims` applies the policy's audience list unconditionally (`crates/infra/security/src/jwt/validate.rs:87`) and rejects any policy that declares no audiences at all with `EmptyAudiencePolicy` (`crates/infra/security/src/jwt/validate.rs:65`). An "accept any audience" configuration therefore cannot be expressed. Surfaces are isolated by typed `JwtAudience` values — the hook-token path pins `aud=hook` (`crates/infra/security/src/auth/hook_token.rs:79`), and the MCP path additionally performs a per-server audience check (`crates/domain/mcp/src/middleware/rbac.rs:153`). A token minted for one surface is not accepted on another.
 
 Do not describe audience-based isolation between the gateway, dashboard, MCP, and A2A surfaces as enforced. It is a known open item.
 
