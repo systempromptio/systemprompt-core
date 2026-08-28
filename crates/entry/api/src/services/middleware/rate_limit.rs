@@ -113,7 +113,9 @@ where
         let rate_limit = tower_governor::governor::GovernorConfigBuilder::default()
             .per_second(per_second_clamped)
             .burst_size(burst_u32)
-            .key_extractor(tower_governor::key_extractor::SmartIpKeyExtractor)
+            .key_extractor(IdentityOrTrustedIpKey::new(Arc::new(
+                config.trusted_proxies.clone(),
+            )))
             .use_headers()
             .finish()
             .ok_or_else(|| LoaderError::InitializationFailed {
