@@ -1,21 +1,32 @@
 # Changelog
 
-## [Unreleased]
+## [0.41.0] - 2026-08-28
 
 ### Breaking
 
+- **Breaking:** `authz::BulkKeepQuery::parents` is replaced by `chains: &ParentChainIndex`. Migrate by loading a `ParentChainIndex` from `ChainSources` and passing it to `allowed_ids`.
+- **Breaking:** `authz::MarketplaceParent` and `authz::load_marketplace_parent` are removed. Migrate by `ParentChainIndex::load`, which loads the marketplace and every member plugin in four queries.
+- **Breaking:** `RuleBasedHook::new` and `build_authz_hook` take a `ChainSources` value, resolved once at boot rather than a closure re-read per decision. Migrate by passing `ChainSources::from_services(&services)`, or `ChainSources::default()` where no services configuration is available.
 - **Breaking:** `authz::reconcile_gateway_entities` is removed. Migrate by calling `reconcile_gateway_entities_exact`, which registers the given routes and deletes every other `gateway_route` catalog row (and, by cascade, its grants) in one transaction; skip the call when the profile has no routes.
-- **Breaking:** `AccessControlRepository::delete_entities_outside` is removed. Migrate by `AccessControlRepository::reconcile_entities`, which upserts and prunes atomically.
+- **Breaking:** `AccessControlRepository::delete_entities_outside` and `AccessControlRepository::upsert_entities` are removed. Migrate by `AccessControlRepository::reconcile_entities`, which upserts and prunes atomically, or `ensure_entity` for a single row.
+- **Breaking:** `AccessControlIngestionService::ingest_config` and `ingest_config_from_yaml_path` take a `&RegisteredEntities`. The unchecked overloads are gone rather than kept alongside; pass `&RegisteredEntities::default()` to enforce nothing.
+- **Breaking:** `ResolveInput`, `ResolveParent` and `resolve` are no longer re-exported from `authz`. Migrate to `authz::resolver::{ResolveInput, ResolveParent, resolve}`, or to `ParentChainIndex::resolve`, which applies the cascade.
+- **Breaking:** `ParentChainIndex::empty` is removed. Migrate to `ParentChainIndex::default()`.
 
 ### Added
 
-- `authz::RegisteredEntities` declares, per `EntityKind`, the complete set of ids a deployment vouches for; `ingest_config_with_registry` and `ingest_config_from_yaml_path_with_registry` reject a literal `entity_id` of an enforced kind outside that set instead of materialising a catalog row for it. Undeclared kinds keep the existing behaviour.
+- `authz::recent_decisions_for_user` and `authz::GovernanceDecisionRow` read a user's recent `governance_decisions` back out. `call_id` is not a column — it lives inside the `evaluated_rules` audit blob — so the query filters on the indexed `user_id`/`created_at` pair and projects the id out, rather than scanning on a JSON expression.
+- `authz::ParentChainIndex`, `ChainSources`, `MarketplaceSource`, `LoadedParent` and `ResolveBase` build the `entity → plugin → marketplace` parent chain once per request and resolve an entity against every plugin that owns it.
+- `ChainSources::from_services` derives plugin membership and skill ownership from a `ServicesConfig`. `ChainSources::plugins` and `skill_owners` are keyed by `PluginId` and `SkillId`.
+- `authz::RegisteredEntities` declares, per `EntityKind`, the complete set of ids a deployment vouches for; ingestion rejects a literal `entity_id` of an enforced kind outside that set instead of materialising a catalog row for it. Undeclared kinds keep the existing behaviour.
 - `RegisteredEntities::require` returns the same rejection as an `AuthzError::Validation`, for write paths that mint catalog rows directly.
 - `AccessControlRepository::ensure_entity` inserts a closed catalog row only when absent, leaving an existing row's `default_included` untouched.
 - `AccessControlRepository::reconcile_entities` registers a complete id set for a kind and deletes the rest in one transaction.
 
 ### Changed
 
+- `resolve` closes the cascade at the nearest parent that declares any rule: a ruleless skill in a plugin granted only to `admin` is denied to every other role even when the marketplace admits them. A ruleless parent stays transparent.
+- `RuleBasedHook` cascades plugin and marketplace rules onto ruleless entities instead of resolving each entity in isolation, and no longer re-reads the services configuration from disk on every authorization decision.
 - The `admin config` reconcile deletes `gateway_route` catalog rows the saved profile no longer produces. A per-user override on a route whose pattern is edited and then reverted is no longer restored; the resolver never consulted it under the new id.
 
 ## [0.40.0] - 2026-08-26

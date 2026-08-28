@@ -13,6 +13,8 @@
 //! and the resolver never sees the entity as `UnknownEntity`. For a kind the
 //! caller enforces through [`RegisteredEntities`], a literal id outside the
 //! registered set is rejected before any write instead of materialised.
+//! Nothing is written when that check fails: resolution runs inside the
+//! transaction but before every write, so the error rolls back an empty one.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -65,10 +67,8 @@ struct ResolvedRule<'a> {
     justification: Option<&'a str>,
 }
 
-/// Rules whose every id has been checked against the caller's
-/// [`RegisteredEntities`]. Only [`Self::rules`] reaches the write loop, so a
-/// future call site cannot persist rules that skipped the check — the check is
-/// the only way to obtain this type.
+// Why: constructing this type is the only way to reach the write loop, so a
+// future call site cannot persist rules that skipped the registry check.
 struct ValidatedRules<'a>(Vec<ResolvedRule<'a>>);
 
 impl<'a> ValidatedRules<'a> {
@@ -93,21 +93,6 @@ impl AccessControlIngestionService {
         &self,
         yaml_path: &std::path::Path,
         options: IngestOptions,
-    ) -> AuthzResult<IngestReport> {
-        self.ingest_config_from_yaml_path_with_registry(
-            yaml_path,
-            options,
-            &RegisteredEntities::default(),
-        )
-        .await
-    }
-
-    /// As [`Self::ingest_config_from_yaml_path`], rejecting literal ids that
-    /// `registered` does not vouch for. See [`RegisteredEntities`].
-    pub async fn ingest_config_from_yaml_path_with_registry(
-        &self,
-        yaml_path: &std::path::Path,
-        options: IngestOptions,
         registered: &RegisteredEntities,
     ) -> AuthzResult<IngestReport> {
         let raw = std::fs::read_to_string(yaml_path).map_err(|err| {
@@ -119,24 +104,10 @@ impl AccessControlIngestionService {
                 yaml_path.display()
             ))
         })?;
-        self.ingest_config_with_registry(&cfg, options, registered)
-            .await
+        self.ingest_config(&cfg, options, registered).await
     }
 
     pub async fn ingest_config(
-        &self,
-        cfg: &AccessControlConfig,
-        options: IngestOptions,
-    ) -> AuthzResult<IngestReport> {
-        self.ingest_config_with_registry(cfg, options, &RegisteredEntities::default())
-            .await
-    }
-
-    /// As [`Self::ingest_config`], rejecting literal ids that `registered` does
-    /// not vouch for. Nothing is written when the check fails — resolution runs
-    /// inside the transaction but before every write, so the error rolls back
-    /// an empty transaction. See [`RegisteredEntities`].
-    pub async fn ingest_config_with_registry(
         &self,
         cfg: &AccessControlConfig,
         options: IngestOptions,

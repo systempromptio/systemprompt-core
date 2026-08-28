@@ -13,7 +13,7 @@ use systemprompt_identifiers::{ContextId, RouteId, TaskId, TraceId};
 use systemprompt_models::profile::{AuthzConfig, AuthzHookConfig, AuthzMode, GovernanceConfig};
 use systemprompt_security::authz::{
     AuthzAuditSink, AuthzContext, AuthzDecision, AuthzDecisionHook, AuthzRequest, AuthzSource,
-    EntityRef, SharedAuthzHook, build_authz_hook,
+    ChainSources, EntityRef, SharedAuthzHook, build_authz_hook,
 };
 use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool, fixture_user_id};
 
@@ -102,8 +102,13 @@ async fn extension_hook_evaluated_and_audited() {
     });
 
     let governance = extension_governance();
-    let built = build_authz_hook(Some(&governance), Some(write_pool.clone()), Some(hook))
-        .expect("bootstrap ok");
+    let built = build_authz_hook(
+        Some(&governance),
+        Some(write_pool.clone()),
+        Some(hook),
+        ChainSources::default(),
+    )
+    .expect("bootstrap ok");
 
     let trace = format!("trace-{}", uuid::Uuid::new_v4());
     let decision = built.evaluate(request_with_trace(&route, &trace)).await;

@@ -13,7 +13,7 @@ use systemprompt_database::DbPool;
 use systemprompt_identifiers::MarketplaceId;
 use systemprompt_models::services::{MarketplaceConfig, SlackAppConfig};
 use systemprompt_security::authz::{
-    AccessControlConfig, AccessControlIngestionService, IngestOptions,
+    AccessControlConfig, AccessControlIngestionService, IngestOptions, RegisteredEntities,
 };
 use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
 use uuid::Uuid;
@@ -60,7 +60,11 @@ async fn ingest_config_inserts_updates_and_skips() {
     };
 
     let inserted = svc
-        .ingest_config(&deny("deny"), IngestOptions::default())
+        .ingest_config(
+            &deny("deny"),
+            IngestOptions::default(),
+            &RegisteredEntities::default(),
+        )
         .await
         .expect("first ingest");
     assert_eq!(inserted.inserted, 1, "a fresh grant is inserted");
@@ -72,6 +76,7 @@ async fn ingest_config_inserts_updates_and_skips() {
                 override_existing: true,
                 delete_orphans: false,
             },
+            &RegisteredEntities::default(),
         )
         .await
         .expect("override ingest");
@@ -87,6 +92,7 @@ async fn ingest_config_inserts_updates_and_skips() {
                 override_existing: true,
                 delete_orphans: false,
             },
+            &RegisteredEntities::default(),
         )
         .await
         .expect("no-op ingest");
@@ -113,9 +119,13 @@ async fn ingest_config_expands_entity_match_glob() {
          roles: [seed]\n"
     ))
     .expect("literal yaml");
-    svc.ingest_config(&literal, IngestOptions::default())
-        .await
-        .expect("seed catalog entity");
+    svc.ingest_config(
+        &literal,
+        IngestOptions::default(),
+        &RegisteredEntities::default(),
+    )
+    .await
+    .expect("seed catalog entity");
 
     let glob: AccessControlConfig = serde_yaml::from_str(&format!(
         "rules:\n  - entity_type: gateway_route\n    entity_match: \"{id}\"\n    access: allow\n    \
@@ -123,7 +133,11 @@ async fn ingest_config_expands_entity_match_glob() {
     ))
     .expect("glob yaml");
     let report = svc
-        .ingest_config(&glob, IngestOptions::default())
+        .ingest_config(
+            &glob,
+            IngestOptions::default(),
+            &RegisteredEntities::default(),
+        )
         .await
         .expect("glob ingest");
     assert_eq!(
@@ -148,7 +162,11 @@ async fn from_pool_constructs_a_usable_service() {
     ))
     .expect("yaml");
     let report = svc
-        .ingest_config(&cfg, IngestOptions::default())
+        .ingest_config(
+            &cfg,
+            IngestOptions::default(),
+            &RegisteredEntities::default(),
+        )
         .await
         .expect("from_pool service ingests");
     assert_eq!(report.inserted, 1);
@@ -203,9 +221,13 @@ async fn slack_seed_updates_an_existing_deny_rule() {
          roles: [ops]\n"
     ))
     .expect("seed yaml");
-    svc.ingest_config(&seed, IngestOptions::default())
-        .await
-        .expect("seed deny rule");
+    svc.ingest_config(
+        &seed,
+        IngestOptions::default(),
+        &RegisteredEntities::default(),
+    )
+    .await
+    .expect("seed deny rule");
 
     let app: SlackAppConfig = serde_yaml::from_str(&format!(
         "workspace_id: {wsid}\nsigning_secret_ref: sig\nbot_token_ref: bot\nenabled: true\n\

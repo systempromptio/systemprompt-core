@@ -48,22 +48,30 @@ impl ServicesConfig {
                 )));
             }
 
+            for mcp_ref in &skill.mcp_servers.include {
+                match self.mcp_servers.get(mcp_ref) {
+                    None => {
+                        return Err(ConfigValidationError::unknown_reference(format!(
+                            "Skill '{key}': mcp_servers.include references unknown mcp_server \
+                             '{mcp_ref}'"
+                        )));
+                    },
+                    Some(deployment) if skill.enabled && !deployment.enabled => {
+                        return Err(ConfigValidationError::business_rule(format!(
+                            "Skill '{key}' is enabled but depends on disabled mcp_server \
+                             '{mcp_ref}' — enable the server or disable the skill"
+                        )));
+                    },
+                    Some(_) => {},
+                }
+            }
+
             for agent_ref in &skill.assigned_agents.include {
                 if !self.agents.contains_key(agent_ref) {
                     tracing::warn!(
                         skill = %key,
                         agent = %agent_ref,
                         "Skill references agent that is not defined in services config"
-                    );
-                }
-            }
-
-            for mcp_ref in &skill.mcp_servers.include {
-                if !self.mcp_servers.contains_key(mcp_ref) {
-                    tracing::warn!(
-                        skill = %key,
-                        mcp_server = %mcp_ref,
-                        "Skill references MCP server that is not defined in services config"
                     );
                 }
             }

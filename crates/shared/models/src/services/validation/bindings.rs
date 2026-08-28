@@ -68,6 +68,12 @@ impl ServicesConfig {
         }
 
         for mcp_ref in &marketplace.mcp_servers.include {
+            if marketplace.enabled && self.mcp_servers.get(mcp_ref).is_some_and(|d| !d.enabled) {
+                return Err(ConfigValidationError::business_rule(format!(
+                    "Marketplace '{name}': mcp_servers.include names disabled mcp_server \
+                     '{mcp_ref}' — enable the server or drop it from the marketplace"
+                )));
+            }
             if !self.mcp_servers.contains_key(mcp_ref) {
                 return Err(ConfigValidationError::unknown_reference(format!(
                     "Marketplace '{name}': mcp_servers.include references unknown mcp_server \
@@ -124,11 +130,20 @@ impl ServicesConfig {
         }
 
         for mcp_ref in &plugin.mcp_servers.include {
-            if !self.mcp_servers.contains_key(mcp_ref) {
-                return Err(ConfigValidationError::unknown_reference(format!(
-                    "Plugin '{plugin_name}': mcp_servers.include references unknown mcp_server \
-                     '{mcp_ref}'"
-                )));
+            match self.mcp_servers.get(mcp_ref) {
+                None => {
+                    return Err(ConfigValidationError::unknown_reference(format!(
+                        "Plugin '{plugin_name}': mcp_servers.include references unknown \
+                         mcp_server '{mcp_ref}'"
+                    )));
+                },
+                Some(deployment) if plugin.enabled && !deployment.enabled => {
+                    return Err(ConfigValidationError::business_rule(format!(
+                        "Plugin '{plugin_name}' is enabled but depends on disabled mcp_server \
+                         '{mcp_ref}' — enable the server or disable the plugin"
+                    )));
+                },
+                Some(_) => {},
             }
         }
 

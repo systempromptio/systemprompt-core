@@ -3,11 +3,11 @@
 //!
 //! This is the end-to-end proof that the unit invariants
 //! (`dispatchable_route_ids_*`) cannot give: that
-//! `reconcile_gateway_entities_exact` actually materializes a content-addressed `star-*` id into
-//! `access_control_entities`, that a `entity_match: "*"` rule expands onto that
-//! code-synthesized id (closing the implicit YAML-vs-code coupling), and that
-//! the resolver then allows a granted role while still denying an id that has
-//! no catalog row (`UnknownEntity`, fail-closed).
+//! `reconcile_gateway_entities_exact` actually materializes a content-addressed
+//! `star-*` id into `access_control_entities`, that a `entity_match: "*"` rule
+//! expands onto that code-synthesized id (closing the implicit YAML-vs-code
+//! coupling), and that the resolver then allows a granted role while still
+//! denying an id that has no catalog row (`UnknownEntity`, fail-closed).
 //!
 //! Each test scopes itself to a unique provider/default-provider so runs
 //! against the shared `DATABASE_URL` never collide, and cleans up its rows.
@@ -263,10 +263,10 @@ async fn entity_exists(pg: &PgPool, id: &str) -> bool {
         > 0
 }
 
-/// The regression this whole mechanism exists for: a hand-written route id used
-/// to be accepted, mint its own catalog row, and leave a grant on a route that
-/// can never dispatch. Four such ids sat in roles.yaml across three repos for
-/// months because every boot made them look real.
+// The regression this whole mechanism exists for: a hand-written route id used
+// to be accepted, mint its own catalog row, and leave a grant on a route that
+// can never dispatch. Four such ids sat in roles.yaml across three repos for
+// months because every boot made them look real.
 #[tokio::test]
 async fn ingest_rejects_a_literal_route_id_the_registry_does_not_vouch_for_and_writes_nothing() {
     let f = setup().await;
@@ -286,7 +286,7 @@ async fn ingest_rejects_a_literal_route_id_the_registry_does_not_vouch_for_and_w
 
     let svc = AccessControlIngestionService::from_pool(Arc::clone(&f.pg));
     let err = svc
-        .ingest_config_with_registry(
+        .ingest_config(
             &literal_gateway_rule(&phantom, &["user"]),
             IngestOptions {
                 override_existing: true,
@@ -319,7 +319,7 @@ async fn ingest_rejects_a_literal_route_id_the_registry_does_not_vouch_for_and_w
 
     // A real route in the same shape still ingests, so the check rejects the id
     // and not the rule form.
-    svc.ingest_config_with_registry(
+    svc.ingest_config(
         &literal_gateway_rule(real_id.as_str(), &["user"]),
         IngestOptions {
             override_existing: true,
@@ -334,15 +334,15 @@ async fn ingest_rejects_a_literal_route_id_the_registry_does_not_vouch_for_and_w
     cleanup(&f.pg, &real_id).await;
 }
 
-/// Unenforced kinds keep the old behaviour, so adopting this is opt-in per
-/// kind.
+// Unenforced kinds keep the old behaviour, so adopting this is opt-in per
+// kind.
 #[tokio::test]
 async fn ingest_still_self_materializes_when_the_kind_is_not_enforced() {
     let f = setup().await;
     let phantom = RouteId::new(format!("unenforced-{}", f.provider));
 
     let svc = AccessControlIngestionService::from_pool(Arc::clone(&f.pg));
-    svc.ingest_config_with_registry(
+    svc.ingest_config(
         &literal_gateway_rule(phantom.as_str(), &["user"]),
         IngestOptions {
             override_existing: true,
@@ -357,8 +357,8 @@ async fn ingest_still_self_materializes_when_the_kind_is_not_enforced() {
     cleanup(&f.pg, &phantom).await;
 }
 
-/// `reconcile_gateway_entities_exact` must remove catalog rows no route claims,
-/// and must refuse to do so from an empty set (which would empty the catalog).
+// `reconcile_gateway_entities_exact` must remove catalog rows no route claims,
+// and must refuse to do so from an empty set (which would empty the catalog).
 #[tokio::test]
 async fn exact_reconcile_prunes_stale_rows_and_refuses_an_empty_route_set() {
     let f = setup().await;
@@ -369,14 +369,9 @@ async fn exact_reconcile_prunes_stale_rows_and_refuses_an_empty_route_set() {
     let id_refs: Vec<&str> = ids.iter().map(RouteId::as_str).collect();
 
     let stale = RouteId::new(format!("stale-{}", f.provider));
-    repo.upsert_entities(
-        EntityKind::GatewayRoute,
-        &[stale.as_str()],
-        false,
-        "profile:old",
-    )
-    .await
-    .expect("seed a stale row");
+    repo.ensure_entity(EntityKind::GatewayRoute, stale.as_str(), "profile:old")
+        .await
+        .expect("seed a stale row");
     assert!(entity_exists(&f.pg, stale.as_str()).await);
 
     let report = reconcile_gateway_entities_exact(&repo, &id_refs, "profile:test")
@@ -404,8 +399,8 @@ async fn exact_reconcile_prunes_stale_rows_and_refuses_an_empty_route_set() {
     cleanup(&f.pg, &ids[0]).await;
 }
 
-/// `ensure_entity` satisfies the FK without widening access: an absent row is
-/// created closed, and a present row keeps whatever `default_included` it had.
+// `ensure_entity` satisfies the FK without widening access: an absent row is
+// created closed, and a present row keeps whatever `default_included` it had.
 #[tokio::test]
 async fn ensure_entity_creates_closed_and_never_overwrites_default_included() {
     let f = setup().await;
@@ -420,7 +415,10 @@ async fn ensure_entity_creates_closed_and_never_overwrites_default_included() {
         .await
         .expect("get")
         .expect("row created");
-    assert!(!created.default_included, "an ensured row must start closed");
+    assert!(
+        !created.default_included,
+        "an ensured row must start closed"
+    );
 
     repo.upsert_entity(EntityKind::GatewayRoute, id.as_str(), true, "test:open")
         .await
@@ -437,7 +435,10 @@ async fn ensure_entity_creates_closed_and_never_overwrites_default_included() {
         kept.default_included,
         "ensure_entity must leave an existing default_included alone"
     );
-    assert_eq!(kept.source, "test:open", "ensure_entity must not relabel a present row");
+    assert_eq!(
+        kept.source, "test:open",
+        "ensure_entity must not relabel a present row"
+    );
 
     cleanup(&f.pg, &id).await;
 }

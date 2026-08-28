@@ -36,11 +36,11 @@ pub struct GatewayReconcileReport {
     pub pruned: u64,
 }
 
-/// Refuses an empty `route_ids` rather than emptying the catalog. A profile
-/// with no gateway routes is a plausible misread — a missing `gateway:` block,
-/// a profile that failed to load — and wiping every route grant on that guess
-/// is not a recoverable mistake. Callers with genuinely no routes have nothing
-/// to reconcile and should not call this.
+// Why: an empty `route_ids` is refused rather than treated as "prune
+// everything". No gateway routes is a plausible misread — a missing `gateway:`
+// block, a profile that failed to load — and wiping every route grant on that
+// guess is not recoverable. Callers with genuinely no routes have nothing to
+// reconcile and must not call this.
 pub async fn reconcile_gateway_entities_exact(
     repo: &AccessControlRepository,
     route_ids: &[&str],

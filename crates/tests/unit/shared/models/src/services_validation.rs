@@ -331,3 +331,61 @@ fn single_enabled_marketplace_needs_no_selector() {
     );
     assert!(parse(&yaml).validate().is_ok());
 }
+
+#[test]
+fn enabled_plugin_depending_on_disabled_mcp_server_is_rejected() {
+    let yaml = format!(
+        "mcp_servers:{}\nplugins:{}",
+        mcp_yaml("dark", 5010, "internal").replace("enabled: true", "enabled: false"),
+        plugin_yaml("plug", false, "{}", "{ include: [dark] }")
+    );
+    let err = parse(&yaml).validate().unwrap_err();
+    assert!(
+        err.to_string().contains("disabled mcp_server 'dark'"),
+        "{err}"
+    );
+}
+
+#[test]
+fn disabled_plugin_may_depend_on_disabled_mcp_server() {
+    let yaml = format!(
+        "mcp_servers:{}\nplugins:{}",
+        mcp_yaml("dark", 5010, "internal").replace("enabled: true", "enabled: false"),
+        plugin_yaml("plug", false, "{}", "{ include: [dark] }")
+            .replace("enabled: true", "enabled: false")
+    );
+    assert!(parse(&yaml).validate().is_ok());
+}
+
+#[test]
+fn enabled_skill_depending_on_disabled_mcp_server_is_rejected() {
+    let yaml = format!(
+        "mcp_servers:{}\nskills:\n  skills:{}",
+        mcp_yaml("dark", 5010, "internal").replace("enabled: true", "enabled: false"),
+        skill_yaml("needs_dark").replace(
+            "enabled: true",
+            "enabled: true\n      mcp_servers:\n        include: [dark]"
+        )
+    );
+    let err = parse(&yaml).validate().unwrap_err();
+    assert!(
+        err.to_string().contains("disabled mcp_server 'dark'"),
+        "{err}"
+    );
+}
+
+#[test]
+fn skill_referencing_unknown_mcp_server_is_rejected() {
+    let yaml = format!(
+        "skills:\n  skills:{}",
+        skill_yaml("needs_ghost").replace(
+            "enabled: true",
+            "enabled: true\n      mcp_servers:\n        include: [ghost]"
+        )
+    );
+    let err = parse(&yaml).validate().unwrap_err();
+    assert!(
+        err.to_string().contains("unknown mcp_server 'ghost'"),
+        "{err}"
+    );
+}

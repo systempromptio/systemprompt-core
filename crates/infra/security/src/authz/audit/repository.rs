@@ -59,6 +59,50 @@ impl GovernanceDecisionRepository {
     }
 }
 
+/// One decision row as a client reads it back, keyed by the call id the gateway
+/// returned to that client.
+#[derive(Debug, Clone)]
+pub struct GovernanceDecisionRow {
+    pub call_id: String,
+    pub decision: String,
+    pub policy: String,
+    pub reason: String,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+}
+
+// Why: `call_id` is not a column -- it lives inside the `evaluated_rules` audit
+// blob -- so the filter is on the indexed `user_id`/`created_at` pair and the
+// id is projected out. Reversing that would sequential-scan the whole table.
+pub async fn recent_decisions_for_user(
+    pool: &PgPool,
+    user_id: &str,
+    since: chrono::DateTime<chrono::Utc>,
+    limit: i64,
+) -> Result<Vec<GovernanceDecisionRow>, sqlx::Error> {
+    let rows = sqlx::query!(
+        "SELECT evaluated_rules->>'call_id' AS call_id, decision, policy, reason, created_at \
+         FROM governance_decisions WHERE user_id = $1 AND created_at >= $2 \
+         AND evaluated_rules->>'call_id' IS NOT NULL ORDER BY created_at DESC LIMIT $3",
+        user_id,
+        since,
+        limit,
+    )
+    .fetch_all(pool)
+    .await?;
+    Ok(rows
+        .into_iter()
+        .filter_map(|r| {
+            Some(GovernanceDecisionRow {
+                call_id: r.call_id?,
+                decision: r.decision,
+                policy: r.policy,
+                reason: r.reason,
+                created_at: r.created_at,
+            })
+        })
+        .collect())
+}
+
 pub async fn insert_governance_decision(
     pool: &PgPool,
     record: &GovernanceDecisionRecord<'_>,

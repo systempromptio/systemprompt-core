@@ -44,6 +44,7 @@ use super::audit::{AuthzAuditSink, DbAuditSink, GovernanceDecisionRepository, Nu
 use super::composite::CompositeAuthzHook;
 use super::error::{AuthzBootstrapError, AuthzResult};
 use super::hook::{AllowAllHook, DenyAllHook, SharedAuthzHook, WebhookHook};
+use super::parent_chain::ChainSources;
 use super::registry::{AuthzHookContext, discover_authz_hook};
 use super::rule_based::RuleBasedHook;
 
@@ -51,6 +52,7 @@ pub fn build_authz_hook(
     governance: Option<&GovernanceConfig>,
     pool: Option<Arc<sqlx::PgPool>>,
     extension: Option<SharedAuthzHook>,
+    sources: ChainSources,
 ) -> AuthzResult<SharedAuthzHook> {
     let sink = build_sink(pool.clone());
 
@@ -79,7 +81,7 @@ pub fn build_authz_hook(
                 hook = ?hook,
                 "governance.authz.hook.mode = extension — composing RuleBasedHook with extension hook"
             );
-            Ok(compose_rule_based(pool, sink, vec![hook]))
+            Ok(compose_rule_based(pool, sink, sources, vec![hook]))
         },
         (AuthzMode::Extension, None) => Err(AuthzBootstrapError::ExtensionModeButNoHook.into()),
         (mode, Some(_)) => Err(AuthzBootstrapError::ExtensionHookButWrongMode {
@@ -106,7 +108,7 @@ pub fn build_authz_hook(
         },
         (AuthzMode::Webhook, None) => {
             let webhook = build_webhook_hook(authz, &sink)?;
-            Ok(compose_rule_based(pool, sink, vec![webhook]))
+            Ok(compose_rule_based(pool, sink, sources, vec![webhook]))
         },
     }
 }
@@ -136,6 +138,7 @@ fn build_webhook_hook(
 fn compose_rule_based(
     pool: Option<Arc<sqlx::PgPool>>,
     sink: Arc<dyn AuthzAuditSink>,
+    sources: ChainSources,
     mut tail: Vec<SharedAuthzHook>,
 ) -> SharedAuthzHook {
     let Some(pool) = pool else {
@@ -144,7 +147,7 @@ fn compose_rule_based(
         }
         return Arc::new(CompositeAuthzHook::new(tail));
     };
-    let rule_based: SharedAuthzHook = Arc::new(RuleBasedHook::new(pool, sink));
+    let rule_based: SharedAuthzHook = Arc::new(RuleBasedHook::new(pool, sink, sources));
     let mut hooks = Vec::with_capacity(tail.len() + 1);
     hooks.push(rule_based);
     hooks.extend(tail);

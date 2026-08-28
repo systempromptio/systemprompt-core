@@ -24,7 +24,7 @@ use super::types::{AuthzDecision, AuthzRequest};
 pub use db_sink::DbAuditSink;
 pub use repository::{
     AUDIT_WRITE_FAILED_TOTAL, GovernanceDecisionRecord, GovernanceDecisionRepository,
-    insert_governance_decision,
+    GovernanceDecisionRow, insert_governance_decision, recent_decisions_for_user,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

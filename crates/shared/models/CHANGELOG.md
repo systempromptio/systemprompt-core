@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.41.0] - 2026-08-28
+
+### Added
+
+- `api::cloud::BridgeGovernanceDecision` and `BridgeGovernanceDecisions` carry a governance verdict back to a bridge client, keyed by the `call_id` the gateway returns as `x-systemprompt-request-id`.
+- `bridge::manifest::CoworkArtifactBundleManifest` and `CoworkArtifactBundleRecord` describe a plugin bundle's `artifacts/manifest.json`.
+
+### Changed
+
+- `ServicesConfig::validate` rejects an enabled plugin, skill or marketplace whose `mcp_servers.include` names a disabled MCP server, and a skill naming an unknown one.
+
 ## [0.40.0] - 2026-08-26
 
 ### Added

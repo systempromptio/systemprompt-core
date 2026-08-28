@@ -175,6 +175,49 @@ mod rate_limits_validator {
     }
 
     #[test]
+    fn a_zero_rate_is_an_error_not_a_warning() {
+        let config = config_with_rate_limits(|rl| {
+            rl.content_per_second = 0;
+        });
+        let prov = provider(config, ServicesConfig::default());
+        let mut v = RateLimitsConfigValidator::new();
+        v.load(&prov).expect("load");
+        let report = v.validate().expect("validate");
+        assert!(
+            report.has_errors(),
+            "a zero rate leaves the route unlimited and must block startup"
+        );
+    }
+
+    #[test]
+    fn a_zero_burst_multiplier_is_an_error() {
+        let config = config_with_rate_limits(|rl| {
+            rl.burst_multiplier = 0;
+        });
+        let prov = provider(config, ServicesConfig::default());
+        let mut v = RateLimitsConfigValidator::new();
+        v.load(&prov).expect("load");
+        let report = v.validate().expect("validate");
+        assert!(report.has_errors());
+    }
+
+    #[test]
+    fn a_burst_product_beyond_u32_is_an_error() {
+        let config = config_with_rate_limits(|rl| {
+            rl.burst_multiplier = 1 << 31;
+            rl.content_per_second = 2;
+        });
+        let prov = provider(config, ServicesConfig::default());
+        let mut v = RateLimitsConfigValidator::new();
+        v.load(&prov).expect("load");
+        let report = v.validate().expect("validate");
+        assert!(
+            report.has_errors(),
+            "2 x 2^31 exceeds the representable burst and must be rejected at bootstrap"
+        );
+    }
+
+    #[test]
     fn warns_on_low_stream_per_second() {
         let config = config_with_rate_limits(|rl| {
             rl.stream_per_second = 1;

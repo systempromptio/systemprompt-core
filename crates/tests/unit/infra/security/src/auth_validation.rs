@@ -4,8 +4,14 @@
 //! (the same key the validator resolves via `kid` lookup) and asserts the
 //! real auth outcome: the produced [`RequestContext`] on success, and the
 //! specific [`AuthError`] variant on each rejection path (missing header,
-//! missing session id, admin elevation, over-deep delegation chain, wrong
-//! issuer, wrong audience, non-RS256 algorithm).
+//! missing session id, over-deep delegation chain, wrong issuer, wrong
+//! audience, non-RS256 algorithm).
+//!
+//! `user_type` is derived from the granted scope and a claim that disagrees is
+//! rejected, matching `jwt::decode::extract_user_context`. An earlier revision
+//! silently promoted any token carrying `Permission::Admin` to
+//! `UserType::Admin`; the test that pinned that behaviour was replaced by the
+//! two mismatch cases below.
 
 use std::collections::BTreeMap;
 use std::sync::Once;
@@ -103,19 +109,62 @@ fn valid_token_yields_context_with_subject_and_session() {
 }
 
 #[test]
-fn admin_scope_elevates_user_type_to_admin() {
+fn user_type_is_derived_from_the_granted_scope() {
     let mut claims = base_claims();
     claims.scope = vec![Permission::User, Permission::Admin];
+    claims.user_type = UserType::Admin;
     let headers = bearer_headers(&sign(&claims));
 
     let ctx = service()
         .validate_request(&headers)
         .expect("admin token accepted");
 
-    assert_eq!(
-        ctx.auth.user_type,
-        UserType::Admin,
-        "Admin permission must override the claim's user_type"
+    assert_eq!(ctx.auth.user_type, UserType::Admin);
+}
+
+#[test]
+fn a_claimed_user_type_that_the_scope_does_not_support_is_rejected() {
+    let mut claims = base_claims();
+    claims.scope = vec![Permission::User];
+    claims.user_type = UserType::Admin;
+    let headers = bearer_headers(&sign(&claims));
+
+    let err = service()
+        .validate_request(&headers)
+        .expect_err("a claim the scope does not support must be rejected");
+
+    assert!(
+        matches!(
+            err,
+            AuthError::UserTypeMismatch {
+                claimed: UserType::Admin,
+                derived: UserType::User
+            }
+        ),
+        "expected UserTypeMismatch, got {err:?}"
+    );
+}
+
+#[test]
+fn an_admin_scope_that_the_claim_does_not_declare_is_rejected() {
+    let mut claims = base_claims();
+    claims.scope = vec![Permission::User, Permission::Admin];
+    claims.user_type = UserType::User;
+    let headers = bearer_headers(&sign(&claims));
+
+    let err = service()
+        .validate_request(&headers)
+        .expect_err("scope and claim must agree in both directions");
+
+    assert!(
+        matches!(
+            err,
+            AuthError::UserTypeMismatch {
+                claimed: UserType::User,
+                derived: UserType::Admin
+            }
+        ),
+        "expected UserTypeMismatch, got {err:?}"
     );
 }
 

@@ -35,6 +35,8 @@ mod ingestion_yaml_path;
 #[cfg(test)]
 mod marketplace_floor;
 #[cfg(test)]
+mod parent_chain;
+#[cfg(test)]
 mod profile_governance;
 #[cfg(test)]
 mod registered_entities;

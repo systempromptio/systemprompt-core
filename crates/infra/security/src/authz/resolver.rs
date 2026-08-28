@@ -14,11 +14,12 @@
 //! [`AccessRule`]s plus the `default_included` sentinel from
 //! [`super::repository::AccessControlRepository`] and pass them in.
 //!
-//! A declared ruleset is **authoritative and closed**: an entity that names its
-//! own roles is closed to every role it does not name, and only an entity with
-//! no rules of its own defers to its parents. This is what makes a narrow
-//! `roles: [admin]` grant restrictive even when the entity belongs to a group
-//! that is granted to everyone.
+//! A declared ruleset is **authoritative and closed**, at every level of the
+//! parent chain: the nearest entity that declares any rule — the entity
+//! itself, else its plugin, else its marketplace — decides, and a level with
+//! no rules is transparent and defers upward. A narrow `roles: [admin]` on a
+//! plugin therefore closes every ruleless skill and artifact it ships to
+//! every other role, even when the marketplace above it admits everyone.
 //!
 //! `default_included` is `Option<bool>` — `None` signals the entity is
 //! unknown to access control (no row in `access_control_entities`), which
@@ -36,9 +37,9 @@ use super::types::{Access, AccessRule, Decision, DenyReason, EntityRef, MatchedB
 
 /// A parent entity whose rules cascade onto the child being resolved.
 ///
-/// Parents are ordered nearest-first: the entity directly above the child
-/// comes before its grandparent, so a closer grant wins over a more distant
-/// one within the same precedence band.
+/// Parents are ordered nearest-first; the first parent with a non-empty
+/// ruleset closes the cascade, so a farther grant can never reach past a
+/// nearer, declared level.
 #[derive(Debug, Clone, Copy)]
 pub struct ResolveParent<'a> {
     pub entity: &'a EntityRef,
@@ -81,31 +82,42 @@ pub fn resolve(input: ResolveInput<'_>) -> Decision {
         ladder: &ladder,
     };
 
+    let closed = |considered: &[ResolveParent<'_>]| {
+        closed_decision(entity, user_id, user_roles, default_included, considered)
+    };
+
     if let Some(decision) = match_ruleset(entity, rules, &subject) {
         return decision;
     }
-    let parents = if rules.is_empty() { parents } else { &[] };
+    if !rules.is_empty() {
+        if default_included.is_none() {
+            return Decision::Deny {
+                reason: DenyReason::UnknownEntity {
+                    entity: entity.clone(),
+                },
+            };
+        }
+        return closed(&[]);
+    }
 
-    for parent in parents {
+    for (index, parent) in parents.iter().enumerate() {
         if let Some(decision) = match_ruleset(parent.entity, parent.rules, &subject) {
             return decision;
         }
+        if !parent.rules.is_empty() {
+            return closed(&parents[..=index]);
+        }
     }
 
-    if default_included == Some(true) {
-        return Decision::Allow {
-            matched_by: MatchedBy::DefaultIncluded,
-        };
-    }
-    if parents
-        .iter()
-        .any(|parent| parent.default_included == Some(true))
+    if default_included == Some(true)
+        || parents
+            .iter()
+            .any(|parent| parent.default_included == Some(true))
     {
         return Decision::Allow {
             matched_by: MatchedBy::DefaultIncluded,
         };
     }
-
     if default_included.is_none() {
         return Decision::Deny {
             reason: DenyReason::UnknownEntity {
@@ -113,6 +125,33 @@ pub fn resolve(input: ResolveInput<'_>) -> Decision {
             },
         };
     }
+    not_assigned(entity, user_id, user_roles)
+}
+
+// Why: a declared level that did not match closes the cascade, so only the
+// levels up to and including it may still admit the subject by default. The
+// entity is known through that level, so an absent sentinel row is
+// `NotAssigned`, never `UnknownEntity`.
+fn closed_decision(
+    entity: &EntityRef,
+    user_id: &UserId,
+    user_roles: &[String],
+    default_included: Option<bool>,
+    considered: &[ResolveParent<'_>],
+) -> Decision {
+    if default_included == Some(true)
+        || considered
+            .iter()
+            .any(|parent| parent.default_included == Some(true))
+    {
+        return Decision::Allow {
+            matched_by: MatchedBy::DefaultIncluded,
+        };
+    }
+    not_assigned(entity, user_id, user_roles)
+}
+
+fn not_assigned(entity: &EntityRef, user_id: &UserId, user_roles: &[String]) -> Decision {
     Decision::Deny {
         reason: DenyReason::NotAssigned {
             entity: entity.clone(),

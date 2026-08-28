@@ -38,12 +38,9 @@ impl RegisteredEntities {
         Self::default()
     }
 
-    /// Declare the complete set of real ids for `kind`. Ingestion will reject a
-    /// literal `entity_id` of this kind that is not in `ids`.
-    ///
-    /// Declaring a kind with an empty set is meaningful and enforced: it says
-    /// "this deployment has none of these", so every literal id of that kind is
-    /// rejected.
+    // Why: declaring a kind with an empty set is meaningful, not a no-op — it
+    // says "this deployment has none of these", so every literal id of that
+    // kind is rejected rather than waved through as an undeclared kind.
     #[must_use]
     pub fn with_kind<I, S>(mut self, kind: EntityKind, ids: I) -> Self
     where

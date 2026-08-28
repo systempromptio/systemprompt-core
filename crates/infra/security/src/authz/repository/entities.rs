@@ -81,10 +81,9 @@ impl AccessControlRepository {
         Ok(())
     }
 
-    /// Insert the catalog row if absent, closed (`default_included = false`),
-    /// and leave an existing row — including its `default_included` — alone.
-    /// Use this where a write needs the FK satisfied but must not widen access;
-    /// [`Self::upsert_entity`] overwrites the flag.
+    // Why: leaves an existing row's `default_included` alone, so a write that
+    // only needs the FK satisfied cannot widen access. `upsert_entity`
+    // overwrites the flag; this does not.
     pub async fn ensure_entity(
         &self,
         entity_type: EntityKind,
@@ -106,26 +105,10 @@ impl AccessControlRepository {
         Ok(())
     }
 
-    pub async fn upsert_entities(
-        &self,
-        entity_type: EntityKind,
-        ids: &[&str],
-        default_included: bool,
-        source: &str,
-    ) -> AuthzResult<()> {
-        let mut conn = self.write_pool.acquire().await?;
-        upsert_entities_on(&mut conn, entity_type, ids, default_included, source).await
-    }
-
-    /// Register `keep` as the complete set of `entity_type` and delete every
-    /// other row of that kind, in one transaction, returning the deleted count.
-    ///
-    /// `access_control_rules` FKs onto this table `ON DELETE CASCADE`, so a
-    /// pruned entity takes its grants with it. That is the point: an entity
-    /// that no longer exists must not leave a live grant behind. Only call this
-    /// for a kind whose caller can enumerate the *complete* real set — an empty
-    /// `keep` deletes every row of the kind, and
-    /// [`super::super::gateway_entities`] refuses it for that reason.
+    // Why: `access_control_rules` FKs onto this table ON DELETE CASCADE, so a
+    // pruned entity takes its grants with it. Only call this for a kind whose
+    // caller can enumerate the complete real set — an empty `keep` deletes
+    // every row of the kind, which is why `gateway_entities` refuses one.
     pub async fn reconcile_entities(
         &self,
         entity_type: EntityKind,
