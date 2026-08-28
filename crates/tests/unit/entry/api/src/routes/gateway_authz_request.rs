@@ -24,6 +24,7 @@ fn forwards_roles_and_attributes_to_authz_request() {
         route_id: RouteId::new("route-1"),
         model: ModelId::new("claude-3"),
         session_id: None,
+        client_id: None,
     });
 
     assert_eq!(req.user_id.as_str(), "user_1");

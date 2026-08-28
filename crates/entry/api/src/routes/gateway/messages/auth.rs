@@ -110,7 +110,7 @@ impl AuthedPrincipal {
         }
     }
 
-    pub fn client_id(&self) -> Option<&ClientId> {
+    pub const fn client_id(&self) -> Option<&ClientId> {
         match self {
             Self::Jwt(p) => p.client_id.as_ref(),
             Self::ApiKey(_) => None,
