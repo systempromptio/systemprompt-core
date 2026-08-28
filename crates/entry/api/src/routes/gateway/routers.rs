@@ -17,8 +17,8 @@ use crate::services::gateway::protocol::inbound::openai_responses::OpenAiRespons
 use crate::services::middleware::JwtContextExtractor;
 
 use super::{
-    auth, bridge, bridge_heartbeat, bridge_manifest, bridge_plugin_file, bridge_profile_usage,
-    bridge_release, bridge_stream, bridge_whoami, messages,
+    auth, bridge, bridge_decisions, bridge_heartbeat, bridge_manifest, bridge_plugin_file,
+    bridge_profile_usage, bridge_release, bridge_stream, bridge_whoami, messages,
 };
 
 pub(super) fn inference_routes(
@@ -210,8 +210,10 @@ pub(super) fn bridge_session_routes(
     jwt_extractor: &Arc<JwtContextExtractor>,
 ) -> Router {
     let ctx_profile_usage = ctx.clone();
+    let ctx_decisions = ctx.clone();
     let ctx_heartbeat = ctx.clone();
     let jwt_profile_usage = Arc::clone(jwt_extractor);
+    let jwt_decisions = Arc::clone(jwt_extractor);
     let jwt_heartbeat = Arc::clone(jwt_extractor);
     let jwt_stream = Arc::clone(jwt_extractor);
     Router::new()
@@ -221,6 +223,14 @@ pub(super) fn bridge_session_routes(
                 let extractor = Arc::clone(&jwt_profile_usage);
                 let context = ctx_profile_usage.clone();
                 async move { bridge_profile_usage::handle(extractor, context, headers).await }
+            }),
+        )
+        .route(
+            "/bridge/decisions",
+            get(move |headers, query| {
+                let extractor = Arc::clone(&jwt_decisions);
+                let context = ctx_decisions.clone();
+                async move { bridge_decisions::handle(extractor, context, headers, query).await }
             }),
         )
         .route(

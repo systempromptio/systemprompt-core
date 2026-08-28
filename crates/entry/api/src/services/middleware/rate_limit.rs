@@ -27,6 +27,7 @@ use std::sync::Arc;
 use systemprompt_models::RequestContext;
 use systemprompt_models::api::{ApiError, ErrorCode};
 use systemprompt_models::auth::RateLimitTier;
+use systemprompt_extension::LoaderError;
 use systemprompt_models::config::RateLimitConfig;
 use tower_governor::key_extractor::SmartIpKeyExtractor;
 use tracing::warn;
@@ -59,8 +60,12 @@ impl ContextLayer for McpContextMiddleware {
     }
 }
 
-pub trait RouterExt<S> {
-    fn with_rate_limit(self, rate_config: &RateLimitConfig, per_second: u64) -> Self;
+pub trait RouterExt<S>: Sized {
+    fn with_rate_limit(
+        self,
+        rate_config: &RateLimitConfig,
+        per_second: u64,
+    ) -> Result<Self, LoaderError>;
 
     fn with_auth<L: ContextLayer>(self, auth: L, policy: AuthzPolicy) -> Self;
 }
@@ -69,24 +74,36 @@ impl<S> RouterExt<S> for Router<S>
 where
     S: Clone + Send + Sync + 'static,
 {
-    fn with_rate_limit(self, rate_config: &RateLimitConfig, per_second: u64) -> Self {
+    fn with_rate_limit(
+        self,
+        rate_config: &RateLimitConfig,
+        per_second: u64,
+    ) -> Result<Self, LoaderError> {
         if rate_config.disabled {
-            return self;
+            return Ok(self);
         }
 
-        let rate_limit_result = tower_governor::governor::GovernorConfigBuilder::default()
-            .per_second(per_second)
-            .burst_size((per_second * rate_config.burst_multiplier) as u32)
+        // Why: a truncating `as u32` turns any product that is a multiple of 2^32 into a
+        // zero burst, which `finish()` reports only by returning `None` — silently leaving
+        // the route unlimited. Saturate and clamp so the quota is always representable.
+        let burst = per_second.saturating_mul(rate_config.burst_multiplier);
+        let burst_u32 = u32::try_from(burst).unwrap_or(u32::MAX).max(1);
+        let per_second_clamped = per_second.max(1);
+
+        let rate_limit = tower_governor::governor::GovernorConfigBuilder::default()
+            .per_second(per_second_clamped)
+            .burst_size(burst_u32)
             .key_extractor(SmartIpKeyExtractor)
             .use_headers()
-            .finish();
+            .finish()
+            .ok_or_else(|| LoaderError::InitializationFailed {
+                extension: "rate_limit".to_owned(),
+                message: format!(
+                    "rate limit rejected for {per_second_clamped}/s with burst {burst_u32}"
+                ),
+            })?;
 
-        if let Some(rate_limit) = rate_limit_result {
-            self.layer(tower_governor::GovernorLayer::new(rate_limit))
-        } else {
-            warn!("Failed to configure rate limiting - rate limiting disabled for this route");
-            self
-        }
+        Ok(self.layer(tower_governor::GovernorLayer::new(rate_limit)))
     }
 
     fn with_auth<L: ContextLayer>(self, auth: L, policy: AuthzPolicy) -> Self {

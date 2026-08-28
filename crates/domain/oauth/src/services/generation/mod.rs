@@ -91,7 +91,11 @@ fn build_claims(
         })?
         .timestamp();
     let now = Utc::now().timestamp();
-    let user_type = user.user_type();
+    // Why: the token's identity must follow the scope actually granted, not the
+    // user's full permission set. Deriving from `user` lets a down-scoped token
+    // carry `user_type=Admin` with a narrower `scope`, which the reading side
+    // rejects as a forged mismatch.
+    let user_type = UserType::from_permissions(&config.permissions);
     let mut audience = config.audience.clone();
     if let Some(ref resource) = config.resource {
         audience.push(JwtAudience::Resource(resource.clone()));

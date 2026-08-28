@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.41.0] - 2026-08-28
+
+### Added
+
+- `GET /v1/bridge/decisions` returns the JWT subject's recent governance verdicts — `call_id`, decision, the policy that decided it, reason and timestamp — bounded by `since` and `limit`. The gateway already wrote a decision on allow as well as deny and already returned the correlating id as `x-systemprompt-request-id`; this is the read side, so the bridge desktop app can show what was actually decided about each request rather than asserting that governance happened.
+
 ## [0.40.0] - 2026-08-26
 
 ### Added

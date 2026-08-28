@@ -96,7 +96,9 @@ async fn a_disabled_rate_limit_leaves_the_router_untouched() {
         disabled: true,
         ..RateLimitConfig::default()
     };
-    let app = ok_router().with_rate_limit(&config, 1);
+    let app = ok_router()
+        .with_rate_limit(&config, 1)
+        .expect("a disabled limiter still builds");
 
     let resp = app.oneshot(request()).await.expect("request must complete");
 
@@ -110,7 +112,9 @@ async fn a_disabled_rate_limit_leaves_the_router_untouched() {
 #[tokio::test]
 async fn an_exhausted_burst_is_refused_rather_than_served() {
     let config = limited();
-    let app = ok_router().with_rate_limit(&config, 1);
+    let app = ok_router()
+        .with_rate_limit(&config, 1)
+        .expect("a 1/s limiter must build");
 
     let mut statuses = Vec::new();
     for _ in 0..8 {
@@ -132,6 +136,48 @@ async fn an_exhausted_burst_is_refused_rather_than_served() {
         statuses.contains(&StatusCode::TOO_MANY_REQUESTS),
         "a burst of 8 against a 1/s quota must be refused somewhere: {statuses:?}"
     );
+}
+
+#[tokio::test]
+async fn a_zero_rate_clamps_to_a_real_limit_instead_of_meaning_unlimited() {
+    let config = limited();
+
+    let app = ok_router()
+        .with_rate_limit(&config, 0)
+        .expect("a zero rate clamps rather than failing to build");
+
+    let mut statuses = Vec::new();
+    for _ in 0..8 {
+        statuses.push(
+            app.clone()
+                .oneshot(request())
+                .await
+                .expect("request must complete")
+                .status(),
+        );
+    }
+
+    assert!(
+        statuses.contains(&StatusCode::TOO_MANY_REQUESTS),
+        "a zero rate produced a zero burst, which the governor rejected and the router then \
+         served unlimited: {statuses:?}"
+    );
+}
+
+#[tokio::test]
+async fn a_burst_product_that_is_an_exact_multiple_of_u32_still_limits() {
+    let config = RateLimitConfig {
+        burst_multiplier: 1 << 31,
+        ..limited()
+    };
+
+    let app = ok_router()
+        .with_rate_limit(&config, 2)
+        .expect("2 x 2^31 is exactly 2^32, which a truncating cast turns into a zero burst");
+
+    let resp = app.oneshot(request()).await.expect("request must complete");
+
+    assert_eq!(resp.status(), StatusCode::OK);
 }
 
 async fn drive_flavour(app: Router, ctx: Option<RequestContext>) -> StatusCode {

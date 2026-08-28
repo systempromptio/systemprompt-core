@@ -43,23 +43,23 @@ pub(super) fn configure_routes(
     let a2a_middleware = A2AContextMiddleware::new(jwt_extractor.clone());
     let mcp_middleware = McpContextMiddleware::new(jwt_extractor);
 
-    router = protocol::mount_oauth(router, ctx, &public_middleware, &user_middleware);
+    router = protocol::mount_oauth(router, ctx, &public_middleware, &user_middleware)?;
     router = protocol::mount_agent(
         router,
         ctx,
         &public_middleware,
         &user_middleware,
         a2a_middleware,
-    );
+    )?;
     router = protocol::mount_mcp_and_stream(
         router,
         ctx,
         &public_middleware,
         &user_middleware,
         mcp_middleware,
-    );
-    router = protocol::mount_content_and_misc(router, ctx, &public_middleware, &user_middleware);
-    router = protocol::mount_messaging(router, ctx);
+    )?;
+    router = protocol::mount_content_and_misc(router, ctx, &public_middleware, &user_middleware)?;
+    router = protocol::mount_messaging(router, ctx)?;
 
     router = extension_mount::mount_extension_routes(router, ctx, &user_middleware, events)?;
 
@@ -71,11 +71,17 @@ pub(super) fn configure_routes(
             .with_auth(user_middleware, AuthzPolicy::authenticated()),
     );
     router =
-        router.merge(wellknown_router(ctx).with_auth(public_middleware, AuthzPolicy::public()));
+        router.merge(wellknown_router(ctx)?.with_auth(public_middleware, AuthzPolicy::public()));
 
-    router = router.route(
-        "/auth/link-passkey",
-        axum::routing::get(crate::routes::oauth::webauthn::link::link_passkey_page),
+    let rate_config = &ctx.config().rate_limits;
+    router = router.merge(
+        Router::new()
+            .route(
+                "/auth/link-passkey",
+                axum::routing::get(crate::routes::oauth::webauthn::link::link_passkey_page),
+            )
+            .with_rate_limit(rate_config, rate_config.oauth_public_per_second)?
+            .with_auth(public_middleware, AuthzPolicy::public()),
     );
 
     router = router.merge(static_setup::build_static_router(
@@ -134,6 +140,6 @@ fn authenticated_discovery_router(ctx: &AppContext) -> Router {
     super::builder::authenticated_discovery_router(ctx)
 }
 
-fn wellknown_router(ctx: &AppContext) -> Router {
-    crate::routes::oauth::wellknown_routes(ctx).merge(crate::routes::wellknown_router(ctx))
+fn wellknown_router(ctx: &AppContext) -> Result<Router, LoaderError> {
+    Ok(crate::routes::oauth::wellknown_routes(ctx).merge(crate::routes::wellknown_router(ctx)?))
 }

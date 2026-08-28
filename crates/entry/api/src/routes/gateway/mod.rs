@@ -16,6 +16,7 @@
 pub mod auth;
 pub mod bridge;
 pub mod bridge_data;
+pub mod bridge_decisions;
 pub mod bridge_heartbeat;
 pub mod bridge_manifest;
 pub mod bridge_plugin_file;
