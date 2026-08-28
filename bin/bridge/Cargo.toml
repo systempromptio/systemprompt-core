@@ -2,7 +2,7 @@
 
 [package]
 name = "systemprompt-bridge"
-version = "0.31.0"
+version = "0.32.0"
 edition = "2024"
 rust-version = "1.96"
 authors = ["Edward Burton"]

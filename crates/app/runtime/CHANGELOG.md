@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.41.0] - 2026-08-28
+
+### Changed
+
+- The authz bootstrap is handed the parent chain built from the services config, so a rule granted on a plugin cascades to the skills, agents and MCP servers that plugin owns. When the services config cannot be loaded the builder warns and resolves without the cascade rather than failing to start, which keeps a config fault from taking the process down but does mean a plugin-level grant stops reaching its children until it is fixed.
+
 ## [0.29.0] - 2026-08-05
 
 ### Added

@@ -1,27 +1,44 @@
 # Changelog
 
-## [Unreleased]
+## [0.41.0] - 2026-08-28
 
-### Fixed
+### Added
 
-- Rate limiting buckets a caller by identity rather than by a header the caller controls. The per-route limiter keyed on `tower_governor`'s `SmartIpKeyExtractor`, which reads the first parseable value from `X-Forwarded-For` with no trusted-proxy check — so a caller who varied that header landed in a fresh token bucket on every request and was not limited at all. Requests carrying a signature-verified identity are now bucketed by that identity; everything else is bucketed by the client address resolved through `trusted_proxies`, the same resolver the IP-ban gate uses, and a caller whose address cannot be resolved is refused rather than admitted.
-
-### Changed
-
-- The static content router is merged after the IP-ban layer rather than beneath it, so serving a public page or asset no longer costs a ban-list query. The gate is fail-closed by design, and layering it around the whole tree meant a database fault returned `403` for every visitor to the public site while the exempt health probes kept the pod reporting healthy. Static content carries no privileged data and banning an address from reading a public page buys little against that failure mode; API routes are unchanged and still refuse when the ban list is unreachable.
-
-### Removed
-
-- **Breaking:** `rate_limits.tier_multipliers` is removed from the profile schema, along with the `admin config rate-limits` `tier`, `compare` and `docs` subcommands, `--tier`/`--multiplier` on `set`, and `--tier` on `reset`. The per-tier limiter those keys configured was never mounted, so the values scaled nothing, the startup warnings about them described an effect that did not exist, and the CLI's per-tier "effective limits" tables — including their JSON output — reported numbers no limiter enforced. Migrate by deleting the `tier_multipliers` block from your profile YAML; `deny_unknown_fields` means a profile that still carries it will fail to load.
+- Governance can hold a tool call for a named human. A rule may resolve to `Decision::Pending` instead of allow/deny, which parks the call as an `approval_requests` row addressed to a specific approver rather than answering it; the MCP client negotiates protocol `2026-07-28` so the waiting call surfaces as an `InputRequiredResult` the caller can actually respond to. **Breaking:** `Decision` gains the `Pending` variant, so an exhaustive match over it no longer compiles — degrade it to deny unless the surface can genuinely wait for a human.
+- Authz cascades through the plugin that owns an entity. A rule granted on a plugin now reaches the skills, agents and MCP servers that plugin owns, resolved through the parent chain rather than requiring a rule per leaf. `authz::{resolve, ResolveInput, ResolveParent}` moved to `authz::resolver::`.
+- A registered-entity catalog. Entities are declared once and reconciled atomically with the gateway routes that reference them, so a route can no longer name a target that does not exist, and boot refuses rather than discovering it on the first request.
+- The marketplace records which plugin owns each skill and ships an artifact manifest alongside the bundle.
+- MCP renders artifacts from typed models rather than loose JSON, and the bridge delivers team comms to a session over an SSE inbox.
+- Approval rules compare scalars, not only strings, so a numeric or boolean condition no longer silently fails to match.
+- `just bridge-preview` serves the bridge GUI web tree over HTTP with mocked IPC and fixture states — the tree is otherwise unviewable on Linux, since the webview is Windows/macOS only.
 
 ### Changed
 
 - **Breaking:** the minimum supported Rust version is now 1.96, raised from 1.94, and `bin/bridge` declares it explicitly for the first time. The bridge already required newer than it claimed — its `vergen-gitcl` build dependency needs 1.95, and the 10.x line has since moved to 1.96 — so the declared 1.94 was not a promise the tree could keep. The MSRV job never caught it because it never tested the MSRV: `rust-toolchain.toml` pins a nightly, a toolchain file outranks rustup's default, and the job's bare `cargo check` therefore ran that nightly rather than the toolchain it had just installed. It now pins `RUSTUP_TOOLCHAIN` and asserts the running compiler matches the manifests before checking anything.
+- The static content router is merged after the IP-ban layer rather than beneath it, so serving a public page or asset no longer costs a ban-list query. The gate is fail-closed by design, and layering it around the whole tree meant a database fault returned `403` for every visitor to the public site while the exempt health probes kept the pod reporting healthy. Static content carries no privileged data and banning an address from reading a public page buys little against that failure mode; API routes are unchanged and still refuse when the ban list is unreachable.
+- Every push to `next` runs CI, Quality and Supply Chain; coverage runs on the `promote → main` pull request and its merge commit, so the published number always describes what was released. The file-size guard and the MSRV job are real gates rather than reporters.
+- 49 modules over the file-size limit were split across the shared, infra, domain, app, entry and bridge layers. No behaviour changed, but module paths did.
+
+### Removed
+
+- **Breaking:** `rate_limits.tier_multipliers` is removed from the profile schema, along with the `admin config rate-limits` `tier`, `compare` and `docs` subcommands, `--tier`/`--multiplier` on `set`, and `--tier` on `reset`. The per-tier limiter those keys configured was never mounted, so the values scaled nothing, the startup warnings about them described an effect that did not exist, and the CLI's per-tier "effective limits" tables — including their JSON output — reported numbers no limiter enforced. Migrate by deleting the `tier_multipliers` block from your profile YAML; `deny_unknown_fields` means a profile that still carries it will fail to load.
+- The bridge's "Governed requests" table, its in-memory ring, the decisions poller and `GET /v1/bridge/decisions`. The table attributed every MCP request to an agent named `unknown` — a label derived from a `User-Agent` header MCP clients do not send — and its verdict column could never be filled for MCP traffic. Identity now flows from the validated credential to the audit row instead: `AuthzRequest` carries the enforcement surface, the token's `client_id` and the resolved access scope, and `governance_decisions` gains an indexed `client_id`.
 
 ### Fixed
 
+- Rate limiting buckets a caller by identity rather than by a header the caller controls. The per-route limiter keyed on `tower_governor`'s `SmartIpKeyExtractor`, which reads the first parseable value from `X-Forwarded-For` with no trusted-proxy check — so a caller who varied that header landed in a fresh token bucket on every request and was not limited at all. Requests carrying a signature-verified identity are now bucketed by that identity; everything else is bucketed by the client address resolved through `trusted_proxies`, the same resolver the IP-ban gate uses, and a caller whose address cannot be resolved is refused rather than admitted.
 - The outbound MCP client negotiates protocol `2026-07-28`, so a server will hand it an `InputRequiredResult`. rmcp's default is `ProtocolVersion::LATEST` — `2025-11-25` — and a server refuses to send `resultType: "input_required"` to a peer that negotiated below `2026-07-28`, so every MRTR (SEP-2322) round arrived as an error and no MCP tool could ask a human for anything through this client. Servers that do not speak `2026-07-28` negotiate down as before.
 - `HttpClientWithContext` restates the negotiated protocol version and the client's capabilities in each request's `_meta` (SEP-2575). A stateless server has no session to remember them from and rejects any non-initialize request that omits them, before the request reaches a handler; rmcp sets the `MCP-Protocol-Version` header but never the matching `_meta` fields. The version is read back from that header rather than assumed, so it always agrees with it and older servers are untouched. This also settles the SEP-2243 `Mcp-Method` / `Mcp-Name` headers, which rmcp derives from the negotiated version once it is `2026-07-28`.
+- `admin` commands resolve the existing local admin by name instead of inventing one with a fabricated email.
+
+### Bridge (0.32.0)
+
+- A white-label brand may pin the GUI dark (`Brand::force_dark`). A brand whose palette is a single dark surface has no light theme to offer, and following `prefers-color-scheme` handed it a half-light window — a light title bar over its own dark page. The settings pane drops the Appearance selector for such a brand rather than offering a choice that does nothing. `SYSTEMPROMPT` ships both themes and is unchanged.
+- Console children no longer flash a window or steal the foreground on Windows. The bridge owns no console, so a console child spawned without `CREATE_NO_WINDOW` got one of its own — the tray redraw asked `schtasks` on every 30s probe tick, flashing a console twice a minute and eating the user's keystrokes. A new source gate keeps the Windows paths that way.
+- Input focus follows the window into the child webview, so returning from the browser after the device-link sign-in no longer leaves the page inactive and ignoring clicks.
+- Saving the gateway URL has its own cancel scope. It borrowed `Login`'s, and the field's blur fires as the sign-in button is clicked, so each destroyed the other's token and the sign-in that followed became uncancellable.
+- Setup rejects an `https://` loopback gateway URL, which was saved verbatim and then failed in the browser with a bare TLS protocol error.
+- Cowork egress is no longer pinned to loopback on install, and settings values wrap instead of widening the pane.
 
 ## [0.40.0] - 2026-08-26
 

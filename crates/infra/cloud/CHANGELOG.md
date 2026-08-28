@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.41.0] - 2026-08-28
+
+### Changed
+
+- Dockerfile validation errors name the command that fixes them. The file is generated from the MCP servers declared in `services/`, so it goes stale whenever one is added; the errors pointed at `systemprompt cloud profile create`, which creates a profile rather than re-rendering the Dockerfile of an existing one. They now give `systemprompt cloud dockerfile --profile <name>` and say the file is generated.
+
 ## [0.40.0] - 2026-08-26
 
 ### Fixed
