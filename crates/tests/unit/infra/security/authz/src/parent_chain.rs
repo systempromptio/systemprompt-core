@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use systemprompt_identifiers::{MarketplaceId, PluginId};
+use systemprompt_identifiers::{MarketplaceId, PluginId, SkillId};
 use systemprompt_models::services::{PluginAuthor, PluginComponentRef, PluginConfig};
 use systemprompt_security::authz::types::{Access, AccessRule, Decision, MatchedBy, RuleType};
 use systemprompt_security::authz::{
@@ -39,16 +39,20 @@ fn set(values: &[&str]) -> BTreeSet<String> {
     values.iter().map(|v| (*v).to_owned()).collect()
 }
 
+fn plugin_set(values: &[&str]) -> BTreeSet<PluginId> {
+    values.iter().map(|v| PluginId::new(*v)).collect()
+}
+
 fn sources(plugins: &[&str], skill_owners: &[(&str, &[&str])]) -> ChainSources {
     ChainSources {
         marketplace: Some(MarketplaceSource {
             id: MarketplaceId::new("market"),
             fallback_default_included: Some(true),
         }),
-        plugins: set(plugins),
+        plugins: plugin_set(plugins),
         skill_owners: skill_owners
             .iter()
-            .map(|(skill, owners)| ((*skill).to_owned(), set(owners)))
+            .map(|(skill, owners)| (SkillId::new(*skill), plugin_set(owners)))
             .collect(),
         marketplace_members: BTreeMap::from([(EntityKind::McpServer, set(&["odoo"]))]),
     }
@@ -59,7 +63,7 @@ fn index(plugins: Vec<(&str, LoadedParent)>, sources: ChainSources) -> ParentCha
         Some(market_parent(vec![rule("user", Access::Allow)], Some(true))),
         plugins
             .into_iter()
-            .map(|(id, parent)| (id.to_owned(), parent))
+            .map(|(id, parent)| (PluginId::new(id), parent))
             .collect(),
         sources,
     )
@@ -263,11 +267,17 @@ fn from_services_records_which_plugin_selects_each_skill() {
 
     let sources = ChainSources::from_services(&services);
 
-    assert_eq!(sources.plugins, set(&["admin-plugin", "user-plugin"]));
-    assert_eq!(sources.skill_owners["admin_skill"], set(&["admin-plugin"]));
+    assert_eq!(
+        sources.plugins,
+        plugin_set(&["admin-plugin", "user-plugin"])
+    );
+    assert_eq!(
+        sources.skill_owners["admin_skill"],
+        plugin_set(&["admin-plugin"])
+    );
     assert_eq!(
         sources.skill_owners["shared"],
-        set(&["admin-plugin", "user-plugin"])
+        plugin_set(&["admin-plugin", "user-plugin"])
     );
     assert!(!sources.skill_owners.contains_key("never"));
     assert!(sources.is_marketplace_member(EntityKind::McpServer, "odoo"));

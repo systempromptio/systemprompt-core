@@ -4,8 +4,6 @@
 //! `DenyAllHook` or a bootstrap error. Allow-all is reachable only via the
 //! literal acknowledgement string.
 
-use std::sync::Arc;
-
 use systemprompt_identifiers::{RouteId, TraceId};
 use systemprompt_models::profile::{
     AuthzConfig, AuthzHookConfig, AuthzMode, GovernanceConfig, UNRESTRICTED_ACKNOWLEDGEMENT,

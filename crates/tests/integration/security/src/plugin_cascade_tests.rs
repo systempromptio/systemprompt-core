@@ -9,7 +9,7 @@ use std::sync::Arc;
 
 use sqlx::PgPool;
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::MarketplaceId;
+use systemprompt_identifiers::{MarketplaceId, PluginId, SkillId};
 use systemprompt_security::authz::{
     AccessControlRepository, BulkKeepQuery, ChainSources, EntityKind, MarketplaceSource,
     NO_SUBJECT_ATTRIBUTES, ParentChainIndex, allowed_ids,
@@ -41,7 +41,11 @@ impl Fixture {
     }
 
     fn sources(&self) -> ChainSources {
-        let owners = |ids: &[&str]| ids.iter().map(|s| (*s).to_owned()).collect::<BTreeSet<_>>();
+        let owners = |ids: &[&str]| {
+            ids.iter()
+                .map(|s| PluginId::new(*s))
+                .collect::<BTreeSet<_>>()
+        };
         ChainSources {
             marketplace: Some(MarketplaceSource {
                 id: MarketplaceId::new(&self.market),
@@ -49,10 +53,13 @@ impl Fixture {
             }),
             plugins: owners(&[&self.admin_plugin, &self.user_plugin]),
             skill_owners: BTreeMap::from([
-                (self.admin_skill.clone(), owners(&[&self.admin_plugin])),
-                (self.user_skill.clone(), owners(&[&self.user_plugin])),
                 (
-                    self.shared_skill.clone(),
+                    SkillId::new(&self.admin_skill),
+                    owners(&[&self.admin_plugin]),
+                ),
+                (SkillId::new(&self.user_skill), owners(&[&self.user_plugin])),
+                (
+                    SkillId::new(&self.shared_skill),
                     owners(&[&self.admin_plugin, &self.user_plugin]),
                 ),
             ]),

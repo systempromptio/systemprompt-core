@@ -25,10 +25,11 @@ use systemprompt_models::profile::{
     ApiSurface, GatewayConfig, ProviderEntry, ProviderModel, ProviderRegistry, WireProtocol,
     synthesize_route_id,
 };
+use systemprompt_security::authz::resolver::{ResolveInput, resolve};
 use systemprompt_security::authz::{
     Access, AccessControlConfig, AccessControlIngestionService, AccessControlRepository, Decision,
-    DenyReason, EntityKind, EntityRef, IngestOptions, RegisteredEntities, ResolveInput, RuleEntry,
-    RuleTarget, reconcile_gateway_entities_exact, resolve,
+    DenyReason, EntityKind, EntityRef, IngestOptions, RegisteredEntities, RuleEntry, RuleTarget,
+    reconcile_gateway_entities_exact,
 };
 use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
 use tokio::sync::{Mutex, MutexGuard};
@@ -173,6 +174,7 @@ async fn reconcile_materializes_synthetic_default_route_and_wildcard_grants_it()
         .ingest_config(
             &wildcard_gateway_rule(&["user", "admin"]),
             IngestOptions::default(),
+            &RegisteredEntities::default(),
         )
         .await
         .expect("ingest wildcard");
