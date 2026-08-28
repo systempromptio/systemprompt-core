@@ -181,3 +181,17 @@ fn invalid_header_value_is_skipped_not_panicked() {
     assert!(!hdrs.contains_key(headers::SESSION_ID));
     assert!(hdrs.contains_key(headers::TRACE_ID));
 }
+
+#[test]
+fn reserved_agent_name_header_is_an_invalid_header_error() {
+    let mut hdrs = base_context().to_headers();
+    hdrs.insert(
+        headers::AGENT_NAME,
+        http::HeaderValue::from_static("unknown"),
+    );
+    let err = RequestContext::from_headers(&hdrs).unwrap_err();
+    assert!(
+        matches!(err, ContextPropagationError::InvalidHeader { ref name, .. } if name == headers::AGENT_NAME),
+        "got {err:?}"
+    );
+}

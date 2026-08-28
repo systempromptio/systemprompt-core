@@ -9,7 +9,7 @@ use jsonwebtoken::{Algorithm, Header, encode};
 use serde::{Deserialize, Serialize};
 
 use crate::models::JwtClaims;
-use systemprompt_identifiers::{SessionId, UserId};
+use systemprompt_identifiers::{ClientId, SessionId, UserId};
 use systemprompt_models::Config;
 use systemprompt_models::auth::{
     ActClaim, AuthenticatedUser, JwtAudience, Permission, RateLimitTier, TokenType, UserType,
@@ -34,6 +34,8 @@ pub struct JwtConfig {
     pub resource: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub plugin_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub client_id: Option<ClientId>,
 }
 
 #[derive(Debug, Clone)]
@@ -49,6 +51,7 @@ impl Default for JwtConfig {
             expires_in_hours: Some(24),
             resource: None,
             plugin_id: None,
+            client_id: None,
         }
     }
 }
@@ -114,7 +117,7 @@ fn build_claims(
         user_type,
         roles: user.roles().to_vec(),
         attributes: user.attributes().clone(),
-        client_id: None,
+        client_id: config.client_id,
         token_type: TokenType::Bearer,
         auth_time: now,
         session_id: Some(session_id.clone()),
@@ -167,7 +170,7 @@ pub fn generate_jwt(
 pub fn generate_anonymous_jwt(
     user_id: &UserId,
     session_id: &SessionId,
-    client_id: &systemprompt_identifiers::ClientId,
+    client_id: &ClientId,
     signing: &JwtSigningParams<'_>,
 ) -> Result<String> {
     let expires_in_seconds = Config::get()?.jwt_access_token_expiration;
@@ -177,7 +180,7 @@ pub fn generate_anonymous_jwt(
 pub fn generate_anonymous_jwt_with_expiry(
     user_id: &UserId,
     session_id: &SessionId,
-    client_id: &systemprompt_identifiers::ClientId,
+    client_id: &ClientId,
     signing: &JwtSigningParams<'_>,
     expires_in_seconds: i64,
 ) -> Result<String> {

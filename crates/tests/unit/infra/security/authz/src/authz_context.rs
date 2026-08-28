@@ -8,6 +8,9 @@ fn make_request(ctx: AuthzContext) -> AuthzRequest {
     AuthzRequest {
         entity: EntityRef::GatewayRoute(RouteId::new("r1")),
         user_id: UserId::new("u1"),
+        actor: None,
+        client_id: None,
+        access_scope: None,
         roles: vec![],
         attributes: BTreeMap::new(),
         trace_id: TraceId::new("t1"),

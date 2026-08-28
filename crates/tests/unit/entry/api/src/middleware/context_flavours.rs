@@ -365,3 +365,27 @@ fn flavour_debug_impls_hide_the_extractor() {
         "McpContextMiddleware"
     );
 }
+
+#[tokio::test]
+async fn public_ignores_a_reserved_agent_name_header() {
+    let mw = PublicContextMiddleware::new();
+    let app = pipeline_with_session(
+        move |r| {
+            r.layer(from_fn(move |req, next| {
+                let mw = mw.clone();
+                async move { mw.handle(req, next).await }
+            }))
+        },
+        Some(anon_session_context()),
+    );
+    let (status, body) = drive(app, Method::GET, &[("x-agent-name", "unknown")]).await;
+    assert_eq!(
+        status,
+        StatusCode::OK,
+        "a reserved agent name must not fail the request"
+    );
+    assert!(
+        body.contains("agent=session;"),
+        "the session's agent name must survive a rejected header, got {body}"
+    );
+}

@@ -204,6 +204,7 @@ fn build_bridge_jwt_config(auth_user: &AuthenticatedUser, ttl_hours: i64) -> Jwt
         expires_in_hours: Some(ttl_hours),
         resource: None,
         plugin_id: None,
+        client_id: Some(ClientId::bridge()),
     }
 }
 

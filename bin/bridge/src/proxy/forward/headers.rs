@@ -37,10 +37,6 @@ pub(super) fn build_upstream_headers(
     let bearer = reqwest::header::HeaderValue::try_from(format!("Bearer {bearer}"))
         .map_err(|e| ForwardError::BadHeader(format!("authorization: {e}")))?;
     headers.insert(reqwest::header::AUTHORIZATION, bearer);
-    headers.insert(
-        reqwest::header::HeaderName::from_static("x-systemprompt-bridge"),
-        reqwest::header::HeaderValue::from_static("1"),
-    );
     let session_value = reqwest::header::HeaderValue::try_from(session_id.as_str())
         .map_err(|e| ForwardError::BadHeader(format!("{}: {e}", sp_headers::SESSION_ID)))?;
     headers.insert(

@@ -104,10 +104,6 @@ pub fn start_with_listener(
         Arc::clone(&stats),
         client.clone(),
     ));
-    rt.spawn(crate::proxy::decisions::run_loop(
-        Arc::clone(&runtime_config),
-        Arc::clone(&token_cache),
-    ));
     rt.spawn(crate::proxy::comms::run_loop(
         runtime_config,
         token_cache,

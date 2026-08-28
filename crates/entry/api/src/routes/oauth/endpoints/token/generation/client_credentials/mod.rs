@@ -177,6 +177,7 @@ pub async fn generate_client_tokens(
         audience,
         expires_in_hours: Some(global_config.jwt_access_token_expiration / 3600),
         plugin_id: options.plugin_id.map(str::to_owned),
+        client_id: Some(client_id.clone()),
         ..Default::default()
     };
     let session_id =

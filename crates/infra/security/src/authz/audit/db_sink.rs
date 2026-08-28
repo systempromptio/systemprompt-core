@@ -8,7 +8,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use async_trait::async_trait;
-use systemprompt_identifiers::{Actor, ContextId, SessionId, TaskId};
+use systemprompt_identifiers::{ClientId, ContextId, SessionId, TaskId};
 
 use super::repository::{GovernanceDecisionRecord, GovernanceDecisionRepository};
 use super::{AuthzAuditSink, AuthzSource};
@@ -36,6 +36,7 @@ impl AuthzAuditSink for DbAuditSink {
         };
         let entity_type = req.entity.kind().as_str();
         let entity_id = req.entity.id_str();
+        let actor = req.actor();
         // JSON: audit blob constructed for core-side (non-template) authz
         // denies — same payload shape as template's `DecisionAudit`.
         let evaluated = serde_json::json!({
@@ -46,8 +47,9 @@ impl AuthzAuditSink for DbAuditSink {
             "attributes": req.attributes,
             "context": req.context,
             "source": format!("{:?}", source),
+            "actor": actor,
+            "client_id": req.client_id,
         });
-        let actor = Actor::user(req.user_id.clone());
         let context_id = req.context_id.clone().unwrap_or_else(|| {
             req.session_id
                 .as_ref()
@@ -58,8 +60,8 @@ impl AuthzAuditSink for DbAuditSink {
             actor: &actor,
             session_id: req.session_id.as_ref().map_or("", SessionId::as_str),
             tool_name: entity_id,
-            agent_id: None,
-            agent_scope: None,
+            agent_id: req.verified_agent_id(),
+            agent_scope: req.access_scope,
             decision: decision_tag,
             policy: source.policy(),
             reason: &reason_str,
@@ -69,6 +71,7 @@ impl AuthzAuditSink for DbAuditSink {
             context_id: context_id.as_str(),
             task_id: req.task_id.as_ref().map(TaskId::as_str),
             trace_id: Some(req.trace_id.as_str()),
+            client_id: req.client_id.as_ref().map(ClientId::as_str),
         };
         if let Err(err) = self.repo.insert(&record).await {
             tracing::error!(

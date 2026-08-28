@@ -61,7 +61,6 @@ export const bridge = {
   sync:                 ()                  => invoke("sync"),
   validate:             ()                  => invoke("validate"),
   activityRecent:       (limit)             => invoke("activity.recent", { limit }),
-  requestsRecent:       (limit)             => invoke("requests.recent", { limit }),
   marketplaceList:      ()                  => invoke("marketplace.list"),
   profileFetch:         ()                  => invoke("profile.fetch"),
   hostProbe:            (hostId)            => invoke("host.probe", { hostId }),

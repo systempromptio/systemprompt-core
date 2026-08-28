@@ -45,9 +45,6 @@ pub(super) fn meta_dispatch(
         "activity.recent" => CommandOutcome::Sync(Ok(json!({
             "entries": crate::activity::activity_log().snapshot_recent(recent_limit(args)),
         }))),
-        "requests.recent" => CommandOutcome::Sync(Ok(json!({
-            "entries": crate::proxy::requests::request_log().snapshot_recent(recent_limit(args)),
-        }))),
         "setup.complete" => {
             send(app, UiEvent::SetupComplete);
             CommandOutcome::Sync(Ok(json!({})))

@@ -12,8 +12,8 @@ pub use tenant::{
     SubscriptionStatus,
 };
 pub use usage::{
-    BridgeGovernanceDecision, BridgeGovernanceDecisions, BridgeProfileUsage, ConversationGroup,
-    ConversationSummary, ModelShare, RecentConversationSummary, UsageWindow,
+    BridgeProfileUsage, ConversationGroup, ConversationSummary, ModelShare,
+    RecentConversationSummary, UsageWindow,
 };
 
 use schemars::JsonSchema;

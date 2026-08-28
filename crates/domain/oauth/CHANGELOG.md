@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.41.0] - 2026-08-28
+
+### Added
+
+- `JwtConfig::client_id`. Tokens minted through the authorization-code, token-exchange and client-credentials grants carry the requesting client's id; bridge access tokens carry `ClientId::bridge()`.
+
 ## [0.40.0] - 2026-08-26
 
 ### Fixed

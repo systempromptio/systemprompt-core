@@ -33,6 +33,8 @@ pub(super) async fn record_governance_decision(
             agent_session: None,
             agent_id: None,
             agent_scope: ctx.access_scope,
+            client_id: ctx.client_id.clone(),
+            claimed: None,
         },
         target: AuditTarget {
             tool_name: GovernedTarget::Prompt.as_str().to_owned(),

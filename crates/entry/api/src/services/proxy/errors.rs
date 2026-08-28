@@ -61,6 +61,9 @@ pub enum ProxyError {
 
     #[error("Missing request context: {message}")]
     MissingContext { message: String },
+
+    #[error("Service name '{service}' is not a valid agent name: {reason}")]
+    InvalidServiceName { service: String, reason: String },
 }
 
 impl ProxyError {
@@ -73,9 +76,9 @@ impl ProxyError {
             Self::UrlConstructionFailed { .. } | Self::DatabaseError { .. } => {
                 StatusCode::INTERNAL_SERVER_ERROR
             },
-            Self::BodyExtractionFailed { .. } | Self::InvalidMethod { .. } => {
-                StatusCode::BAD_REQUEST
-            },
+            Self::BodyExtractionFailed { .. }
+            | Self::InvalidMethod { .. }
+            | Self::InvalidServiceName { .. } => StatusCode::BAD_REQUEST,
             Self::AuthenticationRequired { .. } | Self::MissingContext { .. } => {
                 StatusCode::UNAUTHORIZED
             },
@@ -111,6 +114,7 @@ impl IntoResponse for ProxyError {
                     Self::AuthChallenge(_) => "auth_challenge",
                     Self::Forbidden { .. } => "forbidden",
                     Self::MissingContext { .. } => "missing_context",
+                    Self::InvalidServiceName { .. } => "invalid_service_name",
                 };
 
                 if status.is_server_error() {

@@ -11,6 +11,9 @@ fn make_req() -> AuthzRequest {
     AuthzRequest {
         entity: EntityRef::GatewayRoute(RouteId::new("test-route")),
         user_id: UserId::new("user-1"),
+        actor: None,
+        client_id: None,
+        access_scope: None,
         roles: vec!["user".to_owned()],
         attributes: BTreeMap::new(),
         trace_id: TraceId::new("trace-1"),

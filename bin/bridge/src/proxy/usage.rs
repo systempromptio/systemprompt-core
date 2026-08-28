@@ -23,7 +23,6 @@ pub fn wrap_response_stream<S>(
     content_type: &str,
     enabled: bool,
     stats: Arc<ProxyStats>,
-    req_id: Arc<str>,
     stream: S,
 ) -> impl Stream<Item = std::io::Result<Frame<Bytes>>> + Send + use<S>
 where
@@ -31,7 +30,7 @@ where
 {
     use futures_util::{StreamExt, future};
     let tap = if enabled {
-        UsageTap::for_content_type(content_type, Sink { stats, req_id })
+        UsageTap::for_content_type(content_type, Sink { stats })
     } else {
         UsageTap::Disabled
     };
@@ -57,7 +56,6 @@ impl Drop for TapGuard {
 
 struct Sink {
     stats: Arc<ProxyStats>,
-    req_id: Arc<str>,
 }
 
 enum UsageTap {
@@ -250,14 +248,4 @@ fn record_usage(sink: &Sink, usage: &StreamUsage) {
     crate::activity::activity_log().append(format!(
         "tokens: +{input} in / +{output} out (total {total} msgs)"
     ));
-    crate::proxy::requests::request_log().settle_usage(
-        &sink.req_id,
-        crate::proxy::requests::SettledUsage {
-            input,
-            output,
-            cache_read: (usage.cache_read > 0).then_some(usage.cache_read),
-            cache_write: (usage.cache_write > 0).then_some(usage.cache_write),
-            model: usage.model.clone(),
-        },
-    );
 }

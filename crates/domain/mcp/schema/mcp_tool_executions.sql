@@ -17,6 +17,8 @@ CREATE TABLE IF NOT EXISTS mcp_tool_executions (
     trace_id VARCHAR(255),
     request_method TEXT,
     request_source TEXT,
+    actor_kind TEXT,
+    actor_id TEXT,
     ai_tool_call_id VARCHAR(255),
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
@@ -41,3 +43,4 @@ CREATE INDEX IF NOT EXISTS idx_mcp_tool_executions_tool_status ON mcp_tool_execu
 CREATE INDEX IF NOT EXISTS idx_mcp_tool_executions_server_tool ON mcp_tool_executions(server_name, tool_name);
 CREATE INDEX IF NOT EXISTS idx_mcp_tool_executions_server_status ON mcp_tool_executions(server_name, status);
 CREATE INDEX IF NOT EXISTS idx_mcp_tool_executions_tool_started ON mcp_tool_executions(tool_name, started_at DESC);
+CREATE INDEX IF NOT EXISTS idx_mcp_tool_executions_actor ON mcp_tool_executions(actor_kind, actor_id);

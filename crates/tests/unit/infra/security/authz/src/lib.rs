@@ -15,6 +15,8 @@ mod bootstrap;
 #[cfg(test)]
 mod config_validate;
 #[cfg(test)]
+mod db_sink_actor;
+#[cfg(test)]
 mod decision_schema;
 #[cfg(test)]
 mod decision_types;
@@ -42,6 +44,8 @@ mod profile_governance;
 mod registered_entities;
 #[cfg(test)]
 mod registry_discovery;
+#[cfg(test)]
+mod request_wire_compat;
 #[cfg(test)]
 mod resolver;
 #[cfg(test)]

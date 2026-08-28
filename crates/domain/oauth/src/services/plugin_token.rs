@@ -62,6 +62,7 @@ impl PluginTokenService {
             expires_in_hours: Some(i64::from(duration_days) * 24),
             resource: Some("plugin".to_owned()),
             plugin_id: Some(plugin_id),
+            client_id: None,
         };
 
         let token = generate_jwt(&authenticated, config, jti.clone(), session_id, &signing)?;

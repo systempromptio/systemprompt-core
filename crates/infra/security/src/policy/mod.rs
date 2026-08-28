@@ -40,8 +40,8 @@ pub use approval::{
     NewApprovalRequest, args_digest, wait_for_decision,
 };
 pub use audit::{
-    ApproverStamp, AuditOrigin, AuditTarget, ChainEntryOutcome, ChainEntryResult, DecisionAudit,
-    PrincipalSnapshot, record_decision,
+    ApproverStamp, AuditOrigin, AuditTarget, ChainEntryOutcome, ChainEntryResult, ClaimedAgent,
+    DecisionAudit, PrincipalSnapshot, record_decision,
 };
 pub use builtin::ApprovalSettings;
 pub use config::{GovernanceConfig, GovernanceConfigError, PolicyConfig};

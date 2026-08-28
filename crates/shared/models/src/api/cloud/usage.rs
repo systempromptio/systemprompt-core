@@ -65,18 +65,3 @@ pub struct BridgeProfileUsage {
     #[serde(default)]
     pub conversations: ConversationSummary,
 }
-
-/// One governance verdict, as the bridge's request stream reads it back.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct BridgeGovernanceDecision {
-    pub call_id: String,
-    pub decision: String,
-    pub policy: String,
-    pub reason: String,
-    pub created_at: chrono::DateTime<chrono::Utc>,
-}
-
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct BridgeGovernanceDecisions {
-    pub decisions: Vec<BridgeGovernanceDecision>,
-}

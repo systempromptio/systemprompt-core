@@ -48,8 +48,7 @@ pub mod types;
 
 pub use audit::{
     AUDIT_WRITE_FAILED_TOTAL, AuthzAuditSink, AuthzSource, DbAuditSink, GovernanceDecisionRecord,
-    GovernanceDecisionRepository, GovernanceDecisionRow, NullAuditSink, insert_governance_decision,
-    recent_decisions_for_user,
+    GovernanceDecisionRepository, NullAuditSink, insert_governance_decision,
 };
 pub use composite::CompositeAuthzHook;
 pub use config::{AccessControlConfig, RuleEntry, RuleTarget};

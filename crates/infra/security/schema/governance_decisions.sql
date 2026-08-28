@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS governance_decisions (
     -- server-attach RBAC) previously borrowed session_id to carry this, which
     -- made the trace join depend on an overloaded column; it is its own key now.
     trace_id TEXT,
+    client_id TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -39,3 +40,4 @@ CREATE INDEX IF NOT EXISTS idx_governance_decisions_trace ON governance_decision
 -- with the table rather than on a later extension migration run.
 CREATE INDEX IF NOT EXISTS idx_governance_decisions_policy_created ON governance_decisions(policy, created_at);
 CREATE INDEX IF NOT EXISTS idx_governance_decisions_tool_name ON governance_decisions(tool_name);
+CREATE INDEX IF NOT EXISTS idx_governance_decisions_client ON governance_decisions(client_id);

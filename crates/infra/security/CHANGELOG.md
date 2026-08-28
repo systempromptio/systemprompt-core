@@ -2,6 +2,21 @@
 
 ## [0.41.0] - 2026-08-28
 
+### Added
+
+- `AuthzRequest::actor`, `client_id` and `access_scope`: the surface the request came through (`Actor`), the OAuth client from the validated token, and the resolved tier. All three are optional on the wire so an older hook still parses a newer request; `AuthzRequest::for_actor` keeps `user_id` and `actor` in step, and `verified_agent_id` names the delegate only when the outermost `act` link is an agent.
+- `governance_decisions.client_id` (nullable, indexed; migration `015`). `GovernanceDecisionRecord` gains the matching field.
+- `policy::ClaimedAgent` and `PrincipalSnapshot::{client_id, claimed}`. A caller's self-reported agent id is kept in the audit blob as a claim; it is no longer an identity.
+- `HeaderExtractor::extract_agent_name` falls back to `AgentName::system()` on an invalid header value rather than panicking.
+
+### Changed
+
+- `DbAuditSink` writes the request's actor (an MCP tool call is recorded as `actor_kind = mcp`), the verified delegate agent, the caller's access scope and the client id, instead of a bare `user` actor with `agent_id` and `agent_scope` always null.
+
+### Removed
+
+- `recent_decisions_for_user` and `GovernanceDecisionRow`. The only caller was the bridge's request stream, which is gone.
+
 ### Breaking
 
 - **Breaking:** `authz::BulkKeepQuery::parents` is replaced by `chains: &ParentChainIndex`. Migrate by loading a `ParentChainIndex` from `ChainSources` and passing it to `allowed_ids`.

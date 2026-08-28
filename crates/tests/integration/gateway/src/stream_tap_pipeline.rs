@@ -69,6 +69,7 @@ async fn open_audit(db: &DbPool, user_id: UserId) -> (Arc<GatewayAudit>, AiReque
         gateway_conversation_id: Some(gw_conv),
         trace_id: None,
         access_scope: AccessScope::Unknown,
+        client_id: None,
         provider: "anthropic".to_string(),
         requested_model: Some("claude-requested".to_string()),
         model: "claude-test".to_string(),

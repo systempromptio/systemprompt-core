@@ -162,6 +162,24 @@ async fn start_and_complete_execution_roundtrip() {
 
     let final_row = repo.find_by_id(&exec_id).await.unwrap().unwrap();
     assert_eq!(final_row.status, "success");
+
+    let (actor_kind, actor_id, request_method, request_source): (
+        Option<String>,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+    ) = sqlx::query_as(
+        "SELECT actor_kind, actor_id, request_method, request_source \
+         FROM mcp_tool_executions WHERE mcp_execution_id = $1",
+    )
+    .bind(exec_id.as_str())
+    .fetch_one(&*db.write_pool_arc().unwrap())
+    .await
+    .unwrap();
+    assert_eq!(actor_kind.as_deref(), Some("user"));
+    assert_eq!(actor_id.as_deref(), Some("test-user"));
+    assert_eq!(request_method.as_deref(), Some("mcp"));
+    assert_eq!(request_source.as_deref(), Some("srv-x"));
 }
 
 #[tokio::test]

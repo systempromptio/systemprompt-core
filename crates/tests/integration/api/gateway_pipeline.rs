@@ -156,6 +156,7 @@ fn dispatch_ctx(cred: &AuthedFixture, model: &str, stream: bool) -> GatewayReque
         ),
         trace_id: Some(TraceId::generate()),
         access_scope: AccessScope::Unknown,
+        client_id: None,
         provider: PROVIDER.to_owned(),
         requested_model: Some(model.to_owned()),
         model: model.to_owned(),

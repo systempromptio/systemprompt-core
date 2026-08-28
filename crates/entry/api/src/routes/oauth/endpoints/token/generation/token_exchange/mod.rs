@@ -147,6 +147,7 @@ pub async fn handle_token_exchange(
         expires_in_hours: Some(global.jwt_access_token_expiration / 3600),
         resource,
         plugin_id: None,
+        client_id: Some(client_id.clone()),
     };
     let signing = JwtSigningParams {
         issuer: &global.jwt_issuer,

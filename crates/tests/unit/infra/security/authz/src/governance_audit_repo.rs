@@ -33,6 +33,7 @@ fn record<'a>(
         context_id: "ctx_unit_test",
         task_id: None,
         trace_id: None,
+        client_id: None,
     }
 }
 

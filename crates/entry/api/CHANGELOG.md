@@ -2,9 +2,14 @@
 
 ## [0.41.0] - 2026-08-28
 
-### Added
+### Changed
 
-- `GET /v1/bridge/decisions` returns the JWT subject's recent governance verdicts — `call_id`, decision, the policy that decided it, reason and timestamp — bounded by `since` and `limit`. The gateway already wrote a decision on allow as well as deny and already returned the correlating id as `x-systemprompt-request-id`; this is the read side, so the bridge desktop app can show what was actually decided about each request rather than asserting that governance happened.
+- The MCP reverse proxy no longer overwrites the request context's `agent_name` with the target server's name; the caller's own agent identity reaches the MCP server, and the callee is recorded as `server_name` as before. A2A services still take their own name as the handling agent.
+- Gateway governance audits record the OAuth `client_id` from the validated bearer token.
+
+### Fixed
+
+- A client-supplied `x-agent-name` that fails `AgentName` validation (empty, or the reserved `unknown`) is ignored with a warning instead of panicking the request handler. A proxied service whose name fails the same validation answers `400` (`invalid_service_name`).
 
 ## [0.40.0] - 2026-08-26
 

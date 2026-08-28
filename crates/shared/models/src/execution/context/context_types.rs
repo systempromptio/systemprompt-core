@@ -53,6 +53,12 @@ impl Default for RequestMetadata {
     }
 }
 
+/// Per-request execution facts propagated across service hops.
+///
+/// `agent_name` is the platform agent handling this run — an A2A service's
+/// own name once the request reaches it. It is `AgentName::system()` when no
+/// platform agent is involved (a human, bridge, or direct API caller), which
+/// is a defined value and not a stand-in for "unknown".
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExecutionContext {
     pub trace_id: TraceId,

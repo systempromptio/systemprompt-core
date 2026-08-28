@@ -16,7 +16,7 @@ mod auth;
 mod forwarding;
 mod responses;
 
-use forwarding::{RequestMeta, agent_label, forward_to_gateway};
+use forwarding::{RequestMeta, forward_to_gateway};
 use responses::{json_response, owned_response, simple_response};
 
 pub async fn handle_request(
@@ -82,7 +82,6 @@ pub async fn handle_request(
                 req_id,
                 method,
                 path,
-                user_agent,
             },
         )
         .await;
@@ -106,7 +105,6 @@ pub async fn handle_request(
             req_id,
             method,
             path,
-            user_agent,
         },
     )
     .await

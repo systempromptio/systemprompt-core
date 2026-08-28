@@ -20,6 +20,8 @@ fn sample_audit() -> DecisionAudit {
             agent_session: Some(SessionId::new("agent-sess-1")),
             agent_id: Some(AgentId::new("agent-1")),
             agent_scope: AccessScope::User,
+            client_id: None,
+            claimed: None,
         },
         target: AuditTarget {
             tool_name: "read_file".to_owned(),
@@ -350,4 +352,30 @@ async fn an_unapproved_allow_still_reports_default_allow() {
         .expect("insert should succeed");
 
     assert_eq!(fetch(&pool, &audit.id).await.policy, "default_allow");
+}
+
+#[test]
+fn claimed_agent_and_client_land_in_the_principal_blob() {
+    use systemprompt_identifiers::ClientId;
+    use systemprompt_security::policy::ClaimedAgent;
+
+    let mut audit = sample_audit();
+    audit.principal.agent_id = None;
+    audit.principal.client_id = Some(ClientId::bridge());
+    audit.principal.claimed = Some(ClaimedAgent {
+        agent_id: "subagent-7".to_owned(),
+        agent_type: Some("Explore".to_owned()),
+    });
+    let blob = serde_json::to_value(&audit).expect("serialize");
+    assert_eq!(blob["principal"]["agent_id"], serde_json::Value::Null);
+    assert_eq!(blob["principal"]["client_id"], ClientId::bridge().as_str());
+    assert_eq!(blob["principal"]["claimed"]["agent_id"], "subagent-7");
+    assert_eq!(blob["principal"]["claimed"]["agent_type"], "Explore");
+}
+
+#[test]
+fn absent_claim_and_client_are_omitted_from_the_blob() {
+    let blob = serde_json::to_value(sample_audit()).expect("serialize");
+    assert!(blob["principal"].get("claimed").is_none());
+    assert!(blob["principal"].get("client_id").is_none());
 }

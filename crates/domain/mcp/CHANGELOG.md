@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.41.0] - 2026-08-28
+
+### Added
+
+- `mcp_tool_executions.actor_kind` and `actor_id` (nullable, indexed; migration `003`) record which surface invoked the tool. `request_method` and `request_source`, which the table already had, are now written by both insert paths.
+
+### Changed
+
+- The authz request built for an MCP server carries the server as the actor (`Actor::mcp`), the token's `client_id` and `session_id`, and the request's own `trace_id` rather than a freshly generated one, so the audit row joins to the request that caused it.
+
+### Fixed
+
+- A propagated `x-agent-name` that fails validation is a `ConfigurationError` on the tool-provider path and an `InvalidHeader` in `RequestContext::from_headers`, instead of a panic.
+
 ## [0.40.0] - 2026-08-26
 
 ### Fixed

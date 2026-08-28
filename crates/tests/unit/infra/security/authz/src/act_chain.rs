@@ -7,6 +7,9 @@ fn request_with_chain(chain: Vec<Actor>) -> AuthzRequest {
     AuthzRequest {
         entity: EntityRef::GatewayRoute(RouteId::new("claude-3")),
         user_id: UserId::new("u1"),
+        actor: None,
+        client_id: None,
+        access_scope: None,
         roles: vec!["eng".to_owned()],
         attributes: std::collections::BTreeMap::new(),
         trace_id: TraceId::new("trace-1"),

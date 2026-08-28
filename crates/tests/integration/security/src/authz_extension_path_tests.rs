@@ -34,6 +34,9 @@ fn request_with_trace(route: &str, trace: &str) -> AuthzRequest {
     AuthzRequest {
         entity: EntityRef::GatewayRoute(RouteId::new(route)),
         user_id: fixture_user_id(),
+        actor: None,
+        client_id: None,
+        access_scope: None,
         roles: vec!["eng".into()],
         attributes: std::collections::BTreeMap::new(),
         trace_id: TraceId::new(trace),

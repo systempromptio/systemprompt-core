@@ -158,7 +158,6 @@ function touch(host) {
 // Commands that change something change the fixture in memory, so the UI a
 // reviewer clicks through behaves like the real one instead of freezing.
 
-const AGENTS = ["claude-desktop", "codex-cli"];
 
 function sampleActivity(limit) {
   const now = Math.floor(Date.now() / 1000);
@@ -175,36 +174,6 @@ function sampleActivity(limit) {
   for (let i = 0; i < 40; i += 1) {
     const [level, line] = seed[i % seed.length];
     out.push({ id: i + 1, ts_unix: now - (40 - i) * 17, level, line });
-  }
-  return out.slice(-(limit || 500));
-}
-
-function sampleRequests(limit) {
-  const now = Math.floor(Date.now() / 1000);
-  const out = [];
-  for (let i = 0; i < 24; i += 1) {
-    const denied = i % 11 === 3;
-    const failed = i % 7 === 5;
-    out.push({
-      id: i + 1,
-      ts_unix: now - (24 - i) * 23,
-      req_id: (0x1000 + i * 37).toString(16),
-      agent: AGENTS[i % AGENTS.length],
-      method: i % 5 === 0 ? "GET" : "POST",
-      path: i % 5 === 0 ? "/v1/models" : "/v1/messages",
-      verdict: denied ? "denied" : "forwarded",
-      deny_reason: denied ? "secret-mismatch" : null,
-      status: denied ? 403 : failed ? 502 : 200,
-      latency_ms: denied ? null : 120 + ((i * 37) % 900),
-      tokens_in: denied || failed ? null : 900 + i * 31,
-      tokens_out: denied || failed ? null : 300 + i * 17,
-      cache_read_tokens: denied || failed ? null : i % 3 === 0 ? 2048 : null,
-      cache_write_tokens: null,
-      model: denied || failed ? null : "claude-opus-4-6-20260401",
-      upstream_request_id: denied ? null : `req_${(0x9000 + i).toString(16)}`,
-      gateway_decision: denied ? null : i % 9 === 4 ? "deny" : "allow",
-      gateway_policy: i % 9 === 4 ? "secret_scan" : "default_allow",
-    });
   }
   return out.slice(-(limit || 500));
 }
@@ -314,7 +283,6 @@ const COMMANDS = {
   // The Rust ring is seeded from the fixture so the log and the request stream
   // have history on first paint, which is the whole point of the backfill.
   "activity.recent": ({ limit }) => ({ entries: sampleActivity(limit) }),
-  "requests.recent": ({ limit }) => ({ entries: sampleRequests(limit) }),
   "host.proxy.probe": () => ({}),
   "diagnostics.info": () => ({
     config_file: state.config_file,

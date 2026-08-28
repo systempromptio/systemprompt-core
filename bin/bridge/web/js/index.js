@@ -20,7 +20,6 @@ import "/assets/js/components/sp-footer.js";
 import "/assets/js/components/sp-rail.js";
 import "/assets/js/components/sp-home.js";
 import "/assets/js/components/sp-governance-strip.js";
-import "/assets/js/components/sp-request-stream.js";
 import "/assets/js/components/sp-setup-health.js";
 import "/assets/js/components/sp-toast.js";
 import "/assets/js/components/sp-activity-log.js";

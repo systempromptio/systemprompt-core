@@ -295,12 +295,6 @@ async fn hop_by_hop_headers_are_stripped_and_bridge_headers_injected() {
         Some("kept"),
         "unrelated client headers are passed through"
     );
-    assert_eq!(
-        req.headers
-            .get("x-systemprompt-bridge")
-            .and_then(|v| v.to_str().ok()),
-        Some("1")
-    );
     assert!(
         req.headers
             .get("x-session-id")

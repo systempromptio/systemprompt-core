@@ -81,7 +81,6 @@ pub(crate) struct ForwardDeps<'a> {
     pub token_cache: &'a TokenCache,
     pub session_context: &'a SessionContext,
     pub stats: Arc<ProxyStats>,
-    pub req_id: Arc<str>,
 }
 
 #[tracing::instrument(
@@ -104,7 +103,6 @@ pub(crate) async fn forward(
         token_cache,
         session_context,
         stats,
-        req_id,
     } = deps;
     let token = token_cache.current(REFRESH_THRESHOLD_SECS).await?;
 
@@ -201,8 +199,7 @@ pub(crate) async fn forward(
         .bytes_stream()
         .map_ok(Frame::data)
         .map_err(std::io::Error::other);
-    let wrapped =
-        usage::wrap_response_stream(&content_type, tap_enabled, stats, req_id, upstream_stream);
+    let wrapped = usage::wrap_response_stream(&content_type, tap_enabled, stats, upstream_stream);
     let body: ProxyBody = if content_type.contains("text/event-stream") {
         StreamBody::new(keepalive::SseKeepalive::new(
             Box::pin(wrapped),

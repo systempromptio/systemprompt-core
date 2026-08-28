@@ -98,7 +98,6 @@ pub fn run() -> ExitCode {
     let proxy = UiEventProxy::new(event_loop.create_proxy());
     install_termination_handlers(proxy.clone());
     emit::install_log_emitter(proxy.clone());
-    emit::install_request_emitter(proxy.clone());
     let (tx, rx) = channel::<UiEvent>();
 
     let bridge_proxy = proxy.clone();

@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+### Removed
+
+- The "Governed requests" table on the Activity page, with its in-memory request ring, the `requests.recent` IPC command, the `request` event channel and the 30-second poll of `GET /v1/bridge/decisions`. The table attributed every MCP request to an agent named `unknown` — the label came from the `User-Agent` header, which MCP clients do not send — and its Verdict and Tokens columns could never be filled for MCP traffic. Governance is recorded by the gateway, not asserted by the proxy.
+- The `x-systemprompt-bridge: 1` upstream header, which nothing consumed. The gateway identifies bridge traffic by the `client_id` claim its tokens now carry.
+
 ### Added
 
 - A real light theme, and an Appearance control in Settings. Colour scheme and contrast were wired as one axis, so `prefers-color-scheme: light` handed the user the *elevated-contrast dark* palette — a darker UI — and no light theme existed. They are now `data-theme` (dark/light) and `data-contrast` (default/elevated), composing in all four combinations, each with a stored override above the OS preference so a machine with neither setting is no longer without recourse.

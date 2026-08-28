@@ -13,7 +13,9 @@
 
 use serde::Serialize;
 use sqlx::PgPool;
-use systemprompt_identifiers::{Actor, AgentId, ContextId, PluginId, PolicyId, SessionId, UserId};
+use systemprompt_identifiers::{
+    Actor, AgentId, ClientId, ContextId, PluginId, PolicyId, SessionId, UserId,
+};
 
 use super::types::AccessScope;
 use crate::authz::types::{Decision, DecisionTag};
@@ -39,6 +41,13 @@ pub struct ChainEntryOutcome {
     pub duration_ms: f64,
 }
 
+/// Who the decision was made for, as verified from the credential.
+///
+/// `agent_id` is a verified delegate identity and lands in the `agent_id`
+/// column; `claimed` is whatever the caller *said* about itself (a hook
+/// payload's subagent id, for instance) and is kept in the audit blob only —
+/// it is never an input to a decision and never written to an identity
+/// column.
 #[derive(Debug, Serialize, Clone)]
 pub struct PrincipalSnapshot {
     pub user_id: UserId,
@@ -46,6 +55,17 @@ pub struct PrincipalSnapshot {
     pub agent_session: Option<SessionId>,
     pub agent_id: Option<AgentId>,
     pub agent_scope: AccessScope,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub client_id: Option<ClientId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub claimed: Option<ClaimedAgent>,
+}
+
+#[derive(Debug, Serialize, Clone)]
+pub struct ClaimedAgent {
+    pub agent_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub agent_type: Option<String>,
 }
 
 #[derive(Debug, Serialize, Clone)]
@@ -178,6 +198,7 @@ pub async fn record_decision(pool: &PgPool, audit: &DecisionAudit) -> Result<(),
         context_id: context_id.as_str(),
         task_id: None,
         trace_id: audit.trace_id.as_deref(),
+        client_id: audit.principal.client_id.as_ref().map(ClientId::as_str),
     };
 
     insert_governance_decision(pool, &record).await

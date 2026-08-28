@@ -79,26 +79,8 @@ sp-setup-health { display: block; }
   padding: var(--sp-space-3);
 }
 
-/* --- Governed request stream ----------------------------------------------- */
+/* --- Activity log search ------------------------------------------------- */
 
-sp-request-stream { display: block; }
-
-.sp-req__header h2 { margin: 0; }
-
-.sp-req__caption {
-  margin: var(--sp-space-1) 0 var(--sp-space-3);
-  color: var(--sp-muted-strong);
-  font-size: 12px;
-}
-
-.sp-req__controls {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-space-2);
-  margin-bottom: var(--sp-space-2);
-}
-
-.sp-req__search,
 .sp-log__search {
   flex: 1;
   min-width: 0;
@@ -109,28 +91,6 @@ sp-request-stream { display: block; }
   color: var(--sp-text);
   font: inherit;
   font-size: 12px;
-}
-
-/* A table this wide scrolls inside its own box; the pane must not scroll sideways. */
-.sp-req__scroll { overflow-x: auto; }
-
-.sp-req__table { width: 100%; }
-.sp-req__table th { width: auto; }
-
-.sp-req__path {
-  max-width: 32ch;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.sp-req__table tr[data-verdict="deny"] th,
-.sp-req__table tr[data-verdict="deny"] td { color: var(--sp-danger); }
-
-.sp-req__empty {
-  color: var(--sp-muted-strong);
-  padding: var(--sp-space-4);
-  text-align: center;
 }
 
 /* --- Activity log controls -------------------------------------------------- */

@@ -4,7 +4,6 @@
 
 ### Added
 
-- `api::cloud::BridgeGovernanceDecision` and `BridgeGovernanceDecisions` carry a governance verdict back to a bridge client, keyed by the `call_id` the gateway returns as `x-systemprompt-request-id`.
 - `bridge::manifest::CoworkArtifactBundleManifest` and `CoworkArtifactBundleRecord` describe a plugin bundle's `artifacts/manifest.json`.
 
 ### Changed

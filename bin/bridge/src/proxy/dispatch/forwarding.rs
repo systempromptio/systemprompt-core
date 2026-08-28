@@ -1,6 +1,6 @@
 //! The forwarding half of the proxy: taking a request the router has accepted,
-//! sending it upstream, and recording what happened — stats, the activity line,
-//! and the governed-request ring.
+//! sending it upstream, and recording what happened — stats and the activity
+//! line.
 //!
 //! Split from `mod.rs`, which keeps request routing and the loopback endpoints.
 //!
@@ -15,7 +15,6 @@ use hyper::body::Incoming;
 use hyper::{Method, Request, Response, StatusCode};
 
 use crate::proxy::forward::{self, ProxyBody};
-use crate::proxy::requests;
 use crate::proxy::server::ProxyContext;
 
 use super::responses::{owned_response, record_stats};
@@ -24,25 +23,6 @@ pub(super) struct RequestMeta {
     pub req_id: String,
     pub method: Method,
     pub path: String,
-    pub user_agent: String,
-}
-
-// Why: the gateway stamps every inference response with this id and keys its
-// governance decision on the same value, so it is the only correlator that
-// joins a row in our ring to the platform's own verdict.
-const UPSTREAM_REQUEST_ID: &str = "x-systemprompt-request-id";
-
-// Why: a user agent is the only attribution a loopback request carries -- there
-// is no per-agent credential -- so the leading product token is the best answer
-// to "which agent made this call".
-pub(super) fn agent_label(user_agent: &str) -> String {
-    let token = user_agent.split_whitespace().next().unwrap_or("");
-    let name = token.split('/').next().unwrap_or("");
-    if name.is_empty() {
-        "unknown".to_owned()
-    } else {
-        name.to_owned()
-    }
 }
 
 pub(super) async fn forward_to_gateway(
@@ -56,10 +36,7 @@ pub(super) async fn forward_to_gateway(
         req_id,
         method,
         path,
-        user_agent,
     } = meta;
-    let agent = agent_label(&user_agent);
-    let req_id: Arc<str> = Arc::from(req_id.as_str());
     match forward::forward(
         req,
         forward::ForwardDeps {
@@ -68,7 +45,6 @@ pub(super) async fn forward_to_gateway(
             token_cache: ctx.token_cache.as_ref(),
             session_context: ctx.session.as_ref(),
             stats: Arc::clone(&ctx.stats),
-            req_id: Arc::clone(&req_id),
         },
     )
     .await
@@ -90,21 +66,6 @@ pub(super) async fn forward_to_gateway(
                 upstream_level(status),
                 format!("proxy: {method} {path} → {status} ({latency_ms}ms) [{req_id}]"),
             );
-            requests::request_log().record(requests::NewRequest {
-                req_id: &req_id,
-                agent: &agent,
-                method: method.as_str(),
-                path: &path,
-                verdict: requests::LocalVerdict::Forwarded,
-                deny_reason: None,
-                status: Some(status),
-                latency_ms: Some(latency_ms),
-                upstream_request_id: response
-                    .headers()
-                    .get(UPSTREAM_REQUEST_ID)
-                    .and_then(|v| v.to_str().ok())
-                    .map(ToOwned::to_owned),
-            });
             Ok(response)
         },
         Err(e) => {
@@ -135,17 +96,6 @@ pub(super) async fn forward_to_gateway(
                 crate::activity::activity_log()
                     .append_error(format!("proxy: {method} {path} → error: {e} [{req_id}]"));
             }
-            requests::request_log().record(requests::NewRequest {
-                req_id: &req_id,
-                agent: &agent,
-                method: method.as_str(),
-                path: &path,
-                verdict: requests::LocalVerdict::Forwarded,
-                deny_reason: Some(e.to_string()),
-                status: Some(e.status().as_u16()),
-                latency_ms: Some(latency_ms),
-                upstream_request_id: None,
-            });
             if let Some(challenge) = mcp_auth_challenge(&e, &path, cfg.gateway_base.as_ref()) {
                 return Ok(challenge);
             }
