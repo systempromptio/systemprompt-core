@@ -24,10 +24,10 @@ use std::future::Future;
 use std::net::SocketAddr;
 use std::num::NonZeroU32;
 use std::sync::Arc;
+use systemprompt_extension::LoaderError;
 use systemprompt_models::RequestContext;
 use systemprompt_models::api::{ApiError, ErrorCode};
 use systemprompt_models::auth::RateLimitTier;
-use systemprompt_extension::LoaderError;
 use systemprompt_models::config::RateLimitConfig;
 use tower_governor::key_extractor::SmartIpKeyExtractor;
 use tracing::warn;
@@ -83,9 +83,10 @@ where
             return Ok(self);
         }
 
-        // Why: a truncating `as u32` turns any product that is a multiple of 2^32 into a
-        // zero burst, which `finish()` reports only by returning `None` — silently leaving
-        // the route unlimited. Saturate and clamp so the quota is always representable.
+        // Why: a truncating `as u32` turns any product that is a multiple of 2^32 into
+        // a zero burst, which `finish()` reports only by returning `None` —
+        // silently leaving the route unlimited. Saturate and clamp so the quota
+        // is always representable.
         let burst = per_second.saturating_mul(rate_config.burst_multiplier);
         let burst_u32 = u32::try_from(burst).unwrap_or(u32::MAX).max(1);
         let per_second_clamped = per_second.max(1);

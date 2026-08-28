@@ -42,8 +42,9 @@ fn snapshot_recent_returns_the_newest_within_the_limit() {
     assert_eq!(rows[2].req_id, "r9");
 }
 
-// Tokens arrive after the response body drains, long after the row was recorded,
-// so the ring has to settle an existing row rather than append a second one.
+// Tokens arrive after the response body drains, long after the row was
+// recorded, so the ring has to settle an existing row rather than append a
+// second one.
 #[test]
 fn usage_settles_the_existing_row_instead_of_appending() {
     let log = RequestLog::new();

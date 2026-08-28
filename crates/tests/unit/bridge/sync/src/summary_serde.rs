@@ -28,7 +28,10 @@ fn summary() -> SyncSummary {
 fn host_failures_survive_as_structured_rows() {
     let value = serde_json::to_value(summary()).expect("summary serialises");
 
-    assert_eq!(value["host_failures"][0]["host_id"], json!("claude-desktop"));
+    assert_eq!(
+        value["host_failures"][0]["host_id"],
+        json!("claude-desktop")
+    );
     assert_eq!(
         value["host_failures"][0]["error"],
         json!("profile write denied by policy")

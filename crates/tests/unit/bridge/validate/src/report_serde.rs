@@ -33,12 +33,16 @@ fn report_serialises_every_level_in_lowercase() {
     assert_eq!(levels, vec!["ok", "warn", "fail", "info"]);
 }
 
-// The panel keys off `label`/`value` verbatim, so a rename here silently empties
-// every row rather than failing to compile.
+// The panel keys off `label`/`value` verbatim, so a rename here silently
+// empties every row rather than failing to compile.
 #[test]
 fn each_line_carries_its_label_and_value() {
     let report = ValidationReport {
-        lines: vec![line(CheckLevel::Fail, "gateway /health", "connection refused")],
+        lines: vec![line(
+            CheckLevel::Fail,
+            "gateway /health",
+            "connection refused",
+        )],
         any_failed: true,
     };
 

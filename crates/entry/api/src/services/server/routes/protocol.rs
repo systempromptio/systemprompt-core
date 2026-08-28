@@ -9,8 +9,8 @@
 
 use axum::Router;
 use std::sync::Arc;
-use systemprompt_models::modules::ApiPaths;
 use systemprompt_extension::LoaderError;
+use systemprompt_models::modules::ApiPaths;
 use systemprompt_oauth::OAuthState;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::AppContext as AppContextTrait;

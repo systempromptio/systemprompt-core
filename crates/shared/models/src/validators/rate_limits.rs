@@ -5,7 +5,9 @@
 
 use super::ValidationConfigProvider;
 use crate::config::RateLimitConfig;
-use systemprompt_traits::validation_report::{ValidationError, ValidationReport, ValidationWarning};
+use systemprompt_traits::validation_report::{
+    ValidationError, ValidationReport, ValidationWarning,
+};
 use systemprompt_traits::{ConfigProvider, DomainConfig, DomainConfigError};
 
 #[derive(Debug, Default, Clone, Copy)]
