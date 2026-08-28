@@ -37,6 +37,8 @@ mod marketplace_floor;
 #[cfg(test)]
 mod profile_governance;
 #[cfg(test)]
+mod registered_entities;
+#[cfg(test)]
 mod registry_discovery;
 #[cfg(test)]
 mod resolver;

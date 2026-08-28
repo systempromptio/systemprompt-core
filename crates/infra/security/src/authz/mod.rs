@@ -53,9 +53,11 @@ pub use composite::CompositeAuthzHook;
 pub use config::{AccessControlConfig, RuleEntry, RuleTarget};
 pub use error::{AuthzBootstrapError, AuthzError, AuthzResult};
 pub use extension::AuthzExtension;
-pub use gateway_entities::reconcile_gateway_entities;
+pub use gateway_entities::{GatewayReconcileReport, reconcile_gateway_entities_exact};
 pub use hook::{AllowAllHook, AuthzDecisionHook, DenyAllHook, SharedAuthzHook, WebhookHook};
-pub use ingestion::{AccessControlIngestionService, IngestOptions, IngestReport};
+pub use ingestion::{
+    AccessControlIngestionService, IngestOptions, IngestReport, RegisteredEntities,
+};
 pub use keep::{BulkKeepQuery, allowed_ids};
 pub use marketplace_floor::{MarketplaceParent, load_marketplace_parent, member_attribute_floor};
 pub use registry::{AuthzHookContext, AuthzHookRegistration, discover_authz_hook};

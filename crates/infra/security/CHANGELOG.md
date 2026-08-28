@@ -1,5 +1,23 @@
 # Changelog
 
+## [Unreleased]
+
+### Breaking
+
+- **Breaking:** `authz::reconcile_gateway_entities` is removed. Migrate by calling `reconcile_gateway_entities_exact`, which registers the given routes and deletes every other `gateway_route` catalog row (and, by cascade, its grants) in one transaction; skip the call when the profile has no routes.
+- **Breaking:** `AccessControlRepository::delete_entities_outside` is removed. Migrate by `AccessControlRepository::reconcile_entities`, which upserts and prunes atomically.
+
+### Added
+
+- `authz::RegisteredEntities` declares, per `EntityKind`, the complete set of ids a deployment vouches for; `ingest_config_with_registry` and `ingest_config_from_yaml_path_with_registry` reject a literal `entity_id` of an enforced kind outside that set instead of materialising a catalog row for it. Undeclared kinds keep the existing behaviour.
+- `RegisteredEntities::require` returns the same rejection as an `AuthzError::Validation`, for write paths that mint catalog rows directly.
+- `AccessControlRepository::ensure_entity` inserts a closed catalog row only when absent, leaving an existing row's `default_included` untouched.
+- `AccessControlRepository::reconcile_entities` registers a complete id set for a kind and deletes the rest in one transaction.
+
+### Changed
+
+- The `admin config` reconcile deletes `gateway_route` catalog rows the saved profile no longer produces. A per-user override on a route whose pattern is edited and then reverted is no longer restored; the resolver never consulted it under the new id.
+
 ## [0.40.0] - 2026-08-26
 
 ### Changed

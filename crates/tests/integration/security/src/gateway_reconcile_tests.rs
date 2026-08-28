@@ -2,16 +2,18 @@
 //! grant that authorizes the *synthesized* catch-all route.
 //!
 //! This is the end-to-end proof that the unit invariants
-//! (`dispatchable_route_ids_*`) cannot give: that `reconcile_gateway_entities`
-//! actually materializes a content-addressed `star-*` id into
+//! (`dispatchable_route_ids_*`) cannot give: that
+//! `reconcile_gateway_entities_exact` actually materializes a content-addressed `star-*` id into
 //! `access_control_entities`, that a `entity_match: "*"` rule expands onto that
 //! code-synthesized id (closing the implicit YAML-vs-code coupling), and that
 //! the resolver then allows a granted role while still denying an id that has
 //! no catalog row (`UnknownEntity`, fail-closed).
 //!
-//! Each test scopes itself to a unique provider/default-provider so concurrent
-//! runs against the shared `DATABASE_URL` never collide, and cleans up its
-//! rows.
+//! Each test scopes itself to a unique provider/default-provider so runs
+//! against the shared `DATABASE_URL` never collide, and cleans up its rows.
+//! The exact reconcile prunes every `gateway_route` row outside its set, so
+//! the tests here run one at a time behind `SERIAL` — two of them interleaved
+//! would delete each other's rows.
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -25,13 +27,17 @@ use systemprompt_models::profile::{
 };
 use systemprompt_security::authz::{
     Access, AccessControlConfig, AccessControlIngestionService, AccessControlRepository, Decision,
-    DenyReason, EntityKind, EntityRef, IngestOptions, ResolveInput, RuleEntry, RuleTarget,
-    reconcile_gateway_entities, resolve,
+    DenyReason, EntityKind, EntityRef, IngestOptions, RegisteredEntities, ResolveInput, RuleEntry,
+    RuleTarget, reconcile_gateway_entities_exact, resolve,
 };
 use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
+use tokio::sync::{Mutex, MutexGuard};
 use uuid::Uuid;
 
+static SERIAL: Mutex<()> = Mutex::const_new(());
+
 struct Fixture {
+    _serial: MutexGuard<'static, ()>,
     db: DbPool,
     pg: Arc<PgPool>,
     provider: String,
@@ -39,6 +45,7 @@ struct Fixture {
 }
 
 async fn setup() -> Fixture {
+    let serial = SERIAL.lock().await;
     let url = fixture_database_url().expect("DATABASE_URL");
     let db = fixture_db_pool(&url).await.expect("connect test database");
     let pg = db.pool_arc().expect("read pool");
@@ -48,6 +55,7 @@ async fn setup() -> Fixture {
     let default_route_id = synthesize_route_id("*", &provider);
     cleanup(&pg, &default_route_id).await;
     Fixture {
+        _serial: serial,
         db,
         pg,
         provider,
@@ -143,7 +151,7 @@ async fn reconcile_materializes_synthetic_default_route_and_wildcard_grants_it()
         f.default_route_id.as_str()
     );
     let id_refs: Vec<&str> = ids.iter().map(RouteId::as_str).collect();
-    reconcile_gateway_entities(&repo, &id_refs, "test:gateway_reconcile")
+    reconcile_gateway_entities_exact(&repo, &id_refs, "test:gateway_reconcile")
         .await
         .expect("reconcile");
 
@@ -228,4 +236,208 @@ async fn reconcile_materializes_synthetic_default_route_and_wildcard_grants_it()
     );
 
     cleanup(&f.pg, &f.default_route_id).await;
+}
+
+fn literal_gateway_rule(id: &str, roles: &[&str]) -> AccessControlConfig {
+    AccessControlConfig {
+        rules: vec![RuleEntry {
+            entity_type: EntityKind::GatewayRoute,
+            target: RuleTarget::Id(id.to_owned()),
+            access: Access::Allow,
+            default_included: true,
+            roles: roles.iter().map(|r| (*r).to_owned()).collect(),
+            justification: None,
+        }],
+    }
+}
+
+async fn entity_exists(pg: &PgPool, id: &str) -> bool {
+    sqlx::query_scalar::<_, i64>(
+        "SELECT COUNT(*) FROM access_control_entities WHERE entity_type='gateway_route' AND \
+         entity_id=$1",
+    )
+    .bind(id)
+    .fetch_one(pg)
+    .await
+    .expect("count entities")
+        > 0
+}
+
+/// The regression this whole mechanism exists for: a hand-written route id used
+/// to be accepted, mint its own catalog row, and leave a grant on a route that
+/// can never dispatch. Four such ids sat in roles.yaml across three repos for
+/// months because every boot made them look real.
+#[tokio::test]
+async fn ingest_rejects_a_literal_route_id_the_registry_does_not_vouch_for_and_writes_nothing() {
+    let f = setup().await;
+    let repo = AccessControlRepository::new(&f.db).expect("repo");
+
+    let gateway = gateway_with_default(&f.provider);
+    let registry_ids = gateway.dispatchable_route_ids(&registry(&f.provider));
+    let real_id = registry_ids.first().expect("one route").clone();
+    let id_refs: Vec<&str> = registry_ids.iter().map(RouteId::as_str).collect();
+    reconcile_gateway_entities_exact(&repo, &id_refs, "profile:test")
+        .await
+        .expect("reconcile");
+
+    let phantom = format!("claude-opus-4-8-gemini-{}", f.provider);
+    let registered =
+        RegisteredEntities::new().with_kind(EntityKind::GatewayRoute, id_refs.iter().copied());
+
+    let svc = AccessControlIngestionService::from_pool(Arc::clone(&f.pg));
+    let err = svc
+        .ingest_config_with_registry(
+            &literal_gateway_rule(&phantom, &["user"]),
+            IngestOptions {
+                override_existing: true,
+                delete_orphans: false,
+            },
+            &registered,
+        )
+        .await
+        .expect_err("a route id no profile route provides must be rejected");
+
+    let msg = err.to_string();
+    assert!(msg.contains(&phantom), "error must name the id: {msg}");
+    assert!(
+        msg.contains("entity_match"),
+        "error must say what to do instead: {msg}"
+    );
+
+    // The point of failing rather than minting: nothing persisted, so the id
+    // does not look real on the next run.
+    assert!(
+        !entity_exists(&f.pg, &phantom).await,
+        "rejected id must not leave a catalog row behind"
+    );
+    assert!(
+        role_values(&f.pg, &RouteId::new(phantom.clone()))
+            .await
+            .is_empty(),
+        "rejected id must not leave a grant behind"
+    );
+
+    // A real route in the same shape still ingests, so the check rejects the id
+    // and not the rule form.
+    svc.ingest_config_with_registry(
+        &literal_gateway_rule(real_id.as_str(), &["user"]),
+        IngestOptions {
+            override_existing: true,
+            delete_orphans: false,
+        },
+        &registered,
+    )
+    .await
+    .expect("a registered route id must still be accepted");
+    assert_eq!(role_values(&f.pg, &real_id).await, vec!["user".to_owned()]);
+
+    cleanup(&f.pg, &real_id).await;
+}
+
+/// Unenforced kinds keep the old behaviour, so adopting this is opt-in per
+/// kind.
+#[tokio::test]
+async fn ingest_still_self_materializes_when_the_kind_is_not_enforced() {
+    let f = setup().await;
+    let phantom = RouteId::new(format!("unenforced-{}", f.provider));
+
+    let svc = AccessControlIngestionService::from_pool(Arc::clone(&f.pg));
+    svc.ingest_config_with_registry(
+        &literal_gateway_rule(phantom.as_str(), &["user"]),
+        IngestOptions {
+            override_existing: true,
+            delete_orphans: false,
+        },
+        &RegisteredEntities::default(),
+    )
+    .await
+    .expect("an unenforced kind must keep self-materialising");
+
+    assert!(entity_exists(&f.pg, phantom.as_str()).await);
+    cleanup(&f.pg, &phantom).await;
+}
+
+/// `reconcile_gateway_entities_exact` must remove catalog rows no route claims,
+/// and must refuse to do so from an empty set (which would empty the catalog).
+#[tokio::test]
+async fn exact_reconcile_prunes_stale_rows_and_refuses_an_empty_route_set() {
+    let f = setup().await;
+    let repo = AccessControlRepository::new(&f.db).expect("repo");
+
+    let gateway = gateway_with_default(&f.provider);
+    let ids = gateway.dispatchable_route_ids(&registry(&f.provider));
+    let id_refs: Vec<&str> = ids.iter().map(RouteId::as_str).collect();
+
+    let stale = RouteId::new(format!("stale-{}", f.provider));
+    repo.upsert_entities(
+        EntityKind::GatewayRoute,
+        &[stale.as_str()],
+        false,
+        "profile:old",
+    )
+    .await
+    .expect("seed a stale row");
+    assert!(entity_exists(&f.pg, stale.as_str()).await);
+
+    let report = reconcile_gateway_entities_exact(&repo, &id_refs, "profile:test")
+        .await
+        .expect("exact reconcile");
+    assert_eq!(report.registered, id_refs.len());
+    assert!(report.pruned >= 1, "the stale row should have been pruned");
+    assert!(
+        !entity_exists(&f.pg, stale.as_str()).await,
+        "a row no route claims must not survive"
+    );
+    assert!(
+        entity_exists(&f.pg, id_refs[0]).await,
+        "a live route must survive"
+    );
+
+    reconcile_gateway_entities_exact(&repo, &[], "profile:test")
+        .await
+        .expect_err("an empty route set must be refused, not obeyed");
+    assert!(
+        entity_exists(&f.pg, id_refs[0]).await,
+        "the refused call must not have deleted anything"
+    );
+
+    cleanup(&f.pg, &ids[0]).await;
+}
+
+/// `ensure_entity` satisfies the FK without widening access: an absent row is
+/// created closed, and a present row keeps whatever `default_included` it had.
+#[tokio::test]
+async fn ensure_entity_creates_closed_and_never_overwrites_default_included() {
+    let f = setup().await;
+    let repo = AccessControlRepository::new(&f.db).expect("repo");
+    let id = RouteId::new(format!("ensure-{}", f.provider));
+
+    repo.ensure_entity(EntityKind::GatewayRoute, id.as_str(), "test:ensure")
+        .await
+        .expect("ensure absent");
+    let created = repo
+        .get_entity(EntityKind::GatewayRoute, id.as_str())
+        .await
+        .expect("get")
+        .expect("row created");
+    assert!(!created.default_included, "an ensured row must start closed");
+
+    repo.upsert_entity(EntityKind::GatewayRoute, id.as_str(), true, "test:open")
+        .await
+        .expect("open it");
+    repo.ensure_entity(EntityKind::GatewayRoute, id.as_str(), "test:ensure")
+        .await
+        .expect("ensure present");
+    let kept = repo
+        .get_entity(EntityKind::GatewayRoute, id.as_str())
+        .await
+        .expect("get")
+        .expect("row still present");
+    assert!(
+        kept.default_included,
+        "ensure_entity must leave an existing default_included alone"
+    );
+    assert_eq!(kept.source, "test:open", "ensure_entity must not relabel a present row");
+
+    cleanup(&f.pg, &id).await;
 }

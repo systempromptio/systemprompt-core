@@ -3,9 +3,11 @@
 //! Gateway route ids are content-addressed, so changing a route's pattern or
 //! provider mints a new id with no `access_control_entities` row — the next
 //! request would fail closed with `UnknownEntity`. After a gateway/catalog edit
-//! we upsert the route entities from the freshly-saved profile and re-apply the
-//! YAML grants, so the resolver reflects the edit without a restart or a wait
-//! for the boot-time governance pass.
+//! we make the route catalog equal to the freshly-saved profile — registering
+//! the new ids and deleting the rows no route claims any more, grants included
+//! — and re-apply the YAML grants against that catalog, so the resolver
+//! reflects the edit without a restart or a wait for the boot-time governance
+//! pass.
 //!
 //! Reconciliation is best-effort: the profile write is the source of truth and
 //! has already succeeded. If the database is unreachable (an offline edit), we
@@ -21,8 +23,8 @@ use systemprompt_database::{Database, DbPool};
 use systemprompt_identifiers::RouteId;
 use systemprompt_models::{Config, Profile};
 use systemprompt_security::authz::{
-    AccessControlIngestionService, AccessControlRepository, IngestOptions,
-    reconcile_gateway_entities,
+    AccessControlIngestionService, AccessControlRepository, EntityKind, IngestOptions,
+    RegisteredEntities, reconcile_gateway_entities_exact,
 };
 
 const ROLES_YAML_RELATIVE: &str = "access-control/roles.yaml";
@@ -76,17 +78,28 @@ async fn try_reconcile(profile: &Profile, profile_path: &str) -> anyhow::Result<
         .unwrap_or_default();
     let id_refs: Vec<&str> = route_ids.iter().map(RouteId::as_str).collect();
     let source = format!("profile:{profile_path}");
-    reconcile_gateway_entities(&repo, &id_refs, &source).await?;
+
+    // Why: an empty route set is a profile without a gateway, not an instruction
+    // to empty the catalog — reconciling exactly would cascade away every route
+    // grant. Leave the catalog untouched and enforce nothing in that case,
+    // matching the boot job.
+    let registered = if id_refs.is_empty() {
+        RegisteredEntities::default()
+    } else {
+        reconcile_gateway_entities_exact(&repo, &id_refs, &source).await?;
+        RegisteredEntities::new().with_kind(EntityKind::GatewayRoute, id_refs.iter().copied())
+    };
 
     let roles_yaml = Path::new(&profile.paths.services).join(ROLES_YAML_RELATIVE);
     if roles_yaml.exists() {
         let svc = AccessControlIngestionService::new(&database)?;
-        svc.ingest_config_from_yaml_path(
+        svc.ingest_config_from_yaml_path_with_registry(
             &roles_yaml,
             IngestOptions {
                 override_existing: true,
                 delete_orphans: false,
             },
+            &registered,
         )
         .await?;
 

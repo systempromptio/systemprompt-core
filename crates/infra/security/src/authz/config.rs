@@ -8,9 +8,11 @@
 //!
 //! Each rule names its subject set in exactly one of two ways:
 //!
-//! - `entity_id` — a literal catalog id; the loader self-materialises the
-//!   entity row, so the grant survives a clean install even if nothing else
-//!   registered the entity yet.
+//! - `entity_id` — a literal catalog id. For a kind the caller does not enforce
+//!   through [`super::ingestion::RegisteredEntities`], the loader
+//!   self-materialises the entity row, so the grant survives a clean install
+//!   even if nothing else registered the entity yet; for an enforced kind, an
+//!   id outside the registered set fails ingestion.
 //! - `entity_match` — a `*`-glob expanded against the entities already present
 //!   in the catalog for that [`EntityKind`]; one rule per matched id. The glob
 //!   never creates entities — it only grants ones a prior pass materialised.
