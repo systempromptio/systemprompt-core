@@ -6,7 +6,8 @@
 //! session was revoked (refresh), a valid JWT for a missing user (anonymous
 //! re-create), and a bot user-agent that short-circuits to an anonymous
 //! context. The skip-tracked path is covered by
-//! `session_middleware_persists_anon`.
+//! `session_middleware_persists_anon`. One test closes the pool to drive the
+//! degraded path: a page view is served without a session rather than refused.
 
 use anyhow::Result;
 use axum::body::Body;
@@ -172,6 +173,26 @@ async fn bot_user_agent_yields_anonymous_context() -> Result<()> {
     assert!(
         resp.headers().get(header::SET_COOKIE).is_none(),
         "bots never get a tracked session cookie"
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn a_page_is_served_without_a_session_when_the_database_is_gone() -> Result<()> {
+    let (db, app) = router().await?;
+    db.pool_arc()?.close().await;
+
+    let ua = format!("Mozilla/5.0 (X11; Linux x86_64) outage/{}", uuid::Uuid::new_v4());
+    let resp = app.oneshot(get_page(&[("user-agent", ua)])).await?;
+
+    assert!(
+        resp.status().is_success(),
+        "a database fault must not take the public site down, got {}",
+        resp.status()
+    );
+    assert!(
+        resp.headers().get(header::SET_COOKIE).is_none(),
+        "no session was minted, so there is no cookie to set"
     );
     Ok(())
 }
