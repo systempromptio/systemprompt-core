@@ -38,21 +38,30 @@ repository admins alike. Protection is pinned to `main` by name, so moving the
 default branch does not move it.
 
 ```
-next   ← default branch. Every agent, every session. Push freely, no gates.
-  ↓ `just gate` when you are ready, then `just promote` to open the release PR
+next   ← default branch. Every agent, every session. Every push runs the gates.
+  ↓ `just gate` a frozen SHA, then `just promote` to open the release PR
 main   ← protected, release-only. Tagged. Never pushed to directly.
 ```
 
-**Nothing runs the pre-release cycle for you.** There is no scheduled job, no
-bot that rewrites your code, and nothing gating a push to `next`. Commit and
-push to `next` as often as you like; the gates run when a person decides to run
-them.
+**Every push to `next` runs CI, Quality and Supply Chain** — fmt, build,
+sqlx-check, the 13 test shards, clippy, rustdoc, the source-gate linters, MSRV,
+the file-size guard and `cargo deny`. The repository is public, so runners are
+free; there is no reason to push blind. Concurrency is `cancel-in-progress`, so
+a second push supersedes the first run rather than queueing behind it.
+
+Nothing rewrites your code and nothing promotes to `main` for you. Push to
+`next` as often as you like; releasing is a deliberate act.
+
+**Coverage tracks the released line, not `next`.** `coverage.yml` runs on the
+`promote → main` pull request and again on the merge commit, so the published
+number always describes what was released. It is not on a nightly cron.
 
 Releasing is three deliberate steps:
 
 1. `just gate [REF]` — dispatches every gate workflow (CI, Quality, Supply
-   Chain) against the ref, defaulting to the tip of `next`, and waits. The heavy
-   compile happens on runners, not your machine.
+   Chain) against the ref, defaulting to the tip of `next`, and waits. The push
+   runs already cover `next`; this pins the runs to the exact SHA you are about
+   to promote, which is what `just promote` freezes.
 2. `just promote [SHA]` — freezes that commit on the `promote` ref and **opens**
    the release pull request onto `main`. It does not merge; the gates re-run on
    the PR, and you merge it.

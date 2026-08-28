@@ -10,7 +10,7 @@ on:
   pull_request:
     branches: [main, next]
   push:
-    branches: [main]
+    branches: [main, next]
 
 concurrency:
   group: quality-${{ inputs.ref || github.ref }}

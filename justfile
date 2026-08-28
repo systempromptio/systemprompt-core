@@ -1568,10 +1568,11 @@ webauthn-admin EMAIL="admin@localhost":
 
 # Run every pre-release gate against a ref (default: the tip of `next`).
 #
-# Dispatches the gate workflows on GitHub and waits for them, so the heavy
-# compile happens on runners rather than this machine. Nothing runs on a
-# schedule and nothing runs on a push to `next` — this is how the gates get
-# run, when you decide to run them.
+# Every push to `next` already runs these same workflows. This recipe is for
+# gating one specific frozen commit before `just promote` — it dispatches them
+# with an explicit ref, so the runs are pinned to the SHA you are about to
+# promote rather than to whatever `next` points at now. The heavy compile
+# happens on runners rather than this machine.
 gate REF="":
     #!/usr/bin/env bash
     set -euo pipefail
@@ -1589,7 +1590,7 @@ gate REF="":
     sleep 15
     FAIL=0
     for wf in "${WFS[@]}"; do
-        ID=$(gh run list --workflow="$wf" --limit 1 --json databaseId --jq '.[0].databaseId')
+        ID=$(gh run list --workflow="$wf" --event workflow_dispatch --limit 1 --json databaseId --jq '.[0].databaseId')
         gh run watch "$ID" --exit-status >/dev/null 2>&1 && R=pass || { R=FAIL; FAIL=1; }
         printf "  %-18s %s\n" "$wf" "$R"
     done
