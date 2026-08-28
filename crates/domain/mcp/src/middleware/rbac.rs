@@ -10,7 +10,7 @@ use std::collections::BTreeMap;
 
 use rmcp::service::RequestContext as McpContext;
 use rmcp::{ErrorData as McpError, RoleServer};
-use systemprompt_identifiers::{Actor, McpServerId, TraceId, UserId};
+use systemprompt_identifiers::{Actor, McpServerId, UserId};
 use systemprompt_loader::ConfigLoader;
 use systemprompt_models::RequestContext;
 use systemprompt_models::auth::{AuthenticatedUser, JwtClaims};
@@ -189,13 +189,17 @@ pub fn build_mcp_authz_request(
     let context = floor.map_or_else(AuthzContext::none, |floor| {
         AuthzContext::none().with_marketplace_floor(floor)
     });
+    let user_id = UserId::new(claims.sub.clone());
     AuthzRequest {
         entity: EntityRef::McpServer(McpServerId::new(server_name)),
-        user_id: UserId::new(claims.sub.clone()),
+        user_id: user_id.clone(),
+        actor: Some(Actor::mcp(user_id, server_name)),
+        client_id: claims.client_id.clone(),
+        access_scope: None,
         roles: claims.roles.clone(),
         attributes: claims.attributes.clone(),
-        trace_id: TraceId::generate(),
-        session_id: None,
+        trace_id: execution.trace_id.clone(),
+        session_id: claims.session_id.clone(),
         context,
         context_id: Some(execution.context_id.clone()),
         task_id: execution.task_id.clone(),

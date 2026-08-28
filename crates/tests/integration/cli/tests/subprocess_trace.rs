@@ -10,6 +10,7 @@ use systemprompt_cli_integration_tests::full_bootstrap::{command, database_url};
 
 struct SeededTrace {
     task_id: String,
+    task_trace_id: String,
     log_trace_id: String,
 }
 
@@ -279,6 +280,7 @@ async fn seed(pool: &sqlx::PgPool) -> SeededTrace {
 
     SeededTrace {
         task_id,
+        task_trace_id,
         log_trace_id,
     }
 }
@@ -391,6 +393,22 @@ fn trace_list_includes_seeded_traces() {
     let Some(seeded) = seeded() else { return };
     let Some(mut cmd) = command() else { return };
     cmd.args(["infra", "logs", "trace", "list", "--limit", "50"]);
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains(&seeded.task_trace_id));
+}
+
+#[test]
+fn trace_list_excludes_log_only_traces_until_all() {
+    let Some(seeded) = seeded() else { return };
+    let Some(mut cmd) = command() else { return };
+    cmd.args(["infra", "logs", "trace", "list", "--limit", "50"]);
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains(&seeded.log_trace_id).not());
+
+    let Some(mut cmd) = command() else { return };
+    cmd.args(["infra", "logs", "trace", "list", "--all", "--limit", "50"]);
     cmd.assert()
         .success()
         .stdout(predicate::str::contains(&seeded.log_trace_id));

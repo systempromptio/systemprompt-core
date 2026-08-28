@@ -154,20 +154,11 @@ The connection string itself is never in `profile.yaml`; it lives in the secrets
 | `stream_per_second` | u64 | no | `100` | SSE stream routes. |
 | `content_per_second` | u64 | no | `50` | Content routes. |
 | `burst_multiplier` | u64 | no | `3` | Burst allowance multiplier. |
-| `tier_multipliers` | object | no | see below | Per-caller-tier scaling. |
 
-### `rate_limits.tier_multipliers`
-
-`crates/shared/models/src/profile/rate_limits.rs:5`
-
-| Key | Type | Required | Default | Meaning |
-|-----|------|----------|---------|---------|
-| `admin` | f64 | no | `10.0` | Admin tier multiplier. |
-| `user` | f64 | no | `1.0` | Authenticated user multiplier. |
-| `a2a` | f64 | no | `5.0` | A2A caller multiplier. |
-| `mcp` | f64 | no | `5.0` | MCP caller multiplier. |
-| `service` | f64 | no | `5.0` | Service caller multiplier. |
-| `anon` | f64 | no | `0.5` | Anonymous caller multiplier. |
+Limits are enforced per caller: a request carrying a signature-verified identity is bucketed by
+that identity, and an unauthenticated request by the client address resolved through
+`trusted_proxies`. Hop headers from an untrusted peer are ignored, so a caller cannot select its
+own bucket.
 
 ## `system_admin`
 
@@ -220,21 +211,20 @@ See [`concepts/extensions.md`](../concepts/extensions.md) for the extension mode
 
 ## `gateway`
 
-`crates/shared/models/src/profile/gateway.rs`. The provider-facing inference proxy. Optional; absent means the gateway is off.
+`crates/shared/models/src/profile/gateway/`. The provider-facing inference proxy. Optional; absent means the gateway is off.
 
 | Key | Type | Required | Default | Meaning |
 |-----|------|----------|---------|---------|
 | `enabled` | bool | no | `false` | Enable the gateway. |
 | `routes` | list of object | no | `[]` | Inline model→provider routes. See [`gateway.routes[]`](#gatewayroutes). |
-| `catalog` | object | no | absent | Providers and models. Either inline (`{ providers: [...], models: [...] }`) or file-backed (`{ path: "./catalog.yaml" }`). See [Gateway catalog](#gateway-catalog). |
 | `auth_scheme` | string | no | `bearer` | Upstream auth scheme. |
 | `inference_path_prefix` | string | no | `/v1` | Path prefix the gateway serves provider-facing inference under. |
 
-Every route and catalog provider endpoint is validated through the shared outbound-URL guard (`net::validate_outbound_url`), which rejects loopback and private-network destinations to prevent the proxy becoming an SSRF primitive (`gateway.rs:57`).
+Every route's resolved provider endpoint is validated through the shared outbound-URL guard (`validate_outbound_url`, `crates/shared/models/src/net.rs:81`), which rejects loopback, private-network, link-local and CGNAT destinations to prevent the proxy becoming an SSRF primitive.
 
 ### `gateway.routes[]`
 
-`crates/shared/models/src/profile/gateway.rs:184`
+`crates/shared/models/src/profile/gateway/:184`
 
 | Key | Type | Required | Default | Meaning |
 |-----|------|----------|---------|---------|
@@ -247,28 +237,22 @@ Every route and catalog provider endpoint is validated through the shared outbou
 | `extra_headers` | map<string,string> | no | `{}` | Additional upstream request headers. |
 | `pricing` | object | no | absent | Optional model pricing metadata. |
 
-### Gateway catalog
+### Gateway catalog — removed
 
-`crates/shared/models/src/profile/gateway/catalog.rs`. The catalog content — whether inlined under `gateway.catalog:` or loaded from the file referenced by `gateway.catalog.path` — has the same shape: a document with `providers` and `models`.
+`gateway.catalog` no longer exists. The gateway owns no catalogue of its own: every route
+resolves its provider against `profile.providers` at use time
+(`crates/shared/models/src/profile/gateway/mod.rs`).
 
-`providers[]`:
+Model exposure is therefore the combination of two things you already configure:
 
-| Key | Type | Required | Meaning |
-|-----|------|----------|---------|
-| `name` | string | yes | Provider name (referenced by models). |
-| `endpoint` | string | yes | Upstream endpoint (SSRF-guarded). |
-| `api_key_secret` | string | yes | Secret name for the upstream API key. |
-| `extra_headers` | map<string,string> | no | Additional upstream headers. |
+- **`profile.providers`** — the upstream endpoints, their `api_key_secret`, and any extra
+  headers. This is where a provider is declared.
+- **`gateway.routes[]`** — which external model names map onto which provider, documented in
+  [§`gateway.routes[]`](#gatewayroutes) above.
 
-`models[]`:
-
-| Key | Type | Required | Meaning |
-|-----|------|----------|---------|
-| `id` | string | yes | Model id exposed by the gateway (must be non-empty). |
-| `provider` | string | yes | Provider name; must match a declared provider. |
-| `display_name` | string | no | Human-readable label. |
-| `upstream_model` | string | no | Override model name sent upstream. |
-| `pricing` | object | no | Pricing metadata. |
+If you are migrating a profile that still carries a `gateway.catalog:` block, move its
+`providers[]` entries into `profile.providers` and express each `models[]` entry as a
+`gateway.routes[]` entry.
 
 ## `governance`
 

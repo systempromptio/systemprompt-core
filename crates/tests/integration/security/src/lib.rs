@@ -38,3 +38,6 @@ mod slack_teams_ingestion_tests;
 
 #[cfg(test)]
 mod gateway_reconcile_tests;
+
+#[cfg(test)]
+mod plugin_cascade_tests;

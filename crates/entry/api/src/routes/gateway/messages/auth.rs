@@ -6,7 +6,7 @@
 use axum::http::StatusCode;
 use std::collections::BTreeMap;
 use std::sync::Arc;
-use systemprompt_identifiers::{Actor, JwtToken, SessionId, TraceId, UserId};
+use systemprompt_identifiers::{Actor, ClientId, JwtToken, SessionId, TraceId, UserId};
 use systemprompt_runtime::AppContext;
 use systemprompt_security::policy::types::AccessScope;
 use systemprompt_users::{API_KEY_PREFIX, ApiKeyService};
@@ -46,6 +46,7 @@ pub struct JwtPrincipal {
     pub attributes: BTreeMap<String, serde_json::Value>,
     pub act_chain: Vec<Actor>,
     pub attested_session: SessionId,
+    pub client_id: Option<ClientId>,
 }
 
 #[cfg_attr(
@@ -106,6 +107,13 @@ impl AuthedPrincipal {
         match self {
             Self::Jwt(p) => (p.roles.clone(), p.attributes.clone(), p.act_chain.clone()),
             Self::ApiKey(_) => (Vec::new(), BTreeMap::new(), Vec::new()),
+        }
+    }
+
+    pub const fn client_id(&self) -> Option<&ClientId> {
+        match self {
+            Self::Jwt(p) => p.client_id.as_ref(),
+            Self::ApiKey(_) => None,
         }
     }
 
@@ -212,5 +220,6 @@ async fn authenticate_jwt(
         attributes: claims.attributes,
         act_chain: claims.act_chain,
         attested_session: claims.session_id,
+        client_id: claims.client_id,
     }))
 }

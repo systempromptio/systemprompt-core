@@ -1,12 +1,29 @@
 .dashboard {
     display: grid;
     gap: var(--mcpui-space-4);
+    container-type: inline-size;
+    container-name: dashboard;
 }
 
-/* Sections declare their own width via `flex-basis`, which a grid ignores, so
- * the grid layout reads it back through a container query unit instead. */
+/* Sections declare their width as a span in twelfths (`--section-span`, set
+ * inline by the renderer). Twelve tracks make halves, thirds, and two-thirds
+ * all exact. */
 .layout-grid {
-    grid-template-columns: repeat(auto-fit, minmax(min(18rem, 100%), 1fr));
+    grid-template-columns: repeat(12, 1fr);
+}
+
+.layout-grid > .dashboard-section {
+    grid-column: span var(--section-span, 12);
+}
+
+/* Below the container's comfortable width for twelfths, the declared spans
+ * stop helping and start producing unreadable slivers, so every section goes
+ * full width. A container query, not a media query: the artifact is an iframe
+ * whose width the host chooses, and the viewport is not it. */
+@container dashboard (max-width: 34rem) {
+    .layout-grid > .dashboard-section {
+        grid-column: 1 / -1;
+    }
 }
 
 /* Before the tab script runs — and forever, if it never does — show only the
@@ -336,4 +353,79 @@
     max-width: 68ch;
     color: var(--mcpui-ink-dim);
     line-height: var(--mcpui-leading-normal);
+}
+
+.section-empty {
+    padding: var(--mcpui-space-5) var(--mcpui-space-4);
+    text-align: center;
+    color: var(--mcpui-ink-dim);
+    font-size: var(--mcpui-text-sm);
+}
+
+/* A long unbroken figure used to push past its card. */
+.metric-value {
+    overflow-wrap: anywhere;
+}
+
+.section-table th.sortable {
+    cursor: pointer;
+    user-select: none;
+}
+
+.section-table th.sortable:hover {
+    color: var(--mcpui-ink);
+}
+
+.section-table th.sort-asc,
+.section-table th.sort-desc {
+    color: var(--mcpui-accent);
+}
+
+.section-table th.sort-asc::after  { content: ' \25B2'; font-size: 0.625rem; }
+.section-table th.sort-desc::after { content: ' \25BC'; font-size: 0.625rem; }
+
+.section-table th.sortable:focus-visible {
+    outline: 2px solid var(--mcpui-accent);
+    outline-offset: -2px;
+}
+
+.dashboard-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--mcpui-space-3);
+}
+
+.refresh-btn {
+    padding: var(--mcpui-space-2) var(--mcpui-space-3);
+    border: 1px solid var(--mcpui-border);
+    border-radius: var(--mcpui-radius-inner);
+    background: var(--mcpui-surface);
+    color: var(--mcpui-ink);
+    font-size: var(--mcpui-text-sm);
+    cursor: pointer;
+    transition: border-color var(--mcpui-duration) var(--mcpui-ease),
+                background var(--mcpui-duration) var(--mcpui-ease);
+}
+
+.refresh-btn:hover:not(:disabled) {
+    border-color: var(--mcpui-accent-rim);
+    background: var(--mcpui-accent-wash);
+}
+
+.refresh-btn:disabled { opacity: 0.6; cursor: progress; }
+
+.refresh-status {
+    font-size: var(--mcpui-text-sm);
+    color: var(--mcpui-ink-dim);
+}
+
+.section-table tr.is-drillable {
+    cursor: pointer;
+}
+
+.section-table tr.is-drillable:hover,
+.section-table tr.is-drillable:focus-visible {
+    background: var(--mcpui-accent-wash);
+    outline: none;
 }

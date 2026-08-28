@@ -263,7 +263,17 @@ async fn chart_doughnut_type() {
     assert!(result.html.contains("class=\"chart-slice\""));
     // The hole is what distinguishes a doughnut: its path closes back along an
     // inner arc, so it carries two arc commands where a pie carries one.
-    assert_eq!(result.html.matches(" A ").count(), 2);
+    // Counted within the path's own `d`, not the whole document — the
+    // stylesheet and script are also " A "-bearing prose.
+    let d_start = result
+        .html
+        .find(r#"<path class="chart-slice""#)
+        .expect("slice");
+    let d_end = result.html[d_start..]
+        .find("</path>")
+        .expect("slice closes")
+        + d_start;
+    assert_eq!(result.html[d_start..d_end].matches(" A ").count(), 2);
 }
 
 #[tokio::test]
@@ -456,7 +466,8 @@ async fn list_skips_non_object_non_string_items() {
     let result = renderer.render(&artifact).await.unwrap();
     assert!(result.html.contains("Keep"));
     // numbers/bools without title are dropped
-    assert!(result.html.contains("1 items"));
+    assert!(result.html.contains("1 item"));
+    assert!(!result.html.contains("1 items"));
 }
 
 #[tokio::test]
@@ -1011,8 +1022,10 @@ async fn dashboard_section_layout_widths() {
         .render(&dashboard_artifact(&dashboard))
         .await
         .unwrap();
-    assert!(result.html.contains("flex-basis: 50%"));
-    assert!(result.html.contains("flex-basis: 33.333%"));
+    // Widths are grid spans in twelfths now; `flex-basis` on a grid item did
+    // nothing at all, which is why every declared width used to be ignored.
+    assert!(result.html.contains("--section-span: 6"));
+    assert!(result.html.contains("--section-span: 4"));
 }
 
 #[tokio::test]

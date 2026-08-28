@@ -45,11 +45,9 @@ pub use providers::{
     ProviderRegistryResult, WireProtocol,
 };
 pub use rate_limits::{
-    RateLimitsConfig, TierMultipliers, default_a2a_multiplier, default_admin_multiplier,
-    default_agent_registry, default_agents, default_anon_multiplier, default_artifacts,
-    default_burst, default_content, default_contexts, default_mcp, default_mcp_multiplier,
-    default_mcp_registry, default_oauth_auth, default_oauth_public, default_service_multiplier,
-    default_stream, default_tasks, default_user_multiplier,
+    RateLimitsConfig, default_agent_registry, default_agents, default_artifacts, default_burst,
+    default_content, default_contexts, default_mcp, default_mcp_registry, default_oauth_auth,
+    default_oauth_public, default_stream, default_tasks,
 };
 pub use runtime::{Environment, LogLevel, OutputFormat, RuntimeConfig};
 pub use secrets::{SecretsConfig, SecretsSource, SecretsValidationMode};

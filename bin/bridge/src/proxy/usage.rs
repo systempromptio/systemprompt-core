@@ -30,7 +30,7 @@ where
 {
     use futures_util::{StreamExt, future};
     let tap = if enabled {
-        UsageTap::for_content_type(content_type, stats)
+        UsageTap::for_content_type(content_type, Sink { stats })
     } else {
         UsageTap::Disabled
     };
@@ -54,33 +54,44 @@ impl Drop for TapGuard {
     }
 }
 
+struct Sink {
+    stats: Arc<ProxyStats>,
+}
+
 enum UsageTap {
     Disabled,
     Json {
         buf: Vec<u8>,
-        stats: Arc<ProxyStats>,
+        sink: Sink,
     },
     Sse {
         carry: Vec<u8>,
-        input_tokens: u64,
-        output_tokens: u64,
-        stats: Arc<ProxyStats>,
+        usage: StreamUsage,
+        sink: Sink,
     },
 }
 
+#[derive(Default)]
+struct StreamUsage {
+    input_tokens: u64,
+    output_tokens: u64,
+    cache_read: u64,
+    cache_write: u64,
+    model: Option<String>,
+}
+
 impl UsageTap {
-    fn for_content_type(content_type: &str, stats: Arc<ProxyStats>) -> Self {
+    fn for_content_type(content_type: &str, sink: Sink) -> Self {
         if content_type.contains("text/event-stream") {
             Self::Sse {
                 carry: Vec::new(),
-                input_tokens: 0,
-                output_tokens: 0,
-                stats,
+                usage: StreamUsage::default(),
+                sink,
             }
         } else if content_type.contains("application/json") {
             Self::Json {
                 buf: Vec::new(),
-                stats,
+                sink,
             }
         } else {
             Self::Disabled
@@ -95,14 +106,9 @@ impl UsageTap {
                     buf.extend_from_slice(chunk);
                 }
             },
-            Self::Sse {
-                carry,
-                input_tokens,
-                output_tokens,
-                ..
-            } => {
+            Self::Sse { carry, usage, .. } => {
                 carry.extend_from_slice(chunk);
-                consume_sse_lines(carry, input_tokens, output_tokens);
+                consume_sse_lines(carry, usage);
             },
         }
     }
@@ -110,23 +116,23 @@ impl UsageTap {
     fn flush(self) {
         match self {
             Self::Disabled => {},
-            Self::Json { buf, stats } => {
+            Self::Json { buf, sink } => {
                 if let Ok(parsed) = serde_json::from_slice::<MessageResponse>(&buf) {
-                    let input = parsed.usage.input_tokens.unwrap_or(0);
-                    let output = parsed.usage.output_tokens.unwrap_or(0);
-                    if input > 0 || output > 0 {
-                        record_usage(&stats, input, output);
+                    let usage = StreamUsage {
+                        input_tokens: parsed.usage.input_tokens.unwrap_or(0),
+                        output_tokens: parsed.usage.output_tokens.unwrap_or(0),
+                        cache_read: parsed.usage.cache_read_input_tokens.unwrap_or(0),
+                        cache_write: parsed.usage.cache_creation_input_tokens.unwrap_or(0),
+                        model: parsed.model,
+                    };
+                    if usage.input_tokens > 0 || usage.output_tokens > 0 {
+                        record_usage(&sink, &usage);
                     }
                 }
             },
-            Self::Sse {
-                input_tokens,
-                output_tokens,
-                stats,
-                ..
-            } => {
-                if input_tokens > 0 || output_tokens > 0 {
-                    record_usage(&stats, input_tokens, output_tokens);
+            Self::Sse { usage, sink, .. } => {
+                if usage.input_tokens > 0 || usage.output_tokens > 0 {
+                    record_usage(&sink, &usage);
                 }
             },
         }
@@ -136,6 +142,8 @@ impl UsageTap {
 #[derive(Deserialize)]
 struct MessageResponse {
     usage: UsagePayload,
+    #[serde(default)]
+    model: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -151,17 +159,27 @@ struct StreamEvent {
 #[derive(Deserialize)]
 struct StreamMessage {
     usage: UsagePayload,
+    #[serde(default)]
+    model: Option<String>,
 }
 
 #[derive(Default, Deserialize)]
+#[expect(
+    clippy::struct_field_names,
+    reason = "these are Anthropic's own wire field names; renaming them would break the mapping"
+)]
 struct UsagePayload {
     #[serde(default)]
     input_tokens: Option<u64>,
     #[serde(default)]
     output_tokens: Option<u64>,
+    #[serde(default)]
+    cache_read_input_tokens: Option<u64>,
+    #[serde(default)]
+    cache_creation_input_tokens: Option<u64>,
 }
 
-fn consume_sse_lines(carry: &mut Vec<u8>, input: &mut u64, output: &mut u64) {
+fn consume_sse_lines(carry: &mut Vec<u8>, usage: &mut StreamUsage) {
     while let Some(newline) = carry.iter().position(|b| *b == b'\n') {
         let line: Vec<u8> = carry.drain(..=newline).collect();
         let Ok(text) = std::str::from_utf8(&line) else {
@@ -180,22 +198,15 @@ fn consume_sse_lines(carry: &mut Vec<u8>, input: &mut u64, output: &mut u64) {
         match event.event_type.as_str() {
             "message_start" => {
                 if let Some(msg) = event.message {
-                    if let Some(v) = msg.usage.input_tokens {
-                        *input = v;
-                    }
-                    if let Some(v) = msg.usage.output_tokens {
-                        *output = v;
+                    apply_usage(usage, &msg.usage);
+                    if msg.model.is_some() {
+                        usage.model = msg.model;
                     }
                 }
             },
             "message_delta" => {
-                if let Some(usage) = event.usage {
-                    if let Some(v) = usage.input_tokens {
-                        *input = v;
-                    }
-                    if let Some(v) = usage.output_tokens {
-                        *output = v;
-                    }
+                if let Some(delta) = event.usage {
+                    apply_usage(usage, &delta);
                 }
             },
             _ => {},
@@ -203,15 +214,37 @@ fn consume_sse_lines(carry: &mut Vec<u8>, input: &mut u64, output: &mut u64) {
     }
 }
 
-fn record_usage(stats: &ProxyStats, input: u64, output: u64) {
-    stats.messages_total.fetch_add(1, Ordering::Relaxed);
+// Why: Anthropic reports usage cumulatively, so the last value wins rather than
+// accumulating -- adding deltas would double-count every streamed message.
+const fn apply_usage(usage: &mut StreamUsage, payload: &UsagePayload) {
+    if let Some(v) = payload.input_tokens {
+        usage.input_tokens = v;
+    }
+    if let Some(v) = payload.output_tokens {
+        usage.output_tokens = v;
+    }
+    if let Some(v) = payload.cache_read_input_tokens {
+        usage.cache_read = v;
+    }
+    if let Some(v) = payload.cache_creation_input_tokens {
+        usage.cache_write = v;
+    }
+}
+
+fn record_usage(sink: &Sink, usage: &StreamUsage) {
+    let (input, output) = (usage.input_tokens, usage.output_tokens);
+    sink.stats.messages_total.fetch_add(1, Ordering::Relaxed);
     if input > 0 {
-        stats.tokens_in_total.fetch_add(input, Ordering::Relaxed);
+        sink.stats
+            .tokens_in_total
+            .fetch_add(input, Ordering::Relaxed);
     }
     if output > 0 {
-        stats.tokens_out_total.fetch_add(output, Ordering::Relaxed);
+        sink.stats
+            .tokens_out_total
+            .fetch_add(output, Ordering::Relaxed);
     }
-    let total = stats.messages_total.load(Ordering::Relaxed);
+    let total = sink.stats.messages_total.load(Ordering::Relaxed);
     crate::activity::activity_log().append(format!(
         "tokens: +{input} in / +{output} out (total {total} msgs)"
     ));

@@ -168,6 +168,39 @@ impl<'a> From<&'a ArtifactEntry> for CoworkLibraryArtifactRecord<'a> {
     }
 }
 
+// Why: the install manifest a plugin bundle ships at `artifacts/manifest.json`
+// — every record minus its HTML, which sits beside it as `artifacts/<id>.html`
+// so a seed skill can copy a page without parsing JSON.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CoworkArtifactBundleManifest {
+    pub artifacts: Vec<CoworkArtifactBundleRecord>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CoworkArtifactBundleRecord {
+    pub id: LibraryArtifactId,
+    pub name: String,
+    pub description: String,
+    pub version: String,
+    #[serde(rename = "isStarred")]
+    pub is_starred: bool,
+    #[serde(rename = "mcpTools")]
+    pub mcp_tools: Vec<String>,
+}
+
+impl From<&ArtifactEntry> for CoworkArtifactBundleRecord {
+    fn from(a: &ArtifactEntry) -> Self {
+        Self {
+            id: a.id.clone(),
+            name: a.name.clone(),
+            description: a.description.clone(),
+            version: a.version.clone(),
+            is_starred: a.starred,
+            mcp_tools: a.mcp_tools.clone(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SkillEntry {
     pub id: SkillId,

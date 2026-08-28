@@ -25,26 +25,38 @@ const FormApp = {
         });
 
         const messageEl = document.getElementById('form-message');
+        const submitBtn = document.querySelector('#mcp-form .submit-btn');
+
+        /* Every branch sets display itself, because the success branch used to
+         * rely on the info branch having already done it. */
+        const say = (text, tone) => {
+            messageEl.textContent = text;
+            messageEl.className = `form-message ${tone}`;
+            messageEl.style.display = 'block';
+        };
 
         if (this.submitTool) {
+            /* Nothing disabled the button while the call was in flight, so a
+             * second click fired the tool again. */
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.setAttribute('aria-busy', 'true');
+            }
             try {
-                messageEl.textContent = 'Submitting...';
-                messageEl.className = 'form-message info';
-                messageEl.style.display = 'block';
-
-                const result = await McpAppBridge.callTool(this.submitTool, data);
-
-                messageEl.textContent = 'Form submitted successfully!';
-                messageEl.className = 'form-message success';
+                say('Submitting…', 'info');
+                await McpAppBridge.callTool(this.submitTool, data);
+                say('Form submitted successfully.', 'success');
             } catch (err) {
-                messageEl.textContent = 'Error: ' + err.message;
-                messageEl.className = 'form-message error';
+                say(`Error: ${err.message}`, 'error');
+            } finally {
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.removeAttribute('aria-busy');
+                }
             }
         } else {
-            McpAppBridge.updateContext(data);
-            messageEl.textContent = 'Form data captured.';
-            messageEl.className = 'form-message success';
-            messageEl.style.display = 'block';
+            McpAppBridge.updateModelContext(data);
+            say('Form data captured.', 'success');
         }
     }
 };

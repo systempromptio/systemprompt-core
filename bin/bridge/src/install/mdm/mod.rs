@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+pub(crate) mod egress;
 mod error;
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]
 pub(crate) mod linux;
@@ -11,6 +12,7 @@ pub(super) mod macos;
 #[cfg(target_os = "windows")]
 mod windows;
 
+pub use egress::{cowork_egress_allowed_hosts, set_egress_allowed_hosts};
 pub use error::MdmError;
 
 use crate::schedule::Os;
@@ -163,12 +165,17 @@ pub fn windows_policy_values(
         ("disableAutoUpdates", "REG_SZ", "true".into()),
         ("disableDeploymentModeChooser", "REG_SZ", "true".into()),
         ("isLocalDevMcpEnabled", "REG_SZ", "false".into()),
-        (
+    ];
+    // Why: omitted by default so Cowork keeps its own unrestricted egress. A
+    // pinned allowlist here left agents with no internet at all; it is now an
+    // explicit opt-in for regulated deployments.
+    if let Some(hosts) = cowork_egress_allowed_hosts() {
+        values.push((
             "coworkEgressAllowedHosts",
             "REG_SZ",
-            r#"["127.0.0.1"]"#.into(),
-        ),
-    ];
+            egress::windows_policy_value(&hosts),
+        ));
+    }
     // Why: without a pre-trusted workspace Cowork falls back to protected host
     // paths and blocks on `request_cowork_directory`; `isDefaultSelected` skips
     // the trust prompt.
@@ -246,8 +253,12 @@ Windows Registry Editor Version 5.00
 "disableAutoUpdates"="true"
 "disableDeploymentModeChooser"="true"
 "isLocalDevMcpEnabled"="false"
-"coworkEgressAllowedHosts"="[\"127.0.0.1\"]"
 "allowedWorkspaceFolders"="[{\"path\":\"~/{workspace}\",\"isDefaultSelected\":true}]"
+; Optional: restrict which hosts Cowork may reach. Omit for unrestricted egress
+; (the default). Loopback-only is the air-gapped/regulated posture; apply it with
+; `install --apply --egress-allowed-hosts loopback` so the Bridge keeps the value
+; in step with this key.
+; "coworkEgressAllowedHosts"="[\"127.0.0.1\"]"
 ; Optional: identify this deployment to your org for telemetry/support.
 ; Omit to use Anthropic's shared placeholder UUID. Standard hyphenated form only.
 ; "deploymentOrganizationUuid"="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"

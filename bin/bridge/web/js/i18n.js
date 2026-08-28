@@ -16,6 +16,10 @@ function parseFtl(src) {
   return out;
 }
 
+function warnMissing(id, where) {
+  if (ready) console.warn(`i18n: no message "${id}" for ${where}`);
+}
+
 function format(template, args) {
   return template.replace(/\{\s*\$([A-Za-z0-9_-]+)\s*\}/g, (_, name) => {
     if (args && Object.prototype.hasOwnProperty.call(args, name)) {
@@ -27,7 +31,9 @@ function format(template, args) {
 
 export function t(id, args) {
   const msg = messages.get(id);
-  if (typeof msg !== "string") return id;
+  // Returning the id here made every `|| "English"` fallback in the app
+  // unreachable, so a missing key rendered its own id at the user.
+  if (typeof msg !== "string") return undefined;
   return args ? format(msg, args) : msg;
 }
 
@@ -37,6 +43,8 @@ export function hydrate(root = document) {
     const msg = messages.get(id);
     if (typeof msg === "string") {
       el.textContent = msg;
+    } else {
+      warnMissing(id, "data-l10n-id");
     }
   }
   for (const el of root.querySelectorAll("[data-l10n-placeholder]")) {
@@ -44,6 +52,8 @@ export function hydrate(root = document) {
     const msg = messages.get(id);
     if (typeof msg === "string") {
       el.placeholder = msg;
+    } else {
+      warnMissing(id, "data-l10n-placeholder");
     }
   }
   for (const el of root.querySelectorAll("[data-l10n-aria]")) {
@@ -51,6 +61,8 @@ export function hydrate(root = document) {
     const msg = messages.get(id);
     if (typeof msg === "string") {
       el.setAttribute("aria-label", msg);
+    } else {
+      warnMissing(id, "data-l10n-aria");
     }
   }
 }

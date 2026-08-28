@@ -1,8 +1,8 @@
 use systemprompt_identifiers::{MarketplaceId, SkillId};
+use systemprompt_security::authz::resolver::{ResolveInput, ResolveParent, resolve};
 use systemprompt_security::authz::types::{
     Access, AccessRule, Decision, DenyReason, EntityRef, MatchedBy, RuleType,
 };
-use systemprompt_security::authz::{ResolveInput, ResolveParent, resolve};
 use systemprompt_test_fixtures::fixture_user_id;
 
 fn rule(rule_type: RuleType, value: &str, access: Access) -> AccessRule {
@@ -466,5 +466,197 @@ fn empty_own_ruleset_still_inherits() {
                 role: "user".into()
             }
         }
+    );
+}
+
+fn plugin_entity() -> EntityRef {
+    EntityRef::Plugin(systemprompt_identifiers::PluginId::new("owning-plugin"))
+}
+
+fn resolve_child(
+    own: &[AccessRule],
+    own_default: Option<bool>,
+    roles: &[String],
+    parents: &[ResolveParent<'_>],
+) -> Decision {
+    let child = child();
+    let user = fixture_user_id();
+    resolve(ResolveInput {
+        entity: &child,
+        rules: own,
+        user_id: &user,
+        user_roles: roles,
+        default_included: own_default,
+        parents,
+        attributes: &systemprompt_security::authz::NO_SUBJECT_ATTRIBUTES,
+        dimensions: &[],
+    })
+}
+
+#[test]
+fn declared_near_parent_without_match_closes_cascade() {
+    let plugin = plugin_entity();
+    let market = parent_entity();
+    let plugin_rules = vec![rule(RuleType::ROLE, "admin", Access::Allow)];
+    let market_rules = vec![rule(RuleType::ROLE, "user", Access::Allow)];
+    let parents = [
+        ResolveParent {
+            entity: &plugin,
+            rules: &plugin_rules,
+            default_included: Some(false),
+        },
+        ResolveParent {
+            entity: &market,
+            rules: &market_rules,
+            default_included: Some(true),
+        },
+    ];
+
+    let decision = resolve_child(&[], Some(false), &["user".into()], &parents);
+
+    assert!(
+        matches!(
+            decision,
+            Decision::Deny {
+                reason: DenyReason::NotAssigned { ref entity, .. }
+            } if entity.id_str() == "child-skill"
+        ),
+        "an admin-only plugin must close a user out even though the marketplace admits users: \
+         got {decision:?}",
+    );
+}
+
+#[test]
+fn ruleless_near_parent_is_transparent() {
+    let plugin = plugin_entity();
+    let market = parent_entity();
+    let market_rules = vec![rule(RuleType::ROLE, "user", Access::Allow)];
+    let parents = [
+        ResolveParent {
+            entity: &plugin,
+            rules: &[],
+            default_included: Some(false),
+        },
+        ResolveParent {
+            entity: &market,
+            rules: &market_rules,
+            default_included: Some(false),
+        },
+    ];
+
+    let decision = resolve_child(&[], Some(false), &["user".into()], &parents);
+
+    assert_eq!(
+        decision,
+        Decision::Allow {
+            matched_by: MatchedBy::RoleAllow {
+                role: "user".into()
+            }
+        }
+    );
+}
+
+#[test]
+fn declared_near_parent_default_included_allows_non_matching_subject() {
+    let plugin = plugin_entity();
+    let market = parent_entity();
+    let plugin_rules = vec![rule(RuleType::ROLE, "admin", Access::Allow)];
+    let market_rules = vec![rule(RuleType::ROLE, "user", Access::Deny)];
+    let parents = [
+        ResolveParent {
+            entity: &plugin,
+            rules: &plugin_rules,
+            default_included: Some(true),
+        },
+        ResolveParent {
+            entity: &market,
+            rules: &market_rules,
+            default_included: Some(false),
+        },
+    ];
+
+    let decision = resolve_child(&[], Some(false), &["user".into()], &parents);
+
+    assert_eq!(
+        decision,
+        Decision::Allow {
+            matched_by: MatchedBy::DefaultIncluded
+        },
+        "the closing level's own default admits; the farther deny is never reached"
+    );
+}
+
+#[test]
+fn declared_near_parent_close_honours_own_default_included() {
+    let plugin = plugin_entity();
+    let plugin_rules = vec![rule(RuleType::ROLE, "admin", Access::Allow)];
+    let parents = [ResolveParent {
+        entity: &plugin,
+        rules: &plugin_rules,
+        default_included: Some(false),
+    }];
+
+    let decision = resolve_child(&[], Some(true), &["user".into()], &parents);
+
+    assert_eq!(
+        decision,
+        Decision::Allow {
+            matched_by: MatchedBy::DefaultIncluded
+        }
+    );
+}
+
+#[test]
+fn declared_near_parent_close_with_own_default_none_is_not_assigned() {
+    let plugin = plugin_entity();
+    let plugin_rules = vec![rule(RuleType::ROLE, "admin", Access::Allow)];
+    let parents = [ResolveParent {
+        entity: &plugin,
+        rules: &plugin_rules,
+        default_included: Some(false),
+    }];
+
+    let decision = resolve_child(&[], None, &["user".into()], &parents);
+
+    assert!(
+        matches!(
+            decision,
+            Decision::Deny {
+                reason: DenyReason::NotAssigned { .. }
+            }
+        ),
+        "an entity known through its plugin is not-assigned, never unknown: got {decision:?}",
+    );
+}
+
+#[test]
+fn near_parent_deny_beats_far_parent_allow() {
+    let near = plugin_entity();
+    let far = parent_entity();
+    let near_rules = vec![rule(RuleType::ROLE, "eng", Access::Deny)];
+    let far_rules = vec![rule(RuleType::ROLE, "eng", Access::Allow)];
+    let parents = [
+        ResolveParent {
+            entity: &near,
+            rules: &near_rules,
+            default_included: Some(true),
+        },
+        ResolveParent {
+            entity: &far,
+            rules: &far_rules,
+            default_included: Some(true),
+        },
+    ];
+
+    let decision = resolve_child(&[], Some(false), &["eng".into()], &parents);
+
+    assert!(
+        matches!(
+            decision,
+            Decision::Deny {
+                reason: DenyReason::RoleDeny { ref role, .. }
+            } if role == "eng"
+        ),
+        "got {decision:?}",
     );
 }

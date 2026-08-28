@@ -1,0 +1,253 @@
+/* Agents list rows + the per-agent drawer.
+ *
+ * The list is deliberately low-density: one line per agent, one status, one
+ * recommended button. Everything that used to sit on this page now lives in the
+ * drawer, which is the app's only modal surface — so it carries its own scrim,
+ * elevation and motion rather than borrowing the setup overlay's. */
+
+.sp-agent-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-space-3);
+  position: relative;
+  padding: var(--sp-space-3-5) var(--sp-space-4);
+  background: var(--sp-bg-elev-1);
+  border: 1px solid var(--sp-line);
+  border-radius: var(--sp-corners-md);
+  box-shadow: var(--sp-shadow-inner-glow);
+  transition: border-color var(--sp-dur-fast) var(--sp-ease-out),
+              background var(--sp-dur-fast) var(--sp-ease-out),
+              transform var(--sp-dur-fast) var(--sp-ease-out);
+}
+sp-agent-row { display: block; }
+.sp-agent-row:hover {
+  background: var(--sp-bg-elev-2);
+  border-color: color-mix(in srgb, var(--sp-accent) 35%, var(--sp-line));
+  transform: translateY(-1px);
+}
+/* A hairline in the state colour: scannable down a column without adding a
+ * fourth thing to read. */
+.sp-agent-row::before {
+  content: "";
+  position: absolute;
+  inset: var(--sp-space-3) auto var(--sp-space-3) 0;
+  width: 2px;
+  border-radius: 0 2px 2px 0;
+  background: var(--sp-muted);
+}
+.sp-agent-row[data-state="ok"]::before        { background: var(--sp-ok); }
+.sp-agent-row[data-state="attention"]::before { background: var(--sp-warn); }
+.sp-agent-row[data-state="down"]::before      { background: var(--sp-err); }
+
+.sp-agent-row__logo {
+  width: 22px;
+  height: 22px;
+  flex: 0 0 auto;
+  color: var(--sp-muted-strong);
+}
+
+/* The row-opens-the-drawer target is a real button for keyboard and screen
+ * readers, stretched over the card so the whole row is clickable — while the
+ * action button stays above it and separately reachable. */
+.sp-agent-row__main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-space-0-5);
+  align-items: flex-start;
+  text-align: left;
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+.sp-agent-row__main::after { content: ""; position: absolute; inset: 0; border-radius: inherit; }
+.sp-agent-row__main:focus-visible { outline: none; }
+.sp-agent-row__main:focus-visible::after {
+  outline: var(--sp-focus-width) solid var(--sp-focus);
+  outline-offset: var(--sp-focus-offset);
+}
+.sp-agent-row__name { font-size: 14px; font-weight: 600; }
+.sp-agent-row__reason {
+  font-size: 12px;
+  color: var(--sp-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+.sp-agent-row__state { display: inline-flex; align-items: center; flex: 0 0 auto; }
+.sp-agent-row__action,
+.sp-agent-row__chevron { position: relative; z-index: 1; }
+.sp-agent-row__action { white-space: nowrap; }
+.sp-agent-row__chevron {
+  color: var(--sp-muted-strong);
+  font-size: 20px;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.sp-hosts__plus { font-size: 15px; line-height: 1; vertical-align: -1px; }
+
+.sp-hosts__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--sp-space-2-5);
+  padding: var(--sp-space-8) var(--sp-space-6);
+  background: var(--sp-bg-elev-1);
+  border: 1px dashed var(--sp-line);
+  border-radius: var(--sp-corners-md);
+}
+.sp-hosts__empty-title { margin: 0; font-size: 15px; font-weight: 600; }
+.sp-hosts__empty p { margin: 0; max-width: 52ch; line-height: 1.5; }
+
+/* --- drawer ---------------------------------------------------------------- */
+
+/* The drawer is a fixed overlay, so its custom-element host must not occupy a
+ * slot in the list's flex column — a closed drawer would otherwise add a gap. */
+sp-agent-drawer { display: contents; }
+body.is-drawer-open { overflow: hidden; }
+
+.sp-drawer[hidden] { display: none; }
+.sp-drawer {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  justify-content: flex-end;
+}
+.sp-drawer__scrim {
+  position: absolute;
+  inset: 0;
+  background: oklch(0 0 0 / 0.5);
+  animation: sp-drawer-fade var(--sp-dur-normal) var(--sp-ease-out);
+}
+.sp-drawer__panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: min(560px, 92vw);
+  background: var(--sp-bg);
+  border-left: 1px solid var(--sp-line);
+  box-shadow: var(--sp-shadow-2);
+  animation: sp-drawer-in var(--sp-dur-normal) var(--sp-ease-out);
+}
+@keyframes sp-drawer-fade { from { opacity: 0; } }
+@keyframes sp-drawer-in   { from { transform: translateX(24px); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .sp-drawer__scrim, .sp-drawer__panel { animation: none; }
+  .sp-agent-row { transition: none; }
+  .sp-agent-row:hover { transform: none; }
+}
+
+.sp-drawer__head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-space-3);
+  padding: var(--sp-space-4) var(--sp-space-4-5);
+  border-bottom: 1px solid var(--sp-line);
+  background: var(--sp-bg-elev-1);
+  flex-shrink: 0;
+}
+.sp-drawer__logo { width: 26px; height: 26px; flex: 0 0 auto; color: var(--sp-muted-strong); }
+.sp-drawer__headmeta { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--sp-space-1); }
+.sp-drawer__title { flex: 1; min-width: 0; margin: 0; font-size: 16px; font-weight: 700; letter-spacing: -0.01em; }
+.sp-drawer__status { display: inline-flex; align-items: center; }
+.sp-drawer__close {
+  flex: 0 0 auto;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--sp-corners-xs);
+  color: var(--sp-muted);
+  font-size: 14px;
+  line-height: 1;
+  padding: var(--sp-space-1-5) var(--sp-space-2);
+  cursor: pointer;
+}
+.sp-drawer__close:hover { color: var(--sp-text); border-color: var(--sp-line); }
+.sp-drawer__close:focus-visible {
+  outline: var(--sp-focus-width) solid var(--sp-focus);
+  outline-offset: var(--sp-focus-offset);
+}
+
+.sp-drawer__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--sp-space-4-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-space-4);
+}
+.sp-drawer__lede { margin: 0; font-size: 13px; line-height: 1.5; color: var(--sp-muted-strong); }
+.sp-drawer__note { margin: 0; font-size: 12px; line-height: 1.5; }
+.sp-drawer__actions { display: flex; flex-wrap: wrap; gap: var(--sp-space-2); }
+
+.sp-drawer__section { display: flex; flex-direction: column; gap: var(--sp-space-2-5); }
+.sp-drawer__section-title {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  color: var(--sp-muted);
+}
+.sp-drawer__section--advanced { border-top: 1px solid var(--sp-line); padding-top: var(--sp-space-3-5); }
+.sp-drawer__section--advanced > summary { cursor: pointer; list-style: none; }
+.sp-drawer__section--advanced > summary::marker,
+.sp-drawer__section--advanced > summary::-webkit-details-marker { display: none; }
+.sp-drawer__section--advanced > summary::before { content: "▸ "; }
+.sp-drawer__section--advanced[open] > summary::before { content: "▾ "; }
+.sp-drawer__section--advanced[open] > summary { color: var(--sp-text); margin-bottom: var(--sp-space-2-5); }
+.sp-drawer__section--advanced .sp-status__prefs { margin-top: var(--sp-space-2-5); }
+
+/* The drawer's tables carry the long values (paths, UUIDs); they must wrap
+ * rather than widen the panel. */
+.sp-drawer__body .sp-status__board th { width: 150px; }
+.sp-drawer__body .sp-status__board th,
+.sp-drawer__body .sp-status__board td { padding: var(--sp-space-2-5) var(--sp-space-3); }
+.sp-drawer__body .sp-status__detail { overflow-wrap: anywhere; }
+
+.sp-drawer__proto {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-space-1-5);
+  font-size: 12px;
+  color: var(--sp-muted-strong);
+  cursor: pointer;
+  padding: var(--sp-space-0-5) 0;
+  user-select: none;
+}
+.sp-drawer__protos { display: flex; flex-wrap: wrap; gap: var(--sp-space-1) var(--sp-space-3); margin: var(--sp-space-1) 0; }
+.sp-drawer__filter-actions { display: flex; gap: var(--sp-space-2); margin-top: var(--sp-space-3); }
+.sp-drawer__body .sp-status__board td > .sp-status__detail + .sp-status__detail { margin-top: var(--sp-space-1-5); }
+.sp-drawer__protos + .sp-status__detail { margin-top: var(--sp-space-2); }
+.sp-drawer__filter-actions button { font-size: 12px; padding: var(--sp-space-1-5) var(--sp-space-3); }
+
+.sp-drawer__list { display: flex; flex-direction: column; gap: var(--sp-space-2); }
+.sp-drawer__item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-space-3);
+  padding: var(--sp-space-3) var(--sp-space-3-5);
+  background: var(--sp-bg-elev-1);
+  border: 1px solid var(--sp-line);
+  border-radius: var(--sp-corners-sm);
+}
+.sp-drawer__item[data-added="true"] { opacity: 0.72; }
+.sp-drawer__item-logo { width: 20px; height: 20px; flex: 0 0 auto; color: var(--sp-muted-strong); }
+.sp-drawer__item-meta { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--sp-space-0-5); }
+.sp-drawer__item-name { font-size: 13px; font-weight: 600; }
+.sp-drawer__item-desc { font-size: 11.5px; color: var(--sp-muted); }
+.sp-drawer__item button { white-space: nowrap; }
+
+.sp-drawer__dirty {
+  margin-top: var(--sp-space-2);
+  font-size: 12px;
+  color: var(--sp-warn);
+}
+.sp-drawer__section--danger { border-top: 1px solid var(--sp-line); }
+.sp-drawer__section--danger p { font-size: 12px; margin: var(--sp-space-2) 0 0; }

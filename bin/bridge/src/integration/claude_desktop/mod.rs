@@ -23,7 +23,7 @@ pub use shared::{ProfileGenInputs, default_models};
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 use crate::integration::host_app::{
     ConfigFormat, GeneratedProfile, HostApp, HostAppSnapshot, HostConfigSchema, HostKind,
-    ProfileState,
+    ProfileRemoval, ProfileState,
 };
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
@@ -81,6 +81,10 @@ impl HostApp for ClaudeDesktopHost {
 
     fn install_profile(&self, path: &str) -> std::io::Result<()> {
         os::install_profile(path)
+    }
+
+    fn remove_profile(&self) -> std::io::Result<ProfileRemoval> {
+        os::remove_profile()
     }
 
     fn open(&self) -> std::io::Result<()> {

@@ -26,6 +26,8 @@ use systemprompt_identifiers::SkillId;
 pub struct TableResponse {
     #[serde(rename = "x-artifact-type")]
     pub artifact_type: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub title: Option<String>,
     pub columns: Vec<Column>,
     pub items: Vec<JsonValue>,
     pub count: usize,
@@ -41,6 +43,8 @@ pub struct TableArtifact {
     #[serde(rename = "x-artifact-type")]
     #[serde(default = "default_artifact_type")]
     pub artifact_type: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub title: Option<String>,
     pub columns: Vec<Column>,
     pub items: Vec<JsonValue>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -64,6 +68,7 @@ impl TableArtifact {
     pub fn new(columns: Vec<Column>) -> Self {
         Self {
             artifact_type: "table".to_owned(),
+            title: None,
             columns,
             items: Vec::new(),
             hints: None,
@@ -74,6 +79,12 @@ impl TableArtifact {
 
     pub fn with_request(mut self, ctx: &RequestContext) -> Self {
         self.metadata = ExecutionMetadata::with_request(ctx);
+        self
+    }
+
+    #[must_use]
+    pub fn with_title(mut self, title: impl Into<String>) -> Self {
+        self.title = Some(title.into());
         self
     }
 
@@ -114,6 +125,7 @@ impl TableArtifact {
 
         let response = TableResponse {
             artifact_type: "table".to_owned(),
+            title: self.title.clone(),
             columns: self.columns.clone(),
             items: self.items.clone(),
             count: self.items.len(),

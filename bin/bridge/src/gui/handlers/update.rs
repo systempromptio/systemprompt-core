@@ -105,6 +105,13 @@ pub(crate) fn on_update_install_finished(
                 .and_then(Value::as_str)
                 .unwrap_or_default()
                 .to_owned();
+            crate::gui::window::notify_user(
+                &format!(
+                    "{} {version} is ready to install",
+                    crate::brand::brand().app_name
+                ),
+                "Restart from the account menu to finish the update.",
+            );
             app.state.set_update_state(UpdateUiState::Ready { version });
         },
         Err(e) => {

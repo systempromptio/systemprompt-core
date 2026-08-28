@@ -62,7 +62,12 @@ impl PublicContextMiddleware {
         if let Some(agent_name) = headers.get("x-agent-name")
             && let Ok(name) = agent_name.to_str()
         {
-            req_ctx.execution.agent_name = AgentName::new(name.to_owned());
+            match AgentName::try_new(name.to_owned()) {
+                Ok(parsed) => req_ctx.execution.agent_name = parsed,
+                Err(e) => {
+                    tracing::warn!(error = %e, "ignoring malformed x-agent-name header");
+                },
+            }
         }
 
         let span = create_request_span(&req_ctx);

@@ -67,6 +67,15 @@ fn stage_web_assets() {
     copy_tree(std::path::Path::new("web"), &staged);
     println!("cargo:rerun-if-changed=web");
 
+    // `web/dev/` is the browser preview's mock IPC and its fixtures (see
+    // src/dev_preview). `dev-web` serves them from disk, so they must not be
+    // embedded: a shipped binary should not merely leave them unused, it should
+    // not contain them.
+    let dev = staged.join("dev");
+    if dev.exists() {
+        std::fs::remove_dir_all(&dev).expect("drop staged web/dev");
+    }
+
     println!("cargo:rerun-if-env-changed=SYSTEMPROMPT_BRIDGE_WEB_OVERLAY");
     if let Ok(overlay) = std::env::var("SYSTEMPROMPT_BRIDGE_WEB_OVERLAY") {
         let overlay = std::path::Path::new(&overlay);

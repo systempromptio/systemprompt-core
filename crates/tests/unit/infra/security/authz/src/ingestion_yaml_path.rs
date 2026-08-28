@@ -7,7 +7,9 @@
 use std::path::PathBuf;
 
 use systemprompt_database::DbPool;
-use systemprompt_security::authz::{AccessControlIngestionService, IngestOptions};
+use systemprompt_security::authz::{
+    AccessControlIngestionService, IngestOptions, RegisteredEntities,
+};
 use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
 use uuid::Uuid;
 
@@ -66,7 +68,11 @@ async fn a_yaml_file_on_disk_is_ingested_the_same_as_a_parsed_config() {
     ));
 
     let report = svc
-        .ingest_config_from_yaml_path(&path, IngestOptions::default())
+        .ingest_config_from_yaml_path(
+            &path,
+            IngestOptions::default(),
+            &RegisteredEntities::default(),
+        )
         .await
         .expect("file ingest");
 
@@ -86,7 +92,11 @@ async fn a_missing_yaml_file_is_a_validation_error_naming_the_path() {
     let path = std::env::temp_dir().join(format!("absent-{}.yaml", Uuid::new_v4().simple()));
 
     let err = svc
-        .ingest_config_from_yaml_path(&path, IngestOptions::default())
+        .ingest_config_from_yaml_path(
+            &path,
+            IngestOptions::default(),
+            &RegisteredEntities::default(),
+        )
         .await
         .expect_err("a missing file must not silently ingest nothing");
 
@@ -106,7 +116,11 @@ async fn a_yaml_file_that_is_not_an_access_control_config_is_rejected() {
     let path = write_temp_yaml("rules: \"this is not a sequence\"\n");
 
     let err = svc
-        .ingest_config_from_yaml_path(&path, IngestOptions::default())
+        .ingest_config_from_yaml_path(
+            &path,
+            IngestOptions::default(),
+            &RegisteredEntities::default(),
+        )
         .await
         .expect_err("a malformed document must not ingest");
 
@@ -134,6 +148,7 @@ async fn delete_orphans_clears_stale_role_grants_before_reapplying_the_config() 
     svc.ingest_config(
         &serde_yaml::from_str(&two_roles).expect("yaml"),
         IngestOptions::default(),
+        &RegisteredEntities::default(),
     )
     .await
     .expect("seed two role grants");
@@ -150,6 +165,7 @@ async fn delete_orphans_clears_stale_role_grants_before_reapplying_the_config() 
                 override_existing: true,
                 delete_orphans: true,
             },
+            &RegisteredEntities::default(),
         )
         .await
         .expect("reingest with orphan deletion");

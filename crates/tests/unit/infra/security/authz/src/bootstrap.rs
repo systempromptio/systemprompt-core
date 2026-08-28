@@ -9,8 +9,8 @@ use systemprompt_models::profile::{
     AuthzConfig, AuthzHookConfig, AuthzMode, GovernanceConfig, UNRESTRICTED_ACKNOWLEDGEMENT,
 };
 use systemprompt_security::authz::{
-    AuthzBootstrapError, AuthzContext, AuthzDecision, AuthzError, AuthzRequest, DenyReason,
-    EntityRef, build_authz_hook,
+    AuthzBootstrapError, AuthzContext, AuthzDecision, AuthzError, AuthzRequest, ChainSources,
+    DenyReason, EntityRef, build_authz_hook,
 };
 use systemprompt_test_fixtures::fixture_user_id;
 
@@ -18,6 +18,9 @@ fn fixture() -> AuthzRequest {
     AuthzRequest {
         entity: EntityRef::GatewayRoute(RouteId::new("claude-3")),
         user_id: fixture_user_id(),
+        actor: None,
+        client_id: None,
+        access_scope: None,
         roles: vec!["eng".into()],
         attributes: std::collections::BTreeMap::new(),
         trace_id: TraceId::new("trace-1"),
@@ -44,7 +47,7 @@ fn governance_with(mode: AuthzMode, url: Option<&str>, ack: Option<&str>) -> Gov
 
 #[tokio::test]
 async fn no_governance_block_yields_deny_all() {
-    let hook = build_authz_hook(None, None, None).expect("build ok");
+    let hook = build_authz_hook(None, None, None, ChainSources::default()).expect("build ok");
     let decision = hook.evaluate(fixture()).await;
     assert!(
         matches!(decision, AuthzDecision::Deny { .. }),
@@ -55,7 +58,7 @@ async fn no_governance_block_yields_deny_all() {
 #[tokio::test]
 async fn disabled_mode_yields_deny_all() {
     let cfg = governance_with(AuthzMode::Disabled, None, None);
-    let hook = build_authz_hook(Some(&cfg), None, None).expect("build ok");
+    let hook = build_authz_hook(Some(&cfg), None, None, ChainSources::default()).expect("build ok");
     let decision = hook.evaluate(fixture()).await;
     assert!(matches!(decision, AuthzDecision::Deny { .. }));
 }
@@ -63,8 +66,8 @@ async fn disabled_mode_yields_deny_all() {
 #[tokio::test]
 async fn webhook_mode_without_url_errors() {
     let cfg = governance_with(AuthzMode::Webhook, None, None);
-    let err =
-        build_authz_hook(Some(&cfg), None, None).expect_err("missing url must fail bootstrap");
+    let err = build_authz_hook(Some(&cfg), None, None, ChainSources::default())
+        .expect_err("missing url must fail bootstrap");
     assert!(matches!(
         err,
         AuthzError::Bootstrap(AuthzBootstrapError::MissingWebhookUrl)
@@ -74,7 +77,8 @@ async fn webhook_mode_without_url_errors() {
 #[tokio::test]
 async fn webhook_mode_with_blank_url_errors() {
     let cfg = governance_with(AuthzMode::Webhook, Some("   "), None);
-    let err = build_authz_hook(Some(&cfg), None, None).expect_err("blank url must fail bootstrap");
+    let err = build_authz_hook(Some(&cfg), None, None, ChainSources::default())
+        .expect_err("blank url must fail bootstrap");
     assert!(matches!(
         err,
         AuthzError::Bootstrap(AuthzBootstrapError::MissingWebhookUrl)
@@ -88,7 +92,7 @@ async fn webhook_mode_with_metadata_ip_url_errors() {
         Some("http://169.254.169.254/authz"),
         None,
     );
-    let err = build_authz_hook(Some(&cfg), None, None)
+    let err = build_authz_hook(Some(&cfg), None, None, ChainSources::default())
         .expect_err("cloud-metadata url must fail bootstrap");
     assert!(matches!(
         err,
@@ -99,7 +103,7 @@ async fn webhook_mode_with_metadata_ip_url_errors() {
 #[tokio::test]
 async fn webhook_mode_with_private_range_url_errors() {
     let cfg = governance_with(AuthzMode::Webhook, Some("https://10.0.0.5/authz"), None);
-    let err = build_authz_hook(Some(&cfg), None, None)
+    let err = build_authz_hook(Some(&cfg), None, None, ChainSources::default())
         .expect_err("private-range url must fail bootstrap");
     assert!(matches!(
         err,
@@ -110,7 +114,7 @@ async fn webhook_mode_with_private_range_url_errors() {
 #[tokio::test]
 async fn webhook_mode_with_non_loopback_http_url_errors() {
     let cfg = governance_with(AuthzMode::Webhook, Some("http://authz.example.com/h"), None);
-    let err = build_authz_hook(Some(&cfg), None, None)
+    let err = build_authz_hook(Some(&cfg), None, None, ChainSources::default())
         .expect_err("non-loopback http url must fail bootstrap");
     assert!(matches!(
         err,
@@ -121,7 +125,7 @@ async fn webhook_mode_with_non_loopback_http_url_errors() {
 #[tokio::test]
 async fn unrestricted_without_acknowledgement_errors() {
     let cfg = governance_with(AuthzMode::Unrestricted, None, None);
-    let err = build_authz_hook(Some(&cfg), None, None)
+    let err = build_authz_hook(Some(&cfg), None, None, ChainSources::default())
         .expect_err("missing acknowledgement must fail bootstrap");
     assert!(matches!(
         err,
@@ -132,7 +136,7 @@ async fn unrestricted_without_acknowledgement_errors() {
 #[tokio::test]
 async fn unrestricted_with_wrong_acknowledgement_errors() {
     let cfg = governance_with(AuthzMode::Unrestricted, None, Some("yolo"));
-    let err = build_authz_hook(Some(&cfg), None, None)
+    let err = build_authz_hook(Some(&cfg), None, None, ChainSources::default())
         .expect_err("wrong acknowledgement must fail bootstrap");
     assert!(matches!(
         err,
@@ -147,7 +151,8 @@ async fn unrestricted_with_correct_acknowledgement_yields_allow_all() {
         None,
         Some(UNRESTRICTED_ACKNOWLEDGEMENT),
     );
-    let hook = build_authz_hook(Some(&cfg), None, None).expect("build ok with acknowledgement");
+    let hook = build_authz_hook(Some(&cfg), None, None, ChainSources::default())
+        .expect("build ok with acknowledgement");
     let decision = hook.evaluate(fixture()).await;
     assert_eq!(decision, AuthzDecision::Allow);
 }
@@ -155,7 +160,7 @@ async fn unrestricted_with_correct_acknowledgement_yields_allow_all() {
 #[tokio::test]
 async fn webhook_mode_with_url_yields_webhook_hook() {
     let cfg = governance_with(AuthzMode::Webhook, Some("http://127.0.0.1:1/authz"), None);
-    let hook = build_authz_hook(Some(&cfg), None, None).expect("build ok");
+    let hook = build_authz_hook(Some(&cfg), None, None, ChainSources::default()).expect("build ok");
     let decision = hook.evaluate(fixture()).await;
     match &decision {
         AuthzDecision::Deny { reason, policy } => {
@@ -203,7 +208,7 @@ mod extension_mode {
     #[tokio::test]
     async fn extension_mode_without_hook_errors() {
         let cfg = governance_with(AuthzMode::Extension, None, None);
-        let err = build_authz_hook(Some(&cfg), None, None)
+        let err = build_authz_hook(Some(&cfg), None, None, ChainSources::default())
             .expect_err("extension mode without hook must fail bootstrap");
         assert!(matches!(
             err,
@@ -215,7 +220,7 @@ mod extension_mode {
     async fn extension_hook_in_webhook_mode_errors() {
         let cfg = governance_with(AuthzMode::Webhook, Some("http://127.0.0.1:1/authz"), None);
         let injected: SharedAuthzHook = Arc::new(AlwaysAllow);
-        let err = build_authz_hook(Some(&cfg), None, Some(injected))
+        let err = build_authz_hook(Some(&cfg), None, Some(injected), ChainSources::default())
             .expect_err("extension hook supplied under webhook mode must fail bootstrap");
         assert!(matches!(
             err,
@@ -229,7 +234,7 @@ mod extension_mode {
     async fn extension_hook_in_disabled_mode_errors() {
         let cfg = governance_with(AuthzMode::Disabled, None, None);
         let injected: SharedAuthzHook = Arc::new(AlwaysAllow);
-        let err = build_authz_hook(Some(&cfg), None, Some(injected))
+        let err = build_authz_hook(Some(&cfg), None, Some(injected), ChainSources::default())
             .expect_err("extension hook supplied under disabled mode must fail bootstrap");
         assert!(matches!(
             err,
@@ -247,7 +252,7 @@ mod extension_mode {
             Some(UNRESTRICTED_ACKNOWLEDGEMENT),
         );
         let injected: SharedAuthzHook = Arc::new(AlwaysAllow);
-        let err = build_authz_hook(Some(&cfg), None, Some(injected))
+        let err = build_authz_hook(Some(&cfg), None, Some(injected), ChainSources::default())
             .expect_err("extension hook supplied under unrestricted mode must fail bootstrap");
         assert!(matches!(
             err,
@@ -260,7 +265,7 @@ mod extension_mode {
     #[tokio::test]
     async fn extension_hook_without_governance_errors() {
         let injected: SharedAuthzHook = Arc::new(AlwaysAllow);
-        let err = build_authz_hook(None, None, Some(injected))
+        let err = build_authz_hook(None, None, Some(injected), ChainSources::default())
             .expect_err("extension hook supplied without governance must fail bootstrap");
         assert!(matches!(
             err,
@@ -272,7 +277,8 @@ mod extension_mode {
     async fn extension_mode_with_hook_uses_it() {
         let cfg = governance_with(AuthzMode::Extension, None, None);
         let injected: SharedAuthzHook = Arc::new(AlwaysAllow);
-        let hook = build_authz_hook(Some(&cfg), None, Some(injected)).expect("build ok");
+        let hook = build_authz_hook(Some(&cfg), None, Some(injected), ChainSources::default())
+            .expect("build ok");
         let decision = hook.evaluate(fixture()).await;
         assert_eq!(decision, AuthzDecision::Allow);
     }

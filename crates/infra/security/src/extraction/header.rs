@@ -77,7 +77,15 @@ impl HeaderExtractor {
 
     pub fn extract_agent_name(headers: &HeaderMap) -> AgentName {
         Self::extract_header(headers, headers::AGENT_NAME)
-            .map_or_else(AgentName::system, AgentName::new)
+            .and_then(|s| {
+                AgentName::try_new(s)
+                    .map_err(|e| {
+                        tracing::warn!(error = %e, "Invalid agent_name header value, using system");
+                        e
+                    })
+                    .ok()
+            })
+            .unwrap_or_else(AgentName::system)
     }
 
     fn extract_header(headers: &HeaderMap, name: &str) -> Option<String> {

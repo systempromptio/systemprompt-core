@@ -15,6 +15,8 @@ mod bootstrap;
 #[cfg(test)]
 mod config_validate;
 #[cfg(test)]
+mod db_sink_actor;
+#[cfg(test)]
 mod decision_schema;
 #[cfg(test)]
 mod decision_types;
@@ -35,9 +37,15 @@ mod ingestion_yaml_path;
 #[cfg(test)]
 mod marketplace_floor;
 #[cfg(test)]
+mod parent_chain;
+#[cfg(test)]
 mod profile_governance;
 #[cfg(test)]
+mod registered_entities;
+#[cfg(test)]
 mod registry_discovery;
+#[cfg(test)]
+mod request_wire_compat;
 #[cfg(test)]
 mod resolver;
 #[cfg(test)]

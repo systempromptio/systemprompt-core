@@ -3,8 +3,8 @@
 //! Houses the deny-overrides resolver, `access_control_rules` repository,
 //! and [`AuthzDecisionHook`] extension surface shared by the gateway
 //! `/v1/messages` proxy and the MCP RBAC middleware. Both call
-//! [`resolve`] with different `entity_type` / `entity_id` pairs against
-//! the same table and audit shape.
+//! [`resolve`][resolver::resolve] with different `entity_type` / `entity_id`
+//! pairs against the same table and audit shape.
 //!
 //! # Three-layer model
 //!
@@ -13,10 +13,10 @@
 //!
 //! 1. **PBAC** — `Permission` enum on the JWT `scope` claim, enforced at the
 //!    route boundary by `with_auth(scope)`. Lives in core. Always on.
-//! 2. **RBAC** — `access_control_rules` table evaluated by [`resolve`] (and the
-//!    [`RuleBasedHook`] that wraps it) against `AuthzRequest.{user_id, roles}`.
-//!    Lives in core. Always on after PBAC; empty table = allow-all at this
-//!    layer.
+//! 2. **RBAC** — `access_control_rules` table evaluated by
+//!    [`resolve`][resolver::resolve] (and the [`RuleBasedHook`] that wraps it)
+//!    against `AuthzRequest.{user_id, roles}`. Lives in core. Always on after
+//!    PBAC; empty table = allow-all at this layer.
 //! 3. **ABAC hook** — [`AuthzDecisionHook::evaluate`] called after RBAC. Lives
 //!    in extensions; core ships [`RuleBasedHook`], [`DenyAllHook`],
 //!    [`AllowAllHook`], [`WebhookHook`], and the [`CompositeAuthzHook`]
@@ -37,6 +37,7 @@ pub mod hook;
 pub mod ingestion;
 pub mod keep;
 pub mod marketplace_floor;
+pub mod parent_chain;
 pub mod registry;
 pub mod repository;
 pub mod resolver;
@@ -53,14 +54,18 @@ pub use composite::CompositeAuthzHook;
 pub use config::{AccessControlConfig, RuleEntry, RuleTarget};
 pub use error::{AuthzBootstrapError, AuthzError, AuthzResult};
 pub use extension::AuthzExtension;
-pub use gateway_entities::reconcile_gateway_entities;
+pub use gateway_entities::{GatewayReconcileReport, reconcile_gateway_entities_exact};
 pub use hook::{AllowAllHook, AuthzDecisionHook, DenyAllHook, SharedAuthzHook, WebhookHook};
-pub use ingestion::{AccessControlIngestionService, IngestOptions, IngestReport};
+pub use ingestion::{
+    AccessControlIngestionService, IngestOptions, IngestReport, RegisteredEntities,
+};
 pub use keep::{BulkKeepQuery, allowed_ids};
-pub use marketplace_floor::{MarketplaceParent, load_marketplace_parent, member_attribute_floor};
+pub use marketplace_floor::member_attribute_floor;
+pub use parent_chain::{
+    ChainSources, LoadedParent, MarketplaceSource, ParentChainIndex, ResolveBase,
+};
 pub use registry::{AuthzHookContext, AuthzHookRegistration, discover_authz_hook};
 pub use repository::{AccessControlRepository, UpsertRuleParams};
-pub use resolver::{ResolveInput, ResolveParent, resolve};
 pub use rule_based::RuleBasedHook;
 pub use runtime::build_authz_hook;
 pub use subject::{
@@ -70,5 +75,5 @@ pub use subject::{
 };
 pub use types::{
     Access, AccessRule, AuthzContext, AuthzDecision, AuthzRequest, Decision, DecisionTag,
-    DenyReason, EntityKind, EntityRef, EntityRow, MatchedBy, RuleType, SubjectRef,
+    DenyReason, EntityKind, EntityRef, EntityRow, MatchedBy, PendingReason, RuleType, SubjectRef,
 };

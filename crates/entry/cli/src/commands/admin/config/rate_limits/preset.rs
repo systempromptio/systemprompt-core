@@ -6,11 +6,9 @@
 use anyhow::{Result, bail};
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_logging::CliService;
-use systemprompt_models::profile::{RateLimitsConfig, TierMultipliers};
+use systemprompt_models::profile::RateLimitsConfig;
 
-use super::helpers::{
-    collect_endpoint_changes, collect_tier_changes, load_profile_for_edit, save_profile,
-};
+use super::helpers::{collect_endpoint_changes, load_profile_for_edit, save_profile};
 use super::{PresetApplyArgs, PresetCommands, PresetShowArgs};
 use crate::CliConfig;
 use crate::cli_settings::OutputFormat;
@@ -19,7 +17,7 @@ use crate::shared::{CommandOutput, render_result};
 
 use super::super::types::{
     PresetApplyOutput, PresetInfo, PresetListOutput, PresetShowOutput, RateLimitsOutput,
-    ResetChange, TierMultipliersOutput,
+    ResetChange,
 };
 
 pub(super) fn execute_preset(
@@ -85,14 +83,6 @@ fn execute_preset_show(args: PresetShowArgs, config: &CliConfig) -> Result<()> {
             stream_per_second: limits.stream_per_second,
             content_per_second: limits.content_per_second,
             burst_multiplier: limits.burst_multiplier,
-            tier_multipliers: TierMultipliersOutput {
-                admin: limits.tier_multipliers.admin,
-                user: limits.tier_multipliers.user,
-                a2a: limits.tier_multipliers.a2a,
-                mcp: limits.tier_multipliers.mcp,
-                service: limits.tier_multipliers.service,
-                anon: limits.tier_multipliers.anon,
-            },
         },
     };
 
@@ -141,11 +131,6 @@ fn execute_preset_apply(
 
     let mut changes: Vec<ResetChange> = Vec::new();
     collect_endpoint_changes(&profile.rate_limits, &preset_config, &mut changes);
-    collect_tier_changes(
-        &profile.rate_limits.tier_multipliers,
-        &preset_config.tier_multipliers,
-        &mut changes,
-    );
 
     if profile.rate_limits.burst_multiplier != preset_config.burst_multiplier {
         changes.push(ResetChange {
@@ -200,14 +185,6 @@ pub fn get_preset_config(name: &str) -> Result<RateLimitsConfig> {
             stream_per_second: 50,
             content_per_second: 200,
             burst_multiplier: 5,
-            tier_multipliers: TierMultipliers {
-                admin: 10.0,
-                user: 2.0,
-                a2a: 3.0,
-                mcp: 3.0,
-                service: 5.0,
-                anon: 0.5,
-            },
         }),
         "production" => Ok(RateLimitsConfig::default()),
         "high-traffic" => Ok(RateLimitsConfig {
@@ -224,14 +201,6 @@ pub fn get_preset_config(name: &str) -> Result<RateLimitsConfig> {
             stream_per_second: 5,
             content_per_second: 20,
             burst_multiplier: 2,
-            tier_multipliers: TierMultipliers {
-                admin: 5.0,
-                user: 1.0,
-                a2a: 1.5,
-                mcp: 1.5,
-                service: 2.0,
-                anon: 0.2,
-            },
         }),
         _ => bail!(
             "Unknown preset: {}. Valid presets: development, production, high-traffic",

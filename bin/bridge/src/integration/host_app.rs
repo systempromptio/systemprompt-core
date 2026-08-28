@@ -157,6 +157,19 @@ pub enum ConfigFormat {
     Reg,
 }
 
+/// The outcome of taking a host's systemprompt settings back out.
+///
+/// `ManualStepRequired` is not a failure: on macOS both hosts are configured by
+/// a profile the OS holds on the user's behalf, and only the user can withdraw
+/// it. Reporting that as a removal would be a lie, and reporting it as an error
+/// would be wrong.
+#[derive(Debug)]
+pub enum ProfileRemoval {
+    Removed { path: Option<String> },
+    NothingToRemove,
+    ManualStepRequired { instruction: String },
+}
+
 pub trait HostApp: Send + Sync + 'static {
     fn id(&self) -> &'static str;
     fn display_name(&self) -> &'static str;
@@ -165,6 +178,15 @@ pub trait HostApp: Send + Sync + 'static {
     fn generate_profile(&self, inputs: &ProfileGenInputs) -> std::io::Result<GeneratedProfile>;
     fn install_profile(&self, path: &str) -> std::io::Result<()>;
     fn install_action_label(&self) -> &'static str;
+
+    fn remove_profile(&self) -> std::io::Result<ProfileRemoval> {
+        Ok(ProfileRemoval::ManualStepRequired {
+            instruction: format!(
+                "Remove the {} settings from this agent's configuration by hand.",
+                crate::brand::brand().binary_name
+            ),
+        })
+    }
 
     fn open(&self) -> std::io::Result<()> {
         Err(std::io::Error::new(

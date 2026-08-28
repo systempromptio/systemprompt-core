@@ -20,7 +20,9 @@ pub mod traits;
 pub mod types;
 pub mod video;
 
-pub use card::{CardCta, CardSection, PresentationCardArtifact, PresentationCardResponse};
+pub use card::{
+    CardCta, CardSection, CardTheme, CtaVariant, PresentationCardArtifact, PresentationCardResponse,
+};
 pub use chart::{ChartArtifact, ChartDataset};
 pub use cli::CliArtifact;
 pub use copy_paste_text::CopyPasteTextArtifact;

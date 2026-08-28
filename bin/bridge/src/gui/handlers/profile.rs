@@ -52,7 +52,7 @@ pub(crate) fn on_profile_fetch_finished(
         Err(err) => {
             let raw = format!("{err:#}");
             tracing::error!(error = %raw, "profile fetch failed");
-            app.append_log(format!("profile fetch failed: {raw}"));
+            app.append_log_error(format!("profile fetch failed: {raw}"));
             Err(BridgeError::new(
                 ErrorScope::Identity,
                 ErrorCode::Internal,

@@ -1,5 +1,5 @@
 //! Unit coverage for the standalone middleware helpers: bot classification,
-//! site-auth gating, tiered rate limiting, IP-ban blocking, JTI revocation, and
+//! site-auth gating, IP-ban blocking, JTI revocation, and
 //! the analytics URI sanitiser.
 //!
 //! Each middleware is driven either as a pure function or as a `from_fn` layer
@@ -17,13 +17,11 @@ use axum::routing::get;
 use axum::{Extension, Router, middleware};
 use systemprompt_api::services::middleware::analytics::test_api::{is_sensitive_key, sanitize_uri};
 use systemprompt_api::services::middleware::{
-    BotMarker, BotType, JtiRevocationChecker, TieredRateLimiter, detect_bots_early,
-    ip_ban_middleware, is_datacenter_ip, is_known_bot, is_outdated_browser, is_scanner_request,
-    login_redirect, site_auth_gate, tiered_rate_limit_middleware,
+    BotMarker, BotType, JtiRevocationChecker, detect_bots_early, ip_ban_middleware,
+    is_datacenter_ip, is_known_bot, is_outdated_browser, is_scanner_request, login_redirect,
+    site_auth_gate,
 };
 use systemprompt_extension::SiteAuthConfig;
-use systemprompt_models::auth::RateLimitTier;
-use systemprompt_models::config::RateLimitConfig;
 use systemprompt_users::{BanDuration, BanIpParams, BannedIpRepository};
 use tower::ServiceExt;
 use uuid::Uuid;
@@ -151,60 +149,125 @@ async fn site_auth_gate_allows_public_and_static_redirects_protected() {
     );
 }
 
-fn tight_limiter() -> TieredRateLimiter {
-    let mut config = RateLimitConfig::testing();
-    config.burst_multiplier = 1;
-    TieredRateLimiter::new(&config, 1)
+fn ban_app(repo: &Arc<BannedIpRepository>) -> Router {
+    let proxies = Arc::new(Vec::new());
+    let repo_layer = Arc::clone(repo);
+    Router::new()
+        .route("/x", get(|| async { "ok" }))
+        .route("/health", get(|| async { "ok" }))
+        .route("/metrics", get(|| async { "ok" }))
+        .layer(middleware::from_fn(move |req, next| {
+            let repo = Arc::clone(&repo_layer);
+            let proxies = Arc::clone(&proxies);
+            async move { ip_ban_middleware(req, next, repo, proxies).await }
+        }))
 }
 
-#[test]
-fn tiered_rate_limiter_denies_after_burst() {
-    let limiter = tight_limiter();
-    let key = format!("unit-{}", Uuid::new_v4());
-    let mut denied = false;
-    for _ in 0..50 {
-        if !limiter.check(RateLimitTier::Anon, &key) {
-            denied = true;
-            break;
-        }
+fn req_from(uri: &str, ip: Option<&str>) -> Request<Body> {
+    let mut req = Request::builder().uri(uri).body(Body::empty()).unwrap();
+    if let Some(ip) = ip {
+        req.extensions_mut().insert(ConnectInfo(
+            format!("{ip}:1234").parse::<SocketAddr>().unwrap(),
+        ));
     }
-    assert!(
-        denied,
-        "a tight per-second limiter must deny within a burst"
-    );
-}
-
-#[test]
-fn disabled_rate_limiter_always_allows() {
-    let limiter = TieredRateLimiter::disabled();
-    for _ in 0..100 {
-        assert!(limiter.check(RateLimitTier::Admin, "k"));
-    }
+    req
 }
 
 #[tokio::test]
-async fn tiered_rate_limit_middleware_returns_429_with_headers() {
-    let limiter = tight_limiter();
-    let ip = "203.0.113.7";
-    let key = ip.to_owned();
-    for _ in 0..50 {
-        if !limiter.check(RateLimitTier::Anon, &key) {
-            break;
-        }
-    }
+async fn a_request_with_no_resolvable_address_is_denied() -> Result<()> {
+    let (pool, _ctx) = setup_ctx().await?;
+    let repo = Arc::new(BannedIpRepository::new(&pool)?);
 
-    let app = Router::new().route("/x", get(|| async { "ok" })).layer(
-        axum::middleware::from_fn_with_state(limiter, tiered_rate_limit_middleware),
+    let resp = ban_app(&repo)
+        .oneshot(req_from("/x", None))
+        .await
+        .expect("response");
+
+    assert_eq!(
+        resp.status(),
+        StatusCode::FORBIDDEN,
+        "an unresolvable address must not skip the ban check"
+    );
+    assert_eq!(
+        resp.headers().get("X-Blocked-Reason").unwrap(),
+        "ip-unresolvable"
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn an_unreachable_ban_list_denies_rather_than_admits() -> Result<()> {
+    let (pool, _ctx) = setup_ctx().await?;
+    let repo = Arc::new(BannedIpRepository::new(&pool)?);
+    pool.pool_arc()?.close().await;
+
+    let resp = ban_app(&repo)
+        .oneshot(req_from("/x", Some("9.9.9.9")))
+        .await
+        .expect("response");
+
+    assert_eq!(
+        resp.status(),
+        StatusCode::FORBIDDEN,
+        "a database outage must not silently disable IP banning"
+    );
+    assert_eq!(
+        resp.headers().get("X-Blocked-Reason").unwrap(),
+        "ip-ban-unavailable"
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn probes_stay_available_when_the_ban_list_is_unreachable() -> Result<()> {
+    let (pool, _ctx) = setup_ctx().await?;
+    let repo = Arc::new(BannedIpRepository::new(&pool)?);
+    pool.pool_arc()?.close().await;
+
+    for path in ["/health", "/metrics"] {
+        let resp = ban_app(&repo)
+            .oneshot(req_from(path, None))
+            .await
+            .expect("response");
+        assert_eq!(
+            resp.status(),
+            StatusCode::OK,
+            "{path} must stay served so an outage does not trigger a rolling restart"
+        );
+    }
+    Ok(())
+}
+
+#[tokio::test]
+async fn static_content_stays_served_when_the_ban_list_is_unreachable() -> Result<()> {
+    let (pool, _ctx) = setup_ctx().await?;
+    let repo = Arc::new(BannedIpRepository::new(&pool)?);
+    pool.pool_arc()?.close().await;
+
+    let app = ban_app(&repo).merge(Router::new().route("/page", get(|| async { "ok" })));
+
+    let resp = app
+        .oneshot(req_from("/page", Some("9.9.9.9")))
+        .await
+        .expect("response");
+
+    assert_eq!(
+        resp.status(),
+        StatusCode::OK,
+        "static content is merged after the ban layer, so a database outage must not take the public site down"
     );
 
-    let mut req = Request::builder().uri("/x").body(Body::empty()).unwrap();
-    req.extensions_mut().insert(ConnectInfo(
-        format!("{ip}:5000").parse::<SocketAddr>().unwrap(),
-    ));
-    let resp = app.oneshot(req).await.expect("response");
-    assert_eq!(resp.status(), StatusCode::TOO_MANY_REQUESTS);
-    assert_eq!(resp.headers().get("Retry-After").unwrap(), "1");
-    assert_eq!(resp.headers().get("X-Rate-Limit-Tier").unwrap(), "anon");
+    let api = ban_app(&repo);
+    let denied = api
+        .oneshot(req_from("/x", Some("9.9.9.9")))
+        .await
+        .expect("response");
+    assert_eq!(
+        denied.headers().get("X-Blocked-Reason").unwrap(),
+        "ip-ban-unavailable",
+        "API routes stay fail-closed"
+    );
+    Ok(())
 }
 
 #[tokio::test]

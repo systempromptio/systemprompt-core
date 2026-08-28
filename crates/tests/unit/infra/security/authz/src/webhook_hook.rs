@@ -16,6 +16,9 @@ fn fixture() -> AuthzRequest {
     AuthzRequest {
         entity: EntityRef::GatewayRoute(RouteId::new("claude-3")),
         user_id: fixture_user_id(),
+        actor: None,
+        client_id: None,
+        access_scope: None,
         roles: vec!["eng".into()],
         attributes: std::collections::BTreeMap::new(),
         trace_id: TraceId::new("trace-1"),

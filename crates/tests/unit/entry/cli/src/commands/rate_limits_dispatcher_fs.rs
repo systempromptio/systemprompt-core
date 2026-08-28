@@ -1,7 +1,7 @@
 //! Tests for the `admin config rate-limits` command tree against the
 //! bootstrapped profile.
 //!
-//! The read-only arms (show/tier/docs/compare/validate) and the editing arms
+//! The read-only arms (show/validate) and the editing arms
 //! (set/enable/disable/reset/import/export) all resolve the active profile
 //! path; the fixture profile lives in a tempdir, so the editing arms can be
 //! asserted against the YAML they rewrite.
@@ -52,20 +52,7 @@ fn read_only_arms_render_the_active_configuration() {
     profile_path();
 
     run(&["show"]).unwrap();
-    run(&["docs"]).unwrap();
-    run(&["compare"]).unwrap();
     run(&["validate"]).unwrap();
-    for tier in ["admin", "user", "a2a", "mcp", "service", "anon"] {
-        run(&["tier", tier]).unwrap();
-    }
-}
-
-#[test]
-fn tier_rejects_an_unknown_tier_name() {
-    profile_path();
-
-    let err = run(&["tier", "wizard"]).unwrap_err();
-    assert!(format!("{err:#}").contains("wizard"));
 }
 
 #[test]
@@ -75,8 +62,6 @@ fn set_requires_its_flags_in_matching_pairs() {
     let cases = [
         (vec!["set", "--endpoint", "tasks"], "--rate is required"),
         (vec!["set", "--rate", "5"], "--endpoint is required"),
-        (vec!["set", "--tier", "admin"], "--multiplier is required"),
-        (vec!["set", "--multiplier", "2.0"], "--tier is required"),
         (vec!["set"], "Must specify one of"),
     ];
 
@@ -92,29 +77,6 @@ fn set_writes_an_endpoint_rate_into_the_profile() {
 
     run(&["set", "--endpoint", "tasks", "--rate", "77"]).unwrap();
     assert!(profile_yaml().contains("77"), "{}", profile_yaml());
-}
-
-#[test]
-fn set_writes_a_tier_multiplier_and_a_burst_into_the_profile() {
-    profile_path();
-
-    run(&["set", "--tier", "anon", "--multiplier", "0.25"]).unwrap();
-    run(&["set", "--burst", "9"]).unwrap();
-
-    let yaml = profile_yaml();
-    assert!(yaml.contains("0.25"), "{yaml}");
-    assert!(yaml.contains("burst_multiplier: 9"), "{yaml}");
-}
-
-#[test]
-fn set_rejects_unknown_endpoints_and_tiers() {
-    profile_path();
-
-    let endpoint = run(&["set", "--endpoint", "nosuch", "--rate", "5"]).unwrap_err();
-    assert!(format!("{endpoint:#}").contains("nosuch"));
-
-    let tier = run(&["set", "--tier", "nosuch", "--multiplier", "1.0"]).unwrap_err();
-    assert!(format!("{tier:#}").contains("nosuch"));
 }
 
 #[test]

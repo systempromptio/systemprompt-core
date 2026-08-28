@@ -7,6 +7,7 @@ mod identity;
 #[cfg(test)]
 mod portfile;
 #[cfg(test)]
+#[cfg(test)]
 mod secret;
 #[cfg(test)]
 mod token_cache;

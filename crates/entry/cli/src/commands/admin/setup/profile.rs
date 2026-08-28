@@ -10,7 +10,7 @@
 use anyhow::{Context, Result};
 use std::path::Path;
 use systemprompt_cloud::ProjectContext;
-use systemprompt_identifiers::ProviderId;
+use systemprompt_identifiers::{Email, ProviderId};
 use systemprompt_logging::CliService;
 use systemprompt_models::profile::{
     GatewayState, SecretsConfig, SecretsSource, SecretsValidationMode,
@@ -42,7 +42,7 @@ pub(super) struct ProfileBuildParams<'a> {
     pub secrets: &'a SecretsData,
     pub default_provider: Option<&'a ProviderId>,
     pub port_offset: u16,
-    pub admin_email: Option<&'a str>,
+    pub admin_email: &'a Email,
 }
 
 pub(super) fn build(params: &ProfileBuildParams<'_>) -> Result<Profile> {
@@ -56,10 +56,6 @@ pub(super) fn build(params: &ProfileBuildParams<'_>) -> Result<Profile> {
         port_offset,
         admin_email,
     } = *params;
-    let admin_email = systemprompt_identifiers::Email::try_new(
-        admin_email.unwrap_or("admin@localhost.localdomain"),
-    )
-    .context("--admin-email is not a valid email address")?;
     let ctx = ProjectContext::new(project_root.to_path_buf());
     let runtime_env = determine_environment(env_name);
     let is_prod = matches!(runtime_env, Environment::Production);
@@ -104,7 +100,7 @@ pub(super) fn build(params: &ProfileBuildParams<'_>) -> Result<Profile> {
         services: systemprompt_models::profile::ServicesProfileConfig { port_offset },
         system_admin: SystemAdminConfig {
             username: "admin".to_owned(),
-            email: Some(admin_email),
+            email: Some(admin_email.clone()),
         },
     };
 

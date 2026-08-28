@@ -2,9 +2,9 @@
 //!
 //! [`keep_sets`] resolves, per entry kind, which candidate ids the subject may
 //! see, consulting `access_control_rules` through the security crate's bulk
-//! resolver with the owning marketplace cascaded as a parent: one marketplace
-//! rule covers every member that declares no rules of its own, and a member
-//! that declares any rule owns its decision outright. Extensions implementing
+//! resolver with the owning plugin and then the marketplace cascaded as
+//! parents: the nearest level that declares any rule decides, so one plugin
+//! rule covers every skill and artifact it ships. Extensions implementing
 //! [`crate::MarketplaceFilter`] supply only the subject (roles, attributes,
 //! dimensions) and pass the result to
 //! [`MarketplaceCandidate::retain_entries`].
@@ -12,13 +12,13 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::collections::HashSet;
+use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::hash::Hash;
 
-use systemprompt_identifiers::UserId;
+use systemprompt_identifiers::{PluginId, SkillId, UserId};
 use systemprompt_security::authz::{
-    AccessControlRepository, BulkKeepQuery, EntityKind, MarketplaceParent, ResolveParent,
-    SubjectAttributes, SubjectDimension, allowed_ids, load_marketplace_parent,
+    AccessControlRepository, BulkKeepQuery, ChainSources, EntityKind, MarketplaceSource,
+    ParentChainIndex, SubjectAttributes, SubjectDimension, allowed_ids,
 };
 
 use crate::candidate::{EntryKeepSets, MarketplaceCandidate};
@@ -40,26 +40,12 @@ pub async fn keep_sets(
     candidate: &MarketplaceCandidate,
     subject: KeepSetsSubject<'_>,
 ) -> Result<EntryKeepSets, MarketplaceFilterError> {
-    let parent = match candidate.marketplace_id.as_ref() {
-        Some(id) => Some(
-            load_marketplace_parent(
-                repo,
-                id,
-                candidate.access.as_ref().map(|a| a.default_included),
-            )
-            .await
-            .map_err(|e| MarketplaceFilterError::Backend(e.to_string()))?,
-        ),
-        None => None,
-    };
-    let parents: Vec<ResolveParent<'_>> = parent
-        .as_ref()
-        .map(MarketplaceParent::as_resolve_parent)
-        .into_iter()
-        .collect();
+    let index = ParentChainIndex::load(repo, chain_sources(candidate))
+        .await
+        .map_err(|e| MarketplaceFilterError::Backend(e.to_string()))?;
 
     let allowed = |kind: EntityKind, ids: Vec<String>| {
-        let parents = &parents;
+        let chains = &index;
         async move {
             allowed_ids(
                 repo,
@@ -68,7 +54,7 @@ pub async fn keep_sets(
                     roles: subject.roles,
                     kind,
                     ids: &ids,
-                    parents,
+                    chains,
                     attributes: subject.attributes,
                     dimensions: subject.dimensions,
                 },
@@ -96,6 +82,51 @@ pub async fn keep_sets(
         hooks: typed_keep(&candidate.hooks, &hooks, |h| &h.id),
         mcp_servers: typed_keep(&candidate.managed_mcp_servers, &mcp_servers, |m| &m.id),
     })
+}
+
+// Why: skills stay marketplace members as well as plugin children, so a skill
+// whose owners went unrecorded keeps the marketplace cascade instead of
+// silently losing all inheritance.
+fn chain_sources(candidate: &MarketplaceCandidate) -> ChainSources {
+    let member_ids = |ids: Vec<String>| ids.into_iter().collect::<BTreeSet<String>>();
+    let marketplace_members: BTreeMap<EntityKind, BTreeSet<String>> = [
+        (EntityKind::Skill, ids_of(&candidate.skills, |s| &s.id)),
+        (EntityKind::Agent, ids_of(&candidate.agents, |a| &a.id)),
+        (EntityKind::Hook, ids_of(&candidate.hooks, |h| &h.id)),
+        (
+            EntityKind::McpServer,
+            ids_of(&candidate.managed_mcp_servers, |m| &m.id),
+        ),
+    ]
+    .into_iter()
+    .map(|(kind, ids)| (kind, member_ids(ids)))
+    .collect();
+
+    ChainSources {
+        marketplace: candidate
+            .marketplace_id
+            .clone()
+            .map(|id| MarketplaceSource {
+                id,
+                fallback_default_included: candidate.access.as_ref().map(|a| a.default_included),
+            }),
+        plugins: candidate
+            .plugins
+            .iter()
+            .map(|p| PluginId::new(p.id.as_str()))
+            .collect(),
+        skill_owners: candidate
+            .skill_owners
+            .iter()
+            .map(|(skill, owners)| {
+                (
+                    SkillId::new(skill.as_str()),
+                    owners.iter().map(|p| PluginId::new(p.as_str())).collect(),
+                )
+            })
+            .collect(),
+        marketplace_members,
+    }
 }
 
 fn ids_of<T, Id: AsRef<str>>(items: &[T], id_of: impl Fn(&T) -> &Id) -> Vec<String> {

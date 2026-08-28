@@ -67,6 +67,9 @@ pub(super) fn list_plugins(root: &Path) -> Vec<MarketplaceItem> {
             path.join("readme.md"),
             path.join("README.txt"),
         ]);
+        let version = manifest.as_ref().and_then(|m| m.version.clone());
+        let author = manifest.as_ref().and_then(|m| m.author.clone());
+        let homepage = manifest.as_ref().and_then(|m| m.homepage.clone());
         let extra = manifest.map_or(MarketplaceExtra::None, MarketplaceExtra::Plugin);
         out.push(MarketplaceItem {
             id: name.to_owned(),
@@ -75,6 +78,9 @@ pub(super) fn list_plugins(root: &Path) -> Vec<MarketplaceItem> {
             path: path.display().to_string(),
             summary,
             readme,
+            version,
+            author,
+            homepage,
             change: None,
             children: plugin_children(&path),
             extra,
@@ -189,20 +195,24 @@ pub fn mark_shared_mcp(plugin_children: &mut [Vec<PluginChild>]) {
     }
 }
 
-pub(super) fn annotate_plugins_with_diff(
-    plugins: &mut Vec<MarketplaceItem>,
-    state: &LastSyncState,
-) -> MarketplaceDiff {
+pub(super) fn annotate_with_diff(items: &mut [MarketplaceItem], state: &LastSyncState) {
     let installed: BTreeSet<&str> = state.installed_plugins.iter().map(String::as_str).collect();
     let updated: BTreeSet<&str> = state.updated_plugins.iter().map(String::as_str).collect();
 
-    for item in plugins.iter_mut() {
+    for item in items.iter_mut() {
         if installed.contains(item.id.as_str()) {
             item.change = Some(ChangeKind::Installed);
         } else if updated.contains(item.id.as_str()) {
             item.change = Some(ChangeKind::Updated);
         }
     }
+}
+
+pub(super) fn annotate_plugins_with_diff(
+    plugins: &mut Vec<MarketplaceItem>,
+    state: &LastSyncState,
+) -> MarketplaceDiff {
+    annotate_with_diff(plugins, state);
 
     let present: BTreeSet<String> = plugins.iter().map(|p| p.id.clone()).collect();
     for removed_id in &state.removed_plugins {
@@ -212,8 +222,11 @@ pub(super) fn annotate_plugins_with_diff(
                 name: removed_id.clone(),
                 source: "tenant",
                 path: String::new(),
-                summary: Some("Removed in last sync".to_owned()),
+                summary: None,
                 readme: None,
+                version: None,
+                author: None,
+                homepage: None,
                 change: Some(ChangeKind::Removed),
                 children: Vec::new(),
                 extra: MarketplaceExtra::None,

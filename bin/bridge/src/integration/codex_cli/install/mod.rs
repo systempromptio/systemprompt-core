@@ -12,7 +12,7 @@ use std::io::Write;
 use std::path::Path;
 
 use super::config;
-use crate::integration::host_app::{GeneratedProfile, ProfileGenInputs};
+use crate::integration::host_app::{GeneratedProfile, ProfileGenInputs, ProfileRemoval};
 
 fn unique_stem() -> String {
     use std::sync::atomic::{AtomicU64, Ordering};
@@ -65,7 +65,7 @@ pub(super) fn write_profile(inputs: &ProfileGenInputs) -> std::io::Result<Genera
 // missing — each part behaving reasonably, combining into total silence.
 #[cfg(target_os = "macos")]
 fn notify_profile_pending() {
-    crate::gui::window::notify_user(
+    crate::gui::window::alert_user(
         &format!("{} needs approval", crate::brand::brand().app_name),
         "Approve the Codex configuration profile in System Settings → General → Device \
          Management to finish installing it.",
@@ -115,6 +115,25 @@ pub(super) fn install_profile(generated_path: &str) -> std::io::Result<()> {
             ),
         ))
     }
+}
+
+pub(super) fn remove_profile() -> std::io::Result<ProfileRemoval> {
+    if cfg!(target_os = "macos") {
+        return Ok(ProfileRemoval::ManualStepRequired {
+            instruction: "Remove the Codex CLI configuration profile under System Settings › \
+                          General › Device Management."
+                .to_owned(),
+        });
+    }
+    let target = config::managed_config_path();
+    let removed = merge::uninstall(&target)?;
+    Ok(if removed {
+        ProfileRemoval::Removed {
+            path: Some(target.display().to_string()),
+        }
+    } else {
+        ProfileRemoval::NothingToRemove
+    })
 }
 
 fn writable(path: &Path) -> bool {

@@ -13,7 +13,7 @@ An extension is a Rust type that implements the `Extension` trait and is registe
 ```toml
 # Cargo.toml
 [dependencies]
-systemprompt = { version = "0.40", features = ["core"] }
+systemprompt = { version = "0.41", features = ["core"] }
 ```
 
 The trait, the macro, and the value types are re-exported through the facade prelude:
@@ -118,7 +118,7 @@ Schema changes after the initial `CREATE TABLE` are migrations. Migration SQL li
 
    ```toml
    [build-dependencies]
-   systemprompt-extension = "0.40"
+   systemprompt-extension = "0.41"
    ```
 
 2. Add migration files. For example `schema/migrations/001_add_demo_items_label_index.sql`:
@@ -168,19 +168,30 @@ Two further `Extension` methods extend the runtime:
 
 Both default to empty; implement them only when the extension supplies that surface.
 
-## Typed extension sub-traits
+## Capability traits
 
-Beyond the single `Extension` trait, the framework offers narrower typed contracts in `crates/shared/extension/src/typed/`. Each is built on the `ExtensionMeta` supertrait (`crates/shared/extension/src/types.rs:19`) and constrains an extension to one concern, which the dependency typestate can check at compile time:
+The framework exposes a single `Extension` trait (`crates/shared/extension/src/traits/extension.rs:24`).
+Narrower concerns are expressed by declaring the capabilities an extension needs from its
+context, rather than by implementing separate typed sub-traits:
 
-| Trait | Required method(s) | Source |
-|-------|--------------------|--------|
-| `SchemaExtensionTyped` | `schemas() -> Vec<SchemaDefinitionTyped>` | `typed/schema.rs:32` |
-| `ApiExtensionTyped` | `base_path() -> &'static str`; `requires_auth()` defaults to `true` | `typed/api.rs:8` |
-| `JobExtensionTyped` | `jobs() -> Vec<Arc<dyn Job>>` | `typed/job.rs:10` |
-| `ProviderExtensionTyped` | `llm_providers()` / `tool_providers()`, both default empty | `typed/provider.rs:10` |
-| `ConfigExtensionTyped` | `config_prefix() -> &'static str`; `validate_config` / `config_schema` default | `typed/config.rs:9` |
+| Trait | Grants access to | Source |
+|-------|------------------|--------|
+| `HasConfig` | the resolved `Config` | `crates/shared/extension/src/capabilities.rs:17` |
+| `HasDatabase` | the database handle | `crates/shared/extension/src/capabilities.rs:23` |
+| `HasHttpClient` | the shared outbound HTTP client | `crates/shared/extension/src/capabilities.rs:29` |
+| `HasEventBus` | the event bus | `crates/shared/extension/src/capabilities.rs:33` |
+| `HasAnalytics`, `HasFingerprint`, `HasUserService`, `HasRouteClassifier` | the corresponding runtime services | `crates/shared/extension/src/capabilities.rs` |
 
-`ApiExtensionTyped` pairs with `ApiExtensionTypedDyn`, which adds `build_router() -> Router` and keeps the router-building surface object-safe (`crates/shared/extension/src/typed/api.rs:16`).
+`FullContext` bundles the full set for extensions that need everything, and
+`ExtensionContext` (`crates/shared/extension/src/context.rs:9`) is the object-safe context
+trait itself. Extensions that participate in gateway request governance additionally
+implement `GatewayRequestGuard` (`crates/shared/extension/src/gateway_guard.rs:62`) and
+register it with `register_gateway_guard`.
+
+> **Removed.** Earlier releases offered typed sub-traits — `SchemaExtensionTyped`,
+> `ApiExtensionTyped`, `JobExtensionTyped`, `ProviderExtensionTyped`, `ConfigExtensionTyped`,
+> and `ApiExtensionTypedDyn` — built on an `ExtensionMeta` supertrait. None of them exist any
+> more. Use `Extension` plus the capability traits above.
 
 ## How discovery works
 

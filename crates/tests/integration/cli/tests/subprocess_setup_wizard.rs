@@ -102,6 +102,8 @@ fn setup_full_non_interactive_writes_profile_and_secrets() {
         "sk-oai-cov",
         "--default-provider",
         "anthropic",
+        "--admin-email",
+        "cov-admin@example.com",
         "--no-migrate",
     ];
     let Some(mut cmd) = setup_cmd(project.path(), &base) else {

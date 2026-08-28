@@ -19,10 +19,11 @@ use systemprompt_api::services::middleware::{
     PublicContextMiddleware, RouterExt, UserOnlyContextMiddleware,
 };
 use systemprompt_identifiers::{AgentName, ContextId, SessionId, TraceId, UserId};
-use systemprompt_models::RequestContext;
 use systemprompt_models::auth::UserType;
 use systemprompt_models::config::RateLimitConfig;
 use systemprompt_models::execution::ContextExtractionError;
+use systemprompt_models::{Config, RequestContext};
+use systemprompt_test_fixtures::fixture_config;
 use tower::ServiceExt;
 
 fn ok_router() -> Router {
@@ -43,6 +44,17 @@ fn authed_request(ctx: RequestContext) -> Request<Body> {
     let mut req = request();
     req.extensions_mut().insert(ctx);
     req
+}
+
+fn context_for(user: &str) -> RequestContext {
+    RequestContext::new(
+        SessionId::generate(),
+        TraceId::generate(),
+        ContextId::generate(),
+        AgentName::new("router-ext"),
+    )
+    .with_user_type(UserType::User)
+    .with_actor(systemprompt_identifiers::Actor::user(UserId::new(user)))
 }
 
 fn context(kind: UserType) -> RequestContext {
@@ -90,13 +102,22 @@ fn limited() -> RateLimitConfig {
     }
 }
 
+fn config_with(rate_limits: RateLimitConfig) -> Config {
+    let mut config = fixture_config("postgres://localhost/router-ext");
+    config.rate_limits = rate_limits;
+    config.trusted_proxies = Vec::new();
+    config
+}
+
 #[tokio::test]
 async fn a_disabled_rate_limit_leaves_the_router_untouched() {
-    let config = RateLimitConfig {
+    let config = config_with(RateLimitConfig {
         disabled: true,
         ..RateLimitConfig::default()
-    };
-    let app = ok_router().with_rate_limit(&config, 1);
+    });
+    let app = ok_router()
+        .with_rate_limit(&config, 1)
+        .expect("a disabled limiter still builds");
 
     let resp = app.oneshot(request()).await.expect("request must complete");
 
@@ -109,8 +130,10 @@ async fn a_disabled_rate_limit_leaves_the_router_untouched() {
 
 #[tokio::test]
 async fn an_exhausted_burst_is_refused_rather_than_served() {
-    let config = limited();
-    let app = ok_router().with_rate_limit(&config, 1);
+    let config = config_with(limited());
+    let app = ok_router()
+        .with_rate_limit(&config, 1)
+        .expect("a 1/s limiter must build");
 
     let mut statuses = Vec::new();
     for _ in 0..8 {
@@ -131,6 +154,137 @@ async fn an_exhausted_burst_is_refused_rather_than_served() {
     assert!(
         statuses.contains(&StatusCode::TOO_MANY_REQUESTS),
         "a burst of 8 against a 1/s quota must be refused somewhere: {statuses:?}"
+    );
+}
+
+#[tokio::test]
+async fn a_zero_rate_clamps_to_a_real_limit_instead_of_meaning_unlimited() {
+    let config = config_with(limited());
+
+    let app = ok_router()
+        .with_rate_limit(&config, 0)
+        .expect("a zero rate clamps rather than failing to build");
+
+    let mut statuses = Vec::new();
+    for _ in 0..8 {
+        statuses.push(
+            app.clone()
+                .oneshot(request())
+                .await
+                .expect("request must complete")
+                .status(),
+        );
+    }
+
+    assert!(
+        statuses.contains(&StatusCode::TOO_MANY_REQUESTS),
+        "a zero rate produced a zero burst, which the governor rejected and the router then \
+         served unlimited: {statuses:?}"
+    );
+}
+
+#[tokio::test]
+async fn a_burst_product_that_is_an_exact_multiple_of_u32_still_limits() {
+    let config = config_with(RateLimitConfig {
+        burst_multiplier: 1 << 31,
+        ..limited()
+    });
+
+    let app = ok_router()
+        .with_rate_limit(&config, 2)
+        .expect("2 x 2^31 is exactly 2^32, which a truncating cast turns into a zero burst");
+
+    let resp = app.oneshot(request()).await.expect("request must complete");
+
+    assert_eq!(resp.status(), StatusCode::OK);
+}
+
+fn spoofed_request(forwarded_for: &str, user_agent: &str) -> Request<Body> {
+    let mut req = Request::builder()
+        .uri("/")
+        .header("x-forwarded-for", forwarded_for)
+        .header("user-agent", user_agent)
+        .body(Body::empty())
+        .expect("test request must build");
+    req.extensions_mut()
+        .insert(ConnectInfo(SocketAddr::from(([127, 0, 0, 1], 4242))));
+    req
+}
+
+async fn statuses_over(app: &Router, requests: Vec<Request<Body>>) -> Vec<StatusCode> {
+    let mut out = Vec::new();
+    for req in requests {
+        out.push(
+            app.clone()
+                .oneshot(req)
+                .await
+                .expect("request must complete")
+                .status(),
+        );
+    }
+    out
+}
+
+#[tokio::test]
+async fn a_rotating_forwarded_for_header_does_not_mint_a_fresh_bucket() {
+    let config = config_with(limited());
+    let app = ok_router()
+        .with_rate_limit(&config, 1)
+        .expect("a 1/s limiter must build");
+
+    let requests = (0..8)
+        .map(|i| spoofed_request(&format!("203.0.113.{i}"), "probe"))
+        .collect();
+    let statuses = statuses_over(&app, requests).await;
+
+    assert!(
+        statuses.contains(&StatusCode::TOO_MANY_REQUESTS),
+        "no trusted proxy is configured, so a client-supplied X-Forwarded-For must not \
+         choose the bucket: {statuses:?}"
+    );
+}
+
+#[tokio::test]
+async fn a_rotating_user_agent_does_not_mint_a_fresh_bucket() {
+    let config = config_with(limited());
+    let app = ok_router()
+        .with_rate_limit(&config, 1)
+        .expect("a 1/s limiter must build");
+
+    let requests = (0..8)
+        .map(|i| spoofed_request("198.51.100.1", &format!("agent-{i}")))
+        .collect();
+    let statuses = statuses_over(&app, requests).await;
+
+    assert!(
+        statuses.contains(&StatusCode::TOO_MANY_REQUESTS),
+        "an anonymous caller's identity is derived from the User-Agent, so rotating it \
+         must not escape the limiter: {statuses:?}"
+    );
+}
+
+#[tokio::test]
+async fn two_authenticated_callers_get_independent_buckets() {
+    let config = config_with(limited());
+    let app = ok_router()
+        .with_rate_limit(&config, 1)
+        .expect("a 1/s limiter must build");
+
+    let mut first = Vec::new();
+    for _ in 0..8 {
+        first.push(authed_request(context_for("caller-one")));
+    }
+    let exhausted = statuses_over(&app, first).await;
+    assert!(
+        exhausted.contains(&StatusCode::TOO_MANY_REQUESTS),
+        "the first caller must exhaust its own burst: {exhausted:?}"
+    );
+
+    let second = statuses_over(&app, vec![authed_request(context_for("caller-two"))]).await;
+    assert_eq!(
+        second[0],
+        StatusCode::OK,
+        "a different verified identity must not inherit another caller's spent budget"
     );
 }
 

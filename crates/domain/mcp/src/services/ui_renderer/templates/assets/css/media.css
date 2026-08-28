@@ -1,5 +1,8 @@
 .media-frame {
     display: flex;
+    /* Artwork beside a player has to be able to stack: without wrapping, a
+     * narrow frame squeezed the 4.5rem artwork against the controls. */
+    flex-wrap: wrap;
     align-items: center;
     gap: var(--mcpui-space-4);
     padding: var(--mcpui-space-4);
@@ -11,8 +14,17 @@
 
 .media-element {
     width: 100%;
+    min-width: 12rem;
+    flex: 1 1 12rem;
     max-width: 100%;
     border-radius: var(--mcpui-radius-inner);
+}
+
+/* Reserve the box before metadata loads, so the frame does not jump and
+ * re-post its height to the host mid-load. */
+video.media-element {
+    aspect-ratio: 16 / 9;
+    background: var(--mcpui-surface-sunken);
 }
 
 .media-artwork {

@@ -53,6 +53,12 @@ pub struct MarketplaceItem {
     summary: Option<String>,
     readme: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    version: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    author: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    homepage: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     change: Option<ChangeKind>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     children: Vec<PluginChild>,
@@ -75,10 +81,26 @@ impl MarketplaceItem {
             path: path.into(),
             summary,
             readme: None,
+            version: None,
+            author: None,
+            homepage: None,
             change: None,
             children: Vec::new(),
             extra: MarketplaceExtra::None,
         }
+    }
+
+    #[must_use]
+    pub fn with_provenance(
+        mut self,
+        version: Option<String>,
+        author: Option<String>,
+        homepage: Option<String>,
+    ) -> Self {
+        self.version = version;
+        self.author = author;
+        self.homepage = homepage;
+        self
     }
 }
 
@@ -137,7 +159,9 @@ struct FrontmatterExtra {
 #[derive(Debug, Deserialize, Serialize, Default)]
 struct McpServerEntry {
     #[serde(skip_serializing_if = "Option::is_none")]
-    url: Option<String>,
+    proxy_url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    upstream_url: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     command: Option<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -168,15 +192,13 @@ pub fn build_listing(mcp_auth: &[McpServerAuth]) -> MarketplaceListing {
             for dir in plugins::plugin_dirs(&loc.path) {
                 skills.extend(components::list_skills(&dir.join("skills")));
                 agents.extend(components::list_agents(&dir.join("agents")));
-                if hooks.is_empty() {
-                    hooks = hooks::list_hooks(&dir.join("hooks"));
-                }
+                hooks.extend(hooks::list_hooks(&dir.join("hooks")));
             }
             let mcp = components::list_registry_mcp(mcp_auth);
             (
                 plugins,
                 dedup_by_id(skills),
-                hooks,
+                dedup_by_id(hooks),
                 mcp,
                 dedup_by_id(agents),
             )
@@ -184,10 +206,18 @@ pub fn build_listing(mcp_auth: &[McpServerAuth]) -> MarketplaceListing {
         None => (Vec::new(), Vec::new(), Vec::new(), Vec::new(), Vec::new()),
     };
 
+    let mut skills = skills;
+    let mut hooks = hooks;
+    let mut mcp = mcp;
+    let mut agents = agents;
     let last_sync_diff = last_sync
         .as_ref()
         .map_or_else(MarketplaceDiff::default, |state| {
-            plugins::annotate_plugins_with_diff(&mut plugins, state)
+            let diff = plugins::annotate_plugins_with_diff(&mut plugins, state);
+            for items in [&mut skills, &mut hooks, &mut mcp, &mut agents] {
+                plugins::annotate_with_diff(items, state);
+            }
+            diff
         });
 
     let ctx = MarketplaceSourceCtx {

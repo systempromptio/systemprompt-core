@@ -81,6 +81,7 @@ fn build_authz_request_carries_user_route_and_model() {
         route_id: route_id.clone(),
         model: model.clone(),
         session_id: None,
+        client_id: None,
     });
 
     assert_eq!(req.user_id, user_id);
@@ -109,6 +110,7 @@ fn build_authz_request_preserves_act_chain_and_attributes() {
         route_id: RouteId::new("r2"),
         model: ModelId::new("gpt-5"),
         session_id: None,
+        client_id: None,
     });
 
     assert_eq!(req.act_chain, vec![actor]);

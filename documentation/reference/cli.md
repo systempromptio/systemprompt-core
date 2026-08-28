@@ -2,7 +2,7 @@
 
 The complete command surface of the `systemprompt` CLI. The binary groups commands into eight top-level domains: `core`, `infra`, `admin`, `cloud`, `analytics`, `web`, `plugins`, and `build`.
 
-Command structure is defined in `crates/entry/cli/src/args.rs` and the modules under `crates/entry/cli/src/commands/`.
+Command structure is defined in `crates/entry/cli/src/runner/args.rs` and the modules under `crates/entry/cli/src/commands/`.
 
 ## Synopsis
 
@@ -12,7 +12,7 @@ systemprompt [GLOBAL OPTIONS] <DOMAIN> <SUBCOMMAND> [ARGS]
 
 ## Global options
 
-These apply to every command (`crates/entry/cli/src/args.rs`).
+These apply to every command (`crates/entry/cli/src/runner/args.rs`).
 
 | Option | Effect |
 |--------|--------|

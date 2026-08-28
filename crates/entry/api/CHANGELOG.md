@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.41.0] - 2026-08-28
+
+### Changed
+
+- The MCP reverse proxy no longer overwrites the request context's `agent_name` with the target server's name; the caller's own agent identity reaches the MCP server, and the callee is recorded as `server_name` as before. A2A services still take their own name as the handling agent.
+- Gateway governance audits record the OAuth `client_id` from the validated bearer token.
+
+### Fixed
+
+- A client-supplied `x-agent-name` that fails `AgentName` validation (empty, or the reserved `unknown`) is ignored with a warning instead of panicking the request handler. A proxied service whose name fails the same validation answers `400` (`invalid_service_name`).
+
 ## [0.40.0] - 2026-08-26
 
 ### Added

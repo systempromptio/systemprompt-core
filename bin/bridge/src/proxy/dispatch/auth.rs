@@ -37,7 +37,7 @@ pub(super) fn reject_non_loopback(log: &RequestLog<'_>, host_hdr: &str) -> Respo
         peer = %peer,
         "reject: non-loopback host"
     );
-    crate::activity::activity_log().append(format!(
+    crate::activity::activity_log().append_warn(format!(
         "proxy: {method} {path} → 403 (non-loopback host: {host_hdr}) [{req_id}]"
     ));
     simple_response(StatusCode::FORBIDDEN, "forbidden: non-loopback host\n")
@@ -100,7 +100,7 @@ pub(super) fn verify_loopback_secret(
             remediation = %remediation,
             "reject: stale loopback secret"
         );
-        crate::activity::activity_log().append(format!(
+        crate::activity::activity_log().append_warn(format!(
             "proxy: {method} {path} → 403 (stale secret; presented_fp={presented_fp} \
              expected_fp={expected_fp}; secret_path={secret_path}; {remediation}) [{req_id}]"
         ));

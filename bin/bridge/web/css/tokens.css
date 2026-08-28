@@ -1,9 +1,26 @@
 :root {
+  /* Only --sp-accent is a literal. Everything derived from it is a color-mix on
+     var(--sp-accent), so a white-label brand theme -- which is injected as a
+     :root block after every sheet -- moves the whole accent family by setting
+     one property, and keeps doing so under [data-theme] and [data-contrast]. */
   --sp-accent:        oklch(0.72 0.17 52);
-  --sp-accent-hover:  oklch(0.67 0.18 50);
-  --sp-accent-soft:   oklch(0.70 0.17 51 / 0.12);
-  --sp-accent-ring:   oklch(0.70 0.17 51 / 0.40);
-  --sp-accent-deep:   oklch(0.62 0.17 48);
+  --sp-accent-hover:  color-mix(in oklch, var(--sp-accent) 93%, black);
+  --sp-accent-soft:   color-mix(in oklch, var(--sp-accent) 12%, transparent);
+  --sp-accent-ring:   color-mix(in oklch, var(--sp-accent) 40%, transparent);
+  --sp-accent-deep:   color-mix(in oklch, var(--sp-accent) 86%, black);
+
+  /* A focus indicator must reach 3:1 against its background (WCAG 1.4.11).
+     --sp-accent-soft measures 1.17:1 and --sp-accent-ring 2.01:1, so neither
+     can be the ring; the solid accent measures 6.30:1 on the most elevated
+     surface and is what every focusable thing uses. */
+  --sp-focus:         var(--sp-accent);
+  /* The accent as TEXT, which is a different requirement from the accent as a
+     surface: on a light ground the brand accent measures 2.54:1 and cannot
+     carry body copy. Dark mode needs no adjustment (7.19:1); light mode darkens
+     it, still derived from whatever accent a brand theme sets. */
+  --sp-accent-text:   var(--sp-accent);
+  --sp-focus-width:   2px;
+  --sp-focus-offset:  2px;
 
   --sp-bg:            oklch(0.18 0.01 45);
   --sp-bg-elev-1:     oklch(0.21 0.01 48);
@@ -11,15 +28,29 @@
   --sp-bg-glass:      oklch(0.16 0.01 45 / 0.72);
   --sp-line:          oklch(0.30 0.01 48);
   --sp-line-soft:     oklch(0.30 0.01 48 / 0.5);
+  /* --sp-line is a divider and is allowed to be quiet (1.38:1). The border of a
+     control the user has to find is not: this one measures 3.39:1 on the most
+     elevated surface. */
+  --sp-line-control:  oklch(0.55 0.01 48);
 
   --sp-text:          oklch(0.96 0.01 80);
   --sp-muted:         oklch(0.68 0.01 60);
   --sp-muted-strong:  oklch(0.78 0.01 60);
 
+  --sp-danger:        oklch(0.65 0.20 25);
   --sp-ok:            oklch(0.72 0.17 145);
   --sp-warn:          oklch(0.78 0.15 75);
   --sp-err:           oklch(0.65 0.20 25);
   --sp-info:          oklch(0.72 0.10 240);
+
+  --sp-accent-fg:     oklch(1 0 0);
+  /* Text and glyphs sitting ON the accent. The accent is light in both themes,
+     so this stays dark in both -- it is not a theme axis. */
+  --sp-on-accent:     oklch(0.20 0.04 50);
+  --sp-log-bg:        oklch(0.10 0.01 45);
+
+  --sp-text-xs:       11px;
+  --sp-text-sm:       13px;
 
   --sp-font-body:     "OpenSans", "OpenSans Fallback", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --sp-font-display:  "Inter", "Inter Fallback", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -52,12 +83,25 @@
   --sp-space-3-5:   0.875rem;
   --sp-space-4:     1rem;
   --sp-space-4-5:   1.125rem;
+  --sp-space-5:     1.25rem;
   --sp-space-6:     1.5rem;
   --sp-space-7:     1.75rem;
   --sp-space-8:     2rem;
   --sp-space-10:    2.5rem;
 
+  --sp-rail-min:      208px;
+  --sp-rail-max:      360px;
+  --sp-rail-w:        64px;
   --sp-radius-md:           0.5rem;
+
+  /* Overflow design language. The bar floats over the content rather than
+     occupying a gutter of its own, so a pane's measure does not change when it
+     becomes scrollable. See scroll.css. */
+  --sp-scroll-size:         10px;
+  --sp-scroll-thumb:        color-mix(in oklch, var(--sp-accent) 30%, transparent);
+  --sp-scroll-thumb-hover:  color-mix(in oklch, var(--sp-accent) 60%, transparent);
+  --sp-scroll-thumb-active: var(--sp-accent-ring);
+  --sp-scroll-fade:         2.5rem;
 
   --sp-z-toast:             9999;
 
@@ -74,7 +118,9 @@
   font-feature-settings: "ss01", "cv11";
 }
 
-:root[data-contrast="elevated"] {
+/* Order-independent: without the :not() this block would win over the light
+   palette for every token the light-elevated block does not itself redefine. */
+:root:not([data-theme="light"])[data-contrast="elevated"] {
   --sp-bg:            oklch(0.14 0.01 45);
   --sp-bg-elev-1:     oklch(0.17 0.01 48);
   --sp-bg-elev-2:     oklch(0.20 0.01 48);
@@ -85,5 +131,75 @@
   --sp-text:          oklch(0.99 0.01 80);
   --sp-muted:         oklch(0.82 0.01 60);
   --sp-muted-strong:  oklch(0.92 0.01 60);
+
+  --sp-scroll-thumb:        color-mix(in oklch, var(--sp-accent) 45%, transparent);
+  --sp-scroll-thumb-hover:  color-mix(in oklch, var(--sp-accent) 80%, transparent);
 }
 
+/* Colour scheme and contrast are two independent axes, and they were wired as
+   one: theme.js mapped `prefers-color-scheme: light` onto the elevated-contrast
+   DARK palette, so a user who asked their OS for light mode was given a darker
+   UI and no light theme existed at all. Four combinations now compose. */
+:root[data-theme="light"] {
+  --sp-bg:            oklch(0.99 0.004 80);
+  --sp-bg-elev-1:     oklch(0.965 0.005 80);
+  --sp-bg-elev-2:     oklch(0.94 0.006 80);
+  --sp-bg-glass:      oklch(1 0 0 / 0.78);
+  --sp-line:          oklch(0.88 0.006 80);
+  --sp-line-soft:     oklch(0.88 0.006 80 / 0.6);
+  --sp-line-control:  oklch(0.62 0.01 60);
+
+  --sp-text:          oklch(0.22 0.01 60);
+  --sp-muted:         oklch(0.38 0.015 60);
+  --sp-muted-strong:  oklch(0.30 0.015 60);
+
+  /* The brand accent measures 2.54:1 on a light ground, so it cannot be the
+     focus ring here. Darkened it reaches 4.13:1 on the most elevated surface
+     and still derives from whatever accent a brand theme sets. */
+  --sp-focus:         color-mix(in oklch, var(--sp-accent) 78%, black);
+  --sp-accent-text:   color-mix(in oklch, var(--sp-accent) 65%, black);
+
+  --sp-danger:        oklch(0.52 0.20 25);
+  --sp-ok:            oklch(0.52 0.15 145);
+  --sp-warn:          oklch(0.52 0.12 75);
+  --sp-err:           oklch(0.52 0.20 25);
+  --sp-info:          oklch(0.52 0.12 240);
+
+  --sp-log-bg:        oklch(0.965 0.005 80);
+
+  --sp-shadow-1:          0 2px 8px  oklch(0.4 0.02 60 / 0.10);
+  --sp-shadow-2:          0 8px 28px oklch(0.4 0.02 60 / 0.16);
+  --sp-shadow-accent:     0 12px 40px color-mix(in oklch, var(--sp-accent) 18%, transparent);
+  --sp-shadow-inner-glow: inset 0 1px 0 oklch(1 0 0 / 0.6);
+
+  --sp-toast-bg:            oklch(0.97 0.02 60);
+  --sp-toast-bg-error:      oklch(0.96 0.04 25);
+  --sp-toast-bg-success:    oklch(0.96 0.04 145);
+  --sp-toast-fg:            oklch(0.24 0.02 60);
+  --sp-toast-shadow:        0 8px 24px oklch(0.4 0.02 60 / 0.18);
+
+  --sp-scroll-thumb:        color-mix(in oklch, var(--sp-accent-deep) 45%, transparent);
+  --sp-scroll-thumb-hover:  color-mix(in oklch, var(--sp-accent-deep) 75%, transparent);
+}
+
+:root[data-theme="light"][data-contrast="elevated"] {
+  --sp-bg:            oklch(1 0 0);
+  --sp-bg-elev-1:     oklch(0.975 0.004 80);
+  --sp-bg-elev-2:     oklch(0.95 0.005 80);
+  --sp-line:          oklch(0.72 0.008 80);
+  --sp-line-soft:     oklch(0.72 0.008 80 / 0.75);
+  --sp-line-control:  oklch(0.48 0.01 60);
+
+  --sp-text:          oklch(0.16 0.01 60);
+  --sp-muted:         oklch(0.30 0.015 60);
+  --sp-muted-strong:  oklch(0.22 0.015 60);
+
+  --sp-focus:         color-mix(in oklch, var(--sp-accent) 68%, black);
+  --sp-accent-text:   color-mix(in oklch, var(--sp-accent) 58%, black);
+
+  --sp-danger:        oklch(0.45 0.20 25);
+  --sp-ok:            oklch(0.44 0.15 145);
+  --sp-warn:          oklch(0.44 0.12 75);
+  --sp-err:           oklch(0.45 0.20 25);
+  --sp-info:          oklch(0.44 0.12 240);
+}

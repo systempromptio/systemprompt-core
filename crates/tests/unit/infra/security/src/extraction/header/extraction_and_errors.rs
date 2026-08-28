@@ -304,3 +304,21 @@ mod gateway_and_provider_request_ids {
         );
     }
 }
+
+#[test]
+fn test_header_extractor_extract_agent_name_reserved_value_falls_back_to_system() {
+    let mut headers = HeaderMap::new();
+    headers.insert("x-agent-name", HeaderValue::from_static("unknown"));
+
+    let agent_name = HeaderExtractor::extract_agent_name(&headers);
+    assert_eq!(agent_name.as_str(), "system");
+}
+
+#[test]
+fn test_header_extractor_extract_agent_name_empty_falls_back_to_system() {
+    let mut headers = HeaderMap::new();
+    headers.insert("x-agent-name", HeaderValue::from_static(""));
+
+    let agent_name = HeaderExtractor::extract_agent_name(&headers);
+    assert_eq!(agent_name.as_str(), "system");
+}

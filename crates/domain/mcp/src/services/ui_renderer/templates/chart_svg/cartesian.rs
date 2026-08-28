@@ -9,7 +9,7 @@ use super::{
 };
 use crate::services::ui_renderer::templates::html::html_escape;
 use systemprompt_models::artifacts::chart::ChartDataset;
-use systemprompt_models::artifacts::types::ChartType;
+use systemprompt_models::artifacts::types::{AxisType, ChartType};
 
 const BAND_INSET: f64 = 0.18;
 
@@ -30,7 +30,7 @@ pub(super) fn plot(spec: &ChartSpec<'_>) -> String {
         top: PAD_TOP,
         width,
         height,
-        scale: scale::linear(spec.datasets),
+        scale: scale::for_axis(spec.datasets, scale_kind(spec.y_axis_type)),
         band: width / slots as f64,
     };
 
@@ -187,4 +187,11 @@ fn lines(datasets: &[ChartDataset], frame: Frame, fill_area: bool) -> String {
         })
         .collect::<Vec<_>>()
         .join("\n")
+}
+
+const fn scale_kind(axis: AxisType) -> scale::ScaleKind {
+    match axis {
+        AxisType::Logarithmic => scale::ScaleKind::Logarithmic,
+        AxisType::Linear | AxisType::Category | AxisType::Time => scale::ScaleKind::Linear,
+    }
 }

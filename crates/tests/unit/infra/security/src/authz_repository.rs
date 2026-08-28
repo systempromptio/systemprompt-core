@@ -85,30 +85,6 @@ async fn upsert_entity_then_get_roundtrips() {
 }
 
 #[tokio::test]
-async fn upsert_entities_batch_inserts_and_list_returns_them() {
-    let Some((repo, db)) = repo().await else {
-        return;
-    };
-    let a = unique_entity();
-    let b = unique_entity();
-
-    repo.upsert_entities(KIND, &[a.as_str(), b.as_str()], true, "batch")
-        .await
-        .expect("batch upsert");
-
-    let listed = repo.list_entities(KIND).await.expect("list");
-    assert!(listed.iter().any(|e| e.id == a && e.source == "batch"));
-    assert!(listed.iter().any(|e| e.id == b));
-
-    repo.upsert_entities(KIND, &[], true, "noop")
-        .await
-        .expect("empty batch is a no-op");
-
-    cleanup(&db, &a).await;
-    cleanup(&db, &b).await;
-}
-
-#[tokio::test]
 async fn upsert_rule_requires_an_entity_then_persists_and_lists() {
     let Some((repo, db)) = repo().await else {
         return;

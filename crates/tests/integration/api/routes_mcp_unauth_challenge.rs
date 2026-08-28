@@ -17,9 +17,11 @@
 //! the v0.11.0 regression at CI time. Pair with the unit test
 //! `unit/entry/api/src/middleware/authz_policy.rs` (gate-level coverage).
 
+use std::net::SocketAddr;
 use std::sync::{Arc, OnceLock};
 
 use axum::body::{Body, to_bytes};
+use axum::extract::ConnectInfo;
 use axum::http::{Request, StatusCode, header};
 use http::Method;
 use systemprompt_analytics::{AnalyticsService, FingerprintRepository};
@@ -129,7 +131,7 @@ async fn body_text(resp: axum::http::Response<Body>) -> (StatusCode, String) {
 #[tokio::test]
 async fn unauthenticated_mcp_post_does_not_hit_generic_anon_403() -> anyhow::Result<()> {
     let app = boot_full_router().await?;
-    let req = Request::builder()
+    let mut req = Request::builder()
         .method(Method::POST)
         .uri("/api/v1/mcp/__regression__/mcp")
         .header(header::HOST, "127.0.0.1")
@@ -137,6 +139,11 @@ async fn unauthenticated_mcp_post_does_not_hit_generic_anon_403() -> anyhow::Res
         .body(Body::from(
             r#"{"jsonrpc":"2.0","id":1,"method":"initialize"}"#,
         ))?;
+    req.extensions_mut().insert(ConnectInfo(
+        "203.0.113.9:41000"
+            .parse::<SocketAddr>()
+            .expect("peer address must parse"),
+    ));
     let resp = app.oneshot(req).await?;
     let (status, body) = body_text(resp).await;
 
@@ -152,7 +159,7 @@ async fn unauthenticated_mcp_post_does_not_hit_generic_anon_403() -> anyhow::Res
 #[tokio::test]
 async fn unauthenticated_mcp_post_emits_clean_no_credentials_challenge() -> anyhow::Result<()> {
     let app = boot_full_router().await?;
-    let req = Request::builder()
+    let mut req = Request::builder()
         .method(Method::POST)
         .uri("/api/v1/mcp/__regression__/mcp")
         .header(header::HOST, "127.0.0.1")
@@ -160,6 +167,11 @@ async fn unauthenticated_mcp_post_emits_clean_no_credentials_challenge() -> anyh
         .body(Body::from(
             r#"{"jsonrpc":"2.0","id":1,"method":"initialize"}"#,
         ))?;
+    req.extensions_mut().insert(ConnectInfo(
+        "203.0.113.9:41000"
+            .parse::<SocketAddr>()
+            .expect("peer address must parse"),
+    ));
     let resp = app.oneshot(req).await?;
     let status = resp.status();
     let www_auth = resp
@@ -204,7 +216,7 @@ async fn unauthenticated_mcp_post_emits_clean_no_credentials_challenge() -> anyh
 #[tokio::test]
 async fn mcp_post_with_bad_bearer_emits_invalid_token_challenge() -> anyhow::Result<()> {
     let app = boot_full_router().await?;
-    let req = Request::builder()
+    let mut req = Request::builder()
         .method(Method::POST)
         .uri("/api/v1/mcp/__regression__/mcp")
         .header(header::HOST, "127.0.0.1")
@@ -213,6 +225,11 @@ async fn mcp_post_with_bad_bearer_emits_invalid_token_challenge() -> anyhow::Res
         .body(Body::from(
             r#"{"jsonrpc":"2.0","id":1,"method":"initialize"}"#,
         ))?;
+    req.extensions_mut().insert(ConnectInfo(
+        "203.0.113.9:41000"
+            .parse::<SocketAddr>()
+            .expect("peer address must parse"),
+    ));
     let resp = app.oneshot(req).await?;
     let status = resp.status();
     let www_auth = resp
@@ -250,11 +267,16 @@ async fn mcp_post_with_bad_bearer_emits_invalid_token_challenge() -> anyhow::Res
 #[tokio::test]
 async fn unauthenticated_mcp_get_does_not_hit_generic_anon_403() -> anyhow::Result<()> {
     let app = boot_full_router().await?;
-    let req = Request::builder()
+    let mut req = Request::builder()
         .method(Method::GET)
         .uri("/api/v1/mcp/__regression__/mcp")
         .header(header::HOST, "127.0.0.1")
         .body(Body::empty())?;
+    req.extensions_mut().insert(ConnectInfo(
+        "203.0.113.9:41000"
+            .parse::<SocketAddr>()
+            .expect("peer address must parse"),
+    ));
     let resp = app.oneshot(req).await?;
     let (status, body) = body_text(resp).await;
     assert!(
@@ -267,11 +289,16 @@ async fn unauthenticated_mcp_get_does_not_hit_generic_anon_403() -> anyhow::Resu
 #[tokio::test]
 async fn unauthenticated_mcp_registry_get_is_not_anon_denied() -> anyhow::Result<()> {
     let app = boot_full_router().await?;
-    let req = Request::builder()
+    let mut req = Request::builder()
         .method(Method::GET)
         .uri("/api/v1/mcp-registry")
         .header(header::HOST, "127.0.0.1")
         .body(Body::empty())?;
+    req.extensions_mut().insert(ConnectInfo(
+        "203.0.113.9:41000"
+            .parse::<SocketAddr>()
+            .expect("peer address must parse"),
+    ));
     let resp = app.oneshot(req).await?;
     let (status, body) = body_text(resp).await;
     assert!(

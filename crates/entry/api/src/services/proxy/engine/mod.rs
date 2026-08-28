@@ -179,8 +179,17 @@ impl ProxyEngine {
                 .to_owned(),
         })?;
 
-        if service.module_name == "agent" || service.module_name == "mcp" {
-            req_context = req_context.with_agent_name(AgentName::new(service_name.to_owned()));
+        // Why: an A2A service *is* the handling agent, so its name wins (the
+        // agent server enforces the same rule). An MCP server is a callee, not
+        // an agent; overwriting here would erase the caller's identity.
+        if service.module_name == "agent" {
+            let agent_name = AgentName::try_new(service_name.to_owned()).map_err(|e| {
+                ProxyError::InvalidServiceName {
+                    service: service_name.to_owned(),
+                    reason: e.to_string(),
+                }
+            })?;
+            req_context = req_context.with_agent_name(agent_name);
         }
 
         if service.module_name == "mcp" && req_context.auth_token().as_str().is_empty() {

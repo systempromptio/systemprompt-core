@@ -77,6 +77,22 @@ fn systemctl(args: &[&str]) -> Result<(), InstallError> {
     )))
 }
 
+pub(super) fn schedule_registered() -> super::ScheduleStatus {
+    let unit = schedule::schedule_label(Os::Linux);
+    home().map_or(super::ScheduleStatus::Unknown, |h| {
+        let timer = h
+            .join(".config")
+            .join("systemd")
+            .join("user")
+            .join(format!("{unit}.timer"));
+        if timer.exists() {
+            super::ScheduleStatus::Installed
+        } else {
+            super::ScheduleStatus::NotInstalled
+        }
+    })
+}
+
 pub(super) fn remove_current() -> ScheduleRemoval {
     let unit = schedule::schedule_label(Os::Linux);
     let proxy_unit = schedule::proxy_unit_name();
@@ -108,4 +124,21 @@ fn remove_if_present(path: &Path) -> std::io::Result<()> {
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
         other => other,
     }
+}
+
+// Why: there is no GUI on Linux to autostart — the desktop shell is gated to
+// macOS and Windows — so the whole toggle is inert here rather than half-wired.
+pub(super) const fn register_autostart(_rendered: &str) -> Result<Vec<String>, InstallError> {
+    Err(InstallError::ScheduleOsMismatch)
+}
+
+pub(super) fn remove_autostart() -> ScheduleRemoval {
+    ScheduleRemoval::NotInstalled(schedule::autostart_label(Os::Linux).to_owned())
+}
+
+pub(super) fn autostart_status() -> super::ScheduleStatus {
+    // Why: not Unknown. There is no GUI on this platform to start, so "not
+    // registered" is the whole truth rather than a guess.
+    tracing::debug!("autostart unavailable: this platform has no desktop shell");
+    super::ScheduleStatus::NotInstalled
 }

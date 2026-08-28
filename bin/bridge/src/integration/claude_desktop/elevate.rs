@@ -13,13 +13,15 @@ use std::process::ExitCode;
 
 use serde::{Deserialize, Serialize};
 
-use crate::config::store::write_managed_claude_policy;
+use crate::config::store::{clear_managed_claude_policy, write_managed_claude_policy};
 use crate::winproc::{ElevationOutcome, run_elevated};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub(crate) struct ElevatedJob {
     pub reg_path: Option<String>,
     pub org_plugins: Option<OrgPluginsJob>,
+    #[serde(default)]
+    pub clear_values: Vec<String>,
 }
 
 // Why: `grant_user` is captured by the UNELEVATED parent — the elevated
@@ -87,6 +89,10 @@ fn run_job(job_path: &str) -> Result<(), String> {
     if let Some(reg_path) = &job.reg_path {
         write_from_reg(reg_path)?;
     }
+    if !job.clear_values.is_empty() {
+        let names: Vec<&str> = job.clear_values.iter().map(String::as_str).collect();
+        clear_managed_claude_policy(true, &names).map_err(|e| e.to_string())?;
+    }
     if let Some(org) = &job.org_plugins {
         provision_org_plugins(&org.path, &org.grant_user)?;
     }
@@ -107,7 +113,7 @@ pub(crate) fn provision_org_plugins(path: &Path, grant_user: &str) -> Result<(),
     std::fs::create_dir_all(path)
         .map_err(|e| format!("create org-plugins dir {}: {e}", path.display()))?;
     let grant_arg = format!("{grant_user}:(OI)(CI)M");
-    let output = std::process::Command::new("icacls")
+    let output = crate::winproc::no_window(&mut std::process::Command::new("icacls"))
         .arg(path.to_string_lossy().into_owned())
         .arg("/grant:r")
         .arg(&grant_arg)

@@ -154,7 +154,10 @@ impl GovernanceEngine {
         }
 
         let mut chain: Vec<ChainEntryOutcome> = Vec::with_capacity(self.entries.len());
-        let mut denied: Option<Decision> = None;
+        // Why: `Pending` halts the chain for the same reason `Deny` does — a
+        // later policy cannot un-hold a call, and running it would charge the
+        // rate limiter for a call that has not been authorised yet.
+        let mut halted: Option<Decision> = None;
 
         for entry in &self.entries {
             if !entry.config.enabled {
@@ -165,11 +168,11 @@ impl GovernanceEngine {
                 ));
                 continue;
             }
-            if denied.is_some() {
+            if halted.is_some() {
                 chain.push(chain_entry(
                     &entry.config,
                     ChainEntryResult::Skip,
-                    "Skipped — already denied by an earlier policy",
+                    "Skipped — already halted by an earlier policy",
                 ));
                 continue;
             }
@@ -190,13 +193,22 @@ impl GovernanceEngine {
                         detail: reason.to_string(),
                         duration_ms,
                     });
-                    denied = Some(decision);
+                    halted = Some(decision);
+                },
+                Decision::Pending { reason } => {
+                    chain.push(ChainEntryOutcome {
+                        policy_id: entry.instance.id(),
+                        result: ChainEntryResult::Hold,
+                        detail: reason.to_string(),
+                        duration_ms,
+                    });
+                    halted = Some(decision);
                 },
             }
         }
 
         Evaluation {
-            decision: denied.unwrap_or(Decision::Allow {
+            decision: halted.unwrap_or(Decision::Allow {
                 matched_by: MatchedBy::DefaultIncluded,
             }),
             chain,

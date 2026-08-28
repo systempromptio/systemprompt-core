@@ -19,8 +19,8 @@ use super::common::PostgresConfig;
 use super::types::{DatabaseSetupInfo, SecretsConfiguredInfo, SetupOutput};
 use super::wizard_dry_run::execute_dry_run;
 use super::wizard_prompts::{
-    collect_secrets, detect_project_root, get_environment_name, print_summary, setup_postgres,
-    should_run_migrations,
+    collect_secrets, detect_project_root, get_environment_name, print_summary, resolve_admin_email,
+    setup_postgres, should_run_migrations,
 };
 use super::{SetupArgs, ai_config, common, profile, secrets};
 use crate::CliConfig;
@@ -159,6 +159,8 @@ fn write_configuration(
 ) -> Result<(secrets::SecretsData, PathBuf)> {
     let systemprompt_dir = project_root.join(".systemprompt");
 
+    let admin_email = resolve_admin_email(args, prompter, config)?;
+
     let (mut secrets_data, primary_provider) = collect_secrets(args, prompter, config, env_name)?;
     secrets_data.database_url = Some(pg_config.database_url());
 
@@ -175,7 +177,7 @@ fn write_configuration(
         secrets: &secrets_data,
         default_provider: primary_provider.as_ref(),
         port_offset: args.port_offset,
-        admin_email: args.admin_email.as_deref(),
+        admin_email: &admin_email,
     })?;
     let profile_path = profile::default_path(&systemprompt_dir, env_name);
     if should_write(&profile_path, args.force, config) {

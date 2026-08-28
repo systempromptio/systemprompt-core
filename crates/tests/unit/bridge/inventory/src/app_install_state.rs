@@ -1,7 +1,7 @@
 //! `AppInstallState` semantics and wire format.
 //!
 //! The web UI branches on the serialized *strings* (see `chooseBadge` in
-//! `web/js/components/sp-host-card.js`), so the representation is part of the
+//! `web/js/utils/host-status.js`), so the representation is part of the
 //! contract, not an implementation detail.
 
 use systemprompt_bridge::integration::host_app::AppInstallState;

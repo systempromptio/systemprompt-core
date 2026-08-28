@@ -20,6 +20,7 @@ fn jwt_principal(session: &SessionId) -> AuthedPrincipal {
         attributes,
         act_chain: vec![Actor::user(UserId::new("delegator"))],
         attested_session: session.clone(),
+        client_id: None,
     })
 }
 

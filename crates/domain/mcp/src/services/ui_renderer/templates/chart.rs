@@ -46,6 +46,7 @@ impl UiRenderer for ChartRenderer {
             datasets: &chart.datasets,
             x_axis_label: &chart.x_axis_label,
             y_axis_label: &chart.y_axis_label,
+            y_axis_type: chart.y_axis_type,
         };
 
         let body = format!(

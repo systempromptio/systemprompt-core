@@ -54,7 +54,7 @@ Configuration is loaded from a profile directory. The `Config` shape is defined 
 2. `SecretsBootstrap` — load secrets from the profile-referenced JSON file or from environment variables into process memory (`crates/infra/config/src/bootstrap/secrets/`).
 3. `CredentialsBootstrap` — materialise provider credentials into in-memory handles.
 4. `Config` — construct validated config.
-5. `AppContext` — assemble the service graph (`crates/app/runtime/src/context.rs`).
+5. `AppContext` — assemble the service graph (`crates/app/runtime/src/context/`).
 
 The binary does not perform symmetric at-rest encryption of the secrets file. The customer owns the master-key lifecycle end-to-end; the binary receives plaintext only after the customer's tooling opens the envelope. The master key never enters the binary. Patterns, in order of preference for regulated production:
 

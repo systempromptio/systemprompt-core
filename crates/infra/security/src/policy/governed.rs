@@ -110,6 +110,18 @@ pub struct GovernedString<'a> {
     pub value: &'a str,
 }
 
+/// One non-container JSON value of a governed call's arguments, with the path
+/// it was found at.
+///
+/// Why: `strings()` cannot serve a policy that compares numbers, and a second
+/// traversal to reach them would be a second path grammar to keep in step with
+/// the first. This is the one walk; `strings()` is a filter over it.
+#[derive(Debug, Clone, PartialEq)]
+pub struct GovernedScalar<'a> {
+    pub path: String,
+    pub value: &'a serde_json::Value,
+}
+
 impl GovernedInput {
     #[must_use]
     pub const fn tool_arguments(arguments: McpToolInput) -> Self {
@@ -155,11 +167,16 @@ impl GovernedInput {
     #[must_use]
     pub fn strings(&self) -> Vec<GovernedString<'_>> {
         match self {
-            Self::ToolArguments { arguments } => {
-                let mut out = Vec::new();
-                collect_strings(arguments.as_value(), &mut String::new(), &mut out);
-                out
-            },
+            Self::ToolArguments { .. } => self
+                .scalars()
+                .into_iter()
+                .filter_map(|scalar| {
+                    scalar.value.as_str().map(|value| GovernedString {
+                        path: scalar.path,
+                        value,
+                    })
+                })
+                .collect(),
             Self::Prompt { parts } => parts
                 .iter()
                 .map(|part| GovernedString {
@@ -169,25 +186,37 @@ impl GovernedInput {
                 .collect(),
         }
     }
+
+    // Why: a prompt has no argument structure to address, so a condition that
+    // names a field can never be satisfied by one. Returning empty rather than
+    // the prompt's text keeps a path-addressed policy from matching a prompt on
+    // a coincidence of naming.
+    #[must_use]
+    pub fn scalars(&self) -> Vec<GovernedScalar<'_>> {
+        match self {
+            Self::ToolArguments { arguments } => {
+                let mut out = Vec::new();
+                collect_scalars(arguments.as_value(), &mut String::new(), &mut out);
+                out
+            },
+            Self::Prompt { .. } => Vec::new(),
+        }
+    }
 }
 
 const PROMPT_PATH: &str = "text";
 
-fn collect_strings<'a>(
+fn collect_scalars<'a>(
     value: &'a serde_json::Value,
     path: &mut String,
-    out: &mut Vec<GovernedString<'a>>,
+    out: &mut Vec<GovernedScalar<'a>>,
 ) {
     match value {
-        serde_json::Value::String(s) => out.push(GovernedString {
-            path: path.clone(),
-            value: s,
-        }),
         serde_json::Value::Array(items) => {
             for (index, item) in items.iter().enumerate() {
                 let parent = path.len();
                 path.push_str(&format!("[{index}]"));
-                collect_strings(item, path, out);
+                collect_scalars(item, path, out);
                 path.truncate(parent);
             }
         },
@@ -198,10 +227,13 @@ fn collect_strings<'a>(
                     path.push('.');
                 }
                 path.push_str(key);
-                collect_strings(item, path, out);
+                collect_scalars(item, path, out);
                 path.truncate(parent);
             }
         },
-        _ => {},
+        scalar => out.push(GovernedScalar {
+            path: path.clone(),
+            value: scalar,
+        }),
     }
 }

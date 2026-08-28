@@ -2,10 +2,12 @@
 //! root-merged base paths, the public/auth wrapping split, and the
 //! frame-options override stamp.
 
+use std::net::SocketAddr;
 use std::sync::{Arc, OnceLock};
 
 use axum::Router;
 use axum::body::Body;
+use axum::extract::ConnectInfo;
 use axum::http::Request;
 use axum::routing::get;
 use systemprompt_analytics::{AnalyticsService, FingerprintRepository};
@@ -190,10 +192,16 @@ async fn app_with_extensions(injected: Vec<Arc<dyn Extension>>) -> anyhow::Resul
 }
 
 fn get_req(uri: &str) -> Request<Body> {
-    Request::builder()
+    let mut req = Request::builder()
         .uri(uri)
         .body(Body::empty())
-        .expect("request build")
+        .expect("request build");
+    req.extensions_mut().insert(ConnectInfo(
+        "203.0.113.11:41000"
+            .parse::<SocketAddr>()
+            .expect("peer address must parse"),
+    ));
+    req
 }
 
 #[tokio::test]

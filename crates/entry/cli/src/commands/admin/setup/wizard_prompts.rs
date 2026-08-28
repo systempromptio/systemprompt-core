@@ -1,5 +1,14 @@
 //! Interactive prompts for the setup wizard.
 //!
+//! The administrator email has no default. It is written into
+//! `system_admin.email`, from there onto the `users` row that
+//! `admin bootstrap` creates, and it is displayed as the operator's identity —
+//! including on the bridge device-link consent screen, directly above a control
+//! that mints a durable personal access token. A default of
+//! `admin@localhost.localdomain` made that screen name a mailbox nobody owns,
+//! which is precisely the recognition the screen exists to invite. Interactive
+//! runs prompt for it; non-interactive runs fail with the flag to pass.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -8,7 +17,7 @@ use crate::interactive::Prompter;
 use anyhow::{Context, Result};
 use std::io::IsTerminal;
 use std::path::{Path, PathBuf};
-use systemprompt_identifiers::ProviderId;
+use systemprompt_identifiers::{Email, ProviderId};
 use systemprompt_logging::CliService;
 
 use super::common::PostgresConfig;
@@ -33,6 +42,39 @@ pub(super) fn get_environment_name(
     let input = prompter.input_with_default("Environment name", "dev")?;
 
     Ok(input.trim().to_lowercase())
+}
+
+pub(super) fn resolve_admin_email(
+    args: &SetupArgs,
+    prompter: &dyn Prompter,
+    config: &CliConfig,
+) -> Result<Email> {
+    if let Some(ref email) = args.admin_email {
+        return parse_admin_email(email);
+    }
+
+    if !config.is_interactive() {
+        anyhow::bail!(
+            "An administrator email is required. Pass --admin-email <email>.\n\nIt identifies \
+             the platform admin on sign-in and consent screens, so it must be an address you \
+             actually control."
+        );
+    }
+
+    CliService::info("Enter the administrator's email address");
+    CliService::info("Used to identify you on sign-in and consent screens — no default.");
+
+    let input = prompter.input("Administrator email")?;
+    let trimmed = input.trim();
+    if trimmed.is_empty() {
+        anyhow::bail!("An administrator email is required; none was entered.");
+    }
+
+    parse_admin_email(trimmed)
+}
+
+fn parse_admin_email(raw: &str) -> Result<Email> {
+    Email::try_new(raw.trim()).context("--admin-email is not a valid email address")
 }
 
 pub(super) async fn setup_postgres(

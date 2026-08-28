@@ -2,7 +2,7 @@
 //!
 //! [`gateway_router`] assembles the bridge-facing surface: the `/messages`,
 //! `/responses`, and `/chat/completions` proxy endpoints (each bound to an
-//! [`InboundAdapter`]), the
+//! [`InboundAdapter`](crate::services::gateway::protocol::InboundAdapter)), the
 //! `/auth/bridge/*` credential-exchange routes ([`auth`]), the `/bridge/*`
 //! manifest and heartbeat routes, the unauthenticated `/otel` ingest
 //! ([`otel`]), and `/models`. The router is gated on the availability of the
@@ -21,113 +21,30 @@ pub mod bridge_manifest;
 pub mod bridge_plugin_file;
 pub mod bridge_profile_usage;
 pub mod bridge_release;
+pub mod bridge_stream;
 pub mod bridge_whoami;
 pub mod messages;
 pub mod models;
 pub mod otel;
 pub mod sessions;
 
-use axum::extract::Request;
-use axum::middleware::Next;
-use axum::response::Response;
+mod access_log;
+mod routers;
+
 use axum::routing::{get, post};
 use axum::{Extension, Router};
 use std::sync::Arc;
-use std::time::Instant;
-use systemprompt_identifiers::{SessionId, TraceId, UserId};
-use systemprompt_logging::{LogActor, LogEntry, LogLevel};
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::AppContext as _;
 
-use crate::services::gateway::protocol::inbound::InboundAdapter;
-use crate::services::gateway::protocol::inbound::anthropic_messages::AnthropicMessagesInbound;
-use crate::services::gateway::protocol::inbound::openai_chat::OpenAiChatInbound;
-use crate::services::gateway::protocol::inbound::openai_responses::OpenAiResponsesInbound;
+use self::access_log::log_gateway_request;
+use self::routers::{
+    bridge_auth_routes, bridge_profile_routes, bridge_release_routes, bridge_session_routes,
+    inference_routes,
+};
 use crate::services::middleware::{JtiRevocationChecker, JwtContextExtractor};
 
-#[derive(Debug, Clone)]
-pub(crate) struct GatewayLogIdentity {
-    pub user: UserId,
-    pub session: SessionId,
-    pub trace: TraceId,
-}
-
-fn gateway_log_actor(resp: &Response) -> Option<LogActor> {
-    if let Some(identity) = resp.extensions().get::<GatewayLogIdentity>() {
-        return Some(LogActor::new(
-            identity.user.clone(),
-            identity.session.clone(),
-            identity.trace.clone(),
-        ));
-    }
-    match LogActor::platform(TraceId::system()) {
-        Ok(actor) => Some(actor),
-        Err(e) => {
-            tracing::warn!(error = %e, "gateway access log skipped: system admin not initialized");
-            None
-        },
-    }
-}
-
-async fn log_gateway_request(req: Request, next: Next) -> Response {
-    let method = req.method().clone();
-    // Why: the router is nested under GATEWAY_BASE, so req.uri() arrives with
-    // the prefix already stripped; log the path the client actually requested.
-    let path = req
-        .extensions()
-        .get::<axum::extract::OriginalUri>()
-        .map_or_else(
-            || {
-                format!(
-                    "{}{}",
-                    systemprompt_models::ApiPaths::GATEWAY_BASE,
-                    req.uri().path()
-                )
-            },
-            |orig| orig.path().to_owned(),
-        );
-    let started = Instant::now();
-    let resp = next.run(req).await;
-    let status = resp.status().as_u16();
-    let elapsed_ms = started.elapsed().as_millis() as u64;
-
-    let metadata = serde_json::json!({
-        "kind": "access_log",
-        "method": method.to_string(),
-        "path": path,
-        "status": status,
-        "elapsed_ms": elapsed_ms,
-    });
-
-    let level = if status >= 500 {
-        LogLevel::Error
-    } else if status >= 400 {
-        LogLevel::Warn
-    } else {
-        LogLevel::Info
-    };
-
-    if status >= 500 {
-        tracing::error!(method = %method, path = %path, status, elapsed_ms, "gateway request failed");
-    } else if status >= 400 {
-        tracing::warn!(method = %method, path = %path, status, elapsed_ms, "gateway request rejected");
-    } else {
-        tracing::info!(method = %method, path = %path, status, elapsed_ms, "gateway request");
-    }
-
-    if let Some(actor) = gateway_log_actor(&resp) {
-        let entry = LogEntry::new(
-            level,
-            "systemprompt_api::gateway",
-            format!("{method} {path} -> {status} ({elapsed_ms}ms)"),
-            actor,
-        )
-        .with_metadata(metadata);
-        systemprompt_logging::enqueue_background(entry);
-    }
-
-    resp
-}
+pub(crate) use self::access_log::GatewayLogIdentity;
 
 fn build_jwt_extractor(ctx: &AppContext) -> Option<Arc<JwtContextExtractor>> {
     let Some(analytics) = ctx.analytics_provider() else {
@@ -147,204 +64,6 @@ fn build_jwt_extractor(ctx: &AppContext) -> Option<Arc<JwtContextExtractor>> {
     )))
 }
 
-fn inference_routes(
-    ctx: &AppContext,
-    jwt_extractor: &Arc<JwtContextExtractor>,
-    repos: &Arc<crate::services::gateway::GatewayRepositories>,
-) -> Router {
-    let ctx_messages = ctx.clone();
-    let ctx_responses = ctx.clone();
-    let ctx_chat = ctx.clone();
-    let repos_messages = Arc::clone(repos);
-    let repos_responses = Arc::clone(repos);
-    let repos_chat = Arc::clone(repos);
-    let jwt_messages = Arc::clone(jwt_extractor);
-    let jwt_responses = Arc::clone(jwt_extractor);
-    let jwt_chat = Arc::clone(jwt_extractor);
-    let anthropic_inbound: Arc<dyn InboundAdapter> = Arc::new(AnthropicMessagesInbound);
-    let responses_inbound: Arc<dyn InboundAdapter> = Arc::new(OpenAiResponsesInbound);
-    let chat_inbound: Arc<dyn InboundAdapter> = Arc::new(OpenAiChatInbound);
-
-    Router::new()
-        .route(
-            "/messages",
-            post(move |request| {
-                let extractor = Arc::clone(&jwt_messages);
-                let context = ctx_messages.clone();
-                let repos = Arc::clone(&repos_messages);
-                let inbound = Arc::clone(&anthropic_inbound);
-                async move { messages::handle(inbound, extractor, context, repos, request).await }
-            }),
-        )
-        .route(
-            "/responses",
-            post(move |request| {
-                let extractor = Arc::clone(&jwt_responses);
-                let context = ctx_responses.clone();
-                let repos = Arc::clone(&repos_responses);
-                let inbound = Arc::clone(&responses_inbound);
-                async move { messages::handle(inbound, extractor, context, repos, request).await }
-            }),
-        )
-        .route(
-            "/chat/completions",
-            post(move |request| {
-                let extractor = Arc::clone(&jwt_chat);
-                let context = ctx_chat.clone();
-                let repos = Arc::clone(&repos_chat);
-                let inbound = Arc::clone(&chat_inbound);
-                async move { messages::handle(inbound, extractor, context, repos, request).await }
-            }),
-        )
-}
-
-fn bridge_auth_routes(ctx: &AppContext, jwt_extractor: &Arc<JwtContextExtractor>) -> Router {
-    let ctx_pat = ctx.clone();
-    let ctx_session = ctx.clone();
-    let ctx_session_pat = ctx.clone();
-    let ctx_mtls = ctx.clone();
-    let ctx_oauth_client = ctx.clone();
-    let jwt_oauth_client = Arc::clone(jwt_extractor);
-
-    Router::new()
-        .route(
-            "/auth/bridge/pat",
-            post(move |request| {
-                let context = ctx_pat.clone();
-                async move { auth::pat(context, request).await }
-            }),
-        )
-        .route(
-            "/auth/bridge/session",
-            post(move |caller_ip, headers, body| {
-                let context = ctx_session.clone();
-                async move { auth::session(context, caller_ip, headers, body).await }
-            }),
-        )
-        .route(
-            "/auth/bridge/session-pat",
-            post(move |body| {
-                let context = ctx_session_pat.clone();
-                async move { auth::session_pat(context, body).await }
-            }),
-        )
-        .route(
-            "/auth/bridge/mtls",
-            post(move |caller_ip, headers, body| {
-                let context = ctx_mtls.clone();
-                async move { auth::mtls(context, caller_ip, headers, body).await }
-            }),
-        )
-        .route(
-            "/auth/bridge/oauth-client",
-            post(move |request| {
-                let extractor = Arc::clone(&jwt_oauth_client);
-                let context = ctx_oauth_client.clone();
-                async move { auth::provision_oauth_client(extractor, context, request).await }
-            }),
-        )
-        .route("/auth/bridge/capabilities", get(auth::capabilities))
-}
-
-fn bridge_release_routes(jwt_extractor: &Arc<JwtContextExtractor>) -> Router {
-    let jwt_latest = Arc::clone(jwt_extractor);
-    let jwt_download = Arc::clone(jwt_extractor);
-
-    Router::new()
-        .route(
-            "/bridge/latest",
-            get(move |headers, query| {
-                let extractor = Arc::clone(&jwt_latest);
-                async move { bridge_release::latest(extractor, headers, query).await }
-            }),
-        )
-        .route(
-            "/bridge/download/{platform}",
-            get(move |headers, path| {
-                let extractor = Arc::clone(&jwt_download);
-                async move { bridge_release::download(extractor, headers, path).await }
-            }),
-        )
-}
-
-fn bridge_profile_routes(ctx: &AppContext, jwt_extractor: &Arc<JwtContextExtractor>) -> Router {
-    let ctx_whoami = ctx.clone();
-    let ctx_manifest = ctx.clone();
-    let ctx_enabled_hosts = ctx.clone();
-    let ctx_host_model_filter = ctx.clone();
-    let ctx_profile_usage = ctx.clone();
-    let ctx_heartbeat = ctx.clone();
-    let ctx_plugin_file = ctx.clone();
-    let jwt_plugin_file = Arc::clone(jwt_extractor);
-    let jwt_whoami = Arc::clone(jwt_extractor);
-    let jwt_manifest = Arc::clone(jwt_extractor);
-    let jwt_enabled_hosts = Arc::clone(jwt_extractor);
-    let jwt_host_model_filter = Arc::clone(jwt_extractor);
-    let jwt_profile_usage = Arc::clone(jwt_extractor);
-    let jwt_heartbeat = Arc::clone(jwt_extractor);
-    Router::new()
-        .route("/bridge/pubkey", get(bridge::pubkey))
-        .route("/bridge/profile", get(bridge::profile))
-        .route(
-            "/bridge/whoami",
-            get(move |headers| {
-                let extractor = Arc::clone(&jwt_whoami);
-                let context = ctx_whoami.clone();
-                async move { bridge_whoami::handle(extractor, context, headers).await }
-            }),
-        )
-        .route(
-            "/bridge/manifest",
-            get(move |headers| {
-                let extractor = Arc::clone(&jwt_manifest);
-                let context = ctx_manifest.clone();
-                async move { bridge_manifest::manifest(extractor, context, headers).await }
-            }),
-        )
-        .route(
-            "/bridge/plugins/{plugin_id}/{*path}",
-            get(move |headers, path| {
-                let extractor = Arc::clone(&jwt_plugin_file);
-                let context = ctx_plugin_file.clone();
-                async move { bridge_plugin_file::handle(extractor, context, headers, path).await }
-            }),
-        )
-        .route(
-            "/bridge/profile/enabled_hosts",
-            post(move |headers, body| {
-                let extractor = Arc::clone(&jwt_enabled_hosts);
-                let context = ctx_enabled_hosts.clone();
-                async move { bridge::set_enabled_host(extractor, context, headers, body).await }
-            }),
-        )
-        .route(
-            "/bridge/profile/host-model-filter",
-            post(move |headers, body| {
-                let extractor = Arc::clone(&jwt_host_model_filter);
-                let context = ctx_host_model_filter.clone();
-                async move {
-                    bridge::set_host_model_filter(extractor, context, headers, body).await
-                }
-            }),
-        )
-        .route(
-            "/bridge/profile/usage",
-            get(move |headers| {
-                let extractor = Arc::clone(&jwt_profile_usage);
-                let context = ctx_profile_usage.clone();
-                async move { bridge_profile_usage::handle(extractor, context, headers).await }
-            }),
-        )
-        .route(
-            "/bridge/heartbeat",
-            post(move |headers, body| {
-                let extractor = Arc::clone(&jwt_heartbeat);
-                let context = ctx_heartbeat.clone();
-                async move { bridge_heartbeat::handle(extractor, context, headers, body).await }
-            }),
-        )
-}
-
 pub fn gateway_router(ctx: &AppContext) -> Option<Router> {
     let jwt_extractor = build_jwt_extractor(ctx)?;
     let gateway_repos = crate::services::gateway::GatewayRepositories::new(
@@ -360,6 +79,7 @@ pub fn gateway_router(ctx: &AppContext) -> Option<Router> {
             .merge(inference_routes(ctx, &jwt_extractor, &gateway_repos))
             .merge(bridge_auth_routes(ctx, &jwt_extractor))
             .merge(bridge_profile_routes(ctx, &jwt_extractor))
+            .merge(bridge_session_routes(ctx, &jwt_extractor))
             .merge(bridge_release_routes(&jwt_extractor))
             .route(
                 "/otel",

@@ -12,6 +12,7 @@ pub mod mcp_auth_probe;
 pub mod profile;
 pub mod quit;
 pub mod settings;
+pub mod settings_write;
 pub mod state;
 pub mod sync;
 pub mod update;

@@ -64,6 +64,7 @@ pub(super) async fn init_core(
         profile.governance.as_ref(),
         authz_audit_pool,
         authz_hook_override,
+        chain_sources(),
     )
     .map_err(|err| RuntimeError::Internal(format!("authz bootstrap: {err}")))?;
 
@@ -81,6 +82,16 @@ pub(super) async fn init_core(
         database,
         authz_hook,
     })
+}
+
+fn chain_sources() -> systemprompt_security::authz::ChainSources {
+    match systemprompt_loader::ConfigLoader::load() {
+        Ok(services) => systemprompt_security::authz::ChainSources::from_services(&services),
+        Err(error) => {
+            tracing::warn!(%error, "services config unavailable; authz resolves without parent cascade");
+            systemprompt_security::authz::ChainSources::default()
+        },
+    }
 }
 
 fn pool_config_from_profile(

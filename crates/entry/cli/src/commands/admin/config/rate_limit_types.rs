@@ -21,30 +21,8 @@ pub struct RateLimitsOutput {
     pub stream_per_second: u64,
     pub content_per_second: u64,
     pub burst_multiplier: u64,
-    pub tier_multipliers: TierMultipliersOutput,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema)]
-pub struct TierMultipliersOutput {
-    pub admin: f64,
-    pub user: f64,
-    pub a2a: f64,
-    pub mcp: f64,
-    pub service: f64,
-    pub anon: f64,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct TierEffectiveLimitsOutput {
-    pub tier: String,
-    pub multiplier: f64,
-    pub effective_limits: EffectiveLimitsOutput,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct EffectiveLimitsOutput {
-    pub limits: Vec<EndpointRateLimit>,
-}
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct EndpointRateLimit {
@@ -52,14 +30,6 @@ pub struct EndpointRateLimit {
     pub per_second: u64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct RateLimitsDocsOutput {
-    pub base_rates: Vec<BaseRateRow>,
-    pub tier_multipliers: Vec<TierMultiplierRow>,
-    pub effective_limits: Vec<EffectiveLimitRow>,
-    pub burst_multiplier: u64,
-    pub disabled: bool,
-}
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct BaseRateRow {
@@ -67,19 +37,6 @@ pub struct BaseRateRow {
     pub rate_per_second: u64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct TierMultiplierRow {
-    pub tier: String,
-    pub multiplier: f64,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct EffectiveLimitRow {
-    pub endpoint: String,
-    pub admin: u64,
-    pub user: u64,
-    pub anon: u64,
-}
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct SetRateLimitOutput {

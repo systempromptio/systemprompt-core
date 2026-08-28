@@ -20,7 +20,7 @@ fn t_empty_id_returns_empty() {
 
 #[test]
 fn t_known_id_returns_catalog_value() {
-    assert_eq!(t("ready"), "Ready.");
+    assert_eq!(t("ready"), "Ready");
     assert_eq!(t("setup-heading"), "Welcome to systemprompt bridge");
     assert_eq!(t("sync-button"), "Sync now");
     assert_eq!(t("nav-settings"), "Settings");
@@ -41,7 +41,7 @@ fn t_args_unknown_id_with_no_placeables_is_identity() {
 
 #[test]
 fn t_args_known_id_without_placeables_returns_plain_value() {
-    assert_eq!(t_args("ready", &[]), "Ready.");
+    assert_eq!(t_args("ready", &[]), "Ready");
     assert_eq!(t_args("sync-button", &[("ignored", "x")]), "Sync now");
 }
 
@@ -130,9 +130,12 @@ fn t_args_substituted_value_may_contain_unicode() {
 
 #[test]
 fn t_args_preserves_unicode_literal_around_placeable() {
-    // `marketplace-detail-copied` carries a non-ASCII checkmark literal with
-    // no placeables; substitution must leave it byte-for-byte intact.
-    assert_eq!(t_args("marketplace-detail-copied", &[]), "Copied ✓");
+    // `login-pull-manifest` carries a non-ASCII em dash and ellipsis with no
+    // placeables; substitution must leave them byte-for-byte intact.
+    assert_eq!(
+        t_args("login-pull-manifest", &[]),
+        "Signed in — fetching your plugins…"
+    );
 }
 
 #[test]

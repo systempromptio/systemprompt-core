@@ -39,6 +39,17 @@ build-bridge TARGET="":
         cargo build --manifest-path bin/bridge/Cargo.toml --release
     fi
 
+# Serve the bridge GUI's web tree over HTTP so a browser can render it.
+#
+# The desktop webview is Windows/macOS only and reads its assets over a wry
+# custom protocol, so this is the only way to see the GUI on Linux. Assets come
+# off disk: edit CSS/JS/HTML and refresh, no rebuild between edits. Drive it
+# with ?fixture=<name> — see bin/bridge/web/dev/fixtures and
+# bin/bridge/README.md § Developing the GUI.
+bridge-preview PORT="4310":
+    cargo run --manifest-path bin/bridge/Cargo.toml --features dev-preview \
+        --bin systemprompt-bridge -- dev-web --port {{PORT}}
+
 # Build systemprompt-bridge for all supported release targets
 build-bridge-all:
     just build-bridge aarch64-apple-darwin
@@ -158,7 +169,7 @@ check-release-tag:
     ./scripts/check-release-tag.sh
 
 # Check without building
-check: lint-schema lint-extensions lint-comments lint-inline-tests lint-test-value lint-layers lint-repo-construction
+check: lint-schema lint-extensions lint-comments lint-inline-tests lint-test-value lint-layers lint-repo-construction lint-bridge-css-tokens lint-bridge-i18n lint-bridge-js-imports lint-bridge-no-window
     cargo check --workspace
 
 # Check offline (uses cached .sqlx metadata, no database required)
@@ -200,16 +211,72 @@ lint: lint-bridge
     cargo clippy --workspace --all-targets --all-features -- -D warnings
 
 # `bin/bridge` is its own workspace, so the root `--workspace` clippy above
-# never sees it. Without this it is linted only by `release-sign.yml` on a
-# `bridge-v*` tag — which is after every other gate has passed and the release
-# is already being cut.
+# never sees it.
+#
+# This lints the HOST target only. On Linux that configures out `src/gui/**`
+# entirely (`lib.rs` gates `pub mod gui` on windows/macos), along with winproc,
+# the Windows registry store, the keystore backends and the Windows/macOS
+# scheduler code — so a green run here says nothing about any of them. CI does
+# cover them, natively on both platforms, in quality.yml's `bridge-native`
+# matrix; locally, use `just lint-bridge-native`.
 lint-bridge:
+    #!/usr/bin/env bash
+    set -euo pipefail
     cargo clippy --manifest-path bin/bridge/Cargo.toml -p systemprompt-bridge --all-targets -- -D warnings
+    if [ "$(uname -s)" = "Linux" ]; then
+        echo "note: src/gui/** and the Windows/macOS-only modules were configured out of that run."
+        echo "note: run 'just lint-bridge-native' before calling desktop work done."
+    fi
+
+# Lint the bridge code the host target configures out. On Linux this is the
+# Windows cfg set via a cross-target check (clippy does not link, so no mingw
+# toolchain is needed); macOS cannot be linted from Linux at all, because ring
+# and objc2-exception-helper build scripts need a real cc — CI's `bridge-native`
+# job covers that on a mac runner.
+lint-bridge-native:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ "$(uname -s)" = "Linux" ]; then
+        rustup target add x86_64-pc-windows-gnu
+        cargo clippy --manifest-path bin/bridge/Cargo.toml -p systemprompt-bridge \
+            --all-targets --target x86_64-pc-windows-gnu -- -D warnings
+        echo "note: macOS-only code is unlinted here; quality.yml's bridge-native job covers it."
+    else
+        cargo clippy --manifest-path bin/bridge/Cargo.toml -p systemprompt-bridge \
+            --all-targets -- -D warnings
+    fi
 
 # The bridge mirrors the root [workspace.lints] tables by hand (standalone
 # workspace, no inheritance). Fail when the copies drift.
 lint-bridge-lints-sync:
     ./scripts/lint-bridge-lints-sync.sh
+
+# An undefined `var(--sp-*)` in the bridge UI drops the whole declaration
+# silently — no console error, no build failure, just a rule that stops
+# applying. Fail on it instead.
+lint-bridge-css-tokens:
+    ./scripts/lint-bridge-css-tokens.sh
+
+# `t()` returns undefined for a key the catalogue does not carry, so an id that
+# exists in the tree and not in bridge.ftl renders the English fallback -- and a
+# `t()` written without one renders the string "undefined". Both are invisible
+# until a user reports it, which is how `status-cloud-reach-label` shipped.
+lint-bridge-i18n:
+    ./scripts/lint-bridge-i18n.sh
+
+# The web tree is plain ES modules -- no bundler, no type checker -- so a helper
+# used without importing it is not a build error, it is a ReferenceError at
+# first render that takes the whole pane down. `sp-profile.js` and
+# `sp-activity-log.js` both shipped calling `t(...)` with no `import { t }`.
+lint-bridge-js-imports:
+    ./scripts/lint-bridge-js-imports.sh
+
+# The bridge owns no console (`windows_subsystem = "windows"`), so a console
+# child spawned without CREATE_NO_WINDOW gets its own window and the foreground.
+# The tray redraw asked `schtasks` on every 30s probe tick, flashing a console at
+# the user twice a minute and eating their keystrokes.
+lint-bridge-no-window:
+    ./scripts/lint-bridge-no-window.sh
 
 # Reject unverified sqlx::query calls outside the allowlist
 lint-sqlx:
@@ -290,9 +357,24 @@ machete:
 hack:
     cargo hack --workspace --feature-powerset --depth 2 check
 
-# Flag source files exceeding 300 lines (excludes target/, tests/, and `//!` doc heads)
+# Reject source files exceeding 300 lines (excludes target/, tests/, and `//!` doc heads).
+#
+# This used to print and exit 0 — awk returns 0 whether or not it matched — so
+# the CI job named after it was green while 49 files were over the limit. It is
+# a gate now: it prints the offenders largest-first and fails.
 file-size:
-    @find crates bin/bridge/src -name '*.rs' -not -path '*/target/*' -not -path '*/tests/*' | xargs -r awk '!/^\/\/!/ {n[FILENAME]++} END {for (f in n) if (n[f]>300) print n[f], f}'
+    #!/usr/bin/env bash
+    set -euo pipefail
+    over=$(find crates bin/bridge/src -name '*.rs' -not -path '*/target/*' -not -path '*/tests/*' \
+        | xargs -r awk '!/^\/\/!/ {n[FILENAME]++} END {for (f in n) if (n[f]>300) print n[f], f}' \
+        | sort -rn)
+    if [ -n "$over" ]; then
+        echo "$over"
+        echo
+        echo "file-size: $(echo "$over" | wc -l) file(s) over the 300-line limit." >&2
+        exit 1
+    fi
+    echo "file-size: no source file exceeds 300 lines"
 
 # Verify every production file has a doc head + BSL-1.1 license reference
 check-headers:
@@ -1553,10 +1635,11 @@ webauthn-admin EMAIL="admin@localhost":
 
 # Run every pre-release gate against a ref (default: the tip of `next`).
 #
-# Dispatches the gate workflows on GitHub and waits for them, so the heavy
-# compile happens on runners rather than this machine. Nothing runs on a
-# schedule and nothing runs on a push to `next` — this is how the gates get
-# run, when you decide to run them.
+# Every push to `next` already runs these same workflows. This recipe is for
+# gating one specific frozen commit before `just promote` — it dispatches them
+# with an explicit ref, so the runs are pinned to the SHA you are about to
+# promote rather than to whatever `next` points at now. The heavy compile
+# happens on runners rather than this machine.
 gate REF="":
     #!/usr/bin/env bash
     set -euo pipefail
@@ -1574,7 +1657,7 @@ gate REF="":
     sleep 15
     FAIL=0
     for wf in "${WFS[@]}"; do
-        ID=$(gh run list --workflow="$wf" --limit 1 --json databaseId --jq '.[0].databaseId')
+        ID=$(gh run list --workflow="$wf" --event workflow_dispatch --limit 1 --json databaseId --jq '.[0].databaseId')
         gh run watch "$ID" --exit-status >/dev/null 2>&1 && R=pass || { R=FAIL; FAIL=1; }
         printf "  %-18s %s\n" "$wf" "$R"
     done

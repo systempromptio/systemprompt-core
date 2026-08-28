@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.41.0] - 2026-08-28
+
+### Breaking
+
+- **Breaking:** `admin setup` no longer defaults the administrator email to `admin@localhost.localdomain`. A non-interactive run without `--admin-email` fails; an interactive run prompts. The address lands in `system_admin.email`, on the admin `users` row, and on every screen naming the operator — including the bridge device-link consent page, directly above the control that mints a durable personal access token.
+- **Breaking:** local-trial session creation resolves the admin by `system_admin.username`, the key the runtime already resolves on, instead of matching the hardcoded `admin@localhost.dev`. A missing admin is an error naming `admin bootstrap` rather than a silently provisioned user with a fabricated address.
+
+### Changed
+
+- `admin config` reconcile prunes `gateway_route` catalog rows the saved profile no longer produces, and validates `roles.yaml` against the routes that profile actually dispatches — a literal `entity_id` naming no live route is rejected instead of minting a dead grant. A profile with no gateway routes leaves the catalog untouched.
+
 ## [0.40.0] - 2026-08-26
 
 ### Changed

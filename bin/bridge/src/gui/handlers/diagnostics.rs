@@ -28,7 +28,7 @@ pub(crate) fn on_open_log_directory(app: &GuiApp, reply_to: ReplyId) {
         |dir| {
             if let Err(e) = fs::create_dir_all(&dir) {
                 let msg = format!("create log dir failed: {e}");
-                app.append_log(&msg);
+                app.append_log_error(&msg);
                 Err(BridgeError::new(
                     ErrorScope::Internal,
                     ErrorCode::Internal,
@@ -36,7 +36,7 @@ pub(crate) fn on_open_log_directory(app: &GuiApp, reply_to: ReplyId) {
                 ))
             } else if let Err(e) = opener::reveal(&dir) {
                 let msg = format!("reveal log dir failed: {e}");
-                app.append_log(&msg);
+                app.append_log_error(&msg);
                 Err(BridgeError::new(
                     ErrorScope::Internal,
                     ErrorCode::Internal,
@@ -55,7 +55,7 @@ pub(crate) fn on_open_log_directory(app: &GuiApp, reply_to: ReplyId) {
 pub(crate) fn on_export_diagnostic_bundle(app: &GuiApp, reply_to: ReplyId) {
     let result = build_bundle().map_err(|e| {
         let msg = format!("export diagnostic bundle failed: {e}");
-        app.append_log(&msg);
+        app.append_log_error(&msg);
         BridgeError::new(ErrorScope::Internal, ErrorCode::Internal, msg)
     });
     if let Ok(path) = result.as_ref() {

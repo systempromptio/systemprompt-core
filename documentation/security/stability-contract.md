@@ -1,10 +1,10 @@
 # Stability Contract
 
-This document defines what is stable in systemprompt.io and what is not. It is the answer to "you're on 0.39.x — is this safe to build against?"
+This document defines what is stable in systemprompt.io and what is not. It is the answer to "you're on 0.41.x — is this safe to build against?"
 
 ## Current Version
 
-`0.39.x` across the workspace. See root `Cargo.toml` for the exact current version.
+`0.41.x` across the workspace. See root `Cargo.toml` for the exact current version.
 
 `1.0` has not been cut. The reason is specific: systemprompt integrates with AI provider APIs (Anthropic Messages API, OpenAI Chat Completions, Gemini, the MCP spec, the A2A protocol) that are themselves evolving rapidly, often under research-preview terms. Declaring `1.0` while the upstream surface is still in motion would claim a level of stability the full binary cannot honestly provide.
 
@@ -16,13 +16,13 @@ The following surfaces are considered stable today. Breaking changes to these re
 
 ### 1.1 Governance API (HTTP surface)
 
-- `POST /v1/messages` — request and response shapes, error codes, HTTP semantics
+- `POST /v1/messages` — Anthropic-dialect inference. Request and response shapes, error codes, HTTP semantics
 - `GET /health` and `GET /api/v1/health` — liveness probes (unauthenticated)
 - `GET /api/v1/health/detail` — rich health detail (authenticated)
 - `GET /metrics` — Prometheus scrape format (metric names and labels); always mounted, restrict at the network/proxy layer
 - OAuth2/OIDC discovery and callback routes under `/api/v1/core/oauth` and `/.well-known/`
 
-There are no Kubernetes-style `/health/live` or `/health/ready` aliases; wire k8s liveness against `/health` (or `/api/v1/health`) and use `/api/v1/health/detail` for an authenticated readiness check.
+There are no Kubernetes-style `/health/live` or `/health/ready` routes. `/ready` and `/healthz` appear in the session middleware's skip-list so that they never acquire a session if they are ever added, but **neither is routed today and both return 404** — do not wire a probe against them. Wire k8s liveness against `/health` (or `/api/v1/health`) and use `/api/v1/health/detail` for an authenticated readiness check.
 
 ### 1.2 Audit Event Schema
 
@@ -53,15 +53,22 @@ DDL for tables that persist customer-observable state:
 - OAuth state tables
 - MCP server registry
 
-Migrations are **additive-only within a minor series**. A rolling upgrade from `0.39.N` to `0.39.N+1` is always safe. See deployment guide §9 for rollback semantics.
+Migrations are **additive-only within a minor series**. A rolling upgrade from `0.41.N` to `0.41.N+1` is always safe. See deployment guide §9 for rollback semantics.
 
 ### 1.5 Extension Framework
 
 Public traits in `crates/shared/extension/`:
 
-- `Extension` and its subtraits (`SchemaExtensionTyped`, `ApiExtensionTyped`, `JobExtensionTyped`, `ProviderExtensionTyped`)
-- `ExtensionMetadata`, `SchemaDefinition`, `ExtensionRouter` shapes
-- the `register_extension!` macro contract
+- the `Extension` trait (`traits/extension.rs`)
+- `ExtensionMetadata`, `SchemaDefinition`, `ExtensionRouter`, `Migration` shapes
+- the `register_extension!` and `extension_migrations!` macro contracts
+- the capability traits an extension declares against (`HasConfig`, `HasDatabase`, `HasHttpClient`, `HasEventBus`, and peers in `capabilities.rs`) and the `ExtensionContext` trait
+
+> The earlier typed sub-traits — `SchemaExtensionTyped`, `ApiExtensionTyped`,
+> `JobExtensionTyped`, `ProviderExtensionTyped` — **no longer exist**. They were replaced by
+> the single `Extension` trait plus the capability traits above. This document listed them as
+> stable surface until 2026-08-28; that was a documentation error, not a stability break, and
+> the replacement had already shipped.
 
 ### 1.6 Typed Identifiers
 
@@ -94,7 +101,28 @@ A customer using the governance API does not call provider adapters directly —
 
 `crates/domain/agent/` implements the A2A (agent-to-agent) protocol. Message / Task / TaskState types follow the protocol spec revisions.
 
-### 2.4 Internal Implementation
+### 2.4 Inbound Provider Dialects
+
+The gateway accepts requests in more than one provider dialect so that existing client SDKs
+can be pointed at systemprompt unchanged:
+
+- `POST /v1/messages` (Anthropic) is **Stable Surface** — see §1.1
+- `POST /v1/responses` and `POST /v1/chat/completions` (OpenAI) are **tracking surface**. They
+  mirror upstream OpenAI request/response shapes, so they move when those shapes move. The
+  Chat Completions surface shipped in 0.40.0 and has not yet completed a minor cycle
+  unchanged, which is one of the §4 conditions for `1.0`.
+- `GET /v1/models` is tracking surface; the listing is filtered per `x-inference-protocol`
+
+### 2.5 Newer Domains
+
+The following ship as functional surface but are **not yet classified as stable**, and may
+change shape within a minor while they settle:
+
+- `crates/domain/marketplace` — plugin and skill catalogue, ABAC attribute floor
+- `crates/domain/evaluation` — sample / judge / replay framework
+- `crates/domain/slack` and `crates/domain/teams` — outbound messaging integrations
+
+### 2.6 Internal Implementation
 
 Anything inside `crates/` that is not exported through the public surfaces above is implementation detail. Refactors, rewrites, and module reorganisations are allowed without notice.
 
@@ -102,11 +130,11 @@ Anything inside `crates/` that is not exported through the public surfaces above
 
 For a customer on a supported version:
 
-1. **Within a minor series (e.g. `0.39.0` → `0.39.7`):** no breaking changes to the Stable Surface. Rolling upgrades are safe. Database migrations are additive-only. Rollback to the immediately prior minor is supported.
-2. **Across minors (e.g. `0.37.x` → `0.39.x`):** breaking changes are possible only on the Stable Surface with a `BREAKING` entry in `CHANGELOG.md`, migration notes, and a deprecation window of at least one prior minor where both forms were accepted. Database migrations between minors are forward-compatible by design; rollback to the prior minor is supported.
+1. **Within a minor series (e.g. `0.41.0` → `0.41.7`):** no breaking changes to the Stable Surface. Rolling upgrades are safe. Database migrations are additive-only. Rollback to the immediately prior minor is supported.
+2. **Across minors (e.g. `0.40.x` → `0.41.x`):** breaking changes are possible only on the Stable Surface with a `BREAKING` entry in `CHANGELOG.md`, migration notes, and a deprecation window of at least one prior minor where both forms were accepted. Database migrations between minors are forward-compatible by design; rollback to the prior minor is supported.
 3. **Upstream provider API changes:** handled in point releases; the governance API shields customers from most of these. When a provider ships a change that cannot be absorbed transparently, it becomes a new optional field in the governance API.
 4. **Security fixes:** delivered per the SECURITY.md SLAs regardless of minor boundary.
-5. **Licence stability:** BSL-1.1 with four-year conversion to Apache 2.0. The conversion commitment is permanent.
+5. **Licence stability:** BUSL-1.1 with four-year conversion to Apache 2.0. The conversion commitment is permanent.
 
 ## 4. Path to 1.0
 
@@ -117,7 +145,7 @@ For a customer on a supported version:
 - The A2A protocol tracked has reached a stable published version
 - Customer-facing upgrade friction has been demonstrably low across at least one minor transition
 
-At `1.0` the commitments in §3 become semver-formal. The intent is to reach `1.0` in the second half of 2026, but the date is outcome-driven, not calendar-driven.
+At `1.0` the commitments in §3 become semver-formal. The date is outcome-driven, not calendar-driven, and the conditions above are not yet met — the MCP revision we track (`2026-07-28`) is still moving and the inbound dialect surface last grew in 0.40.0.
 
 ## 5. Reporting Stability Issues
 
@@ -129,3 +157,4 @@ If you find a stable-surface change that shipped without a `BREAKING` notice, re
 |------|--------|
 | 2026-04-23 | Initial public publication. |
 | 2026-05-22 | Replaced the non-existent `/health/live` and `/health/ready` entries with the real `/health`, `/api/v1/health`, `/api/v1/health/detail`, and `/metrics` surface. Corrected the config path to `crates/shared/models/src/config/mod.rs`. |
+| 2026-08-28 | Fidelity pass against `next` @ 0.41.0 after ~29 minors of drift. Re-pinned every version reference from 0.39.x to 0.41.x. Classified the inbound provider dialects (§2.4) — the OpenAI Chat Completions surface shipped in 0.40.0 with no stability classification at all. Classified the four post-0.12 domains (§2.5), previously unmentioned. Corrected §1.5, which promised stable surface for four typed extension sub-traits that have been removed from the codebase. Clarified that `/ready` and `/healthz` are session-skip-listed but not routed, so no probe should target them. Corrected the licence spelling to BUSL-1.1. Replaced the "second half of 2026" `1.0` target, which has arrived, with the outstanding conditions. |

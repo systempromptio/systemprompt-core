@@ -1,5 +1,20 @@
 //! Helpers minting CLI session rows and their analytics context.
 //!
+//! A local install's admin is resolved by **name**, never by email. An email is
+//! an attribute of a person, not a key: the local-trial path used to look up
+//! the literal `admin@localhost.dev`, which forced a migration to write that
+//! same string into `users.email` so the two would meet, and the address was
+//! then displayed as the operator's identity — including on the bridge
+//! device-link consent screen, immediately above a button that mints a durable
+//! personal access token. `system_admin.username` is the key the runtime
+//! already resolves on, so resolving by it agrees with the runtime by
+//! construction and leaves `email` free to hold something true. That path
+//! deliberately does not provision: on a local install a missing admin means
+//! bootstrap has not run, and inventing one is what produced the fabricated
+//! identity in the first place. Every address returned by
+//! `resolve_credentialed_user_email` comes from a session hint or from cloud
+//! credentials — real data either way.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -14,7 +29,6 @@ use systemprompt_cloud::{
 use systemprompt_config::SecretsBootstrap;
 use systemprompt_database::{Database, DbPool, PoolConfig};
 use systemprompt_identifiers::{ContextId, Email, ProfileName, SessionId, SessionToken};
-use systemprompt_models::Profile;
 use systemprompt_models::auth::{Permission, RateLimitTier, UserType};
 use systemprompt_security::{SessionGenerator, SessionParams};
 use systemprompt_users::{UserRepository, UserService};
@@ -168,16 +182,41 @@ pub(super) fn build_cli_session(
     .build())
 }
 
-pub(super) async fn resolve_local_user_email(
-    profile: &Profile,
-    session_email_hint: Option<&str>,
-) -> Result<String> {
-    if let Some(email) = session_email_hint {
-        return Ok(email.to_owned());
+pub(super) async fn resolve_local_admin(
+    db_pool: &DbPool,
+    admin_name: &str,
+) -> Result<systemprompt_users::User> {
+    let user_service = UserService::new(Arc::new(UserRepository::new(db_pool)?));
+
+    let user = user_service
+        .find_by_name(admin_name)
+        .await
+        .context("Failed to query the local admin user by name")?
+        .with_context(|| {
+            format!(
+                "Local admin user '{admin_name}' not found.\n\nRun 'systemprompt admin bootstrap \
+                 --email <your email>' to create it with a real address."
+            )
+        })?;
+
+    if !user.is_active() {
+        anyhow::bail!("Local admin user '{admin_name}' exists but is not active.");
+    }
+    if !user.is_admin() {
+        anyhow::bail!(
+            "User '{admin_name}' exists but does not hold the admin role. Run 'systemprompt admin \
+             bootstrap' to repair it."
+        );
     }
 
-    if profile.is_local_trial() {
-        return Ok("admin@localhost.dev".to_owned());
+    Ok(user)
+}
+
+pub(super) async fn resolve_credentialed_user_email(
+    session_email_hint: Option<&str>,
+) -> Result<Email> {
+    if let Some(email) = session_email_hint {
+        return Email::try_new(email).context("session email hint is not a valid email address");
     }
 
     CredentialsBootstrap::try_init()
@@ -190,7 +229,7 @@ pub(super) async fn resolve_local_user_email(
              login' to authenticate."
         )
     })?;
-    Ok(creds.user_email.as_str().to_owned())
+    Ok(creds.user_email.clone())
 }
 
 pub(super) async fn resolve_admin_with_fallback(

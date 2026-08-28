@@ -194,6 +194,7 @@ fn gateway_ctx(id: &AiRequestId, user: &UserId, upstream_model: &str) -> Gateway
         ),
         trace_id: Some(TraceId::generate()),
         access_scope: AccessScope::Unknown,
+        client_id: None,
         provider: "anthropic".to_owned(),
         requested_model: Some("claude-test".to_owned()),
         model: upstream_model.to_owned(),

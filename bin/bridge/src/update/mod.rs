@@ -175,7 +175,14 @@ pub fn spawn_installed(installed: &std::path::Path) -> Result<(), UpdateError> {
             c.arg("-n").arg(installed);
             c
         } else {
-            std::process::Command::new(installed)
+            #[cfg_attr(
+                not(target_os = "windows"),
+                expect(unused_mut, reason = "`no_window` borrows mutably only on Windows")
+            )]
+            let mut c = std::process::Command::new(installed);
+            #[cfg(target_os = "windows")]
+            crate::winproc::no_window(&mut c);
+            c
         };
     command
         .spawn()
@@ -224,7 +231,8 @@ pub async fn run_automatic(gateway: &ValidatedUrl, bearer: &str) {
     tracing::info!(version = %manifest.version, "automatic update: relaunched");
 }
 
-fn automatic_enabled() -> bool {
+#[must_use]
+pub fn automatic_enabled() -> bool {
     crate::config::load()
         .update
         .as_ref()

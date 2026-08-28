@@ -10,11 +10,16 @@
 //! in the catalog for that kind (see [`super::config::RuleTarget`]). Every
 //! resolved id is upserted into `access_control_entities` carrying the rule's
 //! `default_included` flag — so the FK on `access_control_rules` is satisfied
-//! and the resolver never sees the entity as `UnknownEntity`.
+//! and the resolver never sees the entity as `UnknownEntity`. For a kind the
+//! caller enforces through [`RegisteredEntities`], a literal id outside the
+//! registered set is rejected before any write instead of materialised.
+//! Nothing is written when that check fails: resolution runs inside the
+//! transaction but before every write, so the error rolls back an empty one.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod catalog;
 pub mod glob;
 mod marketplace;
 mod messaging;
@@ -30,6 +35,7 @@ use super::config::{AccessControlConfig, RuleEntry, RuleTarget};
 use super::error::{AuthzError, AuthzResult};
 use super::types::{Access, EntityKind, RuleType};
 
+pub use catalog::RegisteredEntities;
 use glob::glob_matches;
 use upsert::{SOURCE_LABEL, Target, UpsertOutcome, upsert_entity_row, upsert_target};
 
@@ -61,6 +67,16 @@ struct ResolvedRule<'a> {
     justification: Option<&'a str>,
 }
 
+// Why: constructing this type is the only way to reach the write loop, so a
+// future call site cannot persist rules that skipped the registry check.
+struct ValidatedRules<'a>(Vec<ResolvedRule<'a>>);
+
+impl<'a> ValidatedRules<'a> {
+    fn rules(&self) -> &[ResolvedRule<'a>] {
+        &self.0
+    }
+}
+
 impl AccessControlIngestionService {
     pub fn new(db: &DbPool) -> AuthzResult<Self> {
         let write_pool = db
@@ -77,6 +93,7 @@ impl AccessControlIngestionService {
         &self,
         yaml_path: &std::path::Path,
         options: IngestOptions,
+        registered: &RegisteredEntities,
     ) -> AuthzResult<IngestReport> {
         let raw = std::fs::read_to_string(yaml_path).map_err(|err| {
             AuthzError::Validation(format!("failed to read {}: {err}", yaml_path.display()))
@@ -87,24 +104,26 @@ impl AccessControlIngestionService {
                 yaml_path.display()
             ))
         })?;
-        self.ingest_config(&cfg, options).await
+        self.ingest_config(&cfg, options, registered).await
     }
 
     pub async fn ingest_config(
         &self,
         cfg: &AccessControlConfig,
         options: IngestOptions,
+        registered: &RegisteredEntities,
     ) -> AuthzResult<IngestReport> {
         cfg.validate()?;
 
         let mut tx = self.write_pool.begin().await?;
-        let resolved = Self::resolve_rules(&mut tx, &cfg.rules).await?;
+        let validated = Self::resolve_rules(&mut tx, &cfg.rules, registered).await?;
+        let resolved = validated.rules();
         let mut report = IngestReport::default();
 
         if options.delete_orphans {
             let mut entity_types: Vec<String> = Vec::new();
             let mut entity_ids: Vec<String> = Vec::new();
-            for rule in &resolved {
+            for rule in resolved {
                 for id in &rule.ids {
                     entity_types.push(rule.entity_kind.as_str().to_owned());
                     entity_ids.push(id.clone());
@@ -126,7 +145,7 @@ impl AccessControlIngestionService {
             report.deleted = res.rows_affected() as usize;
         }
 
-        for rule in &resolved {
+        for rule in resolved {
             for id in &rule.ids {
                 upsert_entity_row(
                     &mut tx,
@@ -173,7 +192,8 @@ impl AccessControlIngestionService {
     async fn resolve_rules<'a>(
         tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
         rules: &'a [RuleEntry],
-    ) -> AuthzResult<Vec<ResolvedRule<'a>>> {
+        registered: &RegisteredEntities,
+    ) -> AuthzResult<ValidatedRules<'a>> {
         let mut catalog_cache: HashMap<EntityKind, Vec<String>> = HashMap::new();
         let mut out = Vec::with_capacity(rules.len());
 
@@ -183,7 +203,16 @@ impl AccessControlIngestionService {
                 Access::Deny => "deny",
             };
             let ids = match &rule.target {
-                RuleTarget::Id(id) => vec![id.clone()],
+                // Why: a literal id is the only target that can name something
+                // that does not exist — a glob is expanded from the catalog, so
+                // it cannot invent members. This is therefore the only branch
+                // that needs checking, and the check has to happen here rather
+                // than after the loop: `upsert_entity_row` below would mint the
+                // row and make the id look real on the next run.
+                RuleTarget::Id(id) => {
+                    registered.require(rule.entity_type, id)?;
+                    vec![id.clone()]
+                },
                 RuleTarget::Match(pattern) => {
                     if let std::collections::hash_map::Entry::Vacant(entry) =
                         catalog_cache.entry(rule.entity_type)
@@ -207,7 +236,7 @@ impl AccessControlIngestionService {
             });
         }
 
-        Ok(out)
+        Ok(ValidatedRules(out))
     }
 
     async fn list_entity_ids(

@@ -98,10 +98,15 @@ pub fn start_with_listener(
 
     rt.spawn(run_listener(listener, ctx));
     rt.spawn(heartbeat::run_loop(
-        runtime_config,
-        token_cache,
+        Arc::clone(&runtime_config),
+        Arc::clone(&token_cache),
         session,
         Arc::clone(&stats),
+        client.clone(),
+    ));
+    rt.spawn(crate::proxy::comms::run_loop(
+        runtime_config,
+        token_cache,
         client,
     ));
 

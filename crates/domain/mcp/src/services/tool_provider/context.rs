@@ -41,10 +41,10 @@ pub(super) fn create_request_context(
         .headers
         .get("x-agent-name")
         .filter(|s| !s.is_empty())
-        .map(|s| AgentName::new(s.clone()))
+        .and_then(|s| AgentName::try_new(s.clone()).ok())
         .ok_or_else(|| ToolProviderError::ConfigurationError {
-            message: "Missing x-agent-name header - agent context must be propagated from parent \
-                 request"
+            message: "Missing or invalid x-agent-name header - agent context must be propagated \
+                 from parent request"
                 .into(),
         })?;
 

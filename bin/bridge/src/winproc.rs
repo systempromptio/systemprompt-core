@@ -23,19 +23,40 @@ use windows_sys::Win32::System::Console::{ATTACH_PARENT_PROCESS, AttachConsole, 
 use windows_sys::Win32::System::Threading::{
     GetCurrentProcess, GetExitCodeProcess, INFINITE, OpenProcessToken, WaitForSingleObject,
 };
-use windows_sys::Win32::UI::Shell::{SEE_MASK_NOCLOSEPROCESS, SHELLEXECUTEINFOW, ShellExecuteExW};
+use windows_sys::Win32::UI::Shell::{
+    SEE_MASK_NOCLOSEPROCESS, SHELLEXECUTEINFOW, SetCurrentProcessExplicitAppUserModelID,
+    ShellExecuteExW,
+};
 use windows_sys::Win32::UI::WindowsAndMessaging::SW_HIDE;
 
+pub(crate) fn set_app_user_model_id(aumid: &str) {
+    let wide: Vec<u16> = aumid.encode_utf16().chain(std::iter::once(0)).collect();
+    // SAFETY: `wide` is a NUL-terminated UTF-16 buffer alive for the call, which
+    // copies it.
+    let hr = unsafe { SetCurrentProcessExplicitAppUserModelID(wide.as_ptr()) };
+    if hr < 0 {
+        tracing::debug!(hr, "SetCurrentProcessExplicitAppUserModelID rejected");
+    }
+}
+
+// Why: `CREATE_NO_WINDOW` is documented as invalid alongside `DETACHED_PROCESS`
+// or `CREATE_NEW_CONSOLE`; it must stand alone or the console it was meant to
+// suppress is created anyway. The bridge is a `windows_subsystem = "windows"`
+// binary with no console of its own, so every console child it spawns without
+// this flag gets a brand-new window that takes the foreground.
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-const DETACHED_PROCESS: u32 = 0x0000_0008;
+
+pub(crate) fn no_window(cmd: &mut Command) -> &mut Command {
+    cmd.creation_flags(CREATE_NO_WINDOW)
+}
 
 pub(crate) fn reg_command() -> Command {
     silenced_command(system32_path("reg.exe"))
 }
 
-fn silenced_command(exe: PathBuf) -> Command {
+pub(crate) fn silenced_command(exe: PathBuf) -> Command {
     let mut cmd = Command::new(exe);
-    cmd.creation_flags(CREATE_NO_WINDOW | DETACHED_PROCESS)
+    no_window(&mut cmd)
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());

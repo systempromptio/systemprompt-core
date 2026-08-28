@@ -1,8 +1,16 @@
 //! Creation of CLI sessions for local and cloud-tenant profiles.
 //!
-//! Provisions an admin user, mints a session token, and records the session
-//! row plus context for both the local ([`create_local_session`]) and tenant
+//! Resolves an admin user, mints a session token, and records the session row
+//! plus context for both the local ([`create_local_session`]) and tenant
 //! ([`create_session_for_tenant`]) paths.
+//!
+//! The local-trial path *resolves* rather than provisions, and does so by
+//! `system_admin.username`. It previously looked the admin up by a hardcoded
+//! `admin@localhost.dev` and created one on a miss, which turned `users.email`
+//! into a key shared with a migration instead of a fact about a person — and
+//! surfaced as a fabricated identity on the bridge device-link consent screen.
+//! Cloud and tenant paths still key on email, because there the address comes
+//! from real credentials.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -19,8 +27,8 @@ use super::resolution::ProfileContext;
 use crate::CliConfig;
 use helpers::{
     SessionComponents, build_cli_session, connect_database, create_cli_context,
-    generate_admin_token, load_secrets, resolve_admin_with_fallback, resolve_local_user_email,
-    resolve_tenant_admin_with_fallback,
+    generate_admin_token, load_secrets, resolve_admin_with_fallback,
+    resolve_credentialed_user_email, resolve_local_admin, resolve_tenant_admin_with_fallback,
 };
 
 pub(super) async fn create_local_session(
@@ -34,7 +42,6 @@ pub(super) async fn create_local_session(
         .validate()
         .with_context(|| format!("Failed to validate profile: {}", profile_ctx.name))?;
 
-    let user_email = resolve_local_user_email(profile, session_email_hint).await?;
     let secrets = load_secrets().context("Failed to load secrets")?;
 
     if config.is_interactive() {
@@ -43,8 +50,18 @@ pub(super) async fn create_local_session(
     }
 
     let db_pool = connect_database(&secrets).await?;
-    let admin_user =
-        resolve_admin_with_fallback(&db_pool, &user_email, session_email_hint, "local").await?;
+
+    // Why: a local-trial install has no credentials to name a user with, so the
+    // admin is resolved by `system_admin.username` — the same key the runtime
+    // resolves on — rather than by matching a hardcoded email. Anything else here
+    // (a session hint, cloud credentials) is a real address and stays email-keyed.
+    let admin_user = if profile.is_local_trial() && session_email_hint.is_none() {
+        resolve_local_admin(&db_pool, &profile.system_admin.username).await?
+    } else {
+        let user_email = resolve_credentialed_user_email(session_email_hint).await?;
+        resolve_admin_with_fallback(&db_pool, user_email.as_str(), session_email_hint, "local")
+            .await?
+    };
 
     if config.is_interactive() {
         CliService::key_value("User", &admin_user.email);

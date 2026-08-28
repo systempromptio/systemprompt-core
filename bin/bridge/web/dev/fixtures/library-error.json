@@ -1,0 +1,252 @@
+{
+  "gateway_url": "https://internal.systemprompt.io",
+  "config_file": "C:\\Users\\ejb50\\AppData\\Roaming\\systemprompt-internal\\systemprompt-internal-bridge.toml",
+  "pat_file": "C:\\Users\\ejb50\\AppData\\Roaming\\systemprompt-internal\\systemprompt-internal-bridge.pat",
+  "config_present": true,
+  "pat_present": true,
+  "plugins_dir": "C:\\Users\\ejb50\\Systemprompt\\org-plugins",
+  "last_sync_summary": "12 skills, 3 plugins",
+  "skill_count": 12,
+  "agent_count": 0,
+  "plugin_count": 3,
+  "sync_in_flight": false,
+  "cached_token": {
+    "ttl_seconds": 3600,
+    "length": 812
+  },
+  "gateway_status": {
+    "state": "reachable",
+    "latency_ms": 42
+  },
+  "verified_identity": {
+    "email": "admin@localhost.dev",
+    "user_id": "user_1",
+    "tenant_id": "tenant_1",
+    "exp_unix": 1787909417,
+    "verified_at_unix": 1787905757
+  },
+  "signed_in": true,
+  "last_probe_at_unix": 1787905757,
+  "proxy_stats": {
+    "forwarded_total": 128,
+    "messages_total": 96,
+    "tokens_in_total": 41233,
+    "tokens_out_total": 8801,
+    "last_status": 200,
+    "last_latency_ms": 149,
+    "last_forwarded_at_unix": 1787905787
+  },
+  "mcp_auth": [],
+  "mcp_auth_probe_in_flight": false,
+  "update": {
+    "state": "idle"
+  },
+  "sign_in_label": "Sign in with systemprompt",
+  "sign_in_hint": "Opens your browser — sign in there with your Odoo email and password.",
+  "host_apps": [
+    {
+      "id": "claude-desktop",
+      "display_name": "Claude Desktop",
+      "kind": "desktop_app",
+      "description": "Anthropic's desktop client",
+      "icon": "claude-desktop",
+      "config_format": "reg",
+      "download_url": "https://claude.ai/download",
+      "install_action_label": "imported into Windows Registry",
+      "probe_in_flight": false,
+      "enabled": true,
+      "last_generated_profile": {
+        "path": "C:\\Users\\ejb50\\AppData\\Local\\Temp\\systemprompt-internal-bridge\\claude-desktop-1787902828-38012-0.reg",
+        "bytes": 712,
+        "payload_uuid": "ce0a6a91-3b6c-4cwk-cwk0-deadbeefa06f",
+        "profile_uuid": "ce0b78a5-6d14-4cwk-cwk0-feedfaceb43c"
+      },
+      "snapshot": {
+        "host_id": "claude-desktop",
+        "display_name": "Claude Desktop",
+        "profile_state": {
+          "kind": "installed"
+        },
+        "profile_source": "HKLM\\SOFTWARE\\Policies\\Claude",
+        "profile_keys": {
+          "gatewayUrl": "http://127.0.0.1:48217",
+          "loopbackSecret": "sp-loopback-••••••••",
+          "signingPubkey": "MCowBQYDK2VwAyEA••••"
+        },
+        "host_running": true,
+        "host_processes": [
+          "claude.exe"
+        ],
+        "app_installed": "installed",
+        "probed_at_unix": 1787905697
+      },
+      "compatible_models": [
+        "claude-opus-5",
+        "claude-sonnet-5",
+        "claude-fable-5",
+        "claude-opus-4-8",
+        "claude-haiku-4-5",
+        "claude-sonnet-4-5"
+      ],
+      "models_checked": true,
+      "compatible_models_available": true,
+      "unconfigured_providers": [],
+      "model_protocols": [
+        "anthropic"
+      ],
+      "model_protocols_overridden": false
+    },
+    {
+      "id": "codex-cli",
+      "display_name": "Codex CLI",
+      "kind": "cli_tool",
+      "description": "OpenAI's terminal coding agent",
+      "icon": "codex-cli",
+      "config_format": "toml",
+      "download_url": "https://github.com/openai/codex",
+      "install_action_label": "written to config file",
+      "probe_in_flight": false,
+      "enabled": true,
+      "last_generated_profile": {
+        "path": "C:\\Users\\ejb50\\AppData\\Local\\Temp\\systemprompt-internal-bridge\\codex-cli-1787902828-38012-0.toml",
+        "bytes": 712,
+        "payload_uuid": "ce0a6a91-3b6c-4cwk-cwk0-deadbeefa06f",
+        "profile_uuid": "ce0b78a5-6d14-4cwk-cwk0-feedfaceb43c"
+      },
+      "snapshot": {
+        "host_id": "codex-cli",
+        "display_name": "Codex CLI",
+        "profile_state": {
+          "kind": "installed"
+        },
+        "profile_source": "C:\\Users\\ejb50\\.codex\\config.toml",
+        "profile_keys": {
+          "gatewayUrl": "http://127.0.0.1:48217",
+          "loopbackSecret": "sp-loopback-••••••••",
+          "signingPubkey": "MCowBQYDK2VwAyEA••••"
+        },
+        "host_running": true,
+        "host_processes": [
+          "codex"
+        ],
+        "app_installed": "installed",
+        "probed_at_unix": 1787905697
+      },
+      "compatible_models": [
+        "claude-opus-5",
+        "claude-sonnet-5",
+        "claude-fable-5",
+        "claude-opus-4-8",
+        "claude-haiku-4-5",
+        "claude-sonnet-4-5"
+      ],
+      "models_checked": true,
+      "compatible_models_available": true,
+      "unconfigured_providers": [],
+      "model_protocols": [
+        "anthropic"
+      ],
+      "model_protocols_overridden": false
+    }
+  ],
+  "local_proxy": {
+    "url": "http://127.0.0.1:48217",
+    "state": "Listening",
+    "http_status": 200,
+    "latency_ms": 2,
+    "error": null,
+    "probed_at_unix": 1787905787
+  },
+  "hosts_gated": true,
+  "agents_onboarded": true,
+  "first_run": {
+    "active": false,
+    "done": true,
+    "phase": "done",
+    "sync": "done",
+    "error": null,
+    "hosts": []
+  },
+  "__fail": [
+    "marketplace.list",
+    "sync",
+    "validate"
+  ],
+  "__latencyMs": 250,
+  "last_validation": {
+    "lines": [
+      {
+        "level": "info",
+        "label": "binary",
+        "value": "systemprompt-bridge v0.31.0 (windows-x86_64)"
+      },
+      {
+        "level": "ok",
+        "label": "org-plugins path",
+        "value": "C:\\ProgramData\\systemprompt\\org-plugins (scope: system)"
+      },
+      {
+        "level": "ok",
+        "label": "metadata dir",
+        "value": "C:\\ProgramData\\systemprompt\\bridge"
+      },
+      {
+        "level": "ok",
+        "label": "last sync",
+        "value": "12 skills, 3 plugins"
+      },
+      {
+        "level": "ok",
+        "label": "gateway /health",
+        "value": "reachable"
+      },
+      {
+        "level": "warn",
+        "label": "cached token",
+        "value": "absent, expired, or minted for another gateway"
+      }
+    ],
+    "any_failed": false
+  },
+  "last_validation_at_unix": 1787905637,
+  "malformed_plugin_count": 1,
+  "provider_health": [
+    {
+      "name": "anthropic",
+      "surface": "messages",
+      "configured": true,
+      "models": [
+        "claude-opus-4-6",
+        "claude-sonnet-4-6"
+      ]
+    },
+    {
+      "name": "openai",
+      "surface": "chat",
+      "configured": false,
+      "models": [],
+      "config_issue": "no API key configured for this provider"
+    }
+  ],
+  "last_sync_report": {
+    "identity": "admin@localhost.dev",
+    "manifest_version": "41",
+    "plugin_count": 3,
+    "skill_count": 12,
+    "agent_count": 0,
+    "hook_count": 2,
+    "mcp_count": 0,
+    "installed": [
+      "governance-pack"
+    ],
+    "updated": [
+      "review-standards"
+    ],
+    "removed": [],
+    "malformed": [
+      "broken-plugin"
+    ],
+    "host_failures": [],
+    "diagnostics": []
+  }
+}

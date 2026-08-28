@@ -7,8 +7,8 @@ use std::sync::Arc;
 
 use systemprompt_identifiers::{RouteId, TraceId};
 use systemprompt_security::authz::{
-    AuthzContext, AuthzDecision, AuthzDecisionHook, AuthzRequest, DenyReason, EntityRef,
-    NullAuditSink, RuleBasedHook,
+    AuthzContext, AuthzDecision, AuthzDecisionHook, AuthzRequest, ChainSources, DenyReason,
+    EntityRef, NullAuditSink, RuleBasedHook,
 };
 use systemprompt_test_fixtures::closed_db_pool;
 
@@ -16,6 +16,9 @@ fn fixture() -> AuthzRequest {
     AuthzRequest {
         entity: EntityRef::GatewayRoute(RouteId::new("claude-3")),
         user_id: systemprompt_test_fixtures::fixture_user_id(),
+        actor: None,
+        client_id: None,
+        access_scope: None,
         roles: vec!["eng".into()],
         attributes: std::collections::BTreeMap::new(),
         trace_id: TraceId::new("trace-rb"),
@@ -33,7 +36,7 @@ async fn rule_based_hook_denies_when_the_pool_is_unavailable() {
     let pool = db
         .write_pool_arc()
         .expect("closed pool still exposes a write handle");
-    let hook = RuleBasedHook::new(pool, Arc::new(NullAuditSink));
+    let hook = RuleBasedHook::new(pool, Arc::new(NullAuditSink), ChainSources::default());
 
     let decision = hook.evaluate(fixture()).await;
     match decision {

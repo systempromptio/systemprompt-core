@@ -6,48 +6,9 @@
 use anyhow::{Context, Result, bail};
 use std::fs;
 use systemprompt_models::Profile;
-use systemprompt_models::profile::{RateLimitsConfig, TierMultipliers};
+use systemprompt_models::profile::RateLimitsConfig;
 
 use super::super::types::ResetChange;
-
-pub(super) fn apply_multiplier(base: u64, multiplier: f64) -> u64 {
-    (base as f64 * multiplier).round() as u64
-}
-
-pub(super) fn get_tier_multiplier(tiers: &TierMultipliers, tier: &str) -> Result<f64> {
-    match tier {
-        "admin" => Ok(tiers.admin),
-        "user" => Ok(tiers.user),
-        "a2a" => Ok(tiers.a2a),
-        "mcp" => Ok(tiers.mcp),
-        "service" => Ok(tiers.service),
-        "anon" => Ok(tiers.anon),
-        _ => bail!(
-            "Unknown tier: {}. Valid tiers: admin, user, a2a, mcp, service, anon",
-            tier
-        ),
-    }
-}
-
-pub(super) fn set_tier_multiplier(
-    tiers: &mut TierMultipliers,
-    tier: &str,
-    value: f64,
-) -> Result<()> {
-    match tier {
-        "admin" => tiers.admin = value,
-        "user" => tiers.user = value,
-        "a2a" => tiers.a2a = value,
-        "mcp" => tiers.mcp = value,
-        "service" => tiers.service = value,
-        "anon" => tiers.anon = value,
-        _ => bail!(
-            "Unknown tier: {}. Valid tiers: admin, user, a2a, mcp, service, anon",
-            tier
-        ),
-    }
-    Ok(())
-}
 
 pub(super) fn get_endpoint_rate(limits: &RateLimitsConfig, endpoint: &str) -> Result<u64> {
     match endpoint {
@@ -179,35 +140,6 @@ pub(super) fn collect_endpoint_changes(
                 field: name.to_owned(),
                 old_value: current_val.to_string(),
                 new_value: default_val.to_string(),
-            });
-        }
-    }
-}
-
-pub(super) fn collect_tier_changes(
-    current: &TierMultipliers,
-    defaults: &TierMultipliers,
-    changes: &mut Vec<ResetChange>,
-) {
-    let tiers = [
-        ("tier_multipliers.admin", current.admin, defaults.admin),
-        ("tier_multipliers.user", current.user, defaults.user),
-        ("tier_multipliers.a2a", current.a2a, defaults.a2a),
-        ("tier_multipliers.mcp", current.mcp, defaults.mcp),
-        (
-            "tier_multipliers.service",
-            current.service,
-            defaults.service,
-        ),
-        ("tier_multipliers.anon", current.anon, defaults.anon),
-    ];
-
-    for (name, current_val, default_val) in tiers {
-        if (current_val - default_val).abs() > f64::EPSILON {
-            changes.push(ResetChange {
-                field: name.to_owned(),
-                old_value: format!("{:.1}", current_val),
-                new_value: format!("{:.1}", default_val),
             });
         }
     }

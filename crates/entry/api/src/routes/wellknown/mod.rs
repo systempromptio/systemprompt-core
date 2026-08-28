@@ -8,10 +8,11 @@ pub mod agent_cards;
 pub mod jwks;
 
 use axum::Router;
+use systemprompt_extension::LoaderError;
 use systemprompt_runtime::AppContext;
 
 pub use agent_cards::wellknown_router as agent_card_router;
 
-pub fn wellknown_router(ctx: &AppContext) -> Router {
-    agent_cards::wellknown_router(ctx).merge(jwks::jwks_router(ctx))
+pub fn wellknown_router(ctx: &AppContext) -> Result<Router, LoaderError> {
+    Ok(agent_cards::wellknown_router(ctx).merge(jwks::jwks_router(ctx)?))
 }

@@ -1,4 +1,7 @@
-.sp-toast[hidden] { display: none; }
+
+/* The host is a live region and must stay in the tree; it is the empty state
+   that hides, not the region. */
+sp-toast[data-empty="true"] { opacity: 0; pointer-events: none; }
 
 .sp-toast {
   position: fixed;
@@ -37,7 +40,7 @@
 .sp-toast__action {
   background: transparent;
   border: 1px solid currentColor;
-  border-radius: var(--sp-radius-sm, 4px);
+  border-radius: var(--sp-corners-xs);
   color: inherit;
   font: inherit;
   cursor: pointer;

@@ -1,6 +1,7 @@
+/* Was the shell's third column, permanently 280-360px wide on every pane to
+   show one line and three counters. It is its own pane now, so it no longer
+   needs a column's separating border and is free to use the height. */
 .sp-activity {
-  border-left: 1px solid var(--sp-line);
-  background: oklch(0.20 0.01 48 / 0.6);
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -16,10 +17,9 @@
   flex-shrink: 0;
 }
 .sp-activity__title {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 1.4px;
+  letter-spacing: 0.4px;
   color: var(--sp-muted);
 }
 .sp-activity-lane {
@@ -41,12 +41,14 @@
   font-size: 12px;
 }
 .sp-activity-lane .sp-activity-lane__label {
-  text-transform: uppercase;
-  letter-spacing: 0.6px;
+  letter-spacing: 0.4px;
 }
 .sp-activity .sp-log {
   flex: 1;
-  min-height: 0;
+  /* Why: `flex: 1` alone collapses here -- as a pane rather than the shell's
+     grid column, nothing above states a height for it to divide up. The
+     min-height is what actually gives the log its size. */
+  min-height: clamp(320px, 55vh, 700px);
   margin: 0;
   border: 0;
   border-radius: 0;
@@ -65,16 +67,15 @@
   gap: var(--sp-space-3);
   margin: var(--sp-space-3) var(--sp-space-3-5);
   padding: var(--sp-space-3-5);
-  background: oklch(0.18 0.01 48 / 0.5);
+  background: color-mix(in oklch, var(--sp-bg) 50%, transparent);
   border: 1px solid var(--sp-line);
   border-radius: var(--sp-corners-md, var(--sp-corners-sm));
   flex-shrink: 0;
 }
 .sp-activity__help-title {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 1.4px;
+  letter-spacing: 0.4px;
   color: var(--sp-muted);
   margin: 0;
 }
@@ -89,3 +90,21 @@
   padding: var(--sp-space-2-5) var(--sp-space-3);
   font-size: 12.5px;
 }
+
+.sp-activity__shortcuts { margin-top: var(--sp-space-3); }
+.sp-activity__shortcuts summary {
+  font-size: var(--sp-text-xs);
+  color: var(--sp-muted);
+  cursor: pointer;
+  padding: var(--sp-space-1) 0;
+}
+.sp-shortcuts {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--sp-space-1) var(--sp-space-2-5);
+  align-items: center;
+  margin: var(--sp-space-2) 0 0;
+  font-size: var(--sp-text-xs);
+}
+.sp-shortcuts dt { margin: 0; }
+.sp-shortcuts dd { margin: 0; color: var(--sp-muted); min-width: 0; }

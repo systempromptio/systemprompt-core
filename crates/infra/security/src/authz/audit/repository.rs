@@ -38,6 +38,7 @@ pub struct GovernanceDecisionRecord<'a> {
     // Why: the request-plane correlator gets its own field so the trace join
     // never depends on `session_id` carrying it.
     pub trace_id: Option<&'a str>,
+    pub client_id: Option<&'a str>,
 }
 
 #[derive(Debug, Clone)]
@@ -70,8 +71,8 @@ pub async fn insert_governance_decision(
     let result = sqlx::query!(
         "INSERT INTO governance_decisions (id, user_id, session_id, tool_name, agent_id, \
          agent_scope, decision, policy, reason, evaluated_rules, plugin_id, actor_kind, actor_id, \
-         act_chain, context_id, task_id, trace_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, \
-         $10, $11, $12, $13, $14, $15, $16, $17)",
+         act_chain, context_id, task_id, trace_id, client_id) VALUES ($1, $2, $3, $4, $5, $6, \
+         $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)",
         record.id,
         record.actor.user_id.as_str(),
         record.session_id,
@@ -89,6 +90,7 @@ pub async fn insert_governance_decision(
         record.context_id,
         record.task_id,
         record.trace_id,
+        record.client_id,
     )
     .execute(pool)
     .await;

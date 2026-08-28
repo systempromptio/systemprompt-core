@@ -1,4 +1,4 @@
-use systemprompt_bridge::gui::assets::{lookup_path, render_index};
+use systemprompt_bridge::web_assets::{lookup_path, render_index};
 
 #[test]
 fn render_index_substitutes_template_markers() {

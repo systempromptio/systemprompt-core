@@ -33,8 +33,8 @@
               border-color var(--sp-dur-fast) var(--sp-ease-out);
 }
 .sp-footer__meta a:hover {
-  color: var(--sp-accent);
-  border-bottom-color: var(--sp-accent);
+  color: var(--sp-accent-text);
+  border-bottom-color: var(--sp-accent-text);
 }
 .sp-footer__right {
   display: flex;
@@ -44,7 +44,7 @@
   color: var(--sp-muted);
 }
 .sp-footer .sp-footer__version {
-  color: var(--sp-accent);
+  color: var(--sp-accent-text);
   font-family: var(--sp-font-mono);
   font-size: 11px;
 }

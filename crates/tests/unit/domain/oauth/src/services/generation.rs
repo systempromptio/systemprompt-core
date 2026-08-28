@@ -215,6 +215,7 @@ fn test_jwt_config_custom() {
         expires_in_hours: Some(48),
         resource: None,
         plugin_id: None,
+        client_id: None,
     };
 
     assert_eq!(config.permissions.len(), 2);
@@ -231,6 +232,7 @@ fn test_jwt_config_no_expiry() {
         expires_in_hours: None,
         resource: None,
         plugin_id: None,
+        client_id: None,
     };
 
     assert!(config.expires_in_hours.is_none());
@@ -421,6 +423,30 @@ mod jwt_minting {
                 .iter()
                 .any(|a| matches!(a, JwtAudience::Resource(r) if r == "https://rs.example"))
         );
+    }
+
+    #[test]
+    fn generate_jwt_carries_the_configured_client_id() {
+        use systemprompt_identifiers::ClientId;
+
+        ensure_test_bootstrap();
+        install_test_signing_key();
+        let config = JwtConfig {
+            client_id: Some(ClientId::bridge()),
+            ..JwtConfig::default()
+        };
+
+        let token = generate_jwt(
+            &test_user(),
+            config,
+            "jti-gen-client".to_owned(),
+            &SessionId::generate(),
+            &signing(),
+        )
+        .expect("mint");
+
+        let claims = validate_jwt_token(&token, "test", &[JwtAudience::Api]).expect("decode");
+        assert_eq!(claims.client_id, Some(ClientId::bridge()));
     }
 
     #[test]

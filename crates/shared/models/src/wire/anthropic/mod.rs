@@ -8,82 +8,30 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod blocks;
+mod headers;
 mod parse;
 mod sse;
 
+pub use blocks::content_to_anthropic_block;
+pub use headers::{
+    ANTHROPIC_VERSION, auth_headers, is_forwardable_request_header, is_identity_request_header,
+    strip_user_id,
+};
 pub use parse::parse_response;
 pub use sse::events_from_sse;
 
 // JSON: protocol boundary — the Anthropic Messages wire format is dynamic JSON.
 use serde_json::{Map, Value, json};
 
+use blocks::{BlockAudience, canonical_message_to_anthropic};
+
 use crate::profile::WireProtocol;
 use crate::schema::SchemaSanitizer;
 use crate::services::ai::ModelLimits;
 use crate::wire::canonical::{
-    CanonicalContent, CanonicalMessage, CanonicalRequest, CanonicalTool, CanonicalToolChoice,
-    ImageSource, ResponseFormat, Role, SearchConfig,
+    CanonicalRequest, CanonicalTool, CanonicalToolChoice, ResponseFormat, Role, SearchConfig,
 };
-
-pub const ANTHROPIC_VERSION: &str = "2023-06-01";
-
-#[must_use]
-pub fn auth_headers(api_key: &str) -> [(&'static str, String); 3] {
-    [
-        ("x-api-key", api_key.to_owned()),
-        ("anthropic-version", ANTHROPIC_VERSION.to_owned()),
-        ("content-type", "application/json".to_owned()),
-    ]
-}
-
-// Why: Anthropic's contract wants `anthropic-*` forwarded verbatim, not
-// allowlisted — each beta body field pairs with a header, and forwarding one
-// half of the pair is a hard 400.
-const FORWARD_PREFIXES: &[&str] = &["anthropic-"];
-
-// Why: the contract classifies these as consumable — recorded on the audit row
-// and dropped before the upstream send, never relayed to a third party.
-const IDENTITY_PREFIXES: &[&str] = &["x-claude-code-", "x-stainless-", "x-systemprompt-"];
-
-// Why: the gateway substitutes its own provider credential — relaying the
-// caller's `authorization`/`x-api-key` would leak a systemprompt credential.
-const IDENTITY_NAMES: &[&str] = &[
-    "user-agent",
-    "cookie",
-    "set-cookie",
-    "authorization",
-    "x-api-key",
-    "x-forwarded-for",
-    "x-real-ip",
-];
-
-#[must_use]
-pub fn is_forwardable_request_header(name: &str) -> bool {
-    let lower = name.to_ascii_lowercase();
-    !identity_lower(&lower) && FORWARD_PREFIXES.iter().any(|p| lower.starts_with(p))
-}
-
-#[must_use]
-pub fn is_identity_request_header(name: &str) -> bool {
-    identity_lower(&name.to_ascii_lowercase())
-}
-
-fn identity_lower(lower: &str) -> bool {
-    IDENTITY_NAMES.contains(&lower) || IDENTITY_PREFIXES.iter().any(|p| lower.starts_with(p))
-}
-
-pub fn strip_user_id(obj: &mut Map<String, Value>) {
-    let Some(metadata) = obj.get_mut("metadata") else {
-        return;
-    };
-    let Some(map) = metadata.as_object_mut() else {
-        return;
-    };
-    map.remove("user_id");
-    if map.is_empty() {
-        obj.remove("metadata");
-    }
-}
 
 #[must_use]
 pub fn build_request_body(
@@ -218,129 +166,11 @@ fn tool_to_anthropic(tool: &CanonicalTool) -> Value {
     Value::Object(tobj)
 }
 
-fn canonical_message_to_anthropic(
-    msg: &CanonicalMessage,
-    audience: BlockAudience,
-) -> Option<Value> {
-    let role = match msg.role {
-        Role::Assistant => "assistant",
-        Role::User | Role::Tool | Role::System => "user",
-    };
-    let content: Vec<Value> = msg
-        .content
-        .iter()
-        .filter(|part| {
-            // Why: Anthropic 400s on a replayed thinking block without its
-            // signature; history without the block is valid and merely loses
-            // continuity.
-            audience == BlockAudience::Client
-                || !matches!(
-                    part,
-                    CanonicalContent::Thinking {
-                        signature: None,
-                        ..
-                    }
-                )
-        })
-        .map(|part| block_for_audience(part, audience))
-        .collect();
-    if content.is_empty() {
-        return None;
-    }
-    Some(json!({ "role": role, "content": content }))
-}
-
 fn tool_choice_to_anthropic(tc: &CanonicalToolChoice) -> Value {
     match tc {
         CanonicalToolChoice::Auto => json!({ "type": "auto" }),
         CanonicalToolChoice::Any | CanonicalToolChoice::Required => json!({ "type": "any" }),
         CanonicalToolChoice::None => json!({ "type": "none" }),
         CanonicalToolChoice::Tool(name) => json!({ "type": "tool", "name": name }),
-    }
-}
-
-// Why: the real Anthropic API rejects unknown keys in content blocks, while
-// the gateway's own client relies on its vendor-extension fields.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum BlockAudience {
-    Client,
-    Upstream,
-}
-
-#[must_use]
-pub fn content_to_anthropic_block(part: &CanonicalContent) -> Value {
-    block_for_audience(part, BlockAudience::Client)
-}
-
-fn block_for_audience(part: &CanonicalContent, audience: BlockAudience) -> Value {
-    match part {
-        CanonicalContent::Text(t) => json!({ "type": "text", "text": t }),
-        CanonicalContent::Thinking {
-            text, signature, ..
-        } => {
-            let mut obj = Map::new();
-            obj.insert("type".into(), Value::String("thinking".into()));
-            obj.insert("thinking".into(), Value::String(text.clone()));
-            if let Some(sig) = signature {
-                obj.insert("signature".into(), Value::String(sig.clone()));
-            }
-            Value::Object(obj)
-        },
-        CanonicalContent::ToolUse {
-            id,
-            name,
-            input,
-            signature,
-        } => {
-            let mut obj = Map::new();
-            obj.insert("type".into(), Value::String("tool_use".into()));
-            obj.insert("id".into(), Value::String(id.clone()));
-            obj.insert("name".into(), Value::String(name.clone()));
-            obj.insert("input".into(), input.clone());
-            if audience == BlockAudience::Client
-                && let Some(sig) = signature
-            {
-                obj.insert("signature".into(), Value::String(sig.clone()));
-            }
-            Value::Object(obj)
-        },
-        CanonicalContent::ToolResult {
-            tool_use_id,
-            content,
-            is_error,
-            structured_content,
-            meta,
-        } => {
-            let inner: Vec<Value> = content
-                .iter()
-                .map(|p| block_for_audience(p, audience))
-                .collect();
-            let mut obj = Map::new();
-            obj.insert("type".into(), Value::String("tool_result".into()));
-            obj.insert("tool_use_id".into(), Value::String(tool_use_id.clone()));
-            obj.insert("is_error".into(), Value::Bool(*is_error));
-            obj.insert("content".into(), Value::Array(inner));
-            if audience == BlockAudience::Client {
-                if let Some(sc) = structured_content {
-                    obj.insert("structuredContent".into(), sc.clone());
-                }
-                if let Some(m) = meta {
-                    obj.insert("_meta".into(), m.clone());
-                }
-            }
-            Value::Object(obj)
-        },
-        CanonicalContent::Image(src) => match src {
-            ImageSource::Base64 {
-                media_type, data, ..
-            } => json!({
-                "type": "image",
-                "source": { "type": "base64", "media_type": media_type, "data": data },
-            }),
-            ImageSource::Url { url, .. } => json!({
-                "type": "image",
-                "source": { "type": "url", "url": url },
-            }),
-        },
     }
 }

@@ -8,7 +8,15 @@ use std::process::ExitCode;
 #[cfg(any(target_os = "windows", target_os = "macos"))]
 pub(crate) fn cmd_gui() -> ExitCode {
     #[cfg(target_os = "windows")]
-    crate::winproc::detach_console();
+    {
+        crate::winproc::detach_console();
+        // Why: toasts and taskbar grouping are keyed on the AUMID, and without
+        // an installer nothing else declares one for this process.
+        crate::winproc::set_app_user_model_id(crate::brand::brand().aumid);
+        if !crate::gui::webview2::ensure_present() {
+            return ExitCode::FAILURE;
+        }
+    }
     let _guard = match crate::single_instance::try_acquire_gui() {
         crate::single_instance::SingletonResult::Acquired(g) => g,
         crate::single_instance::SingletonResult::AlreadyRunning => {
@@ -28,7 +36,7 @@ pub(crate) fn cmd_gui() -> ExitCode {
                 "gui: another bridge instance holds the lock but did not answer the focus \
                  request; exiting",
             );
-            crate::gui::window::notify_user(
+            crate::gui::window::alert_user(
                 &format!("{app} is already running"),
                 "It is not responding, so its window could not be opened. Quit it from the menu \
                  bar, then try again.",

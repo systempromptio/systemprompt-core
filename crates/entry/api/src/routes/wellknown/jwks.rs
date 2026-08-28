@@ -13,14 +13,15 @@ use systemprompt_runtime::AppContext;
 use systemprompt_security::keys::{Jwks, authority};
 
 use crate::services::middleware::RouterExt;
+use systemprompt_extension::LoaderError;
 
 const JWKS_RATE_LIMIT_PER_SECOND: u64 = 2;
 
-pub fn jwks_router(ctx: &AppContext) -> Router {
+pub fn jwks_router(ctx: &AppContext) -> Result<Router, LoaderError> {
     Router::new()
         .route(ApiPaths::WELLKNOWN_JWKS, get(handle_jwks))
         .with_state(ctx.clone())
-        .with_rate_limit(&ctx.config().rate_limits, JWKS_RATE_LIMIT_PER_SECOND)
+        .with_rate_limit(ctx.config(), JWKS_RATE_LIMIT_PER_SECOND)
 }
 
 async fn handle_jwks(State(_ctx): State<AppContext>) -> Result<impl IntoResponse, ApiError> {

@@ -182,6 +182,7 @@ fn mint_self_issued_subject(scopes: Vec<Permission>) -> String {
         expires_in_hours: Some(1),
         resource: None,
         plugin_id: None,
+        client_id: None,
     };
     let signing = JwtSigningParams { issuer: &issuer };
     generate_jwt(

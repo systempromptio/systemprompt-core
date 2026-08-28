@@ -73,7 +73,7 @@ export class SpProxyStatus extends SpElement {
     ].filter(Boolean);
 
     const chips = models.length === 0
-      ? `<p class="sp-kpi-card__label" data-l10n-id="status-proxy-endpoints-empty">No models configured yet — start a host app to populate.</p>`
+      ? `<p class="sp-kpi-card__label" data-l10n-id="status-proxy-endpoints-empty">No models configured yet — start an agent to populate.</p>`
       : `<div class="sp-chip-list sp-kpi-card__chips">${models.map((m) => `<span class="sp-chip">${escapeHtml(m)}</span>`).join("")}</div>`;
 
     return `
@@ -111,7 +111,7 @@ export class SpProxyStatus extends SpElement {
           </div>
           ${chips}
           <div class="sp-kpi-card__foot">
-            <span class="sp-kpi-card__foot-meta" data-l10n-id="status-proxy-endpoints-detail">Models the proxy advertises to host apps.</span>
+            <span class="sp-kpi-card__foot-meta" data-l10n-id="status-proxy-endpoints-detail">Models the proxy advertises to agents.</span>
           </div>
         </article>
       </div>

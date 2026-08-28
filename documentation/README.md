@@ -63,7 +63,7 @@ Contact: **ed@systemprompt.io** for licensing, security, and RFI correspondence.
 
 ## License
 
-systemprompt-core is distributed under the Business Source License 1.1 (BSL-1.1):
+systemprompt-core is distributed under the Business Source License 1.1 (BUSL-1.1):
 source-available for evaluation, development, and non-production use; production use
 requires a commercial licence. Each version converts to Apache-2.0 four years after
 publication. See the repository [LICENSE](../LICENSE).

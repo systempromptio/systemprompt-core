@@ -6,12 +6,12 @@
 use anyhow::Result;
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_logging::CliService;
-use systemprompt_models::profile::{RateLimitsConfig, TierMultipliers};
+use systemprompt_models::profile::RateLimitsConfig;
 
 use super::ResetArgs;
 use super::helpers::{
-    collect_endpoint_changes, collect_tier_changes, get_endpoint_rate, get_tier_multiplier,
-    load_profile_for_edit, save_profile, set_endpoint_rate, set_tier_multiplier,
+    collect_endpoint_changes, get_endpoint_rate, load_profile_for_edit, save_profile,
+    set_endpoint_rate,
 };
 use crate::CliConfig;
 use crate::cli_settings::OutputFormat;
@@ -33,16 +33,6 @@ pub(super) fn execute_reset(
         (
             format!("endpoint:{}", endpoint),
             reset_endpoint(&mut profile.rate_limits, &defaults, endpoint, args.dry_run)?,
-        )
-    } else if let Some(tier) = &args.tier {
-        (
-            format!("tier:{}", tier),
-            reset_tier(
-                &mut profile.rate_limits.tier_multipliers,
-                &defaults.tier_multipliers,
-                tier,
-                args.dry_run,
-            )?,
         )
     } else {
         (
@@ -109,29 +99,6 @@ fn reset_endpoint(
     Ok(changes)
 }
 
-fn reset_tier(
-    tiers: &mut TierMultipliers,
-    defaults: &TierMultipliers,
-    tier: &str,
-    dry_run: bool,
-) -> Result<Vec<ResetChange>> {
-    let old_value = get_tier_multiplier(tiers, tier)?;
-    let new_value = get_tier_multiplier(defaults, tier)?;
-
-    let mut changes = Vec::new();
-    if (old_value - new_value).abs() > f64::EPSILON {
-        changes.push(ResetChange {
-            field: format!("tier_multipliers.{}", tier),
-            old_value: format!("{:.1}", old_value),
-            new_value: format!("{:.1}", new_value),
-        });
-        if !dry_run {
-            set_tier_multiplier(tiers, tier, new_value)?;
-        }
-    }
-    Ok(changes)
-}
-
 fn reset_all(
     limits: &mut RateLimitsConfig,
     defaults: RateLimitsConfig,
@@ -139,11 +106,6 @@ fn reset_all(
 ) -> Vec<ResetChange> {
     let mut changes = Vec::new();
     collect_endpoint_changes(limits, &defaults, &mut changes);
-    collect_tier_changes(
-        &limits.tier_multipliers,
-        &defaults.tier_multipliers,
-        &mut changes,
-    );
 
     if limits.burst_multiplier != defaults.burst_multiplier {
         changes.push(ResetChange {

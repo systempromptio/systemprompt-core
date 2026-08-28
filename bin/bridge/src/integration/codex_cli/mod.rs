@@ -12,7 +12,7 @@ pub use managed_resources::CodexCliSync;
 
 use crate::integration::host_app::{
     ConfigFormat, GeneratedProfile, HostApp, HostAppSnapshot, HostConfigSchema, HostKind,
-    ProfileGenInputs, ProfileState,
+    ProfileGenInputs, ProfileRemoval, ProfileState,
 };
 
 #[derive(Clone, Copy, Debug)]
@@ -61,6 +61,10 @@ impl HostApp for CodexCliHost {
 
     fn install_profile(&self, path: &str) -> std::io::Result<()> {
         install::install_profile(path)
+    }
+
+    fn remove_profile(&self) -> std::io::Result<ProfileRemoval> {
+        install::remove_profile()
     }
 
     fn open(&self) -> std::io::Result<()> {

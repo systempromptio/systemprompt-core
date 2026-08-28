@@ -1,5 +1,7 @@
 import { SpElement, reactive, escapeHtml } from "/assets/js/components/sp-element.js";
 import { t } from "/assets/js/i18n.js";
+import { shortcut } from "/assets/js/utils/rail-tabs.js";
+import { notifyOk, notifyErr } from "/assets/js/utils/notify.js";
 
 const KIND_LABEL = {
   plugins: "Plugin",
@@ -38,9 +40,10 @@ export class SpMarketplaceDetail extends SpElement {
       try {
         await navigator.clipboard.writeText(value);
         this.copied = true;
+        notifyOk(t("toast-copied") || "Copied to the clipboard.");
         setTimeout(() => { this.copied = false; }, 1200);
       } catch (e) {
-        console.error("clipboard write failed", e);
+        notifyErr(e, t("marketplace-detail-copy") || "Copy");
       }
     });
   }
@@ -54,7 +57,7 @@ export class SpMarketplaceDetail extends SpElement {
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
           </span>
           <span class="sp-mkt-empty__title" data-l10n-id="marketplace-empty-title">Select an item</span>
-          <span class="sp-mkt-empty__sub">Pick from the list, or use <span class="sp-kbd">⌘F</span> to search.</span>
+          <span class="sp-mkt-empty__sub">Pick from the list, or use <span class="sp-kbd">${escapeHtml(shortcut("F"))}</span> to search.</span>
         </div>
       </article>`;
     }
@@ -84,7 +87,7 @@ export class SpMarketplaceDetail extends SpElement {
           })
         ).join("")}</div>
       </section>` : "";
-    const copyLabel = this.copied ? (t("marketplace-detail-copied") || "Copied") : (t("marketplace-detail-copy") || "Copy");
+    const copyLabel = this.copied ? (t("marketplace-detail-copied") || "Copied") : (t("marketplace-detail-copy") || "Copy" || "Copy");
     const pathSection = selected.path ? `
       <section class="sp-mkt-detail__section">
         <h3>${escapeHtml(t("marketplace-detail-path") || "Path")}</h3>

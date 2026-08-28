@@ -9,6 +9,8 @@ on:
         required: false
   pull_request:
     branches: [main, next]
+  push:
+    branches: [main, next]
 
 concurrency:
   group: ci-${{ inputs.ref || github.ref }}

@@ -88,6 +88,7 @@ members = [
     "unit/bridge/ts-export",
     "unit/bridge/i18n",
     "unit/bridge/schedule",
+    "unit/bridge/window-state",
     "unit/bridge/mcp-registry",
     "unit/bridge/obs",
     "unit/bridge/fsutil",
@@ -115,7 +116,7 @@ resolver = "2"
 [workspace.package]
 edition = "2024"
 authors = ["Edward Burton"]
-license = "BSL-1.0"
+license = "BUSL-1.1"
 version = "0.0.11"
 publish = false
 

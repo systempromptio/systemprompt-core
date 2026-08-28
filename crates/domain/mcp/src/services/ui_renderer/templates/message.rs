@@ -37,7 +37,7 @@ impl UiRenderer for MessageRenderer {
         let body = format!(
             r#"<div class="container">
     <h1 class="mcp-app-title">{title}</h1>
-    <ul class="notice-list">
+    <ul class="notice-list" role="status" aria-live="polite">
         {lines_html}
     </ul>
 </div>"#,
@@ -69,9 +69,20 @@ fn render_lines(lines: &[NoticeLine]) -> String {
     lines
         .iter()
         .map(|line| {
+            let level = normalize_level(&line.level);
+            // Why: Severity used to be carried by the marker dot and border colour
+            // alone — a WCAG 1.4.1 failure on the one artifact type whose
+            // entire job is to convey status. The word is visually hidden
+            // because the colour already says it to anyone who can see it.
             format!(
-                r#"<li class="notice notice-{level}"><span class="notice-marker"></span><span class="notice-text">{text}</span></li>"#,
-                level = html_escape(&normalize_level(&line.level)),
+                r#"<li class="notice notice-{level}"{alert}><span class="notice-marker" aria-hidden="true"></span><span class="visually-hidden">{label}: </span><span class="notice-text">{text}</span></li>"#,
+                alert = if level == "error" {
+                    r#" role="alert""#
+                } else {
+                    ""
+                },
+                label = html_escape(&level_label(&level)),
+                level = html_escape(&level),
                 text = html_escape(&line.text),
             )
         })
@@ -90,4 +101,14 @@ fn normalize_level(level: &str) -> String {
 
 const fn message_styles() -> &'static str {
     include_str!("assets/css/message.css")
+}
+
+fn level_label(level: &str) -> String {
+    match level {
+        "error" => "Error",
+        "warning" => "Warning",
+        "success" => "Success",
+        _ => "Info",
+    }
+    .to_owned()
 }

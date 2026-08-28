@@ -28,17 +28,25 @@ register_extension!(MyExtension);
 
 The capability surface includes schemas and migrations, an HTTP router, background jobs, configuration schema and validation, LLM and tool providers, a family of content/template/rendering providers, required storage paths, RBAC roles, and declared dependencies on other extensions. An extension opts into exactly what it needs by overriding the corresponding method.
 
-### Typed variants
+### Capability traits
 
-Beyond the base trait, typed extension traits in `crates/shared/extension/src/typed/` express specific capabilities with compile-time constants and stronger typing:
+Beyond the base trait, an extension declares the capabilities it needs from its context
+rather than implementing separate typed sub-traits:
 
-| Trait | Purpose |
-|-------|---------|
-| `SchemaExtensionTyped` | Database tables with migration weights |
-| `ApiExtensionTyped` | HTTP route handlers with a base path and auth requirements |
-| `JobExtensionTyped` | Background job definitions |
-| `ProviderExtensionTyped` | Custom LLM / tool provider implementations |
-| `ConfigExtensionTyped` | Configuration validation at startup |
+| Trait | Grants access to |
+|-------|------------------|
+| `HasConfig` | the resolved `Config` |
+| `HasDatabase` | the database handle |
+| `HasHttpClient` | the shared outbound HTTP client |
+| `HasEventBus` | the event bus |
+| `HasAnalytics`, `HasFingerprint`, `HasUserService`, `HasRouteClassifier` | the corresponding runtime services |
+
+These live in `crates/shared/extension/src/capabilities.rs`, with `FullContext` bundling the
+complete set. Extensions that govern gateway requests also implement `GatewayRequestGuard`
+(`crates/shared/extension/src/gateway_guard.rs`).
+
+> **Removed.** The typed sub-traits `SchemaExtensionTyped`, `ApiExtensionTyped`,
+> `JobExtensionTyped`, `ProviderExtensionTyped` and `ConfigExtensionTyped` no longer exist.
 
 ## Registration and link-time discovery
 

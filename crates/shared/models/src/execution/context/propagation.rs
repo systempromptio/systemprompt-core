@@ -178,11 +178,18 @@ impl ContextPropagation for RequestContext {
             .and_then(|s| ContextId::try_new(s).ok())
             .unwrap_or_else(|| ContextId::derived_from_session(&session_id));
 
+        let agent_name = AgentName::try_new(agent_name.to_owned()).map_err(|e| {
+            ContextPropagationError::InvalidHeader {
+                name: headers::AGENT_NAME.to_owned(),
+                message: e.to_string(),
+            }
+        })?;
+
         let ctx = Self::new(
             session_id,
             TraceId::new(trace_id.to_owned()),
             context_id,
-            AgentName::new(agent_name.to_owned()),
+            agent_name,
         )
         .with_actor(Actor::user(UserId::new(user_id.to_owned())));
 

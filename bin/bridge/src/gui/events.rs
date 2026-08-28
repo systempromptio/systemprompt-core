@@ -123,6 +123,16 @@ pub enum UiEvent {
     },
     UpdateRestartRequested,
 
+    AutostartToggleRequested,
+    SettingsReadRequested {
+        reply_to: ReplyId,
+    },
+    SettingsWriteRequested {
+        key: String,
+        value: Value,
+        reply_to: ReplyId,
+    },
+
     AgentUninstall {
         host_id: HostId,
         reply_to: ReplyId,

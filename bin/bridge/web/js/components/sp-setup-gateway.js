@@ -1,8 +1,9 @@
 import { SpElement } from "/assets/js/components/sp-element.js";
 import { bridge } from "/assets/js/bridge.js";
 import { probeErrorMessage, isPendingResolved, renderGatewayForm } from "/assets/js/utils/gateway.js";
+import { notifyErr } from "/assets/js/utils/notify.js";
+import { t } from "/assets/js/i18n.js";
 
-const PERSIST_DEBOUNCE_MS = 600;
 const PENDING_TIMEOUT_MS = 15000;
 
 export class SpSetupGateway extends SpElement {
@@ -17,26 +18,24 @@ export class SpSetupGateway extends SpElement {
     this.signingIn = false;
     this.keepSignedIn = true;
     this._lastSavedGateway = "";
-    this._debounce = null;
     this._pendingSince = 0;
     this._pendingTimer = null;
     this.registerAction("sign-in", () => this._signIn());
     this.registerAction("cancel-sign-in", () => this._cancelSignIn());
     this.registerAction("connect", () => this._connect());
     this.registerAction("edit-pat", () => this._editPat());
-    this.registerAction("input:gateway", (t) => this._onGatewayInput(t));
-    this.registerAction("input:pat", (t) => { this.pat = t.value; });
-    this.registerAction("input:keep", (t) => { this.keepSignedIn = !!t.checked; });
+    this.registerAction("input:gateway", (input) => this._onGatewayInput(input));
+    this.registerAction("input:pat", (input) => { this.pat = input.value; });
+    this.registerAction("input:keep", (input) => { this.keepSignedIn = !!input.checked; });
     this.addEventListener("focusin", (e) => {
       if (e.target.id === "setup-pat" && this.patSaved) {
         this.pat = ""; this.patSaved = false; this._syncInputs();
       }
     });
+    // The URL is committed when the field is left or an action is pressed, not
+    // on every keystroke: a 600ms debounce was writing half-typed URLs to disk.
     this.addEventListener("blur", (e) => {
-      if (e.target && e.target.id === "setup-gateway") {
-        if (this._debounce) { clearTimeout(this._debounce); }
-        this._persistGateway();
-      }
+      if (e.target && e.target.id === "setup-gateway") { this._persistGateway(); }
     }, true);
   }
 
@@ -49,7 +48,6 @@ export class SpSetupGateway extends SpElement {
   }
 
   onDisconnect() {
-    if (this._debounce) { clearTimeout(this._debounce); }
     this._clearPendingTimer();
   }
 
@@ -85,15 +83,24 @@ export class SpSetupGateway extends SpElement {
 
   _onGatewayInput(input) {
     this.gateway = input.value;
-    if (this._debounce) { clearTimeout(this._debounce); }
-    this._debounce = setTimeout(() => this._persistGateway(), PERSIST_DEBOUNCE_MS);
   }
 
   async _persistGateway() {
     const url = (this.gateway || "").trim();
-    if (url && url !== this._lastSavedGateway) {
-      this._lastSavedGateway = url;
-      try { await bridge.gatewaySet(url); } catch (e) { console.warn("gateway set", e); }
+    if (!url || url === this._lastSavedGateway) { return; }
+    if (!/^https?:\/\//i.test(url)) {
+      this.error = t("setup-gateway-scheme") || "Gateway URL must start with http:// or https://";
+      this.invalidate();
+      return;
+    }
+    this._lastSavedGateway = url;
+    try {
+      await bridge.gatewaySet(url);
+    } catch (e) {
+      this._lastSavedGateway = "";
+      this.error = `${t("setup-gateway-save-failed") || "Could not save the gateway URL"}: ${(e && e.message) || e}`;
+      this.invalidate();
+      notifyErr(e, t("setup-gateway-save-failed") || "Could not save the gateway URL");
     }
   }
 
@@ -107,9 +114,16 @@ export class SpSetupGateway extends SpElement {
 
   _validGateway() {
     const gw = (this.gateway || "").trim();
-    if (!gw) { this.error = "Enter the gateway URL."; this.invalidate(); return null; }
+    if (!gw) { this.error = t("setup-gateway-required-url") || "Enter the gateway URL."; this.invalidate(); return null; }
     if (!/^https?:\/\//i.test(gw)) {
-      this.error = "Gateway URL must start with http:// or https://"; this.invalidate(); return null;
+      this.error = t("setup-gateway-scheme") || "Gateway URL must start with http:// or https://"; this.invalidate(); return null;
+    }
+    // A local gateway is plain HTTP; an https:// typo here is saved verbatim
+    // and then opened in the browser, which fails with a TLS protocol error.
+    if (/^https:\/\/(localhost|127\.0\.0\.1|\[::1\])(:|\/|$)/i.test(gw)) {
+      this.error = t("setup-gateway-loopback-https")
+        || 'A gateway on this machine is served over http://, not https:// — drop the "s".';
+      this.invalidate(); return null;
     }
     return gw;
   }
@@ -141,9 +155,8 @@ export class SpSetupGateway extends SpElement {
   }
 
   async _connect() {
-    const gw = (this.gateway || "").trim();
-    if (!gw) { this.error = "Enter the gateway URL."; this.invalidate(); return; }
-    if (!/^https?:\/\//i.test(gw)) { this.error = "Gateway URL must start with http:// or https://"; this.invalidate(); return; }
+    const gw = this._validGateway();
+    if (!gw) { return; }
     this._lastSavedGateway = gw;
     this.pending = true; this._pendingSince = Date.now(); this.error = ""; this.invalidate();
     this._clearPendingTimer();

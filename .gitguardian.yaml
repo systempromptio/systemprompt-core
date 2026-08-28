@@ -1,0 +1,10 @@
+version: 2
+
+# The governance engine's secret-scan regression tests necessarily contain
+# secret-SHAPED fixtures (documentation example keys, synthetic PAT-format
+# tokens, high-entropy strings) — the strings the scanner exists to catch.
+# Production crates stay fully scanned.
+secret:
+  ignored_paths:
+    - "crates/tests/unit/infra/security/**"
+    - "crates/tests/unit/shared/models/**"

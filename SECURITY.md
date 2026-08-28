@@ -32,11 +32,14 @@ We will keep you informed throughout triage. If a fix requires more time than th
 
 | Version | Security fixes |
 |---------|----------------|
-| 0.3.x (latest minor) | Yes |
-| 0.2.x | Critical only, through 2026-07 |
-| < 0.2 | No |
+| 0.41.x (current minor) | Yes |
+| 0.40.x (previous minor) | Critical and High only |
+| < 0.40 | No |
 
-Production deployments should track the latest `0.x` minor release.
+While the project is pre-1.0, security fixes land on the current minor release. The
+previous minor receives Critical and High fixes until the minor after it ships, at
+which point it moves out of support. Production deployments should track the latest
+`0.x` minor release.
 
 ## Scope
 
@@ -44,7 +47,7 @@ In scope for this policy:
 
 - The `systempromptio/systemprompt-core` repository and all crates it publishes to crates.io under `systemprompt-*`
 - The `systemprompt` facade crate
-- The `systemprompt-bridge` binary and its sync/credential-helper flows
+- The `systemprompt-bridge` binary, including its manifest-apply, cloud-backup and credential-helper flows
 - Official release binaries attached to GitHub releases
 
 Out of scope:
@@ -66,10 +69,18 @@ If your research requires testing against a production deployment not owned by y
 
 ## Supply Chain
 
-- Dependencies are audited continuously with `cargo audit` (RustSec advisory DB) and `cargo deny` — see `.github/workflows/supply-chain.yml`
-- Release binaries are built in GitHub-hosted CI runners from tagged commits and signed with Sigstore (`cosign` keyless, OIDC-bound to this repository and workflow)
-- A CycloneDX SBOM is attached to every GitHub release
-- Verify a release binary:
+- Dependencies are audited continuously with `cargo deny` against the RustSec advisory
+  database, covering advisories, licences, banned crates and registry sources across
+  every workspace in the repository. It runs on each push, on each pull request, and on
+  a daily schedule — see `.github/workflows/supply-chain.yml`.
+- Advisories we have assessed and accepted are recorded, each with a written
+  justification, in [`deny.toml`](deny.toml). We publish the register rather than
+  reporting a clean scan: as of 0.41.0 it holds two entries reachable from the published
+  crates, and twelve reachable only from the desktop bridge's Linux windowing stack,
+  which the bridge does not compile.
+- `systemprompt-bridge` release binaries are built in GitHub-hosted CI runners from
+  tagged commits and signed with Sigstore (`cosign` keyless, OIDC-bound to this
+  repository and workflow) — see `.github/workflows/release-sign.yml`. Verify one with:
   ```
   cosign verify-blob \
     --certificate-identity-regexp 'https://github.com/systempromptio/systemprompt-core/.*' \
@@ -78,10 +89,17 @@ If your research requires testing against a production deployment not owned by y
     --certificate <artifact>.pem \
     <artifact>
   ```
+- The core platform ships as source and as `systemprompt-*` crates on crates.io; those
+  artefacts are not signed by us. Organisations that repackage the platform for internal
+  distribution sign the resulting artefact packs under their own key and provenance.
+- A CycloneDX SBOM can be generated on demand from the committed `Cargo.lock` with
+  `cargo cyclonedx`. It is not currently produced or attached by CI.
 
 ## Further Reading
 
-- [Threat Model](documentation/threat-model.md)
-- [Deployment Reference Architecture](documentation/deployment-reference-architecture.md)
-- [Compliance Control Matrix](documentation/compliance-control-matrix.md)
-- [Stability Contract](documentation/stability-contract.md)
+- [Threat Model](documentation/security/threat-model.md)
+- [Compliance Control Matrix](documentation/security/compliance-control-matrix.md)
+- [RFI Readiness Audit](documentation/security/rfi-readiness-audit.md) — security-review posture, accepted risks, and known gaps
+- [Stability Contract](documentation/security/stability-contract.md)
+- [Compatibility Matrix](documentation/reference/compatibility.md)
+- [Deploy in Production](documentation/guides/deploy-production.md)

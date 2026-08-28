@@ -2,17 +2,21 @@ name: Coverage
 
 on:
   workflow_dispatch:
-  schedule:
-    # Nightly at 06:23 UTC. Coverage is the heaviest job (instrumented build is
-    # ~2-3x), so it runs on a schedule rather than on every push to keep pushes
-    # fast; trigger manually via workflow_dispatch when an on-demand run is needed.
-    - cron: "23 6 * * *"
+  # Coverage tracks the released line, not `next`. The pull_request trigger
+  # measures the promote -> main release PR before it is merged; the push
+  # trigger produces the canonical number for the commit that became main,
+  # which is the baseline the ratchet below reads back. Coverage is the
+  # heaviest job here (the instrumented build is ~2-3x), and running it on
+  # every push to `next` would say nothing about what was released.
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
 
 concurrency:
-  # Keyed by event as well as ref: a bare ref group puts the nightly schedule and
-  # manual dispatches in one bucket, so a nightly firing minutes after a dispatch
-  # cancels an hour of instrumented build. Dispatches still share a group with
-  # each other, so re-dispatching supersedes a now-pointless earlier run.
+  # Keyed by event as well as ref: without the event, the release PR's run and
+  # the run on the merge commit could share a bucket and cancel an hour of
+  # instrumented build.
   group: coverage-${{ github.ref }}-${{ github.event_name }}
   cancel-in-progress: true
 

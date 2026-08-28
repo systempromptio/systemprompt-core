@@ -110,7 +110,7 @@ Forward logs off-host by one of:
 
 ## 5. Ingest OpenTelemetry (OTLP)
 
-The gateway exposes an OTLP ingest endpoint at `POST /otel` (and `POST /otel/{*rest}`) that decodes OTLP trace, log, and metric envelopes and persists spans and logs as rows in the `logs` table (`crates/entry/api/src/routes/gateway/otel.rs`). It accepts protobuf envelopes up to 4 MiB and auto-detects the envelope type. The endpoint is unauthenticated by design: it is gated to a loopback origin by the bridge proxy, which is the only intended client. Do not expose `/otel` to untrusted networks.
+The gateway exposes an OTLP ingest endpoint at `POST /otel` (and `POST /otel/{*rest}`) that decodes OTLP trace, log, and metric envelopes and persists spans and logs as rows in the `logs` table (`crates/entry/api/src/routes/gateway/otel/`). It accepts protobuf envelopes up to 4 MiB and auto-detects the envelope type. The endpoint is unauthenticated by design: it is gated to a loopback origin by the bridge proxy, which is the only intended client. Do not expose `/otel` to untrusted networks.
 
 Two limits to account for when planning telemetry:
 
@@ -152,7 +152,7 @@ Migrations are additive-only within a minor version. A failed migration leaves t
 
 ### Provider / gateway errors (502 / 429)
 
-Gateway requests to `/v1/messages` map upstream failures as follows (`crates/entry/api/src/routes/gateway/messages/dispatch.rs`):
+Gateway requests to `/v1/messages` map upstream failures as follows (`crates/entry/api/src/routes/gateway/messages/dispatch/`):
 
 | Symptom | Cause | Action |
 |---------|-------|--------|

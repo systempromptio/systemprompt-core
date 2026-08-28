@@ -149,3 +149,23 @@ fn carries_marketplace_floor_when_present() {
     assert_eq!(req.context.kind, AuthzContext::NONE_KIND);
     assert_eq!(req.context.marketplace_floor(), Some(floor));
 }
+
+#[test]
+fn records_the_mcp_surface_and_joins_to_the_request() {
+    let claims = claims_with(vec![], BTreeMap::new());
+    let execution = execution_with("22222222-2222-4222-8222-222222222222", None);
+    let req = build_mcp_authz_request("server-x", &claims, Vec::new(), &execution, None);
+
+    let actor = req.actor();
+    assert_eq!(actor.user_id.as_str(), "user_42");
+    assert!(
+        matches!(actor.kind, systemprompt_identifiers::ActorKind::Mcp { ref server_name } if server_name == "server-x"),
+        "the MCP server is the surface the user acted through"
+    );
+    assert_eq!(
+        req.trace_id, execution.trace_id,
+        "the audit row must join to the request's own trace, not a fresh one"
+    );
+    assert_eq!(req.session_id, Some(SessionId::new("s")));
+    assert_eq!(req.client_id, Some(ClientId::new("c")));
+}

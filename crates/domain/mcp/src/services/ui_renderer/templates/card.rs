@@ -14,6 +14,7 @@ use super::typed::artifact_payload;
 use crate::error::McpDomainResult;
 use crate::services::ui_renderer::{CspPolicy, UiRenderer, UiResource};
 use async_trait::async_trait;
+use serde_json::Value as JsonValue;
 use systemprompt_models::a2a::Artifact;
 use systemprompt_models::artifacts::{
     ArtifactType, CardCta, CardSection, PresentationCardArtifact,
@@ -55,7 +56,7 @@ impl UiRenderer for PresentationCardRenderer {
         {ctas_html}
     </section>
 </div>"#,
-            theme = html_escape(&card.theme),
+            theme = card.theme.class_suffix(),
             title = html_escape(title),
             subtitle_html = card.subtitle.as_ref().map_or_else(String::new, |s| format!(
                 r#"<p class="mcp-app-description">{}</p>"#,
@@ -97,19 +98,57 @@ fn render_sections(sections: &[CardSection]) -> String {
         .map(|section| {
             format!(
                 r#"<div class="card-section">
-                <div class="card-section-heading">{icon}{heading}</div>
+                <h2 class="card-section-heading">{icon}{heading}</h2>
                 <div class="card-section-content">{content}</div>
             </div>"#,
+                // Why: The icon is decorative; without aria-hidden a screen reader
+                // announces the emoji's name in the middle of the heading.
                 icon = section.icon.as_ref().map_or_else(String::new, |i| format!(
-                    r#"<span class="card-section-icon">{}</span>"#,
+                    r#"<span class="card-section-icon" aria-hidden="true">{}</span>"#,
                     html_escape(i)
                 )),
                 heading = html_escape(&section.heading),
-                content = render_multiline(&section.content_display()),
+                content = render_section_content(section),
             )
         })
         .collect::<Vec<_>>()
         .join("\n")
+}
+
+fn render_section_content(section: &CardSection) -> String {
+    match &section.content {
+        JsonValue::Array(items) if !items.is_empty() => {
+            let lis = items
+                .iter()
+                .map(|item| format!("<li>{}</li>", html_escape(&scalar_text(item))))
+                .collect::<Vec<_>>()
+                .concat();
+            format!(r#"<ul class="card-section-list">{lis}</ul>"#)
+        },
+        JsonValue::Object(map) if !map.is_empty() => {
+            let rows = map
+                .iter()
+                .map(|(k, v)| {
+                    format!(
+                        "<dt>{}</dt><dd>{}</dd>",
+                        html_escape(k),
+                        html_escape(&scalar_text(v))
+                    )
+                })
+                .collect::<Vec<_>>()
+                .concat();
+            format!(r#"<dl class="card-section-pairs">{rows}</dl>"#)
+        },
+        _ => render_multiline(&section.content_display()),
+    }
+}
+
+fn scalar_text(value: &JsonValue) -> String {
+    match value {
+        JsonValue::String(s) => s.clone(),
+        JsonValue::Null => String::new(),
+        other => other.to_string(),
+    }
 }
 
 fn render_ctas(ctas: &[CardCta]) -> String {
@@ -121,8 +160,8 @@ fn render_ctas(ctas: &[CardCta]) -> String {
         .iter()
         .map(|cta| {
             format!(
-                r#"<button class="card-cta card-cta-{variant}" data-cta-id="{id}">{icon}{label}</button>"#,
-                variant = html_escape(&cta.variant),
+                r#"<button type="button" class="card-cta card-cta-{variant}" data-cta-id="{id}">{icon}{label}</button>"#,
+                variant = cta.variant.class_suffix(),
                 id = html_escape(&cta.id),
                 icon = cta.icon.as_ref().map_or_else(String::new, |i| format!(
                     r#"<span class="card-cta-icon">{}</span>"#,
@@ -134,7 +173,11 @@ fn render_ctas(ctas: &[CardCta]) -> String {
         .collect::<Vec<_>>()
         .join("\n");
 
-    format!(r#"<footer class="card-ctas">{buttons}</footer>"#)
+    // Why: The live region sits with the buttons so the outcome of a click is
+    // announced and visible in the same place the click happened.
+    format!(
+        r#"<footer class="card-ctas">{buttons}<p class="card-cta-status" id="card-cta-status" role="status" aria-live="polite"></p></footer>"#
+    )
 }
 
 fn render_multiline(content: &str) -> String {

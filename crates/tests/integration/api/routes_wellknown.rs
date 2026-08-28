@@ -8,7 +8,7 @@ use super::common::{empty_get, setup_ctx};
 #[tokio::test]
 async fn jwks_route_executes() -> anyhow::Result<()> {
     let (_pool, ctx) = setup_ctx().await?;
-    let app = wellknown_router(&ctx);
+    let app = wellknown_router(&ctx)?;
 
     let resp = app.oneshot(empty_get("/.well-known/jwks.json")).await?;
     let status = resp.status();
@@ -19,7 +19,7 @@ async fn jwks_route_executes() -> anyhow::Result<()> {
 #[tokio::test]
 async fn default_agent_card_returns_error_without_profile() -> anyhow::Result<()> {
     let (_pool, ctx) = setup_ctx().await?;
-    let app = wellknown_router(&ctx);
+    let app = wellknown_router(&ctx)?;
     let resp = app
         .oneshot(empty_get("/.well-known/agent-card.json"))
         .await?;

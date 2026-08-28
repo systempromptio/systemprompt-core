@@ -1,10 +1,10 @@
+/* `.sp-content` supplies the scrolling and the padding for every pane. This
+   used to declare both again, which gave the tab two nested scrollbars and two
+   stacked gutters. */
 sp-profile {
   display: block;
-  padding: var(--sp-space-6) var(--sp-space-6) var(--sp-space-8);
   color: var(--sp-text);
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
+  padding-bottom: var(--sp-space-2);
   animation: sp-profile-in var(--sp-dur-normal) var(--sp-ease-out);
 }
 
@@ -13,33 +13,21 @@ sp-profile {
   to   { opacity: 1; transform: none; }
 }
 
-sp-profile .sp-tab__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--sp-space-3);
-  margin-bottom: var(--sp-space-5);
-  padding-bottom: var(--sp-space-3);
-  border-bottom: 1px solid var(--sp-line-soft);
-}
-
-sp-profile .sp-tab__header h1 {
-  font-family: var(--sp-font-display);
-  font-size: 22px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  margin: 0;
-  color: var(--sp-text);
-}
-
+/* `minmax(320px, …)` floors every track at 320px, so once the pane is narrower
+   than the tracks the grid resolved to, the surplus is simply painted outside
+   it -- which is how cards ended up clipped by the window edge. `min(320px,
+   100%)` lets the last track give way instead. */
 .sp-profile-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr));
   gap: var(--sp-space-4);
+  align-items: start;
 }
 
 .sp-profile-card {
   position: relative;
+  min-width: 0;
+  container: sp-card / inline-size;
   background-image: linear-gradient(180deg, var(--sp-bg-elev-1) 0%, var(--sp-bg) 100%);
   border: 1px solid var(--sp-line);
   border-radius: var(--sp-corners-md);
@@ -62,23 +50,25 @@ sp-profile .sp-tab__header h1 {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  gap: var(--sp-space-3);
+  flex-wrap: wrap;
+  gap: var(--sp-space-2) var(--sp-space-3);
   padding-bottom: var(--sp-space-2-5);
   border-bottom: 1px solid var(--sp-line-soft);
 }
 
 .sp-profile-card > header h2 {
+  min-width: 0;
   font-family: var(--sp-font-display);
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 1.4px;
+  letter-spacing: 0.4px;
   margin: 0;
   color: var(--sp-muted);
 }
 
 .sp-profile-card__count {
   font-size: 11px;
+  white-space: nowrap;
   font-variant-numeric: tabular-nums;
   font-weight: 500;
   color: var(--sp-muted-strong);
@@ -108,12 +98,16 @@ sp-profile .sp-tab__header h1 {
   to   { background-position: -100% 0; }
 }
 
+/* Was a viewport media query, which never fired: the pane is the window minus
+   the 220px rail and the activity column, so a 1200px window gives a ~580px
+   pane and the 720px threshold sat well above it. Container queries measure the
+   thing that actually constrains the layout. */
 .sp-profile-card--identity,
 .sp-profile-card--conversations {
   grid-column: span 2;
 }
 
-@media (max-width: 720px) {
+@container sp-pane (max-width: 700px) {
   .sp-profile-card--identity,
   .sp-profile-card--conversations {
     grid-column: span 1;
@@ -128,17 +122,39 @@ sp-profile .sp-tab__header h1 {
 
 .sp-profile-dl {
   display: grid;
-  grid-template-columns: max-content 1fr;
+  grid-template-columns: max-content minmax(0, 1fr);
   gap: var(--sp-space-2) var(--sp-space-4);
   margin: 0;
   font-size: 13px;
 }
 
+@container sp-card (min-width: 620px) {
+  .sp-profile-dl {
+    grid-template-columns:
+      max-content minmax(0, 1fr)
+      max-content minmax(0, 1fr);
+    column-gap: var(--sp-space-6);
+  }
+  /* These two are the long ones; give them the full row rather than letting a
+     URL push the label column of the pair beside it out of alignment. */
+  .sp-profile-dl dt:has(+ dd:last-child) { grid-column: 1; }
+  .sp-profile-dl dd:last-child { grid-column: 2 / -1; }
+}
+
+/* The gateway URL and the token line are long enough that a `max-content` label
+   column plus an unbreakable value pushes the card wider than its track. Below
+   this width the pair stacks instead. */
+@container sp-card (max-width: 340px) {
+  .sp-profile-dl { grid-template-columns: minmax(0, 1fr); gap: var(--sp-space-1); }
+  .sp-profile-dl dt { align-self: start; }
+  .sp-profile-dl dd { margin-bottom: var(--sp-space-2); }
+  .sp-profile-dl dd:last-child { margin-bottom: 0; }
+}
+
 .sp-profile-dl dt {
   font-family: var(--sp-font-display);
-  font-size: 10.5px;
-  text-transform: uppercase;
-  letter-spacing: 1px;
+  font-size: 11px;
+  letter-spacing: 0.4px;
   color: var(--sp-muted);
   align-self: center;
   font-weight: 600;
@@ -146,6 +162,7 @@ sp-profile .sp-tab__header h1 {
 
 .sp-profile-dl dd {
   margin: 0;
+  min-width: 0;
   color: var(--sp-text);
   word-break: break-word;
   overflow-wrap: anywhere;
@@ -155,22 +172,24 @@ sp-profile .sp-tab__header h1 {
   line-height: 1.5;
 }
 
+/* Three rigid `1fr` tracks floor at the widest tile's min-content -- a 24px
+   display-font figure plus an unwrapped "9.9k tokens - 2 req" line -- so the
+   row forced itself wider than the card rather than reflowing. auto-fit plus a
+   shrinkable minimum lets it drop to two tiles, then one. */
 .sp-profile-tiles {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(min(84px, 100%), 1fr));
   gap: var(--sp-space-3);
-}
-
-@media (max-width: 520px) {
-  .sp-profile-tiles { grid-template-columns: 1fr; }
 }
 
 .sp-profile-tile {
   position: relative;
+  min-width: 0;
+  overflow: hidden;
   background: var(--sp-bg);
   border: 1px solid var(--sp-line);
   border-radius: var(--sp-corners-sm);
-  padding: var(--sp-space-3) var(--sp-space-3-5);
+  padding: var(--sp-space-2-5) var(--sp-space-3);
   display: flex;
   flex-direction: column;
   gap: var(--sp-space-1);
@@ -185,16 +204,20 @@ sp-profile .sp-tab__header h1 {
 
 .sp-profile-tile__label {
   font-family: var(--sp-font-display);
-  font-size: 10px;
+  font-size: 11px;
+  white-space: nowrap;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 1.4px;
+  letter-spacing: 0.4px;
   color: var(--sp-muted);
 }
 
 .sp-profile-tile__value {
   font-family: var(--sp-font-display);
-  font-size: 24px;
+  /* Costs render at full precision ("$0.00001"), so the figure has to give a
+     little before the tile does -- but it must never break mid-number, which is
+     why this scales rather than wrapping. */
+  font-size: clamp(14px, 4.4cqi, 24px);
+  white-space: nowrap;
   font-weight: 700;
   letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
@@ -203,7 +226,9 @@ sp-profile .sp-tab__header h1 {
 }
 
 .sp-profile-tile__sub {
-  font-size: 11.5px;
+  font-size: 11px;
+  line-height: 1.35;
+  text-wrap: pretty;
   color: var(--sp-muted-strong);
   font-variant-numeric: tabular-nums;
 }
@@ -212,7 +237,7 @@ sp-profile .sp-tab__header h1 {
   font-size: 10.5px;
   font-weight: 600;
   letter-spacing: 0.4px;
-  color: var(--sp-accent);
+  color: var(--sp-accent-text);
   font-variant-numeric: tabular-nums;
   margin-top: var(--sp-space-0-5);
 }
@@ -225,9 +250,13 @@ sp-profile .sp-tab__header h1 {
   flex-direction: column;
 }
 
+/* Four fixed tracks plus gaps reserved ~274px before the name column was
+   offered anything, inside a card whose content box can be under 300px. The
+   figures size to their content now, and below the threshold the row breaks
+   into two lines rather than scrolling or clipping. */
 .sp-profile-model {
   display: grid;
-  grid-template-columns: 28px minmax(0, 1fr) 56px 96px 84px;
+  grid-template-columns: 28px minmax(0, 1fr) auto auto auto;
   gap: var(--sp-space-2-5);
   align-items: center;
   font-size: 12.5px;
@@ -240,17 +269,19 @@ sp-profile .sp-tab__header h1 {
 
 .sp-profile-model:hover { background: var(--sp-bg-elev-2); }
 .sp-profile-model:last-child { border-bottom: 0; }
+.sp-profile-model > * { min-width: 0; }
+
 
 .sp-profile-model__rank {
   font-family: var(--sp-font-display);
   font-size: 10.5px;
   font-weight: 700;
   letter-spacing: 0.4px;
-  color: var(--sp-accent);
+  color: var(--sp-accent-text);
   text-align: center;
 }
 
-.sp-profile-model[data-rank="1"] .sp-profile-model__rank { color: var(--sp-accent); }
+.sp-profile-model[data-rank="1"] .sp-profile-model__rank { color: var(--sp-accent-text); }
 .sp-profile-model[data-rank="2"] .sp-profile-model__rank,
 .sp-profile-model[data-rank="3"] .sp-profile-model__rank { color: var(--sp-accent-deep); }
 
@@ -264,7 +295,7 @@ sp-profile .sp-tab__header h1 {
 }
 
 .sp-profile-model__share {
-  color: var(--sp-accent);
+  color: var(--sp-accent-text);
   text-align: right;
   font-weight: 600;
 }
@@ -275,22 +306,50 @@ sp-profile .sp-tab__header h1 {
   text-align: right;
 }
 
+/* Between these widths the row still fits on one line, but only by eating the
+   model name. Token count is the least load-bearing of the three figures --
+   share and cost both survive -- so it yields first. */
+@container sp-card (max-width: 470px) {
+  .sp-profile-model__tokens { display: none; }
+}
+
+/* Below this the name and three figures cannot share a line without the name
+   collapsing to an ellipsis, so the figures drop to a meta line under it.
+   Must come after the alignment rules above -- a container query adds no
+   specificity of its own. */
+@container sp-card (max-width: 330px) {
+  /* Name on the first line, the figures as one meta line beneath it. They get
+     explicit cells rather than `display: inline` -- a grid child is blockified,
+     so inline would stack them one per line. */
+  .sp-profile-model {
+    grid-template-columns: 28px auto auto minmax(0, 1fr);
+    row-gap: var(--sp-space-0-5);
+    padding-block: var(--sp-space-2-5);
+  }
+  .sp-profile-model__rank  { grid-row: 1 / span 2; align-self: start; }
+  .sp-profile-model__name  { grid-column: 2 / -1; grid-row: 1; }
+  .sp-profile-model__share { grid-column: 2; grid-row: 2; text-align: left; }
+  .sp-profile-model__tokens { grid-column: 3; grid-row: 2; display: block; text-align: left; }
+  .sp-profile-model__cost  { grid-column: 4; grid-row: 2; text-align: left; }
+  .sp-profile-model__share,
+  .sp-profile-model__tokens,
+  .sp-profile-model__cost { font-size: 11px; }
+}
+
+
 .sp-profile-groups {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
   gap: var(--sp-space-4);
 }
 
-@media (max-width: 600px) {
-  .sp-profile-groups { grid-template-columns: 1fr; }
-}
+.sp-profile-group { min-width: 0; }
 
 .sp-profile-group__label {
   font-family: var(--sp-font-display);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 1.4px;
+  letter-spacing: 0.4px;
   color: var(--sp-muted);
   margin-bottom: var(--sp-space-2);
 }
@@ -305,6 +364,7 @@ sp-profile .sp-tab__header h1 {
 
 .sp-profile-group__list li {
   display: flex;
+  align-items: baseline;
   justify-content: space-between;
   gap: var(--sp-space-2);
   font-size: 12.5px;
@@ -316,6 +376,7 @@ sp-profile .sp-tab__header h1 {
 
 .sp-profile-group__name {
   color: var(--sp-text);
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -324,6 +385,7 @@ sp-profile .sp-tab__header h1 {
 }
 
 .sp-profile-group__count {
+  flex: none;
   color: var(--sp-muted-strong);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -342,7 +404,7 @@ sp-profile .sp-tab__header h1 {
 
 .sp-profile-recent {
   display: grid;
-  grid-template-columns: 110px minmax(0, 1fr) minmax(0, 1fr) 80px 80px;
+  grid-template-columns: minmax(0, 110px) minmax(0, 1fr) minmax(0, 1fr) auto auto;
   gap: var(--sp-space-2);
   font-size: 11.5px;
   font-variant-numeric: tabular-nums;
@@ -353,6 +415,9 @@ sp-profile .sp-tab__header h1 {
 }
 
 .sp-profile-recent:last-child { border-bottom: 0; }
+.sp-profile-recent > * { min-width: 0; }
+
+
 
 .sp-profile-recent__id {
   font-family: var(--sp-font-mono);
@@ -371,9 +436,29 @@ sp-profile .sp-tab__header h1 {
   font-size: 11.5px;
 }
 
+.sp-profile-recent__count,
 .sp-profile-recent__when {
   text-align: right;
-  color: var(--sp-muted);
+  white-space: nowrap;
+}
+
+.sp-profile-recent__when { color: var(--sp-muted); }
+
+@container sp-card (max-width: 430px) {
+  .sp-profile-recent {
+    grid-template-columns: minmax(0, 1fr) auto;
+    row-gap: var(--sp-space-0-5);
+  }
+  .sp-profile-recent__id { grid-column: 1; grid-row: 1; }
+  .sp-profile-recent__when { grid-column: 2; grid-row: 1; }
+  .sp-profile-recent__model,
+  .sp-profile-recent__agent,
+  .sp-profile-recent__count {
+    grid-column: 1 / -1;
+    display: inline;
+    text-align: left;
+    font-size: 11px;
+  }
 }
 
 .sp-profile-models-allowed {
@@ -405,9 +490,8 @@ sp-profile .sp-tab__header h1 {
 .sp-profile-card--plan summary {
   cursor: pointer;
   font-family: var(--sp-font-display);
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 1.2px;
+  font-size: 12px;
+  letter-spacing: 0.4px;
   font-weight: 600;
   color: var(--sp-muted);
   padding: var(--sp-space-2) 0;
@@ -415,7 +499,7 @@ sp-profile .sp-tab__header h1 {
   transition: color var(--sp-dur-fast) var(--sp-ease-out);
 }
 
-.sp-profile-card--plan summary:hover { color: var(--sp-accent); }
+.sp-profile-card--plan summary:hover { color: var(--sp-accent-text); }
 
 .sp-profile-error {
   background: var(--sp-bg-elev-1);

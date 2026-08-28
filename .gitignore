@@ -3,6 +3,7 @@ target/
 **/target/
 **/*.rs.bk
 **/*.profraw
+**/test-results/
 **/*.cov-bak
 
 # Bridge release packaging artifact
@@ -123,6 +124,10 @@ scripts/*
 !scripts/check-http-errors.sh
 !scripts/lint-layers.sh
 !scripts/check-release-tag.sh
+!scripts/lint-bridge-css-tokens.sh
+!scripts/lint-bridge-i18n.sh
+!scripts/lint-bridge-js-imports.sh
+!scripts/lint-bridge-no-window.sh
 
 # Local-only review notes
 review/

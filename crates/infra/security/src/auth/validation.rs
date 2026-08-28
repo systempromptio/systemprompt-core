@@ -5,7 +5,7 @@
 
 use axum::http::HeaderMap;
 use systemprompt_identifiers::{Actor, ContextId, SessionId, UserId};
-use systemprompt_models::auth::{JwtAudience, MAX_ACT_CHAIN_DEPTH, Permission, UserType};
+use systemprompt_models::auth::{JwtAudience, MAX_ACT_CHAIN_DEPTH, UserType};
 use systemprompt_models::execution::context::RequestContext;
 
 use crate::error::{AuthError, AuthResult};
@@ -46,11 +46,13 @@ impl AuthValidationService {
             }
         }
 
-        let user_type = if claims.scope.contains(&Permission::Admin) {
-            UserType::Admin
-        } else {
-            claims.user_type
-        };
+        let derived_type = UserType::from_permissions(&claims.scope);
+        if derived_type != claims.user_type {
+            return Err(AuthError::UserTypeMismatch {
+                claimed: claims.user_type,
+                derived: derived_type,
+            });
+        }
 
         Ok(ValidatedSessionClaims {
             user_id: UserId::new(claims.sub),
@@ -58,7 +60,7 @@ impl AuthValidationService {
                 .session_id
                 .map(SessionId::new)
                 .ok_or(AuthError::MissingSessionId)?,
-            user_type,
+            user_type: derived_type,
             jti: claims.jti,
             exp: claims.exp,
         })

@@ -1,13 +1,17 @@
 //! Menu-bar construction and about-dialog metadata.
 //!
+//! macOS only. On Windows the same commands live in the web topbar overflow
+//! menu: a `muda` menu bar renders as a system-coloured Win32 strip between the
+//! title bar and a near-black web UI, which is one chrome band too many.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
+
+#![cfg(target_os = "macos")]
 
 use std::collections::HashMap;
 
 use muda::{Menu, MenuId, MenuItem, PredefinedMenuItem, Submenu};
-#[cfg(target_os = "windows")]
-use winit::window::Window;
 
 use super::error::GuiResult;
 use super::events::UiEvent;
@@ -28,7 +32,6 @@ pub fn install<S: std::hash::BuildHasher>(
 ) -> GuiResult<MenuBarHandles> {
     let menu = Menu::new();
 
-    #[cfg(target_os = "macos")]
     {
         let app_menu = Submenu::new(crate::brand::brand().app_menu_name, true);
         let about = PredefinedMenuItem::about(None, Some(about_metadata()));
@@ -78,49 +81,11 @@ pub fn install<S: std::hash::BuildHasher>(
 
     menu.append(&help_menu)?;
 
-    #[cfg(target_os = "macos")]
-    {
-        menu.init_for_nsapp();
-    }
+    menu.init_for_nsapp();
 
     Ok(MenuBarHandles { menu })
 }
 
-#[cfg(target_os = "windows")]
-#[expect(
-    unsafe_code,
-    reason = "raw window handle is required to attach Win32 menu bar to the GUI HWND"
-)]
-pub fn attach_to_window(handles: &MenuBarHandles, window: &dyn Window) -> GuiResult<()> {
-    use raw_window_handle::{HasWindowHandle, RawWindowHandle};
-    let handle = window.window_handle().map_err(|e| {
-        crate::gui::error::GuiError::Io(std::io::Error::other(format!(
-            "window handle unavailable: {e}"
-        )))
-    })?;
-    if let RawWindowHandle::Win32(w) = handle.as_raw() {
-        // SAFETY: hwnd is a live HWND owned by GuiApp's settings Window; muda only
-        // reads it.
-        unsafe {
-            handles.menu.init_for_hwnd(w.hwnd.get())?;
-        }
-    }
-    Ok(())
-}
-
-#[cfg(target_os = "macos")]
-#[expect(
-    clippy::unnecessary_wraps,
-    reason = "mirrors the Windows implementation, which attaches the menu bar to the HWND and can fail"
-)]
-pub fn attach_to_window(
-    _handles: &MenuBarHandles,
-    _window: &dyn winit::window::Window,
-) -> GuiResult<()> {
-    Ok(())
-}
-
-#[cfg(target_os = "macos")]
 fn about_metadata() -> muda::AboutMetadata {
     muda::AboutMetadata {
         name: Some(crate::brand::brand().app_name.into()),

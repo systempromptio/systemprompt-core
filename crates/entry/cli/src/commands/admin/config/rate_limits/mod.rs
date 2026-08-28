@@ -1,10 +1,10 @@
 //! `admin config rate-limits` command tree: inspect, edit, and compare rate
 //! limits.
 //!
-//! [`RateLimitsCommands`] covers showing effective limits per tier, setting
-//! endpoint rates and tier multipliers, validating the configuration, applying
-//! presets, and importing/exporting/diffing against files or defaults. The
-//! editing paths persist changes to the active profile YAML.
+//! [`RateLimitsCommands`] covers showing the configured limits, setting
+//! endpoint rates, validating the configuration, applying presets, and
+//! importing/exporting/diffing against files or defaults. The editing paths
+//! persist changes to the active profile YAML.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -30,12 +30,6 @@ pub enum RateLimitsCommands {
     #[command(about = "Show current rate limits configuration", alias = "list")]
     Show,
 
-    #[command(about = "Show effective limits for a specific tier")]
-    Tier(TierArgs),
-
-    #[command(about = "Show rate limits documentation")]
-    Docs,
-
     #[command(about = "Set a rate limit value")]
     Set(SetArgs),
 
@@ -47,9 +41,6 @@ pub enum RateLimitsCommands {
 
     #[command(about = "Validate rate limit configuration")]
     Validate,
-
-    #[command(about = "Compare effective limits across all tiers")]
-    Compare,
 
     #[command(about = "Reset rate limits to defaults")]
     Reset(ResetArgs),
@@ -68,15 +59,6 @@ pub enum RateLimitsCommands {
 }
 
 #[derive(Debug, Clone, Args)]
-pub struct TierArgs {
-    #[arg(
-        value_name = "TIER",
-        help = "Tier name: admin, user, a2a, mcp, service, anon"
-    )]
-    pub tier: String,
-}
-
-#[derive(Debug, Clone, Args)]
 pub struct SetArgs {
     #[arg(
         long,
@@ -87,15 +69,6 @@ pub struct SetArgs {
 
     #[arg(long, help = "Rate per second (requires --endpoint)")]
     pub rate: Option<u64>,
-
-    #[arg(
-        long,
-        help = "Tier to modify multiplier: admin, user, a2a, mcp, service, anon"
-    )]
-    pub tier: Option<String>,
-
-    #[arg(long, help = "Multiplier value (requires --tier)")]
-    pub multiplier: Option<f64>,
 
     #[arg(long, help = "Burst multiplier value")]
     pub burst: Option<u64>,
@@ -111,9 +84,6 @@ pub struct ResetArgs {
 
     #[arg(long, help = "Reset only this endpoint")]
     pub endpoint: Option<String>,
-
-    #[arg(long, help = "Reset only this tier multiplier")]
-    pub tier: Option<String>,
 }
 
 #[derive(Debug, Subcommand)]
@@ -177,13 +147,10 @@ pub fn execute(
 ) -> Result<()> {
     match command {
         RateLimitsCommands::Show => show::execute_show(config),
-        RateLimitsCommands::Tier(args) => show::execute_tier(args, config),
-        RateLimitsCommands::Docs => show::execute_docs(config),
         RateLimitsCommands::Set(args) => set::execute_set(&args, config),
         RateLimitsCommands::Enable => set::execute_enable(config),
         RateLimitsCommands::Disable => set::execute_disable(config),
         RateLimitsCommands::Validate => validate::execute_validate(config),
-        RateLimitsCommands::Compare => validate::execute_compare(config),
         RateLimitsCommands::Reset(args) => reset::execute_reset(&args, prompter, config),
         RateLimitsCommands::Preset(cmd) => preset::execute_preset(cmd, prompter, config),
         RateLimitsCommands::Export(args) => {

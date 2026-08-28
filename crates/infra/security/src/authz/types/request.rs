@@ -8,11 +8,12 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{
-    Actor, ContextId, McpToolName, ModelId, SessionId, TaskId, TraceId, UserId,
+    Actor, ActorKind, ClientId, ContextId, McpToolName, ModelId, SessionId, TaskId, TraceId, UserId,
 };
 
 use super::decision::DenyReason;
 use super::entity_ref::EntityRef;
+use crate::policy::types::AccessScope;
 
 /// Open enforcement-site context attached to an [`AuthzRequest`].
 ///
@@ -138,10 +139,27 @@ impl AuthzContext {
     }
 }
 
+/// One authorization question, as sent to the configured hook.
+///
+/// This struct crosses the wire as JSON to an out-of-process hook, so every
+/// field added after `user_id` is optional on the wire: a hook built against
+/// an older shape must still parse a newer request, or every governed call
+/// would fail closed while the two sides are deployed separately.
+///
+/// `actor` is the surface the request came through (user, mcp server, agent,
+/// job); its `user_id` MUST equal the top-level `user_id`. Build through
+/// [`AuthzRequest::for_actor`] so the two cannot diverge. `client_id` is the
+/// OAuth client from the validated token, never from a request header.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AuthzRequest {
     pub entity: EntityRef,
     pub user_id: UserId,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub actor: Option<Actor>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub client_id: Option<ClientId>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub access_scope: Option<AccessScope>,
     #[serde(default)]
     pub roles: Vec<String>,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
@@ -157,6 +175,33 @@ pub struct AuthzRequest {
     pub task_id: Option<TaskId>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub act_chain: Vec<Actor>,
+}
+
+impl AuthzRequest {
+    #[must_use]
+    pub fn for_actor(mut self, actor: Actor) -> Self {
+        self.user_id = actor.user_id.clone();
+        self.actor = Some(actor);
+        self
+    }
+
+    #[must_use]
+    pub fn actor(&self) -> Actor {
+        self.actor
+            .clone()
+            .unwrap_or_else(|| Actor::user(self.user_id.clone()))
+    }
+
+    // Why: the direct caller is the outermost `act` link -- the most recent
+    // delegate -- and only a delegate that is itself an agent is a verified
+    // agent identity. A chain of plain users yields no agent, which is honest.
+    #[must_use]
+    pub fn verified_agent_id(&self) -> Option<&str> {
+        match self.act_chain.first().map(|a| &a.kind) {
+            Some(ActorKind::Agent { agent_id }) => Some(agent_id.as_str()),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

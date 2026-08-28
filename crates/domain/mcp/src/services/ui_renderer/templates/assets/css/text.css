@@ -57,3 +57,19 @@
     font-size: var(--mcpui-text-md);
     line-height: 1;
 }
+
+.text-language {
+    font-family: var(--mcpui-font-mono);
+    font-size: var(--mcpui-text-xs);
+    letter-spacing: var(--mcpui-tracking-wide);
+    text-transform: uppercase;
+    color: var(--mcpui-ink-faint);
+}
+
+.copy-status {
+    font-size: var(--mcpui-text-sm);
+    color: var(--mcpui-ink-dim);
+}
+
+.copy-status[data-tone="success"] { color: var(--mcpui-success); }
+.copy-status[data-tone="error"]   { color: var(--mcpui-danger); }

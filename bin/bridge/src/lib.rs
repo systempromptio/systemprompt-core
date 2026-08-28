@@ -25,6 +25,8 @@ pub mod brand;
 pub mod cli;
 pub mod config;
 pub mod cowork_compat;
+#[cfg(feature = "dev-preview")]
+pub mod dev_preview;
 pub mod fsutil;
 pub mod gateway;
 #[cfg(any(target_os = "windows", target_os = "macos"))]
@@ -50,6 +52,8 @@ pub mod sync;
 pub(crate) mod sysproc;
 pub mod update;
 pub mod validate;
+pub mod web_assets;
+pub mod window_state;
 #[cfg(target_os = "windows")]
 pub(crate) mod winproc;
 
@@ -94,6 +98,13 @@ Commands (plugin + MCP sync):
                                           Settings → Profiles for user approval.
                                           Use when the fleet is MDM-managed or Apple's
                                           approval UI is required.
+    [--egress-allowed-hosts <csv>]        Restrict which hosts Cowork may reach.
+                                          Omitted by default, which leaves Cowork's
+                                          own unrestricted egress in force. Pass
+                                          `loopback` for the air-gapped posture
+                                          (127.0.0.1 only), or a comma-separated
+                                          host list. Also read from
+                                          {egress_env}.
     [--print-mdm macos|windows|linux]     Print MDM snippet for target OS (default: current OS)
     [--emit-schedule-template macos|windows|linux]
                                           Write an OS scheduler template to CWD
@@ -124,16 +135,23 @@ Commands (plugin + MCP sync):
                              loopback secret, pinned pubkey) with one line per check
   uninstall                  Reverse install (metadata + staging)
     [--purge]                             Also remove stored PAT/credentials
+  dev-web [--port N]         (dev builds only) Serve the GUI web tree over HTTP
+    [--web-root DIR]         so a browser can render it on a machine with no
+                             webview. See bin/bridge/README.md.
   gui                        Launch the native settings UI (Windows + macOS)
   help                       Show this help
 
 Env overrides:
   {config_env}           Path to {config_file}
   {pat_env}              Inline PAT (overrides file-based [pat])
+  {egress_env}
+                             Comma-separated Cowork egress allowlist; `loopback`
+                             expands to 127.0.0.1. Unset means no restriction.
 ",
         config_file = b.config_file,
         config_env = b.env("CONFIG"),
         pat_env = b.env("PAT"),
+        egress_env = b.env("EGRESS_ALLOWED_HOSTS"),
     )
 }
 

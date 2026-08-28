@@ -29,16 +29,11 @@ pub(crate) fn on_open_settings(app: &mut GuiApp, event_loop: &dyn ActiveEventLoo
     match window::SettingsWindow::create(event_loop, &app.proxy, legacy_origin.as_deref()) {
         Ok(win) => {
             app.append_log("opened native settings window (sp:// custom protocol)");
-            if let Some(handles) = app.menu_bar.as_ref()
-                && let Err(e) = crate::gui::menu::attach_to_window(handles, win.winit_window())
-            {
-                app.append_log(format!("menu bar attach failed: {e}"));
-            }
             app.settings_window = Some(win);
         },
         Err(e) => {
             diag(&format!("gui: native settings window failed: {e}"));
-            app.append_log(format!("native window unavailable: {e}"));
+            app.append_log_error(format!("native window unavailable: {e}"));
         },
     }
 }

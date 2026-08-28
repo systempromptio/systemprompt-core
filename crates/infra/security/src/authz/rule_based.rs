@@ -1,9 +1,12 @@
 //! Core `AuthzDecisionHook` wrapping the in-process [`super::resolver`].
 //!
 //! `RuleBasedHook` is the canonical RBAC layer: it loads
-//! `access_control_rules` for the request's entity, runs the sync resolver
-//! over them, and emits an `AuthzDecision`. Exposed as a hook so extensions
-//! can compose it explicitly with their own ABAC predicates via
+//! `access_control_rules` for the request's entity, resolves them through the
+//! entity's plugin and marketplace parent chain, and emits an
+//! `AuthzDecision`. The chain's membership is supplied at construction,
+//! because this crate cannot load the services configuration itself, and is
+//! fixed for the process lifetime. Exposed as a hook so
+//! extensions can compose it explicitly with their own ABAC predicates via
 //! [`super::CompositeAuthzHook`]:
 //!
 //! ```ignore
@@ -26,26 +29,38 @@ use sqlx::PgPool;
 
 use super::audit::{AuthzAuditSink, AuthzSource};
 use super::hook::AuthzDecisionHook;
+use super::parent_chain::{ChainSources, ParentChainIndex, ResolveBase};
 use super::registry::AuthzHookContext;
 use super::repository::AccessControlRepository;
-use super::resolver::{ResolveInput, resolve};
 use super::subject::{
     SharedSubjectAttributeProvider, SubjectDimension, dimensions_of, discover_subject_providers,
     gather_subject_attributes,
 };
 use super::types::{AuthzDecision, AuthzRequest, Decision, DenyReason};
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct RuleBasedHook {
     repo: AccessControlRepository,
     sink: Arc<dyn AuthzAuditSink>,
     providers: Vec<SharedSubjectAttributeProvider>,
     dimensions: Vec<SubjectDimension>,
+    sources: ChainSources,
+}
+
+impl std::fmt::Debug for RuleBasedHook {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("RuleBasedHook")
+            .field("repo", &self.repo)
+            .field("sink", &self.sink)
+            .field("providers", &self.providers)
+            .field("dimensions", &self.dimensions)
+            .finish_non_exhaustive()
+    }
 }
 
 impl RuleBasedHook {
     #[must_use]
-    pub fn new(pool: Arc<PgPool>, sink: Arc<dyn AuthzAuditSink>) -> Self {
+    pub fn new(pool: Arc<PgPool>, sink: Arc<dyn AuthzAuditSink>, sources: ChainSources) -> Self {
         let providers = discover_subject_providers(&AuthzHookContext {
             pool: Arc::clone(&pool),
             sink: Arc::clone(&sink),
@@ -55,7 +70,14 @@ impl RuleBasedHook {
             sink,
             dimensions: dimensions_of(&providers),
             providers,
+            sources,
         }
+    }
+
+    async fn chain_index(&self) -> Result<ParentChainIndex, String> {
+        ParentChainIndex::load(&self.repo, self.sources.clone())
+            .await
+            .map_err(|e| e.to_string())
     }
 
     async fn fault(&self, req: &AuthzRequest, detail: &str) -> AuthzDecision {
@@ -94,22 +116,51 @@ impl AuthzDecisionHook for RuleBasedHook {
             Err(err) => return self.fault(&req, &err.to_string()).await,
         };
 
+        let index = match self.chain_index().await {
+            Ok(index) => index,
+            Err(detail) => return self.fault(&req, &detail).await,
+        };
+
         let attributes = gather_subject_attributes(&self.providers, &req.user_id).await;
-        let decision = resolve(ResolveInput {
-            entity: &req.entity,
-            rules: &rules,
-            user_id: &req.user_id,
-            user_roles: &req.roles,
-            default_included: entity.map(|e| e.default_included),
-            parents: &[],
-            attributes: &attributes,
-            dimensions: &self.dimensions,
-        });
+        let decision = index.resolve(
+            kind,
+            id,
+            ResolveBase {
+                rules: &rules,
+                user_id: &req.user_id,
+                user_roles: &req.roles,
+                default_included: entity.map(|e| e.default_included),
+                attributes: &attributes,
+                dimensions: &self.dimensions,
+            },
+        );
 
         let policy = AuthzSource::RuleBased.policy().to_owned();
         let authz_decision = match decision {
             Decision::Allow { .. } => AuthzDecision::Allow,
             Decision::Deny { reason } => AuthzDecision::Deny { reason, policy },
+            // Why: the rule resolver answers "may this subject reach this
+            // entity", which has no third answer — only the governance chain's
+            // `require_approval` returns `Pending`, and it never runs here. A
+            // hold reaching this plane means a policy was mounted where it
+            // cannot be honoured, so it degrades to a deny rather than an
+            // allow.
+            Decision::Pending { reason } => {
+                tracing::error!(
+                    %reason,
+                    "a governance hold reached the rule-based resolver, which cannot park a \
+                     request; refusing it"
+                );
+                AuthzDecision::Deny {
+                    reason: DenyReason::PolicyViolation {
+                        policy: "require_approval".to_owned(),
+                        detail: std::borrow::Cow::Borrowed(
+                            "approval required, but this enforcement point cannot hold a request",
+                        ),
+                    },
+                    policy,
+                }
+            },
         };
         self.sink
             .record(&req, &authz_decision, AuthzSource::RuleBased)

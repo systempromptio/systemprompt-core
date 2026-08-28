@@ -158,6 +158,7 @@ async fn create_jwt_and_refresh_token(
         resource: params.resource.map(String::from),
         expires_in_hours: Some(global_config.jwt_access_token_expiration / 3600),
         plugin_id: None,
+        client_id: Some(params.client_id.clone()),
     };
     let signing = JwtSigningParams {
         issuer: &global_config.jwt_issuer,

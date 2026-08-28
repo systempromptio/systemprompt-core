@@ -1,5 +1,9 @@
 //! The bundle of catalogue items handed to a [`crate::MarketplaceFilter`].
 //!
+//! Ownership maps (`skill_owners`, `artifact_owners`) are assembly context:
+//! they drive the per-plugin access cascade and orphan pruning, and are never
+//! serialised into the manifest.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -33,6 +37,7 @@ pub struct MarketplaceCandidate {
     pub hooks: Vec<HookEntry>,
     pub managed_mcp_servers: Vec<ManagedMcpServer>,
     pub artifacts: Vec<ArtifactEntry>,
+    pub skill_owners: BTreeMap<SkillId, BTreeSet<PluginId>>,
     pub artifact_owners: BTreeMap<LibraryArtifactId, BTreeSet<PluginId>>,
     pub marketplace_id: Option<MarketplaceId>,
     pub access: Option<MarketplaceAccess>,
@@ -54,6 +59,7 @@ pub struct ManifestEntries {
 /// Assembly context consumed by filtering, never serialised to the manifest.
 #[derive(Debug, Clone, Default)]
 pub struct FilterContext {
+    pub skill_owners: BTreeMap<SkillId, BTreeSet<PluginId>>,
     pub artifact_owners: BTreeMap<LibraryArtifactId, BTreeSet<PluginId>>,
     pub marketplace_id: Option<MarketplaceId>,
     pub access: Option<MarketplaceAccess>,
@@ -71,6 +77,7 @@ impl MarketplaceCandidate {
             hooks,
             managed_mcp_servers,
             artifacts,
+            skill_owners,
             artifact_owners,
             marketplace_id,
             access,
@@ -87,11 +94,18 @@ impl MarketplaceCandidate {
                 diagnostics,
             },
             FilterContext {
+                skill_owners,
                 artifact_owners,
                 marketplace_id,
                 access,
             },
         )
+    }
+
+    #[must_use]
+    pub fn with_skill_owners(mut self, owners: BTreeMap<SkillId, BTreeSet<PluginId>>) -> Self {
+        self.skill_owners = owners;
+        self
     }
 
     #[must_use]

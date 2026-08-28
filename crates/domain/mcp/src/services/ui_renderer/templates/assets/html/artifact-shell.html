@@ -5,13 +5,28 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Artifact Viewer</title>
   <style>
+    /* The shell is the chrome around the mounted artifact, so it has to follow
+     * the viewer's scheme for the same reason the artifact does: hardcoded
+     * light here put a white band around a dark artifact. It cannot use the
+     * --mcpui-* tokens — those live in the nested document — so it restates
+     * the few values it needs with light-dark(). */
+    :root {
+      color-scheme: light dark;
+      --shell-bg:      light-dark(oklch(1 0 0),        oklch(0.20 0.01 50));
+      --shell-ink:     light-dark(oklch(0.20 0.01 50), oklch(0.98 0.004 70));
+      --shell-ink-dim: light-dark(oklch(0.41 0.01 60), oklch(0.86 0.010 60));
+      --shell-border:  light-dark(oklch(0.92 0.008 65), oklch(0.34 0.01 55));
+      --shell-sunken:  light-dark(oklch(0.97 0.005 70), oklch(0.27 0.01 50));
+      --shell-accent:  light-dark(oklch(0.67 0.18 50), oklch(0.72 0.17 52));
+      --shell-danger:  light-dark(oklch(0.63 0.21 25), oklch(0.70 0.17 20));
+    }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body { height: 100%; }
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       font-size: 14px;
-      color: #333;
-      background: #fff;
+      color: var(--shell-ink);
+      background: var(--shell-bg);
     }
     #frame {
       display: block;
@@ -25,34 +40,40 @@
       justify-content: center;
       gap: 10px;
       padding: 32px;
-      color: #666;
+      color: var(--shell-ink-dim);
     }
     .spinner {
       width: 18px;
       height: 18px;
-      border: 2px solid #e2e2e8;
-      border-top-color: #6366f1;
+      border: 2px solid var(--shell-border);
+      border-top-color: var(--shell-accent);
       border-radius: 50%;
       animation: spin 0.8s linear infinite;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
+    /* The spinner is the only motion here, and a spinner that cannot spin is
+     * better than one that ignores the preference. */
+    @media (prefers-reduced-motion: reduce) {
+      .spinner { animation-duration: 2.4s; }
+    }
     .fallback { padding: 16px; }
     .fallback pre {
-      background: #f6f6f9;
-      border: 1px solid #e2e2e8;
+      background: var(--shell-sunken);
+      border: 1px solid var(--shell-border);
       border-radius: 6px;
       padding: 12px;
       overflow-x: auto;
       font-size: 12px;
+      color: var(--shell-ink);
     }
     .error {
       margin: 16px;
       padding: 12px;
-      border: 1px solid #f8b4b4;
-      border-left: 3px solid #ef4444;
+      border: 1px solid color-mix(in oklab, var(--shell-danger) 45%, transparent);
+      border-left: 3px solid var(--shell-danger);
       border-radius: 6px;
-      background: #fef4f4;
-      color: #a00;
+      background: color-mix(in oklab, var(--shell-danger) 12%, transparent);
+      color: var(--shell-ink);
     }
   </style>
 </head>
@@ -98,6 +119,45 @@
       });
     }
 
+    // Host theme (SEP-1865 `hostContext`). Without this the shell and the
+    // artifact both fall back to `color-scheme: light dark`, which resolves off
+    // the VIEWER'S OS — so a light host on a dark-OS machine showed a dark
+    // artifact in a light pane. The host is the only party that knows its own
+    // theme, so it has to say; when it does not, the OS fallback still applies
+    // and nothing changes.
+    let hostTheme = null;
+    let mountedHtml = null;
+
+    function applyHostContext(context) {
+        const theme = context && context.theme;
+        if (theme !== 'light' && theme !== 'dark') {
+            return;
+        }
+        if (theme === hostTheme) {
+            return;
+        }
+        hostTheme = theme;
+        // The shell's own chrome — the loading state, the error panel, the
+        // band around the artifact.
+        document.documentElement.style.colorScheme = theme;
+        publishTheme();
+    }
+
+    // The artifact is a sandboxed srcdoc iframe with no allow-same-origin, so
+    // its DOM is unreachable from here; the theme has to be relayed as a
+    // message and stamped by frame.js on the other side.
+    function publishTheme() {
+        const frame = document.getElementById('frame');
+        if (!hostTheme || !frame || !frame.contentWindow) {
+            return;
+        }
+        frame.contentWindow.postMessage({
+            jsonrpc: '2.0',
+            method: MCP_UI.HOST_CONTEXT_CHANGED,
+            params: { hostContext: { theme: hostTheme } }
+        }, '*');
+    }
+
     // The tool result carries the rendered artifact as an embedded ui://
     // resource — the zero-round-trip path.
     function embeddedHtml(result) {
@@ -129,9 +189,15 @@
     }
 
     function mount(html) {
+      mountedHtml = html;
       const root = document.getElementById('root');
       root.innerHTML = '<iframe id="frame" sandbox="allow-scripts allow-popups"></iframe>';
-      document.getElementById('frame').srcdoc = html;
+      const frame = document.getElementById('frame');
+      // Why on load rather than immediately: srcdoc parses asynchronously, so
+      // frame.js is not listening yet when mount() returns. A theme that
+      // arrived before the artifact did is replayed here.
+      frame.addEventListener('load', publishTheme);
+      frame.srcdoc = html;
     }
 
     function showFallback(result) {
@@ -200,6 +266,13 @@
           return;
         }
 
+        // Only the host may set the theme; the mounted artifact must not be
+        // able to repaint the shell around it.
+        if (data.method === MCP_UI.HOST_CONTEXT_CHANGED && event.source === window.parent) {
+          applyHostContext((data.params && data.params.hostContext) || data.params);
+          return;
+        }
+
         if (data.method === MCP_UI.TOOL_RESULT) {
           render(data.params);
         }
@@ -211,9 +284,12 @@
 
     request(MCP_UI.INITIALIZE, {
       appInfo: { name: 'systemprompt-artifact-viewer', version: '1.0.0' },
-      appCapabilities: {},
+      appCapabilities: { hostContext: {} },
       protocolVersion: MCP_UI.PROTOCOL_VERSION
-    }).then(() => {
+    }).then((result) => {
+      // A host that reports its theme up front saves a repaint; one that only
+      // sends the notification later is handled by the listener above.
+      applyHostContext(result && result.hostContext);
       post({ jsonrpc: '2.0', method: MCP_UI.INITIALIZED, params: {} });
       publishSize();
     }).catch((err) => {

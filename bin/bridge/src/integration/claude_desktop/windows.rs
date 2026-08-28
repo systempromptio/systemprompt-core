@@ -11,8 +11,8 @@ use super::shared::{
     API_KEY_KEY, DESKTOP_DOMAIN, DomainRead, KEYS_OF_INTEREST, ProfileGenInputs, make_uuids,
     redact_if_sensitive, unique_stem,
 };
-use crate::config::store::managed_policy_store;
-use crate::integration::host_app::GeneratedProfile;
+use crate::config::store::{clear_managed_claude_policy, managed_policy_store};
+use crate::integration::host_app::{GeneratedProfile, ProfileRemoval};
 use crate::winproc;
 
 pub(super) fn read_domain(domain: &str) -> DomainRead {
@@ -121,6 +121,7 @@ pub(super) fn install_profile(path: &str) -> std::io::Result<()> {
         let job = super::elevate::ElevatedJob {
             reg_path: Some(path.to_owned()),
             org_plugins: super::elevate::ElevatedJob::org_plugins_for_current_user(),
+            clear_values: Vec::new(),
         };
         super::elevate::elevate_and_run(&stage_dir, &job)?;
     }
@@ -129,4 +130,31 @@ pub(super) fn install_profile(path: &str) -> std::io::Result<()> {
         "Claude Desktop profile installed"
     );
     Ok(())
+}
+
+pub(super) fn remove_profile() -> std::io::Result<ProfileRemoval> {
+    if winproc::is_elevated() {
+        let removed = clear_managed_claude_policy(true, KEYS_OF_INTEREST)
+            .map_err(|e| std::io::Error::other(e.to_string()))?;
+        return Ok(if removed == 0 {
+            ProfileRemoval::NothingToRemove
+        } else {
+            ProfileRemoval::Removed {
+                path: Some(crate::cowork_compat::POLICY_SUBKEY.to_owned()),
+            }
+        });
+    }
+    // Why: `SOFTWARE\Policies` is ACL-protected, so the delete goes through the
+    // same staged-and-elevated route the install uses rather than failing with
+    // status 5.
+    let stage_dir = std::env::temp_dir();
+    let job = super::elevate::ElevatedJob {
+        reg_path: None,
+        org_plugins: None,
+        clear_values: KEYS_OF_INTEREST.iter().map(|k| (*k).to_owned()).collect(),
+    };
+    super::elevate::elevate_and_run(&stage_dir, &job)?;
+    Ok(ProfileRemoval::Removed {
+        path: Some(crate::cowork_compat::POLICY_SUBKEY.to_owned()),
+    })
 }

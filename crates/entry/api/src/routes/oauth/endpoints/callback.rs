@@ -204,6 +204,7 @@ async fn exchange_code_for_token(
     let config = JwtConfig {
         permissions: permissions.clone(),
         audience: global_config.jwt_audiences.clone(),
+        client_id: Some(params.client_id.clone()),
         ..Default::default()
     };
     let signing = JwtSigningParams {

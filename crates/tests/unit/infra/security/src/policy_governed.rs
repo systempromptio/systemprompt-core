@@ -157,3 +157,66 @@ fn governed_target_serde_roundtrip() {
         assert_eq!(back, target);
     }
 }
+
+#[test]
+fn scalars_reach_the_values_strings_cannot() {
+    let input = GovernedInput::tool_arguments(McpToolInput::new(json!({
+        "a": 1, "b": [true, null], "c": {"d": "x"}
+    })));
+    let seen: Vec<(String, String)> = input
+        .scalars()
+        .into_iter()
+        .map(|s| (s.path, s.value.to_string()))
+        .collect();
+
+    assert_eq!(
+        seen,
+        vec![
+            ("a".to_owned(), "1".to_owned()),
+            ("b[0]".to_owned(), "true".to_owned()),
+            ("b[1]".to_owned(), "null".to_owned()),
+            ("c.d".to_owned(), "\"x\"".to_owned()),
+        ]
+    );
+}
+
+#[test]
+fn generalising_the_walk_left_strings_byte_identical() {
+    // Why the full ordered (path, value) sequence and not just the values:
+    // `secret_scan` reports a finding against the path, so a correct value at a
+    // wrong path is a real regression that a values-only assertion waves
+    // through. `strings()` is now a filter over `scalars()`, and this is the
+    // guard on that refactor.
+    let input = GovernedInput::tool_arguments(McpToolInput::new(json!({
+        "body": "hello",
+        "count": 3,
+        "flags": [true, "on"],
+        "nested": {"deep": ["x", 4, "y"]}
+    })));
+    let seen: Vec<(String, &str)> = input
+        .strings()
+        .into_iter()
+        .map(|s| (s.path, s.value))
+        .collect();
+
+    assert_eq!(
+        seen,
+        vec![
+            ("body".to_owned(), "hello"),
+            ("flags[1]".to_owned(), "on"),
+            ("nested.deep[0]".to_owned(), "x"),
+            ("nested.deep[2]".to_owned(), "y"),
+        ]
+    );
+}
+
+#[test]
+fn a_prompt_offers_no_scalars_to_address() {
+    // A path-addressed condition must never match a prompt on a coincidence of
+    // naming — a prompt has no argument structure to name.
+    assert!(
+        GovernedInput::prompt_text("to: x@gmail.com".to_owned())
+            .scalars()
+            .is_empty()
+    );
+}

@@ -1,0 +1,163 @@
+/* Overflow as part of the design language.
+ *
+ * Two ideas, both DOM-free so any element can opt in with a single class:
+ *
+ *  1. The bar. WebView2 and WKWebView both draw a chunky opaque platform
+ *     scrollbar that reads as a foreign object on a dark surface. We replace it
+ *     with a thin accent-tinted pill floating *over* the content: at rest it is
+ *     barely there, on hover it warms up to the accent. Because it overlays
+ *     rather than reserving a gutter, a pane's measure does not jump the moment
+ *     its content grows past one screen.
+ *
+ *  2. The fade. A hard-cut edge is what makes clipped content look broken --
+ *     you cannot tell a truncated list from a finished one. Content instead
+ *     dissolves into the background at any edge you can still scroll toward, so
+ *     the edge itself tells you there is more. Two registered custom properties
+ *     drive the mask and a scroll-driven animation interpolates them, so the
+ *     top fade is genuinely absent at scroll position zero rather than
+ *     permanently veiling the first line.
+ *
+ * Every scroll container in the app is enumerated here rather than each pane
+ * styling its own, so that "how does overflow look" has exactly one answer and
+ * one place to change it. `.sp-scroll` / `.sp-scroll-x` are what new markup
+ * opts in with.
+ */
+
+@property --sp-fade-start {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+@property --sp-fade-end {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+/* ---------------------------------------------------------------- the bar */
+
+.sp-scroll   { overflow-y: auto; overflow-x: hidden; }
+.sp-scroll-x { overflow-x: auto; overflow-y: hidden; }
+
+:is(.sp-scroll, .sp-rail, .sp-log-virtual, .sp-activity .sp-log,
+     .sp-drawer__body, .sp-mkt-items, .sp-mkt-detail, .sp-mkt-detail__readme, .sp-scroll-x) {
+  scrollbar-width: thin;
+  scrollbar-color: var(--sp-scroll-thumb) transparent;
+}
+:is(.sp-scroll, .sp-rail, .sp-log-virtual, .sp-activity .sp-log,
+     .sp-drawer__body, .sp-mkt-items, .sp-mkt-detail, .sp-mkt-detail__readme, .sp-scroll-x):hover {
+  scrollbar-color: var(--sp-scroll-thumb-hover) transparent;
+}
+
+:is(.sp-scroll, .sp-rail, .sp-log-virtual, .sp-activity .sp-log,
+     .sp-drawer__body, .sp-mkt-items, .sp-mkt-detail, .sp-mkt-detail__readme, .sp-scroll-x)::-webkit-scrollbar {
+  width: var(--sp-scroll-size);
+  height: var(--sp-scroll-size);
+  background: transparent;
+}
+
+:is(.sp-scroll, .sp-rail, .sp-log-virtual, .sp-activity .sp-log,
+     .sp-drawer__body, .sp-mkt-items, .sp-mkt-detail, .sp-mkt-detail__readme, .sp-scroll-x)::-webkit-scrollbar-track,
+:is(.sp-scroll, .sp-rail, .sp-log-virtual, .sp-activity .sp-log,
+     .sp-drawer__body, .sp-mkt-items, .sp-mkt-detail, .sp-mkt-detail__readme, .sp-scroll-x)::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* `background-clip: content-box` behind a transparent border is what turns the
+   full-width track slot into a narrow floating pill with real padding around
+   it -- there is no scrollbar margin property to do this with. */
+:is(.sp-scroll, .sp-rail, .sp-log-virtual, .sp-activity .sp-log,
+     .sp-drawer__body, .sp-mkt-items, .sp-mkt-detail, .sp-mkt-detail__readme, .sp-scroll-x)::-webkit-scrollbar-thumb {
+  background-color: var(--sp-scroll-thumb);
+  background-clip: content-box;
+  border: 3px solid transparent;
+  border-radius: var(--sp-corners-pill);
+  transition: background-color var(--sp-dur-normal) var(--sp-ease-out);
+}
+
+:is(.sp-scroll, .sp-rail, .sp-log-virtual, .sp-activity .sp-log,
+     .sp-drawer__body, .sp-mkt-items, .sp-mkt-detail, .sp-mkt-detail__readme, .sp-scroll-x):hover::-webkit-scrollbar-thumb {
+  background-color: var(--sp-scroll-thumb-hover);
+}
+
+:is(.sp-scroll, .sp-rail, .sp-log-virtual, .sp-activity .sp-log,
+     .sp-drawer__body, .sp-mkt-items, .sp-mkt-detail, .sp-mkt-detail__readme, .sp-scroll-x)::-webkit-scrollbar-thumb:active {
+  background-color: var(--sp-scroll-thumb-active);
+}
+
+/* --------------------------------------------------------------- the fade */
+
+/* Base state is deliberately NO fade (both ends 0). A pane whose content fits
+   must never be veiled, and an element with an inactive scroll timeline -- one
+   that is not overflowing, or a runtime with no scroll-timeline support --
+   falls back to exactly this. The fade is something the scroll introduces. */
+:is(.sp-scroll, .sp-rail, .sp-log-virtual, .sp-activity .sp-log,
+     .sp-drawer__body, .sp-mkt-items, .sp-mkt-detail, .sp-mkt-detail__readme):not(.sp-scroll--flush) {
+  -webkit-mask-image: linear-gradient(to bottom,
+    transparent 0, #000 var(--sp-fade-start),
+    #000 calc(100% - var(--sp-fade-end)), transparent 100%);
+  mask-image: linear-gradient(to bottom,
+    transparent 0, #000 var(--sp-fade-start),
+    #000 calc(100% - var(--sp-fade-end)), transparent 100%);
+}
+
+.sp-scroll-x:not(.sp-scroll--flush) {
+  -webkit-mask-image: linear-gradient(to right,
+    transparent 0, #000 var(--sp-fade-start),
+    #000 calc(100% - var(--sp-fade-end)), transparent 100%);
+  mask-image: linear-gradient(to right,
+    transparent 0, #000 var(--sp-fade-start),
+    #000 calc(100% - var(--sp-fade-end)), transparent 100%);
+}
+
+/* A mask paints the element's whole box, the scrollbar included, so a faded
+   edge would take the bar's ends with it. Keeping the bar unmasked costs
+   nothing and keeps the affordance readable at the extremes. */
+:is(.sp-scroll, .sp-rail, .sp-log-virtual, .sp-activity .sp-log,
+     .sp-drawer__body, .sp-mkt-items, .sp-mkt-detail, .sp-mkt-detail__readme, .sp-scroll-x)::-webkit-scrollbar {
+  -webkit-mask-image: none;
+  mask-image: none;
+}
+
+/* Both ends stay open through the middle; only the first and last few percent
+   of travel retract one, so the edge you cannot scroll toward is never veiled. */
+@keyframes sp-scroll-fade-y {
+  0%   { --sp-fade-start: 0px;                   --sp-fade-end: var(--sp-scroll-fade); }
+  4%   { --sp-fade-start: var(--sp-scroll-fade); --sp-fade-end: var(--sp-scroll-fade); }
+  96%  { --sp-fade-start: var(--sp-scroll-fade); --sp-fade-end: var(--sp-scroll-fade); }
+  100% { --sp-fade-start: var(--sp-scroll-fade); --sp-fade-end: 0px; }
+}
+
+/* Progressive enhancement. Without scroll timelines the styled bar stands on
+   its own and no content is ever hidden -- the honest degradation, rather than
+   a static fade that would lie about there being more to see. */
+@supports (animation-timeline: scroll(self)) {
+  :is(.sp-scroll, .sp-rail, .sp-log-virtual, .sp-activity .sp-log,
+     .sp-drawer__body, .sp-mkt-items, .sp-mkt-detail, .sp-mkt-detail__readme):not(.sp-scroll--flush) {
+    animation: sp-scroll-fade-y linear both;
+    animation-timeline: scroll(self block);
+  }
+  .sp-scroll-x:not(.sp-scroll--flush) {
+    animation: sp-scroll-fade-y linear both;
+    animation-timeline: scroll(self inline);
+  }
+}
+
+/* ------------------------------------------------------------- modifiers */
+
+/* For containers where a mask would veil a child that is deliberately escaping
+   them. The rail is the standing case: its account popover is `position: fixed`
+   so it can break out of the rail's own clipping (rail.css:207), and a mask
+   paints the entire subtree, fixed descendants included -- it would fade the
+   popover straight back out again. */
+.sp-rail,
+.sp-scroll--flush {
+  -webkit-mask-image: none;
+  mask-image: none;
+  animation: none;
+}
+
+/* A scroll-driven animation is not motion the user did not ask for -- it tracks
+   the pointer 1:1 and stops when they do. It is deliberately left on under
+   reduced-motion; reset.css blanket-caps `animation-duration`, which a scroll
+   timeline ignores, so there is nothing here to neutralise. */

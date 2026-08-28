@@ -15,21 +15,48 @@ use crate::services::middleware::context::{
 use axum::Router;
 use axum::extract::{ConnectInfo, Request};
 use axum::middleware::Next;
-use axum::response::{IntoResponse, Response};
-use governor::clock::DefaultClock;
-use governor::state::keyed::DefaultKeyedStateStore;
-use governor::{Quota, RateLimiter};
+use axum::response::Response;
 use ipnet::IpNet;
 use std::future::Future;
 use std::net::SocketAddr;
-use std::num::NonZeroU32;
 use std::sync::Arc;
-use systemprompt_models::RequestContext;
-use systemprompt_models::api::{ApiError, ErrorCode};
-use systemprompt_models::auth::RateLimitTier;
-use systemprompt_models::config::RateLimitConfig;
-use tower_governor::key_extractor::SmartIpKeyExtractor;
-use tracing::warn;
+use systemprompt_extension::LoaderError;
+use systemprompt_models::auth::UserType;
+use systemprompt_models::{Config, RequestContext};
+
+#[derive(Clone, Debug)]
+pub struct IdentityOrTrustedIpKey {
+    trusted_proxies: Arc<Vec<IpNet>>,
+}
+
+impl IdentityOrTrustedIpKey {
+    const fn new(trusted_proxies: Arc<Vec<IpNet>>) -> Self {
+        Self { trusted_proxies }
+    }
+}
+
+impl tower_governor::key_extractor::KeyExtractor for IdentityOrTrustedIpKey {
+    type Key = String;
+
+    fn extract<T>(&self, req: &Request<T>) -> Result<Self::Key, tower_governor::GovernorError> {
+        // Why: an anonymous context's user id is a hash of the User-Agent and
+        // Accept-Language headers, so a caller who rotates either would mint a fresh
+        // bucket per request. Only a signature-verified identity is safe to key on.
+        if let Some(ctx) = req.extensions().get::<RequestContext>()
+            && ctx.auth.user_type != UserType::Anon
+        {
+            return Ok(format!("u:{}", ctx.user_id()));
+        }
+
+        resolve_client_ip(
+            req.headers(),
+            req.extensions().get::<ConnectInfo<SocketAddr>>(),
+            &self.trusted_proxies,
+        )
+        .map(|ip| format!("ip:{ip}"))
+        .ok_or(tower_governor::GovernorError::UnableToExtractKey)
+    }
+}
 
 pub trait ContextLayer: Clone + Send + Sync + 'static {
     fn handle(self, req: Request, next: Next) -> impl Future<Output = Response> + Send;
@@ -59,8 +86,8 @@ impl ContextLayer for McpContextMiddleware {
     }
 }
 
-pub trait RouterExt<S> {
-    fn with_rate_limit(self, rate_config: &RateLimitConfig, per_second: u64) -> Self;
+pub trait RouterExt<S>: Sized {
+    fn with_rate_limit(self, config: &Config, per_second: u64) -> Result<Self, LoaderError>;
 
     fn with_auth<L: ContextLayer>(self, auth: L, policy: AuthzPolicy) -> Self;
 }
@@ -69,24 +96,36 @@ impl<S> RouterExt<S> for Router<S>
 where
     S: Clone + Send + Sync + 'static,
 {
-    fn with_rate_limit(self, rate_config: &RateLimitConfig, per_second: u64) -> Self {
+    fn with_rate_limit(self, config: &Config, per_second: u64) -> Result<Self, LoaderError> {
+        let rate_config = &config.rate_limits;
         if rate_config.disabled {
-            return self;
+            return Ok(self);
         }
 
-        let rate_limit_result = tower_governor::governor::GovernorConfigBuilder::default()
-            .per_second(per_second)
-            .burst_size((per_second * rate_config.burst_multiplier) as u32)
-            .key_extractor(SmartIpKeyExtractor)
+        // Why: a truncating `as u32` turns any product that is a multiple of 2^32 into
+        // a zero burst, which `finish()` reports only by returning `None` —
+        // silently leaving the route unlimited. Saturate and clamp so the quota
+        // is always representable.
+        let burst = per_second.saturating_mul(rate_config.burst_multiplier);
+        let burst_u32 = u32::try_from(burst).unwrap_or(u32::MAX).max(1);
+        let per_second_clamped = per_second.max(1);
+
+        let rate_limit = tower_governor::governor::GovernorConfigBuilder::default()
+            .per_second(per_second_clamped)
+            .burst_size(burst_u32)
+            .key_extractor(IdentityOrTrustedIpKey::new(Arc::new(
+                config.trusted_proxies.clone(),
+            )))
             .use_headers()
-            .finish();
+            .finish()
+            .ok_or_else(|| LoaderError::InitializationFailed {
+                extension: "rate_limit".to_owned(),
+                message: format!(
+                    "rate limit rejected for {per_second_clamped}/s with burst {burst_u32}"
+                ),
+            })?;
 
-        if let Some(rate_limit) = rate_limit_result {
-            self.layer(tower_governor::GovernorLayer::new(rate_limit))
-        } else {
-            warn!("Failed to configure rate limiting - rate limiting disabled for this route");
-            self
-        }
+        Ok(self.layer(tower_governor::GovernorLayer::new(rate_limit)))
     }
 
     fn with_auth<L: ContextLayer>(self, auth: L, policy: AuthzPolicy) -> Self {
@@ -97,138 +136,5 @@ where
             let auth = auth.clone();
             async move { auth.handle(req, next).await }
         }))
-    }
-}
-
-type KeyedRateLimiter = RateLimiter<String, DefaultKeyedStateStore<String>, DefaultClock>;
-
-#[derive(Clone, Debug)]
-pub struct TieredRateLimiter {
-    admin_limiter: Arc<KeyedRateLimiter>,
-    user_limiter: Arc<KeyedRateLimiter>,
-    a2a_limiter: Arc<KeyedRateLimiter>,
-    mcp_limiter: Arc<KeyedRateLimiter>,
-    service_limiter: Arc<KeyedRateLimiter>,
-    anon_limiter: Arc<KeyedRateLimiter>,
-    disabled: bool,
-    trusted_proxies: Arc<Vec<IpNet>>,
-}
-
-impl TieredRateLimiter {
-    pub fn new(config: &RateLimitConfig, base_per_second: u64) -> Self {
-        Self::with_trusted_proxies(config, base_per_second, Vec::new())
-    }
-
-    pub fn with_trusted_proxies(
-        config: &RateLimitConfig,
-        base_per_second: u64,
-        trusted_proxies: Vec<IpNet>,
-    ) -> Self {
-        let create_limiter = |tier: RateLimitTier| -> Arc<KeyedRateLimiter> {
-            let effective = config.effective_limit(base_per_second, tier);
-            let burst = effective.saturating_mul(config.burst_multiplier);
-            let effective_u32 = u32::try_from(effective).unwrap_or(u32::MAX).max(1);
-            let burst_u32 = u32::try_from(burst).unwrap_or(u32::MAX).max(1);
-            let quota =
-                Quota::per_second(NonZeroU32::new(effective_u32).unwrap_or(NonZeroU32::MIN))
-                    .allow_burst(NonZeroU32::new(burst_u32).unwrap_or(NonZeroU32::MIN));
-            Arc::new(RateLimiter::keyed(quota))
-        };
-
-        Self {
-            admin_limiter: create_limiter(RateLimitTier::Admin),
-            user_limiter: create_limiter(RateLimitTier::User),
-            a2a_limiter: create_limiter(RateLimitTier::A2a),
-            mcp_limiter: create_limiter(RateLimitTier::Mcp),
-            service_limiter: create_limiter(RateLimitTier::Service),
-            anon_limiter: create_limiter(RateLimitTier::Anon),
-            disabled: config.disabled,
-            trusted_proxies: Arc::new(trusted_proxies),
-        }
-    }
-
-    pub fn disabled() -> Self {
-        let quota = Quota::per_second(NonZeroU32::MAX);
-        let limiter = Arc::new(RateLimiter::keyed(quota));
-        Self {
-            admin_limiter: Arc::clone(&limiter),
-            user_limiter: Arc::clone(&limiter),
-            a2a_limiter: Arc::clone(&limiter),
-            mcp_limiter: Arc::clone(&limiter),
-            service_limiter: Arc::clone(&limiter),
-            anon_limiter: Arc::clone(&limiter),
-            disabled: true,
-            trusted_proxies: Arc::new(Vec::new()),
-        }
-    }
-
-    #[must_use]
-    pub fn trusted_proxies(&self) -> &[IpNet] {
-        &self.trusted_proxies
-    }
-
-    fn limiter_for_tier(&self, tier: RateLimitTier) -> &KeyedRateLimiter {
-        match tier {
-            RateLimitTier::Admin => &self.admin_limiter,
-            RateLimitTier::User => &self.user_limiter,
-            RateLimitTier::A2a => &self.a2a_limiter,
-            RateLimitTier::Mcp => &self.mcp_limiter,
-            RateLimitTier::Service => &self.service_limiter,
-            RateLimitTier::Anon => &self.anon_limiter,
-        }
-    }
-
-    pub fn check(&self, tier: RateLimitTier, key: &str) -> bool {
-        if self.disabled {
-            return true;
-        }
-        self.limiter_for_tier(tier)
-            .check_key(&key.to_owned())
-            .is_ok()
-    }
-}
-
-pub async fn tiered_rate_limit_middleware(
-    limiter: axum::extract::State<TieredRateLimiter>,
-    request: Request,
-    next: Next,
-) -> Response {
-    if limiter.disabled {
-        return next.run(request).await;
-    }
-
-    let (tier, key) = request.extensions().get::<RequestContext>().map_or_else(
-        || {
-            let connect_info = request.extensions().get::<ConnectInfo<SocketAddr>>();
-            let ip = resolve_client_ip(request.headers(), connect_info, limiter.trusted_proxies())
-                .map_or_else(|| "unknown".to_owned(), |a| a.to_string());
-            (RateLimitTier::Anon, ip)
-        },
-        |ctx| {
-            let tier = ctx.rate_limit_tier();
-            let key = ctx.user_id().to_string();
-            (tier, key)
-        },
-    );
-
-    if limiter.check(tier, &key) {
-        next.run(request).await
-    } else {
-        warn!(
-            tier = %tier.as_str(),
-            key = %key,
-            "Rate limit exceeded"
-        );
-        let api_error = ApiError::new(ErrorCode::RateLimited, "Rate limit exceeded");
-        let mut response = api_error.into_response();
-        response
-            .headers_mut()
-            .insert("Retry-After", http::HeaderValue::from_static("1"));
-        if let Ok(tier_value) = http::HeaderValue::from_str(tier.as_str()) {
-            response
-                .headers_mut()
-                .insert("X-Rate-Limit-Tier", tier_value);
-        }
-        response
     }
 }

@@ -23,7 +23,7 @@ pub mod identity;
 use std::sync::LazyLock;
 
 use serde_json::json;
-use systemprompt_identifiers::{AgentName, ContextId, SessionId, TraceId};
+use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId, TraceId};
 use systemprompt_runtime::AppContext;
 use systemprompt_security::authz::{AuthzContext, AuthzDecision, AuthzRequest, EntityRef};
 use systemprompt_traits::SenderIdentity;
@@ -112,6 +112,9 @@ pub async fn dispatch_messaging(
     let authz = AuthzRequest {
         entity: inbound.entity.clone(),
         user_id: user.id.clone(),
+        actor: Some(Actor::user(user.id.clone())),
+        client_id: None,
+        access_scope: None,
         roles: user.roles.clone(),
         attributes: std::collections::BTreeMap::new(),
         trace_id: TraceId::generate(),
