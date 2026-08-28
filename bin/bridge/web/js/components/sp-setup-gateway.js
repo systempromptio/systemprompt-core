@@ -118,6 +118,13 @@ export class SpSetupGateway extends SpElement {
     if (!/^https?:\/\//i.test(gw)) {
       this.error = t("setup-gateway-scheme") || "Gateway URL must start with http:// or https://"; this.invalidate(); return null;
     }
+    // A local gateway is plain HTTP; an https:// typo here is saved verbatim
+    // and then opened in the browser, which fails with a TLS protocol error.
+    if (/^https:\/\/(localhost|127\.0\.0\.1|\[::1\])(:|\/|$)/i.test(gw)) {
+      this.error = t("setup-gateway-loopback-https")
+        || 'A gateway on this machine is served over http://, not https:// — drop the "s".';
+      this.invalidate(); return null;
+    }
     return gw;
   }
 
@@ -148,9 +155,8 @@ export class SpSetupGateway extends SpElement {
   }
 
   async _connect() {
-    const gw = (this.gateway || "").trim();
-    if (!gw) { this.error = t("setup-gateway-required-url") || "Enter the gateway URL."; this.invalidate(); return; }
-    if (!/^https?:\/\//i.test(gw)) { this.error = t("setup-gateway-scheme") || "Gateway URL must start with http:// or https://"; this.invalidate(); return; }
+    const gw = this._validGateway();
+    if (!gw) { return; }
     this._lastSavedGateway = gw;
     this.pending = true; this._pendingSince = Date.now(); this.error = ""; this.invalidate();
     this._clearPendingTimer();

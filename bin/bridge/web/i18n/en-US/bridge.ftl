@@ -433,6 +433,7 @@ setup-finish-empty-warning = You have not added an agent yet, so nothing will be
 setup-finish-anyway = Finish anyway
 setup-gateway-required-url = Enter the gateway URL.
 setup-gateway-scheme = Gateway URL must start with http:// or https://
+setup-gateway-loopback-https = A gateway on this machine is served over http://, not https:// — drop the "s".
 setup-gateway-save-failed = Could not save the gateway URL
 
 # Governance, requests, setup health and settings ------------------------------
