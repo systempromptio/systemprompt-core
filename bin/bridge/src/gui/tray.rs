@@ -44,12 +44,18 @@ pub enum TrayStatus {
 
 // Why: the notification area draws at 16px. macOS wants the flat monochrome
 // template; Windows wants the 16x16 frame the .ico already carries, not a
-// 1024px app icon resampled down to a smudge.
+// 1024px app icon resampled down to a smudge. Split by `#[cfg]` rather than
+// `cfg!`, which compiles both arms: `image`'s ICO decoder is a Windows-only
+// feature of the dependency, so the macOS build cannot name it at all.
+#[cfg(target_os = "macos")]
 fn tray_image() -> Result<image::RgbaImage, image::ImageError> {
     let assets = crate::brand::brand().assets;
-    if cfg!(target_os = "macos") {
-        return Ok(image::load_from_memory(assets.tray_icon_png)?.to_rgba8());
-    }
+    Ok(image::load_from_memory(assets.tray_icon_png)?.to_rgba8())
+}
+
+#[cfg(target_os = "windows")]
+fn tray_image() -> Result<image::RgbaImage, image::ImageError> {
+    let assets = crate::brand::brand().assets;
     let reader = image::codecs::ico::IcoDecoder::new(std::io::Cursor::new(assets.app_icon_ico));
     match reader {
         Ok(decoder) => Ok(image::DynamicImage::from_decoder(decoder)?.to_rgba8()),
