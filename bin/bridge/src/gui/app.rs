@@ -102,6 +102,15 @@ impl ApplicationHandler for GuiApp {
                     win.resize_webview(win.winit_window().surface_size());
                 }
             },
+            // Why: returning to the app from the browser (the device-link
+            // sign-in flow) focuses the host frame only; without this the
+            // child webview stays unfocused and the window looks backgrounded
+            // and ignores clicks.
+            WindowEvent::Focused(true) => {
+                if let Some(win) = &self.settings_window {
+                    win.focus_webview();
+                }
+            },
             WindowEvent::CloseRequested => {
                 self.remember_geometry();
                 if let Some(win) = &self.settings_window {
