@@ -35,6 +35,45 @@ pub(super) fn get_environment_name(
     Ok(input.trim().to_lowercase())
 }
 
+/// Resolves the administrator's email address, refusing to invent one.
+///
+/// Why: this value is written into `system_admin.email` and from there onto the
+/// `users` row that `admin bootstrap` creates, and it is displayed as the
+/// operator's identity — including on the bridge device-link consent screen,
+/// directly above a control that mints a durable personal access token. A
+/// default of `admin@localhost.localdomain` made that screen name a mailbox
+/// nobody owns, which is precisely the recognition the screen exists to invite.
+///
+/// Interactive runs prompt; non-interactive runs fail with the flag to pass.
+pub(super) fn resolve_admin_email(
+    args: &SetupArgs,
+    prompter: &dyn Prompter,
+    config: &CliConfig,
+) -> Result<String> {
+    if let Some(ref email) = args.admin_email {
+        return Ok(email.clone());
+    }
+
+    if !config.is_interactive() {
+        anyhow::bail!(
+            "An administrator email is required. Pass --admin-email <email>.\n\nIt identifies \
+             the platform admin on sign-in and consent screens, so it must be an address you \
+             actually control."
+        );
+    }
+
+    CliService::info("Enter the administrator's email address");
+    CliService::info("Used to identify you on sign-in and consent screens — no default.");
+
+    let input = prompter.input("Administrator email")?;
+    let trimmed = input.trim();
+    if trimmed.is_empty() {
+        anyhow::bail!("An administrator email is required; none was entered.");
+    }
+
+    Ok(trimmed.to_owned())
+}
+
 pub(super) async fn setup_postgres(
     args: &SetupArgs,
     prompter: &dyn Prompter,

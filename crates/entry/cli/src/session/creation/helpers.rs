@@ -14,7 +14,6 @@ use systemprompt_cloud::{
 use systemprompt_config::SecretsBootstrap;
 use systemprompt_database::{Database, DbPool, PoolConfig};
 use systemprompt_identifiers::{ContextId, Email, ProfileName, SessionId, SessionToken};
-use systemprompt_models::Profile;
 use systemprompt_models::auth::{Permission, RateLimitTier, UserType};
 use systemprompt_security::{SessionGenerator, SessionParams};
 use systemprompt_users::{UserRepository, UserService};
@@ -168,16 +167,62 @@ pub(super) fn build_cli_session(
     .build())
 }
 
-pub(super) async fn resolve_local_user_email(
-    profile: &Profile,
+/// Resolves the admin of a local install by **name**, never by email.
+///
+/// Why: an email is an attribute of a person, not a key. The local-trial path
+/// used to resolve the admin by looking up the literal `admin@localhost.dev`,
+/// which forced a migration to write that same string into `users.email` so the
+/// two would meet. The address was then displayed as the operator's identity —
+/// including on the bridge device-link consent screen, immediately above a
+/// button that mints a durable personal access token.
+///
+/// `system_admin.username` is the key the runtime already resolves on
+/// (`resolve_system_admin`), so this agrees with it by construction and leaves
+/// `email` free to hold something true.
+///
+/// Deliberately does not provision. On a local install a missing admin means
+/// bootstrap has not run, and inventing one is what produced the fabricated
+/// identity in the first place.
+pub(super) async fn resolve_local_admin(
+    db_pool: &DbPool,
+    admin_name: &str,
+) -> Result<systemprompt_users::User> {
+    let user_service = UserService::new(Arc::new(UserRepository::new(db_pool)?));
+
+    let user = user_service
+        .find_by_name(admin_name)
+        .await
+        .context("Failed to query the local admin user by name")?
+        .with_context(|| {
+            format!(
+                "Local admin user '{admin_name}' not found.\n\nRun 'systemprompt admin bootstrap \
+                 --email <your email>' to create it with a real address."
+            )
+        })?;
+
+    if !user.is_active() {
+        anyhow::bail!("Local admin user '{admin_name}' exists but is not active.");
+    }
+    if !user.is_admin() {
+        anyhow::bail!(
+            "User '{admin_name}' exists but does not hold the admin role. Run 'systemprompt admin \
+             bootstrap' to repair it."
+        );
+    }
+
+    Ok(user)
+}
+
+/// Resolves the session email for profiles backed by real credentials.
+///
+/// The local-trial branch that returned a hardcoded address is gone; that path
+/// now goes through [`resolve_local_admin`]. Every address returned here comes
+/// from a session hint or from cloud credentials — real data either way.
+pub(super) async fn resolve_credentialed_user_email(
     session_email_hint: Option<&str>,
 ) -> Result<String> {
     if let Some(email) = session_email_hint {
         return Ok(email.to_owned());
-    }
-
-    if profile.is_local_trial() {
-        return Ok("admin@localhost.dev".to_owned());
     }
 
     CredentialsBootstrap::try_init()
