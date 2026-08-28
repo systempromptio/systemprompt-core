@@ -55,9 +55,13 @@ body:not(.is-setup-mode) .sp-setup { display: none; }
   min-width: 0;
 }
 
-.sp-kv { display: flex; flex-direction: column; gap: var(--sp-space-1); margin-bottom: var(--sp-space-3); }
+/* These carry filesystem paths and gateway URLs -- a Windows roaming-profile
+   path has no break opportunity a browser will take on its own, so without
+   this the value sets the column's minimum width and pushes the grid wider
+   than the pane. */
+.sp-kv { display: flex; flex-direction: column; gap: var(--sp-space-1); margin-bottom: var(--sp-space-3); min-width: 0; }
 .sp-kv label { font-size: 11px; color: var(--sp-muted); text-transform: uppercase; letter-spacing: 1px; }
-.sp-value    { font-size: 14px; }
+.sp-value    { font-size: 14px; min-width: 0; overflow-wrap: anywhere; }
 .sp-u-muted    { color: var(--sp-muted); }
 .sp-u-mono     {
   font-family: ui-monospace, "JetBrains Mono", "SFMono-Regular", Menlo, monospace;
