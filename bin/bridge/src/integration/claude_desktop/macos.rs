@@ -206,6 +206,13 @@ fn render_headers_xml(headers: &std::collections::BTreeMap<String, String>) -> S
     out
 }
 
+// Why: the `HostApp::remove_profile` trait method is fallible and the Windows
+// sibling genuinely is — macOS only ever hands back a manual instruction, so
+// the Result here is the shared signature, not an unused one.
+#[expect(
+    clippy::unnecessary_wraps,
+    reason = "return type is fixed by the cross-platform HostApp trait"
+)]
 pub(super) fn remove_profile() -> std::io::Result<crate::integration::host_app::ProfileRemoval> {
     Ok(
         crate::integration::host_app::ProfileRemoval::ManualStepRequired {

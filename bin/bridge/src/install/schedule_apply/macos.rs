@@ -114,16 +114,13 @@ pub(super) fn autostart_status() -> super::ScheduleStatus {
 
 pub(super) fn schedule_registered() -> super::ScheduleStatus {
     let label = schedule::schedule_label(Os::Mac);
-    match agents_dir() {
-        Ok(dir) => {
-            if dir.join(format!("{label}.plist")).exists() {
-                super::ScheduleStatus::Installed
-            } else {
-                super::ScheduleStatus::NotInstalled
-            }
-        },
-        Err(_) => super::ScheduleStatus::Unknown,
-    }
+    agents_dir().map_or(super::ScheduleStatus::Unknown, |dir| {
+        if dir.join(format!("{label}.plist")).exists() {
+            super::ScheduleStatus::Installed
+        } else {
+            super::ScheduleStatus::NotInstalled
+        }
+    })
 }
 
 pub(super) fn remove_current() -> ScheduleRemoval {
