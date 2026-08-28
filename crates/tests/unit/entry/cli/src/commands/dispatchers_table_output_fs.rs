@@ -233,9 +233,6 @@ fn rate_limit_reports_render_through_the_terminal_renderer() {
 
     for args in [
         vec!["show"],
-        vec!["tier", "admin"],
-        vec!["docs"],
-        vec!["compare"],
         vec!["validate"],
         vec!["preset", "list"],
         vec!["preset", "show", "production"],

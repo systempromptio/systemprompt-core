@@ -52,12 +52,7 @@ fn read_only_arms_render_the_active_configuration() {
     profile_path();
 
     run(&["show"]).unwrap();
-    run(&["docs"]).unwrap();
-    run(&["compare"]).unwrap();
     run(&["validate"]).unwrap();
-    for tier in ["admin", "user", "a2a", "mcp", "service", "anon"] {
-        run(&["tier", tier]).unwrap();
-    }
 }
 
 #[test]
@@ -67,8 +62,6 @@ fn set_requires_its_flags_in_matching_pairs() {
     let cases = [
         (vec!["set", "--endpoint", "tasks"], "--rate is required"),
         (vec!["set", "--rate", "5"], "--endpoint is required"),
-        (vec!["set", "--tier", "admin"], "--multiplier is required"),
-        (vec!["set", "--multiplier", "2.0"], "--tier is required"),
         (vec!["set"], "Must specify one of"),
     ];
 

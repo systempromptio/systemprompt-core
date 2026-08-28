@@ -154,20 +154,11 @@ The connection string itself is never in `profile.yaml`; it lives in the secrets
 | `stream_per_second` | u64 | no | `100` | SSE stream routes. |
 | `content_per_second` | u64 | no | `50` | Content routes. |
 | `burst_multiplier` | u64 | no | `3` | Burst allowance multiplier. |
-| `tier_multipliers` | object | no | see below | Per-caller-tier scaling. |
 
-### `rate_limits.tier_multipliers`
-
-`crates/shared/models/src/profile/rate_limits.rs:5`
-
-| Key | Type | Required | Default | Meaning |
-|-----|------|----------|---------|---------|
-| `admin` | f64 | no | `10.0` | Admin tier multiplier. |
-| `user` | f64 | no | `1.0` | Authenticated user multiplier. |
-| `a2a` | f64 | no | `5.0` | A2A caller multiplier. |
-| `mcp` | f64 | no | `5.0` | MCP caller multiplier. |
-| `service` | f64 | no | `5.0` | Service caller multiplier. |
-| `anon` | f64 | no | `0.5` | Anonymous caller multiplier. |
+Limits are enforced per caller: a request carrying a signature-verified identity is bucketed by
+that identity, and an unauthenticated request by the client address resolved through
+`trusted_proxies`. Hop headers from an untrusted peer are ignored, so a caller cannot select its
+own bucket.
 
 ## `system_admin`
 

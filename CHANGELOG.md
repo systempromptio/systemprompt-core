@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- Rate limiting buckets a caller by identity rather than by a header the caller controls. The per-route limiter keyed on `tower_governor`'s `SmartIpKeyExtractor`, which reads the first parseable value from `X-Forwarded-For` with no trusted-proxy check — so a caller who varied that header landed in a fresh token bucket on every request and was not limited at all. Requests carrying a signature-verified identity are now bucketed by that identity; everything else is bucketed by the client address resolved through `trusted_proxies`, the same resolver the IP-ban gate uses, and a caller whose address cannot be resolved is refused rather than admitted.
+
+### Removed
+
+- **Breaking:** `rate_limits.tier_multipliers` is removed from the profile schema, along with the `admin config rate-limits` `tier`, `compare` and `docs` subcommands, `--tier`/`--multiplier` on `set`, and `--tier` on `reset`. The per-tier limiter those keys configured was never mounted, so the values scaled nothing, the startup warnings about them described an effect that did not exist, and the CLI's per-tier "effective limits" tables — including their JSON output — reported numbers no limiter enforced. Migrate by deleting the `tier_multipliers` block from your profile YAML; `deny_unknown_fields` means a profile that still carries it will fail to load.
+
 ### Changed
 
 - **Breaking:** the minimum supported Rust version is now 1.96, raised from 1.94, and `bin/bridge` declares it explicitly for the first time. The bridge already required newer than it claimed — its `vergen-gitcl` build dependency needs 1.95, and the 10.x line has since moved to 1.96 — so the declared 1.94 was not a promise the tree could keep. The MSRV job never caught it because it never tested the MSRV: `rust-toolchain.toml` pins a nightly, a toolchain file outranks rustup's default, and the job's bare `cargo check` therefore ran that nightly rather than the toolchain it had just installed. It now pins `RUSTUP_TOOLCHAIN` and asserts the running compiler matches the manifests before checking anything.
