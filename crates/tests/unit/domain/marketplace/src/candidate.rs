@@ -379,3 +379,64 @@ fn marketplace_error_variants_debug() {
         let _ = format!("{v:?}");
     }
 }
+
+#[test]
+fn into_manifest_parts_routes_skill_owners_to_filter_context() {
+    use std::collections::{BTreeMap, BTreeSet};
+    use systemprompt_models::bridge::ids::{PluginId, SkillId};
+
+    let owners: BTreeMap<SkillId, BTreeSet<PluginId>> = [(
+        SkillId::try_new("owned_skill").expect("valid id"),
+        BTreeSet::from([PluginId::try_new("p1").expect("valid id")]),
+    )]
+    .into();
+    let c = candidate(
+        vec![plugin("p1")],
+        vec![skill("owned_skill")],
+        vec![],
+        vec![],
+        vec![],
+        vec![],
+    )
+    .with_skill_owners(owners);
+
+    let (entries, context) = c.into_manifest_parts();
+
+    assert_eq!(entries.skills.len(), 1);
+    assert_eq!(context.skill_owners.len(), 1);
+    assert!(
+        context
+            .skill_owners
+            .contains_key(&SkillId::try_new("owned_skill").expect("valid id"))
+    );
+}
+
+#[test]
+fn retain_entries_leaves_skill_owners_untouched() {
+    use std::collections::{BTreeMap, BTreeSet};
+    use systemprompt_models::bridge::ids::{PluginId, SkillId};
+
+    let owners: BTreeMap<SkillId, BTreeSet<PluginId>> = [(
+        SkillId::try_new("dropped_skill").expect("valid id"),
+        BTreeSet::from([PluginId::try_new("p1").expect("valid id")]),
+    )]
+    .into();
+    let mut c = candidate(
+        vec![plugin("p1")],
+        vec![skill("dropped_skill")],
+        vec![],
+        vec![],
+        vec![],
+        vec![],
+    )
+    .with_skill_owners(owners);
+
+    c.retain_entries(&keep(&["p1"], &[], &[], &[], &[]));
+
+    assert!(c.skills.is_empty());
+    assert_eq!(
+        c.skill_owners.len(),
+        1,
+        "ownership is assembly context, not an entry list"
+    );
+}

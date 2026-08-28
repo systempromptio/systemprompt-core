@@ -5,7 +5,10 @@
 //! `content.html`) becomes one Cowork library document. Fail-closed: an
 //! artifact with empty HTML content or no `mcp_tools` is dropped with a warning
 //! rather than shipped inert, mirroring the plugin-bundle drop in
-//! [`crate::catalog::plugin_bundles`].
+//! [`crate::catalog::plugin_bundles`]; an artifact whose `mcp_tools` name an
+//! unknown or disabled MCP server fails the catalogue load outright
+//! ([`validate_artifact_tools`]), because a dashboard that can never fetch is
+//! a configuration error, not a degraded page.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -15,9 +18,52 @@ use std::path::Path;
 use sha2::{Digest, Sha256};
 use systemprompt_models::bridge::ids::Sha256Digest;
 use systemprompt_models::bridge::manifest::ArtifactEntry;
-use systemprompt_models::services::{ARTIFACT_CONFIG_FILENAME, DiskArtifactConfig};
+use systemprompt_models::services::{ARTIFACT_CONFIG_FILENAME, DiskArtifactConfig, ServicesConfig};
 
 use crate::error::MarketplaceError;
+
+const MCP_TOOL_PREFIX: &str = "mcp__";
+
+pub fn validate_artifact_tools(
+    services: &ServicesConfig,
+    artifacts: &[ArtifactEntry],
+) -> Result<(), MarketplaceError> {
+    for artifact in artifacts {
+        for tool in &artifact.mcp_tools {
+            let Some(server) = mcp_server_of(tool) else {
+                return Err(MarketplaceError::Catalog(format!(
+                    "artifact '{}': mcp_tools entry '{tool}' is not of the form \
+                     mcp__<server>__<tool>",
+                    artifact.id.as_str()
+                )));
+            };
+            match services.mcp_servers.get(server) {
+                None => {
+                    return Err(MarketplaceError::Catalog(format!(
+                        "artifact '{}': mcp_tools entry '{tool}' names unknown mcp_server \
+                         '{server}'",
+                        artifact.id.as_str()
+                    )));
+                },
+                Some(deployment) if !deployment.enabled => {
+                    return Err(MarketplaceError::Catalog(format!(
+                        "artifact '{}' is enabled but depends on disabled mcp_server '{server}' \
+                         — enable the server or disable the artifact",
+                        artifact.id.as_str()
+                    )));
+                },
+                Some(_) => {},
+            }
+        }
+    }
+    Ok(())
+}
+
+fn mcp_server_of(tool: &str) -> Option<&str> {
+    let rest = tool.strip_prefix(MCP_TOOL_PREFIX)?;
+    let (server, _) = rest.split_once("__")?;
+    (!server.is_empty()).then_some(server)
+}
 
 pub fn load_artifacts(services_root: &Path) -> Result<Vec<ArtifactEntry>, MarketplaceError> {
     let artifacts_dir = services_root.join("artifacts");

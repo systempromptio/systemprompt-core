@@ -22,13 +22,13 @@ use std::collections::BTreeSet;
 use std::path::Path;
 
 use systemprompt_identifiers::UserId;
-use systemprompt_models::bridge::ids::{LibraryArtifactId, ManifestSignature};
+use systemprompt_models::bridge::ids::{LibraryArtifactId, ManifestSignature, SkillId};
 use systemprompt_models::bridge::manifest::{SignedManifest, SignedManifestEnvelope};
 use systemprompt_models::services::ServicesConfig;
 use systemprompt_security::manifest_signing;
 
 use crate::candidate::MarketplaceCandidate;
-use crate::catalog::{CatalogContent, artifact_owners, load_hooks, load_plugins};
+use crate::catalog::{CatalogContent, artifact_owners, load_hooks, load_plugins, skill_owners};
 use crate::error::MarketplaceError;
 use crate::filter::MarketplaceFilter;
 use crate::service::MarketplaceService;
@@ -75,7 +75,8 @@ impl ManifestService {
             CatalogContent::load_traced(services, services_root, api_external_url, trace)?;
         let hooks = load_hooks(services_root)?;
         let plugins = load_plugins(services, &catalog.as_content())?;
-        let selected_skills = crate::catalog::selected_skill_ids(services, &catalog.as_content())?;
+        let skill_owners = skill_owners(services, &catalog.as_content())?;
+        let selected_skills: BTreeSet<SkillId> = skill_owners.keys().cloned().collect();
         let (skills, agents, managed_mcp_servers, artifacts) = catalog.into_parts();
 
         let active = MarketplaceService::new(services).resolve_active()?;
@@ -98,7 +99,8 @@ impl ManifestService {
             artifacts,
             ..MarketplaceCandidate::default()
         }
-        .with_artifact_owners(owners);
+        .with_artifact_owners(owners)
+        .with_skill_owners(skill_owners);
         if let Some(mp) = active {
             candidate = candidate.with_marketplace(mp.id.clone(), Some(mp.access.clone()));
         }

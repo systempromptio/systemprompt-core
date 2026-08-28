@@ -92,6 +92,16 @@ async fn assemble_candidate_unscoped_without_marketplace() {
     assert!(candidate.access.is_none());
 }
 
+// The artifact fixtures below declare `mcp__x__y`, and catalogue assembly now
+// rejects an artifact naming an mcp_server the deployment does not run, so the
+// server has to exist for the assertion under test to be the one that fires.
+fn register_artifact_mcp_server(config: &mut systemprompt_models::services::ServicesConfig) {
+    config.mcp_servers.insert(
+        "x".to_owned(),
+        enabled_deployment(Some("https://x.example.com/mcp")),
+    );
+}
+
 fn write_artifact_on_disk(root: &std::path::Path, id: &str) {
     let dir = root.join("artifacts").join(id);
     std::fs::create_dir_all(&dir).expect("create artifact dir");
@@ -108,7 +118,8 @@ async fn assemble_candidate_drops_artifacts_no_plugin_selects() {
     let _guard = warn_subscriber_guard();
     let dir = tempfile::tempdir().expect("temp services root");
     write_artifact_on_disk(dir.path(), "pipeline");
-    let config = config_with(vec![]);
+    let mut config = config_with(vec![]);
+    register_artifact_mcp_server(&mut config);
 
     let candidate = ManifestService::assemble_candidate(
         &config,
@@ -133,11 +144,12 @@ async fn assemble_candidate_keeps_artifacts_a_plugin_includes() {
     write_artifact_on_disk(dir.path(), "pipeline");
     write_artifact_on_disk(dir.path(), "unlisted");
     write_skill_on_disk(dir.path(), "owned_skill");
-    let config = config_with_plugins(vec![plugin_shipping_artifacts(
+    let mut config = config_with_plugins(vec![plugin_shipping_artifacts(
         "sfdc",
         "owned_skill",
         &["pipeline"],
     )]);
+    register_artifact_mcp_server(&mut config);
 
     let candidate = ManifestService::assemble_candidate(
         &config,
@@ -159,10 +171,11 @@ async fn assemble_candidate_lets_several_plugins_ship_one_artifact() {
     let dir = tempfile::tempdir().expect("temp services root");
     write_artifact_on_disk(dir.path(), "shared");
     write_skill_on_disk(dir.path(), "owned_skill");
-    let config = config_with_plugins(vec![
+    let mut config = config_with_plugins(vec![
         plugin_shipping_artifacts("alpha", "owned_skill", &["shared"]),
         plugin_shipping_artifacts("beta", "owned_skill", &["shared"]),
     ]);
+    register_artifact_mcp_server(&mut config);
 
     let candidate = ManifestService::assemble_candidate(
         &config,
@@ -272,6 +285,7 @@ async fn assemble_candidate_keeps_artifact_owned_by_enabled_plugin() {
     write_artifact_on_disk(dir.path(), "dropped-art");
 
     let mut config = config_with(vec![]);
+    register_artifact_mcp_server(&mut config);
     config.plugins.insert(
         "owner".to_owned(),
         PluginConfig {
@@ -547,5 +561,42 @@ async fn disabled_marketplaces_do_not_block_resolution() {
     assert_eq!(
         candidate.marketplace_id.as_ref().map(|id| id.as_str()),
         Some("on-market"),
+    );
+}
+
+#[tokio::test]
+async fn assemble_candidate_records_which_plugins_own_each_skill() {
+    ensure_bootstrap();
+    let dir = tempfile::tempdir().expect("temp services root");
+    write_skill_on_disk(dir.path(), "shared_skill");
+    let config = config_with_plugins(vec![
+        plugin_shipping_artifacts("alpha", "shared_skill", &[]),
+        plugin_shipping_artifacts("beta", "shared_skill", &[]),
+    ]);
+
+    let candidate = ManifestService::assemble_candidate(
+        &config,
+        dir.path(),
+        "https://api.example.com",
+        &AllowAllFilter,
+        &fixture_user_id(),
+    )
+    .await
+    .expect("assemble candidate");
+
+    let owners: BTreeSet<&str> = candidate
+        .skill_owners
+        .get(&systemprompt_models::bridge::ids::SkillId::try_new("shared_skill").expect("id"))
+        .expect("the shipped skill is owned")
+        .iter()
+        .map(|p| p.as_str())
+        .collect();
+    assert_eq!(owners, BTreeSet::from(["alpha", "beta"]));
+    assert!(
+        candidate
+            .skills
+            .iter()
+            .any(|s| s.id.as_str() == "shared_skill"),
+        "ownership keys are exactly the skills the manifest carries"
     );
 }

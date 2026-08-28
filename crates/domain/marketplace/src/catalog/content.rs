@@ -23,6 +23,7 @@ use crate::bundle::BundleContent;
 use crate::catalog::fingerprint::hash_dir_metadata;
 use crate::catalog::{
     disabled_mcp_server_names, load_agents, load_artifacts, load_managed_mcp_servers,
+    validate_artifact_tools,
 };
 use crate::error::MarketplaceError;
 
@@ -61,7 +62,11 @@ impl CatalogContent {
             agents: load_agents(services, api_external_url),
             managed_mcp_servers: load_managed_mcp_servers(services, api_external_url)?,
             disabled_mcp_servers: disabled_mcp_server_names(services),
-            artifacts: load_artifacts(services_root)?,
+            artifacts: {
+                let artifacts = load_artifacts(services_root)?;
+                validate_artifact_tools(services, &artifacts)?;
+                artifacts
+            },
             plugins_root: services_root.join("plugins"),
         })
     }

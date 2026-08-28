@@ -3,7 +3,8 @@
 //! [`build_plugin_bundle`] turns a [`PluginConfig`] spec plus the instance's
 //! already-resolved catalogue ([`BundleContent`]) into the canonical
 //! installable bundle: a `.claude-plugin/plugin.json` manifest rooted over
-//! `skills/<n>/SKILL.md`, `agents/<n>.md`, `artifacts/<id>.json`, `.mcp.json`,
+//! `skills/<n>/SKILL.md`, `agents/<n>.md`,
+//! `artifacts/{manifest.json,<id>.html,<id>.json}`, `.mcp.json`,
 //! and plugin-local scripts. It is the single owner of the bundle contract —
 //! the gateway serve
 //! path (manifest hashes *and* byte streaming), the CLI generator, and the

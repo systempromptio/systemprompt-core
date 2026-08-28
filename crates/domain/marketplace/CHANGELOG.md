@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.41.0] - 2026-08-28
+
+### Added
+
+- `MarketplaceCandidate::skill_owners` and `catalog::skill_owners` record which plugins select each skill, alongside the existing `artifact_owners`.
+- Plugin bundles ship `artifacts/manifest.json` (the install records without HTML) and `artifacts/<id>.html` (each page verbatim) beside the existing `artifacts/<id>.json`.
+- `catalog::validate_artifact_tools` fails the catalogue load when an artifact's `mcp_tools` name an unknown or disabled MCP server.
+
+### Changed
+
+- `keep_sets` cascades each skill's owning plugins ahead of the marketplace, so a plugin's access rules govern every skill and artifact it ships without per-skill rules. A skill selected by several plugins is kept when any owner admits the subject.
+- Plugin rules cascade onto skills even when no marketplace is active.
+
+### Removed
+
+- `catalog::selected_skill_ids`. Migrate by `skill_owners(..)?.keys()`.
+
 ## [0.40.0] - 2026-08-26
 
 ### Added

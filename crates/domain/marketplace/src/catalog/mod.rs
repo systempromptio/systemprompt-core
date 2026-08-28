@@ -20,12 +20,13 @@ mod plugins;
 mod skills;
 
 pub use agents::load_agents;
-pub use artifacts::load_artifacts;
+pub use artifacts::{load_artifacts, validate_artifact_tools};
 pub use content::CatalogContent;
 pub use hooks::load_hooks;
 pub use mcp::{disabled_mcp_server_names, load_managed_mcp_servers};
+pub(crate) use plugins::selected_configs;
 pub use plugins::{
     artifact_owners, load_plugins, plugin_bundles, plugin_bundles_cached, selects_artifact,
+    skill_owners,
 };
-pub(crate) use plugins::{selected_configs, selected_skill_ids};
 pub use skills::{load_skills, load_skills_traced};

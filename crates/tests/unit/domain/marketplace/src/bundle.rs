@@ -1183,3 +1183,49 @@ fn a_plugin_declaring_no_artifacts_bundles_none() {
         "the default selection is explicit-and-empty, so nothing ships by accident"
     );
 }
+
+#[test]
+fn a_bundle_ships_an_install_manifest_and_the_raw_page_beside_each_record() {
+    let artifacts = vec![
+        artifact_entry("salesforce-accounts", "Accounts"),
+        artifact_entry("admin-users", "Users"),
+    ];
+    let bundle = bundle_with_artifacts(
+        &artifacts,
+        explicit(&["salesforce-accounts", "admin-users"]),
+    );
+
+    let page = bundle
+        .get("artifacts/salesforce-accounts.html")
+        .expect("the page is emitted verbatim beside its record");
+    assert_eq!(page.bytes, b"<html>dashboard</html>");
+
+    let manifest: systemprompt_models::bridge::manifest::CoworkArtifactBundleManifest =
+        serde_json::from_slice(
+            &bundle
+                .get("artifacts/manifest.json")
+                .expect("the install manifest is emitted")
+                .bytes,
+        )
+        .expect("manifest parses");
+    let ids: Vec<&str> = manifest.artifacts.iter().map(|a| a.id.as_str()).collect();
+    assert_eq!(ids, ["admin-users", "salesforce-accounts"]);
+    assert_eq!(
+        manifest.artifacts[1].mcp_tools,
+        ["mcp__salesforce__soqlQuery"]
+    );
+    assert!(manifest.artifacts[1].is_starred);
+
+    let raw: serde_json::Value = serde_json::from_slice(
+        &bundle
+            .get("artifacts/manifest.json")
+            .expect("manifest")
+            .bytes,
+    )
+    .expect("json");
+    assert!(
+        raw["artifacts"][0].get("content").is_none(),
+        "the install manifest never embeds HTML"
+    );
+    assert_eq!(raw["artifacts"][0]["isStarred"], true);
+}

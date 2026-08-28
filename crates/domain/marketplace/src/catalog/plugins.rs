@@ -23,7 +23,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::sync::{Arc, OnceLock, RwLock};
 
 use sha2::{Digest, Sha256};
-use systemprompt_models::bridge::ids::{LibraryArtifactId, PluginId, Sha256Digest};
+use systemprompt_models::bridge::ids::{LibraryArtifactId, PluginId, Sha256Digest, SkillId};
 use systemprompt_models::bridge::manifest::{ArtifactEntry, PluginEntry, PluginFile};
 use systemprompt_models::services::{ComponentSource, PluginConfig, ServicesConfig};
 
@@ -203,16 +203,18 @@ pub(crate) fn selected_configs(
     Ok(scoped)
 }
 
-pub(crate) fn selected_skill_ids(
+pub fn skill_owners(
     services: &ServicesConfig,
     content: &BundleContent<'_>,
-) -> Result<BTreeSet<systemprompt_models::bridge::ids::SkillId>, MarketplaceError> {
-    let mut out = BTreeSet::new();
+) -> Result<BTreeMap<SkillId, BTreeSet<PluginId>>, MarketplaceError> {
+    let mut out: BTreeMap<SkillId, BTreeSet<PluginId>> = BTreeMap::new();
     for config in selected_configs(services)? {
         let agent_ids = crate::bundle::resolve_agents(config, content.agents);
-        out.extend(crate::bundle::resolve_skill_ids(
-            config, content, &agent_ids,
-        ));
+        let owner = PluginId::try_new(config.id.as_str())
+            .map_err(|e| MarketplaceError::Catalog(e.to_string()))?;
+        for id in crate::bundle::resolve_skill_ids(config, content, &agent_ids) {
+            out.entry(id).or_default().insert(owner.clone());
+        }
     }
     Ok(out)
 }
