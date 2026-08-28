@@ -102,22 +102,25 @@ pub fn validate_profile_dockerfile(
     match (missing.is_empty(), stale.is_empty()) {
         (true, true) => Ok(()),
         (false, true) => Err(CloudError::dockerfile(format!(
-            "Dockerfile at {} is missing COPY commands for MCP binaries:\n\n{}\n\nAdd these \
-             lines:\n\n{}",
+            "Dockerfile at {} is missing COPY commands for MCP binaries:\n\n{}\n\nThis file is \
+             generated from the MCP servers declared in services/, so it goes stale whenever one \
+             is added. Re-render it:\n\n    systemprompt cloud dockerfile --profile \
+             <name>\n\nThe lines it will add:\n\n{}",
             dockerfile_path.display(),
             missing.join(", "),
             get_required_mcp_copy_lines(project_root, services_config).join("\n")
         ))),
         (true, false) => Err(CloudError::dockerfile(format!(
             "Dockerfile at {} has COPY commands for dev-only or removed \
-             binaries:\n\n{}\n\nRemove these lines or regenerate with: systemprompt cloud \
-             profile create",
+             binaries:\n\n{}\n\nRemove these lines, or re-render the generated file \
+             with:\n\n    systemprompt cloud dockerfile --profile <name>",
             dockerfile_path.display(),
             stale.join(", ")
         ))),
         (false, false) => Err(CloudError::dockerfile(format!(
             "Dockerfile at {} has issues:\n\nMissing binaries: {}\nDev-only/stale binaries: \
-             {}\n\nRegenerate with: systemprompt cloud profile create",
+             {}\n\nRe-render the generated file with:\n\n    systemprompt cloud dockerfile \
+             --profile <name>",
             dockerfile_path.display(),
             missing.join(", "),
             stale.join(", ")

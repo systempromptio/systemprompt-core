@@ -657,15 +657,6 @@ fn rate_limits_config_default_values() {
 }
 
 #[test]
-fn rate_limits_tier_multipliers_default() {
-    let config = RateLimitsConfig::default();
-    let tiers = config.tier_multipliers;
-    assert!((tiers.admin - 10.0).abs() < f64::EPSILON);
-    assert!((tiers.user - 1.0).abs() < f64::EPSILON);
-    assert!((tiers.anon - 0.5).abs() < f64::EPSILON);
-}
-
-#[test]
 fn content_negotiation_default() {
     let config = ContentNegotiationConfig::default();
     assert!(!config.enabled);

@@ -19,7 +19,7 @@ async fn app() -> anyhow::Result<Router> {
     let b = ensure_messaging_bootstrap();
     let pool = fixture_db_pool(&b.database_url).await?;
     let ctx = fixture_app_context(&pool, &b.database_url)?;
-    Ok(wellknown_router(&ctx))
+    Ok(wellknown_router(&ctx)?)
 }
 
 #[tokio::test]

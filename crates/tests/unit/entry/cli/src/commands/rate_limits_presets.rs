@@ -14,8 +14,6 @@ fn development_preset_is_relaxed() {
     assert_eq!(cfg.oauth_public_per_second, 50);
     assert_eq!(cfg.content_per_second, 200);
     assert_eq!(cfg.burst_multiplier, 5);
-    assert_eq!(cfg.tier_multipliers.admin, 10.0);
-    assert_eq!(cfg.tier_multipliers.anon, 0.5);
 }
 
 #[test]
@@ -33,7 +31,6 @@ fn high_traffic_preset_is_strict() {
     assert_eq!(cfg.oauth_public_per_second, 5);
     assert_eq!(cfg.oauth_auth_per_second, 2);
     assert_eq!(cfg.burst_multiplier, 2);
-    assert_eq!(cfg.tier_multipliers.anon, 0.2);
 }
 
 #[test]

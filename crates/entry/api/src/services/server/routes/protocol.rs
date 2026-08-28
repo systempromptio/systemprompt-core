@@ -43,12 +43,12 @@ pub(super) fn mount_oauth(
     if let Some(oauth_state) = create_oauth_state(ctx) {
         let oauth = crate::routes::oauth::public_router()
             .with_state(oauth_state.clone())
-            .with_rate_limit(rate_config, rate_config.oauth_public_per_second)?
+            .with_rate_limit(ctx.config(), rate_config.oauth_public_per_second)?
             .with_auth(*public_middleware, AuthzPolicy::public())
             .merge(
                 crate::routes::oauth::authenticated_router()
                     .with_state(oauth_state)
-                    .with_rate_limit(rate_config, rate_config.oauth_auth_per_second)?
+                    .with_rate_limit(ctx.config(), rate_config.oauth_auth_per_second)?
                     .with_auth(user_middleware.clone(), AuthzPolicy::user()),
             );
         router = router.nest(ApiPaths::OAUTH_BASE, oauth);
@@ -69,7 +69,7 @@ pub(super) fn mount_agent(
         ApiPaths::CORE_CONTEXTS,
         crate::routes::agent::contexts_router()
             .with_state(ctx.clone())
-            .with_rate_limit(rate_config, rate_config.contexts_per_second)?
+            .with_rate_limit(ctx.config(), rate_config.contexts_per_second)?
             .with_auth(user_middleware.clone(), AuthzPolicy::user()),
     );
 
@@ -84,7 +84,7 @@ pub(super) fn mount_agent(
         ApiPaths::CORE_TASKS,
         crate::routes::agent::tasks_router()
             .with_state(ctx.clone())
-            .with_rate_limit(rate_config, rate_config.tasks_per_second)?
+            .with_rate_limit(ctx.config(), rate_config.tasks_per_second)?
             .with_auth(user_middleware.clone(), AuthzPolicy::user()),
     );
 
@@ -92,21 +92,21 @@ pub(super) fn mount_agent(
         ApiPaths::CORE_ARTIFACTS,
         crate::routes::agent::artifacts_router()
             .with_state(ctx.clone())
-            .with_rate_limit(rate_config, rate_config.artifacts_per_second)?
+            .with_rate_limit(ctx.config(), rate_config.artifacts_per_second)?
             .with_auth(user_middleware.clone(), AuthzPolicy::user()),
     );
 
     router = router.nest(
         ApiPaths::AGENTS_REGISTRY,
         crate::routes::agent::registry_router(ctx)
-            .with_rate_limit(rate_config, rate_config.agent_registry_per_second)?
+            .with_rate_limit(ctx.config(), rate_config.agent_registry_per_second)?
             .with_auth(*public_middleware, AuthzPolicy::public()),
     );
 
     router = router.nest(
         ApiPaths::AGENTS_BASE,
         crate::routes::proxy::agents::router(ctx)
-            .with_rate_limit(rate_config, rate_config.agents_per_second)?
+            .with_rate_limit(ctx.config(), rate_config.agents_per_second)?
             .with_auth(a2a_middleware, AuthzPolicy::authenticated()),
     );
 
@@ -120,14 +120,14 @@ pub(super) fn mount_messaging(mut router: Router, ctx: &AppContext) -> Result<Ro
         ApiPaths::SLACK_BASE,
         crate::routes::slack::slack_router()
             .with_state(ctx.clone())
-            .with_rate_limit(rate_config, rate_config.agents_per_second)?,
+            .with_rate_limit(ctx.config(), rate_config.agents_per_second)?,
     );
 
     router = router.nest(
         ApiPaths::TEAMS_BASE,
         crate::routes::teams::teams_router()
             .with_state(ctx.clone())
-            .with_rate_limit(rate_config, rate_config.agents_per_second)?,
+            .with_rate_limit(ctx.config(), rate_config.agents_per_second)?,
     );
 
     Ok(router)
@@ -145,21 +145,21 @@ pub(super) fn mount_mcp_and_stream(
     router = router.nest(
         ApiPaths::MCP_REGISTRY,
         crate::routes::mcp::registry_router(ctx)
-            .with_rate_limit(rate_config, rate_config.mcp_registry_per_second)?
+            .with_rate_limit(ctx.config(), rate_config.mcp_registry_per_second)?
             .with_auth(*public_middleware, AuthzPolicy::public()),
     );
 
     router = router.nest(
         ApiPaths::MCP_BASE,
         crate::routes::proxy::mcp::router(ctx)
-            .with_rate_limit(rate_config, rate_config.mcp_per_second)?
+            .with_rate_limit(ctx.config(), rate_config.mcp_per_second)?
             .with_auth(mcp_middleware, AuthzPolicy::deferred_to_handler()),
     );
 
     router = router.nest(
         ApiPaths::STREAM_BASE,
         crate::routes::stream::stream_router(ctx)
-            .with_rate_limit(rate_config, rate_config.stream_per_second)?
+            .with_rate_limit(ctx.config(), rate_config.stream_per_second)?
             .with_auth(user_middleware.clone(), AuthzPolicy::user()),
     );
 
@@ -175,18 +175,18 @@ pub(super) fn mount_content_and_misc(
     let rate_config = &ctx.config().rate_limits;
 
     let content = crate::routes::content::public_router(ctx)
-        .with_rate_limit(rate_config, rate_config.content_per_second)?
+        .with_rate_limit(ctx.config(), rate_config.content_per_second)?
         .with_auth(*public_middleware, AuthzPolicy::public())
         .merge(
             crate::routes::content::authenticated_router(ctx)
-                .with_rate_limit(rate_config, rate_config.content_per_second)?
+                .with_rate_limit(ctx.config(), rate_config.content_per_second)?
                 .with_auth(user_middleware.clone(), AuthzPolicy::user()),
         );
     router = router.nest(ApiPaths::CONTENT_BASE, content);
 
     router = router.merge(
         crate::routes::content::redirect_router(ctx.content_repositories())
-            .with_rate_limit(rate_config, rate_config.content_per_second)?
+            .with_rate_limit(ctx.config(), rate_config.content_per_second)?
             .with_auth(*public_middleware, AuthzPolicy::public()),
     );
 
@@ -210,21 +210,21 @@ pub(super) fn mount_content_and_misc(
     router = router.nest(
         ApiPaths::ANALYTICS_BASE,
         crate::routes::analytics::router(ctx)
-            .with_rate_limit(rate_config, rate_config.content_per_second)?
+            .with_rate_limit(ctx.config(), rate_config.content_per_second)?
             .with_auth(user_middleware.clone(), AuthzPolicy::admin()),
     );
 
     router = router.nest(
         ApiPaths::TRACK_ENGAGEMENT,
         crate::routes::engagement::router(ctx)
-            .with_rate_limit(rate_config, rate_config.content_per_second)?
+            .with_rate_limit(ctx.config(), rate_config.content_per_second)?
             .with_auth(*public_middleware, AuthzPolicy::public()),
     );
 
     router = router.nest(
         ApiPaths::CORE_USERS,
         crate::routes::users::router(ctx)
-            .with_rate_limit(rate_config, rate_config.oauth_auth_per_second)?
+            .with_rate_limit(ctx.config(), rate_config.oauth_auth_per_second)?
             .with_auth(user_middleware.clone(), AuthzPolicy::user()),
     );
 
@@ -232,7 +232,7 @@ pub(super) fn mount_content_and_misc(
         ApiPaths::ADMIN_BASE,
         crate::routes::admin::router()
             .with_state(ctx.clone())
-            .with_rate_limit(rate_config, 10)?
+            .with_rate_limit(ctx.config(), 10)?
             .with_auth(user_middleware.clone(), AuthzPolicy::admin()),
     );
 
@@ -241,7 +241,7 @@ pub(super) fn mount_content_and_misc(
         router = router.nest(
             ApiPaths::GATEWAY_PUBLIC_BASE,
             crate::routes::gateway::sessions::public_router(ctx)
-                .with_rate_limit(rate_config, rate_config.oauth_public_per_second)?
+                .with_rate_limit(ctx.config(), rate_config.oauth_public_per_second)?
                 .with_auth(*public_middleware, AuthzPolicy::public()),
         );
     }

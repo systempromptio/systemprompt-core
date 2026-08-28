@@ -8,7 +8,7 @@ use std::fs;
 use std::path::Path;
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_logging::CliService;
-use systemprompt_models::profile::{RateLimitsConfig, TierMultipliers};
+use systemprompt_models::profile::RateLimitsConfig;
 
 use super::DiffArgs;
 use crate::CliConfig;
@@ -89,11 +89,6 @@ pub fn collect_differences(
         &current.burst_multiplier,
         &compare_with.burst_multiplier,
     );
-    collect_tier_differences(
-        &current.tier_multipliers,
-        &compare_with.tier_multipliers,
-        &mut differences,
-    );
 
     differences
 }
@@ -166,29 +161,6 @@ fn collect_rate_differences(
     }
 }
 
-fn collect_tier_differences(
-    current: &TierMultipliers,
-    compare_with: &TierMultipliers,
-    diffs: &mut Vec<DiffEntry>,
-) {
-    let tiers = [
-        ("tier_multipliers.admin", current.admin, compare_with.admin),
-        ("tier_multipliers.user", current.user, compare_with.user),
-        ("tier_multipliers.a2a", current.a2a, compare_with.a2a),
-        ("tier_multipliers.mcp", current.mcp, compare_with.mcp),
-        (
-            "tier_multipliers.service",
-            current.service,
-            compare_with.service,
-        ),
-        ("tier_multipliers.anon", current.anon, compare_with.anon),
-    ];
-
-    for (field, current_val, other_val) in tiers {
-        add_diff_if_different_f64(diffs, field, current_val, other_val);
-    }
-}
-
 fn add_diff_if_different<T: std::fmt::Display + PartialEq>(
     diffs: &mut Vec<DiffEntry>,
     field: &str,
@@ -200,16 +172,6 @@ fn add_diff_if_different<T: std::fmt::Display + PartialEq>(
             field: field.to_owned(),
             current: current.to_string(),
             other: compare.to_string(),
-        });
-    }
-}
-
-fn add_diff_if_different_f64(diffs: &mut Vec<DiffEntry>, field: &str, current: f64, compare: f64) {
-    if (current - compare).abs() > f64::EPSILON {
-        diffs.push(DiffEntry {
-            field: field.to_owned(),
-            current: format!("{:.1}", current),
-            other: format!("{:.1}", compare),
         });
     }
 }

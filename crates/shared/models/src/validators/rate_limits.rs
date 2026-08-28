@@ -57,7 +57,6 @@ impl DomainConfig for RateLimitsConfigValidator {
 
         Self::validate_quota_limits(&mut report, config);
         Self::validate_stream_limits(&mut report, config);
-        Self::validate_tier_multipliers(&mut report, config);
         Self::validate_agent_limits(&mut report, config);
 
         Ok(report)
@@ -128,35 +127,6 @@ impl RateLimitsConfigValidator {
             );
         }
     }
-
-    fn validate_tier_multipliers(report: &mut ValidationReport, config: &RateLimitConfig) {
-        if config.tier_multipliers.anon < 0.3 {
-            report.add_warning(
-                ValidationWarning::new(
-                    "rate_limits.tier_multipliers.anon",
-                    format!(
-                        "tier_multipliers.anon={} severely limits anonymous users.",
-                        config.tier_multipliers.anon
-                    ),
-                )
-                .with_suggestion("Consider at least 0.3 for basic anonymous access"),
-            );
-        }
-
-        if config.tier_multipliers.user < 0.5 {
-            report.add_warning(
-                ValidationWarning::new(
-                    "rate_limits.tier_multipliers.user",
-                    format!(
-                        "tier_multipliers.user={} restricts authenticated users below baseline.",
-                        config.tier_multipliers.user
-                    ),
-                )
-                .with_suggestion("User tier multiplier should typically be 1.0 or higher"),
-            );
-        }
-    }
-
     fn validate_agent_limits(report: &mut ValidationReport, config: &RateLimitConfig) {
         if config.agents_per_second < 5 {
             report.add_warning(

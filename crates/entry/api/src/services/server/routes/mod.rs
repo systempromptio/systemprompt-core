@@ -80,7 +80,7 @@ pub(super) fn configure_routes(
                 "/auth/link-passkey",
                 axum::routing::get(crate::routes::oauth::webauthn::link::link_passkey_page),
             )
-            .with_rate_limit(rate_config, rate_config.oauth_public_per_second)?
+            .with_rate_limit(ctx.config(), rate_config.oauth_public_per_second)?
             .with_auth(public_middleware, AuthzPolicy::public()),
     );
 

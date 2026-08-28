@@ -8,10 +8,7 @@ use systemprompt_config::ProfileBootstrap;
 use systemprompt_logging::CliService;
 
 use super::SetArgs;
-use super::helpers::{
-    get_endpoint_rate, get_tier_multiplier, load_profile_for_edit, save_profile, set_endpoint_rate,
-    set_tier_multiplier,
-};
+use super::helpers::{get_endpoint_rate, load_profile_for_edit, save_profile, set_endpoint_rate};
 use crate::CliConfig;
 use crate::cli_settings::OutputFormat;
 use crate::shared::{CommandOutput, render_result};
@@ -25,14 +22,8 @@ pub(super) fn execute_set(args: &SetArgs, config: &CliConfig) -> Result<()> {
     if args.rate.is_some() && args.endpoint.is_none() {
         bail!("--endpoint is required when --rate is specified");
     }
-    if args.tier.is_some() && args.multiplier.is_none() {
-        bail!("--multiplier is required when --tier is specified");
-    }
-    if args.multiplier.is_some() && args.tier.is_none() {
-        bail!("--tier is required when --multiplier is specified");
-    }
-    if args.endpoint.is_none() && args.tier.is_none() && args.burst.is_none() {
-        bail!("Must specify one of: --endpoint with --rate, --tier with --multiplier, or --burst");
+    if args.endpoint.is_none() && args.burst.is_none() {
+        bail!("Must specify one of: --endpoint with --rate, or --burst");
     }
 
     let profile_path = ProfileBootstrap::get_path()?;
@@ -47,18 +38,6 @@ pub(super) fn execute_set(args: &SetArgs, config: &CliConfig) -> Result<()> {
             old_value: old_value.to_string(),
             new_value: rate.to_string(),
             message: format!("Updated {} rate: {} -> {}/s", endpoint, old_value, rate),
-        }
-    } else if let (Some(tier), Some(multiplier)) = (&args.tier, args.multiplier) {
-        let old_value = get_tier_multiplier(&limits.tier_multipliers, tier)?;
-        set_tier_multiplier(&mut limits.tier_multipliers, tier, multiplier)?;
-        SetRateLimitOutput {
-            field: format!("tier_multipliers.{}", tier),
-            old_value: format!("{:.1}", old_value),
-            new_value: format!("{:.1}", multiplier),
-            message: format!(
-                "Updated {} tier multiplier: {:.1}x -> {:.1}x",
-                tier, old_value, multiplier
-            ),
         }
     } else if let Some(burst) = args.burst {
         let old_value = limits.burst_multiplier;

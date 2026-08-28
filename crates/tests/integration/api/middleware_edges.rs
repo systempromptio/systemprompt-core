@@ -7,9 +7,11 @@
 //! the failure surface of `services::middleware::{jwt,session,bot_detector,
 //! ip_ban}`.
 
+use std::net::SocketAddr;
 use std::sync::{Arc, OnceLock};
 
 use axum::body::Body;
+use axum::extract::ConnectInfo;
 use axum::http::Request;
 use systemprompt_analytics::{AnalyticsService, FingerprintRepository};
 use systemprompt_api::services::server::setup_api_server;
@@ -141,12 +143,30 @@ fn get(uri: &str, headers: &[(&str, &str)]) -> Request<Body> {
     for (name, value) in headers {
         builder = builder.header(*name, *value);
     }
-    builder.body(Body::empty()).expect("request must build")
+    let mut req = builder.body(Body::empty()).expect("request must build");
+    req.extensions_mut().insert(ConnectInfo(
+        "203.0.113.7:41000"
+            .parse::<SocketAddr>()
+            .expect("peer address must parse"),
+    ));
+    req
 }
 
 async fn status_of(uri: &str, headers: &[(&str, &str)]) -> anyhow::Result<u16> {
     let app = boot_server().await?;
     Ok(app.oneshot(get(uri, headers)).await?.status().as_u16())
+}
+
+#[tokio::test]
+async fn the_passkey_link_page_is_reachable_anonymously() -> anyhow::Result<()> {
+    let status = status_of("/auth/link-passkey", &[]).await?;
+
+    assert_eq!(
+        status, 200,
+        "the page is mounted behind the route gate, but the recipient of a setup link is not \
+         logged in, so the gate must admit anonymous callers"
+    );
+    Ok(())
 }
 
 #[tokio::test]

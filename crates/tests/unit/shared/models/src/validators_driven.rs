@@ -223,24 +223,6 @@ mod rate_limits_validator {
             rl.stream_per_second = 1;
             rl.agents_per_second = 100;
             rl.contexts_per_second = 100;
-            rl.tier_multipliers.anon = 1.0;
-            rl.tier_multipliers.user = 1.0;
-        });
-        let prov = provider(config, ServicesConfig::default());
-        let mut v = RateLimitsConfigValidator::new();
-        v.load(&prov).expect("load");
-        let report = v.validate().expect("validate");
-        assert!(report.has_warnings());
-    }
-
-    #[test]
-    fn warns_on_low_tier_multipliers() {
-        let config = config_with_rate_limits(|rl| {
-            rl.stream_per_second = 100;
-            rl.agents_per_second = 100;
-            rl.contexts_per_second = 100;
-            rl.tier_multipliers.anon = 0.1;
-            rl.tier_multipliers.user = 0.1;
         });
         let prov = provider(config, ServicesConfig::default());
         let mut v = RateLimitsConfigValidator::new();
@@ -255,8 +237,6 @@ mod rate_limits_validator {
             rl.stream_per_second = 100;
             rl.agents_per_second = 1;
             rl.contexts_per_second = 1;
-            rl.tier_multipliers.anon = 1.0;
-            rl.tier_multipliers.user = 1.0;
         });
         let prov = provider(config, ServicesConfig::default());
         let mut v = RateLimitsConfigValidator::new();
@@ -271,8 +251,6 @@ mod rate_limits_validator {
             rl.stream_per_second = 100;
             rl.agents_per_second = 100;
             rl.contexts_per_second = 100;
-            rl.tier_multipliers.anon = 1.0;
-            rl.tier_multipliers.user = 1.0;
         });
         let prov = provider(config, ServicesConfig::default());
         let mut v = RateLimitsConfigValidator::new();

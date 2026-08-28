@@ -33,26 +33,3 @@ fn changed_scalar_fields_are_reported_with_both_values() {
         .unwrap();
     assert_eq!(tasks.other, other.tasks_per_second.to_string());
 }
-
-#[test]
-fn tier_multiplier_changes_use_dotted_field_names_and_one_decimal() {
-    let current = RateLimitsConfig::default();
-    let mut other = RateLimitsConfig::default();
-    other.tier_multipliers.admin = current.tier_multipliers.admin + 2.5;
-
-    let diffs = collect_differences(&current, &other);
-    assert_eq!(diffs.len(), 1);
-    assert_eq!(diffs[0].field, "tier_multipliers.admin");
-    assert_eq!(
-        diffs[0].other,
-        format!("{:.1}", other.tier_multipliers.admin)
-    );
-}
-
-#[test]
-fn equal_tier_multipliers_within_epsilon_are_not_reported() {
-    let current = RateLimitsConfig::default();
-    let mut other = RateLimitsConfig::default();
-    other.tier_multipliers.user = current.tier_multipliers.user + f64::EPSILON / 2.0;
-    assert!(collect_differences(&current, &other).is_empty());
-}

@@ -3,8 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::auth::RateLimitTier;
-use crate::profile::{RateLimitsConfig, TierMultipliers};
+use crate::profile::RateLimitsConfig;
 
 #[derive(Debug, Clone, Copy)]
 pub struct RateLimitConfig {
@@ -21,7 +20,6 @@ pub struct RateLimitConfig {
     pub content_per_second: u64,
     pub burst_multiplier: u64,
     pub disabled: bool,
-    pub tier_multipliers: TierMultipliers,
 }
 
 impl Default for RateLimitConfig {
@@ -40,7 +38,6 @@ impl Default for RateLimitConfig {
             content_per_second: 50,
             burst_multiplier: 3,
             disabled: false,
-            tier_multipliers: TierMultipliers::default(),
         }
     }
 }
@@ -50,7 +47,7 @@ impl RateLimitConfig {
         Self::default()
     }
 
-    pub fn testing() -> Self {
+    pub const fn testing() -> Self {
         Self {
             oauth_public_per_second: 10000,
             oauth_auth_per_second: 10000,
@@ -65,34 +62,13 @@ impl RateLimitConfig {
             content_per_second: 10000,
             burst_multiplier: 100,
             disabled: false,
-            tier_multipliers: TierMultipliers::default(),
         }
     }
 
-    pub fn disabled() -> Self {
+    pub const fn disabled() -> Self {
         let mut config = Self::testing();
         config.disabled = true;
         config
-    }
-
-    #[must_use]
-    pub fn effective_limit(&self, base_rate: u64, tier: RateLimitTier) -> u64 {
-        let multiplier = self.tier_multiplier(tier);
-        let base_capped = u32::try_from(base_rate).unwrap_or(u32::MAX);
-        let scaled = f64::from(base_capped) * multiplier;
-        let clamped = scaled.clamp(1.0, f64::from(u32::MAX));
-        clamped as u64
-    }
-
-    pub const fn tier_multiplier(&self, tier: RateLimitTier) -> f64 {
-        match tier {
-            RateLimitTier::Admin => self.tier_multipliers.admin,
-            RateLimitTier::User => self.tier_multipliers.user,
-            RateLimitTier::A2a => self.tier_multipliers.a2a,
-            RateLimitTier::Mcp => self.tier_multipliers.mcp,
-            RateLimitTier::Service => self.tier_multipliers.service,
-            RateLimitTier::Anon => self.tier_multipliers.anon,
-        }
     }
 }
 
@@ -112,7 +88,6 @@ impl From<&RateLimitsConfig> for RateLimitConfig {
             content_per_second: config.content_per_second,
             burst_multiplier: config.burst_multiplier,
             disabled: config.disabled,
-            tier_multipliers: config.tier_multipliers,
         }
     }
 }
