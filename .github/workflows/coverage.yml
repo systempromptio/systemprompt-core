@@ -308,8 +308,22 @@ jobs:
           COVERAGE_FLOOR: "89.5"
           MAX_BASELINE_AGE_DAYS: "10"
         run: |
+          # Baseline against the branch this run is measuring. A `next` run
+          # compared against `main` can never advance the baseline — only a
+          # `main` run can — so every `next` run would find an ever-older
+          # `main` number, trip the staleness guard, and coast on the floor
+          # until the next release. The ratchet would be permanently dormant
+          # between promotes, which is most of the time and exactly the window
+          # it is meant to cover. Run-to-run on `next` is the comparison that
+          # catches a regression while the code is still being written; the
+          # promote PR and the `main` push still measure against `main`.
+          BASELINE_BRANCH="main"
+          if [ "${{ github.event_name }}" = "push" ] && [ "${{ github.ref_name }}" = "next" ]; then
+            BASELINE_BRANCH="next"
+          fi
+          echo "baseline branch: $BASELINE_BRANCH"
           PREV=$(gh run list --workflow coverage.yml --status success \
-            --branch main --limit 1 --json databaseId,createdAt \
+            --branch "$BASELINE_BRANCH" --limit 1 --json databaseId,createdAt \
             --jq '.[0] | "\(.databaseId) \(.createdAt)"' \
             -R "${{ github.repository }}")
           PREV_ID="${PREV%% *}"
