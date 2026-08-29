@@ -2,16 +2,22 @@ name: Coverage
 
 on:
   workflow_dispatch:
-  # Coverage tracks the released line, not `next`. The pull_request trigger
-  # measures the promote -> main release PR before it is merged; the push
-  # trigger produces the canonical number for the commit that became main,
-  # which is the baseline the ratchet below reads back. Coverage is the
-  # heaviest job here (the instrumented build is ~2-3x), and running it on
-  # every push to `next` would say nothing about what was released.
+  # `main` is the canonical line: the pull_request trigger measures the
+  # promote -> main release PR before it is merged, and the push trigger
+  # produces the number for the commit that became main, which is the baseline
+  # the ratchet below reads back.
+  #
+  # `next` runs too, despite this being the heaviest job here (the instrumented
+  # build is ~2-3x). Measuring only the released line meant coverage spoke once
+  # per release, on the promote PR — so a 0.93pt erosion across four releases
+  # went unseen until the moment it was most expensive to discover, and the
+  # crates that caused it had shipped weeks earlier. A number that arrives after
+  # the code is merged cannot influence the code. The concurrency group below is
+  # cancel-in-progress, so a burst of pushes collapses to one live run.
   pull_request:
     branches: [main]
   push:
-    branches: [main]
+    branches: [main, next]
 
 concurrency:
   # Keyed by event as well as ref: without the event, the release PR's run and
@@ -279,32 +285,61 @@ jobs:
       # there is no previous artifact to compare against — which is exactly why
       # the floor must not live behind that same early exit.
       #
+      # The ratchet compares against the last *successful* run, so a run that
+      # fails cannot advance the baseline: one red run leaves every later run
+      # comparing against an ever-older number until the accumulated drift of
+      # many commits trips a threshold meant for one. That is not a regression
+      # signal, it is the absence of one, and reporting it as a failure is how
+      # this gate stayed red for three weeks in August 2026 while nobody could
+      # tell whether coverage was actually falling. Past MAX_BASELINE_AGE_DAYS
+      # the comparison is therefore abandoned rather than made loosely, and the
+      # floor carries the run alone.
+      #
+      # Every path that declines to compare says so as a ::warning:: — a
+      # floor-only run must be visibly floor-only, because a silently skipped
+      # ratchet looks exactly like a passing one.
+      #
       # Raise COVERAGE_FLOOR as coverage climbs; keep it in step with
       # codecov.yml's `project.default.target`.
       - name: Coverage floor and ratchet
         if: ${{ steps.tests.outputs.instrumented == 'true' }}
         env:
           GH_TOKEN: ${{ github.token }}
-          COVERAGE_FLOOR: "88.5"
+          COVERAGE_FLOOR: "89.5"
+          MAX_BASELINE_AGE_DAYS: "10"
         run: |
-          PREV_ID=$(gh run list --workflow coverage.yml --status success \
-            --branch main --limit 1 --json databaseId --jq '.[0].databaseId' \
+          PREV=$(gh run list --workflow coverage.yml --status success \
+            --branch main --limit 1 --json databaseId,createdAt \
+            --jq '.[0] | "\(.databaseId) \(.createdAt)"' \
             -R "${{ github.repository }}")
+          PREV_ID="${PREV%% *}"
+          PREV_CREATED="${PREV#* }"
+          # Exported into this shell, not $GITHUB_ENV: GITHUB_ENV only reaches
+          # LATER steps, and the python below runs in this one. Written there it
+          # would arrive empty, the age check would never fire, and the staleness
+          # guard would silently do nothing — the exact failure it exists to stop.
+          export COVERAGE_PREV_CREATED=""
           if [ -n "$PREV_ID" ] && [ "$PREV_ID" != "null" ]; then
+            echo "baseline: run $PREV_ID from $PREV_CREATED"
+            export COVERAGE_PREV_CREATED="$PREV_CREATED"
             gh run download "$PREV_ID" -n coverage -D prev-coverage \
               -R "${{ github.repository }}" \
-              || echo "previous run $PREV_ID has no coverage artifact (expired?); ratchet will be skipped"
+              || echo "::warning::ratchet skipped: run $PREV_ID has no coverage artifact (expired?); the floor is the only guard on this run"
           else
-            echo "no previous successful run; ratchet will be skipped"
+            echo "::warning::ratchet skipped: no previous successful coverage run to compare against; the floor is the only guard on this run"
           fi
           python3 - <<'PY'
-          import json, os, pathlib, sys
+          import datetime as dt, json, os, pathlib, sys
 
           def pct(path):
               with open(path) as f:
                   return json.load(f)["data"][0]["totals"]["lines"]["percent"]
 
+          def warn(message):
+              print(f"::warning::{message}")
+
           floor = float(os.environ["COVERAGE_FLOOR"])
+          max_age = float(os.environ["MAX_BASELINE_AGE_DAYS"])
           cur = pct("coverage-summary.json")
           failures = []
 
@@ -313,15 +348,30 @@ jobs:
               failures.append(f"line coverage {cur:.2f}% is below the {floor:.2f}% floor")
 
           prev_path = pathlib.Path("prev-coverage/coverage-summary.json")
-          if prev_path.exists():
+          created = os.environ.get("COVERAGE_PREV_CREATED", "")
+          age_days = None
+          if created:
+              stamp = dt.datetime.fromisoformat(created.replace("Z", "+00:00"))
+              age_days = (dt.datetime.now(dt.timezone.utc) - stamp).total_seconds() / 86400
+
+          if not prev_path.exists():
+              warn("ratchet skipped: no baseline summary was downloaded; the floor is the only guard on this run")
+          elif age_days is not None and age_days > max_age:
+              warn(
+                  f"ratchet skipped: the newest successful coverage run is {age_days:.1f} days old "
+                  f"(limit {max_age:.0f}); a gap that long measures accumulated drift across many "
+                  f"commits, not a regression. The floor is the only guard on this run — fix the "
+                  f"cause of the failing runs so the baseline can advance."
+              )
+              print(f"previous: {pct(prev_path):.2f}%  (not compared)")
+          else:
               prev = pct(prev_path)
-              print(f"previous: {prev:.2f}%  delta: {cur - prev:+.2f}pt")
+              age = f"{age_days:.1f}d old" if age_days is not None else "age unknown"
+              print(f"previous: {prev:.2f}%  ({age})  delta: {cur - prev:+.2f}pt")
               if cur < prev - 0.5:
                   failures.append(
                       f"line coverage dropped more than 0.5pt ({prev:.2f}% -> {cur:.2f}%)"
                   )
-          else:
-              print("no previous summary available; skipping the relative ratchet")
 
           if failures:
               sys.exit("; ".join(failures))
