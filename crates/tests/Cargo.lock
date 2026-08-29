@@ -7948,13 +7948,16 @@ dependencies = [
 name = "systemprompt-evaluation-tests"
 version = "0.0.11"
 dependencies = [
+ "anyhow",
  "chrono",
  "serde_json",
  "sqlx",
  "systemprompt-database",
  "systemprompt-evaluation",
  "systemprompt-identifiers",
+ "systemprompt-models",
  "systemprompt-test-fixtures",
+ "systemprompt-test-mocks",
  "tokio",
  "uuid",
 ]
