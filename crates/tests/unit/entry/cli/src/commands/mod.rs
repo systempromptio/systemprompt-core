@@ -42,6 +42,7 @@ mod cloud_edit_prompts;
 mod cloud_init_scaffolding;
 mod cloud_login_output;
 mod cloud_profile_local_setup_db;
+mod cloud_profile_secrets_fs;
 mod cloud_profile_show_display;
 mod cloud_profile_show_exec_fs;
 mod cloud_profile_show_types;
