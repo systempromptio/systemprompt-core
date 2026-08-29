@@ -19,7 +19,7 @@ use systemprompt_models::services::ai::ModelLimits;
 
 use super::super::OutboundCtx;
 
-pub(super) fn normalize_raw_body(raw: &Bytes, ctx: &OutboundCtx<'_>) -> Option<Bytes> {
+pub fn normalize_raw_body(raw: &Bytes, ctx: &OutboundCtx<'_>) -> Option<Bytes> {
     let Ok(Value::Object(mut obj)) = serde_json::from_slice::<Value>(raw) else {
         return None;
     };

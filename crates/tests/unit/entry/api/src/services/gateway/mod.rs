@@ -11,6 +11,7 @@ mod inbound_openai_deep;
 mod inbound_openai_render;
 mod inbound_trait_defaults;
 mod inspect_equals_send;
+mod openai_passthrough;
 mod outbound;
 mod outbound_deep;
 mod outbound_passthrough;

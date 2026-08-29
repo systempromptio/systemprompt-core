@@ -20,6 +20,7 @@ mod raw;
 
 #[cfg(feature = "test-api")]
 pub mod test_api {
+    pub use super::raw::normalize_raw_body;
     pub use systemprompt_models::wire::openai_chat::{
         build_request_body, parse_response, sse_to_canonical_events,
     };
