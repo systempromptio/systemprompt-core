@@ -19,6 +19,8 @@ mod scope;
 #[cfg(test)]
 mod service;
 #[cfg(test)]
+mod trace;
+#[cfg(test)]
 mod view;
 
 #[cfg(test)]
