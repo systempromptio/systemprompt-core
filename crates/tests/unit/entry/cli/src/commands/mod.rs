@@ -62,6 +62,7 @@ mod core_content_link_ops_db;
 mod core_contexts_db;
 mod core_dispatcher_fs;
 mod core_dispatchers_db;
+mod core_files_ai_count_db;
 mod core_files_ai_delete_db;
 mod core_files_dispatcher_db;
 mod core_files_show_db;
