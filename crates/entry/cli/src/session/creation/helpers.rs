@@ -260,7 +260,7 @@ pub(super) async fn resolve_admin_with_fallback(
     }
 }
 
-pub(super) async fn resolve_tenant_admin_with_fallback(
+pub async fn resolve_tenant_admin_with_fallback(
     db_pool: &DbPool,
     creds: &CloudCredentials,
     user_email: &str,

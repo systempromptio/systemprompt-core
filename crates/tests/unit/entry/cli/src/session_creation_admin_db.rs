@@ -201,3 +201,104 @@ async fn the_minted_token_names_its_user_and_is_not_empty() {
         token.as_str()
     );
 }
+
+// The tenant fallback resolves a *different person's* admin account when the
+// named session user cannot be resolved. That is intended — the operator is
+// authenticated as the credential holder — but it is only safe because it
+// requires a session email hint. Without that guard, any failed lookup would
+// silently open a session as someone else.
+mod tenant_fallback {
+    use super::{pool, seed, unique};
+    use systemprompt_cli::session::creation::helpers::resolve_tenant_admin_with_fallback;
+    use systemprompt_cloud::CloudCredentials;
+    use systemprompt_identifiers::{CloudAuthToken, Email};
+
+    fn creds(email: &str) -> CloudCredentials {
+        CloudCredentials::new(
+            CloudAuthToken::new("tok"),
+            "https://cloud.invalid".to_owned(),
+            Email::new(email),
+        )
+    }
+
+    /// `users.email` is `VARCHAR(255)`, so an over-long address fails to insert
+    /// and gives the fallback a deterministic failure to react to.
+    fn unresolvable_email() -> String {
+        format!("{}@toolong.invalid", "x".repeat(300))
+    }
+
+    #[tokio::test]
+    async fn a_resolvable_user_is_returned_without_consulting_the_credentials() {
+        let pool = pool().await;
+        let (_name, email) = seed(&pool, &["admin"], "active").await;
+        let other = format!("{}@other.invalid", unique("creds"));
+
+        let user = resolve_tenant_admin_with_fallback(&pool, &creds(&other), &email, Some(&email))
+            .await
+            .expect("a resolvable user needs no fallback");
+
+        assert_eq!(
+            user.email, email,
+            "the named user was resolvable, so the credential holder must not be substituted"
+        );
+    }
+
+    // Why: this is the guard. Without a session hint the caller never asserted
+    // an identity, so a failed lookup must surface rather than quietly
+    // resolving to whoever holds the cloud credentials.
+    #[tokio::test]
+    async fn without_a_session_hint_a_failure_is_reported_rather_than_falling_back() {
+        let pool = pool().await;
+        let holder = format!("{}@holder.invalid", unique("creds"));
+
+        let err =
+            resolve_tenant_admin_with_fallback(&pool, &creds(&holder), &unresolvable_email(), None)
+                .await
+                .expect_err("with no session hint the failure must propagate");
+
+        assert!(
+            !format!("{err:#}").is_empty(),
+            "the refusal should carry the underlying reason"
+        );
+    }
+
+    // Why: with a hint the operator did assert an identity, and the credential
+    // holder is a different, authenticated person. Falling back to them is the
+    // intended recovery.
+    #[tokio::test]
+    async fn with_a_session_hint_the_credential_holder_is_used_instead() {
+        let pool = pool().await;
+        let holder = format!("{}@holder.invalid", unique("creds"));
+        let requested = unresolvable_email();
+
+        let user = resolve_tenant_admin_with_fallback(
+            &pool,
+            &creds(&holder),
+            &requested,
+            Some(&requested),
+        )
+        .await
+        .expect("the credential holder should be resolved as the fallback");
+
+        assert_eq!(
+            user.email, holder,
+            "the fallback resolves the credential holder, not the requested address"
+        );
+        assert!(user.is_admin());
+    }
+
+    // Why: when the credential holder is the address that already failed,
+    // retrying resolves nothing. The error must surface rather than the same
+    // lookup being run twice.
+    #[tokio::test]
+    async fn no_fallback_is_attempted_when_the_credentials_name_the_same_address() {
+        let pool = pool().await;
+        let same = unresolvable_email();
+
+        let err = resolve_tenant_admin_with_fallback(&pool, &creds(&same), &same, Some(&same))
+            .await
+            .expect_err("retrying the same address cannot succeed");
+
+        assert!(!format!("{err:#}").is_empty());
+    }
+}
