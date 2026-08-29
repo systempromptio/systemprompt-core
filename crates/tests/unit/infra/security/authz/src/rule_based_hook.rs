@@ -44,7 +44,7 @@ async fn rule_based_hook_denies_when_the_pool_is_unavailable() {
             assert_eq!(policy, "authz_rule_based");
             assert!(matches!(
                 reason,
-                DenyReason::HookUnavailable { policy: p } if p == "authz_rule_based"
+                DenyReason::HookUnavailable { policy: p, .. } if p == "authz_rule_based"
             ));
         },
         AuthzDecision::Allow => panic!("a dead pool must fail closed, got Allow"),

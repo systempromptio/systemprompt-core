@@ -15,6 +15,7 @@
 mod sources;
 
 use std::collections::BTreeMap;
+use std::sync::Arc;
 
 use systemprompt_identifiers::{PluginId, UserId};
 
@@ -58,7 +59,10 @@ pub struct ResolveBase<'a> {
 pub struct ParentChainIndex {
     marketplace: Option<LoadedParent>,
     plugins: BTreeMap<PluginId, LoadedParent>,
-    sources: ChainSources,
+    // Why: shared rather than owned. The sources are fixed for the process
+    // lifetime but the index is rebuilt on every authz decision, so an owned
+    // copy deep-cloned every plugin id, skill id and member set per call.
+    sources: Arc<ChainSources>,
 }
 
 impl ParentChainIndex {
@@ -66,7 +70,7 @@ impl ParentChainIndex {
     pub const fn from_parts(
         marketplace: Option<LoadedParent>,
         plugins: BTreeMap<PluginId, LoadedParent>,
-        sources: ChainSources,
+        sources: Arc<ChainSources>,
     ) -> Self {
         Self {
             marketplace,
@@ -75,7 +79,10 @@ impl ParentChainIndex {
         }
     }
 
-    pub async fn load(repo: &AccessControlRepository, sources: ChainSources) -> AuthzResult<Self> {
+    pub async fn load(
+        repo: &AccessControlRepository,
+        sources: Arc<ChainSources>,
+    ) -> AuthzResult<Self> {
         let marketplace = match sources.marketplace.as_ref() {
             Some(source) => Some(load_marketplace(repo, source).await?),
             None => None,

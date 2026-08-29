@@ -17,6 +17,7 @@ impl AuthzDecisionHook for LocalDenyAllHook {
         AuthzDecision::Deny {
             reason: DenyReason::HookUnavailable {
                 policy: "deny_all_test".into(),
+                detail: String::new(),
             },
             policy: "deny_all_test".into(),
         }

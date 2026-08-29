@@ -28,6 +28,7 @@ use async_trait::async_trait;
 use sqlx::PgPool;
 
 use super::audit::{AuthzAuditSink, AuthzSource};
+use super::error::{AuthzError, AuthzResult};
 use super::hook::AuthzDecisionHook;
 use super::parent_chain::{ChainSources, ParentChainIndex, ResolveBase};
 use super::registry::AuthzHookContext;
@@ -44,7 +45,7 @@ pub struct RuleBasedHook {
     sink: Arc<dyn AuthzAuditSink>,
     providers: Vec<SharedSubjectAttributeProvider>,
     dimensions: Vec<SubjectDimension>,
-    sources: ChainSources,
+    sources: Arc<ChainSources>,
 }
 
 impl std::fmt::Debug for RuleBasedHook {
@@ -70,21 +71,24 @@ impl RuleBasedHook {
             sink,
             dimensions: dimensions_of(&providers),
             providers,
-            sources,
+            sources: Arc::new(sources),
         }
     }
 
-    async fn chain_index(&self) -> Result<ParentChainIndex, String> {
-        ParentChainIndex::load(&self.repo, self.sources.clone())
-            .await
-            .map_err(|e| e.to_string())
+    async fn chain_index(&self) -> AuthzResult<ParentChainIndex> {
+        ParentChainIndex::load(&self.repo, Arc::clone(&self.sources)).await
     }
 
-    async fn fault(&self, req: &AuthzRequest, detail: &str) -> AuthzDecision {
+    // Why: takes the typed error rather than a rendered string so the reason
+    // reaching the audit row names the cause. Stringifying at the call site put
+    // it in a log line and left every fault row identical.
+    async fn fault(&self, req: &AuthzRequest, error: &AuthzError) -> AuthzDecision {
         let policy = AuthzSource::RuleBased.policy().to_owned();
+        let detail = error.to_string();
         let decision = AuthzDecision::Deny {
             reason: DenyReason::HookUnavailable {
                 policy: policy.clone(),
+                detail: detail.clone(),
             },
             policy,
         };
@@ -109,16 +113,16 @@ impl AuthzDecisionHook for RuleBasedHook {
 
         let entity = match self.repo.get_entity(kind, id).await {
             Ok(row) => row,
-            Err(err) => return self.fault(&req, &err.to_string()).await,
+            Err(err) => return self.fault(&req, &err).await,
         };
         let rules = match self.repo.list_rules_for_entity(kind, id).await {
             Ok(rules) => rules,
-            Err(err) => return self.fault(&req, &err.to_string()).await,
+            Err(err) => return self.fault(&req, &err).await,
         };
 
         let index = match self.chain_index().await {
             Ok(index) => index,
-            Err(detail) => return self.fault(&req, &detail).await,
+            Err(err) => return self.fault(&req, &err).await,
         };
 
         let attributes = gather_subject_attributes(&self.providers, &req.user_id).await;

@@ -130,7 +130,7 @@ async fn grant(fixture: &Fixture, kind: &str, id: &str, role: &str, default_incl
 
 async fn visible_skills(fixture: &Fixture, roles: &[&str]) -> HashSet<String> {
     let repo = AccessControlRepository::new(&fixture.db).expect("repo");
-    let index = ParentChainIndex::load(&repo, fixture.sources())
+    let index = ParentChainIndex::load(&repo, std::sync::Arc::new(fixture.sources()))
         .await
         .expect("load chain index");
     let roles: Vec<String> = roles.iter().map(|r| (*r).to_owned()).collect();

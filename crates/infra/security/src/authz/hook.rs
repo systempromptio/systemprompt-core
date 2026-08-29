@@ -60,6 +60,7 @@ impl AuthzDecisionHook for DenyAllHook {
         let decision = AuthzDecision::Deny {
             reason: DenyReason::HookUnavailable {
                 policy: policy.clone(),
+                detail: "no authz hook is configured; the default denies".to_owned(),
             },
             policy,
         };
@@ -125,11 +126,15 @@ impl WebhookHook {
         self.timeout
     }
 
-    async fn fault(&self, req: &AuthzRequest) -> AuthzDecision {
+    // Why: `detail` reaches the audit row, so a hook that is unreachable, one
+    // that answers 500 and one that returns undecodable JSON are three
+    // different rows rather than one indistinguishable "unavailable".
+    async fn fault(&self, req: &AuthzRequest, detail: String) -> AuthzDecision {
         let policy = AuthzSource::WebhookFault.policy().to_owned();
         let decision = AuthzDecision::Deny {
             reason: DenyReason::HookUnavailable {
                 policy: policy.clone(),
+                detail,
             },
             policy,
         };
@@ -152,7 +157,7 @@ impl AuthzDecisionHook for WebhookHook {
                     url = %self.url,
                     "authz hook transport failure",
                 );
-                return self.fault(&req).await;
+                return self.fault(&req, format!("transport failure: {err}")).await;
             },
         };
         if !response.status().is_success() {
@@ -161,7 +166,12 @@ impl AuthzDecisionHook for WebhookHook {
                 url = %self.url,
                 "authz hook returned non-success status",
             );
-            return self.fault(&req).await;
+            return self
+                .fault(
+                    &req,
+                    format!("hook returned status {}", response.status().as_u16()),
+                )
+                .await;
         }
         match response.json::<AuthzDecision>().await {
             Ok(decision) => decision,
@@ -171,7 +181,8 @@ impl AuthzDecisionHook for WebhookHook {
                     url = %self.url,
                     "authz hook response decode failure",
                 );
-                self.fault(&req).await
+                self.fault(&req, format!("undecodable response: {err}"))
+                    .await
             },
         }
     }

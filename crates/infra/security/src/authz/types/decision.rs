@@ -82,8 +82,16 @@ pub enum DenyReason {
          roles.yaml."
     )]
     UnknownEntity { entity: EntityRef },
-    #[error("authz hook unavailable for policy {policy}")]
-    HookUnavailable { policy: String },
+    // Why: `detail` carries the underlying failure so the audit row can tell a
+    // transient database fault from a malformed rule. Without it every fault on
+    // this plane writes a byte-identical row and the cause survives only in a
+    // log line. `serde(default)` so rows written before the field parse back.
+    #[error("authz hook unavailable for policy {policy}: {detail}")]
+    HookUnavailable {
+        policy: String,
+        #[serde(default)]
+        detail: String,
+    },
     #[error("{detail}")]
     PolicyViolation {
         policy: String,
