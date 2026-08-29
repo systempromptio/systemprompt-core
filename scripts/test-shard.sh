@@ -66,6 +66,17 @@ esac
 cores="$(nproc 2>/dev/null || echo 4)"
 threads="${TEST_THREADS:-$(( cores < 8 ? cores : 8 ))}"
 
+# `--lib` alone skips every `tests/*.rs` integration binary. Only integration/cli
+# ships them (17 of them), and they were running nowhere: the shards build
+# `--lib`, so they executed solely under the coverage job — which was red for ten
+# days, long enough for a broken `admin setup` fixture to reach a release PR
+# through a fully green gate. That group gets `--tests` as well; it already
+# prebuilds the `systemprompt` binary those targets spawn.
+targets="--lib"
+case "$group" in
+  integration-cli) targets="--lib --tests" ;;
+esac
+
 cargo nextest run --profile "${NEXTEST_PROFILE:-default}" \
   --manifest-path crates/tests/Cargo.toml \
-  --lib $PKGS --test-threads "$threads" "$@"
+  $targets $PKGS --test-threads "$threads" "$@"

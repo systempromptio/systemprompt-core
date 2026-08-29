@@ -8,6 +8,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::time::Duration;
+
 use axum::Json;
 use serde_json::json;
 use systemprompt_database::{DatabaseQuery, JsonRow};
@@ -240,6 +242,15 @@ pub fn audit_log_stats(row: &JsonRow) -> serde_json::Value {
     })
 }
 
+// Why: the pool's own acquire timeout is 30s, so an unbounded probe answers a
+// database outage 32 seconds late. This endpoint is skip-listed from the ip-ban
+// gate precisely so an orchestrator keeps sight of the process during a
+// database fault, and a probe slower than the orchestrator's own deadline
+// defeats that as completely as a refusal would. A healthy `SELECT 1` is
+// single-digit milliseconds; matches the session middleware's bound for the
+// same reason.
+pub(super) const HEALTH_PROBE_TIMEOUT: Duration = Duration::from_secs(2);
+
 pub async fn handle_health(
     axum::extract::State(ctx): axum::extract::State<AppContext>,
 ) -> impl axum::response::IntoResponse {
@@ -248,11 +259,11 @@ pub async fn handle_health(
 
     use super::scheduler_health;
 
-    let db_healthy = ctx
-        .db_pool()
-        .fetch_optional(&HEALTH_CHECK_QUERY, &[])
-        .await
-        .is_ok();
+    let probe = ctx.db_pool().fetch_optional(&HEALTH_CHECK_QUERY, &[]);
+    let db_healthy = matches!(
+        tokio::time::timeout(HEALTH_PROBE_TIMEOUT, probe).await,
+        Ok(Ok(_))
+    );
 
     let degraded_jobs = scheduler_health::degraded();
     let relay_listening = systemprompt_events::is_listening();
@@ -265,7 +276,7 @@ pub async fn handle_health(
         ("degraded", StatusCode::OK)
     };
 
-    let mut body = json!({ "status": status });
+    let mut body = json!({ "status": status, "version": env!("CARGO_PKG_VERSION") });
     if !degraded_jobs.is_empty() {
         body["scheduler"] = json!({ "degraded_jobs": degraded_jobs });
     }

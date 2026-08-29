@@ -49,9 +49,10 @@ pub async fn handle_health_detail(
 
     let (db_status, db_latency_ms) = {
         let db_start = std::time::Instant::now();
-        let status = match ctx.db_pool().fetch_optional(&HEALTH_CHECK_QUERY, &[]).await {
-            Ok(_) => "healthy",
-            Err(_) => "unhealthy",
+        let probe = ctx.db_pool().fetch_optional(&HEALTH_CHECK_QUERY, &[]);
+        let status = match tokio::time::timeout(super::health::HEALTH_PROBE_TIMEOUT, probe).await {
+            Ok(Ok(_)) => "healthy",
+            Ok(Err(_)) | Err(_) => "unhealthy",
         };
         (status, db_start.elapsed().as_millis())
     };
