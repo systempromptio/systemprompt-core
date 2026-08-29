@@ -30,6 +30,8 @@ mod api;
 
 #[cfg(test)]
 mod artifacts;
+#[cfg(test)]
+mod artifacts_table;
 
 #[cfg(test)]
 mod artifacts_extended;
