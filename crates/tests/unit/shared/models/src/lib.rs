@@ -104,6 +104,8 @@ mod config_postgres;
 mod permission;
 
 #[cfg(test)]
+mod mcp_client_profile;
+#[cfg(test)]
 mod mcp_tool_result_metadata;
 
 #[cfg(test)]
