@@ -63,6 +63,9 @@ pub mod test_api {
     pub use crate::services::orchestrator::process_cleanup::{
         detect_and_handle_orphaned_processes, detect_and_handle_stale_binaries,
     };
+    pub use crate::services::ui_renderer::templates::chart_svg::scale::{
+        Scale, ScaleKind, for_axis, format_value, linear,
+    };
 }
 
 pub use error::{McpDomainError, McpDomainResult};

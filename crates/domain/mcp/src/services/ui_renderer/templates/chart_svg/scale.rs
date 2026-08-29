@@ -5,24 +5,24 @@
 
 use systemprompt_models::artifacts::chart::ChartDataset;
 
-pub(super) const TICK_COUNT: usize = 4;
+pub(crate) const TICK_COUNT: usize = 4;
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
-pub(super) enum ScaleKind {
+pub enum ScaleKind {
     #[default]
     Linear,
     Logarithmic,
 }
 
 #[derive(Debug, Clone, Copy)]
-pub(super) struct Scale {
+pub struct Scale {
     pub min: f64,
     pub max: f64,
     pub kind: ScaleKind,
 }
 
 impl Scale {
-    pub(super) fn fraction(self, value: f64) -> f64 {
+    pub fn fraction(self, value: f64) -> f64 {
         match self.kind {
             ScaleKind::Linear => {
                 let span = self.max - self.min;
@@ -46,7 +46,7 @@ impl Scale {
         }
     }
 
-    pub(super) fn ticks(self) -> Vec<f64> {
+    pub fn ticks(self) -> Vec<f64> {
         match self.kind {
             ScaleKind::Linear => {
                 let step = (self.max - self.min) / TICK_COUNT as f64;
@@ -65,7 +65,7 @@ impl Scale {
     }
 }
 
-pub(super) fn for_axis(datasets: &[ChartDataset], kind: ScaleKind) -> Scale {
+pub fn for_axis(datasets: &[ChartDataset], kind: ScaleKind) -> Scale {
     match kind {
         ScaleKind::Linear => linear(datasets),
         ScaleKind::Logarithmic => logarithmic(datasets).unwrap_or_else(|| linear(datasets)),
@@ -101,7 +101,7 @@ fn logarithmic(datasets: &[ChartDataset]) -> Option<Scale> {
     })
 }
 
-pub(super) fn linear(datasets: &[ChartDataset]) -> Scale {
+pub fn linear(datasets: &[ChartDataset]) -> Scale {
     let values: Vec<f64> = datasets
         .iter()
         .flat_map(|set| set.data.iter().copied())
@@ -158,7 +158,7 @@ fn nice_step(rough: f64) -> f64 {
     stepped * magnitude
 }
 
-pub(super) fn format_value(value: f64) -> String {
+pub fn format_value(value: f64) -> String {
     if !value.is_finite() {
         return String::from("—");
     }
@@ -175,7 +175,7 @@ pub(super) fn format_value(value: f64) -> String {
         .to_owned()
 }
 
-pub(super) fn coord(value: f64) -> String {
+pub(crate) fn coord(value: f64) -> String {
     format!("{:.2}", value)
         .trim_end_matches('0')
         .trim_end_matches('.')

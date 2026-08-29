@@ -19,7 +19,7 @@
 mod cartesian;
 mod frame;
 mod radial;
-mod scale;
+pub(crate) mod scale;
 
 use super::html::html_escape;
 use systemprompt_models::artifacts::chart::ChartDataset;
