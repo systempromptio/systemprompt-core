@@ -81,6 +81,11 @@ generator-config-db = { max-threads = 1 }
 api-health-monitor-db = { max-threads = 1 }
 cli-cloud-harness = { max-threads = 1 }
 cloud-checkout-port = { max-threads = 1 }
+# Why: `ApprovalRepository::expire_due` is an unscoped UPDATE over every
+# overdue pending row, so it sweeps other tests' fixtures. Without this the
+# deadline test passes by reading a status column another test set, rather
+# than by exercising the deadline check it exists for.
+approval-sweep-db = { max-threads = 1 }
 
 [[profile.default.overrides]]
 filter = 'package(systemprompt-database-tests) and test(/repository::cleanup::/)'
@@ -169,10 +174,18 @@ test-group = 'oauth-clients-db'
 [[profile.ci.overrides]]
 filter = 'package(systemprompt-oauth-tests) and test(/repository::/)'
 test-group = 'oauth-clients-db'
+
+[[profile.default.overrides]]
+filter = 'package(systemprompt-security-tests) and test(/policy_approval::/)'
+test-group = 'approval-sweep-db'
 
 [[profile.default.overrides]]
 filter = 'package(systemprompt-users-tests) and test(/(repository::federated_identity|repository::device_cert|services::device_cert_service|services::user_service)::/)'
 test-group = 'users-db'
+
+[[profile.ci.overrides]]
+filter = 'package(systemprompt-security-tests) and test(/policy_approval::/)'
+test-group = 'approval-sweep-db'
 
 [[profile.ci.overrides]]
 filter = 'package(systemprompt-users-tests) and test(/(repository::federated_identity|repository::device_cert|services::device_cert_service|services::user_service)::/)'
@@ -341,6 +354,10 @@ test-group = 'scheduler-jobs-db'
 [[profile.coverage.overrides]]
 filter = 'package(systemprompt-oauth-tests) and test(/repository::/)'
 test-group = 'oauth-clients-db'
+
+[[profile.coverage.overrides]]
+filter = 'package(systemprompt-security-tests) and test(/policy_approval::/)'
+test-group = 'approval-sweep-db'
 
 [[profile.coverage.overrides]]
 filter = 'package(systemprompt-users-tests) and test(/(repository::federated_identity|repository::device_cert|services::device_cert_service|services::user_service)::/)'
