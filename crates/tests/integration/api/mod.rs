@@ -433,6 +433,10 @@ mod routes_oauth_webauthn_link;
 mod routes_stream_delivery;
 
 #[cfg(test)]
+#[path = "gateway_bridge_release_routes.rs"]
+mod gateway_bridge_release_routes;
+
+#[cfg(test)]
 #[path = "gateway_enabled_routes.rs"]
 mod gateway_enabled_routes;
 
