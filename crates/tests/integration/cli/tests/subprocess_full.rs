@@ -49,7 +49,8 @@ fn stderr_has_fmt(args: &[&str], needle: &str) {
 // Why: a list command over a freshly-migrated database prints its empty-state
 // warning, not its table header, so asserting the header alone makes the test a
 // function of whether earlier tests happened to leave rows behind. Accepting
-// either still proves the handler ran to completion and produced its own output.
+// either still proves the handler ran to completion and produced its own
+// output.
 fn stderr_has_any(args: &[&str], needles: &[&str]) {
     let Some(mut cmd) = command() else { return };
     cmd.args(args);
