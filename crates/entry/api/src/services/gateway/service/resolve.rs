@@ -109,7 +109,7 @@ pub(super) async fn resolve_upstream<'a>(
     })
 }
 
-fn describe_route_match(
+pub fn describe_route_match(
     route: &GatewayRoute,
     declarative: Option<String>,
     selector: Option<String>,
@@ -128,7 +128,7 @@ fn describe_route_match(
     })
 }
 
-fn enforce_route_requirements(
+pub fn enforce_route_requirements(
     route: &GatewayRoute,
     provider: &ProviderEntry,
     requested_model: &str,

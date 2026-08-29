@@ -17,6 +17,7 @@ mod outbound_passthrough;
 mod parse;
 mod pricing;
 mod registry;
+mod route_requirements;
 mod safety;
 mod signature_cache;
 mod stream_tap;
