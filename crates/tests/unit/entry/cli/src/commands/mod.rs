@@ -15,6 +15,7 @@ mod admin_evals_db;
 mod admin_keys_generate_fs;
 mod admin_prompts;
 mod admin_session_show;
+mod admin_users_apikey_db;
 mod admin_users_ban_bulk_db;
 mod admin_users_ban_dispatcher_db;
 mod admin_users_dispatcher_db;
