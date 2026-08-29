@@ -6789,6 +6789,7 @@ dependencies = [
  "systemprompt-logging",
  "systemprompt-models",
  "systemprompt-test-fixtures",
+ "systemprompt-test-mocks",
  "systemprompt-traits",
  "tempfile",
  "tokio",
