@@ -33,6 +33,7 @@ mod agents_validate_checks;
 mod analytics;
 mod build_mcp;
 mod build_mcp_in_root;
+mod cloud_backup_extract_fs;
 mod cloud_deploy_target;
 mod cloud_dispatcher_fs;
 mod cloud_doctor;
