@@ -49,6 +49,19 @@ impl SafeIdentifier {
     pub fn as_str(&self) -> &str {
         &self.0
     }
+
+    // Why: quoting lives on the validated type so it cannot be reached with an
+    // unvalidated string. It was previously a free function duplicated in the
+    // admin and services/postgres introspection modules; the services copy took
+    // a bare `&str` and relied on its identifier coming from a catalog query
+    // rather than on anything checkable. Doubling embedded quotes is correct
+    // Postgres escaping on its own, but "correct because of where the caller
+    // got it" is a property that survives only until the next caller.
+    #[must_use]
+    pub fn quoted(&self) -> String {
+        let escaped = self.0.replace('"', "\"\"");
+        format!("\"{escaped}\"")
+    }
 }
 
 impl fmt::Display for SafeIdentifier {

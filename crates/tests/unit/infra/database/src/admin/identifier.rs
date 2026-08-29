@@ -75,3 +75,23 @@ fn display_roundtrips() {
     let id = SafeIdentifier::parse("agent_tasks").expect("must parse");
     assert_eq!(format!("{id}"), "agent_tasks");
 }
+
+#[test]
+fn quoted_wraps_in_double_quotes() {
+    let id = SafeIdentifier::parse("agent_tasks").expect("must parse");
+    assert_eq!(id.quoted(), "\"agent_tasks\"");
+}
+
+// Why: `quoted` lives on the validated type precisely so a name that could
+// break out of the quoting can never reach it. `parse` rejects the quote
+// character, so the doubling in `quoted` is a second line rather than the
+// only one — this asserts the first line holds.
+#[test]
+fn a_name_carrying_a_quote_never_becomes_a_safe_identifier() {
+    for raw in ["tbl\"; DROP TABLE users; --", "a\"b", "\""] {
+        assert!(
+            SafeIdentifier::parse(raw).is_err(),
+            "{raw:?} must not parse into a SafeIdentifier"
+        );
+    }
+}
