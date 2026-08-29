@@ -9,6 +9,8 @@ mod errors;
 #[cfg(test)]
 mod helpers;
 #[cfg(test)]
+mod keep;
+#[cfg(test)]
 mod manifest;
 #[cfg(test)]
 mod registry;

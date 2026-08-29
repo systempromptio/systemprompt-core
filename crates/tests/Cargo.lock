@@ -8340,7 +8340,9 @@ dependencies = [
  "ed25519-dalek 2.2.0",
  "serde_json",
  "sha2 0.11.0",
+ "sqlx",
  "systemprompt-config",
+ "systemprompt-database",
  "systemprompt-identifiers",
  "systemprompt-marketplace",
  "systemprompt-models",
@@ -8350,6 +8352,7 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-subscriber",
+ "uuid",
 ]
 
 [[package]]
