@@ -7,7 +7,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-mod args;
+pub mod args;
 mod bootstrap;
 mod db_url;
 mod profile_routing;
