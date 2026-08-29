@@ -50,6 +50,8 @@ mod presentation_tables;
 #[cfg(test)]
 mod runner_args;
 #[cfg(test)]
+mod session_creation_admin_db;
+#[cfg(test)]
 mod session_resolution_context_db;
 #[cfg(test)]
 mod session_resolution_helpers;

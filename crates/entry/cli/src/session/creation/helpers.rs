@@ -67,7 +67,7 @@ pub(super) async fn connect_database(secrets: &ResolvedSecrets) -> Result<DbPool
     Ok(DbPool::from(Arc::new(db)))
 }
 
-pub(super) async fn get_or_create_admin(
+pub async fn get_or_create_admin(
     db_pool: &DbPool,
     email: &str,
     context_type: &str,
@@ -114,7 +114,7 @@ pub(super) async fn get_or_create_admin(
         .context("Failed to assign admin role to new user")
 }
 
-pub(super) fn generate_admin_token(
+pub fn generate_admin_token(
     issuer: &str,
     user: &systemprompt_users::User,
     session_id: &SessionId,
@@ -182,7 +182,7 @@ pub(super) fn build_cli_session(
     .build())
 }
 
-pub(super) async fn resolve_local_admin(
+pub async fn resolve_local_admin(
     db_pool: &DbPool,
     admin_name: &str,
 ) -> Result<systemprompt_users::User> {

@@ -1,8 +1,8 @@
 //! Creation of CLI sessions for local and cloud-tenant profiles.
 //!
 //! Resolves an admin user, mints a session token, and records the session row
-//! plus context for both the local ([`create_local_session`]) and tenant
-//! ([`create_session_for_tenant`]) paths.
+//! plus context for both the local (`create_local_session`) and tenant
+//! (`create_session_for_tenant`) paths.
 //!
 //! The local-trial path *resolves* rather than provisions, and does so by
 //! `system_admin.username`. It previously looked the admin up by a hardcoded
@@ -15,7 +15,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-mod helpers;
+pub mod helpers;
 
 use anyhow::{Context, Result};
 use systemprompt_cloud::{CliSession, CloudCredentials, SessionKey};
