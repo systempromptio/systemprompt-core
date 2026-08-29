@@ -62,6 +62,7 @@ mod core_files_ai_delete_db;
 mod core_files_dispatcher_db;
 mod core_files_show_db;
 mod core_hooks_validate_fs;
+mod core_marketplace_explain_fs;
 mod core_plugins_fs;
 mod core_plugins_list_fs;
 mod core_skills_hooks_fs;
