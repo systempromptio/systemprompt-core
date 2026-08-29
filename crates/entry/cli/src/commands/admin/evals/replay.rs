@@ -33,7 +33,7 @@ pub struct ReplayArgs {
     pub budget_microdollars: Option<i64>,
 }
 
-pub(super) async fn execute(args: ReplayArgs, ctx: &CommandContext) -> Result<CommandOutput> {
+pub async fn execute(args: ReplayArgs, ctx: &CommandContext) -> Result<CommandOutput> {
     let eval = eval_context(ctx).await?;
     let source_run = EvalRunId::new(args.run_id);
 

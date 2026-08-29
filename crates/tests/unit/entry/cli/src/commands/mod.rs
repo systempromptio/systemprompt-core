@@ -12,6 +12,7 @@ mod admin_config_governance_fs;
 mod admin_config_sections;
 mod admin_config_writes_fs;
 mod admin_evals_db;
+mod admin_evals_show_db;
 mod admin_keys_generate_fs;
 mod admin_prompts;
 mod admin_session_show;

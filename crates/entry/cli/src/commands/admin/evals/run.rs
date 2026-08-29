@@ -61,7 +61,7 @@ fn parse_context_id(raw: &str) -> Result<ContextId, String> {
     ContextId::try_new(raw.to_owned()).map_err(|e| e.to_string())
 }
 
-pub(super) async fn execute(args: RunArgs, ctx: &CommandContext) -> Result<CommandOutput> {
+pub async fn execute(args: RunArgs, ctx: &CommandContext) -> Result<CommandOutput> {
     let eval = eval_context(ctx).await?;
 
     let mut filter = SampleFilter::with_limit(args.sample_size)

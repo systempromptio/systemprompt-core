@@ -70,14 +70,14 @@ fn parse(args: &[&str]) -> EvalsCommands {
         .cmd
 }
 
-async fn pool() -> DbPool {
+pub(super) async fn pool() -> DbPool {
     let b = boot();
     fixture_db_pool(&b.database_url)
         .await
         .expect("the evals command tests need a reachable test database")
 }
 
-fn ctx(pool: &DbPool) -> CommandContext {
+pub(super) fn ctx(pool: &DbPool) -> CommandContext {
     let b = boot();
     CommandContext::with_app_context(
         CliConfig::new()
