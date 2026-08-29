@@ -58,6 +58,7 @@ mod core_content_dispatcher_db;
 mod core_content_edit_apply;
 mod core_content_files_db;
 mod core_content_link_generate_db;
+mod core_content_link_list_db;
 mod core_content_link_ops_db;
 mod core_contexts_db;
 mod core_dispatcher_fs;
