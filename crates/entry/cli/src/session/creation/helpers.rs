@@ -135,7 +135,7 @@ pub fn generate_admin_token(
         .context("Failed to generate session token")
 }
 
-pub(super) async fn create_cli_context(
+pub async fn create_cli_context(
     db_pool: DbPool,
     user: &systemprompt_users::User,
     session_id: &SessionId,

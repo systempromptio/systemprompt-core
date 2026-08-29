@@ -302,3 +302,100 @@ mod tenant_fallback {
         assert!(!format!("{err:#}").is_empty());
     }
 }
+
+// A CLI context is keyed on the user and the profile, not on the session: an
+// existing one is adopted and rebound to the new session id, so a user's CLI
+// conversation survives logging in again. That makes the scoping the thing
+// worth asserting — keyed too loosely, one operator's CLI history surfaces in
+// another's.
+mod cli_context {
+    use super::{pool, seed};
+    use systemprompt_cli::session::creation::helpers::{create_cli_context, get_or_create_admin};
+    use systemprompt_database::DbPool;
+    use systemprompt_identifiers::{SessionId, UserId};
+    use systemprompt_test_fixtures::seed_user_session;
+
+    /// `user_contexts.session_id` is a foreign key, so the session row has to
+    /// exist before a context can point at it.
+    async fn session_for(pool: &DbPool, user_id: &UserId) -> SessionId {
+        let session = SessionId::generate();
+        seed_user_session(pool, user_id, &session)
+            .await
+            .expect("seed session");
+        session
+    }
+
+    #[tokio::test]
+    async fn the_same_user_and_profile_keep_one_context_across_sessions() {
+        let pool = pool().await;
+        let (_name, email) = seed(&pool, &["admin"], "active").await;
+        let user = get_or_create_admin(&pool, &email, "test")
+            .await
+            .expect("resolve admin");
+
+        let one = session_for(&pool, &user.id).await;
+        let two = session_for(&pool, &user.id).await;
+        let first = create_cli_context(pool.clone(), &user, &one, "prof-a")
+            .await
+            .expect("first context");
+        let second = create_cli_context(pool.clone(), &user, &two, "prof-a")
+            .await
+            .expect("second context");
+
+        assert_eq!(
+            first, second,
+            "logging in again must continue the same CLI conversation, not start a second"
+        );
+    }
+
+    // Why: profiles address different deployments. Sharing one context between
+    // them would show an operator the history from a profile they are not
+    // currently pointed at.
+    #[tokio::test]
+    async fn different_profiles_get_different_contexts() {
+        let pool = pool().await;
+        let (_name, email) = seed(&pool, &["admin"], "active").await;
+        let user = get_or_create_admin(&pool, &email, "test")
+            .await
+            .expect("resolve admin");
+        let session = session_for(&pool, &user.id).await;
+
+        let a = create_cli_context(pool.clone(), &user, &session, "prof-a")
+            .await
+            .expect("context a");
+        let b = create_cli_context(pool.clone(), &user, &session, "prof-b")
+            .await
+            .expect("context b");
+
+        assert_ne!(a, b, "each profile keeps its own CLI conversation");
+    }
+
+    // Why: this is the isolation that matters. A context shared between users
+    // would surface one operator's CLI history to another.
+    #[tokio::test]
+    async fn different_users_never_share_a_context() {
+        let pool = pool().await;
+        let (_n1, email_one) = seed(&pool, &["admin"], "active").await;
+        let (_n2, email_two) = seed(&pool, &["admin"], "active").await;
+        let one = get_or_create_admin(&pool, &email_one, "test")
+            .await
+            .expect("resolve first admin");
+        let two = get_or_create_admin(&pool, &email_two, "test")
+            .await
+            .expect("resolve second admin");
+
+        let session_one = session_for(&pool, &one.id).await;
+        let session_two = session_for(&pool, &two.id).await;
+        let context_one = create_cli_context(pool.clone(), &one, &session_one, "shared")
+            .await
+            .expect("context for the first user");
+        let context_two = create_cli_context(pool.clone(), &two, &session_two, "shared")
+            .await
+            .expect("context for the second user");
+
+        assert_ne!(
+            context_one, context_two,
+            "two operators on the same profile name must not share a CLI context"
+        );
+    }
+}
