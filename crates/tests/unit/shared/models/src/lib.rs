@@ -27,6 +27,8 @@ mod ai;
 
 #[cfg(test)]
 mod api;
+#[cfg(test)]
+mod api_responses_specialized;
 
 #[cfg(test)]
 mod artifacts;
@@ -82,6 +84,8 @@ mod wire_inspect;
 
 #[cfg(test)]
 mod agui;
+#[cfg(test)]
+mod agui_events;
 
 #[cfg(test)]
 mod ai_tool_model_config;
