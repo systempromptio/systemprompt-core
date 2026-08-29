@@ -163,3 +163,98 @@ fn a_missing_parent_directory_is_created_rather_than_failing() {
 
     assert!(path.exists());
 }
+
+// The other half of protecting the secrets file: `save_secrets` writes it 0600
+// on disk, and `.dockerignore` is what keeps it out of the image built beside
+// it. Either alone is insufficient.
+mod build_context {
+    use systemprompt_cli::cloud::profile::templates::{save_dockerignore, save_entrypoint};
+
+    fn dockerignore() -> String {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("ctx").join(".dockerignore");
+        save_dockerignore(&path).expect("write dockerignore");
+        std::fs::read_to_string(&path).expect("read dockerignore")
+    }
+
+    // Why: everything `save_secrets` protects on disk is copied into the image
+    // unless it is excluded here. A dropped line ships live credentials inside
+    // a distributed artefact, where file mode no longer helps.
+    #[test]
+    fn the_build_context_excludes_every_file_that_holds_credentials() {
+        let content = dockerignore();
+
+        for secret_path in [
+            ".systemprompt/credentials.json",
+            ".systemprompt/tenants.json",
+            ".systemprompt/**/secrets.json",
+            ".env*",
+        ] {
+            assert!(
+                content.lines().any(|line| line.trim() == secret_path),
+                "{secret_path} is not excluded; it would be copied into the image"
+            );
+        }
+    }
+
+    // Why: the repository history is not part of the application. Shipped, it
+    // carries every secret ever committed and every branch name, in an image
+    // that may be pushed to a registry.
+    #[test]
+    fn the_build_context_excludes_the_git_directory() {
+        assert!(
+            dockerignore().lines().any(|line| line.trim() == ".git"),
+            "git history would ship inside the image"
+        );
+    }
+
+    fn entrypoint() -> (String, std::path::PathBuf, tempfile::TempDir) {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("nested").join("entrypoint.sh");
+        save_entrypoint(&path).expect("write entrypoint");
+        let body = std::fs::read_to_string(&path).expect("read entrypoint");
+        (body, path, dir)
+    }
+
+    // Why: the container runs this file directly. Written without the execute
+    // bit it fails at start-up with a permission error rather than anything
+    // naming the cause.
+    #[cfg(unix)]
+    #[test]
+    fn the_entrypoint_is_executable() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let (_body, path, _dir) = entrypoint();
+        let mode = std::fs::metadata(&path)
+            .expect("stat entrypoint")
+            .permissions()
+            .mode()
+            & 0o777;
+
+        assert_eq!(
+            mode, 0o755,
+            "an entrypoint without the execute bit cannot start the container"
+        );
+    }
+
+    // Why: without `set -e` a failing command inside the entrypoint is ignored
+    // and the script continues, so a broken container reports success until
+    // something downstream notices.
+    #[test]
+    fn the_entrypoint_aborts_on_the_first_failure_and_replaces_its_shell() {
+        let (body, _path, _dir) = entrypoint();
+
+        assert!(
+            body.lines().any(|line| line.trim() == "set -e"),
+            "without `set -e` a failed command does not stop the entrypoint: {body}"
+        );
+        assert!(
+            body.contains("exec "),
+            "the server must replace the shell so it receives signals directly: {body}"
+        );
+        assert!(
+            body.starts_with("#!"),
+            "an entrypoint without a shebang is not directly executable: {body}"
+        );
+    }
+}
