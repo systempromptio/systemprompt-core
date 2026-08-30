@@ -8790,6 +8790,7 @@ dependencies = [
  "systemprompt-test-fixtures",
  "systemprompt-traits",
  "tokio",
+ "tokio-cron-scheduler",
 ]
 
 [[package]]
