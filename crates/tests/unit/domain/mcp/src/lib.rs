@@ -21,6 +21,8 @@ mod capabilities;
 #[cfg(test)]
 mod capabilities_extended;
 #[cfg(test)]
+mod client_profile;
+#[cfg(test)]
 mod conformance_wire;
 #[cfg(test)]
 mod error;
