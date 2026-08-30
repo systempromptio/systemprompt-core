@@ -60,6 +60,7 @@ pub use extension::McpExtension;
 /// database prune and the start phase.
 #[doc(hidden)]
 pub mod test_api {
+    pub use crate::services::client::handle_elicitation;
     pub use crate::services::orchestrator::process_cleanup::{
         detect_and_handle_orphaned_processes, detect_and_handle_stale_binaries,
     };

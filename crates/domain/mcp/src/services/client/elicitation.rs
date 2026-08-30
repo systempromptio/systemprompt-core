@@ -24,7 +24,7 @@ pub trait ElicitationDelegate: Send + Sync + std::fmt::Debug {
 
 pub type SharedElicitationDelegate = Arc<dyn ElicitationDelegate>;
 
-pub(super) async fn handle_elicitation(
+pub async fn handle_elicitation(
     delegate: Option<&SharedElicitationDelegate>,
     params: ElicitRequestParams,
 ) -> ElicitResult {
