@@ -11,6 +11,7 @@ mod admin_config_dispatcher_fs;
 mod admin_config_gateway;
 mod admin_config_governance_fs;
 mod admin_config_sections;
+mod admin_config_services_fs;
 mod admin_config_writes_fs;
 mod admin_evals_db;
 mod admin_evals_show_db;
