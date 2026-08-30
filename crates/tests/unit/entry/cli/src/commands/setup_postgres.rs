@@ -74,6 +74,21 @@ fn generate_password_is_16_alphanumeric() {
     assert!(pw.chars().all(|c| c.is_ascii_alphanumeric()));
 }
 
+// Why: the assertion above describes the password's shape, and a constant
+// sixteen-character string satisfies it. This is the database password every
+// installation is set up with, so a generator that stopped varying would give
+// every install the same one — and the shape check would not notice.
+#[test]
+fn two_generated_passwords_differ() {
+    let first = generate_password();
+    let second = generate_password();
+
+    assert_ne!(
+        first, second,
+        "a password generator that repeats itself is a shared credential"
+    );
+}
+
 #[test]
 fn detect_postgresql_false_for_closed_port() {
     assert!(!detect_postgresql("127.0.0.1", 9));
