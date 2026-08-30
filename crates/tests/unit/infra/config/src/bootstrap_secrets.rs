@@ -326,6 +326,37 @@ fn signing_key_pem_absent_returns_none() {
     assert_eq!(SecretsBootstrap::signing_key_pem().unwrap(), None);
 }
 
+// Why: the sibling test above rules out an all-zero seed, which is a check on
+// the seed's shape rather than on rotation happening. A rotation that returned
+// a constant non-zero seed passes it, and would look like success to an
+// operator replacing a key they believe is compromised — while leaving every
+// manifest signed by the same key as before.
+#[test]
+fn rotating_twice_yields_a_different_seed_each_time() {
+    let fx = fixture::write_tree(
+        fixture::FILE_SECRETS,
+        Some(&fixture::secrets_json(Some(fixture::SEED))),
+    );
+    init_profile(&fx);
+    SecretsBootstrap::init().unwrap();
+
+    let first = SecretsBootstrap::rotate_manifest_signing_seed().unwrap();
+    let second = SecretsBootstrap::rotate_manifest_signing_seed().unwrap();
+
+    assert_ne!(
+        first, second,
+        "a rotation that returns the same seed leaves the old key in use"
+    );
+
+    let on_disk: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&fx.secrets_path).unwrap()).unwrap();
+    let persisted = decode_seed(on_disk["manifest_signing_secret_seed"].as_str().unwrap()).unwrap();
+    assert_eq!(
+        persisted, second,
+        "the most recent rotation is the one that survives on disk"
+    );
+}
+
 #[test]
 fn rotate_manifest_signing_seed_persists_new_seed() {
     let fx = fixture::write_tree(
