@@ -21,3 +21,4 @@ mod token_exchange_issue;
 mod token_exchange_subject;
 mod token_generation;
 mod token_validation;
+mod wellknown_router;
