@@ -216,8 +216,13 @@ mod enroll_cert {
     use systemprompt_database::DbPool;
     use uuid::Uuid;
 
-    fn fingerprint(seed: char) -> String {
-        std::iter::repeat_n(seed, 64).collect()
+    /// `user_device_certs.fingerprint` is UNIQUE across the shared test
+    /// database, and fingerprints are normalised to lower case before storage.
+    /// A fixed value collides with any other suite using the same one — the
+    /// users-crate service tests enrol `'a' * 64`, which is what a seeded
+    /// constant here collided with.
+    fn fingerprint() -> String {
+        format!("{}{}", Uuid::new_v4().simple(), Uuid::new_v4().simple())
     }
 
     struct Enrolled {
@@ -273,7 +278,7 @@ mod enroll_cert {
     async fn enrolling_by_email_attaches_the_cert_to_the_resolved_user() {
         let pool = pool().await;
         let (user, email) = seeded_user(&pool).await;
-        let fp = fingerprint('a');
+        let fp = fingerprint();
 
         enroll(&pool, &email, &fp, "laptop")
             .await
@@ -296,7 +301,7 @@ mod enroll_cert {
     async fn an_uppercase_fingerprint_is_stored_in_its_normalised_form() {
         let pool = pool().await;
         let (user, _email) = seeded_user(&pool).await;
-        let upper: String = std::iter::repeat_n('B', 64).collect();
+        let upper = fingerprint().to_uppercase();
 
         enroll(&pool, &user, &upper, "desktop")
             .await
@@ -332,7 +337,7 @@ mod enroll_cert {
         let pool = pool().await;
         let absent = format!("nobody-{}", Uuid::new_v4().simple());
 
-        let err = enroll(&pool, &absent, &fingerprint('c'), "ghost")
+        let err = enroll(&pool, &absent, &fingerprint(), "ghost")
             .await
             .expect_err("an unknown user must not receive a device enrolment");
 
