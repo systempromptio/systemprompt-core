@@ -258,3 +258,98 @@ mod build_context {
         );
     }
 }
+
+// `existing_geoip_database` reads the profile a `cloud profile create` is about
+// to overwrite, so the operator's configured GeoIP path survives a regenerate.
+// The failure direction that matters is carrying a value forward from a file
+// that did not parse: the regenerated profile would then claim a database the
+// operator never configured in the form the new profile expects.
+mod geoip_carry_forward {
+    use std::path::Path;
+    use systemprompt_cli::cloud::profile::templates::existing_geoip_database;
+    use systemprompt_test_fixtures::ensure_test_bootstrap;
+
+    /// Profiles are built from the bootstrap fixture's own file rather than
+    /// hand-written YAML: `Profile` denies unknown fields and resolves paths
+    /// relative to the profile, so a hand-rolled minimal document would test
+    /// the parser's tolerance rather than this function.
+    fn profile_with(dir: &Path, mutate: impl FnOnce(&mut serde_yaml::Value)) -> std::path::PathBuf {
+        let source = &ensure_test_bootstrap().profile_path;
+        let raw = std::fs::read_to_string(source).expect("read bootstrap profile");
+        let mut doc: serde_yaml::Value = serde_yaml::from_str(&raw).expect("parse profile");
+        mutate(&mut doc);
+
+        let path = dir.join("profile.yaml");
+        std::fs::write(
+            &path,
+            serde_yaml::to_string(&doc).expect("serialise profile"),
+        )
+        .expect("write profile");
+        path
+    }
+
+    #[tokio::test]
+    async fn a_configured_geoip_path_is_carried_forward() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = profile_with(dir.path(), |doc| {
+            doc["paths"]["geoip_database"] =
+                serde_yaml::Value::String("/app/geoip/GeoLite2-City.mmdb".to_owned());
+        });
+
+        assert!(
+            existing_geoip_database(&path).is_some(),
+            "a configured GeoIP database must survive a profile regenerate"
+        );
+    }
+
+    #[tokio::test]
+    async fn a_profile_without_a_geoip_path_carries_nothing_forward() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = profile_with(dir.path(), |doc| {
+            if let Some(paths) = doc["paths"].as_mapping_mut() {
+                paths.remove(serde_yaml::Value::String("geoip_database".to_owned()));
+            }
+        });
+
+        assert!(existing_geoip_database(&path).is_none());
+    }
+
+    // Why: this is the guard. A profile that no longer parses tells us nothing
+    // about what was configured, so nothing may be carried into the new one.
+    #[tokio::test]
+    async fn an_unparseable_profile_carries_nothing_forward() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("profile.yaml");
+        std::fs::write(&path, "this: [is not: a profile").expect("write broken profile");
+
+        assert!(
+            existing_geoip_database(&path).is_none(),
+            "an unreadable profile must not be mined for values"
+        );
+    }
+
+    #[tokio::test]
+    async fn a_missing_profile_carries_nothing_forward() {
+        let dir = tempfile::tempdir().expect("tempdir");
+
+        assert!(existing_geoip_database(&dir.path().join("absent.yaml")).is_none());
+    }
+
+    // Why: a path outside the container root cannot exist in the image. It is
+    // still carried forward — the operator may be mounting it — but the
+    // decision is to warn rather than silently drop, and dropping it would
+    // disable GeoIP without saying so.
+    #[tokio::test]
+    async fn a_geoip_path_outside_the_container_root_is_still_carried_forward() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = profile_with(dir.path(), |doc| {
+            doc["paths"]["geoip_database"] =
+                serde_yaml::Value::String("/opt/elsewhere/GeoLite2-City.mmdb".to_owned());
+        });
+
+        assert!(
+            existing_geoip_database(&path).is_some(),
+            "an unusual path is warned about, not silently discarded"
+        );
+    }
+}
