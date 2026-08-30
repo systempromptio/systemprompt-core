@@ -276,3 +276,72 @@ async fn manifest_without_credential_is_unauthorized() -> Result<()> {
     assert_eq!(status, StatusCode::UNAUTHORIZED);
     Ok(())
 }
+
+// `GET /v1/bridge/stream` exists because the browser-shaped stream routes
+// reject `x-api-key`, which is how every other `/v1/bridge/*` endpoint
+// authenticates. That makes its own auth gate the thing worth asserting: an
+// additive route that skipped it would be an unauthenticated feed of every
+// AG-UI event on the instance.
+//
+// Only the rejections are driven here. The authenticated path opens a live SSE
+// stream, which is not something to hold open in a unit test.
+mod bridge_stream_auth {
+    use super::{jwt_extractor, setup_ctx};
+    use anyhow::Result;
+    use axum::http::{HeaderMap, HeaderValue, StatusCode};
+    use systemprompt_api::routes::gateway::bridge_stream;
+
+    // Note: this asserts the outcome, not the guard. Removing the
+    // missing-credential short-circuit leaves it green, because an empty
+    // credential then reaches `decode_for_gateway` and is rejected there — the
+    // caller still gets 401. The two decode tests below are what detect the
+    // consequential defect, an unauthenticated caller reaching the feed.
+    #[tokio::test]
+    async fn a_request_with_no_credential_is_unauthorized() -> Result<()> {
+        let (_db, ctx) = setup_ctx().await?;
+
+        let response = bridge_stream::handle(jwt_extractor(&ctx)?, HeaderMap::new()).await;
+
+        assert_eq!(
+            response.status(),
+            StatusCode::UNAUTHORIZED,
+            "an unauthenticated caller must not reach the event feed"
+        );
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn a_bearer_token_that_does_not_decode_is_unauthorized() -> Result<()> {
+        let (_db, ctx) = setup_ctx().await?;
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            "authorization",
+            HeaderValue::from_static("Bearer not-a-real-token"),
+        );
+
+        let response = bridge_stream::handle(jwt_extractor(&ctx)?, headers).await;
+
+        assert_eq!(
+            response.status(),
+            StatusCode::UNAUTHORIZED,
+            "an undecodable token must be refused, not treated as anonymous access"
+        );
+        Ok(())
+    }
+
+    // Why: the bridge authenticates with `x-api-key`, so that header must be
+    // read here — but a bogus key must still be refused. If it were ignored
+    // entirely the route would fall through to the missing-credential branch
+    // and the header would be decorative.
+    #[tokio::test]
+    async fn an_api_key_that_does_not_decode_is_unauthorized() -> Result<()> {
+        let (_db, ctx) = setup_ctx().await?;
+        let mut headers = HeaderMap::new();
+        headers.insert("x-api-key", HeaderValue::from_static("sk-not-a-real-key"));
+
+        let response = bridge_stream::handle(jwt_extractor(&ctx)?, headers).await;
+
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+        Ok(())
+    }
+}
