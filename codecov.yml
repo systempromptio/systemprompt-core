@@ -15,7 +15,7 @@ coverage:
         #
         # Raise this as coverage climbs; it sits just under the measured number
         # so it guards the cliff without sitting on the edge.
-        target: 89.5%
+        target: 91.5%
         threshold: 0%
     patch:
       default:

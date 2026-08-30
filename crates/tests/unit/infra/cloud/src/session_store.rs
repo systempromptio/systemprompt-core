@@ -696,3 +696,96 @@ fn load_rejects_future_store_version() {
         systemprompt_cloud::CloudError::SessionVersionMismatch { actual: 99, .. }
     ));
 }
+
+// `remove_tenant_sessions` — logging out of the cloud.
+//
+// It keeps the local session and drops every tenant one. The part worth
+// pinning is what happens to the *active pointer*: if it named a session that
+// just went away, leaving it in place would point the CLI at a session that no
+// longer exists.
+
+#[test]
+fn remove_tenant_sessions_keeps_the_local_session_and_drops_the_rest() {
+    let mut store = SessionStore::new();
+    store.upsert_session(&SessionKey::Local, build_session("local"));
+    store.upsert_session(
+        &SessionKey::Tenant(TenantId::new("acme")),
+        build_tenant_session("acme", "acme"),
+    );
+    store.upsert_session(
+        &SessionKey::Tenant(TenantId::new("globex")),
+        build_tenant_session("globex", "globex"),
+    );
+
+    let removed = store.remove_tenant_sessions();
+
+    assert_eq!(removed, 2, "both tenant sessions are cloud sessions");
+    assert!(
+        store.sessions.contains_key(LOCAL_SESSION_KEY),
+        "the local session is not a cloud session and must survive a cloud logout"
+    );
+    assert_eq!(store.sessions.len(), 1);
+}
+
+// Why: the active pointer is a key into the map. If it named a tenant session
+// that was just removed, every later lookup resolves to nothing — so it has to
+// be cleared, along with the profile name that described it.
+#[test]
+fn an_active_tenant_session_is_deselected_when_it_is_removed() {
+    let mut store = SessionStore::new();
+    let tenant = SessionKey::Tenant(TenantId::new("acme"));
+    store.upsert_session(&tenant, build_tenant_session("acme", "acme"));
+    store.set_active_with_profile(&tenant, "acme");
+
+    store.remove_tenant_sessions();
+
+    assert!(
+        store.active_key.is_none(),
+        "the active key named a session that no longer exists"
+    );
+    assert!(
+        store.active_profile_name.is_none(),
+        "the profile name described the removed session and must not outlive it"
+    );
+}
+
+// Why: the converse. A local active session survives the removal, so clearing
+// it would log the operator out of a session that was never touched.
+#[test]
+fn an_active_local_session_survives_the_removal_of_tenant_sessions() {
+    let mut store = SessionStore::new();
+    let local = SessionKey::Local;
+    store.upsert_session(&local, build_session("local"));
+    store.upsert_session(
+        &SessionKey::Tenant(TenantId::new("acme")),
+        build_tenant_session("acme", "acme"),
+    );
+    store.set_active_with_profile(&local, "local");
+
+    store.remove_tenant_sessions();
+
+    assert_eq!(
+        store.active_key.as_deref(),
+        Some(LOCAL_SESSION_KEY),
+        "the local session was not removed, so it must stay selected"
+    );
+    assert_eq!(store.active_profile_name.as_deref(), Some("local"));
+}
+
+// Why: with nothing to remove the store must not be marked dirty. `updated_at`
+// drives the on-disk write, so bumping it on a no-op rewrites the file for
+// nothing.
+#[test]
+fn removing_nothing_leaves_the_store_untouched() {
+    let mut store = SessionStore::new();
+    store.upsert_session(&SessionKey::Local, build_session("local"));
+    let before = store.updated_at;
+
+    let removed = store.remove_tenant_sessions();
+
+    assert_eq!(removed, 0);
+    assert_eq!(
+        store.updated_at, before,
+        "a no-op must not mark the store as changed"
+    );
+}

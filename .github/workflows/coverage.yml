@@ -305,7 +305,7 @@ jobs:
         if: ${{ steps.tests.outputs.instrumented == 'true' }}
         env:
           GH_TOKEN: ${{ github.token }}
-          COVERAGE_FLOOR: "89.5"
+          COVERAGE_FLOOR: "91.5"
           MAX_BASELINE_AGE_DAYS: "10"
         run: |
           # Baseline against the branch this run is measuring. A `next` run
