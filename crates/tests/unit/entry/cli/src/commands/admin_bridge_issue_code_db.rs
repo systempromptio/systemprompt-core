@@ -204,3 +204,140 @@ async fn reissuing_adds_a_second_code_rather_than_replacing_the_first() {
         "two issues must mint different codes"
     );
 }
+
+// `enroll-cert` registers the certificate fingerprint a bridge device presents
+// to authenticate. `DeviceCertService` is well covered on its own — including
+// normalisation and every rejection — so these assert the part only the
+// command decides: which user the fingerprint ends up attached to.
+mod enroll_cert {
+    use super::{codes_for, ctx, parse, pool, seeded_user};
+    use chrono::{DateTime, Utc};
+    use systemprompt_cli::admin::bridge;
+    use systemprompt_database::DbPool;
+    use uuid::Uuid;
+
+    fn fingerprint(seed: char) -> String {
+        std::iter::repeat_n(seed, 64).collect()
+    }
+
+    struct Enrolled {
+        fingerprint: String,
+        label: String,
+        revoked_at: Option<DateTime<Utc>>,
+    }
+
+    async fn certs_for(pool: &DbPool, user: &str) -> Vec<Enrolled> {
+        let p = pool.pool_arc().expect("read pool");
+        sqlx::query_as::<_, (String, String, Option<DateTime<Utc>>)>(
+            "SELECT fingerprint, label, revoked_at FROM user_device_certs \
+             WHERE user_id = $1 ORDER BY enrolled_at",
+        )
+        .bind(user)
+        .fetch_all(&*p)
+        .await
+        .expect("read device certs")
+        .into_iter()
+        .map(|(fingerprint, label, revoked_at)| Enrolled {
+            fingerprint,
+            label,
+            revoked_at,
+        })
+        .collect()
+    }
+
+    async fn enroll(
+        pool: &DbPool,
+        reference: &str,
+        fingerprint: &str,
+        label: &str,
+    ) -> anyhow::Result<()> {
+        bridge::execute(
+            parse(&[
+                "enroll-cert",
+                "--user-id",
+                reference,
+                "--fingerprint",
+                fingerprint,
+                "--label",
+                label,
+            ]),
+            &ctx(pool),
+        )
+        .await
+    }
+
+    // Why: the reference may be an id, an email or a name. Attaching the
+    // fingerprint to the raw input rather than the resolved user would enrol a
+    // device against something that is not a user id.
+    #[tokio::test]
+    async fn enrolling_by_email_attaches_the_cert_to_the_resolved_user() {
+        let pool = pool().await;
+        let (user, email) = seeded_user(&pool).await;
+        let fp = fingerprint('a');
+
+        enroll(&pool, &email, &fp, "laptop")
+            .await
+            .expect("enrol by email");
+
+        let certs = certs_for(&pool, &user).await;
+        assert_eq!(certs.len(), 1, "the cert belongs to the resolved user id");
+        assert_eq!(certs[0].fingerprint, fp);
+        assert_eq!(certs[0].label, "laptop");
+        assert!(
+            certs[0].revoked_at.is_none(),
+            "a freshly enrolled cert is active"
+        );
+    }
+
+    // Why: the fingerprint is normalised before storage, so a device
+    // presenting the same value in a different case must match the row that
+    // was enrolled — otherwise the device authenticates once and never again.
+    #[tokio::test]
+    async fn an_uppercase_fingerprint_is_stored_in_its_normalised_form() {
+        let pool = pool().await;
+        let (user, _email) = seeded_user(&pool).await;
+        let upper: String = std::iter::repeat_n('B', 64).collect();
+
+        enroll(&pool, &user, &upper, "desktop")
+            .await
+            .expect("enrol uppercase");
+
+        assert_eq!(
+            certs_for(&pool, &user).await[0].fingerprint,
+            upper.to_lowercase(),
+            "the stored fingerprint must be the normalised one the verifier looks up"
+        );
+    }
+
+    // Why: a malformed fingerprint must be refused rather than stored. A row
+    // that can never match a real certificate is a permanent dead enrolment.
+    #[tokio::test]
+    async fn a_fingerprint_of_the_wrong_length_is_refused_and_stores_nothing() {
+        let pool = pool().await;
+        let (user, _email) = seeded_user(&pool).await;
+
+        let err = enroll(&pool, &user, "abc123", "short")
+            .await
+            .expect_err("a 6-character fingerprint is not a SHA-256 digest");
+
+        assert!(
+            format!("{err:#}").contains("64"),
+            "the refusal should name the expected length: {err:#}"
+        );
+        assert!(certs_for(&pool, &user).await.is_empty());
+    }
+
+    #[tokio::test]
+    async fn an_unknown_user_is_refused_and_enrols_nothing() {
+        let pool = pool().await;
+        let absent = format!("nobody-{}", Uuid::new_v4().simple());
+
+        let err = enroll(&pool, &absent, &fingerprint('c'), "ghost")
+            .await
+            .expect_err("an unknown user must not receive a device enrolment");
+
+        assert!(format!("{err:#}").contains(&absent));
+        assert!(certs_for(&pool, &absent).await.is_empty());
+        assert!(codes_for(&pool, &absent).await.is_empty());
+    }
+}
