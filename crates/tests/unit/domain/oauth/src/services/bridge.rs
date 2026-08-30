@@ -152,3 +152,59 @@ fn bridge_oauth_client_clone_preserves_all_fields() {
     assert_eq!(cloned.scopes, original.scopes);
     assert_eq!(cloned.token_endpoint, original.token_endpoint);
 }
+
+// The property the CLI-side suite cannot prove: what lands in the database is
+// the hash, not the code. A device-link code and its sha256 are both 64 hex
+// characters, so any assertion about the stored value's *shape* passes
+// whichever is written. Only the issuing call has both, so only here can the
+// two be told apart.
+mod stored_form {
+    use super::hash_exchange_code;
+    use systemprompt_identifiers::UserId;
+    use systemprompt_oauth::repository::OAuthRepository;
+    use systemprompt_oauth::services::issue_bridge_exchange_code;
+    use systemprompt_test_fixtures::{
+        ensure_test_bootstrap, fixture_database_url, fixture_db_pool, seed_user_row,
+    };
+    use uuid::Uuid;
+
+    // Why: a copy of this table must not yield a working code. Storing the
+    // plaintext would be invisible to every shape-based check.
+    #[tokio::test]
+    async fn the_row_holds_the_hash_of_the_issued_code_and_never_the_code() {
+        let url = fixture_database_url().expect("DATABASE_URL");
+        ensure_test_bootstrap();
+        let pool = fixture_db_pool(&url).await.expect("pool");
+        let repo = OAuthRepository::new(&pool).expect("oauth repo");
+
+        let id = format!("bridgehash-{}", Uuid::new_v4().simple());
+        let user = UserId::new(&id);
+        seed_user_row(&pool, &user, &format!("{id}@bridgehash.invalid"))
+            .await
+            .expect("seed user");
+
+        let issued = issue_bridge_exchange_code(&repo, &user)
+            .await
+            .expect("issue exchange code");
+
+        // `consume` looks a code up by its hash, so it is the discriminator:
+        // if the plaintext were the stored key, the hash would find nothing
+        // and the plaintext would find the user. Checked in that order because
+        // consuming is destructive.
+        assert!(
+            repo.consume_bridge_exchange_code(&issued.code)
+                .await
+                .expect("lookup by plaintext")
+                .is_none(),
+            "the plaintext code must not be a key into this table"
+        );
+
+        assert_eq!(
+            repo.consume_bridge_exchange_code(&hash_exchange_code(&issued.code))
+                .await
+                .expect("lookup by hash"),
+            Some(user),
+            "the hash of the issued code must be what the row is keyed on"
+        );
+    }
+}
