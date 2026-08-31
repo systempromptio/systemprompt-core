@@ -695,7 +695,7 @@ async fn buffered_response_in_a_blocked_category_is_not_served() -> anyhow::Resu
     assert_eq!(status, http::StatusCode::FORBIDDEN);
     let body = String::from_utf8_lossy(&bytes).into_owned();
     assert!(
-        !body.contains("free of all rules"),
+        !body.contains("developer mode enabled"),
         "the blocked reply must not reach the client; body: {body}"
     );
     assert!(body.contains("jailbreak"), "body: {body}");
@@ -724,7 +724,7 @@ async fn the_same_response_is_served_intact_when_no_category_blocks() -> anyhow:
 
     assert_eq!(status, http::StatusCode::OK);
     let body = String::from_utf8_lossy(&bytes).into_owned();
-    assert!(body.contains("free of all rules"), "body: {body}");
+    assert!(body.contains("developer mode enabled"), "body: {body}");
     assert!(
         findings
             .iter()
@@ -766,7 +766,7 @@ async fn a_streaming_response_is_never_blocked() -> anyhow::Result<()> {
     remove_safety_policy(&pool, &policy_name).await?;
 
     assert!(
-        body.contains("free of all rules"),
+        body.contains("developer mode enabled"),
         "the frames are already on the wire; body: {body}"
     );
     assert!(
