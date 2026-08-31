@@ -1,10 +1,21 @@
 # Changelog
 
-## [Unreleased]
+## [0.42.0] - 2026-08-31
+
+### Added
+
+- Manifest skill and artifact entries carry the enabled plugins that name them, as `SkillEntry::plugins` and `ArtifactEntry::plugins`. Ownership is intersected with the plugins that survive access filtering, so a plugin the filter removed is never reported as an owner of something it no longer grants; an entry built before the field existed deserialises with an empty list.
+- `hermes` is a known bridge host, so a tenant may enable Hermes Agent Desktop alongside the existing hosts.
 
 ### Changed
 
+- **Breaking:** `CoworkLibraryArtifactRecord`, `CoworkArtifactBundleManifest` and `CoworkArtifactBundleRecord` moved from `bridge::manifest` to `bridge::cowork_artifact`. Migrate by updating the import path; the types and their wire shapes are unchanged.
 - Establishing a session is bounded and degrades instead of failing. It reads and writes the database, and it runs as a global layer over every route including static content, so a database fault held each request for the pool's full 30-second acquire timeout and then returned `500` — for a public page view as much as for an API call. A request whose session cannot be established within two seconds is now served with an untracked, actor-less context and a throttled warning naming the path, rather than refused. Nothing is escalated by that context: it carries no auth token and no user, so every gate above `public` still refuses it, and `is_tracked` is false so the analytics sinks record no visit they cannot attribute. The healthy path is unchanged — a page view still mints a real session and is still attributed. Measured against the live site with Postgres stopped: a page went from `500` after 30s to `200` in 2s.
+
+### Bridge (0.33.0)
+
+- Hermes Agent Desktop is a supported host. The bridge writes `model.base_url`, `model.api_mode` and `model.model` into `HERMES_HOME/config.yaml` and the API key into `HERMES_HOME/.env`, publishes managed skills, and probes the running app — on every platform, since Hermes reads the same plain config everywhere and needs no macOS configuration profile.
+- The Marketplace listing groups skills and artifacts under the plugin that ships them, with a sticky header per group. An item two plugins ship appears under each; anything without an owner — a plugin, an MCP server, an item from an external source — falls under "Ungrouped", and a listing where nothing has an owner renders flat rather than under a single redundant header.
 
 ## [0.41.0] - 2026-08-28
 
