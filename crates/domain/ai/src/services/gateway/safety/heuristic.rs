@@ -161,14 +161,14 @@ fn scan_text(phrases: &[String], phase: &'static str, text: &str, out: &mut Vec<
 // Why: phrase offsets come from an ASCII-lowercased copy, which is byte-aligned
 // with `text`, but the ±40/80 excerpt padding is not — landing mid-codepoint
 // would panic the scanner, and a panic here is a 500 on a customer's request.
-fn floor_boundary(text: &str, mut i: usize) -> usize {
+const fn floor_boundary(text: &str, mut i: usize) -> usize {
     while i > 0 && !text.is_char_boundary(i) {
         i -= 1;
     }
     i
 }
 
-fn ceil_boundary(text: &str, mut i: usize) -> usize {
+const fn ceil_boundary(text: &str, mut i: usize) -> usize {
     if i >= text.len() {
         return text.len();
     }
@@ -201,7 +201,6 @@ fn detect_email(text: &str) -> bool {
     false
 }
 
-/// Shortest and longest digit count any issuer network assigns.
 const CARD_MIN_DIGITS: usize = 13;
 const CARD_MAX_DIGITS: usize = 19;
 
@@ -227,10 +226,9 @@ fn detect_credit_card(text: &str) -> bool {
     false
 }
 
-/// Consumes the maximal digit run at `start`, returning its digits and the
-/// index just past it. A single space or hyphen *between* two digits is the
-/// grouping cards are written with and is absorbed; anything else ends the run,
-/// so neighbouring numbers can never splice into one candidate.
+// Why: a single space or hyphen *between* two digits is the grouping cards are
+// written with, so it is absorbed; anything else ends the run. Without that
+// stopping rule two neighbouring numbers splice into one candidate.
 fn card_candidate(bytes: &[u8], start: usize) -> (Vec<u8>, usize) {
     let mut digits = Vec::new();
     let mut i = start;
@@ -263,14 +261,10 @@ fn has_issuer_prefix(digits: &[u8]) -> bool {
         return false;
     };
     match digits[0] {
-        // Visa.
         b'4' => true,
-        // Mastercard.
         b'5' => matches!(second, b'1'..=b'5'),
         b'2' => matches!(second, b'2'..=b'7'),
-        // Amex (34, 37), Diners (30, 36, 38), JCB (35).
         b'3' => matches!(second, b'0' | b'4' | b'5' | b'6' | b'7' | b'8'),
-        // Discover.
         b'6' => digits.starts_with(b"6011") || second == b'5',
         _ => false,
     }
@@ -288,5 +282,5 @@ fn luhn(digits: &[u8]) -> bool {
         }
         sum += d;
     }
-    sum % 10 == 0
+    sum.is_multiple_of(10)
 }
