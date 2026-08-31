@@ -7,6 +7,7 @@ mod auth;
 pub mod errors;
 mod fetch;
 mod identity;
+pub mod identity_source;
 pub mod manifest;
 pub mod manifest_version;
 pub mod types;

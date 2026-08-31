@@ -64,6 +64,45 @@ function decodeJwtClaims(token) {
   }
 }
 
+/* Rows for whatever a brand's own whoami sent that core has no name for.
+ *
+ * A deployment can point the bridge at its own identity endpoint (see
+ * `gateway::identity_source`); the keys it answers with beyond core's six
+ * arrive here untouched. The key is the label — humanised, not translated —
+ * so the server side is expected to name its fields in words, and the
+ * response is expected to be flat: a nested object has no honest one-line
+ * rendering and is skipped rather than printed as `[object Object]`.
+ *
+ * A `_unix` suffix means "this is a timestamp"; the suffix is dropped from
+ * the label and the value formatted as a local date.
+ */
+function humaniseKey(key) {
+  const words = key.replace(/_unix$/, "").replace(/_/g, " ").trim();
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
+function extraValue(key, value) {
+  if (value == null || value === "") { return null; }
+  if (Array.isArray(value)) {
+    const items = value.filter((v) => v != null && typeof v !== "object");
+    return items.length ? items.join(", ") : null;
+  }
+  if (typeof value === "boolean") { return value ? "Yes" : "No"; }
+  if (typeof value === "object") { return null; }
+  if (/_unix$/.test(key) && Number.isFinite(Number(value))) {
+    const ms = Number(value) * 1000;
+    return Number.isFinite(ms) ? new Date(ms).toLocaleString() : null;
+  }
+  return String(value);
+}
+
+function extraRows(extra) {
+  if (!extra || typeof extra !== "object" || Array.isArray(extra)) { return []; }
+  return Object.entries(extra)
+    .map(([k, v]) => [humaniseKey(k), extraValue(k, v)])
+    .filter(([, v]) => v != null);
+}
+
 export class SpProfile extends SpElement {
   constructor() {
     super();
@@ -152,7 +191,7 @@ export class SpProfile extends SpElement {
       [t("profile-id-expires") || "Session expires", fmtExp(id.exp_unix)],
       [t("profile-id-gateway") || "Gateway", this.profile.gateway],
       [t("profile-id-token") || "Session token", cached ? (t("profile-token-value", { ttl: fmtDurationLong(cached.ttl_seconds) }) || `expires in ${fmtDurationLong(cached.ttl_seconds)}`) : null],
-    ].filter(([, v]) => v != null && v !== "");
+    ].filter(([, v]) => v != null && v !== "").concat(extraRows(id.extra));
     return `
       <article class="sp-profile-card sp-profile-card--identity">
         <header>

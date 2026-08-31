@@ -131,5 +131,11 @@ fn identity_value(
         "verified_at_unix": id.map(|i| i.verified_at_unix),
         "token_length": snapshot.cached_token.as_ref().map(|t| t.length),
         "token_ttl_seconds": snapshot.cached_token.as_ref().map(|t| t.ttl_seconds),
+        // Why: a deployment that serves its own whoami (see
+        // `gateway::identity_source`) answers with fields core has no name
+        // for — federated issuer, directory groups, department. Projecting
+        // only the known keys silently dropped them, so pass the rest through
+        // and let the profile tab decide what to render.
+        "extra": whoami.map(|w| w.extra.clone()).unwrap_or_default(),
     })
 }
