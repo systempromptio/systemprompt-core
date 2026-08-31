@@ -16,7 +16,7 @@ use crate::repository::{
     AnalyticsRepositories, CostAnalyticsRepository, CreateSessionParams, SessionRecord,
     SessionRepository,
 };
-use crate::services::{SessionAnalytics, SessionAnalyticsBuilder};
+use crate::services::{ProfileUsageService, SessionAnalytics, SessionAnalyticsBuilder};
 
 #[derive(Clone)]
 pub struct AnalyticsService {
@@ -120,6 +120,13 @@ impl AnalyticsService {
 
     pub const fn cost_repo(&self) -> &CostAnalyticsRepository {
         &self.cost_repo
+    }
+
+    // Why: Profile usage windows for one user — the single derivation shared by the
+    // bridge profile route and the server-rendered admin profile page.
+    #[must_use]
+    pub fn profile_usage(&self) -> ProfileUsageService {
+        ProfileUsageService::new(self.cost_repo.clone())
     }
 
     pub const fn session_repo(&self) -> &SessionRepository {

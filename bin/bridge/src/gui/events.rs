@@ -86,7 +86,9 @@ pub enum UiEvent {
         reply_to: ReplyId,
     },
     GatewayProbeFinished {
-        outcome: GatewayProbeOutcome,
+        // Why: `None` when the probe was cancelled or superseded: it concluded
+        // nothing, so there is no outcome to apply.
+        outcome: Option<GatewayProbeOutcome>,
         reply_to: ReplyId,
     },
     McpAuthProbeFinished {

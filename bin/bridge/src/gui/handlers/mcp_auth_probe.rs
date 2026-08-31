@@ -8,7 +8,7 @@ use serde_json::json;
 use crate::gui::events::{ReplyId, UiEvent};
 use crate::gui::notify::Signal;
 use crate::gui::{GuiApp, emit};
-use crate::proxy::mcp_probe::{self, McpAuthState, McpServerAuth};
+use crate::proxy::mcp_probe::{self, McpServerAuth};
 
 #[tracing::instrument(level = "info", skip(app))]
 pub(crate) fn on_mcp_auth_probe_requested(app: &mut GuiApp, reply_to: ReplyId) {
@@ -38,12 +38,7 @@ pub(crate) fn on_mcp_auth_probe_finished(
 ) {
     let broken: Vec<String> = results
         .iter()
-        .filter(|r| {
-            matches!(
-                r.state,
-                McpAuthState::GatewayUnauthorized | McpAuthState::NotRegistered
-            )
-        })
+        .filter(|r| r.state.needs_sign_in())
         .map(|r| r.id.clone())
         .collect();
     app.state.apply_mcp_auth(results);

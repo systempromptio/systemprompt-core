@@ -16,7 +16,7 @@ pub struct UsageWindow {
     pub previous_cost_microdollars: Option<i64>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ModelShare {
     pub model: String,
     pub requests: i64,
@@ -25,7 +25,7 @@ pub struct ModelShare {
     pub token_share: f64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ConversationGroup {
     pub name: String,
     pub conversations: i64,
@@ -41,6 +41,8 @@ pub struct RecentConversationSummary {
     pub model: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub agent_name: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub context_name: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -55,7 +57,7 @@ pub struct ConversationSummary {
     pub recent: Vec<RecentConversationSummary>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct BridgeProfileUsage {
     pub d1: UsageWindow,
     pub d7: UsageWindow,

@@ -32,6 +32,10 @@ use cancel::CancelTokens;
 pub struct AppState {
     inner: RwLock<AppStateSnapshot>,
     cancels: RwLock<CancelTokens>,
+    // Why: `Probing` overwrites the field that holds the last conclusive
+    // answer. A probe that never concludes has to put that answer back rather
+    // than leave the UI stuck on a transient state.
+    pre_probe_status: RwLock<Option<GatewayStatus>>,
 }
 
 impl AppState {
@@ -41,6 +45,7 @@ impl AppState {
         Arc::new(Self {
             inner: RwLock::new(snap),
             cancels: RwLock::new(CancelTokens::default()),
+            pre_probe_status: RwLock::new(None),
         })
     }
 
@@ -68,15 +73,44 @@ impl AppState {
     }
 
     pub fn mark_probing(&self) {
-        self.inner.write().gateway_status = GatewayStatus::Probing;
+        let mut guard = self.inner.write();
+        let prior = std::mem::replace(&mut guard.gateway_status, GatewayStatus::Probing);
+        drop(guard);
+        if !matches!(prior, GatewayStatus::Probing) {
+            *self.pre_probe_status.write() = Some(prior);
+        }
+    }
+
+    // Why: Put back the status this probe replaced, for a probe that concluded
+    // nothing. Identity and provider health were never touched, so there is
+    // nothing else to undo.
+    pub fn abandon_probe(&self) {
+        let prior = self.pre_probe_status.write().take();
+        if let Some(prior) = prior {
+            self.inner.write().gateway_status = prior;
+        }
     }
 
     pub fn apply_probe(&self, outcome: GatewayProbeOutcome) {
+        *self.pre_probe_status.write() = None;
         let mut guard = self.inner.write();
+        let reachable = outcome.status.is_reachable();
         guard.gateway_status = outcome.status;
-        guard.verified_identity = outcome.identity;
         guard.last_probe_at_unix = Some(outcome.at_unix);
-        guard.provider_health = outcome.provider_health;
+        // Why: an unreachable gateway cannot tell us who we are, so the probe
+        // returns no identity and no provider list. Writing those empties in
+        // would report a transient network fault as a sign-out and blank the
+        // provider panel. The last verified answer stands, timestamped by its
+        // own `verified_at_unix`, until a reachable probe replaces it or the
+        // user signs out (`clear_verified_identity`).
+        if reachable {
+            guard.verified_identity = outcome.identity;
+            guard.provider_health = outcome.provider_health;
+        }
+    }
+
+    pub fn gateway_probe_in_flight(&self) -> bool {
+        self.has_cancel(CancelScope::GatewayProbe)
     }
 
     pub fn clear_verified_identity(&self) {
@@ -145,9 +179,30 @@ impl AppState {
     }
 
 
+    // Why: Apply a probe pass, keeping the last conclusive answer for any server
+    // this pass could not reach.
+    //
+    // Why merge rather than replace: the probe has a six-second budget and
+    // funnels every transport fault into a state of its own. Replacing
+    // wholesale meant one slow round trip erased `Authenticated` for a server
+    // that was working, which the UI then reported as needing a sign-in.
     pub fn apply_mcp_auth(&self, results: Vec<McpServerAuth>) {
         let mut guard = self.inner.write();
-        guard.mcp_auth = results;
+        let merged = results
+            .into_iter()
+            .map(|fresh| {
+                if fresh.state.is_conclusive() {
+                    return fresh;
+                }
+                guard
+                    .mcp_auth
+                    .iter()
+                    .find(|prior| prior.id == fresh.id && prior.state.is_conclusive())
+                    .cloned()
+                    .unwrap_or(fresh)
+            })
+            .collect();
+        guard.mcp_auth = merged;
         guard.mcp_auth_probe_in_flight = false;
     }
 

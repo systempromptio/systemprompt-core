@@ -6,6 +6,7 @@
 
 - Manifest skill and artifact entries carry the enabled plugins that name them, as `SkillEntry::plugins` and `ArtifactEntry::plugins`. Ownership is intersected with the plugins that survive access filtering, so a plugin the filter removed is never reported as an owner of something it no longer grants; an entry built before the field existed deserialises with an empty list.
 - `hermes` is a known bridge host, so a tenant may enable Hermes Agent Desktop alongside the existing hosts.
+- `ProfileUsageService` assembles the bridge profile-usage report in the analytics domain, where the queries it depends on already live. The API route had been building it inline, running its own SQL from a handler body; the handler now asks the service. Recent-conversation summaries additionally carry `context_name`, and `ModelShare`, `ConversationGroup` and `BridgeProfileUsage` gained `Default`. The wire shape is unchanged for existing readers: `context_name` is optional and omitted when absent.
 
 ### Changed
 
@@ -16,6 +17,7 @@
 
 - Hermes Agent Desktop is a supported host. The bridge writes `model.base_url`, `model.api_mode` and `model.model` into `HERMES_HOME/config.yaml` and the API key into `HERMES_HOME/.env`, publishes managed skills, and probes the running app — on every platform, since Hermes reads the same plain config everywhere and needs no macOS configuration profile.
 - The Marketplace listing groups skills and artifacts under the plugin that ships them, with a sticky header per group. An item two plugins ship appears under each; anything without an owner — a plugin, an MCP server, an item from an external source — falls under "Ungrouped", and a listing where nothing has an owner renders flat rather than under a single redundant header.
+- The bridge no longer raises false alarms about healthy agents. Two independent defects produced them. The web UI keyed its MCP display map on `"Ok"`, a variant name that has never existed, so every authenticated server fell through to the "needs signing in" filter; the serialized names are now pinned by test. And `Unknown` — the state before the first proxy probe returns — was rendered as "Not working", so every agent looked broken for the first moment after launch; it now reads as "Checking…" until a probe actually lands. An inconclusive probe is no longer reported as a definite failure: only an authentication rejection asks the user to sign in.
 
 ## [0.41.0] - 2026-08-28
 

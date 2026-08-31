@@ -103,6 +103,19 @@ pub(crate) fn on_install_result(app: &mut GuiApp, host_id: &HostId, error: Optio
     advance(app);
 }
 
+// Why: A sync that was stopped before it concluded leaves the run where it was.
+//
+// Why: the alternative is recording `FirstRunPhase::Failed` to disk for
+// something that never actually failed -- a verdict the user then carries
+// forever. The step goes back to `Pending` so a retry is the obvious next
+// move.
+pub(crate) fn on_sync_cancelled(app: &mut GuiApp) {
+    app.state.set_first_run_sync(StepStatus::Pending);
+    app.append_log("First use: sync cancelled — retry when you are ready.");
+    progress(app);
+    emit::emit_state(app);
+}
+
 pub(crate) fn on_sync_result(app: &mut GuiApp, succeeded: bool) {
     app.state.set_first_run_sync(if succeeded {
         StepStatus::Done

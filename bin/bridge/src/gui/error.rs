@@ -13,6 +13,12 @@ pub enum GuiError {
     #[error("not authenticated")]
     NotAuthenticated,
 
+    // Why: an operation that was stopped before it concluded produced no
+    // finding at all. Modelled as its own variant so no caller has to sniff
+    // a message string to tell "the user pressed Cancel" from "this failed".
+    #[error("cancelled")]
+    Cancelled,
+
     #[error("auth: {0}")]
     Auth(#[from] crate::auth::setup::SetupError),
 
@@ -50,6 +56,16 @@ pub enum GuiError {
         #[source]
         source: WindowError,
     },
+}
+
+impl GuiError {
+    #[must_use]
+    pub const fn is_cancelled(&self) -> bool {
+        matches!(
+            self,
+            Self::Cancelled | Self::Auth(crate::auth::setup::SetupError::Cancelled)
+        )
+    }
 }
 
 #[derive(Debug, Error)]

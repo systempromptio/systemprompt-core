@@ -32,9 +32,34 @@ pub fn local_proxy_value(snap: &AppStateSnapshot) -> Value {
 
 pub fn mcp_auth_value(snap: &AppStateSnapshot) -> Value {
     json!({
-        "servers": snap.mcp_auth,
+        "servers": mcp_servers_payload(snap),
         "probing": snap.mcp_auth_probe_in_flight,
     })
+}
+
+// Why: The one place the auth verdict crosses to the UI.
+//
+// Why computed here rather than re-derived in JavaScript: the front end used
+// to test the state name itself, against a variant that does not exist, and
+// so declared every healthy server broken. Shipping the verdict beside the
+// state leaves the UI nothing to get wrong.
+#[derive(Serialize)]
+struct McpServerAuthPayload<'a> {
+    #[serde(flatten)]
+    server: &'a McpServerAuth,
+    needs_sign_in: bool,
+    conclusive: bool,
+}
+
+fn mcp_servers_payload(snap: &AppStateSnapshot) -> Vec<McpServerAuthPayload<'_>> {
+    snap.mcp_auth
+        .iter()
+        .map(|server| McpServerAuthPayload {
+            server,
+            needs_sign_in: server.state.needs_sign_in(),
+            conclusive: server.state.is_conclusive(),
+        })
+        .collect()
 }
 
 pub fn proxy_stats_value() -> Value {
@@ -65,7 +90,7 @@ struct StatePayload<'a> {
     signed_in: bool,
     last_probe_at_unix: Option<u64>,
     proxy_stats: ProxyStatsPayload,
-    mcp_auth: &'a [McpServerAuth],
+    mcp_auth: Vec<McpServerAuthPayload<'a>>,
     mcp_auth_probe_in_flight: bool,
     update: &'a crate::update::UpdateUiState,
 
@@ -104,7 +129,7 @@ impl<'a> From<&'a AppStateSnapshot> for StatePayload<'a> {
             signed_in: snap.signed_in(),
             last_probe_at_unix: snap.last_probe_at_unix,
             proxy_stats: ProxyStatsPayload::current(),
-            mcp_auth: &snap.mcp_auth,
+            mcp_auth: mcp_servers_payload(snap),
             mcp_auth_probe_in_flight: snap.mcp_auth_probe_in_flight,
             update: &snap.update,
 

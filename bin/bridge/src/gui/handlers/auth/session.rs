@@ -54,7 +54,7 @@ async fn run_session_login(
 
     let code = tokio::select! {
         () = cancel.cancelled() => {
-            return Err(setup::SetupError::Io("sign-in cancelled".into()));
+            return Err(setup::SetupError::Cancelled);
         }
         result = capture_device_link_code(&base) => {
             result.map_err(|e| setup::SetupError::Io(e.to_string()))?
