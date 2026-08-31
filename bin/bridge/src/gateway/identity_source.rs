@@ -5,7 +5,8 @@
 //! deployment whose identity provider knows more (federated issuer, AD groups,
 //! organization, department) can serve a richer envelope of its own and
 //! register its path here; the extra keys ride through
-//! [`WhoamiResponse::extra`] to the profile tab untouched.
+//! [`crate::gateway::types::WhoamiResponse::extra`] to the profile tab
+//! untouched.
 //!
 //! Registration is compile-time [`inventory`], not a `Brand` field, so adding
 //! this seam does not force every existing brand literal to grow a member.
@@ -21,14 +22,11 @@ pub struct IdentitySourceRegistration {
 
 inventory::collect!(IdentitySourceRegistration);
 
-/// The stock endpoint, used when nothing is registered.
 pub const DEFAULT_WHOAMI_PATH: &str = "/v1/bridge/whoami";
 
-/// The registered whoami path, or [`DEFAULT_WHOAMI_PATH`].
-///
-/// Only one registration is meaningful; a second is ignored rather than
-/// treated as an error, because a binary that links two of them is a build
-/// mistake that must not take the sign-in flow down with it.
+// Why: only one registration is meaningful; a second is ignored rather than
+// treated as an error, because a binary that links two of them is a build
+// mistake that must not take the sign-in flow down with it.
 #[must_use]
 pub fn whoami_path() -> &'static str {
     inventory::iter::<IdentitySourceRegistration>

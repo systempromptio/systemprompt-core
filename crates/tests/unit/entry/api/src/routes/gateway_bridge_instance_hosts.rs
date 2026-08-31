@@ -29,7 +29,13 @@ fn empty_catalog_enables_every_known_host() {
     let services = ServicesConfig::default();
     assert_eq!(
         instance_enabled_hosts(&services),
-        vec!["claude-code", "claude-desktop", "cowork", "codex-cli", "hermes"]
+        vec![
+            "claude-code",
+            "claude-desktop",
+            "cowork",
+            "codex-cli",
+            "hermes"
+        ]
     );
 }
 
@@ -54,7 +60,13 @@ fn an_enabled_catalog_entry_keeps_its_host() {
     ]);
     assert_eq!(
         instance_enabled_hosts(&services),
-        vec!["claude-code", "claude-desktop", "cowork", "codex-cli", "hermes"]
+        vec![
+            "claude-code",
+            "claude-desktop",
+            "cowork",
+            "codex-cli",
+            "hermes"
+        ]
     );
 }
 
