@@ -19,6 +19,13 @@ use systemprompt_models::services::ai::ModelLimits;
 
 use super::super::OutboundCtx;
 
+#[cfg_attr(
+    not(feature = "test-api"),
+    expect(
+        unreachable_pub,
+        reason = "re-exported by the feature-gated `test_api` module"
+    )
+)]
 pub fn normalize_raw_body(raw: &Bytes, ctx: &OutboundCtx<'_>) -> Option<Bytes> {
     let Ok(Value::Object(mut obj)) = serde_json::from_slice::<Value>(raw) else {
         return None;

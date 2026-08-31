@@ -142,6 +142,10 @@ async fn seed_default_model_from_profile(client: &crate::gateway::GatewayClient)
 }
 
 #[cfg(not(target_os = "linux"))]
+#[expect(
+    clippy::unused_async,
+    reason = "matches the Linux arm's signature, which the shared call site awaits"
+)]
 async fn seed_default_model_from_profile(_client: &crate::gateway::GatewayClient) {}
 
 // Why: on Windows, Cowork scans only the system org-plugins path. Writing the

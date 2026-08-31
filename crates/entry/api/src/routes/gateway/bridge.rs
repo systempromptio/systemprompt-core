@@ -216,11 +216,13 @@ pub async fn profile() -> Result<Json<BridgeProfileResponse>, (StatusCode, Strin
 
     let secrets = systemprompt_config::SecretsBootstrap::get().ok();
     let response = bridge_profile::build(
-        inference_gateway_base_url,
-        gateway.auth_scheme.clone(),
-        organization_uuid,
-        gateway.default_model.clone(),
-        &profile.providers,
+        bridge_profile::BridgeProfileParams {
+            inference_gateway_base_url,
+            auth_scheme: gateway.auth_scheme.clone(),
+            organization_uuid,
+            default_model: gateway.default_model.clone(),
+            registry: &profile.providers,
+        },
         |name| {
             secrets
                 .and_then(|s| s.get(name))
