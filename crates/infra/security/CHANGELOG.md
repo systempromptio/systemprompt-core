@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.42.0] - 2026-08-31
+
+### Changed
+
+- **Breaking:** `Decision::HookUnavailable` gains a `detail` field carrying the underlying failure, so an audit row can distinguish a transient database fault from a malformed rule. Every fault on this plane previously wrote a byte-identical row and the cause survived only in a log line. `serde(default)` keeps rows written before the field parsing.
+- Authz resolution through the parent chain and the rule-based evaluator report why a hook was unreachable rather than collapsing the reason.
+
 ## [0.41.0] - 2026-08-28
 
 ### Added

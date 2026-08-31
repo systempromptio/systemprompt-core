@@ -147,6 +147,10 @@ lint-repo-construction:
 check-release-tag:
     ./scripts/check-release-tag.sh
 
+# Every crate whose sources changed since the last release must say so.
+check-crate-changelogs:
+    ./scripts/check-crate-changelogs.sh
+
 # Check without building
 check: lint-schema lint-extensions lint-comments lint-inline-tests lint-test-value lint-layers lint-repo-construction lint-bridge-css-tokens lint-bridge-i18n lint-bridge-js-imports lint-bridge-no-window
     cargo check --workspace

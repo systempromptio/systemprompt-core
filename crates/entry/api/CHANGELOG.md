@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.42.0] - 2026-08-31
+
+### Changed
+
+- Establishing a session is bounded and degrades instead of failing. It reads and writes the database and runs as a global layer over every route including static content, so a database fault held each request for the pool's full 30-second acquire timeout and then returned `500` — for a public page view as much as for an API call. A request whose session cannot be established within two seconds is now served with an untracked, actor-less context and a throttled warning naming the path. Nothing is escalated by that context: it carries no auth token and no user, so every gate above `public` still refuses it, and `is_tracked` is false so the analytics sinks record no visit they cannot attribute. Measured against the live site with Postgres stopped: a page went from `500` after 30s to `200` in 2s.
+- The health probe is bounded and reports which version answered.
+- Gateway model resolution honours the server-side default model.
+
 ## [0.41.0] - 2026-08-28
 
 ### Changed

@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.42.0] - 2026-08-31
+
+### Changed
+
+- The credit-card heuristic no longer reads trace ids, uuids and timestamps as card numbers. Luhn alone passes one in ten arbitrary digit runs, so sliding a 16-digit window over a long run all but guaranteed a hit — a 40-digit hash offered 25 attempts. A candidate must now be a *whole* digit run of a plausible card length carrying a real issuer prefix before Luhn is consulted, and a space or hyphen is absorbed only between two digits so neighbouring numbers cannot splice into one candidate.
+- `"you are now"` is withdrawn from the builtin jailbreak phrase list. It matched ordinary prose and blocked real traffic.
+- Excerpt padding is clamped to character boundaries. The phrase offsets come from an ASCII-lowercased copy that is byte-aligned with the source, but the ±40/80 padding was not, so a multi-byte codepoint in range panicked the scanner — a 500 on a customer request.
+
 ## [0.38.0] - 2026-08-25
 
 ### Added

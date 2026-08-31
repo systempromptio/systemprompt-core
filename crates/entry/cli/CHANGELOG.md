@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.42.0] - 2026-08-31
+
+### Changed
+
+- Argument assembly moved out of `runner/args.rs` into `runner/args/assemble.rs`; the module was over the file-size limit. No behaviour changed, but the module path did.
+- Session creation reports the profile it resolved against.
+
 ## [0.41.0] - 2026-08-28
 
 ### Breaking

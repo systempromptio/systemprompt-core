@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.42.0] - 2026-08-31
+
+### Added
+
+- `RecentConversationSummary::context_name`, optional and omitted when absent, so existing readers are unaffected. `ModelShare`, `ConversationGroup` and `BridgeProfileUsage` gain `Default`.
+- `GatewayConfigSpec::default_model`, so the client default model is server-driven.
+
+### Changed
+
+- **Breaking:** `CoworkLibraryArtifactRecord`, `CoworkArtifactBundleManifest` and `CoworkArtifactBundleRecord` moved from `bridge::manifest` to `bridge::cowork_artifact`. Migrate by updating the import path; the types and their wire shapes are unchanged.
+- `hermes` is a known bridge host.
+
 ## [0.41.0] - 2026-08-28
 
 ### Added

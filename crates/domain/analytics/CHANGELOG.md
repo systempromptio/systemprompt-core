@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.42.0] - 2026-08-31
+
+### Added
+
+- `ProfileUsageService` assembles the bridge profile-usage report in the domain that owns the queries. The API route had been building it inline and running its own SQL from a handler body.
+- Recent-context rows carry `context_name`.
+
 ## [0.31.0] - 2026-08-18
 
 ### Changed
