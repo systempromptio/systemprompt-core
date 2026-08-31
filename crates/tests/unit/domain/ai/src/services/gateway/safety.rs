@@ -451,7 +451,13 @@ mod heuristic_config {
     fn builtin_list_is_the_default() {
         let phrases = effective_phrases(&HeuristicConfig::default());
         assert!(phrases.contains(&"ignore previous instructions".to_owned()));
-        assert!(phrases.len() >= 8);
+        assert!(phrases.contains(&"act as dan".to_owned()));
+        // Why: "you are now" was withdrawn from the builtin list because it
+        // matched ordinary prose and blocked real traffic. Asserting its
+        // absence keeps that decision from being quietly reverted; the old
+        // `len() >= 8` asserted only the size of the list, so the withdrawal
+        // read as a regression.
+        assert!(!phrases.contains(&"you are now".to_owned()));
     }
 
     #[test]
