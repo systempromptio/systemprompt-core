@@ -220,3 +220,81 @@ fn control_chars_escape_and_suffix_exact_redaction_rules() {
         "'author' must not match the exact 'auth' rule"
     );
 }
+
+// The redaction rules are a list of dangerous field names, and the tests above
+// exercise four of them. Removing any other entry — `cookie`, `password`,
+// `bearer` — would leave every one of those tests green while that class of
+// secret starts landing in the console and the database. This drives each
+// entry so a shrinking list fails rather than passing quietly.
+//
+// The names below deliberately duplicate the source list. That duplication is
+// the mechanism: the test only detects a removal because it holds its own copy.
+#[test]
+fn every_redaction_rule_actually_redacts() {
+    let writer = CapturingWriter::default();
+    let subscriber = make_subscriber(writer.clone());
+
+    tracing::subscriber::with_default(subscriber, || {
+        info!(
+            password = "pw-canary",
+            passwd = "passwd-canary",
+            secret = "secret-canary",
+            token = "token-canary",
+            cookie = "cookie-canary",
+            authorization = "authz-canary",
+            credential = "credential-canary",
+            api_key = "apikey-underscore-canary",
+            apikey = "apikey-canary",
+            private_key = "privatekey-canary",
+            bearer = "bearer-canary",
+            "every rule"
+        );
+    });
+
+    let logs = writer.contents();
+    for canary in [
+        "pw-canary",
+        "passwd-canary",
+        "secret-canary",
+        "token-canary",
+        "cookie-canary",
+        "authz-canary",
+        "credential-canary",
+        "apikey-underscore-canary",
+        "apikey-canary",
+        "privatekey-canary",
+        "bearer-canary",
+    ] {
+        assert!(
+            !logs.contains(canary),
+            "{canary} reached the log; its redaction rule is no longer matching: {logs}"
+        );
+    }
+}
+
+// Why: the rules match a substring, so a field that merely contains a
+// dangerous word is redacted too. That is deliberate — `user_password_hash`
+// should not be logged either — and worth pinning so the matching is not
+// narrowed to exact names.
+#[test]
+fn a_field_containing_a_dangerous_word_is_redacted_too() {
+    let writer = CapturingWriter::default();
+    let subscriber = make_subscriber(writer.clone());
+
+    tracing::subscriber::with_default(subscriber, || {
+        info!(
+            user_password_hash = "hash-canary",
+            refresh_token_value = "refresh-canary",
+            session_cookie_jar = "jar-canary",
+            "substring rules"
+        );
+    });
+
+    let logs = writer.contents();
+    for canary in ["hash-canary", "refresh-canary", "jar-canary"] {
+        assert!(
+            !logs.contains(canary),
+            "{canary} reached the log despite a dangerous word in its field name: {logs}"
+        );
+    }
+}

@@ -38,7 +38,7 @@ mod types;
 mod validation;
 
 pub use challenge::{AuthChallenge, McpTransportError};
-pub use elicitation::{ElicitationDelegate, SharedElicitationDelegate};
+pub use elicitation::{ElicitationDelegate, SharedElicitationDelegate, handle_elicitation};
 pub use external_proxy::ExternalProxyTarget;
 pub use handler::McpClientHandler;
 pub use http_client_with_context::HttpClientWithContext;

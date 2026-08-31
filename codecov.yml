@@ -1,6 +1,7 @@
-# Coverage is uploaded by the nightly Coverage workflow (lcov via OIDC), not
-# per-push, and all work lands directly on main — so the project status is the
-# regression signal and patch status is advisory only.
+# Coverage is uploaded by the Coverage workflow (lcov via OIDC) on every push
+# to `main` and `next` and on the promote release PR. There is no nightly cron,
+# and work no longer lands directly on main — it lands on `next` and reaches
+# main through the promote PR.
 coverage:
   status:
     project:
@@ -12,13 +13,24 @@ coverage:
         # coverage.yml ratchet step, which additionally rejects a >0.5pt drop
         # against the previous successful run.
         #
-        # Raise this as coverage climbs; it is deliberately just under the
-        # measured 88.7% so it guards the cliff without sitting on the edge.
-        target: 88.5%
+        # Raise this as coverage climbs; it sits just under the measured number
+        # so it guards the cliff without sitting on the edge.
+        target: 91.5%
         threshold: 0%
     patch:
       default:
-        informational: true
+        # Was `informational: true`, which reported and never failed. Between
+        # 7 and 28 August four features shipped with no tests at all — the
+        # bridge-release routes, governance approval, marketplace skill
+        # ownership and the MCP typed artifacts — and cost 0.93pt of project
+        # coverage. Nothing objected at the time, because nothing was asked to.
+        #
+        # 75% is deliberately not 100%: it is meant to catch a feature landing
+        # with no tests, not to argue about an uncovered error arm. Note this
+        # status attaches to pull requests, and the only PR in this repo's flow
+        # is promote -> main, so it gates a release rather than a merge.
+        target: 75%
+        threshold: 5%
 
 ignore:
   - "crates/tests/**"

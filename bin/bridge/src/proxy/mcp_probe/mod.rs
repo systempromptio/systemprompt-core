@@ -41,7 +41,36 @@ pub enum McpAuthState {
     NotRegistered,
     UpstreamError,
     ProxyUnreachable,
+    // Why: The probe ran out of time. Distinct from `ProxyUnreachable`: a server
+    // too slow to answer in six seconds is not a server that is down, and is
+    // certainly not one that needs signing in to.
+    ProbeTimeout,
+    // Why: Something on *this* machine stopped the probe before it reached the
+    // server -- no HTTP client, no loopback secret. Says nothing about the
+    // server at all.
+    LocalError,
     ProtocolError,
+}
+
+impl McpAuthState {
+    // Why: The single answer to "must the user sign in to this server again?".
+    //
+    // Why one function: this predicate drives the desktop notification, the
+    // Home "waiting on you" card, and the per-server panel. When each surface
+    // derived it separately they disagreed, and the UI told users to re-auth
+    // four healthy servers.
+    #[must_use]
+    pub const fn needs_sign_in(self) -> bool {
+        matches!(self, Self::GatewayUnauthorized | Self::NotRegistered)
+    }
+
+    #[must_use]
+    pub const fn is_conclusive(self) -> bool {
+        !matches!(
+            self,
+            Self::Unknown | Self::ProxyUnreachable | Self::ProbeTimeout | Self::LocalError
+        )
+    }
 }
 
 #[must_use]
@@ -74,7 +103,7 @@ pub async fn probe_all() -> Vec<McpServerAuth> {
                 .map(|slug| McpServerAuth {
                     id: (*slug).clone(),
                     url: crate::proxy::mcp_url(slug),
-                    state: McpAuthState::ProtocolError,
+                    state: McpAuthState::LocalError,
                     tools: Vec::new(),
                     http_status: None,
                     latency_ms: None,
@@ -111,7 +140,7 @@ async fn probe_one(client: &reqwest::Client, slug: &str) -> McpServerAuth {
                 &url,
                 probed_at_unix,
                 ProbeOutcome {
-                    state: McpAuthState::ProtocolError,
+                    state: McpAuthState::LocalError,
                     http_status: None,
                     latency_ms: None,
                     error: Some(format!("loopback secret unavailable: {e}")),
@@ -143,7 +172,9 @@ pub async fn probe_endpoint(
     let resp = match resp {
         Ok(r) => r,
         Err(e) => {
-            let state = if e.is_connect() || e.is_timeout() {
+            let state = if e.is_timeout() {
+                McpAuthState::ProbeTimeout
+            } else if e.is_connect() {
                 McpAuthState::ProxyUnreachable
             } else {
                 McpAuthState::ProtocolError

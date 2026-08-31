@@ -27,9 +27,13 @@ mod ai;
 
 #[cfg(test)]
 mod api;
+#[cfg(test)]
+mod api_responses_specialized;
 
 #[cfg(test)]
 mod artifacts;
+#[cfg(test)]
+mod artifacts_table;
 
 #[cfg(test)]
 mod artifacts_extended;
@@ -54,6 +58,8 @@ mod auth;
 
 #[cfg(test)]
 mod execution;
+#[cfg(test)]
+mod execution_context;
 
 #[cfg(test)]
 mod validators;
@@ -78,6 +84,8 @@ mod wire_inspect;
 
 #[cfg(test)]
 mod agui;
+#[cfg(test)]
+mod agui_events;
 
 #[cfg(test)]
 mod ai_tool_model_config;
@@ -103,6 +111,8 @@ mod config_postgres;
 #[cfg(test)]
 mod permission;
 
+#[cfg(test)]
+mod mcp_client_profile;
 #[cfg(test)]
 mod mcp_tool_result_metadata;
 

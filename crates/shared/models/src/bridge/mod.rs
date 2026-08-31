@@ -11,6 +11,8 @@
 //!
 //! - [`manifest`] — the signed manifest envelope and its sub-entries (plugins,
 //!   skills, agents, managed MCP servers, user info).
+//! - [`cowork_artifact`] — Cowork's native projections of a manifest artifact
+//!   (the staged library record and the bundle install manifest).
 //! - [`plugin_bundle`] — the `.claude-plugin/plugin.json` manifest shape and
 //!   the well-formedness predicate shared by every plugin-bundle
 //!   producer/consumer.
@@ -30,6 +32,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+pub mod cowork_artifact;
 pub mod ids;
 pub mod manifest;
 pub mod manifest_version;

@@ -41,6 +41,7 @@ fn skill(id: &str) -> SkillEntry {
         .expect("valid zero digest"),
         instructions: String::new(),
         hosts: Vec::new(),
+        plugins: Vec::new(),
     }
 }
 
@@ -101,6 +102,7 @@ fn artifact(id: &str) -> ArtifactEntry {
             "0000000000000000000000000000000000000000000000000000000000000000",
         )
         .expect("valid zero digest"),
+        plugins: Vec::new(),
     }
 }
 
@@ -408,6 +410,82 @@ fn into_manifest_parts_routes_skill_owners_to_filter_context() {
         context
             .skill_owners
             .contains_key(&SkillId::try_new("owned_skill").expect("valid id"))
+    );
+    // The context copy drives filtering; the stamped copy is what the bridge
+    // reads to group its listing. Both must be populated.
+    assert_eq!(
+        entries.skills[0].plugins,
+        vec![PluginId::try_new("p1").expect("valid id")]
+    );
+}
+
+#[test]
+fn into_manifest_parts_stamps_artifact_owners_onto_entries() {
+    use std::collections::{BTreeMap, BTreeSet};
+    use systemprompt_models::bridge::ids::{LibraryArtifactId, PluginId};
+
+    let id = LibraryArtifactId::try_new("dash").expect("valid id");
+    let owners: BTreeMap<LibraryArtifactId, BTreeSet<PluginId>> = [(
+        id.clone(),
+        BTreeSet::from([
+            PluginId::try_new("p1").expect("valid id"),
+            PluginId::try_new("p2").expect("valid id"),
+        ]),
+    )]
+    .into();
+    let c = candidate(
+        vec![plugin("p1"), plugin("p2")],
+        vec![],
+        vec![],
+        vec![],
+        vec![],
+        vec![artifact("dash")],
+    )
+    .with_artifact_owners(owners);
+
+    let (entries, _) = c.into_manifest_parts();
+
+    assert_eq!(
+        entries.artifacts[0].plugins,
+        vec![
+            PluginId::try_new("p1").expect("valid id"),
+            PluginId::try_new("p2").expect("valid id")
+        ],
+        "an artifact two plugins ship names both"
+    );
+}
+
+// A plugin the access filter removed must not surface as an owner: the entry
+// would otherwise advertise a grant the user does not hold.
+#[test]
+fn into_manifest_parts_drops_owners_that_did_not_survive_filtering() {
+    use std::collections::{BTreeMap, BTreeSet};
+    use systemprompt_models::bridge::ids::{LibraryArtifactId, PluginId};
+
+    let id = LibraryArtifactId::try_new("dash").expect("valid id");
+    let owners: BTreeMap<LibraryArtifactId, BTreeSet<PluginId>> = [(
+        id,
+        BTreeSet::from([
+            PluginId::try_new("p1").expect("valid id"),
+            PluginId::try_new("gone").expect("valid id"),
+        ]),
+    )]
+    .into();
+    let c = candidate(
+        vec![plugin("p1")],
+        vec![],
+        vec![],
+        vec![],
+        vec![],
+        vec![artifact("dash")],
+    )
+    .with_artifact_owners(owners);
+
+    let (entries, _) = c.into_manifest_parts();
+
+    assert_eq!(
+        entries.artifacts[0].plugins,
+        vec![PluginId::try_new("p1").expect("valid id")]
     );
 }
 

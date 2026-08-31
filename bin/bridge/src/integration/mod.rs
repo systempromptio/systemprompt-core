@@ -9,6 +9,7 @@ pub mod claude_desktop;
 pub mod codex_cli;
 pub mod cowork_artifacts;
 pub mod cowork_plugins;
+pub mod hermes;
 pub mod host_app;
 pub mod proxy_probe;
 pub mod registry;

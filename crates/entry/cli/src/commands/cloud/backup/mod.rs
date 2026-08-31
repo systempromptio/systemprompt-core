@@ -10,7 +10,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod client;
-mod extract;
+pub mod extract;
 
 use std::path::PathBuf;
 

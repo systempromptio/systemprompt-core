@@ -167,7 +167,7 @@ async fn webhook_mode_with_url_yields_webhook_hook() {
             assert_eq!(policy, "authz_hook_fault");
             assert!(matches!(
                 reason,
-                DenyReason::HookUnavailable { policy: p } if p == "authz_hook_fault"
+                DenyReason::HookUnavailable { policy: p, .. } if p == "authz_hook_fault"
             ));
         },
         AuthzDecision::Allow => panic!("unreachable webhook must deny, got Allow"),
@@ -199,6 +199,7 @@ mod extension_mode {
             AuthzDecision::Deny {
                 reason: DenyReason::HookUnavailable {
                     policy: self.0.to_owned(),
+                    detail: String::new(),
                 },
                 policy: self.0.to_owned(),
             }
@@ -352,6 +353,7 @@ mod extension_mode {
                 decision: AuthzDecision::Deny {
                     reason: DenyReason::HookUnavailable {
                         policy: policy.to_owned(),
+                        detail: String::new(),
                     },
                     policy: policy.to_owned(),
                 },

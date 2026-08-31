@@ -13,6 +13,8 @@ mod authz_entity_ref;
 #[cfg(test)]
 mod authz_repository;
 #[cfg(test)]
+mod authz_subject_ref;
+#[cfg(test)]
 mod error_display;
 #[cfg(test)]
 mod extraction;
@@ -26,6 +28,8 @@ mod jwt_extract;
 mod jwt_validate;
 #[cfg(test)]
 mod manifest_signing_jcs;
+#[cfg(test)]
+mod policy_approval;
 #[cfg(test)]
 mod policy_audit;
 #[cfg(test)]

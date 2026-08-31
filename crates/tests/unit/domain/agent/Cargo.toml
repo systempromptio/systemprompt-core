@@ -12,6 +12,7 @@ workspace = true
 
 [dependencies]
 systemprompt-test-fixtures = { workspace = true }
+systemprompt-test-mocks = { workspace = true }
 systemprompt-agent = { workspace = true }
 systemprompt-analytics = { workspace = true }
 systemprompt-config = { workspace = true }

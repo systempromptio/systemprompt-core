@@ -31,7 +31,7 @@ struct ResultRow {
     rationale: String,
 }
 
-pub(super) async fn execute(args: ShowArgs, ctx: &CommandContext) -> Result<CommandOutput> {
+pub async fn execute(args: ShowArgs, ctx: &CommandContext) -> Result<CommandOutput> {
     let eval = eval_context(ctx).await?;
     let run_id = EvalRunId::new(args.run_id);
     let run = eval.evaluation.get_run(&run_id).await?;

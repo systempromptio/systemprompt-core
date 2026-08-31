@@ -143,5 +143,7 @@ fn build_skill_entry(
         sha256,
         instructions,
         hosts: config.hosts,
+        // Why: stamped in `into_manifest_parts`, once the surviving plugin list is known.
+        plugins: Vec::new(),
     }))
 }

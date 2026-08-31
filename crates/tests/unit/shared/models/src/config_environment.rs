@@ -82,3 +82,126 @@ fn verbosity_level_copy() {
     let v2 = v;
     assert_eq!(v2, VerbosityLevel::Debug);
 }
+
+// `Environment::detect` reads four process signals in a fixed order. The
+// consequential direction is a production deployment detected as development,
+// since development relaxes checks production enforces — so both the
+// precedence between the signals and the fail-safe default are pinned.
+//
+// Each test clears every signal before setting the one it is about. Without
+// that, an ambient `NODE_ENV` on the machine running the suite decides the
+// answer instead of the test. nextest runs one process per test, so these
+// mutations reach no other test.
+mod detect {
+    use systemprompt_models::config::Environment;
+
+    const SIGNALS: [&str; 4] = [
+        "SYSTEMPROMPT_ENV",
+        "RAILWAY_ENVIRONMENT",
+        "NODE_ENV",
+        "DOCKER_CONTAINER",
+    ];
+
+    fn detect_with(pairs: &[(&str, &str)]) -> Environment {
+        for name in SIGNALS {
+            unsafe { std::env::remove_var(name) }
+        }
+        for (name, value) in pairs {
+            unsafe { std::env::set_var(name, value) }
+        }
+        Environment::detect()
+    }
+
+    // Why: the explicit variable is the operator's direct statement of intent.
+    // Any inferred signal outranking it means a deployment cannot be overridden.
+    #[test]
+    fn the_explicit_variable_outranks_every_other_signal() {
+        assert_eq!(
+            detect_with(&[
+                ("SYSTEMPROMPT_ENV", "development"),
+                ("RAILWAY_ENVIRONMENT", "production"),
+                ("NODE_ENV", "production"),
+                ("DOCKER_CONTAINER", "1"),
+            ]),
+            Environment::Development,
+            "SYSTEMPROMPT_ENV must win over the inferred signals"
+        );
+    }
+
+    #[test]
+    fn the_platform_variable_is_consulted_before_node_env() {
+        assert_eq!(
+            detect_with(&[
+                ("RAILWAY_ENVIRONMENT", "production"),
+                ("NODE_ENV", "development"),
+            ]),
+            Environment::Production,
+            "a platform saying production outranks NODE_ENV"
+        );
+    }
+
+    #[test]
+    fn node_env_is_consulted_when_no_stronger_signal_is_present() {
+        assert_eq!(detect_with(&[("NODE_ENV", "test")]), Environment::Test);
+    }
+
+    // Why: a container that detected development would relax checks wherever
+    // it was deployed.
+    #[test]
+    fn running_in_a_container_is_treated_as_production() {
+        assert_eq!(
+            detect_with(&[("DOCKER_CONTAINER", "1")]),
+            Environment::Production
+        );
+    }
+
+    // Why: this is the fail-safe. A value nobody recognises must land on the
+    // stricter environment — reading an unknown string as development would
+    // relax checks because of a typo.
+    #[test]
+    fn an_unrecognised_value_falls_back_to_production_rather_than_development() {
+        for unknown in ["staging", "prod", "", "developmnet"] {
+            assert_eq!(
+                detect_with(&[("SYSTEMPROMPT_ENV", unknown)]),
+                Environment::Production,
+                "{unknown:?} is not recognised and must not relax anything"
+            );
+        }
+    }
+
+    // Why: an operator writes `DEV` or `Development` as readily as `dev`. A
+    // case-sensitive match sends them to production silently.
+    #[test]
+    fn environment_names_are_matched_without_regard_to_case() {
+        for spelling in ["development", "Development", "DEV", "dev"] {
+            assert_eq!(
+                detect_with(&[("SYSTEMPROMPT_ENV", spelling)]),
+                Environment::Development,
+                "{spelling} should name development"
+            );
+        }
+
+        for spelling in ["test", "Testing", "TEST"] {
+            assert_eq!(
+                detect_with(&[("SYSTEMPROMPT_ENV", spelling)]),
+                Environment::Test,
+                "{spelling} should name test"
+            );
+        }
+    }
+
+    // Why: the platform variable means production only when it says so. Any
+    // other value must fall through to the signals below rather than being
+    // read as a production marker.
+    #[test]
+    fn a_platform_variable_that_is_not_production_falls_through() {
+        assert_eq!(
+            detect_with(&[
+                ("RAILWAY_ENVIRONMENT", "staging"),
+                ("NODE_ENV", "development"),
+            ]),
+            Environment::Development,
+            "a non-production platform value must not short-circuit to production"
+        );
+    }
+}

@@ -12,7 +12,7 @@
 
 pub mod api;
 mod context;
-mod creation;
+pub mod creation;
 pub mod resolution;
 mod store;
 

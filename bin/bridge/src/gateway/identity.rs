@@ -14,6 +14,7 @@ use systemprompt_models::api::cloud::BridgeProfileUsage;
 
 use crate::auth::types::BridgeProfile;
 use crate::gateway::errors::GatewayError;
+use crate::gateway::identity_source::whoami_path;
 use crate::gateway::types::WhoamiResponse;
 use crate::gateway::{GatewayClient, record_span};
 
@@ -24,7 +25,7 @@ impl GatewayClient {
         fields(endpoint = "whoami", status, latency_ms)
     )]
     pub async fn fetch_whoami(&self, bearer: &str) -> Result<WhoamiResponse, GatewayError> {
-        let url = self.url("/v1/bridge/whoami");
+        let url = self.url(whoami_path());
         let started = Instant::now();
         let resp = self
             .http()

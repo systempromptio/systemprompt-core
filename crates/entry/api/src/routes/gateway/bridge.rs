@@ -26,7 +26,13 @@ use super::bridge_data;
 use super::messages::extract_credential;
 use crate::services::middleware::JwtContextExtractor;
 
-pub(super) const KNOWN_HOSTS: &[&str] = &["claude-code", "claude-desktop", "cowork", "codex-cli"];
+pub(super) const KNOWN_HOSTS: &[&str] = &[
+    "claude-code",
+    "claude-desktop",
+    "cowork",
+    "codex-cli",
+    "hermes",
+];
 
 pub fn instance_enabled_hosts(
     services: &systemprompt_models::services::ServicesConfig,
@@ -210,10 +216,13 @@ pub async fn profile() -> Result<Json<BridgeProfileResponse>, (StatusCode, Strin
 
     let secrets = systemprompt_config::SecretsBootstrap::get().ok();
     let response = bridge_profile::build(
-        inference_gateway_base_url,
-        gateway.auth_scheme.clone(),
-        organization_uuid,
-        &profile.providers,
+        bridge_profile::BridgeProfileParams {
+            inference_gateway_base_url,
+            auth_scheme: gateway.auth_scheme.clone(),
+            organization_uuid,
+            default_model: gateway.default_model.clone(),
+            registry: &profile.providers,
+        },
         |name| {
             secrets
                 .and_then(|s| s.get(name))

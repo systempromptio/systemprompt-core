@@ -47,6 +47,16 @@ impl AppState {
         token
     }
 
+    pub fn has_cancel(&self, scope: CancelScope) -> bool {
+        let guard = self.cancels.read();
+        match scope {
+            CancelScope::Sync => guard.sync.is_some(),
+            CancelScope::Login => guard.login.is_some(),
+            CancelScope::SetGateway => guard.set_gateway.is_some(),
+            CancelScope::GatewayProbe => guard.gateway_probe.is_some(),
+        }
+    }
+
     pub fn clear_cancel(&self, scope: CancelScope) {
         let mut guard = self.cancels.write();
         match scope {
@@ -79,6 +89,7 @@ impl AppState {
         for token in [
             guard.sync.take(),
             guard.login.take(),
+            guard.set_gateway.take(),
             guard.gateway_probe.take(),
         ]
         .into_iter()

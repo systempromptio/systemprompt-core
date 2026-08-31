@@ -14,6 +14,7 @@ mod behavioral_detector;
 pub mod bot_keywords;
 pub mod detection;
 pub(crate) mod extractor;
+mod profile_usage;
 mod providers;
 mod service;
 mod session_cleanup;
@@ -28,5 +29,6 @@ pub use behavioral_detector::{
     BehavioralBotDetector, BehavioralSignal, SignalType,
 };
 pub use extractor::{SessionAnalytics, SessionAnalyticsBuilder};
+pub use profile_usage::ProfileUsageService;
 pub use service::AnalyticsService;
 pub use session_cleanup::SessionCleanupService;

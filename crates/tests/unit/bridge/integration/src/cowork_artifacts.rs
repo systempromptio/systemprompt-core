@@ -22,6 +22,7 @@ fn artifact(id: &str, version: &str, content: &str) -> ArtifactEntry {
         content: content.to_owned(),
         starred: true,
         sha256: Sha256Digest::try_new("0".repeat(64)).unwrap(),
+        plugins: Vec::new(),
     }
 }
 

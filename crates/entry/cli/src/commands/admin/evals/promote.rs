@@ -27,7 +27,7 @@ pub struct PromoteArgs {
     pub tags: Vec<String>,
 }
 
-pub(super) async fn execute(args: PromoteArgs, ctx: &CommandContext) -> Result<CommandOutput> {
+pub async fn execute(args: PromoteArgs, ctx: &CommandContext) -> Result<CommandOutput> {
     let eval = eval_context(ctx).await?;
 
     let filter = SampleFilter::with_limit(1).ids(vec![args.ai_request_id.clone()]);

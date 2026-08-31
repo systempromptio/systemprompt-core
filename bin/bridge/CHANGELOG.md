@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.33.0] - 2026-08-31
 
 ### Removed
 
@@ -8,6 +8,10 @@
 - The `x-systemprompt-bridge: 1` upstream header, which nothing consumed. The gateway identifies bridge traffic by the `client_id` claim its tokens now carry.
 
 ### Added
+
+- Hermes Agent Desktop is a supported host. The bridge merges `model.base_url`, `model.api_mode` and `model.model` into `HERMES_HOME/config.yaml`, writes the API key to `HERMES_HOME/.env`, publishes managed skills into the Hermes skills directory and prunes only the ids it wrote, and probes the running app. Hermes reads the same plain config on every OS, so unlike the Codex host there is no macOS configuration-profile path.
+- The Marketplace listing groups skills and artifacts under the plugin that ships them, with a sticky header naming the plugin and its item count. An item two plugins ship appears under each, since deduplicating it to one header would misreport who ships it; anything with no owner — a plugin, an MCP server, an item from an external source — falls under "Ungrouped", and a listing where nothing has an owner renders flat rather than under a single redundant header.
+- The Cowork artifact sinks are replaced with exactly what the manifest carries, so an id the manifest has stopped naming is dropped instead of accumulating. The version stamp hashes only the ids the manifest carries, so it matched even while a sink still held records the manifest had dropped, and such an install took the "up to date, skipping" path forever. A non-empty artifact set is authoritative; an empty one still preserves the store and warns.
 
 - A real light theme, and an Appearance control in Settings. Colour scheme and contrast were wired as one axis, so `prefers-color-scheme: light` handed the user the *elevated-contrast dark* palette — a darker UI — and no light theme existed. They are now `data-theme` (dark/light) and `data-contrast` (default/elevated), composing in all four combinations, each with a stored override above the OS preference so a machine with neither setting is no longer without recourse.
 - `scripts/lint-bridge-i18n.sh`, run by `just check` and the Quality workflow. It fails on a message id referenced from JS or Rust but absent from `bridge.ftl`, on a catalogue key nothing references, on a literal `t("id")` written without an English fallback, and on an interpolated `data-l10n-id` it cannot resolve.

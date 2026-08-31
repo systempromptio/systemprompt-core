@@ -45,7 +45,9 @@ function proxyPill(snap) {
   if (state === "Unconfigured") {
     return { state: "warn", text: t("agents-status-proxy-unconfigured") || "proxy unconfigured" };
   }
-  return { state: "warn", text: t("agents-status-proxy-unconfigured") || "proxy unconfigured" };
+  // Why: anything left is `Unknown` — not yet probed. Saying "unconfigured"
+  // there reports a verdict we have not reached.
+  return { state: "unknown", text: t("agents-status-proxy-checking") || "checking…" };
 }
 
 function tokenPill(snap) {

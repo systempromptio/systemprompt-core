@@ -308,6 +308,7 @@ fn two_provider_config(default_provider: Option<&str>) -> GatewayConfig {
             route_to("gemini-*", "gemini"),
         ],
         default_provider: default_provider.map(ProviderId::new),
+        default_model: None,
         ..GatewayConfig::default()
     }
 }
@@ -521,6 +522,7 @@ fn gpt_star_route_exposes_and_rewrites_codex_alias() {
         enabled: true,
         routes: vec![openai],
         default_provider: Some(ProviderId::new("openai")),
+        default_model: None,
         ..GatewayConfig::default()
     };
 
@@ -981,6 +983,7 @@ fn enabled_gateway(routes: Vec<GatewayRoute>) -> GatewayConfig {
         enabled: true,
         routes,
         default_provider: None,
+        default_model: None,
         allow_unlisted_models: false,
         auth_scheme: "bearer".to_owned(),
         inference_path_prefix: "/v1".to_owned(),

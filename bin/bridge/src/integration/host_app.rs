@@ -153,6 +153,7 @@ pub enum HostKind {
 pub enum ConfigFormat {
     Json,
     Toml,
+    Yaml,
     Plist,
     Reg,
 }

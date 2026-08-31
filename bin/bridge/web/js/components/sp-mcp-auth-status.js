@@ -11,6 +11,8 @@ const VIEWS = {
   NotRegistered:       { s: "err",     dot: "sp-dot--err",     label: "not in proxy registry (404)" },
   UpstreamError:       { s: "err",     dot: "sp-dot--err",     label: "upstream error" },
   ProxyUnreachable:    { s: "err",     dot: "sp-dot--err",     label: "proxy unreachable" },
+  ProbeTimeout:        { s: "unknown", dot: "sp-dot--unknown", label: "did not answer in time" },
+  LocalError:          { s: "unknown", dot: "sp-dot--unknown", label: "could not be checked" },
   ProtocolError:       { s: "err",     dot: "sp-dot--err",     label: "protocol error" },
   Unknown:             { s: "unknown", dot: "sp-dot--unknown", label: "not checked yet" },
 };

@@ -29,7 +29,7 @@ struct RunRow {
     created_at: String,
 }
 
-pub(super) async fn execute(args: ListArgs, ctx: &CommandContext) -> Result<CommandOutput> {
+pub async fn execute(args: ListArgs, ctx: &CommandContext) -> Result<CommandOutput> {
     let eval = eval_context(ctx).await?;
     let runs = eval.evaluation.list_runs(args.limit).await?;
 

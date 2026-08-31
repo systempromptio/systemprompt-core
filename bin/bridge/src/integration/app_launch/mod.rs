@@ -105,10 +105,13 @@ pub(crate) fn is_installed(loc: &AppLocator<'_>) -> AppInstallState {
 
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]
 pub(crate) fn is_installed(loc: &AppLocator<'_>) -> AppInstallState {
-    let found = std::env::var_os("PATH").is_some_and(|paths| {
-        std::env::split_paths(&paths).any(|dir| dir.join(loc.linux_bin).exists())
-    });
-    if found {
+    // Why: with no PATH to search, the scan proves nothing either way. Saying
+    // `NotInstalled` there would permanently skip the host during first use on
+    // the strength of a question we never got to ask.
+    let Some(paths) = std::env::var_os("PATH") else {
+        return AppInstallState::Unknown;
+    };
+    if std::env::split_paths(&paths).any(|dir| dir.join(loc.linux_bin).exists()) {
         AppInstallState::Installed
     } else {
         AppInstallState::NotInstalled

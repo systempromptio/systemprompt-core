@@ -1,6 +1,7 @@
 //! Unit tests for MCP services
 
 mod auth;
+mod chart_scale;
 mod client;
 mod database_service;
 mod database_state;
@@ -43,6 +44,7 @@ mod schema_loader_faults;
 mod schema_validator;
 mod schema_validator_scripted;
 mod spawn_env;
+mod spawner_env;
 mod startup_delay;
 mod tool_context;
 mod tool_conversions;

@@ -68,7 +68,7 @@ The outside edge of a systemprompt.io deployment. Every CLI and external service
 
 ```toml
 [dependencies]
-systemprompt-client = "0.41"
+systemprompt-client = "0.42"
 ```
 
 ```rust

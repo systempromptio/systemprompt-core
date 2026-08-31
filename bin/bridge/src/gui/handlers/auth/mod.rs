@@ -46,9 +46,7 @@ pub(crate) fn on_login_requested(
                 .map_err(Arc::new)
         });
         let result = tokio::select! {
-            () = token.cancelled() => {
-                Err(Arc::new(GuiError::from(setup::SetupError::Io("login cancelled".into()))))
-            }
+            () = token.cancelled() => Err(Arc::new(GuiError::Cancelled)),
             joined = task => match joined {
                 Ok(r) => r,
                 Err(join_err) => Err(Arc::new(GuiError::from(setup::SetupError::Io(format!(
@@ -82,20 +80,22 @@ pub(crate) fn on_login_finished(
             }
             Ok(())
         },
+        Err(e) if e.is_cancelled() => {
+            // Why: the user stopped this themselves, or a second sign-in
+            // superseded it. Neither says the credential is bad, so it is a log
+            // line and a plain reply -- never an "unauthorized" toast.
+            app.append_log(i18n::t_args(
+                "login-cancelled",
+                &[("error", &e.to_string())],
+            ));
+            app.state.reload();
+            app.refresh_ui();
+            Ok(())
+        },
         Err(e) => {
             let raw = e.to_string();
-            let cancelled = raw.contains("login cancelled");
-            let key = if cancelled {
-                "login-cancelled"
-            } else {
-                "login-failure"
-            };
-            let line = i18n::t_args(key, &[("error", &raw)]);
-            if cancelled {
-                app.append_log(&line);
-            } else {
-                app.append_log_error(&line);
-            }
+            let line = i18n::t_args("login-failure", &[("error", &raw)]);
+            app.append_log_error(&line);
             app.state.reload();
             app.refresh_ui();
             Err(BridgeError::new(
@@ -129,11 +129,7 @@ pub(crate) fn on_set_gateway_requested(app: &GuiApp, gateway: &str, reply_to: Re
                 .map_err(Arc::new)
         });
         let result = tokio::select! {
-            () = token.cancelled() => {
-                Err(Arc::new(GuiError::from(setup::SetupError::Io(
-                    "set-gateway cancelled".into(),
-                ))))
-            }
+            () = token.cancelled() => Err(Arc::new(GuiError::Cancelled)),
             joined = task => match joined {
                 Ok(r) => r,
                 Err(join_err) => Err(Arc::new(GuiError::from(setup::SetupError::Io(format!(
@@ -157,6 +153,13 @@ pub(crate) fn on_set_gateway_finished(
             crate::proxy::reload_runtime_config();
             app.state.reload();
             crate::gui::handlers::gateway_probe::spawn_probe(app, None);
+            Ok(())
+        },
+        Err(e) if e.is_cancelled() => {
+            // Why: superseded by a later save, or cancelled by the user. The
+            // field simply was not written; that is not a failure to report.
+            app.append_log(i18n::t("gateway-set-cancelled"));
+            app.state.reload();
             Ok(())
         },
         Err(e) => {

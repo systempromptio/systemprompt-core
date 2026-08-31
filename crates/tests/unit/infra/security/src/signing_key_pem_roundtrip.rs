@@ -9,6 +9,29 @@ use base64::Engine;
 use systemprompt_security::keys::{KeyError, RsaSigningKey};
 use uuid::Uuid;
 
+// Why: the tests below all assert that one key survives a round trip, which
+// says nothing about whether generation produces a new key each time. If it
+// did not, every deployment would sign with the same key and every `kid` would
+// collide in the JWKS. Generated at 1024 bits deliberately: this asserts that
+// generation varies, not that the production key size is right, and a 2048-bit
+// pair costs seconds in a debug build.
+#[test]
+fn generating_twice_yields_two_distinct_keys() {
+    let first = RsaSigningKey::generate_bits(1024).expect("generate first key");
+    let second = RsaSigningKey::generate_bits(1024).expect("generate second key");
+
+    assert_ne!(
+        first.kid(),
+        second.kid(),
+        "two keys sharing a kid collide in the JWKS"
+    );
+    assert_ne!(
+        first.to_pkcs8_pem().expect("first pem"),
+        second.to_pkcs8_pem().expect("second pem"),
+        "a generator that repeats itself gives every deployment one signing key"
+    );
+}
+
 #[test]
 fn pem_base64_roundtrip_preserves_kid() {
     let key = RsaSigningKey::generate().expect("generate key");

@@ -93,6 +93,7 @@ pub struct RecentContextRow {
     pub ai_requests: i64,
     pub model: Option<String>,
     pub agent_name: Option<String>,
+    pub context_name: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, FromRow)]

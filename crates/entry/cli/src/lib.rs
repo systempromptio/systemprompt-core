@@ -28,3 +28,9 @@ pub use context::CommandContext;
 pub use env_overrides::{EnvOverrides, SessionEnv};
 pub use interactive::{DialoguerPrompter, Prompter, ScriptedPrompter};
 pub use runner::run;
+// Why: the argument plane is exported so its pure halves — config assembly,
+// argv reconstruction and the export-flag check — can be exercised from the
+// test workspace. They were `pub(super)` inside a private module, so nothing
+// outside `runner` could name them and the only coverage they got was
+// incidental, through `run`.
+pub use runner::args;

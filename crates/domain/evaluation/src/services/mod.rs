@@ -14,7 +14,7 @@ mod replay;
 mod sampler;
 
 pub use evaluation_service::{EvaluationService, RunRequest};
-pub use judge::{JudgeService, JudgeTarget, ScoredVerdict};
+pub use judge::{JudgeService, JudgeSpec, JudgeTarget, ScoredVerdict};
 pub use loop_runner::{AutoImproveLoop, LoopLimits, LoopReport};
 pub use replay::ReplayService;
 pub use sampler::SamplerService;

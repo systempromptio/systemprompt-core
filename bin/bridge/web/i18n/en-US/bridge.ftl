@@ -33,6 +33,8 @@ sync-success = synced
 sync-in-flight = syncing
 sync-cancel = Cancel
 sync-cancelled = Sync cancelled.
+login-cancelled = Sign-in cancelled.
+login-failure = Sign-in failed: { $error }
 sync-failure = Sync failed: { $error }
 sync-no-credentials = Sync failed: not signed in. Sign in to this gateway, then try again.
 sync-gateway-unauthorized = Sync failed: { $gateway } rejected a freshly issued credential (HTTP { $status } from { $endpoint }). Your access may have been revoked — sign in again, or ask an administrator to check your account.
@@ -41,6 +43,7 @@ sync-reauthenticate = Re-authenticate
 
 gateway-set-empty = Enter a gateway URL.
 gateway-set-failure = Could not save the gateway: { $error }
+gateway-set-cancelled = Gateway not saved — cancelled.
 gateway-saving = Saving gateway { $url }…
 gateway-saved = Gateway saved.
 
@@ -81,6 +84,7 @@ marketplace-empty-never-synced = Sync to pull what your account already has.
 marketplace-empty-synced = Your last sync did not include anything of this kind.
 marketplace-no-matches = No matches
 marketplace-items-aria = Items in this category
+marketplace-group-ungrouped = Ungrouped
 toast-dismiss = Dismiss
 agents-status-group-aria = Bridge status
 sync-cancel-aria = Cancel sync
@@ -92,16 +96,9 @@ marketplace-change-removed = Removed
 marketplace-action-validate = Re-check
 marketplace-action-open-folder = Open folder
 last-sync-never = never synced
-marketplace-error-title = Could not load the library
-marketplace-retry = Try again
-marketplace-no-matches = No matches
-marketplace-items-aria = Items in this category
-toast-dismiss = Dismiss
-agents-status-group-aria = Bridge status
-sync-cancel-aria = Cancel sync
-marketplace-empty-generic = nothing installed
-marketplace-empty-never-synced = This computer has not synced with systemprompt yet.
-marketplace-empty-synced = Nothing of this kind is assigned to your account.
+# Only `last-sync` survived this block: every other definition here duplicated
+# one above, and Fluent resolves a duplicate to the first, so they were dead
+# lines that only produced parser warnings.
 last-sync = Last sync: { $summary }
 
 # Agents tab ------------------------------------------------------------------
@@ -117,6 +114,7 @@ agents-status-proxy-refused = proxy refused
 agents-status-proxy-timeout = proxy timed out
 agents-status-proxy-http-error = proxy http error
 agents-status-proxy-unconfigured = proxy unconfigured
+agents-status-proxy-checking = checking…
 agents-status-token-ok = Session valid · expires in { $ttl }
 agents-status-token-expiring = Session expires in { $ttl }
 agents-status-token-missing = no token
@@ -261,7 +259,10 @@ nav-home = Home
 # Home -------------------------------------------------------------------------
 home-agents-heading = Your agents
 home-waiting-heading = Waiting on you
-home-waiting-mcp = { $count } MCP servers need signing in again ({ $names })
+home-waiting-mcp = { $count ->
+    [one] { $names } needs signing in again
+   *[other] { $count } MCP servers need signing in again ({ $names })
+  }
 home-waiting-never-synced = You have not synced yet, so no plugins are installed.
 home-waiting-session = Your session expires in { $minutes } minutes — sign in again to keep agents governed.
 home-waiting-update-available = Version { $version } is available.
@@ -351,8 +352,7 @@ host-no-compatible-models = none available
 host-model-filter = Model filter
 host-model-filter-all = All models
 proto-anthropic = Claude models
-proto-openai-chat = OpenAI chat models
-proto-openai-responses = OpenAI reasoning models
+proto-openai = OpenAI models
 proto-gemini = Gemini models
 host-model-filter-custom = custom override
 host-model-filter-default = host default

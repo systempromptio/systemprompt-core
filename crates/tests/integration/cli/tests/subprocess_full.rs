@@ -46,6 +46,23 @@ fn stderr_has_fmt(args: &[&str], needle: &str) {
     drive_formats(args);
 }
 
+// Why: a list command over a freshly-migrated database prints its empty-state
+// warning, not its table header, so asserting the header alone makes the test a
+// function of whether earlier tests happened to leave rows behind. Accepting
+// either still proves the handler ran to completion and produced its own
+// output.
+fn stderr_has_any(args: &[&str], needles: &[&str]) {
+    let Some(mut cmd) = command() else { return };
+    cmd.args(args);
+    let out = cmd.assert().success();
+    let stderr = String::from_utf8_lossy(&out.get_output().stderr).into_owned();
+    assert!(
+        needles.iter().any(|n| stderr.contains(n)),
+        "none of {needles:?} in stderr: {stderr}"
+    );
+    drive_formats(args);
+}
+
 fn fails_with(args: &[&str], needle: &str) {
     let Some(mut cmd) = command() else { return };
     cmd.args(args);
@@ -742,7 +759,10 @@ fn analytics_conversations_stats_full() {
 
 #[test]
 fn analytics_conversations_list_full() {
-    stderr_has_fmt(&["analytics", "conversations", "list"], "Conversations");
+    stderr_has_any(
+        &["analytics", "conversations", "list"],
+        &["Conversations", "No conversations found"],
+    );
 }
 
 #[test]

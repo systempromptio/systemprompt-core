@@ -100,6 +100,22 @@ pub fn init_gateway_bootstrap(gateway_yaml: &str) -> TestBootstrap {
     init_bootstrap_inner_with(None, None, Some(gateway_yaml))
 }
 
+// Bootstrap carrying both halves of the AI configuration, which are separate
+// files and separately necessary. The profile's `providers:` registry supplies
+// connectivity; the services config's `ai.providers` supplies the deployment
+// policy that says which of them are enabled. `AiService::new` needs both — the
+// registry alone yields "No AI providers are enabled", because the policy map
+// is what it iterates. Anything constructing an `AiService`, and anything
+// reaching one through a command, needs this rather than
+// `init_gateway_bootstrap`.
+//
+// The api_key secret is deliberately not required: a missing one is a warning
+// and the provider is still built with an empty key, which is what lets a test
+// point the endpoint at a closed port or a stub.
+pub fn init_ai_bootstrap(gateway_yaml: &str, services_config_yaml: &str) -> TestBootstrap {
+    init_bootstrap_inner_with(None, Some(services_config_yaml), Some(gateway_yaml))
+}
+
 fn init_bootstrap() -> TestBootstrap {
     init_bootstrap_inner(None, None)
 }

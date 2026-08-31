@@ -24,22 +24,31 @@ import { fmtDurationLong } from "/assets/js/utils/format.js";
  * returned to the opener on close.
  */
 
-const WIRE_PROTOCOLS = ["anthropic", "openai-chat", "openai-responses", "gemini"];
+// These are `ApiSurface` tags, which is what `host.model_protocols` carries and
+// what `hostModelFilterSet` parses back. They are NOT `ProviderProtocol` tags:
+// this list once held "openai-chat"/"openai-responses", which matched nothing
+// coming from the bridge (the surface tag is plain "openai"), so the OpenAI
+// boxes rendered unchecked while OpenAI was on, and ticking one saved a filter
+// the bridge then dropped as unparseable.
+//
+// Only the advertised surfaces get a checkbox. `backend` is never advertised to
+// a client, so there is nothing for a user to decide about it -- but it can
+// still be in effect, and `_captureFilter` carries it through untouched rather
+// than silently dropping it on save.
+const WIRE_SURFACES = ["anthropic", "openai", "gemini"];
 
 // The wire name is what the filter actually stores, so it stays on screen -- but
-// as the secondary line. A checkbox whose whole accessible name is
-// "openai-responses" tells a user nothing about what they are turning off.
-const PROTO_L10N = {
+// as the secondary line. A checkbox whose whole accessible name is "openai"
+// tells a user nothing about what they are turning off.
+const SURFACE_L10N = {
   "anthropic": "proto-anthropic",
-  "openai-chat": "proto-openai-chat",
-  "openai-responses": "proto-openai-responses",
+  "openai": "proto-openai",
   "gemini": "proto-gemini",
 };
 
-const PROTO_LABEL = {
+const SURFACE_LABEL = {
   "anthropic": "Claude models",
-  "openai-chat": "OpenAI chat models",
-  "openai-responses": "OpenAI reasoning models",
+  "openai": "OpenAI models",
   "gemini": "Gemini models",
 };
 
@@ -199,11 +208,17 @@ export class SpAgentDrawer extends SpElement {
 
   _captureFilter() {
     const allEl = this.querySelector("[data-model-all]");
+    const host = this._host();
+    const saved = (host && Array.isArray(host.model_protocols)) ? host.model_protocols : [];
+    // Surfaces with no checkbox are not the user's to change here, so they
+    // survive the save rather than being deleted by omission.
+    const unshown = saved.filter((tag) => !WIRE_SURFACES.includes(tag));
     this.filterDraft = {
       all: allEl ? allEl.checked : false,
       protocols: Array.from(this.querySelectorAll("[data-proto]"))
         .filter((el) => el.checked)
-        .map((el) => el.dataset.proto),
+        .map((el) => el.dataset.proto)
+        .concat(unshown),
     };
   }
 
@@ -512,8 +527,8 @@ export class SpAgentDrawer extends SpElement {
     const allModels = draft ? draft.all : saved.length === 0;
     const overridden = !!host.model_protocols_overridden;
 
-    const checks = WIRE_PROTOCOLS.map((p) =>
-      `<label class="sp-drawer__proto"><input type="checkbox" data-change="proto" data-proto="${escapeHtml(p)}" ${effective.includes(p) ? "checked" : ""}> <span class="sp-drawer__proto-name">${escapeHtml(t(PROTO_L10N[p]) || PROTO_LABEL[p])}</span> <span class="sp-u-mono sp-u-muted">${escapeHtml(p)}</span></label>`
+    const checks = WIRE_SURFACES.map((p) =>
+      `<label class="sp-drawer__proto"><input type="checkbox" data-change="proto" data-proto="${escapeHtml(p)}" ${effective.includes(p) ? "checked" : ""}> <span class="sp-drawer__proto-name">${escapeHtml(t(SURFACE_L10N[p]) || SURFACE_LABEL[p])}</span> <span class="sp-u-mono sp-u-muted">${escapeHtml(p)}</span></label>`
     ).join("");
 
     const modelsBody = compatible.length

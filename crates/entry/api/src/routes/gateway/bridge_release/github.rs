@@ -41,14 +41,16 @@ pub(super) async fn resolve_release(
     if let Some(pinned) = spec.pinned_version.as_deref() {
         let tag = format!("{}{pinned}", spec.tag_prefix);
         let url = format!(
-            "https://api.github.com/repos/{}/releases/tags/{tag}",
+            "{}/repos/{}/releases/tags/{tag}",
+            spec.api_base(),
             spec.repo
         );
         return fetch_json::<GhRelease>(spec, &url).await;
     }
 
     let url = format!(
-        "https://api.github.com/repos/{}/releases?per_page={RELEASE_PAGE_SIZE}",
+        "{}/repos/{}/releases?per_page={RELEASE_PAGE_SIZE}",
+        spec.api_base(),
         spec.repo
     );
     let releases = fetch_json::<Vec<GhRelease>>(spec, &url).await?;

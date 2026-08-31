@@ -81,6 +81,23 @@ generator-config-db = { max-threads = 1 }
 api-health-monitor-db = { max-threads = 1 }
 cli-cloud-harness = { max-threads = 1 }
 cloud-checkout-port = { max-threads = 1 }
+# Why: `ApprovalRepository::expire_due` is an unscoped UPDATE over every
+# overdue pending row, so it sweeps other tests' fixtures. Without this the
+# deadline test passes by reading a status column another test set, rather
+# than by exercising the deadline check it exists for.
+approval-sweep-db = { max-threads = 1 }
+
+# Why: `reconcile` and `ingest_config` operate over every `gateway_route` rule,
+# not just the one under test, so two of these interleaved delete each other's
+# grants. The file carried a `static SERIAL: Mutex` for this, which cannot work
+# — nextest runs each test in its own process, so that lock never contends.
+gateway-reconcile-db = { max-threads = 1 }
+
+# Why: `db_migrate_repair_db` tampers with checksums in `extension_migrations`
+# on the shared database, and `db_app_ctx` asserts that re-installing an
+# installed schema is a no-op. That assertion is false for as long as a
+# tampered checksum is outstanding, so the two must not overlap.
+cli-migration-ledger-db = { max-threads = 1 }
 
 [[profile.default.overrides]]
 filter = 'package(systemprompt-database-tests) and test(/repository::cleanup::/)'
@@ -169,10 +186,34 @@ test-group = 'oauth-clients-db'
 [[profile.ci.overrides]]
 filter = 'package(systemprompt-oauth-tests) and test(/repository::/)'
 test-group = 'oauth-clients-db'
+
+[[profile.default.overrides]]
+filter = 'package(systemprompt-security-tests) and test(/policy_approval::/)'
+test-group = 'approval-sweep-db'
+
+[[profile.default.overrides]]
+filter = 'package(systemprompt-security-integration-tests) and test(/gateway_reconcile_tests::/)'
+test-group = 'gateway-reconcile-db'
+
+[[profile.default.overrides]]
+filter = 'package(systemprompt-cli-tests) and (test(/infrastructure::db_app_ctx::/) or test(/infrastructure::db_migrate_repair_db::/))'
+test-group = 'cli-migration-ledger-db'
 
 [[profile.default.overrides]]
 filter = 'package(systemprompt-users-tests) and test(/(repository::federated_identity|repository::device_cert|services::device_cert_service|services::user_service)::/)'
 test-group = 'users-db'
+
+[[profile.ci.overrides]]
+filter = 'package(systemprompt-security-tests) and test(/policy_approval::/)'
+test-group = 'approval-sweep-db'
+
+[[profile.ci.overrides]]
+filter = 'package(systemprompt-security-integration-tests) and test(/gateway_reconcile_tests::/)'
+test-group = 'gateway-reconcile-db'
+
+[[profile.ci.overrides]]
+filter = 'package(systemprompt-cli-tests) and (test(/infrastructure::db_app_ctx::/) or test(/infrastructure::db_migrate_repair_db::/))'
+test-group = 'cli-migration-ledger-db'
 
 [[profile.ci.overrides]]
 filter = 'package(systemprompt-users-tests) and test(/(repository::federated_identity|repository::device_cert|services::device_cert_service|services::user_service)::/)'
@@ -341,6 +382,18 @@ test-group = 'scheduler-jobs-db'
 [[profile.coverage.overrides]]
 filter = 'package(systemprompt-oauth-tests) and test(/repository::/)'
 test-group = 'oauth-clients-db'
+
+[[profile.coverage.overrides]]
+filter = 'package(systemprompt-security-tests) and test(/policy_approval::/)'
+test-group = 'approval-sweep-db'
+
+[[profile.coverage.overrides]]
+filter = 'package(systemprompt-security-integration-tests) and test(/gateway_reconcile_tests::/)'
+test-group = 'gateway-reconcile-db'
+
+[[profile.coverage.overrides]]
+filter = 'package(systemprompt-cli-tests) and (test(/infrastructure::db_app_ctx::/) or test(/infrastructure::db_migrate_repair_db::/))'
+test-group = 'cli-migration-ledger-db'
 
 [[profile.coverage.overrides]]
 filter = 'package(systemprompt-users-tests) and test(/(repository::federated_identity|repository::device_cert|services::device_cert_service|services::user_service)::/)'

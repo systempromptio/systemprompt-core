@@ -1,0 +1,66 @@
+/* Plugin grouping for the marketplace listing.
+ *
+ * A group is a `role="group"` <li> inside the listbox: a sticky header naming
+ * the owning plugin, then that plugin's options. The header is presentational
+ * only — the accessible name rides on `aria-label`, so it is never announced
+ * twice.
+ *
+ * Copyright (c) systemprompt.io — Business Source License 1.1.
+ * See <https://systemprompt.io> for licensing details.
+ */
+
+.sp-mkt-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-space-0-5);
+}
+
+/* Why sticky: the artifact list runs well past a screen, and a header that
+ * scrolls away leaves the reader guessing which plugin a card belongs to. */
+.sp-mkt-group__header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-space-2);
+  padding: var(--sp-space-1-5) var(--sp-space-2);
+  margin-top: var(--sp-space-1);
+  background: var(--sp-bg-elev-1);
+  border-bottom: 1px solid var(--sp-line-soft);
+  border-radius: var(--sp-corners-sm);
+}
+
+.sp-mkt-group:first-child .sp-mkt-group__header { margin-top: 0; }
+
+.sp-mkt-group__name {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--sp-muted-strong);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sp-mkt-group__count {
+  flex: none;
+  font-family: var(--sp-font-mono);
+  font-size: 10px;
+  color: var(--sp-muted);
+}
+
+.sp-mkt-group__items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-space-0-5);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sp-mkt-group__header { position: static; }
+}

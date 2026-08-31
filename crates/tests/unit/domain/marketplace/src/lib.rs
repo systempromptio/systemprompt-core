@@ -9,6 +9,8 @@ mod errors;
 #[cfg(test)]
 mod helpers;
 #[cfg(test)]
+mod keep;
+#[cfg(test)]
 mod manifest;
 #[cfg(test)]
 mod registry;
@@ -16,6 +18,8 @@ mod registry;
 mod scope;
 #[cfg(test)]
 mod service;
+#[cfg(test)]
+mod trace;
 #[cfg(test)]
 mod view;
 

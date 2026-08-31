@@ -12,6 +12,7 @@ workspace = true
 
 [dependencies]
 systemprompt-scheduler = { workspace = true }
+tokio-cron-scheduler = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-extension = { workspace = true }
 systemprompt-logging = { workspace = true }

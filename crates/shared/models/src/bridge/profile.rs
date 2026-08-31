@@ -25,6 +25,10 @@ pub struct BridgeProfileResponse {
     pub auth_scheme: String,
     #[serde(default)]
     pub models: Vec<String>,
+    // Why: `None` leaves the choice to the client, which is the behaviour
+    // before this field existed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub default_model: Option<String>,
     #[serde(default)]
     pub organization_uuid: Option<String>,
     #[serde(default)]
@@ -72,18 +76,32 @@ pub fn provider_health(
         .collect()
 }
 
+#[derive(Debug, Clone)]
+pub struct BridgeProfileParams<'a> {
+    pub inference_gateway_base_url: String,
+    pub auth_scheme: String,
+    pub organization_uuid: Option<String>,
+    pub default_model: Option<String>,
+    pub registry: &'a ProviderRegistry,
+}
+
 #[must_use]
 pub fn build(
-    inference_gateway_base_url: String,
-    auth_scheme: String,
-    organization_uuid: Option<String>,
-    registry: &ProviderRegistry,
+    params: BridgeProfileParams<'_>,
     secret_present: impl Fn(&str) -> bool,
 ) -> BridgeProfileResponse {
+    let BridgeProfileParams {
+        inference_gateway_base_url,
+        auth_scheme,
+        organization_uuid,
+        default_model,
+        registry,
+    } = params;
     BridgeProfileResponse {
         inference_gateway_base_url,
         auth_scheme,
         models: registry.advertised_model_ids(&[ApiSurface::Anthropic]),
+        default_model,
         organization_uuid,
         providers: provider_health(registry, secret_present),
     }

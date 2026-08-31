@@ -16,6 +16,9 @@ systemprompt-marketplace = { workspace = true }
 systemprompt-models = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 systemprompt-security = { workspace = true }
+uuid = { workspace = true }
+sqlx = { workspace = true }
+systemprompt-database = { workspace = true }
 systemprompt-config = { workspace = true }
 serde_json = { workspace = true }
 sha2 = { workspace = true }

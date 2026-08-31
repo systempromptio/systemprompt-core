@@ -68,6 +68,7 @@ register_host_sync!(crate::install::mdm::ClaudeDesktopMdmSync);
 register_host_sync!(crate::integration::cowork_plugins::CoworkSync);
 register_host_sync!(crate::integration::cowork_artifacts::CoworkArtifactsSync);
 register_host_sync!(crate::integration::codex_cli::CodexCliSync);
+register_host_sync!(crate::integration::hermes::HermesSync);
 register_host_sync!(crate::integration::claude_code_cli::ClaudeCodeCliSync);
 
 static REGISTRY: LazyLock<Vec<&'static dyn HostSync>> = LazyLock::new(|| {

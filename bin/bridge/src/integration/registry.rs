@@ -69,6 +69,7 @@ macro_rules! register_host_app {
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 register_host_app!(super::claude_desktop::CLAUDE_DESKTOP_HOST);
 register_host_app!(super::codex_cli::CODEX_CLI_HOST);
+register_host_app!(super::hermes::HERMES_HOST);
 #[cfg(feature = "dev-stub-host")]
 register_host_app!(super::stub_host::STUB_HOST);
 

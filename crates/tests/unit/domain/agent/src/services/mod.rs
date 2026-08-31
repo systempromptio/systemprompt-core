@@ -5,6 +5,7 @@
 //! - Agent orchestration (events, event_bus, status, validation)
 
 mod a2a_server;
+mod a2a_server_server;
 mod agent_orchestration;
 mod agent_token_validation;
 mod artifact_publishing;

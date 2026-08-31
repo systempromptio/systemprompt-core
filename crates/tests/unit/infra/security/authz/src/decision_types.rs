@@ -28,6 +28,7 @@ fn decision_tag_from_authz_decision() {
     let deny = AuthzDecision::Deny {
         reason: DenyReason::HookUnavailable {
             policy: "test".to_owned(),
+            detail: String::new(),
         },
         policy: "test".to_owned(),
     };
@@ -48,6 +49,7 @@ fn decision_deny_tag() {
     let d = Decision::Deny {
         reason: DenyReason::HookUnavailable {
             policy: "p".to_owned(),
+            detail: String::new(),
         },
     };
     assert_eq!(d.tag(), DecisionTag::Deny);
@@ -119,6 +121,7 @@ fn deny_reason_unknown_entity_display() {
 fn deny_reason_hook_unavailable_display() {
     let r = DenyReason::HookUnavailable {
         policy: "authz_rule_based".to_owned(),
+        detail: String::new(),
     };
     let s = r.to_string();
     assert!(s.contains("authz_rule_based"), "got: {s}");
@@ -187,6 +190,7 @@ fn deny_reason_rate_limit_exceeded_display() {
 fn deny_reason_serde_roundtrip_hook_unavailable() {
     let r = DenyReason::HookUnavailable {
         policy: "authz_default_deny".to_owned(),
+        detail: String::new(),
     };
     let s = serde_json::to_string(&r).unwrap();
     let back: DenyReason = serde_json::from_str(&s).unwrap();

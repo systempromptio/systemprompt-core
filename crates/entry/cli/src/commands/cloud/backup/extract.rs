@@ -18,7 +18,7 @@ const ALLOWED_DIRS: &[&str] = &[
     "agents", "skills", "content", "mcp", "ai", "config", "profiles",
 ];
 
-pub(super) fn extract_tarball(data: &[u8], target: &Path) -> Result<usize> {
+pub fn extract_tarball(data: &[u8], target: &Path) -> Result<usize> {
     let decoder = GzDecoder::new(data);
     let mut archive = Archive::new(decoder);
     let mut count = 0;

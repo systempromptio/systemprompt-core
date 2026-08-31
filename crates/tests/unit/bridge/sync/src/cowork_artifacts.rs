@@ -38,6 +38,7 @@ fn artifact(id: &str, version: &str) -> ArtifactEntry {
             "0000000000000000000000000000000000000000000000000000000000000000",
         )
         .unwrap(),
+        plugins: Vec::new(),
     }
 }
 
@@ -103,26 +104,89 @@ fn file_sink_upserts_on_version_bump() {
     assert_eq!(library["pipeline"]["version"], serde_json::json!("2"));
 }
 
+// Was `file_sink_preserves_foreign_entries`, which pinned the opposite. Merging
+// meant the store only ever grew: an artifact renamed upstream left its old id
+// behind forever, so the GUI listed both and the count drifted from the
+// manifest. The store is a projection of the manifest, so a key the manifest
+// stopped naming is gone.
 #[test]
-fn file_sink_preserves_foreign_entries() {
+fn file_sink_drops_entries_the_manifest_no_longer_carries() {
     let dir = tempdir();
     let store = dir.join("cowork_artifacts");
     fs::create_dir_all(&store).unwrap();
-    fs::write(
-        store.join(LIBRARY_STORE_FILE),
-        serde_json::to_vec(&serde_json::json!({ "foreign": { "keep": true } })).unwrap(),
+    write_artifacts(
+        &store,
+        &[&FileSink],
+        &[
+            artifact("salesforce-opportunities", "1"),
+            artifact("pipeline", "1"),
+        ],
     )
-    .unwrap();
+    .expect("seed");
 
     write_artifacts(&store, &[&FileSink], &[artifact("pipeline", "1")]).expect("write");
 
     let library: serde_json::Value =
         serde_json::from_slice(&fs::read(store.join(LIBRARY_STORE_FILE)).unwrap()).unwrap();
     assert!(
-        library.get("foreign").is_some(),
-        "unmanaged entry preserved"
+        library.get("salesforce-opportunities").is_none(),
+        "renamed-away id dropped"
     );
-    assert!(library.get("pipeline").is_some(), "managed entry upserted");
+    assert!(library.get("pipeline").is_some(), "manifest entry kept");
+}
+
+// The prune must not fire on an empty set: `write_artifacts` returns early and
+// warns, because an empty artifact list signals an upstream scoping bug, not an
+// instruction to wipe someone's library.
+#[test]
+fn empty_manifest_preserves_the_store() {
+    let dir = tempdir();
+    let store = dir.join("cowork_artifacts");
+    fs::create_dir_all(&store).unwrap();
+    write_artifacts(&store, &[&FileSink], &[artifact("pipeline", "1")]).expect("seed");
+
+    write_artifacts(&store, &[&FileSink], &[]).expect("empty");
+
+    let library: serde_json::Value =
+        serde_json::from_slice(&fs::read(store.join(LIBRARY_STORE_FILE)).unwrap()).unwrap();
+    assert!(library.get("pipeline").is_some(), "store untouched");
+}
+
+// The version marker hashes only the ids the manifest carries, so it matches on
+// a store that is also holding strays. Without `is_current` such an install
+// takes the "up to date, skipping" path forever and never sheds them.
+#[test]
+fn stale_store_is_repaired_even_when_the_version_marker_matches() {
+    let dir = tempdir();
+    let store = dir.join("cowork_artifacts");
+    fs::create_dir_all(&store).unwrap();
+    write_artifacts(&store, &[&FileSink], &[artifact("pipeline", "1")]).expect("seed");
+    let marker = version_marker(&store);
+
+    // Exactly the shape of a real drifted install: an extra record beside a
+    // version marker that still agrees with the manifest.
+    let mut library: serde_json::Map<String, serde_json::Value> =
+        serde_json::from_slice(&fs::read(store.join(LIBRARY_STORE_FILE)).unwrap()).unwrap();
+    library.insert(
+        "salesforce-opportunities".into(),
+        serde_json::json!({ "name": "Pipeline — Open Deals" }),
+    );
+    fs::write(
+        store.join(LIBRARY_STORE_FILE),
+        serde_json::to_vec(&library).unwrap(),
+    )
+    .unwrap();
+
+    write_artifacts(&store, &[&FileSink], &[artifact("pipeline", "1")]).expect("resync");
+
+    assert_eq!(marker, version_marker(&store), "same manifest, same marker");
+    let library: serde_json::Value =
+        serde_json::from_slice(&fs::read(store.join(LIBRARY_STORE_FILE)).unwrap()).unwrap();
+    assert!(
+        library.get("salesforce-opportunities").is_none(),
+        "stray dropped despite the matching marker"
+    );
+    assert!(library.get("pipeline").is_some(), "manifest entry kept");
 }
 
 #[test]
@@ -137,6 +201,30 @@ fn seed_staging_writes_one_record_per_artifact() {
     assert!(staging.join("pipeline.json").is_file());
     assert!(staging.join("accounts.json").is_file());
     assert!(SeedStaging.is_materialized(&store));
+}
+
+// The seed skill copies whatever is staged into the library, so a record left
+// here from a manifest that no longer names it would re-introduce the very id
+// FileSink just dropped.
+#[test]
+fn seed_staging_drops_records_the_manifest_no_longer_carries() {
+    let dir = tempdir();
+    let store = dir.join("cowork_artifacts");
+    write_artifacts(
+        &store,
+        &[&SeedStaging],
+        &[
+            artifact("salesforce-opportunities", "1"),
+            artifact("pipeline", "1"),
+        ],
+    )
+    .expect("seed");
+
+    write_artifacts(&store, &[&SeedStaging], &[artifact("pipeline", "1")]).expect("write");
+
+    let staging = store.join(STAGING_SUBDIR);
+    assert!(!staging.join("salesforce-opportunities.json").exists());
+    assert!(staging.join("pipeline.json").is_file());
 }
 
 #[test]

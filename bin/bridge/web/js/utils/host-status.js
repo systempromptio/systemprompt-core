@@ -128,6 +128,17 @@ export function hostStatus(host, snapshot) {
       action: open,
     };
   }
+  // Why: `Unknown` is the state before the first proxy probe lands, not a
+  // finding. Reporting it as "Not working" told every healthy agent it was
+  // broken for the first second or so after launch.
+  if (proxyState === "Unknown") {
+    return {
+      state: "unknown",
+      label: t("agent-state-checking") || "Checking…",
+      reason: "",
+      action: null,
+    };
+  }
   return {
     state: "down",
     label: t("agent-state-down") || "Not working",

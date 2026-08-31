@@ -79,8 +79,23 @@ function item(id, name, summary, path, source) {
 // and the list beside it cannot disagree — the contradiction the review caught
 // in its screenshot.
 function defaultListing() {
-  const skills = SKILL_NAMES.slice(0, state.skill_count || 0).map((n) =>
-    item(n, n, `The ${n.replace(/-/g, " ")} skill`, `${state.plugins_dir}\\skills\\${n}`, "org"));
+  const owners = PLUGIN_NAMES.slice(0, state.plugin_count || 0);
+  // Round-robin ownership so the grouped listing has more than one section to
+  // render, and so the last skill lands in two groups — the shared-ownership
+  // case, which renders once per owner.
+  const ownersFor = (i) => (owners.length === 0
+    ? []
+    : (i === (state.skill_count || 0) - 1 && owners.length > 1
+      ? [owners[0], owners[1]]
+      : [owners[i % owners.length]]));
+  const skills = SKILL_NAMES.slice(0, state.skill_count || 0).map((n, i) => ({
+    ...item(n, n, `The ${n.replace(/-/g, " ")} skill`, `${state.plugins_dir}\\skills\\${n}`, "org"),
+    plugins: ownersFor(i),
+  }));
+  const artifacts = ["business-overview", "pipeline-open-deals", "recent-activity"].map((n, i) => ({
+    ...item(n, n.replace(/-/g, " "), `The ${n.replace(/-/g, " ")} dashboard`, `${state.plugins_dir}\\artifacts\\library.json`, "tenant"),
+    plugins: ownersFor(i),
+  }));
   const plugins = PLUGIN_NAMES.slice(0, state.plugin_count || 0).map((n, i) => ({
     ...item(n, n, `${n} plugin`, `${state.plugins_dir}\\${n}`, "org"),
     version: `1.${i}.0`,
@@ -99,7 +114,7 @@ function defaultListing() {
   const agents = Array.from({ length: state.agent_count || 0 }, (_, i) =>
     item(`agent-${i + 1}`, `agent-${i + 1}`, null, `${state.plugins_dir}\\agents\\agent-${i + 1}`, "org"));
   return {
-    plugins, skills, agents, hooks: [], mcp, artifacts: [],
+    plugins, skills, agents, hooks: [], mcp, artifacts,
     plugins_dir: state.plugins_dir || null,
     last_sync_diff: { installed: [], updated: [], removed: [] },
   };

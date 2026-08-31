@@ -32,6 +32,7 @@ impl AuthzDecisionHook for DenyHook {
         AuthzDecision::Deny {
             reason: DenyReason::HookUnavailable {
                 policy: "registry_test_deny".into(),
+                detail: String::new(),
             },
             policy: "registry_test_deny".into(),
         }

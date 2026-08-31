@@ -12,8 +12,10 @@
 //! Each test scopes itself to a unique provider/default-provider so runs
 //! against the shared `DATABASE_URL` never collide, and cleans up its rows.
 //! The exact reconcile prunes every `gateway_route` row outside its set, so
-//! the tests here run one at a time behind `SERIAL` — two of them interleaved
-//! would delete each other's rows.
+//! two of these interleaved delete each other's rows. They are serialised by
+//! the `gateway-reconcile-db` nextest group, not in-process: nextest runs each
+//! test in its own process, so a `static Mutex` here would never contend and
+//! would only look like protection.
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -32,13 +34,9 @@ use systemprompt_security::authz::{
     reconcile_gateway_entities_exact,
 };
 use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
-use tokio::sync::{Mutex, MutexGuard};
 use uuid::Uuid;
 
-static SERIAL: Mutex<()> = Mutex::const_new(());
-
 struct Fixture {
-    _serial: MutexGuard<'static, ()>,
     db: DbPool,
     pg: Arc<PgPool>,
     provider: String,
@@ -46,7 +44,6 @@ struct Fixture {
 }
 
 async fn setup() -> Fixture {
-    let serial = SERIAL.lock().await;
     let url = fixture_database_url().expect("DATABASE_URL");
     let db = fixture_db_pool(&url).await.expect("connect test database");
     let pg = db.pool_arc().expect("read pool");
@@ -56,7 +53,6 @@ async fn setup() -> Fixture {
     let default_route_id = synthesize_route_id("*", &provider);
     cleanup(&pg, &default_route_id).await;
     Fixture {
-        _serial: serial,
         db,
         pg,
         provider,

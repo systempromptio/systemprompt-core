@@ -1,56 +1,13 @@
 import { SpElement, reactive, escapeHtml } from "/assets/js/components/sp-element.js";
-import { t } from "/assets/js/i18n.js";
 import { handleRovingKey, syncRoving } from "/assets/js/utils/roving.js";
-
-const KIND_EMPTY_L10N = {
-  plugins: "marketplace-empty-plugins",
-  skills: "marketplace-empty-skills",
-  hooks: "marketplace-empty-hooks",
-  mcp: "marketplace-empty-mcp",
-  agents: "marketplace-empty-agents",
-  artifacts: "marketplace-empty-artifacts",
-};
-
-const KIND_EMPTY_TITLE = {
-  plugins: "No plugins yet",
-  skills: "No skills yet",
-  hooks: "No hooks yet",
-  mcp: "No MCP servers yet",
-  agents: "No agents yet",
-  artifacts: "No artifacts yet",
-};
-
-const CHANGE_L10N = {
-  installed: "marketplace-change-installed",
-  updated: "marketplace-change-updated",
-  removed: "marketplace-change-removed",
-};
-
-const CHANGE_LABEL = {
-  installed: "New",
-  updated: "Updated",
-  removed: "Removed",
-};
-
-function changeBadge(change) {
-  if (!change || !CHANGE_LABEL[change]) { return ""; }
-  const label = t(CHANGE_L10N[change]) || CHANGE_LABEL[change];
-  return `<span class="sp-mkt-chip sp-mkt-chip--change" data-change-kind="${change}">${escapeHtml(label)}</span>`;
-}
-
-function filterItems(items, search) {
-  if (!search) { return items; }
-  const q = search.toLowerCase();
-  return items.filter((it) =>
-    (it.name || "").toLowerCase().includes(q) ||
-    (it.id || "").toLowerCase().includes(q) ||
-    (it.summary || "").toLowerCase().includes(q));
-}
+import { changeBadge, filterItems, groupItems } from "/assets/js/components/marketplace-list-groups.js";
+import { placeholderMarkup } from "/assets/js/components/marketplace-list-placeholder.js";
 
 export class SpMarketplaceList extends SpElement {
   constructor() {
     super();
     this.items = [];
+    this.pluginNames = {};
     this.search = "";
     this.selectedId = null;
     this.kind = "plugins";
@@ -111,68 +68,68 @@ export class SpMarketplaceList extends SpElement {
 
   afterRender() { this._syncSelection(); }
 
-  // Loading, empty and broken used to render the same line. They are three
-  // different situations and the only one the user can act on is the last two.
   _placeholder() {
-    if (this.state === "loading" || this.state === "idle") {
-      return `<ul class="sp-mkt-items" data-state="probing" aria-hidden="true">${
-        [0, 1, 2, 3].map(() => `<li class="sp-mkt-item sp-mkt-item--skeleton" aria-hidden="true">
-          <div class="sp-mkt-item__row"><span class="sp-mkt-item__name">&nbsp;</span></div>
-          <div class="sp-mkt-item__meta">&nbsp;</div>
-        </li>`).join("")
-      }</ul>`;
-    }
-    if (this.state === "error") {
-      return `<ul class="sp-mkt-items"><li class="sp-mkt-empty">
-        <span class="sp-mkt-empty__title">${escapeHtml(t("marketplace-error-title") || "Could not load this list")}</span>
-        <span class="sp-mkt-empty__sub">${escapeHtml(this.error || "")}</span>
-        <button class="sp-btn-ghost" type="button" data-action="retry">${escapeHtml(t("marketplace-retry") || "Try again")}</button>
-      </li></ul>`;
-    }
-    if (this.search) {
-      return `<ul class="sp-mkt-items"><li class="sp-mkt-empty">
-        <span class="sp-mkt-empty__title">${escapeHtml(t("marketplace-no-matches") || "No matches")}</span>
-      </li></ul>`;
-    }
-    const neverSynced = this.reason === "never-synced";
-    return `<ul class="sp-mkt-items"><li class="sp-mkt-empty--with-sync">
-      <span class="sp-mkt-empty__title">${escapeHtml(t(KIND_EMPTY_L10N[this.kind]) || KIND_EMPTY_TITLE[this.kind]
-        || t("marketplace-empty-generic") || "Nothing here yet")}</span>
-      <span class="sp-mkt-empty__sub">${escapeHtml(
-        neverSynced
-          ? (t("marketplace-empty-never-synced") || "Sync to pull what your account already has.")
-          : (t("marketplace-empty-synced") || "Your last sync did not include anything of this kind."))}</span>
-      ${neverSynced
-        ? `<button class="sp-btn-primary" type="button" data-action="sync">${escapeHtml(t("sync-button") || "Sync now")}</button>`
-        : ""}
-    </li></ul>`;
+    return placeholderMarkup({
+      state: this.state,
+      error: this.error,
+      search: this.search,
+      kind: this.kind,
+      reason: this.reason,
+    });
+  }
+
+  _option(it, i, groupKey) {
+    const sourceChip = it.source
+      ? `<span class="sp-mkt-chip">${escapeHtml(it.source)}</span>`
+      : "";
+    const changeChip = changeBadge(it.change);
+    const meta = it.summary ? `<div class="sp-mkt-item__meta">${escapeHtml(it.summary)}</div>` : "";
+    const chipsRow = sourceChip ? `<div class="sp-mkt-item__chips">${sourceChip}</div>` : "";
+    const removedClass = it.change === "removed" ? " sp-mkt-item--removed" : "";
+    // The DOM id must stay unique: an item shipped by two plugins renders once
+    // per group, and duplicate ids would break aria-activedescendant.
+    const domId = groupKey
+      ? `sp-mkt-item-${escapeHtml(groupKey)}-${escapeHtml(it.id)}`
+      : `sp-mkt-item-${escapeHtml(it.id)}`;
+    return `
+      <li class="sp-mkt-item${removedClass}" role="option" id="${domId}" data-id="${escapeHtml(it.id)}" aria-selected="false" tabindex="-1" style="--sp-mkt-item-i: ${Math.min(i, 8)}" data-action="select-item">
+        <div class="sp-mkt-item__row">
+          <span class="sp-mkt-item__name">${escapeHtml(it.name || it.id)}</span>
+          ${changeChip}
+        </div>
+        ${meta}
+        ${chipsRow}
+      </li>
+    `;
   }
 
   render() {
     if (this.state !== "ok") { return this._placeholder(); }
     const items = filterItems(this.items || [], this.search);
     if (items.length === 0) { return this._placeholder(); }
-    return `<ul class="sp-mkt-items" id="sp-mkt-items" role="listbox" data-l10n-aria="marketplace-items-aria" aria-label="Items in this category">${items.map((it, i) => {
-      const sourceChip = it.source
-        ? `<span class="sp-mkt-chip">${escapeHtml(it.source)}</span>`
-        : "";
-      const changeChip = changeBadge(it.change);
-      const meta = it.summary ? `<div class="sp-mkt-item__meta">${escapeHtml(it.summary)}</div>` : "";
-      const chipsRow = sourceChip ? `<div class="sp-mkt-item__chips">${sourceChip}</div>` : "";
-      const removedClass = it.change === "removed" ? " sp-mkt-item--removed" : "";
+    const open = `<ul class="sp-mkt-items" id="sp-mkt-items" role="listbox" data-l10n-aria="marketplace-items-aria" aria-label="Items in this category">`;
+    const groups = groupItems(items, this.pluginNames || {});
+    // One unnamed group means nothing here has an owner (plugins, MCP servers,
+    // an install synced before ownership rode on the manifest). A single
+    // "Ungrouped" header over the whole list is noise, so render flat.
+    if (groups.length === 1 && groups[0].key === "") {
+      return `${open}${items.map((it, i) => this._option(it, i, "")).join("")}</ul>`;
+    }
+    let i = 0;
+    return `${open}${groups.map((g) => {
+      const options = g.items.map((it) => this._option(it, i++, g.key)).join("");
       return `
-        <li class="sp-mkt-item${removedClass}" role="option" id="sp-mkt-item-${escapeHtml(it.id)}" data-id="${escapeHtml(it.id)}" aria-selected="false" tabindex="-1" style="--sp-mkt-item-i: ${Math.min(i, 8)}" data-action="select-item">
-          <div class="sp-mkt-item__row">
-            <span class="sp-mkt-item__name">${escapeHtml(it.name || it.id)}</span>
-            ${changeChip}
+        <li class="sp-mkt-group" role="group" aria-label="${escapeHtml(g.label)}">
+          <div class="sp-mkt-group__header">
+            <span class="sp-mkt-group__name">${escapeHtml(g.label)}</span>
+            <span class="sp-mkt-group__count">${g.items.length}</span>
           </div>
-          ${meta}
-          ${chipsRow}
+          <ul class="sp-mkt-group__items" role="none">${options}</ul>
         </li>
       `;
     }).join("")}</ul>`;
   }
 }
 
-reactive(SpMarketplaceList.prototype, ["items", "search", "kind", "state", "error", "reason"]);
+reactive(SpMarketplaceList.prototype, ["items", "pluginNames", "search", "kind", "state", "error", "reason"]);
 customElements.define("sp-marketplace-list", SpMarketplaceList);

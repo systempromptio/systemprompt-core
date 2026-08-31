@@ -17,6 +17,17 @@ use crate::gui::{GuiApp, emit};
 
 #[tracing::instrument(level = "info", skip(app))]
 pub(crate) fn on_gateway_probe_requested(app: &mut GuiApp, reply_to: ReplyId) {
+    // Why: the probe is an idempotent read, issued from the tick loop, from
+    // wake-from-sleep, after login, after a gateway save, and from four places
+    // in the UI. Starting a second one used to cancel the first, and the loser
+    // reported "unreachable: probe cancelled" over a gateway that was fine.
+    // Overlapping callers now join the answer already on its way.
+    if app.state.gateway_probe_in_flight() {
+        if let Some(id) = reply_to {
+            emit::send_reply(app, id, json!({ "inFlight": true }), true);
+        }
+        return;
+    }
     app.state.mark_probing();
     app.refresh_ui();
     emit::emit_gateway_changed(app);
@@ -25,9 +36,21 @@ pub(crate) fn on_gateway_probe_requested(app: &mut GuiApp, reply_to: ReplyId) {
 
 pub(crate) fn on_gateway_probe_finished(
     app: &mut GuiApp,
-    outcome: GatewayProbeOutcome,
+    outcome: Option<GatewayProbeOutcome>,
     reply_to: ReplyId,
 ) {
+    let Some(outcome) = outcome else {
+        // Why: a cancelled probe learned nothing. It must not alarm, and it
+        // must not overwrite the answer the last real probe left behind.
+        app.state.clear_cancel(CancelScope::GatewayProbe);
+        app.state.abandon_probe();
+        app.refresh_ui();
+        emit::emit_gateway_changed(app);
+        if let Some(id) = reply_to {
+            emit::send_reply(app, id, json!({ "state": "cancelled" }), true);
+        }
+        return;
+    };
     let bridge_result = match &outcome.status {
         GatewayStatus::Reachable { latency_ms } => Ok(json!({
             "state": "reachable",
@@ -44,16 +67,10 @@ pub(crate) fn on_gateway_probe_finished(
             ErrorCode::Unreachable,
             reason.clone(),
         )),
-        GatewayStatus::Probing => Err(BridgeError::new(
-            ErrorScope::Gateway,
-            ErrorCode::Internal,
-            "probe still in flight",
-        )),
-        GatewayStatus::Unknown => Err(BridgeError::new(
-            ErrorScope::Gateway,
-            ErrorCode::Internal,
-            "probe outcome unknown",
-        )),
+        // Why: neither is a failure -- they are "no answer yet". Reporting
+        // them as errors would put a red toast on the absence of a finding.
+        GatewayStatus::Probing => Ok(json!({ "state": "probing" })),
+        GatewayStatus::Unknown => Ok(json!({ "state": "unknown" })),
     };
     app.state.clear_cancel(CancelScope::GatewayProbe);
     app.state.apply_probe(outcome);
@@ -111,19 +128,18 @@ fn announce(app: &mut GuiApp) {
 }
 
 pub(crate) fn spawn_probe(app: &GuiApp, reply_to: ReplyId) {
+    // Why: post-login and post-gateway-save call in here directly, and used to
+    // cancel whatever the tick loop had already started. Joining the in-flight
+    // probe gives the same answer without producing a spurious failure.
+    if app.state.gateway_probe_in_flight() {
+        return;
+    }
     let proxy = app.proxy.clone();
     let token = app.state.install_cancel(CancelScope::GatewayProbe);
     app.runtime.spawn(async move {
         let outcome = tokio::select! {
-            () = token.cancelled() => GatewayProbeOutcome {
-                status: GatewayStatus::Unreachable {
-                    reason: "probe cancelled".into(),
-                },
-                identity: None,
-                at_unix: now_unix(),
-                provider_health: Vec::new(),
-            },
-            outcome = run_probe() => outcome,
+            () = token.cancelled() => None,
+            outcome = run_probe() => Some(outcome),
         };
         proxy.send_event(UiEvent::GatewayProbeFinished { outcome, reply_to });
     });

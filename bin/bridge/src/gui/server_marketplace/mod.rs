@@ -4,7 +4,7 @@
 //! servers, and artifacts into a single [`MarketplaceListing`], then merges in
 //! items from external [`MarketplaceSource`](source::MarketplaceSource)
 //! registrations. Built-in scanners live in the `plugins` and `components`
-//! sub-modules; this file owns the serialized data model and the assembly.
+//! sub-modules; the data model lives in `types`, the assembly here.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -14,163 +14,22 @@ mod frontmatter;
 pub mod hooks;
 mod plugins;
 pub mod source;
+mod types;
 
 pub use plugins::{mark_shared_mcp, plugin_children};
+pub(crate) use types::{
+    ChangeKind, FrontmatterExtra, MarketplaceExtra, McpServerEntry, PluginManifest,
+};
+pub use types::{MarketplaceDiff, MarketplaceItem, MarketplaceListing, PluginChild};
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::PathBuf;
 
-use serde::{Deserialize, Serialize};
 
 use crate::config::paths;
 use crate::proxy::mcp_probe::McpServerAuth;
 use crate::sync::read_last_sync;
 use source::{MarketplaceCategory, MarketplaceSourceCtx, MarketplaceSourceRegistration};
-
-#[derive(Debug, Serialize, Clone, Copy, PartialEq, Eq)]
-#[serde(rename_all = "lowercase")]
-enum ChangeKind {
-    Installed,
-    Updated,
-    Removed,
-}
-
-#[derive(Debug, Serialize)]
-#[serde(untagged)]
-enum MarketplaceExtra {
-    Plugin(PluginManifest),
-    Frontmatter(FrontmatterExtra),
-    Mcp(McpServerEntry),
-    None,
-}
-
-#[derive(Debug, Serialize)]
-pub struct MarketplaceItem {
-    id: String,
-    name: String,
-    source: &'static str,
-    path: String,
-    summary: Option<String>,
-    readme: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    version: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    author: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    homepage: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    change: Option<ChangeKind>,
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    children: Vec<PluginChild>,
-    extra: MarketplaceExtra,
-}
-
-impl MarketplaceItem {
-    #[must_use]
-    pub fn new(
-        id: impl Into<String>,
-        name: impl Into<String>,
-        summary: Option<String>,
-        path: impl Into<String>,
-        source: &'static str,
-    ) -> Self {
-        Self {
-            id: id.into(),
-            name: name.into(),
-            source,
-            path: path.into(),
-            summary,
-            readme: None,
-            version: None,
-            author: None,
-            homepage: None,
-            change: None,
-            children: Vec::new(),
-            extra: MarketplaceExtra::None,
-        }
-    }
-
-    #[must_use]
-    pub fn with_provenance(
-        mut self,
-        version: Option<String>,
-        author: Option<String>,
-        homepage: Option<String>,
-    ) -> Self {
-        self.version = version;
-        self.author = author;
-        self.homepage = homepage;
-        self
-    }
-}
-
-#[derive(Debug, Serialize, Clone)]
-pub struct PluginChild {
-    pub kind: &'static str,
-    pub id: String,
-    pub name: String,
-    pub shared: bool,
-}
-
-#[derive(Debug, Serialize, Default)]
-pub struct MarketplaceDiff {
-    installed: Vec<String>,
-    updated: Vec<String>,
-    removed: Vec<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    last_applied_at: Option<String>,
-}
-
-#[derive(Debug, Serialize)]
-pub struct MarketplaceListing {
-    plugins: Vec<MarketplaceItem>,
-    skills: Vec<MarketplaceItem>,
-    hooks: Vec<MarketplaceItem>,
-    mcp: Vec<MarketplaceItem>,
-    agents: Vec<MarketplaceItem>,
-    artifacts: Vec<MarketplaceItem>,
-    plugins_dir: Option<String>,
-    last_sync_diff: MarketplaceDiff,
-}
-
-#[derive(Debug, Deserialize, Serialize, Default)]
-struct PluginManifest {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    name: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    description: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    version: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    author: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    homepage: Option<String>,
-}
-
-#[derive(Debug, Serialize)]
-struct FrontmatterExtra {
-    id: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    name: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    description: Option<String>,
-}
-
-#[derive(Debug, Deserialize, Serialize, Default)]
-struct McpServerEntry {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    proxy_url: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    upstream_url: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    command: Option<String>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    args: Vec<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    transport: Option<String>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    tools: Vec<String>,
-}
 
 pub fn build_listing(mcp_auth: &[McpServerAuth]) -> MarketplaceListing {
     let loc = paths::org_plugins_effective();
@@ -190,9 +49,27 @@ pub fn build_listing(mcp_auth: &[McpServerAuth]) -> MarketplaceListing {
             let mut agents = Vec::new();
             let mut hooks = Vec::new();
             for dir in plugins::plugin_dirs(&loc.path) {
-                skills.extend(components::list_skills(&dir.join("skills")));
-                agents.extend(components::list_agents(&dir.join("agents")));
-                hooks.extend(hooks::list_hooks(&dir.join("hooks")));
+                // Why: the dir name is the plugin id. Stamped here, before
+                // `dedup_by_id` collapses an item shipped by two plugins —
+                // first-plugin-wins would otherwise discard the second owner
+                // and file the item under one plugin only.
+                let owner = dir
+                    .file_name()
+                    .and_then(|n| n.to_str())
+                    .unwrap_or_default()
+                    .to_owned();
+                let own = |items: Vec<MarketplaceItem>| -> Vec<MarketplaceItem> {
+                    items
+                        .into_iter()
+                        .map(|mut i| {
+                            i.plugins.push(owner.clone());
+                            i
+                        })
+                        .collect()
+                };
+                skills.extend(own(components::list_skills(&dir.join("skills"))));
+                agents.extend(own(components::list_agents(&dir.join("agents"))));
+                hooks.extend(own(hooks::list_hooks(&dir.join("hooks"))));
             }
             let mcp = components::list_registry_mcp(mcp_auth);
             (
@@ -241,12 +118,26 @@ pub fn build_listing(mcp_auth: &[McpServerAuth]) -> MarketplaceListing {
     }
 }
 
+// Why: keeps the first item per id, but unions the owner lists rather than
+// dropping the loser's — an item two plugins ship belongs to both, and the
+// grouped listing must show it under each.
 fn dedup_by_id(items: Vec<MarketplaceItem>) -> Vec<MarketplaceItem> {
-    let mut seen = BTreeSet::new();
-    items
-        .into_iter()
-        .filter(|item| seen.insert(item.id.clone()))
-        .collect()
+    let mut out: Vec<MarketplaceItem> = Vec::new();
+    let mut index: BTreeMap<String, usize> = BTreeMap::new();
+    for item in items {
+        if let Some(&at) = index.get(&item.id) {
+            let kept: &mut MarketplaceItem = &mut out[at];
+            for owner in item.plugins {
+                if !kept.plugins.contains(&owner) {
+                    kept.plugins.push(owner);
+                }
+            }
+            continue;
+        }
+        index.insert(item.id.clone(), out.len());
+        out.push(item);
+    }
+    out
 }
 
 fn external_items(

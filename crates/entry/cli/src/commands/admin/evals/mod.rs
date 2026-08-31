@@ -8,12 +8,12 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-mod list;
-mod promote;
-mod replay;
-mod run;
+pub mod list;
+pub mod promote;
+pub mod replay;
+pub mod run;
 mod shared;
-mod show;
+pub mod show;
 
 use anyhow::Result;
 use clap::Subcommand;

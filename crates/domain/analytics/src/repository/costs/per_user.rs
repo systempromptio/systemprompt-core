@@ -209,7 +209,8 @@ impl CostAnalyticsRepository {
                 ctx.last_activity as "last_activity!",
                 ctx.ai_requests as "ai_requests!",
                 last_req.model,
-                last_task.agent_name
+                last_task.agent_name,
+                uc.name as "context_name?"
             FROM (
                 SELECT
                     r.context_id,
@@ -218,6 +219,7 @@ impl CostAnalyticsRepository {
                 FROM ai_requests r
                 WHERE r.user_id = $1
                   AND r.created_at < $2
+                  AND NOT r.synthetic
                   AND r.context_id IS NOT NULL
                 GROUP BY r.context_id
                 ORDER BY MAX(r.created_at) DESC
@@ -230,6 +232,7 @@ impl CostAnalyticsRepository {
                 LIMIT 1
             ) last_req ON TRUE
             LEFT JOIN agent_tasks last_task ON last_task.task_id = last_req.task_id
+            LEFT JOIN user_contexts uc ON uc.context_id = ctx.context_id
             ORDER BY ctx.last_activity DESC
             "#,
             user_id.as_str(),

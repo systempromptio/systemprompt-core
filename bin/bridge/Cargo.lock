@@ -2080,7 +2080,7 @@ dependencies = [
  "js-sys",
  "log",
  "wasm-bindgen",
- "windows-core 0.61.2",
+ "windows-core 0.62.2",
 ]
 
 [[package]]
@@ -4045,6 +4045,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "serde_yaml"
+version = "0.9.34+deprecated"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6a8b1a1a2ebf674015cc02edccce75287f1a0130d394307b36743c2f5d504b47"
+dependencies = [
+ "indexmap",
+ "itoa",
+ "ryu",
+ "serde",
+ "unsafe-libyaml",
+]
+
+[[package]]
 name = "serde_yaml_ng"
 version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4583,7 +4596,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-bridge"
-version = "0.32.0"
+version = "0.33.0"
 dependencies = [
  "apple-native-keyring-store",
  "arc-swap",
@@ -4620,6 +4633,7 @@ dependencies = [
  "semver",
  "serde",
  "serde_json",
+ "serde_yaml",
  "sha2 0.11.0",
  "systemprompt-identifiers",
  "systemprompt-models",
@@ -4650,7 +4664,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-extension"
-version = "0.41.0"
+version = "0.42.0"
 dependencies = [
  "async-trait",
  "axum",
@@ -4667,7 +4681,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-identifiers"
-version = "0.41.0"
+version = "0.42.0"
 dependencies = [
  "chrono",
  "schemars",
@@ -4679,7 +4693,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-models"
-version = "0.41.0"
+version = "0.42.0"
 dependencies = [
  "async-trait",
  "bytes",
@@ -4710,7 +4724,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-provider-contracts"
-version = "0.41.0"
+version = "0.42.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -4725,7 +4739,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-traits"
-version = "0.41.0"
+version = "0.42.0"
 dependencies = [
  "async-trait",
  "axum",

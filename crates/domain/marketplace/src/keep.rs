@@ -40,7 +40,7 @@ pub async fn keep_sets(
     candidate: &MarketplaceCandidate,
     subject: KeepSetsSubject<'_>,
 ) -> Result<EntryKeepSets, MarketplaceFilterError> {
-    let index = ParentChainIndex::load(repo, chain_sources(candidate))
+    let index = ParentChainIndex::load(repo, std::sync::Arc::new(chain_sources(candidate)))
         .await
         .map_err(|e| MarketplaceFilterError::Backend(e.to_string()))?;
 

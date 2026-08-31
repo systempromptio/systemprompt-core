@@ -47,6 +47,7 @@ fn sample_skill() -> SkillEntry {
         sha256: Sha256Digest::try_new(FAKE_SHA).unwrap(),
         instructions: "do the thing".into(),
         hosts: Vec::new(),
+        plugins: Vec::new(),
     }
 }
 

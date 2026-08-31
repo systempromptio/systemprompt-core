@@ -25,4 +25,9 @@ impl CostAnalyticsRepository {
         let pool = db.pool_arc()?;
         Ok(Self { pool })
     }
+
+    #[must_use]
+    pub const fn from_pool(pool: Arc<PgPool>) -> Self {
+        Self { pool }
+    }
 }

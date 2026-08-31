@@ -76,3 +76,63 @@ fn build_cancelled_reports_effective_defaults_and_key_presence() {
     assert!(json.contains("anthropic"), "artifact: {json}");
     assert!(json.contains("db.example.com"), "artifact: {json}");
 }
+
+// `SecretsConfiguredInfo::summary` — the one line the wizard prints to tell an
+// operator which provider keys it found. Wrong output here means someone
+// believes a key is configured when it is not, and only discovers otherwise
+// when a request fails.
+
+use systemprompt_cli::admin::setup::SecretsConfiguredInfo;
+
+fn configured(anthropic: bool, openai: bool, gemini: bool, github: bool) -> String {
+    SecretsConfiguredInfo {
+        anthropic,
+        openai,
+        gemini,
+        github,
+    }
+    .summary()
+}
+
+// Why: "None" is the load-bearing case. An empty string, or a stray comma,
+// reads as "something is configured" on a terminal.
+#[test]
+fn no_configured_secrets_reads_as_none() {
+    assert_eq!(configured(false, false, false, false), "None");
+}
+
+#[test]
+fn a_single_configured_secret_is_named_on_its_own() {
+    assert_eq!(configured(true, false, false, false), "Anthropic");
+    assert_eq!(configured(false, true, false, false), "OpenAI");
+    assert_eq!(configured(false, false, true, false), "Gemini");
+    assert_eq!(configured(false, false, false, true), "GitHub");
+}
+
+// Why: each flag must map to its own name. A copy-paste error between the four
+// near-identical arms would report the wrong provider as configured, and the
+// single-flag cases above are what pin the mapping.
+#[test]
+fn every_configured_secret_appears_exactly_once() {
+    let all = configured(true, true, true, true);
+
+    assert_eq!(all, "Anthropic, OpenAI, Gemini, GitHub");
+    for name in ["Anthropic", "OpenAI", "Gemini", "GitHub"] {
+        assert_eq!(
+            all.matches(name).count(),
+            1,
+            "{name} should be listed once in {all}"
+        );
+    }
+}
+
+#[test]
+fn only_the_configured_secrets_are_listed() {
+    let some = configured(true, false, true, false);
+
+    assert_eq!(some, "Anthropic, Gemini");
+    assert!(
+        !some.contains("OpenAI") && !some.contains("GitHub"),
+        "an unconfigured provider must not be advertised: {some}"
+    );
+}

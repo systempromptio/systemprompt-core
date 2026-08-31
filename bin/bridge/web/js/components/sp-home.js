@@ -63,7 +63,7 @@ export class SpHome extends SpElement {
 
     const update = snap.update || {};
     const version = update.version || "";
-    if (update.state === "ready") {
+    if (update.phase === "ready") {
       items.push({
         id: "update-ready",
         tone: "ok",
@@ -71,7 +71,7 @@ export class SpHome extends SpElement {
           || `Version ${version} is downloaded and ready to install.`,
         action: { label: t("rail-profile-restart-cta") || "Restart to finish", act: "update-restart" },
       });
-    } else if (update.state === "available") {
+    } else if (update.phase === "available") {
       items.push({
         id: "update-available",
         tone: "ok",
@@ -92,7 +92,11 @@ export class SpHome extends SpElement {
       });
     }
 
-    const broken = ((snap.mcp_auth) || []).filter((s) => s.state && s.state !== "Ok");
+    // `needs_sign_in` is computed once, in the bridge, from the same predicate
+    // that raises the desktop notification. Do not re-derive it from `state`
+    // here: the two answers drifted apart and this card called four healthy
+    // servers broken.
+    const broken = ((snap.mcp_auth) || []).filter((s) => s.needs_sign_in);
     if (broken.length > 0) {
       items.push({
         id: "mcp-auth",

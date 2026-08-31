@@ -234,10 +234,13 @@ fn bridge_profile_build_excludes_backend_provider() {
     };
 
     let response = profile::build(
-        "https://gw.invalid/v1".to_owned(),
-        "bearer".to_owned(),
-        None,
-        &registry,
+        profile::BridgeProfileParams {
+            inference_gateway_base_url: "https://gw.invalid/v1".to_owned(),
+            auth_scheme: "bearer".to_owned(),
+            organization_uuid: None,
+            default_model: None,
+            registry: &registry,
+        },
         |_| true,
     );
 

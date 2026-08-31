@@ -50,6 +50,7 @@ pub(super) fn list_skills(dir: &Path) -> Vec<MarketplaceItem> {
             homepage: None,
             change: None,
             children: Vec::new(),
+            plugins: Vec::new(),
             extra,
         });
     }
@@ -94,6 +95,7 @@ pub(super) fn list_agents(dir: &Path) -> Vec<MarketplaceItem> {
             homepage: None,
             change: None,
             children: Vec::new(),
+            plugins: Vec::new(),
             extra,
         });
     }
@@ -114,7 +116,7 @@ pub(super) fn list_artifacts() -> Vec<MarketplaceItem> {
             let name = if record.name.is_empty() {
                 id.clone()
             } else {
-                record.name
+                record.name.clone()
             };
             MarketplaceItem {
                 id,
@@ -128,6 +130,7 @@ pub(super) fn list_artifacts() -> Vec<MarketplaceItem> {
                 homepage: None,
                 change: None,
                 children: Vec::new(),
+                plugins: record.plugins,
                 extra: MarketplaceExtra::None,
             }
         })
@@ -159,6 +162,9 @@ pub(super) fn list_registry_mcp(mcp_auth: &[McpServerAuth]) -> Vec<MarketplaceIt
             homepage: None,
             change: None,
             children: Vec::new(),
+            // Why: deliberately unowned: the registry snapshot is not per-plugin,
+            // and `mark_shared_mcp` already models multi-plugin membership.
+            plugins: Vec::new(),
             extra: MarketplaceExtra::Mcp(McpServerEntry {
                 proxy_url: Some(proxy_url),
                 upstream_url: Some(upstream_url),

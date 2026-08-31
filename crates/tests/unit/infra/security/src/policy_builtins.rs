@@ -601,6 +601,64 @@ governance:
     exempt_scopes: ['admin']
 "#;
 
+    // Every operator the schema accepts, each on its own tool, so a failure
+    // names which comparison is wrong rather than which rule happened to fire.
+    const EVERY_OPERATOR: &str = r#"
+governance:
+  policies:
+  - id: require_approval
+    enabled: true
+    patterns:
+    - tool: glob_tool
+      name: glob_rule
+      when:
+      - path: target
+        op: glob
+        values: ["prod-*-db"]
+    - tool: contains_tool
+      name: contains_rule
+      when:
+      - path: body
+        op: contains
+        values: ["password"]
+    - tool: prefix_tool
+      name: prefix_rule
+      when:
+      - path: key
+        op: prefix
+        values: ["sk_live"]
+    - tool: suffix_tool
+      name: suffix_rule
+      when:
+      - path: file
+        op: suffix
+        values: [".pem"]
+    - tool: lt_tool
+      name: lt_rule
+      when:
+      - path: balance
+        op: lt
+        value: 0
+    - tool: lte_tool
+      name: lte_rule
+      when:
+      - path: retries
+        op: lte
+        value: 3
+    - tool: gte_tool
+      name: gte_rule
+      when:
+      - path: severity
+        op: gte
+        value: 7
+    - tool: exists_tool
+      name: exists_rule
+      when:
+      - path: override_reason
+        op: exists
+    exempt_scopes: ['admin']
+"#;
+
     fn verdict(yaml: &str, name: &str, arguments: serde_json::Value) -> Decision {
         let call = Call::new("sales");
         let input = args(arguments);
@@ -615,6 +673,198 @@ governance:
             Decision::Pending { reason } => format!("{reason:?}"),
             other => panic!("expected a hold, got {other:?}"),
         }
+    }
+
+    fn held(name: &str, arguments: serde_json::Value) -> bool {
+        matches!(
+            verdict(EVERY_OPERATOR, &format!("mcp__ops__{name}"), arguments),
+            Decision::Pending { .. }
+        )
+    }
+
+    // Why: `*` must span a run of characters and `?` exactly one. A glob that
+    // silently anchored, or matched across a separator it should not, would
+    // quietly widen or narrow which resources need approval.
+    #[test]
+    fn glob_spans_a_wildcard_run_and_matches_the_whole_value() {
+        assert!(held(
+            "glob_tool",
+            serde_json::json!({"target": "prod-eu-db"})
+        ));
+        assert!(held("glob_tool", serde_json::json!({"target": "prod--db"})));
+        assert!(
+            !held(
+                "glob_tool",
+                serde_json::json!({"target": "prod-eu-db-replica"})
+            ),
+            "the pattern is anchored at both ends, so a longer name is a different resource"
+        );
+        assert!(!held(
+            "glob_tool",
+            serde_json::json!({"target": "staging-eu-db"})
+        ));
+    }
+
+    // Why: every string comparison lowercases both sides. A case-sensitive
+    // check would let `Password` or `SK_LIVE` walk past a rule that names the
+    // lowercase form.
+    #[test]
+    fn string_comparisons_ignore_case_on_both_sides() {
+        assert!(held(
+            "contains_tool",
+            serde_json::json!({"body": "my PASSWORD is"})
+        ));
+        assert!(held(
+            "prefix_tool",
+            serde_json::json!({"key": "SK_LIVE_abc"})
+        ));
+        assert!(held("suffix_tool", serde_json::json!({"file": "key.PEM"})));
+        assert!(held(
+            "glob_tool",
+            serde_json::json!({"target": "PROD-EU-DB"})
+        ));
+    }
+
+    #[test]
+    fn contains_prefix_and_suffix_test_the_position_they_name() {
+        assert!(
+            !held("prefix_tool", serde_json::json!({"key": "not_sk_live_abc"})),
+            "prefix must anchor at the start, or it is just contains"
+        );
+        assert!(
+            !held("suffix_tool", serde_json::json!({"file": "key.pem.bak"})),
+            "suffix must anchor at the end, or a renamed file escapes the rule"
+        );
+        assert!(
+            held(
+                "contains_tool",
+                serde_json::json!({"body": "a password here"})
+            ),
+            "contains matches anywhere, which is the point of it"
+        );
+    }
+
+    // Why: these are the boundary the operator is named for. `lte` including
+    // its threshold and `lt` excluding it is the whole difference between them,
+    // and an off-by-one here changes which calls run unattended.
+    #[test]
+    fn the_numeric_operators_sit_on_the_right_side_of_their_boundary() {
+        assert!(held("lt_tool", serde_json::json!({"balance": -1})));
+        assert!(
+            !held("lt_tool", serde_json::json!({"balance": 0})),
+            "lt excludes its threshold"
+        );
+
+        assert!(held("lte_tool", serde_json::json!({"retries": 3})));
+        assert!(
+            !held("lte_tool", serde_json::json!({"retries": 4})),
+            "lte includes its threshold and nothing above it"
+        );
+
+        assert!(held("gte_tool", serde_json::json!({"severity": 7})));
+        assert!(
+            !held("gte_tool", serde_json::json!({"severity": 6})),
+            "gte includes its threshold and nothing below it"
+        );
+    }
+
+    // Why: `exists` is about presence, not content. It must hold for a value
+    // that would read as absent in any other sense — empty, zero, false, null —
+    // because the caller did supply the field.
+    #[test]
+    fn exists_holds_on_presence_alone_whatever_the_value() {
+        for value in [
+            serde_json::json!(""),
+            serde_json::json!(0),
+            serde_json::json!(false),
+            serde_json::json!(null),
+        ] {
+            assert!(
+                held("exists_tool", serde_json::json!({"override_reason": value})),
+                "a supplied {value} is still a supplied field"
+            );
+        }
+    }
+
+    // Why: an absent field still holds, but not because `exists` matched — a
+    // path that resolves to nothing fails closed, the same as it does for every
+    // other operator. Worth pinning because the two reach the same verdict by
+    // different routes, and only one of them would survive `exists` being
+    // changed to test presence properly.
+    #[test]
+    fn an_absent_field_holds_by_failing_closed_rather_than_by_existing() {
+        assert!(
+            held("exists_tool", serde_json::json!({"something_else": 1})),
+            "an unreadable condition must never be the reason a call runs unattended"
+        );
+    }
+
+    // Why: a `to` field routinely arrives as one comma-joined string rather
+    // than an array. `addr_domain` reduces a string to the domain after its
+    // LAST `@`, so judging the whole field by that one address lets
+    // "x@gmail.com, a@systemprompt.io" read as internal and send unattended.
+    // The external address is deliberately first here: with it last, a
+    // last-address-only check would still hold and this test would pass
+    // against the very bug it exists to catch.
+    #[test]
+    fn a_comma_joined_recipient_list_is_judged_by_every_address_not_the_last() {
+        let decision = verdict(
+            EXTERNAL_ONLY,
+            "mcp__mail__email_send",
+            serde_json::json!({"to": "x@gmail.com, a@systemprompt.io"}),
+        );
+
+        assert!(
+            held_rule(&decision).contains("external_recipient"),
+            "an external address hidden in a joined list must still hold: {decision:?}"
+        );
+    }
+
+    #[test]
+    fn a_comma_joined_list_that_is_wholly_internal_still_runs_unattended() {
+        let decision = verdict(
+            EXTERNAL_ONLY,
+            "mcp__mail__email_send",
+            serde_json::json!({"to": "a@systemprompt.io, b@mail.systemprompt.io"}),
+        );
+
+        assert!(
+            matches!(decision, Decision::Allow { .. }),
+            "every address is internal, so there is nothing to approve: {decision:?}"
+        );
+    }
+
+    // Why: `;` separates recipients as readily as `,` in a header that has
+    // passed through a mail client. Splitting on only one of them leaves the
+    // other as a way to hide an address behind a separator the check ignores.
+    #[test]
+    fn a_semicolon_joined_recipient_list_is_split_the_same_way() {
+        let decision = verdict(
+            EXTERNAL_ONLY,
+            "mcp__mail__email_send",
+            serde_json::json!({"to": "x@gmail.com; a@systemprompt.io"}),
+        );
+
+        assert!(
+            held_rule(&decision).contains("external_recipient"),
+            "a semicolon must not smuggle an external recipient past the check: {decision:?}"
+        );
+    }
+
+    // Why: a list whose entries parse to no address at all is not internal —
+    // it is unreadable, and fail-closed means holding rather than assuming.
+    #[test]
+    fn a_recipient_list_that_parses_to_nothing_is_not_treated_as_internal() {
+        let decision = verdict(
+            EXTERNAL_ONLY,
+            "mcp__mail__email_send",
+            serde_json::json!({"to": " , ; "}),
+        );
+
+        assert!(
+            held_rule(&decision).contains("external_recipient"),
+            "an unparseable recipient field must hold, not pass: {decision:?}"
+        );
     }
 
     #[test]

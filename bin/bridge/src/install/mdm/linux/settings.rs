@@ -1,5 +1,7 @@
-//! Claude Code managed settings on Linux: the `apiKeyHelper` script plus the
-//! `env` keys the bridge owns inside `managed-settings.json`.
+//! Claude Code settings on Linux: the `apiKeyHelper` script plus the `env` keys
+//! the bridge owns inside the settings file —
+//! `/etc/claude-code/managed-settings.json` when running as root, otherwise the
+//! per-user `~/.claude/settings.json`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -11,7 +13,15 @@ use super::{io_error, read_or_empty, write_atomic};
 use crate::install::mdm::MdmError;
 
 // Why: `~/.profile` reaches only login shells, so IDE terminals, `bash -c`, CI,
-// and systemd miss it; Claude Code reads managed settings on every invocation.
+// and systemd miss it; Claude Code reads its settings on every invocation.
+//
+// Without root the fallback must be `~/.claude/settings.json`, the per-user
+// file. `~/.claude/managed-settings.json` is not a path Claude Code reads: only
+// the system location carries that name, so writing it produced a file that
+// parsed, looked correct, and did nothing. An unprivileged install then had
+// `~/.profile` as its only working channel, and a non-login shell — the default
+// for a VS Code terminal — silently billed the user's own account instead of
+// routing through the gateway.
 fn managed_settings_path() -> Option<PathBuf> {
     let system = PathBuf::from("/etc/claude-code/managed-settings.json");
     if can_write(&system) {
@@ -20,7 +30,7 @@ fn managed_settings_path() -> Option<PathBuf> {
     Some(
         crate::basedirs::home_dir()?
             .join(".claude")
-            .join("managed-settings.json"),
+            .join("settings.json"),
     )
 }
 
@@ -183,4 +193,40 @@ pub(super) fn remove_managed_settings() -> Vec<String> {
 fn set_executable(path: &Path) -> Result<(), MdmError> {
     use std::os::unix::fs::PermissionsExt as _;
     fs::set_permissions(path, fs::Permissions::from_mode(0o700)).map_err(io_error("chmod", path))
+}
+
+// Why: the default model is fleet policy, not a property of this build, so it
+// arrives from `GET /v1/bridge/profile` rather than a constant here. Seeding
+// happens on sync — which runs on every install and every scheduled poll —
+// because `install --apply` is synchronous and cannot fetch it.
+//
+// `or_insert_with`, never `insert`: Claude Code records the user's own `/model`
+// choice in this same file, so overwriting would silently undo it on each sync.
+pub(crate) fn seed_default_model(model: &str) -> Result<bool, MdmError> {
+    let settings_path =
+        managed_settings_path().ok_or(MdmError::Resolve("the managed settings path"))?;
+    let existing = read_or_empty(&settings_path)?;
+    let mut root: serde_json::Map<String, serde_json::Value> = if existing.trim().is_empty() {
+        serde_json::Map::new()
+    } else {
+        serde_json::from_str(&existing).map_err(|e| MdmError::Json {
+            path: settings_path.clone(),
+            source: e,
+        })?
+    };
+    if root.contains_key("model") {
+        return Ok(false);
+    }
+    root.insert(
+        "model".to_owned(),
+        serde_json::Value::String(model.to_owned()),
+    );
+    let rendered = serde_json::to_string_pretty(&serde_json::Value::Object(root)).map_err(|e| {
+        MdmError::Json {
+            path: settings_path.clone(),
+            source: e,
+        }
+    })?;
+    write_atomic(&settings_path, &format!("{rendered}\n"))?;
+    Ok(true)
 }

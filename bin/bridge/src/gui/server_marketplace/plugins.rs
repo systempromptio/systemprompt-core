@@ -83,6 +83,7 @@ pub(super) fn list_plugins(root: &Path) -> Vec<MarketplaceItem> {
             homepage,
             change: None,
             children: plugin_children(&path),
+            plugins: Vec::new(),
             extra,
         });
     }
@@ -229,6 +230,7 @@ pub(super) fn annotate_plugins_with_diff(
                 homepage: None,
                 change: Some(ChangeKind::Removed),
                 children: Vec::new(),
+                plugins: Vec::new(),
                 extra: MarketplaceExtra::None,
             });
         }

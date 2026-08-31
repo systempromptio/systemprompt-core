@@ -18,6 +18,7 @@ pub(super) use self::finalize::run_response_safety_scan;
 pub mod test_api {
     pub use super::blocks_at_phase;
     pub use super::finalize::{apply_system_prompt_override, attach_request_id, dedupe_findings};
+    pub use super::resolve::{describe_route_match, enforce_route_requirements};
 }
 
 use std::sync::Arc;

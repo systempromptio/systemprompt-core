@@ -954,3 +954,322 @@ async fn all_renderers_produce_valid_html_structure() {
         assert!(result.html.contains("</html>"));
     }
 }
+
+// Table sections beyond the plain case.
+//
+// The existing table test renders two string columns and stops, which leaves
+// the parts that decide what the operator actually sees — server-side sorting,
+// and how each JSON type becomes a cell — unexercised.
+
+fn table_dashboard(data: TableSectionData) -> Artifact {
+    dashboard_artifact(
+        &DashboardArtifact::new("Data").add_section(
+            DashboardSection::new("data", "Data", SectionType::Table)
+                .with_data(data)
+                .unwrap(),
+        ),
+    )
+}
+
+async fn table_html(data: TableSectionData) -> String {
+    DashboardRenderer::new()
+        .render(&table_dashboard(data))
+        .await
+        .expect("a table section should render")
+        .html
+}
+
+fn positions(html: &str, needles: &[&str]) -> Vec<usize> {
+    needles
+        .iter()
+        .map(|n| {
+            html.find(n)
+                .unwrap_or_else(|| panic!("{n} missing from rendered table:\n{html}"))
+        })
+        .collect()
+}
+
+fn sorted(
+    columns: &[&str],
+    rows: Vec<serde_json::Value>,
+    column: &str,
+    order: &str,
+) -> TableSectionData {
+    let mut data = TableSectionData::new(columns.iter().map(|c| (*c).to_owned()).collect(), rows);
+    data.default_sort = Some(systemprompt_models::artifacts::dashboard::SortConfig {
+        column: column.to_owned(),
+        order: order.to_owned(),
+    });
+    data
+}
+
+// Why: the source records that `default_sort` was declared by the model and
+// never applied, and that sorting server-side is what keeps the no-JS rendering
+// correct. A test that only checks the cells are present cannot tell sorted
+// output from unsorted, so these assert on the order rows appear in the HTML.
+#[tokio::test]
+async fn a_declared_ascending_sort_orders_the_rendered_rows() {
+    let html = table_html(sorted(
+        &["name", "value"],
+        vec![
+            serde_json::json!({"name": "charlie", "value": 3}),
+            serde_json::json!({"name": "alpha", "value": 1}),
+            serde_json::json!({"name": "bravo", "value": 2}),
+        ],
+        "name",
+        "asc",
+    ))
+    .await;
+
+    let p = positions(&html, &["alpha", "bravo", "charlie"]);
+    assert!(
+        p[0] < p[1] && p[1] < p[2],
+        "rows must be emitted in ascending order, got positions {p:?}"
+    );
+}
+
+#[tokio::test]
+async fn a_declared_descending_sort_reverses_the_rendered_rows() {
+    let html = table_html(sorted(
+        &["name", "value"],
+        vec![
+            serde_json::json!({"name": "alpha", "value": 1}),
+            serde_json::json!({"name": "charlie", "value": 3}),
+            serde_json::json!({"name": "bravo", "value": 2}),
+        ],
+        "name",
+        "desc",
+    ))
+    .await;
+
+    let p = positions(&html, &["charlie", "bravo", "alpha"]);
+    assert!(
+        p[0] < p[1] && p[1] < p[2],
+        "desc must reverse the ordering, got positions {p:?}"
+    );
+}
+
+// Why: cells are formatted before comparison, so a numeric column sorted as
+// text would place 10 before 9. The parse-as-f64 branch exists to prevent
+// exactly that, and only a value crossing a digit boundary can detect it.
+#[tokio::test]
+async fn a_numeric_column_sorts_by_magnitude_rather_than_as_text() {
+    let html = table_html(sorted(
+        &["n"],
+        vec![
+            serde_json::json!({"n": 9}),
+            serde_json::json!({"n": 10}),
+            serde_json::json!({"n": 100}),
+        ],
+        "n",
+        "asc",
+    ))
+    .await;
+
+    let p = positions(&html, &["<td>9</td>", "<td>10</td>", "<td>100</td>"]);
+    assert!(
+        p[0] < p[1] && p[1] < p[2],
+        "9 must precede 10 and 100; text ordering would put 10 and 100 first: {p:?}"
+    );
+}
+
+// Why: a sort naming a column that is not in the table must render rather than
+// panic or drop rows — the model chose the column name and can get it wrong.
+#[tokio::test]
+async fn a_sort_on_an_unknown_column_still_renders_every_row() {
+    let html = table_html(sorted(
+        &["name"],
+        vec![
+            serde_json::json!({"name": "alpha"}),
+            serde_json::json!({"name": "bravo"}),
+        ],
+        "column-that-does-not-exist",
+        "asc",
+    ))
+    .await;
+
+    assert!(html.contains("alpha") && html.contains("bravo"), "{html}");
+}
+
+// Why: the renderer has to produce a table with no JavaScript, so the sortable
+// affordance is markup. Without the ARIA role and tabindex a keyboard user
+// cannot reach the control at all.
+#[tokio::test]
+async fn a_sortable_table_marks_its_headers_as_reachable_controls() {
+    let mut data =
+        TableSectionData::new(vec!["name".into()], vec![serde_json::json!({"name": "a"})]);
+    data.sortable = Some(true);
+
+    let html = table_html(data).await;
+
+    assert!(html.contains("sortable"), "{html}");
+    assert!(
+        html.contains(r#"tabindex="0""#) && html.contains(r#"role="button""#),
+        "a sortable header must be keyboard-reachable: {html}"
+    );
+}
+
+#[tokio::test]
+async fn a_table_that_is_not_sortable_does_not_advertise_the_control() {
+    let html = table_html(TableSectionData::new(
+        vec!["name".into()],
+        vec![serde_json::json!({"name": "a"})],
+    ))
+    .await;
+
+    assert!(
+        !html.contains(r#"role="button""#),
+        "an unsortable header must not look like a control: {html}"
+    );
+}
+
+// Why: rows arrive as untyped JSON, so every variant reaches the formatter. A
+// bare `true` or a null rendered as Rust's Debug output is what an operator
+// would end up reading.
+#[tokio::test]
+async fn each_json_cell_type_is_rendered_for_a_human() {
+    let html = table_html(TableSectionData::new(
+        vec!["b".into(), "empty".into(), "n".into()],
+        vec![serde_json::json!({"b": true, "empty": serde_json::Value::Null, "n": 1234567})],
+    ))
+    .await;
+
+    assert!(
+        html.contains("<td>Yes</td>"),
+        "a boolean reads as Yes/No: {html}"
+    );
+    assert!(
+        html.contains("<td></td>"),
+        "a null is an empty cell: {html}"
+    );
+    assert!(
+        html.contains("1,234,567"),
+        "a large whole number is digit-grouped so it can be read at a glance: {html}"
+    );
+}
+
+#[tokio::test]
+async fn a_table_with_no_rows_says_so_rather_than_rendering_an_empty_grid() {
+    let html = table_html(TableSectionData::new(vec!["name".into()], vec![])).await;
+
+    assert!(
+        html.contains("No rows to show."),
+        "an empty table must explain itself: {html}"
+    );
+}
+
+// Presentation-card section bodies.
+//
+// A card section's `content` is untyped JSON, so the renderer branches on the
+// shape the model produced. Nothing exercised those branches, which means the
+// list and key/value renderings — the two an operator is most likely to see —
+// were unverified.
+
+fn card_section(
+    heading: &str,
+    content: serde_json::Value,
+) -> systemprompt_models::artifacts::card::CardSection {
+    systemprompt_models::artifacts::card::CardSection {
+        heading: heading.to_owned(),
+        content,
+        icon: None,
+    }
+}
+
+async fn card_html(card: systemprompt_models::artifacts::card::PresentationCardArtifact) -> String {
+    systemprompt_mcp::services::ui_renderer::templates::PresentationCardRenderer::new()
+        .render(&make_artifact(
+            "presentation_card",
+            None,
+            None,
+            vec![data_part(serde_json::to_value(&card).unwrap())],
+            None,
+        ))
+        .await
+        .expect("a presentation card should render")
+        .html
+}
+
+fn card_with(
+    section: systemprompt_models::artifacts::card::CardSection,
+) -> systemprompt_models::artifacts::card::PresentationCardArtifact {
+    systemprompt_models::artifacts::card::PresentationCardArtifact::new("Report")
+        .add_section(section)
+}
+
+#[tokio::test]
+async fn a_card_section_holding_an_array_renders_as_a_list() {
+    let html = card_html(card_with(card_section(
+        "Findings",
+        serde_json::json!(["first finding", "second finding"]),
+    )))
+    .await;
+
+    assert!(html.contains("card-section-list"), "{html}");
+    assert!(
+        html.contains("<li>first finding</li>") && html.contains("<li>second finding</li>"),
+        "every array element must become its own item: {html}"
+    );
+}
+
+#[tokio::test]
+async fn a_card_section_holding_an_object_renders_as_labelled_pairs() {
+    let html = card_html(card_with(card_section(
+        "Details",
+        serde_json::json!({"status": "green", "owner": "platform"}),
+    )))
+    .await;
+
+    assert!(html.contains("card-section-pairs"), "{html}");
+    assert!(
+        html.contains("status") && html.contains("green"),
+        "a key and its value must both survive: {html}"
+    );
+}
+
+// Why: card content comes from a model, so it can carry text that looks like
+// markup. Rendering it unescaped would let generated output inject nodes into
+// the operator's page.
+#[tokio::test]
+async fn card_content_is_escaped_rather_than_rendered_as_markup() {
+    let html = card_html(card_with(card_section(
+        "Findings",
+        serde_json::json!(["<script>alert(1)</script>"]),
+    )))
+    .await;
+
+    assert!(
+        !html.contains("<script>alert(1)</script>"),
+        "model-authored content must never reach the page as live markup: {html}"
+    );
+    assert!(
+        html.contains("&lt;script&gt;"),
+        "it should appear escaped: {html}"
+    );
+}
+
+#[tokio::test]
+async fn an_object_key_is_escaped_as_well_as_its_value() {
+    let html = card_html(card_with(card_section(
+        "Details",
+        serde_json::json!({"<b>key</b>": "<i>value</i>"}),
+    )))
+    .await;
+
+    assert!(
+        !html.contains("<b>key</b>") && !html.contains("<i>value</i>"),
+        "both halves of a pair are model-authored: {html}"
+    );
+}
+
+// Why: an empty array and an empty object both fall past the two branches
+// above. Rendering an empty <ul> would leave a card section that looks broken
+// rather than one that says it has nothing to show.
+#[tokio::test]
+async fn a_card_with_no_sections_says_it_has_nothing_to_show() {
+    let html =
+        card_html(systemprompt_models::artifacts::card::PresentationCardArtifact::new("Empty"))
+            .await;
+
+    assert!(html.contains("card-empty"), "{html}");
+}

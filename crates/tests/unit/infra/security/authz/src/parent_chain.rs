@@ -65,7 +65,7 @@ fn index(plugins: Vec<(&str, LoadedParent)>, sources: ChainSources) -> ParentCha
             .into_iter()
             .map(|(id, parent)| (PluginId::new(id), parent))
             .collect(),
-        sources,
+        std::sync::Arc::new(sources),
     )
 }
 

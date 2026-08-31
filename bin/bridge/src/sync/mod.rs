@@ -110,10 +110,43 @@ pub async fn run_once(
         .await
         .map_err(SyncError::ApplyFailed)?;
 
+    seed_default_model_from_profile(&fetch.client).await;
+
     persist_last_sync(&last_sync_path, &synced, &report, now);
 
     Ok(build_summary(&synced, report))
 }
+
+// Why: the fleet's default model is server policy, delivered by
+// `GET /v1/bridge/profile`. Applied here rather than in `install --apply`
+// because that path is synchronous and cannot fetch it, and because a policy
+// change should reach existing installs on their next scheduled sync rather
+// than waiting for a reinstall.
+//
+// Best-effort throughout: a gateway that omits the field, or is unreachable,
+// leaves the model choice exactly as it was. Nothing here should fail a sync
+// whose manifest already applied cleanly.
+#[cfg(target_os = "linux")]
+async fn seed_default_model_from_profile(client: &crate::gateway::GatewayClient) {
+    let Ok(profile) = client.fetch_bridge_profile().await else {
+        return;
+    };
+    let Some(model) = profile.default_model.as_deref() else {
+        return;
+    };
+    match crate::install::mdm::linux::seed_default_model(model) {
+        Ok(true) => tracing::info!(model, "seeded the default model from the bridge profile"),
+        Ok(false) => tracing::debug!("settings already name a model; leaving the user's choice"),
+        Err(e) => tracing::warn!(error = %e, "could not seed the default model"),
+    }
+}
+
+#[cfg(not(target_os = "linux"))]
+#[expect(
+    clippy::unused_async,
+    reason = "matches the Linux arm's signature, which the shared call site awaits"
+)]
+async fn seed_default_model_from_profile(_client: &crate::gateway::GatewayClient) {}
 
 // Why: on Windows, Cowork scans only the system org-plugins path. Writing the
 // user-scope fallback there succeeds but is invisible to Cowork, so a sync

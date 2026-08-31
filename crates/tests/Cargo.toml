@@ -184,6 +184,7 @@ dialoguer = "0.12"
 inventory = "0.3"
 dotenvy = "0.15"
 tempfile = "3.27"
+tokio-cron-scheduler = "0.15"
 temp-env = "0.3"
 walkdir = "2.5"
 config = { version = "0.15", features = ["yaml"] }

@@ -72,3 +72,39 @@ fn covers_fly_peer_accepts_exact_and_supernet_ranges() {
     let subnet = vec!["fdaa::/16".parse().unwrap()];
     assert!(!covers_fly_peer(&subnet));
 }
+
+// Why: `parse_ranges` drops a CIDR it cannot parse, logging a warning and
+// carrying on. A typo in a built-in range therefore does not fail anything —
+// that range is simply absent from the trusted set, and a proxy that should
+// have been trusted no longer is, so client IPs resolve to the proxy's address
+// and rate limits and bans land on the proxy instead of the caller.
+//
+// The tests above name six ranges explicitly; there are more than twenty. This
+// asserts that none were dropped, by count, so a typo anywhere in the lists
+// fails here without this test having to restate them.
+#[test]
+fn every_built_in_proxy_range_parses_rather_than_being_dropped() {
+    use systemprompt_cloud::constants::proxies;
+
+    let declared = proxies::PRIVATE_RANGES.len()
+        + proxies::FLY_PRIVATE_RANGES.len()
+        + proxies::FLY_PUBLIC_RANGES.len()
+        + proxies::CLOUDFLARE_RANGES.len();
+
+    assert_eq!(
+        default_cloud_trusted_proxies().len(),
+        declared,
+        "a built-in proxy CIDR failed to parse and was silently dropped"
+    );
+}
+
+#[test]
+fn every_private_range_parses_for_the_local_default() {
+    use systemprompt_cloud::constants::proxies;
+
+    assert_eq!(
+        default_local_trusted_proxies().len(),
+        proxies::PRIVATE_RANGES.len(),
+        "a private-range CIDR failed to parse and was silently dropped"
+    );
+}

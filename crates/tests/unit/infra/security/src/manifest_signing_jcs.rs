@@ -78,6 +78,7 @@ fn sample_manifest() -> SignedManifest {
             sha256: Sha256Digest::try_new(FAKE_SHA_C).unwrap(),
             instructions: "do the thing".into(),
             hosts: Vec::new(),
+            plugins: Vec::new(),
         }],
         agents: vec![AgentEntry {
             id: AgentId::new("agent_one"),
@@ -124,6 +125,7 @@ fn sample_manifest() -> SignedManifest {
             content: "<table></table>".into(),
             starred: true,
             sha256: Sha256Digest::try_new(FAKE_SHA_A).unwrap(),
+            plugins: Vec::new(),
         }],
         allow_claude_ai_connectors: false,
         diagnostics: Vec::new(),

@@ -7,7 +7,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-mod api_keys;
+pub mod api_keys;
 mod args;
 mod create;
 mod create_setup;

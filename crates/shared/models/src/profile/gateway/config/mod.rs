@@ -30,6 +30,10 @@ pub struct GatewayConfigSpec {
     pub routes: Vec<GatewayRoute>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub default_provider: Option<ProviderId>,
+    // Why: advertised over `GET /v1/bridge/profile`, so changing it here moves
+    // the fleet default without shipping a new bridge build.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub default_model: Option<String>,
     #[serde(default)]
     pub allow_unlisted_models: bool,
     #[serde(default = "default_auth_scheme")]
@@ -60,6 +64,20 @@ pub struct BridgeReleasesSpec {
     pub pinned_version: Option<String>,
     #[serde(default)]
     pub assets: std::collections::BTreeMap<String, String>,
+    // Why: the GitHub API host is a field rather than a constant so the
+    // release routes can be pointed at a stub. Hardcoded, every line past
+    // "is this configured" needed a real call to api.github.com to reach,
+    // which is not something a test can do. Absent means the real host, so
+    // no deployment has to know this exists.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub api_base: Option<String>,
+}
+
+impl BridgeReleasesSpec {
+    #[must_use]
+    pub fn api_base(&self) -> &str {
+        self.api_base.as_deref().unwrap_or("https://api.github.com")
+    }
 }
 
 fn default_tag_prefix() -> String {
@@ -72,6 +90,7 @@ impl Default for GatewayConfigSpec {
             enabled: false,
             routes: Vec::new(),
             default_provider: None,
+            default_model: None,
             allow_unlisted_models: false,
             auth_scheme: default_auth_scheme(),
             inference_path_prefix: default_inference_path_prefix(),
@@ -96,6 +115,7 @@ impl GatewayConfigSpec {
             enabled,
             routes,
             default_provider,
+            default_model,
             allow_unlisted_models,
             auth_scheme,
             inference_path_prefix,
@@ -107,6 +127,7 @@ impl GatewayConfigSpec {
             enabled,
             routes,
             default_provider,
+            default_model,
             allow_unlisted_models,
             auth_scheme,
             inference_path_prefix,

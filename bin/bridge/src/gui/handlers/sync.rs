@@ -36,9 +36,7 @@ pub(crate) fn on_sync_requested(app: &mut GuiApp, reply_to: ReplyId) {
     app.runtime.spawn(async move {
         let allow_tofu = config::pinned_pubkey().is_none();
         let result = tokio::select! {
-            () = token.cancelled() => {
-                Err(Arc::new(GuiError::Io(std::io::Error::other("sync cancelled"))))
-            }
+            () = token.cancelled() => Err(Arc::new(GuiError::Cancelled)),
             outcome = sync::run_once(false, false, allow_tofu) => {
                 outcome.map_err(GuiError::from).map_err(Arc::new)
             }
@@ -60,6 +58,7 @@ pub(crate) fn on_sync_finished(
     app.state.set_sync_in_flight(false);
     app.state.clear_cancel(CancelScope::Sync);
     let succeeded = result.is_ok();
+    let cancelled = result.as_ref().err().is_some_and(|e| e.is_cancelled());
     let mut auth_failure = false;
     let mut structured = None;
     let bridge_result = match result {
@@ -83,10 +82,18 @@ pub(crate) fn on_sync_finished(
             structured = Some(summary);
             Ok(json!({ "summary": line }))
         },
+        Err(msg) if msg.is_cancelled() => {
+            // Why: a cancelled sync is not a failed sync. It reports the
+            // `cancelled` phase so the UI settles, and replies Ok so no error
+            // toast is raised for something the user (or a newer sync) asked for.
+            let line = i18n::t("sync-cancelled");
+            app.append_log(&line);
+            emit::emit_sync_progress(app, "cancelled", Some(&line));
+            Ok(json!({ "cancelled": true }))
+        },
         Err(msg) => {
             let raw = format!("{msg:#}");
             tracing::error!(error = %raw, "sync failed");
-            let cancelled = raw.contains("sync cancelled");
             let sync_err = match msg.as_ref() {
                 GuiError::Sync(e) => Some(e),
                 _ => None,
@@ -97,58 +104,48 @@ pub(crate) fn on_sync_finished(
                     sync::SyncError::NoCredential { .. } | sync::SyncError::GatewayUnauthorized(_)
                 )
             );
-            let (phase, line, scope, code) = if cancelled {
-                (
-                    "cancelled",
-                    i18n::t("sync-cancelled"),
-                    ErrorScope::Marketplace,
-                    ErrorCode::Conflict,
-                )
-            } else if matches!(sync_err, Some(sync::SyncError::NoCredential { .. })) {
-                (
-                    "failed",
-                    i18n::t("sync-no-credentials"),
-                    ErrorScope::Marketplace,
-                    ErrorCode::Unauthorized,
-                )
-            } else if let Some(sync::SyncError::BridgeTooOld { local, required }) = sync_err {
-                (
-                    "failed",
-                    i18n::t_args(
-                        "sync-bridge-too-old",
-                        &[("local", local), ("required", required)],
-                    ),
-                    ErrorScope::Marketplace,
-                    ErrorCode::Conflict,
-                )
-            } else if let Some(sync::SyncError::GatewayUnauthorized(rejection)) = sync_err {
-                let status_s = rejection.status.to_string();
-                (
-                    "failed",
-                    i18n::t_args(
-                        "sync-gateway-unauthorized",
-                        &[
-                            ("endpoint", rejection.endpoint),
-                            ("status", &status_s),
-                            ("gateway", &rejection.gateway),
-                        ],
-                    ),
-                    ErrorScope::Marketplace,
-                    ErrorCode::Unauthorized,
-                )
-            } else {
-                (
-                    "failed",
-                    i18n::t_args("sync-failure", &[("error", &raw)]),
-                    ErrorScope::Marketplace,
-                    ErrorCode::Internal,
-                )
-            };
-            if cancelled {
-                app.append_log(&line);
-            } else {
-                app.append_log_error(&line);
-            }
+            let (phase, line, scope, code) =
+                if matches!(sync_err, Some(sync::SyncError::NoCredential { .. })) {
+                    (
+                        "failed",
+                        i18n::t("sync-no-credentials"),
+                        ErrorScope::Marketplace,
+                        ErrorCode::Unauthorized,
+                    )
+                } else if let Some(sync::SyncError::BridgeTooOld { local, required }) = sync_err {
+                    (
+                        "failed",
+                        i18n::t_args(
+                            "sync-bridge-too-old",
+                            &[("local", local), ("required", required)],
+                        ),
+                        ErrorScope::Marketplace,
+                        ErrorCode::Conflict,
+                    )
+                } else if let Some(sync::SyncError::GatewayUnauthorized(rejection)) = sync_err {
+                    let status_s = rejection.status.to_string();
+                    (
+                        "failed",
+                        i18n::t_args(
+                            "sync-gateway-unauthorized",
+                            &[
+                                ("endpoint", rejection.endpoint),
+                                ("status", &status_s),
+                                ("gateway", &rejection.gateway),
+                            ],
+                        ),
+                        ErrorScope::Marketplace,
+                        ErrorCode::Unauthorized,
+                    )
+                } else {
+                    (
+                        "failed",
+                        i18n::t_args("sync-failure", &[("error", &raw)]),
+                        ErrorScope::Marketplace,
+                        ErrorCode::Internal,
+                    )
+                };
+            app.append_log_error(&line);
             emit::emit_sync_progress(app, phase, Some(&line));
             Err(BridgeError::new(scope, code, line))
         },
@@ -161,7 +158,11 @@ pub(crate) fn on_sync_finished(
     }
     app.refresh_ui();
     if app.state.first_run_active() {
-        crate::gui::first_run::handlers::on_sync_result(app, succeeded);
+        if cancelled {
+            crate::gui::first_run::handlers::on_sync_cancelled(app);
+        } else {
+            crate::gui::first_run::handlers::on_sync_result(app, succeeded);
+        }
     }
     emit::emit_state(app);
     if succeeded {

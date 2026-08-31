@@ -21,7 +21,7 @@ pub struct CountArgs {
     pub user: Option<String>,
 }
 
-pub(super) async fn execute(args: CountArgs, ctx: &CommandContext) -> Result<CommandOutput> {
+pub async fn execute(args: CountArgs, ctx: &CommandContext) -> Result<CommandOutput> {
     let app = ctx.app_context().await?;
     let service = FileRepository::new(app.db_pool())?;
 

@@ -10,7 +10,7 @@ mod local;
 
 pub use local::{create_external_tenant, create_local_tenant};
 
-fn sanitize_database_name(name: &str) -> String {
+pub fn sanitize_database_name(name: &str) -> String {
     let sanitized: String = name
         .chars()
         .map(|c| {

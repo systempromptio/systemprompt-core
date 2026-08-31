@@ -24,6 +24,8 @@ mod job_config;
 #[cfg(test)]
 mod job_execution_db;
 #[cfg(test)]
+mod job_schedules;
+#[cfg(test)]
 mod jobs;
 #[cfg(test)]
 mod jobs_db;
