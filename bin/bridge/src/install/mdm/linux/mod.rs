@@ -138,7 +138,15 @@ pub(super) fn apply(gateway: &str) -> Result<Vec<String>, MdmError> {
     }
 
     lines.extend(apply_managed_settings(gateway, &key_path)?);
-    lines.push("open a new login shell (or `. ~/.profile`) to pick these up".to_owned());
+    // Why: Claude Code no longer depends on this — it reads the settings file
+    // written above on every invocation, in any shell. `env.sh` remains for
+    // other Anthropic-API clients (curl, SDK scripts) that read the process
+    // environment, so say what it is for rather than presenting it as a step.
+    lines.push(
+        "Claude Code is configured and needs no further steps. env.sh additionally \
+         exports these for other Anthropic-API clients; a new login shell picks it up."
+            .to_owned(),
+    );
     Ok(lines)
 }
 

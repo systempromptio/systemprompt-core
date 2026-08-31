@@ -1,5 +1,6 @@
-//! Claude Code managed settings on Linux: the `apiKeyHelper` script plus the
-//! `env` keys the bridge owns inside `managed-settings.json`.
+//! Claude Code settings on Linux: the `apiKeyHelper` script plus the `env` keys
+//! the bridge owns inside the settings file — `/etc/claude-code/managed-settings.json`
+//! when running as root, otherwise the per-user `~/.claude/settings.json`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -11,7 +12,15 @@ use super::{io_error, read_or_empty, write_atomic};
 use crate::install::mdm::MdmError;
 
 // Why: `~/.profile` reaches only login shells, so IDE terminals, `bash -c`, CI,
-// and systemd miss it; Claude Code reads managed settings on every invocation.
+// and systemd miss it; Claude Code reads its settings on every invocation.
+//
+// Without root the fallback must be `~/.claude/settings.json`, the per-user
+// file. `~/.claude/managed-settings.json` is not a path Claude Code reads: only
+// the system location carries that name, so writing it produced a file that
+// parsed, looked correct, and did nothing. An unprivileged install then had
+// `~/.profile` as its only working channel, and a non-login shell — the default
+// for a VS Code terminal — silently billed the user's own account instead of
+// routing through the gateway.
 fn managed_settings_path() -> Option<PathBuf> {
     let system = PathBuf::from("/etc/claude-code/managed-settings.json");
     if can_write(&system) {
@@ -20,7 +29,7 @@ fn managed_settings_path() -> Option<PathBuf> {
     Some(
         crate::basedirs::home_dir()?
             .join(".claude")
-            .join("managed-settings.json"),
+            .join("settings.json"),
     )
 }
 
