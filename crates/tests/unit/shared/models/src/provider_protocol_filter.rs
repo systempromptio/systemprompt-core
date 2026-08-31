@@ -237,6 +237,7 @@ fn bridge_profile_build_excludes_backend_provider() {
         "https://gw.invalid/v1".to_owned(),
         "bearer".to_owned(),
         None,
+        None,
         &registry,
         |_| true,
     );

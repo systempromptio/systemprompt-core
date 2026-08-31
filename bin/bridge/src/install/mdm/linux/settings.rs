@@ -46,11 +46,6 @@ fn can_write(path: &Path) -> bool {
             .is_ok()
 }
 
-// Why: the cheapest model the gateway routes, chosen so an unconfigured install
-// does not default to the most expensive one. Seeded only when the settings file
-// names no model of its own.
-const DEFAULT_MODEL: &str = "claude-haiku-4-5-20251001";
-
 pub(super) fn key_helper_path() -> Option<PathBuf> {
     Some(
         crate::basedirs::config_dir()?
@@ -128,13 +123,6 @@ pub(super) fn apply_managed_settings(
         serde_json::Value::String(helper.display().to_string()),
     );
 
-    // Why: seed the default model, but never overwrite one already there.
-    // Claude Code stores the user's own `/model` choice in this same file, and
-    // `install --apply` runs again on every update — clobbering it would silently
-    // undo that choice each time.
-    root.entry("model".to_owned())
-        .or_insert_with(|| serde_json::Value::String(DEFAULT_MODEL.to_owned()));
-
     let rendered = serde_json::to_string_pretty(&serde_json::Value::Object(root)).map_err(|e| {
         MdmError::Json {
             path: settings_path.clone(),
@@ -143,7 +131,7 @@ pub(super) fn apply_managed_settings(
     })?;
     write_atomic(&settings_path, &format!("{rendered}\n"))?;
     lines.push(format!(
-        "wrote: {} (ANTHROPIC_BASE_URL, apiKeyHelper, model discovery, default model)",
+        "wrote: {} (ANTHROPIC_BASE_URL, apiKeyHelper, model discovery)",
         settings_path.display()
     ));
     Ok(lines)
@@ -205,4 +193,40 @@ pub(super) fn remove_managed_settings() -> Vec<String> {
 fn set_executable(path: &Path) -> Result<(), MdmError> {
     use std::os::unix::fs::PermissionsExt as _;
     fs::set_permissions(path, fs::Permissions::from_mode(0o700)).map_err(io_error("chmod", path))
+}
+
+// Why: the default model is fleet policy, not a property of this build, so it
+// arrives from `GET /v1/bridge/profile` rather than a constant here. Seeding
+// happens on sync — which runs on every install and every scheduled poll —
+// because `install --apply` is synchronous and cannot fetch it.
+//
+// `or_insert_with`, never `insert`: Claude Code records the user's own `/model`
+// choice in this same file, so overwriting would silently undo it on each sync.
+pub(crate) fn seed_default_model(model: &str) -> Result<bool, MdmError> {
+    let settings_path =
+        managed_settings_path().ok_or(MdmError::Resolve("the managed settings path"))?;
+    let existing = read_or_empty(&settings_path)?;
+    let mut root: serde_json::Map<String, serde_json::Value> = if existing.trim().is_empty() {
+        serde_json::Map::new()
+    } else {
+        serde_json::from_str(&existing).map_err(|e| MdmError::Json {
+            path: settings_path.clone(),
+            source: e,
+        })?
+    };
+    if root.contains_key("model") {
+        return Ok(false);
+    }
+    root.insert(
+        "model".to_owned(),
+        serde_json::Value::String(model.to_owned()),
+    );
+    let rendered = serde_json::to_string_pretty(&serde_json::Value::Object(root)).map_err(|e| {
+        MdmError::Json {
+            path: settings_path.clone(),
+            source: e,
+        }
+    })?;
+    write_atomic(&settings_path, &format!("{rendered}\n"))?;
+    Ok(true)
 }

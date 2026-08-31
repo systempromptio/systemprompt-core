@@ -30,6 +30,11 @@ pub struct GatewayConfigSpec {
     pub routes: Vec<GatewayRoute>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub default_provider: Option<ProviderId>,
+    /// Model a freshly-installed bridge client selects when the user has not
+    /// chosen one. Advertised over `GET /v1/bridge/profile`; changing it here
+    /// moves the fleet default without shipping a new bridge build.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub default_model: Option<String>,
     #[serde(default)]
     pub allow_unlisted_models: bool,
     #[serde(default = "default_auth_scheme")]
@@ -110,6 +115,7 @@ impl GatewayConfigSpec {
             enabled,
             routes,
             default_provider,
+            default_model,
             allow_unlisted_models,
             auth_scheme,
             inference_path_prefix,
@@ -121,6 +127,7 @@ impl GatewayConfigSpec {
             enabled,
             routes,
             default_provider,
+            default_model,
             allow_unlisted_models,
             auth_scheme,
             inference_path_prefix,

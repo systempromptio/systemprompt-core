@@ -25,6 +25,10 @@ pub struct BridgeProfileResponse {
     pub auth_scheme: String,
     #[serde(default)]
     pub models: Vec<String>,
+    /// Model a client seeds when the user has chosen none. `None` leaves the
+    /// choice to the client, which is the behaviour before this field existed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub default_model: Option<String>,
     #[serde(default)]
     pub organization_uuid: Option<String>,
     #[serde(default)]
@@ -77,6 +81,7 @@ pub fn build(
     inference_gateway_base_url: String,
     auth_scheme: String,
     organization_uuid: Option<String>,
+    default_model: Option<String>,
     registry: &ProviderRegistry,
     secret_present: impl Fn(&str) -> bool,
 ) -> BridgeProfileResponse {
@@ -84,6 +89,7 @@ pub fn build(
         inference_gateway_base_url,
         auth_scheme,
         models: registry.advertised_model_ids(&[ApiSurface::Anthropic]),
+        default_model,
         organization_uuid,
         providers: provider_health(registry, secret_present),
     }

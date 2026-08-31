@@ -219,6 +219,7 @@ pub async fn profile() -> Result<Json<BridgeProfileResponse>, (StatusCode, Strin
         inference_gateway_base_url,
         gateway.auth_scheme.clone(),
         organization_uuid,
+        gateway.default_model.clone(),
         &profile.providers,
         |name| {
             secrets

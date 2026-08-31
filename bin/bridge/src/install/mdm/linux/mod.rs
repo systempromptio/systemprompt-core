@@ -17,6 +17,8 @@ mod settings;
 
 use settings::{apply_managed_settings, key_helper_path, remove_managed_settings};
 
+pub(crate) use settings::seed_default_model;
+
 use super::MdmError;
 
 fn markers() -> (String, String) {
