@@ -91,6 +91,7 @@ impl Default for GatewayConfigSpec {
             enabled: false,
             routes: Vec::new(),
             default_provider: None,
+            default_model: None,
             allow_unlisted_models: false,
             auth_scheme: default_auth_scheme(),
             inference_path_prefix: default_inference_path_prefix(),
