@@ -46,6 +46,11 @@ fn can_write(path: &Path) -> bool {
             .is_ok()
 }
 
+// Why: the cheapest model the gateway routes, chosen so an unconfigured install
+// does not default to the most expensive one. Seeded only when the settings file
+// names no model of its own.
+const DEFAULT_MODEL: &str = "claude-haiku-4-5-20251001";
+
 pub(super) fn key_helper_path() -> Option<PathBuf> {
     Some(
         crate::basedirs::config_dir()?
@@ -123,6 +128,13 @@ pub(super) fn apply_managed_settings(
         serde_json::Value::String(helper.display().to_string()),
     );
 
+    // Why: seed the default model, but never overwrite one already there.
+    // Claude Code stores the user's own `/model` choice in this same file, and
+    // `install --apply` runs again on every update — clobbering it would silently
+    // undo that choice each time.
+    root.entry("model".to_owned())
+        .or_insert_with(|| serde_json::Value::String(DEFAULT_MODEL.to_owned()));
+
     let rendered = serde_json::to_string_pretty(&serde_json::Value::Object(root)).map_err(|e| {
         MdmError::Json {
             path: settings_path.clone(),
@@ -131,7 +143,7 @@ pub(super) fn apply_managed_settings(
     })?;
     write_atomic(&settings_path, &format!("{rendered}\n"))?;
     lines.push(format!(
-        "wrote: {} (ANTHROPIC_BASE_URL, apiKeyHelper, model discovery)",
+        "wrote: {} (ANTHROPIC_BASE_URL, apiKeyHelper, model discovery, default model)",
         settings_path.display()
     ));
     Ok(lines)
