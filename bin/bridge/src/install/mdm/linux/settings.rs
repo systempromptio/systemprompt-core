@@ -1,6 +1,7 @@
 //! Claude Code settings on Linux: the `apiKeyHelper` script plus the `env` keys
-//! the bridge owns inside the settings file — `/etc/claude-code/managed-settings.json`
-//! when running as root, otherwise the per-user `~/.claude/settings.json`.
+//! the bridge owns inside the settings file —
+//! `/etc/claude-code/managed-settings.json` when running as root, otherwise the
+//! per-user `~/.claude/settings.json`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
