@@ -29,7 +29,7 @@ fn empty_catalog_enables_every_known_host() {
     let services = ServicesConfig::default();
     assert_eq!(
         instance_enabled_hosts(&services),
-        vec!["claude-code", "claude-desktop", "cowork", "codex-cli"]
+        vec!["claude-code", "claude-desktop", "cowork", "codex-cli", "hermes"]
     );
 }
 
@@ -41,7 +41,7 @@ fn a_disabled_catalog_entry_removes_its_host() {
         .extend([catalog_entry("codex_cli", false)]);
     assert_eq!(
         instance_enabled_hosts(&services),
-        vec!["claude-code", "claude-desktop", "cowork"]
+        vec!["claude-code", "claude-desktop", "cowork", "hermes"]
     );
 }
 
@@ -54,7 +54,7 @@ fn an_enabled_catalog_entry_keeps_its_host() {
     ]);
     assert_eq!(
         instance_enabled_hosts(&services),
-        vec!["claude-code", "claude-desktop", "cowork", "codex-cli"]
+        vec!["claude-code", "claude-desktop", "cowork", "codex-cli", "hermes"]
     );
 }
 
@@ -67,6 +67,6 @@ fn snake_case_catalog_ids_map_onto_kebab_case_host_ids() {
     ]);
     assert_eq!(
         instance_enabled_hosts(&services),
-        vec!["cowork", "codex-cli"]
+        vec!["cowork", "codex-cli", "hermes"]
     );
 }
