@@ -31,6 +31,9 @@ toml = "1.1"
 # Comment- and layout-preserving TOML mutation. The config file is operator-
 # editable, so a settings write must not reformat it or drop unknown keys.
 toml_edit = "0.25"
+# Hermes reads a YAML config.yaml; the same deep-merge/strip-owned discipline the
+# Codex host applies to TOML is applied here to YAML.
+serde_yaml = "0.9"
 time = { version = "0.3", features = ["serde", "formatting", "parsing"] }
 chrono = { version = "0.4", default-features = false, features = ["clock", "std", "serde"] }
 dirs = "6"

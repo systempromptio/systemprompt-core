@@ -26,7 +26,13 @@ use super::bridge_data;
 use super::messages::extract_credential;
 use crate::services::middleware::JwtContextExtractor;
 
-pub(super) const KNOWN_HOSTS: &[&str] = &["claude-code", "claude-desktop", "cowork", "codex-cli"];
+pub(super) const KNOWN_HOSTS: &[&str] = &[
+    "claude-code",
+    "claude-desktop",
+    "cowork",
+    "codex-cli",
+    "hermes",
+];
 
 pub fn instance_enabled_hosts(
     services: &systemprompt_models::services::ServicesConfig,

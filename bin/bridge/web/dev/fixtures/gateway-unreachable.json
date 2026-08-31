@@ -82,6 +82,27 @@
         "anthropic"
       ],
       "model_protocols_overridden": false
+    },
+    {
+      "id": "hermes",
+      "display_name": "Hermes",
+      "kind": "desktop_app",
+      "description": "Nous Research's Hermes Agent Desktop. systemprompt-bridge writes managed configuration that routes inference through the gateway, registers MCP connectors, and publishes managed skills.",
+      "icon": "hermes",
+      "config_format": "yaml",
+      "download_url": "https://nousresearch.com/",
+      "install_action_label": "merged into HERMES_HOME/config.yaml (with OPENAI_API_KEY written to HERMES_HOME/.env)",
+      "probe_in_flight": false,
+      "enabled": true,
+      "last_generated_profile": null,
+      "compatible_models": [],
+      "models_checked": false,
+      "compatible_models_available": false,
+      "unconfigured_providers": [],
+      "model_protocols": [
+        "openai"
+      ],
+      "model_protocols_overridden": false
     }
   ],
   "local_proxy": {
