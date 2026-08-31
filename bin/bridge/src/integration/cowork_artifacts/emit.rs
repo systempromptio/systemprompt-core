@@ -86,6 +86,7 @@ pub fn write_artifacts(
     let version = artifacts_version(artifacts);
     if read_existing_version(dir).as_deref() == Some(version.as_str())
         && sinks.iter().all(|s| s.is_materialized(dir))
+        && sinks.iter().all(|s| s.is_current(dir, artifacts))
     {
         tracing::info!(
             count = artifacts.len(),

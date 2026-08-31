@@ -81,6 +81,7 @@ marketplace-empty-never-synced = Sync to pull what your account already has.
 marketplace-empty-synced = Your last sync did not include anything of this kind.
 marketplace-no-matches = No matches
 marketplace-items-aria = Items in this category
+marketplace-group-ungrouped = Ungrouped
 toast-dismiss = Dismiss
 agents-status-group-aria = Bridge status
 sync-cancel-aria = Cancel sync
@@ -92,16 +93,9 @@ marketplace-change-removed = Removed
 marketplace-action-validate = Re-check
 marketplace-action-open-folder = Open folder
 last-sync-never = never synced
-marketplace-error-title = Could not load the library
-marketplace-retry = Try again
-marketplace-no-matches = No matches
-marketplace-items-aria = Items in this category
-toast-dismiss = Dismiss
-agents-status-group-aria = Bridge status
-sync-cancel-aria = Cancel sync
-marketplace-empty-generic = nothing installed
-marketplace-empty-never-synced = This computer has not synced with systemprompt yet.
-marketplace-empty-synced = Nothing of this kind is assigned to your account.
+# Only `last-sync` survived this block: every other definition here duplicated
+# one above, and Fluent resolves a duplicate to the first, so they were dead
+# lines that only produced parser warnings.
 last-sync = Last sync: { $summary }
 
 # Agents tab ------------------------------------------------------------------

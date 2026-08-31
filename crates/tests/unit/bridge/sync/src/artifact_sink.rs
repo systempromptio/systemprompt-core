@@ -31,6 +31,7 @@ fn artifact(id: &str) -> ArtifactEntry {
         content: "<p/>".into(),
         starred: false,
         sha256: Sha256Digest::try_new("0".repeat(64)).unwrap(),
+        plugins: Vec::new(),
     }
 }
 

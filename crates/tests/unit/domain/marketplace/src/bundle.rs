@@ -37,6 +37,7 @@ fn skill_entry(id: &str, description: &str, instructions: &str) -> SkillEntry {
         sha256: zero_digest(),
         instructions: instructions.to_owned(),
         hosts: Vec::new(),
+        plugins: Vec::new(),
     }
 }
 
@@ -1067,6 +1068,7 @@ fn artifact_entry(id: &str, name: &str) -> ArtifactEntry {
         content: "<html>dashboard</html>".to_owned(),
         starred: true,
         sha256: zero_digest(),
+        plugins: Vec::new(),
     }
 }
 
@@ -1200,7 +1202,7 @@ fn a_bundle_ships_an_install_manifest_and_the_raw_page_beside_each_record() {
         .expect("the page is emitted verbatim beside its record");
     assert_eq!(page.bytes, b"<html>dashboard</html>");
 
-    let manifest: systemprompt_models::bridge::manifest::CoworkArtifactBundleManifest =
+    let manifest: systemprompt_models::bridge::cowork_artifact::CoworkArtifactBundleManifest =
         serde_json::from_slice(
             &bundle
                 .get("artifacts/manifest.json")

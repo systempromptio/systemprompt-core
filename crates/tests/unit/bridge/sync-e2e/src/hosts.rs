@@ -176,6 +176,7 @@ fn manifest(enabled_hosts: Vec<String>, populated: bool, suffix: &str) -> Signed
                 content: "<h1>Welcome</h1>".into(),
                 starred: false,
                 sha256: Sha256Digest::try_new("1".repeat(64)).unwrap(),
+                plugins: Vec::new(),
             }],
         )
     } else {

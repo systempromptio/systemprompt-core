@@ -55,6 +55,7 @@ fn skill(id: &str, body: &str) -> SkillEntry {
         sha256: Sha256Digest::try_new("0".repeat(64)).unwrap(),
         instructions: body.into(),
         hosts: Vec::new(),
+        plugins: Vec::new(),
     }
 }
 

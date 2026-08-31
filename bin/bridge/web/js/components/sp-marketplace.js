@@ -162,6 +162,11 @@ export class SpMarketplace extends SpElement {
       list.state = this._fetcher.state;
       list.error = this._fetcher.error || "";
       list.reason = this._fetcher.reason || "";
+      // id -> display name for the grouped list's section headers. Sourced
+      // from the plugins category of the same snapshot, so a header can never
+      // name a plugin this listing does not carry.
+      list.pluginNames = ((this.listing && this.listing.plugins) || [])
+        .reduce((acc, p) => { acc[p.id] = p.name || p.id; return acc; }, {});
     }
     if (detail) {
       detail.selected = items.find((it) => it.id === this.selectedId) || null;

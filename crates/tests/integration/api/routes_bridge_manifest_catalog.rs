@@ -91,9 +91,20 @@ async fn manifest_with_seeded_catalog_is_signed_and_lists_plugin_and_skill() -> 
     );
 
     let skills = body["skills"].as_array().expect("skills array");
-    assert!(
-        skills.iter().any(|s| s["id"].as_str() == Some("covskill")),
-        "covskill missing from {body}"
+    let covskill = skills
+        .iter()
+        .find(|s| s["id"].as_str() == Some("covskill"))
+        .unwrap_or_else(|| panic!("covskill missing from {body}"));
+    // The bridge groups its Marketplace listing by this, so an entry that
+    // reached the manifest without naming the plugin that granted it would
+    // render as ungrouped rather than under `cov-plugin`.
+    assert_eq!(
+        covskill["plugins"].as_array().map(|v| v
+            .iter()
+            .filter_map(serde_json::Value::as_str)
+            .collect::<Vec<_>>()),
+        Some(vec!["cov-plugin"]),
+        "covskill must name its owning plugin: {covskill}"
     );
 
     let hosts = body["enabled_hosts"].as_array().expect("enabled_hosts");

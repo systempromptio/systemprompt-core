@@ -5,8 +5,11 @@
 //! content, so it follows the synthetic-plugin writer's shape: a content-hashed
 //! `version.json` written last as the idempotency/completion marker. Teardown
 //! is explicit: only [`HostSync::clear`] (the disabled-host path) removes the
-//! store. An enabled host sending an empty artifact set preserves the store and
-//! warns — that shape signals an upstream population bug, not intent to wipe.
+//! store wholesale. An enabled host sending an empty artifact set preserves the
+//! store and warns — that shape signals an upstream population bug, not intent
+//! to wipe. A *non-empty* set is authoritative, though: the sinks are replaced
+//! with exactly what the manifest carries, so an id it has stopped naming is
+//! dropped rather than accumulating across syncs.
 //! The write mechanism itself is pluggable (see
 //! [`sink`]): the live Cowork library ingests artifacts only via its native
 //! `create_artifact` tool, so [`emit::active_sinks`] writes through both

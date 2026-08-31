@@ -113,6 +113,7 @@ fn skill(id: &str) -> SkillEntry {
         sha256: Sha256Digest::try_new(ZERO_DIGEST).expect("valid digest"),
         instructions: String::new(),
         hosts: Vec::new(),
+        plugins: Vec::new(),
     }
 }
 

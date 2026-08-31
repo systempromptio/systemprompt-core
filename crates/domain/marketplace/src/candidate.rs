@@ -1,8 +1,10 @@
 //! The bundle of catalogue items handed to a [`crate::MarketplaceFilter`].
 //!
-//! Ownership maps (`skill_owners`, `artifact_owners`) are assembly context:
-//! they drive the per-plugin access cascade and orphan pruning, and are never
-//! serialised into the manifest.
+//! Ownership maps (`skill_owners`, `artifact_owners`) drive the per-plugin
+//! access cascade and orphan pruning. They are not serialised as maps, but
+//! [`MarketplaceCandidate::into_manifest_parts`] stamps each entry's surviving
+//! owners onto `SkillEntry::plugins` / `ArtifactEntry::plugins` so the bridge
+//! can group its Marketplace listing without a second request.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -83,6 +85,28 @@ impl MarketplaceCandidate {
             access,
             diagnostics,
         } = self;
+        // Why: ownership is stamped onto the entries here, at the one point
+        // where the final plugin list and the owner maps are both in hand.
+        // Intersecting with `surviving` keeps a plugin the access filter
+        // removed from surfacing as an owner of an artifact it no longer
+        // grants.
+        let surviving: BTreeSet<&PluginId> = plugins.iter().map(|p| &p.id).collect();
+        let owned = |owners: Option<&BTreeSet<PluginId>>| -> Vec<PluginId> {
+            owners.map_or_else(Vec::new, |o| {
+                o.iter()
+                    .filter(|p| surviving.contains(p))
+                    .cloned()
+                    .collect()
+            })
+        };
+        let mut skills = skills;
+        for skill in &mut skills {
+            skill.plugins = owned(skill_owners.get(&skill.id));
+        }
+        let mut artifacts = artifacts;
+        for artifact in &mut artifacts {
+            artifact.plugins = owned(artifact_owners.get(&artifact.id));
+        }
         (
             ManifestEntries {
                 plugins,
