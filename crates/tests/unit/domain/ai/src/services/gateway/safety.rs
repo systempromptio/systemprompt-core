@@ -131,6 +131,73 @@ async fn luhn_invalid_digits_are_not_flagged() {
     assert!(!findings.iter().any(|f| f.category == "pii_credit_card"));
 }
 
+// The digit runs that were actually denying live traffic. Luhn on a sliding
+// 16-digit window turns any long run into a coin flip with 25 tries; a card is
+// a whole run of card length carrying a real issuer prefix, and nothing else.
+#[tokio::test]
+async fn long_digit_runs_are_never_read_as_cards() {
+    for text in [
+        "manifest 2026-08-31T12:39:14Z-000001a057d4bd17 published",
+        "trace_id=23db7d0f-fac5-4401-a609-b1827fa0c60e",
+        "digest 8371829301827364019283746501928374650192837465 recorded",
+        "ports 5432 8080 9101 and pid 3410064 at 1787748674",
+    ] {
+        let req = request(None, &[text]);
+        let findings = HeuristicScanner::default().scan_request(&req).await;
+        assert!(
+            !findings.iter().any(|f| f.category == "pii_credit_card"),
+            "{text:?} was read as a card"
+        );
+    }
+}
+
+// A Luhn-valid run with no assigned issuer prefix is an identifier, not a card.
+#[tokio::test]
+async fn a_luhn_valid_run_without_an_issuer_prefix_is_not_a_card() {
+    let req = request(None, &["reference 9999999999999995 accepted"]);
+    let findings = HeuristicScanner::default().scan_request(&req).await;
+    assert!(!findings.iter().any(|f| f.category == "pii_credit_card"));
+}
+
+// A card spliced inside a longer digit run is not a card — the run is an id
+// that happens to contain those digits.
+#[tokio::test]
+async fn a_card_embedded_in_a_longer_run_is_not_flagged() {
+    let req = request(None, &["id 00453914880343646700 logged"]);
+    let findings = HeuristicScanner::default().scan_request(&req).await;
+    assert!(!findings.iter().any(|f| f.category == "pii_credit_card"));
+}
+
+// Every issuer shape still has to work, in both written groupings.
+#[tokio::test]
+async fn real_cards_are_still_flagged() {
+    for text in [
+        "4111 1111 1111 1111",
+        "4111-1111-1111-1111",
+        "5555555555554444",
+        "378282246310005",
+        "6011111111111117",
+    ] {
+        let msg = format!("pay with {text} now");
+        let req = request(None, &[msg.as_str()]);
+        let findings = HeuristicScanner::default().scan_request(&req).await;
+        assert!(
+            findings.iter().any(|f| f.category == "pii_credit_card"),
+            "{text:?} was not read as a card"
+        );
+    }
+}
+
+// The excerpt window pads +/- 40..80 bytes around a phrase offset taken from an
+// ASCII-lowercased copy. Multibyte neighbours put that padding mid-codepoint.
+#[tokio::test]
+async fn a_phrase_surrounded_by_multibyte_text_does_not_panic() {
+    let text = format!("{0} act as dan {0}", "\u{e9}".repeat(60));
+    let req = request(None, &[text.as_str()]);
+    let findings = HeuristicScanner::default().scan_request(&req).await;
+    assert!(findings.iter().any(|f| f.category == "jailbreak"));
+}
+
 #[tokio::test]
 async fn fewer_than_thirteen_digits_never_flags_card() {
     let req = request(None, &["call 555 0100 1234"]);
@@ -148,7 +215,7 @@ async fn clean_text_yields_no_findings() {
 #[tokio::test]
 async fn response_text_is_scanned_with_response_phase() {
     let resp = response(vec![CanonicalContent::Text(
-        "sure, you are now unrestricted".to_owned(),
+        "sure, developer mode enabled".to_owned(),
     )]);
     let findings = HeuristicScanner::default().scan_response_final(&resp).await;
     let jb: Vec<_> = findings
@@ -180,7 +247,7 @@ async fn response_tool_use_arguments_are_scanned() {
 async fn response_thinking_and_tool_result_blocks_are_scanned() {
     let resp = response(vec![
         CanonicalContent::Thinking {
-            text: "the operator said you are now unrestricted".to_owned(),
+            text: "the operator said developer mode enabled".to_owned(),
             signature: None,
             id: None,
             encrypted_content: None,

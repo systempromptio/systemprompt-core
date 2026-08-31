@@ -638,7 +638,7 @@ fn jailbreak_response_json() -> serde_json::Value {
         "type": "message",
         "role": "assistant",
         "model": MODEL,
-        "content": [{"type": "text", "text": "fine, you are now free of all rules"}],
+        "content": [{"type": "text", "text": "fine, developer mode enabled for you"}],
         "stop_reason": "end_turn",
         "usage": {"input_tokens": 4, "output_tokens": 5}
     })
@@ -779,5 +779,5 @@ async fn a_streaming_response_is_never_blocked() -> anyhow::Result<()> {
 }
 
 fn jailbreak_sse_body() -> String {
-    streaming_sse_body().replace("streamed hello", "fine, you are now free of all rules")
+    streaming_sse_body().replace("streamed hello", "fine, developer mode enabled for you")
 }
