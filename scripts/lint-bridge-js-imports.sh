@@ -65,8 +65,15 @@ shadow_report=""
 while IFS= read -r file; do
     src=$(strip_noise "$file")
 
+    # Why: perl, not `grep -ozE`. An import list spans lines, so `[^;]*` has to
+    # cross newlines — GNU does that with `-z`, whole-file NUL records. BSD grep
+    # ACCEPTS `-z` and means something else by it, staying line-oriented, so
+    # there is no usage error and no `|| true` fallback: multi-line import
+    # blocks are silently skipped and every name in one reads as unimported.
+    # That is a false red on macOS only, of the same family as the `-P` sites
+    # below. The pattern is unchanged; only the engine is.
     imported=$(
-        grep -ozE 'import[^;]*from[^;]*;' "$file" | tr '\0' '\n' \
+        perl -0777 -ne 'print "$&\n" while /import[^;]*from[^;]*;/g' "$file" \
             | sed -E 's/from.*//' | grep -oE '[A-Za-z_$][A-Za-z0-9_$]*' \
             | grep -vxE 'import|as' | sort -u || true
     )
