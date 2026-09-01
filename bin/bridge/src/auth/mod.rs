@@ -50,7 +50,10 @@ pub async fn obtain_live_token(
     if let Some(out) = read_cached(cfg, 30, None) {
         return Some(out);
     }
-    mint_fresh(cfg, session_id, http).await.ok()
+    mint_fresh(cfg, session_id, http)
+        .await
+        .inspect_err(|e| tracing::warn!(error = %e, "could not mint a fresh session token"))
+        .ok()
 }
 
 pub async fn read_or_refresh(
@@ -62,7 +65,10 @@ pub async fn read_or_refresh(
     if let Some(out) = read_cached(cfg, threshold_secs, Some(session_id)) {
         return Some(out);
     }
-    mint_fresh(cfg, session_id, http).await.ok()
+    mint_fresh(cfg, session_id, http)
+        .await
+        .inspect_err(|e| tracing::warn!(error = %e, "could not mint a fresh session token"))
+        .ok()
 }
 
 fn read_cached(

@@ -45,8 +45,7 @@ struct ManagedState {
 }
 
 impl SkillTarget {
-    // Why: skills may target specific hosts; an empty list means every host.
-    // Skip skills aimed elsewhere so a Cowork-only skill never lands here.
+    // Why: an empty host list means every host.
     fn targets(&self, skill: &SkillEntry) -> bool {
         skill.hosts.is_empty() || skill.hosts.iter().any(|h| h == self.host_id)
     }

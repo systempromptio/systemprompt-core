@@ -9,9 +9,7 @@ use crate::gui::events::UiEvent;
 use crate::gui::{GuiApp, handlers};
 
 // Why: exhaustive on purpose — a new variant that is not named here is a
-// compile error, not an event logged as "Unknown" forever. The four `const fn`s
-// this replaces each ended in `_ => return None`, which is how the second
-// outcome was the one shipping.
+// compile error, not an event logged as "Unknown" forever.
 const fn event_kind(event: &UiEvent) -> &'static str {
     match event {
         UiEvent::OpenSettings => "OpenSettings",

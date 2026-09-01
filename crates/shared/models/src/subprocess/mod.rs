@@ -93,9 +93,8 @@ pub fn is_deployment_host(lookup: impl Fn(&str) -> Option<String>) -> bool {
 }
 
 // Why: both spawners clear the child environment and rebuild it from an
-// allowlist, and both need exactly this set. They used to hold a copy each;
-// the copies drifted, the MCP one lost the host marker, and every MCP server
-// on a deployed host then believed it was somewhere else.
+// allowlist, and both need exactly this set. It lives here so the two cannot
+// diverge.
 pub fn inherited_parent_env(lookup: impl Fn(&str) -> Option<String>) -> Vec<(String, String)> {
     let mut env: Vec<(String, String)> = [DEPLOYMENT_HOST_ENV, FLY_HOST_ENV, "PATH", "HOME"]
         .iter()

@@ -29,7 +29,7 @@ impl CredentialsBootstrap {
         }
 
         if Self::is_deployment_host() {
-            tracing::debug!("Fly.io container detected, loading credentials from environment");
+            tracing::debug!("Deployment host detected, loading credentials from environment");
             let creds = Self::load_from_env();
             if let Some(ref c) = creds
                 && let Err(e) = Self::validate_with_api(c).await

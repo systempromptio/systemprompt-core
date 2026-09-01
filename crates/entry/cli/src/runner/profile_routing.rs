@@ -211,9 +211,7 @@ fn allow_local_execution(
         tracing::warn!(
             profile_name = %profile.name,
             reason = reason,
-            "Cloud profile '{}' could not route remotely ({}); reading local data instead",
-            profile.name,
-            reason
+            "Cloud profile could not route remotely; reading local data instead"
         );
         return Ok(());
     }

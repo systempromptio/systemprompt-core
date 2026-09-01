@@ -275,3 +275,14 @@ fn plugin_hooks_ref_rejects_unknown_fields() {
     let err = serde_yaml::from_str::<PluginHooksRef>("governence: true");
     assert!(err.is_err(), "misspelled hook key must not parse");
 }
+
+#[test]
+fn plugin_hooks_ref_declaring_only_comms_is_not_empty() {
+    let parsed: PluginHooksRef = serde_yaml::from_str("comms: true").unwrap();
+    assert!(parsed.comms);
+    assert!(!parsed.governance);
+    assert!(
+        !parsed.is_empty(),
+        "a comms-only owner must materialise hooks; an empty verdict writes an empty hooks.json"
+    );
+}

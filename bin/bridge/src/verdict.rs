@@ -5,9 +5,9 @@
 //! here, once, next to the enum. The front end renders the tone and looks the
 //! code up in the catalogue; it never decides for itself what a state means.
 //!
-//! That rule exists because it was broken: the Home card tested the MCP auth
+//! That rule exists because it was broken: a GUI card tested the MCP auth
 //! state's *name* against a variant that did not exist and told users four
-//! healthy servers were broken, while the Status pane, reading the same
+//! healthy servers were broken, while another pane, reading the same
 //! snapshot, said they were fine. Two panes, two derivations, two answers.
 //! `scripts/lint-bridge-verdicts.sh` keeps the derivation out of JavaScript.
 //!

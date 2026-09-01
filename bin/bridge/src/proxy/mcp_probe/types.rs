@@ -61,10 +61,9 @@ pub enum McpAuthState {
 impl McpAuthState {
     // Why: The single answer to "must the user sign in to this server again?".
     //
-    // Why one function: this predicate drives the desktop notification, the
-    // Home "waiting on you" card, and the per-server panel. When each surface
-    // derived it separately they disagreed, and the UI told users to re-auth
-    // four healthy servers.
+    // Why one function: this predicate drives the desktop notification and the
+    // per-server panel. When each surface derived it separately they disagreed,
+    // and the UI told users to re-auth four healthy servers.
     #[must_use]
     pub const fn needs_sign_in(self) -> bool {
         matches!(self, Self::GatewayUnauthorized | Self::NotRegistered)

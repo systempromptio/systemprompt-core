@@ -36,11 +36,6 @@ pub fn build_environment(
 ) -> Vec<(String, String)> {
     let mut env = Vec::new();
 
-    // Why: shared with the agent spawner rather than copied. This list once held
-    // a private copy that lost the deployment-host marker, so every MCP
-    // subprocess on a deployed host believed it was somewhere else and a server
-    // that shells out to the CLI tried to route a command to the host it was
-    // already running on.
     env.extend(systemprompt_models::subprocess::inherited_parent_env(
         &lookup,
     ));

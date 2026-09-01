@@ -35,8 +35,6 @@ pub struct BridgeProfileResponse {
     pub providers: Vec<ProviderHealth>,
 }
 
-/// A provider whose credential secret is absent is flagged
-/// (`configured = false`) rather than dropped silently.
 // Why: the bridge's `HostApp` registry and its sync-only agent table must
 // together cover exactly this list; a bridge-side test asserts it, so a host
 // added on one side without the other fails there rather than vanishing from
@@ -49,6 +47,8 @@ pub const KNOWN_HOSTS: &[&str] = &[
     "opencode",
 ];
 
+/// A provider whose credential secret is absent is flagged
+/// (`configured = false`) rather than dropped silently.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProviderHealth {
     pub name: String,

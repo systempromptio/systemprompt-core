@@ -40,7 +40,7 @@ impl InstallId {
     #[must_use]
     pub fn establish() -> Self {
         Self(load_or_mint().unwrap_or_else(|e| {
-            tracing::warn!(error = %e, "could not establish an install id; using {UNKNOWN}");
+            tracing::warn!(error = %e, install_id = UNKNOWN, "could not establish an install id");
             UNKNOWN.to_owned()
         }))
     }

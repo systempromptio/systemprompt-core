@@ -70,9 +70,8 @@ pub struct BuildAgentCommandParams<'a> {
     clippy::too_many_arguments,
     reason = "one argument per environment source; a struct would only rename the same six"
 )]
-// Why: returned as pairs rather than applied onto a `Command` so tests can
-// assert on it; the inherited-variable list drifted unnoticed while it was only
-// ever applied.
+// Why: returned as pairs rather than applied onto a `Command` so the set is
+// assertable in a test.
 pub fn build_agent_environment(
     agent_name: &str,
     port: u16,
@@ -81,10 +80,6 @@ pub fn build_agent_environment(
     secrets: &Secrets,
     lookup: impl Fn(&str) -> Option<String>,
 ) -> Vec<(String, String)> {
-    // Why: shared with the MCP spawner rather than copied. The two lists drifted
-    // once already — this one kept the deployment-host marker through a bolt-on
-    // while the MCP one silently lost it, and every MCP server on a deployed
-    // host then believed it was somewhere else.
     let mut env = systemprompt_models::subprocess::inherited_parent_env(lookup);
 
     env.push(("SYSTEMPROMPT_PROFILE".to_owned(), profile_path.to_owned()));

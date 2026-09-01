@@ -1,7 +1,7 @@
 //! File and environment loaders for the secrets singleton.
 //!
 //! Resolves the secrets document from the active profile, falling back
-//! to environment variables in subprocess and Fly.io container modes.
+//! to environment variables in subprocess and deployment-host modes.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -47,7 +47,7 @@ pub(super) fn load_from_profile_config() -> ConfigResult<Secrets> {
 
     match secrets_config.source {
         SecretsSource::Env if is_deployment_host => {
-            tracing::debug!("Loading secrets from environment (Fly.io container)");
+            tracing::debug!("Loading secrets from environment (deployment host)");
             load_from_env()
         },
         SecretsSource::Env => {

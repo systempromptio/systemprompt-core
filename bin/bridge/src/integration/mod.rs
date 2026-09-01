@@ -1,4 +1,6 @@
-//! Host-app integrations: Claude Desktop, Cowork artifacts, launch helpers.
+//! Host-app integrations: the Claude Code, Claude Desktop, Codex, Hermes and
+//! `OpenCode` hosts, their profile and application state, and the health
+//! verdicts the GUI renders for them.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
