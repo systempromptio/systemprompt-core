@@ -1,0 +1,15 @@
+sp-hosts-list { display: flex; flex-direction: column; gap: var(--sp-space-3); }
+
+.sp-hosts__header { gap: var(--sp-space-3-5); }
+.sp-hosts__header-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-space-3);
+}
+.sp-hosts__header-meta h1 { margin: 0; }
+.sp-hosts__header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-space-2-5);
+  margin-left: auto;
+}

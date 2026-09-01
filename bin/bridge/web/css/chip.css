@@ -1,0 +1,17 @@
+.sp-chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-space-1-5);
+}
+.sp-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--sp-space-0-5) var(--sp-space-2);
+  font-size: 11px;
+  font-family: var(--sp-font-mono);
+  background: var(--sp-bg-elev-2);
+  border: 1px solid var(--sp-line);
+  border-radius: var(--sp-corners-pill);
+  color: var(--sp-muted-strong);
+  white-space: nowrap;
+}
