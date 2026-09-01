@@ -36,9 +36,10 @@ pub enum SyncError {
     #[error(
         "Cowork reads {system_path} but this process cannot write there — re-run `{bin} install \
          --apply` and approve the single administrator prompt (it provisions the Claude policy \
-         and grants you write access to org-plugins), or disable the Cowork host for this user"
+         and grants you write access to org-plugins), or disable the Claude Desktop host for \
+         this user"
     )]
-    CoworkNeedsElevation {
+    OrgPluginsNeedElevation {
         bin: &'static str,
         system_path: String,
     },
@@ -101,7 +102,7 @@ impl SyncError {
             Self::SchemaTooNew { .. } | Self::ManifestShape(_) | Self::BridgeTooOld { .. } => {
                 ExitCode::from(11)
             },
-            Self::CoworkNeedsElevation { .. } => ExitCode::from(12),
+            Self::OrgPluginsNeedElevation { .. } => ExitCode::from(12),
         }
     }
 }

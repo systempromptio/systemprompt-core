@@ -341,37 +341,6 @@
         "is_installed": true,
         "is_running": false
       }
-    },
-    {
-      "id": "cowork",
-      "display_name": "Cowork",
-      "kind": "cli_tool",
-      "description": "Governed through the gateway; artifacts and plugins sync from here.",
-      "icon": "cowork",
-      "config_format": "json",
-      "download_url": "",
-      "install_action_label": "",
-      "probe_in_flight": false,
-      "enabled": true,
-      "last_generated_profile": null,
-      "snapshot": null,
-      "compatible_models": [],
-      "models_checked": false,
-      "compatible_models_available": false,
-      "unconfigured_providers": [],
-      "model_protocols": [],
-      "model_protocols_overridden": false,
-      "surface": "sync-only",
-      "verdict": {
-        "state": "working",
-        "reason": {
-          "code": "cloud-managed"
-        },
-        "action": null,
-        "is_set_up": true,
-        "is_installed": true,
-        "is_running": false
-      }
     }
   ],
   "local_proxy": {
@@ -463,8 +432,8 @@
   },
   "agent_fleet": {
     "all": {
-      "total": 6,
-      "working": 6,
+      "total": 5,
+      "working": 5,
       "ready": 0,
       "attention": 0,
       "not_set_up": 0,
@@ -475,8 +444,8 @@
       "headline": "all-working"
     },
     "set_up": {
-      "total": 6,
-      "working": 6,
+      "total": 5,
+      "working": 5,
       "ready": 0,
       "attention": 0,
       "not_set_up": 0,

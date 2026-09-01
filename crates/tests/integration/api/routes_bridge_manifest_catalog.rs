@@ -109,7 +109,7 @@ async fn manifest_with_seeded_catalog_is_signed_and_lists_plugin_and_skill() -> 
 
     let hosts = body["enabled_hosts"].as_array().expect("enabled_hosts");
     let host_names: Vec<&str> = hosts.iter().filter_map(|h| h.as_str()).collect();
-    for expected in ["claude-code", "claude-desktop", "cowork", "codex-cli"] {
+    for expected in ["claude-code", "claude-desktop", "codex-cli"] {
         assert!(host_names.contains(&expected), "{expected} not in {body}");
     }
     Ok(())
@@ -134,7 +134,7 @@ async fn manifest_enabled_hosts_scope_to_stored_prefs() -> anyhow::Result<()> {
         .oneshot(authed_post(
             "/bridge/profile/enabled_hosts",
             cred.jwt.as_str(),
-            serde_json::json!({"host_id": "cowork", "enabled": false}),
+            serde_json::json!({"host_id": "claude-desktop", "enabled": false}),
         ))
         .await?;
     assert_eq!(resp.status(), StatusCode::OK);

@@ -25,8 +25,8 @@ pub struct HostSyncCtx<'a> {
 
 // Why: the `Any` bound lets the registry dedup by concrete emitter type —
 // `host_id()` is the manifest enablement gate and is deliberately shared by
-// the two Cowork facets (plugins + artifacts), so it cannot serve as the
-// dedup key.
+// the two Claude Desktop facets (Cowork plugins + artifacts), so it cannot
+// serve as the dedup key.
 #[async_trait]
 pub trait HostSync: std::any::Any + Send + Sync + 'static {
     fn host_id(&self) -> &'static str;

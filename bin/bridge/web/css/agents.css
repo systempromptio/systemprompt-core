@@ -24,7 +24,6 @@ body[data-setup-step="done"]    .sp-setup__step[data-step="done"] { display: blo
 .sp-setup-agent__desc { font-size: 12px; color: var(--sp-muted); }
 .sp-setup-agent button { white-space: nowrap; }
 
-
 .sp-tab__lede {
   margin: 0 0 var(--sp-space-4) 0;
   font-size: 13px;

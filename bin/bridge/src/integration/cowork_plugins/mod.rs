@@ -32,7 +32,7 @@ pub struct CoworkSync;
 #[async_trait]
 impl HostSync for CoworkSync {
     fn host_id(&self) -> &'static str {
-        "cowork"
+        "claude-desktop"
     }
 
     async fn apply(&self, ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError> {

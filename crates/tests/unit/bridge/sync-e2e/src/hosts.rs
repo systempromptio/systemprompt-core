@@ -323,7 +323,7 @@ fn run_once_with_enabled_hosts_materialises_all_host_state() {
         .unwrap();
 
     let m = manifest(
-        vec!["claude-code".into(), "cowork".into()],
+        vec!["claude-code".into(), "claude-desktop".into()],
         true,
         "aaaa0001",
     );
@@ -369,7 +369,7 @@ fn run_once_with_hosts_disabled_clears_all_host_state() {
         .unwrap();
 
     let enabled = manifest(
-        vec!["claude-code".into(), "cowork".into()],
+        vec!["claude-code".into(), "claude-desktop".into()],
         true,
         "bbbb0001",
     );

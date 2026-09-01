@@ -44,7 +44,7 @@ fn manifest(artifacts: Vec<ArtifactEntry>) -> SignedManifest {
         hooks: vec![],
         managed_mcp_servers: vec![],
         revocations: vec![],
-        enabled_hosts: vec!["cowork".into()],
+        enabled_hosts: vec!["claude-desktop".into()],
         host_model_protocols: Default::default(),
         artifacts,
         allow_claude_ai_connectors: false,

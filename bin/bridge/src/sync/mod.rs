@@ -58,14 +58,14 @@ pub async fn run_once(
     )]
     let mut location = paths::org_plugins_effective().ok_or(SyncError::PathUnresolvable)?;
     #[cfg(target_os = "windows")]
-    if let Err(err) = check_cowork_scope(&synced, &location) {
-        match heal_cowork_scope().await {
+    if let Err(err) = check_org_plugins_scope(&synced, &location) {
+        match heal_org_plugins_scope().await {
             Some(healed) => location = healed,
             None => return Err(err),
         }
     }
     #[cfg(not(target_os = "windows"))]
-    check_cowork_scope(&synced, &location)?;
+    check_org_plugins_scope(&synced, &location)?;
     if !location.path.is_dir() {
         // Why: only the macOS system path needs `sudo install --apply` — the
         // per-user location (Windows/Linux) is writable by this process, so a
@@ -150,19 +150,19 @@ async fn seed_default_model_from_profile(_client: &crate::gateway::GatewayClient
 
 // Why: on Windows, Cowork scans only the system org-plugins path. Writing the
 // user-scope fallback there succeeds but is invisible to Cowork, so a sync
-// that targets the cowork host from a non-elevated process must fail loudly
-// instead of reporting success. Other platforms either have no fallback
+// that targets the Claude Desktop host from a non-elevated process must fail
+// loudly instead of reporting success. Other platforms either have no fallback
 // (macOS) or no Cowork desktop app, and the gateway enables all known hosts
 // by default, so the check cannot be platform-neutral.
 #[cfg(target_os = "windows")]
-fn check_cowork_scope(
+fn check_org_plugins_scope(
     manifest: &SignedManifest,
     location: &paths::OrgPluginsLocation,
 ) -> Result<(), SyncError> {
-    if manifest.enabled_hosts.iter().any(|h| h == "cowork")
+    if manifest.enabled_hosts.iter().any(|h| h == "claude-desktop")
         && let paths::FallbackReason::SystemUnwritable { system_path } = &location.reason
     {
-        return Err(SyncError::CoworkNeedsElevation {
+        return Err(SyncError::OrgPluginsNeedElevation {
             bin: crate::brand::brand().binary_name,
             system_path: system_path.display().to_string(),
         });
@@ -175,7 +175,7 @@ fn check_cowork_scope(
 // One attempt per process: a declined prompt must not re-fire from the GUI
 // auto-sync, tray retries, or a `sync --watch` loop.
 #[cfg(target_os = "windows")]
-async fn heal_cowork_scope() -> Option<paths::OrgPluginsLocation> {
+async fn heal_org_plugins_scope() -> Option<paths::OrgPluginsLocation> {
     use std::sync::atomic::{AtomicBool, Ordering};
     static ATTEMPTED: AtomicBool = AtomicBool::new(false);
     if ATTEMPTED.swap(true, Ordering::SeqCst) {
@@ -221,7 +221,7 @@ async fn heal_cowork_scope() -> Option<paths::OrgPluginsLocation> {
     clippy::unnecessary_wraps,
     reason = "signature must match the windows variant so run_once stays cfg-free"
 )]
-const fn check_cowork_scope(
+const fn check_org_plugins_scope(
     _manifest: &SignedManifest,
     _location: &paths::OrgPluginsLocation,
 ) -> Result<(), SyncError> {

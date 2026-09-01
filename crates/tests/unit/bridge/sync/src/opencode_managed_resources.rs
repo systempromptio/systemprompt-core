@@ -222,7 +222,7 @@ fn two_ids_that_collapse_to_one_folder_are_refused_before_anything_is_written() 
 fn a_skill_aimed_at_another_host_is_skipped() {
     with_sandbox(|sb| {
         let mut elsewhere = skill("cowork_only", "x\n");
-        elsewhere.hosts = vec!["cowork".into()];
+        elsewhere.hosts = vec!["claude-desktop".into()];
         let mut here = skill("for_opencode", "y\n");
         here.hosts = vec!["opencode".into()];
         apply(&manifest_with(vec![elsewhere, here], vec![]), &sb.skills).unwrap();

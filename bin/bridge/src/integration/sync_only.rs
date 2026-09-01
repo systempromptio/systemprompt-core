@@ -1,8 +1,8 @@
 //! Agents the gateway governs centrally, with nothing to install locally.
 //!
-//! `claude-code` and `cowork` are enabled in the instance manifest exactly like
-//! the desktop hosts, but they have no [`crate::integration::HostApp`] — they
-//! reach the gateway themselves and only receive skill/plugin sync from here.
+//! `claude-code` is enabled in the instance manifest exactly like the desktop
+//! hosts, but it has no [`crate::integration::HostApp`] — it reaches the
+//! gateway itself and only receives skill/plugin sync from here.
 //! Before this table they were simply invisible: a user running Claude Code
 //! looked at the Agents card and saw no sign of the agent they were using.
 //!
@@ -20,20 +20,12 @@ pub struct SyncOnlyAgent {
 // Why: kept in step with `KNOWN_HOSTS` in
 // `systemprompt_models::bridge::profile`; the inventory test asserts the two
 // cover each other.
-pub const SYNC_ONLY_AGENTS: &[SyncOnlyAgent] = &[
-    SyncOnlyAgent {
-        id: "claude-code",
-        display_name: "Claude Code",
-        description: "Governed through the gateway; skills and plugins sync from here.",
-        icon: "claude-code",
-    },
-    SyncOnlyAgent {
-        id: "cowork",
-        display_name: "Cowork",
-        description: "Governed through the gateway; artifacts and plugins sync from here.",
-        icon: "cowork",
-    },
-];
+pub const SYNC_ONLY_AGENTS: &[SyncOnlyAgent] = &[SyncOnlyAgent {
+    id: "claude-code",
+    display_name: "Claude Code",
+    description: "Governed through the gateway; skills and plugins sync from here.",
+    icon: "claude-code",
+}];
 
 #[must_use]
 pub fn sync_only_agent(host_id: &str) -> Option<&'static SyncOnlyAgent> {

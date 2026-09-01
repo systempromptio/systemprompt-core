@@ -57,7 +57,13 @@ fn host_apps_are_sorted_by_id() {
 #[test]
 fn host_sync_registry_contains_builtins() {
     let ids: Vec<&str> = host_sync::registry().iter().map(|s| s.host_id()).collect();
-    for expected in ["codex-cli", "claude-code", "cowork", "hermes", "opencode"] {
+    for expected in [
+        "codex-cli",
+        "claude-code",
+        "claude-desktop",
+        "hermes",
+        "opencode",
+    ] {
         assert!(
             ids.contains(&expected),
             "{expected} host sync missing; registry = {ids:?}"
@@ -66,14 +72,14 @@ fn host_sync_registry_contains_builtins() {
 }
 
 #[test]
-fn host_sync_registry_keeps_both_cowork_facets() {
+fn host_sync_registry_keeps_both_claude_desktop_facets() {
     let cowork = host_sync::registry()
         .iter()
-        .filter(|s| s.host_id() == "cowork")
+        .filter(|s| s.host_id() == "claude-desktop")
         .count();
     assert_eq!(
         cowork, 2,
-        "the Cowork plugins and artifacts emitters share host_id \"cowork\" and \
+        "the Cowork plugins and artifacts emitters share host_id \"claude-desktop\" and \
          must both survive dedup (dedup keys on concrete type, not host_id)"
     );
 }

@@ -697,12 +697,12 @@ fn a_manifest_without_a_user_writes_a_null_user_fragment() {
 
 #[test]
 fn an_enabled_host_with_nothing_installed_is_a_no_op() {
-    let enabled = manifest_with(vec![], vec!["cowork".into()]);
+    let enabled = manifest_with(vec![], vec!["claude-desktop".into()]);
     let (server, dirs, pat_dir) = serve(&enabled, "pat-hosts");
     let summary = run_sync(&dirs).expect("sync applies");
     assert!(
         summary.one_line().contains("sync ok"),
-        "an enabled host with no Cowork install is a no-op, not a failure: {}",
+        "an enabled host with no Claude Desktop install is a no-op, not a failure: {}",
         summary.one_line()
     );
     let _ = (&server, &pat_dir);

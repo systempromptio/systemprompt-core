@@ -246,7 +246,7 @@ fn user_authored_config_keys_survive_apply_and_clear() {
 fn a_skill_targeting_another_host_is_skipped_while_a_hermes_skill_is_written() {
     with_hermes_home(|home| {
         let mut cowork_only = skill("cowork-only", "# c\n");
-        cowork_only.hosts = vec!["cowork".into()];
+        cowork_only.hosts = vec!["claude-desktop".into()];
         let mut hermes_only = skill("hermes-only", "# h\n");
         hermes_only.hosts = vec!["hermes".into()];
 

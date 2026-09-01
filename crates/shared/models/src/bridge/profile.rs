@@ -44,7 +44,6 @@ pub struct BridgeProfileResponse {
 pub const KNOWN_HOSTS: &[&str] = &[
     "claude-code",
     "claude-desktop",
-    "cowork",
     "codex-cli",
     "hermes",
     "opencode",
