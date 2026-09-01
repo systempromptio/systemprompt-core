@@ -65,6 +65,7 @@ pub fn cmd_login(ctx: &BridgeContext, args: &[String]) -> ExitCode {
             stdio::print_line(&format!("  config: {}", paths.config_file.display()));
             stdio::print_line(&format!("  secret: {} (0600)", paths.pat_file.display()));
             stdio::print_line(&format!("Next: run `{bin}` to fetch a JWT."));
+            reapply_after_login(ctx, has_flag(args, "--no-reapply"));
             ExitCode::SUCCESS
         },
         Err(e) => {
@@ -77,7 +78,7 @@ pub fn cmd_login(ctx: &BridgeContext, args: &[String]) -> ExitCode {
 fn usage() -> String {
     format!(
         "usage: {bin} login [--gateway <url>] [--no-browser] [--device-name <name>]\n   \
-         or: {bin} login <sp-live-...> [--gateway <url>]\n   \
+         or: {bin} login <sp-live-...> [--gateway <url>] [--no-reapply]\n   \
          or: {bin} login --code <exchange-code> [--gateway <url>] [--device-name <name>]\n\
          \n\
          With no token or code, signs in through the gateway's device-link page:\n\
@@ -254,4 +255,32 @@ fn default_device_name() -> Option<String> {
                 .map(|h| h.trim().to_owned())
                 .filter(|h| !h.is_empty())
         })
+}
+
+// Why: signing in re-mints the credential and can move the gateway, but
+// installed host profiles keep the loopback secret they were written with —
+// see `integration::reapply`. The TTY gate is the load-bearing part here: an
+// interactive sign-in can answer the administrator prompt a managed profile
+// may raise, a scripted one cannot, and must not stall on a dialog nobody is
+// there to see.
+fn reapply_after_login(ctx: &BridgeContext, opted_out: bool) {
+    use std::io::IsTerminal as _;
+
+    if opted_out {
+        return;
+    }
+    if !std::io::stdin().is_terminal() {
+        stdio::print_line(
+            "Not a terminal \u{2014} skipping host-profile repair. Run `install --apply` to \
+             refresh any profile whose loopback secret has moved on.",
+        );
+        return;
+    }
+    let overrides = crate::integration::reapply::ModelProtocolOverrides::new();
+    let reports = ctx.block_on(crate::integration::reapply::reapply_stale_profiles(
+        ctx, &overrides,
+    ));
+    if !reports.is_empty() {
+        stdio::print_str(&crate::integration::reapply::render(&reports));
+    }
 }

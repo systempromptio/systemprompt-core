@@ -17,6 +17,7 @@ pub mod host_app;
 pub(crate) mod managed_skills;
 pub mod opencode;
 pub mod profile_state;
+pub mod reapply;
 pub mod registry;
 #[cfg(feature = "dev-stub-host")]
 pub mod stub_host;

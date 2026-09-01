@@ -53,6 +53,18 @@ pub(super) fn cmd_install(ctx: &BridgeContext, args: &[String]) -> ExitCode {
     ) {
         Ok(summary) => {
             stdio::print_str(&install::render_install_summary(&summary));
+            // Why: the stale-secret remediation has always named this command
+            // ("or `<bin> install --apply`"), but nothing here touched a host
+            // profile — `install_profile` had one caller, the GUI button. The
+            // advice is now true: an --apply repairs the profiles that have
+            // gone stale, and leaves hosts that were never set up alone.
+            if apply {
+                let overrides = crate::integration::reapply::ModelProtocolOverrides::new();
+                let reports = ctx.block_on(crate::integration::reapply::reapply_stale_profiles(
+                    ctx, &overrides,
+                ));
+                stdio::print_str(&crate::integration::reapply::render(&reports));
+            }
             ExitCode::SUCCESS
         },
         Err(err) => {

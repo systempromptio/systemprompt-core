@@ -7,13 +7,12 @@ use std::sync::Arc;
 
 use serde_json::json;
 
-use crate::config;
 use crate::gui::error::{GuiError, GuiResult};
 use crate::gui::events::{ReplyId, UiEvent};
 use crate::gui::hosts::events::{HostUiEvent, ProbeCause};
 use crate::gui::{GuiApp, emit};
 use crate::ids::HostId;
-use crate::integration::{GeneratedProfile, ProfileGenInputs, find_host_by_id};
+use crate::integration::{GeneratedProfile, find_host_by_id};
 use crate::wire::ipc::{BridgeError, ErrorCode, ErrorScope};
 
 use super::finish;
@@ -195,78 +194,15 @@ async fn generate_profile_for(
     bridge: &crate::context::BridgeContext,
     overrides: &std::collections::BTreeMap<String, Vec<String>>,
 ) -> GuiResult<GeneratedProfile> {
-    let cfg = config::load();
-    let loopback = bridge.proxy.loopback();
-    let install_id = bridge.install_id();
-
-    // Why: a proxy that had to move off the default port is still perfectly
-    // usable, and the endpoint names it. Refusing on a missing in-process
-    // handle used to make a GUI that lost the port race unable to write any
-    // profile at all.
-    let gateway_base_url = loopback.origin();
-
-    // Why: a foreign install on our port must still refuse — writing *our*
-    // loopback secret against *their* port produces exactly the 403 this
-    // profile is supposed to prevent.
-    let port = loopback.port();
-    if let crate::proxy::peer::PeerIdentity::Foreign(who) =
-        crate::proxy::peer::probe_identity(port, install_id)
-    {
-        return Err(GuiError::Profile {
-            context: "proxy port held by another install".into(),
-            source: std::io::Error::new(
-                std::io::ErrorKind::AddrInUse,
-                format!(
-                    "127.0.0.1:{port} is served by a different {} install ({}); a profile written \
-                     now would authenticate against the wrong proxy",
-                    crate::brand::brand().app_name,
-                    who.config_dir
-                ),
-            ),
-        });
-    }
-
-    let loopback_secret = loopback
-        .secret()
-        .map(crate::ids::LoopbackSecret::into_inner)
+    // Why: the inputs come from `integration::reapply`, which is also what
+    // `install --apply` and `login` use. One builder is what stops the CLI
+    // repair paths and this button writing subtly different profiles.
+    let inputs = crate::integration::reapply::build_profile_inputs(bridge, host, overrides)
+        .await
         .map_err(|e| GuiError::Profile {
-            context: "loopback secret".into(),
+            context: "profile inputs".into(),
             source: e,
         })?;
-
-    let gateway_base = config::gateway_url_or_default(&cfg);
-    let server_profile = bridge
-        .gateway_client(gateway_base)
-        .fetch_bridge_profile()
-        .await?;
-
-    let surfaces = crate::integration::host_app::effective_surfaces(
-        host.id(),
-        host.accepted_surfaces(),
-        overrides,
-    );
-    let view = crate::integration::host_app::host_model_view(&server_profile.providers, &surfaces);
-    let models = view.compatible_models;
-
-    let mut headers = std::collections::BTreeMap::new();
-    if !surfaces.is_empty() {
-        headers.insert(
-            systemprompt_identifiers::headers::INFERENCE_PROTOCOL.to_owned(),
-            surfaces
-                .iter()
-                .map(|s| s.as_tag())
-                .collect::<Vec<_>>()
-                .join(","),
-        );
-    }
-
-    let inputs = ProfileGenInputs {
-        gateway_base_url,
-        api_key: loopback_secret,
-        models,
-        organization_uuid: server_profile.organization_uuid,
-        headers,
-    };
     host.generate_profile(&inputs)
         .map_err(|e| GuiError::Profile {
             context: "host generate_profile".into(),

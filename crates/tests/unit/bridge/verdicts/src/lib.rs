@@ -11,4 +11,6 @@ mod force_dark;
 #[cfg(test)]
 mod hermes_profile;
 #[cfg(test)]
+mod host_reapply;
+#[cfg(test)]
 mod inconclusive_state;
