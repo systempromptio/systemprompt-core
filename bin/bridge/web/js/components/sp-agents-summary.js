@@ -13,12 +13,11 @@ export class SpAgentsSummary extends SpElement {
   }
 
   onConnect() {
-    bridge.stateSnapshot().then((s) => { this.snapshot = s; }).catch((e) => console.warn("snapshot failed", e));
     // Why: the fleet summary is folded server-side over every host, so a
     // single-host `host.changed` cannot be merged in here without re-deriving
     // it — which is the divergence this component was rewritten to remove.
     // Host handlers emit `state.changed` alongside, and that carries the fold.
-    this.bridgeSubscribe("state.changed", (s) => { this.snapshot = s; });
+    this.useSnapshot((s) => { this.snapshot = s; });
   }
 
   _fleet() {

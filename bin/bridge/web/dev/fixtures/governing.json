@@ -38,7 +38,35 @@
     "last_latency_ms": 183,
     "last_forwarded_at_unix": 1787905757
   },
-  "mcp_auth": [],
+  "mcp_auth": [
+    {
+      "id": "email",
+      "url": "http://127.0.0.1:8899/mcp/email",
+      "state": "authenticated",
+      "tools": [
+        {
+          "name": "send_email",
+          "description": "Send an email from the tenant mailbox."
+        },
+        {
+          "name": "list_inbox",
+          "description": "List recent inbox messages."
+        }
+      ],
+      "http_status": 200,
+      "latency_ms": 41,
+      "error": null,
+      "session_id": "sess-email-1",
+      "probed_at_unix": 1756720000,
+      "verdict": {
+        "tone": "ok",
+        "code": "authenticated"
+      },
+      "needs_sign_in": false,
+      "conclusive": true,
+      "shows_tools": true
+    }
+  ],
   "mcp_auth_probe_in_flight": false,
   "update": {
     "phase": "unknown",
@@ -482,5 +510,5 @@
     "tone": "unknown",
     "code": "healthy"
   },
-  "mcp_auth_tone": "warn"
+  "mcp_auth_tone": "ok"
 }

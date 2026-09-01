@@ -79,8 +79,7 @@ export class SpActivityLog extends SpElement {
     // The name belongs on the element that carries role="log". Setting it on
     // this host, which has no role, put the label on a generic element where it
     // is ignored and left the live region itself unnamed.
-    bridge.stateSnapshot().then((s) => this._applyStats(s)).catch((e) => console.warn("snapshot failed", e));
-    this.bridgeSubscribe("state.changed", (s) => this._applyStats(s));
+    this.useSnapshot((s) => this._applyStats(s));
     this.bridgeSubscribe("proxy.stats", (stats) => this._applyStats({ proxy_stats: stats }));
     this.bridgeSubscribe("log", (entry) => this._appendLog(entry));
     this._backfill();

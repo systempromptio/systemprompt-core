@@ -40,8 +40,7 @@ export class SpSetupGateway extends SpElement {
   }
 
   onConnect() {
-    bridge.stateSnapshot().then((s) => this._applySnapshot(s)).catch((e) => console.warn("snapshot failed", e));
-    this.bridgeSubscribe("state.changed", (s) => this._applySnapshot(s));
+    this.useSnapshot((s) => this._applySnapshot(s));
     // Sign-in is gated on a reachable gateway, so the probe has to run before
     // first paint — otherwise the button sits disabled on a stale "unknown".
     bridge.gatewayProbe().catch((e) => console.warn("initial probe", e));

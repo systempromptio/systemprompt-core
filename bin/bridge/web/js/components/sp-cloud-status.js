@@ -42,13 +42,7 @@ export class SpCloudStatus extends SpElement {
   }
 
   onConnect() {
-    bridge.stateSnapshot().then((snap) => { this.snapshot = snap; }).catch((e) => {
-      console.error("sp-cloud-status snapshot failed", e);
-    });
-    this.bridgeSubscribe("state.changed", (snap) => { this.snapshot = snap; });
-    this.bridgeSubscribe("gateway.changed", () => {
-      bridge.stateSnapshot().then((snap) => { this.snapshot = snap; }).catch((e) => console.warn("snapshot failed", e));
-    });
+    this.useSnapshot((snap) => { this.snapshot = snap; });
   }
 
   async _onRecheck() {

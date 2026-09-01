@@ -132,8 +132,7 @@ export class SpMarketplace extends SpElement {
 
   onConnect() {
     this.addEventListener("keydown", this._onCatKey);
-    bridge.stateSnapshot().then((s) => { this.snapshot = s; this._maybeFetch(s); }).catch((e) => console.warn("snapshot failed", e));
-    this.bridgeSubscribe("state.changed", (s) => { this.snapshot = s; this._maybeFetch(s); });
+    this.useSnapshot((s) => { this.snapshot = s; this._maybeFetch(s); });
   }
 
   _maybeFetch(snap) {

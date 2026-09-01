@@ -2,6 +2,7 @@ import { SpElement, reactive, escapeHtml } from "/assets/js/components/sp-elemen
 import { bridge } from "/assets/js/bridge.js";
 import { t } from "/assets/js/i18n.js";
 import { announce } from "/assets/js/utils/announce.js";
+import { runAction } from "/assets/js/utils/action.js";
 
 // `overall` is the bridge's one-dot summary; the footer draws the same one.
 function classify(snap) {
@@ -19,8 +20,7 @@ export class SpSyncPill extends SpElement {
 
   onConnect() {
     this.classList.add("sp-sync-pill");
-    bridge.stateSnapshot().then((s) => { this.snapshot = s; }).catch((e) => console.warn("snapshot failed", e));
-    this.bridgeSubscribe("state.changed", (s) => { this.snapshot = s; });
+    this.useSnapshot((s) => { this.snapshot = s; });
     this.bridgeSubscribe("sync.progress", (p) => { this.progress = p; });
   }
 
@@ -36,7 +36,10 @@ export class SpSyncPill extends SpElement {
   _onCancel(ev) {
     ev.preventDefault();
     ev.stopPropagation();
-    bridge.cancel("sync").catch((e) => console.warn("cancel sync failed", e));
+    runAction(ev.currentTarget, {
+      run: () => bridge.cancel("sync"),
+      context: t("sync-cancel") || "Cancel",
+    });
   }
 
   render() {

@@ -114,8 +114,7 @@ export class SpProfile extends SpElement {
   }
 
   onConnect() {
-    bridge.stateSnapshot().then((s) => { this.snapshot = s; }).catch((e) => console.warn("snapshot failed", e));
-    this.bridgeSubscribe("state.changed", (s) => {
+    this.useSnapshot((s) => {
       const wasSignedIn = this.snapshot && this.snapshot.verified_identity;
       const nowSignedIn = s && s.verified_identity;
       this.snapshot = s;

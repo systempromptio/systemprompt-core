@@ -43,10 +43,7 @@ export class SpAgentsStatus extends SpElement {
   }
 
   onConnect() {
-    bridge.stateSnapshot()
-      .then((s) => { this.snapshot = s; })
-      .catch((e) => console.warn("sp-agents-status snapshot failed", e));
-    this.bridgeSubscribe("state.changed", (s) => { this.snapshot = s; });
+    this.useSnapshot((s) => { this.snapshot = s; });
   }
 
   render() {

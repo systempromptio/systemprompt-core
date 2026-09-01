@@ -1,4 +1,5 @@
 import { subscribe } from "/assets/js/bridge.js";
+import { subscribeSnapshot } from "/assets/js/services/state-store.js";
 import { isReady as i18nReady } from "/assets/js/i18n.js";
 
 export class SpElement extends HTMLElement {
@@ -12,6 +13,13 @@ export class SpElement extends HTMLElement {
 
   bridgeSubscribe(channel, cb) {
     const unsub = subscribe(channel, cb);
+    this._unsubs.push(unsub);
+    return unsub;
+  }
+
+  /** The shared snapshot: `cb` runs now if loaded, then on every change. */
+  useSnapshot(cb) {
+    const unsub = subscribeSnapshot(cb);
     this._unsubs.push(unsub);
     return unsub;
   }

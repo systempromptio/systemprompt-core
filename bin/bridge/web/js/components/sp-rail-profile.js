@@ -80,8 +80,7 @@ export class SpRailProfile extends SpElement {
     if (!this._baseVersion) {
       this._baseVersion = this.dataset.version || VERSION || "";
     }
-    bridge.stateSnapshot().then((s) => { this.snapshot = s; this._maybeCheck(); }).catch((e) => console.warn("snapshot failed", e));
-    this.bridgeSubscribe("state.changed", (s) => { this.snapshot = s; this._maybeCheck(); });
+    this.useSnapshot((s) => { this.snapshot = s; this._maybeCheck(); });
     document.addEventListener("pointerdown", this._onDocPointer);
     document.addEventListener("keydown", this._onDocKey);
     this.addEventListener("keydown", this._onMenuKey);

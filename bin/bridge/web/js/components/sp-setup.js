@@ -43,7 +43,7 @@ export class SpSetup extends SpElement {
       this._armSettleTimer();
       bridge.gatewayProbe().catch((e) => notifyErr(e, t("setup-retry") || "Check again"));
       for (const h of (this.snapshot && this.snapshot.host_apps) || []) {
-        bridge.hostProbe(h.id).catch(() => {});
+        bridge.hostProbe(h.id).catch((e) => console.warn(`host probe ${h.id} failed`, e));
       }
     });
     this.registerAction("continue-anyway", () => {
@@ -59,8 +59,7 @@ export class SpSetup extends SpElement {
       this._logoFragment = tpl.content;
       tpl.remove();
     }
-    bridge.stateSnapshot().then((s) => this._applySnapshot(s)).catch((e) => console.warn("snapshot failed", e));
-    this.bridgeSubscribe("state.changed", (s) => this._applySnapshot(s));
+    this.useSnapshot((s) => this._applySnapshot(s));
     this._unsubOpen = onBridgeEvent("setup-open", this._onSetupOpen);
   }
 
