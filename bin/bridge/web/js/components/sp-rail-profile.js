@@ -4,6 +4,7 @@ import { notifyOk, notifyErr } from "/assets/js/utils/notify.js";
 import { t } from "/assets/js/i18n.js";
 import { handleRovingKey, syncRoving } from "/assets/js/utils/roving.js";
 import { logout } from "/assets/js/services/session-service.js";
+import { profileInitials, railProfileSubtitle } from "/assets/js/utils/profile-format.js";
 
 const VERSION = (() => {
   const tag = document.querySelector('meta[name="sp-version"]');
@@ -12,11 +13,6 @@ const VERSION = (() => {
 
 /** Re-check interval. Updates are a background nicety, not a live feed. */
 const RECHECK_MS = 6 * 60 * 60 * 1000;
-
-function initials(idSrc) {
-  const letters = (idSrc || "").replace(/[^a-zA-Z]/g, "").slice(0, 2).toUpperCase();
-  return letters || "SP";
-}
 
 export class SpRailProfile extends SpElement {
   constructor() {
@@ -161,18 +157,6 @@ export class SpRailProfile extends SpElement {
     bridge.updateInstall().catch((e) => notifyErr(e, t("rail-profile-update-cta") || "Click here to update"));
   }
 
-  /// The subtitle doubles as the update progress line; when nothing is
-  /// happening it falls back to the usual `tenant · version`.
-  _subtitle(tenant) {
-    const u = this._update;
-    // Why: only the phases that have a line carry a key; every other phase
-    // falls through to the version line. The update payload is the arguments.
-    const line = (u.in_progress || u.tone === "err") ? t(`update-phase-${u.phase}`, u) : "";
-    if (line) { return line; }
-    const base = this._baseVersion;
-    return tenant ? `${tenant} · ${base}` : base;
-  }
-
   render() {
     const id = (this.snapshot && this.snapshot.verified_identity) || null;
     const signedIn = !!(id && (id.email || id.user_id));
@@ -239,10 +223,10 @@ export class SpRailProfile extends SpElement {
               ${signedIn ? "" : "disabled"}
               aria-label="${escapeHtml(triggerLabel)}"
               aria-haspopup="menu" aria-expanded="${open ? "true" : "false"}">
-        <span class="sp-avatar__mark" aria-hidden="true"><span>${escapeHtml(initials(id && (id.email || id.user_id)))}</span></span>
+        <span class="sp-avatar__mark" aria-hidden="true"><span>${escapeHtml(profileInitials(id && (id.email || id.user_id)))}</span></span>
         <span class="sp-rail-profile__meta">
           <span class="sp-rail-profile__id">${escapeHtml(idLabel)}</span>
-          <span class="sp-rail-profile__sub">${escapeHtml(this._subtitle(tenant))}</span>
+          <span class="sp-rail-profile__sub">${escapeHtml(railProfileSubtitle(u, this._baseVersion, tenant))}</span>
         </span>
         ${signedIn ? `<span class="sp-rail-profile__caret" aria-hidden="true">⌃</span>` : ""}
       </button>
