@@ -6,7 +6,9 @@
 //! therefore fire N identical-but-not-deduplicated calls per tool call (the
 //! `?plugin_id=` query differs, so Claude Code's identical-command dedup does
 //! not apply). Exactly one plugin carries them — the one whose config sets
-//! `hooks.governance` — and every other plugin gets an empty hooks file.
+//! `hooks.governance` — and every other plugin gets an empty hooks file. The
+//! comms drain hooks ride on the same owner, and only when it also sets
+//! `hooks.comms`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -74,7 +76,9 @@ fn build_hooks_file(
         // the governance hooks do: Claude Code runs plugin hooks
         // session-globally, so one owner means one drain per boundary rather
         // than one per installed plugin.
-        if let Some(command) = comms_drain_command() {
+        if plugin.hooks.comms
+            && let Some(command) = comms_drain_command()
+        {
             file.append_comms_hooks(&command);
         }
         file

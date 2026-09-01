@@ -129,6 +129,18 @@ fn governance_plugin(id: &str, files: Vec<(&str, &[u8])>) -> PluginEntry {
     PluginEntry {
         hooks: PluginHooksRef {
             governance: true,
+            comms: false,
+            include: vec![],
+        },
+        ..plugin(id, files)
+    }
+}
+
+fn comms_plugin(id: &str, files: Vec<(&str, &[u8])>) -> PluginEntry {
+    PluginEntry {
+        hooks: PluginHooksRef {
+            governance: true,
+            comms: true,
             include: vec![],
         },
         ..plugin(id, files)
@@ -775,6 +787,7 @@ fn plugin_with_include(id: &str, include: Vec<String>) -> PluginEntry {
     PluginEntry {
         hooks: PluginHooksRef {
             governance: false,
+            comms: false,
             include,
         },
         ..plugin(id, vec![(".claude-plugin/plugin.json", PLUGIN_FILE_BODY)])
@@ -814,6 +827,54 @@ fn an_included_hook_is_materialised_as_a_user_command_entry() {
     assert_eq!(entry["event"], "PreToolUse");
     assert_eq!(group[0]["matcher"], "*");
     let _ = (&b.server, &b.pat_dir);
+}
+
+#[test]
+fn the_comms_drain_hooks_are_installed_only_when_the_owner_opts_in() {
+    for (label, entry, expected) in [
+        (
+            "pat-comms-off",
+            governance_plugin("acme-commons", vec![]),
+            false,
+        ),
+        ("pat-comms-on", comms_plugin("acme-commons", vec![]), true),
+    ] {
+        let m = manifest_of(vec![entry], vec![]);
+        let b = serve_plugins(
+            &m,
+            &[(
+                "acme-commons",
+                ".claude-plugin/plugin.json",
+                COMMONS_FILE_BODY,
+            )],
+            label,
+        );
+        run_sync(&b.dirs).expect("sync applies");
+
+        let hooks = hooks_json_of(&b.dirs, "acme-commons");
+        assert!(
+            hooks["hooks"]["PreToolUse"].is_array(),
+            "the governance owner always carries the govern hook: {hooks}"
+        );
+        for event in ["UserPromptSubmit", "Stop"] {
+            let present = hooks["hooks"][event].as_array().is_some_and(|groups| {
+                groups.iter().any(|g| {
+                    g["hooks"].as_array().is_some_and(|hs| {
+                        hs.iter().any(|h| {
+                            h["command"]
+                                .as_str()
+                                .is_some_and(|c| c.contains("comms-drain"))
+                        })
+                    })
+                })
+            });
+            assert_eq!(
+                present, expected,
+                "{label}: {event} comms-drain hook presence must follow hooks.comms: {hooks}"
+            );
+        }
+        let _ = (&b.server, &b.pat_dir);
+    }
 }
 
 #[test]

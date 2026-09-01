@@ -4,6 +4,8 @@
 
 ### Added
 
+- `hooks.comms` on a plugin's `hooks:` block opts the governance owner into the bridge's announcement-drain hooks (`UserPromptSubmit`/`Stop` → `comms-drain`). They were installed unconditionally with the governance hooks; a tenant that publishes no announcements now gets none.
+
 - `opencode` is a known bridge host, so a tenant may enable the OpenCode coding agent alongside the existing hosts.
 - `systemprompt_models::bridge::profile::KNOWN_HOSTS` is the single list of host ids the gateway accepts from a bridge. It was a private constant in the API route; the bridge's registry test now asserts against it, so a host added on one side without the other fails a test instead of silently never being enabled.
 
