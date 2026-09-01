@@ -50,11 +50,9 @@ pub(super) fn install_profile(generated_path: &str) -> std::io::Result<()> {
     install_profile_into(generated_path, &config::hermes_home())
 }
 
-/// Install a generated profile into an explicit `HERMES_HOME`.
-///
-/// Why public: the crate denies `unsafe_code`, so a test cannot set the
-/// `HERMES_HOME` variable the normal path resolves through. This is the same
-/// code with the directory passed in.
+// Why: public because the crate denies `unsafe_code`, so a test cannot set the
+// `HERMES_HOME` variable the env-resolving path goes through. This is the same
+// code with the directory passed in.
 #[doc(hidden)]
 pub fn install_profile_into(
     generated_path: &str,
@@ -82,8 +80,8 @@ pub(super) fn remove_profile() -> std::io::Result<ProfileRemoval> {
     remove_profile_from(&config::hermes_home())
 }
 
-/// Remove the managed profile from an explicit `HERMES_HOME`. See
-/// [`install_profile_into`] for why this is public.
+// Why: public as the counterpart to `install_profile_into`, for the same
+// reason.
 #[doc(hidden)]
 pub fn remove_profile_from(hermes_home: &std::path::Path) -> std::io::Result<ProfileRemoval> {
     let target = config::config_yaml_path_in(hermes_home);
