@@ -62,6 +62,10 @@ pub struct Brand {
     pub app_menu_name: &'static str,
     pub sign_in_label: &'static str,
     pub sign_in_hint: &'static str,
+    // Why: the setup footer appends the platform, so this is a base without a
+    // trailing slash -- `<docs_url>/<platform>`.
+    pub docs_url: &'static str,
+    pub contact_email: &'static str,
     pub schedule_label: &'static str,
     pub schedule_unit: &'static str,
     pub schedule_task_name: &'static str,
@@ -103,6 +107,8 @@ impl Brand {
         app_menu_name: "systemprompt-bridge",
         sign_in_label: "Sign in to your gateway",
         sign_in_hint: "Opens your browser to sign in on the gateway; this device is linked automatically.",
+        docs_url: "https://systemprompt.io/docs/bridge",
+        contact_email: "ed@systemprompt.io",
         schedule_label: "io.systemprompt.bridge-sync",
         schedule_unit: "systemprompt-bridge-sync",
         schedule_task_name: "SystempromptBridgeSync",

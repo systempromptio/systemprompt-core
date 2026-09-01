@@ -90,8 +90,11 @@ pub fn state_payload<'a>(
             mcp_auth_tone: snap.mcp_auth_tone(),
             update: UpdatePayload::from(&snap.update),
 
+            app_name: crate::brand::brand().app_name,
             sign_in_label: crate::brand::brand().sign_in_label,
             sign_in_hint: crate::brand::brand().sign_in_hint,
+            docs_url: crate::brand::brand().docs_url,
+            contact_email: crate::brand::brand().contact_email,
 
             hosts: crate::gui::hosts::serde::payload(snap),
         }

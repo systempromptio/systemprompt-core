@@ -23,7 +23,10 @@ export function stepsFromSnapshot(snap, { leftSetup, finished }) {
   const model = {
     settled,
     anyInstalled,
-    step: configured ? "agents" : "connect",
+    // Agents are managed in the Agents tab (and first-run auto-installs detected
+    // hosts), so the onboarding agents step only earns its place when nothing is
+    // configured yet. Once any agent exists, sign-in drops straight into the app.
+    step: configured && !anyInstalled ? "agents" : "connect",
     firstRunActive: !!(snap.first_run && snap.first_run.active),
     leftSetup,
     setupMode: null,
