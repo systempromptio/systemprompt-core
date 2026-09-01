@@ -45,8 +45,9 @@ pub(crate) fn on_model_filter_set_requested(
     }
     let host_id_owned = host_id.clone();
     let proxy = app.proxy.clone();
+    let http = app.ctx.http.clone();
     app.ctx.spawn(async move {
-        let result = push_model_filter(&host_id_owned, protocols.as_deref())
+        let result = push_model_filter(&host_id_owned, protocols.as_deref(), http)
             .await
             .map_err(Arc::new);
         proxy.send_event(UiEvent::Host(HostUiEvent::ModelFilterSetFinished {
@@ -57,7 +58,11 @@ pub(crate) fn on_model_filter_set_requested(
     });
 }
 
-async fn push_model_filter(host_id: &HostId, protocols: Option<&[String]>) -> GuiResult<()> {
+async fn push_model_filter(
+    host_id: &HostId,
+    protocols: Option<&[String]>,
+    http: reqwest::Client,
+) -> GuiResult<()> {
     let cfg = config::load();
     let gateway_base = config::gateway_url_or_default(&cfg);
     let bearer =
@@ -68,7 +73,7 @@ async fn push_model_filter(host_id: &HostId, protocols: Option<&[String]>) -> Gu
                 "not signed in; cannot update host model filter",
             ),
         })?;
-    GatewayClient::new(gateway_base)
+    GatewayClient::new(gateway_base, http)
         .set_host_model_filter(bearer.token.expose(), host_id.as_str(), protocols)
         .await
         .map_err(|e| GuiError::Profile {

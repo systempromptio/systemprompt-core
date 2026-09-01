@@ -9,7 +9,6 @@ use systemprompt_identifiers::SessionId;
 
 use crate::auth::ChainError;
 use crate::context::BridgeContext;
-use crate::gateway::GatewayClient;
 use crate::stdio::diag;
 use crate::{auth, config, stdio};
 
@@ -17,7 +16,7 @@ pub fn cmd_whoami(ctx: &BridgeContext) -> ExitCode {
     ctx.block_on(async {
         let cfg = config::load();
         let gateway = config::gateway_url_or_default(&cfg);
-        let out = match auth::acquire_bearer(&cfg, &SessionId::generate()).await {
+        let out = match auth::acquire_bearer(&cfg, &SessionId::generate(), &ctx.http).await {
             Ok(out) => out,
             Err(ChainError::PreferredTransient { provider, source }) => {
                 diag(&format!(
@@ -34,7 +33,7 @@ pub fn cmd_whoami(ctx: &BridgeContext) -> ExitCode {
             },
         };
 
-        let client = GatewayClient::new(gateway.clone());
+        let client = ctx.gateway_client(gateway.clone());
         match client.fetch_whoami(out.token.expose()).await {
             Ok(value) => {
                 match serde_json::to_string_pretty(&value) {

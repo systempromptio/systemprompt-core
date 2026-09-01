@@ -313,5 +313,6 @@ fn test_deps() -> systemprompt_bridge::proxy::ProxyDeps {
         install_id: systemprompt_bridge::proxy::identity::InstallId::establish(),
         mcp_registry: Arc::clone(&REGISTRY),
         activity: systemprompt_bridge::activity::ActivityLog::new(),
+        http: reqwest::Client::new(),
     }
 }

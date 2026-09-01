@@ -113,7 +113,10 @@ fn clear(home: &Path) -> Result<(), systemprompt_bridge::host_sync::ApplyError> 
 }
 
 fn stub_client() -> GatewayClient {
-    GatewayClient::new(ValidatedUrl::try_new("http://127.0.0.1:0").unwrap())
+    GatewayClient::new(
+        ValidatedUrl::try_new("http://127.0.0.1:0").unwrap(),
+        reqwest::Client::new(),
+    )
 }
 
 fn block_on<F: std::future::Future>(f: F) -> F::Output {

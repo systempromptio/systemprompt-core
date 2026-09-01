@@ -22,8 +22,9 @@ pub(crate) fn on_session_login_requested(
     app.append_log(i18n::t("login-saving"));
     let proxy = app.proxy.clone();
     let cancel = app.state.install_cancel(CancelScope::Login);
+    let http = app.ctx.http.clone();
     app.ctx.spawn(async move {
-        let result = run_session_login(gateway, keep_signed_in, &cancel)
+        let result = run_session_login(gateway, keep_signed_in, &cancel, http)
             .await
             .map_err(GuiError::from)
             .map_err(Arc::new);
@@ -35,6 +36,7 @@ async fn run_session_login(
     gateway: Option<String>,
     keep_signed_in: bool,
     cancel: &tokio_util::sync::CancellationToken,
+    http: reqwest::Client,
 ) -> Result<(), setup::SetupError> {
     use crate::auth::providers::session::capture_device_link_code;
     use crate::gateway::GatewayClient;
@@ -59,7 +61,7 @@ async fn run_session_login(
         }
     };
 
-    let client = GatewayClient::new(base.clone());
+    let client = GatewayClient::new(base.clone(), http);
     if keep_signed_in {
         let req = SessionPatRequest {
             code,

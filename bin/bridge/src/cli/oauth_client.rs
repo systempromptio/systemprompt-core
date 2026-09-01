@@ -10,7 +10,6 @@ use systemprompt_identifiers::SessionId;
 
 use crate::auth::plugin_oauth;
 use crate::context::BridgeContext;
-use crate::gateway::GatewayClient;
 use crate::stdio::diag;
 use crate::{auth, config, stdio};
 
@@ -58,10 +57,11 @@ fn cmd_status() -> ExitCode {
 fn cmd_rotate(ctx: &BridgeContext) -> ExitCode {
     let cfg = config::load();
     let base_url = config::gateway_url_or_default(&cfg);
-    let client = GatewayClient::new(base_url);
+    let client = ctx.gateway_client(base_url);
 
+    let http = ctx.http.clone();
     let outer = ctx.block_on(async move {
-        let bearer = auth::obtain_live_token(&cfg, &SessionId::generate())
+        let bearer = auth::obtain_live_token(&cfg, &SessionId::generate(), &http)
             .await
             .ok_or("no credential source configured (run `bridge login` first)")?;
         let creds = plugin_oauth::refresh_creds(&client, &bearer.token).await?;

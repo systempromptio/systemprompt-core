@@ -220,7 +220,7 @@ pub fn spawn_installed(installed: &std::path::Path) -> Result<(), UpdateError> {
 }
 
 
-pub async fn run_automatic(gateway: &ValidatedUrl, bearer: &str) {
+pub async fn run_automatic(gateway: &ValidatedUrl, bearer: &str, http: &reqwest::Client) {
     if !automatic_enabled() {
         tracing::warn!(
             "a newer bridge is required but automatic updates are disabled by policy; \
@@ -228,7 +228,7 @@ pub async fn run_automatic(gateway: &ValidatedUrl, bearer: &str) {
         );
         return;
     }
-    let client = GatewayClient::new(gateway.clone());
+    let client = GatewayClient::new(gateway.clone(), http.clone());
     let (status, manifest) = match check(&client, bearer).await {
         Ok(pair) => pair,
         Err(e) => {

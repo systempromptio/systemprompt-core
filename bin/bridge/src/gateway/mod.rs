@@ -13,7 +13,7 @@ pub mod manifest_version;
 pub mod types;
 
 use std::net::SocketAddr;
-use std::sync::{Arc, OnceLock};
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use reqwest::dns::{Addrs, Name, Resolve, Resolving};
@@ -40,21 +40,19 @@ impl Resolve for Ipv4FirstResolver {
     }
 }
 
-static SHARED_CLIENT: OnceLock<reqwest::Client> = OnceLock::new();
-
-fn shared_client() -> reqwest::Client {
-    SHARED_CLIENT
-        .get_or_init(|| {
-            reqwest::Client::builder()
-                .dns_resolver(Arc::new(Ipv4FirstResolver))
-                .pool_max_idle_per_host(8)
-                .tcp_nodelay(true)
-                .connect_timeout(Duration::from_secs(10))
-                .timeout(Duration::from_secs(30))
-                .build()
-                .unwrap_or_else(|_| reqwest::Client::new())
-        })
-        .clone()
+// Why: one pooled client per process, built by the composition root and
+// cloned into every `GatewayClient`, so calls share connections without a
+// process-global holding the pool.
+#[must_use]
+pub fn build_http_client() -> reqwest::Client {
+    reqwest::Client::builder()
+        .dns_resolver(Arc::new(Ipv4FirstResolver))
+        .pool_max_idle_per_host(8)
+        .tcp_nodelay(true)
+        .connect_timeout(Duration::from_secs(10))
+        .timeout(Duration::from_secs(30))
+        .build()
+        .unwrap_or_else(|_| reqwest::Client::new())
 }
 
 #[derive(Debug)]
@@ -65,11 +63,8 @@ pub struct GatewayClient {
 
 impl GatewayClient {
     #[must_use]
-    pub fn new(base_url: ValidatedUrl) -> Self {
-        Self {
-            base_url,
-            http: shared_client(),
-        }
+    pub const fn new(base_url: ValidatedUrl, http: reqwest::Client) -> Self {
+        Self { base_url, http }
     }
 
     #[must_use]

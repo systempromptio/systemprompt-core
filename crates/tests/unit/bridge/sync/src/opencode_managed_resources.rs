@@ -98,7 +98,10 @@ static LOOPBACK: std::sync::LazyLock<LoopbackEndpoint> = std::sync::LazyLock::ne
 });
 
 fn clear(root: &Path) -> Result<(), ApplyError> {
-    let client = GatewayClient::new(ValidatedUrl::try_new("http://127.0.0.1:0").unwrap());
+    let client = GatewayClient::new(
+        ValidatedUrl::try_new("http://127.0.0.1:0").unwrap(),
+        reqwest::Client::new(),
+    );
     let plugin_mcp_servers = std::collections::BTreeMap::new();
     let m = manifest_with(Vec::new(), Vec::new());
     let ctx = HostSyncCtx {
@@ -114,7 +117,10 @@ fn clear(root: &Path) -> Result<(), ApplyError> {
 }
 
 fn apply(m: &SignedManifest, root: &Path) -> Result<(), ApplyError> {
-    let client = GatewayClient::new(ValidatedUrl::try_new("http://127.0.0.1:0").unwrap());
+    let client = GatewayClient::new(
+        ValidatedUrl::try_new("http://127.0.0.1:0").unwrap(),
+        reqwest::Client::new(),
+    );
     let plugin_mcp_servers = std::collections::BTreeMap::new();
     let ctx = HostSyncCtx {
         manifest: m,

@@ -61,7 +61,7 @@ fn bearer() -> HelperOutput {
 }
 
 fn client_for(uri: &str) -> GatewayClient {
-    GatewayClient::new(ValidatedUrl::new(uri.to_owned()))
+    GatewayClient::new(ValidatedUrl::new(uri.to_owned()), reqwest::Client::new())
 }
 
 fn find<'a>(checks: &'a [Check], name: &str) -> &'a Check {
@@ -76,7 +76,7 @@ fn mint_jwt_fails_with_a_login_hint_when_no_provider_is_configured() {
     sandbox(|_| {
         let cfg = config::load();
         let mut checks = Vec::new();
-        let bearer = block_on(check_mint_jwt(&cfg, &mut checks));
+        let bearer = block_on(check_mint_jwt(&cfg, &mut checks, &reqwest::Client::new()));
         assert!(bearer.is_none(), "no provider can mint a bearer");
         let check = find(&checks, "mint JWT");
         assert_eq!(check.status, Status::Fail, "{}", check.detail);
@@ -99,7 +99,11 @@ fn gateway_reachable_passes_on_health_200_and_fails_on_a_closed_port() {
         std::fs::write(&cfg_file, format!("gateway_url = \"{}\"\n", server.uri())).expect("config");
         let cfg = config::load();
         let mut checks = Vec::new();
-        block_on(check_gateway_reachable(&cfg, &mut checks));
+        block_on(check_gateway_reachable(
+            &cfg,
+            &mut checks,
+            &reqwest::Client::new(),
+        ));
         let check = find(&checks, "gateway reachable");
         assert_eq!(check.status, Status::Ok, "{}", check.detail);
         assert!(check.detail.contains("/health"), "{}", check.detail);
@@ -107,7 +111,11 @@ fn gateway_reachable_passes_on_health_200_and_fails_on_a_closed_port() {
         std::fs::write(&cfg_file, "gateway_url = \"http://127.0.0.1:1\"\n").expect("config");
         let cfg = config::load();
         let mut checks = Vec::new();
-        block_on(check_gateway_reachable(&cfg, &mut checks));
+        block_on(check_gateway_reachable(
+            &cfg,
+            &mut checks,
+            &reqwest::Client::new(),
+        ));
         let check = find(&checks, "gateway reachable");
         assert_eq!(check.status, Status::Fail, "{}", check.detail);
         assert!(check.detail.contains("127.0.0.1:1"), "{}", check.detail);

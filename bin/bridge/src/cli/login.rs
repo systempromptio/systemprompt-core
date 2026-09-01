@@ -19,7 +19,6 @@ use crate::auth::providers::session::{capture_on, device_link_url};
 use crate::auth::setup;
 use crate::cli::args::{has_flag, parse_opt_flag};
 use crate::context::BridgeContext;
-use crate::gateway::GatewayClient;
 use crate::gateway::types::SessionPatRequest;
 use crate::stdio;
 use crate::stdio::diag;
@@ -235,7 +234,7 @@ fn redeem_code(
         code: code.trim().to_owned(),
         device_name: device_name.or_else(default_device_name),
     };
-    let client = GatewayClient::new(base_url);
+    let client = ctx.gateway_client(base_url);
     ctx.block_on(async move {
         client
             .session_pat_exchange(&req, &SessionId::generate())

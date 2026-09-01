@@ -57,13 +57,13 @@ pub fn cmd_update(ctx: &BridgeContext, argv: &[String]) -> ExitCode {
         },
     };
 
-    ctx.block_on(async move { run(&args).await })
+    ctx.block_on(async move { run(ctx, &args).await })
 }
 
-async fn run(args: &Args) -> ExitCode {
+async fn run(ctx: &BridgeContext, args: &Args) -> ExitCode {
     let cfg = config::load();
     let gateway = config::gateway_url_or_default(&cfg);
-    let bearer = match auth::acquire_bearer(&cfg, &SessionId::generate()).await {
+    let bearer = match auth::acquire_bearer(&cfg, &SessionId::generate(), &ctx.http).await {
         Ok(out) => out,
         Err(ChainError::PreferredTransient { provider, source }) => {
             diag(&format!(
@@ -80,7 +80,7 @@ async fn run(args: &Args) -> ExitCode {
         },
     };
 
-    let client = GatewayClient::new(gateway.clone());
+    let client = ctx.gateway_client(gateway.clone());
     let (status, manifest) = match update::check(&client, bearer.token.expose()).await {
         Ok(pair) => pair,
         Err(e) => {

@@ -108,10 +108,12 @@ pub(super) struct ManifestFetch {
     pub envelope: SignedManifestEnvelope,
 }
 
-pub(super) async fn fetch_authenticated_manifest() -> Result<ManifestFetch, SyncError> {
+pub(super) async fn fetch_authenticated_manifest(
+    http: &reqwest::Client,
+) -> Result<ManifestFetch, SyncError> {
     let cfg = config::load();
     let gateway = config::gateway_url_or_default(&cfg);
-    let client = GatewayClient::new(gateway.clone());
+    let client = GatewayClient::new(gateway.clone(), http.clone());
 
     let no_credential = || SyncError::NoCredential {
         bin: crate::brand::brand().binary_name,
@@ -121,7 +123,7 @@ pub(super) async fn fetch_authenticated_manifest() -> Result<ManifestFetch, Sync
     let was_cached = cached.is_some();
     let mut bearer = match cached {
         Some(token) => token,
-        None => fetch_fresh_token().await.ok_or_else(no_credential)?,
+        None => fetch_fresh_token(http).await.ok_or_else(no_credential)?,
     };
 
     let mut envelope = client.fetch_manifest(bearer.expose()).await;
@@ -134,7 +136,7 @@ pub(super) async fn fetch_authenticated_manifest() -> Result<ManifestFetch, Sync
         if let Err(e) = crate::auth::cache::clear() {
             tracing::warn!(error = %e, "failed to clear the rejected token cache");
         }
-        bearer = fetch_fresh_token().await.ok_or_else(no_credential)?;
+        bearer = fetch_fresh_token(http).await.ok_or_else(no_credential)?;
         envelope = client.fetch_manifest(bearer.expose()).await;
     }
 
@@ -221,7 +223,7 @@ async fn resolve_pubkey(
     Ok(PinnedPubKey::new(fetched))
 }
 
-async fn fetch_fresh_token() -> Option<Secret> {
+async fn fetch_fresh_token(http: &reqwest::Client) -> Option<Secret> {
     use crate::auth::providers::AuthError;
     use systemprompt_identifiers::SessionId;
     let cfg = config::load();
@@ -231,7 +233,7 @@ async fn fetch_fresh_token() -> Option<Secret> {
     let mut not_configured: Vec<&'static str> = Vec::new();
     let mut had_failure = false;
     for p in &chain {
-        match p.authenticate(&session_id).await {
+        match p.authenticate(&session_id, http).await {
             Ok(out) => {
                 if let Err(e) = crate::auth::cache::write(&gateway, &out) {
                     tracing::warn!(error = %e, "failed to cache fresh token; will re-authenticate next call");

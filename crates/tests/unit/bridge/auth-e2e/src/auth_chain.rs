@@ -98,7 +98,7 @@ fn pat_provider_happy_path_yields_bearer() {
                 ..Config::default()
             };
 
-            let out = auth::acquire_bearer(&cfg, &SessionId::generate())
+            let out = auth::acquire_bearer(&cfg, &SessionId::generate(), &reqwest::Client::new())
                 .await
                 .expect("PAT exchange should succeed");
             assert_eq!(out.token.expose(), "sp-bearer-deadbeef-token-value");
@@ -130,7 +130,7 @@ fn pat_exchange_http_failure_yields_none_succeeded() {
                 ..Config::default()
             };
 
-            let err = auth::acquire_bearer(&cfg, &SessionId::generate())
+            let err = auth::acquire_bearer(&cfg, &SessionId::generate(), &reqwest::Client::new())
                 .await
                 .expect_err("401 must not yield a bearer");
             assert!(
@@ -164,7 +164,7 @@ fn pat_exchange_server_error_yields_none_succeeded() {
                 ..Config::default()
             };
 
-            let err = auth::acquire_bearer(&cfg, &SessionId::generate())
+            let err = auth::acquire_bearer(&cfg, &SessionId::generate(), &reqwest::Client::new())
                 .await
                 .expect_err("500 must not yield a bearer");
             assert!(matches!(err, ChainError::NoneSucceeded));
@@ -181,7 +181,7 @@ fn no_credential_source_yields_none_succeeded() {
                 gateway_url: Some(ValidatedUrl::try_new("http://127.0.0.1:1").unwrap()),
                 ..Config::default()
             };
-            let err = auth::acquire_bearer(&cfg, &SessionId::generate())
+            let err = auth::acquire_bearer(&cfg, &SessionId::generate(), &reqwest::Client::new())
                 .await
                 .expect_err("no provider configured must fail");
             assert!(matches!(err, ChainError::NoneSucceeded));

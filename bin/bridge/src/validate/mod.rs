@@ -89,11 +89,11 @@ impl ValidationReport {
     }
 }
 
-pub async fn run() -> ValidationReport {
+pub async fn run(http: &reqwest::Client) -> ValidationReport {
     let mut report = Report::new();
     check_binary(&mut report);
     check_org_plugins(&mut report);
-    check_gateway(&mut report).await;
+    check_gateway(&mut report, http).await;
     check_cached_token(&mut report);
     check_pinned_pubkey(&mut report);
     report.into_report()
@@ -159,14 +159,14 @@ fn check_last_sync(report: &mut Report, meta: &std::path::Path) {
     }
 }
 
-async fn check_gateway(report: &mut Report) {
+async fn check_gateway(report: &mut Report, http: &reqwest::Client) {
     let cfg = config::load();
     let Some(url) = cfg.gateway_url.as_ref() else {
         report.fail("gateway_url", "not set in config");
         return;
     };
     report.ok("gateway_url", url.as_str());
-    let client = GatewayClient::new(url.clone());
+    let client = GatewayClient::new(url.clone(), http.clone());
     match client.health().await {
         Ok(()) => report.ok("gateway /health", "reachable"),
         Err(e) => report.fail("gateway /health", &e.to_string()),

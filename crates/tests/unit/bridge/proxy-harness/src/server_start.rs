@@ -33,6 +33,7 @@ fn parts(uri: &str) -> ServerParts {
             install_id: systemprompt_bridge::proxy::identity::InstallId::establish(),
             mcp_registry: systemprompt_bridge::mcp_registry::empty_slot(),
             activity: systemprompt_bridge::activity::ActivityLog::new(),
+            http: reqwest::Client::new(),
         },
     }
 }

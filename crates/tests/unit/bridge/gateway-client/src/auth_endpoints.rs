@@ -11,7 +11,7 @@ use wiremock::matchers::{body_string_contains, header, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 fn client(server: &MockServer) -> GatewayClient {
-    GatewayClient::new(ValidatedUrl::new(server.uri()))
+    GatewayClient::new(ValidatedUrl::new(server.uri()), reqwest::Client::new())
 }
 
 fn session_id() -> SessionId {

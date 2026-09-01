@@ -7159,6 +7159,7 @@ version = "0.0.11"
 dependencies = [
  "keyring-core",
  "linux-keyutils-keyring-store",
+ "reqwest",
  "serde_json",
  "systemprompt-bridge",
  "systemprompt-identifiers",
@@ -7172,6 +7173,7 @@ dependencies = [
 name = "systemprompt-bridge-auth-session-tests"
 version = "0.0.11"
 dependencies = [
+ "reqwest",
  "serde_json",
  "systemprompt-bridge",
  "systemprompt-identifiers",
@@ -7198,6 +7200,7 @@ dependencies = [
 name = "systemprompt-bridge-cli-commands-tests"
 version = "0.0.11"
 dependencies = [
+ "reqwest",
  "serde_json",
  "systemprompt-bridge",
  "temp-env",
@@ -7273,6 +7276,7 @@ dependencies = [
 name = "systemprompt-bridge-gateway-client-tests"
 version = "0.0.11"
 dependencies = [
+ "reqwest",
  "serde_json",
  "systemprompt-bridge",
  "systemprompt-identifiers",
@@ -7322,6 +7326,7 @@ version = "0.0.11"
 dependencies = [
  "keyring-core",
  "linux-keyutils-keyring-store",
+ "reqwest",
  "serde_json",
  "sha2 0.11.0",
  "systemprompt-bridge",
@@ -7339,6 +7344,7 @@ version = "0.0.11"
 dependencies = [
  "async-trait",
  "inventory",
+ "reqwest",
  "serde_json",
  "systemprompt-bridge",
  "systemprompt-identifiers",
@@ -7480,6 +7486,7 @@ name = "systemprompt-bridge-sync-tests"
 version = "0.0.11"
 dependencies = [
  "chrono",
+ "reqwest",
  "serde_json",
  "systemprompt-bridge",
  "systemprompt-identifiers",

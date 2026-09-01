@@ -40,14 +40,18 @@ impl AuthProvider for SessionProvider {
         "session"
     }
 
-    async fn authenticate(&self, session_id: &SessionId) -> Result<HelperOutput, AuthError> {
+    async fn authenticate(
+        &self,
+        session_id: &SessionId,
+        http: &reqwest::Client,
+    ) -> Result<HelperOutput, AuthError> {
         if !self.configured {
             return Err(AuthError::NotConfigured);
         }
 
         let code = capture_device_link_code(&self.base_url).await?;
         let req = SessionExchangeRequest { code };
-        let client = GatewayClient::new(self.base_url.clone());
+        let client = GatewayClient::new(self.base_url.clone(), http.clone());
         let resp = client
             .session_exchange(&req, session_id)
             .await

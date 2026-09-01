@@ -15,9 +15,10 @@ use crate::cli::doctor::Check;
 pub async fn check_mint_jwt(
     cfg: &config::Config,
     checks: &mut Vec<Check>,
+    http: &reqwest::Client,
 ) -> Option<crate::gateway::types::HelperOutput> {
     let session_id = SessionId::generate();
-    match auth::acquire_bearer(cfg, &session_id).await {
+    match auth::acquire_bearer(cfg, &session_id, http).await {
         Ok(out) => {
             checks.push(Check::ok(
                 "mint JWT",
@@ -49,9 +50,10 @@ pub async fn check_mint_jwt(
 pub async fn check_gateway_reachable(
     cfg: &config::Config,
     checks: &mut Vec<Check>,
+    http: &reqwest::Client,
 ) -> GatewayClient {
     let gateway = config::gateway_url_or_default(cfg);
-    let client = GatewayClient::new(gateway.clone());
+    let client = GatewayClient::new(gateway.clone(), http.clone());
     match client.health().await {
         Ok(()) => checks.push(Check::ok(
             "gateway reachable",

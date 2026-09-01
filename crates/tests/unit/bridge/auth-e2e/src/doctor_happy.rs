@@ -183,7 +183,7 @@ fn fully_provisioned_sandbox_yields_no_failing_checks() {
         })
         .unwrap();
 
-        let (checks, _) = block_on(doctor::run_checks(&bridge().proxy));
+        let (checks, _) = block_on(doctor::run_checks(&bridge()));
 
         for check in &checks {
             // Why: the proxy checks describe the developer's machine, not this
@@ -266,7 +266,7 @@ fn hook_token_mint_rejection_is_reported_as_failure() {
         })
         .unwrap();
 
-        let (checks, any_fail) = block_on(doctor::run_checks(&bridge().proxy));
+        let (checks, any_fail) = block_on(doctor::run_checks(&bridge()));
         assert!(any_fail);
         let mint = status_of(&checks, "hook token mint");
         assert_eq!(mint.status, Status::Fail);
@@ -312,7 +312,7 @@ fn a_revoked_pat_is_reported_as_a_whoami_401() {
     write_config(&root, &uri, &pat_file);
 
     temp_env::with_vars(sandbox_vars(&home), || {
-        let (checks, any_fail) = block_on(doctor::run_checks(&bridge().proxy));
+        let (checks, any_fail) = block_on(doctor::run_checks(&bridge()));
         assert!(any_fail);
         let whoami = status_of(&checks, "authenticated whoami");
         assert_eq!(whoami.status, Status::Fail);
@@ -351,7 +351,7 @@ fn a_gateway_that_rejects_the_exchange_fails_mint_and_skips_whoami() {
     write_config(&root, &uri, &pat_file);
 
     temp_env::with_vars(sandbox_vars(&home), || {
-        let (checks, any_fail) = block_on(doctor::run_checks(&bridge().proxy));
+        let (checks, any_fail) = block_on(doctor::run_checks(&bridge()));
         assert!(any_fail);
         assert_eq!(status_of(&checks, "mint JWT").status, Status::Fail);
         let whoami = status_of(&checks, "authenticated whoami");
@@ -380,7 +380,7 @@ fn a_gateway_that_rejects_the_exchange_fails_mint_and_skips_whoami() {
 fn an_unconfigured_sandbox_fails_the_credential_source_check() {
     let home = TempDir::new().unwrap();
     temp_env::with_vars(sandbox_vars(&home), || {
-        let (checks, any_fail) = block_on(doctor::run_checks(&bridge().proxy));
+        let (checks, any_fail) = block_on(doctor::run_checks(&bridge()));
         assert!(any_fail);
         assert_eq!(
             status_of(&checks, "config file").status,

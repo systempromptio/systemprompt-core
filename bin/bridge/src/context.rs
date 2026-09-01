@@ -16,6 +16,7 @@ use tokio::runtime::{Handle, Runtime};
 use tokio::task::JoinHandle;
 
 use crate::activity::ActivityLog;
+use crate::gateway::GatewayClient;
 use crate::mcp_registry::{self, McpRegistrySlot};
 use crate::proxy::identity::InstallId;
 use crate::proxy::{ProxyDeps, ProxyHandle};
@@ -34,6 +35,7 @@ pub struct BridgeContext {
     pub proxy: ProxyHandle,
     pub mcp_registry: Arc<McpRegistrySlot>,
     pub activity: ActivityLog,
+    pub http: reqwest::Client,
 }
 
 impl std::fmt::Debug for BridgeContext {
@@ -54,10 +56,12 @@ impl BridgeContext {
         // a process that had never read it.
         let mcp_registry = mcp_registry::empty_slot();
         mcp_registry::rehydrate_from_disk(&mcp_registry);
+        let http = crate::gateway::build_http_client();
         let deps = ProxyDeps {
             install_id: InstallId::establish(),
             mcp_registry: Arc::clone(&mcp_registry),
             activity: activity.clone(),
+            http: http.clone(),
         };
         let proxy = match mode {
             ProxyMode::Serve => ProxyHandle::serve(runtime.handle(), deps),
@@ -68,6 +72,7 @@ impl BridgeContext {
             proxy,
             mcp_registry,
             activity,
+            http,
         }))
     }
 
@@ -79,6 +84,14 @@ impl BridgeContext {
     #[must_use]
     pub const fn install_id(&self) -> &InstallId {
         self.proxy.install_id()
+    }
+
+    #[must_use]
+    pub fn gateway_client(
+        &self,
+        base_url: systemprompt_identifiers::ValidatedUrl,
+    ) -> GatewayClient {
+        GatewayClient::new(base_url, self.http.clone())
     }
 
     #[must_use]

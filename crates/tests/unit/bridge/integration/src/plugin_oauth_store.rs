@@ -196,7 +196,8 @@ fn ensure_creds_provisions_once_then_reuses_local_state() {
                 .mount(&server)
                 .await;
 
-            let client = GatewayClient::new(ValidatedUrl::new(server.uri()));
+            let client =
+                GatewayClient::new(ValidatedUrl::new(server.uri()), reqwest::Client::new());
             let first = plugin_oauth::ensure_creds(&client, &BearerToken::new("bridge-jwt"))
                 .await
                 .unwrap();
@@ -233,7 +234,8 @@ fn refresh_creds_always_reprovisions() {
                 .mount(&server)
                 .await;
 
-            let client = GatewayClient::new(ValidatedUrl::new(server.uri()));
+            let client =
+                GatewayClient::new(ValidatedUrl::new(server.uri()), reqwest::Client::new());
             let out = plugin_oauth::refresh_creds(&client, &BearerToken::new("bridge-jwt"))
                 .await
                 .unwrap();
@@ -284,7 +286,8 @@ fn mint_or_refresh_rotates_client_on_401_and_retries() {
                 .mount(&server)
                 .await;
 
-            let client = GatewayClient::new(ValidatedUrl::new(server.uri()));
+            let client =
+                GatewayClient::new(ValidatedUrl::new(server.uri()), reqwest::Client::new());
             let token = mint_or_refresh_plugin_token(
                 &client,
                 &BearerToken::new("bridge-jwt"),
@@ -337,7 +340,8 @@ fn mint_or_refresh_success_path_caches_token() {
                 .mount(&server)
                 .await;
 
-            let client = GatewayClient::new(ValidatedUrl::new(server.uri()));
+            let client =
+                GatewayClient::new(ValidatedUrl::new(server.uri()), reqwest::Client::new());
             let first = mint_or_refresh_plugin_token(
                 &client,
                 &BearerToken::new("bridge-jwt"),
@@ -396,13 +400,15 @@ fn a_client_registered_with_one_gateway_is_not_reused_for_another() {
                 .mount(&gateway_b)
                 .await;
 
-            let client_a = GatewayClient::new(ValidatedUrl::new(gateway_a.uri()));
+            let client_a =
+                GatewayClient::new(ValidatedUrl::new(gateway_a.uri()), reqwest::Client::new());
             let a = plugin_oauth::ensure_creds(&client_a, &BearerToken::new("bridge-jwt"))
                 .await
                 .unwrap();
             assert_eq!(a.gateway.as_deref(), Some(gateway_a.uri().as_str()));
 
-            let client_b = GatewayClient::new(ValidatedUrl::new(gateway_b.uri()));
+            let client_b =
+                GatewayClient::new(ValidatedUrl::new(gateway_b.uri()), reqwest::Client::new());
             let b = plugin_oauth::ensure_creds(&client_b, &BearerToken::new("bridge-jwt"))
                 .await
                 .unwrap();
@@ -447,7 +453,8 @@ fn a_stored_client_with_no_recorded_gateway_is_reprovisioned() {
             stale.gateway = None;
             plugin_oauth::store_creds(&stale).unwrap();
 
-            let client = GatewayClient::new(ValidatedUrl::new(server.uri()));
+            let client =
+                GatewayClient::new(ValidatedUrl::new(server.uri()), reqwest::Client::new());
             let out = plugin_oauth::ensure_creds(&client, &BearerToken::new("bridge-jwt"))
                 .await
                 .unwrap();

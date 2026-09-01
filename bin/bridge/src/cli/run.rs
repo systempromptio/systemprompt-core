@@ -15,7 +15,7 @@ use crate::{auth, config};
 pub(super) fn cmd_run(ctx: &BridgeContext) -> ExitCode {
     let cfg = config::load();
     let session_id = SessionId::generate();
-    let acquired = ctx.block_on(auth::acquire_bearer(&cfg, &session_id));
+    let acquired = ctx.block_on(auth::acquire_bearer(&cfg, &session_id, &ctx.http));
     let out = match acquired {
         Ok(out) => out,
         Err(ChainError::PreferredTransient { provider, source }) => {

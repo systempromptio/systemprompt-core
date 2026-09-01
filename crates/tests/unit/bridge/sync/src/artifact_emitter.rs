@@ -131,6 +131,7 @@ fn stub_ctx<'a>(
 fn client() -> systemprompt_bridge::gateway::GatewayClient {
     systemprompt_bridge::gateway::GatewayClient::new(
         systemprompt_identifiers::ValidatedUrl::try_new("http://127.0.0.1:0").unwrap(),
+        reqwest::Client::new(),
     )
 }
 

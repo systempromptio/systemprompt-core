@@ -38,7 +38,11 @@ impl AuthProvider for MtlsProvider {
         "mtls"
     }
 
-    async fn authenticate(&self, session_id: &SessionId) -> Result<HelperOutput, AuthError> {
+    async fn authenticate(
+        &self,
+        session_id: &SessionId,
+        http: &reqwest::Client,
+    ) -> Result<HelperOutput, AuthError> {
         if !self.env_configured && self.cert_ref.is_none() {
             return Err(AuthError::NotConfigured);
         }
@@ -53,7 +57,7 @@ impl AuthProvider for MtlsProvider {
         let req = MtlsRequest {
             device_cert_fingerprint: cert.fingerprint,
         };
-        let client = GatewayClient::new(self.base_url.clone());
+        let client = GatewayClient::new(self.base_url.clone(), http.clone());
         let resp = client
             .mtls_exchange(&req, session_id)
             .await

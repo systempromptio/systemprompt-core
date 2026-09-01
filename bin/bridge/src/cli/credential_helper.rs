@@ -37,7 +37,11 @@ pub(super) fn cmd_credential_helper(ctx: &BridgeContext, args: &[String]) -> Exi
 
 fn emit_claude_via_chain(ctx: &BridgeContext) -> ExitCode {
     let cfg = config::load();
-    let acquired = ctx.block_on(auth::acquire_bearer(&cfg, &SessionId::generate()));
+    let acquired = ctx.block_on(auth::acquire_bearer(
+        &cfg,
+        &SessionId::generate(),
+        &ctx.http,
+    ));
     let out = match acquired {
         Ok(out) => out,
         Err(ChainError::PreferredTransient { provider, source }) => {

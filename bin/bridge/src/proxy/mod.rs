@@ -84,6 +84,7 @@ pub struct ProxyDeps {
     pub install_id: InstallId,
     pub mcp_registry: Arc<McpRegistrySlot>,
     pub activity: ActivityLog,
+    pub http: reqwest::Client,
 }
 
 impl std::fmt::Debug for ProxyDeps {
@@ -171,6 +172,7 @@ impl ProxyHandle {
         let session_context = Arc::new(SessionContext::new());
         let token_cache = Arc::new(TokenCache::default_for_runtime(
             session_context.session_id().clone(),
+            deps.http.clone(),
         ));
         let parts = server::ServerParts {
             loopback: loopback_secret.clone(),

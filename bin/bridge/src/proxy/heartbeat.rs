@@ -112,7 +112,7 @@ async fn send_one(
             required = %body.min_bridge_version,
             "gateway reports this bridge as unsupported",
         );
-        crate::update::run_automatic(gateway_base, token.token.expose()).await;
+        crate::update::run_automatic(gateway_base, token.token.expose(), client).await;
     }
     Ok(())
 }

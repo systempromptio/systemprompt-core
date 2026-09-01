@@ -13,7 +13,11 @@ impl AuthProvider for TestProvider {
     fn name(&self) -> &'static str {
         "test-provider"
     }
-    async fn authenticate(&self, _session_id: &SessionId) -> Result<HelperOutput, AuthError> {
+    async fn authenticate(
+        &self,
+        _session_id: &SessionId,
+        _http: &reqwest::Client,
+    ) -> Result<HelperOutput, AuthError> {
         Err(AuthError::NotConfigured)
     }
 }

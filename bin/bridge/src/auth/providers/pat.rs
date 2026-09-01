@@ -45,9 +45,13 @@ impl AuthProvider for PatProvider {
         "pat"
     }
 
-    async fn authenticate(&self, session_id: &SessionId) -> Result<HelperOutput, AuthError> {
+    async fn authenticate(
+        &self,
+        session_id: &SessionId,
+        http: &reqwest::Client,
+    ) -> Result<HelperOutput, AuthError> {
         let pat = self.pat_source.as_ref().ok_or(AuthError::NotConfigured)?;
-        let client = GatewayClient::new(self.base_url.clone());
+        let client = GatewayClient::new(self.base_url.clone(), http.clone());
         let resp = client
             .pat_exchange(pat, session_id)
             .await

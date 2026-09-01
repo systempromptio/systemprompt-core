@@ -66,7 +66,11 @@ impl AuthFailedSource {
 #[async_trait]
 pub trait AuthProvider: Send + Sync {
     fn name(&self) -> &'static str;
-    async fn authenticate(&self, session_id: &SessionId) -> Result<HelperOutput, AuthError>;
+    async fn authenticate(
+        &self,
+        session_id: &SessionId,
+        http: &reqwest::Client,
+    ) -> Result<HelperOutput, AuthError>;
 }
 
 #[derive(Debug, Clone, Copy)]

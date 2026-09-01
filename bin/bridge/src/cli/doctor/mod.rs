@@ -7,7 +7,6 @@ use std::process::ExitCode;
 
 use crate::context::BridgeContext;
 use crate::integration::host_app::ProbeEnv;
-use crate::proxy::ProxyHandle;
 use crate::{config, stdio};
 
 pub mod auth;
@@ -55,7 +54,7 @@ impl Check {
 }
 
 pub(super) fn cmd_doctor(ctx: &BridgeContext) -> ExitCode {
-    let (checks, any_fail) = ctx.block_on(run_checks(&ctx.proxy));
+    let (checks, any_fail) = ctx.block_on(run_checks(ctx));
     render(&checks);
     if any_fail {
         ExitCode::from(11)
@@ -64,8 +63,9 @@ pub(super) fn cmd_doctor(ctx: &BridgeContext) -> ExitCode {
     }
 }
 
-pub async fn run_checks(proxy: &ProxyHandle) -> (Vec<Check>, bool) {
+pub async fn run_checks(bridge: &BridgeContext) -> (Vec<Check>, bool) {
     let cfg = config::load();
+    let proxy = &bridge.proxy;
     let env = ProbeEnv::from_loopback(proxy.loopback());
     let mut checks: Vec<Check> = vec![
         auth::check_config_file(),
@@ -73,8 +73,8 @@ pub async fn run_checks(proxy: &ProxyHandle) -> (Vec<Check>, bool) {
         auth::check_cached_gateway(&cfg),
         auth::check_install_record(&cfg),
     ];
-    let bearer = auth::check_mint_jwt(&cfg, &mut checks).await;
-    let client = auth::check_gateway_reachable(&cfg, &mut checks).await;
+    let bearer = auth::check_mint_jwt(&cfg, &mut checks, &bridge.http).await;
+    let client = auth::check_gateway_reachable(&cfg, &mut checks, &bridge.http).await;
     auth::check_whoami(&client, bearer.as_ref(), &mut checks).await;
     checks.push(auth::check_loopback_secret());
     checks.push(proxy::check_proxy_listening(proxy));

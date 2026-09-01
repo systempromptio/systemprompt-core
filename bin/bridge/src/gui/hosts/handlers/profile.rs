@@ -8,7 +8,6 @@ use std::sync::Arc;
 use serde_json::json;
 
 use crate::config;
-use crate::gateway::GatewayClient;
 use crate::gui::error::{GuiError, GuiResult};
 use crate::gui::events::{ReplyId, UiEvent};
 use crate::gui::hosts::events::{HostUiEvent, ProbeCause};
@@ -34,10 +33,9 @@ pub(crate) fn on_profile_generate_requested(app: &GuiApp, host_id: &HostId, repl
     let host_id_owned = host_id.clone();
     let overrides = app.state.snapshot().host_model_protocols;
     let proxy = app.proxy.clone();
-    let loopback = app.ctx.proxy.loopback().clone();
-    let install_id = app.ctx.install_id().clone();
+    let bridge = Arc::clone(&app.ctx);
     app.ctx.spawn(async move {
-        let result = generate_profile_for(host, &loopback, &install_id, &overrides)
+        let result = generate_profile_for(host, &bridge, &overrides)
             .await
             .map_err(Arc::new);
         proxy.send_event(UiEvent::Host(HostUiEvent::ProfileGenerateFinished {
@@ -194,11 +192,12 @@ pub(crate) fn on_profile_install_finished(
 
 async fn generate_profile_for(
     host: &'static dyn crate::integration::HostApp,
-    loopback: &crate::proxy::LoopbackEndpoint,
-    install_id: &crate::proxy::identity::InstallId,
+    bridge: &crate::context::BridgeContext,
     overrides: &std::collections::BTreeMap<String, Vec<String>>,
 ) -> GuiResult<GeneratedProfile> {
     let cfg = config::load();
+    let loopback = bridge.proxy.loopback();
+    let install_id = bridge.install_id();
 
     // Why: a proxy that had to move off the default port is still perfectly
     // usable, and the endpoint names it. Refusing on a missing in-process
@@ -236,7 +235,8 @@ async fn generate_profile_for(
         })?;
 
     let gateway_base = config::gateway_url_or_default(&cfg);
-    let server_profile = GatewayClient::new(gateway_base)
+    let server_profile = bridge
+        .gateway_client(gateway_base)
         .fetch_bridge_profile()
         .await?;
 

@@ -83,6 +83,7 @@ pub(crate) struct ForwardDeps<'a> {
     pub stats: Arc<ProxyStats>,
     pub activity: crate::activity::ActivityLog,
     pub mcp_registry: Arc<crate::mcp_registry::McpRegistrySlot>,
+    pub gateway_http: reqwest::Client,
 }
 
 #[tracing::instrument(
@@ -107,6 +108,7 @@ pub(crate) async fn forward(
         stats,
         activity,
         mcp_registry,
+        gateway_http,
     } = deps;
     let token = token_cache.current(REFRESH_THRESHOLD_SECS).await?;
 
@@ -127,7 +129,7 @@ pub(crate) async fn forward(
         ),
         RouteResolution::Mcp(route) => (route, token.token.expose().to_owned()),
         RouteResolution::Hook { url, plugin_id } => {
-            let gw = crate::gateway::GatewayClient::new(gateway_base.clone());
+            let gw = crate::gateway::GatewayClient::new(gateway_base.clone(), gateway_http);
             let hook = crate::auth::plugin_oauth::mint_or_refresh_plugin_token(
                 &gw,
                 &token.token,
