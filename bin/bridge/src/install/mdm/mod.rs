@@ -42,7 +42,7 @@ pub(crate) const fn os_label(os: Os) -> &'static str {
         reason = "only the macOS and Windows MDM payloads embed the managed-MCP servers"
     )
 )]
-pub(crate) struct MdmPayloadInputs<'a> {
+pub struct MdmPayloadInputs<'a> {
     pub loopback: &'a crate::proxy::LoopbackEndpoint,
     pub registry: &'a crate::mcp_registry::McpRegistry,
     pub egress_allowed_hosts: Option<&'a [String]>,

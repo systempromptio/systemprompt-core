@@ -95,9 +95,7 @@ pub fn build_mobileconfig(
 // Why: Cowork reads an empty `<dict/>` under `oauth` as "needs OAuth, do
 // well-known discovery"; omitting the key disables discovery entirely.
 fn managed_mcp_plist_block(mcp: &MdmPayloadInputs<'_>) -> String {
-    let MdmPayloadInputs {
-        loopback, registry, ..
-    } = *mcp;
+    let MdmPayloadInputs { registry, .. } = *mcp;
     if registry.is_empty() {
         return String::new();
     }
