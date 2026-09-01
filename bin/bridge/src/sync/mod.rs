@@ -56,7 +56,7 @@ pub async fn run_once(
     let mut location = paths::org_plugins_effective().ok_or(SyncError::PathUnresolvable)?;
     #[cfg(target_os = "windows")]
     if let Err(err) = check_org_plugins_scope(&synced, &location) {
-        match heal_org_plugins_scope().await {
+        match heal_org_plugins_scope(bridge).await {
             Some(healed) => location = healed,
             None => return Err(err),
         }
@@ -174,10 +174,13 @@ fn check_org_plugins_scope(
 // One attempt per process: a declined prompt must not re-fire from the GUI
 // auto-sync, tray retries, or a `sync --watch` loop.
 #[cfg(target_os = "windows")]
-async fn heal_org_plugins_scope() -> Option<paths::OrgPluginsLocation> {
-    use std::sync::atomic::{AtomicBool, Ordering};
-    static ATTEMPTED: AtomicBool = AtomicBool::new(false);
-    if ATTEMPTED.swap(true, Ordering::SeqCst) {
+async fn heal_org_plugins_scope(
+    bridge: &crate::context::BridgeContext,
+) -> Option<paths::OrgPluginsLocation> {
+    if bridge
+        .elevation_attempted
+        .swap(true, std::sync::atomic::Ordering::SeqCst)
+    {
         return None;
     }
     let org = crate::install::elevated_job::ElevatedJob::org_plugins_for_current_user()?;

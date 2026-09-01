@@ -197,13 +197,16 @@ impl GuiApp {
     }
 
     pub(crate) fn probe_env(&self) -> crate::integration::host_app::ProbeEnv {
-        crate::integration::host_app::ProbeEnv::from_loopback(self.ctx.proxy.loopback())
+        crate::integration::host_app::ProbeEnv::new(
+            self.ctx.proxy.loopback(),
+            Arc::clone(&self.ctx.start_menu),
+        )
     }
 
     pub(crate) fn refresh_ui(&mut self) {
         let snap = self.state.snapshot();
         if let Some(handles) = &mut self.tray {
-            tray::refresh(handles, &snap);
+            tray::refresh(handles, &snap, &self.ctx.schedule);
         }
     }
 

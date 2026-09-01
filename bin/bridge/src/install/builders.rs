@@ -20,6 +20,7 @@ pub struct InstallOptionsBuilder {
     apply: bool,
     apply_mobileconfig: bool,
     apply_schedule: bool,
+    egress_allowed_hosts: Option<Vec<String>>,
 }
 
 impl InstallOptionsBuilder {
@@ -80,7 +81,14 @@ impl InstallOptionsBuilder {
             apply: self.apply,
             apply_mobileconfig: self.apply_mobileconfig,
             apply_schedule: self.apply_schedule,
+            egress_allowed_hosts: self.egress_allowed_hosts,
         }
+    }
+
+    #[must_use]
+    pub fn egress_allowed_hosts(mut self, hosts: Option<Vec<String>>) -> Self {
+        self.egress_allowed_hosts = hosts;
+        self
     }
 }
 

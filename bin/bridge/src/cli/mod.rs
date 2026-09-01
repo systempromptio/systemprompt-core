@@ -95,7 +95,7 @@ fn dispatch(command: Option<&str>, args: &[String], ctx: Arc<BridgeContext>) -> 
         Some("update") => update::cmd_update(&ctx, args),
         Some("oauth-client") => oauth_client::cmd_oauth_client(&ctx, args),
         Some("validate") => validate::cmd_validate(&ctx),
-        Some("uninstall") => uninstall::cmd_uninstall(args),
+        Some("uninstall") => uninstall::cmd_uninstall(&ctx, args),
         Some("credential-helper") => credential_helper::cmd_credential_helper(&ctx, args),
         Some("comms-drain") => comms_drain::cmd_comms_drain(),
         Some("diagnostics") => diagnostics::cmd_diagnostics(),

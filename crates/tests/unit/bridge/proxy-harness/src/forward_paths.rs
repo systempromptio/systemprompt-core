@@ -782,5 +782,8 @@ fn test_deps() -> systemprompt_bridge::proxy::ProxyDeps {
         mcp_registry: Arc::clone(&REGISTRY),
         activity: systemprompt_bridge::activity::ActivityLog::new(),
         http: reqwest::Client::new(),
+        plugin_tokens: Arc::new(
+            systemprompt_bridge::auth::plugin_oauth::PluginTokenCache::default(),
+        ),
     }
 }

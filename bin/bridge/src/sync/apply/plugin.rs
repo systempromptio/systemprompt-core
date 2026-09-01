@@ -4,7 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use super::hooks::{ensure_plugin_json_managed_fields, write_hooks_json};
-use crate::auth::plugin_oauth::global_cache;
+use crate::auth::plugin_oauth::PluginTokenCache;
 use crate::gateway::GatewayClient;
 use crate::gateway::manifest::{HookEntry, PluginEntry, SignedManifest};
 use crate::hash::{normalise_relative, safe_plugin_id, sha256_hex};
@@ -62,9 +62,9 @@ pub(super) async fn apply_plugins(
     let expected: HashSet<&str> = manifest.plugins.iter().map(|p| p.id.as_str()).collect();
     let removed = remove_stale(ctx.root, &expected)?;
     if !removed.is_empty() {
-        let cache = global_cache().await;
         for id in &removed {
-            cache.invalidate_plugin(&systemprompt_identifiers::PluginId::new(id));
+            ctx.plugin_tokens
+                .invalidate_plugin(&systemprompt_identifiers::PluginId::new(id));
         }
     }
 
@@ -116,6 +116,7 @@ pub(super) struct PluginSyncCtx<'a> {
     pub client: &'a GatewayClient,
     pub bearer: &'a str,
     pub loopback: &'a LoopbackEndpoint,
+    pub plugin_tokens: &'a PluginTokenCache,
     pub root: &'a Path,
     pub staging_root: &'a Path,
 }

@@ -70,7 +70,10 @@ impl HostApp for HermesHost {
             profile_keys: read.keys,
             host_running: !processes.is_empty(),
             host_processes: processes,
-            app_installed: crate::integration::app_launch::is_installed(&locator()),
+            app_installed: crate::integration::app_launch::is_installed(
+                &locator(),
+                &env.start_menu,
+            ),
             probed_at_unix: config::now_unix(),
         }
     }

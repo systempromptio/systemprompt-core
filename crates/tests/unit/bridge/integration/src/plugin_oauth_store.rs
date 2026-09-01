@@ -289,6 +289,7 @@ fn mint_or_refresh_rotates_client_on_401_and_retries() {
             let client =
                 GatewayClient::new(ValidatedUrl::new(server.uri()), reqwest::Client::new());
             let token = mint_or_refresh_plugin_token(
+                &TOKENS,
                 &client,
                 &BearerToken::new("bridge-jwt"),
                 &PluginId::new(&plugin),
@@ -298,6 +299,7 @@ fn mint_or_refresh_rotates_client_on_401_and_retries() {
             assert_eq!(token.access_token, "hook.jwt.rotated");
 
             let cached = mint_or_refresh_plugin_token(
+                &TOKENS,
                 &client,
                 &BearerToken::new("bridge-jwt"),
                 &PluginId::new(&plugin),
@@ -343,6 +345,7 @@ fn mint_or_refresh_success_path_caches_token() {
             let client =
                 GatewayClient::new(ValidatedUrl::new(server.uri()), reqwest::Client::new());
             let first = mint_or_refresh_plugin_token(
+                &TOKENS,
                 &client,
                 &BearerToken::new("bridge-jwt"),
                 &PluginId::new(&plugin),
@@ -350,6 +353,7 @@ fn mint_or_refresh_success_path_caches_token() {
             .await
             .unwrap();
             let second = mint_or_refresh_plugin_token(
+                &TOKENS,
                 &client,
                 &BearerToken::new("bridge-jwt"),
                 &PluginId::new(&plugin),
@@ -466,3 +470,6 @@ fn a_stored_client_with_no_recorded_gateway_is_reprovisioned() {
         });
     });
 }
+
+static TOKENS: std::sync::LazyLock<systemprompt_bridge::auth::plugin_oauth::PluginTokenCache> =
+    std::sync::LazyLock::new(Default::default);

@@ -60,7 +60,7 @@ mcp-auth-:proxy/mcp_probe/types.rs:McpAuthState
 host-profile-:integration/profile_state.rs:ProfileCode
 host-app-:integration/profile_state.rs:AppInstallState
 agent-kind-:integration/host_app.rs:HostKind
-settings-schedule-:install/schedule_apply/mod.rs:ScheduleStatus"
+settings-schedule-:schedule/status.rs:ScheduleStatus"
 
 # This reimplements `rename_all = "kebab-case"` in awk, so it is only correct
 # while that is actually how the enum serialises. Rather than guess, assert it:

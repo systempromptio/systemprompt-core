@@ -41,7 +41,7 @@ pub fn install(
     // in-process because it runs separately from the proxy itself.
     let mdm = run_mdm_step(opts, target_os, loopback, &registry)?;
 
-    let schedule = run_schedule_step(opts, &binary)?;
+    let schedule = run_schedule_step(opts, &binary, bridge)?;
 
     Ok(InstallSummary {
         location,
@@ -54,9 +54,10 @@ pub fn install(
 fn run_schedule_step(
     opts: &InstallOptions,
     binary: &Path,
+    bridge: &BridgeContext,
 ) -> Result<Option<ScheduleDisplay>, InstallError> {
     if opts.apply_schedule {
-        return schedule_apply::apply_schedule(Os::current(), binary)
+        return schedule_apply::apply_schedule(&bridge.schedule, Os::current(), binary)
             .map(|a| Some(ScheduleDisplay::Applied(a)));
     }
     opts.emit_schedule_template.map_or(Ok(None), |os| {
@@ -129,7 +130,11 @@ fn run_mdm_step(
 ) -> Result<MdmDisplay, InstallError> {
     let pubkey_str = opts.pubkey.as_ref().map(PinnedPubKey::as_str);
     let inference_base_url = loopback.origin();
-    let mcp = mdm::McpPayloadInputs { loopback, registry };
+    let mcp = mdm::MdmPayloadInputs {
+        loopback,
+        registry,
+        egress_allowed_hosts: opts.egress_allowed_hosts.as_deref(),
+    };
     if opts.apply_mobileconfig {
         return run_apply_mobileconfig(&mcp, &inference_base_url, pubkey_str);
     }
@@ -144,7 +149,7 @@ fn run_mdm_step(
 
 #[cfg(target_os = "macos")]
 fn run_apply_mobileconfig(
-    mcp: &mdm::McpPayloadInputs<'_>,
+    mcp: &mdm::MdmPayloadInputs<'_>,
     inference_base_url: &str,
     pubkey: Option<&str>,
 ) -> Result<MdmDisplay, InstallError> {
@@ -155,7 +160,7 @@ fn run_apply_mobileconfig(
 
 #[cfg(not(target_os = "macos"))]
 const fn run_apply_mobileconfig(
-    _mcp: &mdm::McpPayloadInputs<'_>,
+    _mcp: &mdm::MdmPayloadInputs<'_>,
     _inference_base_url: &str,
     _pubkey: Option<&str>,
 ) -> Result<MdmDisplay, InstallError> {
@@ -164,7 +169,7 @@ const fn run_apply_mobileconfig(
 
 fn run_apply(
     target_os: Os,
-    mcp: &mdm::McpPayloadInputs<'_>,
+    mcp: &mdm::MdmPayloadInputs<'_>,
     inference_base_url: &str,
     pubkey: Option<&str>,
 ) -> Result<MdmDisplay, InstallError> {

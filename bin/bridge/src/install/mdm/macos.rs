@@ -6,7 +6,7 @@
 
 #![cfg(target_os = "macos")]
 
-use super::McpPayloadInputs;
+use super::MdmPayloadInputs;
 use crate::install::xml;
 use std::path::Path;
 
@@ -30,8 +30,8 @@ fn loopback_api_key(loopback: &crate::proxy::LoopbackEndpoint) -> String {
         .unwrap_or_default()
 }
 
-fn egress_plist_block(indent: &str) -> String {
-    super::egress::cowork_egress_allowed_hosts()
+fn egress_plist_block(from_flag: Option<&[String]>, indent: &str) -> String {
+    super::egress::cowork_egress_allowed_hosts(from_flag)
         .map(|hosts| super::egress::macos_plist_block(&hosts, indent))
         .unwrap_or_default()
 }
@@ -41,7 +41,7 @@ fn egress_plist_block(indent: &str) -> String {
     reason = "these braces are template placeholders substituted with str::replace, not format args"
 )]
 pub fn build_prefs_plist(
-    mcp: &McpPayloadInputs<'_>,
+    mcp: &MdmPayloadInputs<'_>,
     gateway: &str,
     pubkey: Option<&str>,
 ) -> String {
@@ -54,7 +54,10 @@ pub fn build_prefs_plist(
             "{api_key_esc}",
             &xml::escape(&loopback_api_key(mcp.loopback)),
         )
-        .replace("{egress_block}", &egress_plist_block("  "))
+        .replace(
+            "{egress_block}",
+            &egress_plist_block(mcp.egress_allowed_hosts, "  "),
+        )
         .replace("{managed_mcp_block}", &managed_mcp_plist_block(mcp))
         .replace("{pubkey_block}", &pubkey_block)
 }
@@ -64,7 +67,7 @@ pub fn build_prefs_plist(
     reason = "these braces are template placeholders substituted with str::replace, not format args"
 )]
 pub fn build_mobileconfig(
-    mcp: &McpPayloadInputs<'_>,
+    mcp: &MdmPayloadInputs<'_>,
     gateway: &str,
     pubkey: Option<&str>,
 ) -> String {
@@ -81,15 +84,20 @@ pub fn build_mobileconfig(
             "{api_key_esc}",
             &xml::escape(&loopback_api_key(mcp.loopback)),
         )
-        .replace("{egress_block}", &egress_plist_block("      "))
+        .replace(
+            "{egress_block}",
+            &egress_plist_block(mcp.egress_allowed_hosts, "      "),
+        )
         .replace("{managed_mcp_block}", &managed_mcp_plist_block(mcp))
         .replace("{pubkey_block}", &pubkey_block)
 }
 
 // Why: Cowork reads an empty `<dict/>` under `oauth` as "needs OAuth, do
 // well-known discovery"; omitting the key disables discovery entirely.
-fn managed_mcp_plist_block(mcp: &McpPayloadInputs<'_>) -> String {
-    let McpPayloadInputs { loopback, registry } = *mcp;
+fn managed_mcp_plist_block(mcp: &MdmPayloadInputs<'_>) -> String {
+    let MdmPayloadInputs {
+        loopback, registry, ..
+    } = *mcp;
     if registry.is_empty() {
         return String::new();
     }
@@ -134,7 +142,7 @@ fn validate_gateway(gateway: &str) -> Result<(), MdmError> {
 }
 
 pub(crate) fn apply(
-    mcp: &McpPayloadInputs<'_>,
+    mcp: &MdmPayloadInputs<'_>,
     gateway: &str,
     pubkey: Option<&str>,
 ) -> Result<Vec<String>, MdmError> {
@@ -238,7 +246,7 @@ fn apply_summary(
 }
 
 pub(crate) fn apply_mobileconfig(
-    mcp: &McpPayloadInputs<'_>,
+    mcp: &MdmPayloadInputs<'_>,
     gateway: &str,
     pubkey: Option<&str>,
 ) -> Result<Vec<String>, MdmError> {

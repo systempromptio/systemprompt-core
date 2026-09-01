@@ -85,6 +85,7 @@ pub struct ProxyDeps {
     pub mcp_registry: Arc<McpRegistrySlot>,
     pub activity: ActivityLog,
     pub http: reqwest::Client,
+    pub plugin_tokens: Arc<crate::auth::plugin_oauth::PluginTokenCache>,
 }
 
 impl std::fmt::Debug for ProxyDeps {

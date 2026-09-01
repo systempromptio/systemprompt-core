@@ -72,11 +72,12 @@ async fn send_one(
         .await
         .map_err(|e| HeartbeatError::Auth(e.to_string()))?;
 
+    let hostname = hostname_or_unknown();
     let payload = HeartbeatPayload {
         session_id: session.session_id().as_str(),
         bridge_version: crate::brand::COMPAT_VERSION,
         os: std::env::consts::OS,
-        hostname: hostname_or_unknown(),
+        hostname: &hostname,
         last_activity_at: session.last_activity(),
         forwarded_total: i64_saturating(stats.forwarded_total.load(Ordering::Relaxed)),
         tokens_in_total: i64_saturating(stats.tokens_in_total.load(Ordering::Relaxed)),
@@ -127,16 +128,11 @@ fn i64_saturating(value: u64) -> i64 {
     i64::try_from(value).unwrap_or(i64::MAX)
 }
 
-fn hostname_or_unknown() -> &'static str {
-    static HOSTNAME: std::sync::OnceLock<String> = std::sync::OnceLock::new();
-    HOSTNAME
-        .get_or_init(|| {
-            hostname::get()
-                .ok()
-                .and_then(|os| os.into_string().ok())
-                .unwrap_or_else(|| "unknown".to_owned())
-        })
-        .as_str()
+fn hostname_or_unknown() -> String {
+    hostname::get()
+        .ok()
+        .and_then(|os| os.into_string().ok())
+        .unwrap_or_else(|| "unknown".to_owned())
 }
 
 #[derive(Debug, thiserror::Error)]

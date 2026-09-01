@@ -68,9 +68,10 @@ impl HostApp for ClaudeDesktopHost {
             profile_keys: read.keys,
             host_running: !processes.is_empty(),
             host_processes: processes,
-            app_installed: crate::integration::app_launch::is_installed(&locator(
-                &claude_app_candidates(),
-            )),
+            app_installed: crate::integration::app_launch::is_installed(
+                &locator(&claude_app_candidates()),
+                &env.start_menu,
+            ),
             probed_at_unix: shared::now_unix(),
         }
     }

@@ -84,6 +84,7 @@ pub(crate) struct ForwardDeps<'a> {
     pub activity: crate::activity::ActivityLog,
     pub mcp_registry: Arc<crate::mcp_registry::McpRegistrySlot>,
     pub gateway_http: reqwest::Client,
+    pub plugin_tokens: Arc<crate::auth::plugin_oauth::PluginTokenCache>,
 }
 
 #[tracing::instrument(
@@ -109,6 +110,7 @@ pub(crate) async fn forward(
         activity,
         mcp_registry,
         gateway_http,
+        plugin_tokens,
     } = deps;
     let token = token_cache.current(REFRESH_THRESHOLD_SECS).await?;
 
@@ -131,6 +133,7 @@ pub(crate) async fn forward(
         RouteResolution::Hook { url, plugin_id } => {
             let gw = crate::gateway::GatewayClient::new(gateway_base.clone(), gateway_http);
             let hook = crate::auth::plugin_oauth::mint_or_refresh_plugin_token(
+                &plugin_tokens,
                 &gw,
                 &token.token,
                 &plugin_id,
@@ -192,9 +195,7 @@ pub(crate) async fn forward(
                 // minted cleanly and was then refused in use had nothing to
                 // evict it, so the cache served the same rejected token until
                 // it expired.
-                crate::auth::plugin_oauth::global_cache()
-                    .await
-                    .invalidate(gateway_base.as_str(), plugin_id);
+                plugin_tokens.invalidate(gateway_base.as_str(), plugin_id);
             } else {
                 token_cache.invalidate().await;
             }

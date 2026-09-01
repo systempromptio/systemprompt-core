@@ -9,6 +9,7 @@ fn probe_env() -> ProbeEnv {
     ProbeEnv {
         proxy_port: systemprompt_bridge::proxy::DEFAULT_PROXY_PORT,
         loopback_secret_fingerprint: None,
+        start_menu: std::sync::Arc::default(),
     }
 }
 

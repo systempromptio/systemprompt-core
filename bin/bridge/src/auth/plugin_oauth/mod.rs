@@ -11,8 +11,7 @@ mod token;
 
 pub use secret_store::{SecretBackend, credential_backend};
 pub use token::{
-    CachedHookToken, PluginTokenCache, REFRESH_THRESHOLD_SECS, global_cache,
-    mint_or_refresh_plugin_token,
+    CachedHookToken, PluginTokenCache, REFRESH_THRESHOLD_SECS, mint_or_refresh_plugin_token,
 };
 
 use crate::gateway::{BridgeOAuthClientResponse, GatewayClient, GatewayError};

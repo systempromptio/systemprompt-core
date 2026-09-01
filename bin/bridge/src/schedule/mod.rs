@@ -9,6 +9,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+pub mod status;
+
 use crate::brand::brand;
 use std::path::Path;
 

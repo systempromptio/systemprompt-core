@@ -23,14 +23,19 @@ pub use crate::integration::profile_state::{
 pub struct ProbeEnv {
     pub proxy_port: u16,
     pub loopback_secret_fingerprint: Option<String>,
+    pub start_menu: std::sync::Arc<crate::probe_cache::StartMenuCache>,
 }
 
 impl ProbeEnv {
     #[must_use]
-    pub fn from_loopback(loopback: &crate::proxy::LoopbackEndpoint) -> Self {
+    pub fn new(
+        loopback: &crate::proxy::LoopbackEndpoint,
+        start_menu: std::sync::Arc<crate::probe_cache::StartMenuCache>,
+    ) -> Self {
         Self {
             proxy_port: loopback.port(),
             loopback_secret_fingerprint: loopback.secret_fingerprint(),
+            start_menu,
         }
     }
 }

@@ -75,7 +75,10 @@ pub(crate) fn open_app(loc: &AppLocator<'_>) -> io::Result<()> {
 }
 
 #[cfg(target_os = "macos")]
-pub(crate) fn is_installed(loc: &AppLocator<'_>) -> AppInstallState {
+pub(crate) fn is_installed(
+    loc: &AppLocator<'_>,
+    _start_menu: &crate::probe_cache::StartMenuCache,
+) -> AppInstallState {
     if macos_bundles(loc.macos_name).iter().any(|p| p.exists()) {
         AppInstallState::Installed
     } else {
@@ -84,7 +87,10 @@ pub(crate) fn is_installed(loc: &AppLocator<'_>) -> AppInstallState {
 }
 
 #[cfg(target_os = "windows")]
-pub(crate) fn is_installed(loc: &AppLocator<'_>) -> AppInstallState {
+pub(crate) fn is_installed(
+    loc: &AppLocator<'_>,
+    start_menu: &crate::probe_cache::StartMenuCache,
+) -> AppInstallState {
     if loc.windows_candidates.iter().any(|p| p.exists()) {
         return AppInstallState::Installed;
     }
@@ -96,7 +102,7 @@ pub(crate) fn is_installed(loc: &AppLocator<'_>) -> AppInstallState {
     {
         return AppInstallState::Installed;
     }
-    match start_menu_present_cached(loc.windows_name) {
+    match start_menu_present_cached(start_menu, loc.windows_name) {
         Some(true) => AppInstallState::Installed,
         Some(false) => AppInstallState::NotInstalled,
         None => AppInstallState::Unknown,
@@ -104,7 +110,10 @@ pub(crate) fn is_installed(loc: &AppLocator<'_>) -> AppInstallState {
 }
 
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]
-pub(crate) fn is_installed(loc: &AppLocator<'_>) -> AppInstallState {
+pub(crate) fn is_installed(
+    loc: &AppLocator<'_>,
+    _start_menu: &crate::probe_cache::StartMenuCache,
+) -> AppInstallState {
     // Why: with no PATH to search, the scan proves nothing either way. Saying
     // `NotInstalled` there would permanently skip the host during first use on
     // the strength of a question we never got to ask.

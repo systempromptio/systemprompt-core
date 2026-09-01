@@ -38,7 +38,7 @@ impl ApplicationHandler for GuiApp {
     fn can_create_surfaces(&mut self, event_loop: &dyn ActiveEventLoop) {
         if self.tray.is_none() {
             let snap = self.state.snapshot();
-            match tray::build(&snap) {
+            match tray::build(&snap, &self.ctx.schedule) {
                 Ok(handles) => {
                     #[cfg(target_os = "macos")]
                     let mut handles = handles;

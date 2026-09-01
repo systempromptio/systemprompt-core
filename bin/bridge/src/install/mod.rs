@@ -28,7 +28,7 @@ pub use error::InstallError;
 #[cfg(target_os = "windows")]
 pub use mdm::windows_policy_values;
 pub use mdm::{
-    MdmError, cowork_egress_allowed_hosts, is_uuid_like, set_egress_allowed_hosts,
+    MdmError, cowork_egress_allowed_hosts, is_uuid_like, parse_egress_allowed_hosts,
     snippet as mdm_snippet,
 };
 pub use schedule_apply::{
@@ -59,6 +59,7 @@ pub struct InstallOptions {
     pub apply: bool,
     pub apply_mobileconfig: bool,
     pub apply_schedule: bool,
+    pub egress_allowed_hosts: Option<Vec<String>>,
 }
 
 impl InstallOptions {
@@ -150,7 +151,10 @@ pub const fn os_label(os: Os) -> &'static str {
 }
 
 #[tracing::instrument(level = "info")]
-pub fn uninstall(purge: bool) -> Result<UninstallSummary, InstallError> {
+pub fn uninstall(
+    purge: bool,
+    bridge: &crate::context::BridgeContext,
+) -> Result<UninstallSummary, InstallError> {
     let location = paths::org_plugins_effective().ok_or(InstallError::OrgPluginsUnresolvable)?;
 
     let metadata = paths::bridge_metadata_dir()
@@ -186,7 +190,7 @@ pub fn uninstall(purge: bool) -> Result<UninstallSummary, InstallError> {
         }
     }
 
-    let schedule = remove_schedule();
+    let schedule = remove_schedule(&bridge.schedule);
     if let ScheduleRemoval::Failed(e) = &schedule {
         diag(&format!("warning: scheduled sync job removal failed: {e}"));
     }

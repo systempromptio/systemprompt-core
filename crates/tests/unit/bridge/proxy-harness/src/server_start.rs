@@ -34,6 +34,9 @@ fn parts(uri: &str) -> ServerParts {
             mcp_registry: systemprompt_bridge::mcp_registry::empty_slot(),
             activity: systemprompt_bridge::activity::ActivityLog::new(),
             http: reqwest::Client::new(),
+            plugin_tokens: Arc::new(
+                systemprompt_bridge::auth::plugin_oauth::PluginTokenCache::default(),
+            ),
         },
     }
 }

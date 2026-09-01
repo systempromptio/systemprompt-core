@@ -12,7 +12,7 @@ pub(super) mod macos;
 #[cfg(target_os = "windows")]
 mod windows;
 
-pub use egress::{cowork_egress_allowed_hosts, set_egress_allowed_hosts};
+pub use egress::{cowork_egress_allowed_hosts, parse_egress_allowed_hosts};
 pub use error::MdmError;
 
 use crate::schedule::Os;
@@ -42,9 +42,10 @@ pub(crate) const fn os_label(os: Os) -> &'static str {
         reason = "only the macOS and Windows MDM payloads embed the managed-MCP servers"
     )
 )]
-pub(crate) struct McpPayloadInputs<'a> {
+pub(crate) struct MdmPayloadInputs<'a> {
     pub loopback: &'a crate::proxy::LoopbackEndpoint,
     pub registry: &'a crate::mcp_registry::McpRegistry,
+    pub egress_allowed_hosts: Option<&'a [String]>,
 }
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
@@ -55,7 +56,7 @@ pub(crate) struct McpPayloadInputs<'a> {
         reason = "only the Windows branch is fallible; the signature stays uniform so callers need no cfg"
     )
 )]
-pub(crate) fn refresh_managed_mcp_servers(mcp: &McpPayloadInputs<'_>) -> Result<String, MdmError> {
+pub(crate) fn refresh_managed_mcp_servers(mcp: &MdmPayloadInputs<'_>) -> Result<String, MdmError> {
     #[cfg(target_os = "windows")]
     {
         windows::refresh_managed_mcp_servers(mcp)
@@ -105,9 +106,10 @@ impl crate::host_sync::HostSync for ClaudeDesktopMdmSync {
         &self,
         ctx: &crate::host_sync::HostSyncCtx<'_>,
     ) -> Result<(), crate::host_sync::ApplyError> {
-        match refresh_managed_mcp_servers(&McpPayloadInputs {
+        match refresh_managed_mcp_servers(&MdmPayloadInputs {
             loopback: ctx.loopback,
             registry: ctx.mcp_registry,
+            egress_allowed_hosts: None,
         }) {
             Ok(line) => {
                 tracing::info!(
@@ -147,16 +149,17 @@ impl crate::host_sync::HostSync for ClaudeDesktopMdmSync {
 
 pub(crate) fn apply_mdm(
     os: Os,
-    mcp: &McpPayloadInputs<'_>,
+    mcp: &MdmPayloadInputs<'_>,
     gateway: &str,
     pubkey: Option<&str>,
 ) -> Result<Vec<String>, MdmError> {
-    // Why: only the macOS payload embeds the loopback endpoint; the Windows
-    // policy carries it through `refresh_managed_mcp_servers` on sync instead.
-    _ = mcp;
+    // Why: the Linux snippet embeds neither the loopback endpoint nor the
+    // egress allowlist; Windows carries MCP through `refresh_managed_mcp_servers`.
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+    let _ = mcp;
     match os {
         #[cfg(target_os = "windows")]
-        Os::Windows => windows::apply(gateway, pubkey),
+        Os::Windows => windows::apply(mcp, gateway, pubkey),
         #[cfg(not(target_os = "windows"))]
         Os::Windows => {
             _ = (gateway, pubkey);
@@ -179,6 +182,7 @@ pub fn windows_policy_values(
     _gateway: &str,
     pubkey: Option<&str>,
     org_uuid: Option<&str>,
+    egress_allowed_hosts: Option<&[String]>,
 ) -> Vec<(&'static str, &'static str, String)> {
     let mut values: Vec<(&'static str, &'static str, String)> = vec![
         ("inferenceProvider", "REG_SZ", "gateway".into()),
@@ -193,7 +197,7 @@ pub fn windows_policy_values(
     // Why: omitted by default so Cowork keeps its own unrestricted egress. A
     // pinned allowlist here left agents with no internet at all; it is now an
     // explicit opt-in for regulated deployments.
-    if let Some(hosts) = cowork_egress_allowed_hosts() {
+    if let Some(hosts) = cowork_egress_allowed_hosts(egress_allowed_hosts) {
         values.push((
             "coworkEgressAllowedHosts",
             "REG_SZ",
@@ -222,8 +226,10 @@ pub fn windows_policy_values(
 // servers must point at the loopback proxy that injects the gateway JWT.
 #[cfg(target_os = "windows")]
 #[must_use]
-pub(crate) fn managed_mcp_servers_json(mcp: &McpPayloadInputs<'_>) -> Option<String> {
-    let McpPayloadInputs { loopback, registry } = *mcp;
+pub(crate) fn managed_mcp_servers_json(mcp: &MdmPayloadInputs<'_>) -> Option<String> {
+    let MdmPayloadInputs {
+        loopback, registry, ..
+    } = *mcp;
     if registry.is_empty() {
         return Some("[]".to_owned());
     }

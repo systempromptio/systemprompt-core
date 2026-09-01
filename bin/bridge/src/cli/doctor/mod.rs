@@ -5,6 +5,8 @@
 
 use std::process::ExitCode;
 
+use std::sync::Arc;
+
 use crate::context::BridgeContext;
 use crate::integration::host_app::ProbeEnv;
 use crate::{config, stdio};
@@ -66,7 +68,7 @@ pub(super) fn cmd_doctor(ctx: &BridgeContext) -> ExitCode {
 pub async fn run_checks(bridge: &BridgeContext) -> (Vec<Check>, bool) {
     let cfg = config::load();
     let proxy = &bridge.proxy;
-    let env = ProbeEnv::from_loopback(proxy.loopback());
+    let env = ProbeEnv::new(proxy.loopback(), Arc::clone(&bridge.start_menu));
     let mut checks: Vec<Check> = vec![
         auth::check_config_file(),
         auth::check_credential_source(&cfg),

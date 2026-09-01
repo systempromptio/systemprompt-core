@@ -10,7 +10,6 @@ use std::collections::HashMap;
 use std::sync::Mutex;
 use std::time::{SystemTime, UNIX_EPOCH};
 use systemprompt_identifiers::PluginId;
-use tokio::sync::OnceCell;
 
 pub const REFRESH_THRESHOLD_SECS: u64 = 300;
 
@@ -93,14 +92,6 @@ impl PluginTokenCache {
     }
 }
 
-static GLOBAL_CACHE: OnceCell<PluginTokenCache> = OnceCell::const_new();
-
-pub async fn global_cache() -> &'static PluginTokenCache {
-    GLOBAL_CACHE
-        .get_or_init(|| async { PluginTokenCache::default() })
-        .await
-}
-
 async fn mint(
     gateway: &GatewayClient,
     c: &OAuthClientCreds,
@@ -145,11 +136,11 @@ fn gateway_aligned_endpoint(raw: &str, gateway: &str) -> String {
 }
 
 pub async fn mint_or_refresh_plugin_token(
+    cache: &PluginTokenCache,
     gateway: &GatewayClient,
     bearer: &BearerToken,
     plugin_id: &PluginId,
 ) -> Result<CachedHookToken, PluginOAuthError> {
-    let cache = global_cache().await;
     let gateway_key = gateway.base_url_str().to_owned();
     if let Some(cached) = cache.get(&gateway_key, plugin_id, REFRESH_THRESHOLD_SECS) {
         return Ok(cached);

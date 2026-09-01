@@ -25,7 +25,7 @@ fn units_dir(home: &std::path::Path) -> std::path::PathBuf {
 fn apply_schedule_writes_both_systemd_units() {
     home_sandbox(|home| {
         let binary = std::path::Path::new("/usr/local/bin/systemprompt-bridge");
-        let outcome = apply_schedule(Os::Linux, binary);
+        let outcome = apply_schedule(&SCHEDULE, Os::Linux, binary);
 
         let dir = units_dir(home);
         let service = dir.join("systemprompt-bridge-sync.service");
@@ -60,7 +60,7 @@ fn apply_schedule_refuses_a_foreign_target_os() {
     } else {
         Os::Windows
     };
-    let err = apply_schedule(foreign, std::path::Path::new("/bin/true"))
+    let err = apply_schedule(&SCHEDULE, foreign, std::path::Path::new("/bin/true"))
         .expect_err("a foreign OS target is rejected");
     assert!(
         matches!(err, InstallError::ScheduleOsMismatch),
@@ -72,7 +72,7 @@ fn apply_schedule_refuses_a_foreign_target_os() {
 #[test]
 fn remove_schedule_reports_not_installed_then_removed() {
     home_sandbox(|home| {
-        match remove_schedule() {
+        match remove_schedule(&SCHEDULE) {
             ScheduleRemoval::NotInstalled(unit) => {
                 assert_eq!(unit, "systemprompt-bridge-sync");
             },
@@ -87,7 +87,7 @@ fn remove_schedule_reports_not_installed_then_removed() {
         std::fs::write(dir.join("systemprompt-bridge-proxy.service"), "[Service]\n")
             .expect("proxy service");
 
-        match remove_schedule() {
+        match remove_schedule(&SCHEDULE) {
             ScheduleRemoval::Removed(unit) => {
                 assert_eq!(unit, "systemprompt-bridge-sync + systemprompt-bridge-proxy");
             },
@@ -109,7 +109,7 @@ fn remove_schedule_tolerates_a_timer_without_its_service() {
         let dir = units_dir(home);
         std::fs::create_dir_all(&dir).expect("units dir");
         std::fs::write(dir.join("systemprompt-bridge-sync.timer"), "[Timer]\n").expect("timer");
-        match remove_schedule() {
+        match remove_schedule(&SCHEDULE) {
             ScheduleRemoval::Removed(unit) => {
                 assert_eq!(unit, "systemprompt-bridge-sync + systemprompt-bridge-proxy");
             },
@@ -141,3 +141,6 @@ fn emit_schedule_writes_the_template_into_the_working_directory() {
         std::env::set_current_dir(&previous).expect("restore cwd");
     });
 }
+
+static SCHEDULE: std::sync::LazyLock<systemprompt_bridge::schedule::status::ScheduleStatusCache> =
+    std::sync::LazyLock::new(Default::default);

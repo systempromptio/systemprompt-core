@@ -8,7 +8,7 @@
 use super::error::MdmError;
 
 pub(super) fn refresh_managed_mcp_servers(
-    mcp: &super::McpPayloadInputs<'_>,
+    mcp: &super::MdmPayloadInputs<'_>,
 ) -> Result<String, MdmError> {
     let value = super::managed_mcp_servers_json(mcp).unwrap_or_else(|| "[]".to_owned());
     write_managed_mcp_servers_value(&value)
@@ -126,7 +126,11 @@ pub(super) fn remove_policy() -> Result<bool, MdmError> {
     Ok(hkcu || hklm)
 }
 
-pub(super) fn apply(gateway: &str, pubkey: Option<&str>) -> Result<Vec<String>, MdmError> {
+pub(super) fn apply(
+    inputs: &super::MdmPayloadInputs<'_>,
+    gateway: &str,
+    pubkey: Option<&str>,
+) -> Result<Vec<String>, MdmError> {
     let elevated = crate::winproc::is_elevated();
     let key = if elevated {
         r"HKLM\SOFTWARE\Policies\Claude"
@@ -134,7 +138,12 @@ pub(super) fn apply(gateway: &str, pubkey: Option<&str>) -> Result<Vec<String>, 
         r"HKCU\SOFTWARE\Policies\Claude"
     };
     let org_uuid = crate::config::load().deployment_organization_uuid;
-    let values = super::windows_policy_values(gateway, pubkey, org_uuid.as_deref());
+    let values = super::windows_policy_values(
+        gateway,
+        pubkey,
+        org_uuid.as_deref(),
+        inputs.egress_allowed_hosts,
+    );
     let mut summary = Vec::with_capacity(values.len() + 2);
     summary.push(format!("registry key: {key}"));
     for (name, kind, data) in &values {

@@ -48,6 +48,7 @@ pub(super) async fn forward_to_gateway(
             activity: ctx.deps.activity.clone(),
             mcp_registry: Arc::clone(&ctx.deps.mcp_registry),
             gateway_http: ctx.deps.http.clone(),
+            plugin_tokens: Arc::clone(&ctx.deps.plugin_tokens),
         },
     )
     .await

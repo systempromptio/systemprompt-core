@@ -34,13 +34,13 @@ fn with_env(value: Option<&str>, f: impl FnOnce() -> Option<Vec<String>>) -> Opt
 
 #[test]
 fn unset_means_unrestricted() {
-    assert_eq!(with_env(None, cowork_egress_allowed_hosts), None);
+    assert_eq!(with_env(None, || cowork_egress_allowed_hosts(None)), None);
 }
 
 #[test]
 fn loopback_alias_expands_to_localhost() {
     assert_eq!(
-        with_env(Some("loopback"), cowork_egress_allowed_hosts),
+        with_env(Some("loopback"), || cowork_egress_allowed_hosts(None)),
         Some(vec!["127.0.0.1".to_owned()])
     );
 }
@@ -48,7 +48,7 @@ fn loopback_alias_expands_to_localhost() {
 #[test]
 fn alias_is_case_insensitive() {
     assert_eq!(
-        with_env(Some("LoopBack"), cowork_egress_allowed_hosts),
+        with_env(Some("LoopBack"), || cowork_egress_allowed_hosts(None)),
         Some(vec!["127.0.0.1".to_owned()])
     );
 }
@@ -56,10 +56,9 @@ fn alias_is_case_insensitive() {
 #[test]
 fn explicit_hosts_are_split_and_trimmed() {
     assert_eq!(
-        with_env(
-            Some(" github.com , loopback ,api.example.com "),
-            cowork_egress_allowed_hosts
-        ),
+        with_env(Some(" github.com , loopback ,api.example.com "), || {
+            cowork_egress_allowed_hosts(None)
+        }),
         Some(vec![
             "github.com".to_owned(),
             "127.0.0.1".to_owned(),
@@ -72,8 +71,14 @@ fn explicit_hosts_are_split_and_trimmed() {
 /// every host, the opposite of what clearing the variable reads as.
 #[test]
 fn empty_value_means_unrestricted() {
-    assert_eq!(with_env(Some(""), cowork_egress_allowed_hosts), None);
-    assert_eq!(with_env(Some("  , ,"), cowork_egress_allowed_hosts), None);
+    assert_eq!(
+        with_env(Some(""), || cowork_egress_allowed_hosts(None)),
+        None
+    );
+    assert_eq!(
+        with_env(Some("  , ,"), || cowork_egress_allowed_hosts(None)),
+        None
+    );
 }
 
 #[cfg(target_os = "windows")]

@@ -11,15 +11,19 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
+use std::sync::atomic::AtomicBool;
 
 use tokio::runtime::{Handle, Runtime};
 use tokio::task::JoinHandle;
 
 use crate::activity::ActivityLog;
+use crate::auth::plugin_oauth::PluginTokenCache;
 use crate::gateway::GatewayClient;
 use crate::mcp_registry::{self, McpRegistrySlot};
+use crate::probe_cache::StartMenuCache;
 use crate::proxy::identity::InstallId;
 use crate::proxy::{ProxyDeps, ProxyHandle};
+use crate::schedule::status::ScheduleStatusCache;
 
 /// Whether this process should own the loopback port or find the process that
 /// does.
@@ -36,6 +40,12 @@ pub struct BridgeContext {
     pub mcp_registry: Arc<McpRegistrySlot>,
     pub activity: ActivityLog,
     pub http: reqwest::Client,
+    pub plugin_tokens: Arc<PluginTokenCache>,
+    pub schedule: ScheduleStatusCache,
+    pub start_menu: Arc<StartMenuCache>,
+    // Why: one administrator prompt per process — a declined prompt must not
+    // re-fire from the GUI auto-sync, tray retries, or a `sync --watch` loop.
+    pub elevation_attempted: AtomicBool,
 }
 
 impl std::fmt::Debug for BridgeContext {
@@ -57,11 +67,13 @@ impl BridgeContext {
         let mcp_registry = mcp_registry::empty_slot();
         mcp_registry::rehydrate_from_disk(&mcp_registry);
         let http = crate::gateway::build_http_client();
+        let plugin_tokens = Arc::new(PluginTokenCache::default());
         let deps = ProxyDeps {
             install_id: InstallId::establish(),
             mcp_registry: Arc::clone(&mcp_registry),
             activity: activity.clone(),
             http: http.clone(),
+            plugin_tokens: Arc::clone(&plugin_tokens),
         };
         let proxy = match mode {
             ProxyMode::Serve => ProxyHandle::serve(runtime.handle(), deps),
@@ -73,6 +85,10 @@ impl BridgeContext {
             mcp_registry,
             activity,
             http,
+            plugin_tokens,
+            schedule: ScheduleStatusCache::default(),
+            start_menu: Arc::new(StartMenuCache::default()),
+            elevation_attempted: AtomicBool::new(false),
         }))
     }
 

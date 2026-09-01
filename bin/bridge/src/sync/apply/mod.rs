@@ -42,6 +42,7 @@ pub(crate) async fn apply_manifest(
         client,
         bearer,
         loopback,
+        plugin_tokens: &bridge.plugin_tokens,
         root,
         staging_root: &staging_root,
     };
