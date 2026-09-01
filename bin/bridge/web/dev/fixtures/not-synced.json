@@ -15,7 +15,9 @@
     "length": 812
   },
   "gateway_status": {
-    "state": "reachable",
+    "tone": "ok",
+    "code": "reachable",
+    "settled": true,
     "latency_ms": 42
   },
   "verified_identity": {
@@ -39,7 +41,11 @@
   "mcp_auth": [],
   "mcp_auth_probe_in_flight": false,
   "update": {
-    "state": "idle"
+    "phase": "unknown",
+    "tone": "unknown",
+    "can_install": false,
+    "can_restart": false,
+    "in_progress": false
   },
   "sign_in_label": "Sign in with systemprompt",
   "sign_in_hint": "Opens your browser — sign in there with your Odoo email and password.",
@@ -47,7 +53,7 @@
     {
       "id": "claude-desktop",
       "display_name": "Claude Desktop",
-      "kind": "desktop_app",
+      "kind": "desktop-app",
       "description": "Anthropic's desktop client",
       "icon": "claude-desktop",
       "config_format": "reg",
@@ -60,25 +66,6 @@
         "bytes": 712,
         "payload_uuid": "ce0a6a91-3b6c-4cwk-cwk0-deadbeefa06f",
         "profile_uuid": "ce0b78a5-6d14-4cwk-cwk0-feedfaceb43c"
-      },
-      "snapshot": {
-        "host_id": "claude-desktop",
-        "display_name": "Claude Desktop",
-        "profile_state": {
-          "kind": "installed"
-        },
-        "profile_source": "HKLM\\SOFTWARE\\Policies\\Claude",
-        "profile_keys": {
-          "gatewayUrl": "http://127.0.0.1:48217",
-          "loopbackSecret": "sp-loopback-••••••••",
-          "signingPubkey": "MCowBQYDK2VwAyEA••••"
-        },
-        "host_running": true,
-        "host_processes": [
-          "claude.exe"
-        ],
-        "app_installed": "installed",
-        "probed_at_unix": 1787905697
       },
       "compatible_models": [
         "claude-opus-5",
@@ -98,6 +85,7 @@
       "surface": "local-profile",
       "verdict": {
         "state": "working",
+        "tone": "ok",
         "reason": {
           "code": "governed",
           "when_unix": 1787905697
@@ -108,12 +96,29 @@
         "is_set_up": true,
         "is_installed": true,
         "is_running": true
+      },
+      "health": {
+        "profile": {
+          "tone": "ok",
+          "code": "installed"
+        },
+        "missing_required": [],
+        "app": {
+          "tone": "ok",
+          "code": "installed"
+        },
+        "host_running": true,
+        "host_processes": [
+          "claude.exe"
+        ],
+        "inference_models": [],
+        "probed_at_unix": 1787905697
       }
     },
     {
       "id": "codex-cli",
       "display_name": "Codex CLI",
-      "kind": "cli_tool",
+      "kind": "cli-tool",
       "description": "OpenAI's terminal coding agent",
       "icon": "codex-cli",
       "config_format": "toml",
@@ -122,19 +127,6 @@
       "probe_in_flight": false,
       "enabled": true,
       "last_generated_profile": null,
-      "snapshot": {
-        "host_id": "codex-cli",
-        "display_name": "Codex CLI",
-        "profile_state": {
-          "kind": "absent"
-        },
-        "profile_source": null,
-        "profile_keys": {},
-        "host_running": false,
-        "host_processes": [],
-        "app_installed": "not_installed",
-        "probed_at_unix": 1787905697
-      },
       "compatible_models": [
         "claude-opus-5",
         "claude-sonnet-5",
@@ -153,6 +145,7 @@
       "surface": "local-profile",
       "verdict": {
         "state": "attention",
+        "tone": "warn",
         "reason": {
           "code": "app-missing"
         },
@@ -162,12 +155,27 @@
         "is_set_up": false,
         "is_installed": false,
         "is_running": false
+      },
+      "health": {
+        "profile": {
+          "tone": "err",
+          "code": "absent"
+        },
+        "missing_required": [],
+        "app": {
+          "tone": "err",
+          "code": "not-installed"
+        },
+        "host_running": false,
+        "host_processes": [],
+        "inference_models": [],
+        "probed_at_unix": 1787905697
       }
     },
     {
       "id": "hermes",
       "display_name": "Hermes",
-      "kind": "desktop_app",
+      "kind": "desktop-app",
       "description": "Nous Research's Hermes Agent Desktop. systemprompt-bridge writes managed configuration that routes inference through the gateway, registers MCP connectors, and publishes managed skills.",
       "icon": "hermes",
       "config_format": "yaml",
@@ -176,19 +184,6 @@
       "probe_in_flight": false,
       "enabled": true,
       "last_generated_profile": null,
-      "snapshot": {
-        "host_id": "hermes",
-        "display_name": "Hermes",
-        "profile_state": {
-          "kind": "absent"
-        },
-        "profile_source": null,
-        "profile_keys": {},
-        "host_running": false,
-        "host_processes": [],
-        "app_installed": "not_installed",
-        "probed_at_unix": 1787905697
-      },
       "compatible_models": [
         "claude-opus-5",
         "claude-sonnet-5",
@@ -207,6 +202,7 @@
       "surface": "local-profile",
       "verdict": {
         "state": "attention",
+        "tone": "warn",
         "reason": {
           "code": "app-missing"
         },
@@ -216,12 +212,27 @@
         "is_set_up": false,
         "is_installed": false,
         "is_running": false
+      },
+      "health": {
+        "profile": {
+          "tone": "err",
+          "code": "absent"
+        },
+        "missing_required": [],
+        "app": {
+          "tone": "err",
+          "code": "not-installed"
+        },
+        "host_running": false,
+        "host_processes": [],
+        "inference_models": [],
+        "probed_at_unix": 1787905697
       }
     },
     {
       "id": "opencode",
       "display_name": "OpenCode",
-      "kind": "cli_tool",
+      "kind": "cli-tool",
       "description": "The open-source OpenCode coding agent (terminal, desktop and IDE). systemprompt-bridge installs admin-managed configuration that routes inference through the gateway, registers MCP connectors, and publishes managed skills.",
       "icon": "opencode",
       "config_format": "json",
@@ -230,19 +241,6 @@
       "probe_in_flight": false,
       "enabled": true,
       "last_generated_profile": null,
-      "snapshot": {
-        "host_id": "opencode",
-        "display_name": "OpenCode",
-        "profile_state": {
-          "kind": "absent"
-        },
-        "profile_source": null,
-        "profile_keys": {},
-        "host_running": false,
-        "host_processes": [],
-        "app_installed": "not_installed",
-        "probed_at_unix": 1787905697
-      },
       "compatible_models": [
         "claude-opus-5",
         "claude-sonnet-5",
@@ -261,6 +259,7 @@
       "surface": "local-profile",
       "verdict": {
         "state": "attention",
+        "tone": "warn",
         "reason": {
           "code": "app-missing"
         },
@@ -271,12 +270,27 @@
         "is_installed": false,
         "is_running": false
       },
-      "can_open": false
+      "can_open": false,
+      "health": {
+        "profile": {
+          "tone": "err",
+          "code": "absent"
+        },
+        "missing_required": [],
+        "app": {
+          "tone": "err",
+          "code": "not-installed"
+        },
+        "host_running": false,
+        "host_processes": [],
+        "inference_models": [],
+        "probed_at_unix": 1787905697
+      }
     },
     {
       "id": "claude-code",
       "display_name": "Claude Code",
-      "kind": "cli_tool",
+      "kind": "cli-tool",
       "description": "Governed through the gateway; skills and plugins sync from here.",
       "icon": "claude-code",
       "config_format": "json",
@@ -285,7 +299,7 @@
       "probe_in_flight": false,
       "enabled": true,
       "last_generated_profile": null,
-      "snapshot": null,
+      "health": null,
       "compatible_models": [],
       "models_checked": false,
       "compatible_models_available": false,
@@ -295,6 +309,7 @@
       "surface": "sync-only",
       "verdict": {
         "state": "checking",
+        "tone": "unknown",
         "reason": {
           "code": "never-probed"
         },
@@ -307,11 +322,16 @@
   ],
   "local_proxy": {
     "url": "http://127.0.0.1:48217",
-    "state": "Listening",
+    "state": "listening",
     "http_status": 200,
     "latency_ms": 2,
     "error": null,
-    "probed_at_unix": 1787905787
+    "probed_at_unix": 1787905787,
+    "verdict": {
+      "tone": "ok",
+      "code": "listening"
+    },
+    "governing": true
   },
   "hosts_gated": false,
   "agents_onboarded": true,
@@ -326,32 +346,36 @@
   "last_validation": {
     "lines": [
       {
-        "level": "info",
         "label": "binary",
-        "value": "systemprompt-bridge v0.31.0 (windows-x86_64)"
+        "value": "systemprompt-bridge v0.31.0 (windows-x86_64)",
+        "tone": "unknown"
       },
       {
-        "level": "ok",
         "label": "org-plugins path",
-        "value": "C:\\ProgramData\\systemprompt\\org-plugins (scope: system)"
+        "value": "C:\\ProgramData\\systemprompt\\org-plugins (scope: system)",
+        "tone": "ok"
       },
       {
-        "level": "ok",
         "label": "metadata dir",
-        "value": "C:\\ProgramData\\systemprompt\\bridge"
+        "value": "C:\\ProgramData\\systemprompt\\bridge",
+        "tone": "ok"
       },
       {
-        "level": "warn",
         "label": "last sync",
-        "value": "never — run `sync`"
+        "value": "never — run `sync`",
+        "tone": "warn"
       },
       {
-        "level": "fail",
         "label": "gateway /health",
-        "value": "connection refused"
+        "value": "connection refused",
+        "tone": "err"
       }
     ],
-    "any_failed": true
+    "any_failed": true,
+    "verdict": {
+      "tone": "err",
+      "code": "failing"
+    }
   },
   "last_validation_at_unix": 1787905637,
   "malformed_plugin_count": 0,
@@ -399,5 +423,23 @@
       "state": "ok",
       "headline": "all-working"
     }
-  }
+  },
+  "identity": {
+    "tone": "ok",
+    "code": "signed-in"
+  },
+  "cloud_tone": "ok",
+  "overall": {
+    "tone": "ok",
+    "code": "ready"
+  },
+  "token": {
+    "tone": "ok",
+    "code": "valid"
+  },
+  "health": {
+    "tone": "err",
+    "code": "failing"
+  },
+  "mcp_auth_tone": "warn"
 }

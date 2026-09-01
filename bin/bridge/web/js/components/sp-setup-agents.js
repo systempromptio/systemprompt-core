@@ -1,6 +1,6 @@
 import { SpElement, reactive, escapeHtml } from "/assets/js/components/sp-element.js";
 import { bridge } from "/assets/js/bridge.js";
-import { isInstalled } from "/assets/js/utils/agent-verdict.js";
+import { isInstalled } from "/assets/js/utils/verdict.js";
 import { t } from "/assets/js/i18n.js";
 import { announce } from "/assets/js/utils/announce.js";
 import { repairHost } from "/assets/js/utils/host-actions.js";
@@ -102,7 +102,7 @@ export class SpSetupAgents extends SpElement {
     }
     return hosts.map((host) => {
       const installed = isInstalled(host);
-      const suffix = host.kind === "cli_tool" ? " · CLI" : " · Desktop";
+      const suffix = ` · ${t(`agent-kind-${host.kind}`) || ""}`;
       const cls = installed ? "sp-btn-ghost" : "sp-btn-primary";
       const label = installed
         ? (t("setup-agents-installed") || "Installed")

@@ -3,70 +3,27 @@ import { bridge } from "/assets/js/bridge.js";
 import { t } from "/assets/js/i18n.js";
 import { fmtDurationLong } from "/assets/js/utils/format.js";
 
-const TOKEN_WARN_SECONDS = 600;
-
+// Three pills, three verdicts, all computed by the bridge. Each one here is a
+// tone plus a catalogue lookup on the code.
 function cloudPill(snap) {
-  const status = snap.gateway_status || { state: "unknown" };
-  if (status.state !== "reachable") {
-    return { state: "err", text: t("agents-status-cloud-unreachable") || "cloud unreachable" };
-  }
-  const id = snap.verified_identity;
-  if (id && (id.email || id.user_id)) {
-    const who = id.email || id.user_id;
-    return {
-      state: "ok",
-      text: t("agents-status-cloud-signed-in", { email: who }) || `signed in as ${who}`,
-    };
-  }
-  return { state: "warn", text: t("agents-status-cloud-signed-out") || "signed out" };
+  const identity = snap.identity || { tone: "unknown", code: "signed-out" };
+  const id = snap.verified_identity || {};
+  const email = id.email || id.user_id || "";
+  return { tone: identity.tone, text: t(`agents-status-cloud-${identity.code}`, { email }) || "" };
 }
 
 function proxyPill(snap) {
-  const proxy = snap.local_proxy || { state: "Unknown" };
-  const state = String(proxy.state || "Unknown");
-  if (state === "Listening") {
-    const latency = proxy.latency_ms != null ? String(proxy.latency_ms) : "?";
-    const httpStatus = proxy.http_status != null ? String(proxy.http_status) : "—";
-    return {
-      state: "ok",
-      text: t("agents-status-proxy-listening", { latency, status: httpStatus })
-        || `Listening · ${latency}ms · ${httpStatus}`,
-    };
-  }
-  if (state === "Refused") {
-    return { state: "err", text: t("agents-status-proxy-refused") || "proxy refused" };
-  }
-  if (state === "Timeout") {
-    return { state: "err", text: t("agents-status-proxy-timeout") || "proxy timed out" };
-  }
-  if (state === "HttpError") {
-    return { state: "err", text: t("agents-status-proxy-http-error") || "proxy http error" };
-  }
-  if (state === "Unconfigured") {
-    return { state: "warn", text: t("agents-status-proxy-unconfigured") || "proxy unconfigured" };
-  }
-  // Why: anything left is `Unknown` — not yet probed. Saying "unconfigured"
-  // there reports a verdict we have not reached.
-  return { state: "unknown", text: t("agents-status-proxy-checking") || "checking…" };
+  const proxy = snap.local_proxy || {};
+  const verdict = proxy.verdict || { tone: "unknown", code: "unknown" };
+  const latency = proxy.latency_ms != null ? String(proxy.latency_ms) : "?";
+  const status = proxy.http_status != null ? String(proxy.http_status) : "—";
+  return { tone: verdict.tone, text: t(`agents-status-proxy-${verdict.code}`, { latency, status }) || "" };
 }
 
 function tokenPill(snap) {
-  const token = snap.cached_token;
-  if (!token) {
-    return { state: "err", text: t("agents-status-token-missing") || "no token" };
-  }
-  const ttl = Number(token.ttl_seconds);
-  const ttlText = fmtDurationLong(ttl);
-  if (ttl < TOKEN_WARN_SECONDS) {
-    return {
-      state: "warn",
-      text: t("agents-status-token-expiring", { ttl: ttlText }) || `Session expires in ${ttlText}`,
-    };
-  }
-  return {
-    state: "ok",
-    text: t("agents-status-token-ok", { ttl: ttlText }) || `Session valid · expires in ${ttlText}`,
-  };
+  const token = snap.token || { tone: "unknown", code: "missing" };
+  const ttl = fmtDurationLong(Number((snap.cached_token || {}).ttl_seconds || 0));
+  return { tone: token.tone, text: t(`agents-status-token-${token.code}`, { ttl }) || "" };
 }
 
 function gotoStatus() {
@@ -103,7 +60,7 @@ export class SpAgentsStatus extends SpElement {
     const pill = (key, view) => `
       <button
         type="button"
-        class="sp-agents-status__pill sp-agents-status__pill--${view.state}"
+        class="sp-agents-status__pill sp-agents-status__pill--${view.tone}"
         data-action="goto-status-${key}"
         title="${escapeHtml(view.text)}"
       >${escapeHtml(view.text)}</button>

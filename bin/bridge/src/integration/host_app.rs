@@ -6,6 +6,8 @@
 use std::collections::BTreeMap;
 
 use serde::Serialize;
+
+use crate::verdict::{Tone, Verdict};
 use systemprompt_models::profile::ApiSurface;
 
 #[derive(Debug, Clone)]
@@ -38,10 +40,52 @@ pub enum ProfileState {
     Stale { reason: StaleReason },
 }
 
+/// [`ProfileState`] without its payload — the code the GUI looks up.
+#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum ProfileCode {
+    Absent,
+    Partial,
+    Installed,
+    Stale,
+}
+
 impl ProfileState {
     #[must_use]
     pub const fn is_installed(&self) -> bool {
         matches!(self, Self::Installed)
+    }
+
+    #[must_use]
+    pub const fn code(&self) -> ProfileCode {
+        match self {
+            Self::Absent => ProfileCode::Absent,
+            Self::Partial { .. } => ProfileCode::Partial,
+            Self::Installed => ProfileCode::Installed,
+            Self::Stale { .. } => ProfileCode::Stale,
+        }
+    }
+
+    #[must_use]
+    pub const fn tone(&self) -> Tone {
+        match self {
+            Self::Installed => Tone::Ok,
+            Self::Partial { .. } | Self::Stale { .. } => Tone::Warn,
+            Self::Absent => Tone::Err,
+        }
+    }
+
+    #[must_use]
+    pub const fn verdict(&self) -> Verdict<ProfileCode> {
+        Verdict::new(self.tone(), self.code())
+    }
+
+    #[must_use]
+    pub fn missing_required(&self) -> &[String] {
+        match self {
+            Self::Partial { missing_required } => missing_required,
+            Self::Absent | Self::Installed | Self::Stale { .. } => &[],
+        }
     }
 
     #[must_use]
@@ -106,7 +150,7 @@ pub struct HostConfigSchema {
 /// inconclusive probe masking an otherwise healthy host is the bug this
 /// tri-state exists to prevent.
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
-#[serde(rename_all = "snake_case")]
+#[serde(rename_all = "kebab-case")]
 pub enum AppInstallState {
     Installed,
     NotInstalled,
@@ -117,6 +161,20 @@ impl AppInstallState {
     #[must_use]
     pub const fn is_installed(self) -> bool {
         matches!(self, Self::Installed)
+    }
+
+    #[must_use]
+    pub const fn tone(self) -> Tone {
+        match self {
+            Self::Installed => Tone::Ok,
+            Self::NotInstalled => Tone::Err,
+            Self::Unknown => Tone::Warn,
+        }
+    }
+
+    #[must_use]
+    pub const fn verdict(self) -> Verdict<Self> {
+        Verdict::new(self.tone(), self)
     }
 }
 
@@ -142,7 +200,7 @@ pub struct GeneratedProfile {
 }
 
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
-#[serde(rename_all = "snake_case")]
+#[serde(rename_all = "kebab-case")]
 pub enum HostKind {
     DesktopApp,
     CliTool,

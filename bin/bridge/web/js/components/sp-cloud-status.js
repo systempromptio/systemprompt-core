@@ -1,46 +1,34 @@
 import { SpElement, reactive, escapeHtml } from "/assets/js/components/sp-element.js";
 import { bridge } from "/assets/js/bridge.js";
 import { fmtRelative, publishSectionState } from "/assets/js/utils/format.js";
+import { t } from "/assets/js/i18n.js";
+import { toneDot, toneSection } from "/assets/js/utils/verdict.js";
 import { logout } from "/assets/js/services/session-service.js";
 
-function reachabilityView(status) {
-  if (status.state === "reachable") {
-    return { state: "ok", dot: "sp-dot--ok", value: String(status.latency_ms ?? "?"), unit: "ms", label: "reachable" };
-  }
-  if (status.state === "probing") {
-    return { state: "probing", dot: "sp-dot--probing", value: "…", unit: "", label: "probing" };
-  }
-  if (status.state === "unreachable") {
-    return { state: "err", dot: "sp-dot--err", value: "—", unit: "", label: "unreachable", reason: status.reason || "unknown error" };
-  }
-  return { state: "unknown", dot: "sp-dot--unknown", value: "—", unit: "", label: "unknown" };
+function reachabilityView(gateway) {
+  const tone = gateway.tone || "unknown";
+  const reachable = tone === "ok";
+  return {
+    tone,
+    dot: toneDot(tone),
+    value: reachable ? String(gateway.latency_ms ?? "?") : (tone === "probing" ? "…" : "—"),
+    unit: reachable ? "ms" : "",
+    label: t(`gateway-state-${gateway.code || "unknown"}`, { latency: gateway.latency_ms ?? "?", reason: gateway.reason || "unknown error" }) || "",
+    reason: tone === "err" ? (gateway.reason || "unknown error") : "",
+  };
 }
 
-function identityView(snap, reachable) {
-  const id = snap.verified_identity;
-  if (!reachable) {
-    return { state: "unknown", dot: "sp-dot--unknown", value: "—", label: "gateway unreachable", muted: true };
-  }
-  if (id && (id.email || id.user_id)) {
-    return { state: "ok", dot: "sp-dot--ok", value: id.email || id.user_id, label: "signed in", muted: false };
-  }
-  if (snap.pat_present) {
-    return { state: "probing", dot: "sp-dot--probing", value: "…", label: "verifying credentials", muted: true };
-  }
-  return { state: "warn", dot: "sp-dot--warn", value: "—", label: "not signed in", muted: true };
-}
-
-function rollUp(a, b) {
-  const order = { err: 4, warn: 3, probing: 2, unknown: 1, ok: 0 };
-  return (order[a] >= order[b]) ? a : b;
-}
-
-function sectionLabel(state) {
-  if (state === "ok") { return "healthy"; }
-  if (state === "warn") { return "attention"; }
-  if (state === "err") { return "down"; }
-  if (state === "probing") { return "checking…"; }
-  return "unknown";
+function identityView(snap) {
+  const identity = snap.identity || { tone: "unknown", code: "signed-out" };
+  const id = snap.verified_identity || {};
+  const who = id.email || id.user_id || "";
+  return {
+    tone: identity.tone,
+    dot: toneDot(identity.tone),
+    value: identity.tone === "ok" ? who : (identity.tone === "probing" ? "…" : "—"),
+    label: t(`identity-${identity.code}`) || "",
+    muted: identity.tone !== "ok",
+  };
 }
 
 export class SpCloudStatus extends SpElement {
@@ -78,9 +66,8 @@ export class SpCloudStatus extends SpElement {
     if (!snap) {
       return this._skeleton();
     }
-    const status = snap.gateway_status || { state: "unknown" };
-    const reach = reachabilityView(status);
-    const ident = identityView(snap, status.state === "reachable");
+    const reach = reachabilityView(snap.gateway_status || {});
+    const ident = identityView(snap);
     const id = snap.verified_identity || {};
     const tokenPrimary = snap.cached_token
       ? `JWT · ${snap.cached_token.ttl_seconds}s`
@@ -106,7 +93,7 @@ export class SpCloudStatus extends SpElement {
 
     return `
       <div class="sp-kpi-grid">
-        <article class="sp-kpi-card" data-state="${reach.state}">
+        <article class="sp-kpi-card" data-state="${reach.tone}">
           <div class="sp-kpi-card__head">
             <span data-l10n-id="status-cloud-reach-label">Reachability</span>
             <span class="sp-dot ${reach.dot}" aria-hidden="true"></span>
@@ -129,7 +116,7 @@ export class SpCloudStatus extends SpElement {
           </div>
         </article>
 
-        <article class="sp-kpi-card" data-state="${ident.state}">
+        <article class="sp-kpi-card" data-state="${ident.tone}">
           <div class="sp-kpi-card__head">
             <span data-l10n-id="status-cloud-identity-label">Identity</span>
             <span class="sp-dot ${ident.dot}" aria-hidden="true"></span>
@@ -162,11 +149,8 @@ export class SpCloudStatus extends SpElement {
       publishSectionState(this, "probing", "checking…");
       return;
     }
-    const status = snap.gateway_status || { state: "unknown" };
-    const reach = reachabilityView(status);
-    const ident = identityView(snap, status.state === "reachable");
-    const overall = rollUp(reach.state, ident.state);
-    publishSectionState(this, overall, sectionLabel(overall));
+    const overall = snap.cloud_tone || "unknown";
+    publishSectionState(this, overall, toneSection(overall));
   }
 
   _skeleton() {

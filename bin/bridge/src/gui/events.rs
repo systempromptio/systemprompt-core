@@ -13,6 +13,14 @@ use crate::gui::hosts::events::HostUiEvent;
 use crate::gui::state::{CancelScope, GatewayProbeOutcome};
 use crate::ids::HostId;
 use crate::proxy::mcp_probe::McpServerAuth;
+
+/// What one probe pass produced: every registered server, or one re-checked
+/// server (`None` when the registry did not know the id).
+#[derive(Debug, Clone)]
+pub enum McpProbeResults {
+    All(Vec<McpServerAuth>),
+    One(Option<McpServerAuth>),
+}
 use crate::sync::SyncSummary;
 use crate::validate::ValidationReport;
 
@@ -56,6 +64,7 @@ pub enum UiEvent {
         reply_to: ReplyId,
     },
     McpAuthProbeRequested {
+        server_id: Option<String>,
         reply_to: ReplyId,
     },
     Quit,
@@ -92,7 +101,7 @@ pub enum UiEvent {
         reply_to: ReplyId,
     },
     McpAuthProbeFinished {
-        results: Vec<McpServerAuth>,
+        results: McpProbeResults,
         reply_to: ReplyId,
     },
     StateRefreshed,

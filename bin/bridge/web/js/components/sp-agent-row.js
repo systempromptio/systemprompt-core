@@ -1,7 +1,7 @@
 import { SpElement, reactive, escapeHtml } from "/assets/js/components/sp-element.js";
 import { t } from "/assets/js/i18n.js";
 import { notifyOk, notifyErr } from "/assets/js/utils/notify.js";
-import { statusOf, badgeSuffix } from "/assets/js/utils/agent-verdict.js";
+import { statusOf, badgeSuffix } from "/assets/js/utils/verdict.js";
 import { runHostAction } from "/assets/js/utils/host-actions.js";
 
 /**
@@ -58,11 +58,11 @@ export class SpAgentRow extends SpElement {
     const openLabel = t("agent-open-details", { name }) || `Open details for ${name}`;
 
     const actionMarkup = status.action
-      ? `<button class="${status.state === "ok" ? "sp-btn-ghost" : "sp-btn-primary"} sp-agent-row__action" type="button"
-                 data-action="primary" data-kind="${escapeHtml(status.action.kind)}"
+      ? `<button class="${status.tone === "ok" ? "sp-btn-ghost" : "sp-btn-primary"} sp-agent-row__action" type="button"
+                 data-action="primary" data-kind="${escapeHtml(status.action.code)}"
                  ${this.busy ? "disabled" : ""}>${escapeHtml(
                    this.busy ? (t("agent-action-working") || "Working…") : status.action.label
-                 )}${status.action.kind === "download" ? " ↗" : ""}</button>`
+                 )}${status.action.code === "download" ? " ↗" : ""}</button>`
       : "";
 
     return `

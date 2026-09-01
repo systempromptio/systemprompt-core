@@ -153,14 +153,8 @@ export class SpSettings extends SpElement {
 
   _scheduleValue() {
     const schedule = (this.prefs || {}).schedule || {};
-    if (schedule.state === "installed") {
-      return t("settings-schedule-installed", { label: schedule.label || "" })
-        || `Registered with the system scheduler${schedule.label ? ` as ${schedule.label}` : ""}`;
-    }
-    if (schedule.state === "not_installed") {
-      return t("settings-schedule-manual") || "Manual — sync from the Marketplace pane";
-    }
-    return t("settings-schedule-unknown") || "Could not be determined on this system";
+    const verdict = schedule.verdict || { tone: "unknown", code: "unknown" };
+    return t(`settings-schedule-${verdict.code}`, { label: schedule.label || "" }) || "";
   }
 
   render() {
@@ -172,8 +166,8 @@ export class SpSettings extends SpElement {
     const platform = document.body.dataset.platformDisplay || "";
     // The scheduler can decline to answer, which is neither on nor off. An
     // unchecked box that silently refuses to tick is the worse of the two lies.
-    const autostart = (prefs.autostart || {}).state;
-    const autostartUnknown = autostart === "unknown";
+    const autostart = prefs.autostart || {};
+    const autostartUnknown = (autostart.verdict || {}).tone === "unknown";
     const autostartUnknownHint = t("settings-startup-unknown")
       || "could not be determined on this system";
     const startupLabel = platform
@@ -233,7 +227,7 @@ export class SpSettings extends SpElement {
         <label class="sp-settings__pref${autostartUnknown ? " is-unavailable" : ""}"
                ${autostartUnknown ? `title="${escapeHtml(autostartUnknownHint)}"` : ""}>
           <input type="checkbox" data-action="toggle-autostart"
-                 ${autostart === "installed" ? "checked" : ""} ${autostartUnknown ? "disabled" : ""}>
+                 ${autostart.installed ? "checked" : ""} ${autostartUnknown ? "disabled" : ""}>
           <span>${escapeHtml(autostartUnknown ? `${startupLabel} — ${autostartUnknownHint}` : startupLabel)}</span>
         </label>
         <label class="sp-settings__pref">

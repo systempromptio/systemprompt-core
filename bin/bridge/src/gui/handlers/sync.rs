@@ -166,8 +166,10 @@ pub(crate) fn on_sync_finished(
     }
     emit::emit_state(app);
     if succeeded {
-        app.proxy
-            .send_event(UiEvent::McpAuthProbeRequested { reply_to: None });
+        app.proxy.send_event(UiEvent::McpAuthProbeRequested {
+            server_id: None,
+            reply_to: None,
+        });
     }
     // Why: only a user-initiated sync (reply_to set) may raise the settings
     // window for re-auth; a background sync popping a window would steal focus.

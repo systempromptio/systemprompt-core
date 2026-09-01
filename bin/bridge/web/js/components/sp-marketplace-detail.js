@@ -2,6 +2,10 @@ import { SpElement, reactive, escapeHtml } from "/assets/js/components/sp-elemen
 import { t } from "/assets/js/i18n.js";
 import { shortcut } from "/assets/js/utils/rail-tabs.js";
 import { notifyOk, notifyErr } from "/assets/js/utils/notify.js";
+import { bridge } from "/assets/js/bridge.js";
+import { runAction } from "/assets/js/utils/action.js";
+import { fmtRelative } from "/assets/js/utils/format.js";
+import { toneDot } from "/assets/js/utils/verdict.js";
 
 const KIND_LABEL = {
   plugins: "Plugin",
@@ -27,6 +31,12 @@ export class SpMarketplaceDetail extends SpElement {
     this.kind = "plugins";
     this.copied = false;
     this.knownIds = null;
+    this.snapshot = null;
+    this.registerAction("mcp-recheck", (trigger) => runAction(trigger, {
+      run: () => bridge.mcpAuthProbe(this.selected && this.selected.id),
+      success: () => t("mcp-rechecked") || "MCP server re-checked.",
+      context: t("mcp-recheck") || "Re-check",
+    }));
     this.registerAction("open-child", (trigger) => {
       this.dispatchEvent(new CustomEvent("mkt-navigate", {
         detail: { kind: trigger.dataset.kind, id: trigger.dataset.id },
@@ -48,6 +58,61 @@ export class SpMarketplaceDetail extends SpElement {
     });
   }
 
+  // Everything about one MCP server on one screen: the bridge's live auth
+  // verdict for it, who it is authenticated as, the tools `tools/list` returned,
+  // and both URLs. The listing carries identity only; the live row is the
+  // snapshot's, so this never shows a probe older than the Status pane's.
+  _mcpSection(selected) {
+    const snap = this.snapshot || {};
+    const srv = (snap.mcp_auth || []).find((s) => s.id === selected.id) || null;
+    const probing = !!snap.mcp_auth_probe_in_flight;
+    const verdict = (srv && srv.verdict) || { tone: "unknown", code: "unknown" };
+    const id = snap.verified_identity || {};
+    const who = id.email || id.user_id || "";
+    const identity = snap.identity || { tone: "unknown", code: "signed-out" };
+    const extra = selected.extra || {};
+    const recheckLabel = probing ? (t("mcp-checking") || "Checking…") : (t("mcp-recheck") || "Re-check");
+
+    const facts = [
+      [t("status-cloud-identity-label") || "Identity",
+        `<span class="sp-dot ${toneDot(identity.tone)}" aria-hidden="true"></span> ${escapeHtml(identity.tone === "ok" ? (t("mcp-signed-in-as", { email: who }) || who) : (t(`identity-${identity.code}`) || ""))}`],
+      srv && srv.http_status != null ? ["http", escapeHtml(String(srv.http_status))] : null,
+      srv && srv.latency_ms != null ? ["latency", `${escapeHtml(String(srv.latency_ms))} ms`] : null,
+      srv && srv.probed_at_unix ? [t("mcp-checked") || "checked", escapeHtml(fmtRelative(srv.probed_at_unix))] : null,
+      srv && srv.session_id ? ["session", `<code>${escapeHtml(srv.session_id)}</code>`] : null,
+      extra.proxy_url ? [t("mcp-proxy-url") || "Proxy URL", `<code>${escapeHtml(extra.proxy_url)}</code>`] : null,
+      extra.upstream_url ? [t("mcp-upstream-url") || "Upstream URL", `<code>${escapeHtml(extra.upstream_url)}</code>`] : null,
+    ].filter(Boolean);
+
+    const tools = (srv && srv.tools) || [];
+    let toolsBlock = "";
+    if (srv && srv.shows_tools) {
+      toolsBlock = tools.length
+        ? `<ul class="sp-mkt-tools">${tools.map((tool) => `
+            <li class="sp-mkt-tool">
+              <code class="sp-mkt-tool__name">${escapeHtml(tool.name)}</code>
+              ${tool.description ? `<span class="sp-mkt-tool__desc">${escapeHtml(tool.description)}</span>` : ""}
+            </li>`).join("")}</ul>`
+        : `<p class="sp-u-muted">${escapeHtml(t("mcp-no-tools") || "")}</p>`;
+    }
+
+    return `
+      <section class="sp-mkt-detail__section sp-mkt-mcp" data-state="${escapeHtml(verdict.tone)}">
+        <h3>${escapeHtml(t("marketplace-detail-auth") || "Authentication")}</h3>
+        <div class="sp-status__row">
+          <span class="sp-dot ${toneDot(verdict.tone)}" aria-hidden="true"></span>
+          <span>${escapeHtml(t(`mcp-auth-${verdict.code}`) || "")}</span>
+          <button type="button" class="sp-btn-ghost sp-mkt-mcp__recheck" data-action="mcp-recheck" ${probing ? "disabled" : ""}>${escapeHtml(recheckLabel)}</button>
+        </div>
+        ${srv && srv.error ? `<p class="sp-kpi-card__error">${escapeHtml(srv.error)}</p>` : ""}
+        <dl class="sp-kpi-card__details">${facts.map(([k, v]) => `<dt>${escapeHtml(k)}</dt><dd>${v}</dd>`).join("")}</dl>
+      </section>
+      <section class="sp-mkt-detail__section">
+        <h3>${escapeHtml(t("marketplace-detail-tools") || "Tools")}${srv && srv.shows_tools ? ` (${tools.length})` : ""}</h3>
+        ${toolsBlock || `<p class="sp-u-muted">${escapeHtml(t("mcp-tools-unavailable") || "")}</p>`}
+      </section>`;
+  }
+
   render() {
     const selected = this.selected;
     if (!selected) {
@@ -65,12 +130,7 @@ export class SpMarketplaceDetail extends SpElement {
     const versionChip = selected.version ? `<span class="sp-mkt-chip sp-mkt-chip--mono">v${escapeHtml(selected.version)}</span>` : "";
     const summary = selected.summary ? `<p class="sp-mkt-detail__summary">${escapeHtml(selected.summary)}</p>` : "";
     const readme = selected.readme ? `<section class="sp-mkt-detail__section"><h3>${escapeHtml(t("marketplace-detail-readme") || "README")}</h3><div class="sp-mkt-detail__readme">${escapeHtml(selected.readme)}</div></section>` : "";
-    const tools = (selected.extra && Array.isArray(selected.extra.tools)) ? selected.extra.tools : [];
-    const toolsSection = tools.length ? `
-      <section class="sp-mkt-detail__section">
-        <h3>${escapeHtml(t("marketplace-detail-tools") || "Tools")} (${tools.length})</h3>
-        <div class="sp-chip-list">${tools.map((tool) => `<span class="sp-chip">${escapeHtml(tool)}</span>`).join("")}</div>
-      </section>` : "";
+    const mcpSection = this.kind === "mcp" ? this._mcpSection(selected) : "";
     const children = Array.isArray(selected.children) ? selected.children : [];
     const childrenSection = children.length ? `
       <section class="sp-mkt-detail__section">
@@ -108,11 +168,11 @@ export class SpMarketplaceDetail extends SpElement {
       ${summary}
       ${childrenSection}
       ${readme}
-      ${toolsSection}
+      ${mcpSection}
       ${pathSection}
     </article>`;
   }
 }
 
-reactive(SpMarketplaceDetail.prototype, ["selected", "kind", "copied"]);
+reactive(SpMarketplaceDetail.prototype, ["selected", "kind", "copied", "snapshot"]);
 customElements.define("sp-marketplace-detail", SpMarketplaceDetail);

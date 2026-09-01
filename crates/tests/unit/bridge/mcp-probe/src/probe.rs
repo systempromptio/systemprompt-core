@@ -68,7 +68,13 @@ async fn authenticated_json() {
 
     let auth = probe(&server).await;
     assert_eq!(auth.state, McpAuthState::Authenticated);
-    assert_eq!(auth.tools, vec!["a".to_owned(), "b".to_owned()]);
+    assert_eq!(
+        auth.tools
+            .iter()
+            .map(|t| t.name.as_str())
+            .collect::<Vec<_>>(),
+        ["a", "b"]
+    );
     assert_eq!(auth.session_id.as_deref(), Some("sess-123"));
     assert_eq!(auth.http_status, Some(200));
     assert!(auth.error.is_none());
@@ -111,7 +117,13 @@ async fn authenticated_sse() {
 
     let auth = probe(&server).await;
     assert_eq!(auth.state, McpAuthState::Authenticated);
-    assert_eq!(auth.tools, vec!["sse_tool".to_owned()]);
+    assert_eq!(
+        auth.tools
+            .iter()
+            .map(|t| t.name.as_str())
+            .collect::<Vec<_>>(),
+        ["sse_tool"]
+    );
 }
 
 async fn assert_error_status(status: u16, expected: McpAuthState) {

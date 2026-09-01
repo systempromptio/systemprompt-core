@@ -8,8 +8,13 @@ use std::sync::atomic::Ordering;
 use serde::Serialize;
 use serde_json::{Value, json};
 
-use crate::gui::state::{AppStateSnapshot, CachedToken, GatewayStatus, VerifiedIdentity};
+use crate::gui::state::{
+    AppStateSnapshot, CachedToken, GatewayCode, GatewayStatus, HealthCode, IdentityCode,
+    OverallCode, TokenCode, VerifiedIdentity,
+};
 use crate::proxy::mcp_probe::McpServerAuth;
+use crate::validate::{CheckLine, ValidationCode, ValidationReport};
+use crate::verdict::{Tone, Verdict};
 
 pub fn snapshot_value(snap: &AppStateSnapshot) -> Value {
     serde_json::to_value(StatePayload::from(snap)).unwrap_or(Value::Null)
@@ -27,13 +32,17 @@ pub fn single_host_value(snap: &AppStateSnapshot, host_id: &str) -> Value {
 }
 
 pub fn local_proxy_value(snap: &AppStateSnapshot) -> Value {
-    serde_json::to_value(&snap.hosts.local_proxy).unwrap_or(Value::Null)
+    serde_json::to_value(crate::gui::hosts::serde::ProxyPayload::from(
+        &snap.hosts.local_proxy,
+    ))
+    .unwrap_or(Value::Null)
 }
 
 pub fn mcp_auth_value(snap: &AppStateSnapshot) -> Value {
     json!({
         "servers": mcp_servers_payload(snap),
         "probing": snap.mcp_auth_probe_in_flight,
+        "tone": snap.mcp_auth_tone(),
     })
 }
 
@@ -47,8 +56,10 @@ pub fn mcp_auth_value(snap: &AppStateSnapshot) -> Value {
 struct McpServerAuthPayload<'a> {
     #[serde(flatten)]
     server: &'a McpServerAuth,
+    verdict: Verdict<crate::proxy::mcp_probe::McpAuthState>,
     needs_sign_in: bool,
     conclusive: bool,
+    shows_tools: bool,
 }
 
 fn mcp_servers_payload(snap: &AppStateSnapshot) -> Vec<McpServerAuthPayload<'_>> {
@@ -56,10 +67,72 @@ fn mcp_servers_payload(snap: &AppStateSnapshot) -> Vec<McpServerAuthPayload<'_>>
         .iter()
         .map(|server| McpServerAuthPayload {
             server,
+            verdict: server.state.verdict(),
             needs_sign_in: server.state.needs_sign_in(),
             conclusive: server.state.is_conclusive(),
+            shows_tools: server.state.shows_tools(),
         })
         .collect()
+}
+
+#[derive(Serialize)]
+struct CheckLinePayload<'a> {
+    tone: Tone,
+    label: &'a str,
+    value: &'a str,
+}
+
+#[derive(Serialize)]
+struct ValidationPayload<'a> {
+    lines: Vec<CheckLinePayload<'a>>,
+    any_failed: bool,
+    verdict: Verdict<ValidationCode>,
+}
+
+impl<'a> From<&'a ValidationReport> for ValidationPayload<'a> {
+    fn from(r: &'a ValidationReport) -> Self {
+        Self {
+            lines: r
+                .lines
+                .iter()
+                .map(
+                    |CheckLine {
+                         level,
+                         label,
+                         value,
+                     }| CheckLinePayload {
+                        tone: level.tone(),
+                        label,
+                        value,
+                    },
+                )
+                .collect(),
+            any_failed: r.any_failed,
+            verdict: r.verdict(),
+        }
+    }
+}
+
+#[derive(Serialize)]
+struct UpdatePayload<'a> {
+    #[serde(flatten)]
+    state: &'a crate::update::UpdateUiState,
+    tone: Tone,
+    can_install: bool,
+    can_restart: bool,
+    in_progress: bool,
+}
+
+impl<'a> From<&'a crate::update::UpdateUiState> for UpdatePayload<'a> {
+    fn from(state: &'a crate::update::UpdateUiState) -> Self {
+        Self {
+            state,
+            tone: state.tone(),
+            can_install: state.can_install(),
+            can_restart: state.can_restart(),
+            in_progress: state.in_progress(),
+        }
+    }
 }
 
 pub fn proxy_stats_value() -> Value {
@@ -80,19 +153,25 @@ struct StatePayload<'a> {
     agent_count: Option<usize>,
     plugin_count: Option<usize>,
     malformed_plugin_count: Option<usize>,
-    last_validation: Option<&'a crate::validate::ValidationReport>,
+    last_validation: Option<ValidationPayload<'a>>,
     last_validation_at_unix: Option<u64>,
+    health: Verdict<HealthCode>,
     provider_health: &'a [crate::auth::types::ProviderHealth],
     sync_in_flight: bool,
     cached_token: Option<CachedTokenPayload>,
+    token: Verdict<TokenCode>,
     gateway_status: GatewayStatusPayload<'a>,
     verified_identity: Option<VerifiedIdentityPayload<'a>>,
+    identity: Verdict<IdentityCode>,
+    cloud_tone: Tone,
+    overall: Verdict<OverallCode>,
     signed_in: bool,
     last_probe_at_unix: Option<u64>,
     proxy_stats: ProxyStatsPayload,
     mcp_auth: Vec<McpServerAuthPayload<'a>>,
     mcp_auth_probe_in_flight: bool,
-    update: &'a crate::update::UpdateUiState,
+    mcp_auth_tone: Tone,
+    update: UpdatePayload<'a>,
 
     sign_in_label: &'static str,
     sign_in_hint: &'static str,
@@ -116,22 +195,28 @@ impl<'a> From<&'a AppStateSnapshot> for StatePayload<'a> {
             agent_count: snap.agent_count,
             plugin_count: snap.plugin_count,
             malformed_plugin_count: snap.malformed_plugin_count,
-            last_validation: snap.last_validation.as_ref(),
+            last_validation: snap.last_validation.as_ref().map(ValidationPayload::from),
             last_validation_at_unix: snap.last_validation_at_unix,
+            health: snap.health_verdict(),
             provider_health: &snap.provider_health,
             sync_in_flight: snap.sync_in_flight,
             cached_token: snap.cached_token.as_ref().map(CachedTokenPayload::from),
+            token: snap.token_verdict(),
             gateway_status: GatewayStatusPayload::from(&snap.gateway_status),
             verified_identity: snap
                 .verified_identity
                 .as_ref()
                 .map(VerifiedIdentityPayload::from),
+            identity: snap.identity_verdict(),
+            cloud_tone: snap.cloud_tone(),
+            overall: snap.overall_verdict(),
             signed_in: snap.signed_in(),
             last_probe_at_unix: snap.last_probe_at_unix,
             proxy_stats: ProxyStatsPayload::current(),
             mcp_auth: mcp_servers_payload(snap),
             mcp_auth_probe_in_flight: snap.mcp_auth_probe_in_flight,
-            update: &snap.update,
+            mcp_auth_tone: snap.mcp_auth_tone(),
+            update: UpdatePayload::from(&snap.update),
 
             sign_in_label: crate::brand::brand().sign_in_label,
             sign_in_hint: crate::brand::brand().sign_in_hint,
@@ -186,23 +271,28 @@ impl From<&CachedToken> for CachedTokenPayload {
 }
 
 #[derive(Serialize)]
-#[serde(tag = "state", rename_all = "lowercase")]
-enum GatewayStatusPayload<'a> {
-    Unknown,
-    Probing,
-    Reachable { latency_ms: u64 },
-    Unreachable { reason: &'a str },
+struct GatewayStatusPayload<'a> {
+    #[serde(flatten)]
+    verdict: Verdict<GatewayCode>,
+    settled: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    latency_ms: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    reason: Option<&'a str>,
 }
 
 impl<'a> From<&'a GatewayStatus> for GatewayStatusPayload<'a> {
     fn from(s: &'a GatewayStatus) -> Self {
-        match s {
-            GatewayStatus::Unknown => Self::Unknown,
-            GatewayStatus::Probing => Self::Probing,
-            GatewayStatus::Reachable { latency_ms } => Self::Reachable {
-                latency_ms: *latency_ms,
-            },
-            GatewayStatus::Unreachable { reason } => Self::Unreachable { reason },
+        let (latency_ms, reason) = match s {
+            GatewayStatus::Reachable { latency_ms } => (Some(*latency_ms), None),
+            GatewayStatus::Unreachable { reason } => (None, Some(reason.as_str())),
+            GatewayStatus::Unknown | GatewayStatus::Probing => (None, None),
+        };
+        Self {
+            verdict: s.verdict(),
+            settled: s.settled(),
+            latency_ms,
+            reason,
         }
     }
 }

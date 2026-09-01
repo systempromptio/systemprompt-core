@@ -1,20 +1,8 @@
 import { SpElement, reactive, escapeHtml } from "/assets/js/components/sp-element.js";
 import { bridge } from "/assets/js/bridge.js";
 import { notifyErr } from "/assets/js/utils/notify.js";
+import { toneDot } from "/assets/js/utils/verdict.js";
 
-function hostState(snap) {
-  if (snap.sync_in_flight) { return "running"; }
-  if (snap.gateway_status && snap.gateway_status.state === "unreachable") { return "err"; }
-  if (snap.signed_in) { return "ok"; }
-  return "idle";
-}
-
-function dotClass(state) {
-  if (state === "ok") { return "sp-dot--ok"; }
-  if (state === "running") { return "sp-dot--probing"; }
-  if (state === "err") { return "sp-dot--err"; }
-  return "sp-dot--warn";
-}
 
 function docsUrl(platform) {
   if (platform === "macos") { return "https://systemprompt.io/documentation/services/bridge-deployment-macos"; }
@@ -60,7 +48,7 @@ export class SpFooter extends SpElement {
     return `
       <div class="sp-footer__left">
         <span class="sp-footer__stat" title="Host status">
-          <span class="sp-dot ${dotClass(hostState(snap))}" aria-hidden="true"></span>
+          <span class="sp-dot ${toneDot((snap.overall || {}).tone)}" aria-hidden="true"></span>
           <span>${escapeHtml(platformDisplay)}</span>
         </span>
         <span class="sp-footer__sep" aria-hidden="true">·</span>

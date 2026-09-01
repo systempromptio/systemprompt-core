@@ -1,10 +1,7 @@
 import { SpElement, reactive, escapeHtml } from "/assets/js/components/sp-element.js";
 import { bridge } from "/assets/js/bridge.js";
 import { t } from "/assets/js/i18n.js";
-import {
-  statusOf, badgeSuffix, isSetUp,
-  APP_INSTALLED, APP_NOT_INSTALLED, appInstallState,
-} from "/assets/js/utils/agent-verdict.js";
+import { statusOf, badgeSuffix, isSetUp, APP_NOT_INSTALLED, appInstallState, toneDot } from "/assets/js/utils/verdict.js";
 import { repairHost, runHostAction, openHostConfig } from "/assets/js/utils/host-actions.js";
 import { notifyOk, notifyErr, notifyAction } from "/assets/js/utils/notify.js";
 import { hostLogoMarkup } from "/assets/js/components/sp-agent-row.js";
@@ -321,9 +318,7 @@ export class SpAgentDrawer extends SpElement {
     const added = isSetUp(host);
     const appState = appInstallState(host);
     const busy = this.busyId === host.id;
-    const suffix = host.kind === "cli_tool"
-      ? (t("agent-kind-cli") || "Command line")
-      : (t("agent-kind-desktop") || "Desktop app");
+    const suffix = t(`agent-kind-${host.kind}`) || "";
 
     let action;
     if (added) {
@@ -371,7 +366,7 @@ export class SpAgentDrawer extends SpElement {
     }
     const name = host.display_name || host.id;
     const status = statusOf(host);
-    const hs = host.snapshot || null;
+    const hs = host.health || null;
 
     return {
       title: name,
@@ -429,12 +424,12 @@ export class SpAgentDrawer extends SpElement {
     const busy = this.busyId === host.id;
     const appState = appInstallState(host);
     const buttons = [];
-    const primaryKind = status.action && status.action.kind;
+    const primaryKind = status.action && status.action.code;
 
     // The recommended action leads and is the only primary button; the rest stay
     // available but visually secondary, so there is never a question of which
     // one to press.
-    const needsFixing = status.state !== "ok";
+    const needsFixing = status.tone !== "ok";
     if (status.action) {
       buttons.push(`<button class="${needsFixing ? "sp-btn-primary" : "sp-btn-ghost"}" type="button" data-action="act"
         data-kind="${escapeHtml(primaryKind)}" ${busy ? "disabled" : ""}>${escapeHtml(
@@ -457,7 +452,7 @@ export class SpAgentDrawer extends SpElement {
   _warnings(host, status) {
     const out = [];
     const snap = this.snapshot || {};
-    if (status.state === "attention" && status.action && status.action.kind === "repair") {
+    if (status.action && status.action.code === "repair") {
       out.push(t("agent-repair-explainer")
         || "Repair rewrites this agent's configuration profile and re-applies it. Restart the agent afterwards.");
     }
@@ -474,21 +469,14 @@ export class SpAgentDrawer extends SpElement {
       return this._section("agent-section-health", "Health",
         `<p class="sp-u-muted">${escapeHtml(t("agent-state-checking") || "Checking…")}</p>`);
     }
-    const profileState = hs.profile_state || { kind: "absent" };
-    const missing = profileState.missing_required || [];
-    const kind = profileState.kind;
+    const missing = hs.missing_required || [];
+    const profile = hs.profile || { tone: "unknown", code: "absent" };
+    const profileDot = toneDot(profile.tone);
+    const profileText = t(`host-profile-${profile.code}`, { missing: missing.join(", ") }) || "";
 
-    let profileDot = "sp-dot--err";
-    let profileText = t("host-profile-not-installed") || "not installed";
-    if (kind === "installed") { profileDot = "sp-dot--ok"; profileText = t("host-profile-installed") || "installed"; }
-    else if (kind === "partial") { profileDot = "sp-dot--warn"; profileText = t("host-profile-partial", { missing: missing.join(", ") }) || `partial (${missing.join(", ")})`; }
-    else if (kind === "stale") { profileDot = "sp-dot--warn"; profileText = t("host-profile-stale") || "secret out of date — re-apply profile"; }
-
-    const appState = appInstallState(host);
-    const appDot = appState === APP_INSTALLED ? "sp-dot--ok" : (appState === APP_NOT_INSTALLED ? "sp-dot--err" : "sp-dot--warn");
-    const appText = appState === APP_INSTALLED
-      ? (t("host-app-installed") || "installed")
-      : (appState === APP_NOT_INSTALLED ? (t("host-app-not-installed") || "not installed") : (t("host-app-unknown") || "could not determine"));
+    const app = hs.app || { tone: "unknown", code: "unknown" };
+    const appDot = toneDot(app.tone);
+    const appText = t(`host-app-${app.code}`) || "";
 
     const running = !!hs.host_running;
     const processes = Array.isArray(hs.host_processes) ? hs.host_processes : [];
@@ -503,7 +491,7 @@ export class SpAgentDrawer extends SpElement {
         `<div class="sp-status__row"><span class="sp-dot ${running ? "sp-dot--ok" : "sp-dot--warn"}" aria-hidden="true"></span><span>${escapeHtml(runningText)}</span></div>`
         + (processes.length ? detailText(processes.join(", "), { mono: true }) : "")),
     ];
-    if (kind === "partial" && missing.length) {
+    if (missing.length) {
       rows.push(row(t("host-missing-keys") || "Missing required keys", detailText(missing.join(", "), { mono: true })));
     }
     return this._section("agent-section-health", "Health", `<table class="sp-status__board"><tbody>${rows.join("")}</tbody></table>`);

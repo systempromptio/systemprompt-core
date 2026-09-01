@@ -152,7 +152,7 @@ check-crate-changelogs:
     ./scripts/check-crate-changelogs.sh
 
 # Check without building
-check: lint-schema lint-extensions lint-comments lint-inline-tests lint-test-value lint-layers lint-repo-construction lint-bridge-css-tokens lint-bridge-i18n lint-bridge-js-imports lint-bridge-no-window
+check: lint-schema lint-extensions lint-comments lint-inline-tests lint-test-value lint-layers lint-repo-construction lint-bridge-css-tokens lint-bridge-i18n lint-bridge-js-imports lint-bridge-no-window lint-bridge-verdicts
     cargo check --workspace
 
 # Check offline (uses cached .sqlx metadata, no database required)
@@ -260,6 +260,12 @@ lint-bridge-js-imports:
 # the user twice a minute and eating their keystrokes.
 lint-bridge-no-window:
     ./scripts/lint-bridge-no-window.sh
+
+# Every state on the GUI wire ships beside a verdict Rust computed. A JS branch
+# on a state's *name* is how the Home card called four healthy MCP servers
+# broken while Status, deriving it separately, called them fine.
+lint-bridge-verdicts:
+    ./scripts/lint-bridge-verdicts.sh
 
 # Reject unverified sqlx::query calls outside the allowlist
 lint-sqlx:

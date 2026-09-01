@@ -107,7 +107,7 @@ fn current() -> Value {
     let cfg = config::load();
     let claude = cfg.claude.as_ref();
     json!({
-        "autostart": install::gui_autostart_status(),
+        "autostart": autostart_value(),
         "update_automatic": update::automatic_enabled(),
         "gateway_url": config::gateway_url_or_default(&cfg).as_str(),
         "session_enabled": cfg.session.and_then(|s| s.enabled).unwrap_or(false),
@@ -137,9 +137,17 @@ fn pinned_pubkey_value() -> Value {
     json!({ "value": effective.as_str(), "source": source })
 }
 
+fn autostart_value() -> Value {
+    let status = install::gui_autostart_status();
+    json!({
+        "verdict": status.verdict(),
+        "installed": status == install::ScheduleStatus::Installed,
+    })
+}
+
 fn schedule_value() -> Value {
     json!({
-        "state": install::schedule_status(),
+        "verdict": install::schedule_status().verdict(),
         "label": install::schedule_label(),
     })
 }

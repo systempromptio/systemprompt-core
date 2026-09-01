@@ -52,6 +52,7 @@ pub mod sync;
 pub(crate) mod sysproc;
 pub mod update;
 pub mod validate;
+pub mod verdict;
 pub mod web_assets;
 pub mod window_state;
 #[cfg(target_os = "windows")]

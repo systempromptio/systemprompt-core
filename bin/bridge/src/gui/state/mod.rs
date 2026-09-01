@@ -10,6 +10,7 @@ mod first_run;
 mod jwt;
 mod reload;
 mod types;
+mod verdicts;
 
 pub use builder::AppStateSnapshotBuilder;
 pub use cancel::CancelScope;
@@ -17,6 +18,7 @@ pub use jwt::decode_jwt_identity_unverified;
 pub use types::{
     AppStateSnapshot, CachedToken, GatewayProbeOutcome, GatewayStatus, VerifiedIdentity,
 };
+pub use verdicts::{GatewayCode, HealthCode, IdentityCode, OverallCode, TokenCode};
 
 use std::sync::Arc;
 use std::time::SystemTime;
@@ -203,6 +205,25 @@ impl AppState {
             })
             .collect();
         guard.mcp_auth = merged;
+        guard.mcp_auth_probe_in_flight = false;
+    }
+
+    // Why: a single-server re-check replaces that server's row and leaves the
+    // rest as they were; an inconclusive answer keeps the prior conclusive one
+    // for the same reason `apply_mcp_auth` does.
+    pub fn apply_mcp_auth_one(&self, fresh: McpServerAuth) {
+        let mut guard = self.inner.write();
+        let keep_prior = !fresh.state.is_conclusive()
+            && guard
+                .mcp_auth
+                .iter()
+                .any(|prior| prior.id == fresh.id && prior.state.is_conclusive());
+        if !keep_prior {
+            match guard.mcp_auth.iter_mut().find(|s| s.id == fresh.id) {
+                Some(slot) => *slot = fresh,
+                None => guard.mcp_auth.push(fresh),
+            }
+        }
         guard.mcp_auth_probe_in_flight = false;
     }
 

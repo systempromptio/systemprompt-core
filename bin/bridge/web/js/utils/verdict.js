@@ -1,21 +1,45 @@
-// Renders the agent-health verdict the bridge computes in Rust.
+// Renders the verdicts the bridge computes in Rust.
 //
-// This file deliberately contains no logic about what a host's state *means*.
-// That derivation used to live here, in the Agents list, in the Status summary
-// card and in the overall badge — four copies, four `|| "absent"` fallbacks,
-// and no two of them agreeing about a host whose proxy was down. It now happens
-// once, in `integration/agent_health.rs`, and arrives as `host.verdict`.
+// This file deliberately contains no logic about what a state *means*. That
+// derivation used to live here, in the Agents list, in the Status summary card,
+// in the overall badge, in the MCP pane and in the Home card — copies that
+// disagreed with each other about the same snapshot. It now happens once, in
+// Rust beside each enum (`src/verdict.rs`), and arrives as `{ tone, code }`.
 //
-// Every enum serialises to a kebab code that is also the FTL key suffix, so
-// each function below is a lookup. If you find yourself adding a conditional on
-// `profile_state` here, the logic belongs in Rust.
+// Every code is a kebab string that is also the FTL key suffix, so each
+// function below is a lookup. If you find yourself adding a conditional on a
+// state's name here, the logic belongs in Rust — and
+// `scripts/lint-bridge-verdicts.sh` will refuse it.
 
 import { t } from "/assets/js/i18n.js";
 import { fmtRelative } from "/assets/js/utils/format.js";
 
+const TONE_RANK = { ok: 0, unknown: 1, probing: 2, warn: 3, err: 4 };
+
+/** `sp-dot--*` modifier for a tone. */
+export function toneDot(tone) {
+  return `sp-dot--${TONE_RANK[tone] === undefined ? "unknown" : tone}`;
+}
+
+/** `sp-badge--*` suffix for a tone. */
+export function toneBadge(tone) {
+  if (tone === "ok" || tone === "warn" || tone === "err") { return tone; }
+  return "muted";
+}
+
+/** The section badge word for a tone. */
+export function toneSection(tone) {
+  return t(`tone-section-${TONE_RANK[tone] === undefined ? "unknown" : tone}`) || "";
+}
+
+/** The worse of two tones; folding is arithmetic on tones, not a derivation. */
+export function worstTone(a, b) {
+  return (TONE_RANK[a] ?? 1) >= (TONE_RANK[b] ?? 1) ? a : b;
+}
+
 /** @returns {object} the verdict, or a Checking placeholder if none arrived. */
 export function verdictOf(host) {
-  return (host && host.verdict) || { state: "checking", reason: { code: "never-probed" }, action: null, is_set_up: false, is_running: false };
+  return (host && host.verdict) || { state: "checking", tone: "unknown", reason: { code: "never-probed" }, action: null, is_set_up: false, is_running: false };
 }
 
 export function isSetUp(host) {
@@ -59,12 +83,7 @@ export function dotClass(state) {
 
 /** The section badge word for a fleet state. */
 export function sectionLabel(state) {
-  switch (state) {
-    case "ok": return "healthy";
-    case "warn": return "attention";
-    case "err": return "down";
-    default: return "unknown";
-  }
+  return toneSection(state);
 }
 
 export function fleetHeadline(headline) {
@@ -74,9 +93,9 @@ export function fleetHeadline(headline) {
 export const APP_INSTALLED = "installed";
 export const APP_NOT_INSTALLED = "not_installed";
 
-/** Raw snapshot field. Tri-state: `unknown` is NOT evidence of absence. */
+/** The app-install verdict code. Tri-state: `unknown` is NOT evidence of absence. */
 export function appInstallState(host) {
-  return (host && host.snapshot && host.snapshot.app_installed) || "unknown";
+  return (host && host.health && host.health.app && host.health.app.code) || "unknown";
 }
 
 /**
@@ -89,9 +108,10 @@ export function statusOf(host) {
   const v = verdictOf(host);
   return {
     state: v.state,
+    tone: v.tone,
     label: stateLabel(v.state),
     reason: reasonLabel(v.reason),
-    action: v.action ? { kind: v.action.code, label: actionLabel(v.action) } : null,
+    action: v.action ? { code: v.action.code, label: actionLabel(v.action) } : null,
   };
 }
 

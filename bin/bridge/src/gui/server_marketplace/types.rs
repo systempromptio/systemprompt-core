@@ -153,6 +153,4 @@ pub(crate) struct McpServerEntry {
     pub(crate) args: Vec<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) transport: Option<String>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub(crate) tools: Vec<String>,
 }

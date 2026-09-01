@@ -106,7 +106,7 @@ export class SpRailProfile extends SpElement {
   _maybeCheck() {
     const snap = this.snapshot;
     if (!snap || !snap.signed_in) { return; }
-    if (this._updateBusy || this._update.phase === "ready") { return; }
+    if (this._updateBusy || this._update.can_restart) { return; }
     const now = Date.now();
     if (this._checkedAt && now - this._checkedAt < RECHECK_MS) { return; }
     this._checkedAt = now;
@@ -166,9 +166,10 @@ export class SpRailProfile extends SpElement {
   /// happening it falls back to the usual `tenant · version`.
   _subtitle(tenant) {
     const u = this._update;
-    if (u.phase === "downloading") { return `${t("rail-profile-downloading") || "Downloading"} ${u.percent || 0}%`; }
-    if (u.phase === "installing") { return t("rail-profile-installing") || "Installing…"; }
-    if (u.phase === "failed") { return u.message || (t("rail-profile-update-failed") || "Update failed"); }
+    // Why: only the phases that have a line carry a key; every other phase
+    // falls through to the version line. The update payload is the arguments.
+    const line = (u.in_progress || u.tone === "err") ? t(`update-phase-${u.phase}`, u) : "";
+    if (line) { return line; }
     const base = this._baseVersion;
     return tenant ? `${tenant} · ${base}` : base;
   }
@@ -185,20 +186,20 @@ export class SpRailProfile extends SpElement {
     // An available or installed update turns the whole control into the call to
     // action; the identity and Log out stay reachable through the menu, because
     // this is the only place either is offered.
-    const cta = u.phase === "available"
-      ? { action: "update-install", label: `${t("rail-profile-update-cta") || "Click here to update" || "Click here to update"}`, sub: `v${u.version}` }
-      : u.phase === "ready"
+    const cta = u.can_install
+      ? { action: "update-install", label: t("rail-profile-update-cta") || "Click here to update", sub: `v${u.version}` }
+      : u.can_restart
         ? { action: "update-restart", label: t("rail-profile-restart-cta") || "Restart to finish updating", sub: `v${u.version}` }
         : null;
 
     const menuItems = [];
-    if (u.phase === "available") {
+    if (u.can_install) {
       menuItems.push(`<button class="sp-rail-profile__menu-item" type="button" role="menuitem" data-action="update-install">${escapeHtml((t("rail-profile-update-to") || "Update to") + ` v${u.version}`)}</button>`);
     }
-    if (u.phase === "ready") {
+    if (u.can_restart) {
       menuItems.push(`<button class="sp-rail-profile__menu-item" type="button" role="menuitem" data-action="update-restart">${escapeHtml(t("rail-profile-restart-cta") || "Restart to finish updating")}</button>`);
     }
-    if (u.phase === "available" && u.notes_url) {
+    if (u.can_install && u.notes_url) {
       menuItems.push(`<a class="sp-rail-profile__menu-item" role="menuitem" href="${escapeHtml(u.notes_url)}" data-href="${escapeHtml(u.notes_url)}" data-action="open-external">${escapeHtml(t("rail-profile-release-notes") || "Release notes")}</a>`);
     }
     menuItems.push(`<button class="sp-rail-profile__menu-item" type="button" role="menuitem" data-action="logout" data-l10n-id="rail-profile-logout">${logoutLabel}</button>`);

@@ -116,11 +116,27 @@ pub fn gui_autostart_status() -> ScheduleStatus {
 /// hardcoded "manual", which became a lie the moment a schedule was installed,
 /// and guessing is how it got there.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
-#[serde(rename_all = "snake_case", tag = "state")]
+#[serde(rename_all = "kebab-case")]
 pub enum ScheduleStatus {
     Installed,
     NotInstalled,
     Unknown,
+}
+
+impl ScheduleStatus {
+    #[must_use]
+    pub const fn tone(self) -> crate::verdict::Tone {
+        match self {
+            Self::Installed => crate::verdict::Tone::Ok,
+            Self::NotInstalled => crate::verdict::Tone::Warn,
+            Self::Unknown => crate::verdict::Tone::Unknown,
+        }
+    }
+
+    #[must_use]
+    pub const fn verdict(self) -> crate::verdict::Verdict<Self> {
+        crate::verdict::Verdict::new(self.tone(), self)
+    }
 }
 
 #[must_use]

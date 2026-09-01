@@ -142,6 +142,7 @@ jobs:
       - run: just lint-bridge-js-imports
         if: ${{ !cancelled() }}
       - run: just lint-bridge-no-window
+      - run: just lint-bridge-verdicts
         if: ${{ !cancelled() }}
       - run: just lint-repo-construction
         if: ${{ !cancelled() }}

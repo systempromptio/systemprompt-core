@@ -1,18 +1,20 @@
 import { SpElement, reactive, escapeHtml } from "/assets/js/components/sp-element.js";
 import { bridge } from "/assets/js/bridge.js";
-import { badgeSuffix, fleetHeadline } from "/assets/js/utils/agent-verdict.js";
+import { t } from "/assets/js/i18n.js";
+import { badgeSuffix, fleetHeadline } from "/assets/js/utils/verdict.js";
 
-// Cloud reachability is not an agent fact, so it is still decided here — but it
-// only ever *precedes* the fleet verdict. Everything below that line is a
-// lookup into the fold Rust already computed; this component used to re-derive
-// it from `profile_state`, and disagreed with both the rows and the summary card.
+// Cloud reachability is not an agent fact, so its tone still gates the badge
+// here — but it only ever *precedes* the fleet verdict. Everything below that
+// line is a lookup into the fold Rust already computed; this component used to
+// re-derive it from `profile_state`, and disagreed with both the rows and the
+// summary card.
 function classify(snap, scope) {
-  const cloudState = (snap.gateway_status && snap.gateway_status.state) || "unknown";
-  if (cloudState === "probing" || cloudState === "unknown") {
-    return { text: "checking…", cls: "sp-badge--muted" };
+  const gateway = snap.gateway_status || { tone: "unknown", code: "unknown" };
+  if (!gateway.settled) {
+    return { text: t(`gateway-state-${gateway.code}`) || "", cls: "sp-badge--muted" };
   }
-  if (cloudState === "unreachable") {
-    return { text: "cloud unreachable", cls: "sp-badge--err" };
+  if (gateway.tone === "err") {
+    return { text: t("agents-status-cloud-gateway-unreachable") || "", cls: "sp-badge--err" };
   }
 
   // The Agents tab lists only agents that are set up, so a badge above that

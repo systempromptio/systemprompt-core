@@ -29,7 +29,7 @@ ftl="$web/i18n/en-US/bridge.ftl"
 # `setup-install-stage-` is the only genuinely unverifiable family left: its
 # suffix is an error's `stage` field, invented at the throw site, so there is no
 # closed set to check against.
-dynamic_prefixes="setup-install-stage-"
+dynamic_prefixes="setup-install-stage- update-phase-"
 
 # The rest of the interpolated families are not unverifiable at all -- their
 # suffix is a Rust enum serialised kebab-case, which IS the closed set. Each
@@ -46,7 +46,21 @@ dynamic_prefixes="setup-install-stage-"
 enum_families="agent-state-:integration/agent_health.rs:AgentState
 agent-reason-:integration/agent_health.rs:AgentReason
 agent-action-:integration/agent_health.rs:AgentAction
-agents-fleet-:integration/agent_fleet.rs:FleetHeadline"
+agents-fleet-:integration/agent_fleet.rs:FleetHeadline
+tone-section-:verdict.rs:Tone
+gateway-state-:gui/state/verdicts.rs:GatewayCode
+identity-:gui/state/verdicts.rs:IdentityCode
+agents-status-cloud-:gui/state/verdicts.rs:IdentityCode
+overall-:gui/state/verdicts.rs:OverallCode
+agents-status-token-:gui/state/verdicts.rs:TokenCode
+setup-health-label-:gui/state/verdicts.rs:HealthCode
+proxy-state-:integration/proxy_probe/mod.rs:ProxyProbeState
+agents-status-proxy-:integration/proxy_probe/mod.rs:ProxyProbeState
+mcp-auth-:proxy/mcp_probe/mod.rs:McpAuthState
+host-profile-:integration/host_app.rs:ProfileCode
+host-app-:integration/host_app.rs:AppInstallState
+agent-kind-:integration/host_app.rs:HostKind
+settings-schedule-:install/schedule_apply/mod.rs:ScheduleStatus"
 
 # This reimplements `rename_all = "kebab-case"` in awk, so it is only correct
 # while that is actually how the enum serialises. Rather than guess, assert it:

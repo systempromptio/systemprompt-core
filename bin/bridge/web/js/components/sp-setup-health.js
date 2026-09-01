@@ -3,9 +3,9 @@ import { bridge } from "/assets/js/bridge.js";
 import { t } from "/assets/js/i18n.js";
 import { fmtRelative, publishSectionState } from "/assets/js/utils/format.js";
 import { runAction } from "/assets/js/utils/action.js";
+import { toneBadge, toneSection } from "/assets/js/utils/verdict.js";
 
-const LEVEL_BADGE = { ok: "ok", warn: "warn", fail: "err", info: "muted" };
-const RANK = { fail: 0, warn: 1, info: 2, ok: 3 };
+const RANK = { err: 0, warn: 1, unknown: 2, probing: 3, ok: 4 };
 
 // One row per thing that can be wrong, worst first. `validate` has produced this
 // structure all along; it was flattened to a text blob at the IPC boundary.
@@ -13,12 +13,12 @@ export function healthRows(snapshot) {
   const rows = [];
   const report = snapshot && snapshot.last_validation;
   for (const line of (report && report.lines) || []) {
-    rows.push({ level: line.level, label: line.label, value: line.value });
+    rows.push({ tone: line.tone, label: line.label, value: line.value });
   }
   for (const p of (snapshot && snapshot.provider_health) || []) {
     if (p.configured) { continue; }
     rows.push({
-      level: "warn",
+      tone: "warn",
       label: p.name,
       value: p.config_issue || (t("setup-health-provider-unconfigured") || "not configured"),
     });
@@ -26,18 +26,18 @@ export function healthRows(snapshot) {
   const malformed = snapshot && snapshot.malformed_plugin_count;
   if (malformed) {
     rows.push({
-      level: "fail",
+      tone: "err",
       label: t("setup-health-malformed-plugins") || "malformed plugins",
       value: String(malformed),
     });
   }
   for (const f of ((snapshot && snapshot.last_sync_report && snapshot.last_sync_report.host_failures) || [])) {
-    rows.push({ level: "fail", label: f.host_id, value: f.error });
+    rows.push({ tone: "err", label: f.host_id, value: f.error });
   }
   for (const d of ((snapshot && snapshot.last_sync_report && snapshot.last_sync_report.diagnostics) || [])) {
-    rows.push({ level: "warn", label: t("setup-health-diagnostic") || "gateway diagnostic", value: d });
+    rows.push({ tone: "warn", label: t("setup-health-diagnostic") || "gateway diagnostic", value: d });
   }
-  rows.sort((a, b) => (RANK[a.level] ?? 4) - (RANK[b.level] ?? 4));
+  rows.sort((a, b) => (RANK[a.tone] ?? 5) - (RANK[b.tone] ?? 5));
   return rows;
 }
 
@@ -67,7 +67,7 @@ export class SpSetupHealth extends SpElement {
   render() {
     const snap = this.snapshot || {};
     const all = healthRows(snap);
-    const rows = this._failuresOnly ? all.filter((r) => r.level === "fail" || r.level === "warn") : all;
+    const rows = this._failuresOnly ? all.filter((r) => r.tone === "err" || r.tone === "warn") : all;
     const at = snap.last_validation_at_unix;
     const checked = at
       ? (t("setup-health-checked", { ago: fmtRelative(at) }) || `checked ${fmtRelative(at)}`)
@@ -75,8 +75,8 @@ export class SpSetupHealth extends SpElement {
 
     const body = rows.length
       ? rows.map((r) => `
-        <tr data-key="${escapeHtml(`${r.level}:${r.label}`)}">
-          <th scope="row"><span class="sp-badge sp-badge--${LEVEL_BADGE[r.level] || "muted"}">${escapeHtml(r.level)}</span> ${escapeHtml(r.label)}</th>
+        <tr data-key="${escapeHtml(`${r.tone}:${r.label}`)}">
+          <th scope="row"><span class="sp-badge sp-badge--${toneBadge(r.tone)}">${escapeHtml(toneSection(r.tone))}</span> ${escapeHtml(r.label)}</th>
           <td>${escapeHtml(r.value)}</td>
         </tr>`).join("")
       : `<tr><td colspan="2" class="sp-health__empty">${escapeHtml(
@@ -98,15 +98,9 @@ export class SpSetupHealth extends SpElement {
   }
 
   afterRender() {
-    const rows = healthRows(this.snapshot || {});
-    const worst = rows.some((r) => r.level === "fail") ? "err"
-      : rows.some((r) => r.level === "warn") ? "warn"
-        : this.snapshot && this.snapshot.last_validation ? "ok" : "unknown";
-    const label = worst === "err" ? (t("setup-health-label-failing") || "failing")
-      : worst === "warn" ? (t("setup-health-label-attention") || "attention")
-        : worst === "ok" ? (t("setup-health-label-healthy") || "healthy")
-          : (t("setup-health-label-unknown") || "not checked yet");
-    publishSectionState(this, worst, label);
+    // `health` is the bridge's fold of the same five sources these rows draw.
+    const health = (this.snapshot && this.snapshot.health) || { tone: "unknown", code: "not-checked" };
+    publishSectionState(this, health.tone, t(`setup-health-label-${health.code}`) || "");
   }
 }
 

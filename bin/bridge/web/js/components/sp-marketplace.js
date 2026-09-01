@@ -171,6 +171,7 @@ export class SpMarketplace extends SpElement {
     if (detail) {
       detail.selected = items.find((it) => it.id === this.selectedId) || null;
       detail.kind = this.kind;
+      detail.snapshot = this.snapshot;
       detail.knownIds = MKT_KINDS.reduce((acc, k) => {
         acc[k] = new Set(((this.listing && this.listing[k]) || []).map((it) => it.id));
         return acc;

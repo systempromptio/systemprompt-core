@@ -13,16 +13,25 @@ mod rpc;
 
 use rpc::{initialize_body, list_tools};
 
+use crate::verdict::{Tone, Verdict};
+
 const PROBE_TIMEOUT: Duration = Duration::from_secs(6);
 pub(super) const MCP_PROTOCOL_VERSION: &str = "2025-06-18";
 pub(super) const SESSION_HEADER: &str = "mcp-session-id";
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct McpTool {
+    pub name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+}
 
 #[derive(Debug, Clone, Serialize)]
 pub struct McpServerAuth {
     pub id: String,
     pub url: String,
     pub state: McpAuthState,
-    pub tools: Vec<String>,
+    pub tools: Vec<McpTool>,
     pub http_status: Option<u16>,
     pub latency_ms: Option<u64>,
     pub error: Option<String>,
@@ -31,6 +40,7 @@ pub struct McpServerAuth {
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Default, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
 pub enum McpAuthState {
     #[default]
     Unknown,
@@ -70,6 +80,34 @@ impl McpAuthState {
             self,
             Self::Unknown | Self::ProxyUnreachable | Self::ProbeTimeout | Self::LocalError
         )
+    }
+
+    // Why: an inconclusive probe is *unknown*, never red. The Status pane used
+    // to paint `ProxyUnreachable` as a failure of the server, which it is not.
+    #[must_use]
+    pub const fn tone(self) -> Tone {
+        match self {
+            Self::Authenticated => Tone::Ok,
+            Self::NoServers => Tone::Warn,
+            Self::Unknown | Self::ProxyUnreachable | Self::ProbeTimeout | Self::LocalError => {
+                Tone::Unknown
+            },
+            Self::LoopbackMismatch
+            | Self::GatewayUnauthorized
+            | Self::NotRegistered
+            | Self::UpstreamError
+            | Self::ProtocolError => Tone::Err,
+        }
+    }
+
+    #[must_use]
+    pub const fn shows_tools(self) -> bool {
+        matches!(self, Self::Authenticated)
+    }
+
+    #[must_use]
+    pub const fn verdict(self) -> Verdict<Self> {
+        Verdict::new(self.tone(), self)
     }
 }
 
@@ -127,6 +165,31 @@ pub fn build_client() -> reqwest::Result<reqwest::Client> {
         .timeout(PROBE_TIMEOUT)
         .no_proxy()
         .build()
+}
+
+/// One server by registry slug; `None` when the registry does not know it.
+#[must_use]
+pub async fn probe_slug(slug: &str) -> Option<McpServerAuth> {
+    if !crate::mcp_registry::snapshot().contains_key(slug) {
+        return None;
+    }
+    let client = match build_client() {
+        Ok(c) => c,
+        Err(e) => {
+            return Some(McpServerAuth {
+                id: slug.to_owned(),
+                url: crate::proxy::mcp_url(slug),
+                state: McpAuthState::LocalError,
+                tools: Vec::new(),
+                http_status: None,
+                latency_ms: None,
+                error: Some(format!("probe client build failed: {e}")),
+                session_id: None,
+                probed_at_unix: now_unix(),
+            });
+        },
+    };
+    Some(probe_one(&client, slug).await)
 }
 
 async fn probe_one(client: &reqwest::Client, slug: &str) -> McpServerAuth {

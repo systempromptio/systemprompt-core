@@ -71,7 +71,7 @@ pub fn build_listing(mcp_auth: &[McpServerAuth]) -> MarketplaceListing {
                 agents.extend(own(components::list_agents(&dir.join("agents"))));
                 hooks.extend(own(hooks::list_hooks(&dir.join("hooks"))));
             }
-            let mcp = components::list_registry_mcp(mcp_auth);
+            let mcp = components::list_registry_mcp();
             (
                 plugins,
                 dedup_by_id(skills),

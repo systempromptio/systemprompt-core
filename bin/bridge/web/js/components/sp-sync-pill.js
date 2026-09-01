@@ -3,17 +3,10 @@ import { bridge } from "/assets/js/bridge.js";
 import { t } from "/assets/js/i18n.js";
 import { announce } from "/assets/js/utils/announce.js";
 
+// `overall` is the bridge's one-dot summary; the footer draws the same one.
 function classify(snap) {
-  if (snap.sync_in_flight) {
-    return { state: "running", text: t("sync-in-flight") || "syncing" };
-  }
-  if (snap.gateway_status && snap.gateway_status.state === "unreachable") {
-    return { state: "err", text: t("gateway-unreachable") || "offline" };
-  }
-  if (snap.signed_in) {
-    return { state: "ok", text: snap.last_sync_summary ? (t("sync-success") || "synced") : (t("ready") || "ready") };
-  }
-  return { state: "idle", text: t("gateway-not-signed-in") || "needs sign-in" };
+  const overall = snap.overall || { tone: "unknown", code: "needs-sign-in" };
+  return { tone: overall.tone, text: t(`overall-${overall.code}`) || "" };
 }
 
 export class SpSyncPill extends SpElement {
@@ -34,7 +27,7 @@ export class SpSyncPill extends SpElement {
   afterRender() {
     const snap = this.snapshot || {};
     const v = classify(snap);
-    this.dataset.state = v.state;
+    this.dataset.state = v.tone;
     this.title = snap.last_sync_summary
       ? (t("last-sync", { summary: snap.last_sync_summary }) || `Last sync: ${snap.last_sync_summary}`)
       : (t("last-sync-never") || "No syncs yet");

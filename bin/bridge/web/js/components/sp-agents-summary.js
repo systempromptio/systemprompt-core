@@ -2,7 +2,7 @@ import { SpElement, reactive, escapeHtml } from "/assets/js/components/sp-elemen
 import { bridge } from "/assets/js/bridge.js";
 import { publishSectionState } from "/assets/js/utils/format.js";
 import { t } from "/assets/js/i18n.js";
-import { verdictOf, stateLabel, dotClass, sectionLabel, fleetHeadline } from "/assets/js/utils/agent-verdict.js";
+import { verdictOf, stateLabel, dotClass, sectionLabel, fleetHeadline } from "/assets/js/utils/verdict.js";
 
 const EMPTY_FLEET = { total: 0, working: 0, ready: 0, running: 0, attention: 0, not_set_up: 0, down: 0, checking: 0, state: "unknown", headline: "none-enabled" };
 

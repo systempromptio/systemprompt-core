@@ -9,13 +9,72 @@ use crate::gui::state::AppStateSnapshot;
 use crate::integration::agent_health::{
     AgentFleets, AgentSurface, AgentVerdict, HostHealthInputs, HostModelViewRef, SYNC_ONLY_AGENTS,
 };
-use crate::integration::host_app::{ConfigFormat, HostKind};
+use crate::integration::host_app::{AppInstallState, ConfigFormat, HostKind, ProfileCode};
+use crate::integration::proxy_probe::ProxyProbeState;
 use crate::integration::{GeneratedProfile, HostAppSnapshot, ProxyHealth};
+use crate::verdict::Verdict;
+
+/// The proxy probe with its verdict beside it.
+#[derive(Serialize)]
+pub(crate) struct ProxyPayload<'a> {
+    #[serde(flatten)]
+    health: &'a ProxyHealth,
+    verdict: Verdict<ProxyProbeState>,
+    governing: bool,
+}
+
+impl<'a> From<&'a ProxyHealth> for ProxyPayload<'a> {
+    fn from(health: &'a ProxyHealth) -> Self {
+        Self {
+            health,
+            verdict: health.state.verdict(),
+            governing: health.state.governing(),
+        }
+    }
+}
+
+// Why: the probe's raw snapshot no longer crosses the wire. The drawer used to
+// branch on `profile_state.kind` — the same anti-pattern the verdict module
+// forbids — so what it needs is shipped as verdicts and plain facts instead.
+#[derive(Serialize)]
+pub(crate) struct HostHealthPayload<'a> {
+    profile: Verdict<ProfileCode>,
+    missing_required: &'a [String],
+    app: Verdict<AppInstallState>,
+    host_running: bool,
+    host_processes: &'a [String],
+    inference_models: Vec<String>,
+    probed_at_unix: u64,
+}
+
+impl<'a> From<&'a HostAppSnapshot> for HostHealthPayload<'a> {
+    fn from(s: &'a HostAppSnapshot) -> Self {
+        Self {
+            profile: s.profile_state.verdict(),
+            missing_required: s.profile_state.missing_required(),
+            app: s.app_installed.verdict(),
+            host_running: s.host_running,
+            host_processes: &s.host_processes,
+            inference_models: s
+                .profile_keys
+                .get("inferenceModels")
+                .map(|raw| {
+                    raw.split(',')
+                        .map(str::trim)
+                        .filter(|m| !m.is_empty())
+                        .map(str::to_owned)
+                        .collect()
+                })
+                .unwrap_or_default(),
+            probed_at_unix: s.probed_at_unix,
+        }
+    }
+}
 
 #[derive(Serialize)]
 pub(crate) struct HostsPayload<'a> {
     pub host_apps: Vec<HostEntryPayload<'a>>,
-    pub local_proxy: &'a ProxyHealth,
+    pub local_proxy: ProxyPayload<'a>,
     // Why: the gate comes from the last signed manifest, which does not exist
     // before the first sync, so on a fresh install `host_apps` is every host
     // this build registers rather than the subset this installation permits.
@@ -49,7 +108,7 @@ pub(crate) struct HostEntryPayload<'a> {
     pub probe_in_flight: bool,
     pub enabled: bool,
     pub last_generated_profile: Option<&'a GeneratedProfile>,
-    pub snapshot: Option<&'a HostAppSnapshot>,
+    pub health: Option<HostHealthPayload<'a>>,
     pub compatible_models: Vec<String>,
     pub models_checked: bool,
     pub compatible_models_available: bool,
@@ -96,7 +155,7 @@ fn build_entry<'a>(
         probe_in_flight: st.is_some_and(|s| s.probe_in_flight),
         enabled: snap.enabled_hosts.iter().any(|h| h == host.id()),
         last_generated_profile: st.and_then(|s| s.last_generated_profile.as_ref()),
-        snapshot,
+        health: snapshot.map(HostHealthPayload::from),
         compatible_models: view.compatible_models,
         models_checked: view.checked,
         compatible_models_available: view.available,
@@ -142,7 +201,7 @@ fn build_sync_only_entry<'a>(
         probe_in_flight: false,
         enabled: snap.enabled_hosts.iter().any(|h| h == agent.id),
         last_generated_profile: None,
-        snapshot: None,
+        health: None,
         compatible_models: Vec::new(),
         models_checked: false,
         compatible_models_available: false,
@@ -192,7 +251,7 @@ pub(crate) fn payload(snap: &AppStateSnapshot) -> HostsPayload<'_> {
         host_apps: entries,
         hosts_gated: snap.manifest_synced(),
         agent_fleet,
-        local_proxy: &snap.hosts.local_proxy,
+        local_proxy: ProxyPayload::from(&snap.hosts.local_proxy),
         agents_onboarded: snap.agents_onboarded,
         first_run: crate::gui::first_run::serde::build(&snap.first_run),
     }

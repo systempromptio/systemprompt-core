@@ -1,45 +1,30 @@
 import { SpElement, reactive, escapeHtml } from "/assets/js/components/sp-element.js";
 import { bridge } from "/assets/js/bridge.js";
 import { publishSectionState } from "/assets/js/utils/format.js";
+import { t } from "/assets/js/i18n.js";
+import { toneDot, toneSection, worstTone } from "/assets/js/utils/verdict.js";
 
 function proxyView(proxy) {
-  const state = (proxy.state || "Unknown").toString();
-  if (state === "Listening") {
-    return { state: "ok", dot: "sp-dot--ok", value: String(proxy.latency_ms ?? "?"), unit: "ms", label: "listening" };
-  }
-  if (state === "Refused")      { return { state: "err",     dot: "sp-dot--err",     value: "—", unit: "", label: "connection refused" }; }
-  if (state === "Timeout")      { return { state: "err",     dot: "sp-dot--err",     value: "—", unit: "", label: "timed out" }; }
-  if (state === "HttpError")    { return { state: "err",     dot: "sp-dot--err",     value: "—", unit: "", label: "http error", reason: proxy.error || "unknown" }; }
-  if (state === "Unconfigured") { return { state: "warn",    dot: "sp-dot--warn",    value: "—", unit: "", label: "awaiting first host-app probe" }; }
-  return { state: "unknown", dot: "sp-dot--unknown", value: "—", unit: "", label: "checking…" };
+  const verdict = proxy.verdict || { tone: "unknown", code: "unknown" };
+  return {
+    tone: verdict.tone,
+    dot: toneDot(verdict.tone),
+    value: proxy.governing ? String(proxy.latency_ms ?? "?") : "—",
+    unit: proxy.governing ? "ms" : "",
+    label: t(`proxy-state-${verdict.code}`) || "",
+    reason: verdict.tone === "err" ? (proxy.error || "") : "",
+  };
 }
 
 function collectInferenceModels(snap) {
   const seen = new Set();
   const out = [];
   for (const host of (snap.host_apps || [])) {
-    const raw = host.snapshot && host.snapshot.profile_keys && host.snapshot.profile_keys.inferenceModels;
-    if (raw) {
-      for (const m of raw.split(",")) {
-        const trimmed = m.trim();
-        if (trimmed && !seen.has(trimmed)) { seen.add(trimmed); out.push(trimmed); }
-      }
+    for (const m of ((host.health && host.health.inference_models) || [])) {
+      if (!seen.has(m)) { seen.add(m); out.push(m); }
     }
   }
   return out;
-}
-
-function rollUp(a, b) {
-  const order = { err: 4, warn: 3, probing: 2, unknown: 1, ok: 0 };
-  return (order[a] >= order[b]) ? a : b;
-}
-
-function sectionLabel(state) {
-  if (state === "ok") { return "healthy"; }
-  if (state === "warn") { return "attention"; }
-  if (state === "err") { return "down"; }
-  if (state === "probing") { return "checking…"; }
-  return "unknown";
 }
 
 export class SpProxyStatus extends SpElement {
@@ -58,7 +43,7 @@ export class SpProxyStatus extends SpElement {
 
   render() {
     const snap = this.snapshot || {};
-    const proxy = snap.local_proxy || { state: "Unknown" };
+    const proxy = snap.local_proxy || {};
     const view = proxyView(proxy);
     const url = proxy.url || "";
     const models = collectInferenceModels(snap);
@@ -69,7 +54,7 @@ export class SpProxyStatus extends SpElement {
       ["url", escapeHtml(url || "(none)")],
       view.reason ? ["error", escapeHtml(view.reason)] : null,
       proxy.latency_ms != null ? ["latency", `${proxy.latency_ms} ms`] : null,
-      ["state", escapeHtml(proxy.state || "Unknown")],
+      ["state", escapeHtml(view.label)],
     ].filter(Boolean);
 
     const chips = models.length === 0
@@ -78,7 +63,7 @@ export class SpProxyStatus extends SpElement {
 
     return `
       <div class="sp-kpi-grid">
-        <article class="sp-kpi-card" data-state="${view.state}">
+        <article class="sp-kpi-card" data-state="${view.tone}">
           <div class="sp-kpi-card__head">
             <span data-l10n-id="status-proxy-health">Health</span>
             <span class="sp-dot ${view.dot}" aria-hidden="true"></span>
@@ -120,12 +105,12 @@ export class SpProxyStatus extends SpElement {
 
   afterRender() {
     const snap = this.snapshot || {};
-    const proxy = snap.local_proxy || { state: "Unknown" };
+    const proxy = snap.local_proxy || {};
     const view = proxyView(proxy);
     const models = collectInferenceModels(snap);
     const epState = models.length === 0 ? "warn" : "ok";
-    const overall = rollUp(view.state, epState);
-    publishSectionState(this, overall, sectionLabel(overall));
+    const overall = worstTone(view.tone, epState);
+    publishSectionState(this, overall, toneSection(overall));
   }
 }
 

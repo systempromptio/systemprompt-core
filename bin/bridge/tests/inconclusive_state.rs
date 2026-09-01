@@ -7,21 +7,21 @@
 
 use systemprompt_bridge::proxy::mcp_probe::McpAuthState;
 
-/// The web UI keys its display map on the serialized variant name. It once
-/// tested for `"Ok"`, which never existed, so every healthy server matched the
-/// "needs signing in" filter. Pin the wire names the front end reads.
+// The catalogue keys `mcp-auth-<code>` are looked up by the serialised name,
+// so the wire spelling is the contract. It once tested for `"Ok"`, which never
+// existed, so every healthy server matched the "needs signing in" filter.
 #[test]
-fn mcp_auth_states_serialize_under_their_variant_names() {
+fn mcp_auth_states_serialize_as_kebab_codes() {
     let name = |s: McpAuthState| serde_json::to_string(&s).unwrap_or_default();
-    assert_eq!(name(McpAuthState::Authenticated), "\"Authenticated\"");
+    assert_eq!(name(McpAuthState::Authenticated), "\"authenticated\"");
     assert_eq!(
         name(McpAuthState::GatewayUnauthorized),
-        "\"GatewayUnauthorized\""
+        "\"gateway-unauthorized\""
     );
-    assert_eq!(name(McpAuthState::NotRegistered), "\"NotRegistered\"");
-    assert_eq!(name(McpAuthState::ProbeTimeout), "\"ProbeTimeout\"");
-    assert_eq!(name(McpAuthState::LocalError), "\"LocalError\"");
-    assert_eq!(name(McpAuthState::Unknown), "\"Unknown\"");
+    assert_eq!(name(McpAuthState::NotRegistered), "\"not-registered\"");
+    assert_eq!(name(McpAuthState::ProbeTimeout), "\"probe-timeout\"");
+    assert_eq!(name(McpAuthState::LocalError), "\"local-error\"");
+    assert_eq!(name(McpAuthState::Unknown), "\"unknown\"");
 }
 
 #[test]

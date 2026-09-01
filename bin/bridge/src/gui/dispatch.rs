@@ -167,8 +167,11 @@ fn dispatch_request(app: &mut GuiApp, event: UiEvent) -> Result<(), Box<UiEvent>
         UiEvent::GatewayProbeRequested { reply_to } => {
             handlers::gateway_probe::on_gateway_probe_requested(app, reply_to);
         },
-        UiEvent::McpAuthProbeRequested { reply_to } => {
-            handlers::mcp_auth_probe::on_mcp_auth_probe_requested(app, reply_to);
+        UiEvent::McpAuthProbeRequested {
+            server_id,
+            reply_to,
+        } => {
+            handlers::mcp_auth_probe::on_mcp_auth_probe_requested(app, server_id, reply_to);
         },
         UiEvent::ProfileFetchRequested { reply_to } => {
             handlers::profile::on_profile_fetch_requested(app, reply_to);

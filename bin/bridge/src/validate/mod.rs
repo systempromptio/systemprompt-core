@@ -7,6 +7,7 @@ use crate::auth::cache;
 use crate::config;
 use crate::config::paths::{self, Scope};
 use crate::gateway::GatewayClient;
+use crate::verdict::{Tone, Verdict};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 #[serde(rename_all = "lowercase")]
@@ -15,6 +16,27 @@ pub enum CheckLevel {
     Warn,
     Fail,
     Info,
+}
+
+impl CheckLevel {
+    #[must_use]
+    pub const fn tone(self) -> Tone {
+        match self {
+            Self::Ok => Tone::Ok,
+            Self::Warn => Tone::Warn,
+            Self::Fail => Tone::Err,
+            Self::Info => Tone::Unknown,
+        }
+    }
+}
+
+/// How a validation report reads as a whole.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum ValidationCode {
+    Healthy,
+    Attention,
+    Failing,
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -31,6 +53,17 @@ pub struct ValidationReport {
 }
 
 impl ValidationReport {
+    #[must_use]
+    pub fn verdict(&self) -> Verdict<ValidationCode> {
+        let tone = Tone::fold(self.lines.iter().map(|l| l.level.tone()), Tone::Ok);
+        let code = match tone {
+            Tone::Err => ValidationCode::Failing,
+            Tone::Warn => ValidationCode::Attention,
+            Tone::Ok | Tone::Unknown | Tone::Probing => ValidationCode::Healthy,
+        };
+        Verdict::new(tone, code)
+    }
+
     #[must_use]
     pub fn rendered(&self) -> String {
         let mut s = format!("{} validate\n", crate::brand::brand().binary_name);

@@ -18,6 +18,7 @@ use serde::Serialize;
 
 use crate::integration::host_app::{AppInstallState, ProfileState, StaleReason};
 use crate::integration::proxy_probe::{ProxyHealth, ProxyProbeState};
+use crate::verdict::Tone;
 
 /// What the reader is told about one agent.
 ///
@@ -36,6 +37,18 @@ pub enum AgentState {
     NotSetUp,
     Down,
     Checking,
+}
+
+impl AgentState {
+    #[must_use]
+    pub const fn tone(self) -> Tone {
+        match self {
+            Self::Working | Self::Ready => Tone::Ok,
+            Self::Attention | Self::NotSetUp => Tone::Warn,
+            Self::Down => Tone::Err,
+            Self::Checking => Tone::Unknown,
+        }
+    }
 }
 
 /// Why the agent is in that state. Carries the arguments its message needs;
@@ -90,6 +103,7 @@ pub enum AgentSurface {
 #[derive(Debug, Clone, Serialize)]
 pub struct AgentVerdict {
     pub state: AgentState,
+    pub tone: Tone,
     pub reason: AgentReason,
     pub action: Option<AgentAction>,
     pub is_set_up: bool,
@@ -144,6 +158,7 @@ pub fn verdict(input: &HostHealthInputs<'_>) -> AgentVerdict {
     let Some(snap) = input.snapshot else {
         return AgentVerdict {
             state: AgentState::Checking,
+            tone: AgentState::Checking.tone(),
             reason: AgentReason::NeverProbed,
             action: None,
             is_set_up: false,
@@ -155,8 +170,9 @@ pub fn verdict(input: &HostHealthInputs<'_>) -> AgentVerdict {
     let is_set_up = !matches!(snap.profile_state, ProfileState::Absent);
     let is_installed = matches!(snap.profile_state, ProfileState::Installed);
     let is_running = snap.host_running;
-    let finish = |state, reason, action| AgentVerdict {
+    let finish = |state: AgentState, reason, action| AgentVerdict {
         state,
+        tone: state.tone(),
         reason,
         action,
         is_set_up,
@@ -239,6 +255,7 @@ const fn sync_only_verdict(manifest_synced: bool) -> AgentVerdict {
     if manifest_synced {
         AgentVerdict {
             state: AgentState::Working,
+            tone: AgentState::Working.tone(),
             reason: AgentReason::CloudManaged,
             action: None,
             is_set_up: true,
@@ -248,6 +265,7 @@ const fn sync_only_verdict(manifest_synced: bool) -> AgentVerdict {
     } else {
         AgentVerdict {
             state: AgentState::Checking,
+            tone: AgentState::Checking.tone(),
             reason: AgentReason::NeverProbed,
             action: None,
             is_set_up: false,

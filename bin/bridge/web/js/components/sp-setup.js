@@ -1,7 +1,7 @@
 import { SpElement, reactive, escapeHtml } from "/assets/js/components/sp-element.js";
 import { onBridgeEvent } from "/assets/js/events/bridge-events.js";
 import { bridge } from "/assets/js/bridge.js";
-import { isInstalled } from "/assets/js/utils/agent-verdict.js";
+import { isInstalled } from "/assets/js/utils/verdict.js";
 import { t } from "/assets/js/i18n.js";
 import { notifyErr } from "/assets/js/utils/notify.js";
 import "/assets/js/components/sp-setup-gateway.js";
@@ -18,9 +18,7 @@ const STEP_LABEL = {
 const SETTLE_TIMEOUT_MS = 12_000;
 
 function isConfigured(snap) {
-  const reachable = snap.gateway_status && snap.gateway_status.state === "reachable";
-  const id = snap.verified_identity;
-  return !!(reachable && id && id.user_id);
+  return !!snap.signed_in;
 }
 
 export class SpSetup extends SpElement {
@@ -125,8 +123,7 @@ export class SpSetup extends SpElement {
     // start out false and flip true as the gateway probe and then the host
     // probes land — evaluating on those partial snapshots is what made the
     // window flick splash → app → splash → app during startup.
-    const gatewayProbing = !snap.gateway_status || snap.gateway_status.state === "probing"
-      || snap.gateway_status.state === "unknown";
+    const gatewayProbing = !snap.gateway_status || !snap.gateway_status.settled;
     if (gatewayProbing || !settled) { return; }
 
     // One-way latch: once the app proper has been shown, a later probe result
@@ -170,7 +167,7 @@ export class SpSetup extends SpElement {
   _settleNotice() {
     if (!this.settleTimedOut) { return ""; }
     const snap = this.snapshot || {};
-    const unreachable = snap.gateway_status && snap.gateway_status.state === "unreachable";
+    const unreachable = snap.gateway_status && snap.gateway_status.tone === "err";
     const line = unreachable
       ? t("setup-settle-unreachable", { gateway: snap.gateway_url || "" })
       : t("setup-settle-slow") || "Still checking this computer. Some agents have not reported yet.";

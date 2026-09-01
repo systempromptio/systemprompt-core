@@ -11,8 +11,8 @@ use crate::gui::state::CancelScope;
 use crate::gui::{GuiApp, server_json};
 
 use super::args::{
-    CancelArgs, GatewaySetArgs, LoginArgs, OpenExternalUrlArgs, RecentArgs, SessionLoginArgs,
-    SettingsSetArgs,
+    CancelArgs, GatewaySetArgs, LoginArgs, McpProbeArgs, OpenExternalUrlArgs, RecentArgs,
+    SessionLoginArgs, SettingsSetArgs,
 };
 use super::{CommandOutcome, parse, send};
 
@@ -92,7 +92,17 @@ pub(super) fn gateway_dispatch(
             CommandOutcome::Async
         },
         "mcp.auth.probe" => {
-            send(app, UiEvent::McpAuthProbeRequested { reply_to: reply_id });
+            let server_id = parse::<McpProbeArgs>(args)
+                .ok()
+                .and_then(|a| a.server_id)
+                .filter(|s| !s.is_empty());
+            send(
+                app,
+                UiEvent::McpAuthProbeRequested {
+                    server_id,
+                    reply_to: reply_id,
+                },
+            );
             CommandOutcome::Async
         },
         _ => return None,

@@ -26,37 +26,33 @@ fn fixtures_dir() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("web/dev/fixtures")
 }
 
-fn profile_state_of(v: &Value) -> ProfileState {
-    match v.get("kind").and_then(Value::as_str).unwrap_or("absent") {
+fn profile_state_of(health: &Value) -> ProfileState {
+    let code = health
+        .get("profile")
+        .and_then(|p| p.get("code"))
+        .and_then(Value::as_str)
+        .unwrap_or("absent");
+    match code {
         "installed" => ProfileState::Installed,
         "partial" => ProfileState::Partial {
-            missing_required: v
-                .get("missing_required")
-                .and_then(Value::as_array)
-                .map(|a| {
-                    a.iter()
-                        .filter_map(|s| s.as_str().map(str::to_owned))
-                        .collect()
-                })
-                .unwrap_or_default(),
+            missing_required: strings(health.get("missing_required")),
         },
+        // Why: the stale *cause* is not on the wire; either cause yields the
+        // same verdict, so the fixture cannot tell them apart and need not.
         "stale" => ProfileState::Stale {
-            reason: match v.get("reason").and_then(Value::as_str) {
-                Some("proxy_port") => StaleReason::ProxyPort,
-                _ => StaleReason::LoopbackSecret,
-            },
+            reason: StaleReason::LoopbackSecret,
         },
         _ => ProfileState::Absent,
     }
 }
 
+// Why: the wire carries `health` — verdicts and facts — not the raw probe
+// snapshot, so the snapshot is rebuilt from what the front end actually sees.
 fn snapshot_of(v: &Value) -> HostAppSnapshot {
     HostAppSnapshot {
         host_id: "fixture",
         display_name: "fixture",
-        profile_state: v
-            .get("profile_state")
-            .map_or(ProfileState::Absent, profile_state_of),
+        profile_state: profile_state_of(v),
         profile_source: None,
         profile_keys: BTreeMap::new(),
         host_running: v
@@ -64,9 +60,13 @@ fn snapshot_of(v: &Value) -> HostAppSnapshot {
             .and_then(Value::as_bool)
             .unwrap_or(false),
         host_processes: Vec::new(),
-        app_installed: match v.get("app_installed").and_then(Value::as_str) {
+        app_installed: match v
+            .get("app")
+            .and_then(|a| a.get("code"))
+            .and_then(Value::as_str)
+        {
             Some("installed") => AppInstallState::Installed,
-            Some("not_installed") => AppInstallState::NotInstalled,
+            Some("not-installed") => AppInstallState::NotInstalled,
             _ => AppInstallState::Unknown,
         },
         probed_at_unix: v.get("probed_at_unix").and_then(Value::as_u64).unwrap_or(0),
@@ -75,11 +75,11 @@ fn snapshot_of(v: &Value) -> HostAppSnapshot {
 
 fn proxy_of(v: Option<&Value>) -> ProxyHealth {
     let state = match v.and_then(|p| p.get("state")).and_then(Value::as_str) {
-        Some("Unconfigured") => ProxyProbeState::Unconfigured,
-        Some("Listening") => ProxyProbeState::Listening,
-        Some("Refused") => ProxyProbeState::Refused,
-        Some("Timeout") => ProxyProbeState::Timeout,
-        Some("HttpError") => ProxyProbeState::HttpError,
+        Some("unconfigured") => ProxyProbeState::Unconfigured,
+        Some("listening") => ProxyProbeState::Listening,
+        Some("refused") => ProxyProbeState::Refused,
+        Some("timeout") => ProxyProbeState::Timeout,
+        Some("http-error") => ProxyProbeState::HttpError,
         _ => ProxyProbeState::Unknown,
     };
     ProxyHealth {
@@ -118,10 +118,7 @@ fn recompute(doc: &Value) -> Option<Value> {
     let mut verdicts: Vec<AgentVerdict> = Vec::with_capacity(hosts.len());
 
     for host in hosts {
-        let snap = host
-            .get("snapshot")
-            .filter(|s| !s.is_null())
-            .map(snapshot_of);
+        let snap = host.get("health").filter(|s| !s.is_null()).map(snapshot_of);
         let unconfigured = strings(host.get("unconfigured_providers"));
         let v = verdict(&HostHealthInputs {
             snapshot: snap.as_ref(),
@@ -188,7 +185,7 @@ fn recompute(doc: &Value) -> Option<Value> {
         updated.push(json!({
             "id": agent.id,
             "display_name": agent.display_name,
-            "kind": "cli_tool",
+            "kind": "cli-tool",
             "description": agent.description,
             "icon": agent.icon,
             "config_format": "json",
@@ -197,7 +194,7 @@ fn recompute(doc: &Value) -> Option<Value> {
             "probe_in_flight": false,
             "enabled": true,
             "last_generated_profile": Value::Null,
-            "snapshot": Value::Null,
+            "health": Value::Null,
             "compatible_models": [],
             "models_checked": false,
             "compatible_models_available": false,
@@ -232,19 +229,32 @@ fn fixtures_carry_the_verdict_rust_computes() {
     );
     let update = std::env::var("UPDATE_FIXTURES").is_ok();
     let mut stale = Vec::new();
+    let mut broken = Vec::new();
 
     for entry in entries.into_iter().flatten() {
         let path = entry.path();
         if path.extension().and_then(|e| e.to_str()) != Some("json") {
             continue;
         }
-        let Ok(text) = std::fs::read_to_string(&path) else {
-            continue;
+        // Why: an unreadable, unparseable or shapeless fixture is a broken
+        // fixture, not a fixture to skip — skipping is how a truncated file
+        // stayed green. It is recorded and the test fails on it below.
+        let text = match std::fs::read_to_string(&path) {
+            Ok(t) => t,
+            Err(e) => {
+                broken.push(format!("{}: unreadable: {e}", path.display()));
+                continue;
+            },
         };
-        let Ok(doc) = serde_json::from_str::<Value>(&text) else {
-            continue;
+        let doc = match serde_json::from_str::<Value>(&text) {
+            Ok(d) => d,
+            Err(e) => {
+                broken.push(format!("{}: not JSON: {e}", path.display()));
+                continue;
+            },
         };
         let Some(expected) = recompute(&doc) else {
+            broken.push(format!("{}: has no host_apps array", path.display()));
             continue;
         };
 
@@ -257,6 +267,11 @@ fn fixtures_carry_the_verdict_rust_computes() {
         }
     }
 
+    assert!(
+        broken.is_empty(),
+        "these fixtures could not be checked at all:\n  {}",
+        broken.join("\n  ")
+    );
     assert!(
         stale.is_empty(),
         "these fixtures no longer match the verdict Rust computes; re-run with \

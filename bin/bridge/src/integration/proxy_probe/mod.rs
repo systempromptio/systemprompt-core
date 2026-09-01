@@ -11,6 +11,7 @@ use std::time::Instant;
 use serde::Serialize;
 
 use crate::proxy::identity::WhoAmI;
+use crate::verdict::{Tone, Verdict};
 
 #[derive(Debug, Clone, Serialize, Default)]
 pub struct ProxyHealth {
@@ -23,6 +24,7 @@ pub struct ProxyHealth {
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Default, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
 pub enum ProxyProbeState {
     #[default]
     Unknown,
@@ -31,6 +33,28 @@ pub enum ProxyProbeState {
     Refused,
     Timeout,
     HttpError,
+}
+
+impl ProxyProbeState {
+    #[must_use]
+    pub const fn tone(self) -> Tone {
+        match self {
+            Self::Listening => Tone::Ok,
+            Self::Unconfigured => Tone::Warn,
+            Self::Unknown => Tone::Unknown,
+            Self::Refused | Self::Timeout | Self::HttpError => Tone::Err,
+        }
+    }
+
+    #[must_use]
+    pub const fn governing(self) -> bool {
+        matches!(self, Self::Listening)
+    }
+
+    #[must_use]
+    pub const fn verdict(self) -> Verdict<Self> {
+        Verdict::new(self.tone(), self)
+    }
 }
 
 #[must_use]
