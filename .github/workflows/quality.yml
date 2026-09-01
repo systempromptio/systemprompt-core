@@ -144,6 +144,7 @@ jobs:
       - run: just lint-bridge-no-window
       - run: just lint-bridge-verdicts
       - run: just lint-bridge-layers
+      - run: just lint-bridge-globals
       - run: just lint-bridge-file-size
       - run: just bridge-bindings-check
         if: ${{ !cancelled() }}

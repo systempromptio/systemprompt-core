@@ -152,7 +152,7 @@ check-crate-changelogs:
     ./scripts/check-crate-changelogs.sh
 
 # Check without building
-check: lint-schema lint-extensions lint-comments lint-inline-tests lint-test-value lint-layers lint-repo-construction lint-bridge-css-tokens lint-bridge-i18n lint-bridge-js-imports lint-bridge-no-window lint-bridge-verdicts lint-bridge-layers lint-bridge-file-size
+check: lint-schema lint-extensions lint-comments lint-inline-tests lint-test-value lint-layers lint-repo-construction lint-bridge-css-tokens lint-bridge-i18n lint-bridge-js-imports lint-bridge-no-window lint-bridge-verdicts lint-bridge-layers lint-bridge-globals lint-bridge-file-size
     cargo check --workspace
 
 # Check offline (uses cached .sqlx metadata, no database required)
@@ -282,6 +282,13 @@ lint-bridge-verdicts:
 # fails on any `crate::<module>` reference that points upward.
 lint-bridge-layers:
     ./scripts/lint-bridge-layers.sh
+
+# The bridge's service state lives on `BridgeContext`, built once and
+# injected. A `static X: OnceLock<..>` can hold one value per process — the
+# reason one test crate existed per proxy start outcome. Fail on any new one
+# outside the script's reasoned allowlist.
+lint-bridge-globals:
+    ./scripts/lint-bridge-globals.sh
 
 # The web tree has no bundler or type checker, so a file is only ever reviewed
 # by reading it. The standard caps JS at 150 lines and CSS at 300; this makes
