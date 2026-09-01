@@ -10,7 +10,6 @@ use std::path::Path;
 
 pub use super::macos_payload::{build_mobileconfig, build_prefs_plist};
 use super::{MdmError, MdmPayloadInputs};
-use crate::install::xml;
 
 pub(crate) const PAYLOAD_IDENTIFIER: &str = "io.systemprompt.bridge.mdm";
 pub(super) const INNER_PAYLOAD_IDENTIFIER: &str = "io.systemprompt.bridge.mdm.inference";

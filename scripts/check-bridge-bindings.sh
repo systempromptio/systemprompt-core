@@ -13,6 +13,12 @@ committed="bin/bridge/bindings/web/js/types"
 scratch="$(mktemp -d "${TMPDIR:-/tmp}/bridge-bindings.XXXXXX")"
 trap 'rm -rf "$scratch"' EXIT
 
+# Why: crates/tests/.cargo/config.toml links with mold. The linter job that
+# runs this check has no mold, and this is the only thing in it that compiles
+# anything, so fall back to the default linker rather than install one.
+if ! command -v mold >/dev/null 2>&1; then
+    export RUSTFLAGS=""
+fi
 (
     cd crates/tests
     TS_RS_EXPORT_DIR="$scratch" cargo test -q -p systemprompt-bridge-ts-export-tests export_bindings -- --ignored >/dev/null
