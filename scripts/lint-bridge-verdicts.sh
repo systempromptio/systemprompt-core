@@ -30,7 +30,7 @@ this.state:components/sp-marketplace-list.js
 this._fetcher.state:components/sp-marketplace.js
 this.kind:components/sp-toast.js
 this.kind:components/sp-marketplace-detail.js
-entry.level:components/sp-activity-log.js'
+entry.level:utils/log-format.js'
 
 while IFS= read -r hit; do
     file=${hit%%:*}
