@@ -1,5 +1,17 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- `login` and `install --apply` repair host profiles that have gone stale, through the same builder the GUI's Re-apply button uses. `HostApp::install_profile` had exactly one caller in the binary — that button — so a profile whose loopback secret or proxy port had moved on stayed stale, every request from that client answered 403, and the only cure was a window. Only profiles that probe as stale are touched; a host the user never set up is not enrolled by signing in. On `login` the repair is gated on stdin being a terminal, so a scripted sign-in cannot stall on an administrator dialog nobody is there to answer; `--no-reapply` opts out on a terminal too.
+- A re-apply's outcome is decided by re-probing the host, not by `install_profile` returning. macOS Claude Desktop installs with `open -g <mobileconfig>`, which hands the file to System Settings and returns `Ok(())` whether or not the user ever approves it under Profiles. That reports as `pending`, naming the action still outstanding, rather than as a refresh that did not happen.
+
+### Fixed
+
+- The stale-profile remediation named `install --apply`, which installed the MDM payload and the scheduled task and never touched a host profile. The advice is now true, rather than the command being wrong.
+- The macOS build. `mod macos;` in the Claude Desktop host carried both a windows and a macos cfg, which are ANDed and so never true; `gui/window` used `Path` without importing it; `install/mdm/macos.rs` bound an unused `loopback` and exposed `build_prefs_plist` more publicly than its `MdmPayloadInputs` parameter. `lib.rs` gates the GUI on windows/macos, so none of it is reachable from a Linux check.
+
 ## [0.34.0] - 2026-09-01
 
 ### Removed
