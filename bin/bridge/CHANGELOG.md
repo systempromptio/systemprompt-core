@@ -1,5 +1,15 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+
+- The Hermes host profile never routed anything. Verified against Hermes Agent 0.21.0: `model.base_url` is only consulted after `model.provider` selects a provider, and the profile left `provider` at its default `auto`, so Hermes answered "No LLM provider configured". The profile is now a named `providers:` entry selected by `model.provider`, which is how Hermes reaches any non-built-in endpoint.
+- `model.api_mode` was written as `openai`, which is not a value Hermes knows — its vocabulary is `chat_completions`, `codex_responses`, `anthropic_messages` and `bedrock_converse`. The key was silently discarded. The wire format the gateway serves is now named explicitly as `chat_completions`.
+- The loopback secret written to `HERMES_HOME/.env` was never read. Hermes host-gates its bare `OPENAI_API_KEY` fallback to openai.com and openai.azure.com, so a `127.0.0.1` endpoint resolved no credential and Hermes sent its `no-key-required` placeholder — which the proxy correctly refused with "bad loopback secret". The entry now carries `key_env`, so the secret stays in `.env` at 0600 and is still found.
+- The model was written to `model.model` while Hermes' own installed config.yaml always ships a `model.default`, and `default` wins when both are present — so the negotiated model was inert. The profile now writes `model.default`.
+- Uninstall removes only this bridge's `providers:` entry, leaving a user's other named providers in place.
+
 ## [0.33.0] - 2026-08-31
 
 ### Removed

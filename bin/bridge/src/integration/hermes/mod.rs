@@ -43,7 +43,7 @@ impl HostApp for HermesHost {
         // Why: like Codex, Hermes bakes `<origin>/v1`; the classifier ignores the
         // path and only checks that the loopback port still matches.
         let endpoint_fresh = ProfileState::endpoint_freshness(
-            read.keys.get(config::MODEL_BASE_URL).map(String::as_str),
+            read.keys.get(config::PROVIDER_BASE_URL).map(String::as_str),
         );
         let profile_state =
             ProfileState::classify(config::REQUIRED_KEYS, &read.keys, None, endpoint_fresh);
@@ -78,7 +78,8 @@ impl HostApp for HermesHost {
     }
 
     fn install_action_label(&self) -> &'static str {
-        "merged into HERMES_HOME/config.yaml (with OPENAI_API_KEY written to HERMES_HOME/.env)"
+        "merged into HERMES_HOME/config.yaml as a named `providers:` entry (with OPENAI_API_KEY \
+         written to HERMES_HOME/.env)"
     }
 
     fn kind(&self) -> HostKind {
