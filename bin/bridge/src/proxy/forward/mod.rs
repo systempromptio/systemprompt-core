@@ -109,16 +109,19 @@ pub(crate) async fn forward(
     let (parts, body) = req.into_parts();
     let request_path = parts.uri.path().to_owned();
 
-    let (route, upstream_bearer, is_hook) = match resolve_route(&parts.uri, gateway_base) {
+    // Why `hook_plugin` is carried out of the match: a hook token rejected
+    // upstream has to be evicted by the plugin it was minted for, and the match
+    // arm is the only place that name exists.
+    let mut hook_plugin = None;
+    let (route, upstream_bearer) = match resolve_route(&parts.uri, gateway_base) {
         RouteResolution::Gateway(url) => (
             Route {
                 url,
                 extra_headers: BTreeMap::new(),
             },
             token.token.expose().to_owned(),
-            false,
         ),
-        RouteResolution::Mcp(route) => (route, token.token.expose().to_owned(), false),
+        RouteResolution::Mcp(route) => (route, token.token.expose().to_owned()),
         RouteResolution::Hook { url, plugin_id } => {
             let gw = crate::gateway::GatewayClient::new(gateway_base.clone());
             let hook = crate::auth::plugin_oauth::mint_or_refresh_plugin_token(
@@ -128,13 +131,13 @@ pub(crate) async fn forward(
             )
             .await
             .map_err(|e| ForwardError::Auth(format!("hook token mint for {plugin_id}: {e}")))?;
+            hook_plugin = Some(plugin_id);
             (
                 Route {
                     url,
                     extra_headers: BTreeMap::new(),
                 },
                 hook.access_token,
-                true,
             )
         },
         RouteResolution::UnknownMcp(name) => {
@@ -177,8 +180,18 @@ pub(crate) async fn forward(
         tracing::debug!(upstream_status = status.as_u16(), "upstream forwarded");
     } else {
         tracing::warn!(upstream_status = status.as_u16(), url = %route.url, "upstream non-2xx");
-        if status == StatusCode::UNAUTHORIZED && !is_hook {
-            token_cache.invalidate().await;
+        if status == StatusCode::UNAUTHORIZED {
+            if let Some(plugin_id) = hook_plugin.as_ref() {
+                // Why: the mint path already retries a 401, but a token that
+                // minted cleanly and was then refused in use had nothing to
+                // evict it, so the cache served the same rejected token until
+                // it expired.
+                crate::auth::plugin_oauth::global_cache()
+                    .await
+                    .invalidate(gateway_base.as_str(), plugin_id);
+            } else {
+                token_cache.invalidate().await;
+            }
         }
     }
 

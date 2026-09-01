@@ -73,7 +73,7 @@ pub(super) async fn apply_plugins(
     if !removed.is_empty() {
         let cache = global_cache().await;
         for id in &removed {
-            cache.invalidate(&systemprompt_identifiers::PluginId::new(id));
+            cache.invalidate_plugin(&systemprompt_identifiers::PluginId::new(id));
         }
     }
 

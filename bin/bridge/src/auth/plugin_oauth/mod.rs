@@ -47,6 +47,11 @@ pub struct OAuthClientCreds {
     pub client_secret: String,
     pub token_endpoint: String,
     pub scopes: Vec<String>,
+    /// Base URL of the gateway this client was provisioned against.
+    ///
+    /// `None` is a pre-gateway-aware file on disk: the gateway is unknown, not
+    /// absent, so it is treated as a mismatch and re-provisioned once.
+    pub gateway: Option<String>,
 }
 
 impl From<BridgeOAuthClientResponse> for OAuthClientCreds {
@@ -56,6 +61,7 @@ impl From<BridgeOAuthClientResponse> for OAuthClientCreds {
             client_secret: r.client_secret,
             token_endpoint: r.token_endpoint,
             scopes: r.scopes,
+            gateway: None,
         }
     }
 }
@@ -66,6 +72,9 @@ struct StoredCreds {
     token_endpoint: String,
     #[serde(default)]
     scopes: Vec<String>,
+    /// Absent in files written before the client became gateway-aware.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    gateway: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -91,6 +100,7 @@ pub fn store_creds(creds: &OAuthClientCreds) -> Result<(), PluginOAuthError> {
         client_id: creds.client_id.clone(),
         token_endpoint: creds.token_endpoint.clone(),
         scopes: creds.scopes.clone(),
+        gateway: creds.gateway.clone(),
     };
     let bytes = serde_json::to_vec_pretty(&stored)?;
     crate::fsutil::atomic_write_0600(&path, &bytes).map_err(PluginOAuthError::CredsWrite)?;
@@ -117,6 +127,7 @@ pub fn load_creds() -> Result<Option<OAuthClientCreds>, PluginOAuthError> {
             client_secret: l.client_secret,
             token_endpoint: l.token_endpoint,
             scopes: l.scopes,
+            gateway: None,
         };
         store_creds(&creds)?;
         return Ok(Some(creds));
@@ -131,6 +142,7 @@ pub fn load_creds() -> Result<Option<OAuthClientCreds>, PluginOAuthError> {
         client_secret: secret,
         token_endpoint: stored.token_endpoint,
         scopes: stored.scopes,
+        gateway: stored.gateway,
     }))
 }
 
@@ -150,25 +162,55 @@ pub fn delete_creds() -> io::Result<()> {
     }
 }
 
+/// Return the stored client only if it belongs to `gateway`.
+///
+/// Why the check: an OAuth client is registered with one gateway and its hook
+/// tokens are signed by that gateway's authority. Reusing a
+/// production-registered client while pointed at a local server made the bridge
+/// mint from production's token endpoint and present the result to the local
+/// governance webhook, which rejected it as an unknown signing key. This is the
+/// persistent half of that bug — it is on disk, so it survived restarts.
+fn load_creds_for(gateway: &str) -> Result<Option<OAuthClientCreds>, PluginOAuthError> {
+    let Some(existing) = load_creds()? else {
+        return Ok(None);
+    };
+    if existing.gateway.as_deref() == Some(gateway) {
+        return Ok(Some(existing));
+    }
+    tracing::info!(
+        target: "bridge::auth::plugin-oauth",
+        client_id = %existing.client_id,
+        stored_gateway = existing.gateway.as_deref().unwrap_or("<unrecorded>"),
+        gateway,
+        "stored OAuth client belongs to a different gateway; re-provisioning"
+    );
+    Ok(None)
+}
+
 pub async fn ensure_creds(
     gateway: &GatewayClient,
     bearer: &BearerToken,
 ) -> Result<OAuthClientCreds, PluginOAuthError> {
-    if let Some(existing) = load_creds()? {
+    if let Some(existing) = load_creds_for(gateway.base_url_str())? {
         return Ok(existing);
     }
-    let response = gateway.provision_oauth_client(bearer).await?;
-    let creds: OAuthClientCreds = response.into();
-    store_creds(&creds)?;
-    Ok(creds)
+    provision(gateway, bearer).await
 }
 
 pub async fn refresh_creds(
     gateway: &GatewayClient,
     bearer: &BearerToken,
 ) -> Result<OAuthClientCreds, PluginOAuthError> {
+    provision(gateway, bearer).await
+}
+
+async fn provision(
+    gateway: &GatewayClient,
+    bearer: &BearerToken,
+) -> Result<OAuthClientCreds, PluginOAuthError> {
     let response = gateway.provision_oauth_client(bearer).await?;
-    let creds: OAuthClientCreds = response.into();
+    let mut creds: OAuthClientCreds = response.into();
+    creds.gateway = Some(gateway.base_url_str().to_owned());
     store_creds(&creds)?;
     Ok(creds)
 }

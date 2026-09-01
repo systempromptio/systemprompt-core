@@ -81,6 +81,27 @@ fn path_and_home_are_inherited_when_present() {
     assert_eq!(map.get("HOME").copied(), Some("/home/sp"));
 }
 
+// Why: `FLY_APP_NAME` is how a process knows it is already ON the machine its
+// cloud profile describes. The CLI reads it to skip remote routing and run
+// locally. While it was missing from the inherit list, every MCP subprocess on
+// a deployed host believed it was off-host, so a server that shells out to the
+// CLI tried to route a command to the host it was already running on and died
+// on a tenant store no container has — which took out all three admin
+// dashboards in production.
+#[test]
+fn host_identity_reaches_the_child_so_it_does_not_route_back_to_itself() {
+    let config = internal_mcp_config("fly-server", 9009);
+    let env = build_environment(&spec_for(&config), &[], |name| {
+        (name == "FLY_APP_NAME").then(|| "sp-tenant".to_owned())
+    });
+
+    assert_eq!(
+        env_map(&env).get("FLY_APP_NAME").copied(),
+        Some("sp-tenant"),
+        "without this the child cannot tell it is already on the target host"
+    );
+}
+
 #[test]
 fn an_unset_inherited_var_is_omitted_rather_than_passed_as_empty() {
     let config = internal_mcp_config("empty-server", 9003);
@@ -92,6 +113,11 @@ fn an_unset_inherited_var_is_omitted_rather_than_passed_as_empty() {
         "an absent PATH must stay absent; an empty one reads as a real value"
     );
     assert!(!map.contains_key("HOME"));
+    assert!(
+        !map.contains_key("FLY_APP_NAME"),
+        "off a Fly host the name must stay absent; an empty one would read as \
+         being on-host and wrongly suppress remote routing"
+    );
 }
 
 // Why: a declared-but-unset optional var must be omitted, not passed empty. A
