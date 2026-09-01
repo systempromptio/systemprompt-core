@@ -3,8 +3,6 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::path::Path;
-
 pub mod native;
 mod native_protocol;
 
@@ -12,7 +10,8 @@ pub use crate::window_state as geometry;
 
 #[cfg(target_os = "windows")]
 mod dwm;
-#[cfg(target_os = "windows")]
+// Why: `open_path` is not cfg-gated, so neither is its import — behind the
+// windows cfg it left the macOS build without `Path`.
 use std::path::Path;
 use std::process::Command;
 
