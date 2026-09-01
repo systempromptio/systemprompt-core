@@ -129,3 +129,5 @@ const fn locator() -> crate::integration::app_launch::AppLocator<'static> {
         msix_app_id: "App",
     }
 }
+
+crate::register_host_sync!(CodexCliSync);

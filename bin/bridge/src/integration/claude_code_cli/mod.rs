@@ -25,8 +25,7 @@ use marketplace::{
 };
 
 use crate::config::paths;
-use crate::sync::ApplyError;
-use crate::sync::host_sync::{HostSync, HostSyncCtx};
+use crate::host_sync::{ApplyError, HostSync, HostSyncCtx};
 
 pub const MARKETPLACE: &str = "org-provisioned";
 const VERSION_DIR: &str = "current";
@@ -178,3 +177,5 @@ pub(crate) fn clear_install() -> Result<(), ApplyError> {
     set_enabled(&[])?;
     Ok(())
 }
+
+crate::register_host_sync!(ClaudeCodeCliSync);

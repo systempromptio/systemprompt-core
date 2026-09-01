@@ -110,17 +110,13 @@ fn linux_store() -> Result<std::sync::Arc<keyring_core::CredentialStore>, Plugin
 }
 
 #[cfg(all(unix, not(target_os = "macos")))]
-fn probe_store(store: &std::sync::Arc<keyring_core::CredentialStore>) -> Result<(), String> {
+fn probe_store(
+    store: &std::sync::Arc<keyring_core::CredentialStore>,
+) -> Result<(), keyring_core::Error> {
     let service = format!("{}-probe", crate::brand::brand().keyring_service);
-    let entry = store
-        .build(&service, "probe", None)
-        .map_err(|e| format!("build probe entry: {e}"))?;
-    entry
-        .set_password("probe")
-        .map_err(|e| format!("probe write: {e}"))?;
-    entry
-        .get_password()
-        .map_err(|e| format!("probe read: {e}"))?;
+    let entry = store.build(&service, "probe", None)?;
+    entry.set_password("probe")?;
+    entry.get_password()?;
     if let Err(e) = entry.delete_credential() {
         tracing::debug!(
             target: "bridge::auth::keystore",

@@ -4,13 +4,14 @@
 //! See <https://systemprompt.io> for licensing details.
 mod http;
 
-use http::{elapsed_ms, http_get_body, http_head_status, parse_host_port, resolve_first};
+use http::{elapsed_ms, http_head_status, parse_host_port, resolve_first};
+
+pub(crate) use http::{http_get_body, resolve_first as resolve_first_addr};
 
 use std::time::Instant;
 
 use serde::Serialize;
 
-use crate::proxy::identity::WhoAmI;
 use crate::verdict::{Tone, Verdict};
 
 #[derive(Debug, Clone, Serialize, Default)]
@@ -78,7 +79,7 @@ pub fn probe(url: Option<&str>) -> ProxyHealth {
             return ProxyHealth {
                 url: Some(url.to_owned()),
                 state: ProxyProbeState::HttpError,
-                error: Some(e),
+                error: Some(e.to_string()),
                 probed_at_unix,
                 ..Default::default()
             };
@@ -139,7 +140,7 @@ pub fn probe(url: Option<&str>) -> ProxyHealth {
             return ProxyHealth {
                 url: Some(url.to_owned()),
                 state: ProxyProbeState::HttpError,
-                error: Some(e),
+                error: Some(e.to_string()),
                 latency_ms: Some(elapsed_ms(started)),
                 probed_at_unix,
                 ..Default::default()
@@ -157,55 +158,6 @@ pub fn probe(url: Option<&str>) -> ProxyHealth {
         latency_ms: Some(latency_ms),
         error: None,
         probed_at_unix,
-    }
-}
-
-/// Who is answering on a loopback port.
-///
-/// The distinction `probe` cannot make: it reports `Listening` for anything
-/// that returns a parsable status line, which is how a foreign bridge holding
-/// our port has been reading as healthy.
-#[derive(Debug, Clone)]
-pub enum PeerIdentity {
-    Ours(WhoAmI),
-    Foreign(WhoAmI),
-    Unknown,
-    Unreachable,
-}
-
-#[must_use]
-pub fn probe_identity(port: u16) -> PeerIdentity {
-    let addr = format!("127.0.0.1:{port}");
-    let Some(resolved) = resolve_first(&addr) else {
-        return PeerIdentity::Unreachable;
-    };
-    let Ok(mut stream) =
-        std::net::TcpStream::connect_timeout(&resolved, std::time::Duration::from_millis(1500))
-    else {
-        return PeerIdentity::Unreachable;
-    };
-    let Ok(body) = http_get_body(
-        &mut stream,
-        "127.0.0.1",
-        crate::proxy::dispatch::WHOAMI_PATH,
-    ) else {
-        return PeerIdentity::Unknown;
-    };
-    _ = stream.shutdown(std::net::Shutdown::Both);
-
-    let Ok(who) = serde_json::from_str::<WhoAmI>(&body) else {
-        return PeerIdentity::Unknown;
-    };
-    if who.product != crate::proxy::identity::WHOAMI_PRODUCT {
-        return PeerIdentity::Unknown;
-    }
-    if !who.install_id.is_known() {
-        return PeerIdentity::Unknown;
-    }
-    if who.is_ours() {
-        PeerIdentity::Ours(who)
-    } else {
-        PeerIdentity::Foreign(who)
     }
 }
 

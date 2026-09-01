@@ -5,8 +5,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::gateway::manifest::SignedManifest;
+use crate::host_sync::ApplyError;
 use crate::integration::managed_skills::{SkillDirPolicy, SkillTarget};
-use crate::sync::ApplyError;
 
 use super::super::config::skills_dir;
 

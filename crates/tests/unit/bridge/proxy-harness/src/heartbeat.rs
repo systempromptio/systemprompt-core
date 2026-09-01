@@ -6,8 +6,8 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicU32, Ordering};
 
 use arc_swap::ArcSwap;
-use systemprompt_bridge::auth::types::HelperOutput;
 use systemprompt_bridge::config::{RuntimeConfig, SharedRuntimeConfig};
+use systemprompt_bridge::gateway::types::HelperOutput;
 use systemprompt_bridge::ids::BearerToken;
 use systemprompt_bridge::proxy::ProxyStats;
 use systemprompt_bridge::proxy::heartbeat::run_loop;

@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use systemprompt_bridge::auth::types::HelperOutput;
+use systemprompt_bridge::gateway::types::HelperOutput;
 use systemprompt_bridge::ids::BearerToken;
 use systemprompt_bridge::proxy::token_cache::{RefreshFn, TokenCache};
 

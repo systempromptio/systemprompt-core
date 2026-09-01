@@ -20,8 +20,7 @@ use std::path::{Path, PathBuf};
 use async_trait::async_trait;
 
 use crate::gateway::manifest::SignedManifest;
-use crate::sync::ApplyError;
-use crate::sync::host_sync::{HostSync, HostSyncCtx};
+use crate::host_sync::{ApplyError, HostSync, HostSyncCtx};
 
 use super::config::codex_home;
 

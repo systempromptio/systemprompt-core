@@ -77,7 +77,7 @@ pub(crate) fn perform_elevated_write(job_path: &str, result_path: &str) -> ExitC
         },
         Err(e) => ElevatedResult {
             ok: false,
-            error: Some(e.clone()),
+            error: Some(e.to_string()),
         },
     };
     match serde_json::to_string(&result) {
@@ -95,51 +95,79 @@ pub(crate) fn perform_elevated_write(job_path: &str, result_path: &str) -> ExitC
     }
 }
 
-fn run_job(job_path: &str) -> Result<(), String> {
-    let body = std::fs::read_to_string(job_path).map_err(|e| format!("read staged job: {e}"))?;
-    let job: ElevatedJob =
-        serde_json::from_str(&body).map_err(|e| format!("decode staged job: {e}"))?;
+#[derive(Debug, thiserror::Error)]
+pub(crate) enum ElevateError {
+    #[error("{action} {path}: {source}")]
+    Io {
+        action: &'static str,
+        path: String,
+        #[source]
+        source: std::io::Error,
+    },
+    #[error("decode staged job: {0}")]
+    Decode(#[source] serde_json::Error),
+    #[error("staged registry profile contained no policy values")]
+    NoPolicyValues,
+    #[error("policy: {0}")]
+    Policy(#[source] crate::config::store::ConfigStoreError),
+    #[error("spawn icacls: {0}")]
+    Spawn(#[source] std::io::Error),
+    #[error("icacls grant failed (exit {code:?}): {stderr}")]
+    Icacls { code: Option<i32>, stderr: String },
+}
+
+fn io(
+    action: &'static str,
+    path: impl std::fmt::Display,
+) -> impl FnOnce(std::io::Error) -> ElevateError {
+    let path = path.to_string();
+    move |source| ElevateError::Io {
+        action,
+        path,
+        source,
+    }
+}
+
+fn run_job(job_path: &str) -> Result<(), ElevateError> {
+    let body = std::fs::read_to_string(job_path).map_err(io("read staged job", job_path))?;
+    let job: ElevatedJob = serde_json::from_str(&body).map_err(ElevateError::Decode)?;
     if let Some(reg_path) = &job.reg_path {
         write_from_reg(reg_path)?;
     }
     if !job.clear_values.is_empty() {
         let names: Vec<&str> = job.clear_values.iter().map(String::as_str).collect();
-        clear_managed_claude_policy(true, &names).map_err(|e| e.to_string())?;
+        clear_managed_claude_policy(true, &names).map_err(ElevateError::Policy)?;
     }
     if let Some(org) = &job.org_plugins {
         provision_org_plugins(&org.path, &org.grant_user)?;
     }
     for file in &job.managed_files {
         if let Some(parent) = file.dest.parent() {
-            std::fs::create_dir_all(parent)
-                .map_err(|e| format!("create {}: {e}", parent.display()))?;
+            std::fs::create_dir_all(parent).map_err(io("create", parent.display()))?;
         }
-        std::fs::copy(&file.staged, &file.dest)
-            .map_err(|e| format!("install {}: {e}", file.dest.display()))?;
+        std::fs::copy(&file.staged, &file.dest).map_err(io("install", file.dest.display()))?;
     }
     for dest in &job.remove_files {
         match std::fs::remove_file(dest) {
             Ok(()) => {},
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => {},
-            Err(e) => return Err(format!("remove {}: {e}", dest.display())),
+            Err(e) => return Err(io("remove", dest.display())(e)),
         }
     }
     Ok(())
 }
 
-fn write_from_reg(reg_path: &str) -> Result<(), String> {
-    let body =
-        std::fs::read_to_string(reg_path).map_err(|e| format!("read staged profile: {e}"))?;
-    let entries = super::reg_profile::parse_reg_entries(&body);
+fn write_from_reg(reg_path: &str) -> Result<(), ElevateError> {
+    let body = std::fs::read_to_string(reg_path).map_err(io("read staged profile", reg_path))?;
+    let entries = super::reg_values::parse_reg_entries(&body);
     if entries.is_empty() {
-        return Err("staged registry profile contained no policy values".into());
+        return Err(ElevateError::NoPolicyValues);
     }
-    write_managed_claude_policy(true, &entries).map_err(|e| e.to_string())
+    write_managed_claude_policy(true, &entries).map_err(ElevateError::Policy)
 }
 
-pub(crate) fn provision_org_plugins(path: &Path, grant_user: &str) -> Result<(), String> {
-    std::fs::create_dir_all(path)
-        .map_err(|e| format!("create org-plugins dir {}: {e}", path.display()))?;
+pub(crate) fn provision_org_plugins(path: &Path, grant_user: &str) -> Result<(), ElevateError> {
+    std::fs::create_dir_all(path).map_err(io("create org-plugins dir", path.display()))?;
     let grant_arg = format!("{grant_user}:(OI)(CI)M");
     let output = crate::winproc::no_window(&mut std::process::Command::new("icacls"))
         .arg(path.to_string_lossy().into_owned())
@@ -147,14 +175,12 @@ pub(crate) fn provision_org_plugins(path: &Path, grant_user: &str) -> Result<(),
         .arg(&grant_arg)
         .arg("/T")
         .output()
-        .map_err(|e| format!("spawn icacls: {e}"))?;
+        .map_err(ElevateError::Spawn)?;
     if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(format!(
-            "icacls grant failed (exit {:?}): {}",
-            output.status.code(),
-            stderr.trim()
-        ));
+        return Err(ElevateError::Icacls {
+            code: output.status.code(),
+            stderr: String::from_utf8_lossy(&output.stderr).trim().to_owned(),
+        });
     }
     tracing::info!(path = %path.display(), user = grant_user, "org-plugins provisioned with user Modify grant");
     Ok(())

@@ -8,9 +8,8 @@ use crate::gui::hosts::events::{HostUiEvent, ProbeCause};
 use crate::gui::ipc::{BridgeError, ErrorCode, ErrorScope, IpcReplyPayload};
 use crate::gui::{GuiApp, emit};
 use crate::ids::HostId;
-use crate::integration::{
-    HostAppSnapshot, ProfileState, ProxyHealth, find_host_by_id, proxy_probe,
-};
+use crate::integration::{HostAppSnapshot, ProfileState, ProxyHealth, find_host_by_id};
+use crate::proxy_probe;
 
 use serde_json::json;
 

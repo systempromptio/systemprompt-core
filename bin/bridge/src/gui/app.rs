@@ -15,7 +15,7 @@ use crate::gui::events::UiEvent;
 use crate::gui::menu;
 use crate::gui::state::{GatewayStatus, now_unix};
 use crate::gui::{GuiApp, PROBE_INTERVAL_SECS, dispatch, emit, first_run, hosts, tray, window};
-use crate::obs::output::diag;
+use crate::stdio::diag;
 
 const PROXY_STATS_TICK_SECS: u64 = 1;
 

@@ -17,7 +17,7 @@
 use serde::Serialize;
 
 use crate::integration::host_app::{AppInstallState, ProfileState, StaleReason};
-use crate::integration::proxy_probe::{ProxyHealth, ProxyProbeState};
+use crate::proxy_probe::{ProxyHealth, ProxyProbeState};
 use crate::verdict::Tone;
 
 /// What the reader is told about one agent.

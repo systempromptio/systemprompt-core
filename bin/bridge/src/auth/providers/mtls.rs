@@ -5,9 +5,9 @@
 
 use crate::auth::keystore;
 use crate::auth::providers::{AuthError, AuthFailedSource, AuthProvider};
-use crate::auth::types::{HelperOutput, MtlsRequest};
 use crate::config::Config;
 use crate::gateway::GatewayClient;
+use crate::gateway::types::{HelperOutput, MtlsRequest};
 use async_trait::async_trait;
 use systemprompt_identifiers::{SessionId, ValidatedUrl};
 

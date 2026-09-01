@@ -54,8 +54,8 @@ agents-status-cloud-:gui/state/verdicts.rs:IdentityCode
 overall-:gui/state/verdicts.rs:OverallCode
 agents-status-token-:gui/state/verdicts.rs:TokenCode
 setup-health-label-:gui/state/verdicts.rs:HealthCode
-proxy-state-:integration/proxy_probe/mod.rs:ProxyProbeState
-agents-status-proxy-:integration/proxy_probe/mod.rs:ProxyProbeState
+proxy-state-:proxy_probe/mod.rs:ProxyProbeState
+agents-status-proxy-:proxy_probe/mod.rs:ProxyProbeState
 mcp-auth-:proxy/mcp_probe/types.rs:McpAuthState
 host-profile-:integration/profile_state.rs:ProfileCode
 host-app-:integration/profile_state.rs:AppInstallState

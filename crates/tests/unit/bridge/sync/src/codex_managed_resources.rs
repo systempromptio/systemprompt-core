@@ -7,9 +7,9 @@ use systemprompt_bridge::gateway::manifest::{
     MANIFEST_SCHEMA_VERSION, ManagedMcpServer, SignedManifest, SkillEntry, ValidatedUrl,
 };
 use systemprompt_bridge::gateway::manifest_version::ManifestVersion;
+use systemprompt_bridge::host_sync::{HostSync, HostSyncCtx};
 use systemprompt_bridge::ids::{ManagedMcpServerName, Sha256Digest, SkillId, SkillName};
 use systemprompt_bridge::integration::codex_cli::CodexCliSync;
-use systemprompt_bridge::sync::{HostSync, HostSyncCtx};
 use systemprompt_test_fixtures::fixture_user_id;
 
 fn with_codex_home<R>(body: impl FnOnce(&Path) -> R) -> R {

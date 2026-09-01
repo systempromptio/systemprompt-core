@@ -6,7 +6,7 @@
 use std::process::ExitCode;
 
 use crate::dev_preview::{Options, fixtures, serve};
-use crate::obs::output::diag;
+use crate::stdio::diag;
 
 const DEFAULT_PORT: u16 = 4310;
 

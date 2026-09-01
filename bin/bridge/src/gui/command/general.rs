@@ -271,12 +271,12 @@ pub(super) fn diagnostics_dispatch(
         },
         "diagnostics.info" => CommandOutcome::Sync(Ok(json!({
             "version": crate::brand::brand().version,
-            "git_sha": crate::cli::diagnostics::short_sha(),
-            "git_sha_full": crate::cli::diagnostics::GIT_SHA,
-            "build_date": crate::cli::diagnostics::GIT_COMMIT_DATE,
-            "build_timestamp": crate::cli::diagnostics::BUILD_TIMESTAMP,
-            "branch": crate::cli::diagnostics::GIT_BRANCH,
-            "rendered": crate::cli::diagnostics::render(),
+            "git_sha": crate::buildinfo::short_sha(),
+            "git_sha_full": crate::buildinfo::GIT_SHA,
+            "build_date": crate::buildinfo::GIT_COMMIT_DATE,
+            "build_timestamp": crate::buildinfo::BUILD_TIMESTAMP,
+            "branch": crate::buildinfo::GIT_BRANCH,
+            "rendered": crate::buildinfo::render(),
         }))),
         _ => return None,
     })

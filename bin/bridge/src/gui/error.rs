@@ -31,6 +31,12 @@ pub enum GuiError {
     #[error("update: {0}")]
     Update(#[from] crate::update::UpdateError),
 
+    #[error("config: {0}")]
+    Config(#[from] crate::config::ConfigWriteError),
+
+    #[error("install: {0}")]
+    Install(#[from] crate::install::InstallError),
+
     #[error("profile: {context}: {source}")]
     Profile {
         context: String,

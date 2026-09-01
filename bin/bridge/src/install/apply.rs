@@ -11,8 +11,8 @@ use super::{
 use crate::config::paths::{self, Scope};
 use crate::config::{self as config};
 use crate::ids::PinnedPubKey;
-use crate::obs::output::diag;
 use crate::schedule::Os;
+use crate::stdio::diag;
 use std::path::{Path, PathBuf};
 use systemprompt_identifiers::ValidatedUrl;
 

@@ -15,7 +15,7 @@ use std::path::Path;
 use serde_json::json;
 
 use super::io_err;
-use crate::sync::ApplyError;
+use crate::host_sync::ApplyError;
 
 pub(super) fn mirror_plugin(
     src: &Path,

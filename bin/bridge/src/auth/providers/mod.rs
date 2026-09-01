@@ -3,8 +3,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::auth::types::HelperOutput;
 use crate::config;
+use crate::gateway::types::HelperOutput;
 use async_trait::async_trait;
 use systemprompt_identifiers::SessionId;
 use thiserror::Error;

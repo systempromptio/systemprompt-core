@@ -146,15 +146,24 @@ pub async fn run_loop(
     }
 }
 
+#[derive(Debug, thiserror::Error)]
+enum CommsError {
+    #[error("token: {0}")]
+    Token(#[from] crate::proxy::forward::ForwardError),
+    #[error("http: {0}")]
+    Http(#[from] reqwest::Error),
+    #[error("gateway rejected the comms subscription")]
+    Unauthorized,
+    #[error("gateway answered {0}")]
+    Status(reqwest::StatusCode),
+}
+
 async fn subscribe_once(
     gateway_base: &ValidatedUrl,
     token_cache: &TokenCache,
     client: &reqwest::Client,
-) -> Result<(), String> {
-    let token = token_cache
-        .current(AUTH_THRESHOLD_SECS)
-        .await
-        .map_err(|e| e.to_string())?;
+) -> Result<(), CommsError> {
+    let token = token_cache.current(AUTH_THRESHOLD_SECS).await?;
 
     let url = format!(
         "{base}/v1/bridge/stream",
@@ -165,22 +174,21 @@ async fn subscribe_once(
         .get(&url)
         .bearer_auth(token.token.expose())
         .send()
-        .await
-        .map_err(|e| e.to_string())?;
+        .await?;
 
     if response.status() == reqwest::StatusCode::UNAUTHORIZED {
         token_cache.invalidate().await;
-        return Err("gateway rejected the comms subscription".to_owned());
+        return Err(CommsError::Unauthorized);
     }
     if !response.status().is_success() {
-        return Err(format!("gateway answered {}", response.status()));
+        return Err(CommsError::Status(response.status()));
     }
 
     tracing::info!("comms stream open");
     let mut stream = response.bytes_stream();
     let mut buffer = String::new();
     while let Some(chunk) = stream.next().await {
-        let bytes = chunk.map_err(|e| e.to_string())?;
+        let bytes = chunk?;
         buffer.push_str(&String::from_utf8_lossy(&bytes));
         while let Some(idx) = buffer.find("\n\n") {
             let frame = buffer[..idx].to_owned();

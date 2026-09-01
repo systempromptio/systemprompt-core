@@ -28,7 +28,7 @@ pub use self::write::ConfigWriteError;
 
 static DEFAULT_GATEWAY: LazyLock<ValidatedUrl> = LazyLock::new(|| {
     ValidatedUrl::try_new(crate::brand::brand().default_gateway_url).unwrap_or_else(|_| {
-        crate::obs::output::diag("config: brand default_gateway_url failed validation");
+        crate::stdio::diag("config: brand default_gateway_url failed validation");
         std::process::abort()
     })
 });

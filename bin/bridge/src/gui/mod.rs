@@ -41,7 +41,7 @@ use crate::gui::events::UiEvent;
 use crate::gui::server::Server;
 use crate::gui::state::AppState;
 use crate::gui::window::SettingsWindow;
-use crate::obs::output::diag;
+use crate::stdio::diag;
 use tokio::runtime::Handle;
 
 pub(crate) const PROBE_INTERVAL_SECS: u64 = 30;

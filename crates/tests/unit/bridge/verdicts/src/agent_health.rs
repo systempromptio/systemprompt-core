@@ -20,7 +20,7 @@ use systemprompt_bridge::integration::agent_health::{
 use systemprompt_bridge::integration::host_app::{
     AppInstallState, HostAppSnapshot, ProfileState, StaleReason,
 };
-use systemprompt_bridge::integration::proxy_probe::{ProxyHealth, ProxyProbeState};
+use systemprompt_bridge::proxy_probe::{ProxyHealth, ProxyProbeState};
 
 const fn snapshot(profile_state: ProfileState, app: AppInstallState) -> HostAppSnapshot {
     HostAppSnapshot {

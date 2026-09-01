@@ -7,8 +7,7 @@ use std::process::ExitCode;
 use std::time::Duration;
 
 use crate::cli::args::{has_flag, parse_opt_flag};
-use crate::cli::output;
-use crate::sync;
+use crate::{stdio, sync};
 
 pub fn cmd_sync(args: &[String]) -> ExitCode {
     let watch = has_flag(args, "--watch");
@@ -44,7 +43,7 @@ fn run_once_print(allow_unsigned: bool, force_replay: bool, allow_tofu: bool) ->
         };
     match result {
         Ok(summary) => {
-            output::print_line(&summary.one_line());
+            stdio::print_line(&summary.one_line());
             ExitCode::SUCCESS
         },
         Err(err) => {

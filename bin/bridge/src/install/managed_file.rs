@@ -87,7 +87,7 @@ fn run(script: &str, prompt: &str) -> io::Result<()> {
 
 #[cfg(target_os = "windows")]
 fn write_elevated(path: &Path, bytes: &[u8], _prompt: &str) -> io::Result<()> {
-    use crate::integration::claude_desktop::elevate::{ElevatedJob, ManagedFileJob};
+    use crate::install::elevated_job::{ElevatedJob, ManagedFileJob};
     let staging = tempfile::Builder::new()
         .prefix("systemprompt-managed-")
         .tempdir()?;
@@ -103,12 +103,12 @@ fn write_elevated(path: &Path, bytes: &[u8], _prompt: &str) -> io::Result<()> {
         }],
         remove_files: Vec::new(),
     };
-    crate::integration::claude_desktop::elevate::elevate_and_run(staging.path(), &job)
+    crate::install::elevated_job::elevate_and_run(staging.path(), &job)
 }
 
 #[cfg(target_os = "windows")]
 fn remove_elevated(path: &Path, _prompt: &str) -> io::Result<()> {
-    use crate::integration::claude_desktop::elevate::ElevatedJob;
+    use crate::install::elevated_job::ElevatedJob;
     let staging = tempfile::Builder::new()
         .prefix("systemprompt-managed-")
         .tempdir()?;
@@ -119,7 +119,7 @@ fn remove_elevated(path: &Path, _prompt: &str) -> io::Result<()> {
         managed_files: Vec::new(),
         remove_files: vec![path.to_path_buf()],
     };
-    crate::integration::claude_desktop::elevate::elevate_and_run(staging.path(), &job)
+    crate::install::elevated_job::elevate_and_run(staging.path(), &job)
 }
 
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]

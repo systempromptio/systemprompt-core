@@ -152,7 +152,7 @@ check-crate-changelogs:
     ./scripts/check-crate-changelogs.sh
 
 # Check without building
-check: lint-schema lint-extensions lint-comments lint-inline-tests lint-test-value lint-layers lint-repo-construction lint-bridge-css-tokens lint-bridge-i18n lint-bridge-js-imports lint-bridge-no-window lint-bridge-verdicts
+check: lint-schema lint-extensions lint-comments lint-inline-tests lint-test-value lint-layers lint-repo-construction lint-bridge-css-tokens lint-bridge-i18n lint-bridge-js-imports lint-bridge-no-window lint-bridge-verdicts lint-bridge-layers
     cargo check --workspace
 
 # Check offline (uses cached .sqlx metadata, no database required)
@@ -275,6 +275,13 @@ bridge-bindings-check:
 # broken while Status, deriving it separately, called them fine.
 lint-bridge-verdicts:
     ./scripts/lint-bridge-verdicts.sh
+
+# The bridge is one crate, so `lint-layers` (a cargo-graph walk) cannot see
+# its module structure; it had integration ⇄ sync, integration ⇄ install and
+# a host installer reaching up into `gui`. This declares the module order and
+# fails on any `crate::<module>` reference that points upward.
+lint-bridge-layers:
+    ./scripts/lint-bridge-layers.sh
 
 # Reject unverified sqlx::query calls outside the allowlist
 lint-sqlx:

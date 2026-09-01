@@ -16,7 +16,8 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 
 use crate::gateway::manifest::{SignedManifest, SkillEntry};
-use crate::sync::{ApplyError, safe_id_segment, sha256_hex};
+use crate::hash::{safe_id_segment, sha256_hex};
+use crate::host_sync::ApplyError;
 
 const SIDECAR: &str = ".systemprompt-managed.json";
 

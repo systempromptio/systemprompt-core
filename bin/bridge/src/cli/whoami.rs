@@ -8,10 +8,9 @@ use std::process::ExitCode;
 use systemprompt_identifiers::SessionId;
 
 use crate::auth::ChainError;
-use crate::cli::output;
 use crate::gateway::GatewayClient;
-use crate::obs::output::diag;
-use crate::{auth, config};
+use crate::stdio::diag;
+use crate::{auth, config, stdio};
 
 pub fn cmd_whoami() -> ExitCode {
     match crate::proxy::block_on(async {
@@ -38,8 +37,8 @@ pub fn cmd_whoami() -> ExitCode {
         match client.fetch_whoami(out.token.expose()).await {
             Ok(value) => {
                 match serde_json::to_string_pretty(&value) {
-                    Ok(s) => output::print_line(&s),
-                    Err(_) => output::print_line(&format!("{value:?}")),
+                    Ok(s) => stdio::print_line(&s),
+                    Err(_) => stdio::print_line(&format!("{value:?}")),
                 }
                 ExitCode::SUCCESS
             },

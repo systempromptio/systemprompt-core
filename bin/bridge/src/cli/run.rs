@@ -8,7 +8,7 @@ use std::process::ExitCode;
 use systemprompt_identifiers::SessionId;
 
 use crate::auth::ChainError;
-use crate::obs::output::{diag, emit};
+use crate::stdio::{diag, emit_json};
 use crate::{auth, config};
 
 pub(super) fn cmd_run() -> ExitCode {
@@ -38,7 +38,7 @@ pub(super) fn cmd_run() -> ExitCode {
             return ExitCode::from(5);
         },
     };
-    if emit(&out).is_err() {
+    if emit_json(&out).is_err() {
         return ExitCode::from(2);
     }
     ExitCode::SUCCESS

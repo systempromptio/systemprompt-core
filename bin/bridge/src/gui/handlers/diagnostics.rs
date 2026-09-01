@@ -103,7 +103,7 @@ fn build_bundle() -> io::Result<PathBuf> {
     }
 
     zip.start_file("diagnostics.txt", opts)?;
-    zip.write_all(crate::cli::diagnostics::render().as_bytes())?;
+    zip.write_all(crate::buildinfo::render().as_bytes())?;
 
     if let Some(yaml) = crate::config::redaction::redacted_config() {
         zip.start_file("config.redacted.toml", opts)?;

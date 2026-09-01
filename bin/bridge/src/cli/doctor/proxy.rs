@@ -4,7 +4,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::integration::proxy_probe::{self, PeerIdentity, PortMatch};
+use crate::proxy::peer::{self, PeerIdentity};
+use crate::proxy_probe::{self, PortMatch};
 
 use super::Check;
 
@@ -14,7 +15,7 @@ pub fn check_proxy_listening() -> Check {
     let url = crate::proxy::loopback_origin();
     let bin = crate::brand::brand().binary_name;
 
-    match proxy_probe::probe_identity(port) {
+    match peer::probe_identity(port) {
         PeerIdentity::Ours(_) => {
             let health = proxy_probe::probe(Some(&url));
             let latency = health.latency_ms.unwrap_or_default();

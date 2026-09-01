@@ -42,7 +42,7 @@ pub(crate) const fn os_label(os: Os) -> &'static str {
         reason = "only the Windows branch is fallible; the signature stays uniform so callers need no cfg"
     )
 )]
-pub(crate) fn refresh_managed_mcp_servers() -> Result<String, String> {
+pub(crate) fn refresh_managed_mcp_servers() -> Result<String, MdmError> {
     #[cfg(target_os = "windows")]
     {
         windows::refresh_managed_mcp_servers()
@@ -54,7 +54,7 @@ pub(crate) fn refresh_managed_mcp_servers() -> Result<String, String> {
 }
 
 #[cfg(target_os = "windows")]
-pub(crate) fn remove_windows_policy() -> Result<bool, String> {
+pub(crate) fn remove_windows_policy() -> Result<bool, MdmError> {
     windows::remove_policy()
 }
 
@@ -66,7 +66,7 @@ pub(crate) fn remove_windows_policy() -> Result<bool, String> {
         reason = "only the Windows branch is fallible; the signature stays uniform so callers need no cfg"
     )
 )]
-fn write_empty_managed_mcp_servers() -> Result<String, String> {
+fn write_empty_managed_mcp_servers() -> Result<String, MdmError> {
     #[cfg(target_os = "windows")]
     {
         windows::write_managed_mcp_servers_value("[]")
@@ -82,15 +82,15 @@ pub(crate) struct ClaudeDesktopMdmSync;
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 #[async_trait::async_trait]
-impl crate::sync::host_sync::HostSync for ClaudeDesktopMdmSync {
+impl crate::host_sync::HostSync for ClaudeDesktopMdmSync {
     fn host_id(&self) -> &'static str {
         "claude-desktop"
     }
 
     async fn apply(
         &self,
-        _ctx: &crate::sync::host_sync::HostSyncCtx<'_>,
-    ) -> Result<(), crate::sync::ApplyError> {
+        _ctx: &crate::host_sync::HostSyncCtx<'_>,
+    ) -> Result<(), crate::host_sync::ApplyError> {
         match refresh_managed_mcp_servers() {
             Ok(line) => {
                 tracing::info!(
@@ -100,14 +100,14 @@ impl crate::sync::host_sync::HostSync for ClaudeDesktopMdmSync {
                 );
                 Ok(())
             },
-            Err(e) => Err(crate::sync::ApplyError::Io {
+            Err(e) => Err(crate::host_sync::ApplyError::Io {
                 context: format!("mdm refresh: {e}"),
                 source: std::io::Error::other(e),
             }),
         }
     }
 
-    fn clear(&self) -> Result<(), crate::sync::ApplyError> {
+    fn clear(&self) -> Result<(), crate::host_sync::ApplyError> {
         match write_empty_managed_mcp_servers() {
             Ok(line) => {
                 tracing::info!(
@@ -117,7 +117,7 @@ impl crate::sync::host_sync::HostSync for ClaudeDesktopMdmSync {
                 );
                 Ok(())
             },
-            Err(e) => Err(crate::sync::ApplyError::Io {
+            Err(e) => Err(crate::host_sync::ApplyError::Io {
                 context: format!("mdm clear: {e}"),
                 source: std::io::Error::other(e),
             }),
@@ -132,7 +132,7 @@ pub(crate) fn apply_mdm(
 ) -> Result<Vec<String>, MdmError> {
     match os {
         #[cfg(target_os = "windows")]
-        Os::Windows => windows::apply(gateway, pubkey).map_err(MdmError::Windows),
+        Os::Windows => windows::apply(gateway, pubkey),
         #[cfg(not(target_os = "windows"))]
         Os::Windows => {
             _ = (gateway, pubkey);
@@ -288,3 +288,6 @@ needs no rewrite. Rerun with --apply to write these directly.
         },
     }
 }
+
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+crate::register_host_sync!(ClaudeDesktopMdmSync);

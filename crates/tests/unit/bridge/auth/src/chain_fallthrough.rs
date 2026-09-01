@@ -2,9 +2,9 @@ use std::sync::Mutex;
 
 use async_trait::async_trait;
 use systemprompt_bridge::auth::providers::{AuthError, AuthFailedSource, AuthProvider};
-use systemprompt_bridge::auth::types::HelperOutput;
 use systemprompt_bridge::auth::{ChainError, evaluate_chain};
 use systemprompt_bridge::gateway::GatewayError;
+use systemprompt_bridge::gateway::types::HelperOutput;
 use systemprompt_bridge::ids::BearerToken;
 use systemprompt_identifiers::SessionId;
 

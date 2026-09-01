@@ -6,8 +6,8 @@
 use std::process::ExitCode;
 use std::sync::mpsc::channel;
 
-use crate::cli::output;
-use crate::obs::output::diag;
+use crate::stdio;
+use crate::stdio::diag;
 
 pub(super) fn cmd_proxy() -> ExitCode {
     match crate::proxy::start_default() {
@@ -19,7 +19,7 @@ pub(super) fn cmd_proxy() -> ExitCode {
             pid,
             config_dir,
         } => {
-            output::print_str(&format!(
+            stdio::print_str(&format!(
                 "{bin} proxy is already running on 127.0.0.1:{port} (pid {pid}, config \
                  {config_dir}) — nothing to do.\n",
                 bin = crate::brand::brand().binary_name,
@@ -45,7 +45,7 @@ pub(super) fn cmd_proxy() -> ExitCode {
         },
     };
 
-    output::print_str(&format!(
+    stdio::print_str(&format!(
         "{bin} proxy listening on {origin}\n\
          \n\
          Point an Anthropic-API client (Claude Code, Claude Desktop) at it:\n\
@@ -66,7 +66,7 @@ pub(super) fn cmd_proxy() -> ExitCode {
         Ok(()) => {
             _ = rx.recv();
             crate::proxy::portfile::clear();
-            output::print_str(&format!(
+            stdio::print_str(&format!(
                 "\n{} proxy stopped.\n",
                 crate::brand::brand().binary_name
             ));

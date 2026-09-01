@@ -8,7 +8,7 @@ use winit::event_loop::ActiveEventLoop;
 use crate::auth::setup;
 use crate::config::paths;
 use crate::gui::{GuiApp, window};
-use crate::obs::output::diag;
+use crate::stdio::diag;
 
 #[tracing::instrument(level = "info", skip(app, event_loop))]
 pub(crate) fn on_open_settings(app: &mut GuiApp, event_loop: &dyn ActiveEventLoop) {

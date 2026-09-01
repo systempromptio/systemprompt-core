@@ -51,7 +51,7 @@ pub enum SyncError {
     )]
     PathMissing { bin: &'static str, path: String },
     #[error("sync apply failed: {0}")]
-    ApplyFailed(crate::sync::apply::ApplyError),
+    ApplyFailed(crate::host_sync::ApplyError),
     #[error("manifest replay rejected: incoming {incoming} is not newer than last applied {last}")]
     ReplayedManifest { last: String, incoming: String },
     #[error("manifest clock skew rejected: not_before {not_before} outside +/- 5m of now {now}")]

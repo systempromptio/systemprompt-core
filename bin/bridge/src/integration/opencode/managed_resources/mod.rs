@@ -15,9 +15,8 @@
 
 use async_trait::async_trait;
 
+use crate::host_sync::{ApplyError, HostSync, HostSyncCtx};
 use crate::integration::managed_skills::{SkillDirPolicy, SkillTarget};
-use crate::sync::ApplyError;
-use crate::sync::host_sync::{HostSync, HostSyncCtx};
 
 mod config_json;
 

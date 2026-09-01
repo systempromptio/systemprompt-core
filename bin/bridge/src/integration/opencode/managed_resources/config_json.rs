@@ -8,8 +8,8 @@
 use serde_json::{Map, Value, json};
 
 use crate::gateway::manifest::ManagedMcpServer;
+use crate::host_sync::ApplyError;
 use crate::integration::claude_code_cli::json_io::{object_entry, read_json_object, write_json};
-use crate::sync::ApplyError;
 
 use super::super::config::user_config_path;
 

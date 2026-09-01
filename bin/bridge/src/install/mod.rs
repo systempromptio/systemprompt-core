@@ -8,11 +8,14 @@ pub mod bootstrap;
 mod builders;
 #[cfg(target_os = "macos")]
 pub(crate) mod elevate;
+#[cfg(target_os = "windows")]
+pub(crate) mod elevated_job;
 pub mod elevation_script;
 mod error;
 pub(crate) mod managed_file;
 pub(crate) mod managed_mcp;
 pub(crate) mod mdm;
+pub mod reg_values;
 mod schedule_apply;
 mod schedule_emit;
 mod summary;
@@ -37,8 +40,8 @@ pub use summary::{render_install_summary, render_uninstall_summary};
 
 use crate::config::paths;
 use crate::ids::PinnedPubKey;
-use crate::obs::output::diag;
 use crate::schedule::Os;
+use crate::stdio::diag;
 #[cfg(target_os = "macos")]
 pub use mdm::macos::{
     build_mobileconfig as build_macos_mobileconfig, build_prefs_plist as build_macos_prefs_plist,
@@ -183,19 +186,6 @@ pub fn uninstall(purge: bool) -> Result<UninstallSummary, InstallError> {
         }
     }
 
-    if let Some(target) = crate::integration::cowork_plugins::resolve_target()
-        && let Err(e) = crate::integration::cowork_plugins::clear_all(&target)
-    {
-        diag(&format!("warning: Cowork enable-key cleanup failed: {e}"));
-    }
-
-    // Why: the plugin dirs are gone by now, but `~/.claude` still enables them
-    // and still carries their `hooks.json` — hooks that would keep firing at a
-    // loopback port this uninstall guarantees will never come up again.
-    if let Err(e) = crate::integration::claude_code_cli::clear_install() {
-        diag(&format!("warning: Claude Code CLI cleanup failed: {e}"));
-    }
-
     let schedule = remove_schedule();
     if let ScheduleRemoval::Failed(e) = &schedule {
         diag(&format!("warning: scheduled sync job removal failed: {e}"));
@@ -246,8 +236,8 @@ fn remove_managed_profile() -> ManagedProfileOutcome {
         },
         Ok(false) => ManagedProfileOutcome::NotInstalled("Windows Policies\\Claude"),
         Err(e) => {
-            diag(&e);
-            ManagedProfileOutcome::RemoveFailed(e)
+            diag(&e.to_string());
+            ManagedProfileOutcome::RemoveFailed(e.to_string())
         },
     }
 }

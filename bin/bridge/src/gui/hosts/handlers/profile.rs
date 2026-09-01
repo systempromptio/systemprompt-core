@@ -15,7 +15,7 @@ use crate::gui::hosts::events::{HostUiEvent, ProbeCause};
 use crate::gui::ipc::{BridgeError, ErrorCode, ErrorScope};
 use crate::gui::{GuiApp, emit};
 use crate::ids::HostId;
-use crate::integration::{GeneratedProfile, ProfileGenInputs, find_host_by_id, proxy_probe};
+use crate::integration::{GeneratedProfile, ProfileGenInputs, find_host_by_id};
 
 use super::finish;
 
@@ -206,7 +206,8 @@ async fn generate_profile_for(
     // loopback secret against *their* port produces exactly the 403 this
     // profile is supposed to prevent.
     let port = crate::proxy::resolved_port();
-    if let proxy_probe::PeerIdentity::Foreign(who) = proxy_probe::probe_identity(port) {
+    if let crate::proxy::peer::PeerIdentity::Foreign(who) = crate::proxy::peer::probe_identity(port)
+    {
         return Err(GuiError::Profile {
             context: "proxy port held by another install".into(),
             source: std::io::Error::new(

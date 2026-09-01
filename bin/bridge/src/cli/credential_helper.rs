@@ -87,7 +87,7 @@ fn emit_codex() -> ExitCode {
     ExitCode::SUCCESS
 }
 
-fn emit_claude(out: &auth::types::HelperOutput) -> ExitCode {
+fn emit_claude(out: &crate::gateway::types::HelperOutput) -> ExitCode {
     match serde_json::to_string(out) {
         Ok(s) => {
             println!("{s}");

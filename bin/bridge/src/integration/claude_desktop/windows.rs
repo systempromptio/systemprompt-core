@@ -91,7 +91,7 @@ pub(super) fn install_profile(path: &str) -> std::io::Result<()> {
     let elevated = winproc::is_elevated();
     tracing::info!(path, elevated, "installing Claude Desktop profile");
     let body = std::fs::read_to_string(path)?;
-    let entries = super::reg_profile::parse_reg_entries(&body);
+    let entries = crate::install::reg_values::parse_reg_entries(&body);
     tracing::info!(
         path,
         parsed_values = entries.len(),
@@ -108,24 +108,26 @@ pub(super) fn install_profile(path: &str) -> std::io::Result<()> {
             tracing::error!(error = %e, path, "managed Claude policy write failed");
             std::io::Error::other(e.to_string())
         })?;
-        if let Some(org) = super::elevate::ElevatedJob::org_plugins_for_current_user() {
-            super::elevate::provision_org_plugins(&org.path, &org.grant_user).map_err(|e| {
-                tracing::error!(error = %e, "org-plugins provisioning failed");
-                std::io::Error::other(format!("org-plugins provisioning failed: {e}"))
-            })?;
+        if let Some(org) = crate::install::elevated_job::ElevatedJob::org_plugins_for_current_user()
+        {
+            crate::install::elevated_job::provision_org_plugins(&org.path, &org.grant_user)
+                .map_err(|e| {
+                    tracing::error!(error = %e, "org-plugins provisioning failed");
+                    std::io::Error::other(format!("org-plugins provisioning failed: {e}"))
+                })?;
         }
     } else {
         let stage_dir = std::path::Path::new(path)
             .parent()
             .map_or_else(std::env::temp_dir, std::path::Path::to_path_buf);
-        let job = super::elevate::ElevatedJob {
+        let job = crate::install::elevated_job::ElevatedJob {
             reg_path: Some(path.to_owned()),
-            org_plugins: super::elevate::ElevatedJob::org_plugins_for_current_user(),
+            org_plugins: crate::install::elevated_job::ElevatedJob::org_plugins_for_current_user(),
             clear_values: Vec::new(),
             managed_files: Vec::new(),
             remove_files: Vec::new(),
         };
-        super::elevate::elevate_and_run(&stage_dir, &job)?;
+        crate::install::elevated_job::elevate_and_run(&stage_dir, &job)?;
     }
     tracing::info!(
         value_count = entries.len(),
@@ -150,14 +152,14 @@ pub(super) fn remove_profile() -> std::io::Result<ProfileRemoval> {
     // same staged-and-elevated route the install uses rather than failing with
     // status 5.
     let stage_dir = std::env::temp_dir();
-    let job = super::elevate::ElevatedJob {
+    let job = crate::install::elevated_job::ElevatedJob {
         reg_path: None,
         org_plugins: None,
         clear_values: KEYS_OF_INTEREST.iter().map(|k| (*k).to_owned()).collect(),
         managed_files: Vec::new(),
         remove_files: Vec::new(),
     };
-    super::elevate::elevate_and_run(&stage_dir, &job)?;
+    crate::install::elevated_job::elevate_and_run(&stage_dir, &job)?;
     Ok(ProfileRemoval::Removed {
         path: Some(crate::cowork_compat::POLICY_SUBKEY.to_owned()),
     })

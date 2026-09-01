@@ -14,11 +14,7 @@ use serde_json::Value;
 use super::config::{self, KEYS_OF_INTEREST};
 use crate::sysproc;
 
-#[derive(Debug, Clone, Default)]
-pub(super) struct DomainRead {
-    pub source_path: Option<String>,
-    pub keys: BTreeMap<String, String>,
-}
+pub(super) use crate::integration::config_read::DomainRead;
 
 // Why: managed preferences are binary plists; `plutil` is the only reader
 // guaranteed present, and it renders the whole document as JSON in one call.
@@ -80,16 +76,12 @@ fn parse_into_keys(text: &str, source: &str) -> Option<DomainRead> {
             tracing::warn!(error = %e, source = %source, "opencode probe: JSON parse failed");
         })
         .ok()?;
-    let mut out = DomainRead {
-        source_path: Some(source.to_owned()),
-        keys: BTreeMap::new(),
-    };
-    for dotted in KEYS_OF_INTEREST {
-        if let Some(raw) = lookup_dotted(&value, dotted) {
-            out.keys.insert((*dotted).to_owned(), raw);
-        }
-    }
-    Some(out)
+    Some(DomainRead::collect(
+        source,
+        KEYS_OF_INTEREST,
+        |dotted| lookup_dotted(&value, dotted),
+        |_, raw| raw,
+    ))
 }
 
 // Why: model ids carry dots (`gpt-4.1`), so the `models` object is displayed
@@ -115,33 +107,5 @@ fn stringify(v: &Value) -> String {
 }
 
 pub(super) fn list_opencode_processes() -> Vec<String> {
-    let mut hits: Vec<String> = sysproc::list_processes()
-        .into_iter()
-        .filter_map(|p| {
-            let name_lower = p.name.to_ascii_lowercase();
-            let path_lower = p
-                .path
-                .as_deref()
-                .map(str::to_ascii_lowercase)
-                .unwrap_or_default();
-            if cfg!(target_os = "windows") {
-                if name_lower == "opencode.exe" {
-                    return Some(name_lower);
-                }
-            } else if path_lower.ends_with("/opencode")
-                || path_lower.contains("/opencode.app/")
-                || name_lower == "opencode"
-            {
-                return Some(if path_lower.is_empty() {
-                    name_lower
-                } else {
-                    path_lower
-                });
-            }
-            None
-        })
-        .collect();
-    hits.sort();
-    hits.dedup();
-    hits
+    sysproc::find_processes("opencode")
 }

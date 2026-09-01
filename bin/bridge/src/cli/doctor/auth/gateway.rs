@@ -15,7 +15,7 @@ use crate::cli::doctor::Check;
 pub async fn check_mint_jwt(
     cfg: &config::Config,
     checks: &mut Vec<Check>,
-) -> Option<auth::types::HelperOutput> {
+) -> Option<crate::gateway::types::HelperOutput> {
     let session_id = SessionId::generate();
     match auth::acquire_bearer(cfg, &session_id).await {
         Ok(out) => {
@@ -67,7 +67,7 @@ pub async fn check_gateway_reachable(
 
 pub async fn check_whoami(
     client: &GatewayClient,
-    bearer: Option<&auth::types::HelperOutput>,
+    bearer: Option<&crate::gateway::types::HelperOutput>,
     checks: &mut Vec<Check>,
 ) {
     let Some(out) = bearer else {

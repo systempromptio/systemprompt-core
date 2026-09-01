@@ -7,7 +7,7 @@ use std::fs;
 use std::path::Path;
 
 use crate::gateway::manifest::ManagedMcpServer;
-use crate::sync::{ApplyError, TomlError};
+use crate::host_sync::{ApplyError, TomlError};
 
 use super::super::config::user_config_path;
 use super::super::probe::write_dotted;

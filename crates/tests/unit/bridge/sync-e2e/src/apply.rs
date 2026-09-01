@@ -1193,7 +1193,7 @@ fn seed_stale_cache(dirs: &SandboxDirs, gateway: &str) {
             let url = systemprompt_identifiers::ValidatedUrl::try_new(gateway).unwrap();
             systemprompt_bridge::auth::cache::write(
                 &url,
-                &systemprompt_bridge::auth::types::HelperOutput {
+                &systemprompt_bridge::gateway::types::HelperOutput {
                     token: systemprompt_bridge::ids::BearerToken::new(STALE_TOKEN),
                     ttl: 3600,
                     headers: std::collections::HashMap::new(),

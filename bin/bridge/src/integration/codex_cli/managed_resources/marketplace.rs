@@ -8,7 +8,7 @@ use std::path::Path;
 
 use serde::Serialize;
 
-use crate::sync::ApplyError;
+use crate::host_sync::ApplyError;
 
 use super::{MARKETPLACE, PLUGIN_NAME, io_err};
 

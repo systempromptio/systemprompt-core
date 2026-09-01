@@ -24,6 +24,10 @@ pub enum SetupError {
     Path(String),
     #[error("{0}")]
     Io(String),
+    #[error("task join: {0}")]
+    Join(#[from] tokio::task::JoinError),
+    #[error("gateway: {0}")]
+    Gateway(#[from] crate::gateway::GatewayError),
     // Why: the user (or a superseding request) stopped this before it could
     // conclude. It is not a failure and must never be reported as one.
     #[error("cancelled")]

@@ -11,12 +11,11 @@ pub mod plugin_oauth;
 pub mod providers;
 pub mod secret;
 pub mod setup;
-pub mod types;
 
 use crate::auth::providers::{AuthError, AuthFailedSource, AuthProvider, AuthProviderRegistration};
-use crate::auth::types::HelperOutput;
 use crate::config;
-use crate::obs::output::diag;
+use crate::gateway::types::HelperOutput;
+use crate::stdio::diag;
 use systemprompt_identifiers::{SessionId, headers as sp_headers};
 use thiserror::Error;
 

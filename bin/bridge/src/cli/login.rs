@@ -17,11 +17,11 @@ use systemprompt_identifiers::{SessionId, ValidatedUrl};
 use crate::auth::loopback::LoopbackServer;
 use crate::auth::providers::session::{capture_on, device_link_url};
 use crate::auth::setup;
-use crate::auth::types::SessionPatRequest;
 use crate::cli::args::{has_flag, parse_opt_flag};
-use crate::cli::output;
 use crate::gateway::GatewayClient;
-use crate::obs::output::diag;
+use crate::gateway::types::SessionPatRequest;
+use crate::stdio;
+use crate::stdio::diag;
 
 pub fn cmd_login(args: &[String]) -> ExitCode {
     let gateway = parse_opt_flag(args, "--gateway");
@@ -61,10 +61,10 @@ pub fn cmd_login(args: &[String]) -> ExitCode {
     match setup::login(token.as_str(), gateway.as_deref()) {
         Ok(paths) => {
             let bin = crate::brand::brand().binary_name;
-            output::print_line(&format!("Stored PAT for {bin} helper."));
-            output::print_line(&format!("  config: {}", paths.config_file.display()));
-            output::print_line(&format!("  secret: {} (0600)", paths.pat_file.display()));
-            output::print_line(&format!("Next: run `{bin}` to fetch a JWT."));
+            stdio::print_line(&format!("Stored PAT for {bin} helper."));
+            stdio::print_line(&format!("  config: {}", paths.config_file.display()));
+            stdio::print_line(&format!("  secret: {} (0600)", paths.pat_file.display()));
+            stdio::print_line(&format!("Next: run `{bin}` to fetch a JWT."));
             ExitCode::SUCCESS
         },
         Err(e) => {
@@ -124,12 +124,12 @@ fn sso_code(gateway: Option<&str>, no_browser: bool) -> Result<String, String> {
     }
 
     let url = device_link_url(base_url.as_str(), None);
-    output::print_line("Open this URL on a machine with a browser and sign in:");
-    output::print_line("");
-    output::print_line(&format!("    {url}"));
-    output::print_line("");
-    output::print_line("After approving, the page shows a one-time code. Paste it here:");
-    output::print_line("");
+    stdio::print_line("Open this URL on a machine with a browser and sign in:");
+    stdio::print_line("");
+    stdio::print_line(&format!("    {url}"));
+    stdio::print_line("");
+    stdio::print_line("After approving, the page shows a one-time code. Paste it here:");
+    stdio::print_line("");
 
     let mut line = String::new();
     std::io::stdin()

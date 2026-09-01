@@ -4,6 +4,12 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+// Why: the credential-helper and session contracts were `auth::types`, which
+// made `gateway` depend on `auth` while `auth` depends on `gateway`. They are
+// the wire the two share, so they live here.
+pub mod auth;
+pub use auth::*;
+
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use systemprompt_identifiers::{ClientId, TenantId, UserId};

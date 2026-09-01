@@ -29,8 +29,7 @@ use std::io::{BufRead, BufReader, Write};
 use std::net::TcpListener;
 use std::path::{Path, PathBuf};
 
-use crate::cli::output::print_line;
-use crate::obs::output::diag;
+use crate::stdio::{diag, print_line};
 
 const MOCK_TAG: &str = "<script type=\"module\" src=\"/dev/mock-ipc.js\"></script>";
 

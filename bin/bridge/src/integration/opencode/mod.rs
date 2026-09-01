@@ -126,3 +126,5 @@ impl HostApp for OpenCodeHost {
         &[systemprompt_models::profile::ApiSurface::OpenAi]
     }
 }
+
+crate::register_host_sync!(OpenCodeSync);

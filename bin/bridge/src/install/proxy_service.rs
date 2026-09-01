@@ -12,7 +12,7 @@
 
 use std::time::{Duration, Instant};
 
-use crate::integration::proxy_probe::{self, PeerIdentity};
+use crate::proxy::peer::{self as proxy_probe, PeerIdentity};
 
 const READY_TIMEOUT: Duration = Duration::from_secs(6);
 const READY_POLL: Duration = Duration::from_millis(250);
@@ -107,7 +107,7 @@ fn wait_for_ready(resolved: u16) -> ProxyReadiness {
 pub fn ensure_running_reported() -> ProxyReadiness {
     let readiness = ensure_running();
     if let ProxyReadiness::Unavailable { port, reason } = &readiness {
-        crate::obs::output::diag(&format!(
+        crate::stdio::diag(&format!(
             "proxy: nothing is listening on 127.0.0.1:{port} — {reason}. Client config written \
              now names that port and will be refused until the proxy is up; start it with `{bin} \
              proxy` or register the supervisor with `{bin} install --apply-schedule`.",

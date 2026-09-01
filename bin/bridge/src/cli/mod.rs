@@ -17,7 +17,6 @@ mod install_claude_policy;
 pub mod login;
 pub mod logout;
 pub mod oauth_client;
-pub mod output;
 mod proxy;
 mod run;
 pub mod status;
@@ -30,7 +29,7 @@ pub mod whoami;
 use std::env;
 use std::process::ExitCode;
 
-use crate::obs::output::diag;
+use crate::stdio::{self, diag};
 
 pub fn run() -> ExitCode {
     let args: Vec<String> = env::args().collect();
@@ -64,7 +63,7 @@ pub fn run_with_args(args: &[String]) -> ExitCode {
         #[cfg(feature = "dev-preview")]
         Some("dev-web") => dev_web::cmd_dev_web(args),
         Some("--version" | "-V" | "version") => {
-            output::print_str(&format!(
+            stdio::print_str(&format!(
                 "{} {} ({}, {})\n",
                 crate::brand::brand().binary_name,
                 crate::brand::brand().version,
@@ -74,12 +73,12 @@ pub fn run_with_args(args: &[String]) -> ExitCode {
             ExitCode::SUCCESS
         },
         Some("help" | "--help" | "-h") => {
-            output::print_str(&crate::help());
+            stdio::print_str(&crate::help());
             ExitCode::SUCCESS
         },
         Some(other) => {
             diag(&format!("unknown command: {other}"));
-            output::eprint_str(&crate::help());
+            stdio::eprint_str(&crate::help());
             ExitCode::from(64)
         },
     }

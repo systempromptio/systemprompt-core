@@ -12,7 +12,7 @@ use tokio::sync::Mutex;
 
 use systemprompt_identifiers::SessionId;
 
-use crate::auth::types::HelperOutput;
+use crate::gateway::types::HelperOutput;
 use crate::proxy::forward::{ForwardError, ForwardResult};
 use crate::{auth, config};
 

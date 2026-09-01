@@ -9,8 +9,8 @@ use hyper::service::service_fn;
 use hyper_util::rt::TokioIo;
 use tokio::net::TcpListener;
 
-use systemprompt_bridge::auth::types::HelperOutput;
 use systemprompt_bridge::config::{Config, RuntimeConfig, SharedRuntimeConfig};
+use systemprompt_bridge::gateway::types::HelperOutput;
 use systemprompt_bridge::ids::{BearerToken, ProxySecret};
 use systemprompt_bridge::proxy::dispatch::handle_request;
 use systemprompt_bridge::proxy::server::{ProxyContext, ProxyStats};

@@ -149,7 +149,7 @@ pub struct HostModelView {
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 #[must_use]
 pub fn host_model_view(
-    health: &[crate::auth::types::ProviderHealth],
+    health: &[crate::gateway::types::ProviderHealth],
     accepted: &[ApiSurface],
 ) -> HostModelView {
     let mut seen = std::collections::HashSet::new();

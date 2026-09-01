@@ -243,7 +243,7 @@ async fn fetch_fresh_token() -> Option<Secret> {
             },
             Err(e @ AuthError::Failed { .. }) => {
                 had_failure = true;
-                crate::obs::output::diag(&format!("{}: {e}", p.name()));
+                crate::stdio::diag(&format!("{}: {e}", p.name()));
             },
         }
     }
@@ -255,7 +255,7 @@ async fn fetch_fresh_token() -> Option<Secret> {
             bin = %bin,
             "no auth provider is configured; run login to register a PAT before syncing",
         );
-        crate::obs::output::diag(&format!(
+        crate::stdio::diag(&format!(
             "no auth provider configured (tried: {tried}); run `{bin} login <sp-live-...>`"
         ));
     }

@@ -37,16 +37,14 @@ async fn run_session_login(
     cancel: &tokio_util::sync::CancellationToken,
 ) -> Result<(), setup::SetupError> {
     use crate::auth::providers::session::capture_device_link_code;
-    use crate::auth::types::{HelperOutput, SessionExchangeRequest, SessionPatRequest};
     use crate::gateway::GatewayClient;
+    use crate::gateway::types::{HelperOutput, SessionExchangeRequest, SessionPatRequest};
     use systemprompt_identifiers::SessionId;
 
     if let Some(g) = gateway.clone()
         && !g.trim().is_empty()
     {
-        tokio::task::spawn_blocking(move || setup::set_gateway_url(&g))
-            .await
-            .map_err(|e| setup::SetupError::Io(format!("set-gateway join: {e}")))??;
+        tokio::task::spawn_blocking(move || setup::set_gateway_url(&g)).await??;
     }
     let cfg = crate::config::load();
     let base = crate::config::gateway_url_or_default(&cfg);
@@ -67,27 +65,16 @@ async fn run_session_login(
             code,
             device_name: Some(default_device_name()),
         };
-        let pat = client
-            .session_pat_exchange(&req, &session_id)
-            .await
-            .map_err(|e| setup::SetupError::Io(e.to_string()))?;
+        let pat = client.session_pat_exchange(&req, &session_id).await?;
         let gw = gateway.clone();
-        tokio::task::spawn_blocking(move || setup::login(pat.as_str(), gw.as_deref()))
-            .await
-            .map_err(|e| setup::SetupError::Io(format!("login join: {e}")))??;
+        tokio::task::spawn_blocking(move || setup::login(pat.as_str(), gw.as_deref())).await??;
     } else {
         let req = SessionExchangeRequest { code };
-        let out: HelperOutput = client
-            .session_exchange(&req, &session_id)
-            .await
-            .map_err(|e| setup::SetupError::Io(e.to_string()))?
-            .into();
+        let out: HelperOutput = client.session_exchange(&req, &session_id).await?.into();
         let gw = gateway.clone();
-        tokio::task::spawn_blocking(move || setup::session_setup(gw.as_deref()))
-            .await
-            .map_err(|e| setup::SetupError::Io(format!("session setup join: {e}")))??;
+        tokio::task::spawn_blocking(move || setup::session_setup(gw.as_deref())).await??;
         if let Err(e) = crate::auth::cache::write(&base, &out) {
-            crate::obs::output::diag(&format!("session cache write failed (continuing): {e}"));
+            crate::stdio::diag(&format!("session cache write failed (continuing): {e}"));
         }
     }
     Ok(())

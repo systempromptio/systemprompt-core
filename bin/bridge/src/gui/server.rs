@@ -12,7 +12,7 @@ pub use crate::activity::{ActivityLog, LogEntry, activity_log};
 use crate::gui::events::UiEvent;
 use crate::gui::server_util::{constant_time_eq, mint_csrf_token};
 use crate::gui::state::AppState;
-use crate::obs::output::diag;
+use crate::stdio::diag;
 
 #[derive(Debug, Clone, Copy)]
 pub struct Server {

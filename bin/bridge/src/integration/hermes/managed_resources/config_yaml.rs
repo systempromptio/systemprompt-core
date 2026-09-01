@@ -11,7 +11,7 @@ use std::path::Path;
 use serde_yaml::Value;
 
 use crate::gateway::manifest::ManagedMcpServer;
-use crate::sync::ApplyError;
+use crate::host_sync::ApplyError;
 
 use super::super::config::{config_yaml_path, skills_dir};
 use super::super::probe::write_dotted;

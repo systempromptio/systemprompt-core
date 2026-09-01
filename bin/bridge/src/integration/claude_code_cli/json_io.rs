@@ -12,7 +12,7 @@ use serde_json::{Map, Value};
 
 use super::io_err;
 use crate::fsutil;
-use crate::sync::ApplyError;
+use crate::host_sync::ApplyError;
 
 pub fn read_optional_object(path: &Path) -> Result<Option<Map<String, Value>>, ApplyError> {
     let Some(text) =

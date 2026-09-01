@@ -4,9 +4,9 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::auth::providers::{AuthError, AuthFailedSource, AuthProvider};
-use crate::auth::types::HelperOutput;
 use crate::config::Config;
 use crate::gateway::GatewayClient;
+use crate::gateway::types::HelperOutput;
 use crate::ids::PatToken;
 use async_trait::async_trait;
 use std::{env, fs};

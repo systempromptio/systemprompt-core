@@ -9,10 +9,9 @@ use std::process::ExitCode;
 use systemprompt_identifiers::SessionId;
 
 use crate::auth::plugin_oauth;
-use crate::cli::output;
 use crate::gateway::GatewayClient;
-use crate::obs::output::diag;
-use crate::{auth, config};
+use crate::stdio::diag;
+use crate::{auth, config, stdio};
 
 pub fn cmd_oauth_client(args: &[String]) -> ExitCode {
     match args.get(2).map(String::as_str) {
@@ -20,7 +19,7 @@ pub fn cmd_oauth_client(args: &[String]) -> ExitCode {
         Some("rotate") => cmd_rotate(),
         Some(other) => {
             diag(&format!("unknown oauth-client subcommand: {other}"));
-            output::eprint_str(&format!(
+            stdio::eprint_str(&format!(
                 "usage: {} oauth-client [status | rotate]\n",
                 crate::brand::brand().binary_name
             ));
@@ -34,16 +33,16 @@ fn cmd_status() -> ExitCode {
         diag("oauth-client status: cache directory unresolvable");
         return ExitCode::from(1);
     };
-    output::print_line(&format!("creds path: {}", path.display()));
+    stdio::print_line(&format!("creds path: {}", path.display()));
     match plugin_oauth::load_creds() {
         Ok(Some(creds)) => {
-            output::print_line(&format!("client_id: {}", creds.client_id));
-            output::print_line(&format!("token endpoint: {}", creds.token_endpoint));
-            output::print_line(&format!("scopes: {}", creds.scopes.join(" ")));
+            stdio::print_line(&format!("client_id: {}", creds.client_id));
+            stdio::print_line(&format!("token endpoint: {}", creds.token_endpoint));
+            stdio::print_line(&format!("scopes: {}", creds.scopes.join(" ")));
             ExitCode::SUCCESS
         },
         Ok(None) => {
-            output::print_line(
+            stdio::print_line(
                 "status: not provisioned (run `bridge sync` once or `oauth-client rotate`)",
             );
             ExitCode::SUCCESS
@@ -78,12 +77,12 @@ fn cmd_rotate() -> ExitCode {
 
     match outer {
         Ok(creds) => {
-            output::print_line(&format!(
+            stdio::print_line(&format!(
                 "Rotated OAuth client secret for {}",
                 creds.client_id
             ));
-            output::print_line(&format!("scopes: {}", creds.scopes.join(" ")));
-            output::print_line(&format!("token endpoint: {}", creds.token_endpoint));
+            stdio::print_line(&format!("scopes: {}", creds.scopes.join(" ")));
+            stdio::print_line(&format!("token endpoint: {}", creds.token_endpoint));
             ExitCode::SUCCESS
         },
         Err(e) => {

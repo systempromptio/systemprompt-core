@@ -3,12 +3,11 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-mod error;
 mod hooks;
 pub(crate) mod hooks_schema;
 mod plugin;
 
-pub use error::{ApplyError, TomlError};
+pub(crate) use crate::host_sync::ApplyError;
 pub use plugin::HostFailure;
 
 pub const PLUGIN_INSTALLATION_PREFERENCE: &str = "required";
@@ -19,7 +18,7 @@ use crate::config::paths::{self, OrgPluginsLocation};
 use crate::config::{self as config};
 use crate::gateway::GatewayClient;
 use crate::gateway::manifest::{ManagedMcpServer, SignedManifest, UserInfo};
-use crate::sync::host_sync::{self, HostSyncCtx};
+use crate::host_sync::{self, HostSyncCtx};
 use std::fs;
 use std::path::Path;
 use systemprompt_identifiers::ValidatedUrl;

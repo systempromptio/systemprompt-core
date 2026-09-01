@@ -13,8 +13,7 @@ use std::path::Path;
 
 use async_trait::async_trait;
 
-use crate::sync::ApplyError;
-use crate::sync::host_sync::{HostSync, HostSyncCtx};
+use crate::host_sync::{ApplyError, HostSync, HostSyncCtx};
 
 mod config_yaml;
 mod skills;

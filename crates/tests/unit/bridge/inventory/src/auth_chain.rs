@@ -1,8 +1,8 @@
 use async_trait::async_trait;
 use systemprompt_bridge::auth::provider_chain;
 use systemprompt_bridge::auth::providers::{AuthError, AuthProvider};
-use systemprompt_bridge::auth::types::HelperOutput;
 use systemprompt_bridge::config::Config;
+use systemprompt_bridge::gateway::types::HelperOutput;
 use systemprompt_bridge::register_auth_provider;
 use systemprompt_identifiers::SessionId;
 

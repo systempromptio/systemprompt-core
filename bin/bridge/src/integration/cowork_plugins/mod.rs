@@ -23,8 +23,7 @@ use thiserror::Error;
 
 use async_trait::async_trait;
 
-use crate::sync::ApplyError;
-use crate::sync::host_sync::{HostSync, HostSyncCtx};
+use crate::host_sync::{ApplyError, HostSync, HostSyncCtx};
 
 #[derive(Clone, Copy, Debug)]
 pub struct CoworkSync;
@@ -77,3 +76,5 @@ pub enum CoworkPluginsError {
     #[error("cowork_settings.json `{key}` must be a JSON object")]
     ItemsShape { key: &'static str },
 }
+
+crate::register_host_sync!(CoworkSync);

@@ -12,7 +12,7 @@ use systemprompt_bridge::integration::agent_health::{
     AgentAction, AgentReason, AgentState, FleetHeadline,
 };
 use systemprompt_bridge::integration::host_app::StaleReason;
-use systemprompt_bridge::integration::proxy_probe::ProxyProbeState;
+use systemprompt_bridge::proxy_probe::ProxyProbeState;
 
 const FTL: &str = include_str!("../../../../../../bin/bridge/web/i18n/en-US/bridge.ftl");
 

@@ -20,7 +20,7 @@ use systemprompt_bridge::integration::agent_health::{
 use systemprompt_bridge::integration::host_app::{
     AppInstallState, HostAppSnapshot, ProfileState, StaleReason,
 };
-use systemprompt_bridge::integration::proxy_probe::{ProxyHealth, ProxyProbeState};
+use systemprompt_bridge::proxy_probe::{ProxyHealth, ProxyProbeState};
 
 fn fixtures_dir() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../../../bin/bridge/web/dev/fixtures")

@@ -6,7 +6,6 @@
 
 use std::path::Path;
 
-use systemprompt_bridge::auth::types::HelperOutput;
 use systemprompt_bridge::cli::doctor::auth::{
     check_gateway_reachable, check_hook_token_mint, check_mint_jwt, check_whoami,
 };
@@ -14,6 +13,7 @@ use systemprompt_bridge::cli::doctor::{Check, Status};
 use systemprompt_bridge::config;
 use systemprompt_bridge::gateway::GatewayClient;
 use systemprompt_bridge::gateway::manifest::ValidatedUrl;
+use systemprompt_bridge::gateway::types::HelperOutput;
 use systemprompt_bridge::ids::BearerToken;
 use tempfile::TempDir;
 use wiremock::matchers::{method, path};

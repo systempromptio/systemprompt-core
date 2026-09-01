@@ -12,7 +12,7 @@
 use std::collections::BTreeSet;
 use std::path::PathBuf;
 
-use crate::integration::proxy_probe::{self, PortMatch};
+use crate::proxy_probe::{self, PortMatch};
 
 use super::Check;
 

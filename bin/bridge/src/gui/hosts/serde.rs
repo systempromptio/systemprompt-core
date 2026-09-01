@@ -10,8 +10,8 @@ use crate::integration::agent_health::{
     AgentFleets, AgentSurface, AgentVerdict, HostHealthInputs, HostModelViewRef, SYNC_ONLY_AGENTS,
 };
 use crate::integration::host_app::{AppInstallState, ConfigFormat, HostKind, ProfileCode};
-use crate::integration::proxy_probe::ProxyProbeState;
 use crate::integration::{GeneratedProfile, HostAppSnapshot, ProxyHealth};
+use crate::proxy_probe::ProxyProbeState;
 use crate::verdict::Verdict;
 
 #[derive(Serialize)]

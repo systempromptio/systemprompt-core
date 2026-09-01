@@ -59,10 +59,8 @@ fn write_setting(app: &GuiApp, key: &str, value: &Value) -> Result<(), GuiError>
     }
     match key {
         "autostart" => set_autostart(app, as_bool(key, value)?),
-        "update_automatic" => config::set_update_automatic(as_bool(key, value)?)
-            .map_err(|e| GuiError::Io(std::io::Error::other(e.to_string()))),
-        "session_enabled" => config::set_session_enabled(as_bool(key, value)?)
-            .map_err(|e| GuiError::Io(std::io::Error::other(e.to_string()))),
+        "update_automatic" => Ok(config::set_update_automatic(as_bool(key, value)?)?),
+        "session_enabled" => Ok(config::set_session_enabled(as_bool(key, value)?)?),
         other => Err(GuiError::Io(std::io::Error::other(format!(
             "unknown setting: {other}"
         )))),
@@ -79,10 +77,8 @@ fn as_bool(key: &str, value: &Value) -> Result<bool, GuiError> {
 
 fn set_autostart(app: &GuiApp, enabled: bool) -> Result<(), GuiError> {
     if enabled {
-        let binary = update::installed_path()
-            .map_err(|e| GuiError::Io(std::io::Error::other(e.to_string())))?;
-        let lines = install::apply_gui_autostart(&binary)
-            .map_err(|e| GuiError::Io(std::io::Error::other(e.to_string())))?;
+        let binary = update::installed_path()?;
+        let lines = install::apply_gui_autostart(&binary)?;
         for line in lines {
             app.append_log(line);
         }

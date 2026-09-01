@@ -21,7 +21,7 @@ use std::process::ExitCode;
 
 use serde::Deserialize;
 
-use crate::cli::output;
+use crate::stdio;
 
 #[derive(Debug, Deserialize)]
 struct HookPayload {
@@ -65,7 +65,7 @@ pub fn cmd_comms_drain() -> ExitCode {
             "additionalContext": context,
         }
     });
-    output::print_str(&format!("{answer}\n"));
+    stdio::print_str(&format!("{answer}\n"));
     ExitCode::SUCCESS
 }
 

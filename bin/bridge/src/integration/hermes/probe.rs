@@ -3,16 +3,11 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::collections::BTreeMap;
 
 use super::config::{self, KEYS_OF_INTEREST};
 use crate::sysproc;
 
-#[derive(Debug, Clone, Default)]
-pub(super) struct DomainRead {
-    pub source_path: Option<String>,
-    pub keys: BTreeMap<String, String>,
-}
+pub(super) use crate::integration::config_read::DomainRead;
 
 pub(super) fn read_config() -> DomainRead {
     let path = config::config_yaml_path();
@@ -31,16 +26,12 @@ fn parse_into_keys(text: &str, source: &str) -> Option<DomainRead> {
             tracing::warn!(error = %e, source = %source, "hermes probe: YAML parse failed");
         })
         .ok()?;
-    let mut out = DomainRead {
-        source_path: Some(source.to_owned()),
-        keys: BTreeMap::new(),
-    };
-    for dotted in KEYS_OF_INTEREST {
-        if let Some(raw) = lookup_dotted(&value, dotted) {
-            out.keys.insert((*dotted).to_owned(), raw);
-        }
-    }
-    Some(out)
+    Some(DomainRead::collect(
+        source,
+        KEYS_OF_INTEREST,
+        |dotted| lookup_dotted(&value, dotted),
+        |_, raw| raw,
+    ))
 }
 
 fn lookup_dotted(root: &serde_yaml::Value, dotted: &str) -> Option<String> {
@@ -70,35 +61,7 @@ fn stringify(v: &serde_yaml::Value) -> String {
 }
 
 pub(super) fn list_hermes_processes() -> Vec<String> {
-    let mut hits: Vec<String> = sysproc::list_processes()
-        .into_iter()
-        .filter_map(|p| {
-            let name_lower = p.name.to_ascii_lowercase();
-            let path_lower = p
-                .path
-                .as_deref()
-                .map(str::to_ascii_lowercase)
-                .unwrap_or_default();
-            if cfg!(target_os = "windows") {
-                if name_lower == "hermes.exe" {
-                    return Some(name_lower);
-                }
-            } else if path_lower.ends_with("/hermes")
-                || path_lower.contains("/hermes.app/")
-                || name_lower == "hermes"
-            {
-                return Some(if path_lower.is_empty() {
-                    name_lower
-                } else {
-                    path_lower
-                });
-            }
-            None
-        })
-        .collect();
-    hits.sort();
-    hits.dedup();
-    hits
+    sysproc::find_processes("hermes")
 }
 
 // Why: mirrors the Codex probe's `write_dotted`, walking/creating nested

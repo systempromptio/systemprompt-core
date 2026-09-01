@@ -5,8 +5,7 @@ use systemprompt_bridge::integration::host_app::{
     ProfileGenInputs, ProfileState,
 };
 use systemprompt_bridge::integration::{find_host_by_id, host_apps};
-use systemprompt_bridge::register_host_app;
-use systemprompt_bridge::sync::host_sync;
+use systemprompt_bridge::{host_sync, register_host_app};
 
 #[test]
 fn host_apps_contains_builtins() {

@@ -5,8 +5,7 @@
 
 use std::process::ExitCode;
 
-use crate::cli::output;
-use crate::{config, obs};
+use crate::{config, stdio};
 
 pub mod auth;
 pub mod cowork;
@@ -64,7 +63,7 @@ pub(super) fn cmd_doctor() -> ExitCode {
             }
         },
         Err(e) => {
-            obs::output::diag(&format!("doctor: runtime init failed: {e}"));
+            stdio::diag(&format!("doctor: runtime init failed: {e}"));
             ExitCode::from(70)
         },
     }
@@ -126,5 +125,5 @@ fn render(checks: &[Check]) {
         "\nsummary: {} ok, {warns} warn, {fails} fail\n",
         checks.len() - fails - warns
     ));
-    output::print_str(&buf);
+    stdio::print_str(&buf);
 }

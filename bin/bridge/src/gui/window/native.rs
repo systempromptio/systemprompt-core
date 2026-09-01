@@ -141,7 +141,7 @@ impl SettingsWindow {
                 // Why: `windows_subsystem = "windows"` means a failure here has
                 // no console to print to. Without this the app simply does not
                 // appear — the commonest cause being a missing WebView2 runtime.
-                super::alert_user(
+                crate::user_alert::alert_user(
                     &format!("{} could not start", crate::brand::brand().app_name),
                     &format!("The embedded browser failed to initialise: {e}"),
                 );

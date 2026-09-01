@@ -4,13 +4,13 @@ use systemprompt_bridge::gateway::manifest::{
     ArtifactEntry, MANIFEST_SCHEMA_VERSION, SignedManifest,
 };
 use systemprompt_bridge::gateway::manifest_version::ManifestVersion;
+use systemprompt_bridge::host_sync::{HostSync, HostSyncCtx};
 use systemprompt_bridge::ids::{LibraryArtifactId, Sha256Digest};
 use systemprompt_bridge::integration::cowork_artifacts::CoworkArtifactsSync;
 use systemprompt_bridge::integration::cowork_artifacts::emit::{
     active_sinks, resolve_artifacts_dir, write_artifacts,
 };
 use systemprompt_bridge::integration::cowork_artifacts::sink::LIBRARY_STORE_FILE;
-use systemprompt_bridge::sync::{HostSync, HostSyncCtx};
 use systemprompt_test_fixtures::fixture_user_id;
 use tempfile::TempDir;
 

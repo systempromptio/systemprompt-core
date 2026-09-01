@@ -8,11 +8,10 @@ use std::process::ExitCode;
 use systemprompt_identifiers::ValidatedUrl;
 
 use crate::cli::args::{has_flag, parse_opt_flag};
-use crate::cli::output;
 use crate::ids::PinnedPubKey;
-use crate::install;
-use crate::obs::output::diag;
 use crate::schedule::Os;
+use crate::stdio::diag;
+use crate::{install, stdio};
 
 pub(super) fn cmd_install(args: &[String]) -> ExitCode {
     let print_mdm = parse_opt_flag(args, "--print-mdm")
@@ -51,7 +50,7 @@ pub(super) fn cmd_install(args: &[String]) -> ExitCode {
         apply_schedule,
     }) {
         Ok(summary) => {
-            output::print_str(&install::render_install_summary(&summary));
+            stdio::print_str(&install::render_install_summary(&summary));
             ExitCode::SUCCESS
         },
         Err(err) => {

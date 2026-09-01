@@ -26,8 +26,8 @@ use serde::Deserialize;
 use systemprompt_models::bridge::cowork_artifact::CoworkLibraryArtifactRecord;
 
 use crate::gateway::manifest::ArtifactEntry;
-use crate::sync::apply::ApplyError;
-use crate::sync::hash::safe_id_segment;
+use crate::hash::safe_id_segment;
+use crate::host_sync::ApplyError;
 
 pub const LIBRARY_STORE_FILE: &str = "library.json";
 

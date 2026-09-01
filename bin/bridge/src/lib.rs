@@ -22,6 +22,7 @@ pub mod activity;
 pub mod auth;
 pub mod basedirs;
 pub mod brand;
+pub mod buildinfo;
 pub mod cli;
 pub mod config;
 pub mod cowork_compat;
@@ -31,6 +32,8 @@ pub mod fsutil;
 pub mod gateway;
 #[cfg(any(target_os = "windows", target_os = "macos"))]
 pub mod gui;
+pub mod hash;
+pub mod host_sync;
 
 pub mod i18n;
 pub mod ids;
@@ -45,12 +48,15 @@ pub mod ipc_types;
 pub mod mcp_registry;
 pub mod obs;
 pub mod proxy;
+pub mod proxy_probe;
 pub mod schedule;
 #[cfg(any(target_os = "windows", target_os = "macos"))]
 pub(crate) mod single_instance;
+pub mod stdio;
 pub mod sync;
 pub(crate) mod sysproc;
 pub mod update;
+pub mod user_alert;
 pub mod validate;
 pub mod verdict;
 pub mod web_assets;

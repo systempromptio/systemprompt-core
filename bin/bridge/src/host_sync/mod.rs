@@ -12,7 +12,9 @@ use std::sync::LazyLock;
 use crate::gateway::GatewayClient;
 use crate::gateway::manifest::SignedManifest;
 
-use super::apply::ApplyError;
+mod error;
+
+pub use error::{ApplyError, TomlError};
 
 #[derive(Debug)]
 pub struct HostSyncCtx<'a> {
@@ -49,13 +51,16 @@ impl std::fmt::Debug for HostSyncRegistration {
     }
 }
 
+// Why: implementors register themselves with `register_host_sync!` beside
+// their type; nothing here names a host, so this module stays below all of
+// them.
 inventory::collect!(HostSyncRegistration);
 
 #[macro_export]
 macro_rules! register_host_sync {
     ($e:expr, priority = $p:expr $(,)?) => {
         ::inventory::submit! {
-            $crate::sync::host_sync::HostSyncRegistration { emitter: &$e, priority: $p }
+            $crate::host_sync::HostSyncRegistration { emitter: &$e, priority: $p }
         }
     };
     ($e:expr $(,)?) => {
@@ -63,14 +68,6 @@ macro_rules! register_host_sync {
     };
 }
 
-#[cfg(any(target_os = "macos", target_os = "windows"))]
-register_host_sync!(crate::install::mdm::ClaudeDesktopMdmSync);
-register_host_sync!(crate::integration::cowork_plugins::CoworkSync);
-register_host_sync!(crate::integration::cowork_artifacts::CoworkArtifactsSync);
-register_host_sync!(crate::integration::codex_cli::CodexCliSync);
-register_host_sync!(crate::integration::hermes::HermesSync);
-register_host_sync!(crate::integration::opencode::OpenCodeSync);
-register_host_sync!(crate::integration::claude_code_cli::ClaudeCodeCliSync);
 
 static REGISTRY: LazyLock<Vec<&'static dyn HostSync>> = LazyLock::new(|| {
     let mut regs: Vec<&'static HostSyncRegistration> =

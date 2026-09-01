@@ -21,7 +21,7 @@ pub(crate) fn cmd_gui() -> ExitCode {
         crate::single_instance::SingletonResult::Acquired(g) => g,
         crate::single_instance::SingletonResult::AlreadyRunning => {
             if crate::single_instance::ping_focus_running_instance() {
-                crate::obs::output::diag(
+                crate::stdio::diag(
                     "gui: another bridge instance is already running; focused its window",
                 );
                 return ExitCode::SUCCESS;
@@ -32,11 +32,11 @@ pub(crate) fn cmd_gui() -> ExitCode {
             // visibly: on a Finder launch this is the difference between an
             // explanation and an app that appears to do nothing.
             let app = crate::brand::brand().app_name;
-            crate::obs::output::diag(
+            crate::stdio::diag(
                 "gui: another bridge instance holds the lock but did not answer the focus \
                  request; exiting",
             );
-            crate::gui::window::alert_user(
+            crate::user_alert::alert_user(
                 &format!("{app} is already running"),
                 "It is not responding, so its window could not be opened. Quit it from the menu \
                  bar, then try again.",
@@ -44,7 +44,7 @@ pub(crate) fn cmd_gui() -> ExitCode {
             return ExitCode::FAILURE;
         },
         crate::single_instance::SingletonResult::Error(e) => {
-            crate::obs::output::diag(&format!("gui: singleton check failed: {e}; continuing"));
+            crate::stdio::diag(&format!("gui: singleton check failed: {e}; continuing"));
             return crate::gui::run();
         },
     };
@@ -55,6 +55,6 @@ pub(crate) fn cmd_gui() -> ExitCode {
 
 #[cfg(not(any(target_os = "windows", target_os = "macos")))]
 pub(super) fn cmd_gui() -> ExitCode {
-    crate::obs::output::diag("gui not supported on this platform");
+    crate::stdio::diag("gui not supported on this platform");
     ExitCode::from(64)
 }

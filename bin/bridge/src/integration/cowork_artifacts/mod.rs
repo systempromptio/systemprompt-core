@@ -27,8 +27,7 @@ pub mod sink;
 
 use async_trait::async_trait;
 
-use crate::sync::apply::ApplyError;
-use crate::sync::host_sync::{HostSync, HostSyncCtx};
+use crate::host_sync::{ApplyError, HostSync, HostSyncCtx};
 
 #[derive(Clone, Copy, Debug)]
 pub struct CoworkArtifactsSync;
@@ -53,3 +52,5 @@ impl HostSync for CoworkArtifactsSync {
         emit::remove_dir(&dir)
     }
 }
+
+crate::register_host_sync!(CoworkArtifactsSync);

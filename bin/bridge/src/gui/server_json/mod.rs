@@ -67,7 +67,7 @@ struct StatePayload<'a> {
     last_validation: Option<ValidationPayload<'a>>,
     last_validation_at_unix: Option<u64>,
     health: Verdict<HealthCode>,
-    provider_health: &'a [crate::auth::types::ProviderHealth],
+    provider_health: &'a [crate::gateway::types::ProviderHealth],
     sync_in_flight: bool,
     cached_token: Option<CachedTokenPayload>,
     token: Verdict<TokenCode>,

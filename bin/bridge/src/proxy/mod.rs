@@ -10,6 +10,7 @@ pub mod heartbeat;
 pub mod identity;
 pub mod keepalive;
 pub mod mcp_probe;
+pub mod peer;
 pub mod portfile;
 mod runtime;
 pub mod secret;
@@ -21,8 +22,8 @@ pub mod usage;
 use std::sync::{Arc, OnceLock};
 use std::time::Duration;
 
-use crate::integration::proxy_probe::PeerIdentity;
-use crate::obs::output::diag;
+use crate::stdio::diag;
+use peer::PeerIdentity;
 
 use runtime::runtime;
 pub use runtime::{block_on, reload_runtime_config, runtime_config, runtime_handle};
@@ -114,7 +115,7 @@ pub fn start_default() -> StartOutcome {
 
     for port in candidate_ports() {
         if port != 0 {
-            match crate::integration::proxy_probe::probe_identity(port) {
+            match peer::probe_identity(port) {
                 PeerIdentity::Ours(who) => {
                     return StartOutcome::AlreadyRunning {
                         port: who.port,
@@ -244,7 +245,7 @@ pub fn resolved_port() -> u16 {
 
 fn portfile_port() -> Option<u16> {
     let record = portfile::read()?;
-    match crate::integration::proxy_probe::probe_identity(record.port) {
+    match peer::probe_identity(record.port) {
         // Why: down, or answering without identifying itself, still leaves the
         // record the best guess — the port is sticky by design.
         PeerIdentity::Ours(_) | PeerIdentity::Unreachable | PeerIdentity::Unknown => {

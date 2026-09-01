@@ -7540,6 +7540,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "systemprompt-bridge-verdicts-tests"
+version = "0.0.11"
+dependencies = [
+ "serde",
+ "serde_json",
+ "serde_yaml_ng",
+ "systemprompt-bridge",
+]
+
+[[package]]
 name = "systemprompt-bridge-window-state-tests"
 version = "0.0.11"
 dependencies = [

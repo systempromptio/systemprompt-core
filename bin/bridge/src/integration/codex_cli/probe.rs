@@ -3,16 +3,11 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::collections::BTreeMap;
 
 use super::config::{self, KEYS_OF_INTEREST};
 use crate::sysproc;
 
-#[derive(Debug, Clone, Default)]
-pub(super) struct DomainRead {
-    pub source_path: Option<String>,
-    pub keys: BTreeMap<String, String>,
-}
+pub(super) use crate::integration::config_read::DomainRead;
 
 // Why: macOS writes these plists in the binary format, so this shells out —
 // `plutil` is the only reader guaranteed present, and adding a plist parser to
@@ -75,19 +70,12 @@ fn parse_into_keys(text: &str, source: &str) -> Option<DomainRead> {
             tracing::warn!(error = %e, source = %source, "codex probe: TOML parse failed");
         })
         .ok()?;
-    let mut out = DomainRead {
-        source_path: Some(source.to_owned()),
-        keys: BTreeMap::new(),
-    };
-    for dotted in KEYS_OF_INTEREST {
-        if let Some(raw) = lookup_dotted(&value, dotted) {
-            out.keys.insert(
-                (*dotted).to_owned(),
-                config::redact_if_sensitive(dotted, raw),
-            );
-        }
-    }
-    Some(out)
+    Some(DomainRead::collect(
+        source,
+        KEYS_OF_INTEREST,
+        |dotted| lookup_dotted(&value, dotted),
+        config::redact_if_sensitive,
+    ))
 }
 
 fn lookup_dotted(root: &toml::Value, dotted: &str) -> Option<String> {
@@ -110,35 +98,7 @@ fn stringify(v: &toml::Value) -> String {
 }
 
 pub(super) fn list_codex_processes() -> Vec<String> {
-    let mut hits: Vec<String> = sysproc::list_processes()
-        .into_iter()
-        .filter_map(|p| {
-            let name_lower = p.name.to_ascii_lowercase();
-            let path_lower = p
-                .path
-                .as_deref()
-                .map(str::to_ascii_lowercase)
-                .unwrap_or_default();
-            if cfg!(target_os = "windows") {
-                if name_lower == "codex.exe" {
-                    return Some(name_lower);
-                }
-            } else if path_lower.ends_with("/codex")
-                || path_lower.contains("/codex.app/")
-                || name_lower == "codex"
-            {
-                return Some(if path_lower.is_empty() {
-                    name_lower
-                } else {
-                    path_lower
-                });
-            }
-            None
-        })
-        .collect();
-    hits.sort();
-    hits.dedup();
-    hits
+    sysproc::find_processes("codex")
 }
 
 pub(super) fn write_dotted(target: &mut toml::Value, dotted: &str, value: toml::Value) -> bool {

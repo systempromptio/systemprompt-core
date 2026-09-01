@@ -174,6 +174,7 @@ fn fully_provisioned_sandbox_yields_no_failing_checks() {
 
     temp_env::with_vars(sandbox_vars(&home), || {
         plugin_oauth::store_creds(&OAuthClientCreds {
+            gateway: None,
             client_id: ClientId::new(format!("doctor-client-{}", std::process::id())),
             client_secret: "doctor-secret".into(),
             token_endpoint: format!("{uri}/oauth/token"),
@@ -256,6 +257,7 @@ fn hook_token_mint_rejection_is_reported_as_failure() {
 
     temp_env::with_vars(sandbox_vars(&home), || {
         plugin_oauth::store_creds(&OAuthClientCreds {
+            gateway: None,
             client_id: ClientId::new(format!("doctor-reject-{}", std::process::id())),
             client_secret: "doctor-secret".into(),
             token_endpoint: format!("{uri}/oauth/token"),

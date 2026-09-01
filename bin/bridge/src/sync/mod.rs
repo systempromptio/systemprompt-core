@@ -5,16 +5,12 @@
 
 pub(crate) mod apply;
 mod error;
-pub(crate) mod hash;
-pub mod host_sync;
 mod manifest;
 mod replay;
 mod summary;
 
-pub use apply::{ApplyError, HostFailure, PLUGIN_INSTALLATION_PREFERENCE, TomlError};
+pub use apply::{HostFailure, PLUGIN_INSTALLATION_PREFERENCE};
 pub use error::{CredentialRejection, SyncError};
-pub(crate) use hash::{safe_id_segment, sha256_hex};
-pub use host_sync::{HostSync, HostSyncCtx};
 pub use replay::{
     LastSyncState, ReplayStateError, SKEW_WINDOW_MINUTES, check_replay, check_skew, read_last_sync,
 };
@@ -177,8 +173,7 @@ async fn heal_org_plugins_scope() -> Option<paths::OrgPluginsLocation> {
     if ATTEMPTED.swap(true, Ordering::SeqCst) {
         return None;
     }
-    let org =
-        crate::integration::claude_desktop::elevate::ElevatedJob::org_plugins_for_current_user()?;
+    let org = crate::install::elevated_job::ElevatedJob::org_plugins_for_current_user()?;
     let stage_dir = std::env::temp_dir().join(crate::brand::brand().working_dir_name);
     if let Err(e) = fs::create_dir_all(&stage_dir) {
         tracing::warn!(error = %e, "could not create staging dir for org-plugins provisioning");
@@ -188,7 +183,7 @@ async fn heal_org_plugins_scope() -> Option<paths::OrgPluginsLocation> {
         path = %org.path.display(),
         "requesting one-time administrator approval to provision org-plugins for Cowork"
     );
-    let job = crate::integration::claude_desktop::elevate::ElevatedJob {
+    let job = crate::install::elevated_job::ElevatedJob {
         clear_values: Vec::new(),
         managed_files: Vec::new(),
         remove_files: Vec::new(),
@@ -196,7 +191,7 @@ async fn heal_org_plugins_scope() -> Option<paths::OrgPluginsLocation> {
         org_plugins: Some(org),
     };
     let outcome = tokio::task::spawn_blocking(move || {
-        crate::integration::claude_desktop::elevate::elevate_and_run(&stage_dir, &job)
+        crate::install::elevated_job::elevate_and_run(&stage_dir, &job)
     })
     .await;
     match outcome {
