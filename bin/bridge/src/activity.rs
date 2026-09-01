@@ -8,8 +8,8 @@ use std::collections::VecDeque;
 use std::fs::{File, OpenOptions};
 use std::io::{BufWriter, Write};
 use std::path::PathBuf;
+use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::{Arc, OnceLock};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use parking_lot::Mutex;
@@ -122,12 +122,6 @@ impl ActivityLog {
     }
 }
 
-static ACTIVITY_LOG: OnceLock<ActivityLog> = OnceLock::new();
-
-pub fn activity_log() -> &'static ActivityLog {
-    ACTIVITY_LOG.get_or_init(ActivityLog::new)
-}
-
 fn now_unix() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -206,7 +200,7 @@ impl PersistentWriter {
     }
 }
 
-pub fn install_persistent_writer() {
+pub fn install_persistent_writer(log: &ActivityLog) {
     let Some(path) = jsonl_path() else {
         return;
     };
@@ -220,7 +214,7 @@ pub fn install_persistent_writer() {
             return;
         },
     };
-    activity_log().add_emit_hook(Box::new(move |entry| {
+    log.add_emit_hook(Box::new(move |entry| {
         let Ok(line) = serde_json::to_string(entry) else {
             return;
         };

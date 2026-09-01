@@ -1,5 +1,5 @@
+use systemprompt_bridge::context::{BridgeContext, ProxyMode};
 use systemprompt_bridge::install::{InstallOptions, install};
-use systemprompt_bridge::proxy::{DEFAULT_PROXY_PORT, LoopbackEndpoint};
 use tempfile::TempDir;
 
 struct Dirs {
@@ -80,7 +80,7 @@ fn options() -> InstallOptions {
 fn a_root_owned_sudo_user_marker_is_ignored() {
     let dirs = Dirs::new();
     dirs.run(Some("root"), || {
-        install(&options(), &loopback())
+        install(&options(), &bridge())
             .expect("install succeeds under a user-scoped org-plugins root");
     });
     assert!(dirs.sentinel().is_file(), "sentinel written");
@@ -92,7 +92,7 @@ fn a_root_owned_sudo_user_marker_is_ignored() {
 fn an_empty_sudo_user_marker_is_ignored() {
     let dirs = Dirs::new();
     dirs.run(Some(""), || {
-        install(&options(), &loopback()).expect("install succeeds");
+        install(&options(), &bridge()).expect("install succeeds");
     });
     assert!(dirs.sentinel().is_file());
 }
@@ -102,7 +102,7 @@ fn an_empty_sudo_user_marker_is_ignored() {
 fn an_unresolvable_sudo_user_does_not_abort_the_install() {
     let dirs = Dirs::new();
     dirs.run(Some("no-such-user-987654"), || {
-        install(&options(), &loopback()).expect("ownership fixups are best-effort");
+        install(&options(), &bridge()).expect("ownership fixups are best-effort");
     });
     assert!(
         dirs.sentinel().is_file(),
@@ -116,7 +116,7 @@ fn a_resolvable_sudo_user_still_completes_the_install() {
     let dirs = Dirs::new();
     let me = std::env::var("USER").unwrap_or_else(|_| "root".to_owned());
     dirs.run(Some(&me), || {
-        install(&options(), &loopback()).expect("install succeeds");
+        install(&options(), &bridge()).expect("install succeeds");
     });
     assert!(dirs.sentinel().is_file());
     assert!(dirs.org_plugins().is_dir());
@@ -126,14 +126,14 @@ fn a_resolvable_sudo_user_still_completes_the_install() {
 fn install_is_idempotent() {
     let dirs = Dirs::new();
     let (first, second) = dirs.run(None, || {
-        let first = install(&options(), &loopback()).expect("first install");
-        let second = install(&options(), &loopback()).expect("second install");
+        let first = install(&options(), &bridge()).expect("first install");
+        let second = install(&options(), &bridge()).expect("second install");
         (first.location.path.clone(), second.location.path.clone())
     });
     assert_eq!(first, second, "both installs resolve the same location");
     assert!(dirs.sentinel().is_file());
 }
 
-fn loopback() -> LoopbackEndpoint {
-    LoopbackEndpoint::new(DEFAULT_PROXY_PORT, None)
+fn bridge() -> std::sync::Arc<BridgeContext> {
+    BridgeContext::start(ProxyMode::Attach).expect("runtime builds")
 }

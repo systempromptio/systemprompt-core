@@ -81,6 +81,8 @@ pub(crate) struct ForwardDeps<'a> {
     pub token_cache: &'a TokenCache,
     pub session_context: &'a SessionContext,
     pub stats: Arc<ProxyStats>,
+    pub activity: crate::activity::ActivityLog,
+    pub mcp_registry: Arc<crate::mcp_registry::McpRegistrySlot>,
 }
 
 #[tracing::instrument(
@@ -103,6 +105,8 @@ pub(crate) async fn forward(
         token_cache,
         session_context,
         stats,
+        activity,
+        mcp_registry,
     } = deps;
     let token = token_cache.current(REFRESH_THRESHOLD_SECS).await?;
 
@@ -113,7 +117,7 @@ pub(crate) async fn forward(
     // upstream has to be evicted by the plugin it was minted for, and the match
     // arm is the only place that name exists.
     let mut hook_plugin = None;
-    let (route, upstream_bearer) = match resolve_route(&parts.uri, gateway_base) {
+    let (route, upstream_bearer) = match resolve_route(&parts.uri, gateway_base, &mcp_registry) {
         RouteResolution::Gateway(url) => (
             Route {
                 url,
@@ -212,7 +216,8 @@ pub(crate) async fn forward(
         .bytes_stream()
         .map_ok(Frame::data)
         .map_err(std::io::Error::other);
-    let wrapped = usage::wrap_response_stream(&content_type, tap_enabled, stats, upstream_stream);
+    let wrapped =
+        usage::wrap_response_stream(&content_type, tap_enabled, stats, activity, upstream_stream);
     let body: ProxyBody = if content_type.contains("text/event-stream") {
         StreamBody::new(keepalive::SseKeepalive::new(
             Box::pin(wrapped),

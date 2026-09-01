@@ -96,7 +96,7 @@ pub fn run(ctx: Arc<BridgeContext>) -> ExitCode {
 
     let proxy = UiEventProxy::new(event_loop.create_proxy());
     install_termination_handlers(proxy.clone());
-    emit::install_log_emitter(proxy.clone());
+    emit::install_log_emitter(&ctx.activity, proxy.clone());
     let (tx, rx) = channel::<UiEvent>();
 
     let bridge_proxy = proxy.clone();
@@ -211,7 +211,9 @@ impl GuiApp {
         if self.server.is_none() {
             match Server::start(Arc::clone(&self.state), self.tx.clone()) {
                 Ok(s) => {
-                    Server::log().append(format!("settings ui served at {}", s.url()));
+                    self.ctx
+                        .activity
+                        .append(format!("settings ui served at {}", s.url()));
                     self.server = Some(s);
                 },
                 Err(e) => {
@@ -223,27 +225,15 @@ impl GuiApp {
         self.server.as_ref()
     }
 
-    #[expect(
-        clippy::unused_self,
-        reason = "method form keeps the app.append_log(..) call sites uniform across handlers"
-    )]
     pub(crate) fn append_log(&self, line: impl Into<String>) {
-        crate::activity::activity_log().append(line);
+        self.ctx.activity.append(line);
     }
 
-    #[expect(
-        clippy::unused_self,
-        reason = "method form keeps the app.append_log(..) call sites uniform across handlers"
-    )]
     pub(crate) fn append_log_warn(&self, line: impl Into<String>) {
-        crate::activity::activity_log().append_warn(line);
+        self.ctx.activity.append_warn(line);
     }
 
-    #[expect(
-        clippy::unused_self,
-        reason = "method form keeps the app.append_log(..) call sites uniform across handlers"
-    )]
     pub(crate) fn append_log_error(&self, line: impl Into<String>) {
-        crate::activity::activity_log().append_error(line);
+        self.ctx.activity.append_error(line);
     }
 }

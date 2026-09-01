@@ -5,19 +5,19 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::integration::host_app::ProbeEnv;
-use crate::proxy::LoopbackEndpoint;
-use crate::proxy::peer::{self, PeerIdentity};
+use crate::proxy::ProxyHandle;
+use crate::proxy::peer::PeerIdentity;
 use crate::proxy_probe::{self, PortMatch};
 
 use super::Check;
 
 #[must_use]
-pub fn check_proxy_listening(loopback: &LoopbackEndpoint) -> Check {
-    let port = loopback.port();
-    let url = loopback.origin();
+pub fn check_proxy_listening(proxy: &ProxyHandle) -> Check {
+    let port = proxy.port();
+    let url = proxy.loopback().origin();
     let bin = crate::brand::brand().binary_name;
 
-    match peer::probe_identity(port) {
+    match proxy.peer() {
         PeerIdentity::Ours(_) => {
             let health = proxy_probe::probe(Some(&url));
             let latency = health.latency_ms.unwrap_or_default();

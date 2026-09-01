@@ -138,10 +138,12 @@ pub(super) fn list_artifacts() -> Vec<MarketplaceItem> {
     out
 }
 
-pub(super) fn list_registry_mcp(loopback: &crate::proxy::LoopbackEndpoint) -> Vec<MarketplaceItem> {
-    let registry = crate::mcp_registry::snapshot();
+pub(super) fn list_registry_mcp(
+    loopback: &crate::proxy::LoopbackEndpoint,
+    registry: &crate::mcp_registry::McpRegistry,
+) -> Vec<MarketplaceItem> {
     let mut out = Vec::with_capacity(registry.len());
-    for (slug, upstream) in registry.iter() {
+    for (slug, upstream) in registry {
         let proxy_url = loopback.mcp_url(slug);
         let upstream_url = upstream.url.as_str().to_owned();
         out.push(MarketplaceItem {

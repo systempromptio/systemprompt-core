@@ -53,6 +53,7 @@ pub struct ProxyContext {
     pub session: Arc<SessionContext>,
     pub port: u16,
     pub started_at_unix: u64,
+    pub deps: super::ProxyDeps,
 }
 
 impl ProxyContext {
@@ -71,6 +72,7 @@ pub struct ServerParts {
     pub runtime_config: SharedRuntimeConfig,
     pub token_cache: Arc<TokenCache>,
     pub session: Arc<SessionContext>,
+    pub deps: super::ProxyDeps,
 }
 
 pub fn start(rt: &Handle, port: u16, parts: ServerParts) -> std::io::Result<ServedProxy> {
@@ -88,6 +90,7 @@ pub fn start_with_listener(
         runtime_config,
         token_cache,
         session,
+        deps,
     } = parts;
     let bound_port = listener.local_addr()?.port();
 
@@ -105,6 +108,7 @@ pub fn start_with_listener(
         session: Arc::clone(&session),
         port: bound_port,
         started_at_unix: crate::proxy::identity::now_unix(),
+        deps,
     };
 
     rt.spawn(run_listener(listener, ctx));

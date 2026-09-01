@@ -24,6 +24,7 @@ pub struct HostSyncCtx<'a> {
     pub client: &'a GatewayClient,
     pub bearer: &'a str,
     pub loopback: &'a crate::proxy::LoopbackEndpoint,
+    pub mcp_registry: &'a crate::mcp_registry::McpRegistry,
 }
 
 // Why: the `Any` bound lets the registry dedup by concrete emitter type —

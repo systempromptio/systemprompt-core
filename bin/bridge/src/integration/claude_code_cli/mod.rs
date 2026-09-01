@@ -122,6 +122,7 @@ fn apply_install(ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError> {
     // it and per-plugin `.mcp.json` files leaves the latter inert and misleading.
     let enforced = crate::install::managed_mcp::apply_policy(
         ctx.loopback,
+        ctx.mcp_registry,
         manifest.allow_claude_ai_connectors,
     ) == crate::install::managed_mcp::PolicyOutcome::Enforced;
 

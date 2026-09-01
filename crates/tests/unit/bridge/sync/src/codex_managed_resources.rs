@@ -93,9 +93,13 @@ fn ctx<'a>(
         client,
         bearer,
         loopback: &LOOPBACK,
+        mcp_registry: &EMPTY_REGISTRY,
     }
 }
 
+
+static EMPTY_REGISTRY: std::sync::LazyLock<systemprompt_bridge::mcp_registry::McpRegistry> =
+    std::sync::LazyLock::new(std::collections::HashMap::new);
 
 static LOOPBACK: std::sync::LazyLock<LoopbackEndpoint> = std::sync::LazyLock::new(|| {
     LoopbackEndpoint::new(systemprompt_bridge::proxy::DEFAULT_PROXY_PORT, None)

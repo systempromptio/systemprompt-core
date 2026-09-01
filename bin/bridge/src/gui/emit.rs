@@ -154,8 +154,11 @@ const fn gateway_state_str(status: &crate::gui::state::GatewayStatus) -> &'stati
     }
 }
 
-pub(crate) fn install_log_emitter(proxy: crate::gui::UiEventProxy) {
-    crate::activity::activity_log().add_emit_hook(Box::new(move |entry| {
+pub(crate) fn install_log_emitter(
+    activity: &crate::activity::ActivityLog,
+    proxy: crate::gui::UiEventProxy,
+) {
+    activity.add_emit_hook(Box::new(move |entry| {
         let value = serde_json::to_value(entry).unwrap_or(Value::Null);
         proxy.send_event(UiEvent::IpcEmit {
             channel: "log",

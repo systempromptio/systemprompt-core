@@ -6,8 +6,8 @@
 
 #![cfg(target_os = "macos")]
 
+use super::McpPayloadInputs;
 use crate::install::xml;
-use crate::proxy::LoopbackEndpoint;
 use std::path::Path;
 
 use super::MdmError;
@@ -23,7 +23,7 @@ const MOBILECONFIG_TMPL: &str = include_str!("../templates/mobileconfig.tmpl");
 const MOBILECONFIG_PUBKEY_LINE_TMPL: &str =
     include_str!("../templates/mobileconfig_pubkey_line.tmpl");
 
-fn loopback_api_key(loopback: &LoopbackEndpoint) -> String {
+fn loopback_api_key(loopback: &crate::proxy::LoopbackEndpoint) -> String {
     loopback
         .secret()
         .map(crate::ids::LoopbackSecret::into_inner)
@@ -41,7 +41,7 @@ fn egress_plist_block(indent: &str) -> String {
     reason = "these braces are template placeholders substituted with str::replace, not format args"
 )]
 pub fn build_prefs_plist(
-    loopback: &LoopbackEndpoint,
+    mcp: &McpPayloadInputs<'_>,
     gateway: &str,
     pubkey: Option<&str>,
 ) -> String {
@@ -50,9 +50,12 @@ pub fn build_prefs_plist(
         .unwrap_or_default();
     PREFS_PLIST_TMPL
         .replace("{gateway_esc}", &xml::escape(gateway))
-        .replace("{api_key_esc}", &xml::escape(&loopback_api_key(loopback)))
+        .replace(
+            "{api_key_esc}",
+            &xml::escape(&loopback_api_key(mcp.loopback)),
+        )
         .replace("{egress_block}", &egress_plist_block("  "))
-        .replace("{managed_mcp_block}", &managed_mcp_plist_block(loopback))
+        .replace("{managed_mcp_block}", &managed_mcp_plist_block(mcp))
         .replace("{pubkey_block}", &pubkey_block)
 }
 
@@ -61,7 +64,7 @@ pub fn build_prefs_plist(
     reason = "these braces are template placeholders substituted with str::replace, not format args"
 )]
 pub fn build_mobileconfig(
-    loopback: &LoopbackEndpoint,
+    mcp: &McpPayloadInputs<'_>,
     gateway: &str,
     pubkey: Option<&str>,
 ) -> String {
@@ -74,16 +77,19 @@ pub fn build_mobileconfig(
         .replace("{inner_uuid}", &xml::stable_uuid(INNER_PAYLOAD_IDENTIFIER))
         .replace("{outer_uuid}", &xml::stable_uuid(PAYLOAD_IDENTIFIER))
         .replace("{gateway_esc}", &xml::escape(gateway))
-        .replace("{api_key_esc}", &xml::escape(&loopback_api_key(loopback)))
+        .replace(
+            "{api_key_esc}",
+            &xml::escape(&loopback_api_key(mcp.loopback)),
+        )
         .replace("{egress_block}", &egress_plist_block("      "))
-        .replace("{managed_mcp_block}", &managed_mcp_plist_block(loopback))
+        .replace("{managed_mcp_block}", &managed_mcp_plist_block(mcp))
         .replace("{pubkey_block}", &pubkey_block)
 }
 
 // Why: Cowork reads an empty `<dict/>` under `oauth` as "needs OAuth, do
 // well-known discovery"; omitting the key disables discovery entirely.
-fn managed_mcp_plist_block(loopback: &LoopbackEndpoint) -> String {
-    let registry = crate::mcp_registry::snapshot();
+fn managed_mcp_plist_block(mcp: &McpPayloadInputs<'_>) -> String {
+    let McpPayloadInputs { loopback, registry } = *mcp;
     if registry.is_empty() {
         return String::new();
     }
@@ -128,7 +134,7 @@ fn validate_gateway(gateway: &str) -> Result<(), MdmError> {
 }
 
 pub(crate) fn apply(
-    loopback: &LoopbackEndpoint,
+    mcp: &McpPayloadInputs<'_>,
     gateway: &str,
     pubkey: Option<&str>,
 ) -> Result<Vec<String>, MdmError> {
@@ -136,7 +142,7 @@ pub(crate) fn apply(
 
     validate_gateway(gateway)?;
 
-    let plist = build_prefs_plist(loopback, gateway, pubkey);
+    let plist = build_prefs_plist(mcp, gateway, pubkey);
     let tmp_path =
         std::env::temp_dir().join(format!("{}.prefs.plist", crate::brand::brand().binary_name));
     fs::write(&tmp_path, plist.as_bytes()).map_err(|e| MdmError::Io {
@@ -232,7 +238,7 @@ fn apply_summary(
 }
 
 pub(crate) fn apply_mobileconfig(
-    loopback: &LoopbackEndpoint,
+    mcp: &McpPayloadInputs<'_>,
     gateway: &str,
     pubkey: Option<&str>,
 ) -> Result<Vec<String>, MdmError> {
@@ -241,7 +247,7 @@ pub(crate) fn apply_mobileconfig(
 
     validate_gateway(gateway)?;
 
-    let mobileconfig = build_mobileconfig(loopback, gateway, pubkey);
+    let mobileconfig = build_mobileconfig(mcp, gateway, pubkey);
     let out_path = std::env::temp_dir().join(format!(
         "{}.mobileconfig",
         crate::brand::brand().binary_name

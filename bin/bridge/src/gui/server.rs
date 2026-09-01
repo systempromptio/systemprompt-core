@@ -8,7 +8,6 @@ use std::net::TcpListener;
 use std::sync::Arc;
 use std::sync::mpsc::Sender;
 
-pub use crate::activity::{ActivityLog, LogEntry, activity_log};
 use crate::gui::events::UiEvent;
 use crate::gui::server_util::{constant_time_eq, mint_csrf_token};
 use crate::gui::state::AppState;
@@ -52,10 +51,6 @@ impl Server {
 
     pub const fn port(&self) -> u16 {
         self.port
-    }
-
-    pub fn log() -> &'static ActivityLog {
-        activity_log()
     }
 }
 

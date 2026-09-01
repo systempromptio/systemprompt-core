@@ -8,6 +8,7 @@ use std::time::{Duration, Instant};
 
 use reqwest::header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE};
 
+use crate::mcp_registry::McpRegistry;
 use crate::proxy::LoopbackEndpoint;
 
 mod rpc;
@@ -22,8 +23,7 @@ pub(super) const MCP_PROTOCOL_VERSION: &str = "2025-06-18";
 pub(super) const SESSION_HEADER: &str = "mcp-session-id";
 
 #[must_use]
-pub async fn probe_all(loopback: &LoopbackEndpoint) -> Vec<McpServerAuth> {
-    let registry = crate::mcp_registry::snapshot();
+pub async fn probe_all(loopback: &LoopbackEndpoint, registry: &McpRegistry) -> Vec<McpServerAuth> {
     let probed_at_unix = now_unix();
 
     if registry.is_empty() {
@@ -78,8 +78,12 @@ pub fn build_client() -> reqwest::Result<reqwest::Client> {
 }
 
 #[must_use]
-pub async fn probe_slug(loopback: &LoopbackEndpoint, slug: &str) -> Option<McpServerAuth> {
-    if !crate::mcp_registry::snapshot().contains_key(slug) {
+pub async fn probe_slug(
+    loopback: &LoopbackEndpoint,
+    registry: &McpRegistry,
+    slug: &str,
+) -> Option<McpServerAuth> {
+    if !registry.contains_key(slug) {
         return None;
     }
     let client = match build_client() {

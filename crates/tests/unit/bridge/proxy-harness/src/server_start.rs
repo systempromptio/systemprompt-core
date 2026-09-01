@@ -29,6 +29,11 @@ fn parts(uri: &str) -> ServerParts {
         runtime_config: runtime_config(uri),
         token_cache: empty_cache(),
         session: Arc::new(SessionContext::new()),
+        deps: systemprompt_bridge::proxy::ProxyDeps {
+            install_id: systemprompt_bridge::proxy::identity::InstallId::establish(),
+            mcp_registry: systemprompt_bridge::mcp_registry::empty_slot(),
+            activity: systemprompt_bridge::activity::ActivityLog::new(),
+        },
     }
 }
 

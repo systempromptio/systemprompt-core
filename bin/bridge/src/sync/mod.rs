@@ -41,7 +41,7 @@ pub fn warn_unsafe_flags(allow_unsigned: bool, force_replay: bool, allow_tofu: b
 
 #[tracing::instrument(level = "info")]
 pub async fn run_once(
-    loopback: &crate::proxy::LoopbackEndpoint,
+    bridge: &crate::context::BridgeContext,
     allow_unsigned: bool,
     force_replay: bool,
     allow_tofu: bool,
@@ -106,7 +106,7 @@ pub async fn run_once(
     let report = apply::apply_manifest(
         &fetch.client,
         fetch.bearer.expose(),
-        loopback,
+        bridge,
         &synced,
         &location,
     )

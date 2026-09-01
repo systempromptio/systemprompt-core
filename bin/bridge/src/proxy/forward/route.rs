@@ -7,7 +7,7 @@ use std::collections::BTreeMap;
 
 use systemprompt_identifiers::ValidatedUrl;
 
-use crate::mcp_registry;
+use crate::mcp_registry::{self, McpRegistrySlot};
 
 pub(super) struct Route {
     pub url: String,
@@ -24,9 +24,13 @@ pub(super) enum RouteResolution {
     },
 }
 
-pub(super) fn resolve_route(uri: &http::Uri, gateway_base: &ValidatedUrl) -> RouteResolution {
+pub(super) fn resolve_route(
+    uri: &http::Uri,
+    gateway_base: &ValidatedUrl,
+    registry: &McpRegistrySlot,
+) -> RouteResolution {
     if let Some(name) = parse_mcp_path(uri.path()) {
-        if let Some(entry) = mcp_registry::snapshot().get(name) {
+        if let Some(entry) = mcp_registry::snapshot(registry).get(name) {
             return RouteResolution::Mcp(Route {
                 url: entry.url.as_str().to_owned(),
                 extra_headers: entry.headers.clone(),
@@ -37,8 +41,8 @@ pub(super) fn resolve_route(uri: &http::Uri, gateway_base: &ValidatedUrl) -> Rou
         // every /mcp/<name> a 404 for the life of the process. A miss re-reads
         // the fragment once before answering — the sync process publishes into
         // its own memory, not this one's.
-        mcp_registry::rehydrate_from_disk();
-        return mcp_registry::snapshot().get(name).map_or_else(
+        mcp_registry::rehydrate_from_disk(registry);
+        return mcp_registry::snapshot(registry).get(name).map_or_else(
             || RouteResolution::UnknownMcp(name.to_owned()),
             |entry| {
                 RouteResolution::Mcp(Route {

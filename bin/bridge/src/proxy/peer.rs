@@ -4,7 +4,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::proxy::identity::WhoAmI;
+use crate::proxy::identity::{InstallId, WhoAmI};
 use crate::proxy_probe::{http_get_body, resolve_first_addr};
 
 /// Who is answering on a loopback port.
@@ -21,7 +21,7 @@ pub enum PeerIdentity {
 }
 
 #[must_use]
-pub fn probe_identity(port: u16) -> PeerIdentity {
+pub fn probe_identity(port: u16, ours: &InstallId) -> PeerIdentity {
     let addr = format!("127.0.0.1:{port}");
     let Some(resolved) = resolve_first_addr(&addr) else {
         return PeerIdentity::Unreachable;
@@ -49,7 +49,7 @@ pub fn probe_identity(port: u16) -> PeerIdentity {
     if !who.install_id.is_known() {
         return PeerIdentity::Unknown;
     }
-    if who.is_ours() {
+    if who.is_ours(ours) {
         PeerIdentity::Ours(who)
     } else {
         PeerIdentity::Foreign(who)

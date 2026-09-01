@@ -45,6 +45,8 @@ pub(super) async fn forward_to_gateway(
             token_cache: ctx.token_cache.as_ref(),
             session_context: ctx.session.as_ref(),
             stats: Arc::clone(&ctx.stats),
+            activity: ctx.deps.activity.clone(),
+            mcp_registry: Arc::clone(&ctx.deps.mcp_registry),
         },
     )
     .await
@@ -62,7 +64,7 @@ pub(super) async fn forward_to_gateway(
                 latency_ms,
                 "req out"
             );
-            crate::activity::activity_log().append_at(
+            ctx.deps.activity.append_at(
                 upstream_level(status),
                 format!("proxy: {method} {path} → {status} ({latency_ms}ms) [{req_id}]"),
             );
@@ -80,7 +82,7 @@ pub(super) async fn forward_to_gateway(
                     latency_ms,
                     "req out: client disconnected"
                 );
-                crate::activity::activity_log().append_warn(format!(
+                ctx.deps.activity.append_warn(format!(
                     "proxy: {method} {path} → client disconnected [{req_id}]"
                 ));
             } else {
@@ -93,7 +95,8 @@ pub(super) async fn forward_to_gateway(
                     error = %e,
                     "req out: forward error"
                 );
-                crate::activity::activity_log()
+                ctx.deps
+                    .activity
                     .append_error(format!("proxy: {method} {path} → error: {e} [{req_id}]"));
             }
             if let Some(challenge) = mcp_auth_challenge(&e, &path, cfg.gateway_base.as_ref()) {

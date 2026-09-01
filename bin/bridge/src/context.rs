@@ -15,7 +15,10 @@ use std::sync::Arc;
 use tokio::runtime::{Handle, Runtime};
 use tokio::task::JoinHandle;
 
-use crate::proxy::ProxyHandle;
+use crate::activity::ActivityLog;
+use crate::mcp_registry::{self, McpRegistrySlot};
+use crate::proxy::identity::InstallId;
+use crate::proxy::{ProxyDeps, ProxyHandle};
 
 /// Whether this process should own the loopback port or find the process that
 /// does.
@@ -29,6 +32,8 @@ pub enum ProxyMode {
 pub struct BridgeContext {
     runtime: OwnedRuntime,
     pub proxy: ProxyHandle,
+    pub mcp_registry: Arc<McpRegistrySlot>,
+    pub activity: ActivityLog,
 }
 
 impl std::fmt::Debug for BridgeContext {
@@ -42,11 +47,38 @@ impl std::fmt::Debug for BridgeContext {
 impl BridgeContext {
     pub fn start(mode: ProxyMode) -> std::io::Result<Arc<Self>> {
         let runtime = OwnedRuntime::build()?;
-        let proxy = match mode {
-            ProxyMode::Serve => ProxyHandle::serve(runtime.handle()),
-            ProxyMode::Attach => ProxyHandle::attach(runtime.handle()),
+        let activity = ActivityLog::new();
+        crate::activity::install_persistent_writer(&activity);
+        // Why: loaded in every mode, not just when serving — `install --apply`
+        // writes the managed-MCP policy from this registry and used to run in
+        // a process that had never read it.
+        let mcp_registry = mcp_registry::empty_slot();
+        mcp_registry::rehydrate_from_disk(&mcp_registry);
+        let deps = ProxyDeps {
+            install_id: InstallId::establish(),
+            mcp_registry: Arc::clone(&mcp_registry),
+            activity: activity.clone(),
         };
-        Ok(Arc::new(Self { runtime, proxy }))
+        let proxy = match mode {
+            ProxyMode::Serve => ProxyHandle::serve(runtime.handle(), deps),
+            ProxyMode::Attach => ProxyHandle::attach(runtime.handle(), deps),
+        };
+        Ok(Arc::new(Self {
+            runtime,
+            proxy,
+            mcp_registry,
+            activity,
+        }))
+    }
+
+    #[must_use]
+    pub fn mcp_registry(&self) -> Arc<mcp_registry::McpRegistry> {
+        mcp_registry::snapshot(&self.mcp_registry)
+    }
+
+    #[must_use]
+    pub const fn install_id(&self) -> &InstallId {
+        self.proxy.install_id()
     }
 
     #[must_use]

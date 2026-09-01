@@ -232,7 +232,7 @@ async fn tools_list_failure_does_not_downgrade() {
 
 #[tokio::test]
 async fn probe_all_empty_registry_yields_no_servers() {
-    let results = probe_all(&loopback()).await;
+    let results = probe_all(&loopback(), &std::collections::HashMap::new()).await;
     assert_eq!(results.len(), 1);
     assert_eq!(results[0].state, McpAuthState::NoServers);
 }
@@ -269,7 +269,7 @@ fn seed_registry(state: &std::path::Path, names: &[&str]) {
         serde_json::to_vec(&servers).expect("servers json"),
     )
     .expect("write fragment");
-    systemprompt_bridge::mcp_registry::rehydrate_from_disk();
+    systemprompt_bridge::mcp_registry::rehydrate_from_disk(&REGISTRY);
 }
 
 #[test]
@@ -281,7 +281,10 @@ fn probe_all_walks_the_registry_and_reports_each_server() {
             .enable_all()
             .build()
             .expect("runtime")
-            .block_on(probe_all(&loopback()));
+            .block_on(probe_all(
+                &loopback(),
+                &systemprompt_bridge::mcp_registry::snapshot(&REGISTRY),
+            ));
 
         let ids: Vec<&str> = results.iter().map(|r| r.id.as_str()).collect();
         assert_eq!(
@@ -322,6 +325,10 @@ fn probe_all_walks_the_registry_and_reports_each_server() {
         );
     });
 }
+
+static REGISTRY: std::sync::LazyLock<
+    std::sync::Arc<systemprompt_bridge::mcp_registry::McpRegistrySlot>,
+> = std::sync::LazyLock::new(systemprompt_bridge::mcp_registry::empty_slot);
 
 fn loopback() -> LoopbackEndpoint {
     LoopbackEndpoint::new(DEFAULT_PROXY_PORT, None)

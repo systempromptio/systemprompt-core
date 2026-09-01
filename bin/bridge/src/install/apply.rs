@@ -10,7 +10,9 @@ use super::{
 };
 use crate::config::paths::{self, Scope};
 use crate::config::{self as config};
+use crate::context::BridgeContext;
 use crate::ids::PinnedPubKey;
+use crate::mcp_registry::McpRegistry;
 use crate::proxy::LoopbackEndpoint;
 use crate::schedule::Os;
 use crate::stdio::diag;
@@ -20,8 +22,10 @@ use systemprompt_identifiers::ValidatedUrl;
 #[tracing::instrument(level = "info", skip(opts))]
 pub fn install(
     opts: &InstallOptions,
-    loopback: &LoopbackEndpoint,
+    bridge: &BridgeContext,
 ) -> Result<InstallSummary, InstallError> {
+    let loopback = bridge.proxy.loopback();
+    let registry = bridge.mcp_registry();
     let binary = resolve_binary_path()?;
     let location = resolve_org_plugins()?;
 
@@ -35,7 +39,7 @@ pub fn install(
     // URL must never be exposed to Cowork. The endpoint already names a proxy
     // that had to move off the default port, which this command cannot see
     // in-process because it runs separately from the proxy itself.
-    let mdm = run_mdm_step(opts, target_os, loopback)?;
+    let mdm = run_mdm_step(opts, target_os, loopback, &registry)?;
 
     let schedule = run_schedule_step(opts, &binary)?;
 
@@ -121,14 +125,16 @@ fn run_mdm_step(
     opts: &InstallOptions,
     target_os: Os,
     loopback: &LoopbackEndpoint,
+    registry: &McpRegistry,
 ) -> Result<MdmDisplay, InstallError> {
     let pubkey_str = opts.pubkey.as_ref().map(PinnedPubKey::as_str);
     let inference_base_url = loopback.origin();
+    let mcp = mdm::McpPayloadInputs { loopback, registry };
     if opts.apply_mobileconfig {
-        return run_apply_mobileconfig(loopback, &inference_base_url, pubkey_str);
+        return run_apply_mobileconfig(&mcp, &inference_base_url, pubkey_str);
     }
     if opts.apply {
-        return run_apply(target_os, loopback, &inference_base_url, pubkey_str);
+        return run_apply(target_os, &mcp, &inference_base_url, pubkey_str);
     }
     Ok(MdmDisplay::Snippet {
         os: target_os,
@@ -138,18 +144,18 @@ fn run_mdm_step(
 
 #[cfg(target_os = "macos")]
 fn run_apply_mobileconfig(
-    loopback: &LoopbackEndpoint,
+    mcp: &mdm::McpPayloadInputs<'_>,
     inference_base_url: &str,
     pubkey: Option<&str>,
 ) -> Result<MdmDisplay, InstallError> {
-    mdm::macos::apply_mobileconfig(loopback, inference_base_url, pubkey)
+    mdm::macos::apply_mobileconfig(mcp, inference_base_url, pubkey)
         .map(|lines| MdmDisplay::MobileconfigApplied { lines })
         .map_err(InstallError::MobileconfigApply)
 }
 
 #[cfg(not(target_os = "macos"))]
 const fn run_apply_mobileconfig(
-    _loopback: &LoopbackEndpoint,
+    _mcp: &mdm::McpPayloadInputs<'_>,
     _inference_base_url: &str,
     _pubkey: Option<&str>,
 ) -> Result<MdmDisplay, InstallError> {
@@ -158,11 +164,11 @@ const fn run_apply_mobileconfig(
 
 fn run_apply(
     target_os: Os,
-    loopback: &LoopbackEndpoint,
+    mcp: &mdm::McpPayloadInputs<'_>,
     inference_base_url: &str,
     pubkey: Option<&str>,
 ) -> Result<MdmDisplay, InstallError> {
-    mdm::apply_mdm(target_os, loopback, inference_base_url, pubkey)
+    mdm::apply_mdm(target_os, mcp, inference_base_url, pubkey)
         .map(|lines| MdmDisplay::Applied {
             os: target_os,
             lines,

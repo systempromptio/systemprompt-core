@@ -9,13 +9,13 @@ use std::path::PathBuf;
 use base64::Engine as _;
 use base64::engine::general_purpose::STANDARD as B64;
 use ed25519_dalek::{Signer, SigningKey};
+use systemprompt_bridge::context::{BridgeContext, ProxyMode};
 use systemprompt_bridge::gateway::manifest::{
     MANIFEST_SCHEMA_VERSION, ManifestError, SignedManifest, SignedManifestEnvelope, decode_payload,
     verify_envelope,
 };
 use systemprompt_bridge::gateway::manifest_version::ManifestVersion;
 use systemprompt_bridge::ids::ManifestSignature;
-use systemprompt_bridge::proxy::{DEFAULT_PROXY_PORT, LoopbackEndpoint};
 use systemprompt_test_fixtures::fixture_user_id;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -213,7 +213,7 @@ fn run_verified_sync(
                 .build()
                 .unwrap()
                 .block_on(systemprompt_bridge::sync::run_once(
-                    &loopback(),
+                    &bridge(),
                     false,
                     true,
                     allow_tofu,
@@ -404,6 +404,6 @@ fn version_floor_is_checked_against_the_compat_line_not_the_brand_display_versio
     }
 }
 
-fn loopback() -> LoopbackEndpoint {
-    LoopbackEndpoint::new(DEFAULT_PROXY_PORT, None)
+fn bridge() -> std::sync::Arc<BridgeContext> {
+    BridgeContext::start(ProxyMode::Attach).expect("runtime builds")
 }

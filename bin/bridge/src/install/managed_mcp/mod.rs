@@ -43,8 +43,8 @@ pub(crate) fn policy_dir() -> PathBuf {
 
 pub(crate) fn server_map(
     loopback: &crate::proxy::LoopbackEndpoint,
+    registry: &crate::mcp_registry::McpRegistry,
 ) -> Result<Map<String, Value>, std::io::Error> {
-    let registry = crate::mcp_registry::snapshot();
     let bearer = loopback.bearer()?;
     let mut slugs: Vec<&String> = registry.keys().collect();
     slugs.sort();
@@ -75,10 +75,11 @@ pub(crate) enum PolicyOutcome {
 
 pub(crate) fn apply_policy(
     loopback: &crate::proxy::LoopbackEndpoint,
+    registry: &crate::mcp_registry::McpRegistry,
     allow_claude_ai_connectors: bool,
 ) -> PolicyOutcome {
     let dir = policy_dir();
-    let servers = match server_map(loopback) {
+    let servers = match server_map(loopback, registry) {
         Ok(s) => s,
         Err(e) => {
             tracing::warn!(

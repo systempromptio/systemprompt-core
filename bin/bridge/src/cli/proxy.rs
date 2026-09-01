@@ -71,7 +71,7 @@ pub(super) fn cmd_proxy(ctx: &BridgeContext) -> ExitCode {
     }) {
         Ok(()) => {
             _ = rx.recv();
-            crate::proxy::portfile::clear();
+            ctx.proxy.forget_recorded_port();
             stdio::print_str(&format!(
                 "\n{} proxy stopped.\n",
                 crate::brand::brand().binary_name

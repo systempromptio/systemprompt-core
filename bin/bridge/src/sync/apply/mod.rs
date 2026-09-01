@@ -16,10 +16,10 @@ const LEGACY_SYNTHETIC_PLUGIN: &str = "systemprompt-managed";
 
 use crate::config::paths::{self, OrgPluginsLocation};
 use crate::config::{self as config};
+use crate::context::BridgeContext;
 use crate::gateway::GatewayClient;
 use crate::gateway::manifest::{ManagedMcpServer, SignedManifest, UserInfo};
 use crate::host_sync::{self, HostSyncCtx};
-use crate::proxy::LoopbackEndpoint;
 use std::fs;
 use std::path::Path;
 use systemprompt_identifiers::ValidatedUrl;
@@ -30,10 +30,11 @@ pub(crate) use plugin::PluginApplyOutcome as ApplyReport;
 pub(crate) async fn apply_manifest(
     client: &GatewayClient,
     bearer: &str,
-    loopback: &LoopbackEndpoint,
+    bridge: &BridgeContext,
     manifest: &SignedManifest,
     location: &OrgPluginsLocation,
 ) -> Result<ApplyReport, ApplyError> {
+    let loopback = bridge.proxy.loopback();
     let root = &location.path;
     let (meta_dir, staging_root) = prepare_dirs(root)?;
 
@@ -54,7 +55,8 @@ pub(crate) async fn apply_manifest(
     write_user(&meta_dir, manifest.user.as_ref())?;
     write_mcp_servers(&meta_dir, &mcp_servers)?;
 
-    crate::mcp_registry::publish(&mcp_servers);
+    crate::mcp_registry::publish(&bridge.mcp_registry, &mcp_servers);
+    let registry = bridge.mcp_registry();
 
     let plugin_mcp_servers = report.mcp_servers_by_plugin.clone();
     let ctx = HostSyncCtx {
@@ -64,6 +66,7 @@ pub(crate) async fn apply_manifest(
         client,
         bearer,
         loopback,
+        mcp_registry: &registry,
     };
     for emitter in host_sync::registry() {
         let host_id = emitter.host_id();

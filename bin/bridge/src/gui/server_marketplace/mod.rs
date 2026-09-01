@@ -33,6 +33,7 @@ use source::{MarketplaceCategory, MarketplaceSourceCtx, MarketplaceSourceRegistr
 
 pub fn build_listing(
     loopback: &crate::proxy::LoopbackEndpoint,
+    registry: &crate::mcp_registry::McpRegistry,
     mcp_auth: &[McpServerAuth],
 ) -> MarketplaceListing {
     let loc = paths::org_plugins_effective();
@@ -74,7 +75,7 @@ pub fn build_listing(
                 agents.extend(own(components::list_agents(&dir.join("agents"))));
                 hooks.extend(own(hooks::list_hooks(&dir.join("hooks"))));
             }
-            let mcp = components::list_registry_mcp(loopback);
+            let mcp = components::list_registry_mcp(loopback, registry);
             (
                 plugins,
                 dedup_by_id(skills),

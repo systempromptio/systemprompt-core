@@ -40,7 +40,7 @@ fn run_once_print(
     allow_tofu: bool,
 ) -> ExitCode {
     let result = ctx.block_on(sync::run_once(
-        ctx.proxy.loopback(),
+        ctx,
         allow_unsigned,
         force_replay,
         allow_tofu,

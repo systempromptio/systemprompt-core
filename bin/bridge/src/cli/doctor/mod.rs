@@ -7,7 +7,7 @@ use std::process::ExitCode;
 
 use crate::context::BridgeContext;
 use crate::integration::host_app::ProbeEnv;
-use crate::proxy::LoopbackEndpoint;
+use crate::proxy::ProxyHandle;
 use crate::{config, stdio};
 
 pub mod auth;
@@ -55,7 +55,7 @@ impl Check {
 }
 
 pub(super) fn cmd_doctor(ctx: &BridgeContext) -> ExitCode {
-    let (checks, any_fail) = ctx.block_on(run_checks(ctx.proxy.loopback()));
+    let (checks, any_fail) = ctx.block_on(run_checks(&ctx.proxy));
     render(&checks);
     if any_fail {
         ExitCode::from(11)
@@ -64,9 +64,9 @@ pub(super) fn cmd_doctor(ctx: &BridgeContext) -> ExitCode {
     }
 }
 
-pub async fn run_checks(loopback: &LoopbackEndpoint) -> (Vec<Check>, bool) {
+pub async fn run_checks(proxy: &ProxyHandle) -> (Vec<Check>, bool) {
     let cfg = config::load();
-    let env = ProbeEnv::from_loopback(loopback);
+    let env = ProbeEnv::from_loopback(proxy.loopback());
     let mut checks: Vec<Check> = vec![
         auth::check_config_file(),
         auth::check_credential_source(&cfg),
@@ -77,7 +77,7 @@ pub async fn run_checks(loopback: &LoopbackEndpoint) -> (Vec<Check>, bool) {
     let client = auth::check_gateway_reachable(&cfg, &mut checks).await;
     auth::check_whoami(&client, bearer.as_ref(), &mut checks).await;
     checks.push(auth::check_loopback_secret());
-    checks.push(proxy::check_proxy_listening(loopback));
+    checks.push(proxy::check_proxy_listening(proxy));
     checks.extend(proxy::check_proxy_client_config(&env));
     if let Some(check) = proxy::check_proxy_service() {
         checks.push(check);

@@ -24,12 +24,15 @@ use std::time::Duration;
 
 use tokio::runtime::Handle;
 
+use crate::activity::ActivityLog;
 use crate::config::{self, RuntimeConfig, SharedRuntimeConfig};
+use crate::mcp_registry::McpRegistrySlot;
 use crate::stdio::diag;
+use identity::InstallId;
 use peer::PeerIdentity;
 
 pub use loopback::LoopbackEndpoint;
-pub use server::{ProxyStats, ServedProxy};
+pub use server::{ProxyContext, ProxyStats, ServedProxy};
 
 pub const DEFAULT_PROXY_PORT: u16 = 48217;
 const REFRESH_TICK: Duration = Duration::from_mins(1);
@@ -68,9 +71,27 @@ pub enum ProxyRole {
 pub struct ProxyHandle {
     role: ProxyRole,
     loopback: LoopbackEndpoint,
+    deps: ProxyDeps,
     runtime: Handle,
     runtime_config: SharedRuntimeConfig,
     token_cache: Option<Arc<TokenCache>>,
+}
+
+/// The services a proxy shares with the rest of the process: who this install
+/// is, the managed-MCP routes, and the activity log its requests write to.
+#[derive(Clone)]
+pub struct ProxyDeps {
+    pub install_id: InstallId,
+    pub mcp_registry: Arc<McpRegistrySlot>,
+    pub activity: ActivityLog,
+}
+
+impl std::fmt::Debug for ProxyDeps {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ProxyDeps")
+            .field("install_id", &self.install_id)
+            .finish_non_exhaustive()
+    }
 }
 
 impl std::fmt::Debug for ProxyHandle {
@@ -83,9 +104,9 @@ impl std::fmt::Debug for ProxyHandle {
 }
 
 #[must_use]
-pub fn candidate_ports() -> Vec<u16> {
+pub fn candidate_ports(ours: &InstallId) -> Vec<u16> {
     let mut ports = Vec::with_capacity(11);
-    if let Some(preferred) = portfile::preferred_port() {
+    if let Some(preferred) = portfile::preferred_port(ours) {
         ports.push(preferred);
     }
     for p in DEFAULT_PROXY_PORT..=MAX_CANDIDATE_PORT {
@@ -114,13 +135,12 @@ impl ProxyHandle {
     // Why: the outcome is recorded in `role` rather than returned as an error
     // because a GUI that lost the port race is still a useful GUI.
     #[must_use]
-    pub fn serve(rt: &Handle) -> Self {
-        crate::mcp_registry::rehydrate_from_disk();
+    pub fn serve(rt: &Handle, deps: ProxyDeps) -> Self {
         let runtime_config = config::shared_from_loaded();
         let mut tried = Vec::new();
         let mut last_error = "no candidate port could be bound".to_owned();
 
-        let listener = match bind_candidate(rt, &mut tried, &mut last_error) {
+        let listener = match bind_candidate(rt, &deps.install_id, &mut tried, &mut last_error) {
             Bind::Listener(l) => l,
             Bind::Sibling {
                 port,
@@ -129,6 +149,7 @@ impl ProxyHandle {
             } => {
                 return Self::not_serving(
                     rt,
+                    deps,
                     runtime_config,
                     port,
                     ProxyRole::AlreadyRunning {
@@ -139,13 +160,13 @@ impl ProxyHandle {
                 );
             },
             Bind::Exhausted => {
-                return Self::failed(rt, runtime_config, tried, last_error);
+                return Self::failed(rt, deps, runtime_config, tried, last_error);
             },
         };
 
         let loopback_secret = match secret::proxy_init() {
             Ok(s) => s,
-            Err(e) => return Self::failed(rt, runtime_config, tried, e.to_string()),
+            Err(e) => return Self::failed(rt, deps, runtime_config, tried, e.to_string()),
         };
         let session_context = Arc::new(SessionContext::new());
         let token_cache = Arc::new(TokenCache::default_for_runtime(
@@ -156,18 +177,20 @@ impl ProxyHandle {
             runtime_config: Arc::clone(&runtime_config),
             token_cache: Arc::clone(&token_cache),
             session: session_context,
+            deps: deps.clone(),
         };
         let served = match server::start_with_listener(rt, listener, parts) {
             Ok(s) => s,
-            Err(e) => return Self::failed(rt, runtime_config, tried, e.to_string()),
+            Err(e) => return Self::failed(rt, deps, runtime_config, tried, e.to_string()),
         };
 
-        persist_and_announce(served.port);
+        persist_and_announce(served.port, &deps.install_id);
         rt.spawn(refresh_loop(Arc::clone(&token_cache)));
 
         Self {
             loopback: LoopbackEndpoint::new(served.port, Some(loopback_secret)),
             role: ProxyRole::Serving(served),
+            deps,
             runtime: rt.clone(),
             runtime_config,
             token_cache: Some(token_cache),
@@ -177,20 +200,28 @@ impl ProxyHandle {
     // Why: `install --apply`, `sync` and `doctor` run beside a serving bridge
     // and must find its port, not race it — so nothing is bound here.
     #[must_use]
-    pub fn attach(rt: &Handle) -> Self {
-        let port = portfile_port().unwrap_or(DEFAULT_PROXY_PORT);
-        Self::not_serving(rt, config::shared_from_loaded(), port, ProxyRole::Attached)
+    pub fn attach(rt: &Handle, deps: ProxyDeps) -> Self {
+        let port = portfile_port(&deps.install_id).unwrap_or(DEFAULT_PROXY_PORT);
+        Self::not_serving(
+            rt,
+            deps,
+            config::shared_from_loaded(),
+            port,
+            ProxyRole::Attached,
+        )
     }
 
     fn failed(
         rt: &Handle,
+        deps: ProxyDeps,
         runtime_config: SharedRuntimeConfig,
         tried: Vec<u16>,
         last_error: String,
     ) -> Self {
-        let port = portfile_port().unwrap_or(DEFAULT_PROXY_PORT);
+        let port = portfile_port(&deps.install_id).unwrap_or(DEFAULT_PROXY_PORT);
         Self::not_serving(
             rt,
+            deps,
             runtime_config,
             port,
             ProxyRole::Failed { tried, last_error },
@@ -199,6 +230,7 @@ impl ProxyHandle {
 
     fn not_serving(
         rt: &Handle,
+        deps: ProxyDeps,
         runtime_config: SharedRuntimeConfig,
         port: u16,
         role: ProxyRole,
@@ -206,10 +238,25 @@ impl ProxyHandle {
         Self {
             role,
             loopback: LoopbackEndpoint::new(port, None),
+            deps,
             runtime: rt.clone(),
             runtime_config,
             token_cache: None,
         }
+    }
+
+    #[must_use]
+    pub const fn install_id(&self) -> &InstallId {
+        &self.deps.install_id
+    }
+
+    #[must_use]
+    pub fn peer(&self) -> PeerIdentity {
+        peer::probe_identity(self.port(), &self.deps.install_id)
+    }
+
+    pub fn forget_recorded_port(&self) {
+        portfile::clear(&self.deps.install_id);
     }
 
     #[must_use]
@@ -258,10 +305,15 @@ impl ProxyHandle {
     }
 }
 
-fn bind_candidate(rt: &Handle, tried: &mut Vec<u16>, last_error: &mut String) -> Bind {
-    for port in candidate_ports() {
+fn bind_candidate(
+    rt: &Handle,
+    ours: &InstallId,
+    tried: &mut Vec<u16>,
+    last_error: &mut String,
+) -> Bind {
+    for port in candidate_ports(ours) {
         if port != 0 {
-            match peer::probe_identity(port) {
+            match peer::probe_identity(port, ours) {
                 PeerIdentity::Ours(who) => {
                     return Bind::Sibling {
                         port: who.port,
@@ -304,9 +356,9 @@ fn bind_candidate(rt: &Handle, tried: &mut Vec<u16>, last_error: &mut String) ->
     Bind::Exhausted
 }
 
-fn persist_and_announce(port: u16) {
+fn persist_and_announce(port: u16, ours: &InstallId) {
     if (DEFAULT_PROXY_PORT..=MAX_CANDIDATE_PORT).contains(&port) {
-        if let Err(e) = portfile::write(port) {
+        if let Err(e) = portfile::write(port, ours) {
             tracing::warn!(error = %e, port, "could not record the bound proxy port");
         }
     } else {
@@ -333,9 +385,9 @@ fn persist_and_announce(port: u16) {
     }
 }
 
-fn portfile_port() -> Option<u16> {
-    let record = portfile::read()?;
-    match peer::probe_identity(record.port) {
+fn portfile_port(ours: &InstallId) -> Option<u16> {
+    let record = portfile::read(ours)?;
+    match peer::probe_identity(record.port, ours) {
         // Why: down, or answering without identifying itself, still leaves the
         // record the best guess — the port is sticky by design.
         PeerIdentity::Ours(_) | PeerIdentity::Unreachable | PeerIdentity::Unknown => {

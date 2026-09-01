@@ -12,7 +12,8 @@ fn an_install_id_is_minted_once_and_then_read_back() {
     );
 
     // The process caches the id in a OnceLock, so minting is exercised through
-    // the file rather than by calling install_id() twice under two sandboxes.
+    // the file rather than by calling `InstallId::establish` twice under two
+    // sandboxes.
     assert!(!path.exists(), "nothing is written before first use");
 }
 
@@ -29,7 +30,8 @@ fn an_unknown_id_is_never_treated_as_a_match() {
 fn the_whoami_payload_carries_no_secret_material() {
     let temp = tempfile::tempdir().expect("config tempdir");
     let json = temp_env::with_var("XDG_CONFIG_HOME", Some(temp.path().as_os_str()), || {
-        let who = identity::WhoAmI::current(48218, 1_753_948_800);
+        let who =
+            identity::WhoAmI::current(48218, 1_753_948_800, &identity::InstallId::establish());
         serde_json::to_string(&who).expect("whoami serialises")
     });
 

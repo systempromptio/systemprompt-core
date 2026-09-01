@@ -19,7 +19,7 @@ fn a_serving_context_binds_a_candidate_port_and_publishes_its_endpoint() {
         // Not pinned to DEFAULT_PROXY_PORT: a developer machine legitimately
         // has something else on it, and standing aside is now correct.
         assert!(
-            proxy::candidate_ports().contains(&served.port),
+            proxy::candidate_ports(ctx.install_id()).contains(&served.port),
             "bound {} which is not a candidate port",
             served.port
         );
@@ -54,7 +54,7 @@ fn a_serving_context_binds_a_candidate_port_and_publishes_its_endpoint() {
             "starting the proxy establishes an install id"
         );
 
-        let record = proxy::portfile::read().expect("the bound port is recorded");
+        let record = proxy::portfile::read(ctx.install_id()).expect("the bound port is recorded");
         assert_eq!(
             record.port, served.port,
             "the recorded port is the one actually bound, so other processes can find it"
@@ -117,7 +117,7 @@ fn a_taken_default_port_moves_the_proxy_instead_of_failing() {
             "the squatter still holds the default port"
         );
         assert!(
-            proxy::candidate_ports().contains(&served.port),
+            proxy::candidate_ports(ctx.install_id()).contains(&served.port),
             "fell outside the candidate range: {}",
             served.port
         );
@@ -127,7 +127,8 @@ fn a_taken_default_port_moves_the_proxy_instead_of_failing() {
             ctx.proxy.loopback().origin(),
             format!("http://127.0.0.1:{}", served.port)
         );
-        let record = proxy::portfile::read().expect("the fallback port is recorded on disk");
+        let record =
+            proxy::portfile::read(ctx.install_id()).expect("the fallback port is recorded on disk");
         assert_eq!(record.port, served.port);
     });
 

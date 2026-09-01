@@ -175,7 +175,6 @@ pub fn run_with_brand(brand: &'static brand::Brand) -> ExitCode {
     winproc::attach_parent_console_if_present();
     obs::install_panic_hook();
     obs::tracing_init::init();
-    activity::install_persistent_writer();
     purge_legacy_agents_state();
     // Why: must run before anything else touches the install directory — on
     // Windows this deletes the binary the previous version was renamed to, which

@@ -51,7 +51,7 @@ pub(super) fn cmd_install(ctx: &BridgeContext, args: &[String]) -> ExitCode {
             apply_mobileconfig,
             apply_schedule,
         },
-        ctx.proxy.loopback(),
+        ctx,
     ) {
         Ok(summary) => {
             stdio::print_str(&install::render_install_summary(&summary));

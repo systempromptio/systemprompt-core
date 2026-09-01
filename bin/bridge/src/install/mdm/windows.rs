@@ -8,9 +8,9 @@
 use super::error::MdmError;
 
 pub(super) fn refresh_managed_mcp_servers(
-    loopback: &crate::proxy::LoopbackEndpoint,
+    mcp: &super::McpPayloadInputs<'_>,
 ) -> Result<String, MdmError> {
-    let value = super::managed_mcp_servers_json(loopback).unwrap_or_else(|| "[]".to_owned());
+    let value = super::managed_mcp_servers_json(mcp).unwrap_or_else(|| "[]".to_owned());
     write_managed_mcp_servers_value(&value)
 }
 

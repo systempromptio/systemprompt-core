@@ -44,7 +44,7 @@ pub(super) fn meta_dispatch(
         ))),
         "marketplace.list" => CommandOutcome::Sync(Ok(marketplace_listing(app))),
         "activity.recent" => CommandOutcome::Sync(Ok(json!({
-            "entries": crate::activity::activity_log().snapshot_recent(recent_limit(args)),
+            "entries": app.ctx.activity.snapshot_recent(recent_limit(args)),
         }))),
         "setup.complete" => {
             send(app, UiEvent::SetupComplete);
@@ -285,7 +285,10 @@ pub(super) fn diagnostics_dispatch(
 
 fn marketplace_listing(app: &GuiApp) -> Value {
     let snap = app.state.snapshot();
-    let listing =
-        crate::gui::server_marketplace::build_listing(app.ctx.proxy.loopback(), &snap.mcp_auth);
+    let listing = crate::gui::server_marketplace::build_listing(
+        app.ctx.proxy.loopback(),
+        &app.ctx.mcp_registry(),
+        &snap.mcp_auth,
+    );
     crate::gui::server_marketplace::listing_to_value(&listing).unwrap_or(Value::Null)
 }

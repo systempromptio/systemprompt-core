@@ -42,8 +42,9 @@ impl ProxyReadiness {
 }
 
 #[must_use]
-pub fn ensure_running(port: u16) -> ProxyReadiness {
-    if matches!(proxy_probe::probe_identity(port), PeerIdentity::Ours(_)) {
+pub fn ensure_running(proxy: &ProxyHandle) -> ProxyReadiness {
+    let port = proxy.port();
+    if matches!(proxy.peer(), PeerIdentity::Ours(_)) {
         return ProxyReadiness::Live(port);
     }
 
@@ -85,9 +86,10 @@ pub fn ensure_running(port: u16) -> ProxyReadiness {
 fn wait_for_ready(resolved: u16) -> ProxyReadiness {
     let deadline = Instant::now() + READY_TIMEOUT;
     loop {
-        let candidate = crate::proxy::portfile::read().map_or(resolved, |r| r.port);
+        let candidate =
+            crate::proxy::portfile::read(proxy.install_id()).map_or(resolved, |r| r.port);
         if matches!(
-            proxy_probe::probe_identity(candidate),
+            proxy_probe::probe_identity(candidate, proxy.install_id()),
             PeerIdentity::Ours(_)
         ) {
             crate::proxy::set_resolved_port(candidate);
@@ -103,8 +105,8 @@ fn wait_for_ready(resolved: u16) -> ProxyReadiness {
     }
 }
 
-pub fn ensure_running_reported(port: u16) -> ProxyReadiness {
-    let readiness = ensure_running(port);
+pub fn ensure_running_reported(proxy: &ProxyHandle) -> ProxyReadiness {
+    let readiness = ensure_running(proxy);
     if let ProxyReadiness::Unavailable { port, reason } = &readiness {
         crate::stdio::diag(&format!(
             "proxy: nothing is listening on 127.0.0.1:{port} — {reason}. Client config written \

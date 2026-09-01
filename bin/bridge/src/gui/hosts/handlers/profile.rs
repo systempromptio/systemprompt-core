@@ -35,8 +35,9 @@ pub(crate) fn on_profile_generate_requested(app: &GuiApp, host_id: &HostId, repl
     let overrides = app.state.snapshot().host_model_protocols;
     let proxy = app.proxy.clone();
     let loopback = app.ctx.proxy.loopback().clone();
+    let install_id = app.ctx.install_id().clone();
     app.ctx.spawn(async move {
-        let result = generate_profile_for(host, &loopback, &overrides)
+        let result = generate_profile_for(host, &loopback, &install_id, &overrides)
             .await
             .map_err(Arc::new);
         proxy.send_event(UiEvent::Host(HostUiEvent::ProfileGenerateFinished {
@@ -194,6 +195,7 @@ pub(crate) fn on_profile_install_finished(
 async fn generate_profile_for(
     host: &'static dyn crate::integration::HostApp,
     loopback: &crate::proxy::LoopbackEndpoint,
+    install_id: &crate::proxy::identity::InstallId,
     overrides: &std::collections::BTreeMap<String, Vec<String>>,
 ) -> GuiResult<GeneratedProfile> {
     let cfg = config::load();
@@ -208,7 +210,8 @@ async fn generate_profile_for(
     // loopback secret against *their* port produces exactly the 403 this
     // profile is supposed to prevent.
     let port = loopback.port();
-    if let crate::proxy::peer::PeerIdentity::Foreign(who) = crate::proxy::peer::probe_identity(port)
+    if let crate::proxy::peer::PeerIdentity::Foreign(who) =
+        crate::proxy::peer::probe_identity(port, install_id)
     {
         return Err(GuiError::Profile {
             context: "proxy port held by another install".into(),
