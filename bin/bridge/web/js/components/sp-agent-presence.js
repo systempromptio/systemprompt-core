@@ -1,19 +1,16 @@
 import { SpElement, reactive, escapeHtml } from "/assets/js/components/sp-element.js";
 import { bridge } from "/assets/js/bridge.js";
+import { verdictOf, badgeSuffix, stateLabel } from "/assets/js/utils/agent-verdict.js";
 
+// Presence is the verdict, narrowed to a dot. It used to be a fifth private
+// derivation over `profile_state`, which is how a host could show green here
+// and amber in the row beside it.
 function presenceState(host) {
-  const kind = host.snapshot?.profile_state?.kind;
-  if (kind === "installed" && host.snapshot?.host_running) { return "ok"; }
-  if (kind === "installed" || kind === "partial") { return "warn"; }
-  if (kind === "absent") { return "err"; }
-  return "unknown";
+  return badgeSuffix(verdictOf(host).state);
 }
 
-function presenceLabel(state) {
-  if (state === "ok") { return "running"; }
-  if (state === "warn") { return "needs attention"; }
-  if (state === "err") { return "not installed"; }
-  return "unknown";
+function presenceLabel(host) {
+  return stateLabel(verdictOf(host).state);
 }
 
 function syncRailCount(count) {
@@ -50,7 +47,7 @@ export class SpAgentPresence extends SpElement {
     const list = (this.snapshot && this.snapshot.host_apps) || [];
     return list.map((host) => {
       const state = presenceState(host);
-      const title = `${host.display_name} · ${presenceLabel(state)}`;
+      const title = `${host.display_name} · ${presenceLabel(host)}`;
       return `<span class="sp-agent__dot" data-action="agent-jump" data-agent="${escapeHtml(host.id)}" data-state="${state}" title="${escapeHtml(title)}"></span>`;
     }).join("");
   }

@@ -51,10 +51,18 @@ pub(crate) fn emit_gateway_changed(app: &GuiApp) {
     send_emit(app, "gateway.changed", &value);
 }
 
-pub(crate) fn emit_host_changed(app: &GuiApp, host_id: &crate::ids::HostId) {
+/// Announce one host, then the whole state.
+///
+/// The fleet summary is folded server-side over every host, so a listener
+/// cannot merge a single-host event into it without re-deriving the fold — the
+/// divergence the verdict model exists to remove. Emitting `state.changed`
+/// alongside keeps the summary card and the row it belongs to in step; the
+/// hash guard in [`emit_state`] drops it when nothing actually moved.
+pub(crate) fn emit_host_changed(app: &mut GuiApp, host_id: &crate::ids::HostId) {
     let snap = app.state.snapshot();
     let value = crate::gui::server_json::single_host_value(&snap, host_id.as_str());
     send_emit(app, "host.changed", &value);
+    emit_state(app);
 }
 
 pub(crate) fn emit_proxy_changed(app: &GuiApp) {

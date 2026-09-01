@@ -71,7 +71,7 @@ export async function downloadHost(host) {
 }
 
 /**
- * Run one of the actions `hostStatus()` recommends. Kept here so every surface
+ * Run one of the actions the verdict recommends. Kept here so every surface
  * that renders a recommended button dispatches it identically.
  */
 export async function runHostAction(kind, host) {

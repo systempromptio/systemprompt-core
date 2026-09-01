@@ -6,6 +6,9 @@
 use serde::Serialize;
 
 use crate::gui::state::AppStateSnapshot;
+use crate::integration::agent_health::{
+    AgentFleets, AgentSurface, AgentVerdict, HostHealthInputs, HostModelViewRef, SYNC_ONLY_AGENTS,
+};
 use crate::integration::host_app::{ConfigFormat, HostKind};
 use crate::integration::{GeneratedProfile, HostAppSnapshot, ProxyHealth};
 
@@ -21,6 +24,9 @@ pub(crate) struct HostsPayload<'a> {
     // an instance may legitimately disable every host, and that empty list is a
     // real answer, not a missing one.
     pub hosts_gated: bool,
+    // Folded from the very verdicts in `host_apps`, so the summary card and the
+    // rows cannot disagree.
+    pub agent_fleet: AgentFleets,
     pub agents_onboarded: bool,
     pub first_run: crate::gui::first_run::serde::FirstRunPayload<'a>,
 }
@@ -45,6 +51,8 @@ pub(crate) struct HostEntryPayload<'a> {
     pub unconfigured_providers: Vec<String>,
     pub model_protocols: Vec<String>,
     pub model_protocols_overridden: bool,
+    pub surface: AgentSurface,
+    pub verdict: AgentVerdict,
 }
 
 fn build_entry<'a>(
@@ -60,6 +68,15 @@ fn build_entry<'a>(
     let overridden =
         crate::integration::host_app::has_surface_override(host.id(), &snap.host_model_protocols);
     let view = crate::integration::host_app::host_model_view(&snap.provider_health, &effective);
+    let snapshot = st.and_then(|s| s.snapshot.as_ref());
+    let verdict = crate::integration::agent_health::verdict(&HostHealthInputs {
+        snapshot,
+        proxy: &snap.hosts.local_proxy,
+        models: HostModelViewRef::from(&view),
+        has_download_url: !host.download_url().is_empty(),
+        surface: AgentSurface::LocalProfile,
+        manifest_synced: snap.manifest_synced(),
+    });
     HostEntryPayload {
         id: host.id(),
         display_name: host.display_name(),
@@ -72,13 +89,59 @@ fn build_entry<'a>(
         probe_in_flight: st.is_some_and(|s| s.probe_in_flight),
         enabled: snap.enabled_hosts.iter().any(|h| h == host.id()),
         last_generated_profile: st.and_then(|s| s.last_generated_profile.as_ref()),
-        snapshot: st.and_then(|s| s.snapshot.as_ref()),
+        snapshot,
         compatible_models: view.compatible_models,
         models_checked: view.checked,
         compatible_models_available: view.available,
         unconfigured_providers: view.unconfigured_providers,
         model_protocols: effective.iter().map(|s| s.as_tag().to_owned()).collect(),
         model_protocols_overridden: overridden,
+        surface: AgentSurface::LocalProfile,
+        verdict,
+    }
+}
+
+// Why: these hosts are enabled by the same manifest as the desktop ones but
+// have no `HostApp`, so `host_apps()` never yields them and they used to be
+// invisible — including `claude-code`, which is what most readers are running
+// while they look at this screen.
+fn build_sync_only_entry<'a>(
+    snap: &'a AppStateSnapshot,
+    agent: &'a crate::integration::agent_health::SyncOnlyAgent,
+) -> HostEntryPayload<'a> {
+    let verdict = crate::integration::agent_health::verdict(&HostHealthInputs {
+        snapshot: None,
+        proxy: &snap.hosts.local_proxy,
+        models: HostModelViewRef {
+            checked: false,
+            available: false,
+            unconfigured_providers: &[],
+        },
+        has_download_url: false,
+        surface: AgentSurface::SyncOnly,
+        manifest_synced: snap.manifest_synced(),
+    });
+    HostEntryPayload {
+        id: agent.id,
+        display_name: agent.display_name,
+        kind: HostKind::CliTool,
+        description: agent.description,
+        icon: agent.icon,
+        config_format: ConfigFormat::Json,
+        download_url: "",
+        install_action_label: "",
+        probe_in_flight: false,
+        enabled: snap.enabled_hosts.iter().any(|h| h == agent.id),
+        last_generated_profile: None,
+        snapshot: None,
+        compatible_models: Vec::new(),
+        models_checked: false,
+        compatible_models_available: false,
+        unconfigured_providers: Vec::new(),
+        model_protocols: Vec::new(),
+        model_protocols_overridden: false,
+        surface: AgentSurface::SyncOnly,
+        verdict,
     }
 }
 
@@ -102,12 +165,24 @@ pub(crate) fn payload(snap: &AppStateSnapshot) -> HostsPayload<'_> {
         .copied()
         .map(|host| build_entry(snap, host))
         .collect();
+    entries.extend(
+        SYNC_ONLY_AGENTS
+            .iter()
+            .map(|agent| build_sync_only_entry(snap, agent)),
+    );
     if !snap.enabled_hosts.is_empty() {
         entries.retain(|e| e.enabled);
     }
+    let agent_fleet = AgentFleets::fold(
+        &entries
+            .iter()
+            .map(|e| e.verdict.clone())
+            .collect::<Vec<_>>(),
+    );
     HostsPayload {
         host_apps: entries,
         hosts_gated: snap.manifest_synced(),
+        agent_fleet,
         local_proxy: &snap.hosts.local_proxy,
         agents_onboarded: snap.agents_onboarded,
         first_run: crate::gui::first_run::serde::build(&snap.first_run),

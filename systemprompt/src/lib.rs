@@ -213,8 +213,8 @@ pub mod content {
 }
 
 /// Request, conversation, agent, tool, and cost metrics.
-#[cfg(feature = "full")]
-#[cfg_attr(docsrs, doc(cfg(feature = "full")))]
+#[cfg(feature = "analytics")]
+#[cfg_attr(docsrs, doc(cfg(feature = "analytics")))]
 pub mod analytics {
     pub use systemprompt_analytics::*;
 }

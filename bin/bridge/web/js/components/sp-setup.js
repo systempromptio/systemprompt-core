@@ -1,6 +1,7 @@
 import { SpElement, reactive, escapeHtml } from "/assets/js/components/sp-element.js";
 import { onBridgeEvent } from "/assets/js/events/bridge-events.js";
 import { bridge } from "/assets/js/bridge.js";
+import { isInstalled } from "/assets/js/utils/agent-verdict.js";
 import { t } from "/assets/js/i18n.js";
 import { notifyErr } from "/assets/js/utils/notify.js";
 import "/assets/js/components/sp-setup-gateway.js";
@@ -100,7 +101,7 @@ export class SpSetup extends SpElement {
     } else if (!this._settleTimer && !this.settleTimedOut) {
       this._armSettleTimer();
     }
-    const anyInstalled = hosts.some((h) => h.snapshot?.profile_state?.kind === "installed");
+    const anyInstalled = hosts.some(isInstalled);
     this.anyInstalled = anyInstalled;
     this.step = configured ? "agents" : "connect";
 

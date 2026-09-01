@@ -55,7 +55,7 @@ pub(super) fn determine_execution_target() -> Result<ExecutionTarget> {
         "Profile has tenant_id, resolving remote execution target"
     );
 
-    let tenant = resolve_tenant(tenant_id)?;
+    let tenant = resolve_tenant(profile, tenant_id)?;
     let hostname = tenant
         .hostname
         .as_ref()
@@ -63,7 +63,7 @@ pub(super) fn determine_execution_target() -> Result<ExecutionTarget> {
         .clone();
 
     let session_key = SessionKey::Tenant(tenant_id.clone());
-    let session = load_session_for_key(&session_key, &profile.security.issuer)?;
+    let session = load_session_for_key(profile, &session_key, &profile.security.issuer)?;
 
     tracing::info!(
         hostname = %hostname,
@@ -78,11 +78,18 @@ pub(super) fn determine_execution_target() -> Result<ExecutionTarget> {
     })
 }
 
-fn resolve_tenant(tenant: &systemprompt_identifiers::TenantId) -> Result<StoredTenant> {
-    let tenants_path = ResolvedPaths::discover().tenants_path();
+fn resolve_tenant(
+    profile: &systemprompt_models::Profile,
+    tenant: &systemprompt_identifiers::TenantId,
+) -> Result<StoredTenant> {
+    let tenants_path = ResolvedPaths::from_profile(profile).tenants_path();
 
-    let store = TenantStore::load_from_path(&tenants_path)
-        .context("Failed to load tenants. Run 'systemprompt cloud tenant list' to sync.")?;
+    let store = TenantStore::load_from_path(&tenants_path).with_context(|| {
+        format!(
+            "Failed to load tenants from {}. Run 'systemprompt cloud tenant list' to sync.",
+            tenants_path.display()
+        )
+    })?;
 
     store
         .find_tenant(tenant)
@@ -91,10 +98,11 @@ fn resolve_tenant(tenant: &systemprompt_identifiers::TenantId) -> Result<StoredT
 }
 
 fn load_session_for_key(
+    profile: &systemprompt_models::Profile,
     session_key: &SessionKey,
     issuer: &str,
 ) -> Result<systemprompt_cloud::CliSession> {
-    let sessions_dir = ResolvedPaths::discover().sessions_dir();
+    let sessions_dir = ResolvedPaths::from_profile(profile).sessions_dir();
 
     let store = SessionStore::load_or_create(&sessions_dir)?;
 

@@ -2,9 +2,9 @@ import { SpElement, reactive, escapeHtml } from "/assets/js/components/sp-elemen
 import { bridge } from "/assets/js/bridge.js";
 import { t } from "/assets/js/i18n.js";
 import {
-  hostStatus, badgeSuffix, isSetUp,
+  statusOf, badgeSuffix, isSetUp,
   APP_INSTALLED, APP_NOT_INSTALLED, appInstallState,
-} from "/assets/js/utils/host-status.js";
+} from "/assets/js/utils/agent-verdict.js";
 import { repairHost, runHostAction, openHostConfig } from "/assets/js/utils/host-actions.js";
 import { notifyOk, notifyErr, notifyAction } from "/assets/js/utils/notify.js";
 import { hostLogoMarkup } from "/assets/js/components/sp-agent-row.js";
@@ -370,7 +370,7 @@ export class SpAgentDrawer extends SpElement {
       };
     }
     const name = host.display_name || host.id;
-    const status = hostStatus(host, this.snapshot);
+    const status = statusOf(host);
     const hs = host.snapshot || null;
 
     return {

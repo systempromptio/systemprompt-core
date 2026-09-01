@@ -2,7 +2,7 @@
 
 use systemprompt_cli::admin::session::SessionCommands;
 use systemprompt_cli::admin::session::login::LoginArgs;
-use systemprompt_cli::descriptor::{CommandDescriptor, DescribeCommand};
+use systemprompt_cli::descriptor::{CommandDescriptor, DescribeCommand, RoutingClass};
 
 #[test]
 fn session_switch_needs_no_profile_context() {
@@ -17,7 +17,7 @@ fn session_switch_needs_no_profile_context() {
     assert!(!desc.secrets());
     assert!(!desc.paths());
     assert!(!desc.database());
-    assert!(!desc.remote_eligible());
+    assert_eq!(desc.routing_class(), RoutingClass::LocalOnly);
 }
 
 #[test]
@@ -42,7 +42,7 @@ fn test_descriptor_none_all_false() {
     assert!(!desc.secrets());
     assert!(!desc.paths());
     assert!(!desc.database());
-    assert!(!desc.remote_eligible());
+    assert_eq!(desc.routing_class(), RoutingClass::LocalOnly);
     assert!(!desc.skip_validation());
 }
 
@@ -53,7 +53,7 @@ fn test_descriptor_profile_only() {
     assert!(!desc.secrets());
     assert!(!desc.paths());
     assert!(!desc.database());
-    assert!(!desc.remote_eligible());
+    assert_eq!(desc.routing_class(), RoutingClass::LocalOnly);
 }
 
 #[test]
@@ -81,7 +81,7 @@ fn test_descriptor_full() {
     assert!(desc.secrets());
     assert!(desc.paths());
     assert!(desc.database());
-    assert!(desc.remote_eligible());
+    assert_eq!(desc.routing_class(), RoutingClass::Mutating);
     assert!(!desc.skip_validation());
 }
 
@@ -92,7 +92,7 @@ fn test_descriptor_default_all_false() {
     assert!(!desc.secrets());
     assert!(!desc.paths());
     assert!(!desc.database());
-    assert!(!desc.remote_eligible());
+    assert_eq!(desc.routing_class(), RoutingClass::LocalOnly);
     assert!(!desc.skip_validation());
 }
 
@@ -109,7 +109,30 @@ fn test_descriptor_with_remote_eligible() {
     let desc = CommandDescriptor::PROFILE_ONLY.with_remote_eligible();
     assert!(desc.profile());
     assert!(!desc.secrets());
-    assert!(desc.remote_eligible());
+    assert_eq!(desc.routing_class(), RoutingClass::Mutating);
+}
+
+/// A remote-eligible command that only reads may fall back to local execution
+/// when routing is unavailable; one that mutates must not. They were a single
+/// boolean, which is why `analytics requests list` refused to run at all when
+/// the tenant store could not be found.
+#[test]
+fn read_only_and_mutating_are_distinguishable() {
+    let reads = CommandDescriptor::FULL.with_read_only();
+    let writes = CommandDescriptor::FULL;
+    let local = CommandDescriptor::PROFILE_ONLY;
+
+    assert_eq!(reads.routing_class(), RoutingClass::ReadOnly);
+    assert_eq!(writes.routing_class(), RoutingClass::Mutating);
+    assert_eq!(local.routing_class(), RoutingClass::LocalOnly);
+}
+
+/// `with_read_only` on a command that never routes remotely must not promote
+/// it into the remote path.
+#[test]
+fn read_only_does_not_make_a_local_command_remote_eligible() {
+    let desc = CommandDescriptor::PROFILE_ONLY.with_read_only();
+    assert_eq!(desc.routing_class(), RoutingClass::LocalOnly);
 }
 
 #[test]
@@ -117,7 +140,7 @@ fn test_descriptor_with_skip_validation() {
     let desc = CommandDescriptor::FULL.with_skip_validation();
     assert!(desc.profile());
     assert!(desc.database());
-    assert!(desc.remote_eligible());
+    assert_eq!(desc.routing_class(), RoutingClass::Mutating);
     assert!(desc.skip_validation());
 }
 
@@ -141,7 +164,7 @@ fn test_describe_command_trait_full() {
     let desc = cmd.descriptor();
     assert!(desc.database());
     assert!(desc.profile());
-    assert!(desc.remote_eligible());
+    assert_eq!(desc.routing_class(), RoutingClass::Mutating);
 }
 
 #[test]
@@ -152,7 +175,7 @@ fn test_describe_command_trait_profile_only() {
     let desc = cmd.descriptor();
     assert!(!desc.database());
     assert!(desc.profile());
-    assert!(!desc.remote_eligible());
+    assert_eq!(desc.routing_class(), RoutingClass::LocalOnly);
 }
 
 #[test]
@@ -163,7 +186,7 @@ fn test_descriptor_none_vs_default() {
     assert_eq!(none.secrets(), default.secrets());
     assert_eq!(none.paths(), default.paths());
     assert_eq!(none.database(), default.database());
-    assert_eq!(none.remote_eligible(), default.remote_eligible());
+    assert_eq!(none.routing_class(), default.routing_class());
     assert_eq!(none.skip_validation(), default.skip_validation());
 }
 

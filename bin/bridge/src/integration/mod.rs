@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+pub mod agent_health;
 pub(crate) mod app_launch;
 pub mod claude_code_cli;
 pub mod claude_desktop;
@@ -16,6 +17,11 @@ pub mod registry;
 #[cfg(feature = "dev-stub-host")]
 pub mod stub_host;
 
+pub use agent_health::{
+    AgentAction, AgentFleetSummary, AgentFleets, AgentReason, AgentState, AgentSurface,
+    AgentVerdict, FleetHeadline, FleetState, HostHealthInputs, HostModelViewRef, SYNC_ONLY_AGENTS,
+    SyncOnlyAgent, sync_only_agent, verdict,
+};
 pub use host_app::{
     AppInstallState, ConfigFormat, GeneratedProfile, HostApp, HostAppSnapshot, HostConfigSchema,
     ProfileGenInputs, ProfileState, StaleReason,

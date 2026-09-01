@@ -1,7 +1,7 @@
 import { SpElement, reactive, escapeHtml } from "/assets/js/components/sp-element.js";
 import { bridge } from "/assets/js/bridge.js";
 import { t } from "/assets/js/i18n.js";
-import { isSetUp } from "/assets/js/utils/host-status.js";
+import { isSetUp } from "/assets/js/utils/agent-verdict.js";
 import "/assets/js/components/sp-agent-row.js";
 import "/assets/js/components/sp-agent-drawer.js";
 import "/assets/js/components/sp-overall-badge.js";

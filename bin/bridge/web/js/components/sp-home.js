@@ -1,7 +1,7 @@
 import { SpElement, reactive, escapeHtml } from "/assets/js/components/sp-element.js";
 import { bridge } from "/assets/js/bridge.js";
 import { t } from "/assets/js/i18n.js";
-import { hostStatus, isSetUp } from "/assets/js/utils/host-status.js";
+import { statusOf, isSetUp } from "/assets/js/utils/agent-verdict.js";
 
 /**
  * The pane the app opens on. It answers three questions in priority order and
@@ -44,7 +44,7 @@ export class SpHome extends SpElement {
   _agents() {
     const hosts = ((this.snapshot && this.snapshot.host_apps) || []).filter(isSetUp);
     return hosts
-      .map((host) => ({ host, status: hostStatus(host, this.snapshot) }))
+      .map((host) => ({ host, status: statusOf(host) }))
       .sort((a, b) => {
         const rank = STATE_RANK[a.status.state] - STATE_RANK[b.status.state];
         if (rank !== 0) { return rank; }

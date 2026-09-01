@@ -16,6 +16,7 @@ impl CommandDescriptor {
     const FLAG_DATABASE: u8 = 0b0000_1000;
     const FLAG_REMOTE_ELIGIBLE: u8 = 0b0001_0000;
     const FLAG_SKIP_VALIDATION: u8 = 0b0010_0000;
+    const FLAG_READ_ONLY: u8 = 0b0100_0000;
 
     pub const NONE: Self = Self { flags: 0 };
 
@@ -55,8 +56,20 @@ impl CommandDescriptor {
         self.flags & Self::FLAG_DATABASE != 0
     }
 
-    pub const fn remote_eligible(&self) -> bool {
-        self.flags & Self::FLAG_REMOTE_ELIGIBLE != 0
+    /// How this command must be routed when a cloud profile is active.
+    ///
+    /// Read-only and mutating commands were one boolean until they were not:
+    /// refusing to run a *read* because no tenant session exists fails the
+    /// caller for a reason they cannot act on, whereas refusing a *write* is
+    /// the whole point. See [`RoutingClass`].
+    pub const fn routing_class(&self) -> RoutingClass {
+        if self.flags & Self::FLAG_REMOTE_ELIGIBLE == 0 {
+            RoutingClass::LocalOnly
+        } else if self.flags & Self::FLAG_READ_ONLY != 0 {
+            RoutingClass::ReadOnly
+        } else {
+            RoutingClass::Mutating
+        }
     }
 
     pub const fn skip_validation(&self) -> bool {
@@ -69,11 +82,31 @@ impl CommandDescriptor {
         }
     }
 
+    /// Mark a remote-eligible command as reading only, so it may fall back to
+    /// local execution rather than failing when remote routing is unavailable.
+    pub const fn with_read_only(self) -> Self {
+        Self {
+            flags: self.flags | Self::FLAG_READ_ONLY,
+        }
+    }
+
     pub const fn with_skip_validation(self) -> Self {
         Self {
             flags: self.flags | Self::FLAG_SKIP_VALIDATION,
         }
     }
+}
+
+/// What a command is allowed to do when the active profile is a cloud profile.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RoutingClass {
+    /// Never routed remotely; runs against whatever the profile resolves.
+    LocalOnly,
+    /// Reads only. Prefers remote when a session is available, and falls back
+    /// to local with a warning when it is not.
+    ReadOnly,
+    /// Mutates tenant state. Must route remotely or fail loudly.
+    Mutating,
 }
 
 pub trait DescribeCommand {

@@ -96,7 +96,21 @@
       "model_protocols": [
         "anthropic"
       ],
-      "model_protocols_overridden": false
+      "model_protocols_overridden": false,
+      "surface": "local-profile",
+      "verdict": {
+        "state": "attention",
+        "reason": {
+          "code": "partial",
+          "missing": "signingPubkey"
+        },
+        "action": {
+          "code": "repair"
+        },
+        "is_set_up": true,
+        "is_installed": false,
+        "is_running": true
+      }
     },
     {
       "id": "codex-cli",
@@ -148,7 +162,21 @@
       "model_protocols": [
         "anthropic"
       ],
-      "model_protocols_overridden": false
+      "model_protocols_overridden": false,
+      "surface": "local-profile",
+      "verdict": {
+        "state": "working",
+        "reason": {
+          "code": "governed",
+          "when_unix": 1787905697
+        },
+        "action": {
+          "code": "open"
+        },
+        "is_set_up": true,
+        "is_installed": true,
+        "is_running": true
+      }
     },
     {
       "id": "hermes",
@@ -200,7 +228,83 @@
       "model_protocols": [
         "openai"
       ],
-      "model_protocols_overridden": false
+      "model_protocols_overridden": false,
+      "surface": "local-profile",
+      "verdict": {
+        "state": "working",
+        "reason": {
+          "code": "governed",
+          "when_unix": 1787905697
+        },
+        "action": {
+          "code": "open"
+        },
+        "is_set_up": true,
+        "is_installed": true,
+        "is_running": true
+      }
+    },
+    {
+      "id": "claude-code",
+      "display_name": "Claude Code",
+      "kind": "cli_tool",
+      "description": "Governed through the gateway; skills and plugins sync from here.",
+      "icon": "claude-code",
+      "config_format": "json",
+      "download_url": "",
+      "install_action_label": "",
+      "probe_in_flight": false,
+      "enabled": true,
+      "last_generated_profile": null,
+      "snapshot": null,
+      "compatible_models": [],
+      "models_checked": false,
+      "compatible_models_available": false,
+      "unconfigured_providers": [],
+      "model_protocols": [],
+      "model_protocols_overridden": false,
+      "surface": "sync-only",
+      "verdict": {
+        "state": "working",
+        "reason": {
+          "code": "cloud-managed"
+        },
+        "action": null,
+        "is_set_up": true,
+        "is_installed": true,
+        "is_running": false
+      }
+    },
+    {
+      "id": "cowork",
+      "display_name": "Cowork",
+      "kind": "cli_tool",
+      "description": "Governed through the gateway; artifacts and plugins sync from here.",
+      "icon": "cowork",
+      "config_format": "json",
+      "download_url": "",
+      "install_action_label": "",
+      "probe_in_flight": false,
+      "enabled": true,
+      "last_generated_profile": null,
+      "snapshot": null,
+      "compatible_models": [],
+      "models_checked": false,
+      "compatible_models_available": false,
+      "unconfigured_providers": [],
+      "model_protocols": [],
+      "model_protocols_overridden": false,
+      "surface": "sync-only",
+      "verdict": {
+        "state": "working",
+        "reason": {
+          "code": "cloud-managed"
+        },
+        "action": null,
+        "is_set_up": true,
+        "is_installed": true,
+        "is_running": false
+      }
     }
   ],
   "local_proxy": {
@@ -303,5 +407,31 @@
     "diagnostics": [
       "manifest lists 14 skill(s) but plugin bundles install only 12"
     ]
+  },
+  "agent_fleet": {
+    "all": {
+      "total": 5,
+      "working": 4,
+      "ready": 0,
+      "attention": 1,
+      "not_set_up": 0,
+      "down": 0,
+      "checking": 0,
+      "running": 3,
+      "state": "warn",
+      "headline": "needs-attention"
+    },
+    "set_up": {
+      "total": 5,
+      "working": 4,
+      "ready": 0,
+      "attention": 1,
+      "not_set_up": 0,
+      "down": 0,
+      "checking": 0,
+      "running": 3,
+      "state": "warn",
+      "headline": "needs-attention"
+    }
   }
 }

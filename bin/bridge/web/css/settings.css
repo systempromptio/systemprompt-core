@@ -1,3 +1,7 @@
+/* The host element is a custom element with no default display, so without
+   this every section inside it stacked flush against the next one. */
+sp-settings { display: flex; flex-direction: column; gap: var(--sp-space-6); }
+
 .sp-kv__grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr));

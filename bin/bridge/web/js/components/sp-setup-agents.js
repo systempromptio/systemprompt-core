@@ -1,5 +1,6 @@
 import { SpElement, reactive, escapeHtml } from "/assets/js/components/sp-element.js";
 import { bridge } from "/assets/js/bridge.js";
+import { isInstalled } from "/assets/js/utils/agent-verdict.js";
 import { t } from "/assets/js/i18n.js";
 import { announce } from "/assets/js/utils/announce.js";
 import { repairHost } from "/assets/js/utils/host-actions.js";
@@ -100,7 +101,7 @@ export class SpSetupAgents extends SpElement {
       return `<div class="sp-u-muted">${escapeHtml(t("setup-agents-empty") || "No agents detected on this device.")}</div>`;
     }
     return hosts.map((host) => {
-      const installed = host.snapshot?.profile_state?.kind === "installed";
+      const installed = isInstalled(host);
       const suffix = host.kind === "cli_tool" ? " · CLI" : " · Desktop";
       const cls = installed ? "sp-btn-ghost" : "sp-btn-primary";
       const label = installed

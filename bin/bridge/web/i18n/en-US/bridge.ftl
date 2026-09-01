@@ -137,6 +137,8 @@ agent-reason-absent = This agent is not routed through systemprompt yet
 agent-reason-no-key = No usable model — add an API key for { $providers }
 agent-reason-no-models = No model this agent can use is available
 agent-reason-proxy-down = The local proxy is not responding
+agent-reason-never-probed = Not checked yet
+agent-reason-cloud-managed = Managed from the cloud — nothing to install on this computer
 agent-action-repair = Repair
 agent-action-verify = Re-check
 agent-action-add = Add
@@ -206,7 +208,15 @@ status-mcp-caption = Whether managed MCP servers authenticate end-to-end through
 status-agents-heading = Agents
 status-agents-caption-prefix = Coding agents routed through systemprompt bridge. Manage them in the
 status-agents-tab-link = Agents tab
-status-agents-connected = Connected
+status-agents-working = Working
+status-agents-foot-configured = { $n } configured
+status-agents-foot-running = { $n } app running
+status-agents-foot-attention = { $n } need attention
+agents-fleet-all-working = all working
+agents-fleet-needs-attention = needs attention
+agents-fleet-not-working = not working
+agents-fleet-checking = checking…
+agents-fleet-none-enabled = no agents enabled
 status-open-agents = Open agents
 
 # Settings tab ----------------------------------------------------------------

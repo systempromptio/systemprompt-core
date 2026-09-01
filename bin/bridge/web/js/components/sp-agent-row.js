@@ -1,7 +1,7 @@
 import { SpElement, reactive, escapeHtml } from "/assets/js/components/sp-element.js";
 import { t } from "/assets/js/i18n.js";
 import { notifyOk, notifyErr } from "/assets/js/utils/notify.js";
-import { hostStatus, badgeSuffix } from "/assets/js/utils/host-status.js";
+import { statusOf, badgeSuffix } from "/assets/js/utils/agent-verdict.js";
 import { runHostAction } from "/assets/js/utils/host-actions.js";
 
 /**
@@ -52,7 +52,7 @@ export class SpAgentRow extends SpElement {
 
   render() {
     const host = this.host || {};
-    const status = hostStatus(host, this.snapshot);
+    const status = statusOf(host);
     const probing = !!host.probe_in_flight;
     const name = host.display_name || "—";
     const openLabel = t("agent-open-details", { name }) || `Open details for ${name}`;

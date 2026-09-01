@@ -94,7 +94,21 @@
       "model_protocols": [
         "anthropic"
       ],
-      "model_protocols_overridden": false
+      "model_protocols_overridden": false,
+      "surface": "local-profile",
+      "verdict": {
+        "state": "down",
+        "reason": {
+          "code": "proxy-down",
+          "probe": "Refused"
+        },
+        "action": {
+          "code": "verify"
+        },
+        "is_set_up": true,
+        "is_installed": true,
+        "is_running": true
+      }
     },
     {
       "id": "hermes",
@@ -146,7 +160,83 @@
       "model_protocols": [
         "openai"
       ],
-      "model_protocols_overridden": false
+      "model_protocols_overridden": false,
+      "surface": "local-profile",
+      "verdict": {
+        "state": "down",
+        "reason": {
+          "code": "proxy-down",
+          "probe": "Refused"
+        },
+        "action": {
+          "code": "verify"
+        },
+        "is_set_up": true,
+        "is_installed": true,
+        "is_running": true
+      }
+    },
+    {
+      "id": "claude-code",
+      "display_name": "Claude Code",
+      "kind": "cli_tool",
+      "description": "Governed through the gateway; skills and plugins sync from here.",
+      "icon": "claude-code",
+      "config_format": "json",
+      "download_url": "",
+      "install_action_label": "",
+      "probe_in_flight": false,
+      "enabled": true,
+      "last_generated_profile": null,
+      "snapshot": null,
+      "compatible_models": [],
+      "models_checked": false,
+      "compatible_models_available": false,
+      "unconfigured_providers": [],
+      "model_protocols": [],
+      "model_protocols_overridden": false,
+      "surface": "sync-only",
+      "verdict": {
+        "state": "working",
+        "reason": {
+          "code": "cloud-managed"
+        },
+        "action": null,
+        "is_set_up": true,
+        "is_installed": true,
+        "is_running": false
+      }
+    },
+    {
+      "id": "cowork",
+      "display_name": "Cowork",
+      "kind": "cli_tool",
+      "description": "Governed through the gateway; artifacts and plugins sync from here.",
+      "icon": "cowork",
+      "config_format": "json",
+      "download_url": "",
+      "install_action_label": "",
+      "probe_in_flight": false,
+      "enabled": true,
+      "last_generated_profile": null,
+      "snapshot": null,
+      "compatible_models": [],
+      "models_checked": false,
+      "compatible_models_available": false,
+      "unconfigured_providers": [],
+      "model_protocols": [],
+      "model_protocols_overridden": false,
+      "surface": "sync-only",
+      "verdict": {
+        "state": "working",
+        "reason": {
+          "code": "cloud-managed"
+        },
+        "action": null,
+        "is_set_up": true,
+        "is_installed": true,
+        "is_running": false
+      }
     }
   ],
   "local_proxy": {
@@ -235,5 +325,31 @@
     "malformed": [],
     "host_failures": [],
     "diagnostics": []
+  },
+  "agent_fleet": {
+    "all": {
+      "total": 4,
+      "working": 2,
+      "ready": 0,
+      "attention": 0,
+      "not_set_up": 0,
+      "down": 2,
+      "checking": 0,
+      "running": 2,
+      "state": "err",
+      "headline": "not-working"
+    },
+    "set_up": {
+      "total": 4,
+      "working": 2,
+      "ready": 0,
+      "attention": 0,
+      "not_set_up": 0,
+      "down": 2,
+      "checking": 0,
+      "running": 2,
+      "state": "err",
+      "headline": "not-working"
+    }
   }
 }
