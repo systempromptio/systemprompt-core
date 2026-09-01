@@ -17,6 +17,8 @@ use crate::verdict::{Tone, Verdict};
 /// distinguished only so the message can name the cause.
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
+#[cfg_attr(feature = "ts-export", derive(ts_rs::TS))]
+#[cfg_attr(feature = "ts-export", ts(export, export_to = "web/js/types/"))]
 pub enum StaleReason {
     LoopbackSecret,
     ProxyPort,
@@ -34,6 +36,8 @@ pub enum ProfileState {
 /// [`ProfileState`] without its payload — the code the GUI looks up.
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case")]
+#[cfg_attr(feature = "ts-export", derive(ts_rs::TS))]
+#[cfg_attr(feature = "ts-export", ts(export, export_to = "web/js/types/"))]
 pub enum ProfileCode {
     Absent,
     Partial,
@@ -136,6 +140,8 @@ impl ProfileState {
 /// tri-state exists to prevent.
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case")]
+#[cfg_attr(feature = "ts-export", derive(ts_rs::TS))]
+#[cfg_attr(feature = "ts-export", ts(export, export_to = "web/js/types/"))]
 pub enum AppInstallState {
     Installed,
     NotInstalled,

@@ -1,122 +1,16 @@
-//! JSON payload shapes for host-app status sent to the GUI.
+//! Builds the host-app wire payloads from the GUI state snapshot.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use serde::Serialize;
-
 use crate::gui::state::AppStateSnapshot;
 use crate::integration::agent_health::{
-    AgentFleets, AgentSurface, AgentVerdict, HostHealthInputs, HostModelViewRef, SYNC_ONLY_AGENTS,
+    AgentFleets, AgentSurface, HostHealthInputs, HostModelViewRef, SYNC_ONLY_AGENTS,
 };
-use crate::integration::host_app::{AppInstallState, ConfigFormat, HostKind, ProfileCode};
-use crate::integration::{GeneratedProfile, HostAppSnapshot, ProxyHealth};
-use crate::proxy_probe::ProxyProbeState;
-use crate::verdict::Verdict;
-
-#[derive(Serialize)]
-pub(crate) struct ProxyPayload<'a> {
-    #[serde(flatten)]
-    health: &'a ProxyHealth,
-    verdict: Verdict<ProxyProbeState>,
-    governing: bool,
-}
-
-impl<'a> From<&'a ProxyHealth> for ProxyPayload<'a> {
-    fn from(health: &'a ProxyHealth) -> Self {
-        Self {
-            health,
-            verdict: health.state.verdict(),
-            governing: health.state.governing(),
-        }
-    }
-}
-
-// Why: the probe's raw snapshot no longer crosses the wire. The drawer used to
-// branch on `profile_state.kind` — the same anti-pattern the verdict module
-// forbids — so what it needs is shipped as verdicts and plain facts instead.
-#[derive(Serialize)]
-pub(crate) struct HostHealthPayload<'a> {
-    profile: Verdict<ProfileCode>,
-    missing_required: &'a [String],
-    app: Verdict<AppInstallState>,
-    host_running: bool,
-    host_processes: &'a [String],
-    inference_models: Vec<String>,
-    probed_at_unix: u64,
-}
-
-impl<'a> From<&'a HostAppSnapshot> for HostHealthPayload<'a> {
-    fn from(s: &'a HostAppSnapshot) -> Self {
-        Self {
-            profile: s.profile_state.verdict(),
-            missing_required: s.profile_state.missing_required(),
-            app: s.app_installed.verdict(),
-            host_running: s.host_running,
-            host_processes: &s.host_processes,
-            inference_models: s
-                .profile_keys
-                .get("inferenceModels")
-                .map(|raw| {
-                    raw.split(',')
-                        .map(str::trim)
-                        .filter(|m| !m.is_empty())
-                        .map(str::to_owned)
-                        .collect()
-                })
-                .unwrap_or_default(),
-            probed_at_unix: s.probed_at_unix,
-        }
-    }
-}
-
-#[derive(Serialize)]
-pub(crate) struct HostsPayload<'a> {
-    pub host_apps: Vec<HostEntryPayload<'a>>,
-    pub local_proxy: ProxyPayload<'a>,
-    // Why: the gate comes from the last signed manifest, which does not exist
-    // before the first sync, so on a fresh install `host_apps` is every host
-    // this build registers rather than the subset this installation permits.
-    // Surfaces that offer to *act* on a host must fail closed while this is
-    // false. It reads `manifest_synced`, never `enabled_hosts` being non-empty:
-    // an instance may legitimately disable every host, and that empty list is a
-    // real answer, not a missing one.
-    pub hosts_gated: bool,
-    // Why: folded from the very verdicts in `host_apps`, so the summary card and the
-    // rows cannot disagree.
-    pub agent_fleet: AgentFleets,
-    pub agents_onboarded: bool,
-    pub first_run: crate::gui::first_run::serde::FirstRunPayload<'a>,
-}
-
-#[derive(Serialize)]
-#[expect(
-    clippy::struct_excessive_bools,
-    reason = "wire payload of independent per-host facts the GUI renders verbatim"
-)]
-pub(crate) struct HostEntryPayload<'a> {
-    pub id: &'a str,
-    pub display_name: &'a str,
-    pub kind: HostKind,
-    pub description: &'a str,
-    pub icon: &'a str,
-    pub config_format: ConfigFormat,
-    pub download_url: &'a str,
-    pub install_action_label: &'a str,
-    pub can_open: bool,
-    pub probe_in_flight: bool,
-    pub enabled: bool,
-    pub last_generated_profile: Option<&'a GeneratedProfile>,
-    pub health: Option<HostHealthPayload<'a>>,
-    pub compatible_models: Vec<String>,
-    pub models_checked: bool,
-    pub compatible_models_available: bool,
-    pub unconfigured_providers: Vec<String>,
-    pub model_protocols: Vec<String>,
-    pub model_protocols_overridden: bool,
-    pub surface: AgentSurface,
-    pub verdict: AgentVerdict,
-}
+use crate::integration::host_app::{ConfigFormat, HostKind};
+pub(crate) use crate::wire::hosts::{
+    HostEntryPayload, HostHealthPayload, HostsPayload, ProxyPayload,
+};
 
 fn build_entry<'a>(
     snap: &'a AppStateSnapshot,

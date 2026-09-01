@@ -8,11 +8,11 @@ use std::path::Path;
 use serde_json::json;
 
 use crate::gui::events::ReplyId;
-use crate::gui::ipc::{BridgeError, ErrorCode, ErrorScope, IpcReplyPayload};
 use crate::gui::{GuiApp, emit, window};
 use crate::ids::HostId;
 use crate::integration::find_host_by_id;
 use crate::integration::host_app::ProfileRemoval;
+use crate::wire::ipc::{BridgeError, ErrorCode, ErrorScope, IpcReplyPayload};
 
 pub(crate) fn on_uninstall(app: &GuiApp, host_id: &HostId, reply_to: ReplyId) {
     let result = find_host_by_id(host_id.as_str()).map_or_else(

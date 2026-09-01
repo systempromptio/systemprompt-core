@@ -12,6 +12,8 @@ use super::agent_health::{AgentState, AgentVerdict};
 /// How the fleet as a whole reads.
 #[derive(Debug, Clone, Copy, Default, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case")]
+#[cfg_attr(feature = "ts-export", derive(ts_rs::TS))]
+#[cfg_attr(feature = "ts-export", ts(export, export_to = "web/js/types/"))]
 pub enum FleetState {
     Ok,
     Warn,
@@ -23,6 +25,8 @@ pub enum FleetState {
 /// The one-line summary code for the fleet — also the FTL key suffix.
 #[derive(Debug, Clone, Copy, Default, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case")]
+#[cfg_attr(feature = "ts-export", derive(ts_rs::TS))]
+#[cfg_attr(feature = "ts-export", ts(export, export_to = "web/js/types/"))]
 pub enum FleetHeadline {
     AllWorking,
     NeedsAttention,
@@ -33,6 +37,8 @@ pub enum FleetHeadline {
 }
 
 #[derive(Debug, Clone, Copy, Default, Serialize)]
+#[cfg_attr(feature = "ts-export", derive(ts_rs::TS))]
+#[cfg_attr(feature = "ts-export", ts(export, export_to = "web/js/types/"))]
 pub struct AgentFleetSummary {
     pub total: usize,
     pub working: usize,
@@ -96,6 +102,8 @@ impl AgentFleetSummary {
 
 /// Both scopes the GUI needs: every enabled agent, and only those set up here.
 #[derive(Debug, Clone, Copy, Default, Serialize)]
+#[cfg_attr(feature = "ts-export", derive(ts_rs::TS))]
+#[cfg_attr(feature = "ts-export", ts(export, export_to = "web/js/types/"))]
 pub struct AgentFleets {
     pub all: AgentFleetSummary,
     pub set_up: AgentFleetSummary,

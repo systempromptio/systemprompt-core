@@ -15,6 +15,8 @@ use serde::Serialize;
 use crate::verdict::{Tone, Verdict};
 
 #[derive(Debug, Clone, Serialize, Default)]
+#[cfg_attr(feature = "ts-export", derive(ts_rs::TS))]
+#[cfg_attr(feature = "ts-export", ts(export, export_to = "web/js/types/"))]
 pub struct ProxyHealth {
     pub url: Option<String>,
     pub state: ProxyProbeState,
@@ -26,6 +28,8 @@ pub struct ProxyHealth {
 
 #[derive(Debug, Clone, Copy, Serialize, Default, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case")]
+#[cfg_attr(feature = "ts-export", derive(ts_rs::TS))]
+#[cfg_attr(feature = "ts-export", ts(export, export_to = "web/js/types/"))]
 pub enum ProxyProbeState {
     #[default]
     Unknown,

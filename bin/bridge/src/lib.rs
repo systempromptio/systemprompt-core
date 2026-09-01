@@ -40,12 +40,6 @@ pub mod i18n;
 pub mod ids;
 pub mod install;
 pub mod integration;
-#[cfg(all(
-    feature = "ts-export",
-    not(any(target_os = "windows", target_os = "macos"))
-))]
-#[path = "gui/ipc.rs"]
-pub mod ipc_types;
 pub mod mcp_registry;
 pub mod obs;
 pub mod probe_cache;
@@ -65,6 +59,7 @@ pub mod web_assets;
 pub mod window_state;
 #[cfg(target_os = "windows")]
 pub(crate) mod winproc;
+pub mod wire;
 
 use std::process::ExitCode;
 

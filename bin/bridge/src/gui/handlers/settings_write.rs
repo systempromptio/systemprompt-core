@@ -8,8 +8,8 @@ use serde_json::{Value, json};
 
 use crate::gui::error::GuiError;
 use crate::gui::events::ReplyId;
-use crate::gui::ipc::IpcReplyPayload;
 use crate::gui::{GuiApp, emit};
+use crate::wire::ipc::IpcReplyPayload;
 use crate::{config, install, update};
 
 pub(crate) fn on_settings_read(app: &GuiApp, reply_to: ReplyId) {
@@ -27,7 +27,7 @@ pub(crate) fn on_settings_write(app: &mut GuiApp, key: &str, value: &Value, repl
     };
     let payload = match result {
         Ok(()) => IpcReplyPayload::ok(current(&app.ctx.schedule)),
-        Err(e) => IpcReplyPayload::err(crate::gui::ipc::BridgeError::internal(e.to_string())),
+        Err(e) => IpcReplyPayload::err(crate::wire::ipc::BridgeError::internal(e.to_string())),
     };
     emit::send_reply_payload(app, id, &payload);
 }

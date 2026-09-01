@@ -13,9 +13,9 @@ use crate::gui::GuiApp;
 use crate::gui::error::{GuiError, GuiResult};
 use crate::gui::events::{ReplyId, UiEvent};
 use crate::gui::hosts::events::HostUiEvent;
-use crate::gui::ipc::{BridgeError, ErrorCode, ErrorScope};
 use crate::ids::HostId;
 use crate::integration::find_host_by_id;
+use crate::wire::ipc::{BridgeError, ErrorCode, ErrorScope};
 
 use super::finish;
 

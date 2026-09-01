@@ -12,7 +12,6 @@ pub mod first_run;
 pub mod handlers;
 
 pub mod hosts;
-pub mod ipc;
 pub mod ipc_runtime;
 pub mod menu;
 pub mod notify;

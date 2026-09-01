@@ -24,6 +24,8 @@ pub(crate) struct PluginApplyOutcome {
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
+#[cfg_attr(feature = "ts-export", derive(ts_rs::TS))]
+#[cfg_attr(feature = "ts-export", ts(export, export_to = "web/js/types/"))]
 pub struct HostFailure {
     pub host_id: String,
     pub error: String,

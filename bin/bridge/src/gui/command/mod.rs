@@ -11,7 +11,7 @@ use serde_json::Value;
 
 use crate::gui::GuiApp;
 use crate::gui::events::{ReplyId, UiEvent};
-use crate::gui::ipc::{BridgeError, ErrorCode, ErrorScope, IpcReplyPayload};
+use crate::wire::ipc::{BridgeError, ErrorCode, ErrorScope, IpcReplyPayload};
 
 use general::{
     auth_dispatch, diagnostics_dispatch, gateway_dispatch, meta_dispatch, sync_dispatch,

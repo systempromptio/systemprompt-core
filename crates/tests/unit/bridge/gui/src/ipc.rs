@@ -1,5 +1,5 @@
 use serde_json::{Value, json};
-use systemprompt_bridge::gui::ipc::{
+use systemprompt_bridge::wire::ipc::{
     BridgeError, ErrorCode, ErrorScope, IpcReplyPayload, emit_script, reply_script,
 };
 

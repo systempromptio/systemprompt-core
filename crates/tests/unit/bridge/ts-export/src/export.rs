@@ -1,9 +1,5 @@
-#[cfg(any(target_os = "windows", target_os = "macos"))]
-use systemprompt_bridge::gui::ipc::{
-    BridgeError, ErrorCode, ErrorScope, IpcReplyPayload, IpcRequest,
-};
-#[cfg(not(any(target_os = "windows", target_os = "macos")))]
-use systemprompt_bridge::ipc_types::{
+use systemprompt_bridge::wire::StatePayload;
+use systemprompt_bridge::wire::ipc::{
     BridgeError, ErrorCode, ErrorScope, IpcReplyPayload, IpcRequest,
 };
 use ts_rs::{Config, TS};
@@ -23,4 +19,5 @@ fn export_bindings() {
     ErrorCode::export_all(&cfg).expect("export ErrorCode");
     IpcRequest::export_all(&cfg).expect("export IpcRequest");
     IpcReplyPayload::export_all(&cfg).expect("export IpcReplyPayload");
+    StatePayload::export_all(&cfg).expect("export StatePayload and everything it carries");
 }

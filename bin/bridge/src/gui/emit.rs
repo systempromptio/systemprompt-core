@@ -9,7 +9,7 @@ use serde_json::{Value, json};
 
 use crate::gui::GuiApp;
 use crate::gui::events::UiEvent;
-use crate::gui::ipc::{self, BridgeError, IpcReplyPayload};
+use crate::wire::ipc::{self, BridgeError, IpcReplyPayload};
 
 pub(crate) fn send_emit(app: &GuiApp, channel: &str, payload: &Value) {
     let script = ipc::emit_script(channel, payload);

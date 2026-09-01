@@ -19,6 +19,8 @@ use serde::Serialize;
 /// How a state reads, ordered so that `max` is "worst".
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize)]
 #[serde(rename_all = "kebab-case")]
+#[cfg_attr(feature = "ts-export", derive(ts_rs::TS))]
+#[cfg_attr(feature = "ts-export", ts(export, export_to = "web/js/types/"))]
 pub enum Tone {
     Ok,
     Unknown,
@@ -44,6 +46,8 @@ impl Tone {
 /// `C` is the state enum itself, so the code the front end looks up is the
 /// one serde already spells — there is no second list of names to drift.
 #[derive(Debug, Clone, Copy, Serialize)]
+#[cfg_attr(feature = "ts-export", derive(ts_rs::TS))]
+#[cfg_attr(feature = "ts-export", ts(export, export_to = "web/js/types/"))]
 pub struct Verdict<C> {
     pub tone: Tone,
     pub code: C,

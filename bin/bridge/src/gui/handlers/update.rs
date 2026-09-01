@@ -9,9 +9,9 @@ use serde_json::{Value, json};
 
 use crate::gui::error::GuiError;
 use crate::gui::events::{ReplyId, UiEvent};
-use crate::gui::ipc::{BridgeError, ErrorCode, ErrorScope, IpcReplyPayload};
 use crate::gui::{GuiApp, emit};
 use crate::update::{self, UpdateUiState};
+use crate::wire::ipc::{BridgeError, ErrorCode, ErrorScope, IpcReplyPayload};
 use systemprompt_identifiers::SessionId;
 
 #[tracing::instrument(level = "info", skip(app))]

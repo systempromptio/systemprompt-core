@@ -23,6 +23,7 @@ package-lock.json
 
 # TypeScript
 *.ts
+!bin/bridge/bindings/web/js/types/*.ts
 *.tsx
 tsconfig.json
 tsconfig.*.json

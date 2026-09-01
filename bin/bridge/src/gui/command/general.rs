@@ -6,9 +6,9 @@
 use serde_json::{Value, json};
 
 use crate::gui::events::{ReplyId, UiEvent};
-use crate::gui::ipc::{BridgeError, ErrorCode, ErrorScope};
 use crate::gui::state::CancelScope;
 use crate::gui::{GuiApp, server_json};
+use crate::wire::ipc::{BridgeError, ErrorCode, ErrorScope};
 
 use super::args::{
     CancelArgs, GatewaySetArgs, LoginArgs, McpProbeArgs, OpenExternalUrlArgs, RecentArgs,

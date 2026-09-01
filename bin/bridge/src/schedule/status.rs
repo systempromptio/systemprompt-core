@@ -13,6 +13,8 @@ use std::sync::RwLock;
 /// and guessing is how it got there.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 #[serde(rename_all = "kebab-case")]
+#[cfg_attr(feature = "ts-export", derive(ts_rs::TS))]
+#[cfg_attr(feature = "ts-export", ts(export, export_to = "web/js/types/"))]
 pub enum ScheduleStatus {
     Installed,
     NotInstalled,

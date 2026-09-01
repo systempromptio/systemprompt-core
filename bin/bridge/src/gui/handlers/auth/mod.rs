@@ -11,9 +11,9 @@ use crate::auth::secret::Secret;
 use crate::auth::setup;
 use crate::gui::error::GuiError;
 use crate::gui::events::{ReplyId, UiEvent};
-use crate::gui::ipc::{BridgeError, ErrorCode, ErrorScope};
 use crate::gui::state::CancelScope;
 use crate::gui::{GuiApp, emit};
+use crate::wire::ipc::{BridgeError, ErrorCode, ErrorScope};
 
 mod session;
 
@@ -234,10 +234,10 @@ fn finish_unit(app: &GuiApp, result: Result<(), BridgeError>, reply_to: ReplyId)
         return;
     };
     let payload = match result {
-        Ok(()) => crate::gui::ipc::IpcReplyPayload::ok(json!({})),
+        Ok(()) => crate::wire::ipc::IpcReplyPayload::ok(json!({})),
         Err(err) => {
             emit::emit_error(app, &err);
-            crate::gui::ipc::IpcReplyPayload::err(err)
+            crate::wire::ipc::IpcReplyPayload::err(err)
         },
     };
     emit::send_reply_payload(app, id, &payload);

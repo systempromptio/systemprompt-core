@@ -30,6 +30,8 @@ use crate::verdict::Tone;
 /// is never probed, or a probe in flight — NOT evidence of absence.
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case")]
+#[cfg_attr(feature = "ts-export", derive(ts_rs::TS))]
+#[cfg_attr(feature = "ts-export", ts(export, export_to = "web/js/types/"))]
 pub enum AgentState {
     Working,
     Ready,
@@ -56,6 +58,8 @@ impl AgentState {
 /// install on this machine.
 #[derive(Debug, Clone, Serialize)]
 #[serde(tag = "code", rename_all = "kebab-case")]
+#[cfg_attr(feature = "ts-export", derive(ts_rs::TS))]
+#[cfg_attr(feature = "ts-export", ts(export, export_to = "web/js/types/"))]
 pub enum AgentReason {
     Governed { when_unix: Option<u64> },
     Awaiting,
@@ -73,6 +77,8 @@ pub enum AgentReason {
 /// The one button that fixes this state, if there is one.
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
 #[serde(tag = "code", rename_all = "kebab-case")]
+#[cfg_attr(feature = "ts-export", derive(ts_rs::TS))]
+#[cfg_attr(feature = "ts-export", ts(export, export_to = "web/js/types/"))]
 pub enum AgentAction {
     Download,
     Repair,
@@ -88,6 +94,8 @@ pub enum AgentAction {
 /// gateway-enabled with no local profile — it syncs, it does not install.
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case")]
+#[cfg_attr(feature = "ts-export", derive(ts_rs::TS))]
+#[cfg_attr(feature = "ts-export", ts(export, export_to = "web/js/types/"))]
 pub enum AgentSurface {
     LocalProfile,
     SyncOnly,
@@ -101,6 +109,8 @@ pub enum AgentSurface {
 /// `is_running` is the raw process-table fact — the app is open — and says
 /// nothing about whether it is configured, so it is never the headline.
 #[derive(Debug, Clone, Serialize)]
+#[cfg_attr(feature = "ts-export", derive(ts_rs::TS))]
+#[cfg_attr(feature = "ts-export", ts(export, export_to = "web/js/types/"))]
 pub struct AgentVerdict {
     pub state: AgentState,
     pub tone: Tone,
@@ -131,8 +141,6 @@ pub struct HostModelViewRef<'a> {
     pub unconfigured_providers: &'a [String],
 }
 
-// Why: `HostModelView` only exists where a GUI is built.
-#[cfg(any(target_os = "macos", target_os = "windows"))]
 impl<'a> From<&'a crate::integration::host_app::HostModelView> for HostModelViewRef<'a> {
     fn from(v: &'a crate::integration::host_app::HostModelView) -> Self {
         Self {

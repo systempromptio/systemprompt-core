@@ -17,8 +17,8 @@ pub(crate) use profile::{
 };
 
 use crate::gui::events::ReplyId;
-use crate::gui::ipc::{BridgeError, IpcReplyPayload};
 use crate::gui::{GuiApp, emit};
+use crate::wire::ipc::{BridgeError, IpcReplyPayload};
 
 pub(super) fn finish(
     app: &GuiApp,

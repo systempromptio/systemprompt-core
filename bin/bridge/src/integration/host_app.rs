@@ -69,6 +69,8 @@ pub struct HostAppSnapshot {
 }
 
 #[derive(Debug, Clone, Serialize)]
+#[cfg_attr(feature = "ts-export", derive(ts_rs::TS))]
+#[cfg_attr(feature = "ts-export", ts(export, export_to = "web/js/types/"))]
 pub struct GeneratedProfile {
     pub path: String,
     pub bytes: usize,
@@ -78,6 +80,8 @@ pub struct GeneratedProfile {
 
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case")]
+#[cfg_attr(feature = "ts-export", derive(ts_rs::TS))]
+#[cfg_attr(feature = "ts-export", ts(export, export_to = "web/js/types/"))]
 pub enum HostKind {
     DesktopApp,
     CliTool,
@@ -85,6 +89,8 @@ pub enum HostKind {
 
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
+#[cfg_attr(feature = "ts-export", derive(ts_rs::TS))]
+#[cfg_attr(feature = "ts-export", ts(export, export_to = "web/js/types/"))]
 pub enum ConfigFormat {
     Json,
     Toml,
@@ -164,7 +170,6 @@ pub trait HostApp: Send + Sync + 'static {
 
 /// `checked` is false when there was no provider health to evaluate
 /// (distinguishes "nothing usable" from "not yet checked").
-#[cfg(any(target_os = "macos", target_os = "windows"))]
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct HostModelView {
     pub compatible_models: Vec<String>,
@@ -173,7 +178,6 @@ pub struct HostModelView {
     pub unconfigured_providers: Vec<String>,
 }
 
-#[cfg(any(target_os = "macos", target_os = "windows"))]
 #[must_use]
 pub fn host_model_view(
     health: &[crate::gateway::types::ProviderHealth],
@@ -203,7 +207,6 @@ pub fn host_model_view(
     view
 }
 
-#[cfg(any(target_os = "macos", target_os = "windows"))]
 #[must_use]
 pub fn effective_surfaces(
     host_id: &str,
@@ -220,7 +223,6 @@ pub fn effective_surfaces(
     )
 }
 
-#[cfg(any(target_os = "macos", target_os = "windows"))]
 #[must_use]
 pub fn has_surface_override(host_id: &str, overrides: &BTreeMap<String, Vec<String>>) -> bool {
     overrides.contains_key(host_id)

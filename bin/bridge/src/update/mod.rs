@@ -58,6 +58,8 @@ impl UpdateStatus {
 /// so it rides the existing `state.changed` event.
 #[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
 #[serde(tag = "phase", rename_all = "kebab-case")]
+#[cfg_attr(feature = "ts-export", derive(ts_rs::TS))]
+#[cfg_attr(feature = "ts-export", ts(export, export_to = "web/js/types/"))]
 pub enum UpdateUiState {
     #[default]
     Unknown,

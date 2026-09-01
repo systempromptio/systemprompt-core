@@ -9,6 +9,8 @@ use serde::Serialize;
 use crate::verdict::{Tone, Verdict};
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+#[cfg_attr(feature = "ts-export", derive(ts_rs::TS))]
+#[cfg_attr(feature = "ts-export", ts(export, export_to = "web/js/types/"))]
 pub struct McpTool {
     pub name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -16,6 +18,8 @@ pub struct McpTool {
 }
 
 #[derive(Debug, Clone, Serialize)]
+#[cfg_attr(feature = "ts-export", derive(ts_rs::TS))]
+#[cfg_attr(feature = "ts-export", ts(export, export_to = "web/js/types/"))]
 pub struct McpServerAuth {
     pub id: String,
     pub url: String,
@@ -24,12 +28,15 @@ pub struct McpServerAuth {
     pub http_status: Option<u16>,
     pub latency_ms: Option<u64>,
     pub error: Option<String>,
+    #[cfg_attr(feature = "ts-export", ts(type = "string | null"))]
     pub session_id: Option<crate::ids::McpSessionId>,
     pub probed_at_unix: u64,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Default, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case")]
+#[cfg_attr(feature = "ts-export", derive(ts_rs::TS))]
+#[cfg_attr(feature = "ts-export", ts(export, export_to = "web/js/types/"))]
 pub enum McpAuthState {
     #[default]
     Unknown,

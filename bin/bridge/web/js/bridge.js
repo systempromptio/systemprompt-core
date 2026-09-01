@@ -1,6 +1,7 @@
 /** @typedef {import("./types/BridgeError").BridgeError} BridgeError */
 /** @typedef {import("./types/IpcReplyPayload").IpcReplyPayload} IpcReplyPayload */
 /** @typedef {import("./types/IpcRequest").IpcRequest} IpcRequest */
+/** @typedef {import("./types/StatePayload").StatePayload} StatePayload */
 
 let nextId = 1;
 
@@ -52,6 +53,7 @@ export function subscribe(channel, cb) {
 export const bridge = {
   invoke,
   subscribe,
+  /** @returns {Promise<StatePayload>} */
   stateSnapshot:        ()                  => invoke("state.snapshot"),
   gatewaySet:           (url)               => invoke("gateway.set", { url }),
   gatewayProbe:         ()                  => invoke("gateway.probe"),

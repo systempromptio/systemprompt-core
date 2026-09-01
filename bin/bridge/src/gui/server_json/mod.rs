@@ -3,26 +3,25 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use serde::Serialize;
 use serde_json::{Value, json};
 
 mod payloads;
 
 use payloads::{
-    CachedTokenPayload, GatewayStatusPayload, McpServerAuthPayload, ProxyStatsPayload,
-    UpdatePayload, ValidationPayload, VerifiedIdentityPayload, mcp_servers_payload,
+    ProxyStatsPayload, UpdatePayload, ValidationPayload, cached_token_payload,
+    gateway_status_payload, mcp_servers_payload, verified_identity_payload,
 };
 
-use crate::gui::state::{AppStateSnapshot, HealthCode, IdentityCode, OverallCode, TokenCode};
-use crate::verdict::{Tone, Verdict};
+use crate::gui::state::AppStateSnapshot;
+use crate::wire::StatePayload;
 
 pub fn snapshot_value(snap: &AppStateSnapshot, proxy: &crate::proxy::ProxyHandle) -> Value {
-    serde_json::to_value(StatePayload::build(snap, proxy)).unwrap_or(Value::Null)
+    serde_json::to_value(state_payload(snap, proxy)).unwrap_or(Value::Null)
 }
 
 pub fn identity_value(snap: &AppStateSnapshot) -> Value {
     snap.verified_identity.as_ref().map_or(Value::Null, |v| {
-        serde_json::to_value(VerifiedIdentityPayload::from(v)).unwrap_or(Value::Null)
+        serde_json::to_value(verified_identity_payload(v)).unwrap_or(Value::Null)
     })
 }
 
@@ -50,50 +49,12 @@ pub fn proxy_stats_value(proxy: &crate::proxy::ProxyHandle) -> Value {
     serde_json::to_value(ProxyStatsPayload::current(proxy)).unwrap_or(Value::Null)
 }
 
-#[derive(Serialize)]
-struct StatePayload<'a> {
-    gateway_url: &'a str,
-    config_file: &'a str,
-    pat_file: &'a str,
-    config_present: bool,
-    pat_present: bool,
-    plugins_dir: Option<&'a str>,
-    last_sync_summary: Option<&'a str>,
-    last_sync_report: Option<&'a crate::sync::SyncSummary>,
-    skill_count: Option<usize>,
-    agent_count: Option<usize>,
-    plugin_count: Option<usize>,
-    malformed_plugin_count: Option<usize>,
-    last_validation: Option<ValidationPayload<'a>>,
-    last_validation_at_unix: Option<u64>,
-    health: Verdict<HealthCode>,
-    provider_health: &'a [crate::gateway::types::ProviderHealth],
-    sync_in_flight: bool,
-    cached_token: Option<CachedTokenPayload>,
-    token: Verdict<TokenCode>,
-    gateway_status: GatewayStatusPayload<'a>,
-    verified_identity: Option<VerifiedIdentityPayload<'a>>,
-    identity: Verdict<IdentityCode>,
-    cloud_tone: Tone,
-    overall: Verdict<OverallCode>,
-    signed_in: bool,
-    last_probe_at_unix: Option<u64>,
-    proxy_stats: ProxyStatsPayload,
-    mcp_auth: Vec<McpServerAuthPayload<'a>>,
-    mcp_auth_probe_in_flight: bool,
-    mcp_auth_tone: Tone,
-    update: UpdatePayload<'a>,
-
-    sign_in_label: &'static str,
-    sign_in_hint: &'static str,
-
-    #[serde(flatten)]
-    hosts: crate::gui::hosts::serde::HostsPayload<'a>,
-}
-
-impl<'a> StatePayload<'a> {
-    fn build(snap: &'a AppStateSnapshot, proxy: &crate::proxy::ProxyHandle) -> Self {
-        Self {
+pub fn state_payload<'a>(
+    snap: &'a AppStateSnapshot,
+    proxy: &crate::proxy::ProxyHandle,
+) -> StatePayload<'a> {
+    {
+        StatePayload {
             gateway_url: snap.gateway_url.as_str(),
             config_file: snap.config_file.as_str(),
             pat_file: snap.pat_file.as_str(),
@@ -111,13 +72,13 @@ impl<'a> StatePayload<'a> {
             health: snap.health_verdict(),
             provider_health: &snap.provider_health,
             sync_in_flight: snap.sync_in_flight,
-            cached_token: snap.cached_token.as_ref().map(CachedTokenPayload::from),
+            cached_token: snap.cached_token.as_ref().map(cached_token_payload),
             token: snap.token_verdict(),
-            gateway_status: GatewayStatusPayload::from(&snap.gateway_status),
+            gateway_status: gateway_status_payload(&snap.gateway_status),
             verified_identity: snap
                 .verified_identity
                 .as_ref()
-                .map(VerifiedIdentityPayload::from),
+                .map(verified_identity_payload),
             identity: snap.identity_verdict(),
             cloud_tone: snap.cloud_tone(),
             overall: snap.overall_verdict(),

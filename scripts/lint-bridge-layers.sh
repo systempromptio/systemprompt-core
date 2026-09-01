@@ -27,6 +27,7 @@ host_sync
 install
 integration
 sync
+wire
 gui
 dev_preview
 cli"

@@ -11,10 +11,10 @@ use crate::config;
 use crate::gui::error::{GuiError, GuiResult};
 use crate::gui::events::{ReplyId, UiEvent};
 use crate::gui::hosts::events::{HostUiEvent, ProbeCause};
-use crate::gui::ipc::{BridgeError, ErrorCode, ErrorScope};
 use crate::gui::{GuiApp, emit};
 use crate::ids::HostId;
 use crate::integration::{GeneratedProfile, ProfileGenInputs, find_host_by_id};
+use crate::wire::ipc::{BridgeError, ErrorCode, ErrorScope};
 
 use super::finish;
 

@@ -14,6 +14,7 @@
 - MCP servers on one screen. The marketplace's MCP detail shows the live auth verdict, who the server is authenticated as, the `tools/list` result with descriptions, both URLs, and a per-server re-check (`mcp.auth.probe { serverId }`); the Status pane's MCP card is a summary that links there. The listing no longer snapshots the tool list at build time, which is why it used to show only a path.
 - `just lint-bridge-layers` declares the bridge's module order and fails on any upward `crate::` reference. The bridge is one crate, so the repo's cargo-graph layer gate could not see it, and it had cycles: `integration ⇄ sync`, `integration ⇄ install`, `host_sync` naming every host, and a Codex installer raising a dialog through `gui`.
 - `just bridge-bindings-check` regenerates the ts-rs bindings into scratch and diffs them against `bindings/`; a variant renamed in Rust used to leave them stale with nothing to say so.
+- The whole GUI wire has a type. `StatePayload` and every payload it carries live in an unconditional `wire` module (`wire::{payloads, hosts, codes, first_run, ipc}`), so ts-rs exports them on Linux CI too — 47 bindings under `bindings/web/js/types/` instead of the five IPC envelope types, and `bridge-bindings-check` now covers the payload the front end is actually written against. `bridge.js` types `stateSnapshot()` as `Promise<StatePayload>` for editors. `gui::ipc` moved to `wire::ipc`; the Linux-only `ipc_types` alias is gone; `HostModelView` and the surface helpers are no longer GUI-gated.
 
 - The `comms-drain` hooks (`UserPromptSubmit`, `Stop`) are installed only when the governance-owning plugin sets `hooks.comms: true` in the manifest. They rode along with every governance owner before.
 
@@ -39,6 +40,7 @@
 
 ### Fixed
 
+- The ts-rs bindings under `bindings/web/js/types/` were never in git — the repository's blanket `*.ts` ignore swallowed them — so `bridge-bindings-check` had nothing committed to compare against. They are un-ignored and committed.
 - The Hermes host profile never routed anything. Verified against Hermes Agent 0.21.0: `model.base_url` is only consulted after `model.provider` selects a provider, and the profile left `provider` at its default `auto`, so Hermes answered "No LLM provider configured". The profile is now a named `providers:` entry selected by `model.provider`, which is how Hermes reaches any non-built-in endpoint.
 - `model.api_mode` was written as `openai`, which is not a value Hermes knows — its vocabulary is `chat_completions`, `codex_responses`, `anthropic_messages` and `bedrock_converse`. The key was silently discarded. The wire format the gateway serves is now named explicitly as `chat_completions`.
 - The loopback secret written to `HERMES_HOME/.env` was never read. Hermes host-gates its bare `OPENAI_API_KEY` fallback to openai.com and openai.azure.com, so a `127.0.0.1` endpoint resolved no credential and Hermes sent its `no-key-required` placeholder — which the proxy correctly refused with "bad loopback secret". The entry now carries `key_env`, so the secret stays in `.env` at 0600 and is still found.
